@@ -117,4 +117,11 @@ For a project like this to remain useful over time, community support is importa
 
 # Disclaimer
 
-This project does not contain or distribute VR mod files or any game files. It only helps users access and install publicly available VR mods from their original sources.
+This project does not contain or distribute VR mod files or any game files. It only helps users access and install publicly available VR mods from their original sources. 
+
+
+## License
+
+This project is licensed under the MIT License.
+
+This repository contains the hub code and release information only. VR mod files are not included and remain subject to their respective original authors, licenses, and distribution terms.
