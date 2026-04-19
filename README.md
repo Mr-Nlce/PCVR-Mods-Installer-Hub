@@ -118,7 +118,7 @@ However, not every game supported by Luke Ross's mods was available for testing,
 
 Feedback is appreciated!
 
-For a project like this to remain useful over time, community support is important. Game updates can break VR mods, which means the VR Mod Installer Hub may also require regular updates to remain accurate and functional.
+For a project like this to remain useful over time, community support is important. Game updates can break VR mods, which means the VR Mod Installer Hub may also require regular updates to remain accurate and functional. If you encounter any problems, please open an issue. For suggestions, feature requests, or game ideas, you can use the Discussions section.
 
 ---
 
