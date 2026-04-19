@@ -26,7 +26,10 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. Windows 10/11]
  - Games platform [Steam]
- - Version [e.g. 0.1.1]
+ - Game path and name of the games exe-file
+ - Hub version [e.g. 0.1.1]
+
+
 
 **Additional context**
 Add any other context about the problem here.
