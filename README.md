@@ -85,7 +85,7 @@ Another reason is that batch-based tools may be less likely to be incorrectly fl
 
 All included VR mod installers have been tested on my own PC.
 
-However, not every game supported by Luke Ross's mods was available for testing, since I do not own all of them. Because his game-specific info posts are currently not publicly available, I gathered the necessary information as carefully as possible from other posts and guides and added it to the corresponding setups. I would appreciate any feedback if something isn't working.
+However, not every game supported by Luke Ross's mods was available for testing, since I do not own all of them. Because the game-specific info posts are currently not publicly available, I gathered the information as carefully as possible from other posts and guides and added it to the corresponding setups. I would appreciate any feedback if something isn't working.
 
 ---
 
