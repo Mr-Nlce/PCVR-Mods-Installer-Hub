@@ -1,5 +1,11 @@
 # PCVR Mods Installer Hub
 
+<img width="878" height="732" alt="PCVR-mods-Hub" src="https://github.com/user-attachments/assets/3fcde624-a926-428e-b84e-73964009e9c9" />
+
+
+
+# Overview
+
 PCVR Mods Installer Hub is a batch-based tool designed to simplify the installation of publicly available VR mods for Steam games.
 
 It brings many PCVR mods together in one place and helps reduce the time and effort usually required to install them. For mods with simple installers, the Hub links directly to the original download pages. For mods that require additional setup, it uses custom installers that download the required files, automate as many steps as possible, and clearly guide the user through any remaining manual steps. The Hub contains an updater.
