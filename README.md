@@ -89,12 +89,12 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 - Subnautica: Below Zero (motion controls)
 - TLOU Part I
 - TLOU Part II
-- UEVR Deluxe (motion controls)
 - Uncharted: Legacy of Thieves
 - Valheim VR (motion controls)
 - Watch Dogs
 - Watch Dogs 2
 - Watch Dogs Legion
+- (UEVR Deluxe)
 
 Soon:
 - Yooka-Laylee VR
