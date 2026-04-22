@@ -15,91 +15,95 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 
 ## Supported games
 
+## Supported games
+
 <details>
-<summary>Show all currently listed titles (78)</summary>
+<summary>Show all currently listed titles (82)</summary>
 
-- 7 Days to Die VR (motion controls)
-- Alba VR
-- Alien: Isolation VR (motion controls)
-- Atomic Heart
-- Avatar: Frontiers of Pandora
-- Bendy VR (motion controls)
-- Crysis VR (motion controls)
-- Dark Souls II
-- Dark Souls III
-- Dark Souls Remastered
-- Death Stranding
-- Deep Rock Galactic VR (motion controls)
-- Devil May Cry 5 VR
-- Doom 3 BFG VR (motion controls)
-- Doom Eternal
-- Doom: The Dark Ages
-- Dredge VR (motion controls)
-- Elden Ring
-- Far Cry 4
-- Far Cry 5
-- Far Cry 6
-- Far Cry New Dawn
-- Far Cry Primal
-- Far Cry VR (motion controls)
-- FF VII Rebirth
-- FF VII Remake
-- Final Fantasy XIV VR (motion controls)
-- Firewatch VR (motion controls)
-- Garry's Mod VR (motion controls)
-- Ghost of Tsushima
-- Ghostwire: Tokyo
-- Grounded
-- Gunfire Reborn (motion controls)
-- Half-Life 2 VR (motion controls)
-- Half-Life VR (motion controls)
-- Halo CE VR (motion controls)
-- High on Life
-- HL2 VR Ep. One (motion controls)
-- HL2 VR Ep. Two (motion controls)
-- Hogwarts Legacy
-- Horizon Forbidden West
-- Horizon Zero Dawn
-- Horizon Zero Dawn Remastered
-- Indiana Jones: Great Circle
-- Kingdom Come: Deliverance II
-- Left 4 Dead 2 VR (motion controls)
-- Lethal Company VR (motion controls)
-- Life is Strange: BtS (motion controls)
-- Morrowind VR (motion controls)
-- Neon White VR (motion controls)
-- Outer Wilds VR (motion controls)
-- Portal 2 VR (motion controls)
-- Raft VR (motion controls)
-- RE Requiem (motion controls)
-- RE Village (motion controls)
-- Resident Evil 2R (motion controls)
-- Resident Evil 3R (motion controls)
-- Resident Evil 4R (motion controls)
-- Resident Evil 7 (motion controls)
-- Risk of Rain 2 (motion controls)
-- Slime Rancher VR (motion controls)
-- Spiderman 2
-- Spiderman Miles Morales
-- Spiderman Remastered
-- Stanley Parable VR (motion controls)
-- Star Wars Outlaws
-- Stray
-- Subnautica VR (motion controls)
-- Subnautica: Below Zero (motion controls)
-- TLOU Part I
-- TLOU Part II
-- Uncharted: Legacy of Thieves
-- Valheim VR (motion controls)
-- Watch Dogs
-- Watch Dogs 2
-- Watch Dogs Legion
-- (UEVR Deluxe)
-
-Soon:
-- Yooka-Laylee VR
+* 7 Days to Die VR (motion controls)
+* Alba VR
+* Alien: Isolation VR (motion controls)
+* Atomic Heart
+* Avatar: Frontiers of Pandora
+* Bendy VR (motion controls)
+* Crysis VR (motion controls)
+* Dark Souls II
+* Dark Souls III
+* Dark Souls Remastered
+* Death Stranding
+* Deep Rock Galactic VR (motion controls)
+* Devil May Cry 5 VR
+* Doom 3 BFG VR (motion controls)
+* Doom Eternal
+* Doom: The Dark Ages
+* Dredge VR (motion controls)
+* Elden Ring
+* Far Cry 4
+* Far Cry 5
+* Far Cry 6
+* Far Cry New Dawn
+* Far Cry Primal
+* Far Cry VR (motion controls)
+* FF VII Rebirth
+* FF VII Remake
+* Final Fantasy XIV VR (motion controls)
+* Firewatch VR (motion controls)
+* Garry's Mod VR (motion controls)
+* Ghost of Tsushima
+* Ghostwire: Tokyo
+* Grounded
+* Gunfire Reborn (motion controls)
+* Half-Life 2 VR (motion controls)
+* Half-Life VR (motion controls)
+* Halo CE VR (motion controls)
+* High on Life
+* HL2 VR Ep. One (motion controls)
+* HL2 VR Ep. Two (motion controls)
+* Hogwarts Legacy
+* Horizon Forbidden West
+* Horizon Zero Dawn
+* Horizon Zero Dawn Remastered
+* Indiana Jones: Great Circle
+* Kingdom Come: Deliverance II
+* Left 4 Dead 2 VR (motion controls)
+* Lethal Company VR (motion controls)
+* Life is Strange: BtS (motion controls)
+* Morrowind VR (motion controls)
+* Neon White VR (motion controls)
+* Outer Wilds VR (motion controls)
+* Outward Definitive Edition (motion controls)
+* Portal 2 VR (motion controls)
+* Raft VR (motion controls)
+* RE Requiem (motion controls)
+* RE Village (motion controls)
+* Resident Evil 2R (motion controls)
+* Resident Evil 3R (motion controls)
+* Resident Evil 4R (motion controls)
+* Resident Evil 7 (motion controls)
+* Risk of Rain 2 (motion controls)
+* Slime Rancher VR (motion controls)
+* Spiderman 2
+* Spiderman Miles Morales
+* Spiderman Remastered
+* Stanley Parable VR (motion controls)
+* Star Wars Outlaws
+* Starfield VR
+* Stray
+* Subnautica VR (motion controls)
+* Subnautica: Below Zero (motion controls)
+* TLOU Part I
+* TLOU Part II
+* Tormented Souls (motion controls)
+* Uncharted: Legacy of Thieves
+* Valheim VR (motion controls)
+* Watch Dogs
+* Watch Dogs 2
+* Watch Dogs Legion
+* Yooka-Laylee VR
+* (UEVR Easy Injector)
 
 </details>
+
 
 # Features
 
