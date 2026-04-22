@@ -6,7 +6,7 @@
 
 # Overview
 
-PCVR Mods Installer Hub is a batch-based tool designed to simplify the installation of publicly available VR mods for Steam games.
+PCVR Mods Installer Hub is a batch-based tool designed to simplify the installation of publicly available VR mods for PC games on Windows.
 
 It brings many PCVR mods together in one place and helps reduce the time and effort usually required to install them. For mods with simple installers, the Hub links directly to the original download pages. For mods that require additional setup, it uses custom installers that download the required files, automate as many steps as possible, and clearly guide the user through any remaining manual steps. The Hub contains an updater.
 
@@ -107,13 +107,13 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 
 # Features
 
-- Lists many publicly available VR mods for PCVR games
+- Lists many publicly available VR mods for PC games
 - Links directly to original download pages when a simple installer is available
 - Includes custom installers for mods that require additional setup
 - Automates installation steps wherever possible
 - Provides clear guidance for manual steps when needed
 - Includes a built-in updater to update directly from within the Hub
-- Detects supported Steam games installed on the system
+- Detects supported PC games installed on the system
 - Marks installed supported games in green
 - Shows **VR Installed** on a game tile when a VR mod is already installed
 - Allows reinstalling a VR mod by clicking the game tile again
@@ -132,8 +132,6 @@ For some mods, installation is simple with an installer and only requires access
 
 Other mods require multiple steps, additional files, or more complicated setup. For those, custom installers are included. These installers download the required files, perform every step that can be automated, and guide the user through anything that still needs to be done manually.
 
-At the moment, games must be installed through **Steam** in order to be detected correctly by the Hub.
-
 ---
 
 # Important Notes
@@ -141,7 +139,6 @@ At the moment, games must be installed through **Steam** in order to be detected
 - The Hub does **not** redistribute VR mods (or any game files)
 - All mod files are downloaded from their original sources
 - Download counts for mod creators still remain intact
-- Steam installation is currently required for game detection
 - If a VR mod is already installed but has issues, it can still be reinstalled through the Hub
 
 ---
