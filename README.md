@@ -16,7 +16,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (84)</summary>
+<summary>Show all currently listed titles (85)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -73,6 +73,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Outward Definitive Edition (motion controls)
 * Portal 2 VR (motion controls)
 * Raft VR (motion controls)
+* R.E.P.O. VR (motion controls)
 * RE Requiem (motion controls)
 * RE Village (motion controls)
 * Resident Evil 2R (motion controls)
