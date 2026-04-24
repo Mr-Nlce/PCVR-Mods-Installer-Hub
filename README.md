@@ -16,7 +16,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (82)</summary>
+<summary>Show all currently listed titles (84)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -54,6 +54,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Half-Life 2 VR (motion controls)
 * Half-Life VR (motion controls)
 * Halo CE VR (motion controls)
+* Hexen 2 VR (motion controls)
 * High on Life
 * HL2 VR Ep. One (motion controls)
 * HL2 VR Ep. Two (motion controls)
@@ -92,6 +93,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * TLOU Part I
 * TLOU Part II
 * Tormented Souls (motion controls)
+* Ultrakill VR (motion controls)
 * Uncharted: Legacy of Thieves
 * Valheim VR (motion controls)
 * Watch Dogs
