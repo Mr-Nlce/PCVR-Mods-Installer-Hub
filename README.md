@@ -17,7 +17,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (87)</summary>
+<summary>Show all currently listed titles (90)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -32,6 +32,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Dark Souls Remastered
 * Death Stranding
 * Deep Rock Galactic VR (motion controls)
+* Descenders
 * Devil May Cry 5 VR
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
@@ -85,6 +86,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Resident Evil 4R (motion controls)
 * Resident Evil 7 (motion controls)
 * Risk of Rain 2 (motion controls)
+* Road to Vostok (motion controls)
 * Slime Rancher VR (motion controls)
 * Spiderman 2
 * Spiderman Miles Morales
