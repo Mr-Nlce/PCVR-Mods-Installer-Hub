@@ -1,6 +1,7 @@
 # PCVR Mods Installer Hub
 
-<img width="878" height="732" alt="PCVR-mods-Hub" src="https://github.com/user-attachments/assets/3fcde624-a926-428e-b84e-73964009e9c9" />
+<img width="874" height="730" alt="PCVR-mods-Hub" src="https://github.com/user-attachments/assets/f25c313f-f44a-49fb-a623-abc8ed05327d" />
+
 
 
 
@@ -16,7 +17,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (85)</summary>
+<summary>Show all currently listed titles (87)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -25,6 +26,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Avatar: Frontiers of Pandora
 * Bendy VR (motion controls)
 * Crysis VR (motion controls)
+* Content Warning VR (motion controls)
 * Dark Souls II
 * Dark Souls III
 * Dark Souls Remastered
@@ -63,6 +65,8 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
 * Indiana Jones: Great Circle
+* Jedi Knight: Jedi Academy VR (motion controls)
+* Jedi Knight: Jedi Outcast VR (motion controls)
 * Kingdom Come: Deliverance II
 * Left 4 Dead 2 VR (motion controls)
 * Lethal Company VR (motion controls)
@@ -129,9 +133,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 
 The Hub is intended to make VR mod installation more accessible and as straightforward as possible.
 
-For some mods, installation is simple with an installer and only requires access to the correct download page. In those cases, the Hub provides direct links.
-
-Other mods require multiple steps, additional files, or more complicated setup. For those, custom installers are included. These installers download the required files, perform every step that can be automated, and guide the user through anything that still needs to be done manually.
+For some mods, installation is simple with an installer and only requires access to the correct download page. In those cases, the Hub provides direct links. Other mods require multiple steps, additional files, or more complicated setup. For those, custom installers are included. These installers download the required files, perform every step that can be automated, and guide the user through anything that still needs to be done manually.
 
 ---
 
