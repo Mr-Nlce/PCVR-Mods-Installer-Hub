@@ -17,7 +17,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (90)</summary>
+<summary>Show all currently listed titles (93)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -25,8 +25,11 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Atomic Heart
 * Avatar: Frontiers of Pandora
 * Bendy VR (motion controls)
-* Crysis VR (motion controls)
+* Black Mesa Source VR (motion controls)
+* Cloudpunk
+* Cloudpunk: City of Ghosts
 * Content Warning VR (motion controls)
+* Crysis VR (motion controls)
 * Dark Souls II
 * Dark Souls III
 * Dark Souls Remastered
