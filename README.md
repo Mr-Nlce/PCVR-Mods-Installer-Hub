@@ -1,6 +1,7 @@
 # PCVR Mods Installer Hub
 
-<img width="823" height="902" alt="PCVR-mods-Hub-p2" src="https://github.com/user-attachments/assets/8d3bc2a4-779c-4c63-8611-5483ffc60148" />
+<img width="843" height="732" alt="PCVR-mods-Hub-p5" src="https://github.com/user-attachments/assets/8286b5a7-8b64-45d7-bc93-eca006eb50a2" />
+
 
 
 
@@ -126,6 +127,11 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 </details>
 
 
+
+
+<img width="942" height="969" alt="PCVR-mods-Hub-p3" src="https://github.com/user-attachments/assets/dba1c74b-fdbb-428f-9808-1220ca06c501" />
+
+
 # Features
 
 - Lists many publicly available VR mods for PC games
@@ -181,6 +187,9 @@ Open the folder and run:
 **Start PCVR Mods-Hub**
 
 On first launch, a desktop shortcut `VR mods Hub` will automatically be created for future use.
+
+<img width="939" height="952" alt="PCVR-mods-Hub-p4" src="https://github.com/user-attachments/assets/e4004d27-640d-4aa6-9d50-89cac7da86ac" />
+
 
 ---
 
