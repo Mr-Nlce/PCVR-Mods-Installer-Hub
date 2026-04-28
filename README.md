@@ -17,11 +17,12 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (93)</summary>
+<summary>Show all currently listed titles (100)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
 * Alien: Isolation VR (motion controls)
+* Apollo Justice: Ace Attorney Trilogy
 * Atomic Heart
 * Avatar: Frontiers of Pandora
 * Bendy VR (motion controls)
@@ -40,6 +41,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
 * Doom: The Dark Ages
+* Dragon's Dogma 2
 * Dredge VR (motion controls)
 * Elden Ring
 * Far Cry 4
@@ -54,6 +56,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Firewatch VR (motion controls)
 * Garry's Mod VR (motion controls)
 * Ghost of Tsushima
+* Ghosts 'n Goblins Resurrection
 * Ghostwire: Tokyo
 * Grounded
 * Gunfire Reborn (motion controls)
@@ -72,14 +75,20 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
 * Kingdom Come: Deliverance II
+* Kunitsu-Gami: Path of the Goddess
 * Left 4 Dead 2 VR (motion controls)
 * Lethal Company VR (motion controls)
 * Life is Strange: BtS (motion controls)
+* Monster Hunter Rise
+* Monster Hunter Stories 3
+* Monster Hunter Wilds
 * Morrowind VR (motion controls)
 * Neon White VR (motion controls)
+* Onimusha 2: Samurai's Destiny
 * Outer Wilds VR (motion controls)
 * Outward Definitive Edition (motion controls)
 * Portal 2 VR (motion controls)
+* Pragmata
 * Raft VR (motion controls)
 * R.E.P.O. VR (motion controls)
 * RE Requiem (motion controls)
@@ -98,6 +107,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Star Wars Outlaws
 * Starfield VR
 * Stray
+* Street Fighter 6
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
 * TLOU Part I
@@ -111,6 +121,7 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 * Watch Dogs Legion
 * Yooka-Laylee VR
 * (UEVR Easy Injector)
+
 
 </details>
 
