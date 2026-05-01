@@ -10,9 +10,7 @@
 
 # Overview
 
-PCVR Mods Installer Hub is a batch-based portable tool designed to simplify the installation of publicly available VR mods for PC games on Windows. It brings many PCVR mods together in one place and helps reduce the time and effort usually required to install them. For mods with simple installers, the Hub links directly to the original download pages. For mods that require additional setup, it uses custom installers that download the required files, automate as many steps as possible, and clearly guide the user through any remaining manual steps. The Hub contains an updater.
-
-The Hub does **not** include any VR mod files itself. All files are downloaded from their original sources.
+PCVR Mods Installer Hub is a batch-based portable tool designed to make installing publicly available VR mods for PC games on Windows easier, faster, and more straightforward. It brings many PCVR mods together in one place, provides custom installers for more complex setups, and includes a built-in updater.
 
 
 ## Supported games
@@ -145,6 +143,11 @@ The Hub does **not** include any VR mod files itself. All files are downloaded f
 - Shows **VR Installed** on a game tile when a VR mod is already installed
 - Allows reinstalling a VR mod by clicking the game tile again
 - Includes a search function to quickly find a specific game
+- Shows a small game preview image when hovering over a game tile
+- Allows adjusting the size of the game tiles
+- Includes a library page with vertical Steam-style cover images for all listed games
+- Allows adjusting the size of the library cover images
+- Includes game detail pages with system requirements, similar games, and game-specific information
 - Uses colored markers to indicate whether a mod supports:
   - motion controls
   - gamepad input
@@ -207,26 +210,32 @@ Another reason is that batch-based tools may be less likely to be incorrectly fl
 
 All included VR mod installers have been tested on my own PC.
 
-However, not every game supported by Luke Ross's mods was available for testing, since I do not own all of them. Because the game-specific info posts are currently not publicly available, I gathered the information as carefully as possible from other posts and guides and added it to the corresponding setups. I would appreciate any feedback if something isn't working.
+However, not every game supported by REFramework and Luke Ross's mods was available for testing, since I do not own all of them. Because the game-specific info posts are currently not publicly available, I gathered the information as carefully as possible from other posts and guides and added it to the corresponding setups. I would appreciate any feedback if something isn't working.
 
 ---
 
 # Interface Overview
 
 - **Search bar**  
-  Located in the top right corner and used to find specific games quickly
+  Located in the top right corner and used to find specific games quickly.
 
 - **Check Installed**  
-  Scans for supported Steam games that are already installed and marks them in green
+  Scans for supported games that are already installed and marks them in green.
 
 - **Game tiles**  
-  Show the available VR mod status for each game
+  Show the available VR mod status for each game. Hovering over a game tile displays a small preview image of the game. The tile size can be adjusted.
 
 - **VR Installed**  
-  Displayed on a game tile when a VR mod has already been installed
+  Displayed on a game tile when a VR mod has already been installed.
 
 - **Colored markers**  
-  Indicate whether a mod supports motion controls or gamepad input
+  Indicate whether a mod supports motion controls or gamepad input.
+
+- **Library**  
+  Opens a library page with vertical Steam-style cover images for all listed games. The cover size can be adjusted.
+
+- **Game detail pages**  
+  Each game has its own detail page with system requirements, similar games, and game-specific information.
 
 ---
 
@@ -240,11 +249,10 @@ For a project like this to remain useful over time, community support is importa
 
 # Disclaimer
 
-This project does not contain or distribute VR mod files or any game files. It only helps users access and install publicly available VR mods from their original sources. 
-
+This project does not contain or distribute VR mod files or game files. It only helps users access publicly available VR mods from their original sources.
 
 ## License
 
 This project is licensed under the MIT License.
 
-This repository contains the hub code and release information only. VR mod files are not included and remain subject to their respective original authors, licenses, and distribution terms.
+VR mods remain subject to their respective original authors, licenses, and distribution terms.
