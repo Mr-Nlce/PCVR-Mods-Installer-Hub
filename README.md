@@ -16,7 +16,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (101)</summary>
+<summary>Show all currently listed titles (102)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -82,6 +82,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Monster Hunter Stories 3
 * Monster Hunter Wilds
 * Morrowind VR (motion controls)
+* Moto Rush Reborn VR (motion controls)
 * Neon White VR (motion controls)
 * Onimusha 2: Samurai's Destiny
 * Outer Wilds VR (motion controls)
