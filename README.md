@@ -1,6 +1,7 @@
 # PCVR Mods Installer Hub
 
-<img width="843" height="732" alt="PCVR-mods-Hub-p5" src="https://github.com/user-attachments/assets/8286b5a7-8b64-45d7-bc93-eca006eb50a2" />
+<img width="842" height="899" alt="PCVR-mods-Hub-n" src="https://github.com/user-attachments/assets/2f8ad312-9b9f-469b-af85-91461804cca6" />
+
 
 
 
@@ -16,7 +17,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (102)</summary>
+<summary>Show all currently listed titles (111)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -34,6 +35,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Dark Souls III
 * Dark Souls Remastered
 * Death Stranding
+* Decimate Drive VR (motion controls)
 * Deep Rock Galactic VR (motion controls)
 * Descenders
 * Devil May Cry 5 VR
@@ -42,6 +44,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Doom: The Dark Ages
 * Dragon's Dogma 2
 * Dredge VR (motion controls)
+* Dusk HD (DLC) VR (motion controls)
 * Elden Ring
 * Far Cry 4
 * Far Cry 5
@@ -70,6 +73,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Horizon Forbidden West
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
+* Hypogea
 * Indiana Jones: Great Circle
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
@@ -78,9 +82,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Left 4 Dead 2 VR (motion controls)
 * Lethal Company VR (motion controls)
 * Life is Strange: BtS (motion controls)
+* Lunistice
 * Monster Hunter Rise
 * Monster Hunter Stories 3
 * Monster Hunter Wilds
+* Moros Protocol VR (motion controls)
 * Morrowind VR (motion controls)
 * Moto Rush Reborn VR (motion controls)
 * Neon White VR (motion controls)
@@ -99,6 +105,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Resident Evil 7 (motion controls)
 * Risk of Rain 2 (motion controls)
 * Road to Vostok (motion controls)
+* Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
 * Spiderman 2
@@ -109,13 +116,16 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Starfield VR
 * Stray
 * Street Fighter 6
+* StreetDog BMX
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
+* Super Polygon Grand Prix
 * TLOU Part I
 * TLOU Part II
 * Tormented Souls (motion controls)
 * Ultrakill VR (motion controls)
 * Uncharted: Legacy of Thieves
+* Unmourned VR (motion controls)
 * Valheim VR (motion controls)
 * Watch Dogs
 * Watch Dogs 2
@@ -129,7 +139,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 
 
-<img width="942" height="969" alt="PCVR-mods-Hub-p3" src="https://github.com/user-attachments/assets/dba1c74b-fdbb-428f-9808-1220ca06c501" />
+<img width="949" height="941" alt="PCVR-mods-Hub-p3" src="https://github.com/user-attachments/assets/812e4ad6-1857-424e-a0fc-2f12e7af8cc1" />
+
 
 
 # Features
@@ -146,6 +157,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 - Allows reinstalling a VR mod by clicking the game tile again
 - Includes a search function to quickly find a specific game
 - Shows a small game preview image when hovering over a game tile
+- Includes an Explore page to discover titles based on your PC power and genre
 - Allows adjusting the size of the game tiles
 - Includes a library page with vertical Steam-style cover images for all listed games
 - Allows adjusting the size of the library cover images
@@ -154,7 +166,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
   - motion controls
   - gamepad input
 
----
+#
 
 # How It Works
 
@@ -193,7 +205,11 @@ Open the folder and run:
 
 On first launch, a desktop shortcut `VR mods Hub` will automatically be created for future use.
 
-<img width="939" height="952" alt="PCVR-mods-Hub-p4" src="https://github.com/user-attachments/assets/e4004d27-640d-4aa6-9d50-89cac7da86ac" />
+---
+
+<img width="965" height="863" alt="PCVR-mods-Hub-p5" src="https://github.com/user-attachments/assets/8903334b-4911-469f-a5d5-f00646c375e0" />
+
+
 
 
 ---
@@ -233,6 +249,9 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
 - **Colored markers**  
   Indicate whether a mod supports motion controls or gamepad input.
 
+- **Explore page**  
+  Allows discovering titles based on your PC power and genre.  
+
 - **Library**  
   Opens a library page with vertical Steam-style cover images for all listed games. The cover size can be adjusted.
 
@@ -240,6 +259,10 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
   Each game has its own detail page with system requirements, similar games, and game-specific information.
 
 ---
+
+<img width="948" height="957" alt="PCVR-mods-Hub-p4" src="https://github.com/user-attachments/assets/3e61f7a4-4e32-4f12-8333-7473facdb308" />
+
+
 
 # Community and Updates
 
