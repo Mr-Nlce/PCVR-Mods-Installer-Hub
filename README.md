@@ -17,16 +17,21 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (111)</summary>
+<summary>Show all currently listed titles (133)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
 * Alien: Isolation VR (motion controls)
+* Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
+* Art of Rally VR
+* Astrodogs VR (motion controls)
 * Atomic Heart
 * Avatar: Frontiers of Pandora
 * Bendy VR (motion controls)
 * Black Mesa Source VR (motion controls)
+* Bomb Rush Cyberfunk (motion controls)
+* Circuit Superstars VR
 * Cloudpunk
 * Cloudpunk: City of Ghosts
 * Content Warning VR (motion controls)
@@ -39,11 +44,13 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Deep Rock Galactic VR (motion controls)
 * Descenders
 * Devil May Cry 5 VR
+* Dino Trauma VR (motion controls)
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
 * Doom: The Dark Ages
 * Dragon's Dogma 2
 * Dredge VR (motion controls)
+* Driftwood VR (motion controls)
 * Dusk HD (DLC) VR (motion controls)
 * Elden Ring
 * Far Cry 4
@@ -70,9 +77,13 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * HL2 VR Ep. One (motion controls)
 * HL2 VR Ep. Two (motion controls)
 * Hogwarts Legacy
+* Hollow Knight Silksong
+* Hollow Knight VR
+* Horizon Chase Turbo VR
 * Horizon Forbidden West
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
+* House of the Dead Remake (motion controls)
 * Hypogea
 * Indiana Jones: Great Circle
 * Jedi Knight: Jedi Academy VR (motion controls)
@@ -83,6 +94,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Lethal Company VR (motion controls)
 * Life is Strange: BtS (motion controls)
 * Lunistice
+* Mirage Feathers VR
 * Monster Hunter Rise
 * Monster Hunter Stories 3
 * Monster Hunter Wilds
@@ -93,6 +105,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Onimusha 2: Samurai's Destiny
 * Outer Wilds VR (motion controls)
 * Outward Definitive Edition (motion controls)
+* Panzer Dragoon Remake (motion controls)
+* Paperklay VR (motion controls)
+* Paranoia Place VR (motion controls)
 * Portal 2 VR (motion controls)
 * Pragmata
 * Raft VR (motion controls)
@@ -104,14 +119,19 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Resident Evil 4R (motion controls)
 * Resident Evil 7 (motion controls)
 * Risk of Rain 2 (motion controls)
+* Road Redemption VR (motion controls)
 * Road to Vostok (motion controls)
+* Rogue Flight VR
+* Sayonara Wild Hearts
 * Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
+* Sonic P-06 VR
 * Spiderman 2
 * Spiderman Miles Morales
 * Spiderman Remastered
 * Stanley Parable VR (motion controls)
+* Star Racer VR (motion controls)
 * Star Wars Outlaws
 * Starfield VR
 * Stray
@@ -119,7 +139,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * StreetDog BMX
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
+* Sunrise GP VR
 * Super Polygon Grand Prix
+* Tinykin VR
 * TLOU Part I
 * TLOU Part II
 * Tormented Souls (motion controls)
