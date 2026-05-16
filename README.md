@@ -17,7 +17,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (144)</summary>
+<summary>Show all currently listed titles (145)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -93,6 +93,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Indiana Jones: Great Circle
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
+* Kerbal Space Program VR (motion controls)
 * Kingdom Come: Deliverance II
 * Kunitsu-Gami: Path of the Goddess
 * Left 4 Dead 2 VR (motion controls)
