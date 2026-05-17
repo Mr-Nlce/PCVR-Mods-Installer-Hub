@@ -1,6 +1,7 @@
 # PCVR Mods Installer Hub
 
-<img width="842" height="899" alt="PCVR-mods-Hub-n" src="https://github.com/user-attachments/assets/2f8ad312-9b9f-469b-af85-91461804cca6" />
+<img width="842" height="899" alt="Hub-1" src="https://github.com/user-attachments/assets/6445d688-2ee7-46f8-9e3a-ccc2ec57a99b" />
+
 
 
 
