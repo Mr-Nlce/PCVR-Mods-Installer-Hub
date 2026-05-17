@@ -166,6 +166,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Watch Dogs Legion
 * World of Warcraft VR (motion controls)
 * Yooka-Laylee VR
+* (Dolphin VR + Redux)
 * (UEVR Easy Injector)
 
 
