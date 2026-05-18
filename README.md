@@ -74,15 +74,15 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Grounded
 * GTFO VR (motion controls)
 * Gunfire Reborn (motion controls)
-* Half-Life 2 VR (motion controls)
+* Half-Life 2 VR (+ Unleashed mod) (motion controls)
 * Half-Life VR (motion controls)
 * Halo CE VR (motion controls)
 * Heretic (motion controls)
 * Hexen (motion controls)
 * Hexen 2 VR (motion controls)
 * High on Life
-* HL2 VR Ep. One (motion controls)
-* HL2 VR Ep. Two (motion controls)
+* HL2 VR Ep. One (+ Unleashed mod) (motion controls) 
+* HL2 VR Ep. Two (+ Unleashed mod) (motion controls)
 * Hogwarts Legacy
 * Hollow Knight Silksong
 * Hollow Knight VR
