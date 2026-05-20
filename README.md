@@ -169,6 +169,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * World of Warcraft VR (motion controls)
 * Yooka-Laylee VR
 * (Dolphin VR + Redux)
+* (Skyrim VR + Fallout 4 VR Wabbajack modlists)
 * (UEVR Easy Injector)
 
 
