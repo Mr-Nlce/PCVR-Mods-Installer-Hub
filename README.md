@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (148)</summary>
+<summary>Show all currently listed titles (149)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -132,6 +132,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Road to Vostok (motion controls)
 * Rogue Flight VR
 * Sayonara Wild Hearts
+* Selaco VR (motion controls)
 * Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
