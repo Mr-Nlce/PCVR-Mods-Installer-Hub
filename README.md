@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (155)</summary>
+<summary>Show all currently listed titles (156)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -39,6 +39,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Content Warning VR (motion controls)
 * Cruelty Squad VR (motion controls)
 * Crysis VR (motion controls)
+* Daggerfall Unity VR (motion controls)
 * Dark Souls II
 * Dark Souls III
 * Dark Souls Remastered
