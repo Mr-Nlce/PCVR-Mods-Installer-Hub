@@ -271,7 +271,7 @@ The Hub is batch-based for multiple reasons.
 
 One reason is transparency. The code can be viewed by anyone at any time.
 
-Another reason is that batch-based tools may be less likely to be incorrectly flagged as potentially harmful than standalone `.exe` files.
+Another reason is that batch-based tools may be less likely to be incorrectly flagged as potentially harmful than `.vbs` or standalone `.exe` files.
 
 ---
 
