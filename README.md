@@ -150,7 +150,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Stanley Parable VR (motion controls)
 * Star Racer VR (motion controls)
 * Star Wars Outlaws
-* Star Wars - X-Wing SE VR (motion controls)
+* Star Wars - X-Wing SE VR
 * Starfield VR
 * Stray
 * Street Fighter 6
