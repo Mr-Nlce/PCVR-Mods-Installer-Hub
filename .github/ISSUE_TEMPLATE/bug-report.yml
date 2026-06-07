@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a problem with the Hub or an installer
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please attach your log. The Hub's "Report a problem" button opens the log's folder for you - drag the file into the Log box below.
+  - type: input
+    id: hubver
+    attributes:
+      label: Hub version
+      placeholder: e.g. v0.6.5
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Which game / installer
+      placeholder: e.g. Left 4 Dead 2 VR (or "the Hub itself")
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what went wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Paste or drag in your log file.
+      render: text

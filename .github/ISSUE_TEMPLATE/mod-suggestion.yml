@@ -1,0 +1,49 @@
+name: VR mod suggestion
+description: Suggest a VR mod / game to add to the Hub
+title: "[Mod suggestion] "
+labels: ["mod suggestion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Quick scope note first:
+        - The Hub packages **per-game** VR mods (native mods, source ports, Luke Ross, REFramework, etc.).
+        - It does **not** cover UEVR / Universal Unreal Engine VR games individually. They're all covered by the UEVR Deluxe entry already listed in the Hub.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      placeholder: e.g. Half-Life 2
+    validations:
+      required: true
+  - type: input
+    id: mod
+    attributes:
+      label: VR mod name + link
+      description: Link to the mod's GitHub / Nexus / Thunderstore page if you have one.
+      placeholder: https://github.com/...
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Store / platform
+      options:
+        - Steam
+        - GOG
+        - Epic
+        - Other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Optional - why it would fit, setup quirks, etc.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Confirmation
+      options:
+        - label: This is not a UEVR / Universal Unreal Engine VR game.
+          required: true
