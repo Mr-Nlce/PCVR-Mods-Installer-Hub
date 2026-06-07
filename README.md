@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (160)</summary>
+<summary>Show all currently listed titles (162)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -94,6 +94,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
 * Hypogea
+* I Can Gun VR (motion controls)
 * Indiana Jones: Great Circle
 * Iron Lung VR (motion controls)
 * Jedi Knight: Jedi Academy VR (motion controls)
@@ -164,6 +165,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Sunrise GP VR
 * Super Polygon Grand Prix
 * Techtonica (motion controls)
+* The Dark Mod VR
 * The House of the Dead Remake (motion controls)
 * The House of the Dead 2 Remake (motion controls)
 * Tinykin VR
