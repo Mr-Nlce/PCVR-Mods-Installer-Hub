@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (162)</summary>
+<summary>Show all currently listed titles (163)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -106,6 +106,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Lethal Company VR (motion controls)
 * Life is Strange: BtS (motion controls)
 * Lunistice
+* Metal Hellsinger VR (motion controls)
 * Mirage Feathers VR
 * Monster Hunter Rise
 * Monster Hunter Stories 3
