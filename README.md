@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (163)</summary>
+<summary>Show all currently listed titles (164)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -80,6 +80,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Half-Life 2 VR (+ Unleashed mod) (motion controls)
 * Half-Life VR (motion controls)
 * Halo CE VR (motion controls)
+* Hardspace: Shipbreaker
 * Heretic (motion controls)
 * Hexen (motion controls)
 * Hexen 2 VR (motion controls)
