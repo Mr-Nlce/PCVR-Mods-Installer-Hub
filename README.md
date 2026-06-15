@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (171)</summary>
+<summary>Show all currently listed titles (172)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -135,6 +135,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Quake 2 VR (motion controls)
 * Quake 3 Arena VR (motion controls)
 * Raft VR (motion controls)
+* Ready Or Not VRO (motion controls)
 * Receiver VR (motion controls)
 * Receiver 2 VR (motion controls)
 * R.E.P.O. VR (motion controls)
