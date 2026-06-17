@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (172)</summary>
+<summary>Show all currently listed titles (174)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -121,6 +121,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Moto Rush Reborn VR (motion controls)
 * Neon White VR (motion controls)
 * No One Lives Forever 2
+* Nuclear Option
 * Onimusha 2: Samurai's Destiny
 * Outer Wilds VR (motion controls)
 * Outward Definitive Edition (motion controls)
@@ -148,8 +149,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Richard Burns Rally (motion controls)
 * Risk of Rain 2 (motion controls)
 * Road Redemption VR (motion controls)
-* Road to Vostok (motion controls)
-* Rogue Flight VR
+* Road to Vostok VR (motion controls)
+* Rogue Flight
+* Saints Row: The Third VR (motion controls)
 * Sayonara Wild Hearts
 * Selaco VR (motion controls)
 * Skate Story
