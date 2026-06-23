@@ -18,7 +18,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (177)</summary>
+<summary>Show all currently listed titles (178)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -27,6 +27,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
 * Art of Rally VR
+* Ashes 2063 VR (motion controls)
 * Astrodogs VR (motion controls)
 * Atomic Heart
 * Avatar: Frontiers of Pandora
