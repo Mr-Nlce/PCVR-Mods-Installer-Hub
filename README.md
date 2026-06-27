@@ -211,7 +211,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 
 
-<img width="941" height="940" alt="Hub-2" src="https://github.com/user-attachments/assets/4074c4ac-d7af-40b0-b834-b4bce28f0023" />
+<img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
+
 
 
 
@@ -280,7 +281,8 @@ On first launch, a desktop shortcut `VR mods Hub` will automatically be created 
 
 ---
 
-<img width="962" height="929" alt="Hub-3" src="https://github.com/user-attachments/assets/21f3d7e7-95b7-4a2d-b1a1-327b33a8c6a3" />
+<img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
+
 
 
 
@@ -334,7 +336,8 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
 
 ---
 
-<img width="858" height="1016" alt="Hub-5" src="https://github.com/user-attachments/assets/c9fc5e92-af30-48a5-8684-61ba92d3fce0" />
+<img width="1057" height="1020" alt="hub-description" src="https://github.com/user-attachments/assets/c6ae57ae-7cff-44a8-8b4b-8e56cdb387f6" />
+
 
 
 
