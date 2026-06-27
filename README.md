@@ -227,7 +227,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 - Includes a built-in updater to update directly from within the Hub
 - Detects supported PC games installed on the system
 - Marks installed supported games in green
-- Shows **VR Installed** on a game tile when a VR mod is already installed
+- Shows **VR Ready** on a game tile when a VR mod is already installed
 - Allows reinstalling a VR mod by clicking the game tile again
 - Includes a search function to quickly find a specific game
 - Shows a small game preview image when hovering over a game tile
