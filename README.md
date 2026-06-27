@@ -231,16 +231,18 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 - Allows reinstalling a VR mod by clicking the game tile again
 - Includes a search function to quickly find a specific game
 - Shows a small game preview image when hovering over a game tile
-- Includes an Explore page to discover titles based on your PC power and genre
 - Allows adjusting the size of the game tiles
 - Includes a library page with vertical Steam-style cover images for all listed games
 - Allows adjusting the size of the library cover images
 - Includes game detail pages with system requirements, similar games, and game-specific information
-- Uses colored markers to indicate whether a mod supports:
+- Uses markers to indicate whether a mod supports:
   - motion controls
   - gamepad input
+  
+- Includes an Explore page to discover titles based on your PC power and genre
 
-#
+<img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
+
 
 # How It Works
 
@@ -281,11 +283,6 @@ On first launch, a desktop shortcut `VR mods Hub` will automatically be created 
 
 ---
 
-<img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
-
-
-
-
 
 
 ---
@@ -313,13 +310,13 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
 - **Search bar**  
   Located in the top right corner and used to find specific games quickly.
 
-- **Check Installed**  
+- **Scan games**  
   Scans for supported games that are already installed and marks them in green.
 
 - **Game tiles**  
   Show the available VR mod status for each game. Hovering over a game tile displays a small preview image of the game. The tile size can be adjusted.
 
-- **VR Installed**  
+- **VR Ready**  
   Displayed on a game tile when a VR mod has already been installed.
 
 - **Colored markers**  
