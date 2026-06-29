@@ -215,9 +215,6 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 **Watch the Hub in action:** https://www.youtube.com/watch?v=gec4RM0yLB4
 
-<img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
-
-
 
 
 
@@ -236,14 +233,17 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 - Includes a search function to quickly find a specific game
 - Shows a small game preview image when hovering over a game tile
 - Allows adjusting the size of the game tiles
-- Includes a library page with vertical Steam-style cover images for all listed games
+- **Includes a library page with vertical Steam-style cover images for all listed games**
+
+<img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
+
 - Allows adjusting the size of the library cover images
 - Includes game detail pages with system requirements, similar games, and game-specific information
 - Uses markers to indicate whether a mod supports:
   - motion controls
   - gamepad input
   
-- Includes an Explore page to discover titles based on your PC power and genre
+- **Includes an Explore page to discover titles based on your PC power and genre**
 
 <img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
 
