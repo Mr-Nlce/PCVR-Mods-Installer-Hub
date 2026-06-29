@@ -209,7 +209,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 </details>
 
+## 🎥 Video Showcase
 
+[![Watch the PCVR Mods Installer Hub overview](https://img.youtube.com/vi/gec4RM0yLB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gec4RM0yLB4)
+
+**Watch the Hub in action:** https://www.youtube.com/watch?v=gec4RM0yLB4
 
 <img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
 
