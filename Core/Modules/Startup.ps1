@@ -1,0 +1,546 @@
+# ---------------------------------------------------------------
+# Check on Startup: hover-reveal companion toggle next to the
+# Check Installed button. Persisted to a small JSON settings
+# file so the user only has to click it once. Settings file is
+# user-data and never shipped in the release bundle.
+# ---------------------------------------------------------------
+$checkOnStartupBtn   = $window.FindName("CheckOnStartupBtn")
+$checkOnStartupCheck = $window.FindName("CheckOnStartupCheck")
+$checkOnStartupText  = $window.FindName("CheckOnStartupText")
+$hoverGroup          = $window.FindName("CheckInstalledHoverGroup")
+
+# Glow hover for the toggle. When the toggle is OFF, the
+# default border is a subtle dark green - hovering swaps it to
+# the bright green accent which is the inviting "click me to
+# enable" cue. When ON, the border already IS the bright accent,
+# so the helper's swap is a no-op - matching the "no glow when
+# already active" behavior naturally.
+Add-GlowHover -Border $checkOnStartupBtn -AccentHex "#5aa880"
+
+# Style helper: paint the toggle to reflect on/off state.
+function global:Update-CheckOnStartupVisualState {
+    $on = [bool](Get-HubSetting -Key "checkOnStartup" -Default $false)
+    if (-not $checkOnStartupBtn) { return }
+    if ($on) {
+        $checkOnStartupBtn.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e4ade80")
+        $checkOnStartupBtn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5aa880")
+        $checkOnStartupCheck.Visibility = [System.Windows.Visibility]::Visible
+        $checkOnStartupText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#aaccbb")
+    } else {
+        $checkOnStartupBtn.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
+        $checkOnStartupBtn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0fffffff")
+        $checkOnStartupCheck.Visibility = [System.Windows.Visibility]::Collapsed
+        $checkOnStartupText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7e8a85")
+    }
+}
+Update-CheckOnStartupVisualState
+
+# Hover-reveal pattern: show the companion button when the
+# mouse is over the Check Installed group. Hide it again with
+# a delay so a quick mouse jiggle between the two buttons
+# doesn't cause it to flicker shut.
+$global:CheckHoverHideTimer = $null
+
+function global:Show-CheckOnStartup {
+    # A scan is running: keep the toggle hidden so it doesn't ride along while
+    # the counter button lifts into the header.
+    if ($global:ScanInProgress) {
+        if ($checkOnStartupBtn) { $checkOnStartupBtn.Visibility = [System.Windows.Visibility]::Hidden }
+        return
+    }
+    if ($global:CheckHoverHideTimer) {
+        try { $global:CheckHoverHideTimer.Stop() } catch { }
+        $global:CheckHoverHideTimer = $null
+    }
+    if ($checkOnStartupBtn) {
+        $checkOnStartupBtn.Visibility = [System.Windows.Visibility]::Visible
+    }
+}
+
+function global:Hide-CheckOnStartupSoon {
+    if ($global:CheckHoverHideTimer) {
+        try { $global:CheckHoverHideTimer.Stop() } catch { }
+    }
+    $global:CheckHoverHideTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $global:CheckHoverHideTimer.Interval = [TimeSpan]::FromMilliseconds(450)
+    $global:CheckHoverHideTimer.Add_Tick({
+        $global:CheckHoverHideTimer.Stop()
+        if ($checkOnStartupBtn) {
+            # Hidden, not Collapsed - keeps the layout slot reserved
+            # so the surrounding toolbar buttons don't shift by a few
+            # pixels each time the reveal-button appears/disappears.
+            $checkOnStartupBtn.Visibility = [System.Windows.Visibility]::Hidden
+        }
+    })
+    $global:CheckHoverHideTimer.Start()
+}
+
+# Reveal trigger: ONLY the Check Installed button itself - not the whole
+# hover group. The group has a transparent background so the VR Ready reveal
+# survives the cursor crossing it, but that transparent area to the RIGHT of
+# the button must NOT make the Check on Startup toggle appear. The toggle
+# keeps itself visible on hover so the cursor can travel from the button
+# onto it without it hiding.
+$checkInstalledBtnEl = $window.FindName("CheckInstalledBtn")
+if ($checkInstalledBtnEl) {
+    $checkInstalledBtnEl.Add_MouseEnter({ Show-CheckOnStartup })
+    $checkInstalledBtnEl.Add_MouseLeave({ Hide-CheckOnStartupSoon })
+}
+if ($checkOnStartupBtn) {
+    $checkOnStartupBtn.Add_MouseEnter({ Show-CheckOnStartup })
+    $checkOnStartupBtn.Add_MouseLeave({ Hide-CheckOnStartupSoon })
+}
+
+# Toggle the persisted flag on click and update visuals.
+if ($checkOnStartupBtn) {
+    $checkOnStartupBtn.Add_PreviewMouseLeftButtonDown({
+        $cur = [bool](Get-HubSetting -Key "checkOnStartup" -Default $false)
+        Set-HubSetting -Key "checkOnStartup" -Value (-not $cur)
+        Update-CheckOnStartupVisualState
+    })
+}
+
+# Auto-trigger Check Installed at startup if the user enabled it.
+# We use the dispatcher to fire after the window is fully loaded
+# and the click handler can reach all UI elements.
+if ([bool](Get-HubSetting -Key "checkOnStartup" -Default $false)) {
+    $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [action]{
+        try {
+            # Check on Startup is the ONLY update check most users ever
+            # run, so it must check ONLINE - same as a manual click. The
+            # circuit breaker (see Invoke-ScanWebGet) caps an unreachable
+            # server at a single ~2s timeout and then falls back to disk
+            # for the rest, so a slow/dead server can't freeze the scan.
+            $global:HubScanOnlineDown = $false
+            Invoke-CheckInstalledScan
+        } catch { }
+    }) | Out-Null
+}
+
+# Desktop shortcut: ensure one exists AND points at the current
+# icon. We used to gate this behind a .shortcut_created flag, but
+# a few earlier builds shipped with the flag pre-set, so users who
+# installed those never got a shortcut AND won't get one when they
+# update. We also now refresh the IconLocation on every launch so
+# users with an existing shortcut pick up icon changes too (e.g.
+# when we ship a new design). Both paths are idempotent.
+# ($scriptDir / $rootDir come from VRModHub.ps1 - do not redefine
+# them here; $MyInvocation in a dot-sourced module points at the
+# module file itself, not at the entry script.)
+$flagFile   = Join-Path $scriptDir ".shortcut_created"
+$icoPath    = Join-Path $scriptDir "VR Mod Hub.ico"
+$batPath    = Join-Path $rootDir "Start PCVR Mods Hub.bat"
+$lnkPath    = Join-Path ([Environment]::GetFolderPath("Desktop")) "VR Mods Hub.lnk"
+
+try {
+    $shell    = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($lnkPath)
+    $shortcut.TargetPath       = $batPath
+    $shortcut.WorkingDirectory = $scriptDir
+    $shortcut.Description      = "PCVR Mods Installer Hub"
+    if (Test-Path $icoPath) { $shortcut.IconLocation = $icoPath }
+    $shortcut.Save()
+    # Write the flag for backwards compatibility - older code
+    # paths checked it; harmless to leave behind.
+    [System.IO.File]::WriteAllText($flagFile, (Get-Date).ToString())
+} catch {}
+
+# Populate the Recently Played row on first paint. Test mode shows
+# the first 5 installed games (pre-scan: first 5 catalog entries
+# with artwork). Once Start-GameInVR tracks launches, this list
+# will be replaced by actual play history.
+Write-HubTiming "before Build-RecentlyPlayed"
+if (Get-Command Build-RecentlyPlayed -ErrorAction SilentlyContinue) {
+    Build-RecentlyPlayed
+}
+Write-HubTiming "after Build-RecentlyPlayed"
+
+# Re-check state for the single game whose Steam button was just
+# clicked. Mirrors the "scope-respecting" pattern of post-install
+# auto-refresh: if the user already opted into a full scan
+# (gameStateMap populated), refresh everything for coherence;
+# otherwise only this one card. Probing every game on every
+# alt-tab back to the Hub would be overreach when the user only
+# pressed one button.
+$window.Add_Activated({
+    if (-not $global:LastSteamButtonClickAt) { return }
+    $age = [DateTime]::UtcNow - $global:LastSteamButtonClickAt
+    if ($age.TotalMinutes -gt 30) { return }
+
+    $title = $global:LastSteamButtonClickTitle
+    # Consume markers so this only fires once per click. Random
+    # later alt-tabs don't re-trigger.
+    $global:LastSteamButtonClickAt    = $null
+    $global:LastSteamButtonClickTitle = $null
+
+    $hadFullScan = ($global:gameStateMap -and $global:gameStateMap.Count -gt 0)
+    if ($hadFullScan) {
+        # User already opted into global state - keep it coherent.
+        try { Invoke-CheckInstalledScan } catch { }
+        return
+    }
+
+    # Single-game refresh path. Find the catalog entry, run the
+    # same detection heuristics the full scan would for that one
+    # title, write a single entry into gameStateMap, repaint just
+    # that card. No global scan.
+    if (-not $title) { return }
+    try {
+        $game = $null
+        foreach ($g in @($ownGames + $ownGamesGP + $externalGames)) {
+            if ($g.Title -eq $title) { $game = $g; break }
+        }
+        if (-not $game) { return }
+
+        # Resolve Steam libraries the same way the full scan does.
+        $steamPath = $null
+        foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
+            try { $p=(Get-ItemProperty -Path $reg -EA Stop).InstallPath; if($p -and (Test-Path $p)){$steamPath=$p; break} } catch {}
+        }
+        $steamLibs = @()
+        if ($steamPath) {
+            $steamLibs += $steamPath
+            $vdf = Join-Path $steamPath "steamapps\libraryfolders.vdf"
+            if (Test-Path $vdf) {
+                [regex]::Matches((Get-Content $vdf -Raw),'"path"\s+"([^"]+)"') | ForEach-Object {
+                    $l=$_.Groups[1].Value -replace '\\\\','\'; if(Test-Path $l){$steamLibs+=$l}
+                }
+            }
+        }
+
+        # Test if game is installed: SteamFolder, then FallbackPaths
+        # (only the STEAM:* prefix variant - GOG/absolute aren't
+        # relevant for a Get-on-Steam click).
+        $installed = $false
+        $gameDir   = $null
+        if ($game.SteamFolder) {
+            foreach ($lib in $steamLibs) {
+                $candidate = Join-Path $lib "steamapps\common\$($game.SteamFolder)"
+                if (Test-Path $candidate) { $installed = $true; $gameDir = $candidate; break }
+            }
+        }
+        if (-not $installed -and $game.FallbackPaths) {
+            foreach ($fp in $game.FallbackPaths) {
+                if ($fp -like "STEAM:*") {
+                    $folderName = $fp.Substring("STEAM:".Length)
+                    foreach ($lib in $steamLibs) {
+                        $candidate = Join-Path $lib "steamapps\common\$folderName"
+                        if (Test-Path $candidate) { $installed = $true; $gameDir = $candidate; break }
+                    }
+                    if ($installed) { break }
+                }
+            }
+        }
+        if (-not $installed) { return }
+
+        # Test if VR mod is also present. Mirrors the full-scan
+        # logic but only for the ModFile / VrInstallRoot paths -
+        # we skip Luke Ross RealRepo recursion since it's slow
+        # and unlikely after a fresh Steam install.
+        $vrInstalled = $false
+        if ($game.ModFile) {
+            $modPath = Join-Path $gameDir $game.ModFile
+            if (Test-Path $modPath) {
+                $vrInstalled = $true
+            } elseif ($game.VrInstallRoot) {
+                $altRoot = $game.VrInstallRoot
+                if ($altRoot -like "LOCALAPPDATA:*") {
+                    $altRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($altRoot.Substring("LOCALAPPDATA:".Length))
+                } elseif ($altRoot -like "APPDATA:*") {
+                    $altRoot = Join-Path ([Environment]::GetFolderPath("ApplicationData")) ($altRoot.Substring("APPDATA:".Length))
+                } elseif ($altRoot -like "PROGRAMDATA:*") {
+                    $altRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($altRoot.Substring("PROGRAMDATA:".Length))
+                } elseif ($altRoot -like "USERPROFILE:*") {
+                    $altRoot = Join-Path ([Environment]::GetFolderPath("UserProfile")) ($altRoot.Substring("USERPROFILE:".Length))
+                }
+                $altPath = Join-Path $altRoot $game.ModFile
+                if (Test-Path $altPath) {
+                    $vrInstalled = $true
+                    if ($game.VrInstallEvidence) {
+                        foreach ($ev in $game.VrInstallEvidence) {
+                            if (-not (Test-Path (Join-Path $altRoot $ev))) { $vrInstalled = $false; break }
+                        }
+                    }
+                }
+            }
+        }
+
+        $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
+        if ($vrInstalled) {
+            $global:gameStateMap[$title] = @{
+                Tag = "vrinstalled"; Accent = $accentHex; State = "ready"
+                BtnText = "VR Ready"; GameDir = $gameDir
+            }
+        } else {
+            $global:gameStateMap[$title] = @{
+                Tag = "installed"; Accent = $accentHex; State = "installed"
+                BtnText = "Install Mod"; GameDir = $gameDir
+            }
+        }
+
+        # Repaint just this title's card. Rebuild-Lookups walks
+        # every card and applies whatever's in gameStateMap; cards
+        # without an entry get skipped, so this only touches the
+        # one we just wrote.
+        try { Rebuild-Lookups } catch {}
+
+        # Re-render the open detail page if it's showing this game,
+        # so the user sees the new state without leaving the page.
+        try {
+            if ($global:currentDetailGame -and $global:currentDetailGame.Title -eq $title -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) {
+                Show-DiscoverDetail -Game $global:currentDetailGame
+            }
+        } catch {}
+    } catch { }
+})
+
+# ---------------------------------------------------------------
+# Proactive steam_appid.txt heal for all DepotInstall games.
+# Walks every catalog entry marked DepotInstall = $true, resolves
+# its install path via FallbackPaths, and writes steam_appid.txt
+# next to the EXE if missing. Catches the case where an install
+# predates the per-installer steam_appid.txt fix - those folders
+# would otherwise trigger Steam's "install this game" dialog on
+# every launch attempt. Silent / non-blocking: any failure is
+# swallowed, the rest of Hub startup proceeds normally.
+# ---------------------------------------------------------------
+# steam_appid.txt proactive heal. This walks every depot-install game,
+# resolves its folder via .installed_path / FallbackPaths, and drops a
+# steam_appid.txt if missing (so depot launches don't trigger Steam's
+# "install this game" dialog). It does a lot of disk Test-Path work and
+# Steam-library resolution, so it MUST NOT run before the window is shown
+# - doing so delayed window open by 6-8s. We hook it to ContentRendered,
+# which fires AFTER the first paint (window already visible). The handler
+# body runs in module scope, so $ownGames / $ownGamesGP are in reach with
+# no closure juggling. Healing only needs to finish before a game launch,
+# and the launch path writes steam_appid.txt itself as a final safety net.
+$window.Add_ContentRendered({
+    try {
+        $depotCatalog = @($ownGames + $ownGamesGP)
+        foreach ($g in $depotCatalog) {
+            if (-not $g.DepotInstall) { continue }
+            if (-not $g.SteamId)      { continue }
+
+            $healedPath = $null
+
+            # Primary signal: .installed_path file written by the installer.
+            # This is the ground truth - it points at the exact folder
+            # where the game was placed, regardless of whether that's
+            # in FallbackPaths or a custom drive/location.
+            if (Get-Command Read-InstalledPath -ErrorAction SilentlyContinue) {
+                try {
+                    $recorded = Read-InstalledPath -Game $g
+                    if ($recorded -and (Test-Path $recorded)) { $healedPath = $recorded }
+                } catch {}
+            }
+
+            # Fallback: catalog FallbackPaths. STEAM: tokens are resolved
+            # against every known Steam library.
+            if (-not $healedPath -and $g.FallbackPaths) {
+                $steamLibsLocal = $null
+                foreach ($p in $g.FallbackPaths) {
+                    $candidatePaths = @()
+                    if ($p -like "STEAM:*") {
+                        if ($null -eq $steamLibsLocal) {
+                            $steamLibsLocal = @()
+                            foreach ($rk in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam", "HKLM:\SOFTWARE\Valve\Steam", "HKCU:\SOFTWARE\Valve\Steam")) {
+                                try {
+                                    $sp = (Get-ItemProperty -Path $rk -ErrorAction Stop).InstallPath
+                                    if ($sp -and (Test-Path $sp)) { $steamLibsLocal += $sp; break }
+                                } catch {}
+                            }
+                            if ($steamLibsLocal.Count -gt 0) {
+                                $vdf = Join-Path $steamLibsLocal[0] "steamapps\libraryfolders.vdf"
+                                if (Test-Path $vdf) {
+                                    [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
+                                        $lib = $_.Groups[1].Value -replace '\\\\', '\'
+                                        if ((Test-Path $lib) -and ($steamLibsLocal -notcontains $lib)) {
+                                            $steamLibsLocal += $lib
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        $folder = $p.Substring("STEAM:".Length)
+                        foreach ($lib in $steamLibsLocal) {
+                            $candidatePaths += (Join-Path $lib "steamapps\common\$folder")
+                        }
+                    } else {
+                        $candidatePaths += $p
+                    }
+                    foreach ($cp in $candidatePaths) {
+                        if (Test-Path $cp) { $healedPath = $cp; break }
+                    }
+                    if ($healedPath) { break }
+                }
+            }
+
+            if (-not $healedPath) { continue }
+
+            # Drop steam_appid.txt unconditionally - the file is harmless
+            # if the folder turns out not to be the right one, but missing
+            # it breaks depot launches with Steam's install-this-game
+            # dialog. Folder existence is signal enough.
+            $appidFile = Join-Path $healedPath "steam_appid.txt"
+            if (Test-Path $appidFile) { continue }   # Already healed
+            try {
+                Set-Content -Path $appidFile -Value $g.SteamId -Encoding ASCII -NoNewline -Force
+            } catch { }
+        }
+        # Warm the on-disk image cache for any games whose art we haven't
+        # saved yet. Runs in one decoupled background runspace. Deferred to
+        # an ApplicationIdle tick so creating/starting the runspace (a brief
+        # UI-thread cost - the mouse "busy" spinner) doesn't hold up the
+        # first interactive frame; it happens once the UI is idle instead.
+        # Capture the game list HERE (script-scoped collections are visible
+        # in this handler) and close over it, so the deferred delegate
+        # doesn't rely on script-scope visibility from its own context.
+        if (Get-Command Start-ImageCacheWarm -ErrorAction SilentlyContinue) {
+            $warmGames = @($ownGames + $ownGamesGP + $externalGames)
+            $window.Dispatcher.BeginInvoke(
+                [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+                [action]{
+                    try { Start-ImageCacheWarm -Games $warmGames } catch { }
+                }.GetNewClosure()
+            ) | Out-Null
+        }
+    } catch { }
+})
+
+Write-HubTiming "before ShowDialog (window goes interactive next)"
+
+# Persist window geometry on close. RestoreBounds gives the
+# un-maximized rectangle even when the window is currently
+# maximized - so the next start restores BOTH the user's
+# preferred size/position AND the maximized state.
+$window.Add_Closing({
+    if (-not (Get-Command Set-HubSetting -ErrorAction SilentlyContinue)) { return }
+    try {
+        # PS 5.1 / .NET Framework 4.x lacks [double]::IsFinite -
+        # use IsNaN + IsInfinity (present everywhere) for the
+        # finite check on RestoreBounds values.
+        function _isFiniteNum($v) {
+            if ($null -eq $v) { return $false }
+            try {
+                $d = [double]$v
+                return -not ([double]::IsNaN($d) -or [double]::IsInfinity($d))
+            } catch { return $false }
+        }
+
+        $isMax = ($window.WindowState -eq [System.Windows.WindowState]::Maximized)
+        # RestoreBounds gives the un-maximized rect even when the
+        # window is currently maximized - so the next start
+        # restores BOTH preferred size/position AND maximized state.
+        $rect  = $window.RestoreBounds
+        $w = $rect.Width;  $h = $rect.Height
+        $l = $rect.X;      $t = $rect.Y
+        if (-not (_isFiniteNum $w) -or $w -le 0) { $w = $window.ActualWidth }
+        if (-not (_isFiniteNum $h) -or $h -le 0) { $h = $window.ActualHeight }
+        if (-not (_isFiniteNum $l)) { $l = $window.Left }
+        if (-not (_isFiniteNum $t)) { $t = $window.Top  }
+
+        Set-HubSetting -Key "winMaximized" -Value ([string]$isMax)
+        if ($w -gt 0) { Set-HubSetting -Key "winWidth"  -Value ([int]$w) }
+        if ($h -gt 0) { Set-HubSetting -Key "winHeight" -Value ([int]$h) }
+        if (_isFiniteNum $l) { Set-HubSetting -Key "winLeft" -Value ([int]$l) }
+        if (_isFiniteNum $t) { Set-HubSetting -Key "winTop"  -Value ([int]$t) }
+    } catch { }
+})
+
+# Bring the window to the foreground once it is first rendered. A
+# normal launch (shortcut / double-click) inherits foreground rights
+# from the launching process, but the post-update relaunch is started
+# by a background PowerShell process that does NOT hold those rights -
+# so Windows would leave the new window behind whatever was last active
+# (typically the Explorer folder it was started from). Activate() alone
+# is blocked by the foreground lock; the brief Topmost toggle is the
+# reliable WPF way to lift the window above others without needing
+# foreground rights, then drop it back to a normal z-order on top.
+$window.Add_ContentRendered({
+    try {
+        if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) {
+            $window.WindowState = [System.Windows.WindowState]::Normal
+        }
+        [void]$window.Activate()
+        $window.Topmost = $true
+        $window.Topmost = $false
+        [void]$window.Focus()
+    } catch { }
+})
+
+# ---------------------------------------------------------------
+# Live update-banner reveal. The update check runs DETACHED in the
+# background (see Start PCVR Mods Hub.bat) so it never blocks the
+# window - it writes the .update_available marker a few seconds after
+# the Hub is already open. We poll for that marker AFTER the window is
+# interactive and reveal the banner in-session the moment it appears,
+# so the user gets a fully loaded, usable Hub immediately and the small
+# banner at the top just lights up quietly once the check finishes.
+# Reveal-only: never hides anything. Polling stops as soon as the banner
+# is shown, or after ~60s (the check is normally done within a few
+# seconds; the cap keeps a dead/slow network from polling forever).
+# ---------------------------------------------------------------
+$window.Add_ContentRendered({
+    # A marker from a previous run already revealed the banner at
+    # startup - nothing left to wait for.
+    if ($global:UpdateBannerWired) { return }
+    $global:UpdateProbeCount = 0
+    $global:UpdateProbeTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $global:UpdateProbeTimer.Interval = [TimeSpan]::FromMilliseconds(1500)
+    $global:UpdateProbeTimer.Add_Tick({
+        $global:UpdateProbeCount++
+        try {
+            $markerFile = Join-Path $global:scriptDir ".update_available"
+            if (Test-Path $markerFile) {
+                # The updater writes this marker ONLY when a newer release
+                # exists (it deletes a stale one when up to date), so its
+                # presence alone means an update is available.
+                $info = Get-Content $markerFile -Raw -ErrorAction Stop | ConvertFrom-Json
+                if ($info -and $info.LatestVersion -and (Get-Command Show-UpdateBanner -ErrorAction SilentlyContinue)) {
+                    Show-UpdateBanner -Info $info
+                    $global:UpdateProbeTimer.Stop()
+                    return
+                }
+            }
+        } catch {
+            # Marker may be mid-write; retry on the next tick.
+        }
+        if ($global:UpdateProbeCount -ge 40) { $global:UpdateProbeTimer.Stop() }
+    })
+    $global:UpdateProbeTimer.Start()
+})
+
+# ---------------------------------------------------------------
+# Auto-rotate the two VR-mod-list banners (Steam portrait list +
+# library tiles) so their featured game + effect changes during a
+# session instead of staying fixed until restart. Fires on a random
+# 5-15 minute interval, re-randomised each tick so the cadence never
+# feels mechanical. The Explore banner is left out on purpose - it
+# has its own Shuffle control.
+# ---------------------------------------------------------------
+$global:BannerRotateTimer = New-Object System.Windows.Threading.DispatcherTimer
+$global:BannerRotateTimer.Interval = [TimeSpan]::FromMinutes((Get-Random -Minimum 5 -Maximum 16))
+$global:BannerRotateTimer.Add_Tick({
+    if (Get-Command Invoke-ListLibBannerRotation -ErrorAction SilentlyContinue) {
+        try { Invoke-ListLibBannerRotation } catch { }
+    }
+    try { $global:BannerRotateTimer.Interval = [TimeSpan]::FromMinutes((Get-Random -Minimum 5 -Maximum 16)) } catch { }
+})
+$global:BannerRotateTimer.Start()
+
+# Signal the launcher splash that the window is up, and record the real
+# load time for the next launch's progress estimate. Best-effort; written
+# to %TEMP% only (never the Hub folder - ship-guard).
+$window.Add_ContentRendered({
+    try {
+        Set-Content -Path (Join-Path $env:TEMP "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue
+        if ($global:HubLoadStart) {
+            $secs = ([DateTime]::UtcNow - $global:HubLoadStart).TotalSeconds
+            if ($secs -gt 0.5 -and $secs -lt 60) {
+                Set-Content -Path (Join-Path $env:TEMP "PCVRHub_lastload.txt") -Value ([string]([Math]::Round($secs, 2))) -ErrorAction SilentlyContinue
+            }
+        }
+    } catch { }
+})
+
+$window.ShowDialog() | Out-Null

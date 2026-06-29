@@ -1,0 +1,220 @@
+# ============================================================
+# BannerColors.ps1
+# ------------------------------------------------------------
+# Curated per-game banner colour. Each colour was picked from the
+# game's own header artwork (offline analysis + manual QA of the
+# images), so the Explore banner uses a FIXED, sensible colour per
+# game instead of sampling the bitmap at runtime (which produced
+# phantom-green / muddy-dark tints). The colour is the vivid
+# representative hue; Set-BannerForGame darkens it into the banner
+# gradient. Key is "steam:<SteamId>" for Steam games, or
+# "name:<HeaderBase>" for games shipping a local Assets header.
+# ============================================================
+
+function global:Get-BannerColorForGame {
+    param($Game)
+    if (-not $Game) { return $null }
+    if (-not $global:BannerColorMap) { return $null }
+    $key = $null
+    $hdr = [string]$Game.HeaderUrl
+    if ($hdr -and ($hdr -notmatch '^https?://')) {
+        $base = Split-Path $hdr -Leaf
+        $base = $base -replace '_header\.\w+$', ''
+        if ($base) { $key = 'name:' + $base }
+    }
+    if ((-not $key -or -not $global:BannerColorMap.ContainsKey($key)) -and $Game.SteamId) {
+        $key = 'steam:' + [string]$Game.SteamId
+    }
+    if ($key -and $global:BannerColorMap.ContainsKey($key)) { return $global:BannerColorMap[$key] }
+    return $null
+}
+
+# Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
+$global:BannerColorMap = @{
+    "name:MetroidPrimeVR" = "#d98c2a"  # Metroid Prime VR (matches PrimedGun banner: gold logo + orange Varia suit)
+    "steam:3527290" = "#4db4ff"  # PEAK VR (manual: bright sky blue; no cached header)
+    "steam:251570" = "#e40405"  # 7 Days to Die VR
+    "steam:1337010" = "#24d0f8"  # Alba VR
+    "steam:214490" = "#405d16"  # Alien: Isolation VR
+    "steam:57300" = "#1e1f0f"  # Amnesia VR
+    "name:AnomalyVR" = "#556d98"  # Anomaly VR
+    "steam:1887840" = "#0db3dc"  # Another Crab's Treasure
+    "name:Ashes2063VR" = "#d4842a"  # Ashes 2063 VR (warm wasteland amber/rust - sand, sunset, gold logo)
+    "steam:2187220" = "#e3b30b"  # Apollo Justice: Ace Attorney Trilogy VR
+    "steam:550320" = "#e48b61"  # Art of Rally VR
+    "steam:1301230" = "#1ec8d8"  # Astrodogs VR
+    "steam:668580" = "#c43a2a"  # Atomic Heart VR
+    "steam:2840770" = "#0f3963"  # Avatar: Frontiers of Pandora VR
+    "steam:622650" = "#633908"  # Bendy VR
+    "steam:362890" = "#613e10"  # Black Mesa Source VR
+    "steam:1353230" = "#b3b412"  # Bomb Rush Cyberfunk
+    "name:BreathOfTheWildVR" = "#b08c3d"  # Breath of the Wild VR
+    "steam:1097130" = "#fd2e54"  # Circuit Superstars VR
+    "steam:746850" = "#3fe5f9"  # Cloudpunk VR
+    "steam:1536370" = "#a755b3"  # Cloudpunk: City of Ghosts VR
+    "steam:2881650" = "#fdd903"  # Content Warning VR
+    "steam:1388770" = "#13e51d"  # Cruelty Squad VR
+    "steam:17300" = "#91abb8"  # Crysis VR
+    "steam:1091500" = "#fcf601"  # Cyberpunk 2077
+    "steam:1812390" = "#b3390f"  # Daggerfall VR
+    "steam:236430" = "#3a3a3a"  # Dark Souls II VR
+    "steam:374320" = "#d1bc3d"  # Dark Souls III VR
+    "steam:570940" = "#1b1d1c"  # Dark Souls Remastered
+    "steam:1850570" = "#fbdf83"  # Death Stranding VR
+    "steam:2427950" = "#343720"  # Decimate Drive VR
+    "steam:548430" = "#fedb02"  # Deep Rock Galactic VR
+    "steam:681280" = "#3984c0"  # Descenders VR
+    "steam:601150" = "#35425c"  # Devil May Cry 5 VR
+    "steam:2149420" = "#dd0505"  # Dino Trauma VR
+    "name:DolphinVR" = "#3db8f6"  # Dolphin VR + ReduX
+    "steam:2300" = "#dd8b3a"  # Doom 2 VR
+    "steam:208200" = "#df8a11"  # Doom 3 BFG VR
+    "steam:782330" = "#8a3818"  # Doom Eternal VR
+    "steam:2280" = "#dd5e1a"  # Doom VR
+    "steam:3017860" = "#ae6a42"  # Doom: The Dark Ages
+    "steam:2054970" = "#dd6137"  # Dragon's Dogma 2 VR
+    "steam:1562430" = "#835e40"  # Dredge VR
+    "steam:2223700" = "#3991fc"  # Driftwood VR
+    "steam:519860" = "#b51903"  # Dusk HD (DLC) VR
+    "steam:1245620" = "#c9a227"  # Elden Ring VR
+    "name:SPTVR" = "#373a3d"  # Escape from Tarkov VR
+    "steam:611660" = "#b8801e"  # Fallout 4 VR
+    "steam:298110" = "#346590"  # Far Cry 4 VR
+    "steam:552520" = "#026590"  # Far Cry 5 VR
+    "steam:2369390" = "#b31308"  # Far Cry 6 VR
+    "steam:939960" = "#fc1970"  # Far Cry New Dawn VR
+    "steam:371660" = "#d78a2f"  # Far Cry Primal VR
+    "name:FarCry1" = "#b15e3d"  # Far Cry VR
+    "steam:2909400" = "#3f6fb0"  # FF VII Rebirth VR
+    "steam:1462040" = "#938bd3"  # FF VII Remake VR
+    "steam:39210" = "#1b1e1c"  # Final Fantasy XIV VR
+    "steam:383870" = "#ffad01"  # Firewatch VR
+    "name:ForzaHorizon6" = "#c0306a"  # Forza Horizon 6 VR
+    "steam:273620" = "#de4030"  # Freespace 2 VR
+    "steam:4000" = "#007ffb"  # Garry's Mod VR
+    "steam:2215430" = "#d0bf8e"  # Ghost of Tsushima VR
+    "steam:1375400" = "#dc3c19"  # Ghosts n Goblins Resurrection VR
+    "steam:1475810" = "#093a8a"  # Ghostwire: Tokyo VR
+    "steam:271590" = "#af6840"  # Grand Theft Auto V VR
+    "steam:962130" = "#6aa82e"  # Grounded VR
+    "steam:493520" = "#b53213"  # GTFO VR
+    "steam:1217060" = "#fddb33"  # Gunfire Reborn
+    "steam:658920" = "#a23b26"  # Half-Life 2 VR (brown/red)
+    "steam:1908720" = "#e0a81c"  # Half-Life VR
+    "name:HaloCE" = "#3a5890"  # Halo CE VR
+    "steam:2390" = "#3b383e"  # Heretic VR
+    "steam:9060" = "#331a1d"  # Hexen II VR
+    "steam:2360" = "#fc851e"  # Hexen VR
+    "steam:1583230" = "#1484b8"  # High on Life VR
+    "steam:2177750" = "#e1b21e"  # HL2 VR Ep. One
+    "steam:2177760" = "#e1b21e"  # HL2 VR Ep. Two
+    "steam:990080" = "#dbd4b7"  # Hogwarts Legacy VR
+    "steam:1030300" = "#dd6545"  # Hollow Knight Silksong
+    "steam:367520" = "#1a3237"  # Hollow Knight VR
+    "steam:389140" = "#1863b7"  # Horizon Chase Turbo
+    "steam:2420110" = "#8e3b3a"  # Horizon Forbidden West VR
+    "steam:2561580" = "#3f70f8"  # Horizon Zero Dawn Remastered VR
+    "steam:1151640" = "#616ad6"  # Horizon Zero Dawn VR
+    "steam:3376690" = "#3c3d3d"  # House of the Dead 2 Remake VR
+    "steam:1694600" = "#b40e0a"  # House of the Dead Remake VR
+    "steam:2980260" = "#1a1b37"  # Hypogea VR
+    "name:ICanGunVR" = "#0d44b7"  # I Can Gun VR
+    "steam:2677660" = "#bd6206"  # Indiana Jones: Great Circle VR
+    "name:IronLungVR" = "#fd1802"  # Iron Lung VR
+    "steam:6020" = "#2f3f46"  # Jedi Knight: Jedi Academy VR
+    "name:JediOutcast" = "#1a1a1c"  # Jedi Knight: Jedi Outcast VR
+    "steam:220200" = "#4392d7"  # Kerbal Space Program
+    "steam:1771300" = "#351c15"  # Kingdom Come: Deliverance II VR
+    "steam:2510710" = "#896043"  # Kunitsu-Gami: Path of the Goddess VR
+    "steam:550" = "#ad8d06"  # Left 4 Dead 2 VR
+    "steam:1966720" = "#d60e0e"  # Lethal Company VR
+    "steam:554620" = "#3a8a8a"  # Life is Strange: BtS
+    "steam:1701800" = "#b24338"  # Lunistice VR
+    "name:MegaManStarForce" = "#1d95d1"  # Mega Man Star Force Legacy VR
+    "steam:1061910" = "#b03c12"  # Metal: Hellsinger VR
+    "steam:2719060" = "#1a70f1"  # Mirage Feathers VR
+    "steam:1446780" = "#0e3a89"  # Monster Hunter Rise VR
+    "name:MonsterHunterStories3" = "#b95c48"  # Monster Hunter Stories 3 VR
+    "steam:2246340" = "#5e4018"  # Monster Hunter Wilds
+    "steam:1605250" = "#38b1b7"  # Moros Protocol VR
+    "steam:22320" = "#b08e3e"  # Morrowind VR
+    "steam:2990060" = "#b06ff2"  # Moto Rush Reborn VR (light purple)
+    "steam:1533420" = "#0c8ad8"  # Neon White VR
+    "name:NOLF2" = "#fdca05"  # No One Lives Forever 2 VR
+    "steam:2168680" = "#dc3b12"  # Nuclear Option VR
+    "steam:3046600" = "#e41019"  # Onimusha 2 VR
+    "steam:753640" = "#ba5b1a"  # Outer Wilds VR
+    "steam:794260" = "#3e6ab2"  # Outward DE VR
+    "steam:1178880" = "#1142b1"  # Panzer Dragoon Remake
+    "steam:1350720" = "#025abf"  # Paperklay VR
+    "steam:1592290" = "#5e1613"  # Paranoia Place VR
+    "steam:22180" = "#324561"  # Penumbra: Overture VR
+    "steam:620" = "#24b2e7"  # Portal 2 VR
+    "steam:440000" = "#2a4fd0"  # Portal 2: Community Edition VR (dark blue)
+    "name:Pragmata" = "#1443d8"  # Pragmata VR
+    "steam:2320" = "#8a6a2a"  # Quake 2 VR
+    "steam:2200" = "#1c1a1a"  # Quake 3 VR
+    "steam:2310" = "#bf5a1e"  # Quake VR (rust orange)
+    "steam:3241660" = "#fbd238"  # R.E.P.O. VR
+    "steam:648800" = "#498bcc"  # Raft VR
+    "name:RE_Requiem" = "#843736"  # RE Requiem VR
+    "steam:1196590" = "#141b1e"  # RE Village VR
+    "steam:1144200" = "#e10405"  # Ready Or Not VR
+    "steam:1129310" = "#b00e31"  # Receiver 2 VR
+    "steam:234190" = "#fb123e"  # Receiver VR
+    "steam:883710" = "#3e6984"  # Resident Evil 2R VR
+    "steam:952060" = "#df0212"  # Resident Evil 3R VR
+    "steam:2050650" = "#b91a2a"  # Resident Evil 4R VR
+    "steam:418370" = "#eb6020"  # Resident Evil 7 VR
+    "name:RichardBurnsRallyVR" = "#b5100e"  # Richard Burns Rally VR
+    "steam:632360" = "#033a66"  # Risk of Rain 2
+    "steam:300380" = "#e4b03a"  # Road Redemption VR
+    "steam:1963610" = "#3d3933"  # Road to Vostok VR
+    "steam:2784620" = "#b58213"  # Rogue Flight VR
+    "steam:55230" = "#191433"  # Saints Row: The Third VR
+    "steam:1122720" = "#1d0d61"  # Sayonara Wild Hearts
+    "steam:1592280" = "#de6665"  # Selaco VR
+    "steam:1161580" = "#fad943"  # Shipbreaker VR
+    "steam:1263240" = "#0d383d"  # Skate Story VR
+    "steam:611670" = "#1a3339"  # Skyrim VR
+    "steam:433340" = "#e03e5e"  # Slime Rancher VR
+    "steam:2607870" = "#163d91"  # Slyders VR
+    "name:SonicP06" = "#02138b"  # Sonic P-06 VR
+    "steam:2651280" = "#b80605"  # Spiderman 2 VR
+    "steam:1817190" = "#b81e2a"  # Spiderman Miles Morales VR
+    "steam:1817070" = "#b30303"  # Spiderman Remastered
+    "steam:1703340" = "#fce45d"  # Stanley Parable VR
+    "steam:2626120" = "#d3c01d"  # Star Racer VR
+    "steam:2842040" = "#da9063"  # Star Wars Outlaws VR
+    "steam:354430" = "#d4965c"  # Star Wars: X-Wing VR
+    "steam:1716740" = "#324759"  # Starfield VR
+    "steam:1332010" = "#61191c"  # Stray VR
+    "steam:1364780" = "#fb6006"  # Street Fighter 6 VR
+    "steam:2707870" = "#d69762"  # StreetDog BMX VR
+    "steam:317040" = "#b58a1e"  # Strife VR
+    "steam:264710" = "#088ed8"  # Subnautica VR
+    "steam:848450" = "#104184"  # Subnautica: Below Zero
+    "steam:2670800" = "#f98a3c"  # Sunrise GP VR
+    "steam:2459860" = "#063be2"  # Super Polygon Grand Prix VR
+    "steam:1457320" = "#d66812"  # Techtonica VR
+    "name:TheDarkModVR" = "#63381d"  # The Dark Mod VR
+    "steam:1599020" = "#3f3990"  # Tinykin VR
+    "steam:1888930" = "#ad6637"  # TLOU Part I VR
+    "steam:2531310" = "#16191e"  # TLOU Part II VR
+    "steam:224960" = "#d08448"  # Tomb Raider 1 VR
+    "steam:1367590" = "#b88b5e"  # Tormented Souls VR
+    "name:TotalChaosVR" = "#d12a22"  # Total Chaos VR (vivid blood red - title/splatter accent, readable on the dark UI)
+    "steam:1059990" = "#fbb30a"  # Trombone Champ VR
+    "name:UEVR" = "#363a3f"  # UEVR Deluxe
+    "steam:1229490" = "#fc0504"  # ULTRAKILL VR
+    "steam:1659420" = "#21303e"  # Uncharted: Legacy of Thieves VR
+    "steam:3528970" = "#b31318"  # Unmourned VR
+    "name:UUVR" = "#2f6fb0"  # UUVR / Rai Pal
+    "steam:892970" = "#163542"  # Valheim VR
+    "name:Vivecraft" = "#15b6e5"  # Vivecraft
+    "steam:447040" = "#6487ba"  # Watch Dogs 2 VR
+    "steam:2239550" = "#121e37"  # Watch Dogs Legion VR
+    "steam:243470" = "#1b1b1b"  # Watch Dogs VR
+    "name:WorldOfWarcraft" = "#0a3937"  # World of Warcraft VR
+    "steam:360830" = "#abe232"  # Yooka-Laylee VR
+}
