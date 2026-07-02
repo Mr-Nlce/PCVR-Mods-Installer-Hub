@@ -360,13 +360,7 @@ if (-not (Test-Path $launchPath)) { $launchPath = $gtaExe }   # cracked/standalo
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Grand Theft Auto V VR.lnk"
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath       = $launchPath
-    $sc.WorkingDirectory = $gtaDir
-    $sc.IconLocation     = $launchPath
-    $sc.Description       = "Launch Grand Theft Auto V with the R.E.A.L. VR mod"
-    $sc.Save()
+    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launchPath -WorkingDir $gtaDir -IconPath $launchPath
     Write-OK "Desktop shortcut created: Grand Theft Auto V VR"
 } catch {
     Write-Warn "Could not create the desktop shortcut. Launch $LAUNCH_EXE from $gtaDir."

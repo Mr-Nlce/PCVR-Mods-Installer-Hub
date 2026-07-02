@@ -309,14 +309,7 @@ $vrExePath = Join-Path $gamePath $GAME_EXE
 if (Test-Path $vrExePath) {
     try {
         $desktopPath = [Environment]::GetFolderPath("Desktop")
-        $wsh = New-Object -ComObject WScript.Shell
-        $sc  = $wsh.CreateShortcut((Join-Path $desktopPath "Gunfire Reborn VR.lnk"))
-        $sc.TargetPath       = $vrExePath
-        $sc.WorkingDirectory = $gamePath
-        $sc.Arguments        = "-vrmode OpenVR"
-        $sc.Description      = "Gunfire Reborn (VR Version)"
-        $sc.IconLocation     = "$vrExePath,0"
-        $sc.Save()
+         $sc = New-DesktopShortcut -LnkPath (Join-Path $desktopPath "Gunfire Reborn VR.lnk") -TargetPath $vrExePath -WorkingDir $gamePath -IconPath "$vrExePath,0" -Arguments "-vrmode OpenVR" -Description "Gunfire Reborn (VR Version)"
         Write-OK "Desktop shortcut created: Gunfire Reborn VR"
     } catch {
         Write-Warn "Could not create shortcut: $_"

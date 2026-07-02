@@ -150,13 +150,8 @@ if($modLoaderExe -and (Test-Path $modLoaderExe)){
  try {
  $desktop = [Environment]::GetFolderPath("Desktop")
  $lnk = Join-Path $desktop "Raft VR.lnk"
- $wsh = New-Object -ComObject WScript.Shell
- $sc = $wsh.CreateShortcut($lnk)
- $sc.TargetPath = $modLoaderExe
- # Use Raft.exe icon for the shortcut
- $raftExe = Join-Path $gp "Raft.exe"
- if(Test-Path $raftExe){ $sc.IconLocation = "$raftExe,0" }
- $sc.Save()
+  $raftExe = Join-Path $gp "Raft.exe"
+  $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $modLoaderExe -IconPath "$raftExe,0"
  Write-OK "Desktop shortcut created: 'Raft VR'"
  } catch { Write-Warn "Could not create desktop shortcut: $_" }
 }

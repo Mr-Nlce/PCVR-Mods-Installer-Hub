@@ -358,26 +358,15 @@ try {
 # Desktop shortcuts (game is not Steam-launched, so each episode gets one).
 $iconExe = Join-Path $gameRoot "Resources\Ashes.exe"
 if (-not (Test-Path $iconExe)) { $iconExe = Join-Path $gzDestDir $gzExeName }
-function New-DesktopShortcut {
-    param([string]$LnkName, [string]$TargetBat, [string]$Desc)
-    try {
-        $desktop = [Environment]::GetFolderPath("Desktop")
-        $lnk = Join-Path $desktop $LnkName
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnk)
-        $sc.TargetPath       = $TargetBat
-        $sc.WorkingDirectory = $gameRoot
-        if (Test-Path $iconExe) { $sc.IconLocation = $iconExe }
-        $sc.Description      = $Desc
-        $sc.Save()
-        Write-OK "Desktop shortcut: $LnkName"
-    } catch {
-        Write-Warn "Could not create shortcut $LnkName : $_"
-    }
-}
-if (Test-Path $batEp1)   { New-DesktopShortcut -LnkName "Ashes 2063 VR.lnk"          -TargetBat $batEp1   -Desc "Ashes 2063 Enriched in VR (gzdoomvr)" }
-if (Test-Path $batGlow)  { New-DesktopShortcut -LnkName "Ashes Afterglow VR.lnk"     -TargetBat $batGlow  -Desc "Ashes Afterglow in VR (gzdoomvr)" }
-if (Test-Path $batReset) { New-DesktopShortcut -LnkName "Ashes Hard Reset VR.lnk"    -TargetBat $batReset -Desc "Ashes Hard Reset in VR (gzdoomvr)" }
+$icoEp1   = Join-Path $gameRoot "Ashes2063_VR.ico"
+$icoGlow  = Join-Path $gameRoot "AshesAfterglow_VR.ico"
+$icoReset = Join-Path $gameRoot "AshesHardReset_VR.ico"
+try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "Ashes2063_VR.ico") -Destination $icoEp1 -Force } catch {}
+try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "AshesAfterglow_VR.ico") -Destination $icoGlow -Force } catch {}
+try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "AshesHardReset_VR.ico") -Destination $icoReset -Force } catch {}
+if (Test-Path $batEp1)   { New-DesktopShortcut -ShortcutName "Ashes 2063 VR" -TargetPath $batEp1 -WorkingDir $gameRoot -IconPath $(if (Test-Path $icoEp1) { $icoEp1 } elseif (Test-Path $iconExe) { $iconExe } else { "" }) -Description "Ashes 2063 Enriched in VR (gzdoomvr)" }
+if (Test-Path $batGlow)  { New-DesktopShortcut -ShortcutName "Ashes Afterglow VR" -TargetPath $batGlow -WorkingDir $gameRoot -IconPath $(if (Test-Path $icoGlow) { $icoGlow } elseif (Test-Path $iconExe) { $iconExe } else { "" }) -Description "Ashes Afterglow in VR (gzdoomvr)" }
+if (Test-Path $batReset) { New-DesktopShortcut -ShortcutName "Ashes Hard Reset VR" -TargetPath $batReset -WorkingDir $gameRoot -IconPath $(if (Test-Path $icoReset) { $icoReset } elseif (Test-Path $iconExe) { $iconExe } else { "" }) -Description "Ashes Hard Reset in VR (gzdoomvr)" }
 
 # Record the install path so the Hub's VR Ready check + Start-in-VR find it.
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Force -ErrorAction Stop } catch {}

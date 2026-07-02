@@ -400,13 +400,7 @@ Write-Host ""
 # Desktop shortcut
 if (Test-Path (Join-Path $gamePath "Content Warning.exe")) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Content Warning VR.lnk")
- $shortcut.TargetPath = Join-Path $gamePath "Content Warning.exe"
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Content Warning VR (CWVR by DaXcess)"
- $shortcut.IconLocation = "$(Join-Path $gamePath 'Content Warning.exe'),0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Content Warning VR.lnk" -TargetPath Join-Path $gamePath "Content Warning.exe" -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath 'Content Warning.exe'),0"
  Write-Info "Desktop shortcut 'Content Warning VR' created."
  } catch { Write-Warn "Could not create shortcut: $_" }
 }

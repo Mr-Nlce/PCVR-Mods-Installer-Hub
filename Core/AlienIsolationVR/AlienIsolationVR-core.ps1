@@ -77,6 +77,11 @@ if (-not $gamePath) {
 }
 
 # STEP 2: Download
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "dxgi.dll"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 2 4 "Downloading"
 $tmp = Join-Path $env:TEMP "AIVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null

@@ -550,23 +550,13 @@ if ($useRevive) {
 $reviveManualHint = $false
 if (Test-Path $gameExePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Quake 2 VR.lnk")
         if ($useRevive) {
             $inj = if ($injectorPath) { $injectorPath } else { Join-Path $env:ProgramFiles "Revive\ReviveInjector.exe" }
-            $shortcut.TargetPath       = $inj
-            $shortcut.Arguments        = "`"$gameExePath`""
-            $shortcut.WorkingDirectory = $installRoot
-            $shortcut.Description      = "Quake 2 VR via Revive"
-            $shortcut.IconLocation     = "$gameExePath,0"
+            $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Quake 2 VR.lnk" -TargetPath $inj -WorkingDir $installRoot -IconPath "$gameExePath,0" -Arguments "`"$gameExePath`"" -Description "Quake 2 VR via Revive"
             if (-not $injectorPath) { $reviveManualHint = $true }
         } else {
-            $shortcut.TargetPath       = $gameExePath
-            $shortcut.WorkingDirectory = $installRoot
-            $shortcut.Description      = "Quake 2 VR (by Luke Groeninger / Malcolm Smith)"
-            $shortcut.IconLocation     = "$gameExePath,0"
+            $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Quake 2 VR.lnk" -TargetPath $gameExePath -WorkingDir $installRoot -IconPath "$gameExePath,0" -Description "Quake 2 VR (by Luke Groeninger / Malcolm Smith)"
         }
-        $shortcut.Save()
         if ($useRevive) { Write-OK "Desktop shortcut 'Quake 2 VR' created (launches through Revive)." }
         else { Write-OK "Desktop shortcut 'Quake 2 VR' created." }
     } catch {

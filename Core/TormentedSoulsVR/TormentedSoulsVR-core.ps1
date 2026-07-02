@@ -443,13 +443,7 @@ Write-Host ""
 
 if (Test-Path $gameExePath) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Tormented Souls VR.lnk")
- $shortcut.TargetPath = $gameExePath
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Tormented Souls VR (TormentedSoulsVR by cybensis)"
- $shortcut.IconLocation = "$gameExePath,0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Tormented Souls VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
  Write-OK "Desktop shortcut 'Tormented Souls VR' created."
  } catch {
  Write-Warn "Could not create shortcut: $_"

@@ -233,13 +233,7 @@ Write-Step 3 3 "Creating Desktop Shortcut"
 
 if (Test-Path $gameExePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Receiver VR.lnk")
-        $shortcut.TargetPath = $gameExePath
-        $shortcut.WorkingDirectory = $installRoot
-        $shortcut.Description = "Receiver VR - standalone VR build of Wolfire's Receiver"
-        $shortcut.IconLocation = "$gameExePath,0"
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Receiver VR.lnk" -TargetPath $gameExePath -WorkingDir $installRoot -IconPath "$gameExePath,0"
         Write-OK "Desktop shortcut 'Receiver VR' created."
     } catch {
         Write-Warn "Could not create shortcut: $($_.Exception.Message)"

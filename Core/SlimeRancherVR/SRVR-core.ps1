@@ -123,6 +123,11 @@ else { Write-Warn "SlimeRancher.exe not found - folder may still be correct." }
 # -------------------------------------------------------
 # STEP 2: Install SRML
 # -------------------------------------------------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "SlimeRancher_Data\Managed\UnityEngine.VRModule.dll"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 2 4 "Installing SRML v0.2.1"
 
 $tempDir = Join-Path $env:TEMP "SRVRInstaller_$([System.IO.Path]::GetRandomFileName())"

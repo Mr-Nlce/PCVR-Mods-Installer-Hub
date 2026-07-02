@@ -369,13 +369,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 
 if (Test-Path $ror2Exe) {
     try {
-        $shell    = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Risk of Rain 2 VR.lnk")
-        $shortcut.TargetPath       = $ror2Exe
-        $shortcut.WorkingDirectory = $gamePath
-        $shortcut.Description      = "Risk of Rain 2 VR (VRMod)"
-        $shortcut.IconLocation     = "$ror2Exe,0"
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Risk of Rain 2 VR.lnk" -TargetPath $ror2Exe -WorkingDir $gamePath -IconPath "$ror2Exe,0"
         Write-OK "Desktop shortcut 'Risk of Rain 2 VR' created."
     } catch {
         Write-Warn "Could not create shortcut: $_"

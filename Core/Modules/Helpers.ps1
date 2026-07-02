@@ -1248,6 +1248,7 @@ function global:Get-PowerTier {
         "Doom VR"                      = "BASIC"
         "Doom 2 VR"                    = "BASIC"
         "Dusk HD (DLC) VR"             = "BASIC"
+        "Echo Generation 2 VR"         = "STRONG"
         "Firewatch VR"                 = "BASIC"
         "Garry's Mod VR"               = "BASIC"
         "Ghosts n Goblins Resurrection VR" = "BASIC"
@@ -1270,6 +1271,7 @@ function global:Get-PowerTier {
         "Paperklay VR"                 = "BASIC"
         "PEAK VR"                      = "BASIC"
         "Penumbra: Overture VR"        = "BASIC"
+        "Perfect Dark VR"              = "BASIC"
         "Portal 2 VR"                  = "BASIC"
         "Quake 2 VR"                   = "BASIC"
         "Quake 3 VR"                   = "BASIC"
@@ -1319,6 +1321,7 @@ function global:Get-PowerTier {
         "Outer Wilds VR"               = "SOLID"
         "Outward DE VR"                = "SOLID"
         "Raft VR"                      = "SOLID"
+        "Ratchet & Clank VR"           = "SOLID"
         "Receiver 2 VR"                = "SOLID"
         "R.E.P.O. VR"                  = "SOLID"
         "Risk of Rain 2"               = "SOLID"
@@ -2299,4 +2302,22 @@ function global:Start-LoggedInstaller {
     }
 
     try { return (Start-Process "powershell.exe" -ArgumentList $argString -PassThru) } catch { return $null }
+}
+
+function global:Get-BannerColorForGame {
+    param($Game)
+    if (-not $Game) { return $null }
+    if (-not $global:BannerColorMap) { return $null }
+    $key = $null
+    $hdr = [string]$Game.HeaderUrl
+    if ($hdr -and ($hdr -notmatch '^https?://')) {
+        $base = Split-Path $hdr -Leaf
+        $base = $base -replace '_header\.\w+$', ''
+        if ($base) { $key = 'name:' + $base }
+    }
+    if ((-not $key -or -not $global:BannerColorMap.ContainsKey($key)) -and $Game.SteamId) {
+        $key = 'steam:' + [string]$Game.SteamId
+    }
+    if ($key -and $global:BannerColorMap.ContainsKey($key)) { return $global:BannerColorMap[$key] }
+    return $null
 }

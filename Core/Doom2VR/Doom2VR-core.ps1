@@ -36,4 +36,4 @@ Install-QuestZDoomGame `
  -WadName "DOOM2.WAD" `
  -SteamFolders @("Doom 2", "DOOM II", "Ultimate Doom", "DOOM + DOOM II", "DOOM", "Doom") `
  -BatLabel "Start Doom 2 VR.bat" `
- -Flavor "Hell came to Earth. Send it back."
+ -Flavor "Hell came to Earth. Send it back." -IconFile "Doom2_VR.ico"

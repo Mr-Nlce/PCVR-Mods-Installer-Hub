@@ -36,4 +36,4 @@ Install-QuestZDoomGame `
  -WadName "DOOM.WAD" `
  -SteamFolders @("Ultimate Doom", "DOOM + DOOM II", "DOOM", "Doom") `
  -BatLabel "Start Doom VR.bat" `
- -Flavor "Rip and tear, until it is done."
+ -Flavor "Rip and tear, until it is done." -IconFile "Doom_VR.ico"

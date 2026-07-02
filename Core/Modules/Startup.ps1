@@ -528,6 +528,37 @@ $global:BannerRotateTimer.Add_Tick({
 })
 $global:BannerRotateTimer.Start()
 
+# ---------------------------------------------------------------
+# Warm the Explore/Discover overview in the background once the Hub
+# is open and idle. Building the genre rows the first time costs a
+# few seconds (many tiles + Add_ handlers), so doing it lazily on the
+# first Explore click makes that click stall. Instead we kick off
+# Start-OverviewPrewarm at Background priority right after the window
+# is interactive; it builds the rows incrementally (one tile per
+# dispatcher cycle) so the banner animations keep rendering between
+# steps (no multi-second freeze, no per-row stutter), and the first
+# Explore switch is instant. Idempotent + safe:
+# if the user opens Explore before the prewarm finishes,
+# Build-DiscoverOverview takes over synchronously and the remaining
+# prewarm steps bail via the $global:OverviewBuilt guard - no double
+# build, no duplicate rows. Background priority yields to input/render,
+# so it never delays window open. Building into the still-collapsed
+# overview subtree does not change what is on screen.
+# ---------------------------------------------------------------
+$window.Add_ContentRendered({
+    if ($global:OverviewBuilt) { return }
+    $window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Background,
+        [action]{
+            try {
+                if (-not $global:OverviewBuilt -and (Get-Command Start-OverviewPrewarm -ErrorAction SilentlyContinue)) {
+                    Start-OverviewPrewarm
+                }
+            } catch { }
+        }
+    ) | Out-Null
+})
+
 # Signal the launcher splash that the window is up, and record the real
 # load time for the next launch's progress estimate. Best-effort; written
 # to %TEMP% only (never the Hub folder - ship-guard).

@@ -487,7 +487,7 @@ function global:Build-OvPowerFilter {
 # arrows. Mouse wheel forwards to the page so vertical scrolling
 # still works.
 function global:New-OvGenreRow {
-    param($Genre, $Games)
+    param($Genre, $Games, [switch]$Deferred)
 
     $rowStack = New-Object System.Windows.Controls.StackPanel
     $rowStack.Margin = [System.Windows.Thickness]::new(0, 0, 0, 26)
@@ -558,10 +558,15 @@ function global:New-OvGenreRow {
 
     $tilesPanel = New-Object System.Windows.Controls.StackPanel
     $tilesPanel.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-    # First copy: always present.
-    foreach ($g in $Games) {
-        $tile = New-OverviewTile -Game $g
-        $tilesPanel.Children.Add($tile) | Out-Null
+    # First copy: always present. In -Deferred mode the tiles are added
+    # later, one per dispatcher cycle, by the background prewarm - the
+    # header count still reflects $Games.Count so the row reads correctly
+    # while its tiles stream in.
+    if (-not $Deferred) {
+        foreach ($g in $Games) {
+            $tile = New-OverviewTile -Game $g
+            $tilesPanel.Children.Add($tile) | Out-Null
+        }
     }
     # Track whether the duplicate-copy has been added. We only add
     # it once we know the row actually overflows the viewport - if
@@ -852,8 +857,12 @@ function global:Apply-OvFilters {
 }
 
 $global:OverviewBuilt = $false
-function global:Build-DiscoverOverview {
-    if ($global:OverviewBuilt) { return }
+# Build the Explore "chrome" - banner + the genre / power / mode filter
+# pills. Cheap next to the genre rows, and guarded so it runs exactly once
+# whether the first trigger is the background prewarm or the user opening
+# Explore (prevents duplicate filter pills across the two paths).
+function global:Build-OverviewChrome {
+    if ($global:OvChromeBuilt) { return }
     $global:OvActiveGenre = "ALL"
     $global:OvActivePower = "ALL"
     # Power-filter mode: "cumulative" (default - "your PC, show
@@ -865,8 +874,113 @@ function global:Build-DiscoverOverview {
     Build-OvGenreFilter
     Build-OvPowerFilter
     Build-OvPowerModeToggle
+    $global:OvChromeBuilt = $true
+}
+
+# Synchronous full build - used when the user opens Explore before the
+# background prewarm has finished. Chrome (once) + ALL genre rows in one
+# go. Build-OvGenreRows clears the panel first, so it cleanly supersedes
+# any partial rows the prewarm added; clearing OvPrewarmActive makes the
+# prewarm's remaining queued steps bail via the OverviewBuilt guard.
+function global:Build-DiscoverOverview {
+    if ($global:OverviewBuilt) { return }
+    Build-OverviewChrome
     Build-OvGenreRows
+    $global:OvPrewarmActive = $false
     $global:OverviewBuilt = $true
+}
+
+# Background prewarm: build the Explore rows incrementally so the UI
+# thread keeps rendering banner animations while it works. Kicked off at
+# Background priority shortly after the window is interactive (see
+# Startup.ps1). The unit of work is deliberately tiny - one empty row
+# shell or ONE tile per dispatcher cycle - because a whole row at once
+# (~10-20 tiles, each with many Add_ handlers) blocked the thread long
+# enough to stutter the animation. See Invoke-OverviewPrewarmStep.
+function global:Start-OverviewPrewarm {
+    if ($global:OverviewBuilt -or $global:OvPrewarmActive) { return }
+    Build-OverviewChrome
+    $panel = $window.FindName("OvGenreRows")
+    if (-not $panel) { return }
+    $panel.Children.Clear()
+    $global:OvGenreRowsPanel = $panel
+    $allGames = @()
+    $allGames += $ownGames
+    $allGames += $ownGamesGP
+    $allGames += $externalGames
+    $global:OvAllGames = $allGames
+    # Precompute the genre -> games plan once (cheap: tag/substring tests,
+    # no WPF elements). Only genres with at least one game get a row.
+    $plan = New-Object System.Collections.Generic.List[object]
+    foreach ($genre in $global:OverviewGenres) {
+        $genreGames = @()
+        foreach ($g in $allGames) {
+            if (Test-OverviewGameInGenre -Game $g -Genre $genre) { $genreGames += $g }
+        }
+        if ($genreGames.Count -gt 0) {
+            $plan.Add([pscustomobject]@{ Genre = $genre; Games = $genreGames }) | Out-Null
+        }
+    }
+    $global:OvPrewarmPlan     = $plan
+    $global:OvPrewarmGi       = 0       # index into $plan (current genre row)
+    $global:OvPrewarmTi       = 0       # index into current row's Games (next tile)
+    $global:OvPrewarmCurPanel = $null   # current row's tilesPanel
+    $global:OvPrewarmActive   = $true
+    Invoke-OverviewPrewarmStep
+}
+
+# One prewarm step does the SMALLEST unit of work possible - build a
+# single empty row shell, or append ONE tile - then re-queues itself at
+# Background priority. A tile costs ~30-50ms (its Add_ handlers) and
+# Render outranks Background, so an animation frame paints between every
+# tile and the banner effects keep moving instead of stuttering in big
+# per-row chunks. If the user opens Explore first, Build-DiscoverOverview
+# builds everything synchronously and these steps bail via OverviewBuilt.
+function global:Invoke-OverviewPrewarmStep {
+    if ($global:OverviewBuilt) { $global:OvPrewarmActive = $false; return }
+    $plan = $global:OvPrewarmPlan
+    if (-not $plan -or $global:OvPrewarmGi -ge $plan.Count) {
+        $global:OverviewBuilt = $true
+        $global:OvPrewarmActive = $false
+        $global:OvPrewarmCurPanel = $null
+        if (Get-Command Apply-OvFilters -ErrorAction SilentlyContinue) { try { Apply-OvFilters } catch { } }
+        return
+    }
+    $entry = $plan[$global:OvPrewarmGi]
+    try {
+        if (-not $global:OvPrewarmCurPanel) {
+            # Build the (empty) row shell and add it now, so the header +
+            # arrows appear immediately; tiles stream in on later steps.
+            $row = New-OvGenreRow -Genre $entry.Genre -Games $entry.Games -Deferred
+            $global:OvGenreRowsPanel.Children.Add($row) | Out-Null
+            $global:OvPrewarmCurPanel = $row.Resources.Item("tilesPanel")
+            $global:OvPrewarmTi = 0
+        } else {
+            # Append exactly one tile to the current row.
+            $games = $entry.Games
+            if ($global:OvPrewarmTi -lt $games.Count) {
+                $g = $games[$global:OvPrewarmTi]
+                $tile = New-OverviewTile -Game $g
+                $global:OvPrewarmCurPanel.Children.Add($tile) | Out-Null
+                $global:OvPrewarmTi++
+            }
+            if ($global:OvPrewarmTi -ge $games.Count) {
+                # Row finished - advance to the next genre next step.
+                $global:OvPrewarmGi++
+                $global:OvPrewarmCurPanel = $null
+            }
+        }
+    } catch {
+        # On any error skip to the next genre so the prewarm can't wedge.
+        $global:OvPrewarmGi++
+        $global:OvPrewarmCurPanel = $null
+    }
+    if ($global:window) {
+        $global:window.Dispatcher.BeginInvoke(
+            [System.Windows.Threading.DispatcherPriority]::Background,
+            [action]{ Invoke-OverviewPrewarmStep }
+        ) | Out-Null
+    }
 }
 
 # Wire up the power-mode toggle pill. Click flips between cumulative

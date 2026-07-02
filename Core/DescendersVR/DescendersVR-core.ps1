@@ -358,12 +358,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 Write-Step 6 6 "Creating Desktop Shortcut"
 
 try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Descenders VR.lnk")
- $shortcut.TargetPath = "steam://rungameid/$STEAM_APP_ID"
- $shortcut.Description = "Descenders VR ($vrModeText)"
- if (Test-Path $gameExe) { $shortcut.IconLocation = "$gameExe,0" }
- $shortcut.Save()
+  $shortcut = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Descenders VR.lnk" -TargetPath "steam://rungameid/$STEAM_APP_ID" -IconPath "$gameExe,0" -Description "Descenders VR ($vrModeText)"
  Write-OK "Desktop shortcut 'Descenders VR' created (launches via Steam)."
 } catch {
  Write-Warn "Could not create shortcut: $_"

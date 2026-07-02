@@ -1,0 +1,34 @@
+﻿{
+    "Okabintaro/SubmersedVR":  {
+                                   "checked":  "2026-07-02T21:22:53.0999607Z",
+                                   "tag":  "0.2.0"
+                               },
+    "Alex-LeTux/perfect_dark_VR":  {
+                                       "checked":  "2026-07-02T21:22:50.7868317Z",
+                                       "tag":  "v1.1-beta"
+                                   },
+    "Nobbie248/PrimedGun":  {
+                                "checked":  "2026-07-02T21:22:50.1996069Z",
+                                "tag":  "v1.0.8"
+                            },
+    "Spencer0187/portal2vr-roomscale":  {
+                                            "checked":  "2026-07-02T21:22:51.3544954Z",
+                                            "tag":  "V0.2.2"
+                                        },
+    "jbusfield/SubmersedVR_BZ":  {
+                                     "checked":  "2026-07-02T21:22:53.6931338Z",
+                                     "tag":  "v0.8.0"
+                                 },
+    "Atmudia/SRVR":  {
+                         "checked":  "2026-07-02T21:22:52.4918363Z",
+                         "tag":  "v1.1"
+                     },
+    "cybensis/SPT-VR":  {
+                            "checked":  "2026-07-02T21:22:49.6564954Z",
+                            "tag":  "v1.3.0"
+                        },
+    "Blah64/Vostok-VR-Mod":  {
+                                 "checked":  "2026-07-02T21:22:51.8666273Z",
+                                 "tag":  "v1.4.0"
+                             }
+}

@@ -79,7 +79,8 @@ $global:FREE_GAME_TITLES = @(
     "Receiver VR",
     "Daggerfall VR",
     "The Dark Mod VR",
-    "I Can Gun VR"
+    "I Can Gun VR",
+    "Ratchet & Clank VR"
 )
 
 # -------------------------------------------------------
@@ -911,6 +912,12 @@ function global:New-GameCardFrosted {
         $nbsp = [char]0x00A0
         $titleDisplay = "Monster" + $nbsp + "Hunter Stories" + $nbsp + "3" + $nbsp + "VR"
     }
+    elseif ($titleDisplay -eq "Ratchet & Clank VR") {
+        # Drop the trailing "VR" on the tile so the green FREE pill fits on
+        # the title row. The full "Ratchet & Clank VR" stays everywhere else
+        # (detail page, search, FREE list, tier map).
+        $titleDisplay = "Ratchet & Clank"
+    }
     $titleText.Text = $titleDisplay
     $titleText.FontSize = [int](13*$sc)
     $titleText.FontWeight = [System.Windows.FontWeights]::Bold
@@ -1080,12 +1087,26 @@ function global:New-GameCardFrosted {
 
         if (-not $isExternal -and $game.Author) {
             $authorText = New-Object System.Windows.Controls.TextBlock
-            $authorText.Text = "by $($game.Author)"
             $authorText.FontSize = [int](9*$sc)
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
-            $authorText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
+            $authGrey = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
+            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+                # Marker first, in the accent colour (like the mod line), then
+                # the normal grey "by <authors>" attribution after it.
+                $auRun = New-Object System.Windows.Documents.Run
+                $auRun.Text = "$($matches[1]) "
+                $auRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
+                [void]$authorText.Inlines.Add($auRun)
+                $byRun = New-Object System.Windows.Documents.Run
+                $byRun.Text = "by $($matches[2])"
+                $byRun.Foreground = $authGrey
+                [void]$authorText.Inlines.Add($byRun)
+            } else {
+                $authorText.Text = "by $($game.Author)"
+                $authorText.Foreground = $authGrey
+            }
             $titleStack.Children.Add($authorText) | Out-Null
             $card.Resources.Add("authorText", $authorText)
         } elseif ($isExternal) {
@@ -2560,7 +2581,7 @@ function global:New-GameCardFrosted {
                     # rare but covers click-through edge cases): wipe
                     # the stored version so the next Check Installed
                     # persists the new one after the installer runs.
-                    Remove-InstalledVersion -Game $gameCapture
+                    Clear-UpdateOkMarker -Game $gameCapture
                 }
                 # Launch the installer and capture the process so
                 # we can refresh state when it exits. Same auto-
@@ -2602,7 +2623,7 @@ function global:New-GameCardFrosted {
                 # after the installer runs. Matches the card-level
                 # click handler's behaviour for the Update path.
                 if ($cardCapture.Tag -eq "vrupdate") {
-                    try { Remove-InstalledVersion -Game $gameCapture } catch { }
+                    try { Clear-UpdateOkMarker -Game $gameCapture } catch { }
                 }
                 # Launch + capture the process so we can auto-refresh
                 # this card's state when the installer exits (same
@@ -3028,12 +3049,26 @@ function global:New-GameCardClassic {
 
         if (-not $isExternal -and $game.Author) {
             $authorText = New-Object System.Windows.Controls.TextBlock
-            $authorText.Text = "by $($game.Author)"
             $authorText.FontSize = [int](9*$sc)
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
-            $authorText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
+            $authGrey = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
+            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+                # Marker first, in the accent colour (like the mod line), then
+                # the normal grey "by <authors>" attribution after it.
+                $auRun = New-Object System.Windows.Documents.Run
+                $auRun.Text = "$($matches[1]) "
+                $auRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
+                [void]$authorText.Inlines.Add($auRun)
+                $byRun = New-Object System.Windows.Documents.Run
+                $byRun.Text = "by $($matches[2])"
+                $byRun.Foreground = $authGrey
+                [void]$authorText.Inlines.Add($byRun)
+            } else {
+                $authorText.Text = "by $($game.Author)"
+                $authorText.Foreground = $authGrey
+            }
             $titleStack.Children.Add($authorText) | Out-Null
             $card.Resources.Add("authorText", $authorText)
         } elseif ($isExternal) {
@@ -4391,7 +4426,7 @@ function global:New-GameCardClassic {
                     # rare but covers click-through edge cases): wipe
                     # the stored version so the next Check Installed
                     # persists the new one after the installer runs.
-                    Remove-InstalledVersion -Game $gameCapture
+                    Clear-UpdateOkMarker -Game $gameCapture
                 }
                 # Launch the installer and capture the process so
                 # we can refresh state when it exits. Same auto-
@@ -4433,7 +4468,7 @@ function global:New-GameCardClassic {
                 # after the installer runs. Matches the card-level
                 # click handler's behaviour for the Update path.
                 if ($cardCapture.Tag -eq "vrupdate") {
-                    try { Remove-InstalledVersion -Game $gameCapture } catch { }
+                    try { Clear-UpdateOkMarker -Game $gameCapture } catch { }
                 }
                 # Launch + capture the process so we can auto-refresh
                 # this card's state when the installer exits (same

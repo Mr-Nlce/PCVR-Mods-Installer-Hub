@@ -36,4 +36,4 @@ Install-QuestZDoomGame `
  -WadName "HERETIC.WAD" `
  -SteamFolders @("Heretic Shadow of the Serpent Riders", "Heretic + Hexen", "Heretic Hexen", "Heretic") `
  -BatLabel "Start Heretic VR.bat" `
- -Flavor "Staff in hand. Tome of Power ready. The Serpent Riders await."
+ -Flavor "Staff in hand. Tome of Power ready. The Serpent Riders await." -IconFile "Heretic_VR.ico"

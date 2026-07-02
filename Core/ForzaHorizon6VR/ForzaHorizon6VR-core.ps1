@@ -175,13 +175,7 @@ try { Copy-Item -Path (Join-Path $PSScriptRoot "ForzaHorizon6_VR.ico") -Destinat
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Forza Horizon 6 VR.lnk"
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath       = $launcherPath
-    $sc.WorkingDirectory = $modFolder
-    if (Test-Path $iconDest) { $sc.IconLocation = $iconDest } else { $sc.IconLocation = $launcherPath }
-    $sc.Description       = "Launch the Forza Horizon 6 VR mod ($modName)"
-    $sc.Save()
+     $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launcherPath -WorkingDir $modFolder -IconPath $(if (Test-Path $iconDest) { $iconDest } else { $launcherPath }) -Description "Launch the Forza Horizon 6 VR mod ($modName)"
     Write-OK "Desktop shortcut created with custom icon: Forza Horizon 6 VR"
 } catch {
     Write-Warn "Could not create the desktop shortcut. You can start $launcherName from $modFolder."

@@ -160,19 +160,6 @@ function Test-DlssSwapperInstalled {
 }
 
 # Create a desktop shortcut. Returns the .lnk path or $null on failure.
-function New-DesktopShortcut {
-    param([string]$TargetPath, [string]$ShortcutName, [string]$WorkingDir)
-    try {
-        $desktop = [Environment]::GetFolderPath("Desktop")
-        $lnk = Join-Path $desktop "$ShortcutName.lnk"
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnk)
-        $sc.TargetPath = $TargetPath
-        if ($WorkingDir) { $sc.WorkingDirectory = $WorkingDir }
-        $sc.Save()
-        return $lnk
-    } catch { return $null }
-}
 
 Write-Header
 

@@ -387,13 +387,7 @@ if ($mode -eq "1") {
 
     if (Test-Path $gameExePath) {
         try {
-            $shell = New-Object -ComObject WScript.Shell
-            $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Bendy VR.lnk")
-            $shortcut.TargetPath = $gameExePath
-            $shortcut.WorkingDirectory = $gamePath
-            $shortcut.Description = "Bendy VR (BendyVR by Team Beef Studios)"
-            $shortcut.IconLocation = "$gameExePath,0"
-            $shortcut.Save()
+            $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Bendy VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
             Write-OK "Desktop shortcut 'Bendy VR' created."
         } catch {
             Write-Warn "Could not create shortcut: $_"

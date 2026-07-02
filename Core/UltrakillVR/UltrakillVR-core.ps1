@@ -417,13 +417,7 @@ Write-Host ""
 # Desktop shortcut
 if (Test-Path $gameExePath) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\ULTRAKILL VR.lnk")
- $shortcut.TargetPath = $gameExePath
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "ULTRAKILL VR (VRTRAKILL_FRAUD by Squaresweets)"
- $shortcut.IconLocation = "$gameExePath,0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\ULTRAKILL VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
  Write-Info "Desktop shortcut 'ULTRAKILL VR' created."
  } catch {
  Write-Warn "Could not create shortcut: $_"

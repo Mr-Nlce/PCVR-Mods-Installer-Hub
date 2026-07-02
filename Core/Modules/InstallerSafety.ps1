@@ -1255,3 +1255,43 @@ function global:Test-ViGEmBusInstalled {
     } catch {}
     return $false
 }
+
+function Read-UpdateOrInstall {
+    # Shared install/update picker for download-and-replace mods. If the mod
+    # is already present, offer to update (re-pull the latest files) or do a
+    # full reinstall. Returns "install" (nothing there yet), "update",
+    # "reinstall", or "cancel".
+    param([string]$GameFolder, [string]$ModFile)
+    if (-not $ModFile -or -not $GameFolder) { return "install" }
+    $probe = Join-Path $GameFolder $ModFile
+    if (-not (Test-Path $probe)) { return "install" }
+    Write-Host ""
+    Write-Host "  An existing installation was detected." -ForegroundColor Cyan
+    Write-Host "    [1] Update    - re-download the latest version and replace the mod files" -ForegroundColor White
+    Write-Host "    [2] Reinstall - full clean install" -ForegroundColor White
+    Write-Host "    [Q] Cancel" -ForegroundColor Gray
+    $c = ""
+    while ($c -notin @("1","2","q","Q")) { $c = (Read-Host "  Choice (1/2/Q)").Trim() }
+    if ($c -match "^[Qq]$") { return "cancel" }
+    if ($c -eq "1") { return "update" }
+    return "reinstall"
+}
+
+function global:New-DesktopShortcut {
+    param([string]$LnkPath, [string]$TargetPath, [string]$ShortcutName, [string]$WorkingDir, [string]$IconPath, [string]$Arguments, [string]$Description)
+    try {
+        if (-not $LnkPath) {
+            $dsk = [Environment]::GetFolderPath('Desktop')
+            $LnkPath = Join-Path $dsk ($ShortcutName + '.lnk')
+        }
+        $ws = New-Object -ComObject WScript.Shell
+        $sc = $ws.CreateShortcut($LnkPath)
+        $sc.TargetPath = $TargetPath
+        if ($WorkingDir)  { $sc.WorkingDirectory = $WorkingDir }
+        if ($IconPath)    { $sc.IconLocation = $IconPath }
+        if ($Arguments)   { $sc.Arguments = $Arguments }
+        if ($Description) { $sc.Description = $Description }
+        $sc.Save()
+        return $LnkPath
+    } catch { return $null }
+}

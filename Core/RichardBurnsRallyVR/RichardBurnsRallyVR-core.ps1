@@ -112,13 +112,7 @@ Write-Step 4 4 "Creating desktop shortcut"
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Richard Burns Rally VR.lnk"
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath       = $rbrExe
-    $sc.WorkingDirectory = $rbrDir
-    $sc.IconLocation     = $rbrExe
-    $sc.Description       = "Launch Richard Burns Rally with the RBRvr mod"
-    $sc.Save()
+    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $rbrExe -WorkingDir $rbrDir -IconPath $rbrExe
     Write-OK "Desktop shortcut created: Richard Burns Rally VR"
 } catch {
     Write-Warn "Could not create the desktop shortcut. You can start the game from $rbrExe."

@@ -348,13 +348,7 @@ Pause-User "Press Enter to continue..."
 
 if (Test-Path $gameExePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Quake 3 VR.lnk")
-        $shortcut.TargetPath = $gameExePath
-        $shortcut.WorkingDirectory = $installRoot
-        $shortcut.Description = "Quake 3 VR (by RippeR37)"
-        $shortcut.IconLocation = "$gameExePath,0"
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Quake 3 VR.lnk" -TargetPath $gameExePath -WorkingDir $installRoot -IconPath "$gameExePath,0"
         Write-OK "Desktop shortcut 'Quake 3 VR' created."
     } catch {
         Write-Warn "Could not create shortcut: $($_.Exception.Message)"

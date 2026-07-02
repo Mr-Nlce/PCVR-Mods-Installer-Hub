@@ -121,6 +121,15 @@ try {
     if ($coreScript -and (Test-Path $coreScript)) {
         Push-Location (Split-Path $coreScript -Parent)
         try { & $coreScript @coreArgs } finally { Pop-Location }
+        # Core returned normally (no 'exit') = the install ran to the
+        # end. A cancel inside the core calls 'exit' first and never
+        # reaches here, so this marker means a real (re)install. The Hub
+        # reads it next to .installed_version to decide whether to reseed
+        # the tracked version after the installer window closes.
+        try {
+            $okMk = Join-Path (Split-Path $coreScript -Parent) ".update_ok"
+            [System.IO.File]::WriteAllText($okMk, (Get-Date -Format o), (New-Object System.Text.UTF8Encoding $false))
+        } catch {}
     } else {
         # Could not resolve a core .ps1: run the bat the old way. No pipe, so
         # colors still work; the bat's nested powershell just isn't captured.

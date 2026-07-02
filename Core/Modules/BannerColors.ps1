@@ -11,23 +11,6 @@
 # "name:<HeaderBase>" for games shipping a local Assets header.
 # ============================================================
 
-function global:Get-BannerColorForGame {
-    param($Game)
-    if (-not $Game) { return $null }
-    if (-not $global:BannerColorMap) { return $null }
-    $key = $null
-    $hdr = [string]$Game.HeaderUrl
-    if ($hdr -and ($hdr -notmatch '^https?://')) {
-        $base = Split-Path $hdr -Leaf
-        $base = $base -replace '_header\.\w+$', ''
-        if ($base) { $key = 'name:' + $base }
-    }
-    if ((-not $key -or -not $global:BannerColorMap.ContainsKey($key)) -and $Game.SteamId) {
-        $key = 'steam:' + [string]$Game.SteamId
-    }
-    if ($key -and $global:BannerColorMap.ContainsKey($key)) { return $global:BannerColorMap[$key] }
-    return $null
-}
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
@@ -76,6 +59,7 @@ $global:BannerColorMap = @{
     "steam:1562430" = "#835e40"  # Dredge VR
     "steam:2223700" = "#3991fc"  # Driftwood VR
     "steam:519860" = "#b51903"  # Dusk HD (DLC) VR
+    "steam:1115990" = "#1e1636"  # Echo Generation 2 VR
     "steam:1245620" = "#c9a227"  # Elden Ring VR
     "name:SPTVR" = "#373a3d"  # Escape from Tarkov VR
     "steam:611660" = "#b8801e"  # Fallout 4 VR
@@ -149,6 +133,7 @@ $global:BannerColorMap = @{
     "steam:1350720" = "#025abf"  # Paperklay VR
     "steam:1592290" = "#5e1613"  # Paranoia Place VR
     "steam:22180" = "#324561"  # Penumbra: Overture VR
+    "name:PerfectDarkVR" = "#2f6fe0"  # Perfect Dark VR
     "steam:620" = "#24b2e7"  # Portal 2 VR
     "steam:440000" = "#2a4fd0"  # Portal 2: Community Edition VR (dark blue)
     "name:Pragmata" = "#1443d8"  # Pragmata VR
@@ -157,6 +142,7 @@ $global:BannerColorMap = @{
     "steam:2310" = "#bf5a1e"  # Quake VR (rust orange)
     "steam:3241660" = "#fbd238"  # R.E.P.O. VR
     "steam:648800" = "#498bcc"  # Raft VR
+    "name:RatchetVR" = "#e69020"  # Ratchet & Clank VR
     "name:RE_Requiem" = "#843736"  # RE Requiem VR
     "steam:1196590" = "#141b1e"  # RE Village VR
     "steam:1144200" = "#e10405"  # Ready Or Not VR

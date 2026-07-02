@@ -144,6 +144,11 @@ else { Write-Warn "SubnauticaZero.exe not found - folder may still be correct." 
 # -------------------------------------------------------
 # STEP 3: Install BepInEx + SubmersedVR BZ
 # -------------------------------------------------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "SubnauticaZero_Data\Managed\UnityEngine.VRModule.dll"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 3 4 "Installing BepInEx + SubmersedVR BZ 0.8.0"
 
 $tempDir = Join-Path $env:TEMP "SubmersedVRBZInstaller_$([System.IO.Path]::GetRandomFileName())"

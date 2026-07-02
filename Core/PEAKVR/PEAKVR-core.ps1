@@ -485,18 +485,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 Write-Step 7 7 "Create desktop shortcut"
 
 try {
-    $shell    = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\PEAK VR.lnk")
-    $shortcut.TargetPath       = $gameExePath
-    # -force-vulkan = author's recommended VR API combo. Without this
-    # PEAK uses D3D12 (Unity default) and renders to the desktop window
-    # only; nothing reaches the headset. With Vulkan, the OpenVR mod
-    # renders to the headset properly.
-    $shortcut.Arguments        = "-force-vulkan"
-    $shortcut.WorkingDirectory = $gamePath
-    $shortcut.Description      = "PEAK VR ($MOD_NAME)"
-    $shortcut.IconLocation     = "$gameExePath,0"
-    $shortcut.Save()
+    $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\PEAK VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0" -Arguments "-force-vulkan"
     Write-OK "Desktop shortcut 'PEAK VR' created (with -force-vulkan)."
 } catch {
     Write-Warn "Could not create desktop shortcut: $_"

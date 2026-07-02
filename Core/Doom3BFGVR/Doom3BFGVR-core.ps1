@@ -116,16 +116,8 @@ try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch
 Write-Step 3 3 "Creating Desktop Shortcut"
 
 try {
-    $shell    = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Doom 3 BFG VR.lnk")
-    $shortcut.TargetPath       = $vrExePath
-    $shortcut.WorkingDirectory = $gamePath
-    $shortcut.Description      = "DOOM 3 BFG VR - Fully Possessed"
-    # Use original game exe icon
-    $origExe = Join-Path $gamePath $GAME_EXE
-    if (Test-Path $origExe) { $shortcut.IconLocation = "$origExe,0" }
-    elseif (Test-Path $vrExePath) { $shortcut.IconLocation = "$vrExePath,0" }
-    $shortcut.Save()
+     $origExe = Join-Path $gamePath $GAME_EXE
+     $shortcut = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Doom 3 BFG VR.lnk" -TargetPath $vrExePath -WorkingDir $gamePath -IconPath $(if (Test-Path $origExe) { "$origExe,0" } else { "$vrExePath,0" }) -Description "DOOM 3 BFG VR - Fully Possessed"
     Write-OK "Desktop shortcut 'Doom 3 BFG VR' created."
 } catch {
     Write-Warn "Could not create shortcut: $_"

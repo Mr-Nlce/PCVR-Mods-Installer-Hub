@@ -79,7 +79,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.2.2"
+$HUB_VERSION = "0.8.2.5"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -233,6 +233,26 @@ function Remove-InstalledVersion {
     $path = Get-InstalledVersionPath -Game $Game
     if ($path -and (Test-Path $path)) {
         Remove-Item $path -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Path to the per-game ".update_ok" marker the installer wrapper drops
+# next to .installed_version when its core ran to completion. A cancel
+# inside the core calls 'exit' first, so the marker is absent on cancel.
+function Get-UpdateOkMarkerPath {
+    param($Game)
+    $vp = Get-InstalledVersionPath -Game $Game
+    if (-not $vp) { return $null }
+    return (Join-Path (Split-Path -Parent $vp) ".update_ok")
+}
+
+# Clear a stale completion marker before launching an update installer,
+# so only a freshly completed run can clear the tracked version.
+function Clear-UpdateOkMarker {
+    param($Game)
+    $mk = Get-UpdateOkMarkerPath -Game $Game
+    if ($mk -and (Test-Path $mk)) {
+        Remove-Item $mk -Force -ErrorAction SilentlyContinue
     }
 }
 

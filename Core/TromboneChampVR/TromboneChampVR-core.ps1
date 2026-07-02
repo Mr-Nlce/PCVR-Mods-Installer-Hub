@@ -411,13 +411,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 Write-Step 5 5 "Create desktop shortcut"
 
 try {
-    $shell    = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Trombone Champ VR.lnk")
-    $shortcut.TargetPath       = $gameExePath
-    $shortcut.WorkingDirectory = $gamePath
-    $shortcut.Description      = "Trombone Champ VR ($MOD_NAME)"
-    $shortcut.IconLocation     = "$gameExePath,0"
-    $shortcut.Save()
+    $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Trombone Champ VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
     Write-OK "Desktop shortcut 'Trombone Champ VR' created."
 } catch {
     Write-Warn "Could not create desktop shortcut: $_"

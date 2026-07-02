@@ -131,14 +131,12 @@ Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
 $romDir   = Join-Path $gameRoot "ROM"
 
-if (Test-Path (Join-Path $gameRoot $GAME_EXE)) {
-    Write-Warn "An existing Metroid Prime VR install was found at: $gameRoot"
-    Write-Host "  Press Enter to reinstall (your ROM folder will be preserved)," -ForegroundColor Gray
-    Write-Host "  or close this window to abort." -ForegroundColor Gray
-    Pause-User "Press Enter to reinstall..." | Out-Null
-}
-
 # ---- 2. download the latest PrimedGun release ---------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile "PrimedGun.exe"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 2 5 "Downloading PrimedGun (latest release)"
 
 $tmp = Join-Path $installRoot "_primedgun_extract_tmp"
@@ -343,6 +341,19 @@ Write-Host ""
 
 $romExt = @(".iso", ".rvz", ".gcm", ".ciso", ".gcz", ".wbfs")
 $romPlaced = $false
+# On an update or reinstall the ROM folder is preserved. If a disc image
+# is already sitting there, keep it and skip the drag prompt - the ROM is
+# already in the right place, so re-adding it would be pointless.
+$existingRom = $null
+if (Test-Path $romDir) {
+    $existingRom = Get-ChildItem -LiteralPath $romDir -File -ErrorAction SilentlyContinue |
+        Where-Object { $romExt -contains $_.Extension.ToLower() } | Select-Object -First 1
+}
+if ($existingRom) {
+    Write-OK "ROM already in place: $($existingRom.Name) - keeping your existing disc image."
+    Write-Info "To swap it, drop a different file into the ROM folder shown above."
+    $romPlaced = $true
+}
 while (-not $romPlaced) {
     Write-Host ""
     Write-Host "  Drag your Metroid Prime ROM file onto this window and press Enter," -ForegroundColor White
@@ -391,13 +402,7 @@ if (-not (Test-Path $exePath)) {
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         $lnkPath = Join-Path $desktop "Metroid Prime VR.lnk"
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnkPath)
-        $sc.TargetPath       = $exePath
-        $sc.WorkingDirectory = $gameRoot
-        $sc.IconLocation     = $exePath
-        $sc.Description       = "Metroid Prime VR (PrimedGun by Nobbie)"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $exePath -WorkingDir $gameRoot -IconPath $exePath
         Write-OK "Desktop shortcut created: Metroid Prime VR"
     } catch {
         Write-Warn "Could not create the desktop shortcut: $_"

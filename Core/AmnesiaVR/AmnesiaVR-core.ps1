@@ -248,14 +248,7 @@ Write-Step 4 4 "Creating Desktop Shortcut"
 
 if (Test-Path $sclerosisExe) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Amnesia VR.lnk")
- $shortcut.TargetPath = $sclerosisExe
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Amnesia VR - Sclerosis remake"
- # Sclerosis.exe ships its own icon - use it directly.
- $shortcut.IconLocation = "$sclerosisExe,0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Amnesia VR.lnk" -TargetPath $sclerosisExe -WorkingDir $gamePath -IconPath "$sclerosisExe,0"
  Write-OK "Desktop shortcut 'Amnesia VR' created."
  } catch {
  Write-Warn "Could not create shortcut: $_"

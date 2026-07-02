@@ -299,19 +299,8 @@ Write-Host ""
 
 if (Test-Path $gameExePath) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Hexen II VR.lnk")
- $shortcut.TargetPath = $gameExePath
- $shortcut.WorkingDirectory = $installRoot
- $shortcut.Description = "Hexen II VR (VHexen2 by alexdnax)"
- # Use glh2.exe icon from the original Hexen II install if available
  $glh2Icon = Join-Path (Split-Path $sourceData1 -Parent) "glh2.exe"
- if (Test-Path $glh2Icon) {
- $shortcut.IconLocation = "$glh2Icon,0"
- } else {
- $shortcut.IconLocation = "$gameExePath,0"
- }
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Hexen II VR.lnk" -TargetPath $gameExePath -WorkingDir $installRoot -IconPath $(if (Test-Path $glh2Icon) { "$glh2Icon,0" } else { "" })
  Write-Info "Desktop shortcut 'Hexen II VR' created."
  } catch {
  Write-Warn "Could not create shortcut: $_"

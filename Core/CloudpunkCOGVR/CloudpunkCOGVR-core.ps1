@@ -142,12 +142,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 
 # Desktop shortcut
 try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Cloudpunk City of Ghosts VR.lnk")
- $shortcut.TargetPath = Join-Path $gamePath $GAME_EXE
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.IconLocation = "$(Join-Path $gamePath $GAME_EXE),0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Cloudpunk City of Ghosts VR.lnk" -TargetPath Join-Path $gamePath $GAME_EXE -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath $GAME_EXE),0"
  Write-Info "Desktop shortcut 'Cloudpunk City of Ghosts VR' created."
 } catch {}
 

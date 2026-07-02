@@ -782,32 +782,15 @@ if ($audioChoice -eq "Y") {
 Write-Step 8 8 "Creating Desktop Shortcuts"
 
 try {
- $shell = New-Object -ComObject WScript.Shell
-
- # Main shortcut: directly launches the game via MO2 CLI with the BMS profile.
- # Uses ep2vr.exe icon since that IS the game executable (must always be installed).
  $ep2vrExe = Join-Path $hl2vrPath "ep2vr.exe"
- $sc1 = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Black Mesa Source VR.lnk")
- $sc1.TargetPath = $moExe.FullName
- $sc1.Arguments = '-p "Black Mesa Source VR" "Half-Life 2 VR"'
- $sc1.WorkingDirectory = $mo2Root
- $sc1.Description = "Black Mesa Source VR - launches the main BMS campaign in VR"
- if (Test-Path $ep2vrExe) {
- $sc1.IconLocation = "$ep2vrExe,0"
- } else {
- $sc1.IconLocation = "$($moExe.FullName),0"
- }
- $sc1.Save()
- Write-OK "Shortcut: 'Black Mesa Source VR' on Desktop (ep2vr.exe icon)"
+ $bmsIco = Join-Path $mo2Root "BlackMesaSource_VR.ico"
+ try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "BlackMesaSource_VR.ico") -Destination $bmsIco -Force } catch {}
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Black Mesa Source VR.lnk" -TargetPath $moExe.FullName -WorkingDir $mo2Root -IconPath $(if (Test-Path $bmsIco) { $bmsIco } else { "$ep2vrExe,0" }) -Arguments '-p "Black Mesa Source VR" "Half-Life 2 VR"'
+ Write-OK "Shortcut: 'Black Mesa Source VR' on Desktop (custom icon)"
 
  # Settings shortcut: opens the MO2 GUI (for switching between BMS and Xen 1.0 profiles,
  # toggling Gonarch's Lair Fix, configuring mods, etc.).
- $sc2 = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Black Mesa Source VR (MO2 Settings).lnk")
- $sc2.TargetPath = $moExe.FullName
- $sc2.WorkingDirectory = $mo2Root
- $sc2.Description = "Open Mod Organizer 2 to switch profiles, toggle Gonarch's Lair Fix, etc."
- $sc2.IconLocation = "$($moExe.FullName),0"
- $sc2.Save()
+ $sc2 = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Black Mesa Source VR (MO2 Settings).lnk" -TargetPath $moExe.FullName -WorkingDir $mo2Root -IconPath "$($moExe.FullName),0" -Description "Open Mod Organizer 2 to switch profiles, toggle Gonarch's Lair Fix, etc."
  Write-OK "Shortcut: 'Black Mesa Source VR (MO2 Settings)' on Desktop (MO2 icon)"
 } catch {
  Write-Warn "Could not create shortcuts: $_"

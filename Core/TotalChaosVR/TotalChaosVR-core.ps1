@@ -342,24 +342,10 @@ try {
 
 # Desktop shortcut (game is not Steam-launched, so it gets its own).
 $iconExe = Join-Path $gzDestDir $gzExeName
-function New-DesktopShortcut {
-    param([string]$LnkName, [string]$TargetBat, [string]$Desc)
-    try {
-        $desktop = [Environment]::GetFolderPath("Desktop")
-        $lnk = Join-Path $desktop $LnkName
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnk)
-        $sc.TargetPath       = $TargetBat
-        $sc.WorkingDirectory = $gameRoot
-        if (Test-Path $iconExe) { $sc.IconLocation = $iconExe }
-        $sc.Description      = $Desc
-        $sc.Save()
-        Write-OK "Desktop shortcut: $LnkName"
-    } catch {
-        Write-Warn "Could not create shortcut $LnkName : $_"
-    }
-}
-if (Test-Path $batPlay) { New-DesktopShortcut -LnkName "Total Chaos VR.lnk" -TargetBat $batPlay -Desc "Total Chaos in VR (gzdoomvr)" }
+$tcIco = Join-Path $gameRoot "TotalChaos_VR.ico"
+try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "TotalChaos_VR.ico") -Destination $tcIco -Force } catch {}
+$tcIcon = $(if (Test-Path $tcIco) { $tcIco } elseif (Test-Path $iconExe) { $iconExe } else { "" })
+if (Test-Path $batPlay) { New-DesktopShortcut -ShortcutName "Total Chaos VR" -TargetPath $batPlay -WorkingDir $gameRoot -IconPath $tcIcon -Description "Total Chaos in VR (gzdoomvr)" }
 
 # Record the install path so the Hub's VR Ready check + Start-in-VR find it.
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Force -ErrorAction Stop } catch {}

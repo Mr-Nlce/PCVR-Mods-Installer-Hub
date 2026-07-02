@@ -167,13 +167,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 Write-Step 4 4 "Creating Desktop Shortcut"
 
 try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Alba VR.lnk")
- $shortcut.TargetPath = $gameExe
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Alba VR ($vrModeText)"
- if (Test-Path $gameExe) { $shortcut.IconLocation = "$gameExe,0" }
- $shortcut.Save()
+  $shortcut = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Alba VR.lnk" -TargetPath $gameExe -WorkingDir $gamePath -IconPath "$gameExe,0" -Description "Alba VR ($vrModeText)"
  Write-OK "Desktop shortcut 'Alba VR' created with game icon."
 } catch {
  Write-Warn "Could not create shortcut: $_"

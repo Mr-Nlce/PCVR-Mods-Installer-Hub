@@ -534,13 +534,7 @@ if ($useDepot) {
 
  $shortcutPath = Join-Path $env:USERPROFILE "Desktop\Yooka-Laylee VR.lnk"
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut($shortcutPath)
- $shortcut.TargetPath = $gameExePath
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Yooka-Laylee VR (VookaRaylee mod, v1.1.0)"
- $shortcut.IconLocation = "$gameExePath,0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath $shortcutPath -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
  Write-OK "Desktop shortcut 'Yooka-Laylee VR' created."
  } catch {
  Write-Warn "Could not create desktop shortcut: $_"

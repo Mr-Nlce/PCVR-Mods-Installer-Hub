@@ -30,27 +30,46 @@ function global:New-DiscoverTile {
     # fix used by the Explore tiles - without the top margin the
     # glow only reads on the left/right/bottom sides.
     $tile.Margin = [System.Windows.Thickness]::new(0, 14, 14, 14)
-    $tile.CornerRadius = [System.Windows.CornerRadius]::new(8)
-    $tile.Background   = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161a")
-    $tile.BorderThickness = [System.Windows.Thickness]::new(1)
-    $tile.BorderBrush  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+    # The outer tile is now a bare, non-clipping, transparent container so
+    # the hover glow (which lives on the $glowFrame layer below) can bloom
+    # OUTSIDE the rounded rectangle. The visible rounded frame + background
+    # moved down to $glowFrame; the portrait + tags live in $contentFrame
+    # which carries NO effect, so they never get rasterized / washed out on
+    # hover. Only the frame glows; image and tags stay crisp.
+    $tile.CornerRadius = [System.Windows.CornerRadius]::new(0)
+    $tile.Background   = [System.Windows.Media.Brushes]::Transparent
+    $tile.BorderThickness = [System.Windows.Thickness]::new(0)
     $tile.Cursor = [System.Windows.Input.Cursors]::Hand
-    # Outer tile MUST stay ClipToBounds=false so the hover drop-shadow
-    # (the glow) can bloom OUTSIDE the tile rectangle and read as a
-    # framed halo - not a thin 2px stroke. This mirrors the Explore
-    # tiles (New-OverviewTile): the effect lives on this Border, so
-    # clipping it here shaves the halo down to the border edge. The
-    # inner $grid below carries ClipToBounds=true instead, which is
-    # what keeps the portrait image rounded at the 8px corners.
-    # The vertical margin (above) gives the bloom room so neighbor
-    # tiles in the WrapPanel don't shave it.
+    # The vertical margin (above) gives the bloom room so neighbor tiles in
+    # the WrapPanel don't shave it. ClipToBounds MUST stay false so the
+    # glow can extend past the tile bounds.
     $tile.ClipToBounds = $false
 
+    $root = New-Object System.Windows.Controls.Grid
+    $root.ClipToBounds = $false
+    $tile.Child = $root
+
+    # Bottom layer: the visible rounded frame + background. The hover
+    # DropShadowEffect is attached HERE (see below), so only this empty
+    # frame is rasterized when the glow lights up - never the content.
+    $glowFrame = New-Object System.Windows.Controls.Border
+    $glowFrame.CornerRadius = [System.Windows.CornerRadius]::new(8)
+    $glowFrame.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161a")
+    $glowFrame.BorderThickness = [System.Windows.Thickness]::new(1)
+    $glowFrame.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+    $root.Children.Add($glowFrame) | Out-Null
+
+    # Top layer: rounds + clips the portrait and its tag overlays. NO
+    # effect here, so ClearType text (tags/title) and the image stay sharp.
+    $contentFrame = New-Object System.Windows.Controls.Border
+    $contentFrame.CornerRadius = [System.Windows.CornerRadius]::new(8)
+    $contentFrame.ClipToBounds = $true
+    $contentFrame.Margin = [System.Windows.Thickness]::new(1)
+    $root.Children.Add($contentFrame) | Out-Null
+
     $grid = New-Object System.Windows.Controls.Grid
-    # Inner grid clips so the portrait + gradient stay inside the
-    # rounded rectangle, while the outer Border keeps its glow.
     $grid.ClipToBounds = $true
-    $tile.Child = $grid
+    $contentFrame.Child = $grid
 
     # Resolve portrait image: respects PortraitUrl override, then SteamId default.
     $portraitUrl = Get-GameImageUrl -Game $Game -Kind "portrait"
@@ -138,7 +157,7 @@ function global:New-DiscoverTile {
         $grid.Children.Add($gradRect) | Out-Null
     } else {
         $accentHex = if ($Game.Accent) { $Game.Accent } else { "#445566" }
-        $tile.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex $accentHex -TopAlpha 0.20 -MidAlpha 0.06
+        $glowFrame.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex $accentHex -TopAlpha 0.20 -MidAlpha 0.06
     }
 
     # Title overlay at bottom-left
@@ -303,8 +322,9 @@ function global:New-DiscoverTile {
     $glowDt.BlurRadius = 14
     $glowDt.ShadowDepth = 0
     $glowDt.Opacity = 0
-    $tile.Effect = $glowDt
+    $glowFrame.Effect = $glowDt
     $tile.Resources.Add("glow", $glowDt)
+    $tile.Resources.Add("glowFrame", $glowFrame)
     $glowCapDt = $glowDt
 
     $tile.Add_MouseLeftButtonDown({
@@ -315,6 +335,7 @@ function global:New-DiscoverTile {
         # Capture the per-tile glow so the auto-reset timer can
         # clear it regardless of where the mouse ended up.
         $gcap = $this.Resources["glow"]
+        $gfcap = $this.Resources["glowFrame"]
         $resetT = New-Object System.Windows.Threading.DispatcherTimer
         $resetT.Interval = [TimeSpan]::FromMilliseconds(2600)
         $resetT.Add_Tick({
@@ -322,7 +343,7 @@ function global:New-DiscoverTile {
             $fcap.Opacity = 0
             $tileCap.Tag = $null
             $tileCap.RenderTransform = $null
-            $tileCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+            if ($gfcap) { $gfcap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32") }
             if ($gcap) { $gcap.Opacity = 0 }
         }.GetNewClosure())
         $resetT.Start()
@@ -338,7 +359,8 @@ function global:New-DiscoverTile {
         $sc = New-Object System.Windows.Media.ScaleTransform 1.06, 1.06
         $this.RenderTransformOrigin = New-Object System.Windows.Point 0.5, 0.5
         $this.RenderTransform = $sc
-        $this.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+        $gf = $this.Resources["glowFrame"]
+        if ($gf) { $gf.BorderBrush = [System.Windows.Media.Brushes]::Transparent }
         $g = $this.Resources["glow"]
         if ($g) { $g.Opacity = 0.95 }
     })
@@ -346,7 +368,8 @@ function global:New-DiscoverTile {
         # Skip reset if pressed - press state persists until the
         # auto-reset timer clears it.
         if ($this.Tag -eq "pressed") { return }
-        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+        $gf = $this.Resources["glowFrame"]
+        if ($gf) { $gf.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32") }
         $this.RenderTransform = $null
         $g = $this.Resources["glow"]
         if ($g) { $g.Opacity = 0 }
@@ -3884,6 +3907,7 @@ function global:Show-DiscoverDetail {
     $infoHeading = "Game Info"
     $customDescriptions = @{
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
+        "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."
         "Total Chaos VR" = "Total Chaos is a free survival-horror total conversion for Doom II on GZDoom by Sam Prebble (wadaholic), set on the abandoned mining island of Fort Oasis with improvised melee weapons, scarce ammo and a heavy horror atmosphere. This entry adds motion controls by swapping the bundled engine for gzdoomvr, an OpenVR fork of GZDoom by hh79."
         "No One Lives Forever 2 VR" = "No One Lives Forever 2: A Spy in H.A.R.M.'s Way (2002) is Monolith's beloved retro-spy stealth shooter starring superspy Cate Archer. Luke Ross's R.E.A.L. mod converts the original English v1.3 release into a full first-person VR experience with roomscale head tracking and gamepad controls, layered onto a copy of the game that you own and provide yourself. Localized VR menus are available in German, Spanish, French and Italian."
@@ -3892,6 +3916,7 @@ function global:Show-DiscoverDetail {
         "The Dark Mod VR"      = "The Dark Mod is a free, standalone, open-source stealth game for PC. The project pays homage to the classic games in the Thief series (Dark Project) and perfectly captures their dark Gothic-steampunk atmosphere."
         "Metal: Hellsinger VR" = "Metal: Hellsinger is a rhythm-driven first-person shooter: shoot, dash and slaughter demons in time with a heavy-metal soundtrack across the eight hells, building your Fury multiplier the better you hit the beat."
         "I Can Gun VR"         = "I Can Gun is a first-person shooter with a twist: you operate your weapon in full manual detail - racking the slide, checking the chamber, managing the magazine - while scavenging procedurally generated levels guarded by merciless machines."
+        "Ratchet & Clank VR"   = "Developer Rybread69 is creating a large Unreal Engine VR project that recreates worlds from the first four PS2 Ratchet & Clank games. You can explore planets like Novalis, Aridia, and Oozla in first-person VR, smash crates, collect Bolts, use gadgets, and fire familiar weapons. There is no combat yet, so it currently feels more like an interactive museum of classic Ratchet & Clank memories."
         "UEVR Deluxe"          = "UEVR (Universal Unreal Engine VR Mod) is a groundbreaking, free, open-source tool developed by praydog that allows users to play almost any Unreal Engine 4 or 5 flatscreen game in virtual reality. It works by injecting VR functionality directly into the game engine, transforming games that were not originally designed for VR into immersive experiences."
         "UUVR / Rai Pal"       = "UUVR (Universal Unity VR) is an experimental open-source modification by developer Raicuparta that transforms flat PC games developed with the Unity engine into VR games. The easiest way to use it is through Rai Pal, Raicuparta's manager for universal game mods, which auto-detects your installed and owned games, identifies their engine, and installs, runs, and updates the correct version of UUVR for you."
         "Dolphin VR + ReduX"   = "Dolphin VR is an older, specialized modification of the popular Dolphin Emulator that allows users to play Nintendo GameCube and Wii games in Virtual Reality. Dolphin VR ReduX (also frequently referred to as Dolphin XR) is a major, modern revival of that project, using the modern Dolphin core and up-to-date VR runtime standards."

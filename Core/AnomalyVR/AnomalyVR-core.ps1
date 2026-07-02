@@ -167,13 +167,7 @@ try {
 Write-Step 4 4 "Desktop shortcut"
 if (Test-Path $launcherDest) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $sc = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Anomaly VR.lnk")
-        $sc.TargetPath = $launcherDest
-        $sc.WorkingDirectory = $gameDir
-        $sc.Description = "S.T.A.L.K.E.R. Anomaly VR"
-        $sc.IconLocation = "$launcherDest,0"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Anomaly VR.lnk" -TargetPath $launcherDest -WorkingDir $gameDir -IconPath "$launcherDest,0"
         Write-OK "Desktop shortcut 'Anomaly VR' created."
     } catch { Write-Warn "Couldn't create the shortcut." }
 } else {

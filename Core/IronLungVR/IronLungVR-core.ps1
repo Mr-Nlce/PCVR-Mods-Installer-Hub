@@ -191,13 +191,7 @@ if (-not (Test-Path $exePath)) {
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         $lnkPath = Join-Path $desktop "Iron Lung VR.lnk"
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnkPath)
-        $sc.TargetPath = $exePath
-        $sc.WorkingDirectory = $gameRoot
-        $sc.IconLocation = $exePath
-        $sc.Description = "Iron Lung VR (by Jack Randolph)"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $exePath -WorkingDir $gameRoot -IconPath $exePath
         Write-OK "Desktop shortcut created: Iron Lung VR"
     } catch {
         Write-Warn "Could not create the desktop shortcut: $_"

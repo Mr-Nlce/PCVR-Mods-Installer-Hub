@@ -1336,6 +1336,124 @@ function global:Invoke-ScanWebGet {
     }
 }
 
+function global:Get-GithubLatestTagCached {
+    # Return the latest GitHub release tag for $Repo, cached on disk with a TTL
+    # so repeated scans/restarts do not exhaust the 60/hour unauthenticated
+    # GitHub API limit. On a rate-limit or transient error the LAST known tag is
+    # returned (so the update state stays stable) and the shared online-down
+    # flag is NOT tripped - a 403 means the host is reachable, just limited, and
+    # must not kill the other checks (Alien Isolation web check, other repos).
+    param([string]$Repo)
+    if (-not $Repo) { return $null }
+    $ttlHours = 6
+    if ($null -eq $script:ghVerCache) {
+        $script:ghVerCache = @{}
+        $script:ghVerCacheFile = Join-Path $global:scriptDir ".gh_version_cache"
+        if (Test-Path $script:ghVerCacheFile) {
+            try {
+                $raw = Get-Content $script:ghVerCacheFile -Raw | ConvertFrom-Json
+                foreach ($p in $raw.PSObject.Properties) {
+                    $script:ghVerCache[$p.Name] = @{ tag = [string]$p.Value.tag; checked = [string]$p.Value.checked }
+                }
+            } catch {}
+        }
+    }
+    $entry = $script:ghVerCache[$Repo]
+    $now = [DateTime]::UtcNow
+    if ($entry -and $entry.tag -and $entry.checked) {
+        try {
+            $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
+            if ($age -lt $ttlHours) { return [string]$entry.tag }
+        } catch {}
+    }
+    # Use the github.com /releases/latest REDIRECT (web, not the API). It 302s
+    # to /releases/tag/<tag>, so the tag is in the final URL - and the website
+    # is NOT bound by the 60/hour unauthenticated API limit that the api.github
+    # endpoint enforces. HEAD only, so no page body is downloaded. 2>$null keeps
+    # a rare transient error out of the Hub transcript.
+    $tag = $null
+    try {
+        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 6 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
+        $final = ""
+        try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+        if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
+        if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
+    } catch {
+        Write-Host "[GithubCheck] $Repo : web check failed ($($_.Exception.Message)) - using cached tag if present"
+        if ($entry -and $entry.tag) { return [string]$entry.tag }
+        return $null
+    }
+    if ($tag) {
+        $script:ghVerCache[$Repo] = @{ tag = $tag; checked = $now.ToString("o") }
+        try {
+            $obj = @{}
+            foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }
+            ($obj | ConvertTo-Json) | Set-Content -Path $script:ghVerCacheFile -Encoding UTF8 -Force
+        } catch {}
+        return $tag
+    }
+    if ($entry -and $entry.tag) { return [string]$entry.tag }
+    return $null
+}
+
+function global:Get-WebVersionCached {
+    # Return the published version string from a mod's own website (the GRAND
+    # mod for Alien Isolation), cached on disk with the same 6h TTL as the
+    # GitHub release checks so back-to-back scans skip the live page fetch -
+    # the slowest single online check. No timeout is lowered, so a slow-but-
+    # valid page is never cut short. On a fetch failure the last-known cached
+    # value is returned, so the update state stays stable.
+    param([string]$Url, [string]$Title)
+    if (-not $Url) { return $null }
+    $ttlHours = 6
+    if ($null -eq $script:webVerCache) {
+        $script:webVerCache = @{}
+        $script:webVerCacheFile = Join-Path $global:scriptDir ".web_version_cache"
+        if (Test-Path $script:webVerCacheFile) {
+            try {
+                $raw = Get-Content $script:webVerCacheFile -Raw | ConvertFrom-Json
+                foreach ($wp in $raw.PSObject.Properties) {
+                    $script:webVerCache[$wp.Name] = @{ ver = [string]$wp.Value.ver; checked = [string]$wp.Value.checked }
+                }
+            } catch {}
+        }
+    }
+    $entry = $script:webVerCache[$Url]
+    $now = [DateTime]::UtcNow
+    if ($entry -and $entry.ver -and $entry.checked) {
+        try {
+            $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
+            if ($age -lt $ttlHours) { return [string]$entry.ver }
+        } catch {}
+    }
+    $wv = $null
+    try {
+        $wua  = @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" }
+        $wResp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5 -Headers $wua -EA Stop
+        $wHtml = [string]$wResp.Content
+        if     ($wHtml -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $wv = "v" + $matches[1] }
+        elseif ($wHtml -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { $wv = "v" + $matches[1] }
+        elseif ($wHtml -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { $wv = "v" + $matches[1] }
+        if ($wv) { Write-Host "[AICheck] $Title : web version = $wv" }
+        else     { Write-Host ("[AICheck] $Title : page fetched ({0} chars) but no version matched" -f $wHtml.Length) }
+    } catch {
+        Write-Host "[AICheck] $Title : page fetch failed - $($_.Exception.Message)"
+        if ($entry -and $entry.ver) { return [string]$entry.ver }
+        return $null
+    }
+    if ($wv) {
+        $script:webVerCache[$Url] = @{ ver = $wv; checked = $now.ToString("o") }
+        try {
+            $obj = @{}
+            foreach ($wk in $script:webVerCache.Keys) { $obj[$wk] = $script:webVerCache[$wk] }
+            ($obj | ConvertTo-Json) | Set-Content -Path $script:webVerCacheFile -Encoding UTF8 -Force
+        } catch {}
+        return $wv
+    }
+    if ($entry -and $entry.ver) { return [string]$entry.ver }
+    return $null
+}
+
 function global:Invoke-CheckInstalledScan {
     # Freeze the install-pill reveal timer for the duration of the scan.
     # The scan pumps the dispatcher (Dispatcher.Invoke below), which would
@@ -2035,6 +2153,39 @@ function global:Invoke-CheckInstalledScan {
                 if (Get-AnomalyInstalledModVersion -GameDir $gameDir) {
                     $needsUpdate = $true
                 }
+            } elseif ($game.GithubRepo) {
+                # GitHub release check: latest tag vs the installed version.
+                # Mirrors the Thunderstore branch above. Seeds the cache on
+                # the first scan after install (GitHub installers always pull
+                # releases/latest, so "no stored version yet" = current latest).
+                $ghVer = Get-GithubLatestTagCached -Repo $game.GithubRepo
+                if ($ghVer) {
+                    if (-not $installedVer) {
+                        Write-InstalledVersion -Game $game -Version $ghVer
+                        $installedVer = $ghVer
+                    } elseif ($installedVer -ne $ghVer) {
+                        $needsUpdate = $true
+                    }
+                }
+            } elseif ($game.WebVersionUrl) {
+                # Mods distributed only via their own website (the GRAND mod for
+                # Alien Isolation). The published version is read via
+                # Get-WebVersionCached, which caches the result on disk with the
+                # same 6h TTL as the GitHub checks - so repeat scans skip the
+                # live page fetch (the slowest single online check) instead of
+                # paying it every time. No timeout is lowered, so a slow-but-
+                # valid page is never cut short. Logged ([AICheck]).
+                if (-not $global:HubScanOnlineDown) {
+                  $wv = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title
+                  if ($wv) {
+                    if (-not $installedVer) {
+                        Write-InstalledVersion -Game $game -Version $wv
+                        $installedVer = $wv
+                    } elseif ($installedVer -ne $wv) {
+                        $needsUpdate = $true
+                    }
+                  }
+                }
             } else {
                 # Non-Thunderstore: compare Mod string version to installed_version
                 $expectedVer = Get-ModVersionFromString -ModString $game.Mod
@@ -2550,6 +2701,28 @@ $checkInstalledBtn.Add_PreviewMouseLeftButtonDown({
 # in $global:PendingInstallTitle by the click handler.
 function global:Invoke-PostInstallRefresh {
     $title = $global:PendingInstallTitle
+    # Cancel-safe update tracking: the installer wrapper drops a
+    # ".update_ok" marker (next to .installed_version) ONLY when its core
+    # ran to completion - a cancel calls 'exit' first, so no marker. If
+    # the marker is present the mod was really (re)installed: drop the
+    # tracked version so the scan below reseeds it to the current online
+    # build and the Update flag clears. No marker = cancelled = leave the
+    # tracked version untouched so the card keeps showing "Update".
+    if ($title) {
+        try {
+            $pendGame = $null
+            foreach ($g in @($ownGames + $ownGamesGP + $externalGames)) {
+                if ($g.Title -eq $title) { $pendGame = $g; break }
+            }
+            if ($pendGame) {
+                $okMk = Get-UpdateOkMarkerPath -Game $pendGame
+                if ($okMk -and (Test-Path $okMk)) {
+                    Remove-InstalledVersion -Game $pendGame
+                    Remove-Item $okMk -Force -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {}
+    }
     $hadFullScan = ($global:gameStateMap -and $global:gameStateMap.Count -gt 0)
 
     if ($hadFullScan) {

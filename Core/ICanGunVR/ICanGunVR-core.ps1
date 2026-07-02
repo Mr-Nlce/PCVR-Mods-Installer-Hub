@@ -244,13 +244,7 @@ if (-not (Test-Path $exePath)) {
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         $lnkPath = Join-Path $desktop "I Can Gun VR.lnk"
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnkPath)
-        $sc.TargetPath = $exePath
-        $sc.WorkingDirectory = $gameRoot
-        $sc.IconLocation = $exePath
-        $sc.Description = "I Can Gun VR (by Patrick Koenig)"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $exePath -WorkingDir $gameRoot -IconPath $exePath
         Write-OK "Desktop shortcut created: I Can Gun VR"
     } catch {
         Write-Warn "Could not create the desktop shortcut: $_"

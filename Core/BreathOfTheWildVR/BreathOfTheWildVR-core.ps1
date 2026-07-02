@@ -232,13 +232,7 @@ try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Breath of the Wild VR.lnk"
     $target = if (Test-Path $launcherPath) { $launcherPath } else { $cemuExe }
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath = $target
-    $sc.WorkingDirectory = $installRoot
-    if (Test-Path $iconDest) { $sc.IconLocation = $iconDest }
-    $sc.Description = "Launch Breath of the Wild in VR (BetterVR + Cemu)"
-    $sc.Save()
+     $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $target -WorkingDir $installRoot -IconPath $iconDest -Description "Launch Breath of the Wild in VR (BetterVR + Cemu)"
     Write-OK "Desktop shortcut created with custom icon."
 } catch { Write-Warn "Could not create the desktop shortcut: $($_.Exception.Message)" }
 

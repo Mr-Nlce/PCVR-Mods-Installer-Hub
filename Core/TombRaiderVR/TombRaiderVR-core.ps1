@@ -716,12 +716,7 @@ if (Test-Path $gameExe) {
  try {
  $desktop = [Environment]::GetFolderPath("Desktop")
  $shortcutPath = Join-Path $desktop "Tomb Raider VR.lnk"
- $wshell = New-Object -ComObject WScript.Shell
- $sc = $wshell.CreateShortcut($shortcutPath)
- $sc.TargetPath = $gameExe
- $sc.WorkingDirectory = Split-Path -Parent $gameExe
- $sc.IconLocation = "$gameExe,0"
- $sc.Save()
+ $sc = New-DesktopShortcut -LnkPath $shortcutPath -TargetPath $gameExe -WorkingDir Split-Path -Parent $gameExe -IconPath "$gameExe,0"
  Write-OK "Desktop shortcut created: Tomb Raider VR.lnk"
  } catch {
  Write-Warn "Could not create desktop shortcut: $($_.Exception.Message)"

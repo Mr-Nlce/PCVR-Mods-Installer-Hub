@@ -160,6 +160,11 @@ if (Test-Path $gameExe) {
 # -------------------------------------------------------
 # STEP 3: Download and install Portal2VR Roomscale
 # -------------------------------------------------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "VR\manifest.vrmanifest"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 3 5 "Installing Portal2VR Roomscale v0.2.2"
 
 $tempDir = Join-Path $env:TEMP "Portal2VRInstaller_$([System.IO.Path]::GetRandomFileName())"
@@ -249,12 +254,7 @@ $soundFixLink  = Join-Path $gamePath "Fix-Sound-issue-VR.lnk"
 $linkCreated   = $false
 if (Test-Path $soundCacheSrc) {
     try {
-        $wsh = New-Object -ComObject WScript.Shell
-        $lnk = $wsh.CreateShortcut($soundFixLink)
-        $lnk.TargetPath       = $soundCacheSrc
-        $lnk.WorkingDirectory = (Split-Path -Parent $soundCacheSrc)
-        $lnk.Description      = "Run this if Portal 2 VR has no sound after a game update."
-        $lnk.Save()
+        $sc = New-DesktopShortcut -LnkPath $soundFixLink -TargetPath $soundCacheSrc -WorkingDir (Split-Path -Parent $soundCacheSrc)
         $linkCreated = $true
     } catch {
         # COM / permission issue - fall back to a tiny relay .cmd

@@ -346,13 +346,7 @@ Write-Step 4 4 "Finishing up"
 
 if (Test-Path $gameExePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $sc = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Metal Hellsinger VR.lnk")
-        $sc.TargetPath = $gameExePath
-        $sc.WorkingDirectory = $gamePath
-        $sc.IconLocation = "$gameExePath,0"
-        $sc.Description = "Metal: Hellsinger VR (HellsingerVR by LivingFray)"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Metal Hellsinger VR.lnk" -TargetPath $gameExePath -WorkingDir $gamePath -IconPath "$gameExePath,0"
         Write-OK "Desktop shortcut 'Metal Hellsinger VR' created."
     } catch {
         Write-Warn "Could not create the desktop shortcut: $_"

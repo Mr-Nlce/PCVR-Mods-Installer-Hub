@@ -376,13 +376,7 @@ Pause-User "Press Enter once your monitors are set to 1920x1080..."
 
 if (Test-Path $exePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Daggerfall Unity VR.lnk")
-        $shortcut.TargetPath = $exePath
-        $shortcut.WorkingDirectory = $installRoot
-        $shortcut.Description = "Daggerfall Unity VR (DFUVR by LokiusV)"
-        $shortcut.IconLocation = "$exePath,0"
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Daggerfall Unity VR.lnk" -TargetPath $exePath -WorkingDir $installRoot -IconPath "$exePath,0"
         Write-OK "Desktop shortcut 'Daggerfall Unity VR' created."
     } catch {
         Write-Warn "Could not create shortcut: $($_.Exception.Message)"

@@ -345,6 +345,11 @@ if (-not $sptRoot) {
 # -------------------------------------------------------
 # STEP 2: Download + install the SPT-VR mod
 # -------------------------------------------------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $sptRoot -ModFile "BepInEx\plugins\sptvr\SPT-VR.dll"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 2 3 "Downloading + installing SPT-VR"
 
 # Resolve the latest release asset via the GitHub API (same approach
@@ -520,12 +525,6 @@ try {
 try {
     $desktop  = [Environment]::GetFolderPath("Desktop")
     $lnkPath  = Join-Path $desktop "SPT VR.lnk"
-    $sh       = New-Object -ComObject WScript.Shell
-    $sc       = $sh.CreateShortcut($lnkPath)
-    $sc.TargetPath       = $launcherBat
-    $sc.WorkingDirectory = $sptRoot
-    $sc.WindowStyle      = 1
-    $sc.Description       = "Start Single Player Tarkov VR (server + launcher)"
     # The shortcut targets a .bat, which has no icon of its own - pull
     # the icon from SPT.Launcher.exe. Probe the SPT root and a one-level
     # "SPT" subfolder (mirrors the launcher script's folder logic).
@@ -533,8 +532,7 @@ try {
     foreach ($cand in @((Join-Path $sptRoot "SPT.Launcher.exe"), (Join-Path $sptRoot "SPT\SPT.Launcher.exe"))) {
         if (Test-Path $cand) { $iconExe = $cand; break }
     }
-    if ($iconExe) { $sc.IconLocation = "$iconExe,0" }
-    $sc.Save()
+    $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $launcherBat -WorkingDir $sptRoot -IconPath $(if ($iconExe) { "$iconExe,0" } else { "" }) -Description "Start Single Player Tarkov VR (server + launcher)"
     if (Test-Path $lnkPath) { Write-OK "Desktop shortcut created: SPT VR" }
 } catch {
     Write-Warn "Could not create the desktop shortcut: $_"

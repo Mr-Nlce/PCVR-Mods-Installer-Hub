@@ -169,15 +169,8 @@ try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch
 $owmlLauncher = Join-Path $owmlPath "OWML.Launcher.exe"
 if (Test-Path $owmlLauncher) {
     try {
-        $shell    = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Outer Wilds VR.lnk")
-        $shortcut.TargetPath       = $owmlLauncher
-        $shortcut.WorkingDirectory = $owmlPath
-        $shortcut.Description      = "Outer Wilds VR (NomaiVR via OWML)"
-        # Use the game's own exe icon
-        $gameExePath = Join-Path $gamePath "OuterWilds.exe"
-        if (Test-Path $gameExePath) { $shortcut.IconLocation = "$gameExePath,0" }
-        $shortcut.Save()
+         $gameExePath = Join-Path $gamePath "OuterWilds.exe"
+         $shortcut = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Outer Wilds VR.lnk" -TargetPath $owmlLauncher -WorkingDir $owmlPath -IconPath "$gameExePath,0" -Description "Outer Wilds VR (NomaiVR via OWML)"
         Write-OK "Desktop shortcut created: 'Outer Wilds VR'"
     } catch {
         Write-Warn "Could not create desktop shortcut: $_"

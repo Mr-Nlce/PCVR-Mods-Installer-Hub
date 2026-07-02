@@ -223,7 +223,11 @@ function Install-QuestZDoomGame {
         # Per-game closing one-liner (e.g. "Rip and tear, until it
         # is done." for Doom). Each game's wrapper script passes
         # its own. Empty string suppresses the line.
-        [string]$Flavor = ""
+        [string]$Flavor = "",
+        # Optional per-game .ico (filename, shipped next to this shared
+        # script). Copied into the install root and used as the shortcut
+        # icon; falls back to the gzdoomvr.exe icon.
+        [string]$IconFile = ""
     )
 
     Write-Header "$GameTitle Installer"
@@ -356,17 +360,17 @@ function Install-QuestZDoomGame {
     # right arguments. This gives a real exe icon, no console
     # flash, and -iwad wired in so we land in the right game
     # without going through the engine's IWAD picker.
+    $__gzIcon = $((Join-Path $installRoot "gzdoomvr.exe") + ",0")
+    if ($IconFile) {
+        $__icoSrc = Join-Path $QZD_SHARED_DIR $IconFile
+        $__icoDst = Join-Path $installRoot $IconFile
+        if (Test-Path $__icoSrc) {
+            try { Copy-Item -LiteralPath $__icoSrc -Destination $__icoDst -Force } catch {}
+            if (Test-Path $__icoDst) { $__gzIcon = $__icoDst }
+        }
+    }
     try {
-        $shell    = New-Object -ComObject WScript.Shell
-        $lnkName  = ($GameTitle -replace '[\\/:*?"<>|]', '_') + ".lnk"
-        $lnkPath  = Join-Path ([Environment]::GetFolderPath("Desktop")) $lnkName
-        $shortcut = $shell.CreateShortcut($lnkPath)
-        $shortcut.TargetPath       = (Join-Path $installRoot "gzdoomvr.exe")
-        $shortcut.Arguments        = $sharedArgs
-        $shortcut.WorkingDirectory = $installRoot
-        $shortcut.Description      = "$GameTitle (GZDoomVR PC VR)"
-        $shortcut.IconLocation     = (Join-Path $installRoot "gzdoomvr.exe") + ",0"
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -ShortcutName ($GameTitle -replace '[\\/:*?"<>|]', '_') -TargetPath (Join-Path $installRoot "gzdoomvr.exe") -WorkingDir $installRoot -IconPath $__gzIcon -Arguments $sharedArgs
         Write-Info "Desktop shortcut '$GameTitle' created."
     } catch {
         Write-Warn "Could not create shortcut: $_"

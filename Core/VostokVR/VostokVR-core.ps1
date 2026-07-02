@@ -154,6 +154,11 @@ if (Test-Path $mmlCheck) {
 # -------------------------------------------------------
 # STEP 2: Download and install VR mod
 # -------------------------------------------------------
+# --- Update-or-install choice (shared helper) ---
+$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "mods\vr-mod.vmz"
+if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+
 Write-Step 2 3 "Downloading $MOD_NAME"
 $modZip = Join-Path $tmp "vr-mod-full.zip"
 
@@ -234,13 +239,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 $shortcutCreated = $false
 if (Test-Path $launchBat) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Road to Vostok VR.lnk")
- $shortcut.TargetPath = $launchBat
- $shortcut.WorkingDirectory = $gamePath
- $shortcut.Description = "Road to Vostok VR Mod by Blah64"
- $shortcut.IconLocation = "$(Join-Path $gamePath 'RTV.exe'),0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Road to Vostok VR.lnk" -TargetPath $launchBat -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath 'RTV.exe'),0"
  $shortcutCreated = $true
  } catch {}
 }

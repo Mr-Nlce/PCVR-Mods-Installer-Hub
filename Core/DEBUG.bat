@@ -123,8 +123,11 @@ echo   [108] Trombone Champ VR
 echo   [109] Metroid Prime VR
 echo   [110] Ashes 2063 VR
 echo   [111] Total Chaos VR
+echo   [112] Echo Generation 2 VR
+echo   [113] Ratchet ^& Clank VR
+echo   [114] Perfect Dark VR
 echo.
-set /p choice="Enter number (1-111): "
+set /p choice="Enter number (1-114): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -236,6 +239,9 @@ if "%choice%"=="108" (set SCRIPT=%~dp0TromboneChampVR\TromboneChampVR-core.ps1)
 if "%choice%"=="109" (set SCRIPT=%~dp0MetroidPrimeVR\MetroidPrimeVR-core.ps1)
 if "%choice%"=="110" (set SCRIPT=%~dp0Ashes2063VR\Ashes2063VR-core.ps1)
 if "%choice%"=="111" (set SCRIPT=%~dp0TotalChaosVR\TotalChaosVR-core.ps1)
+if "%choice%"=="112" (set SCRIPT=%~dp0EchoGeneration2VR\EchoGeneration2VR-core.ps1)
+if "%choice%"=="113" (set SCRIPT=%~dp0RatchetVR\RatchetVR-core.ps1)
+if "%choice%"=="114" (set SCRIPT=%~dp0PerfectDarkVR\PerfectDarkVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

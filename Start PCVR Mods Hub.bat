@@ -8,6 +8,15 @@ start "" /b powershell.exe -NoProfile -ExecutionPolicy Bypass ^
     -File "%~dp0Core\Update-Hub.ps1" -Silent
 
 rem -------------------------------------------------------------
+rem  Pre-warm the version caches in the background (detached, no
+rem  window). Fills the same 6h caches the scan reads, so the first
+rem  scan is fast. It never displays anything - a mod is shown as an
+rem  update only after the user runs a scan.
+rem -------------------------------------------------------------
+start "" /b powershell.exe -NoProfile -ExecutionPolicy Bypass ^
+    -File "%~dp0Core\Prefetch-Versions.ps1"
+
+rem -------------------------------------------------------------
 rem  Load the Hub CONCURRENTLY in its own minimized console. Running
 rem  it in parallel lets the splash (below) track the Hub's real
 rem  progress, and lets THIS launcher console simply close when the

@@ -406,13 +406,7 @@ if (-not (Test-Path $launchPath)) { $launchPath = Join-Path $gameDir $GAME_EXE }
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "No One Lives Forever 2 VR.lnk"
-    $ws = New-Object -ComObject WScript.Shell
-    $sc = $ws.CreateShortcut($lnk)
-    $sc.TargetPath       = $launchPath
-    $sc.WorkingDirectory = $gameDir
-    $sc.IconLocation     = $launchPath
-    $sc.Description       = "Launch No One Lives Forever 2 with the R.E.A.L. VR mod"
-    $sc.Save()
+    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launchPath -WorkingDir $gameDir -IconPath $launchPath
     Write-OK "Desktop shortcut created: No One Lives Forever 2 VR"
 } catch {
     Write-Warn "Could not create the desktop shortcut. Launch $LAUNCH_EXE from $gameDir."

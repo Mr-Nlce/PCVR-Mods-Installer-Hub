@@ -336,13 +336,7 @@ bindPadButton PRESS PAD_START "escape"
 
     # Desktop shortcut to the VR launcher.
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $sc = $shell.CreateShortcut("$env:USERPROFILE\Desktop\$GAME_TITLE.lnk")
-        $sc.TargetPath       = $vrExePath
-        $sc.WorkingDirectory = $gamePath
-        $sc.Description      = "The Dark Mod VR (mod by Holger Frydrych)"
-        $sc.IconLocation     = "$vrExePath,0"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\$GAME_TITLE.lnk" -TargetPath $vrExePath -WorkingDir $gamePath -IconPath "$vrExePath,0"
         Write-OK "Desktop shortcut '$GAME_TITLE' created."
     } catch {
         Write-Warn "Could not create the shortcut: $($_.Exception.Message)"

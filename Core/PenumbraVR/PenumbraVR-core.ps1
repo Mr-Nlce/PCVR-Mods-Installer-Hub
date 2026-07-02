@@ -347,19 +347,7 @@ Write-Step 5 5 "Creating Desktop Shortcut"
 $gameExePath = Join-Path $redistPath $GAME_EXE
 if (Test-Path $modExePath) {
     try {
-        $shell = New-Object -ComObject WScript.Shell
-        $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Penumbra Overture VR.lnk")
-        $shortcut.TargetPath = $modExePath
-        $shortcut.WorkingDirectory = $redistPath
-        $shortcut.Description = "Penumbra: Overture VR - head + hand tracking mod"
-        # Use the ORIGINAL game exe's icon (Penumbra.exe), but launch
-        # the VR exe. The mod exe has no embedded icon of its own.
-        if (Test-Path $gameExePath) {
-            $shortcut.IconLocation = "$gameExePath,0"
-        } else {
-            $shortcut.IconLocation = "$modExePath,0"
-        }
-        $shortcut.Save()
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Penumbra Overture VR.lnk" -TargetPath $modExePath -WorkingDir $redistPath -IconPath $(if (Test-Path $gameExePath) { "$gameExePath,0" } else { "$modExePath,0" }) -Description "Penumbra: Overture VR - head + hand tracking mod"
         Write-OK "Desktop shortcut 'Penumbra Overture VR' created."
     } catch {
         Write-Warn "Could not create shortcut: $($_.Exception.Message)"

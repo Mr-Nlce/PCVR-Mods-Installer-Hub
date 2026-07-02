@@ -360,14 +360,7 @@ if (-not $useLegacy) {
  if (Test-Path $repoExe) {
  try {
  $desktopPath = [Environment]::GetFolderPath("Desktop")
- $wsh = New-Object -ComObject WScript.Shell
- $sc = $wsh.CreateShortcut((Join-Path $desktopPath "REPO VR.lnk"))
- $sc.TargetPath = $repoExe
- $sc.WorkingDirectory = $gamePath
- $sc.Arguments = "--repoxr-skip-checksum=$LEGACY_REPOXR_VERSION"
- $sc.Description = "R.E.P.O. VR (RepoXR 1.1.2 legacy build)"
- $sc.IconLocation = "$repoExe,0"
- $sc.Save()
+  $sc = New-DesktopShortcut -LnkPath (Join-Path $desktopPath "REPO VR.lnk") -TargetPath $repoExe -WorkingDir $gamePath -IconPath "$repoExe,0" -Arguments "--repoxr-skip-checksum=$LEGACY_REPOXR_VERSION" -Description "R.E.P.O. VR (RepoXR 1.1.2 legacy build)"
  Write-Info "Desktop shortcut created: REPO VR"
  } catch {
  Write-Warn "Could not create shortcut: $_"

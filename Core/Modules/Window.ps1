@@ -1326,7 +1326,7 @@ try {
         ($aidM.GetMethodImplementationFlags() -bor [System.Reflection.MethodImplAttributes]::PreserveSig))
     $aidReady = $aidType.CreateType()
     [void]$aidReady.GetMethod("SetCurrentProcessExplicitAppUserModelID").Invoke(
-        $null, @("MrNIce.PCVRModsHub.0.8.2.2"))
+        $null, @("MrNIce.PCVRModsHub.0.8.2.5"))
 } catch {}
 
 # Set the title-bar icon. Without this WPF inherits the host
@@ -1441,7 +1441,7 @@ public static class PCVRWinAppId {
 }
 '@
                 }
-                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.2")
+                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.5")
             } catch {}
         }
     } catch {}
@@ -1837,7 +1837,11 @@ function global:Add-BannerHex {
         $outline = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(46, 52, 211, 153)); $outline.Freeze()
         $w = 30.0; $hgt = 26.0
         $cells = New-Object System.Collections.ArrayList
-        $nHex = 12
+        # Row levels scale with the banner height so taller banners (M/L)
+        # get more rows and fill top-to-bottom instead of leaving the
+        # lower third empty. ~4 hexes per row level, spread across width.
+        $rowLevels = [Math]::Max(3, [int][Math]::Round($BannerH / 48.0))
+        $nHex = 4 * $rowLevels
         for ($i = 0; $i -lt $nHex; $i++) {
             $poly = New-Object System.Windows.Shapes.Polygon
             $pts = New-Object System.Windows.Media.PointCollection
@@ -1852,7 +1856,7 @@ function global:Add-BannerHex {
             $cc = [System.Windows.Media.ColorConverter]::ConvertFromString($cols[$rand.Next($cols.Count)])
             $fillB = [System.Windows.Media.SolidColorBrush]::new($cc); $fillB.Opacity = 0
             $poly.Fill = $fillB
-            [System.Windows.Controls.Canvas]::SetTop($poly, 6 + ($i % 3) * (($BannerH - 32) / 3.0))
+            [System.Windows.Controls.Canvas]::SetTop($poly, 6 + ($i % $rowLevels) * (($BannerH - 38) / [Math]::Max(1, $rowLevels - 1)))
             $pa = New-Object System.Windows.Media.Animation.DoubleAnimation
             $pa.From = 0; $pa.To = 0.5
             $pa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(2.6 + $rand.NextDouble() * 2.5))
@@ -2286,16 +2290,28 @@ function global:Add-BannerFlow {
         $lg = New-Object System.Windows.Media.LinearGradientBrush
         $lg.StartPoint = [System.Windows.Point]::new(0, 0); $lg.EndPoint = [System.Windows.Point]::new(1, 0)
         $lg.SpreadMethod = [System.Windows.Media.GradientSpreadMethod]::Repeat
-        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#0b2b24"), 0.0)) | Out-Null
-        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#10204a"), 0.34)) | Out-Null
-        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#241047"), 0.67)) | Out-Null
-        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#0b2b24"), 1.0)) | Out-Null
+        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#16d0a0"), 0.0)) | Out-Null
+        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#2ab0ff"), 0.34)) | Out-Null
+        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#9a5cff"), 0.67)) | Out-Null
+        $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.ColorConverter]::ConvertFromString("#16d0a0"), 1.0)) | Out-Null
         $rt = New-Object System.Windows.Media.TranslateTransform
         $lg.RelativeTransform = $rt
         $rect.Fill = $lg
+        # Semi-transparent wash so it layers as a moving colour flow OVER the
+        # banner (art + scrim) instead of a dark band hidden underneath.
+        $rect.Opacity = 0.40
+        # Fade the wash out toward the RIGHT so it stays on the left+middle
+        # (title area) and never covers the right-aligned game art. Full to
+        # ~0.42, gone by ~0.60 - safely clear of the art on any banner width.
+        $mask = New-Object System.Windows.Media.LinearGradientBrush
+        $mask.StartPoint = [System.Windows.Point]::new(0, 0); $mask.EndPoint = [System.Windows.Point]::new(1, 0)
+        $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 255, 255, 255), 0.0)) | Out-Null
+        $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 255, 255, 255), 0.42)) | Out-Null
+        $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, 255, 255, 255), 0.60)) | Out-Null
+        $rect.OpacityMask = $mask
         $an = New-Object System.Windows.Media.Animation.DoubleAnimation
         $an.From = 0.0; $an.To = 1.0
-        $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(16.0))
+        $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(6.0))
         $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
         $rt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $an)
         [System.Windows.Controls.Canvas]::SetTop($rect, 0); [System.Windows.Controls.Canvas]::SetLeft($rect, 0)
@@ -2303,7 +2319,10 @@ function global:Add-BannerFlow {
         $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }; $rect.Width = $cw; $rect.Height = $canvas.ActualHeight }.GetNewClosure()
         $canvas.Add_SizeChanged($reflow); & $reflow
         $canvas.Tag = "BannerFx"
-        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+        # Flow is a translucent wash: add it ON TOP (above art + scrim) so the
+        # moving colour is actually visible, unlike the particle effects which
+        # sit under the art. Canvas IsHitTestVisible=false keeps clicks working.
+        [void]$grid.Children.Add($canvas)
     } catch { }
 }
 
@@ -2923,6 +2942,500 @@ function global:Add-BannerBreathe {
     } catch { }
 }
 
+function global:Add-BannerMatrix {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $rand = New-Object System.Random
+        $glyphs = "01<>=*+-/#$%&?XY".ToCharArray()
+        $fs = 13.0; $spacing = 20.0; $stripH = $BannerH + 60.0
+        $lines = [int]($stripH / $fs) + 1
+        $nCols = [int](1600 / $spacing)
+        $fam = New-Object System.Windows.Media.FontFamily("Consolas")
+        for ($c = 0; $c -lt $nCols; $c++) {
+            $sb = New-Object System.Text.StringBuilder
+            for ($l = 0; $l -lt $lines; $l++) {
+                [void]$sb.Append($glyphs[$rand.Next(0, $glyphs.Length)])
+                if ($l -lt ($lines - 1)) { [void]$sb.Append("`n") }
+            }
+            $tb = New-Object System.Windows.Controls.TextBlock
+            $tb.Text = $sb.ToString(); $tb.FontFamily = $fam; $tb.FontSize = $fs
+            $tb.LineHeight = $fs; $tb.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
+            $tb.TextAlignment = [System.Windows.TextAlignment]::Center
+            $tb.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(52, 211, 153))
+            $mask = New-Object System.Windows.Media.LinearGradientBrush
+            $mask.StartPoint = [System.Windows.Point]::new(0, 0); $mask.EndPoint = [System.Windows.Point]::new(0, 1)
+            $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, 255, 255, 255), 0.0)) | Out-Null
+            $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 255, 255, 255), 0.85)) | Out-Null
+            $mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 255, 255, 255), 1.0)) | Out-Null
+            $tb.OpacityMask = $mask; $tb.Opacity = 0.85
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $tb.RenderTransform = $tt
+            [System.Windows.Controls.Canvas]::SetLeft($tb, $c * $spacing)
+            [System.Windows.Controls.Canvas]::SetTop($tb, -$stripH)
+            $dur = (2.5 + $rand.NextDouble() * 2.0) * 1.3333
+            $ay = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ay.From = 0; $ay.To = ($stripH + $BannerH)
+            $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $ay.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $ay.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $dur))
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $ay)
+            [void]$canvas.Children.Add($tb)
+        }
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerHyper {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $rand = New-Object System.Random
+        $brush = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(190, 220, 255)); $brush.Freeze()
+        $info = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt 40; $i++) {
+            $streak = New-Object System.Windows.Shapes.Rectangle
+            $streak.Width = 6; $streak.Height = 1.6; $streak.Fill = $brush; $streak.RadiusX = 1; $streak.RadiusY = 1
+            $tg = New-Object System.Windows.Media.TransformGroup
+            $sx = [System.Windows.Media.ScaleTransform]::new(1, 1)
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $rotd = $rand.NextDouble() * 360.0
+            $tg.Children.Add($sx) | Out-Null; $tg.Children.Add($tt) | Out-Null
+            $tg.Children.Add([System.Windows.Media.RotateTransform]::new($rotd)) | Out-Null
+            $streak.RenderTransform = $tg
+            $dur = (1.4 + $rand.NextDouble() * 1.2) * 2.0
+            $bt = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $dur))
+            $at = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $at.From = 0; $at.To = 1400
+            $at.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $at.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $at.BeginTime = $bt
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $at)
+            $asx = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $asx.From = 0.5; $asx.To = 9
+            $asx.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $asx.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $asx.BeginTime = $bt
+            $sx.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleXProperty, $asx)
+            $ao = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ao.From = 0.0; $ao.To = 0.9
+            $ao.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $ao.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ao.BeginTime = $bt
+            $streak.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $ao)
+            [void]$canvas.Children.Add($streak)
+            [void]$info.Add($streak)
+        }
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            foreach ($s in $info) { [System.Windows.Controls.Canvas]::SetLeft($s, $cw / 2); [System.Windows.Controls.Canvas]::SetTop($s, $BannerH / 2) } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerTunnel {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $stroke = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(80, 200, 255)); $stroke.Freeze()
+        $n = 10; $maxR = $BannerH * 0.95
+        $info = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt $n; $i++) {
+            $hex = New-Object System.Windows.Shapes.Polygon
+            $pts = New-Object System.Windows.Media.PointCollection
+            for ($k = 0; $k -lt 6; $k++) {
+                $a = $k * [Math]::PI / 3.0
+                $pts.Add([System.Windows.Point]::new([Math]::Cos($a) * 1.7 * $maxR, [Math]::Sin($a) * $maxR)) | Out-Null
+            }
+            $hex.Points = $pts; $hex.Stroke = $stroke; $hex.StrokeThickness = 2.0; $hex.Fill = $null
+            $st = [System.Windows.Media.ScaleTransform]::new(0.12, 0.12)
+            $hex.RenderTransform = $st
+            $dur = 16.0
+            $bt = [TimeSpan]::FromSeconds(-(($i / [double]$n) * $dur))
+            $sa = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $sa.From = 0.12; $sa.To = 1.0
+            $sa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $sa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $sa.BeginTime = $bt
+            $st.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleXProperty, $sa)
+            $st.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $sa)
+            $oa = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+            $oa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $oa.BeginTime = $bt
+            $oa.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds(0)))) | Out-Null
+            $oa.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.85, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.15)))) | Out-Null
+            $oa.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.85, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.78)))) | Out-Null
+            $oa.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur)))) | Out-Null
+            $hex.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $oa)
+            [void]$canvas.Children.Add($hex)
+            [void]$info.Add($hex)
+        }
+        $rot = [System.Windows.Media.RotateTransform]::new(0)
+        $canvas.RenderTransform = $rot
+        $ra = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $ra.From = 0; $ra.To = 360
+        $ra.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(60.0))
+        $ra.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+        $rot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $ra)
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            $cx = $cw / 2; $cy = $BannerH / 2; $rot.CenterX = $cx; $rot.CenterY = $cy
+            foreach ($h in $info) { [System.Windows.Controls.Canvas]::SetLeft($h, $cx); [System.Windows.Controls.Canvas]::SetTop($h, $cy) } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerKaleido {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $rings = @(
+            @{ rad = 0.18; dotR = 7; col = "#36e0e0"; dur = 18.0; dir = 1 },
+            @{ rad = 0.30; dotR = 5; col = "#c850ff"; dur = 24.0; dir = -1 },
+            @{ rad = 0.40; dotR = 4; col = "#34d399"; dur = 30.0; dir = 1 }
+        )
+        $info = New-Object System.Collections.ArrayList
+        foreach ($rg in $rings) {
+            $rc = New-Object System.Windows.Controls.Canvas
+            $rc.IsHitTestVisible = $false
+            $rc.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+            $rrot = [System.Windows.Media.RotateTransform]::new(0)
+            $rc.RenderTransform = $rrot
+            $col = [System.Windows.Media.ColorConverter]::ConvertFromString($rg.col)
+            $br = [System.Windows.Media.SolidColorBrush]::new($col)
+            $dots = New-Object System.Collections.ArrayList
+            for ($k = 0; $k -lt 6; $k++) {
+                $dot = New-Object System.Windows.Shapes.Ellipse
+                $dot.Width = ($rg.dotR * 2); $dot.Height = ($rg.dotR * 2); $dot.Fill = $br; $dot.Opacity = 0.6
+                [void]$rc.Children.Add($dot)
+                [void]$dots.Add([pscustomobject]@{ el = $dot; ang = ($k * [Math]::PI / 3.0) })
+            }
+            $ra = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ra.From = 0; $ra.To = ($rg.dir * 360)
+            $ra.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($rg.dur))
+            $ra.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $rrot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $ra)
+            [void]$canvas.Children.Add($rc)
+            [void]$info.Add([pscustomobject]@{ rc = $rc; dots = $dots; rad = $rg.rad; dotR = $rg.dotR })
+        }
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            foreach ($ri in $info) {
+                $ri.rc.Width = $cw; $ri.rc.Height = $BannerH
+                $rr = $ri.rad * $BannerH
+                foreach ($d in $ri.dots) {
+                    [System.Windows.Controls.Canvas]::SetLeft($d.el, ($cw / 2) + [Math]::Cos($d.ang) * $rr - $ri.dotR)
+                    [System.Windows.Controls.Canvas]::SetTop($d.el, ($BannerH / 2) + [Math]::Sin($d.ang) * $rr - $ri.dotR)
+                }
+            } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerComet {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $br = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(120, 220, 255)); $br.Freeze()
+        $brHead = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(225, 245, 255)); $brHead.Freeze()
+        $nTrail = 36; $delta = 1.3
+        $dur = 6.0 * 1.3333
+        $orbit = New-Object System.Windows.Controls.Canvas
+        $orbit.IsHitTestVisible = $false
+        $orbit.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+        $squish = [System.Windows.Media.ScaleTransform]::new(1, 1)
+        $orbit.RenderTransform = $squish
+        $info = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt $nTrail; $i++) {
+            $frac = $i / ($nTrail - 1.0)
+            $d = 2.0 + (1 - $frac) * 11.0
+            $dot = New-Object System.Windows.Shapes.Ellipse
+            $dot.Width = $d; $dot.Height = $d
+            $dot.Fill = if ($i -le 1) { $brHead } else { $br }
+            $dot.Opacity = [Math]::Pow((1 - $frac), 1.4) * 0.8 + 0.04
+            if ($i -eq 0) {
+                # Glowing head ball: bright core + soft halo.
+                $gl = New-Object System.Windows.Media.Effects.BlurEffect; $gl.Radius = 10; $dot.Effect = $gl; $dot.Opacity = 1.0
+            } elseif ($i -le 3) {
+                # A couple of near-head dots glow too so the ball reads as luminous, not a hard disc.
+                $gl2 = New-Object System.Windows.Media.Effects.BlurEffect; $gl2.Radius = 4; $dot.Effect = $gl2
+            }
+            $rot = [System.Windows.Media.RotateTransform]::new(0)
+            $dot.RenderTransform = $rot
+            $start = -($i * $delta)
+            $ra = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ra.From = $start; $ra.To = ($start + 360)
+            $ra.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+            $ra.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $rot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $ra)
+            [void]$orbit.Children.Add($dot)
+            [void]$info.Add([pscustomobject]@{ el = $dot; rot = $rot; d = $d })
+        }
+        [void]$canvas.Children.Add($orbit)
+        $reflow = { $cw = $canvas.ActualWidth; $ch = $canvas.ActualHeight
+            if ($cw -lt 20) { return }
+            if ($ch -lt 20) { $ch = $BannerH }
+            $Rx = $cw * 0.34; $Ry = $ch * 0.30
+            $orbit.Width = $cw; $orbit.Height = $ch
+            if ($Rx -gt 0) { $squish.ScaleY = $Ry / $Rx }
+            foreach ($o in $info) {
+                [System.Windows.Controls.Canvas]::SetLeft($o.el, ($cw / 2) + $Rx - ($o.d / 2))
+                [System.Windows.Controls.Canvas]::SetTop($o.el, ($ch / 2) - ($o.d / 2))
+                $o.rot.CenterX = ($o.d / 2) - $Rx
+                $o.rot.CenterY = ($o.d / 2)
+            } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerSpark {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $rand = New-Object System.Random
+        $nEmit = 10; $perEmit = 7
+        $info = New-Object System.Collections.ArrayList
+        for ($e = 0; $e -lt $nEmit; $e++) {
+            $fx = ($e + 0.5) / $nEmit
+            $isBottom = (($e % 2) -eq 0)
+            $emitY = if ($isBottom) { $BannerH * 0.90 } else { $BannerH * 0.10 }
+            for ($s = 0; $s -lt $perEmit; $s++) {
+                $sp = New-Object System.Windows.Shapes.Ellipse
+                $sp.Width = 2.2; $sp.Height = 2.2
+                $warm = if ($rand.NextDouble() -lt 0.5) { [System.Windows.Media.Color]::FromRgb(255, 200, 120) } else { [System.Windows.Media.Color]::FromRgb(255, 150, 80) }
+                $sp.Fill = [System.Windows.Media.SolidColorBrush]::new($warm)
+                $tt = New-Object System.Windows.Media.TranslateTransform
+                $sp.RenderTransform = $tt
+                [System.Windows.Controls.Canvas]::SetTop($sp, $emitY)
+                $dur = 1.2 + $rand.NextDouble() * 1.0
+                $sbt = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $dur))
+                $vx = ($rand.NextDouble() - 0.5) * 280
+                $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
+                $ax.From = 0; $ax.To = $vx
+                $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+                $ax.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ax.BeginTime = $sbt
+                $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $ax)
+                $ay = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+                $ay.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ay.BeginTime = $sbt
+                $eUp = New-Object System.Windows.Media.Animation.QuadraticEase; $eUp.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+                $eDn = New-Object System.Windows.Media.Animation.QuadraticEase; $eDn.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseIn
+                if ($isBottom) {
+                    $peak = -(($BannerH * 0.45) + $rand.NextDouble() * ($BannerH * 0.40))
+                    $ay.KeyFrames.Add([System.Windows.Media.Animation.EasingDoubleKeyFrame]::new($peak, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.40)), $eUp)) | Out-Null
+                    $ay.KeyFrames.Add([System.Windows.Media.Animation.EasingDoubleKeyFrame]::new(($peak * 0.45), [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur)), $eDn)) | Out-Null
+                } else {
+                    $pop  = -(($BannerH * 0.05) + $rand.NextDouble() * ($BannerH * 0.10))
+                    $fall =  (($BannerH * 0.55) + $rand.NextDouble() * ($BannerH * 0.30))
+                    $ay.KeyFrames.Add([System.Windows.Media.Animation.EasingDoubleKeyFrame]::new($pop, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.25)), $eUp)) | Out-Null
+                    $ay.KeyFrames.Add([System.Windows.Media.Animation.EasingDoubleKeyFrame]::new($fall, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur)), $eDn)) | Out-Null
+                }
+                $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $ay)
+                $op = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                $op.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
+                $op.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $op.BeginTime = $sbt
+                $op.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds(0)))) | Out-Null
+                $op.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(1.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.06)))) | Out-Null
+                $op.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(1.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur * 0.55)))) | Out-Null
+                $op.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new(0.0, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($dur)))) | Out-Null
+                $sp.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $op)
+                [void]$canvas.Children.Add($sp)
+                [void]$info.Add([pscustomobject]@{ el = $sp; fx = $fx })
+            }
+        }
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            foreach ($o in $info) { [System.Windows.Controls.Canvas]::SetLeft($o.el, $o.fx * $cw) } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerField {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $seg = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(102, 52, 211, 153)); $seg.Freeze()
+        $spacing = 32.0
+        $build = {
+            $cw = $canvas.ActualWidth; $ch = $canvas.ActualHeight
+            if ($cw -lt 20 -or $ch -lt 20) { return }
+            $canvas.Children.Clear()
+            $cols = [int]([Math]::Ceiling($cw / $spacing)) + 1
+            $rows = [int]([Math]::Ceiling($ch / $spacing)) + 1
+            for ($r = 0; $r -lt $rows; $r++) {
+                for ($c = 0; $c -lt $cols; $c++) {
+                    $tick = New-Object System.Windows.Shapes.Rectangle
+                    $tick.Width = 14; $tick.Height = 1.2; $tick.Fill = $seg
+                    $tick.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+                    $rot = [System.Windows.Media.RotateTransform]::new(0)
+                    $tick.RenderTransform = $rot
+                    [System.Windows.Controls.Canvas]::SetLeft($tick, $c * $spacing - 7)
+                    [System.Windows.Controls.Canvas]::SetTop($tick, $r * $spacing)
+                    $base = (($c + $r) * 20) % 360
+                    $aa = New-Object System.Windows.Media.Animation.DoubleAnimation
+                    $aa.From = ($base - 40); $aa.To = ($base + 40)
+                    $aa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(6.0)); $aa.AutoReverse = $true
+                    $aa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $aa.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+                    $aa.BeginTime = [TimeSpan]::FromSeconds(-((($c + $r) % 8) * 0.4))
+                    $rot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $aa)
+                    [void]$canvas.Children.Add($tick)
+                }
+            }
+        }.GetNewClosure()
+        $canvas.Add_SizeChanged($build); & $build
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerSilk {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $ribbons = @(
+            @{ r = 54;  g = 224; b = 224; off = 0.42; amp = 14; w = 26; wl = 300.0; dur = 10.0; dir = -1 },
+            @{ r = 200; g = 80;  b = 255; off = 0.55; amp = 18; w = 30; wl = 380.0; dur = 13.0; dir = 1 },
+            @{ r = 52;  g = 211; b = 153; off = 0.66; amp = 11; w = 22; wl = 240.0; dur = 8.0;  dir = -1 }
+        )
+        foreach ($rb in $ribbons) {
+            $baseY = $rb.off * $BannerH
+            # Extend each ribbon well PAST both banner edges instead of
+            # starting at x=0. A ribbon that drifts right (dir = +1) used to
+            # move its left edge inward, uncovering a blank gap on the left
+            # that grew until the loop wrapped - looking like the band got
+            # shorter and then snapped back. The wave is periodic in wl and the
+            # translate is exactly one wl, so with this overhang on both sides
+            # the scroll stays seamless: full width at all times, no visible
+            # jump.
+            $x0 = -500; $x1 = 3200
+            $fig = New-Object System.Windows.Media.PathFigure
+            $fig.StartPoint = [System.Windows.Point]::new($x0, $baseY)
+            $polyPts = New-Object System.Windows.Media.PointCollection
+            for ($x = $x0; $x -le $x1; $x += 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl)
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
+            }
+            for ($x = $x1; $x -ge $x0; $x -= 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl) + $rb.w
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
+            }
+            $polySeg = New-Object System.Windows.Media.PolyLineSegment
+            $polySeg.Points = $polyPts
+            $fig.Segments.Add($polySeg) | Out-Null; $fig.IsClosed = $true
+            $geo = New-Object System.Windows.Media.PathGeometry
+            $geo.Figures.Add($fig) | Out-Null
+            $path = New-Object System.Windows.Shapes.Path
+            $path.Data = $geo
+            $path.Fill = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(70, [byte]$rb.r, [byte]$rb.g, [byte]$rb.b))
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $path.RenderTransform = $tt
+            $an = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $an.From = 0; $an.To = ($rb.dir * $rb.wl)
+            $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($rb.dur))
+            $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $an)
+            [void]$canvas.Children.Add($path)
+        }
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerBubbles {
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $rand = New-Object System.Random
+        $ringBr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(150, 225, 235)); $ringBr.Freeze()
+        $hlBr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(220, 250, 255)); $hlBr.Freeze()
+        $info = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt 42; $i++) {
+            $rr = 4 + $rand.NextDouble() * 8; $d = $rr * 2
+            $bc = New-Object System.Windows.Controls.Canvas
+            $bc.Width = $d; $bc.Height = $d; $bc.IsHitTestVisible = $false; $bc.Opacity = 0.3 + $rand.NextDouble() * 0.3
+            $ring = New-Object System.Windows.Shapes.Ellipse
+            $ring.Width = $d; $ring.Height = $d; $ring.Stroke = $ringBr; $ring.StrokeThickness = 1.2; $ring.Fill = $null
+            [System.Windows.Controls.Canvas]::SetLeft($ring, 0); [System.Windows.Controls.Canvas]::SetTop($ring, 0)
+            $hl = New-Object System.Windows.Shapes.Ellipse
+            $hl.Width = ($d * 0.26); $hl.Height = ($d * 0.26); $hl.Fill = $hlBr
+            [System.Windows.Controls.Canvas]::SetLeft($hl, $d * 0.22); [System.Windows.Controls.Canvas]::SetTop($hl, $d * 0.2)
+            [void]$bc.Children.Add($ring); [void]$bc.Children.Add($hl)
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $bc.RenderTransform = $tt
+            [System.Windows.Controls.Canvas]::SetTop($bc, $BannerH + 10)
+            $ydur = 7 + $rand.NextDouble() * 5
+            $ay = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ay.From = 0; $ay.To = -($BannerH + 20 + $d)
+            $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($ydur))
+            $ay.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $ay.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $ydur))
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $ay)
+            $xdur = 3 + $rand.NextDouble() * 2
+            $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ax.From = -(5 + $rand.NextDouble() * 6); $ax.To = (5 + $rand.NextDouble() * 6)
+            $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($xdur)); $ax.AutoReverse = $true
+            $ax.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ax.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+            $ax.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $xdur))
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $ax)
+            [void]$canvas.Children.Add($bc)
+            [void]$info.Add([pscustomobject]@{ el = $bc; fx = $rand.NextDouble() })
+        }
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            foreach ($o in $info) { [System.Windows.Controls.Canvas]::SetLeft($o.el, $o.fx * $cw) } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
 # Dispatcher: route a banner to one of the animated effects.
 function global:Add-BannerEffect {
     param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$Effect)
@@ -2948,6 +3461,15 @@ function global:Add-BannerEffect {
         "vortex"    { Add-BannerVortex    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "snow"      { Add-BannerSnow      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "breathe"   { Add-BannerBreathe   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "matrix"    { Add-BannerMatrix    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "hyper"     { Add-BannerHyper     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "tunnel"    { Add-BannerTunnel    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "kaleido"   { Add-BannerKaleido   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "comet"     { Add-BannerComet     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "spark"     { Add-BannerSpark     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "field"     { Add-BannerField     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "silk"      { Add-BannerSilk      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "bubbles"   { Add-BannerBubbles   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "orbs"    { Add-BannerOrbs      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "synth"   { Add-BannerSynthGrid -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "circuit" { Add-BannerCircuit   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3029,7 +3551,7 @@ function global:Invoke-ListLibBannerRotation {
 # NOT in here: it is the one theme-specific effect, so it only appears
 # for futuristic / techy games via Get-BannerFxFor (below). Every other
 # effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","flow","plasma","stripes","twinkle","rain","bokeh","shards","waves","rays","lava","topo","vortex","snow","breathe")
+$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","flow","plasma","stripes","twinkle","rain","bokeh","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).

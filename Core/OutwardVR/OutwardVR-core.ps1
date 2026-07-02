@@ -583,13 +583,7 @@ Write-Host ""
 # Desktop shortcut
 if (Test-Path $gameExe) {
  try {
- $shell = New-Object -ComObject WScript.Shell
- $shortcut = $shell.CreateShortcut("$env:USERPROFILE\Desktop\Outward VR.lnk")
- $shortcut.TargetPath = $gameExe
- $shortcut.WorkingDirectory = $defedPath
- $shortcut.Description = "Outward VR (OutwardVR by cybensis)"
- $shortcut.IconLocation = "$gameExe,0"
- $shortcut.Save()
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Outward VR.lnk" -TargetPath $gameExe -WorkingDir $defedPath -IconPath "$gameExe,0"
  Write-OK "Desktop shortcut 'Outward VR' created."
  } catch {
  Write-Warn "Could not create shortcut: $_"

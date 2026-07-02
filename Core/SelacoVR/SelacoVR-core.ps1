@@ -298,13 +298,7 @@ if (-not (Test-Path $batPath)) {
     try {
         $desktop = [Environment]::GetFolderPath("Desktop")
         $lnkPath = Join-Path $desktop "Selaco VR.lnk"
-        $ws = New-Object -ComObject WScript.Shell
-        $sc = $ws.CreateShortcut($lnkPath)
-        $sc.TargetPath = $batPath
-        $sc.WorkingDirectory = $engineRoot
-        $sc.IconLocation = (Join-Path $engineRoot "Selaco.exe")
-        $sc.Description = "Launch Selaco in VR"
-        $sc.Save()
+        $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $batPath -WorkingDir $engineRoot -IconPath (Join-Path $engineRoot "Selaco.exe")
         Write-OK "Desktop shortcut created: Selaco VR"
     } catch {
         Write-Warn "Could not create the desktop shortcut: $_"

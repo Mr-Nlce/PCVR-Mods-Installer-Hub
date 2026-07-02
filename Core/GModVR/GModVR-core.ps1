@@ -193,9 +193,7 @@ if ($hasStaleData) {
 # -------------------------------------------------------
 Write-Step 4 7 "Installing VRMod modules"
 
-[System.Net.ServicePointManager]::SecurityProtocol = `
- [System.Net.ServicePointManager]::SecurityProtocol -bor `
- [System.Net.SecurityProtocolType]::Tls12
+# TLS is negotiated by the shared download helper.
 
 # Resolve latest release URL - fall back to the pinned known-good one if API fails
 $downloadUrl = $null
@@ -226,7 +224,8 @@ $extractDir = Join-Path $tempDir "extract"
 
 Write-Host " Downloading modules ... " -NoNewline -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+ Invoke-SafeDownload -Urls @($downloadUrl, $MODULES_FALLBACK_URL) -Destination $zipPath -Label "GMod VR modules" -ManualUrl "https://github.com/Abyss-c0re/vrmod-module-master/releases" -Instructions "Download 'modules.zip' from the releases page, save it as '$zipPath', then choose Retry." -SkipMessage "" | Out-Null
+ if (-not (Test-Path -LiteralPath $zipPath)) { throw "modules.zip was not downloaded" }
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
