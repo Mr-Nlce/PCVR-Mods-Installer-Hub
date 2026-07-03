@@ -1326,7 +1326,7 @@ try {
         ($aidM.GetMethodImplementationFlags() -bor [System.Reflection.MethodImplAttributes]::PreserveSig))
     $aidReady = $aidType.CreateType()
     [void]$aidReady.GetMethod("SetCurrentProcessExplicitAppUserModelID").Invoke(
-        $null, @("MrNIce.PCVRModsHub.0.8.2.5"))
+        $null, @("MrNIce.PCVRModsHub.0.8.2.6"))
 } catch {}
 
 # Set the title-bar icon. Without this WPF inherits the host
@@ -1441,7 +1441,7 @@ public static class PCVRWinAppId {
 }
 '@
                 }
-                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.5")
+                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.6")
             } catch {}
         }
     } catch {}
@@ -2311,7 +2311,7 @@ function global:Add-BannerFlow {
         $rect.OpacityMask = $mask
         $an = New-Object System.Windows.Media.Animation.DoubleAnimation
         $an.From = 0.0; $an.To = 1.0
-        $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(6.0))
+        $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(18.0))
         $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
         $rt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $an)
         [System.Windows.Controls.Canvas]::SetTop($rect, 0); [System.Windows.Controls.Canvas]::SetLeft($rect, 0)
@@ -2336,6 +2336,61 @@ function global:Add-BannerPlasma {
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $palette = @("#34d399","#36e0e0","#3a8add","#c850ff")
+        $rand = New-Object System.Random
+        $info = New-Object System.Collections.ArrayList
+        for ($i = 0; $i -lt 3; $i++) {
+            $start = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[$i % $palette.Count])
+            $rg = New-Object System.Windows.Media.RadialGradientBrush
+            $stop0 = [System.Windows.Media.GradientStop]::new($start, 0.0)
+            $rg.GradientStops.Add($stop0) | Out-Null
+            $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, 0, 0, 0), 1.0)) | Out-Null
+            $blob = New-Object System.Windows.Shapes.Ellipse
+            $sz = $BannerH * 1.9
+            $blob.Width = $sz; $blob.Height = $sz; $blob.Fill = $rg; $blob.Opacity = 0.6
+            $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 36; $blob.Effect = $bl
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $blob.RenderTransform = $tt
+            $dur = 12.0 + $rand.NextDouble() * 6.0
+            $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $ax.From = -(40 + $rand.NextDouble() * 40); $ax.To = (40 + $rand.NextDouble() * 50)
+            $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur)); $ax.AutoReverse = $true
+            $ax.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ax.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $ax)
+            $ca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+            $hueDur = 14.0 + $rand.NextDouble() * 6.0
+            $ca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($hueDur))
+            for ($k = 0; $k -lt $palette.Count; $k++) {
+                $c = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[($i + $k) % $palette.Count])
+                $kt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur * ($k / [double]$palette.Count)))
+                $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($c, $kt)) | Out-Null
+            }
+            $endkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur))
+            $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($start, $endkt)) | Out-Null
+            $ca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $stop0.BeginAnimation([System.Windows.Media.GradientStop]::ColorProperty, $ca)
+            [System.Windows.Controls.Canvas]::SetTop($blob, ($BannerH / 2) - ($sz / 2))
+            [void]$canvas.Children.Add($blob)
+            [void]$info.Add([pscustomobject]@{ el = $blob; sz = $sz; fx = (($i + 0.5) / 3.0) })
+        }
+        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
+            foreach ($o in $info) { [System.Windows.Controls.Canvas]::SetLeft($o.el, ($o.fx * $cw) - ($o.sz / 2)) } }.GetNewClosure()
+        $canvas.Add_SizeChanged($reflow); & $reflow
+        $canvas.Tag = "BannerFx"
+        $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+    } catch { }
+}
+
+function global:Add-BannerBlobs {
+    param([string]$BannerName, [double]$BannerH, [string[]]$Palette)
+    try {
+        $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
+        $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
+        $canvas = New-Object System.Windows.Controls.Canvas
+        $canvas.IsHitTestVisible = $false
+        $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+        $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        $palette = $Palette
+        if (-not $palette -or $palette.Count -lt 2) { $palette = @("#34d399","#36e0e0","#3a8add","#c850ff") }
         $rand = New-Object System.Random
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 3; $i++) {
@@ -2771,14 +2826,30 @@ function global:Add-BannerTopo {
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
         $info = New-Object System.Collections.ArrayList
+        $topoPalette = @("#34d399","#36e0e0","#3a8add","#c850ff")
         $rings = 7
         for ($r = 1; $r -le $rings; $r++) {
             $baseR = $r * 16.0
             $e = New-Object System.Windows.Shapes.Ellipse
             $e.Width = ($baseR * 2 * 1.7); $e.Height = ($baseR * 2)
-            $alpha = [byte]((0.30 - $r * 0.02) * 255)
-            $e.Stroke = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb($alpha, 52, 211, 153))
-            $e.StrokeThickness = 1; $e.Fill = $null
+            $alpha = [byte]((0.34 - $r * 0.02) * 255)
+            $tStart = $r % $topoPalette.Count
+            $tc0 = [System.Windows.Media.ColorConverter]::ConvertFromString($topoPalette[$tStart])
+            $sbr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb($alpha, $tc0.R, $tc0.G, $tc0.B))
+            $e.Stroke = $sbr
+            $e.StrokeThickness = 2.4; $e.Fill = $null
+            $tglow = New-Object System.Windows.Media.Effects.BlurEffect; $tglow.Radius = 3.5; $e.Effect = $tglow
+            $tdur = 20.0
+            $tca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+            $tca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($tdur))
+            for ($m = 0; $m -lt $topoPalette.Count; $m++) {
+                $tcc = [System.Windows.Media.ColorConverter]::ConvertFromString($topoPalette[($tStart + $m) % $topoPalette.Count])
+                $tkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($tdur * ($m / [double]$topoPalette.Count)))
+                $tca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new(([System.Windows.Media.Color]::FromArgb($alpha, $tcc.R, $tcc.G, $tcc.B)), $tkt)) | Out-Null
+            }
+            $tca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new(([System.Windows.Media.Color]::FromArgb($alpha, $tc0.R, $tc0.G, $tc0.B)), ([System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($tdur))))) | Out-Null
+            $tca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $sbr.BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $tca)
             $e.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
             $st = [System.Windows.Media.ScaleTransform]::new(1, 1)
             $e.RenderTransform = $st
@@ -2869,9 +2940,14 @@ function global:Add-BannerSnow {
             $fall = [Math]::Max($BannerH, 224.0) + 6
             $ay = New-Object System.Windows.Media.Animation.DoubleAnimation
             $ay.From = 0; $ay.To = $fall
-            $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($ydur * $fall / ($BannerH + 6)))
+            # Actual fall duration (scales with $fall so speed stays constant
+            # across banner sizes). Seed the negative BeginTime from the SAME
+            # duration so flakes start spread over the WHOLE fall - otherwise
+            # they only fill the top portion at t=0 and fall as one clump.
+            $actualDur = $ydur * $fall / ($BannerH + 6)
+            $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($actualDur))
             $ay.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-            $ay.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $ydur))
+            $ay.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * $actualDur))
             $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $ay)
             $xdur = 3 + $rand.NextDouble() * 2
             $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
@@ -3004,9 +3080,9 @@ function global:Add-BannerHyper {
         $rand = New-Object System.Random
         $brush = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(190, 220, 255)); $brush.Freeze()
         $info = New-Object System.Collections.ArrayList
-        for ($i = 0; $i -lt 40; $i++) {
+        for ($i = 0; $i -lt 90; $i++) {
             $streak = New-Object System.Windows.Shapes.Rectangle
-            $streak.Width = 6; $streak.Height = 1.6; $streak.Fill = $brush; $streak.RadiusX = 1; $streak.RadiusY = 1
+            $streak.Width = 10; $streak.Height = 2.6; $streak.Fill = $brush; $streak.RadiusX = 1; $streak.RadiusY = 1
             $tg = New-Object System.Windows.Media.TransformGroup
             $sx = [System.Windows.Media.ScaleTransform]::new(1, 1)
             $tt = New-Object System.Windows.Media.TranslateTransform
@@ -3022,7 +3098,7 @@ function global:Add-BannerHyper {
             $at.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $at.BeginTime = $bt
             $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $at)
             $asx = New-Object System.Windows.Media.Animation.DoubleAnimation
-            $asx.From = 0.5; $asx.To = 9
+            $asx.From = 0.5; $asx.To = 14
             $asx.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur))
             $asx.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $asx.BeginTime = $bt
             $sx.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleXProperty, $asx)
@@ -3113,6 +3189,10 @@ function global:Add-BannerKaleido {
             @{ rad = 0.30; dotR = 5; col = "#c850ff"; dur = 24.0; dir = -1 },
             @{ rad = 0.40; dotR = 4; col = "#34d399"; dur = 30.0; dir = 1 }
         )
+        # Plasma-style colour cycle shared by all dots, so the whole
+        # kaleidoscope drifts through hues instead of sitting on fixed colours.
+        $kalPalette = @("#36e0e0","#3a8add","#c850ff","#34d399")
+        $kalRand = New-Object System.Random
         $info = New-Object System.Collections.ArrayList
         foreach ($rg in $rings) {
             $rc = New-Object System.Windows.Controls.Canvas
@@ -3125,7 +3205,22 @@ function global:Add-BannerKaleido {
             $dots = New-Object System.Collections.ArrayList
             for ($k = 0; $k -lt 6; $k++) {
                 $dot = New-Object System.Windows.Shapes.Ellipse
-                $dot.Width = ($rg.dotR * 2); $dot.Height = ($rg.dotR * 2); $dot.Fill = $br; $dot.Opacity = 0.6
+                $dbr = [System.Windows.Media.SolidColorBrush]::new($col)
+                $dot.Width = ($rg.dotR * 2); $dot.Height = ($rg.dotR * 2); $dot.Fill = $dbr; $dot.Opacity = 0.42
+                $dglow = New-Object System.Windows.Media.Effects.BlurEffect; $dglow.Radius = ($rg.dotR * 0.9); $dot.Effect = $dglow
+                $kstart = ($kalRand.Next(0, $kalPalette.Count))
+                $kdur = 16.0 + $kalRand.NextDouble() * 8.0
+                $kca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
+                $kca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($kdur))
+                for ($m = 0; $m -lt $kalPalette.Count; $m++) {
+                    $kc = [System.Windows.Media.ColorConverter]::ConvertFromString($kalPalette[($kstart + $m) % $kalPalette.Count])
+                    $kkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($kdur * ($m / [double]$kalPalette.Count)))
+                    $kca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($kc, $kkt)) | Out-Null
+                }
+                $kendc = [System.Windows.Media.ColorConverter]::ConvertFromString($kalPalette[$kstart])
+                $kca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($kendc, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($kdur)))) | Out-Null
+                $kca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+                $dbr.BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $kca)
                 [void]$rc.Children.Add($dot)
                 [void]$dots.Add([pscustomobject]@{ el = $dot; ang = ($k * [Math]::PI / 3.0) })
             }
@@ -3449,6 +3544,13 @@ function global:Add-BannerEffect {
         "speed"     { Add-BannerSpeed     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "flow"      { Add-BannerFlow      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "plasma"    { Add-BannerPlasma    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "blobsunset" { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#ff7a4d","#ffb020","#ff4d80","#ff9a3d") }
+        "blobcandy"  { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#ff5fa2","#a45cff","#36d0e0","#ff8fd0") }
+        "blobocean"  { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#16d0a0","#2ab0ff","#4de0d0","#3a8add") }
+        "blobember"  { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#ff4d2e","#ff8a1e","#ffd24d","#e0341e") }
+        "blobtoxic"  { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#8aff3a","#34e07a","#c8ff2e","#2ee0a0") }
+        "blobice"    { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#8ad8ff","#4db8ff","#a0e8ff","#5de0e0") }
+        "blobviolet" { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#c850ff","#8a5cff","#ff5fd0","#6a4dff") }
         "stripes"   { Add-BannerStripes   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "twinkle"   { Add-BannerTwinkle   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "rain"      { Add-BannerRain      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3551,7 +3653,7 @@ function global:Invoke-ListLibBannerRotation {
 # NOT in here: it is the one theme-specific effect, so it only appears
 # for futuristic / techy games via Get-BannerFxFor (below). Every other
 # effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","flow","plasma","stripes","twinkle","rain","bokeh","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
+$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","stripes","twinkle","rain","bokeh","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).
@@ -3583,6 +3685,59 @@ function global:Test-FuturisticGame {
     return $false
 }
 
+# Titles eligible for the bright rainbow "flow" wash even if their tags
+# carry no colourful marker (explicit opt-in). Flow's garish teal/blue/
+# purple only fits comic-like or vividly colourful games - never dark ones
+# (Doom, Quake, etc.). Add titles here to let flow appear on them.
+$global:ColorfulBannerTitles = @(
+    "Cruelty Squad VR",
+    "R.E.P.O. VR",
+    "Sonic P-06 VR",
+    "Astrodogs VR",
+    "Bomb Rush Cyberfunk",
+    "Life is Strange: BtS",
+    "Paperklay VR",
+    "PEAK VR",
+    "Slime Rancher VR",
+    "Trombone Champ VR",
+    "Alba VR",
+    "StreetDog BMX VR",
+    "Super Polygon Grand Prix VR"
+)
+
+# Tags that mark a game as comic / cartoon / vividly colourful enough for
+# the flow wash to fit.
+$global:ColorfulBannerTags = @(
+    "comic", "cartoon", "cartoony", "cel-shaded", "cel shaded", "toon",
+    "colorful", "colourful", "vibrant", "stylized", "stylised",
+    "psychedelic", "arcade", "cute", "whimsical"
+)
+
+# Titles explicitly BARRED from the flow wash even if a tag would match -
+# e.g. Bendy is tagged "comic" but is black-and-white, so the rainbow flow
+# does not fit. Add titles here to keep flow off them.
+$global:ColorfulBannerExclude = @(
+    "Bendy VR"
+)
+
+# True when a game reads as comic-like / vividly colourful (explicit title
+# or any colourful tag). Gates the flow wash.
+function global:Test-ColorfulGame {
+    param($Game)
+    if (-not $Game) { return $false }
+    if ($Game.Title -and ($global:ColorfulBannerExclude -contains $Game.Title)) { return $false }
+    if ($Game.Title -and ($global:ColorfulBannerTitles -contains $Game.Title)) { return $true }
+    if ($Game.Tags) {
+        foreach ($t in $Game.Tags) {
+            $tl = ("$t").ToLower()
+            foreach ($f in $global:ColorfulBannerTags) {
+                if ($tl -eq $f -or $tl.Contains($f)) { return $true }
+            }
+        }
+    }
+    return $false
+}
+
 # Pick one banner effect for a banner showing $Game. The synth-grid is
 # only added as a candidate (so it CAN come up, never guaranteed) when
 # the game reads as futuristic; a null game falls back to the general
@@ -3591,6 +3746,7 @@ function global:Get-BannerFxFor {
     param($Game)
     $pool = @($global:BannerFxPool)
     if (Test-FuturisticGame -Game $Game) { $pool += "synth" }
+    if (Test-ColorfulGame    -Game $Game) { $pool += "flow" }
     return ($pool | Get-Random)
 }
 

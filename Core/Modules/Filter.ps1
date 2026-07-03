@@ -2186,6 +2186,37 @@ function global:Invoke-CheckInstalledScan {
                     }
                   }
                 }
+            } elseif ($game.Bat -like 'LukeRossVR*') {
+                # Luke Ross: read the installed build primarily from a version
+                # file INSIDE the mod's install folder (travels with the mod, so
+                # any Hub - even a fresh one - sees it). Fall back to the Hub-
+                # local .real_version_<title> marker (NOT .installed_version,
+                # which Invoke-PostInstallRefresh deletes). We are inside
+                # "if ($vrInstalled)", so the mod is on disk; no version found
+                # anywhere = installed by an older Hub that didn't record it.
+                $nvDigits = ("$($global:REALVR_NEWEST)" -replace '[^\d]','')
+                $lrInst   = $null
+                if ($gameDir) {
+                    $lrGameMarker = Join-Path $gameDir ".real_vr_version"
+                    if (Test-Path $lrGameMarker) {
+                        $lrInst = (Get-Content $lrGameMarker -Raw -ErrorAction SilentlyContinue)
+                        if ($lrInst) { $lrInst = $lrInst.Trim() }
+                    }
+                }
+                if (-not $lrInst) {
+                    $lrIvp    = Get-InstalledVersionPath -Game $game
+                    $lrMarker = if ($lrIvp) { $lrIvp -replace '\.installed_version_', '.real_version_' } else { $null }
+                    if ($lrMarker -and (Test-Path $lrMarker)) {
+                        $lrInst = (Get-Content $lrMarker -Raw -ErrorAction SilentlyContinue)
+                        if ($lrInst) { $lrInst = $lrInst.Trim() }
+                    }
+                }
+                if (-not $lrInst) {
+                    if ($nvDigits) { $needsUpdate = $true }
+                } else {
+                    $ivDigits = ("$lrInst" -replace '[^\d]','')
+                    if ($nvDigits -and $ivDigits -and ([int64]$nvDigits -gt [int64]$ivDigits)) { $needsUpdate = $true }
+                }
             } else {
                 # Non-Thunderstore: compare Mod string version to installed_version
                 $expectedVer = Get-ModVersionFromString -ModString $game.Mod

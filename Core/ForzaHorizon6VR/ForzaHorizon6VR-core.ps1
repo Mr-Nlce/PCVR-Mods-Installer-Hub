@@ -77,12 +77,13 @@ Write-Host ""
 Write-Step 1 6 "Choosing a VR mod"
 Write-Host "  Which VR mod do you want to set up?" -ForegroundColor White
 Write-Host ""
-Write-Host "   [1] NALULUNA  - free on ko-fi (enter 0 to pay nothing)" -ForegroundColor White
+Write-Host "   [1] NALULUNA  - free on ko-fi  (recommended)" -ForegroundColor Green
 Write-Host "   [2] lufz VRMod - from the flat2VR Modding Discord" -ForegroundColor White
 Write-Host ""
 $modChoice = ""
 while ($modChoice -ne "1" -and $modChoice -ne "2") {
-    $modChoice = (Read-Host "  Enter 1 or 2").Trim()
+    $modChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
+    if ($modChoice -eq "") { $modChoice = "1" }
     if ($modChoice -ne "1" -and $modChoice -ne "2") { Write-Warn "Please type 1 or 2." }
 }
 if ($modChoice -eq "1") {
@@ -206,6 +207,9 @@ if ($modChoice -eq "1") {
     Write-Host " Settings: lower graphics, V-Sync OFF, frame rate unlimited," -ForegroundColor Gray
     Write-Host " motion blur / DLSS / frame generation OFF. DIBR mode is the" -ForegroundColor Gray
     Write-Host " smoothest starting point." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host " Can't see the in-car UI (map, speedometer, etc.)? In Settings >" -ForegroundColor Gray
+    Write-Host " HUD & Gameplay, set 'HUD Safe Frame Vertical' to 25 (far right)." -ForegroundColor Gray
 } else {
     Write-Host " lufz VRMod - HOW TO PLAY" -ForegroundColor Yellow
     Write-Host "============================================================" -ForegroundColor Yellow

@@ -73,10 +73,10 @@ Write-Host "    Perfect Dark - NTSC version 1.1 (US), in .z64 format." -Foregrou
 Write-Host "    Exactly this version is required - a .z64 ROM that you own." -ForegroundColor Gray
 Write-Host "  No game ROM is downloaded or included - only the VR port is" -ForegroundColor Gray
 Write-Host "  fetched (the newest PCVR build from the official GitHub releases)." -ForegroundColor Gray
-Pause-User "Press Enter to begin the installation..." | Out-Null
+Pause-User "Press Enter to begin the installation or update..." | Out-Null
 
 # ---- 1. pick a writable install root ------------------------
-Write-Step 1 4 "Choosing an install location"
+Write-Step 1 4 "Choosing an install or update location"
 
 function Test-WritableRoot {
     param([string]$Root)

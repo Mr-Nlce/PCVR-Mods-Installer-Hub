@@ -83,10 +83,10 @@ Write-Host "  PrimedGun is STANDALONE - you do NOT need Dolphin installed." -For
 Write-Host "  It installs into its own clean folder, separate from any Dolphin." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Oculus/Meta runtime is NOT recommended - use SteamVR." -ForegroundColor Yellow
-Pause-User "Press Enter to begin the installation..." | Out-Null
+Pause-User "Press Enter to begin the installation or update..." | Out-Null
 
 # ---- 1. pick a writable install root ------------------------
-Write-Step 1 5 "Choosing an install location"
+Write-Step 1 5 "Choosing an install or update location"
 
 function Test-WritableRoot {
     param([string]$Root)
@@ -356,8 +356,9 @@ if ($existingRom) {
 }
 while (-not $romPlaced) {
     Write-Host ""
-    Write-Host "  Drag your Metroid Prime ROM file onto this window and press Enter," -ForegroundColor White
-    Write-Host "  or just press Enter to skip and add it later." -ForegroundColor Gray
+    Write-Host "  Drag your Metroid Prime ROM onto this window and press Enter. A .zip" -ForegroundColor White
+    Write-Host "  that contains the ROM works too - it is unpacked automatically." -ForegroundColor White
+    Write-Host "  Or just press Enter to skip and add it later." -ForegroundColor Gray
     $drop = (Read-Host "  ROM file (drag here, or Enter to skip)").Trim().Trim('"').Trim()
     if (-not $drop) {
         Write-Info "Skipped - drop your ISO into the ROM folder whenever you are ready."
@@ -372,14 +373,41 @@ while (-not $romPlaced) {
         continue
     }
     $ext = [System.IO.Path]::GetExtension($drop).ToLower()
-    if ($romExt -notcontains $ext) {
+
+    # If a .zip was dropped, unpack it and locate the disc image inside. ROM
+    # downloads are often a .zip holding the .iso (sometimes with a nested
+    # .zip too - that inner archive is ignored; we match on disc-image
+    # extensions and take the largest, which is the real image).
+    $romSource = $drop
+    $romTmp = $null
+    if ($ext -eq ".zip") {
+        Write-Info "Zip detected - unpacking and locating the disc image inside..."
+        $romTmp = Join-Path $env:TEMP ("mp_rom_" + [Guid]::NewGuid().ToString("N"))
+        try {
+            New-Item -ItemType Directory -Path $romTmp -Force -ErrorAction Stop | Out-Null
+            Expand-Archive -LiteralPath $drop -DestinationPath $romTmp -Force -ErrorAction Stop
+            $inner = Get-ChildItem -LiteralPath $romTmp -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $romExt -contains $_.Extension.ToLower() } | Sort-Object Length -Descending | Select-Object -First 1
+            if ($inner) {
+                $romSource = $inner.FullName
+                Write-OK "Found disc image in zip: $($inner.Name)"
+            } else {
+                Write-Fail "No GameCube disc image (.iso / .rvz / .gcm ...) found inside the zip."
+                try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+                continue
+            }
+        } catch {
+            Write-Fail "Could not unpack the zip: $_"
+            try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            continue
+        }
+    } elseif ($romExt -notcontains $ext) {
         Write-Warn "That does not look like a GameCube disc image ($ext)."
         $yn = (Read-Host "  Copy it anyway? (y/N)").Trim().ToLower()
-        if ($yn -ne "y") { continue }
+        if ($yn -ne "y") { if ($romTmp) { try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {} }; continue }
     }
     try {
-        $destFile = Join-Path $romDir ([System.IO.Path]::GetFileName($drop))
-        Copy-Item -LiteralPath $drop -Destination $destFile -Force -ErrorAction Stop
+        $destFile = Join-Path $romDir ([System.IO.Path]::GetFileName($romSource))
+        Copy-Item -LiteralPath $romSource -Destination $destFile -Force -ErrorAction Stop
         Write-OK "ROM copied into place: $destFile"
         $romPlaced = $true
     } catch {
@@ -387,8 +415,9 @@ while (-not $romPlaced) {
         Write-Host "  You can copy it into the ROM folder yourself:" -ForegroundColor Gray
         Write-Host "    $romDir" -ForegroundColor Cyan
         $retry = (Read-Host "  Press Enter to try again, or type 'skip' to continue").Trim().ToLower()
-        if ($retry -eq "skip") { break }
+        if ($retry -eq "skip") { if ($romTmp) { try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {} }; break }
     }
+    if ($romTmp) { try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {} }
 }
 
 # ---- 5. desktop shortcut + finish ---------------------------
@@ -422,14 +451,20 @@ Write-Host "  Metroid Prime VR (PrimedGun) is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
-Write-Host "   1. Put your Metroid Prime NTSC 1.0 (rev 0) ISO into:" -ForegroundColor White
-Write-Host "        $romDir" -ForegroundColor Cyan
-Write-Host "   2. Start SteamVR first (Oculus/Meta runtime is not recommended)." -ForegroundColor White
-Write-Host "   3. Launch with the 'Metroid Prime VR' desktop shortcut, or run:" -ForegroundColor White
-Write-Host "        $exePath" -ForegroundColor Cyan
-Write-Host "   4. Your ROM should already appear in the list - select it and" -ForegroundColor White
-Write-Host "      press Play. If it is NOT listed, click 'Select Game...'," -ForegroundColor White
-Write-Host "      pick your ISO once, then press Play." -ForegroundColor White
+if ($romPlaced) {
+    Write-Host "   1. Start SteamVR first (Oculus/Meta runtime is not recommended)." -ForegroundColor White
+    Write-Host "   2. Launch with the 'Metroid Prime VR' desktop shortcut, or run:" -ForegroundColor White
+    Write-Host "        $exePath" -ForegroundColor Cyan
+    Write-Host "   3. Your ROM is already in place - select it in the list and press Play." -ForegroundColor White
+} else {
+    Write-Host "   1. Put your Metroid Prime NTSC 1.0 (rev 0) ISO into:" -ForegroundColor White
+    Write-Host "        $romDir" -ForegroundColor Cyan
+    Write-Host "   2. Start SteamVR first (Oculus/Meta runtime is not recommended)." -ForegroundColor White
+    Write-Host "   3. Launch with the 'Metroid Prime VR' desktop shortcut, or run:" -ForegroundColor White
+    Write-Host "        $exePath" -ForegroundColor Cyan
+    Write-Host "   4. Your ROM should appear in the list - select it and press Play." -ForegroundColor White
+    Write-Host "      If it is NOT listed, click 'Select Game...', pick your ISO once, then Play." -ForegroundColor White
+}
 Write-Host ""
 Write-Host "  Tips: use the in-headset settings menu for one-click height" -ForegroundColor Gray
 Write-Host "  calibration and cannon position/rotation tuning." -ForegroundColor Gray

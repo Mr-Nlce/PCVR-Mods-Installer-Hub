@@ -12,7 +12,7 @@ param([string]$GameTitle = "")
 $Host.UI.RawUI.WindowTitle = "Luke Ross R.E.A.L. VR Installer"
 $ErrorActionPreference = "Stop"
 
-$DOWNLOAD_URL = "https://www.patreon.com/file?h=152405468&m=627119127"
+$DOWNLOAD_URL = "https://www.patreon.com/file?h=152405468&m=681279569"
 $PATREON_URL = "https://www.patreon.com/posts/152405468"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 # The R.E.A.L. VR mod is ONE universal package that works for every Luke
@@ -20,7 +20,8 @@ $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Hub (Core\Assets\Tools\LR VR mod) and reuse it for all ~40 titles - no
 # re-download or re-drop per game.
 $LR_CACHE_DIR = Join-Path $SCRIPT_DIR "..\Assets\Tools\LR VR mod"
-$LR_CACHE_ZIP = Join-Path $LR_CACHE_DIR "REALVR.zip"
+$REAL_VERSION = "v2606"
+$LR_CACHE_ZIP = Join-Path $LR_CACHE_DIR ("REALVR_" + $REAL_VERSION + ".zip")
 # Older builds cached the zip next to this script; used as a migration source.
 $LEGACY_CACHED_ZIP = Join-Path $SCRIPT_DIR "REALVR_cached.zip"
 
@@ -434,10 +435,6 @@ Write-Step 1 4 "R.E.A.L. VR Mod"
 
 # Ensure the central Hub cache folder exists.
 try { if (-not (Test-Path $LR_CACHE_DIR)) { New-Item -ItemType Directory -Path $LR_CACHE_DIR -Force | Out-Null } } catch {}
-# Migrate an older next-to-script cache into the central Hub cache.
-if ((Test-Path $LEGACY_CACHED_ZIP) -and -not (Test-Path $LR_CACHE_ZIP)) {
- try { Copy-Item -Path $LEGACY_CACHED_ZIP -Destination $LR_CACHE_ZIP -Force; Write-Info "Moved your existing cached mod into the Hub cache." } catch {}
-}
 
 $zipPath = $null
 if (Test-Path $LR_CACHE_ZIP) {
@@ -707,7 +704,7 @@ $launchLabel = switch ($detectedSource) {
 Write-Host " $launchLabel is launching $($selectedGame.Name)." -ForegroundColor Yellow
 Write-Host " Apply the settings listed above, then CLOSE the game." -ForegroundColor Yellow
 Write-Host ""
-Pause-User "Press Enter here AFTER you have closed the game..."
+Pause-User "Press Enter here AFTER you have closed the game. R.E.A.L VR mod installation will start - UAC required."
 Write-OK "Continuing with mod installation."
 
 # STEP 4: Extract and configure
@@ -749,6 +746,11 @@ try {
     $safeName = ($GameTitle -replace '[^A-Za-z0-9]', '_')
     if (-not $safeName) { $safeName = "default" }
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_$safeName") -Value $installPath -Encoding UTF8 -Force
+    Set-Content -Path (Join-Path $PSScriptRoot ".real_version_$safeName") -Value $REAL_VERSION -Encoding UTF8 -Force
+    # Also record the version INSIDE the mod's install folder, so ANY Hub -
+    # even a fresh one that never installed it - reads the right version and
+    # doesn't wrongly show "Update". The Hub-local marker stays as a fallback.
+    try { Set-Content -Path (Join-Path $installPath ".real_vr_version") -Value $REAL_VERSION -Encoding UTF8 -Force } catch {}
 } catch {}
 
 $configBat = Join-Path $installPath "RealConfig.bat"
@@ -853,7 +855,7 @@ if ($selectedGame.Flavor) {
  Write-Host " $($selectedGame.Flavor)" -ForegroundColor Magenta
  Write-Host ""
 }
-Write-Host " If you enjoy R.E.A.L. VR, please support Luke Ross!" -ForegroundColor Magenta
+Write-Host " If you enjoy R.E.A.L. VR, please support Luke Ross!" -ForegroundColor Green
 Write-Host " https://www.patreon.com/realvr" -ForegroundColor Yellow
 Write-Host ""
 try { Start-Process explorer.exe "`"$installPath`"" } catch {}

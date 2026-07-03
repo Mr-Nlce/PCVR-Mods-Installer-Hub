@@ -16,7 +16,7 @@ There is no single "best" mod - opinions differ, so both are offered.
 
 ## The two mods
 
-- **NALULUNA** - free on ko-fi (set the amount to 0). The newest build is
+- **NALULUNA** *(recommended)* - free on ko-fi (set the amount to 0). The newest build is
   always on the page, named like `fh6vr_<version>.zip`. Launcher:
   `fh6vr.exe`.
 - **lufz / VRMod** - shared in the **flat2VR Modding Discord**. Join via the
@@ -42,6 +42,8 @@ There is no single "best" mod - opinions differ, so both are offered.
 Settings: lower graphics, **V-Sync OFF**, frame rate unlimited, and turn
 motion blur / DLSS / frame generation **off**. DIBR mode runs smoothest;
 AFR looks cleaner but halves the frame rate.
+
+**Can't see the in-car UI** (map, speedometer, etc.)? In **Settings > HUD & Gameplay**, set **HUD Safe Frame Vertical** to **25** (all the way right).
 
 ## Playing - lufz / VRMod
 

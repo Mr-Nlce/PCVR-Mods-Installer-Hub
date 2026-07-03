@@ -396,8 +396,39 @@ function global:Set-CardStateVisual {
             $g = New-Object System.Windows.Media.Effects.DropShadowEffect
             $g.Color = $bA; $g.BlurRadius = 16; $g.ShadowDepth = 0; $g.Opacity = 0.55
             $Card.Effect = $g
-            if ($BtnTxt) { $BtnTxt.Text = "Update" }
+            if ($BtnTxt) {
+                $BtnTxt.Inlines.Clear()
+                $arrBase = $BtnTxt.FontSize; if ([double]::IsNaN($arrBase)) { $arrBase = 12.0 }
+                # Cap the line box to the normal text height so the larger
+                # arrow glyph does NOT grow the button; the bold arrow just
+                # reads bigger within the same-height line.
+                $BtnTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
+                $BtnTxt.LineHeight = $arrBase * 1.33
+                $arrRun = New-Object System.Windows.Documents.Run ([string][char]0x2193)
+                $arrRun.FontSize   = $arrBase * 1.3
+                $arrRun.FontWeight = [System.Windows.FontWeights]::Bold
+                [void]$BtnTxt.Inlines.Add($arrRun)
+                [void]$BtnTxt.Inlines.Add((New-Object System.Windows.Documents.Run ([string]" Update")))
+            }
             Set-NeonButtonState -Button $BtnBrd -Text $BtnTxt -ColorHex $UPDATE_BLUE -Filled
+            if ($BtnBrd) {
+                # Semi-transparent blue fill so the card's ember/frost FX show
+                # through the Update button - a bit more opaque than VR Ready
+                # (alpha 40 vs 20). Hover keeps this (it never repaints the
+                # background), and MouseLeave restores it, so both states stay
+                # see-through. Only the Update button - never the Play pill.
+                $uGrad = New-Object System.Windows.Media.LinearGradientBrush
+                $uGrad.StartPoint = New-Object System.Windows.Point 0, 0
+                $uGrad.EndPoint   = New-Object System.Windows.Point 0, 1
+                $uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 40, 92, 205), 0.0))) | Out-Null
+                $uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 22, 54, 128), 1.0))) | Out-Null
+                $uGrad.Freeze()
+                $BtnBrd.Background = $uGrad
+            }
+            if ($Card -and $BtnTxt) {
+                if ($Card.Resources.Contains("updLabelRest")) { $Card.Resources.Remove("updLabelRest") | Out-Null }
+                $Card.Resources.Add("updLabelRest", $BtnTxt.Foreground)
+            }
         }
         "ready" {
             # Brighter green spot at the TOP that fades down into the
@@ -1367,24 +1398,30 @@ function global:New-GameCardFrosted {
     # leave (never a blind Transparent, which previously erased blue).
     $reloadGlyph.Opacity = 0.75
     $reloadPill.Add_MouseEnter({
-        if (-not $this.Resources.Contains("pillHovStash")) {
-            $this.Resources.Add("pillHovStash", $this.Background)
-        }
-        # Lighten the pill: a clear translucent-white overlay on top of
-        # whatever colour it has (reads on both transparent and blue),
-        # plus a full-opacity glyph.
-        $this.Background = New-Object System.Windows.Media.SolidColorBrush(
-            [System.Windows.Media.Color]::FromArgb(60, 255, 255, 255))
+        # Overlay-style hover: only brighten the glyph (matches the other
+        # buttons); the pill keeps its own fill colour. Also un-brighten the
+        # Update label - the cursor is on Play now, not on Update.
         $this.Child.Opacity = 1.0
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("updLabelRest")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
     })
     $reloadPill.Add_MouseLeave({
-        # Restore the EXACT background we had before hover (transparent
-        # or the vrupdate blue), so we never clobber the recoloring.
         if ($this.Resources.Contains("pillHovStash")) {
             $this.Background = $this.Resources.Item("pillHovStash")
             $this.Resources.Remove("pillHovStash") | Out-Null
         }
         $this.Child.Opacity = 0.75
+        # Back on the Update button (off the pill): re-brighten Update.
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bb = $owner.Resources.Item("btnBorder")
+            $bt = $owner.Resources.Item("btnText")
+            if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
     })
 
     # DualMode split overlay - sits on top of $btnText for REPO VR /
@@ -1397,7 +1434,7 @@ function global:New-GameCardFrosted {
     $dualSplit.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $dualSplit.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
     $dualSplit.Margin              = [System.Windows.Thickness]::new(
-        [int](5*$sc), [int](-6*$sc), [int](28*$sc), [int](-6*$sc)
+        0, [int](-6*$sc), [int](28*$sc), [int](-6*$sc)
     )
     $dualSplit.Visibility = [System.Windows.Visibility]::Collapsed
     $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -1411,6 +1448,7 @@ function global:New-GameCardFrosted {
     $dualCurrentBtn.Background     = [System.Windows.Media.Brushes]::Transparent
     $dualCurrentBtn.BorderThickness = [System.Windows.Thickness]::new(0, 0, 1, 0)
     $dualCurrentBtn.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+    $dualCurrentBtn.CornerRadius   = [System.Windows.CornerRadius]::new([int](4*$sc), 0, 0, [int](4*$sc))
     $dualCurrentBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
@@ -1534,6 +1572,37 @@ function global:New-GameCardFrosted {
     # unreliable (returned null in some render states) which caused
     # the skip-on-vrinstalled check to fail.
     $btnBorder.Resources.Add("ownerCard", $card)
+    $reloadPill.Resources.Add("ownerCard", $card)
+    # Brighten the "Update" label (arrow + text) ONLY while the cursor is
+    # genuinely over the button and NOT over the Play pill. The card raises
+    # this event synthetically with IsMouseOver still false, which we skip.
+    $btnBorder.Add_MouseEnter({
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate" -and $this.IsMouseOver) {
+            $rp = $owner.Resources.Item("reloadPill")
+            if ($rp -and $rp.IsMouseOver) { return }
+            # Crossing the button's right edge to reach the Play pill fires
+            # this a hair before the pill's own hover - which flashed
+            # "Update". If the cursor sits in the pill's band at the right
+            # edge, it's heading to Play, so don't brighten Update.
+            if ($rp) {
+                try {
+                    $pos = [System.Windows.Input.Mouse]::GetPosition($this)
+                    if ($pos.X -ge ($this.ActualWidth - $rp.ActualWidth - 6)) { return }
+                } catch {}
+            }
+            $bt = $owner.Resources.Item("btnText")
+            if ($bt) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
+    }.GetNewClosure())
+    $btnBorder.Add_MouseLeave({
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("updLabelRest")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
+    }.GetNewClosure())
     $btnBorder.Add_MouseEnter({
         $owner = $this.Resources.Item("ownerCard")
         if ($owner -and $owner.Tag -eq "vrinstalled") {
@@ -1637,32 +1706,25 @@ function global:New-GameCardFrosted {
             $this.Resources.Add("preHoverBrush",   $this.Background)
             $this.Resources.Add("preHoverBdBrush", $this.BorderBrush)
             $this.Resources.Add("preHoverBdThick", $this.BorderThickness)
-            $btnTxt = $owner.Resources.Item("btnText")
-            if ($btnTxt) {
-                $this.Resources.Add("preHoverTxtFg",   $btnTxt.Foreground)
-                $this.Resources.Add("preHoverTxtText", $btnTxt.Text)
-            }
-            # Apply VR-Ready outline style + Start label.
-            $this.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+            # (button text is NOT changed on hover any more - it stays the
+            #  big "Update" inline; so nothing to stash/restore for it.)
+            # Keep the big button as the blue "Update" primary - do NOT
+            # morph it to "Start in VR". Only lift the outline a touch so
+            # it reads as pressable, and reveal a small GREEN Play pill on
+            # the right as the "launch the current version" affordance.
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
             $this.BorderThickness = [System.Windows.Thickness]::new(1)
-            if ($btnTxt) {
-                $btnTxt.Text = "Start in VR"
-                $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
-            }
-            # Blue update pill on the right. Same colour as the
-            # primary "Update" button it replaces. Stash original
-            # colours so MouseLeave can restore the green VR-Ready
-            # tint (or transparent default) the pill had before.
             $rp = $owner.Resources.Item("reloadPill")
             $rg = $owner.Resources.Item("reloadGlyph")
             if ($rp -and $rg) {
-                if (-not $this.Resources.Contains("preHoverPillBg"))     { $this.Resources.Add("preHoverPillBg",     $rp.Background)   }
-                if (-not $this.Resources.Contains("preHoverPillBd"))     { $this.Resources.Add("preHoverPillBd",     $rp.BorderBrush)  }
-                if (-not $this.Resources.Contains("preHoverPillGlyphFg")){ $this.Resources.Add("preHoverPillGlyphFg",$rg.Foreground)  }
-                $rp.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-                $rp.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-                $rg.Foreground  = [System.Windows.Media.Brushes]::White
+                if (-not $this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Add("preHoverPillBg",      $rp.Background)   }
+                if (-not $this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Add("preHoverPillBd",      $rp.BorderBrush)  }
+                if (-not $this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Add("preHoverPillGlyphFg", $rg.Foreground)  }
+                if (-not $this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Add("preHoverPillGlyphTx", $rg.Text)        }
+                $rp.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#223228")
+                $rp.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+                $rg.Foreground  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
+                $rg.Text        = [char]0x25B6
                 $rp.Visibility  = [System.Windows.Visibility]::Visible
             }
             return
@@ -1840,9 +1902,12 @@ function global:New-GameCardFrosted {
                     if ($prePillBg)  { $rp.Background  = $prePillBg }
                     if ($prePillBd)  { $rp.BorderBrush = $prePillBd }
                     if ($prePillGFg) { $rg.Foreground  = $prePillGFg }
+                $prePillGTx = $this.Resources.Item("preHoverPillGlyphTx")
+                if ($prePillGTx) { $rg.Text = $prePillGTx }
                     if ($this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Remove("preHoverPillBg")      | Out-Null }
                     if ($this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Remove("preHoverPillBd")      | Out-Null }
                     if ($this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Remove("preHoverPillGlyphFg") | Out-Null }
+                if ($this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Remove("preHoverPillGlyphTx") | Out-Null }
                     $rp.Visibility = [System.Windows.Visibility]::Collapsed
                 }
                 return
@@ -1855,11 +1920,8 @@ function global:New-GameCardFrosted {
             if ($preBg)  { $this.Background      = $preBg }
             if ($preBd)  { $this.BorderBrush     = $preBd }
             if ($preBdT) { $this.BorderThickness = $preBdT }
-            $btnTxt = $owner.Resources.Item("btnText")
-            if ($btnTxt) {
-                if ($preTxtTx) { $btnTxt.Text       = $preTxtTx }
-                if ($preTxtFg) { $btnTxt.Foreground = $preTxtFg }
-            }
+            # (Update-label brightening on real button hover is handled by
+            #  the dedicated btnBorder handlers, not from the tile hover.)
             # Restore + hide the blue update pill that MouseEnter
             # revealed for the non-DualMode vrupdate hover.
             $rp = $owner.Resources.Item("reloadPill")
@@ -1871,9 +1933,12 @@ function global:New-GameCardFrosted {
                 if ($prePillBg)  { $rp.Background  = $prePillBg }
                 if ($prePillBd)  { $rp.BorderBrush = $prePillBd }
                 if ($prePillGFg) { $rg.Foreground  = $prePillGFg }
+                $prePillGTx = $this.Resources.Item("preHoverPillGlyphTx")
+                if ($prePillGTx) { $rg.Text = $prePillGTx }
                 if ($this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Remove("preHoverPillBg")      | Out-Null }
                 if ($this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Remove("preHoverPillBd")      | Out-Null }
                 if ($this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Remove("preHoverPillGlyphFg") | Out-Null }
+                if ($this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Remove("preHoverPillGlyphTx") | Out-Null }
                 $rp.Visibility = [System.Windows.Visibility]::Collapsed
             }
             return
@@ -2618,6 +2683,18 @@ function global:New-GameCardFrosted {
             $reloadPill.Add_MouseLeftButtonDown({
                 param($s, $e)
                 $e.Handled = $true
+                # Single-mode vrupdate: the right pill is the GREEN Play
+                # (launch the current version); the big button is Update.
+                # DualMode keeps the pill as the Update trigger, so only
+                # single-mode launches here.
+                if ($cardCapture.Tag -eq "vrupdate") {
+                    $stPill = $null
+                    if ($global:gameStateMap.ContainsKey($gameCapture.Title)) { $stPill = $global:gameStateMap[$gameCapture.Title] }
+                    if (-not ($stPill -and $stPill.DualMode)) {
+                        if (Get-Command Start-GameInVR -EA SilentlyContinue) { Start-GameInVR -Game $gameCapture }
+                        return
+                    }
+                }
                 # vrupdate: clear stored .installed_version so the
                 # next Check-Installed scan persists the new version
                 # after the installer runs. Matches the card-level
@@ -3327,24 +3404,30 @@ function global:New-GameCardClassic {
     # leave (never a blind Transparent, which previously erased blue).
     $reloadGlyph.Opacity = 0.75
     $reloadPill.Add_MouseEnter({
-        if (-not $this.Resources.Contains("pillHovStash")) {
-            $this.Resources.Add("pillHovStash", $this.Background)
-        }
-        # Lighten the pill: a clear translucent-white overlay on top of
-        # whatever colour it has (reads on both transparent and blue),
-        # plus a full-opacity glyph.
-        $this.Background = New-Object System.Windows.Media.SolidColorBrush(
-            [System.Windows.Media.Color]::FromArgb(60, 255, 255, 255))
+        # Overlay-style hover: only brighten the glyph (matches the other
+        # buttons); the pill keeps its own fill colour. Also un-brighten the
+        # Update label - the cursor is on Play now, not on Update.
         $this.Child.Opacity = 1.0
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("updLabelRest")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
     })
     $reloadPill.Add_MouseLeave({
-        # Restore the EXACT background we had before hover (transparent
-        # or the vrupdate blue), so we never clobber the recoloring.
         if ($this.Resources.Contains("pillHovStash")) {
             $this.Background = $this.Resources.Item("pillHovStash")
             $this.Resources.Remove("pillHovStash") | Out-Null
         }
         $this.Child.Opacity = 0.75
+        # Back on the Update button (off the pill): re-brighten Update.
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bb = $owner.Resources.Item("btnBorder")
+            $bt = $owner.Resources.Item("btnText")
+            if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
     })
 
     # DualMode split overlay - sits on top of $btnText for REPO VR /
@@ -3357,7 +3440,7 @@ function global:New-GameCardClassic {
     $dualSplit.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $dualSplit.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
     $dualSplit.Margin              = [System.Windows.Thickness]::new(
-        [int](5*$sc), [int](-6*$sc), [int](28*$sc), [int](-6*$sc)
+        0, [int](-6*$sc), [int](28*$sc), [int](-6*$sc)
     )
     $dualSplit.Visibility = [System.Windows.Visibility]::Collapsed
     $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -3371,6 +3454,7 @@ function global:New-GameCardClassic {
     $dualCurrentBtn.Background     = [System.Windows.Media.Brushes]::Transparent
     $dualCurrentBtn.BorderThickness = [System.Windows.Thickness]::new(0, 0, 1, 0)
     $dualCurrentBtn.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+    $dualCurrentBtn.CornerRadius   = [System.Windows.CornerRadius]::new([int](4*$sc), 0, 0, [int](4*$sc))
     $dualCurrentBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
@@ -3475,6 +3559,37 @@ function global:New-GameCardClassic {
     # unreliable (returned null in some render states) which caused
     # the skip-on-vrinstalled check to fail.
     $btnBorder.Resources.Add("ownerCard", $card)
+    $reloadPill.Resources.Add("ownerCard", $card)
+    # Brighten the "Update" label (arrow + text) ONLY while the cursor is
+    # genuinely over the button and NOT over the Play pill. The card raises
+    # this event synthetically with IsMouseOver still false, which we skip.
+    $btnBorder.Add_MouseEnter({
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate" -and $this.IsMouseOver) {
+            $rp = $owner.Resources.Item("reloadPill")
+            if ($rp -and $rp.IsMouseOver) { return }
+            # Crossing the button's right edge to reach the Play pill fires
+            # this a hair before the pill's own hover - which flashed
+            # "Update". If the cursor sits in the pill's band at the right
+            # edge, it's heading to Play, so don't brighten Update.
+            if ($rp) {
+                try {
+                    $pos = [System.Windows.Input.Mouse]::GetPosition($this)
+                    if ($pos.X -ge ($this.ActualWidth - $rp.ActualWidth - 6)) { return }
+                } catch {}
+            }
+            $bt = $owner.Resources.Item("btnText")
+            if ($bt) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
+    }.GetNewClosure())
+    $btnBorder.Add_MouseLeave({
+        $owner = $this.Resources.Item("ownerCard")
+        if ($owner -and $owner.Tag -eq "vrupdate") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("updLabelRest")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
+    }.GetNewClosure())
     $btnBorder.Add_MouseEnter({
         $owner = $this.Resources.Item("ownerCard")
         if ($owner -and $owner.Tag -eq "vrinstalled") {
@@ -3578,32 +3693,25 @@ function global:New-GameCardClassic {
             $this.Resources.Add("preHoverBrush",   $this.Background)
             $this.Resources.Add("preHoverBdBrush", $this.BorderBrush)
             $this.Resources.Add("preHoverBdThick", $this.BorderThickness)
-            $btnTxt = $owner.Resources.Item("btnText")
-            if ($btnTxt) {
-                $this.Resources.Add("preHoverTxtFg",   $btnTxt.Foreground)
-                $this.Resources.Add("preHoverTxtText", $btnTxt.Text)
-            }
-            # Apply VR-Ready outline style + Start label.
-            $this.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+            # (button text is NOT changed on hover any more - it stays the
+            #  big "Update" inline; so nothing to stash/restore for it.)
+            # Keep the big button as the blue "Update" primary - do NOT
+            # morph it to "Start in VR". Only lift the outline a touch so
+            # it reads as pressable, and reveal a small GREEN Play pill on
+            # the right as the "launch the current version" affordance.
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
             $this.BorderThickness = [System.Windows.Thickness]::new(1)
-            if ($btnTxt) {
-                $btnTxt.Text = "Start in VR"
-                $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
-            }
-            # Blue update pill on the right. Same colour as the
-            # primary "Update" button it replaces. Stash original
-            # colours so MouseLeave can restore the green VR-Ready
-            # tint (or transparent default) the pill had before.
             $rp = $owner.Resources.Item("reloadPill")
             $rg = $owner.Resources.Item("reloadGlyph")
             if ($rp -and $rg) {
-                if (-not $this.Resources.Contains("preHoverPillBg"))     { $this.Resources.Add("preHoverPillBg",     $rp.Background)   }
-                if (-not $this.Resources.Contains("preHoverPillBd"))     { $this.Resources.Add("preHoverPillBd",     $rp.BorderBrush)  }
-                if (-not $this.Resources.Contains("preHoverPillGlyphFg")){ $this.Resources.Add("preHoverPillGlyphFg",$rg.Foreground)  }
-                $rp.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-                $rp.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-                $rg.Foreground  = [System.Windows.Media.Brushes]::White
+                if (-not $this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Add("preHoverPillBg",      $rp.Background)   }
+                if (-not $this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Add("preHoverPillBd",      $rp.BorderBrush)  }
+                if (-not $this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Add("preHoverPillGlyphFg", $rg.Foreground)  }
+                if (-not $this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Add("preHoverPillGlyphTx", $rg.Text)        }
+                $rp.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#223228")
+                $rp.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+                $rg.Foreground  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
+                $rg.Text        = [char]0x25B6
                 $rp.Visibility  = [System.Windows.Visibility]::Visible
             }
             return
@@ -3781,9 +3889,12 @@ function global:New-GameCardClassic {
                     if ($prePillBg)  { $rp.Background  = $prePillBg }
                     if ($prePillBd)  { $rp.BorderBrush = $prePillBd }
                     if ($prePillGFg) { $rg.Foreground  = $prePillGFg }
+                $prePillGTx = $this.Resources.Item("preHoverPillGlyphTx")
+                if ($prePillGTx) { $rg.Text = $prePillGTx }
                     if ($this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Remove("preHoverPillBg")      | Out-Null }
                     if ($this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Remove("preHoverPillBd")      | Out-Null }
                     if ($this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Remove("preHoverPillGlyphFg") | Out-Null }
+                if ($this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Remove("preHoverPillGlyphTx") | Out-Null }
                     $rp.Visibility = [System.Windows.Visibility]::Collapsed
                 }
                 return
@@ -3796,11 +3907,8 @@ function global:New-GameCardClassic {
             if ($preBg)  { $this.Background      = $preBg }
             if ($preBd)  { $this.BorderBrush     = $preBd }
             if ($preBdT) { $this.BorderThickness = $preBdT }
-            $btnTxt = $owner.Resources.Item("btnText")
-            if ($btnTxt) {
-                if ($preTxtTx) { $btnTxt.Text       = $preTxtTx }
-                if ($preTxtFg) { $btnTxt.Foreground = $preTxtFg }
-            }
+            # (Update-label brightening on real button hover is handled by
+            #  the dedicated btnBorder handlers, not from the tile hover.)
             # Restore + hide the blue update pill that MouseEnter
             # revealed for the non-DualMode vrupdate hover.
             $rp = $owner.Resources.Item("reloadPill")
@@ -3812,9 +3920,12 @@ function global:New-GameCardClassic {
                 if ($prePillBg)  { $rp.Background  = $prePillBg }
                 if ($prePillBd)  { $rp.BorderBrush = $prePillBd }
                 if ($prePillGFg) { $rg.Foreground  = $prePillGFg }
+                $prePillGTx = $this.Resources.Item("preHoverPillGlyphTx")
+                if ($prePillGTx) { $rg.Text = $prePillGTx }
                 if ($this.Resources.Contains("preHoverPillBg"))      { $this.Resources.Remove("preHoverPillBg")      | Out-Null }
                 if ($this.Resources.Contains("preHoverPillBd"))      { $this.Resources.Remove("preHoverPillBd")      | Out-Null }
                 if ($this.Resources.Contains("preHoverPillGlyphFg")) { $this.Resources.Remove("preHoverPillGlyphFg") | Out-Null }
+                if ($this.Resources.Contains("preHoverPillGlyphTx")) { $this.Resources.Remove("preHoverPillGlyphTx") | Out-Null }
                 $rp.Visibility = [System.Windows.Visibility]::Collapsed
             }
             return
@@ -4463,6 +4574,18 @@ function global:New-GameCardClassic {
             $reloadPill.Add_MouseLeftButtonDown({
                 param($s, $e)
                 $e.Handled = $true
+                # Single-mode vrupdate: the right pill is the GREEN Play
+                # (launch the current version); the big button is Update.
+                # DualMode keeps the pill as the Update trigger, so only
+                # single-mode launches here.
+                if ($cardCapture.Tag -eq "vrupdate") {
+                    $stPill = $null
+                    if ($global:gameStateMap.ContainsKey($gameCapture.Title)) { $stPill = $global:gameStateMap[$gameCapture.Title] }
+                    if (-not ($stPill -and $stPill.DualMode)) {
+                        if (Get-Command Start-GameInVR -EA SilentlyContinue) { Start-GameInVR -Game $gameCapture }
+                        return
+                    }
+                }
                 # vrupdate: clear stored .installed_version so the
                 # next Check-Installed scan persists the new version
                 # after the installer runs. Matches the card-level

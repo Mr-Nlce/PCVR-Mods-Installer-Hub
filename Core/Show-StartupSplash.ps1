@@ -77,7 +77,7 @@ $hints = @(
     "Filter by control type, genre or power in Explore. Your shelf, your rules.",
     "{N} cards, frosted and filed.",
     "Nearly there. Headset within reach.",
-    "Can't decide? Hit Shuffle and let the Hub pick for you.",
+    "Can't decide? Hit Shuffle in the Explore area and let the Hub pick for you.",
     "Cards scale to S, M or L. Size the shelf to taste.",
     "The Hub remembers the window size and where you left it.",
     "Where it helps, a guide maps the controller bindings, button by button.",
