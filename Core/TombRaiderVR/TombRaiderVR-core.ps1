@@ -756,9 +756,9 @@ try {
 } catch { }
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Tomb Raider 1 VR install complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Lost city. Stolen artifact. Same Lara, new dimension." -ForegroundColor Magenta
 Write-Host ""

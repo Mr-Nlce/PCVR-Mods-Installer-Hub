@@ -72,10 +72,10 @@ $DOWNLOAD_FOLDER_NAME = "Outward"
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Outward VR - Mod Installer" -ForegroundColor Cyan
  Write-Host " Installs: $MOD_NAME by $MOD_AUTHOR" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 

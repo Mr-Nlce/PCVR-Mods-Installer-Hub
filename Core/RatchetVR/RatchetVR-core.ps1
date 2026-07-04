@@ -308,9 +308,9 @@ try {
 } catch {}
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Ratchet & Clank VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start your VR runtime first, then launch from the Hub with" -ForegroundColor White
 Write-Host "  the 'Start in VR' button. You can also use the 'Ratchet VR'" -ForegroundColor White

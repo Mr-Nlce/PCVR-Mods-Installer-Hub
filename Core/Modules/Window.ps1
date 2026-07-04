@@ -1326,7 +1326,7 @@ try {
         ($aidM.GetMethodImplementationFlags() -bor [System.Reflection.MethodImplAttributes]::PreserveSig))
     $aidReady = $aidType.CreateType()
     [void]$aidReady.GetMethod("SetCurrentProcessExplicitAppUserModelID").Invoke(
-        $null, @("MrNIce.PCVRModsHub.0.8.2.6"))
+        $null, @("MrNIce.PCVRModsHub.0.8.2.7"))
 } catch {}
 
 # Set the title-bar icon. Without this WPF inherits the host
@@ -1441,7 +1441,7 @@ public static class PCVRWinAppId {
 }
 '@
                 }
-                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.6")
+                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.7")
             } catch {}
         }
     } catch {}
@@ -2549,7 +2549,7 @@ function global:Add-BannerRain {
 }
 
 function global:Add-BannerBokeh {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string[]]$Palette)
     try {
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
@@ -2557,15 +2557,15 @@ function global:Add-BannerBokeh {
         $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $cols = @("#36e0e0","#3a8add","#c850ff","#34d399")
+        $cols = if ($Palette -and $Palette.Count -ge 2) { $Palette } else { @("#36e0e0","#3a8add","#c850ff","#34d399") }
         $rand = New-Object System.Random
         $info = New-Object System.Collections.ArrayList
-        for ($i = 0; $i -lt 6; $i++) {
+        for ($i = 0; $i -lt 10; $i++) {
             $c = [System.Windows.Media.ColorConverter]::ConvertFromString($cols[$i % $cols.Count])
             $rg = New-Object System.Windows.Media.RadialGradientBrush
             $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new($c, 0.0)) | Out-Null
             $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, $c.R, $c.G, $c.B), 1.0)) | Out-Null
-            $sz = 30 + $rand.NextDouble() * 90
+            $sz = 34 + $rand.NextDouble() * 60
             $e = New-Object System.Windows.Shapes.Ellipse
             $e.Width = $sz; $e.Height = $sz; $e.Fill = $rg; $e.Opacity = 0.5
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 6 + $rand.NextDouble() * 14; $e.Effect = $bl
@@ -2590,9 +2590,9 @@ function global:Add-BannerBokeh {
             $oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
             $oa.BeginTime = [TimeSpan]::FromSeconds(-($rand.NextDouble() * 5))
             $e.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $oa)
-            [System.Windows.Controls.Canvas]::SetTop($e, ($rand.NextDouble() * $BannerH) - ($sz / 2))
+            [System.Windows.Controls.Canvas]::SetTop($e, ((0.18 + $rand.NextDouble() * 0.64) * $BannerH) - ($sz / 2))
             [void]$canvas.Children.Add($e)
-            [void]$info.Add([pscustomobject]@{ el = $e; sz = $sz; fx = $rand.NextDouble() })
+            [void]$info.Add([pscustomobject]@{ el = $e; sz = $sz; fx = (0.06 + $rand.NextDouble() * 0.88) })
         }
         $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
             foreach ($o in $info) { [System.Windows.Controls.Canvas]::SetLeft($o.el, ($o.fx * $cw) - ($o.sz / 2)) } }.GetNewClosure()
@@ -3555,6 +3555,11 @@ function global:Add-BannerEffect {
         "twinkle"   { Add-BannerTwinkle   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "rain"      { Add-BannerRain      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "bokeh"     { Add-BannerBokeh     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        "bokehsunset" { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ff7a4d","#ffb020","#ff4d80","#ff9a3d") }
+        "bokehcandy"  { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ff5fa2","#a45cff","#36d0e0","#ff8fd0") }
+        "bokehember"  { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ff4d2e","#ff8a1e","#ffd24d","#e0341e") }
+        "bokehtoxic"  { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#8aff3a","#34e07a","#c8ff2e","#2ee0a0") }
+        "bokehviolet" { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#c850ff","#8a5cff","#ff5fd0","#6a4dff") }
         "shards"    { Add-BannerShards    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "waves"     { Add-BannerWaves     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "rays"      { Add-BannerRays      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3653,7 +3658,7 @@ function global:Invoke-ListLibBannerRotation {
 # NOT in here: it is the one theme-specific effect, so it only appears
 # for futuristic / techy games via Get-BannerFxFor (below). Every other
 # effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","stripes","twinkle","rain","bokeh","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
+$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).

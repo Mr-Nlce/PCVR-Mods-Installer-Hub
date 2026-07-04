@@ -2033,7 +2033,19 @@ function global:Invoke-CheckInstalledScan {
                             if ($hitB) { $tmBPresent = $true; $twoModsBDir = (Split-Path -Parent $hitB.FullName) }
                         }
                     }
-                    if ($tmAPresent -or $tmBPresent) { $vrInstalled = $true }
+                    if ($tmAPresent -or $tmBPresent) {
+                        # If a ModFile is defined (GTA5 verifies RealVR.asi),
+                        # require it at the recorded path too - a leftover
+                        # launcher alone must NOT read as VR Ready without
+                        # the actual VR mod on disk.
+                        if ($game.ModFile) {
+                            $tmRoot = $null
+                            try { $tmRoot = Read-InstalledPath -Game $game } catch {}
+                            if ($tmRoot -and (Test-Path (Join-Path $tmRoot $game.ModFile))) { $vrInstalled = $true }
+                        } else {
+                            $vrInstalled = $true
+                        }
+                    }
                     $twoModsAnyPresent = ($tmAPresent -or $tmBPresent)
                 }
             }

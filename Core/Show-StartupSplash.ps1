@@ -38,6 +38,7 @@ $hints = @(
     "Even a blank-icon launcher gets a proper custom icon on your desktop.",
     "Where a modder accepts tips, their support link sits right on the game page.",
     "A card shows motion or gamepad up front, before you commit.",
+    "Recently Played in the way? Hover its heading for 7 seconds - a close option appears on the right.",
     "Guided the whole way and you stay at the wheel. The Hub doesn't do anything without your consent.",
     "Downloads fetch from the source at install time; nothing bulky ships in here.",
     "Split-screen shooters to decompiled N64 ports - all under one roof.",

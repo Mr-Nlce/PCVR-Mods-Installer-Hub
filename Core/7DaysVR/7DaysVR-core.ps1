@@ -24,10 +24,10 @@ $ZIP_PATTERN = "7DVR*.zip"
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " 7 Days to Die - VR Mod Installer" -ForegroundColor Cyan
  Write-Host " 7DaysVR (Alpha 21)" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 
@@ -321,13 +321,13 @@ if ("7DaysVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot
 # DONE
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor White
 Write-Host ""
 if ("7DaysVR" -notin $failed) { Write-Host " [x] 7DaysVR mod" -ForegroundColor Green } else { Write-Host " [ ] 7DaysVR mod -- FAILED" -ForegroundColor Red }
 Write-Host " [x] EasyAntiCheat disabled" -ForegroundColor Green
 Write-Host " [x] VR video settings applied" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
 Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan

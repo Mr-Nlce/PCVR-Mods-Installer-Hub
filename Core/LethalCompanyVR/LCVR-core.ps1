@@ -42,10 +42,10 @@ $LEGACY_LCVR_VERSION = "1.4.6"
 
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Lethal Company - LCVR VR Installer" -ForegroundColor Cyan
  Write-Host " by DaXcess | via Thunderstore" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
@@ -357,9 +357,9 @@ if ("LCVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".
 
 # Summary
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 if ($useLegacy) {
  foreach ($m in @("BepInEx","MonoDetour","MonoDetour_BepInEx_5","FixPluginTypesSerialization","TypeLoadExceptionFixer","LCVR")) {

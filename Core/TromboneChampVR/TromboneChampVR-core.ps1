@@ -65,10 +65,10 @@ $MOD_PROBE      = "BepInEx\plugins\BaboonVr\com.raicuparta.baboon-vr.dll"
 # -------------------------------------------------------
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Trombone Champ VR - Mod Installer" -ForegroundColor Cyan
     Write-Host "   Installs: $MOD_NAME" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
 function Write-Step { param($num, $total, $text)
@@ -423,9 +423,9 @@ try {
 #  Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Done. Before launching:" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  1. Steam client running   2. Start SteamVR" -ForegroundColor White
 Write-Host "  3. Launch via the 'Trombone Champ VR' desktop shortcut" -ForegroundColor White

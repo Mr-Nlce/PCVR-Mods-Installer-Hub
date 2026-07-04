@@ -36,10 +36,10 @@ $DEFAULT_PATH = Join-Path $DEFAULT_PARENT $TARGET_NAME
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Yooka-Laylee - VookaRaylee VR Mod Installer" -ForegroundColor Cyan
  Write-Host " VookaRaylee v0.3 by Eusth (IPA / VRGIN based)" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 
@@ -546,9 +546,9 @@ if ($useDepot) {
 # DONE
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor White
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 if ($useDepot) {
  Write-Host " Mode: Depot downgrade (v1.1.0 64-Bit Tonic)" -ForegroundColor Gray
 } else {

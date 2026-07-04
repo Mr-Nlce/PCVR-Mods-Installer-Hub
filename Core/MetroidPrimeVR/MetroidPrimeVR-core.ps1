@@ -446,9 +446,9 @@ try {
 } catch {}
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Metroid Prime VR (PrimedGun) is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
 if ($romPlaced) {

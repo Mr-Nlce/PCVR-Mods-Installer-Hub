@@ -23,10 +23,10 @@ $VHVR_URL     = "https://github.com/brandonmousseau/vhvr-mod/releases/download/v
 # -------------------------------------------------------
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Valheim - VR Mod Installer" -ForegroundColor Cyan
     Write-Host "   BepInExPack Valheim 5.4.2333  +  VHVR-Mod v0.9.21" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
 
@@ -256,12 +256,12 @@ if ("VHVR-Mod" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoo
 # DONE
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
 if ("BepInExPack" -notin $failed) { Write-Host "    [x] BepInExPack Valheim 5.4.2333" -ForegroundColor Green } else { Write-Host "    [ ] BepInExPack Valheim  -- FAILED, install manually" -ForegroundColor Red }
 if ("VHVR-Mod"   -notin $failed) { Write-Host "    [x] VHVR-Mod v0.9.21" -ForegroundColor Green             } else { Write-Host "    [ ] VHVR-Mod v0.9.21     -- FAILED, install manually" -ForegroundColor Red }
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
 Write-Host "--- CRITICAL: Disable Vulkan ---" -ForegroundColor Yellow

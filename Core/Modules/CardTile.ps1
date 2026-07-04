@@ -74,6 +74,7 @@ $global:FREE_GAME_TITLES = @(
     "Ashes 2063 VR",
     "Total Chaos VR",
     "Anomaly VR",
+    "Anomaly GAMMA",
     "Iron Lung VR",
     "Sonic P-06 VR",
     "Receiver VR",
@@ -1453,7 +1454,7 @@ function global:New-GameCardFrosted {
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
     $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { 8.5 } else { 11 })*$sc
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -1468,7 +1469,7 @@ function global:New-GameCardFrosted {
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
     $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { 8.5 } else { 11 })*$sc
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3459,7 +3460,7 @@ function global:New-GameCardClassic {
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
     $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { 8.5 } else { 11 })*$sc
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3474,7 +3475,7 @@ function global:New-GameCardClassic {
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
     $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { 8.5 } else { 11 })*$sc
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center

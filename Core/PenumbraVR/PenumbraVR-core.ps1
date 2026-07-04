@@ -361,9 +361,9 @@ if (Test-Path $modExePath) {
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation complete." -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Installed to: $gamePath" -ForegroundColor Gray
 Write-Host "  (copied out of Steam so the old engine runs without UAC issues)" -ForegroundColor DarkGray

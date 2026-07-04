@@ -18,11 +18,11 @@ $DISCORD_POST_URL   = "https://discord.com/channels/1495664880311734313/15204706
 # ---- console helpers ----
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "  S.T.A.L.K.E.R. Anomaly VR Mod Installer" -ForegroundColor Cyan
     Write-Host "  Sets up the AoE VR launcher (downloads + auto-updates)" -ForegroundColor Gray
     Write-Host "  Base game: Anomaly 1.5.3 - the launcher fetches it for you" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
 }
 function Write-Step { param([int]$Step,[int]$Total,[string]$Title)
     Write-Host ""; Write-Host "[$Step/$Total] $Title" -ForegroundColor Cyan
@@ -52,21 +52,54 @@ Write-Header
 # -------------------------------------------------------
 # STEP 1: pick the Anomaly folder
 # -------------------------------------------------------
-Write-Step 1 4 "Pick the Anomaly folder"
-Write-Do  "Drag your Anomaly folder in (the one with fsgame.ltx)..."
-Write-Info "...or press Enter for a fresh one: $DEFAULT_GAME_DIR"
-$inputPath = (Read-Host "  Folder").Trim().Trim('"').TrimEnd('\')
-if (-not $inputPath) { $gameDir = $DEFAULT_GAME_DIR } else { $gameDir = $inputPath }
+# Can we actually create/write here? (catches Program Files / UAC traps for
+# a fresh install). For an existing install the caller accepts it before this.
+function Test-WritablePath {
+    param([string]$Path)
+    try {
+        $target = if (Test-Path $Path) { $Path } else { Split-Path -Parent $Path }
+        if (-not $target) { return $false }
+        if (-not (Test-Path $target)) { New-Item -ItemType Directory -Path $target -Force -ErrorAction Stop | Out-Null }
+        $probe = Join-Path $target ".pcvrhub_write_probe"
+        Set-Content -Path $probe -Value "ok" -ErrorAction Stop
+        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch { return $false }
+}
 
-if (-not (Test-Path $gameDir)) {
-    # Created later, only when the launcher is actually placed (so an
-    # aborted setup never leaves an empty folder the scan misreads).
-    Write-Info "New folder - created once the launcher is placed."
-} elseif (Test-Path (Join-Path $gameDir "fsgame.ltx")) {
-    Write-OK "Anomaly install found here."
-} else {
-    Write-Warn "No fsgame.ltx here - not an Anomaly base (fine for a fresh setup)."
-    Pause-User "Press Enter to use this folder anyway..."
+Write-Step 1 4 "Choose where to install"
+Write-Host "  This installs the Anomaly VR launcher. That launcher then" -ForegroundColor White
+Write-Host "  downloads the game + the VR modpack for you and keeps them" -ForegroundColor White
+Write-Host "  updated - you do not need anything beforehand." -ForegroundColor White
+Write-Host ""
+Write-Host "  Press ENTER for a fresh install at the recommended location:" -ForegroundColor Yellow
+Write-Host "      $DEFAULT_GAME_DIR" -ForegroundColor Gray
+Write-Host "  (Recommended. C:\games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  Or type a different folder to install into." -ForegroundColor Gray
+Write-Host "  Or, if you ALREADY have S.T.A.L.K.E.R. Anomaly, drag that folder in." -ForegroundColor DarkGray
+
+$gameDir = $null
+while (-not $gameDir) {
+    $inputPath = (Read-Host "  Folder [Enter = $DEFAULT_GAME_DIR]").Trim().Trim('"').TrimEnd('\')
+    if (-not $inputPath) { $cand = $DEFAULT_GAME_DIR } else { $cand = $inputPath }
+
+    if ((Test-Path $cand) -and (Test-Path (Join-Path $cand "fsgame.ltx"))) {
+        # Existing Anomaly install - use as-is.
+        Write-OK "Existing Anomaly install found here."
+        $gameDir = $cand
+        break
+    }
+    if (Test-WritablePath -Path $cand) {
+        if (Test-Path $cand) {
+            Write-Warn "Folder exists but has no fsgame.ltx - using it for a fresh setup."
+        } else {
+            Write-Info "New folder - created once the launcher is placed."
+        }
+        $gameDir = $cand
+    } else {
+        Write-Fail "Cannot write to: $cand"
+        Write-Info "Pick a spot outside Program Files (e.g. $DEFAULT_GAME_DIR), or run as admin."
+    }
 }
 
 # Old-installation cleanup. A previous Hub install layered the VR mod via
@@ -179,10 +212,10 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Done. Updates run THROUGH the launcher - just hit Updates." -ForegroundColor Green
 Write-Host "  The Hub's 'Start in VR' runs it too." -ForegroundColor Gray
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Stay out of the anomalies, stalker. The Zone notices." -ForegroundColor Magenta
 Write-Host ""

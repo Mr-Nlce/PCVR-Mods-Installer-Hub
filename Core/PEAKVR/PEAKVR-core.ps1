@@ -69,10 +69,10 @@ $VIGEM_REL_PATH = "BepInEx\redist\ViGEmBus_1.22.0_x64_x86_arm64.exe"
 # -------------------------------------------------------
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   PEAK VR - Mod Installer" -ForegroundColor Cyan
     Write-Host "   Installs: $MOD_NAME" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
 function Write-Step { param($num, $total, $text)
@@ -497,9 +497,9 @@ try {
 #  Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Done. Before launching:" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  1. Steam client must be running (PEAK still needs Steam auth)" -ForegroundColor White
 Write-Host "  2. Start SteamVR" -ForegroundColor White

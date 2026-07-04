@@ -52,10 +52,10 @@ $DISCORD_LEFTHAND_URL = "https://discord.com/channels/1001138422972432597/136207
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Dino Trauma VR Mod Installer" -ForegroundColor Cyan
  Write-Host " Installs: $MOD_NAME $MOD_VERSION by $MOD_AUTHOR" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 
@@ -506,9 +506,9 @@ try {
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Setup complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Dino Trauma normally via Steam, the desktop" -ForegroundColor White
 Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White

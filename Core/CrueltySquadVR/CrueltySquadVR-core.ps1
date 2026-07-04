@@ -45,7 +45,7 @@ $MODS_DIR = Join-Path $env:APPDATA "Godot\app_userdata\Cruelty Squad\mods"
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
-function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Green; Write-Host " Cruelty Squad - VR Modloader Installer" -ForegroundColor Green; Write-Host " CrueltySquadVR Modloader v1.3-Stable by teddybear082" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Green; Write-Host "" }
+function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host " Cruelty Squad - VR Modloader Installer" -ForegroundColor Green; Write-Host " CrueltySquadVR Modloader v1.3-Stable by teddybear082" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host "" }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-OK { param($x) Write-Host " [OK] $x" -ForegroundColor Green }
 function Write-Warn { param($x) Write-Host " [!!] $x" -ForegroundColor Yellow }
@@ -379,9 +379,9 @@ try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Cruelty Squad VR installation complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " To play:" -ForegroundColor White
 Write-Host " - Put on your VR headset and start SteamVR" -ForegroundColor White

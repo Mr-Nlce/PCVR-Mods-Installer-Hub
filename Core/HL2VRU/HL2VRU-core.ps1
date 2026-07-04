@@ -486,9 +486,9 @@ try {
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " HL2VRU Unleashed installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " - Launch Half-Life 2: VR Mod from Steam." -ForegroundColor White
 Write-Host " - The title screen will show 'UNLEASHED' in the logo if" -ForegroundColor White

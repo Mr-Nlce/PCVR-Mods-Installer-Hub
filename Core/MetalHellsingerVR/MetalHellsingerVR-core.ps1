@@ -357,9 +357,9 @@ if (Test-Path $gameExePath) {
 }
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Metal: Hellsinger VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Game folder: $gamePath" -ForegroundColor Gray
 Write-Host "  Launch via the 'Metal Hellsinger VR' desktop shortcut or:" -ForegroundColor White

@@ -368,9 +368,9 @@ try {
 } catch {}
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Perfect Dark VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 if (-not $romPlaced) {
     Write-Host "  Add your ROM first: copy your Perfect Dark NTSC v1.1 .z64 ROM into" -ForegroundColor White

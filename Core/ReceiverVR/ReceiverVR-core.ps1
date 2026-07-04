@@ -247,9 +247,9 @@ if (Test-Path $gameExePath) {
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation complete." -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Installed to: $installRoot" -ForegroundColor Gray
 Write-Host ""

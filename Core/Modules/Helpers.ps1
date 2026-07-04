@@ -1346,6 +1346,7 @@ function global:Get-PowerTier {
         "Far Cry Primal VR" = "STRONG"
         "Dark Souls III VR" = "STRONG"
         "Anomaly VR"                   = "STRONG"
+        "Anomaly GAMMA"                = "HIGH"
         "Bomb Rush Cyberfunk"          = "STRONG"
         "Breath of the Wild VR"        = "HIGH"
         "Crysis VR"                    = "STRONG"

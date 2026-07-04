@@ -1,10 +1,10 @@
 # ============================================================
 # Grand Theft Auto V VR Installer
-# Layers Luke Ross's R.E.A.L. r7 VR mod onto an EXISTING,
-# user-provided GTA V (Legacy) install on build 1.0.2245.0.
-# We ship ZERO game files - the user must own and provide a
-# working, launchable copy. The mod (.rar) is downloaded from
-# Luke Ross's public GitHub release at install time.
+# Adds Luke Ross's R.E.A.L. r7 VR mod to the user's own Grand Theft
+# Auto V. Uses the community GTA-VRV-Patcher to run on the CURRENT
+# build (1.0.3788.0) - no downgrade. We ship ZERO game/mod files;
+# ScriptHookV (dev-c.com) and the patcher (GitHub) are downloaded
+# at install time.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -12,31 +12,40 @@
 $Host.UI.RawUI.WindowTitle = "Grand Theft Auto V VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME       = "Luke Ross R.E.A.L. r7"
-$TARGET_VERSION = "1.0.2245.0"
+$MOD_NAME       = "GTA-VRV-Patcher (R.E.A.L. r7 on current build)"
+$TARGET_VERSION = "1.0.3788.0"
 $GAME_EXE       = "GTA5.exe"
 $LAUNCH_EXE     = "PlayGTAV.exe"
-$LR_R7_URL      = "https://github.com/LukeRoss00/gta5-real-mod/releases/download/r7/GTAV_REAL_mod_by_LukeRoss_r7.rar"
-$LR_R7_FILE     = "GTAV_REAL_mod_by_LukeRoss_r7.rar"
+# ScriptHookV must match the game build (3788). Official, from dev-c.com.
+$SCRIPTHOOK_URL  = "https://dev-c.com/files/ScriptHookV_3788.0_1013.34.zip"
+$SCRIPTHOOK_FILE = "ScriptHookV_3788.0_1013.34.zip"
+# Francisco Manzanilla's VRV patcher runs Luke Ross R.E.A.L. r7 on the
+# CURRENT build (no downgrade). Public GitHub release.
+$PATCHER_URL    = "https://github.com/FranciscoManzanilla/GTA-VRV-Patcher/releases/download/VRV-1.1/GTAVRV.Patcher.zip"
+$PATCHER_FILE   = "GTAVRV.Patcher.zip"
 $SEVENZIP_URL   = "https://www.7-zip.org/download.html"
 $SEVENZIP_DL    = "https://7-zip.org/a/7z2501-x64.exe"
-$KEY_FILE       = "RealVR.ini"   # root marker of the .rar; RealVR.asi is inside the asi\ subfolder
+$KEY_FILE       = "RealVR.ini"   # root marker inside the patcher zip
 $MOTION_DRIVE_URL = "https://drive.google.com/file/d/1DiWVve3RK-FAD5awyo0RMHfe6nbZ8aBD/view"
-$MOTION_FILES   = @("GTAVR.asi", "openvr_api.dll")
+# CONFIRMED working combo: GTAVR.asi + the patcher's own openvr_api.dll
+# (1.0.10, ~585 KB). Copy ONLY GTAVR.asi - do NOT bring the motion pack's
+# newer openvr_api.dll (1.16.8), which breaks the patcher's VR frame submit
+# (game on monitor, headset stays in SteamVR).
+$MOTION_FILES   = @("GTAVR.asi")
 
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Grand Theft Auto V VR Installer" -ForegroundColor Cyan
     Write-Host " Luke Ross R.E.A.L. r7 - layered onto your own GTA V" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
-function Write-Step { param($n,$t,$txt) Write-Host ""; Write-Host "--- [$n/$t] $txt ---" -ForegroundColor Cyan; Write-Host "" }
+function Write-Step { param($n,$t,$txt) Write-Host ""; Write-Host "[$n/$t] $txt" -ForegroundColor Cyan; Write-Host "----------------------------------------" -ForegroundColor DarkGray }
 function Write-OK   { param($t) Write-Host " [OK] $t" -ForegroundColor Green }
-function Write-Warn { param($t) Write-Host " [!!] $t" -ForegroundColor Yellow }
-function Write-Fail { param($t) Write-Host " [XX] $t" -ForegroundColor Red }
-function Write-Info { param($t) Write-Host " [..] $t" -ForegroundColor Gray }
+function Write-Info { param($t) Write-Host " [i] $t" -ForegroundColor Cyan }
+function Write-Warn { param($t) Write-Host " [!] $t" -ForegroundColor Yellow }
+function Write-Fail { param($t) Write-Host " [X] $t" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Find-7Zip {
@@ -123,24 +132,26 @@ function Get-GtaFolder {
 }
 
 Write-Header
-Write-Host " This layers the R.E.A.L. r7 VR mod onto your EXISTING," -ForegroundColor White
-Write-Host " WORKING Grand Theft Auto V (Legacy) install." -ForegroundColor White
+Write-Host " Adds the R.E.A.L. r7 VR mod to your Grand Theft Auto V." -ForegroundColor White
+Write-Host " Runs on the current build - no downgrade. ScriptHookV and the" -ForegroundColor Gray
+Write-Host " community VRV patcher are downloaded for you." -ForegroundColor Gray
 Write-Host ""
-Write-Host " You PROVIDE YOUR OWN launchable copy of GTA V on build" -ForegroundColor Gray
-Write-Host " $TARGET_VERSION. The current/latest game build does NOT" -ForegroundColor Gray
-Write-Host " work with the mod. No game files are bundled or downloaded -" -ForegroundColor Gray
-Write-Host " only the free Luke Ross mod is fetched at install time." -ForegroundColor Gray
+Write-Host " NOT GTA V Enhanced (2025) - different, incompatible game." -ForegroundColor Gray
 Write-Host ""
-Write-Host " NOT GTA V Enhanced (the 2025 release) - that is a different" -ForegroundColor Gray
-Write-Host " game and is incompatible with this mod." -ForegroundColor Gray
+Write-Host " IMPORTANT: start Grand Theft Auto V once (into Story Mode) and" -ForegroundColor Yellow
+Write-Host " quit it BEFORE installing. That first launch creates your game" -ForegroundColor Yellow
+Write-Host " profile and settings.xml, which the VR setup needs." -ForegroundColor Yellow
+Pause-User "Have you launched GTA V at least once already? Press Enter to continue..."
 Write-Host ""
-$go = Read-Host " Continue? (Y/N)"
-if ($go -notmatch '^(y|yes|j|ja)$') { Write-Info "Cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
 
-# ---- STEP 1: locate the user's GTA V ----
+# ---- STEP 1: locate GTA V via the Steam install ----
 Write-Step 1 6 "Locating your GTA V install"
-$gtaDir = Get-GtaFolder
-if (-not $gtaDir) { Write-Info "No folder provided - cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
+$gtaDir = Find-SteamGameFolder -AppId "271590" -SteamFolderNames @("Grand Theft Auto V") -ProbeExe $GAME_EXE
+if (-not $gtaDir) {
+    Write-Warn "Could not find Grand Theft Auto V via Steam automatically."
+    $gtaDir = Get-GtaFolder
+}
+if (-not $gtaDir) { Write-Info "No GTA V found - cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
 Write-OK "GTA V folder: $gtaDir"
 
 # Soft version check - warn but never block (the user owns the copy).
@@ -160,75 +171,105 @@ if ($ver) {
 }
 
 # ---- STEP 2: 7-Zip (the mod ships as .rar) ----
-Write-Step 2 6 "Checking for 7-Zip"
+Write-Step 2 6 "Preparing"
+# ScriptHookV and the patcher are .zip files, extracted with the built-in
+# Expand-Archive - no 7-Zip needed. 7-Zip is only used later IF the
+# optional motion overlay is provided as a .rar.
 $sevenZip = Find-7Zip
 $manualExtract = $false
-if ($sevenZip) {
-    Write-OK "7-Zip found: $sevenZip"
-} else {
-    Write-Warn "7-Zip not found - it is needed to extract the .rar mod"
-    Write-Host "      (PowerShell cannot open .rar on its own)." -ForegroundColor Gray
-    $ans = Read-Host "  Download and install 7-Zip automatically now? (Y/N)"
-    if ($ans -match '^(y|yes|j|ja)$') {
-        $inst = Join-Path $env:TEMP "7zip-setup.exe"
-        $d = Invoke-DownloadOrFallback -Url $SEVENZIP_DL -Destination $inst -Label "7-Zip installer" `
-                -ManualUrl $SEVENZIP_URL `
-                -Instructions "Install 7-Zip from 7-zip.org, then re-run this installer." `
-                -SkipMessage "Skipped - will guide a manual extract instead."
-        if ([string]$d -eq "ok" -and (Test-Path $inst)) {
-            Write-Host "  Installing 7-Zip silently (you may see a Windows security prompt)..." -ForegroundColor Gray
-            try { Start-Process -FilePath $inst -ArgumentList "/S" -Verb RunAs -Wait } catch { Write-Warn "7-Zip install was cancelled or failed." }
-            try { Remove-Item $inst -Force -ErrorAction SilentlyContinue } catch {}
-            $sevenZip = Find-7Zip
-        }
-    }
-    if ($sevenZip) {
-        Write-OK "7-Zip ready: $sevenZip"
-    } else {
-        Write-Warn "No 7-Zip available - the installer will guide a manual extract."
-        try { Start-Process $SEVENZIP_URL } catch { Write-Warn "Open manually: $SEVENZIP_URL" }
-        $manualExtract = $true
-    }
-}
 
-# ---- STEP 3: download the mod ----
-Write-Step 3 6 "Downloading $MOD_NAME"
-$rar = Join-Path $env:TEMP $LR_R7_FILE
-$dl = Invoke-DownloadOrFallback -Url $LR_R7_URL -Destination $rar -Label "$MOD_NAME (.rar)" `
-        -ManualUrl $LR_R7_URL `
-        -Instructions "Download $LR_R7_FILE manually, then drag it here when asked." `
-        -SkipMessage "Skipped - without the mod .rar the install cannot continue."
-if ([string]$dl -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if ([string]$dl -eq "skip") { Write-Fail "No mod archive - aborting."; Pause-User "Press Enter to exit..."; exit 1 }
-if (-not (Test-Path $rar)) {
-    # Manual fallback: let the user point us at a .rar they downloaded.
-    Write-Warn "Mod archive not found at $rar."
-    while (-not (Test-Path $rar)) {
-        $alt = (Read-Host " Drag the downloaded $LR_R7_FILE here (or empty to cancel)").Trim().Trim('"')
-        if (-not $alt) { Write-Fail "No archive - aborting."; Pause-User "Press Enter to exit..."; exit 1 }
-        if (Test-Path $alt) { $rar = $alt; break }
-        Write-Warn "Not found: $alt"
-    }
-}
-Write-OK "Mod archive ready."
-
-# ---- STEP 4: extract the mod into the game folder ----
-Write-Step 4 6 "Installing the mod into $gtaDir"
-$installedOk = $false
-if (-not $manualExtract -and $sevenZip) {
-    $xtemp = Join-Path $env:TEMP ("gtavr_r7_" + [System.IO.Path]::GetRandomFileName())
-    try { New-Item -ItemType Directory -Force -Path $xtemp | Out-Null } catch {}
+# Verify a downloaded file is really a .zip (starts with the PK signature).
+# Some sites return an HTML page to scripted requests instead of the file.
+function Test-IsZipFile {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $false }
     try {
-        & $sevenZip x "$rar" "-o$xtemp" -y | Out-Null
-        # The .rar may unpack flat OR inside a wrapper folder - anchor on
-        # RealVR.ini (a root-level file in the .rar; RealVR.asi sits in the
-        # asi\ subfolder) and copy that whole root into the game folder.
+        $fs = [System.IO.File]::OpenRead($Path)
+        $sig = New-Object byte[] 2
+        [void]$fs.Read($sig, 0, 2); $fs.Close()
+        return ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B)
+    } catch { return $false }
+}
+# Download with a real browser User-Agent (+ optional Referer) so servers
+# that block non-browser requests still hand over the file.
+function Get-BrowserFile {
+    param([string]$Url, [string]$Dest, [string]$Referer = "")
+    try {
+        if (Test-Path $Dest) { Remove-Item $Dest -Force -ErrorAction SilentlyContinue }
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+        if ($Referer) { $wc.Headers.Add("Referer", $Referer) }
+        $wc.DownloadFile($Url, $Dest)
+        return $true
+    } catch { return $false }
+}
+
+# ---- STEP 3: ScriptHookV (must match the game build) ----
+Write-Step 3 6 "Downloading ScriptHookV (build $TARGET_VERSION)"
+$shZip = Join-Path $env:TEMP $SCRIPTHOOK_FILE
+Write-Host "  [..] Downloading ScriptHookV" -ForegroundColor Gray
+[void](Get-BrowserFile -Url $SCRIPTHOOK_URL -Dest $shZip -Referer "https://dev-c.com/gtav/scripthookv/")
+if (Test-IsZipFile $shZip) {
+    Write-OK "Downloaded ScriptHookV."
+} else {
+    Write-Warn "dev-c.com did not return the .zip (it may block scripted downloads)."
+    Write-Host "  Download ScriptHookV from its page, then drag the .zip here." -ForegroundColor White
+    Pause-User "Press Enter to open the ScriptHookV page..."
+    try { Start-Process "https://dev-c.com/gtav/scripthookv/" } catch {}
+    $shZip = $null
+    while (-not $shZip) {
+        $alt = (Read-Host " Drag the downloaded ScriptHookV .zip here (or empty to skip)").Trim().Trim('"')
+        if (-not $alt) { break }
+        if ((Test-Path $alt) -and (Test-IsZipFile $alt)) { $shZip = $alt }
+        else { Write-Warn "Not a valid .zip: $alt" }
+    }
+}
+if ($shZip -and (Test-IsZipFile $shZip)) {
+    $shtemp = Join-Path $env:TEMP ("gtavr_sh_" + [System.IO.Path]::GetRandomFileName())
+    try {
+        Expand-Archive -Path $shZip -DestinationPath $shtemp -Force
+        foreach ($f in @("ScriptHookV.dll", "dinput8.dll")) {
+            $hit = Get-ChildItem -Path $shtemp -Filter $f -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { try { Copy-Item $hit.FullName -Destination (Join-Path $gtaDir $f) -Force } catch {} }
+        }
+    } catch { Write-Warn "ScriptHookV extraction failed: $_" }
+    try { Remove-Item $shtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+}
+if (Test-Path (Join-Path $gtaDir "ScriptHookV.dll")) {
+    Write-OK "ScriptHookV in place (ScriptHookV.dll + dinput8.dll)."
+} else {
+    Write-Warn "ScriptHookV not installed - put ScriptHookV.dll + dinput8.dll next to $GAME_EXE manually."
+    try { Start-Process $gtaDir } catch {}
+    Pause-User "Press Enter once ScriptHookV.dll + dinput8.dll are in the game folder (or to skip)..."
+}
+
+# ---- STEP 4: download + install the VRV patcher (R.E.A.L. on current build) ----
+Write-Step 4 6 "Installing the VR mod into $gtaDir"
+$rar = Join-Path $env:TEMP $PATCHER_FILE
+Write-Host "  [..] Downloading $MOD_NAME" -ForegroundColor Gray
+[void](Get-BrowserFile -Url $PATCHER_URL -Dest $rar)
+if (-not (Test-IsZipFile $rar)) {
+    Write-Warn "Could not fetch the patcher automatically."
+    Write-Host "  Download $PATCHER_FILE from the releases page, then drag it here." -ForegroundColor White
+    Pause-User "Press Enter to open the patcher releases page..."
+    try { Start-Process "https://github.com/FranciscoManzanilla/GTA-VRV-Patcher/releases" } catch {}
+    $rar = $null
+    while (-not $rar) {
+        $alt = (Read-Host " Drag the downloaded $PATCHER_FILE here (or empty to cancel)").Trim().Trim('"')
+        if (-not $alt) { Write-Fail "No patcher - aborting."; Pause-User "Press Enter to exit..."; exit 1 }
+        if ((Test-Path $alt) -and (Test-IsZipFile $alt)) { $rar = $alt }
+        else { Write-Warn "Not a valid .zip: $alt" }
+    }
+}
+Write-OK "Patcher archive ready."
+$installedOk = $false
+if (-not $manualExtract) {
+    $xtemp = Join-Path $env:TEMP ("gtavr_patch_" + [System.IO.Path]::GetRandomFileName())
+    try {
+        Expand-Archive -Path $rar -DestinationPath $xtemp -Force
         $keyHit = Get-ChildItem -Path $xtemp -Filter $KEY_FILE -Recurse -ErrorAction SilentlyContinue | Sort-Object { $_.FullName.Length } | Select-Object -First 1
         if ($keyHit) {
             $modRoot = Split-Path -Parent $keyHit.FullName
-            # Copy EVERY mod file (RealVR.asi, RealConfig.bat, RealRepo\,
-            # ScriptHookV.dll, dinput8.dll, ...) into the game folder,
-            # recreating subfolders and never aborting on a single item.
             $copied = 0
             foreach ($item in (Get-ChildItem -Path $modRoot -Recurse -Force -ErrorAction SilentlyContinue)) {
                 $rel  = $item.FullName.Substring($modRoot.Length).TrimStart('\','/')
@@ -245,49 +286,33 @@ if (-not $manualExtract -and $sevenZip) {
                     }
                 } catch { Write-Warn "Could not copy $rel" }
             }
-            Write-Host "  Copied $copied mod files into the game folder." -ForegroundColor Gray
+            Write-Host "  Copied $copied patcher files into the game folder." -ForegroundColor Gray
             if (Test-Path (Join-Path $gtaDir $KEY_FILE)) { $installedOk = $true }
         }
     } catch { Write-Warn "7-Zip extraction failed: $_" }
     try { Remove-Item $xtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
 if (-not $installedOk) {
-    # Fallback path: 7-Zip missing or extraction failed - guide a
-    # manual extract, then verify.
     Write-Host "  Please extract the contents of:" -ForegroundColor White
     Write-Host "    $rar" -ForegroundColor Gray
     Write-Host "  directly into your GTA V folder:" -ForegroundColor White
     Write-Host "    $gtaDir" -ForegroundColor Gray
-    Write-Host "  (so that RealVR.ini, ScriptHookV.dll and the asi folder" -ForegroundColor White
-    Write-Host "  end up next to $GAME_EXE)." -ForegroundColor White
+    Write-Host "  (so that RealVR.ini, RealVR.asi and PlayGTAV.bat end up" -ForegroundColor White
+    Write-Host "  next to $GAME_EXE)." -ForegroundColor White
     try { Start-Process (Split-Path -Parent $rar) } catch {}
     try { Start-Process $gtaDir } catch {}
-    Pause-User "Press Enter once you have extracted the mod into the game folder..."
+    Pause-User "Press Enter once you have extracted the patcher into the game folder..."
     if (Test-Path (Join-Path $gtaDir $KEY_FILE)) { $installedOk = $true }
 }
 if ($installedOk) {
-    Write-OK "Mod installed - RealVR.ini is in place."
-    if (Test-Path (Join-Path $gtaDir "asi\RealVR.asi")) {
-        Write-OK "VR plugin in place - asi\RealVR.asi."
+    Write-OK "Patcher installed - RealVR.ini is in place."
+    if (Test-Path (Join-Path $gtaDir "RealVR.asi")) {
+        Write-OK "VR plugin in place - RealVR.asi."
     } else {
-        Write-Warn "asi\RealVR.asi is missing - make sure the WHOLE .rar was extracted (incl. the asi folder)."
+        Write-Warn "RealVR.asi is missing - make sure the WHOLE patcher zip was extracted."
     }
 } else {
-    Write-Warn "RealVR.ini not found in $gtaDir - the mod may not be installed correctly."
-}
-
-# RealVR.ini: prefer SteamVR/OpenVR (VRAPI = 2) so it works without
-# the user editing the .ini by hand. Only touch an existing key.
-$ini = Join-Path $gtaDir "RealVR.ini"
-if (Test-Path $ini) {
-    try {
-        $lines = Get-Content $ini
-        if ($lines -match '^\s*VRAPI\s*=') {
-            $lines = $lines -replace '^\s*VRAPI\s*=.*', 'VRAPI=2'
-            Set-Content -Path $ini -Value $lines -Encoding ASCII -Force
-            Write-OK "Set VRAPI=2 (SteamVR / OpenVR) in RealVR.ini."
-        }
-    } catch { Write-Warn "Could not update RealVR.ini - set VRAPI=2 manually if needed." }
+    Write-Warn "RealVR.ini not found in $gtaDir - the patcher may not be installed correctly."
 }
 
 # RealConfig.bat (shipped inside the mod, now in the game folder) applies
@@ -295,28 +320,31 @@ if (Test-Path $ini) {
 $realConfig = Join-Path $gtaDir "RealConfig.bat"
 if (Test-Path $realConfig) {
     Write-Host ""
-    Write-Host "  RealConfig.bat applies VR-compatible graphics settings." -ForegroundColor White
-    Write-Host "  Before running it:" -ForegroundColor White
-    Write-Host "    - GTA V must NOT be running." -ForegroundColor Gray
-    Write-Host '    - Steam users: in the game Properties, uncheck' -ForegroundColor Gray
-    Write-Host '      "Use Desktop Game Theatre while SteamVR is active".' -ForegroundColor Gray
-    Write-Host "  It backs up settings.xml as settings_ori.xml and applies a" -ForegroundColor Gray
-    Write-Host "  template. At the prompt pick Low / Medium / High for your PC." -ForegroundColor Gray
-    Write-Host "  Do NOT set settings.xml to read-only afterwards." -ForegroundColor Gray
+    Write-Host "  RealConfig.bat applies VR graphics settings (game must be closed)." -ForegroundColor White
+    Write-Host "  Pick Low / Medium / High at its prompt." -ForegroundColor Gray
     Write-Host ""
-    $rc = Read-Host "  Run RealConfig.bat now? (Y/N)"
-    if ($rc -match '^(y|yes|j|ja)$') {
-        try { Start-Process "cmd.exe" -ArgumentList "/c", "`"$realConfig`"" -WorkingDirectory $gtaDir -Wait } catch { Write-Warn "Could not run RealConfig.bat - run it manually from the game folder." }
+    # GTA V rewrites settings.xml to the DESKTOP resolution on launch, which
+    # breaks the 1080x1080 VR render (game opens in a big window instead of
+    # the small square). Clear read-only so RealConfig can write, run it,
+    # then lock settings.xml read-only so the square VR resolution sticks.
+    $gtaSettings = Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Rockstar Games\GTA V\settings.xml"
+    if (Test-Path $gtaSettings) { try { (Get-Item $gtaSettings).IsReadOnly = $false } catch {} }
+    try { Start-Process "cmd.exe" -ArgumentList "/c", "`"$realConfig`"" -WorkingDirectory $gtaDir -Wait } catch { Write-Warn "Could not run RealConfig.bat - run it manually (game closed)." }
+    if (Test-Path $gtaSettings) {
+        try { (Get-Item $gtaSettings).IsReadOnly = $true; Write-OK "Locked settings.xml read-only - keeps the 1080x1080 VR resolution." }
+        catch { Write-Warn "Could not lock settings.xml - set it read-only manually to keep 1080x1080." }
     } else {
-        Write-Info "Skipped - run RealConfig.bat from the game folder anytime (game closed)."
+        Write-Warn "settings.xml not found yet - launch once, then set it read-only at 1080x1080."
     }
 }
 
 # ---- STEP 5: optional motion controls (GTAVR overlay) ----
 Write-Step 5 6 "Motion controls (optional)"
-Write-Host "  R.E.A.L. is gamepad-based. The community GTAVR overlay adds" -ForegroundColor White
-Write-Host "  motion controllers (hand-aimed weapons etc.) on top of it." -ForegroundColor White
+Write-Host "  R.E.A.L. is gamepad-based. The GTAVR overlay adds motion controllers." -ForegroundColor White
 Write-Host ""
+Write-Host "  NOTE: motion is still SHAKY - the game only sometimes starts" -ForegroundColor Yellow
+Write-Host "  correctly in VR with it. Gamepad (OpenXR) is the stable option." -ForegroundColor Yellow
+Write-Host "  Adding it also creates a separate 'Motion (WIP)' launcher." -ForegroundColor Gray
 $mc = Read-Host "  Add the GTAVR motion-controls overlay? (Y/N)"
 if ($mc -match '^(y|yes|j|ja)$') {
     $mtemp = Join-Path $env:TEMP ("gtavr_mc_" + [System.IO.Path]::GetRandomFileName())
@@ -325,13 +353,14 @@ if ($mc -match '^(y|yes|j|ja)$') {
     # programmatically (the virus-scan interstitial blocks scripted
     # downloads). Open the download page so you can save it in your
     # browser, then drag the downloaded package back here.
-    Write-Host "  Opening the GTAVR download page in your browser:" -ForegroundColor Gray
+    Write-Host "  Get the motion package (All we need.zip) from the GTAVR page:" -ForegroundColor White
     Write-Host "      $MOTION_DRIVE_URL" -ForegroundColor Gray
+    Pause-User "Press Enter to open the GTAVR download page..."
     try { Start-Process $MOTION_DRIVE_URL } catch { Write-Warn "Open manually: $MOTION_DRIVE_URL" }
     $src = $null
     $pkg = $null
     while ($true) {
-        $raw = (Read-Host "  Drag the downloaded GTAVR package (zip/rar/folder) here, or leave empty to skip").Trim().Trim('"').Trim("'").Trim()
+        $raw = (Read-Host "  Drag the downloaded GTAVR package (All we need.zip) here, or leave empty to skip").Trim().Trim('"').Trim("'").Trim()
         if (-not $raw) { break }
         if (Test-Path $raw) { $pkg = $raw; break }
         Write-Warn "Not found: $raw"
@@ -350,21 +379,70 @@ if ($mc -match '^(y|yes|j|ja)$') {
         Write-Warn "GTAVR.asi not found - motion controls not added. Gamepad still works."
     }
 } else {
+    # Declined - remove a leftover GTAVR.asi from an earlier motion run so
+    # the Numpad-0 overlay is truly gone. The patcher's openvr 1.0.10
+    # (re-copied in STEP 4) stays, which is what pure R.E.A.L. renders with.
+    $leftoverMc = Join-Path $gtaDir "GTAVR.asi"
+    if (Test-Path $leftoverMc) { try { Remove-Item $leftoverMc -Force; Write-Info "Removed a leftover motion overlay (GTAVR.asi)." } catch {} }
     Write-Info "Skipped motion controls - gamepad play is ready."
 }
 
-# ---- STEP 6: shortcut + records ----
+# ---- STEP 6: launchers, shortcuts, records ----
 Write-Step 6 6 "Finishing setup"
-$launchPath = Join-Path $gtaDir $LAUNCH_EXE
-if (-not (Test-Path $launchPath)) { $launchPath = $gtaExe }   # cracked/standalone copies may lack PlayGTAV.exe
-try {
-    $desktop = [Environment]::GetFolderPath("Desktop")
-    $lnk = Join-Path $desktop "Grand Theft Auto V VR.lnk"
-    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launchPath -WorkingDir $gtaDir -IconPath $launchPath
-    Write-OK "Desktop shortcut created: Grand Theft Auto V VR"
-} catch {
-    Write-Warn "Could not create the desktop shortcut. Launch $LAUNCH_EXE from $gtaDir."
+$iconPath = Join-Path $gtaDir $LAUNCH_EXE
+if (-not (Test-Path $iconPath)) { $iconPath = $gtaExe }
+
+# Default RealVR.ini to OpenXR (VRAPI 3) - more stable for gamepad play.
+$realIni = Join-Path $gtaDir "RealVR.ini"
+if (Test-Path $realIni) { try { (Get-Content $realIni) -replace '^\s*VRAPI\s*=.*', 'VRAPI = 3' | Set-Content $realIni } catch {} }
+
+# Mode switcher written into the game folder: gamepad -> OpenXR (VRAPI 3) +
+# motion overlay OFF; motion -> OpenVR (VRAPI 2) + GTAVR.asi ON. Then it
+# launches with -nobattleye.
+$modeScript = @'
+param([string]$Mode = "gamepad")
+$dir = Split-Path -Parent $PSScriptRoot
+$ini = Join-Path $dir "RealVR.ini"
+$asiOn  = Join-Path $dir "GTAVR.asi"
+$asiOff = Join-Path $dir "GTAVR.asi.off"
+if ($Mode -eq "motion") {
+    if (Test-Path $ini) { (Get-Content $ini) -replace '^\s*VRAPI\s*=.*', 'VRAPI = 2' | Set-Content $ini }
+    if (Test-Path $asiOff) { Move-Item $asiOff $asiOn -Force }
+} else {
+    if (Test-Path $ini) { (Get-Content $ini) -replace '^\s*VRAPI\s*=.*', 'VRAPI = 3' | Set-Content $ini }
+    if (Test-Path $asiOn) { Move-Item $asiOn $asiOff -Force }
 }
+$exe = Join-Path $dir "PlayGTAV.exe"
+if (Test-Path $exe) { Start-Process -FilePath $exe -ArgumentList "-nobattleye" -WorkingDirectory $dir }
+'@
+$vrl = Join-Path $gtaDir "VRLaunch"
+try { New-Item -ItemType Directory -Force -Path $vrl | Out-Null } catch {}
+try { Set-Content -Path (Join-Path $vrl "SetVRMode.ps1") -Value $modeScript -Encoding UTF8 -Force } catch {}
+
+$gpBat = "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0SetVRMode.ps1`" -Mode gamepad`r`n"
+$moBat = "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0SetVRMode.ps1`" -Mode motion`r`n"
+$gpLauncher = Join-Path $vrl "GTA5 VR (Gamepad).bat"
+$moLauncher = Join-Path $vrl "GTA5 VR Motion (WIP).bat"
+try { Set-Content -Path $gpLauncher -Value $gpBat -Encoding ASCII -Force -NoNewline } catch {}
+try { Set-Content -Path $moLauncher -Value $moBat -Encoding ASCII -Force -NoNewline } catch {}
+
+$desktop = [Environment]::GetFolderPath("Desktop")
+try {
+    $lnk = Join-Path $desktop "Grand Theft Auto V VR.lnk"
+    [void](New-DesktopShortcut -LnkPath $lnk -TargetPath $gpLauncher -WorkingDir $gtaDir -IconPath $iconPath)
+    Write-OK "Shortcut created: Grand Theft Auto V VR (gamepad, OpenXR)"
+} catch { Write-Warn "Could not create the gamepad shortcut - run '$gpLauncher' to play." }
+
+$motionInstalled = (Test-Path (Join-Path $gtaDir "GTAVR.asi")) -or (Test-Path (Join-Path $gtaDir "GTAVR.asi.off"))
+if ($motionInstalled) {
+    try {
+        $lnkM = Join-Path $desktop "Grand Theft Auto V VR Motion (WIP).lnk"
+        [void](New-DesktopShortcut -LnkPath $lnkM -TargetPath $moLauncher -WorkingDir $gtaDir -IconPath $iconPath)
+        Write-OK "Shortcut created: Grand Theft Auto V VR Motion (WIP)"
+    } catch { Write-Warn "Could not create the motion shortcut." }
+}
+
+$launchPath = $gpLauncher
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gtaDir -Encoding UTF8 -Force } catch {}
 try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launchPath -Encoding UTF8 -Force } catch {}
 try { Remove-Item $rar -Force -ErrorAction SilentlyContinue } catch {}
@@ -375,24 +453,24 @@ Write-Host "============================================================" -Foreg
 Write-Host " HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " 1) Start SteamVR first, then launch the game (desktop" -ForegroundColor White
-Write-Host "    shortcut, or however you normally start GTA V)." -ForegroundColor White
-Write-Host " 2) Use a gamepad, or motion controllers if you added GTAVR." -ForegroundColor White
+Write-Host " 1) Launch via the desktop shortcut:" -ForegroundColor White
+Write-Host "      'Grand Theft Auto V VR'        = Gamepad (OpenXR, stable)" -ForegroundColor Gray
+Write-Host "      'Grand Theft Auto V VR Motion' = Motion controls (OpenVR, WIP)" -ForegroundColor Gray
+Write-Host " 2) IMPORTANT: in Steam, GTA V Properties, turn OFF" -ForegroundColor Yellow
+Write-Host '    "Use Desktop Game Theatre while SteamVR is active" - otherwise' -ForegroundColor Yellow
+Write-Host "    VR shows only a flat/transparent screen, not the real game." -ForegroundColor Yellow
 Write-Host " 3) Quickly shake your head to recenter the view." -ForegroundColor White
 Write-Host " 4) Hotkeys are off at start - press F11 to turn them on" -ForegroundColor White
 Write-Host "    (full hotkey list is in README_GTAVR.md)." -ForegroundColor White
 if (Test-Path (Join-Path $gtaDir "GTAVR.asi")) {
     Write-Host ""
-    Write-Host " Motion controls (the GTAVR overlay you added):" -ForegroundColor White
-    Write-Host "   - The game starts in R.E.A.L. head-aim mode." -ForegroundColor White
-    Write-Host "   - NUMPAD 0 opens the GTAVR motion-controls overlay." -ForegroundColor White
-    Write-Host "   - NUMPAD 8 activates motion controls." -ForegroundColor White
-    Write-Host "   - Back to pure R.E.A.L.: press F11, then K (not 0)." -ForegroundColor Gray
+    Write-Host " Motion (use the 'Motion (WIP)' shortcut): NUMPAD 0 opens the menu," -ForegroundColor White
+    Write-Host " NUMPAD 8 up, NUMPAD 2 down, NUMPAD 5 to confirm." -ForegroundColor White
 }
 Write-Host ""
-Write-Host " Keep auto-updates OFF for GTA V so the build stays at" -ForegroundColor Gray
-Write-Host " $TARGET_VERSION. If your build differs, you may need a" -ForegroundColor Gray
-Write-Host " matching ScriptHookV.dll from Alexander Blade's page." -ForegroundColor Gray
+Write-Host " No downgrade needed - the VRV patcher runs R.E.A.L. on build" -ForegroundColor Gray
+Write-Host " $TARGET_VERSION. If GTA V later updates to a newer build," -ForegroundColor Gray
+Write-Host " ScriptHookV and the patcher may need updating to match." -ForegroundColor Gray
 Pause-User "Press Enter once you have read the steps above..."
 
 Write-Host ""

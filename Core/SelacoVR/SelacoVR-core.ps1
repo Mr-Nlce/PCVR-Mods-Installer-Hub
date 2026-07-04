@@ -308,9 +308,9 @@ if (-not (Test-Path $batPath)) {
 }
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Selaco VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Launch with the 'Selaco VR' desktop shortcut, or run:" -ForegroundColor White
 Write-Host "    $batPath" -ForegroundColor Cyan

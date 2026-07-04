@@ -75,7 +75,28 @@ $ownGames = @(
         LaunchExe   = "AoeVrLauncher.exe"
         SteamFolder = "Anomaly VR"
         FallbackPaths=@("C:\games\Anomaly VR", "D:\games\Anomaly VR", "E:\games\Anomaly VR", "C:\Games\Anomaly VR")
-        Tags=@("stalker", "stalker anomaly", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "fps", "shooter", "survival", "open world", "post-apocalyptic", "first-person", "fan game")
+        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "stalker anomaly", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "fps", "shooter", "survival", "open world", "post-apocalyptic", "first-person", "fan game")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "Anomaly GAMMA"
+        SteamId     = ""
+        PortraitUrl = "Assets/AnomalyGamma_portrait.jpg"
+        HeaderUrl   = "Assets/AnomalyGamma_header.jpg"
+        ScreenshotUrl = "Assets/AnomalyGamma_screenshot.jpg"
+        Mod         = "GAMMA VR v0.3.1"
+        Description = "Discord login, complete pack"
+        Author      = "GAMMA VR Team"
+        Bat         = "AnomalyGammaVR\START_INSTALLER.bat"
+        Color       = "#0d140a"
+        Accent      = "#6fa934"
+        InfoUrl     = "https://discord.gg/kGhd7GvJ5F"
+        ModFile     = "GAMMA VR.bat"
+        LaunchExe   = "GAMMA VR.bat"
+        SteamFolder = "Gamma VR"
+        FallbackPaths=@("C:\Games\Gamma VR", "D:\Games\Gamma VR", "E:\Games\Gamma VR", "C:\games\Gamma VR")
+        Quip        = "Into the Zone, stalker - GAMMA and all. The atom hums."
+        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "s.t.a.l.k.e.r. gamma", "stalker gamma", "gamma", "anomaly gamma", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "survival", "fps", "open world", "shooter", "post-apocalyptic", "first-person", "crafting", "fan game", "modpack")
     },
     @{
         Controls    = "MC"
@@ -539,7 +560,7 @@ $ownGames = @(
         Quip        = "Pull off the heist, outrun the stars, and own the streets of Los Santos."
         SteamId     = "271590"
         Mod         = "R.E.A.L. r7 + Motion"
-        Description = "GTA5 1.0.2245.0 required"
+        Description = "GTA5 latest build required"
         Author      = "Luke Ross / GTAVR"
         Bat         = "GTAVR\START_INSTALLER.bat"
         Color       = "#0c140a"
@@ -547,11 +568,20 @@ $ownGames = @(
         InfoUrl     = "https://github.com/LukeRoss00/gta5-real-mod"
         ModPageUrl  = "https://www.patreon.com/realvr"
         LaunchExe   = "PlayGTAV.exe"
-        ModFile     = "asi\RealVR.asi"
+        ModFile     = "RealVR.asi"
+        SteamFolder = "Grand Theft Auto V"
+        FallbackPaths = @("STEAM:Grand Theft Auto V", "EPIC:GTAV", "XBOX:Grand Theft Auto V", "C:\Program Files\Rockstar Games\Grand Theft Auto V")
+        TwoMods     = $true
+        ModAName    = "Gamepad"
+        ModASub     = "VRLaunch"
+        ModALaunch  = "GTA5 VR (Gamepad).bat"
+        ModBName    = "Motion WIP"
+        ModBSub     = "VRLaunch"
+        ModBLaunch  = "GTA5 VR Motion (WIP).bat"
         # You provide your own working GTA V (Legacy) on build 1.0.2245.0;
         # the installer layers Luke Ross R.E.A.L. r7 on top and records
         # .installed_path, so detection works like Richard Burns Rally.
-        Notice      = "This VR mod requires an already-installed, working copy of Grand Theft Auto V (Legacy) on build 1.0.2245.0 - you provide your own. The current/latest game build does NOT work with the mod. A pinned Steam depot build of 1.0.2245.0 is conceivable, but the Rockstar launcher would most likely have to be bypassed. If you find a working legal method, please share it via the Help & Feedback button."
+        Notice      = "You provide your own working copy of Grand Theft Auto V. This uses the community GTA-VRV-Patcher, which runs Luke Ross R.E.A.L. r7 on the CURRENT game build (1.0.3788.0) - no downgrade needed. The installer downloads ScriptHookV (dev-c.com) and the patcher (GitHub) for you. Experimental: not all setups are confirmed working."
         Tags        = @("grand theft auto", "gta", "gta v", "gta 5", "luke ross", "real", "open world", "action", "crime", "driving", "shooter", "sandbox")
     },
     @{

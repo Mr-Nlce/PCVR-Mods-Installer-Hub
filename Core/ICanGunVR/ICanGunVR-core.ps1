@@ -260,9 +260,9 @@ try {
 } catch {}
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  I Can Gun VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start SteamVR (or your OpenXR runtime) first, then launch" -ForegroundColor White
 Write-Host "  with the 'I Can Gun VR' desktop shortcut, or run:" -ForegroundColor White

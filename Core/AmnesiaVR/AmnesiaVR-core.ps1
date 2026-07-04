@@ -262,9 +262,9 @@ if (Test-Path $sclerosisExe) {
 # Done
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation complete." -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch via the Hub: Start in VR -> runs Sclerosis.exe" -ForegroundColor White
 Write-Host " Desktop shortcut: 'Amnesia VR' -> Sclerosis.exe" -ForegroundColor White

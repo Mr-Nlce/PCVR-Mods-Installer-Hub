@@ -39,10 +39,10 @@ $CKAN_RELEASES_URL = "https://github.com/KSP-CKAN/CKAN/releases"
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Kerbal Space Program - VR Mod Installer" -ForegroundColor Cyan
  Write-Host " KerbalVR by JonnyOThan / FirstPersonKSP" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 
@@ -328,12 +328,12 @@ if ($updateOnly) {
  try { Remove-Item $tempDir -Recurse -Force } catch {}
 
  Write-Host ""
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Update Complete" -ForegroundColor White
  Write-Host ""
  Write-Host " [x] KerbalVR$(if ($kvrTag) { " $kvrTag" }) mod files refreshed" -ForegroundColor Green
  Write-Host " [-] Dependencies and Unity-VR patch left untouched" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
  Write-Warn "Read the KerbalVR release notes - a new version may need"
  Write-Warn "new dependencies. If so, run a Full Install instead."
@@ -852,7 +852,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 # DONE
 # -------------------------------------------------------
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Complete" -ForegroundColor White
 Write-Host ""
 Write-Host " [x] KerbalVR$(if ($kvrTag) { " $kvrTag" }) installed" -ForegroundColor Green
@@ -860,7 +860,7 @@ Write-Host " [x] Dependencies installed via CKAN" -ForegroundColor Green
 Write-Host " [x] IVA pack: $ivaLabel" -ForegroundColor Green
 Write-Host " [x] Avionics: $masLabel" -ForegroundColor Green
 Write-Host " [x] Unity VR patch applied" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "--- How to Play ---" -ForegroundColor Cyan
 Write-Host ""

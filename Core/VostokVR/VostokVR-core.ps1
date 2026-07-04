@@ -27,10 +27,10 @@ $MML_DL_URL = "https://storage.modworkshop.net/mods/files/55623_220962_qNbtcJXGD
 
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Road to Vostok - VR Mod Installer" -ForegroundColor Cyan
  Write-Host " $MOD_NAME by Blah64" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor Green
+ Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
@@ -245,9 +245,9 @@ if (Test-Path $launchBat) {
 }
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "============================================================" -ForegroundColor Magenta
 if (Test-Path $launchBat) { Write-Host " [x] launch_vr.bat" -ForegroundColor Green }
 else { Write-Host " [ ] launch_vr.bat -- MISSING" -ForegroundColor Red }
 if (Test-Path $vmzFile) { Write-Host " [x] mods\vr-mod.vmz" -ForegroundColor Green }

@@ -3916,6 +3916,7 @@ function global:Show-DiscoverDetail {
         "The Dark Mod VR"      = "The Dark Mod is a free, standalone, open-source stealth game for PC. The project pays homage to the classic games in the Thief series (Dark Project) and perfectly captures their dark Gothic-steampunk atmosphere."
         "Metal: Hellsinger VR" = "Metal: Hellsinger is a rhythm-driven first-person shooter: shoot, dash and slaughter demons in time with a heavy-metal soundtrack across the eight hells, building your Fury multiplier the better you hit the beat."
         "I Can Gun VR"         = "I Can Gun is a first-person shooter with a twist: you operate your weapon in full manual detail - racking the slide, checking the chamber, managing the magazine - while scavenging procedurally generated levels guarded by merciless machines."
+        "Anomaly GAMMA"        = "S.T.A.L.K.E.R. GAMMA is a free, standalone, hardcore survival modification for S.T.A.L.K.E.R. Anomaly. It combines over 400 mods into an immersive gameplay experience where you must repair and craft your own gear and fight for survival in the dangerous Zone."
         "Ratchet & Clank VR"   = "Developer Rybread69 is creating a large Unreal Engine VR project that recreates worlds from the first four PS2 Ratchet & Clank games. You can explore planets like Novalis, Aridia, and Oozla in first-person VR, smash crates, collect Bolts, use gadgets, and fire familiar weapons. There is no combat yet, so it currently feels more like an interactive museum of classic Ratchet & Clank memories."
         "UEVR Deluxe"          = "UEVR (Universal Unreal Engine VR Mod) is a groundbreaking, free, open-source tool developed by praydog that allows users to play almost any Unreal Engine 4 or 5 flatscreen game in virtual reality. It works by injecting VR functionality directly into the game engine, transforming games that were not originally designed for VR into immersive experiences."
         "UUVR / Rai Pal"       = "UUVR (Universal Unity VR) is an experimental open-source modification by developer Raicuparta that transforms flat PC games developed with the Unity engine into VR games. The easiest way to use it is through Rai Pal, Raicuparta's manager for universal game mods, which auto-detects your installed and owned games, identifies their engine, and installs, runs, and updates the correct version of UUVR for you."
@@ -4830,18 +4831,29 @@ function global:Show-DiscoverDetail {
     # works because Background stays a SolidColorBrush.
     $primaryBtn = New-Object System.Windows.Controls.Border
     $primaryBtn.CornerRadius = [System.Windows.CornerRadius]::new(7)
-    $primaryBtn.Padding = [System.Windows.Thickness]::new(20, 10, 20, 10)
+    # Same padding as the reinstall pill next to it so their heights match
+    # exactly (no fixed Height - it sizes to content like its neighbour).
+    $primaryBtn.Padding = [System.Windows.Thickness]::new(16, 10, 16, 10)
     $primaryBtn.Cursor = [System.Windows.Input.Cursors]::Hand
     $primaryBtn.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
+    # MinWidth keeps the width steady when the label swaps between
+    # "VR Ready" and "Start in VR" - the button never grows wider on hover.
+    $primaryBtn.MinWidth = 162
     # Inner stack holds the icon + label.
     $primaryStack = New-Object System.Windows.Controls.StackPanel
     $primaryStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $primaryStack.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $primaryTxt = New-Object System.Windows.Controls.TextBlock
     $primaryTxt.FontSize = 14
     $primaryTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $primaryTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $primaryTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $primaryTxt.Margin = [System.Windows.Thickness]::new(9, 0, 0, 0)
+    # Clamp the line box so a tall glyph (the play triangle in the hover
+    # label) cannot grow the button's height - it stays the same in every
+    # state.
+    $primaryTxt.LineHeight = 20
+    $primaryTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
     $isReady = ($state -and $state.State -eq "ready")
     $isUpdate = ($state -and $state.State -eq "update")
     $isInstalledNoMod = ($state -and $state.Tag -eq "installed")
