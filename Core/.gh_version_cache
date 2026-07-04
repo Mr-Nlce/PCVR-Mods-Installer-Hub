@@ -1,34 +1,38 @@
 ﻿{
+    "FranciscoManzanilla/GTA-VRV-Patcher":  {
+                                                "checked":  "2026-07-04T23:42:19.7194945Z",
+                                                "tag":  "VRV-1.1"
+                                            },
     "Okabintaro/SubmersedVR":  {
-                                   "checked":  "2026-07-04T23:02:19.1405847Z",
+                                   "checked":  "2026-07-04T23:42:23.1681528Z",
                                    "tag":  "0.2.0"
                                },
     "Alex-LeTux/perfect_dark_VR":  {
-                                       "checked":  "2026-07-04T23:02:16.8328804Z",
+                                       "checked":  "2026-07-04T23:42:20.8458528Z",
                                        "tag":  "v1.1-beta"
                                    },
     "Nobbie248/PrimedGun":  {
-                                "checked":  "2026-07-04T23:02:16.2192601Z",
+                                "checked":  "2026-07-04T23:42:20.2512933Z",
                                 "tag":  "v1.0.9"
                             },
     "Spencer0187/portal2vr-roomscale":  {
-                                            "checked":  "2026-07-04T23:02:17.4382994Z",
+                                            "checked":  "2026-07-04T23:42:21.3796166Z",
                                             "tag":  "V0.2.2"
                                         },
     "jbusfield/SubmersedVR_BZ":  {
-                                     "checked":  "2026-07-04T23:02:19.6801118Z",
+                                     "checked":  "2026-07-04T23:42:23.7468442Z",
                                      "tag":  "v0.8.0"
                                  },
     "Atmudia/SRVR":  {
-                         "checked":  "2026-07-04T23:02:18.5358826Z",
+                         "checked":  "2026-07-04T23:42:22.5577661Z",
                          "tag":  "v1.1"
                      },
     "cybensis/SPT-VR":  {
-                            "checked":  "2026-07-04T23:02:15.6014848Z",
+                            "checked":  "2026-07-04T23:42:19.0784246Z",
                             "tag":  "v1.3.0"
                         },
     "Blah64/Vostok-VR-Mod":  {
-                                 "checked":  "2026-07-04T23:02:17.9974846Z",
+                                 "checked":  "2026-07-04T23:42:21.9385481Z",
                                  "tag":  "v1.4.0"
                              }
 }

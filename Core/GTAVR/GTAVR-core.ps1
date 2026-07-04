@@ -244,10 +244,28 @@ if (Test-Path (Join-Path $gtaDir "ScriptHookV.dll")) {
 }
 
 # ---- STEP 4: download + install the VRV patcher (R.E.A.L. on current build) ----
+function Get-LatestPatcherUrl {
+    # Auto-update: pull the newest VRV patcher release from GitHub so a fresh
+    # compat build is picked up automatically. Falls back to the pinned URL.
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/FranciscoManzanilla/GTA-VRV-Patcher/releases/latest" `
+            -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
+        $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
+        $asset = ($zips | Where-Object { $_.name -match '(?i)patcher' } | Select-Object -First 1)
+        if (-not $asset) { $asset = $zips | Select-Object -First 1 }
+        if ($asset -and $asset.browser_download_url) {
+            Write-Info "Latest VRV patcher on GitHub: $($rel.tag_name)"
+            return [string]$asset.browser_download_url
+        }
+    } catch { Write-Info "Could not check GitHub for a newer patcher - using the known-good version." }
+    return $PATCHER_URL
+}
+
 Write-Step 4 6 "Installing the VR mod into $gtaDir"
 $rar = Join-Path $env:TEMP $PATCHER_FILE
 Write-Host "  [..] Downloading $MOD_NAME" -ForegroundColor Gray
-[void](Get-BrowserFile -Url $PATCHER_URL -Dest $rar)
+$patcherUrl = Get-LatestPatcherUrl
+[void](Get-BrowserFile -Url $patcherUrl -Dest $rar)
 if (-not (Test-IsZipFile $rar)) {
     Write-Warn "Could not fetch the patcher automatically."
     Write-Host "  Download $PATCHER_FILE from the releases page, then drag it here." -ForegroundColor White
