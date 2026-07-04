@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (182)</summary>
+<summary>Show all currently listed titles (183)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -169,6 +169,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Spiderman Miles Morales
 * Spiderman Remastered
 * S.T.A.L.K.E.R. Anomaly VR (motion controls)
+* S.T.A.L.K.E.R. GAMMA VR (motion controls)
 * Stanley Parable VR (motion controls)
 * Star Racer VR (motion controls)
 * Star Wars Outlaws
