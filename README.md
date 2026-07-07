@@ -295,7 +295,7 @@ On first launch, a desktop shortcut `VR mods Hub` will automatically be created 
 
 ---
 
-# Why It Is Batch-Based
+# Why It Is Powershell and Batch-Based
 
 The Hub is batch-based for multiple reasons.
 
