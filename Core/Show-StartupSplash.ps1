@@ -27,7 +27,7 @@ try {
 # Mod count shown in the {N} hints - the real VR-mod tally. Tools and
 # external tool entries are deliberately NOT counted, so an auto-count of
 # catalog entries reads high. Bump this when the real number changes.
-$tileCount = 182
+$tileCount = 187
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -54,7 +54,7 @@ $hints = @(
     "Now and then the counter button catches a shimmer.",
     "Every card lights up when you look at it. Go on, hover one.",
     "Every installer bows out in magenta. Then the new world is yours.",
-    "Thirty-seven banner effects. You get one tonight - lucky dip.",
+    "Over fifty banner effects. You get one tonight - lucky dip.",
     "Frosting the glass on every card.",
     "Cutting each card from a single sheet of frosted glass.",
     "Hanging the glass before you walk in.",

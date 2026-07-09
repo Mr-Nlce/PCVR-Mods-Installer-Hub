@@ -1,38 +1,46 @@
 ﻿{
-    "FranciscoManzanilla/GTA-VRV-Patcher":  {
-                                                "checked":  "2026-07-04T23:42:19.7194945Z",
-                                                "tag":  "VRV-1.1"
-                                            },
     "Okabintaro/SubmersedVR":  {
-                                   "checked":  "2026-07-04T23:42:23.1681528Z",
+                                   "checked":  "2026-07-09T02:44:12.7762751Z",
                                    "tag":  "0.2.0"
                                },
     "Alex-LeTux/perfect_dark_VR":  {
-                                       "checked":  "2026-07-04T23:42:20.8458528Z",
-                                       "tag":  "v1.1-beta"
+                                       "checked":  "2026-07-09T02:44:10.4310581Z",
+                                       "tag":  "v1.2-beta"
                                    },
     "Nobbie248/PrimedGun":  {
-                                "checked":  "2026-07-04T23:42:20.2512933Z",
-                                "tag":  "v1.0.9"
+                                "checked":  "2026-07-09T02:44:09.8497157Z",
+                                "tag":  "v1.1.0"
                             },
+    "SanguShellz/GTA-VRV-Patcher":  {
+                                        "checked":  "2026-07-09T02:44:08.7551206Z",
+                                        "tag":  "VRV-1.2.3"
+                                    },
     "Spencer0187/portal2vr-roomscale":  {
-                                            "checked":  "2026-07-04T23:42:21.3796166Z",
+                                            "checked":  "2026-07-09T02:44:11.0286840Z",
                                             "tag":  "V0.2.2"
                                         },
     "jbusfield/SubmersedVR_BZ":  {
-                                     "checked":  "2026-07-04T23:42:23.7468442Z",
+                                     "checked":  "2026-07-09T02:44:13.3099128Z",
                                      "tag":  "v0.8.0"
                                  },
+    "heurazy/HytaleVRInjector-mod":  {
+                                         "checked":  "2026-07-09T02:44:09.3333505Z",
+                                         "tag":  "v0.1.3"
+                                     },
     "Atmudia/SRVR":  {
-                         "checked":  "2026-07-04T23:42:22.5577661Z",
+                         "checked":  "2026-07-09T02:44:12.1243058Z",
                          "tag":  "v1.1"
                      },
     "cybensis/SPT-VR":  {
-                            "checked":  "2026-07-04T23:42:19.0784246Z",
+                            "checked":  "2026-07-09T02:44:08.2065246Z",
                             "tag":  "v1.3.0"
                         },
     "Blah64/Vostok-VR-Mod":  {
-                                 "checked":  "2026-07-04T23:42:21.9385481Z",
+                                 "checked":  "2026-07-09T02:44:11.5875625Z",
                                  "tag":  "v1.4.0"
-                             }
+                             },
+    "RaYRoD-TV/sm64coopdx-vr":  {
+                                    "checked":  "2026-07-09T02:44:14.6244048Z",
+                                    "tag":  "v0.7"
+                                }
 }

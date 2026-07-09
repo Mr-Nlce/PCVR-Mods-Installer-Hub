@@ -382,6 +382,38 @@ function global:New-ChipGlow { param($hex = "#f0d860")
 function global:Set-FilterStyle {
     param($active)
     $script:activeFilter = $active
+
+    # When the Motion filter is active, the Gamepad section shows ONLY the
+    # VRGP titles (VR controllers mapped as a standard gamepad), because those
+    # are the gamepad entries that also match a motion search. Relabel the
+    # section header so they read as their own category beneath the true
+    # motion-control titles: "VR controllers mapped as Gamepad". For ALL/GP it
+    # goes back to the normal "Gamepad controls".
+    try {
+        $win = if ($global:window) { $global:window } else { $window }
+        $hgpKind = $win.FindName("HeaderGPKind")
+        if ($hgpKind) {
+            if ($active -eq "MC") {
+                $hgpKind.Text = "VR controllers mapped as Gamepad"
+                if (Get-Command Set-TitleGradient -ErrorAction SilentlyContinue) { Set-TitleGradient $hgpKind }
+                $hgpSub2 = $win.FindName("HeaderGPSub")
+                if ($hgpSub2 -and $null -ne $global:HubVRGPCount) { $hgpSub2.Text = "$($global:HubVRGPCount) mods" }
+            } else {
+                $hgpKind.Text = "Gamepad controls"
+                try { $hgpKind.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dd6600") } catch {}
+                $hgpSub2 = $win.FindName("HeaderGPSub")
+                if ($hgpSub2 -and $null -ne $global:HubGPCount) { $hgpSub2.Text = "$($global:HubGPCount) mods" }
+            }
+        }
+        $vis = if ($active -eq "MC") { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        $mIco = $win.FindName("HeaderGPMotionIcon"); if ($mIco) { $mIco.Visibility = $vis }
+        $eqTx = $win.FindName("HeaderGPEq");        if ($eqTx) { $eqTx.Visibility = $vis }
+        # Gamepad glyph left margin: 11 normally (spacing from the title), but
+        # 0 in MC mode where the visible "=" already provides the gap - else it
+        # sits 3-4 chars too far right after the "=".
+        $gpIco = $win.FindName("HeaderGPGamepadIcon")
+        if ($gpIco) { $gpIco.Margin = if ($active -eq "MC") { [System.Windows.Thickness]::new(0,0,7,0) } else { [System.Windows.Thickness]::new(11,0,7,0) } }
+    } catch {}
     $whiteBrush = [System.Windows.Media.Brushes]::White
     $inactiveFg = [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassFgInactive)
 
@@ -671,8 +703,8 @@ function global:Test-GamePassesFilter {
         if ($Query -eq "free" -and ($global:FREE_GAME_TITLES -contains $GameData.Title)) { $textMatch = $true }
         if ($Query -eq "wip"  -and ($global:WIP_GAME_TITLES  -contains $GameData.Title)) { $textMatch = $true }
         $ctrlMatch = $script:activeFilter -eq "ALL" -or $controls -eq $script:activeFilter -or
-                     ($script:activeFilter -eq "MC" -and $controls -eq "BOTH") -or
-                     ($script:activeFilter -eq "GP" -and $controls -eq "BOTH")
+                     ($script:activeFilter -eq "MC" -and ($controls -eq "BOTH" -or $controls -eq "VRGP")) -or
+                     ($script:activeFilter -eq "GP" -and ($controls -eq "BOTH" -or $controls -eq "VRGP"))
         $instMatch = $true
         if ($script:installFilterMode -ne "off") {
             if (-not $global:gameStateMap -or $global:gameStateMap.Count -eq 0) {
@@ -727,8 +759,15 @@ function global:Apply-Filter {
         $card.Visibility = $vis
     }
     }
-    # Discover tiles (built lazily; only iterate when present)
-    if ($view -eq "Library" -and $global:discoverPanel -and $global:DiscoverTilesBuilt) {
+    # Discover tiles (built lazily; only iterate when present). Key off
+    # VISIBILITY, not just $view: searching from the Explore page switches the
+    # visible view to the discover tiles without always flipping the tracked
+    # view, so a CLEARED search would otherwise run the wrong branch and leave
+    # the tiles stuck on the last few matches. Filtering whenever they're
+    # visible lets an empty query re-show every tile.
+    $__discoverVisible = $false
+    try { $__discoverVisible = ($global:discoverTiles -and $global:discoverTiles.Visibility -eq [System.Windows.Visibility]::Visible) } catch {}
+    if (($view -eq "Library" -or $__discoverVisible) -and $global:discoverPanel -and $global:DiscoverTilesBuilt) {
         foreach ($tile in $global:discoverPanel.Children) {
             if (-not $tile) { continue }
             $g = $null
@@ -1366,6 +1405,16 @@ function global:Get-GithubLatestTagCached {
             if ($age -lt $ttlHours) { return [string]$entry.tag }
         } catch {}
     }
+    # Respect the scan-wide circuit breaker: if an earlier online check in
+    # THIS scan already failed/timed out, do NOT touch the network again -
+    # fall straight back to the last known tag (or null). This is what stops
+    # an unreachable github.com (firewall/DNS) from stacking a per-repo
+    # connection timeout into a multi-minute UI-thread freeze on a first run
+    # with an empty cache: the first miss trips the breaker, the rest skip.
+    if ($global:HubScanOnlineDown) {
+        if ($entry -and $entry.tag) { return [string]$entry.tag }
+        return $null
+    }
     # Use the github.com /releases/latest REDIRECT (web, not the API). It 302s
     # to /releases/tag/<tag>, so the tag is in the final URL - and the website
     # is NOT bound by the 60/hour unauthenticated API limit that the api.github
@@ -1373,13 +1422,17 @@ function global:Get-GithubLatestTagCached {
     # a rare transient error out of the Hub transcript.
     $tag = $null
     try {
-        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 6 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
+        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 4 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
         $final = ""
         try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
     } catch {
         Write-Host "[GithubCheck] $Repo : web check failed ($($_.Exception.Message)) - using cached tag if present"
+        # A timeout / connection failure means github.com is unreachable or
+        # too slow. Trip the scan-wide breaker so the remaining repos this
+        # scan skip the network instead of each eating another timeout.
+        $global:HubScanOnlineDown = $true
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
     }
@@ -1426,10 +1479,17 @@ function global:Get-WebVersionCached {
             if ($age -lt $ttlHours) { return [string]$entry.ver }
         } catch {}
     }
+    # Respect the scan-wide circuit breaker (same rule as every online scan
+    # check): if an earlier check this scan already failed, do NOT touch the
+    # network again - return the last known version or null.
+    if ($global:HubScanOnlineDown) {
+        if ($entry -and $entry.ver) { return [string]$entry.ver }
+        return $null
+    }
     $wv = $null
     try {
         $wua  = @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" }
-        $wResp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 5 -Headers $wua -EA Stop
+        $wResp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 4 -Headers $wua -EA Stop
         $wHtml = [string]$wResp.Content
         if     ($wHtml -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $wv = "v" + $matches[1] }
         elseif ($wHtml -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { $wv = "v" + $matches[1] }
@@ -1438,6 +1498,9 @@ function global:Get-WebVersionCached {
         else     { Write-Host ("[AICheck] $Title : page fetched ({0} chars) but no version matched" -f $wHtml.Length) }
     } catch {
         Write-Host "[AICheck] $Title : page fetch failed - $($_.Exception.Message)"
+        # Timeout / unreachable -> trip the scan-wide breaker so the rest of
+        # this scan skips the network instead of each eating another timeout.
+        $global:HubScanOnlineDown = $true
         if ($entry -and $entry.ver) { return [string]$entry.ver }
         return $null
     }
@@ -1452,6 +1515,55 @@ function global:Get-WebVersionCached {
     }
     if ($entry -and $entry.ver) { return [string]$entry.ver }
     return $null
+}
+
+function global:Invoke-RotatingOnlinePrewarm {
+    # Warm the version cache for online-checkable games in a ROTATING order.
+    # Problem this solves: a single persistently-slow repo sitting at a fixed
+    # scan position would trip the circuit breaker FIRST every scan and starve
+    # every other repo forever (they would never get cached). By rotating which
+    # repo is attempted first each scan - offset kept in a tiny file so it
+    # advances across sessions - every healthy repo eventually lands an early
+    # slot, before the breaker trips, and caches itself for 6h (dropping off the
+    # network). The breaker still caps the whole prewarm at ONE timeout, so this
+    # never reintroduces the multi-minute freeze.
+    try {
+        $items = @()
+        foreach ($g in $global:allGameData) {
+            if ($g.GithubRepo) {
+                $repo = $g.GithubRepo
+                if ($g.GithubRepoAlt) {
+                    try {
+                        $ipf = Get-InstalledPathFile -Game $g
+                        if ($ipf) {
+                            $vs = Join-Path (Split-Path -Parent $ipf) ".vrv_source"
+                            if ((Test-Path $vs) -and ((Get-Content $vs -Raw -EA Stop).Trim() -eq "francisco")) { $repo = $g.GithubRepoAlt }
+                        }
+                    } catch {}
+                }
+                $items += , @{ K = "gh"; A = $repo }
+            } elseif ($g.WebVersionUrl) {
+                $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title }
+            }
+        }
+        if ($items.Count -eq 0) { return }
+        $off = 0
+        if ($items.Count -gt 1) {
+            $rotFile = Join-Path $global:scriptDir ".gh_check_rotation"
+            if (Test-Path $rotFile) {
+                try { $off = [int]((Get-Content $rotFile -Raw -EA SilentlyContinue).Trim()) } catch { $off = 0 }
+            }
+            $off = (($off % $items.Count) + $items.Count) % $items.Count
+            try { Set-Content -Path $rotFile -Value ([string](($off + 1) % $items.Count)) -Encoding ASCII -Force } catch {}
+        }
+        for ($i = 0; $i -lt $items.Count; $i++) {
+            $it = $items[($off + $i) % $items.Count]
+            try {
+                if ($it.K -eq "gh") { [void](Get-GithubLatestTagCached -Repo $it.A) }
+                else { [void](Get-WebVersionCached -Url $it.A -Title $it.T) }
+            } catch {}
+        }
+    } catch {}
 }
 
 function global:Invoke-CheckInstalledScan {
@@ -1633,6 +1745,11 @@ function global:Invoke-CheckInstalledScan {
         }
     }
 
+    # Rotating online prewarm: warm the update caches in a rotating order so a
+    # persistently-slow repo can't perpetually starve the rest (see function).
+    # Runs BEFORE the per-card loop; the loop then reads the warmed cache.
+    Invoke-RotatingOnlinePrewarm
+
     $found = 0
     $vrFound = 0
     foreach ($card in $global:cardGameMap.Keys) {
@@ -1793,6 +1910,25 @@ function global:Invoke-CheckInstalledScan {
                     $folderName = $fp.Substring("UBI:".Length)
                     foreach ($root in $ubisoftRoots) {
                         $candidates += (Join-Path $root $folderName)
+                    }
+                } elseif ($fp -like "APPDATA:*") {
+                    # APPDATA: expands the tail against %APPDATA% for
+                    # launcher-managed installs outside Steam (e.g.
+                    # Hytale). A tail ending in .exe is an existence
+                    # PROBE: the game only counts as installed when
+                    # that exe is really on disk, and its parent
+                    # folder becomes the candidate - a bare folder
+                    # left behind by a partial download never
+                    # lights the tile.
+                    $tail = $fp.Substring("APPDATA:".Length)
+                    $apRoot = [Environment]::GetFolderPath("ApplicationData")
+                    if ($apRoot -and $tail) {
+                        $apPath = Join-Path $apRoot $tail
+                        if ($tail -match '\.exe$') {
+                            if (Test-Path -LiteralPath $apPath) { $candidates += (Split-Path -Parent $apPath) }
+                        } else {
+                            $candidates += $apPath
+                        }
                     }
                 } else {
                     if ($fp) { $candidates += $fp }
@@ -2051,6 +2187,21 @@ function global:Invoke-CheckInstalledScan {
             }
         }
 
+        # Foreign-install / lost-marker fallback: if the game folder is known
+        # (VR detected via ModFile) but the Hub-side launcher markers were
+        # absent, detect each mod directly from its real file on disk - so a
+        # GTA5 install done by ANOTHER Hub still shows that Motion is
+        # available, not just VR Ready.
+        if ($game.TwoMods -and $gameDir) {
+            if (-not $tmAPresent -and $game.ModFile -and (Test-Path (Join-Path $gameDir $game.ModFile))) {
+                $tmAPresent = $true
+            }
+            if (-not $tmBPresent -and $game.ModBProbeFile -and (Test-Path (Join-Path $gameDir $game.ModBProbeFile))) {
+                $tmBPresent = $true
+            }
+            if ($tmAPresent -or $tmBPresent) { $twoModsAnyPresent = $true }
+        }
+
         # Free games are available to install without buying, but that
         # does NOT mean they are installed. They only turn green when
         # their VR mod is actually on disk (vrInstalled). Until then
@@ -2170,7 +2321,20 @@ function global:Invoke-CheckInstalledScan {
                 # Mirrors the Thunderstore branch above. Seeds the cache on
                 # the first scan after install (GitHub installers always pull
                 # releases/latest, so "no stored version yet" = current latest).
-                $ghVer = Get-GithubLatestTagCached -Repo $game.GithubRepo
+                $repoToCheck = $game.GithubRepo
+                # Honor an AV-fallback choice: if the installer switched this
+                # machine to the backup source, track THAT repo for updates so
+                # the user is not nagged to update to a fork their AV blocks.
+                if ($game.GithubRepoAlt) {
+                    try {
+                        $ipfV = Get-InstalledPathFile -Game $game
+                        if ($ipfV) {
+                            $vsrcV = Join-Path (Split-Path -Parent $ipfV) ".vrv_source"
+                            if ((Test-Path $vsrcV) -and ((Get-Content $vsrcV -Raw -ErrorAction Stop).Trim() -eq "francisco")) { $repoToCheck = $game.GithubRepoAlt }
+                        }
+                    } catch {}
+                }
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck
                 if ($ghVer) {
                     if (-not $installedVer) {
                         Write-InstalledVersion -Game $game -Version $ghVer
@@ -2295,7 +2459,7 @@ function global:Invoke-CheckInstalledScan {
                 # tint it back in the original game accent.
                 $card.Resources.Remove("baseAccent") | Out-Null
                 $card.Resources.Add("baseAccent", $UPDATE_BLUE)
-                $global:gameStateMap[$game.Title] = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText="Update"; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir }
+                $global:gameStateMap[$game.Title] = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText="Update"; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; TwoMods=$twoModsAnyPresent; ModAPresent=$tmAPresent; ModBPresent=$tmBPresent; ModADir=$twoModsADir; ModBDir=$twoModsBDir; ModAName=$game.ModAName; ModBName=$game.ModBName; GameDir=$gameDir }
             } else {
                 # VR Ready: shift the whole card to a calm green tint.
                 # Button becomes outline-style with checkmark.

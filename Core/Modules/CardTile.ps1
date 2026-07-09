@@ -43,6 +43,30 @@ function global:New-ControlTypeIcon {
         return $box
     }
 
+    # VRGP: VR controllers mapped as a gamepad - motion glyph "=" gamepad
+    # glyph. Says "these VR controllers behave as a standard gamepad", the
+    # honest label for ports with no true 6DoF/roomscale (New Star GP, the
+    # RaYRoD N64 ports, many Astienth mods).
+    if ($Controls -eq "VRGP") {
+        $row = New-Object System.Windows.Controls.StackPanel
+        $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        $row.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $row.ToolTip = "VR controllers mapped as Gamepad"
+        $mc = & $makeGlyph "motion"  $Sc $strokeBrush
+        $eq = New-Object System.Windows.Controls.TextBlock
+        $eq.Text = "="
+        $eq.Foreground = $strokeBrush
+        $eq.FontSize = [double](13 * $Sc)
+        $eq.FontWeight = [System.Windows.FontWeights]::Bold
+        $eq.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $eq.Margin = [System.Windows.Thickness]::new([int](3*$Sc), 0, [int](3*$Sc), 0)
+        $gp = & $makeGlyph "gamepad" $Sc $strokeBrush
+        $row.Children.Add($mc) | Out-Null
+        $row.Children.Add($eq) | Out-Null
+        $row.Children.Add($gp) | Out-Null
+        return $row
+    }
+
     # BOTH: gamepad + motion side by side (e.g. GTA V R.E.A.L.+Motion, UEVR).
     if ($Controls -eq "BOTH") {
         $row = New-Object System.Windows.Controls.StackPanel
@@ -91,7 +115,8 @@ $global:FREE_GAME_TITLES = @(
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
-    "Cyberpunk 2077"
+    "Cyberpunk 2077",
+    "Hytale VR"
 )
 
 # -------------------------------------------------------
@@ -869,6 +894,14 @@ function global:New-GameCardFrosted {
     $famTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush $famTxtColor
     $famTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $famPill.Child = $famTxt
+    # Cap the family badge so its right edge clears the top-right info pill
+    # (it is colored + would bleed through the transparent pill). Card = 175*sc
+    # wide, pill sits 8*sc from the card edge. VRGP/BOTH badges are the widest
+    # (~80*sc), so their cap is tighter; single-glyph MC/GP pills leave more room.
+    $famTxt.TextWrapping = [System.Windows.TextWrapping]::NoWrap
+    $famPill.ClipToBounds = $true
+    $__widePill = ($game.Controls -eq "VRGP" -or $game.Controls -eq "BOTH")
+    $famPill.MaxWidth = if ($__widePill) { [int](68 * $sc) } else { [int](104 * $sc) }
 
     # Top stack holds pill + title group together in row 0
     $topStack = New-Object System.Windows.Controls.StackPanel
@@ -952,7 +985,9 @@ function global:New-GameCardFrosted {
     }
     $titleText.Text = $titleDisplay
     $titleText.FontSize = [int](13*$sc)
-    $titleText.FontWeight = [System.Windows.FontWeights]::Bold
+    # "Anomaly GAMMA" reads heavy because GAMMA is all-caps - drop it to
+    # SemiBold so the all-caps word doesn't dominate the tile.
+    $titleText.FontWeight = if ($game.Title -eq "Anomaly GAMMA") { [System.Windows.FontWeights]::SemiBold } else { [System.Windows.FontWeights]::Bold }
     $titleGrad = New-Object System.Windows.Media.LinearGradientBrush
     $titleGrad.StartPoint = [System.Windows.Point]::new(0, 0)
     $titleGrad.EndPoint   = [System.Windows.Point]::new(0, 1)
@@ -1454,7 +1489,7 @@ function global:New-GameCardFrosted {
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
     $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -1469,7 +1504,7 @@ function global:New-GameCardFrosted {
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
     $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -1662,7 +1697,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and $st.DualMode) {
+            if ($st -and ($st.DualMode -or $st.TwoMods)) {
                 # Stash + clear the blue background so the split row
                 # underneath reads cleanly. Leave + click restore use
                 # the same stashed values.
@@ -1880,7 +1915,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and $st.DualMode) {
+            if ($st -and ($st.DualMode -or $st.TwoMods)) {
                 $ds = $owner.Resources.Item("dualSplit")
                 if ($ds) { $ds.Visibility = [System.Windows.Visibility]::Collapsed }
                 $bt = $owner.Resources.Item("btnText")
@@ -2530,7 +2565,7 @@ function global:New-GameCardFrosted {
                     if ($downloadCapture -match "api.github.com") {
                         try {
                             $apiUrl = $downloadCapture
-                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
                             # If response is array (all releases), pick first (newest) with assets
                             if ($response -is [array]) {
                                 $release = $response | Where-Object { $_.assets.Count -gt 0 } | Select-Object -First 1
@@ -2909,6 +2944,14 @@ function global:New-GameCardClassic {
     $famTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush $famTxtColor
     $famTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $famPill.Child = $famTxt
+    # Cap the family badge so its right edge clears the top-right info pill
+    # (it is colored + would bleed through the transparent pill). Card = 175*sc
+    # wide, pill sits 8*sc from the card edge. VRGP/BOTH badges are the widest
+    # (~80*sc), so their cap is tighter; single-glyph MC/GP pills leave more room.
+    $famTxt.TextWrapping = [System.Windows.TextWrapping]::NoWrap
+    $famPill.ClipToBounds = $true
+    $__widePill = ($game.Controls -eq "VRGP" -or $game.Controls -eq "BOTH")
+    $famPill.MaxWidth = if ($__widePill) { [int](68 * $sc) } else { [int](104 * $sc) }
 
     # Top stack holds pill + title group together in row 0
     $topStack = New-Object System.Windows.Controls.StackPanel
@@ -3460,7 +3503,7 @@ function global:New-GameCardClassic {
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
     $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3475,7 +3518,7 @@ function global:New-GameCardClassic {
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
     $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.0 } else { 8.5 } } else { 11 })*$sc
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3649,7 +3692,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and $st.DualMode) {
+            if ($st -and ($st.DualMode -or $st.TwoMods)) {
                 # Stash + clear the blue background so the split row
                 # underneath reads cleanly. Leave + click restore use
                 # the same stashed values.
@@ -3867,7 +3910,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and $st.DualMode) {
+            if ($st -and ($st.DualMode -or $st.TwoMods)) {
                 $ds = $owner.Resources.Item("dualSplit")
                 if ($ds) { $ds.Visibility = [System.Windows.Visibility]::Collapsed }
                 $bt = $owner.Resources.Item("btnText")
@@ -4421,7 +4464,7 @@ function global:New-GameCardClassic {
                     if ($downloadCapture -match "api.github.com") {
                         try {
                             $apiUrl = $downloadCapture
-                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
                             # If response is array (all releases), pick first (newest) with assets
                             if ($response -is [array]) {
                                 $release = $response | Where-Object { $_.assets.Count -gt 0 } | Select-Object -First 1

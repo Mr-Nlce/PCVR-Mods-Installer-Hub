@@ -314,6 +314,16 @@ $window.Add_Activated({
 # body runs in module scope, so $ownGames / $ownGamesGP are in reach with
 # no closure juggling. Healing only needs to finish before a game launch,
 # and the launch path writes steam_appid.txt itself as a final safety net.
+# Dismiss the launcher splash the INSTANT the window is first painted - BEFORE
+# the heavier ContentRendered work below (steam_appid heal, Explore prewarm).
+# That work used to run first and the ready flag was only written in the LAST
+# handler, so the splash lingered ~0.5-1s after the Hub was already visible.
+# Registered before the others so it fires first; the flag write is a couple
+# of bytes to %TEMP% and returns immediately.
+$window.Add_ContentRendered({
+    try { Set-Content -Path (Join-Path $env:TEMP "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue } catch { }
+})
+
 $window.Add_ContentRendered({
     try {
         $depotCatalog = @($ownGames + $ownGamesGP)

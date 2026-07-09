@@ -182,12 +182,14 @@ function global:New-DiscoverTile {
     $ctrlLabelTile = switch ($Game.Controls) {
         "MC"   { "MOTION" }
         "GP"   { "GAMEPAD" }
+        "VRGP" { "GAMEPAD" }
         "BOTH" { "BOTH" }
         default { "" }
     }
     $ctrlPillBgHex = switch ($Game.Controls) {
         "MC"   { "#44cc66" }
         "GP"   { "#dd6600" }
+        "VRGP" { "#dd6600" }
         "BOTH" { "#8888ff" }
         default { "#888888" }
     }
@@ -3021,8 +3023,30 @@ function global:Start-GameInVR {
                     $exeParent = Split-Path -Parent $exePath
                     if ($exeParent) { $launchWorkDir = $exeParent }
                 }
-                if ($Game.LaunchArgs) {
-                    Start-Process -FilePath $exePath -ArgumentList $Game.LaunchArgs -WorkingDirectory $launchWorkDir
+
+                # GZDoomVR titles: the installer records the FULL launch args
+                # (iwad + vr_mode + any chosen 3D-mod -file entries) in a
+                # per-WAD marker file next to gzdoomvr.exe. Prefer it over the
+                # catalog's static LaunchArgs so Start-in-VR loads the SAME
+                # mods as the desktop shortcut. Keyed by the WAD leaf from
+                # VrInstallEvidence, matching how the installer names the file.
+                $effectiveArgs = $Game.LaunchArgs
+                if ($Game.VrInstallEvidence -and $Game.VrInstallEvidence.Count -gt 0) {
+                    try {
+                        $__wadLeaf = Split-Path $Game.VrInstallEvidence[0] -Leaf
+                        if ($__wadLeaf) {
+                            $__argKey  = ($__wadLeaf -replace '[^A-Za-z0-9]', '_')
+                            $__argFile = Join-Path $gameDir ".vrlaunchargs_$__argKey"
+                            if (Test-Path -LiteralPath $__argFile) {
+                                $__savedArgs = (Get-Content -LiteralPath $__argFile -Raw -ErrorAction Stop).Trim()
+                                if ($__savedArgs) { $effectiveArgs = $__savedArgs }
+                            }
+                        }
+                    } catch { }
+                }
+
+                if ($effectiveArgs) {
+                    Start-Process -FilePath $exePath -ArgumentList $effectiveArgs -WorkingDirectory $launchWorkDir
                 } else {
                     Start-Process -FilePath $exePath -WorkingDirectory $launchWorkDir
                 }
@@ -3412,6 +3436,7 @@ function global:Show-DiscoverDetail {
     $controlsLabel = switch ($Game.Controls) {
         "MC"   { "Motion Controls" }
         "GP"   { "Gamepad VR" }
+        "VRGP" { "VR Controller = Gamepad" }
         "BOTH" { "Motion + Gamepad" }
         default { "" }
     }
@@ -3906,6 +3931,9 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
+        "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."
+        "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
         "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."

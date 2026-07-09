@@ -19,6 +19,27 @@ $ErrorActionPreference = "Stop"
 $QZD_ENGINE_URL = "https://github.com/hh79/gzdoomvr/releases/download/gvr4.13.2.2/gzdoomvr-4-13-2-2.zip"
 $QZD_ENGINE_VER = "4.13.2.2"
 $QZD_INSTALL_ROOT_NAME = "GZDoomVR"
+# Optional 3D-weapons mod (iAmErmac's Universal_Doom_3DWeapons_VR). ONE
+# universal .pk3 that FILTER/s per IWAD, so it fits Doom, Doom 2, Heretic,
+# Hexen and Strife. Stored in a mods\ subfolder (NOT the engine root, so
+# gzdoomvr does not autoload it globally) and wired per-game via -file.
+$QZD_WEAPONS_URL  = "https://github.com/iAmErmac/Universal_Doom_3DWeapons_VR/releases/download/v1.0.0/HDVRweapons_Plus_v1.0.pk3"
+$QZD_WEAPONS_FILE = "HDVRweapons_Plus_v1.0.pk3"
+# Optional "items 3D" pack (Doom / Doom 2 ONLY) - the old QuestZDoom MEGA pack.
+# Its bundled 3D WEAPONS and MONSTERS do NOT hook into this gzdoomvr fork's VR
+# system (2020-era build), so ONLY the loose item models render in 3D. Offered
+# with an honest "(covers some items in 3D)" label. Hosted on MEGA (no direct
+# link), so it's a manual drag-and-drop of the zip. Loaded via -file AFTER the
+# modern weapon pack, so it never overrides the working VR hand weapons.
+$QZD_FULLPACK_URL   = "https://mega.nz/#!TOpgkKbL!MJshOqaPWtVLU4YjwN1RITiJeXByJBgNERf7cYpt_rg"
+$QZD_FULLPACK_ZIP   = "GZDOOM.MonstersAndWeapons.For.OpenVRDoom.zip"
+$QZD_FULLPACK_ITEMS = "Item_3DModels.pk3"
+# HD texture pack (Doom Neural Upscale 2x, ModDB) - Doom / Doom 2 ONLY, a
+# SEPARATE opt-in stacked on top of the weapons/full-pack choice. Manual zip
+# (ModDB red "Download Now"); the zip carries a junk __MACOSX copy we skip.
+$QZD_HDTEX_URL  = "https://www.moddb.com/downloads/doom-neural-upscale-2x"
+$QZD_HDTEX_ZIP  = "NeuralUpscale2x_v1.0.pk3.zip"
+$QZD_HDTEX_FILE = "NeuralUpscale2x_v1.0.pk3"
 
 # Directory of this shared library (captured when a wrapper dot-sources
 # it). Used to write the per-title .installed_path_<safeTitle> marker the
@@ -35,6 +56,7 @@ function Write-Header { param($Title)
 }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
+function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
 function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
 function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Pause-User { param($x="Press Enter to continue...") Write-Host ""; Write-Host "  $x" -ForegroundColor White; Read-Host "  " }
@@ -63,16 +85,37 @@ function Get-SteamLibraries {
 # 2024 KEX re-releases (e.g. "Ultimate Doom" vs "DOOM" + "Doom 2"
 # vs "DOOM II"). Returns the first match or $null.
 function Find-SteamGameFolder {
-    param([string[]]$FolderNames)
+    param([string[]]$FolderNames, [string]$WadName = "")
+    # Build the list of roots to scan: every Steam library's common\ folder,
+    # plus GOG (C/D/E:\GOG Games) and Xbox (C/D/E:\XboxGames) roots. Xbox nests
+    # the game under a \Content subfolder, so each name is tried both bare and
+    # with \Content appended.
+    $roots = New-Object System.Collections.Generic.List[string]
     $sp = Get-SteamPath
-    if (-not $sp) { return $null }
-    foreach ($lib in (Get-SteamLibraries $sp)) {
+    if ($sp) { foreach ($lib in (Get-SteamLibraries $sp)) { [void]$roots.Add((Join-Path $lib "steamapps\common")) } }
+    foreach ($d in @("C","D","E")) {
+        [void]$roots.Add("${d}:\GOG Games")
+        [void]$roots.Add("${d}:\XboxGames")
+    }
+    $firstExisting = $null
+    foreach ($root in $roots) {
+        if (-not (Test-Path $root)) { continue }
         foreach ($name in $FolderNames) {
-            $candidate = Join-Path $lib "steamapps\common\$name"
-            if (Test-Path $candidate) { return $candidate }
+            foreach ($sub in @("", "\Content")) {
+                $candidate = Join-Path $root ($name + $sub)
+                if (Test-Path $candidate) {
+                    if (-not $firstExisting) { $firstExisting = $candidate }
+                    # Prefer a folder that ACTUALLY holds the WAD - avoids a
+                    # competing/empty "Heretic" beating the real "Heretic + Hexen".
+                    if ($WadName -and (Find-WadInGameFolder -GameFolder $candidate -WadName $WadName)) {
+                        return $candidate
+                    }
+                    if (-not $WadName) { return $candidate }
+                }
+            }
         }
     }
-    return $null
+    return $firstExisting
 }
 
 # Look for the WAD inside a Steam game folder. Tries the root
@@ -245,7 +288,7 @@ function Install-QuestZDoomGame {
     Write-Step 1 4 "Locating $WadName"
 
     $sourceWad = $null
-    $gameFolder = Find-SteamGameFolder -FolderNames $SteamFolders
+    $gameFolder = Find-SteamGameFolder -FolderNames $SteamFolders -WadName $WadName
     if ($gameFolder) {
         $sourceWad = Find-WadInGameFolder -GameFolder $gameFolder -WadName $WadName
         if ($sourceWad) {
@@ -332,19 +375,162 @@ function Install-QuestZDoomGame {
     #     IconLocation when the target is a .bat).
     #   - There's no brief cmd.exe console flash on launch.
     #   - Right-click + properties shows clear arguments.
+    # ---- Optional: 3D content ----
+    # Weapons-only (auto, universal HDVR pk3) for every game. Doom / Doom 2 can
+    # ALSO add the loose-item 3D models on top. The old MEGA pack's 3D monsters
+    # and 3D weapons do NOT work with this gzdoomvr fork, so only its item
+    # models are used - loaded AFTER the working weapon pack so nothing clashes.
+    $weaponsArg = ""
+    $modsDir = Join-Path $installRoot "mods"
+    $isDoom = ($GameTitle -match '^Doom')
+    Write-Host ""
+    if ($isDoom) {
+        Write-Host "  >>> OPTIONAL 3D CONTENT - your choice:" -ForegroundColor Yellow
+        Write-Host "      [W] 3D weapons only                     (auto download)" -ForegroundColor Cyan
+        Write-Host "      [I] 3D weapons + items                  (drag and drop)" -ForegroundColor Cyan
+        Write-Host "          (covers some items in 3D - monsters stay 2D)" -ForegroundColor Gray
+        Write-Host "      [N] None" -ForegroundColor Cyan
+        $c3d = (Read-Host "  >>> Choose W / I / N").Trim().ToLower()
+        if ($c3d -ne "w" -and $c3d -ne "i") { $c3d = "n" }
+    } else {
+        Write-Host "  >>> OPTIONAL: 3D WEAPONS - swaps the flat weapon sprites for" -ForegroundColor Yellow
+        Write-Host "      3D models (adapts to $GameTitle via the mod's filter)." -ForegroundColor Yellow
+        $ans = (Read-Host "  >>> Install the 3D weapons mod for $GameTitle? (Y/N)").Trim()
+        $c3d = if ($ans -match '^(y|yes|j|ja)$') { "w" } else { "n" }
+    }
+
+    if ($c3d -eq "w" -or $c3d -eq "i") {
+        try { New-Item -ItemType Directory -Path $modsDir -Force -EA SilentlyContinue | Out-Null } catch {}
+        $wpk3 = Join-Path $modsDir $QZD_WEAPONS_FILE
+        if (-not (Test-Path $wpk3)) {
+            Invoke-SafeDownload -Urls @($QZD_WEAPONS_URL) -Destination $wpk3 `
+                -Label "3D weapons mod" `
+                -ManualUrl "https://github.com/iAmErmac/Universal_Doom_3DWeapons_VR/releases/latest" `
+                -SkipMessage "Skipped - 3D weapons not installed; the game runs with its default weapon sprites." | Out-Null
+        } else {
+            Write-Info "3D weapons mod already downloaded - reusing it."
+        }
+        if (Test-Path $wpk3) {
+            $weaponsArg = " -file `"mods\$QZD_WEAPONS_FILE`""
+            Write-OK "3D weapons enabled for $GameTitle."
+        }
+    }
+
+    # Doom-only: add the loose-item 3D models on top of the weapons.
+    if ($c3d -eq "i") {
+        $itemPk3 = Join-Path $modsDir $QZD_FULLPACK_ITEMS
+        if (-not (Test-Path $itemPk3)) {
+            Write-Host ""
+            Write-Host "  MANUAL STEP - the 3D item models live on MEGA:" -ForegroundColor Yellow
+            Write-Host "    1. Press Enter to open the MEGA download page." -ForegroundColor Yellow
+            Write-Host "    2. Download '$QZD_FULLPACK_ZIP'." -ForegroundColor Yellow
+            Write-Host "    3. DRAG the downloaded .zip onto THIS window, then press Enter." -ForegroundColor Yellow
+            Write-Host ""
+            Read-Host "  >>> Press Enter to open the download page" | Out-Null
+            try { Start-Process $QZD_FULLPACK_URL } catch {}
+            Write-Host ""
+            $zin = (Read-Host "  Drop the .zip here (or Enter to skip)").Trim().Trim('"')
+            if ($zin -and (Test-Path -LiteralPath $zin)) {
+                $tmpEx = Join-Path $installRoot "_pack_tmp"
+                try {
+                    if (Test-Path $tmpEx) { Remove-Item $tmpEx -Recurse -Force -EA SilentlyContinue }
+                    Expand-ArchiveOrFallback -ArchivePath $zin -DestinationFolder $tmpEx -Label "3D item models" `
+                        -SkipMessage "Skipped - the 3D item models were not extracted." | Out-Null
+                    $__src = Get-ChildItem -Path $tmpEx -Filter $QZD_FULLPACK_ITEMS -Recurse -EA SilentlyContinue | Select-Object -First 1
+                    if ($__src) { Copy-Item -LiteralPath $__src.FullName -Destination $itemPk3 -Force }
+                    Remove-Item $tmpEx -Recurse -Force -EA SilentlyContinue
+                } catch { Write-Warn "Could not unpack the item models: $_" }
+            } else {
+                Write-Info "Skipped the 3D item models."
+            }
+        } else {
+            Write-Info "3D item models already installed - reusing them."
+        }
+        # Append items AFTER the weapon pack so the working VR hand weapons win
+        # on any shared definition. Items are pure model swaps, so no clash.
+        if (Test-Path $itemPk3) {
+            if ($weaponsArg) { $weaponsArg = $weaponsArg + " `"mods\$QZD_FULLPACK_ITEMS`"" }
+            else             { $weaponsArg = " -file `"mods\$QZD_FULLPACK_ITEMS`"" }
+            Write-OK "3D item models enabled for $GameTitle (some items in 3D; monsters stay 2D)."
+        }
+    }
+
+    if ($c3d -eq "n") {
+        Write-Info "Skipped 3D content - default sprites."
+    }
+
+    # ---- Optional (Doom 1/2 only): HD texture pack, stacked on the above ----
+    if ($isDoom) {
+        Write-Host ""
+        Write-Host "  >>> OPTIONAL: HD TEXTURE PACK (Neural Upscale 2x) - can be" -ForegroundColor Yellow
+        Write-Host "      combined with your choice above." -ForegroundColor Yellow
+        $hd = (Read-Host "  >>> Add the HD texture pack? (Y/N)").Trim()
+        if ($hd -match '^(y|yes|j|ja)$') {
+            try { New-Item -ItemType Directory -Path $modsDir -Force -EA SilentlyContinue | Out-Null } catch {}
+            $hdpk3 = Join-Path $modsDir $QZD_HDTEX_FILE
+            if (-not (Test-Path $hdpk3)) {
+                Write-Host ""
+                Write-Host "  MANUAL STEP - the HD textures are on ModDB:" -ForegroundColor Yellow
+                Write-Host "    1. Press Enter to open the ModDB download page." -ForegroundColor Yellow
+                Write-Host "    2. Click the RED 'Download Now' button (~126 MB)." -ForegroundColor Yellow
+                Write-Host "    3. DRAG the downloaded '$QZD_HDTEX_ZIP' onto THIS window, Enter." -ForegroundColor Yellow
+                Write-Host ""
+                Read-Host "  >>> Press Enter to open the download page" | Out-Null
+                try { Start-Process $QZD_HDTEX_URL } catch {}
+                Write-Host ""
+                $hzin = (Read-Host "  Drop the .zip here (or Enter to skip)").Trim().Trim('"')
+                if ($hzin -and (Test-Path -LiteralPath $hzin)) {
+                    $htmp = Join-Path $installRoot "_hdtex_tmp"
+                    try {
+                        if (Test-Path $htmp) { Remove-Item $htmp -Recurse -Force -EA SilentlyContinue }
+                        Expand-ArchiveOrFallback -ArchivePath $hzin -DestinationFolder $htmp -Label "HD texture pack" `
+                            -SkipMessage "Skipped - the HD textures were not extracted." | Out-Null
+                        # Ignore the __MACOSX duplicate the zip ships.
+                        $hsrc = Get-ChildItem -Path $htmp -Filter $QZD_HDTEX_FILE -Recurse -EA SilentlyContinue |
+                                Where-Object { $_.FullName -notmatch '__MACOSX' } | Select-Object -First 1
+                        if ($hsrc) { Copy-Item -LiteralPath $hsrc.FullName -Destination $hdpk3 -Force }
+                        Remove-Item $htmp -Recurse -Force -EA SilentlyContinue
+                    } catch { Write-Warn "Could not unpack the HD textures: $_" }
+                } else {
+                    Write-Info "Skipped the HD texture pack."
+                }
+            } else {
+                Write-Info "HD texture pack already installed - reusing it."
+            }
+            if (Test-Path $hdpk3) {
+                # Append to the SAME -file list (or start one if nothing else chosen).
+                if ($weaponsArg) { $weaponsArg = $weaponsArg + " `"mods\$QZD_HDTEX_FILE`"" }
+                else { $weaponsArg = " -file `"mods\$QZD_HDTEX_FILE`"" }
+                Write-OK "HD texture pack enabled for $GameTitle."
+            }
+        }
+    }
+
     $batPath = Join-Path $installRoot $BatLabel
     $iwadRel = "wads\$WadName"
-    $sharedArgs = "-iwad `"$iwadRel`" +vr_mode 10"
+    $sharedArgs = "-iwad `"$iwadRel`" +vr_mode 10$weaponsArg"
 
     $batLines = @(
         '@echo off'
         'cd /d "%~dp0"'
-        'gzdoomvr.exe ^'
-        "  -iwad `"$iwadRel`" ^"
-        '  +vr_mode 10'
+        "gzdoomvr.exe -iwad `"$iwadRel`" +vr_mode 10$weaponsArg"
     )
     Set-Content -Path $batPath -Value $batLines -Encoding ASCII
     Write-Info "Launcher (fallback): $batPath"
+
+    # Record the FULL launch args (iwad + vr_mode + any 3D-mod -file entries)
+    # so the Hub's "Start in VR" button launches with the exact same mods as
+    # the desktop shortcut. Without this, Start-in-VR used only the catalog's
+    # static LaunchArgs (iwad + vr_mode, NO -file), so weapon/3D mods loaded
+    # from the shortcut but NOT from Start-in-VR.
+    #
+    # Keyed by WadName because every GZDoomVR game shares this one install
+    # folder - a single .vrlaunchargs would let the last-installed game's args
+    # clobber the others. Start-GameInVR resolves the same per-WAD file.
+    try {
+        $__argKey = ($WadName -replace '[^A-Za-z0-9]', '_')
+        Set-Content -Path (Join-Path $installRoot ".vrlaunchargs_$__argKey") -Value $sharedArgs -Encoding UTF8 -Force
+    } catch {}
 
     # Record install path for the post-install VR-Ready refresh. Keyed by
     # title (.installed_path_<safeTitle>) because every GZDoomVR game shares

@@ -287,7 +287,7 @@ $xaml = @"
                         BorderThickness="1" BorderBrush="#0fffffff"
                         Background="#000000" Cursor="Hand">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="18" Height="18" Margin="0,0,7,0" VerticalAlignment="Center">
+                        <Viewbox Width="18" Height="18" Margin="11,0,7,0" VerticalAlignment="Center">
                             <Path Data="M8 8.7C5.3 8.7 3.9 10.7 3.3 13.8C2.9 16.1 4 17.6 5.7 17.6C7 17.6 7.6 16.5 8.5 16.1L15.5 16.1C16.4 16.5 17 17.6 18.3 17.6C20 17.6 21.1 16.1 20.7 13.8C20.1 10.7 18.7 8.7 16 8.7Z M6.4 11.6L6.4 14 M5.2 12.8L7.6 12.8 M14.7 11.7A1 1 0 1 1 16.7 11.7A1 1 0 1 1 14.7 11.7Z M16.5 13.3A1 1 0 1 1 18.5 13.3A1 1 0 1 1 16.5 13.3Z" Stroke="#dd6600" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
                         </Viewbox>
                         <TextBlock Text="Gamepad" FontSize="13" FontWeight="SemiBold"
@@ -761,7 +761,11 @@ $xaml = @"
                             <TextBlock Text="Custom Installers" x:Name="HeaderGPTitle"
                                        FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" FontFamily="Segoe UI" VerticalAlignment="Center"/>
-                            <Viewbox Width="18" Height="18" Margin="11,0,7,0" VerticalAlignment="Center">
+                            <Viewbox x:Name="HeaderGPMotionIcon" Width="16" Height="16" Margin="11,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                <Path Data="M7.7 8.2A4.3 2.2 0 1 1 16.3 8.2A4.3 2.2 0 1 1 7.7 8.2Z M12 9.8C10.8 9.8 10.2 10.9 10.3 12.1L10.9 17.6C11 18.8 11.2 19.4 12 19.4C12.8 19.4 13 18.8 13.1 17.6L13.7 12.1C13.8 10.9 13.2 9.8 12 9.8Z M11.1 11A0.9 0.9 0 1 1 12.9 11A0.9 0.9 0 1 1 11.1 11Z" Stroke="#44cc66" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
+                            </Viewbox>
+                            <TextBlock x:Name="HeaderGPEq" Text="=" Visibility="Collapsed" FontSize="14" FontWeight="Bold" Foreground="White" FontFamily="Segoe UI" VerticalAlignment="Center" Margin="5,0,5,0"/>
+                            <Viewbox x:Name="HeaderGPGamepadIcon" Width="18" Height="18" Margin="11,0,7,0" VerticalAlignment="Center">
                             <Path Data="M8 8.7C5.3 8.7 3.9 10.7 3.3 13.8C2.9 16.1 4 17.6 5.7 17.6C7 17.6 7.6 16.5 8.5 16.1L15.5 16.1C16.4 16.5 17 17.6 18.3 17.6C20 17.6 21.1 16.1 20.7 13.8C20.1 10.7 18.7 8.7 16 8.7Z M6.4 11.6L6.4 14 M5.2 12.8L7.6 12.8 M14.7 11.7A1 1 0 1 1 16.7 11.7A1 1 0 1 1 14.7 11.7Z M16.5 13.3A1 1 0 1 1 18.5 13.3A1 1 0 1 1 16.5 13.3Z" Stroke="#dd6600" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
                         </Viewbox>
                             <TextBlock Text="Gamepad controls" x:Name="HeaderGPKind"
@@ -1326,7 +1330,7 @@ try {
         ($aidM.GetMethodImplementationFlags() -bor [System.Reflection.MethodImplAttributes]::PreserveSig))
     $aidReady = $aidType.CreateType()
     [void]$aidReady.GetMethod("SetCurrentProcessExplicitAppUserModelID").Invoke(
-        $null, @("MrNIce.PCVRModsHub.0.8.2.7"))
+        $null, @("MrNIce.PCVRModsHub.$HUB_VERSION"))
 } catch {}
 
 # Set the title-bar icon. Without this WPF inherits the host
@@ -1441,7 +1445,7 @@ public static class PCVRWinAppId {
 }
 '@
                 }
-                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.0.8.2.7")
+                [PCVRWinAppId]::Set($hCon, "MrNIce.PCVRModsHub.$HUB_VERSION")
             } catch {}
         }
     } catch {}
@@ -3551,6 +3555,10 @@ function global:Add-BannerEffect {
         "blobtoxic"  { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#8aff3a","#34e07a","#c8ff2e","#2ee0a0") }
         "blobice"    { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#8ad8ff","#4db8ff","#a0e8ff","#5de0e0") }
         "blobviolet" { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#c850ff","#8a5cff","#ff5fd0","#6a4dff") }
+        "blobmidnight" { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#3a5cff","#6a4dff","#2a8aff","#4d5cff") }
+        "blobamber"    { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#ffb020","#2ab0ff","#ffd24d","#3a8add") }
+        "blobrose"     { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#ff5f8a","#ff8fb0","#ff4d6a","#ffa0c0") }
+        "blobforest"   { Add-BannerBlobs -BannerName $BannerName -BannerH $BannerH -Palette @("#34d399","#a0e04d","#2ab08a","#c8ff6a") }
         "stripes"   { Add-BannerStripes   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "twinkle"   { Add-BannerTwinkle   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "rain"      { Add-BannerRain      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3560,6 +3568,10 @@ function global:Add-BannerEffect {
         "bokehember"  { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ff4d2e","#ff8a1e","#ffd24d","#e0341e") }
         "bokehtoxic"  { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#8aff3a","#34e07a","#c8ff2e","#2ee0a0") }
         "bokehviolet" { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#c850ff","#8a5cff","#ff5fd0","#6a4dff") }
+        "bokehmidnight" { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#3a5cff","#6a4dff","#2a8aff","#4d5cff") }
+        "bokehgold"     { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ffcf4d","#8a5cff","#ffe08a","#6a4dff") }
+        "bokehmint"     { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#4de0c0","#8affd0","#2ec0a0","#a0ffe0") }
+        "bokehcoral"    { Add-BannerBokeh -BannerName $BannerName -BannerH $BannerH -Palette @("#ff6a4d","#ff9a3d","#ffd24d","#ff4d7a") }
         "shards"    { Add-BannerShards    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "waves"     { Add-BannerWaves     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "rays"      { Add-BannerRays      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3658,7 +3670,7 @@ function global:Invoke-ListLibBannerRotation {
 # NOT in here: it is the one theme-specific effect, so it only appears
 # for futuristic / techy games via Get-BannerFxFor (below). Every other
 # effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
+$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","blobmidnight","blobamber","blobrose","blobforest","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","bokehmidnight","bokehgold","bokehmint","bokehcoral","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).
@@ -3941,6 +3953,8 @@ foreach ($game in $externalGames) {
 # Section-header mod counts (Custom Installers split by control type + External).
 try {
     $hmcSub = $window.FindName("HeaderMCSub"); if ($hmcSub) { $hmcSub.Text = "$(@($ownGames).Count) mods" }
+    $global:HubGPCount   = @($ownGamesGP).Count
+    $global:HubVRGPCount = @($ownGamesGP | Where-Object { $_.Controls -eq "VRGP" }).Count
     $hgpSub = $window.FindName("HeaderGPSub"); if ($hgpSub) { $hgpSub.Text = "$(@($ownGamesGP).Count) mods" }
     $hexC   = $window.FindName("HeaderExtCount"); if ($hexC) { $hexC.Text = "$(@($externalGames).Count) mods" }
 } catch {}

@@ -134,6 +134,24 @@ if (-not $gamePath) {
 }
 
 # -------------------------------------------------------
+# Already installed? Offer Update vs Reinstall
+# -------------------------------------------------------
+$updateMode = $false
+$modProbe    = Join-Path $gamePath "BepInEx\plugins\7daysVR.dll"
+$loaderProbe = Join-Path $gamePath "winhttp.dll"
+if ((Test-Path $modProbe) -or (Test-Path $loaderProbe)) {
+ Write-Host ""
+ Write-Host " This 7 Days to Die already has the VR mod installed." -ForegroundColor Cyan
+ Write-Host " [U] Update    - grab the newer version from Nexus and replace the mod" -ForegroundColor White
+ Write-Host " [R] Reinstall - set everything up again from scratch" -ForegroundColor White
+ Write-Host ""
+ $uAns = ""
+ while ($uAns -notin @("U","R")) { $uAns = (Read-Host " Enter U or R").Trim().ToUpper() }
+ if ($uAns -eq "U") { $updateMode = $true; Write-OK "Update mode - your saves and settings stay; only the mod is replaced." }
+ else { Write-Info "Reinstalling from scratch." }
+}
+
+# -------------------------------------------------------
 # STEP 2: Download the mod from Nexus
 # -------------------------------------------------------
 Write-Step 2 5 "Download 7DaysVR from Nexus Mods"
@@ -239,6 +257,9 @@ try { Remove-Item $tempDir -Recurse -Force } catch {}
 # -------------------------------------------------------
 Write-Step 4 5 "Disabling EasyAntiCheat"
 
+if ($updateMode) {
+ Write-Info "Update mode - EasyAntiCheat was already disabled during your first install; skipping."
+} else {
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
 Write-Host " ACTION REQUIRED - Disable EasyAntiCheat" -ForegroundColor Yellow
@@ -262,6 +283,7 @@ if (Test-Path $launcherPath) {
 } else {
  Write-Warn "7dLauncher.exe not found at: $launcherPath"
  Write-Info "You may need to disable EAC manually from the launcher in the game folder."
+}
 }
 
 # -------------------------------------------------------

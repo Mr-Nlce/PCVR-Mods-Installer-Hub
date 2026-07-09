@@ -79,7 +79,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.2.7"
+$HUB_VERSION = "0.8.2.9"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -150,6 +150,15 @@ function Get-InstalledPathFile {
     if ($isMulti) {
         $safe = ($Game.Title -replace '[^A-Za-z0-9]', '_')
         return (Join-Path $script:scriptDir (Join-Path $modFolder ".installed_path_$safe"))
+    }
+    # GZDoom family (Doom / Doom 2 / Heretic / Hexen / Strife): their catalog
+    # Bat folder is per-game (DoomVR, HereticVR, ...), but the actual installer
+    # is the SHARED QuestZDoomShared, which writes its marker to
+    # QuestZDoomShared\.installed_path_<title>. Without this the Hub looked in
+    # the wrong folder and the tile never flipped to VR Ready after install.
+    if ($modFolder -imatch '^(DoomVR|Doom2VR|HereticVR|HexenVR|StrifeVR)$') {
+        $safe = ($Game.Title -replace '[^A-Za-z0-9]', '_')
+        return (Join-Path $script:scriptDir (Join-Path 'QuestZDoomShared' ".installed_path_$safe"))
     }
     return (Join-Path $script:scriptDir (Join-Path $modFolder ".installed_path"))
 }

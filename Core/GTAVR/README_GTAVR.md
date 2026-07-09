@@ -18,8 +18,8 @@ downloaded by you from its page and dragged into the installer.
 
 ## Requirements
 
-- A working, owned **GTA V** on the current build (Steam, Epic, Rockstar
-  or Xbox/Microsoft Store) - no downgrade.
+- **GTA V Legacy** (NOT GTA V Enhanced) - Steam, Epic, Rockstar or
+  Xbox/Microsoft Store. No downgrade needed.
 - A VR headset with a working **OpenXR** runtime (gamepad mode) and
   **SteamVR / OpenVR** (motion mode).
 - A **gamepad** - R.E.A.L. is designed around it.
@@ -127,12 +127,30 @@ work-in-progress and does not always initialise in VR.
   1.0.3788.0. If GTA V later updates to a newer build, **ScriptHookV**
   and the **patcher** may need updating to match.
 
+## Optional: immersive driving (Manual Transmission)
+
+If you care about a realistic driving feel, **SanguShellz** is also reviving
+**GTA V Manual Transmission** so it runs on this same GTA V Legacy build
+(1.0.3788). It adds a manual gearbox (sequential or H-pattern), a working
+clutch, tunable driving assists (launch/traction/stability/ABS), and full
+**steering-wheel** support with force feedback and 1:1 hand-over-hand
+animations. It is **work-in-progress** and does not yet match the newest
+Patreon versions, but it is worth a look:
+
+- https://github.com/SanguShellz/GTAVManualTransmission
+- Original by ikt - https://www.patreon.com/ikt
+
+This is a separate, optional mod - the Hub does not install it.
+
 ## Support & credits
 
 - **R.E.A.L. VR mod** by Luke Ross - https://www.patreon.com/realvr
 - Project page: https://github.com/LukeRoss00/gta5-real-mod
-- **GTA-VRV-Patcher** by Francisco Manzanilla -
-  https://github.com/FranciscoManzanilla/GTA-VRV-Patcher
+- **GTA-VRV-Patcher fork** by SanguShellz - the version this Hub currently
+  pulls (more actively updated at the moment) -
+  https://github.com/SanguShellz/GTA-VRV-Patcher
+- **GTA-VRV-Patcher** originally by Francisco Manzanilla (the fork is based
+  on his work) - https://github.com/FranciscoManzanilla/GTA-VRV-Patcher
 - **ScriptHookV** by Alexander Blade - https://dev-c.com/gtav/scripthookv/
 - **GTAVR motion-controls overlay** - community mod
 

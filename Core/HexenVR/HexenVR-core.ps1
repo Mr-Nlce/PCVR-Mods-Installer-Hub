@@ -36,4 +36,4 @@ Install-QuestZDoomGame `
  -WadName "HEXEN.WAD" `
  -SteamFolders @("Hexen Beyond Heretic", "Heretic + Hexen", "Heretic Hexen", "Hexen") `
  -BatLabel "Start Hexen VR.bat" `
- -Flavor "Fighter, Cleric, Mage. Korax falls, or you do."
+ -Flavor "Fighter, Cleric, Mage. Korax falls, or you do." -IconFile "Hexen_VR.ico"

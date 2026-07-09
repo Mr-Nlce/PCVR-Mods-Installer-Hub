@@ -14,6 +14,11 @@
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
+    "name:Hytale" = "#3fb0f0"  # Hytale VR (glowing ice-blue block logo + portal cyan from the hero art)
+    "name:SuperMario64" = "#f11e05"  # Super Mario 64 VR (Mario red from the header art)
+    "name:StarFox64" = "#e7ba17"  # Star Fox 64 VR (Arwing gold/amber from the header art)
+    "steam:2416450" = "#c9a24b"  # Mouse P.I. For Hire VR (noir jazz gold, matches the tile accent)
+    "steam:2217580" = "#e85d3d"  # New Star GP VR (retro racing orange-red, matches the tile accent)
     "name:MetroidPrimeVR" = "#d98c2a"  # Metroid Prime VR (matches PrimedGun banner: gold logo + orange Varia suit)
     "steam:3527290" = "#4db4ff"  # PEAK VR (manual: bright sky blue; no cached header)
     "steam:251570" = "#e40405"  # 7 Days to Die VR

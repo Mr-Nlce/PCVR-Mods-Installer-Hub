@@ -42,6 +42,11 @@ function global:Invoke-InstallerFallback {
         [bool]$AllowSkip       = $true,
         [string]$SourceFolder  = "",
         [string]$DestFolder    = "",
+        # Full path where a dragged/pasted file should land so the
+        # caller's RetryCheck finds it. When set, the prompt becomes a
+        # simple drag-the-file-onto-the-window flow (no temp folder, no
+        # rename) - the preferred UX for every download fallback.
+        [string]$DestFile      = "",
         # Short noun phrase describing WHAT the automated step was
         # trying to do (e.g. "the PeakVersionBypass ZIP", "BepInEx").
         # Used to generate a clear "What happened?" line. Falls back
@@ -60,7 +65,7 @@ function global:Invoke-InstallerFallback {
     Write-Host ""
     Write-Host "  What happened?" -ForegroundColor White
     Write-Host "  Unfortunately, the automated download of $subjectText is currently not possible." -ForegroundColor Gray
-    if ($Instructions) {
+    if ($Instructions -and -not $DestFile) {
         Write-Host ""
         Write-Host "  Note:" -ForegroundColor White
         # We render Instructions across several lines instead of one
@@ -135,7 +140,11 @@ function global:Invoke-InstallerFallback {
         try { Start-Process $Url -ErrorAction SilentlyContinue | Out-Null } catch { }
         $stepNum++
     }
-    if ($DestFolder -and (Test-Path $DestFolder)) {
+    if ($DestFile) {
+        Write-Host "    $stepNum. DRAG the downloaded file onto THIS window, then press Enter." -ForegroundColor White
+        Write-Host "       (or paste its full path and press Enter - no renaming needed)" -ForegroundColor DarkGray
+        $stepNum++
+    } elseif ($DestFolder -and (Test-Path $DestFolder)) {
         Write-Host "    $stepNum. Put the file in this folder (should be opened now in Explorer):" -ForegroundColor Gray
         Write-Host "       $DestFolder" -ForegroundColor Cyan
         try { Start-Process explorer.exe "`"$DestFolder`"" -EA SilentlyContinue | Out-Null } catch { }
@@ -154,7 +163,7 @@ function global:Invoke-InstallerFallback {
         Write-Host "       Source folder (in case you need to copy from here):" -ForegroundColor DarkGray
         Write-Host "       $SourceFolder" -ForegroundColor Cyan
     }
-    Write-Host "    $stepNum. Come back here and choose [R]etry." -ForegroundColor Gray
+    if (-not $DestFile) { Write-Host "    $stepNum. Come back here and choose [R]etry." -ForegroundColor Gray }
 
     while ($true) {
         Write-Host ""
@@ -167,7 +176,27 @@ function global:Invoke-InstallerFallback {
             Write-Host "    [O]pen   -  Reopen the folder in Explorer" -ForegroundColor Yellow
         }
         Write-Host "    [Q]uit   -  Stop the installer" -ForegroundColor Yellow
-        $c = (Read-Host "  Your choice").Trim().ToLower()
+        $__prompt = if ($DestFile) { "  Drop the file here (or type R/S/Q)" } else { "  Your choice" }
+        $raw = (Read-Host $__prompt).Trim()
+        if ($DestFile -and $raw) {
+            $cand = $raw.Trim('"').Trim("'")
+            if ((Test-Path -LiteralPath $cand -PathType Leaf -ErrorAction SilentlyContinue)) {
+                try {
+                    Copy-Item -LiteralPath $cand -Destination $DestFile -Force -ErrorAction Stop
+                    Write-Host "  [OK] Got it - using that file." -ForegroundColor Green
+                    if ($RetryCheck) {
+                        try { if (& $RetryCheck) { return "retry" } } catch {}
+                        Write-Host "  [!!] That file did not pass the check - try another." -ForegroundColor Yellow
+                        continue
+                    }
+                    return "retry"
+                } catch {
+                    Write-Host "  [!!] Could not use that file: $($_.Exception.Message)" -ForegroundColor Yellow
+                    continue
+                }
+            }
+        }
+        $c = $raw.ToLower()
         if ($c -eq "r") {
             if ($RetryCheck) {
                 try {
@@ -351,7 +380,8 @@ function global:Invoke-SafeDownload {
             -Url $ManualUrl `
             -Instructions $Instructions `
             -SkipMessage $SkipMessage `
-            -DestFolder $destFolderForFallback
+            -DestFolder $destFolderForFallback `
+            -DestFile $Destination
     return $r
 }
 

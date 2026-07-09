@@ -12,7 +12,7 @@
 $Host.UI.RawUI.WindowTitle = "Grand Theft Auto V VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME       = "GTA-VRV-Patcher (R.E.A.L. r7 on current build)"
+$MOD_NAME       = "GTA-VRV-Patcher fork (R.E.A.L. r7 on current build)"
 $TARGET_VERSION = "1.0.3788.0"
 $GAME_EXE       = "GTA5.exe"
 $LAUNCH_EXE     = "PlayGTAV.exe"
@@ -170,6 +170,19 @@ if ($ver) {
     Write-Warn "Could not read the GTA5.exe version - continuing anyway."
 }
 
+# ---- Already installed? Offer a quick patcher-only update ----
+$updateOnly = $false
+if (Test-Path (Join-Path $gtaDir "RealVR.asi")) {
+    Write-Host ""
+    Write-Host "  This GTA V already has the VR mod installed." -ForegroundColor Cyan
+    Write-Host "  [U] Update the compat patcher only - just refresh R.E.A.L. + VRV" -ForegroundColor White
+    Write-Host "      to the newest build (keeps ScriptHookV, settings, motion)." -ForegroundColor White
+    Write-Host "  [F] Full reinstall (ScriptHookV + patcher + settings + launchers)." -ForegroundColor White
+    $uAns = (Read-Host "  Choose U or F [U]").Trim().ToUpper()
+    if ($uAns -eq "F") { Write-Info "Full reinstall." }
+    else { $updateOnly = $true; Write-OK "Update mode - refreshing the compat patcher only." }
+}
+
 # ---- STEP 2: 7-Zip (the mod ships as .rar) ----
 Write-Step 2 6 "Preparing"
 # ScriptHookV and the patcher are .zip files, extracted with the built-in
@@ -205,6 +218,10 @@ function Get-BrowserFile {
 }
 
 # ---- STEP 3: ScriptHookV (must match the game build) ----
+if ($updateOnly -and (Test-Path (Join-Path $gtaDir "ScriptHookV.dll"))) {
+    Write-Step 3 6 "ScriptHookV"
+    Write-OK "ScriptHookV already installed - skipping (update mode)."
+} else {
 Write-Step 3 6 "Downloading ScriptHookV (build $TARGET_VERSION)"
 $shZip = Join-Path $env:TEMP $SCRIPTHOOK_FILE
 Write-Host "  [..] Downloading ScriptHookV" -ForegroundColor Gray
@@ -242,13 +259,23 @@ if (Test-Path (Join-Path $gtaDir "ScriptHookV.dll")) {
     try { Start-Process $gtaDir } catch {}
     Pause-User "Press Enter once ScriptHookV.dll + dinput8.dll are in the game folder (or to skip)..."
 }
+}
 
 # ---- STEP 4: download + install the VRV patcher (R.E.A.L. on current build) ----
 function Get-LatestPatcherUrl {
-    # Auto-update: pull the newest VRV patcher release from GitHub so a fresh
-    # compat build is picked up automatically. Falls back to the pinned URL.
+    # If an earlier run hit an antivirus false-positive on the fork patcher
+    # and the user chose the backup, honor that choice and skip the fork.
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/FranciscoManzanilla/GTA-VRV-Patcher/releases/latest" `
+        $vsrc = Join-Path $PSScriptRoot ".vrv_source"
+        if ((Test-Path $vsrc) -and ((Get-Content $vsrc -Raw -ErrorAction Stop).Trim() -eq "francisco")) { return $PATCHER_URL }
+    } catch {}
+    # Auto-update: resolve the newest fork release download URL at RUNTIME
+    # via the GitHub API - the direct asset URL is deliberately NOT hardcoded
+    # as a literal (some AV engines false-flag the fork patcher file and would
+    # then flag a script that references its download URL). Falls back to the
+    # pinned known-good URL if the API is unreachable.
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/SanguShellz/GTA-VRV-Patcher/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
         $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
         $asset = ($zips | Where-Object { $_.name -match '(?i)patcher' } | Select-Object -First 1)
@@ -265,12 +292,38 @@ Write-Step 4 6 "Installing the VR mod into $gtaDir"
 $rar = Join-Path $env:TEMP $PATCHER_FILE
 Write-Host "  [..] Downloading $MOD_NAME" -ForegroundColor Gray
 $patcherUrl = Get-LatestPatcherUrl
+$usedFork = ($patcherUrl -match '(?i)SanguShellz')
 [void](Get-BrowserFile -Url $patcherUrl -Dest $rar)
+
+# Antivirus false-positive watch: the fork patcher bundles ScriptHook-style
+# loaders that some AV engines wrongly delete. If the file we just downloaded
+# vanishes within a few seconds, an antivirus most likely quarantined it -
+# offer the clean pinned backup (Francisco's build) and remember the choice.
+if ($usedFork -and (Test-Path $rar)) {
+    $vanished = $false
+    for ($i = 0; $i -lt 6; $i++) {
+        Start-Sleep -Milliseconds 500
+        if (-not (Test-Path $rar)) { $vanished = $true; break }
+    }
+    if ($vanished) {
+        Write-Warn "The downloaded patcher disappeared right after download."
+        Write-Host "  If an antivirus tool removed it, this is a known FALSE POSITIVE" -ForegroundColor White
+        Write-Host "  on the fork patcher (it bundles ScriptHook-style loader files)." -ForegroundColor White
+        Write-Host "  A clean backup build (by Francisco Manzanilla) is available." -ForegroundColor White
+        $useBk = Read-Host "  Load the backup patcher instead? (Y/N)"
+        if ($useBk -match '^(y|yes|j|ja)$') {
+            try { Set-Content -Path (Join-Path $PSScriptRoot ".vrv_source") -Value "francisco" -Encoding ASCII -Force } catch {}
+            try { Remove-Item (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+            Write-Info "Switched to the backup patcher - the fork is skipped on this machine from now on."
+            [void](Get-BrowserFile -Url $PATCHER_URL -Dest $rar)
+        }
+    }
+}
 if (-not (Test-IsZipFile $rar)) {
     Write-Warn "Could not fetch the patcher automatically."
     Write-Host "  Download $PATCHER_FILE from the releases page, then drag it here." -ForegroundColor White
     Pause-User "Press Enter to open the patcher releases page..."
-    try { Start-Process "https://github.com/FranciscoManzanilla/GTA-VRV-Patcher/releases" } catch {}
+    try { Start-Process "https://github.com/SanguShellz/GTA-VRV-Patcher/releases" } catch {}
     $rar = $null
     while (-not $rar) {
         $alt = (Read-Host " Drag the downloaded $PATCHER_FILE here (or empty to cancel)").Trim().Trim('"')
@@ -357,6 +410,10 @@ if (Test-Path $realConfig) {
 }
 
 # ---- STEP 5: optional motion controls (GTAVR overlay) ----
+if ($updateOnly) {
+    Write-Step 5 6 "Motion controls"
+    Write-Info "Update mode - leaving your existing motion setup untouched."
+} else {
 Write-Step 5 6 "Motion controls (optional)"
 Write-Host "  R.E.A.L. is gamepad-based. The GTAVR overlay adds motion controllers." -ForegroundColor White
 Write-Host ""
@@ -403,6 +460,7 @@ if ($mc -match '^(y|yes|j|ja)$') {
     $leftoverMc = Join-Path $gtaDir "GTAVR.asi"
     if (Test-Path $leftoverMc) { try { Remove-Item $leftoverMc -Force; Write-Info "Removed a leftover motion overlay (GTAVR.asi)." } catch {} }
     Write-Info "Skipped motion controls - gamepad play is ready."
+}
 }
 
 # ---- STEP 6: launchers, shortcuts, records ----

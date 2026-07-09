@@ -36,4 +36,4 @@ Install-QuestZDoomGame `
  -WadName "strife1.wad" `
  -SteamFolders @("Strife", "Strife Veteran Edition") `
  -BatLabel "Start Strife VR.bat" `
- -Flavor "Join the Front. Topple the Order."
+ -Flavor "Join the Front. Topple the Order." -IconFile "Strife_VR.ico"
