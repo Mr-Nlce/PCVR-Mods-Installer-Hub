@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (183)</summary>
+<summary>Show all currently listed titles (188)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -102,6 +102,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
 * Hypogea
+* Hytale VR (WIP) (motion controls)
 * I Can Gun VR (motion controls)
 * Indiana Jones: Great Circle
 * Iron Lung VR (motion controls)
@@ -123,7 +124,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Moros Protocol VR (motion controls)
 * Morrowind VR (motion controls)
 * Moto Rush Reborn VR (motion controls)
+* MOUSE: P.I. For Hire VR (motion controls)
 * Neon White VR (motion controls)
+* New Star GP
 * No One Lives Forever 2
 * Nuclear Option
 * Onimusha 2: Samurai's Destiny
@@ -175,12 +178,14 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Star Wars Outlaws
 * Star Wars - X-Wing SE VR
 * Starfield VR
+* Starfox 64 VR
 * Stray
 * Street Fighter 6
 * StreetDog BMX
 * Strife (motion controls)
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
+* Super Mario 64 Coop VR
 * Sunrise GP VR
 * Super Polygon Grand Prix
 * Techtonica (motion controls)
@@ -295,7 +300,7 @@ On first launch, a desktop shortcut `VR mods Hub` will automatically be created 
 
 ---
 
-# Why It Is Powershell and Batch-Based
+# Why it is Powershell and Batch-Based
 
 The Hub is batch-based for multiple reasons.
 
