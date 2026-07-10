@@ -287,7 +287,7 @@ $xaml = @"
                         BorderThickness="1" BorderBrush="#0fffffff"
                         Background="#000000" Cursor="Hand">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="18" Height="18" Margin="11,0,7,0" VerticalAlignment="Center">
+                        <Viewbox Width="18" Height="18" Margin="11,0,10,0" VerticalAlignment="Center">
                             <Path Data="M8 8.7C5.3 8.7 3.9 10.7 3.3 13.8C2.9 16.1 4 17.6 5.7 17.6C7 17.6 7.6 16.5 8.5 16.1L15.5 16.1C16.4 16.5 17 17.6 18.3 17.6C20 17.6 21.1 16.1 20.7 13.8C20.1 10.7 18.7 8.7 16 8.7Z M6.4 11.6L6.4 14 M5.2 12.8L7.6 12.8 M14.7 11.7A1 1 0 1 1 16.7 11.7A1 1 0 1 1 14.7 11.7Z M16.5 13.3A1 1 0 1 1 18.5 13.3A1 1 0 1 1 16.5 13.3Z" Stroke="#dd6600" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
                         </Viewbox>
                         <TextBlock Text="Gamepad" FontSize="13" FontWeight="SemiBold"

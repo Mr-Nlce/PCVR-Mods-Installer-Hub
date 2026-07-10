@@ -38,7 +38,7 @@ $ownGames = @(
         # out if not elevated. The Hub triggers UAC for this one
         # game; all others launch normally.
         RequiresAdmin = $true
-        Tags=@("alien isolation", "alien", "mothervr", "grand", "atmospheric", "horror", "stealth", "survival horror")
+        Tags=@("alien isolation", "alien", "mothervr", "grand", "atmospheric", "horror", "stealth", "survival horror", "auto-updates")
     },
     @{
         Controls    = "MC"
@@ -1991,8 +1991,8 @@ $externalGames = @(
         Pill        = "HLVR"
         SteamId     = "1908720"
         ReadmeDir   = "HalfLifeVR"
-        Mod         = "Free standalone on Steam"
-        Description = "Free standalone mod on Steam"
+        Mod         = "Standalone Mod on Steam"
+        Description = "Owning Half-Life is required."
         Author      = "Max Vollmer"
         SupportUrl  = "https://ko-fi.com/maxmakesmods"
         SupportText = "Max Vollmer (Max Makes Mods) develops Half-Life VR. If you enjoy it, consider supporting him:"
@@ -2011,7 +2011,7 @@ $externalGames = @(
         SteamId     = "658920"
         ReadmeDir   = "HalfLife2VR"
         Mod         = "HL2VR Mod"
-        Description = "Free standalone mod on Steam"
+        Description = "Owning HL2 is required."
         Author      = "fholger"
         SupportUrl  = "https://ko-fi.com/fholger"
         SupportText = "fholger maintains these PC VR mods. If you enjoy them, consider supporting him:"
@@ -2037,7 +2037,7 @@ $externalGames = @(
         SteamId     = "2177750"
         ReadmeDir   = "HL2VREpOne"
         Mod         = "HL2VR Episode One"
-        Description = "Free standalone mod on Steam"
+        Description = "Owning HL2 Ep.1 is required."
         Author      = "fholger"
         SupportUrl  = "https://ko-fi.com/fholger"
         SupportText = "fholger maintains these PC VR mods. If you enjoy them, consider supporting him:"
@@ -2062,7 +2062,7 @@ $externalGames = @(
         SteamId     = "2177760"
         ReadmeDir   = "HL2VREpTwo"
         Mod         = "HL2VR Episode Two"
-        Description = "Free standalone mod on Steam"
+        Description = "Owning HL2 Ep.2 is required."
         Author      = "fholger"
         SupportUrl  = "https://ko-fi.com/fholger"
         SupportText = "fholger maintains these PC VR mods. If you enjoy them, consider supporting him:"

@@ -3565,6 +3565,11 @@ function global:Show-DiscoverDetail {
     $hasAutoUpdate = $false
     if ($Game.Mod -and ($Game.Mod -match '(?i)auto[- ]update' -or $Game.Mod -match '(?i)REF-nightly')) {
         $hasAutoUpdate = $true
+    } elseif ($Game.Author -and $Game.Author -match '(?i)\(auto[- ]updates?\)') {
+        # Some entries (e.g. Alien: Isolation) carry the marker in Author
+        # instead of Mod, because the tile shows it on the author line for
+        # space reasons. Honour it here too so the pill is consistent.
+        $hasAutoUpdate = $true
     } elseif ($Game.GitHubNightly) {
         $hasAutoUpdate = $true
     }
@@ -3728,7 +3733,15 @@ function global:Show-DiscoverDetail {
             $authLbl.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authCol.Children.Add($authLbl) | Out-Null
             $authVal = New-Object System.Windows.Controls.TextBlock
-            $authVal.Text = $Game.Author
+            # The catalog stores a leading "(auto-updates)" marker in Author so
+            # the TILE can show it on its own line (space-constrained there).
+            # On the detail page that marker does not belong in "Created by" -
+            # strip it here and show only the real modder name(s). The mod
+            # value already carries the auto-update meaning, and the entry also
+            # has an "auto-updates" search tag.
+            $authClean = $Game.Author
+            if ($authClean -match '^\s*\(auto-updates?\)\s*(.*)$') { $authClean = $matches[1] }
+            $authVal.Text = $authClean
             $authVal.FontSize = 13
             $authVal.FontWeight = [System.Windows.FontWeights]::Medium
             $authVal.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dddddd")

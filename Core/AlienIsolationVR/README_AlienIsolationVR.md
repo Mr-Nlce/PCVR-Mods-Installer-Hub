@@ -60,6 +60,8 @@ bugs still.
 
 ## Controls
 
+![Controls](../Assets/AlienIsolation_controls.jpg)
+
 - **Recenter:** [[Left Grip]] + [[Right Grip]] (still occasionally needed after
   certain animations)
 - **Flashlight:** hold the right controller near your headset and press

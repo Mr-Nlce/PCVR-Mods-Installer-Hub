@@ -7,6 +7,11 @@
 # launcher console closes right after (the batch ends), so nothing
 # lingers in the foreground. The Hub runs in its own minimized console.
 
+# The banner rules, progress circles and star use non-ASCII glyphs
+# (U+2550, U+25CF, U+00B7, U+2605). Force UTF-8 output so Windows Terminal
+# and conhost render them instead of "?" boxes. Best-effort.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
+
 $readyFlag = Join-Path $env:TEMP "PCVRHub_ready.flag"
 $lastFile  = Join-Path $env:TEMP "PCVRHub_lastload.txt"
 
@@ -27,7 +32,7 @@ try {
 # Mod count shown in the {N} hints - the real VR-mod tally. Tools and
 # external tool entries are deliberately NOT counted, so an auto-count of
 # catalog entries reads high. Bump this when the real number changes.
-$tileCount = 187
+$tileCount = 188
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -87,43 +92,88 @@ $hints = @(
     "A Needs Mod card is one guided install from ready.",
     "Each game gets its own page, art and all.",
     "The Hub spots updates in the background. Installing is your call.",
-    "Hover VR Ready and it flips to Start in VR. Hit it, the card sweeps you in."
+    "Hover VR Ready and it flips to Start in VR. Hit it, the card sweeps you in.",
+    "Steam, GOG or Epic - the scan knows all three homes.",
+    "Some mods keep themselves current. Those cards wear an AUTO-UPDATE pill.",
+    "A download died? Drag the file onto the installer window and carry on. That's the whole fix.",
+    "Reinstalling keeps your saves and ROMs - set aside, put back, like nothing happened.",
+    "Search speaks tags: try 'horror', 'racing' or your favourite modder's name.",
+    "Every card carries a power tier, so your GPU knows what it's signing up for.",
+    "Motion controllers posing as a gamepad? They are marked, you decide if you are interested.",
+    "One framework covers a dozen Capcom titles - the Hub keeps them straight.",
+    "A blue add-on banner means optional extra content, one click deeper.",
+    "Slow mirror tonight? The check finishes in the background and shows the results with the next scan.",
+    "Your ROMs stay on your PC. The Hub reads them, never phones them home.",
+    "Artwork caches after the first look - the shelf only gets faster.",
+    "Some entries hand you to the modder's own page - the Hub knows when to step aside.",
+    "If available, controller art is on the game page - learn the buttons before the headset goes on.",
+    "Stuck at a prompt? R retries, S skips, O reopens. No dead ends in here.",
+    "Every installer ends on a one-liner. Some of them are almost good.",
+    "These hints rotate. Keep restarting and you'll collect the set.",
+    "Explore sorts by genre rows - scroll sideways, fall down the rabbit hole.",
+    "The scan is quick by design: disk first, online second, freeze never.",
+    "Update badges land on the tile itself - no digging, no changelog spelunking.",
+    "More great VR games in here than Pokemon in Gen 1. Gotta mod 'em all.",
+    "{N} entries. Roll for initiative on your next install.",
+    "It's dangerous to go alone. Take {N} VR games.",
+    "Another game needs your VR mod.",
+    "I used to play flat, then I took a headset to the face.",
+    "I am sworn to carry your mod files.",
+    "Hey, you. You're finally VR."
 )
 $flavor = ($hints | Get-Random) -replace '\{N\}', $tileCount
 
-$ruleLen = 60
-$rule    = '=' * $ruleLen
-Write-Host ""
-Write-Host ("  " + $rule) -ForegroundColor Magenta
-Write-Host "    PCVR Mods Installer Hub starts ..." -ForegroundColor White
-Write-Host ("  " + $rule) -ForegroundColor Magenta
-Write-Host ""
+# Console width for centering. WindowWidth IS readable here (unlike window
+# position/size), so we center against it; on any failure we fall back to a
+# sane default and everything still renders, just left-of-centre.
+$conW = 100
+try { $cw = [Console]::WindowWidth; if ($cw -ge 40 -and $cw -le 400) { $conW = $cw } } catch { }
 
-# Bar sits just under the banner. Remember its absolute row so the loop
-# can redraw the bar in place while the boxed hint stays put below it.
-$barRow = [Console]::CursorTop
-Write-Host ""   # bar row (painted in the loop)
-
-# Push the hint box clearly lower than the bar so the two read as
-# separate zones (loading up top, the tip framed below).
-Write-Host ""   # gap
-Write-Host ""   # gap
-Write-Host ""   # gap
-Write-Host ""   # gap
-Write-Host ""   # gap
-Write-Host ""   # gap
-Write-Host ""   # gap
+# Center a single line by padding it with leading spaces. Never returns a
+# negative pad (a line wider than the console just starts at column 0).
+function Center-Line([string]$text, [int]$width) {
+    $pad = [int](($width - $text.Length) / 2)
+    if ($pad -lt 0) { $pad = 0 }
+    return (" " * $pad) + $text
+}
 
 try { [Console]::CursorVisible = $false } catch { }
 
-# --- Boxed loading hint -----------------------------------------------
-# The tip is framed in an ASCII box with "HINT" inset in the top rule and
-# wrapped to at most two lines, so the right wall always lines up. The
-# frame is drawn ONCE; the loop repaints only the inner text region (from
-# $hintCol across $bw chars), so the border never flickers or shifts.
-$boxIndent = "    "          # 4 spaces - left edge sits under the bar
-$bw        = 54              # inner text width (box outer width = bw + 4)
-$hintCol   = $boxIndent.Length + 2   # text starts just past "| "
+# Banner: letter-spaced title with solid double-line rules above/below,
+# all centered. The rule width tracks the title so they frame it evenly.
+$titleText = "PCVR  MODS  INSTALLER  HUB"
+$ruleLen   = $titleText.Length + 6
+$rule      = [string][char]0x2550 * $ruleLen        # U+2550 solid double line
+Write-Host ""
+Write-Host ""
+Write-Host (Center-Line $rule $conW) -ForegroundColor Magenta
+Write-Host (Center-Line $titleText $conW) -ForegroundColor White
+Write-Host (Center-Line $rule $conW) -ForegroundColor Magenta
+Write-Host ""
+Write-Host ""
+
+# Bar sits just under the banner. Remember its absolute row so the loop
+# can redraw the bar in place while the hint stays put below it.
+$barRow = [Console]::CursorTop
+Write-Host ""   # bar row (painted in the loop)
+
+# Gap between the bar and the hint line below it.
+Write-Host ""   # gap
+Write-Host ""   # gap
+Write-Host ""   # gap
+
+# --- Centered loading hint box ----------------------------------------
+# The tip is framed in an ASCII box with "HINT" inset in the top rule,
+# wrapped to at most two lines. The whole box is centered under the bar
+# (indented by $boxLeft so its midpoint matches the console midpoint) and
+# sits a few lines below the bar. The frame is drawn ONCE; the loop
+# repaints only the inner text region so the border never flickers.
+$bw       = 54                                  # inner text width
+$boxOuter = $bw + 4                             # full box width incl. walls
+$boxLeft  = [int](($conW - $boxOuter) / 2)      # centered indent
+if ($boxLeft -lt 0) { $boxLeft = 0 }
+$boxIndent = " " * $boxLeft
+$hintCol   = $boxLeft + 2                        # text starts just past "| "
 
 function Split-HintTwoLines([string]$t, [int]$w) {
     if ($t.Length -le $w) { return @($t, "") }
@@ -140,7 +190,12 @@ $hl2  = [string]$wrap[1]
 # Virtual reveal string (single space rejoins the wrap) drives the typewriter.
 $hintFull = if ($hl2) { $hl1 + " " + $hl2 } else { $hl1 }
 
-# Draw the static frame: top rule (HINT), blank, two text rows, blank, base.
+# A little extra space between the bar and the box.
+Write-Host ""
+Write-Host ""
+
+# Draw the static frame: top rule (HINT), two text rows, base - all
+# indented by $boxIndent so the box is centered.
 $blankRow = $boxIndent + "|" + (" " * ($bw + 2)) + "|"
 Write-Host ($boxIndent + "+-[ ") -NoNewline -ForegroundColor DarkCyan
 Write-Host "HINT" -NoNewline -ForegroundColor Magenta
@@ -164,6 +219,65 @@ $hardCap   = [Math]::Max(20, $est * 2.5)   # absolute safety cap (seconds)
 $readySeen = $false
 $tick      = 0
 
+# --- Sparse twinkling star field --------------------------------------
+# A handful of faint stars drawn ONLY in the empty margins - the side
+# gutters left/right of the centered content and the band below the hint
+# box - never over the banner, bar or box text. Each has a fixed cell and
+# a slow sine phase; per frame it picks a glyph (space / . / + / * ) and a
+# brightness (DarkGray -> Gray -> White) so it reads as a gentle twinkle.
+# Redrawn each loop tick; because cells are fixed and outside the text
+# region, nothing flickers or collides with the UI.
+$starGlyphs = @(' ', '.', '.', [char]0x00B7, '+', '*')   # dim..bright ramp
+$starField  = New-Object System.Collections.Generic.List[object]
+try {
+    $conH = 30
+    try { $wh = [Console]::WindowHeight; if ($wh -ge 12 -and $wh -le 120) { $conH = $wh } } catch {}
+    $rnd = New-Object System.Random
+
+    # Vertical text band to avoid: from the first banner row down past the
+    # box base. $barRow is a good top anchor; the box bottom is $afterBox.
+    $textTop = [Math]::Max(0, $barRow - 6)
+    $textBot = $afterBox + 1
+
+    # Horizontal centered-content span (the box is the widest element).
+    $contentL = $boxLeft
+    $contentR = $boxLeft + $boxOuter
+
+    # Candidate cells: side gutters (any row) + the band below the box.
+    # Keep a 1-col/1-row cushion around the content so stars never touch it.
+    $maxRow = [Math]::Min($conH - 2, $afterBox + 8)
+    $cells = New-Object System.Collections.Generic.List[object]
+    for ($ry = 1; $ry -le $maxRow; $ry++) {
+        for ($cx = 1; $cx -lt ($conW - 1); $cx++) {
+            $inTextRows = ($ry -ge $textTop -and $ry -le $textBot)
+            $inContentCols = ($cx -ge ($contentL - 2) -and $cx -le ($contentR + 2))
+            if ($inTextRows -and $inContentCols) { continue }   # protected zone
+            if ($ry -gt $textBot -or -not $inContentCols) {
+                [void]$cells.Add(@{ X = $cx; Y = $ry })
+            }
+        }
+    }
+
+    # Pick ~14 well-spread stars from the candidate pool.
+    $want = 9
+    if ($cells.Count -gt 0) {
+        $picked = @{}
+        $tries = 0
+        while ($starField.Count -lt $want -and $tries -lt 400) {
+            $tries++
+            $idx = $rnd.Next(0, $cells.Count)
+            $k = "$($cells[$idx].X)_$($cells[$idx].Y)"
+            if ($picked.ContainsKey($k)) { continue }
+            $picked[$k] = $true
+            [void]$starField.Add(@{
+                X = $cells[$idx].X; Y = $cells[$idx].Y
+                Phase = $rnd.NextDouble() * 6.283
+                Speed = 0.5 + $rnd.NextDouble() * 1.1
+            })
+        }
+    }
+} catch { $starField.Clear() }
+
 while ($true) {
     if (-not $readySeen -and (Test-Path $readyFlag)) { $readySeen = $true }
     $elapsed = ((Get-Date) - $start).TotalSeconds
@@ -178,13 +292,15 @@ while ($true) {
     }
 
     $fillN  = [int]($frac * $barWidth)
-    $filled = '#' * $fillN
-    $empty  = '.' * ($barWidth - $fillN)
+    $filled = [string][char]0x25CF * $fillN                    # U+25CF large filled circle
+    $empty  = [string][char]0x00B7 * ($barWidth - $fillN)      # U+00B7 middle dot
     $pct    = [int]($frac * 100)
     $sp     = $spin[$tick % 4]
 
+    $barText = "[{0}{1}] {2,3}%  {3}  loading" -f $filled, $empty, $pct, $sp
+    $barLine = Center-Line $barText $conW
     try { [Console]::SetCursorPosition(0, $barRow) } catch { }
-    Write-Host ("    [{0}{1}] {2,3}%  {3}  loading" -f $filled, $empty, $pct, $sp) -NoNewline -ForegroundColor Green
+    Write-Host ($barLine.PadRight($conW - 1)) -NoNewline -ForegroundColor Green
 
     # Hint stays blank for $flavDelay seconds, then types itself out across
     # the two boxed rows (~33 chars/sec) with a blinking caret on the active
@@ -213,6 +329,8 @@ while ($true) {
     $caret = if ($done) { "" } elseif (($tick % 6) -lt 3) { "_" } else { "" }
     if ($onLine1) { $s1 = $s1 + $caret } else { $s2 = $s2 + $caret }
 
+    # Paint into the box's inner text cells (padded to $bw so old glyphs are
+    # cleared). White for line 1, grey for the wrapped continuation.
     $show1 = $s1.PadRight($bw); if ($show1.Length -gt $bw) { $show1 = $show1.Substring(0, $bw) }
     $show2 = $s2.PadRight($bw); if ($show2.Length -gt $bw) { $show2 = $show2.Substring(0, $bw) }
     $key = $show1 + "`n" + $show2
@@ -224,6 +342,20 @@ while ($true) {
         Write-Host $show2 -NoNewline -ForegroundColor Gray
     }
 
+    # Twinkle: repaint each star cell with its current glyph + brightness.
+    if ($starField.Count -gt 0) {
+        foreach ($st in $starField) {
+            $v = ([Math]::Sin($elapsed * $st.Speed + $st.Phase) + 1) / 2
+            $gi = [int]($v * ($starGlyphs.Count - 1))
+            if ($gi -lt 0) { $gi = 0 } elseif ($gi -ge $starGlyphs.Count) { $gi = $starGlyphs.Count - 1 }
+            $col = if ($v -gt 0.72) { "White" } elseif ($v -gt 0.4) { "Gray" } else { "DarkGray" }
+            try {
+                [Console]::SetCursorPosition($st.X, $st.Y)
+                Write-Host ([string]$starGlyphs[$gi]) -NoNewline -ForegroundColor $col
+            } catch {}
+        }
+    }
+
     if ($readySeen) { break }
     if ($elapsed -ge $hardCap) { break }
     $tick++
@@ -231,14 +363,18 @@ while ($true) {
 }
 
 # Final 100% bar frame + the hint at full brightness, no caret.
+$finalBar = "[{0}] 100%  {1}  ready" -f ([string][char]0x25CF * $barWidth), ([char]0x2605)
 try { [Console]::SetCursorPosition(0, $barRow) } catch { }
-Write-Host ("    [{0}] 100%  *  ready  " -f ('#' * $barWidth)) -NoNewline -ForegroundColor Green
-try { [Console]::SetCursorPosition($hintCol, $hRow1) } catch { }
-Write-Host ($hl1.PadRight($bw)) -NoNewline -ForegroundColor White
-try { [Console]::SetCursorPosition($hintCol, $hRow2) } catch { }
-Write-Host ($hl2.PadRight($bw)) -NoNewline -ForegroundColor Gray
+Write-Host ((Center-Line $finalBar $conW).PadRight($conW - 1)) -NoNewline -ForegroundColor Green
 
-# Drop below the whole box so the console ends cleanly.
+$fq1 = $hl1
+$fq2 = $hl2
+try { [Console]::SetCursorPosition($hintCol, $hRow1) } catch { }
+Write-Host ($fq1.PadRight($bw)) -NoNewline -ForegroundColor White
+try { [Console]::SetCursorPosition($hintCol, $hRow2) } catch { }
+Write-Host ($fq2.PadRight($bw)) -NoNewline -ForegroundColor Gray
+
+# Drop below the whole thing so the console ends cleanly.
 try { [Console]::SetCursorPosition(0, $afterBox) } catch { }
 try { [Console]::CursorVisible = $true } catch { }
 Write-Host ""

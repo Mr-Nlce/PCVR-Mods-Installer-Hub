@@ -1411,7 +1411,7 @@ function global:Get-GithubLatestTagCached {
     # an unreachable github.com (firewall/DNS) from stacking a per-repo
     # connection timeout into a multi-minute UI-thread freeze on a first run
     # with an empty cache: the first miss trips the breaker, the rest skip.
-    if ($global:HubScanOnlineDown) {
+    if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
     }
@@ -1422,7 +1422,7 @@ function global:Get-GithubLatestTagCached {
     # a rare transient error out of the Hub transcript.
     $tag = $null
     try {
-        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 4 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
+        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 2 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
         $final = ""
         try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
@@ -1482,15 +1482,56 @@ function global:Get-WebVersionCached {
     # Respect the scan-wide circuit breaker (same rule as every online scan
     # check): if an earlier check this scan already failed, do NOT touch the
     # network again - return the last known version or null.
-    if ($global:HubScanOnlineDown) {
+    if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
         if ($entry -and $entry.ver) { return [string]$entry.ver }
         return $null
     }
     $wv = $null
     try {
-        $wua  = @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" }
-        $wResp = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 4 -Headers $wua -EA Stop
-        $wHtml = [string]$wResp.Content
+        # The slow part of this check is the NETWORK (DNS + TLS + any http->https
+        # ->www redirect hops + a slow server), NOT the page itself - parsing the
+        # whole 72 KB page takes well under 1 ms. Invoke-WebRequest's -TimeoutSec
+        # in Windows PowerShell 5.1 applies per-hop and does not bound DNS, so a
+        # slow lookup or a multi-hop redirect could still stall the scan ~10s and
+        # then succeed (hence "checked, no error" in the log).
+        #
+        # Fix: run the fetch on a background runspace and impose ONE hard total
+        # time budget (6s) over the entire operation - DNS, connect, redirects
+        # and body read included. If the budget is exceeded we abandon the call,
+        # trip the scan-wide breaker, and fall back to the cached version. The
+        # full page IS read (cheap), so no version string can ever be cut off.
+        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
+        $fetchBudgetMs = 2000
+        $ps = [PowerShell]::Create()
+        [void]$ps.AddScript({
+            param($u)
+            try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
+            $r = [System.Net.HttpWebRequest]::Create($u)
+            $r.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            $r.AllowAutoRedirect = $true
+            $r.Timeout          = 2000
+            $r.ReadWriteTimeout = 2000
+            $resp = $r.GetResponse()
+            try {
+                $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
+                try { return $sr.ReadToEnd() } finally { $sr.Close() }
+            } finally { $resp.Close() }
+        }).AddArgument($Url)
+        $async = $ps.BeginInvoke()
+        $wHtml = ""
+        if ($async.AsyncWaitHandle.WaitOne($fetchBudgetMs)) {
+            try {
+                $res = $ps.EndInvoke($async)
+                if ($res -and $res.Count -gt 0) { $wHtml = [string]$res[0] }
+            } catch { throw }
+            finally { $ps.Dispose() }
+        } else {
+            # Over budget: abandon the runspace (it dies with the process /
+            # scan) and treat it exactly like a timeout.
+            try { $ps.Stop() } catch {}
+            try { $ps.Dispose() } catch {}
+            throw [System.TimeoutException]::new("web version fetch exceeded ${fetchBudgetMs}ms budget")
+        }
         if     ($wHtml -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $wv = "v" + $matches[1] }
         elseif ($wHtml -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { $wv = "v" + $matches[1] }
         elseif ($wHtml -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { $wv = "v" + $matches[1] }
@@ -1557,6 +1598,17 @@ function global:Invoke-RotatingOnlinePrewarm {
             try { Set-Content -Path $rotFile -Value ([string](($off + 1) % $items.Count)) -Encoding ASCII -Force } catch {}
         }
         for ($i = 0; $i -lt $items.Count; $i++) {
+            # Soft time budget: once the scan's deadline passes, stop probing
+            # the network. Tripping the breaker makes the Cached getters below
+            # return cache-only, so the remaining repos are skipped instantly
+            # rather than each risking another slow fetch. They keep their
+            # last-known cache and refresh on a future scan (rotation gives each
+            # an early slot over time). This is what bounds the scan's online
+            # phase to ~the budget instead of "sum of every slow host".
+            if ($global:PrewarmDeadline -and ([DateTime]::UtcNow -gt $global:PrewarmDeadline)) {
+                $global:HubScanOnlineDown = $true
+                break
+            }
             $it = $items[($off + $i) % $items.Count]
             try {
                 if ($it.K -eq "gh") { [void](Get-GithubLatestTagCached -Repo $it.A) }
@@ -1745,10 +1797,99 @@ function global:Invoke-CheckInstalledScan {
         }
     }
 
-    # Rotating online prewarm: warm the update caches in a rotating order so a
-    # persistently-slow repo can't perpetually starve the rest (see function).
-    # Runs BEFORE the per-card loop; the loop then reads the warmed cache.
+    # Rotating online prewarm: warm the update caches so the per-card loop below
+    # reads them instead of hitting the network inline. Runs synchronously but
+    # under a soft TIME BUDGET: Invoke-RotatingOnlinePrewarm checks a deadline
+    # between repos and trips the scan-wide breaker once ~4s have passed, so the
+    # scan hands control back quickly instead of grinding through every slow
+    # host. Repos warmed before the deadline show their update badge THIS scan.
+    # Whatever did NOT make the window is handed to a BACKGROUND WORKER PROCESS
+    # (Modules\PrewarmWorker.ps1, hidden, fire-and-forget) that finishes those
+    # checks with generous timeouts and merge-writes the same disk caches - the
+    # next scan / Hub start reads them from disk and paints the badges. The
+    # user consented to online checks by clicking Scan.
+    #
+    # Reload the in-memory caches from disk FIRST: a worker spawned by an
+    # earlier scan (this session or a previous one) has since written fresh
+    # entries to disk that our lazily-loaded in-memory copies don't have.
+    # Clearing them forces the getters to re-read the files on next use, so
+    # straggler results actually surface THIS scan.
+    $script:ghVerCache  = $null
+    $script:webVerCache = $null
+
+    $global:HubVersionCacheOnly = $false
+    $global:HubScanOnlineDown = $false
+    $global:PrewarmDeadline = [DateTime]::UtcNow.AddMilliseconds(3500)
     Invoke-RotatingOnlinePrewarm
+    $global:PrewarmDeadline = $null
+
+    # ---- Hand the leftovers to the background worker ----
+    # "Leftover" = any online-checkable game whose disk-cache entry is missing
+    # or older than the 6h TTL after the budgeted prewarm above. That covers
+    # every miss reason uniformly (deadline hit, breaker tripped mid-loop,
+    # first-ever scan with a cold cache). Single-instance guard via a lock
+    # file with a 10-minute staleness expiry, so a crashed worker can never
+    # block future spawns for good.
+    try {
+        $ttlH = 6
+        $nowU = [DateTime]::UtcNow
+        $ghDisk = @{}; $webDisk = @{}
+        $ghF  = Join-Path $global:scriptDir ".gh_version_cache"
+        $webF = Join-Path $global:scriptDir ".web_version_cache"
+        if (Test-Path $ghF)  { try { $r = Get-Content $ghF -Raw | ConvertFrom-Json;  foreach ($p in $r.PSObject.Properties) { $ghDisk[$p.Name]  = [string]$p.Value.checked } } catch {} }
+        if (Test-Path $webF) { try { $r = Get-Content $webF -Raw | ConvertFrom-Json; foreach ($p in $r.PSObject.Properties) { $webDisk[$p.Name] = [string]$p.Value.checked } } catch {} }
+        function Test-CacheFresh([hashtable]$m, [string]$k) {
+            if (-not $m.ContainsKey($k)) { return $false }
+            try { return ((($nowU) - [DateTime]::Parse($m[$k], $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours -lt $ttlH) } catch { return $false }
+        }
+        $pending = @()
+        foreach ($g in $global:allGameData) {
+            if ($g.GithubRepo) {
+                $repo = $g.GithubRepo
+                if ($g.GithubRepoAlt) {
+                    try {
+                        $ipfP = Get-InstalledPathFile -Game $g
+                        if ($ipfP) {
+                            $vsP = Join-Path (Split-Path -Parent $ipfP) ".vrv_source"
+                            if ((Test-Path $vsP) -and ((Get-Content $vsP -Raw -EA Stop).Trim() -eq "francisco")) { $repo = $g.GithubRepoAlt }
+                        }
+                    } catch {}
+                }
+                if (-not (Test-CacheFresh $ghDisk $repo)) { $pending += , @{ K = "gh"; A = $repo } }
+            } elseif ($g.WebVersionUrl) {
+                if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title } }
+            }
+        }
+        if ($pending.Count -gt 0) {
+            $lockF   = Join-Path $global:scriptDir ".prewarm_worker.lock"
+            $lockOk  = $true
+            if (Test-Path $lockF) {
+                try {
+                    $lockAge = ($nowU - [DateTime]::Parse((Get-Content $lockF -Raw -EA Stop).Trim(), $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalMinutes
+                    if ($lockAge -lt 10) { $lockOk = $false }   # a worker is (probably) still running
+                } catch {}
+            }
+            $workerF = Join-Path $global:scriptDir "Modules\PrewarmWorker.ps1"
+            if ($lockOk -and (Test-Path $workerF)) {
+                Set-Content -Path $lockF -Value ($nowU.ToString("o")) -Encoding ASCII -Force
+                ($pending | ConvertTo-Json) | Set-Content -Path (Join-Path $global:scriptDir ".prewarm_pending.json") -Encoding UTF8 -Force
+                Start-Process -FilePath "powershell.exe" `
+                    -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File', "`"$workerF`"", '-ScriptDir', "`"$global:scriptDir`"") `
+                    -WindowStyle Hidden
+                Write-Host "[Prewarm] $($pending.Count) online check(s) handed to the background worker; results show next scan."
+            }
+        }
+    } catch {}
+
+    # Version-check phase done for THIS scan. Switch ONLY the gh/web version
+    # getters to cache-only for the per-card loop - their inline network call
+    # was the freeze, and any repo they missed is already handed to the
+    # background worker above. Deliberately NOT the scan-wide breaker: the
+    # loop's GitHubNightly (api.github.com) and Thunderstore checks have no
+    # disk cache and are not covered by the worker - tripping the breaker
+    # here would silently kill their update badges for good. They keep their
+    # original behaviour (2s timeout, self-trip on first failure).
+    $global:HubVersionCacheOnly = $true
 
     $found = 0
     $vrFound = 0

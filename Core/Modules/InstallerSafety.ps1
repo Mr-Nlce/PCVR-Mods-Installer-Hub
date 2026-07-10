@@ -59,12 +59,20 @@ function global:Invoke-InstallerFallback {
     Write-Host "============================================================" -ForegroundColor Yellow
 
     # "What happened?" explains the failure in plain language.
-    # If the caller didn't give us a Subject we fall back to the
-    # Action string so we always say SOMETHING here.
+    # Only download flows (Subject set by Invoke-SafeDownload) get the
+    # download sentence; every other caller (extraction, detection,
+    # setup, checks) gets a generic one - previously this always said
+    # "automated download of X", which read broken for e.g.
+    # "BepInEx archive extraction".
     $subjectText = if ($Subject) { $Subject } else { $Action }
+    $dlNoun = $subjectText -replace '\s+download$', ''
     Write-Host ""
     Write-Host "  What happened?" -ForegroundColor White
-    Write-Host "  Unfortunately, the automated download of $subjectText is currently not possible." -ForegroundColor Gray
+    if ($Subject) {
+        Write-Host "  Unfortunately, the automated download of $dlNoun is currently not possible." -ForegroundColor Gray
+    } else {
+        Write-Host "  Unfortunately, '$Action' could not be completed automatically." -ForegroundColor Gray
+    }
     if ($Instructions -and -not $DestFile) {
         Write-Host ""
         Write-Host "  Note:" -ForegroundColor White
@@ -135,9 +143,16 @@ function global:Invoke-InstallerFallback {
     Write-Host "  What to do:" -ForegroundColor White
     $stepNum = 1
     if ($Url) {
-        Write-Host "    $stepNum. Download $subjectText manually (opening now in your browser):" -ForegroundColor Gray
-        Write-Host "       $Url" -ForegroundColor Cyan
+        # A console URL is not clickable - the ONLY reliable way to get the
+        # user onto the page is opening it for them. Gate it behind an
+        # explicit Enter so the browser doesn't pop up while they are still
+        # reading (and so they know where the window came from).
+        Write-Host "    $stepNum. Press ENTER to open the download page in your browser," -ForegroundColor White
+        Write-Host "       then download $dlNoun there manually." -ForegroundColor White
+        Write-Host "       Page: $Url" -ForegroundColor DarkGray
+        Read-Host "       (press Enter to open the page)" | Out-Null
         try { Start-Process $Url -ErrorAction SilentlyContinue | Out-Null } catch { }
+        Write-Host "       Opened. If no browser window appeared, copy the URL above by hand." -ForegroundColor DarkGray
         $stepNum++
     }
     if ($DestFile) {
@@ -172,8 +187,11 @@ function global:Invoke-InstallerFallback {
         if ($AllowSkip) {
             Write-Host "    [S]kip   -  Continue without this step (install may be incomplete)" -ForegroundColor Yellow
         }
-        if ($SourceFolder -or $DestFolder) {
-            Write-Host "    [O]pen   -  Reopen the folder in Explorer" -ForegroundColor Yellow
+        if ($SourceFolder -or $DestFolder -or $Url) {
+            $oLabel = if ($Url -and ($SourceFolder -or $DestFolder)) { "Reopen the download page / folder" }
+                      elseif ($Url) { "Reopen the download page" }
+                      else { "Reopen the folder in Explorer" }
+            Write-Host "    [O]pen   -  $oLabel" -ForegroundColor Yellow
         }
         Write-Host "    [Q]uit   -  Stop the installer" -ForegroundColor Yellow
         $__prompt = if ($DestFile) { "  Drop the file here (or type R/S/Q)" } else { "  Your choice" }
@@ -222,6 +240,9 @@ function global:Invoke-InstallerFallback {
             return "skip"
         }
         if ($c -eq "o") {
+            if ($Url) {
+                try { Start-Process $Url -ErrorAction SilentlyContinue | Out-Null } catch { }
+            }
             if ($DestFolder -and (Test-Path $DestFolder)) {
                 try { Start-Process explorer.exe "`"$DestFolder`"" -EA SilentlyContinue | Out-Null } catch { }
                 try { Set-Clipboard -Value $DestFolder -EA SilentlyContinue } catch { }
@@ -235,7 +256,12 @@ function global:Invoke-InstallerFallback {
         if ($c -eq "q") {
             return "quit"
         }
-        Write-Host "  Please answer R, S, or Q." -ForegroundColor Yellow
+        # Name exactly the options that are actually on offer.
+        $validOpts = "R"
+        if ($AllowSkip) { $validOpts += ", S" }
+        if ($SourceFolder -or $DestFolder -or $Url) { $validOpts += ", O" }
+        $validOpts += " or Q"
+        Write-Host "  Please answer $validOpts." -ForegroundColor Yellow
     }
 }
 
@@ -368,6 +394,77 @@ function global:Invoke-SafeDownload {
             }
         }
     }
+    # Last-resort auto-fallback for pinned GitHub release assets: only when
+    # EVERY direct source above failed (including the Web Archive mirror),
+    # ask the GitHub API for the repo's releases and resolve a matching
+    # asset live. Rescues the common case of a re-tagged/renamed release
+    # where the pinned URL 404s but the mod is still right there. Matching
+    # is deliberately conservative:
+    #   1. exact same file name in any release (newest first)
+    #   2. name with the same leading word AND same extension
+    #   3. a release's SINGLE asset with that extension (unambiguous)
+    # Anything ambiguous is skipped - then the interactive fallback below
+    # takes over exactly as before. Strictly additive: on any API error we
+    # fall through unchanged.
+    foreach ($u in $Urls) {
+        if ($u -notmatch '^https?://github\.com/([^/]+)/([^/]+)/releases/download/[^/]+/(.+)$') { continue }
+        $ghOwner = $matches[1]; $ghRepo = $matches[2]
+        $ghFile  = [System.Uri]::UnescapeDataString($matches[3])
+        $ghExt   = [System.IO.Path]::GetExtension($ghFile)
+        $ghPrefix = ""
+        if ($ghFile -match '^([A-Za-z]{4,})') { $ghPrefix = $matches[1] }
+        try {
+            Write-Host "  [..] Trying the GitHub API to locate $Label (matching release asset)..." -ForegroundColor Gray
+            $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$ghOwner/$ghRepo/releases" -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 10 -ErrorAction Stop
+            if ($rels -isnot [array]) { $rels = @($rels) }
+            $asset = $null
+            foreach ($rel in $rels) {
+                $a = @($rel.assets | Where-Object { $_.name -eq $ghFile }) | Select-Object -First 1
+                if ($a) { $asset = $a; break }
+            }
+            if (-not $asset -and $ghPrefix) {
+                foreach ($rel in $rels) {
+                    $a = @($rel.assets | Where-Object { $_.name -like "$ghPrefix*$ghExt" }) | Select-Object -First 1
+                    if ($a) { $asset = $a; break }
+                }
+            }
+            if (-not $asset -and $ghExt) {
+                foreach ($rel in $rels) {
+                    $cand = @($rel.assets | Where-Object { $_.name -like "*$ghExt" })
+                    if ($cand.Count -eq 1) { $asset = $cand[0]; break }
+                }
+            }
+            if ($asset -and $asset.browser_download_url -and (-not $expanded.Contains([string]$asset.browser_download_url))) {
+                $au = [string]$asset.browser_download_url
+                Write-Host "  [..] API resolved: $($asset.name) - downloading..." -ForegroundColor Gray
+                Write-Host "       From: $au" -ForegroundColor DarkGray
+                try {
+                    if (_Invoke-DownloadWithProgress -Url $au -Destination $Destination -Label $Label) {
+                        Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
+                        return $true
+                    }
+                    throw "empty or missing file"
+                } catch {
+                    try {
+                        $old = $ProgressPreference
+                        $ProgressPreference = 'SilentlyContinue'
+                        Invoke-WebRequest -Uri $au -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+                        $ProgressPreference = $old
+                        if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
+                            Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
+                            return $true
+                        }
+                    } catch {
+                        Write-Host "  [!!] API-resolved source failed too: $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
+                }
+            }
+        } catch {
+            Write-Host "  [!!] GitHub API fallback unavailable: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+        break   # only the first GitHub URL needs resolving
+    }
+
     # All sources failed - hand off to interactive fallback.
     # Derive the destination FOLDER from the file path so the
     # fallback can auto-open Explorer there and the user can drop

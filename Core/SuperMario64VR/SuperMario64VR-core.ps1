@@ -306,21 +306,61 @@ if ($romPlaced) {
     Write-Host "  reads the ROM locally and it never leaves your PC." -ForegroundColor Gray
     Write-Host ""
     Write-Host "  Drag your .z64 file onto THIS window, then press Enter" -ForegroundColor White
-    Write-Host "  (it is copied in as baserom.us.z64). Or just press Enter" -ForegroundColor White
-    Write-Host "  to skip - you can also drop a .z64 onto the game window" -ForegroundColor White
-    Write-Host "  on first launch and it sets itself up." -ForegroundColor White
+    Write-Host "  (it is copied in as baserom.us.z64). A .zip / .7z / .rar" -ForegroundColor White
+    Write-Host "  that contains the ROM works too - it is unpacked" -ForegroundColor White
+    Write-Host "  automatically. Or just press Enter to skip - you can also" -ForegroundColor White
+    Write-Host "  drop a .z64 onto the game window on first launch and it" -ForegroundColor White
+    Write-Host "  sets itself up." -ForegroundColor White
     Write-Host ""
     $romIn = (Read-Host "  ROM path (or Enter to skip)").Trim().Trim('"')
     if ($romIn -and (Test-Path -LiteralPath $romIn)) {
-        try {
-            Copy-Item -LiteralPath $romIn -Destination $baserom -Force -ErrorAction Stop
-            Write-OK "ROM set up as baserom.us.z64."
-            $romPlaced = $true
-        } catch {
-            Write-Warn "Could not copy the ROM: $_"
-            Write-Host "    Put it here yourself, named baserom.us.z64:" -ForegroundColor Gray
-            Write-Host "    $gameRoot" -ForegroundColor Cyan
+        $romSource = $romIn
+        $romTmp    = $null
+        $ext = [System.IO.Path]::GetExtension($romIn).ToLower()
+        # If an archive was dropped, unpack it and locate the .z64 inside.
+        # ROM downloads are often a .zip/.7z/.rar holding the .z64. We take
+        # the largest .z64 found (the real ROM). Uses the shared multi-format
+        # extractor (7-Zip if present, else PowerShell's zip fallback).
+        if ($ext -in @(".zip", ".7z", ".rar")) {
+            Write-Info "Archive detected - unpacking and locating the .z64 inside..."
+            $romTmp = Join-Path $env:TEMP ("sm64_rom_" + [Guid]::NewGuid().ToString("N"))
+            try {
+                New-Item -ItemType Directory -Path $romTmp -Force -ErrorAction Stop | Out-Null
+                Expand-ArchiveOrFallback -ArchivePath $romIn -DestinationFolder $romTmp -Label "Super Mario 64 ROM" `
+                    -SkipMessage "Skipped - the archive was not unpacked." | Out-Null
+                $inner = Get-ChildItem -LiteralPath $romTmp -Recurse -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Extension.ToLower() -eq ".z64" } |
+                    Sort-Object Length -Descending | Select-Object -First 1
+                if ($inner) {
+                    $romSource = $inner.FullName
+                    Write-OK "Found ROM in archive: $($inner.Name)"
+                } else {
+                    Write-Warn "No .z64 ROM found inside the archive."
+                    Write-Host "    Put your ROM here yourself, named baserom.us.z64:" -ForegroundColor Gray
+                    Write-Host "    $gameRoot" -ForegroundColor Cyan
+                    $romSource = $null
+                    try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+                }
+            } catch {
+                Write-Warn "Could not unpack the archive: $_"
+                Write-Host "    Put your ROM here yourself, named baserom.us.z64:" -ForegroundColor Gray
+                Write-Host "    $gameRoot" -ForegroundColor Cyan
+                $romSource = $null
+                try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            }
         }
+        if ($romSource) {
+            try {
+                Copy-Item -LiteralPath $romSource -Destination $baserom -Force -ErrorAction Stop
+                Write-OK "ROM set up as baserom.us.z64."
+                $romPlaced = $true
+            } catch {
+                Write-Warn "Could not copy the ROM: $_"
+                Write-Host "    Put it here yourself, named baserom.us.z64:" -ForegroundColor Gray
+                Write-Host "    $gameRoot" -ForegroundColor Cyan
+            }
+        }
+        if ($romTmp) { try { Remove-Item $romTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {} }
     } elseif ($romIn) {
         Write-Warn "That path was not found - skipping."
         Write-Host "    Put your ROM here, named baserom.us.z64:" -ForegroundColor Gray

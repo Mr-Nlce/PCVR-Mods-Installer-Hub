@@ -462,6 +462,19 @@ function global:_Steam-FetchAppDetails {
     param([string]$SteamId)
     if (-not $SteamId) { return }
     if ($global:SteamDescCache.ContainsKey($SteamId)) { return }
+    # This fetch runs SYNCHRONOUSLY on the UI thread when a detail page
+    # opens before the background warm has cached this id. Two guards keep
+    # a dead network from freezing every page open:
+    #   1. Respect the scan-wide circuit breaker - if online checks already
+    #      failed this scan, don't try Steam either.
+    #   2. Steam-wide cooldown - after ONE transient failure, skip all
+    #      Steam detail fetches for 60s. Worst case is a single 4s wait
+    #      per minute across ALL detail pages (instead of 2x4s per page).
+    # Skipped pages simply show no description/screenshot yet; the
+    # background warm (or a later open) fills them in - shown later, never
+    # frozen now.
+    if ($global:HubScanOnlineDown) { return }
+    if ($global:SteamFetchDownUntil -and ([DateTime]::UtcNow -lt $global:SteamFetchDownUntil)) { return }
     try {
         $url = "https://store.steampowered.com/api/appdetails?appids=$SteamId&l=english"
         $resp = Invoke-RestMethod -Uri $url -TimeoutSec 4 -ErrorAction Stop
@@ -487,8 +500,11 @@ function global:_Steam-FetchAppDetails {
             $global:SteamScreenshotCache[$SteamId] = $null
         }
     } catch {
-        # Transient failure (429/timeout/network). Do NOT cache - leave
-        # the entry absent so the next open retries once Steam recovers.
+        # Transient failure (429/timeout/network). Do NOT cache the id -
+        # leave the entry absent so a later open retries once Steam
+        # recovers - but arm the 60s cooldown so the very next page open
+        # doesn't eat another synchronous timeout on the UI thread.
+        $global:SteamFetchDownUntil = [DateTime]::UtcNow.AddSeconds(60)
     }
 }
 
@@ -1239,7 +1255,7 @@ function global:Get-PowerTier {
         "Art of Rally VR"              = "BASIC"
         "Ashes 2063 VR"                = "BASIC"
         "Astrodogs VR"                 = "BASIC"
-        "Mouse P.I. For Hire VR"       = "HIGH"
+        "Mouse P.I. For Hire VR"       = "STRONG"
         "New Star GP VR"                = "BASIC"
         "Super Mario 64 VR"            = "BASIC"
         "Star Fox 64 VR"               = "BASIC"
