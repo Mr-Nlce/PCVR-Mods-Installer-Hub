@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (188)</summary>
+<summary>Show all currently listed titles (189)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -74,6 +74,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * FF VII Remake
 * Final Fantasy XIV VR (motion controls)
 * Firewatch VR (motion controls)
+* Forza Horizon 5
 * Forza Horizon 6
 * Freespace 2
 * Garry's Mod VR (motion controls)
