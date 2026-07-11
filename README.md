@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (189)</summary>
+<summary>Show all currently listed titles (190)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -105,6 +105,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Hypogea
 * Hytale VR (WIP) (motion controls)
 * I Can Gun VR (motion controls)
+* Idols of Ash VR (motion controls)
 * Indiana Jones: Great Circle
 * Iron Lung VR (motion controls)
 * Jedi Knight: Jedi Academy VR (motion controls)
