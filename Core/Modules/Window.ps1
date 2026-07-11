@@ -2828,50 +2828,50 @@ function global:Add-BannerTopo {
         $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $rand = New-Object System.Random
-        $info = New-Object System.Collections.ArrayList
-        $topoPalette = @("#34d399","#36e0e0","#3a8add","#c850ff")
-        $rings = 7
-        for ($r = 1; $r -le $rings; $r++) {
-            $baseR = $r * 16.0
-            $e = New-Object System.Windows.Shapes.Ellipse
-            $e.Width = ($baseR * 2 * 1.7); $e.Height = ($baseR * 2)
-            $alpha = [byte]((0.34 - $r * 0.02) * 255)
-            $tStart = $r % $topoPalette.Count
-            $tc0 = [System.Windows.Media.ColorConverter]::ConvertFromString($topoPalette[$tStart])
-            $sbr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb($alpha, $tc0.R, $tc0.G, $tc0.B))
-            $e.Stroke = $sbr
-            $e.StrokeThickness = 2.4; $e.Fill = $null
-            $tglow = New-Object System.Windows.Media.Effects.BlurEffect; $tglow.Radius = 3.5; $e.Effect = $tglow
-            $tdur = 20.0
-            $tca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
-            $tca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($tdur))
-            for ($m = 0; $m -lt $topoPalette.Count; $m++) {
-                $tcc = [System.Windows.Media.ColorConverter]::ConvertFromString($topoPalette[($tStart + $m) % $topoPalette.Count])
-                $tkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($tdur * ($m / [double]$topoPalette.Count)))
-                $tca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new(([System.Windows.Media.Color]::FromArgb($alpha, $tcc.R, $tcc.G, $tcc.B)), $tkt)) | Out-Null
+        $ribbons = @(
+            @{ r = 125; g = 211; b = 252; off = 0.42; amp = 14; w = 26; wl = 300.0; dur = 10.0; dir = -1 },
+            @{ r = 59;  g = 130; b = 246; off = 0.55; amp = 18; w = 30; wl = 380.0; dur = 13.0; dir = 1 },
+            @{ r = 94;  g = 234; b = 212; off = 0.66; amp = 11; w = 22; wl = 240.0; dur = 8.0;  dir = -1 }
+        )
+        foreach ($rb in $ribbons) {
+            $baseY = $rb.off * $BannerH
+            # Extend each ribbon well PAST both banner edges instead of
+            # starting at x=0. A ribbon that drifts right (dir = +1) used to
+            # move its left edge inward, uncovering a blank gap on the left
+            # that grew until the loop wrapped - looking like the band got
+            # shorter and then snapped back. The wave is periodic in wl and the
+            # translate is exactly one wl, so with this overhang on both sides
+            # the scroll stays seamless: full width at all times, no visible
+            # jump.
+            $x0 = -500; $x1 = 3200
+            $fig = New-Object System.Windows.Media.PathFigure
+            $fig.StartPoint = [System.Windows.Point]::new($x0, $baseY)
+            $polyPts = New-Object System.Windows.Media.PointCollection
+            for ($x = $x0; $x -le $x1; $x += 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl)
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
             }
-            $tca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new(([System.Windows.Media.Color]::FromArgb($alpha, $tc0.R, $tc0.G, $tc0.B)), ([System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($tdur))))) | Out-Null
-            $tca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-            $sbr.BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $tca)
-            $e.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
-            $st = [System.Windows.Media.ScaleTransform]::new(1, 1)
-            $e.RenderTransform = $st
-            $sdur = 5.0 + $r * 0.5
-            $sc = New-Object System.Windows.Media.Animation.DoubleAnimation
-            $sc.From = 0.92; $sc.To = 1.08
-            $sc.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($sdur)); $sc.AutoReverse = $true
-            $sc.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $sc.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
-            $sc.BeginTime = [TimeSpan]::FromSeconds(-($r * 0.7))
-            $st.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleXProperty, $sc)
-            $st.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $sc)
-            [System.Windows.Controls.Canvas]::SetTop($e, ($BannerH / 2) - $baseR)
-            [void]$canvas.Children.Add($e)
-            [void]$info.Add([pscustomobject]@{ el = $e; w = ($baseR * 2 * 1.7) })
+            for ($x = $x1; $x -ge $x0; $x -= 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl) + $rb.w
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
+            }
+            $polySeg = New-Object System.Windows.Media.PolyLineSegment
+            $polySeg.Points = $polyPts
+            $fig.Segments.Add($polySeg) | Out-Null; $fig.IsClosed = $true
+            $geo = New-Object System.Windows.Media.PathGeometry
+            $geo.Figures.Add($fig) | Out-Null
+            $path = New-Object System.Windows.Shapes.Path
+            $path.Data = $geo
+            $path.Fill = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(70, [byte]$rb.r, [byte]$rb.g, [byte]$rb.b))
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $path.RenderTransform = $tt
+            $an = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $an.From = 0; $an.To = ($rb.dir * $rb.wl)
+            $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($rb.dur))
+            $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $an)
+            [void]$canvas.Children.Add($path)
         }
-        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
-            foreach ($o in $info) { [System.Windows.Controls.Canvas]::SetLeft($o.el, ($cw / 2) - ($o.w / 2)) } }.GetNewClosure()
-        $canvas.Add_SizeChanged($reflow); & $reflow
         $canvas.Tag = "BannerFx"
         $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
     } catch { }
@@ -3188,64 +3188,50 @@ function global:Add-BannerKaleido {
         $canvas.IsHitTestVisible = $false; $canvas.ClipToBounds = $true
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $rings = @(
-            @{ rad = 0.18; dotR = 7; col = "#36e0e0"; dur = 18.0; dir = 1 },
-            @{ rad = 0.30; dotR = 5; col = "#c850ff"; dur = 24.0; dir = -1 },
-            @{ rad = 0.40; dotR = 4; col = "#34d399"; dur = 30.0; dir = 1 }
+        $ribbons = @(
+            @{ r = 245; g = 166; b = 35; off = 0.42; amp = 14; w = 26; wl = 300.0; dur = 10.0; dir = -1 },
+            @{ r = 244; g = 114; b = 182; off = 0.55; amp = 18; w = 30; wl = 380.0; dur = 13.0; dir = 1 },
+            @{ r = 251; g = 113; b = 133; off = 0.66; amp = 11; w = 22; wl = 240.0; dur = 8.0;  dir = -1 }
         )
-        # Plasma-style colour cycle shared by all dots, so the whole
-        # kaleidoscope drifts through hues instead of sitting on fixed colours.
-        $kalPalette = @("#36e0e0","#3a8add","#c850ff","#34d399")
-        $kalRand = New-Object System.Random
-        $info = New-Object System.Collections.ArrayList
-        foreach ($rg in $rings) {
-            $rc = New-Object System.Windows.Controls.Canvas
-            $rc.IsHitTestVisible = $false
-            $rc.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
-            $rrot = [System.Windows.Media.RotateTransform]::new(0)
-            $rc.RenderTransform = $rrot
-            $col = [System.Windows.Media.ColorConverter]::ConvertFromString($rg.col)
-            $br = [System.Windows.Media.SolidColorBrush]::new($col)
-            $dots = New-Object System.Collections.ArrayList
-            for ($k = 0; $k -lt 6; $k++) {
-                $dot = New-Object System.Windows.Shapes.Ellipse
-                $dbr = [System.Windows.Media.SolidColorBrush]::new($col)
-                $dot.Width = ($rg.dotR * 2); $dot.Height = ($rg.dotR * 2); $dot.Fill = $dbr; $dot.Opacity = 0.42
-                $dglow = New-Object System.Windows.Media.Effects.BlurEffect; $dglow.Radius = ($rg.dotR * 0.9); $dot.Effect = $dglow
-                $kstart = ($kalRand.Next(0, $kalPalette.Count))
-                $kdur = 16.0 + $kalRand.NextDouble() * 8.0
-                $kca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
-                $kca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($kdur))
-                for ($m = 0; $m -lt $kalPalette.Count; $m++) {
-                    $kc = [System.Windows.Media.ColorConverter]::ConvertFromString($kalPalette[($kstart + $m) % $kalPalette.Count])
-                    $kkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($kdur * ($m / [double]$kalPalette.Count)))
-                    $kca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($kc, $kkt)) | Out-Null
-                }
-                $kendc = [System.Windows.Media.ColorConverter]::ConvertFromString($kalPalette[$kstart])
-                $kca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($kendc, [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($kdur)))) | Out-Null
-                $kca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-                $dbr.BeginAnimation([System.Windows.Media.SolidColorBrush]::ColorProperty, $kca)
-                [void]$rc.Children.Add($dot)
-                [void]$dots.Add([pscustomobject]@{ el = $dot; ang = ($k * [Math]::PI / 3.0) })
+        foreach ($rb in $ribbons) {
+            $baseY = $rb.off * $BannerH
+            # Extend each ribbon well PAST both banner edges instead of
+            # starting at x=0. A ribbon that drifts right (dir = +1) used to
+            # move its left edge inward, uncovering a blank gap on the left
+            # that grew until the loop wrapped - looking like the band got
+            # shorter and then snapped back. The wave is periodic in wl and the
+            # translate is exactly one wl, so with this overhang on both sides
+            # the scroll stays seamless: full width at all times, no visible
+            # jump.
+            $x0 = -500; $x1 = 3200
+            $fig = New-Object System.Windows.Media.PathFigure
+            $fig.StartPoint = [System.Windows.Point]::new($x0, $baseY)
+            $polyPts = New-Object System.Windows.Media.PointCollection
+            for ($x = $x0; $x -le $x1; $x += 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl)
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
             }
-            $ra = New-Object System.Windows.Media.Animation.DoubleAnimation
-            $ra.From = 0; $ra.To = ($rg.dir * 360)
-            $ra.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($rg.dur))
-            $ra.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-            $rrot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $ra)
-            [void]$canvas.Children.Add($rc)
-            [void]$info.Add([pscustomobject]@{ rc = $rc; dots = $dots; rad = $rg.rad; dotR = $rg.dotR })
+            for ($x = $x1; $x -ge $x0; $x -= 10) {
+                $y = $baseY + $rb.amp * [Math]::Sin(2 * [Math]::PI * $x / $rb.wl) + $rb.w
+                $polyPts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
+            }
+            $polySeg = New-Object System.Windows.Media.PolyLineSegment
+            $polySeg.Points = $polyPts
+            $fig.Segments.Add($polySeg) | Out-Null; $fig.IsClosed = $true
+            $geo = New-Object System.Windows.Media.PathGeometry
+            $geo.Figures.Add($fig) | Out-Null
+            $path = New-Object System.Windows.Shapes.Path
+            $path.Data = $geo
+            $path.Fill = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(70, [byte]$rb.r, [byte]$rb.g, [byte]$rb.b))
+            $tt = New-Object System.Windows.Media.TranslateTransform
+            $path.RenderTransform = $tt
+            $an = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $an.From = 0; $an.To = ($rb.dir * $rb.wl)
+            $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($rb.dur))
+            $an.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $an)
+            [void]$canvas.Children.Add($path)
         }
-        $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
-            foreach ($ri in $info) {
-                $ri.rc.Width = $cw; $ri.rc.Height = $BannerH
-                $rr = $ri.rad * $BannerH
-                foreach ($d in $ri.dots) {
-                    [System.Windows.Controls.Canvas]::SetLeft($d.el, ($cw / 2) + [Math]::Cos($d.ang) * $rr - $ri.dotR)
-                    [System.Windows.Controls.Canvas]::SetTop($d.el, ($BannerH / 2) + [Math]::Sin($d.ang) * $rr - $ri.dotR)
-                }
-            } }.GetNewClosure()
-        $canvas.Add_SizeChanged($reflow); & $reflow
         $canvas.Tag = "BannerFx"
         $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
     } catch { }

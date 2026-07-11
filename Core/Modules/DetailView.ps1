@@ -1134,7 +1134,7 @@ function global:Resolve-LocatedRoot {
     param([string]$Picked, [string]$RelFile, [int]$MaxDepth = 4)
     if ([string]::IsNullOrWhiteSpace($Picked) -or [string]::IsNullOrWhiteSpace($RelFile)) { return $null }
     # 1. Direct hit - the common, fast case.
-    if (Test-Path (Join-Path $Picked $RelFile)) { return $Picked }
+    if (Test-Path -LiteralPath (Join-Path $Picked $RelFile)) { return $Picked }
     $suffix = "\" + $RelFile
     # 2. Bounded descendant search. Filter by the leaf file name so the
     #    recursion stays cheap, then confirm the FULL relative path
@@ -1206,7 +1206,7 @@ function global:New-LocateButton {
             $dlg.ShowNewFolderButton = $false
             if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
             $picked = $dlg.SelectedPath
-            if ([string]::IsNullOrWhiteSpace($picked) -or -not (Test-Path $picked)) { return }
+            if ([string]::IsNullOrWhiteSpace($picked) -or -not (Test-Path -LiteralPath $picked)) { return }
 
             # One label for all the messages below so the wording matches
             # the game type: TwoMods titles name BOTH mods (e.g. "NALULUNA
@@ -1249,7 +1249,7 @@ function global:New-LocateButton {
                 elseif ($vrRoot -like "APPDATA:*")      { $vrRoot = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vrRoot.Substring("APPDATA:".Length)) }
                 elseif ($vrRoot -like "PROGRAMDATA:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vrRoot.Substring("PROGRAMDATA:".Length)) }
                 elseif ($vrRoot -like "USERPROFILE:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vrRoot.Substring("USERPROFILE:".Length)) }
-                if ($vrRoot -and (Test-Path (Join-Path $vrRoot $Game.ModFile))) { $modHit = $true }
+                if ($vrRoot -and (Test-Path -LiteralPath (Join-Path $vrRoot $Game.ModFile))) { $modHit = $true }
             }
             # TwoMods games have no single ModFile: a mod is present if
             # either mod's launcher is found under the recorded parent.
@@ -1261,11 +1261,11 @@ function global:New-LocateButton {
                 $tmFound = $false
                 foreach ($p in $tmSubs) {
                     $sd = Join-Path $picked $p[0]
-                    if ((Test-Path $sd) -and (Get-ChildItem -Path $sd -Filter $p[1] -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)) { $tmFound = $true }
+                    if ((Test-Path -LiteralPath $sd) -and (Get-ChildItem -LiteralPath $sd -Filter $p[1] -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1)) { $tmFound = $true }
                 }
                 if (-not $tmFound) {
                     foreach ($p in $tmSubs) {
-                        if (Get-ChildItem -Path $picked -Filter $p[1] -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1) {
+                        if (Get-ChildItem -LiteralPath $picked -Filter $p[1] -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1) {
                             $picked = Split-Path -Parent $picked
                             $tmFound = $true
                             break
@@ -1285,7 +1285,7 @@ function global:New-LocateButton {
             # root) never store a single-exe override.
             if (-not $modHit) {
                 if ($Game.LaunchExe) {
-                    if (Test-Path (Join-Path $picked $Game.LaunchExe)) {
+                    if (Test-Path -LiteralPath (Join-Path $picked $Game.LaunchExe)) {
                         $gameHit = $true   # at the root; Start-in-VR finds it, no override needed
                     } else {
                         $rg = Resolve-LocatedRoot -Picked $picked -RelFile $Game.LaunchExe
@@ -1299,7 +1299,7 @@ function global:New-LocateButton {
                 if (-not $gameHit) {
                     $exeCands = @()
                     try {
-                        $exeCands = @(Get-ChildItem -Path $picked -Filter *.exe -File -ErrorAction SilentlyContinue |
+                        $exeCands = @(Get-ChildItem -LiteralPath $picked -Filter *.exe -File -ErrorAction SilentlyContinue |
                             Where-Object { $_.Name -notmatch '(?i)(crashhandler|crashreport|vc_redist|vcredist|dxsetup|directx|dotnet|notification_helper|unins|uninstall|_setup|installer|redist)' } |
                             Sort-Object Length -Descending |
                             Select-Object -ExpandProperty FullName)
@@ -1324,7 +1324,7 @@ function global:New-LocateButton {
             # per-mod and VrInstallRoot launch from their own root, so
             # both skip a single-exe override.
             if (-not $chosenExe -and $Game.LaunchExe -and -not $Game.TwoMods -and -not $Game.VrInstallRoot) {
-                if (-not (Test-Path (Join-Path $picked $Game.LaunchExe))) {
+                if (-not (Test-Path -LiteralPath (Join-Path $picked $Game.LaunchExe))) {
                     $rl = Resolve-LocatedRoot -Picked $picked -RelFile $Game.LaunchExe
                     if ($rl) { $chosenExe = Join-Path $rl $Game.LaunchExe }
                 }
@@ -1360,7 +1360,7 @@ function global:New-LocateButton {
             if ($Game.Revive) {
                 try {
                     $rvMarker = Join-Path $picked ".revive_launch"
-                    if (-not (Test-Path $rvMarker)) {
+                    if (-not (Test-Path -LiteralPath $rvMarker)) {
                         $rvInj = $null
                         $rvCands = @(
                             (Join-Path $env:ProgramFiles "Revive\ReviveInjector.exe"),
@@ -2810,7 +2810,29 @@ function global:Start-GameInVR {
             if ($Game.Bat -and $global:scriptDir) {
                 $tmBat = Join-Path $global:scriptDir $Game.Bat
                 if (Test-Path $tmBat) {
-                    try { Start-LoggedInstaller -Game $Game -BatPath $tmBat -RequiresAdmin:([bool]$Game.RequiresAdmin) | Out-Null } catch { }
+                    try {
+                        $tmProc = Start-LoggedInstaller -Game $Game -BatPath $tmBat -RequiresAdmin:([bool]$Game.RequiresAdmin)
+                        # Same auto-refresh as the primary Install button
+                        # (DispatcherTimer poll, see the comment there for
+                        # why not Register-ObjectEvent): without this, a mod
+                        # installed via the TwoMods choice buttons only
+                        # showed as VR Ready after a manual re-scan.
+                        if ($tmProc) {
+                            $global:PendingInstallTitle = $Game.Title
+                            $tmTimer = New-Object System.Windows.Threading.DispatcherTimer
+                            $tmTimer.Interval = [TimeSpan]::FromMilliseconds(750)
+                            $tmTimer.Tag = $tmProc
+                            $tmTimer.Add_Tick({
+                                param($s, $e)
+                                $proc = $s.Tag
+                                if (-not $proc -or $proc.HasExited) {
+                                    try { $s.Stop() } catch {}
+                                    try { Invoke-PostInstallRefresh } catch {}
+                                }
+                            })
+                            $tmTimer.Start()
+                        }
+                    } catch { }
                     return
                 }
             }
@@ -5216,7 +5238,27 @@ function global:Show-DiscoverDetail {
             # Run through the logging wrapper (Start-LoggedInstaller, Helpers.ps1):
             # saves output to Logs\<Title>-<timestamp>.log; the branch logic and
             # the RequiresAdmin elevated path live in one place.
-            Start-LoggedInstaller -Game $reinstallGameRef -BatPath $batPath -RequiresAdmin:([bool]$reinstallGameRef.RequiresAdmin) | Out-Null
+            $riProc = Start-LoggedInstaller -Game $reinstallGameRef -BatPath $batPath -RequiresAdmin:([bool]$reinstallGameRef.RequiresAdmin)
+            # Same auto-refresh as the primary Install button, so a
+            # reinstall/update done via this pill updates the page and
+            # clears a pending update badge without a manual re-scan.
+            if ($riProc) {
+                try {
+                    $global:PendingInstallTitle = $reinstallGameRef.Title
+                    $riTimer = New-Object System.Windows.Threading.DispatcherTimer
+                    $riTimer.Interval = [TimeSpan]::FromMilliseconds(750)
+                    $riTimer.Tag = $riProc
+                    $riTimer.Add_Tick({
+                        param($s, $e)
+                        $proc = $s.Tag
+                        if (-not $proc -or $proc.HasExited) {
+                            try { $s.Stop() } catch {}
+                            try { Invoke-PostInstallRefresh } catch {}
+                        }
+                    })
+                    $riTimer.Start()
+                } catch {}
+            }
         }.GetNewClosure())
     }
 

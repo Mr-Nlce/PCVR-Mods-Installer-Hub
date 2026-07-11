@@ -32,6 +32,8 @@ No game files are bundled with this installer - everything is fetched live from 
 
 After installation, **restart the game once** before VR activates. The mod loads on second launch — let Techtonica reach the main menu the first time, then close and relaunch. This is documented behavior of the mod, not a bug.
 
+**Updating from an older mod version?** The mod switched to PiVRLoader for most of its VR functionality — re-install the **entire** mod, preferably on a clean game install (verify the game files in Steam first, then run the installer again).
+
 If audio cues for teleport/snap-turn don't play, verify that Tobey.UnityAudio installed correctly (look for `BepInEx\patchers\Tobey\UnityAudio\`).
 
 ## Controls

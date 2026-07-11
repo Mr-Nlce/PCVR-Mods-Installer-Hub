@@ -1405,6 +1405,8 @@ function global:Get-PowerTier {
         "Stray VR" = "HIGH"
         "Grand Theft Auto V VR" = "HIGH"
         "Forza Horizon 6 VR" = "HIGH"
+        "Forza Horizon 5 VR" = "HIGH"
+        "Idols of Ash VR"    = "BASIC"
         "Ready Or Not VR" = "HIGH"
         "Cyberpunk 2077"              = "HIGH"
         "Skyrim VR" = "HIGH"

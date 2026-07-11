@@ -132,6 +132,8 @@ echo   [117] New Star GP VR
 echo   [118] Super Mario 64 VR
 echo   [119] Star Fox 64 VR
 echo   [120] Hytale VR
+echo   [121] Forza Horizon 5 VR
+echo   [122] Idols of Ash VR
 echo.
 set /p choice="Enter number (1-120): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
@@ -254,6 +256,8 @@ if "%choice%"=="117" (set SCRIPT=%~dp0NewStarGPVR\NewStarGPVR-core.ps1)
 if "%choice%"=="118" (set SCRIPT=%~dp0SuperMario64VR\SuperMario64VR-core.ps1)
 if "%choice%"=="119" (set SCRIPT=%~dp0StarFox64VR\StarFox64VR-core.ps1)
 if "%choice%"=="120" (set SCRIPT=%~dp0HytaleVR\HytaleVR-core.ps1)
+if "%choice%"=="121" (set SCRIPT=%~dp0ForzaHorizon5VR\ForzaHorizon5VR-core.ps1)
+if "%choice%"=="122" (set SCRIPT=%~dp0IdolsOfAshVR\IdolsOfAshVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

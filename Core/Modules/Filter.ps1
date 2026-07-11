@@ -1895,6 +1895,10 @@ function global:Invoke-CheckInstalledScan {
     $vrFound = 0
     foreach ($card in $global:cardGameMap.Keys) {
         $game = $global:cardGameMap[$card]
+        # Per-game guard: one game whose detection throws must NEVER
+        # kill the scan for every game after it. Errors are recorded and
+        # the loop continues with the next game.
+        try {
         # Free standalone VR games (Anomaly, Iron Lung, Sonic P-06,
         # Receiver) have no purchase/ownership requirement - they are
         # always ready to install. They may have a SteamFolder set
@@ -2343,6 +2347,24 @@ function global:Invoke-CheckInstalledScan {
             if ($tmAPresent -or $tmBPresent) { $twoModsAnyPresent = $true }
         }
 
+        # One-time lufz VRMod baseline migration: lufz installs made before
+        # the catalog pinned a version have no .installed_version file - the
+        # generic version block below would silently SEED those to the
+        # current pin and existing users would never see the update badge.
+        # Every lufz install from before the pin can only be the single old
+        # beta build, so: lufz mod present + version file missing = old
+        # install. Write the old baseline once; the pin comparison below
+        # then raises the Update badge, and the installer writes the real
+        # version on the next (re)install, which clears it again.
+        if ($game.ModBSub -eq "lufz" -and $tmBPresent) {
+            try {
+                $lufzIvp = Get-InstalledVersionPath -Game $game
+                if ($lufzIvp -and -not (Test-Path $lufzIvp)) {
+                    Set-Content -Path $lufzIvp -Value "1.0.0" -Encoding ASCII -Force
+                }
+            } catch {}
+        }
+
         # Free games are available to install without buying, but that
         # does NOT mean they are installed. They only turn green when
         # their VR mod is actually on disk (vrInstalled). Until then
@@ -2352,6 +2374,41 @@ function global:Invoke-CheckInstalledScan {
         # $installed = $true (folder exists on disk), but for free games
         # that must NOT trigger the green "installed" card - only the
         # verified vrInstalled state does. So clear it here.
+        # ---- Hytale VR: direct on-disk dual-file check ----------------
+        # The game installs via its own external launcher (client under
+        # %APPDATA%), the mod via our installer. BOTH files are verified
+        # directly on disk on EVERY scan, independent of any marker or
+        # priority logic above - nothing can bypass it:
+        #   game = HytaleClient.exe under %APPDATA%
+        #   mod  = combo launcher bat OR dashboard exe at a standard
+        #          root (or the recorded custom root)
+        # mod present            -> VR Ready
+        # only the game present  -> installed
+        # NOTE: Hytale is a PAID game (WIP pill only) - it must never be
+        # treated as a free title.
+        if ($game.Title -eq "Hytale VR") {
+            $hyClient = $null
+            try { $hyClient = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "Hytale\install\release\package\game\latest\Client\HytaleClient.exe" } catch {}
+            $hyClientOk = ($hyClient -and (Test-Path -LiteralPath $hyClient))
+            $hyModRoot = $null
+            foreach ($hr in @("C:\Games\Hytale VR", "D:\Games\Hytale VR", "E:\Games\Hytale VR")) {
+                if ((Test-Path -LiteralPath (Join-Path $hr "Start Hytale VR.bat")) -or (Test-Path -LiteralPath (Join-Path $hr "hytale_camera_dashboard.exe"))) { $hyModRoot = $hr; break }
+            }
+            if (-not $hyModRoot) {
+                $hyRec = $null
+                try { $hyRec = Read-InstalledPath -Game $game } catch {}
+                if ($hyRec -and ((Test-Path -LiteralPath (Join-Path $hyRec "Start Hytale VR.bat")) -or (Test-Path -LiteralPath (Join-Path $hyRec "hytale_camera_dashboard.exe")))) { $hyModRoot = $hyRec }
+            }
+            if ($hyModRoot) {
+                $installed   = $true
+                $gameDir     = $hyModRoot
+                $vrInstalled = $true
+            } elseif ($hyClientOk -and -not $installed) {
+                $installed = $true
+                $gameDir   = (Split-Path -Parent $hyClient)
+            }
+        }
+
         if ($isFreeGame -and -not $vrInstalled) { $installed = $false }
 
         if ($vrInstalled) {
@@ -2547,6 +2604,40 @@ function global:Invoke-CheckInstalledScan {
                 }
             }
 
+            # Date-based update pin for manual-download mods (Nexus etc.)
+            # with NO online version check: the catalog can carry
+            #   ModReleasedAt = "yyyy-MM-dd"
+            # (maintained by hand - set it to the date the modder shipped
+            # the newest build). If the installed mod file on disk is OLDER
+            # than that date, the user installed before the release ->
+            # Update badge. Install moment = MAX(CreationTime, LastWrite):
+            # archives preserve the modder's build time as LastWriteTime,
+            # extraction stamps CreationTime with the install moment.
+            #
+            # 7-DAY GRACE, and why it is essential: on an IN-PLACE update
+            # (extracting over the old install - the normal update path)
+            # Windows KEEPS the file's original CreationTime, and the new
+            # LastWriteTime is the modder's build time, which sits a few
+            # days BEFORE the release date. Without grace the badge would
+            # never clear after such an update. Threshold = release date
+            # minus 7 days: fresh builds (within a week of release) count
+            # as current, while genuinely old installs stay flagged.
+            # Trade-off: someone who installed the OLD build in the last 7
+            # days before the new release misses the badge - acceptable;
+            # push ModReleasedAt a week later if that ever matters.
+            if (-not $needsUpdate -and $game.ModReleasedAt -and $game.ModFile -and $gameDir) {
+                try {
+                    $mrFile = Join-Path $gameDir $game.ModFile
+                    if (Test-Path -LiteralPath $mrFile) {
+                        $mrDate = [DateTime]::ParseExact([string]$game.ModReleasedAt, 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
+                        $mrThreshold = $mrDate.ToUniversalTime().AddDays(-7)
+                        $mrItem = Get-Item -LiteralPath $mrFile -ErrorAction Stop
+                        $mrInstalled = if ($mrItem.CreationTimeUtc -gt $mrItem.LastWriteTimeUtc) { $mrItem.CreationTimeUtc } else { $mrItem.LastWriteTimeUtc }
+                        if ($mrInstalled -lt $mrThreshold) { $needsUpdate = $true }
+                    }
+                } catch {}
+            }
+
             if ($needsUpdate) {
                 # Update available: switch to a unified blue ("update
                 # blue" = #2563eb) regardless of the accent color, so
@@ -2736,7 +2827,14 @@ function global:Invoke-CheckInstalledScan {
             }
         }
         Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
-    }
+            } catch {
+            try {
+                if (-not $global:ScanGameErrors) { $global:ScanGameErrors = New-Object System.Collections.ArrayList }
+                [void]$global:ScanGameErrors.Add(("{0}: {1}" -f $game.Title, $_.Exception.Message))
+                Write-Host ("  [scan] detection failed for '" + $game.Title + "': " + $_.Exception.Message) -ForegroundColor Yellow
+            } catch {}
+        }
+}
 
     # Update the counter button. Pre-scan it showed "Check Installed"
     # in CheckInstalledText; post-scan we hide that and reveal the

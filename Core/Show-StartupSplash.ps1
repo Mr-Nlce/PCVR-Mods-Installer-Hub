@@ -32,7 +32,7 @@ try {
 # Mod count shown in the {N} hints - the real VR-mod tally. Tools and
 # external tool entries are deliberately NOT counted, so an auto-count of
 # catalog entries reads high. Bump this when the real number changes.
-$tileCount = 188
+$tileCount = 190
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only

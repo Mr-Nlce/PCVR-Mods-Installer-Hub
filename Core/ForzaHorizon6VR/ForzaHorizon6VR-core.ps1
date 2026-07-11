@@ -17,7 +17,7 @@ $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 6 VR"
 $KOFI_URL      = "https://ko-fi.com/s/03bdcc5fe9"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1514330703582593167"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1525251187245453462"
 
 function Write-Header {
     Clear-Host
@@ -95,7 +95,7 @@ if ($modChoice -eq "1") {
     $modName      = "lufz VRMod"
     $modSub       = "lufz"
     $launcherName = "vrmod-launcher.exe"
-    $zipHint      = "VRMod-v1.0.0-beta.1.zip"
+    $zipHint      = "VRMod-v1_2_0.zip"
 }
 Write-OK "Selected: $modName"
 
@@ -114,7 +114,7 @@ if ($modChoice -eq "1") {
     Write-Host "   - Then the download post opens; the file is named '$zipHint'." -ForegroundColor Gray
     Pause-User "Press Enter to open the flat2VR invite..."
     try { Start-Process $FLAT2VR_URL } catch { Write-Warn "Could not open the browser. Join manually: $FLAT2VR_URL" }
-    Pause-User "Press Enter once you have joined the Discord..."
+    Pause-User "Press Enter once you have joined to open the download post..."
     Write-Host "   - Opening the download post. The file is named '$zipHint'." -ForegroundColor Gray
     try { Start-Process $LUF_POST_URL } catch { Write-Warn "Could not open the post. Open manually: $LUF_POST_URL" }
     Write-Host ""
@@ -190,6 +190,23 @@ try {
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
 # Clean up any stale single-launcher override from an older install.
 try { $ov = Join-Path $PSScriptRoot ".launch_exe"; if (Test-Path $ov) { Remove-Item $ov -Force -ErrorAction SilentlyContinue } } catch {}
+
+# lufz installs: record the installed mod version so the Hub's update badge
+# clears after an update (catalog pins the current lufz version; a mismatch
+# shows Update). Parsed from the dragged zip name (VRMod-v1_2_0.zip ->
+# 1.2.0), falling back to the current known version. NORMALIZED without a
+# leading "v" - the Hub compares against Get-ModVersionFromString output,
+# which strips the v (writing "v1.2.0" would flag it out-of-date forever).
+# NALULUNA installs deliberately do NOT touch this file: it tracks the
+# lufz build, and overwriting it here would wipe a pending lufz update.
+if ($modChoice -eq "2") {
+    $lufzVer = "1.2.0"
+    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
+        $pv = $matches[1].Replace("_", ".").Trim(".")
+        if ($pv -match '^\d+\.\d+') { $lufzVer = $pv }
+    }
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
+}
 
 # ---- STEP 6: how to play ----
 Write-Step 6 6 "How to play"

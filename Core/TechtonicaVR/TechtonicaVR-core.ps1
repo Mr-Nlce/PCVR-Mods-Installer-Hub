@@ -271,6 +271,10 @@ Write-Host ""
 Write-Host " IMPORTANT: After installing, restart the game once. Let it load to" -ForegroundColor Yellow
 Write-Host " the main menu, then close and relaunch. The mod won't activate" -ForegroundColor Yellow
 Write-Host " on the very first run - this is documented behavior." -ForegroundColor Yellow
+Write-Host ""
+Write-Host " Updating from an OLDER mod version? The mod switched to PiVRLoader -" -ForegroundColor Yellow
+Write-Host " re-install the ENTIRE mod, preferably on a clean game install" -ForegroundColor Yellow
+Write-Host " (verify game files in Steam first, then run this installer)." -ForegroundColor Yellow
 
 Write-Host ""
 Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan

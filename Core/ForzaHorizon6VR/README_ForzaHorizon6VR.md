@@ -21,7 +21,7 @@ There is no single "best" mod - opinions differ, so both are offered.
   `fh6vr.exe`.
 - **lufz / VRMod** - shared in the **flat2VR Modding Discord**. Join via the
   invite (also in the Hub's Help & Feedback button), open the download
-  post, grab `VRMod-v1.0.0-beta.1.zip`. Launcher: `vrmod-launcher.exe`.
+  post, grab `VRMod-v1_2_0.zip` (newest version). Launcher: `vrmod-launcher.exe`.
 
 ## Requirements
 

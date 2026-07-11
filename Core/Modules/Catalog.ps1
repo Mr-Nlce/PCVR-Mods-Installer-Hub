@@ -6,6 +6,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "7 Days to Die VR"
         SteamId     = "251570"
+        ModReleasedAt = "2026-07-06"
         Mod         = "7DaysVR (Alpha 21)"
         Pill        = "7D2DVR"
         Description = "Guided Nexus download."
@@ -157,6 +158,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Black Mesa Source VR"
         SteamId     = "362890"
+        ModReleasedAt = "2023-05-04"
         Mod         = "BMSVR Beta 2.0"
         Description = "HL2VR Ep.2 Mod"
         Author      = "Ashok"
@@ -276,6 +278,7 @@ $ownGames = @(
     @{
         Controls    = "MC"
         Title       = "Daggerfall VR"
+        ModReleasedAt = "2025-05-24"
         Quip        = "Six thousand dungeons, now wall to wall around you."
         SteamId     = "1812390"
         Mod         = "DF_Unity_VR v0.9.1"
@@ -659,6 +662,7 @@ $ownGames = @(
         InfoUrl     = "https://github.com/heurazy/HytaleVRInjector-mod"
         DownloadUrl = "https://github.com/heurazy/HytaleVRInjector-mod/releases/latest"
         ModFile     = "hytale_camera_dashboard.exe"
+        ModFileAlt  = "Start Hytale VR.bat"
         LaunchExe   = "Start Hytale VR.bat"
         SteamFolder = "Hytale VR"
         FallbackPaths=@("C:\Games\Hytale VR", "D:\Games\Hytale VR", "E:\Games\Hytale VR", "C:\games\Hytale VR", "APPDATA:Hytale\install\release\package\game\latest\Client\HytaleClient.exe")
@@ -686,6 +690,27 @@ $ownGames = @(
         SteamFolder = "I Can Gun VR"
         FallbackPaths=@("C:\Games\I Can Gun VR", "D:\Games\I Can Gun VR", "E:\Games\I Can Gun VR", "C:\games\I Can Gun VR")
         Tags=@("i can gun", "icangun", "icg", "patrick koenig", "koenig", "receiver-like", "fps", "shooter", "action", "sim", "atmospheric", "guns", "tactical", "procedural", "indie", "free")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "Idols of Ash VR"
+        SteamId     = "4450800"
+        PortraitUrl = "Assets/IdolsOfAsh_portrait.jpg"
+        HeaderUrl   = "Assets/IdolsOfAsh_header.jpg"
+        GithubRepo  = "LXE97/UGVR-IdolsOfAsh"
+        Quip        = "Sling the hook, swing the ash - the idols are waiting."
+        Mod         = "IoA UGVR (auto-updates)"
+        Pill        = "IOA_VR"
+        Description = "OpenXR, motion controls."
+        Author      = "LXE97"
+        Bat         = "IdolsOfAshVR\START_INSTALLER.bat"
+        Color       = "#120c08"
+        Accent      = "#e0762e"
+        InfoUrl     = "https://github.com/LXE97/UGVR-IdolsOfAsh"
+        ModFile     = "xr_injector\xr_injector.gd"
+        SteamFolder = "IdolsOfAsh"
+        FallbackPaths=@("STEAM:IdolsOfAsh", "APPDATA:itch\apps\idols-of-ash\idols_of_ash.exe")
+        Tags=@("idols of ash", "idols", "grappling hook", "lxe97", "ugvr", "godot", "action", "adventure", "platformer", "atmospheric", "dark fantasy", "souls-like", "indie")
     },
     @{
         Controls    = "MC"
@@ -1123,6 +1148,7 @@ $ownGames = @(
     @{
         Controls    = "MC"
         Title       = "Ready Or Not VR"
+        ModReleasedAt = "2026-06-15"
         Quip        = "Stack up, breach with caution, and bring every officer home."
         SteamId     = "1144200"
         Mod         = "VRO Mod 1016"
@@ -1634,7 +1660,8 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Far Cry Primal VR"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Rebirth VR"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Remake VR"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Forza Horizon 6 VR"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="lufz or NALULUNA"; Description="lufz or NALULUNA mod"; Author="NALULUNA / lufz"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
+    @{ Controls="GP"; Title="Forza Horizon 5 VR"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"; Mod="lufz VRMod v1.2.0"; Description="lufz VRMod"; Author="lufz"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"; ModFile="vrmod-launcher.exe"; SteamFolder="ForzaHorizon5"; FallbackPaths=@("STEAM:ForzaHorizon5", "C:\XboxGames\Forza Horizon 5\Content", "XBOX:Forza Horizon 5"); InfoUrl="https://discord.gg/uAeQkYBM4n"; Tags=@("forza horizon 5", "forza", "fh5", "lufz", "vrmod", "racing", "driving", "open world", "mexico", "arcade racing", "sim", "simulation") },
+    @{ Controls="GP"; Title="Forza Horizon 6 VR"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="lufz v1.2.0 or NALULUNA"; Description="lufz or NALULUNA mod"; Author="NALULUNA / lufz"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
     @{ Controls="GP"; Title="Ghost of Tsushima VR"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-updates)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="RealRepo\RealVR64.dll" },
