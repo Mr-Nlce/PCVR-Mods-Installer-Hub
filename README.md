@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (191)</summary>
+<summary>Show all currently listed titles (196)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -29,6 +29,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Apollo Justice: Ace Attorney Trilogy
 * Art of Rally VR
 * Ashes 2063 VR (motion controls)
+* Assassin's Creed Mirage
+* Assassin's Creed Odyssey
+* Assassin's Creed Valhalla
 * Astrodogs VR (motion controls)
 * Atomic Heart
 * Avatar: Frontiers of Pandora
@@ -170,6 +173,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
 * Sonic P-06 VR
+* Sonic Robo Blast 2 VR
 * Spiderman 2
 * Spiderman Miles Morales
 * Spiderman Remastered
@@ -188,6 +192,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
 * Super Mario 64 Coop VR
+* (Super) Mario Kart 64 VR
 * Sunrise GP VR
 * Super Polygon Grand Prix
 * Techtonica (motion controls)
