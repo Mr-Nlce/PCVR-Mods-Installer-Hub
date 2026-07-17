@@ -86,12 +86,186 @@ function Test-WritableRoot {
     } catch { return $false }
 }
 
+# Download + extract the optional 3D models addon into <gameRoot>\Resources.
+# Returns $true if the addon pk3s were placed. Shared by the full install
+# (step 5) and the "3D only" retrofit path.
+function Install-Ashes3DAddon {
+    param([string]$GameRoot, [string]$ScriptDir)
+    Write-Host "  A community addon turns the WORLD objects into 3D models -" -ForegroundColor White
+    Write-Host "  ammo, quest items, powerups, props and weapons lying on the" -ForegroundColor Gray
+    Write-Host "  ground. The weapon in your hand stays 2D (Ashes 2063 +" -ForegroundColor Gray
+    Write-Host "  Afterglow; Hard Reset is not covered)." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Download steps (do these now):" -ForegroundColor White
+    Write-Host "   1. The ModDB addon page opens in your browser." -ForegroundColor White
+    Write-Host "   2. Click the red 'Download Now' button (about 33 MB)." -ForegroundColor White
+    Write-Host "   3. Come back here and drag the downloaded ZIP into this window." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  ModDB addon URL:" -ForegroundColor Cyan
+    Write-Host "   -> https://www.moddb.com/mods/ashes-2063/addons/ashes-3d-models-2063-afterglow" -ForegroundColor DarkGray
+    Pause-User "Press Enter to open the ModDB addon page in your browser..."
+    try { Start-Process "https://www.moddb.com/mods/ashes-2063/addons/ashes-3d-models-2063-afterglow" } catch { Write-Warn "Could not open the browser. Open manually: https://www.moddb.com/mods/ashes-2063/addons/ashes-3d-models-2063-afterglow" }
+
+    $addonZip = $null
+    while (-not $addonZip) {
+        Write-Host ""
+        Write-Host "  Drag the downloaded 3D-models ZIP onto this window and press Enter." -ForegroundColor Yellow
+        Write-Host "  (Leave empty and press Enter to skip the addon.)" -ForegroundColor DarkGray
+        $rawAd = Read-Host "  3D addon ZIP path"
+        if ([string]::IsNullOrWhiteSpace($rawAd)) { Write-Info "Skipped the 3D models addon."; return $false }
+        $pa = $rawAd.Trim().Trim('"').Trim("'").Trim()
+        if (-not (Test-Path -LiteralPath $pa)) { Write-Warn "Path not found: $pa"; continue }
+        if (Test-Path -LiteralPath $pa -PathType Container) { Write-Warn "That is a folder. Drag the .zip file itself."; continue }
+        if ([System.IO.Path]::GetExtension($pa) -ne ".zip") { Write-Warn "That is not a .zip file."; continue }
+        $addonZip = $pa
+    }
+
+    $adTmp = Join-Path $env:TEMP ("Ashes3D_" + [System.Guid]::NewGuid().ToString("N"))
+    try {
+        New-Item -ItemType Directory -Path $adTmp -Force -ErrorAction Stop | Out-Null
+        Expand-Archive -LiteralPath $addonZip -DestinationPath $adTmp -Force -ErrorAction Stop
+        $resDest = Join-Path $GameRoot "Resources"
+        if (-not (Test-Path -LiteralPath $resDest)) { New-Item -ItemType Directory -Path $resDest -Force -ErrorAction SilentlyContinue | Out-Null }
+        $pk2063 = Get-ChildItem -LiteralPath $adTmp -Filter "Ashes2063-3D.pk3" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        $pkGlow = Get-ChildItem -LiteralPath $adTmp -Filter "AshesAfterglow-3D.pk3" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $pk2063 -and -not $pkGlow) {
+            Write-Warn "Could not find the 3D .pk3 files inside the ZIP - skipping addon."
+            return $false
+        }
+        if ($pk2063) { Copy-Item -LiteralPath $pk2063.FullName -Destination (Join-Path $resDest "Ashes2063-3D.pk3") -Force -ErrorAction Stop }
+        if ($pkGlow) { Copy-Item -LiteralPath $pkGlow.FullName -Destination (Join-Path $resDest "AshesAfterglow-3D.pk3") -Force -ErrorAction Stop }
+        Write-OK "3D models addon installed (loads on top of Ashes 2063 and Afterglow)."
+        try { Set-Content -Path (Join-Path $ScriptDir ".addon3d_installed") -Value "1" -Encoding ASCII -Force } catch {}
+        return $true
+    } catch {
+        Write-Warn "3D addon install failed: $($_.Exception.Message)"
+        Write-Host "  You can add it later by placing the .pk3 files in Resources and" -ForegroundColor Yellow
+        Write-Host "  re-running this installer." -ForegroundColor Yellow
+        return $false
+    } finally {
+        try { Remove-Item -LiteralPath $adTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+# Write the three VR launcher .bat files. When $Has3D, the matching 3D
+# pk3 is appended AFTER each episode's content pk3 (so models override
+# sprites). Needs $ExeName (gzdoomvr exe) resolved by the caller.
+function Write-AshesLaunchers {
+    param([string]$GameRoot, [string]$ExeName, [bool]$Has3D)
+    $mkBat = {
+        param($Path, $Title, $Pk3Line)
+        $exeRel = ".\gzdoomvr\$ExeName"
+        $content = @"
+@echo off
+cd /d "%~dp0"
+echo ============================================================
+echo  Launching $Title in VR
+echo  Make sure SteamVR / Virtual Desktop (OpenVR) is running first!
+echo ============================================================
+"$exeRel" -iwad ".\Resources\freedoom-0.12.1\freedoom2.wad" -file $Pk3Line -config ".\gzdoomvr\ashes-vr.ini" +set language "enu" +vr_mode 10
+"@
+        Set-Content -Path $Path -Value $content -Encoding ASCII -Force
+    }
+    $pkBase   = '".\Resources\AshesSAMenu.pk3" ".\Resources\lightmodepatch.pk3"'
+    $pk3D_2063 = if ($Has3D) { ' ".\Resources\Ashes2063-3D.pk3"' } else { '' }
+    $pk3D_Glow = if ($Has3D) { ' ".\Resources\AshesAfterglow-3D.pk3"' } else { '' }
+    & $mkBat (Join-Path $GameRoot "Play Ashes 2063 VR.bat") "Ashes 2063 (Enriched / Episode 1 + DMW)" "$pkBase `".\Resources\Ashes2063Enriched2_23.pk3`" `".\Resources\Ashes2063EnrichedFDPatch.pk3`"$pk3D_2063"
+    & $mkBat (Join-Path $GameRoot "Play Afterglow VR.bat") "Ashes Afterglow" "$pkBase `".\Resources\AshesAfterglow1_16.pk3`"$pk3D_Glow"
+    & $mkBat (Join-Path $GameRoot "Play Hard Reset VR.bat") "Ashes Hard Reset" "$pkBase `".\Resources\AshesHardReset_105.pk3`""
+}
+
+# Resolve the gzdoomvr exe name inside <gameRoot>\gzdoomvr (gzdoom.exe or
+# gzdoomvr.exe). Returns $null if the folder/exe isn't there.
+function Get-AshesGzExeName {
+    param([string]$GameRoot)
+    $gzDir = Join-Path $GameRoot "gzdoomvr"
+    if (-not (Test-Path -LiteralPath $gzDir)) { return $null }
+    $exe = Get-ChildItem -LiteralPath $gzDir -Filter "*.exe" -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '(?i)gzdoom' } | Select-Object -First 1
+    if ($exe) { return $exe.Name }
+    return $null
+}
+
 Write-Header
-Write-Host "  Installs Ashes 2063 (free GZDoom TC) with motion controls via gzdoomvr." -ForegroundColor Gray
+Write-Host "  Installs Ashes 2063 (free GZDoom TC) with motion controls via" -ForegroundColor Gray
+Write-Host "  gzdoomvr and an optional 3D pack mod." -ForegroundColor Gray
 Write-Host ""
 
+# ---- Existing install? Offer 3D-pack retrofit without a full reinstall.
+# The base download is huge (~665 MB); if the VR mod is already here, let
+# the user just add the 3D pack instead of fetching everything again.
+$existingRoot = $null
+try {
+    # Detect from FILES ON DISK (a fresh Hub has no .installed_path). A
+    # valid install has both Resources\ and gzdoomvr\ under the folder.
+    $probeRoots = New-Object System.Collections.Generic.List[string]
+    # 1) The recorded path, if the marker happens to be present.
+    try {
+        $ipFile = Join-Path $SCRIPT_DIR ".installed_path"
+        if (Test-Path -LiteralPath $ipFile) {
+            $cand = (Get-Content -LiteralPath $ipFile -Raw -ErrorAction SilentlyContinue)
+            if ($cand) { [void]$probeRoots.Add($cand.Trim()) }
+        }
+    } catch {}
+    # 2) The standard install locations (C:/D:/E:\Games\Ashes 2063 VR).
+    # Build these WITHOUT Join-Path: on some PowerShell versions Join-Path
+    # throws DriveNotFound if D:/E: don't exist, which would abort the
+    # whole detection. Plain string join never validates the drive.
+    foreach ($r in $DEFAULT_ROOTS) { [void]$probeRoots.Add(($r.TrimEnd('\') + '\' + $GAME_FOLDER)) }
+    foreach ($cand in $probeRoots) {
+        try {
+            if ($cand -and (Test-Path -LiteralPath ($cand.TrimEnd('\') + '\Resources')) -and (Test-Path -LiteralPath ($cand.TrimEnd('\') + '\gzdoomvr'))) {
+                $existingRoot = $cand
+                break
+            }
+        } catch { }
+    }
+} catch {}
+
+if ($existingRoot) {
+    Write-Host "  An existing Ashes 2063 VR install was found here:" -ForegroundColor Green
+    Write-Host "    $existingRoot" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  What would you like to do?" -ForegroundColor White
+    Write-Host "    [1] Add the 3D ammo + props mod only (no big re-download)" -ForegroundColor Yellow
+    Write-Host "    [2] Reinstall everything from scratch" -ForegroundColor Yellow
+    Write-Host ""
+    $modeChoice = (Read-Host "  Choose 1 or 2").Trim()
+    if ($modeChoice -eq "1") {
+        Write-Step 1 1 "Adding the 3D models addon"
+        $gzName = Get-AshesGzExeName -GameRoot $existingRoot
+        if (-not $gzName) {
+            Write-Fail "Could not find the gzdoomvr executable under $existingRoot\gzdoomvr."
+            Write-Host "  The install looks incomplete - run a full reinstall instead." -ForegroundColor Yellow
+            Pause-User "Press Enter to close..."
+            return
+        }
+        $ok3d = Install-Ashes3DAddon -GameRoot $existingRoot -ScriptDir $SCRIPT_DIR
+        if ($ok3d) {
+            # Rewrite the launchers so the 3D pk3s are loaded.
+            try {
+                Write-AshesLaunchers -GameRoot $existingRoot -ExeName $gzName -Has3D $true
+                Write-OK "Launchers updated - the 3D pack now loads for Ashes 2063 and Afterglow."
+            } catch { Write-Warn "Could not update the launchers: $($_.Exception.Message)" }
+            Write-Host ""
+            Write-Host "  Done. Launch from your existing desktop shortcuts as usual." -ForegroundColor White
+            Write-Host ""
+            Write-Host "  Tune in to Spire Radio, scavenger - now in glorious 3D." -ForegroundColor Magenta
+        } else {
+            Write-Host ""
+            Write-Host "  No changes made. You can re-run this any time." -ForegroundColor Gray
+        }
+        Write-Host ""
+        Pause-User "Press Enter to close..."
+        return
+    }
+    # Choice 2 (or anything else) falls through to a normal full install.
+    Write-Info "Continuing with a full reinstall."
+    Write-Host ""
+}
+
+
 # ---- 1. get the (free) Ashes Standalone download ------------
-Write-Step 1 5 "Get the Ashes Standalone download"
+Write-Step 1 6 "Get the Ashes Standalone download"
 Write-Host "  Ashes is a free download from ModDB, so it can't be fetched automatically." -ForegroundColor White
 Write-Host "  Pressing Enter opens the download page:" -ForegroundColor Yellow
 Write-Host "      ( $ASHES_MODDB )" -ForegroundColor Gray
@@ -124,7 +298,7 @@ while (-not $ashesZip) {
 Write-OK "Ashes ZIP: $ashesZip"
 
 # ---- 2. install location ------------------------------------
-Write-Step 2 5 "Choose install location"
+Write-Step 2 6 "Choose install location"
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
 Write-Host "  (Recommended. C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
@@ -168,7 +342,7 @@ try {
 }
 
 # ---- 3. extract the Ashes standalone into the game folder ---
-Write-Step 3 5 "Extracting Ashes 2063"
+Write-Step 3 6 "Extracting Ashes 2063"
 $ashesUnpack = Join-Path $tmp "ashes_unpack"
 $extractOk = $false
 while (-not $extractOk) {
@@ -242,7 +416,7 @@ if (-not (Test-Path $freedoom)) {
 Write-OK "Ashes installed at: $gameRoot"
 
 # ---- 4. download + place the gzdoomvr VR engine -------------
-Write-Step 4 5 "Downloading the VR engine (gzdoomvr)"
+Write-Step 4 6 "Downloading the VR engine (gzdoomvr)"
 $gzZip = Join-Path $tmp "gzdoomvr.zip"
 $urls = New-Object System.Collections.Generic.List[string]
 Write-Info "Resolving the newest gzdoomvr release via the GitHub API..."
@@ -324,32 +498,24 @@ try {
 }
 Write-OK "VR engine ready: gzdoomvr\$gzExeName"
 
-# ---- 5. write VR launchers + desktop shortcuts --------------
-Write-Step 5 5 "Creating VR launchers and shortcuts"
-
-function New-LauncherBat {
-    param([string]$Path, [string]$Title, [string]$Pk3Line)
-    $exeRel = ".\gzdoomvr\$gzExeName"
-    $content = @"
-@echo off
-cd /d "%~dp0"
-echo ============================================================
-echo  Launching $Title in VR
-echo  Make sure SteamVR / Virtual Desktop (OpenVR) is running first!
-echo ============================================================
-"$exeRel" -iwad ".\Resources\freedoom-0.12.1\freedoom2.wad" -file $Pk3Line -config ".\gzdoomvr\ashes-vr.ini" +vr_mode 10
-"@
-    Set-Content -Path $Path -Value $content -Encoding ASCII -Force
+# ---- 5. optional: 3D models addon (ModDB) -------------------
+Write-Step 5 6 "Optional: 3D models addon"
+$has3D = $false
+$addon3DChoice = Read-Host "  Install the optional 3D models addon now? (Y/N)"
+if ($addon3DChoice -match '^(y|yes|j|ja)$') {
+    $has3D = (Install-Ashes3DAddon -GameRoot $gameRoot -ScriptDir $SCRIPT_DIR)
+} else {
+    Write-Info "Skipping the 3D models addon. You can re-run this installer to add it later."
 }
 
-$pkBase   = '".\Resources\AshesSAMenu.pk3" ".\Resources\lightmodepatch.pk3"'
+# ---- 6. write VR launchers + desktop shortcuts --------------
+Write-Step 6 6 "Creating VR launchers and shortcuts"
+
 $batEp1    = Join-Path $gameRoot "Play Ashes 2063 VR.bat"
 $batGlow   = Join-Path $gameRoot "Play Afterglow VR.bat"
 $batReset  = Join-Path $gameRoot "Play Hard Reset VR.bat"
 try {
-    New-LauncherBat -Path $batEp1   -Title "Ashes 2063 (Enriched / Episode 1 + DMW)" -Pk3Line "$pkBase `".\Resources\Ashes2063Enriched2_23.pk3`" `".\Resources\Ashes2063EnrichedFDPatch.pk3`""
-    New-LauncherBat -Path $batGlow  -Title "Ashes Afterglow"  -Pk3Line "$pkBase `".\Resources\AshesAfterglow1_16.pk3`""
-    New-LauncherBat -Path $batReset -Title "Ashes Hard Reset" -Pk3Line "$pkBase `".\Resources\AshesHardReset_105.pk3`""
+    Write-AshesLaunchers -GameRoot $gameRoot -ExeName $gzExeName -Has3D $has3D
     Write-OK "VR launchers written (Enriched / Afterglow / Hard Reset)."
 } catch {
     Write-Warn "Could not write one or more launcher .bat files: $_"

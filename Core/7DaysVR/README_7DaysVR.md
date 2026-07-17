@@ -1,6 +1,6 @@
 # 7 Days to Die VR Mod Installer
 
-Automated installer for 7DaysVR (Alpha 21).
+Automated installer for 7DaysVR.
 
 ## What it does
 1. Locates your 7 Days to Die installation automatically
@@ -11,7 +11,7 @@ Automated installer for 7DaysVR (Alpha 21).
 
 ## Requirements
 - Windows 10/11
-- Steam with **7 Days to Die** (Alpha 21) installed
+- Steam with **7 Days to Die** installed
 - SteamVR installed
 - A Nexus Mods account (free) to download the mod
 
@@ -76,5 +76,13 @@ controller bindings if you prefer.
 
 ## Full guide
 https://docs.google.com/document/d/1gI9_EpF7ACiZu3bndAj1A5uGy0TKVUnfVfvTbHtWsPM
+
+## Support the 7DVR team
+
+The mod is 100% free and the team says donations are appreciated but never
+required. If you enjoy the work and want to help them keep developing it,
+you can become a patron or, as they put it, buy them a canned ration:
+- https://www.patreon.com/7DaysVR
+- https://www.buymeacoffee.com/7daysvr
 
 >>> Day one. Loot the cars. Run from the screamers.

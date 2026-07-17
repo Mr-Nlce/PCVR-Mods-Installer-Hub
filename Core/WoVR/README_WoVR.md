@@ -9,7 +9,7 @@ WoVR by Marulu adds native VR support with motion controls to the **3.3.5a (WotL
 **Mod:** WoVR v7
 **Author:** Marulu (XIVR / WoVR dev)
 **Target client:** WoW 3.3.5a build 12340 (US / EU)
-**Source / info:** [github.com/ProjectMimer/WoVR](https://github.com/ProjectMimer/WoVR)
+**Source / info:** https://github.com/ProjectMimer/WoVR
 **Precompiled builds:** Flat2VR Discord (the installer opens it for you)
 
 ## Requirements
@@ -43,7 +43,7 @@ To switch variants later, re-run the installer in **Update / Switch** mode and p
 
 ## Controls
 
-![Controls](../Assets/WorldOfWarcraft_controls.jpg)
+![Controls](WorldOfWarcraft_controls.jpg)
 
 - **[[Left Stick]]:** character movement; click for random mount
 - **[[Right Stick]]:** snap turning; click toggles 1st/3rd person + camera recenter
@@ -87,6 +87,6 @@ The game already renders at 2x headset resolution. Further supersampling is **no
 
 WoVR is a labour of love by Marulu. If you enjoy the mod, consider tipping:
 
-**[ko-fi.com/projectmimer](https://ko-fi.com/projectmimer)**
+https://ko-fi.com/projectmimer
 
 >>> Azeroth, life-size. For the Horde - or the Alliance.

@@ -7,7 +7,7 @@ $ownGames = @(
         Title       = "7 Days to Die VR"
         SteamId     = "251570"
         ModReleasedAt = "2026-07-06"
-        Mod         = "7DaysVR (Alpha 21)"
+        Mod         = "7DaysVR v4.1.0.227"
         Pill        = "7D2DVR"
         Description = "Guided Nexus download."
         Author      = "7DaysVR Team"
@@ -22,12 +22,12 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Alien: Isolation VR"
+        Title       = "Alien: Isolation VR"; Roomscale=$true
         SteamId     = "214490"
         Mod         = "MotherVR + GRAND"
         WebVersionUrl = "https://www.alienisolationvr.com/"
         Description = "Steam version required."
-        Author      = "(auto-updates) Nibre + JayP"
+        Author      = "(auto-update) Nibre + JayP"
         Bat         = "AlienIsolationVR\START_INSTALLER.bat"
         Color       = "#1a0f00"
         Accent      = "#ff9900"
@@ -43,9 +43,10 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Amnesia VR"
+        Title       = "Amnesia VR"; Roomscale=$true
         SteamId     = "57300"
         Mod         = "Sclerosis v1.8.16"
+        ImprovementTag = "+ HD textures mod"
         Description = "itch.io download required"
         Author      = "CreaTeam"
         Bat         = "AmnesiaVR\START_INSTALLER.bat"
@@ -76,7 +77,7 @@ $ownGames = @(
         LaunchExe   = "AoeVrLauncher.exe"
         SteamFolder = "Anomaly VR"
         FallbackPaths=@("C:\games\Anomaly VR", "D:\games\Anomaly VR", "E:\games\Anomaly VR", "C:\Games\Anomaly VR")
-        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "stalker anomaly", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "fps", "shooter", "survival", "open world", "post-apocalyptic", "first-person", "fan game")
+        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "stalker anomaly", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "fps", "shooter", "survival", "open world", "post-apocalyptic", "first-person", "fan game", "free")
     },
     @{
         Controls    = "MC"
@@ -97,11 +98,12 @@ $ownGames = @(
         SteamFolder = "Gamma VR"
         FallbackPaths=@("C:\Games\Gamma VR", "D:\Games\Gamma VR", "E:\Games\Gamma VR", "C:\games\Gamma VR")
         Quip        = "Into the Zone, stalker - GAMMA and all. The atom hums."
-        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "s.t.a.l.k.e.r. gamma", "stalker gamma", "gamma", "anomaly gamma", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "survival", "fps", "open world", "shooter", "post-apocalyptic", "first-person", "crafting", "fan game", "modpack")
+        Tags=@("stalker", "s.t.a.l.k.e.r.", "s.t.a.l.k.e.r. anomaly", "s.t.a.l.k.e.r. gamma", "stalker gamma", "gamma", "anomaly gamma", "anomaly", "chornobyl", "chernobyl", "x-ray engine", "survival", "fps", "open world", "shooter", "post-apocalyptic", "first-person", "crafting", "fan game", "modpack", "free")
     },
     @{
         Controls    = "MC"
-        Title       = "Ashes 2063 VR"
+        Title       = "Ashes 2063 VR"; Roomscale=$true
+        ImprovementTag = "+ 3D ammo + props mod"
         SteamId     = ""
         PortraitUrl = "Assets/Ashes2063VR_portrait.jpg"
         HeaderUrl   = "Assets/Ashes2063VR_header.jpg"
@@ -184,9 +186,9 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Breath of the Wild VR"
+        Title       = "Breath of the Wild VR"; Roomscale=$true
         Quip        = "Climb anything, cook questionable meals, and chase the next shrine on the horizon."
-        Mod         = "BetterVR (auto-updates)"
+        Mod         = "BetterVR (auto-update)"
         Description = "BotW Wii-U ROM required"
         Author      = "Crementif"
         Bat         = "BreathOfTheWildVR\START_INSTALLER.bat"
@@ -206,7 +208,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Content Warning VR"
         SteamId     = "2881650"
-        Mod         = "CWVR (auto-updates)"
+        Mod         = "CWVR (auto-update)"
         Description = "Full VR, auto-updates."
         Author      = "DaXcess"
         Bat         = "ContentWarningVR\START_INSTALLER.bat"
@@ -257,7 +259,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Cyberpunk 2077"
         SteamId     = "1091500"
-        Mod         = "CP_VRPort (auto-updates)"
+        Mod         = "CP_VRPort (auto-update)"
         Description = "OpenXR, motion controls."
         Author      = "dariulone"
         Bat         = "Cyberpunk2077VR\START_INSTALLER.bat"
@@ -277,7 +279,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Daggerfall VR"
+        Title       = "Daggerfall VR"; Roomscale=$true
         ModReleasedAt = "2025-05-24"
         Quip        = "Six thousand dungeons, now wall to wall around you."
         SteamId     = "1812390"
@@ -296,7 +298,7 @@ $ownGames = @(
             "D:\Games\Daggerfall Unity VR",
             "E:\Games\Daggerfall Unity VR"
         )
-        Tags=@("daggerfall", "dfuvr", "elder scrolls", "rpg", "open world", "adventure", "lokiusv", "bepinex", "dungeon")
+        Tags=@("daggerfall", "dfuvr", "elder scrolls", "rpg", "open world", "adventure", "lokiusv", "bepinex", "dungeon", "free")
     },
     @{
         Controls    = "MC"
@@ -316,7 +318,8 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Doom VR"
+        Title       = "Doom VR"; Roomscale=$true
+        ImprovementTag = "+ 3D weapons mod"
         SteamId     = "2280"
         Mod         = "GZDoomVR v4.13.2.2"
         Description = "Full VR with motion controls."
@@ -336,7 +339,8 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Doom 2 VR"
+        Title       = "Doom 2 VR"; Roomscale=$true
+        ImprovementTag = "+ 3D weapons mod"
         SteamId     = "2300"
         Mod         = "GZDoomVR v4.13.2.2"
         Description = "Full VR with motion controls."
@@ -356,7 +360,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Doom 3 BFG VR"
+        Title       = "Doom 3 BFG VR"; Roomscale=$true
         SteamId     = "208200"
         Pill        = "BFGFULLY_VR"
         Mod         = "Fully Possessed v0.021j"
@@ -390,7 +394,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Dusk HD (DLC) VR"
+        Title       = "Dusk HD (DLC) VR"; Roomscale=$true
         SteamId     = "519860"
         Mod         = "UnityVR_DuskHD v1.0.0"
         Description = "Discord login, DLC needed"
@@ -412,7 +416,7 @@ $ownGames = @(
         SteamId     = "3932890"
         PortraitUrl = "Assets/SPTVR_portrait.jpg"
         HeaderUrl   = "Assets/SPTVR_header.jpg"
-        Mod         = "SPT-VR (auto-updates)"
+        Mod         = "SPT-VR (auto-update)"
         GithubRepo  = "cybensis/SPT-VR"
         Description = "Single Player Tarkov (SPT)"
         Author      = "cybensis"
@@ -482,7 +486,7 @@ $ownGames = @(
         Title       = "Grand Theft Auto V VR"
         Quip        = "Pull off the heist, outrun the stars, and own the streets of Los Santos."
         SteamId     = "271590"
-        Mod         = "R.E.A.L. + VRV (auto-updates)"
+        Mod         = "R.E.A.L. + VRV (auto-update)"
         GithubRepo  = "SanguShellz/GTA-VRV-Patcher"
         GithubRepoAlt = "FranciscoManzanilla/GTA-VRV-Patcher"
         Description = "GTA5 Legacy, not Enhanced"
@@ -511,7 +515,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "GTFO VR"
+        Title       = "GTFO VR"; Roomscale=$true
         SteamId     = "493520"
         Mod         = "GTFO_VR 1.4.0 beta"
         Pill        = "GTFOVR"
@@ -528,7 +532,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Gunfire Reborn"
+        Title       = "Gunfire Reborn"; Roomscale=$true
         SteamId     = "1217060"
         Mod         = "VRMod 1.0.9.1 + bHaptics"
         Pill        = "GFRVR"
@@ -555,7 +559,8 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Heretic VR"
+        Title       = "Heretic VR"; Roomscale=$true
+        ImprovementTag = "+ 3D weapons mod"
         SteamId     = "2390"
         Mod         = "GZDoomVR v4.13.2.2"
         Description = "Full VR with motion controls."
@@ -575,7 +580,8 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Hexen VR"
+        Title       = "Hexen VR"; Roomscale=$true
+        ImprovementTag = "+ 3D weapons mod"
         SteamId     = "2360"
         Mod         = "GZDoomVR v4.13.2.2"
         Description = "Full VR with motion controls."
@@ -595,7 +601,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Hexen II VR"
+        Title       = "Hexen II VR"; Roomscale=$true
         SteamId     = "9060"
         Mod         = "VHexen2 v0.1.5-pc-alpha"
         Description = "OpenXR, motion controls."
@@ -652,9 +658,9 @@ $ownGames = @(
         HeaderUrl   = "Assets/Hytale_header.jpg"
         ScreenshotUrl = "Assets/Hytale_screenshot.jpg"
         Quip        = "Block by block, a whole world wraps around you."
-        Mod         = "HytaleVRInjector (auto-updates)"
+        Mod         = "HytaleVRInjector (auto-update)"
         GithubRepo  = "heurazy/HytaleVRInjector-mod"
-        Description = "Experimental, own Hytale copy"
+        Description = "Own Hytale copy required"
         Author      = "heurazy"
         Bat         = "HytaleVR\START_INSTALLER.bat"
         Color       = "#0a1220"
@@ -693,13 +699,13 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Idols of Ash VR"
+        Title       = "Idols of Ash VR"; Roomscale=$true
         SteamId     = "4450800"
         PortraitUrl = "Assets/IdolsOfAsh_portrait.jpg"
         HeaderUrl   = "Assets/IdolsOfAsh_header.jpg"
         GithubRepo  = "LXE97/UGVR-IdolsOfAsh"
         Quip        = "Sling the hook, swing the ash - the idols are waiting."
-        Mod         = "IoA UGVR (auto-updates)"
+        Mod         = "IoA UGVR (auto-update)"
         Pill        = "IOA_VR"
         Description = "OpenXR, motion controls."
         Author      = "LXE97"
@@ -730,13 +736,13 @@ $ownGames = @(
         LaunchExe   = "Iron Lung VR.exe"
         SteamFolder = "Iron Lung VR"
         FallbackPaths=@("C:\Games\Iron Lung VR", "D:\Games\Iron Lung VR", "E:\Games\Iron Lung VR", "C:\games\Iron Lung VR")
-        Tags=@("horror", "atmospheric", "underwater", "submersed", "indie", "first-person", "fan game", "narrative", "mystery", "submarine", "iron lung", "jack randolph", "david szymanski")
+        Tags=@("horror", "atmospheric", "underwater", "submersed", "indie", "first-person", "fan game", "narrative", "mystery", "submarine", "iron lung", "jack randolph", "david szymanski", "free")
     },
     @{
         Controls    = "MC"
         Title       = "Kerbal Space Program"
         SteamId     = "220200"
-        Mod         = "KerbalVR (auto-updates)"
+        Mod         = "KerbalVR (auto-update)"
         Description = "CKAN-driven setup. Native VR."
         Author      = "JonnyOThan / FirstPersonKSP"
         Bat         = "KSPVR\START_INSTALLER.bat"
@@ -750,9 +756,9 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Left 4 Dead 2 VR"
+        Title       = "Left 4 Dead 2 VR"; Roomscale=$true
         SteamId     = "550"
-        Mod         = "L4D2VR (auto-updates)"
+        Mod         = "L4D2VR (auto-update)"
         Description = "Roomscale VR, guided setup."
         Author      = "keyou91"
         GitHubNightly = "keyou91/l4d2vr"
@@ -770,7 +776,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Lethal Company VR"
         SteamId     = "1966720"
-        Mod         = "LCVR (auto-updates)"
+        Mod         = "LCVR (auto-update)"
         Description = "Current or previous branch."
         Author      = "DaXcess"
         Bat         = "LethalCompanyVR\START_INSTALLER.bat"
@@ -801,7 +807,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Metal: Hellsinger VR"
+        Title       = "Metal: Hellsinger VR"; Roomscale=$true
         SteamId     = "1061910"
         Mod         = "HellsingerVR v0.9.0"
         Pill        = "HellsingerVR"
@@ -829,7 +835,7 @@ $ownGames = @(
         HeaderUrl   = "Assets/MetroidPrimeVR_header.jpg"
         ScreenshotUrl = "Assets/MetroidPrimeVR_screenshot.jpg"
         Quip        = "Scan the unknown, lock on, and let the arm cannon do the talking."
-        Mod         = "PrimedGun (auto-updates)"
+        Mod         = "PrimedGun (auto-update)"
         GithubRepo  = "Nobbie248/PrimedGun"
         Description = "GameCube ROM NTSC 1.0"
         Author      = "Nobbie"
@@ -880,7 +886,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Outer Wilds VR"
+        Title       = "Outer Wilds VR"; Roomscale=$true
         SteamId     = "753640"
         Mod         = "NomaiVR 2.10.0"
         Description = "Full VR with motion controls."
@@ -990,7 +996,7 @@ $ownGames = @(
         HeaderUrl   = "Assets/PerfectDarkVR_header.jpg"
         ScreenshotUrl = "Assets/PerfectDarkVR_screenshot.jpg"
         Quip        = "Joanna Dark goes hands-on - dataDyne never saw it coming."
-        Mod         = "Perfect Dark VR (auto-updates)"
+        Mod         = "Perfect Dark VR (auto-update)"
         GithubRepo  = "Alex-LeTux/perfect_dark_VR"
         Description = "NTSC v1.1 z64 ROM"
         Author      = "Alex-LeTux"
@@ -1010,9 +1016,9 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Portal 2 VR"
+        Title       = "Portal 2 VR"; Roomscale=$true
         SteamId     = "620"
-        Mod         = "Portal2VR (auto-updates)"
+        Mod         = "Portal2VR (auto-update)"
         GithubRepo  = "Spencer0187/portal2vr-roomscale"
         Description = "Motion controls, roomscale."
         Author      = "Spencer0187"
@@ -1026,7 +1032,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Quake VR"
+        Title       = "Quake VR"; Roomscale=$true
         SteamId     = "2310"
         Mod         = "Quake VR v0.0.8.1"
         Description = "OpenVR, motion controls."
@@ -1062,7 +1068,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Quake 3 VR"
+        Title       = "Quake 3 VR"; Roomscale=$true
         SteamId     = "2200"
         Mod         = "Quake 3 VR v1.0"
         Description = "OpenVR, motion controls."
@@ -1082,7 +1088,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "R.E.P.O. VR"
         SteamId     = "3241660"
-        Mod         = "RepoXR (auto-updates)"
+        Mod         = "RepoXR (auto-update)"
         Description = "Full VR, auto-updates."
         Author      = "DaXcess"
         Bat         = "RepoVR\START_INSTALLER.bat"
@@ -1190,7 +1196,7 @@ $ownGames = @(
             "D:\Games\Receiver VR",
             "E:\Games\Receiver VR"
         )
-        Tags=@("receiver", "receivr", "wolfire", "shadowbrian", "shooter", "fps", "survival", "simulation", "7dfps", "guns")
+        Tags=@("receiver", "receivr", "wolfire", "shadowbrian", "shooter", "fps", "survival", "simulation", "7dfps", "guns", "free")
     },
     @{
         Controls    = "MC"
@@ -1237,7 +1243,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Road to Vostok VR"
         SteamId     = "1963610"
-        Mod         = "VR Mod (auto-updates)"
+        Mod         = "VR Mod (auto-update)"
         GithubRepo  = "Blah64/Vostok-VR-Mod"
         Pill        = "RTVVR"
         Description = "Full VR, holster system."
@@ -1270,7 +1276,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Selaco VR"
+        Title       = "Selaco VR"; Roomscale=$true
         SteamId     = "1592280"
         Mod         = "SelacoVR 2.0"
         Description = "Requires older Steam branch."
@@ -1289,7 +1295,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Slime Rancher VR"
         SteamId     = "433340"
-        Mod         = "SRVR (auto-updates)"
+        Mod         = "SRVR (auto-update)"
         GithubRepo  = "Atmudia/SRVR"
         Description = "Full VR with motion controls."
         Author      = "Atmudia"
@@ -1320,7 +1326,8 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Strife VR"
+        Title       = "Strife VR"; Roomscale=$true
+        ImprovementTag = "+ 3D weapons mod"
         SteamId     = "317040"
         Mod         = "GZDoomVR v4.13.2.2"
         Description = "Full VR with motion controls."
@@ -1342,7 +1349,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Subnautica VR"
         SteamId     = "264710"
-        Mod         = "SubmersedVR (auto-updates)"
+        Mod         = "SubmersedVR (auto-update)"
         GithubRepo  = "Okabintaro/SubmersedVR"
         Description = "Full VR with motion controls."
         Author      = "Okabintaro"
@@ -1359,7 +1366,7 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Subnautica: Below Zero"
         SteamId     = "848450"
-        Mod         = "Submersed (auto-updates)"
+        Mod         = "Submersed (auto-update)"
         GithubRepo  = "jbusfield/SubmersedVR_BZ"
         Description = "Full VR with motion controls."
         Author      = "jbusfield"
@@ -1389,7 +1396,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Tomb Raider 1 VR"
+        Title       = "Tomb Raider 1 VR"; Roomscale=$true
         # Default SteamId = TR1 original (1996). The detect logic
         # below also accepts TR I-III Remastered (2024, AppID
         # 2478970) since SauronDesktop extracts assets from either.
@@ -1451,7 +1458,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Total Chaos VR"
+        Title       = "Total Chaos VR"; Roomscale=$true
         SteamId     = ""
         PortraitUrl = "Assets/TotalChaosVR_portrait.jpg"
         HeaderUrl   = "Assets/TotalChaosVR_header.jpg"
@@ -1496,7 +1503,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "ULTRAKILL VR"
+        Title       = "ULTRAKILL VR"; Roomscale=$true
         Pill        = "VRTRAKILL"
         SteamId     = "1229490"
         Mod         = "VRTRAKILL_FRAUD v2.0.0"
@@ -1517,7 +1524,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Valheim VR"
+        Title       = "Valheim VR"; Roomscale=$true
         SteamId     = "892970"
         Mod         = "VHVR-Mod v0.9.21"
         Description = "Requires DX11, not Vulkan."
@@ -1555,8 +1562,71 @@ $ownGames = @(
 $ownGamesGP = @(
     @{ Controls="GP"; Title="Alba VR"; SteamId="1337010"; Mod="AlbaVR v1.0.0"; SteamFolder="Alba - A Wildlife Adventure"; FallbackPaths=@("GOG:ALBA A Wildlife Adventure", "GOG:Alba A Wildlife Adventure", "EPIC:Alba", "EPIC:Alba - A Wildlife Adventure"); Description="KB`&Mouse or Gamepad VR."; Author="wouterpleizier"; Bat="AlbaVR\START_INSTALLER.bat"; Color="#0a1a0a"; Accent="#5cc8e6"; InfoUrl="https://github.com/wouterpleizier/AlbaVR"; Tags=@("alba", "wildlife", "atmospheric", "exploration", "walking sim") ; ModFile="BepInEx\plugins\AlbaVR.dll" },
     @{ Controls="GP"; Title="Another Crab's Treasure"; Pill="ACT_VR"; SteamId="1887840"; Mod="AnotherCrabs v1.0"; SteamFolder="Another Crab's Treasure"; FallbackPaths=@("STEAM:Another Crabs Treasure", "STEAM:AnotherCrabsTreasure"); GameExe="AnotherCrabsTreasure.exe"; Description="Discord login, depth only"; Author="Astienth"; Bat="AnotherCrabsTreasureVR\START_INSTALLER.bat"; Color="#0a1418"; Accent="#33aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1262749418981949483/1262749418981949483"; Tags=@("another crabs treasure", "another crab's treasure", "anothercrabstreasure", "astienth", "aggro crab", "souls-like", "underwater", "indie", "action rpg", "3d platformer", "depth"); ModFile="BepInEx\plugins\UnityVR_AnotherCrabTreasure.dll" },
-    @{ Controls="GP"; Title="Apollo Justice: Ace Attorney Trilogy VR"; Quip="Objection! The courtroom has never felt this real."; SteamId="2187220"; Mod="REF (auto-updates)"; SteamFolder="Apollo Justice Ace Attorney Trilogy"; FallbackPaths=@("STEAM:ApolloJustice", "GOG:Apollo Justice Ace Attorney Trilogy"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="GS456.exe"; Color="#1a0a0a"; Accent="#990033"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("apollo justice", "reframework", "praydog", "narrative", "puzzle", "story"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Apollo Justice: Ace Attorney Trilogy VR"; Quip="Objection! The courtroom has never felt this real."; SteamId="2187220"; Mod="REF (auto-update)"; SteamFolder="Apollo Justice Ace Attorney Trilogy"; FallbackPaths=@("STEAM:ApolloJustice", "GOG:Apollo Justice Ace Attorney Trilogy"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="GS456.exe"; Color="#1a0a0a"; Accent="#990033"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("apollo justice", "reframework", "praydog", "narrative", "puzzle", "story"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Art of Rally VR"; SteamId="550320"; Mod="ArtOfRally_VR v1.0.0"; SteamFolder="artofrally"; FallbackPaths=@("STEAM:Art of Rally", "STEAM:ArtOfRally", "GOG:art of rally", "EPIC:ArtOfRally"); Description="Discord login, experimental"; Author="Astienth"; Bat="ArtOfRallyVR\START_INSTALLER.bat"; Color="#180a0a"; Accent="#dd5544"; InfoUrl="https://discord.com/channels/1001138422972432597/1306503565698662462/1306503565698662462"; Tags=@("art of rally", "artofrally", "astienth", "funselektor", "rally", "racing", "top down", "stylized", "indie", "arcade", "cars", "depth"); ModFile="BepInEx\plugins\ArtOfRally_VR.dll" },
+    @{
+        Controls    = "GP"
+        Title       = "Assassin's Creed Mirage VR"
+        SteamId     = "3035570"
+        Quip        = "Nothing is true, everything is permitted. Welcome to Baghdad."
+        Mod         = "AnvilEngine2VR (auto-update)"
+        GithubRepo  = "mutars/anvilengine2vr"
+        Description = "OpenXR or OpenVR choice"
+        Author      = "mutars"
+        Bat         = "ACMirageVR\START_INSTALLER.bat"
+        Color       = "#151008"
+        Accent      = "#d8a03c"
+        InfoUrl     = "https://github.com/mutars/anvilengine2vr"
+        ModPageUrl  = "https://github.com/mutars/anvilengine2vr"
+        DownloadUrl = "https://github.com/mutars/anvilengine2vr/releases/latest"
+        GameExe     = "ACMirage.exe"
+        SteamFolder = "Assassin's Creed Mirage"
+        FallbackPaths=@("C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Assassin's Creed Mirage", "C:\Program Files\Epic Games\AssassinsCreedMirage", "EPIC:AssassinsCreedMirage", "EPIC:Assassin's Creed Mirage")
+        ModFile     = "dxgi.dll"
+        Tags=@("assassins creed mirage", "assassin's creed", "ac mirage", "mirage", "basim", "baghdad", "anvilengine2vr", "mutars", "ubisoft", "action", "adventure", "stealth", "parkour", "story")
+    },
+    @{
+        Controls    = "GP"
+        Title       = "Assassin's Creed Odyssey VR"
+        SteamId     = "812140"
+        Quip        = "Malaka! From Kephallonia to Olympus, the eagle soars."
+        Mod         = "AnvilEngine2VR (auto-update)"
+        GithubRepo  = "mutars/anvilengine2vr"
+        Description = "OpenXR or OpenVR choice"
+        Author      = "mutars"
+        Bat         = "ACOdysseyVR\START_INSTALLER.bat"
+        Color       = "#0a1622"
+        Accent      = "#e07b39"
+        InfoUrl     = "https://github.com/mutars/anvilengine2vr"
+        ModPageUrl  = "https://github.com/mutars/anvilengine2vr"
+        DownloadUrl = "https://github.com/mutars/anvilengine2vr/releases/latest"
+        GameExe     = "ACOdyssey.exe"
+        SteamFolder = "Assassins Creed Odyssey"
+        FallbackPaths=@("C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Assassin's Creed Odyssey", "C:\Program Files\Epic Games\AssassinsCreedOdyssey", "EPIC:AssassinsCreedOdyssey", "EPIC:Assassin's Creed Odyssey")
+        ModFile     = "dxgi.dll"
+        Tags=@("assassins creed odyssey", "assassin's creed", "ac odyssey", "odyssey", "kassandra", "alexios", "sparta", "greece", "anvilengine2vr", "mutars", "ubisoft", "action", "adventure", "rpg", "open world", "stealth")
+    },
+    @{
+        Controls    = "GP"
+        Title       = "Assassin's Creed Valhalla VR"
+        SteamId     = "2208920"
+        Quip        = "Skol! Raid England the way Odin intended."
+        Mod         = "AnvilEngine2VR (auto-update)"
+        GithubRepo  = "mutars/anvilengine2vr"
+        Description = "OpenXR or OpenVR choice"
+        Author      = "mutars"
+        Bat         = "ACValhallaVR\START_INSTALLER.bat"
+        Color       = "#0c1218"
+        Accent      = "#cf4a2e"
+        InfoUrl     = "https://github.com/mutars/anvilengine2vr"
+        ModPageUrl  = "https://github.com/mutars/anvilengine2vr"
+        DownloadUrl = "https://github.com/mutars/anvilengine2vr/releases/latest"
+        GameExe     = "ACValhalla.exe"
+        SteamFolder = "Assassin's Creed Valhalla"
+        FallbackPaths=@("C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Assassin's Creed Valhalla", "C:\Program Files\Epic Games\AssassinsCreedValhalla", "EPIC:AssassinsCreedValhalla", "EPIC:Assassin's Creed Valhalla")
+        ModFile     = "dxgi.dll"
+        Tags=@("assassins creed valhalla", "assassin's creed", "ac valhalla", "valhalla", "eivor", "anvilengine2vr", "mutars", "ubisoft", "vikings", "action", "adventure", "rpg", "open world", "stealth")
+    },
     @{
         Controls    = "VRGP"
         Title       = "Astrodogs VR"
@@ -1615,7 +1685,7 @@ $ownGamesGP = @(
         Tags=@("decimate drive", "astienth", "horror", "driving", "arcade", "indie", "fast paced")
     },
     @{ Controls="GP"; Title="Descenders VR"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod v1.0.5"; SteamFolder="Descenders"; FallbackPaths=@("EPIC:Descenders"); Description="KB`&Mouse or Gamepad VR."; Author="Holydh / kyanite-rock"; Bat="DescendersVR\START_INSTALLER.bat"; Color="#0a0f1a"; Accent="#5588dd"; InfoUrl="https://github.com/kyanite-rock/DescendersVRMod"; Tags=@("descenders", "downhill", "mountain bike", "mtb", "indie", "racing", "sports"); ModFile="BepInEx\plugins\DescendersVRmod.dll" },
-    @{ Controls="GP"; Title="Devil May Cry 5 VR"; Quip="Son of Sparda, stay stylish. Hit that SSS rank."; SteamId="601150"; Mod="REF (auto-updates)"; SteamFolder="Devil May Cry 5"; FallbackPaths=@("STEAM:DevilMayCry5", "EPIC:Devil May Cry 5"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DevilMayCry5.exe"; Color="#1a0000"; Accent="#cc2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("devil may cry", "reframework", "praydog", "action", "fast paced", "hack and slash", "stylish"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Devil May Cry 5 VR"; Quip="Son of Sparda, stay stylish. Hit that SSS rank."; SteamId="601150"; Mod="REF (auto-update)"; SteamFolder="Devil May Cry 5"; FallbackPaths=@("STEAM:DevilMayCry5", "EPIC:Devil May Cry 5"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DevilMayCry5.exe"; Color="#1a0000"; Accent="#cc2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("devil may cry", "reframework", "praydog", "action", "fast paced", "hack and slash", "stylish"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Dino Trauma VR"
@@ -1634,7 +1704,7 @@ $ownGamesGP = @(
     },
     @{ Controls="GP"; Title="Doom Eternal VR"; Quip="Rip and tear through Hell itself, at arm's length."; SteamId="782330";                 Mod="R.E.A.L."; SteamFolder="DOOMEternal"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa1100"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, doom", "fps", "action", "fast-paced") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Doom: The Dark Ages"; Quip="Stand and fight, Slayer. The medieval war is yours."; SteamId="3017860";          Mod="R.E.A.L."; SteamFolder="DOOM The Dark Ages"; FallbackPaths=@("STEAM:DOOMTheDarkAges"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a1a12"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, doom", "fps", "action", "fantasy") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Dragon's Dogma 2 VR"; Quip="Grab the griffin. Climb the ogre. The Arisen rides again."; SteamId="2054970"; Mod="REF (auto-updates)"; SteamFolder="Dragon's Dogma 2"; FallbackPaths=@("STEAM:Dragons Dogma 2", "STEAM:DragonsDogma2", "EPIC:Dragon's Dogma 2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DD2.exe"; Color="#1a0f00"; Accent="#dd7700"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("dragon dogma 2", "reframework", "praydog", "action", "fantasy", "open world", "rpg"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Dragon's Dogma 2 VR"; Quip="Grab the griffin. Climb the ogre. The Arisen rides again."; SteamId="2054970"; Mod="REF (auto-update)"; SteamFolder="Dragon's Dogma 2"; FallbackPaths=@("STEAM:Dragons Dogma 2", "STEAM:DragonsDogma2", "EPIC:Dragon's Dogma 2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DD2.exe"; Color="#1a0f00"; Accent="#dd7700"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("dragon dogma 2", "reframework", "praydog", "action", "fantasy", "open world", "rpg"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Driftwood VR"
@@ -1660,10 +1730,10 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Far Cry Primal VR"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Rebirth VR"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Remake VR"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Forza Horizon 5 VR"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"; Mod="lufz VRMod v1.2.0"; Description="lufz VRMod"; Author="lufz"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"; ModFile="vrmod-launcher.exe"; SteamFolder="ForzaHorizon5"; FallbackPaths=@("STEAM:ForzaHorizon5", "C:\XboxGames\Forza Horizon 5\Content", "XBOX:Forza Horizon 5"); InfoUrl="https://discord.gg/uAeQkYBM4n"; Tags=@("forza horizon 5", "forza", "fh5", "lufz", "vrmod", "racing", "driving", "open world", "mexico", "arcade racing", "sim", "simulation") },
-    @{ Controls="GP"; Title="Forza Horizon 6 VR"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="lufz v1.2.0 or NALULUNA"; Description="lufz or NALULUNA mod"; Author="NALULUNA / lufz"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
+    @{ Controls="GP"; Title="Forza Horizon 5 VR"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"; Mod="VRMod v1.2.2"; Description="Discord login, real 6DoF"; Author="lufz"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"; ModFile="vrmod-launcher.exe"; SteamFolder="ForzaHorizon5"; FallbackPaths=@("STEAM:ForzaHorizon5", "C:\XboxGames\Forza Horizon 5\Content", "XBOX:Forza Horizon 5"); InfoUrl="https://discord.gg/uAeQkYBM4n"; Tags=@("forza horizon 5", "forza", "fh5", "lufz", "vrmod", "racing", "driving", "open world", "mexico", "arcade racing", "sim", "simulation") },
+    @{ Controls="GP"; Title="Forza Horizon 6 VR"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="lufz v1.2.2 or NALULUNA"; Description="lufz or NALULUNA mod"; Author="NALULUNA / lufz"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
     @{ Controls="GP"; Title="Ghost of Tsushima VR"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-updates)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-update)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Grounded VR"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="High on Life VR"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="RealRepo\RealVR64.dll" },
@@ -1677,13 +1747,38 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Hypogea VR"; SteamId="2980260"; Mod="Hypogea_VR v1.0.0"; SteamFolder="Hypogea"; FallbackPaths=@("STEAM:Hypogea Demo", "STEAM:HYPOGEA"); Description="Discord login required."; Author="Astienth"; Bat="HypogeaVR\START_INSTALLER.bat"; Color="#100818"; Accent="#aa66ee"; InfoUrl="https://discord.com/channels/1001138422972432597/1465600243939672115/1465600264210878691"; Tags=@("hypogea", "astienth", "atmospheric", "retro", "ps1", "platformer", "indie", "narrative", "exploration", "story"); ModFile="BepInEx\plugins\Hypogea_VR.dll" },
     @{ Controls="GP"; Title="Indiana Jones: Great Circle VR"; Quip="Fortune and glory, kid. The whip's in your hand now."; SteamId="2677660";  Mod="R.E.A.L."; SteamFolder="Indiana Jones and the Great Circle"; FallbackPaths=@("STEAM:The Great Circle", "XBOX:The Great Circle"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#b88846"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, indiana jones", "adventure", "action", "puzzle") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Kingdom Come: Deliverance II VR"; Quip="Jesus Christ be praised - medieval Bohemia, life-size."; SteamId="1771300"; Mod="R.E.A.L."; SteamFolder="KingdomComeDeliverance2"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a4a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, kingdom come", "rpg", "fantasy", "medieval", "realistic") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Kunitsu-Gami: Path of the Goddess VR"; Quip="Cleanse the defilement by day, defend the maiden by night."; SteamId="2510710"; Mod="REF (auto-updates)"; SteamFolder="KUNITSU-GAMI"; FallbackPaths=@("STEAM:Kunitsu-Gami", "STEAM:KunitsuGami", "STEAM:Kunitsu-Gami Path of the Goddess", "XBOX:Kunitsu-Gami- Path of the Goddess"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="KunitsuGami.exe"; Color="#1a0a00"; Accent="#cc2244"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("kunitsu-gami", "reframework", "praydog", "action", "rpg", "strategy", "japanese"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Kunitsu-Gami: Path of the Goddess VR"; Quip="Cleanse the defilement by day, defend the maiden by night."; SteamId="2510710"; Mod="REF (auto-update)"; SteamFolder="KUNITSU-GAMI"; FallbackPaths=@("STEAM:Kunitsu-Gami", "STEAM:KunitsuGami", "STEAM:Kunitsu-Gami Path of the Goddess", "XBOX:Kunitsu-Gami- Path of the Goddess"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="KunitsuGami.exe"; Color="#1a0a00"; Accent="#cc2244"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("kunitsu-gami", "reframework", "praydog", "action", "rpg", "strategy", "japanese"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Lunistice VR"; SteamId="1701800"; Mod="Lunistice_VR v1.0.0"; SteamFolder="Lunistice"; FallbackPaths=@("STEAM:Lunistice Demo", "GOG:Lunistice"); Description="Discord login required."; Author="Astienth"; Bat="LunisticeVR\START_INSTALLER.bat"; Color="#1a0820"; Accent="#ff77cc"; InfoUrl="https://discord.com/channels/1001138422972432597/1465598630382669916/1465598630382669916"; Tags=@("lunistice", "astienth", "cute", "kawaii", "retro", "platformer", "indie", "fast paced", "anime"); ModFile="BepInEx\plugins\Lunistice_VR.dll" },
-    @{ Controls="GP"; Title="Mega Man Star Force Legacy VR"; Quip="Transer online. EM Wave Change, Geo - ride on!"; SteamId="3500390"; PortraitUrl="Assets/MegaManStarForce_portrait.jpg"; HeaderUrl="Assets/MegaManStarForce_header.jpg"; Mod="REF (auto-updates)"; SteamFolder="Mega Man Star Force Legacy Collection"; FallbackPaths=@("STEAM:MMSFLEGACYCOLLECTION", "STEAM:MegaManStarForceLegacyCollection"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="STARFORCE.exe"; Color="#001a1a"; Accent="#00cccc"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("mega man star force", "reframework", "praydog", "action", "rpg", "jrpg"); ModFile="openxr_loader.dll" },
+    @{
+        Controls    = "VRGP"
+        Title       = "Mario Kart 64 VR"
+        SteamId     = ""
+        PortraitUrl = "Assets/MarioKart64_portrait.jpg"
+        HeaderUrl   = "Assets/MarioKart64_header.jpg"
+        ScreenshotUrl = "Assets/MarioKart64_screenshot.jpg"
+        Quip        = "Rainbow Road has no guardrails. Neither does karma."
+        Mod         = "SpaghettiKart VR (auto-update)"
+        GithubRepo  = "RaYRoD-TV/MarioKart64-VR"
+        Description = "US (NTSC) .z64 ROM required"
+        Author      = "RaYRoD"
+        Bat         = "MarioKart64VR\START_INSTALLER.bat"
+        Color       = "#0d0d2b"
+        Accent      = "#4fd6ff"
+        InfoUrl     = "https://github.com/RaYRoD-TV/MarioKart64-VR"
+        ModPageUrl  = "https://github.com/RaYRoD-TV/MarioKart64-VR"
+        DownloadUrl = "https://github.com/RaYRoD-TV/MarioKart64-VR/releases/latest"
+        ModFile     = "Spaghettify.exe"
+        LaunchExe   = "Spaghettify.exe"
+        StandaloneVR = $true
+        SteamFolder = "Mario Kart 64 VR"
+        FallbackPaths=@("C:\Games\Mario Kart 64 VR", "D:\Games\Mario Kart 64 VR", "E:\Games\Mario Kart 64 VR", "C:\games\Mario Kart 64 VR")
+        Tags=@("mario kart 64", "mario kart", "mk64", "spaghettikart", "spaghetti kart", "mario", "nintendo", "rayrod", "racing", "action", "retro", "kart racer", "arcade", "motion controls")
+    },
+    @{ Controls="GP"; Title="Mega Man Star Force Legacy VR"; Quip="Transer online. EM Wave Change, Geo - ride on!"; SteamId="3500390"; PortraitUrl="Assets/MegaManStarForce_portrait.jpg"; HeaderUrl="Assets/MegaManStarForce_header.jpg"; Mod="REF (auto-update)"; SteamFolder="Mega Man Star Force Legacy Collection"; FallbackPaths=@("STEAM:MMSFLEGACYCOLLECTION", "STEAM:MegaManStarForceLegacyCollection"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="STARFORCE.exe"; Color="#001a1a"; Accent="#00cccc"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("mega man star force", "reframework", "praydog", "action", "rpg", "jrpg"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Mirage Feathers VR"; SteamId="2719060"; Mod="MirageFeathers_VR v1.0.0"; SteamFolder="Mirage Feathers"; FallbackPaths=@("STEAM:MirageFeathers", "STEAM:Mirage Feathers Demo", "STEAM:MirageFeathersDemo"); Description="Discord login, Demo or Full"; Author="Astienth"; Bat="MirageFeathersVR\START_INSTALLER.bat"; Color="#180814"; Accent="#88ccdd"; InfoUrl="https://discord.com/channels/1001138422972432597/1325853693530079232/1325853693530079232"; Tags=@("mirage feathers", "miragefeathers", "astienth", "rail shooter", "shmup", "after burner", "space harrier", "hang on", "super scaler", "anime", "arcade", "indie"); ModFile="BepInEx\plugins\MirageFeathers_VR.dll" },
-    @{ Controls="GP"; Title="Monster Hunter Rise VR"; Quip="Wirebug up, monster down. The hunt is yours."; SteamId="1446780"; Mod="REF (auto-updates)"; SteamFolder="MonsterHunterRise"; FallbackPaths=@("XBOX:Monster Hunter Rise"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterRise.exe"; Color="#1a0a00"; Accent="#dd6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter rise", "reframework", "praydog", "action", "coop", "rpg"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Monster Hunter Stories 3 VR"; Quip="Hatch the egg, ride the monstie. Forge your kinship."; SteamId="2852190"; PortraitUrl="Assets/MonsterHunterStories3_portrait.jpg"; HeaderUrl="Assets/MonsterHunterStories3_header.jpg"; Mod="REF (auto-updates)"; SteamFolder="MONSTER HUNTER STORIES 3"; FallbackPaths=@("STEAM:Monster Hunter Stories 3", "STEAM:MonsterHunterStories3", "STEAM:MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MHSTORIES3.exe"; Color="#0a1a0a"; Accent="#ee9933"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter stories", "reframework", "praydog", "rpg", "story", "jrpg", "turn-based", "adventure"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Monster Hunter Wilds"; Quip="Track the herd across the wilds, hunter. Bring your blade."; SteamId="2246340"; Mod="REF (auto-updates)"; SteamFolder="MonsterHunterWilds"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterWilds.exe"; Color="#1a0800"; Accent="#ff5500"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter wilds", "reframework", "praydog", "action", "coop", "open world", "rpg"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Monster Hunter Rise VR"; Quip="Wirebug up, monster down. The hunt is yours."; SteamId="1446780"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterRise"; FallbackPaths=@("XBOX:Monster Hunter Rise"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterRise.exe"; Color="#1a0a00"; Accent="#dd6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter rise", "reframework", "praydog", "action", "coop", "rpg"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Monster Hunter Stories 3 VR"; Quip="Hatch the egg, ride the monstie. Forge your kinship."; SteamId="2852190"; PortraitUrl="Assets/MonsterHunterStories3_portrait.jpg"; HeaderUrl="Assets/MonsterHunterStories3_header.jpg"; Mod="REF (auto-update)"; SteamFolder="MONSTER HUNTER STORIES 3"; FallbackPaths=@("STEAM:Monster Hunter Stories 3", "STEAM:MonsterHunterStories3", "STEAM:MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MHSTORIES3.exe"; Color="#0a1a0a"; Accent="#ee9933"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter stories", "reframework", "praydog", "rpg", "story", "jrpg", "turn-based", "adventure"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Monster Hunter Wilds"; Quip="Track the herd across the wilds, hunter. Bring your blade."; SteamId="2246340"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterWilds"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterWilds.exe"; Color="#1a0800"; Accent="#ff5500"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter wilds", "reframework", "praydog", "action", "coop", "open world", "rpg"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Moto Rush Reborn VR"
@@ -1704,7 +1799,7 @@ $ownGamesGP = @(
     },
     @{ Controls="VRGP"; Title="New Star GP VR"; Quip="Lights out and away you go, champ - chase that checkered flag."; SteamId="2217580"; Mod="New_Star_GP_VR"; Description="Discord login required"; Author="Astienth"; Bat="NewStarGPVR\START_INSTALLER.bat"; Color="#12100f"; Accent="#e85d3d"; InfoUrl="https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812"; ModFile="release\BepInEx\plugins\New_Star_GP_VR.dll"; SteamFolder="New Star GP"; FallbackPaths=@("STEAM:New Star GP", "C:\XboxGames\New Star GP\Content", "XBOX:New Star GP"); Tags=@("new star gp", "nsgp", "new star games", "f1", "formula", "motorsport", "racing", "arcade", "sports") },
     @{ Controls="GP"; Title="No One Lives Forever 2 VR"; Pill="NOLF2-R3"; Quip="Slip into Cate Archer's shoes, outwit H.A.R.M., and make spycraft look effortless."; PortraitUrl="Assets/NOLF2_portrait.jpg"; HeaderUrl="Assets/NOLF2_header.jpg"; ScreenshotUrl="Assets/NOLF2_screenshot.jpg"; Mod="Release 3"; Description="NOLF2 1.3 EN required"; Author="Luke Ross"; Bat="NOLF2VR\START_INSTALLER.bat"; Color="#171109"; Accent="#e8923a"; LaunchExe="Lithtech.exe"; ModFile="VRlaunchcmds.txt"; InfoUrl="https://github.com/LukeRoss00/nolf2-real-mod"; ModPageUrl="https://www.patreon.com/realvr"; Tags=@("no one lives forever 2", "nolf2", "nolf", "cate archer", "spy", "stealth", "shooter", "fps", "retro", "adventure", "luke ross", "real") },
-    @{ Controls="GP"; Title="Onimusha 2 VR"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-updates)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Onimusha 2 VR"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Paperklay VR"
@@ -1737,7 +1832,7 @@ $ownGamesGP = @(
         FallbackPaths=@("STEAM:ParanoiaPlace", "STEAM:Paranoia Place Demo")
         Tags=@("paranoia place", "paranoiaplace", "astienth", "horror", "psychological", "atmospheric", "story", "indie")
     },
-    @{ Controls="GP"; Title="Pragmata VR"; Quip="Hack the moon. Hold her hand. Step into the unknown."; SteamId="3357650"; PortraitUrl="Assets/Pragmata_portrait.jpg"; HeaderUrl="Assets/Pragmata_header.jpg"; Mod="REF (auto-updates)"; SteamFolder="PRAGMATA"; FallbackPaths=@("STEAM:PRAGMATA"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Pragmata.exe"; Color="#0a0a1a"; Accent="#dd5544"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("pragmata", "reframework", "praydog", "action", "sci-fi"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Pragmata VR"; Quip="Hack the moon. Hold her hand. Step into the unknown."; SteamId="3357650"; PortraitUrl="Assets/Pragmata_portrait.jpg"; HeaderUrl="Assets/Pragmata_header.jpg"; Mod="REF (auto-update)"; SteamFolder="PRAGMATA"; FallbackPaths=@("STEAM:PRAGMATA"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Pragmata.exe"; Color="#0a0a1a"; Accent="#dd5544"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("pragmata", "reframework", "praydog", "action", "sci-fi"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Road Redemption VR"
@@ -1758,6 +1853,34 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Sayonara Wild Hearts"; Pill="SAYONARAWH_VR"; SteamId="1122720"; Mod="SayonaraWH_VR v1.0.0"; SteamFolder="Sayonara Wild Hearts"; FallbackPaths=@("STEAM:SayonaraWildHearts", "GOG:Sayonara Wild Hearts", "EPIC:Sayonara Wild Hearts", "EPIC:SayonaraWildHearts"); Description="Discord login, depth + bHaptics"; Author="Astienth"; Bat="SayonaraWildHeartsVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#cc44aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1253317358735327354/1253317358735327354"; Tags=@("sayonara wild hearts", "sayonarawildhearts", "astienth", "simogo", "annapurna", "music", "rhythm", "arcade", "casual", "stylized", "indie", "lgbtq", "atmospheric", "bhaptics"); ModFile="BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll" },
     @{ Controls="GP"; Title="Skate Story VR"; SteamId="1263240"; Mod="SkateStory_VR v1.0.0"; SteamFolder="Skate Story"; FallbackPaths=@("STEAM:SkateStory", "STEAM:Skate Story Demo", "GOG:Skate Story"); Description="Discord login, OpenVR"; Author="Astienth"; Bat="SkateStoryVR\START_INSTALLER.bat"; Color="#1a0a18"; Accent="#dd3344"; InfoUrl="https://discord.com/channels/1001138422972432597/1454427736327065655/1454427809203359774"; Tags=@("skate story", "skatestory", "astienth", "skate", "skateboarding", "sports", "stylized", "indie", "narrative"); ModFile="VRMod\SkateStoryVR.dll" },
     @{ Controls="GP"; Title="Sonic P-06 VR"; SteamId=""; PortraitUrl="Assets/SonicP06_portrait.jpg"; HeaderUrl="Assets/SonicP06_header.jpg"; Mod="Sonic_P-06_VR v1.0.0"; SteamFolder="Sonic P-06 VR"; FallbackPaths=@("C:\Games\Sonic P-06 VR", "C:\Games\Sonic P06 VR", "C:\Games\SonicP06VR", "D:\Games\Sonic P-06 VR", "E:\Games\Sonic P-06 VR"); Description="Fan game, Discord login."; Author="Astienth"; Bat="SonicP06VR\START_INSTALLER.bat"; Color="#0a1018"; Accent="#3399ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221"; Tags=@("sonic", "sonic 06", "sonic p-06", "sonicp06", "project 06", "chaosx", "astienth", "fan game", "platformer", "free", "action"); ModFile="BepInEx\plugins\UnityVRPlugin.dll"; LaunchExe="Sonic the Hedgehog.exe" },
+    @{
+        Controls    = "VRGP"
+        Title       = "Sonic Robo Blast 2 VR"
+        Quip        = "Gotta go fast. The rings are RIGHT there now."
+        SteamId     = ""
+        PortraitUrl = "Assets/SRB2VR_portrait.jpg"
+        HeaderUrl   = "Assets/SRB2VR_header.jpg"
+        ScreenshotUrl = "Assets/SRB2VR_screenshot.jpg"
+        Mod         = "SRB2VR"
+        Pill        = "SRB2-VR"
+        Description = "Up-to-date OpenXR port."
+        Author      = "RaYRoD-TV"
+        Bat         = "SonicRoboBlast2VR\START_INSTALLER.bat"
+        Color       = "#0c1540"
+        Accent      = "#f0b420"
+        InfoUrl     = "https://github.com/RaYRoD-TV/SRB2-VR"
+        ModPageUrl  = "https://github.com/RaYRoD-TV/SRB2-VR"
+        DownloadUrl = "https://api.github.com/repos/RaYRoD-TV/SRB2-VR/releases/latest"
+        # Background update check: the Hub compares the GitHub latest
+        # tag against .installed_version (written verbatim by the
+        # installer), so the tile flips to Update on a new release.
+        GithubRepo  = "RaYRoD-TV/SRB2-VR"
+        ModFile     = "srb2win.exe"
+        LaunchExe   = "srb2win.exe"
+        SteamFolder = "Sonic Robo Blast 2 VR"
+        FallbackPaths=@("C:\Games\Sonic Robo Blast 2 VR", "D:\Games\Sonic Robo Blast 2 VR", "E:\Games\Sonic Robo Blast 2 VR")
+        Tags        = @("sonic", "sonic robo blast", "srb2", "srb2vr", "robo blast", "rayrod", "sonic team junior", "stjr", "fan game", "free", "platformer", "action", "adventure", "openxr")
+    },
     @{ Controls="GP"; Title="Spiderman 2 VR"; Quip="Two suits, one city. Swing through New York yourself."; SteamId="2651280";                  Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man 2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a55cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man 2, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Spiderman Miles Morales VR"; Quip="Take the leap, Miles. Harlem's skyline is yours."; SteamId="1817190";      Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Miles Morales"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa2266"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, miles morales, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Spiderman Remastered"; Quip="With great power... swing across New York yourself."; SteamId="1817070";         Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc2233"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, spiderman, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll" },
@@ -1769,7 +1892,7 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/StarFox64_header.jpg"
         ScreenshotUrl = "Assets/StarFox64_screenshot.jpg"
         Quip        = "Do a barrel roll, Fox - the Lylat System is counting on you."
-        Mod         = "Starship VR (auto-updates)"
+        Mod         = "Starship VR (auto-update)"
         GithubRepo  = "RaYRoD-TV/StarFox64-VR"
         Description = "US (NTSC) .z64 ROM required"
         Author      = "RaYRoD"
@@ -1802,9 +1925,9 @@ $ownGamesGP = @(
         Tags=@("star racer", "starracer", "astienth", "f-zero", "fzero", "racing", "arcade", "retro", "sci-fi", "indie")
     },
     @{ Controls="GP"; Title="Star Wars Outlaws VR"; Quip="Scoundrel's life in a galaxy far, far away - up close."; SteamId="2842040";            Mod="R.E.A.L."; SteamFolder="Star Wars Outlaws"; FallbackPaths=@("EPIC:StarWarsOutlaws", "UBI:Star Wars Outlaws"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8844"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, star wars, outlaws", "open world", "action", "sci-fi") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Starfield VR"; SteamId="1716740"; Mod="starfield2vr v2.0.0"; SteamFolder="Starfield"; FallbackPaths=@("XBOX:Starfield", "C:\XboxGames\Starfield\Content", "EPIC:Starfield"); Description="KB&M or Gamepad VR"; Author="mutars"; Bat="StarfieldVR\START_INSTALLER.bat"; Color="#0a1020"; Accent="#4488dd"; InfoUrl="https://github.com/mutars/starfield2vr"; Tags=@("starfield", "bethesda", "space", "fps", "open world", "rpg", "sci-fi", "shooter") ; ModFile="dxgi.dll" },
+    @{ Controls="GP"; Title="Starfield VR"; Roomscale=$true; SteamId="1716740"; Mod="starfield2vr v2.0.0"; SteamFolder="Starfield"; FallbackPaths=@("XBOX:Starfield", "C:\XboxGames\Starfield\Content", "EPIC:Starfield"); Description="KB&M or Gamepad VR"; Author="mutars"; Bat="StarfieldVR\START_INSTALLER.bat"; Color="#0a1020"; Accent="#4488dd"; InfoUrl="https://github.com/mutars/starfield2vr"; Tags=@("starfield", "bethesda", "space", "fps", "open world", "rpg", "sci-fi", "shooter") ; ModFile="dxgi.dll" },
     @{ Controls="GP"; Title="Stray VR"; Quip="Be the cat. Knock things off ledges in the neon depths."; SteamId="1332010";                        Mod="R.E.A.L."; SteamFolder="Stray"; FallbackPaths=@("EPIC:Stray"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8833"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, stray, cat", "adventure", "exploration", "cyberpunk") ; ModFile="RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Street Fighter 6 VR"; Quip="Round one. Fight! Throw hands face to face."; SteamId="1364780"; Mod="REF (auto-updates)"; SteamFolder="Street Fighter 6"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="SF6.exe"; Color="#1a0000"; Accent="#ff2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("street fighter 6", "reframework", "praydog", "action", "fast paced", "fighting", "arcade", "competitive"); ModFile="openxr_loader.dll" },
+    @{ Controls="GP"; Title="Street Fighter 6 VR"; Quip="Round one. Fight! Throw hands face to face."; SteamId="1364780"; Mod="REF (auto-update)"; SteamFolder="Street Fighter 6"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="SF6.exe"; Color="#1a0000"; Accent="#ff2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("street fighter 6", "reframework", "praydog", "action", "fast paced", "fighting", "arcade", "competitive"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="StreetDog BMX VR"; SteamId="2707870"; Mod="StreetDogBMX_VR v1.0.0"; SteamFolder="Street Dog BMX"; FallbackPaths=@("STEAM:StreetDogBMX", "STEAM:Streetdog BMX", "STEAM:StreetDog BMX", "STEAM:Street Dog BMX Demo"); Description="Discord login required."; Author="Astienth"; Bat="StreetDogBMXVR\START_INSTALLER.bat"; Color="#1a0a08"; Accent="#ff7744"; InfoUrl="https://discord.com/channels/1001138422972432597/1481693413479944417/1481693511601357072"; Tags=@("streetdog bmx", "streetdog", "street dog", "astienth", "racing", "sports", "fast paced", "indie", "bmx", "cartoon"); ModFile="BepInEx\plugins\StreetDogBMX_VR.dll" },
     @{ Controls="GP"; Title="Sunrise GP VR"; SteamId="2670800"; Mod="SunriseGP_VR v1.0.0"; SteamFolder="Sunrise GP"; FallbackPaths=@("STEAM:SunriseGP", "STEAM:Sunrise GP Demo"); Description="Discord login required."; Author="Astienth"; Bat="SunriseGPVR\START_INSTALLER.bat"; Color="#180a08"; Accent="#ffaa66"; InfoUrl="https://discord.com/channels/1001138422972432597/1362074365952528494/1362074365952528494"; Tags=@("sunrise gp", "sunrisegp", "astienth", "racing", "cell shading", "cel-shaded", "arcade", "indie", "cartoon"); ModFile="BepInEx\plugins\SunriseGP_VR.dll" },
     @{
@@ -1815,7 +1938,7 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/SuperMario64_header.jpg"
         ScreenshotUrl = "Assets/SuperMario64_screenshot.jpg"
         Quip        = "Wahoo! Grab your cap and go bag every last star."
-        Mod         = "sm64coopdx VR (auto-updates)"
+        Mod         = "sm64coopdx VR (auto-update)"
         GithubRepo  = "RaYRoD-TV/sm64coopdx-vr"
         Description = "US (NTSC) .z64 ROM required"
         Author      = "RaYRoD"
@@ -1854,6 +1977,27 @@ $ownGamesGP = @(
         LaunchExe   = "Unmourned.exe"
         Tags=@("unmourned", "astienth", "horror", "story", "narrative", "atmospheric", "visage")
     },
+    @{
+        Controls    = "GP"
+        Title       = "Warhammer 40K: Rogue Trader VR"
+        Quip        = "Command your dynasty in true stereo 3D, Lord Captain."
+        SteamId     = "2186680"
+        Mod         = "RTVR v0.6.151"
+        Pill        = "RTVR"
+        Description = "Guided Nexus download."
+        Author      = "SolemnScribe"
+        Bat         = "RogueTraderVR\START_INSTALLER.bat"
+        Color       = "#1a1210"
+        Accent      = "#d4a017"
+        InfoUrl     = "https://www.nexusmods.com/warhammer40kroguetrader/mods/518?tab=description"
+        # Owlcat's built-in Unity Mod Manager loads mods ONLY from the
+        # user profile, so detection roots there instead of the game dir.
+        VrInstallRoot = "USERPROFILE:AppData\LocalLow\Owlcat Games\Warhammer 40000 Rogue Trader\UnityModManager"
+        ModFile     = "RTVR\RTVR.dll"
+        SteamFolder = "Warhammer 40,000 Rogue Trader"
+        GameExe     = "WH40KRT.exe"
+        Tags=@("warhammer", "40k", "rogue trader", "rtvr", "rpg", "story", "turn-based", "crpg", "strategy", "owlcat")
+    },
     @{ Controls="GP"; Title="Watch Dogs VR"; Quip="Hack Chicago from the inside. The city's in your palm."; SteamId="243470"; PortraitUrl="Assets/WatchDogs1_portrait.jpg"; Mod="R.E.A.L."; SteamFolder="Watch_Dogs"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a7aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Watch Dogs 2 VR"; Quip="DedSec needs you, Marcus. Hack all of San Francisco."; SteamId="447040";                 Mod="R.E.A.L."; SteamFolder="Watch_Dogs2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa6a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Watch Dogs Legion VR"; Quip="Recruit anyone. Take back a near-future London."; SteamId="2239550";            Mod="R.E.A.L."; SteamFolder="Watch Dogs Legion"; FallbackPaths=@("STEAM:WatchDogs_Legion"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4488"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "sandbox") ; ModFile="RealRepo\RealVR64.dll" },
@@ -1866,7 +2010,7 @@ $ownGamesGP = @(
 $externalGames = @(
     @{
         Controls    = "MC"
-        Title       = "Crysis VR"
+        Title       = "Crysis VR"; Roomscale=$true
         Quip        = "Maximum armor. Maximum immersion. Welcome to the island."
         SteamId     = "17300"
         Mod         = "Crysis VR Mod v1.1.1"
@@ -1911,7 +2055,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Far Cry VR"
+        Title       = "Far Cry VR"; Roomscale=$true
         Quip        = "The island remembers. Now you're really on it."
         SteamId     = "13520"
         # 2004 title - Steam library_600x900 doesn't exist and the
@@ -1937,7 +2081,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Fallout 4 VR"
+        Title       = "Fallout 4 VR"; Roomscale=$true
         Pill        = "Wabbajack"
         SteamId     = "611660"
         Mod         = "Wabbajack Modlists"
@@ -1959,7 +2103,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Firewatch VR"
+        Title       = "Firewatch VR"; Roomscale=$true
         Pill        = "TwoForks_VR"
         Quip        = "Just you, a radio, and a Wyoming summer. Look alive, Henry."
         SteamId     = "383870"
@@ -2014,7 +2158,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Half-Life VR"
+        Title       = "Half-Life VR"; Roomscale=$true
         Pill        = "HLVR"
         SteamId     = "1908720"
         ReadmeDir   = "HalfLifeVR"
@@ -2034,7 +2178,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Half-Life 2 VR"
+        Title       = "Half-Life 2 VR"; Roomscale=$true
         SteamId     = "658920"
         ReadmeDir   = "HalfLife2VR"
         Mod         = "HL2VR Mod"
@@ -2060,7 +2204,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "HL2 VR Ep. One"
+        Title       = "HL2 VR Ep. One"; Roomscale=$true
         SteamId     = "2177750"
         ReadmeDir   = "HL2VREpOne"
         Mod         = "HL2VR Episode One"
@@ -2085,7 +2229,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "HL2 VR Ep. Two"
+        Title       = "HL2 VR Ep. Two"; Roomscale=$true
         SteamId     = "2177760"
         ReadmeDir   = "HL2VREpTwo"
         Mod         = "HL2VR Episode Two"
@@ -2181,7 +2325,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Morrowind VR"
+        Title       = "Morrowind VR"; Roomscale=$true
         Quip        = "Stand on the ashlands of Vvardenfell. N'wah, welcome."
         SteamId     = "22320"
         ReadmeDir   = "MorrowindVR"
@@ -2242,7 +2386,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Portal 2: Community Edition VR"
+        Title       = "Portal 2: Community Edition VR"; Roomscale=$true
         Quip        = "Bend space, chain the momentum, and lean into every test chamber."
         SteamId     = "440000"
         Mod         = "P2:CE"
@@ -2281,7 +2425,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Resident Evil 2R VR"
+        Title       = "Resident Evil 2R VR"; Roomscale=$true
         Quip        = "Raccoon City has fallen. Reach for every bullet yourself."
         ReadmeDir   = "ResidentEvil2RVR"
         SteamId     = "883710"
@@ -2302,7 +2446,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Resident Evil 3R VR"
+        Title       = "Resident Evil 3R VR"; Roomscale=$true
         Quip        = "Nemesis is hunting. There's no camera angle to hide behind now."
         ReadmeDir   = "ResidentEvil3RVR"
         SteamId     = "952060"
@@ -2323,7 +2467,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Resident Evil 4R VR"
+        Title       = "Resident Evil 4R VR"; Roomscale=$true
         Quip        = "No straight answers, stranger. Just you, Leon, and the village."
         ReadmeDir   = "ResidentEvil4RVR"
         SteamId     = "2050650"
@@ -2344,7 +2488,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Resident Evil 7 VR"
+        Title       = "Resident Evil 7 VR"; Roomscale=$true
         Quip        = "Welcome to the family. Try to keep your hands steady."
         ReadmeDir   = "ResidentEvil7VR"
         SteamId     = "418370"
@@ -2365,7 +2509,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "RE Village VR"
+        Title       = "RE Village VR"; Roomscale=$true
         Quip        = "Tall lady, taller stakes. Hold the line, Ethan."
         ReadmeDir   = "REVillageVR"
         SteamId     = "1196590"
@@ -2386,7 +2530,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "RE Requiem VR"
+        Title       = "RE Requiem VR"; Roomscale=$true
         Quip        = "Raccoon City's ashes, close enough to touch."
         ReadmeDir   = "RERequiemVR"
         SteamId     = "3764200"
@@ -2433,7 +2577,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Skyrim VR"
+        Title       = "Skyrim VR"; Roomscale=$true
         Pill        = "Wabbajack"
         SteamId     = "611670"
         Mod         = "Wabbajack Modlist"
@@ -2500,7 +2644,7 @@ $externalGames = @(
     },
     @{
         Controls    = "BOTH"
-        Title       = "UEVR Deluxe"
+        Title       = "UEVR Deluxe"; Roomscale=$true
         Quip        = "Thousands of Unreal Engine games, one step into VR."
         ReadmeDir   = "UEVRDeluxe"
         Mod         = "UE4/UE5 Easy Injector"
@@ -2545,7 +2689,7 @@ $externalGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Vivecraft"
+        Title       = "Vivecraft"; Roomscale=$true
         Quip        = "Blocks at arm's length. Mine, build, and swing in roomscale."
         Mod         = "Minecraft Java Edition VR mod"
         Author      = "jrbudda + Techjar"
@@ -2572,5 +2716,23 @@ $externalGames = @(
 $global:REALVR_NEWEST = "v2606"
 foreach ($__lrg in $ownGamesGP) {
     if ($__lrg.Bat -like 'LukeRossVR*') { $__lrg.Mod = "R.E.A.L. $global:REALVR_NEWEST" }
+}
+
+# -------------------------------------------------------
+# FREE games - SINGLE SOURCE OF TRUTH.
+# A game is FREE when its catalog entry carries the "free" tag.
+# This list is DERIVED from that tag right here, so adding "free"
+# to a game's Tags is the ONLY edit needed: it drives the search,
+# the green FREE pill on the tile (CardTile), the FREE run on the
+# detail page (OverviewPage) and the FREE filter in Explore
+# (BannerOvFilters) all at once. Do NOT hand-edit this list.
+# (Catalog.ps1 loads before every consumer - see the module load
+# order in VRModHub.ps1 - so the list exists when they need it.)
+# -------------------------------------------------------
+$global:FREE_GAME_TITLES = @()
+foreach ($__fg in (@($ownGames) + @($ownGamesGP) + @($externalGames))) {
+    if ($__fg.Tags -and (@($__fg.Tags) -contains "free")) {
+        $global:FREE_GAME_TITLES += $__fg.Title
+    }
 }
 

@@ -26,7 +26,7 @@ function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " 7 Days to Die - VR Mod Installer" -ForegroundColor Cyan
- Write-Host " 7DaysVR (Alpha 21)" -ForegroundColor Gray
+ Write-Host " 7DaysVR" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }

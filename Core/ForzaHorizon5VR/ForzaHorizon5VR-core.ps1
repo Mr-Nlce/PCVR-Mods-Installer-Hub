@@ -1,7 +1,7 @@
 # ============================================================
 # Forza Horizon 5 VR Installer
 # lufz / VRMod (flat2VR Discord)   launcher: vrmod-launcher.exe
-# VRMod v1.2.0+ supports Forza Horizon 5 and 6 from the same
+# VRMod v1.2.2 supports Forza Horizon 5 and 6 from the same
 # launcher. The launcher injects into the game; the mod files
 # must NOT live in the game folder, so we extract to
 # C:\Games\Forza Horizon 5 VR and launch from there.
@@ -15,8 +15,8 @@ $ErrorActionPreference = "Stop"
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 5 VR"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1525251187245453462"
-$ZIP_HINT      = "VRMod-v1_2_0.zip"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527195267823046697"
+$ZIP_HINT      = "VRMod-v1_2_1.zip"
 $LAUNCHER_NAME = "vrmod-launcher.exe"
 
 function Write-Header {
@@ -149,11 +149,27 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcher
 
 # Record the installed mod version so the Hub's update badge works
 # (catalog pins the current lufz version; a mismatch shows Update).
-# Parsed from the dragged zip name (VRMod-v1_2_0.zip -> 1.2.0), falling
-# back to the current known version. NORMALIZED without a leading "v" -
-# the Hub compares against Get-ModVersionFromString output.
-$lufzVer = "1.2.0"
-if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
+# NORMALIZED without a leading "v" - the Hub compares against
+# Get-ModVersionFromString output, which strips the v.
+#
+# PRIMARY source: the VERSION file lufz ships inside the zip. It is
+# authoritative and survives a renamed zip, so it beats parsing the
+# file name. Fall back to the zip name, then to the pinned release.
+#
+# (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
+# so the Hub had to track them as 1.2.1b/1.2.1c. lufz moved to a real
+# 1.2.2, so that workaround is retired - the zip is honest again.)
+$lufzVer = "1.2.2"
+$lufzVerFile = Join-Path $installRoot "VERSION"
+$lufzVerFound = $false
+if (Test-Path -LiteralPath $lufzVerFile) {
+    try {
+        $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
+        if ($fv) { $fv = $fv.Trim() }
+        if ($fv -match '^\d+\.\d+') { $lufzVer = $fv; $lufzVerFound = $true }
+    } catch {}
+}
+if (-not $lufzVerFound -and $zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
     $pv = $matches[1].Replace("_", ".").Trim(".")
     if ($pv -match '^\d+\.\d+') { $lufzVer = $pv }
 }

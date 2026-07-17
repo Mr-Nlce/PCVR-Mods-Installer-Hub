@@ -44,4 +44,24 @@ If `Expand-Archive` fails (corrupt ZIP, weird path, antivirus), the manual fallb
 3. Paste them all directly into the folder containing `Amnesia.exe`
 4. Double-click `Sclerosis.exe` to launch
 
+## Optional: HD texture pack (4x AI upscale)
+
+The installer offers a community HD texture pack (Nexus) during setup -
+answer **Y** at the "Optional: HD texture pack" step to add it, **N** to
+skip. You can re-run the installer any time to add it later.
+
+- It replaces `Sclerosis_Data\data.unity3d` with a 4x AI-upscaled
+  version (Topaz Gigapixel). The file grows to around 3 GB.
+- An 8 GB+ VRAM GPU is recommended. It is purely cosmetic - the game
+  plays identically without it.
+- The installer opens the Nexus page (log in if needed; if Nexus lists
+  "Sclerosis" as a requirement, that is fine - it is already installed),
+  then you drag the downloaded ZIP onto the window.
+- Your original `data.unity3d` is backed up once as
+  `data.unity3d.original.backup` in `Sclerosis_Data` - to revert, delete
+  the HD file and rename the backup back.
+
+**After installing the HD pack, set in-game Texture Quality to ULTRA**
+to actually see the upscaled textures.
+
 >>> Tinderboxes lit. Mind still slipping. Welcome to the dark.

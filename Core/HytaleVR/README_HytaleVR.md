@@ -1,8 +1,8 @@
 # Hytale VR (HytaleVRInjector-mod)
 
-Hytale in PCVR through **HytaleVRInjector-mod** by **heurazy** - an experimental Windows x64 VR injector/dashboard. It renders the game to your headset through SteamVR with native motion-controlled hands, driven by an external camera dashboard.
+Hytale in PCVR through **HytaleVRInjector-mod** by **heurazy** - a Windows x64 VR injector/dashboard. It renders the game to your headset through SteamVR with native motion-controlled hands, driven by an external camera dashboard.
 
-**Status: experimental / WIP.** The mod works but is early and rough around the edges. It is not affiliated with or endorsed by Hytale, Hypixel Studios, Valve, OpenVR, or MinHook.
+**Version 1.0** - the AFW prototype has grown into a fuller, more comfortable VR experience. It is not affiliated with or endorsed by Hytale, Hypixel Studios, Valve, OpenVR, or MinHook.
 
 ## What you need
 
@@ -37,9 +37,47 @@ On the first launch of Hytale, open **Video settings** and set **Anti-aliasing: 
 
 Keep SteamVR running while using the mod. Hytale must stay focused for the mod controls to work correctly.
 
+## New in 1.0
+
+**VR hands and held items** - the mod detects the item Hytale renders
+in either hand and rebuilds tools, weapons, blocks, decorations,
+shields and torches from Hytale's own models and textures, anchored
+to your tracked controllers. Items stay stable during attacks and
+block placement, keep the correct hand assignment, and position and
+scale are configurable.
+
+**Sharper AFW rendering** - optional source supersampling with an
+adjustable resolution percentage, optional sharpening after AFW
+reconstruction, and a VR FXAA pass against jagged edges and foliage
+shimmer. Supersampling and sharpening are OFF by default to preserve
+performance.
+
+**Anchored interface** - Hytale's interface is captured as a SteamVR
+Standing-space overlay, so menus stay anchored in the world instead
+of following your head. Center VR recenters both the camera and the
+menu anchor.
+
+**Built-in auto-updates** - the dashboard itself checks stable GitHub
+releases at startup. Updates are always opt-in, and downloads are
+checked for size, unsafe ZIP paths and SHA-256 integrity before a
+helper swaps the files and restarts the dashboard. Day-to-day updates
+can happen right in the dashboard; the Hub's Update tile and this
+installer keep working as before.
+
+## Important notes (from the 1.0 release)
+
+- SteamVR must be running before starting VR
+- Disable Hytale's built-in FXAA and use the dashboard's VR FXAA
+  option instead
+- Keep Hytale focused for controller inputs
+- Supersampling costs GPU performance; start around 125% and adjust
+  for your headset and GPU
+- Restart Hytale before replacing a hook DLL that is already
+  injected (i.e. close the game before running an update)
+
 ## Controls
 
-![Controls](../Assets/Hytale_controls.jpg)
+![Controls](Hytale_controls.jpg)
 
 Left controller:
 

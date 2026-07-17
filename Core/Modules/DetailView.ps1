@@ -452,6 +452,12 @@ function global:New-PowerScaleBlock {
     $stack.Children.Add($headRow) | Out-Null
 
     # ---- 6-segment bar with marker(s) ----
+    # Shared, mutable state for the bar. MUST be a hashtable, not a
+    # $script: variable: every .GetNewClosure() below gets its OWN module
+    # scope, so $script:x written in one closure is invisible to another.
+    # A hashtable is captured by reference, so both closures see the same
+    # object. YouIdx = -1 means "not resolved yet" -> marker stays hidden.
+    $barState = @{ YouIdx = -1 }
     # Use a Grid that overlays the segment row + the marker triangle(s).
     $barHost = New-Object System.Windows.Controls.Grid
     $barHost.Height = 18
@@ -480,6 +486,9 @@ function global:New-PowerScaleBlock {
     # Active segments collected so we can animate them on hover
     # (wave-cascade effect, see card.Add_MouseEnter below).
     $activeSegments = New-Object System.Collections.Generic.List[object]
+    # Every segment, in tier order - the GPU comparison recolours the
+    # ones beyond the requirement and outlines the required one.
+    $allSegs = New-Object System.Collections.Generic.List[object]
 
     for ($i = 0; $i -lt 6; $i++) {
         $seg = New-Object System.Windows.Controls.Border
@@ -508,6 +517,7 @@ function global:New-PowerScaleBlock {
         $seg.RenderTransformOrigin = New-Object System.Windows.Point 0.5, 1.0
         $seg.RenderTransform = $segScale
         if ($isFilled) { $activeSegments.Add($seg) | Out-Null }
+        $allSegs.Add($seg) | Out-Null
         $segGrid.Children.Add($seg) | Out-Null
     }
     $barHost.Children.Add($segGrid) | Out-Null
@@ -533,17 +543,54 @@ function global:New-PowerScaleBlock {
     # between the two tier centers, which reads as "somewhere in
     # this band" without cluttering the bar with two arrows.
     $markerCanvas = New-Object System.Windows.Controls.Canvas
+    # Tall enough to stack the YOU marker (+ its label) ABOVE the
+    # recommendation triangle, so the two never overlap even when the
+    # user's GPU tier equals the recommended tier. Bottom band (y>=18)
+    # holds the rec triangle at the bar; the YOU marker sits in the
+    # upper band. Negative-margin pull keeps the bar spacing unchanged.
     $markerCanvas.Height = 8
     $markerCanvas.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
     $startIdx = $tier.StartIdx
     $endIdx   = $tier.EndIdx
 
+    # Requirement marker: white triangle ABOVE the bar, pointing down at
+    # the required tier. This is the ONLY marker until the user runs the
+    # GPU comparison - then it steps aside and the YOU marker takes this
+    # exact lane (never two arrows at once). The requirement is then
+    # carried by the outlined segment + the RECOMMENDED caption instead.
     $m1 = New-MarkerTriangle
     # TranslateTransform lets the hover animation lift the marker
     # upward (it "jumps" toward the bar) and pulse there.
     $markerLift = New-Object System.Windows.Media.TranslateTransform 0, 0
     $m1.RenderTransform = $markerLift
     $markerCanvas.Children.Add($m1) | Out-Null
+
+    # YOU marker: same lane, hidden until the comparison runs. Its label
+    # rides in the gap above the bar via a negative Canvas.Top (the
+    # Canvas does not clip), so it costs no extra height.
+    # IMPORTANT: created BEFORE the SizeChanged closure below, otherwise
+    # GetNewClosure() would capture $null and the marker would stay stuck
+    # at x=0 (the left edge of the scale).
+    $youMark = New-Object System.Windows.Shapes.Path
+    $youMark.Data = [System.Windows.Media.Geometry]::Parse("M 0,0 L 12,0 L 6,8 Z")
+    $youMark.Width = 12; $youMark.Height = 8
+    $youMark.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5fd08a")
+    $youMark.Visibility = [System.Windows.Visibility]::Collapsed
+    $youMarkLift = New-Object System.Windows.Media.TranslateTransform 0, 0
+    $youMark.RenderTransform = $youMarkLift
+    $markerCanvas.Children.Add($youMark) | Out-Null
+
+    $youLabel = New-Object System.Windows.Controls.TextBlock
+    $youLabel.Text = "YOU"
+    $youLabel.FontSize = 8
+    $youLabel.FontWeight = [System.Windows.FontWeights]::Bold
+    $youLabel.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5fd08a")
+    $youLabel.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $youLabel.Visibility = [System.Windows.Visibility]::Collapsed
+    # Shares the marker's transform so label + arrow bob together.
+    $youLabel.RenderTransform = $youMarkLift
+    [System.Windows.Controls.Canvas]::SetTop($youLabel, -11)
+    $markerCanvas.Children.Add($youLabel) | Out-Null
 
     $segGrid.Add_SizeChanged({
         param($s, $e)
@@ -555,6 +602,14 @@ function global:New-PowerScaleBlock {
         # Midpoint of the range (== startCenter for single-tier games)
         $markerX = ($startCenter + $endCenter) / 2.0
         [System.Windows.Controls.Canvas]::SetLeft($m1, $markerX - 6)
+        # Keep the YOU marker aligned once a tier is resolved. This is
+        # also the path that positions it when "Always compare" runs
+        # during page construction (ActualWidth is still 0 back then).
+        if ($barState.YouIdx -ge 0) {
+            $youX = $barState.YouIdx * $segW + ($segW / 2.0)
+            [System.Windows.Controls.Canvas]::SetLeft($youMark, $youX - 6)
+            [System.Windows.Controls.Canvas]::SetLeft($youLabel, $youX - 9)
+        }
     }.GetNewClosure())
 
     $barHost.Children.Add($markerCanvas) | Out-Null
@@ -564,7 +619,7 @@ function global:New-PowerScaleBlock {
     $labelGrid = New-Object System.Windows.Controls.Primitives.UniformGrid
     $labelGrid.Rows = 1
     $labelGrid.Columns = 6
-    $labelGrid.Margin = [System.Windows.Thickness]::new(0, 0, 0, 14)
+    $labelGrid.Margin = [System.Windows.Thickness]::new(0, 0, 0, 2)
     for ($i = 0; $i -lt 6; $i++) {
         $lbl = New-Object System.Windows.Controls.TextBlock
         $shortLabel = switch ($i) {
@@ -590,51 +645,470 @@ function global:New-PowerScaleBlock {
     }
     $stack.Children.Add($labelGrid) | Out-Null
 
+    # ---- "RECOMMENDED" caption under the recommended tier label ----
+    # Same 6-column grid so it lines up exactly with the tier labels.
+    # Always shown: before the comparison it reinforces the white arrow,
+    # after it (when the arrow becomes YOU) it carries the recommendation.
+    $capGrid = New-Object System.Windows.Controls.Primitives.UniformGrid
+    $capGrid.Rows = 1
+    $capGrid.Columns = 6
+    $capGrid.Margin = [System.Windows.Thickness]::new(0, 0, 0, 12)
+    for ($i = 0; $i -lt 6; $i++) {
+        $cap = New-Object System.Windows.Controls.TextBlock
+        $cap.Text = if ($i -eq $tier.EndIdx) { "RECOMMENDED" } else { "" }
+        $cap.FontSize = 8
+        $cap.FontWeight = [System.Windows.FontWeights]::Bold
+        $cap.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cfe0f7")
+        $cap.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        $cap.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $capGrid.Children.Add($cap) | Out-Null
+    }
+    $stack.Children.Add($capGrid) | Out-Null
+
     # ---- GPU/CPU sub-panel ----
     # Show specs for the active tier (or the high end of a range).
     $specTier = $global:PowerTiers[$tier.EndIdx]
 
-    $specBox = New-Object System.Windows.Controls.Border
-    $specBox.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e0e14")
-    $specBox.CornerRadius = [System.Windows.CornerRadius]::new(4)
-    $specBox.Padding = [System.Windows.Thickness]::new(12, 9, 12, 9)
+    # Compact one-line recommendation (no boxed panel): "Recommended:
+    # <GPU> - <CPU>" plus a small (i) that reveals the disclaimer only
+    # on hover over the scale zone, until the user acknowledges it.
+    # DockPanel (not StackPanel): after the comparison runs, the
+    # "Always compare" pill is re-parented here and docked to the far
+    # right of this same line, which lets the whole compare row above
+    # the result box disappear.
+    $specLine = New-Object System.Windows.Controls.DockPanel
+    $specLine.LastChildFill = $false
+    $specLine.Margin = [System.Windows.Thickness]::new(0, 12, 0, 0)
 
-    $specRow = New-Object System.Windows.Controls.StackPanel
-    $specRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-    $specBox.Child = $specRow
+    $specTb = New-Object System.Windows.Controls.TextBlock
+    $specTb.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $specTb.FontSize = 12
+    $specTb.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $rl = New-Object System.Windows.Documents.Run "Recommended  "
+    $rl.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666677")
+    $rg = New-Object System.Windows.Documents.Run $specTier.Gpu
+    $rg.Foreground = [System.Windows.Media.Brushes]::White
+    $rg.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $rsep = New-Object System.Windows.Documents.Run "   -   "
+    $rsep.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#444450")
+    $rc = New-Object System.Windows.Documents.Run $specTier.Cpu
+    $rc.Foreground = [System.Windows.Media.Brushes]::White
+    $rc.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $specTb.Inlines.Add($rl)
+    $specTb.Inlines.Add($rg)
+    $specTb.Inlines.Add($rsep)
+    $specTb.Inlines.Add($rc)
+    [System.Windows.Controls.DockPanel]::SetDock($specTb, [System.Windows.Controls.Dock]::Left)
+    $specLine.Children.Add($specTb) | Out-Null
 
-    function New-SpecBlock {
-        param([string]$Label, [string]$Value)
-        $sp = New-Object System.Windows.Controls.StackPanel
-        $sp.Orientation = [System.Windows.Controls.Orientation]::Vertical
-        $hd = New-Object System.Windows.Controls.TextBlock
-        $hd.Text = $Label
-        $hd.FontSize = 11
-        $hd.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666677")
-        $hd.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
-        $hd.Margin = [System.Windows.Thickness]::new(0, 0, 0, 2)
-        $sp.Children.Add($hd) | Out-Null
-        $vl = New-Object System.Windows.Controls.TextBlock
-        $vl.Text = $Value
-        $vl.FontSize = 12
-        $vl.Foreground = [System.Windows.Media.Brushes]::White
-        $vl.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
-        $sp.Children.Add($vl) | Out-Null
-        return $sp
+    # (i) info marker - dims/greens once acknowledged; clicking it after
+    # acknowledgement re-shows the disclaimer strip.
+    $infoDot = New-Object System.Windows.Controls.Border
+    $infoDot.Width = 16; $infoDot.Height = 16
+    $infoDot.CornerRadius = [System.Windows.CornerRadius]::new(8)
+    $infoDot.BorderThickness = [System.Windows.Thickness]::new(1)
+    $infoDot.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666677")
+    $infoDot.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+    $infoDot.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $infoDot.Cursor = [System.Windows.Input.Cursors]::Hand
+    $infoDotTxt = New-Object System.Windows.Controls.TextBlock
+    $infoDotTxt.Text = "i"
+    $infoDotTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $infoDotTxt.FontSize = 10
+    $infoDotTxt.FontStyle = [System.Windows.FontStyles]::Italic
+    $infoDotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666677")
+    $infoDotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $infoDotTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $infoDot.Child = $infoDotTxt
+    [System.Windows.Controls.DockPanel]::SetDock($infoDot, [System.Windows.Controls.Dock]::Left)
+    $specLine.Children.Add($infoDot) | Out-Null
+    $stack.Children.Add($specLine) | Out-Null
+
+    # Disclaimer strip: hidden by default; slides in when the cursor is
+    # over the scale zone, ONLY until acknowledged. Acknowledged when the
+    # user ticks the box OR clicks Compare / Always. State is global,
+    # persisted in .hub-settings.json (GpuDisclaimerAck), so once seen it
+    # stays quiet on every game page.
+    $discAcked = [bool](Get-HubSetting -Key "GpuDisclaimerAck" -Default $false)
+
+    $discBox = New-Object System.Windows.Controls.Border
+    $discBox.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#161620")
+    $discBox.CornerRadius = [System.Windows.CornerRadius]::new(6)
+    $discBox.BorderThickness = [System.Windows.Thickness]::new(1)
+    $discBox.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#222230")
+    $discBox.Padding = [System.Windows.Thickness]::new(11, 9, 11, 9)
+    $discBox.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+    $discBox.Visibility = [System.Windows.Visibility]::Collapsed
+    $discRow = New-Object System.Windows.Controls.StackPanel
+    $discRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $discBox.Child = $discRow
+
+    # Tick box
+    $chk = New-Object System.Windows.Controls.Border
+    $chk.Width = 16; $chk.Height = 16
+    $chk.CornerRadius = [System.Windows.CornerRadius]::new(4)
+    $chk.BorderThickness = [System.Windows.Thickness]::new(1)
+    $chk.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#666677")
+    $chk.Background = [System.Windows.Media.Brushes]::Transparent
+    $chk.Cursor = [System.Windows.Input.Cursors]::Hand
+    $chk.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+    $chk.Margin = [System.Windows.Thickness]::new(0, 1, 9, 0)
+    $chkMark = New-Object System.Windows.Shapes.Path
+    $chkMark.Data = [System.Windows.Media.Geometry]::Parse("M 1,5 L 4,8 L 9,2")
+    $chkMark.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5fd08a")
+    $chkMark.StrokeThickness = 2
+    $chkMark.Visibility = [System.Windows.Visibility]::Collapsed
+    $chk.Child = $chkMark
+    $discRow.Children.Add($chk) | Out-Null
+
+    $discTxt = New-Object System.Windows.Controls.TextBlock
+    $discTxt.Text = "Unlike flat games, VR mods are not tested across many systems by a studio, and VR performance depends on many other factors too - treat the scale as a rough indicator, though GPU strength is often one of the most important factors.  (tick to dismiss)"
+    $discTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $discTxt.FontSize = 11
+    $discTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
+    $discTxt.TextWrapping = [System.Windows.TextWrapping]::Wrap
+    $discTxt.LineHeight = 16
+    $discTxt.MaxWidth = 620
+    $discRow.Children.Add($discTxt) | Out-Null
+    $stack.Children.Add($discBox) | Out-Null
+
+    # If already acknowledged from a previous session, green the (i).
+    if ($discAcked) {
+        $infoDot.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a4a3f")
+        $infoDotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a6a55")
     }
 
-    $specRow.Children.Add((New-SpecBlock "GPU" $specTier.Gpu)) | Out-Null
+    # Shared ack state. The disclaimer is shown exactly ONCE: on the
+    # first click of "Compare my GPU" (or "Always"). From then on it
+    # only lives behind the (i), which turns a dim green. Ticking the
+    # checkbox closes it. Persisted globally in .hub-settings.json, so
+    # once it has been shown it stays quiet on every game page.
+    $discState = @{ Acked = $discAcked }
 
-    # Vertical divider
-    $div = New-Object System.Windows.Controls.Border
-    $div.Width = 1
-    $div.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#222230")
-    $div.Margin = [System.Windows.Thickness]::new(16, 2, 16, 2)
-    $specRow.Children.Add($div) | Out-Null
+    $showDiscOnce = {
+        if ($discState.Acked) { return }
+        $discState.Acked = $true
+        $discBox.Visibility = [System.Windows.Visibility]::Visible
+        $infoDot.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a4a3f")
+        $infoDotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a6a55")
+        try { Set-HubSetting -Key "GpuDisclaimerAck" -Value $true } catch {}
+    }.GetNewClosure()
 
-    $specRow.Children.Add((New-SpecBlock "CPU" $specTier.Cpu)) | Out-Null
+    # Tick the box -> just close the strip (it is already marked shown).
+    $chk.Add_MouseLeftButtonUp({
+        $chkMark.Visibility = [System.Windows.Visibility]::Visible
+        $chk.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a5a44")
+        $chk.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#274a37")
+        $discBox.Visibility = [System.Windows.Visibility]::Collapsed
+    }.GetNewClosure())
 
-    $stack.Children.Add($specBox) | Out-Null
+    # The (i) shows/hides the note on demand, any time.
+    $infoDot.Add_MouseLeftButtonUp({
+        if ($discBox.Visibility -eq [System.Windows.Visibility]::Visible) {
+            $discBox.Visibility = [System.Windows.Visibility]::Collapsed
+        } else {
+            $discBox.Visibility = [System.Windows.Visibility]::Visible
+        }
+    }.GetNewClosure())
+
+    # ---------------------------------------------------------------
+    # GPU comparison (opt-in)
+    # ---------------------------------------------------------------
+    # The click on "Compare my GPU" IS the consent to read the GPU
+    # name (local WMI, once per session, no network). After the click
+    # this whole row folds away: the button is done, and "Always
+    # compare" moves to the far right of the Recommended line above,
+    # so the result box sits directly under it. "Always compare"
+    # persists via .hub-settings.json (Hub folder only - GIFT rule)
+    # and auto-renders the result on every detail page.
+    $recIdx   = $tier.EndIdx
+    $recTierL = $global:PowerTiers[$recIdx].Label
+    $recGpuS  = $global:PowerTiers[$recIdx].Gpu
+
+    $cmpArea = New-Object System.Windows.Controls.StackPanel
+    $cmpArea.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+
+    # Both buttons live on the Recommended line from the start - no row
+    # of their own. Outline-only styling (transparent fill, light border,
+    # yellow on hover) matching the Explore rating buttons.
+    $mkGhostBtn = {
+        param([string]$Label, [double]$Font, [bool]$Primary)
+        $b = New-Object System.Windows.Controls.Border
+        $b.CornerRadius = [System.Windows.CornerRadius]::new(6)
+        $b.BorderThickness = [System.Windows.Thickness]::new(1)
+        $b.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a6a90")
+        $b.Background  = [System.Windows.Media.Brushes]::Transparent
+        $b.Padding = [System.Windows.Thickness]::new(10, 4, 10, 4)
+        $b.Cursor = [System.Windows.Input.Cursors]::Hand
+        $b.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        # Resting border, so MouseLeave restores the right colour even
+        # after "Always" switched this button to its active look.
+        $b.Resources["restBorder"] = "#4a6a90"
+        $t = New-Object System.Windows.Controls.TextBlock
+        $t.Text = $Label
+        $t.FontSize = $Font
+        $t.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        if ($Primary) {
+            $t.FontWeight = [System.Windows.FontWeights]::SemiBold
+            $t.Foreground = [System.Windows.Media.Brushes]::White
+        } else {
+            $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
+        }
+        $b.Child = $t
+        $b.Add_MouseEnter({
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ddcc44")
+        })
+        $b.Add_MouseLeave({
+            $rest = if ($this.Resources.Contains("restBorder")) { $this.Resources.Item("restBorder") } else { "#4a6a90" }
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($rest)
+        })
+        return @{ Border = $b; Text = $t }
+    }
+
+    $alwaysPair = & $mkGhostBtn "Always compare" 11 $false
+    $alwaysBox  = $alwaysPair.Border
+    $alwaysTxt  = $alwaysPair.Text
+
+    $cmpPair = & $mkGhostBtn "Compare my GPU" 11.5 $true
+    $cmpBtn  = $cmpPair.Border
+    $cmpTxt  = $cmpPair.Text
+    $cmpBtn.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+
+    # Dock order matters: the first Right-docked child ends up furthest
+    # right, so "Always compare" sits at the very end of the line and
+    # "Compare my GPU" directly to its left.
+    [System.Windows.Controls.DockPanel]::SetDock($alwaysBox, [System.Windows.Controls.Dock]::Right)
+    $specLine.Children.Add($alwaysBox) | Out-Null
+    [System.Windows.Controls.DockPanel]::SetDock($cmpBtn, [System.Windows.Controls.Dock]::Right)
+    $specLine.Children.Add($cmpBtn) | Out-Null
+
+    # A short, always-present one-liner (the full disclaimer lives in the
+    # hover strip above). Kept tiny so it never dominates the panel.
+    $consent = New-Object System.Windows.Controls.TextBlock
+    $consent.Text = "Reads your installed GPU name once, locally."
+    $consent.FontSize = 10.5
+    $consent.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555562")
+    $consent.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $consent.TextWrapping = [System.Windows.TextWrapping]::Wrap
+    # Right-aligned: it belongs to the two buttons at the end of the
+    # Recommended line above, so it reads as their footnote instead of
+    # a stray line under the specs.
+    $consent.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $consent.TextAlignment = [System.Windows.TextAlignment]::Right
+    $consent.Margin = [System.Windows.Thickness]::new(0, 5, 0, 0)
+    $cmpArea.Children.Add($consent) | Out-Null
+
+    $resBox = New-Object System.Windows.Controls.Border
+    $resBox.CornerRadius = [System.Windows.CornerRadius]::new(6)
+    $resBox.BorderThickness = [System.Windows.Thickness]::new(1)
+    $resBox.Padding = [System.Windows.Thickness]::new(12, 10, 12, 10)
+    $resBox.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+    $resBox.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e0e14")
+    $resBox.Visibility = [System.Windows.Visibility]::Collapsed
+    $resStack = New-Object System.Windows.Controls.StackPanel
+    $resBox.Child = $resStack
+
+    $verdictRow = New-Object System.Windows.Controls.StackPanel
+    $verdictRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $badgeBox = New-Object System.Windows.Controls.Border
+    $badgeBox.CornerRadius = [System.Windows.CornerRadius]::new(4)
+    $badgeBox.Padding = [System.Windows.Thickness]::new(7, 2, 7, 2)
+    $badgeTxt = New-Object System.Windows.Controls.TextBlock
+    $badgeTxt.FontSize = 10
+    $badgeTxt.FontWeight = [System.Windows.FontWeights]::Bold
+    $badgeTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $badgeBox.Child = $badgeTxt
+    $verdictRow.Children.Add($badgeBox) | Out-Null
+    $vHeadTxt = New-Object System.Windows.Controls.TextBlock
+    $vHeadTxt.FontSize = 12.5
+    $vHeadTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $vHeadTxt.Foreground = [System.Windows.Media.Brushes]::White
+    $vHeadTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $vHeadTxt.Margin = [System.Windows.Thickness]::new(9, 1, 0, 0)
+    $verdictRow.Children.Add($vHeadTxt) | Out-Null
+    $resStack.Children.Add($verdictRow) | Out-Null
+
+    # (No second scale here: the result lights up the "YOU" marker on
+    # the original tier bar above. The panel keeps only badge + text.)
+
+    $vBodyTxt = New-Object System.Windows.Controls.TextBlock
+    $vBodyTxt.FontSize = 11.5
+    $vBodyTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9aa3b3")
+    $vBodyTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $vBodyTxt.TextWrapping = [System.Windows.TextWrapping]::Wrap
+    $vBodyTxt.LineHeight = 17
+    $resStack.Children.Add($vBodyTxt) | Out-Null
+
+    $cmpArea.Children.Add($resBox) | Out-Null
+    $stack.Children.Add($cmpArea) | Out-Null
+
+    # Shared state bag for the closures below.
+    $cu = @{
+        Btn = $cmpBtn; BtnTxt = $cmpTxt; Consent = $consent
+        ResBox = $resBox; BadgeBox = $badgeBox; BadgeTxt = $badgeTxt
+        HeadTxt = $vHeadTxt; BodyTxt = $vBodyTxt
+        # Markers on the ORIGINAL tier bar (only one is ever visible).
+        RecMark = $m1; YouMark = $youMark; YouLabel = $youLabel; YouMarkLift = $youMarkLift
+        SegGrid = $segGrid; AllSegs = $allSegs; BarState = $barState
+        AlwaysBox = $alwaysBox; AlwaysTxt = $alwaysTxt
+        SpecLine = $specLine
+        RecIdx = $recIdx; RecTier = $recTierL; RecGpu = $recGpuS
+        YouIdx = -1; Peak = 1.5
+        Done = $false
+    }
+
+    $paintAlways = {
+        param($cu2, [bool]$on)
+        $bc = [System.Windows.Media.BrushConverter]::new()
+        # Outline-only in both states: border + label colour carry on/off.
+        # restBorder is updated too so a later MouseLeave restores it.
+        $cu2.AlwaysBox.Background = [System.Windows.Media.Brushes]::Transparent
+        if ($on) {
+            $cu2.AlwaysBox.Resources["restBorder"] = "#6a9ad8"
+            $cu2.AlwaysBox.BorderBrush = $bc.ConvertFromString("#6a9ad8")
+            $cu2.AlwaysTxt.Foreground  = $bc.ConvertFromString("#6a9ad8")
+            $cu2.AlwaysTxt.Text = "Always compare: on"
+        } else {
+            $cu2.AlwaysBox.Resources["restBorder"] = "#4a6a90"
+            $cu2.AlwaysBox.BorderBrush = $bc.ConvertFromString("#4a6a90")
+            $cu2.AlwaysTxt.Foreground  = $bc.ConvertFromString("#8a93a3")
+            $cu2.AlwaysTxt.Text = "Always compare"
+        }
+    }
+
+    $runCompare = {
+        param($cu2)
+        if ($cu2.Done) { return }
+        $cu2.Done = $true
+        $bc = [System.Windows.Media.BrushConverter]::new()
+
+        # The button has done its job - hide it. "Always compare" simply
+        # stays where it already is (end of the Recommended line), so
+        # nothing needs re-parenting and the result slides up beneath.
+        $cu2.Btn.Visibility = [System.Windows.Visibility]::Collapsed
+        $cu2.Consent.Visibility = [System.Windows.Visibility]::Collapsed
+        $cu2.ResBox.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
+
+        $gpuName = Get-InstalledGpuName
+        $youIdx  = Get-GpuTierIndex -Name $gpuName
+        $cu2.YouIdx = $youIdx
+        $recIdx2 = $cu2.RecIdx
+        $gname = if ($gpuName) { $gpuName } else { "(no GPU found)" }
+
+        $kind = if ($youIdx -eq -1) { "unknown" }
+                elseif ($youIdx -eq -2) { "under" }
+                elseif ($youIdx -ge $recIdx2) { "good" }
+                elseif ($youIdx -eq ($recIdx2 - 1)) { "warn" }
+                else { "bad" }
+
+        $fill = "#5fd08a"; $bBg = "#274a37"; $bFg = "#5fd08a"; $edge = "#2f5a42"
+        switch ($kind) {
+            "good"    { $cu2.Peak = 1.9 }
+            "warn"    { $fill = "#e8b45f"; $bBg = "#4a3d27"; $bFg = "#e8b45f"; $edge = "#5a4a2f"; $cu2.Peak = 1.5 }
+            "bad"     { $fill = "#e88a6a"; $bBg = "#4a2f27"; $bFg = "#e88a6a"; $edge = "#5a3a2f"; $cu2.Peak = 1.25 }
+            "under"   { $fill = "#e88a6a"; $bBg = "#4a2f27"; $bFg = "#e88a6a"; $edge = "#5a3a2f"; $cu2.Peak = 1.25 }
+            "unknown" { $bBg = "#33333d"; $bFg = "#8a93a3"; $edge = "#3a3a44" }
+        }
+        $cu2.ResBox.BorderBrush  = $bc.ConvertFromString($edge)
+        $cu2.BadgeBox.Background = $bc.ConvertFromString($bBg)
+        $cu2.BadgeTxt.Foreground = $bc.ConvertFromString($bFg)
+
+        if ($kind -eq "unknown") {
+            $cu2.BadgeTxt.Text = "NO MATCH"
+            $cu2.HeadTxt.Text  = "Couldn't place your GPU"
+            $cu2.BodyTxt.Text  = "Your GPU '$gname' is not in the tier list, so it can't be compared. Use the $($cu2.RecTier) guide (around a $($cu2.RecGpu)) as the reference."
+            # No marker on the bar - we don't know where it belongs.
+            $cu2.YouMark.Visibility = [System.Windows.Visibility]::Collapsed
+            $cu2.ResBox.Visibility = [System.Windows.Visibility]::Visible
+            return
+        }
+
+        $youTier = if ($youIdx -ge 0) { $global:PowerTiers[$youIdx].Label } else { "" }
+        if ($kind -eq "good") {
+            $cu2.BadgeTxt.Text = "FITS"
+            $cu2.HeadTxt.Text  = if ($youIdx -gt $recIdx2) { "Above the recommended tier" } else { "Meets the recommended tier" }
+            $cu2.BodyTxt.Text  = "Your '$gname' lands in $youTier, at or above this game's $($cu2.RecTier) guide (~$($cu2.RecGpu)). It should run well."
+        } elseif ($kind -eq "warn") {
+            $cu2.BadgeTxt.Text = "CLOSE"
+            $cu2.HeadTxt.Text  = "One tier below the guide"
+            $cu2.BodyTxt.Text  = "Your '$gname' lands in $youTier, one step under this game's $($cu2.RecTier) guide (~$($cu2.RecGpu)). Likely fine with a few settings reduced."
+        } elseif ($kind -eq "bad") {
+            $cu2.BadgeTxt.Text = "STRETCH"
+            $cu2.HeadTxt.Text  = "Below the recommended tier"
+            $cu2.BodyTxt.Text  = "Your '$gname' lands in $youTier, below this game's $($cu2.RecTier) guide (~$($cu2.RecGpu)). May run with reduced settings - expect compromises."
+        } else {
+            $cu2.BadgeTxt.Text = "STRETCH"
+            $cu2.HeadTxt.Text  = "Below the tier scale"
+            $cu2.BodyTxt.Text  = "Your '$gname' sits below the Hub's LOW tier (~GTX 1070). Most PCVR mods will struggle on it."
+        }
+
+        # Light up the YOU marker on the ORIGINAL tier bar. "under"
+        # (below the scale) pins it at the far-left LOW segment.
+        $markIdx = if ($youIdx -ge 0) { $youIdx } else { 0 }
+        $cu2.BarState.YouIdx = $markIdx
+        # ONE arrow at a time: the white requirement marker steps aside,
+        # the YOU marker takes its lane. The requirement is now carried
+        # by the outlined segment + the RECOMMENDED caption underneath.
+        $cu2.RecMark.Visibility = [System.Windows.Visibility]::Collapsed
+        $cu2.YouMark.Fill = $bc.ConvertFromString($fill)
+        $cu2.YouLabel.Foreground = $bc.ConvertFromString($fill)
+        $cu2.YouMark.Visibility = [System.Windows.Visibility]::Visible
+        $cu2.YouLabel.Visibility = [System.Windows.Visibility]::Visible
+
+        # Outline the required tier segment so the bar itself shows the
+        # bar the user has to clear.
+        $reqSeg = $cu2.AllSegs[$cu2.RecIdx]
+        $reqSeg.BorderThickness = [System.Windows.Thickness]::new(1)
+        $reqSeg.BorderBrush = $bc.ConvertFromString("#cfe0f7")
+        $rg = New-Object System.Windows.Media.Effects.DropShadowEffect
+        $rg.Color = [System.Windows.Media.Color]::FromRgb(207, 224, 247)
+        $rg.BlurRadius = 7
+        $rg.ShadowDepth = 0
+        $rg.Opacity = 0.45
+        $reqSeg.Effect = $rg
+
+        # Headroom: everything the user has ABOVE the requirement gets
+        # appended in the verdict colour (same colour as arrow + label),
+        # so the arrow always lands on a filled, meaningful segment.
+        if ($markIdx -gt $cu2.RecIdx) {
+            for ($k = $cu2.RecIdx + 1; $k -le $markIdx; $k++) {
+                $cu2.AllSegs[$k].Background = $bc.ConvertFromString($fill)
+            }
+        }
+
+        # Position using the bar's current width (SizeChanged keeps it
+        # aligned on later resizes).
+        $bw = $cu2.SegGrid.ActualWidth
+        if ($bw -gt 0) {
+            $segW = $bw / 6.0
+            $youX = $markIdx * $segW + ($segW / 2.0)
+            [System.Windows.Controls.Canvas]::SetLeft($cu2.YouMark, $youX - 6)
+            [System.Windows.Controls.Canvas]::SetLeft($cu2.YouLabel, $youX - 9)
+        }
+        $cu2.ResBox.Visibility = [System.Windows.Visibility]::Visible
+    }
+
+    # (Hover is handled by the ghost-button factory above: light border
+    # at rest, yellow while hovered. No extra handlers here - a second
+    # MouseEnter would run after that one and undo the yellow.)
+
+    # Click = consent + compare. The FIRST click also surfaces the
+    # disclaimer strip once (never again after that).
+    $cmpBtn.Add_MouseLeftButtonUp({ & $showDiscOnce; & $runCompare $cu }.GetNewClosure())
+
+    # Always toggle: persist and run immediately when switched on.
+    $alwaysBox.Add_MouseLeftButtonUp({
+        & $showDiscOnce
+        $on = -not [bool](Get-HubSetting -Key "GpuCompareAlways" -Default $false)
+        Set-HubSetting -Key "GpuCompareAlways" -Value $on
+        & $paintAlways $cu $on
+        if ($on) { & $runCompare $cu }
+    }.GetNewClosure())
+
+    # Initial paint of the Always toggle; auto-run if persisted on.
+    $alwaysOn0 = [bool](Get-HubSetting -Key "GpuCompareAlways" -Default $false)
+    & $paintAlways $cu $alwaysOn0
+    if ($alwaysOn0) { & $runCompare $cu }
 
     # ---------------------------------------------------------------
     # Hover animation - "wave cascade"
@@ -648,6 +1122,7 @@ function global:New-PowerScaleBlock {
     $animSegments = $activeSegments
     $animMarker   = $m1
     $animMarkerLift = $markerLift
+    $animYouLift  = $youMarkLift
     $animLabel    = $headRight
     $card.Add_MouseEnter({
         # Each segment: ScaleY 1 -> 1.6 -> 1 over 1.4s, staggered
@@ -680,6 +1155,10 @@ function global:New-PowerScaleBlock {
         $lift.KeyFrames.Add($lk2) | Out-Null
         $lift.KeyFrames.Add($lk3) | Out-Null
         $animMarkerLift.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $lift)
+        # The YOU marker (once the comparison has run) rides the same bob
+        # - only one of the two markers is ever visible, so sharing the
+        # animation is safe and keeps the motion identical.
+        $animYouLift.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $lift)
         # Marker glow pulse.
         if (-not $animMarker.Effect) {
             $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
@@ -715,21 +1194,33 @@ function global:New-PowerScaleBlock {
         $animLabel.Effect.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $lpulse)
     }.GetNewClosure())
     $card.Add_MouseLeave({
-        # Stop all looping animations and reset to idle.
+        # Ease everything back to idle instead of snapping. A new
+        # BeginAnimation REPLACES the looping one and - because no
+        # From is set - starts at the current animated value, so the
+        # wave settles smoothly from wherever it happens to be.
+        # HoldEnd keeps the rest values until the next MouseEnter
+        # replaces these with the loops again.
+        $ease = New-Object System.Windows.Media.Animation.QuadraticEase
+        $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+        $dur = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(450))
         foreach ($seg in $animSegments) {
-            $st = $seg.RenderTransform
-            $st.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $null)
-            $st.ScaleY = 1.0
+            $settle = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $settle.To = 1.0; $settle.Duration = $dur; $settle.EasingFunction = $ease
+            $seg.RenderTransform.BeginAnimation([System.Windows.Media.ScaleTransform]::ScaleYProperty, $settle)
         }
-        $animMarkerLift.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $null)
-        $animMarkerLift.Y = 0
+        $settleY = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $settleY.To = 0; $settleY.Duration = $dur; $settleY.EasingFunction = $ease
+        $animMarkerLift.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $settleY)
+        $animYouLift.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $settleY)
         if ($animMarker.Effect) {
-            $animMarker.Effect.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $null)
-            $animMarker.Effect.Opacity = 0
+            $fadeGlow = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $fadeGlow.To = 0; $fadeGlow.Duration = $dur; $fadeGlow.EasingFunction = $ease
+            $animMarker.Effect.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $fadeGlow)
         }
         if ($animLabel.Effect) {
-            $animLabel.Effect.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $null)
-            $animLabel.Effect.Opacity = 0
+            $fadeGlow2 = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $fadeGlow2.To = 0; $fadeGlow2.Duration = $dur; $fadeGlow2.EasingFunction = $ease
+            $animLabel.Effect.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $fadeGlow2)
         }
     }.GetNewClosure())
 
@@ -2563,11 +3054,17 @@ function global:New-DetailSection {
                     $img.Source = $bmp
                     $img.Stretch = [System.Windows.Media.Stretch]::Uniform
                     $img.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-                    # Inline preview can use most of the detail
-                    # pane width so labels stay readable. The
-                    # click-to-enlarge handler below opens the
-                    # full image.
-                    $img.MaxWidth = 900
+                    # Inline preview grows with the window like the
+                    # readme text ($readmeMaxW is 0.78x window width,
+                    # clamped 720-1040), but is capped at the image's
+                    # NATIVE width so the layout text never upscales
+                    # into a blurry mess. Landscape control charts
+                    # (~1400px wide) use the full responsive range;
+                    # tall portrait charts stop at their real width.
+                    $nativeW = 900
+                    try { if ($bmp.PixelWidth -gt 0) { $nativeW = [int]$bmp.PixelWidth } } catch { }
+                    $imgCap = if ($readmeMaxW -gt 0) { [Math]::Min($readmeMaxW, $nativeW) } else { [Math]::Min(900, $nativeW) }
+                    $img.MaxWidth = $imgCap
                     $img.Cursor = [System.Windows.Input.Cursors]::Hand
                     $img.ToolTip = "Click to enlarge"
                     # Keep the tooltip short-lived so it doesn't linger
@@ -3216,26 +3713,19 @@ function global:Show-DiscoverDetail {
     $accentHex = if ($Game.Accent) { $Game.Accent } else { "#666677" }
     $famAcc = ConvertTo-MediaColor $accentHex
 
-    # Back button - a more substantial circular arrow control
-    # so it doesn't get lost above the hero. SVG arrow plus label,
-    # accent-colored border on hover.
+    # Back button - outline only (no fill), matching the Explore page's
+    # back button and the rating buttons: transparent background, light
+    # border, orange border on hover. Transparent (not $null) so the
+    # whole area stays hit-testable.
     $backBtn = New-Object System.Windows.Controls.Border
     $backBtn.CornerRadius = [System.Windows.CornerRadius]::new(6)
-    $backBtn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1a1a22")
+    $backBtn.Background = [System.Windows.Media.Brushes]::Transparent
     $backBtn.BorderThickness = [System.Windows.Thickness]::new(1)
     $backBtn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a3a48")
     $backBtn.Padding = [System.Windows.Thickness]::new(14, 9, 18, 9)
     $backBtn.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
     $backBtn.Margin = [System.Windows.Thickness]::new(0, 0, 0, 16)
     $backBtn.Cursor = [System.Windows.Input.Cursors]::Hand
-
-    # Subtle ambient shadow
-    $backShadow = New-Object System.Windows.Media.Effects.DropShadowEffect
-    $backShadow.Color = [System.Windows.Media.Color]::FromRgb(0,0,0)
-    $backShadow.BlurRadius = 8
-    $backShadow.ShadowDepth = 2
-    $backShadow.Opacity = 0.4
-    $backBtn.Effect = $backShadow
 
     $backInner = New-Object System.Windows.Controls.StackPanel
     $backInner.Orientation = [System.Windows.Controls.Orientation]::Horizontal
@@ -3276,7 +3766,6 @@ function global:Show-DiscoverDetail {
     # game's accent so the brighter press glow (#ffcc66) has a
     # consistent, clearly different baseline to contrast against.
     $backBtn.Add_MouseEnter({
-        $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#252530")
         $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dd6600")
         $stack = $this.Child
         if ($stack -and $stack.Children.Count -ge 2) {
@@ -3285,7 +3774,6 @@ function global:Show-DiscoverDetail {
         }
     })
     $backBtn.Add_MouseLeave({
-        $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1a1a22")
         $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a3a48")
         $stack = $this.Child
         if ($stack -and $stack.Children.Count -ge 2) {
@@ -3539,6 +4027,36 @@ function global:Show-DiscoverDetail {
         $ctrlPill.Child = $ctrlTxt
         $titleRow.Children.Add($ctrlPill) | Out-Null
         Add-HoverScale -Element $ctrlPill -Scale 1.08
+    }
+
+    # Roomscale pill: catalog-flagged titles whose VR mod supports
+    # room-scale play. Same accent-tinted badge style as the controls
+    # pill. Also searchable via the "roomscale" keyword (Filter.ps1).
+    if ($Game.Roomscale) {
+        $rsPill = New-Object System.Windows.Controls.Border
+        $rsPill.CornerRadius = [System.Windows.CornerRadius]::new(3)
+        $rsPill.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
+        $rsPill.Margin = [System.Windows.Thickness]::new(8, 4, 0, 0)
+        $rsPill.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $rsBg = [System.Windows.Media.Color]::FromRgb(
+            [byte]([Math]::Round($famAcc.R*0.18 + 22*0.82)),
+            [byte]([Math]::Round($famAcc.G*0.18 + 22*0.82)),
+            [byte]([Math]::Round($famAcc.B*0.18 + 26*0.82))
+        )
+        $rsPill.Background = New-Object System.Windows.Media.SolidColorBrush $rsBg
+        $rsTxt = New-Object System.Windows.Controls.TextBlock
+        $rsTxt.Text = "ROOMSCALE"
+        $rsTxt.FontSize = 10
+        $rsTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
+        $rsTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(
+            [byte]([Math]::Round($famAcc.R*0.5 + 255*0.5)),
+            [byte]([Math]::Round($famAcc.G*0.5 + 255*0.5)),
+            [byte]([Math]::Round($famAcc.B*0.5 + 255*0.5))
+        ))
+        $rsTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        $rsPill.Child = $rsTxt
+        $titleRow.Children.Add($rsPill) | Out-Null
+        Add-HoverScale -Element $rsPill -Scale 1.08
     }
 
     # Game-installed pill: surfaces "yes the user actually owns and
@@ -3966,6 +4484,8 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "Mario Kart 64 VR" = "Experience the classic kart racing action of Mario Kart 64 in immersive VR. Race through iconic tracks with full 6DOF head tracking, bringing the world to life from inside the driver's seat. Built on SpaghettiKart, the Mario Kart 64 PC port - you bring your own US ROM, and nothing from Nintendo is included."
+        "Sonic Robo Blast 2 VR" = "Sonic Robo Blast 2 is a long-running fan-made 3D platformer inspired by the classic Sonic games, featuring fast-paced gameplay, exploration - now with OpenXR support."
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
         "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."
         "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."

@@ -39,6 +39,13 @@ $GAME_NAME = "Amnesia The Dark Descent"
 $ITCH_PAGE_URL = "https://createam.itch.io/sclerosis-an-amnesia-vr-remake"
 $EXPECTED_ZIP = "Sclerosis_VR_v1.8.16.zip"
 
+# Optional HD texture pack (Nexus). 4x AI-upscaled textures - a single
+# data.unity3d that REPLACES the one in Sclerosis_Data. Downloaded by the
+# user from Nexus (login required), then dragged onto the window.
+$HD_NEXUS_URL   = "https://www.nexusmods.com/amnesia/mods/31?tab=files"
+$HD_EXPECTED_ZIP = "Sclerosis 4X AI Upscaled Textures 31 1.00*.zip"
+$HD_INNER_FILE   = "data.unity3d"
+
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
@@ -63,6 +70,139 @@ function Write-Info { param($m) Write-Host " [i] $m" -ForegroundColor Cyan }
 function Write-Warn { param($m) Write-Host " [!] $m" -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+
+# Extract a .zip with a live progress line (entry count + MB written), so a
+# big archive (the ~3 GB HD pack) never looks frozen behind a static bar.
+# Uses .NET ZipFile so it works without 7-Zip. Returns $true on success.
+function Expand-ZipWithProgress {
+    param([string]$ZipPath, [string]$Dest, [string]$Label = "files")
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    if (-not (Test-Path -LiteralPath $Dest)) { New-Item -ItemType Directory -Path $Dest -Force -ErrorAction Stop | Out-Null }
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
+    try {
+        $entries = $zip.Entries
+        $totalBytes = 0L
+        foreach ($e in $entries) { $totalBytes += $e.Length }
+        if ($totalBytes -le 0) { $totalBytes = 1L }
+        $doneBytes = 0L
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
+        $lastDraw = -1000
+        $buf = New-Object byte[] (4MB)
+        $drawProgress = {
+            param($db, $tb, $sw, $lbl)
+            $pct    = [int](($db / $tb) * 100)
+            $doneMB = [Math]::Round($db / 1MB, 0)
+            $totMB  = [Math]::Round($tb / 1MB, 0)
+            $el     = $sw.Elapsed.ToString('mm\:ss')
+            Write-Host ("`r  Extracting $lbl... {0,3}%   {1}/{2} MB   {3} elapsed        " -f $pct, $doneMB, $totMB, $el) -NoNewline -ForegroundColor Gray
+        }
+        foreach ($e in $entries) {
+            $target = Join-Path $Dest $e.FullName
+            if ([string]::IsNullOrEmpty($e.Name)) {
+                if (-not (Test-Path -LiteralPath $target)) { New-Item -ItemType Directory -Path $target -Force -ErrorAction SilentlyContinue | Out-Null }
+                continue
+            }
+            $parent = Split-Path -Parent $target
+            if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction SilentlyContinue | Out-Null }
+            # Stream the entry in 4 MB blocks so the byte counter (and the
+            # progress line) advances DURING a big file, not only after it.
+            # This is what makes a single 3 GB data.unity3d show progress.
+            $inStream = $e.Open()
+            try {
+                $outStream = [System.IO.File]::Create($target)
+                try {
+                    while (($read = $inStream.Read($buf, 0, $buf.Length)) -gt 0) {
+                        $outStream.Write($buf, 0, $read)
+                        $doneBytes += $read
+                        if (($sw.ElapsedMilliseconds - $lastDraw) -ge 250) {
+                            $lastDraw = $sw.ElapsedMilliseconds
+                            & $drawProgress $doneBytes $totalBytes $sw $Label
+                        }
+                    }
+                } finally { $outStream.Close() }
+            } finally { $inStream.Close() }
+            # Preserve the archive timestamp where possible.
+            try { [System.IO.File]::SetLastWriteTime($target, $e.LastWriteTime.LocalDateTime) } catch {}
+        }
+        Write-Host ("`r  Extracting $Label... 100%   {0}/{0} MB   done          " -f ([Math]::Round($totalBytes / 1MB, 0))) -ForegroundColor Gray
+        return $true
+    } finally {
+        $zip.Dispose()
+    }
+}
+
+# Download + install the optional HD texture pack into <SclDataDir>. Shared
+# by the full install (step 4) and the "HD only" retrofit path. Returns
+# $true when the HD data.unity3d was placed.
+function Install-AmnesiaHDTextures {
+    param([string]$SclDataDir, [string]$ScriptDir)
+    if (-not (Test-Path -LiteralPath $SclDataDir)) {
+        Write-Warn "Sclerosis_Data folder not found ($SclDataDir)."
+        Write-Host "  The base mod may not be installed correctly - skipping HD pack." -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host "  A community 4x AI-upscaled texture pack (Nexus) replaces the" -ForegroundColor White
+    Write-Host "  game's textures with sharper versions. Adds ~3 GB; an 8 GB+" -ForegroundColor Gray
+    Write-Host "  VRAM GPU is recommended. Purely cosmetic." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  The Nexus page opens next (log in if needed; if it lists" -ForegroundColor White
+    Write-Host "  'Sclerosis' as a requirement, that is fine - it is installed)." -ForegroundColor White
+    Write-Host "  Grab the '4X AI Upscaled Textures' ZIP, then drag it here." -ForegroundColor White
+    Pause-User "Press Enter to open the Nexus page in your browser..."
+    try { Start-Process $HD_NEXUS_URL } catch { Write-Warn "Could not open the browser. Open manually: $HD_NEXUS_URL" }
+
+    $hdZip = $null
+    while (-not $hdZip) {
+        Write-Host ""
+        Write-Host "  Drag the downloaded HD texture ZIP onto this window and press Enter." -ForegroundColor Yellow
+        Write-Host "  (Leave empty and press Enter to skip the HD pack.)" -ForegroundColor DarkGray
+        $rawHd = Read-Host "  HD ZIP path"
+        if ([string]::IsNullOrWhiteSpace($rawHd)) { Write-Info "Skipped the HD texture pack."; return $false }
+        $ph = $rawHd.Trim().Trim('"').Trim("'").Trim()
+        if (-not (Test-Path -LiteralPath $ph)) { Write-Warn "Path not found: $ph"; continue }
+        if (Test-Path -LiteralPath $ph -PathType Container) { Write-Warn "That is a folder. Drag the .zip file itself."; continue }
+        if ([System.IO.Path]::GetExtension($ph) -ne ".zip") { Write-Warn "That is not a .zip file."; continue }
+        $hdZip = $ph
+    }
+
+    $hdTmp = Join-Path $env:TEMP ("SclerosisHD_" + [System.Guid]::NewGuid().ToString("N"))
+    try {
+        New-Item -ItemType Directory -Path $hdTmp -Force -ErrorAction Stop | Out-Null
+        $hdExtracted = $false
+        try { $hdExtracted = Expand-ZipWithProgress -ZipPath $hdZip -Dest $hdTmp -Label "HD textures" } catch { $hdExtracted = $false }
+        if (-not $hdExtracted) {
+            Write-Info "Falling back to standard extraction (no progress shown)..."
+            Expand-Archive -LiteralPath $hdZip -DestinationPath $hdTmp -Force -ErrorAction Stop
+        }
+        $hdData = Get-ChildItem -LiteralPath $hdTmp -Filter $HD_INNER_FILE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $hdData) {
+            Write-Warn "Could not find $HD_INNER_FILE inside the ZIP - skipping HD pack."
+            return $false
+        }
+        $targetData = Join-Path $SclDataDir $HD_INNER_FILE
+        if (Test-Path -LiteralPath $targetData) {
+            $backup = Join-Path $SclDataDir "data.unity3d.original.backup"
+            if (-not (Test-Path -LiteralPath $backup)) {
+                try { Copy-Item -LiteralPath $targetData -Destination $backup -Force -ErrorAction Stop; Write-OK "Backed up original textures (data.unity3d.original.backup)." } catch { Write-Warn "Could not back up the original data.unity3d - continuing." }
+            }
+        }
+        Write-Info "Copying the 3 GB texture file into place (this can take a minute)..."
+        Copy-Item -LiteralPath $hdData.FullName -Destination $targetData -Force -ErrorAction Stop
+        Write-OK "HD textures installed (data.unity3d replaced in Sclerosis_Data)."
+        Write-Host ""
+        Write-Host "  IMPORTANT: In-game, set Texture Quality to ULTRA to see the" -ForegroundColor Yellow
+        Write-Host "  upscaled textures." -ForegroundColor Yellow
+        try { Set-Content -Path (Join-Path $ScriptDir ".hd_installed") -Value $targetData -Encoding UTF8 -Force } catch {}
+        return $true
+    } catch {
+        Write-Warn "HD texture install failed: $($_.Exception.Message)"
+        Write-Host "  You can install it manually later: replace data.unity3d in" -ForegroundColor Yellow
+        Write-Host "  $SclDataDir with the one from the ZIP." -ForegroundColor Yellow
+        return $false
+    } finally {
+        try { Remove-Item -LiteralPath $hdTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
 
 function Get-SteamPath {
  foreach ($reg in @(
@@ -117,32 +257,64 @@ function Find-AmnesiaGamePath {
 # STEP 0: Welcome + Itch.io page open
 # -------------------------------------------------------
 Write-Header
-Write-Host " About this mod:" -ForegroundColor White
-Write-Host " - Sclerosis is a free fan-made VR remake of Amnesia: TDD" -ForegroundColor Gray
-Write-Host " - Built in Unity, ships its own engine" -ForegroundColor Gray
-Write-Host " - REQUIRES Amnesia: The Dark Descent on Steam (owned + installed)" -ForegroundColor Gray
-Write-Host " - Motion controls + room-scale support" -ForegroundColor Gray
+Write-Host "  Installs Sclerosis, a free fan-made VR remake of Amnesia: The" -ForegroundColor Gray
+Write-Host "  Dark Descent (motion controls + room-scale). You need Amnesia:" -ForegroundColor Gray
+Write-Host "  The Dark Descent owned and installed on Steam." -ForegroundColor Gray
 Write-Host ""
-Write-Host " Download steps (do these now):" -ForegroundColor White
-Write-Host " 1. The mod page will open in your browser" -ForegroundColor White
-Write-Host " 2. Scroll down to the Download section" -ForegroundColor White
-Write-Host " 3. Click 'Download' next to: $EXPECTED_ZIP (~916 MB)" -ForegroundColor White
-Write-Host " 4. Skip the optional donation prompt (No thanks, just take me to the downloads)" -ForegroundColor White
-Write-Host " 5. Come back here and drag the downloaded ZIP into this window" -ForegroundColor White
+
+# ---- Existing install? Offer HD-pack retrofit without a full reinstall.
+# The base download is large (~916 MB); if the Sclerosis mod is already
+# installed (Sclerosis.exe present), let the user just add the HD pack.
+$existingGamePath = $null
+try {
+    $cand = Find-AmnesiaGamePath
+    if (-not $cand) { $cand = Find-SteamGameFolder -AppId "57300" -SteamFolderNames @("Amnesia The Dark Descent") -ProbeExe "Sclerosis.exe" -GogNames @("Amnesia The Dark Descent") }
+    if ($cand -and (Test-Path -LiteralPath (Join-Path $cand "Sclerosis.exe"))) {
+        $existingGamePath = $cand
+    }
+} catch {}
+
+if ($existingGamePath) {
+    Write-Host "  An existing Sclerosis (Amnesia VR) install was found here:" -ForegroundColor Green
+    Write-Host "    $existingGamePath" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  What would you like to do?" -ForegroundColor White
+    Write-Host "    [1] Add the HD texture pack only (no big re-download)" -ForegroundColor Yellow
+    Write-Host "    [2] Reinstall everything from scratch" -ForegroundColor Yellow
+    Write-Host ""
+    $modeChoice = (Read-Host "  Choose 1 or 2").Trim()
+    if ($modeChoice -eq "1") {
+        Write-Step 1 1 "Adding the HD texture pack"
+        $sclData = Join-Path $existingGamePath "Sclerosis_Data"
+        $ok = Install-AmnesiaHDTextures -SclDataDir $sclData -ScriptDir $PSScriptRoot
+        if ($ok) {
+            Write-Host ""
+            Write-Host "  Done. Launch Amnesia VR from your existing shortcut as usual." -ForegroundColor White
+            Write-Host ""
+            Write-Host "  Tinderboxes lit. Mind still slipping. Welcome to the dark." -ForegroundColor Magenta
+        } else {
+            Write-Host ""
+            Write-Host "  No changes made. You can re-run this any time." -ForegroundColor Gray
+        }
+        Write-Host ""
+        Pause-User "Press Enter to close..."
+        return
+    }
+    Write-Info "Continuing with a full reinstall."
+    Write-Host ""
+}
+Write-Host "  The free mod downloads from itch.io - the page opens next; grab" -ForegroundColor White
+Write-Host "  $EXPECTED_ZIP (~916 MB), then drag it onto this window." -ForegroundColor White
 Write-Host ""
-Write-Host " Mod page URL:" -ForegroundColor Cyan
-Write-Host " -> $ITCH_PAGE_URL" -ForegroundColor DarkGray
 Pause-User "Press Enter to open the itch.io page in your browser..."
 try { Start-Process $ITCH_PAGE_URL } catch {
- Write-Warn "Could not open browser. Visit the URL above manually."
+    Write-Warn "Could not open browser. Open manually: $ITCH_PAGE_URL"
 }
 
 # -------------------------------------------------------
 # STEP 1: Get the ZIP from the user
 # -------------------------------------------------------
-Write-Step 1 4 "Locate the downloaded ZIP"
-Write-Host " Once $EXPECTED_ZIP is on your disk, drop it here." -ForegroundColor Gray
-Write-Host ""
+Write-Step 1 5 "Locate the downloaded ZIP"
 
 $modZip = $null
 while (-not $modZip) {
@@ -165,7 +337,7 @@ while (-not $modZip) {
 # -------------------------------------------------------
 # STEP 2: Locate the Amnesia install
 # -------------------------------------------------------
-Write-Step 2 4 "Locating Amnesia: The Dark Descent"
+Write-Step 2 5 "Locating Amnesia: The Dark Descent"
 
 $gamePath = Find-AmnesiaGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "57300" -SteamFolderNames @("Amnesia The Dark Descent") -ProbeExe "Sclerosis.exe" -GogNames @("Amnesia The Dark Descent") }
@@ -196,13 +368,19 @@ if ($gamePath) {
 # -------------------------------------------------------
 # STEP 3: Extract the mod into the Amnesia folder
 # -------------------------------------------------------
-Write-Step 3 4 "Installing mod files"
+Write-Step 3 5 "Installing mod files"
 Write-Host " Extracting $EXPECTED_ZIP contents directly into:" -ForegroundColor Gray
 Write-Host " $gamePath" -ForegroundColor DarkGray
 Write-Host ""
 
 try {
+ # ~916 MB archive: show a live progress line so it never looks frozen.
+ $baseExtracted = $false
+ try { $baseExtracted = Expand-ZipWithProgress -ZipPath $modZip -Dest $gamePath -Label "mod files" } catch { $baseExtracted = $false }
+ if (-not $baseExtracted) {
+ Write-Info "Falling back to standard extraction (no progress shown)..."
  Expand-Archive -LiteralPath $modZip -DestinationPath $gamePath -Force -ErrorAction Stop
+ }
  Write-OK "Files extracted."
 } catch {
  Write-Fail "Extraction failed: $_"
@@ -242,9 +420,21 @@ if (Test-Path $sclerosisExe) {
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 
-# STEP 4: Desktop shortcut
 # -------------------------------------------------------
-Write-Step 4 4 "Creating Desktop Shortcut"
+# STEP 4: Optional HD texture pack (Nexus, 4x AI upscale)
+# -------------------------------------------------------
+Write-Step 4 5 "Optional: HD texture pack"
+$hdChoice = Read-Host " Install the optional HD texture pack now? (Y/N)"
+if ($hdChoice -match '^(y|yes|j|ja)$') {
+    $sclDataDir = Join-Path $gamePath "Sclerosis_Data"
+    Install-AmnesiaHDTextures -SclDataDir $sclDataDir -ScriptDir $PSScriptRoot | Out-Null
+} else {
+    Write-Info "Skipping the HD texture pack. You can re-run this installer to add it later."
+}
+
+# STEP 5: Desktop shortcut
+# -------------------------------------------------------
+Write-Step 5 5 "Creating Desktop Shortcut"
 
 if (Test-Path $sclerosisExe) {
  try {

@@ -42,6 +42,22 @@ Aim by pointing your tracked hand; the laser sight marks your shot.
 
 In-game **Options -> VR** covers weapon angle, snap-turn, comfort and handedness. If aiming feels off, adjust the weapon angle. If you do not enter VR on launch, confirm SteamVR is running and that VR mode is enabled in Options.
 
+## Optional: 3D models addon
+
+During setup the installer offers a community **3D models addon** (ModDB)
+- answer **Y** at the "Optional: 3D models addon" step to add it, **N**
+to skip. You can re-run the installer any time to add it later.
+
+- It turns the **world objects** into 3D models: ammo, quest items,
+  powerups, props, and weapons lying in the world (the ones you pick up).
+- **Note:** the weapon in your hand (first-person view) stays 2D. The
+  addon replaces world/pickup models, not the held-weapon sprites - that
+  is a separate thing this pack does not cover.
+- Covers **Ashes 2063** and **Afterglow** (Hard Reset is not included).
+- The installer opens the ModDB page; click the red **Download Now**
+  button (about 33 MB), then drag the downloaded ZIP onto the window.
+  The addon loads automatically on top of the matching episodes.
+
 ## Notes
 
 - This is a free, fan-made VR setup over a free total conversion - performance and polish vary; up-close textures are low-res by classic-engine nature.

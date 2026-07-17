@@ -60,7 +60,7 @@ bugs still.
 
 ## Controls
 
-![Controls](../Assets/AlienIsolation_controls.jpg)
+![Controls](AlienIsolation_controls.jpg)
 
 - **Recenter:** [[Left Grip]] + [[Right Grip]] (still occasionally needed after
   certain animations)
@@ -104,5 +104,13 @@ JayP develops the GRAND-MotherVR mod, which adds 6DOF motion controls and
 major QoL improvements on top of Nibre's original MotherVR base. If you
 enjoy the work, consider supporting him:
 - https://ko-fi.com/jayp
+
+## Support HoriZon
+
+HoriZon builds and maintains many VR-mod resource sites - including
+https://www.alienisolationvr.com - and created the controller layout
+artwork this guide is based on (modified for the Hub). If you find these
+resources useful, consider supporting the work:
+- https://ko-fi.com/hzn_designs/tip
 
 >>> Sevastopol is quiet. Too quiet. Mind the vents.

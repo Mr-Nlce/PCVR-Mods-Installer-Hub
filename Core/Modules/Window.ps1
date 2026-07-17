@@ -1001,7 +1001,7 @@ $xaml = @"
                             <!-- Back button - sits inside the banner top-left
                                  so the page doesn't feel split into stripes. -->
                             <Border x:Name="OverviewBackBtn" CornerRadius="6"
-                                    Background="#1a1a22"
+                                    Background="Transparent"
                                     BorderThickness="1" BorderBrush="#3a3a48"
                                     Padding="11,6,15,6"
                                     HorizontalAlignment="Left" VerticalAlignment="Top"

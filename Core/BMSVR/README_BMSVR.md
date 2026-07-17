@@ -76,7 +76,7 @@ The mod is **multi-profile** because BMS and Xen 1.0 use different mod sets that
 
 ## About the optional 5.1 HRTF audio setup
 
-The mod ships with [DSOAL](https://github.com/kcat/dsoal) + OpenAL Soft to restore proper 5.1 surround in VR — Source engine only delivers 2-channel stereo by default. Setting it up requires:
+The mod ships with DSOAL (https://github.com/kcat/dsoal) + OpenAL Soft to restore proper 5.1 surround in VR — Source engine only delivers 2-channel stereo by default. Setting it up requires:
 
 1. Copying `dsound.dll` + `dsoal-aldrv.dll` + `alsoft.ini` into the HL2VR folder (the installer does this).
 2. Adding 7 DirectSound CLSID entries to the Windows registry so the game-local `dsound.dll` is loaded instead of the system one.

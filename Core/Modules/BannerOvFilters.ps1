@@ -186,6 +186,11 @@ function global:Update-OvFilterChips {
     param($ChipPanel, [string]$ActiveKey)
     if (-not $ChipPanel) { return }
     foreach ($chip in $ChipPanel.Children) {
+        # The power panel also carries the GPU rating controls at the end
+        # of the row. They are not filter chips and have no filterKey, so
+        # skip them - otherwise the else-branch below would repaint them
+        # in chip colours every time the selection changes.
+        if (-not $chip.Resources.Contains("filterKey")) { continue }
         $key  = $chip.Resources.Item("filterKey")
         $txt  = $chip.Resources.Item("filterText")
         $acc  = $chip.Resources.Item("filterAccent")
@@ -481,6 +486,197 @@ function global:Build-OvPowerFilter {
         $panel.Children.Add($chip) | Out-Null
     }
     $global:OvPowerFilterPanel = $panel
+    # Rating controls sit at the end of this very row, after a gap.
+    Add-OvGpuRateControls -Panel $panel
+}
+
+# ---------------------------------------------------------------
+# GPU rating for the Explore power filter ("Rate my GPU").
+# ---------------------------------------------------------------
+# The buttons live at the END of the tier-pill row itself (with a gap),
+# not in a row of their own - they belong to that selection.
+# The Explore filter uses 4 coarse buckets, the detail page uses the
+# 6 PowerTiers. Map a resolved GPU tier index onto a bucket key:
+#   tier 0/1 (LOW,BASIC)   -> LOW
+#   tier 2   (SOLID)       -> SOLID
+#   tier 3/4 (STRONG,HIGH) -> HIGH
+#   tier 5   (EXTREME)     -> EXTREME
+# A GPU below the scale (-2) still maps to LOW - the honest closest
+# bucket. -1 (unknown) has no bucket and is reported as such.
+function global:Get-OvBucketKeyForGpuTier {
+    param([int]$TierIdx)
+    if ($TierIdx -eq -2) { return "LOW" }
+    if ($TierIdx -lt 0)  { return $null }
+    if ($TierIdx -le 1)  { return "LOW" }
+    if ($TierIdx -eq 2)  { return "SOLID" }
+    if ($TierIdx -le 4)  { return "HIGH" }
+    return "EXTREME"
+}
+
+# Run the rating: read the GPU locally (the click is the consent),
+# select the matching bucket in the power filter, report inline.
+function global:Invoke-OvGpuRate {
+    $resTxt = $global:OvRateResultTxt
+    $gpu = Get-InstalledGpuName
+    $bc = [System.Windows.Media.BrushConverter]::new()
+    if (-not $gpu) {
+        if ($resTxt) { $resTxt.Text = "No GPU detected"; $resTxt.Foreground = $bc.ConvertFromString("#8a93a3") }
+        return
+    }
+    $idx = Get-GpuTierIndex -Name $gpu
+    $key = Get-OvBucketKeyForGpuTier -TierIdx $idx
+    if (-not $key) {
+        if ($resTxt) { $resTxt.Text = "$gpu - not in the tier list"; $resTxt.Foreground = $bc.ConvertFromString("#8a93a3") }
+        return
+    }
+    $global:OvActivePower = $key
+    if ($global:OvPowerFilterPanel) {
+        Update-OvFilterChips -ChipPanel $global:OvPowerFilterPanel -ActiveKey $key
+    }
+    Apply-OvFilters
+    if ($resTxt) {
+        $tierLabel = if ($idx -ge 0) { $global:PowerTiers[$idx].Label } else { "below LOW" }
+        $resTxt.Text = "$gpu - $tierLabel"
+        $resTxt.Foreground = $bc.ConvertFromString("#5fd08a")
+    }
+}
+
+# Paint the "Always rate" toggle to match its persisted state.
+function global:Update-OvAlwaysRateVisual {
+    param([bool]$On)
+    if (-not $global:OvAlwaysRateBtn -or -not $global:OvAlwaysRateTxt) { return }
+    $bc = [System.Windows.Media.BrushConverter]::new()
+    # Background stays transparent in both states - the border and the
+    # label colour carry the on/off distinction. restBorder is updated
+    # too so a later MouseLeave restores the correct resting colour.
+    $global:OvAlwaysRateBtn.Background = [System.Windows.Media.Brushes]::Transparent
+    if ($On) {
+        $global:OvAlwaysRateBtn.Resources["restBorder"] = "#6a9ad8"
+        $global:OvAlwaysRateBtn.BorderBrush = $bc.ConvertFromString("#6a9ad8")
+        $global:OvAlwaysRateTxt.Foreground  = $bc.ConvertFromString("#6a9ad8")
+        $global:OvAlwaysRateTxt.Text = "Always: on"
+    } else {
+        $global:OvAlwaysRateBtn.Resources["restBorder"] = "#4a6a90"
+        $global:OvAlwaysRateBtn.BorderBrush = $bc.ConvertFromString("#4a6a90")
+        $global:OvAlwaysRateTxt.Foreground  = $bc.ConvertFromString("#8a93a3")
+        $global:OvAlwaysRateTxt.Text = "Always rate"
+    }
+}
+
+# Show/hide the rating controls. Exact Tier mode hides them: there the
+# user deliberately browses one tier, so their own GPU is irrelevant.
+function global:Update-OvGpuRateVisibility {
+    $vis = if ($global:OvPowerMode -eq "exact") {
+        [System.Windows.Visibility]::Collapsed
+    } else {
+        [System.Windows.Visibility]::Visible
+    }
+    foreach ($el in @($global:OvRateBtn, $global:OvAlwaysRateBtn, $global:OvRateResultHost)) {
+        if ($el) { $el.Visibility = $vis }
+    }
+}
+
+# Build a rating button that matches New-OvFilterChip's geometry
+# EXACTLY: same S/M/L size table, same corner radius, same inner
+# MinHeight and the same 8px right/bottom margin. That way the buttons
+# sit on the same baseline as the tier pills and are the same height,
+# and they track the Explore S/M/L setting just like the pills do.
+function global:New-OvRateButton {
+    param([string]$Label, [bool]$Primary, [double]$LeftMargin)
+    $szKey = if ($global:ExploreSize) { $global:ExploreSize } else { "M" }
+    $sz = switch ($szKey) {
+        "S"     { @{ Font = 11.0; Corner = 5; MinH = 26; LblL = 11; LblR = 12; LblV = 5 } }
+        "L"     { @{ Font = 12.5; Corner = 6; MinH = 30; LblL = 13; LblR = 14; LblV = 6 } }
+        default { @{ Font = 12.0; Corner = 5; MinH = 28; LblL = 12; LblR = 13; LblV = 5 } }
+    }
+    $b = New-Object System.Windows.Controls.Border
+    $b.CornerRadius = [System.Windows.CornerRadius]::new($sz.Corner)
+    $b.Padding = [System.Windows.Thickness]::new(0)
+    $b.Margin = [System.Windows.Thickness]::new($LeftMargin, 0, 8, 8)
+    $b.BorderThickness = [System.Windows.Thickness]::new(1)
+    # No fill - the outline carries the button. The former hover border
+    # is now the resting one; hovering turns it yellow instead.
+    $b.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a6a90")
+    $b.Background  = [System.Windows.Media.Brushes]::Transparent
+    $b.Cursor = [System.Windows.Input.Cursors]::Hand
+    # Resting border colour, so MouseLeave can restore the right one even
+    # after "Always rate" has switched this button to its active look.
+    $b.Resources["restBorder"] = "#4a6a90"
+
+    $inner = New-Object System.Windows.Controls.Grid
+    $inner.MinHeight = $sz.MinH
+
+    $t = New-Object System.Windows.Controls.TextBlock
+    $t.Text = $Label
+    $t.FontSize = $sz.Font
+    $t.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $t.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $t.Margin = [System.Windows.Thickness]::new($sz.LblL, $sz.LblV, $sz.LblR, $sz.LblV)
+    if ($Primary) {
+        $t.FontWeight = [System.Windows.FontWeights]::SemiBold
+        $t.Foreground = [System.Windows.Media.Brushes]::White
+    } else {
+        $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
+    }
+    $inner.Children.Add($t) | Out-Null
+    $b.Child = $inner
+
+    $b.Add_MouseEnter({
+        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ddcc44")
+    })
+    $b.Add_MouseLeave({
+        $rest = if ($this.Resources.Contains("restBorder")) { $this.Resources.Item("restBorder") } else { "#4a6a90" }
+        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($rest)
+    })
+    return @{ Border = $b; Text = $t }
+}
+
+# Append the rating controls to the END of the tier-pill panel, after a
+# clear gap (~3-4 spaces) so they read as a separate action, not a tier.
+function global:Add-OvGpuRateControls {
+    param($Panel)
+    if (-not $Panel) { return }
+
+    $rate = New-OvRateButton -Label "Rate my GPU" -Primary $true -LeftMargin 26
+    $global:OvRateBtn = $rate.Border
+    $rate.Border.ToolTip = "Reads your installed GPU name once, locally, and picks the matching power level"
+    $rate.Border.Add_MouseLeftButtonUp({ Invoke-OvGpuRate })
+    $Panel.Children.Add($rate.Border) | Out-Null
+
+    $alw = New-OvRateButton -Label "Always rate" -Primary $false -LeftMargin 8
+    $global:OvAlwaysRateBtn = $alw.Border
+    $global:OvAlwaysRateTxt = $alw.Text
+    $alw.Border.ToolTip = "Rate automatically every time you open Explore"
+    $alw.Border.Add_MouseLeftButtonUp({
+        $on = -not [bool](Get-HubSetting -Key "OvGpuRateAlways" -Default $false)
+        Set-HubSetting -Key "OvGpuRateAlways" -Value $on
+        Update-OvAlwaysRateVisual -On $on
+        if ($on) { Invoke-OvGpuRate }
+    })
+    $Panel.Children.Add($alw.Border) | Out-Null
+
+    # Result text: wrapped in a Grid of the same MinHeight as the pills
+    # so it is vertically centred on their line instead of riding high.
+    $szKey2 = if ($global:ExploreSize) { $global:ExploreSize } else { "M" }
+    $rh = switch ($szKey2) { "S" { 26 } "L" { 30 } default { 28 } }
+    $rf = switch ($szKey2) { "S" { 11.0 } "L" { 12.5 } default { 12.0 } }
+    $resHost = New-Object System.Windows.Controls.Grid
+    $resHost.MinHeight = $rh
+    $resHost.Margin = [System.Windows.Thickness]::new(12, 0, 0, 8)
+    $res = New-Object System.Windows.Controls.TextBlock
+    $res.FontSize = $rf
+    $res.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
+    $res.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $res.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $resHost.Children.Add($res) | Out-Null
+    $global:OvRateResultTxt = $res
+    $global:OvRateResultHost = $resHost
+    $Panel.Children.Add($resHost) | Out-Null
+
+    $alwaysOn = [bool](Get-HubSetting -Key "OvGpuRateAlways" -Default $false)
+    Update-OvAlwaysRateVisual -On $alwaysOn
+    Update-OvGpuRateVisibility
+    if ($alwaysOn -and $global:OvPowerMode -ne "exact") { Invoke-OvGpuRate }
 }
 
 # Build a genre row: header + horizontal scroll of tiles + side
@@ -1101,6 +1297,10 @@ function global:Update-OvPowerModeLabel {
     } else {
         $global:OvPowerModeLabelTxt.Text = "Your PC"
         $global:OvPowerModeLabelTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffaa66")
+    }
+    # The GPU rating only makes sense in cumulative ("Your PC") mode.
+    if (Get-Command Update-OvGpuRateVisibility -ErrorAction SilentlyContinue) {
+        Update-OvGpuRateVisibility
     }
 }
 

@@ -702,6 +702,9 @@ function global:Test-GamePassesFilter {
         # normal text match above). $null -contains is safe -> false.
         if ($Query -eq "free" -and ($global:FREE_GAME_TITLES -contains $GameData.Title)) { $textMatch = $true }
         if ($Query -eq "wip"  -and ($global:WIP_GAME_TITLES  -contains $GameData.Title)) { $textMatch = $true }
+        # "roomscale" / "room-scale" / "room scale" lists every title whose
+        # VR mod supports room-scale play (Roomscale flag in the catalog).
+        if (($Query -eq "roomscale" -or $Query -eq "room-scale" -or $Query -eq "room scale") -and $GameData.Roomscale) { $textMatch = $true }
         $ctrlMatch = $script:activeFilter -eq "ALL" -or $controls -eq $script:activeFilter -or
                      ($script:activeFilter -eq "MC" -and ($controls -eq "BOTH" -or $controls -eq "VRGP")) -or
                      ($script:activeFilter -eq "GP" -and ($controls -eq "BOTH" -or $controls -eq "VRGP"))
@@ -2391,13 +2394,32 @@ function global:Invoke-CheckInstalledScan {
             try { $hyClient = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "Hytale\install\release\package\game\latest\Client\HytaleClient.exe" } catch {}
             $hyClientOk = ($hyClient -and (Test-Path -LiteralPath $hyClient))
             $hyModRoot = $null
+            # [IO.Path]::Combine, NOT Join-Path: Join-Path VALIDATES the
+            # drive and throws DriveNotFoundException on machines without
+            # a D:/E: drive, which killed this whole detection block
+            # (Join-Path returned $null -> Test-Path -LiteralPath $null
+            # -> terminating bind error -> "[scan] detection failed").
+            # Combine is a pure string op; Test-Path itself handles
+            # missing drives gracefully (returns $false, no throw).
             foreach ($hr in @("C:\Games\Hytale VR", "D:\Games\Hytale VR", "E:\Games\Hytale VR")) {
-                if ((Test-Path -LiteralPath (Join-Path $hr "Start Hytale VR.bat")) -or (Test-Path -LiteralPath (Join-Path $hr "hytale_camera_dashboard.exe"))) { $hyModRoot = $hr; break }
+                $hyBat  = [System.IO.Path]::Combine($hr, "Start Hytale VR.bat")
+                $hyDash = [System.IO.Path]::Combine($hr, "hytale_camera_dashboard.exe")
+                if ((Test-Path -LiteralPath $hyBat) -or (Test-Path -LiteralPath $hyDash)) { $hyModRoot = $hr; break }
             }
             if (-not $hyModRoot) {
                 $hyRec = $null
                 try { $hyRec = Read-InstalledPath -Game $game } catch {}
-                if ($hyRec -and ((Test-Path -LiteralPath (Join-Path $hyRec "Start Hytale VR.bat")) -or (Test-Path -LiteralPath (Join-Path $hyRec "hytale_camera_dashboard.exe")))) { $hyModRoot = $hyRec }
+                if ($hyRec) {
+                    # Same drive-safety for the recorded path (it can point
+                    # at a drive that no longer exists); Combine can still
+                    # throw on illegal characters, so keep it guarded.
+                    $hyRecOk = $false
+                    try {
+                        $hyRecOk = (Test-Path -LiteralPath ([System.IO.Path]::Combine($hyRec, "Start Hytale VR.bat"))) -or `
+                                   (Test-Path -LiteralPath ([System.IO.Path]::Combine($hyRec, "hytale_camera_dashboard.exe")))
+                    } catch {}
+                    if ($hyRecOk) { $hyModRoot = $hyRec }
+                }
             }
             if ($hyModRoot) {
                 $installed   = $true
@@ -2512,6 +2534,41 @@ function global:Invoke-CheckInstalledScan {
                 # the next scan and the banner disappears for good - future
                 # updates run through the launcher, not the Hub.
                 if (Get-AnomalyInstalledModVersion -GameDir $gameDir) {
+                    $needsUpdate = $true
+                }
+            } elseif ($game.Title -eq "Hytale VR") {
+                # Hytale VR reads its installed version from the mod's OWN
+                # CHANGELOG.md (first "## [x.y.z]" heading), which travels
+                # with the mod - same idea as Luke Ross's in-folder
+                # .real_vr_version. It must NOT use the generic GitHub
+                # branch below: that branch seeds a MISSING marker with the
+                # CURRENT latest tag, on the assumption that "no marker =
+                # just installed latest". The pre-1.0 Hytale installer never
+                # wrote a marker, so on the first scan after 1.0.0 shipped
+                # the Hub stamped stale 0.1.x installs as "v1.0.0" and the
+                # Update tile never appeared.
+                $ghVer  = Get-GithubLatestTagCached -Repo $game.GithubRepo
+                $hyInst = $null
+                if ($gameDir) {
+                    try {
+                        $hyLog = [System.IO.Path]::Combine($gameDir, "CHANGELOG.md")
+                        if (Test-Path -LiteralPath $hyLog) {
+                            foreach ($hyLine in (Get-Content -LiteralPath $hyLog -ErrorAction Stop)) {
+                                if ($hyLine -match '^##\s*\[(\d+(?:\.\d+)+)\]') { $hyInst = "v" + $matches[1]; break }
+                            }
+                        }
+                    } catch {}
+                }
+                if ($hyInst) {
+                    $installedVer = $hyInst
+                    Write-InstalledVersion -Game $game -Version $hyInst
+                    if ($ghVer -and (($hyInst -replace '^[vV]','') -ne ($ghVer -replace '^[vV]',''))) { $needsUpdate = $true }
+                } else {
+                    # 1.0.0+ always ships CHANGELOG.md, so its absence means a
+                    # pre-1.0 install - flag the update regardless of whatever
+                    # the old seeding may have stamped on. Self-correcting:
+                    # after the update the CHANGELOG is there and drives the
+                    # comparison from then on.
                     $needsUpdate = $true
                 }
             } elseif ($game.GithubRepo) {

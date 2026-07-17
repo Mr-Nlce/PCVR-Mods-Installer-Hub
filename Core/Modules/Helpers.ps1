@@ -1228,6 +1228,76 @@ function global:Get-PowerTierIndex {
     return 2  # default = SOLID
 }
 
+# ---------------------------------------------------------------
+# GPU detection + rough tier mapping ("Compare my GPU" feature).
+# Reading the GPU name happens ONLY when the user clicks Compare
+# (the click is the consent). Local WMI only, no network; cached
+# for the session. The mapping is deliberately coarse - PCVR
+# performance is not an exact science - so tiers are broad bands.
+# Return contract of Get-GpuTierIndex:
+#    0..5 = tier index (LOW..EXTREME)
+#   -1    = unknown GPU (not in the pattern list)
+#   -2    = known but BELOW the LOW tier floor (~GTX 1070)
+# ---------------------------------------------------------------
+function global:Get-InstalledGpuName {
+    if ($global:HubGpuName) { return $global:HubGpuName }
+    try {
+        $gpus = @(Get-CimInstance -ClassName Win32_VideoController -ErrorAction Stop | Where-Object { $_.Name })
+        if ($gpus.Count -eq 0) { return $null }
+        # Drop virtual display adapters (streamers, remote desktop, VD).
+        $virtualPat = 'Microsoft Basic|Virtual|Remote|Parsec|DisplayLink|Idd|VMware|VirtualBox'
+        $real = @($gpus | Where-Object { $_.Name -notmatch $virtualPat })
+        if ($real.Count -eq 0) { $real = $gpus }
+        # Prefer the discrete card over an iGPU when both exist.
+        $pref = @($real | Where-Object { $_.Name -match 'NVIDIA|GeForce|RTX|GTX|Radeon|Arc' })
+        $pick = if ($pref.Count -gt 0) { $pref[0] } else { $real[0] }
+        $global:HubGpuName = [string]$pick.Name
+        return $global:HubGpuName
+    } catch { return $null }
+}
+
+function global:Get-GpuTierIndex {
+    param([string]$Name)
+    if ([string]::IsNullOrWhiteSpace($Name)) { return -1 }
+    $n = $Name.ToUpperInvariant()
+    $idx = -1
+
+    # Ti/Super/GRE variants that outrun their base name are matched in a
+    # HIGHER branch than the base number - the elseif cascade runs top-
+    # down, so the first (strongest) branch that matches wins. Without
+    # this, "1080 Ti" fell through to the plain \b1080\b tier and
+    # "7900 GRE" was caught by the \b7900\b flagship tier.
+    if ($n -match 'GEFORCE|NVIDIA|RTX|GTX|TITAN|QUADRO') {
+        if     ($n -match '\b5090\b|\b4090\b')                                  { $idx = 5 }
+        elseif ($n -match '5070 ?TI|\b5080\b|\b4080\b|3080 ?TI|4070 ?TI|\b3090\b') { $idx = 4 }
+        elseif ($n -match '\b5070\b|\b4070\b|\b3080\b|5060 ?TI|RTX ?A6000|RTX ?A5000') { $idx = 3 }
+        elseif ($n -match '\b5060\b|\b5050\b|\b4060\b|\b3070\b|\b3060\b|\b2080\b|\b2070\b|1080 ?TI|TITAN ?RTX|TITAN ?V|RTX ?A4[05]00') { $idx = 2 }
+        elseif ($n -match '\b2060\b|\b1080\b|1070 ?TI|\b4050\b|TITAN|RTX ?A2000') { $idx = 1 }
+        elseif ($n -match '\b1070\b|\b1660\b|\b3050\b|980 ?TI')               { $idx = 0 }
+        elseif ($n -match '\b2050\b|\b1650\b|\b1630\b|\b1060\b|\b1050\b|\b1030\b|\bMX\d|\b9[0-9]0\b|\b7[0-9]0\b|\b6[0-9]0\b') { $idx = -2 }
+    }
+    elseif ($n -match 'RADEON|AMD') {
+        if     ($n -match '9070 ?XT|7900 ?XT')                                  { $idx = 4 }
+        elseif ($n -match '\b9070\b|7900 ?GRE|\b7800\b|\b6950\b|\b6900\b|\b6800\b') { $idx = 3 }
+        elseif ($n -match '\b9060\b|\b7700\b|\b7600\b|\b6750\b|\b6700\b|\b6650\b') { $idx = 2 }
+        elseif ($n -match '\b6600\b|\b5700\b|VEGA ?64|RADEON VII')              { $idx = 1 }
+        elseif ($n -match '\b5600\b|VEGA ?56')                                  { $idx = 0 }
+        elseif ($n -match '\b6500\b|\b6400\b|\b5500\b|\b5[0-9]0\b|\b4[0-9]0\b|VEGA|FURY|\bR9\b|\bR7\b|\b[6-8]\d0M\b|GRAPHICS$') { $idx = -2 }
+    }
+    elseif ($n -match 'INTEL|ARC') {
+        if     ($n -match '\bB580\b|\bA770\b')                                  { $idx = 2 }
+        elseif ($n -match '\bB570\b|\bA750\b|\bA580\b')                         { $idx = 1 }
+        elseif ($n -match '\bA380\b|\bA310\b|IRIS|UHD|HD GRAPHICS')             { $idx = -2 }
+    }
+
+    # Laptop variants run well below their desktop namesakes.
+    if ($n -match 'LAPTOP|MOBILE|MAX-Q') {
+        if ($idx -ge 1) { $idx-- }
+        elseif ($idx -eq 0) { $idx = -2 }
+    }
+    return $idx
+}
+
 # Resolve a game's power-tier band based on Martin's manual tier
 # classification. Each title maps to one of:
 #   LOW (0), BASIC (1), SOLID (2), STRONG (3), HIGH (4), EXTREME (5)
@@ -1257,6 +1327,7 @@ function global:Get-PowerTier {
         "Astrodogs VR"                 = "BASIC"
         "Mouse P.I. For Hire VR"       = "STRONG"
         "New Star GP VR"                = "BASIC"
+        "Mario Kart 64 VR"             = "BASIC"
         "Super Mario 64 VR"            = "BASIC"
         "Star Fox 64 VR"               = "BASIC"
         "Bendy VR"                     = "SOLID"
@@ -1349,6 +1420,7 @@ function global:Get-PowerTier {
         "Road Redemption VR"           = "SOLID"
         "Skate Story VR"               = "SOLID"
         "Sonic P-06 VR"                = "SOLID"
+        "Sonic Robo Blast 2 VR" = "BASIC"
         "Star Racer VR"                = "SOLID"
         "Techtonica VR"                = "SOLID"
         "Tinykin VR"                   = "SOLID"
@@ -1363,10 +1435,14 @@ function global:Get-PowerTier {
         "Metroid Prime VR"             = "STRONG"
         "Nuclear Option VR" = "STRONG"
         "The Dark Mod VR" = "STRONG"
+        "Warhammer 40K: Rogue Trader VR" = "STRONG"
         "Watch Dogs VR" = "STRONG"
         "Far Cry Primal VR" = "STRONG"
         "Dark Souls III VR" = "STRONG"
         "Anomaly VR"                   = "STRONG"
+        "Assassin's Creed Mirage VR" = "HIGH"
+        "Assassin's Creed Odyssey VR" = "HIGH"
+        "Assassin's Creed Valhalla VR" = "HIGH"
         "Anomaly GAMMA"                = "HIGH"
         "Bomb Rush Cyberfunk"          = "STRONG"
         "Breath of the Wild VR"        = "HIGH"

@@ -31,8 +31,9 @@ try {
 
 # Mod count shown in the {N} hints - the real VR-mod tally. Tools and
 # external tool entries are deliberately NOT counted, so an auto-count of
-# catalog entries reads high. Bump this when the real number changes.
-$tileCount = 190
+# catalog entries reads high. RULE: bump this by +1 with EVERY new game
+# tile added to the Hub (games only - never for tools like UEVR).
+$tileCount = 196
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -258,19 +259,34 @@ try {
         }
     }
 
-    # Pick ~14 well-spread stars from the candidate pool.
+    # Pick ~9 well-spread stars from the candidate pool. A minimum
+    # spacing keeps them from landing right next to each other (which
+    # reads as a clump, not stars) while staying fully random otherwise.
     $want = 9
+    $minGapSq = 9   # squared cell distance; sqrt(9)=3 cells min. apart
     if ($cells.Count -gt 0) {
         $picked = @{}
         $tries = 0
         while ($starField.Count -lt $want -and $tries -lt 400) {
             $tries++
             $idx = $rnd.Next(0, $cells.Count)
-            $k = "$($cells[$idx].X)_$($cells[$idx].Y)"
+            $cx2 = $cells[$idx].X; $cy2 = $cells[$idx].Y
+            $k = "${cx2}_${cy2}"
             if ($picked.ContainsKey($k)) { continue }
+            # Reject if too close to an already-placed star. Relax the
+            # gap late in the search so a cramped candidate pool can't
+            # loop forever and end up with too few stars.
+            $gap = if ($tries -lt 320) { $minGapSq } else { 2 }
+            $tooClose = $false
+            foreach ($st in $starField) {
+                $dx = [int]$st.X - [int]$cx2
+                $dy = [int]$st.Y - [int]$cy2
+                if ((($dx * $dx) + ($dy * $dy)) -lt $gap) { $tooClose = $true; break }
+            }
+            if ($tooClose) { continue }
             $picked[$k] = $true
             [void]$starField.Add(@{
-                X = $cells[$idx].X; Y = $cells[$idx].Y
+                X = $cx2; Y = $cy2
                 Phase = $rnd.NextDouble() * 6.283
                 Speed = 0.5 + $rnd.NextDouble() * 1.1
             })

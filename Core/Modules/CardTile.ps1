@@ -91,22 +91,10 @@ function global:New-ControlTypeIcon {
 # pill directly next to the family badge in the top-left, AND
 # the description-page genre-tag line gets a green "FREE" run
 # (rendered in OverviewPage.ps1 alongside the genre tags).
-# Match is by exact Title string against Catalog.ps1.
-# $global: so OverviewPage.ps1 can read the same list - single
-# source of truth.
-$global:FREE_GAME_TITLES = @(
-    "Ashes 2063 VR",
-    "Total Chaos VR",
-    "Anomaly VR",
-    "Anomaly GAMMA",
-    "Iron Lung VR",
-    "Sonic P-06 VR",
-    "Receiver VR",
-    "Daggerfall VR",
-    "The Dark Mod VR",
-    "I Can Gun VR",
-    "Ratchet & Clank VR"
-)
+# $global:FREE_GAME_TITLES is NOT defined here any more: it is
+# DERIVED in Catalog.ps1 (which loads first) from each entry's
+# "free" tag - one edit there drives pill, filter and search.
+# -------------------------------------------------------
 
 # -------------------------------------------------------
 # Work-in-progress games. Tiles for these get a small red "WIP"
@@ -115,7 +103,6 @@ $global:FREE_GAME_TITLES = @(
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
-    "Hytale VR"
 )
 
 # -------------------------------------------------------
@@ -930,6 +917,25 @@ function global:New-GameCardFrosted {
         $nbsp = [char]0x00A0
         $titleDisplay = "Jedi Knight: Jedi Outcast" + $nbsp + "VR"
     }
+    elseif ($titleDisplay -in @("Assassin's Creed Valhalla VR",
+                               "Assassin's Creed Odyssey VR",
+                               "Assassin's Creed Mirage VR")) {
+        # Same fix as the Jedi titles: "Assassin's Creed <Sub>" fits on
+        # one line by a hair, so the wrap orphaned "VR" on line 2. Glue
+        # "Assassin's Creed" AND "<Sub> VR" with non-breaking spaces so
+        # the space between them is the ONLY break point left, giving
+        # "Assassin's Creed" / "Mirage VR". Scoped to these titles.
+        $nbsp = [char]0x00A0
+        $sub = $titleDisplay.Substring("Assassin's Creed ".Length)
+        $titleDisplay = "Assassin's" + $nbsp + "Creed " + $sub.Replace(" ", [string]$nbsp)
+    }
+    elseif ($titleDisplay -eq "Sonic Robo Blast 2 VR") {
+        # Same NBSP idiom: force the break after "Sonic Robo" so the
+        # tile reads "Sonic Robo" / "Blast 2 VR" instead of whatever
+        # the greedy wrap happened to pick.
+        $nbsp = [char]0x00A0
+        $titleDisplay = "Sonic" + $nbsp + "Robo " + "Blast" + $nbsp + "2" + $nbsp + "VR"
+    }
     elseif ($titleDisplay -eq "No One Lives Forever 2 VR") {
         # Same fix: glue "Forever 2 VR" together with non-breaking spaces
         # so the wrap falls after "Lives" ("No One Lives" / "Forever 2 VR")
@@ -1092,6 +1098,23 @@ function global:New-GameCardFrosted {
     # mis-classified wrap behavior.
     $titleAvailWidth = [int](145 * $sc)
     $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth)
+    # Tiles whose mod string already fills the meta line: drop the
+    # ". by <Author>" tail so it stays on ONE line instead of being
+    # ellipsised. A tile-space decision only - the detail page still
+    # credits the creator, and the Author field stays intact for search.
+    $hideTileAuthor = ($game.Title -in @("Assassin's Creed Valhalla VR",
+                                         "Assassin's Creed Odyssey VR",
+                                         "Assassin's Creed Mirage VR"))
+    # Scoped overrides: titles that visibly wrap to two lines but measure
+    # UNDER the cutoff, so the width test alone puts them on the
+    # short-title path - which gives them mod and author on SEPARATE
+    # lines. Four lines (title x2 + mod + author) then push the
+    # description into the Install button. Forcing the long-title path
+    # merges mod + author into ONE line and the description moves up,
+    # exactly like every other genuinely two-line title.
+    # "Sonic Robo Blast 2 VR" measures narrower than "Panzer Dragoon
+    # Remake" (the title the 145 cutoff was tuned for) and slips under it.
+    if ($game.Title -in @("Sonic Robo Blast 2 VR")) { $isLongTitle = $true }
 
     if (-not $isLongTitle) {
         # Short title: keep the classic two-line meta block.
@@ -1111,11 +1134,12 @@ function global:New-GameCardFrosted {
         # only - the actual install button lives on the detail view.
         if ($game.AddonInstaller -and $game.AddonName) {
             $addonBanner = New-Object System.Windows.Controls.Border
-            $addonBanner.Background     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e2030")
+            $addonBanner.Background     = [System.Windows.Media.Brushes]::Transparent
             $addonBanner.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $addonBanner.BorderThickness = [System.Windows.Thickness]::new(1)
             $addonBanner.CornerRadius   = [System.Windows.CornerRadius]::new([int](2*$sc))
             $addonBanner.Padding        = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $addonBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $addonBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $addonBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
             $addonTxt = New-Object System.Windows.Controls.TextBlock
@@ -1124,6 +1148,10 @@ function global:New-GameCardFrosted {
             $addonTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
             $addonTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
             $addonTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $addonTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $addonTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $addonTxt.LineHeight = [double][int](10*$sc)
+            $addonTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $addonBanner.Child = $addonTxt
             $titleStack.Children.Add($addonBanner) | Out-Null
             $card.Resources.Add("addonBanner", $addonBanner)
@@ -1133,11 +1161,12 @@ function global:New-GameCardFrosted {
             # rather than a single drop-in mod (e.g. Fallout 4 VR /
             # Skyrim VR via Wabbajack). Purely a visual hint.
             $impBanner = New-Object System.Windows.Controls.Border
-            $impBanner.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e2030")
+            $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
             $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
             $impBanner.CornerRadius    = [System.Windows.CornerRadius]::new([int](2*$sc))
             $impBanner.Padding         = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
             $impTxt = New-Object System.Windows.Controls.TextBlock
@@ -1146,12 +1175,19 @@ function global:New-GameCardFrosted {
             $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
             $impTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
             $impTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $impTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $impTxt.LineHeight = [double][int](10*$sc)
+            $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $impBanner.Child = $impTxt
             $titleStack.Children.Add($impBanner) | Out-Null
             $card.Resources.Add("addonBanner", $impBanner)
         }
 
-        if (-not $isExternal -and $game.Author) {
+        # ImprovementTag games: hide the modder name on the TILE so the
+        # blue "+ ... mod" box can take that slot without breaking layout.
+        # The author still shows on the detail page.
+        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
             $authorText = New-Object System.Windows.Controls.TextBlock
             $authorText.FontSize = [int](9*$sc)
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
@@ -1216,13 +1252,15 @@ function global:New-GameCardFrosted {
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
             [void]$metaLine.Inlines.Add($modRun)
         }
-        if ($game.Mod -and $game.Author) {
+        if ($game.Mod -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $sepRun = New-Object System.Windows.Documents.Run
             $sepRun.Text = " . "
             $sepRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#444455")
             [void]$metaLine.Inlines.Add($sepRun)
         }
-        if ($game.Author) {
+        # ImprovementTag games (and $hideTileAuthor titles): modder name
+        # hidden on the tile (detail page keeps it).
+        if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authRun = New-Object System.Windows.Documents.Run
             $authRun.Text = "by $($game.Author)"
             $authRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888899")
@@ -2282,6 +2320,21 @@ function global:New-GameCardFrosted {
     $pillGuard.VerticalAlignment   = [System.Windows.VerticalAlignment]::Top
     $pillGuard.Width  = [int](50*$sc)
     $pillGuard.Height = [int](40*$sc)
+    # pillGuard is 40px tall but topShield only covers the top 34px, so
+    # a 6px x 50px band under the info pill had pillGuard (Z=10) on top
+    # of hotZone (Z=5) with NO click handler of its own - clicks there
+    # bubbled to the card and hit the install fallback. Route them to
+    # the detail page exactly like topShield does. The info pill sits at
+    # Z=20 above this, so its own click still opens the info page.
+    $pillGuard.Cursor = [System.Windows.Input.Cursors]::Hand
+    $pillGuard.Tag = @{ Game = $game; Card = $card }
+    $pillGuard.Add_PreviewMouseLeftButtonDown({
+        param($s, $e)
+        $info = $s.Tag
+        if (-not $info -or -not $info.Game) { return }
+        $e.Handled = $true
+        Start-CardClickGlowThenOpen -Card $info.Card -Game $info.Game
+    })
     $overlay.Children.Add($pillGuard) | Out-Null
     [System.Windows.Controls.Panel]::SetZIndex($pillGuard, 10)
     # If the info pill exists, lift it above the guard so clicks reach it.
@@ -2980,6 +3033,25 @@ function global:New-GameCardClassic {
         $nbsp = [char]0x00A0
         $titleDisplay = "Jedi Knight: Jedi Outcast" + $nbsp + "VR"
     }
+    elseif ($titleDisplay -in @("Assassin's Creed Valhalla VR",
+                               "Assassin's Creed Odyssey VR",
+                               "Assassin's Creed Mirage VR")) {
+        # Same fix as the Jedi titles: "Assassin's Creed <Sub>" fits on
+        # one line by a hair, so the wrap orphaned "VR" on line 2. Glue
+        # "Assassin's Creed" AND "<Sub> VR" with non-breaking spaces so
+        # the space between them is the ONLY break point left, giving
+        # "Assassin's Creed" / "Mirage VR". Scoped to these titles.
+        $nbsp = [char]0x00A0
+        $sub = $titleDisplay.Substring("Assassin's Creed ".Length)
+        $titleDisplay = "Assassin's" + $nbsp + "Creed " + $sub.Replace(" ", [string]$nbsp)
+    }
+    elseif ($titleDisplay -eq "Sonic Robo Blast 2 VR") {
+        # Same NBSP idiom: force the break after "Sonic Robo" so the
+        # tile reads "Sonic Robo" / "Blast 2 VR" instead of whatever
+        # the greedy wrap happened to pick.
+        $nbsp = [char]0x00A0
+        $titleDisplay = "Sonic" + $nbsp + "Robo " + "Blast" + $nbsp + "2" + $nbsp + "VR"
+    }
     elseif ($titleDisplay -eq "No One Lives Forever 2 VR") {
         # Same fix: glue "Forever 2 VR" together with non-breaking spaces
         # so the wrap falls after "Lives" ("No One Lives" / "Forever 2 VR")
@@ -3108,6 +3180,23 @@ function global:New-GameCardClassic {
     # mis-classified wrap behavior.
     $titleAvailWidth = [int](145 * $sc)
     $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth)
+    # Tiles whose mod string already fills the meta line: drop the
+    # ". by <Author>" tail so it stays on ONE line instead of being
+    # ellipsised. A tile-space decision only - the detail page still
+    # credits the creator, and the Author field stays intact for search.
+    $hideTileAuthor = ($game.Title -in @("Assassin's Creed Valhalla VR",
+                                         "Assassin's Creed Odyssey VR",
+                                         "Assassin's Creed Mirage VR"))
+    # Scoped overrides: titles that visibly wrap to two lines but measure
+    # UNDER the cutoff, so the width test alone puts them on the
+    # short-title path - which gives them mod and author on SEPARATE
+    # lines. Four lines (title x2 + mod + author) then push the
+    # description into the Install button. Forcing the long-title path
+    # merges mod + author into ONE line and the description moves up,
+    # exactly like every other genuinely two-line title.
+    # "Sonic Robo Blast 2 VR" measures narrower than "Panzer Dragoon
+    # Remake" (the title the 145 cutoff was tuned for) and slips under it.
+    if ($game.Title -in @("Sonic Robo Blast 2 VR")) { $isLongTitle = $true }
 
     if (-not $isLongTitle) {
         # Short title: keep the classic two-line meta block.
@@ -3127,11 +3216,12 @@ function global:New-GameCardClassic {
         # only - the actual install button lives on the detail view.
         if ($game.AddonInstaller -and $game.AddonName) {
             $addonBanner = New-Object System.Windows.Controls.Border
-            $addonBanner.Background     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e2030")
+            $addonBanner.Background     = [System.Windows.Media.Brushes]::Transparent
             $addonBanner.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $addonBanner.BorderThickness = [System.Windows.Thickness]::new(1)
             $addonBanner.CornerRadius   = [System.Windows.CornerRadius]::new([int](2*$sc))
             $addonBanner.Padding        = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $addonBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $addonBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $addonBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
             $addonTxt = New-Object System.Windows.Controls.TextBlock
@@ -3140,6 +3230,10 @@ function global:New-GameCardClassic {
             $addonTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
             $addonTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
             $addonTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $addonTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $addonTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $addonTxt.LineHeight = [double][int](10*$sc)
+            $addonTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $addonBanner.Child = $addonTxt
             $titleStack.Children.Add($addonBanner) | Out-Null
             $card.Resources.Add("addonBanner", $addonBanner)
@@ -3149,11 +3243,12 @@ function global:New-GameCardClassic {
             # rather than a single drop-in mod (e.g. Fallout 4 VR /
             # Skyrim VR via Wabbajack). Purely a visual hint.
             $impBanner = New-Object System.Windows.Controls.Border
-            $impBanner.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e2030")
+            $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
             $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
             $impBanner.CornerRadius    = [System.Windows.CornerRadius]::new([int](2*$sc))
             $impBanner.Padding         = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
             $impTxt = New-Object System.Windows.Controls.TextBlock
@@ -3162,12 +3257,19 @@ function global:New-GameCardClassic {
             $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
             $impTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
             $impTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $impTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $impTxt.LineHeight = [double][int](10*$sc)
+            $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $impBanner.Child = $impTxt
             $titleStack.Children.Add($impBanner) | Out-Null
             $card.Resources.Add("addonBanner", $impBanner)
         }
 
-        if (-not $isExternal -and $game.Author) {
+        # ImprovementTag games: hide the modder name on the TILE so the
+        # blue "+ ... mod" box can take that slot without breaking layout.
+        # The author still shows on the detail page.
+        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
             $authorText = New-Object System.Windows.Controls.TextBlock
             $authorText.FontSize = [int](9*$sc)
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
@@ -3232,13 +3334,15 @@ function global:New-GameCardClassic {
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
             [void]$metaLine.Inlines.Add($modRun)
         }
-        if ($game.Mod -and $game.Author) {
+        if ($game.Mod -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $sepRun = New-Object System.Windows.Documents.Run
             $sepRun.Text = " . "
             $sepRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#444455")
             [void]$metaLine.Inlines.Add($sepRun)
         }
-        if ($game.Author) {
+        # ImprovementTag games (and $hideTileAuthor titles): modder name
+        # hidden on the tile (detail page keeps it).
+        if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authRun = New-Object System.Windows.Documents.Run
             $authRun.Text = "by $($game.Author)"
             $authRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888899")
@@ -4272,6 +4376,21 @@ function global:New-GameCardClassic {
     $pillGuard.VerticalAlignment   = [System.Windows.VerticalAlignment]::Top
     $pillGuard.Width  = [int](50*$sc)
     $pillGuard.Height = [int](40*$sc)
+    # pillGuard is 40px tall but topShield only covers the top 34px, so
+    # a 6px x 50px band under the info pill had pillGuard (Z=10) on top
+    # of hotZone (Z=5) with NO click handler of its own - clicks there
+    # bubbled to the card and hit the install fallback. Route them to
+    # the detail page exactly like topShield does. The info pill sits at
+    # Z=20 above this, so its own click still opens the info page.
+    $pillGuard.Cursor = [System.Windows.Input.Cursors]::Hand
+    $pillGuard.Tag = @{ Game = $game; Card = $card }
+    $pillGuard.Add_PreviewMouseLeftButtonDown({
+        param($s, $e)
+        $info = $s.Tag
+        if (-not $info -or -not $info.Game) { return }
+        $e.Handled = $true
+        Start-CardClickGlowThenOpen -Card $info.Card -Game $info.Game
+    })
     $overlay.Children.Add($pillGuard) | Out-Null
     [System.Windows.Controls.Panel]::SetZIndex($pillGuard, 10)
     # If the info pill exists, lift it above the guard so clicks reach it.

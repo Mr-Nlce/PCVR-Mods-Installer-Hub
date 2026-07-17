@@ -27,7 +27,7 @@ Working game versions: **1.30, 1.31, 1.32**.
 
 ## Controls
 
-![Controls](../Assets/IdolsOfAsh_controls.jpg)
+![Controls](IdolsOfAsh_controls.jpg)
 
 - [[Left Stick]] Move (direction follows your head by default)
 - [[Right Stick]] Turn

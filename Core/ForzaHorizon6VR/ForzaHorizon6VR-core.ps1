@@ -17,7 +17,7 @@ $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 6 VR"
 $KOFI_URL      = "https://ko-fi.com/s/03bdcc5fe9"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1525251187245453462"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527195267823046697"
 
 function Write-Header {
     Clear-Host
@@ -95,7 +95,7 @@ if ($modChoice -eq "1") {
     $modName      = "lufz VRMod"
     $modSub       = "lufz"
     $launcherName = "vrmod-launcher.exe"
-    $zipHint      = "VRMod-v1_2_0.zip"
+    $zipHint      = "VRMod-v1_2_1.zip"
 }
 Write-OK "Selected: $modName"
 
@@ -193,15 +193,31 @@ try { $ov = Join-Path $PSScriptRoot ".launch_exe"; if (Test-Path $ov) { Remove-I
 
 # lufz installs: record the installed mod version so the Hub's update badge
 # clears after an update (catalog pins the current lufz version; a mismatch
-# shows Update). Parsed from the dragged zip name (VRMod-v1_2_0.zip ->
-# 1.2.0), falling back to the current known version. NORMALIZED without a
-# leading "v" - the Hub compares against Get-ModVersionFromString output,
-# which strips the v (writing "v1.2.0" would flag it out-of-date forever).
+# shows Update). NORMALIZED without a leading "v" - the Hub compares against
+# Get-ModVersionFromString output, which strips the v (writing "v1.2.2"
+# would flag it out-of-date forever).
 # NALULUNA installs deliberately do NOT touch this file: it tracks the
 # lufz build, and overwriting it here would wipe a pending lufz update.
 if ($modChoice -eq "2") {
-    $lufzVer = "1.2.0"
-    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
+    # PRIMARY source: the VERSION file lufz ships inside the zip -
+    # authoritative and survives a renamed zip. Fall back to the zip
+    # name, then to the pinned release. Note $modFolder, not
+    # $installRoot: the lufz build lives in its own subfolder here.
+    #
+    # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
+    # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
+    # 1.2.2, so that workaround is retired - the zip is honest again.)
+    $lufzVer = "1.2.2"
+    $lufzVerFile = Join-Path $modFolder "VERSION"
+    $lufzVerFound = $false
+    if (Test-Path -LiteralPath $lufzVerFile) {
+        try {
+            $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
+            if ($fv) { $fv = $fv.Trim() }
+            if ($fv -match '^\d+\.\d+') { $lufzVer = $fv; $lufzVerFound = $true }
+        } catch {}
+    }
+    if (-not $lufzVerFound -and $zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
         $pv = $matches[1].Replace("_", ".").Trim(".")
         if ($pv -match '^\d+\.\d+') { $lufzVer = $pv }
     }

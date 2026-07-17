@@ -1,7 +1,7 @@
 # ============================================================
 # Hytale VR Installer (HytaleVRInjector-mod by heurazy)
 # ============================================================
-# Experimental Windows x64 VR injector/dashboard for Hytale.
+# Windows x64 VR injector/dashboard for Hytale (v1.0+).
 # This installer downloads the latest windows-x64 release ZIP
 # from GitHub and unpacks it to C:\Games\Hytale VR (or a folder
 # you pick). The Hytale game itself stays where its own launcher
@@ -42,7 +42,7 @@ $REPO_API_LATEST   = "https://api.github.com/repos/heurazy/HytaleVRInjector-mod/
 $RELEASES_LATEST   = "https://github.com/heurazy/HytaleVRInjector-mod/releases/latest"
 $INFO_URL          = "https://github.com/heurazy/HytaleVRInjector-mod"
 # Last-known-good windows-x64 asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/heurazy/HytaleVRInjector-mod/releases/download/v0.1.3/HytaleVRInjector-mod-v0.1.3-windows-x64.zip"
+$KNOWN_FALLBACK_ZIP = "https://github.com/heurazy/HytaleVRInjector-mod/releases/download/v1.0.0/HytaleVRInjector-mod-v1.0.0-windows-x64.zip"
 $GAME_FOLDER       = "Hytale VR"
 $DASH_EXE          = "hytale_camera_dashboard.exe"
 $COMBO_BAT         = "Start Hytale VR.bat"
@@ -55,20 +55,27 @@ $HYTALE_CLIENT_REL = "Hytale\install\release\package\game\latest\Client\HytaleCl
 # browser_download_url, or $null on any failure (rate limit / offline / shape
 # change). NOTE: never hardcode a literal asset URL as the primary source -
 # runtime API resolution keeps the installer on the newest build.
+$script:LatestTag = $null
 function Get-LatestWinZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -match '(?i)windows.*x64.*\.zip$' } | Select-Object -First 1
         if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1 }
-        if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
+        if ($asset -and $asset.browser_download_url) {
+            # Remember the tag so the version marker below is written
+            # deterministically (previously we relied on the Hub scan
+            # seeding it from the latest tag - timing-dependent).
+            $script:LatestTag = [string]$rel.tag_name
+            return [string]$asset.browser_download_url
+        }
     } catch { }
     return $null
 }
 
 Write-Header
 
-Write-Host "  Hytale VR is an experimental VR injector for Hytale by heurazy." -ForegroundColor Gray
+Write-Host "  Hytale VR is a VR injector for Hytale by heurazy (version 1.0)." -ForegroundColor Gray
 Write-Host "  It renders the game to your headset through SteamVR, with native" -ForegroundColor Gray
 Write-Host "  motion-controlled hands, via an external camera dashboard." -ForegroundColor Gray
 Write-Host ""
@@ -76,8 +83,9 @@ Write-Host "  YOU MUST OWN AND INSTALL HYTALE YOURSELF:" -ForegroundColor White
 Write-Host "    Get the game through the official Hytale Launcher (hytale.com)." -ForegroundColor Yellow
 Write-Host "    This installer only fetches the injector - nothing from the game." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  EXPERIMENTAL: this mod is early and rough around the edges. The" -ForegroundColor Yellow
-Write-Host "  view is centered manually per session (quick - see the final steps)." -ForegroundColor Gray
+Write-Host "  NOTE: close Hytale before installing or updating - a hook DLL" -ForegroundColor Yellow
+Write-Host "  that is already injected cannot be replaced while the game runs." -ForegroundColor Yellow
+Write-Host "  The view is centered manually per session (see the final steps)." -ForegroundColor Gray
 Pause-User "Press Enter to begin the installation or update..." | Out-Null
 
 # ---- 0. sanity check: is Hytale itself installed? ------------
@@ -254,7 +262,7 @@ while (-not $placedOk) {
         if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
         New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
         $null = Get-ChildItem -Path $payloadDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
+            Move-Item -LiteralPath $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
         }
         $placedOk = $true
     } catch {
@@ -353,6 +361,11 @@ if (Test-Path $batPath) {
 # Record the install path so the Hub's "VR Installed" check + Start-in-VR find it.
 try {
     Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Force -ErrorAction Stop
+    # Version marker for the Update tile: the EXACT GitHub tag (string-
+    # compared against the latest tag by the background check). Fallback
+    # v1.0.0 covers the pinned-URL path when the API was unreachable.
+    $verTag = if ($script:LatestTag) { $script:LatestTag } else { "v1.0.0" }
+    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
 } catch {}
 
 Write-Host ""

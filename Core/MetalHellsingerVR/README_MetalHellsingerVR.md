@@ -33,7 +33,7 @@ Start **SteamVR** first, then either:
 
 ## Controls
 
-![Controller layout](ControllerLayout.png)
+![Controller layout](ControllerLayout.jpg)
 
 The image above shows the full layout. Motion-control bindings (Oculus Touch shown; Index/Vive bindings ship with the mod):
 
@@ -67,7 +67,7 @@ Edit `BepInEx\config\LivingFray.HellsingerVR.cfg` to tweak the mod:
 
 ## Known issues
 - **Focus:** the game must have window focus to pass the logo/login screen.
-- **Performance:** Metal: Hellsinger is heavy in VR. High -> Mid settings gives the biggest gain (Mid -> Low adds little). [vrperfkit](https://github.com/fholger/vrperfkit) helps further at some fidelity cost.
+- **Performance:** Metal: Hellsinger is heavy in VR. High -> Mid settings gives the biggest gain (Mid -> Low adds little). vrperfkit helps further at some fidelity cost - get it here: https://github.com/fholger/vrperfkit
 
 ## Credits
 - Mod by **LivingFray** - https://github.com/LivingFray/HellsingerVR

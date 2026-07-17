@@ -1,6 +1,6 @@
 # Forza Horizon 5 VR
 
-The lufz **VRMod** (v1.2.0+) brings Forza Horizon 5 to the headset with
+The lufz **VRMod** (v1.2.1+) brings Forza Horizon 5 to the headset with
 OpenXR per-eye rendering and experimental 6DoF head tracking. You own the
 game (Steam / Microsoft Store / Game Pass); the free community mod is
 downloaded from the flat2VR Modding Discord and the installer sets it up
