@@ -233,9 +233,26 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 **Watch the Hub in action:** https://www.youtube.com/watch?v=gec4RM0yLB4
 
-**VoodooDE VR (english version) made a video about it too:** https://www.youtube.com/watch?v=QilI7iAjOEY
+### More Videos
 
-**The Hub was also presented here in Spanish:** https://www.youtube.com/watch?v=1rRL6aM9n20
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://www.youtube.com/watch?v=QilI7iAjOEY">
+        <img src="https://img.youtube.com/vi/QilI7iAjOEY/mqdefault.jpg" width="320" alt="VoodooDE VR English video">
+      </a>
+      <br>
+      <b>VoodooDE VR (English)</b>
+    </td>
+    <td align="center">
+      <a href="https://www.youtube.com/watch?v=1rRL6aM9n20">
+        <img src="https://img.youtube.com/vi/1rRL6aM9n20/mqdefault.jpg" width="320" alt="Spanish PCVR Mods Installer Hub video">
+      </a>
+      <br>
+      <b>Spanish video</b>
+    </td>
+  </tr>
+</table>
 
 
 
