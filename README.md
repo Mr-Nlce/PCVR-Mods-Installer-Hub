@@ -339,9 +339,9 @@ On first launch, the Hub automatically creates a desktop shortcut named **VR Mod
 
 The Hub is intentionally built with PowerShell and batch scripts instead of a compiled executable.
 
-This keeps the entire project transparent, every script can be inspected, modified, or audited by anyone. The GitHub release is also the complete source code.
+This keeps the entire project transparent, every line of code can be inspected or audited by anyone at any time. The GitHub release version is also the complete source code.
 
-Using PowerShell and batch files also avoids requiring an unsigned standalone executable, making the project easier to inspect and verify.
+Using PowerShell and batch files avoids requiring an unsigned standalone executable, making the project easier to inspect and verify.
 
 ---
 
@@ -378,7 +378,7 @@ If you encounter any issues or inaccuracies, feedback is always appreciated.
 - **Game Details**  
   View system requirements, similar titles, installation information, and additional game-specific notes.
 
-- **Help & Feedback**  
+- **Help & Feedback** (3 dots button)
   Access feature requests, issue reporting, Discord, and interface customization from the menu.
 
 ---
