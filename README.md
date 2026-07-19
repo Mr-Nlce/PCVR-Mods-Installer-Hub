@@ -302,8 +302,6 @@ The Hub makes VR mod installation as simple as possible.
 
 For straightforward mods, it links directly to the original download page. For more complex setups, custom installers automatically perform every possible installation step and guide you through any remaining manual actions.
 
-The Hub never hosts or redistributes VR mods. All downloads always come directly from their original sources..
-
 ---
 
 # Important Notes
