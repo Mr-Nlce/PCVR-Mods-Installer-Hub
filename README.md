@@ -394,7 +394,7 @@ If you encounter any issues or inaccuracies, feedback is always appreciated.
 
 Feedback, bug reports, feature requests, and new game suggestions are always welcome.
 
-VR mods and games continue to evolve, and updates can occasionally affect compatibility. Community feedback helps keep the Hub accurate, up to date, and useful for everyone.
+VR mods and games continue to evolve, and updates can occasionally affect compatibility. Community feedback helps keep the Hub accurate, up to date, and useful for everyone.You can help through the Hub's Help & Feedback section (3 dots button) or here on GitHub:
 
 - **Issues** – Report bugs or installation problems
 - **Discussions** – Suggest features, request new games, or share ideas
