@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (196)</summary>
+<summary>Show all currently listed titles (197)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -121,6 +121,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Life is Strange: BtS (motion controls)
 * Lunistice
 * Metal Hellsinger VR (motion controls)
+* Mass Effect 1 Legendary Edition
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
 * Monster Hunter Rise
@@ -246,8 +247,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 - Detects supported PC games installed on the system
 - Marks installed supported games in green
 - Shows **VR Ready** on a game tile when a VR mod is already installed
-- Allows reinstalling a VR mod by clicking the game tile again
-- Includes a search function to quickly find a specific game
+- When hovering a VR Ready button, **Start in VR** appears and the Hub can be used as a launcher
+- Allows reinstalling a VR mod at any time by clicking the reinstall arrow on the right side of a game tile button
+- Includes a search function to quickly find a specific game, modder, genre, roomscale titles
 - Shows a small game preview image when hovering over a game tile
 - Allows adjusting the size of the game tiles
 - **Includes a library page with vertical Steam-style cover images for all listed games**
@@ -256,9 +258,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 - Allows adjusting the size of the library cover images
 - Includes game detail pages with system requirements, similar games, and game-specific information
+- Offers a feature to automatically compare your GPU with the one recommended by the Hub for every game
 - Uses markers to indicate whether a mod supports:
   - motion controls
   - gamepad input
+  - motion controls mapped as gamepad
   
 - **Includes an Explore page to discover titles based on your PC power and genre**
 
@@ -310,9 +314,9 @@ On first launch, a desktop shortcut `VR mods Hub` will automatically be created 
 
 # Why it is Powershell and Batch-Based
 
-The Hub is batch-based for multiple reasons.
+The Hub is powershell and batch-based for multiple reasons. 
 
-One reason is transparency. The code can be viewed by anyone at any time.
+One reason is transparency. The code can be viewed by anyone at any time. Nothing is compiled, everything is openly readable and the release version is also the full source. 
 
 Another reason is that batch-based tools may be less likely to be incorrectly flagged as potentially harmful than `.vbs` or unsigned standalone `.exe` files.
 
