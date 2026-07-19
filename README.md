@@ -227,6 +227,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 
 </details>
 
+
 ## 🎥 Video Showcase
 
 [![Watch the PCVR Mods Installer Hub overview](https://img.youtube.com/vi/gec4RM0yLB4/maxresdefault.jpg)](https://www.youtube.com/watch?v=gec4RM0yLB4)
@@ -254,56 +255,63 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
   </tr>
 </table>
 
-
-
-
 # Features
 
-- Lists many publicly available VR mods for PC games
-- Links directly to original download pages when a simple installer is available
-- Includes custom installers for mods that require additional setup
-- Automates installation steps wherever possible
-- Provides clear guidance for manual steps when needed
-- Includes a built-in updater to update directly from within the Hub
-- Detects supported PC games installed on the system
-- Marks installed supported games in green
-- Shows **VR Ready** on a game tile when a VR mod is already installed
-- When hovering a VR Ready button, **Start in VR** appears and the Hub can be used as a launcher
-- Allows reinstalling a VR mod at any time by clicking the reinstall arrow on the right side of a game tile button
-- Includes a search function to quickly find a specific game, modder, genre, roomscale titles
-- Shows a small game preview image when hovering over a game tile
-- Allows adjusting the size of the game tiles
-- **Includes a library page with vertical Steam-style cover images for all listed games**
+### Installation
+
+- Lists publicly available VR mods for PC games
+- Links directly to original download pages whenever possible
+- Includes custom installers for more complex setups
+- Automates installation steps whenever possible and guides you through any remaining manual steps
+- Built-in updater for keeping the Hub up to date
+
+### Game Management
+
+- Detects supported games installed on your system
+- Detects already installed VR mods
+- Launches VR-ready games directly from the Hub
+- Reinstall VR mods at any time with a single click
+
+### Browsing
+
+- Fast search for games, genres, modders and room-scale titles
+- Hover previews for every game
+- Adjustable game tile sizes
+- **Library view with Steam-style vertical cover art**
 
 <img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
 
-- Allows adjusting the size of the library cover images
-- Includes game detail pages with system requirements, similar games, and game-specific information
-- Offers a feature to automatically compare your GPU with the one recommended by the Hub for every game
-- Uses markers to indicate whether a mod supports:
-  - motion controls
-  - gamepad input
-  - motion controls mapped as gamepad
-  
-- **Includes an Explore page to discover titles based on your PC power and genre**
+- Adjustable library cover sizes
+- Detailed game pages with requirements, recommendations and game-specific information
+
+### Discovery
+
+- **Explore page** to discover VR mods based on genre and recommended PC performance
 
 <img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
 
+- Compares your GPU with the recommended hardware for each game
+- Compatibility markers indicating:
+  - Motion controls
+  - Gamepad support
+  - Motion controls mapped as gamepad
 
 # How It Works
 
-The Hub is intended to make VR mod installation more accessible and as straightforward as possible.
+The Hub makes VR mod installation as simple as possible.
 
-For some mods, installation is simple with an installer and only requires access to the correct download page. In those cases, the Hub provides direct links. Other mods require multiple steps, additional files, or more complicated setup. For those, custom installers are included. These installers download the required files, perform every step that can be automated, and guide the user through anything that still needs to be done manually.
+For straightforward mods, it links directly to the original download page. For more complex setups, custom installers automatically perform every possible installation step and guide you through any remaining manual actions.
+
+The Hub never hosts or redistributes VR mods. All downloads always come directly from their original sources..
 
 ---
 
 # Important Notes
 
-- The Hub does **not** redistribute VR mods (or any game files)
-- All mod files are downloaded from their original sources
-- Download counts for mod creators still remain intact
-- If a VR mod is already installed but has issues, it can still be reinstalled through the Hub
+- The Hub does **not** redistribute VR mods or game files
+- All mod files are downloaded directly from their original sources
+- Download statistics remain with the original mod creators
+- Already installed VR mods can be reinstalled at any time through the Hub
 
 ---
 
@@ -311,76 +319,69 @@ For some mods, installation is simple with an installer and only requires access
 
 ## 1. Download
 
-Download `PCVR-Mods-Hub.zip`.
+Download **PCVR-Mods-Hub.zip** from the latest GitHub release.
 
 No additional extraction software is required.
 
-## 2. Extract and place the folder
+## 2. Extract
 
-Move the included **PCVR Mods Installer Hub** folder to any location you want.
+Extract the archive and move the **PCVR Mods Installer Hub** folder to any location.
 
-## 3. First launch
+## 3. First Launch
 
-Open the folder and run:
+Run:
 
 **Start PCVR Mods-Hub**
 
-On first launch, a desktop shortcut `VR mods Hub` will automatically be created for future use.
+On first launch, the Hub automatically creates a desktop shortcut named **VR Mods Hub** for future use.
 
 ---
 
+# Why PowerShell and Batch?
 
+The Hub is intentionally built with PowerShell and batch scripts instead of a compiled executable.
 
----
+This keeps the entire project transparent, every script can be inspected, modified, or audited by anyone. The GitHub release is also the complete source code.
 
-# Why it is Powershell and Batch-Based
-
-The Hub is powershell and batch-based for multiple reasons. 
-
-One reason is transparency. The code can be viewed by anyone at any time. Nothing is compiled, everything is openly readable and the release version is also the full source. 
-
-Another reason is that batch-based tools may be less likely to be incorrectly flagged as potentially harmful than `.vbs` or unsigned standalone `.exe` files.
+Using PowerShell and batch files also avoids requiring an unsigned standalone executable, making the project easier to inspect and verify.
 
 ---
 
 # Testing
 
-All included VR mod installers have been tested on my own PC.
+Every included custom installer has been tested on my own system.
 
-However, not every game supported by REFramework and Luke Ross's mods was available for testing, since I do not own all of them. Because the game-specific info posts are currently not publicly available, I gathered the information as carefully as possible from other posts and guides and added it to the corresponding setups. I would appreciate any feedback if something isn't working.
+Some REFramework and Luke Ross supported games could not be fully tested because I do not own every compatible title. Wherever necessary, the installation procedures were carefully compiled from official documentation and community resources.
+
+If you encounter any issues or inaccuracies, feedback is always appreciated.
 
 ---
 
 # Interface Overview
 
-- **Search bar**  
-  Located in the top right corner and used to find specific games quickly.
+- **Search**  
+  Quickly find games, genres, modders, or room-scale titles.
 
-- **Scan games**  
-  Scans for supported games that are already installed and marks them in green.
+- **Scan Games**  
+  Detects supported games installed on your PC.
 
-- **Game tiles**  
-  Show the available VR mod status for each game. Hovering over a game tile displays a small preview image of the game. The tile size can be adjusted.
+- **Game Tiles**  
+  Display installation status, VR compatibility, and preview images when hovered.
 
 - **VR Ready**  
-  Displayed on a game tile when a VR mod has already been installed, hovering the button shows **Start in VR** to open every game directly inside the Hub.
-
-- **Colored markers**  
-  Indicate whether a mod supports motion controls or gamepad input.
-
-- **Explore page**  
-  Allows discovering titles based on your PC power and genre.  
+  Indicates an installed VR mod and allows launching the game directly from the Hub.
 
 - **Library**  
-  Opens a library page with vertical Steam-style cover images for all listed games. The cover size can be adjusted.
+  Browse all supported titles using adjustable Steam-style vertical cover art.
 
-- **Help & Feedback** (3 dots buton) 
-  Opens a menu for VR mod suggestions, report issues, join Flat2VR Discord or change the game tile style 
+- **Explore**  
+  Discover games based on your hardware and preferred genres.
 
-- **Game detail pages**  
-  Each game has its own detail page with system requirements, similar games, and game-specific information.
+- **Game Details**  
+  View system requirements, similar titles, installation information, and additional game-specific notes.
 
-  
+- **Help & Feedback**  
+  Access feature requests, issue reporting, Discord, and interface customization from the menu.
 
 ---
 
@@ -393,18 +394,27 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
 
 # Community and Updates
 
-Feedback is appreciated!
+Feedback, bug reports, feature requests, and new game suggestions are always welcome.
 
-For a project like this to remain useful over time, community support is important. Game updates can break VR mods, which means the VR Mod Installer Hub may also require regular updates to remain accurate and functional. If you encounter any problems, please open an issue. For suggestions, feature requests, or game ideas, you can use the Discussions section.
+VR mods and games continue to evolve, and updates can occasionally affect compatibility. Community feedback helps keep the Hub accurate, up to date, and useful for everyone.
+
+- **Issues** – Report bugs or installation problems
+- **Discussions** – Suggest features, request new games, or share ideas
 
 ---
 
 # Disclaimer
 
-This project does not contain or distribute VR mod files or game files. It only helps users access publicly available VR mods from their original sources.
+This project does **not** contain, host, or redistribute any VR mods or game files.
 
-## License
+It is intended solely as a convenience tool that helps users discover, install, and manage publicly available VR mods from their original sources.
 
-This project is licensed under the MIT License.
+All trademarks, game titles, and mod projects remain the property of their respective owners.
 
-VR mods remain subject to their respective original authors, licenses, and distribution terms.
+---
+
+# License
+
+This project is licensed under the **MIT License**.
+
+The Hub itself is released under the MIT License. Individual VR mods remain subject to the licenses and distribution terms of their respective authors.
