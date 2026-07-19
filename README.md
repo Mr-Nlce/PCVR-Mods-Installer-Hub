@@ -378,7 +378,7 @@ If you encounter any issues or inaccuracies, feedback is always appreciated.
 - **Game Details**  
   View system requirements, similar titles, installation information, and additional game-specific notes.
 
-- **Help & Feedback** (3 dots button)
+- **Help & Feedback** (3 dots button).                    
   Access feature requests, issue reporting, Discord, and interface customization from the menu.
 
 ---
