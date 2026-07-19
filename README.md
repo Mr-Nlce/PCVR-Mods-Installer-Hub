@@ -342,7 +342,7 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
   Show the available VR mod status for each game. Hovering over a game tile displays a small preview image of the game. The tile size can be adjusted.
 
 - **VR Ready**  
-  Displayed on a game tile when a VR mod has already been installed.
+  Displayed on a game tile when a VR mod has already been installed, hovering the button shows **Start in VR** to open every game directly inside the Hub.
 
 - **Colored markers**  
   Indicate whether a mod supports motion controls or gamepad input.
@@ -353,8 +353,13 @@ However, not every game supported by REFramework and Luke Ross's mods was availa
 - **Library**  
   Opens a library page with vertical Steam-style cover images for all listed games. The cover size can be adjusted.
 
+- **Help & Feedback** (3 dots buton) 
+  Opens a menu for VR mod suggestions, report issues, join Flat2VR Discord or change the game tile style 
+
 - **Game detail pages**  
   Each game has its own detail page with system requirements, similar games, and game-specific information.
+
+  
 
 ---
 
