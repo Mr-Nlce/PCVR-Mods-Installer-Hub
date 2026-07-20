@@ -55,8 +55,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Descenders
 * Devil May Cry 5 VR
 * Dino Trauma VR (motion controls)
-* Doom (motion controls)
-* Doom 2 (motion controls)
+* Doom (+ 3D weapons) (motion controls)
+* Doom 2 (+ 3D weapons) (motion controls)
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
 * Doom: The Dark Ages
@@ -94,8 +94,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Halo CE VR (motion controls)
 * Halo 3 MCC [WIP] (motion controls)
 * Hardspace: Shipbreaker
-* Heretic (motion controls)
-* Hexen (motion controls)
+* Heretic (+ 3D weapons) (motion controls)
+* Hexen (+ 3D weapons) (motion controls)
 * Hexen 2 VR (motion controls)
 * High on Life
 * HL2 VR Ep. One (+ Unleashed mod) (motion controls) 
@@ -192,7 +192,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Stray
 * Street Fighter 6
 * StreetDog BMX
-* Strife (motion controls)
+* Strife (+ 3D weapons) (motion controls)
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
 * Super Mario 64 Coop VR
