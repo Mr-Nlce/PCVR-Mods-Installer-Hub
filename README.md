@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (197)</summary>
+<summary>Show all currently listed titles (200)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -44,7 +44,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Content Warning VR (motion controls)
 * Cruelty Squad VR (motion controls)
 * Crysis VR (motion controls)
-* Cyberpunk 2077 VR [WIP] (motion controls)
+* Cyberpunk 2077 VR (motion controls)
 * Daggerfall Unity VR (motion controls)
 * Dark Souls II
 * Dark Souls III
@@ -60,6 +60,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
 * Doom: The Dark Ages
+* Dr. Robotnik's Ring Racers
 * Dragon's Dogma 2
 * Dredge VR (motion controls)
 * Driftwood VR (motion controls)
@@ -91,6 +92,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Half-Life 2 VR (+ Unleashed mod) (motion controls)
 * Half-Life VR (motion controls)
 * Halo CE VR (motion controls)
+* Halo 3 MCC [WIP] (motion controls)
 * Hardspace: Shipbreaker
 * Heretic (motion controls)
 * Hexen (motion controls)
@@ -136,6 +138,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * No One Lives Forever 2
 * Nuclear Option
 * Onimusha 2: Samurai's Destiny
+* Outbound
 * Outer Wilds VR (motion controls)
 * Outward Definitive Edition (motion controls)
 * Panzer Dragoon Remake (motion controls)
