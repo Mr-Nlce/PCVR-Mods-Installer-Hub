@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (200)</summary>
+<summary>Show all currently listed titles (202)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -141,6 +141,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Outbound
 * Outer Wilds VR (motion controls)
 * Outward Definitive Edition (motion controls)
+* Painkiller: Black Edition (motion controls)
 * Panzer Dragoon Remake (motion controls)
 * Paperklay VR (motion controls)
 * Paranoia Place VR (motion controls)
@@ -185,6 +186,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * S.T.A.L.K.E.R. GAMMA VR (motion controls)
 * Stanley Parable VR (motion controls)
 * Star Racer VR (motion controls)
+* Star Trucker
 * Star Wars Outlaws
 * Star Wars - X-Wing SE VR
 * Starfield VR
