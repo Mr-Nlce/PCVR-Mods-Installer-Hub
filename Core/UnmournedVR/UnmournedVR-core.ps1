@@ -97,7 +97,7 @@ function Find-UnmournedGamePath {
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = Join-Path $lib "steamapps\common\Unmourned"
- if (Test-Path (Join-Path $candidate "Unmourned_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Unmourned_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  return $null

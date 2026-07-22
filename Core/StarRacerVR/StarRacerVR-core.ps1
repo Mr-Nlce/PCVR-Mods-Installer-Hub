@@ -104,7 +104,7 @@ function Find-StarRacerGamePath {
  # install. Also try the no-space and Demo variants.
  foreach ($folder in @("Star Racer", "StarRacer", "Star Racer Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Star Racer_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Star Racer_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

@@ -70,6 +70,10 @@ function Test-WritableRoot {
 # STEP 1: Locate Hexen II game data
 # -------------------------------------------------------
 Write-Header
+Write-Host " VHexen2 by alexdnax - Hexen II: Hammer of Thyrion with full OpenXR VR." -ForegroundColor White
+Write-Host " Motion controllers in VR, or keyboard/mouse in flat mode." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Hexen II"
 
 $sourceData1 = $null
@@ -78,7 +82,7 @@ $steamPath = Get-SteamPath
 if ($steamPath) {
  foreach ($lib in (Get-SteamLibraries $steamPath)) {
  $candidate = Join-Path $lib "steamapps\common\$STEAM_FOLDER\data1"
- if (Test-Path (Join-Path $candidate "pak0.pak")) {
+ if (Test-Path -LiteralPath "$candidate\pak0.pak") {
  $sourceData1 = $candidate
  Write-Info "Hexen II found via Steam: $sourceData1"
  break
@@ -95,7 +99,7 @@ if (-not $sourceData1) {
      $gogPath = (Get-ItemProperty -Path $_.PSPath -ErrorAction Stop).path
      if ($gogPath) {
       $candidate = Join-Path $gogPath "data1"
-      if (Test-Path (Join-Path $candidate "pak0.pak")) {
+      if (Test-Path -LiteralPath "$candidate\pak0.pak") {
        $sourceData1 = $candidate
        Write-Info "Hexen II found via GOG: $sourceData1"
       }
@@ -114,7 +118,7 @@ if (-not $sourceData1) {
  Write-Host " GOG: C:\GOG Games\Hexen II\data1" -ForegroundColor Gray
  while (-not $sourceData1) {
  $r = (Read-Host " Path").Trim().Trim('"')
- if (Test-Path (Join-Path $r "pak0.pak")) { $sourceData1 = $r; Write-Info "Path set: $sourceData1" }
+ if (Test-Path -LiteralPath "$r\pak0.pak") { $sourceData1 = $r; Write-Info "Path set: $sourceData1" }
  else { Write-Fail "pak0.pak not found at: $r" }
  }
 }
@@ -287,8 +291,9 @@ Write-Host "============================================================" -Foreg
 Write-Host " !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " Start SteamVR BEFORE launching the game." -ForegroundColor White
-Write-Host " Launch via the desktop shortcut." -ForegroundColor White
+Write-Host " Launch SteamVR before the game to avoid it potentially starting" -ForegroundColor White
+Write-Host " sometimes out of focus." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or the desktop shortcut." -ForegroundColor White
 Write-Host " The game starts in VR automatically if SteamVR is running." -ForegroundColor Gray
 Write-Host ""
 Write-Host " SteamVR Theatre Mode must be OFF:" -ForegroundColor Gray

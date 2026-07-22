@@ -108,6 +108,7 @@ $useDepot = ($mode -in @("B","b"))
 # =======================================================
 if (-not $useDepot) {
 
+ Pause-User "Press Enter to start..."
  Write-Step 1 4 "Locating Yooka-Laylee"
 
  # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -562,7 +563,8 @@ Write-Host ""
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host " 1. Start SteamVR" -ForegroundColor White
 if ($useDepot) {
- Write-Host " 2. Launch via the 'Yooka-Laylee VR' desktop shortcut" -ForegroundColor White
+ Write-Host " 2. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "    'Yooka-Laylee VR' desktop shortcut" -ForegroundColor White
  Write-Host " NOT via Steam - Steam would replace this version!" -ForegroundColor Yellow
 } else {
  Write-Host " 2. Launch Yooka-Laylee from Steam as usual" -ForegroundColor White

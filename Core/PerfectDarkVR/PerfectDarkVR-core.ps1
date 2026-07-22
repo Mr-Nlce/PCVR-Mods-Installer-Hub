@@ -125,6 +125,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $GAME_EXE
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the port files (your ROM is kept)." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "Perfect Dark VR"
 Write-Step 2 4 "Downloading Perfect Dark VR (latest PCVR release)"
 
 $tmp = Join-Path $installRoot "_perfectdark_extract_tmp"

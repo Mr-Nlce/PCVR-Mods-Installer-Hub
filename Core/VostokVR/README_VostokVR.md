@@ -9,16 +9,16 @@ Automated installer for the Road to Vostok VR Mod v1.3.5 by Blah64 — full VR s
 
 ## What it installs
 - **vr-mod.vmz** — main VR mod (loaded by Metro Mod Loader)
-- **launch_vr.bat** — VR launcher (use this instead of Steam's Play button)
+- **Road to Vostok VR desktop shortcut** — your launch route into VR
 - **VR runtime DLLs** and injector
 
 ## How to use
 Click **Install Mod** on the game tile or detail page and follow the prompts.
 
-**Always launch via `launch_vr.bat`** — do not use Steam's Play button directly.
+**Always launch via the Road to Vostok VR desktop shortcut** (or **Start in VR** in the Hub) — do not use Steam's Play button directly, it starts the unmodded game.
 
 ## First launch
-1. Start the game via **launch_vr.bat**
+1. Start the game via the **Road to Vostok VR** desktop shortcut
 2. The headset shows a black screen — switch to your desktop viewer
 3. Click **"Launch with mods (Restart)"** in the Metro Mod Loader window
 4. The game restarts and the main menu appears in VR

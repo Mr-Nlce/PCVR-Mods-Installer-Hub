@@ -257,8 +257,8 @@ try {
 }
 
 # Verify the loader copied its files next to the EXE
-$loaderOk = (Test-Path (Join-Path $gamePath "override.cfg")) -and `
-            (Test-Path (Join-Path $gamePath "openxr_loader.dll"))
+$loaderOk = (Test-Path -LiteralPath "$gamePath\override.cfg") -and `
+            (Test-Path -LiteralPath "$gamePath\openxr_loader.dll")
 if ($loaderOk) { Write-OK "Modloader files detected next to crueltysquad.exe." }
 else { Write-Warn "override.cfg / openxr_loader.dll not detected - the loader step may not have completed." }
 

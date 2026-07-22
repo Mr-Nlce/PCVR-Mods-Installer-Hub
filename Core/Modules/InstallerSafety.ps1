@@ -605,6 +605,195 @@ function global:Expand-ArchiveOrFallback {
     return $r
 }
 
+# ---- Wrapper-folder resilience (generic) ------------------
+#
+# Modders change their ZIP layout without warning: one release has the
+# payload at the archive root, the next wraps everything in a top-level
+# folder ("ModName-1.2.3\<payload>"). An installer that copies the
+# extraction dir verbatim then lands the files one level too deep and the
+# mod reads as "not installed" (real case: CyberpunkVRPort-0.0.9).
+#
+# Get-ExtractedPayloadRoot returns the folder that actually holds the mod
+# payload, so merge-into-root installers copy from THERE. Detection order:
+#
+#   1. -RelModFile (STRONGEST - use whenever the installer knows the
+#      relative path of its marker file, e.g. "bin\x64\dxgi.dll" or just
+#      "winhttp.dll"): the file is searched RECURSIVELY in the whole
+#      extracted tree and the payload root is derived from where it was
+#      found (hit path minus the relative path). Immune to any number of
+#      wrapper folders, renamed wrappers, or extra readme files.
+#   2. -Markers (folder/file names the payload level is known to hold,
+#      e.g. @("bin","red4ext")): walking down through single wrapper
+#      folders (max depth 10), the first level containing any marker wins.
+#   3. No markers hit: a level with real files is treated as the payload
+#      root; a level that is exactly one folder and no files is a wrapper
+#      and is stepped into.
+#
+# Falls back to the extraction dir itself, so flat archives behave
+# exactly as before.
+function global:Get-ExtractedPayloadRoot {
+    param(
+        [Parameter(Mandatory=$true)][string]$ExtractDir,
+        [string[]]$Markers = @(),
+        [string]$RelModFile = ""
+    )
+    if (-not $ExtractDir -or -not (Test-Path -LiteralPath $ExtractDir)) { return $ExtractDir }
+    $root = (Resolve-Path -LiteralPath $ExtractDir).Path.TrimEnd('\')
+
+    # 1. Find the known mod file anywhere in the tree; derive the root.
+    if ($RelModFile) {
+        $rel  = $RelModFile.Trim('\')
+        $leaf = Split-Path $rel -Leaf
+        try {
+            $hits = @(Get-ChildItem -LiteralPath $root -Recurse -Filter $leaf -File -ErrorAction SilentlyContinue)
+            foreach ($h in $hits) {
+                $full = $h.FullName
+                if ($full.ToLower().EndsWith(("\" + $rel).ToLower())) {
+                    return $full.Substring(0, $full.Length - $rel.Length - 1)
+                }
+            }
+        } catch {}
+    }
+
+    # 2./3. Walk down through single wrapper folders.
+    $cur = $root
+    for ($depth = 0; $depth -lt 10; $depth++) {
+        foreach ($m in $Markers) {
+            if ($m -and (Test-Path -LiteralPath (Join-Path $cur $m))) { return $cur }
+        }
+        $entries = @(Get-ChildItem -LiteralPath $cur -Force -ErrorAction SilentlyContinue)
+        $dirs  = @($entries | Where-Object { $_.PSIsContainer })
+        $files = @($entries | Where-Object { -not $_.PSIsContainer })
+        if ($files.Count -gt 0) { return $cur }
+        if ($dirs.Count -eq 1) { $cur = $dirs[0].FullName; continue }
+        break
+    }
+    return $cur
+}
+
+# ---- Safe extract-to-target (payload-verified) ------------
+#
+# One-call replacement for "Expand-ArchiveOrFallback straight into the
+# game folder" used by auto-update installers (they pull releases/LATEST,
+# so the modder can change the ZIP layout any day). It:
+#   1. extracts to a private temp folder,
+#   2. resolves the real payload root (Get-ExtractedPayloadRoot, using
+#      the known mod file's relative path and/or markers),
+#   3. merge-copies that root into -TargetDir (overwriting, creating
+#      folders as needed),
+#   4. VERIFIES the mod file actually arrived at the target, and warns
+#      if it did not,
+#   5. cleans up the temp folder.
+# Returns the underlying extraction status string ("ok"/"manual"/"skip"/
+# "quit"/"fail") so callers keep their existing flow; on successful copy
+# with failed verification it still returns the status but prints a
+# clear warning so the user is never silently left broken.
+function global:Expand-ArchiveToTarget {
+    param(
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [Parameter(Mandatory=$true)][string]$TargetDir,
+        [string]$RelModFile = "",
+        [string[]]$Markers = @(),
+        [string]$Label = "archive",
+        [string]$SkipMessage = "",
+        [bool]$AllowSkip = $true
+    )
+    $tmpEx = Join-Path ([System.IO.Path]::GetTempPath()) ("hubex_" + [System.IO.Path]::GetRandomFileName())
+    New-Item -ItemType Directory -Path $tmpEx -Force | Out-Null
+    try {
+        $st = Expand-ArchiveOrFallback -ArchivePath $ArchivePath -DestinationFolder $tmpEx -Label $Label `
+                -SkipMessage $SkipMessage -AllowSkip $AllowSkip
+        if ([string]$st -ne "ok" -and [string]$st -ne "manual") { return $st }
+        $src = Get-ExtractedPayloadRoot -ExtractDir $tmpEx -RelModFile $RelModFile -Markers $Markers
+        $base = (Resolve-Path -LiteralPath $src).Path.TrimEnd('\')
+        Get-ChildItem -Path $base -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $rel = $_.FullName.Substring($base.Length).TrimStart('\')
+            $tgt = Join-Path $TargetDir $rel
+            $td  = Split-Path $tgt -Parent
+            if ($td -and -not (Test-Path -LiteralPath $td)) { New-Item -ItemType Directory -Path $td -Force | Out-Null }
+            Copy-Item -LiteralPath $_.FullName -Destination $tgt -Force
+        }
+        if ($RelModFile) {
+            if (Test-Path -LiteralPath (Join-Path $TargetDir $RelModFile)) {
+                Write-Host "  [OK] $Label delivered ($RelModFile verified in target)." -ForegroundColor Green
+            } else {
+                Write-Host "  [WARN] $Label copied, but '$RelModFile' was NOT found in the target folder - the mod package layout may have changed. Please report this." -ForegroundColor Yellow
+            }
+        }
+        return $st
+    } finally {
+        try { Remove-Item -LiteralPath $tmpEx -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+# ---- Post-copy delivery verification ----------------------
+#
+# For installers that already have their own extract+copy logic (Martin's
+# rule: don't rewrite working logic). Call this AFTER the existing copy:
+# if the expected file is at the target, it does nothing and returns
+# $true. Only when the file is MISSING does it resolve the real payload
+# root inside the extraction dir and merge-copy from there, then verify
+# again. Existing behavior is untouched in the good case; the safety net
+# only engages when a layout change actually broke the install.
+function global:Assert-PayloadDelivered {
+    param(
+        [Parameter(Mandatory=$true)][string]$ExtractDir,
+        [Parameter(Mandatory=$true)][string]$TargetDir,
+        [Parameter(Mandatory=$true)][string]$RelModFile,
+        [string[]]$Markers = @(),
+        [string]$Label = "mod"
+    )
+    try {
+        if (Test-Path -LiteralPath (Join-Path $TargetDir $RelModFile)) { return $true }
+        if (-not (Test-Path -LiteralPath $ExtractDir)) { return $false }
+        Write-Host "  [WARN] $Label`: expected file '$RelModFile' not found in target after copy - the package layout likely changed. Engaging safety re-copy..." -ForegroundColor Yellow
+        $src = Get-ExtractedPayloadRoot -ExtractDir $ExtractDir -RelModFile $RelModFile -Markers $Markers
+        if (-not (Test-Path -LiteralPath (Join-Path $src $RelModFile))) {
+            Write-Host "  [WARN] $Label`: '$RelModFile' not found anywhere in the extracted package either. Please report this." -ForegroundColor Yellow
+            return $false
+        }
+        $base = (Resolve-Path -LiteralPath $src).Path.TrimEnd('\')
+        Get-ChildItem -Path $base -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $rel = $_.FullName.Substring($base.Length).TrimStart('\')
+            $tgt = Join-Path $TargetDir $rel
+            $td  = Split-Path $tgt -Parent
+            if ($td -and -not (Test-Path -LiteralPath $td)) { New-Item -ItemType Directory -Path $td -Force | Out-Null }
+            Copy-Item -LiteralPath $_.FullName -Destination $tgt -Force
+        }
+        if (Test-Path -LiteralPath (Join-Path $TargetDir $RelModFile)) {
+            Write-Host "  [OK] $Label`: safety re-copy delivered '$RelModFile'." -ForegroundColor Green
+            return $true
+        }
+        Write-Host "  [WARN] $Label`: safety re-copy still could not deliver '$RelModFile'. Please report this." -ForegroundColor Yellow
+        return $false
+    } catch { return $false }
+}
+
+# ---- Update notice for re-runs ----------------------------
+#
+# Auto-update installers double as updaters: re-running one simply pulls
+# the newest release over the existing install. Make that explicit: call
+# this right after the game folder is known; if the mod file is already
+# there, tell the user this run will UPDATE the mod (no extra prompt -
+# the installers' own gates stay as they are).
+function global:Show-UpdateNoticeIfInstalled {
+    param(
+        [string]$TargetDir,
+        [string]$RelModFile,
+        [string]$Label = "VR mod"
+    )
+    try {
+        if (-not $TargetDir -or -not $RelModFile) { return $false }
+        if (Test-Path -LiteralPath (Join-Path $TargetDir $RelModFile)) {
+            Write-Host ""
+            Write-Host "  [UPDATE] $Label is already installed - this run will update it to the latest version." -ForegroundColor Cyan
+            Write-Host ""
+            return $true
+        }
+    } catch {}
+    return $false
+}
+
 # ---- 7-Zip detection + auto-install -----------------------
 #
 # Centralised 7-Zip resolver. Returns the path to a usable 7z.exe

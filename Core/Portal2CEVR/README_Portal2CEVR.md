@@ -12,7 +12,7 @@ This is an **external Steam app**: the Hub button opens its Steam store page. Th
 1. Install **Portal 2: Community Edition** from Steam (free).
 2. In Steam, right-click it -> **Properties** -> **General** -> **Launch Options**.
 3. Add the launch option below (click it to copy), then paste it in.
-4. Start **SteamVR**, then launch the game.
+4. Start **SteamVR**, then launch with **Start in VR** in the Hub (or via Steam).
 
 ## Launch option
 

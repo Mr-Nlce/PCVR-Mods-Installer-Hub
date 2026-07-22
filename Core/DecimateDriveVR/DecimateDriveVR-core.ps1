@@ -102,7 +102,7 @@ function Find-DecimateGamePath {
  # so the strongest signal is the presence of release\
  # next to the Steam folder root.
  $candidate = Join-Path $lib "steamapps\common\Decimate Drive"
- if (Test-Path (Join-Path $candidate "release")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\release") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  return $null

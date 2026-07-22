@@ -103,7 +103,7 @@ function Find-AstrodogsGamePath {
  # found the right install.
  foreach ($folder in @("Astrodogs", "AstroDogs", "astrodogs", "Astrodogs Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "astrodogs_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\astrodogs_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

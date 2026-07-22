@@ -503,7 +503,8 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "  1. Steam client must be running (PEAK still needs Steam auth)" -ForegroundColor White
 Write-Host "  2. Start SteamVR" -ForegroundColor White
-Write-Host "  3. Launch via the 'PEAK VR' desktop shortcut" -ForegroundColor White
+Write-Host "  3. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "     'PEAK VR' desktop shortcut" -ForegroundColor White
 Write-Host ""
 Write-Host "  The shortcut launches PEAK with -force-vulkan, which is the" -ForegroundColor Cyan
 Write-Host "  author's recommended VR API combo (OpenVR + Vulkan). VR renders" -ForegroundColor Cyan

@@ -792,12 +792,20 @@ $xaml = @"
                             <Path Data="M1,4 L1,11 L8,11 L8,6 M6,1 L11,1 L11,6 M11,1 L6,6"
                                   Stroke="#6fa8ff" StrokeThickness="1.5" StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="External Installers" x:Name="HeaderExtTitle"
+                            <TextBlock Text="Easy External Installers" x:Name="HeaderExtTitle"
                                        FontSize="13" FontWeight="SemiBold"
                                        Foreground="White" FontFamily="Segoe UI" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="HeaderExtCount" Text=""
+                            <Viewbox Width="14" Height="14" Margin="11,0,7,0" VerticalAlignment="Center">
+                            <Path Data="M1,6 L11,6 M7,2 L11,6 L7,10"
+                                  Stroke="#6fa8ff" StrokeThickness="1.5" StrokeStartLineCap="Round"
+                                  StrokeEndLineCap="Round" StrokeLineJoin="Round"/>
+                            </Viewbox>
+                            <TextBlock Text="Leads to existing installers" x:Name="HeaderExtKind"
+                                       FontSize="13" FontWeight="Medium"
+                                       Foreground="#6fa8ff" FontFamily="Segoe UI" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                            <TextBlock x:Name="HeaderExtSub" Text=""
                                        FontSize="11" FontWeight="Medium" Foreground="#7a7a86"
-                                       FontFamily="Segoe UI" VerticalAlignment="Center" Margin="11,0,0,0"/>
+                                       FontFamily="Segoe UI" VerticalAlignment="Center" Margin="9,0,0,0"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -2686,7 +2694,13 @@ function global:Add-BannerWaves {
             $poly.StrokeThickness = 1.5
             $pts = New-Object System.Windows.Media.PointCollection
             $baseY = $L.off * $BannerH
-            for ($x = 0; $x -le 2600; $x += 8) {
+            # Overhang past BOTH banner edges (same fix as the silk ribbons):
+            # a line scrolling right (dir=+1) used to uncover a gap on the
+            # left, one scrolling left (dir=-1) a gap on the right, until the
+            # one-wavelength loop snapped back. The wave is periodic in wl and
+            # the translate is exactly one wl, so with this overhang the line
+            # spans the full width at all times - no shrinking, no snap.
+            for ($x = -500; $x -le 3200; $x += 8) {
                 $y = $baseY + $L.amp * [Math]::Sin(2 * [Math]::PI * $x / $L.wl)
                 $pts.Add([System.Windows.Point]::new($x, $y)) | Out-Null
             }
@@ -3942,7 +3956,7 @@ try {
     $global:HubGPCount   = @($ownGamesGP).Count
     $global:HubVRGPCount = @($ownGamesGP | Where-Object { $_.Controls -eq "VRGP" }).Count
     $hgpSub = $window.FindName("HeaderGPSub"); if ($hgpSub) { $hgpSub.Text = "$(@($ownGamesGP).Count) mods" }
-    $hexC   = $window.FindName("HeaderExtCount"); if ($hexC) { $hexC.Text = "$(@($externalGames).Count) mods" }
+    $hexSub = $window.FindName("HeaderExtSub"); if ($hexSub) { $hexSub.Text = "$(@($externalGames).Count) mods" }
 } catch {}
 
 # Scale S / M / L buttons
@@ -4102,7 +4116,7 @@ function global:Set-HeaderFontScale { param($sc)
         foreach ($n in @("HeaderMCTitle","HeaderGPTitle","HeaderExtTitle","RecentlyPlayedTitle","HeaderMCKind","HeaderGPKind")) {
             $t = $global:window.FindName($n); if ($t) { $t.FontSize = $hdr.Title }
         }
-        foreach ($n in @("HeaderMCSub","HeaderGPSub","HeaderExtSub","RecentlyPlayedSub","HeaderExtCount")) {
+        foreach ($n in @("HeaderMCSub","HeaderGPSub","HeaderExtSub","RecentlyPlayedSub")) {
             $t = $global:window.FindName($n); if ($t) { $t.FontSize = $hdr.Sub }
         }
     }

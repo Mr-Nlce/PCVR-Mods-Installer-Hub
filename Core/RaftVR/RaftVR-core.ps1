@@ -39,7 +39,7 @@ function Get-SteamLibraries { param($sp)
  return $libs
 }
 function Find-GamePath { param($libs)
- foreach($lib in $libs){ $c=Join-Path $lib "steamapps\common\$GAME_NAME"; if(Test-Path (Join-Path $c "Raft.exe")){return $c} }; return $null
+ foreach($lib in $libs){ $c=Join-Path $lib "steamapps\common\$GAME_NAME"; if(Test-Path -LiteralPath "$c\Raft.exe"){return $c} }; return $null
 }
 function Get-File { param($name,$url,$dest)
  # Try direct URL, then web archive mirror, then interactive fallback
@@ -78,6 +78,10 @@ function Find-RaftModLoader {
 Write-Header
 
 # STEP 1: Find Raft
+Write-Host " RaftVR by DrBibop adds VR to Raft, via the RaftModLoader launcher." -ForegroundColor White
+Write-Host " Motion controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Raft"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -101,7 +105,7 @@ if (-not $gp) { $gp = Find-SteamGameFolder -AppId "648800" -SteamFolderNames @("
 if(-not $gp){
  Write-Warn "Raft not found automatically."
  Write-Host " Enter the Raft folder path (containing Raft.exe):" -ForegroundColor White
- while(-not $gp){ $r=(Read-Host " Path").Trim().Trim('"'); if(Test-Path (Join-Path $r "Raft.exe")){$gp=$r}else{Write-Fail "Raft.exe not found in: $r"} }
+ while(-not $gp){ $r=(Read-Host " Path").Trim().Trim('"'); if(Test-Path -LiteralPath "$r\Raft.exe"){$gp=$r}else{Write-Fail "Raft.exe not found in: $r"} }
 } else { Write-OK "Found: $gp" }
 
 $modsDir = Join-Path $gp "mods"
@@ -188,7 +192,8 @@ if($ok){
  Write-Host ""
  Write-Host "--- How to play in VR ---" -ForegroundColor Cyan
  Write-Host ""
- Write-Host " 1. Launch Raft via the 'Raft VR' desktop shortcut" -ForegroundColor White
+ Write-Host " 1. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "    'Raft VR' desktop shortcut" -ForegroundColor White
  Write-Host " or via RMLLauncher.exe in the Raft game folder." -ForegroundColor White
  Write-Host ""
  Write-Host " 2. In the mod menu, open the Mod Manager tab." -ForegroundColor White

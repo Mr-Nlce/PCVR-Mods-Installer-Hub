@@ -106,7 +106,7 @@ function Find-ParanoiaPlaceGamePath {
  # folder is the strongest signal we found the right install.
  foreach ($folder in @("Paranoia Place", "ParanoiaPlace", "Paranoia Place Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Paranoia Place_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Paranoia Place_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

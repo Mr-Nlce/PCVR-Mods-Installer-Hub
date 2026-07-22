@@ -70,6 +70,7 @@ Write-Host "  bug. Reports are welcome on the GitHub page." -ForegroundColor Yel
 # -------------------------------------------------------
 # STEP 1: Install location (update / reinstall handling)
 # -------------------------------------------------------
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Install location"
 
 Write-Info "Install folder: $INSTALL_ROOT"
@@ -106,6 +107,7 @@ if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
 # -------------------------------------------------------
 # STEP 2: Download the latest release from GitHub
 # -------------------------------------------------------
+$null = Show-UpdateNoticeIfInstalled -TargetDir $INSTALL_ROOT -RelModFile $GAME_EXE -Label "Mario Kart 64 VR"
 Write-Step 2 5 "Downloading the latest release"
 
 $dlUrl = $null

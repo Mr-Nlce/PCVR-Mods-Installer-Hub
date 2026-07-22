@@ -137,6 +137,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile "PrimedGun.ex
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "PrimedGun"
 Write-Step 2 5 "Downloading PrimedGun (latest release)"
 
 $tmp = Join-Path $installRoot "_primedgun_extract_tmp"
@@ -453,7 +454,8 @@ Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
 if ($romPlaced) {
     Write-Host "   1. Start SteamVR first (Oculus/Meta runtime is not recommended)." -ForegroundColor White
-    Write-Host "   2. Launch with the 'Metroid Prime VR' desktop shortcut, or run:" -ForegroundColor White
+    Write-Host "   2. Launch with 'Start in VR' in the Hub, or the 'Metroid" -ForegroundColor White
+Write-Host "      Prime VR' desktop shortcut, or run:" -ForegroundColor White
     Write-Host "        $exePath" -ForegroundColor Cyan
     Write-Host "   3. Your ROM is already in place - select it in the list and press Play." -ForegroundColor White
 } else {

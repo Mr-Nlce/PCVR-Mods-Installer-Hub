@@ -117,6 +117,10 @@ function Find-GameRoot {
 # -------------------------------------------------------
 Write-Header
 
+Write-Host " OutwardVR by cybensis - a full 6DOF VR conversion of Outward Definitive" -ForegroundColor White
+Write-Host " Edition with motion-controlled combat." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Pick install location + set up DepotDownloader"
 
 Write-Host " Outward VR requires a specific older build of the game pinned" -ForegroundColor White
@@ -568,8 +572,10 @@ Write-Host ""
 
 Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " >> Start SteamVR BEFORE launching Outward." -ForegroundColor Yellow
-Write-Host " >> Launch via the desktop shortcut, NOT via Steam." -ForegroundColor Yellow
+Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
+Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
+Write-Host " >> Launch with 'Start in VR' in the Hub or the desktop" -ForegroundColor Yellow
+Write-Host "    shortcut - NOT via Steam." -ForegroundColor Yellow
 Write-Host " (This VR install is fully standalone and independent" -ForegroundColor Gray
 Write-Host " from your Steam library copy of Outward.)" -ForegroundColor Gray
 Write-Host ""

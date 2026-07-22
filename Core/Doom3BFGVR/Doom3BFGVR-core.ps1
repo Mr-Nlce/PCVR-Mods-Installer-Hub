@@ -36,6 +36,10 @@ function Get-SteamLibraries {
 Write-Header
 
 # STEP 1: Locate DOOM 3 BFG Edition
+Write-Host " Fully Possessed by NPi2Loup - full native VR with motion controls for" -ForegroundColor White
+Write-Host " DOOM 3 BFG Edition." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating DOOM 3 BFG Edition"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -128,7 +132,8 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Launch via the 'Doom 3 BFG VR' shortcut on your Desktop." -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub, or the 'Doom 3 BFG VR'" -ForegroundColor White
+Write-Host "  shortcut on your Desktop." -ForegroundColor White
 Write-Host "  Do NOT launch via Steam - use Doom3BFGVR.exe directly!" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "--- Theatre Mode ---" -ForegroundColor Cyan

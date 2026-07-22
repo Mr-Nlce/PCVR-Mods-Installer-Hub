@@ -13,7 +13,7 @@ even on mid-range PCs.
   at install time (no game files are bundled).
 - Copies the mod files (`d3d9.dll`, `openvr_api.dll`,
   `Plugins\RBRvrConfig.dll`, `rbrvr.cfg`, redists) into your game folder.
-- Creates a desktop shortcut **Richard Burns Rally VR**.
+- Creates a desktop shortcut **Richard Burns Rally VR**. Launch with **Start in VR** in the Hub or that shortcut.
 
 ## Requirements
 

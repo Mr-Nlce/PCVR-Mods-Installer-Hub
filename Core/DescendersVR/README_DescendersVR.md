@@ -13,7 +13,7 @@ Automated installer for the **Descenders VR Mod** by Holydh, v1.0.5 fork by kyan
 2. Read the controller warning at the start — Descenders has known input quirks
 3. Select your VR runtime: **SteamVR** or **Oculus**
 4. Steam Properties opens twice: paste launch option, then enable Steam Input override
-5. A `Descenders VR` desktop shortcut is created (launches via Steam so launch options apply)
+5. A `Descenders VR` desktop shortcut is created (launches via Steam so launch options apply). Launch with **Start in VR** in the Hub or that shortcut
 
 ## Requirements
 - Windows 10 / 11

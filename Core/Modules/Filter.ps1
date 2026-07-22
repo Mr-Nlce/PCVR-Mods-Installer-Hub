@@ -484,7 +484,7 @@ function global:Set-DetailFilterMarks {
 
     $ctrl  = "$($Game.Controls)"
     $hasMC = ($ctrl -eq "MC" -or $ctrl -eq "BOTH")
-    $hasGP = ($ctrl -eq "GP" -or $ctrl -eq "BOTH")
+    $hasGP = ($ctrl -eq "GP" -or $ctrl -eq "BOTH" -or $ctrl -eq "VRGP")
     $st = $null
     if ($global:gameStateMap) { $st = $global:gameStateMap[$Game.Title] }
     $isReady     = $st -and ($st.Tag -in @("vrinstalled", "vrupdate"))
@@ -1385,8 +1385,16 @@ function global:Get-GithubLatestTagCached {
     # returned (so the update state stays stable) and the shared online-down
     # flag is NOT tripped - a 403 means the host is reachable, just limited, and
     # must not kill the other checks (Alien Isolation web check, other repos).
-    param([string]$Repo)
+    #
+    # -IncludePrerelease: some mods only ship PRE-releases (e.g. Halo MCC VR is
+    # an alpha). GitHub's /releases/latest redirect ignores prereleases, so for
+    # those repos it 404s and we would never see an update. When this switch is
+    # set we instead read the newest entry from the GitHub API /releases list
+    # (which includes prereleases) and use its tag. Cached under a distinct key
+    # so it never collides with a normal /latest lookup of the same repo.
+    param([string]$Repo, [switch]$IncludePrerelease)
     if (-not $Repo) { return $null }
+    $cacheKey = if ($IncludePrerelease) { "$Repo#pre" } else { $Repo }
     $ttlHours = 6
     if ($null -eq $script:ghVerCache) {
         $script:ghVerCache = @{}
@@ -1400,7 +1408,7 @@ function global:Get-GithubLatestTagCached {
             } catch {}
         }
     }
-    $entry = $script:ghVerCache[$Repo]
+    $entry = $script:ghVerCache[$cacheKey]
     $now = [DateTime]::UtcNow
     if ($entry -and $entry.tag -and $entry.checked) {
         try {
@@ -1415,6 +1423,36 @@ function global:Get-GithubLatestTagCached {
     # connection timeout into a multi-minute UI-thread freeze on a first run
     # with an empty cache: the first miss trips the breaker, the rest skip.
     if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
+        if ($entry -and $entry.tag) { return [string]$entry.tag }
+        return $null
+    }
+    $tag = $null
+    if ($IncludePrerelease) {
+        # Prerelease-aware path: the API /releases list is ordered newest-first
+        # and includes prereleases. Take the first entry's tag_name. This uses
+        # the 60/hour unauthenticated API limit, but only for the handful of
+        # prerelease mods, and the 6h cache keeps it well under budget.
+        try {
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=1" -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 2 -EA Stop 2>$null
+            $first = $rel | Select-Object -First 1
+            if ($first -and $first.tag_name) { $tag = [string]$first.tag_name.Trim() }
+        } catch {
+            Write-Host "[GithubCheck] $Repo (prerelease) : API check failed ($($_.Exception.Message)) - using cached tag if present"
+            # A 403 (rate limit) means the host is reachable - do NOT trip the
+            # scan-wide breaker. Only a genuine connection failure should.
+            if ($_.Exception.Message -notmatch "rate limit|403|forbidden") { $global:HubScanOnlineDown = $true }
+            if ($entry -and $entry.tag) { return [string]$entry.tag }
+            return $null
+        }
+        if ($tag) {
+            $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
+            try {
+                $obj = @{}
+                foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }
+                ($obj | ConvertTo-Json) | Set-Content -Path $script:ghVerCacheFile -Encoding UTF8 -Force
+            } catch {}
+            return $tag
+        }
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
     }
@@ -1440,7 +1478,7 @@ function global:Get-GithubLatestTagCached {
         return $null
     }
     if ($tag) {
-        $script:ghVerCache[$Repo] = @{ tag = $tag; checked = $now.ToString("o") }
+        $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
         try {
             $obj = @{}
             foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }
@@ -1585,7 +1623,7 @@ function global:Invoke-RotatingOnlinePrewarm {
                         }
                     } catch {}
                 }
-                $items += , @{ K = "gh"; A = $repo }
+                $items += , @{ K = "gh"; A = $repo; P = [bool]$g.GithubPrerelease }
             } elseif ($g.WebVersionUrl) {
                 $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title }
             }
@@ -1614,7 +1652,7 @@ function global:Invoke-RotatingOnlinePrewarm {
             }
             $it = $items[($off + $i) % $items.Count]
             try {
-                if ($it.K -eq "gh") { [void](Get-GithubLatestTagCached -Repo $it.A) }
+                if ($it.K -eq "gh") { [void](Get-GithubLatestTagCached -Repo $it.A -IncludePrerelease:([bool]$it.P)) }
                 else { [void](Get-WebVersionCached -Url $it.A -Title $it.T) }
             } catch {}
         }
@@ -1858,7 +1896,7 @@ function global:Invoke-CheckInstalledScan {
                         }
                     } catch {}
                 }
-                if (-not (Test-CacheFresh $ghDisk $repo)) { $pending += , @{ K = "gh"; A = $repo } }
+                if (-not (Test-CacheFresh $ghDisk $(if ($g.GithubPrerelease) { "$repo#pre" } else { $repo }))) { $pending += , @{ K = "gh"; A = $repo; P = [bool]$g.GithubPrerelease } }
             } elseif ($g.WebVersionUrl) {
                 if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title } }
             }
@@ -2547,7 +2585,7 @@ function global:Invoke-CheckInstalledScan {
                 # wrote a marker, so on the first scan after 1.0.0 shipped
                 # the Hub stamped stale 0.1.x installs as "v1.0.0" and the
                 # Update tile never appeared.
-                $ghVer  = Get-GithubLatestTagCached -Repo $game.GithubRepo
+                $ghVer  = Get-GithubLatestTagCached -Repo $game.GithubRepo -IncludePrerelease:([bool]$game.GithubPrerelease)
                 $hyInst = $null
                 if ($gameDir) {
                     try {
@@ -2589,7 +2627,7 @@ function global:Invoke-CheckInstalledScan {
                         }
                     } catch {}
                 }
-                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:([bool]$game.GithubPrerelease)
                 if ($ghVer) {
                     if (-not $installedVer) {
                         Write-InstalledVersion -Game $game -Version $ghVer

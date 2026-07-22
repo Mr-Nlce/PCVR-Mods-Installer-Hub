@@ -140,6 +140,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile "sm64coopdx.e
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "sm64coopdx"
 Write-Step 2 5 "Downloading sm64coopdx (latest release)"
 
 $tmp = Join-Path $installRoot "_hub_extract_tmp"
@@ -403,7 +404,8 @@ Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
 Write-Host "   1. Start your VR runtime first (Quest Link, Virtual Desktop," -ForegroundColor White
 Write-Host "      or SteamVR) if you want VR." -ForegroundColor White
-Write-Host "   2. Launch with the 'Super Mario Coop VR' desktop shortcut, or run:" -ForegroundColor White
+Write-Host "   2. Launch with 'Start in VR' in the Hub, or the 'Super Mario" -ForegroundColor White
+Write-Host "      Coop VR' desktop shortcut, or run:" -ForegroundColor White
 Write-Host "        $exePath" -ForegroundColor Cyan
 Write-Host "   3. Same exe for both: with a headset connected it boots into" -ForegroundColor White
 Write-Host "      VR, otherwise you get the flat game." -ForegroundColor White

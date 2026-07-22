@@ -487,6 +487,15 @@ if ($rs -in @("y","Y")) {
 try {
  $pathFile = Join-Path $PSScriptRoot ".installed_path"
  Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
+ # LAUNCH: plain Dusk.exe (root) OR steam://rungameid start classic DUSK
+ # without the HD DLC - which the VR mod does NOT patch, so VR never
+ # engages. The HD build lives in its own DLC subfolder; point the Hub's
+ # "Start in VR" straight at it via .launch_exe (takes priority over
+ # steam://). Path is verified by Read-LaunchOverride before use.
+ $hdExe = Join-Path (Join-Path $gamePath $DLC_SUBFOLDER) $GAME_EXE
+ if (Test-Path -LiteralPath $hdExe) {
+  Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $hdExe -Encoding UTF8 -Force
+ }
 } catch {}
 
 # -------------------------------------------------------

@@ -81,6 +81,10 @@ function Test-WritableRoot {
 # STEP 1: Locate Quake III Arena baseq3 (pak0.pk3)
 # -------------------------------------------------------
 Write-Header
+Write-Host " Quake 3 VR by RippeR37 - a PCVR port of Quake III Arena on ioquake3," -ForegroundColor White
+Write-Host " with full 6DoF motion controls. Start SteamVR before playing." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Quake III Arena"
 
 $sourceBaseq3 = $null
@@ -333,8 +337,10 @@ Write-Host "============================================================" -Foreg
 Write-Host "  !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Start SteamVR BEFORE launching the game." -ForegroundColor White
-Write-Host "  Launch via the desktop shortcut 'Quake 3 VR'." -ForegroundColor White
+Write-Host "  Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "  starting sometimes out of focus." -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub, or the desktop" -ForegroundColor White
+Write-Host "  shortcut 'Quake 3 VR'." -ForegroundColor White
 Write-Host ""
 Write-Host "  Before jumping in, open the in-game Setup menu and set your" -ForegroundColor Gray
 Write-Host "  controls, turning, and comfort options to your liking." -ForegroundColor Gray

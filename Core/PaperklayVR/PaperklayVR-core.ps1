@@ -104,7 +104,7 @@ function Find-PaperklayGamePath {
  # but the game folder uses capital K. Try variants.
  foreach ($folder in @("PaperKlay", "Paperklay", "PaperKlay Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "PaperKlay_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\PaperKlay_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

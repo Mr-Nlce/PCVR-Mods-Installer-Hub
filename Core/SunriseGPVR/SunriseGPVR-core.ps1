@@ -99,7 +99,7 @@ function Find-SunriseGPGamePath {
  # folder is the strongest signal we found the right install.
  foreach ($folder in @("Sunrise GP", "SunriseGP", "Sunrise GP Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Sunrise GP_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Sunrise GP_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

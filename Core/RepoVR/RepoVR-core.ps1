@@ -130,6 +130,9 @@ function Install-Pkg { param($zip,$dest,$gamePath)
 # STEP 1: Mode selection
 # -------------------------------------------------------
 Write-Header
+Write-Host " RepoXR by DaXcess is a full 6DoF motion-controlled VR mod for R.E.P.O.," -ForegroundColor White
+Write-Host " built on Unity's OpenXR plugin. Works in lobbies with non-VR players." -ForegroundColor White
+Write-Host ""
 Write-Step 1 4 "Select Installation Mode"
 
 $repoXRDeprecated = $false
@@ -413,7 +416,7 @@ if ($useLegacy) {
 }
 Write-Host ""
 Write-Host " Start SteamVR before launching R.E.P.O." -ForegroundColor White
-Write-Host " Launch the game via Steam normally." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or via Steam normally." -ForegroundColor White
 Write-Host ""
 Write-Host " Issues: https://github.com/DaXcess/RepoXR" -ForegroundColor Gray
 Write-Host ""

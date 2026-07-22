@@ -110,7 +110,7 @@ function Find-SayonaraGamePath {
  # data folder is "Sayonara Wild Hearts_Data".
  foreach ($folder in @("Sayonara Wild Hearts", "SayonaraWildHearts")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Sayonara Wild Hearts_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Sayonara Wild Hearts_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -438,7 +438,8 @@ if ($gamePath -eq $originalGamePath) {
  Write-Host " Original folder is untouched - flat-screen play still" -ForegroundColor Gray
  Write-Host " works via Steam." -ForegroundColor Gray
  Write-Host ""
- Write-Host " Launch the VR build with the .exe inside the copy:" -ForegroundColor White
+ Write-Host " Launch the VR build with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host " .exe inside the copy:" -ForegroundColor White
  Write-Host " $gamePath\Sayonara Wild Hearts.exe" -ForegroundColor DarkGray
 }
 Write-Host ""

@@ -39,7 +39,7 @@ TAA, DLSS and CAS are fine. Frame Generation will break VR - there's no workarou
 ## How to play
 
 1. Start your VR runtime (SteamVR / Oculus / Virtual Desktop / etc.)
-2. Launch Starfield the usual way for your store
+2. Launch with **Start in VR** in the Hub, or the usual way for your store
 3. Press **F11** on the flat monitor (not in the HMD) for the in-game overlay
 
 ## In-game Overlay (F11)

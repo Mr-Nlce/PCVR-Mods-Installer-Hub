@@ -139,6 +139,9 @@ function Install-Pkg { param($zip,$dest,$gamePath)
 # STEP 1: Mode selection
 # -------------------------------------------------------
 Write-Header
+Write-Host " CWVR by DaXcess turns Content Warning into a full 6DOF VR experience" -ForegroundColor White
+Write-Host " with motion controls. Works in online lobbies with non-VR players too." -ForegroundColor White
+Write-Host ""
 Write-Step 1 4 "Select Installation Mode"
 
 # Check deprecated status from Thunderstore
@@ -398,7 +401,7 @@ Write-Host " SteamVR Theatre Mode must be OFF:" -ForegroundColor Gray
 Write-Host " SteamVR -> Settings -> Dashboard -> 'Present Non-VR Applications...' -> OFF" -ForegroundColor Gray
 Write-Host ""
 # Desktop shortcut
-if (Test-Path (Join-Path $gamePath "Content Warning.exe")) {
+if (Test-Path -LiteralPath "$gamePath\Content Warning.exe") {
  try {
  $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Content Warning VR.lnk" -TargetPath Join-Path $gamePath "Content Warning.exe" -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath 'Content Warning.exe'),0"
  Write-Info "Desktop shortcut 'Content Warning VR' created."

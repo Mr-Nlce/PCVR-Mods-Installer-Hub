@@ -17,7 +17,7 @@ The Hub installer walks you through it. Manual steps if you want them:
 1. Extract the contents of `TheHouseOfTheDead2_VR.zip` into your game root folder.
 2. The folder should now have a `BepInEx` folder at its root.
 3. If using SteamVR, **launch SteamVR FIRST**. The mod can have trouble starting otherwise.
-4. Launch the game normally via Steam.
+4. Launch with **Start in VR** in the Hub, or normally via Steam.
 
 ## Features
 

@@ -5,7 +5,7 @@
 > **Runtime note:** Q2VR targets the **Oculus / Meta runtime** (LibOVR), not SteamVR natively. It launches in VR directly only on an **Oculus Rift** or a **Meta Quest connected via Link cable / AirLink**. A Quest over **Virtual Desktop** or **Steam Link**, and every **non-Oculus headset** (Valve Index, HTC Vive, Pico, WMR), needs **Revive** to run it. The installer asks which applies and, for the Revive case, downloads + installs Revive and builds a ready-to-use desktop shortcut that launches the game through Revive's injector.
 
 ## Launching
-- **Rift / Quest via Link or AirLink:** start the Oculus / Meta app, then run the **Quake 2 VR** desktop shortcut (it runs `quake2vr.exe` directly).
+- **Rift / Quest via Link or AirLink:** start the Oculus / Meta app, then launch with **Start in VR** in the Hub or the **Quake 2 VR** desktop shortcut (both run `quake2vr.exe` directly).
 - **Virtual Desktop / Steam Link / non-Oculus headset (Revive):** start **SteamVR**, then run the **Quake 2 VR** desktop shortcut — it points at `ReviveInjector.exe` with `quake2vr.exe` as its target, which is the same thing as dragging the EXE onto the injector or using the Revive tray's *Add a shortcut*.
 - If VR does not start automatically, open the console with **~** (tilde) and type `vr_enable`.
 - In **Options -> VR**, set the aim mode and comfort options (see below).

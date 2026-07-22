@@ -23,7 +23,7 @@ controlled combat, built from OutwardVR by cybensis.
 
 ## Launching
 
-Always launch via the desktop shortcut (or directly via
+Always launch with **Start in VR** in the Hub or the desktop shortcut (or directly via
 `Outward VR\Outward_Defed\Outward Definitive Edition.exe`) with
 SteamVR already running. This VR install is fully standalone - it
 lives outside your Steam library and is not touched by future

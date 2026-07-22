@@ -102,6 +102,7 @@ Write-Host ""
 # -------------------------------------------------------
 # STEP 1: Locate Starfield (auto-detect Steam / Gamepass)
 # -------------------------------------------------------
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Starfield"
 
 $gamePath = $null
@@ -363,7 +364,8 @@ if ($useOpenXR) {
 
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host " 1. Start your VR runtime (SteamVR / Oculus / Virtual Desktop)" -ForegroundColor White
-Write-Host " 2. Launch Starfield the usual way for your store" -ForegroundColor White
+Write-Host " 2. Launch with 'Start in VR' in the Hub, or the usual" -ForegroundColor White
+Write-Host "    way for your store" -ForegroundColor White
 Write-Host " 3. Press F11 on the flat monitor (not in HMD) for the" -ForegroundColor White
 Write-Host " in-game overlay: resolution scale, recording fix, recenter" -ForegroundColor White
 Write-Host ""

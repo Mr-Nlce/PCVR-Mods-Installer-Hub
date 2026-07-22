@@ -140,8 +140,14 @@ echo   [125] Mario Kart 64 VR
 echo   [126] Assassin's Creed Valhalla VR
 echo   [127] Assassin's Creed Mirage VR
 echo   [128] Assassin's Creed Odyssey VR
+echo   [129] Mass Effect 1 LE VR
+echo   [130] Outbound VR
+echo   [131] Halo 3 MCC VR
+echo   [132] Ring Racers VR
+echo   [133] Star Trucker VR
+echo   [134] Painkiller Black Edition
 echo.
-set /p choice="Enter number (1-120): "
+set /p choice="Enter number (1-134): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -270,6 +276,12 @@ if "%choice%"=="125" (set SCRIPT=%~dp0MarioKart64VR\MarioKart64VR-core.ps1)
 if "%choice%"=="126" (set SCRIPT=%~dp0ACValhallaVR\ACValhallaVR-core.ps1)
 if "%choice%"=="127" (set SCRIPT=%~dp0ACMirageVR\ACMirageVR-core.ps1)
 if "%choice%"=="128" (set SCRIPT=%~dp0ACOdysseyVR\ACOdysseyVR-core.ps1)
+if "%choice%"=="129" (set SCRIPT=%~dp0MassEffect1VR\MassEffect1VR-core.ps1)
+if "%choice%"=="130" (set SCRIPT=%~dp0OutboundVR\OutboundVR-core.ps1)
+if "%choice%"=="131" (set SCRIPT=%~dp0Halo3MCCVR\Halo3MCCVR-core.ps1)
+if "%choice%"=="132" (set SCRIPT=%~dp0RingRacersVR\RingRacersVR-core.ps1)
+if "%choice%"=="133" (set SCRIPT=%~dp0StarTruckerVR\StarTruckerVR-core.ps1)
+if "%choice%"=="134" (set SCRIPT=%~dp0PainkillerBlackVR\PainkillerBlackVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

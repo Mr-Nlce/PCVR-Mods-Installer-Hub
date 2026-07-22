@@ -129,7 +129,7 @@ function Find-MorosGamePath {
  # is the strongest signal we have the right install.
  foreach ($folder in @("Moros Protocol", "MorosProtocol")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Moros Protocol_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Moros Protocol_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -138,7 +138,7 @@ function Find-MorosGamePath {
  foreach ($root in (Get-GogRoots)) {
  foreach ($folder in @("Moros Protocol", "MorosProtocol")) {
  $candidate = Join-Path $root $folder
- if (Test-Path (Join-Path $candidate "Moros Protocol_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Moros Protocol_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

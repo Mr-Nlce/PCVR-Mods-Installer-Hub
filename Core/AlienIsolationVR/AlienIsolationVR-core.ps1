@@ -121,7 +121,7 @@ if ("MotherVR" -notin $failed) {
  Copy-Item $_.FullName (Join-Path $gamePath $_.Name) -Force
  Write-Info "Installed: $($_.Name)"
  }
- if (Test-Path (Join-Path $gamePath "dxgi.dll")) { Write-OK "MotherVR: dxgi.dll OK." }
+ if (Test-Path -LiteralPath "$gamePath\dxgi.dll") { Write-OK "MotherVR: dxgi.dll OK." }
  else { Write-Fail "dxgi.dll missing after install!"; $failed += "MotherVR" }
  } catch { Write-Fail "MotherVR error: $_"; $failed += "MotherVR" }
 }
@@ -137,7 +137,7 @@ if ("GRAND" -notin $failed) {
  Copy-Item $_.FullName (Join-Path $gamePath $_.Name) -Force
  Write-Info "Installed: $($_.Name)"
  }
- if (Test-Path (Join-Path $gamePath "XINPUT1_3.dll")) { Write-OK "GRAND: XINPUT1_3.dll OK." }
+ if (Test-Path -LiteralPath "$gamePath\XINPUT1_3.dll") { Write-OK "GRAND: XINPUT1_3.dll OK." }
  else { Write-Fail "XINPUT1_3.dll missing after install!"; $failed += "GRAND" }
  } catch { Write-Fail "GRAND error: $_"; $failed += "GRAND" }
 }

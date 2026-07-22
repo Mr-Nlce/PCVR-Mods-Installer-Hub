@@ -39,7 +39,7 @@ download_depot 1229490 1229491 5628746843149106870
 
 ## First launch
 - Start SteamVR **before** launching ULTRAKILL
-- Launch via the **desktop shortcut**, NOT via Steam
+- Launch with **Start in VR** in the Hub or the **desktop shortcut**, NOT via Steam
   (Steam would launch your retail version)
 
 ## Known issues

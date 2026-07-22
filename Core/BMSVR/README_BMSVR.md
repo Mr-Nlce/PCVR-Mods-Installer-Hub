@@ -37,7 +37,7 @@ Automated installer for **Black Mesa Source VR (Beta 2.0)** — Ashok's unoffici
 4. Choose install folder (default: `C:\Games\Black Mesa VR`)
 5. Wait while the installer extracts and patches everything
 6. Optionally enable HRTF surround audio
-7. Use the new desktop shortcut to launch
+7. Launch with **Start in VR** in the Hub or the new desktop shortcut
 
 ## Why a manual Nexus download
 

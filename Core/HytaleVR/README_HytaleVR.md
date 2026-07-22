@@ -16,8 +16,8 @@ Hytale in PCVR through **HytaleVRInjector-mod** by **heurazy** - a Windows x64 V
 
 1. Downloads the newest `HytaleVRInjector-mod-*-windows-x64.zip` from the official GitHub releases (resolved live via the GitHub API, with a last-known-good fallback if the API is unreachable).
 2. Unpacks it to `C:\Games\Hytale VR` (or a folder you pick). Installing under `C:\Games` is recommended - it avoids UAC / Program Files permission weirdness.
-3. Writes `Start Hytale VR.bat` - a combo launcher that starts the **Hytale Launcher** and the **camera dashboard** together.
-4. Creates a **Hytale VR** desktop shortcut pointing at that combo launcher, so everything needed for a headset session is one double-click away.
+3. Sets up a combo launch that starts the **Hytale Launcher** and the **camera dashboard** together.
+4. Creates a **Hytale VR** desktop shortcut - everything needed for a headset session is one double-click away. That shortcut (or **Start in VR** in the Hub) is how you start the game.
 
 Re-running the installer offers **Update** (re-download the latest build and replace the mod files) or a full reinstall. The Hub also flags updates on the game tile automatically once a newer release is published.
 

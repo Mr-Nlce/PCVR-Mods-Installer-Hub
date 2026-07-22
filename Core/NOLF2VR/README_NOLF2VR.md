@@ -40,8 +40,9 @@ required; you can skip its first-time setup); the installer checks for it
 and opens the download page if it is missing. Your choice is saved as
 `+VRRevive` in `VRlaunchcmds.txt` (`0` = native Oculus, `1` = Revive).
 
-Start SteamVR first (Meta / Oculus users can skip that), then launch from
-the **No One Lives Forever 2 VR** desktop shortcut, which runs
+Start SteamVR first (Meta / Oculus users can skip that), then launch with
+**Start in VR** in the Hub or the **No One Lives Forever 2 VR** desktop
+shortcut - both run
 `Lithtech.exe`. WMR headsets may have issues.
 
 Leave the resolution at the mod's default **1280x960**. To sharpen the

@@ -362,11 +362,13 @@ Write-Host "  Metal: Hellsinger VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Game folder: $gamePath" -ForegroundColor Gray
-Write-Host "  Launch via the 'Metal Hellsinger VR' desktop shortcut or:" -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "  'Metal Hellsinger VR' desktop shortcut, or:" -ForegroundColor White
 Write-Host "    $gameExePath" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  FIRST LAUNCH:" -ForegroundColor Yellow
-Write-Host "   - Start SteamVR BEFORE launching the game." -ForegroundColor White
+Write-Host "   - Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "     starting sometimes out of focus." -ForegroundColor White
 Write-Host "   - The game window must have focus to get past the logo/login" -ForegroundColor White
 Write-Host "     screen - if you can't proceed (pressing a trigger), click the" -ForegroundColor White
 Write-Host "     game window so it has focus." -ForegroundColor White

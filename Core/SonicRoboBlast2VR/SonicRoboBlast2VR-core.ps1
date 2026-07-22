@@ -61,6 +61,10 @@ Write-Header
 # -------------------------------------------------------
 # STEP 1: Install location (update / reinstall handling)
 # -------------------------------------------------------
+Write-Host " SRB2-VR (OpenXR) by RaYRoD-TV - the free fan platformer Sonic Robo" -ForegroundColor White
+Write-Host " Blast 2 in VR. This installs the full standalone game." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Install location"
 
 Write-Info "SRB2-VR is a free, standalone fan game - no Steam copy needed."
@@ -98,6 +102,7 @@ if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
 # -------------------------------------------------------
 # STEP 2: Download the latest release from GitHub
 # -------------------------------------------------------
+$null = Show-UpdateNoticeIfInstalled -TargetDir $INSTALL_ROOT -RelModFile $GAME_EXE -Label "SRB2-VR"
 Write-Step 2 4 "Downloading the latest release"
 
 # Resolve the newest full-bundle asset via the GitHub API. Falls back

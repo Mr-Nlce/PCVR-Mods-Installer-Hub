@@ -117,6 +117,10 @@ function Copy-Tree {
 Write-Header
 
 # ---- STEP 1: locate Saints Row: The Third ----
+Write-Host " This installs zolika1351's ZMenu plus its VR build onto Saints Row: The" -ForegroundColor White
+Write-Host " Third Remastered, adding a stereoscopic VR view. Gamepad controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating your Saints Row: The Third install"
 $gameDir = $null
 try { $gameDir = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @($STEAM_FOLDER) -ProbeExe $GAME_EXE -GogNames @($GOG_FOLDER) } catch { $gameDir = $null }
@@ -262,7 +266,7 @@ if (Test-Path $exePath) {
 
 # ---- STEP 4: how to play in VR ----
 Write-Step 4 4 "How to start VR in-game"
-Write-Host " Launch the game with $GAME_EXE (use the new desktop shortcut," -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or the new desktop shortcut" -ForegroundColor White
 Write-Host " the Hub's Start button, or run the DX11 exe directly)." -ForegroundColor White
 Write-Host ""
 Write-Host " Once you are in the game:" -ForegroundColor White

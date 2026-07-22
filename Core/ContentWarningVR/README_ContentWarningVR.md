@@ -41,7 +41,7 @@ Controls can be fully rebound in Settings → Controls at any time, even mid-gam
 
 ## Configuring the mod
 
-Change settings from inside the game: launch with the mod installed, go to
+Change settings from inside the game: launch with the mod installed (**Start in VR** in the Hub or via Steam), go to
 the main menu -> Settings -> **Mods**. Settings can be changed mid-game; no
 restart or rejoin needed.
 

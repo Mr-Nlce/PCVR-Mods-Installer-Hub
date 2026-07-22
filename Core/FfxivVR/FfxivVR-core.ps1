@@ -83,7 +83,7 @@ function Find-FFXIVGamePath {
 
  # First candidate that contains boot\ffxivboot.exe wins.
  foreach ($c in $candidates) {
- if (Test-Path (Join-Path $c "boot\ffxivboot.exe")) { return $c }
+ if (Test-Path -LiteralPath "$c\boot\ffxivboot.exe") { return $c }
  }
  return $null
 }
@@ -91,6 +91,10 @@ function Find-FFXIVGamePath {
 Write-Header
 
 # ---- STEP 1: XIVLauncher ----
+Write-Host " FFXIV VR by WesleyLuk90 - a VR plugin for Final Fantasy XIV, installed" -ForegroundColor White
+Write-Host " through XIVLauncher and Dalamud. Gamepad controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Checking XIVLauncher"
 
 $xlPath = Find-XIVLauncher

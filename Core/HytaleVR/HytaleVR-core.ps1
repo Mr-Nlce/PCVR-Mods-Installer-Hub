@@ -152,6 +152,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $DASH_EXE
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $DASH_EXE -Label "Hytale VR"
 Write-Step 2 4 "Downloading Hytale VR (latest windows-x64 release)"
 
 $tmp = Join-Path $installRoot "_hytalevr_extract_tmp"
@@ -378,7 +379,8 @@ Write-Host "    In Hytale's Video settings, set Anti-aliasing FXAA to OFF." -For
 Write-Host ""
 Write-Host "  EVERY SESSION (takes ~10 seconds):" -ForegroundColor Yellow
 Write-Host "    1. Start SteamVR (headset connected)." -ForegroundColor White
-Write-Host "    2. Launch via the 'Hytale VR' desktop shortcut - it starts the" -ForegroundColor White
+Write-Host "    2. Launch with 'Start in VR' in the Hub, or the 'Hytale VR'" -ForegroundColor White
+Write-Host "       desktop shortcut - either starts the" -ForegroundColor White
 Write-Host "       Hytale Launcher AND the camera dashboard together." -ForegroundColor White
 Write-Host "    3. Enter a world or join a server." -ForegroundColor White
 Write-Host "    4. Press F7 in-game to show the player coordinate block." -ForegroundColor White

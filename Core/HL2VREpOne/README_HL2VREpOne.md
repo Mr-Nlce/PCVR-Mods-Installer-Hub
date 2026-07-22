@@ -18,7 +18,7 @@ Same VR feature set as the base Half-Life 2: VR Mod:
 
 ## How to install (external)
 1. Open the info page (Steam) and install the Episode One VR support from the HL2 VR Mod project.
-2. Launch from Steam; it starts in VR.
+2. Launch with **Start in VR** in the Hub or from Steam; it starts in VR.
 
 ## Optional: "Unleashed" addon
 **HL2VRU** by **Vittorio Romeo** also works with Episode One, adding dual wielding, physical melee, a virtual stock, grip-holster mode, and jumping. See its page for SteamVR binding setup.

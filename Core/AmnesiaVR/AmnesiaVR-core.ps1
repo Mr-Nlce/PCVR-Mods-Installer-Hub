@@ -284,6 +284,7 @@ if ($existingGamePath) {
     Write-Host ""
     $modeChoice = (Read-Host "  Choose 1 or 2").Trim()
     if ($modeChoice -eq "1") {
+        Pause-User "Press Enter to start..."
         Write-Step 1 1 "Adding the HD texture pack"
         $sclData = Join-Path $existingGamePath "Sclerosis_Data"
         $ok = Install-AmnesiaHDTextures -SclDataDir $sclData -ScriptDir $PSScriptRoot

@@ -191,7 +191,7 @@ if (-not $allOK) {
 $hl2vrPath = Find-SteamGameFolder -folderName "Half-Life 2 VR" -libraries $libraries
 $blackMesaPath = if ($hasBlackMesa) { Find-SteamGameFolder -folderName "Black Mesa" -libraries $libraries } else { $null }
 
-if (-not $hl2vrPath -or -not (Test-Path (Join-Path $hl2vrPath "ep2vr.exe"))) {
+if (-not $hl2vrPath -or -not (Test-Path -LiteralPath "$hl2vrPath\ep2vr.exe")) {
  Write-Fail "ep2vr.exe not found in: $hl2vrPath"
  Write-Fail "Install Half-Life 2: VR Mod - Episode Two via Steam first."
  Write-Host ""
@@ -219,12 +219,12 @@ Write-Host ""
 }
 Write-OK "HL2VR folder: $hl2vrPath"
 Write-OK "ep2vr.exe verified"
-if (Test-Path (Join-Path $hl2vrPath "ep1vr.exe")) {
+if (Test-Path -LiteralPath "$hl2vrPath\ep1vr.exe") {
  Write-Info "ep1vr.exe also present (good - Episode One assets available)"
 }
 
 if ($hasBlackMesa) {
- if (-not $blackMesaPath -or -not (Test-Path (Join-Path $blackMesaPath "bms"))) {
+ if (-not $blackMesaPath -or -not (Test-Path -LiteralPath "$blackMesaPath\bms")) {
  Write-Warn "Black Mesa is in library but not installed properly at: $blackMesaPath"
  Write-Warn "Xen 1.0 bonus maps will not work - install Black Mesa via Steam to enable them."
  $hasBlackMesa = $false
@@ -812,7 +812,8 @@ if ($hasBlackMesa) {
 }
 Write-Host ""
 Write-Host " How to play:" -ForegroundColor Yellow
-Write-Host " Easy way: double-click the 'Black Mesa Source VR' desktop shortcut" -ForegroundColor White
+Write-Host " Easy way: 'Start in VR' in the Hub, or the 'Black Mesa Source VR'" -ForegroundColor White
+Write-Host " desktop shortcut" -ForegroundColor White
 Write-Host " (launches the main BMS campaign directly)" -ForegroundColor Gray
 Write-Host ""
 Write-Host " Profile switch (Xen 1.0 maps, Gonarch fix):" -ForegroundColor White

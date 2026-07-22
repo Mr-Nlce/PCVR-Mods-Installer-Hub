@@ -129,6 +129,10 @@ function Copy-PackagePayload {
 # STEP 1: Locate game
 # -------------------------------------------------------
 Write-Header
+Write-Host " The Techtonica VR mod by 3_141 (Xenira) adds full motion-controller" -ForegroundColor White
+Write-Host " support, a 6DoF VR camera, and body IK. Installed via Thunderstore." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Techtonica"
 
 $gamePath = $null
@@ -196,7 +200,7 @@ if (Get-Zip "BepInEx 5.4.2305" $URLS.BepInEx "$tmp\bep.zip") {
  Get-ChildItem -Path $src | Where-Object { $_.Name -notin $TS_META_FILES } | ForEach-Object {
  Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
  }
- if (Test-Path (Join-Path $gamePath "winhttp.dll")) {
+ if (Test-Path -LiteralPath "$gamePath\winhttp.dll") {
  Write-OK "BepInEx 5.4.2305 installed."
  } else {
  Write-Fail "BepInEx copy failed - winhttp.dll not in game folder."
@@ -265,8 +269,10 @@ Write-Host "============================================================" -Foreg
 
 Write-Host ""
 Write-Host "--- First Launch ---" -ForegroundColor Cyan
-Write-Host " Start SteamVR BEFORE launching Techtonica." -ForegroundColor White
-Write-Host " Launch the game from Steam as normal - BepInEx loads the mod." -ForegroundColor White
+Write-Host " Launch SteamVR before the game to avoid it potentially starting" -ForegroundColor White
+Write-Host " sometimes out of focus." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or from Steam as normal -" -ForegroundColor White
+Write-Host " BepInEx loads the mod either way." -ForegroundColor White
 Write-Host ""
 Write-Host " IMPORTANT: After installing, restart the game once. Let it load to" -ForegroundColor Yellow
 Write-Host " the main menu, then close and relaunch. The mod won't activate" -ForegroundColor Yellow

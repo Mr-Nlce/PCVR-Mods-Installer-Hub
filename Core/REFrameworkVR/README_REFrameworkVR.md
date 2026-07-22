@@ -32,7 +32,7 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 
 ## First launch
 1. Start SteamVR
-2. Launch the game via Steam normally
+2. Launch with **Start in VR** in the Hub, or via Steam normally
 3. REFramework loads automatically — configure VR settings in its overlay menu
 
 ## More info

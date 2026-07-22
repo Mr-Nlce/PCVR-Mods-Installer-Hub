@@ -120,6 +120,7 @@ if ($updateOnly) {
 # -------------------------------------------------------
 # STEP 1: Locate Left 4 Dead 2
 # -------------------------------------------------------
+Pause-User "Press Enter to start..."
 Write-Step 1 $totalSteps "Locating Left 4 Dead 2"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -305,10 +306,13 @@ try {
  Write-Host " Extracting ... " -NoNewline -ForegroundColor White
  Expand-Archive -Path $vrZip -DestinationPath $vrExtract -Force
 
- # Copy all files directly into game root (no subfolder)
- Get-ChildItem -Path $vrExtract | ForEach-Object {
+ # Copy all files directly into game root (no subfolder).
+ # Payload-verified: releases/LATEST can change its layout any day.
+ $vrPayload = Get-ExtractedPayloadRoot -ExtractDir $vrExtract -RelModFile "openvr_api.dll"
+ Get-ChildItem -Path $vrPayload | ForEach-Object {
  Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
  }
+ $null = Assert-PayloadDelivered -ExtractDir $vrExtract -TargetDir $gamePath -RelModFile "openvr_api.dll" -Label "L4D2VR"
  Write-Host "OK" -ForegroundColor Green
  if ($tagName) {
  Write-OK "L4D2VR $tagName downloaded and extracted!"
@@ -392,7 +396,8 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "--- Before You Play ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " - Start SteamVR BEFORE launching Left 4 Dead 2." -ForegroundColor White
+Write-Host " - Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "   starting sometimes out of focus." -ForegroundColor White
 Write-Host " - Press LEFT STICK DOWN to recenter camera height." -ForegroundColor White
 Write-Host " Aim controller UP or DOWN to show the HUD." -ForegroundColor Gray
 Write-Host ""

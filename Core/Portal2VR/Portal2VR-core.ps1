@@ -83,6 +83,10 @@ function Find-GamePath {
 # STEP 1: Clean install reminder
 # -------------------------------------------------------
 Write-Header
+Write-Host " Portal2VR Roomscale by Spencer0187 (based on Gistix's Portal2VR) adds" -ForegroundColor White
+Write-Host " roomscale motion-controlled VR to Portal 2." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Before You Start"
 
 Write-Host "  This mod requires a CLEAN Portal 2 install:" -ForegroundColor White
@@ -165,6 +169,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "VR\manifest.
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "VR\manifest.vrmanifest" -Label "Portal2VR"
 Write-Step 3 5 "Installing Portal2VR Roomscale v0.2.2"
 
 $tempDir = Join-Path $env:TEMP "Portal2VRInstaller_$([System.IO.Path]::GetRandomFileName())"
@@ -421,8 +426,9 @@ Write-Host "============================================================" -Foreg
 
 Write-Host ""
 Write-Host "--- First Launch ---" -ForegroundColor Cyan
-Write-Host "  Start SteamVR BEFORE launching Portal 2." -ForegroundColor White
-Write-Host "  Launch the game from inside SteamVR." -ForegroundColor White
+Write-Host "  Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "  starting sometimes out of focus." -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub, or from inside SteamVR." -ForegroundColor White
 
 Write-Host ""
 Write-Host "--- Mod Settings (optional) ---" -ForegroundColor Cyan

@@ -83,6 +83,10 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 # STEP 1: Steam Depot Download
 # -------------------------------------------------------
 Write-Header
+Write-Host " TormentedSoulsVR by cybensis - a full 6DOF VR conversion of Tormented" -ForegroundColor White
+Write-Host " Souls with motion-controlled combat and exploration." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Steam Depot Download"
 
 Write-Host " Tormented Souls VR requires the original build of the game" -ForegroundColor White
@@ -429,8 +433,10 @@ Write-Host ""
 
 Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " >> Start SteamVR BEFORE launching Tormented Souls." -ForegroundColor Yellow
-Write-Host " >> Launch via the desktop shortcut, NOT via Steam." -ForegroundColor Yellow
+Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
+Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
+Write-Host " >> Launch with 'Start in VR' in the Hub or the desktop" -ForegroundColor Yellow
+Write-Host "    shortcut - NOT via Steam." -ForegroundColor Yellow
 Write-Host " (Launching via Steam would run your retail version)" -ForegroundColor Gray
 Write-Host ""
 Write-Host " Quick control reminders:" -ForegroundColor White

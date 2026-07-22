@@ -103,7 +103,7 @@ function Find-RogueFlightGamePath {
  # the strongest signal we found the right install.
  foreach ($folder in @("Rogue Flight", "RogueFlight", "ROGUE FLIGHT", "ROGUE_FLIGHT")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "RogueFlight_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\RogueFlight_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

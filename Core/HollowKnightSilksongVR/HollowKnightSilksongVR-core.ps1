@@ -106,7 +106,7 @@ function Find-SilksongGamePath {
  # cases.
  foreach ($folder in @("Hollow Knight Silksong", "HollowKnightSilksong", "Silksong")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Hollow Knight Silksong_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Hollow Knight Silksong_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

@@ -82,6 +82,10 @@ function Test-WritableRoot {
 # STEP 1: Locate Quake base-game id1 (PAK0.PAK + PAK1.PAK)
 # -------------------------------------------------------
 Write-Header
+Write-Host " Quake VR by Vittorio Romeo - a QuakeSpasm-based VR port of Quake with" -ForegroundColor White
+Write-Host " full motion controls and room-scale movement (SteamVR/OpenVR)." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Locating Quake"
 
 $sourceId1 = $null
@@ -90,7 +94,7 @@ $steamPath = Get-SteamPath
 if ($steamPath) {
     foreach ($lib in (Get-SteamLibraries $steamPath)) {
         $candidate = Join-Path $lib "steamapps\common\$STEAM_FOLDER\id1"
-        if (Test-Path (Join-Path $candidate "PAK0.PAK")) {
+        if (Test-Path -LiteralPath "$candidate\PAK0.PAK") {
             $sourceId1 = $candidate
             Write-Info "Quake found via Steam: $sourceId1"
             break
@@ -107,7 +111,7 @@ if (-not $sourceId1) {
                     $gogPath = (Get-ItemProperty -Path $_.PSPath -ErrorAction Stop).path
                     if ($gogPath) {
                         $candidate = Join-Path $gogPath "id1"
-                        if (Test-Path (Join-Path $candidate "PAK0.PAK")) {
+                        if (Test-Path -LiteralPath "$candidate\PAK0.PAK") {
                             $sourceId1 = $candidate
                             Write-Info "Quake found via GOG: $sourceId1"
                         }
@@ -136,7 +140,7 @@ if (-not $sourceId1) {
         if ($steamPath) {
             foreach ($lib in (Get-SteamLibraries $steamPath)) {
                 $candidate = Join-Path $lib "steamapps\common\$STEAM_FOLDER\id1"
-                if (Test-Path (Join-Path $candidate "PAK0.PAK")) { $sourceId1 = $candidate; Write-Info "Quake found: $sourceId1"; break }
+                if (Test-Path -LiteralPath "$candidate\PAK0.PAK") { $sourceId1 = $candidate; Write-Info "Quake found: $sourceId1"; break }
             }
         }
     }
@@ -145,7 +149,7 @@ if (-not $sourceId1) {
         Write-Host "    Steam: C:\Program Files (x86)\Steam\steamapps\common\Quake\id1" -ForegroundColor Gray
         Write-Host "    GOG:   C:\GOG Games\Quake\id1" -ForegroundColor Gray
         $r = (Read-Host "  Path").Trim().Trim('"')
-        if (Test-Path (Join-Path $r "PAK0.PAK")) { $sourceId1 = $r; Write-Info "Path set: $sourceId1" }
+        if (Test-Path -LiteralPath "$r\PAK0.PAK") { $sourceId1 = $r; Write-Info "Path set: $sourceId1" }
         else { Write-Fail "PAK0.PAK not found at: $r" }
     }
 }
@@ -363,8 +367,10 @@ Write-Host "============================================================" -Foreg
 Write-Host "  !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "  Start SteamVR BEFORE launching the game." -ForegroundColor White
-Write-Host "  Launch via the desktop shortcut 'Quake VR'." -ForegroundColor White
+Write-Host "  Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "  starting sometimes out of focus." -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub, or the desktop" -ForegroundColor White
+Write-Host "  shortcut 'Quake VR'." -ForegroundColor White
 Write-Host ""
 Write-Host "  After first launch, open SteamVR -> Controller Bindings and" -ForegroundColor Gray
 Write-Host "  confirm both action sets (in-game + menu) are mapped to your" -ForegroundColor Gray

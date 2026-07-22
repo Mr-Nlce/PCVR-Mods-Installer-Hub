@@ -5,7 +5,12 @@
 # Groeninger and Malcolm Smith - a KMQuake II-based VR port of
 # Quake II. Offers two editions: a binaries-only build (auto-
 # downloaded from GitHub) and a full/HD-textures build (manual
-# download via MEGA, dropped into the installer). Copies pak0.pak
+# download via MEGA, dropped into the installer). The original
+# malcolm-s.net MEGA link for the full pack went dead (file deleted);
+# $HD_URL now points at a re-hosted copy of the SAME quake2vr-2.0.0-
+# full.zip (files at the zip root, no wrapper folder), minus the
+# retail id paks the installer copies from the user's Steam anyway.
+# Copies pak0.pak
 # (and optional players/ + videos/) from the user's Steam/GOG
 # Quake II install into the q2vr baseq2 folder, and creates a
 # desktop shortcut. Never bundles payloads - builds are always
@@ -32,7 +37,7 @@ $BIN_URLS     = @(
     "https://github.com/q2vr/quake2vr/releases/download/v2.0.0a/Quake2VR-2.0.0-bin.zip",
     "http://www.malcolm-s.net/q2vr/Quake2VR-2.0.0-shareware.zip"
 )
-$HD_URL       = "https://mega.nz/#!5k9C3KCb!PeXff81k9-KG1Itptqm1KQPgWIke8d-98A-UL0-IBc8"
+$HD_URL       = "https://mega.nz/file/4PZHVAqS#YpgnQPMSCiS-7-WU4wnvNqIu-vHk6K--s9S9H5aooRw"
 $GAME_FOLDER  = "Quake 2 VR"
 $GAME_EXE     = "quake2vr.exe"
 $STEAM_FOLDER = "Quake 2"
@@ -166,6 +171,10 @@ function Test-OculusRuntime {
 # STEP 1: Locate Quake II baseq2 (pak0.pak)
 # -------------------------------------------------------
 Write-Header
+Write-Host " Quake 2 VR by Luke Groeninger & Malcolm Smith - a KMQuake II-based VR" -ForegroundColor White
+Write-Host " port with decoupled aiming. Targets the Oculus / Meta runtime (LibOVR)." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Quake II"
 
 $sourceBaseq2 = $null
@@ -563,6 +572,42 @@ if (Test-Path $gameExePath) {
         Write-Warn "Could not create shortcut: $($_.Exception.Message)"
         Write-Host "  Launch manually from: $gameExePath" -ForegroundColor Gray
     }
+    # Mission-pack add-ons launch through their own bats in the install
+    # root - hub rule: bat-launched things get a DESKTOP SHORTCUT as the
+    # advertised route, never "run the bat". Enumerate the bats that
+    # actually exist so the names always match the shipped build.
+    if ($missionDone.Count -gt 0) {
+        # Their icons ship with the Hub (this installer's folder) and are
+        # COPIED into the game folder first, so the shortcuts keep their
+        # icons even if the Hub itself is later moved or deleted.
+        $mpIcons = @(
+            @{ Match = "*Ground Zero*"; File = "GroundZero_VR.ico" },
+            @{ Match = "*Reckoning*";   File = "TheReckoning_VR.ico" }
+        )
+        foreach ($ic in $mpIcons) {
+            $icSrc = Join-Path $PSScriptRoot $ic.File
+            if (Test-Path -LiteralPath $icSrc) {
+                try { Copy-Item -LiteralPath $icSrc -Destination (Join-Path $installRoot $ic.File) -Force } catch {}
+            }
+        }
+        Get-ChildItem -Path $installRoot -Filter "Quake II VR - *.bat" -ErrorAction SilentlyContinue | ForEach-Object {
+            $mpName = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
+            $mpIcon = "$gameExePath,0"
+            foreach ($ic in $mpIcons) {
+                if ($mpName -like $ic.Match) {
+                    $icInGame = Join-Path $installRoot $ic.File
+                    if (Test-Path -LiteralPath $icInGame) { $mpIcon = "$icInGame,0" }
+                    break
+                }
+            }
+            try {
+                New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\$mpName.lnk" -TargetPath $_.FullName -WorkingDir $installRoot -IconPath $mpIcon -Description "$mpName (Quake 2 VR add-on)" | Out-Null
+                Write-OK "Desktop shortcut '$mpName' created."
+            } catch {
+                Write-Warn "Could not create the '$mpName' shortcut: $($_.Exception.Message)"
+            }
+        }
+    }
 } else {
     Write-Warn "quake2vr.exe not found in the install folder."
     Write-Host "  Expected at: $gameExePath" -ForegroundColor Gray
@@ -634,8 +679,8 @@ if ($useRevive) {
 }
 if ($missionDone.Count -gt 0) {
     Write-Host ""
-    Write-Host "  Add-on launchers ($($missionDone -join ', ')) are in the install" -ForegroundColor White
-    Write-Host "  folder as 'Quake II VR - <name>.bat'." -ForegroundColor White
+    Write-Host "  The add-ons ($($missionDone -join ', ')) each got their own" -ForegroundColor White
+    Write-Host "  desktop shortcut - launch them from there." -ForegroundColor White
 }
 Write-Host ""
 Write-Host "  If VR does not start automatically, open the console (~ key)" -ForegroundColor Gray

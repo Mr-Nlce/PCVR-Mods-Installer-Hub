@@ -431,6 +431,10 @@ function Test-IsZip {
 }
 
 # STEP 1: Obtain the R.E.A.L. VR mod (cached centrally, reused for all games)
+Write-Host " Luke Ross R.E.A.L. VR brings AAA games into stereoscopic 6DoF VR." -ForegroundColor White
+Write-Host " Gamepad controls. Requires an active R.E.A.L. Patreon subscription." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "R.E.A.L. VR Mod"
 
 # Ensure the central Hub cache folder exists.

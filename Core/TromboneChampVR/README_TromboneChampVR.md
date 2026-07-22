@@ -29,7 +29,7 @@ You need to own Trombone Champ on Steam for the depot download.
 
 1. Start the **Steam** client.
 2. Start **SteamVR**.
-3. Launch with the **Trombone Champ VR** desktop shortcut.
+3. Launch with **Start in VR** in the Hub, or the **Trombone Champ VR** desktop shortcut.
 
 ## Controls
 

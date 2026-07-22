@@ -117,7 +117,7 @@ function Find-AnotherCrabsTreasureGamePath {
  "AnotherCrabsTreasure"
  )) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "AnotherCrabsTreasure_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\AnotherCrabsTreasure_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

@@ -20,7 +20,7 @@ https://steamcommunity.com/sharedfiles/filedetails/?id=3724995607
 
 Note this is not fully automatic - after subscribing you still do a
 one-time manual step:
-1. Subscribe, then launch the game once and let the download finish
+1. Subscribe, then launch the game once (**Start in VR** in the Hub works) and let the download finish
 2. Find the file at `left4dead2\addons\workshop\3724995607.vpk` in your
    game folder
 3. Rename its extension from `.vpk` to `.zip`, open it, and extract all

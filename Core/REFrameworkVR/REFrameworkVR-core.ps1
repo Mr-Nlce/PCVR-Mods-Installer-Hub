@@ -33,6 +33,20 @@ $ErrorActionPreference = "Stop"
 $GITHUB_API = "https://api.github.com/repos/praydog/REFramework-nightly/releases/latest"
 $INFO_URL = "https://github.com/praydog/REFramework"
 
+# --- Pragmata AFW (Alternate Frame Warping) performance variant --------
+# Pragmata is extremely demanding in VR. PureDark's AFW plugin is a
+# separate rendering method that can boost VR performance ~60-80% and
+# fixes DLSS wobbling. It is a fixed release (NOT auto-updating like the
+# praydog nightly), so choosing it means this game opts out of the
+# nightly update flow until the user switches back. Only offered for
+# Pragmata. The pack is two flat DLLs (PDAFWPlugin.dll + dinput8.dll)
+# that extract straight into the game folder alongside REFramework.
+$AFW_PAGE_URL = "https://github.com/PureDark/REFramework/releases/tag/PRAGMATA_AFW_v1.0-beta.1"
+$AFW_ZIP_URL  = "https://github.com/PureDark/REFramework/releases/download/PRAGMATA_AFW_v1.0-beta.1/PRAGMATA_AFW_v1.0-beta.1.zip"
+$AFW_ZIP_NAME = "PRAGMATA_AFW_v1.0-beta.1.zip"
+$AFW_MARKER   = "PDAFWPlugin.dll"   # presence in game folder = AFW installed
+$AFW_FILES    = @("PDAFWPlugin.dll", "dinput8.dll")  # what AFW adds
+
 # Game definitions: Title, SteamFolder, EXE
 $GAMES = @(
  @{ Title="Apollo Justice: Ace Attorney Trilogy"; Folders=@("Apollo Justice Ace Attorney Trilogy","ApolloJustice"); Exe="GS456.exe"; ExeFallbacks=@("ApolloJustice.exe"); Flavor="Take that! Object in VR. The truth is in the details." },
@@ -122,6 +136,10 @@ if ($GameTitle -and $GameFolder -and $GameExe) {
 }
 
 Write-Header $selectedGame.Title
+Write-Host " REFramework VR by praydog adds generic 6DOF VR to RE Engine games." -ForegroundColor White
+Write-Host " Played on a gamepad. Auto-updates from praydog's GitHub nightly." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating $($selectedGame.Title)"
 
 $gamePath = $null
@@ -169,6 +187,57 @@ if (-not $gamePath) {
  }
  if (-not $found) { Write-Fail "$($selectedGame.Exe) not found: $r" }
  }
+}
+
+# Re-run = update: tell the user when the mod is already present.
+if ($gamePath) { $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "openxr_loader.dll" -Label "REFramework VR" }
+
+# -------------------------------------------------------
+# Pragmata AFW variant selection
+# -------------------------------------------------------
+# Only Pragmata offers the AFW performance variant. $wantAFW decides
+# whether we also lay down PureDark's AFW plugin after the base install;
+# $removeAFW cleans an existing AFW install when switching back to the
+# plain auto-updating nightly. For every other game these stay false.
+$isPragmata = (($selectedGame.Title -replace "[^A-Za-z0-9]","").ToLower() -eq "pragmata")
+$wantAFW   = $false
+$removeAFW = $false
+if ($isPragmata -and $gamePath) {
+    $afwInstalled = Test-Path (Join-Path $gamePath $AFW_MARKER)
+    Write-Header $selectedGame.Title
+    Write-Host " Pragmata is extremely demanding in VR. You can install the" -ForegroundColor White
+    Write-Host " standard REFramework VR mod, or a performance-focused variant" -ForegroundColor White
+    Write-Host " that adds PureDark's AFW (Alternate Frame Warping) plugin." -ForegroundColor White
+    Write-Host ""
+    Write-Host " [1] Standard REFramework VR (by praydog)" -ForegroundColor Cyan
+    Write-Host "     Auto-updates from the GitHub nightly. Recommended if the" -ForegroundColor Gray
+    Write-Host "     game already runs well for you." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host " [2] REFramework VR + AFW performance plugin (by PureDark)" -ForegroundColor Cyan
+    Write-Host "     Adds AFW on top of REFramework: can boost VR performance" -ForegroundColor Gray
+    Write-Host "     by roughly 60-80% and fixes DLSS wobbling. Uses ~500 MB" -ForegroundColor Gray
+    Write-Host "     more VRAM. This is a fixed release, so while it's active" -ForegroundColor Gray
+    Write-Host "     the game won't auto-update the nightly until you switch" -ForegroundColor Gray
+    Write-Host "     back to [1]. Aim for 90 fps; turn off Hair Strands and" -ForegroundColor Gray
+    Write-Host "     don't use Motion Smoothing/ASW/SSW (see the notes after" -ForegroundColor Gray
+    Write-Host "     install)." -ForegroundColor Gray
+    Write-Host ""
+    if ($afwInstalled) {
+        Write-Host " The AFW variant is currently installed here." -ForegroundColor Yellow
+        Write-Host " Choosing [1] will remove the AFW plugin and return to the" -ForegroundColor Gray
+        Write-Host " standard auto-updating nightly." -ForegroundColor Gray
+        Write-Host ""
+    }
+    $afwSel = ""
+    while (-not ($afwSel -match "^[12]$")) {
+        $afwSel = (Read-Host " Choice (1-2)").Trim()
+    }
+    if ($afwSel -eq "2") {
+        $wantAFW = $true
+    } elseif ($afwInstalled) {
+        # Chose standard while AFW is present -> switch back: remove AFW.
+        $removeAFW = $true
+    }
 }
 
 # -------------------------------------------------------
@@ -293,7 +362,7 @@ $tmp = Join-Path $env:TEMP "REFrameworkVR_$([System.IO.Path]::GetRandomFileName(
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $failed = @()
 
-foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF}, @{Name="VR.zip"; Url=$vrZipUrl; Cache=$REF_CACHE_VR})) {
+foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF; Verify="dinput8.dll"}, @{Name="VR.zip"; Url=$vrZipUrl; Cache=$REF_CACHE_VR; Verify="openxr_loader.dll"})) {
  # Pick the source zip: the saved copy, a manual local file, or a download.
  if ($useCache) {
    $dest = $dl.Cache
@@ -314,8 +383,11 @@ foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF
    }
  }
 
- # Extract directly into game folder - no unwrapping needed (flat ZIPs)
- $efb = Expand-ArchiveOrFallback -ArchivePath $dest -DestinationFolder $gamePath `
+ # Payload-verified extract: pulled from releases/LATEST, so the ZIP
+ # layout can change any day - extract to temp, resolve the real payload
+ # root, merge into the game folder, verify the key file arrived.
+ $efb = Expand-ArchiveToTarget -ArchivePath $dest -TargetDir $gamePath `
+          -RelModFile $dl.Verify `
           -Label "$($dl.Name) extraction" `
           -SkipMessage "Skipped - $($dl.Name) was not extracted into the game folder."
  if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
@@ -342,6 +414,63 @@ if ($refreshCache -and $failed.Count -eq 0) {
 
 try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
 
+# -------------------------------------------------------
+# Pragmata AFW: install the plugin, or remove it on switch-back
+# -------------------------------------------------------
+# Runs only for Pragmata (both flags default false elsewhere). AFW is
+# laid down AFTER the base REFramework install so it sits alongside it.
+$afwStatus = $null   # "installed" | "removed" | "failed" | $null
+if ($removeAFW) {
+    $anyRemoved = $false
+    foreach ($f in $AFW_FILES) {
+        $p = Join-Path $gamePath $f
+        if (Test-Path $p) {
+            try { Remove-Item $p -Force -EA Stop; $anyRemoved = $true }
+            catch { Write-Warn "Could not remove $f : $($_.Exception.Message)" }
+        }
+    }
+    $afwStatus = if ($anyRemoved) { "removed" } else { $null }
+}
+elseif ($wantAFW) {
+    $afwTmp = Join-Path ([System.IO.Path]::GetTempPath()) ("afw_" + [System.Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $afwTmp -Force | Out-Null
+    $afwDest = Join-Path $afwTmp $AFW_ZIP_NAME
+    $afwOk = $false
+    $r = Invoke-DownloadOrFallback -Url $AFW_ZIP_URL -Destination $afwDest `
+           -Label "AFW plugin (PRAGMATA_AFW_v1.0-beta.1)" `
+           -ManualUrl $AFW_PAGE_URL `
+           -Instructions "Download '$AFW_ZIP_NAME' from PureDark's release page. Place it at '$afwDest' and choose Retry." `
+           -SkipMessage "Skipped - AFW was not downloaded; the standard REFramework install is still in place."
+    if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+    if ($r -is [bool] -and $r) {
+        # Flat zip (PDAFWPlugin.dll + dinput8.dll) - payload-verified extract.
+        $efb = Expand-ArchiveToTarget -ArchivePath $afwDest -TargetDir $gamePath `
+                 -RelModFile $AFW_MARKER `
+                 -Label "AFW plugin extraction" `
+                 -SkipMessage "Skipped - AFW was not extracted; the standard REFramework install is still in place."
+        if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+        if (([string]$efb -eq "ok" -or [string]$efb -eq "manual") -and (Test-Path (Join-Path $gamePath $AFW_MARKER))) {
+            $afwOk = $true
+        }
+    }
+    $afwStatus = if ($afwOk) { "installed" } else { "failed" }
+    try { Remove-Item $afwTmp -Recurse -Force -EA SilentlyContinue } catch {}
+}
+
+# Record whether AFW is active, next to the version marker, so the Hub
+# and a future installer run can tell which variant is in place. Only
+# meaningful for Pragmata; harmless elsewhere.
+if ($isPragmata) {
+    $afwFlagFile = Join-Path $PSScriptRoot ".afw_active_pragmata"
+    try {
+        if (Test-Path (Join-Path $gamePath $AFW_MARKER)) {
+            Set-Content $afwFlagFile "1" -Encoding UTF8 -Force
+        } elseif (Test-Path $afwFlagFile) {
+            Remove-Item $afwFlagFile -Force -EA SilentlyContinue
+        }
+    } catch {}
+}
+
 # Record the installed build tag where the Hub's Check-Installed scan reads
 # it (.installed_version_<safe title>), so the game tile flips to "Update"
 # when a newer nightly is published. Keyed by title because all REFramework
@@ -362,12 +491,40 @@ if ("REFramework.zip" -notin $failed) { Write-Host " [x] REFramework.zip ($tagNa
 else { Write-Host " [ ] REFramework.zip -- FAILED" -ForegroundColor Red }
 if ("VR.zip" -notin $failed) { Write-Host " [x] VR.zip" -ForegroundColor Green }
 else { Write-Host " [ ] VR.zip -- FAILED" -ForegroundColor Red }
+if ($afwStatus -eq "installed") { Write-Host " [x] AFW performance plugin (by PureDark)" -ForegroundColor Green }
+elseif ($afwStatus -eq "failed") { Write-Host " [ ] AFW performance plugin -- FAILED (standard install is intact)" -ForegroundColor Red }
+elseif ($afwStatus -eq "removed") { Write-Host " [x] AFW performance plugin removed - back to the standard nightly" -ForegroundColor Green }
 Write-Host ""
-Write-Host " Start SteamVR before launching the game." -ForegroundColor White
-Write-Host " Launch the game via Steam normally." -ForegroundColor White
+Write-Host " Launch SteamVR before the game to avoid it potentially starting" -ForegroundColor White
+Write-Host " sometimes out of focus." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or via Steam normally." -ForegroundColor White
 Write-Host " REFramework loads automatically - configure VR in its menu." -ForegroundColor Gray
 Write-Host ""
-Write-Host " To update: run this installer again." -ForegroundColor Gray
+if ($afwStatus -eq "installed") {
+    Write-Host " AFW is active - a few things to get the best out of it:" -ForegroundColor Cyan
+    Write-Host "   - In-game, turn ON DLSS/DLAA (or FSR); AFW fixes the VR" -ForegroundColor Gray
+    Write-Host "     wobbling, so DLSS Quality/Balanced/Performance are fine." -ForegroundColor Gray
+    Write-Host "   - Turn OFF Hair Strands (it causes a ghosting hair edge)." -ForegroundColor Gray
+    Write-Host "   - Aim for 90 fps, not 72 - AFW works best at 90." -ForegroundColor Gray
+    Write-Host "   - Do NOT use Motion Smoothing / ASW / SSW in SteamVR," -ForegroundColor Gray
+    Write-Host "     Quest Link or Virtual Desktop - AFW replaces them and" -ForegroundColor Gray
+    Write-Host "     they'd halve the engine fps and add input lag." -ForegroundColor Gray
+    Write-Host "   - Needs ~500 MB extra VRAM; if you're short it can drop to" -ForegroundColor Gray
+    Write-Host "     single-digit fps. Minor artifacts can happen - just judge" -ForegroundColor Gray
+    Write-Host "     whether the performance gain is worth it." -ForegroundColor Gray
+    Write-Host "   - Debug hotkeys: Numpad 7 toggles AFW vs default rendering," -ForegroundColor Gray
+    Write-Host "     Numpad 4 toggles the DLSS wobbling fix, Numpad 6 shows the" -ForegroundColor Gray
+    Write-Host "     AFW debug tint, Numpad * toggles sharpening (+/- adjusts)." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "   AFW is a fixed release and won't auto-update. Run this" -ForegroundColor Gray
+    Write-Host "   installer again and pick [1] to switch back to the" -ForegroundColor Gray
+    Write-Host "   auto-updating nightly. Thanks to PureDark for the plugin." -ForegroundColor Gray
+    Write-Host "   AFW page: $AFW_PAGE_URL" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host " To update REFramework itself: run this installer again." -ForegroundColor Gray
+} else {
+    Write-Host " To update: run this installer again." -ForegroundColor Gray
+}
 Write-Host " More info: $INFO_URL" -ForegroundColor Gray
 Write-Host ""
 if ($selectedGame.Flavor) {

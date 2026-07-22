@@ -15,7 +15,7 @@ Windows only for now, built against OpenXR 1.0, so any PCVR-capable headset shou
 
 1. Downloads the latest Star Fox 64 VR release from GitHub
 2. Installs it to `C:\Games\Star Fox 64 VR` (or a folder you pick)
-3. Creates a desktop shortcut
+3. Creates a desktop shortcut - launch with **Start in VR** in the Hub or that shortcut
 
 ## Providing the ROM
 

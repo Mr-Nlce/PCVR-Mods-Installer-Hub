@@ -29,7 +29,7 @@ PEAK keeps shipping updates that break the VR mod. The README of v1.0.0 states t
 
 1. Make sure **Steam is running** (PEAK still authenticates via Steam even from a pinned folder)
 2. Start **SteamVR**
-3. Double-click the **PEAK VR** desktop shortcut
+3. Launch with **Start in VR** in the Hub, or the **PEAK VR** desktop shortcut
 
 ## Runtime + Graphics API combinations
 

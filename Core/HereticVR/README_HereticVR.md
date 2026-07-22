@@ -14,15 +14,15 @@ GOG owners are also supported - the installer will prompt for the WAD path if it
 
 1. **Locates your WAD** - searches Steam for Heretic and copies `HERETIC.WAD` from there.
 2. **Downloads the engine** - GZDoomVR v4.13.2.2 (~25 MB) from GitHub, on first install only.
-3. **Creates a launcher** - `Start Heretic VR.bat` next to gzdoomvr.exe with VR mode pre-configured.
-4. **Adds a desktop shortcut** - one-click launch into VR.
+3. **Pre-configures VR mode** - the launch settings are set up for the headset, nothing to configure.
+4. **Adds a desktop shortcut** - one-click launch into VR (or use **Start in VR** in the Hub).
 
 The engine is shared between all five Doom-family VR games (Doom, Doom 2, Heretic, Hexen, Strife) - if you install another later, the engine download is skipped and only the WAD is added.
 
 ## Requirements
 
 - Heretic owned on Steam (the WAD source) **or** a local `HERETIC.WAD` you can point the installer at.
-- SteamVR running before launch.
+- Launch SteamVR before the game to avoid it potentially starting sometimes out of focus.
 - SteamVR Theatre Mode disabled: `Settings -> Dashboard -> Present Non-VR Applications` set to OFF.
 
 ## Performance notes

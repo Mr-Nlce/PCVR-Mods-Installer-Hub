@@ -41,7 +41,7 @@ Click **Install Mod** on the Quake VR tile (or its detail page) and follow the p
 
 ## Launching
 1. Start **SteamVR** first.
-2. Launch from the **Quake VR** desktop shortcut.
+2. Launch with **Start in VR** in the Hub, or the **Quake VR** desktop shortcut.
 3. On first run, open **SteamVR → Controller Bindings** and confirm both action sets (in-game + menu) are mapped to your controllers.
 4. In **Quake VR Settings**: calibrate height, tune the VR torso + holster hotspots, and review Immersion Settings.
 

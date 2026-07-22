@@ -88,6 +88,10 @@ function Find-GamePath {
 # STEP 1: Locate Garry's Mod
 # -------------------------------------------------------
 Write-Header
+Write-Host " VRMod x64 Ultimate Edition (Abyss-c0re, fork of Catse's VRMod) adds" -ForegroundColor White
+Write-Host " motion-controlled VR to Garry's Mod." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 7 "Locating Garry's Mod"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -191,6 +195,7 @@ if ($hasStaleData) {
 # -------------------------------------------------------
 # STEP 4: Download & install modules
 # -------------------------------------------------------
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "garrysmod\lua\bin\gmcl_vrmod_win64.dll" -Label "VRMod"
 Write-Step 4 7 "Installing VRMod modules"
 
 # TLS is negotiated by the shared download helper.

@@ -38,6 +38,7 @@ Write-Host " from the modder's GitHub. Works with game versions 1.30-1.32." -For
 Write-Host ""
 
 # ---- STEP 1: find the game ----
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Finding Idols of Ash"
 $gameDir = $null
 $candidates = @()
@@ -72,6 +73,7 @@ if ($gameDir) {
         }
     }
     Write-OK "Using: $gameDir"
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gameDir -RelModFile "xr_injector\xr_injector.gd" -Label "UGVR Injector"
 }
 
 # ---- STEP 2: protect an existing override.cfg ----
@@ -113,7 +115,8 @@ if (-not (Test-Path -LiteralPath $tmpZip)) {
     Pause-User "Press Enter to exit..."; exit 1
 }
 
-$r2 = Expand-ArchiveOrFallback -ArchivePath $tmpZip -DestinationFolder $gameDir -Label "UGVR Injector" `
+# Payload-verified extract (releases/LATEST - layout can change any day).
+$r2 = Expand-ArchiveToTarget -ArchivePath $tmpZip -TargetDir $gameDir -RelModFile "xr_injector\xr_injector.gd" -Label "UGVR Injector" `
         -SkipMessage "Skipped - the mod files were NOT extracted."
 if ([string]$r2 -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 try { Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue } catch {}
@@ -133,7 +136,8 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " 1) Connect your headset AND controllers - they must be awake" -ForegroundColor White
 Write-Host "    BEFORE the game starts." -ForegroundColor White
-Write-Host " 2) Launch Idols of Ash normally (Steam / itch / game exe)." -ForegroundColor White
+Write-Host " 2) Launch with 'Start in VR' in the Hub, or normally" -ForegroundColor White
+Write-Host "    (Steam / itch / game exe)." -ForegroundColor White
 Write-Host "    The injector loads by itself - no launcher, no extra step." -ForegroundColor White
 Write-Host ""
 Write-Host " Nice to know:" -ForegroundColor Gray

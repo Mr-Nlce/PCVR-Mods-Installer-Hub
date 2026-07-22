@@ -97,7 +97,7 @@ function Find-HypogeaGamePath {
  # we found the right folder.
  foreach ($folder in @("Hypogea", "Hypogea Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Hypogea_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Hypogea_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

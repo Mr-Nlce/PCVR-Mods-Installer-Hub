@@ -99,7 +99,7 @@ function Find-NewStarGPGamePath {
    # Presence of NSGP_Data is the strongest signal we found the install.
    foreach ($folder in @("New Star GP")) {
     $candidate = Join-Path $lib "steamapps\common\$folder"
-    if (Test-Path (Join-Path $candidate "NSGP_Data")) { return $candidate }
+    if (Test-Path -LiteralPath "$candidate\NSGP_Data") { return $candidate }
     if (Test-Path $candidate) { return $candidate }
    }
   }
@@ -107,7 +107,7 @@ function Find-NewStarGPGamePath {
  # Xbox App / Microsoft Store install (C:\XboxGames\<Title>\Content)
  foreach ($drive in @("C:", "D:", "E:", "F:")) {
   $xb = "$drive\XboxGames\New Star GP\Content"
-  if (Test-Path (Join-Path $xb "NSGP_Data")) { return $xb }
+  if (Test-Path -LiteralPath "$xb\NSGP_Data") { return $xb }
   if (Test-Path $xb) { return $xb }
  }
  return $null
@@ -244,8 +244,8 @@ if ($gamePath) {
 # (winhttp.dll + BepInEx) must be installed NEXT TO the exe, not in the
 # Steam install root.
 $installTarget = $gamePath
-if     (Test-Path (Join-Path $gamePath "release\NSGP.exe")) { $installTarget = Join-Path $gamePath "release" }
-elseif (Test-Path (Join-Path $gamePath "NSGP.exe"))         { $installTarget = $gamePath }
+if     (Test-Path -LiteralPath "$gamePath\release\NSGP.exe") { $installTarget = Join-Path $gamePath "release" }
+elseif (Test-Path -LiteralPath "$gamePath\NSGP.exe")         { $installTarget = $gamePath }
 else   { $installTarget = Join-Path $gamePath "release" }
 
 # -------------------------------------------------------

@@ -15,6 +15,8 @@
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
     "name:Hytale" = "#3fb0f0"  # Hytale VR (glowing ice-blue block logo + portal cyan from the hero art)
+    "name:RingRacersVR" = "#e8484c"  # Ring Racers VR (Eggman red/crimson racing accent, matches tile)
+    "steam:39530" = "#b52a24"  # Painkiller Black Edition (blood-red gothic FPS, matches tile accent)
     "name:SuperMario64" = "#f11e05"  # Super Mario 64 VR (Mario red from the header art)
     "name:StarFox64" = "#e7ba17"  # Star Fox 64 VR (Arwing gold/amber from the header art)
     "steam:2416450" = "#c9a24b"  # Mouse P.I. For Hire VR (noir jazz gold, matches the tile accent)
@@ -132,6 +134,8 @@ $global:BannerColorMap = @{
     "name:NOLF2" = "#fdca05"  # No One Lives Forever 2 VR
     "steam:2168680" = "#dc3b12"  # Nuclear Option VR
     "steam:3046600" = "#e41019"  # Onimusha 2 VR
+    "steam:2681030" = "#4fb89a"  # Outbound VR (soft teal-green, matches the tile accent + cozy roadtrip vibe)
+    "steam:976730"  = "#4a90c8"  # Halo 3 MCC VR (Halo blue, matches tile accent)
     "steam:753640" = "#ba5b1a"  # Outer Wilds VR
     "steam:794260" = "#3e6ab2"  # Outward DE VR
     "steam:1178880" = "#1142b1"  # Panzer Dragoon Remake

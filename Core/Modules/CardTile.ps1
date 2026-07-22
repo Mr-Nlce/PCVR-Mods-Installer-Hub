@@ -103,6 +103,7 @@ function global:New-ControlTypeIcon {
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
+    "Halo 3 MCC VR"
 )
 
 # -------------------------------------------------------

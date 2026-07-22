@@ -106,7 +106,7 @@ function Find-PanzerDragoonGamePath {
  # Unity data folder mirrors that as "Panzer Dragoon Remake_Data".
  foreach ($folder in @("Panzer Dragoon Remake", "PanzerDragoonRemake", "Panzer Dragoon")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Panzer Dragoon Remake_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Panzer Dragoon Remake_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

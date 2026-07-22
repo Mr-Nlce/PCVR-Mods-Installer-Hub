@@ -104,7 +104,7 @@ function Find-BombRushCyberfunkGamePath {
  # capital F - that's only inside BepInEx\plugins.
  foreach ($folder in @("Bomb Rush Cyberfunk", "BombRushCyberfunk", "BombRushCyberFunk", "Bomb Rush Cyberfunk Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Bomb Rush Cyberfunk_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Bomb Rush Cyberfunk_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

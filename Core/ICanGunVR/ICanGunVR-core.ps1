@@ -265,7 +265,8 @@ Write-Host "  I Can Gun VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start SteamVR (or your OpenXR runtime) first, then launch" -ForegroundColor White
-Write-Host "  with the 'I Can Gun VR' desktop shortcut, or run:" -ForegroundColor White
+Write-Host "  with 'Start in VR' in the Hub, or the 'I Can Gun VR'" -ForegroundColor White
+Write-Host "  desktop shortcut, or run:" -ForegroundColor White
 Write-Host "    $exePath" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Tip: press F1 in-game for the interactive weapon-handling help." -ForegroundColor Gray

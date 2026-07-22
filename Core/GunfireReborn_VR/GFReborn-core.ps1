@@ -79,6 +79,10 @@ function Get-SteamLibraries {
 # STEP 1: Steam Depot Download
 # -------------------------------------------------------
 Write-Header
+Write-Host " GunfireRebornVR by Astienth (based on PureDark's port) - full VR with" -ForegroundColor White
+Write-Host " motion controls for the roguelite FPS Gunfire Reborn." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Steam Depot Download"
 
 Write-Host "  Here's what's about to happen:" -ForegroundColor Cyan
@@ -331,7 +335,8 @@ Write-Host "  Important notes:" -ForegroundColor White
 Write-Host ""
 Write-Host "  - Game installed at: $gamePath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  - Launch via the 'Gunfire Reborn VR' desktop" -ForegroundColor Yellow
+Write-Host "  - Launch with 'Start in VR' in the Hub, or the" -ForegroundColor Yellow
+Write-Host "    'Gunfire Reborn VR' desktop" -ForegroundColor Yellow
 Write-Host "    shortcut, NOT via Steam!" -ForegroundColor Yellow
 Write-Host "    (Steam would launch your retail flat copy)" -ForegroundColor Gray
 Write-Host ""

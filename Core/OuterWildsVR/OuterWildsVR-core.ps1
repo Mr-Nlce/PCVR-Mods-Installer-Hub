@@ -37,6 +37,10 @@ function Get-SteamLibraries {
 Write-Header
 
 # STEP 1: Locate Outer Wilds
+Write-Host " NomaiVR by Raicuparta & artumino - the whole of Outer Wilds playable" -ForegroundColor White
+Write-Host " in VR with 6DOF tracking and motion controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Outer Wilds"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -186,7 +190,8 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Launch via the desktop shortcut 'Outer Wilds VR'" -ForegroundColor Green
+Write-Host "  Launch with 'Start in VR' in the Hub, or the desktop" -ForegroundColor Green
+Write-Host "  shortcut 'Outer Wilds VR'" -ForegroundColor Green
 Write-Host "  or directly from:" -ForegroundColor White
 Write-Host "  $owmlLauncher" -ForegroundColor Gray
 Write-Host ""

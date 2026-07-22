@@ -118,7 +118,7 @@ function Find-HollowKnightGamePath {
  # up that way.
  foreach ($folder in @("Hollow Knight", "HollowKnight")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "hollow_knight_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\hollow_knight_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -449,7 +449,8 @@ if ($gamePath -eq $originalGamePath) {
  Write-Host " Original folder is untouched - flat-screen play still" -ForegroundColor Gray
  Write-Host " works via Steam." -ForegroundColor Gray
  Write-Host ""
- Write-Host " Launch the VR build with the .exe inside the copy:" -ForegroundColor White
+ Write-Host " Launch the VR build with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host " .exe inside the copy:" -ForegroundColor White
  Write-Host " $gamePath\hollow_knight.exe" -ForegroundColor DarkGray
 }
 Write-Host ""

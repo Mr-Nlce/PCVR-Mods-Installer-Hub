@@ -22,7 +22,7 @@ Put your Super Mario 64 US ROM in the game folder named `baserom.us.z64`. On fir
 
 ## Playing
 
-Launch the `Super Mario Coop VR` desktop shortcut (or `sm64coopdx.exe`). Start your VR runtime first (Quest Link, Virtual Desktop, SteamVR) if you want VR; otherwise you get the flat game. Solo play: click **Play** on the main menu - fully offline, no server screens. Co-op still works (someone can join your IP, or use **Host**).
+Launch with **Start in VR** in the Hub, or the `Super Mario Coop VR` desktop shortcut (or `sm64coopdx.exe`). Start your VR runtime first (Quest Link, Virtual Desktop, SteamVR) if you want VR; otherwise you get the flat game. Solo play: click **Play** on the main menu - fully offline, no server screens. Co-op still works (someone can join your IP, or use **Host**).
 
 ## VR controller layout
 

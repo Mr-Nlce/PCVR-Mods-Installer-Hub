@@ -88,6 +88,7 @@ Write-Host "  Installs Total Chaos (free GZDoom TC) with motion controls via gzd
 Write-Host ""
 
 # ---- 1. get the (free) Total Chaos Standalone download ------
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Get the Total Chaos Standalone download"
 Write-Host "  Total Chaos is a free download from ModDB, so it can't be fetched automatically." -ForegroundColor White
 Write-Host "  Pressing Enter opens the download page:" -ForegroundColor Yellow
@@ -147,7 +148,7 @@ if (-not $installRoot) {
 Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
 
-if (Test-Path (Join-Path $gameRoot "gamedata")) {
+if (Test-Path -LiteralPath "$gameRoot\gamedata") {
     Write-Warn "An existing Total Chaos VR install was found at: $gameRoot"
     Write-Host "  Press Enter to reinstall (the folder will be rebuilt)," -ForegroundColor Gray
     Write-Host "  or close this window to abort." -ForegroundColor Gray
@@ -358,9 +359,11 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Desktop shortcut: Total Chaos VR" -ForegroundColor White
+Write-Host "  Launch: 'Start in VR' in the Hub, or the 'Total Chaos VR'" -ForegroundColor White
+Write-Host "  desktop shortcut" -ForegroundColor White
 Write-Host ""
-Write-Host "  BEFORE launching: start SteamVR (or Virtual Desktop's OpenVR)." -ForegroundColor Yellow
+Write-Host "  Launch SteamVR (or Virtual Desktop's OpenVR) before the game to" -ForegroundColor Yellow
+Write-Host "  avoid it potentially starting sometimes out of focus." -ForegroundColor Yellow
 Write-Host "  Aiming uses your tracked hand; firearms have a built-in laser sight." -ForegroundColor Gray
 Write-Host "  VR settings (comfort, snap-turn, weapon angle) are in Options -> VR." -ForegroundColor Gray
 Write-Host "  Controller bindings: SteamVR -> per-game bindings for gzdoomvr." -ForegroundColor Gray

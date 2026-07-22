@@ -9,7 +9,7 @@
 2. Downloads **Cemu 2.6** (Windows) and verifies it against a known-good SHA256 before extracting.
 3. Pre-loads the **community graphic packs** (so FPS++ is ready to enable) into `graphicPacks`.
 4. Downloads the latest **BetterVR_Launcher.exe** next to `Cemu.exe`.
-5. Creates a `Breath of the Wild VR.lnk` desktop shortcut with a custom icon.
+5. Creates a `Breath of the Wild VR.lnk` desktop shortcut with a custom icon. Launch with **Start in VR** in the Hub or that shortcut.
 
 ## Requirements
 - A gaming PC with a strong single-thread CPU (recent Intel i5 / Ryzen 5 or better). The CPU is the bottleneck, not the GPU.

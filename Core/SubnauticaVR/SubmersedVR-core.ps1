@@ -83,6 +83,10 @@ function Find-GamePath {
 # STEP 1: Pre-flight checks
 # -------------------------------------------------------
 Write-Header
+Write-Host " SubmersedVR by Okabintaro modernizes Subnautica's VR support, adding" -ForegroundColor White
+Write-Host " full motion controls and a proper in-VR HUD." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Pre-Flight Checks"
 
 Write-Host "  Before installing, please confirm the following:" -ForegroundColor White
@@ -165,6 +169,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "BepInEx\plug
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "BepInEx\plugins\SubmersedVR.dll" -Label "SubmersedVR"
 Write-Step 3 4 "Installing BepInEx + SubmersedVR 0.2.0"
 
 $tempDir = Join-Path $env:TEMP "SubmersedVRInstaller_$([System.IO.Path]::GetRandomFileName())"
@@ -188,12 +193,15 @@ if (Test-Path $bepZip) {
     if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
-            Get-ChildItem -Path $bepExtract | ForEach-Object {
+            # Payload-verified (BepInEx pack is pulled from releases/LATEST,
+            # so its layout can change any day).
+            $bepPayload = Get-ExtractedPayloadRoot -ExtractDir $bepExtract -RelModFile "winhttp.dll" -Markers @("BepInEx")
+            Get-ChildItem -Path $bepPayload | ForEach-Object {
                 Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
             }
-            if (Test-Path (Join-Path $gamePath "winhttp.dll"))    { Write-OK "winhttp.dll verified." }
+            if (Test-Path -LiteralPath "$gamePath\winhttp.dll")    { Write-OK "winhttp.dll verified." }
             else { Write-Warn "winhttp.dll not found." }
-            if (Test-Path (Join-Path $gamePath "BepInEx\core"))   { Write-OK "BepInEx\core verified." }
+            if (Test-Path -LiteralPath "$gamePath\BepInEx\core")   { Write-OK "BepInEx\core verified." }
             else { Write-Warn "BepInEx\core not found." }
             Write-OK "BepInEx for Subnautica installed!"
         } catch {
@@ -318,7 +326,7 @@ Write-Host ""
 Write-Host "--- How to Play ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Start SteamVR." -ForegroundColor White
-Write-Host "  2. Launch Subnautica via Steam." -ForegroundColor White
+Write-Host "  2. Launch with 'Start in VR' in the Hub, or via Steam." -ForegroundColor White
 Write-Host "     (Oculus users: start SteamVR FIRST, then launch from Steam)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Issues: https://github.com/Okabintaro/SubmersedVR/issues" -ForegroundColor Gray

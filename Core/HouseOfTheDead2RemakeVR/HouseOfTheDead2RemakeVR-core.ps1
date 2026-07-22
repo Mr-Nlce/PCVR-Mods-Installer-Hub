@@ -107,7 +107,7 @@ function Find-HOTD2GamePath {
  "House of the Dead 2 Remake"
  )) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "THE HOUSE OF THE DEAD 2 Remake_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\THE HOUSE OF THE DEAD 2 Remake_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

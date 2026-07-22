@@ -15,7 +15,7 @@ The community **HellsingerVR** mod (by **LivingFray**) for *Metal: Hellsinger* -
 
 ## Requirements
 - You must **own Metal: Hellsinger on Steam** (needed for the depot download)
-- SteamVR running before launch
+- Launch SteamVR before the game to avoid it potentially starting sometimes out of focus
 - Motion controllers (Oculus/Meta Touch, Valve Index, Vive supported)
 
 ## How to install

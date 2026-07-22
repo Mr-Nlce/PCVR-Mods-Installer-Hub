@@ -16,11 +16,10 @@ Anomaly VR, so your existing membership works).
 4. It extracts the **`Gamma VR`** folder into your Games root
    (default `C:\Games` -> `C:\Games\Gamma VR`).
 5. Switches the in-game language to **English** (`localization.ltx`).
-6. Drops the game icon and creates a desktop shortcut **`Anomaly Gamma`**
-   pointing at `GAMMA VR.bat`.
+6. Drops the game icon and creates a desktop shortcut **`Anomaly Gamma`**.
 
-The Hub's **Start in VR** button and the desktop shortcut both run
-`GAMMA VR.bat`.
+The Hub's **Start in VR** button and the desktop shortcut are your two
+launch routes - both start the game the same way.
 
 ## Requirements
 

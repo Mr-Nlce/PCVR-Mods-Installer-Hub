@@ -21,7 +21,7 @@ If you are not sure, pick A. You can always re-run the installer and switch late
 ## How to play
 
 1. Start SteamVR
-2. Launch the game
+2. Launch the game (e.g. **Start in VR** in the Hub)
    - Option A: from Steam as usual
    - Option B: via the **Yooka-Laylee VR** desktop shortcut (do NOT launch from Steam; Steam would update the game back to the latest build)
 3. If a *"VR is not supported"* message appears, just click it away

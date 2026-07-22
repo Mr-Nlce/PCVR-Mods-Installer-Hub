@@ -20,7 +20,7 @@ The Dark Mod uses its own GUI installer to fetch the game. The VR build is a **c
 ## Launching
 
 1. Start **SteamVR** / your VR runtime first.
-2. Double-click the **The Dark Mod VR** desktop shortcut (`TheDarkModVRx64.exe`).
+2. Launch with **Start in VR** in the Hub, or the **The Dark Mod VR** desktop shortcut (`TheDarkModVRx64.exe`).
 3. If the UI overlay is missing or your head is stuck in a wall/ceiling, **reset your seated position** (SteamVR: *reset seated position*; Oculus: *recenter view*).
 
 ## Gamepad controls

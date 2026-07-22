@@ -39,6 +39,10 @@ function Get-SteamLibraries {
 Write-Header
 
 # STEP 1: Locate Alba
+Write-Host " AlbaVR brings the cozy island wildlife adventure into VR - play the" -ForegroundColor White
+Write-Host " whole game seated. Gamepad controls, no motion controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Alba: A Wildlife Adventure"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -177,7 +181,8 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host " Launch via the 'Alba VR' shortcut on your Desktop." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub, or the 'Alba VR'" -ForegroundColor White
+Write-Host " shortcut on your Desktop." -ForegroundColor White
 Write-Host " Platform: $vrModeText" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " To switch platform later, edit VRMODE.txt in the game folder." -ForegroundColor Gray

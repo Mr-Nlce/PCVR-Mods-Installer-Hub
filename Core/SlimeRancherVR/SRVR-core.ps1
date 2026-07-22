@@ -77,6 +77,10 @@ function Find-GamePath {
 # STEP 1: Locate Slime Rancher
 # -------------------------------------------------------
 Write-Header
+Write-Host " SRVR by Atmudia - full 6DOF motion-controlled VR for the entire Slime" -ForegroundColor White
+Write-Host " Rancher (not just the short official VR Playground)." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Slime Rancher"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -276,7 +280,7 @@ Write-Host ""
 Write-Host "--- How to Play in VR ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Start SteamVR." -ForegroundColor White
-Write-Host "  2. Launch Slime Rancher via Steam." -ForegroundColor White
+Write-Host "  2. Launch with 'Start in VR' in the Hub, or via Steam." -ForegroundColor White
 Write-Host "  3. The game detects your headset and starts SteamVR automatically" -ForegroundColor White
 Write-Host "     from the second launch onwards." -ForegroundColor Gray
 Write-Host ""

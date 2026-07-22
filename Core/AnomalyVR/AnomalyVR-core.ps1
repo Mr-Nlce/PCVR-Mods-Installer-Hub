@@ -83,7 +83,7 @@ while (-not $gameDir) {
     $inputPath = (Read-Host "  Folder [Enter = $DEFAULT_GAME_DIR]").Trim().Trim('"').TrimEnd('\')
     if (-not $inputPath) { $cand = $DEFAULT_GAME_DIR } else { $cand = $inputPath }
 
-    if ((Test-Path $cand) -and (Test-Path (Join-Path $cand "fsgame.ltx"))) {
+    if ((Test-Path $cand) -and (Test-Path -LiteralPath "$cand\fsgame.ltx")) {
         # Existing Anomaly install - use as-is.
         Write-OK "Existing Anomaly install found here."
         $gameDir = $cand

@@ -31,7 +31,7 @@ The game must run **once without SteamVR** to patch itself:
 - When asked to "optimize for VR": choose **NO** (antivirus false positive risk)
 - Let the console window finish, then close the game
 
-After this first run, the game will **auto-start SteamVR** when you launch it.
+After this first run, the game will **auto-start SteamVR** when you launch it (**Start in VR** in the Hub or via Steam).
 
 ## Playing in VR
 

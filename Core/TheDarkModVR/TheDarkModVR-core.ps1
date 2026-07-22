@@ -357,7 +357,7 @@ Write-Host " The Dark Mod VR - Setup Summary" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Folder : $gamePath" -ForegroundColor White
-Write-Host "  Launch : $VR_EXE  (use the desktop shortcut)" -ForegroundColor White
+Write-Host "  Launch : 'Start in VR' in the Hub, or the desktop shortcut ($VR_EXE)" -ForegroundColor White
 Write-Host ""
 Write-Host "  Before you play:" -ForegroundColor White
 Write-Host "   - Start SteamVR / your VR runtime first, then launch the game." -ForegroundColor Gray

@@ -138,7 +138,7 @@ function Find-SptRoot {
     # Last resort: an existing BepInEx folder (but only if a game marker
     # wasn't found above, to avoid matching a stray/half-merged BepInEx).
     foreach ($c in $cands) {
-        if ($c -and (Test-Path (Join-Path $c "BepInEx")) -and (Test-Path (Join-Path $c "EscapeFromTarkov_Data"))) { return $c }
+        if ($c -and (Test-Path -LiteralPath "$c\BepInEx") -and (Test-Path -LiteralPath "$c\EscapeFromTarkov_Data")) { return $c }
     }
     return $null
 }
@@ -415,7 +415,7 @@ if ("$exRes" -eq "quit") { Pause-User "Press Enter to exit."; exit 1 }
 $srcRoot = $tempExtract
 $rootEntries = @(Get-ChildItem -Path $tempExtract -ErrorAction SilentlyContinue)
 if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer -and $rootEntries[0].Name -ne "BepInEx") {
-    if (-not (Test-Path (Join-Path $tempExtract "BepInEx"))) { $srcRoot = $rootEntries[0].FullName }
+    if (-not (Test-Path -LiteralPath "$tempExtract\BepInEx")) { $srcRoot = $rootEntries[0].FullName }
 }
 
 Write-Host "  Merging mod files into: $sptRoot" -ForegroundColor Gray

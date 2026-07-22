@@ -103,7 +103,7 @@ function Find-TinykinGamePath {
  # Demo uses the same name with " Demo" appended.
  foreach ($folder in @("Tinykin", "Tinykin Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Tinykin_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Tinykin_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

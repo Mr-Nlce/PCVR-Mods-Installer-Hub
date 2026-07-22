@@ -204,6 +204,7 @@ $gameExePath = Join-Path $gamePath $GAME_EXE
 # download + merge. CKAN dependencies and the globalgamemanagers
 # patch are left exactly as they are.
 if ($updateOnly) {
+ $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "GameData\KerbalVR" -Label "KerbalVR"
  Write-Step 2 $totalSteps "Downloading latest KerbalVR release"
 
  $kvrUrl = $null
@@ -301,7 +302,7 @@ if ($updateOnly) {
  # over the existing folders just like a manual drag-and-drop.
  $mergedAny = $false
  foreach ($folder in @("GameData", "KSP_x64_Data")) {
- $src = Join-Path $kvrExtract $folder
+ $src = Join-Path (Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")) $folder
  if (Test-Path $src) {
  Write-Host " Merging $folder ... " -NoNewline -ForegroundColor White
  Copy-Item -Path $src -Destination $gamePath -Recurse -Force
@@ -787,7 +788,7 @@ Write-Step 8 $totalSteps "Installing KerbalVR Mod Files"
 # the KSP root, exactly as the wiki's Step 4 describes.
 $mergedAny = $false
 foreach ($folder in @("GameData", "KSP_x64_Data")) {
- $src = Join-Path $kvrExtract $folder
+ $src = Join-Path (Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")) $folder
  if (Test-Path $src) {
  Write-Host " Merging $folder into the KSP root ... " -NoNewline -ForegroundColor White
  Copy-Item -Path $src -Destination $gamePath -Recurse -Force
@@ -868,7 +869,8 @@ Write-Host " 1. Connect your headset (link cable, Virtual Desktop, ALVR)." -Fore
 Write-Host " 2. Launch SteamVR FIRST (stable 2.8 -" -NoNewline -ForegroundColor White
 Write-Host " NOT the Beta" -NoNewline -ForegroundColor Yellow
 Write-Host ")." -ForegroundColor White
-Write-Host " 3. Launch KSP - the game window may appear white for ~10s." -ForegroundColor White
+Write-Host " 3. Launch KSP with 'Start in VR' in the Hub - the game window" -ForegroundColor White
+Write-Host "    may appear white for ~10s." -ForegroundColor White
 Write-Host " 4. At the main menu the kerbals should wear VR headsets." -ForegroundColor White
 Write-Host " 5. Load into a flight, then press" -NoNewline -ForegroundColor White
 Write-Host " Alt+V " -NoNewline -ForegroundColor Yellow

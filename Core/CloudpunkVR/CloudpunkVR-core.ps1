@@ -50,6 +50,10 @@ function Get-SteamLibraries { param($sp)
 # STEP 1: Locate game
 # -------------------------------------------------------
 Write-Header
+Write-Host " Cloudpunk VR by Astienth - gamepad-based VR support for Cloudpunk." -ForegroundColor White
+Write-Host " Requires the base game owned on Steam." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Cloudpunk"
 
 $gamePath = $null
@@ -150,10 +154,12 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Magenta
-$dllOk = Test-Path (Join-Path $gamePath "BepInEx\plugins\CloudpunkVR.dll")
+$dllOk = Test-Path -LiteralPath "$gamePath\BepInEx\plugins\CloudpunkVR.dll"
 if ($dllOk) { Write-Host " [x] BepInEx\plugins\CloudpunkVR.dll" -ForegroundColor Green }
 else { Write-Host " [ ] CloudpunkVR.dll -- MISSING" -ForegroundColor Red }
 Write-Host " [x] Desktop shortcut 'Cloudpunk VR' created." -ForegroundColor Green
+Write-Host ""
+Write-Host " Launch with 'Start in VR' in the Hub, or that desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host " TIPS" -ForegroundColor Cyan
 Write-Host " - VR UI scale: edit BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg -> 'VRUI scale'" -ForegroundColor Gray

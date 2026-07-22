@@ -6,8 +6,8 @@ Motion-controlled VR for SinglePlayer Tarkov (SPT), built on the open-source SPT
 1. Locates your separate **SPT** install (drag SPT.Launcher.exe onto the installer) — or helps you set SPT up from scratch via the official SPT Installer
 2. Downloads the latest **SPT-VR** release straight from GitHub
 3. Merges the mod (BepInEx + EscapeFromTarkov_Data) into your SPT folder
-4. Writes a **Start SPT VR.bat** launcher (starts the SPT server, waits for it, then opens the SPT launcher)
-5. Creates a **SPT VR** desktop shortcut to that launcher
+4. Sets up the launch sequence (starts the SPT server, waits for it, then opens the SPT launcher)
+5. Creates a **SPT VR** desktop shortcut - that shortcut (or **Start in VR** in the Hub) is how you start the game
 
 ## Requirements
 - A working, up-to-date copy of **Escape from Tarkov** (Steam or BSG Launcher) — the SPT Installer copies and down-patches those files; it never modifies your live install

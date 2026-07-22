@@ -85,6 +85,10 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 # STEP 1: Steam Depot Download
 # -------------------------------------------------------
 Write-Header
+Write-Host " VRTRAKILL_FRAUD by Squaresweets - full motion-controlled VR for" -ForegroundColor White
+Write-Host " ULTRAKILL. Pins the required Steam build (current version unsupported)." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Steam Depot Download"
 
 Write-Host " VRTRAKILL_FRAUD requires a specific older version of ULTRAKILL." -ForegroundColor White
@@ -399,8 +403,10 @@ Write-Host "============================================================" -Foreg
 Write-Host " !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " Start SteamVR BEFORE launching ULTRAKILL." -ForegroundColor White
-Write-Host " Launch via the desktop shortcut, NOT via Steam." -ForegroundColor White
+Write-Host " Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host " starting sometimes out of focus." -ForegroundColor White
+Write-Host " Launch with 'Start in VR' in the Hub or the desktop" -ForegroundColor White
+Write-Host " shortcut - NOT via Steam." -ForegroundColor White
 Write-Host " (Launching via Steam would run your retail version.)" -ForegroundColor Gray
 Write-Host ""
 Write-Host " If the game starts without VR on the first launch:" -ForegroundColor White

@@ -428,7 +428,8 @@ Write-Host "  Done. Before launching:" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  1. Steam client running   2. Start SteamVR" -ForegroundColor White
-Write-Host "  3. Launch via the 'Trombone Champ VR' desktop shortcut" -ForegroundColor White
+Write-Host "  3. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "     'Trombone Champ VR' desktop shortcut" -ForegroundColor White
 Write-Host ""
 Write-Host "  Pucker up, hit the slide, and toot your way to glory." -ForegroundColor Magenta
 Write-Host ""

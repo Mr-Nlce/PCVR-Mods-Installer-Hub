@@ -71,6 +71,10 @@ Write-Header
 # -------------------------------------------------------
 # STEP 1: Locate the game (any store)
 # -------------------------------------------------------
+Write-Host " AnvilEngine2VR by mutars brings Assassin's Creed Odyssey into 6DOF VR." -ForegroundColor White
+Write-Host " Gamepad controls. Works with Steam, Ubisoft+ and Game Pass copies." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Locating Assassin's Creed Odyssey"
 
 $gamePath = $null
@@ -120,6 +124,7 @@ while (-not $gamePath) {
 $exeName = $GAME_EXE
 if (-not (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $GAME_EXE)))) { $exeName = $GAME_EXE_PLUS }
 Write-OK "Found: $gamePath"
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "dxgi.dll" -Label "AnvilEngine2VR"
 Write-Info "Game executable: $exeName"
 
 # -------------------------------------------------------
@@ -265,7 +270,10 @@ Write-Step 5 5 "Installing into the game folder"
 # The zips are flat: dxgi.dll (+ openvr_api.dll for OpenVR) at the
 # root, extracted straight into the game folder next to the exe.
 # DXGI hooking means the game loads the mod on its own - no launcher.
-$exRes = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $gamePath -Label "AnvilEngine2VR"
+# Payload-verified extract (pulled from releases/LATEST - layout can
+# change any day): temp-extract, resolve real payload root via the known
+# mod file, merge into game folder, verify dxgi.dll arrived.
+$exRes = Expand-ArchiveToTarget -ArchivePath $zipPath -TargetDir $gamePath -RelModFile "dxgi.dll" -Label "AnvilEngine2VR"
 if (-not $exRes) {
  Write-Fail "Extraction failed."
  Pause-User "Press Enter to exit."; exit 1

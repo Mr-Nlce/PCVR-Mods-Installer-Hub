@@ -114,7 +114,7 @@ function Find-DriftwoodGamePath {
  # but with " Demo" suffix; we try that as a last resort.
  foreach ($folder in @("Driftwood", "Driftwood Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Driftwood_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Driftwood_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

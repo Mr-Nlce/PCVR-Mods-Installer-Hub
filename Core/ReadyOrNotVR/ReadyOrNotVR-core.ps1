@@ -145,7 +145,7 @@ function Read-OneTwo {
 # Best-effort check whether DLSS Swapper is already present. Returns
 # "portable" / "installed" / $null. Used to skip a needless download.
 function Test-DlssSwapperInstalled {
-    if (Test-Path (Join-Path $DLSS_PORTABLE_DIR "DLSS Swapper.exe")) { return "portable" }
+    if (Test-Path -LiteralPath "$DLSS_PORTABLE_DIR\DLSS Swapper.exe") { return "portable" }
     $cands = @(
         (Join-Path $env:LOCALAPPDATA "Programs\DLSS Swapper\DLSS Swapper.exe"),
         (Join-Path $env:LOCALAPPDATA "DLSS Swapper\DLSS Swapper.exe"),

@@ -22,7 +22,7 @@ Working game versions: **1.30, 1.31, 1.32**.
    downloads the mod, and places `xr_injector\`, `XRConfigs\` and
    `override.cfg` next to `idols_of_ash.exe`).
 2. Put on the headset, wake the controllers.
-3. Launch Idols of Ash normally (Steam / itch / the game exe). The
+3. Launch with **Start in VR** in the Hub, or normally (Steam / itch / the game exe). The
    injector loads by itself - no launcher, no extra step.
 
 ## Controls

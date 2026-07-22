@@ -17,7 +17,7 @@ $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 6 VR"
 $KOFI_URL      = "https://ko-fi.com/s/03bdcc5fe9"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527195267823046697"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527971650216267856"
 
 function Write-Header {
     Clear-Host
@@ -95,7 +95,7 @@ if ($modChoice -eq "1") {
     $modName      = "lufz VRMod"
     $modSub       = "lufz"
     $launcherName = "vrmod-launcher.exe"
-    $zipHint      = "VRMod-v1_2_1.zip"
+    $zipHint      = "VRMod-v1_2_3.zip"
 }
 Write-OK "Selected: $modName"
 
@@ -194,7 +194,7 @@ try { $ov = Join-Path $PSScriptRoot ".launch_exe"; if (Test-Path $ov) { Remove-I
 # lufz installs: record the installed mod version so the Hub's update badge
 # clears after an update (catalog pins the current lufz version; a mismatch
 # shows Update). NORMALIZED without a leading "v" - the Hub compares against
-# Get-ModVersionFromString output, which strips the v (writing "v1.2.2"
+# Get-ModVersionFromString output, which strips the v (writing "v1.2.3"
 # would flag it out-of-date forever).
 # NALULUNA installs deliberately do NOT touch this file: it tracks the
 # lufz build, and overwriting it here would wipe a pending lufz update.
@@ -206,8 +206,8 @@ if ($modChoice -eq "2") {
     #
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
-    # 1.2.2, so that workaround is retired - the zip is honest again.)
-    $lufzVer = "1.2.2"
+    # 1.2.3, so that workaround is retired - the zip is honest again.)
+    $lufzVer = "1.2.3"
     $lufzVerFile = Join-Path $modFolder "VERSION"
     $lufzVerFound = $false
     if (Test-Path -LiteralPath $lufzVerFile) {
@@ -231,8 +231,10 @@ if ($modChoice -eq "1") {
     Write-Host " NALULUNA - HOW TO PLAY" -ForegroundColor Yellow
     Write-Host "============================================================" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host " 1) Start from the desktop shortcut (or run fh6vr.exe) and" -ForegroundColor White
-    Write-Host "    press the 'Launch' button to start Forza Horizon 6." -ForegroundColor White
+    Write-Host " 1) Launch with 'Start in VR' in the Hub, the desktop" -ForegroundColor White
+    Write-Host "    shortcut, or fh6vr.exe in the game folder:" -ForegroundColor White
+    Write-Host "    $installRoot" -ForegroundColor Gray
+    Write-Host "    then press the 'Launch' button to start Forza Horizon 6." -ForegroundColor White
     Write-Host " 2) Once you are in a car, press Tab a few times to switch" -ForegroundColor White
     Write-Host "    to cockpit view - that view is shown in the headset." -ForegroundColor White
     Write-Host " 3) Ctrl + Space recenters the headset." -ForegroundColor White
@@ -250,7 +252,8 @@ if ($modChoice -eq "1") {
     Write-Host " 1) Start from the desktop shortcut (or run vrmod-launcher.exe)." -ForegroundColor White
     Write-Host " 2) Browse to your ForzaHorizon6.exe (or use Auto-detect" -ForegroundColor White
     Write-Host "    Running), then click 'Install VR Mod'." -ForegroundColor White
-    Write-Host " 3) Start SteamVR, start the game, then click 'Play in VR'" -ForegroundColor White
+    Write-Host " 3) Start SteamVR, launch the game ('Start in VR' in the Hub" -ForegroundColor White
+Write-Host "    or your store), then click 'Play in VR'" -ForegroundColor White
     Write-Host "    once you reach the main menu, garage, or are driving." -ForegroundColor White
     Write-Host ""
     Write-Host " Settings: for OpenXR 6DoF turn HDR OFF and set in-game FOV to" -ForegroundColor Gray

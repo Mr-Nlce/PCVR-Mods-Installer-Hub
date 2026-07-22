@@ -84,6 +84,7 @@ Write-Host "  your Steam copy; the VR engine is installed alongside it." -Foregr
 Write-Host ""
 
 # ---- 1. locate the owned Steam Selaco folder ----------------
+Pause-User "Press Enter to start..."
 Write-Step 1 6 "Locating your Steam Selaco installation"
 $gameFolder = Find-SelacoFolder
 if (-not $gameFolder) { $gameFolder = Find-SteamGameFolder -AppId "1592280" -SteamFolderNames @("Selaco") -ProbeExe "SelacoVR\SelacoVR.bat" }
@@ -312,11 +313,12 @@ Write-Host "============================================================" -Foreg
 Write-Host "  Selaco VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Launch with the 'Selaco VR' desktop shortcut, or run:" -ForegroundColor White
-Write-Host "    $batPath" -ForegroundColor Cyan
+Write-Host "  Launch with 'Start in VR' in the Hub, or the 'Selaco VR'" -ForegroundColor White
+Write-Host "  desktop shortcut." -ForegroundColor White
 Write-Host ""
-Write-Host "  Valve Index users: use $INDEX_BAT instead (different" -ForegroundColor Gray
-Write-Host "  joystick mode). It's in the same folder." -ForegroundColor Gray
+Write-Host "  Valve Index only: if stick mapping feels off, point the" -ForegroundColor Gray
+Write-Host "  desktop shortcut at the Index launch profile in the engine" -ForegroundColor Gray
+Write-Host "  folder (right-click the shortcut -> Properties -> Target)." -ForegroundColor Gray
 Write-Host "  Start SteamVR first, then launch." -ForegroundColor Gray
 Write-Host ""
 

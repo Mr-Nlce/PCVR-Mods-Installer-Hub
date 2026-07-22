@@ -132,7 +132,7 @@ function Find-SkateStoryGamePath {
  # case some users have the demo or a renamed install.
  foreach ($folder in @("Skate Story", "SkateStory")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "SkateStory_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -141,7 +141,7 @@ function Find-SkateStoryGamePath {
  foreach ($root in (Get-GogRoots)) {
  foreach ($folder in @("Skate Story", "SkateStory")) {
  $candidate = Join-Path $root $folder
- if (Test-Path (Join-Path $candidate "SkateStory_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -315,7 +315,7 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  # Wrapper folder - the typical signal of "this is the root"
  # is the presence of winhttp.dll + a VRMod folder.
  $inner = $rootEntries[0].FullName
- if ((Test-Path (Join-Path $inner "winhttp.dll")) -or (Test-Path (Join-Path $inner "VRMod"))) {
+ if ((Test-Path -LiteralPath "$inner\winhttp.dll") -or (Test-Path -LiteralPath "$inner\VRMod")) {
  $srcRoot = $inner
  }
 }

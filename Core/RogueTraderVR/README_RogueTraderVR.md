@@ -58,7 +58,7 @@ the WASD character movement:
 
 ## How to play
 1. Start SteamVR
-2. Launch the game normally (Steam may warn it is not VR - click OK)
+2. Launch with **Start in VR** in the Hub, or normally (Steam may warn it is not VR - click OK)
 3. Load into a save - VR starts automatically
 4. Play seated with keyboard & mouse or a gamepad
 

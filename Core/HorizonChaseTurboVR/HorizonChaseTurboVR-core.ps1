@@ -107,7 +107,7 @@ function Find-HorizonChaseTurboGamePath_Steam {
  # the strongest signal we found the right install.
  foreach ($folder in @("Horizon Chase Turbo", "HorizonChaseTurbo", "Horizon Chase Turbo Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "HorizonChase_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\HorizonChase_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
@@ -145,7 +145,7 @@ function Find-HorizonChaseTurboGamePath_Epic {
  }
  foreach ($c in $candidates) {
  if (-not $c) { continue }
- if (Test-Path (Join-Path $c "HorizonChase_Data")) { return $c }
+ if (Test-Path -LiteralPath "$c\HorizonChase_Data") { return $c }
  }
  foreach ($c in $candidates) {
  if (-not $c) { continue }

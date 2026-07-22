@@ -253,6 +253,10 @@ function Install-UmmMod {
 # STEP 1: Locate the game (info only - mods do NOT go there)
 # -------------------------------------------------------
 Write-Header
+Write-Host " RTVR by SolemnScribe - true stereo-3D VR for Owlcat's Warhammer 40K" -ForegroundColor White
+Write-Host " cRPG Rogue Trader. Seated play with keyboard & mouse or gamepad." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 7 "Locating Warhammer 40,000: Rogue Trader"
 
 Write-Info "The game itself can live anywhere (Steam, GOG, Epic, Xbox)."
@@ -329,7 +333,7 @@ if (-not (Test-Path $UMM_DIR)) {
 # Already installed? Offer Update vs Reinstall
 # -------------------------------------------------------
 $updateMode = $false
-if (Test-Path (Join-Path $UMM_DIR "RTVR\RTVR.dll")) {
+if (Test-Path -LiteralPath "$UMM_DIR\RTVR\RTVR.dll") {
  Write-Host ""
  Write-Host " RTVR is already installed." -ForegroundColor Cyan
  Write-Host " [U] Update    - grab the newest RTVR from Nexus; required mods are" -ForegroundColor White
@@ -349,7 +353,7 @@ $failed = @()
 # -------------------------------------------------------
 Write-Step 3 7 "Installing WASD Movement (required)"
 
-$wasdPresent = Test-Path (Join-Path $UMM_DIR "WASDMovement\Info.json")
+$wasdPresent = Test-Path -LiteralPath "$UMM_DIR\WASDMovement\Info.json"
 if ($updateMode -and $wasdPresent) {
  Write-OK "WASD Movement already installed - keeping it."
 } else {
@@ -366,7 +370,7 @@ if ($updateMode -and $wasdPresent) {
 # -------------------------------------------------------
 Write-Step 4 7 "Installing Toy Box (required)"
 
-$toyPresent = Test-Path (Join-Path $UMM_DIR "0ToyBox0\Info.json")
+$toyPresent = Test-Path -LiteralPath "$UMM_DIR\0ToyBox0\Info.json"
 if ($updateMode -and $toyPresent) {
  Write-OK "Toy Box already installed - keeping it."
 } else {
@@ -398,7 +402,7 @@ Write-Host " Servo-Skull adds a third-person, over-the-shoulder camera with" -Fo
 Write-Host " mouselook and saveable views. RTVR is built on its camera work" -ForegroundColor White
 Write-Host " and it pairs well with VR, but it is NOT required." -ForegroundColor White
 Write-Host ""
-$servoPresent = Test-Path (Join-Path $UMM_DIR "ServoSkullCameraControls\Info.json")
+$servoPresent = Test-Path -LiteralPath "$UMM_DIR\ServoSkullCameraControls\Info.json"
 if ($servoPresent) {
  Write-OK "Servo-Skull is already installed - keeping it."
 } else {
@@ -461,14 +465,15 @@ Write-Host ""
 if ("WASD Movement" -notin $failed) { Write-Host " [x] WASD Movement (required)" -ForegroundColor Green } else { Write-Host " [ ] WASD Movement -- FAILED" -ForegroundColor Red }
 if ("Toy Box" -notin $failed) { Write-Host " [x] Toy Box (required)" -ForegroundColor Green } else { Write-Host " [ ] Toy Box -- FAILED" -ForegroundColor Red }
 if ("RTVR" -notin $failed) { Write-Host " [x] RTVR" -ForegroundColor Green } else { Write-Host " [ ] RTVR -- FAILED" -ForegroundColor Red }
-if (Test-Path (Join-Path $UMM_DIR "ServoSkullCameraControls\Info.json")) { Write-Host " [x] Servo-Skull Camera Controls (optional)" -ForegroundColor Green } else { Write-Host " [-] Servo-Skull Camera Controls (optional, skipped)" -ForegroundColor Gray }
+if (Test-Path -LiteralPath "$UMM_DIR\ServoSkullCameraControls\Info.json") { Write-Host " [x] Servo-Skull Camera Controls (optional)" -ForegroundColor Green } else { Write-Host " [-] Servo-Skull Camera Controls (optional, skipped)" -ForegroundColor Gray }
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " 1. Rebind the four camera keys (see above) in Settings -> Controls." -ForegroundColor White
-Write-Host " 2. Start SteamVR, then launch the game normally." -ForegroundColor White
+Write-Host " 2. Start SteamVR, then launch with 'Start in VR' in the Hub" -ForegroundColor White
+Write-Host "    (or start the game normally)." -ForegroundColor White
 Write-Host " 3. Load into a save - VR starts automatically." -ForegroundColor White
 Write-Host "    Ctrl+Alt+V starts/stops VR manually." -ForegroundColor Gray
 Write-Host " 4. Ctrl+F10 opens the mod settings overlay (NOT Shift+F10)." -ForegroundColor White

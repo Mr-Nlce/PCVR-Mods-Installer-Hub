@@ -113,7 +113,7 @@ function Find-ArtOfRallyGamePath {
  # ended up that way.
  foreach ($folder in @("artofrally", "Art of Rally", "ArtOfRally")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "artofrally_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\artofrally_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

@@ -245,6 +245,7 @@ while ($mode -notin @("1","2")) { $mode = (Read-Host " Enter 1 or 2").Trim() }
 # OPTION 1 - DEPOT
 # ============================================================
 if ($mode -eq "1") {
+    Pause-User "Press Enter to start..."
     Write-Step 1 4 "Steam Depot Download"
 
     Write-Host " We'll download the mod-compatible build via Steam Console" -ForegroundColor White
@@ -397,7 +398,8 @@ if ($mode -eq "1") {
 
     Write-Host ""
     Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
-    Write-Host " >> Start SteamVR BEFORE launching Bendy VR." -ForegroundColor Yellow
+    Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
+Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
     Write-Host " >> Launch via the Bendy VR desktop shortcut or through" -ForegroundColor Yellow
     Write-Host "    the PCVR Mods Installer Hub -> Start in VR, NOT via Steam." -ForegroundColor Yellow
     Write-Host "    (Launching via Steam would run your retail version.)" -ForegroundColor Gray

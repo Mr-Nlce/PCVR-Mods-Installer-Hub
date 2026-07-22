@@ -49,11 +49,13 @@ from Dolphin, copy your Dolphin memory-card data into PrimedGun's `User` folder.
 
 1. Put your ISO in the `ROM` folder (see above).
 2. Start **SteamVR** first.
-3. Launch with the **Metroid Prime VR** desktop shortcut (or `PrimedGun.exe`).
+3. Launch with **Start in VR** in the Hub, or the **Metroid Prime VR** desktop shortcut (or `PrimedGun.exe`).
 4. Your ROM should already be listed - select it and press **Play**.
    If it is not listed, click **Select Game...**, pick the ISO once, then press **Play**.
 
 ## VR controls
+
+![Controller layout](ControllerLayout.jpg)
 
 Left controller:
 

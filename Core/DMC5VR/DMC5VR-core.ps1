@@ -36,6 +36,10 @@ function Get-SteamLibraries {
 Write-Header
 
 # STEP 1: Locate Devil May Cry 5
+Write-Host " REFramework VR by praydog - generic 6DOF VR for Devil May Cry 5." -ForegroundColor White
+Write-Host " Played on a gamepad with a stereoscopic first/third-person view." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Devil May Cry 5"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---

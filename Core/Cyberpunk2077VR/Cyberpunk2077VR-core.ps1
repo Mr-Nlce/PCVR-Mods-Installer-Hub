@@ -193,7 +193,7 @@ New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 # Download a zip (with mirrors + manual fallback) and overlay it into the
 # game folder. Returns $true on success.
 function Install-Component {
-    param([string]$Label, [string[]]$Urls, [string]$ManualUrl, [string]$ManualName)
+    param([string]$Label, [string[]]$Urls, [string]$ManualUrl, [string]$ManualName, [string]$PayloadRelFile = "")
     $tmpZip = Join-Path $tempDir ("dl_" + [System.IO.Path]::GetRandomFileName() + ".zip")
     $null = Invoke-SafeDownload -Urls $Urls -Destination $tmpZip -Label $Label `
                 -ManualUrl $ManualUrl `
@@ -205,13 +205,18 @@ function Install-Component {
     $res = Expand-ArchiveOrFallback -ArchivePath $tmpZip -DestinationFolder $exDir -Label $Label `
                -SkipMessage "Skipped - $Label was NOT extracted."
     if ([string]$res -eq "quit") { return $false }
-    try { Copy-Tree -Src $exDir -Dst $gameRoot } catch { Write-Fail "Copy failed: $($_.Exception.Message)"; return $false }
+    # Layout-change-proof: locate the real payload level (a mod ZIP may
+    # wrap everything in a top-level folder, e.g. CyberpunkVRPort-0.0.9\),
+    # preferring the known mod file's relative path when provided.
+    $payloadRoot = Get-ExtractedPayloadRoot -ExtractDir $exDir -RelModFile $PayloadRelFile -Markers @("bin","red4ext","r6","archive","engine","mods")
+    try { Copy-Tree -Src $payloadRoot -Dst $gameRoot } catch { Write-Fail "Copy failed: $($_.Exception.Message)"; return $false }
     return $true
 }
 
 # -------------------------------------------------------
 # STEP 2: Frameworks (RED4ext + CET) - only if missing
 # -------------------------------------------------------
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gameRoot -RelModFile "bin\x64\dxgi.dll" -Label "CyberpunkVRPort"
 Write-Step 2 4 "Frameworks (RED4ext + Cyber Engine Tweaks)"
 Write-Host "  These power the motion-controlled hands and the VR HUD." -ForegroundColor Gray
 Write-Host "  Installed only if you don't already have them." -ForegroundColor Gray
@@ -240,6 +245,9 @@ if (Test-Path (Join-Path $gameRoot $CET_MARK)) {
 # -------------------------------------------------------
 # STEP 3: CyberpunkVRPort (the VR mod itself) - latest release
 # -------------------------------------------------------
+Write-Host " CyberpunkVRPort by dariulone - an OpenXR VR proxy for Cyberpunk 2077" -ForegroundColor White
+Write-Host " with 6DoF motion-controlled VR hands (full-arm VRIK) and head tracking." -ForegroundColor White
+Write-Host ""
 Pause-User "Press Enter to start the installation..."
 
 Write-Step 3 4 "Installing CyberpunkVRPort (latest release)"
@@ -257,7 +265,7 @@ if ($latest -and $latest.Url) {
 # Always keep the known-good pinned build as a fallback behind the latest.
 if ($modUrls -notcontains $MOD_URL) { $modUrls += $MOD_URL }
 
-$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip"
+$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile "bin\x64\dxgi.dll"
 if ($modOk) {
     Write-OK "CyberpunkVRPort $installedTag installed into the game folder."
     # Record the installed release tag so the Hub can flip the card to
@@ -352,9 +360,7 @@ Write-Host "     it fits, turn it off under General -> Enable Hand Overlay." -Fo
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Pause-User "Press Enter once you've read the recommended settings..."
-Write-Host ""
 Write-Host "  Wake up, samurai. Night City won't burn itself down." -ForegroundColor Magenta
 Write-Host ""
-Pause-User "Press Enter to exit."
+Pause-User "Press Enter once you've read the settings above to finish..."
 try { Start-Process explorer.exe "`"$gameRoot\bin\x64`"" } catch {}

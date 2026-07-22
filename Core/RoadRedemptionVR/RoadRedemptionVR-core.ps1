@@ -103,7 +103,7 @@ function Find-RoadRedemptionGamePath {
  # with Epic Store, so we don't bother scanning Epic paths.
  foreach ($folder in @("Road Redemption", "RoadRedemption", "Road Redemption Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "RoadRedemption_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\RoadRedemption_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

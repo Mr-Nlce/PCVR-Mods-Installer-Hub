@@ -19,7 +19,7 @@ A full room-scale VR conversion of **Half-Life 2** by the **Source VR Mod Team**
 
 ## How to install (external)
 1. Open the info page (Steam) and install the free Half-Life 2: VR Mod.
-2. Launch it from Steam; it starts in VR.
+2. Launch it with **Start in VR** in the Hub or from Steam; it starts in VR.
 
 > Controls are fully customizable via SteamVR controller bindings, and many community presets are shared on the Workshop.
 

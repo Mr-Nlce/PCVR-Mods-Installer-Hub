@@ -92,6 +92,10 @@ function Find-GameExe {
 # STEP 1: Choose game edition
 # -------------------------------------------------------
 Write-Header
+Write-Host " DawnVR by TrevTV adds VR support to Life is Strange: Before the" -ForegroundColor White
+Write-Host " Storm (Original or Remastered). Bundles MelonLoader 0.5.7" -ForegroundColor White
+Write-Host " (required - no other version works)." -ForegroundColor White
+Write-Host ""
 Write-Step 1 4 "Choose Your Game Edition"
 
 Write-Host "  DawnVR has separate versions for the Original and Remastered edition." -ForegroundColor White
@@ -327,7 +331,8 @@ Write-Host ""
 Write-Host "  - First launch will take longer than usual." -ForegroundColor White
 Write-Host "    MelonLoader configures itself on the first run." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  - Make sure SteamVR is running BEFORE launching the game." -ForegroundColor White
+Write-Host "  - Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "    starting sometimes out of focus." -ForegroundColor White
 Write-Host ""
 Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan
 Write-Host ""

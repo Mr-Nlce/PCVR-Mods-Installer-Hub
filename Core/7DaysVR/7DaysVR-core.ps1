@@ -91,6 +91,10 @@ function Find-ModZip {
 # STEP 1: Locate 7 Days to Die
 # -------------------------------------------------------
 Write-Header
+Write-Host " 7DaysVR adds VR to 7 Days to Die. The installer locates your game," -ForegroundColor White
+Write-Host " installs the mod, and sets it up to launch in VR." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Locating 7 Days to Die"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -362,7 +366,7 @@ Pause-User "Press Enter to confirm you are aware of this setting..."
 Write-Host ""
 Write-Host "--- Important Notes ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " - Launch the game normally via Steam." -ForegroundColor White
+Write-Host " - Launch with 'Start in VR' in the Hub, or normally via Steam." -ForegroundColor White
 Write-Host " Steam may warn the game is not VR-ready - click OK." -ForegroundColor Gray
 Write-Host ""
 Write-Host " - 7 Days must be the ACTIVE, FOREGROUND window while playing." -ForegroundColor Yellow

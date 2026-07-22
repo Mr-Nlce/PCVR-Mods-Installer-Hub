@@ -275,6 +275,12 @@ function Install-QuestZDoomGame {
 
     Write-Header "$GameTitle Installer"
 
+    Write-Host " Installs $GameTitle with full motion-controlled VR, powered by the" -ForegroundColor White
+    Write-Host " GZDoom VR engine. The installer sets up the VR engine and locates" -ForegroundColor White
+    Write-Host " your game files automatically." -ForegroundColor White
+    Write-Host ""
+    Pause-User "Press Enter to start..."
+
     # Decide install location. We need a writable, per-user spot
     # that survives Steam reinstalls and doesn't require admin.
     # Steam's parent is usually "Program Files (x86)" which fails
@@ -580,8 +586,11 @@ function Install-QuestZDoomGame {
     Write-Host "  !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
     Write-Host "============================================================" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  1. Start SteamVR BEFORE launching the game." -ForegroundColor White
-    Write-Host "  2. Launch via the desktop shortcut (or $BatLabel)." -ForegroundColor White
+    Write-Host "  1. Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+    Write-Host "     starting sometimes out of focus." -ForegroundColor White
+    Write-Host "  2. Launch with 'Start in VR' in the Hub, the desktop" -ForegroundColor White
+    Write-Host "     shortcut, or $BatLabel in the game folder:" -ForegroundColor White
+    Write-Host "     $installRoot" -ForegroundColor Gray
     Write-Host "  3. SteamVR -> Settings -> Dashboard: Theatre Mode OFF." -ForegroundColor White
     Write-Host ""
     Write-Host "  Quest Touch / Index controller defaults:" -ForegroundColor Cyan

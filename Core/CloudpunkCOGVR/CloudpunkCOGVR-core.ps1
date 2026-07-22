@@ -50,6 +50,10 @@ function Get-SteamLibraries { param($sp)
 # STEP 1: Locate game
 # -------------------------------------------------------
 Write-Header
+Write-Host " Cloudpunk: City of Ghosts VR by Astienth - gamepad-based VR for the" -ForegroundColor White
+Write-Host " City of Ghosts DLC. Requires the base game and its DLC on Steam." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Cloudpunk"
 
 $gamePath = $null
@@ -150,10 +154,12 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Installation Summary" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Magenta
-$dllOk = Test-Path (Join-Path $gamePath "BepInEx\plugins\CloudpunkVR_CityofGhosts.dll")
+$dllOk = Test-Path -LiteralPath "$gamePath\BepInEx\plugins\CloudpunkVR_CityofGhosts.dll"
 if ($dllOk) { Write-Host " [x] BepInEx\plugins\CloudpunkVR_CityofGhosts.dll" -ForegroundColor Green }
 else { Write-Host " [ ] CloudpunkVR_CityofGhosts.dll -- MISSING" -ForegroundColor Red }
 Write-Host " [x] Desktop shortcut 'Cloudpunk City of Ghosts VR' created." -ForegroundColor Green
+Write-Host ""
+Write-Host " Launch with 'Start in VR' in the Hub, or that desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host " TIPS" -ForegroundColor Cyan
 Write-Host " - VR UI scale: edit BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg -> 'VRUI scale'" -ForegroundColor Gray

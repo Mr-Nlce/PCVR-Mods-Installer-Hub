@@ -551,7 +551,15 @@ function global:Set-BannerForGame {
                 [void]$SubEl.Inlines.Add($sepRun)
             }
             $impRun = New-Object System.Windows.Documents.Run
-            $impRun.Text = "VR improvement"
+            # Show the SPECIFIC improvement (e.g. "3D weapons mod",
+            # "HD textures mod") like the card tile does, not a generic
+            # "VR improvement". The catalog value is prefixed with "+ "
+            # for the tile's standalone box; after a dot separator on the
+            # banner that "+ " reads as noise, so strip a leading "+ ".
+            $impText = [string]$Game.ImprovementTag
+            $impText = $impText -replace '^\s*\+\s*', ''
+            if ([string]::IsNullOrWhiteSpace($impText)) { $impText = "VR improvement" }
+            $impRun.Text = $impText
             $impRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
             [void]$SubEl.Inlines.Add($impRun)
         }

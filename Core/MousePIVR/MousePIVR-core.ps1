@@ -99,7 +99,7 @@ function Find-MouseGamePath {
    # Presence of MOUSE_Data is the strongest signal we found the install.
    foreach ($folder in @("MOUSE", "Mouse", "MOUSE P.I. For Hire", "MousePIForHire")) {
     $candidate = Join-Path $lib "steamapps\common\$folder"
-    if (Test-Path (Join-Path $candidate "MOUSE_Data")) { return $candidate }
+    if (Test-Path -LiteralPath "$candidate\MOUSE_Data") { return $candidate }
     if (Test-Path $candidate) { return $candidate }
    }
   }
@@ -107,7 +107,7 @@ function Find-MouseGamePath {
  # Xbox App / Microsoft Store install (C:\XboxGames\<Title>\Content)
  foreach ($drive in @("C:", "D:", "E:", "F:")) {
   $xb = "$drive\XboxGames\MOUSE P.I. For Hire\Content"
-  if (Test-Path (Join-Path $xb "MOUSE_Data")) { return $xb }
+  if (Test-Path -LiteralPath "$xb\MOUSE_Data") { return $xb }
   if (Test-Path $xb) { return $xb }
  }
  return $null

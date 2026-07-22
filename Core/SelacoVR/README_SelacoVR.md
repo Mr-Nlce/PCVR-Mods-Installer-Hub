@@ -84,11 +84,10 @@ do their primary action above.
 Every binding is remappable in the in-game menu (open with the **left
 controller menu button**) - VR Options.
 
-The installer sets up two launchers in the engine folder:
-
-- **SelacoVR.bat** (default) - desktop shortcut points here, `vr_joy_mode 1`
-- **SelacoVR_ValveIndex.bat** - `vr_joy_mode 0`; use this if your stick /
-  button mapping feels off on Valve Index controllers
+Launch with the **Selaco VR** desktop shortcut (or **Start in VR** in
+the Hub). Valve Index only: if your stick / button mapping feels off,
+an alternative Index launch profile sits in the engine folder - point
+the desktop shortcut at it (right-click -> Properties -> Target).
 
 To play flat (2D) instead of VR, set the cvar `vr_mode` to `0`.
 

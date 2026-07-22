@@ -4,7 +4,7 @@
 
 ## Launching
 1. Start **SteamVR** first.
-2. Launch from the **Quake 3 VR** desktop shortcut (runs `q3vr.exe`).
+2. Launch with **Start in VR** in the Hub, or the **Quake 3 VR** desktop shortcut (runs `q3vr.exe`).
 3. Open the in-game **Setup** menu first to set controls, turning, and comfort options to your liking.
 
 > Bindings can be rebound in **SteamVR → Controller Bindings**, or by creating an `autoexec.cfg` in `baseq3` and setting `vr_button_map_<key> "<action>"`.

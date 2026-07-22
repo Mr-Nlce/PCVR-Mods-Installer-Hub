@@ -20,7 +20,7 @@ installer, which drops the VR `.pak` into the game's `Paks` folder.
 ## Requirements
 
 - A working, owned **Ready Or Not** on Steam.
-- A **VR runtime** running before launch: Meta Quest Link or SteamVR.
+- A **VR runtime** running: Meta Quest Link or SteamVR. Launch it before the game to avoid it potentially starting sometimes out of focus.
 - The **VRO Mod** `pakchunk98-VR_OR_NOT_P.zip` from Nexus Mods:
   https://www.nexusmods.com/readyornot/mods/6914
 - Recommended: **DLSS Swapper** (NVIDIA GPUs) -
@@ -116,7 +116,7 @@ Move your hand fairly quickly for these to register:
   OpenXR runtime.
 - **Press U, view changes flat but nothing in headset:** check the launch
   params (copy-paste, no stray spaces); start the VR runtime **before**
-  the game; launch from the **Steam library**; set the correct default
+  the game; launch with **Start in VR** in the Hub or from the **Steam library**; set the correct default
   OpenXR runtime. If Steam doesn't pass the params, make a shortcut to
   `steamapps\common\Ready Or Not\ReadyOrNot.exe` with the params in the
   Target.

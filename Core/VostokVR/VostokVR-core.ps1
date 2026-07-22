@@ -55,6 +55,10 @@ function Get-SteamLibraries { param($sp)
 # STEP 1: Check Metro Mod Loader
 # -------------------------------------------------------
 Write-Header
+Write-Host " Road to Vostok VR by Blah64 - full VR with motion controls, physical" -ForegroundColor White
+Write-Host " weapon handling and a holster system. Requires the game on Steam." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Checking Requirements"
 
 Write-Host " Road to Vostok VR requires Metro Mod Loader (MML)." -ForegroundColor White
@@ -139,7 +143,7 @@ if (Test-Path $mmlCheck) {
      if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
      if ([string]$__fb -eq "retry") {
        # Check if user copied the files manually
-       if ((Test-Path (Join-Path $gamePath "modloader.gd")) -and (Test-Path (Join-Path $gamePath "override.cfg"))) {
+       if ((Test-Path -LiteralPath "$gamePath\modloader.gd") -and (Test-Path -LiteralPath "$gamePath\override.cfg")) {
          New-Item -ItemType Directory -Path (Join-Path $gamePath "mods") -Force | Out-Null
          Write-OK "Manual install detected - continuing."
        } else {
@@ -257,7 +261,8 @@ Write-Host "============================================================" -Foreg
 Write-Host " !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host " 1) Start SteamVR before launching the game" -ForegroundColor White
-Write-Host " 2) Launch only via 'Road to Vostok VR' desktop shortcut" -ForegroundColor White
+Write-Host " 2) Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "    'Road to Vostok VR' desktop shortcut" -ForegroundColor White
 Write-Host " Do NOT use Steam's Play button directly" -ForegroundColor Gray
 Write-Host " 3) It starts with a black screen in headset, switch to desktop viewer" -ForegroundColor White
 Write-Host " and press 'Launch with mods (Restart)'" -ForegroundColor White

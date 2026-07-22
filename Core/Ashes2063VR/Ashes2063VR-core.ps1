@@ -231,6 +231,7 @@ if ($existingRoot) {
     Write-Host ""
     $modeChoice = (Read-Host "  Choose 1 or 2").Trim()
     if ($modeChoice -eq "1") {
+        Pause-User "Press Enter to start..."
         Write-Step 1 1 "Adding the 3D models addon"
         $gzName = Get-AshesGzExeName -GameRoot $existingRoot
         if (-not $gzName) {
@@ -247,7 +248,8 @@ if ($existingRoot) {
                 Write-OK "Launchers updated - the 3D pack now loads for Ashes 2063 and Afterglow."
             } catch { Write-Warn "Could not update the launchers: $($_.Exception.Message)" }
             Write-Host ""
-            Write-Host "  Done. Launch from your existing desktop shortcuts as usual." -ForegroundColor White
+            Write-Host "  Done. Launch with 'Start in VR' in the Hub or your existing" -ForegroundColor White
+Write-Host "  desktop shortcuts as usual." -ForegroundColor White
             Write-Host ""
             Write-Host "  Tune in to Spire Radio, scavenger - now in glorious 3D." -ForegroundColor Magenta
         } else {
@@ -324,7 +326,7 @@ if (-not $installRoot) {
 Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
 
-if (Test-Path (Join-Path $gameRoot "Resources")) {
+if (Test-Path -LiteralPath "$gameRoot\Resources") {
     Write-Warn "An existing Ashes 2063 VR install was found at: $gameRoot"
     Write-Host "  Press Enter to reinstall (the folder will be rebuilt)," -ForegroundColor Gray
     Write-Host "  or close this window to abort." -ForegroundColor Gray
@@ -545,12 +547,14 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Three episodes, three desktop shortcuts:" -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub (main episode), or per" -ForegroundColor White
+Write-Host "  episode - three episodes, three desktop shortcuts:" -ForegroundColor White
 Write-Host "    * Ashes 2063 VR        (Enriched / Episode 1 + Dead Man Walking)" -ForegroundColor Gray
 Write-Host "    * Ashes Afterglow VR" -ForegroundColor Gray
 Write-Host "    * Ashes Hard Reset VR" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  BEFORE launching: start SteamVR (or Virtual Desktop's OpenVR)." -ForegroundColor Yellow
+Write-Host "  Launch SteamVR (or Virtual Desktop's OpenVR) before the game to" -ForegroundColor Yellow
+Write-Host "  avoid it potentially starting sometimes out of focus." -ForegroundColor Yellow
 Write-Host "  Aiming uses your tracked hand + the built-in laser sight." -ForegroundColor Gray
 Write-Host "  VR settings (comfort, snap-turn, weapon angle) are in Options -> VR." -ForegroundColor Gray
 Write-Host "  Controller bindings: SteamVR -> per-game bindings for gzdoomvr." -ForegroundColor Gray

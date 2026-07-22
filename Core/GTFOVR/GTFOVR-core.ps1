@@ -290,7 +290,7 @@ if ((Test-Path $bepZip) -and ((Get-Item $bepZip).Length -gt 1000)) {
         if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
         if ([string]$__fb -eq "retry") {
             # Re-check: user should have extracted BepInEx into game folder
-            if (Test-Path (Join-Path $gamePath "winhttp.dll")) {
+            if (Test-Path -LiteralPath "$gamePath\winhttp.dll") {
                 Write-OK "BepInEx detected in game folder (winhttp.dll) - continuing."
             } else {
                 Pause-User "BepInEx still not detected in $gamePath. Press Enter to exit..."

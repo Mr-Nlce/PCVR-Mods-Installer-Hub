@@ -126,14 +126,14 @@ function Find-LunisticeGamePath {
  # game exe. Check for that as the strongest signal that
  # we found the right folder.
  $candidate = Join-Path $lib "steamapps\common\Lunistice"
- if (Test-Path (Join-Path $candidate "Lunistice_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Lunistice_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
  # Fall back to GOG: this game has an official GOG release.
  foreach ($root in (Get-GogRoots)) {
  $candidate = Join-Path $root "Lunistice"
- if (Test-Path (Join-Path $candidate "Lunistice_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Lunistice_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  return $null

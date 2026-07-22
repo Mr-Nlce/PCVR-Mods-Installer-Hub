@@ -328,7 +328,7 @@ if ([string]$exMod -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -Err
 # Flatten the "DFUVR_V.0.9.1_Early_Access" wrapper: find the folder
 # that holds winhttp.dll (the BepInEx doorstop loader).
 $modPayload = $modExtract
-if (-not (Test-Path (Join-Path $modPayload "winhttp.dll"))) {
+if (-not (Test-Path -LiteralPath "$modPayload\winhttp.dll")) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter "winhttp.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $modPayload = Split-Path $hit.FullName -Parent }
 }

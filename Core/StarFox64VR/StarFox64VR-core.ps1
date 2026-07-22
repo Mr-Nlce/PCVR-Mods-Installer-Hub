@@ -139,6 +139,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile "Starship.exe
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
+$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "Starship"
 Write-Step 2 5 "Downloading Starship (latest release)"
 
 $tmp = Join-Path $installRoot "_hub_extract_tmp"
@@ -339,7 +340,8 @@ Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
 Write-Host "   1. Start your VR runtime first (Quest Link/Air Link, Virtual" -ForegroundColor White
 Write-Host "      Desktop, or SteamVR) if you want VR." -ForegroundColor White
-Write-Host "   2. Launch with the 'Star Fox 64 VR' desktop shortcut, or run:" -ForegroundColor White
+Write-Host "   2. Launch with 'Start in VR' in the Hub, or the 'Star Fox" -ForegroundColor White
+Write-Host "      64 VR' desktop shortcut, or run:" -ForegroundColor White
 Write-Host "        $exePath" -ForegroundColor Cyan
 Write-Host "   3. On first launch, pick your Star Fox 64 US .z64 in the file" -ForegroundColor White
 Write-Host "      picker. Headset connected boots into VR; otherwise it's flat." -ForegroundColor White

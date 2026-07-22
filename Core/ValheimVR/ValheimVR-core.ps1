@@ -82,6 +82,10 @@ function Find-GamePath {
 # STEP 1: Locate Valheim
 # -------------------------------------------------------
 Write-Header
+Write-Host " VHVR by manicmoose99 & Maddy25 - native VR for Valheim in full" -ForegroundColor White
+Write-Host " stereoscopic 3D with motion controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Valheim"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -267,7 +271,8 @@ Write-Host ""
 Write-Host "--- CRITICAL: Disable Vulkan ---" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  VHVR does NOT support Vulkan. You MUST use DX11." -ForegroundColor Yellow
-Write-Host "  When launching Valheim, always choose:" -ForegroundColor White
+Write-Host "  Launch with 'Start in VR' in the Hub or via Steam - and" -ForegroundColor White
+Write-Host "  when the launch dialog appears, always choose:" -ForegroundColor White
 Write-Host "    'Play Valheim'  (NOT 'Play Valheim (Vulkan)')" -ForegroundColor Green
 Write-Host ""
 try { Set-Clipboard -Value "-force-d3d11" } catch {}
@@ -300,7 +305,8 @@ Pause-User "Press Enter to confirm you are aware of this setting..."
 Write-Host ""
 Write-Host "--- Important Notes ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  - Start SteamVR BEFORE launching Valheim." -ForegroundColor White
+Write-Host "  - Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
+Write-Host "    starting sometimes out of focus." -ForegroundColor White
 Write-Host ""
 Write-Host "  - First launch takes longer - BepInEx configures itself." -ForegroundColor White
 Write-Host ""

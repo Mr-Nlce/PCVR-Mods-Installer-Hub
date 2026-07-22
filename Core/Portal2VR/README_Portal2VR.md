@@ -32,7 +32,7 @@
   2. Start Portal 2, wait for the **main menu**, then quit
   3. Double-click `Fix-Sound-issue-VR` in your Portal 2 folder (points at the mod's `UpdateSoundCache.cmd`)
   4. Rename `openvr_api.dll-` back to `openvr_api.dll`
-- For normal VR play: start SteamVR **before** launching Portal 2, and launch the game **from inside SteamVR**
+- For normal VR play: start SteamVR **before** launching Portal 2, then launch with **Start in VR** in the Hub or **from inside SteamVR**
 
 ## Mod settings
 

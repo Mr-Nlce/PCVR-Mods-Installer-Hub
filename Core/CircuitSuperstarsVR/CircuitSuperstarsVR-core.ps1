@@ -113,7 +113,7 @@ function Find-CircuitSuperstarsGamePath {
  # (lowercase + hyphen - reflects the EXE name).
  foreach ($folder in @("Circuit Superstars", "CircuitSuperstars")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "circuit-superstars_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\circuit-superstars_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }

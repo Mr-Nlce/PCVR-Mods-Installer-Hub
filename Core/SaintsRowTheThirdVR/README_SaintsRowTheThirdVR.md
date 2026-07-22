@@ -59,7 +59,7 @@ folder - the folder itself is not copied.
 
 ## How to play in VR
 
-1. Launch the game using `SaintsRowTheThird_DX11.exe` (the desktop shortcut,
+1. Launch with **Start in VR** in the Hub, or `SaintsRowTheThird_DX11.exe` (the desktop shortcut,
    the Hub's Start button, or the exe directly).
 2. In-game, press **F7** to open the ZMenu trainer menu.
 3. Scroll down to **VR** and press it.

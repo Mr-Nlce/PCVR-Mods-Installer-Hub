@@ -31,8 +31,8 @@ installs a pinned, mod-compatible Steam depot build into its own folder.
 
 The VR build installs to its own folder (default `C:\Games\Gunfire Reborn
 VR`) and is completely separate from your retail Steam copy. **Always
-launch via the `Gunfire Reborn VR` desktop shortcut or the Hub's Start in
-VR button — not via Steam**, which would start your flat retail copy.
+launch with Start in VR in the Hub or the `Gunfire Reborn VR` desktop
+shortcut — not via Steam**, which would start your flat retail copy.
 
 ## First-launch quirk
 

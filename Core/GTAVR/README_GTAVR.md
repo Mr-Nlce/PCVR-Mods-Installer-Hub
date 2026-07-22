@@ -56,7 +56,7 @@ will have no in-game sound.
 
 ## Playing & controls
 
-Launch with the desktop shortcut for the mode you want:
+Launch with **Start in VR** in the Hub, or the desktop shortcut for the mode you want:
 
 - **Grand Theft Auto V VR** - Gamepad, **OpenXR** (stable).
 - **Grand Theft Auto V VR Motion (WIP)** - motion controls, **OpenVR**

@@ -120,6 +120,10 @@ function Expand-To { param($zip,$dir)
 # STEP 1: Mode selection
 # -------------------------------------------------------
 Write-Header
+Write-Host " LCVR by DaXcess adds full 6DOF VR with hand movement and motion" -ForegroundColor White
+Write-Host " controls to Lethal Company. Plays fine in lobbies with non-VR players." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 4 "Select Installation Mode"
 
 # Check Thunderstore for deprecated status

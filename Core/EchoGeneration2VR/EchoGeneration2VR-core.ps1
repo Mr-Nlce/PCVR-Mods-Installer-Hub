@@ -100,7 +100,7 @@ function Find-EchoGamePath {
  }
  # Step 2: Xbox / Microsoft Store / PC Game Pass fallback, game ROOT is the Content folder
  foreach ($xb in @("C:\XboxGames\Echo Generation 2\Content", "D:\XboxGames\Echo Generation 2\Content")) {
- if (Test-Path (Join-Path $xb "Echo Generation 2.exe")) { return $xb }
+ if (Test-Path -LiteralPath "$xb\Echo Generation 2.exe") { return $xb }
  }
  return $null
 }

@@ -362,7 +362,7 @@ if (-not $installedOk) {
 }
 if ($installedOk) {
     Write-OK "Mod installed - $MOD_MARKER is in place."
-    if (Test-Path (Join-Path $gameDir "VR.rez")) { Write-OK "VR content in place - VR.rez." }
+    if (Test-Path -LiteralPath "$gameDir\VR.rez") { Write-OK "VR content in place - VR.rez." }
     else { Write-Warn "VR.rez is missing - make sure the WHOLE .rar was extracted." }
 } else {
     Write-Warn "$MOD_MARKER not found in $gameDir - the mod may not be installed correctly."
@@ -422,7 +422,8 @@ Write-Host " HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " 1) Start SteamVR first (Rift users can skip this)." -ForegroundColor White
-Write-Host " 2) Launch from the 'No One Lives Forever 2 VR' desktop" -ForegroundColor White
+Write-Host " 2) Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "    'No One Lives Forever 2 VR' desktop" -ForegroundColor White
 Write-Host "    shortcut (it runs Lithtech.exe)." -ForegroundColor White
 Write-Host " 3) Switch on your Xbox controller BEFORE launching - it must" -ForegroundColor White
 Write-Host "    be connected (steady, non-blinking light) or it won't be" -ForegroundColor White

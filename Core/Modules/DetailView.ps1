@@ -3535,7 +3535,8 @@ function global:Start-GameInVR {
                     "Penumbra: Overture VR",
                     "Outer Wilds VR",
                     "Outward DE VR",
-                    "Selaco VR"
+                    "Selaco VR",
+                    "Halo 3 MCC VR"
                 )
                 $launchWorkDir = $gameDir
                 if ($subfolderExeTitles -contains $Game.Title) {
@@ -3815,6 +3816,20 @@ function global:Show-DiscoverDetail {
     $heroGrid = New-Object System.Windows.Controls.Grid
     $hero.Child = $heroGrid
 
+    # Register the hero border under a stable name so the shared banner
+    # effect system (Add-BannerEffect, which resolves its target via
+    # $global:window.FindName) can attach an animated layer to it. Used
+    # by the wide-monitor centered layout below.
+    # Each detail view rebuilds this hero, so a prior view likely left
+    # these names registered against now-discarded elements. Clear them
+    # first (the hero itself no longer needs a name, but the two side-
+    # band effect panels below do). Guarded: if the window has no
+    # NameScope the effect just won't attach and the layout still works.
+    $heroFxName = "DetailHeroBanner"
+    foreach ($nm in @($heroFxName, "DetailHeroBandLeft", "DetailHeroBandRight")) {
+        try { $global:window.UnregisterName($nm) } catch {}
+    }
+
     $heroUrl = Get-GameImageUrl -Game $Game -Kind "header"
     # Prefer the local disk cache if we've saved this header before -
     # loads synchronously from file and works with no network. BUT only
@@ -3852,6 +3867,134 @@ function global:Show-DiscoverDetail {
         # look like Steam's storefront. Some cropping at top/bottom is
         # accepted to avoid black bars.
         $heroImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+
+        # --- Wide-monitor centered layout -----------------------------
+        # On a wide window the hero is much wider than a 460x215 Steam
+        # header's aspect ratio. UniformToFill then scales the image to
+        # the WIDTH and crops most of the height away - you see only a
+        # thin horizontal sliver. Fix: past a threshold width, stop
+        # filling. Instead cap the image at a fixed width, center it, and
+        # switch to Uniform so the WHOLE header shows. The exposed side
+        # bands then reveal the animated banner effect + accent edges
+        # sitting behind it. Below the threshold nothing changes: the
+        # image full-bleeds as before.
+        #
+        # 465 is the header's native width; the hero is 360 tall. Past
+        # the threshold we DON'T shrink the image - we FREEZE it at the
+        # exact size it had just before the switch: width = threshold,
+        # height = 360, still UniformToFill so the crop looks identical.
+        # It just stops growing wider and centers, and the accent/effect
+        # bands fill the gap on either side. No size jump at the switch.
+        $heroThreshold = 1040.0  # hero width past which we freeze + center
+        $heroImgRef2   = $heroImg
+        $heroRef2      = $hero
+        $accentHexRef  = $accentHex
+        $heroGameRef   = $Game
+        $script:__heroFxApplied = $false
+        $script:__heroBandL = $null
+        $script:__heroBandR = $null
+        $heroApplyLayout = {
+            param($hw)
+            try {
+                if ($hw -ge $heroThreshold) {
+                    # Frozen-crop, centered mode. Keep UniformToFill (same
+                    # crop as before the switch) and cap the width at the
+                    # threshold so the image is exactly the size it was the
+                    # instant before we switched - no shrink, no jump.
+                    $heroImgRef2.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+                    $heroImgRef2.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+                    $heroImgRef2.MaxWidth = $heroThreshold
+                    # Once the bands exist, keep their width in sync as the
+                    # window grows wider (each band = half the exposed gap).
+                    if ($script:__heroBandL -and $script:__heroBandR) {
+                        $bw = [Math]::Max(80.0, ($hw - $heroThreshold) / 2.0)
+                        $script:__heroBandL.Width = $bw
+                        $script:__heroBandR.Width = $bw
+                    }
+                    # Accent edges: a horizontal gradient that is accent-
+                    # tinted at both rims and transparent across the
+                    # middle, so it frames the centered image without
+                    # touching it. Rebuilt each time in case the accent
+                    # differs per game.
+                    try {
+                        $edge = New-Object System.Windows.Media.LinearGradientBrush
+                        $edge.StartPoint = [System.Windows.Point]::new(0, 0.5)
+                        $edge.EndPoint   = [System.Windows.Point]::new(1, 0.5)
+                        $acc = [System.Windows.Media.ColorConverter]::ConvertFromString($accentHexRef)
+                        $accSoft = [System.Windows.Media.Color]::FromArgb(150, $acc.R, $acc.G, $acc.B)
+                        $accNone = [System.Windows.Media.Color]::FromArgb(0,   $acc.R, $acc.G, $acc.B)
+                        $edge.GradientStops.Add((New-Object System.Windows.Media.GradientStop $accSoft, 0.0))  | Out-Null
+                        $edge.GradientStops.Add((New-Object System.Windows.Media.GradientStop $accNone, 0.22)) | Out-Null
+                        $edge.GradientStops.Add((New-Object System.Windows.Media.GradientStop $accNone, 0.78)) | Out-Null
+                        $edge.GradientStops.Add((New-Object System.Windows.Media.GradientStop $accSoft, 1.0))  | Out-Null
+                        if ($edge.CanFreeze) { $edge.Freeze() }
+                        $heroRef2.Background = $edge
+                    } catch {}
+                    # Animated effect in the side bands. The banner effects
+                    # scatter their elements across a wide (~2600px) field,
+                    # so a single full-width layer barely populates the two
+                    # narrow rims we can actually see. Instead give each rim
+                    # its OWN effect panel, sized to the band, and fill both
+                    # with the SAME random effect - guaranteed, matching
+                    # left+right coverage. Done once.
+                    if (-not $script:__heroFxApplied) {
+                        try {
+                            if ((Get-Command Get-BannerFxFor -ErrorAction SilentlyContinue) -and
+                                (Get-Command Set-BannerEffect -ErrorAction SilentlyContinue)) {
+                                $fx = Get-BannerFxFor -Game $heroGameRef
+                                $hg = $heroRef2.Child
+                                if ($hg -is [System.Windows.Controls.Grid]) {
+                                    # Width of each visible side band = half
+                                    # of (hero width - frozen image width).
+                                    # The frozen image is $heroThreshold wide;
+                                    # clamp so a slightly-over width still
+                                    # gives a sane band.
+                                    $bandW = [Math]::Max(80.0, ($hw - $heroThreshold) / 2.0)
+                                    foreach ($side in @("Left","Right")) {
+                                        $bandName = "DetailHeroBand$side"
+                                        $band = New-Object System.Windows.Controls.Border
+                                        $band.Width  = $bandW
+                                        $band.Height = 360
+                                        $band.ClipToBounds = $true
+                                        $band.IsHitTestVisible = $false
+                                        $band.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+                                        $band.HorizontalAlignment = if ($side -eq "Left") {
+                                            [System.Windows.HorizontalAlignment]::Left
+                                        } else {
+                                            [System.Windows.HorizontalAlignment]::Right
+                                        }
+                                        # Each band needs a Grid child for the
+                                        # effect system to attach to.
+                                        $bandGrid = New-Object System.Windows.Controls.Grid
+                                        $band.Child = $bandGrid
+                                        # Behind the image (ZIndex 0); image is
+                                        # bumped to 5 below.
+                                        [System.Windows.Controls.Panel]::SetZIndex($band, 0)
+                                        [void]$hg.Children.Add($band)
+                                        if ($side -eq "Left") { $script:__heroBandL = $band } else { $script:__heroBandR = $band }
+                                        try { $global:window.UnregisterName($bandName) } catch {}
+                                        try { $global:window.RegisterName($bandName, $band) } catch {}
+                                        Set-BannerEffect -BannerName $bandName -BannerH 360 -ColorHex $accentHexRef -Effect $fx
+                                    }
+                                }
+                                # Keep the header image above the bands.
+                                [System.Windows.Controls.Panel]::SetZIndex($heroImgRef2, 5)
+                                $script:__heroFxApplied = $true
+                            }
+                        } catch {}
+                    }
+                } else {
+                    # Narrow: original full-bleed behavior.
+                    $heroImgRef2.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+                    $heroImgRef2.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+                    $heroImgRef2.MaxWidth = [double]::PositiveInfinity
+                }
+            } catch {}
+        }.GetNewClosure()
+        # Re-evaluate whenever the hero is resized (window resize / maximize).
+        $hero.Add_SizeChanged({ param($s,$e) & $heroApplyLayout $e.NewSize.Width }.GetNewClosure())
+        # Apply once on load too, in case the initial width is already wide.
+        $hero.Add_Loaded({ param($s,$e) & $heroApplyLayout $s.ActualWidth }.GetNewClosure())
         # Local file art (manual portrait/header for non-Steam games)
         # is served through the global frozen-bitmap cache, so
         # re-opening the same game does not re-decode it from disk.
@@ -4485,6 +4628,7 @@ function global:Show-DiscoverDetail {
     $infoHeading = "Game Info"
     $customDescriptions = @{
         "Mario Kart 64 VR" = "Experience the classic kart racing action of Mario Kart 64 in immersive VR. Race through iconic tracks with full 6DOF head tracking, bringing the world to life from inside the driver's seat. Built on SpaghettiKart, the Mario Kart 64 PC port - you bring your own US ROM, and nothing from Nintendo is included."
+        "Ring Racers VR" = "Dr. Robotnik's Ring Racers is a fast-paced kart racing game featuring dozens of characters, tracks, items, and advanced movement mechanics. Thanks to the new OpenXR port, the chaotic races can now be experienced in immersive PCVR."
         "Sonic Robo Blast 2 VR" = "Sonic Robo Blast 2 is a long-running fan-made 3D platformer inspired by the classic Sonic games, featuring fast-paced gameplay, exploration - now with OpenXR support."
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
         "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."

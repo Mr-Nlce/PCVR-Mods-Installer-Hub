@@ -172,7 +172,7 @@ if ($ver) {
 
 # ---- Already installed? Offer a quick patcher-only update ----
 $updateOnly = $false
-if (Test-Path (Join-Path $gtaDir "RealVR.asi")) {
+if (Test-Path -LiteralPath "$gtaDir\RealVR.asi") {
     Write-Host ""
     Write-Host "  This GTA V already has the VR mod installed." -ForegroundColor Cyan
     Write-Host "  [U] Update the compat patcher only - just refresh R.E.A.L. + VRV" -ForegroundColor White
@@ -218,7 +218,7 @@ function Get-BrowserFile {
 }
 
 # ---- STEP 3: ScriptHookV (must match the game build) ----
-if ($updateOnly -and (Test-Path (Join-Path $gtaDir "ScriptHookV.dll"))) {
+if ($updateOnly -and (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll")) {
     Write-Step 3 6 "ScriptHookV"
     Write-OK "ScriptHookV already installed - skipping (update mode)."
 } else {
@@ -252,7 +252,7 @@ if ($shZip -and (Test-IsZipFile $shZip)) {
     } catch { Write-Warn "ScriptHookV extraction failed: $_" }
     try { Remove-Item $shtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
-if (Test-Path (Join-Path $gtaDir "ScriptHookV.dll")) {
+if (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll") {
     Write-OK "ScriptHookV in place (ScriptHookV.dll + dinput8.dll)."
 } else {
     Write-Warn "ScriptHookV not installed - put ScriptHookV.dll + dinput8.dll next to $GAME_EXE manually."
@@ -377,7 +377,7 @@ if (-not $installedOk) {
 }
 if ($installedOk) {
     Write-OK "Patcher installed - RealVR.ini is in place."
-    if (Test-Path (Join-Path $gtaDir "RealVR.asi")) {
+    if (Test-Path -LiteralPath "$gtaDir\RealVR.asi") {
         Write-OK "VR plugin in place - RealVR.asi."
     } else {
         Write-Warn "RealVR.asi is missing - make sure the WHOLE patcher zip was extracted."
@@ -448,7 +448,7 @@ if ($mc -match '^(y|yes|j|ja)$') {
         }
     }
     try { Remove-Item $mtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    if (Test-Path (Join-Path $gtaDir "GTAVR.asi")) {
+    if (Test-Path -LiteralPath "$gtaDir\GTAVR.asi") {
         Write-OK "Motion controls installed - GTAVR.asi is in place."
     } else {
         Write-Warn "GTAVR.asi not found - motion controls not added. Gamepad still works."
@@ -509,7 +509,7 @@ try {
     Write-OK "Shortcut created: Grand Theft Auto V VR (gamepad, OpenXR)"
 } catch { Write-Warn "Could not create the gamepad shortcut - run '$gpLauncher' to play." }
 
-$motionInstalled = (Test-Path (Join-Path $gtaDir "GTAVR.asi")) -or (Test-Path (Join-Path $gtaDir "GTAVR.asi.off"))
+$motionInstalled = (Test-Path -LiteralPath "$gtaDir\GTAVR.asi") -or (Test-Path -LiteralPath "$gtaDir\GTAVR.asi.off")
 if ($motionInstalled) {
     try {
         $lnkM = Join-Path $desktop "Grand Theft Auto V VR Motion (WIP).lnk"
@@ -529,7 +529,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " 1) Launch via the desktop shortcut:" -ForegroundColor White
+Write-Host " 1) Launch with 'Start in VR' in the Hub, or the desktop shortcut:" -ForegroundColor White
 Write-Host "      'Grand Theft Auto V VR'        = Gamepad (OpenXR, stable)" -ForegroundColor Gray
 Write-Host "      'Grand Theft Auto V VR Motion' = Motion controls (OpenVR, WIP)" -ForegroundColor Gray
 Write-Host " 2) IMPORTANT: in Steam, GTA V Properties, turn OFF" -ForegroundColor Yellow
@@ -538,7 +538,7 @@ Write-Host "    VR shows only a flat/transparent screen, not the real game." -Fo
 Write-Host " 3) Quickly shake your head to recenter the view." -ForegroundColor White
 Write-Host " 4) Hotkeys are off at start - press F11 to turn them on" -ForegroundColor White
 Write-Host "    (full hotkey list is in README_GTAVR.md)." -ForegroundColor White
-if (Test-Path (Join-Path $gtaDir "GTAVR.asi")) {
+if (Test-Path -LiteralPath "$gtaDir\GTAVR.asi") {
     Write-Host ""
     Write-Host " Motion (use the 'Motion (WIP)' shortcut): NUMPAD 0 opens the menu," -ForegroundColor White
     Write-Host " NUMPAD 8 up, NUMPAD 2 down, NUMPAD 5 to confirm." -ForegroundColor White

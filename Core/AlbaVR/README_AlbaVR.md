@@ -17,7 +17,7 @@ Click **Install Mod** on the game tile or detail page and follow the
 prompts. The installer downloads BepInEx and the VR mod, places them in
 the game folder, and (on Steam) turns off Desktop Game Theatre for you.
 
-After installing, launch the game in VR. The VR mode setting is
+After installing, launch the game in VR - **Start in VR** in the Hub or the desktop shortcut. The VR mode setting is
 remembered, so later you can just launch the game normally. Use your VR
 software's recenter function once in-game, then the in-game recenter key
 (Home by default) to realign the view to your head when needed.

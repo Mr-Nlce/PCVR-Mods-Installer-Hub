@@ -35,8 +35,8 @@ and paranoia. Original soundtrack inspired by the work of Aubrey Hodges
 ## How to use
 
 Click **Install Mod** on the game tile or detail page and follow the
-prompts. When it finishes, start SteamVR, then launch with the **Iron
-Lung VR** desktop shortcut.
+prompts. When it finishes, start SteamVR, then launch with
+**Start in VR** in the Hub or the **Iron Lung VR** desktop shortcut.
 
 ## Controls
 

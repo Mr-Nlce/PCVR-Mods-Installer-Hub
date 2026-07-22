@@ -18,7 +18,7 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 
 ## First-time VR setup (after installation)
 
-1. Launch Raft via the **'Raft VR'** desktop shortcut — never via Steam directly
+1. Launch with **Start in VR** in the Hub or the **'Raft VR'** desktop shortcut — never via Steam directly
 2. In the main menu, open the **Mod Manager** tab
 3. Find **ExtraSettingsAPI** and click **'Load Mod'** to activate it
    (RaftVR should already show as active)

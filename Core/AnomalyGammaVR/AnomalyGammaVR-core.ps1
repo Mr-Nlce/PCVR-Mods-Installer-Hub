@@ -98,6 +98,11 @@ Write-Header
 # -------------------------------------------------------
 # STEP 1: choose install location
 # -------------------------------------------------------
+Write-Host " A motion-controlled VR build of S.T.A.L.K.E.R. GAMMA, the large curated" -ForegroundColor White
+Write-Host " Anomaly modpack. GAMMA is a complete standalone package - it includes" -ForegroundColor White
+Write-Host " everything; no separate Anomaly or game install is needed." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 5 "Choose install location"
 Write-Host "  Default location: C:\Games\$MOD_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray

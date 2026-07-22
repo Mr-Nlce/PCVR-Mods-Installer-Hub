@@ -78,6 +78,10 @@ function Find-GamePath {
 # STEP 1: Locate DREDGE
 # -------------------------------------------------------
 Write-Header
+Write-Host " DredgeVR by xen-42 adds VR to the fishing adventure DREDGE, via the" -ForegroundColor White
+Write-Host " Winch mod loader. Gamepad controls." -ForegroundColor White
+Write-Host ""
+Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating DREDGE"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
@@ -128,6 +132,7 @@ else { Write-Warn "DREDGE.exe not found - folder may still be correct." }
 # -------------------------------------------------------
 # STEP 2: Install Winch + DredgeVR
 # -------------------------------------------------------
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "Mods\xen.DredgeVR\DredgeVR.dll" -Label "DredgeVR"
 Write-Step 2 3 "Installing Winch v0.6.1 + DredgeVR"
 
 $tempDir = Join-Path $env:TEMP "DredgeVRInstaller_$([System.IO.Path]::GetRandomFileName())"
@@ -159,9 +164,9 @@ if (Test-Path $winchZip) {
                 Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
             }
 
-            if (Test-Path (Join-Path $gamePath "winhttp.dll")) { Write-OK "winhttp.dll verified." }
+            if (Test-Path -LiteralPath "$gamePath\winhttp.dll") { Write-OK "winhttp.dll verified." }
             else { Write-Warn "winhttp.dll not found." }
-            if (Test-Path (Join-Path $gamePath "Winch.dll"))   { Write-OK "Winch.dll verified." }
+            if (Test-Path -LiteralPath "$gamePath\Winch.dll")   { Write-OK "Winch.dll verified." }
             else { Write-Warn "Winch.dll not found." }
             Write-OK "Winch v0.6.1 installed!"
         } catch {
@@ -194,12 +199,16 @@ if (Test-Path $vrZip) {
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
             if (-not (Test-Path $modDir)) { New-Item -ItemType Directory -Path $modDir -Force | Out-Null }
-            Get-ChildItem -Path $vrExtract | ForEach-Object {
+            # Layout-change-proof (this zip is pulled from releases/LATEST,
+            # so the modder can change its structure any day): find the
+            # level that holds DredgeVR.dll and copy from there.
+            $vrPayload = Get-ExtractedPayloadRoot -ExtractDir $vrExtract -RelModFile "DredgeVR.dll" -Markers @("mod_meta.json")
+            Get-ChildItem -Path $vrPayload | ForEach-Object {
                 Copy-Item -Path $_.FullName -Destination $modDir -Recurse -Force
             }
-            if (Test-Path (Join-Path $modDir "DredgeVR.dll"))  { Write-OK "DredgeVR.dll verified." }
+            if (Test-Path -LiteralPath "$modDir\DredgeVR.dll")  { Write-OK "DredgeVR.dll verified." }
             else { Write-Warn "DredgeVR.dll not found." }
-            if (Test-Path (Join-Path $modDir "mod_meta.json")) { Write-OK "mod_meta.json verified." }
+            if (Test-Path -LiteralPath "$modDir\mod_meta.json") { Write-OK "mod_meta.json verified." }
             else { Write-Warn "mod_meta.json not found." }
             Write-OK "DredgeVR installed!"
         } catch {

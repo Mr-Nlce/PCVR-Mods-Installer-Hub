@@ -110,7 +110,7 @@ function Find-DinoTraumaGamePath {
  # folder is the strongest signal we found the right install.
  foreach ($folder in @("Dino Trauma", "DinoTrauma", "Dino Trauma Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate "Dino Trauma_Data")) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Dino Trauma_Data") { return $candidate }
  if (Test-Path $candidate) { return $candidate }
  }
  }
