@@ -256,7 +256,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
         <img src="https://img.youtube.com/vi/1rRL6aM9n20/mqdefault.jpg" width="320" alt="Spanish PCVR Mods Installer Hub video">
       </a>
       <br>
-      <b>Spanish video</b>
+      <b>
+Shaak4 VR (Spanish video)</b>
     </td>
   </tr>
 </table>
