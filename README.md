@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (202)</summary>
+<summary>Show all currently listed titles (203)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -87,6 +87,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Ghostwire: Tokyo
 * Grounded
 * GTA 5 VR
+* GTA: Vice City VR (2003) (motion controls)
 * GTFO VR (motion controls)
 * Gunfire Reborn (motion controls)
 * Half-Life 2 VR (+ Unleashed mod) (motion controls)
