@@ -343,11 +343,8 @@ On first launch, the Hub automatically creates a desktop shortcut named **VR Mod
 
 # Why PowerShell and Batch?
 
-The Hub is intentionally built with PowerShell and batch scripts instead of a compiled executable.
+The Hub is intentionally built with PowerShell and batch scripts rather than a compiled executable. This keeps the entire project transparent and fully auditable, as the GitHub release contains the complete source code and every line can be inspected at any time.
 
-This keeps the entire project transparent, every line of code can be inspected or audited by anyone at any time. The GitHub release version is also the complete source code.
-
-Using PowerShell and batch files avoids requiring an unsigned standalone executable, making the project easier to inspect and verify.
 
 ---
 
