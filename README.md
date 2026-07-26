@@ -19,12 +19,12 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (205)</summary>
+<summary>Show all currently listed titles (207)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
 * Alien: Isolation VR (motion controls)
-* Amnesia: The Dark Descent VR (motion controls)
+* Amnesia: The Dark Descent VR (+ HD texture mod) (motion controls)
 * Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
 * Art of Rally VR
@@ -74,6 +74,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Far Cry New Dawn
 * Far Cry Primal
 * Far Cry VR (motion controls)
+* F.E.A.R. VR [WIP] (motion controls)
 * FF VII Rebirth
 * FF VII Remake
 * Final Fantasy XIV VR (motion controls)
@@ -208,7 +209,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The House of the Dead Remake (motion controls)
 * The House of the Dead 2 Remake (motion controls)
 * The Legend of Zelda: Breath of the Wild (motion controls)
-* The Legend of Zelda: Ocarina of Time (motion controls)
+* The Legend of Zelda: Ocarina of Time (+ HD texture mod) (motion controls)
 * Tinykin VR
 * TLOU Part I
 * TLOU Part II
@@ -225,6 +226,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Watch Dogs
 * Watch Dogs 2
 * Watch Dogs Legion
+* Wolfenstein 3D VR (motion controls)
 * World of Warcraft VR (motion controls)
 * Yooka-Laylee VR
 * (Dolphin VR + Redux)
