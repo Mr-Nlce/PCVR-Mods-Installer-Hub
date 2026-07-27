@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (207)</summary>
+<summary>Show all currently listed titles (208)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -54,6 +54,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Deep Rock Galactic VR (motion controls)
 * Descenders
 * Devil May Cry 5 VR
+* Dinkum
 * Dino Trauma VR (motion controls)
 * Doom (+ 3D weapons) (motion controls)
 * Doom 2 (+ 3D weapons) (motion controls)
