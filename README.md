@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (208)</summary>
+<summary>Show all currently listed titles (210)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -36,6 +36,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Atomic Heart
 * Avatar: Frontiers of Pandora
 * Bendy VR (motion controls)
+* Bioshock Remastered (motion controls)
 * Black Mesa Source VR (motion controls)
 * Bomb Rush Cyberfunk (motion controls)
 * Circuit Superstars VR
@@ -193,6 +194,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Star Trucker
 * Star Wars Outlaws
 * Star Wars - X-Wing SE VR
+* Stardew Valley VR [WIP] (motion controls)
 * Starfield VR
 * Starfox 64 VR
 * Stray
