@@ -744,11 +744,16 @@ function global:Apply-Filter {
     $query = ""
     try { if ($searchBox) { $query = $searchBox.Text.Trim().ToLower() } } catch { $query = "" }
     $view = if (Get-Command Get-CurrentView -ErrorAction SilentlyContinue) { Get-CurrentView } else { "List" }
-    # List view cards. Each card is evaluated INDEPENDENTLY and FAIL-OPEN:
-    # if testing a single game throws (or its data is missing), that card is
-    # SHOWN, never hidden, and the loop continues. One bad entry can never
-    # freeze the search or make unrelated games vanish.
-    if ($view -eq "List") {
+    # Filter the List cards ALWAYS - not only when List is the tracked view.
+    # Both the List and the Library hold the SAME games; gating this on the
+    # tracked view meant a view-tracking mismatch (e.g. after toggling
+    # Library <-> List with an active query) could leave one list stuck on the
+    # last search, because clearing the box then ran the OTHER branch and
+    # never re-showed these cards. Updating the currently-hidden list's
+    # visibility too is harmless and guarantees whichever view you switch to
+    # is already correct. Each card is FAIL-OPEN: if testing one game throws
+    # (or its data is missing) that card is SHOWN, never hidden, and the loop
+    # continues, so one bad entry can never freeze the search.
     for ($i = 0; $i -lt $global:allCards.Count; $i++) {
         $card = $global:allCards[$i]
         if (-not $card) { continue }
@@ -761,16 +766,10 @@ function global:Apply-Filter {
         } catch { $vis = [System.Windows.Visibility]::Visible }
         $card.Visibility = $vis
     }
-    }
-    # Discover tiles (built lazily; only iterate when present). Key off
-    # VISIBILITY, not just $view: searching from the Explore page switches the
-    # visible view to the discover tiles without always flipping the tracked
-    # view, so a CLEARED search would otherwise run the wrong branch and leave
-    # the tiles stuck on the last few matches. Filtering whenever they're
-    # visible lets an empty query re-show every tile.
-    $__discoverVisible = $false
-    try { $__discoverVisible = ($global:discoverTiles -and $global:discoverTiles.Visibility -eq [System.Windows.Visibility]::Visible) } catch {}
-    if (($view -eq "Library" -or $__discoverVisible) -and $global:discoverPanel -and $global:DiscoverTilesBuilt) {
+    # Discover/Library tiles - filter ALWAYS when built, for the same reason:
+    # keep the hidden view consistent so a cleared query re-shows every tile
+    # regardless of which view is tracked or visible.
+    if ($global:discoverPanel -and $global:DiscoverTilesBuilt) {
         foreach ($tile in $global:discoverPanel.Children) {
             if (-not $tile) { continue }
             $g = $null
@@ -1428,11 +1427,35 @@ function global:Get-GithubLatestTagCached {
     }
     $tag = $null
     if ($IncludePrerelease) {
-        # Prerelease-aware path: the API /releases list is ordered newest-first
-        # and includes prereleases. Take the first entry's tag_name. This uses
-        # the 60/hour unauthenticated API limit, but only for the handful of
-        # prerelease mods, and the 6h cache keeps it well under budget.
+        # Prerelease-aware path, WEBSITE FIRST: <repo>/releases.atom is served by
+        # github.com, not by the API, so it has NO 60/hour limit - and it lists
+        # prereleases, newest first. Each entry carries the tag in its <id> as
+        #   tag:github.com,2008:Repository/<repoId>/<tag>
+        # Verified against four repos in this Hub, including prerelease-only
+        # ones (witcher3-vr -> v0.9.0-alpha.1, fear-vr -> v1.0.0-beta.7) and
+        # normal ones (anvilengine2vr -> v2.0.0.Public, REFramework-nightly).
+        # The API stays as the fallback below.
+        # Deliberately NOT via Invoke-ScanWebGet: that helper trips the
+        # scan-wide online-down breaker on any failure, and a missing atom
+        # feed must not kill the rest of the scan - the API fallback right
+        # below still has a chance.
         try {
+            $atomResp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases.atom" `
+                            -UseBasicParsing -TimeoutSec 3 `
+                            -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop
+            $atom = [string]$atomResp.Content
+            if ($atom) {
+                $m = [regex]::Match($atom, 'Repository/[0-9]+/([^<]+)')
+                if ($m.Success) {
+                    $t = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
+                    if ($t) { $tag = $t }
+                }
+            }
+        } catch {
+            Write-Host "[GithubCheck] $Repo (prerelease) : atom feed failed ($($_.Exception.Message)) - trying the API"
+        }
+        if (-not $tag) {
+          try {
             $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=1" -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 2 -EA Stop 2>$null
             $first = $rel | Select-Object -First 1
             if ($first -and $first.tag_name) { $tag = [string]$first.tag_name.Trim() }
@@ -1443,6 +1466,7 @@ function global:Get-GithubLatestTagCached {
             if ($_.Exception.Message -notmatch "rate limit|403|forbidden") { $global:HubScanOnlineDown = $true }
             if ($entry -and $entry.tag) { return [string]$entry.tag }
             return $null
+          }
         }
         if ($tag) {
             $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
@@ -1465,7 +1489,11 @@ function global:Get-GithubLatestTagCached {
     try {
         $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 2 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
         $final = ""
+        # Windows PowerShell 5.1 exposes the final URL as BaseResponse.ResponseUri;
+        # PowerShell 7 has no such property and uses RequestMessage.RequestUri
+        # instead. Reading only the 5.1 name made this fail silently on 7.
         try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+        if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
     } catch {
@@ -1659,7 +1687,92 @@ function global:Invoke-RotatingOnlinePrewarm {
     } catch {}
 }
 
+# --- Scan UI lock -------------------------------------------------
+# While a scan yields the UI thread back to WPF (see the pump inside
+# Invoke-CheckInstalledScan), the window is alive - it paints and
+# animates, but nothing in a half-finished scan should be interactive.
+# Lock-ScanUi therefore switches BOTH input paths off:
+#   - mouse:    IsHitTestVisible = $false on the window content
+#   - keyboard: Preview blockers on the window (tunneling, so they run
+#               before the search box or any shortcut sees the key -
+#               typing in the search box mid-scan would tear down the
+#               detail view and re-filter the very cards being scanned)
+# Unlock-ScanUi reverses both and is safe to call when nothing is
+# locked - it is used at scan end, in the self-heal path and in the
+# click handler's crash catch.
+function global:Lock-ScanUi {
+    try {
+        $script:scanInputLock = $global:window.Content
+        if ($script:scanInputLock) { $script:scanInputLock.IsHitTestVisible = $false }
+    } catch { $script:scanInputLock = $null }
+    try {
+        if (-not $script:scanKeysLocked) {
+            if (-not $script:scanKeyBlock) {
+                $script:scanKeyBlock  = [System.Windows.Input.KeyEventHandler]{ param($s, $e) $e.Handled = $true }
+                $script:scanTextBlock = [System.Windows.Input.TextCompositionEventHandler]{ param($s, $e) $e.Handled = $true }
+            }
+            $global:window.AddHandler([System.Windows.UIElement]::PreviewKeyDownEvent,   $script:scanKeyBlock,  $true)
+            $global:window.AddHandler([System.Windows.UIElement]::PreviewTextInputEvent, $script:scanTextBlock, $true)
+            $script:scanKeysLocked = $true
+        }
+    } catch { $script:scanKeysLocked = $false }
+}
+
+function global:Unlock-ScanUi {
+    try { if ($script:scanInputLock) { $script:scanInputLock.IsHitTestVisible = $true } } catch {}
+    $script:scanInputLock = $null
+    if ($script:scanKeysLocked) {
+        try { $global:window.RemoveHandler([System.Windows.UIElement]::PreviewKeyDownEvent,   $script:scanKeyBlock)  } catch {}
+        try { $global:window.RemoveHandler([System.Windows.UIElement]::PreviewTextInputEvent, $script:scanTextBlock) } catch {}
+        $script:scanKeysLocked = $false
+    }
+}
+
+# Set ONLY by a real, user-triggered full scan. The startup quick-scan also
+# fills $global:gameStateMap, so that map can never be used to decide whether
+# the user opted into full scans - doing so made every installer end with an
+# unwanted scan over all games.
+$global:UserRanFullScan = $false
+
 function global:Invoke-CheckInstalledScan {
+    $global:UserRanFullScan = $true
+    # Re-entrancy guard. The scan now hands the UI thread back between
+    # games (see the pump inside the loop), so a timer tick or a queued
+    # call could otherwise start a second scan on top of a running one -
+    # which would rebuild the very collections this one is walking.
+    #
+    # Self-healing: if a previous scan died mid-way (unhandled error), the
+    # flag would stay set and the window would stay click-blind forever.
+    # A scan updates its heartbeat at every yield, so a stale flag is one
+    # whose heartbeat is more than a minute old - in that case clean up
+    # after the dead run and carry on instead of refusing.
+    if ($global:ScanInProgress) {
+        $alive = $false
+        try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+        if ($alive) { return }
+        Unlock-ScanUi
+        try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+    }
+    $global:ScanInProgress = $true
+    $global:ScanQueued = $false
+
+    # Lock mouse + keyboard for the duration (see Lock-ScanUi above).
+    Lock-ScanUi
+
+    # Paced yields: at most one every ~80 ms, measured, so a fast machine
+    # doesn't pay for a repaint per game and a slow one still breathes.
+    # The empty delegate is built once - converting a scriptblock to an
+    # [action] on every yield would allocate for nothing.
+    if (-not $script:scanPumpAction) { $script:scanPumpAction = [action]{} }
+    $script:scanPumpWatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $script:scanHeartbeat = Get-Date
+
+    # Light up the Scan games button. It runs on its own render thread, so
+    # it keeps moving even while this scan holds the UI thread - which is
+    # the only reason it exists. Wrapped because a missing indicator must
+    # never stop a scan.
+    try { if (Get-Command Start-ScanSpinner -ErrorAction SilentlyContinue) { Start-ScanSpinner } } catch {}
+
     # Freeze the install-pill reveal timer for the duration of the scan.
     # The scan pumps the dispatcher (Dispatcher.Invoke below), which would
     # otherwise let a pending hide-timer tick fire mid-scan and collapse a
@@ -1934,8 +2047,23 @@ function global:Invoke-CheckInstalledScan {
 
     $found = 0
     $vrFound = 0
-    foreach ($card in $global:cardGameMap.Keys) {
+    # Snapshot of the keys, not the live collection: the yield below lets
+    # other code run, and anything that rebuilds the lookups mid-scan
+    # would otherwise break the enumeration.
+    foreach ($card in @($global:cardGameMap.Keys)) {
         $game = $global:cardGameMap[$card]
+        # THIS is what keeps the Hub alive during a scan. Every ~80 ms the
+        # UI thread is handed back to WPF long enough to run layout, paint
+        # and animation ticks, then the scan continues where it left off.
+        # Without it the whole window is a still image until the scan ends:
+        # banner effects stop, the Scan-on-Startup toggle can't disappear,
+        # and Windows eventually declares the Hub not responding. Input is
+        # locked out above, so nothing can be clicked in these gaps.
+        if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 80) {
+            $script:scanPumpWatch.Restart()
+            $script:scanHeartbeat = Get-Date
+            try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+        }
         # Per-game guard: one game whose detection throws must NEVER
         # kill the scan for every game after it. Errors are recorded and
         # the loop continues with the next game.
@@ -2273,6 +2401,17 @@ function global:Invoke-CheckInstalledScan {
                     if ($realRepoDir) { $vrInstalled = $true }
                 }
             }
+        }
+
+        # Stage-based mods (F.E.A.R. VR lives in %USERPROFILE%\FearVR) keep
+        # their files after the game is uninstalled and would otherwise keep
+        # reading as VR Ready. Test-StagedModStillValid is the shared check -
+        # the startup quick-scan in Startup.ps1 calls exactly the same one.
+        if ($vrInstalled -and $game.VrManifest) {
+            $stageRoot = $null
+            try { if ($recordedPathFile -and (Test-Path $recordedPathFile)) { $stageRoot = Read-InstalledPath -Game $game } } catch { $stageRoot = $null }
+            if (-not $stageRoot -or -not (Test-Path $stageRoot)) { $stageRoot = Resolve-VrInstallRoot $game.VrInstallRoot }
+            if (-not (Test-StagedModStillValid -Game $game -StageRoot $stageRoot)) { $vrInstalled = $false }
         }
 
         # Retrieve stored btnText reference
@@ -2997,7 +3136,15 @@ function global:Invoke-CheckInstalledScan {
 
     # Apply saved states to current cards immediately (no scale-switch needed)
     if ($global:gameStateMap -and $global:gameStateMap.Count -gt 0) {
-        foreach ($card in $global:cardGameMap.Keys) {
+        foreach ($card in @($global:cardGameMap.Keys)) {
+            # Same paced yield as in the detection loop - repainting 200+
+            # cards is the second place a scan can sit on the UI thread
+            # long enough to look dead.
+            if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 80) {
+                $script:scanPumpWatch.Restart()
+                $script:scanHeartbeat = Get-Date
+                try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+            }
             $g = $global:cardGameMap[$card]
             if (-not $g.Title) { continue }
             $state = $global:gameStateMap[$g.Title]
@@ -3207,21 +3354,94 @@ function global:Invoke-CheckInstalledScan {
         }
     }
 
+    # Scan over - put the light out and let its thread go.
+    try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+
+    # Hand the window back to the user.
+    Unlock-ScanUi
+    try { if ($script:scanPumpWatch) { $script:scanPumpWatch.Stop() } } catch {}
+    $script:scanPumpWatch = $null
+
     # Check finished: re-enable + re-arm the Scan-on-Startup hover toggle.
     $global:ScanInProgress = $false
     $cosbEnd = $global:window.FindName("CheckOnStartupBtn")
     if ($cosbEnd) { $cosbEnd.IsEnabled = $true; $cosbEnd.Visibility = [System.Windows.Visibility]::Hidden }
+
+    # An installer finished while this scan was running - do the refresh it
+    # asked for now that the collections are stable again.
+    if ($global:PostInstallRefreshPending) {
+        $global:PostInstallRefreshPending = $false
+        try {
+            [void]$global:window.Dispatcher.BeginInvoke(
+                [System.Windows.Threading.DispatcherPriority]::Background,
+                [action]{ try { Invoke-PostInstallRefresh } catch {} })
+        } catch {}
+    }
+
+    # The user hit the X mid-scan and the Closing guard deferred it -
+    # honour it now, one dispatcher turn later so this function unwinds
+    # completely first.
+    if ($global:CloseAfterScan) {
+        $global:CloseAfterScan = $false
+        try {
+            [void]$global:window.Dispatcher.BeginInvoke(
+                [System.Windows.Threading.DispatcherPriority]::Background,
+                [action]{ try { $global:window.Close() } catch {} })
+        } catch {}
+    }
 }
+
+# The window's X and Alt+F4 go through the non-client area, which the
+# scan's hit-test lock cannot reach - so a user CAN ask to close while a
+# scan is walking the cards. Closing mid-scan would tear the window down
+# inside the scan's nested dispatcher frame. Instead: remember the wish,
+# cancel this close, and let the scan's epilogue perform it. Escape
+# hatch: if the scan's heartbeat is stale the scan is dead, and the
+# close goes through normally - a crashed scan must never trap the user
+# in the Hub.
+$window.Add_Closing({
+    param($s, $e)
+    if (-not $global:ScanInProgress) { return }
+    $alive = $false
+    try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+    if (-not $alive) { return }
+    $e.Cancel = $true
+    $global:CloseAfterScan = $true
+})
 
 # Thin wrapper: the Check Installed button reuses the scan
 # function above. Anything that wants to refresh the install
 # state programmatically (e.g. the post-install auto-refresh
 # below) calls Invoke-CheckInstalledScan directly.
 $checkInstalledBtn.Add_PreviewMouseLeftButtonDown({
+    # A scan is already queued or running - don't stack a second one.
+    # ScanQueued is separate from ScanInProgress on purpose: the scan
+    # function itself owns ScanInProgress as its re-entrancy guard, so
+    # setting it here would make the deferred call below bail out.
+    if ($global:ScanInProgress -or $global:ScanQueued) { return }
     # Explicit check -> probe online fresh, even if a previous scan in
     # this session marked the server as down.
     $global:HubScanOnlineDown = $false
-    Invoke-CheckInstalledScan
+    # Light the neon border NOW and let this click handler return, then run
+    # the scan one dispatcher turn later at Input priority, which sits below
+    # Render - so the button's click state and the light are painted first.
+    # The scan itself calls Start-ScanSpinner too, but that is a no-op while
+    # this one is lit.
+    try { if (Get-Command Start-ScanSpinner -ErrorAction SilentlyContinue) { Start-ScanSpinner } } catch {}
+    $global:ScanQueued = $true
+    [void]$global:window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Input,
+        [action]{
+            try { Invoke-CheckInstalledScan }
+            catch {
+                # The scan died. Give the window back immediately rather
+                # than leaving it click-blind until the next attempt.
+                Unlock-ScanUi
+                try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+                $global:ScanInProgress = $false
+            }
+            finally { $global:ScanQueued = $false }
+        })
 }.GetNewClosure())
 
 # Post-install auto-refresh: when an installer cmd.exe exits,
@@ -3241,6 +3461,12 @@ $checkInstalledBtn.Add_PreviewMouseLeftButtonDown({
 # the launched cmd.exe terminates. The target title is stashed
 # in $global:PendingInstallTitle by the click handler.
 function global:Invoke-PostInstallRefresh {
+    # Not while a scan is walking the card collections. The scan hands the
+    # UI thread back between games, so the timers that call in here can now
+    # actually fire mid-scan - and this function rebuilds the very lookups
+    # the scan is enumerating. Remember it and run it once the scan is done,
+    # so the marker handling below is never simply lost.
+    if ($global:ScanInProgress) { $global:PostInstallRefreshPending = $true; return }
     $title = $global:PendingInstallTitle
     # Cancel-safe update tracking: the installer wrapper drops a
     # ".update_ok" marker (next to .installed_version) ONLY when its core
@@ -3264,7 +3490,7 @@ function global:Invoke-PostInstallRefresh {
             }
         } catch {}
     }
-    $hadFullScan = ($global:gameStateMap -and $global:gameStateMap.Count -gt 0)
+    $hadFullScan = [bool]$global:UserRanFullScan
 
     if ($hadFullScan) {
         # User has already scanned at least once - keep their
@@ -3326,6 +3552,51 @@ function global:Invoke-PostInstallRefresh {
         if ($global:currentDetailGame -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) {
             Show-DiscoverDetail -Game $global:currentDetailGame
         }
+    } catch {}
+}
+
+# Fallback for launches where we get no process handle back (a UAC
+# elevation that hands us no object, or Start-Process throwing). Without
+# a handle we can't poll for exit, so the install would finish with the
+# Hub none the wiser and the user would have to reach for Scan games -
+# which for someone who never opted into scanning means an unrequested
+# sweep of their whole PC. Instead we watch this ONE game's
+# .installed_path marker: when it appears or its timestamp moves, the
+# installer got far enough to record success, and we run the normal
+# post-install refresh (which itself decides single-game vs full scan).
+# Gives up quietly after 15 minutes so no timer lingers.
+function global:Watch-InstallMarkerForRefresh {
+    param($Game)
+    if (-not $Game) { return }
+    $marker = $null
+    try { $marker = Get-InstalledPathFile -Game $Game } catch {}
+    if (-not $marker) { return }
+    $stamp = $null
+    try { if (Test-Path -LiteralPath $marker) { $stamp = (Get-Item -LiteralPath $marker -Force).LastWriteTimeUtc } } catch {}
+    $global:PendingInstallTitle = $Game.Title
+    try {
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [TimeSpan]::FromSeconds(2)
+        $timer.Tag = @{ Marker = $marker; Stamp = $stamp; Deadline = (Get-Date).AddMinutes(15) }
+        $timer.Add_Tick({
+            param($s, $e)
+            $st = $s.Tag
+            if (-not $st) { try { $s.Stop() } catch {}; return }
+            $done = $false
+            try {
+                if (Test-Path -LiteralPath $st.Marker) {
+                    $now = (Get-Item -LiteralPath $st.Marker -Force).LastWriteTimeUtc
+                    if (-not $st.Stamp -or $now -gt $st.Stamp) { $done = $true }
+                }
+            } catch {}
+            if ($done) {
+                try { $s.Stop() } catch {}
+                try { Invoke-PostInstallRefresh } catch {}
+                return
+            }
+            if ((Get-Date) -gt $st.Deadline) { try { $s.Stop() } catch {} }
+        })
+        $timer.Start()
     } catch {}
 }
 

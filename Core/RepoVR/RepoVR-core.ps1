@@ -147,7 +147,7 @@ try {
 
 if ($repoXRDeprecated) {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White
- Write-Host " $repoXRStatus" -ForegroundColor Red
+ Write-Host " $repoXRStatus" -ForegroundColor Yellow
 } else {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White
  if ($repoXRStatus) { Write-Host " $repoXRStatus" -ForegroundColor Green }

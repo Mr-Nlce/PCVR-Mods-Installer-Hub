@@ -1,6 +1,6 @@
 # I Can Gun VR
 
-A standalone tactical first-person shooter by **Patrick Koenig**, distributed free on itch.io. You operate your weapon in full manual detail while scavenging procedurally generated levels for documents, guarded by merciless machines. Openly inspired by Wolfire's *Receiver*.
+A standalone tactical first-person shooter by **Patrick Koenig**, distributed free on itch.io. You operate your weapon in full manual detail while scavenging procedurally generated levels for documents, guarded by merciless machines. Openly inspired by Wolfire's **Receiver**.
 
 ## What you get
 - Fully manual weapon handling, simulated down to the round

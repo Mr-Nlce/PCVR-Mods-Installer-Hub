@@ -79,7 +79,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.4.0"
+$HUB_VERSION = "0.8.4.7"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -279,6 +279,7 @@ foreach ($mod in @(
     "Helpers.ps1",
     "CardTile.ps1",
     "Window.ps1",
+    "ScanSpinner.ps1",
     "DiscoverInit.ps1",
     "DetailView.ps1",
     "OverviewPage.ps1",

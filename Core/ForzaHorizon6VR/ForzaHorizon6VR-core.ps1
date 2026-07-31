@@ -17,7 +17,7 @@ $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 6 VR"
 $KOFI_URL      = "https://ko-fi.com/s/03bdcc5fe9"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527971650216267856"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1532293105024499712"
 
 function Write-Header {
     Clear-Host
@@ -95,7 +95,7 @@ if ($modChoice -eq "1") {
     $modName      = "lufz VRMod"
     $modSub       = "lufz"
     $launcherName = "vrmod-launcher.exe"
-    $zipHint      = "VRMod-v1_2_3.zip"
+    $zipHint      = "VRMod-v1_3_0.zip"
 }
 Write-OK "Selected: $modName"
 
@@ -207,7 +207,7 @@ if ($modChoice -eq "2") {
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
     # 1.2.3, so that workaround is retired - the zip is honest again.)
-    $lufzVer = "1.2.3"
+    $lufzVer = "1.3.0"
     $lufzVerFile = Join-Path $modFolder "VERSION"
     $lufzVerFound = $false
     if (Test-Path -LiteralPath $lufzVerFile) {

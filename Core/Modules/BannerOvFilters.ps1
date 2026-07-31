@@ -1408,7 +1408,13 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
         if ($listScroll) { $listScroll.Visibility = [System.Windows.Visibility]::Visible }
         Update-FilterBarForMode
         Update-DiscoverBtnState
+        if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
         if (Get-Command Sync-ScaleButtonsToMode -ErrorAction SilentlyContinue) { Sync-ScaleButtonsToMode }
+        # Remember the view, exactly like S/M/L does, so someone who only
+        # uses one of the two lands there again after a restart.
+        if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
+            Set-HubSetting -Key "startView" -Value "LIST"
+        }
     } else {
         Build-DiscoverTiles
         Refresh-DiscoverStatuses
@@ -1424,6 +1430,9 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
         if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
         if (Get-Command Sync-ScaleButtonsToMode -ErrorAction SilentlyContinue) { Sync-ScaleButtonsToMode }
         if (Get-Command Apply-LibrarySize -ErrorAction SilentlyContinue) { Apply-LibrarySize $global:LibrarySize }
+        if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
+            Set-HubSetting -Key "startView" -Value "LIBRARY"
+        }
     }
 })
 

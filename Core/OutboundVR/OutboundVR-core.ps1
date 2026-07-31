@@ -153,31 +153,26 @@ Write-Host " 1) Log in to Nexus Mods (free account)." -ForegroundColor White
 Write-Host " 2) Download the OutboundVR file (Manual download)." -ForegroundColor White
 Write-Host " 3) Come back here - the installer looks in your Downloads" -ForegroundColor White
 Write-Host "    folder, or you can drag the file onto this window." -ForegroundColor White
-Pause-User "Press Enter to open the download page on Nexus Mods..."
-try { Start-Process $NEXUS_FILES_URL } catch { Write-Warn "Open manually: $NEXUS_FILES_URL" }
+# Check the disk before the browser - the file is often already there.
+$preFound = Find-PredownloadedFile -Patterns @("*Outbound*VR*.zip","*OutboundVR*.zip","*Outbound*.zip") -Label "the Outbound VR mod"
+if (-not $preFound) {
+    Pause-User "Press Enter to open the download page on Nexus Mods..."
+    try { Start-Process $NEXUS_FILES_URL } catch { Write-Warn "Open manually: $NEXUS_FILES_URL" }
+}
 
 # -------------------------------------------------------
 # STEP 2: locate the downloaded ZIP (Downloads scan, else drag-drop)
 # -------------------------------------------------------
 Write-Step 2 3 "Locate the downloaded ZIP"
 
-$modZip = $null
+$modZip = $preFound
 
-# Convenience: scan the Downloads folder for a likely Outbound VR zip
-# (newest first) and offer it, so most users never touch drag-and-drop.
-$dl = Join-Path $env:USERPROFILE "Downloads"
-if (Test-Path $dl) {
- $cand = Get-ChildItem -Path $dl -Filter "*Outbound*VR*.zip" -File -ErrorAction SilentlyContinue |
-         Sort-Object LastWriteTime -Descending | Select-Object -First 1
- if (-not $cand) {
-   $cand = Get-ChildItem -Path $dl -Filter "*Outbound*.zip" -File -ErrorAction SilentlyContinue |
-           Sort-Object LastWriteTime -Descending | Select-Object -First 1
- }
- if ($cand) {
-   Write-Host " Found in Downloads: $($cand.Name)" -ForegroundColor Cyan
-   $useIt = (Read-Host " Use this file? [Y/N]").Trim().ToUpper()
-   if ($useIt -eq "Y" -or $useIt -eq "YES" -or $useIt -eq "") { $modZip = $cand.FullName; Write-OK "Using: $modZip" }
- }
+# The pre-check ran BEFORE the browser opened, so look again now that the
+# user has had a chance to download. Without this second pass the promise
+# above ("we look in your Downloads folder") would only hold on a re-run.
+if (-not $modZip) {
+    Pause-User "Press Enter once the download has finished..."
+    $modZip = Find-PredownloadedFile -Patterns @("*Outbound*VR*.zip","*OutboundVR*.zip","*Outbound*.zip") -Label "the Outbound VR mod" -PageAlreadyOpen
 }
 
 if (-not $modZip) {

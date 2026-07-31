@@ -1,6 +1,6 @@
 # Metal: Hellsinger VR
 
-The community **HellsingerVR** mod (by **LivingFray**) for *Metal: Hellsinger* - a rhythm-driven first-person shooter where you shoot, dash and slaughter demons in time with a heavy-metal soundtrack across the eight hells.
+The community **HellsingerVR** mod (by **LivingFray**) for **Metal: Hellsinger** - a rhythm-driven first-person shooter where you shoot, dash and slaughter demons in time with a heavy-metal soundtrack across the eight hells.
 
 > **IMPORTANT - about this mod:** An **official VR version** of Metal: Hellsinger now exists, with further improvements and performance optimizations over this community mod. If you want the most polished experience, get the official release:
 > https://store.steampowered.com/app/2878270/Metal_Hellsinger_VR/

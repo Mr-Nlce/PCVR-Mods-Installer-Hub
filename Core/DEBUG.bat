@@ -146,8 +146,20 @@ echo   [131] Halo 3 MCC VR
 echo   [132] Ring Racers VR
 echo   [133] Star Trucker VR
 echo   [134] Painkiller Black Edition
+echo   [135] GTA Vice City VR
+echo   [136] Legend of Zelda: Ocarina of Time VR
+echo   [137] Mage Arena VR
+echo   [138] Scrap Mechanic VR
+echo   [139] Wolfenstein 3D VR
+echo   [140] F.E.A.R. VR
+echo   [141] Dinkum VR
+echo   [142] Stardew Valley VR
+echo   [143] BioShock Remastered
+echo   [144] Lunacid VR
+echo   [145] Witcher 3 VR
+echo   [146] Rebel Galaxy VR
 echo.
-set /p choice="Enter number (1-134): "
+set /p choice="Enter number (1-146): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -282,6 +294,18 @@ if "%choice%"=="131" (set SCRIPT=%~dp0Halo3MCCVR\Halo3MCCVR-core.ps1)
 if "%choice%"=="132" (set SCRIPT=%~dp0RingRacersVR\RingRacersVR-core.ps1)
 if "%choice%"=="133" (set SCRIPT=%~dp0StarTruckerVR\StarTruckerVR-core.ps1)
 if "%choice%"=="134" (set SCRIPT=%~dp0PainkillerBlackVR\PainkillerBlackVR-core.ps1)
+if "%choice%"=="135" (set SCRIPT=%~dp0ViceCityVR\ViceCityVR-core.ps1)
+if "%choice%"=="136" (set SCRIPT=%~dp0OcarinaOfTimeVR\OcarinaOfTimeVR-core.ps1)
+if "%choice%"=="137" (set SCRIPT=%~dp0MageArenaVR\MageArenaVR-core.ps1)
+if "%choice%"=="138" (set SCRIPT=%~dp0ScrapMechanicVR\ScrapMechanicVR-core.ps1)
+if "%choice%"=="139" (set SCRIPT=%~dp0Wolfenstein3DVR\Wolfenstein3DVR-core.ps1)
+if "%choice%"=="140" (set SCRIPT=%~dp0FearVR\FearVR-core.ps1)
+if "%choice%"=="141" (set SCRIPT=%~dp0DinkumVR\DinkumVR-core.ps1)
+if "%choice%"=="142" (set SCRIPT=%~dp0StardewValleyVR\StardewValleyVR-core.ps1)
+if "%choice%"=="143" (set SCRIPT=%~dp0BioshockVR\BioshockVR-core.ps1)
+if "%choice%"=="144" (set SCRIPT=%~dp0LunacidVR\LunacidVR-core.ps1)
+if "%choice%"=="145" (set SCRIPT=%~dp0Witcher3VR\Witcher3VR-core.ps1)
+if "%choice%"=="146" (set SCRIPT=%~dp0RebelGalaxyVR\RebelGalaxyVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

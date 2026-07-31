@@ -92,7 +92,7 @@ Compatible with Oculus Touch, Vive wands, and Valve Index controllers. Quad View
 
 Delete the files added to the game folder. For Steam, running "Verify integrity of game files" is the cleanest way to restore the vanilla state.
 
-*The stars are waiting. Constellation awaits, Starborn.*
+**The stars are waiting. Constellation awaits, Starborn.**
 
 ## Support mutars
 

@@ -12,7 +12,7 @@ A community VR mod by Astienth, distributed publicly on **GitHub** (no Discord l
 - Repo (info, README): https://github.com/Astienth/Circuit_Superstars_VR_bHaptics
 - Direct download: https://github.com/Astienth/Circuit_Superstars_VR/releases/download/1.0.0/CircuitSuperstars_VRMod.zip
 
-Heads-up: the README is hosted in the `_bHaptics` repo, but the binary release lives in a *different* repo (`Circuit_Superstars_VR`, no `_bHaptics` suffix). Both URLs are correct — that's how Astienth has things set up. The Hub installer uses the download URL as-is.
+Heads-up: the README is hosted in the `_bHaptics` repo, but the binary release lives in a **different** repo (`Circuit_Superstars_VR`, no `_bHaptics` suffix). Both URLs are correct — that's how Astienth has things set up. The Hub installer uses the download URL as-is.
 
 Ships with OpenVR by default; OpenXR is supported via a config edit.
 

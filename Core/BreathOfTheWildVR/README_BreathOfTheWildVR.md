@@ -1,6 +1,6 @@
 # Breath of the Wild VR
 
-**BetterVR** by **Crementif** (and team) - a PC-VR mode for *The Legend of Zelda: Breath of the Wild*, achieved by hooking the **Cemu** Wii U emulator. Fully stereo-rendered 6DOF with roomscale, hands and arms, weapon wielding and motion-based combat.
+**BetterVR** by **Crementif** (and team) - a PC-VR mode for **The Legend of Zelda: Breath of the Wild**, achieved by hooking the **Cemu** Wii U emulator. Fully stereo-rendered 6DOF with roomscale, hands and arms, weapon wielding and motion-based combat.
 
 > You provide your own copy of BotW for the Wii U (plus your Wii U keys). This installer ships **no game files and no keys**. It sets up the free, open-source Cemu emulator, the community graphic packs, and the free BetterVR launcher for you, then walks you through the manual configuration.
 
@@ -18,9 +18,9 @@
 - Windows only (no Linux/Wine for now).
 
 ## Manual setup (the installer shows these as boxes)
-**A. Your game:** the installer opens the install folder and starts Cemu. Add your own BotW dump + your Wii U keys - put `keys.txt` into `C:\Games\Breath of the Wild VR\portable`. Add BotW to Cemu's game list. BotW must be on a recent version, or Cemu shows an *update* message; install the update and DLC via **Cemu menu -> File -> Install game title, update or DLC** (Update 1.5.0 and the DLC both work).
+**A. Your game:** the installer opens the install folder and starts Cemu. Add your own BotW dump + your Wii U keys - put `keys.txt` into `C:\Games\Breath of the Wild VR\portable`. Add BotW to Cemu's game list. BotW must be on a recent version, or Cemu shows an **update** message; install the update and DLC via **Cemu menu -> File -> Install game title, update or DLC** (Update 1.5.0 and the DLC both work).
 
-**B. Cemu settings:** Cemu **2.6+**; Debug -> *Accurate Barriers (Vulkan)* **off**; Options -> General Settings -> Graphics: **Vulkan**, correct GPU, **VSync off**. The Community Graphic Packs are **pre-installed** by the setup (optional: use Options -> Graphic Packs -> *Download Community Graphic Packs* to refresh them).
+**B. Cemu settings:** Cemu **2.6+**; Debug -> **Accurate Barriers (Vulkan)** **off**; Options -> General Settings -> Graphics: **Vulkan**, correct GPU, **VSync off**. The Community Graphic Packs are **pre-installed** by the setup (optional: use Options -> Graphic Packs -> **Download Community Graphic Packs** to refresh them).
 
 **C. VR runtime:** set your OpenXR runtime (Virtual Desktop / SteamVR / Oculus). For Quest, prefer ALVR, Virtual Desktop or Steam Link over Meta Link (its frame interpolation hurts here).
 

@@ -358,6 +358,47 @@ if ($missing.Count -gt 0) {
 try { Remove-Item -Path $modTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
+# Correct two shipped config values
+# -------------------------------------------------------
+# The mod archive ships UnityVR_Bepinex.cfg with two settings that break
+# controllers in practice:
+#   fixControllerTracking = false  -> controller tracking dies on every
+#                                     scene load; must be true
+#   controllerType        = ps4    -> must be xbox360 for the emulated
+#                                     gamepad to be recognised
+# Both are rewritten in place, keeping the rest of the file untouched.
+# Only the setting lines are matched (not the "# Default value:" comment
+# lines above them), and each is verified after writing.
+$vrCfg = Join-Path $gamePath "BepInEx\config\UnityVR_Bepinex.cfg"
+if (Test-Path -LiteralPath $vrCfg) {
+    try {
+        $cfgRaw = Get-Content -LiteralPath $vrCfg -Raw -Encoding UTF8
+        $before = $cfgRaw
+        $cfgRaw = [regex]::Replace($cfgRaw, '(?m)^(\s*fixControllerTracking\s*=\s*).*$', '${1}true')
+        $cfgRaw = [regex]::Replace($cfgRaw, '(?m)^(\s*controllerType\s*=\s*).*$', '${1}xbox360')
+        if ($cfgRaw -ne $before) {
+            Set-Content -LiteralPath $vrCfg -Value $cfgRaw -Encoding UTF8 -NoNewline -Force
+        }
+        $check = Get-Content -LiteralPath $vrCfg -Raw -Encoding UTF8
+        $okTrack = $check -match '(?m)^\s*fixControllerTracking\s*=\s*true\s*$'
+        $okType  = $check -match '(?m)^\s*controllerType\s*=\s*xbox360\s*$'
+        if ($okTrack -and $okType) {
+            Write-OK "VR config corrected (fixControllerTracking = true, controllerType = xbox360)."
+        } else {
+            Write-Warn "Could not confirm both config values. Open $vrCfg and set"
+            Write-Warn "fixControllerTracking = true and controllerType = xbox360 manually."
+        }
+    } catch {
+        Write-Warn "Could not edit $vrCfg ($_)."
+        Write-Warn "Set fixControllerTracking = true and controllerType = xbox360 manually."
+    }
+} else {
+    Write-Warn "UnityVR_Bepinex.cfg not found yet - it is created on first launch."
+    Write-Warn "After the first start, set fixControllerTracking = true and"
+    Write-Warn "controllerType = xbox360 in BepInEx\config\UnityVR_Bepinex.cfg."
+}
+
+# -------------------------------------------------------
 #  STEP 5: Install PeakVersionBypass (kirigiri)
 # -------------------------------------------------------
 # PEAK refuses to enter the main menu when its client version doesn't

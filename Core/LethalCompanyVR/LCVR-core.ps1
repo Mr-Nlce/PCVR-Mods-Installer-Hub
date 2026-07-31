@@ -145,7 +145,7 @@ foreach ($u in @("https://thunderstore.io/api/experimental/package/DaXcess/Letha
 
 if ($lcvrDeprecated) {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White
- Write-Host " $lcvrStatus" -ForegroundColor Red
+ Write-Host " $lcvrStatus" -ForegroundColor Yellow
  Write-Host " Mod is deprecated - current game version may not work." -ForegroundColor Gray
 } else {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White

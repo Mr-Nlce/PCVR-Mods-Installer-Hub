@@ -1,6 +1,6 @@
 # Daggerfall Unity VR
 
-VR mod (**DFUVR** by LokiusV) for **Daggerfall Unity**, the open-source recreation of the classic 1996 RPG *The Elder Scrolls II: Daggerfall* in the Unity engine. Early access - fully playable but still a bit janky.
+VR mod (**DFUVR** by LokiusV) for **Daggerfall Unity**, the open-source recreation of the classic 1996 RPG **The Elder Scrolls II: Daggerfall** in the Unity engine. Early access - fully playable but still a bit janky.
 
 ## About the mod
 DFUVR brings full room-scale VR to Daggerfall Unity - the vast, procedurally generated province of the Iliac Bay with its thousands of dungeons, towns, and a main quest of genuinely enormous scope. You play in motion controls: draw your weapon from a sheath at your hip, cast spells with gestures, climb, and pick your way through the famously sprawling dungeons in first person. It's an early-access build - playable end to end, but expect a few rough edges.

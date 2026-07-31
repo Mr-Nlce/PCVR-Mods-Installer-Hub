@@ -16,7 +16,7 @@ There is no single "best" mod - opinions differ, so both are offered.
 
 ## The two mods
 
-- **NALULUNA** *(recommended)* - free on ko-fi (set the amount to 0). The newest build is
+- **NALULUNA** **(recommended)** - free on ko-fi (set the amount to 0). The newest build is
   always on the page, named like `fh6vr_<version>.zip`. Launcher:
   `fh6vr.exe`.
 - **lufz / VRMod** - shared in the **flat2VR Modding Discord**. Join via the

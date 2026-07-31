@@ -15,8 +15,8 @@ The mod's `GameFiles` contents go into the **game root folder** (the folder that
 - Outbound owned on **Steam** (App ID 2681030), **Epic Games Store**, or **Xbox / Microsoft Store / PC Game Pass**
 - A free **Nexus Mods** account - the mod is distributed on Nexus
 - An **OpenXR runtime**, set once (pick one):
-  - **Virtual Desktop** -> choose **VDXR** in the Streamer app *(recommended, most-tested)*
-  - **SteamVR** -> Settings -> OpenXR -> *Set SteamVR as OpenXR runtime*
+  - **Virtual Desktop** -> choose **VDXR** in the Streamer app **(recommended, most-tested)**
+  - **SteamVR** -> Settings -> OpenXR -> **Set SteamVR as OpenXR runtime**
   - **Quest Link** -> set the Oculus runtime as the active OpenXR runtime in the Meta PC app
 
 > Hardware note: Outbound is **surprisingly demanding** in VR - treat it as a STRONG-tier title.

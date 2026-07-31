@@ -3,17 +3,22 @@ title PCVR Mods Installer Hub
 rem -------------------------------------------------------------
 rem  Update check: detached + silent. It only writes a marker file
 rem  the Hub reads on its NEXT launch, so it never blocks startup.
+rem  MUST NOT use "start /b": /b keeps the child in THIS console, and a
+rem  console only closes once every attached process has exited - that
+rem  left the splash window hanging until the background work finished.
 rem -------------------------------------------------------------
-start "" /b powershell.exe -NoProfile -ExecutionPolicy Bypass ^
+start "" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ^
     -File "%~dp0Core\Update-Hub.ps1" -Silent
 
 rem -------------------------------------------------------------
 rem  Pre-warm the version caches in the background (detached, no
 rem  window). Fills the same 6h caches the scan reads, so the first
 rem  scan is fast. It never displays anything - a mod is shown as an
-rem  update only after the user runs a scan.
+rem  update only after the user runs a scan. Detached for the same
+rem  reason as above: it walks ~26 repos one by one and must never
+rem  hold this console open.
 rem -------------------------------------------------------------
-start "" /b powershell.exe -NoProfile -ExecutionPolicy Bypass ^
+start "" /min powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ^
     -File "%~dp0Core\Prefetch-Versions.ps1"
 
 rem -------------------------------------------------------------

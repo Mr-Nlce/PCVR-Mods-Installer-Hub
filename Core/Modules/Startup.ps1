@@ -117,17 +117,13 @@ if ([bool](Get-HubSetting -Key "checkOnStartup" -Default $false)) {
     }) | Out-Null
 }
 
-# Desktop shortcut: ensure one exists AND points at the current
-# icon. We used to gate this behind a .shortcut_created flag, but
-# a few earlier builds shipped with the flag pre-set, so users who
-# installed those never got a shortcut AND won't get one when they
-# update. We also now refresh the IconLocation on every launch so
-# users with an existing shortcut pick up icon changes too (e.g.
-# when we ship a new design). Both paths are idempotent.
+# Desktop shortcut: ensure one exists AND points at the current icon.
+# There is deliberately no "already created" flag: the Hub simply writes
+# the shortcut on every launch. That is idempotent, and it also picks up
+# icon changes for users who already have one.
 # ($scriptDir / $rootDir come from VRModHub.ps1 - do not redefine
 # them here; $MyInvocation in a dot-sourced module points at the
 # module file itself, not at the entry script.)
-$flagFile   = Join-Path $scriptDir ".shortcut_created"
 $icoPath    = Join-Path $scriptDir "VR Mod Hub.ico"
 $batPath    = Join-Path $rootDir "Start PCVR Mods Hub.bat"
 $lnkPath    = Join-Path ([Environment]::GetFolderPath("Desktop")) "VR Mods Hub.lnk"
@@ -140,9 +136,13 @@ try {
     $shortcut.Description      = "PCVR Mods Installer Hub"
     if (Test-Path $icoPath) { $shortcut.IconLocation = $icoPath }
     $shortcut.Save()
-    # Write the flag for backwards compatibility - older code
-    # paths checked it; harmless to leave behind.
-    [System.IO.File]::WriteAllText($flagFile, (Get-Date).ToString())
+} catch {}
+
+# Tidy up after the retired flag: installs from older builds still carry
+# a ".shortcut_created" file that nothing reads any more.
+try {
+    $oldFlag = Join-Path $scriptDir ".shortcut_created"
+    if (Test-Path $oldFlag) { Remove-Item $oldFlag -Force -ErrorAction SilentlyContinue }
 } catch {}
 
 # Populate the Recently Played row on first paint. Test mode shows
@@ -164,6 +164,15 @@ Write-HubTiming "after Build-RecentlyPlayed"
 # pressed one button.
 $window.Add_Activated({
     if (-not $global:LastSteamButtonClickAt) { return }
+    # A scan is walking the cards right now (the window processes events
+    # again between its yields, so this CAN fire mid-scan). The scan
+    # re-detects every game from disk anyway - consume the markers and
+    # stay out of its way instead of rebuilding lookups underneath it.
+    if ($global:ScanInProgress) {
+        $global:LastSteamButtonClickAt    = $null
+        $global:LastSteamButtonClickTitle = $null
+        return
+    }
     $age = [DateTime]::UtcNow - $global:LastSteamButtonClickAt
     if ($age.TotalMinutes -gt 30) { return }
 
@@ -173,7 +182,7 @@ $window.Add_Activated({
     $global:LastSteamButtonClickAt    = $null
     $global:LastSteamButtonClickTitle = $null
 
-    $hadFullScan = ($global:gameStateMap -and $global:gameStateMap.Count -gt 0)
+    $hadFullScan = [bool]$global:UserRanFullScan
     if ($hadFullScan) {
         # User already opted into global state - keep it coherent.
         try { Invoke-CheckInstalledScan } catch { }
@@ -260,6 +269,14 @@ $window.Add_Activated({
                         foreach ($ev in $game.VrInstallEvidence) {
                             if (-not (Test-Path (Join-Path $altRoot $ev))) { $vrInstalled = $false; break }
                         }
+                    }
+                    # The staged files alone prove nothing: they outlive the
+                    # game. Same shared check the full scan uses - without it
+                    # a fresh Hub shows a stale "VR Ready" on the very first
+                    # screen, before the full scan has had a chance to correct
+                    # it (this map is what the tiles read).
+                    if ($vrInstalled -and -not (Test-StagedModStillValid -Game $game -StageRoot $altRoot)) {
+                        $vrInstalled = $false
                     }
                 }
             }
@@ -416,6 +433,37 @@ $window.Add_ContentRendered({
         }
     } catch { }
 })
+
+# Restore the view the user last had open (mod list or library), the same
+# way S/M/L is restored. This runs SYNCHRONOUSLY before ShowDialog: doing it
+# on ApplicationIdle meant the window painted the mod list first and visibly
+# flipped over a moment later.
+if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
+    $savedView = [string](Get-HubSetting -Key "startView" -Default "LIST")
+    if ($savedView -eq "LIBRARY") {
+        try {
+            if (Get-Command Build-DiscoverTiles -ErrorAction SilentlyContinue) { Build-DiscoverTiles }
+            if ($global:discoverDetail)   { $global:discoverDetail.Visibility   = [System.Windows.Visibility]::Collapsed }
+            if ($global:discoverOverview) { $global:discoverOverview.Visibility = [System.Windows.Visibility]::Collapsed }
+            if ($global:discoverTiles)    { $global:discoverTiles.Visibility    = [System.Windows.Visibility]::Visible }
+            if ($global:discoverHost)     { $global:discoverHost.Visibility     = [System.Windows.Visibility]::Visible }
+            if ($global:listScroll)       { $global:listScroll.Visibility       = [System.Windows.Visibility]::Collapsed }
+            if (Get-Command Update-FilterBarForMode -ErrorAction SilentlyContinue) { Update-FilterBarForMode }
+            if (Get-Command Update-DiscoverBtnState -ErrorAction SilentlyContinue) { Update-DiscoverBtnState }
+            if (Get-Command Sync-ScaleButtonsToMode -ErrorAction SilentlyContinue) { Sync-ScaleButtonsToMode }
+            if (Get-Command Apply-LibrarySize -ErrorAction SilentlyContinue)       { Apply-LibrarySize $global:LibrarySize }
+            Write-HubTiming "start view restored: library"
+        } catch { }
+        # The install-status pass is the slow part - that one still happens
+        # after the window is up, exactly like the mod list does it.
+        $window.Dispatcher.BeginInvoke(
+            [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+            [action]{
+                try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch { }
+            }.GetNewClosure()
+        ) | Out-Null
+    }
+}
 
 Write-HubTiming "before ShowDialog (window goes interactive next)"
 
@@ -583,5 +631,41 @@ $window.Add_ContentRendered({
         }
     } catch { }
 })
+
+# ------------------------------------------------------------
+# Crash guard
+# ------------------------------------------------------------
+# WPF kills the whole process on ANY unhandled exception raised on the
+# UI thread - a throw inside a DispatcherTimer tick or a click handler
+# makes the window disappear with no message, which users report as
+# "the hub just closed and crashed". Handling it here turns that into a
+# dismissible notice plus a log line, and keeps the Hub running. This is
+# a safety net, not a licence to skip try/catch at the call sites.
+try {
+    $dispatcherObj = [System.Windows.Threading.Dispatcher]::CurrentDispatcher
+    $dispatcherObj.Add_UnhandledException({
+        param($src, $ev)
+        $ev.Handled = $true
+        $msg = ""
+        try { $msg = [string]$ev.Exception.Message } catch {}
+        try {
+            $logDir = Join-Path $global:scriptDir "Logs"
+            if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+            $stamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+            $trace = ""
+            try { $trace = [string]$ev.Exception.ToString() } catch {}
+            Add-Content -Path (Join-Path $logDir "hub-errors.log") -Value "[$stamp] $trace`r`n" -ErrorAction SilentlyContinue
+        } catch {}
+        try {
+            [System.Windows.MessageBox]::Show(
+                ("Something went wrong, but the Hub is still running." + [Environment]::NewLine + [Environment]::NewLine +
+                 $msg + [Environment]::NewLine + [Environment]::NewLine +
+                 "Details were written to Logs\hub-errors.log."),
+                "Unexpected error",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+        } catch {}
+    })
+} catch {}
 
 $window.ShowDialog() | Out-Null

@@ -33,7 +33,7 @@ try {
 # external tool entries are deliberately NOT counted, so an auto-count of
 # catalog entries reads high. RULE: bump this by +1 with EVERY new game
 # tile added to the Hub (games only - never for tools like UEVR).
-$tileCount = 202
+$tileCount = 213
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only

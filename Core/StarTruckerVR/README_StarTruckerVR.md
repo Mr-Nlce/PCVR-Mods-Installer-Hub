@@ -37,8 +37,5 @@ Close the game first (saves are shared - it's the same install):
 - Minor menu shimmer and small between-eye sunlight/shadow differences can occur.
 - Testing concentrated on the early portion of the game; later-game situations are less tested.
 
-## Uninstall
-Close the game, then remove the mod files: `Mods\StarTruckerVR.dll`, `Play in Flat.bat`, `Back to VR.bat`, the two OpenXR plugins under `Star Trucker_Data\Plugins\x86_64` (`UnityOpenXR.dll`, `openxr_loader.dll`), and `Star Trucker_Data\UnitySubsystems\UnityOpenXR`. To also remove the bundled MelonLoader: `version.dll`, `dobby.dll`, and the `MelonLoader` folder. Only remove MelonLoader / OpenXR files if no other mod depends on them, and don't delete whole `Mods` / `Plugins` / `UserData` folders that hold other mods' files.
-
 ## Info
 https://www.nexusmods.com/startrucker/mods/17

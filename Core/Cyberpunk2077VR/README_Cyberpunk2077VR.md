@@ -1,12 +1,12 @@
 # Cyberpunk 2077 VR
 
-**CyberpunkVRPort** by **dariulone** — an OpenXR `dxgi.dll` VR proxy for *Cyberpunk 2077* with **6-DoF motion-controlled VR hands** (full-arm VRIK), head tracking with in-engine camera injection, and an in-headset **F10** settings overlay. The installer always pulls the **latest release** from GitHub (the mod updates often), falling back to the known-good v0.0.6 build if GitHub can't be reached.
+**CyberpunkVRPort** by **dariulone** — an OpenXR `dxgi.dll` VR proxy for **Cyberpunk 2077** with **6-DoF motion-controlled VR hands** (full-arm VRIK), head tracking with in-engine camera injection, and an in-headset **F10** settings overlay. The installer always pulls the **latest release** from GitHub (the mod updates often), falling back to the known-good v0.0.6 build if GitHub can't be reached.
 
 > Repository: https://github.com/dariulone/cyberpunk-vr-port
 
 ## Launching
-1. **Start your OpenXR runtime first** — Virtual Desktop / VDXR, SteamVR, etc. — *before* launching the game.
-2. Launch *Cyberpunk 2077* normally (Steam, GOG, or the Hub's **Start in VR**). The `dxgi.dll` proxy loads with the game.
+1. **Start your OpenXR runtime first** — Virtual Desktop / VDXR, SteamVR, etc. — **before** launching the game.
+2. Launch **Cyberpunk 2077** normally (Steam, GOG, or the Hub's **Start in VR**). The `dxgi.dll` proxy loads with the game.
 3. In-game: **F10** opens the VR settings overlay, **F7** recenters.
 
 If the game opens as a flat desktop window inside the headset, check `bin\x64\cyberpunkvrport.log` for the selected OpenXR runtime.
@@ -51,7 +51,7 @@ The full hands/HUD experience needs two frameworks; the installer adds them **on
 Camera/stereo VR works from the `dxgi.dll` proxy alone; the motion-controlled hands and VR HUD need RED4ext + CET.
 
 ## Requirements
-- *Cyberpunk 2077* (PC) — Steam **AppID 1091500** (folder `Cyberpunk 2077`) or GOG (*Cyberpunk 2077*)
+- **Cyberpunk 2077** (PC) — Steam **AppID 1091500** (folder `Cyberpunk 2077`) or GOG (**Cyberpunk 2077**)
 - An OpenXR runtime (Virtual Desktop / VDXR, SteamVR, PICO, ...) — started **before** the game
 - Motion controllers for the VR hands
 
@@ -79,12 +79,12 @@ It's a lot of toggles, but after this it should run great.
 - Flat window in the headset: confirm the OpenXR runtime is running first; check `bin\x64\cyberpunkvrport.log`.
 - To force the SteamVR (OpenVR) path: set `xr_runtime=1` in `bin\x64\vrport.ini` and restart.
 - Hands look wrong / not tracking: open **F10 -> VRIK**, start hand tracking, and calibrate. Make sure RED4ext + CET are installed.
-- Mouse fights head pitch: the overlay's *Disable Mouse-Y* toggle is on by default.
+- Mouse fights head pitch: the overlay's **Disable Mouse-Y** toggle is on by default.
 
 ## Credits & sources
 - **CyberpunkVRPort** by dariulone — https://github.com/dariulone/cyberpunk-vr-port (latest: https://github.com/dariulone/cyberpunk-vr-port/releases)
 - **RED4ext** by WopsS — https://github.com/wopss/RED4ext
 - **Cyber Engine Tweaks** by maximegmd — https://github.com/maximegmd/CyberEngineTweaks
-- *Cyberpunk 2077* by CD PROJEKT RED; Steam AppID **1091500**
+- **Cyberpunk 2077** by CD PROJEKT RED; Steam AppID **1091500**
 
 >>> Wake up, samurai. Night City won't burn itself down.

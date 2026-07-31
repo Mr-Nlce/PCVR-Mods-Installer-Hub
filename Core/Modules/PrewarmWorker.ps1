@@ -61,7 +61,11 @@ function Get-GithubTagBackground {
     try {
         $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 15 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
         $final = ""
+        # Windows PowerShell 5.1 exposes the final URL as BaseResponse.ResponseUri;
+        # PowerShell 7 has no such property and uses RequestMessage.RequestUri
+        # instead. Reading only the 5.1 name made this fail silently on 7.
         try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+        if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') {
             return [System.Uri]::UnescapeDataString($matches[1]).Trim()

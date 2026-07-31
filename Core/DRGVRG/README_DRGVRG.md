@@ -48,7 +48,7 @@ After subscribing on mod.io:
 **Launch 2:** Fully working VR — your dwarf spawns directly in VR.
 
 If you cannot move or do anything in VR, you almost certainly skipped the
-second launch. The bindings are only applied the *second* time the game
+second launch. The bindings are only applied the **second** time the game
 starts.
 
 ## Controls

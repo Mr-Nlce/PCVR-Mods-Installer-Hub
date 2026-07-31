@@ -1,6 +1,6 @@
 # Quake 3 VR
 
-**Quake 3 VR v1.0** (q3vr) by **RippeR37** — a PCVR port of *Quake III Arena* built on **ioquake3** and **Quake3Quest** (Team Beef), with full 6DoF motion controls, the single-player campaign, and crossplay multiplayer with PC and Quest players.
+**Quake 3 VR v1.0** (q3vr) by **RippeR37** — a PCVR port of **Quake III Arena** built on **ioquake3** and **Quake3Quest** (Team Beef), with full 6DoF motion controls, the single-player campaign, and crossplay multiplayer with PC and Quest players.
 
 ## Launching
 1. Start **SteamVR** first.
@@ -40,10 +40,10 @@
 
 ## What it installs
 - **Quake 3 VR v1.0** — downloaded fresh from the official GitHub release (never bundled)
-- Copies **pak0.pk3** (and any **pak1.pk3 – pak8.pk3** you own) from your *Quake III Arena* install into the q3vr `baseq3` folder
+- Copies **pak0.pk3** (and any **pak1.pk3 – pak8.pk3** you own) from your **Quake III Arena** install into the q3vr `baseq3` folder
 
 ## Requirements
-- *Quake III Arena* owned and installed — Steam **AppID 2200** (folder `Quake 3 Arena`), or GOG
+- **Quake III Arena** owned and installed — Steam **AppID 2200** (folder `Quake 3 Arena`), or GOG
 - SteamVR (the game uses the OpenVR runtime)
 - Motion controllers
 
@@ -53,7 +53,7 @@
 - q3vr has built-in update notifications and will tell you on startup when a newer version is out.
 
 ## Credits & sources
-- **Quake 3 VR (q3vr)** by RippeR37 — built on ioquake3 and Quake3Quest (Team Beef); *Quake III Arena* by id Software
+- **Quake 3 VR (q3vr)** by RippeR37 — built on ioquake3 and Quake3Quest (Team Beef); **Quake III Arena** by id Software
 - Project page: https://ripper37.github.io/q3vr/
 - Download: https://github.com/RippeR37/q3vr/releases/download/v1.0/q3vr_v1.0_windows_portable.zip
 - Launch executable `q3vr.exe`; base data `baseq3\pak0.pk3`; Quake III Arena Steam AppID **2200** (official Steam store, SteamDB, PCGamingWiki)

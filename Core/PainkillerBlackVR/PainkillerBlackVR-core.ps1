@@ -43,10 +43,10 @@ $MOD_OVERWRITES    = @("PainKiller.exe", "Engine.dll")
 # -------------------------------------------------------
 function Write-Header {
  Clear-Host
- Write-Host "============================================================" -ForegroundColor DarkRed
- Write-Host " Painkiller: Black Edition VR Mod Installer" -ForegroundColor Red
+ Write-Host "============================================================" -ForegroundColor DarkYellow
+ Write-Host " Painkiller: Black Edition VR Mod Installer" -ForegroundColor Yellow
  Write-Host " OpenXR VR mod by $MOD_AUTHOR" -ForegroundColor Gray
- Write-Host "============================================================" -ForegroundColor DarkRed
+ Write-Host "============================================================" -ForegroundColor DarkYellow
  Write-Host ""
 }
 function Write-Step { param([int]$Step, [int]$Total, [string]$Title) Write-Host ""; Write-Host "[$Step/$Total] $Title" -ForegroundColor Cyan; Write-Host "----------------------------------------" -ForegroundColor DarkGray }
@@ -277,9 +277,9 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor DarkRed
 Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Red
-Write-Host "  |              IMPORTANT IN-GAME SETTING                |" -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Red
+Write-Host "  +======================================================+" -ForegroundColor Yellow
+Write-Host "  |              IMPORTANT IN-GAME SETTING                |" -ForegroundColor Yellow
+Write-Host "  +======================================================+" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Painkiller defaults to a very low resolution. Raise it or the" -ForegroundColor White
 Write-Host "  VR image looks blurry:" -ForegroundColor White
@@ -287,7 +287,7 @@ Write-Host ""
 Write-Host "   In the main menu or in-game press " -NoNewline -ForegroundColor White; Write-Host " Y " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " for Options," -ForegroundColor White
 Write-Host "   open " -NoNewline -ForegroundColor White; Write-Host " Video " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host ", and set the resolution (top row) higher." -ForegroundColor White
 Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Red
+Write-Host "  +======================================================+" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " Set your OpenXR runtime (Virtual Desktop VDXR is the tested one)," -ForegroundColor White
 Write-Host " put your headset on, then launch with 'Start in VR' in the Hub, or" -ForegroundColor White
@@ -297,6 +297,6 @@ Write-Host ""
 Write-Host " To go back to flat: restore PainKiller.exe.vrbak and Engine.dll" -ForegroundColor Gray
 Write-Host " .vrbak in \Bin (or set Cfg.VideoVR = false in config.ini)." -ForegroundColor Gray
 Write-Host ""
-Write-Host " Welcome to Purgatory - now in stereo." -ForegroundColor Red
+Write-Host " Welcome to Purgatory - now in stereo." -ForegroundColor Cyan
 Write-Host ""
 Pause-User "Press Enter to exit."

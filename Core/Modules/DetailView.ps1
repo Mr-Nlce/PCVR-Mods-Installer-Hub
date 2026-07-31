@@ -1565,6 +1565,252 @@ function global:New-ClearLocationButton {
     return $btn
 }
 
+# Resolve a BepInEx-winhttp game's folder and locate its winhttp proxy.
+# Returns @{ Dir; Path; Active } (Active=$true VR on, $false flat, $null
+# unknown) or $null if the folder can't be resolved. Shared by the
+# Flat/VR switch button for both its initial state and its click toggle.
+function global:Get-FlatVRProxyInfo {
+    param($Game)
+    $dir = $null
+    $st = $global:gameStateMap[$Game.Title]
+    if ($st -and $st.GameDir -and (Test-Path -LiteralPath $st.GameDir)) { $dir = $st.GameDir }
+    if (-not $dir) {
+        $mf = Get-InstalledPathFile -Game $Game
+        if ($mf -and (Test-Path $mf)) {
+            try { $rp = (Get-Content -LiteralPath $mf -Raw).Trim(); if ($rp -and (Test-Path -LiteralPath $rp)) { $dir = $rp } } catch {}
+        }
+    }
+    if (-not $dir) { return $null }
+    # Per-game override for the proxy file (e.g. Portal 2 uses
+    # bin\openvr_api.dll <-> bin\openvr_api.dll-). Enabled = VR on.
+    if ($Game.FlatVREnabled -and $Game.FlatVRDisabled) {
+        $enFull  = Join-Path $dir $Game.FlatVREnabled
+        $disFull = Join-Path $dir $Game.FlatVRDisabled
+        $enLeaf  = Split-Path -Leaf $Game.FlatVREnabled
+        $disLeaf = Split-Path -Leaf $Game.FlatVRDisabled
+        if (Test-Path -LiteralPath $enFull)  { return @{ Dir=$dir; Path=$enFull;  Active=$true;  EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
+        if (Test-Path -LiteralPath $disFull) { return @{ Dir=$dir; Path=$disFull; Active=$false; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
+        return @{ Dir=$dir; Path=$null; Active=$null; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf }
+    }
+    # Default: BepInEx winhttp.dll proxy (game root first, then a shallow
+    # search for subfolder mods like release\ or DLC\).
+    foreach ($nm in @("winhttp.dll","winhttp_bak.dll")) {
+        $p = Join-Path $dir $nm
+        if (Test-Path -LiteralPath $p) { return @{ Dir=$dir; Path=$p; Active=($nm -eq "winhttp.dll"); EnabledLeaf="winhttp.dll"; DisabledLeaf="winhttp_bak.dll" } }
+    }
+    foreach ($nm in @("winhttp.dll","winhttp_bak.dll")) {
+        try {
+            $hit = Get-ChildItem -LiteralPath $dir -Filter $nm -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { return @{ Dir=$dir; Path=$hit.FullName; Active=($nm -eq "winhttp.dll"); EnabledLeaf="winhttp.dll"; DisabledLeaf="winhttp_bak.dll" } }
+        } catch {}
+    }
+    return @{ Dir=$dir; Path=$null; Active=$null; EnabledLeaf="winhttp.dll"; DisabledLeaf="winhttp_bak.dll" }
+}
+
+# Resolve the R.E.A.L. (Luke Ross) mod folder + its current VR/flat state.
+# The mod files (RealRepo, dxgi.dll, RealConfig.bat, DISABLE_VR.bat) all
+# live next to the game EXE - which may be the game root OR a subfolder
+# (e.g. Elden Ring / Dark Souls III use Game\). RealConfig.bat is the
+# reliable anchor: always present after install, never renamed by the
+# toggle, and unique to the mod folder - so we locate the folder by it and
+# stay correct whether the recorded path is the exe folder or the root.
+# Active = VR on (RealRepo present); $false = flat (RealRepo_ present).
+function global:Get-RealVRToggleInfo {
+    param($Game)
+    $base = $null
+    $st = $global:gameStateMap[$Game.Title]
+    if ($st -and $st.GameDir -and (Test-Path -LiteralPath $st.GameDir)) { $base = $st.GameDir }
+    if (-not $base) { return $null }
+    $modDir = $null
+    # Fast path: the recorded folder already holds the mod (usual case -
+    # .installed_path records the exe folder).
+    foreach ($probe in @("RealConfig.bat","RealRepo","RealRepo_")) {
+        if (Test-Path -LiteralPath (Join-Path $base $probe)) { $modDir = $base; break }
+    }
+    # Fallback: recorded path is the game root; find RealConfig.bat below it.
+    if (-not $modDir) {
+        try {
+            $hit = Get-ChildItem -LiteralPath $base -Filter "RealConfig.bat" -Recurse -Depth 3 -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hit) { $modDir = $hit.DirectoryName }
+        } catch {}
+    }
+    if (-not $modDir) { return $null }
+    $active = $null
+    if (Test-Path -LiteralPath (Join-Path $modDir "RealRepo"))       { $active = $true }
+    elseif (Test-Path -LiteralPath (Join-Path $modDir "RealRepo_"))  { $active = $false }
+    return @{ Dir = $modDir; Active = $active }
+}
+
+# Flat / VR switch button - for BepInEx-winhttp mods, whose loader is a
+# winhttp.dll proxy in (or under) the game folder. Renaming winhttp.dll
+# to winhttp_bak.dll disables the mod (flat); renaming back re-enables VR.
+# The button shows BOTH modes and paints the ACTIVE one in the gold
+# VR-Ready colour, the other greyed, so the current state is always clear.
+function global:New-FlatVRToggleButton {
+    param(
+        $Game,
+        [string]$AccentHex = "#5aa0d0"
+    )
+    $goldHex = "#cdb77a"; $grayHex = "#767688"
+    # R.E.A.L. (Luke Ross) mods toggle differently from BepInEx: they rename
+    # the RealRepo folder (+ optional dxgi.dll) and re-run RealConfig on
+    # re-enable, per the mod author's official DISABLE_VR steps.
+    $isReal = ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))
+
+    $btn = New-Object System.Windows.Controls.Border
+    $btn.CornerRadius    = [System.Windows.CornerRadius]::new(7)
+    $btn.Padding         = [System.Windows.Thickness]::new(16, 10, 16, 10)
+    $btn.Cursor          = [System.Windows.Input.Cursors]::Hand
+    $btn.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161d")
+    $btn.BorderThickness = [System.Windows.Thickness]::new(1.5)
+    $btn.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a7ea0")
+
+    $lbl = New-Object System.Windows.Controls.TextBlock
+    $lbl.FontSize   = 14
+    $lbl.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $vrRun = New-Object System.Windows.Documents.Run; $vrRun.Text = "VR"
+    $sepRun = New-Object System.Windows.Documents.Run; $sepRun.Text = "  /  "
+    $sepRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($grayHex)
+    $flatRun = New-Object System.Windows.Documents.Run; $flatRun.Text = "Flat"
+    [void]$lbl.Inlines.Add($vrRun); [void]$lbl.Inlines.Add($sepRun); [void]$lbl.Inlines.Add($flatRun)
+    $btn.Child = $lbl
+    $btn.Resources.Add("vrRun", $vrRun)
+    $btn.Resources.Add("flatRun", $flatRun)
+
+    # Initial paint from the current on-disk state.
+    $goldB = [System.Windows.Media.BrushConverter]::new().ConvertFromString($goldHex)
+    $grayB = [System.Windows.Media.BrushConverter]::new().ConvertFromString($grayHex)
+    $info0 = if ($isReal) { Get-RealVRToggleInfo -Game $Game } else { Get-FlatVRProxyInfo -Game $Game }
+    $vrOn0 = if ($info0) { $info0.Active } else { $null }
+    if ($vrOn0 -eq $true) {
+        $vrRun.Foreground = $goldB; $vrRun.FontWeight = [System.Windows.FontWeights]::Bold
+        $flatRun.Foreground = $grayB; $flatRun.FontWeight = [System.Windows.FontWeights]::Normal
+    } elseif ($vrOn0 -eq $false) {
+        $flatRun.Foreground = $goldB; $flatRun.FontWeight = [System.Windows.FontWeights]::Bold
+        $vrRun.Foreground = $grayB; $vrRun.FontWeight = [System.Windows.FontWeights]::Normal
+    } else {
+        $vrRun.Foreground = $grayB; $flatRun.Foreground = $grayB
+    }
+
+    $tip = New-Object System.Windows.Controls.ToolTip
+    $tip.Content = if ($isReal) {
+        "Switch this game between VR and flat the official R.E.A.L. way (renames RealRepo, re-runs RealConfig). The active mode is shown in gold. Close the game first."
+    } else {
+        "Switch this game between VR and flat (renames winhttp.dll). The active mode is shown in gold. Close the game first."
+    }
+    $btn.ToolTip = $tip
+
+    # Border glow on hover (matches the emphasized-button feel elsewhere).
+    $btn.Add_MouseEnter({
+        try {
+            $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $glow.Color = [System.Windows.Media.ColorConverter]::ConvertFromString("#6fb2e0")
+            $glow.BlurRadius = 15; $glow.ShadowDepth = 0; $glow.Opacity = 0.9
+            $this.Effect = $glow
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ec0ea")
+        } catch {}
+    })
+    $btn.Add_MouseLeave({
+        try {
+            $this.Effect = $null
+            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a7ea0")
+        } catch {}
+    })
+
+    $btn.Add_MouseLeftButtonUp({
+        try {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+            $nowVR = $true
+            $msg = ""
+            if ($isReal) {
+                # R.E.A.L. (Luke Ross) official toggle: disable = rename
+                # RealRepo -> RealRepo_ and dxgi.dll -> dxgi_.dll; re-enable =
+                # rename them back and re-run RealConfig.bat.
+                $ri = Get-RealVRToggleInfo -Game $Game
+                if (-not $ri -or -not $ri.Dir) {
+                    [System.Windows.Forms.MessageBox]::Show(
+                        ("Couldn't find " + $Game.Title + "'s R.E.A.L. folder (RealConfig.bat). Make sure it's installed and located, then try again."),
+                        "Flat / VR Switch") | Out-Null
+                    return
+                }
+                $dir = $ri.Dir
+                if ($ri.Active) {
+                    if (Test-Path -LiteralPath (Join-Path $dir "RealRepo")) {
+                        Rename-Item -LiteralPath (Join-Path $dir "RealRepo") -NewName "RealRepo_" -Force -ErrorAction Stop
+                    }
+                    if (Test-Path -LiteralPath (Join-Path $dir "dxgi.dll")) {
+                        Rename-Item -LiteralPath (Join-Path $dir "dxgi.dll") -NewName "dxgi_.dll" -Force -ErrorAction SilentlyContinue
+                    }
+                    $nowVR = $false
+                    $msg = $Game.Title + " is now in FLAT mode (R.E.A.L. off). Launch the game normally to play without VR."
+                } else {
+                    if (Test-Path -LiteralPath (Join-Path $dir "RealRepo_")) {
+                        Rename-Item -LiteralPath (Join-Path $dir "RealRepo_") -NewName "RealRepo" -Force -ErrorAction Stop
+                    }
+                    if (Test-Path -LiteralPath (Join-Path $dir "dxgi_.dll")) {
+                        Rename-Item -LiteralPath (Join-Path $dir "dxgi_.dll") -NewName "dxgi.dll" -Force -ErrorAction SilentlyContinue
+                    }
+                    if (Test-Path -LiteralPath (Join-Path $dir "RealConfig.bat")) {
+                        Start-Process "cmd.exe" -ArgumentList "/c RealConfig.bat" -WorkingDirectory $dir -ErrorAction SilentlyContinue
+                    }
+                    $nowVR = $true
+                    $msg = $Game.Title + " is now in VR mode (R.E.A.L. on). RealConfig is re-running - start SteamVR, then launch."
+                }
+            } else {
+            $info = Get-FlatVRProxyInfo -Game $Game
+            if (-not $info) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    ("Couldn't find " + $Game.Title + "'s folder. Make sure it's installed and located, then try again."),
+                    "Flat / VR Switch") | Out-Null
+                return
+            }
+            if (-not $info.Path) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    ("Couldn't find the VR mod's winhttp.dll for " + $Game.Title + ". This switch only works for winhttp-based mods."),
+                    "Flat / VR Switch") | Out-Null
+                return
+            }
+            $parent = Split-Path -Parent $info.Path
+            if ($info.Active) {
+                $bak = Join-Path $parent $info.DisabledLeaf
+                if (Test-Path -LiteralPath $bak) { Remove-Item -LiteralPath $bak -Force -ErrorAction SilentlyContinue }
+                Rename-Item -LiteralPath $info.Path -NewName $info.DisabledLeaf -Force -ErrorAction Stop
+                $nowVR = $false
+                $msg = $Game.Title + " is now in FLAT mode (VR mod off)."
+            } else {
+                $tgt = Join-Path $parent $info.EnabledLeaf
+                if (Test-Path -LiteralPath $tgt) { Remove-Item -LiteralPath $tgt -Force -ErrorAction SilentlyContinue }
+                Rename-Item -LiteralPath $info.Path -NewName $info.EnabledLeaf -Force -ErrorAction Stop
+                $nowVR = $true
+                $msg = $Game.Title + " is now in VR mode (mod on)."
+            }
+            }
+            # Repaint the label so the active mode shows gold.
+            $vr = $this.Resources.Item("vrRun"); $fl = $this.Resources.Item("flatRun")
+            $gB = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cdb77a")
+            $grB = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#767688")
+            if ($vr -and $fl) {
+                if ($nowVR) {
+                    $vr.Foreground = $gB; $vr.FontWeight = [System.Windows.FontWeights]::Bold
+                    $fl.Foreground = $grB; $fl.FontWeight = [System.Windows.FontWeights]::Normal
+                } else {
+                    $fl.Foreground = $gB; $fl.FontWeight = [System.Windows.FontWeights]::Bold
+                    $vr.Foreground = $grB; $vr.FontWeight = [System.Windows.FontWeights]::Normal
+                }
+            }
+            [System.Windows.Forms.MessageBox]::Show($msg, "Flat / VR Switch") | Out-Null
+        } catch {
+            try {
+                [System.Windows.Forms.MessageBox]::Show(
+                    ("Couldn't switch mode: " + $_.Exception.Message + "`r`n`r`nIf the game is running, close it first."),
+                    "Flat / VR Switch") | Out-Null
+            } catch {}
+        }
+    }.GetNewClosure())
+
+    return $btn
+}
+
 function global:New-TwoModsButton {
     # A green "VR Ready"-style launch button for one of a TwoMods game's
     # two alternative mods. Click routes to Start-GameInVR with the
@@ -2009,7 +2255,11 @@ function global:New-UninstallGuideButton {
     #   3. Uninstall via Steam
     #   4. Delete leftover files
     $steps = @()
-    if ($isUserProvidedMod) {
+    if ($Game.UninstallSteps -and @($Game.UninstallSteps).Count -gt 0) {
+        # Game-specific steps supplied by the catalog (single source of
+        # truth - the per-game README no longer repeats them).
+        $steps = @($Game.UninstallSteps)
+    } elseif ($isUserProvidedMod) {
         if ($isGtaVr) {
             $steps += "The R.E.A.L. VR mod was layered into your OWN copy of GTA V - the Hub never installed the base game, so do NOT uninstall it via Steam or Epic."
             $steps += "To remove just the VR mod, open your GTA V folder and delete the mod files: RealVR.ini, the 'asi' folder, ScriptHookV.dll, dinput8.dll, RealConfig.bat and the RealRepo folder (plus GTAVR.asi and openvr_api.dll if you added motion controls)."
@@ -2025,6 +2275,7 @@ function global:New-UninstallGuideButton {
         $folderLeaf = Split-Path $standaloneFolderPath -Leaf
         $steps += "This VR build lives in its own folder and is NOT registered in Steam - there is nothing to uninstall there."
         $steps += "Just delete the folder 'C:\Games\$folderLeaf'. That removes the VR build completely."
+        $steps += "Anything you added or the game saved - ROMs, save games, generated data - lives inside that folder, so back up whatever you want to keep before deleting it."
         $steps += "Delete the desktop shortcut too, if the installer created one."
         if ($Game.SteamId) {
             $steps += "Your original game (in Steam or GOG, if you own it) is left completely untouched - this never modified it."
@@ -2420,6 +2671,144 @@ function global:Set-TextBlockWithLinks {
             }
         }
     }
+}
+
+function global:Get-YouTubeId {
+    param([string]$Url)
+    if (-not $Url) { return $null }
+    $m = [regex]::Match($Url, '(?:v=|youtu\.be/|embed/|shorts/|live/)([A-Za-z0-9_-]{11})')
+    if ($m.Success) { return $m.Groups[1].Value }
+    return $null
+}
+
+# Compact "Watch VR gameplay" strip shown at the top of the description
+# (directly under the Game Info row) for any catalog entry that sets a
+# VideoUrl. The primary image is the real YouTube thumbnail; on any load
+# failure it swaps to the game's Steam header, and if that is unavailable
+# too the dark tile plus the red play button still read cleanly - so the
+# strip looks right even offline. The whole strip opens the video.
+function global:New-VideoStripElement {
+    param($Game, [string]$AccentHex = "#cdb77a")
+    try {
+        if (-not $Game.VideoUrl) { return $null }
+        $vid = Get-YouTubeId -Url $Game.VideoUrl
+        # Where the video lives, for the subtitle line. YouTube clips get a
+        # real thumbnail; anything else (e.g. the Reddit-hosted Hytale clip)
+        # has none, so the strip falls back to the game's own header image,
+        # cropped to the thumbnail box by UniformToFill.
+        $provider = "YouTube"
+        if (-not $vid) {
+            if ($Game.VideoUrl -match 'redd\.it|reddit\.com') { $provider = "Reddit" }
+            else {
+                try { $provider = ([Uri]$Game.VideoUrl).Host -replace '^www\.', '' } catch { $provider = "the web" }
+            }
+        }
+        $conv = New-Object System.Windows.Media.BrushConverter
+        $accentBrush = try { $conv.ConvertFromString($AccentHex) } catch { [System.Windows.Media.Brushes]::Goldenrod }
+        $restBorder = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(0x2A, 0xFF, 0xFF, 0xFF))
+
+        $card = New-Object System.Windows.Controls.Border
+        $card.CornerRadius = [System.Windows.CornerRadius]::new(10)
+        $card.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(0x40, 0x32, 0x35, 0x48))
+        $card.BorderThickness = [System.Windows.Thickness]::new(1)
+        $card.BorderBrush = $restBorder
+        $card.Padding = [System.Windows.Thickness]::new(10)
+        $card.Margin = [System.Windows.Thickness]::new(0,0,0,14)
+        $card.Cursor = [System.Windows.Input.Cursors]::Hand
+
+        $row = New-Object System.Windows.Controls.StackPanel
+        $row.Orientation = "Horizontal"
+
+        $thumbWrap = New-Object System.Windows.Controls.Border
+        $thumbWrap.Width = 132; $thumbWrap.Height = 74
+        $thumbWrap.CornerRadius = [System.Windows.CornerRadius]::new(6)
+        $thumbWrap.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x22,0x2A,0x30))
+        $thumbWrap.ClipToBounds = $true
+        $thumbGrid = New-Object System.Windows.Controls.Grid
+
+        $img = New-Object System.Windows.Controls.Image
+        $img.Stretch = "UniformToFill"
+        $fallbackUrl = $null
+        try {
+            if (Get-Command Get-GameImageUrl -ErrorAction SilentlyContinue) {
+                $fallbackUrl = Get-GameImageUrl -Game $Game -Kind "header"
+            }
+        } catch {}
+        if (-not $fallbackUrl -and $Game.SteamId) {
+            $fallbackUrl = "https://cdn.cloudflare.steamstatic.com/steam/apps/$($Game.SteamId)/header.jpg"
+        }
+        $cached = $null
+        if ($vid -and (Get-Command Get-YtThumbCachePath -ErrorAction SilentlyContinue)) {
+            try { $cp = Get-YtThumbCachePath -Id $vid; if ($cp -and (Test-Path -LiteralPath $cp)) { $cached = $cp } } catch {}
+        }
+        $primary = if ($cached) { $cached } elseif ($vid) { "https://img.youtube.com/vi/$vid/mqdefault.jpg" } else { $fallbackUrl }
+        if ($primary) {
+            try {
+                $bmp = New-Object System.Windows.Media.Imaging.BitmapImage
+                $bmp.BeginInit()
+                $bmp.UriSource = [Uri]$primary
+                $bmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                $bmp.EndInit()
+                if (-not $cached -and $fallbackUrl) {
+                    $bmp.Add_DownloadFailed({
+                        param($s, $e)
+                        try { $fb = New-Object System.Windows.Media.Imaging.BitmapImage; $fb.BeginInit(); $fb.UriSource = [Uri]$fallbackUrl; $fb.EndInit(); $img.Source = $fb } catch {}
+                    }.GetNewClosure())
+                }
+                $img.Source = $bmp
+            } catch {}
+            if (-not $cached -and $fallbackUrl) {
+                $img.Add_ImageFailed({
+                    param($s, $e)
+                    try { $fb = New-Object System.Windows.Media.Imaging.BitmapImage; $fb.BeginInit(); $fb.UriSource = [Uri]$fallbackUrl; $fb.EndInit(); $s.Source = $fb } catch {}
+                }.GetNewClosure())
+            }
+        }
+        $thumbGrid.Children.Add($img) | Out-Null
+
+        $play = New-Object System.Windows.Controls.Border
+        $play.Width = 40; $play.Height = 28
+        $play.CornerRadius = [System.Windows.CornerRadius]::new(6)
+        $play.Background = if ($vid) {
+            [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0xCC,0x00,0x00))
+        } else {
+            [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(0xD0,0x11,0x11,0x18))
+        }
+        $play.HorizontalAlignment = "Center"; $play.VerticalAlignment = "Center"
+        $tri = New-Object System.Windows.Controls.TextBlock
+        $tri.Text = [string][char]0x25B6
+        $tri.Foreground = if ($vid) { [System.Windows.Media.Brushes]::White } else { $accentBrush }
+        $tri.FontSize = 13
+        $tri.HorizontalAlignment = "Center"; $tri.VerticalAlignment = "Center"
+        $play.Child = $tri
+        $thumbGrid.Children.Add($play) | Out-Null
+
+        $thumbWrap.Child = $thumbGrid
+        $row.Children.Add($thumbWrap) | Out-Null
+
+        $txt = New-Object System.Windows.Controls.StackPanel
+        $txt.VerticalAlignment = "Center"
+        $txt.Margin = [System.Windows.Thickness]::new(12,0,0,0)
+        $t1 = New-Object System.Windows.Controls.TextBlock
+        $t1.Text = "Watch VR gameplay"
+        $t1.Foreground = $accentBrush
+        $t1.FontSize = 14; $t1.FontWeight = "SemiBold"
+        $t2 = New-Object System.Windows.Controls.TextBlock
+        $t2.Text = "See it in action on $provider"
+        $t2.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x8A,0x8A,0x95))
+        $t2.FontSize = 12; $t2.Margin = [System.Windows.Thickness]::new(0,2,0,0)
+        $txt.Children.Add($t1) | Out-Null; $txt.Children.Add($t2) | Out-Null
+        $row.Children.Add($txt) | Out-Null
+
+        $card.Child = $row
+
+        $videoUrl = $Game.VideoUrl
+        $card.Add_MouseLeftButtonUp({ try { Start-Process $videoUrl } catch {} }.GetNewClosure())
+        $card.Add_MouseEnter({ $this.BorderBrush = $accentBrush }.GetNewClosure())
+        $card.Add_MouseLeave({ $this.BorderBrush = $restBorder }.GetNewClosure())
+
+        return $card
+    } catch { return $null }
 }
 
 function global:New-DetailSection {
@@ -3328,6 +3717,9 @@ function global:Start-GameInVR {
                                 }
                             })
                             $tmTimer.Start()
+                        } else {
+                            # No process handle: watch this one game's marker.
+                            try { Watch-InstallMarkerForRefresh -Game $Game } catch {}
                         }
                     } catch { }
                     return
@@ -3511,9 +3903,14 @@ function global:Start-GameInVR {
             # "install this game" dialog. Older installs from before
             # this file was written by the installers won't have it -
             # drop it in now if it's missing.
+            # EXCLUDE Scrap Mechanic VR only: its launch target is the
+            # mod's own manager (ScrapMechanicVR.exe), which links
+            # Steamworks itself. A steam_appid.txt in that folder makes
+            # it read the wrong appid and lose its managed install - and
+            # the desktop shortcut, sharing that folder, breaks too.
             $isDepotInstall = [bool]$Game.DepotInstall
             $isOutsideSteamCommon = ($gameDir -notmatch '\\steamapps\\common\\')
-            if ($Game.SteamId -and ($isDepotInstall -or $isOutsideSteamCommon)) {
+            if ($Game.SteamId -and $Game.Title -ne "Scrap Mechanic VR" -and ($isDepotInstall -or $isOutsideSteamCommon)) {
                 $appidFile = Join-Path $gameDir "steam_appid.txt"
                 if (-not (Test-Path $appidFile)) {
                     try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
@@ -3620,7 +4017,32 @@ function global:Start-GameInVR {
                 [System.Windows.MessageBoxImage]::Warning
             ) | Out-Null
         } catch { }
-        try { Invoke-CheckInstalledScan } catch { }
+        # Repair the state only as far as the user has opted in: a full
+        # rescan is fine for someone who already ran Scan games, but for
+        # anyone who never did, scanning the whole PC off the back of a
+        # failed launch would be unrequested. Clearing this one game's
+        # state above is enough for them - the card falls back to
+        # "Install" on the next paint.
+        if ($global:UserRanFullScan) {
+            try { Invoke-CheckInstalledScan } catch { }
+        }
+        return
+    }
+
+    # Some mods do NOT run through the retail exe: they have their own
+    # launcher and steam://rungameid would start the plain, flat game.
+    # Reaching this point means every VR route above failed, so launching
+    # via Steam would silently hand the user the desktop version instead
+    # of VR. Say so rather than pretend it worked.
+    #   NeverSteamLaunch = $true  in the catalog opts a game into this.
+    if ($Game.NeverSteamLaunch) {
+        try {
+            [System.Windows.MessageBox]::Show(
+                ("$($Game.Title) starts through its own launcher, and the Hub " +
+                 "could not find it.`n`nRun the installer again from this page - " +
+                 "it re-creates the launcher and reconnects 'Start in VR'."),
+                "Cannot start in VR", "OK", "Warning") | Out-Null
+        } catch { }
         return
     }
 
@@ -4627,7 +5049,9 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "F.E.A.R. VR" = "F.E.A.R. is a supernatural first-person shooter that combines intense gunfights, slow-motion combat, and psychological horror. As a member of an elite response unit, you investigate a mysterious military force connected to the unsettling psychic child Alma."
         "Mario Kart 64 VR" = "Experience the classic kart racing action of Mario Kart 64 in immersive VR. Race through iconic tracks with full 6DOF head tracking, bringing the world to life from inside the driver's seat. Built on SpaghettiKart, the Mario Kart 64 PC port - you bring your own US ROM, and nothing from Nintendo is included."
+        "Legend of Zelda: Ocarina of Time VR" = "The Legend of Zelda: Ocarina of Time is a groundbreaking action-adventure game originally released for the Nintendo 64 in 1998. According to Metacritic, it is considered one of the best video games of all time. Shipwright-VR brings its 3D world into the headset via an OpenVR renderer for the Ship of Harkinian PC port, with motion-controller input."
         "Ring Racers VR" = "Dr. Robotnik's Ring Racers is a fast-paced kart racing game featuring dozens of characters, tracks, items, and advanced movement mechanics. Thanks to the new OpenXR port, the chaotic races can now be experienced in immersive PCVR."
         "Sonic Robo Blast 2 VR" = "Sonic Robo Blast 2 is a long-running fan-made 3D platformer inspired by the classic Sonic games, featuring fast-paced gameplay, exploration - now with OpenXR support."
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
@@ -5280,6 +5704,15 @@ function global:Show-DiscoverDetail {
 
     $stack.Children.Add($infoRow) | Out-Null
 
+    # Video strip (position 1, directly under the Game Info row) - only for
+    # catalog entries that set a VideoUrl; every other game is unchanged.
+    if ($Game.VideoUrl) {
+        try {
+            $vstrip = New-VideoStripElement -Game $Game -AccentHex $accentHex
+            if ($vstrip) { $stack.Children.Add($vstrip) | Out-Null }
+        } catch {}
+    }
+
     # README sections (if available)
     $sections = Read-GameReadme -Game $Game
     $deferredUninstallBox = $null
@@ -5324,25 +5757,39 @@ function global:Show-DiscoverDetail {
                     $append = New-SteamTheatreButton -AccentHex $accentHex
                     $theatreBtnPlaced = $true
                 }
-                $stack.Children.Add((New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -AppendChild $append -ImageBaseDir $imgBase)) | Out-Null
+                try {
+                    $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -AppendChild $append -ImageBaseDir $imgBase
+                    if ($sec) { $stack.Children.Add($sec) | Out-Null }
+                } catch { }
                 $shown[$key] = $true
             }
         }
         # Middle block: remaining h2 sections that are NOT tail items.
-        foreach ($key in $sections.Keys) {
+        # NOTE: iterate via get_Keys() rather than .Keys - a section
+        # heading literally named "Keys" (or any OrderedDictionary member
+        # name) would otherwise shadow the .Keys property and PowerShell
+        # would return that section's VALUE (a single string) instead of
+        # the key collection, so only one section would render.
+        foreach ($key in $sections.get_Keys()) {
             if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
             if ((& $isTail $key)) { continue }
-            $stack.Children.Add((New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase)) | Out-Null
+            try {
+                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
+                if ($sec) { $stack.Children.Add($sec) | Out-Null }
+            } catch { }
             $shown[$key] = $true
         }
         # Tail block: render tail sections last, grouped by pattern
         # in $tailPatterns order. Within a single pattern (e.g. two
         # "support" sections), preserve README order.
         foreach ($pat in $tailPatterns) {
-            foreach ($key in $sections.Keys) {
+            foreach ($key in $sections.get_Keys()) {
                 if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
                 if (-not $key.ToString().ToLower().Contains($pat)) { continue }
-                $stack.Children.Add((New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase)) | Out-Null
+                try {
+                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
+                if ($sec) { $stack.Children.Add($sec) | Out-Null }
+            } catch { }
                 $shown[$key] = $true
             }
         }
@@ -5379,6 +5826,10 @@ function global:Show-DiscoverDetail {
                 $standaloneRow.Children.Add($standaloneBtn) | Out-Null
             }
 
+            # (Flat / VR switch moved to the main action row, after
+            # Open in Steam.) Keep the flag for the defer logic below.
+            $flatBtnPlaced = $false
+
             # Uninstall Guide button: always shown for non-external
             # games. Adapts steps based on whether the game uses
             # Steam launch options that need clearing first.
@@ -5389,7 +5840,7 @@ function global:Show-DiscoverDetail {
             # If the Theatre button is alongside (box has 2 buttons),
             # render now - before the quip. If the Uninstall button is
             # alone, defer it so the quip renders first.
-            if (-not $theatreBtnPlaced) {
+            if (-not $theatreBtnPlaced -or $flatBtnPlaced) {
                 $stack.Children.Add($standaloneBox) | Out-Null
             } else {
                 $deferredUninstallBox = $standaloneBox
@@ -5922,6 +6373,9 @@ function global:Show-DiscoverDetail {
                     })
                     $riTimer.Start()
                 } catch {}
+            } else {
+                # No process handle: watch this one game's marker.
+                try { Watch-InstallMarkerForRefresh -Game $reinstallGameRef } catch {}
             }
         }.GetNewClosure())
     }
@@ -6036,6 +6490,9 @@ function global:Show-DiscoverDetail {
                 })
                 $timer.Start()
             } catch {}
+        } else {
+            # No process handle: watch this one game's marker.
+            try { Watch-InstallMarkerForRefresh -Game $gameForBtn } catch {}
         }
     }.GetNewClosure())
     # Only attach the universal sweep hover when the button doesn't
@@ -6615,6 +7072,16 @@ function global:Show-DiscoverDetail {
         }.GetNewClosure())
         Add-SweepHover -Border $steamBtn
         $btnRow.Children.Add($steamBtn) | Out-Null
+    }
+
+    # Flat / VR switch - in the MAIN action row, after Open in Steam.
+    # Only for winhttp-based BepInEx mods (or a game with an explicit
+    # FlatVR proxy, e.g. Portal 2) that are actually VR-installed.
+    $fvSt2 = $global:gameStateMap[$Game.Title]
+    if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
+        $flatBtn = New-FlatVRToggleButton -Game $Game -AccentHex $accentHex
+        $flatBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+        $btnRow.Children.Add($flatBtn) | Out-Null
     }
 }
 

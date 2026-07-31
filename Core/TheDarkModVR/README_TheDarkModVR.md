@@ -4,7 +4,7 @@
 
 ## How this installer works (guided)
 
-The Dark Mod uses its own GUI installer to fetch the game. The VR build is a **custom version** (base `release210` + a custom manifest URL) and that selection cannot be driven fully headless, so this is a *guided* install:
+The Dark Mod uses its own GUI installer to fetch the game. The VR build is a **custom version** (base `release210` + a custom manifest URL) and that selection cannot be driven fully headless, so this is a **guided** install:
 
 1. Creates the install folder (default `C:\Games\The Dark Mod VR`) and drops `tdm_installer.exe` into it, so the install path is already set.
 2. Copies the **VR manifest URL** to your clipboard (paste it with Ctrl+V in the installer).
@@ -21,7 +21,7 @@ The Dark Mod uses its own GUI installer to fetch the game. The VR build is a **c
 
 1. Start **SteamVR** / your VR runtime first.
 2. Launch with **Start in VR** in the Hub, or the **The Dark Mod VR** desktop shortcut (`TheDarkModVRx64.exe`).
-3. If the UI overlay is missing or your head is stuck in a wall/ceiling, **reset your seated position** (SteamVR: *reset seated position*; Oculus: *recenter view*).
+3. If the UI overlay is missing or your head is stuck in a wall/ceiling, **reset your seated position** (SteamVR: **reset seated position**; Oculus: **recenter view**).
 
 ## Gamepad controls
 
@@ -60,9 +60,9 @@ The bindings live in `DarkmodPadbinds.cfg` in your install folder — edit it an
 
 ## Known issues
 
-- Some full-screen effects render only to the UI overlay in front of you instead of to the eyes (e.g. entering the spirit world in the FM *A House of Locked Secrets*).
+- Some full-screen effects render only to the UI overlay in front of you instead of to the eyes (e.g. entering the spirit world in the FM **A House of Locked Secrets**).
 - The spyglass only renders in 2D.
-- If the UI overlay is nowhere to be seen, or your head is stuck in a wall/ceiling, reset your seated position (see *Launching* above).
+- If the UI overlay is nowhere to be seen, or your head is stuck in a wall/ceiling, reset your seated position (see **Launching** above).
 
 ## Notes on missions
 

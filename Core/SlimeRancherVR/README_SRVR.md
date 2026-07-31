@@ -1,7 +1,7 @@
 # Slime Rancher VR Mod Installer
 
 Automated installer for **SRVR** by Atmudia — full 6DOF VR with motion
-controls for the *entire* game (not just the short official VR Playground).
+controls for the **entire** game (not just the short official VR Playground).
 Explore the Far, Far Range in immersive VR.
 
 ## What it installs

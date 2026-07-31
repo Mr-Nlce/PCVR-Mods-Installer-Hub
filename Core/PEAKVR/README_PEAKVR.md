@@ -22,8 +22,9 @@ PEAK keeps shipping updates that break the VR mod. The README of v1.0.0 states t
 3. **Move depot** out of `steamapps\content\` into `C:\Games\PEAK VR` (or wherever you choose), drop `steam_appid.txt` so the EXE can be launched outside Steam's update path
 4. **PEAK_VR mod** auto-downloaded from GitHub release v1.0.0, extracted on top (BepInEx pattern: `winhttp.dll` + `BepInEx/` folder)
 5. **PeakVersionBypass** (by kirigiri, v1.0.2) auto-downloaded from Thunderstore and dropped into `BepInEx\plugins\`. PEAK refuses to start when its build version doesn't match Steam's expected current version - since we're pinned to 1.44.a, PEAK would otherwise hit an "update required" prompt and never reach gameplay (not even offline). The bypass plugin silences that check
-6. **ViGEmBus driver** setup launched interactively (needed for the mod's virtual Xbox-gamepad emulation). UAC prompt expected. If you already have ViGEmBus installed, just close the setup window
-7. **Desktop shortcut** to `PEAK.exe` in the pinned folder
+6. **VR config corrected** - the shipped `BepInEx\config\UnityVR_Bepinex.cfg` sets two values that break controllers in practice, so the installer rewrites them: **fixControllerTracking = true** (otherwise controller tracking dies on every scene load) and **controllerType = xbox360** (otherwise the emulated gamepad isn't recognised). If you ever reset the config, set both again by hand
+7. **ViGEmBus driver** setup launched interactively (needed for the mod's virtual Xbox-gamepad emulation). UAC prompt expected. If you already have ViGEmBus installed, just close the setup window
+8. **Desktop shortcut** to `PEAK.exe` in the pinned folder
 
 ## Launching
 

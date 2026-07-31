@@ -1,6 +1,6 @@
 # Amnesia VR (Sclerosis)
 
-A free fan-made VR remake of *Amnesia: The Dark Descent*, built in Unity by CreaTeam. Adds full motion controls and room-scale support. Ships its own engine - launches via `Sclerosis.exe`, not the original `Amnesia.exe`.
+A free fan-made VR remake of **Amnesia: The Dark Descent**, built in Unity by CreaTeam. Adds full motion controls and room-scale support. Ships its own engine - launches via `Sclerosis.exe`, not the original `Amnesia.exe`.
 
 **Mod**: Sclerosis v1.8.16 - by CreaTeam, distributed via itch.io
 **Game**: Amnesia: The Dark Descent (Steam App 57300)

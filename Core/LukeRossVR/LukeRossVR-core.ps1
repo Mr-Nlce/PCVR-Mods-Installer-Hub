@@ -77,31 +77,31 @@ $GAMES = @(
  },
  @{ Name = "Death Stranding"; Folder = "Death Stranding Directors Cut"; AltFolders = @("Death Stranding Director's Cut"); Sub = ""; Exe = "ds.exe"; AppId = 1850570
  Settings = @(
- "Screen Mode -> Windowed | Aspect Ratio -> 16:9"
- "VSync -> Off | Maximum Frame Rate -> 120"
- "DLSS -> Performance or Quality"
+ "Screen Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off"
+ "Maximum Frame Rate -> 240 | DLSS -> Quality, Performance or Ultra Performance"
  "Depth of Field -> Off | Motion Blur -> Off"
+ "Controller Auto-Aim -> Off"
  )
  Flavor = "Sam, the cargo, the BTs. Reconnect a broken America."
  },
  @{ Name = "Doom Eternal"; Folder = "DOOMEternal"; Sub = ""; Exe = "DOOMEternalx64vk.exe"; AppId = 782330
  Settings = @(
  "Window Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off | HDR -> Off"
- "Present from Compute -> On"
- "Motion Blur -> Off | Film Grain -> 0 | Depth of Field -> Off"
- "Chromatic Aberration -> Off | Environmental Screen Shake -> Off"
- "DLSS -> Performance | Frame Generation -> Off"
+ "Field of View -> 90 | HUD Scale -> Large | Present from Compute -> On"
+ "Motion Blur -> Off (Quality Low) | Depth of Field -> Off | Resolution Scaling -> Off"
+ "Film Grain -> 0 | Chromatic Aberration -> Off"
+ "Aim Assist -> Off | Target Snapping -> Off"
+ "DLSS -> Performance, Balanced or Quality | Frame Generation -> Off"
  )
  Flavor = "Slayer's back. Glory kill in 1:1. The hordes recoil."
  },
  @{ Name = "Doom: The Dark Ages"; Folder = "DOOM The Dark Ages"; Sub = ""; Exe = "DOOMTheDarkAges.exe"; AppId = 2239150
  Settings = @(
- "Window Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off | HDR -> Off"
- "Present from Compute -> On | FOV -> 90"
- "Motion Blur -> Off | Film Grain -> 0 | Depth of Field -> Off"
- "Environmental Screen Shake -> Off"
- "HUD Scale -> 0.50 | Subtitles Scale -> 1.50"
- "DLSS Super Resolution -> On | Frame Generation -> Off"
+ "Window Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off"
+ "Field of View -> 90 | HUD Scale -> 0.50 | Subtitles Scale -> 1.50"
+ "Motion Blur -> Off | Depth of Field -> Off | Chromatic Aberration -> Off | Film Grain -> 0"
+ "Environmental Screen Shake -> Off | Aim Assist -> Off"
+ "Resolution Scaling -> Off | Reflections Quality -> Off or Low | Frame Generation -> Off"
  )
  Flavor = "Plate, mace, shield-saw. Medieval slaughter, Slayer-style."
  },
@@ -117,19 +117,16 @@ $GAMES = @(
  },
  @{ Name = "Far Cry 4"; Folder = "Far Cry 4"; Sub = ""; Exe = "FarCry4.exe"; AppId = 298110
  Settings = @(
- "Window Mode -> Windowed (NOT Borderless - Borderless has a zoom bug!)"
- "Aspect Ratio -> 5:4 | VSync -> Off"
- "Anti-Aliasing -> SMAA (avoid TXAA - very blurry in VR)"
- "Motion Blur -> Off | Aim Assist -> Off"
- "Godrays -> Volumetric or Off (avoid 'Enhanced' - causes overbrightening)"
+ "Window Mode -> Windowed (NOT Borderless - zoom bug) | Aspect Ratio -> Auto"
+ "VSync -> Off | Motion Blur -> Off | Aim Assist -> Off"
+ "Anti-Aliasing -> SMAA (avoid TXAA - blurry in VR)"
  )
  Flavor = "Welcome to Kyrat. Pagan Min sends his regards."
  },
  @{ Name = "Far Cry 5"; Folder = "Far Cry 5"; Sub = ""; Exe = "FarCry5.exe"; AppId = 552520
  Settings = @(
- "Window Mode -> Windowed | Aspect Ratio -> 5:4"
- "VSync -> Off | HDR -> Off | Frame Rate Lock -> Off"
- "Anti-Aliasing -> SMAA or TAA | FOV Scaling -> 90-120"
+ "Reticle Position -> Offset | Window Mode -> Borderless"
+ "Aspect Ratio -> Native 16:9 | VSync -> Off | Frame Rate Lock -> Off"
  "Motion Blur -> Off | Aim Assist -> Off"
  )
  Flavor = "Hope County wasn't asking. The Father is listening."
@@ -137,19 +134,17 @@ $GAMES = @(
  @{ Name = "Far Cry 6"; Folder = "Far Cry 6"; Sub = ""; Exe = "FarCry6.exe"; AppId = 933420
  Settings = @(
  "Window Mode -> Borderless (different from other Far Cry games!)"
- "Anti-Aliasing -> TAA | FOV -> 90 | Resolution Scale -> 1.0 (do not touch)"
- "Motion Blur -> Off"
- "Extended Features -> ALL Off"
- "Advanced Settings -> ALL Off (covers film grain, CA, depth of field, etc.)"
+ "VSync -> Off | Frame Rate Lock -> Off | Motion Blur -> Off"
+ "FOV -> 90 | Resolution Scale -> 1.0 (do not touch) | Anti-Aliasing -> TAA"
+ "Advanced & Extended Features -> ALL Off (film grain, CA, depth of field)"
  )
  Flavor = "Yara is burning. Castillo's reign ends with you."
  },
  @{ Name = "Far Cry New Dawn"; Folder = "Far Cry New Dawn"; Sub = ""; Exe = "FarCryNewDawn.exe"; AppId = 703220
  Settings = @(
- "Window Mode -> Windowed | Aspect Ratio -> 5:4"
- "VSync -> Off | HDR -> Off | Frame Rate Lock -> Off"
- "Anti-Aliasing -> SMAA or TAA | FOV Scaling -> 90-120"
- "Motion Blur -> Off | Aim Assist -> Off"
+ "Reticle Position -> Offset | Window Mode -> Borderless"
+ "Aspect Ratio -> Native 16:9 | VSync -> Off | Frame Rate Lock -> Off"
+ "Motion Blur -> Off | Aiming Assists -> Off (re-check every launch)"
  )
  Flavor = "Post-apocalypse pastels. The Highwaymen are ready."
  },
@@ -247,9 +242,9 @@ $GAMES = @(
  },
  @{ Name = "Horizon Zero Dawn Remastered"; Folder = "Horizon Zero Dawn Remastered"; AltFolders = @("Horizon Zero Dawn Complete Edition Remastered"); Sub = ""; Exe = "HorizonZeroDawnRemastered.exe"; AppId = 2561580
  Settings = @(
- "Window Mode -> Windowed or Borderless | VSync -> Off | HDR -> Off"
- "DLSS -> Performance or Quality | Frame Generation -> Off"
- "Dynamic Resolution Scaling -> Off"
+ "Aim Assist -> Off | Window Mode -> Windowed | Aspect Ratio -> Auto"
+ "VSync -> Off | HDR -> Off | NVIDIA Reflex -> Off | Cinematics Letterboxing -> Off"
+ "Upscale -> DLSS (Ultra Performance, Balanced or Quality) | Dynamic Resolution Scaling -> Off"
  "Motion Blur -> Off | Film Grain -> Off | Depth of Field -> Off | Chromatic Aberration -> Off"
  )
  Flavor = "Aloy stalks the machines. Sharper than ever."
@@ -308,11 +303,10 @@ $GAMES = @(
  },
  @{ Name = "Spiderman 2"; Folder = "Marvel's Spider-Man 2"; AltFolders = @("Marvels Spider-Man 2"); Sub = ""; Exe = "Spider-Man2.exe"; AppId = 2482550
  Settings = @(
- "Window Mode -> Windowed"
- "CRITICAL: Do NOT change Resolution or Aspect Ratio - mod forces 1:1 itself"
- "Upscaling -> DLSS | DLSS Ray Reconstruction -> Off | Frame Generation -> Off"
- "NVIDIA Reflex -> Off | Dynamic Resolution Scaling -> Off"
- "Motion Blur -> Off | FOV -> 0 | Film Grain -> 0 | Chromatic Aberration -> Off | Vignette -> Off"
+ "Window Mode -> Windowed | Aspect Ratio -> Auto | VSync -> Off | HDR -> Off"
+ "Upscale -> DLSS (set level) | Frame Generation -> Off | Dynamic Resolution Scaling -> Off"
+ "Depth of Field -> Off | Bloom -> Off | Motion Blur -> 0 | FOV -> 0"
+ "Weather Particle Quality -> Low | Chromatic Aberration -> Off"
  )
  Flavor = "Two Spiders. One city. Symbiote in the air."
  },
@@ -346,10 +340,10 @@ $GAMES = @(
  },
  @{ Name = "TLOU Part II"; Folder = "The Last of Us Part II Remastered"; Sub = ""; Exe = "tlou-ii.exe"; AppId = 2531310
  Settings = @(
- "Display Mode -> Windowed | Aspect Ratio -> Auto | VSync -> Off | Frame Rate -> Unlocked"
- "Scaling Mode -> NVIDIA DLSS | Frame Generation -> Off"
- "FOV -> 0 (slider to minimum) | Camera Shake -> Off"
- "Motion Blur -> 0 | Chromatic Aberration -> 0 | Film Grain -> 0 | Depth of Field -> Off"
+ "Display Mode -> Windowed | Aspect Ratio -> Auto | VSync -> Off | Frame Rate Cap -> 360"
+ "Scaling -> NVIDIA DLSS | Frame Generation -> Off"
+ "Camera Assist -> Off | Aim Assist -> 0 | Lock-On Aim -> Off"
+ "Motion Blur -> 0 | Depth of Field -> Off | Chromatic Aberration -> 0 | Film Grain -> 0"
  )
  Flavor = "Vengeance has a price. Pay it, or pass it on."
  },
@@ -382,10 +376,10 @@ $GAMES = @(
  },
  @{ Name = "Watch Dogs Legion"; Folder = "Watch Dogs Legion"; Sub = ""; Exe = "WatchDogsLegion.exe"; AppId = 775935
  Settings = @(
- "Window Mode -> Windowed or Windowed Borderless | VSync -> Off | HDR -> Off"
- "DirectX -> DX11 recommended"
- "DLSS -> Performance | Ray Tracing -> Off | Frame Generation -> Off"
- "Motion Blur -> Off | Depth of Field -> Off"
+ "Aim Snap -> Off | Aim Magnetism -> Off"
+ "Window Mode -> Windowed | VSync -> Off | FPS Limit -> Off | FOV -> 70"
+ "DirectX -> DX11 recommended | DLSS -> Performance | Ray Tracing -> Off | Frame Generation -> Off"
+ "Motion Blur -> Off | Depth of Field -> Off | HDR -> Off"
  "NOTE: BattlEye anti-cheat must be disabled before launching"
  )
  Flavor = "Resistance London. Recruit anyone. Become the city."

@@ -171,6 +171,16 @@ function global:Get-ImageCachePath {
     return (Join-Path (Get-ImageCacheDir) "steam_${SteamId}_${safeKind}.jpg")
 }
 
+function global:Get-YtThumbCachePath {
+    param([string]$Id)
+    if (-not $Id) { return $null }
+    $safe = ($Id -replace '[^A-Za-z0-9_-]', '')
+    if (-not $safe) { return $null }
+    $dir = Get-ImageCacheDir
+    if (-not $dir) { return $null }
+    return (Join-Path $dir "yt_${safe}.jpg")
+}
+
 # If a non-empty cached file exists, return its file:// URI; else $null.
 function global:Get-CachedImageUri {
     param([string]$SteamId, [string]$Kind)
@@ -270,6 +280,25 @@ function global:Start-ImageCacheWarm {
             }
             [void]$work.Add(@{ Dest = $dest; Urls = $urls })
         }
+    }
+
+    # YouTube thumbnails for games with a VideoUrl - cache them once so the
+    # description video strip is instant and works offline. Same {Dest;Urls}
+    # shape as the Steam images above, so the existing runspace downloads
+    # them the same way. Skipped for non-YouTube URLs (no thumbnail id).
+    foreach ($g in $Games) {
+        if (-not $g.VideoUrl) { continue }
+        $vid = if (Get-Command Get-YouTubeId -ErrorAction SilentlyContinue) { Get-YouTubeId -Url $g.VideoUrl } else { $null }
+        if (-not $vid) { continue }
+        $dest = Get-YtThumbCachePath -Id $vid
+        if (-not $dest) { continue }
+        if (Test-Path $dest) { continue }
+        $urls = @(
+            "https://img.youtube.com/vi/$vid/mqdefault.jpg",
+            "https://i.ytimg.com/vi/$vid/mqdefault.jpg",
+            "https://img.youtube.com/vi/$vid/hqdefault.jpg"
+        )
+        [void]$work.Add(@{ Dest = $dest; Urls = $urls })
     }
 
     # Second work list: store-info (short description + screenshot).
@@ -1320,6 +1349,7 @@ function global:Get-PowerTier {
         "Alba VR"                      = "BASIC"
         "No One Lives Forever 2 VR"    = "BASIC"
         "Richard Burns Rally VR"       = "BASIC"
+        "Rebel Galaxy VR"              = "BASIC"
         "Amnesia VR"                   = "BASIC"
         "Apollo Justice: Ace Attorney Trilogy VR" = "BASIC"
         "Art of Rally VR"              = "BASIC"
@@ -1328,6 +1358,9 @@ function global:Get-PowerTier {
         "Mass Effect 1 LE VR"          = "STRONG"
         "Mouse P.I. For Hire VR"       = "STRONG"
         "Outbound VR"                  = "STRONG"
+        "Stardew Valley VR"            = "STRONG"
+        "BioShock Remastered"          = "STRONG"
+        "Dinkum VR"                    = "STRONG"
         "New Star GP VR"                = "BASIC"
         "Mario Kart 64 VR"             = "BASIC"
         "Super Mario 64 VR"            = "BASIC"
@@ -1346,6 +1379,7 @@ function global:Get-PowerTier {
         "Garry's Mod VR"               = "BASIC"
         "Ghosts n Goblins Resurrection VR" = "BASIC"
         "Gunfire Reborn"               = "BASIC"
+        "GTA Vice City VR"             = "SOLID"
         "Half-Life VR"                 = "BASIC"
         "Halo CE VR"                   = "BASIC"
         "Heretic VR"                   = "BASIC"
@@ -1410,7 +1444,11 @@ function global:Get-PowerTier {
         "HL2 VR Ep. Two"               = "SOLID"
         "Hollow Knight Silksong"       = "SOLID"
         "Left 4 Dead 2 VR"             = "SOLID"
+        "Lunacid VR"                   = "SOLID"
+        "Legend of Zelda: Ocarina of Time VR" = "BASIC"
         "Lethal Company VR"            = "SOLID"
+        "Scrap Mechanic VR"            = "STRONG"
+        "Mage Arena VR"                = "SOLID"
         "Mega Man Star Force Legacy VR"= "SOLID"
         "Moros Protocol VR"            = "SOLID"
         "Outer Wilds VR"               = "SOLID"
@@ -1434,6 +1472,7 @@ function global:Get-PowerTier {
         "Trombone Champ VR"            = "BASIC"
         "ULTRAKILL VR"                 = "SOLID"
         "World of Warcraft VR"         = "SOLID"
+        "Wolfenstein 3D VR"            = "BASIC"
         "Vivecraft"                    = "SOLID"
 
         # ---- STRONG ----
@@ -1458,6 +1497,7 @@ function global:Get-PowerTier {
         "Far Cry 4 VR"                = "STRONG"
         "Far Cry 5 VR"                = "STRONG"
         "Far Cry New Dawn VR"         = "STRONG"
+        "F.E.A.R. VR"                   = "BASIC"
         "Final Fantasy XIV VR"         = "STRONG"
         "Grounded VR"                 = "STRONG"
         "Horizon Zero Dawn VR"        = "STRONG"
@@ -1482,6 +1522,7 @@ function global:Get-PowerTier {
         "Uncharted: Legacy of Thieves VR" = "STRONG"
         "Valheim VR"                   = "STRONG"
         "Watch Dogs 2 VR"             = "STRONG"
+        "Witcher 3 VR"                = "STRONG"
 
         # ---- HIGH ----
         "Stray VR" = "HIGH"
@@ -2426,4 +2467,61 @@ function global:Get-BannerColorForGame {
     }
     if ($key -and $global:BannerColorMap.ContainsKey($key)) { return $global:BannerColorMap[$key] }
     return $null
+}
+
+# -------------------------------------------------------
+#  Stage-based mods: is the staged install still valid?
+# -------------------------------------------------------
+# A mod that installs OUTSIDE the game folder (F.E.A.R. VR stages into
+# %USERPROFILE%\FearVR) keeps its files - and would keep reading as
+# "VR Ready" - long after the game itself has been uninstalled. Nothing
+# in the normal ModFile check ever looks at the game.
+#
+# When such a mod records what it was built against, we verify that
+# record instead of trusting the stage. Catalog fields:
+#   VrManifest        - manifest file, relative to the stage root
+#   VrManifestPathKey - JSON key holding a path that must still exist
+#
+# Returns $true  = keep the current "VR Ready" verdict
+#         $false = the stage is orphaned, the mod would refuse to launch
+#
+# Deliberately forgiving: no manifest, unreadable manifest or a missing
+# key all return $true, so hand-made and older installs are never
+# punished for something we cannot actually verify.
+#
+# THIS IS THE SINGLE SOURCE OF TRUTH - both the full scan (Filter.ps1)
+# and the startup quick-scan (Startup.ps1) call it. They used to carry
+# separate copies of the detection logic, which is exactly how a fresh
+# Hub could still show a stale "VR Ready".
+function global:Test-StagedModStillValid {
+    param($Game, [string]$StageRoot)
+    if (-not $Game.VrManifest -or -not $Game.VrManifestPathKey) { return $true }
+    if (-not $StageRoot) { return $true }
+    $manifestPath = Join-Path $StageRoot $Game.VrManifest
+    if (-not (Test-Path -LiteralPath $manifestPath)) { return $true }
+    $recordedTarget = $null
+    try {
+        $mf = Get-Content -Raw -LiteralPath $manifestPath -ErrorAction Stop | ConvertFrom-Json
+        $recordedTarget = [string]$mf.($Game.VrManifestPathKey)
+    } catch { return $true }
+    if (-not $recordedTarget) { return $true }
+    return (Test-Path -LiteralPath $recordedTarget)
+}
+
+# Resolves a catalog VrInstallRoot ("USERPROFILE:FearVR", "LOCALAPPDATA:X",
+# an absolute path, ...) to a real folder. Returns $null when there is
+# nothing to resolve.
+function global:Resolve-VrInstallRoot {
+    param([string]$Root)
+    if (-not $Root) { return $null }
+    if ($Root -like "LOCALAPPDATA:*") {
+        return (Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($Root.Substring("LOCALAPPDATA:".Length)))
+    } elseif ($Root -like "APPDATA:*") {
+        return (Join-Path ([Environment]::GetFolderPath("ApplicationData")) ($Root.Substring("APPDATA:".Length)))
+    } elseif ($Root -like "PROGRAMDATA:*") {
+        return (Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($Root.Substring("PROGRAMDATA:".Length)))
+    } elseif ($Root -like "USERPROFILE:*") {
+        return (Join-Path ([Environment]::GetFolderPath("UserProfile")) ($Root.Substring("USERPROFILE:".Length)))
+    }
+    return $Root
 }

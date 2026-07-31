@@ -68,7 +68,11 @@ try {
         try {
             $resp = Invoke-WebRequest -Uri "https://github.com/$repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 6 -Headers $ua -EA Stop
             $final = ""
+            # Windows PowerShell 5.1 exposes the final URL as BaseResponse.ResponseUri;
+            # PowerShell 7 has no such property and uses RequestMessage.RequestUri
+            # instead. Reading only the 5.1 name made this fail silently on 7.
             try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
+            if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
             if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
             if ($final -match '/releases/tag/([^/?#]+)') {
                 $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim()

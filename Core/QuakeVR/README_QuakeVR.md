@@ -1,15 +1,15 @@
 # Quake VR Installer
 
-Automated installer for **Quake VR v0.0.8.1** by Vittorio Romeo — a QuakeSpasm-based VR port of *Quake (Enhanced)* with full motion controls, room-scale movement, and SteamVR/OpenVR support.
+Automated installer for **Quake VR v0.0.8.1** by Vittorio Romeo — a QuakeSpasm-based VR port of **Quake (Enhanced)** with full motion controls, room-scale movement, and SteamVR/OpenVR support.
 
 ## What it installs
 - **Quake VR v0.0.8.1** — downloaded fresh from the official GitHub release (never bundled)
-- Automatically copies **PAK0.PAK** and **PAK1.PAK** from your *Quake (Enhanced)* install (Steam or GOG)
+- Automatically copies **PAK0.PAK** and **PAK1.PAK** from your **Quake (Enhanced)** install (Steam or GOG)
 - Optionally installs the Microsoft Visual C++ x64 Redistributable runtime
 - Optionally copies the Enhanced soundtrack (`rerelease\id1\music`) if present
 
 ## Requirements
-- *Quake (Enhanced)* owned and installed — Steam **AppID 2310** (folder `Quake`), or GOG
+- **Quake (Enhanced)** owned and installed — Steam **AppID 2310** (folder `Quake`), or GOG
 - SteamVR (the game uses the OpenVR runtime)
 - Motion controllers (developed and tested primarily on Valve Index)
 

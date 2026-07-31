@@ -91,9 +91,19 @@ Write-Host "  Ratchet & Clank memories." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Download (Google Drive, ~8 GB):" -ForegroundColor Cyan
 Write-Host "   -> $DOWNLOAD_URL" -ForegroundColor DarkGray
-Pause-User "Press Enter to open the download in your browser..." | Out-Null
-try { Start-Process $DOWNLOAD_URL } catch {
-    Write-Warn "Could not open the browser. Visit the URL above manually."
+# Check the disk before the browser - an 8 GB archive is exactly the kind
+# of thing that is already sitting in Downloads from a previous attempt.
+$preFound = Find-PredownloadedFile -Patterns @("RatchetVR.rar","*Ratchet*VR*.rar","*Ratchet*.rar") -Label "the Ratchet & Clank VR download"
+if (-not $preFound) {
+    Pause-User "Press Enter to open the download in your browser..." | Out-Null
+    try { Start-Process $DOWNLOAD_URL } catch {
+        Write-Warn "Could not open the browser. Visit the URL above manually."
+    }
+
+    # Look again once the user is back - the first pass ran before the
+    # download could possibly exist.
+    Pause-User "Press Enter once the download has finished..." | Out-Null
+    $preFound = Find-PredownloadedFile -Patterns @("RatchetVR.rar","*Ratchet*VR*.rar","*Ratchet*.rar") -Label "the Ratchet & Clank VR download" -PageAlreadyOpen
 }
 
 # ---- 1. drag-and-drop the RAR -------------------------------
@@ -101,7 +111,7 @@ Write-Step 1 4 "Locate the downloaded RAR"
 Write-Host "  Once $EXPECTED_RAR is on your disk, drop it here." -ForegroundColor Gray
 Write-Host ""
 
-$modRar = $null
+$modRar = $preFound
 $attempts = 0
 while (-not $modRar) {
     $attempts++

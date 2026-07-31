@@ -70,7 +70,7 @@ Driving uses a **gamepad or wheel**, exactly like flat Forza:
   ships an update - grab the newest `VRMod-*.zip` from the same Discord
   post and re-run the installer. Do not contact the official Forza team
   about a broken mod.
-- The launcher shows *"No supported games running"* until Forza is
+- The launcher shows **"No supported games running"** until Forza is
   started or added to the library - that line is normal at first run.
 
 ## Uninstall

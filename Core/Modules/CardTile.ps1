@@ -103,7 +103,10 @@ function global:New-ControlTypeIcon {
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
-    "Halo 3 MCC VR"
+    "Halo 3 MCC VR",
+    "GTA Vice City VR",
+    "F.E.A.R. VR",
+    "Stardew Valley VR"
 )
 
 # -------------------------------------------------------
@@ -1024,6 +1027,14 @@ function global:New-GameCardFrosted {
         $freeTxt.FontWeight = [System.Windows.FontWeights]::Bold
         $freeTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(52, 211, 153))
         $freeTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        # Lock the text box (vertical line box + centering) so the label
+        # does not drift inside the pill when the tile re-lays out on hover
+        # - same fix the ImprovementTag label uses.
+        $freeTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $freeTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $freeTxt.TextAlignment = [System.Windows.TextAlignment]::Center
+        $freeTxt.LineHeight = [double][int](10*$sc)
+        $freeTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $freePill.Child = $freeTxt
         $titleRow = New-Object System.Windows.Controls.DockPanel
         $titleRow.LastChildFill = $true
@@ -1051,6 +1062,13 @@ function global:New-GameCardFrosted {
         $wipTxt.FontWeight = [System.Windows.FontWeights]::Bold
         $wipTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(248, 113, 113))
         $wipTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        # Lock the text box so the label does not drift inside the pill on
+        # hover re-layout - same fix the ImprovementTag label uses.
+        $wipTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $wipTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $wipTxt.TextAlignment = [System.Windows.TextAlignment]::Center
+        $wipTxt.LineHeight = [double][int](10*$sc)
+        $wipTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $wipPill.Child = $wipTxt
         $titleRow = New-Object System.Windows.Controls.DockPanel
         $titleRow.LastChildFill = $true
@@ -1247,7 +1265,7 @@ function global:New-GameCardFrosted {
         $metaLine.TextWrapping = [System.Windows.TextWrapping]::NoWrap
         $metaLine.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
 
-        if ($game.Mod) {
+        if ($game.Mod -and -not $game.ImprovementTag) {
             $modRun = New-Object System.Windows.Documents.Run
             $modRun.Text = $game.Mod
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
@@ -1273,6 +1291,35 @@ function global:New-GameCardFrosted {
         # The hover preview overlays this area. Stash the meta line so the
         # hover handler can hide it (avoids the image clipping the text).
         $card.Resources.Add("modText", $metaLine)
+        # ImprovementTag on a LONG-title card: render the same blue
+        # "+ ... mod" box the short-title path uses (the mod name above is
+        # suppressed for these). Without this the tag never showed on long
+        # titles like Ocarina of Time. Registered as addonBanner so the
+        # hover preview hides it.
+        if ($game.ImprovementTag -and -not $card.Resources.Contains("addonBanner")) {
+            $impBanner = New-Object System.Windows.Controls.Border
+            $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
+            $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
+            $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
+            $impBanner.CornerRadius    = [System.Windows.CornerRadius]::new([int](2*$sc))
+            $impBanner.Padding         = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+            $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
+            $impTxt = New-Object System.Windows.Controls.TextBlock
+            $impTxt.Text = $game.ImprovementTag
+            $impTxt.FontSize = [int](8*$sc)
+            $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
+            $impTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
+            $impTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $impTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $impTxt.LineHeight = [double][int](10*$sc)
+            $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
+            $impBanner.Child = $impTxt
+            $titleStack.Children.Add($impBanner) | Out-Null
+            $card.Resources.Add("addonBanner", $impBanner)
+        }
         # Long-title cards don't get a separate authorText - the author is
         # already part of $metaLine above. The hover handler tolerates a
         # missing authorText (early-returns on null).
@@ -1482,6 +1529,13 @@ function global:New-GameCardFrosted {
             $rest = $owner.Resources.Item("updLabelRest")
             if ($bt -and $rest) { $bt.Foreground = $rest }
         }
+        # VR Ready: cursor moved onto the reinstall pill - un-brighten the
+        # "Start in VR" label so only the launch area reads as lit.
+        if ($owner -and $owner.Tag -eq "vrinstalled") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("readyRestFg")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
     })
     $reloadPill.Add_MouseLeave({
         if ($this.Resources.Contains("pillHovStash")) {
@@ -1495,6 +1549,12 @@ function global:New-GameCardFrosted {
             $bb = $owner.Resources.Item("btnBorder")
             $bt = $owner.Resources.Item("btnText")
             if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
+        # VR Ready: back on the launch area (off the pill) - re-brighten.
+        if ($owner -and $owner.Tag -eq "vrinstalled") {
+            $bb = $owner.Resources.Item("btnBorder")
+            $bt = $owner.Resources.Item("btnText")
+            if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5") }
         }
     })
 
@@ -1700,14 +1760,36 @@ function global:New-GameCardFrosted {
                 # NOTE: do NOT return - we still want the reload pill
                 # to show via the second handler below.
             } else {
-                # Swap "VR Ready" -> "Start in VR" on hover. For non-
-                # externals an additional handler also reveals the
-                # Reinstall pill; we don't touch that here so both run
-                # cleanly without conflict.
+                # Reveal "Start in VR" (fires on whole-tile hover via the
+                # card raising this event, and on direct button hover). A
+                # second handler reveals the Reinstall pill.
                 $bt = $owner.Resources.Item("btnText")
                 if ($bt -and -not $owner.Resources.Contains("readyOrigText")) {
                     $owner.Resources.Add("readyOrigText", $bt.Text)
                     $bt.Text = "Start in VR"
+                }
+                # On DIRECT button hover (NOT over the Reinstall pill next
+                # to it), brighten the label to a lit pale gold - between the
+                # VR Ready gold and white - as a ready-to-press cue. Same pill
+                # guard the Update label uses, so only the launch area lights.
+                if ($bt -and $this.IsMouseOver) {
+                    $rp = $owner.Resources.Item("reloadPill")
+                    $onPill = $false
+                    if ($rp) {
+                        if ($rp.IsMouseOver) { $onPill = $true }
+                        else {
+                            try {
+                                $pos = [System.Windows.Input.Mouse]::GetPosition($this)
+                                if ($pos.X -ge ($this.ActualWidth - $rp.ActualWidth - 6)) { $onPill = $true }
+                            } catch {}
+                        }
+                    }
+                    if (-not $onPill) {
+                        if (-not $owner.Resources.Contains("readyRestFg")) {
+                            $owner.Resources.Add("readyRestFg", $bt.Foreground)
+                        }
+                        $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5")
+                    }
                 }
             }
             return
@@ -1916,15 +1998,19 @@ function global:New-GameCardFrosted {
                 $bt = $owner.Resources.Item("btnText")
                 if ($bt) { $bt.Visibility = [System.Windows.Visibility]::Visible }
             } else {
-                # Normal VR Ready: restore "VR Ready" the moment the
-                # cursor leaves the button (no IsMouseOver guard - this
-                # swap is button-hover only, so it must undo on button
-                # leave even while still over the card). Idempotent.
+                # Normal VR Ready: the "Start in VR" reveal now fires on
+                # whole-tile hover, so keep it while the cursor is still
+                # over the card; the card MouseLeave restores on true exit.
                 $bt = $owner.Resources.Item("btnText")
+                if ($bt -and $owner.Resources.Contains("readyRestFg")) {
+                    $bt.Foreground = $owner.Resources.Item("readyRestFg")
+                }
+                if ($owner.IsMouseOver) { return }
                 if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                     $bt.Text = $owner.Resources.Item("readyOrigText")
                     $owner.Resources.Remove("readyOrigText") | Out-Null
                 }
+                if ($owner.Resources.Contains("readyRestFg")) { $owner.Resources.Remove("readyRestFg") | Out-Null }
             }
             return
         }
@@ -2491,7 +2577,7 @@ function global:New-GameCardFrosted {
                 $st = $global:gameStateMap[$g.Title]
                 if ($st -and ($st.DualMode -or $st.TwoMods)) { $isDual = $true }
             }
-            if ($isDual) {
+            if ($true) {  # every VR-Ready card reveals on whole-tile hover now (was DualMode only)
                 $bb = $this.Resources.Item("btnBorder")
                 if ($bb) {
                     try {
@@ -2537,7 +2623,7 @@ function global:New-GameCardFrosted {
             $g = $this.Resources.Item("gameData")
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
-                if ($st -and ($st.DualMode -or $st.TwoMods)) { $needLeave = $true }
+                $needLeave = $true  # every VR-Ready card reveals tile-wide now
             }
         }
         if ($needLeave) {
@@ -2763,6 +2849,11 @@ function global:New-GameCardFrosted {
                         })
                         $timer.Start()
                     } catch {}
+                } else {
+                    # No process handle came back (e.g. an elevation that hands
+                    # us no object): watch this ONE game's install marker instead,
+                    # so the list still updates without a whole-PC scan.
+                    try { Watch-InstallMarkerForRefresh -Game $gameCapture } catch {}
                 }
             }.GetNewClosure())
 
@@ -2812,6 +2903,11 @@ function global:New-GameCardFrosted {
                         })
                         $plTimer.Start()
                     } catch {}
+                } else {
+                    # No process handle came back (e.g. an elevation that hands
+                    # us no object): watch this ONE game's install marker instead,
+                    # so the list still updates without a whole-PC scan.
+                    try { Watch-InstallMarkerForRefresh -Game $gameCapture } catch {}
                 }
             }.GetNewClosure())
 
@@ -2864,8 +2960,10 @@ function global:New-GameCardFrosted {
                         $rp = $owner.Resources.Item("reloadPill")
                         if ($rp) { $rp.Visibility = [System.Windows.Visibility]::Collapsed }
                     } else {
-                        # Normal VR Ready: restore text on button leave
-                        # immediately (button-hover-only swap).
+                        # Normal VR Ready: reveal fires tile-wide now, so
+                        # keep "Start in VR" + the Reinstall pill while the
+                        # cursor is over the card; card MouseLeave restores.
+                        if ($owner.IsMouseOver) { return }
                         $bt = $owner.Resources.Item("btnText")
                         if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                             $bt.Text = $owner.Resources.Item("readyOrigText")
@@ -3106,6 +3204,14 @@ function global:New-GameCardClassic {
         $freeTxt.FontWeight = [System.Windows.FontWeights]::Bold
         $freeTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(52, 211, 153))
         $freeTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        # Lock the text box (vertical line box + centering) so the label
+        # does not drift inside the pill when the tile re-lays out on hover
+        # - same fix the ImprovementTag label uses.
+        $freeTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $freeTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $freeTxt.TextAlignment = [System.Windows.TextAlignment]::Center
+        $freeTxt.LineHeight = [double][int](10*$sc)
+        $freeTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $freePill.Child = $freeTxt
         $titleRow = New-Object System.Windows.Controls.DockPanel
         $titleRow.LastChildFill = $true
@@ -3133,6 +3239,13 @@ function global:New-GameCardClassic {
         $wipTxt.FontWeight = [System.Windows.FontWeights]::Bold
         $wipTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(248, 113, 113))
         $wipTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        # Lock the text box so the label does not drift inside the pill on
+        # hover re-layout - same fix the ImprovementTag label uses.
+        $wipTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $wipTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $wipTxt.TextAlignment = [System.Windows.TextAlignment]::Center
+        $wipTxt.LineHeight = [double][int](10*$sc)
+        $wipTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $wipPill.Child = $wipTxt
         $titleRow = New-Object System.Windows.Controls.DockPanel
         $titleRow.LastChildFill = $true
@@ -3329,7 +3442,7 @@ function global:New-GameCardClassic {
         $metaLine.TextWrapping = [System.Windows.TextWrapping]::NoWrap
         $metaLine.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
 
-        if ($game.Mod) {
+        if ($game.Mod -and -not $game.ImprovementTag) {
             $modRun = New-Object System.Windows.Documents.Run
             $modRun.Text = $game.Mod
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
@@ -3355,6 +3468,35 @@ function global:New-GameCardClassic {
         # The hover preview overlays this area. Stash the meta line so the
         # hover handler can hide it (avoids the image clipping the text).
         $card.Resources.Add("modText", $metaLine)
+        # ImprovementTag on a LONG-title card: render the same blue
+        # "+ ... mod" box the short-title path uses (the mod name above is
+        # suppressed for these). Without this the tag never showed on long
+        # titles like Ocarina of Time. Registered as addonBanner so the
+        # hover preview hides it.
+        if ($game.ImprovementTag -and -not $card.Resources.Contains("addonBanner")) {
+            $impBanner = New-Object System.Windows.Controls.Border
+            $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
+            $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
+            $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
+            $impBanner.CornerRadius    = [System.Windows.CornerRadius]::new([int](2*$sc))
+            $impBanner.Padding         = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
+            $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+            $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
+            $impTxt = New-Object System.Windows.Controls.TextBlock
+            $impTxt.Text = $game.ImprovementTag
+            $impTxt.FontSize = [int](8*$sc)
+            $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
+            $impTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
+            $impTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+            $impTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+            $impTxt.TextAlignment = [System.Windows.TextAlignment]::Left
+            $impTxt.LineHeight = [double][int](10*$sc)
+            $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
+            $impBanner.Child = $impTxt
+            $titleStack.Children.Add($impBanner) | Out-Null
+            $card.Resources.Add("addonBanner", $impBanner)
+        }
         # Long-title cards don't get a separate authorText - the author is
         # already part of $metaLine above. The hover handler tolerates a
         # missing authorText (early-returns on null).
@@ -3562,6 +3704,13 @@ function global:New-GameCardClassic {
             $rest = $owner.Resources.Item("updLabelRest")
             if ($bt -and $rest) { $bt.Foreground = $rest }
         }
+        # VR Ready: cursor moved onto the reinstall pill - un-brighten the
+        # "Start in VR" label so only the launch area reads as lit.
+        if ($owner -and $owner.Tag -eq "vrinstalled") {
+            $bt = $owner.Resources.Item("btnText")
+            $rest = $owner.Resources.Item("readyRestFg")
+            if ($bt -and $rest) { $bt.Foreground = $rest }
+        }
     })
     $reloadPill.Add_MouseLeave({
         if ($this.Resources.Contains("pillHovStash")) {
@@ -3575,6 +3724,12 @@ function global:New-GameCardClassic {
             $bb = $owner.Resources.Item("btnBorder")
             $bt = $owner.Resources.Item("btnText")
             if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
+        }
+        # VR Ready: back on the launch area (off the pill) - re-brighten.
+        if ($owner -and $owner.Tag -eq "vrinstalled") {
+            $bb = $owner.Resources.Item("btnBorder")
+            $bt = $owner.Resources.Item("btnText")
+            if ($bb -and $bt -and $bb.IsMouseOver) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5") }
         }
     })
 
@@ -3761,14 +3916,36 @@ function global:New-GameCardClassic {
                 # NOTE: do NOT return - we still want the reload pill
                 # to show via the second handler below.
             } else {
-                # Swap "VR Ready" -> "Start in VR" on hover. For non-
-                # externals an additional handler also reveals the
-                # Reinstall pill; we don't touch that here so both run
-                # cleanly without conflict.
+                # Reveal "Start in VR" (fires on whole-tile hover via the
+                # card raising this event, and on direct button hover). A
+                # second handler reveals the Reinstall pill.
                 $bt = $owner.Resources.Item("btnText")
                 if ($bt -and -not $owner.Resources.Contains("readyOrigText")) {
                     $owner.Resources.Add("readyOrigText", $bt.Text)
                     $bt.Text = "Start in VR"
+                }
+                # On DIRECT button hover (NOT over the Reinstall pill next
+                # to it), brighten the label to a lit pale gold - between the
+                # VR Ready gold and white - as a ready-to-press cue. Same pill
+                # guard the Update label uses, so only the launch area lights.
+                if ($bt -and $this.IsMouseOver) {
+                    $rp = $owner.Resources.Item("reloadPill")
+                    $onPill = $false
+                    if ($rp) {
+                        if ($rp.IsMouseOver) { $onPill = $true }
+                        else {
+                            try {
+                                $pos = [System.Windows.Input.Mouse]::GetPosition($this)
+                                if ($pos.X -ge ($this.ActualWidth - $rp.ActualWidth - 6)) { $onPill = $true }
+                            } catch {}
+                        }
+                    }
+                    if (-not $onPill) {
+                        if (-not $owner.Resources.Contains("readyRestFg")) {
+                            $owner.Resources.Add("readyRestFg", $bt.Foreground)
+                        }
+                        $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5")
+                    }
                 }
             }
             return
@@ -3977,15 +4154,19 @@ function global:New-GameCardClassic {
                 $bt = $owner.Resources.Item("btnText")
                 if ($bt) { $bt.Visibility = [System.Windows.Visibility]::Visible }
             } else {
-                # Normal VR Ready: restore "VR Ready" the moment the
-                # cursor leaves the button (no IsMouseOver guard - this
-                # swap is button-hover only, so it must undo on button
-                # leave even while still over the card). Idempotent.
+                # Normal VR Ready: the "Start in VR" reveal now fires on
+                # whole-tile hover, so keep it while the cursor is still
+                # over the card; the card MouseLeave restores on true exit.
                 $bt = $owner.Resources.Item("btnText")
+                if ($bt -and $owner.Resources.Contains("readyRestFg")) {
+                    $bt.Foreground = $owner.Resources.Item("readyRestFg")
+                }
+                if ($owner.IsMouseOver) { return }
                 if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                     $bt.Text = $owner.Resources.Item("readyOrigText")
                     $owner.Resources.Remove("readyOrigText") | Out-Null
                 }
+                if ($owner.Resources.Contains("readyRestFg")) { $owner.Resources.Remove("readyRestFg") | Out-Null }
             }
             return
         }
@@ -4456,7 +4637,7 @@ function global:New-GameCardClassic {
                 $st = $global:gameStateMap[$g.Title]
                 if ($st -and ($st.DualMode -or $st.TwoMods)) { $isDual = $true }
             }
-            if ($isDual) {
+            if ($true) {  # every VR-Ready card reveals on whole-tile hover now (was DualMode only)
                 $bb = $this.Resources.Item("btnBorder")
                 if ($bb) {
                     try {
@@ -4502,7 +4683,7 @@ function global:New-GameCardClassic {
             $g = $this.Resources.Item("gameData")
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
-                if ($st -and ($st.DualMode -or $st.TwoMods)) { $needLeave = $true }
+                $needLeave = $true  # every VR-Ready card reveals tile-wide now
             }
         }
         if ($needLeave) {
@@ -4728,6 +4909,11 @@ function global:New-GameCardClassic {
                         })
                         $timer.Start()
                     } catch {}
+                } else {
+                    # No process handle came back (e.g. an elevation that hands
+                    # us no object): watch this ONE game's install marker instead,
+                    # so the list still updates without a whole-PC scan.
+                    try { Watch-InstallMarkerForRefresh -Game $gameCapture } catch {}
                 }
             }.GetNewClosure())
 
@@ -4777,6 +4963,11 @@ function global:New-GameCardClassic {
                         })
                         $plTimer.Start()
                     } catch {}
+                } else {
+                    # No process handle came back (e.g. an elevation that hands
+                    # us no object): watch this ONE game's install marker instead,
+                    # so the list still updates without a whole-PC scan.
+                    try { Watch-InstallMarkerForRefresh -Game $gameCapture } catch {}
                 }
             }.GetNewClosure())
 
@@ -4829,8 +5020,10 @@ function global:New-GameCardClassic {
                         $rp = $owner.Resources.Item("reloadPill")
                         if ($rp) { $rp.Visibility = [System.Windows.Visibility]::Collapsed }
                     } else {
-                        # Normal VR Ready: restore text on button leave
-                        # immediately (button-hover-only swap).
+                        # Normal VR Ready: reveal fires tile-wide now, so
+                        # keep "Start in VR" + the Reinstall pill while the
+                        # cursor is over the card; card MouseLeave restores.
+                        if ($owner.IsMouseOver) { return }
                         $bt = $owner.Resources.Item("btnText")
                         if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                             $bt.Text = $owner.Resources.Item("readyOrigText")

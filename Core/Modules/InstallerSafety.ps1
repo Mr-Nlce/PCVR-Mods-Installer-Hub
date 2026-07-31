@@ -915,6 +915,72 @@ function global:Get-SevenZip {
     return $null
 }
 
+# ---- Standard extraction with progress ---------------------
+#
+# Extract an archive with 7-Zip showing 7-Zip's NATIVE progress
+# (accurate %), while redirecting 7z's noisy per-file stdout to a temp
+# file so only a clean "Extracting <label>... NN%  MM:SS elapsed" line
+# reaches the console. THIS is the standard way to extract in installers,
+# especially for large packs. Pass a $SevenZip from Get-SevenZip.
+# Returns $true on success (7z exit 0), $false otherwise.
+#
+#   $sevenZip = Get-SevenZip
+#   if (-not $sevenZip) { return }
+#   if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $zip -Dest $out -Label "HD textures")) { ... }
+#
+function global:Expand-7zWithProgress {
+    param(
+        [Parameter(Mandatory=$true)][string]$SevenZip,
+        [Parameter(Mandatory=$true)][string]$Archive,
+        [Parameter(Mandatory=$true)][string]$Dest,
+        [string]$Label = "archive"
+    )
+    if (-not (Test-Path -LiteralPath $Dest)) {
+        try { New-Item -ItemType Directory -Path $Dest -Force | Out-Null } catch {}
+    }
+    $progFile = Join-Path ([System.IO.Path]::GetTempPath()) ("7zp_" + [Guid]::NewGuid().ToString("N") + ".log")
+    try {
+        $proc = Start-Process -FilePath $SevenZip `
+            -ArgumentList "x","-y","-bso0","-bsp1","`"$Archive`"","-o`"$Dest`"" `
+            -PassThru -NoNewWindow -RedirectStandardOutput $progFile
+    } catch {
+        Write-Host "  [X] Could not start 7-Zip: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $pct = 0
+    while (-not $proc.HasExited) {
+        Start-Sleep -Milliseconds 500
+        try {
+            $fs = [System.IO.File]::Open($progFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+            $sr = New-Object System.IO.StreamReader($fs)
+            $txt = $sr.ReadToEnd()
+            $sr.Close(); $fs.Close()
+            $mm = [regex]::Matches($txt, '(\d+)%')
+            if ($mm.Count -gt 0) { $pct = [int]$mm[$mm.Count - 1].Groups[1].Value }
+        } catch { }
+        $el = $sw.Elapsed.ToString('mm\:ss')
+        Write-Host ("`r  Extracting $Label... {0,3}%   {1} elapsed        " -f $pct, $el) -NoNewline -ForegroundColor Gray
+    }
+    # Start-Process -PassThru with a redirected stream can leave ExitCode
+    # null even after the process has exited. Force it via WaitForExit,
+    # then fall back to verifying the destination actually received files -
+    # so a null code doesn't get mis-reported as a failure.
+    try { $proc.WaitForExit() } catch {}
+    $exitCode = $null
+    try { $exitCode = $proc.ExitCode } catch { $exitCode = $null }
+    Remove-Item $progFile -Force -ErrorAction SilentlyContinue
+    $destHasFiles = $false
+    try { $destHasFiles = (@(Get-ChildItem -LiteralPath $Dest -Recurse -File -ErrorAction SilentlyContinue)).Count -gt 0 } catch {}
+    if (($exitCode -eq 0) -or (($null -eq $exitCode) -and $destHasFiles)) {
+        Write-Host ("`r  Extracting $Label... 100%   done                        ") -ForegroundColor Gray
+        return $true
+    }
+    $shown = if ($null -eq $exitCode) { "unknown" } else { $exitCode }
+    Write-Host ("`r  Extraction of $Label failed (7-Zip exit $shown).                 ") -ForegroundColor Red
+    return $false
+}
+
 # ---- Safe path prompt --------------------------------------
 #
 # When the auto-detection for a game's install folder fails,
@@ -1610,4 +1676,84 @@ function global:New-DesktopShortcut {
         $sc.Save()
         return $LnkPath
     } catch { return $null }
+}
+
+# ---- Pre-download scan --------------------------------------
+#
+# Many mods live behind a page we cannot download from directly (Nexus
+# logins, ModDB gates, Patreon). The old pattern was: open the page, THEN
+# look in Downloads. That sends people to a browser they may not need -
+# the file is very often already sitting there from an earlier attempt or
+# a run that was cancelled halfway.
+#
+# So: call this BEFORE opening the page. If it returns a path, skip the
+# browser step entirely. If it returns $null, carry on as before.
+#
+#   $pre = Find-PredownloadedFile -Patterns @("*LUNACID*VR*.zip","*LUNACID*.zip") -Label "the Lunacid VR mod"
+#   if (-not $pre) { Pause-User "Press Enter to open..."; Start-Process $url }
+#
+# Patterns are tried IN ORDER, so put the most specific one first; within
+# one pattern the newest file wins. Also looks in the Hub folder itself,
+# since browsers configured to "always ask" often land next to the Hub.
+# The user always confirms - a wrong guess must never be silently used.
+function global:Find-PredownloadedFile {
+    param(
+        [Parameter(Mandatory=$true)][string[]]$Patterns,
+        [string]$Label = "the download",
+        [string[]]$ExtraFolders = @(),
+        [int]$MaxAgeDays = 0,         # 0 = no age limit
+        # Set this on the SECOND pass, after the download page has already
+        # been opened. There is no download left to skip at that point, and
+        # saying so would suggest this is some additional, separate file.
+        [switch]$PageAlreadyOpen
+    )
+    $folders = New-Object System.Collections.ArrayList
+    foreach ($f in @(
+        (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"),
+        ([Environment]::GetFolderPath("Desktop"))
+    ) + $ExtraFolders) {
+        if ($f -and (Test-Path -LiteralPath $f)) { [void]$folders.Add([string]$f) }
+    }
+    if ($folders.Count -eq 0) { return $null }
+
+    $hit = $null
+    foreach ($pat in $Patterns) {
+        foreach ($dir in $folders) {
+            $found = $null
+            try {
+                $found = Get-ChildItem -LiteralPath $dir -Filter $pat -File -ErrorAction SilentlyContinue |
+                         Where-Object {
+                             # Browsers write a .crdownload / .part next to the
+                             # real name while still downloading - never offer
+                             # a file that is still being written.
+                             ($_.Extension -notmatch '(?i)\.(crdownload|part|tmp|opdownload)$') -and
+                             (($MaxAgeDays -le 0) -or ($_.LastWriteTime -gt (Get-Date).AddDays(-$MaxAgeDays)))
+                         } |
+                         Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            } catch { $found = $null }
+            if ($found) { $hit = $found; break }
+        }
+        if ($hit) { break }
+    }
+    if (-not $hit) { return $null }
+
+    $sizeTxt = if ($hit.Length -ge 1GB) { "{0:N2} GB" -f ($hit.Length / 1GB) } else { "{0:N1} MB" -f ($hit.Length / 1MB) }
+    Write-Host ""
+    Write-Host "  Found what looks like $Label already on disk:" -ForegroundColor Cyan
+    Write-Host "    $($hit.Name)" -ForegroundColor White
+    Write-Host "    $sizeTxt   $($hit.LastWriteTime.ToString('yyyy-MM-dd HH:mm'))" -ForegroundColor DarkGray
+    Write-Host "    in $($hit.DirectoryName)" -ForegroundColor DarkGray
+    Write-Host ""
+    $question = if ($PageAlreadyOpen) { "  Use this file? [Y/N]" } else { "  Use this file and skip the download? [Y/N]" }
+    $ans = (Read-Host $question).Trim().ToUpper()
+    if ($ans -in @("Y","YES","")) {
+        Write-Host "  [OK] Using: $($hit.FullName)" -ForegroundColor Green
+        return [string]$hit.FullName
+    }
+    if ($PageAlreadyOpen) {
+        Write-Host "  [..] Ignoring it - you can point at another file instead." -ForegroundColor Gray
+    } else {
+        Write-Host "  [..] Ignoring it - opening the download page instead." -ForegroundColor Gray
+    }
+    return $null
 }

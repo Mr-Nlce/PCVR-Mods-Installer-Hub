@@ -157,7 +157,7 @@ try {
 
 if ($cwvrDeprecated) {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White
- Write-Host " $cwvrStatus" -ForegroundColor Red
+ Write-Host " $cwvrStatus" -ForegroundColor Yellow
  Write-Host ""
 } else {
  Write-Host " [1] Current game version (auto-updates from Thunderstore)" -ForegroundColor White

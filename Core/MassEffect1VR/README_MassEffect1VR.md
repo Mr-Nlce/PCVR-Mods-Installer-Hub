@@ -66,11 +66,6 @@ EA/Origin on a machine that has never run the game.
   Meta, Pimax)
 - A gamepad
 
-## Uninstall
-Run MELE-VR.bat in ...\Game\ME1\Binaries\Win64 again and follow the
-instructions - or simply delete dxgi.dll and openxr_loader.dll from
-that folder.
-
 ## Mod page
 https://www.patreon.com/dhalcyon/posts/first-contact-164195515
 

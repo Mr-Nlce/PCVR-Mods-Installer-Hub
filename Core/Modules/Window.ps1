@@ -3589,6 +3589,13 @@ function global:Add-BannerEffect {
         "field"     { Add-BannerField     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "silk"      { Add-BannerSilk      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "bubbles"   { Add-BannerBubbles   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        # Theme-fitting recolours of existing effects. Same animation code,
+        # only the colour is pinned instead of following the banner accent.
+        # These names are deliberately NOT in $global:BannerFxPool - they are
+        # added as candidates per game by Get-BannerFxFor, like "synth"/"flow".
+        "bloodrain"   { Add-BannerRain    -BannerName $BannerName -BannerH $BannerH -ColorHex "#c81028" }
+        "bloodsnow"   { Add-BannerSnow    -BannerName $BannerName -BannerH $BannerH -ColorHex "#d42a2a" }
+        "pinkbubbles" { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff8fd0" }
         "orbs"    { Add-BannerOrbs      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "synth"   { Add-BannerSynthGrid -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "circuit" { Add-BannerCircuit   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -3755,6 +3762,88 @@ function global:Test-ColorfulGame {
     return $false
 }
 
+# ---------------------------------------------------------------
+# Theme-fitting banner effects
+# ---------------------------------------------------------------
+# A few effects fit certain games so well that they should show up
+# noticeably more often there - without ever becoming the only thing
+# that game's banner does. Same opt-in shape as synth/flow above:
+# the effect is ADDED as a candidate, never forced, so the normal
+# rotation still comes up most of the time.
+
+# Retro/boomer shooters and gory id-style games: rain and snow recoloured
+# to blood red read as falling gore rather than weather.
+$global:GoreBannerTitles = @(
+    "Doom VR", "Doom 2 VR", "Doom 3 BFG VR",
+    "Quake VR", "Quake 2 VR", "Quake 3 VR",
+    "Painkiller Black Edition",
+    "Heretic VR", "Hexen VR", "Hexen II VR", "Strife VR",
+    "Ashes 2063 VR", "Dusk HD (DLC) VR", "Total Chaos VR"
+)
+# Verified to exist in the catalog; deliberately narrow so unrelated
+# shooters do not start raining blood.
+$global:GoreBannerTags = @("boomer shooter")
+
+# Titles explicitly BARRED from the blood recolours even though a tag
+# matches - same idea as ColorfulBannerExclude. Mouse P.I. is tagged
+# "boomer shooter" but is a monochrome 1930s noir cartoon, so red gore
+# would fight its black-and-white art the way flow fights Bendy's.
+$global:GoreBannerExclude = @(
+    "Mouse P.I. For Hire VR"
+)
+
+# True when a game is a gory retro shooter. Gates bloodrain / bloodsnow.
+function global:Test-GoreGame {
+    param($Game)
+    if (-not $Game) { return $false }
+    if ($Game.Title -and ($global:GoreBannerExclude -contains $Game.Title)) { return $false }
+    if ($Game.Title -and ($global:GoreBannerTitles -contains $Game.Title)) { return $true }
+    if ($Game.Tags) {
+        foreach ($t in $Game.Tags) {
+            $tl = ("$t").ToLower()
+            foreach ($f in $global:GoreBannerTags) { if ($tl -eq $f) { return $true } }
+        }
+    }
+    return $false
+}
+
+# Underwater / ocean-survival games, where the existing bubbles effect is
+# the single most fitting one in the pool - so it gets extra weight rather
+# than a new effect.
+$global:AquaticBannerTitles = @(
+    "Subnautica VR", "Subnautica: Below Zero", "Raft VR"
+)
+$global:AquaticBannerTags = @("underwater")
+
+# True when a game plays in or on water. Weights the bubbles effect.
+function global:Test-AquaticGame {
+    param($Game)
+    if (-not $Game) { return $false }
+    if ($Game.Title -and ($global:AquaticBannerTitles -contains $Game.Title)) { return $true }
+    if ($Game.Tags) {
+        foreach ($t in $Game.Tags) {
+            $tl = ("$t").ToLower()
+            foreach ($f in $global:AquaticBannerTags) { if ($tl -eq $f) { return $true } }
+        }
+    }
+    return $false
+}
+
+# Games whose look calls for candy-pink bubbles instead of the accent-
+# coloured ones. Title-only on purpose: this is a per-game art call, not
+# something a tag can decide.
+$global:PinkBubbleBannerTitles = @(
+    "Slime Rancher VR"
+)
+
+# True when a game should get the pink bubble variant as a candidate.
+function global:Test-PinkBubbleGame {
+    param($Game)
+    if (-not $Game) { return $false }
+    if ($Game.Title -and ($global:PinkBubbleBannerTitles -contains $Game.Title)) { return $true }
+    return $false
+}
+
 # Pick one banner effect for a banner showing $Game. The synth-grid is
 # only added as a candidate (so it CAN come up, never guaranteed) when
 # the game reads as futuristic; a null game falls back to the general
@@ -3764,6 +3853,21 @@ function global:Get-BannerFxFor {
     $pool = @($global:BannerFxPool)
     if (Test-FuturisticGame -Game $Game) { $pool += "synth" }
     if (Test-ColorfulGame    -Game $Game) { $pool += "flow" }
+    # Theme-fitting extras. Added as several copies so they come up
+    # clearly more often than a 1-in-56 pool entry, while the normal
+    # rotation still wins roughly 9 times out of 10 - "especially
+    # fitting when it happens", not "this game's effect".
+    if (Test-GoreGame -Game $Game) {
+        $pool += @("bloodrain","bloodrain","bloodrain","bloodsnow","bloodsnow","bloodsnow")
+    }
+    if (Test-AquaticGame -Game $Game) {
+        # bubbles is already in the pool once; these extra copies are what
+        # make it the one you notice on an underwater banner.
+        $pool += @("bubbles","bubbles","bubbles","bubbles","bubbles")
+    }
+    if (Test-PinkBubbleGame -Game $Game) {
+        $pool += @("pinkbubbles","pinkbubbles","pinkbubbles","pinkbubbles")
+    }
     return ($pool | Get-Random)
 }
 

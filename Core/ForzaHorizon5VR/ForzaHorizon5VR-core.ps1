@@ -1,7 +1,7 @@
 # ============================================================
 # Forza Horizon 5 VR Installer
 # lufz / VRMod (flat2VR Discord)   launcher: vrmod-launcher.exe
-# VRMod v1.2.3 supports Forza Horizon 5 and 6 from the same
+# VRMod v1.3.0 supports Forza Horizon 5 and 6 from the same
 # launcher. The launcher injects into the game; the mod files
 # must NOT live in the game folder, so we extract to
 # C:\Games\Forza Horizon 5 VR and launch from there.
@@ -15,8 +15,8 @@ $ErrorActionPreference = "Stop"
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 5 VR"
 $FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1527971650216267856"
-$ZIP_HINT      = "VRMod-v1_2_3.zip"
+$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1532293105024499712"
+$ZIP_HINT      = "VRMod-v1_3_0.zip"
 $LAUNCHER_NAME = "vrmod-launcher.exe"
 
 function Write-Header {
@@ -160,7 +160,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcher
 # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
 # so the Hub had to track them as 1.2.1b/1.2.1c. lufz moved to a real
 # 1.2.3, so that workaround is retired - the zip is honest again.)
-$lufzVer = "1.2.3"
+$lufzVer = "1.3.0"
 $lufzVerFile = Join-Path $installRoot "VERSION"
 $lufzVerFound = $false
 if (Test-Path -LiteralPath $lufzVerFile) {

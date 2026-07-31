@@ -63,6 +63,7 @@ function global:Invoke-HeaderBack {
         if ($global:listScroll) { $global:listScroll.Visibility = [System.Windows.Visibility]::Visible }
         if (Get-Command Update-FilterBarForMode -ErrorAction SilentlyContinue) { Update-FilterBarForMode }
         if (Get-Command Update-DiscoverBtnState -ErrorAction SilentlyContinue) { Update-DiscoverBtnState }
+        if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
         if (Get-Command Request-HeaderBackArrowUpdate -ErrorAction SilentlyContinue) { Request-HeaderBackArrowUpdate }
         return
     }
@@ -76,6 +77,7 @@ function global:Invoke-HeaderBack {
         $global:listScroll.Visibility = [System.Windows.Visibility]::Collapsed
         if (Get-Command Update-FilterBarForMode -ErrorAction SilentlyContinue) { Update-FilterBarForMode }
         if (Get-Command Update-DiscoverBtnState -ErrorAction SilentlyContinue) { Update-DiscoverBtnState }
+        if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
         if (Get-Command Request-HeaderBackArrowUpdate -ErrorAction SilentlyContinue) { Request-HeaderBackArrowUpdate }
         return
     }
