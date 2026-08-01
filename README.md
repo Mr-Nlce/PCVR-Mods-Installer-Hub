@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (213)</summary>
+<summary>Show all currently listed titles (215)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -39,6 +39,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Bioshock Remastered (motion controls)
 * Black Mesa Source VR (motion controls)
 * Bomb Rush Cyberfunk (motion controls)
+* Call of Duty 4: Modern Warfare (2007) (motion controls)
 * Circuit Superstars VR
 * Cloudpunk
 * Cloudpunk: City of Ghosts
@@ -219,6 +220,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Tinykin VR
 * TLOU Part I
 * TLOU Part II
+* Tom Clancy’s Ghost Recon Wildlands [WIP]
 * Tormented Souls (motion controls)
 * Tomb Raider (1) VR (motion controls)
 * Total Chaos VR (GZDoom) (motion controls)
