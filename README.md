@@ -131,6 +131,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Lunistice
 * Mage Arena (motion controls)
 * Mass Effect 1 Legendary Edition
+* Mass Effect 2 Legendary Edition
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
