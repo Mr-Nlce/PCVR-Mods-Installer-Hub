@@ -16,6 +16,7 @@
 $global:BannerColorMap = @{
     "name:Hytale" = "#3fb0f0"  # Hytale VR (glowing ice-blue block logo + portal cyan from the hero art)
     "name:RingRacersVR" = "#e8484c"  # Ring Racers VR (Eggman red/crimson racing accent, matches tile)
+    "name:BanjoKazooieVR" = "#f2b823"  # Banjo-Kazooie VR (jiggy gold on the blue sky header, matches tile accent)
     "steam:39530" = "#b52a24"  # Painkiller Black Edition (blood-red gothic FPS, matches tile accent)
     "steam:2270" = "#c23b2e"  # Wolfenstein 3D VR (id's classic FPS red, matches tile accent)
     "steam:21090" = "#b01818"  # F.E.A.R. VR (Alma blood-red, matches tile accent)

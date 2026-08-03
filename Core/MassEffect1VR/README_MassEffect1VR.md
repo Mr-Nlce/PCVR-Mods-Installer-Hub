@@ -50,6 +50,11 @@ in the in-game video menu.
 - **[[R]]:** recenter your view
 - **[[K]]:** toggle the first-person camera
 - **[[P]]:** toggle depth pop
+- **[[1]] [[2]] [[3]] [[4]]:** load settings profiles (rebindable in the
+  menu under Profiles)
+
+Depth of field is off by default in this build - toggle it in the menu
+under the VR tab, Graphics; the change applies on the next launch.
 
 ## Launching in VR
 Use "Start in VR" in the Hub, or launch the game normally and pick
@@ -67,7 +72,7 @@ EA/Origin on a machine that has never run the game.
 - A gamepad
 
 ## Mod page
-https://www.patreon.com/dhalcyon/posts/first-contact-164195515
+https://www.patreon.com/dhalcyon/posts/melevrv2-164395003
 
 ## Support dhalcyon
 dhalcyon develops the MELE-VR mod. If you enjoy their work, consider

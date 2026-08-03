@@ -19,9 +19,11 @@ There is no single "best" mod - opinions differ, so both are offered.
 - **NALULUNA** **(recommended)** - free on ko-fi (set the amount to 0). The newest build is
   always on the page, named like `fh6vr_<version>.zip`. Launcher:
   `fh6vr.exe`.
-- **lufz / VRMod** - shared in the **flat2VR Modding Discord**. Join via the
-  invite (also in the Hub's Help & Feedback button), open the download
-  post, grab `VRMod-v1_2_1.zip` (newest version). Launcher: `vrmod-launcher.exe`.
+- **lufz / VRMod** - free on the author's GitHub releases. The installer
+  fetches the newest build automatically; no account needed. Launcher:
+  `vrmod-launcher.exe`.
+
+  https://github.com/oofz/vrmod-releases/releases
 
 ## Requirements
 
@@ -48,14 +50,19 @@ AFR looks cleaner but halves the frame rate.
 ## Playing - lufz / VRMod
 
 1. Start from the desktop shortcut (or run `vrmod-launcher.exe`).
-2. **Browse** to your `ForzaHorizon6.exe` (or use **Auto-detect Running**),
-   then click **[[Install VR Mod]]**.
+2. **+ Add Game** and pick the game's install **folder** - on Game Pass that
+   is `C:\XboxGames\Forza Horizon 6\Content`, because Windows blocks opening
+   `ForzaHorizon6.exe` there. On Steam you can also use **+ Add .exe**, or
+   **Auto-detect Running** if the game is already open. Then click
+   **[[Install VR Mod]]**.
 3. Start SteamVR, start the game, then click **[[Play in VR]]** once you
    reach the main menu, garage, or are driving.
 
 Settings: for **OpenXR 6DoF** turn HDR off and set in-game FOV to maximum;
-**SimVR** allows frame generation. On NVIDIA you can try the experimental
-**Frame Generation** toggle. Head tracking stuck? Press **[[F8]]** to
+**Leave Frame Generation off** - the mod author asks for that with this
+version. It also clears out a few old config values that could cause trouble;
+only those are reset, the rest of your tuning stays as you set it.
+Head tracking stuck? Press **[[F8]]** to
 toggle it off and on again.
 
 ## Controls

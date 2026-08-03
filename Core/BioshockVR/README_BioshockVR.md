@@ -1,71 +1,84 @@
-# BioShock Remastered VR Installer
+# BioShock Remastered VR
 
-Automated installer for **Bioshock Remastered VR** by BioVRDev - a native VR conversion of BioShock Remastered with real stereo rendering, full head tracking, motion controllers and 6-DOF weapon holding.
+There are **two** VR mods for BioShock Remastered. The installer sets up either one - or both, with a switch between them.
 
-It hooks the game directly rather than wrapping it, so there is **no injector, no plugin folder and no launcher**: the mod loads when the game starts.
+*Would you kindly put the headset on and descend into Rapture.*
 
-## What it installs
-Five files next to `BioshockHD.exe` (in `Build\Final`, or `Build\FinalEpic` on Epic):
-- **dxgi.dll** - loads the mod at startup
-- **BioshockVR.dll** and **BioshockVR.ini** - the mod and its settings
-- **openxr_loader.dll** - the OpenXR runtime loader
-- **FirstTimeSetup.bat** - the one-time setup, run once by the installer
+## The two mods
 
-## Requirements
-- **BioShock Remastered** on Steam, GOG or Epic
-- Any **OpenXR** headset and runtime - Quest via Link or Air Link, SteamVR, or WMR
-- Windows 10 or 11
+| | **balouza** | **BioVRDev** |
+|---|---|---|
+| Repo | https://github.com/mohamad-balouza/bioshock-vr | https://github.com/BioVRDev/Bioshock-Remastered-VR |
+| Injector | `xinput1_3.dll` | `dxgi.dll` |
+| Rendering | Stereo, 6DoF head tracking | Stereo, head tracking |
+| Aiming | Motion-controller aim with a laser, weapons right / plasmids left, per-weapon aim profiles | Motion controllers, weapon follows the hand |
+| Extras | Swing-to-melee, floating HUD panel, F10 tuning overlay, cutscene handling, snap turn | Straightforward - starts with the game, nothing to configure |
+| Settings | `%LOCALAPPDATA%\BioshockVR\` | `BioshockVR.ini` next to the exe |
 
-## Launching
-Launch with **Start in VR** in the Hub, or from Steam. Start your OpenXR runtime first and put the headset on - the mod loads on its own when the game starts.
+Both are actively developed and neither is a successor to the other - pick by the feature list above. The installer offers balouza first because it has the larger set of VR-specific features today.
 
-## Why the setup step exists
-BioShock reads its config at startup and **rewrites it on exit** with whatever it actually ran at. A fresh install therefore starts fullscreen at your desktop resolution and can never correct itself. `FirstTimeSetup.bat` sets the render resolution, FOV, windowed mode and anisotropic filtering *before* the game ever runs, which breaks that loop for good. It finds `Bioshock.ini` itself, backs it up first, changes ten keys in place, and restores the backup automatically if anything looks wrong.
+## Install
+The installer asks which one you want: **balouza**, **BioVRDev**, or **both**. It finds the game (Steam, GOG or Epic - the exe lives in `Build\Final`, on Epic in `Build\FinalEpic`), pulls the latest release straight from GitHub and puts the files in place.
 
-Run it again any time you change **ResolutionX**, **ResolutionY** or **GameFovDegrees** in `BioshockVR.ini`.
+## If you install both - the one thing to know
+Both mods put their files in the **same folder**, and their payload DLLs are called `BioshockVR.dll` and `bioshockvr.dll` - on Windows that is the **same filename**. They physically cannot sit there together, so **only one can be active at a time**.
 
-## What VR adds
-- **Rendering** - true stereo with both eyes locked to the same instant, and the reported field of view kept in sync with what the game renders, so turning doesn't warp
-- **Head and camera** - full rotation and position tracking, pitch decoupled so the horizon stays level, walking head bob removed at the source, adjustable height and IPD
-- **Hands and weapons** - the weapon follows your right controller; aim, crosshair and the actual shot all come from one value, so the dot is exactly where the bullet goes. Per-weapon grip is tunable live and saves itself.
-- **Interface** - the HUD is lifted off the eye image onto its own layer at a comfortable depth; menus and the map sit on a screen fixed in the room
-- **Cutscenes** - pre-rendered ones play on a screen anchored in the room instead of following your head
+The installer handles it: each mod is parked in `Build\Final\_vrmods\<mod>\`, and only the active one has its files next to the exe. Two launchers in `Build\Final\VRLaunch\` do the swap and then start the game through Steam:
 
-## Tuning in the headset
-Everything below changes live, and every change writes a line you can keep.
+- `BioShock VR (balouza).bat`
+- `BioShock VR (BioVRDev).bat`
 
-- [[F11]] / [[F12]] make the HUD panel smaller or larger
-- [[Del]] cycles which HUD property those two edit
-- [[Home]] toggles the HUD panel off so you can compare
-- [[Numpad 9]] cycles the weapon grip mode: position, angle, aim
-- [[Numpad 8]] [[Numpad 2]] [[Numpad 4]] [[Numpad 6]] [[Numpad 0]] [[Numpad 5]] adjust the current mode
-- [[Numpad 7]] changes the step size
+The same two are the buttons on this game's page in the Hub. They only appear when **both** mods are actually installed - with a single mod there is nothing to switch between, so the page shows the normal start instead. **Close the game before switching.** Each mod keeps its own settings in its own place, so your tuning survives a swap.
 
-To get a weapon exactly right, set the angle first, then switch to aim mode and fire at a flat wall until the dot sits on the bullet hole. The dot and the shot come from the same value, so that test is exact.
+The Flat/VR switch on that page works either way: it toggles whichever mod is currently active, `dxgi.dll` for BioVRDev or `xinput1_3.dll` for balouza.
 
-Weapon grip values write themselves into `BioshockVR.ini` as you go - edit that file with the game closed, or your changes get overwritten.
+## Coming from an earlier Hub install
+Until now the Hub only offered BioVRDev, and it copied those files loose into `Build\Final`. If that is your situation, just run the installer and pick what you want - it takes the old files over into `_vrmods\biovrdev\` first, so the old injector cannot keep loading next to the new mod, and BioVRDev stays one click away through its launcher. Nothing of yours is thrown away.
 
-## Recommended alongside
-The mod author suggests two community mods for the best result:
+## Playing - balouza
+1. Start your OpenXR runtime (Virtual Desktop's VDXR, Steam Link / SteamVR, or any other) before launching.
+2. Set the game's resolution to roughly **square**, e.g. 2700x2700 - not 16:9. Headset panels are near square, so a wide backbuffer renders a strip the headset throws away. On a 3840x2160 image only about half the width is inside the FOV; a square 2750x2850 has fewer pixels, looks sharper and runs faster.
+3. Launch through Steam, load into the game (menus are still flat), press **F10** and click **VR PRESET 1**. That arms everything in the right order. No restart is needed.
 
-- **Fullscreen Cutscenes** - removes the black bars from cutscenes, which otherwise stay visible on the VR screen. **The installer offers to set this up for you** as an optional last step: https://www.nexusmods.com/bioshock/mods/81
-- **HD Textures** - install this one yourself: https://www.nexusmods.com/bioshock/mods/54
+Quest 3 controls:
 
-The download contains two versions and the installer takes the **vanilla** one. The other is a combination with the author's *Deep Pockets HUD*, which only makes sense if you also run NewBlood's *Deep Pockets* mod - install that one by hand if you need it. Either way it replaces the game's `HUDPC.swf`, so it removes any other HUD mod; the original is kept as a backup.
+| Action | Binding |
+|---|---|
+| Fire weapon | [[Right Trigger]] - the first pull raises it |
+| Cast plasmid | [[Left Trigger]] - the first pull raises it |
+| Switch weapon | [[Right Grip]], hold for the radial |
+| Switch plasmid | [[Left Grip]], hold for the radial |
+| Move | [[Left Stick]], crouch on click |
+| Turn | [[Right Stick]] |
+| Use / interact | [[A]] |
+| Jump | [[B]] |
+| Reload / hack / inject EVE | [[X]] |
+| First-aid kit | [[Y]] |
+| Pause (hold for map) | [[Left Menu]] |
+| Swing the wrench | Swing your right hand while the wrench is equipped |
+| Select ammo | Hold [[Left Thumbrest]] and push [[Right Stick]] |
 
-## Known issues
-- **dxgi.dll can only belong to one mod.** ReShade, DXVK, Special K and most injectors install under the same filename, so they can't be used together with this.
-- Reticle removal and arm hiding use fixed addresses into the game executable. On a different build they detect the mismatch and do nothing - set `DisableReticle=0` and `HideArmSleeves=0` to silence the log. Everything else finds its targets by scanning.
-- Grip offsets are tuned for 2750x2850 at FOV 100 and don't carry across resolutions - expect to re-tune if you change either.
-- Crossbow, grenade launcher, chemical thrower and research camera aren't tuned yet and fall back to a generic offset. Usable, but they sit wrong in your hand.
-- In-engine cutscenes still follow your head; only pre-rendered ones move to the flat screen.
-- Weapon idle sway remains, because the weapon hangs off the arm mesh.
+Tuning lives in the F10 overlay - world scale, IPD, per-hand aim trim, per-weapon profiles, HUD placement, snap turn - and is saved with "Save preset values".
 
-## Performance
-**ResolutionX** and **ResolutionY** in `BioshockVR.ini` are the main dial - lower them and run the setup again. A field of view below 100 looks nearly identical in the headset but runs noticeably better, because the game stops rendering side content that never reaches the display.
+The author's own calibration files ship with the release and the installer keeps them in `_vrmods\balouza\`. You do **not** need them: the DLL defaults are identical. They are only useful if you want to overwrite your own tuning in `%LOCALAPPDATA%\BioshockVR\`.
 
-## Removing it
-Delete `dxgi.dll`, `BioshockVR.dll`, `BioshockVR.ini` and `openxr_loader.dll` from the build folder and the game is flat again. The setup kept a backup of your `Bioshock.ini` if you want the original video settings back.
+**If it crashes or misbehaves:** close the game and delete `vrpreset.ini`, `hands.ini`, `weapons.ini` and `command.txt` from `%LOCALAPPDATA%\BioshockVR\`. Those files override the built-in defaults key by key, so an old value keeps applying even after an update fixes the default. You only lose your own tuning; VR PRESET 1 puts a working setup back immediately. The log for a bug report is `bioshockvr.log` in the same folder.
+
+## Playing - BioVRDev
+Start the OpenXR runtime, then launch with **Start in VR** in the Hub or from Steam. No injector, no launcher. The installer runs the mod's `FirstTimeSetup.bat` once, which writes resolution, FOV and windowed mode into `Bioshock.ini` before the game can overwrite them - re-run it only if you change `ResolutionX`, `ResolutionY` or `GameFovDegrees` in `BioshockVR.ini`.
+
+The installer also offers the community **fullscreen cutscenes** mod for this variant, which removes the black bars. balouza hides them itself.
+
+## Known limitations (balouza, as of v0.6.0)
+- Full-screen effects (water, damage tints) sit on the HUD panel instead of covering your view.
+- Cutscenes sit low with black borders; "Game FOV write" in the overlay makes them fill the view but is not recommended for normal play.
+- Menus are still flat-screen, so load into the game before switching to VR.
+- Melee changes **when** the attack fires, not **where** it lands - the game aims melee from your view, so point at what you want to hit.
+
+## Conflicts
+`itsloopyo`'s head-tracking mod uses the same `xinput1_3.dll` injection vector and cannot run alongside either mod - remove or back up its DLL first. `dxgi.dll` likewise can only be owned by one mod, so ReShade, DXVK and Special K conflict with the BioVRDev variant.
 
 ## Credits
-**Bioshock Remastered VR** by **BioVRDev** - https://github.com/BioVRDev/Bioshock-Remastered-VR
+- **bioshock-vr** by mohamad-balouza - https://github.com/mohamad-balouza/bioshock-vr
+- **Bioshock Remastered VR** by BioVRDev - https://github.com/BioVRDev/Bioshock-Remastered-VR
+- BioShock and its assets by 2K / Irrational Games

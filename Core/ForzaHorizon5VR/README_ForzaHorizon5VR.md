@@ -1,11 +1,11 @@
 # Forza Horizon 5 VR
 
-The lufz **VRMod** (v1.2.1+) brings Forza Horizon 5 to the headset with
-OpenXR per-eye rendering and experimental 6DoF head tracking. You own the
-game (Steam / Microsoft Store / Game Pass); the free community mod is
-downloaded from the flat2VR Modding Discord and the installer sets it up
-under `C:\Games\Forza Horizon 5 VR` (deliberately **outside** the game
-folder). The same VRMod launcher also supports Forza Horizon 6 - if you
+The lufz **VRMod** brings Forza Horizon 5 to the headset with OpenXR
+per-eye rendering and experimental 6DoF head tracking. You own the game
+(Steam / Microsoft Store / Game Pass); the free community mod is
+downloaded automatically from the author's GitHub releases and the
+installer sets it up under `C:\Games\Forza Horizon 5 VR` (deliberately
+**outside** the game folder). The same VRMod launcher also supports Forza Horizon 6 - if you
 install both, one launcher install per game folder is still required.
 
 ## Requirements
@@ -14,7 +14,6 @@ install both, one launcher install per game folder is still required.
   Store, or PC Game Pass)
 - A PC VR headset with a working OpenXR runtime (SteamVR or the
   headset's own runtime)
-- A Discord account (the mod is shared in the flat2VR Modding Discord)
 - **Do not** place the mod inside Forza Horizon 5's own install folder -
   the installer keeps it in `C:\Games\Forza Horizon 5 VR`.
 
@@ -22,8 +21,11 @@ install both, one launcher install per game folder is still required.
 
 The launcher window has three columns:
 
-1. **Games** (left) - your library. Use **+ Add Game** to browse to
-   `ForzaHorizon5.exe`, or start the game first and click
+1. **Games** (left) - your library. Use **+ Add Game** and pick the
+   game's install **folder** - on Game Pass that is
+   `C:\XboxGames\Forza Horizon 5\Content`, because Windows blocks
+   opening `ForzaHorizon5.exe` there. On Steam you can also use
+   **+ Add .exe**, or start the game first and click
    **Auto-detect Running**. Select the game's row, then click
    **Install VR Mod** (needed once per game install folder). The
    **Check My Setup** panel below flags conflicts (e.g. a missing
@@ -62,14 +64,17 @@ Driving uses a **gamepad or wheel**, exactly like flat Forza:
 
 - For OpenXR 6DoF, turn **HDR OFF** and set the in-game FOV slider to
   **maximum**.
-- SimVR mode allows frame generation; on NVIDIA there is an
-  experimental Frame Generation toggle in the launcher.
+- **Leave Frame Generation off.** The mod author asks for that with this
+  version. The launcher's toggle stays there, but it is not the setting to
+  experiment with right now.
+- This version clears out a few old config values that could cause trouble.
+  Only those are reset - the rest of your tuning stays as you set it.
 - Lower in-game graphics, V-Sync OFF, frame rate unlimited, motion
   blur / DLSS / frame generation OFF is the smoothest starting point.
 - A Forza Horizon 5 game update can break the mod until the author
-  ships an update - grab the newest `VRMod-*.zip` from the same Discord
-  post and re-run the installer. Do not contact the official Forza team
-  about a broken mod.
+  ships an update - re-run the installer, which always fetches the
+  newest build. Do not contact the official Forza team about a broken
+  mod.
 - The launcher shows **"No supported games running"** until Forza is
   started or added to the library - that line is normal at first run.
 

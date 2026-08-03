@@ -1583,14 +1583,34 @@ function global:Get-FlatVRProxyInfo {
     if (-not $dir) { return $null }
     # Per-game override for the proxy file (e.g. Portal 2 uses
     # bin\openvr_api.dll <-> bin\openvr_api.dll-). Enabled = VR on.
+    #
+    # BOTH FIELDS MAY LIST SEVERAL CANDIDATES separated by "|", in matching
+    # order. A game can have more than one possible proxy: BioShock ships
+    # two VR mods with different injectors (dxgi.dll for BioVRDev,
+    # xinput1_3.dll for balouza) and only the ACTIVE one is on disk, and
+    # its folder differs between the Steam and the Epic build. The first
+    # candidate that is actually there wins, so the switch always toggles
+    # whichever mod is currently installed. A single name behaves exactly
+    # as before - one candidate, same result.
     if ($Game.FlatVREnabled -and $Game.FlatVRDisabled) {
-        $enFull  = Join-Path $dir $Game.FlatVREnabled
-        $disFull = Join-Path $dir $Game.FlatVRDisabled
-        $enLeaf  = Split-Path -Leaf $Game.FlatVREnabled
-        $disLeaf = Split-Path -Leaf $Game.FlatVRDisabled
-        if (Test-Path -LiteralPath $enFull)  { return @{ Dir=$dir; Path=$enFull;  Active=$true;  EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
-        if (Test-Path -LiteralPath $disFull) { return @{ Dir=$dir; Path=$disFull; Active=$false; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
-        return @{ Dir=$dir; Path=$null; Active=$null; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf }
+        $enList  = @(([string]$Game.FlatVREnabled)  -split '\|' | Where-Object { $_ })
+        $disList = @(([string]$Game.FlatVRDisabled) -split '\|' | Where-Object { $_ })
+        for ($fi = 0; $fi -lt $enList.Count; $fi++) {
+            $enRel  = $enList[$fi].Trim()
+            $disRel = if ($fi -lt $disList.Count) { $disList[$fi].Trim() } else { "$enRel-" }
+            if (-not $enRel) { continue }
+            $enFull  = Join-Path $dir $enRel
+            $disFull = Join-Path $dir $disRel
+            $enLeaf  = Split-Path -Leaf $enRel
+            $disLeaf = Split-Path -Leaf $disRel
+            if (Test-Path -LiteralPath $enFull)  { return @{ Dir=$dir; Path=$enFull;  Active=$true;  EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
+            if (Test-Path -LiteralPath $disFull) { return @{ Dir=$dir; Path=$disFull; Active=$false; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
+        }
+        # Nothing on disk - report the first pair so the button can still
+        # label itself.
+        $enLeaf0  = if ($enList.Count  -gt 0) { Split-Path -Leaf $enList[0].Trim() }  else { $null }
+        $disLeaf0 = if ($disList.Count -gt 0) { Split-Path -Leaf $disList[0].Trim() } else { $null }
+        return @{ Dir=$dir; Path=$null; Active=$null; EnabledLeaf=$enLeaf0; DisabledLeaf=$disLeaf0 }
     }
     # Default: BepInEx winhttp.dll proxy (game root first, then a shallow
     # search for subfolder mods like release\ or DLC\).
@@ -2790,7 +2810,10 @@ function global:New-VideoStripElement {
         $txt.VerticalAlignment = "Center"
         $txt.Margin = [System.Windows.Thickness]::new(12,0,0,0)
         $t1 = New-Object System.Windows.Controls.TextBlock
-        $t1.Text = "Watch VR gameplay"
+        # Default says VR because nearly every clip IS a VR capture. A game
+        # whose only footage is flat gameplay sets VideoLabel in the catalog
+        # so the strip does not promise VR footage the video never shows.
+        $t1.Text = if ($Game.VideoLabel) { [string]$Game.VideoLabel } else { "Watch VR gameplay" }
         $t1.Foreground = $accentBrush
         $t1.FontSize = 14; $t1.FontWeight = "SemiBold"
         $t2 = New-Object System.Windows.Controls.TextBlock
@@ -3659,8 +3682,19 @@ function global:Start-GameInVR {
     # Start in VR (no Mode) launches whichever single mod is present, or
     # falls back to mod A when both exist.
     if ($Game.TwoMods) {
+        # WHERE TO LOOK. Read-InstalledPath alone is NOT enough: that
+        # marker lives in the HUB folder, so a freshly unpacked Hub has
+        # none even though both mods sit in the game folder - and this
+        # function would then find no launcher and open the INSTALLER
+        # instead of starting the game. So: the recorded path first
+        # (precise), then the folder the scan already resolved for this
+        # title, then the game folder each mod's launcher was found in.
         $tmParent = $null
         try { $tmParent = Read-InstalledPath -Game $Game } catch { }
+        $tmState = $global:gameStateMap[$Game.Title]
+        if ((-not $tmParent) -and $tmState -and $tmState.GameDir) {
+            try { if (Test-Path -LiteralPath $tmState.GameDir) { $tmParent = $tmState.GameDir } } catch { }
+        }
         # Resolve each mod's launcher under its own subfolder, searching
         # RECURSIVELY so a mod that unpacked one level deep still launches.
         $tmAPath = $null; $tmBPath = $null
@@ -3673,6 +3707,17 @@ function global:Start-GameInVR {
                 $sB = Join-Path $tmParent $Game.ModBSub
                 if (Test-Path $sB) { $hB = Get-ChildItem -Path $sB -Filter $Game.ModBLaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1; if ($hB) { $tmBPath = $hB.FullName } }
             }
+        }
+        # Last resort: the scan already recorded the exact folder each
+        # launcher was found in. Using it means the launch can never be
+        # less capable than the detection that lit the button up.
+        if ((-not $tmAPath) -and $tmState -and $tmState.ModADir -and $Game.ModALaunch) {
+            $cA = Join-Path $tmState.ModADir $Game.ModALaunch
+            if (Test-Path -LiteralPath $cA) { $tmAPath = $cA }
+        }
+        if ((-not $tmBPath) -and $tmState -and $tmState.ModBDir -and $Game.ModBLaunch) {
+            $cB = Join-Path $tmState.ModBDir $Game.ModBLaunch
+            if (Test-Path -LiteralPath $cB) { $tmBPath = $cB }
         }
         $tmAOk = [bool]$tmAPath
         $tmBOk = [bool]$tmBPath
@@ -5057,6 +5102,7 @@ function global:Show-DiscoverDetail {
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
         "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."
         "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."
+        "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
         "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."

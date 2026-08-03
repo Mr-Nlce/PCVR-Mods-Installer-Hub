@@ -2,7 +2,7 @@
 # Forza Horizon 6 VR Installer
 # Two VR mods to choose from:
 #   1) NALULUNA (free, ko-fi)        launcher: fh6vr.exe
-#   2) lufz / VRMod (flat2VR Discord) launcher: vrmod-launcher.exe
+#   2) lufz / VRMod (GitHub releases)  launcher: vrmod-launcher.exe
 # Both ship a separate launcher that injects into the game; the
 # mod files must NOT live in the game folder, so we extract to
 # C:\Games\Forza Horizon 6 VR and launch from there.
@@ -16,8 +16,12 @@ $ErrorActionPreference = "Stop"
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 6 VR"
 $KOFI_URL      = "https://ko-fi.com/s/03bdcc5fe9"
-$FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1532293105024499712"
+# lufz publishes on GitHub now. Releases are tagged as PRERELEASES, so the
+# newest one comes from /releases and never from /releases/latest, which
+# skips them. NALULUNA's mod stays on ko-fi and is unaffected.
+$VRMOD_REPO    = "oofz/vrmod-releases"
+$VRMOD_API     = "https://api.github.com/repos/$VRMOD_REPO/releases"
+$VRMOD_PAGE    = "https://github.com/$VRMOD_REPO/releases"
 
 function Write-Header {
     Clear-Host
@@ -78,7 +82,7 @@ Write-Step 1 6 "Choosing a VR mod"
 Write-Host "  Which VR mod do you want to set up?" -ForegroundColor White
 Write-Host ""
 Write-Host "   [1] NALULUNA  - free on ko-fi  (recommended)" -ForegroundColor Green
-Write-Host "   [2] lufz VRMod - from the flat2VR Modding Discord" -ForegroundColor White
+Write-Host "   [2] lufz VRMod - free, downloaded automatically" -ForegroundColor White
 Write-Host ""
 $modChoice = ""
 while ($modChoice -ne "1" -and $modChoice -ne "2") {
@@ -95,9 +99,22 @@ if ($modChoice -eq "1") {
     $modName      = "lufz VRMod"
     $modSub       = "lufz"
     $launcherName = "vrmod-launcher.exe"
-    $zipHint      = "VRMod-v1_3_0.zip"
+    $zipHint      = "VRMod-v1_3_3.zip"
 }
 Write-OK "Selected: $modName"
+
+# Newest release INCLUDING prereleases - that is what lufz ships.
+function Get-VRModRelease {
+    try {
+        $rels = Invoke-RestMethod -Uri $VRMOD_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rel = $rels | Select-Object -First 1
+        if (-not $rel) { return $null }
+        $asset = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -notlike "*source*" } | Select-Object -First 1
+        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1 }
+        if (-not $asset) { return $null }
+        return [pscustomobject]@{ Tag = $rel.tag_name; Url = $asset.browser_download_url; Name = $asset.name }
+    } catch { return $null }
+}
 
 # ---- STEP 2: get the download ----
 Write-Step 2 6 "Downloading the mod"
@@ -108,21 +125,33 @@ if ($modChoice -eq "1") {
     try { Start-Process $KOFI_URL } catch { Write-Warn "Could not open the browser. Open manually: $KOFI_URL" }
     Write-Host ""
     Write-Host "  ko-fi page: $KOFI_URL" -ForegroundColor DarkGray
-} else {
-    Write-Host "  lufz's VRMod is shared in the flat2VR Modding Discord." -ForegroundColor White
-    Write-Host "   - First the flat2VR invite opens; accept it to join." -ForegroundColor Gray
-    Write-Host "   - Then the download post opens; the file is named '$zipHint'." -ForegroundColor Gray
-    Pause-User "Press Enter to open the flat2VR invite..."
-    try { Start-Process $FLAT2VR_URL } catch { Write-Warn "Could not open the browser. Join manually: $FLAT2VR_URL" }
-    Pause-User "Press Enter once you have joined to open the download post..."
-    Write-Host "   - Opening the download post. The file is named '$zipHint'." -ForegroundColor Gray
-    try { Start-Process $LUF_POST_URL } catch { Write-Warn "Could not open the post. Open manually: $LUF_POST_URL" }
-    Write-Host ""
-    Write-Host "   ( If Discord won't scroll, you can also copy this link manually by selecting it (Ctrl+C) and pasting it into the browser's address bar (Ctrl+V) : $LUF_POST_URL )" -ForegroundColor DarkGray
 }
-# ---- STEP 3: drag the zip ----
+
+# ---- STEP 3: get the file ----
 Write-Step 3 6 "Locating the downloaded zip"
-$zipPath = Get-DraggedZip -ExpectHint $zipHint
+$zipPath = $null
+if ($modChoice -eq "2") {
+    # lufz: fetch the newest GitHub release, prereleases included.
+    $dlWork = Join-Path $env:TEMP ("vrmod_" + [Guid]::NewGuid().ToString("N").Substring(0,8))
+    New-Item -ItemType Directory -Path $dlWork -Force | Out-Null
+    $rel = Get-VRModRelease
+    if ($rel) {
+        Write-Info "Newest VRMod release: $($rel.Tag) ($($rel.Name))"
+        $target = Join-Path $dlWork $rel.Name
+        Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE | Out-Null
+        if (Test-Path -LiteralPath $target) { $zipPath = $target }
+    }
+    if (-not $zipPath) {
+        $found = Find-PredownloadedFile -Patterns @("VRMod-v*.zip", "*VRMod*.zip") -Label "the VRMod package"
+        if ($found) { $zipPath = $found }
+    }
+    if (-not $zipPath) {
+        Write-Warn "Automatic download did not work."
+        Pause-User "Press Enter to open the releases page..."
+        try { Start-Process $VRMOD_PAGE } catch { Write-Warn "Open manually: $VRMOD_PAGE" }
+    }
+}
+if (-not $zipPath) { $zipPath = Get-DraggedZip -ExpectHint $zipHint }
 if (-not $zipPath) { Write-Info "No zip provided - cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
 $zipLeaf = Split-Path -Leaf $zipPath
 if ($modChoice -eq "1" -and $zipLeaf -notlike "fh6vr_*") {
@@ -207,7 +236,7 @@ if ($modChoice -eq "2") {
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
     # 1.2.3, so that workaround is retired - the zip is honest again.)
-    $lufzVer = "1.3.0"
+    $lufzVer = "1.3.3"
     $lufzVerFile = Join-Path $modFolder "VERSION"
     $lufzVerFound = $false
     if (Test-Path -LiteralPath $lufzVerFile) {
@@ -250,15 +279,25 @@ if ($modChoice -eq "1") {
     Write-Host "============================================================" -ForegroundColor Yellow
     Write-Host ""
     Write-Host " 1) Start from the desktop shortcut (or run vrmod-launcher.exe)." -ForegroundColor White
-    Write-Host " 2) Browse to your ForzaHorizon6.exe (or use Auto-detect" -ForegroundColor White
-    Write-Host "    Running), then click 'Install VR Mod'." -ForegroundColor White
+    Write-Host " 2) Click '+ Add Game' and pick the game FOLDER, then click" -ForegroundColor White
+    Write-Host "    'Install VR Mod'. On Game Pass pick" -ForegroundColor White
+    Write-Host "    " -NoNewline -ForegroundColor White
+    Write-Host " C:\XboxGames\Forza Horizon 6\Content " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "    - Windows blocks opening the exe there. On Steam you can" -ForegroundColor White
+    Write-Host "    also use '+ Add .exe', or 'Auto-detect Running'." -ForegroundColor White
     Write-Host " 3) Start SteamVR, launch the game ('Start in VR' in the Hub" -ForegroundColor White
 Write-Host "    or your store), then click 'Play in VR'" -ForegroundColor White
     Write-Host "    once you reach the main menu, garage, or are driving." -ForegroundColor White
     Write-Host ""
     Write-Host " Settings: for OpenXR 6DoF turn HDR OFF and set in-game FOV to" -ForegroundColor Gray
-    Write-Host " maximum. SimVR allows frame generation. On NVIDIA you can try" -ForegroundColor Gray
-    Write-Host " the experimental Frame Generation toggle in the launcher." -ForegroundColor Gray
+    Write-Host " maximum." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host " Leave " -NoNewline -ForegroundColor White
+    Write-Host " Frame Generation " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host " OFF - the mod author asks for" -ForegroundColor White
+    Write-Host " that with this version. It also clears out a few old config" -ForegroundColor White
+    Write-Host " values that could cause trouble - the rest of your tuning" -ForegroundColor White
+    Write-Host " stays." -ForegroundColor White
 }
 Write-Host ""
 Write-Host " Your VR mod is installed here (opening it now):" -ForegroundColor White

@@ -103,6 +103,7 @@ function global:New-ControlTypeIcon {
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
+    "Ghost Recon Wildlands VR",
     "Halo 3 MCC VR",
     "GTA Vice City VR",
     "F.E.A.R. VR",
@@ -1139,7 +1140,12 @@ function global:New-GameCardFrosted {
         # Short title: keep the classic two-line meta block.
         $modText = New-Object System.Windows.Controls.TextBlock
         $modText.Text = $game.Mod
-        $modText.FontSize = [int](10*$sc)
+        # Long mod lines (two mod names plus "(auto-update)") overflow the
+        # tile at the normal size. One step down keeps them inside and stays
+        # legible. The cutoff sits ABOVE every string that fits today, so
+        # only the genuinely too-long ones change - nothing that already
+        # looked right is touched.
+        $modText.FontSize = $(if ($game.Mod -and $game.Mod.Length -ge 31) { [int](9*$sc) } else { [int](10*$sc) })
         $modText.FontWeight = [System.Windows.FontWeights]::Medium
         $modText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
         $modText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -1213,17 +1219,45 @@ function global:New-GameCardFrosted {
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
             $authGrey = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
+            # The (auto-update) marker can sit on either side of the name and
+            # the ORDER IS MEANINGFUL, so it is rendered where the catalog put
+            # it - never reordered:
+            #   "(auto-update) RaYRoD" -> "(auto-update) by RaYRoD"
+            #      the whole entry auto-updates; marker leads.
+            #   "lufz (auto-update)"   -> "by lufz (auto-update)"
+            #      only ONE of the entry's mods auto-updates, so the marker has
+            #      to sit next to that name to say WHICH one (Forza Horizon 6:
+            #      lufz from GitHub, NALULUNA from ko-fi).
+            #   "(auto-update)" alone  -> "(auto-update)"
+            #      modders already named on the Mod line above; a bare "by"
+            #      would just dangle.
+            # The marker always takes the accent colour, the name stays grey.
+            $auAccent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
+            $auMarker = $null; $auName = [string]$game.Author; $auFirst = $false
             if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
-                # Marker first, in the accent colour (like the mod line), then
-                # the normal grey "by <authors>" attribution after it.
-                $auRun = New-Object System.Windows.Documents.Run
-                $auRun.Text = "$($matches[1]) "
-                $auRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
-                [void]$authorText.Inlines.Add($auRun)
-                $byRun = New-Object System.Windows.Documents.Run
-                $byRun.Text = "by $($matches[2])"
-                $byRun.Foreground = $authGrey
-                [void]$authorText.Inlines.Add($byRun)
+                $auMarker = [string]$matches[1]; $auName = ([string]$matches[2]).Trim(); $auFirst = $true
+            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+                $auMarker = [string]$matches[2]; $auName = ([string]$matches[1]).Trim(); $auFirst = $false
+            }
+            if ($auMarker) {
+                if ($auFirst) {
+                    $auRun = New-Object System.Windows.Documents.Run
+                    $auRun.Text = $(if ($auName) { "$auMarker " } else { $auMarker })
+                    $auRun.Foreground = $auAccent
+                    [void]$authorText.Inlines.Add($auRun)
+                }
+                if ($auName) {
+                    $byRun = New-Object System.Windows.Documents.Run
+                    $byRun.Text = $(if ($auFirst) { "by $auName" } else { "by $auName " })
+                    $byRun.Foreground = $authGrey
+                    [void]$authorText.Inlines.Add($byRun)
+                }
+                if (-not $auFirst) {
+                    $auRun2 = New-Object System.Windows.Documents.Run
+                    $auRun2.Text = $auMarker
+                    $auRun2.Foreground = $auAccent
+                    [void]$authorText.Inlines.Add($auRun2)
+                }
             } else {
                 $authorText.Text = "by $($game.Author)"
                 $authorText.Foreground = $authGrey
@@ -1281,7 +1315,17 @@ function global:New-GameCardFrosted {
         # hidden on the tile (detail page keeps it).
         if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authRun = New-Object System.Windows.Documents.Run
-            $authRun.Text = "by $($game.Author)"
+            # Same marker rule as the separate-line layout above - the ORDER
+            # the catalog wrote is kept - but as ONE run: this compact line
+            # is a single muted string, so there is no accent split here.
+            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+                $acName = ([string]$matches[2]).Trim()
+                $authRun.Text = $(if ($acName) { "$($matches[1]) by $acName" } else { [string]$matches[1] })
+            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+                $authRun.Text = "by $(([string]$matches[1]).Trim()) $($matches[2])"
+            } else {
+                $authRun.Text = "by $($game.Author)"
+            }
             $authRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888899")
             [void]$metaLine.Inlines.Add($authRun)
         }
@@ -3316,7 +3360,12 @@ function global:New-GameCardClassic {
         # Short title: keep the classic two-line meta block.
         $modText = New-Object System.Windows.Controls.TextBlock
         $modText.Text = $game.Mod
-        $modText.FontSize = [int](10*$sc)
+        # Long mod lines (two mod names plus "(auto-update)") overflow the
+        # tile at the normal size. One step down keeps them inside and stays
+        # legible. The cutoff sits ABOVE every string that fits today, so
+        # only the genuinely too-long ones change - nothing that already
+        # looked right is touched.
+        $modText.FontSize = $(if ($game.Mod -and $game.Mod.Length -ge 31) { [int](9*$sc) } else { [int](10*$sc) })
         $modText.FontWeight = [System.Windows.FontWeights]::Medium
         $modText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
         $modText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -3390,17 +3439,45 @@ function global:New-GameCardClassic {
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
             $authGrey = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#555568")
+            # The (auto-update) marker can sit on either side of the name and
+            # the ORDER IS MEANINGFUL, so it is rendered where the catalog put
+            # it - never reordered:
+            #   "(auto-update) RaYRoD" -> "(auto-update) by RaYRoD"
+            #      the whole entry auto-updates; marker leads.
+            #   "lufz (auto-update)"   -> "by lufz (auto-update)"
+            #      only ONE of the entry's mods auto-updates, so the marker has
+            #      to sit next to that name to say WHICH one (Forza Horizon 6:
+            #      lufz from GitHub, NALULUNA from ko-fi).
+            #   "(auto-update)" alone  -> "(auto-update)"
+            #      modders already named on the Mod line above; a bare "by"
+            #      would just dangle.
+            # The marker always takes the accent colour, the name stays grey.
+            $auAccent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
+            $auMarker = $null; $auName = [string]$game.Author; $auFirst = $false
             if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
-                # Marker first, in the accent colour (like the mod line), then
-                # the normal grey "by <authors>" attribution after it.
-                $auRun = New-Object System.Windows.Documents.Run
-                $auRun.Text = "$($matches[1]) "
-                $auRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
-                [void]$authorText.Inlines.Add($auRun)
-                $byRun = New-Object System.Windows.Documents.Run
-                $byRun.Text = "by $($matches[2])"
-                $byRun.Foreground = $authGrey
-                [void]$authorText.Inlines.Add($byRun)
+                $auMarker = [string]$matches[1]; $auName = ([string]$matches[2]).Trim(); $auFirst = $true
+            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+                $auMarker = [string]$matches[2]; $auName = ([string]$matches[1]).Trim(); $auFirst = $false
+            }
+            if ($auMarker) {
+                if ($auFirst) {
+                    $auRun = New-Object System.Windows.Documents.Run
+                    $auRun.Text = $(if ($auName) { "$auMarker " } else { $auMarker })
+                    $auRun.Foreground = $auAccent
+                    [void]$authorText.Inlines.Add($auRun)
+                }
+                if ($auName) {
+                    $byRun = New-Object System.Windows.Documents.Run
+                    $byRun.Text = $(if ($auFirst) { "by $auName" } else { "by $auName " })
+                    $byRun.Foreground = $authGrey
+                    [void]$authorText.Inlines.Add($byRun)
+                }
+                if (-not $auFirst) {
+                    $auRun2 = New-Object System.Windows.Documents.Run
+                    $auRun2.Text = $auMarker
+                    $auRun2.Foreground = $auAccent
+                    [void]$authorText.Inlines.Add($auRun2)
+                }
             } else {
                 $authorText.Text = "by $($game.Author)"
                 $authorText.Foreground = $authGrey
@@ -3458,7 +3535,17 @@ function global:New-GameCardClassic {
         # hidden on the tile (detail page keeps it).
         if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authRun = New-Object System.Windows.Documents.Run
-            $authRun.Text = "by $($game.Author)"
+            # Same marker rule as the separate-line layout above - the ORDER
+            # the catalog wrote is kept - but as ONE run: this compact line
+            # is a single muted string, so there is no accent split here.
+            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+                $acName = ([string]$matches[2]).Trim()
+                $authRun.Text = $(if ($acName) { "$($matches[1]) by $acName" } else { [string]$matches[1] })
+            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+                $authRun.Text = "by $(([string]$matches[1]).Trim()) $($matches[2])"
+            } else {
+                $authRun.Text = "by $($game.Author)"
+            }
             $authRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888899")
             [void]$metaLine.Inlines.Add($authRun)
         }

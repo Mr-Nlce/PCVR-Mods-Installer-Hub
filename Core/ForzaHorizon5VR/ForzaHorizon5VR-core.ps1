@@ -1,7 +1,7 @@
 # ============================================================
 # Forza Horizon 5 VR Installer
-# lufz / VRMod (flat2VR Discord)   launcher: vrmod-launcher.exe
-# VRMod v1.3.0 supports Forza Horizon 5 and 6 from the same
+# lufz / VRMod (GitHub releases)    launcher: vrmod-launcher.exe
+# VRMod supports Forza Horizon 5 and 6 from the same
 # launcher. The launcher injects into the game; the mod files
 # must NOT live in the game folder, so we extract to
 # C:\Games\Forza Horizon 5 VR and launch from there.
@@ -14,16 +14,20 @@ $ErrorActionPreference = "Stop"
 
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 5 VR"
-$FLAT2VR_URL   = "https://discord.gg/uAeQkYBM4n"
-$LUF_POST_URL  = "https://discord.com/channels/747967102895390741/1509055901582233740/1532293105024499712"
-$ZIP_HINT      = "VRMod-v1_3_0.zip"
+# lufz publishes on GitHub now, so the download is automatic. The releases
+# are tagged as PRERELEASES, which is why the newest one is taken from
+# /releases and never from /releases/latest - the latter skips them.
+$VRMOD_REPO    = "oofz/vrmod-releases"
+$VRMOD_API     = "https://api.github.com/repos/$VRMOD_REPO/releases"
+$VRMOD_PAGE    = "https://github.com/$VRMOD_REPO/releases"
+$ZIP_HINT      = "VRMod-v1_3_3.zip"
 $LAUNCHER_NAME = "vrmod-launcher.exe"
 
 function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Forza Horizon 5 VR Installer" -ForegroundColor Cyan
-    Write-Host " lufz VRMod from the flat2VR Modding Discord" -ForegroundColor Gray
+    Write-Host " lufz VRMod - downloaded automatically from GitHub" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -73,23 +77,46 @@ Write-Host " are bundled - you download the free community mod yourself and" -Fo
 Write-Host " drag the .zip onto this window; the Hub does the rest." -ForegroundColor Gray
 Write-Host ""
 
+# Newest release INCLUDING prereleases - that is what this project ships.
+function Get-VRModRelease {
+    try {
+        $rels = Invoke-RestMethod -Uri $VRMOD_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rel = $rels | Select-Object -First 1
+        if (-not $rel) { return $null }
+        $asset = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -notlike "*source*" } | Select-Object -First 1
+        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1 }
+        if (-not $asset) { return $null }
+        return [pscustomobject]@{ Tag = $rel.tag_name; Url = $asset.browser_download_url; Name = $asset.name }
+    } catch { return $null }
+}
+
 # ---- STEP 1: get the download ----
 Pause-User "Press Enter to start..."
 Write-Step 1 5 "Downloading the mod"
-Write-Host "  lufz's VRMod is shared in the flat2VR Modding Discord." -ForegroundColor White
-Write-Host "   - First the flat2VR invite opens; accept it to join." -ForegroundColor Gray
-Write-Host "   - Then the download post opens; the file is named '$ZIP_HINT'." -ForegroundColor Gray
-Pause-User "Press Enter to open the flat2VR invite..."
-try { Start-Process $FLAT2VR_URL } catch { Write-Warn "Could not open the browser. Join manually: $FLAT2VR_URL" }
-Pause-User "Press Enter once you have joined to open the download post..."
-Write-Host "   - Opening the download post. The file is named '$ZIP_HINT'." -ForegroundColor Gray
-try { Start-Process $LUF_POST_URL } catch { Write-Warn "Could not open the post. Open manually: $LUF_POST_URL" }
-Write-Host ""
-Write-Host "   ( If Discord won't scroll, you can also copy this link manually by selecting it (Ctrl+C) and pasting it into the browser's address bar (Ctrl+V) : $LUF_POST_URL )" -ForegroundColor DarkGray
+$dlWork = Join-Path $env:TEMP ("vrmod_" + [Guid]::NewGuid().ToString("N").Substring(0,8))
+New-Item -ItemType Directory -Path $dlWork -Force | Out-Null
+$zipPath = $null
+$rel = Get-VRModRelease
+if ($rel) {
+    Write-Info "Newest VRMod release: $($rel.Tag) ($($rel.Name))"
+    $target = Join-Path $dlWork $rel.Name
+    Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE | Out-Null
+    if (Test-Path -LiteralPath $target) { $zipPath = $target }
+}
+if (-not $zipPath) {
+    $found = Find-PredownloadedFile -Patterns @("VRMod-v*.zip", "*VRMod*.zip") -Label "the VRMod package"
+    if ($found) { $zipPath = $found }
+}
 
-# ---- STEP 2: drag the zip ----
+# ---- STEP 2: browser + drag & drop, only if the download failed ----
 Write-Step 2 5 "Locating the downloaded zip"
-$zipPath = Get-DraggedZip -ExpectHint $ZIP_HINT
+if (-not $zipPath) {
+    Write-Warn "Automatic download did not work."
+    Write-Host "  Opening the releases page - take the newest VRMod zip." -ForegroundColor Gray
+    Pause-User "Press Enter to open the releases page..."
+    try { Start-Process $VRMOD_PAGE } catch { Write-Warn "Open manually: $VRMOD_PAGE" }
+    $zipPath = Get-DraggedZip -ExpectHint $ZIP_HINT
+}
 if (-not $zipPath) { Write-Info "No zip provided - cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
 $zipLeaf = Split-Path -Leaf $zipPath
 if ($zipLeaf -notlike "VRMod-*") {
@@ -145,6 +172,26 @@ try {
 # Record install path + launcher for the Hub. Single-mod game: the
 # .launch_exe override makes "Start in VR" open vrmod-launcher.exe
 # directly (unlike FH6, which keeps the two-mod choice instead).
+# DOES THIS BUILD STILL COVER FORZA HORIZON 5? The launcher drives each
+# game from a profile in profiles\. v1.3.3 shipped WITHOUT
+# forza_horizon_5.json and lists only Forza Horizon 6 as supported, so a
+# newer release can silently be an FH6-only build - and then Install and
+# Play stay greyed out with no explanation. Say so plainly instead, and
+# point at the older release that still has the profile. Checked, never
+# guessed: the file is either there or it is not.
+$fh5Profile = Join-Path $installRoot "profiles\forza_horizon_5.json"
+if (-not (Test-Path -LiteralPath $fh5Profile)) {
+    Write-Host ""
+    Write-Warn "This VRMod build does NOT include a Forza Horizon 5 profile."
+    Write-Host "  The launcher needs profiles\forza_horizon_5.json to drive FH5;" -ForegroundColor White
+    Write-Host "  without it, Install VR Mod and Play in VR stay disabled for" -ForegroundColor White
+    Write-Host "  this game. Newer builds have been focusing on Horizon 6." -ForegroundColor White
+    Write-Host "  If FH5 is what you want, take an older release that still has" -ForegroundColor White
+    Write-Host "  that profile:" -ForegroundColor White
+    Write-Host "    $VRMOD_PAGE" -ForegroundColor Gray
+    Write-Host ""
+}
+
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
 try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcherPath -Encoding UTF8 -Force } catch {}
 
@@ -160,7 +207,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcher
 # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
 # so the Hub had to track them as 1.2.1b/1.2.1c. lufz moved to a real
 # 1.2.3, so that workaround is retired - the zip is honest again.)
-$lufzVer = "1.3.0"
+$lufzVer = "1.3.3"
 $lufzVerFile = Join-Path $installRoot "VERSION"
 $lufzVerFound = $false
 if (Test-Path -LiteralPath $lufzVerFile) {
@@ -183,16 +230,25 @@ Write-Host " lufz VRMod - HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " 1) Start from the desktop shortcut (or run vrmod-launcher.exe)." -ForegroundColor White
-Write-Host " 2) Browse to your ForzaHorizon5.exe (or start the game and use" -ForegroundColor White
-Write-Host "    Auto-detect Running), select it, then click 'Install VR Mod'" -ForegroundColor White
-Write-Host "    (needed once per game install folder)." -ForegroundColor White
+Write-Host " 2) Click '+ Add Game' and pick the game FOLDER, select the row," -ForegroundColor White
+Write-Host "    then click 'Install VR Mod' (once per game install folder)." -ForegroundColor White
+Write-Host "    On Game Pass pick " -NoNewline -ForegroundColor White
+Write-Host " C:\XboxGames\Forza Horizon 5\Content " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " -" -ForegroundColor White
+Write-Host "    Windows blocks opening the exe there. On Steam you can also" -ForegroundColor White
+Write-Host "    use '+ Add .exe', or 'Auto-detect Running' if it is open." -ForegroundColor White
 Write-Host " 3) Start SteamVR, then click 'Play in VR' - it launches the" -ForegroundColor White
 Write-Host "    game, or enables the headset if it is already running" -ForegroundColor White
 Write-Host "    (best from the main menu, garage, or while driving)." -ForegroundColor White
 Write-Host ""
 Write-Host " Settings: for OpenXR 6DoF turn HDR OFF and set in-game FOV to" -ForegroundColor Gray
-Write-Host " maximum. SimVR allows frame generation. On NVIDIA you can try" -ForegroundColor Gray
-Write-Host " the experimental Frame Generation toggle in the launcher." -ForegroundColor Gray
+Write-Host " maximum." -ForegroundColor Gray
+Write-Host ""
+Write-Host " Leave " -NoNewline -ForegroundColor White
+Write-Host " Frame Generation " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " OFF - the mod author asks for that" -ForegroundColor White
+Write-Host " with this version. It also clears out a few old config values" -ForegroundColor White
+Write-Host " that could cause trouble - the rest of your tuning stays." -ForegroundColor White
 Write-Host ""
 Write-Host " Your VR mod is installed here (opening it now):" -ForegroundColor White
 Write-Host "   $installRoot" -ForegroundColor Gray

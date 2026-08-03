@@ -79,7 +79,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.4.7"
+$HUB_VERSION = "0.8.5.0"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -236,12 +236,28 @@ function Write-InstalledVersion {
     } catch {}
 }
 
-# Remove installed version file (used when user clicks Update).
+# Second tracked version, for entries that carry TWO independent mods in
+# one catalog tile (BioShock: balouza and BioVRDev). Same folder, distinct
+# file, so each mod's release can be tracked on its own.
+function Get-InstalledVersionPathB {
+    param($Game)
+    $p = Get-InstalledVersionPath -Game $Game
+    if (-not $p) { return $null }
+    return ($p + "_b")
+}
+
+# Remove installed version file (used when user clicks Update). The second
+# marker goes with it - otherwise a two-mod entry would keep a stale
+# version for mod B and show Update forever after an install.
 function Remove-InstalledVersion {
     param($Game)
     $path = Get-InstalledVersionPath -Game $Game
     if ($path -and (Test-Path $path)) {
         Remove-Item $path -Force -ErrorAction SilentlyContinue
+    }
+    $pathB = Get-InstalledVersionPathB -Game $Game
+    if ($pathB -and (Test-Path $pathB)) {
+        Remove-Item $pathB -Force -ErrorAction SilentlyContinue
     }
 }
 

@@ -1348,6 +1348,90 @@ Rebuild-Lookups
 # Side-effects: rebuilds $global:gameStateMap, repaints all cards,
 # and updates the status pill text.
 
+# TwoMods presence probe - which of a two-mod entry's launchers are on
+# disk, and where. Shared on purpose: the full scan AND the post-install
+# refresh both need it. Before this existed the refresh wrote a minimal
+# state entry without any TwoMods fields, so a freshly installed two-mod
+# game showed a single button until the Hub was restarted.
+function global:Get-TwoModsPresence {
+    param($Game, [string]$FallbackRoot)
+    $res = @{ APresent = $false; BPresent = $false; ADir = $null; BDir = $null; Root = $null }
+    if (-not $Game -or -not $Game.TwoMods) { return $res }
+    # The recorded .installed_path is the precise answer - but it lives in
+    # the HUB folder, so a fresh Hub (or one installed next to an older
+    # one) has none even though the mods are sitting in the game folder.
+    # In that case fall back to the folder the scan already resolved, so
+    # an install made by another Hub still shows both mods instead of a
+    # single button.
+    $root = $null
+    $ipf = Get-InstalledPathFile -Game $Game
+    if ($ipf -and (Test-Path $ipf)) {
+        try { $root = Read-InstalledPath -Game $Game } catch {}
+    }
+    if ((-not $root) -and $FallbackRoot) {
+        try { if (Test-Path -LiteralPath $FallbackRoot) { $root = $FallbackRoot } } catch {}
+    }
+    if (-not $root -or -not (Test-Path $root)) { return $res }
+    $res.Root = $root
+    # Each mod's launcher lives somewhere under its subfolder - searched
+    # RECURSIVELY so a mod that unpacked one level deeper still counts.
+    if ($Game.ModASub -and $Game.ModALaunch) {
+        $subA = Join-Path $root $Game.ModASub
+        if (Test-Path $subA) {
+            $hitA = Get-ChildItem -Path $subA -Filter $Game.ModALaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hitA) { $res.APresent = $true; $res.ADir = (Split-Path -Parent $hitA.FullName) }
+        }
+    }
+    if ($Game.ModBSub -and $Game.ModBLaunch) {
+        $subB = Join-Path $root $Game.ModBSub
+        if (Test-Path $subB) {
+            $hitB = Get-ChildItem -Path $subB -Filter $Game.ModBLaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($hitB) { $res.BPresent = $true; $res.BDir = (Split-Path -Parent $hitB.FullName) }
+        }
+    }
+    return $res
+}
+
+# DualMode presence probe - are BOTH the pinned-depot build and a current
+# Steam-library build modded? Shared for the same reason as the TwoMods
+# probe above: the full scan and the post-install refresh must agree, or
+# the split button disappears until the Hub is restarted.
+# $Libs is optional - the scan already has its library list and passes it
+# in; the refresh has none and lets the function look them up itself.
+function global:Get-DualModePresence {
+    param($Game, $Libs)
+    $res = @{ BothPresent = $false; CurrentDir = $null; DepotDir = $null }
+    if (-not $Game -or -not $Game.DualMode -or -not $Game.DepotPath -or -not $Game.ModFile) { return $res }
+    if (-not (Test-Path (Join-Path $Game.DepotPath $Game.ModFile))) { return $res }
+    if (-not $Game.SteamFolder) { return $res }
+    if (-not $Libs -or $Libs.Count -eq 0) {
+        $Libs = @()
+        $sp = $null
+        foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
+            try { $p = (Get-ItemProperty -Path $reg -EA Stop).InstallPath; if ($p -and (Test-Path $p)) { $sp = $p; break } } catch {}
+        }
+        if ($sp) {
+            $Libs += $sp
+            $vdf = Join-Path $sp "steamapps\libraryfolders.vdf"
+            if (Test-Path $vdf) {
+                [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
+                    $l = $_.Groups[1].Value -replace '\\\\', '\'; if (Test-Path $l) { $Libs += $l }
+                }
+            }
+        }
+    }
+    foreach ($lib in $Libs) {
+        $c = Join-Path $lib "steamapps\common\$($Game.SteamFolder)"
+        if ((Test-Path $c) -and (Test-Path (Join-Path $c $Game.ModFile))) {
+            $res.BothPresent = $true
+            $res.CurrentDir  = $c
+            $res.DepotDir    = $Game.DepotPath
+            break
+        }
+    }
+    return $res
+}
+
 # Online state for the scan's per-game version checks. Once the server
 # is found unreachable we stop probing for the rest of the session; an
 # explicit Check Installed click clears it to probe fresh again.
@@ -1652,6 +1736,10 @@ function global:Invoke-RotatingOnlinePrewarm {
                     } catch {}
                 }
                 $items += , @{ K = "gh"; A = $repo; P = [bool]$g.GithubPrerelease }
+                # Two-mod entries track a second repo - warm that one as well,
+                # otherwise its badge check would be the only live call left
+                # in the scan.
+                if ($g.GithubRepoB) { $items += , @{ K = "gh"; A = $g.GithubRepoB; P = [bool]$g.GithubPrerelease } }
             } elseif ($g.WebVersionUrl) {
                 $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title }
             }
@@ -1733,6 +1821,36 @@ function global:Unlock-ScanUi {
 # the user opted into full scans - doing so made every installer end with an
 # unwanted scan over all games.
 $global:UserRanFullScan = $false
+
+# Align the TopScanSlot's left edge with where the STATE pills begin one
+# row below, so the "X on PC | Y VR Ready" totals sit exactly above the
+# spot the Scan games button used to occupy.
+#
+# This is a MEASUREMENT, so it only produces a correct result once the
+# window has really been laid out. The startup (pre-paint) scan runs
+# before ShowDialog, where the visual tree has never been arranged and
+# the measured X positions are meaningless - the totals then end up too
+# far left. Startup.ps1 therefore calls this again after ContentRendered.
+# Safe to call repeatedly: $slotX already includes the current margin, so
+# the correction converges instead of drifting.
+function global:Align-TopScanSlot {
+    try {
+        $slot = $global:window.FindName("TopScanSlot")
+        if (-not $slot) { return }
+        $global:window.UpdateLayout()
+        $stateLbl = $global:window.FindName("StateLabel")
+        if (-not $stateLbl) { return }
+        # Target = where the State pills (and the old Scan games button)
+        # BEGIN = STATE label RIGHT edge + its right margin, not its left
+        # edge. That puts the totals exactly above the old button spot.
+        $zero    = [System.Windows.Point]::new(0,0)
+        $targetX = ($stateLbl.TransformToVisual($global:window).Transform($zero).X) + $stateLbl.ActualWidth + 8
+        $slotX   = $slot.TransformToVisual($global:window).Transform($zero).X
+        $newLeft = $slot.Margin.Left + ($targetX - $slotX)
+        if ($newLeft -lt 0) { $newLeft = 0 }
+        $slot.Margin = [System.Windows.Thickness]::new($newLeft, 0, 0, 0)
+    } catch {}
+}
 
 function global:Invoke-CheckInstalledScan {
     $global:UserRanFullScan = $true
@@ -2435,26 +2553,15 @@ function global:Invoke-CheckInstalledScan {
         $dualModeBothPresent = $false
         $dualModeCurrentDir  = $null
         $dualModeDepotDir    = $null
-        if ($vrInstalled -and $game.DualMode -and $game.DepotPath -and $game.ModFile) {
-            $depotHasMod = (Test-Path (Join-Path $game.DepotPath $game.ModFile))
+        if ($vrInstalled) {
             # Mode 1 candidate: any Steam-library steamapps\common\<SteamFolder>
-            # that has the ModFile.
-            $currentHasMod = $false
-            $currentDir    = $null
-            if ($game.SteamFolder) {
-                foreach ($lib in $steamLibs) {
-                    $c = Join-Path $lib "steamapps\common\$($game.SteamFolder)"
-                    if ((Test-Path $c) -and (Test-Path (Join-Path $c $game.ModFile))) {
-                        $currentHasMod = $true
-                        $currentDir    = $c
-                        break
-                    }
-                }
-            }
-            if ($depotHasMod -and $currentHasMod) {
+            # that has the ModFile, next to the pinned depot build. Shared
+            # probe (above) so the post-install refresh sees the same thing.
+            $dmProbe = Get-DualModePresence -Game $game -Libs $steamLibs
+            if ($dmProbe.BothPresent) {
                 $dualModeBothPresent = $true
-                $dualModeCurrentDir  = $currentDir
-                $dualModeDepotDir    = $game.DepotPath
+                $dualModeCurrentDir  = $dmProbe.CurrentDir
+                $dualModeDepotDir    = $dmProbe.DepotDir
             }
         }
 
@@ -2469,31 +2576,17 @@ function global:Invoke-CheckInstalledScan {
         $tmAPresent = $false
         $tmBPresent = $false
         if ($game.TwoMods) {
-            $tmIpf = Get-InstalledPathFile -Game $game
-            if ($tmIpf -and (Test-Path $tmIpf)) {
-                $tmParent = $null
-                try { $tmParent = Read-InstalledPath -Game $game } catch {}
-                if ($tmParent -and (Test-Path $tmParent)) {
-                    # Per-mod presence. Each mod installs into its own
-                    # subfolder under the recorded parent. We search the
-                    # subfolder RECURSIVELY for the launcher so a mod that
-                    # unpacked one level deep still counts. The launch
-                    # choice is offered as soon as EITHER mod is present;
-                    # a missing mod's button routes to its installer.
-                    if ($game.ModASub -and $game.ModALaunch) {
-                        $subA = Join-Path $tmParent $game.ModASub
-                        if (Test-Path $subA) {
-                            $hitA = Get-ChildItem -Path $subA -Filter $game.ModALaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                            if ($hitA) { $tmAPresent = $true; $twoModsADir = (Split-Path -Parent $hitA.FullName) }
-                        }
-                    }
-                    if ($game.ModBSub -and $game.ModBLaunch) {
-                        $subB = Join-Path $tmParent $game.ModBSub
-                        if (Test-Path $subB) {
-                            $hitB = Get-ChildItem -Path $subB -Filter $game.ModBLaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                            if ($hitB) { $tmBPresent = $true; $twoModsBDir = (Split-Path -Parent $hitB.FullName) }
-                        }
-                    }
+            # Presence comes from the shared probe (above), so the scan and
+            # the post-install refresh can never disagree about which mods
+            # are on disk. The launch choice is offered as soon as EITHER
+            # mod is present; a missing mod's button routes to its installer.
+            $tmProbe  = Get-TwoModsPresence -Game $game -FallbackRoot $gameDir
+            $tmParent = $tmProbe.Root
+            if ($tmParent) {
+                    $tmAPresent  = $tmProbe.APresent
+                    $tmBPresent  = $tmProbe.BPresent
+                    $twoModsADir = $tmProbe.ADir
+                    $twoModsBDir = $tmProbe.BDir
                     if ($tmAPresent -or $tmBPresent) {
                         # If a ModFile is defined (GTA5 verifies RealVR.asi),
                         # require it at the recorded path too - a leftover
@@ -2502,13 +2595,24 @@ function global:Invoke-CheckInstalledScan {
                         if ($game.ModFile) {
                             $tmRoot = $null
                             try { $tmRoot = Read-InstalledPath -Game $game } catch {}
+                            if (-not $tmRoot) { $tmRoot = $tmParent }
+                            # ModFileAlt matters here: BioShock's Epic build
+                            # keeps the exe in Build\FinalEpic, so testing
+                            # only ModFile would leave every Epic install
+                            # short of VR Ready in this branch.
                             if ($tmRoot -and (Test-Path (Join-Path $tmRoot $game.ModFile))) { $vrInstalled = $true }
+                            elseif ($tmRoot -and $game.ModFileAlt -and (Test-Path (Join-Path $tmRoot $game.ModFileAlt))) { $vrInstalled = $true }
                         } else {
                             $vrInstalled = $true
                         }
                     }
-                    $twoModsAnyPresent = ($tmAPresent -or $tmBPresent)
-                }
+                    # TwoModsRequireBoth: some games must NOT offer the
+                    # choice until both mods are really installed. BioShock
+                    # is one - its two mods cannot coexist in the game
+                    # folder, so the switch only makes sense once both are
+                    # parked on disk.
+                    if ($game.TwoModsRequireBoth) { $twoModsAnyPresent = ($tmAPresent -and $tmBPresent) }
+                    else { $twoModsAnyPresent = ($tmAPresent -or $tmBPresent) }
             }
         }
 
@@ -2517,7 +2621,12 @@ function global:Invoke-CheckInstalledScan {
         # absent, detect each mod directly from its real file on disk - so a
         # GTA5 install done by ANOTHER Hub still shows that Motion is
         # available, not just VR Ready.
-        if ($game.TwoMods -and $gameDir) {
+        # TwoModsRequireBoth games are skipped here on purpose: their two
+        # mods share the game folder, so a file probe cannot tell them
+        # apart (BioShock's payloads are BioshockVR.dll and bioshockvr.dll -
+        # the same name on Windows). Only the per-mod launchers written by
+        # the installer are trustworthy for those.
+        if ($game.TwoMods -and $gameDir -and -not $game.TwoModsRequireBoth) {
             if (-not $tmAPresent -and $game.ModFile -and (Test-Path (Join-Path $gameDir $game.ModFile))) {
                 $tmAPresent = $true
             }
@@ -2659,8 +2768,20 @@ function global:Invoke-CheckInstalledScan {
                 }
                 if ($ghVer) {
                     if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $ghVer
-                        $installedVer = $ghVer
+                        # Seeding a missing marker with the current tag says
+                        # "no marker = just installed latest". That only holds
+                        # when the tracked mod is the ONLY mod for the entry.
+                        # On a TwoMods entry (Forza Horizon 6: NALULUNA from
+                        # ko-fi OR lufz from GitHub) the installer writes the
+                        # marker ONLY for the lufz branch - so a missing
+                        # marker means "lufz is not installed here". Seeding
+                        # it anyway would nag a NALULUNA user with an Update
+                        # badge for a mod they never installed. NoVersionSeed
+                        # keeps that entry silent until lufz is really there.
+                        if (-not $game.NoVersionSeed) {
+                            Write-InstalledVersion -Game $game -Version $ghVer
+                            $installedVer = $ghVer
+                        }
                     } elseif ($installedVer -ne $ghVer) {
                         $needsUpdate = $true
                     }
@@ -2748,6 +2869,48 @@ function global:Invoke-CheckInstalledScan {
                     # comparison from then on.
                     $needsUpdate = $true
                 }
+            } elseif ($game.GithubRepoB) {
+                # TWO INDEPENDENT MODS IN ONE TILE (BioShock: balouza and
+                # BioVRDev). Each mod has its own repo and its own version
+                # marker, and a repo is only checked when THAT mod is really
+                # on disk - a balouza release must never raise an Update
+                # badge on a BioVRDev-only install. With both installed,
+                # either repo can raise it. Presence is decided by the file
+                # each mod parks in its own store; both fields may list
+                # alternatives separated by "|" (Steam's Build\Final and
+                # Epic's Build\FinalEpic).
+                $twoRootV = $null
+                try { $twoRootV = Read-InstalledPath -Game $game } catch {}
+                if (-not $twoRootV) { $twoRootV = $gameDir }
+                $twoPairs = @()
+                if ($twoRootV -and (Test-Path -LiteralPath $twoRootV)) {
+                    $twoDefs = @(
+                        @{ Probe = $game.GithubRepoPresenceFile;  Repo = $game.GithubRepo;  Path = (Get-InstalledVersionPath  -Game $game) },
+                        @{ Probe = $game.GithubRepoBPresenceFile; Repo = $game.GithubRepoB; Path = (Get-InstalledVersionPathB -Game $game) }
+                    )
+                    foreach ($td in $twoDefs) {
+                        if (-not $td.Probe -or -not $td.Repo -or -not $td.Path) { continue }
+                        foreach ($cand in (([string]$td.Probe) -split '\|')) {
+                            $cand = $cand.Trim()
+                            if (-not $cand) { continue }
+                            if (Test-Path -LiteralPath (Join-Path $twoRootV $cand)) { $twoPairs += , $td; break }
+                        }
+                    }
+                }
+                foreach ($tp in $twoPairs) {
+                    $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$game.GithubPrerelease)
+                    if (-not $tag) { continue }
+                    $have = $null
+                    if (Test-Path -LiteralPath $tp.Path) {
+                        try { $have = (Get-Content -LiteralPath $tp.Path -Raw -ErrorAction Stop).Trim() } catch {}
+                    }
+                    if ([string]::IsNullOrWhiteSpace($have)) {
+                        # First scan after an install: seed, don't nag.
+                        try { [System.IO.File]::WriteAllText($tp.Path, $tag, (New-Object System.Text.UTF8Encoding $false)) } catch {}
+                    } elseif ($have -ne $tag) {
+                        $needsUpdate = $true
+                    }
+                }
             } elseif ($game.GithubRepo) {
                 # GitHub release check: latest tag vs the installed version.
                 # Mirrors the Thunderstore branch above. Seeds the cache on
@@ -2769,8 +2932,20 @@ function global:Invoke-CheckInstalledScan {
                 $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:([bool]$game.GithubPrerelease)
                 if ($ghVer) {
                     if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $ghVer
-                        $installedVer = $ghVer
+                        # Seeding a missing marker with the current tag says
+                        # "no marker = just installed latest". That only holds
+                        # when the tracked mod is the ONLY mod for the entry.
+                        # On a TwoMods entry (Forza Horizon 6: NALULUNA from
+                        # ko-fi OR lufz from GitHub) the installer writes the
+                        # marker ONLY for the lufz branch - so a missing
+                        # marker means "lufz is not installed here". Seeding
+                        # it anyway would nag a NALULUNA user with an Update
+                        # badge for a mod they never installed. NoVersionSeed
+                        # keeps that entry silent until lufz is really there.
+                        if (-not $game.NoVersionSeed) {
+                            Write-InstalledVersion -Game $game -Version $ghVer
+                            $installedVer = $ghVer
+                        }
                     } elseif ($installedVer -ne $ghVer) {
                         $needsUpdate = $true
                     }
@@ -2859,6 +3034,28 @@ function global:Invoke-CheckInstalledScan {
             # Trade-off: someone who installed the OLD build in the last 7
             # days before the new release misses the badge - acceptable;
             # push ModReleasedAt a week later if that ever matters.
+            # EXACT VARIANT for mods with no version number anywhere
+            # (Patreon downloads): ModBuildStamp = "yyyy-MM-dd HH:mm"
+            # is the LastWriteTime the modder's own build carries INSIDE
+            # the zip. Zip extraction preserves that timestamp, so every
+            # install of a given build has the same stamp on disk - no
+            # matter WHEN it was extracted. An older build therefore
+            # always reads older, and a fresh one always reads current.
+            # This is stricter than ModReleasedAt below, which has to
+            # fall back on the install moment and cannot tell "installed
+            # the old build yesterday" from "installed the new one".
+            # A 2h slack absorbs timezone/DST oddities in zip stamps.
+            if (-not $needsUpdate -and $game.ModBuildStamp -and $game.ModFile -and $gameDir) {
+                try {
+                    $bsFile = Join-Path $gameDir $game.ModFile
+                    if (Test-Path -LiteralPath $bsFile) {
+                        $bsDate = [DateTime]::ParseExact([string]$game.ModBuildStamp, 'yyyy-MM-dd HH:mm', [System.Globalization.CultureInfo]::InvariantCulture)
+                        $bsItem = Get-Item -LiteralPath $bsFile -ErrorAction Stop
+                        if ($bsItem.LastWriteTime -lt $bsDate.AddHours(-2)) { $needsUpdate = $true }
+                    }
+                } catch {}
+            }
+
             if (-not $needsUpdate -and $game.ModReleasedAt -and $game.ModFile -and $gameDir) {
                 try {
                     $mrFile = Join-Path $gameDir $game.ModFile
@@ -3267,26 +3464,16 @@ function global:Invoke-CheckInstalledScan {
         $hg.Margin = [System.Windows.Thickness]::new(0)
         $slot.Children.Add($hg) | Out-Null
 
-        # Align the slot's left edge with where STATE begins one row below, so
-        # the totals sit exactly above the spot the Scan games button used to
-        # occupy. Pills are left-docked => x positions are fixed, so a one-time
-        # measure after layout is stable.
-        try {
-            $global:window.UpdateLayout()
-            $stateLbl = $global:window.FindName("StateLabel")
-            if ($stateLbl) {
-                $zero  = [System.Windows.Point]::new(0,0)
-                # Target = where the State pills (and the old Scan games button)
-                # BEGIN = STATE label RIGHT edge + its right margin, not its left
-                # edge. That puts the totals exactly above the old button spot.
-                $targetX = ($stateLbl.TransformToVisual($global:window).Transform($zero).X) + $stateLbl.ActualWidth + 8
-                $slotX   = $slot.TransformToVisual($global:window).Transform($zero).X
-                $newLeft = $slot.Margin.Left + ($targetX - $slotX)
-                if ($newLeft -lt 0) { $newLeft = 0 }
-                $slot.Margin = [System.Windows.Thickness]::new($newLeft, 0, 0, 0)
-            }
-        } catch {}
+        # Pre-paint startup scan: the window has not been shown yet, so the
+        # measurement below cannot work and nobody can see an animation.
+        # Set the final state and let Startup.ps1 re-align after the first
+        # real layout (ContentRendered).
+        $prePaint = [bool]$global:PrePaintScanActive
 
+        Align-TopScanSlot
+        if ($prePaint) { $global:TopScanSlotNeedsAlign = $true }
+
+        if (-not $prePaint) {
         $tt = New-Object System.Windows.Media.TranslateTransform
         $tt.Y = 46
         $hg.RenderTransform = $tt
@@ -3341,6 +3528,19 @@ function global:Invoke-CheckInstalledScan {
             }
         })
         $script:pillRevealTimer.Start()
+        } else {
+            # Pre-paint startup scan: no animation choreography to protect,
+            # so show the pills right away. The very first frame the user
+            # sees is then the finished layout - no counter sitting in the
+            # wrong spot for half a second and jumping sideways after.
+            $gp = $global:window.FindName("InstalledFilterGroup")
+            if ($gp) {
+                $gp.Visibility = [System.Windows.Visibility]::Visible
+                $gp.Opacity = 1
+                if (Get-Command Set-InstallFilterMode -ErrorAction SilentlyContinue) { Set-InstallFilterMode $script:installFilterMode }
+            }
+            if ($hg) { $hg.Opacity = 1 }
+        }
     } else {
         # Re-scan: button already in the header and pills already showing - just
         # make sure they are visible and correctly painted.
@@ -3527,13 +3727,43 @@ function global:Invoke-PostInstallRefresh {
                 }
                 if ($recordedPath -and (Test-Path $recordedPath) -and $modPresent) {
                     $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
-                    $global:gameStateMap[$title] = @{
+                    $stateEntry = @{
                         Tag     = "vrinstalled"
                         Accent  = $accentHex
                         State   = "ready"
                         BtnText = "VR Ready"
                         GameDir = $recordedPath
                     }
+                    # Two-mod entries need their per-mod fields here too.
+                    # Without them this fast path wrote a state without any
+                    # TwoMods info, and the tile fell back to ONE button
+                    # until the Hub was restarted - exactly what happened
+                    # after installing the second BioShock mod. Same probe
+                    # as the full scan, so both agree.
+                    # Same story for DualMode games (Bendy, Content Warning):
+                    # without these the split between the current build and
+                    # the pinned depot build only appeared after a restart.
+                    if ($game.DualMode) {
+                        $dm = Get-DualModePresence -Game $game
+                        if ($dm.BothPresent) {
+                            $stateEntry.DualMode   = $true
+                            $stateEntry.CurrentDir = $dm.CurrentDir
+                            $stateEntry.DepotDir   = $dm.DepotDir
+                        }
+                    }
+                    if ($game.TwoMods) {
+                        $pi = Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath
+                        $anyTwo = if ($game.TwoModsRequireBoth) { $pi.APresent -and $pi.BPresent }
+                                  else { $pi.APresent -or $pi.BPresent }
+                        $stateEntry.TwoMods     = $anyTwo
+                        $stateEntry.ModAPresent = $pi.APresent
+                        $stateEntry.ModBPresent = $pi.BPresent
+                        $stateEntry.ModADir     = $pi.ADir
+                        $stateEntry.ModBDir     = $pi.BDir
+                        $stateEntry.ModAName    = $game.ModAName
+                        $stateEntry.ModBName    = $game.ModBName
+                    }
+                    $global:gameStateMap[$title] = $stateEntry
                     # Repaint the library/list card for this title.
                     # Rebuild-Lookups walks every card and applies
                     # whatever is in gameStateMap; cards without a

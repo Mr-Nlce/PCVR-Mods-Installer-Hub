@@ -17,9 +17,27 @@ $hoverGroup          = $window.FindName("CheckInstalledHoverGroup")
 # already active" behavior naturally.
 Add-GlowHover -Border $checkOnStartupBtn -AccentHex "#5aa880"
 
+# Single reader for the persisted flag - used by the toggle, its visual
+# state and the startup scan, so all three can never disagree.
+#
+# WHY NOT A PLAIN [bool] CAST: [bool]"False" is TRUE in PowerShell (any
+# non-empty string is true). If the value ever ends up in the JSON as a
+# STRING instead of a real boolean, a plain cast makes the setting
+# impossible to switch off - it reads "on" forever, no matter how often
+# the user clicks it. This reader takes the stored text at face value.
+function global:Get-CheckOnStartupFlag {
+    $raw = Get-HubSetting -Key "checkOnStartup" -Default $false
+    if ($null -eq $raw) { return $false }
+    if ($raw -is [bool]) { return [bool]$raw }
+    $s = ([string]$raw).Trim()
+    if ($s -match '^(?i)(false|0|no|off)$') { return $false }
+    if ($s -match '^(?i)(true|1|yes|on)$')  { return $true }
+    return [bool]$raw
+}
+
 # Style helper: paint the toggle to reflect on/off state.
 function global:Update-CheckOnStartupVisualState {
-    $on = [bool](Get-HubSetting -Key "checkOnStartup" -Default $false)
+    $on = Get-CheckOnStartupFlag
     if (-not $checkOnStartupBtn) { return }
     if ($on) {
         $checkOnStartupBtn.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e4ade80")
@@ -94,28 +112,17 @@ if ($checkOnStartupBtn) {
 # Toggle the persisted flag on click and update visuals.
 if ($checkOnStartupBtn) {
     $checkOnStartupBtn.Add_PreviewMouseLeftButtonDown({
-        $cur = [bool](Get-HubSetting -Key "checkOnStartup" -Default $false)
-        Set-HubSetting -Key "checkOnStartup" -Value (-not $cur)
+        $cur = Get-CheckOnStartupFlag
+        # Write a REAL boolean (not a string) so the JSON holds
+        # true/false and the reader above never has to guess.
+        Set-HubSetting -Key "checkOnStartup" -Value ([bool](-not $cur))
         Update-CheckOnStartupVisualState
     })
 }
 
-# Auto-trigger Check Installed at startup if the user enabled it.
-# We use the dispatcher to fire after the window is fully loaded
-# and the click handler can reach all UI elements.
-if ([bool](Get-HubSetting -Key "checkOnStartup" -Default $false)) {
-    $window.Dispatcher.BeginInvoke([System.Windows.Threading.DispatcherPriority]::Background, [action]{
-        try {
-            # Check on Startup is the ONLY update check most users ever
-            # run, so it must check ONLINE - same as a manual click. The
-            # circuit breaker (see Invoke-ScanWebGet) caps an unreachable
-            # server at a single ~2s timeout and then falls back to disk
-            # for the rest, so a slow/dead server can't freeze the scan.
-            $global:HubScanOnlineDown = $false
-            Invoke-CheckInstalledScan
-        } catch { }
-    }) | Out-Null
-}
+# Check on Startup: the scan now runs PRE-PAINT, shortly before
+# ShowDialog - see the block right above the ShowDialog timing marker
+# at the end of this file. Nothing to wire up here any more.
 
 # Desktop shortcut: ensure one exists AND points at the current icon.
 # There is deliberately no "already created" flag: the Hub simply writes
@@ -341,6 +348,17 @@ $window.Add_ContentRendered({
     try { Set-Content -Path (Join-Path $env:TEMP "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue } catch { }
 })
 
+# The startup scan ran BEFORE the window was shown, so the counter's
+# header slot was positioned against a visual tree that had never been
+# arranged - the "X on PC | Y VR Ready" totals then sit too far left.
+# Now that a real layout exists, measure once more. Only ever runs when
+# the pre-paint scan set the flag; a normal start does nothing here.
+$window.Add_ContentRendered({
+    if (-not $global:TopScanSlotNeedsAlign) { return }
+    $global:TopScanSlotNeedsAlign = $false
+    try { if (Get-Command Align-TopScanSlot -ErrorAction SilentlyContinue) { Align-TopScanSlot } } catch { }
+})
+
 $window.Add_ContentRendered({
     try {
         $depotCatalog = @($ownGames + $ownGamesGP)
@@ -463,6 +481,56 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
             }.GetNewClosure()
         ) | Out-Null
     }
+}
+
+# ---------------------------------------------------------------
+# Check on Startup - PRE-PAINT scan (design decision 2026-08-01).
+# The setting is persisted in .hub-settings.json ("checkOnStartup").
+# With it active, the full scan runs HERE: the cards already exist
+# (built in Window.ps1 at load) and the start view is restored, but
+# ShowDialog has not run yet. The FIRST frame the user ever sees is
+# the scanned state - no unscanned tiles that reload moments later.
+#
+# The launcher splash covers the whole wait: its ready flag is only
+# written at ContentRendered, so it simply stays up (progress bar =
+# visible sign of life, no perceived freeze), and its pacing
+# self-corrects from the next run on because PCVRHub_lastload.txt
+# records the real duration including the scan.
+#
+# The scan checks ONLINE, same as a manual click - Check on Startup
+# is the only update check most users ever run. The circuit breaker
+# (Invoke-ScanWebGet) caps an unreachable server at one ~2s timeout,
+# then disk-only for the rest, so a dead network cannot hold the
+# splash hostage. Crash safety: a failing scan must NEVER keep the
+# window from showing - same cleanup as the manual click handler.
+# ---------------------------------------------------------------
+# Logged unconditionally: if the Hub ever scans when the toggle is off (or
+# the other way round), this line says which value the gate actually read.
+Write-HubTiming ("checkOnStartup resolved to: {0}" -f (Get-CheckOnStartupFlag))
+if (Get-CheckOnStartupFlag) {
+    Write-HubTiming "before startup scan (pre-paint)"
+    if (-not ($global:ScanInProgress -or $global:ScanQueued)) {
+        $global:HubScanOnlineDown = $false
+        # Tells the scan epilog that the window is not on screen yet: it
+        # then skips the lift-off animation, shows the Needs Mod / VR Ready
+        # pills immediately, and flags the header slot for a re-measure
+        # (positions cannot be measured before the first layout).
+        $global:PrePaintScanActive = $true
+        try { Invoke-CheckInstalledScan }
+        catch {
+            Unlock-ScanUi
+            try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+            $global:ScanInProgress = $false
+        }
+        finally { $global:PrePaintScanActive = $false }
+        # Library tiles read their status pills from gameStateMap,
+        # which the scan just filled. Sync them now so a LIBRARY
+        # start view is scanned-first too - cheap (map lookups, no
+        # disk probing), and guarded because the discover panel only
+        # exists when the library view was restored above.
+        try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch { }
+    }
+    Write-HubTiming "after startup scan (pre-paint)"
 }
 
 Write-HubTiming "before ShowDialog (window goes interactive next)"
