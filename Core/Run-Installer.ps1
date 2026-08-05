@@ -109,6 +109,22 @@ switch ($Kind) {
             if ((-not $selfElevates) -or $wrapperIsAdmin) {
                 $m = [regex]::Match($batText, '(?i)-File\s+"%~dp0([^"]+\.ps1)"')
                 if ($m.Success) { $coreScript = Join-Path (Split-Path $BatPath -Parent) $m.Groups[1].Value }
+                else {
+                    # 32 of the bats build the path in a variable first
+                    # (set "PS1=%SCRIPT_DIR%X-core.ps1" ... -File "%PS1%"),
+                    # which the pattern above cannot see. Those installers ran
+                    # fine, but OUTSIDE this wrapper: no full transcript and no
+                    # .update_ok marker, so a mod that had just been updated
+                    # could keep showing "Update available".
+                    # So: take any .ps1 NAME the bat mentions and accept the
+                    # first one that really sits next to the bat. Works for
+                    # both styles and for whatever a future bat invents.
+                    $batDir = Split-Path $BatPath -Parent
+                    foreach ($cand in [regex]::Matches($batText, '(?i)([A-Za-z0-9._-]+\.ps1)')) {
+                        $try = Join-Path $batDir $cand.Groups[1].Value
+                        if (Test-Path -LiteralPath $try) { $coreScript = $try; break }
+                    }
+                }
             }
         } catch {}
     }

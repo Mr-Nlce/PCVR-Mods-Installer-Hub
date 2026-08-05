@@ -1,7 +1,8 @@
 # ============================================================
 # Cyberpunk 2077 VR Installer
 # ============================================================
-# Installs CyberpunkVRPort (dariulone) - an OpenXR dxgi.dll VR proxy
+# Installs CyberpunkVRPort (dariulone) - an OpenXR VR mod. Since 0.1.0 it
+# is a RED4ext PLUGIN, not a dxgi.dll proxy any more
 # for Cyberpunk 2077 with 6-DoF motion-controlled VR hands (full-arm
 # VRIK) and an in-headset F10 overlay. This is an IN-PLACE mod: it
 # overlays files into the existing Steam/GOG Cyberpunk 2077 folder
@@ -31,10 +32,44 @@ $RED4EXT_URL  = "https://github.com/wopss/RED4ext/releases/download/v1.30.0/red4
 $RED4EXT_REL  = "https://github.com/wopss/RED4ext/releases"
 $CET_URL      = "https://github.com/maximegmd/CyberEngineTweaks/releases/download/v1.37.1/cet_1.37.1.zip"
 $CET_REL      = "https://github.com/maximegmd/CyberEngineTweaks/releases"
+
+# The four frameworks CyberpunkVRPort 0.1.x additionally requires (its own
+# INSTALL.txt lists them next to RED4ext and CET). All four are plain
+# drop-into-the-game-root archives - layouts read from the real downloads.
+#   Tag       : resolved live from the /releases/latest REDIRECT - no API,
+#               so the 60-calls-per-hour limit cannot break this.
+#   UrlPattern: how that release names its Windows asset. {v} = tag without
+#               a leading "v", {tag} = tag as-is. Verified against the
+#               current release of each project.
+#   Pinned    : last-known-good URL, used if the pattern ever misses.
+#   Marker    : the file that proves it is installed.
+$FRAMEWORKS = @(
+    @{ Name = "redscript"; Repo = "jac3km4/redscript"
+       UrlPattern = "https://github.com/jac3km4/redscript/releases/download/{tag}/redscript-{tag}-windows.zip"
+       Pinned = "https://github.com/jac3km4/redscript/releases/download/v0.5.31/redscript-v0.5.31-windows.zip"
+       Marker = "engine\tools\scc.exe" },
+    @{ Name = "TweakXL"; Repo = "psiberx/cp2077-tweak-xl"
+       UrlPattern = "https://github.com/psiberx/cp2077-tweak-xl/releases/download/{tag}/TweakXL-{v}.zip"
+       Pinned = "https://github.com/psiberx/cp2077-tweak-xl/releases/download/v1.11.4/TweakXL-1.11.4.zip"
+       Marker = "red4ext\plugins\TweakXL\TweakXL.dll" },
+    @{ Name = "ArchiveXL"; Repo = "psiberx/cp2077-archive-xl"
+       UrlPattern = "https://github.com/psiberx/cp2077-archive-xl/releases/download/{tag}/ArchiveXL-{v}.zip"
+       Pinned = "https://github.com/psiberx/cp2077-archive-xl/releases/download/v1.27.1/ArchiveXL-1.27.1.zip"
+       Marker = "red4ext\plugins\ArchiveXL\ArchiveXL.dll" },
+    @{ Name = "Codeware"; Repo = "psiberx/cp2077-codeware"
+       UrlPattern = "https://github.com/psiberx/cp2077-codeware/releases/download/{tag}/Codeware-{v}.zip"
+       Pinned = "https://github.com/psiberx/cp2077-codeware/releases/download/v1.20.3/Codeware-1.20.3.zip"
+       Marker = "red4ext\plugins\Codeware\Codeware.dll" }
+)
 $STEAM_FOLDER = "Cyberpunk 2077"
 $CP_APPID     = "1091500"
 $GAME_EXE_REL = "bin\x64\Cyberpunk2077.exe"
-$MOD_MARKER   = "bin\x64\dxgi.dll"
+# Since 0.1.0 the mod loads through RED4ext instead of proxying dxgi.dll.
+# This file is what proves the VR mod is installed.
+$MOD_MARKER   = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll"
+# A leftover dxgi.dll from an older CyberpunkVRPort or from R.E.A.L. VR must
+# go: the mod's own INSTALL.txt says two VR paths fight over the same hooks.
+$OLD_PROXY    = "bin\x64\dxgi.dll"
 $RED4EXT_MARK = "red4ext\RED4ext.dll"
 $CET_MARK     = "bin\x64\plugins\cyber_engine_tweaks.asi"
 $GOG_ROOTS = @(
@@ -216,7 +251,7 @@ function Install-Component {
 # -------------------------------------------------------
 # STEP 2: Frameworks (RED4ext + CET) - only if missing
 # -------------------------------------------------------
-$null = Show-UpdateNoticeIfInstalled -TargetDir $gameRoot -RelModFile "bin\x64\dxgi.dll" -Label "CyberpunkVRPort"
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gameRoot -RelModFile $MOD_MARKER -Label "CyberpunkVRPort"
 Write-Step 2 4 "Frameworks (RED4ext + Cyber Engine Tweaks)"
 Write-Host "  These power the motion-controlled hands and the VR HUD." -ForegroundColor Gray
 Write-Host "  Installed only if you don't already have them." -ForegroundColor Gray
@@ -242,6 +277,57 @@ if (Test-Path (Join-Path $gameRoot $CET_MARK)) {
     } else { Write-Warn "CET was not installed - VR hands/HUD may not load (camera/stereo will still work)."; $cetState = "missing" }
 }
 
+# The four frameworks the mod additionally needs since 0.1.x. Each is only
+# fetched when its marker file is missing, so a machine that already has a
+# modded Cyberpunk downloads nothing here.
+#
+# The tag comes from the /releases/latest REDIRECT, not from the GitHub API:
+# the redirect has no hourly limit, so a busy API cannot leave the user with
+# a half-installed setup. The pinned URL stays behind it as a fallback, and
+# behind that the normal manual route of Install-Component.
+function Get-LatestTagByRedirect {
+    param([string]$Repo)
+    try {
+        $url = "https://github.com/$Repo/releases/latest"
+        $req = [System.Net.HttpWebRequest]::Create($url)
+        $req.Method = "HEAD"
+        $req.AllowAutoRedirect = $false
+        $req.UserAgent = "PCVR-Mods-Hub"
+        $req.Timeout = 15000
+        $resp = $req.GetResponse()
+        $loc  = $resp.Headers["Location"]
+        $resp.Close()
+        if ($loc -and $loc -match '/tag/(.+)$') { return $Matches[1] }
+    } catch { }
+    return $null
+}
+
+$fwStates = @{}
+foreach ($fw in $FRAMEWORKS) {
+    if (Test-Path (Join-Path $gameRoot $fw.Marker)) {
+        Write-OK "$($fw.Name) already present - keeping your install."
+        $fwStates[$fw.Name] = "present"
+        continue
+    }
+    $urls = @()
+    $tag  = Get-LatestTagByRedirect -Repo $fw.Repo
+    if ($tag) {
+        $ver = $tag.TrimStart("v")
+        $urls += ($fw.UrlPattern -replace '\{tag\}', $tag -replace '\{v\}', $ver)
+        Write-Host "  Installing $($fw.Name) ($tag) ..." -ForegroundColor White
+    } else {
+        Write-Host "  Installing $($fw.Name) (known build - GitHub not reachable) ..." -ForegroundColor White
+    }
+    if ($urls -notcontains $fw.Pinned) { $urls += $fw.Pinned }
+    if (Install-Component -Label $fw.Name -Urls $urls -ManualUrl "https://github.com/$($fw.Repo)/releases" -ManualName "the latest $($fw.Name) .zip") {
+        Write-OK "$($fw.Name) installed."
+        $fwStates[$fw.Name] = "installed"
+    } else {
+        Write-Warn "$($fw.Name) was not installed - the VR mod's scripts will not load without it."
+        $fwStates[$fw.Name] = "missing"
+    }
+}
+
 # -------------------------------------------------------
 # STEP 3: CyberpunkVRPort (the VR mod itself) - latest release
 # -------------------------------------------------------
@@ -251,6 +337,25 @@ Write-Host ""
 Pause-User "Press Enter to start the installation..."
 
 Write-Step 3 4 "Installing CyberpunkVRPort (latest release)"
+
+# A dxgi.dll in bin\x64 is either an OLD CyberpunkVRPort (pre-0.1.0, when the
+# mod still proxied dxgi) or R.E.A.L. VR. Either way it hooks the same engine
+# entry points as the new plugin, and the mod's own INSTALL.txt says the two
+# fight over them. Move it aside instead of deleting - it is not our file.
+$oldProxyPath = Join-Path $gameRoot $OLD_PROXY
+if (Test-Path -LiteralPath $oldProxyPath) {
+    Write-Warn "An old dxgi.dll VR proxy is in bin\x64 - it clashes with the new plugin."
+    $stamp  = Get-Date -Format "yyyyMMdd-HHmmss"
+    $parked = "$oldProxyPath.disabled-$stamp"
+    try {
+        Move-Item -LiteralPath $oldProxyPath -Destination $parked -Force -ErrorAction Stop
+        Write-OK "Moved aside: dxgi.dll.disabled-$stamp (rename it back to undo)"
+    } catch {
+        Write-Fail "Could not move it: $($_.Exception.Message)"
+        Write-Host "    Move bin\x64\dxgi.dll out of the folder yourself, then run this again." -ForegroundColor Yellow
+        Pause-User "Press Enter to continue anyway..."
+    }
+}
 
 Write-Info "Checking GitHub for the latest CyberpunkVRPort release..."
 # $latest / $installedTag were already resolved up front (for the header
@@ -265,7 +370,7 @@ if ($latest -and $latest.Url) {
 # Always keep the known-good pinned build as a fallback behind the latest.
 if ($modUrls -notcontains $MOD_URL) { $modUrls += $MOD_URL }
 
-$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile "bin\x64\dxgi.dll"
+$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER
 if ($modOk) {
     Write-OK "CyberpunkVRPort $installedTag installed into the game folder."
     # Record the installed release tag so the Hub can flip the card to
@@ -287,6 +392,82 @@ if ($modOk) {
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
+# STEP 3b: the four mods the author recommends on top
+# -------------------------------------------------------
+# These live on Nexus, so the Hub cannot fetch them - Nexus needs a login and
+# hands out no direct links. The installer therefore does the part it can:
+# open the right page, wait, and take the ZIP either from the Downloads
+# folder or dropped onto the window. Each one is skippable with Enter, and
+# anything already installed is not offered at all.
+$EXTRA_MODS = @(
+    @{ Name = "Visible Bullets"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/22251?tab=files"
+       Marker = "archive\pc\mod\Velocity.archive"; What = "projectiles you can actually see in flight" },
+    @{ Name = "Visual Holsters"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/21936?tab=files"
+       Marker = "bin\x64\plugins\cyber_engine_tweaks\mods\VisualHolster"; What = "the visible holster the hand-to-holster grip reaches for" },
+    @{ Name = "Equipment-EX"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/6945?tab=files"
+       Marker = "archive\pc\mod\EquipmentEx.archive"; What = "extra equipment slots" },
+    @{ Name = "Nova Optics"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/29190?tab=files"
+       Marker = "r6\scripts\NovaOptics\NovaOptics.reds"; What = "reworked sights, which the collimated reflex shader draws into" }
+)
+
+$missingExtras = @($EXTRA_MODS | Where-Object { -not (Test-Path (Join-Path $gameRoot $_.Marker)) })
+if ($missingExtras.Count -gt 0) {
+    Write-Host ""
+    Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
+    Write-Host " Recommended extra mods" -ForegroundColor Cyan
+    Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
+    Write-Host ""
+    Write-Host "  The mod author recommends $($missingExtras.Count) more mods. They are on Nexus," -ForegroundColor Gray
+    Write-Host "  so they cannot be downloaded automatically." -ForegroundColor Gray
+    Write-Host "  For each one the page opens; download the file and drop it here." -ForegroundColor Gray
+    Write-Host "  Press Enter alone to skip one." -ForegroundColor Gray
+
+    foreach ($ex in $missingExtras) {
+        Write-Host ""
+        Write-Host "  $($ex.Name) - $($ex.What)" -ForegroundColor White
+        Write-Host "   $($ex.Url) " -ForegroundColor Cyan
+        $ans = Pause-User "Press Enter to open the page (or type s to skip this one)..."
+        if ("$ans".Trim() -match '^(?i)s') { Write-Info "Skipped $($ex.Name)."; continue }
+        try { Start-Process $ex.Url } catch { }
+
+        # Downloads first: after a Nexus download the file is usually right
+        # there, and picking it beats asking the user to find it.
+        $zip = $null
+        $dl  = Join-Path $env:USERPROFILE "Downloads"
+        $key = ($ex.Name -replace '[^A-Za-z]', '')
+        if (Test-Path -LiteralPath $dl) {
+            $cand = Get-ChildItem -LiteralPath $dl -Filter "*.zip" -File -ErrorAction SilentlyContinue |
+                    Where-Object { ($_.Name -replace '[^A-Za-z]', '') -match "(?i)$key" } |
+                    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($cand) {
+                Write-OK "Found in Downloads: $($cand.Name)"
+                $zip = $cand.FullName
+            }
+        }
+        while (-not $zip) {
+            $inp = (Read-Host "  Drag the $($ex.Name) .zip here and press Enter (or Enter alone to skip)").Trim().Trim('"')
+            if (-not $inp) { break }
+            if (Test-Path -LiteralPath $inp) { $zip = $inp } else { Write-Fail "Not found: $inp" }
+        }
+        if (-not $zip) { Write-Info "Skipped $($ex.Name)."; continue }
+
+        $exDir = Join-Path $tempDir ("nx_" + [System.IO.Path]::GetRandomFileName())
+        try {
+            New-Item -ItemType Directory -Path $exDir -Force | Out-Null
+            Expand-Archive -LiteralPath $zip -DestinationPath $exDir -Force -ErrorAction Stop
+            # Same payload search as the frameworks: a Nexus ZIP may wrap
+            # everything in one folder.
+            $root = Get-ExtractedPayloadRoot -ExtractDir $exDir -RelModFile $ex.Marker -Markers @("bin","red4ext","r6","archive","engine","mods")
+            Copy-Tree -Src $root -Dst $gameRoot
+            if (Test-Path (Join-Path $gameRoot $ex.Marker)) { Write-OK "$($ex.Name) installed." }
+            else { Write-Warn "$($ex.Name): files copied, but its main file is not where expected." }
+        } catch {
+            Write-Fail "$($ex.Name) could not be installed: $($_.Exception.Message)"
+        }
+    }
+}
+
+# -------------------------------------------------------
 # STEP 4: Summary + first-launch notes
 # -------------------------------------------------------
 Write-Step 4 4 "All Done!"
@@ -302,7 +483,7 @@ Write-Host "============================================================" -Foreg
 Write-Host "  Installation Summary" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-if ($modPresent) { Write-Host "  [x] $MOD_NAME (dxgi.dll VR proxy + VR hands)" -ForegroundColor Green }
+if ($modPresent) { Write-Host "  [x] $MOD_NAME (RED4ext plugin + VR hands)" -ForegroundColor Green }
 else { Write-Host "  [ ] VR mod missing" -ForegroundColor Red }
 switch ($red4extState) {
     "present"   { Write-Host "  [x] RED4ext (already installed)" -ForegroundColor Green }
@@ -314,6 +495,13 @@ switch ($cetState) {
     "installed" { Write-Host "  [x] Cyber Engine Tweaks" -ForegroundColor Green }
     default     { Write-Host "  [ ] Cyber Engine Tweaks - hands/HUD will not load until added" -ForegroundColor Yellow }
 }
+foreach ($fw in $FRAMEWORKS) {
+    switch ($fwStates[$fw.Name]) {
+        "present"   { Write-Host "  [x] $($fw.Name) (already installed)" -ForegroundColor Green }
+        "installed" { Write-Host "  [x] $($fw.Name)" -ForegroundColor Green }
+        default     { Write-Host "  [ ] $($fw.Name) - the VR mod's scripts need it" -ForegroundColor Yellow }
+    }
+}
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host "  !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
@@ -322,12 +510,12 @@ Write-Host ""
 Write-Host "  1. Start your OpenXR runtime FIRST (Virtual Desktop / VDXR," -ForegroundColor White
 Write-Host "     SteamVR, etc.) - before launching the game." -ForegroundColor White
 Write-Host "  2. Launch Cyberpunk 2077 normally (Steam / GOG, or the Hub)." -ForegroundColor White
-Write-Host "  3. In-game:  F10 = VR settings overlay,  F7 = recenter." -ForegroundColor White
+Write-Host "  3. In-game:  F10 or Insert = VR settings overlay,  F7 = recenter." -ForegroundColor White
 Write-Host ""
-Write-Host "  - For the SteamVR (OpenVR) path instead of native OpenXR, set" -ForegroundColor Gray
-Write-Host "    xr_runtime=1 in bin\x64\vrport.ini and restart the game." -ForegroundColor Gray
 Write-Host "  - Open the F10 overlay -> VRIK tab to start hand tracking and" -ForegroundColor Gray
 Write-Host "    calibrate reach / height / elbow per hand." -ForegroundColor Gray
+Write-Host "  - On the very first launch the mod swaps in its own tuned" -ForegroundColor Gray
+Write-Host "    Cyberpunk settings and backs yours up next to the original." -ForegroundColor Gray
 Write-Host "  - Log for bug reports: bin\x64\cyberpunkvrport.log" -ForegroundColor Gray
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
@@ -341,8 +529,9 @@ Write-Host ""
 Write-Host "  Cyberpunk 2077 is VERY demanding in VR. On first launch the" -ForegroundColor White
 Write-Host "  CyberpunkVRPort VR configuration window appears:" -ForegroundColor White
 Write-Host ""
-Write-Host "   - VR Runtime: pick yours. OpenXR (Virtual Desktop) suits most." -ForegroundColor White
 Write-Host "   - Resolution: do NOT go too high. 2560 x 2560 fits most setups." -ForegroundColor White
+Write-Host "   - Leave the DEBUG tick-box OFF - it arms every diagnostic probe" -ForegroundColor White
+Write-Host "     and costs frame time plus a very large log." -ForegroundColor White
 Write-Host ""
 Write-Host "  In-game graphics settings:" -ForegroundColor White
 Write-Host "   - Quick Preset: Low  (Medium at most)" -ForegroundColor White
@@ -352,11 +541,9 @@ Write-Host "               Chromatic Aberration, Depth of Field, Lens Flare" -Fo
 Write-Host "   - Press Apply when done." -ForegroundColor White
 Write-Host "   - Video: lower Gamma Correction a touch (it is a bit too bright)." -ForegroundColor White
 Write-Host ""
-Write-Host "  In the F10 VR menu:" -ForegroundColor White
-Write-Host "   - Use Mono for now - AER has very poor performance." -ForegroundColor White
-Write-Host "   - VRIK tab: enable hand tracking, adjust hand position." -ForegroundColor White
-Write-Host "   - Hand overlay is on by default so you can line them up; once" -ForegroundColor White
-Write-Host "     it fits, turn it off under General -> Enable Hand Overlay." -ForegroundColor White
+Write-Host "  In the F10 VR menu (General, Controls, Stereo, VRIK, HUD):" -ForegroundColor White
+Write-Host "   - VRIK tab: start hand tracking and calibrate reach, height," -ForegroundColor White
+Write-Host "     elbow and wrist offset." -ForegroundColor White
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""

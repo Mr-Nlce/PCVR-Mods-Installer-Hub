@@ -155,3 +155,16 @@ This is a separate, optional mod - the Hub does not install it.
 - **GTAVR motion-controls overlay** - community mod
 
 >>> Pull off the heist, outrun the stars, and own the streets of Los Santos.
+## Key points from updates
+- **"CORE: An exception occurred while executing 'RealVR.asi', id 4"** almost
+  always means an old `asi\realvr.asi` is left over from an earlier setup.
+  Delete that file.
+- Turn the controller on **before** launching, otherwise the game detects no
+  input at all.
+- Confirmed on the Steam Legacy builds v1.0.2845, v1.0.3751, v1.0.3788.0 and
+  v1.0.3889.0; Rockstar and Epic copies should work as well. **GTA V Enhanced
+  is not compatible.**
+- OpenVR is the default (`VRAPI = 2` in RealVR.ini) and OpenXR works depending
+  on the headset - the Oculus runtime crashes.
+- `00_RealVRCompat.asi` keeps its `00_` prefix so it loads before `RealVR.asi`.
+- Weapon attachments no longer disappear from the weapon wheel.

@@ -10,13 +10,36 @@ Anomaly VR, so your existing membership works).
 
 ## What this Hub installer does
 
-1. Opens the mod's Discord (join if you are not a member yet).
-2. Opens the download post - grab **`STALKER GAMMA v0.3.x.7z`**.
+1. Looks at the folder you point it at. If GAMMA VR is already there, the
+   **update** is offered first and named; if not, the **complete build** is.
+   Either way it names the exact file and opens the matching post.
+2. Opens the mod's Discord (join if you are not a member yet).
 3. You drag the downloaded `.7z` into the installer window.
-4. It extracts the **`Gamma VR`** folder into your Games root
-   (default `C:\Games` -> `C:\Games\Gamma VR`).
+4. Fresh install: it extracts the **`Gamma VR`** folder into your Games
+   root (default `C:\Games` -> `C:\Games\Gamma VR`).
+   Update: it unpacks over your existing install, replacing files, and
+   then clears the shader cache for you (see below).
 5. Switches the in-game language to **English** (`localization.ltx`).
 6. Drops the game icon and creates a desktop shortcut **`Anomaly Gamma`**.
+
+## Which of the two archives do I need?
+
+Both files are offered together in the same download folder, so the only
+thing that can go wrong is grabbing the wrong one.
+
+| your situation | the file to download |
+|---|---|
+| nothing installed yet | `STALKER GAMMA VR v0.3.2.7z` (the complete build, ~110 GB) |
+| v0.3.1 already installed | `UPDATE FROM v0.3.1 TO v0.3.2c.7z` (small, goes on top) |
+
+The installer picks the right row for you from what it finds on disk, and if
+you drop the other archive by mistake it says so before unpacking anything.
+
+After the update the **shader cache must go** - v0.3.2 changes the weapon
+shaders and the engine would otherwise keep serving the compiled old ones.
+The installer deletes the `shaders_cache` folder inside `appdata` for you;
+if it reports that it could not find or remove it, delete it by hand before
+playing.
 
 The Hub's **Start in VR** button and the desktop shortcut are your two
 launch routes - both start the game the same way.

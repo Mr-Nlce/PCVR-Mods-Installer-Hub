@@ -3781,6 +3781,33 @@ function global:Start-GameInVR {
     # explicit choice of which exe runs the game - e.g. a differently
     # named exe from another store. It wins over every other route.
     try {
+        # HIGHEST PRIORITY: the starter that sits in the GAME folder. For mods
+        # that moved into the game folder this is the only file that is
+        # guaranteed to be the current one - recorded paths and recorded
+        # starters can both still point at a previous install elsewhere, and
+        # those files usually still exist, so no check on them can tell.
+        if ($Game.LaunchExeAlt) {
+            try {
+                $altBase = $null
+                if ($global:gameStateMap -and $global:gameStateMap[$Game.Title]) {
+                    $altBase = $global:gameStateMap[$Game.Title].GameDir
+                }
+                if (-not $altBase) {
+                    foreach ($fp in @($Game.FallbackPaths)) {
+                        if ($fp -and ($fp -notmatch '^(EPIC|XBOX|STEAM):') -and (Test-Path -LiteralPath $fp)) { $altBase = $fp; break }
+                    }
+                }
+                if ($altBase) {
+                    $altLaunch = Join-Path $altBase $Game.LaunchExeAlt
+                    if (Test-Path -LiteralPath $altLaunch) {
+                        try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
+                        Start-Process -FilePath $altLaunch -WorkingDirectory (Split-Path -Parent $altLaunch)
+                        return
+                    }
+                }
+            } catch { }
+        }
+
         $launchOverride = Read-LaunchOverride -Game $Game
         if ($launchOverride -and (Test-Path $launchOverride)) {
             try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
@@ -5103,6 +5130,7 @@ function global:Show-DiscoverDetail {
         "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."
         "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."
         "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
+        "Pokemon Gen 1 VR" = "Pokemon Gen 1 Recomp Voxel VR brings the classic first-generation adventure into a fully explorable voxel-based 3D world. Travel across Kanto, catch and battle Pokemon, and experience the familiar journey from an immersive first-person VR perspective."
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
         "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."

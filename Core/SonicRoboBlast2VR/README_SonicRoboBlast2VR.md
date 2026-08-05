@@ -84,3 +84,17 @@ Sonic Team Junior is not affiliated with SEGA; no ownership is
 claimed of SEGA's intellectual property.
 
 >>> Gotta go fast. The rings are RIGHT there now.
+## Key points from updates
+- **The water flashing is fixed.** The cause was the polygon batcher merging
+  wet and dry surfaces into one batch, which is why earlier fixes never stuck.
+  Caustics no longer shimmer on sprites and models, and both eyes now agree on
+  whether you are underwater.
+- CRT screen effects render **inside the headset**, not only on the desktop
+  window, with mask strength, brightness and an intensity slider that fades
+  any preset toward the clean image.
+- Texture supersampling is on by default, so distant pixel art stops crawling.
+- VR Options gained supersampling, screen effect, effect intensity, 3D models
+  and a shortcut into the video options, so everything is reachable from the
+  headset. F11 toggles fullscreen.
+- Old configuration files pick up the new defaults on their own; anything you
+  set yourself is kept.

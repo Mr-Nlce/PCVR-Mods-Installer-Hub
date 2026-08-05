@@ -533,6 +533,17 @@ if (Get-CheckOnStartupFlag) {
     Write-HubTiming "after startup scan (pre-paint)"
 }
 
+# Permanently hidden modders (settings key "hiddenModders") only took effect
+# once the user typed something: the library is built with every tile visible
+# and Apply-Filter never ran at startup. Run it once here - and ONLY when the
+# list is non-empty, so a normal start does exactly what it always did.
+try {
+    if ($global:HiddenModders -and $global:HiddenModders.Count -gt 0) {
+        Write-HubTiming ("applying hiddenModders ({0})" -f $global:HiddenModders.Count)
+        if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
+    }
+} catch { }
+
 Write-HubTiming "before ShowDialog (window goes interactive next)"
 
 # Persist window geometry on close. RestoreBounds gives the

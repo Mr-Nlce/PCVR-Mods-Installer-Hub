@@ -1,90 +1,162 @@
 # Cyberpunk 2077 VR
 
-**CyberpunkVRPort** by **dariulone** — an OpenXR `dxgi.dll` VR proxy for **Cyberpunk 2077** with **6-DoF motion-controlled VR hands** (full-arm VRIK), head tracking with in-engine camera injection, and an in-headset **F10** settings overlay. The installer always pulls the **latest release** from GitHub (the mod updates often), falling back to the known-good v0.0.6 build if GitHub can't be reached.
+**CyberpunkVRPort** by **dariulone** - a 6-DoF VR mod for **Cyberpunk 2077**, built as a
+**RED4ext plugin**. `CyberpunkVR_Stereo` drives OpenXR head tracking, real stereo and the
+in-headset overlay; `CyberpunkVR_Hands` drives a full-body VR avatar with motion-controlled
+hands; a set of CET and redscript mods add VR weapon aiming, motion melee, hand-to-holster
+equipping and a VR-friendly HUD. Everything is configured from the in-headset **F10** overlay.
 
-> Repository: https://github.com/dariulone/cyberpunk-vr-port
+Experimental community mod, not affiliated with CD PROJEKT RED. Keep backups of your saves.
+
+https://github.com/dariulone/cyberpunk-vr-port
+
+## What changed with 0.1.0
+- **No `dxgi.dll` any more.** The mod loads through the game's own mod loader, and uninstalling
+  is deleting folders. Anything else that proxies dxgi - R.E.A.L. VR, for one - has to be out of
+  `bin\x64`, or the two fight over the same engine hooks. The installer moves an old one aside.
+- **Real stereo.** The second eye is an actual engine view: a camera on the player entity that
+  renders the frame graph for its own eye, from its own position. It falls back to mono by
+  itself where there is nothing fresh to show - menus and loading screens.
+- The old alternate-eye reprojection (AER) is gone entirely, along with its artefacts. There is
+  no Mono/AER choice left to make.
+- The game HUD is in **both** eyes, at a finite distance so icons fuse instead of doubling.
 
 ## Launching
-1. **Start your OpenXR runtime first** — Virtual Desktop / VDXR, SteamVR, etc. — **before** launching the game.
-2. Launch **Cyberpunk 2077** normally (Steam, GOG, or the Hub's **Start in VR**). The `dxgi.dll` proxy loads with the game.
-3. In-game: **F10** opens the VR settings overlay, **F7** recenters.
-
-If the game opens as a flat desktop window inside the headset, check `bin\x64\cyberpunkvrport.log` for the selected OpenXR runtime.
-
-## Features
-- Direct OpenXR integration inside the REDengine render path (Mono + AER).
-- Head tracking with in-engine camera injection and runtime FOV-based projection handling.
-- Motion-controlled VR hands with full-arm VRIK (VRArmIK-style elbow-swivel heuristic).
-- In-headset **F10** overlay with separate tabs:
-  - **VRIK** — start/stop hand tracking, live IK calibration (per-hand reach scale, height, elbow swing, elbow pole, wrist rotation offset), Log VR Diag.
-  - **HUD** — live VR HUD layout (per-element X / Y / Size on one compact row).
-  - **Debug Gizmos** — hand overlay / proxy / debug axes / locator scale.
-  - **Tracking / Camera** — movement-control mode and recenter.
-- Head-oriented locomotion — optional **Movement Control: HMD** so on-foot movement follows where you look (driving is untouched).
-- SteamVR (OpenVR) runtime support, selectable alongside OpenXR.
-- Pre-launch render-resolution selector.
-- Runtime/hardware diagnostics in the log (OpenXR runtime + system, GPU model + driver, swapchain init, frame-pipeline events).
-- Verbose-log toggle — quiet by default for clean tester reports; deep per-frame diagnostics sit behind one checkbox.
+1. **Start your OpenXR runtime first** - Virtual Desktop / VDXR, SteamVR, PICO - **before** the game.
+2. Launch Cyberpunk 2077 normally, or use **Start in VR** in the Hub. A launcher window opens
+   first: pick the render resolution there. Leave its **DEBUG** tick-box off for play - it arms
+   every diagnostic probe at once and costs both frame time and a very large log.
+3. In game: [[F10]] or [[Insert]] opens the settings overlay, [[F7]] recenters.
 
 ## Controls
-Motion-controlled VR hands driven directly by the controllers, with a full shoulder → elbow → hand IK chain. Weapons are tracked while held.
+VR controller input is merged into the native gamepad, so the game's own **Settings -> Key
+Bindings -> Controller** applies. Buttons follow each runtime's interaction profile (Touch,
+Index, Vive, WMR).
 
 | Input | Action |
 |-------|--------|
-| Motion controllers | 6-DoF VR hands (aim / interact / hold weapons) |
-| [[F10]] | In-headset VR settings overlay (VRIK / HUD / Debug / Tracking tabs) |
-| [[F7]] | Recenter view |
+| Left stick | Walk / strafe - push fully forward to sprint |
+| Right stick X | Turn (snap or smooth) |
+| Right stick fully down | Crouch |
+| [[Right Trigger]] / [[Left Trigger]] | Fire / Aim |
+| [[Right Grip]] | Hand-to-holster equip and unequip; melee power modifier |
+| [[Left Grip]] | Crouch |
+| [[A]] / [[B]] | Jump / Dodge |
+| [[X]] / [[Y]] | Reload and interact / Weapon switch |
+| Right thumb click | Crouch |
+| [[Menu]] | Pause menu |
+| Swinging a melee weapon | Native melee attack along the blade |
 
-Open **F10 -> VRIK** to start hand tracking and calibrate per-hand reach scale, height, elbow swing/pole and wrist offset. Optional **Movement Control: HMD** makes on-foot movement follow where you look (driving is untouched).
+**D-pad chord:** hold the left stick clicked in, then pick the direction with the right stick.
+While the chord is held the right stick is taken out of the camera, so choosing a direction
+cannot snap-turn you. Let go without choosing and it sends the normal sprint press instead.
 
-## What it installs
-This is an **in-place mod** — it overlays files into your existing Cyberpunk 2077 folder:
-- `bin\x64\dxgi.dll` — the OpenXR VR proxy (camera / stereo)
-- `bin\x64\openvr_api.dll` — used only for the SteamVR path
-- `red4ext\plugins\CyberpunkVR_Hands\CyberpunkVR_Hands.dll` — the hand-tracking plugin
-- `bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_VRIK\` and `...\CyberpunkVRPort_HUD\` — the VRIK + HUD mods
+## The F10 overlay
+Five tabs, live, saved to `vrport.ini` - nothing here needs a restart.
 
-The full hands/HUD experience needs two frameworks; the installer adds them **only if they are missing**:
-- **RED4ext** (v1.30.0) — loads `CyberpunkVR_Hands.dll`
-- **Cyber Engine Tweaks / CET** (v1.37.1) — runs the VRIK + HUD mods
+- **General** - world scale, IPD scale, stereo separation, VR menu FOV and quad size, motion
+  prediction, head offset
+- **Controls** - decoupled weapon aim and its laser dot, locomotion source (game / HMD / left
+  hand / right hand), snap turn and angle, immersive holsters
+- **Stereo** - which eye the second view is sent to, how stale its last frame may get before the
+  submit falls back to mono, the HUD composite, and live counters showing whether the second
+  view is producing and reaching the headset
+- **VRIK** - start and stop tracking, IK calibration (reach scale, height, elbow swing and pole,
+  wrist offset), diagnostics
+- **HUD** - per-element X / Y / scale for every HUD group
 
-Camera/stereo VR works from the `dxgi.dll` proxy alone; the motion-controlled hands and VR HUD need RED4ext + CET.
+## Recommended settings
+Cyberpunk is very demanding in VR.
+
+- **Launcher:** do not pick a high resolution; the game is heavy.
+- **Quick Preset:** Low, Medium at most. **Resolution Scaling:** off.
+- Turn **off**: Ray Tracing, Frame Generation, Film Grain, Chromatic Aberration, Depth of Field,
+  Lens Flare. Press **Apply**.
+- **Video -> Gamma Correction:** nudge it down a little; the image is otherwise a bit bright.
+- **F10 -> VRIK:** start hand tracking and calibrate. The hand overlay is on by default so you
+  can line your hands up - turn it off once it fits.
+
+## What the installer puts in place
+An in-place mod: the files land in your existing Cyberpunk 2077 folder.
+
+- `red4ext\plugins\CyberpunkVR_Stereo\` - the VR plugin, its sight shaders, the settings template
+- `red4ext\plugins\CyberpunkVR_Hands\` - the avatar, hand IK and weapon-aim plugin
+- `bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_*\` - the CET mods
+- `r6\scripts\CyberpunkVRPort_*\` - the redscript mods
+
+**Keep only one `.dll` in each `CyberpunkVR_*` folder.** RED4ext loads every DLL it finds there,
+so a renamed backup next to the real build loads as a second copy of the plugin and the two
+fight over the same hooks.
+
+### Frameworks
+The installer adds each one **only if its files are missing**, so an already-modded Cyberpunk
+downloads nothing here:
+
+- **RED4ext** - loads the VR plugins
+- **Cyber Engine Tweaks (CET)** - runs the CET mods
+- **redscript** - compiles the `.reds` scripts the mod ships
+- **TweakXL** - applies its tweak files
+- **ArchiveXL** - loads the packed assets
+- **Codeware** - shared scripting library; **1.20 or newer**, older builds fail script compilation
+
+The last four are fetched at their newest release: the installer reads the current tag from
+GitHub and falls back to a known-good build if GitHub cannot be reached.
+
+## Empfohlene Zusatzmods
+The mod author recommends four more mods. They live on Nexus, so the Hub cannot download them
+automatically - **the installer offers them anyway**: it opens each page in turn, then takes the
+file from your Downloads folder or from a drag & drop onto the window, and you can skip any of
+them with Enter. Anything you already have is not offered at all.
+
+If you skipped them, you can add them by hand at any time. The downloads are here:
+
+Visible Bullets - projectiles you can see in flight
+
+https://www.nexusmods.com/cyberpunk2077/mods/22251?tab=files
+
+Visual Holsters - the visible holster the hand-to-holster grip reaches for
+
+https://www.nexusmods.com/cyberpunk2077/mods/21936?tab=files
+
+Equipment EX - extra equipment slots
+
+https://www.nexusmods.com/cyberpunk2077/mods/6945?tab=files
+
+Nova Optics - reworked sights, which the collimated reflex shader draws into
+
+https://www.nexusmods.com/cyberpunk2077/mods/29190?tab=files
+
+All four are drop-in archives: their contents go into the Cyberpunk 2077 folder, the same one
+the VR mod uses.
 
 ## Requirements
-- **Cyberpunk 2077** (PC) — Steam **AppID 1091500** (folder `Cyberpunk 2077`) or GOG (**Cyberpunk 2077**)
-- An OpenXR runtime (Virtual Desktop / VDXR, SteamVR, PICO, ...) — started **before** the game
-- Motion controllers for the VR hands
+- **Cyberpunk 2077** (PC) - Steam **AppID 1091500** or GOG
+- An OpenXR runtime, started **before** the game. SteamVR (OpenVR) works alongside it.
+- Motion controllers
 
-## Recommended settings (first launch)
-Cyberpunk 2077 is **very** demanding in VR — these settings keep performance from collapsing.
+## Logs
+- `bin\x64\cyberpunkvrport.log` - the plugin's own log and the right file for a bug report.
+  Quiet by default; tick DEBUG in the launcher for per-frame diagnostics.
+- `red4ext\logs\` - script validation and plugin load errors. **If redscript compilation fails,
+  every redscript mod is off, not just the one that failed** - check here first when several
+  things stop working at once.
 
-**VR configuration window** (appears on first launch, once the mods are added):
-- **VR Runtime:** pick yours. OpenXR (Virtual Desktop) suits most setups.
-- **Resolution:** do **not** go too high — the game is heavy. **2560 x 2560** is a good target for most.
+## Uninstalling
+Delete the folders listed above. The base game is left untouched.
 
-**In-game graphics settings:**
-- **Quick Preset:** Low (Medium at most)
-- **Resolution Scaling:** Off
-- Turn **Off**: Ray Tracing, Frame Generation, Film Grain, Chromatic Aberration, Depth of Field, Lens Flare
-- Press **Apply** when done
-- **Video -> Gamma Correction:** nudge it down a little (the image is otherwise a bit too bright)
+## Credits
+- **CyberpunkVRPort** by dariulone
 
-**In game (F10 VR menu):**
-- Use **Mono** for now — **AER** currently has very poor performance.
-- **VRIK** tab: enable VR hand tracking and adjust hand position. The **hand overlay** is on by default so you can line your hands up; once it fits, turn it off under **General -> Enable Hand Overlay**.
+  https://github.com/dariulone/cyberpunk-vr-port
 
-It's a lot of toggles, but after this it should run great.
+- **RED4ext** by WopsS
 
-## Troubleshooting
-- Flat window in the headset: confirm the OpenXR runtime is running first; check `bin\x64\cyberpunkvrport.log`.
-- To force the SteamVR (OpenVR) path: set `xr_runtime=1` in `bin\x64\vrport.ini` and restart.
-- Hands look wrong / not tracking: open **F10 -> VRIK**, start hand tracking, and calibrate. Make sure RED4ext + CET are installed.
-- Mouse fights head pitch: the overlay's **Disable Mouse-Y** toggle is on by default.
+  https://github.com/wopss/RED4ext
 
-## Credits & sources
-- **CyberpunkVRPort** by dariulone — https://github.com/dariulone/cyberpunk-vr-port (latest: https://github.com/dariulone/cyberpunk-vr-port/releases)
-- **RED4ext** by WopsS — https://github.com/wopss/RED4ext
-- **Cyber Engine Tweaks** by maximegmd — https://github.com/maximegmd/CyberEngineTweaks
-- **Cyberpunk 2077** by CD PROJEKT RED; Steam AppID **1091500**
+- **Cyber Engine Tweaks** by maximegmd
+
+  https://github.com/maximegmd/CyberEngineTweaks
+
+- **Cyberpunk 2077** by CD PROJEKT RED
 
 >>> Wake up, samurai. Night City won't burn itself down.

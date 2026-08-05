@@ -107,3 +107,19 @@ https://ko-fi.com/tig3rmast3r
 ## Credits
 - **Witcher3VR** by tig3rmast3r - https://github.com/tig3rmast3r/witcher3-vr
 - The DX12 and VR architecture was informed by praydog's REFramework and UEVR; the resolution-override approach is adapted from emoose's DLSSTweaks.
+## Key points from updates
+- **Cutscenes and Cinema Mode render in stereo** when a stereo rendering mode
+  is selected, and there is an experimental option to keep automatic cutscenes
+  in full VR. Manual Cinema Mode on F10 stays independent of it.
+- Menus, inventory and Cinema Mode are no longer head-locked - you can look
+  around freely.
+- Snap turn is selectable at 30, 45 or 60 degrees, defaulting to 45.
+- TAAU works during gameplay and cutscene transitions now, and the launcher
+  survives Windows display scaling.
+- Your `witcher3vr.ini` is migrated on the first launcher start: rendering
+  mode, resolution, the full-VR preference and your own settings are kept.
+- Known and not yet fixed: black borders at the image edges on some headsets,
+  loading screens changing size or appearing blank, and severe culling during
+  VR cutscenes - that last one is how the game itself is built. Ray tracing
+  and screen space reflections on High are not supported, and canted displays
+  need parallel projection.

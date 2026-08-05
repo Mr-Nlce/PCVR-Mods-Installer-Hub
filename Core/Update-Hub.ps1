@@ -280,21 +280,23 @@ function Invoke-HubRelaunch {
     $hubScript   = Join-Path $installCoreDir "VRModHub.ps1"
     $batLauncher = Join-Path $rootDir "Start PCVR Mods Hub.bat"
     $launched    = $false
-    if (Test-Path $hubScript) {
-        for ($t = 1; ($t -le 3) -and (-not $launched); $t++) {
-            try {
-                Start-Process "powershell.exe" `
-                    -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$hubScript`"" `
-                    -WorkingDirectory $rootDir -ErrorAction Stop | Out-Null
-                $launched = $true
-            } catch {
-                Start-Sleep -Milliseconds 600
-            }
-        }
-    }
-    if ((-not $launched) -and (Test-Path $batLauncher)) {
+
+    # 1) The normal way the Hub is started. It sets up the environment the Hub
+    #    expects, and it is what the desktop shortcut uses too.
+    if (Test-Path $batLauncher) {
         try {
             Start-Process "cmd.exe" -ArgumentList "/c", "`"$batLauncher`"" `
+                -WorkingDirectory $rootDir -ErrorAction Stop | Out-Null
+            $launched = $true
+        } catch { }
+    }
+
+    # 2) Only if that file is missing: call the script directly. One attempt -
+    #    retrying a loader failure just produces another Windows error box.
+    if ((-not $launched) -and (Test-Path $hubScript)) {
+        try {
+            Start-Process "powershell.exe" `
+                -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$hubScript`"" `
                 -WorkingDirectory $rootDir -ErrorAction Stop | Out-Null
             $launched = $true
         } catch { }
@@ -452,13 +454,17 @@ catch {
         # The update itself completed (new files in place, version written).
         # Only a post-install step hiccuped - restart the Hub and never report
         # this as a failed update.
-        Invoke-HubRelaunch | Out-Null
-        [System.Windows.MessageBox]::Show(
-            "Update installed successfully, but the Hub could not be relaunched automatically.`n`nPlease start it again from the 'VR Mods Hub' desktop shortcut.",
-            "Update Complete",
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Information
-        ) | Out-Null
+        # Only say something if the Hub really did NOT come back. This branch
+        # used to show the box unconditionally, so a completed update with a
+        # working restart still told the user to start the Hub by hand.
+        if (-not (Invoke-HubRelaunch)) {
+            [System.Windows.MessageBox]::Show(
+                "Update installed successfully, but the Hub could not be relaunched automatically.`n`nPlease start it again from the 'VR Mods Hub' desktop shortcut.",
+                "Update Complete",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information
+            ) | Out-Null
+        }
         exit 0
     }
 
@@ -470,12 +476,10 @@ catch {
     Remove-Item $tempZip     -Force -ErrorAction SilentlyContinue
     Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
     if (Invoke-HubRelaunch) {
-        [System.Windows.MessageBox]::Show(
-            "The update could not be completed (network or file error) and was not applied.`n`nThe Hub has been restarted - you can try the update again from the banner, or update manually at:`n$releaseUrl",
-            "Update Not Completed",
-            [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Warning
-        ) | Out-Null
+        # No message box here. It fired on updates that had in fact gone
+        # through, so it told users their update had failed when it had not.
+        # The Hub is running again and the banner still shows if anything is
+        # genuinely left to do - that is the honest signal.
         exit 1
     }
     [System.Windows.MessageBox]::Show(

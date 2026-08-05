@@ -82,3 +82,13 @@ The installer also offers the community **fullscreen cutscenes** mod for this va
 - **bioshock-vr** by mohamad-balouza - https://github.com/mohamad-balouza/bioshock-vr
 - **Bioshock Remastered VR** by BioVRDev - https://github.com/BioVRDev/Bioshock-Remastered-VR
 - BioShock and its assets by 2K / Irrational Games
+## Key points from updates (BioVRDev build)
+- **Epic is supported now.** The Epic binary sits at different addresses, so
+  frame pacing, arm hiding and config detection used to be silently off there.
+- **Vive, Vive Pro and Index work** through a bundled OpenXR-to-OpenVR shim.
+  The setup script installs it by itself when the real loader cannot work.
+- Run **Setup.bat as administrator**, and run it again after switching headset
+  or OpenXR runtime - it picks the matching loader each time.
+- Known on Epic: the stock crosshair still shows. Steam is unaffected.
+- If the framerate is poor, lower ResolutionX / ResolutionY in BioshockVR.ini,
+  run the setup script again and relaunch.

@@ -107,7 +107,8 @@ $global:WIP_GAME_TITLES = @(
     "Halo 3 MCC VR",
     "GTA Vice City VR",
     "F.E.A.R. VR",
-    "Stardew Valley VR"
+    "Stardew Valley VR",
+    "GTA IV VR"
 )
 
 # -------------------------------------------------------
@@ -1214,7 +1215,12 @@ function global:New-GameCardFrosted {
         # The author still shows on the detail page.
         if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
             $authorText = New-Object System.Windows.Controls.TextBlock
-            $authorText.FontSize = [int](9*$sc)
+            # A very long modder name runs out of tile width at the normal
+            # size. One point smaller makes it fit and is not noticeable next
+            # to the other tiles. The threshold is deliberately high (28): at
+            # 22 it would have quietly shrunk nine existing tiles as well -
+            # only "Hochgeschwindigkeitsrennfahrer" (30) actually needs it.
+            $authorText.FontSize = $(if (([string]$game.Author).Length -gt 28) { [int](8*$sc) } else { [int](9*$sc) })
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
@@ -1577,8 +1583,7 @@ function global:New-GameCardFrosted {
         # "Start in VR" label so only the launch area reads as lit.
         if ($owner -and $owner.Tag -eq "vrinstalled") {
             $bt = $owner.Resources.Item("btnText")
-            $rest = $owner.Resources.Item("readyRestFg")
-            if ($bt -and $rest) { $bt.Foreground = $rest }
+            if ($bt) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cdb77a") }
         }
     })
     $reloadPill.Add_MouseLeave({
@@ -1829,9 +1834,6 @@ function global:New-GameCardFrosted {
                         }
                     }
                     if (-not $onPill) {
-                        if (-not $owner.Resources.Contains("readyRestFg")) {
-                            $owner.Resources.Add("readyRestFg", $bt.Foreground)
-                        }
                         $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5")
                     }
                 }
@@ -2046,15 +2048,12 @@ function global:New-GameCardFrosted {
                 # whole-tile hover, so keep it while the cursor is still
                 # over the card; the card MouseLeave restores on true exit.
                 $bt = $owner.Resources.Item("btnText")
-                if ($bt -and $owner.Resources.Contains("readyRestFg")) {
-                    $bt.Foreground = $owner.Resources.Item("readyRestFg")
-                }
+                if ($bt) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cdb77a") }
                 if ($owner.IsMouseOver) { return }
                 if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                     $bt.Text = $owner.Resources.Item("readyOrigText")
                     $owner.Resources.Remove("readyOrigText") | Out-Null
                 }
-                if ($owner.Resources.Contains("readyRestFg")) { $owner.Resources.Remove("readyRestFg") | Out-Null }
             }
             return
         }
@@ -3434,7 +3433,12 @@ function global:New-GameCardClassic {
         # The author still shows on the detail page.
         if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
             $authorText = New-Object System.Windows.Controls.TextBlock
-            $authorText.FontSize = [int](9*$sc)
+            # A very long modder name runs out of tile width at the normal
+            # size. One point smaller makes it fit and is not noticeable next
+            # to the other tiles. The threshold is deliberately high (28): at
+            # 22 it would have quietly shrunk nine existing tiles as well -
+            # only "Hochgeschwindigkeitsrennfahrer" (30) actually needs it.
+            $authorText.FontSize = $(if (([string]$game.Author).Length -gt 28) { [int](8*$sc) } else { [int](9*$sc) })
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
@@ -3795,8 +3799,7 @@ function global:New-GameCardClassic {
         # "Start in VR" label so only the launch area reads as lit.
         if ($owner -and $owner.Tag -eq "vrinstalled") {
             $bt = $owner.Resources.Item("btnText")
-            $rest = $owner.Resources.Item("readyRestFg")
-            if ($bt -and $rest) { $bt.Foreground = $rest }
+            if ($bt) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cdb77a") }
         }
     })
     $reloadPill.Add_MouseLeave({
@@ -4028,9 +4031,6 @@ function global:New-GameCardClassic {
                         }
                     }
                     if (-not $onPill) {
-                        if (-not $owner.Resources.Contains("readyRestFg")) {
-                            $owner.Resources.Add("readyRestFg", $bt.Foreground)
-                        }
                         $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ece0b5")
                     }
                 }
@@ -4245,15 +4245,12 @@ function global:New-GameCardClassic {
                 # whole-tile hover, so keep it while the cursor is still
                 # over the card; the card MouseLeave restores on true exit.
                 $bt = $owner.Resources.Item("btnText")
-                if ($bt -and $owner.Resources.Contains("readyRestFg")) {
-                    $bt.Foreground = $owner.Resources.Item("readyRestFg")
-                }
+                if ($bt) { $bt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cdb77a") }
                 if ($owner.IsMouseOver) { return }
                 if ($bt -and $owner.Resources.Contains("readyOrigText")) {
                     $bt.Text = $owner.Resources.Item("readyOrigText")
                     $owner.Resources.Remove("readyOrigText") | Out-Null
                 }
-                if ($owner.Resources.Contains("readyRestFg")) { $owner.Resources.Remove("readyRestFg") | Out-Null }
             }
             return
         }

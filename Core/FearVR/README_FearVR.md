@@ -62,6 +62,22 @@ Start your OpenXR runtime (SteamVR or Virtual Desktop) and put the headset on, t
 
 The ESC menu has a VR settings page after Options for stereo rendering, HUD, turn speed, aim guide, vibration and recenter. HMD translation, head bob and the comfort screen live in the config file.
 
+## The floating VR panel - and the box around your weapon
+Hold **both grips** and press [[B]] during play. A panel opens in front of you
+with the tabs Recoil, Weight, Collide, Weapon, IK, Move, Melee and VR. Changes
+take effect at once and are kept in `fearvr.ini`.
+
+Newer builds draw a wireframe box around the equipped weapon. That is the world
+collision volume - it stops the weapon from visually sinking into walls, and it
+is on by default while the feature is being tested. To get rid of the box:
+
+1. Both grips + [[B]], tab **Collide**
+2. Switch **`Show collision box`** off
+
+The box stays visible as long as the Collide tab itself is open - leave the tab
+and it is gone. `World collision` in the same tab switches the behaviour off
+rather than the drawing; you only need that if the collision itself bothers you.
+
 ## Known limitations
 - The classic D3D9 path needs one CPU readback per frame, as does the stereo HUD - both are proof-of-concept, not a performance path.
 - HMD translation has no world collision and stays opt-in.

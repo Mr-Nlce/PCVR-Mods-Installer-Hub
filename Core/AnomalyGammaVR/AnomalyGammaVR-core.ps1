@@ -2,7 +2,10 @@
 #  S.T.A.L.K.E.R. GAMMA VR ("Anomaly Gamma") Installer
 # ============================================================
 # A complete GAMMA VR package (based on Anomaly). The user grabs the
-# "STALKER GAMMA v0.3.x.7z" from the mod's Discord (same server as
+# either the complete "STALKER GAMMA VR v0.3.2.7z" or the small
+# "UPDATE FROM v0.3.1 TO v0.3.2c.7z" - which one is offered first depends on
+# whether an install already sits in the chosen folder
+# from the mod's Discord (same server as
 # Anomaly VR) and drags it in. We extract its "Gamma VR" folder into
 # a Games root (-> <root>\Gamma VR), switch the language to English,
 # drop the game icon, and make a desktop shortcut to GAMMA VR.bat.
@@ -17,7 +20,13 @@ $MOD_FOLDER           = "Gamma VR"          # folder name inside the .7z
 $DEFAULT_ROOTS        = @("C:\Games", "D:\Games", "E:\Games")
 $ICON_SRC             = Join-Path $PSScriptRoot "GammaVR.ico"
 $DISCORD_INVITE_URL   = "https://discord.gg/kGhd7GvJ5F"
-$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/1495664880311734313/1511657141990199356/1521601627705053395"
+# TWO posts, and both link into the SAME gofile folder - so the file the
+# user has to pick is what actually matters. Naming the exact archive is
+# the whole point of the branch below.
+$POST_FULL_URL        = "https://discord.com/channels/1495664880311734313/1511657141990199356/1530927349837861106"
+$POST_UPDATE_URL      = "https://discord.com/channels/1495664880311734313/1511657141990199356/1532382868238766203"
+$FILE_FULL            = "STALKER GAMMA VR v0.3.2.7z"
+$FILE_UPDATE          = "UPDATE FROM v0.3.1 TO v0.3.2c.7z"
 
 # ---- console helpers ----
 function Write-Header {
@@ -96,18 +105,20 @@ function Invoke-SevenZipExtract {
 Write-Header
 
 # -------------------------------------------------------
-# STEP 1: choose install location
+# STEP 1: where GAMMA VR lives (fresh install target OR existing install)
 # -------------------------------------------------------
 Write-Host " A motion-controlled VR build of S.T.A.L.K.E.R. GAMMA, the large curated" -ForegroundColor White
 Write-Host " Anomaly modpack. GAMMA is a complete standalone package - it includes" -ForegroundColor White
 Write-Host " everything; no separate Anomaly or game install is needed." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter to start..."
-Write-Step 1 5 "Choose install location"
-Write-Host "  Default location: C:\Games\$MOD_FOLDER" -ForegroundColor White
-Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
-Write-Host "  (Recommended. C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
-Write-Host "  You need at least 107 GB of free space." -ForegroundColor Yellow
+Write-Step 1 5 "Where GAMMA VR lives"
+Write-Host "  If you already have GAMMA VR, point this at the folder holding it." -ForegroundColor White
+Write-Host "  If not, this is where it gets installed." -ForegroundColor White
+Write-Host ""
+Write-Host "  Default: C:\Games\$MOD_FOLDER - press Enter to take it, or type another folder." -ForegroundColor Gray
+Write-Host "  (C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  A fresh install needs at least 110 GB of free space." -ForegroundColor Yellow
 Write-Host "  If you type a custom path, the mod authors recommend a folder WITHOUT spaces." -ForegroundColor DarkGray
 $chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
 
@@ -130,40 +141,95 @@ if (-not $gamesRoot) {
 }
 Write-OK "Install root: $gamesRoot"
 $installPath = Join-Path $gamesRoot $MOD_FOLDER
-Write-Info "GAMMA VR will live in: $installPath"
-if (Test-Path (Join-Path $installPath $LAUNCH_BAT)) {
-    Write-OK "Already installed here - drop the archive again to re-extract, or close to keep it."
-}
+$hasOld = Test-Path (Join-Path $installPath $LAUNCH_BAT)
+if ($hasOld) { Write-OK "GAMMA VR is already installed in: $installPath" }
+else         { Write-Info "GAMMA VR will live in: $installPath" }
 
 # -------------------------------------------------------
 # STEP 2: Discord join + download (same server as Anomaly)
 # -------------------------------------------------------
-Write-Step 2 5 "Get the GAMMA VR package"
-Write-Host "  The package is on the mod's Discord (same server as Anomaly VR)." -ForegroundColor White
+Write-Step 2 5 $(if ($hasOld) { "Get the update archive" } else { "Get the GAMMA VR package" })
+
+# The installed state decides what is offered FIRST and what the plain Enter
+# does. Someone who already has GAMMA in this folder wants the small update
+# in practically every case - a second full copy of the same 110 GB build
+# would be pointless - so the update leads, highlighted, and the full build
+# stays available underneath without competing for attention.
+if ($hasOld) {
+    Write-Host "  You already have GAMMA VR here, so you probably want the UPDATE archive." -ForegroundColor White
+    Write-Host ""
+    Write-Host "    [1] UPDATE to GAMMA VR v0.3.2c" -ForegroundColor Green
+    Write-Host "        Download exactly this file:" -ForegroundColor Gray
+    Write-Host "         $FILE_UPDATE " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host ""
+    Write-Host "    [2] Install the complete build again from scratch (about 110 GB)" -ForegroundColor DarkGray
+    Write-Host "        Only if your install is broken and you want to start over." -ForegroundColor DarkGray
+} else {
+    Write-Host "  No GAMMA VR install was found here, so you probably want the COMPLETE build." -ForegroundColor White
+    Write-Host ""
+    Write-Host "    [1] COMPLETE build of GAMMA VR v0.3.2 - about 110 GB" -ForegroundColor Green
+    Write-Host "        Download exactly this file:" -ForegroundColor Gray
+    Write-Host "         $FILE_FULL " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host ""
+    Write-Host "    [2] Update an existing v0.3.1 that lives somewhere else" -ForegroundColor DarkGray
+    Write-Host "        Only if you already have GAMMA VR in a different folder." -ForegroundColor DarkGray
+}
+Write-Host ""
+$mode = ""
+while ($mode -ne "1" -and $mode -ne "2") {
+    $mode = (Read-Host "  Press Enter for [1], or type 2").Trim()
+    if ($mode -eq "") { $mode = "1" }
+    if ($mode -ne "1" -and $mode -ne "2") { Write-Warn "Please press Enter or type 1 or 2." }
+}
+# [1] is always the recommended route, so what it MEANS flips with $hasOld.
+$isUpdate  = if ($hasOld) { ($mode -eq "1") } else { ($mode -eq "2") }
+$wantFile  = if ($isUpdate) { $FILE_UPDATE } else { $FILE_FULL }
+$wantPost  = if ($isUpdate) { $POST_UPDATE_URL } else { $POST_FULL_URL }
+$wantLabel = if ($isUpdate) { "update archive" } else { "complete build" }
+
+if ($isUpdate -and -not $hasOld) {
+    Write-Warn "No install was found in $installPath - the update can only go on top of an existing one."
+    Write-Info "If yours sits elsewhere, restart the installer and enter that folder in step 1."
+}
+
+Write-Host ""
+Write-Host "  The download is on the mod's Discord (same server as Anomaly VR)." -ForegroundColor White
 Write-Do  "Join the server. If you are already a member, still press Enter - just skip the joining."
 Pause-User "Press Enter to open the Discord invite..."
 try { Start-Process $DISCORD_INVITE_URL } catch { Write-Info $DISCORD_INVITE_URL }
 Write-Host ""
-Write-Do  "Download the FULL package 'STALKER GAMMA v0.3.x.7z' - NOT the update/patch."
+Write-Host "  Both archives sit in the same download folder. Take this one:" -ForegroundColor White
+Write-Host "   $wantFile " -ForegroundColor Black -BackgroundColor Yellow
 Pause-User "Press Enter to open the download post..."
-try { Start-Process $DISCORD_DOWNLOAD_URL } catch { Write-Info "$DISCORD_DOWNLOAD_URL (must be a server member)" }
+try { Start-Process $wantPost } catch { Write-Info "$wantPost (must be a server member)" }
 
 # -------------------------------------------------------
 # STEP 3: drag the .7z + extract into the Games root
 # -------------------------------------------------------
-Write-Step 3 5 "Extract into $gamesRoot"
-Write-Do  "Drag the downloaded STALKER GAMMA .7z here (or paste its path), then Enter."
+Write-Step 3 5 $(if ($isUpdate) { "Apply the update to $installPath" } else { "Extract into $gamesRoot" })
+Write-Do  "Drag the downloaded file here (or paste its path), then Enter:"
+Write-Host "   $wantFile " -ForegroundColor Black -BackgroundColor Yellow
 $arc = $null
 while (-not $arc) {
     $r = (Read-Host "  Archive").Trim().Trim('"').Trim("'")
     if (-not $r) { Write-Warn "No archive provided - cannot continue."; Pause-User "Press Enter to exit..."; return }
-    if (Test-Path -LiteralPath $r) { $arc = $r } else { Write-Fail "Not found: $r" }
+    if (-not (Test-Path -LiteralPath $r)) { Write-Fail "Not found: $r"; continue }
+    $leaf  = Split-Path $r -Leaf
+    $other = if ($isUpdate) { $FILE_FULL } else { $FILE_UPDATE }
+    if ($leaf -ieq $other) {
+        Write-Warn "That is the other archive: $leaf"
+        Write-Info "You picked the $wantLabel, which is: $wantFile"
+        $go = (Read-Host "  Use the dropped file anyway? (y/N)").Trim()
+        if ($go -notmatch '^(?i)y') { continue }
+    }
+    $arc = $r
 }
 try { New-Item -ItemType Directory -Force -Path $gamesRoot | Out-Null } catch {}
 $sevenZip = Find-7Zip
 $extracted = $false
 if ($sevenZip) {
-    Write-Info "Extracting with 7-Zip - this is a big pack (107 GB), give it time..."
+    if ($isUpdate) { Write-Info "Applying the update over the existing install, replacing files..." }
+    else           { Write-Info "Extracting the complete build with 7-Zip - 110 GB, give it time..." }
     try {
         Invoke-SevenZipExtract -SevenZip $sevenZip -Archive $arc -Dest $gamesRoot
         if (Test-Path (Join-Path $installPath $LAUNCH_BAT)) { $extracted = $true }
@@ -171,15 +237,50 @@ if ($sevenZip) {
 }
 if (-not $extracted) {
     Write-Warn "Could not auto-extract (7-Zip missing, or the archive layout differs)."
-    Write-Do  "Extract the '$MOD_FOLDER' folder from the archive into: $gamesRoot"
-    Write-Info "So that this exists: $installPath\$LAUNCH_BAT"
+    if ($isUpdate) {
+        Write-Do  "Extract the archive over your existing install in: $gamesRoot"
+        Write-Info "Agree to replace files. Afterwards this must still exist: $installPath\$LAUNCH_BAT"
+    } else {
+        Write-Do  "Extract the '$MOD_FOLDER' folder from the archive into: $gamesRoot"
+        Write-Info "So that this exists: $installPath\$LAUNCH_BAT"
+    }
     try { Start-Process (Split-Path -Parent $arc) } catch {}
     try { Start-Process $gamesRoot } catch {}
-    Pause-User "Press Enter once '$MOD_FOLDER' is extracted into $gamesRoot..."
+    if ($isUpdate) { Pause-User "Press Enter once the update is unpacked over $installPath..." }
+    else           { Pause-User "Press Enter once '$MOD_FOLDER' is extracted into $gamesRoot..." }
     if (Test-Path (Join-Path $installPath $LAUNCH_BAT)) { $extracted = $true }
 }
-if ($extracted) { Write-OK "GAMMA VR is in: $installPath" }
-else { Write-Fail "GAMMA VR.bat not found under $installPath - extraction incomplete."; Pause-User "Press Enter to exit..."; return }
+if ($extracted) {
+    if ($isUpdate) { Write-OK "Update applied to: $installPath" }
+    else           { Write-OK "GAMMA VR is in: $installPath" }
+}
+else {
+    if ($isUpdate) { Write-Fail "$LAUNCH_BAT is not under $installPath - the update was not applied to an install." }
+    else           { Write-Fail "$LAUNCH_BAT not found under $installPath - extraction incomplete." }
+    Pause-User "Press Enter to exit..."; return
+}
+
+# The update ships new weapon shaders, and the engine would keep serving the
+# compiled ones. The mod author calls deleting this folder mandatory, so the
+# installer does it instead of asking. The folder name is searched rather than
+# assumed, because the appdata folder sits under the install root and its
+# parent has been named differently across builds.
+if ($isUpdate) {
+    $cacheHits = @()
+    try {
+        $cacheHits = @(Get-ChildItem -LiteralPath $installPath -Directory -Recurse -Depth 3 -Filter "shaders_cache" -ErrorAction SilentlyContinue |
+                       Where-Object { $_.Parent.Name -ieq "appdata" })
+    } catch {}
+    if ($cacheHits.Count -gt 0) {
+        foreach ($h in $cacheHits) {
+            try { Remove-Item -LiteralPath $h.FullName -Recurse -Force -ErrorAction Stop; Write-OK "Cleared shader cache: $($h.FullName)" }
+            catch { Write-Warn "Could not delete $($h.FullName) - delete it by hand before playing." }
+        }
+    } else {
+        Write-Warn "No appdata\shaders_cache folder found - if the game looks broken after the update,"
+        Write-Info "delete the 'shaders_cache' folder inside the 'appdata' folder of your GAMMA install."
+    }
+}
 
 # -------------------------------------------------------
 # STEP 4: language -> English + game icon
@@ -212,18 +313,28 @@ if (Test-Path $ICON_SRC) { try { Copy-Item -LiteralPath $ICON_SRC -Destination $
 Write-Step 5 5 "Desktop shortcut"
 $launchPath = Join-Path $installPath $LAUNCH_BAT
 $iconArg = if (Test-Path $iconDest) { $iconDest } else { "$launchPath,0" }
+$lnkPath = "$env:USERPROFILE\Desktop\Anomaly Gamma.lnk"
+# On the update route the shortcut is nearly always there already.
+$lnkExisted = Test-Path -LiteralPath $lnkPath
 try {
-    $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Anomaly Gamma.lnk" -TargetPath $launchPath -WorkingDir $installPath -IconPath $iconArg
-    Write-OK "Desktop shortcut 'Anomaly Gamma' created."
+    $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $launchPath -WorkingDir $installPath -IconPath $iconArg
+    if ($lnkExisted) { Write-OK "Desktop shortcut 'Anomaly Gamma' exists." }
+    else             { Write-OK "Desktop shortcut 'Anomaly Gamma' created." }
 } catch { Write-Warn "Could not create the shortcut - launch '$launchPath' yourself." }
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installPath -Encoding UTF8 -Force } catch {}
+# Version stamp IN THE GAME FOLDER. The pack carries no version anywhere on
+# disk, and file dates inside the archives do not match their release - so
+# without this the Hub can only guess from timestamps and keeps offering an
+# update that is already installed. The catalog compares this file.
+try { Set-Content -Path (Join-Path $installPath "gamma_vr_version.txt") -Value "0.3.2c" -Encoding ASCII -Force } catch {}
 
 # -------------------------------------------------------
 # Done
 # -------------------------------------------------------
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host "  Done. Launch via the desktop shortcut or the Hub's Start in VR." -ForegroundColor Green
+Write-Host $(if ($isUpdate) { "  Updated to v0.3.2c. Launch via the desktop shortcut or the Hub's Start in VR." }
+             else { "  Done. Launch via the desktop shortcut or the Hub's Start in VR." }) -ForegroundColor Green
 Write-Host "  On launch, VR stays BLACK for 10-15s while it loads - that is" -ForegroundColor Gray
 Write-Host "  normal, and the same happens during in-game loading screens." -ForegroundColor Gray
 Write-Host "  If something goes wrong, you will hear an error sound." -ForegroundColor Gray

@@ -89,3 +89,22 @@ Manual install (if you grabbed the pack yourself): extract `oot-reloaded-v11.0.0
 Project page:
 
 https://github.com/ShinyWindow/Shipwright-VR
+## Key points from updates
+- **Physical melee combat** (v1.3) - your sword is a real object: swing speed
+  decides the damage tier, the blade collides with enemies, walls and floor,
+  and the shield blocks by geometry. It is **OFF by default**; switch it on
+  under *VR Settings / Physical Combat*. The old button combat stays available.
+- **Item selector** in the style of Half-Life: Alyx - hold the selector (right
+  stick click by default) and a compass of your equipped items appears at your
+  hand. Up = sword and shield, left/right/down = your three C items, release
+  without moving = empty hands. Optionally the trigger then uses whatever you
+  hold: draw the bow and squeeze to nock, release to loose.
+- Motion aiming for slingshot, bow and hookshot; the firing angle is
+  adjustable in the VR settings.
+- **F9 swaps between VR and flat play** mid-game, and taking the headset off
+  can switch you out automatically.
+- World scale calibrates to your real height, and child/adult swaps rescale by
+  themselves. Recentering recalibrates.
+- Recommended: enable *Disable 2D Pre-Rendered Scenes* and *Disable Fixed
+  Camera* under Enhancements/Graphics/Mods, and *Hide Link's Body* under VR
+  Settings/Gameplay.

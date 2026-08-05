@@ -692,10 +692,73 @@ function global:Test-GamePassesFilter {
         $title    = if ($GameData.Title) { "$($GameData.Title)".ToLower() } else { "" }
         $mod      = if ($GameData.Mod)   { "$($GameData.Mod)".ToLower() }   else { "" }
         $pill     = if ($GameData.Pill)  { "$($GameData.Pill)".ToLower() }  else { "" }
+        $author   = if ($GameData.Author) { "$($GameData.Author)".ToLower() } else { "" }
         $tags     = if ($GameData.Tags)  { $GameData.Tags } else { @() }
         $controls = if ($GameData.Controls) { $GameData.Controls } else { "" }
+
+        # A search term starting with "-" EXCLUDES instead of including, so
+        # "-praydog" hides every entry by that modder. Several may be chained
+        # ("-praydog -astienth"), and they combine with a normal term:
+        # "resident -praydog" searches for resident and drops his entries.
+        # Split on whitespace, sort the parts into wanted / unwanted, and put
+        # the wanted ones back together so a multi-word search like
+        # "ghost recon" keeps working exactly as before.
+        $excludeTerms = @()
+        $unhideTerms  = @()
+        $keepQuery    = $Query
+        if ($Query -match '(^|\s)[-+]\S') {
+            $parts  = @($Query -split '\s+' | Where-Object { $_ })
+            $wanted = @()
+            for ($pi = 0; $pi -lt $parts.Count; $pi++) {
+                $part = $parts[$pi]
+                if ($part.Length -gt 1 -and ($part.StartsWith("-") -or $part.StartsWith("+"))) {
+                    $sign = $part.Substring(0,1)
+                    $term = $part.Substring(1)
+                    # A modder name can be two words ("-luke ross"). Keep
+                    # attaching the following words while the result is still
+                    # a known author - longest match wins, and everything
+                    # after it stays a normal search term.
+                    $take = 0
+                    for ($pj = $pi + 1; $pj -lt $parts.Count; $pj++) {
+                        $nxt = $parts[$pj]
+                        if ($nxt.StartsWith("-") -or $nxt.StartsWith("+")) { break }
+                        $cand = ($term + " " + $nxt)
+                        if (Test-KnownModderName -Name $cand) { $term = $cand; $take = $pj - $pi }
+                        else { break }
+                    }
+                    $pi += $take
+                    if ($sign -eq "-") { $excludeTerms += $term } else { $unhideTerms += $term }
+                }
+                else { $wanted += $part }
+            }
+            $keepQuery = ($wanted -join " ").Trim()
+        }
+
+        # The exclusion is matched against the MODDER and the GENRE TAGS,
+        # deliberately NOT against the title - otherwise "-real" would kill
+        # every game with "real" in its name. Mod and Pill are included
+        # because some entries name the modder there instead of in Author
+        # (e.g. "lufz (auto-update)"); the tags carry the genres, so
+        # "-horror" and "-racing" work the same way as "-praydog".
+        $allExcludes = @()
+        if ($excludeTerms.Count -gt 0) { $allExcludes += $excludeTerms }
+        # Permanently hidden modders (settings key "hiddenModders"). They act
+        # like a standing "-name" and are matched the same way. A "+name" in
+        # the box lifts one, so a hidden modder is never unreachable.
+        if ($global:HiddenModders -and $global:HiddenModders.Count -gt 0) {
+            foreach ($hm in $global:HiddenModders) {
+                if ($hm -and ($unhideTerms -notcontains $hm)) { $allExcludes += $hm }
+            }
+        }
+        foreach ($ex in $allExcludes) {
+            if (-not $ex) { continue }
+            if ($author.Contains($ex) -or $mod.Contains($ex) -or $pill.Contains($ex)) { return $false }
+            if (($tags | Where-Object { $_ -and "$_".ToLower() -eq $ex }).Count -gt 0) { return $false }
+        }
+
+        $Query = $keepQuery
         $textMatch = $Query -eq "" -or $title.Contains($Query) -or $mod.Contains($Query) -or
-                     $pill.Contains($Query) -or
+                     $pill.Contains($Query) -or $author.Contains($Query) -or
                      ($tags | Where-Object { $_ -and "$_".ToLower().Contains($Query) }).Count -gt 0
         # Keyword shortcuts: typing "free" lists every FREE title and "wip"
         # lists every work-in-progress title (matched by Title, on top of the
@@ -894,6 +957,275 @@ if ($filterInstalled -and $filterVRReady -and $installedFilterGroup) {
 }
 
 $searchPlaceholder = $window.FindName("SearchPlaceholder")
+# ---------------------------------------------------------------
+# Search hint under the box. Two states in one spot:
+#   normal  -> the examples line
+#   "-name" -> offer to hide that modder for good, with the way back
+# Only visible while the box has focus, and it hangs below the pill on
+# its own layer, so showing it never moves the header.
+# ---------------------------------------------------------------
+$searchHintHost  = $window.FindName("SearchHintHost")
+$searchHint      = $window.FindName("SearchHint")
+$searchHidePanel = $window.FindName("SearchHidePanel")
+$searchHideChk   = $window.FindName("SearchHideChk")
+$searchHideText  = $window.FindName("SearchHideText")
+
+# Permanently hidden modders live in .hub-settings.json, next to the view
+# choice and the S/M/L size - no new file format, survives a Hub update.
+function global:Get-HiddenModders {
+    $raw = $null
+    try { $raw = Get-HubSetting -Key "hiddenModders" -Default @() } catch {}
+    $out = @()
+    foreach ($x in @($raw)) { if ($x) { $out += ([string]$x).Trim().ToLower() } }
+    return ,$out
+}
+function global:Set-HiddenModders {
+    param([string[]]$List)
+    $clean = @()
+    foreach ($x in @($List)) { if ($x) { $clean += ([string]$x).Trim().ToLower() } }
+    $global:HiddenModders = @($clean | Sort-Object -Unique)
+    try { Set-HubSetting -Key "hiddenModders" -Value $global:HiddenModders } catch {}
+}
+$global:HiddenModders = Get-HiddenModders
+
+# The name behind a "-" or "+" only counts as a MODDER when the catalog
+# actually knows it - otherwise "-horror" would offer to hide a modder
+# called horror. Genres are excluded here on purpose.
+# Shared by the filter and the hint: does the catalog know a modder whose
+# name contains this string? Used to decide whether "-luke ross" is one name
+# or a name plus a search word.
+function global:Test-KnownModderName {
+    param([string]$Name)
+    $n = ([string]$Name).Trim().ToLower()
+    if (-not $n) { return $false }
+    foreach ($g in $global:allGameData) {
+        if (-not $g) { continue }
+        $a = if ($g.Author) { "$($g.Author)".ToLower() } else { "" }
+        if ($a -and $a.Contains($n)) { return $true }
+    }
+    return $false
+}
+
+# Stricter than Test-KnownModderName: used to decide whether the "hide this
+# modder" box appears at all. Contains() alone matched a single letter - "-l"
+# hits half the catalog - so the box popped up while the name was still being
+# typed. A modder counts as MEANT only from three characters on, and only when
+# a WORD of the author name starts with it ("luk" -> "Luke Ross", but "uke"
+# does not).
+function global:Resolve-ModderName {
+    param([string]$Name)
+    $n = ([string]$Name).Trim().ToLower()
+    if ($n.Length -lt 3) { return $null }
+
+    if ($n.Contains(" ")) {
+        # A fragment with a space ("luke ross") cannot be a single word -
+        # compare it against the start of the whole author string.
+        $hits = @()
+        foreach ($g in $global:allGameData) {
+            if (-not $g) { continue }
+            $a = if ($g.Author) { "$($g.Author)".ToLower() } else { "" }
+            if (-not $a) { continue }
+            $a = ($a -replace '\([^)]*\)', ' ').Trim()
+            # Compare against each CREDIT, not only the whole field: a
+            # two-word alias can sit in second place ("Abyss-c0re / Doom
+            # Slayer"), where the field never starts with it.
+            foreach ($credit in ($a -split '\s*[+/&,]\s*')) {
+                $c = $credit.Trim()
+                if ($c -and $c.StartsWith($n) -and ($hits -notcontains $c)) { $hits += $c }
+            }
+        }
+        if ($hits.Count -eq 0) { return $null }
+        # @() around the pipeline is not cosmetic: with ONE hit the pipeline
+        # returns a plain string, and [0] on a string is its first CHARACTER.
+        # That is where "Hide f permanently" came from for "-fholger".
+        $sorted = @($hits | Sort-Object Length)
+        $shortest = [string]$sorted[0]
+        foreach ($h in $hits) { if (-not $h.StartsWith($shortest)) { return $null } }
+        return $shortest
+    }
+
+    # Single word. An author field can hold SEVERAL credits ("PureDark +
+    # Astienth"), and each credit can be a multi-word name ("Luke Ross").
+    # So split into credits first, then into words.
+    $words      = @()   # distinct matching words
+    $incomplete = $false
+    foreach ($g in $global:allGameData) {
+        if (-not $g) { continue }
+        $a = if ($g.Author) { "$($g.Author)".ToLower() } else { "" }
+        if (-not $a) { continue }
+        # Markers like "(auto-update)" are not part of anybody's name.
+        $a = ($a -replace '\([^)]*\)', ' ').Trim()
+        foreach ($credit in ($a -split '\s*[+/&,]\s*')) {
+            # Hyphen, underscore and # BELONG to these names: dr-89, xen-42,
+            # abyss-c0re, #yevhen4817, simply-jos. Splitting them apart left
+            # a dozen modders impossible to hide.
+            $cw = @($credit -split '[^a-z0-9\._#-]+' | Where-Object { $_ })
+            for ($k = 0; $k -lt $cw.Count; $k++) {
+                if (-not $cw[$k].StartsWith($n)) { continue }
+                if ($words -notcontains $cw[$k]) { $words += $cw[$k] }
+                # The word is followed by another word inside the SAME credit,
+                # so it is only part of a name ("luke" of "luke ross"). Wait
+                # for the rest instead of offering to hide a first name that
+                # two different people share.
+                if ($k -lt ($cw.Count - 1)) { $incomplete = $true }
+            }
+        }
+    }
+    # A fully typed name wins even when longer names also start with it:
+    # "rayrod" is a modder in its own right next to "rayrod-tv".
+    if (-not $incomplete -and ($words -contains $n)) { return $n }
+    if ($incomplete) { return $null }
+    # Exactly one modder name, or nothing: "astien" still fits both "astienth"
+    # and "astienvr", so nothing is offered until it is unambiguous.
+    if ($words.Count -eq 1) { return [string]$words[0] }
+    return $null
+}
+
+function global:Get-SearchModderTerm {
+    param([string]$Text, [string]$Prefix)
+    $parts = @(([string]$Text).Trim().ToLower() -split '\s+' | Where-Object { $_ })
+    for ($i = 0; $i -lt $parts.Count; $i++) {
+        $part = $parts[$i]
+        # Prefix "" means: look at the bare words too, so typing the name
+        # again - with -, with + or with nothing - brings the box back.
+        $isCand = if ($Prefix) { $part.Length -gt 1 -and $part.StartsWith($Prefix) }
+                  else { -not ($part.StartsWith("-") -or $part.StartsWith("+")) }
+        if (-not $isCand) { continue }
+        $term = if ($Prefix) { $part.Substring(1) } else { $part }
+        # Attach following words first ("luke ross"), then resolve the whole
+        # thing to the modder's real name.
+        for ($j = $i + 1; $j -lt $parts.Count; $j++) {
+            $nxt = $parts[$j]
+            if ($nxt.StartsWith("-") -or $nxt.StartsWith("+")) { break }
+            $cand = ($term + " " + $nxt)
+            if (Test-KnownModderName -Name $cand) { $term = $cand } else { break }
+        }
+        $full = Resolve-ModderName -Name $term
+        if (-not $full) { continue }
+        return $full
+    }
+    return $null
+}
+
+# Examples shown INSIDE the box, one after another, while it has focus and is
+# empty. Short on purpose - the pill is narrow, and anything longer gets cut
+# off mid-word.
+$script:SearchExamples = @("e.g. cyberpunk", "e.g. praydog", "e.g. roomscale", "e.g. free", "e.g. -horror", "e.g. -praydog")
+$script:SearchExampleIx = 0
+$script:SearchExampleTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:SearchExampleTimer.Interval = [TimeSpan]::FromMilliseconds(2600)
+$script:SearchExampleTimer.Add_Tick({
+    # Stop as soon as the box is no longer empty or lost focus - the
+    # placeholder is hidden then anyway.
+    if (-not $searchBox -or -not $searchBox.IsKeyboardFocusWithin -or $searchBox.Text.Length -gt 0) {
+        $script:SearchExampleTimer.Stop(); return
+    }
+    if ($searchPlaceholder) {
+        $script:SearchExampleIx = ($script:SearchExampleIx + 1) % $script:SearchExamples.Count
+        $searchPlaceholder.Text = $script:SearchExamples[$script:SearchExampleIx]
+    }
+})
+
+function global:Start-SearchExamples {
+    if (-not $searchPlaceholder) { return }
+    $script:SearchExampleIx = 0
+    $searchPlaceholder.Text = $script:SearchExamples[0]
+    $script:SearchExampleTimer.Start()
+}
+function global:Stop-SearchExamples {
+    try { $script:SearchExampleTimer.Stop() } catch {}
+    if ($searchPlaceholder) { $searchPlaceholder.Text = "Search" }
+}
+
+function global:Update-SearchHint {
+    if (-not $searchHintHost) { return }
+    if (-not $searchBox.IsKeyboardFocusWithin) {
+        $searchHintHost.Visibility = [System.Windows.Visibility]::Collapsed
+        return
+    }
+    $txt = [string]$searchBox.Text
+
+    $minusName = Get-SearchModderTerm -Text $txt -Prefix "-"
+    $plusName  = Get-SearchModderTerm -Text $txt -Prefix "+"
+
+    if ($plusName -and ($global:HiddenModders -contains $plusName)) {
+        # A hidden modder is being brought back - offer to drop them from
+        # the standing list instead of only lifting them for this search.
+        $script:searchHintTarget = $plusName
+        $script:searchHintMode   = "unhide"
+        $searchHideChk.IsChecked = $false
+        $searchHideChk.Content   = "Hide $plusName permanently"
+        $searchHint.Visibility      = [System.Windows.Visibility]::Collapsed
+        $searchHidePanel.Visibility = [System.Windows.Visibility]::Visible
+        $searchHintHost.Visibility  = [System.Windows.Visibility]::Visible
+        return
+    }
+    $plainName = Get-SearchModderTerm -Text $txt -Prefix ""
+    if (-not $minusName -and $plainName -and ($global:HiddenModders -contains $plainName)) {
+        # Typing a hidden modder's name plainly: show the box ticked so it can
+        # simply be un-ticked.
+        $script:searchHintTarget = $plainName
+        $script:searchHintMode   = "hide"
+        $searchHideChk.IsChecked = $true
+        $searchHideChk.Content   = "Hide $plainName permanently"
+        $searchHint.Visibility      = [System.Windows.Visibility]::Collapsed
+        $searchHidePanel.Visibility = [System.Windows.Visibility]::Visible
+        $searchHintHost.Visibility  = [System.Windows.Visibility]::Visible
+        return
+    }
+    if ($minusName) {
+        $script:searchHintTarget = $minusName
+        $script:searchHintMode   = "hide"
+        $searchHideChk.IsChecked = ($global:HiddenModders -contains $minusName)
+        $searchHideChk.Content   = "Hide $minusName permanently"
+        $searchHint.Visibility      = [System.Windows.Visibility]::Collapsed
+        $searchHidePanel.Visibility = [System.Windows.Visibility]::Visible
+        $searchHintHost.Visibility  = [System.Windows.Visibility]::Visible
+        return
+    }
+    $script:searchHintTarget = $null
+    $script:searchHintMode   = "examples"
+    $searchHidePanel.Visibility = [System.Windows.Visibility]::Collapsed
+    $searchHint.Visibility      = [System.Windows.Visibility]::Collapsed
+    $searchHintHost.Visibility  = [System.Windows.Visibility]::Collapsed
+}
+
+if ($searchHideChk) {
+    $searchHideChk.Add_Click({
+        $name = $script:searchHintTarget
+        if (-not $name) { return }
+        $list = @($global:HiddenModders)
+        if ($script:searchHintMode -eq "unhide") {
+            # Ticking the box here MEANS "stop hiding".
+            if ($this.IsChecked) { $list = @($list | Where-Object { $_ -ne $name }) }
+            elseif ($list -notcontains $name) { $list += $name }
+        } else {
+            if ($this.IsChecked) { if ($list -notcontains $name) { $list += $name } }
+            else { $list = @($list | Where-Object { $_ -ne $name }) }
+        }
+        Set-HiddenModders -List $list
+        Apply-Filter
+        Update-SearchHint
+    })
+}
+if ($searchBox) {
+    $searchBox.Add_GotKeyboardFocus({ Start-SearchExamples; Update-SearchHint })
+    $searchBox.Add_LostKeyboardFocus({
+        param($sender, $e)
+        # If focus moved INTO the hint panel itself, keep it open - collapsing
+        # here is what used to swallow the click on the checkbox.
+        try {
+            $to = $e.NewFocus
+            while ($to) {
+                if ($to -eq $searchHintHost) { return }
+                $to = [System.Windows.Media.VisualTreeHelper]::GetParent($to)
+            }
+        } catch {}
+        Stop-SearchExamples
+        if ($searchHintHost) { $searchHintHost.Visibility = [System.Windows.Visibility]::Collapsed }
+    })
+}
+
 $searchBox.Add_TextChanged({
     # Typing in the search box while the description (detail) page is
     # open used to leave the detail sitting on top: the live filter ran
@@ -917,6 +1249,7 @@ $searchBox.Add_TextChanged({
         if (Get-Command Apply-LibrarySize -ErrorAction SilentlyContinue)       { Apply-LibrarySize $global:LibrarySize }
     }
     Apply-Filter
+    if (Get-Command Update-SearchHint -ErrorAction SilentlyContinue) { Update-SearchHint }
     if ($searchPlaceholder) {
         $searchPlaceholder.Visibility = if ($this.Text.Length -gt 0) {
             [System.Windows.Visibility]::Collapsed
@@ -2379,6 +2712,44 @@ function global:Invoke-CheckInstalledScan {
             }
         }
 
+        # ---------------------------------------------------------------
+        # LEFTOVER GUARD: a folder under steamapps\common is NOT proof
+        # that the game is installed.
+        #
+        # Steam removes only its OWN files when you uninstall. Anything a
+        # mod put there stays - so the folder survives with, say, just
+        # RealRepo\RealVR64.dll in it, and every check above happily
+        # reports "installed" and then "VR Ready" and then "Update".
+        # That is what Far Cry 4 did after being uninstalled.
+        #
+        # Steam's own bookkeeping settles it: appmanifest_<AppId>.acf
+        # exists exactly as long as Steam has the game installed, and is
+        # deleted on uninstall. One Test-Path, no folder walking.
+        #
+        # Deliberately narrow - it only ever REMOVES a hit that came from
+        # a steamapps\common folder:
+        #   - no SteamId, or the folder is somewhere else (Epic, GOG,
+        #     C:\Games, a depot under steamapps\content) -> untouched
+        #   - DepotInstall entries -> untouched, their pinned builds have
+        #     no manifest by design
+        #   - library root is derived from the path itself, so it also
+        #     covers second and third Steam libraries on other drives
+        if ($installed -and $gameDir -and $game.SteamId -and -not $game.DepotInstall) {
+            $gdLower = ([string]$gameDir).ToLower()
+            $marker  = "\steamapps\common\"
+            $idx     = $gdLower.IndexOf($marker)
+            if ($idx -ge 0) {
+                $libRoot  = ([string]$gameDir).Substring(0, $idx)
+                $manifest = Join-Path $libRoot ("steamapps\appmanifest_" + $game.SteamId + ".acf")
+                if (-not (Test-Path -LiteralPath $manifest)) {
+                    # Steam does not have this game installed any more -
+                    # what is left in the folder are mod leftovers.
+                    $installed = $false
+                    $gameDir   = $null
+                }
+            }
+        }
+
         # Check if VR mod is installed
         $vrInstalled = $false
         # Depot install: the existence of the STEAM_CONTENT /
@@ -3045,7 +3416,54 @@ function global:Invoke-CheckInstalledScan {
             # fall back on the install moment and cannot tell "installed
             # the old build yesterday" from "installed the new one".
             # A 2h slack absorbs timezone/DST oddities in zip stamps.
-            if (-not $needsUpdate -and $game.ModBuildStamp -and $game.ModFile -and $gameDir) {
+            # MOST RELIABLE VARIANT: a version file the installer itself
+            # wrote into the game folder. ModVersionFile = path relative to
+            # the game folder, ModVersion = what a current install contains.
+            # Everything below infers the version from file timestamps, which
+            # breaks whenever an archive carries older dates than the release
+            # it belongs to - exactly why GAMMA kept showing an update right
+            # after being updated. A written version is not a guess.
+            # File present -> AUTHORITATIVE, the timestamp checks are skipped.
+            # File missing (installed before this existed, or by hand) ->
+            # fall through to the old behaviour, nothing gets worse.
+            # ModOutdatedFile: a file that ONLY the old layout has. Unlike
+            # ModLegacyFile below it does not care whether the current ModFile
+            # is there too - some mods keep the same marker across a
+            # restructure, so its presence proves nothing. F.E.A.R. VR is that
+            # case: bin\x64\fearvr-host.exe exists in both generations, while
+            # tools\install.ps1 exists only in the pre-overlay one.
+            if (-not $needsUpdate -and $game.ModOutdatedFile -and $gameDir) {
+                try {
+                    if (Test-Path -LiteralPath (Join-Path $gameDir $game.ModOutdatedFile)) { $needsUpdate = $true }
+                } catch {}
+            }
+
+            # An install from BEFORE a mod changed its file layout still has
+            # the old marker on disk but not the new one. That is proof of an
+            # outdated install, whatever any version marker says - so it
+            # forces the Update badge. ModLegacyFile names that old marker.
+            if (-not $needsUpdate -and $game.ModLegacyFile -and $game.ModFile -and $gameDir) {
+                try {
+                    if ((Test-Path -LiteralPath (Join-Path $gameDir $game.ModLegacyFile)) -and
+                        -not (Test-Path -LiteralPath (Join-Path $gameDir $game.ModFile))) {
+                        $needsUpdate = $true
+                    }
+                } catch {}
+            }
+
+            $verFileDecided = $false
+            if ($game.ModVersionFile -and $game.ModVersion -and $gameDir) {
+                try {
+                    $vfPath = Join-Path $gameDir $game.ModVersionFile
+                    if (Test-Path -LiteralPath $vfPath) {
+                        $vfHave = ((Get-Content -LiteralPath $vfPath -Raw -ErrorAction Stop) -replace '[^\x20-\x7E]', '').Trim()
+                        $verFileDecided = $true
+                        if ($vfHave -ne ([string]$game.ModVersion).Trim()) { $needsUpdate = $true }
+                    }
+                } catch {}
+            }
+
+            if (-not $verFileDecided -and -not $needsUpdate -and $game.ModBuildStamp -and $game.ModFile -and $gameDir) {
                 try {
                     $bsFile = Join-Path $gameDir $game.ModFile
                     if (Test-Path -LiteralPath $bsFile) {
@@ -3056,7 +3474,7 @@ function global:Invoke-CheckInstalledScan {
                 } catch {}
             }
 
-            if (-not $needsUpdate -and $game.ModReleasedAt -and $game.ModFile -and $gameDir) {
+            if (-not $verFileDecided -and -not $needsUpdate -and $game.ModReleasedAt -and $game.ModFile -and $gameDir) {
                 try {
                     $mrFile = Join-Path $gameDir $game.ModFile
                     if (Test-Path -LiteralPath $mrFile) {

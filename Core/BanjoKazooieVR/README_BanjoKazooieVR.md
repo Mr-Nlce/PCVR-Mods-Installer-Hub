@@ -57,3 +57,14 @@ Banjo-Kazooie is by **Rare**. The **Lighthouse** PC port is by **Harbour Masters
 https://rayrodtv.com/
 
 https://github.com/RaYRoD-TV/BanjoKazooie-VR
+## Key points from updates
+- The headset now paces to the headset's own refresh rate, not the monitor's.
+  If you switched Vsync off by hand to reach 72 Hz, you can switch it back on.
+- **View Bob** now really stops the walking bob - you no longer have to turn
+  off Immersive Camera and lose crouching and attacks with it.
+- Diorama tracks your head one to one; it used to lag and felt sickening.
+- First person: doors and warp pads no longer drop you facing the wrong way,
+  carried items no longer cover your eyes, and pickups in tight spots or over
+  wading water collect again.
+- Romhacks and texture packs render properly, and a hack's levels come up in
+  3D instead of on a flat screen.

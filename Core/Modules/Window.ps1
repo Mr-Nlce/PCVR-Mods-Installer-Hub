@@ -21,7 +21,7 @@ $xaml = @"
         <!-- No bottom border here on purpose: the FilterBar below
              carries its own bottom divider, and stacking two
              hairlines makes the band feel boxed-in. -->
-        <Border Grid.Row="0" Background="#0d0d0f" Padding="28,20,28,14">
+        <Border Grid.Row="0" Background="#0d0d0f" Padding="28,20,28,14" Panel.ZIndex="40">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -72,18 +72,29 @@ $xaml = @"
                                FontFamily="Segoe UI" Margin="42,2,0,0"
                                HorizontalAlignment="Left"/>
                     <!-- Update Banner (hidden by default) -->
+                    <!-- Background stays #1a2e1a: Show-UpdateBanner swaps it on
+                         hover and would overwrite anything else. The banner is
+                         made to stand out through SIZE, a lit border and a soft
+                         green glow instead - none of which the handler touches.
+                         "Click to update" was #555568, grey on green and
+                         practically invisible; it is bright now. -->
                     <Border x:Name="UpdateBanner" Background="#1a2e1a" CornerRadius="5"
-                            Padding="10,5" Margin="0,6,0,0"
+                            Padding="12,8" Margin="0,7,0,0"
+                            BorderThickness="1.2" BorderBrush="#5fe08a"
                             Visibility="Collapsed" Cursor="Hand">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#4ade80" BlurRadius="13"
+                                              ShadowDepth="0" Opacity="0.85"/>
+                        </Border.Effect>
                         <StackPanel Orientation="Horizontal">
-                            <Border Width="6" Height="6" CornerRadius="3"
-                                    Background="#66cc66" Margin="0,0,7,0"
+                            <Border Width="7" Height="7" CornerRadius="3.5"
+                                    Background="#8bff8b" Margin="0,0,7,0"
                                     VerticalAlignment="Center"/>
                             <TextBlock x:Name="UpdateBannerText"
-                                       FontSize="11" Foreground="#88dd88"
+                                       FontSize="11.5" FontWeight="SemiBold" Foreground="#c8ffc8"
                                        FontFamily="Segoe UI" VerticalAlignment="Center"/>
                             <TextBlock Text=" - Click to update"
-                                       FontSize="11" Foreground="#555568"
+                                       FontSize="11.5" FontWeight="SemiBold" Foreground="#8bff8b"
                                        FontFamily="Segoe UI" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -179,6 +190,43 @@ $xaml = @"
                                    FontFamily="Segoe UI"
                                    Margin="11,0,0,0" VerticalAlignment="Center"
                                    IsHitTestVisible="False"/>
+                        <!-- Search hint. It hangs BELOW the pill on its own
+                             visual layer (negative bottom margin + no height
+                             of its own), so showing and hiding it never
+                             moves the header or the bar underneath. Two
+                             states share the spot: the examples line, and -
+                             once a modder exclusion is typed - the offer to
+                             hide that modder for good. -->
+                        <Grid x:Name="SearchHintHost" VerticalAlignment="Bottom"
+                              Margin="2,0,0,-19" Height="16"
+                              Visibility="Collapsed" Panel.ZIndex="50">
+                            <TextBlock x:Name="SearchHint"
+                                       Text="e.g.  cyberpunk  &#183;  praydog  &#183;  roomscale  &#183;  free -horror -praydog"
+                                       FontSize="10" Foreground="#555568"
+                                       FontFamily="Segoe UI"
+                                       IsHitTestVisible="False"/>
+                            <StackPanel x:Name="SearchHidePanel" Orientation="Horizontal"
+                                        Visibility="Collapsed">
+                                <!-- Focusable=False is what makes this work at all:
+                                     clicking a focusable CheckBox pulls keyboard
+                                     focus out of the search box on MOUSE DOWN,
+                                     LostKeyboardFocus collapses this panel, and
+                                     the mouse-up never lands on it - so no Click
+                                     ever fires and nothing is saved. Unfocusable,
+                                     the search box keeps focus and the click
+                                     completes. -->
+                                <CheckBox x:Name="SearchHideChk" VerticalAlignment="Center"
+                                          Foreground="#8a8a9a" FontSize="10"
+                                          FontFamily="Segoe UI" Cursor="Hand"
+                                          Focusable="False"/>
+                                <TextBlock x:Name="SearchHideText" Text=""
+                                           FontSize="10" Foreground="#8a8a9a"
+                                           FontFamily="Segoe UI"
+                                           VerticalAlignment="Center"
+                                           Visibility="Collapsed"
+                                           IsHitTestVisible="False"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
             </Grid>

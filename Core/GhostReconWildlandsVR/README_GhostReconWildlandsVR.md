@@ -121,3 +121,27 @@ See the uninstall guide on this game's page in the Hub.
 - Ported from **mutars/anvilengine2vr** (MIT), with technique guides from **elliotttate/vrframework**, and diagnostics informed by **dariulone/cyberpunk-vr-port** (MIT) and **pancreations/Halo-MCC-VR** (MIT)
 - Khronos OpenXR SDK (Apache 2.0)
 - Ghost Recon Wildlands is the property of Ubisoft. This project is not affiliated with, endorsed by or supported by Ubisoft.
+## Key points from updates
+- **Steam build only.** The Epic and Ubisoft Connect copies are a different
+  executable, and every engine address this mod uses belongs to the Steam
+  build. There it installs nothing, leaves your game untouched, and you get a
+  small flat window with no head tracking - controllers may still respond,
+  which makes it look half-working. It is not. The line "This is NOT the
+  binary we analysed" in `GRWVR\grwxr-<pid>.log` confirms it.
+- **Singleplayer only.** Solo campaign, never co-op, never PvP, never
+  matchmaking - the game ships Easy Anti-Cheat for multiplayer.
+- **The controllers are an emulated gamepad**, not motion control: sticks,
+  triggers, grips and buttons become ordinary gamepad input, so no physical
+  pad is needed. Aim direction from the right controller is the only tracked
+  input beyond your head - there is no weapon in your hands, aim chases the
+  controller rather than tracking it, and aiming down sights hands aiming back
+  to your head.
+- Fullscreen head-tracked stereo with real depth, true first person with the
+  close-range body blur removed.
+- **Set these before judging it:** fullscreen window mode (a bordered window
+  caps VR at 60), frame limit 72, supersampling 0.90, SMAA or no
+  anti-aliasing - **never TAA**. ASW off in the Oculus Debug Tool. The game
+  rewrites GRW.ini when you apply menu changes.
+- Three hotkeys: Home recenters, Numpad 8 toggles first person, Numpad . head
+  aim. Everything else lives in `grwxr.cfg` and reloads about a second after
+  saving; `cfg_gui.exe` is a slider editor for it.

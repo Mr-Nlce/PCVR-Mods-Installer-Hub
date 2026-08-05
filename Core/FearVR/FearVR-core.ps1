@@ -602,8 +602,19 @@ if ($wantHD) {
                 Write-Host "  +==========================================================+" -ForegroundColor Yellow
                 Write-Host "  |          WHAT TO DO IN THE TEXTURE INSTALLER             |" -ForegroundColor Yellow
                 Write-Host "  +==========================================================+" -ForegroundColor Yellow
+                # The path is already on the clipboard, so nobody has to retype
+                # it into the texture installer's field.
+                $pathCopied = $false
+                try { Set-Clipboard -Value $retailRoot -ErrorAction Stop; $pathCopied = $true } catch {}
                 Write-Host "   1) Point it at the folder that holds FEAR.exe:" -ForegroundColor White
                 Write-Host "      $retailRoot" -ForegroundColor Black -BackgroundColor Yellow
+                if ($pathCopied) {
+                    # Its field starts out empty - that is normal, not a fault.
+                    # Say what to DO, so nobody hunts for a problem.
+                    Write-Host "      Its field starts out empty. The path above is already on" -ForegroundColor White
+                    Write-Host "      your clipboard: click into the field and press " -NoNewline -ForegroundColor White
+                    Write-Host " Ctrl + V " -ForegroundColor Black -BackgroundColor Yellow
+                }
                 if ($retailRoot -match '(?i)steamapps') {
                     Write-Host "   2) Your copy is from Steam. The Steam option is the one on" -ForegroundColor White
                     Write-Host "      the " -NoNewline -ForegroundColor White
@@ -981,11 +992,92 @@ if (-not (Test-Path -LiteralPath $installScript)) {
         $installScript = Join-Path $INSTALL_DIR "tools\install.ps1"
     }
 }
+# ---------------------------------------------------------------
+# This mod reorganises its package between builds. Rather than
+# depending on one fixed script name, decide from what the archive
+# ACTUALLY contains. Every known shape is handled, and an unknown one
+# ends in a readable message instead of "wrong file?".
+#   A) tools\install.ps1                 - the classic package
+#   B) FEARVR\tools\prepare-overlay.ps1  - the overlay package (beta.8+):
+#      extract over the game folder, then prepare it in place
+#   C) neither, but launchers are there  - pure drag & drop, nothing to run
+# ---------------------------------------------------------------
+$overlayPrep = $null
 if (-not (Test-Path -LiteralPath $installScript)) {
-    Write-Fail "tools\install.ps1 not found in the archive - wrong file?"
-    Pause-User "Press Enter to exit..." | Out-Null; exit 1
+    $hitPrep = Get-ChildItem -LiteralPath $INSTALL_DIR -Filter "prepare-overlay.ps1" -Recurse -Depth 4 -File -EA SilentlyContinue |
+               Select-Object -First 1
+    if ($hitPrep) { $overlayPrep = $hitPrep.FullName }
 }
-Write-OK "Unpacked to $INSTALL_DIR"
+
+if ($overlayPrep) {
+    Write-Info "Overlay package detected - installing next to FEAR.exe."
+
+    # The mod's own README is explicit: a plain extraction overwrites a
+    # third-party d3d9.dll (ReShade, dgVoodoo, fix wrappers) WITHOUT a
+    # backup. Their graphical installer chains it as
+    # d3d9.fearvr-upstream.dll - do the same instead of destroying it.
+    $existingD3D9 = Join-Path $retailRoot "d3d9.dll"
+    $chained      = Join-Path $retailRoot "d3d9.fearvr-upstream.dll"
+    if ((Test-Path -LiteralPath $existingD3D9) -and -not (Test-Path -LiteralPath $chained)) {
+        $isOurs = $false
+        try { $isOurs = ((Get-Item -LiteralPath $existingD3D9).VersionInfo.FileDescription -match '(?i)fearvr') } catch {}
+        if (-not $isOurs) {
+            try {
+                Move-Item -LiteralPath $existingD3D9 -Destination $chained -Force -ErrorAction Stop
+                Write-OK "Kept your existing d3d9.dll as d3d9.fearvr-upstream.dll"
+            } catch { Write-Warn "Could not back up the existing d3d9.dll: $($_.Exception.Message)" }
+        }
+    }
+
+    # Move the extracted overlay into the game folder.
+    $overlayRoot = Split-Path -Parent (Split-Path -Parent $overlayPrep)   # ...\FEARVR
+    $pkgRoot     = Split-Path -Parent $overlayRoot                        # archive root
+    try {
+        Get-ChildItem -LiteralPath $pkgRoot -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $retailRoot -Recurse -Force -ErrorAction Stop
+        }
+    } catch {
+        Write-Fail "Could not copy the overlay into the game folder: $($_.Exception.Message)"
+        Pause-User "Press Enter to exit..." | Out-Null; exit 1
+    }
+
+    # From here the overlay IS the install: rebind so every later step
+    # (staging, success check, play.ps1, shortcut) points at it.
+    $INSTALL_DIR   = Join-Path $retailRoot "FEARVR"
+    $installScript = Join-Path $INSTALL_DIR "tools\prepare-overlay.ps1"
+    $script:UseOverlayPrep = $true
+    Write-OK "Overlay installed to $INSTALL_DIR"
+}
+elseif (-not (Test-Path -LiteralPath $installScript)) {
+    $launchers = @(Get-ChildItem -LiteralPath $INSTALL_DIR -Filter "*.cmd" -Recurse -Depth 3 -File -EA SilentlyContinue)
+    Write-Fail "This release has neither tools\install.ps1 nor tools\prepare-overlay.ps1."
+    if ($launchers.Count -gt 0) {
+        Write-Info "It looks like a drag & drop package - copy its contents next to FEAR.exe yourself:"
+        Write-Host "    from: $INSTALL_DIR" -ForegroundColor Cyan
+        Write-Host "    to:   $retailRoot" -ForegroundColor Cyan
+        try { Start-Process $INSTALL_DIR } catch {}
+        try { Start-Process $retailRoot } catch {}
+    } else {
+        Write-Info "Check the release page - the package layout changed again."
+    }
+    # Do NOT dead-end here. The mod itself documents plain extraction into
+    # the game folder as a valid install, so copy it there and carry on -
+    # a layout we do not recognise still ends up installed.
+    Write-Info "Installing it the documented way instead: copying everything next to FEAR.exe."
+    try {
+        Get-ChildItem -LiteralPath $INSTALL_DIR -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $retailRoot -Recurse -Force -ErrorAction Stop
+        }
+        $maybeOverlay = Join-Path $retailRoot "FEARVR"
+        if (Test-Path -LiteralPath $maybeOverlay) { $INSTALL_DIR = $maybeOverlay } else { $INSTALL_DIR = $retailRoot }
+        $script:NoPrepScript = $true
+        Write-OK "Copied into $retailRoot"
+    } catch {
+        Write-Fail "Could not copy the package into the game folder: $($_.Exception.Message)"
+        Pause-User "Press Enter to exit..." | Out-Null; exit 1
+    }
+}
+else { Write-OK "Unpacked to $INSTALL_DIR" }
 
 # ---- 5. stage the mod (mod installer, explicit paths) -------
 Write-Step 5 5 "Staging the mod against your F.E.A.R. install"
@@ -1065,16 +1157,35 @@ function Invoke-ModInstaller {
     param([int]$TimeoutMinutes = 15)
     foreach ($f in @($MOD_LOG, $MOD_ERR)) { try { Remove-Item -LiteralPath $f -Force -EA SilentlyContinue } catch {} }
     $psArgs = @(
-        "-NoProfile","-ExecutionPolicy","Bypass","-File","`"$installScript`"",
-        "-InstallDir","`"$INSTALL_DIR`"","-RetailRoot","`"$retailRoot`"",
-        "-PublicToolsGame","`"$PT_GAME`"","-NonInteractive"
+        "-NoProfile","-ExecutionPolicy","Bypass","-File","`"$installScript`""
     )
+    # Read the foreign script's own param block and pass ONLY what it
+    # declares. Names come and go between builds (-NonInteractive vanished
+    # with the overlay package); an unknown one aborts the whole script.
+    $declared = ""
+    try { $declared = Get-Content -Raw -LiteralPath $installScript -ErrorAction Stop } catch {}
+    $wanted = @{
+        "InstallDir"      = $INSTALL_DIR
+        "RetailRoot"      = $retailRoot
+        "PublicToolsGame" = $PT_GAME
+    }
+    foreach ($k in @("InstallDir","RetailRoot","PublicToolsGame")) {
+        if (-not $declared -or $declared -match ("\`$" + $k + "\b")) {
+            $psArgs += "-$k"; $psArgs += "`"$($wanted[$k])`""
+        }
+    }
+    foreach ($sw in @("NonInteractive","Force")) {
+        if ($declared -match ("\`$" + $sw + "\b")) { $psArgs += "-$sw" }
+    }
     # -Clean forces the mod to re-baseline from scratch (its own userdata is
     # kept). Without it the mod does an "Update" and keeps the previous
     # deployment.json - including the recorded hash of the game exe. After the
     # HD texture pack is added or removed that exe changes, the recorded hash
     # no longer matches, and the mod's launcher refuses to start.
-    if ($undoHD -or $wantHD) { $psArgs += "-Clean" }
+    # -Clean only exists from beta.3 on - beta.1/2 abort on it, and the
+    # overlay script does not know it either. Same rule as every other
+    # switch: pass it only when the script declares it.
+    if (($undoHD -or $wantHD) -and ($declared -match '\$Clean\b')) { $psArgs += "-Clean" }
     $proc = $null
     try {
         $proc = Start-Process "powershell.exe" -ArgumentList $psArgs -PassThru -WindowStyle Hidden `
@@ -1153,9 +1264,17 @@ $launchBat = Join-Path $INSTALL_DIR "Start FEAR VR.bat"
 # If play.ps1 refuses to start (most often a changed FEAR.exe), the console
 # would close instantly and the user sees nothing at all. Keep the window
 # open on failure so the reason is readable.
+# The overlay generation's play.ps1 needs BOTH the mod folder and the game
+# folder - the mod's own "Start F.E.A.R. VR.cmd" passes -InstallDir AND
+# -RetailRoot. Passing only -InstallDir made it exit immediately: a black
+# console for a fraction of a second and nothing else.
+$playArgs = "-InstallDir `"$INSTALL_DIR`""
+if ($script:UseOverlayPrep -or ($INSTALL_DIR -ne $retailRoot -and (Test-Path -LiteralPath (Join-Path $retailRoot "FEAR.exe")))) {
+    $playArgs += " -RetailRoot `"$retailRoot`""
+}
 $batBody = @(
     "@echo off",
-    ("powershell -NoProfile -ExecutionPolicy Bypass -File `"" + (Join-Path $INSTALL_DIR "tools\play.ps1") + "`" -InstallDir `"" + $INSTALL_DIR + "`""),
+    ("powershell -NoProfile -ExecutionPolicy Bypass -File `"" + (Join-Path $INSTALL_DIR "tools\play.ps1") + "`" " + $playArgs),
     "if errorlevel 1 (",
     "  echo.",
     "  echo F.E.A.R. VR did not start. The reason is above.",
@@ -1168,10 +1287,20 @@ try { Set-Content -Path $launchBat -Value $batBody -Encoding ASCII -Force } catc
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force } catch {}
 if (Test-Path -LiteralPath $launchBat) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $launchBat -Encoding UTF8 -Force } catch {}
-    # No shortcut is created here on purpose: the mod's own install.ps1
-    # writes "F.E.A.R. VR.lnk" to the desktop itself (pointing at play.ps1
-    # with the right arguments), and its uninstall.ps1 removes it again.
-    # Adding a second one would only fight with the mod's.
+    # The classic install.ps1 wrote "F.E.A.R. VR.lnk" to the desktop itself,
+    # so the Hub deliberately stayed out of it. The OVERLAY package has no
+    # install.ps1 and prepare-overlay.ps1 creates no shortcut at all - a fresh
+    # install would end up with none, and anyone coming from the old layout
+    # keeps a shortcut pointing at the starter in the old folder, which dies
+    # instantly. So on the overlay route the Hub writes it, with the same
+    # name, which replaces a stale one instead of adding a second icon.
+    if ($script:UseOverlayPrep) {
+        try {
+            $lnk = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\F.E.A.R. VR.lnk" `
+                     -TargetPath $launchBat -WorkingDir $INSTALL_DIR -IconPath (Join-Path $retailRoot "FEAR.exe")
+            if ($lnk) { Write-OK "Desktop shortcut 'F.E.A.R. VR' points at the new launcher." }
+        } catch { Write-Warn "Could not write the desktop shortcut - start the game from the Hub." }
+    }
 }
 if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
 
@@ -1227,6 +1356,9 @@ Write-Host "  'F.E.A.R. VR' desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  In-game: F9 recenters, F8 toggles stereo, and the ESC menu has a" -ForegroundColor Gray
 Write-Host "  'VR SETTINGS' page. See the README for the full control layout." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Yellow box around your weapon? Hold BOTH GRIPS + B for the VR" -ForegroundColor White
+Write-Host "  panel, tab Collide, switch 'Show collision box' off." -ForegroundColor White
 Write-Host ""
 Write-Host "  The mod auto-updates: the Hub flags new beta releases as they land." -ForegroundColor DarkGray
 Write-Host ""

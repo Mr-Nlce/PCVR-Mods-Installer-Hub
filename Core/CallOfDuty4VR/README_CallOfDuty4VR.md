@@ -91,3 +91,16 @@ See the uninstall guide on this game's page in the Hub.
 - Call of Duty 4 and its assets by Infinity Ward / Activision
 
 KisakCOD and this derivative are distributed under the GNU General Public License version 3. This is an independently developed mod and not an official Call of Duty product.
+## Key points from updates
+- The Windows package now carries the matching 32-bit Steamworks, Bink and
+  Miles runtimes, which fixes clean-install failures around steam_api.dll and
+  the mss32.dll entry-point error.
+- **Tracked left hand and physical reloading:** eject with right A, reach to
+  your left hip, hold the left grip to draw a magazine, release it inside the
+  magazine well to insert it. Shotguns, launchers and bolt-action rifles keep
+  the classic reload on right A.
+- Physical reloading can be switched off with `KISAK_VR_MANUAL_RELOAD=0` in
+  `VR-Settings.bat`.
+- Mission shortcuts sit on the right thumbrest: hold it and push the left
+  stick for night vision, airstrike, C4 or the grenade launcher.
+- Death From Above is still unsupported and has to be skipped.

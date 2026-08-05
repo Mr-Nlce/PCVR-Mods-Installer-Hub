@@ -91,7 +91,17 @@ $ownGames = @(
         PortraitUrl = "Assets/AnomalyGamma_portrait.jpg"
         HeaderUrl   = "Assets/AnomalyGamma_header.jpg"
         ScreenshotUrl = "Assets/AnomalyGamma_screenshot.jpg"
-        Mod         = "GAMMA VR v0.3.1"
+        Mod         = "GAMMA VR v0.3.2c"
+        # No version marker exists for this one: the pack comes from Discord
+        # as a 100+ GB .7z, so there is nothing to compare a tag against. The
+        # date the v0.3.2 pack was published works instead - the check reads
+        # the age of the installed GAMMA VR.bat (with a 7-day grace, so a
+        # fresh install of the new pack never flags itself).
+        ModReleasedAt = "2026-08-03"
+        # Written by the installer into the game folder - authoritative, so
+        # the date guess above only applies to installs made before this.
+        ModVersionFile = "gamma_vr_version.txt"
+        ModVersion     = "0.3.2c"
         Description = "Discord login, complete pack"
         Author      = "GAMMA VR Team"
         Bat         = "AnomalyGammaVR\START_INSTALLER.bat"
@@ -241,6 +251,36 @@ $ownGames = @(
             "Did you take the fullscreen cutscenes option? Then ContentBaked\pc\FlashMovies\HUDPC.swf was replaced - rename HUDPC.swf.hubbak back over it to restore the original HUD."
         )
         Tags        = @("bioshock", "rapture", "fps", "shooter", "action", "horror", "story", "adventure", "atmospheric", "immersive", "plasmids", "remastered", "openxr", "biovrdev", "balouza", "motion controllers")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "BioShock 2 Remastered"
+        Quip        = "Rapture never asked you to look away. Now you cannot."
+        SteamId     = "409720"
+        VideoUrl    = "https://youtu.be/eLE85Yua2TI?t=152"
+        Mod         = "bioshock-vr (auto-update)"
+        GithubRepo  = "mohamad-balouza/bioshock-vr"
+        Description = "Remastered, square res"
+        Author      = "balouza"
+        Bat         = "Bioshock2VR\START_INSTALLER.bat"
+        Color       = "#0a1418"
+        Accent      = "#39a9bd"
+        InfoUrl     = "https://github.com/mohamad-balouza/bioshock-vr"
+        ModPageUrl  = "https://github.com/mohamad-balouza/bioshock-vr"
+        DownloadUrl = "https://github.com/mohamad-balouza/bioshock-vr/releases"
+        SteamFolder = "BioShock 2 Remastered"
+        FallbackPaths=@("C:\GOG Games\BioShock 2 Remastered", "C:\Program Files (x86)\GOG Galaxy\Games\BioShock 2 Remastered", "C:\Program Files\Epic Games\BioShock2Remastered", "EPIC:BioShock2Remastered")
+        # The injector next to the game exe. Steam and GOG use Build\Final,
+        # Epic ships its binaries in Build\FinalEpic - hence the alt.
+        ModFile     = "Build\Final\xinput1_3.dll"
+        ModFileAlt  = "Build\FinalEpic\xinput1_3.dll"
+        GameExe     = "Build\Final\Bioshock2HD.exe"
+        UninstallSteps = @(
+            "Delete 'xinput1_3.dll' and 'bioshockvr.dll' from the game's Build\Final folder",
+            "(Build\FinalEpic on Epic). The base game is left untouched.",
+            "If the installer parked another mod's injector, rename that file back."
+        )
+        Tags=@("bioshock", "bioshock 2", "rapture", "subject delta", "big daddy", "2k", "balouza", "shooter", "action", "horror", "story", "openxr")
     },
     @{
         Controls    = "MC"
@@ -405,7 +445,17 @@ $ownGames = @(
         InfoUrl     = "https://github.com/dariulone/cyberpunk-vr-port"
         GitHubNightly = "dariulone/cyberpunk-vr-port"
         Quip        = "Wake up, samurai - Night City won't burn itself down."
-        ModFile     = "bin\x64\dxgi.dll"
+        # Since CyberpunkVRPort 0.1.0 the mod is a RED4ext plugin, not a
+        # dxgi.dll proxy - dxgi.dll is gone from the package entirely, so
+        # the old marker would never be found again.
+        ModFile     = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll"
+        # Everyone who installed a pre-0.1.0 build through the Hub still has
+        # the old dxgi.dll proxy and none of the new files. ModFileAlt keeps
+        # those installs recognised as VR Ready instead of dropping them back
+        # to "Needs Mod", and ModLegacyFile turns them into an Update - old
+        # marker present, new marker missing = outdated by definition.
+        ModFileAlt    = "bin\x64\dxgi.dll"
+        ModLegacyFile = "bin\x64\dxgi.dll"
         SteamFolder = "Cyberpunk 2077"
         FallbackPaths = @(
             "STEAM:Cyberpunk 2077",
@@ -604,6 +654,20 @@ $ownGames = @(
         ModPageUrl  = "https://github.com/DR-89/fear-vr"
         DownloadUrl = "https://github.com/DR-89/fear-vr/releases"
         ModFile     = "bin\x64\fearvr-host.exe"
+        # Since beta.8 the mod lives INSIDE the game folder, one level deeper:
+        # <game>\FEARVR\bin\x64\... The old layout sat in its own install
+        # folder, where ModFile above matches from its root. Whichever anchor
+        # the scan uses, one of the two has to hit - otherwise an overlay
+        # install reads as "game installed, no VR mod".
+        ModFileAlt  = "FEARVR\bin\x64\fearvr-host.exe"
+        # Every install made before beta.8 carries the mod's old install
+        # script; the overlay package has no install.ps1 at all. The host exe
+        # is in both, so only this file tells the two generations apart -
+        # anyone still on the old layout gets an Update badge.
+        ModOutdatedFile = "tools\install.ps1"
+        # The starter inside the game folder, checked BEFORE any recorded
+        # path: C:\...\FEAR Ultimate Shooter Edition\FEARVR\Start FEAR VR.bat
+        LaunchExeAlt = "FEARVR\Start FEAR VR.bat"
         LaunchExe   = "Start FEAR VR.bat"
         NeverSteamLaunch = $true
         VrInstallRoot = "C:\Games\FEAR VR"
@@ -2296,7 +2360,11 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Forza Horizon 6 VR"; VideoUrl="https://youtu.be/q1Xudpmnk6M?t=147"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="NALULUNA or lufz VRMod"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; NoVersionSeed=$true; Description="6DoF, cockpit view"; Author="lufz (auto-update)"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
     @{ Controls="GP"; Title="Ghost of Tsushima VR"; VideoUrl="https://www.youtube.com/watch?v=L7NIei0xkEs"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
-        Controls    = "GP"
+        # VRGP, not GP: the mod turns the Touch controllers into an
+        # EMULATED GAMEPAD (sticks, triggers, grips, buttons). No physical pad
+        # is needed - but it is not motion control, and the author insists it
+        # must not be described as such.
+        Controls    = "VRGP"
         Title       = "Ghost Recon Wildlands VR"
         # The clip is FLAT gameplay, not a VR capture - VideoLabel renames
         # the strip so it does not promise VR footage it never shows.
@@ -2327,10 +2395,12 @@ $ownGamesGP = @(
         FlatVREnabled  = "dxgi.dll"
         FlatVRDisabled = "dxgi.dll.off"
         SteamFolder = "Wildlands"
-        FallbackPaths=@("STEAM:Wildlands",
-                        "C:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Tom Clancy's Ghost Recon Wildlands",
-                        "D:\Program Files (x86)\Ubisoft\Ubisoft Game Launcher\games\Tom Clancy's Ghost Recon Wildlands",
-                        "EPIC:GhostReconWildlands")
+        # STEAM BUILD ONLY (author, v0.5.0-alpha): the Epic and Ubisoft
+        # Connect copies are a different executable, every engine address
+        # this mod uses belongs to the Steam build. There the mod installs
+        # nothing and you get a flat window with no head tracking - so the
+        # Hub must not point anyone at those folders.
+        FallbackPaths=@("STEAM:Wildlands")
         UninstallSteps = @(
             "Close the game.",
             "Only want to play flat for a while? Do NOT uninstall - use the Flat / VR switch on this page, which renames dxgi.dll for you.",
@@ -2344,6 +2414,35 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; VideoUrl="https://youtu.be/5sgmy9nJqZY?t=4402"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-update)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; VideoUrl="https://youtu.be/jwMUMGtPpwU?t=89"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Grounded VR"; VideoUrl="https://www.youtube.com/watch?v=4A5yO10xSHs"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{
+        Controls    = "GP"
+        Title       = "GTA IV VR"
+        VideoUrl    = "https://youtu.be/JkVdSyDpg78"
+        SteamId     = "12210"
+        Quip        = "Liberty City, at eye level. Niko never had it this real."
+        Mod         = "gtaiv-dxvk-vr (auto-update)"
+        GithubRepo  = "Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
+        Description = "Complete Edition, SteamVR"
+        Author      = "Hochgeschwindigkeitsrennfahrer"
+        Bat         = "GTA4VR\START_INSTALLER.bat"
+        Color       = "#101820"
+        Accent      = "#c9852f"
+        InfoUrl     = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
+        ModPageUrl  = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
+        DownloadUrl = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod/releases"
+        SteamFolder = "Grand Theft Auto IV"
+        FallbackPaths=@("C:\Program Files\Rockstar Games\Grand Theft Auto IV", "C:\Program Files (x86)\Rockstar Games\Grand Theft Auto IV")
+        ModFile     = "GTAIV\gtaiv_dxvk_vr.asi"
+        ModFileAlt  = "gtaiv_dxvk_vr.asi"
+        FlatVREnabled  = "GTAIV\gtaiv_dxvk_vr.asi|gtaiv_dxvk_vr.asi"
+        FlatVRDisabled = "GTAIV\gtaiv_dxvk_vr.asi.off|gtaiv_dxvk_vr.asi.off"
+        UninstallSteps = @(
+            "Only want to play flat for a while? Do NOT uninstall - use the Flat / VR switch on this page.",
+            "To remove the mod, restore d3d9.dll.vrbak and dinput8.dll.vrbak over the mod's",
+            "versions in the GTAIV folder and delete gtaiv_dxvk_vr.asi."
+        )
+        Tags=@("gta", "gta 4", "gta iv", "grand theft auto", "liberty city", "niko bellic", "rockstar", "dxvk", "open world", "action", "shooter", "driving", "story")
+    },
     @{ Controls="GP"; Title="High on Life VR"; VideoUrl="https://www.youtube.com/watch?v=Yzn5Rf_vwLc"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Hogwarts Legacy VR"; VideoUrl="https://www.youtube.com/watch?v=CT9WPSiKHzA"; Quip="Wand at the ready. Walk the halls of Hogwarts yourself."; SteamId="990080";              Mod="R.E.A.L."; SteamFolder="Hogwarts Legacy"; FallbackPaths=@("EPIC:HogwartsLegacy"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a5a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, hogwarts, harry potter", "adventure", "fantasy", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="VRGP"; Title="Hollow Knight Silksong"; VideoUrl="https://www.youtube.com/watch?v=gmR53WcH2iY"; Pill="HOLLOWK_S_VR"; SteamId="1030300"; Mod="HollowK_S_VR_1.0.0"; SteamFolder="Hollow Knight Silksong"; FallbackPaths=@("STEAM:HollowKnightSilksong", "STEAM:Silksong", "GOG:Hollow Knight Silksong", "XBOX:Hollow Knight- Silksong"); Description="Discord login, depth only"; Author="Astienth"; Bat="HollowKnightSilksongVR\START_INSTALLER.bat"; Color="#0a0a18"; Accent="#aaccff"; InfoUrl="https://discord.com/channels/1001138422972432597/1414940597579419679/1414940597579419679"; Tags=@("hollow knight", "silksong", "hollowknight", "astienth", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnightSilksong_VR.dll" },
@@ -2498,6 +2597,36 @@ $ownGamesGP = @(
         SteamFolder = "Paranoia Place"
         FallbackPaths=@("STEAM:ParanoiaPlace", "STEAM:Paranoia Place Demo")
         Tags=@("paranoia place", "paranoiaplace", "astienth", "horror", "psychological", "atmospheric", "story", "indie")
+    },
+    @{
+        Controls    = "VRGP"
+        Title       = "Pokemon Gen 1 VR"
+        SteamId     = ""
+        PortraitUrl = "Assets/Gen1RecompVR_portrait.jpg"
+        HeaderUrl   = "Assets/Gen1RecompVR_header.jpg"
+        ScreenshotUrl = "Assets/Gen1RecompVR_screenshot.jpg"
+        Quip        = "That Snorlax is blocking the road at full size now. Still no flute."
+        Mod         = "Voxel Mod (auto-update)"
+        GithubRepo  = "DramaticShape/DramaticShapeVoxelMod"
+        Description = "US .gb or .gbc ROM required"
+        Author      = "DramaticShape"
+        Bat         = "Gen1RecompVR\START_INSTALLER.bat"
+        Color       = "#16321c"
+        Accent      = "#e8c53c"
+        InfoUrl     = "https://github.com/DramaticShape/DramaticShapeVoxelMod"
+        ModPageUrl  = "https://github.com/DramaticShape/DramaticShapeVoxelMod"
+        DownloadUrl = "https://github.com/DramaticShape/DramaticShapeVoxelMod/releases"
+        ModFile     = "gen1recomp.exe"
+        LaunchExe   = "gen1recomp.exe"
+        StandaloneVR = $true
+        SteamFolder = "Pokemon Gen 1 VR"
+        FallbackPaths=@("C:\Games\Pokemon Gen 1 VR", "D:\Games\Pokemon Gen 1 VR", "E:\Games\Pokemon Gen 1 VR")
+        UninstallSteps = @(
+            "Delete the game folder (C:\Games\Pokemon Gen 1 VR by default),",
+            "and delete the mod folder C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMATIC_SHAPE",
+            "- the mod platform fixes that second path, it is not the Hub's choice."
+        )
+        Tags=@("gen1 recomp", "gen1recomp", "voxel", "dramatic shape", "diorama", "love2d", "game boy", "retro", "rpg", "adventure", "exploration", "puzzle", "openxr")
     },
     @{ Controls="GP"; Title="Pragmata VR"; VideoUrl="https://www.youtube.com/live/zyx9zEs2W4c?t=834"; Quip="Hack the moon. Hold her hand. Step into the unknown."; SteamId="3357650"; PortraitUrl="Assets/Pragmata_portrait.jpg"; HeaderUrl="Assets/Pragmata_header.jpg"; Mod="REF (auto-update)"; SteamFolder="PRAGMATA"; FallbackPaths=@("STEAM:PRAGMATA"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Notice="Pragmata is a brand-new title and this VR mod is early, community-made work built on praydog's REFramework - a genuinely impressive effort given how fresh the game is. Fair warning: it doesn't run smoothly for everyone yet, and the in-game hacking UI can misbehave on some setups. If you hit trouble, it's the early state of the mod, not something you did wrong. Pragmata is also very demanding in VR - see the AFW performance option offered during install, which can help a lot."; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Pragmata.exe"; Color="#0a0a1a"; Accent="#dd5544"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("pragmata", "reframework", "praydog", "action", "sci-fi"); ModFile="openxr_loader.dll" },
     @{

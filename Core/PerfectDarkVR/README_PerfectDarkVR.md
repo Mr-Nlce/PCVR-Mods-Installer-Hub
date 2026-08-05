@@ -44,3 +44,14 @@ If you enjoy this VR fork, consider supporting Alex-LeTux:
 - https://ko-fi.com/alexletux
 
 >>> Joanna Dark goes hands-on - dataDyne never saw it coming.
+## Key points from updates
+- Two-handed weapons are now aimed with **both hands**, and the off-hand is a
+  real fist instead of a placeholder.
+- Menu and HUD moved onto XR layers: the menu rides your left hand, the weapon
+  HUD sits on the hands, and the remaining HUD floats about a metre in front
+  of you - the distance is adjustable in the options.
+- The crouch button can be switched off entirely.
+- CamSpy, DrugSpy and BombSpy: the HUD is fully visible again, their crosshair
+  sits right, and you can look around with your head while using them.
+- Head rotation no longer drags the controller transform along, and the aiming
+  reticle colours red or blue for enemy and friendly again.

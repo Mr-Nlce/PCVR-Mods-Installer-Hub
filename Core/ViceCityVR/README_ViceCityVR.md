@@ -95,3 +95,17 @@ VR configuration and per-weapon calibration live in `vr_settings.ini`; general r
 Project page:
 
 https://github.com/dubrovskiy-yevhen-stakelogic/vice-city-vr
+## Key points from updates
+- **Head Directed locomotion** is now the default on fresh installs: Tommy
+  faces where you actually move, without assisted camera turning or sideways
+  running animations.
+- Radio station names, mission instructions and objective updates are back as
+  VR HUD messages.
+- Optional weapon haptics with adjustable recoil strength, and separate
+  driving modes for cars and motorcycles.
+- Walking head bob can be switched off (off by default on fresh installs), and
+  graphics settings have their own submenu.
+- The RPG scope's black rectangle is replaced by a VR-safe reticle, and the
+  PSG-1 centre dot is back.
+- Existing settings and your weapon, HUD, holster, hand and vehicle
+  calibrations survive the update.

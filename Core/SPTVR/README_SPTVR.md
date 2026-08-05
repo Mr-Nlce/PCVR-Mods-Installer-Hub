@@ -106,3 +106,15 @@ Many are. Mods that add new UI often won't work, some new guns may miss features
 - **SPT team** — SinglePlayer Tarkov
 - **Battlestate Games** — Escape from Tarkov
 - Support / Discord: https://discord.gg/U8B8h3s6SN
+## Key points from updates
+- **Manual eating:** every food has its own gesture, no menu needed.
+- **Loose loot:** a white dot marks the item your palm points at; press grip
+  to pull it to your hand. Held items are far more stable and no longer clip
+  through walls.
+- Bodies can be dragged - a quick grip and release loots instead.
+- Fika sync covers arms, eating, body dragging and held loot, and a separate
+  sync module lets flatscreen players see VR movement.
+- **Performance:** the `lodbiasfactor` slider in *VR More* gives a large boost
+  when lowered, at the cost of pop-in. Scope resolution is adjustable too.
+- Variable scopes were rebuilt on the game's own scope code, so every scope
+  works now, modded ones included - `scopes.json` is gone.

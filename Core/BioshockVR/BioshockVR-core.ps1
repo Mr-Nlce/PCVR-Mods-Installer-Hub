@@ -202,9 +202,20 @@ function Fill-Store {
         # The bundled calibration travels with the store, not into the game
         # folder - it belongs in %LOCALAPPDATA%\BioshockVR and only if the
         # user wants it. The README explains that.
+        # SINCE v0.7.0 THE ZIP CARRIES TWO CALIBRATIONS: preset-bs1\ for this
+        # game and preset-bs2\ for BioShock 2, with the SAME file names
+        # (vrpreset.ini, weapons.ini, HOW-TO-USE.txt). A plain recursive
+        # search with "first hit wins" could therefore drop BioShock 2's
+        # tuning into BioShock 1's store. Prefer a bs1 folder, and only fall
+        # back to a loose file when no bs1 folder exists (older releases had
+        # the presets in "preset\" or at the root).
         foreach ($p in @("vrpreset.ini","hands.ini","weapons.ini","HOW-TO-USE.txt","README.txt")) {
-            $hit = Get-ChildItem -LiteralPath $Extract -Filter $p -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($hit) { try { Copy-Item -LiteralPath $hit.FullName -Destination ([System.IO.Path]::Combine($StoreDir, $p)) -Force -ErrorAction SilentlyContinue } catch {} }
+            $all = @(Get-ChildItem -LiteralPath $Extract -Filter $p -Recurse -File -ErrorAction SilentlyContinue)
+            if ($all.Count -eq 0) { continue }
+            $hit = $all | Where-Object { $_.DirectoryName -match '(?i)preset[-_]?bs1' } | Select-Object -First 1
+            if (-not $hit) { $hit = $all | Where-Object { $_.DirectoryName -notmatch '(?i)bs2' } | Select-Object -First 1 }
+            if (-not $hit) { continue }
+            try { Copy-Item -LiteralPath $hit.FullName -Destination ([System.IO.Path]::Combine($StoreDir, $p)) -Force -ErrorAction SilentlyContinue } catch {}
         }
     }
     return [pscustomobject]@{ Copied = $got; Missing = $miss }

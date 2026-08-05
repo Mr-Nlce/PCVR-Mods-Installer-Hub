@@ -162,8 +162,11 @@ echo   [147] Call of Duty 4 VR
 echo   [148] Ghost Recon Wildlands VR
 echo   [149] Banjo-Kazooie VR
 echo   [150] Mass Effect 2 LE VR
+echo   [151] Pokemon Gen 1 VR
+echo   [152] GTA IV VR
+echo   [153] BioShock 2 Remastered
 echo.
-set /p choice="Enter number (1-150): "
+set /p choice="Enter number (1-153): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -314,6 +317,9 @@ if "%choice%"=="147" (set SCRIPT=%~dp0CallOfDuty4VR\CallOfDuty4VR-core.ps1)
 if "%choice%"=="148" (set SCRIPT=%~dp0GhostReconWildlandsVR\GhostReconWildlandsVR-core.ps1)
 if "%choice%"=="149" (set SCRIPT=%~dp0BanjoKazooieVR\BanjoKazooieVR-core.ps1)
 if "%choice%"=="150" (set SCRIPT=%~dp0MassEffect2VR\MassEffect2VR-core.ps1)
+if "%choice%"=="151" (set SCRIPT=%~dp0Gen1RecompVR\Gen1RecompVR-core.ps1)
+if "%choice%"=="152" (set SCRIPT=%~dp0GTA4VR\GTA4VR-core.ps1)
+if "%choice%"=="153" (set SCRIPT=%~dp0Bioshock2VR\Bioshock2VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

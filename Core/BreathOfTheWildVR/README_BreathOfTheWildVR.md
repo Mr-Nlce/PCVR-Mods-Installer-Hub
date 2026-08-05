@@ -58,3 +58,13 @@ BetterVR is the result of thousands of hours of reverse-engineering across five 
 - https://github.com/sponsors/Crementif
 
 >>> Climb anything, cook questionable meals, and chase the next shrine on the horizon.
+## Key points from updates
+- **Physical bow drawing:** hold the arrow near the string, press the trigger
+  and pull back. The bow arc only appears while you are drawing.
+- The mod warns you when **FPS++ is not enabled** - that combination crashed
+  the game before.
+- Quality options in the *Graphics (For BetterVR)* pack work again: Low drops
+  god rays, Very Low also drops shadows.
+- Fixed camera clipping when climbing overhangs, and hands and equipment
+  lagging behind while riding or shield-surfing.
+- Pico Ultra and Pico Neo 3 controllers are supported.
