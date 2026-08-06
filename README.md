@@ -53,6 +53,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Dark Souls II
 * Dark Souls III
 * Dark Souls Remastered
+* Days Gone
 * Death Stranding
 * Decimate Drive VR (motion controls)
 * Deep Rock Galactic VR (motion controls)
@@ -64,7 +65,6 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Doom 2 (+ 3D weapons) (motion controls)
 * Doom 3 BFG VR (motion controls)
 * Doom Eternal
-* Doom: The Dark Ages
 * Dr. Robotnik's Ring Racers
 * Dragon's Dogma 2
 * Dredge VR (motion controls)
