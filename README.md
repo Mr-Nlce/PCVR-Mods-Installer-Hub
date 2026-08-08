@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (220)</summary>
+<summary>Show all currently listed titles (222)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -37,6 +37,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Avatar: Frontiers of Pandora
 * Banjo Kazooie (N64 ROM)
 * Bendy VR (motion controls)
+* Big Walk VR (motion controls)
 * Bioshock Remastered (motion controls)
 * Bioshock 2 Remastered (motion controls)
 * Black Mesa Source VR (motion controls)
@@ -144,6 +145,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Morrowind VR (motion controls)
 * Moto Rush Reborn VR (motion controls)
 * MOUSE: P.I. For Hire VR (motion controls)
+* My Friendly Neighborhood [WIP] (motion controls)
 * Neon White VR (motion controls)
 * New Star GP
 * No One Lives Forever 2
