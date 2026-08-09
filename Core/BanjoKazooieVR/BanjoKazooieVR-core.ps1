@@ -327,7 +327,7 @@ Write-Host "  With a runtime running the game boots into VR; without one it" -Fo
 Write-Host "  runs as the normal flat game." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or use the new" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or use the new" -ForegroundColor Gray
 Write-Host "    'Banjo-Kazooie VR' desktop shortcut." -ForegroundColor Gray
 if (-not $romPlaced) {
     Write-Host "    On the first start the extraction wizard asks for your" -ForegroundColor Gray

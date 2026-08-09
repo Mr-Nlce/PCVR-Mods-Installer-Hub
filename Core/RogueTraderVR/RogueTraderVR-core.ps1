@@ -472,7 +472,7 @@ Write-Host ""
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " 1. Rebind the four camera keys (see above) in Settings -> Controls." -ForegroundColor White
-Write-Host " 2. Start SteamVR, then launch with 'Start in VR' in the Hub" -ForegroundColor White
+Write-Host " 2. Start SteamVR, then launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub" -ForegroundColor White
 Write-Host "    (or start the game normally)." -ForegroundColor White
 Write-Host " 3. Load into a save - VR starts automatically." -ForegroundColor White
 Write-Host "    Ctrl+Alt+V starts/stops VR manually." -ForegroundColor Gray

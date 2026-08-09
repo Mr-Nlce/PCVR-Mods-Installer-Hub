@@ -293,7 +293,7 @@ Write-Host ""
 Write-Host "  +======================================================+" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or use the new" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or use the new" -ForegroundColor Gray
 Write-Host "    'GTA Vice City VR' desktop shortcut. Both run $MOD_EXE," -ForegroundColor Gray
 Write-Host "    which is the only build with the mod - starting the game" -ForegroundColor Gray
 Write-Host "    from Steam gives you the normal flat version." -ForegroundColor Gray

@@ -297,7 +297,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " What to do now:" -ForegroundColor White
-Write-Host "   1) Start the game with 'Start in VR' in the Hub, or through" -ForegroundColor Gray
+Write-Host "   1) Start the game with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through" -ForegroundColor Gray
 Write-Host "      StardewModdingAPI.exe - NOT the normal Stardew shortcut." -ForegroundColor Gray
 Write-Host "   2) On Quest (Virtual Desktop or Link): open the mod's settings" -ForegroundColor Gray
 Write-Host "      menu, turn ON 'Use OpenXR runtime' at the top, then restart" -ForegroundColor Gray

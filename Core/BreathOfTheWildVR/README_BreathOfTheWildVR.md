@@ -34,6 +34,7 @@ Motion controls (Oculus Touch bindings provided). Open the in-game **BetterVR me
 - Move with the left [[Stick]], rotate the camera with the right [[Stick]].
 - Right [[Trigger]] uses weapon / bow / rune and throws bombs; [[A]] jumps and opens the paraglider.
 - [[Grip]] grabs and interacts (long press = run). Hold [[X]] (left Touch) or [[A]] (Index) to open the BetterVR menu.
+- **First person is the normal mode; third person is the optional one.** If you end up looking at Link from behind, switch back in the BetterVR menu - same menu, hold [[X]] / [[A]].
 - Equip: move a [[Grip]] to your shoulder or hip to equip weapons, bows and runes (hold for the quick menu); hold [[R-Trigger]] to throw the held weapon.
 
 ![Swing, parry, whistle and magnesis gestures](botw-controls2.jpg)
@@ -57,14 +58,24 @@ Motion controls (Oculus Touch bindings provided). Open the in-game **BetterVR me
 BetterVR is the result of thousands of hours of reverse-engineering across five years of development. If you enjoy it, consider sponsoring Crementif:
 - https://github.com/sponsors/Crementif
 
->>> Climb anything, cook questionable meals, and chase the next shrine on the horizon.
 ## Key points from updates
 - **Physical bow drawing:** hold the arrow near the string, press the trigger
-  and pull back. The bow arc only appears while you are drawing.
+  and pull back. Your hand and the arrow follow the draw animation, and the
+  bow arc only appears while you are (close to) drawing.
 - The mod warns you when **FPS++ is not enabled** - that combination crashed
-  the game before.
-- Quality options in the *Graphics (For BetterVR)* pack work again: Low drops
-  god rays, Very Low also drops shadows.
-- Fixed camera clipping when climbing overhangs, and hands and equipment
-  lagging behind while riding or shield-surfing.
+  the game before. It also forces *accurate pipeline barriers* off for you,
+  so that is one setting less to get right.
+- Quality options in the *Graphics (For BetterVR)* pack work again:
+  **Normal** keeps the game's own effects, **Low** drops god rays (~4% more
+  FPS), **Very Low** drops shadows as well (~10%). Your FPS may not move at
+  all - a headset halves it once you cannot hold the full refresh rate.
+- Camera fixes: no more clipping when climbing overhangs or ceilings, and no
+  unwanted rotation when climbing onto walls (cutscenes and dialogue aside).
+- Model, hands and equipment no longer lag behind while riding or
+  shield-surfing, and horse riding height follows the player-height option
+  the right way round.
+- First-person now hides Link's hair too, not just his face.
+- Throwing works in third person, and you can drop your right-hand weapon.
 - Pico Ultra and Pico Neo 3 controllers are supported.
+
+>>> Climb anything, cook questionable meals, and chase the next shrine on the horizon.

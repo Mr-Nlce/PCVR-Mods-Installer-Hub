@@ -379,7 +379,7 @@ Write-Host "    In Hytale's Video settings, set Anti-aliasing FXAA to OFF." -For
 Write-Host ""
 Write-Host "  EVERY SESSION (takes ~10 seconds):" -ForegroundColor Yellow
 Write-Host "    1. Start SteamVR (headset connected)." -ForegroundColor White
-Write-Host "    2. Launch with 'Start in VR' in the Hub, or the 'Hytale VR'" -ForegroundColor White
+Write-Host "    2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Hytale VR'" -ForegroundColor White
 Write-Host "       desktop shortcut - either starts the" -ForegroundColor White
 Write-Host "       Hytale Launcher AND the camera dashboard together." -ForegroundColor White
 Write-Host "    3. Enter a world or join a server." -ForegroundColor White

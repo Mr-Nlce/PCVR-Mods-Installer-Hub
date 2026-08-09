@@ -380,7 +380,7 @@ if (-not $romPlaced) {
     Write-Host ""
 }
 Write-Host "  Start your VR runtime first, then launch from the Hub with the" -ForegroundColor White
-Write-Host "  'Start in VR' button. You can also use the 'Perfect Dark VR'" -ForegroundColor White
+Write-Host " " -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button. You can also use the 'Perfect Dark VR'" -ForegroundColor White
 Write-Host "  desktop shortcut." -ForegroundColor White
 Write-Host ""
 

@@ -302,7 +302,7 @@ Write-Host ""
 Write-Host " What to do now:" -ForegroundColor White
 Write-Host "   1) In the Virtual Desktop Streamer app, set VDXR as the" -ForegroundColor Gray
 Write-Host "      OpenXR runtime, then put your headset on." -ForegroundColor Gray
-Write-Host "   2) Launch with 'Start in VR' in the Hub, or through Steam." -ForegroundColor Gray
+Write-Host "   2) Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam." -ForegroundColor Gray
 Write-Host "   3) Grab a gamepad - VR is active right away, and Dinkum" -ForegroundColor Gray
 Write-Host "      starts fast (no long first launch)." -ForegroundColor Gray
 Write-Host ""

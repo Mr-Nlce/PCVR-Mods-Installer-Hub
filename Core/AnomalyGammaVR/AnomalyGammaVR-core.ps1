@@ -42,7 +42,7 @@ function Write-OK   { param($m) Write-Host "  [OK] $m" -ForegroundColor Green }
 function Write-Info { param($m) Write-Host "     $m" -ForegroundColor Gray }
 function Write-Warn { param($m) Write-Host "  [!] $m" -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host "  [X] $m" -ForegroundColor Red }
-function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host "  >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host "  >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 
 function Test-WritableRoot {
     param([string]$Root)
@@ -117,7 +117,7 @@ Write-Host "  If you already have GAMMA VR, point this at the folder holding it.
 Write-Host "  If not, this is where it gets installed." -ForegroundColor White
 Write-Host ""
 Write-Host "  Default: C:\Games\$MOD_FOLDER - press Enter to take it, or type another folder." -ForegroundColor Gray
-Write-Host "  (C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host "  A fresh install needs at least 110 GB of free space." -ForegroundColor Yellow
 Write-Host "  If you type a custom path, the mod authors recommend a folder WITHOUT spaces." -ForegroundColor DarkGray
 $chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
@@ -227,12 +227,63 @@ while (-not $arc) {
 try { New-Item -ItemType Directory -Force -Path $gamesRoot | Out-Null } catch {}
 $sevenZip = Find-7Zip
 $extracted = $false
+
+# SNAPSHOT BEFORE TOUCHING ANYTHING. The update runs on top of an
+# existing v0.3.1, so "$LAUNCH_BAT exists" proves NOTHING afterwards -
+# it was already there. We remember its timestamp and only accept the
+# update as applied when something actually changed on disk.
+$batBefore = Join-Path $installPath $LAUNCH_BAT
+$hadBat    = Test-Path -LiteralPath $batBefore
+$batStamp  = $null
+if ($hadBat) { try { $batStamp = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {} }
+
+# LOOK INSIDE THE ARCHIVE FIRST - never extract and hope. The v0.3.2c
+# update .7z carries a wrapper folder named after the archive itself
+# ("UPDATE FROM v0.3.1 to v0.3.2\Gamma VR\..."), so a plain extract
+# into the Games root drops it NEXT TO the install instead of onto it.
+$layout = $null
+if ($sevenZip) { $layout = Get-ArchiveTopLevel -ArchivePath $arc -SevenZip $sevenZip }
+if ($layout -and $layout.Ok) {
+    $inner = @($layout.Entries | Where-Object { (Split-Path $_ -Leaf) -ieq $LAUNCH_BAT } | Select-Object -First 1)
+    if ($inner.Count -gt 0) {
+        $prefix = Split-Path $inner[0] -Parent
+        if ($prefix) { Write-Info "Archive layout: the payload sits in '$prefix' inside the archive." }
+        else         { Write-Info "Archive layout: the payload sits at the archive root." }
+    } else {
+        Write-Warn "'$LAUNCH_BAT' is not in this archive at all - it may be the wrong file."
+    }
+} else {
+    Write-Warn "Could not read the archive listing - the layout will be verified after unpacking."
+}
+
 if ($sevenZip) {
     if ($isUpdate) { Write-Info "Applying the update over the existing install, replacing files..." }
     else           { Write-Info "Extracting the complete build with 7-Zip - 110 GB, give it time..." }
     try {
         Invoke-SevenZipExtract -SevenZip $sevenZip -Archive $arc -Dest $gamesRoot
-        if (Test-Path (Join-Path $installPath $LAUNCH_BAT)) { $extracted = $true }
+
+        # Find where the payload REALLY landed and move it into place if
+        # the archive wrapped it. A move on the same volume is instant,
+        # which is why the 110 GB build is not extracted to temp first.
+        $place = Move-PayloadIntoPlace -SearchRoot $gamesRoot -TargetDir $installPath -Marker $LAUNCH_BAT
+        if (-not $place.Ok) {
+            Write-Warn "Payload not located after extraction: $($place.Message)"
+        } else {
+            if ($place.Merged) { Write-OK "Payload merged into the install: $($place.Moved) file(s) from '$($place.PayloadRoot)'." }
+            # Proof that something actually arrived, not just that an old
+            # file is still lying around.
+            if ($place.Merged -and $place.Moved -gt 0) {
+                $extracted = $true
+            } elseif (-not $hadBat) {
+                $extracted = (Test-Path -LiteralPath $batBefore)      # fresh install: it did not exist before
+            } else {
+                $now = $null
+                try { $now = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {}
+                if ($now -and $batStamp -and $now -ne $batStamp) { $extracted = $true }
+                elseif ($place.AlreadyInPlace -and -not $isUpdate)  { $extracted = $true }
+                else { Write-Warn "Nothing on disk changed - the archive did not deliver anything new." }
+            }
+        }
     } catch { Write-Warn "7-Zip extraction failed: $($_.Exception.Message)" }
 }
 if (-not $extracted) {
@@ -248,15 +299,35 @@ if (-not $extracted) {
     try { Start-Process $gamesRoot } catch {}
     if ($isUpdate) { Pause-User "Press Enter once the update is unpacked over $installPath..." }
     else           { Pause-User "Press Enter once '$MOD_FOLDER' is extracted into $gamesRoot..." }
-    if (Test-Path (Join-Path $installPath $LAUNCH_BAT)) { $extracted = $true }
+    # Same rule after the manual route: relocate a wrapped payload, and
+    # only count it as done when files actually moved or the timestamp
+    # changed. A pre-existing $LAUNCH_BAT is not proof of anything.
+    $place2 = Move-PayloadIntoPlace -SearchRoot $gamesRoot -TargetDir $installPath -Marker $LAUNCH_BAT
+    if ($place2.Ok -and $place2.Merged -and $place2.Moved -gt 0) {
+        Write-OK "Payload merged into the install: $($place2.Moved) file(s) from '$($place2.PayloadRoot)'."
+        $extracted = $true
+    } elseif (-not $hadBat) {
+        $extracted = (Test-Path -LiteralPath $batBefore)
+    } else {
+        $now2 = $null
+        try { $now2 = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {}
+        if ($now2 -and $batStamp -and $now2 -ne $batStamp) { $extracted = $true }
+    }
 }
 if ($extracted) {
     if ($isUpdate) { Write-OK "Update applied to: $installPath" }
     else           { Write-OK "GAMMA VR is in: $installPath" }
 }
 else {
-    if ($isUpdate) { Write-Fail "$LAUNCH_BAT is not under $installPath - the update was not applied to an install." }
+    if ($isUpdate) { Write-Fail "The update was NOT applied - nothing under $installPath changed." }
     else           { Write-Fail "$LAUNCH_BAT not found under $installPath - extraction incomplete." }
+    $stray = @(Get-ChildItem -LiteralPath $gamesRoot -Directory -ErrorAction SilentlyContinue |
+               Where-Object { $_.FullName.TrimEnd('\') -ine $installPath.TrimEnd('\') -and
+                              (Get-ChildItem -LiteralPath $_.FullName -Recurse -Depth 3 -Filter $LAUNCH_BAT -File -ErrorAction SilentlyContinue) })
+    foreach ($sd in $stray) {
+        Write-Info "The unpacked files are sitting here instead: $($sd.FullName)"
+        Write-Info "Move the '$MOD_FOLDER' folder from there into $gamesRoot and let it replace files."
+    }
     Pause-User "Press Enter to exit..."; return
 }
 

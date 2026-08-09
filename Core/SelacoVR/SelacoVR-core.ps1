@@ -313,7 +313,7 @@ Write-Host "============================================================" -Foreg
 Write-Host "  Selaco VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Launch with 'Start in VR' in the Hub, or the 'Selaco VR'" -ForegroundColor White
+Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Selaco VR'" -ForegroundColor White
 Write-Host "  desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  Valve Index only: if stick mapping feels off, point the" -ForegroundColor Gray

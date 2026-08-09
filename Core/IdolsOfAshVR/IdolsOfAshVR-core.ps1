@@ -136,7 +136,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " 1) Connect your headset AND controllers - they must be awake" -ForegroundColor White
 Write-Host "    BEFORE the game starts." -ForegroundColor White
-Write-Host " 2) Launch with 'Start in VR' in the Hub, or normally" -ForegroundColor White
+Write-Host " 2) Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or normally" -ForegroundColor White
 Write-Host "    (Steam / itch / game exe)." -ForegroundColor White
 Write-Host "    The injector loads by itself - no launcher, no extra step." -ForegroundColor White
 Write-Host ""

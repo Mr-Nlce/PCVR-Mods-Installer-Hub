@@ -51,6 +51,12 @@ $KNOWN_FALLBACK_TAG = "v1.1"
 $GAME_FOLDER       = "Ocarina of Time VR"
 $GAME_EXE          = "soh.exe"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
+# Optional Djipi 3DS Experience pack (GameBanana mod 477979). The direct
+# download link is opened in the browser - GameBanana cannot be fetched
+# unattended, and the file is ~500 MB from a rate-limited source.
+$DJIPI_URL         = "https://gamebanana.com/dl/1766765"
+$DJIPI_PAGE        = "https://gamebanana.com/mods/477979"
+$DJIPI_FILE        = "djipi_s_3ds_experience_-_final_pack.zip"
 
 # Resolve the newest release zip via the GitHub API. Returns
 # @{ Url=...; Tag=... } or $null on any failure (rate limit / offline /
@@ -109,10 +115,8 @@ function Test-WritableRoot {
     } catch { return $false }
 }
 
-Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
-Write-Host "  C:\Games needs no admin rights, so there's no Windows UAC prompt." -ForegroundColor Gray
-Write-Host "  Press Enter to accept it, or type a different folder to install into" -ForegroundColor Gray
-Write-Host "  (the '$GAME_FOLDER' folder is created inside whatever you choose)." -ForegroundColor Gray
+Write-Host "  Default C:\Games - no admin rights, no UAC prompt. The" -ForegroundColor White
+Write-Host "  '$GAME_FOLDER' folder is created inside whatever you choose." -ForegroundColor Gray
 $chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
 
 $installRoot = $null
@@ -227,24 +231,14 @@ try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 # ---- 4. your Ocarina of Time ROM ----------------------------
 Write-Step 4 5 "Your Ocarina of Time ROM"
 
-Write-Host "  You provide your own dump. What is needed, exactly:" -ForegroundColor White
-Write-Host "    Nintendo 64 - not GameCube, 3DS or Virtual Console" -ForegroundColor Gray
-Write-Host "    a .z64 file, 32 MB (33,554,432 bytes)" -ForegroundColor Gray
-Write-Host "    Ocarina of Time OR Ocarina of Time: Master Quest" -ForegroundColor Gray
-Write-Host "    several regions and revisions work - check yours below" -ForegroundColor Gray
+Write-Host "  Needed: a Nintendo 64 .z64 dump of Ocarina of Time or Master" -ForegroundColor White
+Write-Host "  Quest, exactly 33,554,432 bytes (32 MB). Most regions and" -ForegroundColor White
+Write-Host "  revisions work; this checker settles your exact file:" -ForegroundColor White
+Write-Host "     https://ship.equipment/" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  On the first launch soh.exe reads it once and generates an .otr" -ForegroundColor Gray
-Write-Host "  archive; after that the ROM is no longer read. It never leaves" -ForegroundColor Gray
-Write-Host "  your PC." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  This checker is the authoritative answer on whether your exact" -ForegroundColor Gray
-Write-Host "  file is supported:" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  https://ship.equipment/" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Drag & drop your ROM file onto this window and press Enter to" -ForegroundColor White
-Write-Host "  copy it into the game folder now - or just press Enter to skip:" -ForegroundColor White
-Write-Host "  soh.exe will ask you to pick the ROM on its first start instead." -ForegroundColor Gray
+Write-Host " >>> Drag your ROM onto this window, then press Enter. " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "     Enter on its own skips this - soh.exe then asks for the ROM" -ForegroundColor Gray
+Write-Host "     on its first start." -ForegroundColor Gray
 $romIn = (Read-Host "  ROM path (or Enter to skip)").Trim().Trim('"')
 if ($romIn -and (Test-Path -LiteralPath $romIn)) {
     try {
@@ -277,22 +271,14 @@ try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -E
 
 # ---- HD texture pack (optional) -----------------------------
 # OoT Reloaded 4K (evilgames.eu): a ~4 GB .7z holding a single .o2r that
-# Ship of Harkinian loads from its mods\ folder as "alternate assets".
+# Ship of Harkinian loads whatever sits in its mods\ folder by itself.
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  OPTIONAL: HD texture pack (OoT Reloaded 4K)" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  A 4K HD texture pack for Ocarina of Time. It's fully optional" -ForegroundColor White
-Write-Host "  and you can toggle it in-game with Tab, so it's risk-free." -ForegroundColor White
-Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host "  |            LARGE DOWNLOAD - ABOUT 4 GB               |" -ForegroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  Both the download and the extraction take a while and show a" -ForegroundColor Gray
-Write-Host "  progress percentage. You can skip now and add it any time by" -ForegroundColor Gray
-Write-Host "  re-running this installer." -ForegroundColor Gray
+Write-Host "  4K textures for Ocarina of Time. Download and unpack take a" -ForegroundColor White
+Write-Host "  while - about 4 GB, with a progress percentage." -ForegroundColor White
 Write-Host ""
 $doHd = ""
 while ($doHd -notin @("y","Y","n","N")) { $doHd = (Read-Host "  Install the HD texture pack now? (Y/N)").Trim() }
@@ -344,9 +330,9 @@ if ($doHd -in @("y","Y")) {
                         Copy-Item -LiteralPath $o2r.FullName -Destination (Join-Path $modsDir $o2r.Name) -Force -ErrorAction Stop
                         Write-OK "HD textures installed: mods\$($o2r.Name)"
                         Write-Host ""
-                        Write-Host "  Turn them on in-game: press Esc, go to Enhancements >" -ForegroundColor Gray
-                        Write-Host "  Graphics / Mods and tick 'Use alternate assets'. Press" -ForegroundColor Gray
-                        Write-Host "  Tab during play to toggle the textures on/off." -ForegroundColor Gray
+                        Write-Host "  Current builds pick anything in mods\ up by themselves -" -ForegroundColor Gray
+                        Write-Host "  there is nothing to switch on. Press Tab during play to" -ForegroundColor Gray
+                        Write-Host "  toggle the textures off and on." -ForegroundColor Gray
                     } catch { Write-Warn "Could not copy the .o2r into mods\: $($_.Exception.Message)" }
                     $hdDone = $true
                 } else {
@@ -380,8 +366,8 @@ if ($doHd -in @("y","Y")) {
                         $placed = Get-ChildItem -LiteralPath $modsDir -Filter "*.o2r" -File -EA SilentlyContinue | Select-Object -First 1
                         if ($placed) {
                             Write-OK "Found HD textures: mods\$($placed.Name)"
-                            Write-Host "  Enable in-game via Esc > Enhancements > Graphics / Mods >" -ForegroundColor Gray
-                            Write-Host "  'Use alternate assets' (Tab toggles them during play)." -ForegroundColor Gray
+                            Write-Host "  Loads by itself on the next start (Tab toggles the" -ForegroundColor Gray
+                            Write-Host "  textures off and on during play)." -ForegroundColor Gray
                         } else {
                             Write-Info "No .o2r in mods yet - the archive is at $persist for later."
                         }
@@ -399,17 +385,171 @@ if ($doHd -in @("y","Y")) {
     try { Remove-Item $hdTmp -Recurse -Force -EA SilentlyContinue } catch {}
 }
 
+# ---- Djipi's 3DS Experience (optional, 3D backgrounds) -------
+# GameBanana mod 477979. Ocarina of Time draws Castle Town and many
+# interiors with flat pre-rendered backdrops; in VR those sit in front
+# of the player and block the view (the "feel your way to the exit"
+# problem). This pack ships real 3D geometry for those scenes, so the
+# 2D backdrops can be switched off and the rooms render properly.
+# The zip holds two folders: "0000 - Djipi's 3DS Experience" and
+# "0001 - Skilar's Art Plus Link"; only the first one is installed.
+Write-Host ""
+Write-Host "============================================================" -ForegroundColor Magenta
+Write-Host "  OPTIONAL: Djipi's 3DS Experience (3D backgrounds)" -ForegroundColor Cyan
+Write-Host "============================================================" -ForegroundColor Magenta
+Write-Host ""
+Write-Host "  Castle Town and many interiors are flat backdrops that block" -ForegroundColor White
+Write-Host "  your view in VR. This pack replaces them with real 3D geometry." -ForegroundColor White
+Write-Host "  Browser download, about 500 MB, usually ~20 minutes." -ForegroundColor White
+Write-Host ""
+$doDjipi = ""
+while ($doDjipi -notin @("y","Y","n","N")) { $doDjipi = (Read-Host "  Install Djipi's 3DS Experience now? (Y/N)").Trim() }
+
+$djipiInstalled = $false
+$djipiMode      = ""
+if ($doDjipi -in @("y","Y")) {
+
+    # -- which look --------------------------------------------
+    Write-Host ""
+    Write-Host "   [1] 3DS look - the whole pack. Not with the HD textures." -ForegroundColor White
+    Write-Host "   [2] Only the 3D backgrounds. Pairs with the HD textures." -ForegroundColor White
+    if ($doHd -in @("y","Y")) {
+        Write-Host "  You installed the HD pack, so [2] is the match." -ForegroundColor Cyan
+    } else {
+        Write-Host "  You skipped the HD pack, so [1] is the match." -ForegroundColor Cyan
+    }
+    Write-Host ""
+    $djipiPick = ""
+    while ($djipiPick -notin @("1","2")) { $djipiPick = (Read-Host "  Your choice (1 or 2)").Trim() }
+    $djipiMode = if ($djipiPick -eq "1") { "full" } else { "bg" }
+
+    # -- get the archive (browser download, then disk scan) -----
+    $djPat = @("djipi_s_3ds_experience*.zip", "*djipi*3ds*experience*.zip", "*djipi*.zip")
+    $djZip = Find-PredownloadedFile -Patterns $djPat -Label "the Djipi 3DS Experience pack"
+    if (-not $djZip) {
+        Write-Host ""
+        Write-Host "  Enter starts '$DJIPI_FILE' in your browser." -ForegroundColor White
+        Write-Host "  Leave it running - roughly 20 minutes - then come back here." -ForegroundColor White
+        Write-Host "  If it does not start: $DJIPI_PAGE" -ForegroundColor Gray
+        Pause-User "Press Enter to start the download in your browser..."
+        try { Start-Process $DJIPI_URL } catch { Write-Warn "Open this yourself: $DJIPI_URL" }
+        Pause-User "Press Enter once the download has finished (about 20 minutes)..."
+        $djZip = Find-PredownloadedFile -Patterns $djPat -Label "the Djipi 3DS Experience pack" -PageAlreadyOpen
+    }
+    while (-not $djZip) {
+        Write-Host ""
+        Write-Host "  Drag the downloaded ZIP into this window, or paste its full" -ForegroundColor Yellow
+        Write-Host "  path, then press Enter (leave empty to skip this pack):" -ForegroundColor White
+        $djIn = (Read-Host "  ZIP path").Trim().Trim('"').Trim("'")
+        if (-not $djIn) { Write-Info "Skipped Djipi's 3DS Experience."; break }
+        if (Test-Path -LiteralPath $djIn) {
+            if ($djIn -match '(?i)\.zip$') { $djZip = $djIn; Write-OK "Archive located: $djZip" }
+            else { Write-Warn "That is not a .zip file: $djIn" }
+        } else { Write-Warn "File not found: $djIn" }
+    }
+
+    # -- unpack and copy the chosen files into mods\ ------------
+    if ($djZip) {
+        $djTmp = Join-Path $installRoot "_hub_djipi_tmp"
+        try {
+            if (Test-Path $djTmp) { Remove-Item $djTmp -Recurse -Force -EA SilentlyContinue }
+            New-Item -ItemType Directory -Path $djTmp -Force | Out-Null
+        } catch {}
+        $djOut = Join-Path $djTmp "extract"
+
+        Write-Host ""
+        Write-Info "Unpacking the pack - about 500 MB, this takes a moment..."
+        $okDj = $false
+        $sevenZipDj = Get-SevenZip
+        if ($sevenZipDj) {
+            $okDj = Expand-7zWithProgress -SevenZip $sevenZipDj -Archive $djZip -Dest $djOut -Label "Djipi 3DS Experience"
+        }
+        if (-not $okDj) {
+            try { Expand-Archive -LiteralPath $djZip -DestinationPath $djOut -Force -ErrorAction Stop; $okDj = $true }
+            catch { Write-Warn "Could not unpack the archive: $($_.Exception.Message)" }
+        }
+
+        $djAll = @()
+        if ($okDj) { $djAll = @(Get-ChildItem -LiteralPath $djOut -Recurse -Filter "*.o2r" -File -EA SilentlyContinue) }
+        if ($djAll.Count -eq 0) {
+            Write-Warn "No .o2r files were found in the archive - nothing installed."
+            Write-Host "  Unpack '$DJIPI_FILE' yourself and copy the .o2r files from" -ForegroundColor Gray
+            Write-Host "  the 'Djipi's 3DS Experience' folder into:" -ForegroundColor Gray
+            Write-Host "    $(Join-Path $gameRoot 'mods')" -ForegroundColor Cyan
+        } else {
+            # Skilar's Art Plus Link (folder 0001) is left out: it changes
+            # Link himself, and the pack's own troubleshooting names custom
+            # Link cosmetics as the first thing to remove when SoH crashes.
+            $djFiles  = @($djAll | Where-Object { $_.FullName -notmatch '(?i)(Skilar|Art\s*Plus)' })
+            $djSkilar = $djAll.Count - $djFiles.Count
+            $djPick   = @()
+
+            if ($djipiMode -eq "bg") {
+                $djPick = @($djFiles | Where-Object { $_.Name -match '(?i)3DE\s*-\s*2[67]\s+Background' })
+                if ($djPick.Count -lt 2) {
+                    Write-Host ""
+                    Write-Warn "The two background files were not found by name in this pack."
+                    Write-Host "  Expected these two:" -ForegroundColor Gray
+                    Write-Host "    Djipi's 3DE - 26 Background 3DS.o2r" -ForegroundColor Gray
+                    Write-Host "    Djipi's 3DE - 27 Background Textures.o2r" -ForegroundColor Gray
+                    Write-Host "  The pack may have been renamed since. Choose:" -ForegroundColor White
+                    Write-Host "   [A] Install the whole pack instead (3DS look)" -ForegroundColor White
+                    Write-Host "   [S] Skip this pack" -ForegroundColor White
+                    $djAlt = (Read-Host "  A / S").Trim().ToUpper()
+                    if ($djAlt -eq "A") { $djPick = $djFiles; $djipiMode = "full" } else { $djPick = @() }
+                }
+            } else {
+                $djPick = $djFiles
+            }
+
+            if ($djPick.Count -gt 0) {
+                $djModsDir = Join-Path $gameRoot "mods"
+                try { if (-not (Test-Path -LiteralPath $djModsDir)) { New-Item -ItemType Directory -Path $djModsDir -Force | Out-Null } } catch {}
+                $djCopied = 0
+                foreach ($f in $djPick) {
+                    try {
+                        Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $djModsDir $f.Name) -Force -ErrorAction Stop
+                        $djCopied++
+                    } catch { Write-Warn "Could not copy $($f.Name): $($_.Exception.Message)" }
+                }
+                if ($djCopied -gt 0) {
+                    $djipiInstalled = $true
+                    Write-OK "$djCopied file(s) copied into mods\"
+                    if ($djipiMode -eq "bg") {
+                        foreach ($f in $djPick) { Write-Host "    $($f.Name)" -ForegroundColor Gray }
+                    }
+                    if ($djSkilar -gt 0) {
+                        Write-Info "Left out: Skilar's Art Plus Link ($djSkilar file(s)) - it changes"
+                        Write-Host "       Link's own look, and custom Link cosmetics are the first" -ForegroundColor Gray
+                        Write-Host "       suspect if the game crashes. Copy them in yourself if you" -ForegroundColor Gray
+                        Write-Host "       want them." -ForegroundColor Gray
+                    }
+                    if ($djipiMode -eq "full" -and $doHd -in @("y","Y")) {
+                        Write-Host ""
+                        Write-Warn "You now have BOTH the 3DS look and the HD texture pack in mods\."
+                        Write-Host "  They are two different art styles for the same surfaces. For" -ForegroundColor Gray
+                        Write-Host "  the 3DS look, delete this file from the mods folder:" -ForegroundColor Gray
+                        Write-Host "    OoT_Reloaded_v11.0.0_4K.o2r" -ForegroundColor Cyan
+                    }
+                } else {
+                    Write-Warn "Nothing could be copied into mods\ - the pack is not installed."
+                }
+            } else {
+                Write-Info "Skipped Djipi's 3DS Experience."
+            }
+        }
+        try { Remove-Item $djTmp -Recurse -Force -EA SilentlyContinue } catch {}
+    }
+}
+
 # -------------------------------------------------------------
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host "  |            REQUIRED IN-GAME SETTINGS                 |" -ForegroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  Without these the headset shows nothing or a broken image:" -ForegroundColor White
+Write-Host "  REQUIRED SETTINGS - without these the headset stays black or" -ForegroundColor Cyan
+Write-Host "  the image is broken:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   Graphics backend         " -NoNewline -ForegroundColor White; Write-Host " DirectX11 (default) " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Window aspect ratio      " -NoNewline -ForegroundColor White; Write-Host " 4:3 " -ForegroundColor Black -BackgroundColor Yellow
@@ -419,28 +559,34 @@ Write-Host ""
 Write-Host "  Do NOT toggle 'Enable advanced settings' while playing, and" -ForegroundColor Gray
 Write-Host "  do not switch to OpenGL." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  IN-GAME MENU: lift the headset slightly, click the game window" -ForegroundColor Cyan
-Write-Host "  on the desktop and press Esc - settings, VR controller input," -ForegroundColor Gray
-Write-Host "  quality-of-life options and cheats all live there." -ForegroundColor Gray
+Write-Host "  IN-GAME MENU: click the game window on the desktop, press Esc." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  ENHANCEMENTS (Esc > VR mod settings > Enhancements, on the right):" -ForegroundColor Cyan
-if ($doHd -in @("y","Y")) {
-    Write-Host "   - Tick 'Use Alternate Assets' to switch the HD textures on." -ForegroundColor Gray
+# NOTHING TO SWITCH ON FOR mods\ ANY MORE. Older guides (ours included)
+# said to tick "Use Alternate Assets" - current Ship of Harkinian builds no
+# longer offer that entry and load the mods folder on their own.
+Write-Host "   - Tick 'Disable Black Bar Letterboxes' (bars in cutscenes)." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  START:" -NoNewline -ForegroundColor Cyan; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the new desktop shortcut." -ForegroundColor Cyan
+Write-Host "  The first start builds the game archive from your ROM." -ForegroundColor Gray
+Write-Host ""
+if ($djipiInstalled) {
+    Write-Host "  3D BACKGROUNDS - one more toggle:" -ForegroundColor Cyan
+    Write-Host "   Enhancements > Graphics   " -NoNewline -ForegroundColor White; Write-Host " TICK Disable 2D Pre-Rendered Scenes " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "   (in some builds: 'Disable 2D Pre-rendered Backgrounds')" -ForegroundColor Gray
+    Write-Host "   Reads backwards, but it is right: the toggle switches the" -ForegroundColor Gray
+    Write-Host "   FLAT backdrops off so the pack's 3D rooms can show. The" -ForegroundColor Gray
+    Write-Host "   game says so itself - 'Enable this when using a mod that" -ForegroundColor Gray
+    Write-Host "   implements 3D backdrops for these areas.'" -ForegroundColor Gray
+    Write-Host "   It takes effect on the next scene change, so leave the area" -ForegroundColor Gray
+    Write-Host "   and come back." -ForegroundColor Gray
+    Write-Host ""
+} else {
+    Write-Host "  HEADS UP: rooms with pre-rendered backdrops render broken in" -ForegroundColor Yellow
+    Write-Host "  VR. The optional Djipi pack above fixes exactly that." -ForegroundColor Yellow
+    Write-Host ""
 }
-Write-Host "   - Scroll down and tick 'Disable Black Bar Letterboxes' to remove" -ForegroundColor Gray
-Write-Host "     the black bars in cutscenes and dialogue." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or use the new" -ForegroundColor Gray
-Write-Host "    'Ocarina of Time VR' desktop shortcut. On the first start," -ForegroundColor Gray
-Write-Host "    soh.exe processes your ROM (watch for 'OTR Successfully" -ForegroundColor Gray
-Write-Host "    Generated'), then the game begins." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  HEADS UP: indoor pre-rendered areas do not render properly yet," -ForegroundColor Yellow
-Write-Host "  so in those rooms you have to feel your way to the exit." -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  See the README for menu tips, HUD options and slingshot aiming." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host "  The Hero of Time answers Hyrule's call once more." -ForegroundColor Magenta
+Write-Host "  Menu tips, HUD options and troubleshooting are in the README" -ForegroundColor Gray
+Write-Host "  on this game's page in the Hub." -ForegroundColor Gray
 Write-Host ""
 Pause-User "Press Enter to exit."

@@ -9,7 +9,7 @@ mouse** — the same controls as the flat game, now wrapped around you in
 the headset.
 
 ## What it installs
-- **Luke Ross R.E.A.L. VR v2603.10.1 public** — the VR mod framework
+- **Current R.E.A.L. VR mod** — the VR mod framework
 
 ## Requirements
 - SteamVR installed
@@ -54,9 +54,9 @@ R.E.A.L. VR tab plus a game-specific tab.
 - Dark Souls II
 - Dark Souls III
 - Dark Souls Remastered
+- Days Gone
 - Death Stranding Director's Cut
 - Doom Eternal
-- Doom: The Dark Ages
 - Elden Ring
 - Far Cry 4 / 5 / 6 / New Dawn / Primal
 - Final Fantasy VII Remake

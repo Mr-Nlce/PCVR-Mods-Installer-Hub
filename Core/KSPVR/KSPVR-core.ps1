@@ -869,7 +869,7 @@ Write-Host " 1. Connect your headset (link cable, Virtual Desktop, ALVR)." -Fore
 Write-Host " 2. Launch SteamVR FIRST (stable 2.8 -" -NoNewline -ForegroundColor White
 Write-Host " NOT the Beta" -NoNewline -ForegroundColor Yellow
 Write-Host ")." -ForegroundColor White
-Write-Host " 3. Launch KSP with 'Start in VR' in the Hub - the game window" -ForegroundColor White
+Write-Host " 3. Launch KSP with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub - the game window" -ForegroundColor White
 Write-Host "    may appear white for ~10s." -ForegroundColor White
 Write-Host " 4. At the main menu the kerbals should wear VR headsets." -ForegroundColor White
 Write-Host " 5. Load into a flight, then press" -NoNewline -ForegroundColor White

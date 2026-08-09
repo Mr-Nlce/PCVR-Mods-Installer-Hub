@@ -313,7 +313,7 @@ Write-Host " If you have a bHaptics vest, launch the bHaptics Player" -Foregroun
 Write-Host " and connect the vest. The mod detects it at startup." -ForegroundColor White
 Write-Host ""
 Write-Host " Launch Circuit Superstars normally via Steam, the desktop" -ForegroundColor White
-Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Use a GAMEPAD or KEYBOARD+MOUSE - no VR controller support." -ForegroundColor Yellow
 Write-Host " Game controls are unchanged." -ForegroundColor Gray

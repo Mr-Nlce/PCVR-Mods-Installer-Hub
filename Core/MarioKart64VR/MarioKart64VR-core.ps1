@@ -263,7 +263,7 @@ Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
 Write-Host "  1. Start your VR runtime (Virtual Desktop, SteamVR, Quest" -ForegroundColor White
 Write-Host "     Link / Air Link) - or skip this to play flat." -ForegroundColor White
-Write-Host "  2. Launch via the desktop shortcut or 'Start in VR' in the Hub." -ForegroundColor White
+Write-Host "  2. Launch via the desktop shortcut or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub." -ForegroundColor White
 Write-Host "  3. FIRST LAUNCH ONLY: the game asks for your Mario Kart 64" -ForegroundColor White
 Write-Host "     US .z64 ROM. Pick it once and you are set." -ForegroundColor White
 Write-Host "  4. Pause, then pull the right trigger (R1 on gamepad): the" -ForegroundColor White

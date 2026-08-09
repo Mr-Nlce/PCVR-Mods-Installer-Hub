@@ -366,7 +366,7 @@ Pause-User "Press Enter to confirm you are aware of this setting..."
 Write-Host ""
 Write-Host "--- Important Notes ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " - Launch with 'Start in VR' in the Hub, or normally via Steam." -ForegroundColor White
+Write-Host " - Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or normally via Steam." -ForegroundColor White
 Write-Host " Steam may warn the game is not VR-ready - click OK." -ForegroundColor Gray
 Write-Host ""
 Write-Host " - 7 Days must be the ACTIVE, FOREGROUND window while playing." -ForegroundColor Yellow

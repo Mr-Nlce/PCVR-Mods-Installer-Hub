@@ -340,7 +340,7 @@ Write-Host ""
 Write-Host "  How to play:" -ForegroundColor White
 Write-Host "   1. Start your VR runtime first (Quest Link/Air Link, Virtual" -ForegroundColor White
 Write-Host "      Desktop, or SteamVR) if you want VR." -ForegroundColor White
-Write-Host "   2. Launch with 'Start in VR' in the Hub, or the 'Star Fox" -ForegroundColor White
+Write-Host "   2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Star Fox" -ForegroundColor White
 Write-Host "      64 VR' desktop shortcut, or run:" -ForegroundColor White
 Write-Host "        $exePath" -ForegroundColor Cyan
 Write-Host "   3. On first launch, pick your Star Fox 64 US .z64 in the file" -ForegroundColor White

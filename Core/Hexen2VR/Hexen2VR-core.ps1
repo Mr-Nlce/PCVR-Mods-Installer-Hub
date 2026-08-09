@@ -293,7 +293,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " Launch SteamVR before the game to avoid it potentially starting" -ForegroundColor White
 Write-Host " sometimes out of focus." -ForegroundColor White
-Write-Host " Launch with 'Start in VR' in the Hub, or the desktop shortcut." -ForegroundColor White
+Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the desktop shortcut." -ForegroundColor White
 Write-Host " The game starts in VR automatically if SteamVR is running." -ForegroundColor Gray
 Write-Host ""
 Write-Host " SteamVR Theatre Mode must be OFF:" -ForegroundColor Gray

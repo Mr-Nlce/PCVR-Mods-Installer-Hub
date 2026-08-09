@@ -602,7 +602,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " Launch the game:" -ForegroundColor White
 Write-Host " $gamePath\Sonic the Hedgehog.exe" -ForegroundColor Cyan
-Write-Host " SteamVR will start automatically. The 'Start in VR'" -ForegroundColor Gray
+Write-Host " SteamVR will start automatically. The" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host ""
 Write-Host " button in the Hub also launches the EXE directly." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Controls (gamepad or keyboard, NO VR controllers):" -ForegroundColor White

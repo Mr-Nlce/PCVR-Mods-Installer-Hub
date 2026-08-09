@@ -428,7 +428,7 @@ Write-Host ""
 Write-Host "--- First Launch ---" -ForegroundColor Cyan
 Write-Host "  Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
 Write-Host "  starting sometimes out of focus." -ForegroundColor White
-Write-Host "  Launch with 'Start in VR' in the Hub, or from inside SteamVR." -ForegroundColor White
+Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or from inside SteamVR." -ForegroundColor White
 
 Write-Host ""
 Write-Host "--- Mod Settings (optional) ---" -ForegroundColor Cyan

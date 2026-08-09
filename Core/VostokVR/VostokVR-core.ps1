@@ -261,7 +261,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " !! FIRST LAUNCH - READ THIS NOW !!" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host " 1) Start SteamVR before launching the game" -ForegroundColor White
-Write-Host " 2) Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host " 2) Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "    'Road to Vostok VR' desktop shortcut" -ForegroundColor White
 Write-Host " Do NOT use Steam's Play button directly" -ForegroundColor Gray
 Write-Host " 3) It starts with a black screen in headset, switch to desktop viewer" -ForegroundColor White

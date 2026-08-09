@@ -427,7 +427,7 @@ Write-Host ""
 Write-Host "  +======================================================+" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or the 'Halo MCC VR'" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Halo MCC VR'" -ForegroundColor Gray
 Write-Host "    desktop shortcut (only that route loads the mod, anti-cheat" -ForegroundColor Gray
 Write-Host "    OFF). Press F1 in game for settings incl. picture quality." -ForegroundColor Gray
 Write-Host ""

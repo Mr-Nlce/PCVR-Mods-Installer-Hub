@@ -330,7 +330,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Super Polygon Grand Prix normally via Steam, the" -ForegroundColor White
-Write-Host " desktop shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " desktop shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host " The first launch with the mod takes a bit longer than usual." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Quick controls reference:" -ForegroundColor White

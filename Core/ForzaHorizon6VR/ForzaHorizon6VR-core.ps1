@@ -260,7 +260,7 @@ if ($modChoice -eq "1") {
     Write-Host " NALULUNA - HOW TO PLAY" -ForegroundColor Yellow
     Write-Host "============================================================" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host " 1) Launch with 'Start in VR' in the Hub, the desktop" -ForegroundColor White
+    Write-Host " 1) Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, the desktop" -ForegroundColor White
     Write-Host "    shortcut, or fh6vr.exe in the game folder:" -ForegroundColor White
     Write-Host "    $installRoot" -ForegroundColor Gray
     Write-Host "    then press the 'Launch' button to start Forza Horizon 6." -ForegroundColor White
@@ -285,7 +285,7 @@ if ($modChoice -eq "1") {
     Write-Host " C:\XboxGames\Forza Horizon 6\Content " -ForegroundColor Black -BackgroundColor Yellow
     Write-Host "    - Windows blocks opening the exe there. On Steam you can" -ForegroundColor White
     Write-Host "    also use '+ Add .exe', or 'Auto-detect Running'." -ForegroundColor White
-    Write-Host " 3) Start SteamVR, launch the game ('Start in VR' in the Hub" -ForegroundColor White
+    Write-Host " 3) Start SteamVR, launch the game (" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub" -ForegroundColor White
 Write-Host "    or your store), then click 'Play in VR'" -ForegroundColor White
     Write-Host "    once you reach the main menu, garage, or are driving." -ForegroundColor White
     Write-Host ""

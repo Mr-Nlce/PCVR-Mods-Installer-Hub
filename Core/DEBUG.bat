@@ -165,8 +165,10 @@ echo   [150] Mass Effect 2 LE VR
 echo   [151] Pokemon Gen 1 VR
 echo   [152] GTA IV VR
 echo   [153] BioShock 2 Remastered
+echo   [154] My Friendly Neighborhood VR
+echo   [155] Big Walk VR
 echo.
-set /p choice="Enter number (1-153): "
+set /p choice="Enter number (1-155): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -320,6 +322,8 @@ if "%choice%"=="150" (set SCRIPT=%~dp0MassEffect2VR\MassEffect2VR-core.ps1)
 if "%choice%"=="151" (set SCRIPT=%~dp0Gen1RecompVR\Gen1RecompVR-core.ps1)
 if "%choice%"=="152" (set SCRIPT=%~dp0GTA4VR\GTA4VR-core.ps1)
 if "%choice%"=="153" (set SCRIPT=%~dp0Bioshock2VR\Bioshock2VR-core.ps1)
+if "%choice%"=="154" (set SCRIPT=%~dp0MFNVR\MFNVR-core.ps1)
+if "%choice%"=="155" (set SCRIPT=%~dp0BigWalkVR\BigWalkVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

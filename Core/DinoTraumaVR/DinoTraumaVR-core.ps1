@@ -511,7 +511,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Dino Trauma normally via Steam, the desktop" -ForegroundColor White
-Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Controls:" -ForegroundColor White
 Write-Host " - VR controllers map as an Xbox controller" -ForegroundColor Gray

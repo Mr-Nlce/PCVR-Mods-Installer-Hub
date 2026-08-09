@@ -1265,6 +1265,20 @@ $xaml = @"
                             </StackPanel>
                         </StackPanel>
                     </Border>
+                    <Border x:Name="MiShortcut" Background="Transparent"
+                            CornerRadius="7" Padding="8,9" Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="MiShortcutDot" Width="8" Height="8" Fill="#4ac07a"
+                                     VerticalAlignment="Center" Margin="2,0,11,0"/>
+                            <StackPanel>
+                                <TextBlock Text="Desktop Shortcut" FontSize="13"
+                                           Foreground="#d8dee3" FontFamily="Segoe UI"/>
+                                <TextBlock x:Name="MiShortcutSub" Text="Currently on - click to turn off" FontSize="11"
+                                           Foreground="#6a6a7e" FontFamily="Segoe UI"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                     <Border BorderThickness="0,1,0,0" BorderBrush="#26262e"
                             Margin="6,4,6,0" Padding="2,8,2,4">
                         <StackPanel Orientation="Horizontal">
@@ -4986,6 +5000,9 @@ function global:Test-HubMenuOpen {
     return ($global:menuOverlay.Visibility -eq [System.Windows.Visibility]::Visible)
 }
 function global:Open-HubMenu {
+    # Re-read the shortcut flag on every open: a second Hub instance or a
+    # hand-edited .hub-settings.json must not leave a stale label behind.
+    if (Get-Command Update-HubShortcutMenuItem -ErrorAction SilentlyContinue) { Update-HubShortcutMenuItem }
     $global:menuOverlay.Visibility = [System.Windows.Visibility]::Visible
     $global:menuBtn.Background = $global:brBtnRest
     Set-MenuBtnActive -Active $true
@@ -5079,6 +5096,41 @@ if ($miStyle) {
         Close-HubMenu
         if (Get-Command Switch-HubStyle -ErrorAction SilentlyContinue) { Switch-HubStyle }
     })
+}
+
+# Desktop Shortcut: opt-out for the shortcut the Hub writes on every
+# launch. The dot and the sub-line carry the current state, because
+# unlike the style toggle the result is off-screen (on the desktop).
+$global:miShortcut    = $window.FindName("MiShortcut")
+$global:miShortcutDot = $window.FindName("MiShortcutDot")
+$global:miShortcutSub = $window.FindName("MiShortcutSub")
+function global:Update-HubShortcutMenuItem {
+    if (-not $global:miShortcutSub) { return }
+    $on = $true
+    if (Get-Command Get-HubShortcutFlag -ErrorAction SilentlyContinue) { $on = [bool](Get-HubShortcutFlag) }
+    $global:miShortcutSub.Text = if ($on) { "Currently on - click to turn off" }
+                                 else     { "Currently off - click to turn on" }
+    if ($global:miShortcutDot) {
+        $global:miShortcutDot.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString(
+            $(if ($on) { "#4ac07a" } else { "#55555f" }))
+    }
+}
+if ($global:miShortcut) {
+    $global:miShortcut.Add_MouseEnter($menuItemEnter)
+    $global:miShortcut.Add_MouseLeave($menuItemLeave)
+    $global:miShortcut.Add_MouseLeftButtonUp({ param($s, $e)
+        $e.Handled = $true
+        Close-HubMenu
+        if (-not (Get-Command Get-HubShortcutFlag -ErrorAction SilentlyContinue)) { return }
+        $newState = -not [bool](Get-HubShortcutFlag)
+        # Persist FIRST (a real boolean, so the reader never has to guess),
+        # then act on the desktop: even if writing/deleting the .lnk fails,
+        # the next launch will not recreate an unwanted shortcut.
+        Set-HubSetting -Key "desktopShortcut" -Value ([bool]$newState)
+        [void](Set-HubDesktopShortcut -Enabled $newState)
+        Update-HubShortcutMenuItem
+    })
+    Update-HubShortcutMenuItem
 }
 
 # Clicking the header VR-glasses glyph also flips the tile style

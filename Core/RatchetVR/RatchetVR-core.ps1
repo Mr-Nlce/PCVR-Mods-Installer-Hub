@@ -323,7 +323,7 @@ Write-Host "  Ratchet & Clank VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start your VR runtime first, then launch from the Hub with" -ForegroundColor White
-Write-Host "  the 'Start in VR' button. You can also use the 'Ratchet VR'" -ForegroundColor White
+Write-Host "  the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button. You can also use the 'Ratchet VR'" -ForegroundColor White
 Write-Host "  desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  Tip: this is an early, growing fan project - there is no" -ForegroundColor Gray

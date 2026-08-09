@@ -260,7 +260,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Blue
 Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
-Write-Host "  Put your headset on, then launch with 'Start in VR' in the" -ForegroundColor White
+Write-Host "  Put your headset on, then launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the" -ForegroundColor White
 Write-Host "  Hub or the 'Ring Racers VR' desktop shortcut. Headset on = VR," -ForegroundColor White
 Write-Host "  headset off = regular flat Ring Racers." -ForegroundColor White
 Write-Host "  VR settings live in Options -> VR Options." -ForegroundColor White

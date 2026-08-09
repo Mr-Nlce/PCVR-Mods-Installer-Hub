@@ -553,7 +553,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
 Write-Host "  1. Start SteamVR and put your headset on." -ForegroundColor White
-Write-Host "  2. Use the 'SPT VR' desktop shortcut (or 'Start in VR' in" -ForegroundColor White
+Write-Host "  2. Use the 'SPT VR' desktop shortcut (or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in" -ForegroundColor White
 Write-Host "     the Hub). It starts the SPT server, waits for it, then" -ForegroundColor White
 Write-Host "     opens the SPT launcher." -ForegroundColor White
 Write-Host "  3. In the SPT launcher, log in / register a profile and" -ForegroundColor White

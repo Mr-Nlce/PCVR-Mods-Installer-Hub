@@ -116,7 +116,10 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..."
-Start-Process "steam://nav/console"
+# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 Write-OK "Steam Console opening..."
 
 Write-Host ""
@@ -335,7 +338,7 @@ Write-Host "  Important notes:" -ForegroundColor White
 Write-Host ""
 Write-Host "  - Game installed at: $gamePath" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  - Launch with 'Start in VR' in the Hub, or the" -ForegroundColor Yellow
+Write-Host "  - Launch with" -NoNewline -ForegroundColor Yellow; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor Yellow
 Write-Host "    'Gunfire Reborn VR' desktop" -ForegroundColor Yellow
 Write-Host "    shortcut, NOT via Steam!" -ForegroundColor Yellow
 Write-Host "    (Steam would launch your retail flat copy)" -ForegroundColor Gray

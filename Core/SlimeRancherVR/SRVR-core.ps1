@@ -280,7 +280,7 @@ Write-Host ""
 Write-Host "--- How to Play in VR ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Start SteamVR." -ForegroundColor White
-Write-Host "  2. Launch with 'Start in VR' in the Hub, or via Steam." -ForegroundColor White
+Write-Host "  2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam." -ForegroundColor White
 Write-Host "  3. The game detects your headset and starts SteamVR automatically" -ForegroundColor White
 Write-Host "     from the second launch onwards." -ForegroundColor Gray
 Write-Host ""

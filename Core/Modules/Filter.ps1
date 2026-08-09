@@ -1735,7 +1735,28 @@ function global:Get-DualModePresence {
     param($Game, $Libs)
     $res = @{ BothPresent = $false; CurrentDir = $null; DepotDir = $null }
     if (-not $Game -or -not $Game.DualMode -or -not $Game.DepotPath -or -not $Game.ModFile) { return $res }
-    if (-not (Test-Path (Join-Path $Game.DepotPath $Game.ModFile))) { return $res }
+    # THE TWO SIDES DO NOT ALWAYS CARRY THE SAME MOD FILE. This used to
+    # test ModFile in both places, which only works when it is one mod on
+    # two builds (Bendy, REPO). PEAK is two DIFFERENT mods: the current
+    # PeakVR by Andrey04o lives in the Steam copy, while the older PEAK_VR
+    # by AstienVR only ever exists in the pinned depot build - so the depot
+    # folder was searched for a file that can never be there, BothPresent
+    # stayed false, and the split button never appeared no matter what was
+    # installed. Each side now counts if EITHER of the entry's two mod
+    # files is present. For entries where ModFileAlt is just the parked
+    # "disabled" name, that reads correctly too: the mod IS installed.
+    $relList = @($Game.ModFile)
+    if ($Game.ModFileAlt) { $relList += $Game.ModFileAlt }
+    # Nicht nur der Katalogpfad: der Nutzer darf den Depot-Ordner frei
+    # waehlen, und der Installer hat den gewaehlten aufgezeichnet.
+    $depotDir = $null
+    foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
+        foreach ($rel in $relList) {
+            if (Test-Path (Join-Path $cand $rel)) { $depotDir = $cand; break }
+        }
+        if ($depotDir) { break }
+    }
+    if (-not $depotDir) { return $res }
     if (-not $Game.SteamFolder) { return $res }
     if (-not $Libs -or $Libs.Count -eq 0) {
         $Libs = @()
@@ -1755,10 +1776,15 @@ function global:Get-DualModePresence {
     }
     foreach ($lib in $Libs) {
         $c = Join-Path $lib "steamapps\common\$($Game.SteamFolder)"
-        if ((Test-Path $c) -and (Test-Path (Join-Path $c $Game.ModFile))) {
+        if (-not (Test-Path $c)) { continue }
+        $currentHit = $false
+        foreach ($rel in $relList) {
+            if (Test-Path (Join-Path $c $rel)) { $currentHit = $true; break }
+        }
+        if ($currentHit) {
             $res.BothPresent = $true
             $res.CurrentDir  = $c
-            $res.DepotDir    = $Game.DepotPath
+            $res.DepotDir    = $depotDir
             break
         }
     }
@@ -2364,7 +2390,30 @@ function global:Invoke-CheckInstalledScan {
         }
     }
 
-    # Xbox / Microsoft Store roots. The standard install location is
+    # AND the roots Epic ACTUALLY used. The list above is guesswork; the
+    # launcher manifests are the truth. Every installed game has a JSON
+    # .item file under %ProgramData%\Epic\EpicGamesLauncher\Data\Manifests
+    # with its real InstallLocation, so the PARENT of each of those is a
+    # live Epic root - including a library on a drive nobody guessed.
+    # Purely additive: the guessed roots stay, this only adds more.
+    # The installers already read these manifests via Find-SteamGameFolder;
+    # the Hub's own scan did not, so an Epic copy outside the default
+    # folder was invisible on the tile while the installer found it.
+    try {
+        $epicManifestDir = Join-Path $env:ProgramData "Epic\EpicGamesLauncher\Data\Manifests"
+        if ($env:ProgramData -and (Test-Path $epicManifestDir)) {
+            foreach ($item in (Get-ChildItem -Path $epicManifestDir -Filter *.item -ErrorAction SilentlyContinue)) {
+                try {
+                    $loc = (Get-Content -LiteralPath $item.FullName -Raw -ErrorAction Stop | ConvertFrom-Json).InstallLocation
+                    if (-not $loc) { continue }
+                    $parent = Split-Path -Parent $loc
+                    if ($parent -and (Test-Path $parent) -and ($epicRoots -notcontains $parent)) {
+                        $epicRoots += $parent
+                    }
+                } catch { }
+            }
+        }
+    } catch { }
     # C:\XboxGames (configurable, but per-drive). Apps install as
     # <Title>\Content\<exe>. The Content subdir is part of the
     # XBOX: resolver below - the catalog only needs to provide the
@@ -3093,7 +3142,9 @@ function global:Invoke-CheckInstalledScan {
         if ($vrInstalled) {
             # For Thunderstore-based mods: query live version and deprecated status
             $needsUpdate  = $false
-            $installedVer = Read-InstalledVersion -Game $game
+            # $gameDir is resolved above; hand it over so the in-game
+            # marker outranks the Hub-local copy.
+            $installedVer = Read-InstalledVersion -Game $game -GameDir $gameDir
 
             if ($game.GitHubNightly) {
                 $ghVer = $null
@@ -3150,7 +3201,7 @@ function global:Invoke-CheckInstalledScan {
                         # badge for a mod they never installed. NoVersionSeed
                         # keeps that entry silent until lufz is really there.
                         if (-not $game.NoVersionSeed) {
-                            Write-InstalledVersion -Game $game -Version $ghVer
+                            Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
                             $installedVer = $ghVer
                         }
                     } elseif ($installedVer -ne $ghVer) {
@@ -3186,11 +3237,11 @@ function global:Invoke-CheckInstalledScan {
                         # the truth and we resync the Hub cache after
                         # the user installs the update.
                     } elseif (-not $installedVer -and -not $tsDepr) {
-                        Write-InstalledVersion -Game $game -Version $tsVer
+                        Write-InstalledVersion -Game $game -Version $tsVer -GameDir $gameDir
                     } elseif ($installedVer -and $installedVer -eq $tsVer) {
                         # Up to date - keep the Hub cache in sync so a
                         # later scan without .ts_versions still works.
-                        Write-InstalledVersion -Game $game -Version $installedVer
+                        Write-InstalledVersion -Game $game -Version $installedVer -GameDir $gameDir
                     }
                   } catch {}
                 }
@@ -3230,7 +3281,7 @@ function global:Invoke-CheckInstalledScan {
                 }
                 if ($hyInst) {
                     $installedVer = $hyInst
-                    Write-InstalledVersion -Game $game -Version $hyInst
+                    Write-InstalledVersion -Game $game -Version $hyInst -GameDir $gameDir
                     if ($ghVer -and (($hyInst -replace '^[vV]','') -ne ($ghVer -replace '^[vV]',''))) { $needsUpdate = $true }
                 } else {
                     # 1.0.0+ always ships CHANGELOG.md, so its absence means a
@@ -3314,7 +3365,7 @@ function global:Invoke-CheckInstalledScan {
                         # badge for a mod they never installed. NoVersionSeed
                         # keeps that entry silent until lufz is really there.
                         if (-not $game.NoVersionSeed) {
-                            Write-InstalledVersion -Game $game -Version $ghVer
+                            Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
                             $installedVer = $ghVer
                         }
                     } elseif ($installedVer -ne $ghVer) {
@@ -3333,7 +3384,7 @@ function global:Invoke-CheckInstalledScan {
                   $wv = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title
                   if ($wv) {
                     if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $wv
+                        Write-InstalledVersion -Game $game -Version $wv -GameDir $gameDir
                         $installedVer = $wv
                     } elseif ($installedVer -ne $wv) {
                         $needsUpdate = $true
@@ -3376,7 +3427,7 @@ function global:Invoke-CheckInstalledScan {
                 $expectedVer = Get-ModVersionFromString -ModString $game.Mod
                 if ($expectedVer) {
                     if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $expectedVer
+                        Write-InstalledVersion -Game $game -Version $expectedVer -GameDir $gameDir
                         $installedVer = $expectedVer
                     } elseif ($installedVer -ne $expectedVer) {
                         $needsUpdate = $true
@@ -4102,8 +4153,27 @@ function global:Invoke-PostInstallRefresh {
             if ($pendGame) {
                 $okMk = Get-UpdateOkMarkerPath -Game $pendGame
                 if ($okMk -and (Test-Path $okMk)) {
-                    Remove-InstalledVersion -Game $pendGame
-                    Remove-Item $okMk -Force -ErrorAction SilentlyContinue
+                    # The in-game marker has to go as well, otherwise the OLD
+                    # version stays the ground truth and the card keeps saying
+                    # Update after a successful reinstall. The folder comes
+                    # from the path the installer just recorded, with the
+                    # scan's own state as a second source.
+                    $pendDir = $null
+                    try { $pendDir = Read-InstalledPath -Game $pendGame } catch {}
+                    if (-not $pendDir) {
+                        try {
+                            $stP = $global:gameStateMap[$pendGame.Title]
+                            if ($stP -and $stP.GameDir) { $pendDir = $stP.GameDir }
+                        } catch {}
+                    }
+                    # Blank the tracked version instead of deleting the
+                    # marker - same effect for the scan (empty reads as
+                    # "unknown"), without a delete anywhere near a game
+                    # folder.
+                    Reset-InstalledVersion -Game $pendGame -GameDir $pendDir
+                    if (Test-Path -LiteralPath $okMk -PathType Leaf) {
+                        Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
+                    }
                 }
             }
         } catch {}

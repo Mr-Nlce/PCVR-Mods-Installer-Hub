@@ -290,7 +290,7 @@ Write-Host ""
 Write-Host "  +======================================================+" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " Set your OpenXR runtime (Virtual Desktop VDXR is the tested one)," -ForegroundColor White
-Write-Host " put your headset on, then launch with 'Start in VR' in the Hub, or" -ForegroundColor White
+Write-Host " put your headset on, then launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or" -ForegroundColor White
 Write-Host " the desktop shortcut. Motion controllers aim; see the README for" -ForegroundColor White
 Write-Host " the full control map." -ForegroundColor White
 Write-Host ""

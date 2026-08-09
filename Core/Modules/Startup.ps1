@@ -125,25 +125,17 @@ if ($checkOnStartupBtn) {
 # at the end of this file. Nothing to wire up here any more.
 
 # Desktop shortcut: ensure one exists AND points at the current icon.
-# There is deliberately no "already created" flag: the Hub simply writes
-# the shortcut on every launch. That is idempotent, and it also picks up
-# icon changes for users who already have one.
-# ($scriptDir / $rootDir come from VRModHub.ps1 - do not redefine
-# them here; $MyInvocation in a dot-sourced module points at the
-# module file itself, not at the entry script.)
-$icoPath    = Join-Path $scriptDir "VR Mod Hub.ico"
-$batPath    = Join-Path $rootDir "Start PCVR Mods Hub.bat"
-$lnkPath    = Join-Path ([Environment]::GetFolderPath("Desktop")) "VR Mods Hub.lnk"
-
-try {
-    $shell    = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($lnkPath)
-    $shortcut.TargetPath       = $batPath
-    $shortcut.WorkingDirectory = $scriptDir
-    $shortcut.Description      = "PCVR Mods Installer Hub"
-    if (Test-Path $icoPath) { $shortcut.IconLocation = $icoPath }
-    $shortcut.Save()
-} catch {}
+# There is deliberately no "already created" flag - the Hub rewrites it
+# on every launch, which is idempotent and also picks up icon changes.
+# The one thing that DOES stop it is the user's own opt-out: the
+# "Desktop Shortcut" item in the 3-dots menu writes desktopShortcut=false
+# into .hub-settings.json, and then nothing is recreated here, so a
+# shortcut the user deleted stays deleted. Both the flag reader and the
+# writer live in Helpers.ps1 so the menu handler can reuse them.
+if ((Get-Command Get-HubShortcutFlag -ErrorAction SilentlyContinue) -and
+    (Get-HubShortcutFlag)) {
+    [void](Set-HubDesktopShortcut -Enabled $true)
+}
 
 # Tidy up after the retired flag: installs from older builds still carry
 # a ".shortcut_created" file that nothing reads any more.

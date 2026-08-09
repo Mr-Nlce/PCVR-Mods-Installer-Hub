@@ -126,7 +126,10 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
  Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..."
-Start-Process "steam://nav/console"
+# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 Write-OK "Steam Console opening..."
 
 Write-Host ""
@@ -435,7 +438,7 @@ Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
 Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
-Write-Host " >> Launch with 'Start in VR' in the Hub or the desktop" -ForegroundColor Yellow
+Write-Host " >> Launch with" -NoNewline -ForegroundColor Yellow; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or the desktop" -ForegroundColor Yellow
 Write-Host "    shortcut - NOT via Steam." -ForegroundColor Yellow
 Write-Host " (Launching via Steam would run your retail version)" -ForegroundColor Gray
 Write-Host ""

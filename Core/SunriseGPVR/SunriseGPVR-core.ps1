@@ -327,7 +327,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Sunrise GP normally via Steam, the desktop" -ForegroundColor White
-Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Use a GAMEPAD or KEYBOARD - no VR controller support." -ForegroundColor Yellow
 Write-Host " Game controls are unchanged." -ForegroundColor Gray

@@ -705,7 +705,7 @@ if ($activeName -eq "balouza") {
     Write-Host " The shipped defaults are already a full calibration; the" -ForegroundColor Gray
     Write-Host " author's preset files sit in $STORE_REL if you want them." -ForegroundColor Gray
 } else {
-    Write-Host "   2) Launch with 'Start in VR' in the Hub, or from Steam -" -ForegroundColor Gray
+    Write-Host "   2) Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or from Steam -" -ForegroundColor Gray
     Write-Host "      no injector, no launcher." -ForegroundColor Gray
     Write-Host "   3) Play with motion controllers; the weapon follows your hand." -ForegroundColor Gray
     Write-Host ""

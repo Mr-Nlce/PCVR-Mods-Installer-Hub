@@ -328,7 +328,7 @@ Write-Host "   black screen. The game has no HDR toggle of its own:" -Foreground
 Write-Host "   Windows Settings > System > Display > " -NoNewline -ForegroundColor White
 Write-Host " HDR " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
-Write-Host "  Start with 'Start in VR' in the Hub, or the 'The Witcher 3 VR'" -ForegroundColor White
+Write-Host "  Start with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'The Witcher 3 VR'" -ForegroundColor White
 Write-Host "  desktop shortcut - both open the mod's launcher, where you pick" -ForegroundColor White
 Write-Host "  the rendering mode and resolution, then start the game." -ForegroundColor White
 Write-Host ""

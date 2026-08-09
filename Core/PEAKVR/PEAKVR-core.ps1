@@ -97,6 +97,224 @@ function Find-7Zip {
 # -------------------------------------------------------
 #  Pre-flight
 # -------------------------------------------------------
+
+# =======================================================
+#  MODE SELECTION - two mods, two game builds
+# =======================================================
+# PEAK now has TWO VR mods, and they need DIFFERENT game builds:
+#   [1] PeakVR by Andrey04o - for the CURRENT PEAK. Comes from
+#       Thunderstore together with its four dependencies, and the
+#       Hub can therefore auto-update it and see when it is
+#       deprecated. Installs into the normal Steam copy.
+#   [2] PEAK_VR by AstienVR - the original entry. Needs the pinned
+#       Steam depot build 1.44.a in a separate folder. Left exactly
+#       as it was.
+# Everything below the "return" at the end of branch [1] is the
+# untouched depot route.
+$TS_MOD_AUTHOR  = "Andrey04o"
+$TS_MOD_NAME    = "PeakVR"
+# Dependency set exactly as PeakVR's own manifest.json lists it.
+# Read out of Andrey04o-PeakVR-1.3.0.zip, not from the web page.
+$TS_PACKAGES = @(
+    @{ Key = "BepInEx-BepInExPack_PEAK";      Author = "BepInEx";      Name = "BepInExPack_PEAK"; Pinned = "5.4.75301"; Label = "BepInEx (PEAK pack)" }
+    @{ Key = "PEAKModding-PEAKLib_Core";      Author = "PEAKModding";  Name = "PEAKLib_Core";     Pinned = "1.7.2";     Label = "PEAKLib Core" }
+    @{ Key = "PEAKModding-PEAKLib_UI";        Author = "PEAKModding";  Name = "PEAKLib_UI";       Pinned = "1.6.1";     Label = "PEAKLib UI" }
+    @{ Key = "PEAKModding-ModConfig";         Author = "PEAKModding";  Name = "ModConfig";        Pinned = "1.6.0";     Label = "ModConfig" }
+    @{ Key = "Andrey04o-PeakVR";              Author = "Andrey04o";    Name = "PeakVR";           Pinned = "1.3.0";     Label = "PeakVR" }
+)
+
+function Get-SteamPathP {
+    foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
+        try { $p = (Get-ItemProperty -Path $r -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { return $p } } catch {}
+    }
+    return $null
+}
+function Get-SteamLibrariesP { param($sp)
+    $libs = @($sp)
+    $vdf = Join-Path $sp "steamapps\libraryfolders.vdf"
+    if (Test-Path $vdf) {
+        [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
+            $l = $_.Groups[1].Value -replace '\\\\','\'
+            if (Test-Path $l) { $libs += $l }
+        }
+    }
+    return $libs
+}
+function Get-TSInfo { param($author,$name)
+    foreach ($u in @("https://thunderstore.io/api/experimental/package/$author/$name/")) {
+        try {
+            $d = (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop).Content | ConvertFrom-Json
+            return @{ Version = $d.latest.version_number; DownloadUrl = $d.latest.download_url; Deprecated = ($d.is_deprecated -eq $true) }
+        } catch { }
+    }
+    return $null
+}
+function Get-TSInstalledVersion { param($key,$gamePath)
+    $f = Join-Path $gamePath "BepInEx\.ts_versions\$key"
+    if (Test-Path -LiteralPath $f) { return (Get-Content -LiteralPath $f -Raw).Trim() }
+    return $null
+}
+function Set-TSInstalledVersion { param($key,$version,$gamePath)
+    $d = Join-Path $gamePath "BepInEx\.ts_versions"
+    if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+    Set-Content -LiteralPath (Join-Path $d $key) -Value $version -Encoding UTF8 -Force
+}
+
+# Thunderstore layout -> game folder. This is the part a blind
+# extract-in-place gets wrong: a package's top level can be
+#   BepInExPack_PEAK\   -> a wrapper, its CONTENT goes to the root
+#   plugins\ patchers\  -> these belong under BepInEx\, NOT the root
+# Verified against all five uploaded packages.
+function Install-TSPackage { param($Zip,$Work,$GamePath,$Key)
+    if (Test-Path -LiteralPath $Work) { Remove-Item -LiteralPath $Work -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Path $Work -Force | Out-Null
+    Expand-Archive -LiteralPath $Zip -DestinationPath $Work -Force -ErrorAction Stop
+    $meta = @("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
+    $root = $Work
+    # A single wrapper folder that is not itself a BepInEx layout dir.
+    # -Force: .doorstop_version is a dot-file and would be skipped
+    # without it on any host that treats those as hidden.
+    $top = @(Get-ChildItem -LiteralPath $Work -Force | Where-Object { $_.Name -notin $meta })
+    if ($top.Count -eq 1 -and $top[0].PSIsContainer -and $top[0].Name -notin @("BepInEx","plugins","patchers","monomod","core","config")) {
+        $root = $top[0].FullName
+    }
+    $copied = 0
+    foreach ($item in @(Get-ChildItem -LiteralPath $root -Force | Where-Object { $_.Name -notin $meta })) {
+        if ($item.PSIsContainer -and $item.Name -in @("plugins","patchers","monomod","core","config")) {
+            # BepInEx sub-tree: give each package its own folder so an
+            # update can replace it and two packages never collide.
+            $dest = Join-Path $GamePath ("BepInEx\" + $item.Name + "\" + $Key)
+            if ($item.Name -in @("core","config")) { $dest = Join-Path $GamePath ("BepInEx\" + $item.Name) }
+            if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
+            # -Path, NOT -LiteralPath: with -LiteralPath the "*" is taken
+            # literally and the copy fails with "cannot find path ...\*".
+            Copy-Item -Path (Join-Path $item.FullName "*") -Destination $dest -Recurse -Force
+            $copied += @(Get-ChildItem -LiteralPath $item.FullName -Recurse -File).Count
+        } else {
+            Copy-Item -LiteralPath $item.FullName -Destination $GamePath -Recurse -Force
+            if ($item.PSIsContainer) { $copied += @(Get-ChildItem -LiteralPath $item.FullName -Recurse -File).Count } else { $copied++ }
+        }
+    }
+    return $copied
+}
+
+Write-Header
+Write-Host "  PEAK has TWO VR mods, and each needs a different build of the game." -ForegroundColor White
+Write-Host ""
+
+$tsLatest = Get-TSInfo -author $TS_MOD_AUTHOR -name $TS_MOD_NAME
+Write-Host "  [1] Current PEAK" -NoNewline -ForegroundColor White
+if ($tsLatest -and $tsLatest.Deprecated) {
+    Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
+    Write-Warn "This mod is marked DEPRECATED on Thunderstore."
+} elseif ($tsLatest) {
+    Write-Host "  - PeakVR by Andrey04o, v$($tsLatest.Version)" -ForegroundColor Gray
+    Write-Host "       Auto-updating, installs into your normal Steam copy." -ForegroundColor Gray
+} else {
+    Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
+    Write-Warn "Could not reach Thunderstore - the pinned versions will be used."
+}
+Write-Host ""
+$depotHere = Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)
+Write-Host "  [2] Older PEAK 1.44.a" -NoNewline -ForegroundColor White
+Write-Host "  - PEAK_VR by AstienVR" -ForegroundColor Gray
+if ($depotHere) { Write-Host "       Already installed at $DEFAULT_PATH" -ForegroundColor Green }
+else            { Write-Host "       Downloads a pinned Steam depot build into its own folder." -ForegroundColor Gray }
+Write-Host ""
+$peakMode = ""
+while ($peakMode -notin @("1","2")) { $peakMode = (Read-Host "  Your choice (1 or 2)").Trim() }
+
+if ($peakMode -eq "1") {
+    Write-Step 1 3 "Finding your PEAK installation"
+    $gamePath = $null
+    $sp = Get-SteamPathP
+    if ($sp) {
+        foreach ($lib in (Get-SteamLibrariesP $sp)) {
+            $c = Join-Path $lib "steamapps\common\PEAK"
+            if (Test-Path -LiteralPath (Join-Path $c $GAME_EXE)) { $gamePath = $c; break }
+        }
+    }
+    if (-not $gamePath) { $gamePath = Get-GameFolderInteractive -GameName "PEAK" -ProbeFile $GAME_EXE }
+    if (-not $gamePath -or -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE))) {
+        Write-Fail "Could not find $GAME_EXE - nothing was installed."
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    Write-OK "PEAK: $gamePath"
+
+    Write-Step 2 3 "Installing PeakVR and its dependencies"
+    $tmp = Join-Path $env:TEMP ("peakvr_" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    $allOk = $true
+    foreach ($pkg in $TS_PACKAGES) {
+        $ver = $pkg.Pinned
+        $url = "https://thunderstore.io/package/download/$($pkg.Author)/$($pkg.Name)/$($pkg.Pinned)/"
+        $info = Get-TSInfo -author $pkg.Author -name $pkg.Name
+        if ($info -and $info.Version -and $info.DownloadUrl) { $ver = $info.Version; $url = $info.DownloadUrl }
+        $have = Get-TSInstalledVersion -key $pkg.Key -gamePath $gamePath
+        if ($have -eq $ver) { Write-OK "$($pkg.Label) $ver already installed."; continue }
+        $zip = Join-Path $tmp ("$($pkg.Key).zip")
+        Write-Info "$($pkg.Label) $ver ..."
+        $ok = Invoke-SafeDownload -Urls @($url) -Destination $zip -Label $pkg.Label `
+                  -ManualUrl "https://thunderstore.io/c/peak/p/$($pkg.Author)/$($pkg.Name)/" `
+                  -Instructions "Download the ZIP for $($pkg.Label) from the Thunderstore page and drop it here."
+        if (-not $ok -or -not (Test-Path -LiteralPath $zip)) { Write-Fail "$($pkg.Label) could not be downloaded."; $allOk = $false; break }
+        try {
+            $n = Install-TSPackage -Zip $zip -Work (Join-Path $tmp $pkg.Key) -GamePath $gamePath -Key $pkg.Key
+            Write-OK "$($pkg.Label) $ver - $n file(s)."
+            Set-TSInstalledVersion -key $pkg.Key -version $ver -gamePath $gamePath
+        } catch {
+            Write-Fail "$($pkg.Label) could not be installed: $($_.Exception.Message)"
+            $allOk = $false; break
+        }
+    }
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+
+    # Proof, not a claim: the mod's own DLL has to be on disk.
+    $proof = Join-Path $gamePath "BepInEx\plugins\Andrey04o-PeakVR\com.andrey04o.PeakVR.dll"
+    if (-not $allOk -or -not (Test-Path -LiteralPath $proof)) {
+        Write-Fail "PeakVR is not in place - the install is incomplete."
+        Write-Info "Expected: $proof"
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    Write-OK "PeakVR is installed."
+
+    Write-Step 3 3 "Finishing up"
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+    try {
+        $sc = New-DesktopShortcut -ShortcutName "PEAK VR" -TargetPath "steam://rungameid/$DEPOT_APPID" `
+                  -WorkingDir $gamePath -Description "PEAK in VR (PeakVR)"
+        if ($sc) { Write-OK "Desktop shortcut 'PEAK VR' created." }
+    } catch { Write-Warn "Could not create the desktop shortcut: $($_.Exception.Message)" }
+
+    Write-Host ""
+    Write-Host "============================================================" -ForegroundColor Magenta
+    Write-Host " PeakVR is installed!" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Magenta
+    Write-Host ""
+    Write-Host "  START: " -NoNewline -ForegroundColor Cyan; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or launch PEAK from Steam." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  IMAGE LOOKS BLURRY? In the game: Settings > Mod Settings >" -ForegroundColor Cyan
+    Write-Host "  PEAK VR > VR GRAPHICS > " -NoNewline -ForegroundColor Cyan; Write-Host " MAKE IMAGE SHARPER = Enable " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host ""
+    Write-Host "  Extra frames: add the launch option " -NoNewline -ForegroundColor Gray; Write-Host "-force-d3d11" -NoNewline -ForegroundColor White; Write-Host " in Steam." -ForegroundColor Gray
+    Write-Host "  You climb the way the base game does - this is not a" -ForegroundColor Gray
+    Write-Host "  hand-over-hand climbing simulator." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Works in lobbies with flat players. Tested against PEAK 1.65.a." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  The mountain does not care that you can see it properly now." -ForegroundColor Magenta
+    Write-Host ""
+    Pause-User "Press Enter to exit." | Out-Null
+    return
+}
+
+# =======================================================
+#  From here on: the ORIGINAL depot route for PEAK_VR by
+#  AstienVR, unchanged.
+# =======================================================
+
 Write-Header
 
 $sevenZip = Find-7Zip
@@ -161,7 +379,10 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..."
-Start-Process "steam://nav/console"
+# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 Write-OK "Steam Console opening..."
 
 Write-Host ""
@@ -544,7 +765,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "  1. Steam client must be running (PEAK still needs Steam auth)" -ForegroundColor White
 Write-Host "  2. Start SteamVR" -ForegroundColor White
-Write-Host "  3. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "  3. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "     'PEAK VR' desktop shortcut" -ForegroundColor White
 Write-Host ""
 Write-Host "  The shortcut launches PEAK with -force-vulkan, which is the" -ForegroundColor Cyan

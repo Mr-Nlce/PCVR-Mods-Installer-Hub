@@ -16,6 +16,14 @@
 # inside the mod and land in the game folder for the user to toggle
 # modes. MelonLoader 0.7.3 is bundled with the mod (Mods\, version.dll,
 # MelonLoader\); merging with a different MelonLoader may break it.
+#
+# v1.1.0 CHANGED THE DEFAULT WORLD SCALE to 1.45, which fits the cabin
+# to a normal seated height. It is adjustable in the game with
+# LB + RB + D-Pad left/right in steps of 0.05 (range 0.5 to 2.0) and
+# saves itself as PlayerScale in UserData\MelonPreferences.cfg. That
+# file lives in the game folder and is NOT part of the package, so an
+# update never overwrites a scale the user has already dialled in -
+# nothing to do here beyond telling them the control exists.
 # -------------------------------------------------------
 
 
@@ -27,7 +35,7 @@
 $Host.UI.RawUI.WindowTitle = "Star Trucker VR Installer"
 
 $MOD_NAME = "StarTruckerVR"
-$MOD_VERSION = "v1.0"
+$MOD_VERSION = "v1.1.0"
 $MOD_AUTHOR = "Destroyjevski"
 
 $GAME_APPID = "2380050"
@@ -128,6 +136,8 @@ Write-Host " Star Trucker VR turns Star Trucker into a stereoscopic 6DOF VR" -Fo
 Write-Host " experience with head tracking - played on a gamepad, just like" -ForegroundColor White
 Write-Host " the flat game. No original game files are modified; removing the" -ForegroundColor White
 Write-Host " mod restores the vanilla game." -ForegroundColor White
+Write-Host ""
+Write-Host " The world scale is yours to set in-game, and it remembers it." -ForegroundColor White
 Write-Host ""
 Write-Host " Virtual Desktop with VDXR is the tested OpenXR runtime; SteamVR" -ForegroundColor Gray
 Write-Host " and Quest Link may work but are untested." -ForegroundColor Gray
@@ -316,12 +326,20 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " VR is active immediately - no batch file is needed to start" -ForegroundColor White
-Write-Host " in VR. Launch with 'Start in VR' in the Hub, or through Steam" -ForegroundColor White
+Write-Host " in VR. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
 Write-Host " (or GOG) normally. Set VDXR as your OpenXR runtime first." -ForegroundColor White
 Write-Host ""
 Write-Host " FIRST LAUNCH ONLY: expect a longer startup (several minutes;" -ForegroundColor Yellow
 Write-Host " the window may stay black) while MelonLoader builds helper" -ForegroundColor Yellow
 Write-Host " files once. Don't close it - every later launch is fast." -ForegroundColor Yellow
+Write-Host ""
+Write-Host " WORLD SCALE: hold " -NoNewline -ForegroundColor White
+Write-Host " LB + RB " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " and tap D-Pad right or left." -ForegroundColor White
+Write-Host " Right makes the world smaller and you taller, left the other" -ForegroundColor White
+Write-Host " way, in steps of 0.05. It saves itself and comes back on the" -ForegroundColor White
+Write-Host " next launch. Default is 1.45, which fits the cabin to a normal" -ForegroundColor White
+Write-Host " seated height - 1.0 is the original scale." -ForegroundColor White
 Write-Host ""
 Write-Host " See the README for controls, mode switching, and how to" -ForegroundColor Gray
 Write-Host " uninstall. Switch .bat files sit in the game folder:" -ForegroundColor Gray

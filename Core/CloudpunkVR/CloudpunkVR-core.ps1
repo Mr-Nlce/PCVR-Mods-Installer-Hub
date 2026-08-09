@@ -159,7 +159,7 @@ if ($dllOk) { Write-Host " [x] BepInEx\plugins\CloudpunkVR.dll" -ForegroundColor
 else { Write-Host " [ ] CloudpunkVR.dll -- MISSING" -ForegroundColor Red }
 Write-Host " [x] Desktop shortcut 'Cloudpunk VR' created." -ForegroundColor Green
 Write-Host ""
-Write-Host " Launch with 'Start in VR' in the Hub, or that desktop shortcut." -ForegroundColor White
+Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or that desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host " TIPS" -ForegroundColor Cyan
 Write-Host " - VR UI scale: edit BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg -> 'VRUI scale'" -ForegroundColor Gray

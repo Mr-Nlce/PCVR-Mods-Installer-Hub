@@ -15,6 +15,17 @@
 # No original game files are modified; the two "Switch to flat.bat"
 # / "Back to VR.bat" files ship inside the mod and land in the game
 # folder for the user to toggle modes.
+#
+# v1.0.1 (read from the real archive): the payload wrapper is
+# Outbound_VR-1.0.1\GameFiles\, 244 entries, and the mod itself is
+# BepInEx\plugins\OutboundVR\OutboundVR.dll - 175616 bytes, built
+# 2026-07-21 03:24. That build time is what the catalog carries as
+# ModBuildStamp, so the tile can tell an older install apart from a
+# current one. Everything else in the package (BepInEx 6 IL2CPP, the
+# bundled dotnet runtime, Unity OpenXR) is older third-party material
+# and useless as an update marker.
+# New in v1.0.1 besides the HUD fix: an audited file manifest
+# (OutboundVR-SHA256SUMS.txt) and the OutboundVR-LICENSES folder.
 # -------------------------------------------------------
 
 
@@ -26,7 +37,7 @@
 $Host.UI.RawUI.WindowTitle = "Outbound VR Installer"
 
 $MOD_NAME = "OutboundVR"
-$MOD_VERSION = "v1.0"
+$MOD_VERSION = "v1.0.1"
 $MOD_AUTHOR = "Destroyjevski"
 
 $GAME_APPID = "2681030"
@@ -321,7 +332,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " VR is active immediately - no batch file is needed to start" -ForegroundColor White
-Write-Host " in VR. Launch with 'Start in VR' in the Hub, or through Steam" -ForegroundColor White
+Write-Host " in VR. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
 Write-Host " (or Epic) normally." -ForegroundColor White
 Write-Host ""
 Write-Host " FIRST LAUNCH ONLY: expect a longer startup (up to several" -ForegroundColor Yellow

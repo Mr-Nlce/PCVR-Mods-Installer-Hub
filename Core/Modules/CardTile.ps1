@@ -108,7 +108,8 @@ $global:WIP_GAME_TITLES = @(
     "GTA Vice City VR",
     "F.E.A.R. VR",
     "Stardew Valley VR",
-    "GTA IV VR"
+    "GTA IV VR",
+    "My Friendly Neighborhood VR"
 )
 
 # -------------------------------------------------------

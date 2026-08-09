@@ -209,7 +209,7 @@ Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
 Write-Host "  1. Put your headset on (SteamVR, Virtual Desktop, Meta or" -ForegroundColor White
 Write-Host "     Pimax - any OpenXR runtime works)." -ForegroundColor White
-Write-Host "  2. Launch via the desktop shortcut or 'Start in VR' in the Hub." -ForegroundColor White
+Write-Host "  2. Launch via the desktop shortcut or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub." -ForegroundColor White
 Write-Host "     Headset on = VR. Headset off = regular flat SRB2." -ForegroundColor White
 Write-Host "  3. Options -> VR Options has everything: VR mode, world scale," -ForegroundColor White
 Write-Host "     screen distance/size, HUD opacity, recenter." -ForegroundColor White

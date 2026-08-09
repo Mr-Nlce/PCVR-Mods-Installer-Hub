@@ -438,7 +438,7 @@ if ($gamePath -eq $originalGamePath) {
  Write-Host " Original folder is untouched - flat-screen play still" -ForegroundColor Gray
  Write-Host " works via Steam." -ForegroundColor Gray
  Write-Host ""
- Write-Host " Launch the VR build with 'Start in VR' in the Hub, or the" -ForegroundColor White
+ Write-Host " Launch the VR build with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host " .exe inside the copy:" -ForegroundColor White
  Write-Host " $gamePath\Sayonara Wild Hearts.exe" -ForegroundColor DarkGray
 }

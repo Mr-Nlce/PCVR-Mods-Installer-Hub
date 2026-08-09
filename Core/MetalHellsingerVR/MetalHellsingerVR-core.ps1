@@ -114,7 +114,12 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
-try { Start-Process "steam://nav/console" } catch {
+# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+$conOk = $false
+foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+    try { Start-Process $cu; $conOk = $true; Start-Sleep -Milliseconds 900 } catch {}
+}
+if (-not $conOk) {
     Write-Warn "Could not open the Steam Console automatically."
     Write-Host "  Open Steam, then: View - Console, and paste the command above." -ForegroundColor Gray
 }
@@ -186,8 +191,8 @@ Write-Step 2 4 "Moving the game to a stable folder"
 $parentOfDepot = Split-Path $depotPath -Parent
 
 Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
-Write-Host "  (Recommended - keeps the VR build off the Steam library and away" -ForegroundColor DarkGray
-Write-Host "   from any Program Files UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
+Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
 $userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
 $targetPath = if (-not $userInput) { $DEFAULT_PATH } else { $userInput }
@@ -362,7 +367,7 @@ Write-Host "  Metal: Hellsinger VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Game folder: $gamePath" -ForegroundColor Gray
-Write-Host "  Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "  'Metal Hellsinger VR' desktop shortcut, or:" -ForegroundColor White
 Write-Host "    $gameExePath" -ForegroundColor Cyan
 Write-Host ""

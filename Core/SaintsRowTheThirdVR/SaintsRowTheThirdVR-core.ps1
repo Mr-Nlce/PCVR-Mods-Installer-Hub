@@ -266,7 +266,7 @@ if (Test-Path $exePath) {
 
 # ---- STEP 4: how to play in VR ----
 Write-Step 4 4 "How to start VR in-game"
-Write-Host " Launch with 'Start in VR' in the Hub, or the new desktop shortcut" -ForegroundColor White
+Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the new desktop shortcut" -ForegroundColor White
 Write-Host " the Hub's Start button, or run the DX11 exe directly)." -ForegroundColor White
 Write-Host ""
 Write-Host " Once you are in the game:" -ForegroundColor White

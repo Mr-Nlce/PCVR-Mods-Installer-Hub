@@ -399,11 +399,16 @@ try {
     #   version.txt           -> updater writes the new version explicitly below
     #   .shortcut_created     -> user preference flag (anywhere in tree)
     #   .update_available     -> will be deleted after update anyway
+    #   .hub-settings.json    -> user settings (style, window, desktop
+    #                            shortcut opt-out). Robocopy runs without
+    #                            /MIR or /PURGE and the file is not in the
+    #                            zip, so it already survives - listed here
+    #                            so a future zip can never clobber it.
     $robocopyArgs = @(
         $extractedRoot.FullName,
         $installDir,
         "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/R:2", "/W:1",
-        "/XF", "version.txt", ".shortcut_created", ".update_available", ".installed_version"
+        "/XF", "version.txt", ".shortcut_created", ".update_available", ".installed_version", ".hub-settings.json"
     )
     & robocopy @robocopyArgs | Out-Null
     # Robocopy exit codes 0-7 are success, 8+ are errors

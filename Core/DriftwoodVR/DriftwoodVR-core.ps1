@@ -318,7 +318,7 @@ Write-Host " If you have bHaptics devices, launch the bHaptics Player" -Foregrou
 Write-Host " and turn the devices on. The mod detects them at startup." -ForegroundColor White
 Write-Host ""
 Write-Host " Launch Driftwood normally via Steam, the desktop shortcut," -ForegroundColor White
-Write-Host " or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Controls:" -ForegroundColor White
 Write-Host " Left stick -> Steering / accelerate / air brake / UI" -ForegroundColor Gray

@@ -307,7 +307,7 @@ Write-Host "    Yes = VR, No = flatscreen companion mode. Set ForcedMode" -Foreg
 Write-Host "    in the config to skip it." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or start Mage Arena" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or start Mage Arena" -ForegroundColor Gray
 Write-Host "    from Steam as usual." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  See the README for controls, the F1 settings panel and the" -ForegroundColor DarkGray

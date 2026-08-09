@@ -38,7 +38,10 @@ $global:RunInstallerPath = Join-Path $scriptDir "Run-Installer.ps1"
 try {
     $logsDir = Join-Path $scriptDir "Logs"
     if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir -Force | Out-Null }
-    Get-ChildItem $logsDir -Filter *.log -ErrorAction SilentlyContinue |
+    # -File: without it a DIRECTORY called something.log would come back
+    # from the filter and get handed to Remove-Item. Cheap guard, and the
+    # rule everywhere now is that a delete only ever sees a file.
+    Get-ChildItem $logsDir -Filter *.log -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -Skip 30 |
         Remove-Item -Force -ErrorAction SilentlyContinue
     $hubLog = Join-Path $logsDir ("Hub-{0}.log" -f (Get-Date -Format "yyyy-MM-dd_HH-mm-ss"))
@@ -79,7 +82,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.5.3"
+$HUB_VERSION = "0.8.5.6"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -177,6 +180,29 @@ function Read-InstalledPath {
     return $v
 }
 
+# WO LIEGT DER DEPOT-BUILD WIRKLICH?
+# Das Katalogfeld DepotPath ist ein FESTER Vorschlag (C:\Games\<Spiel> VR),
+# aber der Installer laesst den Nutzer den Ordner frei waehlen - und
+# schreibt den gewaehlten in .installed_path. Wer woanders installiert,
+# war fuer den Hub bisher unsichtbar: sowohl der Start-Depot-Knopf als
+# auch die Erkennung des geteilten Buttons sahen nur im Katalogpfad nach.
+# Also beide Quellen befragen, den Katalogpfad zuerst.
+# Der aufgezeichnete Pfad zaehlt NUR, wenn er nicht unter steamapps\common
+# liegt - dort steht die normale Steam-Kopie, und die ist der andere Teil
+# eines DualMode-Eintrags, nicht der Depot-Build.
+function Get-DepotCandidatePaths {
+    param($Game)
+    $out = @()
+    if ($Game.DepotPath) { $out += [string]$Game.DepotPath }
+    try {
+        $rec = Read-InstalledPath -Game $Game
+        # Trennzeichen-unabhaengig, damit die Pruefung nicht an einem
+        # Schraegstrich vorbeilaeuft.
+        if ($rec -and ($rec -notmatch '(?i)steamapps[\\/]+common') -and ($out -notcontains $rec)) { $out += $rec }
+    } catch {}
+    return $out
+}
+
 # The "Locate Game" exe-picker can record the exact exe that launches
 # a user-located install (e.g. a differently named exe from another
 # store). Stored next to .installed_path as .launch_exe, holding the
@@ -211,29 +237,95 @@ function Get-UserLocatedFile {
     return ($base -replace [regex]::Escape('.installed_path'), '.user_located')
 }
 
-# Read installed version for a game. Returns $null if file missing or empty.
-function Read-InstalledVersion {
-    param($Game)
-    $path = Get-InstalledVersionPath -Game $Game
-    if (-not $path -or -not (Test-Path $path)) { return $null }
-    $v = (Get-Content $path -Raw -ErrorAction SilentlyContinue)
-    if ($null -eq $v) { return $null }
-    $v = $v.Trim()
-    if ([string]::IsNullOrWhiteSpace($v)) { return $null }
-    return $v
+# ============================================================
+#  WHERE THE INSTALLED VERSION IS RECORDED
+# ============================================================
+# The tracked version used to live ONLY in the Hub's own folder
+# (Core\<Game>\.installed_version). That is a bad place for it: the
+# Hub is a thing people replace. The built-in updater is careful
+# (robocopy, no /MIR, .installed_version in /XF), but anyone who
+# unpacks a fresh Hub over a new folder - or moves to another PC,
+# or reinstalls the Hub by hand - loses every marker at once. The
+# next scan then finds no version, SEEDS it with whatever is current
+# online, and every outdated mod silently counts as up to date. No
+# Update badge, ever, and nothing looks broken.
+#
+# So the marker now lives WITH THE MOD, in the game folder, under one
+# name for every game. That file survives any Hub replacement, and it
+# is the same fact the Hub needs: which build is on this disk. The
+# Hub-local copy is still written as a mirror, so nothing that reads
+# it directly breaks, and it still answers when a game folder is not
+# resolvable at that moment.
+#
+# Reading order is deliberate: game folder first, Hub folder second.
+# The game folder is the ground truth; the Hub copy is a cache.
+# Path of the in-game marker. $Second is the B slot for entries that
+# track TWO mods in one tile (BioShock), mirroring the Hub-local
+# .installed_version / _b pair.
+#
+# THE NAME IS A LITERAL IN HERE, deliberately. An earlier draft read it
+# from a $global set at module load. When that global was empty for any
+# reason the name became "", Join-Path handed back THE GAME FOLDER
+# ITSELF - and back then this path was handed to a delete. The literal
+# cannot be unset, and the guard below refuses any result that is not
+# strictly below $GameDir. Nothing in this file deletes any more (see
+# Reset-InstalledVersion), so that class of accident is gone at the
+# root rather than merely guarded against.
+# InstallerSafety.ps1 carries the same literal for Write-ModStamp,
+# because installers run in their own process and never load this file.
+# The two must stay in step.
+function Get-GameStampPath {
+    param([string]$GameDir, [switch]$Second)
+    if ([string]::IsNullOrWhiteSpace($GameDir)) { return $null }
+    $n = ".pcvrhub_version"
+    if ($Second) { $n = "$n" + "_b" }
+    $full = Join-Path $GameDir $n
+    # Never hand back the folder itself.
+    if ([string]::IsNullOrWhiteSpace($full)) { return $null }
+    if ((Split-Path -Leaf $full) -notlike ".pcvrhub_version*") { return $null }
+    return $full
 }
 
-# Write installed version for a game. Silent no-op if no Bat field.
-function Write-InstalledVersion {
-    param($Game, [string]$Version)
-    $path = Get-InstalledVersionPath -Game $Game
-    if (-not $path -or [string]::IsNullOrWhiteSpace($Version)) { return }
+function Read-VersionStampFile {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path)) { return $null }
     try {
-        [System.IO.File]::WriteAllText(
-            $path, $Version.Trim(),
-            (New-Object System.Text.UTF8Encoding $false)
-        )
-    } catch {}
+        # -Raw returns $null for an EMPTY file, and $null -replace yields an
+        # ARRAY - .Trim() on that throws. Cast first, or an empty marker
+        # silently kills the whole check.
+        $raw = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop
+        $v = ([string]$raw -replace '[^\x20-\x7E]', '').Trim()
+        if ([string]::IsNullOrWhiteSpace($v)) { return $null }
+        return $v
+    } catch { return $null }
+}
+
+# Read installed version for a game. Game folder wins over the Hub copy.
+# Returns $null if neither has a usable value.
+function Read-InstalledVersion {
+    param($Game, [string]$GameDir)
+    $stamp = Get-GameStampPath -GameDir $GameDir
+    $v = Read-VersionStampFile -Path $stamp
+    if ($v) { return $v }
+    return (Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game))
+}
+
+# Write installed version for a game - into the game folder AND the Hub
+# copy. Passing no $GameDir keeps the old behaviour (Hub copy only), so
+# a caller that has not resolved a folder yet still works.
+function Write-InstalledVersion {
+    param($Game, [string]$Version, [string]$GameDir)
+    if ([string]::IsNullOrWhiteSpace($Version)) { return }
+    $val = $Version.Trim()
+    $enc = New-Object System.Text.UTF8Encoding $false
+    $stamp = Get-GameStampPath -GameDir $GameDir
+    if ($stamp) {
+        try { [System.IO.File]::WriteAllText($stamp, $val, $enc) } catch {}
+    }
+    $path = Get-InstalledVersionPath -Game $Game
+    if ($path) {
+        try { [System.IO.File]::WriteAllText($path, $val, $enc) } catch {}
+    }
 }
 
 # Second tracked version, for entries that carry TWO independent mods in
@@ -249,15 +341,33 @@ function Get-InstalledVersionPathB {
 # Remove installed version file (used when user clicks Update). The second
 # marker goes with it - otherwise a two-mod entry would keep a stale
 # version for mod B and show Update forever after an install.
-function Remove-InstalledVersion {
-    param($Game)
-    $path = Get-InstalledVersionPath -Game $Game
-    if ($path -and (Test-Path $path)) {
-        Remove-Item $path -Force -ErrorAction SilentlyContinue
-    }
-    $pathB = Get-InstalledVersionPathB -Game $Game
-    if ($pathB -and (Test-Path $pathB)) {
-        Remove-Item $pathB -Force -ErrorAction SilentlyContinue
+# Mark the tracked version as UNKNOWN after a completed (re)install, so
+# the next scan fills it in with whatever is current online.
+#
+# THIS DOES NOT DELETE ANYTHING, ON PURPOSE. It used to, and that was
+# wrong twice over. First, a delete is a bigger operation than the job
+# needs: the job is "this value is stale", and emptying a file says that
+# just as well. Second, a delete is the one operation whose blast radius
+# depends entirely on the path being right - get the path wrong by one
+# empty string and you are removing a directory instead of a marker.
+# Overwriting cannot do that: the worst a wrong path can do here is
+# create or blank a stray 0-byte file, which the next scan overwrites.
+#
+# An empty marker reads back as $null (see Read-VersionStampFile), which
+# is exactly the "no version recorded" state the scan already handles.
+# Files that do not exist are left alone - no new files are created.
+function Reset-InstalledVersion {
+    param($Game, [string]$GameDir)
+    $enc = New-Object System.Text.UTF8Encoding $false
+    foreach ($path in @(
+        (Get-InstalledVersionPath  -Game $Game),
+        (Get-InstalledVersionPathB -Game $Game),
+        (Get-GameStampPath -GameDir $GameDir),
+        (Get-GameStampPath -GameDir $GameDir -Second)
+    )) {
+        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            try { [System.IO.File]::WriteAllText($path, "", $enc) } catch {}
+        }
     }
 }
 
@@ -273,11 +383,15 @@ function Get-UpdateOkMarkerPath {
 
 # Clear a stale completion marker before launching an update installer,
 # so only a freshly completed run can clear the tracked version.
+# This one stays a delete: it is a PRESENCE flag - "the installer core
+# finished" - and a flag you cannot remove is not a flag. It lives in the
+# Hub's own Core\<Game>\ folder under a fixed literal name, so no path
+# here can ever point at user data. -PathType Leaf all the same.
 function Clear-UpdateOkMarker {
     param($Game)
     $mk = Get-UpdateOkMarkerPath -Game $Game
-    if ($mk -and (Test-Path $mk)) {
-        Remove-Item $mk -Force -ErrorAction SilentlyContinue
+    if ($mk -and (Test-Path -LiteralPath $mk -PathType Leaf)) {
+        Remove-Item -LiteralPath $mk -Force -ErrorAction SilentlyContinue
     }
 }
 

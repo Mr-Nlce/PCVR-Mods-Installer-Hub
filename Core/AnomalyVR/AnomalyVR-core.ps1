@@ -74,7 +74,7 @@ Write-Host "  updated - you do not need anything beforehand." -ForegroundColor W
 Write-Host ""
 Write-Host "  Press ENTER for a fresh install at the recommended location:" -ForegroundColor Yellow
 Write-Host "      $DEFAULT_GAME_DIR" -ForegroundColor Gray
-Write-Host "  (Recommended. C:\games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host "  Or type a different folder to install into." -ForegroundColor Gray
 Write-Host "  Or, if you ALREADY have S.T.A.L.K.E.R. Anomaly, drag that folder in." -ForegroundColor DarkGray
 
@@ -214,7 +214,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Done. Updates run THROUGH the launcher - just hit Updates." -ForegroundColor Green
-Write-Host "  The Hub's 'Start in VR' runs it too." -ForegroundColor Gray
+Write-Host "  The Hub's" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "runs it too." -ForegroundColor Gray
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Stay out of the anomalies, stalker. The Zone notices." -ForegroundColor Magenta

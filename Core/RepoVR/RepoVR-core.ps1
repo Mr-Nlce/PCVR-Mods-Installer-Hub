@@ -275,7 +275,10 @@ if (-not $useLegacy) {
  Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- Start-Process "steam://nav/console"
+ # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+ }
  Pause-User "Press Enter once the Steam depot download is complete..."
 
  $sp = Get-SteamPath
@@ -416,7 +419,7 @@ if ($useLegacy) {
 }
 Write-Host ""
 Write-Host " Start SteamVR before launching R.E.P.O." -ForegroundColor White
-Write-Host " Launch with 'Start in VR' in the Hub, or via Steam normally." -ForegroundColor White
+Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam normally." -ForegroundColor White
 Write-Host ""
 Write-Host " Issues: https://github.com/DaXcess/RepoXR" -ForegroundColor Gray
 Write-Host ""

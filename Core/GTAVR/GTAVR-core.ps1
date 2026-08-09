@@ -529,7 +529,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " 1) Launch with 'Start in VR' in the Hub, or the desktop shortcut:" -ForegroundColor White
+Write-Host " 1) Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the desktop shortcut:" -ForegroundColor White
 Write-Host "      'Grand Theft Auto V VR'        = Gamepad (OpenXR, stable)" -ForegroundColor Gray
 Write-Host "      'Grand Theft Auto V VR Motion' = Motion controls (OpenVR, WIP)" -ForegroundColor Gray
 Write-Host " 2) IMPORTANT: in Steam, GTA V Properties, turn OFF" -ForegroundColor Yellow

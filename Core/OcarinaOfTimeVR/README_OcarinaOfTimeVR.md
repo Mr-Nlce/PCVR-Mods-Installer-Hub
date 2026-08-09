@@ -64,7 +64,7 @@ Ship of Harkinian keeps everything in its own custom menu. To open it in VR: **l
 - **Slingshot aiming:** the pellets follow your **right controller**, not your head - aim with the right hand. Holding both controllers together like an actual slingshot makes it feel natural.
 
 ## Known alpha limitations
-- **Indoor pre-rendered areas do not render properly.** Rooms that the original game draws with a pre-rendered backdrop come out broken in VR, so you have to feel your way to the exit. This is the mod's biggest open issue - expect it in houses, shops and similar interiors.
+- **Indoor pre-rendered areas do not render properly.** Rooms that the original game draws with a pre-rendered backdrop come out broken in VR, so you have to feel your way to the exit. This is the mod's biggest open issue - expect it in houses, shops and similar interiors. The optional **Djipi's 3DS Experience** pack (see below) replaces those scenes with real 3D geometry and is the practical fix.
 - Menus, text and HUD icons render on the flat window only and do not line up in the headset
 - The required window settings (4:3, MSAA off, 100% internal resolution) stay mandatory until the planned internal framebuffer lands
 - Switching the graphics backend away from DirectX11 breaks the VR output
@@ -72,14 +72,42 @@ Ship of Harkinian keeps everything in its own custom menu. To open it in VR: **l
 ## HD texture pack (optional)
 The installer can add the **OoT Reloaded 4K** HD texture pack (from evilgames.eu) at the end of setup. It's a large download (**~4 GB**), so both the download and the extraction show a progress percentage. You can skip it and add it any time by re-running the installer.
 
-What it does: the pack's `.o2r` file is placed in the game's `mods` folder, and Ship of Harkinian loads it as *alternate assets*.
+What it does: the pack's `.o2r` file is placed in the game's `mods` folder. Current Ship of Harkinian builds load whatever is in there by themselves - older guides tell you to tick *Use alternate assets* first, but that entry is gone.
 
-Turn it on in-game:
-- Press [[Esc]] to open the menu (lift the headset, click the flat game window first).
-- Go to **Enhancements > Graphics / Mods** and tick **Use alternate assets**.
+In-game:
+- Nothing to switch on - the pack is active from the next start.
 - Press [[Tab]] during play to toggle the custom textures on/off.
 
 Manual install (if you grabbed the pack yourself): extract `oot-reloaded-v11.0.0-soh-o2r-4k.7z` and drop the `OoT_Reloaded_v11.0.0_4K.o2r` inside it into your game's `mods` folder, then use the same in-game steps.
+
+## 3D backgrounds - Djipi's 3DS Experience (optional, but the fix for VR)
+Castle Town and many interiors are drawn as flat pre-rendered backdrops. In VR they stand in front of you and block the view. **Djipi's 3DS Experience** ships real 3D geometry for those scenes, so the backdrops can be switched off and the rooms render normally - this is what makes those areas playable in the headset.
+
+The installer offers it at the end of setup. The download runs in your browser (`djipi_s_3ds_experience_-_final_pack.zip`, about **500 MB**); the source limits the speed, so roughly **20 minutes** is normal. When it has finished, the installer picks the file up from your Downloads folder, or you can drag it onto the installer window.
+
+**Two looks, pick one when asked:**
+
+| | What lands in `mods\` | Combine with OoT Reloaded 4K? |
+|---|---|---|
+| **[1] 3DS look** | the whole pack - 3DS textures, NPCs, objects and the 3D backgrounds | no - it is a different art style for the same surfaces |
+| **[2] Authentic Ocarina of Time** | only `Djipi's 3DE - 26 Background 3DS.o2r` and `Djipi's 3DE - 27 Background Textures.o2r` | yes - this is the pairing |
+
+Both options include the 3D backgrounds, which is the part VR needs.
+
+**Required in-game, otherwise nothing changes:** press [[Esc]], then
+
+1. Turn **ON** **Disable 2D Pre-Rendered Scenes** (older builds: *Disable 2D Pre-rendered Backgrounds*). **The name reads backwards, the setting is right:** it switches the FLAT backdrops off so the pack's 3D rooms can show. The game's own tooltip says it plainly - *"Enable this when using a mod that implements 3D backdrops for these areas."*
+2. It applies on the next **scene change** - leave the area and come back. A restart works too.
+
+Also recommended with this pack: **Disable Grotto Fixed Rotation** and **Enable 3D dropped items / projectiles**. Both sit under *Enhancements > Graphics* in older builds; newer menus moved things around, so go by the setting name rather than the path.
+
+**If the game crashes:** Enhancements > Fixes > leave **Out of Bounds Textures** unchecked. If it still crashes with cosmetic mods in play, drop the custom Link cosmetics.
+
+**If Link's face looks wrong** next to another player model, delete `Djipi's 3DE - 02 Link's Textures (Delete if using a custom player model).o2r` from `mods\`.
+
+**Skilar's Art Plus Link** sits in the same zip (folder `0001`) and is deliberately *not* installed: it changes Link himself, and custom Link cosmetics are the first suspect when Ship of Harkinian crashes. Copy those `.o2r` files into `mods\` yourself if you want them.
+
+Mod page: https://gamebanana.com/mods/477979
 
 ## Credits
 - **Shipwright-VR** by ShinyWindow
@@ -90,7 +118,7 @@ Project page:
 
 https://github.com/ShinyWindow/Shipwright-VR
 ## Key points from updates
-- **Physical melee combat** (v1.3) - your sword is a real object: swing speed
+- **Physical melee combat** - your sword is a real object: swing speed
   decides the damage tier, the blade collides with enemies, walls and floor,
   and the shield blocks by geometry. It is **OFF by default**; switch it on
   under *VR Settings / Physical Combat*. The old button combat stays available.
@@ -106,5 +134,8 @@ https://github.com/ShinyWindow/Shipwright-VR
 - World scale calibrates to your real height, and child/adult swaps rescale by
   themselves. Recentering recalibrates.
 - Recommended: enable *Disable 2D Pre-Rendered Scenes* and *Disable Fixed
-  Camera* under Enhancements/Graphics/Mods, and *Hide Link's Body* under VR
-  Settings/Gameplay.
+  Camera*, and *Hide Link's Body* under VR Settings/Gameplay. That first one
+  belongs **on** together with Djipi's 3DS Experience - it takes the flat
+  backdrops away so the pack's 3D rooms appear. Without a 3D-backdrop pack
+  those areas end up with no background at all, which is the only reason to
+  leave it off.

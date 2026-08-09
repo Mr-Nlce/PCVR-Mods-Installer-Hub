@@ -449,7 +449,7 @@ Write-Host "  flashing lights or prone to nausea in VR." -ForegroundColor Black 
 Write-Host ""
 Write-Host " Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
 Write-Host " starting sometimes out of focus, then launch with" -ForegroundColor White
-Write-Host " 'Start in VR' in the Hub, or from Steam." -ForegroundColor White
+Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or from Steam." -ForegroundColor White
 Write-Host ""
 Write-Host " Melee swings need real arm speed, weapons swap by reaching" -ForegroundColor Gray
 Write-Host " over your shoulder, and the mod has its own settings under" -ForegroundColor Gray

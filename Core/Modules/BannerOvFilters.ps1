@@ -807,7 +807,42 @@ function global:New-OvGenreRow {
     $rightTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $rightTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $rightBtn.Child = $rightTxt
-    $rightHost.Child = $rightBtn
+
+    # End-of-row hint. The row wraps back to the start when the right
+    # arrow is clicked at the end - without a sign the user cannot tell
+    # a wrap from "nothing happened". The arrow itself briefly turns
+    # into a loop glyph, glows, and shows a one-word caption. Nothing
+    # new appears elsewhere on screen, and the caption is short because
+    # the arrow column is only 56px wide.
+    # BUTTON AND CAPTION SHARE ONE GRID CELL, they are NOT stacked. In a
+    # vertical stack the caption is part of the layout, so the moment it
+    # becomes visible the pair is re-centred and the button jumps UP by
+    # half the caption height. Here both sit in the same cell, each
+    # centred, and the caption is pushed below the circle by a top
+    # margin of its own - so the button stays on the exact same pixel
+    # whether the caption shows or not.
+    $rightStack = New-Object System.Windows.Controls.Grid
+    $rightStack.HorizontalAlignment = $rightBtn.HorizontalAlignment
+    $rightStack.VerticalAlignment   = $rightBtn.VerticalAlignment
+    $rightStack.Margin = $rightBtn.Margin
+    $rightBtn.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $rightBtn.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
+    $rightBtn.Margin = [System.Windows.Thickness]::new(0)
+    [void]$rightStack.Children.Add($rightBtn)
+    $rightCap = New-Object System.Windows.Controls.TextBlock
+    $rightCap.Text = "repeat"
+    $rightCap.FontSize = 8
+    $rightCap.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $rightCap.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dd6600")
+    $rightCap.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $rightCap.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
+    # Centred plus 36 top = 18px below the middle, i.e. just under the
+    # 30px circle. The Grid grows for it, the button does not move.
+    $rightCap.Margin = [System.Windows.Thickness]::new(0, 36, 0, 0)
+    $rightCap.IsHitTestVisible = $false
+    $rightCap.Visibility = [System.Windows.Visibility]::Collapsed
+    [void]$rightStack.Children.Add($rightCap)
+    $rightHost.Child = $rightStack
 
     # Left arrow - hidden until the user has scrolled away from start
     $leftHost = New-Object System.Windows.Controls.Border
@@ -845,6 +880,41 @@ function global:New-OvGenreRow {
 
     $scrollCap = $scroll
     $leftHostCap = $leftHost
+    # Shows the wrap hint and takes it back after 1.2 s. One timer per
+    # row, reused - restarting it while it runs just extends the hint.
+    $rightBtnCap = $rightBtn; $rightTxtCap = $rightTxt; $rightCapCap = $rightCap
+    $wrapGlyph   = "$([char]0x21BB)"      # clockwise open circle arrow
+    $wrapArrow   = $rightTxt.Text
+    $wrapTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $wrapTimer.Interval = [TimeSpan]::FromMilliseconds(1200)
+    $wrapTimer.Add_Tick({
+        $wrapTimer.Stop()
+        try {
+            $rightTxtCap.Text = $wrapArrow
+            $rightTxtCap.FontSize = 16
+            $rightBtnCap.Effect = $null
+            $rightBtnCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a3a48")
+            $rightCapCap.Visibility = [System.Windows.Visibility]::Collapsed
+        } catch { }
+    }.GetNewClosure())
+    $showWrapHint = {
+        try {
+            $rightTxtCap.Text = $wrapGlyph
+            # The loop glyph reads smaller than ">" at the same size, so
+            # it gets its own FontSize. No vertical offset - the glyph
+            # stays centred in the circle, the TextBlock does that on
+            # its own.
+            $rightTxtCap.FontSize = 19
+            $rightBtnCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ff9a3c")
+            $g = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $g.Color = [System.Windows.Media.ColorConverter]::ConvertFromString("#dd6600")
+            $g.BlurRadius = 14; $g.ShadowDepth = 0; $g.Opacity = 0.9
+            $rightBtnCap.Effect = $g
+            $rightCapCap.Visibility = [System.Windows.Visibility]::Visible
+            $wrapTimer.Stop(); $wrapTimer.Start()
+        } catch { }
+    }.GetNewClosure()
+
     $rightHostCap = $rightHost
     $rightHost.Add_MouseLeftButtonUp({
         $cur = $scrollCap.HorizontalOffset
@@ -857,6 +927,7 @@ function global:New-OvGenreRow {
         # design when the viewport was wide).
         if ($cur -ge ($max - 1)) {
             $scrollCap.ScrollToHorizontalOffset(0)
+            & $showWrapHint
         } else {
             $scrollCap.ScrollToHorizontalOffset([Math]::Min($cur + 360, $max))
         }

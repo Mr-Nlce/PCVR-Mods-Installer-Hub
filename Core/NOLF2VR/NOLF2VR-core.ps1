@@ -422,7 +422,7 @@ Write-Host " HOW TO PLAY" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host " 1) Start SteamVR first (Rift users can skip this)." -ForegroundColor White
-Write-Host " 2) Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host " 2) Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "    'No One Lives Forever 2 VR' desktop" -ForegroundColor White
 Write-Host "    shortcut (it runs Lithtech.exe)." -ForegroundColor White
 Write-Host " 3) Switch on your Xbox controller BEFORE launching - it must" -ForegroundColor White

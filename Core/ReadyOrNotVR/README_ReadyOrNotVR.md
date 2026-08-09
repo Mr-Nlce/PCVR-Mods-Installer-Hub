@@ -26,17 +26,59 @@ installer, which drops the VR `.pak` into the game's `Paks` folder.
 - Recommended: **DLSS Swapper** (NVIDIA GPUs) -
   https://github.com/beeradmoore/dlss-swapper/releases
 
+## Two places it can go
+
+The installer asks this first, and both routes end with the same VR mod:
+
+| | Where the game lives | How it starts |
+|---|---|---|
+| **[1] Your Steam copy** | Your existing Steam install | Through Steam, with launch options |
+| **[2] Pinned depot build** | `C:\Games\Ready or Not VR` | Desktop shortcut, or **Start Depot** in the Hub |
+
+Route 2 pulls one exact version of the game straight from Steam with a
+`download_depot` command - you still need to own the game, no game files
+come from us. That build is **pinned**, so a game patch cannot break the
+mod, and your normal Steam copy is left completely alone. Both can exist
+side by side; with both installed the Hub tile gets a 3-way split button.
+
+The one thing to know about route 2: the game then sits outside the Steam
+library, so Steam's launch-options field and its DirectX dropdown do not
+reach it. Everything rides on the desktop shortcut instead - the installer
+puts it there for you.
+
+## Which Nexus file you need
+
+The Files page lists more than one, and only this one matches the build
+the installer sets up:
+
+    Version    1031
+    Uploaded   15 June 2026
+    Size       281.9 MB
+
+Use **Manual download**. Nexus appends its own numbers to the file name, so
+what lands in your Downloads folder looks like
+`pakchunk98-VR_OR_NOT_P ... .zip` - the trailing numbers differ for everyone.
+The installer therefore identifies the file by its **size and contents**, not
+by its name: it checks your Downloads and Desktop folders, verifies that the
+archive really holds `pakchunk98-VR_OR_NOT_P.pak`, and only then offers it.
+
 ## What the installer does
 
-1. Auto-detects your Steam **Ready Or Not** folder (or you drag it /
-   `ReadyOrNot.exe` in).
+1. Asks which of the two routes you want. For route 1 it auto-detects your
+   Steam **Ready Or Not** folder (or you drag it / `ReadyOrNot.exe` in);
+   for route 2 it walks you through the depot download and moves the build
+   to `C:\Games\Ready or Not VR`.
 2. Opens the Nexus mod page so you can download
    `pakchunk98-VR_OR_NOT_P.zip` (Manual download).
 3. You drag that `.zip` (or the extracted `.pak`) onto the window; the
    installer copies `pakchunk98-VR_OR_NOT_P.pak` into
    `ReadyOrNot\Content\Paks`.
-4. Shows the exact **Steam launch options** to set.
-5. Offers to open **DLSS Swapper** and prints the recommended in-game
+4. Route 1: shows the exact **Steam launch options** to set.
+   Route 2: creates the **Ready or Not VR** desktop shortcut with those
+   options plus `-dx11` already on it.
+5. Offers to fetch **DLSS Swapper** - always the newest release, resolved
+   from GitHub at install time, not a version baked into the Hub - and
+   prints the recommended in-game
    settings.
 
 ## Steam launch options (required)
@@ -52,6 +94,28 @@ Optional: add `-autoVR` to boot into VR ~3 seconds after a mission loads
 
 > A stray space (like `- usehmd`) stops VR from starting - always
 > copy-paste the options.
+
+**On the depot build there is no Steam field for this.** The shortcut the
+installer creates carries the options itself:
+
+    -dx11 -usehmd -VRTweaks -VRMappings
+
+`-dx11` is what Steam's DirectX 11 entry does for this game, and it has to
+be passed by hand here because that dropdown only exists inside Steam. If
+you picked automatic VR entry during install, the shortcut gets `-autoVR`
+as well - note that the Hub's **Start Depot** button always uses the plain
+set above, so VR there comes with the **U** key.
+
+## DLSS Swapper and the depot build
+
+DLSS Swapper finds games through the Steam library, so it does **not** list
+the depot build - that copy lives outside it. Add it once by hand: in DLSS
+Swapper, top right, **Add game**, then pick your install folder
+(`C:\Games\Ready or Not VR`, or wherever you put it). After that it behaves
+like any other entry.
+
+Then on the Ready Or Not tile: pick **v310.4 or newer** as the DLSS version
+and set the **DLSS Preset to Preset J**.
 
 ## How to play (order matters)
 

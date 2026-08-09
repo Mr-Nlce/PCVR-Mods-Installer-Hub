@@ -716,7 +716,7 @@ if (Test-Path $gameExe) {
  try {
  $desktop = [Environment]::GetFolderPath("Desktop")
  $shortcutPath = Join-Path $desktop "Tomb Raider VR.lnk"
- $sc = New-DesktopShortcut -LnkPath $shortcutPath -TargetPath $gameExe -WorkingDir Split-Path -Parent $gameExe -IconPath "$gameExe,0"
+ $sc = New-DesktopShortcut -LnkPath $shortcutPath -TargetPath $gameExe -WorkingDir (Split-Path -Parent $gameExe) -IconPath "$gameExe,0"
  Write-OK "Desktop shortcut created: Tomb Raider VR.lnk"
  } catch {
  Write-Warn "Could not create desktop shortcut: $($_.Exception.Message)"

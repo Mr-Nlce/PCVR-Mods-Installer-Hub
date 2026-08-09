@@ -230,7 +230,10 @@ else {
  Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- Start-Process "steam://nav/console"
+ # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+ }
  Write-OK "Steam Console opening..."
 
  Write-Host ""
@@ -563,7 +566,7 @@ Write-Host ""
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host " 1. Start SteamVR" -ForegroundColor White
 if ($useDepot) {
- Write-Host " 2. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+ Write-Host " 2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "    'Yooka-Laylee VR' desktop shortcut" -ForegroundColor White
  Write-Host " NOT via Steam - Steam would replace this version!" -ForegroundColor Yellow
 } else {

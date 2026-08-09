@@ -124,7 +124,10 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host "      Console. DepotDownloader fallback kicks in after 2 tries." -ForegroundColor DarkGray
 }
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
-Start-Process "steam://nav/console"
+# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 
 Write-Host ""
 Pause-User "Press Enter once the download is complete..." | Out-Null
@@ -428,7 +431,7 @@ Write-Host "  Done. Before launching:" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  1. Steam client running   2. Start SteamVR" -ForegroundColor White
-Write-Host "  3. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+Write-Host "  3. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "     'Trombone Champ VR' desktop shortcut" -ForegroundColor White
 Write-Host ""
 Write-Host "  Pucker up, hit the slide, and toot your way to glory." -ForegroundColor Magenta

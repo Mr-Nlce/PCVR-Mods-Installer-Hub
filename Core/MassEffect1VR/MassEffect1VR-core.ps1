@@ -300,7 +300,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
 Write-Host "  1. Start your OpenXR runtime (SteamVR, Virtual Desktop, Meta)." -ForegroundColor White
-Write-Host "  2. Launch the game (any store) or 'Start in VR' in the Hub -" -ForegroundColor White
+Write-Host "  2. Launch the game (any store) or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub -" -ForegroundColor White
 Write-Host "     pick Mass Effect 1 in the launcher; the mod loads with it." -ForegroundColor White
 Write-Host ""
 Write-Host " IN-VR CONTROLS (keyboard, gamepad plays the game):" -ForegroundColor Yellow

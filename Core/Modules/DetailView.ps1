@@ -1454,7 +1454,7 @@ function global:New-SteamTheatreButton {
         }
     }.GetNewClosure())
 
-    Add-SweepHover -Border $btn
+    Add-StandardHover -Border $btn
     return $btn
 }
 
@@ -1603,6 +1603,20 @@ function global:Get-FlatVRProxyInfo {
             $disFull = Join-Path $dir $disRel
             $enLeaf  = Split-Path -Leaf $enRel
             $disLeaf = Split-Path -Leaf $disRel
+            # FlatVRDisabledWins: normally the enabled name is checked
+            # first, because for a plain rename only one of the two can
+            # exist. Some mods do NOT just rename - they park themselves
+            # as .disabled AND put the game's own original file back under
+            # the enabled name (Rebel Galaxy VR on the Epic build does
+            # exactly that, restoring xinput1_3_original.dll). Then BOTH
+            # names are on disk while the mod is OFF, the enabled-first
+            # check reads that as VR-on, and the next toggle renames the
+            # restored ORIGINAL over the parked mod - the mod is gone.
+            # Where a game sets this flag the disabled marker decides:
+            # if it is there, the mod is parked, full stop.
+            if ($Game.FlatVRDisabledWins -and (Test-Path -LiteralPath $disFull)) {
+                return @{ Dir=$dir; Path=$disFull; Active=$false; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf }
+            }
             if (Test-Path -LiteralPath $enFull)  { return @{ Dir=$dir; Path=$enFull;  Active=$true;  EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
             if (Test-Path -LiteralPath $disFull) { return @{ Dir=$dir; Path=$disFull; Active=$false; EnabledLeaf=$enLeaf; DisabledLeaf=$disLeaf } }
         }
@@ -1720,22 +1734,9 @@ function global:New-FlatVRToggleButton {
     }
     $btn.ToolTip = $tip
 
-    # Border glow on hover (matches the emphasized-button feel elsewhere).
-    $btn.Add_MouseEnter({
-        try {
-            $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
-            $glow.Color = [System.Windows.Media.ColorConverter]::ConvertFromString("#6fb2e0")
-            $glow.BlurRadius = 15; $glow.ShadowDepth = 0; $glow.Opacity = 0.9
-            $this.Effect = $glow
-            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ec0ea")
-        } catch {}
-    })
-    $btn.Add_MouseLeave({
-        try {
-            $this.Effect = $null
-            $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a7ea0")
-        } catch {}
-    })
+    # No bespoke glow here any more - Add-StandardHover gives this button
+    # the same sweep + glow as every other one, and takes the glow colour
+    # from this button's own border, so the blue stays blue.
 
     $btn.Add_MouseLeftButtonUp({
         try {
@@ -1848,8 +1849,8 @@ function global:New-TwoModsButton {
     $btn.Padding         = [System.Windows.Thickness]::new(16, 10, 16, 10)
     $btn.Cursor          = [System.Windows.Input.Cursors]::Hand
     # Keep a constant height: without this the button vertical-stretches
-    # to the row, so it grows when the (slightly taller) Reinstall pill
-    # slides in on hover. Centering pins it to its own content height.
+    # to the row and grows next to the (slightly taller) Reinstall pill.
+    # Centering pins it to its own content height.
     $btn.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $btn.BorderThickness = [System.Windows.Thickness]::new(1.5)
     if ($Installed) {
@@ -2447,7 +2448,7 @@ function global:New-UninstallGuideButton {
         }
     }.GetNewClosure())
 
-    Add-SweepHover -Border $btn
+    Add-StandardHover -Border $btn
     return $btn
 }
 
@@ -3645,11 +3646,21 @@ function global:Start-GameInVR {
     if ($Mode -and $Game.DualMode) {
         $state = $global:gameStateMap[$Game.Title]
         if ($Mode -eq "Depot" -and $Game.DepotPath -and $Game.DepotLaunchExe) {
-            $depotExe = Join-Path $Game.DepotPath $Game.DepotLaunchExe
+            # Der Nutzer darf den Depot-Ordner frei waehlen; der Installer
+            # zeichnet den gewaehlten auf. Erst Katalogpfad, dann der
+            # aufgezeichnete - sonst startet der Knopf ins Leere.
+            $depotRoot = $Game.DepotPath
+            $depotExe  = Join-Path $depotRoot $Game.DepotLaunchExe
+            if (-not (Test-Path $depotExe)) {
+                foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
+                    $try = Join-Path $cand $Game.DepotLaunchExe
+                    if (Test-Path $try) { $depotRoot = $cand; $depotExe = $try; break }
+                }
+            }
             if (Test-Path $depotExe) {
                 # steam_appid.txt safety net (same as the normal path)
                 if ($Game.SteamId) {
-                    $appidFile = Join-Path $Game.DepotPath "steam_appid.txt"
+                    $appidFile = Join-Path $depotRoot "steam_appid.txt"
                     if (-not (Test-Path $appidFile)) {
                         try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
                     }
@@ -3659,9 +3670,9 @@ function global:Start-GameInVR {
                 } catch { }
                 try {
                     if ($Game.DepotLaunchArgs) {
-                        Start-Process -FilePath $depotExe -ArgumentList $Game.DepotLaunchArgs -WorkingDirectory $Game.DepotPath
+                        Start-Process -FilePath $depotExe -ArgumentList $Game.DepotLaunchArgs -WorkingDirectory $depotRoot
                     } else {
-                        Start-Process -FilePath $depotExe -WorkingDirectory $Game.DepotPath
+                        Start-Process -FilePath $depotExe -WorkingDirectory $depotRoot
                     }
                 } catch { }
                 return
@@ -4607,6 +4618,59 @@ function global:Show-DiscoverDetail {
     $titleBig.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $titleBig.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $titleRow.Children.Add($titleBig) | Out-Null
+
+    # VR READY pill - the FIRST badge after the title, before every
+    # other pill. Until now "VR Ready" existed ONLY as the resting
+    # label of the action button, and that button swapped to
+    # "Start in VR" on hover - so the ready state was invisible the
+    # moment the cursor touched it, and the start affordance was
+    # invisible until then. The state now lives here permanently and
+    # the button below is always the start button.
+    # Deliberately louder than the INSTALLED / FREE pills: rounded,
+    # a filled dot, a brighter border and a soft green glow. It is a
+    # STATE, not a category, and has to read as one at a glance.
+    $vrReadyState = $global:gameStateMap[$Game.Title]
+    if ($vrReadyState -and $vrReadyState.State -eq "ready") {
+        $vrPill = New-Object System.Windows.Controls.Border
+        $vrPill.CornerRadius = [System.Windows.CornerRadius]::new(11)
+        $vrPill.Padding = [System.Windows.Thickness]::new(10, 3, 11, 3)
+        $vrPill.Margin = [System.Windows.Thickness]::new(10, 4, 0, 0)
+        $vrPill.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        # No fill: the hero banner behind the title row is animated and
+        # a tinted pill muddies the text on it. Border + glow carry the
+        # pill on their own.
+        $vrPill.Background = [System.Windows.Media.Brushes]::Transparent
+        $vrPill.BorderThickness = [System.Windows.Thickness]::new(1)
+        $vrPill.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4ade9f")
+        try {
+            $vrGlow = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $vrGlow.Color = [System.Windows.Media.ColorConverter]::ConvertFromString("#34d399")
+            $vrGlow.BlurRadius = 12; $vrGlow.ShadowDepth = 0; $vrGlow.Opacity = 0.55
+            $vrPill.Effect = $vrGlow
+        } catch {}
+        $vrPillStack = New-Object System.Windows.Controls.StackPanel
+        $vrPillStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        # Dot as a Unicode code point, not a literal character - the
+        # whole tree is ASCII only.
+        $vrDot = New-Object System.Windows.Controls.TextBlock
+        $vrDot.Text = "$([char]0x25CF)"
+        $vrDot.FontSize = 8
+        $vrDot.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7df3bd")
+        $vrDot.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $vrDot.Margin = [System.Windows.Thickness]::new(0, 0, 6, 0)
+        [void]$vrPillStack.Children.Add($vrDot)
+        $vrTxt = New-Object System.Windows.Controls.TextBlock
+        $vrTxt.Text = "VR READY"
+        $vrTxt.FontSize = 10
+        $vrTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
+        $vrTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7df3bd")
+        $vrTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        $vrTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        [void]$vrPillStack.Children.Add($vrTxt)
+        $vrPill.Child = $vrPillStack
+        $titleRow.Children.Add($vrPill) | Out-Null
+        Add-HoverScale -Element $vrPill -Scale 1.08
+    }
     Add-HoverScale -Element $titleBig -Scale 1.02
 
     $famName = Get-ModFamily -Game $Game -IsExternal $false
@@ -4713,7 +4777,11 @@ function global:Show-DiscoverDetail {
     # the base game is on disk).
     $isFreeGameDV = ($global:FREE_GAME_TITLES -and ($global:FREE_GAME_TITLES -contains $Game.Title))
     $instPillTags = if ($isFreeGameDV) { @("vrinstalled", "vrupdate") } else { @("installed", "vrinstalled", "vrupdate") }
-    if ($detectState -and $detectState.Tag -in $instPillTags) {
+    # VR READY already implies the game is on disk, so the INSTALLED
+    # pill next to it would say the same thing twice. It only shows
+    # when the game is there WITHOUT the VR mod being ready.
+    $instPillHidden = ($detectState -and $detectState.State -eq "ready")
+    if ($detectState -and ($detectState.Tag -in $instPillTags) -and -not $instPillHidden) {
         $instPill = New-Object System.Windows.Controls.Border
         $instPill.CornerRadius = [System.Windows.CornerRadius]::new(3)
         $instPill.Padding = [System.Windows.Thickness]::new(8, 3, 8, 3)
@@ -5800,7 +5868,12 @@ function global:Show-DiscoverDetail {
         # hub where the Install button does that for the user.
         # We also skip "More info" because we already render a
         # "Mod Page" button below.
+        # A README can switch the re-sorting off with <!-- hub:keep-order -->
+        # (see Read-GameReadme). Needed for pages that document TWO mods
+        # in sequence: sorting would rip sections out of their mod's block.
+        $keepOrder = ($sections.Contains("_keepOrder") -and $sections["_keepOrder"])
         $preferred = @("About this mod", "About", "Where to get the game", "What it installs", "Requirements", "Note")
+        if ($keepOrder) { $preferred = @() }
         $skip      = @{ "How to use" = $true; "More info" = $true }
         # Sections that should always render AT THE END, in this
         # order. Substring match (case-insensitive) on the heading
@@ -5810,6 +5883,7 @@ function global:Show-DiscoverDetail {
         # uninstall guidance belong below the main usage info, not
         # interleaved with it.
         $tailPatterns = @("related", "communit", "discord", "support", "donat", "credit", "deactivate", "uninstall", "deinstall")
+        if ($keepOrder) { $tailPatterns = @() }
         $shown = @{}
         $theatreBtnPlaced = $false
         # Pull baseDir so embedded images like ![Layout](pic.webp)
@@ -5845,7 +5919,7 @@ function global:Show-DiscoverDetail {
         # would return that section's VALUE (a single string) instead of
         # the key collection, so only one section would render.
         foreach ($key in $sections.get_Keys()) {
-            if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
+            if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
             if ((& $isTail $key)) { continue }
             try {
                 $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
@@ -5858,7 +5932,7 @@ function global:Show-DiscoverDetail {
         # "support" sections), preserve README order.
         foreach ($pat in $tailPatterns) {
             foreach ($key in $sections.get_Keys()) {
-                if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
+                if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
                 if (-not $key.ToString().ToLower().Contains($pat)) { continue }
                 try {
                 $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
@@ -6121,7 +6195,13 @@ function global:Show-DiscoverDetail {
         # thicker (1.5px) border that signals "this is the active
         # state for this game" without screaming. Background pulled
         # way down per the user's preference (no more "algae green").
-        $primaryTxt.Text = "VR Ready"
+        # The label no longer swaps on hover - the pill next to the
+        # title carries the state, so this button says what it does
+        # from the start. Resting colours stay exactly the ones the
+        # "VR Ready" button had; hover lifts them to the brighter
+        # green that the old hover label used, so the button still
+        # visibly reacts.
+        $primaryTxt.Text = "Start in VR  $([char]0x25B6)"
         $primaryBtn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#161d18")
         $primaryBtn.BorderThickness = [System.Windows.Thickness]::new(1.5)
         $primaryBtn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5fa873")
@@ -6210,6 +6290,9 @@ function global:Show-DiscoverDetail {
     }
     # Assemble icon + label and hang it as the button's content.
     $primaryIcon = New-ActionIcon -Kind $primaryIconKind -ColorHex $primaryIconColor -Size 15
+    # In the ready state the label already carries the play glyph, so
+    # the left status icon stays hidden in EVERY hover state.
+    if ($isReady) { $primaryIcon.Visibility = [System.Windows.Visibility]::Collapsed }
     [void]$primaryStack.Children.Add($primaryIcon)
     [void]$primaryStack.Children.Add($primaryTxt)
     $primaryBtn.Child = $primaryStack
@@ -6241,7 +6324,10 @@ function global:Show-DiscoverDetail {
         }
         $reinstallBtn.Cursor          = [System.Windows.Input.Cursors]::Hand
         $reinstallBtn.Margin          = [System.Windows.Thickness]::new(0, 0, 10, 0)
-        $reinstallBtn.Visibility      = [System.Windows.Visibility]::Collapsed
+        # Permanently visible - no slide-out any more. The button used
+        # to appear only while the primary button was hovered, which
+        # hid a real action behind a gesture nobody discovers.
+        $reinstallBtn.Visibility      = [System.Windows.Visibility]::Visible
 
         $reinstallStack = New-Object System.Windows.Controls.StackPanel
         $reinstallStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
@@ -6286,16 +6372,18 @@ function global:Show-DiscoverDetail {
         Add-ButtonGloss -Border $reinstallBtn -Intensity 0.08
 
         # Snapshot resting brushes so leave restores them cleanly.
-        $restingBg     = $primaryBtn.Background
-        $restingBd     = $primaryBtn.BorderBrush
+        # Only the thickness is still needed: the hover no longer
+        # repaints anything, so the old resting background / border /
+        # foreground snapshots have no consumer left.
         $restingBdT    = $primaryBtn.BorderThickness
-        $restingFg     = $primaryTxt.Foreground
+        $startText   = "Start in VR  $([char]0x25B6)"
         if ($isUpdate) {
             $restingText = "Update Mod"
         } else {
-            $restingText = "VR Ready"
+            # Ready state: resting and hover show the SAME text now.
+            $restingText = $startText
         }
-        $startText   = "Start in VR  $([char]0x25B6)"
+        $isReadyLocal = $isReady  # captured for the closure
         $hoverState  = @{ PrimaryHover = $false; ReinstallHover = $false; RowHover = $false; Opened = $false }
         $isUpdateLocal = $isUpdate  # captured for closure
         # DualMode container - assigned later when we know whether
@@ -6305,14 +6393,13 @@ function global:Show-DiscoverDetail {
         $dualRef = @{ DepotBtn = $null }
 
         $applyHoverState = {
-            # The popover OPENS only from the primary button (or the
-            # already-revealed reinstall pill). RowHover alone must NOT
-            # open it - it only HOLDS an already-open popover while the
-            # cursor roams the row (e.g. over Mod Page / Open in Steam).
-            $opensIt = $hoverState.PrimaryHover -or $hoverState.ReinstallHover
-            $holdsIt = $hoverState.RowHover -and $hoverState.Opened
-            $isHovering = $opensIt -or $holdsIt
-            if ($opensIt) { $hoverState.Opened = $true }
+            # Nothing slides out any more - Reinstall and Depot are
+            # always on screen. All this still does is the colour lift
+            # on the PRIMARY button, so only its own hover counts.
+            # Hovering Reinstall must NOT light up the primary button,
+            # and the row-wide hold that kept the popover open is gone
+            # with the popover.
+            $isHovering = $hoverState.PrimaryHover
             if ($isHovering) {
                 # Hover always shows green "Start in VR" on the
                 # primary button - same in both states. In update
@@ -6331,25 +6418,26 @@ function global:Show-DiscoverDetail {
                 } else {
                     $primaryTxt.Text = $startText
                 }
-                $primaryBtn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1c2a22")
+                # NO colour change here any more. The hover look is the
+                # page-wide standard from Add-StandardHover (sweep shine +
+                # glow ring) - this button used to additionally repaint its
+                # background, border and text, which made it the one button
+                # that behaved differently. Worse, repainting the
+                # Background from this handler killed the sweep: it runs
+                # first (attached earlier) and swaps the brush the sweep
+                # was about to animate.
+                # What stays is the only part that carries INFORMATION:
+                # the label, which in update state offers to start instead
+                # of updating.
                 $primaryBtn.BorderThickness = [System.Windows.Thickness]::new(1.5)
-                $primaryBtn.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#74c98a")
-                $primaryTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#a6ecbb")
                 # The hover label already carries the play glyph; hide the
                 # left status icon so "Start in VR" doesn't show two symbols.
                 if ($primaryIcon) { $primaryIcon.Visibility = [System.Windows.Visibility]::Collapsed }
-                $reinstallBtn.Visibility = [System.Windows.Visibility]::Visible
-                if ($dualRef.DepotBtn) { $dualRef.DepotBtn.Visibility = [System.Windows.Visibility]::Visible }
             } else {
                 $hoverState.Opened = $false
                 $primaryTxt.Text       = $restingText
-                $primaryBtn.Background = $restingBg
                 $primaryBtn.BorderThickness = $restingBdT
-                if ($restingBd) { $primaryBtn.BorderBrush = $restingBd }
-                $primaryTxt.Foreground = $restingFg
-                if ($primaryIcon) { $primaryIcon.Visibility = [System.Windows.Visibility]::Visible }
-                $reinstallBtn.Visibility = [System.Windows.Visibility]::Collapsed
-                if ($dualRef.DepotBtn) { $dualRef.DepotBtn.Visibility = [System.Windows.Visibility]::Collapsed }
+                if ($primaryIcon -and -not $isReadyLocal) { $primaryIcon.Visibility = [System.Windows.Visibility]::Visible }
             }
         }.GetNewClosure()
 
@@ -6379,25 +6467,12 @@ function global:Show-DiscoverDetail {
             $closeTimer.Stop()
             $hoverState.ReinstallHover = $true
             & $applyHoverState
-            if ($isUpdateLocal) {
-                # Slightly brighter blue on hover - keeps the
-                # update-blue identity, just lifts the contrast.
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3b82f6")
-            } else {
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#252535")
-                $reinstallTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dddddd")
-                $reinstallIcon.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dddddd")
-            }
+            # No repaint here either - sweep + glow ring is the whole
+            # hover look now. Repainting Background from this handler
+            # also swallowed the sweep, because this handler runs first.
         }.GetNewClosure())
         $reinstallBtn.Add_MouseLeave({
             $hoverState.ReinstallHover = $false
-            if ($isUpdateLocal) {
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-            } else {
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1a1a22")
-                $reinstallTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#aaaaaa")
-                $reinstallIcon.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#aaaaaa")
-            }
             $closeTimer.Stop(); $closeTimer.Start()
         }.GetNewClosure())
 
@@ -6569,12 +6644,10 @@ function global:Show-DiscoverDetail {
             try { Watch-InstallMarkerForRefresh -Game $gameForBtn } catch {}
         }
     }.GetNewClosure())
-    # Only attach the universal sweep hover when the button doesn't
-    # already have a state-aware hover. ready/update have a sibling
-    # Reinstall-pill animation; sweeping over them would compete.
-    if (-not ($isReady -or $isUpdate)) {
-        Add-SweepHover -Border $primaryBtn
-    }
+    # Every button on this page gets the SAME hover: sweep + glow ring.
+    # The old exception ("don't sweep ready/update, it competes with the
+    # Reinstall-pill animation") is obsolete - that animation is gone.
+    Add-StandardHover -Border $primaryBtn
     # Wabbajack guide entries have no Hub installer - the "Get
     # Wabbajack" + mod-link buttons + Open in Steam fully cover the
     # flow, so we suppress the generic Install/primary button here.
@@ -6593,16 +6666,16 @@ function global:Show-DiscoverDetail {
             $playB = New-TwoModsButton -Game $Game -Mode "ModB" -Label ($(if ($bPresent) { "Play " } else { "Install " }) + $twoSt.ModBName) -AccentHex $accentHex -Installed:$bPresent
             $playB.Margin = [System.Windows.Thickness]::new(0,0,10,0)
             $btnRow.Children.Add($playB) | Out-Null
-            # TwoMods has no single primary button, so the Reinstall Mod
-            # pill (built above when VR Ready) is revealed by hovering
-            # either Play button. Reuses the same hover state + close
-            # timer as the normal primary-button popover.
-            if ($reinstallBtn) {
-                $playA.Add_MouseEnter({ $closeTimer.Stop(); $hoverState.PrimaryHover = $true; & $applyHoverState }.GetNewClosure())
-                $playA.Add_MouseLeave({ $hoverState.PrimaryHover = $false; $closeTimer.Stop(); $closeTimer.Start() }.GetNewClosure())
-                $playB.Add_MouseEnter({ $closeTimer.Stop(); $hoverState.PrimaryHover = $true; & $applyHoverState }.GetNewClosure())
-                $playB.Add_MouseLeave({ $hoverState.PrimaryHover = $false; $closeTimer.Stop(); $closeTimer.Start() }.GetNewClosure())
-            }
+            # These two used to carry ONLY the popover handlers that
+            # revealed the Reinstall pill. With the popover gone they
+            # had no visible hover left at all - on a TwoMods game
+            # (BioShock 1: balouza / BioVRDev) nothing reacted to the
+            # cursor. They get the same treatment as every other button
+            # in this row: the sweep shine plus the gloss overlay.
+            Add-StandardHover -Border $playA
+            Add-StandardHover -Border $playB
+            Add-ButtonGloss -Border $playA -Intensity 0.10
+            Add-ButtonGloss -Border $playB -Intensity 0.10
         } else {
             $btnRow.Children.Add($primaryBtn) | Out-Null
         }
@@ -6647,6 +6720,7 @@ function global:Show-DiscoverDetail {
         try {
             $locateBtn = New-LocateButton -Game $Game -AccentHex $accentHex
             $locateBtn.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
+            Add-StandardHover -Border $locateBtn
             $btnRow.Children.Add($locateBtn) | Out-Null
         } catch {}
     }
@@ -6671,7 +6745,7 @@ function global:Show-DiscoverDetail {
             $depotBtn.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
             $depotBtn.Cursor          = [System.Windows.Input.Cursors]::Hand
             $depotBtn.Margin          = [System.Windows.Thickness]::new(0, 0, 10, 0)
-            $depotBtn.Visibility      = [System.Windows.Visibility]::Collapsed
+            $depotBtn.Visibility      = [System.Windows.Visibility]::Visible
 
             $depotStack = New-Object System.Windows.Controls.StackPanel
             $depotStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
@@ -6694,14 +6768,13 @@ function global:Show-DiscoverDetail {
             Add-ButtonGloss -Border $depotBtn -Intensity 0.08
 
             # Hover tint to distinguish active button
+            # No repaint - see the Reinstall button above.
             $depotBtn.Add_MouseEnter({
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1c2a22")
                 $closeTimer.Stop()
                 $hoverState.ReinstallHover = $true
                 & $applyHoverState
             }.GetNewClosure())
             $depotBtn.Add_MouseLeave({
-                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#161d18")
                 $hoverState.ReinstallHover = $false
                 $closeTimer.Stop(); $closeTimer.Start()
             }.GetNewClosure())
@@ -6711,12 +6784,14 @@ function global:Show-DiscoverDetail {
                 if ($depotGameRef) { Start-GameInVR -Game $depotGameRef -Mode "Depot" }
             }.GetNewClosure())
 
+            Add-StandardHover -Border $depotBtn
             $btnRow.Children.Add($depotBtn) | Out-Null
             $dualRef.DepotBtn = $depotBtn
         }
     }
 
     if ($reinstallBtn) {
+        Add-StandardHover -Border $reinstallBtn
         $btnRow.Children.Add($reinstallBtn) | Out-Null
     }
 
@@ -6935,7 +7010,7 @@ function global:Show-DiscoverDetail {
                 }
             }.GetNewClosure())
             if (-not $addonInstalled) {
-                Add-SweepHover -Border $addonBtn
+                Add-StandardHover -Border $addonBtn
             }
         }
 
@@ -6974,7 +7049,7 @@ function global:Show-DiscoverDetail {
         $wjBtn.Add_MouseLeftButtonUp({
             try { Start-Process $wjUrlCap } catch { }
         }.GetNewClosure())
-        Add-SweepHover -Border $wjBtn
+        Add-StandardHover -Border $wjBtn
         $btnRow.Children.Add($wjBtn) | Out-Null
     }
 
@@ -7007,7 +7082,7 @@ function global:Show-DiscoverDetail {
             $mbBtn.Child = $mbStack
             $mbUrlCap = $mb.Url
             $mbBtn.Add_MouseLeftButtonUp({ try { Start-Process $mbUrlCap } catch {} }.GetNewClosure())
-            Add-SweepHover -Border $mbBtn
+            Add-StandardHover -Border $mbBtn
             $btnRow.Children.Add($mbBtn) | Out-Null
         }
     }
@@ -7058,7 +7133,7 @@ function global:Show-DiscoverDetail {
         # static downloads page for the actual installer).
         $infoUrlCap = if ($Game.ModPageUrl) { $Game.ModPageUrl } else { $Game.InfoUrl }
         $infoBtnD.Add_MouseLeftButtonUp({ Start-Process $infoUrlCap }.GetNewClosure())
-        Add-SweepHover -Border $infoBtnD
+        Add-StandardHover -Border $infoBtnD
         $btnRow.Children.Add($infoBtnD) | Out-Null
     }
 
@@ -7144,7 +7219,7 @@ function global:Show-DiscoverDetail {
             $global:LastSteamButtonClickTitle = $titleCap
             Start-Process "steam://store/$sIdCap"
         }.GetNewClosure())
-        Add-SweepHover -Border $steamBtn
+        Add-StandardHover -Border $steamBtn
         $btnRow.Children.Add($steamBtn) | Out-Null
     }
 
@@ -7155,6 +7230,7 @@ function global:Show-DiscoverDetail {
     if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
         $flatBtn = New-FlatVRToggleButton -Game $Game -AccentHex $accentHex
         $flatBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+        Add-StandardHover -Border $flatBtn
         $btnRow.Children.Add($flatBtn) | Out-Null
     }
 }

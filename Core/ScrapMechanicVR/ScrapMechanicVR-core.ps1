@@ -238,7 +238,7 @@ function Write-EndNotes {
  Write-Host "  Horizon Link (Settings > General) or via SteamVR." -ForegroundColor Gray
  Write-Host ""
  Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
- Write-Host "    Use 'Start in VR' on the Hub tile, or the 'Scrap Mechanic VR'" -ForegroundColor Gray
+ Write-Host "    Use" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "on the Hub tile, or the 'Scrap Mechanic VR'" -ForegroundColor Gray
  Write-Host "    desktop shortcut. Both run the VR launch script. Never start" -ForegroundColor Gray
  Write-Host "    from Steam - that runs the flat game." -ForegroundColor Gray
  Write-Host ""
@@ -315,7 +315,10 @@ if ($mode -eq "2") {
   Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- Start-Process "steam://nav/console"
+ # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+ }
  Write-OK "Steam Console opening..."
  Write-Host ""
  Pause-User "Press Enter once the Steam depot download is complete..."
@@ -360,8 +363,8 @@ if ($mode -eq "2") {
  Write-Step 2 4 "Moving game to stable folder"
  $parentOfDepot = Split-Path $depotPath -Parent
  Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
- Write-Host " (C:\Games keeps the install off the Steam library and away from" -ForegroundColor DarkGray
- Write-Host "  any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+ Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
+ Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
  Write-Host ""
  $userInput = (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"')
  if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }

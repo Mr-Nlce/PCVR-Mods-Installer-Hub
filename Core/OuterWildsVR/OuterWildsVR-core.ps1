@@ -190,7 +190,7 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Launch with 'Start in VR' in the Hub, or the desktop" -ForegroundColor Green
+Write-Host "  Launch with" -NoNewline -ForegroundColor Green; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the desktop" -ForegroundColor Green
 Write-Host "  shortcut 'Outer Wilds VR'" -ForegroundColor Green
 Write-Host "  or directly from:" -ForegroundColor White
 Write-Host "  $owmlLauncher" -ForegroundColor Gray

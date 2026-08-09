@@ -192,7 +192,7 @@ if($ok){
  Write-Host ""
  Write-Host "--- How to play in VR ---" -ForegroundColor Cyan
  Write-Host ""
- Write-Host " 1. Launch with 'Start in VR' in the Hub, or the" -ForegroundColor White
+ Write-Host " 1. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the" -ForegroundColor White
 Write-Host "    'Raft VR' desktop shortcut" -ForegroundColor White
  Write-Host " or via RMLLauncher.exe in the Raft game folder." -ForegroundColor White
  Write-Host ""

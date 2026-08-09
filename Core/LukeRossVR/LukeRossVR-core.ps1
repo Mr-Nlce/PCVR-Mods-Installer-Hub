@@ -12,7 +12,7 @@ param([string]$GameTitle = "")
 $Host.UI.RawUI.WindowTitle = "Luke Ross R.E.A.L. VR Installer"
 $ErrorActionPreference = "Stop"
 
-$DOWNLOAD_URL = "https://www.patreon.com/file?h=152405468&m=681279569"
+$DOWNLOAD_URL = "https://www.patreon.com/file?h=152405468&m=708822249"
 $PATREON_URL = "https://www.patreon.com/posts/152405468"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 # The R.E.A.L. VR mod is ONE universal package that works for every Luke
@@ -20,7 +20,7 @@ $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Hub (Core\Assets\Tools\LR VR mod) and reuse it for all ~40 titles - no
 # re-download or re-drop per game.
 $LR_CACHE_DIR = Join-Path $SCRIPT_DIR "..\Assets\Tools\LR VR mod"
-$REAL_VERSION = "v2606"
+$REAL_VERSION = "v2607"
 $LR_CACHE_ZIP = Join-Path $LR_CACHE_DIR ("REALVR_" + $REAL_VERSION + ".zip")
 # Older builds cached the zip next to this script; used as a migration source.
 $LEGACY_CACHED_ZIP = Join-Path $SCRIPT_DIR "REALVR_cached.zip"
@@ -75,6 +75,14 @@ $GAMES = @(
  )
  Flavor = "Ashen one, hearest thou my voice still?"
  },
+ @{ Name = "Days Gone"; Folder = "Days Gone"; AltFolders = @("DaysGone"); Sub = "BendGame\Binaries\Win64"; Exe = "DaysGone.exe"; AppId = 1259420
+ Settings = @(
+ "Display Mode -> Windowed | HDR -> Off | Frame Rate Limiter -> Unlimited"
+ "Graphics -> Chromatic Aberration -> Off | Motion Blur -> Off"
+ "NOTE: R.E.A.L. writes its own GameUserSettings.ini and keeps yours as GameUserSettings_ori.ini"
+ )
+ Flavor = "Deacon rides the broken road. The horde is louder than the bike."
+ },
  @{ Name = "Death Stranding"; Folder = "Death Stranding Directors Cut"; AltFolders = @("Death Stranding Director's Cut"); Sub = ""; Exe = "ds.exe"; AppId = 1850570
  Settings = @(
  "Screen Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off"
@@ -94,16 +102,6 @@ $GAMES = @(
  "DLSS -> Performance, Balanced or Quality | Frame Generation -> Off"
  )
  Flavor = "Slayer's back. Glory kill in 1:1. The hordes recoil."
- },
- @{ Name = "Doom: The Dark Ages"; Folder = "DOOM The Dark Ages"; Sub = ""; Exe = "DOOMTheDarkAges.exe"; AppId = 2239150
- Settings = @(
- "Window Mode -> Windowed | Aspect Ratio -> 16:9 | VSync -> Off"
- "Field of View -> 90 | HUD Scale -> 0.50 | Subtitles Scale -> 1.50"
- "Motion Blur -> Off | Depth of Field -> Off | Chromatic Aberration -> Off | Film Grain -> 0"
- "Environmental Screen Shake -> Off | Aim Assist -> Off"
- "Resolution Scaling -> Off | Reflections Quality -> Off or Low | Frame Generation -> Off"
- )
- Flavor = "Plate, mace, shield-saw. Medieval slaughter, Slayer-style."
  },
  @{ Name = "Elden Ring"; Folder = "ELDEN RING"; AltFolders = @("ELDEN RING"); Sub = "Game"; Exe = "eldenring.exe"; AppId = 1245620
  Settings = @(

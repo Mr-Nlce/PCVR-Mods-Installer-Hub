@@ -127,7 +127,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " ALMOST DONE - HOW TO PLAY AND ENABLE MOTION CONTROLLERS" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-Write-Host " 1) Start the game ('Start in VR' in the Hub, your headset," -ForegroundColor White
+Write-Host " 1) Start the game (" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, your headset," -ForegroundColor White
 Write-Host "    or the new desktop" -ForegroundColor White
 Write-Host "    shortcut). It is in the headset from the main menu on." -ForegroundColor White
 Write-Host ""

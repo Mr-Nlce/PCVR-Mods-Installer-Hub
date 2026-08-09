@@ -497,7 +497,7 @@ elseif ($afwStatus -eq "removed") { Write-Host " [x] AFW performance plugin remo
 Write-Host ""
 Write-Host " Launch SteamVR before the game to avoid it potentially starting" -ForegroundColor White
 Write-Host " sometimes out of focus." -ForegroundColor White
-Write-Host " Launch with 'Start in VR' in the Hub, or via Steam normally." -ForegroundColor White
+Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam normally." -ForegroundColor White
 Write-Host " REFramework loads automatically - configure VR in its menu." -ForegroundColor Gray
 Write-Host ""
 if ($afwStatus -eq "installed") {

@@ -288,7 +288,7 @@ Write-Host "  Start SteamVR before the game to avoid it potentially starting" -F
 Write-Host "  sometimes out of focus." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or start GTA IV through" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or start GTA IV through" -ForegroundColor Gray
 Write-Host "    Steam. Play it on a gamepad - there are no VR hands." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  IN GAME:" -ForegroundColor Cyan

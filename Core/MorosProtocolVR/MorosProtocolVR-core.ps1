@@ -473,7 +473,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Moros Protocol normally via Steam, the desktop" -ForegroundColor White
-Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Controls (motion controllers, mapped as Xbox gamepad):" -ForegroundColor White
 Write-Host " - Aim with your dominant hand to shoot, interact, open doors" -ForegroundColor Gray

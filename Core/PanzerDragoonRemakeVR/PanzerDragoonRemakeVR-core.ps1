@@ -313,7 +313,7 @@ Write-Host " and turn the devices on. If you have a Provolver /" -ForegroundColo
 Write-Host " ProTubeVR, turn it on. The mod detects them at startup." -ForegroundColor White
 Write-Host ""
 Write-Host " Launch Panzer Dragoon Remake normally via Steam, the" -ForegroundColor White
-Write-Host " desktop shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " desktop shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Controls:" -ForegroundColor White
 Write-Host " Left stick -> Move dragon (only when looking forward)" -ForegroundColor Gray

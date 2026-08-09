@@ -23,8 +23,16 @@ Gamepad, just like flat mode. Tracked motion controllers are not supported.
 - **Head aiming** - picking up objects, cockpit controls, and interactions follow your gaze. A small white dot marks the interaction direction; prompts follow the reticle.
 - [[R-Stick]] horizontal turns the character or seated view. Vertical camera input is disabled while walking and seated - **look up and down with your head**.
 - [[R3]] recenter the view and place the HUD in your current headset direction ( [[F9]] does the same as a keyboard fallback).
+- [[LB]] + [[RB]] + [[D-Pad Right]] / [[D-Pad Left]] adjust the world scale live - see below.
 - **Seated:** the VR view inherits the truck's full movement and rotation. Walking inside the truck stays upright.
 - **EVA:** the helmet interior follows your headset pose.
+
+## World scale
+Hold [[LB]] + [[RB]] and tap [[D-Pad Right]] to make the world look smaller, so you feel taller; [[D-Pad Left]] does the opposite. It moves in steps of 0.05 within a range of 0.5 to 2.0, applies straight away, and saves itself - the value is back on the next launch.
+
+The default is **1.45**, which matches the cabin to a normal seated height and puts the cockpit controls comfortably within reach. Set it to **1.0** for the game's original scale.
+
+The value is stored as `PlayerScale` in `UserData\MelonPreferences.cfg` in the game folder and can be edited there too. That file is not part of the mod package, so re-running the installer for a newer build leaves a scale you have dialled in alone.
 
 ## Switching VR / Flat
 Close the game first (saves are shared - it's the same install):

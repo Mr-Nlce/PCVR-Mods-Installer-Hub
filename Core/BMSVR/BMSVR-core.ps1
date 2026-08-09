@@ -812,7 +812,7 @@ if ($hasBlackMesa) {
 }
 Write-Host ""
 Write-Host " How to play:" -ForegroundColor Yellow
-Write-Host " Easy way: 'Start in VR' in the Hub, or the 'Black Mesa Source VR'" -ForegroundColor White
+Write-Host " Easy way:" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Black Mesa Source VR'" -ForegroundColor White
 Write-Host " desktop shortcut" -ForegroundColor White
 Write-Host " (launches the main BMS campaign directly)" -ForegroundColor Gray
 Write-Host ""

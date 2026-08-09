@@ -304,7 +304,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Bomb Rush Cyberfunk normally via Steam, the desktop" -ForegroundColor White
-Write-Host " shortcut, or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " shortcut, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Default after install: THIRD-PERSON view with gamepad." -ForegroundColor Yellow
 Write-Host " Switch to first-person + VR controllers via config (below)." -ForegroundColor Gray

@@ -4,7 +4,7 @@ Automated installer for two things that belong together:
 
 - **Gen1Recomp** by bryanthaboi - a native LÖVE2D recreation of the Gen 1
   games. It is not an emulator and ships no game data.
-- **Dramatic Shape Voxel Mod** by DramaticShape - the overworld as a
+- **Dramaless Shape Voxel Mod** by artyrambles - the overworld as a
   voxelized 3D diorama, with experimental first-person and **PCVR**.
 
 VR is a row in the game's own OPTIONS menu (**VR: OFF / ON**), not a
@@ -21,7 +21,7 @@ it is never copied into the cache. Later launches do not ask again.
 | what | where |
 |---|---|
 | the port | `C:\Games\Pokemon Gen 1 VR` (you can pick another root) |
-| the mod | `C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMATIC_SHAPE` |
+| the mod | `C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMALESS_SHAPE` |
 
 The second path is **fixed by the mod platform**, not by this Hub: the
 port's mod loader scans `mods` through LÖVE's own filesystem, which is the
@@ -104,7 +104,7 @@ Two places to set things:
 ## Uninstall
 Delete the game folder, and delete the mod folder:
 
-    C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMATIC_SHAPE
+    C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMALESS_SHAPE
 
 ## A word on sources
 The project warns about a lookalike website that it does not run. Only the
@@ -113,7 +113,7 @@ this installer downloads from GitHub only.
 
 https://github.com/bryanthaboi/gen1recomp
 
-https://github.com/DramaticShape/DramaticShapeVoxelMod
+https://github.com/artyrambles/DRAMALESS_SHAPE
 
 ## Licenses
 The mod redistributes the Khronos OpenXR loader (Apache 2.0) as

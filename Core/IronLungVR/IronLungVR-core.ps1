@@ -212,7 +212,7 @@ Write-Host "  Iron Lung VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start SteamVR (or your OpenXR runtime) first, then launch" -ForegroundColor White
-Write-Host "  with 'Start in VR' in the Hub, or the 'Iron Lung VR'" -ForegroundColor White
+Write-Host "  with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Iron Lung VR'" -ForegroundColor White
 Write-Host "  desktop shortcut, or run:" -ForegroundColor White
 Write-Host "    $exePath" -ForegroundColor Cyan
 Write-Host ""

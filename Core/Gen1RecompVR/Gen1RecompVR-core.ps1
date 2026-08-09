@@ -5,7 +5,7 @@
 # ============================================================
 # Two separate downloads, both from GitHub releases:
 #   1) the port  -> <install root>\Pokemon Gen 1 VR\gen1recomp.exe
-#   2) the mod   -> <user>\AppData\Roaming\pokemon-love2d\mods\DRAMATIC_SHAPE
+#   2) the mod   -> <user>\AppData\Roaming\pokemon-love2d\mods\DRAMALESS_SHAPE
 #                    (resolved at runtime from $env:APPDATA, which IS the
 #                     Roaming folder - Local and LocalLow are never used)
 #
@@ -56,7 +56,10 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 $SCRIPT_DIR   = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 $PORT_REPO    = "bryanthaboi/gen1recomp"
-$MOD_REPO     = "DramaticShape/DramaticShapeVoxelMod"
+# Der Fork ist die lebende Quelle: DramaticShape/DramaticShapeVoxelMod
+# liefert 404 (Repo UND Konto weg). DRAMALESS_SHAPE ist der Fork davon,
+# eigene Mod-ID, deshalb aendert sich auch der Zielordner unten.
+$MOD_REPO     = "artyrambles/DRAMALESS_SHAPE"
 $PORT_PAGE    = "https://github.com/$PORT_REPO/releases"
 $MOD_PAGE     = "https://github.com/$MOD_REPO/releases"
 
@@ -64,12 +67,22 @@ $MOD_PAGE     = "https://github.com/$MOD_REPO/releases"
 # the port to be >=0.1.37 and <2.0.0, and this is the newest pair at
 # the time of writing.
 $PIN_PORT_TAG = "v0.1.60"
-$PIN_MOD_TAG  = "v1.5.4"
+$PIN_MOD_TAG  = "v1.6.4"
 
 $GAME_FOLDER  = "Pokemon Gen 1 VR"
 $GAME_EXE     = "gen1recomp.exe"
-$MOD_ID       = "DRAMATIC_SHAPE"
+# Aus der manifest.json des echten Archivs: "id": "DRAMALESS_SHAPE".
+# Die Mod-Plattform legt danach den Ordner an, der Name ist also nicht frei.
+$MOD_ID       = "DRAMALESS_SHAPE"
+# Der Vorgaenger. Laut manifest.json steht DRAMALESS_SHAPE mit
+# DRAMATIC_SHAPE in "conflicts" - liegen beide da, laedt keiner richtig.
+$OLD_MOD_ID   = "DRAMATIC_SHAPE"
 $LOVE_MODS    = Join-Path $env:APPDATA "pokemon-love2d\mods"
+# Ablage fuer abgeloeste Mods, NEBEN mods\ - nicht darin. Der Mod-Loader
+# liest jeden Unterordner von mods\ und richtet sich nach der manifest.json
+# darin, nicht nach dem Ordnernamen: eine Umbenennung in .disabled genuegt
+# also NICHT, die alte Mod wird weiter geladen und meldet den Konflikt.
+$LOVE_MODS_OFF = Join-Path $env:APPDATA "pokemon-love2d\mods-disabled"
 $DEFAULT_ROOTS= @("C:\Games", "D:\Games", "E:\Games")
 
 # Files that must survive the extraction. If Defender ate one, the
@@ -399,7 +412,7 @@ Write-Host "  That path is fixed by the mod platform, not by this installer." -F
 Write-Host ""
 
 $modUrls = New-Object System.Collections.Generic.List[string]
-$modRel = Get-GithubAsset -Repo $MOD_REPO -Tag $modTag -NamePattern '(?i)(dramatic|shape)'
+$modRel = Get-GithubAsset -Repo $MOD_REPO -Tag $modTag -NamePattern '(?i)(dramaless|dramatic|shape)'
 if ($modRel) {
     Write-OK "Mod release: $($modRel.Tag)  ($($modRel.Name))"
     [void]$modUrls.Add($modRel.Url)
@@ -407,10 +420,38 @@ if ($modRel) {
 } else {
     Write-Warn "GitHub API not reachable - you will be pointed at the releases page."
 }
-$modZip = Join-Path $tmp "dramatic_shape_mod.zip"
+$modZip = Join-Path $tmp "voxel_mod.zip"
 $modDir = Join-Path $LOVE_MODS $MOD_ID
 try { New-Item -ItemType Directory -Path $LOVE_MODS -Force -ErrorAction Stop | Out-Null } catch {}
-$modOk = Install-Package -Label "Dramatic Shape Voxel Mod" -Urls $modUrls -PageUrl $MOD_PAGE `
+# Vorgaenger beiseite legen (umbenennen, nicht loeschen) - beide zusammen
+# laden nicht, das steht so in der manifest.json des Forks.
+# Alles, was zur alten Mod gehoert, MUSS AUS mods\ HERAUS. Umbenennen reicht
+# nicht: der Loader geht nach der manifest.json im Ordner, nicht nach dem
+# Namen - eine DRAMATIC_SHAPE.disabled wird also weiter geladen und meldet
+# genau denselben Konflikt. Verschoben wird nach mods-disabled\ daneben,
+# nichts wird geloescht.
+$oldDirs = @()
+try {
+    $oldDirs = @(Get-ChildItem -LiteralPath $LOVE_MODS -Directory -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -like "$OLD_MOD_ID*" })
+} catch {}
+if ($oldDirs.Count -gt 0) {
+    try { New-Item -ItemType Directory -Path $LOVE_MODS_OFF -Force -ErrorAction Stop | Out-Null } catch {}
+    foreach ($od in $oldDirs) {
+        $dest = Join-Path $LOVE_MODS_OFF $od.Name
+        if (Test-Path -LiteralPath $dest) { $dest = "$dest-$(Get-Date -Format yyyyMMddHHmmss)" }
+        try {
+            Move-Item -LiteralPath $od.FullName -Destination $dest -ErrorAction Stop
+            Write-OK "Moved the old mod out of mods\: $($od.Name)"
+        } catch {
+            Write-Warn "Could not move $($od.Name). Move this folder out of mods\ by hand:"
+            Write-Host "   $($od.FullName)" -ForegroundColor Yellow
+            Write-Host "   (anything left in mods\ keeps loading and reports the conflict)" -ForegroundColor Gray
+        }
+    }
+    Write-Info "Kept in: $LOVE_MODS_OFF"
+}
+$modOk = Install-Package -Label "Dramaless Shape Voxel Mod" -Urls $modUrls -PageUrl $MOD_PAGE `
            -ZipPath $modZip -TargetDir $modDir -MustHave $MOD_MUST_HAVE -FlattenMarker "manifest.json" `
            -Repo $MOD_REPO -Tag $modTag
 if (-not $modOk) {
@@ -453,7 +494,7 @@ Write-Host "  On the very first start the game asks for your Red, Blue or" -Fore
 Write-Host "  Yellow ROM and builds its data - that takes a few seconds." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with 'Start in VR' in the Hub, or use the new" -ForegroundColor Gray
+Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or use the new" -ForegroundColor Gray
 Write-Host "    'Pokemon Gen 1 VR' desktop shortcut." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  The mod lives outside the game folder, at:" -ForegroundColor Gray

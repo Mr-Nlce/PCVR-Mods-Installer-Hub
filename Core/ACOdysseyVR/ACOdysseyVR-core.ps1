@@ -307,7 +307,7 @@ Write-Host ""
 Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
 Write-Host "  1. Start your OpenXR runtime (SteamVR, Virtual Desktop, Meta," -ForegroundColor White
 Write-Host "     Pimax) - for the OpenVR build, start SteamVR." -ForegroundColor White
-Write-Host "  2. Launch the game normally (any store) or 'Start in VR' in" -ForegroundColor White
+Write-Host "  2. Launch the game normally (any store) or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in" -ForegroundColor White
 Write-Host "     the Hub - the mod loads with the game via DXGI." -ForegroundColor White
 Write-Host "  !! In-game settings (done in step 2): Windowed " -NoNewline -ForegroundColor Yellow
 Write-Host "ON" -NoNewline -ForegroundColor Green

@@ -132,7 +132,7 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Launch with 'Start in VR' in the Hub, or the 'Doom 3 BFG VR'" -ForegroundColor White
+Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Doom 3 BFG VR'" -ForegroundColor White
 Write-Host "  shortcut on your Desktop." -ForegroundColor White
 Write-Host "  Do NOT launch via Steam - use Doom3BFGVR.exe directly!" -ForegroundColor Yellow
 Write-Host ""

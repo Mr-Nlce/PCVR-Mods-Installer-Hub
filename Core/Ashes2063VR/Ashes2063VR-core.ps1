@@ -44,7 +44,7 @@ function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
 function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
 function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
-function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 
 $SCRIPT_DIR    = Split-Path -Parent $MyInvocation.MyCommand.Path
 $GAME_FOLDER   = "Ashes 2063 VR"
@@ -248,7 +248,7 @@ if ($existingRoot) {
                 Write-OK "Launchers updated - the 3D pack now loads for Ashes 2063 and Afterglow."
             } catch { Write-Warn "Could not update the launchers: $($_.Exception.Message)" }
             Write-Host ""
-            Write-Host "  Done. Launch with 'Start in VR' in the Hub or your existing" -ForegroundColor White
+            Write-Host "  Done. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or your existing" -ForegroundColor White
 Write-Host "  desktop shortcuts as usual." -ForegroundColor White
             Write-Host ""
             Write-Host "  Tune in to Spire Radio, scavenger - now in glorious 3D." -ForegroundColor Magenta
@@ -303,7 +303,7 @@ Write-OK "Ashes ZIP: $ashesZip"
 Write-Step 2 6 "Choose install location"
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
-Write-Host "  (Recommended. C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 $chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
 
 $installRoot = $null
@@ -547,7 +547,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Launch with 'Start in VR' in the Hub (main episode), or per" -ForegroundColor White
+Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub (main episode), or per" -ForegroundColor White
 Write-Host "  episode - three episodes, three desktop shortcuts:" -ForegroundColor White
 Write-Host "    * Ashes 2063 VR        (Enriched / Episode 1 + Dead Man Walking)" -ForegroundColor Gray
 Write-Host "    * Ashes Afterglow VR" -ForegroundColor Gray

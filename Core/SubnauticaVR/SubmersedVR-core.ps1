@@ -326,7 +326,7 @@ Write-Host ""
 Write-Host "--- How to Play ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Start SteamVR." -ForegroundColor White
-Write-Host "  2. Launch with 'Start in VR' in the Hub, or via Steam." -ForegroundColor White
+Write-Host "  2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam." -ForegroundColor White
 Write-Host "     (Oculus users: start SteamVR FIRST, then launch from Steam)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Issues: https://github.com/Okabintaro/SubmersedVR/issues" -ForegroundColor Gray

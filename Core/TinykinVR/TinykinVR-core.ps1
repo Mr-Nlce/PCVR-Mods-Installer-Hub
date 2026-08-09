@@ -332,7 +332,7 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " Launch Tinykin normally via Steam, the desktop shortcut," -ForegroundColor White
-Write-Host " or the 'Start in VR' button in the Hub." -ForegroundColor White
+Write-Host " or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Use a GAMEPAD (recommended for VR) or KEYBOARD+MOUSE." -ForegroundColor Yellow
 Write-Host " Game controls are unchanged - this is a depth-only mod." -ForegroundColor Gray

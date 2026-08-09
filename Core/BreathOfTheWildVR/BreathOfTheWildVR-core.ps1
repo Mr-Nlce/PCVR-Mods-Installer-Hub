@@ -12,6 +12,10 @@ $ErrorActionPreference = "Stop"
 # Load installer-safety helpers (Invoke-SafeDownload, Expand-ArchiveOrFallback).
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
+# The tag used when GitHub cannot be reached. Keep it in step with the
+# fallback download URL further down - both read this one variable.
+$PINNED_TAG = "0.9.20"
+
 # ---- inline console helpers (each installer defines its own) ----
 function Write-Header {
     Clear-Host
@@ -203,21 +207,38 @@ Write-Step 2 4 "Downloading the BetterVR launcher"
 
 $launcherPath = Join-Path $installRoot "BetterVR_Launcher.exe"
 $betterUrls = New-Object System.Collections.Generic.List[string]
+# Remember WHICH tag we are about to install, so it can be recorded next to
+# the launcher afterwards - see the .bettervr_version note further down.
+$installedTag = $PINNED_TAG
 try {
     $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/Crementif/BotW-BetterVR/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
     $asset = $rel.assets | Where-Object { $_.name -eq "BetterVR_Launcher.exe" } | Select-Object -First 1
-    if ($asset -and $asset.browser_download_url) { [void]$betterUrls.Add([string]$asset.browser_download_url) }
+    if ($asset -and $asset.browser_download_url) {
+        [void]$betterUrls.Add([string]$asset.browser_download_url)
+        if ($rel.tag_name) { $installedTag = ([string]$rel.tag_name).Trim() }
+    }
 } catch { Write-Info "Could not query the latest release - using the pinned version." }
-[void]$betterUrls.Add("https://github.com/Crementif/BotW-BetterVR/releases/download/0.9.15/BetterVR_Launcher.exe")
+# Pinned fallback for when the GitHub API is unreachable or rate-limited.
+# The API call above is the normal path and always brings the newest
+# release, so this only has to be a build that works - but keep it
+# current anyway, or an offline install lands on something old.
+[void]$betterUrls.Add("https://github.com/Crementif/BotW-BetterVR/releases/download/$PINNED_TAG/BetterVR_Launcher.exe")
 
 Invoke-SafeDownload -Urls $betterUrls -Destination $launcherPath -Label "BetterVR launcher" `
     -ManualUrl "https://github.com/Crementif/BotW-BetterVR/releases" `
     -Instructions "Download BetterVR_Launcher.exe from the Releases page (not the Source Code zip), then place it at: $launcherPath" `
     -SkipMessage "Skipped - download BetterVR_Launcher.exe yourself and place it next to Cemu.exe." | Out-Null
 
-if (Test-Path $launcherPath) { Write-OK "BetterVR launcher is in place." }
-else { Write-Warn "BetterVR launcher missing - add BetterVR_Launcher.exe to $installRoot before playing." }
+if (Test-Path $launcherPath) {
+    Write-OK "BetterVR launcher is in place ($installedTag)."
+    # Record the tag the Hub-wide way: one marker name for every game, in
+    # the GAME folder, so it survives the Hub being replaced. Write-ModStamp
+    # lives in InstallerSafety.ps1 - do not invent a per-game file here.
+    Write-ModStamp -GameDir $installRoot -Version $installedTag
+} else {
+    Write-Warn "BetterVR launcher missing - add BetterVR_Launcher.exe to $installRoot before playing."
+}
 
 # ------------------------------------------------------------
 # STEP 3: Icon + desktop shortcut

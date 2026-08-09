@@ -109,8 +109,8 @@ if (-not $defaultParent) { $defaultParent = "C:\Games" }
 $defaultPath = Join-Path $defaultParent $GAME_FOLDER
 
 Write-Host "  Default install location: $defaultPath" -ForegroundColor Gray
-Write-Host "  (Recommended: C:\Games keeps the install off the Steam library" -ForegroundColor DarkGray
-Write-Host "   and away from any Program Files / UAC issues.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
+Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
 $userInput = (Read-Host "  Press Enter to use the default, or type a different full path").Trim().Trim('"')
 if (-not $userInput) {

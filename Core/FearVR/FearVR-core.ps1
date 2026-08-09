@@ -1351,7 +1351,7 @@ if ((Test-Path -LiteralPath $OLD_INSTALL_DIR) -and ($OLD_INSTALL_DIR -ne $INSTAL
 }
 
 Write-Host "  Start your OpenXR runtime (SteamVR or Virtual Desktop) and put" -ForegroundColor White
-Write-Host "  the headset on, then launch with 'Start in VR' in the Hub or the" -ForegroundColor White
+Write-Host "  the headset on, then launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or the" -ForegroundColor White
 Write-Host "  'F.E.A.R. VR' desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  In-game: F9 recenters, F8 toggles stereo, and the ESC menu has a" -ForegroundColor Gray

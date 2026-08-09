@@ -726,6 +726,154 @@ function global:Expand-ArchiveToTarget {
     }
 }
 
+
+# ---- ARCHIVE SAFETY: look inside BEFORE unpacking ---------
+#
+# Hard rule in this project: no installer ever extracts an archive and
+# HOPES the layout is what it was last month. Modders re-wrap their
+# packages without warning (GAMMA's update .7z suddenly carried a
+# wrapper folder named after the archive), and a blind extract then
+# drops the payload NEXT TO the install instead of into it.
+#
+# Get-ArchiveTopLevel lists an archive WITHOUT extracting it, so the
+# caller can see the real layout first. Returns:
+#   Ok       $true when the listing worked
+#   Entries  every path inside the archive (relative, backslashes)
+#   Roots    the distinct top-level names
+#   Method   "7z" or "zip"
+# On failure Ok is $false and the caller must treat the layout as
+# unknown - never as "probably fine".
+function global:Get-ArchiveTopLevel {
+    param(
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [string]$SevenZip = ""
+    )
+    $res = [pscustomobject]@{ Ok = $false; Entries = @(); Roots = @(); Method = "" }
+    if (-not (Test-Path -LiteralPath $ArchivePath)) { return $res }
+
+    $entries = New-Object System.Collections.Generic.List[string]
+
+    # .zip can be read by .NET without any external tool.
+    if ($ArchivePath -match '(?i)\.zip$') {
+        try {
+            Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+            $za = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+            try { foreach ($e in $za.Entries) { $entries.Add(($e.FullName -replace '/','\')) } }
+            finally { $za.Dispose() }
+            $res.Method = "zip"
+        } catch { $entries.Clear() }
+    }
+
+    # Everything else (and .zip if the managed read failed) via 7-Zip's
+    # technical listing, which prints one "Path = ..." line per entry
+    # and survives spaces and umlauts in names.
+    if ($entries.Count -eq 0) {
+        $sz = $SevenZip
+        if (-not $sz -and (Get-Command Get-SevenZip -ErrorAction SilentlyContinue)) { $sz = Get-SevenZip }
+        if ($sz -and (Test-Path -LiteralPath $sz)) {
+            $out = Join-Path ([System.IO.Path]::GetTempPath()) ("hublist_" + [Guid]::NewGuid().ToString("N") + ".txt")
+            try {
+                $p = Start-Process -FilePath $sz -ArgumentList @("l","-slt","-ba","-y","`"$ArchivePath`"") `
+                        -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out
+                if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath $out)) {
+                    foreach ($line in (Get-Content -LiteralPath $out -ErrorAction SilentlyContinue)) {
+                        if ($line -like "Path = *") { $entries.Add(($line.Substring(7).Trim() -replace '/','\')) }
+                    }
+                    $res.Method = "7z"
+                }
+            } catch { }
+            finally { try { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue } catch {} }
+        }
+    }
+
+    if ($entries.Count -eq 0) { return $res }
+    $res.Entries = @($entries)
+    $res.Roots   = @($entries | ForEach-Object { ($_ -split '\\')[0] } | Where-Object { $_ } | Sort-Object -Unique)
+    $res.Ok      = $true
+    return $res
+}
+
+# ---- ARCHIVE SAFETY: put the payload where it belongs -----
+#
+# For archives too large to extract twice (GAMMA's full build is 110 GB,
+# so extract-to-temp-then-copy is not an option): extract into the
+# PARENT folder as before, then call this. It locates the folder that
+# really holds $Marker and, if that is not the target, MOVES the payload
+# into place (a move on the same volume is instant) and removes the
+# empty wrapper.
+#
+# Returns an object: Ok, PayloadRoot, Moved (file count), Merged (bool),
+# AlreadyInPlace (bool), Message. Ok=$false means the marker was not
+# found anywhere - the caller must FAIL, never assume success.
+function global:Move-PayloadIntoPlace {
+    param(
+        [Parameter(Mandatory=$true)][string]$SearchRoot,
+        [Parameter(Mandatory=$true)][string]$TargetDir,
+        [Parameter(Mandatory=$true)][string]$Marker,
+        [int]$MaxDepth = 4
+    )
+    $r = [pscustomobject]@{ Ok=$false; PayloadRoot=""; Moved=0; Merged=$false; AlreadyInPlace=$false; Message="" }
+    if (-not (Test-Path -LiteralPath $SearchRoot)) { $r.Message = "search root missing: $SearchRoot"; return $r }
+
+    $leaf = Split-Path $Marker -Leaf
+    $hits = @()
+    try {
+        $hits = @(Get-ChildItem -LiteralPath $SearchRoot -Recurse -Depth $MaxDepth -Filter $leaf -File -ErrorAction SilentlyContinue)
+    } catch {}
+    if ($hits.Count -eq 0) { $r.Message = "'$leaf' not found under $SearchRoot"; return $r }
+
+    # Prefer a hit OUTSIDE the target. A copy already sitting in the
+    # target is usually the OLD install - treating that as "the payload"
+    # is exactly the false success this function exists to prevent.
+    # Only when there is no other candidate is the target itself the
+    # payload (the normal case for a full build that unpacked correctly).
+    $tgt   = $TargetDir.TrimEnd('\')
+    $outer = @($hits | Where-Object { (Split-Path $_.FullName -Parent).TrimEnd('\') -ine $tgt })
+    if ($outer.Count -gt 0) {
+        $best = $outer | Sort-Object { ($_.FullName -split '\\').Count } | Select-Object -First 1
+    } else {
+        $best = $hits | Sort-Object { ($_.FullName -split '\\').Count } | Select-Object -First 1
+    }
+    $payload = (Split-Path $best.FullName -Parent).TrimEnd('\')
+    $r.PayloadRoot = $payload
+
+    if ($payload -ieq $tgt) { $r.Ok = $true; $r.AlreadyInPlace = $true; $r.Message = "payload already at target"; return $r }
+
+    # Merge-move every file from the payload root into the target.
+    $moved = 0
+    try {
+        $files = @(Get-ChildItem -LiteralPath $payload -Recurse -File -Force -ErrorAction SilentlyContinue)
+        foreach ($f in $files) {
+            $rel = $f.FullName.Substring($payload.Length).TrimStart('\')
+            $dst = Join-Path $TargetDir $rel
+            $dd  = Split-Path $dst -Parent
+            if ($dd -and -not (Test-Path -LiteralPath $dd)) { New-Item -ItemType Directory -Path $dd -Force | Out-Null }
+            Move-Item -LiteralPath $f.FullName -Destination $dst -Force -ErrorAction Stop
+            $moved++
+        }
+    } catch {
+        $r.Moved = $moved; $r.Message = "move failed after $moved file(s): $($_.Exception.Message)"; return $r
+    }
+    $r.Moved  = $moved
+    $r.Merged = $true
+    $r.Ok     = ($moved -gt 0)
+    if (-not $r.Ok) { $r.Message = "payload root held no files"; return $r }
+
+    # Drop the now-empty wrapper folder (only what we emptied ourselves).
+    try {
+        $wrapper = $payload
+        while ($wrapper -and ($wrapper.TrimEnd('\') -ne $SearchRoot.TrimEnd('\')) -and (Test-Path -LiteralPath $wrapper)) {
+            $left = @(Get-ChildItem -LiteralPath $wrapper -Force -Recurse -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer })
+            if ($left.Count -gt 0) { break }
+            $up = Split-Path $wrapper -Parent
+            Remove-Item -LiteralPath $wrapper -Recurse -Force -ErrorAction SilentlyContinue
+            $wrapper = $up
+        }
+    } catch {}
+    $r.Message = "moved $moved file(s) from '$payload' into '$TargetDir'"
+    return $r
+}
+
 # ---- Post-copy delivery verification ----------------------
 #
 # For installers that already have their own extract+copy logic (Martin's
@@ -1308,13 +1456,17 @@ function global:Resolve-DepotPath {
             Write-Host ""
             Write-Host "  If Steam Console doesn't open automatically:" -ForegroundColor Gray
             Write-Host "    1. Make sure the Steam client is running and you're logged in." -ForegroundColor Gray
-            Write-Host "    2. Open this URL in any browser:  steam://nav/console" -ForegroundColor Gray
+            Write-Host "    2. Open one of these in any browser:  steam://open/console" -ForegroundColor Gray
+            Write-Host "       or  steam://nav/console  - only one works per Steam version." -ForegroundColor Gray
             Write-Host "       (or paste it into the Run dialog: Win+R, paste, Enter)" -ForegroundColor Gray
             Write-Host "    3. Click into the Steam Console input field." -ForegroundColor Gray
             Write-Host "    4. Paste with Ctrl+V and press Enter." -ForegroundColor Gray
             Write-Host "    5. Wait for 'Depot download complete' before continuing." -ForegroundColor Gray
             Write-Host ""
-            try { Start-Process "steam://nav/console" -ErrorAction SilentlyContinue | Out-Null } catch {}
+            # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+            foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+                try { Start-Process $cu -ErrorAction SilentlyContinue | Out-Null; Start-Sleep -Milliseconds 900 } catch {}
+            }
 
             Write-Host "  When the download is COMPLETE, press Enter." -ForegroundColor White
             Write-Host "  If there was a PROBLEM (download did not finish), type I and press Enter." -ForegroundColor White
@@ -1657,6 +1809,44 @@ function Read-UpdateOrInstall {
     if ($c -match "^[Qq]$") { return "cancel" }
     if ($c -eq "1") { return "update" }
     return "reinstall"
+}
+
+# ============================================================
+#  Write-ModStamp - record WHICH build got installed, next to the mod
+# ============================================================
+# One marker name for every game, written into the GAME folder. The Hub
+# also keeps a copy under Core\<Game>\.installed_version, but that copy
+# dies whenever somebody replaces the Hub folder by hand - and a missing
+# marker makes the next scan seed the CURRENT version, which quietly
+# declares an outdated mod up to date. The in-game file cannot be lost
+# that way, so it is the ground truth and the Hub copy is the cache.
+#
+# Installers call this right after they have proof the mod landed. Pass
+# the version you actually installed - a GitHub tag, a Thunderstore
+# version, a Nexus file version. Anything the catalog compares against
+# has to match this string, so use the same shape.
+# $Second is for entries that track two mods in one tile.
+function global:Write-ModStamp {
+    param(
+        [string]$GameDir,
+        [string]$Version,
+        [switch]$Second
+    )
+    if ([string]::IsNullOrWhiteSpace($GameDir)) { return $false }
+    if ([string]::IsNullOrWhiteSpace($Version)) { return $false }
+    if (-not (Test-Path -LiteralPath $GameDir)) { return $false }
+    # Same literal as Get-GameStampPath in VRModHub.ps1 - installers run in
+    # their own process and never load that file, so the name is repeated
+    # here on purpose. Change one, change the other.
+    $name = ".pcvrhub_version"
+    if ($Second) { $name = "$name" + "_b" }
+    try {
+        [System.IO.File]::WriteAllText(
+            (Join-Path $GameDir $name), $Version.Trim(),
+            (New-Object System.Text.UTF8Encoding $false)
+        )
+        return $true
+    } catch { return $false }
 }
 
 function global:New-DesktopShortcut {

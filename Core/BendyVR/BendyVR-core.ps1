@@ -279,7 +279,10 @@ if ($mode -eq "1") {
         Write-Host ""
     }
     Pause-User "Press Enter to open the Steam Console..."
-    Start-Process "steam://nav/console"
+    # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+    foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+        try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+    }
     Write-OK "Steam Console opening..."
     Write-Host ""
     Pause-User "Press Enter once the Steam depot download is complete..."

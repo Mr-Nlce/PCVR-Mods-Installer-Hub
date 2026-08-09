@@ -365,7 +365,7 @@ Write-Host "  Wolfenstein 3D VR is installed!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Start SteamVR (or your OpenXR runtime) first, then launch with" -ForegroundColor White
-Write-Host "  'Start in VR' in the Hub, or the 'Wolfenstein 3D VR' desktop" -ForegroundColor White
+Write-Host " " -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Wolfenstein 3D VR' desktop" -ForegroundColor White
 Write-Host "  shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  Episode 1 (shareware) plays out of the box. If you copied full" -ForegroundColor Gray

@@ -574,7 +574,7 @@ Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
 Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
-Write-Host " >> Launch with 'Start in VR' in the Hub or the desktop" -ForegroundColor Yellow
+Write-Host " >> Launch with" -NoNewline -ForegroundColor Yellow; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or the desktop" -ForegroundColor Yellow
 Write-Host "    shortcut - NOT via Steam." -ForegroundColor Yellow
 Write-Host " (This VR install is fully standalone and independent" -ForegroundColor Gray
 Write-Host " from your Steam library copy of Outward.)" -ForegroundColor Gray

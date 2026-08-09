@@ -6,7 +6,7 @@
 #  and separate supersampling for world and HUD. Gamepad only -
 #  motion controllers are not supported.
 #
-#  PACKAGE (read from the real v1.0.0 archive, 13 files, flat):
+#  PACKAGE (read from the real v1.1.2 archive, 14 files, flat):
 #    XINPUT1_3.dll        <- THE HOOK (proxy DLL, this is the mod)
 #    openxr_loader.dll
 #    RebelGalaxyVR.ini
@@ -14,9 +14,42 @@
 #    Set_Resolution_High|Medium|Low.bat
 #    Set_Scale_Human_1to1|Diorama.bat
 #    INSTALL_EN.txt / INSTALLATION_DE.txt / LICENSE.txt
+#    CHANGELOG.txt        <- new in v1.1.2
 #  Everything goes NEXT TO THE GAME EXE, never in a subfolder.
-#  The archive wraps it all in RebelGalaxyVR_v<ver>\, so the payload
-#  root is resolved by searching for XINPUT1_3.dll.
+#  The v1.1.2 archive wraps it all in RebelGalaxyVR_Steam_v1.1.2\ - note
+#  the store in the folder name, v1.0.0 had none. The payload root is
+#  resolved by searching for XINPUT1_3.dll, so any wrapper name works.
+#
+#  TWO SEPARATE ARCHIVES ON NEXUS, ONE PER STORE - this is easy to get
+#  wrong and it matters:
+#    MAIN FILE      -> the Steam build   (folder RebelGalaxyVR_Steam_...)
+#    OPTIONAL FILES -> the Epic build    (entry starts "RebelGalaxyVR Epic")
+#  No version number is spelled out anywhere in this installer's text:
+#  Nexus has no version API, we cannot auto-update, and the number will
+#  move. The store word is what identifies the file, not the version.
+#  The HOOK IS IDENTICAL in both (XINPUT1_3.dll, 197120 bytes, same build
+#  stamp) - what differs is the game exe the helper bats watch for, and
+#  the Epic-only xinput handling below.
+#
+#  EPIC NEEDS A RENAME BEFORE EXTRACTING. The Epic build of the game
+#  ships its own real xinput1_3.dll in the game folder. The mod IS a
+#  file of that name, so extracting on top of it destroys the original.
+#  The Epic archive's own instructions therefore say: rename
+#  xinput1_3.dll -> xinput1_3_original.dll FIRST. This installer does
+#  that itself. Its Play in Flat.bat then restores that original copy
+#  while the mod is parked as .disabled, which is why Epic can end up
+#  with BOTH names on disk - see FlatVRDisabledWins in the catalog.
+#  The Steam build has no xinput1_3.dll of its own and needs none of it.
+#
+#  GAME SETTINGS ARE NOT OUR JOB ANY MORE. Since v1.1.2 the mod sets
+#  the three it needs at startup itself: gamepad on, shadows off,
+#  distortion on. Shadows go off because the game computes them from the
+#  game camera, so in VR the shadow would follow the head. Nothing here
+#  edits those, and nothing asks the user to.
+#
+#  32-BIT RUNTIME: Rebel Galaxy is a 32-bit game, so it needs an OpenXR
+#  runtime with 32-bit support. Since v1.1.2 the mod's log names the
+#  registered 32-bit runtime, and says so when there is none.
 #
 #  FLAT/VR SWITCH: the mod's own bats just rename
 #  XINPUT1_3.dll <-> XINPUT1_3.dll.disabled. The catalog carries the
@@ -40,7 +73,7 @@
 $Host.UI.RawUI.WindowTitle = "Rebel Galaxy VR Installer"
 
 $MOD_NAME    = "RebelGalaxyVR"
-$MOD_VERSION = "v1.0.0"
+$MOD_VERSION = "v1.1.2"
 $MOD_AUTHOR  = "Destroyjevski"
 
 $GAME_APPID  = "290300"
@@ -55,11 +88,18 @@ $REL_DISABLED = "XINPUT1_3.dll.disabled"
 $REL_LOADER   = "openxr_loader.dll"
 $REL_INI      = "RebelGalaxyVR.ini"
 
+# Epic only: the game's own xinput1_3.dll, and the name the mod expects
+# it to be parked under. Epic_Repair_XInput.bat is unique to the Epic
+# archive, so it is also how we tell the two downloads apart.
+$EPIC_ORIGINAL = "xinput1_3_original.dll"
+$EPIC_REPAIR   = "Epic_Repair_XInput.bat"
+$EPIC_GAME_EXE = "RebelGalaxy.exe"
+
 # Exes that prove a folder is Rebel Galaxy. The first two are unique to
 # the game; the launcher names are generic, so they only count when the
 # folder itself is named after the game (the Epic build ships only
 # Launcher.exe).
-$GAME_EXES_UNIQUE  = @("RebelGalaxySteam.exe", "RebelGalaxyGOG.exe")
+$GAME_EXES_UNIQUE  = @("RebelGalaxySteam.exe", "RebelGalaxyGOG.exe", "RebelGalaxy.exe")
 $GAME_EXES_LAUNCH  = @("SteamLauncher.exe", "GoGLauncher.exe", "Launcher.exe")
 
 # -------------------------------------------------------
@@ -105,11 +145,44 @@ function Test-RGRoot {
 # store launcher that actually exists, else the game exe itself.
 function Get-RGLaunchExe {
     param([string]$Root)
-    foreach ($exe in @("SteamLauncher.exe", "GoGLauncher.exe", "Launcher.exe", "RebelGalaxyGOG.exe", "RebelGalaxySteam.exe")) {
+    foreach ($exe in @("SteamLauncher.exe", "GoGLauncher.exe", "Launcher.exe", "RebelGalaxyGOG.exe", "RebelGalaxySteam.exe", "RebelGalaxy.exe")) {
         $full = [System.IO.Path]::Combine($Root, $exe)
         if (Test-Path -LiteralPath $full) { return $full }
     }
     return $null
+}
+
+# Which store is this game folder from? Decided by the exe that is
+# actually there, not by where the folder sits - a moved or manually
+# dropped folder still answers correctly. "Steam" also covers GOG and
+# anything else that keeps its own xinput1_3.dll out of the way; only
+# Epic needs the extra handling, so only Epic is named separately.
+function Get-RGStore {
+    param([string]$Root)
+    if (-not $Root) { return "unknown" }
+    try {
+        if (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, "RebelGalaxySteam.exe"))) { return "steam" }
+        if (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, "RebelGalaxyGOG.exe")))   { return "steam" }
+        if (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $EPIC_GAME_EXE)))         { return "epic" }
+    } catch {}
+    return "unknown"
+}
+
+# Which store is this ARCHIVE for? Epic_Repair_XInput.bat exists only in
+# the Epic package, so its presence in the listing is the marker. The file
+# NAME is deliberately not used: Nexus mangles download names, and the
+# version in them will move.
+function Get-RGArchiveStore {
+    param([string]$ArchivePath)
+    try {
+        $top = Get-ArchiveTopLevel -ArchivePath $ArchivePath
+        if (-not $top.Ok) { return "unknown" }
+        foreach ($e in $top.Entries) {
+            if (([string]$e) -match [regex]::Escape($EPIC_REPAIR)) { return "epic" }
+        }
+        return "steam"
+    } catch {}
+    return "unknown"
 }
 
 Write-Header
@@ -119,7 +192,9 @@ Write-Host " own layer standing in the world instead of stuck to your face." -Fo
 Write-Host " You play it on a GAMEPAD - motion controllers are not supported." -ForegroundColor White
 Write-Host ""
 Write-Host " Run the game in Borderless Window or Windowed mode." -ForegroundColor Yellow
-Write-Host " Only the Steam version is tested by the author." -ForegroundColor Yellow
+Write-Host " Steam and Epic each have their OWN download on Nexus." -ForegroundColor Yellow
+Write-Host " The game is 32-bit, so your OpenXR runtime needs 32-bit" -ForegroundColor Yellow
+Write-Host " support - SteamVR has it, some others do not." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to start..." | Out-Null
 
@@ -131,6 +206,18 @@ Write-Step 1 4 "Downloading Rebel Galaxy VR from Nexus Mods"
 Write-Host " The file sits behind a free Nexus Mods login, so it cannot be" -ForegroundColor White
 Write-Host " fetched automatically." -ForegroundColor White
 Write-Host ""
+Write-Host " THERE ARE TWO DOWNLOADS - one per store. Take the one that" -ForegroundColor Yellow
+Write-Host " matches your copy of the game:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "   Steam  ->  the MAIN FILE at the top of the page" -ForegroundColor White
+Write-Host "   Epic   ->  under " -NoNewline -ForegroundColor White
+Write-Host " OPTIONAL FILES " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host ", the entry whose name" -ForegroundColor White
+Write-Host "              starts with " -NoNewline -ForegroundColor White
+Write-Host " RebelGalaxyVR Epic " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host ""
+Write-Host " Grabbed the wrong one? This installer notices and says so." -ForegroundColor Gray
+Write-Host ""
 Write-Host " $NEXUS_FILES_URL" -ForegroundColor Gray
 Write-Host ""
 
@@ -138,7 +225,8 @@ $zipPatterns = @("*RebelGalaxy*VR*.zip", "*RebelGalaxyVR*.zip", "*Rebel*Galaxy*.
 $modZip = Find-PredownloadedFile -Patterns $zipPatterns -Label "the Rebel Galaxy VR mod"
 if (-not $modZip) {
     Write-Host " 1) Log in to Nexus Mods." -ForegroundColor White
-    Write-Host " 2) Download the Rebel Galaxy VR file (Manual download)." -ForegroundColor White
+    Write-Host " 2) Download the file for YOUR store (Manual download) -" -ForegroundColor White
+    Write-Host "    Steam from the main files, Epic from Optional Files." -ForegroundColor White
     Write-Host " 3) Come back here - your Downloads folder is checked, or you" -ForegroundColor White
     Write-Host "    can drag the file onto this window." -ForegroundColor White
     Pause-User "Press Enter to open the download page..." | Out-Null
@@ -214,7 +302,8 @@ if (-not $gamePath) {
 while (-not $gamePath) {
     Write-Warn "Could not find the game automatically."
     Write-Host " Drag & drop your $GAME_TITLE GAME FOLDER onto this window -" -ForegroundColor White
-    Write-Host " the one holding RebelGalaxySteam.exe or RebelGalaxyGOG.exe -" -ForegroundColor White
+    Write-Host " the one holding RebelGalaxySteam.exe (Steam), RebelGalaxy.exe" -ForegroundColor White
+    Write-Host " (Epic) or RebelGalaxyGOG.exe -" -ForegroundColor White
     Write-Host " then press Enter." -ForegroundColor White
     Write-Host " Or press Enter on an empty line to exit." -ForegroundColor Gray
     $raw = (Read-Host " Game folder").Trim().Trim('"')
@@ -223,6 +312,60 @@ while (-not $gamePath) {
     else { Write-Fail "No Rebel Galaxy executable found in that folder." }
 }
 Write-OK "Found: $gamePath"
+
+# The store decides which archive is the right one and whether the Epic
+# xinput rename is needed. Both are read off the disk / out of the ZIP,
+# never assumed.
+$store = Get-RGStore -Root $gamePath
+switch ($store) {
+    "epic"  { Write-Info "This is the Epic build (found $EPIC_GAME_EXE)." }
+    "steam" { Write-Info "This is the Steam/GOG build." }
+    default { Write-Warn "Could not tell which store this folder is from - continuing without the store checks." }
+}
+
+# Wrong download for this store? Say which one is needed and take another
+# archive, rather than installing helper bats that watch the wrong exe.
+if ($store -ne "unknown") {
+    while ($true) {
+        $archStore = Get-RGArchiveStore -ArchivePath $modZip
+        if ($archStore -eq "unknown") {
+            Write-Warn "Could not read the archive to check which store it is for - continuing."
+            break
+        }
+        if ($archStore -eq $store) {
+            Write-OK "Archive matches this install ($store build)."
+            break
+        }
+        Write-Host ""
+        Write-Fail "This archive is the $archStore package, but your game is the $store build."
+        if ($store -eq "epic") {
+            Write-Host " You need the Epic download: on the mod's Files page it sits" -ForegroundColor White
+            Write-Host " under " -NoNewline -ForegroundColor White
+            Write-Host " OPTIONAL FILES " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+            Write-Host ", named " -NoNewline -ForegroundColor White
+            Write-Host " RebelGalaxyVR Epic ... " -ForegroundColor Black -BackgroundColor Yellow
+        } else {
+            Write-Host " You need the Steam download: the MAIN FILE at the top of" -ForegroundColor White
+            Write-Host " the mod's Files page, not the Optional Files entry." -ForegroundColor White
+        }
+        Write-Host " $NEXUS_FILES_URL" -ForegroundColor Gray
+        Pause-User "Press Enter to open the Files page..." | Out-Null
+        try { Start-Process $NEXUS_FILES_URL } catch {}
+        $newZip = $null
+        while (-not $newZip) {
+            Write-Host " Drag & drop the correct archive onto this window, or paste" -ForegroundColor White
+            Write-Host " its full path, then press Enter." -ForegroundColor White
+            Write-Host " Or press Enter on an empty line to exit." -ForegroundColor Gray
+            $raw2 = (Read-Host " Archive").Trim().Trim('"').Trim("'")
+            if (-not $raw2) { Write-Fail "No file - cannot install the wrong package."; Pause-User "Press Enter to exit." | Out-Null; exit 1 }
+            if (-not (Test-Path -LiteralPath $raw2)) { Write-Fail "File not found: $raw2"; continue }
+            if ($raw2 -notmatch '(?i)\.(zip|7z|rar)$') { Write-Fail "Not a ZIP/7z/RAR archive: $raw2"; continue }
+            $newZip = $raw2
+        }
+        $modZip = $newZip
+    }
+}
+
 $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile $REL_MOD_FILE -Label "RebelGalaxyVR"
 
 # -------------------------------------------------------
@@ -271,6 +414,46 @@ Write-Info "Payload: $srcRoot"
 $disabledFull = [System.IO.Path]::Combine($gamePath, $REL_DISABLED)
 if (Test-Path -LiteralPath $disabledFull) {
     try { Remove-Item -LiteralPath $disabledFull -Force -ErrorAction Stop; Write-Info "Removed the old disabled hook ($REL_DISABLED)." } catch {}
+}
+
+# EPIC ONLY, AND IT HAS TO HAPPEN BEFORE THE COPY. The Epic build ships
+# its own real xinput1_3.dll; the mod is a file of that same name, so
+# copying first would destroy the original with no way back except
+# Epic_Repair_XInput.bat. Park it as xinput1_3_original.dll - which is
+# also exactly the name the mod's own Play in Flat.bat expects to find.
+# Guarded on both sides: if the parked copy already exists we are looking
+# at an earlier install and must NOT overwrite it with the mod's own hook.
+if ($store -eq "epic") {
+    $xiLive = [System.IO.Path]::Combine($gamePath, $REL_MOD_FILE)
+    $xiPark = [System.IO.Path]::Combine($gamePath, $EPIC_ORIGINAL)
+    if (Test-Path -LiteralPath $xiPark) {
+        Write-OK "$EPIC_ORIGINAL is already in place - left untouched."
+    } elseif (Test-Path -LiteralPath $xiLive) {
+        # Only the GAME's own dll may be parked. If what sits there is
+        # already the mod (same size as the one in the archive), parking
+        # it would save the mod as the "original" and the real one would
+        # be lost for good - so that case is left to the repair bat.
+        $liveLen = 0; $modLen = 0
+        try { $liveLen = (Get-Item -LiteralPath $xiLive).Length } catch {}
+        try { $modLen  = (Get-Item -LiteralPath ([System.IO.Path]::Combine($srcRoot, $REL_MOD_FILE))).Length } catch {}
+        if ($modLen -gt 0 -and $liveLen -eq $modLen) {
+            Write-Warn "The xinput1_3.dll in the game folder is already the mod - not parking it."
+            Write-Host "   If flat mode ever complains about a missing original, run" -ForegroundColor Gray
+            Write-Host "   $EPIC_REPAIR in the game folder." -ForegroundColor Gray
+        } else {
+            try {
+                Rename-Item -LiteralPath $xiLive -NewName $EPIC_ORIGINAL -Force -ErrorAction Stop
+                Write-OK "Parked the game's own xinput1_3.dll as $EPIC_ORIGINAL."
+            } catch {
+                Write-Fail "Could not rename the game's xinput1_3.dll: $($_.Exception.Message)"
+                Write-Host "   Close the game and the Epic launcher, then run this again." -ForegroundColor White
+                Pause-User "Press Enter to exit." | Out-Null
+                exit 1
+            }
+        }
+    } else {
+        Write-Info "No xinput1_3.dll in the game folder - nothing to park."
+    }
 }
 
 Write-Info "Copying into: $gamePath"
@@ -386,17 +569,32 @@ if ($vrOneFound) {
     Write-Host ""
 }
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
-Write-Host "  |               REQUIRED GAME SETTINGS                     |" -ForegroundColor Yellow
+Write-Host "  |               WHAT IS LEFT FOR YOU                       |" -ForegroundColor Yellow
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
 Write-Host "   Display mode  " -NoNewline -ForegroundColor White
 Write-Host " Borderless Window or Windowed " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Desktop res   " -NoNewline -ForegroundColor White
 Write-Host " 2560 x 1440 recommended " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   Your OpenXR runtime has to be active before you launch." -ForegroundColor White
+Write-Host "   Your OpenXR runtime has to be active before you launch, and" -ForegroundColor White
+Write-Host "   it needs 32-BIT support - Rebel Galaxy is a 32-bit game." -ForegroundColor White
+Write-Host "   SteamVR has it. If VR stays dark, the mod log now names the" -ForegroundColor White
+Write-Host "   registered 32-bit runtime, or says there is none." -ForegroundColor White
 Write-Host ""
-Write-Host "  Start with 'Start in VR' in the Hub, or through Steam." -ForegroundColor White
+Write-Host "   Gamepad, shadows and distortion the mod sets by itself at" -ForegroundColor Gray
+Write-Host "   startup - nothing to change in the game menu. Shadows go off" -ForegroundColor Gray
+Write-Host "   on purpose: the game computes them from the game camera, so" -ForegroundColor Gray
+Write-Host "   in VR the shadow would follow your head." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Start with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam." -ForegroundColor White
 Write-Host "  Gamepad: LB + RB + A recenters the view." -ForegroundColor White
 Write-Host ""
+if ($store -eq "epic") {
+    Write-Host "  Epic build: the game's own xinput1_3.dll is parked as" -ForegroundColor Gray
+    Write-Host "  $EPIC_ORIGINAL and comes back when you play flat." -ForegroundColor Gray
+    Write-Host "  If that file ever goes missing, run $EPIC_REPAIR" -ForegroundColor Gray
+    Write-Host "  in the game folder." -ForegroundColor Gray
+    Write-Host ""
+}
 Write-Host "  Image quality and world scale are preset .bat files in the" -ForegroundColor Gray
 Write-Host "  game folder (Set_Resolution_*, Set_Scale_*). To play flat for" -ForegroundColor Gray
 Write-Host "  a while, use the Flat / VR switch on this game's Hub page -" -ForegroundColor Gray

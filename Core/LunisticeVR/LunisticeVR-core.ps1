@@ -353,7 +353,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host " Launch Lunistice normally via Steam, or the 'Start in VR'" -ForegroundColor White
+Write-Host " Launch Lunistice normally via Steam, or the" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host ""
 Write-Host " button in the Hub." -ForegroundColor White
 Write-Host ""
 Write-Host " Quick controls reference:" -ForegroundColor White

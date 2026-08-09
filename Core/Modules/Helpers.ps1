@@ -108,6 +108,40 @@ function global:Import-SteamInfoCache {
 }
 Import-SteamInfoCache
 
+# The background warm runs in its OWN runspace and writes
+# Assets\cache\steam_info.json as it goes. The UI process never saw any
+# of it, because Import-SteamInfoCache runs exactly once at module load -
+# so descriptions fetched during a session only showed up after a
+# restart. This re-imports, but only when the file has actually changed.
+#
+# Cost, measured: the normal case is a single timestamp read at ~0.3 ms.
+# A real re-import of ~160 entries is ~15 ms and only happens after the
+# background pass has written something new.
+#
+# Unlike Import-SteamInfoCache this OVERWRITES: an id cached in memory as
+# $null (nothing known yet) must be replaced once the file has a real
+# description for it. A null in the file never overwrites a real value.
+function global:Sync-SteamInfoCache {
+    $base = if ($global:scriptDir) { $global:scriptDir } else { $script:scriptDir }
+    if (-not $base) { return }
+    $file = Join-Path $base "Assets\cache\steam_info.json"
+    try {
+        if (-not (Test-Path -LiteralPath $file)) { return }
+        $stamp = (Get-Item -LiteralPath $file).LastWriteTimeUtc
+        if ($global:SteamInfoCacheStamp -and $global:SteamInfoCacheStamp -eq $stamp) { return }
+        $global:SteamInfoCacheStamp = $stamp
+        $obj = (Get-Content $file -Raw -ErrorAction Stop) | ConvertFrom-Json
+        foreach ($p in $obj.PSObject.Properties) {
+            $val = $p.Value
+            if ($null -eq $val) { continue }
+            if ($val.desc) { $global:SteamDescCache[$p.Name] = $val.desc }
+            elseif (-not $global:SteamDescCache.ContainsKey($p.Name)) { $global:SteamDescCache[$p.Name] = $null }
+            if ($val.shot) { $global:SteamScreenshotCache[$p.Name] = $val.shot }
+            elseif (-not $global:SteamScreenshotCache.ContainsKey($p.Name)) { $global:SteamScreenshotCache[$p.Name] = $null }
+        }
+    } catch { }
+}
+
 # Process-wide decoded-bitmap cache for LOCAL images only. A
 # BitmapImage from a file:// URI loads synchronously, so it's safe
 # to Freeze() immediately and share across controls. Remote
@@ -502,8 +536,16 @@ function global:_Steam-FetchAppDetails {
     # Skipped pages simply show no description/screenshot yet; the
     # background warm (or a later open) fills them in - shown later, never
     # frozen now.
-    if ($global:HubScanOnlineDown) { return }
+    # NOT gated by $global:HubScanOnlineDown any more. That flag belongs
+    # to the SCAN's version probes and, once a single GitHub/web check
+    # failed, it stayed set for the WHOLE session - which silently killed
+    # the store fetch for EVERY game until the Hub was restarted. Steam
+    # has its own, self-healing breaker right below: one transient Steam
+    # failure arms a 60s cooldown, and that is the correct scope.
     if ($global:SteamFetchDownUntil -and ([DateTime]::UtcNow -lt $global:SteamFetchDownUntil)) { return }
+    # Pick up whatever the background warm has written since this process
+    # started - otherwise its results only appear after a restart.
+    Sync-SteamInfoCache
     try {
         $url = "https://store.steampowered.com/api/appdetails?appids=$SteamId&l=english"
         $resp = Invoke-RestMethod -Uri $url -TimeoutSec 4 -ErrorAction Stop
@@ -828,6 +870,17 @@ function global:Read-GameReadme {
     # image paths like ![alt](ControllerLayout.webp) to absolute
     # ones during rendering.
     $sections["_baseDir"] = $modDir
+    # OPT-OUT OF THE AUTOMATIC SECTION ORDER.
+    # The detail page normally re-sorts sections (a preferred set first,
+    # then the rest, then support/uninstall/credits at the end). That is
+    # right for a README about ONE mod, but it shreds a README that
+    # covers TWO mods one after another - sections would get pulled out
+    # of their mod's block. A README can switch the sorting off with a
+    # single line anywhere in it:
+    #     <!-- hub:keep-order -->
+    # Then the page renders every section in FILE ORDER, exactly as
+    # written. Nothing else changes.
+    if ($raw -match '(?m)^\s*<!--\s*hub:keep-order\s*-->\s*$') { $sections["_keepOrder"] = $true }
     # Split on lines that begin with "## " (h2). The first chunk
     # before any h2 is the tagline; we record it under "_tagline".
     $lines = $raw -split "`r?`n"
@@ -936,6 +989,100 @@ function global:Get-GlowColor {
 # this so it can override the simple sweep with its richer one.
 # The Install button keeps its bespoke version; this helper is
 # for everywhere else.
+# ONE hover treatment for every button on the detail page: the sweep
+# shine PLUS a glow ring in the button's own colour. Before this the
+# page mixed three behaviours - some buttons brightened their
+# background, some swept, the Flat/VR switch had a glow ring, some had
+# nothing. This is now the standard; the Flat/VR switch was the model.
+#
+# WHY THE GLOW SITS ON ITS OWN RING AND NOT ON THE BUTTON:
+# a WPF Effect renders the element AND ITS WHOLE CONTENT through the
+# effect, so a DropShadowEffect on the button puts a coloured halo
+# behind every glyph - the label looked smudged on hover (reported for
+# Open in Steam, Mod Page and the Flat/VR switch). The glow therefore
+# lives on a separate Border that has NO content: only its stroke can
+# glow, and the text stays crisp.
+#
+# The ring is built on the FIRST hover, not at attach time. Several
+# call sites assign the button's Child after wiring up hover, and
+# wrapping a child that does not exist yet would be destroyed by that
+# later assignment.
+#
+# The colour comes from the button's OWN border, so every button keeps
+# its identity (green for launch, blue for Flat/VR and Update, grey for
+# the neutral ones) while the BEHAVIOUR is identical everywhere. For a
+# button whose border is a gradient (Add-ButtonGloss) the gradient's
+# base stop is used.
+function global:Add-StandardHover {
+    param(
+        [System.Windows.Controls.Border]$Border,
+        [double]$Opacity = 0.85,
+        [int]$Blur = 14,
+        # How much white is mixed into the ring colour.
+        [double]$Lighten = 0.35
+    )
+    if (-not $Border) { return }
+    Add-SweepHover -Border $Border
+
+    # Resolve one solid colour to build the ring from.
+    $baseColor = $null
+    try {
+        $bb = $Border.BorderBrush
+        if ($bb -is [System.Windows.Media.SolidColorBrush]) {
+            $baseColor = $bb.Color
+        } elseif ($bb -is [System.Windows.Media.GradientBrush] -and $bb.GradientStops.Count -gt 0) {
+            # Add-ButtonGloss paints a top-lit gradient; its LAST stop is
+            # the button's real border colour.
+            $baseColor = $bb.GradientStops[$bb.GradientStops.Count - 1].Color
+        } elseif ($Border.Background -is [System.Windows.Media.SolidColorBrush]) {
+            $baseColor = $Border.Background.Color
+        }
+    } catch { }
+    if (-not $baseColor) { return }   # nothing to build from; the sweep carries it
+
+    $ringColor = [System.Windows.Media.Color]::FromRgb(
+        [byte][Math]::Min(255, [int]($baseColor.R + (255 - $baseColor.R) * $Lighten)),
+        [byte][Math]::Min(255, [int]($baseColor.G + (255 - $baseColor.G) * $Lighten)),
+        [byte][Math]::Min(255, [int]($baseColor.B + (255 - $baseColor.B) * $Lighten)))
+    $state = @{ Ring = $null }
+
+    $Border.Add_MouseEnter({
+        if (-not $this.IsEnabled) { return }
+        try {
+            if (-not $state.Ring) {
+                $pad = $this.Padding
+                $bt  = $this.BorderThickness
+                if ($bt.Top -le 0) { $bt = [System.Windows.Thickness]::new(1.5) }
+                $ring = New-Object System.Windows.Controls.Border
+                $ring.CornerRadius     = $this.CornerRadius
+                $ring.BorderThickness  = $bt
+                $ring.BorderBrush      = New-Object System.Windows.Media.SolidColorBrush $ringColor
+                $ring.Background       = [System.Windows.Media.Brushes]::Transparent
+                $ring.IsHitTestVisible = $false
+                # Negative padding pulls the ring back out to the button's
+                # own edge - it wraps the CONTENT, so without this it would
+                # sit inset and read as a second, smaller outline.
+                $ring.Margin = [System.Windows.Thickness]::new(-$pad.Left, -$pad.Top, -$pad.Right, -$pad.Bottom)
+                $g = New-Object System.Windows.Media.Effects.DropShadowEffect
+                $g.Color = $ringColor; $g.BlurRadius = $Blur; $g.ShadowDepth = 0; $g.Opacity = $Opacity
+                $ring.Effect = $g
+                $holder = New-Object System.Windows.Controls.Grid
+                $old = $this.Child
+                $this.Child = $null
+                if ($old) { [void]$holder.Children.Add($old) }
+                [void]$holder.Children.Add($ring)
+                $this.Child = $holder
+                $state.Ring = $ring
+            }
+            $state.Ring.Visibility = [System.Windows.Visibility]::Visible
+        } catch { }
+    }.GetNewClosure())
+
+    $Border.Add_MouseLeave({
+        try { if ($state.Ring) { $state.Ring.Visibility = [System.Windows.Visibility]::Collapsed } } catch { }
+    }.GetNewClosure())
+}
+
 function global:Add-SweepHover {
     param(
         [System.Windows.Controls.Border]$Border,
@@ -1268,6 +1415,115 @@ function global:Get-PowerTierIndex {
 #   -1    = unknown GPU (not in the pattern list)
 #   -2    = known but BELOW the LOW tier floor (~GTX 1070)
 # ---------------------------------------------------------------
+# Integrated graphics that sit in the CPU / on the board. These are
+# the ones that must NEVER win over a dedicated card. Matching is by
+# name because that is the only field Win32_VideoController fills
+# reliably on every Windows build.
+#   - Intel iGPUs: "Intel(R) UHD Graphics 770", "Iris Xe Graphics"
+#   - Intel Meteor Lake iGPU is called "Intel(R) Arc(TM) Graphics" -
+#     with NO model number. A real card is "Intel(R) Arc(TM) A770",
+#     so the model number is what separates them.
+#   - AMD APUs: "AMD Radeon(TM) Graphics", "Radeon(TM) Vega 8
+#     Graphics", and the mobile 6xxM/7xxM/8xxM series.
+$global:HubIntegratedGpuPattern =
+    '(?i)(Intel.*(UHD|HD Graphics|Iris|Xe Graphics)' +
+    '|Intel.*Arc.*Graphics(?!.*\b[A-B]\d{3}\b)' +
+    '|Radeon\(?TM\)?\s*Graphics$' +
+    '|Radeon Graphics$' +
+    '|Vega \d+ Graphics' +
+    '|\b(6[68]0M|7[678]0M|8[89]0M)\b' +
+    '|Integrated Graphics)'
+
+# Decide whether an adapter sits on the board / in the CPU or is a
+# separately fitted card. The name is only the LAST resort here -
+# two harder signals come first:
+#
+#   1. PCI vendor from PNPDeviceID. VEN_10DE is NVIDIA, and NVIDIA
+#      builds no PC integrated graphics, so that answer is final.
+#   2. Dedicated video memory. An add-in card owns its VRAM and
+#      reports gigabytes; an iGPU borrows system RAM and reports 0
+#      or a small carve-out. 1.5 GB is well above every carve-out
+#      seen and well below the smallest VR-capable card.
+#   3. Only then the name pattern (Intel UHD/Iris, Radeon(TM)
+#      Graphics, Vega n, the mobile APU series).
+#
+# Returns "dedicated", "integrated" or "unknown". Unknown is NOT
+# treated as integrated anywhere - an unrecognised card must never
+# lose to an iGPU just because nobody has heard of it yet.
+function global:Get-GpuKind {
+    param([string]$Name, [int64]$Vram = 0, [string]$Pnp = "")
+    if ($Pnp -match '(?i)VEN_10DE') { return "dedicated" }
+    if ($Vram -ge 1610612736)       { return "dedicated" }   # >= 1.5 GB
+    if ($Name -match $global:HubIntegratedGpuPattern) { return "integrated" }
+    if ($Vram -gt 0 -and $Vram -lt 1610612736)        { return "integrated" }
+    return "unknown"
+}
+
+# Pick the card the user actually games on out of a list of adapters.
+# Kept separate from the WMI read so the decision can be tested with
+# real adapter names without a graphics stack.
+#
+# $Candidates: array of hashtables @{ Name = <string>; Vram = <int64>;
+#              Pnp = <string> }   (Vram and Pnp optional)
+# Ranking, in this order:
+#   1. dedicated, then unknown, then integrated  (the whole point)
+#   2. higher recognised power tier before lower  (Get-GpuTierIndex,
+#      the same mapping the comparison itself uses)
+#   3. more dedicated video memory
+#   4. original enumeration order
+# Returns the winning name, or $null when the list is empty.
+function global:Select-DedicatedGpuName {
+    param([array]$Candidates)
+    if (-not $Candidates -or $Candidates.Count -eq 0) { return $null }
+    $i = 0
+    $scored = foreach ($c in $Candidates) {
+        $nm = [string]$c.Name
+        $tier = -1
+        if (Get-Command Get-GpuTierIndex -ErrorAction SilentlyContinue) { $tier = [int](Get-GpuTierIndex -Name $nm) }
+        $kind = Get-GpuKind -Name $nm -Vram ([int64]$c.Vram) -Pnp ([string]$c.Pnp)
+        [pscustomobject]@{
+            Name       = $nm
+            Kind       = $kind
+            Integrated = switch ($kind) { "dedicated" { 0 } "unknown" { 1 } default { 2 } }
+            Tier       = $tier
+            Vram       = [int64]($c.Vram)
+            Order      = $i++
+        }
+    }
+    $best = $scored | Sort-Object @{Expression='Integrated';Ascending=$true},
+                                  @{Expression='Tier';Ascending=$false},
+                                  @{Expression='Vram';Ascending=$false},
+                                  @{Expression='Order';Ascending=$true} |
+            Select-Object -First 1
+    return $best.Name
+}
+
+# Dedicated video memory in bytes for one adapter. Win32_VideoController
+# .AdapterRAM is a uint32 and therefore caps out at 4 GB (and reads 0 on
+# plenty of drivers), so the driver key is asked first: WDDM stores the
+# true size as qwMemorySize under the display class. Returns 0 when
+# nothing usable is found - the caller treats that as "no information",
+# never as "no card".
+function global:Get-GpuVramBytes {
+    param([string]$Name, $Controller = $null)
+    $bytes = 0
+    try {
+        $classRoot = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}'
+        foreach ($k in @(Get-ChildItem -LiteralPath $classRoot -ErrorAction SilentlyContinue)) {
+            $p = Get-ItemProperty -LiteralPath $k.PSPath -ErrorAction SilentlyContinue
+            if (-not $p) { continue }
+            if ([string]$p.DriverDesc -ne $Name) { continue }
+            $q = $p.'HardwareInformation.qwMemorySize'
+            if ($q) { $bytes = [int64]$q; break }
+        }
+    } catch { }
+    if ($bytes -le 0 -and $Controller -and $Controller.AdapterRAM) {
+        try { $bytes = [int64]$Controller.AdapterRAM } catch { }
+    }
+    if ($bytes -lt 0) { $bytes = 0 }
+    return $bytes
+}
+
 function global:Get-InstalledGpuName {
     if ($global:HubGpuName) { return $global:HubGpuName }
     try {
@@ -1277,10 +1533,18 @@ function global:Get-InstalledGpuName {
         $virtualPat = 'Microsoft Basic|Virtual|Remote|Parsec|DisplayLink|Idd|VMware|VirtualBox'
         $real = @($gpus | Where-Object { $_.Name -notmatch $virtualPat })
         if ($real.Count -eq 0) { $real = $gpus }
-        # Prefer the discrete card over an iGPU when both exist.
-        $pref = @($real | Where-Object { $_.Name -match 'NVIDIA|GeForce|RTX|GTX|Radeon|Arc' })
-        $pick = if ($pref.Count -gt 0) { $pref[0] } else { $real[0] }
-        $global:HubGpuName = [string]$pick.Name
+        # Hand every adapter to the ranking - the old code took the FIRST
+        # name that merely contained "NVIDIA|Radeon|Arc", which on a Ryzen
+        # APU board matched the integrated "AMD Radeon(TM) Graphics"
+        # before the dedicated card and reported the board chip.
+        $cands = @($real | ForEach-Object {
+            @{ Name = [string]$_.Name
+               Vram = (Get-GpuVramBytes -Name ([string]$_.Name) -Controller $_)
+               Pnp  = [string]$_.PNPDeviceID }
+        })
+        $picked = Select-DedicatedGpuName -Candidates $cands
+        if (-not $picked) { $picked = [string]$real[0].Name }
+        $global:HubGpuName = $picked
         return $global:HubGpuName
     } catch { return $null }
 }
@@ -1359,6 +1623,7 @@ function global:Get-PowerTier {
         "Mass Effect 2 LE VR"          = "STRONG"
         "GTA IV VR"                    = "SOLID"
         "Mouse P.I. For Hire VR"       = "STRONG"
+        "My Friendly Neighborhood VR"  = "STRONG"
         "Outbound VR"                  = "STRONG"
         "Stardew Valley VR"            = "STRONG"
         "BioShock Remastered"          = "STRONG"
@@ -1457,6 +1722,7 @@ function global:Get-PowerTier {
         "Scrap Mechanic VR"            = "STRONG"
         "Mage Arena VR"                = "SOLID"
         "Mega Man Star Force Legacy VR"= "SOLID"
+        "Big Walk VR"                  = "SOLID"
         "Moros Protocol VR"            = "SOLID"
         "Outer Wilds VR"               = "SOLID"
         "Outward DE VR"                = "SOLID"
@@ -1542,6 +1808,7 @@ function global:Get-PowerTier {
         "Skyrim VR" = "HIGH"
         "Doom Eternal VR" = "HIGH"
         "Atomic Heart VR"             = "HIGH"
+        "Days Gone VR"                = "HIGH"
         "Death Stranding VR"          = "HIGH"
         "Far Cry 6 VR"                = "HIGH"
         "FF VII Remake VR"            = "HIGH"
@@ -1563,7 +1830,6 @@ function global:Get-PowerTier {
         "Watch Dogs Legion VR"        = "HIGH"
 
         # ---- EXTREME ----
-        "Doom: The Dark Ages" = "EXTREME"
         "Hogwarts Legacy VR" = "EXTREME"
         "Avatar: Frontiers of Pandora VR" = "EXTREME"
         "Dragon's Dogma 2 VR"          = "EXTREME"
@@ -2093,6 +2359,70 @@ if (-not (Get-Command Get-HubSetting -ErrorAction SilentlyContinue)) {
             $obj | ConvertTo-Json -Compress | Set-Content -Path $global:HubSettingsFile -Encoding UTF8
         } catch { }
     }
+}
+
+# ---------------------------------------------------------------
+# The Hub's own desktop shortcut.
+#
+# By community request the Hub (re)writes <Desktop>\VR Mods Hub.lnk
+# on every launch: that is idempotent, repairs a broken shortcut and
+# picks up icon changes. Some users don't want one at all, so the
+# behaviour is opt-OUT via "Desktop Shortcut" in the 3-dots menu.
+#
+# The flag lives in .hub-settings.json next to the modules. That file
+# is NOT part of the shipped zip, and the updater copies with robocopy
+# WITHOUT /MIR or /PURGE, so it is never overwritten or deleted by a
+# Hub update - the choice keeps holding across versions.
+#
+#   Get-HubShortcutFlag        -> $true when a shortcut is wanted (default)
+#   Set-HubDesktopShortcut     -Enabled $true  -> (re)write the .lnk
+#                              -Enabled $false -> delete it if present
+# ---------------------------------------------------------------
+function global:Get-HubShortcutPath {
+    # GetFolderPath can come back empty on redirected / broken profiles.
+    # Fall back to the profile's Desktop, and return $null rather than
+    # letting Join-Path throw inside a caller that has no try/catch.
+    $desk = ""
+    try { $desk = [string][Environment]::GetFolderPath("Desktop") } catch { $desk = "" }
+    if (-not $desk -and $env:USERPROFILE) { $desk = Join-Path $env:USERPROFILE "Desktop" }
+    if (-not $desk) { return $null }
+    return (Join-Path $desk "VR Mods Hub.lnk")
+}
+function global:Get-HubShortcutFlag {
+    $raw = Get-HubSetting -Key "desktopShortcut" -Default $null
+    # No entry yet = the long-standing default: yes, write one.
+    if ($null -eq $raw) { return $true }
+    if ($raw -is [bool]) { return [bool]$raw }
+    # Older/hand-edited files may hold a string - treat anything
+    # falsy-looking as off, everything else as on.
+    return (-not ("$raw" -match '^(?i:false|0|off|no)$'))
+}
+function global:Set-HubDesktopShortcut {
+    param([bool]$Enabled)
+    $lnkPath = Get-HubShortcutPath
+    if (-not $lnkPath) { return $false }
+    if (-not $Enabled) {
+        try {
+            if (Test-Path -LiteralPath $lnkPath) {
+                Remove-Item -LiteralPath $lnkPath -Force -ErrorAction Stop
+            }
+            return $true
+        } catch { return $false }
+    }
+    try {
+        # $global:scriptDir is Core\; the launcher .bat lives one level up.
+        $coreDir = [string]$global:scriptDir
+        $icoPath = Join-Path $coreDir "VR Mod Hub.ico"
+        $batPath = Join-Path (Split-Path -Parent $coreDir) "Start PCVR Mods Hub.bat"
+        $shell    = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($lnkPath)
+        $shortcut.TargetPath       = $batPath
+        $shortcut.WorkingDirectory = $coreDir
+        $shortcut.Description      = "PCVR Mods Installer Hub"
+        if (Test-Path $icoPath) { $shortcut.IconLocation = $icoPath }
+        $shortcut.Save()
+        return $true
+    } catch { return $false }
 }
 
 # -------------------------------------------------------------

@@ -125,7 +125,7 @@ Write-OK "Total Chaos ZIP: $tcZip"
 Write-Step 2 5 "Choose install location"
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
-Write-Host "  (Recommended. C:\Games keeps it away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
+Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 $chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
 
 $installRoot = $null
@@ -359,7 +359,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host "  Launch: 'Start in VR' in the Hub, or the 'Total Chaos VR'" -ForegroundColor White
+Write-Host "  Launch:" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Total Chaos VR'" -ForegroundColor White
 Write-Host "  desktop shortcut" -ForegroundColor White
 Write-Host ""
 Write-Host "  Launch SteamVR (or Virtual Desktop's OpenVR) before the game to" -ForegroundColor Yellow

@@ -430,7 +430,7 @@ Write-Host ""
 Write-Host "--- How to Play ---" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1. Launch SteamVR (or your headset's runtime) first." -ForegroundColor White
-Write-Host "  2. Launch with 'Start in VR' in the Hub, or Wow.exe from" -ForegroundColor White
+Write-Host "  2. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or Wow.exe from" -ForegroundColor White
 Write-Host "     the WoW folder." -ForegroundColor White
 Write-Host "  3. Log into a character. The first time, the UI and controls" -ForegroundColor White
 Write-Host "     will look wrong - press Y on the left controller (or Esc)" -ForegroundColor White
