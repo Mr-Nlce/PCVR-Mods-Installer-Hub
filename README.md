@@ -439,3 +439,5 @@ All trademarks, game titles, and mod projects remain the property of their respe
 This project is licensed under the **MIT License**.
 
 The Hub itself is released under the MIT License. Individual VR mods remain subject to the licenses and distribution terms of their respective authors.
+
+Official game artwork and other third-party images bundled with this repository are not covered by the MIT License. All rights to these materials remain with their respective copyright holders.
