@@ -17,7 +17,7 @@
 #  flat game can be put back by hand.
 #
 #  LAUNCHING: the game is started by Launch-KisakCOD-VR.bat, which
-#  STAND v0.10.0-beta.7 (2026-08-09): das Paket bringt jetzt
+#  STAND v0.10.0-beta.12 (2026-08-13): das Paket bringt jetzt
 #  KisakCOD-VR-Configurator.exe mit - eine grafische Oberflaeche mit
 #  Presets (Tested Quest 3, Performance, Comfort Snap, Smooth Turn,
 #  Seated, Minimal HUD) und Save & Launch. Profile liegen unter
@@ -58,6 +58,10 @@ $SETTINGS_BAT= "VR-Settings.bat"
 # der vorgesehene Weg zum Einstellen; die VR-Settings.bat bleibt daneben
 # bestehen und der Batch-Starter benutzt das letzte gespeicherte Profil.
 $CONFIG_EXE  = "KisakCOD-VR-Configurator.exe"
+# Seit v0.10.0-beta.12 liegt ZUSAETZLICH ein Eingabe-Zuordner im Paket
+# (822.784 B). Der Konfigurator stellt VR und Grafik ein, der Zuordner
+# die Tastenbelegung - zwei getrennte Werkzeuge.
+$INPUT_EXE   = "KisakCOD-VR-Input-Mapper.exe"
 # Kopie der VORHANDENEN VR-Settings.bat vor dem Ueberschreiben.
 $SETTINGS_PREV = "VR-Settings.bat.hubprev"
 $ICON_FILE   = "CallOfDuty4_VR.ico"
@@ -477,6 +481,13 @@ Write-Host "   grenade calibration, reload style and scope alignment are all" -F
 Write-Host "   in there, with previews and a check before saving." -ForegroundColor White
 Write-Host "   Your profile lives outside the game folder, so the next" -ForegroundColor Gray
 Write-Host "   package update keeps it." -ForegroundColor Gray
+if (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $INPUT_EXE))) {
+Write-Host "" -ForegroundColor White
+Write-Host "   For the BUTTONS there is a second tool next to it:" -ForegroundColor White
+Write-Host " $INPUT_EXE " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "   The configurator handles VR and graphics, the input mapper" -ForegroundColor Gray
+Write-Host "   handles the controller layout - two separate programs." -ForegroundColor Gray
+}
 if ($settingsSaved) {
 Write-Host "   Had you hand-edited $SETTINGS_BAT? It is saved as" -ForegroundColor Gray
 Write-Host "   $SETTINGS_PREV - import it in the configurator." -ForegroundColor Gray

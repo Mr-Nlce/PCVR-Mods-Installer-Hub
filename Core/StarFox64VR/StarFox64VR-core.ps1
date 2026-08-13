@@ -58,12 +58,16 @@ function Get-LatestStarshipZipUrl {
         # /releases/latest 404s). Take the newest release that ships a .zip,
         # preferring a win64 build, else the first .zip.
         foreach ($rel in @($rels)) {
-            $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
-            if ($zips.Count -gt 0) {
-                $pick = $zips | Where-Object { $_.name -match '(?i)win' } | Select-Object -First 1
-                if (-not $pick) { $pick = $zips[0] }
-                if ($pick -and $pick.browser_download_url) { return [string]$pick.browser_download_url }
-            }
+            # !!! NICHT JEDES RELEASE IST EIN SPIELBARES PAKET !!!
+            # RaYRoD-TV hat bei ALLEN seinen VR-Ports ein Release
+            # "hub-patch-2" mit NUR QUELLTEXT hochgeladen (<Projekt>-2-
+            # source.zip, unter 1 MB, ohne ausfuehrbare Datei). Die alte
+            # Zeile "sonst nimm $zips[0]" haette genau die gewaehlt.
+            # Test-IsPayloadRelease und Select-PayloadAsset stehen in
+            # InstallerSafety.ps1 und pruefen Tag, Dateiname UND Groesse.
+            if (-not (Test-IsPayloadRelease -Release $rel)) { continue }
+            $pick = Select-PayloadAsset -Assets $rel.assets
+            if ($pick -and $pick.browser_download_url) { return [string]$pick.browser_download_url }
         }
 
     } catch { }

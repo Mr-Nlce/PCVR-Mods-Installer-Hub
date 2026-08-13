@@ -43,9 +43,44 @@ The game ships **Easy Anti-Cheat** for multiplayer. Never run this mod in co-op,
 - The patch's new immersion toggles (reduced highlight glow, throwable sightline preview off, hidden-UI sounds) are fine and recommended in VR.
 - A GPU with headroom.
 
+## The black screen after one frame - fixed in v0.8.5
+
+If an older build showed the headset going black after exactly one frame, this
+was it, and **the old instructions caused it**: they told you to use fullscreen.
+
+The mod renders internally at 3840x2160 so the picture stays sharp from a 1080p
+desktop. In a window that is fine. In **exclusive fullscreen** the buffer size is
+a real display mode - so on a 1080p monitor the mod was asking the display for a
+4K mode it does not have. One frame reached the headset, then nothing. In one
+tester's session it took the NVIDIA display driver down with it.
+
+**v0.8.5 takes the decision away from you:** it declines exclusive fullscreen and
+keeps the game windowed by itself. That is not a compromise - staying windowed
+avoids the display-mode change *and* keeps the sharp 4K internal render at any
+desktop resolution. The desktop window is only a mirror of what you already see
+in the headset. If the game insists anyway, the mod gives up after eight attempts
+and says so in the log.
+
+To get the old behaviour back, set `force_windowed = 0` in `GRWVR\grwxr.cfg` -
+and if the headset then goes black after one frame, also set `upsize_width = 0`
+and `upsize_height = 0`.
+
+> **Not this mod:** Ubisoft posted on 7 August that they are aware of a CPU
+> E-core issue and one affecting weapon attachments in the current game version,
+> and have a workaround for the attachments. If your weapon behaves oddly, check
+> that first. The E-core part only affects Intel CPUs with efficiency cores.
+
+## Reporting a problem
+Double-click `GRWVR\Collect-Logs.bat` and attach the zip it makes. By hand,
+include `GRWVR\grwxr.log`, `grwxr-prev.log` and every `grwxr-<number>.log` beside
+them - the game starts more than one process and the interesting one is often not
+the first - plus whether the game was running, frozen or gone from Task Manager,
+and your headset and runtime.
+
 ## Before you launch
 - Motion blur **off**.
-- Window mode **fullscreen or borderless fullscreen** - a bordered window locks the game to your monitor's refresh rate.
+- **Window mode: leave it alone.** Since v0.8.5 the mod keeps the game windowed
+  by itself, and that is deliberate - see below.
 - Anti-aliasing is your preference; SMAA and TAA both work under the stereo setup.
 - Put the headset on so it is awake and tracking **before** launching - the VR session is created once, at startup.
 - Then launch through Steam. The proxy loads itself; there is no launcher.
@@ -148,10 +183,10 @@ Rename `dxgi.dll` in the game folder, e.g. to `dxgi.dll.off`. The game then runs
   to your head.
 - Fullscreen head-tracked stereo with real depth, true first person with the
   close-range body blur removed.
-- **Set these before judging it:** fullscreen window mode (a bordered window
-  caps VR at 60), frame limit 72, supersampling 0.90, SMAA or no
-  anti-aliasing - **never TAA**. ASW off in the Oculus Debug Tool. The game
-  rewrites GRW.ini when you apply menu changes.
+- **Set these before judging it:** frame limit 72, supersampling 0.90, SMAA or
+  no anti-aliasing - **never TAA**. ASW off in the Oculus Debug Tool. The game
+  rewrites GRW.ini when you apply menu changes. Do **not** set exclusive
+  fullscreen - the mod handles the window mode itself since v0.8.5.
 - Three hotkeys: Home recenters, Numpad 8 toggles first person, Numpad . head
   aim. Everything else lives in `grwxr.cfg` and reloads about a second after
   saving; `cfg_gui.exe` is a slider editor for it.

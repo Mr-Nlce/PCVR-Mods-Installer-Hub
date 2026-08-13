@@ -1,6 +1,6 @@
 # ============================================================
 # Descenders VR Mod Installer
-# Mod by Holydh, v1.0.5 fork by kyanite-rock
+# Mod by Holydh, Fork von kyanite-rock - neueste Fassung wird geholt
 # https://github.com/kyanite-rock/DescendersVRMod
 # ============================================================
 
@@ -16,9 +16,41 @@ $ErrorActionPreference = "Stop"
 $GAME_NAME = "Descenders"
 $GAME_EXE = "Descenders.exe"
 $STEAM_APP_ID = "681280"
-$MOD_URL = "https://github.com/kyanite-rock/DescendersVRMod/releases/download/descenders_vr_mod_v1.0.5/DescendersVRMod_v1.0.5.zip"
+# !!! FRUEHER STAND HIER EINE FESTE ADRESSE AUF v1.0.5 - DAMIT WAERE JEDE
+# NEUE FASSUNG AN UNS VORBEIGEGANGEN !!! Der Autor hat nach langer Pause
+# v1.0.6 veroeffentlicht (Unterstuetzung fuer das "Community Gear Update"),
+# und der Installer haette weiter 1.0.5 geholt.
+# Jetzt wird die neueste Fassung zur Laufzeit aufgeloest; die feste Adresse
+# ist nur noch der Rueckfall ohne Netz.
+$MOD_REPO = "kyanite-rock/DescendersVRMod"
+$PINNED_TAG = "descenders_vr_mod_v1.0.6"
+$MOD_URL = "https://github.com/$MOD_REPO/releases/download/$PINNED_TAG/DescendersVRMod_v1.0.6.zip"
 
-function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host " Descenders VR Mod Installer" -ForegroundColor Magenta; Write-Host " Mod v1.0.5 by Holydh / kyanite-rock fork" -ForegroundColor Gray; Write-Host " Note: Gamepad ONLY - no motion controls, no KB&M ingame" -ForegroundColor Yellow; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host "" }
+# Neueste Fassung von GitHub holen. Der Anhang wird ueber seinen NAMEN
+# gesucht (DescendersVRMod*.zip), nicht ueber die Versionsnummer - dann
+# bricht eine Umbenennung nichts.
+function Get-DescendersLatest {
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+                   -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
+        foreach ($a in @($rel.assets)) {
+            if ($a.name -match '(?i)^DescendersVRMod.*\.zip$') {
+                return @{ Url = [string]$a.browser_download_url; Name = [string]$a.name; Tag = [string]$rel.tag_name }
+            }
+        }
+    } catch {}
+    return $null
+}
+$rel = Get-DescendersLatest
+if ($rel) {
+    $MOD_URL    = $rel.Url
+    $PINNED_TAG = $rel.Tag
+    $MOD_ZIPNAME = $rel.Name
+} else {
+    $MOD_ZIPNAME = "DescendersVRMod_v1.0.6.zip"
+}
+
+function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host " Descenders VR Mod Installer" -ForegroundColor Magenta; Write-Host " Installs: DescendersVRMod $PINNED_TAG by Holydh / kyanite-rock" -ForegroundColor Gray; Write-Host " Note: Gamepad ONLY - no motion controls, no KB&M ingame" -ForegroundColor Yellow; Write-Host "============================================================" -ForegroundColor Magenta; Write-Host "" }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-OK { param($x) Write-Host " [OK] $x" -ForegroundColor Green }
 function Write-Warn { param($x) Write-Host " [!!] $x" -ForegroundColor Yellow }
@@ -175,8 +207,8 @@ Write-Step 4 6 "Downloading and Installing VR Mod"
 $tempDir = Join-Path $env:TEMP "DescendersVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-$modZip = Join-Path $tempDir "DescendersVRMod_v1.0.5.zip"
-Write-Host " Downloading DescendersVRMod v1.0.5 ... " -NoNewline -ForegroundColor White
+$modZip = Join-Path $tempDir $MOD_ZIPNAME
+Write-Host " Downloading $MOD_ZIPNAME ... " -NoNewline -ForegroundColor White
 try {
  Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
@@ -228,7 +260,9 @@ try {
  # User chose Skip - continue at own risk
 }
 
-# The archive contains a top-level folder DescendersVRMod_v1.0.5 with the file tree inside
+# Das Archiv hat einen Wrapper-Ordner mit der Version im Namen
+# (DescendersVRMod_v1.0.6 usw.) - deshalb wird der ERSTE Unterordner
+# genommen, nicht ein fester Name.
 $inner = Get-ChildItem -Path $extractDir -Directory | Select-Object -First 1
 if (-not $inner) {
  Write-Fail "Extracted archive does not contain expected folder structure."

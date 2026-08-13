@@ -39,10 +39,17 @@ $GITHUB_REPO_URL    = "https://github.com/cybensis/SPT-VR"
 $GITHUB_API_LATEST  = "https://api.github.com/repos/cybensis/SPT-VR/releases/latest"
 $GITHUB_RELEASES    = "https://github.com/cybensis/SPT-VR/releases/latest"
 
-# Official SPT Installer (waffle-lord). Primary direct host plus
-# fallbacks so a single dead mirror never blocks setup.
+# !!! BEIDE ALTEN QUELLEN SIND TOT (geprueft 2026-08-13) !!!
+# github.com/waffle-lord/spt-installer liefert 404 - das Projekt ist in
+# die Organisation sp-tarkov umgezogen. Der Direkthost
+# ligma.waffle-lord.net antwortet gar nicht mehr (keine Verbindung).
+# Neue Adresse: sp-tarkov/installer, dort liegt SPTInstaller.exe als
+# Anhang (zuletzt gesehen: v2.100.0).
+# Die alte GitHub-Adresse bleibt als LETZTER Eintrag stehen, falls das
+# Repo eines Tages als Weiterleitung zurueckkommt - sie kostet nichts,
+# weil die Liste der Reihe nach abgearbeitet wird.
 $SPT_INSTALLER_URLS = @(
-    "https://ligma.waffle-lord.net/SPTInstaller.exe",
+    "https://github.com/sp-tarkov/installer/releases/latest/download/SPTInstaller.exe",
     "https://github.com/waffle-lord/spt-installer/releases/latest/download/SPTInstaller.exe"
 )
 $SPT_INSTALLER_PAGE = "https://hub.sp-tarkov.com/files/file/1963-spt-installer/"

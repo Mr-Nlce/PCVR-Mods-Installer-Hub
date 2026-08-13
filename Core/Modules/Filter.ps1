@@ -2033,7 +2033,19 @@ function global:Get-GithubLatestTagCached {
     if ($entry -and $entry.tag -and $entry.checked) {
         try {
             $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
-            if ($age -lt $ttlHours) { return [string]$entry.tag }
+            # !!! AUCH EIN FRISCHER CACHEWERT KANN EIN QUELLTEXT-TAG SEIN !!!
+            # Der Filter weiter unten greift erst, wenn wirklich online
+            # nachgesehen wird. Ein Wert, den Prefetch-Versions.ps1 (oder ein
+            # aelterer Lauf) hinterlegt hat, wird hier SOFORT zurueckgegeben -
+            # also noch davor. Deshalb wird er hier ebenfalls geprueft, statt
+            # sich auf das Schreiben zu verlassen: alte Cachedateien aus der
+            # Zeit vor dieser Aenderung enthalten das Tag ja bereits.
+            if ($entry.tag -match '(?i)source|hub-patch|sdk|symbols') {
+                Write-Host "[GithubCheck] $Repo : zwischengespeichertes Tag '$($entry.tag)' ist ein Quelltext-Release - wird verworfen"
+                $script:ghVerCache.Remove($cacheKey)
+            } elseif ($age -lt $ttlHours) {
+                return [string]$entry.tag
+            }
         } catch {}
     }
     # Respect the scan-wide circuit breaker: if an earlier online check in
@@ -2117,6 +2129,18 @@ function global:Get-GithubLatestTagCached {
         if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
+        # !!! EIN QUELLTEXT-RELEASE IST KEIN UPDATE !!!
+        # RaYRoD-TV hat bei allen seinen VR-Ports ein Release "hub-patch-2"
+        # hochgeladen, das nur Quelltext enthaelt. Bei Banjo ist es als
+        # Vorabversion markiert und faellt hier ohnehin weg - bei
+        # StarFox64-VR NICHT, dort ist es das offizielle "latest". Die
+        # Kachel haette also ein Update gemeldet, das keins ist.
+        # Solche Tags werden verworfen; der zuletzt bekannte Stand bleibt
+        # dann stehen, und die Kachel meldet nichts.
+        if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols')) {
+            Write-Host "[GithubCheck] $Repo : Tag '$tag' sieht nach einem Quelltext-Release aus - wird uebergangen"
+            $tag = $null
+        }
     } catch {
         Write-Host "[GithubCheck] $Repo : web check failed ($($_.Exception.Message)) - using cached tag if present"
         # A timeout / connection failure means github.com is unreachable or

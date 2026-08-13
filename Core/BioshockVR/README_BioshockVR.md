@@ -65,7 +65,62 @@ The author's own calibration files ship with the release and the installer keeps
 **If it crashes or misbehaves:** close the game and delete `vrpreset.ini`, `hands.ini`, `weapons.ini` and `command.txt` from `%LOCALAPPDATA%\BioshockVR\`. Those files override the built-in defaults key by key, so an old value keeps applying even after an update fixes the default. You only lose your own tuning; VR PRESET 1 puts a working setup back immediately. The log for a bug report is `bioshockvr.log` in the same folder.
 
 ## Playing - BioVRDev
-Start the OpenXR runtime, then launch with **Start in VR** in the Hub or from Steam. No injector, no launcher. The installer runs the mod's `FirstTimeSetup.bat` once, which writes resolution, FOV and windowed mode into `Bioshock.ini` before the game can overwrite them - re-run it only if you change `ResolutionX`, `ResolutionY` or `GameFovDegrees` in `BioshockVR.ini`.
+Start the OpenXR runtime, then launch with **Start in VR** in the Hub or from your
+storefront - **not** the `.exe` directly. No injector, no launcher.
+
+> **`Setup.bat` has to have run, or the game starts flat.** The installer runs it
+> for you, as administrator. It asks which headset and which runtime you have and
+> installs the matching OpenXR loader - the package ships both under their own
+> names and Setup puts your choice onto the name the mod actually loads. It also
+> writes resolution and FOV into `Bioshock.ini` before the game can overwrite
+> them. **Run it again if you change headset or OpenXR runtime.**
+
+Native OpenXR is the default since v1.0.3; the SteamVR shim is the fallback for
+headsets with no 32-bit OpenXR runtime, and Setup picks it automatically in that
+case.
+
+If the framerate is poor, lower `ResolutionX` and `ResolutionY` in
+`BioshockVR.ini`, run Setup again, then relaunch.
+
+### Tuning in the headset
+Weapon position, angle and crosshair tune live on the **numpad** while you play
+and write themselves back into `BioshockVR.ini` per weapon - one session can
+calibrate the whole arsenal. Each plasmid keeps its own values too. About 130
+settings live in that ini, each documented in it.
+
+### If something breaks
+Run `logs\CollectLogs.bat`. It gathers every log and config into one zip on your
+Desktop, including the copies Windows can silently redirect your settings into -
+that redirection is behind most "I changed it and nothing happened" reports. A
+single `logs\BioshockVR.log` also helps: the block at the top lists every setting
+the mod actually read.
+
+`Uninstall.bat` restores your game config, keeps your tuned `BioshockVR.ini` as a
+`.bak` instead of deleting it, and asks before removing `dxgi.dll`.
+
+### What v1.0.3 brought
+- **Both hands.** The off hand now appears and follows its controller, with a gun
+  or a plasmid. Two-handed weapons can be gripped by the barrel, and recoil no
+  longer shakes you off it.
+- **The gun holds still.** The game animated the arm the weapon hangs off, so it
+  drifted and iron sights were pointless. That is frozen while you hold a weapon,
+  and every weapon carries its own grip, angle and crosshair. Crossbow, grenade
+  launcher and chemical thrower are tuned for the first time.
+- **Scripted scenes land where they should**, no longer depending on where you
+  happened to look when they triggered.
+- **The interface stays in the room** - map, manual, upgrade machine, Gene Bank
+  and the plasmid/tonic flow are placed in the world instead of riding your head.
+- **HUD on its own panel** at a comfortable depth; the game's flat reticle is
+  disabled at the engine level and replaced by a VR dot that hides itself.
+- Movement and aiming fully decoupled, four movement modes, snap turn, haptics.
+- Bindings for Index, Vive and WMR; head bob removed at the source; the horizon
+  stays level.
+
+Known issues the author lists: pre-rendered cutscenes still follow your head, the
+water effect draws as a square, the quest arrow drifts before settling, arms sit
+slightly low in some scenes, and the desktop mirror runs at about half framerate
+(that is how the game submits frames, not a performance problem). Only Meta Touch
+controllers are tested by the author.
 
 The installer also offers the community **fullscreen cutscenes** mod for this variant, which removes the black bars. balouza hides them itself.
 

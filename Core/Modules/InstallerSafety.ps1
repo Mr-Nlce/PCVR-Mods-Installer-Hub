@@ -2064,6 +2064,58 @@ function global:Protect-InstallUserData {
 #   https://thunderstore.io/package/download/<Autor>/<Name>/<Version>/
 # Daraus werden Autor und Name gelesen - die Installer haben solche
 # Listen ohnehin, es braucht keine Umbauten an ihren Datenstrukturen.
+# ---------------------------------------------------------------
+#  Test-IsPayloadRelease / Select-PayloadAsset
+# ---------------------------------------------------------------
+# WARUM ES DAS GIBT: RaYRoD-TV hat am 2026-08-13 bei ALLEN seinen
+# VR-Ports ein Release "hub-patch-2" hochgeladen, das NUR QUELLTEXT
+# enthaelt - BanjoKazooie-VR, MarioKart64-VR, RingRacers-VR,
+# sm64coopdx-vr, SRB2-VR und StarFox64-VR. Nachgezaehlt am
+# Banjo-Beispiel: 87 Dateien, 324 KB, KEINE ausfuehrbare Datei.
+# Das echte Paket derselben Reihe hat 16 Dateien und 5,5 MB.
+#
+# Ein Installer, der "das neueste Release mit einer .zip" nimmt,
+# haette den Quelltext ausgepackt - der Anhang traegt ja denselben
+# Projektnamen (BanjoKazooie-VR-2-source.zip enthaelt "banjo").
+#
+# DREI SIGNALE, alle drei noetig, weil jedes fuer sich zu weich ist:
+#   1. Tag oder Titel des Releases sieht nach Quelltext aus
+#   2. "source" (oder patch/sdk/symbols/debug) im DATEINAMEN
+#   3. GROESSE: Martins Beobachtung - die Quelltextpakete liegen
+#      immer UNTER 1 MB, die echten deutlich darueber. Das faengt
+#      auch einen kuenftigen Anhang, der sich anders nennt.
+function global:Test-IsPayloadRelease {
+    param($Release)
+    if (-not $Release) { return $false }
+    $txt = "$([string]$Release.tag_name) $([string]$Release.name)"
+    if ($txt -match '(?i)source|hub-patch|sdk|symbols|debug-build') { return $false }
+    return $true
+}
+
+function global:Select-PayloadAsset {
+    param(
+        $Assets,
+        # Plattformkennzeichen, auf das der Anhang zeigen MUSS.
+        [string]$PlatformPattern = '(?i)(win64|win32|windows|x64)',
+        # Alles darunter ist kein spielbares Paket, sondern Quelltext.
+        [int]$MinBytes = 1048576
+    )
+    $zips = @($Assets | Where-Object { $_.name -match '(?i)\.zip$' })
+    if ($zips.Count -eq 0) { return $null }
+
+    $clean = @($zips | Where-Object {
+        ($_.name -notmatch '(?i)source|patch|sdk|symbols|debug') -and
+        ((-not $_.size) -or ([int64]$_.size -ge $MinBytes))
+    })
+    if ($clean.Count -eq 0) { return $null }
+
+    # Erst der Anhang mit Plattformkennzeichen, sonst der groesste -
+    # das spielbare Paket ist immer das dickste.
+    $pick = $clean | Where-Object { $_.name -match $PlatformPattern } | Select-Object -First 1
+    if (-not $pick) { $pick = $clean | Sort-Object { [int64]$_.size } -Descending | Select-Object -First 1 }
+    return $pick
+}
+
 function global:Test-ThunderstoreDependencies {
     param(
         [Parameter(Mandatory=$true)][string[]]$PackageUrls,

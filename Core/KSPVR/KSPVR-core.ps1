@@ -246,8 +246,8 @@ if ($updateOnly) {
  Write-Fail "Could not find the Kerbal-VR zip in the latest release."
  Write-Info "Download manually from: $KVR_RELEASES_URL"
  $__fb = Invoke-InstallerFallback -Action "KerbalVR download" `
- -Url "https://github.com/JonnyOThan/KerbalVR/releases" `
- -Instructions "Open https://github.com/JonnyOThan/KerbalVR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
+ -Url "https://github.com/FirstPersonKSP/Kerbal-VR/releases" `
+ -Instructions "Open https://github.com/FirstPersonKSP/Kerbal-VR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
  -SkipMessage "Skipped - KerbalVR was NOT installed." `
  -DestFolder "$gamePath" `
  -AllowSkip $true
@@ -426,8 +426,8 @@ try {
  Write-Warn "Could not reach GitHub API: $_"
  Write-Info "Download manually from: $KVR_RELEASES_URL"
  $__fb = Invoke-InstallerFallback -Action "KerbalVR download" `
- -Url "https://github.com/JonnyOThan/KerbalVR/releases" `
- -Instructions "Open https://github.com/JonnyOThan/KerbalVR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
+ -Url "https://github.com/FirstPersonKSP/Kerbal-VR/releases" `
+ -Instructions "Open https://github.com/FirstPersonKSP/Kerbal-VR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
  -SkipMessage "Skipped - KerbalVR was NOT installed." `
  -DestFolder "$gamePath" `
  -AllowSkip $true
@@ -445,8 +445,8 @@ if (-not $kvrUrl) {
  Write-Fail "Could not find the Kerbal-VR zip in the latest release."
  Write-Info "Download manually from: $KVR_RELEASES_URL"
  $__fb = Invoke-InstallerFallback -Action "KerbalVR download" `
- -Url "https://github.com/JonnyOThan/KerbalVR/releases" `
- -Instructions "Open https://github.com/JonnyOThan/KerbalVR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
+ -Url "https://github.com/FirstPersonKSP/Kerbal-VR/releases" `
+ -Instructions "Open https://github.com/FirstPersonKSP/Kerbal-VR/releases in the browser that just opened, download the latest KerbalVR ZIP, then extract its contents into '$gamePath' (your KSP install). Choose Retry afterwards." `
  -SkipMessage "Skipped - KerbalVR was NOT installed." `
  -DestFolder "$gamePath" `
  -AllowSkip $true

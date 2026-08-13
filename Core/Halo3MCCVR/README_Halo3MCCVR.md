@@ -33,9 +33,12 @@ Set these in MCC's own menus (you can change them with the headset on, from insi
 
 | Setting | Value |
 |---|---|
-| Settings > Video > Max Frame Rate | **120** |
+| Settings > Video > Max Frame Rate | **Unlimited** |
 | Settings > Video > V-Sync | **Off** |
+| Settings > Video > MCC FSR | **Off** |
 | Halo 3 > Settings > Field of View | **120** |
+| ODST > Settings > Look Sensitivity | **Maximum** |
+| ODST > Settings > Look Acceleration | **Off** |
 
 > **Do not enable FSR** in MCC's video menu - it breaks the VR image scale. Use the mod's picture-quality presets instead. **FOV 120** is the one that visibly breaks the game if wrong: at a lower FOV the engine stops drawing geometry at the edges, so scenery pops in and out in the headset.
 
@@ -83,7 +86,24 @@ This matters: 0.3.0 added settings that older config files do not contain, and t
 - [[L3]] + [[R3]] toggle the HUD
 - Click **both thumbsticks** to open the [[F1]] settings menu (customize your VR experience)
 - **Pause:** press the two face buttons on the **left** controller together to drop to 2D; press again to resume in VR
-- **Vehicles** need sturdy VR legs - you steer by waving your **right hand** (the right aim stick is tied to that hand)
+- **Vehicles are first person** since alpha 0.3.3, in all three games - Halo 3,
+  ODST and Reach. You steer by waving your **right hand** (the right aim stick is
+  tied to that hand), so they still need sturdy VR legs.
+
+### You have to set up your own seats
+Every seat ships with a **starting** camera position, not a finished one. Your
+height, play space and headset all differ from the author's, so a seat that
+looks right for him will sit too low or too far forward for you. It is a
+one-time job per seat:
+
+1. Get into the seat you want to fix - driver, passenger, gunner or turret
+2. Press **F1**, open the **Vehicles** category
+3. Adjust *Seat forward*, *Seat height* and *Seat left / right* until it fits
+4. Get out - it saves into `halomccvr.cfg` by itself
+
+While you sit in a seat those sliders move **that seat alone**. Driver,
+passengers and gunner each remember their own position, in each game - so do the
+ones you actually use and ignore the rest.
 - Quad-view eye tracking is supported; you can hide the IK rig for floaty hands
 - Dual-wield crosshair follows the right hand; two-handed weapon hand placement is adjustable
 
@@ -91,7 +111,7 @@ This matters: 0.3.0 added settings that older config files do not contain, and t
 - **Halo 3**, **Halo 3: ODST** and **Halo: Reach** are the supported titles; loading Halo 4 breaks the 3D hook. All three must be installed in MCC or the 3D hook does not engage at all. If switching between titles drops you to the menu, fully restart MCC (see the ODST notes above).
 - Right-stick click currently clips/hides your character instead of zooming
 - Some toggles in the [[F1]] menu are still rough
-- All third-person moments (cutscenes, vehicle riding, turrets, flamethrower) stay third-person
+- Cutscenes play in a room-fixed theatre in stereo 3D; the flamethrower stays third-person
 - Broader weapon, vehicle, turret, co-op, and headset coverage is still being worked on
 - **Double vision?** A user reported that switching SteamVR to its **Beta** branch fixes it (Steam library > SteamVR > Properties > Betas > `beta`). Also confirm SteamVR is your default OpenXR runtime.
 

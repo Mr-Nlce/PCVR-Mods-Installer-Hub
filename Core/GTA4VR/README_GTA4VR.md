@@ -19,31 +19,44 @@ runtime without SteamVR will not work.
 3. Backs up `d3d9.dll` and `dinput8.dll` as `.vrbak`, then merges the mod
    files into the game folder - asking for administrator rights only if
    that folder needs them
-4. Lets you pick the stereo mode and writes the matching settings for you
+4. Shows you the settings the pack shipped - it does **not** overwrite them
 
 ## Stereo mode
-The author recommends **AER**: the other stereo modes look right standing
-still but blur while you look around, and that is a known open issue.
+The pack ships **Mode 909** with its settings already tuned - eye resolution
+2048, `fpfov` 90 90 90 and the rest. **The installer no longer writes any of
+them.** Earlier builds needed a choice between stereo modes and the Hub wrote
+the numbers for you; that is obsolete and would only overwrite better defaults.
 
-| mode | what the installer writes |
-|---|---|
-| AER | `ipd` = 1 |
-| other stereo | `ipd` = 6, `stereoscale` = 130, `fpfov` = 110 110 110 |
+Everything is plain text next to `GTAIV.exe`, so you can still change any of it
+with Notepad. `gtaiv_dxvk_vr.stereo` is the mode itself - **`0` turns VR off**
+and gives you the flat game through DXVK.
 
-Those values come from the release notes. You can change them any time -
-they are plain text files sitting next to `GTAIV.exe`.
-
-## Required in-game setting
+## Two things the pack expects
 In the **FusionFix graphics options, choose DirectX 9** - not FusionFix's
 own Vulkan path. The VR layer hooks the DirectX 9 device.
+
+**`FirstPerson.asi` has to be off.** If you have it, rename it to
+`FirstPerson.asi.off` - this mod owns the camera and field-of-view path, and
+running both makes them fight.
+
+## Starting it
+The pack ships **`QUICK-START.bat`** next to `GTAIV.exe`: it starts SteamVR,
+waits, then launches the game through Steam. Start SteamVR first if you prefer
+to launch normally.
+
+**`FULL-RESTART.bat`** is what the VR menu's *Full restart* now runs - a real
+process restart. The menu's *Re-read settings files* only reloads the text
+files beside the game and does **not** reload the mod itself, so a changed
+setting that seems to do nothing usually needs the full restart.
 
 ## Controls
 The game plays on a gamepad; these are the VR layer's own keys.
 
 - [[F3]] or gamepad [[Back]] open / close the VR settings menu
 - [[F9]] or [[R3]] recenter the view
-- [[F4]] cycle stereo / render profiles
-- [[F5]] cycle the eye resolution
+- [[F5]] cycle the eye resolution (it saves the new value back)
+- [[F6]] stereo scale, [[F8]] IPD / separation
+- [[F10]] set the seated lean baseline
 - Menu navigation: [[WASD]], arrows or the left stick; [[Enter]] applies
 
 If the gun glitches while aiming, recenter - that is a known rough edge.

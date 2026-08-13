@@ -14,14 +14,14 @@
 # the same ASI, the same DXVK and the same FusionFix payload. Verified
 # by unpacking both - the only differences are a shipped
 # commandline.txt vs the RC2 notes file, and the value in
-# gtaiv_dxvk_vr.ipd. So the installer takes the .zip asset and then
-# WRITES the settings for the mode the user picks, straight from the
-# modder's own release notes:
-#     AER            -> ipd 1
-#     other stereo   -> ipd 6, stereoscale 130, fpfov 110 110 110
-# That makes the choice of asset irrelevant and the result correct
-# either way. AER is what the author recommends (the other stereo
-# modes blur while looking around).
+# gtaiv_dxvk_vr.ipd.
+#
+# STAND v0.9.09-hud4 (2026-08): der Installer SCHREIBT KEINE Einstellungen
+# mehr. Frueher fragte er nach "AER" oder "Other stereo" und setzte danach
+# ipd/stereoscale/fpfov aus den damaligen Release-Notes. Das Paket bringt
+# seine Einstellungsdateien inzwischen selbst und abgestimmt mit
+# (Modus 909, vres 2048, fpfov 90 90 90) - eigene Werte hineinzuschreiben
+# wuerde sie nur verschlechtern. Er zeigt jetzt nur noch, was da liegt.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -237,38 +237,49 @@ if (-not (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI))) {
 }
 if (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI)) { Write-OK "Mod files are in place." }
 
-# ---- 4. stereo mode + settings ------------------------------
-Write-Step 4 4 "Choosing the stereo mode"
+# ---- 4. was das Paket selbst mitbringt --------------------------
+Write-Step 4 4 "Checking the settings the pack shipped"
 
-Write-Host "  The author recommends AER: the other stereo modes are sharp" -ForegroundColor Gray
-Write-Host "  standing still but blur while you look around." -ForegroundColor Gray
+# !!! HIER WURDEN FRUEHER EIGENE WERTE HINEINGESCHRIEBEN - DAS IST SEIT
+# v0.9.09-hud4 FALSCH UND WURDE ENTFERNT !!!
+# Der Installer fragte nach "AER" oder "Other stereo" und schrieb danach
+# ipd = 1 bzw. ipd 6 / stereoscale 130 / fpfov 110 110 110 in den
+# Spielordner. Diese Zahlen stammten aus den Release-Notes einer FRUEHEREN
+# Fassung. Das Paket bringt seine Einstellungsdateien inzwischen SELBST mit
+# und ab Werk abgestimmt (Modus 909, vres 2048, fpfov 90 90 90) - unsere
+# Werte haetten sie ueberschrieben und die Mod schlechter gemacht.
+# Jetzt wird NICHTS mehr geschrieben, nur noch gezeigt, was da liegt.
+$sidecars = @("gtaiv_dxvk_vr.stereo", "gtaiv_dxvk_vr.vres", "gtaiv_dxvk_vr.ipd",
+              "gtaiv_dxvk_vr.stereoscale", "gtaiv_dxvk_vr.fpfov", "gtaiv_dxvk_vr.buildid")
+Write-Host "  The pack ships its own settings, already tuned. Nothing is" -ForegroundColor Gray
+Write-Host "  overwritten here - this is what came with your download:" -ForegroundColor Gray
 Write-Host ""
-Write-Host "    [1] AER            (recommended)" -ForegroundColor White
-Write-Host "    [2] Other stereo   (realistic scale, blurs when looking around)" -ForegroundColor White
+foreach ($sc in $sidecars) {
+    $scPath = Join-Path $gtaDir $sc
+    if (Test-Path -LiteralPath $scPath) {
+        $val = ""
+        try { $val = ((Get-Content -LiteralPath $scPath -Raw -ErrorAction Stop) -replace '[^\x20-\x7E]', '').Trim() } catch {}
+        Write-Host ("     {0,-30} {1}" -f $sc, $val) -ForegroundColor White
+    }
+}
 Write-Host ""
-$mode = ""
-while ($mode -ne "1" -and $mode -ne "2") {
-    $mode = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
-    if ($mode -eq "") { $mode = "1" }
-    if ($mode -ne "1" -and $mode -ne "2") { Write-Warn "Please type 1 or 2." }
+Write-Host "  All of them are plain text next to $GAME_EXE - edit with Notepad" -ForegroundColor Gray
+Write-Host "  and restart. In the headset: F3 opens the VR menu, F5 cycles the" -ForegroundColor Gray
+Write-Host "  eye resolution, F6 stereo scale, F8 IPD, F9 recenters, F10 sets" -ForegroundColor Gray
+Write-Host "  the seated baseline." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Two things the pack expects:" -ForegroundColor White
+Write-Host "   - FusionFix graphics: DirectX 9, NOT its Vulkan path" -ForegroundColor White
+Write-Host "   - FirstPerson.asi OFF (rename it to FirstPerson.asi.off if you" -ForegroundColor White
+Write-Host "     have it) - this mod owns the camera and FOV path" -ForegroundColor White
+Write-Host ""
+$qs = Join-Path $gtaDir "QUICK-START.bat"
+if (Test-Path -LiteralPath $qs) {
+    Write-OK "QUICK-START.bat is in place - it starts SteamVR and then the game."
+} else {
+    Write-Info "No QUICK-START.bat in the pack - start SteamVR first, then the game."
 }
 
-# Values verbatim from the release notes.
-$settings = @{}
-if ($mode -eq "1") { $settings["gtaiv_dxvk_vr.ipd"] = "1" }
-else {
-    $settings["gtaiv_dxvk_vr.ipd"]         = "6"
-    $settings["gtaiv_dxvk_vr.stereoscale"] = "130"
-    $settings["gtaiv_dxvk_vr.fpfov"]       = "110 110 110"
-}
-foreach ($k in $settings.Keys) {
-    try {
-        Set-Content -Path (Join-Path $gtaDir $k) -Value $settings[$k] -Encoding ASCII -NoNewline -Force -ErrorAction Stop
-        Write-OK "$k = $($settings[$k])"
-    } catch { Write-Warn "Could not write $k - set it by hand next to $GAME_EXE." }
-}
-
-try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gtaDir -Encoding UTF8 -Force } catch {}
 try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
 

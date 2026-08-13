@@ -1741,6 +1741,11 @@ function global:Get-PowerTier {
         # Engine von 2002, aber grosse offene Karten mit vielen Spielern,
         # Fahrzeugen und Flugzeugen - und Stereo verdoppelt das. Deutlich
         # mehr als die reinen Dreamcast-Ports eine Zeile weiter unten.
+        # Der Mod-Autor schreibt ausdruecklich, dass Infinite in VR SCHWERER
+        # ist als die beiden Remaster - UE3 von 2013, Stereo verdoppelt es,
+        # und er empfiehlt zuerst die Aufloesung zu senken. Die Remaster
+        # stehen auf SOLID, Infinite gehoert eine Stufe hoeher.
+        "BioShock Infinite VR"  = "STRONG"
         "Battlefield 1942 VR"   = "SOLID"
         "Shenmue I & II"        = "BASIC"
         "Sonic Robo Blast 2 VR" = "BASIC"

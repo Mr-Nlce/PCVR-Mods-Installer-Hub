@@ -37,8 +37,8 @@ $REPO              = "dubrovskiy-yevhen-stakelogic/vice-city-vr"
 $REPO_API_LATEST   = "https://api.github.com/repos/$REPO/releases/latest"
 $RELEASES_PAGE     = "https://github.com/$REPO/releases"
 # Last-known-good asset, used only if the GitHub API cannot be reached.
-$PINNED_TAG        = "v0.1.0"
-$PINNED_URL        = "https://github.com/$REPO/releases/download/v0.1.0/Vice-City-VR-v0.1.0-alpha.zip"
+$PINNED_TAG        = "v0.5.0"
+$PINNED_URL        = "https://github.com/$REPO/releases/download/v0.5.0/Vice-City-VR-v0.5.0-alpha.zip"
 
 # Microsoft Visual C++ 2015-2022 x64 runtime - reVC.exe will not start
 # without it. Version 14.0 covers 2015/2017/2019/2022 (binary compatible).

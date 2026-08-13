@@ -291,6 +291,21 @@ if (-not (Test-Path $bepinexDir)) {
  Write-OK "BepInEx + PanzerDragoonRemakeVR.dll present."
 }
 
+# Der Patcher kam mit dem Archivaustausch vom 2026-08-06 dazu - unter
+# DEMSELBEN Release-Tag 1.0, die Versionsnummer aendert sich also nicht.
+# Wer vorher installiert hat, hat ihn nicht. Deshalb wird er hier
+# ausdruecklich geprueft und nicht stillschweigend vorausgesetzt.
+$fixPatcher = Join-Path $gamePath "BepInEx\patchers\PDRReflectionFix.Patcher.dll"
+if (Test-Path -LiteralPath $fixPatcher) {
+ Write-OK "Reflection-fix patcher present ($([math]::Round((Get-Item -LiteralPath $fixPatcher).Length/1KB)) KB)."
+} else {
+ Write-Warn "PDRReflectionFix.Patcher.dll is missing from BepInEx\patchers."
+ Write-Host "  That file came with the archive the author refreshed on" -ForegroundColor Gray
+ Write-Host "  2026-08-06. If your download is older, run this installer" -ForegroundColor Gray
+ Write-Host "  again to pull the current archive." -ForegroundColor Gray
+}
+
+
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready
 # -------------------------------------------------------

@@ -419,9 +419,12 @@ Write-Host ""
 Write-Host "  Set these in MCC's OWN menus before playing. Without them" -ForegroundColor White
 Write-Host "  the mod is nearly unplayable:" -ForegroundColor White
 Write-Host ""
-Write-Host "   Settings > Video > Max Frame Rate " -NoNewline -ForegroundColor White; Write-Host " 120 " -ForegroundColor Black -BackgroundColor Yellow
+# Der Autor verlangt seit Alpha 0.3.3 UNLIMITED, nicht mehr 120.
+Write-Host "   Settings > Video > Max Frame Rate " -NoNewline -ForegroundColor White; Write-Host " Unlimited " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Settings > Video > V-Sync         " -NoNewline -ForegroundColor White; Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Halo 3  > Settings > Field of View" -NoNewline -ForegroundColor White; Write-Host " 120 " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "   ODST    > Look Sensitivity        " -NoNewline -ForegroundColor White; Write-Host " Maximum " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "   ODST    > Look Acceleration       " -NoNewline -ForegroundColor White; Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Do NOT enable FSR in MCC          " -NoNewline -ForegroundColor White; Write-Host " use mod's picture setting " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
 Write-Host "  +======================================================+" -ForegroundColor Yellow

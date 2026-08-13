@@ -16,7 +16,15 @@ $ownGames = @(
         Color       = "#0f1a0f"
         Accent      = "#55aa33"
         InfoUrl     = "https://docs.google.com/document/d/1gI9_EpF7ACiZu3bndAj1A5uGy0TKVUnfVfvTbHtWsPM/view?tab=t.0"
-        ModFile     = "7DaysToDie_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! GEAENDERT 2026-08-13 - DIE ALTE DATEI GIBT ES IN DER
+        # INSTALLATION GAR NICHT !!! Frueher stand hier
+        # 7DaysToDie_Data\Managed\UnityEngine.VRModule.dll. In Martins
+        # echter Dateiliste einer laufenden 7DVR-4.1.0.227-Installation
+        # kommt sie NICHT vor - dort liegen unter Managed\ nur
+        # netstandard.dll und Valve.Newtonsoft.Json.dll, die VR-DLLs
+        # stecken im Unterordner "7DVR Extra DLLs".
+        # Die Mod selbst ist eindeutig an ihrer eigenen Datei zu erkennen.
+        ModFile     = "BepInEx\plugins\7DaysVR.dll"
         SteamFolder = "7 Days To Die"
         GameExe     = "7DaysToDie.exe"
         Tags=@("7 days", "7dtd", "7d2d", "7d2dvr", "zombies", "fps", "open world", "shooter", "survival")
@@ -368,6 +376,45 @@ $ownGames = @(
             "If the installer parked another mod's injector, rename that file back."
         )
         Tags=@("bioshock", "bioshock 2", "rapture", "subject delta", "big daddy", "2k", "balouza", "shooter", "action", "horror", "story", "openxr")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "BioShock Infinite VR"
+        Quip        = "Bring us the girl. Look up while you do it."
+        SteamId     = "8870"
+        # !!! DAS ALTE VIDEO WAR VON BIOSHOCK 2 UEBERNOMMEN !!!
+        # Von Infinite gibt es noch KEIN VR-Mod-Gameplay, deshalb zeigt
+        # der Streifen bewusst nur normales Spielmaterial - und die
+        # Beschriftung sagt "Watch gameplay", nicht "Watch VR gameplay".
+        VideoUrl    = "https://youtu.be/Cq-XVUgy4uY?t=17"
+        VideoLabel  = "Watch gameplay"
+        Mod         = "bioshock-vr (auto-update)"
+        GithubRepo  = "mohamad-balouza/bioshock-vr"
+        Description = "Early access, heavier"
+        Author      = "balouza"
+        Bat         = "BioshockInfiniteVR\START_INSTALLER.bat"
+        Color       = "#101a24"
+        Accent      = "#d8b26a"
+        InfoUrl     = "https://github.com/mohamad-balouza/bioshock-vr"
+        ModPageUrl  = "https://github.com/mohamad-balouza/bioshock-vr"
+        DownloadUrl = "https://github.com/mohamad-balouza/bioshock-vr/releases"
+        SteamFolder = "BioShock Infinite"
+        FallbackPaths=@("C:\GOG Games\BioShock Infinite", "C:\Program Files (x86)\GOG Galaxy\Games\BioShock Infinite", "EPIC:BioShockInfinite", "EPIC:BioshockInfiniteCompleteEdition", "C:\Program Files\Epic Games\BioshockInfiniteCompleteEdition", "C:\Program Files (x86)\Epic Games\BioshockInfiniteCompleteEdition")
+        # !!! NICHT Build\Final WIE BEI BIOSHOCK 1 UND 2 !!!
+        # Infinite laeuft auf der Unreal Engine 3 und legt seine
+        # Binaerdateien unter Binaries\Win32 ab. Der Mod-Autor schreibt
+        # das ausdruecklich dazu, weil es die haeufigste Verwechslung ist.
+        # Deshalb gibt es hier auch KEIN ModFileAlt - alle Laeden nutzen
+        # denselben Pfad.
+        ModFile     = "Binaries\Win32\xinput1_3.dll"
+        GameExe     = "Binaries\Win32\BioShockInfinite.exe"
+        Notice      = "Early access: playable and comfortable from the start of the game through the early city, which is the range the author tested. Later chapters, the Skyline and the DLCs have not had a VR pass yet. Infinite is also heavier in VR than the two remasters - if it judders, lower the game resolution in the F10 overlay first (keep it roughly square), then your streaming quality."
+        UninstallSteps = @(
+            "Delete 'xinput1_3.dll' and 'bioshockvr.dll' from the game's Binaries\Win32 folder - NOT Build\Final, Infinite keeps its binaries elsewhere. The base game is left untouched.",
+            "If the installer parked another mod's injector, rename that file back.",
+            "Your VR tuning lives outside the game folder in %LOCALAPPDATA%\BioshockVR\bsi\ - delete that folder too if you want a clean slate."
+        )
+        Tags=@("bioshock", "bioshock infinite", "columbia", "booker", "elizabeth", "2k", "irrational", "balouza", "shooter", "action", "story", "openxr")
     },
     @{
         Controls    = "MC"
@@ -1062,8 +1109,16 @@ $ownGames = @(
         )
         Color       = "#180808"
         Accent      = "#cc3333"
-        InfoUrl     = "https://discord.com/channels/1001138422972432597/1391730397418881067/1391730397418881067"
+        InfoUrl     = "https://discord.com/channels/1001138422972432597/1391730397418881067/1391730397418881067"; DownloadUrl="https://discord.com/channels/1001138422972432597/1391730397418881067/1535371792041115658"
         ModFile     = "BepInEx\plugins\TheHouseOfTheDead_VR.dll"
+        # Wie bei Teil 2: die Ueberarbeitung kam als EIGENE Zusatzdateien.
+        # Neu im Archiv sind HOTD1_SourceCameraFluidWeaponAuto.dll (39.936 B)
+        # und HOTD1_AmmoMetricFrameLab.dll (53.760 B), beide 2026-08-07 -
+        # die Haupt-DLL ist mit 139.264 B vom 2026-05-14 UNVERAENDERT.
+        # Ohne Merker wuerde eine bestehende Installation nichts davon
+        # mitbekommen. Geprueft wird die Kamera-/Waffendatei, weil sie das
+        # Spielgefuehl betrifft; die zweite kommt im selben Paket mit.
+        ModRequiredFile = "BepInEx\plugins\HOTD1_SourceCameraFluidWeaponAuto.dll"
         SteamFolder = "The House of the Dead Remake"
         FallbackPaths=@("STEAM:THE HOUSE OF THE DEAD Remake", "STEAM:House of the Dead Remake", "STEAM:TheHouseOfTheDeadRemake", "GOG:THE HOUSE OF THE DEAD Remake", "GOG:House of the Dead Remake", "GOG:The House of the Dead - Remake", "GOG:The House of the Dead Remake")
         Tags=@("house of the dead", "hotd", "hotd remake", "astienth", "rail shooter", "on-rails", "shooter", "horror", "zombies", "arcade", "remake")
@@ -1084,8 +1139,13 @@ $ownGames = @(
         )
         Color       = "#180808"
         Accent      = "#cc3333"
-        InfoUrl     = "https://discord.com/channels/1001138422972432597/1504155922572775554/1504155922572775554"
+        InfoUrl     = "https://discord.com/channels/1001138422972432597/1504155922572775554/1504155922572775554"; DownloadUrl="https://discord.com/channels/1001138422972432597/1504155922572775554/1534909633393856512"
         ModFile     = "BepInEx\plugins\TheHouseOfTheDead2_VR.dll"
+        # Die FPS-Korrektur kam als EIGENE Zusatzdatei im aufgefrischten
+        # Archiv (HOTD2_SourceCameraFluidShooting.dll, 29.184 B, 2026-08-05).
+        # Die Haupt-DLL ist dabei unveraendert geblieben, also merkt eine
+        # bestehende Installation ohne diesen Merker nichts vom Update.
+        ModRequiredFile = "BepInEx\plugins\HOTD2_SourceCameraFluidShooting.dll"
         SteamFolder = "THE HOUSE OF THE DEAD 2 Remake"
         FallbackPaths=@("STEAM:House of the Dead 2 Remake", "STEAM:TheHouseOfTheDead2Remake", "GOG:THE HOUSE OF THE DEAD 2 Remake", "GOG:House of the Dead 2 Remake")
         Tags=@("house of the dead 2", "hotd2", "hotd2 remake", "astienth", "rail shooter", "on-rails", "shooter", "horror", "zombies", "arcade", "remake", "sega")
@@ -1435,13 +1495,20 @@ $ownGames = @(
         Bat         = "MousePIVR\START_INSTALLER.bat"
         UninstallSteps = @(
             "To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.",
-            "'winhttp_bak.dll'.",
+            "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.",
             "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into."
         )
         Color       = "#141210"
         Accent      = "#c9a24b"
-        InfoUrl     = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"
+        InfoUrl     = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"; DownloadUrl="https://discord.com/channels/1001138422972432597/1523984295633490031/1528716538314756278"
         ModFile     = "BepInEx\plugins\MousePI_VR.dll"
+        # Die ueberarbeitete Fassung (Controller-Vibration, behobene
+        # Sticks, Nachlade- und Trittgeste, korrigiertes Schwimmen) hat
+        # KEINE neue Datei mitgebracht - nur die Haupt-DLL ist neuer
+        # (151.040 B, 2026-07-20). Deshalb hier ein Zeitstempel statt
+        # einer Pflichtdatei: ist die installierte DLL aelter, meldet
+        # die Kachel ein Update.
+        ModBuildStamp = "2026-07-20 00:00"
         SteamFolder = "MOUSE"
         FallbackPaths=@("STEAM:MOUSE", "STEAM:Mouse", "STEAM:MOUSE P.I. For Hire", "C:\XboxGames\MOUSE P.I. For Hire\Content", "XBOX:MOUSE P.I. For Hire")
         Tags=@("mouse", "mouse pi", "p.i.", "for hire", "jack pepper", "detective", "noir", "fps", "shooter", "boomer shooter")
@@ -1562,6 +1629,16 @@ $ownGames = @(
         Accent      = "#aa6644"
         InfoUrl     = "https://github.com/Astienth/Panzer_Dragoon_Remake_VR_bHaptics_Provolver"
         ModFile     = "BepInEx\plugins\PanzerDragoonRemakeVR.dll"
+        # !!! DER AUTOR HAT DAS ARCHIV AM 2026-08-06 UNTER DEMSELBEN TAG (1.0)
+        # AUSGETAUSCHT - DIE VERSIONSNUMMER AENDERT SICH ALSO NICHT !!!
+        # Neu darin: BepInEx\patchers\PDRReflectionFix.Patcher.dll (15.360 B)
+        # und eine ueberarbeitete Lizenzdatei. Die eigentliche Mod-DLL ist
+        # unveraendert (796.672 B, 2025-01-23).
+        # Ohne diese Zeile wuerde niemand, der vorher installiert hat, je von
+        # dem Patcher erfahren: die Kachel zeigt "VR Ready" und die Moddatei
+        # liegt ja da. Der Merker greift genau dort - Mod vorhanden, neue
+        # Pflichtdatei fehlt -> Update.
+        ModRequiredFile = "BepInEx\patchers\PDRReflectionFix.Patcher.dll"
         SteamFolder = "Panzer Dragoon Remake"
         FallbackPaths=@("STEAM:PanzerDragoonRemake", "STEAM:Panzer Dragoon Remake Demo", "GOG:Panzer Dragoon Remake")
         Tags=@("panzer dragoon", "panzer dragoon remake", "astienth", "rail shooter", "shmup", "dragon", "sega", "saturn", "remake", "provolver", "protubevr", "bhaptics", "fantasy", "arcade")
@@ -2406,7 +2483,7 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Alba VR"; VideoUrl="https://www.youtube.com/watch?v=24XYvVYDqC0"; SteamId="1337010"; Mod="AlbaVR v1.0.0"; SteamFolder="Alba - A Wildlife Adventure"; FallbackPaths=@("GOG:ALBA A Wildlife Adventure", "GOG:Alba A Wildlife Adventure", "EPIC:Alba", "EPIC:Alba - A Wildlife Adventure"); Description="KB`&Mouse or Gamepad VR."; Author="wouterpleizier"; Bat="AlbaVR\START_INSTALLER.bat"; Color="#0a1a0a"; Accent="#5cc8e6"; InfoUrl="https://github.com/wouterpleizier/AlbaVR"; Tags=@("alba", "wildlife", "atmospheric", "exploration", "walking sim") ; ModFile="BepInEx\plugins\AlbaVR.dll" },
     @{ Controls="GP"; Title="Another Crab's Treasure"; VideoUrl="https://www.youtube.com/live/KG6cs-MLR9g?t=4469"; Pill="ACT_VR"; SteamId="1887840"; Mod="AnotherCrabs v1.0"; SteamFolder="Another Crab's Treasure"; FallbackPaths=@("STEAM:Another Crabs Treasure", "STEAM:AnotherCrabsTreasure"); GameExe="AnotherCrabsTreasure.exe"; Description="Discord login, depth only"; Author="Astienth"; Bat="AnotherCrabsTreasureVR\START_INSTALLER.bat"; Color="#0a1418"; Accent="#33aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1262749418981949483/1262749418981949483"; Tags=@("another crabs treasure", "another crab's treasure", "anothercrabstreasure", "astienth", "aggro crab", "souls-like", "underwater", "indie", "action rpg", "3d platformer", "depth"); ModFile="BepInEx\plugins\UnityVR_AnotherCrabTreasure.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Apollo Justice: Ace Attorney Trilogy VR"; VideoUrl="https://youtu.be/m31oG_CUQsc?t=2782"; VideoLabel="Watch gameplay"; Quip="Objection! The courtroom has never felt this real."; SteamId="2187220"; Mod="REF (auto-update)"; SteamFolder="Apollo Justice Ace Attorney Trilogy"; FallbackPaths=@("STEAM:ApolloJustice", "GOG:Apollo Justice Ace Attorney Trilogy"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="GS456.exe"; Color="#1a0a0a"; Accent="#990033"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("apollo justice", "reframework", "praydog", "narrative", "puzzle", "story"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Art of Rally VR"; VideoUrl="https://youtu.be/-yxQp4tgNdM?t=15"; SteamId="550320"; Mod="ArtOfRally_VR v1.0.0"; SteamFolder="artofrally"; FallbackPaths=@("STEAM:Art of Rally", "STEAM:ArtOfRally", "GOG:art of rally", "EPIC:ArtOfRally"); Description="Discord login, experimental"; Author="Astienth"; Bat="ArtOfRallyVR\START_INSTALLER.bat"; Color="#180a0a"; Accent="#dd5544"; InfoUrl="https://discord.com/channels/1001138422972432597/1306503565698662462/1306503565698662462"; Tags=@("art of rally", "artofrally", "astienth", "funselektor", "rally", "racing", "top down", "stylized", "indie", "arcade", "cars", "depth"); ModFile="BepInEx\plugins\ArtOfRally_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="GP"; Title="Art of Rally VR"; VideoUrl="https://youtu.be/-yxQp4tgNdM?t=15"; SteamId="550320"; Mod="ArtOfRally_VR v1.0.0"; SteamFolder="artofrally"; FallbackPaths=@("STEAM:Art of Rally", "STEAM:ArtOfRally", "GOG:art of rally", "EPIC:ArtOfRally"); Description="Discord login, experimental"; Author="Astienth"; Bat="ArtOfRallyVR\START_INSTALLER.bat"; Color="#180a0a"; Accent="#dd5544"; InfoUrl="https://discord.com/channels/1001138422972432597/1306503565698662462/1306503565698662462"; DownloadUrl="https://discord.com/channels/1001138422972432597/1306503565698662462/1520491407280832652"; Tags=@("art of rally", "artofrally", "astienth", "funselektor", "rally", "racing", "top down", "stylized", "indie", "arcade", "cars", "depth"); ModFile="BepInEx\plugins\ArtOfRally_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
         Controls    = "GP"
         Title       = "Assassin's Creed Mirage VR"
@@ -2588,7 +2665,12 @@ $ownGamesGP = @(
         SteamFolder = "Decimate Drive"
         Tags=@("decimate drive", "astienth", "horror", "driving", "arcade", "indie", "fast paced")
     },
-    @{ Controls="GP"; Title="Descenders VR"; VideoUrl="https://www.youtube.com/watch?v=tn_c77QIJ9Q"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod v1.0.5"; SteamFolder="Descenders"; FallbackPaths=@("EPIC:Descenders"); Description="KB`&Mouse or Gamepad VR."; Author="Holydh / kyanite-rock"; Bat="DescendersVR\START_INSTALLER.bat"; Color="#0a0f1a"; Accent="#5588dd"; InfoUrl="https://github.com/kyanite-rock/DescendersVRMod"; Tags=@("descenders", "downhill", "mountain bike", "mtb", "indie", "racing", "sports"); ModFile="BepInEx\plugins\DescendersVRmod.dll" },
+    @{ Controls="GP"; Title="Descenders VR"; VideoUrl="https://www.youtube.com/watch?v=tn_c77QIJ9Q"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod (auto-update)"
+        # AUTO-UPDATE NEU (2026-08-13). Vorher gab es KEINES: der Installer
+        # hatte eine feste Adresse auf v1.0.5, und der Katalog kein
+        # Update-Feld. Nach langer Pause kam v1.0.6 - niemand haette es
+        # erfahren. Die Tags heissen descenders_vr_mod_vX.Y.Z.
+        GithubRepo  = "kyanite-rock/DescendersVRMod"; SteamFolder="Descenders"; FallbackPaths=@("EPIC:Descenders"); Description="KB`&Mouse or Gamepad VR."; Author="Holydh / kyanite-rock"; Bat="DescendersVR\START_INSTALLER.bat"; Color="#0a0f1a"; Accent="#5588dd"; InfoUrl="https://github.com/kyanite-rock/DescendersVRMod"; Tags=@("descenders", "downhill", "mountain bike", "mtb", "indie", "racing", "sports"); ModFile="BepInEx\plugins\DescendersVRmod.dll" },
     @{ Controls="GP"; Title="Devil May Cry 5 VR"; VideoUrl="https://youtu.be/oY7eJfpDqr4?t=292"; Quip="Son of Sparda, stay stylish. Hit that SSS rank."; SteamId="601150"; Mod="REF (auto-update)"; SteamFolder="Devil May Cry 5"; FallbackPaths=@("STEAM:DevilMayCry5", "EPIC:Devil May Cry 5"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DevilMayCry5.exe"; Color="#1a0000"; Accent="#cc2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("devil may cry", "reframework", "praydog", "action", "fast paced", "hack and slash", "stylish"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Dinkum VR"; Quip="Farm, fish and mine your patch of the Aussie outback, now in stereoscopic VR."; SteamId="1062520"; VideoUrl="https://youtu.be/YebR5go9hGw"; VideoLabel="Watch gameplay"; Mod="DinkumVR v1.0.0"; ModReleasedAt="2026-07-25"; Description="Nexus download required"; Author="Destroyjevski"; Bat="DinkumVR\START_INSTALLER.bat"; Color="#171009"; Accent="#e0902e"; InfoUrl="https://www.nexusmods.com/dinkum/mods/440"; DownloadUrl="https://www.nexusmods.com/dinkum/mods/440?tab=files"; ModFile="BepInEx\plugins\DinkumVR\DinkumVR.dll"; ModFileAlt="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; FlatVREnabled="BepInEx\plugins\DinkumVR\DinkumVR.dll"; FlatVRDisabled="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; SteamFolder="Dinkum"; Tags=@("dinkum", "farming", "simulation", "survival", "crafting", "fishing", "mining", "sandbox", "open world", "cozy", "island", "destroyjevski") },
     @{
@@ -2742,8 +2824,8 @@ $ownGamesGP = @(
     # TwoModsRequireBoth: with a single mod there is nothing to switch
     # between, so the tile keeps the normal start until both are there.
     @{ Controls="VRGP"; Title="Hollow Knight Silksong"; VideoUrl="https://www.youtube.com/watch?v=gmR53WcH2iY"; Pill="HOLLOWK_S_VR"; Quip="Climb high, Hornet. The Citadel waits."; SteamId="1030300"; Mod="Astienth + Flat to VR"; SteamFolder="Hollow Knight Silksong"; FallbackPaths=@("STEAM:HollowKnightSilksong", "STEAM:Silksong", "GOG:Hollow Knight Silksong", "XBOX:Hollow Knight- Silksong"); Description="Two mods, Nexus, Discord"; Author="Astienth / SadMonsterParty"; Bat="HollowKnightSilksongVR\START_INSTALLER.bat"; Color="#0a0a18"; Accent="#aaccff"; InfoUrl="https://discord.com/channels/1001138422972432597/1414940597579419679/1414940597579419679"; ModPageUrl="https://www.nexusmods.com/hollowknightsilksong/mods/942"; TwoMods=$true; TwoModsRequireBoth=$true; ModAName="Astienth"; ModASub="VRLaunch"; ModALaunch="Silksong VR (Astienth).bat"; ModBName="Flat to VR"; ModBSub="VRLaunch"; ModBLaunch="Silksong VR (Flat to VR).bat"; Tags=@("hollow knight", "silksong", "hollowknight", "astienth", "sadmonsterparty", "flat to vr", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnightSilksong_VR.dll"; ModFileAlt="BepInEx\plugins\SilksongFlatToVR4.dll" },
-    @{ Controls="GP"; Title="Hollow Knight VR"; VideoUrl="https://www.youtube.com/watch?v=6b_GGwASDWo"; SteamId="367520"; Mod="HollowKnight_VR v1.0.0"; SteamFolder="Hollow Knight"; FallbackPaths=@("STEAM:HollowKnight", "GOG:Hollow Knight", "XBOX:Hollow Knight"); Description="Discord login, depth only"; Author="Astienth"; Bat="HollowKnightVR\START_INSTALLER.bat"; Color="#080a14"; Accent="#88aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1254790696502693888"; Tags=@("hollow knight", "hollowknight", "astienth", "team cherry", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "'winhttp_bak.dll').", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="Horizon Chase Turbo"; VideoUrl="https://www.youtube.com/watch?v=Ejqe96bjVy0"; Pill="HORIZONCHASE_VR"; SteamId="389140"; Mod="HorizonChaseTurboVR v1.0.0"; SteamFolder="Horizon Chase Turbo"; FallbackPaths=@("STEAM:HorizonChaseTurbo", "STEAM:Horizon Chase Turbo Demo"); Description="Discord login, Steam or Epic"; Author="Astienth"; Bat="HorizonChaseTurboVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#ff66aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362072336827814020"; Tags=@("horizon chase turbo", "horizonchaseturbo", "horizon chase", "astienth", "racing", "arcade", "retro", "top gear", "out run", "indie", "cartoon"); ModFile="BepInEx\plugins\HorizonChaseTurboVR.dll"; UninstallSteps=@("Important: this mod uses a Doorstop loader, not the usual 'winhttp.dll' proxy that the other Astienth mods use.", "To disable it, rename or delete 'doorstop_config.ini' in the game root folder.", "The mod stops loading; BepInEx and the plugin DLL can stay on disk.", "If you want to fully clean up, also delete the 'BepInEx\' folder and the 'doorstop_config.ini' file.") },
+    @{ Controls="GP"; Title="Hollow Knight VR"; VideoUrl="https://www.youtube.com/watch?v=6b_GGwASDWo"; SteamId="367520"; Mod="HollowKnight_VR v1.0.0"; SteamFolder="Hollow Knight"; FallbackPaths=@("STEAM:HollowKnight", "GOG:Hollow Knight", "XBOX:Hollow Knight"); Description="Discord login, depth only"; Author="Astienth"; Bat="HollowKnightVR\START_INSTALLER.bat"; Color="#080a14"; Accent="#88aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1254790696502693888"; DownloadUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1508878766166773821"; Tags=@("hollow knight", "hollowknight", "astienth", "team cherry", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="GP"; Title="Horizon Chase Turbo"; VideoUrl="https://www.youtube.com/watch?v=Ejqe96bjVy0"; Pill="HORIZONCHASE_VR"; SteamId="389140"; Mod="HorizonChaseTurboVR v1.0.0"; SteamFolder="Horizon Chase Turbo"; FallbackPaths=@("STEAM:HorizonChaseTurbo", "STEAM:Horizon Chase Turbo Demo", "EPIC:HorizonChaseTurbo", "EPIC:Horizon Chase Turbo", "C:\Program Files\Epic Games\HorizonChaseTurbo", "C:\Program Files (x86)\Epic Games\HorizonChaseTurbo"); Description="Discord login, Steam or Epic"; Author="Astienth"; Bat="HorizonChaseTurboVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#ff66aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362072336827814020"; DownloadUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362073443733864508"; Tags=@("horizon chase turbo", "horizonchaseturbo", "horizon chase", "astienth", "racing", "arcade", "retro", "top gear", "out run", "indie", "cartoon"); ModFile="BepInEx\plugins\HorizonChaseTurboVR.dll"; UninstallSteps=@("Important: this mod uses a Doorstop loader, not the usual 'winhttp.dll' proxy that the other Astienth mods use.", "To disable it, rename or delete 'doorstop_config.ini' in the game root folder.", "The mod stops loading; BepInEx and the plugin DLL can stay on disk.", "If you want to fully clean up, also delete the 'BepInEx\' folder and the 'doorstop_config.ini' file.") },
     @{ Controls="GP"; Title="Horizon Forbidden West VR"; VideoUrl="https://www.youtube.com/live/WLWVzzLe1BY?t=555"; Quip="Beyond the frontier, the machines roam. Aloy's bow in hand."; SteamId="2420110";       Mod="R.E.A.L."; SteamFolder="Horizon Forbidden West"; FallbackPaths=@("STEAM:Horizon Forbidden West Complete Edition", "EPIC:HorizonForbiddenWestCompleteEdition", "EPIC:Horizon Forbidden West"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc6a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Horizon Zero Dawn VR"; VideoUrl="https://youtu.be/NxCKFVs7dpQ?t=92"; Quip="Stand among the machines. Aloy's world, life-size."; SteamId="1151640";            Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn"; FallbackPaths=@("EPIC:HorizonZeroDawn", "GOG:Horizon Zero Dawn Complete Edition"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa5522"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Horizon Zero Dawn Remastered VR"; VideoUrl="https://www.youtube.com/live/8_CNr418TMg?t=748"; Quip="Aloy's world, remastered. The machines tower over you."; SteamId="2561580"; Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc7733"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
@@ -2861,7 +2943,7 @@ $ownGamesGP = @(
         LaunchExe   = "Moto Rush Reborn.exe"
         Tags=@("moto rush reborn", "astienth", "racing", "sports", "fast paced", "indie")
     },
-    @{ Controls="VRGP"; Title="New Star GP VR"; VideoUrl="https://youtu.be/fRQFt8Of38c?t=130"; VideoLabel="Watch gameplay"; Quip="Lights out and away you go, champ - chase that checkered flag."; SteamId="2217580"; Mod="New_Star_GP_VR"; Description="Discord login required"; Author="Astienth"; Bat="NewStarGPVR\START_INSTALLER.bat"; Color="#12100f"; Accent="#e85d3d"; InfoUrl="https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812"; ModFile="release\BepInEx\plugins\New_Star_GP_VR.dll"; SteamFolder="New Star GP"; FallbackPaths=@("STEAM:New Star GP", "C:\XboxGames\New Star GP\Content", "XBOX:New Star GP"); Tags=@("new star gp", "nsgp", "new star games", "f1", "formula", "motorsport", "racing", "arcade", "sports"); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "'winhttp_bak.dll'.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="VRGP"; Title="New Star GP VR"; VideoUrl="https://youtu.be/fRQFt8Of38c?t=130"; VideoLabel="Watch gameplay"; Quip="Lights out and away you go, champ - chase that checkered flag."; SteamId="2217580"; Mod="New_Star_GP_VR"; Description="Discord login required"; Author="Astienth"; Bat="NewStarGPVR\START_INSTALLER.bat"; Color="#12100f"; Accent="#e85d3d"; InfoUrl="https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812"; ModFile="release\BepInEx\plugins\New_Star_GP_VR.dll"; SteamFolder="New Star GP"; FallbackPaths=@("STEAM:New Star GP", "C:\XboxGames\New Star GP\Content", "XBOX:New Star GP"); Tags=@("new star gp", "nsgp", "new star games", "f1", "formula", "motorsport", "racing", "arcade", "sports"); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="No One Lives Forever 2 VR"; SteamFolder="No One Lives Forever 2"; VideoUrl="https://www.youtube.com/watch?v=hJhE84R74_0"; Pill="NOLF2-R3"; Quip="Slip into Cate Archer's shoes, outwit H.A.R.M., and make spycraft look effortless."; PortraitUrl="Assets/NOLF2_portrait.jpg"; HeaderUrl="Assets/NOLF2_header.jpg"; ScreenshotUrl="Assets/NOLF2_screenshot.jpg"; Mod="Release 3"; Description="NOLF2 1.3 EN required"; Author="Luke Ross"; Bat="NOLF2VR\START_INSTALLER.bat"; Color="#171109"; Accent="#e8923a"; LaunchExe="Lithtech.exe"; ModFile="VRlaunchcmds.txt"; InfoUrl="https://github.com/LukeRoss00/nolf2-real-mod"; ModPageUrl="https://www.patreon.com/realvr"; Tags=@("no one lives forever 2", "nolf2", "nolf", "cate archer", "spy", "stealth", "shooter", "fps", "retro", "adventure", "luke ross", "real") },
     @{ Controls="GP"; Title="Onimusha 2 VR"; VideoUrl="https://youtu.be/42jEMrshZzc?t=1590"; VideoLabel="Watch gameplay"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v1.0.1"; ModReleasedAt="2026-07-21"; ModBuildStamp="2026-07-21 03:24"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="BepInEx\plugins\OutboundVR\OutboundVR.dll"; SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
@@ -2918,8 +3000,26 @@ $ownGamesGP = @(
         Quip        = "That Snorlax is blocking the road at full size now. Still no flute."
         # Der Fork ist die lebende Quelle. Das alte Repo (und das Konto)
         # DramaticShape ist weg, GitHub antwortet mit 404.
-        Mod         = "Voxel Mod (auto-update)"
-        GithubRepo  = "artyrambles/DRAMALESS_SHAPE"
+        Mod         = "Voxel Mod - two versions"
+        # !!! KEIN AUTO-UPDATE MEHR - MIT ABSICHT !!!
+        # In DRAMALESS 2.0.0 hat der Autor die VR-Unterstuetzung KOMPLETT
+        # entfernt (Changelog: "VR support was removed entirely for the time
+        # being ... I have no equipment to test and debug it"; README: "The
+        # removed OpenXR loader is not distributed in 2.0."). Aus dem Archiv
+        # nachgezaehlt fehlen assets\vr\openxr_loader.dll und lib\VR.lua,
+        # VRGL.lua, VRRig.lua, VRXR.lua.
+        # Bliebe GithubRepo stehen, wuerde der Hub 2.0.0 als Update melden
+        # und jeden, der es annimmt, seine VR-Fassung kosten. Der Eintrag
+        # bleibt deshalb auf v1.6.4, der letzten Fassung MIT VR.
+        # WIEDER EINSCHALTEN, sobald VR zurueck ist - der Autor nennt im
+        # Changelog jemanden, der an einer neuen VR-Anbindung fuer Gen1Recomp
+        # arbeitet.
+        # DER INSTALLER BIETET SEIT 2026-08-13 ZWEI MODS ZUR AUSWAHL, beide
+        # mit VR und beide fest gepinnt: die ORIGINALE Dramatic Shape v1.8.2
+        # (gespiegelt bei scottcandy34, mit eingebautem First-Person-Modus
+        # und den Kampf-Funktionen) und die schlankere Dramaless v1.6.4.
+        # Immer nur eine darf in mods\ liegen - die andere wird ganz
+        # herausbewegt, nicht umbenannt und nicht geloescht.
         Description = "US .gb or .gbc ROM required"
         Author      = "artyrambles"
         Bat         = "Gen1RecompVR\START_INSTALLER.bat"
@@ -2929,6 +3029,16 @@ $ownGamesGP = @(
         ModPageUrl  = "https://github.com/artyrambles/DRAMALESS_SHAPE"
         DownloadUrl = "https://github.com/artyrambles/DRAMALESS_SHAPE/releases"
         ModFile     = "gen1recomp.exe"
+        # gen1recomp.exe gehoert zum FLACHEN Port - sie liegt auch dann da,
+        # wenn die Installation der VR-Mod gescheitert ist. Die Mod selbst
+        # liegt in %APPDATA%\pokemon-love2d\mods\ und damit ausserhalb des
+        # Spielordners, laesst sich also nicht ueber ModFile pruefen.
+        # Der Installer legt deshalb diesen Merker im Spielordner an - und
+        # NUR, wenn die manifest.json der Mod wirklich im Mod-Ordner liegt.
+        # Fehlt er, meldet die Kachel ein Update statt faelschlich VR Ready.
+        # (Wer vor dem 2026-08-13 sauber installiert hat, sieht einmalig ein
+        # Update; ein Lauf des Installers legt den Merker an.)
+        ModRequiredFile = ".pcvrhub_voxelmod"
         LaunchExe   = "gen1recomp.exe"
         StandaloneVR = $true
         SteamFolder = "Pokemon Gen 1 VR"
@@ -3060,7 +3170,7 @@ $ownGamesGP = @(
         Tags=@("road redemption", "roadredemption", "astienth", "road rash", "racing", "combat", "motorcycle", "fighting", "indie")
     },
     @{ Controls="VRGP"; Title="Rogue Flight VR"; VideoUrl="https://www.youtube.com/watch?v=0Bqa7dPUHrM"; SteamId="2784620"; Mod="RogueFlight_VR v1.0.0"; SteamFolder="Rogue Flight"; FallbackPaths=@("STEAM:RogueFlight", "STEAM:ROGUE FLIGHT", "STEAM:ROGUE_FLIGHT", "STEAM:Rogue Flight Demo"); Description="Discord login required."; Author="Astienth"; Bat="RogueFlightVR\START_INSTALLER.bat"; Color="#080820"; Accent="#66ccff"; InfoUrl="https://discord.com/channels/1001138422972432597/1443945389454528634/1443945389454528634"; Tags=@("rogue flight", "rogueflight", "astienth", "anime", "manga", "shooter", "space", "bullet hell", "fast paced", "arcade", "indie"); ModFile="BepInEx\plugins\RogueFlight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="Sayonara Wild Hearts"; VideoUrl="https://www.youtube.com/watch?v=Zcg-dsjjyYs"; Pill="SAYONARAWH_VR"; SteamId="1122720"; Mod="SayonaraWH_VR v1.0.0"; SteamFolder="Sayonara Wild Hearts"; FallbackPaths=@("STEAM:SayonaraWildHearts", "GOG:Sayonara Wild Hearts", "EPIC:Sayonara Wild Hearts", "EPIC:SayonaraWildHearts"); Description="Discord login, depth + bHaptics"; Author="Astienth"; Bat="SayonaraWildHeartsVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#cc44aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1253317358735327354/1253317358735327354"; Tags=@("sayonara wild hearts", "sayonarawildhearts", "astienth", "simogo", "annapurna", "music", "rhythm", "arcade", "casual", "stylized", "indie", "lgbtq", "atmospheric", "bhaptics"); ModFile="BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "'winhttp_bak.dll').", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="GP"; Title="Sayonara Wild Hearts"; VideoUrl="https://www.youtube.com/watch?v=Zcg-dsjjyYs"; Pill="SAYONARAWH_VR"; SteamId="1122720"; Mod="SayonaraWH_VR v1.0.0"; SteamFolder="Sayonara Wild Hearts"; FallbackPaths=@("STEAM:SayonaraWildHearts", "GOG:Sayonara Wild Hearts", "EPIC:Sayonara Wild Hearts", "EPIC:SayonaraWildHearts"); Description="Discord login, depth + bHaptics"; Author="Astienth"; Bat="SayonaraWildHeartsVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#cc44aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1253317358735327354/1253317358735327354"; Tags=@("sayonara wild hearts", "sayonarawildhearts", "astienth", "simogo", "annapurna", "music", "rhythm", "arcade", "casual", "stylized", "indie", "lgbtq", "atmospheric", "bhaptics"); ModFile="BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
         # NUR GAMEPAD: der Autor sagt ausdruecklich, dass VR-Motioncontroller
         # noch nicht unterstuetzt werden und ein Controller Pflicht ist.
@@ -3105,7 +3215,7 @@ $ownGamesGP = @(
         Tags        = @("shenmue", "sega", "dreamcast", "adventure", "story", "open world", "classic", "first person", "stereoscopic")
     },
     @{ Controls="GP"; Title="Skate Story VR"; VideoUrl="https://www.youtube.com/watch?v=mkGxh11NEuQ"; SteamId="1263240"; Mod="SkateStory_VR v1.0.0"; SteamFolder="Skate Story"; FallbackPaths=@("STEAM:SkateStory", "STEAM:Skate Story Demo", "GOG:Skate Story"); Description="Discord login, OpenVR"; Author="Astienth"; Bat="SkateStoryVR\START_INSTALLER.bat"; Color="#1a0a18"; Accent="#dd3344"; InfoUrl="https://discord.com/channels/1001138422972432597/1454427736327065655/1454427809203359774"; Tags=@("skate story", "skatestory", "astienth", "skate", "skateboarding", "sports", "stylized", "indie", "narrative"); ModFile="VRMod\SkateStoryVR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For a full uninstall, delete the renamed file plus the 'VRMod\' folder and the extra DLLs the mod added under 'SkateStory_Data\Managed\' and 'SkateStory_Data\Plugins\x86_64\'.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="Sonic P-06 VR"; VideoUrl="https://www.youtube.com/watch?v=OTHkTsVUAXE"; SteamId=""; PortraitUrl="Assets/SonicP06_portrait.jpg"; HeaderUrl="Assets/SonicP06_header.jpg"; Mod="Sonic_P-06_VR v1.0.0"; SteamFolder="Sonic P-06 VR"; FallbackPaths=@("C:\Games\Sonic P-06 VR", "C:\Games\Sonic P06 VR", "C:\Games\SonicP06VR", "D:\Games\Sonic P-06 VR", "E:\Games\Sonic P-06 VR"); Description="Fan game, Discord login."; Author="Astienth"; Bat="SonicP06VR\START_INSTALLER.bat"; Color="#0a1018"; Accent="#3399ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221"; Tags=@("sonic", "sonic 06", "sonic p-06", "sonicp06", "project 06", "chaosx", "astienth", "fan game", "platformer", "free", "action"); ModFile="BepInEx\plugins\UnityVRPlugin.dll"; LaunchExe="Sonic the Hedgehog.exe"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "'winhttp_bak.dll').", "To completely remove: delete the entire 'C:\Games\Sonic P-06 VR' (or wherever you extracted the game) folder.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="GP"; Title="Sonic P-06 VR"; VideoUrl="https://www.youtube.com/watch?v=OTHkTsVUAXE"; SteamId=""; PortraitUrl="Assets/SonicP06_portrait.jpg"; HeaderUrl="Assets/SonicP06_header.jpg"; Mod="Sonic_P-06_VR v1.0.0"; SteamFolder="Sonic P-06 VR"; FallbackPaths=@("C:\Games\Sonic P-06 VR", "C:\Games\Sonic P06 VR", "C:\Games\SonicP06VR", "D:\Games\Sonic P-06 VR", "E:\Games\Sonic P-06 VR"); Description="Fan game, Discord login."; Author="Astienth"; Bat="SonicP06VR\START_INSTALLER.bat"; Color="#0a1018"; Accent="#3399ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221"; Tags=@("sonic", "sonic 06", "sonic p-06", "sonicp06", "project 06", "chaosx", "astienth", "fan game", "platformer", "free", "action"); ModFile="BepInEx\plugins\UnityVRPlugin.dll"; LaunchExe="Sonic the Hedgehog.exe"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "To completely remove: delete the entire 'C:\Games\Sonic P-06 VR' (or wherever you extracted the game) folder.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
         Controls    = "VRGP"
         Title       = "Sonic Robo Blast 2 VR"

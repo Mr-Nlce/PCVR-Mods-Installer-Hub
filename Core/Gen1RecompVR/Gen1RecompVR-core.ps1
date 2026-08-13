@@ -66,17 +66,40 @@ $MOD_PAGE     = "https://github.com/$MOD_REPO/releases"
 # Known-good pair, verified together: the mod's manifest.json requires
 # the port to be >=0.1.37 and <2.0.0, and this is the newest pair at
 # the time of writing.
-$PIN_PORT_TAG = "v0.1.60"
+# Port auf v0.1.81 gezogen (2026-08-13). BEIDE Mods verlangen laut ihrer
+# manifest.json ">=0.1.37 <2.0.0" - 0.1.81 liegt sicher darin. Der Port
+# bleibt gepinnt, damit er nicht eines Tages auf 2.x springt und die Mods
+# aussperrt.
+$PIN_PORT_TAG = "v0.1.81"
 $PIN_MOD_TAG  = "v1.6.4"
 
 $GAME_FOLDER  = "Pokemon Gen 1 VR"
 $GAME_EXE     = "gen1recomp.exe"
 # Aus der manifest.json des echten Archivs: "id": "DRAMALESS_SHAPE".
 # Die Mod-Plattform legt danach den Ordner an, der Name ist also nicht frei.
-$MOD_ID       = "DRAMALESS_SHAPE"
-# Der Vorgaenger. Laut manifest.json steht DRAMALESS_SHAPE mit
-# DRAMATIC_SHAPE in "conflicts" - liegen beide da, laedt keiner richtig.
-$OLD_MOD_ID   = "DRAMATIC_SHAPE"
+# ZWEI MODS ZUR AUSWAHL, beide mit VR. Welche es wird, entscheidet der
+# Nutzer in Schritt 1; $MOD_ID, $OTHER_MOD_ID und die Adressen werden
+# danach gesetzt. Beide landen im GLEICHEN Ordner mods\, aber unter
+# IHRER EIGENEN Kennung aus der manifest.json - deshalb kann immer nur
+# eine aktiv sein, und die andere muss ganz aus mods\ heraus.
+#
+# ORIGINAL: DRAMATIC_SHAPE 1.8.2 von scottcandy34 gespiegelt. Die volle
+# Mod mit allem, was Dramaless spaeter herausgeworfen hat - unter anderem
+# der eingebaute First-Person-Modus. 310 Dateien, 19,7 MB entpackt.
+# KEIN AUTO-UPDATE: fest auf v1.8.2, weil es eine SPIEGELUNG ist und
+# jederzeit verschwinden kann.
+$DRAMATIC_ID   = "DRAMATIC_SHAPE"
+$DRAMATIC_TAG  = "v1.8.2"
+$DRAMATIC_URL  = "https://github.com/scottcandy34/DramaticShapeVoxelMod-latest/releases/download/v1.8.2/DRAMATIC_SHAPE-1.8.2.zip"
+$DRAMATIC_PAGE = "https://github.com/scottcandy34/DramaticShapeVoxelMod-latest/releases"
+# FORK: DRAMALESS_SHAPE 1.6.4, die letzte Fassung MIT VR. Schlanker,
+# aber ohne die Funktionen, die 2.0.0 endgueltig entfernt hat.
+$DRAMALESS_ID  = "DRAMALESS_SHAPE"
+$MOD_ID       = $DRAMALESS_ID
+# Die jeweils ANDERE Mod - wird in Schritt 1 gesetzt. Laut manifest.json
+# stehen die beiden gegenseitig in "conflicts": liegen beide in mods\,
+# laedt keiner richtig.
+$OLD_MOD_ID   = $DRAMATIC_ID
 $LOVE_MODS    = Join-Path $env:APPDATA "pokemon-love2d\mods"
 # Ablage fuer abgeloeste Mods, NEBEN mods\ - nicht darin. Der Mod-Loader
 # liest jeden Unterordner von mods\ und richtet sich nach der manifest.json
@@ -323,21 +346,57 @@ Pause-User "Press Enter to start the installation..." | Out-Null
 # ---- 1. version choice --------------------------------------
 Write-Step 1 5 "Choosing which versions to install"
 
-Write-Host "  The port and the mod move fast and must match: the mod needs" -ForegroundColor Gray
-Write-Host "  the port to be 0.1.37 or newer." -ForegroundColor Gray
+# !!! DIE REIHENFOLGE IST SEIT DRAMALESS 2.0.0 UMGEDREHT !!!
+# In 2.0.0 hat der Autor die VR-Unterstuetzung KOMPLETT ENTFERNT. Aus dem
+# Archiv nachgezaehlt: assets\vr\openxr_loader.dll (2.133.504 B) sowie
+# lib\VR.lua, VRGL.lua, VRRig.lua und VRXR.lua sind ersatzlos weg - vier
+# Dateien und der Loader. In seinem eigenen Changelog steht "VR support was
+# removed entirely for the time being ... I have no equipment to test and
+# debug it", und im README "The removed OpenXR loader is not distributed
+# in 2.0."
+# Fuer einen VR-Hub ist die neueste Fassung damit WERTLOS. v1.6.4 ist die
+# letzte mit VR und deshalb die Vorgabe.
+Write-Host "  Two mods draw this game as a 3D voxel world, and both still" -ForegroundColor Gray
+Write-Host "  have VR. Pick one - only one can be active at a time." -ForegroundColor Gray
 Write-Host ""
-Write-Host "    [1] Newest release of both  (auto-update, recommended)" -ForegroundColor White
-Write-Host "    [2] Pinned pair             (port $PIN_PORT_TAG + mod $PIN_MOD_TAG, verified together)" -ForegroundColor White
+Write-Host "    [1] Dramatic Shape $DRAMATIC_TAG  - the original, everything in it" -ForegroundColor Green
+Write-Host "        Built-in first person, the battle and Stadium features, VR." -ForegroundColor Gray
+Write-Host "        Downloaded from a MIRROR, so it may go away one day." -ForegroundColor Gray
 Write-Host ""
-$verChoice = ""
-while ($verChoice -ne "1" -and $verChoice -ne "2") {
-    $verChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
-    if ($verChoice -eq "") { $verChoice = "1" }
-    if ($verChoice -ne "1" -and $verChoice -ne "2") { Write-Warn "Please type 1 or 2." }
+Write-Host "    [2] Dramaless $PIN_MOD_TAG        - the slimmed-down fork" -ForegroundColor White
+Write-Host "        Still has VR, but its author later removed a lot -" -ForegroundColor Gray
+Write-Host "        first person and the battle features among it." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Neither auto-updates. Dramaless 2.0.0 and later have NO VR at all" -ForegroundColor DarkGray
+Write-Host "  (the author removed it - he has no headset to test with), so the" -ForegroundColor DarkGray
+Write-Host "  Hub deliberately stays on these two." -ForegroundColor DarkGray
+Write-Host ""
+$modChoice = ""
+while ($modChoice -ne "1" -and $modChoice -ne "2") {
+    $modChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
+    if ($modChoice -eq "") { $modChoice = "1" }
+    if ($modChoice -ne "1" -and $modChoice -ne "2") { Write-Warn "Please type 1 or 2." }
 }
-$portTag = $null; $modTag = $null
-if ($verChoice -eq "2") { $portTag = $PIN_PORT_TAG; $modTag = $PIN_MOD_TAG; Write-Info "Pinned pair selected." }
-else { Write-Info "Newest releases selected." }
+# Der Port bleibt in beiden Faellen gepinnt: BEIDE manifest.json verlangen
+# ">=0.1.37 <2.0.0", der Port darf also nicht auf 2.x springen.
+$portTag = $PIN_PORT_TAG
+if ($modChoice -eq "1") {
+    $MOD_ID     = $DRAMATIC_ID
+    $OLD_MOD_ID = $DRAMALESS_ID
+    $MOD_LABEL  = "Dramatic Shape Voxel Mod"
+    $modTag     = $DRAMATIC_TAG
+    $MOD_PAGE   = $DRAMATIC_PAGE
+    $MOD_DIRECT = $DRAMATIC_URL
+    Write-Info "Dramatic Shape $DRAMATIC_TAG selected - the full mod."
+} else {
+    $MOD_ID     = $DRAMALESS_ID
+    $OLD_MOD_ID = $DRAMATIC_ID
+    $MOD_LABEL  = "Dramaless Shape Voxel Mod"
+    $modTag     = $PIN_MOD_TAG
+    $MOD_DIRECT = $null
+    Write-Info "Dramaless $PIN_MOD_TAG selected - the last fork version with VR."
+}
+Write-Info "Port pinned to $portTag (both mods need it below 2.0.0)."
 
 # ---- 2. install location ------------------------------------
 Write-Step 2 5 "Choosing an install location"
@@ -422,7 +481,13 @@ Write-Host "  That path is fixed by the mod platform, not by this installer." -F
 Write-Host ""
 
 $modUrls = New-Object System.Collections.Generic.List[string]
-$modRel = Get-GithubAsset -Repo $MOD_REPO -Tag $modTag -NamePattern '(?i)(dramaless|dramatic|shape)'
+# Bei der GESPIEGELTEN Originalmod steht die Adresse fest - dort wird keine
+# Release-Liste abgefragt, weil es genau diese eine Fassung sein soll.
+if ($MOD_DIRECT) {
+    [void]$modUrls.Add($MOD_DIRECT)
+    Write-OK "Mod release: $modTag  (mirror)"
+}
+$modRel = if ($MOD_DIRECT) { $null } else { Get-GithubAsset -Repo $MOD_REPO -Tag $modTag -NamePattern '(?i)(dramaless|dramatic|shape)' }
 if ($modRel) {
     Write-OK "Mod release: $($modRel.Tag)  ($($modRel.Name))"
     [void]$modUrls.Add($modRel.Url)
@@ -461,7 +526,7 @@ if ($oldDirs.Count -gt 0) {
     }
     Write-Info "Kept in: $LOVE_MODS_OFF"
 }
-$modOk = Install-Package -Label "Dramaless Shape Voxel Mod" -Urls $modUrls -PageUrl $MOD_PAGE `
+$modOk = Install-Package -Label $MOD_LABEL -Urls $modUrls -PageUrl $MOD_PAGE `
            -ZipPath $modZip -TargetDir $modDir -MustHave $MOD_MUST_HAVE -FlattenMarker "manifest.json" `
            -Repo $MOD_REPO -Tag $modTag
 if (-not $modOk) {
@@ -481,9 +546,47 @@ $lnk = New-DesktopShortcut -TargetPath $exePath -ShortcutName "Pokemon Gen 1 VR"
 if ($lnk) { Write-OK "Desktop shortcut created: Pokemon Gen 1 VR" }
 else      { Write-Warn "Could not create the desktop shortcut - use 'Start in VR' in the Hub." }
 
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
-try { if ($modTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $modTag -Encoding UTF8 -Force } } catch {}
+# !!! DIE ERFOLGSMARKER NUR SETZEN, WENN DIE VR-MOD WIRKLICH LIEGT !!!
+# Frueher liefen sie auch dann, wenn Install-Package gescheitert war: der
+# PORT allein war installiert, die Kachel zeigte trotzdem "VR Ready", und
+# der Katalog prueft ja nur gen1recomp.exe - die gehoert aber zum flachen
+# Port, nicht zur Mod. Ergebnis waere ein Spiel ohne VR mit gruener Kachel.
+# Geprueft wird am ERGEBNIS im Dateisystem, nicht nur an $modOk: die
+# manifest.json muss im Mod-Ordner liegen.
+$modManifest = Join-Path $modDir "manifest.json"
+$modReallyThere = (Test-Path -LiteralPath $modManifest)
+
+# NACHWEIS IM SPIELORDNER, nicht nur im Installerordner. Der Hub findet
+# das Spiel notfalls ueber die FallbackPaths (C:\Games\Pokemon Gen 1 VR),
+# und ModFile zeigt auf gen1recomp.exe - die gehoert zum FLACHEN Port.
+# Ohne diesen Merker waere die Kachel also auch dann gruen, wenn nur der
+# Port da ist. Die Mod selbst liegt in %APPDATA%\pokemon-love2d\mods\ und
+# damit AUSSERHALB des Spielordners, kann also nicht direkt geprueft werden.
+$vrMarker = Join-Path $gameRoot ".pcvrhub_voxelmod"
+if ($modReallyThere) {
+    try { Set-Content -Path $vrMarker -Value "$MOD_ID $modTag" -Encoding UTF8 -Force } catch {}
+} else {
+    try { Remove-Item -LiteralPath $vrMarker -Force -ErrorAction SilentlyContinue } catch {}
+}
+
+if ($modReallyThere) {
+    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
+    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
+    try { if ($modTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $modTag -Encoding UTF8 -Force } } catch {}
+} else {
+    # Alte Marker aus einem frueheren, erfolgreichen Lauf wuerden das Bild
+    # ebenso verfaelschen - die muessen weg, sonst bleibt die Kachel gruen.
+    foreach ($m in @(".installed_path", ".launch_exe", ".installed_version")) {
+        try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR $m) -Force -ErrorAction SilentlyContinue } catch {}
+    }
+    Write-Host ""
+    Write-Warn "The VR mod is NOT installed - only the flat port is."
+    Write-Host "  The Hub will not show this as VR Ready, which is correct:" -ForegroundColor Gray
+    Write-Host "  $MOD_ID is missing from" -ForegroundColor Gray
+    Write-Host "     $modDir" -ForegroundColor Yellow
+    Write-Host "  Run this installer again, or fetch the mod by hand from:" -ForegroundColor Gray
+    Write-Host "     $MOD_PAGE" -ForegroundColor Cyan
+}
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta

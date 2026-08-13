@@ -65,17 +65,21 @@ function Get-LatestBanjoKazooieVR {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rels = Invoke-RestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         foreach ($rel in @($rels)) {
-            # Asset names carry the version (BanjoKazooie-VR-v0.1-win64.zip),
-            # so match any .zip and prefer a win64/BanjoKazooie-looking name.
-            $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
-            if ($zips.Count -gt 0) {
-                $pick = $zips | Where-Object { $_.name -match '(?i)(win64|banjo)' } | Select-Object -First 1
-                if (-not $pick) { $pick = $zips[0] }
-                if ($pick -and $pick.browser_download_url) {
-                    return @{ Url = [string]$pick.browser_download_url; Tag = [string]$rel.tag_name }
-                }
+            # !!! NICHT JEDES RELEASE IST EIN SPIELBARES PAKET !!!
+            # RaYRoD-TV hat bei ALLEN seinen VR-Ports ein Release
+            # "hub-patch-2" mit NUR QUELLTEXT hochgeladen. Bei Banjo:
+            # BanjoKazooie-VR-2-source.zip, 87 Dateien, 324 KB, KEINE
+            # Lighthouse.exe - das echte Paket hat 16 Dateien und 5,5 MB.
+            # Test-IsPayloadRelease und Select-PayloadAsset stehen in
+            # InstallerSafety.ps1 und pruefen Tag, Dateiname UND Groesse
+            # (unter 1 MB ist kein Spiel).
+            if (-not (Test-IsPayloadRelease -Release $rel)) { continue }
+            $pick = Select-PayloadAsset -Assets $rel.assets
+            if ($pick -and $pick.browser_download_url) {
+                return @{ Url = [string]$pick.browser_download_url; Tag = [string]$rel.tag_name }
             }
         }
+
     } catch { }
     return $null
 }

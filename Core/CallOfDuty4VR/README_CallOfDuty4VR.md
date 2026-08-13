@@ -60,6 +60,7 @@ To do it by hand: put `d3dx9d_43.dll` (32-bit) into the Call of Duty 4 folder, n
 
 **Start in the configurator.** Since v0.10.0-beta.7 the package ships
 `KisakCOD-VR-Configurator.exe` in the game folder - a graphical settings app.
+Since v0.10.0-beta.12 a second tool sits beside it, `KisakCOD-VR-Input-Mapper.exe`: the configurator covers VR and graphics, the input mapper covers the controller layout.
 Pick a preset (**Tested Quest 3**, Performance, Comfort Snap, Smooth Turn,
 Seated, Minimal HUD) or set things individually: snap and smooth turning,
 movement direction, graphics, HUD and game text, compass size, direction and

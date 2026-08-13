@@ -17,14 +17,14 @@
 $Host.UI.RawUI.WindowTitle = "Cyberpunk 2077 VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME     = "CyberpunkVRPort v0.0.7"
+$MOD_NAME     = "CyberpunkVRPort v0.1.1"
 $MOD_AUTHOR   = "dariulone"
 $INFO_URL     = "https://github.com/dariulone/cyberpunk-vr-port"
-$MOD_URL      = "https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.0.7/CyberpunkVRPort-0.0.7.zip"
+$MOD_URL      = "https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.1.1/CyberpunkVRPort-0.1.1.zip"
 # Tag of the pinned fallback build above - recorded as the installed
 # version when the live GitHub lookup can't be reached. Must match the
 # release tag_name the Hub sees via /releases/latest (no leading "v").
-$MOD_PINNED_TAG = "0.0.7"
+$MOD_PINNED_TAG = "0.1.1"
 $MOD_RELEASES = "https://github.com/dariulone/cyberpunk-vr-port/releases"
 # Frameworks needed for the motion-controlled hands + VR HUD. Pinned to
 # versions known to work with this mod build; only installed if missing.

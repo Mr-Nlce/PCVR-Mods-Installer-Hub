@@ -286,8 +286,19 @@ if ($failed.Count -gt 0) {
  exit 1
 }
 
-# The Hub reads this to know where the mod went.
-Set-Content -LiteralPath (Join-Path $gamePath ".installed_path") -Value $gamePath -Encoding UTF8
+# !!! DER MARKER GEHOERT IN DEN INSTALLERORDNER, NICHT IN DEN SPIELORDNER !!!
+# Der Hub sucht .installed_path ueber Get-InstalledPathFile, und das setzt
+# den Pfad aus dem Bat-Ordner des Eintrags zusammen (hier MageArenaVR\) -
+# NICHT aus dem Spielordner. Frueher landete er in $gamePath und wurde
+# deshalb nie gefunden: nach der Installation konnte die Kachel falsch
+# bleiben, besonders bei einem ungewoehnlichen Spielpfad, den die
+# FallbackPaths nicht erraten.
+# $PSScriptRoot ist genau dieser Installerordner.
+try {
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
+} catch {
+    Write-Warn "Could not record the install path - the Hub may need 'Locate install'."
+}
 
 # -------------------------------------------------------
 # Done

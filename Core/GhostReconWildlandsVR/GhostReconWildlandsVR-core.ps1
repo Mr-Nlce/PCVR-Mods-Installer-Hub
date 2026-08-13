@@ -420,8 +420,10 @@ Write-Host " (Oculus Debug Tool) - the mod" -ForegroundColor White
 Write-Host "   handles the stale eye itself and ASW stacks artifacts on top." -ForegroundColor White
 Write-Host "   Motion blur " -NoNewline -ForegroundColor White
 Write-Host " OFF " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-Write-Host " , and NOT a bordered window - use" -ForegroundColor White
-Write-Host "   fullscreen or borderless fullscreen." -ForegroundColor White
+Write-Host " . Leave the window mode ALONE -" -ForegroundColor White
+Write-Host "   since v0.8.5 the mod keeps the game windowed by itself." -ForegroundColor White
+Write-Host "   Exclusive fullscreen is what made the headset go black after" -ForegroundColor White
+Write-Host "   one frame; the mod now declines it for you." -ForegroundColor White
 Write-Host "   Put the headset on and let it track BEFORE you launch: the" -ForegroundColor White
 Write-Host "   VR session is created once, at startup." -ForegroundColor White
 Write-Host ""
