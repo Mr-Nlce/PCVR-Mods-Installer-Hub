@@ -18,6 +18,7 @@ $GAME_EXE = "gmod.exe"
 # VRMod x64 modules (native DLLs for the x64 branch of GMod)
 $MODULES_API = "https://api.github.com/repos/Abyss-c0re/vrmod-module-master/releases/latest"
 $MODULES_FALLBACK_URL = "https://github.com/Abyss-c0re/vrmod-module-master/releases/download/170625/modules.zip"
+$MODULES_PAGE         = "https://github.com/Abyss-c0re/vrmod-module-master/releases"
 
 # Workshop addon (the Lua half of the mod)
 $WORKSHOP_ID = "3442302711"
@@ -166,28 +167,9 @@ $cfgDir = Join-Path $gamePath "garrysmod\cfg"
 
 $hasStaleData = (Test-Path $vrmodDataDir)
 if ($hasStaleData) {
- Write-Warn "Existing VRMod config detected at:"
+ Write-Info "Existing VRMod data detected and retained at:"
  Write-Host " $vrmodDataDir" -ForegroundColor Gray
- Write-Host ""
- Write-Host " The mod author strongly recommends deleting old VRMod data" -ForegroundColor White
- Write-Host " when switching from another VR mod version. Skip only if" -ForegroundColor White
- Write-Host " you are reinstalling the SAME version." -ForegroundColor White
- Write-Host ""
- Write-Host " [Y] Delete old VRMod data folder (recommended if upgrading)" -ForegroundColor White
- Write-Host " [N] Keep it" -ForegroundColor Gray
- Write-Host ""
- $choice = ""
- while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host " Your choice (Y/N)").Trim() }
- if ($choice -in @("y","Y")) {
- try {
- Remove-Item -Path $vrmodDataDir -Recurse -Force -ErrorAction Stop
- Write-OK "Deleted $vrmodDataDir"
- } catch {
- Write-Fail "Could not delete: $_"
- }
- } else {
- Write-Info "Keeping existing VRMod data."
- }
+ Write-Warn "If an incompatible old VRMod configuration causes trouble, back it up and remove it manually."
 } else {
  Write-OK "No stale VRMod data found - skipping."
 }
@@ -308,7 +290,6 @@ try {
  & robocopy @rc | Out-Null
  if ($LASTEXITCODE -ge 8) { throw "robocopy exit code $LASTEXITCODE" }
  Write-Host "OK" -ForegroundColor Green
- Write-OK "Modules installed."
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Fail "Copy error: $_"
@@ -329,6 +310,43 @@ try {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+
+# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
+# robocopy meldet nur seinen eigenen Exitcode. Ein leeres, falsches oder
+# nur teilweise entpacktes Archiv waere bisher als "Modules installed."
+# durchgegangen und GMod haette einfach flach gestartet. Geprueft wird am
+# ZIEL, gegen die Dateien, die das Modulpaket mitbringen MUSS - aus dem
+# echten Archiv gelesen: das Lua-Binaermodul, das GMod laedt, und die
+# OpenVR-Bibliothek in beiden Bitness-Varianten des bin-Ordners.
+$MOD_MUST_HAVE = @(
+    "garrysmod\lua\bin\gmcl_vrmod_win64.dll",
+    "bin\win64\openvr_api.dll",
+    "bin\openvr_api.dll"
+)
+$missing = @()
+foreach ($n in $MOD_MUST_HAVE) {
+    if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing += $n }
+}
+if ($missing.Count -eq 0) {
+    Write-OK "Modules installed and verified ($($MOD_MUST_HAVE.Count) checks)."
+} else {
+    Write-Fail "The modules did not arrive completely - missing in the game folder:"
+    foreach ($n in $missing) { Write-Host "   $n" -ForegroundColor Yellow }
+    Write-Host "  Folder checked: $gamePath" -ForegroundColor Gray
+    Write-Host "  The archive must be modules.zip from the vrmod module page;" -ForegroundColor White
+    Write-Host "  inside it the files sit under install\GarrysMod\." -ForegroundColor White
+    $__fbv = Invoke-InstallerFallback -Action "install the VR modules" `
+        -Subject "the vrmod module archive" `
+        -Url $MODULES_PAGE `
+        -Instructions "Open modules.zip, go into install\GarrysMod\ and copy its CONTENTS (bin\ and garrysmod\) into '$gamePath'. Then choose Retry." `
+        -DestFolder "$gamePath" `
+        -AllowSkip $true
+    if ([string]$__fbv -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+    $missing2 = @()
+    foreach ($n in $MOD_MUST_HAVE) { if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing2 += $n } }
+    if ($missing2.Count -eq 0) { Write-OK "Now verified ($($MOD_MUST_HAVE.Count) checks)." }
+    else { Write-Warn "Still missing: $($missing2 -join ', ') - VR will not load in GMod." }
 }
 
 try { Remove-Item $tempDir -Recurse -Force } catch {}

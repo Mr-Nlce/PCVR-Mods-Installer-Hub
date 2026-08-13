@@ -109,7 +109,8 @@ $global:WIP_GAME_TITLES = @(
     "F.E.A.R. VR",
     "Stardew Valley VR",
     "GTA IV VR",
-    "My Friendly Neighborhood VR"
+    "My Friendly Neighborhood VR",
+    "Shenmue I & II"
 )
 
 # -------------------------------------------------------

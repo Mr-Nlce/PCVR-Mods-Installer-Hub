@@ -205,15 +205,11 @@ while (-not $exeItem) {
 }
 $extractedDir = Split-Path -Parent $exeItem.FullName
 
-# Wipe any prior install, then move the extracted files into place.
+# Merge the refreshed build into place; unrelated saves/configs remain.
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $extractedDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        $null = Merge-DirectoryTreeVerified -Source $extractedDir -Destination $gameRoot -Label "I Can Gun files"
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the game files: $_"

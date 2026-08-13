@@ -330,25 +330,14 @@ else {
 
  if (Test-Path $targetPath) {
  Write-Warn "A folder already exists at $targetPath"
- Write-Host " This may be from a previous install. Delete it to continue?" -ForegroundColor White
- Write-Host " [Y] Delete existing folder and proceed" -ForegroundColor White
- Write-Host " [N] Keep it, abort install" -ForegroundColor Gray
- $choice = ""
- while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host " Your choice (Y/N)").Trim() }
- if ($choice -in @("n","N")) {
- Write-Info "Aborted by user."
- Pause-User "Press Enter to exit..."
- exit 0
- }
- try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
- catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ Write-Info "Merging the pinned build; saves, IPA plugins, vr_settings.xml and other additional files are preserved."
  }
 
  try {
- Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
- Write-OK "Game moved to: $targetPath"
+ $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Yooka-Laylee depot build"
+ Write-OK "Game installed at: $targetPath"
  } catch {
- Write-Fail "Move failed: $_"
+ Write-Fail "Merge failed: $_"
  Write-Info "The game files are still at: $depotPath"
  # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
  $__fb = Invoke-InstallerFallback -Action "install folder creation" `
@@ -460,11 +449,9 @@ if ($ipaCheck) { $payloadRoot = $ipaCheck.Directory.FullName }
 
 Write-Host " Copying mod files into game folder ... " -NoNewline -ForegroundColor White
 try {
- $rc = @($payloadRoot, $gamePath, "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/R:2", "/W:1")
- & robocopy @rc | Out-Null
- if ($LASTEXITCODE -ge 8) { throw "robocopy exit code $LASTEXITCODE" }
+ $null = Merge-DirectoryTreeVerified -Source $payloadRoot -Destination $gamePath -Label "Yooka-Laylee VR mod files" `
+    -KeepExistingRelativePaths @("vr_settings.xml")
  Write-Host "OK" -ForegroundColor Green
- Write-OK "Mod files installed."
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Fail "Copy error: $_"
@@ -483,6 +470,43 @@ try {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+
+# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
+# robocopy meldet nur seinen eigenen Exitcode. Ein leeres oder falsches
+# Archiv waere bisher als "Mod files installed." durchgegangen; erst der
+# IPA-Schritt danach waere gestolpert, ohne zu sagen warum. Geprueft wird
+# am ZIEL, gegen vier Wege aus dem echten Archiv: der Patcher selbst,
+# seine Injektor-Bibliothek, das VR-Plugin und die OpenVR-Bibliothek.
+$MOD_MUST_HAVE = @(
+    "IPA.exe",
+    "IPA\Data\Managed\IllusionInjector.dll",
+    "Plugins\VookaRaylee.dll",
+    "Plugins\VRGIN.dll"
+)
+$missing = @()
+foreach ($n in $MOD_MUST_HAVE) {
+    if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing += $n }
+}
+if ($missing.Count -eq 0) {
+    Write-OK "Mod files installed and verified ($($MOD_MUST_HAVE.Count) checks)."
+} else {
+    Write-Fail "The mod did not arrive completely - missing in the game folder:"
+    foreach ($n in $missing) { Write-Host "   $n" -ForegroundColor Yellow }
+    Write-Host "  Folder checked: $gamePath" -ForegroundColor Gray
+    Write-Host "  The archive must be VookaRaylee-0.3.zip; its files sit at the" -ForegroundColor White
+    Write-Host "  top level (IPA.exe, IPA\, Plugins\, vr_settings.xml)." -ForegroundColor White
+    $__fbv = Invoke-InstallerFallback -Action "install the VookaRaylee files" `
+        -Subject "the VookaRaylee archive" `
+        -Url $MOD_INFO_URL `
+        -Instructions "Copy EVERYTHING from VookaRaylee-0.3.zip into '$gamePath' - IPA.exe, the IPA and Plugins folders, Mono.Cecil.dll and vr_settings.xml. Then choose Retry." `
+        -DestFolder "$gamePath" `
+        -AllowSkip $true
+    if ([string]$__fbv -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+    $missing2 = @()
+    foreach ($n in $MOD_MUST_HAVE) { if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing2 += $n } }
+    if ($missing2.Count -eq 0) { Write-OK "Now verified ($($MOD_MUST_HAVE.Count) checks)." }
+    else { Write-Warn "Still missing: $($missing2 -join ', ') - the IPA patch step will fail." }
 }
 
 try { Remove-Item $tempDir -Recurse -Force } catch {}

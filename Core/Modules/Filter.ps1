@@ -316,6 +316,9 @@ $filterMC        = $window.FindName("FilterMC")
 $filterGP        = $window.FindName("FilterGP")
 $filterInstalled = $window.FindName("FilterInstalled")
 $filterVRReady   = $window.FindName("FilterVRReady")
+$filterUpdate    = $window.FindName("FilterUpdate")
+$filterUpdBadge  = $window.FindName("FilterUpdateBadge")
+$filterUpdCount  = $window.FindName("FilterUpdateCount")
 $installedFilterGroup = $window.FindName("InstalledFilterGroup")
 
 # Soft hover on filter pills. The pills' active state already
@@ -331,6 +334,7 @@ Add-SoftHover -Border $filterMC
 Add-SoftHover -Border $filterGP
 Add-SoftHover -Border $filterInstalled
 Add-SoftHover -Border $filterVRReady
+Add-SoftHover -Border $filterUpdate
 
 $activeFilter      = "ALL"
 # Install-state filter is a tri-state, mutually exclusive with itself:
@@ -470,10 +474,10 @@ function global:Set-DetailFilterMarks {
 
     # Drop any Add-SoftHover stash so a later MouseLeave can't restore a
     # stale pre-hover look (same cleanup Set-FilterStyle does).
-    foreach ($pill in @($filterAll, $filterMC, $filterGP, $filterInstalled, $filterVRReady)) {
+    foreach ($pill in @($filterAll, $filterMC, $filterGP, $filterInstalled, $filterVRReady, $filterUpdate)) {
         if (-not $pill) { continue }
         if ($pill.Resources.Contains("shBg")) { $pill.Resources.Remove("shBg") | Out-Null }
-        $tb = if ($pill -eq $filterAll) { $pill.Child } elseif ($pill -eq $filterInstalled -or $pill -eq $filterVRReady) { $pill.Child.Children[0] } else { $pill.Child.Children[1] }
+        $tb = if ($pill -eq $filterAll) { $pill.Child } elseif ($pill -eq $filterInstalled -or $pill -eq $filterVRReady -or $pill -eq $filterUpdate) { $pill.Child.Children[0] } else { $pill.Child.Children[1] }
         if ($tb -and $tb.Resources.Contains("shFg")) { $tb.Resources.Remove("shFg") | Out-Null }
         $pill.Background = [System.Windows.Media.Brushes]::Black
         # Detail-page marking is border + text only - drop any leftover
@@ -562,12 +566,23 @@ function global:Set-InstallFilterMode {
 
     # Same hover-cache cleanup as Set-FilterStyle - otherwise the
     # MouseLeave after clicking restores the pre-click grey.
-    foreach ($pill in @($filterInstalled, $filterVRReady)) {
+    foreach ($pill in @($filterInstalled, $filterVRReady, $filterUpdate)) {
         if (-not $pill) { continue }
         if ($pill.Resources.Contains("shBg")) { $pill.Resources.Remove("shBg") | Out-Null }
         $tb = $pill.Child.Children[0]
         if ($tb -and $tb.Resources.Contains("shFg")) { $tb.Resources.Remove("shFg") | Out-Null }
         $pill.Background = $glassBg
+    }
+    # DIE ZAHL IM TRAEGER HAT DIESELBE FALLE, und sie hat zugeschlagen:
+    # Add-SoftHover sammelt ALLE TextBlocks unter der Pille - also auch die
+    # Ziffer - und legt beim Hover die Ruhefarbe in "shFg" ab. Die Schleife
+    # oben raeumt nur Child.Children[0] auf, das ist die Beschriftung. Wer
+    # die Pille also erst ueberfahren und dann angeklickt hat, bekam beim
+    # Verlassen die ALTE, gedaempfte Ziffernfarbe zurueckgeschrieben -
+    # deshalb war die Zahl im ausgewaehlten Zustand schlecht lesbar und
+    # wurde erst beim naechsten Hover wieder heller.
+    if ($filterUpdCount -and $filterUpdCount.Resources.Contains("shFg")) {
+        $filterUpdCount.Resources.Remove("shFg") | Out-Null
     }
 
     if ($filterInstalled) {
@@ -594,6 +609,62 @@ function global:Set-InstallFilterMode {
             $filterVRReady.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassBgReadyOff)
             ($filterVRReady.Child.Children[0]).Foreground = $inactFg
             $filterVRReady.Effect = $null
+        }
+    }
+
+    # --- Updates-Pille: sichtbar nur nach einem Scan UND nur wenn es
+    # ueberhaupt etwas zu aktualisieren gibt. Sie steht bewusst NEBEN dem
+    # Anker/Partner-Tausch der beiden oberen Pillen und macht daran nichts
+    # mit. Hier zentral erledigt, weil alle drei Stellen, die die Pillen
+    # nach einem Scan einblenden, ohnehin Set-InstallFilterMode aufrufen.
+    if ($filterUpdate) {
+        $updCount = 0
+        try {
+            if ($global:gameStateMap -and $global:gameStateMap.Count -gt 0) {
+                foreach ($k in $global:gameStateMap.Keys) {
+                    $stv = $global:gameStateMap[$k]
+                    if ($stv -and $stv.State -eq "update") { $updCount++ }
+                }
+            }
+        } catch {}
+        if ($updCount -gt 0) {
+            $filterUpdate.Visibility = [System.Windows.Visibility]::Visible
+            if ($filterUpdCount) { $filterUpdCount.Text = [string]$updCount }
+        } else {
+            # Nichts zu aktualisieren -> Pille weg. War sie der aktive
+            # Filter, faellt der Modus zurueck, sonst zeigte die Liste
+            # nichts mehr und niemand wuesste warum.
+            $filterUpdate.Visibility = [System.Windows.Visibility]::Collapsed
+            if ($filterUpdCount) { $filterUpdCount.Text = "0" }
+            if ($Mode -eq "update") { $script:installFilterMode = "off"; $Mode = "off" }
+        }
+        # Der Traeger der Zahl. Sie steht auch im ABGEWAEHLTEN Zustand da -
+        # deshalb dort ein zurueckhaltendes, halbdurchlaessiges Blau (12 %
+        # Deckung) mit gedaempfter Ziffer; angewaehlt wird beides kraeftiger
+        # (27 %, helle Ziffer). #AARRGGBB, die ersten zwei Stellen sind Alpha.
+        if ($filterUpdBadge) {
+            $filterUpdBadge.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString(
+                $(if ($Mode -eq "update") { "#4460A5FA" } else { "#1F60A5FA" }))
+        }
+        if ($filterUpdCount) {
+            # ANGEWAEHLT: REINES WEISS, mit Absicht. Add-SoftHover hellt beim
+            # Hover jeden Text auf #dddddd auf, der NICHT reinweiss ist -
+            # bei #EAF3FD wurde die Ziffer dadurch beim Ueberfahren sogar
+            # dunkler und sprang hin und her. Reinweiss laesst der Hover in
+            # Ruhe, genau wie bei der Beschriftung der aktiven Pille.
+            $filterUpdCount.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString(
+                $(if ($Mode -eq "update") { "#FFFFFF" } else { "#8FB6DD" }))
+        }
+        if ($Mode -eq "update") {
+            $filterUpdate.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#60a5fa")
+            $filterUpdate.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassBgReadyOn)
+            ($filterUpdate.Child.Children[0]).Foreground = $whiteBr
+            $filterUpdate.Effect = New-ChipGlow "#60a5fa"
+        } else {
+            $filterUpdate.BorderBrush = $inactBd
+            $filterUpdate.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassBgReadyOff)
+            ($filterUpdate.Child.Children[0]).Foreground = $inactFg
+            $filterUpdate.Effect = $null
         }
     }
 
@@ -780,7 +851,11 @@ function global:Test-GamePassesFilter {
                 $instMatch = $true
             } else {
                 $st = $global:gameStateMap[$GameData.Title]
-                if ($script:installFilterMode -eq "ready") {
+                if ($script:installFilterMode -eq "update") {
+                    # Updates = installiert UND es liegt eine neuere Version
+                    # vor. Echte Teilmenge von VR Ready.
+                    $instMatch = ($st -ne $null) -and ($st.State -eq "update")
+                } elseif ($script:installFilterMode -eq "ready") {
                     # VR Ready = the VR mod is installed (states ready/update).
                     # This is the modded subset of Installed.
                     $instMatch = ($st -ne $null) -and ($st.State -in @("ready", "update"))
@@ -919,6 +994,17 @@ $filterVRReady.Add_PreviewMouseLeftButtonDown({
         # VR Ready is the revealed partner -> promote it (swap).
         Set-InstallFilterMode "ready"
     }
+    Apply-Filter
+    if (($script:installFilterMode -ne "off") -and ($global:gameStateMap.Count -eq 0)) {
+        Pulse-CheckInstalledButton
+    }
+})
+
+$filterUpdate.Add_PreviewMouseLeftButtonDown({
+    # Eigener Schalter, kein Tausch: an oder aus. Die beiden anderen
+    # Pillen behalten ihr Wechselspiel unter sich.
+    $newMode = if ($script:installFilterMode -eq "update") { "off" } else { "update" }
+    Set-InstallFilterMode $newMode
     Apply-Filter
     if (($script:installFilterMode -ne "off") -and ($global:gameStateMap.Count -eq 0)) {
         Pulse-CheckInstalledButton
@@ -1818,6 +1904,98 @@ function global:Invoke-ScanWebGet {
         $global:HubScanOnlineDown = $true
         return $null
     }
+}
+
+function global:Get-CodebergLatestTagCached {
+    # Wie Get-GithubLatestTagCached, nur fuer Codeberg. Codeberg laeuft auf
+    # FORGEJO und hat dieselbe API-Form wie Gitea:
+    #   https://codeberg.org/api/v1/repos/<owner>/<repo>/releases?limit=1
+    # Das erste Element traegt tag_name. Anders als bei GitHub gibt es kein
+    # enges 60/Stunde-Limit, deshalb steht hier die API VORNE und der
+    # RSS-Feed (/releases.rss, ebenfalls von Forgejo bereitgestellt) ist nur
+    # der Rueckfall.
+    #
+    # Eigene Cache-Datei .cb_version_cache, damit sich Codeberg- und
+    # GitHub-Schluessel nie in die Quere kommen. Gleiche TTL von 6 Stunden,
+    # gleiches Verhalten bei Fehlern: der ZULETZT bekannte Tag wird
+    # zurueckgegeben, damit der Update-Zustand stabil bleibt.
+    param([string]$Repo, [switch]$IncludePrerelease)
+    if (-not $Repo) { return $null }
+    $cacheKey = if ($IncludePrerelease) { "$Repo#pre" } else { $Repo }
+    $ttlHours = 6
+    if ($null -eq $script:cbVerCache) {
+        $script:cbVerCache = @{}
+        $script:cbVerCacheFile = Join-Path $global:scriptDir ".cb_version_cache"
+        if (Test-Path $script:cbVerCacheFile) {
+            try {
+                $raw = Get-Content $script:cbVerCacheFile -Raw | ConvertFrom-Json
+                foreach ($p in $raw.PSObject.Properties) {
+                    $script:cbVerCache[$p.Name] = @{ tag = [string]$p.Value.tag; checked = [string]$p.Value.checked }
+                }
+            } catch {}
+        }
+    }
+    $entry = $script:cbVerCache[$cacheKey]
+    $now = [DateTime]::UtcNow
+    if ($entry -and $entry.tag -and $entry.checked) {
+        try {
+            $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
+            if ($age -lt $ttlHours) { return [string]$entry.tag }
+        } catch {}
+    }
+    # Dieselbe Sicherung wie bei GitHub: ist eine fruehere Onlinepruefung in
+    # DIESEM Scan schon gescheitert, wird das Netz nicht noch einmal
+    # angefasst - sonst stapeln sich Zeitueberschreitungen zu einem langen
+    # Einfrieren der Oberflaeche.
+    if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
+        if ($entry -and $entry.tag) { return [string]$entry.tag }
+        return $null
+    }
+    $tag = $null
+    try {
+        $rel = Invoke-RestMethod -Uri "https://codeberg.org/api/v1/repos/$Repo/releases?limit=5" `
+                   -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 3 -EA Stop 2>$null
+        foreach ($r in @($rel)) {
+            if ($r.draft) { continue }
+            if ($r.prerelease -and -not $IncludePrerelease) { continue }
+            if ($r.tag_name) { $tag = [string]$r.tag_name.Trim(); break }
+        }
+    } catch {
+        Write-Host "[CodebergCheck] $Repo : API-Pruefung fehlgeschlagen ($($_.Exception.Message)) - versuche den RSS-Feed"
+    }
+    if (-not $tag) {
+        try {
+            $rssResp = Invoke-WebRequest -Uri "https://codeberg.org/$Repo/releases.rss" `
+                           -UseBasicParsing -TimeoutSec 3 `
+                           -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop
+            $rss = [string]$rssResp.Content
+            if ($rss) {
+                # Forgejo setzt den Tag in die <link>-Adresse des Eintrags:
+                #   https://codeberg.org/<owner>/<repo>/releases/tag/<tag>
+                $m = [regex]::Match($rss, [regex]::Escape($Repo) + '/releases/tag/([^<"&]+)')
+                if ($m.Success) {
+                    $t = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
+                    if ($t) { $tag = $t }
+                }
+            }
+        } catch {
+            Write-Host "[CodebergCheck] $Repo : auch der RSS-Feed ging nicht ($($_.Exception.Message))"
+            # Nur ein echter Verbindungsfehler darf den Scan-weiten Schalter
+            # umlegen - eine Begrenzung bedeutet, der Rechner ist erreichbar.
+            if ($_.Exception.Message -notmatch "rate limit|403|forbidden") { $global:HubScanOnlineDown = $true }
+        }
+    }
+    if ($tag) {
+        $script:cbVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
+        try {
+            $obj = @{}
+            foreach ($k in $script:cbVerCache.Keys) { $obj[$k] = $script:cbVerCache[$k] }
+            ($obj | ConvertTo-Json) | Set-Content -Path $script:cbVerCacheFile -Encoding UTF8 -Force
+        } catch {}
+        return $tag
+    }
+    if ($entry -and $entry.tag) { return [string]$entry.tag }
+    return $null
 }
 
 function global:Get-GithubLatestTagCached {
@@ -3372,6 +3550,23 @@ function global:Invoke-CheckInstalledScan {
                         $needsUpdate = $true
                     }
                 }
+            } elseif ($game.CodebergRepo) {
+                # Wie der GitHub-Zweig darueber, nur gegen Codeberg. Gleiche
+                # Regeln: fehlt der Marker, wird er mit dem aktuellen Tag
+                # gesetzt ("kein Marker = gerade das Neueste installiert"),
+                # es sei denn NoVersionSeed sagt etwas anderes; weicht der
+                # Marker vom Tag ab, gibt es eine Update-Kachel.
+                $cbVer = Get-CodebergLatestTagCached -Repo $game.CodebergRepo -IncludePrerelease:([bool]$game.CodebergPrerelease)
+                if ($cbVer) {
+                    if (-not $installedVer) {
+                        if (-not $game.NoVersionSeed) {
+                            Write-InstalledVersion -Game $game -Version $cbVer -GameDir $gameDir
+                            $installedVer = $cbVer
+                        }
+                    } elseif (($installedVer -replace '^[vV]','') -ne ($cbVer -replace '^[vV]','')) {
+                        $needsUpdate = $true
+                    }
+                }
             } elseif ($game.WebVersionUrl) {
                 # Mods distributed only via their own website (the GRAND mod for
                 # Alien Isolation). The published version is read via
@@ -3497,6 +3692,24 @@ function global:Invoke-CheckInstalledScan {
                 try {
                     if ((Test-Path -LiteralPath (Join-Path $gameDir $game.ModLegacyFile)) -and
                         -not (Test-Path -LiteralPath (Join-Path $gameDir $game.ModFile))) {
+                        $needsUpdate = $true
+                    }
+                } catch {}
+            }
+
+            # ModRequiredFile: eine Datei, die eine VOLLSTAENDIGE Installation
+            # haben MUSS. Ist die Mod da (ModFile vorhanden), diese Datei aber
+            # NICHT, dann wurde mit einem aelteren Rezept installiert - z.B.
+            # bevor eine Abhaengigkeit dazukam. Das ist der Gegenfall zu
+            # ModLegacyFile: dort verraet eine ALTE Datei den alten Stand,
+            # hier verraet eine FEHLENDE Datei den unvollstaendigen.
+            # Ohne diesen Fall bekaeme niemand ein Update angezeigt, dessen
+            # Installation nur unvollstaendig ist - die Version der Hauptmod
+            # hat sich ja nicht geaendert.
+            if (-not $needsUpdate -and $game.ModRequiredFile -and $game.ModFile -and $gameDir) {
+                try {
+                    if ((Test-Path -LiteralPath (Join-Path $gameDir $game.ModFile)) -and
+                        -not (Test-Path -LiteralPath (Join-Path $gameDir $game.ModRequiredFile))) {
                         $needsUpdate = $true
                     }
                 } catch {}

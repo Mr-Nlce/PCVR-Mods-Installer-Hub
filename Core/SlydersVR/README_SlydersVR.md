@@ -50,9 +50,6 @@ vrApi = OpenXR    # change to OpenVR
 ## Known issues
 - Beam laser upgrade: aiming with the non-dominant hand still damages enemies, but the laser visual doesn't follow your aim.
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (game runs flat). Delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` for a full uninstall.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

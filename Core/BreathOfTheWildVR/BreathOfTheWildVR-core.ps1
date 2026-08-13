@@ -139,12 +139,8 @@ if (Test-Path $cemuExe) {
         $cemuInner = Join-Path $tmp "Cemu_2.6"
         $srcRoot = if (Test-Path $cemuInner) { $cemuInner } else { $tmp }
         try {
-            Get-ChildItem -Path $srcRoot -Force | ForEach-Object {
-                $dest = Join-Path $installRoot $_.Name
-                if (Test-Path $dest) { try { Remove-Item $dest -Recurse -Force } catch {} }
-                Move-Item -Path $_.FullName -Destination $dest -Force
-            }
-            Write-OK "Cemu extracted into $installRoot"
+            $null = Merge-DirectoryTreeVerified -Source $srcRoot -Destination $installRoot -Label "Cemu files"
+            Write-OK "Cemu merged into $installRoot"
         } catch { Write-Warn "Could not move all Cemu files: $($_.Exception.Message)" }
         try { Remove-Item $tmp -Recurse -Force } catch {}
         try { Remove-Item $cemuZip -Force } catch {}
@@ -185,11 +181,7 @@ if ($gpUrls.Count -gt 0) {
             $gpTopFiles = @(Get-ChildItem -Path $gpTmp -File -Force)
             if ($gpTopDirs.Count -eq 1 -and $gpTopFiles.Count -le 2) { $gpSrc = $gpTopDirs[0].FullName }
             try {
-                Get-ChildItem -Path $gpSrc -Directory -Force | ForEach-Object {
-                    $dest = Join-Path $gpDir $_.Name
-                    if (Test-Path $dest) { try { Remove-Item $dest -Recurse -Force } catch {} }
-                    Move-Item -Path $_.FullName -Destination $dest -Force
-                }
+                $null = Merge-DirectoryTreeVerified -Source $gpSrc -Destination $gpDir -Label "Cemu community graphic packs"
                 Write-OK "Community graphic packs pre-loaded (FPS++ is now available to enable)."
             } catch { Write-Warn "Could not place all graphic packs: $($_.Exception.Message)" }
         }

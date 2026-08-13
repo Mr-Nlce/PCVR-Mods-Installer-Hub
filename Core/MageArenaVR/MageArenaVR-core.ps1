@@ -183,6 +183,12 @@ Write-Host "  It renders through OpenVR, so SteamVR has to be running before" -F
 Write-Host "  you start the game. This installer places BepInEx 5 and the mod" -ForegroundColor White
 Write-Host "  into your Steam copy of Mage Arena." -ForegroundColor White
 Write-Host ""
+try {
+    # Abhaengigkeiten der Abhaengigkeiten pruefen - siehe PEAK.
+    $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($PINNED_URLS.Values))
+    Show-ThunderstoreDependencyWarning -Missing $tsMissing
+} catch {}
+
 Pause-User "Press Enter to start..."
 
 # -------------------------------------------------------

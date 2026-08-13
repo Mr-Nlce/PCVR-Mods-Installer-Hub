@@ -41,9 +41,6 @@ The first launch after installing the mod takes longer than usual - that's norma
 firstPersonWorldScale = 2.2   # decrease = bigger world, increase = smaller
 ```
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (game runs flat). Delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` for a full uninstall.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

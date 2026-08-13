@@ -238,11 +238,9 @@ $extractedDir = Split-Path -Parent $exeItem.FullName
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $extractedDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        # Merge keeps user-supplied games\WL6, games\M1... data and any
+        # additional local files while refreshing the shipped application.
+        $null = Merge-DirectoryTreeVerified -Source $extractedDir -Destination $gameRoot -Label "WolfSharp files"
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the game files: $_"

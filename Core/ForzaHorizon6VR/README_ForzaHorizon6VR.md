@@ -41,9 +41,15 @@ There is no single "best" mod - opinions differ, so both are offered.
    cockpit view - that view is shown in the headset.
 3. **[[Ctrl]] + [[Space]]** recenters the headset.
 
-Settings: lower graphics, **V-Sync OFF**, frame rate unlimited, and turn
-motion blur / DLSS / frame generation **off**. DIBR mode runs smoothest;
-AFR looks cleaner but halves the frame rate.
+Settings: lower graphics, **V-Sync OFF**, frame rate unlimited, motion blur
+and film grain **off**. DIBR mode runs smoothest; AFR looks cleaner but halves
+the frame rate.
+
+**DLSS: Super Resolution is fine, Frame Generation is not.** The mod ships that
+recommendation in its own Forza Horizon 6 profile and gives the reason: VRMod's
+AFR frame generation runs on the inject path, and the game's own DLSS-G would
+fight it for the same D3D12 device. Quality, Balanced or Performance upscaling
+alone is fine.
 
 **Can't see the in-car UI** (map, speedometer, etc.)? In **Settings > HUD & Gameplay**, set **HUD Safe Frame Vertical** to **25** (all the way right).
 

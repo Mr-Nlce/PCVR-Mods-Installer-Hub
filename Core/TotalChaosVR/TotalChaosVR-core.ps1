@@ -209,15 +209,12 @@ while (-not $marker) {
 $gamedataDir = $marker.Directory
 $pkgRoot     = $gamedataDir.Parent.FullName
 
-# Rebuild the game folder from the package root.
+# Merge the refreshed package into the game folder.  Existing saves, engine
+# configuration and other user-created files stay in place.
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        Get-ChildItem -Path $pkgRoot -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        $null = Merge-DirectoryTreeVerified -Source $pkgRoot -Destination $gameRoot -Label "Total Chaos files"
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the Total Chaos files: $_"
@@ -307,11 +304,7 @@ $gzSrcDir  = Split-Path -Parent $gzExe.FullName
 $gzExeName = $gzExe.Name
 $gzDestDir = Join-Path $gameRoot "gzdoomvr"
 try {
-    if (Test-Path $gzDestDir) { Remove-Item $gzDestDir -Recurse -Force -ErrorAction SilentlyContinue }
-    New-Item -ItemType Directory -Path $gzDestDir -Force -ErrorAction Stop | Out-Null
-    Get-ChildItem -Path $gzSrcDir -Force | ForEach-Object {
-        Move-Item -Path $_.FullName -Destination $gzDestDir -Force -ErrorAction Stop
-    }
+    $null = Merge-DirectoryTreeVerified -Source $gzSrcDir -Destination $gzDestDir -Label "gzdoomvr files"
 } catch {
     Write-Fail "Could not place the gzdoomvr files: $_"
     Invoke-InstallerFallback -Action "copy the gzdoomvr files into place" `

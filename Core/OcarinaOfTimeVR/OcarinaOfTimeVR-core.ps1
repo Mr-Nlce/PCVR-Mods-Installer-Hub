@@ -411,17 +411,33 @@ if ($doDjipi -in @("y","Y")) {
 
     # -- which look --------------------------------------------
     Write-Host ""
-    Write-Host "   [1] 3DS look - the whole pack. Not with the HD textures." -ForegroundColor White
-    Write-Host "   [2] Only the 3D backgrounds. Pairs with the HD textures." -ForegroundColor White
+    # [2] IST DIE EMPFEHLUNG, UNABHAENGIG VOM HD-PACK. Der komplette
+    # Pack kann Abstuerze in Zwischensequenzen verursachen - bei Martin
+    # nachgewiesen an Sarias Mod aus dem Pack: den einen Teil abgeschaltet,
+    # Absturz weg. Es ist also NICHT die VR-Mod. Die reinen 3D-Hintergruende
+    # sind der Teil, den VR ueberhaupt braucht; der Rest ist Optik.
+    Write-Host "   [2] Only the 3D backgrounds - RECOMMENDED." -ForegroundColor Green
+    Write-Host "       This is the part VR actually needs, and it pairs with" -ForegroundColor Gray
+    Write-Host "       the HD textures." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "   [1] The whole 3DS look - can cause problems." -ForegroundColor Gray
+    Write-Host "       Character and world replacements from the full pack" -ForegroundColor Gray
+    Write-Host "       have been seen to CRASH CUTSCENES (traced to Saria's" -ForegroundColor Gray
+    Write-Host "       model). Purely cosmetic, and not for use with the HD" -ForegroundColor Gray
+    Write-Host "       textures." -ForegroundColor Gray
     if ($doHd -in @("y","Y")) {
-        Write-Host "  You installed the HD pack, so [2] is the match." -ForegroundColor Cyan
-    } else {
-        Write-Host "  You skipped the HD pack, so [1] is the match." -ForegroundColor Cyan
+        Write-Host "  You installed the HD pack - take [2]." -ForegroundColor Cyan
     }
     Write-Host ""
     $djipiPick = ""
-    while ($djipiPick -notin @("1","2")) { $djipiPick = (Read-Host "  Your choice (1 or 2)").Trim() }
+    while ($djipiPick -notin @("1","2")) { $djipiPick = (Read-Host "  Your choice (Enter or 2 for the backgrounds, 1 for the full look)").Trim(); if ($djipiPick -eq "") { $djipiPick = "2" } }
     $djipiMode = if ($djipiPick -eq "1") { "full" } else { "bg" }
+    if ($djipiMode -eq "full") {
+        Write-Host ""
+        Write-Warn "Full pack chosen - if a cutscene crashes, this is the first"
+        Write-Host "   thing to remove. The backgrounds alone (choice 2) are the" -ForegroundColor White
+        Write-Host "   part VR needs." -ForegroundColor White
+    }
 
     # -- get the archive (browser download, then disk scan) -----
     $djPat = @("djipi_s_3ds_experience*.zip", "*djipi*3ds*experience*.zip", "*djipi*.zip")
@@ -566,6 +582,23 @@ Write-Host "  ENHANCEMENTS (Esc > VR mod settings > Enhancements, on the right):
 # said to tick "Use Alternate Assets" - current Ship of Harkinian builds no
 # longer offer that entry and load the mods folder on their own.
 Write-Host "   - Tick 'Disable Black Bar Letterboxes' (bars in cutscenes)." -ForegroundColor Gray
+Write-Host ""
+# DIE VIER EINSTELLUNGEN, DIE VR WIRKLICH BRAUCHT - von Martin genannt und
+# hier zusammengezogen, damit sie nicht ueber drei Menues verstreut gesucht
+# werden muessen. Die 2D-Kulissen standen bisher nur im Djipi-Zweig weiter
+# unten; hier ist der Platz, an dem alle vier auf einmal stehen.
+Write-Host "  +==========================================================+" -ForegroundColor Yellow
+Write-Host "  |  THE SETTINGS THAT MATTER FOR VR                         |" -ForegroundColor Yellow
+Write-Host "  +==========================================================+" -ForegroundColor Yellow
+Write-Host "   Enhancements > Graphics > Mods" -ForegroundColor White
+Write-Host "     " -NoNewline; Write-Host " Disable 2D Pre-Rendered Scenes " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " ON" -ForegroundColor White
+Write-Host "     " -NoNewline; Write-Host " Disable Fixed Camera " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " ON" -ForegroundColor White
+Write-Host "   VR Settings > Gameplay" -ForegroundColor White
+Write-Host "     " -NoNewline; Write-Host " Hide Link's Body " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " ON" -ForegroundColor White
+Write-Host "   VR Settings > Physical Combat" -ForegroundColor White
+Write-Host "     " -NoNewline; Write-Host " Physical Combat " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " ON" -ForegroundColor White
+Write-Host "   The menu layout differs between builds - go by the setting" -ForegroundColor DarkGray
+Write-Host "   names, not the path." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  START:" -NoNewline -ForegroundColor Cyan; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the new desktop shortcut." -ForegroundColor Cyan
 Write-Host "  The first start builds the game archive from your ROM." -ForegroundColor Gray

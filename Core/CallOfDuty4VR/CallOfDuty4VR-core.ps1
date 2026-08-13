@@ -17,6 +17,13 @@
 #  flat game can be put back by hand.
 #
 #  LAUNCHING: the game is started by Launch-KisakCOD-VR.bat, which
+#  STAND v0.10.0-beta.7 (2026-08-09): das Paket bringt jetzt
+#  KisakCOD-VR-Configurator.exe mit - eine grafische Oberflaeche mit
+#  Presets (Tested Quest 3, Performance, Comfort Snap, Smooth Turn,
+#  Seated, Minimal HUD) und Save & Launch. Profile liegen unter
+#  LocalAppData, ueberleben also Paketupdates. Der Batch-Starter bleibt
+#  und benutzt das letzte gespeicherte Profil. Das ZIP ist vollstaendig,
+#  keine fruehere Beta noetig.
 #  loads VR-Settings.bat and then runs KisakCOD-sp.exe with a long
 #  list of console variables. Starting KisakCOD-sp.exe directly skips
 #  all of that, and steam://rungameid does not start the VR build - so the
@@ -47,6 +54,12 @@ $PROJECT_URL   = "https://github.com/$REPO"
 $MOD_EXE     = "KisakCOD-sp.exe"
 $LAUNCH_BAT  = "Launch-KisakCOD-VR.bat"
 $SETTINGS_BAT= "VR-Settings.bat"
+# Seit v0.10.0-beta.7 liegt ein grafischer Konfigurator im Paket. Er ist
+# der vorgesehene Weg zum Einstellen; die VR-Settings.bat bleibt daneben
+# bestehen und der Batch-Starter benutzt das letzte gespeicherte Profil.
+$CONFIG_EXE  = "KisakCOD-VR-Configurator.exe"
+# Kopie der VORHANDENEN VR-Settings.bat vor dem Ueberschreiben.
+$SETTINGS_PREV = "VR-Settings.bat.hubprev"
 $ICON_FILE   = "CallOfDuty4_VR.ico"
 
 # The build links against the DEBUG D3DX9 (d3dx9d_43.dll, note the "d"),
@@ -221,6 +234,21 @@ Write-Info "Payload: $srcRoot"
 # Copy everything, backing up each file we would overwrite exactly once.
 # The COD4 install already owns mss32.dll, binkw32.dll, steam_api.dll and
 # miles\ - those are the ones that matter.
+# EIGENE SICHERUNG DER VR-Settings.bat, JEDEN LAUF.
+# Die Schleife unten sichert eine Datei nur, wenn noch KEINE .hubbak da
+# ist - beim zweiten Lauf (Aufstieg von beta.6 auf beta.7) waere also
+# eine von Hand bearbeitete VR-Settings.bat ohne Sicherung ueberschrieben
+# worden. Genau davor warnen die Release-Notes ("keep a copy so it can be
+# imported"). Deshalb hier eine Kopie, die JEDER Lauf frisch schreibt.
+$settingsDest = [System.IO.Path]::Combine($gamePath, $SETTINGS_BAT)
+$settingsSaved = $false
+if (Test-Path -LiteralPath $settingsDest) {
+    try {
+        Copy-Item -LiteralPath $settingsDest -Destination ([System.IO.Path]::Combine($gamePath, $SETTINGS_PREV)) -Force -ErrorAction Stop
+        $settingsSaved = $true
+    } catch {}
+}
+
 $copied = 0; $backed = 0; $failed = @()
 Get-ChildItem -LiteralPath $srcRoot -Recurse -File | ForEach-Object {
     $rel = $_.FullName.Substring($srcRoot.Length).TrimStart('\')
@@ -249,6 +277,11 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 Write-OK "$copied files installed, $backed original file(s) kept as .hubbak"
+if ($settingsSaved) { Write-Info "Your previous $SETTINGS_BAT was saved as $SETTINGS_PREV - the configurator can import it." }
+$configFull = [System.IO.Path]::Combine($gamePath, $CONFIG_EXE)
+if (-not (Test-Path -LiteralPath $configFull)) {
+    Write-Info "No $CONFIG_EXE in this package - tune $SETTINGS_BAT in a text editor instead."
+}
 if ($failed.Count -gt 0) { Write-Warn "Could not write: $($failed -join ', ')" }
 
 # -------------------------------------------------------
@@ -423,16 +456,37 @@ Write-Host ""
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
 Write-Host "  |            TWO THINGS TO KNOW                            |" -ForegroundColor Yellow
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
-Write-Host "   Death From Above is not supported in this beta and has to" -ForegroundColor White
-Write-Host "   be skipped - the next playable mission is War Pig." -ForegroundColor White
+Write-Host "   Death From Above is not supported and has to be skipped -" -ForegroundColor White
+Write-Host "   it looks unlocked, but do not pick it. Open the console and" -ForegroundColor White
+Write-Host "   run " -NoNewline -ForegroundColor White
+Write-Host " /spmap bog_b " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " to continue with War Pig." -ForegroundColor White
 Write-Host "   New Game starts at Crew Expendable on purpose: the F.N.G." -ForegroundColor White
 Write-Host "   training mission performs badly in VR." -ForegroundColor White
 Write-Host ""
-Write-Host "  The default render mode is 6016x2688 - built for a Quest 3 on" -ForegroundColor Gray
-Write-Host "  a strong GPU. If it stutters, open $SETTINGS_BAT in the game" -ForegroundColor Gray
-Write-Host "  folder and set VR_CUSTOM_MODE to 3072x1536. That file also" -ForegroundColor Gray
-Write-Host "  holds brightness, shadows, HUD placement and scope alignment." -ForegroundColor Gray
-Write-Host "  Fully restart the game after editing it. See the README." -ForegroundColor Gray
+if (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $CONFIG_EXE))) {
+Write-Host "  +==========================================================+" -ForegroundColor Yellow
+Write-Host "  |            SET IT UP IN THE CONFIGURATOR                 |" -ForegroundColor Yellow
+Write-Host "  +==========================================================+" -ForegroundColor Yellow
+Write-Host "   In the game folder, run " -NoNewline -ForegroundColor White
+Write-Host " $CONFIG_EXE " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "   Pick a preset - Tested Quest 3, Performance, Comfort Snap," -ForegroundColor White
+Write-Host "   Smooth Turn, Seated or Minimal HUD - then Save & Launch." -ForegroundColor White
+Write-Host "   Turning, HUD and compass, weapon and hand fit, belt and" -ForegroundColor White
+Write-Host "   grenade calibration, reload style and scope alignment are all" -ForegroundColor White
+Write-Host "   in there, with previews and a check before saving." -ForegroundColor White
+Write-Host "   Your profile lives outside the game folder, so the next" -ForegroundColor Gray
+Write-Host "   package update keeps it." -ForegroundColor Gray
+if ($settingsSaved) {
+Write-Host "   Had you hand-edited $SETTINGS_BAT? It is saved as" -ForegroundColor Gray
+Write-Host "   $SETTINGS_PREV - import it in the configurator." -ForegroundColor Gray
+}
+Write-Host ""
+}
+Write-Host "  Start with a preset. If it stutters, drop the render mode in" -ForegroundColor Gray
+Write-Host "  the configurator - the default is built for a Quest 3 on a" -ForegroundColor Gray
+Write-Host "  strong GPU. $SETTINGS_BAT stays in the game folder as the" -ForegroundColor Gray
+Write-Host "  plain-text fallback; fully restart the game after editing it." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Aim with your hands, shoulder the rifle, and go loud." -ForegroundColor Magenta
 Write-Host ""

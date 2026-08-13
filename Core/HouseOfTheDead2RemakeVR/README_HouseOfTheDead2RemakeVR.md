@@ -69,10 +69,6 @@ Note: OpenXR can interfere with gamepad controls. OpenVR is the default and reco
 - The trunk scene with bonus items selection had UI display bugs with the game's postprocess. Astienth removed a few effects, so the scene looks slightly different.
 - If you find a scene or menu where you can't select anything, report it on Discord.
 
-## Uninstall / Deactivate
-
-Rename `winhttp.dll` in the game root folder to something else, e.g. `winhttp_bak.dll`. That disables the mod without removing it.
-
 ## Credits
 
 VR mod by Astienth. Game by MegaPixel Studio, published by Forever Entertainment. Original arcade game by Sega.

@@ -35,9 +35,6 @@ VRUI scale = 2       # UI scaling - bump up or down if the UI feels wrong
 
 The README states only these two values should be touched in this config.
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (game runs flat). Delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` for a full uninstall.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

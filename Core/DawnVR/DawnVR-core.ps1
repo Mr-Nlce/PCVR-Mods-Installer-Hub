@@ -226,15 +226,10 @@ if (Test-Path $mlZip) {
     if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
-            if (Test-Path $mlFolder) {
-                Remove-Item $mlFolder -Recurse -Force
-                Write-OK "Removed old MelonLoader folder."
-            }
-
             $mlFolderSrc = Join-Path $mlExtract "MelonLoader"
             if (Test-Path $mlFolderSrc) {
-                Copy-Item -Path $mlFolderSrc -Destination $gamePath -Recurse -Force
-                Write-OK "MelonLoader folder installed."
+                $null = Merge-DirectoryTreeVerified -Source $mlFolderSrc -Destination $mlFolder -Label "MelonLoader files"
+                Write-OK "MelonLoader folder merged."
             }
 
             foreach ($dll in @("version.dll", "dobby.dll")) {

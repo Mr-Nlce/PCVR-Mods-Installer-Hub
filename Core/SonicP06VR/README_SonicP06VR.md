@@ -72,12 +72,6 @@ vrApi = OpenXR
 
 (Default is `OpenVR`. Both runtimes are supported.)
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game root folder to anything else (e.g. `winhttp_bak.dll`). The mod stops loading; renaming back to `winhttp.dll` re-enables it.
-
-To completely remove: delete the entire `C:\Games\Sonic P-06 VR` (or wherever you extracted the game) folder.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

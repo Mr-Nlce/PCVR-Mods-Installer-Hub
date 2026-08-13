@@ -82,7 +82,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.5.6"
+$HUB_VERSION = "0.8.5.9"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -318,13 +318,26 @@ function Write-InstalledVersion {
     if ([string]::IsNullOrWhiteSpace($Version)) { return }
     $val = $Version.Trim()
     $enc = New-Object System.Text.UTF8Encoding $false
-    $stamp = Get-GameStampPath -GameDir $GameDir
-    if ($stamp) {
-        try { [System.IO.File]::WriteAllText($stamp, $val, $enc) } catch {}
-    }
-    $path = Get-InstalledVersionPath -Game $Game
-    if ($path) {
-        try { [System.IO.File]::WriteAllText($path, $val, $enc) } catch {}
+    foreach ($target in @(
+        (Get-GameStampPath -GameDir $GameDir),
+        (Get-InstalledVersionPath -Game $Game)
+    )) {
+        if (-not $target) { continue }
+        # NICHT SCHREIBEN, WENN SCHON DASSELBE DRINSTEHT. Einer der
+        # Aufrufer im Scan meldet "ist aktuell" und schreibt dabei
+        # denselben Wert - ohne diese Bremse wuerde bei jedem Scan eine
+        # Datei im SPIELORDNER neu geschrieben, nur um sich selbst zu
+        # bestaetigen. Im eingeschwungenen Zustand faellt jetzt gar kein
+        # Schreibvorgang mehr an.
+        $same = $false
+        try {
+            if (Test-Path -LiteralPath $target -PathType Leaf) {
+                $cur = Get-Content -LiteralPath $target -Raw -ErrorAction Stop
+                if ((([string]$cur -replace '[^\x20-\x7E]', '').Trim()) -eq $val) { $same = $true }
+            }
+        } catch {}
+        if ($same) { continue }
+        try { [System.IO.File]::WriteAllText($target, $val, $enc) } catch {}
     }
 }
 
@@ -402,6 +415,50 @@ function Clear-UpdateOkMarker {
 # ones have already defined their helpers, $window, globals
 # etc. Do not reorder without checking dependencies.
 # -------------------------------------------------------
+# HIER, VOR DEM LADEN DER MODULE. Startup.ps1 ist das LETZTE Modul in
+# der Schleife unten und ruft darin $window.ShowDialog() auf - alles,
+# was NACH der Schleife steht, laeuft erst beim Schliessen des Fensters.
+# Die Reparatur muss vor dem ersten Scan greifen, also vor die Schleife.
+# -------------------------------------------------------
+#  EINMALIGE REPARATUR: falscher Versionsmarker fuer BotW
+#  WEGWERFCODE - EINGEBAUT 2026-08-10, RAUS AB HUB 0.8.6.x
+# -------------------------------------------------------
+# EIN ausgeliefertes Bundle enthielt versehentlich
+# Core\BreathOfTheWildVR\.installed_version mit dem Inhalt "1.0" -
+# hineingeschrieben beim Bauen, nicht von einer Installation. Der Scan
+# vergleicht diesen Wert gegen den GitHub-Tag von BetterVR (0.9.x) und
+# zeigt deshalb dauerhaft eine Update-Kachel, die nicht verschwindet.
+#
+# WARUM EIN NEUES BUNDLE ALLEIN NICHT REICHT: der Updater kopiert mit
+# robocopy und hat .installed_version in der Ausschlussliste (/XF), damit
+# echte Nutzerdaten ueberleben. Die falsche Datei bleibt also auch nach
+# einem Hub-Update liegen und muss aktiv geleert werden.
+#
+# ES BLEIBT NICHTS ZURUECK. Kein Merker, keine neue Datei im Hub-Ordner:
+# der Block braucht keinen, weil er sich SELBST entwaffnet. Nach dem
+# Leeren steht dort nicht mehr "1.0", und der naechste Scan schreibt den
+# echten Tag hinein - die Bedingung trifft also nie wieder zu. Ein
+# frueherer Entwurf legte dafuer .repair_botw_marker an; das war
+# unnoetiger Muell in einem Ordner, aus dem Updates nie etwas entfernen.
+#
+# GELEERT, NICHT GELOESCHT, und nur bei genau diesem Inhalt.
+# HIER, VOR DEM LADEN DER MODULE: Startup.ps1 ist das LETZTE Modul in der
+# Schleife unten und ruft darin $window.ShowDialog() auf - alles, was
+# NACH der Schleife steht, laeuft erst beim Schliessen des Fensters.
+try {
+    $badMarker = Join-Path $scriptDir "BreathOfTheWildVR\.installed_version"
+    if (Test-Path -LiteralPath $badMarker -PathType Leaf) {
+        # -ErrorAction Stop, NICHT SilentlyContinue: ein fehlgeschlagenes
+        # LESEN (Datei gesperrt, Virenscanner, Rechte) darf nicht als
+        # "Inhalt ist nicht 1.0" durchgehen. Es landet im catch, und der
+        # naechste Start versucht es erneut.
+        $cur = Get-Content -LiteralPath $badMarker -Raw -ErrorAction Stop
+        if ((([string]$cur -replace '[^\x20-\x7E]', '').Trim()) -eq "1.0") {
+            [System.IO.File]::WriteAllText($badMarker, "", (New-Object System.Text.UTF8Encoding $false))
+        }
+    }
+} catch {}
+
 $modulesDir = Join-Path $scriptDir "Modules"
 foreach ($mod in @(
     "Catalog.ps1",

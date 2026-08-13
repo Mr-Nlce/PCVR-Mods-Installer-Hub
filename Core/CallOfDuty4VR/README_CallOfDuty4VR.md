@@ -57,7 +57,30 @@ The installer handles it: it pulls the DLL out of **Microsoft's own `Microsoft.D
 To do it by hand: put `d3dx9d_43.dll` (32-bit) into the Call of Duty 4 folder, next to `iw3sp.exe`.
 
 ## Performance and calibration
-`VR-Settings.bat` in the game folder is plain text and holds everything worth tuning. Fully restart the game after editing it.
+
+**Start in the configurator.** Since v0.10.0-beta.7 the package ships
+`KisakCOD-VR-Configurator.exe` in the game folder - a graphical settings app.
+Pick a preset (**Tested Quest 3**, Performance, Comfort Snap, Smooth Turn,
+Seated, Minimal HUD) or set things individually: snap and smooth turning,
+movement direction, graphics, HUD and game text, compass size, direction and
+placement, weapon and hand fit, belt and grenade calibration, manual or
+automatic reload, physical scope alignment, and the face-button roles. HUD
+placement and the controller-local weapon, hand and belt changes have visual
+previews, settings are checked before saving, and **Save & Launch** starts the
+game straight from the app.
+
+Your profile is stored under `%LOCALAPPDATA%`, not in the game folder, so a
+package update keeps it. It is backed up automatically and can be exported and
+imported.
+
+Physical magazine reloading can be switched off there if you prefer COD4's own
+automatic reload.
+
+**The plain-text route still works.** `VR-Settings.bat` stays in the game folder
+and the batch launcher uses the last saved profile. If you had hand-edited it
+before an upgrade, the Hub installer keeps your old copy as
+`VR-Settings.bat.hubprev` so you can import it in the configurator. Fully
+restart the game after editing the file by hand.
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -72,17 +95,14 @@ To do it by hand: put `d3dx9d_43.dll` (32-bit) into the Call of Duty 4 folder, n
 `Launch-KisakCOD-VR-Diagnostics.bat` starts the same game with developer messages restored - useful when writing a bug report.
 
 ## Known limitations
-- **Death From Above is not playable in VR and must be skipped.** The skip procedure is in the bundled `INSTALL.md`; the next playable mission is War Pig.
+- **Death From Above is not playable in VR and must be skipped.** It looks unlocked - do not pick it. Open the console and run `/spmap bog_b` to continue with **War Pig**.
 - New Game starts at **Crew Expendable** on purpose - the F.N.G. training mission performs poorly in VR.
 - Some original post-processing and camera animation is suppressed because it is uncomfortable or wrong in VR.
-- Scope alignment can need small headset-specific tweaks in `VR-Settings.bat`.
+- Scope alignment can need small headset-specific tweaks - the configurator has a physical scope alignment section for it.
 - COD4 has scripted mission events that use the flat-screen view ray. Many are bridged, but an untested checkpoint can still misbehave.
 
 ## Reporting a bug
 Use the GitHub issue form and include the mod version and the commit from `SOURCE.txt`, your headset and OpenXR runtime, GPU and CPU, the mission and checkpoint, reproduction steps, and the relevant lines from `main\console.log`. Death From Above is a known limitation, not a new bug.
-
-## Uninstall
-See the uninstall guide on this game's page in the Hub.
 
 ## Credits
 - **KisakCOD VR** by jplakon - https://github.com/jplakon/CallOfDuty4_VR

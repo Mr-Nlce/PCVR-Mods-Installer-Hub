@@ -76,10 +76,6 @@ override the built-in defaults key by key, so an old value keeps applying even
 after an update fixes the default. You only lose your own tuning. The log for a
 bug report is `bioshockvr.log` in `%LOCALAPPDATA%\BioshockVR\`.
 
-## Uninstall
-Delete `xinput1_3.dll` and `bioshockvr.dll` from the game's binary folder. If
-the installer parked another mod's injector, rename that file back.
-
 ## Requirements
 - **BioShock 2 Remastered** - Steam AppID **409720**, GOG or Epic
 - A PCVR headset with an OpenXR runtime

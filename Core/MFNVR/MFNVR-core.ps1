@@ -1,31 +1,39 @@
 # ============================================================
 # My Friendly Neighborhood - VR Mod Installer (MFNVR)
 # ============================================================
-# Mod: MFNVR by LeviGaming1248, github.com/LeviGaming1248/MFNVR
+# Mod: MFNVR by LeviGaming1248,
+#      github.com/LeviGaming1248/MyFriendlyNeighborhoodVR
+#      (das Repo hiess vorher MFNVR; GitHub leitet noch um, aber wir
+#       nennen den neuen Namen, damit nichts an der Umleitung haengt)
 #
 # Everything below is taken from the release archive itself, not
-# from the description. Layout of MFN VR -- alpha 0.10:
+# from the description. Layout, gelesen aus dem Build vom 2026-08-10
+# (Wrapper "MFNVR-v0.2.0\", 42 Eintraege, 1.488.219 Bytes):
 #
 #   .doorstop_version                            (4.5.0)
 #   doorstop_config.ini
 #   winhttp.dll                                  BepInEx proxy
 #   openxr_loader.dll
-#   changelog.txt
+#   CHANGELOG.md / README.md / THIRD_PARTY_NOTICES.md
+#   MANIFEST.sha256
+#   licenses\...                                 BepInEx, OpenXR, Doorstop
 #   BepInEx\core\...                             BepInEx 5.4.23.4
 #   BepInEx\config\BepInEx.cfg
 #   BepInEx\config\MFNVR.cfg
-#   BepInEx\config\MFNVR.LeftHandCalibration.cfg
-#   BepInEx\config\MFNVR.LeftHandRotation.cfg
-#   BepInEx\plugins\MFNVR.dll
+#   BepInEx\plugins\MFNVR.dll                    39.424 B, 16:45
 #   BepInEx\plugins\MFNVRConfig.dll
 #   BepInEx\plugins\MFNVRRenderBridge.dll
 #   My Friendly Neighborhood_Data\Plugins\MFNOpenXR.dll
 #
-# THE AUTHOR SHIPS THE SAME BUILD TWICE: one archive is flat, the
-# other wraps everything in "MFNVR v0.10 alpha\". Both were read
-# and compared byte for byte - identical payload. That is why the
-# payload root is RESOLVED after unpacking instead of assumed
-# (archive rules R1/R2), so either asset installs correctly.
+# MFNOpenXR.dll gehoert in den _Data\Plugins-Ordner und NICHT in die
+# Spielwurzel - dort sucht Unitys Mono native Bibliotheken. Der Payload
+# spiegelt den Spielbaum, deshalb landet sie von selbst richtig.
+#
+# DER WRAPPERNAME AENDERT SICH mit jedem Build (frueher "MFNVR v0.10
+# alpha\", jetzt "MFNVR-v0.2.0\"), und der Autor hat denselben Build
+# auch schon flach ausgeliefert. Die Payload-Wurzel wird deshalb ueber
+# den Marker doorstop_config.ini AUFGELOEST statt angenommen
+# (Archivregeln R1/R2) - jedes Layout installiert korrekt.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -38,9 +46,9 @@ $GAME_EXE      = "My Friendly Neighborhood.exe"
 $STEAM_APP     = "1574260"
 $SHORTCUT_NAME = "My Friendly Neighborhood VR"
 
-$MOD_REPO      = "LeviGaming1248/MFNVR"
-$MOD_PAGE      = "https://github.com/LeviGaming1248/MFNVR"
-$RELEASES_PAGE = "https://github.com/LeviGaming1248/MFNVR/releases"
+$MOD_REPO      = "LeviGaming1248/MyFriendlyNeighborhoodVR"
+$MOD_PAGE      = "https://github.com/LeviGaming1248/MyFriendlyNeighborhoodVR"
+$RELEASES_PAGE = "https://github.com/LeviGaming1248/MyFriendlyNeighborhoodVR/releases"
 
 # Marker that identifies the payload root INSIDE the archive: a file
 # that sits at the top level of the mod, next to BepInEx\.
@@ -81,8 +89,7 @@ Write-Header
 Write-Host "  Full 6DOF head tracking and motion controllers for My Friendly" -ForegroundColor White
 Write-Host "  Neighborhood. Room-scale, tracked weapons, physical wrench." -ForegroundColor White
 Write-Host ""
-Write-Host "  This is an early alpha. Two things to know before you start:" -ForegroundColor White
-Write-Host "   - The toolbox is broken. The inventory works." -ForegroundColor Yellow
+Write-Host "  This is an early alpha. One thing to know before you start:" -ForegroundColor White
 Write-Host "   - The author states the mod was generated with AI and the code" -ForegroundColor Yellow
 Write-Host "     has not been reviewed by a human." -ForegroundColor Yellow
 Write-Host ""
@@ -295,7 +302,10 @@ Write-Host ""
 Write-Host "  START:" -NoNewline -ForegroundColor Cyan; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the new desktop shortcut." -ForegroundColor Cyan
 Write-Host "  Put the headset on once the game is running." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  The toolbox is broken in this alpha - use the inventory." -ForegroundColor Yellow
+Write-Host "  New in the August 2026 build: physical weapon switching (right" -ForegroundColor Gray
+Write-Host "  hand at the hip or behind the shoulder), the files tab by holding" -ForegroundColor Gray
+Write-Host "  your hand behind your head, and much better performance. The" -ForegroundColor Gray
+Write-Host "  toolbox works now." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Ricky is still on the air, and he still wants you to stay." -ForegroundColor Magenta
 Write-Host ""

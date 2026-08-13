@@ -5199,6 +5199,7 @@ function global:Show-DiscoverDetail {
         "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."
         "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
         "Pokemon Gen 1 VR" = "Pokemon Gen 1 Recomp Voxel VR brings the classic first-generation adventure into a fully explorable voxel-based 3D world. Travel across Kanto, catch and battle Pokemon, and experience the familiar journey from an immersive first-person VR perspective."
+        "Battlefield 1942 VR" = "Battlefield 1942 is a classic World War II first-person shooter that lets you fight across large battlefields as infantry or take control of tanks, aircraft, ships, and other vehicles."
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
         "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."
@@ -5302,7 +5303,11 @@ function global:Show-DiscoverDetail {
             $noticeStack.Children.Add($noticeTxt) | Out-Null
             if ($Game.NoticeUrl) {
                 $noticeLink = New-Object System.Windows.Controls.TextBlock
-                $noticeLink.Text = "Open the official VR version on Steam"
+                # Beschriftung ist frei setzbar (NoticeUrlLabel). Ohne Angabe
+                # bleibt der alte Text - die beiden Bestandseintraege
+                # (Metal Hellsinger, Trombone Champ) zeigen auf eine
+                # offizielle VR-Fassung im Steam-Store.
+                $noticeLink.Text = if ($Game.NoticeUrlLabel) { [string]$Game.NoticeUrlLabel } else { "Open the official VR version on Steam" }
                 $noticeLink.FontSize = 13
                 $noticeLink.FontWeight = [System.Windows.FontWeights]::SemiBold
                 $noticeLink.TextDecorations = [System.Windows.TextDecorations]::Underline

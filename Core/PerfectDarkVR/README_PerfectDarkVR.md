@@ -55,3 +55,13 @@ If you enjoy this VR fork, consider supporting Alex-LeTux:
   sits right, and you can look around with your head while using them.
 - Head rotation no longer drags the controller transform along, and the aiming
   reticle colours red or blue for enemy and friendly again.
+- **Render resolution is remembered across restarts** - set it once in the
+  options and it stays.
+- **Throwing and melee follow the direction you actually swing.** The gesture
+  direction was wrong before.
+- Gripping a **two-handed weapon rumbles both controllers**, so you feel when
+  the off-hand has taken hold.
+- Player height is referenced to the floor and head movement is freer, so
+  standing, leaning and crouching read more naturally.
+- Full-screen effects now cover the whole field of view instead of stopping
+  short, and objects are culled per eye - fewer things popping in at the edges.

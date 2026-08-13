@@ -76,28 +76,8 @@ Write-Step 1 5 "Install location"
 Write-Info "Install folder: $INSTALL_ROOT"
 Write-Host ""
 
-$updateMode = $false
 if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-Host " An existing install was found." -ForegroundColor Cyan
- Write-Host " [U] Update    - download the latest release over it (your ROM" -ForegroundColor White
- Write-Host "                 choice, settings and mods folder are kept)" -ForegroundColor White
- Write-Host " [R] Reinstall - wipe the folder and set up fresh (mods and" -ForegroundColor White
- Write-Host "                 settings in the folder are removed too)" -ForegroundColor White
- Write-Host ""
- $ans = ""
- while ($ans -notin @("U","R")) { $ans = (Read-Host " Enter U or R").Trim().ToUpper() }
- if ($ans -eq "U") {
-  $updateMode = $true
-  Write-OK "Update mode."
- } else {
-  Write-Info "Removing the old install..."
-  try { Remove-Item -LiteralPath $INSTALL_ROOT -Recurse -Force } catch {
-   Write-Warn "Could not fully remove the old folder (files in use?)."
-   Write-Warn "Close the game if it is running, then rerun this installer."
-   Pause-User "Press Enter to exit."; exit 1
-  }
-  Write-OK "Old install removed."
- }
+ Write-OK "Existing install found - merging the latest release; ROM choice, settings and mods are kept."
 }
 if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
  New-Item -ItemType Directory -Path $INSTALL_ROOT -Force | Out-Null

@@ -116,29 +116,11 @@ if (-not $installRoot) {
 $INSTALL_ROOT = Join-Path $installRoot $GAME_FOLDER
 Write-OK "Install location: $INSTALL_ROOT"
 
-# updateMode: overwrite an existing install with just the small VR exe.
+# Existing installations always use the small update payload and are merged.
 $updateMode = $false
 if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-Host "" 
- Write-Host " An existing install was found." -ForegroundColor Cyan
- Write-Host " [U] Update    - fetch just the latest VR exe and drop it" -ForegroundColor White
- Write-Host "                 over your game (saves/addons/settings kept)" -ForegroundColor White
- Write-Host " [R] Reinstall - wipe the folder and set up fresh (full game)" -ForegroundColor White
- Write-Host ""
- $ans = ""
- while ($ans -notin @("U","R")) { $ans = (Read-Host " Enter U or R").Trim().ToUpper() }
- if ($ans -eq "U") {
-  $updateMode = $true
-  Write-OK "Update mode - VR exe only."
- } else {
-  Write-Host " Removing the old install..." -ForegroundColor Gray
-  try { Remove-Item -LiteralPath $INSTALL_ROOT -Recurse -Force } catch {
-   Write-Warn "Could not fully remove the old folder (files in use?)."
-   Write-Warn "Close the game if it is running, then rerun this installer."
-   Pause-User "Press Enter to exit."; exit 1
-  }
-  Write-OK "Old install removed."
- }
+ $updateMode = $true
+ Write-OK "Existing install found - merging the VR update; saves, addons and settings are kept."
 }
 if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
  New-Item -ItemType Directory -Path $INSTALL_ROOT -Force | Out-Null

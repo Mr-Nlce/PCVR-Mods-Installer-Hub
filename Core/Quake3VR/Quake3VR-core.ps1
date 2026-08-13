@@ -205,22 +205,7 @@ Write-OK "Install root: $installParent"
 $installRoot = Join-Path $installParent $GAME_FOLDER
 
 if (Test-Path $installRoot) {
-    Write-Warn "Folder already exists: $installRoot"
-    Write-Host "  [Y] Delete and reinstall   [N] Abort" -ForegroundColor White
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) {
-        Write-Info "Aborted."
-        try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..."; exit 0
-    }
-    try { Remove-Item $installRoot -Recurse -Force -ErrorAction Stop }
-    catch {
-        Write-Fail "Could not delete: $($_.Exception.Message)"
-        Write-Host "  Close any running Quake 3 VR window, then re-run the installer." -ForegroundColor Yellow
-        try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..."; exit 1
-    }
+    Write-Info "Existing installation found. Quake 3 VR files will be merged; additional files are preserved."
 }
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 

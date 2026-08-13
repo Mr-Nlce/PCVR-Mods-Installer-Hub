@@ -71,9 +71,6 @@ gunHaptics = true # false disables the bHaptics effect on shooting (the cannon f
 - Objects between you and the VRUI (e.g. a car after a death) can block your hand clicking on the UI. Move your hand closer to the UI to interact.
 - Recenter is needed after each loading screen.
 
-## Uninstall
-Rename `winhttp.dll` in `<GameRoot>\release\` to `winhttp_bak.dll` to deactivate the mod (game runs flat). For a full uninstall, delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` from the `release\` folder.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

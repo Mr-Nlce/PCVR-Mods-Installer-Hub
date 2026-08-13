@@ -64,6 +64,101 @@ function Get-LatestPrimedGunZipUrl {
     return $null
 }
 
+# Merge a preserved directory back into a newly installed payload.  Files are
+# copied one by one so an existing directory from the release archive is merged
+# instead of causing an extra nested User\User or ROM\ROM folder.
+function Copy-PreservedTree {
+    param(
+        [Parameter(Mandatory=$true)][string]$Source,
+        [Parameter(Mandatory=$true)][string]$Destination
+    )
+    $sourceRoot = [System.IO.Path]::GetFullPath($Source).TrimEnd('\')
+    if (-not (Test-Path -LiteralPath $sourceRoot)) { return }
+    if (-not (Test-Path -LiteralPath $Destination)) {
+        New-Item -ItemType Directory -Path $Destination -Force -ErrorAction Stop | Out-Null
+    }
+    Get-ChildItem -LiteralPath $sourceRoot -Directory -Recurse -Force -ErrorAction Stop | ForEach-Object {
+        $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart('\')
+        New-Item -ItemType Directory -Path (Join-Path $Destination $relative) -Force -ErrorAction Stop | Out-Null
+    }
+    Get-ChildItem -LiteralPath $sourceRoot -File -Recurse -Force -ErrorAction Stop | ForEach-Object {
+        $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart('\')
+        $target = Join-Path $Destination $relative
+        $targetParent = Split-Path $target -Parent
+        if (-not (Test-Path -LiteralPath $targetParent)) {
+            New-Item -ItemType Directory -Path $targetParent -Force -ErrorAction Stop | Out-Null
+        }
+        Copy-Item -LiteralPath $_.FullName -Destination $target -Force -ErrorAction Stop
+        $copied = Get-Item -LiteralPath $target -Force -ErrorAction Stop
+        if ($copied.Length -ne $_.Length) { throw "Verification failed after restoring '$relative'." }
+    }
+}
+
+# Restore ROMs, saves, save states and settings from the durable backup next to
+# the install directory.  The backup is deleted only after every file copied
+# and passed the size check; an interrupted update therefore remains recoverable.
+function Restore-PrimedGunUserData {
+    param(
+        [Parameter(Mandatory=$true)][string]$BackupRoot,
+        [Parameter(Mandatory=$true)][string]$GameRoot
+    )
+    if (-not (Test-Path -LiteralPath $BackupRoot)) { return $true }
+    try {
+        foreach ($folder in @("ROM", "User")) {
+            $source = Join-Path $BackupRoot $folder
+            if (Test-Path -LiteralPath $source) {
+                Copy-PreservedTree -Source $source -Destination (Join-Path $GameRoot $folder)
+                Write-OK "Preserved $folder folder restored."
+            }
+        }
+        Remove-Item -LiteralPath $BackupRoot -Recurse -Force -ErrorAction Stop
+        return $true
+    } catch {
+        Write-Fail "Could not fully restore preserved PrimedGun user data: $_"
+        Write-Warn "The safety backup has NOT been deleted: $BackupRoot"
+        return $false
+    }
+}
+
+# Update only the keys owned by this installer.  Replacing Dolphin.ini outright
+# would erase controller, graphics, audio and other user preferences.
+function Set-IniSectionValues {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [Parameter(Mandatory=$true)][string]$Section,
+        [Parameter(Mandatory=$true)][System.Collections.IDictionary]$Values
+    )
+    $lines = New-Object 'System.Collections.Generic.List[string]'
+    if (Test-Path -LiteralPath $Path) {
+        foreach ($line in [System.IO.File]::ReadAllLines($Path)) { [void]$lines.Add($line) }
+    }
+    $sectionPattern = '^\s*\[' + [regex]::Escape($Section) + '\]\s*$'
+    $sectionStart = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match $sectionPattern) { $sectionStart = $i; break }
+    }
+    if ($sectionStart -lt 0) {
+        if ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -ne '') { [void]$lines.Add('') }
+        [void]$lines.Add("[$Section]")
+        $sectionStart = $lines.Count - 1
+    }
+    $sectionEnd = $lines.Count
+    for ($i = $sectionStart + 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\s*\[.+\]\s*$') { $sectionEnd = $i; break }
+    }
+    foreach ($entry in $Values.GetEnumerator()) {
+        $keyPattern = '^\s*' + [regex]::Escape([string]$entry.Key) + '\s*='
+        $found = -1
+        for ($i = $sectionStart + 1; $i -lt $sectionEnd; $i++) {
+            if ($lines[$i] -match $keyPattern) { $found = $i; break }
+        }
+        $newLine = "$($entry.Key) = $($entry.Value)"
+        if ($found -ge 0) { $lines[$found] = $newLine }
+        else { $lines.Insert($sectionEnd, $newLine); $sectionEnd++ }
+    }
+    [System.IO.File]::WriteAllLines($Path, $lines, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 Write-Header
 
 Write-Host "  PrimedGun is a Dolphin XR Redux-based build that turns Metroid" -ForegroundColor Gray
@@ -130,12 +225,26 @@ if (-not $installRoot) {
 Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
 $romDir   = Join-Path $gameRoot "ROM"
+$userDir  = Join-Path $gameRoot "User"
+$preserveRoot = Join-Path $installRoot "_PCVRHub_PrimedGun_UserData_Backup"
+
+# Recover automatically from an earlier update that was interrupted after its
+# user data had been moved out of the install directory.
+if (Test-Path -LiteralPath $preserveRoot) {
+    Write-Warn "Found a PrimedGun user-data backup from an interrupted update. Restoring it first."
+    if (-not (Restore-PrimedGunUserData -BackupRoot $preserveRoot -GameRoot $gameRoot)) {
+        Pause-User "Press Enter to exit without changing the installation." | Out-Null
+        exit 1
+    }
+}
 
 # ---- 2. download the latest PrimedGun release ---------------
 # --- Update-or-install choice (shared helper) ---
 $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile "PrimedGun.exe"
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
-if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
+if ($InstallMode -eq "update") {
+    Write-Info "Update mode - merging the latest mod files into the existing install; user data is preserved."
+}
 
 $null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "PrimedGun"
 Write-Step 2 5 "Downloading PrimedGun (latest release)"
@@ -245,21 +354,35 @@ while (-not $exeItem) {
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
 
-# Preserve an existing ROM folder across a reinstall.
-$romBackup = $null
-if (Test-Path $romDir) {
-    $romBackup = Join-Path $tmp "ROM_backup"
-    try { Move-Item -Path $romDir -Destination $romBackup -Force -ErrorAction Stop } catch { $romBackup = $null }
+# Move all user-owned data outside the directory that is about to be replaced.
+# A move on the same volume is immediate even for a large ROM.  Unlike the old
+# temp backup, this durable folder is never removed by generic temp cleanup.
+try {
+    foreach ($folder in @("ROM", "User")) {
+        $source = Join-Path $gameRoot $folder
+        if (Test-Path -LiteralPath $source) {
+            if (-not (Test-Path -LiteralPath $preserveRoot)) {
+                New-Item -ItemType Directory -Path $preserveRoot -Force -ErrorAction Stop | Out-Null
+            }
+            Move-Item -LiteralPath $source -Destination (Join-Path $preserveRoot $folder) -Force -ErrorAction Stop
+            Write-OK "$folder folder secured before replacing the mod files."
+        }
+    }
+} catch {
+    Write-Fail "Could not safely preserve PrimedGun user data: $_"
+    if (Test-Path -LiteralPath $preserveRoot) {
+        $null = Restore-PrimedGunUserData -BackupRoot $preserveRoot -GameRoot $gameRoot
+    }
+    Pause-User "Press Enter to exit without replacing the installation." | Out-Null
+    exit 1
 }
 
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $payloadDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        # Always merge release files. Anything user-created and not present in
+        # the archive remains untouched, including during a repair install.
+        Copy-PreservedTree -Source $payloadDir -Destination $gameRoot
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the game files: $_"
@@ -269,6 +392,9 @@ while (-not $placedOk) {
             -DestFolder "$gameRoot" `
             -AllowSkip $true
         if ([string]$fb -eq "quit") {
+            if (Test-Path -LiteralPath $preserveRoot) {
+                $null = Restore-PrimedGunUserData -BackupRoot $preserveRoot -GameRoot $gameRoot
+            }
             try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
             Pause-User "Press Enter to exit..." | Out-Null
             exit 1
@@ -278,17 +404,23 @@ while (-not $placedOk) {
 }
 Write-OK "Game installed at: $gameRoot"
 
+if (Test-Path -LiteralPath $preserveRoot) {
+    if (-not (Restore-PrimedGunUserData -BackupRoot $preserveRoot -GameRoot $gameRoot)) {
+        Pause-User "Press Enter to exit. Your safety backup remains at the path shown above." | Out-Null
+        exit 1
+    }
+}
+
 # ---- 4. ROM folder + portable mode + auto-bind the ROM path -
 Write-Step 4 5 "Setting up the ROM folder and auto-detection"
 
-# 4a. ROM folder (restore a preserved one if present).
+# 4a. ROM folder (an existing one was restored above).
 try {
-    if ($romBackup -and (Test-Path $romBackup)) {
-        Move-Item -Path $romBackup -Destination $romDir -Force -ErrorAction Stop
-        Write-OK "Existing ROM folder preserved: $romDir"
-    } else {
+    if (-not (Test-Path -LiteralPath $romDir)) {
         New-Item -ItemType Directory -Path $romDir -Force -ErrorAction Stop | Out-Null
         Write-OK "ROM folder created: $romDir"
+    } else {
+        Write-OK "Existing ROM folder preserved: $romDir"
     }
 } catch {
     Write-Warn "Could not create the ROM folder automatically: $_"
@@ -314,13 +446,11 @@ try {
     $cfgDir = Join-Path $gameRoot "User\Config"
     if (-not (Test-Path $cfgDir)) { New-Item -ItemType Directory -Path $cfgDir -Force -ErrorAction Stop | Out-Null }
     $iniPath = Join-Path $cfgDir "Dolphin.ini"
-    $iniText = @(
-        "[General]"
-        "ISOPaths = 1"
-        "RecursiveISOPaths = True"
-        "ISOPath0 = $romDir"
-    ) -join "`r`n"
-    Set-Content -Path $iniPath -Value $iniText -Encoding ASCII -ErrorAction Stop
+    Set-IniSectionValues -Path $iniPath -Section "General" -Values ([ordered]@{
+        ISOPaths = "1"
+        RecursiveISOPaths = "True"
+        ISOPath0 = $romDir
+    })
     Write-OK "Game list pre-pointed at the ROM folder (auto-detect on)"
 } catch {
     Write-Warn "Could not pre-configure the ROM path: $_"

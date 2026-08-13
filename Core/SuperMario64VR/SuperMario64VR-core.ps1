@@ -133,6 +133,14 @@ if (-not $installRoot) {
 }
 Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
+$preserveDir = Join-Path $installRoot "_PCVRHub_SuperMario64VR_UserData_Backup"
+if (Test-Path -LiteralPath $preserveDir) {
+    Write-Warn "Found user data from an interrupted update. Restoring it first."
+    if (-not (Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Super Mario 64 VR")) {
+        Pause-User "Press Enter to exit without changing the installation." | Out-Null
+        exit 1
+    }
+}
 
 # ---- 2. download the latest sm64coopdx release ---------------
 # --- Update-or-install choice (shared helper) ---
@@ -248,26 +256,17 @@ while (-not $exeItem) {
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
 
-# Preserve the user's ROM + saves + mods across a reinstall (they live in
-# the game folder, which we are about to wipe).
-$preserveDir = Join-Path $tmp "user_backup"
-$preserved = @()
-try { New-Item -ItemType Directory -Path $preserveDir -Force -ErrorAction Stop | Out-Null } catch {}
-foreach ($__it in @("baserom.us.z64", "mods", "sav", "save", "coopnet")) {
-    $__src = Join-Path $gameRoot $__it
-    if (Test-Path -LiteralPath $__src) {
-        try { Move-Item -LiteralPath $__src -Destination (Join-Path $preserveDir $__it) -Force -ErrorAction Stop; $preserved += $__it } catch {}
-    }
+# Preserve the ROM, saves and mods outside the ordinary extraction temp.
+if (-not (Protect-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir `
+        -RelativePaths @("baserom.us.z64", "mods", "sav", "save", "coopnet") -Label "Super Mario 64 VR")) {
+    Pause-User "Press Enter to exit without replacing the installation." | Out-Null
+    exit 1
 }
 
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $payloadDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        Copy-DirectoryTreeVerified -Source $payloadDir -Destination $gameRoot
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the game files: $_"
@@ -277,6 +276,9 @@ while (-not $placedOk) {
             -DestFolder "$gameRoot" `
             -AllowSkip $true
         if ([string]$fb -eq "quit") {
+            if (Test-Path -LiteralPath $preserveDir) {
+                $null = Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Super Mario 64 VR"
+            }
             try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
             Pause-User "Press Enter to exit..." | Out-Null
             exit 1
@@ -286,16 +288,13 @@ while (-not $placedOk) {
 }
 Write-OK "Game installed at: $gameRoot"
 
+if (-not (Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Super Mario 64 VR")) {
+    Pause-User "Press Enter to exit. Your safety backup remains at the path shown above." | Out-Null
+    exit 1
+}
+
 # ---- 4. provide the Super Mario 64 US ROM ------------------
 Write-Step 4 5 "Your Super Mario 64 US ROM"
-
-# Restore anything preserved from a previous install.
-if ($preserved.Count -gt 0) {
-    foreach ($__it in $preserved) {
-        try { Move-Item -LiteralPath (Join-Path $preserveDir $__it) -Destination (Join-Path $gameRoot $__it) -Force -ErrorAction Stop } catch {}
-    }
-    Write-OK "Kept your existing ROM / saves / mods."
-}
 
 $baserom = Join-Path $gameRoot "baserom.us.z64"
 $romPlaced = (Test-Path -LiteralPath $baserom)

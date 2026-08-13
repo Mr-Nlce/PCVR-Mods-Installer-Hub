@@ -73,10 +73,6 @@ vrApi = OpenVR
 - The pistol model sometimes doesn't appear. Use **[[Right Stick]] click + [[Y]] on left controller** to force-recreate it. If that doesn't work, restart the game - it should appear on the second try.
 - In Level 1 there's a scene where a door opens and a monkey attacks you. Visibility drops to ~2 meters with no obvious cause. Just keep shooting - the monkey goes down regardless.
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game root folder to something else, for example `winhttp_bak.dll`. The mod stops loading but stays on disk so you can re-enable it later by renaming back.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

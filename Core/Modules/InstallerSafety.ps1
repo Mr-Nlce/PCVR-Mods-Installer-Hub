@@ -1791,24 +1791,244 @@ function global:Test-ViGEmBusInstalled {
 }
 
 function Read-UpdateOrInstall {
-    # Shared install/update picker for download-and-replace mods. If the mod
-    # is already present, offer to update (re-pull the latest files) or do a
-    # full reinstall. Returns "install" (nothing there yet), "update",
-    # "reinstall", or "cancel".
-    param([string]$GameFolder, [string]$ModFile)
+    # Shared install/update picker for download-and-replace mods.  A clean
+    # reinstall is exposed only when the caller explicitly declares support;
+    # most installers merge the same payload for both old choices, so showing
+    # two choices was misleading. Returns "install" (truly empty target),
+    # "update", "reinstall", or "cancel".
+    param(
+        [string]$GameFolder,
+        [string]$ModFile,
+        [switch]$AllowCleanReinstall
+    )
     if (-not $ModFile -or -not $GameFolder) { return "install" }
     $probe = Join-Path $GameFolder $ModFile
-    if (-not (Test-Path $probe)) { return "install" }
+    $modPresent = Test-Path -LiteralPath $probe
+    $folderHasContent = $false
+    if (Test-Path -LiteralPath $GameFolder -PathType Container) {
+        try { $folderHasContent = (@(Get-ChildItem -LiteralPath $GameFolder -Force -ErrorAction Stop).Count -gt 0) } catch {}
+    }
+    if (-not $modPresent -and -not $folderHasContent) { return "install" }
     Write-Host ""
-    Write-Host "  An existing installation was detected." -ForegroundColor Cyan
-    Write-Host "    [1] Update    - re-download the latest version and replace the mod files" -ForegroundColor White
-    Write-Host "    [2] Reinstall - full clean install" -ForegroundColor White
+    if ($modPresent) {
+        Write-Host "  An existing installation was detected." -ForegroundColor Cyan
+    } else {
+        Write-Host "  Existing files were found, but '$ModFile' is missing." -ForegroundColor Yellow
+        Write-Host "  Repair mode will merge a fresh release without deleting unrelated files." -ForegroundColor Gray
+    }
+    Write-Host "    [1] Update / repair - merge the latest release files safely" -ForegroundColor White
+    if ($AllowCleanReinstall) {
+        Write-Host "    [2] Reinstall       - rebuild app/mod files; personal data is preserved" -ForegroundColor White
+    }
     Write-Host "    [Q] Cancel" -ForegroundColor Gray
+    $valid = if ($AllowCleanReinstall) { @("1","2","q","Q") } else { @("1","q","Q") }
+    $prompt = if ($AllowCleanReinstall) { "  Choice (1/2/Q)" } else { "  Choice (1/Q)" }
     $c = ""
-    while ($c -notin @("1","2","q","Q")) { $c = (Read-Host "  Choice (1/2/Q)").Trim() }
+    while ($c -notin $valid) { $c = (Read-Host $prompt).Trim() }
     if ($c -match "^[Qq]$") { return "cancel" }
     if ($c -eq "1") { return "update" }
     return "reinstall"
+}
+
+# ============================================================
+#  Durable user-data protection for replace-style installers
+# ============================================================
+# Installers that rebuild a standalone game's whole directory must never put
+# saves/ROMs/settings in their ordinary extraction temp: their error handling
+# routinely clears that temp before exiting.  These helpers move selected paths
+# to a separately named backup beside the installation, merge them back with
+# per-file verification, and delete the backup only after a complete restore.
+function global:Copy-DirectoryTreeVerified {
+    param(
+        [Parameter(Mandatory=$true)][string]$Source,
+        [Parameter(Mandatory=$true)][string]$Destination,
+        [string[]]$KeepExistingRelativePaths = @()
+    )
+    $sourceRoot = [System.IO.Path]::GetFullPath($Source).TrimEnd('\')
+    $keepPaths = @($KeepExistingRelativePaths | ForEach-Object {
+        if ($_ -and $_.Trim()) { $_.Trim().Replace('/', '\').Trim('\') }
+    } | Where-Object { $_ })
+    if (-not (Test-Path -LiteralPath $sourceRoot)) { return }
+    if (-not (Test-Path -LiteralPath $Destination)) {
+        New-Item -ItemType Directory -Path $Destination -Force -ErrorAction Stop | Out-Null
+    }
+    Get-ChildItem -LiteralPath $sourceRoot -Directory -Recurse -Force -ErrorAction Stop | ForEach-Object {
+        $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart('\')
+        New-Item -ItemType Directory -Path (Join-Path $Destination $relative) -Force -ErrorAction Stop | Out-Null
+    }
+    Get-ChildItem -LiteralPath $sourceRoot -File -Recurse -Force -ErrorAction Stop | ForEach-Object {
+        $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart('\')
+        $target = Join-Path $Destination $relative
+        $parent = Split-Path $target -Parent
+        if (-not (Test-Path -LiteralPath $parent)) {
+            New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+        }
+        $keepExisting = $false
+        if (Test-Path -LiteralPath $target -PathType Leaf) {
+            foreach ($keepPath in $keepPaths) {
+                if ($relative.Equals($keepPath, [StringComparison]::OrdinalIgnoreCase) -or
+                    $relative.StartsWith($keepPath + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                    $keepExisting = $true
+                    break
+                }
+            }
+        }
+        if (-not $keepExisting) {
+            Copy-Item -LiteralPath $_.FullName -Destination $target -Force -ErrorAction Stop
+            $copied = Get-Item -LiteralPath $target -Force -ErrorAction Stop
+            if ($copied.Length -ne $_.Length) { throw "Verification failed after copying '$relative'." }
+        }
+    }
+}
+
+# Merge a complete extracted/depot directory into an installation without ever
+# deleting the destination.  When the destination already exists, every source
+# file is copied and size-verified; unrelated destination files remain.  A
+# disposable source directory is removed only after that verified copy.  When
+# no destination exists yet, a same-volume move keeps large depot installs fast.
+function global:Merge-DirectoryTreeVerified {
+    param(
+        [Parameter(Mandatory=$true)][string]$Source,
+        [Parameter(Mandatory=$true)][string]$Destination,
+        [switch]$RemoveSource,
+        [string]$Label = "payload",
+        [string[]]$KeepExistingRelativePaths = @()
+    )
+    if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
+        throw "$Label source directory is missing: $Source"
+    }
+    $sourceRoot = [System.IO.Path]::GetFullPath($Source).TrimEnd('\')
+    $targetRoot = [System.IO.Path]::GetFullPath($Destination).TrimEnd('\')
+    if ($sourceRoot -ieq $targetRoot) {
+        Write-Host "  [OK] $Label is already at the selected destination." -ForegroundColor Green
+        return "already"
+    }
+    if (Test-Path -LiteralPath $targetRoot -PathType Leaf) {
+        throw "$Label destination is a file, not a directory: $targetRoot"
+    }
+    if (Test-Path -LiteralPath $targetRoot -PathType Container) {
+        Copy-DirectoryTreeVerified -Source $sourceRoot -Destination $targetRoot -KeepExistingRelativePaths $KeepExistingRelativePaths
+        if ($RemoveSource) {
+            try { Remove-Item -LiteralPath $sourceRoot -Recurse -Force -ErrorAction Stop }
+            catch { Write-Host "  [!!] $Label was installed, but the disposable source could not be removed: $sourceRoot" -ForegroundColor Yellow }
+        }
+        Write-Host "  [OK] $Label merged into the existing installation; additional files were preserved." -ForegroundColor Green
+        return "merged"
+    }
+    $parent = Split-Path $targetRoot -Parent
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+    }
+    if ($RemoveSource) {
+        Move-Item -LiteralPath $sourceRoot -Destination $targetRoot -ErrorAction Stop
+        if (-not (Test-Path -LiteralPath $targetRoot -PathType Container)) {
+            throw "$Label move did not create the destination: $targetRoot"
+        }
+        Write-Host "  [OK] $Label moved into place." -ForegroundColor Green
+        return "moved"
+    }
+    Copy-DirectoryTreeVerified -Source $sourceRoot -Destination $targetRoot -KeepExistingRelativePaths $KeepExistingRelativePaths
+    Write-Host "  [OK] $Label copied into place and verified." -ForegroundColor Green
+    return "copied"
+}
+
+# Merge one payload item whose destination path is already fully resolved.
+# Directories use the tree merge above; files are overwritten and size-checked.
+function global:Merge-PathItemVerified {
+    param(
+        [Parameter(Mandatory=$true)][string]$Source,
+        [Parameter(Mandatory=$true)][string]$Destination,
+        [string]$Label = "payload item",
+        [string[]]$KeepExistingRelativePaths = @()
+    )
+    if (Test-Path -LiteralPath $Source -PathType Container) {
+        return Merge-DirectoryTreeVerified -Source $Source -Destination $Destination -Label $Label `
+            -KeepExistingRelativePaths $KeepExistingRelativePaths
+    }
+    if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) {
+        throw "$Label source item is missing: $Source"
+    }
+    if (Test-Path -LiteralPath $Destination -PathType Container) {
+        throw "$Label destination is a directory, but the source is a file: $Destination"
+    }
+    $leaf = Split-Path $Source -Leaf
+    $keepFile = $false
+    if (Test-Path -LiteralPath $Destination -PathType Leaf) {
+        foreach ($keepPath in @($KeepExistingRelativePaths)) {
+            if ($keepPath -and $leaf.Equals($keepPath.Trim().Replace('/', '\').Trim('\'), [StringComparison]::OrdinalIgnoreCase)) {
+                $keepFile = $true
+                break
+            }
+        }
+    }
+    if ($keepFile) { return "preserved" }
+    $parent = Split-Path $Destination -Parent
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+    }
+    Copy-Item -LiteralPath $Source -Destination $Destination -Force -ErrorAction Stop
+    $sourceItem = Get-Item -LiteralPath $Source -Force -ErrorAction Stop
+    $targetItem = Get-Item -LiteralPath $Destination -Force -ErrorAction Stop
+    if ($sourceItem.Length -ne $targetItem.Length) { throw "Verification failed after copying '$leaf'." }
+    return "copied"
+}
+
+function global:Restore-InstallUserData {
+    param(
+        [Parameter(Mandatory=$true)][string]$GameRoot,
+        [Parameter(Mandatory=$true)][string]$BackupRoot,
+        [string]$Label = "game"
+    )
+    if (-not (Test-Path -LiteralPath $BackupRoot)) { return $true }
+    try {
+        if (-not (Test-Path -LiteralPath $GameRoot)) {
+            New-Item -ItemType Directory -Path $GameRoot -Force -ErrorAction Stop | Out-Null
+        }
+        Copy-DirectoryTreeVerified -Source $BackupRoot -Destination $GameRoot
+        Remove-Item -LiteralPath $BackupRoot -Recurse -Force -ErrorAction Stop
+        Write-Host "  [OK] Preserved $Label user data restored and verified." -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "  [XX] Could not fully restore preserved $Label user data: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "  [!!] The safety backup has NOT been deleted: $BackupRoot" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+function global:Protect-InstallUserData {
+    param(
+        [Parameter(Mandatory=$true)][string]$GameRoot,
+        [Parameter(Mandatory=$true)][string]$BackupRoot,
+        [Parameter(Mandatory=$true)][string[]]$RelativePaths,
+        [string]$Label = "game"
+    )
+    # A leftover backup means an earlier run was interrupted.  Recover it before
+    # capturing current state; overwriting it would recreate the data-loss bug.
+    if (Test-Path -LiteralPath $BackupRoot) {
+        Write-Host "  [!!] Recovering $Label user data from an interrupted update first." -ForegroundColor Yellow
+        if (-not (Restore-InstallUserData -GameRoot $GameRoot -BackupRoot $BackupRoot -Label $Label)) { return $false }
+    }
+    try {
+        foreach ($relative in $RelativePaths) {
+            if ([string]::IsNullOrWhiteSpace($relative)) { continue }
+            $source = Join-Path $GameRoot $relative
+            if (-not (Test-Path -LiteralPath $source)) { continue }
+            $destination = Join-Path $BackupRoot $relative
+            $parent = Split-Path $destination -Parent
+            if (-not (Test-Path -LiteralPath $parent)) {
+                New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+            }
+            Move-Item -LiteralPath $source -Destination $destination -Force -ErrorAction Stop
+            Write-Host "  [OK] Secured user data: $relative" -ForegroundColor Green
+        }
+        return $true
+    } catch {
+        Write-Host "  [XX] Could not safely preserve $Label user data: $($_.Exception.Message)" -ForegroundColor Red
+        if (Test-Path -LiteralPath $BackupRoot) {
+            $null = Restore-InstallUserData -GameRoot $GameRoot -BackupRoot $BackupRoot -Label $Label
+        }
+        return $false
+    }
 }
 
 # ============================================================
@@ -1826,6 +2046,96 @@ function Read-UpdateOrInstall {
 # version, a Nexus file version. Anything the catalog compares against
 # has to match this string, so use the same shape.
 # $Second is for entries that track two mods in one tile.
+# ---------------------------------------------------------------
+#  Test-ThunderstoreDependencies - fehlende Abhaengigkeiten finden
+# ---------------------------------------------------------------
+# WARUM ES DAS GIBT: unsere Thunderstore-Installer tragen feste Listen
+# von Paketen. Die stammen aus der manifest.json der Hauptmod oder aus
+# Handarbeit - und beides kennt nur die DIREKTEN Abhaengigkeiten, nicht
+# das, was diese wiederum brauchen. Bei PEAK ist genau das aufgefallen:
+# PEAKLib_Core verlangt MonoDetour_BepInEx_5 und SoftDependencyFix, und
+# beide wurden nie mitinstalliert.
+#
+# DIESE FUNKTION AENDERT NICHTS. Sie liest die Abhaengigkeiten der
+# angegebenen Pakete von Thunderstore und gibt zurueck, was in der
+# Liste fehlt. Der Aufrufer entscheidet, was er damit tut.
+#
+# EINGABE: Adressen der Form
+#   https://thunderstore.io/package/download/<Autor>/<Name>/<Version>/
+# Daraus werden Autor und Name gelesen - die Installer haben solche
+# Listen ohnehin, es braucht keine Umbauten an ihren Datenstrukturen.
+function global:Test-ThunderstoreDependencies {
+    param(
+        [Parameter(Mandatory=$true)][string[]]$PackageUrls,
+        [int]$TimeoutSec = 10
+    )
+    $have = @{}
+    $todo = @()
+    foreach ($u in $PackageUrls) {
+        $m = [regex]::Match([string]$u, 'thunderstore\.io/package/download/([^/]+)/([^/]+)/')
+        if (-not $m.Success) { continue }
+        $key = ($m.Groups[1].Value + "-" + $m.Groups[2].Value)
+        $have[$key.ToLowerInvariant()] = $true
+        $todo += @{ Author = $m.Groups[1].Value; Name = $m.Groups[2].Value }
+    }
+    # Modloader nie melden - der steht in jeder Liste ohnehin ganz oben
+    # und wird von den Installern gesondert behandelt.
+    foreach ($b in @("bepinex-bepinexpack","bepinex-bepinexpack_peak","denikson-bepinexpack_valheim")) { $have[$b] = $true }
+
+    $missing = @()
+    $seenMissing = @{}
+    foreach ($p in $todo) {
+        $info = $null
+        try {
+            $info = (Invoke-WebRequest -Uri "https://thunderstore.io/api/experimental/package/$($p.Author)/$($p.Name)/" `
+                        -UseBasicParsing -TimeoutSec $TimeoutSec -ErrorAction Stop).Content | ConvertFrom-Json
+        } catch { continue }
+        if (-not $info -or -not $info.latest -or -not $info.latest.dependencies) { continue }
+        foreach ($dep in @($info.latest.dependencies)) {
+            if (-not $dep) { continue }
+            # "Namespace-Name-Version" von HINTEN trennen: der Name darf
+            # selbst Bindestriche enthalten, die Version nicht.
+            $parts = [string]$dep -split '-'
+            if ($parts.Count -lt 3) { continue }
+            $ver  = $parts[-1]
+            $ns   = $parts[0]
+            $name = ($parts[1..($parts.Count-2)]) -join '-'
+            $key  = "$ns-$name"
+            if ($have.ContainsKey($key.ToLowerInvariant())) { continue }
+            if ($seenMissing.ContainsKey($key.ToLowerInvariant())) { continue }
+            $seenMissing[$key.ToLowerInvariant()] = $true
+            $missing += @{
+                Author = $ns; Name = $name; Version = $ver
+                RequiredBy = $p.Name
+                Url = "https://thunderstore.io/package/download/$ns/$name/$ver/"
+            }
+        }
+    }
+    # KOMMA VOR DER RUECKGABE, das ist kein Tippfehler: PowerShell packt
+    # ein Array mit GENAU EINEM Element beim Zurueckgeben aus. Der
+    # Aufrufer bekaeme dann die Hashtabelle selbst - und .Count waere die
+    # Zahl ihrer SCHLUESSEL statt 1. Genau darauf bin ich beim Testen
+    # hereingefallen. Das Komma erzwingt ein Array.
+    return ,$missing
+}
+
+# Das Ergebnis in einer einheitlichen Form ausgeben. Bewusst als
+# WARNUNG und nicht als Abbruch: fehlt etwas, laeuft die Mod oft
+# trotzdem - nur eben nicht vollstaendig.
+function global:Show-ThunderstoreDependencyWarning {
+    param([array]$Missing)
+    if (-not $Missing -or $Missing.Count -eq 0) { return }
+    Write-Host ""
+    Write-Host " [!] Thunderstore lists $($Missing.Count) required package(s) that this" -ForegroundColor Yellow
+    Write-Host "     installer does not install:" -ForegroundColor Yellow
+    foreach ($m in $Missing) {
+        Write-Host ("       {0}-{1} {2}   (required by {3})" -f $m.Author, $m.Name, $m.Version, $m.RequiredBy) -ForegroundColor Yellow
+    }
+    Write-Host "     The mod may still start, but parts of it can fail." -ForegroundColor Gray
+    Write-Host "     Please report this so the entry can be completed." -ForegroundColor Gray
+    Write-Host ""
+}
+
 function global:Write-ModStamp {
     param(
         [string]$GameDir,

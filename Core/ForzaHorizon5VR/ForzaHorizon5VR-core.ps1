@@ -207,7 +207,7 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcher
 # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
 # so the Hub had to track them as 1.2.1b/1.2.1c. lufz moved to a real
 # 1.2.3, so that workaround is retired - the zip is honest again.)
-$lufzVer = "1.3.3"
+$lufzVer = "1.3.15"
 $lufzVerFile = Join-Path $installRoot "VERSION"
 $lufzVerFound = $false
 if (Test-Path -LiteralPath $lufzVerFile) {

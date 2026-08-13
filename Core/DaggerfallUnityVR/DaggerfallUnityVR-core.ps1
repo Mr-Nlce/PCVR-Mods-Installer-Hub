@@ -196,13 +196,7 @@ if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force -ErrorAction Sile
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
 if (Test-Path $installRoot) {
-    Write-Warn "A folder already exists at $installRoot"
-    Write-Host "  [Y] Delete it and reinstall fresh   [N] Keep it, install over the top" -ForegroundColor White
-    $c = ""
-    while ($c -notin @("y","Y","n","N")) { $c = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($c -in @("y","Y")) {
-        try { Remove-Item $installRoot -Recurse -Force -ErrorAction Stop } catch { Write-Warn "Could not fully delete - will install over the top." }
-    }
+    Write-Info "Existing installation found. Engine and mod files will be merged; additional files are preserved."
 }
 if (-not (Test-Path $installRoot)) { New-Item -ItemType Directory -Path $installRoot -Force | Out-Null }
 

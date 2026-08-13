@@ -7,8 +7,15 @@
 
 https://github.com/Firejumper93/GhostReconWildlandsVR
 
-## This is an early alpha - read this first
+## This is an alpha - read this first
 It is **not a complete VR experience**. Stereo depth and a fullscreen view work, but this is a development snapshot and every release changes things.
+
+> **The August 2026 game patch (Ubisoft "Last Rites") replaced `GRW.exe`.** The mod
+> refuses to touch an executable it does not recognise, so older mod builds simply
+> ran flat on the patched game - no crash, no risk, no VR either. Release
+> **v0.7.0-alpha** re-derived every engine address against the new executable and
+> was verified in the headset on 2026-08-08. The Hub always installs the newest
+> release, so you get this by itself.
 
 **Working today**
 - Native OpenXR session on the game's own D3D11 device, paced by the headset at 72 Hz
@@ -19,7 +26,8 @@ It is **not a complete VR experience**. Stereo depth and a fullscreen view work,
 
 **Not there yet**
 - **No motion controls.** You play on a gamepad. Aiming from the hip and in ADS follows the game's own aim, not your view, so the true ballistic aim point drifts from your crosshair until the game catches up. While scoped, ballistics are exact.
-- **The image is soft.** The mod captures the game's 1080p output and stretches it across a wide field of view. The author lists raising the capture resolution as the top priority.
+- **Hiding your head in first person is broken right now.** The game patch recompiled the engine function behind it and its signature no longer matches; rather than guess an address, the mod switches the feature off. You will see hair or a helmet from inside until it is re-derived. The author calls it the top priority for the next release.
+- **Two things are awaiting re-verification** after the patch changed weapon handling: the head-bone anchor that follows stand / crouch / prone, and the weapon-identification readings (off by default). If either misbehaves, that is why - report it with your `GRWVR\grwxr-<pid>.log`.
 - Wide-angle rendering can look warped toward the edges; the projection geometry is still being tuned.
 - First person is a demo: edge culling pop, visible hair and eyelashes, vehicle cabins the camera cannot reach yet. No first-person body rig.
 - Tested on exactly one configuration: Meta Quest 3 over Link cable with the Meta Quest Link runtime, RTX 5060 Ti 16 GB, Ryzen 7 9700X. Other headsets and runtimes are untested.
@@ -28,9 +36,11 @@ It is **not a complete VR experience**. Stereo depth and a fullscreen view work,
 The game ships **Easy Anti-Cheat** for multiplayer. Never run this mod in co-op, PvP or matchmaking. Playing in offline mode (Steam offline, or Ubisoft Connect set to offline) is recommended while the mod is this young.
 
 ## What you need first
-- Ghost Recon Wildlands. The author tests against the **Steam** build; the installer also finds Ubisoft Connect and Epic copies, but those are unverified.
+- Ghost Recon Wildlands, **Steam or Ubisoft Connect**. Since the August 2026 patch both stores ship the byte-identical executable, so one verified address table covers both. Epic is not covered by the author.
 - A PC VR headset with an OpenXR runtime.
 - **Asynchronous Spacewarp disabled** (Oculus Debug Tool, ASW = Disabled). The mod manages the stale eye itself and ASW compounds artifacts on top of it.
+- **FSR upscaling OFF.** The patch added it, and it sits inside the render path the mod manages - untested there.
+- The patch's new immersion toggles (reduced highlight glow, throwable sightline preview off, hidden-UI sounds) are fine and recommended in VR.
 - A GPU with headroom.
 
 ## Before you launch
@@ -58,7 +68,10 @@ This is an early alpha tested on exactly one machine. If the log shows the mod r
 ## If the game hangs on the splash screen forever
 First, separate the mod from the game - it takes two minutes and tells you which side to look at:
 
-1. Rename `dxgi.dll` in the game folder to `dxgi.dll.off` (this is the author's own disable switch).
+1. Turn the mod off with the **Flat / VR switch** on this game's page in the
+   Hub. It does exactly what the author's own disable switch does - it renames
+   `dxgi.dll` to `dxgi.dll.off` - so nothing has to be renamed by hand, and one
+   click puts it back.
 2. Start the game normally.
 
 Still stuck on the splash? Then it is not the VR mod. Wildlands needs Ubisoft Connect, and a sign-in that cannot complete hangs exactly there - check Ubisoft Connect, and whether it is set to offline while the game wants to reach the servers.
@@ -112,9 +125,6 @@ The mod also writes a per-process log to `GRWVR\grwxr-<pid>.log`.
 
 ## Switching VR off
 Rename `dxgi.dll` in the game folder, e.g. to `dxgi.dll.off`. The game then runs completely unmodified. Rename it back for VR.
-
-## Uninstall
-See the uninstall guide on this game's page in the Hub.
 
 ## Credits
 - **GRW-XR** by Firejumper93 - https://github.com/Firejumper93/GhostReconWildlandsVR

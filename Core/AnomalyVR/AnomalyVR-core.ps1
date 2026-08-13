@@ -123,14 +123,8 @@ if (Test-Path $gameDir) {
         Write-Warn "Looks like an older Hub install (JSGME-based VR mod)."
         Write-Info "The launcher's File Integrity check flags these as 'Problem':"
         foreach ($l in $leftovers) { Write-Host "       - $($l.Substring($gameDir.Length).TrimStart('\'))" -ForegroundColor DarkGray }
-        Write-Do  "Enter removes ONLY these - base game + vr_mods stay untouched."
-        Pause-User "Press Enter to clean up (or close the window to keep them)..."
-        $removed = 0
-        foreach ($l in $leftovers) {
-            try { Remove-Item -LiteralPath $l -Recurse -Force -ErrorAction Stop; $removed++ }
-            catch { Write-Warn "Could not remove: $l" }
-        }
-        Write-OK "Removed $removed old item(s) - the launcher should verify clean now."
+        Write-Info "They are retained so the installer never removes local files automatically."
+        Write-Host "       Back them up and remove them manually only if the launcher requires it." -ForegroundColor DarkGray
     }
 }
 

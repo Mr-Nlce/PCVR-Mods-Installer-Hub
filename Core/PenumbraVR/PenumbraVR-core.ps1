@@ -180,12 +180,7 @@ Write-Info "Target: $gamePath"
 
 if (Test-Path $gamePath) {
     Write-Warn "A folder already exists at $gamePath"
-    Write-Host "  [Y] Delete it and re-copy fresh   [N] Keep it, copy over the top" -ForegroundColor White
-    $c = ""
-    while ($c -notin @("y","Y","n","N")) { $c = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($c -in @("y","Y")) {
-        try { Remove-Item $gamePath -Recurse -Force -ErrorAction Stop } catch { Write-Warn "Could not fully delete - will copy over the top." }
-    }
+    Write-Info "Merging the fresh game files; saves, configs, mods and other additional files are preserved."
 }
 if (-not (Test-Path $gamePath)) { New-Item -ItemType Directory -Path $gamePath -Force | Out-Null }
 
@@ -290,7 +285,8 @@ if ($topItems.Count -eq 1 -and $topItems[0].PSIsContainer -and -not (Test-Path (
 # Copy everything into redist\ (merge over existing game files).
 $copied = $false
 try {
-    Copy-Item -Path (Join-Path $srcRoot "*") -Destination $redistPath -Recurse -Force -ErrorAction Stop
+    $null = Merge-DirectoryTreeVerified -Source $srcRoot -Destination $redistPath -Label "Penumbra VR mod files" `
+        -KeepExistingRelativePaths @("config")
     $copied = $true
     Write-OK "Mod files copied into redist\."
 } catch {
@@ -303,14 +299,53 @@ try {
         -AllowSkip $true
     if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ([string]$__fb -eq "retry") {
-        try { Copy-Item -Path (Join-Path $srcRoot "*") -Destination $redistPath -Recurse -Force -ErrorAction Stop; $copied = $true } catch {}
+        try {
+            $null = Merge-DirectoryTreeVerified -Source $srcRoot -Destination $redistPath -Label "Penumbra VR mod files" `
+                -KeepExistingRelativePaths @("config")
+            $copied = $true
+        } catch {}
     }
 }
 
-# Verify the mod exe landed.
+# SICHERUNG: nicht nur die Exe, sondern der ganze Satz. Vorher wurde nur
+# Penumbra_vr.exe geprueft - ein Archiv, dem die Modelle, Karten oder die
+# openvr_api.dll fehlen, waere damit als vollstaendig durchgegangen und das
+# Spiel haette erst im Betrieb versagt. Diese vier Wege deckt das Archiv
+# ab: die Mod-Exe, die OpenVR-Bibliothek, das VR-Tutorial-Level und die
+# VR-Handmodelle. Aus dem echten Archiv gelesen, nicht geraten.
+$MOD_MUST_HAVE = @(
+    $MOD_EXE,
+    "openvr_api.dll",
+    "maps\level00_00_vr_tutorial.hps",
+    "models\hud_objects\hud_object_hand.hud"
+)
 $modExePath = Join-Path $redistPath $MOD_EXE
+$modMissing = @()
+foreach ($m in $MOD_MUST_HAVE) {
+    if (-not (Test-Path -LiteralPath (Join-Path $redistPath $m))) { $modMissing += $m }
+}
+if ($modMissing.Count -gt 0) {
+    Write-Fail "The mod archive did not arrive completely - missing in $REDIST_SUB\:"
+    foreach ($m in $modMissing) { Write-Host "   $m" -ForegroundColor Yellow }
+    Write-Host "  Folder checked: $redistPath" -ForegroundColor Gray
+    Write-Host "  Most likely the wrong file was used - it must be" -ForegroundColor White
+    Write-Host "  penumbra_vr_v01.zip from the mod's releases page." -ForegroundColor White
+    $__fbv = Invoke-InstallerFallback -Action "install the Penumbra VR files" `
+        -Subject "the Penumbra VR archive" `
+        -Url $MANUAL_URL `
+        -Instructions "Copy EVERYTHING from penumbra_vr_v01.zip into '$redistPath' - that includes config\, maps\, models\, openvr_api.dll and $MOD_EXE. Then choose Retry." `
+        -DestFolder "$redistPath" `
+        -AllowSkip $true
+    if ([string]$__fbv -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+    $modMissing = @()
+    foreach ($m in $MOD_MUST_HAVE) {
+        if (-not (Test-Path -LiteralPath (Join-Path $redistPath $m))) { $modMissing += $m }
+    }
+    if ($modMissing.Count -gt 0) { Write-Warn "Still missing: $($modMissing -join ', ') - VR will not work." }
+}
 if (Test-Path $modExePath) {
-    Write-OK "$MOD_EXE present in redist\."
+    if ($modMissing.Count -eq 0) { Write-OK "Mod files verified in $REDIST_SUB\ ($($MOD_MUST_HAVE.Count) checks)." }
+    else { Write-OK "$MOD_EXE present in redist\." }
     # steam_appid.txt so the game does not bounce to Steam's
     # "install this game" dialog when launched outside the Steam
     # library. Written in BOTH the folder the exe runs from

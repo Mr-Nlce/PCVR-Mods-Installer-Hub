@@ -66,9 +66,6 @@ leftHanded          = false # true = left-handed mode
 - Opening drawers can be tricky depending on hand orientation - try moving around while holding the joystick.
 - The Load Save menu is invisible. It still works, you just can't see which slot you're picking. Modder plans to fix this.
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (game runs flat). Delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` for a full uninstall.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

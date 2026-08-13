@@ -1734,6 +1734,15 @@ function global:Get-PowerTier {
         "Road Redemption VR"           = "SOLID"
         "Skate Story VR"               = "SOLID"
         "Sonic P-06 VR"                = "SOLID"
+        # 2018er HD-Ports von Dreamcast-Titeln - selbst mit verdoppelter
+        # Stereo-Last weit unter dem, was diese Stufe leistet. Die 30-FPS-
+        # Sperre ist eine Spielgrenze, keine Hardwarefrage; sie wird mit
+        # Frame-Interpolation ausgeglichen, nicht mit einer groesseren Karte.
+        # Engine von 2002, aber grosse offene Karten mit vielen Spielern,
+        # Fahrzeugen und Flugzeugen - und Stereo verdoppelt das. Deutlich
+        # mehr als die reinen Dreamcast-Ports eine Zeile weiter unten.
+        "Battlefield 1942 VR"   = "SOLID"
+        "Shenmue I & II"        = "BASIC"
         "Sonic Robo Blast 2 VR" = "BASIC"
         "Ring Racers VR"        = "BASIC"
         "Star Racer VR"                = "SOLID"

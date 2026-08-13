@@ -59,10 +59,6 @@ The Releases page also lists a -symbols zip. Those are debug
 symbols for crash analysis - useful when reporting a crash to the
 developer, not needed to play. This installer skips them on purpose.
 
-## Uninstall
-Delete dxgi.dll (and openvr_api.dll, if present) from the game
-folder. Nothing else is touched.
-
 ## Updates
 The Hub checks the GitHub latest release in the background and
 flips the game tile to Update when a new build lands. Rerun this

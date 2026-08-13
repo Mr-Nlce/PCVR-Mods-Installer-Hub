@@ -119,6 +119,14 @@ if (-not $installRoot) {
 Write-OK "Install root: $installRoot"
 $gameRoot = Join-Path $installRoot $GAME_FOLDER
 $dataDir  = Join-Path $gameRoot "data"
+$preserveDir = Join-Path $installRoot "_PCVRHub_PerfectDarkVR_UserData_Backup"
+if (Test-Path -LiteralPath $preserveDir) {
+    Write-Warn "Found user data from an interrupted update. Restoring it first."
+    if (-not (Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Perfect Dark VR")) {
+        Pause-User "Press Enter to exit without changing the installation." | Out-Null
+        exit 1
+    }
+}
 
 # ---- 2. download the latest PCVR release --------------------
 $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $GAME_EXE
@@ -231,22 +239,26 @@ while (-not $exeItem) {
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
 
-# Preserve an existing ROM across a reinstall/update.
-$romBackup = $null
-$oldRom = Join-Path $dataDir $ROM_NAME
-if (Test-Path $oldRom) {
-    $romBackup = Join-Path $tmp $ROM_NAME
-    try { Move-Item -Path $oldRom -Destination $romBackup -Force -ErrorAction Stop } catch { $romBackup = $null }
+# Preserve user-supplied ROMs, the optional Transfer Pak ROM, settings and
+# possible local save folders outside the ordinary extraction temp.
+$userDataPaths = @(
+    (Join-Path "data" $ROM_NAME),
+    "data\pd.gbc",
+    "pd.ini",
+    "pd.sav",
+    "save",
+    "saves"
+)
+if (-not (Protect-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir `
+        -RelativePaths $userDataPaths -Label "Perfect Dark VR")) {
+    Pause-User "Press Enter to exit without replacing the installation." | Out-Null
+    exit 1
 }
 
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $payloadDir -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        Copy-DirectoryTreeVerified -Source $payloadDir -Destination $gameRoot
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the game files: $_"
@@ -256,6 +268,9 @@ while (-not $placedOk) {
             -DestFolder "$gameRoot" `
             -AllowSkip $true
         if ([string]$fb -eq "quit") {
+            if (Test-Path -LiteralPath $preserveDir) {
+                $null = Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Perfect Dark VR"
+            }
             try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
             Pause-User "Press Enter to exit..." | Out-Null
             exit 1
@@ -265,13 +280,13 @@ while (-not $placedOk) {
 }
 Write-OK "Game installed at: $gameRoot"
 
+if (-not (Restore-InstallUserData -GameRoot $gameRoot -BackupRoot $preserveDir -Label "Perfect Dark VR")) {
+    Pause-User "Press Enter to exit. Your safety backup remains at the path shown above." | Out-Null
+    exit 1
+}
+
 # Make sure the data folder exists (it ships in the ZIP, but be safe).
 try { if (-not (Test-Path $dataDir)) { New-Item -ItemType Directory -Path $dataDir -Force -ErrorAction Stop | Out-Null } } catch { }
-
-# Restore a preserved ROM.
-if ($romBackup -and (Test-Path $romBackup)) {
-    try { Move-Item -Path $romBackup -Destination (Join-Path $dataDir $ROM_NAME) -Force -ErrorAction Stop; Write-OK "Existing ROM preserved." } catch { }
-}
 
 # ---- 4. ROM: drag-and-drop, rename, place in data -----------
 Write-Step 4 4 "Adding your Perfect Dark ROM"

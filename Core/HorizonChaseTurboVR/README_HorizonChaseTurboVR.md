@@ -50,12 +50,6 @@ vrApi = OpenXR
 
 - Some menu UI glitches. The game itself stays fully playable.
 
-## Uninstall / temporarily disable
-
-**Important**: this mod uses a **Doorstop loader**, not the usual `winhttp.dll` proxy that the other Astienth mods use. To disable it, rename or delete `doorstop_config.ini` in the game root folder. The mod stops loading; BepInEx and the plugin DLL can stay on disk.
-
-If you want to fully clean up, also delete the `BepInEx\` folder and the `doorstop_config.ini` file.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

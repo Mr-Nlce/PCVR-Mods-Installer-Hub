@@ -150,8 +150,7 @@ function Install-ModFolder {
     }
     $dest = Join-Path $ModsDir $FolderName
     try {
-        if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction SilentlyContinue }
-        Copy-Item -LiteralPath $src.FullName -Destination $dest -Recurse -Force -ErrorAction Stop
+        $null = Merge-DirectoryTreeVerified -Source $src.FullName -Destination $dest -Label "$FolderName mod files"
     } catch {
         Write-Fail "Could not copy into Mods: $($_.Exception.Message)"
         try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}

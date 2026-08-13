@@ -260,11 +260,9 @@ $payloadDir = Split-Path -Parent $exeItem.FullName
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        $null = Get-ChildItem -Path $payloadDir -Force | ForEach-Object {
-            Move-Item -LiteralPath $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        # Replace only files supplied by the new release. Do not wipe unrelated
+        # files that may contain local/user state, even during a repair install.
+        Copy-DirectoryTreeVerified -Source $payloadDir -Destination $gameRoot
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the mod files: $_"

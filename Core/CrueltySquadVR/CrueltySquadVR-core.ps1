@@ -119,8 +119,7 @@ function Install-Addon {
         # Copy each top-level folder from the zip into the mods dir.
         Get-ChildItem -Path $tmp -Directory | ForEach-Object {
             $target = Join-Path $MODS_DIR $_.Name
-            if (Test-Path $target) { Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue }
-            Copy-Item $_.FullName -Destination $MODS_DIR -Recurse -Force
+            $null = Merge-DirectoryTreeVerified -Source $_.FullName -Destination $target -Label "$Label add-on files"
         }
         # If the zip had files at its root (no folder), copy them too.
         Get-ChildItem -Path $tmp -File | ForEach-Object { Copy-Item $_.FullName -Destination $MODS_DIR -Force }
@@ -208,9 +207,8 @@ $dl = Invoke-DownloadOrFallback -Url $MODLOADER_URL -Destination $mlZip `
 if (Test-Path $mlZip) {
     Write-Host " Extracting modloader into the game folder ... " -NoNewline -ForegroundColor White
     try {
-        # Remove a stale copy so we never end up with nested folders.
+        # Expand over the existing folder. Extra local files remain untouched.
         $mlTarget = Join-Path $gamePath "crus-vr-modloader"
-        if (Test-Path $mlTarget) { Remove-Item $mlTarget -Recurse -Force -ErrorAction SilentlyContinue }
         Expand-Archive -Path $mlZip -DestinationPath $gamePath -Force
         Write-Host "OK" -ForegroundColor Green
     } catch {
@@ -309,8 +307,7 @@ foreach ($src in @($vrFiles, $xrTools)) {
         $name = Split-Path $src -Leaf
         $dst = Join-Path $MODS_DIR $name
         try {
-            if (Test-Path $dst) { Remove-Item $dst -Recurse -Force -ErrorAction SilentlyContinue }
-            Copy-Item $src -Destination $MODS_DIR -Recurse -Force
+            $null = Merge-DirectoryTreeVerified -Source $src -Destination $dst -Label "$name mod files"
             Write-OK "$name copied to the mods folder."
         } catch {
             Write-Warn "Could not copy $name : $_"

@@ -258,27 +258,37 @@ function Install-Package {
         }
 
         Write-Info "Unpacking $Label ..."
+        $unpackDir = Join-Path ([IO.Path]::GetTempPath()) ("PCVRHub_Gen1_" + [Guid]::NewGuid().ToString("N"))
         try {
-            if (Test-Path -LiteralPath $TargetDir) { Remove-Item -LiteralPath $TargetDir -Recurse -Force -ErrorAction SilentlyContinue }
-            New-Item -ItemType Directory -Path $TargetDir -Force -ErrorAction Stop | Out-Null
-            Expand-Archive -LiteralPath $ZipPath -DestinationPath $TargetDir -Force -ErrorAction Stop
+            New-Item -ItemType Directory -Path $unpackDir -Force -ErrorAction Stop | Out-Null
+            Expand-Archive -LiteralPath $ZipPath -DestinationPath $unpackDir -Force -ErrorAction Stop
         } catch {
             Write-Fail "Unpacking failed: $($_.Exception.Message)"
+            try { Remove-Item -LiteralPath $unpackDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
             return $false
         }
 
         # Flatten a single wrapper folder (the port ships gen1recomp-win64\).
         if ($FlattenMarker) {
-            $inner = Get-ChildItem -LiteralPath $TargetDir -Directory -ErrorAction SilentlyContinue
-            $files = Get-ChildItem -LiteralPath $TargetDir -File -ErrorAction SilentlyContinue
+            $inner = Get-ChildItem -LiteralPath $unpackDir -Directory -ErrorAction SilentlyContinue
+            $files = Get-ChildItem -LiteralPath $unpackDir -File -ErrorAction SilentlyContinue
             if ($inner.Count -eq 1 -and $files.Count -eq 0) {
                 Write-Info "Flattening wrapper folder '$($inner[0].Name)' ..."
                 Get-ChildItem -LiteralPath $inner[0].FullName -Force | ForEach-Object {
-                    Move-Item -LiteralPath $_.FullName -Destination $TargetDir -Force
+                    Move-Item -LiteralPath $_.FullName -Destination $unpackDir -Force
                 }
                 Remove-Item -LiteralPath $inner[0].FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
+
+        try {
+            $null = Merge-DirectoryTreeVerified -Source $unpackDir -Destination $TargetDir -Label $Label
+        } catch {
+            Write-Fail "Could not merge $Label into the existing installation: $($_.Exception.Message)"
+            try { Remove-Item -LiteralPath $unpackDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            return $false
+        }
+        try { Remove-Item -LiteralPath $unpackDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
         $missing = Test-FilesSurvived -Root $TargetDir -Relative $MustHave
         if ($missing.Count -eq 0) {

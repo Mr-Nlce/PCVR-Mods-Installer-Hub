@@ -476,21 +476,17 @@ if ($isDepot) {
     }
     if (Test-Path $targetPath) {
         Write-Warn "Something is already at $targetPath"
-        Write-Host "    [Y] Delete it and carry on" -ForegroundColor White
-        Write-Host "    [N] Keep it and stop here" -ForegroundColor Gray
-        if (-not (Read-YesNo "Delete the existing folder?")) { Write-Info "Stopped - nothing changed."; Pause-User "Press Enter to exit..."; exit 0 }
-        try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-        catch { Write-Fail "Could not delete it: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+        Write-Info "Merging the pinned build; saves, custom Paks and other additional files are preserved."
     }
     try {
         $parentOfDepot = Split-Path $depotPath -Parent
-        Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-        Write-OK "Build moved to: $targetPath"
+        $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Ready or Not depot build"
+        Write-OK "Build installed at: $targetPath"
         try {
             if ((Get-ChildItem $parentOfDepot -Force -ErrorAction SilentlyContinue | Measure-Object).Count -eq 0) { Remove-Item $parentOfDepot -Force }
         } catch {}
     } catch {
-        Write-Fail "Move failed: $_"
+        Write-Fail "Merge failed: $_"
         Write-Info "The files are still at: $depotPath"
         Pause-User "Press Enter to exit..."
         exit 1
@@ -776,7 +772,6 @@ if ($wantDlss) {
             $ok = Invoke-DownloadOrFallback -Url $portUrl -Destination $tmpZip -Label "DLSS Swapper (portable)" -ManualUrl $DLSS_URL
             if ($ok -and (Test-Path $tmpZip)) {
                 try { if (-not (Test-Path $TOOLS_DIR)) { New-Item -ItemType Directory -Path $TOOLS_DIR -Force | Out-Null } } catch {}
-                try { if (Test-Path $DLSS_PORTABLE_DIR) { Remove-Item $DLSS_PORTABLE_DIR -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
                 [void](Expand-ArchiveOrFallback -ArchivePath $tmpZip -DestinationFolder $DLSS_PORTABLE_DIR -Label "DLSS Swapper (portable)")
                 $exe = $null
                 try { $exe = (Get-ChildItem -Path $DLSS_PORTABLE_DIR -Recurse -Filter "DLSS Swapper.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName } catch {}

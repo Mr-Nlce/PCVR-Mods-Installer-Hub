@@ -57,10 +57,6 @@ worldScale = 1.0    # default 1.0; increase = world smaller, decrease = world bi
 - A few UI quirks - e.g. the "confirm to start a race" dialog box can appear under everything.
 - Quickly made mod; if you hit a game-breaking issue, let Astienth know on Discord.
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game's `release` folder to something else, e.g. `winhttp_bak.dll`. The mod stops loading but stays on disk so you can re-enable it later by renaming it back.
-
 ## Discord
 
 - Mod info post: https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812

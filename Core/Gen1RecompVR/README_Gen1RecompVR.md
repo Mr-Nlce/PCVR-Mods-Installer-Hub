@@ -101,11 +101,6 @@ Two places to set things:
 - **In-game OPTIONS menu**: press down a few times, then the **VOXEL** and
   **VR** rows appear. VR → ON.
 
-## Uninstall
-Delete the game folder, and delete the mod folder:
-
-    C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMALESS_SHAPE
-
 ## A word on sources
 The project warns about a lookalike website that it does not run. Only the
 GitHub repositories below and the project's own Discord are official, and

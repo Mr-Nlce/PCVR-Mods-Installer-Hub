@@ -91,9 +91,6 @@ To install: extract the ZIP into `<GameRoot>\DLC\DUSK HD\` (the same folder as t
 ## Compatibility
 The modder hasn't tested compatibility with other mods or custom maps. Stock single-player content is what's been verified.
 
-## Uninstall
-Rename `winhttp.dll` in `<GameRoot>\DLC\DUSK HD\` to `winhttp_bak.dll` to deactivate the mod (the DLC runs flat). For a full uninstall, delete the renamed file plus `BepInEx\` and `winhttp_bak.dll` from the DLC folder.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

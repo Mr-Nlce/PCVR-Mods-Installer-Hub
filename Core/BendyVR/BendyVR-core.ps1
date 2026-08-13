@@ -141,9 +141,8 @@ function Install-BendyMod {
 
     Write-Host " Installing mod files into the game folder..." -NoNewline -ForegroundColor White
     try {
-        Get-ChildItem -Path $copyToGame.FullName -Force | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination $targetGamePath -Recurse -Force
-        }
+        $null = Merge-DirectoryTreeVerified -Source $copyToGame.FullName -Destination $targetGamePath -Label "Bendy VR mod files" `
+            -KeepExistingRelativePaths @("BepInEx\config")
         Write-Host " OK" -ForegroundColor Green
         Write-OK "winhttp.dll, doorstop and VR plugins copied."
     } catch {
@@ -337,23 +336,18 @@ if ($mode -eq "1") {
 
     if (Test-Path $targetPath) {
         Write-Warn "A folder already exists at $targetPath"
-        Write-Host " [Y] Delete existing folder and proceed" -ForegroundColor White
-        Write-Host " [N] Keep it, abort install" -ForegroundColor Gray
-        $c = ""; while ($c -notin @("y","Y","n","N")) { $c = (Read-Host " Your choice (Y/N)").Trim() }
-        if ($c -in @("n","N")) { Write-Info "Aborted by user."; Pause-User "Press Enter to exit..."; exit 0 }
-        try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-        catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+        Write-Info "The pinned build will be merged into it; saves, configs, mods and other additional files are preserved."
     }
 
     try {
-        Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-        Write-OK "Game moved to: $targetPath"
+        $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Bendy depot build"
+        Write-OK "Game installed at: $targetPath"
     } catch {
-        Write-Fail "Move failed: $_"
+        Write-Fail "Merge failed: $_"
         Write-Info "The game files are still at: $depotPath"
-        $fb = Invoke-InstallerFallback -Action "move depot files to install folder" `
-            -Instructions "The game files are still at '$depotPath'. Manually move them to '$targetPath'. Then choose Retry." `
-            -SkipMessage "Skipped - game files are still in the temp folder; you must move them before launching." `
+        $fb = Invoke-InstallerFallback -Action "merge depot files into the install folder" `
+            -Instructions "Copy the contents of '$depotPath' into '$targetPath' without deleting additional destination files. Then choose Retry." `
+            -SkipMessage "Skipped - the depot files were not merged into the target." `
             -DestFolder "$targetPath" -AllowSkip $true
         if ([string]$fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
         if ([string]$fb -eq "retry") { Pause-User "Please re-run the installer once resolved. Press Enter to exit..."; exit 1 }

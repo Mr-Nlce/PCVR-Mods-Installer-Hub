@@ -2,35 +2,52 @@
 
 **Scrap Mechanic Native VR** by **21Suspect** - an experimental **native** OpenXR conversion for Scrap Mechanic Survival. Stereoscopic rendering, tracked hands and tools, Touch-controller locomotion, optical hand tracking, VR interaction rays and spatial menus.
 
-> **The patcher does the patching.** The mod ships as a single guarded `ScrapMechanicVR-Patcher.exe`. The Hub installer fetches the newest one straight from the GitHub release, **checks its SHA-256 against the checksum published with that release**, and hands over to it. You still click **Install VR Mod** and approve the admin prompt yourself - the patcher is interactive by design.
+## Build lock
 
-## Build lock - read this first
-The patcher supports **Steam build 22163681 only** and deliberately refuses unknown builds rather than applying renderer hooks that might not fit. That is a feature, not a limitation: a game update can invalidate native renderer hooks even when the Lua scripts look unchanged.
+The mod only works on **Steam build 22163681** - its VR files hook the renderer
+of that exact executable. That build was live from March until 24 July 2026, when
+*Drilling Thunder* replaced it, and the mod came out one day before. On today's
+Steam version it cannot work.
 
-**Before you let Steam update Scrap Mechanic, run the patcher and choose Uninstall / Restore.** Otherwise you are left with patched files against an unpatched build.
+**So the Hub fetches that build as a separate copy** through the Steam Console,
+into `C:\Games\Scrap Mechanic VR` or a folder of your choice, and puts the VR
+files on it. **Your normal Steam install is not touched and keeps updating.**
+
+The build comes in **two depots, both needed**, about 5 GB together - `387993`
+has the executable, `387992` the data the game loads at startup. With only one
+you get a half-sized folder that stops at *Failed to find game data directory*.
+The installer walks you through both commands and merges them.
+
+**No auto-update here.** The mod is tied to that one game build, so a newer mod
+version will most likely need a different build and a new depot manifest - both
+have to change together. The Hub pins **v1.17.0**.
 
 ## Requirements
 - **Windows 10/11 x64**
-- **Steam copy of Scrap Mechanic**, exact build **22163681**
+- **Scrap Mechanic owned on Steam.** You do not need it installed - the installer
+  downloads a separate copy of the exact build the mod needs (**22163681**)
+  through the Steam Console. If you do have it installed, that copy is not touched.
 - **Meta Quest 3** is the tested headset. Other OpenXR headsets are experimental.
 - **Meta Quest Link or Air Link**, with **Meta Quest Link set as the active OpenXR runtime**
 - A GPU that can render the game twice at your headset resolution
 
 ## Installing
-1. Install or update Scrap Mechanic through Steam, then **close the game**.
+1. Close Scrap Mechanic if it is running.
 2. Connect the Quest over Quest Link or Air Link and make **Meta Quest Link the active OpenXR runtime**.
-3. Run the Hub installer. It finds the game, downloads the latest patcher into the game folder and verifies its checksum.
-4. In the patcher window: select the Scrap Mechanic folder if it was not filled in, click ***Install VR Mod***, approve the administrator prompt, then close it.
-5. Launch with ***Start in VR*** in the Hub.
+3. Run the Hub installer. It opens the Steam Console, hands you the two depot commands one after the other, merges the downloads, then copies the VR files onto that copy and writes the launcher.
+4. Launch with ***Start in VR*** in the Hub, or from the **Scrap Mechanic VR** desktop shortcut the installer creates.
 
-The patcher is **unsigned**, so Windows SmartScreen may warn about an unknown publisher. That is expected for this mod. The Hub installer computes the SHA-256 of what it downloaded and compares it against the value the author publishes with the release - if they do not match it deletes the file and refuses to run it.
-
-Worth knowing what that check is and is not: it proves the file arrived intact and is the one the author published, because the checksum comes from the release itself. It is not a signature and cannot prove who the author is.
+> **The mod's own patcher is not used.** It refuses any build other than
+> 22163681 - sensible for it, pointless here, since the Hub brings exactly that
+> build along. The VR payload is taken straight from the release archive and
+> placed into that separate copy. Everything the mod changes - including nine of
+> the game's own script files - lives in that one folder, which is why removing
+> it later is just a matter of deleting the folder.
 
 ## How to launch: "Start in VR" in the Hub
 **Use **Start in VR** on the tile.** That is the whole point of the Hub installer: it wires the button straight to the mod's own launcher, so one click does the full VR startup.
 
-The patcher's own **Start Scrap Mechanic VR** desktop shortcut does exactly the same thing and works just as well.
+The **Scrap Mechanic VR** desktop shortcut the installer creates does exactly the same thing and works just as well.
 
 What you must **not** do is launch Scrap Mechanic **from Steam**, or run `ScrapMechanic.exe` directly. Both skip the mod's launcher and give you the flat game. The launcher does several things the plain executable never will:
 
@@ -70,25 +87,19 @@ Skip that and you get the flat game, or nothing at all - which is why **Start in
 
 The permanent health / food / water / hotbar HUD is **deliberately not** duplicated as a head-locked overlay.
 
-## Updating, repairing, uninstalling
-Run `ScrapMechanicVR-Patcher.exe` again:
+## If something breaks
 
-| Action | What it does |
-|---|---|
-| **Verify** | Checks every managed file |
-| **Force Reset / Reinstall** | Restores a recognised older snapshot, then installs the current one |
-| **Uninstall / Restore** | Restores the hash-verified original Steam files |
-| **Open Logs** | Opens the installer diagnostics |
+**There is nothing to update.** The mod is pinned to v1.17.0 and the game copy is
+pinned to build 22163681 - that pairing is the whole point, so neither side moves.
+The Hub does not check for newer releases here.
 
-If you edited a managed file after installing, the patcher preserves your version under `%LOCALAPPDATA%\ScrapMechanicVR\conflicts` before restoring the original. Backups and transaction state live under `%LOCALAPPDATA%\ScrapMechanicVR`.
-
-**To update, just re-run the Hub installer.** It always fetches the newest release, verifies it, and records the version - which is what drives the update badge on the tile.
+To **repair** a broken install, run the Hub installer again: it lays the VR files
+back down over the copy in `C:\Games\Scrap Mechanic VR`. If the game copy itself
+is damaged, delete that folder and run the installer again - it re-downloads both
+depots.
 
 ## Performance
 The game is rendered twice, once per eye, at your headset's resolution, on top of a game that was never built for it. Budget accordingly - this is the reason for the STRONG power rating rather than a gentler one.
-
-## Uninstall
-Run the patcher and choose **Uninstall / Restore**. It puts back the hash-verified original Steam files rather than guessing.
 
 ## Credits and legal
 - **Scrap Mechanic Native VR** by 21Suspect

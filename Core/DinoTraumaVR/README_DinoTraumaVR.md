@@ -88,10 +88,6 @@ vrApi = OpenXR
 - The camera/player orientation can occasionally be very wrong. Recenter with **both stick clicks** to fix.
 - In-game menus with a scrollable list don't work in VR yet (Astienth is working on it).
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game root folder to something else, for example `winhttp_bak.dll`. The mod stops loading but stays on disk so you can re-enable it later by renaming back.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

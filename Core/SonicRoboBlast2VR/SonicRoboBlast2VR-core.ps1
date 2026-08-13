@@ -71,28 +71,8 @@ Write-Info "SRB2-VR is a free, standalone fan game - no Steam copy needed."
 Write-Info "Install folder: $INSTALL_ROOT"
 Write-Host ""
 
-$updateMode = $false
 if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-Host " An existing install was found." -ForegroundColor Cyan
- Write-Host " [U] Update    - download the latest release over it (your" -ForegroundColor White
- Write-Host "                 saves, addons and settings are kept: SRB2" -ForegroundColor White
- Write-Host "                 stores them under %USERPROFILE%\SRB2, not here)" -ForegroundColor White
- Write-Host " [R] Reinstall - wipe the folder and set up fresh" -ForegroundColor White
- Write-Host ""
- $ans = ""
- while ($ans -notin @("U","R")) { $ans = (Read-Host " Enter U or R").Trim().ToUpper() }
- if ($ans -eq "U") {
-  $updateMode = $true
-  Write-OK "Update mode."
- } else {
-  Write-Info "Removing the old install..."
-  try { Remove-Item -LiteralPath $INSTALL_ROOT -Recurse -Force } catch {
-   Write-Warn "Could not fully remove the old folder (files in use?)."
-   Write-Warn "Close the game if it is running, then rerun this installer."
-   Pause-User "Press Enter to exit."; exit 1
-  }
-  Write-OK "Old install removed."
- }
+ Write-OK "Existing install found - merging the latest release; additional files are kept."
 }
 if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
  New-Item -ItemType Directory -Path $INSTALL_ROOT -Force | Out-Null

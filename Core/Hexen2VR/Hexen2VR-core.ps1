@@ -198,15 +198,9 @@ Write-Info "Install root: $installParent"
 $installRoot = Join-Path $installParent $GAME_FOLDER
 
 if (Test-Path $installRoot) {
- Write-Warn "Folder already exists: $installRoot"
- Write-Host " [Y] Delete and reinstall [N] Abort" -ForegroundColor White
- $choice = ""
- while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host " Choice (Y/N)").Trim() }
- if ($choice -in @("n","N")) { Write-Info "Aborted."; Pause-User "Press Enter to exit..."; exit 0 }
- try { Remove-Item $installRoot -Recurse -Force -ErrorAction Stop }
- catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ Write-Info "Existing installation found. VHexen2 files will be merged; additional files are preserved."
 }
-New-Item -ItemType Directory -Path $installRoot | Out-Null
+New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
 Write-Host " Extracting ... " -NoNewline -ForegroundColor White
 try {

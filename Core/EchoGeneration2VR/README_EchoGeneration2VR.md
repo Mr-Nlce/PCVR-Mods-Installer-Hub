@@ -40,9 +40,6 @@ lightingDivider = 6            # higher = darker. Re-simulates post-process effe
 - The camera offset can be a little too close during cinematics. The game uses a custom component that dynamically changes the camera FOV to fake a zoom, which is impossible in VR. `camOffsetDistance` is a compromise so combat is not too far.
 - The zombie girl's outside scenario is meant to be black-and-white, but not all of the game's post-process effects could be replicated, so that part stays in colour.
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (the game then runs flat). For a full uninstall, delete the renamed file plus the `BepInEx\` folder.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

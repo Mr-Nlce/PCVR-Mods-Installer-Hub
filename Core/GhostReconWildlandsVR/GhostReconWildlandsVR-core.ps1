@@ -23,8 +23,17 @@
 #  no launcher exe. Only a non-Steam copy gets a .launch_exe marker and
 #  a desktop shortcut pointing at GRW.exe.
 #
-#  RELEASES are alphas (v0.2.0-alpha), so the newest release is taken
-#  from /releases and NOT /releases/latest, which skips prereleases.
+#  RELEASES are alphas (v0.7.0-alpha as of 2026-08-08), so the newest
+#  release is taken from /releases and NOT /releases/latest, which skips
+#  prereleases. Nothing to bump here - the newest build arrives by itself.
+#
+#  STAND 0.7.0-alpha, "The Update Update": Ubisofts "Last Rites"-Patch
+#  (August 2026) hat GRW.exe ersetzt, damit liefen aeltere Mod-Builds nur
+#  flach - die Mod fasst eine Exe nicht an, die sie nicht kennt. 0.7.0 hat
+#  alle Engine-Adressen gegen die neue Exe neu abgeleitet. NEU DABEI:
+#  Steam und Ubisoft Connect liefern jetzt die BYTE-GLEICHE Exe, eine
+#  Adresstabelle deckt beide Laeden - der Steam-only-Vorbehalt aus 0.5.0
+#  ist damit hinfaellig.
 #
 #  ANTI-CHEAT: the game ships Easy Anti-Cheat for multiplayer. The mod
 #  is SOLO CAMPAIGN ONLY and that warning is repeated on the end screen.
@@ -49,6 +58,9 @@ $MOD_FILE   = "dxgi.dll"
 $LOADER     = "openxr_loader.dll"
 $REAL_PROXY = "dxgi_real.dll"
 $CFG_REL    = "GRWVR\grwxr.cfg"
+# Schieberegler-Editor fuer grwxr.cfg, liegt im Release-Paket. Optional:
+# fehlt er in einem Paket, wird er stillschweigend uebersprungen.
+$CFG_GUI    = "cfg_gui.exe"
 
 function Write-Header {
     Clear-Host
@@ -156,9 +168,9 @@ if (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue) {
         -EpicNames @("GhostReconWildlands")
     if ($gamePath -and -not (Test-GRWRoot -Root $gamePath)) { $gamePath = $null }
 }
-# Ubisoft Connect and Epic keep the game elsewhere. Only the Steam build
-# is tested by the author, but the mod is a plain proxy DLL next to the
-# exe, so a copy from another store is worth finding rather than refusing.
+# Ubisoft Connect and Epic keep the game elsewhere. Seit 0.7.0-alpha ist
+# die Ubisoft-Connect-Kopie ausdruecklich mitgedeckt (byte-gleiche Exe wie
+# Steam), also wird dort genauso gesucht.
 if (-not $gamePath) {
     $candidates = @()
     foreach ($d in @("C:", "D:", "E:")) {
@@ -348,7 +360,21 @@ if ($missing.Count -gt 0) {
     Pause-User "Press Enter to exit." | Out-Null
     exit 1
 }
-Write-OK "Mod files in place ($MOD_FILE, $LOADER, $REAL_PROXY)."
+# cfg_gui.exe daneben legen, wenn das Paket es mitbringt - das ist der
+# Editor fuer grwxr.cfg, den das README nennt. Ohne ihn muesste der Nutzer
+# die cfg im Texteditor bearbeiten.
+$guiSrc = Get-ChildItem -LiteralPath $srcRoot -Filter $CFG_GUI -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($guiSrc) {
+    try {
+        Copy-Item -LiteralPath $guiSrc.FullName -Destination (Join-Path $gamePath $CFG_GUI) -Force -ErrorAction Stop
+        Write-OK "Mod files in place ($MOD_FILE, $LOADER, $REAL_PROXY, $CFG_GUI)."
+    } catch {
+        Write-Warn "Could not copy $CFG_GUI - edit GRWVR\grwxr.cfg in a text editor instead."
+        Write-OK "Mod files in place ($MOD_FILE, $LOADER, $REAL_PROXY)."
+    }
+} else {
+    Write-OK "Mod files in place ($MOD_FILE, $LOADER, $REAL_PROXY)."
+}
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }

@@ -44,6 +44,18 @@ Without these the headset shows nothing or a broken image:
 - **Internal Resolution: 100%**
 - Do **not** toggle **Enable advanced settings** while playing
 
+**And these four, which is what makes it play properly in the headset:**
+
+| Where | Setting | |
+|---|---|---|
+| Enhancements > Graphics > Mods | **Disable 2D Pre-Rendered Scenes** | on |
+| Enhancements > Graphics > Mods | **Disable Fixed Camera** | on |
+| VR Settings > Gameplay | **Hide Link's Body** | on |
+| VR Settings > Physical Combat | **Physical Combat** | on |
+
+The menu layout differs between Ship of Harkinian builds - go by the setting
+names, not the paths.
+
 To size the window up without black regions: temporarily enable advanced settings under Settings > Graphics, set the aspect ratio to 4:3, adjust the window until the image fills it, then disable advanced settings again.
 
 ## The in-game menu (settings, VR input, cheats)
@@ -89,10 +101,17 @@ The installer offers it at the end of setup. The download runs in your browser (
 
 | | What lands in `mods\` | Combine with OoT Reloaded 4K? |
 |---|---|---|
+| **[2] Authentic Ocarina of Time - recommended** | only `Djipi's 3DE - 26 Background 3DS.o2r` and `Djipi's 3DE - 27 Background Textures.o2r` | yes - this is the pairing |
 | **[1] 3DS look** | the whole pack - 3DS textures, NPCs, objects and the 3D backgrounds | no - it is a different art style for the same surfaces |
-| **[2] Authentic Ocarina of Time** | only `Djipi's 3DE - 26 Background 3DS.o2r` and `Djipi's 3DE - 27 Background Textures.o2r` | yes - this is the pairing |
 
-Both options include the 3D backgrounds, which is the part VR needs.
+Both include the 3D backgrounds, which is the part VR needs. Everything else in
+the full pack is cosmetic.
+
+> **Take [2] unless you specifically want the 3DS art.** The full pack's
+> character and world replacements have been seen to **crash cutscenes** -
+> traced to Saria's model, and switching that one piece off stopped the crash.
+> That is the pack, not the VR mod. If a cutscene crashes on you and you took
+> [1], remove the full pack and install the backgrounds instead.
 
 **Required in-game, otherwise nothing changes:** press [[Esc]], then
 

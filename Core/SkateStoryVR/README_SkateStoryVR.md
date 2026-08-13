@@ -44,9 +44,6 @@ Available effects you can list (comma-separated) under `disableEffects`:
 
 Also tune the in-game graphics options - those still apply on top of the mod.
 
-## Uninstall
-Rename `winhttp.dll` in the game root folder to `winhttp_bak.dll` to deactivate the mod (game runs flat). For a full uninstall, delete the renamed file plus the `VRMod\` folder and the extra DLLs the mod added under `SkateStory_Data\Managed\` and `SkateStory_Data\Plugins\x86_64\`.
-
 ## More info
 https://discord.gg/G8zZBTGuhP
 

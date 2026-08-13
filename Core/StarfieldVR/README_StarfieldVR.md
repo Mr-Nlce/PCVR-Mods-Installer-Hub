@@ -88,12 +88,6 @@ Compatible with Oculus Touch, Vive wands, and Valve Index controllers. Quad View
 - ViGEmBus driver (installer offers to set this up)
 - Gamepad or VR motion controllers (controller category: KB&M or Gamepad VR)
 
-## Uninstall
-
-Delete the files added to the game folder. For Steam, running "Verify integrity of game files" is the cleanest way to restore the vanilla state.
-
-**The stars are waiting. Constellation awaits, Starborn.**
-
 ## Support mutars
 
 mutars develops the starfield2vr mod. If you enjoy their work, consider supporting them:

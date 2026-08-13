@@ -141,9 +141,6 @@ the VR mod uses.
   every redscript mod is off, not just the one that failed** - check here first when several
   things stop working at once.
 
-## Uninstalling
-Delete the folders listed above. The base game is left untouched.
-
 ## Credits
 - **CyberpunkVRPort** by dariulone
 

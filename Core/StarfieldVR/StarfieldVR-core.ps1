@@ -15,10 +15,50 @@
 $Host.UI.RawUI.WindowTitle = "Starfield VR Mod Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_VERSION = "v2.0.0.Public"
+# GEPINNTE FASSUNG - nur der Rueckfall. Die Download-Adressen werden zur
+# Laufzeit aus dem NEUESTEN Release geholt (Get-Starfield2VrUrls weiter
+# unten), damit ein neues Release nicht wieder von Hand nachgezogen werden
+# muss. Trotzdem mitziehen: ohne API-Zugang laedt sonst dauerhaft Altes.
+$MOD_VERSION = "v2.0.1.Public"
 $MOD_INFO_URL = "https://github.com/mutars/starfield2vr"
-$MOD_URL_OPENVR = "https://github.com/mutars/starfield2vr/releases/download/v2.0.0.Public/starfield-vr-openvr-v2.0.0.Public.zip"
-$MOD_URL_OPENXR = "https://github.com/mutars/starfield2vr/releases/download/v2.0.0.Public/starfield-vr-openxr-v2.0.0.Public.zip"
+$MOD_REPO       = "mutars/starfield2vr"
+$MOD_URL_OPENVR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openvr-$MOD_VERSION.zip"
+$MOD_URL_OPENXR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openxr-$MOD_VERSION.zip"
+
+# Neuestes Release von GitHub holen und darin die beiden Anhaenge finden.
+# Der Autor benennt sie starfield-vr-openvr-<tag>.zip und
+# starfield-vr-openxr-<tag>.zip - gesucht wird nach "openvr"/"openxr" im
+# Namen, nicht nach der Version, damit eine Umbenennung nichts bricht.
+# Kommt die API nicht durch, bleiben die gepinnten Adressen oben.
+function Get-Starfield2VrUrls {
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+                 -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
+        $ov = $rel.assets | Where-Object { $_.name -match '(?i)openvr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1
+        $ox = $rel.assets | Where-Object { $_.name -match '(?i)openxr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1
+        if ($ov -and $ox) {
+            return @{ Tag = [string]$rel.tag_name
+                      OpenVR = [string]$ov.browser_download_url
+                      OpenXR = [string]$ox.browser_download_url }
+        }
+    } catch {}
+    return $null
+}
+$sfRel = Get-Starfield2VrUrls
+if ($sfRel) {
+    $MOD_VERSION    = $sfRel.Tag
+    $MOD_URL_OPENVR = $sfRel.OpenVR
+    $MOD_URL_OPENXR = $sfRel.OpenXR
+}
+
+# WAS NACH DEM KOPIEREN AM ZIEL LIEGEN MUSS. Bisher wurde die Nutzlast
+# per robocopy in den Spielordner geschoben und danach NICHTS geprueft -
+# ein leeres oder falsches Archiv haette "Mod files installed." gemeldet.
+# dxgi.dll ist der Proxy, den das Spiel laedt; dazu die Bibliothek der
+# gewaehlten Fassung.
+$MOD_MUST_HAVE_COMMON = @("dxgi.dll")
+$MOD_MUST_HAVE_OPENVR = @("openvr_api.dll")
+$MOD_MUST_HAVE_OPENXR = @("openxr_loader.dll")
 $VIGEMBUS_URL = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe"
 
 $STEAM_FOLDER = "Starfield"
@@ -252,7 +292,6 @@ try {
  & robocopy @rc | Out-Null
  if ($LASTEXITCODE -ge 8) { throw "robocopy exit code $LASTEXITCODE" }
  Write-Host "OK" -ForegroundColor Green
- Write-OK "Mod files installed."
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Fail "Copy error: $_"
@@ -270,6 +309,39 @@ try {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+
+# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
+# robocopy meldet nur eigene Fehler. Ein leeres, falsches oder fuer die
+# andere Fassung gedachtes Archiv waere sonst als "Mod files installed."
+# durchgegangen. Geprueft wird am ZIEL, gegen die Dateien, die diese
+# Fassung mitbringen MUSS.
+$need = @($MOD_MUST_HAVE_COMMON) + $(if ($useOpenXR) { $MOD_MUST_HAVE_OPENXR } else { $MOD_MUST_HAVE_OPENVR })
+$missing = @()
+foreach ($n in $need) {
+    if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing += $n }
+}
+if ($missing.Count -eq 0) {
+    Write-OK "Mod files installed and verified ($($need -join ', '))."
+} else {
+    Write-Fail "The mod did not arrive completely - missing in the game folder:"
+    foreach ($n in $missing) { Write-Host "   $n" -ForegroundColor Yellow }
+    Write-Host "  Folder checked: $gamePath" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Most likely the wrong archive was used. This install is the" -ForegroundColor White
+    Write-Host "  $runtimeLabel variant, so the download must be the one with" -ForegroundColor White
+    Write-Host "  '$(if ($useOpenXR) { "openxr" } else { "openvr" })' in its name." -ForegroundColor White
+    $__fb = Invoke-InstallerFallback -Action "install the starfield2vr files" `
+        -Subject "the starfield2vr $runtimeLabel archive" `
+        -Url $MOD_INFO_URL `
+        -Instructions "Download starfield-vr-$(if ($useOpenXR) { "openxr" } else { "openvr" })-<version>.zip from the releases page and copy ALL of its contents into '$gamePath' (next to Starfield.exe). Then choose Retry." `
+        -DestFolder "$gamePath" `
+        -AllowSkip $true
+    if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+    $missing2 = @()
+    foreach ($n in $need) { if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing2 += $n } }
+    if ($missing2.Count -eq 0) { Write-OK "Now verified ($($need -join ', '))." }
+    else { Write-Warn "Still missing: $($missing2 -join ', ') - VR will not load." }
 }
 
 try { Remove-Item $tempDir -Recurse -Force } catch {}

@@ -77,10 +77,3 @@ Driving uses a **gamepad or wheel**, exactly like flat Forza:
   mod.
 - The launcher shows **"No supported games running"** until Forza is
   started or added to the library - that line is normal at first run.
-
-## Uninstall
-
-Delete `C:\Games\Forza Horizon 5 VR` and the desktop shortcut. Verify
-the game files afterwards if you used **Install VR Mod** on the game
-folder (Steam: right-click the game > Properties > Installed Files >
-Verify; Xbox app: three-dot menu > Manage > Files > Verify and repair).

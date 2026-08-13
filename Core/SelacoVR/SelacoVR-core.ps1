@@ -216,13 +216,9 @@ if (-not $exeItem) {
     exit 1
 }
 $extractedDir = Split-Path -Parent $exeItem.FullName
-# Move all engine files up into $engineRoot.
+# Merge all engine files into $engineRoot without deleting additional files.
 try {
-    $null = Get-ChildItem -Path $extractedDir -Force | ForEach-Object {
-        $dest = Join-Path $engineRoot $_.Name
-        if (Test-Path $dest) { Remove-Item $dest -Recurse -Force -ErrorAction SilentlyContinue }
-        Move-Item -Path $_.FullName -Destination $engineRoot -Force -ErrorAction Stop
-    }
+    $null = Merge-DirectoryTreeVerified -Source $extractedDir -Destination $engineRoot -Label "SelacoVR engine files"
     Remove-Item $tmpExtract -Recurse -Force -ErrorAction SilentlyContinue
 } catch {
     Write-Fail "Could not place the engine files: $_"

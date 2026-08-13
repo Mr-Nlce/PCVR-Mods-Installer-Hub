@@ -45,6 +45,15 @@ from Dolphin, copy your Dolphin memory-card data into PrimedGun's `User` folder.
 4. Drop your **Metroid Prime NTSC 1.0 (rev 0)** ISO into:
    `C:\Games\Metroid Prime VR\ROM`
 
+### Updates and reinstalls
+
+Both modes preserve the complete `User` folder (game saves, Dolphin save states and
+preferences) and the `ROM` folder. Update mode merges the new release files into the
+existing installation. Reinstall mode rebuilds the application files, then restores
+the preserved user data. The installer keeps an external safety backup until every
+preserved file has been restored and verified; an interrupted run recovers that
+backup automatically the next time the installer starts.
+
 ## How to play
 
 1. Put your ISO in the `ROM` folder (see above).

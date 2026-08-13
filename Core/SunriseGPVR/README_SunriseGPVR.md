@@ -43,10 +43,6 @@ vrApi = OpenXR
 
 - Some menu UI glitches: results screens can overlap other menus. The game itself stays playable.
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game root folder to something else, for example `winhttp_bak.dll`. The mod stops loading but stays on disk so you can re-enable it later by renaming back.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

@@ -372,6 +372,40 @@ $xaml = @"
                                    TextWrapping="NoWrap"/>
                     </StackPanel>
                 </Border>
+                <!-- Updates: dritte Pille, ABSICHTLICH ausserhalb des
+                     Anker/Partner-Tauschs der beiden oberen. Die zwei
+                     tauschen sich gegenseitig ein und aus; eine dritte in
+                     dieses Wechselspiel zu haengen haette es zerlegt.
+                     Diese hier ist schlicht sichtbar, sobald ein Scan
+                     gelaufen ist UND es ueberhaupt etwas zu aktualisieren
+                     gibt - sonst bleibt sie eingeklappt und nimmt keinen
+                     Platz. Sichtbarkeit und Anstrich macht
+                     Set-InstallFilterMode. -->
+                <Border x:Name="FilterUpdate" CornerRadius="6" Padding="15,9" Margin="6,0,0,0"
+                        BorderThickness="1" BorderBrush="#0fffffff" Visibility="Collapsed"
+                        Background="#000000" Cursor="Hand"
+                        ToolTip="Show only installed mods that have a newer version">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Updates" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="#aaaaaa" FontFamily="Segoe UI"
+                                   TextWrapping="NoWrap" VerticalAlignment="Center"/>
+                        <!-- Zahl in einem eigenen Traeger: MinWidth 20 haelt sie
+                             bei einer Ziffer rund, CornerRadius 10 plus das
+                             Innenpolster laesst sie bei zwei Ziffern zur Ellipse
+                             wachsen. Farben setzt Set-InstallFilterMode - die
+                             Zahl steht auch im ABGEWAEHLTEN Zustand da, deshalb
+                             ein zurueckhaltendes, halbdurchlaessiges Blau. -->
+                        <Border x:Name="FilterUpdateBadge" CornerRadius="10"
+                                MinWidth="20" Height="20" Margin="9,0,0,0"
+                                Padding="7,0" Background="#1F60A5FA"
+                                VerticalAlignment="Center">
+                            <TextBlock x:Name="FilterUpdateCount" Text="0" FontSize="12"
+                                       FontWeight="SemiBold" Foreground="#8FB6DD"
+                                       FontFamily="Segoe UI" TextWrapping="NoWrap"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
                 </StackPanel>
                 <!-- No divider here on purpose: the glowing counter
                      button separates itself visually from the

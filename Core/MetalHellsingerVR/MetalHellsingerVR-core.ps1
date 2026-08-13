@@ -211,33 +211,22 @@ if ($targetParent -and -not (Test-Path $targetParent)) {
 
 if (Test-Path $targetPath) {
     Write-Warn "A folder already exists at $targetPath"
-    Write-Host "  [Y] Delete it and proceed   [N] Abort" -ForegroundColor White
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) { Write-Info "Aborted by user."; Pause-User "Press Enter to exit..." | Out-Null; exit 0 }
-    try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-    catch {
-        Write-Fail "Could not delete the existing folder: $_"
-        $__fb = Invoke-InstallerFallback -Action "remove the old install folder" `
-            -Instructions "Delete '$targetPath' manually (close any program using it), then choose Retry." `
-            -DestFolder "$targetPath" -AllowSkip $false
-        if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-    }
+    Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 Write-Host ""
-Write-Host "  Moving: $depotPath" -ForegroundColor Gray
+Write-Host "  Installing from: $depotPath" -ForegroundColor Gray
 Write-Host "      to: $targetPath" -ForegroundColor Gray
 $moved = $false
 while (-not $moved) {
     try {
-        Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
+        $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Metal Hellsinger depot build"
         $moved = $true
-        Write-Info "Game moved to: $targetPath"
+        Write-Info "Game installed at: $targetPath"
     } catch {
-        Write-Fail "Move failed: $_"
-        $__fb = Invoke-InstallerFallback -Action "move the depot files into the install folder" `
-            -Instructions "The game files are still at '$depotPath'. Move (cut) them into '$targetPath', then choose Retry. Skip continues without moving (you would then launch from the depot path)." `
+        Write-Fail "Merge failed: $_"
+        $__fb = Invoke-InstallerFallback -Action "merge the depot files into the install folder" `
+            -Instructions "Copy the contents of '$depotPath' into '$targetPath' without deleting additional destination files, then choose Retry." `
             -SourceFolder "$depotPath" -DestFolder "$targetPath" -AllowSkip $true
         if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
         if ([string]$__fb -eq "skip") { $targetPath = $depotPath; $moved = $true }
@@ -312,9 +301,8 @@ while (-not $modDone) {
     }
 
     try {
-        Get-ChildItem -Path $modPayload -Force | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
-        }
+        $null = Merge-DirectoryTreeVerified -Source $modPayload -Destination $gamePath -Label "HellsingerVR mod files" `
+            -KeepExistingRelativePaths @("BepInEx\config")
     } catch {
         Write-Fail "Could not copy mod files into the game folder: $_"
         $__fb = Invoke-InstallerFallback -Action "copy the mod files into the game folder" `

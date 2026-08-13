@@ -153,21 +153,10 @@ if (-not (Test-Path $parentDir)) {
 $installPath = Join-Path $parentDir $INSTALL_FOLDER_NAME
 $downloadPath = Join-Path $parentDir $DOWNLOAD_FOLDER_NAME
 if (Test-Path $installPath) {
- Write-Warn "A folder already exists at $installPath"
- Write-Host " [Y] Delete existing folder and proceed" -ForegroundColor White
- Write-Host " [N] Keep it, abort install" -ForegroundColor Gray
- $choice = ""
- while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host " Your choice (Y/N)").Trim() }
- if ($choice -in @("n","N")) {
- Write-Info "Aborted by user."
- Pause-User "Press Enter to exit..."
- exit 0
- }
- try { Remove-Item $installPath -Recurse -Force -ErrorAction Stop }
- catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ Write-Info "Existing installation found. New game and mod files will be merged into it; additional files are preserved."
 }
-# Clear a leftover download folder from a previous interrupted run so
-# the rename at the end has a clean target.
+# Clear only the disposable staging folder from a previous interrupted
+# download. The actual installation folder above is never deleted.
 if (Test-Path $downloadPath) {
  try { Remove-Item $downloadPath -Recurse -Force -ErrorAction Stop }
  catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
@@ -351,7 +340,7 @@ try {
 # Different depot layouts / drives can put it in slightly different
 # places, so we SEARCH for the EXE rather than assume one fixed
 # subfolder. Whatever folder holds the EXE becomes the game root.
-$gameRoot = Find-GameRoot -Roots @((Join-Path $downloadPath $GAME_SUBDIR), $downloadPath, $parentDir)
+$gameRoot = Find-GameRoot -Roots @((Join-Path $downloadPath $GAME_SUBDIR), $downloadPath)
 
 # If still not found, let the user point us straight at the folder that
 # DepotDownloader wrote (drag it into this window, or paste the path)
@@ -377,19 +366,19 @@ while (-not $gameRoot) {
             if (-not $gameRoot) { Write-Warn "No '$GAME_EXE' found in or under that folder." }
         }
     } else {
-        $gameRoot = Find-GameRoot -Roots @((Join-Path $downloadPath $GAME_SUBDIR), $downloadPath, $parentDir)
+        $gameRoot = Find-GameRoot -Roots @((Join-Path $downloadPath $GAME_SUBDIR), $downloadPath)
         if (-not $gameRoot) { Write-Warn "Still couldn't find '$GAME_EXE'. Check the download finished." }
     }
 }
 
 $defedPath = $gameRoot
 $gameExe   = Join-Path $defedPath $GAME_EXE
-# Keep $downloadPath pointing at the staging folder to be renamed later:
-# the PARENT of an 'Outward_Defed' game root, otherwise the root itself.
+# Determine the complete payload root without changing $downloadPath, which
+# continues to identify the disposable DepotDownloader staging directory.
 if ((Split-Path $defedPath -Leaf) -ieq $GAME_SUBDIR) {
-    $downloadPath = Split-Path $defedPath -Parent
+    $payloadRoot = Split-Path $defedPath -Parent
 } else {
-    $downloadPath = $defedPath
+    $payloadRoot = $defedPath
 }
 Write-OK "Game files found: $defedPath"
 
@@ -500,33 +489,42 @@ if (Test-Path $bepinexPath) {
  Write-Warn "BepInEx folder not visible at expected location."
 }
 
-# Rename the download folder (no space, e.g. C:\Games\Outward) to the
-# final install folder (C:\Games\Outward VR). Done now - after the mod
-# is in place - so the whole VR install carries the proper name. Only
-# rename when it stays within the same parent (Rename-Item can't move
-# across folders/drives); otherwise the files are used where they are.
-$sameParent = $false
-try { $sameParent = ((Split-Path $downloadPath -Parent) -ieq (Split-Path $installPath -Parent)) } catch {}
+# Merge the completed staging payload into the final installation. Existing
+# files with the same name are updated, while extra files (saves, settings,
+# additional mods, screenshots, and similar user content) stay in place.
 $rootUnderDownload = $false
-try { $rootUnderDownload = $defedPath.ToLower().StartsWith($downloadPath.ToLower()) } catch {}
+try {
+    $downloadFull = [IO.Path]::GetFullPath($downloadPath).TrimEnd('\','/')
+    $defedFull = [IO.Path]::GetFullPath($defedPath).TrimEnd('\','/')
+    $rootUnderDownload = ($defedFull -ieq $downloadFull) -or
+        $defedFull.StartsWith($downloadFull + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+} catch {}
 
-if ($downloadPath -ne $installPath -and (Test-Path $downloadPath) -and $sameParent -and $rootUnderDownload) {
+if ($payloadRoot -ne $installPath -and (Test-Path $payloadRoot) -and $rootUnderDownload) {
     try {
-        if (Test-Path $installPath) { Remove-Item $installPath -Recurse -Force -ErrorAction Stop }
-        Rename-Item -Path $downloadPath -NewName $INSTALL_FOLDER_NAME -ErrorAction Stop
-        # Re-locate the EXE under the renamed folder (layout-agnostic).
+        $outwardUserPaths = @(
+            "Outward_Defed\SaveGames", "Outward_Defed\OptionSettings.oos", "Outward_Defed\Player0_Keymappings.xml",
+            "Outward_Defed\BepInEx\config", "SaveGames", "OptionSettings.oos", "Player0_Keymappings.xml", "BepInEx\config"
+        )
+        Merge-DirectoryTreeVerified -Source $payloadRoot -Destination $installPath -RemoveSource -Label "Outward depot build" `
+            -KeepExistingRelativePaths $outwardUserPaths
+        # Re-locate the EXE under the merged folder (layout-agnostic).
         $newRoot = Find-GameRoot -Roots @($installPath)
         if ($newRoot) { $defedPath = $newRoot } else { $defedPath = Join-Path $installPath $GAME_SUBDIR }
         $gameExe = Join-Path $defedPath $GAME_EXE
-        Write-OK "Renamed install folder to: $installPath"
+        Write-OK "Merged install files into: $installPath"
     } catch {
-        Write-Warn "Could not rename to '$INSTALL_FOLDER_NAME' - using '$downloadPath' instead."
-        $installPath = $downloadPath
+        Write-Warn "Could not merge into '$INSTALL_FOLDER_NAME' - using '$payloadRoot' instead."
+        $installPath = $payloadRoot
     }
 } else {
-    # EXE is not inside the staging folder (e.g. user pointed us at a
-    # folder elsewhere) - use it in place, no rename.
-    $installPath = Split-Path $defedPath -Parent
+    # EXE is not inside the staging folder (e.g. the user pointed us at a
+    # folder elsewhere) - use it in place and never move that external tree.
+    if ((Split-Path $defedPath -Leaf) -ieq $GAME_SUBDIR) {
+        $installPath = Split-Path $defedPath -Parent
+    } else {
+        $installPath = $defedPath
+    }
     Write-Info "Using the game files in place: $installPath"
 }
 

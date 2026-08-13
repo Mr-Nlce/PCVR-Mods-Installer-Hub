@@ -117,6 +117,13 @@ $TS_MOD_NAME    = "PeakVR"
 # Read out of Andrey04o-PeakVR-1.3.0.zip, not from the web page.
 $TS_PACKAGES = @(
     @{ Key = "BepInEx-BepInExPack_PEAK";      Author = "BepInEx";      Name = "BepInExPack_PEAK"; Pinned = "5.4.75301"; Label = "BepInEx (PEAK pack)" }
+    # !!! ABHAENGIGKEITEN VON PEAKLib_Core - DIE FEHLTEN !!!
+    # PEAKLib_Core 1.7.2 fuehrt auf seiner Thunderstore-Seite selbst zwei
+    # Pflichtabhaengigkeiten auf. Unsere Liste war aus PeakVRs manifest.json
+    # abgeschrieben - und dort stehen nur die DIREKTEN Abhaengigkeiten, nicht
+    # deren eigene. Sie stehen VOR PEAKLib_Core, damit sie zuerst liegen.
+    @{ Key = "MonoDetour-MonoDetour_BepInEx_5"; Author = "MonoDetour"; Name = "MonoDetour_BepInEx_5"; Pinned = "0.6.7"; Label = "MonoDetour (BepInEx 5)" }
+    @{ Key = "PEAKModding-SoftDependencyFix"; Author = "PEAKModding"; Name = "SoftDependencyFix";   Pinned = "1.0.0";     Label = "SoftDependencyFix" }
     @{ Key = "PEAKModding-PEAKLib_Core";      Author = "PEAKModding";  Name = "PEAKLib_Core";     Pinned = "1.7.2";     Label = "PEAKLib Core" }
     @{ Key = "PEAKModding-PEAKLib_UI";        Author = "PEAKModding";  Name = "PEAKLib_UI";       Pinned = "1.6.1";     Label = "PEAKLib UI" }
     @{ Key = "PEAKModding-ModConfig";         Author = "PEAKModding";  Name = "ModConfig";        Pinned = "1.6.0";     Label = "ModConfig" }
@@ -144,11 +151,74 @@ function Get-TSInfo { param($author,$name)
     foreach ($u in @("https://thunderstore.io/api/experimental/package/$author/$name/")) {
         try {
             $d = (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop).Content | ConvertFrom-Json
-            return @{ Version = $d.latest.version_number; DownloadUrl = $d.latest.download_url; Deprecated = ($d.is_deprecated -eq $true) }
+            return @{
+                Version      = $d.latest.version_number
+                DownloadUrl  = $d.latest.download_url
+                Deprecated   = ($d.is_deprecated -eq $true)
+                # Thunderstore nennt hier die Pflichtabhaengigkeiten als
+                # Zeichenketten der Form "Namespace-Name-Version".
+                Dependencies = @($d.latest.dependencies)
+            }
         } catch { }
     }
     return $null
 }
+# ---------------------------------------------------------------
+#  Resolve-TSDependencies - Abhaengigkeiten wirklich aufloesen
+# ---------------------------------------------------------------
+# WARUM ES DAS GIBT: die feste Liste oben stammt aus PeakVRs eigener
+# manifest.json. Dort stehen aber nur die DIREKTEN Abhaengigkeiten -
+# nicht das, was DIESE wiederum brauchen. Genau daran hat es gefehlt:
+# PEAKLib_Core verlangt MonoDetour_BepInEx_5 und SoftDependencyFix,
+# und beide wurden nie mitinstalliert.
+#
+# Thunderstore nennt zu jedem Paket seine Pflichtabhaengigkeiten als
+# Zeichenketten "Namespace-Name-Version". Diese Funktion geht die Liste
+# durch, fragt jedes Paket ab, haengt Unbekanntes hinten an und
+# wiederholt das, bis nichts Neues mehr dazukommt - also auch ueber
+# mehrere Ebenen.
+#
+# OHNE NETZ passiert nichts: dann bleibt es bei der festen Liste, und
+# die enthaelt die bekannten Faelle bereits.
+function Resolve-TSDependencies {
+    param([array]$Packages)
+    $list = @($Packages)
+    $seen = @{}
+    foreach ($p in $list) { $seen[$p.Key.ToLowerInvariant()] = $true }
+    # Modloader nie als Abhaengigkeit nachziehen - BepInEx steht schon
+    # als erster Eintrag in der Liste und wird gesondert behandelt.
+    $skip = @("bepinex-bepinexpack_peak","bepinex-bepinexpack")
+
+    $round = 0
+    while ($round -lt 5) {
+        $round++
+        $added = 0
+        foreach ($p in @($list)) {
+            $info = Get-TSInfo -author $p.Author -name $p.Name
+            if (-not $info -or -not $info.Dependencies) { continue }
+            foreach ($dep in $info.Dependencies) {
+                if (-not $dep) { continue }
+                # "Namespace-Name-Version" von HINTEN trennen: der Name
+                # darf selbst Bindestriche enthalten, die Version nicht.
+                $parts = [string]$dep -split '-'
+                if ($parts.Count -lt 3) { continue }
+                $ver  = $parts[-1]
+                $ns   = $parts[0]
+                $name = ($parts[1..($parts.Count-2)]) -join '-'
+                $key  = "$ns-$name"
+                if ($skip -contains $key.ToLowerInvariant()) { continue }
+                if ($seen.ContainsKey($key.ToLowerInvariant())) { continue }
+                $seen[$key.ToLowerInvariant()] = $true
+                $list += @{ Key = $key; Author = $ns; Name = $name; Pinned = $ver; Label = "$name (required by $($p.Name))" }
+                $added++
+                Write-Info "Additional requirement found: $ns-$name $ver"
+            }
+        }
+        if ($added -eq 0) { break }
+    }
+    return $list
+}
+
 function Get-TSInstalledVersion { param($key,$gamePath)
     $f = Join-Path $gamePath "BepInEx\.ts_versions\$key"
     if (Test-Path -LiteralPath $f) { return (Get-Content -LiteralPath $f -Raw).Trim() }
@@ -245,6 +315,10 @@ if ($peakMode -eq "1") {
     Write-Step 2 3 "Installing PeakVR and its dependencies"
     $tmp = Join-Path $env:TEMP ("peakvr_" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    # Erst die Abhaengigkeiten aufloesen, dann installieren. Bringt das
+    # Netz nichts, bleibt es bei der festen Liste.
+    $TS_PACKAGES = Resolve-TSDependencies -Packages $TS_PACKAGES
+    Write-OK "$($TS_PACKAGES.Count) package(s) to check."
     $allOk = $true
     foreach ($pkg in $TS_PACKAGES) {
         $ver = $pkg.Pinned
@@ -487,24 +561,14 @@ Write-Host ""
 
 if (Test-Path $targetPath) {
     Write-Warn "A folder already exists at $targetPath"
-    Write-Host "    [Y] Delete and proceed" -ForegroundColor White
-    Write-Host "    [N] Keep it, abort install" -ForegroundColor Gray
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) {
-        Write-Info "Aborted by user."
-        Pause-User "Press Enter to exit..."
-        exit 0
-    }
-    try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-    catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+    Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 try {
-    Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-    Write-OK "Game moved to: $targetPath"
+    $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "PEAK depot build"
+    Write-OK "Game installed at: $targetPath"
 } catch {
-    Write-Fail "Move failed: $_"
+    Write-Fail "Merge failed: $_"
     Write-Info "The game files are still at: $depotPath"
     Pause-User "Press Enter to exit..."
     exit 1
@@ -554,15 +618,27 @@ $r = Invoke-DownloadOrFallback -Url $MOD_URL -Destination $modZip `
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { Pause-User "Install cannot continue without the VR mod. Press Enter to exit..."; exit 1 }
 
-Write-Info "Extracting mod into $gamePath..."
-$efb = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $gamePath -Label "PEAK_VR" `
+Write-Info "Extracting the mod into a staging folder..."
+$modExtract = Join-Path $modTmp "extracted"
+$efb = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $modExtract -Label "PEAK_VR" `
         -SkipMessage "Skipped - PEAK_VR was not extracted; the VR mod will NOT load."
 if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if ([string]$efb -ne "ok" -and [string]$efb -ne "manual") {
     Pause-User "Mod extraction skipped/failed. Install incomplete. Press Enter to exit..."
     exit 1
 }
-Write-OK "Mod files extracted."
+$modPayload = $modExtract
+$modChildren = @(Get-ChildItem -Path $modExtract -Force -ErrorAction SilentlyContinue)
+if ($modChildren.Count -eq 1 -and $modChildren[0].PSIsContainer) { $modPayload = $modChildren[0].FullName }
+try {
+    $null = Merge-DirectoryTreeVerified -Source $modPayload -Destination $gamePath -Label "PEAK_VR mod files" `
+        -KeepExistingRelativePaths @("BepInEx\config")
+    Write-OK "Mod files merged; existing BepInEx configuration was retained."
+} catch {
+    Write-Fail "Could not merge the mod files: $_"
+    Pause-User "Press Enter to exit without deleting existing files..."
+    exit 1
+}
 
 # Sanity check
 $missing = @()

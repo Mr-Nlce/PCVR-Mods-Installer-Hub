@@ -10,13 +10,18 @@
 # %LOCALAPPDATA% manager - we make our own desktop shortcut.
 #
 # Two install paths:
-#   Option [1] Current game version: copy the VR files onto your
-#     existing Steam copy.
-#   Option [2] Depot version: Steam Console download of the newest
-#     content build into C:\Games\Scrap Mechanic VR, then copy the
-#     VR files onto that. Retail Steam copy stays untouched. This
-#     is a tinkering build - VR may need fiddling on a build the
-#     mod wasn't cut against.
+# ES GIBT NUR EINEN WEG, und das ist Absicht: Steam-Console-Download von
+# GENAU Build 22163681 nach C:\Games\Scrap Mechanic VR (Pfad waehlbar),
+# dann die VR-Dateien darauf. Die Retail-Kopie bleibt unangetastet und
+# darf weiter aktualisieren.
+# Die frueher angebotene Wahl "auf die eigene Steam-Kopie kopieren" ist
+# ENTFALLEN: sie setzt voraus, dass diese Kopie noch Build 22163681 ist,
+# und das ist seit dem 24. Juli 2026 nicht mehr der Live-Stand. Sie war
+# damit fuer praktisch jeden die falsche Wahl.
+# KEIN AUTO-UPDATE: die Mod haengt an diesem einen Build. v1.17.0 ist
+# festgeschrieben; eine kuenftige Version braucht sehr wahrscheinlich
+# einen anderen Build und damit auch ein neues Manifest - das wird dann
+# zusammen angefasst, nicht die Mod allein.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -38,12 +43,45 @@ $MOD_VERSION = "v1.17.0"
 $SOURCE_URL  = "https://github.com/$REPO/archive/refs/tags/$MOD_VERSION.zip"
 $INFO_URL    = "https://github.com/$REPO"
 
-# Steam depot - NEWEST content build (has the executable). Depot 387993
-# is the content depot; 387992 is data-only (no exe). Manifest from Martin.
+# Steam depot - GENAU DER BUILD, DEN DIE MOD UNTERSTUETZT. Depot 387993
+# ist die Content-Depot mit der Exe; 387992 ist nur Daten (keine Exe).
+#
+# HIER LAG DER FEHLER: bisher stand hier das Manifest des NEUESTEN
+# Content-Builds. Die Mod v1.17.0 sagt in ihren Release-Notes aber
+# ausdruecklich "supports Scrap Mechanic Steam build 22163681 only" -
+# ihre Binaerdateien sind gegen die Exe dieses Builds gebaut. Auf jedem
+# anderen Build laeuft sie nicht, und weil unser Installer die Nutzlast
+# von Hand kopiert, faellt die Buildpruefung des Patchers dabei weg: es
+# sieht installiert aus und funktioniert trotzdem nicht.
+#
+# Zeitleiste, bei SteamDB nachgesehen: Build 22163681 ist "Hotfix 0.7.4"
+# vom 2. Maerz 2026 und war bis zum 24. Juli 2026 der LIVE-Build. Die Mod
+# kam am 23. Juli heraus - einen Tag, bevor "Drilling Thunder" den Build
+# ersetzt hat. Wer die Mod also vor dem 24. Juli aufgesetzt hat oder den
+# passenden Build besitzt, bei dem laeuft sie; auf dem heutigen Steam-Stand
+# nicht.
+#
+# !!! DER BUILD BESTEHT AUS ZWEI DEPOTS, BEIDE SIND NOETIG !!!
+# Vorher wurde nur 387993 geladen - das ist die Win64-Depot mit der Exe,
+# rund 2 GB. Die Spieldaten (Data\, Survival\, Challenges\ ...) liegen in
+# der zweiten Depot 387992. Ergebnis: Ordner ~2 GB statt ~5 GB, Exe da,
+# und das Spiel bricht mit "Failed to find game data directory" ab.
+# Bei SteamDB fuer Build 22163681 sind unter "Changed files in this
+# update" GENAU DIESE ZWEI Depots aufgefuehrt, mit diesen Manifesten.
 $DEPOT_APPID    = "387990"
-$DEPOT_DEPOTID  = "387993"
-$DEPOT_MANIFEST = "2120585736818737513"
-$DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
+$SUPPORTED_BUILD = "22163681"
+# Reihenfolge: Daten zuerst, dann die Exe-Depot - so ist der Ordner nach
+# dem letzten Schritt vollstaendig und die Exe-Pruefung greift auf dem
+# fertigen Baum.
+$DEPOTS = @(
+    @{ Id = "387992"; Manifest = "4615519036154398529"; Label = "Scrap Mechanic Data" },
+    @{ Id = "387993"; Manifest = "1969835134401920665"; Label = "Windows 64-bit (with the exe)" }
+)
+foreach ($d in $DEPOTS) { $d.Command = "download_depot $DEPOT_APPID $($d.Id) $($d.Manifest)" }
+# Fuer Meldungen und den Rueckfall: die Exe-Depot.
+$DEPOT_DEPOTID  = $DEPOTS[1].Id
+$DEPOT_MANIFEST = $DEPOTS[1].Manifest
+$DEPOT_COMMAND  = $DEPOTS[1].Command
 
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME    = "Scrap Mechanic VR"
@@ -268,22 +306,24 @@ try {
  }
 } catch {}
 
-Write-Host "  [1] Current game version" -ForegroundColor Green
-Write-Host "      Copies the VR files onto your existing Steam copy." -ForegroundColor Gray
+# NUR NOCH DER DEPOT-WEG. Die Wahl "auf die eigene Steam-Kopie kopieren"
+# ist ENTFALLEN (Martins Entscheidung nach dem erfolgreichen Test): sie
+# funktioniert nur auf Build 22163681, und der ist seit dem 24. Juli 2026
+# nicht mehr der Live-Stand - sie war also fuer praktisch jeden die falsche
+# Wahl und hat nur Verwirrung erzeugt.
+Write-Host "  This mod needs Steam build $SUPPORTED_BUILD - and that is not" -ForegroundColor White
+Write-Host "  what Steam installs today. So the Hub fetches that exact build" -ForegroundColor White
+Write-Host "  as a SEPARATE copy and puts the VR files on it." -ForegroundColor White
+if ($depotInstalledStatus) { Write-Host "   $depotInstalledStatus" -ForegroundColor $depotInstalledColor }
 Write-Host ""
-Write-Host "  [2] Depot version (newest content build)" -ForegroundColor Yellow
-if ($depotInstalledStatus) { Write-Host "     $depotInstalledStatus" -ForegroundColor $depotInstalledColor }
-Write-Host "      Downloads a separate copy via Steam Console into" -ForegroundColor Gray
-Write-Host "      $DEFAULT_PATH, then copies the VR files onto it." -ForegroundColor Gray
-Write-Host "      Your retail Steam copy stays untouched (tinkering build)." -ForegroundColor Gray
+Write-Host "  Lands in $DEFAULT_PATH or a folder of your choice." -ForegroundColor Gray
+Write-Host "  Your retail Steam copy stays untouched and keeps updating." -ForegroundColor Gray
 Write-Host ""
-$mode = ""
-while ($mode -notin @("1","2")) { $mode = (Read-Host " Enter 1 or 2").Trim() }
+Pause-User "Press Enter to start..."
 
 # ============================================================
-# OPTION 2 - DEPOT (newest content build)
+# DER EINZIGE WEG: DEPOT (build 22163681, der von der Mod unterstuetzte)
 # ============================================================
-if ($mode -eq "2") {
  Pause-User "Press Enter to start..."
  Write-Step 1 4 "Steam Depot Download"
 
@@ -291,56 +331,97 @@ if ($mode -eq "2") {
  Write-Host " retail install stays untouched." -ForegroundColor White
  Write-Host ""
  Write-Host " Here's what's about to happen:" -ForegroundColor Cyan
- Write-Host " 1) The Steam Console will open" -ForegroundColor White
- Write-Host " 2) The download command is already on your clipboard" -ForegroundColor White
- Write-Host " 3) Paste with Ctrl+V into the Console and hit Enter" -ForegroundColor Yellow
- Write-Host " 4) Wait for Steam to finish, then come back here" -ForegroundColor White
+ Write-Host " The game comes in TWO depots and BOTH are needed:" -ForegroundColor White
+ foreach ($d in $DEPOTS) { Write-Host "   - $($d.Label)" -ForegroundColor Gray }
+ Write-Host " Together about 5 GB. Only the Win64 depot has the exe; the data" -ForegroundColor White
+ Write-Host " depot has everything the game loads at startup. With just one of" -ForegroundColor White
+ Write-Host " them the game stops at 'Failed to find game data directory'." -ForegroundColor White
  Write-Host ""
- Write-Host " When Steam finishes it will show:" -ForegroundColor Gray
- Write-Host "   Depot download complete : ...\depot_$DEPOT_DEPOTID" -ForegroundColor Yellow
- Write-Host ""
-
- try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
-
- Write-Host " ============================================================" -ForegroundColor Yellow
- Write-Host " ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
- Write-Host " ============================================================" -ForegroundColor Yellow
- Write-Host ""
- Write-Host " [OK] Depot command copied to clipboard." -ForegroundColor Yellow
- Write-Host " Command: $DEPOT_COMMAND" -ForegroundColor Gray
+ Write-Host " You paste TWO commands into the Steam Console, one after the" -ForegroundColor White
+ Write-Host " other - this installer hands you each in turn and brings the" -ForegroundColor White
+ Write-Host " console to the front for both." -ForegroundColor White
  Write-Host ""
  if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAction SilentlyContinue) {
   Write-Host " (i) Virtual Desktop users: if the Console doesn't open, open it" -ForegroundColor DarkGray
   Write-Host "     manually (Steam menu bar - View - Console) and paste there." -ForegroundColor DarkGray
   Write-Host ""
  }
- Pause-User "Press Enter to open the Steam Console..."
- # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
- foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
- }
- Write-OK "Steam Console opening..."
- Write-Host ""
- Pause-User "Press Enter once the Steam depot download is complete..."
 
- # Locate depot (layout-agnostic: search recursively for the exe by name)
- Write-Host ""
- Write-Host " Looking for Steam installation..." -ForegroundColor White
+ # ---- Beide Depots, einer nach dem anderen ----
+ # DIE KONSOLE WIRD IN JEDEM DURCHGANG NEU NACH VORN GEHOLT.
+ # Vorher wurde sie EINMAL vor der Schleife geoeffnet. Nach dem ersten
+ # Download steht aber dieses Fenster im Vordergrund, und der zweite
+ # Durchgang begann direkt mit "paste with Ctrl+V" - ohne die Konsole
+ # ueberhaupt sichtbar zu machen. Wer dann Enter drueckt, um sie nach vorn
+ # zu holen, bestaetigt in Wahrheit "Download fertig". Also laeuft Durchgang
+ # 2 jetzt Schritt fuer Schritt genauso wie Durchgang 1.
  $steamInstallPath = Get-SteamPath
- $depotBase = $null
- if ($steamInstallPath) {
-  $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-  Write-Info "Expected depot path: $autoPath"
-  if (Test-Path $autoPath) { $depotBase = $autoPath; Write-OK "Depot folder found." }
-  else { Write-Warn "Depot folder not found yet at the expected location." }
- } else {
-  Write-Warn "Could not find Steam installation in registry."
+ $depotDirs = @()
+ $step = 0
+ foreach ($d in $DEPOTS) {
+  $step++
+  Write-Host ""
+  Write-Host " ============================================================" -ForegroundColor Yellow
+  Write-Host " DOWNLOAD $step OF $($DEPOTS.Count) - $($d.Label)" -ForegroundColor Yellow
+  Write-Host " ============================================================" -ForegroundColor Yellow
+  $clipOk = $false
+  try { Set-Clipboard -Value $d.Command; $clipOk = $true } catch {}
+  Write-Host ""
+  if ($step -eq 1) { Pause-User "Press Enter to open the Steam Console..." }
+  else            { Pause-User "Press Enter to bring the Steam Console back to the front..." }
+  # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+  }
+  Write-OK "Steam Console in front."
+  Write-Host ""
+  if ($clipOk) {
+   Write-Host " The command is on your clipboard - click into the console," -ForegroundColor White
+   Write-Host " paste with " -NoNewline -ForegroundColor White
+   Write-Host " Ctrl+V " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+   Write-Host " and press " -NoNewline -ForegroundColor White
+   Write-Host " Enter " -ForegroundColor Black -BackgroundColor Yellow
+  } else {
+   Write-Warn "Could not copy to the clipboard - type the line below."
+  }
+  Write-Host ""
+  Write-Host " Steam finishes with this line - then come back here:" -ForegroundColor White
+  Write-Host "   Depot download complete : ...\depot_$($d.Id) " -ForegroundColor Black -BackgroundColor Yellow
+  Write-Host ""
+  Write-Host " If the clipboard did not work, the command reads:" -ForegroundColor DarkGray
+  Write-Host "   $($d.Command)" -ForegroundColor DarkGray
+  Write-Host ""
+  Pause-User "Press Enter once THIS download has finished..."
+
+  $found = $null
+  if ($steamInstallPath) {
+   $auto = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$($d.Id)"
+   if (Test-Path $auto) { $found = $auto; Write-OK "Found: $auto" }
+   else { Write-Warn "Not at the expected place: $auto" }
+  }
+  if (-not $found) {
+   $probe = @()
+   if ($steamInstallPath) { $probe += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$($d.Id)") }
+   $found = Resolve-DepotPath -GameName "$GAME_NAME ($($d.Label))" -DepotCommand $d.Command -GameExe $GAME_EXE_LEAF -ProbePaths $probe -AppId $DEPOT_APPID -DepotId $d.Id -Manifest $d.Manifest
+  }
+  if (-not $found) { Write-Fail "Depot $($d.Id) not found - cannot continue."; Pause-User "Press Enter to exit..."; exit 1 }
+  $depotDirs += $found
  }
- if (-not $depotBase) {
-  $probePaths = @()
-  if ($steamInstallPath) { $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID") }
-  $depotBase = Resolve-DepotPath -GameName $GAME_NAME -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE_LEAF -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
-  if (-not $depotBase) { Write-Fail "No depot folder provided."; Pause-User "Press Enter to exit..."; exit 1 }
+
+ # Die Exe-Depot ist die Basis, in die die Datendepot hineingemischt wird.
+ $depotBase = $depotDirs[-1]
+ for ($k = 0; $k -lt ($depotDirs.Count - 1); $k++) {
+  Write-Host ""
+  Write-Host " Merging $($DEPOTS[$k].Label) into the game folder..." -ForegroundColor White
+  $rc = Start-Process -FilePath "robocopy.exe" `
+        -ArgumentList @("`"$($depotDirs[$k])`"", "`"$depotBase`"", "/E", "/MOVE", "/NFL", "/NDL", "/NJH", "/NJS", "/NP") `
+        -NoNewWindow -Wait -PassThru
+  if ($rc.ExitCode -ge 8) {
+   Write-Warn "robocopy reported code $($rc.ExitCode) - falling back to Copy-Item."
+   try { Copy-Item -Path (Join-Path $depotDirs[$k] '*') -Destination $depotBase -Recurse -Force -ErrorAction Stop }
+   catch { Write-Fail "Could not merge $($depotDirs[$k]): $_"; Pause-User "Press Enter to exit..."; exit 1 }
+  }
+  Write-OK "Merged."
  }
 
  $exeHit = Get-ChildItem -LiteralPath $depotBase -Recurse -Filter $GAME_EXE_LEAF -File -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -377,22 +458,17 @@ if ($mode -eq "2") {
 
  if (Test-Path $targetPath) {
   Write-Warn "A folder already exists at $targetPath"
-  Write-Host " [Y] Delete existing folder and proceed" -ForegroundColor White
-  Write-Host " [N] Keep it, abort install" -ForegroundColor Gray
-  $c = ""; while ($c -notin @("y","Y","n","N")) { $c = (Read-Host " Your choice (Y/N)").Trim() }
-  if ($c -in @("n","N")) { Write-Info "Aborted by user."; Pause-User "Press Enter to exit..."; exit 0 }
-  try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-  catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+  Write-Info "Merging the pinned build; saves, NativeVR files, mods and other additional files are preserved."
  }
 
  try {
-  Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-  Write-OK "Game moved to: $targetPath"
+  $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Scrap Mechanic depot build"
+  Write-OK "Game installed at: $targetPath"
  } catch {
-  Write-Fail "Move failed: $_"
+  Write-Fail "Merge failed: $_"
   Write-Info "The game files are still at: $depotPath"
-  $fb = Invoke-InstallerFallback -Action "move depot files to install folder" `
-      -Instructions "The game files are still at '$depotPath'. Manually move them to '$targetPath'. Then choose Retry." `
+  $fb = Invoke-InstallerFallback -Action "merge depot files into the install folder" `
+      -Instructions "Copy the contents of '$depotPath' into '$targetPath' without deleting additional destination files. Then choose Retry." `
       -SkipMessage "Skipped - game files are still in the depot folder." `
       -DestFolder "$targetPath" -AllowSkip $true
   if ([string]$fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
@@ -417,38 +493,3 @@ if ($mode -eq "2") {
  Write-EndNotes
  Pause-User "Press Enter to exit."
  exit 0
-}
-
-# ============================================================
-# OPTION 1 - CURRENT GAME VERSION
-# ============================================================
-Write-Step 1 3 "Locating $GAME_NAME"
-Write-Host " [!] Copying the VR files onto your current Steam copy. If VR" -ForegroundColor Yellow
-Write-Host "     doesn't initialise, the live build may differ too much from" -ForegroundColor Yellow
-Write-Host "     the mod - re-run and pick option 2 (depot)." -ForegroundColor Yellow
-Write-Host ""
-Pause-User "Press Enter to continue..."
-
-$gamePath = Find-GamePath
-if ($gamePath) {
- Write-OK "Game found: $gamePath"
-} else {
- Write-Warn "Scrap Mechanic not found automatically."
- Write-Host " Enter the game folder (the one containing Release\ScrapMechanic.exe):" -ForegroundColor White
- while (-not $gamePath) {
-  $r = (Read-Host " Path").Trim().Trim('"')
-  if ($r -and (Test-Path -LiteralPath (Join-Path $r $GAME_EXE))) { $gamePath = $r; Write-OK "Path set: $gamePath" }
-  elseif ($r) { Write-Fail "That folder does not contain $GAME_EXE." }
- }
-}
-
-Write-Step 2 3 "Installing the VR files"
-$batPath = Install-ManualMod -gamePath $gamePath
-if (-not $batPath) { Pause-User "Press Enter to exit."; exit 1 }
-
-Write-Markers -gamePath $gamePath -batPath $batPath
-Make-Shortcut -gamePath $gamePath -batPath $batPath
-
-Write-Step 3 3 "Final notes"
-Write-EndNotes
-Pause-User "Press Enter to exit."

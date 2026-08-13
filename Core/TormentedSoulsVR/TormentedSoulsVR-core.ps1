@@ -237,28 +237,17 @@ Write-Host ""
 
 if (Test-Path $targetPath) {
  Write-Warn "A folder already exists at $targetPath"
- Write-Host " This may be from a previous install. Delete it to continue?" -ForegroundColor White
- Write-Host " [Y] Delete existing folder and proceed" -ForegroundColor White
- Write-Host " [N] Keep it, abort install" -ForegroundColor Gray
- $choice = ""
- while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host " Your choice (Y/N)").Trim() }
- if ($choice -in @("n","N")) {
- Write-Info "Aborted by user."
- Pause-User "Press Enter to exit..."
- exit 0
- }
- try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
- catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 try {
- Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
- Write-OK "Game moved to: $targetPath"
+ $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Tormented Souls depot build"
+ Write-OK "Game installed at: $targetPath"
 } catch {
- Write-Fail "Move failed: $_"
+ Write-Fail "Merge failed: $_"
  Write-Info "The game files are still at: $depotPath"
- $__fb = Invoke-InstallerFallback -Action "move depot files to install folder" `
- -Instructions "The game files are still at '$depotPath'. Manually move/cut them to '$targetPath' (your chosen install location). Confirm '$targetPath' has enough free disk space (~6 GB). Then choose Retry." `
+ $__fb = Invoke-InstallerFallback -Action "merge depot files into the install folder" `
+ -Instructions "Copy the contents of '$depotPath' into '$targetPath' without deleting additional destination files. Confirm '$targetPath' has enough free disk space (~6 GB). Then choose Retry." `
  -SkipMessage "Skipped - game files are still in the temp folder; you must move them before launching." `
  -DestFolder "$targetPath" `
  -AllowSkip $true
@@ -365,9 +354,8 @@ if ($wrapper) {
 
 Write-Host " Copying mod files into game root..." -NoNewline -ForegroundColor White
 try {
- Get-ChildItem -Path $sourceRoot -Force | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
- }
+ $null = Merge-DirectoryTreeVerified -Source $sourceRoot -Destination $gamePath -Label "Tormented Souls VR mod files" `
+    -KeepExistingRelativePaths @("BepInEx\config")
  Write-Host " OK" -ForegroundColor Green
  Write-OK "Mod installed to: $gamePath"
 } catch {

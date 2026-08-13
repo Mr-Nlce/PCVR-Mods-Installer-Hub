@@ -67,10 +67,6 @@ mirrorView              = true    # false can raise fps (disables the desktop ca
 - If a hand's UI starts glitching (weird weapon size, an image blocking your view), save and reload the last save to fix it.
 - During cutscene videos the weapon sprite can get huge - just move your hand out of view; it fixes itself when the video ends.
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the game root folder to something else, e.g. `winhttp_bak.dll`. The mod stops loading but stays on disk so you can re-enable it later by renaming it back.
-
 ## Discord
 
 - Mod info post: https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069

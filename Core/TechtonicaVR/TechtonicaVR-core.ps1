@@ -133,6 +133,15 @@ Write-Host " The Techtonica VR mod by 3_141 (Xenira) adds full motion-controller
 Write-Host " support, a 6DoF VR camera, and body IK. Installed via Thunderstore." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter to start..."
+# Abhaengigkeiten der Abhaengigkeiten pruefen. Unsere Paketliste kennt
+# nur die DIREKTE Ebene; Thunderstore weiss, was diese Pakete ihrerseits
+# verlangen. Aendert nichts, meldet nur - siehe PEAK, wo genau das
+# gefehlt hat.
+try {
+    $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($URLS.Values))
+    Show-ThunderstoreDependencyWarning -Missing $tsMissing
+} catch {}
+
 Write-Step 1 3 "Locating Techtonica"
 
 $gamePath = $null

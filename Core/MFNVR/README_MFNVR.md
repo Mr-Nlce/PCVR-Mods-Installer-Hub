@@ -13,9 +13,11 @@ also serves as the update path - run it again whenever the Hub shows
 an update on the tile.
 
 ## Requirements
-- My Friendly Neighborhood (Steam, Epic or the Xbox app)
+- My Friendly Neighborhood. The author states **Steam**; the Hub also finds
+  the Epic and Xbox app copies and the mod is a plain BepInEx plugin, but only
+  the Steam copy is what he tests against
 - SteamVR or the Oculus app as the **active OpenXR runtime**; other
-  runtimes are untested by the author
+  runtimes are untested by the author, who develops on an Oculus Rift S
 - A Windows PC
 
 ## How to use
@@ -39,11 +41,20 @@ desktop shortcut, then put the headset on once the game is running.
 - Tracked motion controllers with independent floating hands
 - Motion-controlled weapons, weapon-aligned shooting and crosshair
 - Two-handed weapon gripping
-- Physical wrench melee
+- Physical wrench melee, improved in the August 2026 build
 - VR-compatible HUD and menus
 
+**New in the 10 August 2026 build:**
+- **Physical weapon switching** (optional): hold your right hand at your hip and
+  press right grip to swap between the Punctuation and the Wrench; reach behind
+  your right shoulder to cycle the Rolodexer, Novelist and Conclusion.
+- Hold the selected hand (left by default) behind your head and push the stick
+  up to open the **files tab**.
+- **Major performance improvements**, and a better camera in cutscenes.
+- An option to **remove UI screens**, on by default.
+- The Conclusion uses the vanilla left grip model.
+
 ## Known issues
-- **The toolbox is broken.** Use the inventory instead - that works.
 - This is an early alpha. Expect bugs, visual glitches, incomplete
   interactions and performance problems.
 
@@ -57,10 +68,10 @@ calibration - are left alone when you run the installer again. The
 config that ships with the mod is only written on a fresh install.
 
 ## Planned by the author
-Better toolbox interaction, better hand poses, physical item
+Better hand poses, physical item
 interactions, improved weapon handling, nicer menus, performance work
 and more comfort options.
 
 Mod page:
 
-https://github.com/LeviGaming1248/MFNVR
+https://github.com/LeviGaming1248/MyFriendlyNeighborhoodVR

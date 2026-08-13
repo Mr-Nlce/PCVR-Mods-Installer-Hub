@@ -132,7 +132,11 @@ function Install-Pkg { param($zip,$dest,$gamePath)
  $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
  $top=@(Get-ChildItem $dest|Where-Object{$_.Name -notin $skip})
  $payload=if($top.Count -eq 1 -and $top[0].PSIsContainer -and $top[0].Name -ne "BepInEx"){$top[0].FullName}else{$dest}
- Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{Copy-Item $_.FullName $gamePath -Recurse -Force}
+ Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{
+  $target=Join-Path $gamePath $_.Name
+  $keep=if($_.Name -ieq "BepInEx"){@("config")}else{@()}
+  $null=Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) package files" -KeepExistingRelativePaths $keep
+ }
 }
 
 # -------------------------------------------------------
@@ -142,6 +146,15 @@ Write-Header
 Write-Host " CWVR by DaXcess turns Content Warning into a full 6DOF VR experience" -ForegroundColor White
 Write-Host " with motion controls. Works in online lobbies with non-VR players too." -ForegroundColor White
 Write-Host ""
+# Abhaengigkeiten der Abhaengigkeiten pruefen. Unsere Paketliste kennt
+# nur die DIREKTE Ebene; Thunderstore weiss, was diese Pakete ihrerseits
+# verlangen. Aendert nichts, meldet nur - siehe PEAK, wo genau das
+# gefehlt hat.
+try {
+    $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($LEGACY_URLS.Values))
+    Show-ThunderstoreDependencyWarning -Missing $tsMissing
+} catch {}
+
 Write-Step 1 4 "Select Installation Mode"
 
 # Check deprecated status from Thunderstore
@@ -340,13 +353,10 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
 
  if (Test-Path $targetPath) {
  Write-Warn "Folder already exists: $targetPath"
- Write-Host " [Y] Delete and reinstall [N] Abort" -ForegroundColor White
- $ch=""; while($ch -notin @("y","Y","n","N")){$ch=(Read-Host " Choice").Trim()}
- if($ch -in @("n","N")){Pause-User "Press Enter to exit...";exit 0}
- Remove-Item $targetPath -Recurse -Force
+ Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
  }
- Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
- Write-Info "Moved to: $targetPath"
+ $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Content Warning depot build"
+ Write-Info "Installed at: $targetPath"
  try { $pd=Split-Path $depotPath -Parent; if((Get-ChildItem $pd -Force|Measure-Object).Count -eq 0){Remove-Item $pd -Force} } catch {}
 
  $gamePath = $targetPath

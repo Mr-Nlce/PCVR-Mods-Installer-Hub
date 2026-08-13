@@ -103,10 +103,6 @@ Right controller:
 - **Hytale not found by the shortcut:** the combo launcher looks for the Hytale Launcher at `%LOCALAPPDATA%\Programs\Hypixel Studios\Hytale Launcher\hytale-launcher.exe`. If you installed it elsewhere, start the launcher yourself, then run `hytale_camera_dashboard.exe` from the mod folder.
 - **Debug logs:** set `HYTALEVR_DEBUG_LOGS = "1"` in your environment; logs land under `%TEMP%\HytaleVR`.
 
-## Uninstall
-
-Delete the `Hytale VR` folder (default `C:\Games\Hytale VR`) and the desktop shortcut. The game itself is untouched - it lives in the Hytale Launcher's own location.
-
 ## Credits & support
 
 - **heurazy** - HytaleVRInjector-mod: <https://github.com/heurazy/HytaleVRInjector-mod>

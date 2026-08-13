@@ -390,15 +390,12 @@ while (-not $marker) {
 $resourcesDir = $marker.Directory
 $pkgRoot      = $resourcesDir.Parent.FullName
 
-# Rebuild the game folder from the package root.
+# Merge the refreshed package into the game folder.  Existing saves, engine
+# configuration, addons and other user-created files stay in place.
 $placedOk = $false
 while (-not $placedOk) {
     try {
-        if (Test-Path $gameRoot) { Remove-Item $gameRoot -Recurse -Force -ErrorAction Stop }
-        New-Item -ItemType Directory -Path $gameRoot -Force -ErrorAction Stop | Out-Null
-        Get-ChildItem -Path $pkgRoot -Force | ForEach-Object {
-            Move-Item -Path $_.FullName -Destination $gameRoot -Force -ErrorAction Stop
-        }
+        $null = Merge-DirectoryTreeVerified -Source $pkgRoot -Destination $gameRoot -Label "Ashes 2063 files"
         $placedOk = $true
     } catch {
         Write-Fail "Could not place the Ashes files: $_"
@@ -487,11 +484,8 @@ $gzSrcDir = Split-Path -Parent $gzExe.FullName
 $gzExeName = $gzExe.Name
 $gzDestDir = Join-Path $gameRoot "gzdoomvr"
 try {
-    if (Test-Path $gzDestDir) { Remove-Item $gzDestDir -Recurse -Force -ErrorAction SilentlyContinue }
-    New-Item -ItemType Directory -Path $gzDestDir -Force -ErrorAction Stop | Out-Null
-    Get-ChildItem -Path $gzSrcDir -Force | ForEach-Object {
-        Move-Item -Path $_.FullName -Destination $gzDestDir -Force -ErrorAction Stop
-    }
+    $null = Merge-DirectoryTreeVerified -Source $gzSrcDir -Destination $gzDestDir -Label "gzdoomvr files" `
+        -KeepExistingRelativePaths @("ashes-vr.ini")
 } catch {
     Write-Fail "Could not place the gzdoomvr files: $_"
     Invoke-InstallerFallback -Action "copy the gzdoomvr files into place" `

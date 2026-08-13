@@ -220,25 +220,16 @@ Write-Host "  Moving to: $targetPath" -ForegroundColor Gray
 
 if (Test-Path $targetPath) {
     Write-Warn "A folder already exists at $targetPath"
-    Write-Host "    [Y] Delete and proceed   [N] Keep it, abort" -ForegroundColor Gray
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Marked "Your choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) {
-        Write-Info "Aborted by user."
-        Pause-User "Press Enter to exit..." | Out-Null
-        exit 0
-    }
-    try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-    catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
+    Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 try {
-    Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-    Write-OK "Game moved to: $targetPath"
+    $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Trombone Champ depot build"
+    Write-OK "Game installed at: $targetPath"
 } catch {
-    Write-Fail "Move failed: $_"
+    Write-Fail "Merge failed: $_"
     Write-Info "The game files are still at: $depotPath"
-    Write-Host "  You can move that folder to '$targetPath' by hand, then re-run" -ForegroundColor Gray
+    Write-Host "  You can copy that folder into '$targetPath' by hand, then re-run" -ForegroundColor Gray
     Write-Host "  this installer to finish the mod step." -ForegroundColor Gray
     Pause-User "Press Enter to exit..." | Out-Null
     exit 1
@@ -366,14 +357,16 @@ if ($modZip -and (Test-Path $modZip)) {
             try {
                 $ctg = Join-Path $modSrc "CopyToGame"
                 if (Test-Path $ctg) {
-                    Copy-Item -Path (Join-Path $ctg "*") -Destination $gamePath -Recurse -Force -ErrorAction Stop
+                    $null = Merge-DirectoryTreeVerified -Source $ctg -Destination $gamePath -Label "BaboonVR root files" `
+                        -KeepExistingRelativePaths @("BepInEx\config")
                 }
             } catch { $copied = $false; Write-Warn "CopyToGame copy failed: $_" }
             # BepInEx tree -> game\BepInEx
             try {
                 $bep = Join-Path $modSrc "BepInEx"
                 if (Test-Path $bep) {
-                    Copy-Item -Path $bep -Destination $gamePath -Recurse -Force -ErrorAction Stop
+                    $null = Merge-DirectoryTreeVerified -Source $bep -Destination (Join-Path $gamePath "BepInEx") `
+                        -Label "BaboonVR BepInEx files" -KeepExistingRelativePaths @("config")
                 }
             } catch { $copied = $false; Write-Warn "BepInEx copy failed: $_" }
 

@@ -76,11 +76,6 @@ Pass copies it uses the game's own launcher. Either way it avoids
 starting MassEffect2.exe directly, which would nag about a missing
 EA/Origin on a machine that has never run the game.
 
-## Uninstall
-Run MELE2-VR.bat again from the game folder and follow its uninstall
-option, or simply delete `dxgi.dll` and `openxr_loader.dll` from
-...\Game\ME2\Binaries\Win64. The base game stays untouched.
-
 ## Requirements
 - Mass Effect Legendary Edition (any store version)
 - A VR headset with an OpenXR runtime (SteamVR, Virtual Desktop,

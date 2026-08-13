@@ -192,24 +192,13 @@ if ($targetParent -and -not (Test-Path $targetParent)) {
 }
 
 if (Test-Path $targetPath) {
-    Write-Warn "A folder already exists at $targetPath"
-    Write-Host "    [Y] Delete existing folder and proceed" -ForegroundColor White
-    Write-Host "    [N] Keep it, abort install" -ForegroundColor Gray
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) {
-        Write-Info "Aborted by user."
-        Pause-User "Press Enter to exit..."
-        exit 0
-    }
-    try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-    catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+    Write-Info "Existing installation found. The depot will be merged; saves, settings and additional mods are preserved."
 }
 
 try {
     $parentOfDepot = Split-Path $depotPath -Parent
-    Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-    Write-OK "Game moved to: $targetPath"
+    $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Risk of Rain 2 depot build"
+    Write-OK "Game merged into: $targetPath"
     # Clean up empty app_<id> folder
     try {
         if ((Get-ChildItem $parentOfDepot -Force -ErrorAction SilentlyContinue | Measure-Object).Count -eq 0) {
@@ -276,15 +265,15 @@ foreach ($mod in $MODS) {
                 # BepInExPack has an extra BepInExPack/ wrapper folder - copy its contents to game root
                 $packSubdir = Join-Path $extractDir "BepInExPack"
                 if (Test-Path $packSubdir) {
-                    # Copy everything inside BepInExPack/ directly to game root
-                    # This places winhttp.dll and BepInEx/ correctly
-                    Get-ChildItem -Path $packSubdir | ForEach-Object {
-                        Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
-                    }
+                    $null = Merge-DirectoryTreeVerified -Source $packSubdir -Destination $gamePath -Label "$name files" `
+                        -KeepExistingRelativePaths @("BepInEx\config")
                 } else {
                     # Other bepinex type mods (RoR2BepInExPack) - copy straight to game root
                     Get-ChildItem -Path $extractDir | Where-Object { $_.Name -notin $ignore } | ForEach-Object {
-                        Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+                        $target = Join-Path $gamePath $_.Name
+                        $keep = if ($_.Name -ieq "BepInEx") { @("config") } else { @() }
+                        $null = Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) files" `
+                            -KeepExistingRelativePaths $keep
                     }
                 }
             }
@@ -293,7 +282,8 @@ foreach ($mod in $MODS) {
                 $bepinexInZip = Join-Path $extractDir "BepInEx"
                 if (Test-Path $bepinexInZip) {
                     # Mod ships with BepInEx/ folder structure - merge into game root
-                    Copy-Item -Path $bepinexInZip -Destination $gamePath -Recurse -Force
+                    $null = Merge-DirectoryTreeVerified -Source $bepinexInZip -Destination (Join-Path $gamePath "BepInEx") `
+                        -Label "$name BepInEx files" -KeepExistingRelativePaths @("config")
                 } else {
                     # Mod ships plugins/ and patchers/ folders directly (e.g. VRMod)
                     # Copy their contents straight into BepInEx/plugins/ and BepInEx/patchers/

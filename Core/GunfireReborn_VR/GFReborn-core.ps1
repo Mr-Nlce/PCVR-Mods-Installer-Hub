@@ -198,23 +198,13 @@ if ($targetParent -and -not (Test-Path $targetParent)) {
 
 if (Test-Path $targetPath) {
     Write-Warn "A folder already exists at $targetPath"
-    Write-Host "    [Y] Delete existing folder and proceed" -ForegroundColor White
-    Write-Host "    [N] Keep it, abort install" -ForegroundColor Gray
-    $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Your choice (Y/N)").Trim() }
-    if ($choice -in @("n","N")) {
-        Write-Info "Aborted by user."
-        Pause-User "Press Enter to exit..."
-        exit 0
-    }
-    try { Remove-Item $targetPath -Recurse -Force -ErrorAction Stop }
-    catch { Write-Fail "Could not delete: $_"; Pause-User "Press Enter to exit..."; exit 1 }
+    Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 try {
     $parentOfDepot = Split-Path $depotPath -Parent
-    Move-Item -Path $depotPath -Destination $targetPath -ErrorAction Stop
-    Write-OK "Game moved to: $targetPath"
+    $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Gunfire Reborn depot build"
+    Write-OK "Game installed at: $targetPath"
     # Clean up empty app_<id> folder
     try {
         if ((Get-ChildItem $parentOfDepot -Force -ErrorAction SilentlyContinue | Measure-Object).Count -eq 0) {
@@ -222,7 +212,7 @@ try {
         }
     } catch {}
 } catch {
-    Write-Fail "Move failed: $_"
+    Write-Fail "Merge failed: $_"
     Write-Info "The game files are still at: $depotPath"
     Pause-User "Press Enter to exit..."
     exit 1
@@ -258,7 +248,10 @@ if (Test-Path $vrZip) {
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
             Get-ChildItem -Path $vrExtract | Where-Object { $_.Name -notin $ignore } | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+                $target = Join-Path $gamePath $_.Name
+                $keep = if ($_.Name -ieq "BepInEx") { @("config") } else { @() }
+                $null = Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) VRMod files" `
+                    -KeepExistingRelativePaths $keep
             }
             Write-OK "VRMod installed!"
         } catch {
@@ -361,4 +354,3 @@ Write-Host ""
 Write-Host "  Lock and load. The dungeons await in VR!" -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Press Enter to exit."
-

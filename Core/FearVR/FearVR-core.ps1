@@ -964,13 +964,10 @@ if (-not $gotZip) {
     }
 }
 
-# Unpack flat to the install dir (keep userdata/logs from a prior install).
+# Unpack flat to the install dir. Release files are overwritten, while all
+# additional local files and subfolders are kept.
 try {
     if (-not (Test-Path -LiteralPath $INSTALL_DIR)) { New-Item -ItemType Directory -Path $INSTALL_DIR -Force | Out-Null }
-    foreach ($old in @("bin","tools","docs","shaders")) {
-        $p = Join-Path $INSTALL_DIR $old
-        if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force -EA SilentlyContinue }
-    }
     Expand-Archive -Path $zipPath -DestinationPath $INSTALL_DIR -Force -ErrorAction Stop
 } catch {
     Write-Fail "Could not unpack the release: $($_.Exception.Message)"
@@ -1337,16 +1334,8 @@ if ((Test-Path -LiteralPath $OLD_INSTALL_DIR) -and ($OLD_INSTALL_DIR -ne $INSTAL
     Write-Host "    $OLD_INSTALL_DIR" -ForegroundColor Black -BackgroundColor Yellow
     Write-Host "  Leaving it there makes the Hub report F.E.A.R. as VR Ready even" -ForegroundColor White
     Write-Host "  when it is not." -ForegroundColor White
-    $delOld = (Read-Host "  Delete that old folder now? [Y/N]").Trim().ToUpper()
-    if ($delOld -in @("Y","YES")) {
-        try {
-            Remove-Item -LiteralPath $OLD_INSTALL_DIR -Recurse -Force -ErrorAction Stop
-            Write-OK "Removed: $OLD_INSTALL_DIR"
-        } catch {
-            Write-Warn "Could not remove it: $($_.Exception.Message)"
-            Write-Host "  Delete it by hand: $OLD_INSTALL_DIR" -ForegroundColor Gray
-        }
-    }
+    Write-Info "It is kept to avoid removing saves, settings, or other local files."
+    Write-Host "  After backing it up, you can remove it manually if it is no longer needed." -ForegroundColor Gray
     Write-Host ""
 }
 

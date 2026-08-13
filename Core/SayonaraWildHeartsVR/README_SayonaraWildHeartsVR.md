@@ -70,10 +70,6 @@ vrApi = OpenXR
 
 (Default is `OpenVR`. Both runtimes are supported.)
 
-## Uninstall / temporarily disable
-
-Rename `winhttp.dll` in the **modded** game folder to anything else (e.g. `winhttp_bak.dll`). The mod stops loading. If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.
-
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP
