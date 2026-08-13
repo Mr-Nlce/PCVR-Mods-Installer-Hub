@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (225)</summary>
+<summary>Show all currently listed titles (226)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -39,6 +39,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Battlefield 1942 VR (motion controls)
 * Bendy VR (motion controls)
 * Big Walk VR (motion controls)
+* Bioshock Infinite (motion controls)
 * Bioshock Remastered (motion controls)
 * Bioshock 2 Remastered (motion controls)
 * Black Mesa Source VR (motion controls)
