@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (226)</summary>
+<summary>Show all currently listed titles (228)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -48,6 +48,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Circuit Superstars VR
 * Cloudpunk
 * Cloudpunk: City of Ghosts
+* Command and Conquer Generals Zero Hour (motion controls)
 * Content Warning VR (motion controls)
 * Cruelty Squad VR (motion controls)
 * Crysis VR (motion controls)
@@ -155,6 +156,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Onimusha 2: Samurai's Destiny
 * Outbound
 * Outer Wilds VR (motion controls)
+* Outlast
 * Outward Definitive Edition (motion controls)
 * Painkiller: Black Edition (motion controls)
 * Panzer Dragoon Remake (motion controls)
