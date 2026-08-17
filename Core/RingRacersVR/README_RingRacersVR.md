@@ -2,6 +2,21 @@
 
 Automated installer for **RingRacers-VR** by RaYRoD-TV - a native OpenXR port of **Dr. Robotnik's Ring Racers**, the Kart Krew racer built on the SRB2 engine. Headset on = VR, headset off = the normal flat game. Free and standalone; no Steam copy needed.
 
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Ring Racers VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
+
 ## What it installs
 - The **full Ring Racers VR game** into `C:\Games\Ring Racers VR` (first install pulls the full bundle; updates pull just the small VR exe and drop it over your game).
 - A **Ring Racers VR** desktop shortcut pointing at `ringracers-vr.exe`.

@@ -68,6 +68,55 @@ Write-Host " The full game is a large download; a progress bar shows it while it
 Write-Host " You'll pick where to install it on the next screen." -ForegroundColor Gray
 Pause-User "Press Enter to start..."
 
+# ---- ZWEITER WEG: RaYRoD-TVs eigener Multiverse VR Hub --------
+# Er pflegt seine sechs VR-Ports inzwischen ueber einen eigenen
+# kleinen Hub und kuendigt an, dass kuenftige Fassungen dort
+# erscheinen. Deshalb steht der Weg hier zur Wahl.
+# WARUM WIR DEN ORT BESTIMMEN: sein Hub installiert die Spiele
+# selbst, an eine Stelle die wir sonst nicht kennen - wir wuessten
+# dann weder ob Ring Racers installiert ist noch was "Start in VR"
+# oeffnen soll. Der Nutzer waehlt den Ordner, und genau die Exe
+# dort wird danach gestartet.
+Write-Host ""
+Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host " TWO WAYS TO GET THIS" -ForegroundColor Cyan
+Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host "    [1] This installer" -ForegroundColor White
+Write-Host "        Installs Ring Racers VR straight into your game folder." -ForegroundColor Gray
+Write-Host "        Start in VR launches the game itself." -ForegroundColor Gray
+Write-Host ""
+Write-Host "    [2] RaYRoD-TV's own Multiverse VR Hub" -ForegroundColor White
+Write-Host "        One small app that installs all six of his ports and" -ForegroundColor Gray
+Write-Host "        keeps them updated. Future builds land there first." -ForegroundColor Gray
+Write-Host "        You pick the folder; Start in VR then opens that app." -ForegroundColor Gray
+Write-Host ""
+$mvrhChoice = ""
+while ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") {
+    $mvrhChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
+    if ($mvrhChoice -eq "") { $mvrhChoice = "1" }
+    if ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") { Write-Warn "Please type 1 or 2." }
+}
+if ($mvrhChoice -eq "2") {
+    $mvrhExe = Install-MultiverseVRHub
+    if ($mvrhExe) {
+        # Start in VR zeigt auf SEINEN Hub. Wir behaupten NICHTS darueber,
+        # welche Spiele darin liegen - wir bringen den Nutzer nur an die
+        # Stelle zurueck, an der er sie gestartet hat.
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value (Split-Path $mvrhExe -Parent) -Encoding UTF8 -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $mvrhExe -Encoding UTF8 -Force } catch {}
+        Write-Host ""
+        Write-Host "  Open it, pick Ring Racers and hit Play - it fetches the" -ForegroundColor White
+        Write-Host "  official port and applies the VR patch itself." -ForegroundColor White
+        Write-Host "  Start in VR in this Hub will open that app from now on." -ForegroundColor Gray
+        Write-Host ""
+        try { Start-Process -FilePath $mvrhExe -WorkingDirectory (Split-Path $mvrhExe -Parent) } catch {}
+    }
+    Pause-User "Press Enter to exit."
+    exit 0
+}
+
+
+
 # -------------------------------------------------------
 # STEP 1: Install location (choose folder, then update / reinstall)
 # -------------------------------------------------------
@@ -247,7 +296,7 @@ Write-Host "  Hub or the 'Ring Racers VR' desktop shortcut. Headset on = VR," -F
 Write-Host "  headset off = regular flat Ring Racers." -ForegroundColor White
 Write-Host "  VR settings live in Options -> VR Options." -ForegroundColor White
 Write-Host ""
-Write-Host " See the README for controls and tips." -ForegroundColor DarkGray
+Write-Host " Controls and tips are on this game's page in the Hub." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host " Start your engines - the rings are RIGHT there now." -ForegroundColor Blue
 Write-Host ""

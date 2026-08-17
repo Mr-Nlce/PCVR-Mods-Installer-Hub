@@ -281,7 +281,8 @@ function Write-EndNotes {
  Write-Host "    from Steam - that runs the flat game." -ForegroundColor Gray
  Write-Host ""
  Write-Host "  This is a manual install on a build the mod wasn't cut against," -ForegroundColor DarkGray
- Write-Host "  so VR may need fiddling. See the README for details." -ForegroundColor DarkGray
+ Write-Host "  so VR may need fiddling. Details are on this game's page in" -ForegroundColor DarkGray
+ Write-Host "  the Hub." -ForegroundColor DarkGray
  Write-Host ""
  Write-Host "  Build it, then climb inside and grab the wrench yourself." -ForegroundColor Magenta
  Write-Host ""

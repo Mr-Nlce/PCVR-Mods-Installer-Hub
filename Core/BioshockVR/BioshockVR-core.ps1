@@ -65,7 +65,7 @@ $FILES_A = @(
     "Setup.bat", "Uninstall.bat", "README.txt", "changelog.txt",
     "logs\CollectLogs.bat"
 )
-$FILES_B = @("xinput1_3.dll", "bioshockvr.dll")
+$FILES_B = @("xinput1_3.dll", "bioshockvr.dll", "bvr_steamvr32.dll", "openvr_api.dll")
 
 $STORE_REL  = "_vrmods"
 $SUB_A      = "biovrdev"

@@ -436,7 +436,7 @@ Write-Host "    OFF). Press F1 in game for settings incl. picture quality." -For
 Write-Host ""
 Write-Host "  NEVER use this in anti-cheat-enabled matchmaking." -NoNewline -ForegroundColor White; Write-Host " " -NoNewline; Write-Host " AC OFF ONLY " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
-Write-Host "  See the README for controls, tips, and how to uninstall." -ForegroundColor DarkGray
+Write-Host "  Controls and tips are on this game's page in the Hub." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Finish the fight - now from inside the visor." -ForegroundColor Magenta
 Write-Host ""

@@ -352,8 +352,7 @@ Write-Host "   - To return to VR: run 'Back to VR.bat' there." -ForegroundColor 
 Write-Host "   $gamePath" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host " Config (arms position/size, etc.): BepInEx\config in the game" -ForegroundColor Gray
-Write-Host " folder. To remove the mod entirely, delete the mod files -" -ForegroundColor Gray
-Write-Host " the vanilla game is restored." -ForegroundColor Gray
+Write-Host " folder." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Chart the drift, trust your gut, and roll on into the unknown." -ForegroundColor Magenta
 Write-Host ""

@@ -44,7 +44,7 @@ $REPO_API     = "https://api.github.com/repos/$REPO/releases"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $APP_ID       = "8870"
 $GAME_EXE     = "BioShockInfinite.exe"
-$MOD_FILES    = @("xinput1_3.dll", "bioshockvr.dll")
+$MOD_FILES    = @("xinput1_3.dll", "bioshockvr.dll", "bvr_steamvr32.dll", "openvr_api.dll")
 # Steam, GOG und Epic legen die Binaerdateien alle unter Binaries\Win32 ab.
 # !!! NICHT Build\Final - DAS IST DER UNTERSCHIED ZU BIOSHOCK 1 UND 2 !!!
 # Infinite laeuft auf der Unreal Engine 3 und legt seine Binaerdateien

@@ -6,6 +6,21 @@ platformer. Built directly on the current official release (2.2.15)
 as a fork of STJr/SRB2. Full VR controller support and
 quality-of-life fixes, on the same SRB2 2.2.15 base.
 
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Sonic Robo Blast 2 VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
+
 ## What it does
 1. Downloads the latest SRB2-VR full bundle from GitHub (auto-updates
    to whatever release is newest; falls back to a pinned build if the

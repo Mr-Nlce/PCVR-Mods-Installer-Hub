@@ -312,7 +312,7 @@ Write-Host " Configure Settings for VR " -NoNewline -ForegroundColor Black -Back
 Write-Host " button applies" -ForegroundColor White
 Write-Host "   all of these for you and backs up your profile first." -ForegroundColor White
 Write-Host "   It rewrites the whole profile, so check your game language" -ForegroundColor White
-Write-Host "   afterwards - the README says how to set it back." -ForegroundColor White
+Write-Host "   afterwards - this game's page in the Hub says how to set it back." -ForegroundColor White
 Write-Host "   By hand it is:" -ForegroundColor White
 Write-Host "     Ray tracing              " -NoNewline -ForegroundColor White
 Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
@@ -337,8 +337,8 @@ Write-Host "  desktop shortcut - both open the mod's launcher, where you pick" -
 Write-Host "  the rendering mode and resolution, then start the game." -ForegroundColor White
 Write-Host ""
 Write-Host "  In-game: F9 recenters, F8 switches Standard/Near view, F10 is" -ForegroundColor Gray
-Write-Host "  2D cinema, F11 the experimental first-person view. See the" -ForegroundColor Gray
-Write-Host "  README for the full layout." -ForegroundColor Gray
+Write-Host "  2D cinema, F11 the experimental first-person view. See this" -ForegroundColor Gray
+Write-Host "  game's page in the Hub for the full layout." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Toss a coin to your Witcher - and stand in Velen yourself." -ForegroundColor Magenta
 Write-Host ""

@@ -64,6 +64,22 @@ The author's own calibration files ship with the release and the installer keeps
 
 **If it crashes or misbehaves:** close the game and delete `vrpreset.ini`, `hands.ini`, `weapons.ini` and `command.txt` from `%LOCALAPPDATA%\BioshockVR\`. Those files override the built-in defaults key by key, so an old value keeps applying even after an update fixes the default. You only lose your own tuning; VR PRESET 1 puts a working setup back immediately. The log for a bug report is `bioshockvr.log` in the same folder.
 
+### Hands and weapon can be scaled (BioShock 1)
+
+The hands and the held weapon scale independently - [[F10]], hands section (per
+hand 0.2 to 4.0, weapon 0.3 to 2.5). The shipped defaults are already a
+headset-tuned calibration and the aim calibration was re-baked to match, so
+lasers and per-weapon profiles line up out of the box. Only change them if your
+own proportions call for it.
+
+### Two controls that work everywhere
+
+- [[X]] + [[Y]] together on the left controller = the menu button, on every
+  runtime. Useful because Steam Link's overlay sometimes swallows the real one:
+  tap for pause, hold for back / select
+- Click **both sticks** at once to recenter the view - no trip into the [[F10]]
+  menu needed
+
 ## Playing - BioVRDev
 Start the OpenXR runtime, then launch with **Start in VR** in the Hub or from your
 storefront - **not** the `.exe` directly. No injector, no launcher.
@@ -124,7 +140,7 @@ controllers are tested by the author.
 
 The installer also offers the community **fullscreen cutscenes** mod for this variant, which removes the black bars. balouza hides them itself.
 
-## Known limitations (balouza, as of v0.6.0)
+## Known limitations (balouza)
 - Full-screen effects (water, damage tints) sit on the HUD panel instead of covering your view.
 - Cutscenes sit low with black borders; "Game FOV write" in the overlay makes them fill the view but is not recommended for normal play.
 - Menus are still flat-screen, so load into the game before switching to VR.
@@ -132,6 +148,30 @@ The installer also offers the community **fullscreen cutscenes** mod for this va
 
 ## Conflicts
 `itsloopyo`'s head-tracking mod uses the same `xinput1_3.dll` injection vector and cannot run alongside either mod - remove or back up its DLL first. `dxgi.dll` likewise can only be owned by one mod, so ReShade, DXVK and Special K conflict with the BioVRDev variant.
+
+## Headsets
+
+Quest over Virtual Desktop / VDXR is the primary and most-tested path.
+
+**SteamVR and Steam Link now work too.** These games are 32-bit and SteamVR has
+never shipped a 32-bit OpenXR runtime, so the mod brings its own bridge - that is
+what `bvr_steamvr32.dll` and `openvr_api.dll` are for. Nothing to configure: the
+mod tries the native runtime first and falls back automatically. Index, Vive and
+WMR bindings ship as well; Vive and WMR defaults are partial (no face buttons) and
+everything is rebindable in SteamVR's own binding UI.
+
+Quitting SteamVR mid-game no longer kills the game - it drops to flat and keeps
+running. While the SteamVR dashboard is open, controller input pauses by design.
+
+## In the headset, but only a flat floating screen?
+
+That is **not** a runtime problem - VR started, but stereo and head-tracking are
+switched off. It is almost always an old `vrpreset.ini` that keeps overriding the
+shipped defaults, which is why reinstalling never helps.
+
+Fix it by copying the matching `preset-bs1` / `preset-bs2` / `preset-bsi`
+`vrpreset.ini` from the mod's zip over the one in `%LOCALAPPDATA%\BioshockVR\`
+(deleting yours works too), or arm it live in the [[F10]] menu.
 
 ## Credits
 - **bioshock-vr** by mohamad-balouza - https://github.com/mohamad-balouza/bioshock-vr

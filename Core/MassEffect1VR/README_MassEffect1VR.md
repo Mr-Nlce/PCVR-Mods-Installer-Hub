@@ -24,11 +24,22 @@ The mod currently covers ME1; this installer sets up exactly that.
    and image quality
 5. Confirms the setup is done (the mod turns HDR off for you)
 
+## New in V3
+
+- **Cutscenes and conversations look better in VR.** They now use the
+  rendering technique from Mass Effect 2 and 3, with head tracking.
+- **Decoupled look works with the mouse.** Before it only worked with a
+  controller.
+- **A new, lower resolution option** for weaker machines.
+
+The author calls this the hopefully final version.
+
 ## VR modes and quality
 - Modes: Stereo, Mono, AER, DIBR - switchable any time in the
   in-game menu
-- Quality: Performance / Balanced / Sharp / Max (Extreme for Stereo
-  only) - a quality/resolution change means rerunning the installer
+- Quality: Low / Performance / Balanced / Sharp / Max (Extreme for
+  Stereo only) - a quality/resolution change means rerunning the
+  installer
 - Recommended default: Stereo + Sharp
 - First-person camera is available as a toggle, but remember: this
   is a third-person game at heart - do not expect a full FPS
@@ -72,7 +83,7 @@ EA/Origin on a machine that has never run the game.
 - A gamepad
 
 ## Mod page
-https://www.patreon.com/dhalcyon/posts/melevrv2-164395003
+https://www.patreon.com/posts/166482031
 
 ## Support dhalcyon
 dhalcyon develops the MELE-VR mod. If you enjoy their work, consider

@@ -2,6 +2,21 @@
 
 Automated installer for **BanjoKazooie-VR** by RaYRoD - a native OpenXR VR build of **Lighthouse**, the Harbour Masters PC port of **Banjo-Kazooie** (Nintendo 64, 1998). The whole game renders per eye with head tracking. No headset answering? The same exe runs the flat game - `--vr` and `--novr` force either way.
 
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Banjo-Kazooie VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
+
 ## What it does
 - Downloads the newest BanjoKazooie-VR release from GitHub, so the Hub can flag updates and re-running the installer updates in place (your saves, settings and generated game archive are kept).
 - Installs to `C:\Games\Banjo-Kazooie VR` by default - you can pick any folder; no admin rights or UAC prompt needed at the default location.

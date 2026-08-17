@@ -327,7 +327,8 @@ Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
 Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or start Mage Arena" -ForegroundColor Gray
 Write-Host "    from Steam as usual." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  See the README for controls, the F1 settings panel and the" -ForegroundColor DarkGray
+Write-Host "  This game's page in the Hub covers controls, the F1 settings" -ForegroundColor DarkGray
+Write-Host "  panel and the" -ForegroundColor DarkGray
 Write-Host "  performance options." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Robes on, wand up - the arena is a lot closer from in here." -ForegroundColor Magenta

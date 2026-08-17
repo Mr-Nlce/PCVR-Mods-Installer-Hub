@@ -866,8 +866,7 @@ Write-Host "  Virtual Desktop users: in the headset's VD input settings," -Foreg
 Write-Host "  make sure NO gamepad emulation is checked (Gamepad / Dpad off)." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Full config guide, troubleshooting and known issues are on the" -ForegroundColor Gray
-Write-Host "  PEAK VR description page in the Hub, and in README_PEAKVR.md" -ForegroundColor Gray
-Write-Host "  (in this installer folder)." -ForegroundColor Gray
+Write-Host "  PEAK VR description page in the Hub." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Reach the summit. Try not to fall. See you up top, Scout." -ForegroundColor Magenta
 Write-Host ""

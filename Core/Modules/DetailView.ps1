@@ -5192,6 +5192,7 @@ function global:Show-DiscoverDetail {
         "F.E.A.R. VR" = "F.E.A.R. is a supernatural first-person shooter that combines intense gunfights, slow-motion combat, and psychological horror. As a member of an elite response unit, you investigate a mysterious military force connected to the unsettling psychic child Alma."
         "Mario Kart 64 VR" = "Experience the classic kart racing action of Mario Kart 64 in immersive VR. Race through iconic tracks with full 6DOF head tracking, bringing the world to life from inside the driver's seat. Built on SpaghettiKart, the Mario Kart 64 PC port - you bring your own US ROM, and nothing from Nintendo is included."
         "Legend of Zelda: Ocarina of Time VR" = "The Legend of Zelda: Ocarina of Time is a groundbreaking action-adventure game originally released for the Nintendo 64 in 1998. According to Metacritic, it is considered one of the best video games of all time. Shipwright-VR brings its 3D world into the headset via an OpenVR renderer for the Ship of Harkinian PC port, with motion-controller input."
+        "Legend of Zelda: Twilight Princess" = "The Legend of Zelda: Twilight Princess is an action-adventure game in which Link must save Hyrule from the encroaching Twilight Realm. Explore vast environments, solve intricate dungeons, battle dangerous enemies, and transform into a wolf to uncover secrets. Dusklight VR brings the GameCube adventure into virtual reality with stereoscopic rendering and tracked motion controls."
         "Ring Racers VR" = "Dr. Robotnik's Ring Racers is a fast-paced kart racing game featuring dozens of characters, tracks, items, and advanced movement mechanics. Thanks to the new OpenXR port, the chaotic races can now be experienced in immersive PCVR."
         "Sonic Robo Blast 2 VR" = "Sonic Robo Blast 2 is a long-running fan-made 3D platformer inspired by the classic Sonic games, featuring fast-paced gameplay, exploration - now with OpenXR support."
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
@@ -7344,4 +7345,3 @@ function global:Refresh-DiscoverStatuses {
         Update-DiscoverTileStatus -Tile $tile
     }
 }
-

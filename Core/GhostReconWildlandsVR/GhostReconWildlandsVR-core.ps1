@@ -434,7 +434,8 @@ Write-Host "  You play on a gamepad - there are no motion controls yet." -Foregr
 Write-Host ""
 Write-Host "  Everything is tuned live on the numpad and written to" -ForegroundColor Gray
 Write-Host "  GRWVR\grwxr.cfg - eye separation, field of view and the" -ForegroundColor Gray
-Write-Host "  first-person camera. The README has the full key list." -ForegroundColor Gray
+Write-Host "  first-person camera. This game's page in the Hub has the full" -ForegroundColor Gray
+Write-Host "  key list." -ForegroundColor Gray
 Write-Host "  To switch VR off, rename dxgi.dll in the game folder." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Sync up, Ghosts - Bolivia in stereo." -ForegroundColor Magenta

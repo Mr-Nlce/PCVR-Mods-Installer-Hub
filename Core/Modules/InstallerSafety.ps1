@@ -2084,6 +2084,79 @@ function global:Protect-InstallUserData {
 #   3. GROESSE: Martins Beobachtung - die Quelltextpakete liegen
 #      immer UNTER 1 MB, die echten deutlich darueber. Das faengt
 #      auch einen kuenftigen Anhang, der sich anders nennt.
+# ---------------------------------------------------------------
+#  Install-MultiverseVRHub - RaYRoD-TVs eigener Hub als ZWEITER Weg
+# ---------------------------------------------------------------
+# WORUM ES GEHT: RaYRoD-TV pflegt seine sechs VR-Ports inzwischen
+# ueber einen eigenen kleinen Hub (MultiverseVRHub.exe, eine einzige
+# Datei). Kuenftige Fassungen erscheinen laut seiner Ankuendigung
+# dort - moeglicherweise sogar zuerst oder ausschliesslich.
+#
+# DAS PROBLEM MIT SEINEM HUB, und deshalb ist es die ZWEITE Option:
+# er installiert die Spiele selbst, an einen Ort, den WIR nicht
+# kennen. Damit wuessten wir weder, ob ein Spiel installiert ist,
+# noch wo seine Exe liegt - "Start in VR" haette nichts zu starten.
+#
+# MARTINS LOESUNG, und sie ist die einfachste: WIR bestimmen den Ort.
+# Der Nutzer bekommt einen Pfad vorgeschlagen (C:\Games\Multiverse
+# VR Hub), darf ihn aendern, und danach ist GENAU DIESE Exe das, was
+# "Start in VR" oeffnet. Wir behaupten nichts ueber die Spiele
+# darin - wir bringen den Nutzer nur wieder an die Stelle, an der
+# er sie gestartet hat.
+#
+# Rueckgabe: der volle Pfad der Exe, oder $null.
+function global:Install-MultiverseVRHub {
+    param(
+        [string]$DefaultDir = "C:\Games\Multiverse VR Hub",
+        [switch]$Quiet
+    )
+    $repo    = "RaYRoD-TV/MVRH"
+    $exeName = "MultiverseVRHub.exe"
+    $pinned  = "https://github.com/$repo/releases/latest/download/$exeName"
+
+    if (-not $Quiet) {
+        Write-Host ""
+        Write-Host "  Where should the Multiverse VR Hub live?" -ForegroundColor White
+        Write-Host "  It is ONE file - it can sit anywhere, and it installs the" -ForegroundColor Gray
+        Write-Host "  games itself from there." -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "    Default: $DefaultDir" -ForegroundColor Cyan
+        Write-Host ""
+    }
+    $dir = ""
+    try { $dir = (Read-Host "  Folder (Enter for the default)").Trim().Trim('"') } catch {}
+    if (-not $dir) { $dir = $DefaultDir }
+
+    try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
+    catch {
+        Write-Warn "Could not create $dir - $($_.Exception.Message)"
+        return $null
+    }
+
+    # Neueste Fassung aufloesen. Der Anhang ist eine EXE, keine .zip -
+    # Select-PayloadAsset sucht nur .zip, taugt hier also nicht.
+    $url = $pinned; $tag = "latest"
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" `
+                   -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
+        foreach ($a in @($rel.assets)) {
+            if ($a.name -ieq $exeName) { $url = [string]$a.browser_download_url; $tag = [string]$rel.tag_name; break }
+        }
+    } catch { }
+
+    $dest = Join-Path $dir $exeName
+    Invoke-SafeDownload -Urls @($url, $pinned) -Destination $dest -Label "Multiverse VR Hub $tag" `
+        -ManualUrl "https://github.com/$repo/releases/latest" `
+        -Instructions "Download $exeName from the releases page and save it as '$dest', then choose Retry."
+
+    if (Test-Path -LiteralPath $dest) {
+        Write-OK "Multiverse VR Hub $tag is at: $dest"
+        return $dest
+    }
+    Write-Warn "$exeName is not there - nothing was installed."
+    return $null
+}
+
 function global:Test-IsPayloadRelease {
     param($Release)
     if (-not $Release) { return $false }

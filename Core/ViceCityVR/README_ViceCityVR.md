@@ -7,6 +7,7 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 ## What it does
 - Resolves the newest release from GitHub, so the Hub can flag updates and re-running the installer updates in place.
 - Locates your Vice City install (Steam library, Rockstar/retail, GOG, with a manual drag & drop fallback), then merges `reVC.exe`, its runtime DLLs and `models\vrhands` into the game folder next to `gta-vc.exe`.
+- Optionally installs the prebuilt **HD Models Pack** with a visible extraction percentage.
 - **`gta-vc.exe` is never replaced or modified** - the flat game keeps working exactly as before.
 
 ## What works
@@ -30,6 +31,34 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 - **Microsoft Visual C++ 2015-2022 Redistributable (x64)** - the installer checks for it and links the official Microsoft download if it is missing
 
 > **Meta Quest 3 through Quest Link or Air Link is the modder's primary tested setup.** The mod uses OpenXR and does not need the legacy Oculus PC SDK. Other PC OpenXR headsets may work but have not had the same testing. **NVIDIA DLAA** additionally needs a compatible RTX GPU and a current driver; a non-DLAA anti-aliasing path is available on other hardware.
+
+## Optional HD Models Pack
+
+At the end of installation, press **Enter** when the installer offers the HD
+Models Pack. It opens the Google Drive page for
+`GTA VC VR Prebuilt HD Models.zip`. Download the ZIP, wait until it has fully
+finished, then return to the installer and press **Enter**. The Hub checks the
+Downloads folder, asks before using the file it found, and otherwise accepts
+the ZIP by drag and drop.
+
+The required payload is two folders deep inside the archive:
+
+    GTA VC VR Prebuilt HD Models\modelsets\modern\models
+    GTA VC VR Prebuilt HD Models\modelsets\modern\txd
+
+The installer extracts the ZIP with a visible percentage, then merges the
+contents of those two folders into the matching folders beside the executable:
+
+    <Vice City folder>\models\...
+    <Vice City folder>\txd\...
+    <Vice City folder>\gta-vc.exe
+
+The `modelsets` and `modern` wrapper folders are not copied. If an HD file
+replaces an existing game file, the original is preserved once beside it as
+`<name>.hubbak`.
+
+Download page:
+https://drive.google.com/file/d/1aYSgzPE3UeA2_zuA_66eSf1ZhzCEgFMe/view?usp=sharing
 
 ## How to play
 1. Select your headset software as the **active OpenXR runtime**, and connect the headset (Quest Link, Air Link, SteamVR or the equivalent) **before** launching.

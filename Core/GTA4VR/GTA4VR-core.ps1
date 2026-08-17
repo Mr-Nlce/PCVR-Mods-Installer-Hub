@@ -307,7 +307,7 @@ Write-Host "    F3 or gamepad Back  VR menu        F9 or R3  recenter" -Foregrou
 Write-Host "    F4  cycle stereo profiles          F5  eye resolution" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  To play flat for a while, use the Flat / VR switch on the game's" -ForegroundColor DarkGray
-Write-Host "  page in the Hub. Config files are covered in the README." -ForegroundColor DarkGray
+Write-Host "  page in the Hub. Config files are covered there too." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Liberty City, at eye level. Niko never had it this real." -ForegroundColor Magenta
 Write-Host ""

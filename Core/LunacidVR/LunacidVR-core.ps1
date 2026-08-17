@@ -453,7 +453,8 @@ Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Ye
 Write-Host ""
 Write-Host " Melee swings need real arm speed, weapons swap by reaching" -ForegroundColor Gray
 Write-Host " over your shoulder, and the mod has its own settings under" -ForegroundColor Gray
-Write-Host " BepInEx\config. See the README for the full control list and" -ForegroundColor Gray
+Write-Host " BepInEx\config. This game's page in the Hub has the full control" -ForegroundColor Gray
+Write-Host " list and" -ForegroundColor Gray
 Write-Host " the known beta issues." -ForegroundColor Gray
 Write-Host ""
 Write-Host " The moon is watching. Go down." -ForegroundColor Magenta

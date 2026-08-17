@@ -5,6 +5,21 @@ A full PCVR port of Star Fox 64, built on **Starship** (the HarbourMasters PC po
 **Mod**: Starship VR - by RaYRoD (VR work), on HarbourMasters Starship
 **Source**: https://github.com/RaYRoD-TV/StarFox64-VR
 
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Star Fox 64 VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
+
 ## About
 
 Windows only for now, built against OpenXR 1.0, so any PCVR-capable headset should work (tested on Quest via Link and Virtual Desktop). This is a beta - plenty of flight time, but expect some rough edges.

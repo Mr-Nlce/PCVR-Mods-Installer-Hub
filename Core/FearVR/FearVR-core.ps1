@@ -1344,7 +1344,8 @@ Write-Host "  the headset on, then launch with" -NoNewline -ForegroundColor Whit
 Write-Host "  'F.E.A.R. VR' desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host "  In-game: F9 recenters, F8 toggles stereo, and the ESC menu has a" -ForegroundColor Gray
-Write-Host "  'VR SETTINGS' page. See the README for the full control layout." -ForegroundColor Gray
+Write-Host "  'VR SETTINGS' page. The full control layout is on this game's" -ForegroundColor Gray
+Write-Host "  page in the Hub." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Yellow box around your weapon? Hold BOTH GRIPS + B for the VR" -ForegroundColor White
 Write-Host "  panel, tab Collide, switch 'Show collision box' off." -ForegroundColor White

@@ -1745,6 +1745,15 @@ function global:Get-PowerTier {
         # ist als die beiden Remaster - UE3 von 2013, Stereo verdoppelt es,
         # und er empfiehlt zuerst die Aufloesung zu senken. Die Remaster
         # stehen auf SOLID, Infinite gehoert eine Stufe hoeher.
+        # Outlast ist Unreal Engine 3 von 2013 - genuegsam. Stereo
+        # verdoppelt die Last, aber es bleibt ein leichtes Spiel: BASIC.
+        # Ein Spiel von 2003 ueber DXVK auf Vulkan - genuegsam, auch in VR.
+        "C&C Generals: Zero Hour" = "BASIC"
+        # GameCube-Titel von 2006, aber die Neuimplementierung rendert
+        # ueber D3D12/WebGPU in Stereo; der Autor empfiehlt ausdruecklich
+        # Virtual Desktop "for performance". Deshalb SOLID, nicht BASIC.
+        "Legend of Zelda: Twilight Princess" = "SOLID"
+        "Outlast VR"            = "BASIC"
         "BioShock Infinite VR"  = "STRONG"
         "Battlefield 1942 VR"   = "SOLID"
         "Shenmue I & II"        = "BASIC"

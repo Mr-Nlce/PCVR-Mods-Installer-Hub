@@ -465,7 +465,7 @@ Write-Host " - Weapon + aiming is on your DOMINANT hand; health on the other." -
 Write-Host " - Turn with the right stick; weapon wheel = hold Y + right stick." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Full controls, swimming, config options and how to uninstall are" -ForegroundColor Gray
-Write-Host " in the README on the Hub detail page." -ForegroundColor Gray
+Write-Host " on this game's page in the Hub." -ForegroundColor Gray
 Write-Host ""
 Write-Host " The city's crooked and the jazz is hot, gumshoe. Go get 'em." -ForegroundColor Magenta
 Write-Host ""

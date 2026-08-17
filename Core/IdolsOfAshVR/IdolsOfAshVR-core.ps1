@@ -89,7 +89,7 @@ if ($hadOverride) {
         Write-Warn "An override.cfg already exists (another mod?)."
         Write-Host "  Saved a backup: override.cfg.pre-ugvr.backup" -ForegroundColor Gray
         Write-Host "  If you use other mods, merge their autoload lines into the" -ForegroundColor Gray
-        Write-Host "  new override.cfg after this install (see the README)." -ForegroundColor Gray
+        Write-Host "  new override.cfg after this install (see this game's page)." -ForegroundColor Gray
         Pause-User "Press Enter to continue with the install..."
     } catch {
         Write-Warn "Could not back up override.cfg - continuing; merge manually if needed."
@@ -148,11 +148,10 @@ Write-Host "   height; Interact toggles it, Sprint switches its mode." -Foregrou
 Write-Host " - Height calibration: hold the right controller over your" -ForegroundColor Gray
 Write-Host "   head and click the joystick (again to reset)." -ForegroundColor Gray
 Write-Host " - All settings live in the XRConfigs folder (world scale," -ForegroundColor Gray
-Write-Host "   hand models, haptics - see the README on the game page)." -ForegroundColor Gray
+Write-Host "   hand models, haptics - see this game's page in the Hub)." -ForegroundColor Gray
 Write-Host ""
 Write-Host " To turn the headset mode off: put a ; in front of the" -ForegroundColor Gray
-Write-Host " XRInjector line in override.cfg. To remove the mod, delete" -ForegroundColor Gray
-Write-Host " the xr_injector folder." -ForegroundColor Gray
+Write-Host " XRInjector line in override.cfg." -ForegroundColor Gray
 # ---- Signoff ----
 Write-Host ""
 Write-Host " Sling the hook, swing the ash - the idols are waiting." -ForegroundColor Magenta

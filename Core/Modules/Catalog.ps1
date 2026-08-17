@@ -125,6 +125,33 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Title       = "Arma 3 VR"
+        Quip        = "Someone already took the high ground. It is always the sniper."
+        SteamId     = "107410"
+        Mod         = "A3VR Hybrid (auto-update)"
+        GithubRepo  = "gborgogno/a3vr-arma3"
+        Description = "VERY EARLY ALPHA, OpenXR"
+        Author      = "gborgogno"
+        Bat         = "Arma3VR\START_INSTALLER.bat"
+        Color       = "#151b18"
+        Accent      = "#9ea76b"
+        InfoUrl     = "https://github.com/gborgogno/a3vr-arma3"
+        ModPageUrl  = "https://github.com/gborgogno/a3vr-arma3"
+        DownloadUrl = "https://github.com/gborgogno/a3vr-arma3/releases"
+        ModFile     = "@A3VR_Hybrid\A3VRHybridCore_x64.dll"
+        GameExe     = "arma3_x64.exe"
+        SteamFolder = "Arma 3"
+        Notice      = "Early community alpha: this is a hybrid OpenXR bridge, not a native VR port. Both eyes currently receive the same comfort-mono image, and BattlEye must remain disabled."
+        UninstallSteps = @(
+            "Disable 'A3VR - Arma 3 Hybrid VR' in the official Arma 3 Launcher.",
+            "Delete the '@A3VR_Hybrid' folder from your Arma 3 game folder if you installed the GitHub version.",
+            "If you used the Workshop version, unsubscribe from it in Steam instead.",
+            "The launcher backs up the Arma configuration and player profile before changing them; restore those backup copies if you also want to undo its FOV and graphics changes."
+        )
+        Tags=@("arma", "arma 3", "a3vr", "openxr", "military", "simulation", "tactical", "shooter", "fps", "sandbox", "multiplayer", "motion controls", "early access", "wip")
+    },
+    @{
+        Controls    = "MC"
         Title       = "Ashes 2063 VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=29DQWu_0XKI"
         ImprovementTag = "+ 3D ammo + props mod"
@@ -340,7 +367,7 @@ $ownGames = @(
                         "C:\Program Files\Epic Games\BioShockRemastered")
         UninstallSteps = @(
             "Open your BioShock Remastered folder and go into Build\Final (Build\FinalEpic on Epic).",
-            "Delete whichever of these are there - they are the active mod: dxgi.dll, BioshockVR.dll, BioshockVR.ini, openxr_loader.dll and FirstTimeSetup.bat (BioVRDev), xinput1_3.dll and bioshockvr.dll (balouza). The game is flat again.",
+            "Delete whichever of these are there - they are the active mod: dxgi.dll, BioshockVR.dll, BioshockVR.ini, openxr_loader.dll and FirstTimeSetup.bat (BioVRDev), xinput1_3.dll, bioshockvr.dll, bvr_steamvr32.dll and openvr_api.dll (balouza). The game is flat again.",
             "Delete the _vrmods folder (it holds the parked copy of each mod) and the VRLaunch folder (the two switch launchers).",
             "The setup backed your Bioshock.ini up before changing it; restore that copy if you want the original video settings back. Any file the Hub overwrote was kept next to it as <name>.hubbak.",
             "balouza also keeps its own settings in %LOCALAPPDATA%\BioshockVR - delete that folder to remove them.",
@@ -372,7 +399,7 @@ $ownGames = @(
         ModFileAlt  = "Build\FinalEpic\xinput1_3.dll"
         GameExe     = "Build\Final\Bioshock2HD.exe"
         UninstallSteps = @(
-            "Delete 'xinput1_3.dll' and 'bioshockvr.dll' from the game's Build\Final folder - Build\FinalEpic on Epic. The base game is left untouched.",
+            "Delete 'xinput1_3.dll', 'bioshockvr.dll', 'bvr_steamvr32.dll' and 'openvr_api.dll' from the game's Build\Final folder - Build\FinalEpic on Epic. The base game is left untouched.",
             "If the installer parked another mod's injector, rename that file back."
         )
         Tags=@("bioshock", "bioshock 2", "rapture", "subject delta", "big daddy", "2k", "balouza", "shooter", "action", "horror", "story", "openxr")
@@ -410,7 +437,7 @@ $ownGames = @(
         GameExe     = "Binaries\Win32\BioShockInfinite.exe"
         Notice      = "Early access: playable and comfortable from the start of the game through the early city, which is the range the author tested. Later chapters, the Skyline and the DLCs have not had a VR pass yet. Infinite is also heavier in VR than the two remasters - if it judders, lower the game resolution in the F10 overlay first (keep it roughly square), then your streaming quality."
         UninstallSteps = @(
-            "Delete 'xinput1_3.dll' and 'bioshockvr.dll' from the game's Binaries\Win32 folder - NOT Build\Final, Infinite keeps its binaries elsewhere. The base game is left untouched.",
+            "Delete 'xinput1_3.dll', 'bioshockvr.dll', 'bvr_steamvr32.dll' and 'openvr_api.dll' from the game's Binaries\Win32 folder - NOT Build\Final, Infinite keeps its binaries elsewhere. The base game is left untouched.",
             "If the installer parked another mod's injector, rename that file back.",
             "Your VR tuning lives outside the game folder in %LOCALAPPDATA%\BioshockVR\bsi\ - delete that folder too if you want a clean slate."
         )
@@ -425,7 +452,7 @@ $ownGames = @(
         Mod         = "BMSVR Beta 2.0"
         Description = "HL2VR Ep.2 Mod"
         Author      = "Ashok"
-        Bat         = "BMSVR\\START_INSTALLER.bat"
+        Bat         = "BMSVR\START_INSTALLER.bat"
         Color       = "#0a1518"
         Accent      = "#33aacc"
         InfoUrl     = "https://www.nexusmods.com/halflife2episode2/mods/4"
@@ -466,6 +493,57 @@ $ownGames = @(
         ModFile     = "BetterVR_Launcher.exe"
         LaunchExe   = "BetterVR_Launcher.exe"
         Tags        = @("breath of the wild", "botw", "zelda", "bettervr", "cemu", "wii u", "adventure", "open world", "action")
+    },
+    @{
+        Controls    = "MC"
+        # Die Mod ist AUSSCHLIESSLICH fuer Zero Hour - der Autor schreibt
+        # "I'm turning Command & Conquer: Generals - Zero Hour into a VR
+        # game", verlangt eine Zero-Hour-Installation, und seine Exe heisst
+        # generalszhv.exe (zh = Zero Hour). Der Titel sagt das jetzt auch.
+        # Die Suche nach "command and conquer" oder "command & conquer"
+        # findet ihn weiterhin - beide Schreibweisen stehen in den Tags,
+        # und die Suche prueft Titel UND Tags mit Contains.
+        Title       = "C&C Generals: Zero Hour"
+        Quip        = "Sir, the war table is ready. Mind the tanks near your boots."
+        # !!! 2229870 IST DAS GRUNDSPIEL, NICHT ZERO HOUR !!! Die Mod ist
+        # fuer Zero Hour, und das hat auf Steam die eigene Kennung
+        # 2732960 (store.steampowered.com/app/2732960). Mit der
+        # falschen Kennung sucht der Scan das falsche Spiel.
+        SteamId     = "2732960"
+        SteamFolder = "Command & Conquer Generals - Zero Hour"
+        VideoUrl    = "https://v.redd.it/uiaj4g2jgkdh1/CMAF_1080.mp4?source=fallback"
+        Mod         = "GeneralsVR (self-updating)"
+        Description = "Alpha, Zero Hour required"
+        Author      = "Gonzorro"
+        Bat         = "GeneralsVR\START_INSTALLER.bat"
+        Color       = "#1e2417"
+        Accent      = "#c8a03c"
+        InfoUrl     = "https://github.com/Gonzorro/GeneralsVR"
+        ModPageUrl  = "https://github.com/Gonzorro/GeneralsVR"
+        DownloadUrl = "https://github.com/Gonzorro/GeneralsVR/releases"
+        GithubRepo  = "Gonzorro/GeneralsVR"
+        GithubPrerelease = $true
+        # !!! DIE MOD LIEGT NICHT IM SPIELORDNER !!! Sie fasst Zero Hour
+        # nie an und lebt komplett in %LOCALAPPDATA%\GeneralsVR - deshalb
+        # VrInstallRoot, genau wie bei den GZDoom-Eintraegen. ModFile ist
+        # dann relativ zu diesem Ordner, nicht zum Spiel.
+        VrInstallRoot = "LOCALAPPDATA:GeneralsVR"
+        ModFile     = "Data\generalszhv.exe"
+        LaunchExe   = "START-GeneralsVR.cmd"
+        # Zero Hour gibt es in vielen Ausgaben, und der Starter der Mod
+        # findet sie selbst - diese Pfade helfen nur unserem Scan.
+        # Der erste Eintrag zeigte auf das GRUNDSPIEL Generals - falsch.
+        # Alle Pfade hier meinen Zero Hour.
+        FallbackPaths=@("STEAM:Command & Conquer Generals - Zero Hour", "C:\Program Files\EA Games\Command and Conquer Generals Zero Hour", "C:\Program Files (x86)\Origin Games\Command & Conquer Generals Zero Hour", "C:\Program Files (x86)\EA Games\Command & Conquer Generals Zero Hour", "C:\Program Files (x86)\EA Games\Command & Conquer The First Decade\Command & Conquer(tm) Generals Zero Hour", "GOG:Command and Conquer Generals Zero Hour")
+        Notice      = "Early alpha - skirmish plays end to end, but expect rough edges. Quest 3 over Quest Link is the only tested headset; others are untested. The headset stays dark in the menus, which is normal - only the battlefield is rendered, so start a skirmish before you go looking for the picture."
+        UninstallSteps = @(
+            "Your Zero Hour install was never touched - there is nothing to undo there.",
+            "Delete the folder %LOCALAPPDATA%\GeneralsVR. That is the whole mod, including the game build, your VR settings and the Debug logs.",
+            "Delete the GeneralsVR shortcut from your desktop.",
+            "Or let the mod do it: run GeneralsVR.ps1 -Uninstall from that folder before you delete it.",
+            "The setup wrote a few registry entries the game engine needs. The uninstall switch above removes them; deleting the folder by hand leaves them, which is harmless."
+        )
+        Tags=@("command and conquer", "command & conquer", "c&c", "cnc", "generals", "zero hour", "zerohour", "rts", "strategy", "ea", "gonzorro", "openxr", "dxvk", "war table", "alpha", "wip")
     },
     @{
         Controls    = "MC"
@@ -576,7 +654,7 @@ $ownGames = @(
         Author      = "dariulone"
         Bat         = "Cyberpunk2077VR\START_INSTALLER.bat"
         UninstallSteps = @(
-            "Delete the folders the mod added: red4ext\\plugins\\CyberpunkVR_Stereo\\, red4ext\\plugins\\CyberpunkVR_Hands\\, bin\\x64\\plugins\\cyber_engine_tweaks\\mods\\CyberpunkVRPort_*\\ and r6\\scripts\\CyberpunkVRPort_*\\.",
+            "Delete the folders the mod added: red4ext\plugins\CyberpunkVR_Stereo\, red4ext\plugins\CyberpunkVR_Hands\, bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_*\ and r6\scripts\CyberpunkVRPort_*\.",
             "Leave the frameworks (RED4ext, Cyber Engine Tweaks, redscript) in place if other mods use them.",
             "The base game is left untouched."
         )
@@ -831,7 +909,7 @@ $ownGames = @(
             "Open the F.E.A.R. VR folder (default C:\Games\FEAR VR) in a terminal.",
             "Run 'powershell -ExecutionPolicy Bypass -File tools\uninstall.ps1 -Apply'. It removes the staged mod, restores SteamVR's theater setting, and leaves your retail F.E.A.R. untouched.",
             "Your saves live in the stage's userdata and are kept unless you add -IncludeUserData.",
-            "The mod's uninstall script removes the desktop shortcut too. Note the mod folder (C:\\Games\\FEAR VR by default) is independent of your F.E.A.R. install - uninstalling the game alone leaves it behind.",
+            "The mod's uninstall script removes the desktop shortcut too. Note the mod folder (C:\Games\FEAR VR by default) is independent of your F.E.A.R. install - uninstalling the game alone leaves it behind.",
             "If you installed the HD textures: run their installer again and click Uninstall - it lives in the archive you downloaded from ModDB."
         )
         Tags        = @("fear", "f.e.a.r.", "first encounter assault recon", "horror", "fps", "shooter", "action", "slow-mo", "alma", "monolith", "lithtech", "psychological horror", "wip", "beta", "openxr")
@@ -929,6 +1007,7 @@ $ownGames = @(
         Mod         = "Vice City VR (auto-update)"
         Description = "2003 original required"
         Author      = "#yevhen4817"
+        ImprovementTag = "+ HD Model Pack"
         GithubRepo  = "dubrovskiy-yevhen-stakelogic/vice-city-vr"
         Bat         = "ViceCityVR\START_INSTALLER.bat"
         Color       = "#1b0d2b"
@@ -945,7 +1024,9 @@ $ownGames = @(
         UninstallSteps = @(
             "Open your Vice City game folder.",
             "Delete the files the Vice City VR archive supplied, plus 'models\vrhands'.",
-            "The original game data is not changed by the archive, so Vice City keeps working in flat mode."
+            "If you installed the optional HD Model Pack, do NOT delete the game's whole 'models' folder. The pack merged files from modelsets\modern\models and modelsets\modern\txd into the game's 'models' and 'txd' folders.",
+            "For every original file the HD pack replaced, the installer kept a <name>.hubbak beside it. Delete the HD replacement and rename its .hubbak copy back. Files added only by the pack can be identified from the same ZIP and deleted individually.",
+            "The original executable is not changed, so Vice City keeps working in flat mode."
         )
         Tags        = @("grand theft auto", "gta", "vice city", "revc", "open world", "action", "crime", "driving", "shooter", "sandbox", "retro")
     },
@@ -1317,6 +1398,42 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Title       = "Legend of Zelda: Twilight Princess"
+        Quip        = "Twilight and light, and you between them - with a sword."
+        VideoUrl    = "https://www.youtube.com/watch?v=ioJsbBGZ0Cs"
+        Mod         = "Dusklight VR (auto-update)"
+        GithubRepo  = "JoeyAW/dusklight-vr"
+        Description = "GameCube dump required"
+        Author      = "JoeyAW"
+        ImprovementTag = "+ 4K texture pack"
+        Bat         = "TwilightPrincessVR\START_INSTALLER.bat"
+        HeaderUrl     = "Assets/TwilightPrincessVR_header.jpg"
+        PortraitUrl   = "Assets/TwilightPrincessVR_portrait.jpg"
+        ScreenshotUrl = "Assets/TwilightPrincessVR_screenshot.jpg"
+        Color       = "#141a24"
+        Accent      = "#6fa8c9"
+        InfoUrl     = "https://github.com/JoeyAW/dusklight-vr"
+        ModPageUrl  = "https://github.com/JoeyAW/dusklight-vr"
+        DownloadUrl = "https://github.com/JoeyAW/dusklight-vr/releases"
+        # EIGENSTAENDIG wie Ocarina of Time VR - es gibt kein Spiel zum
+        # Patchen. Die Exe liegt in einem Unterordner des Archivs, nicht
+        # in der Wurzel: windows-msvc-relwithdebinfo\dusklight.exe.
+        SteamFolder = "Twilight Princess VR"
+        ModFile     = "windows-msvc-relwithdebinfo\dusklight.exe"
+        LaunchExe   = "windows-msvc-relwithdebinfo\dusklight.exe"
+        FallbackPaths=@("C:\Games\Twilight Princess VR", "D:\Games\Twilight Princess VR", "E:\Games\Twilight Princess VR")
+        Notice      = "You supply the game: this port ships no game data and needs your own dump of the GameCube release as .iso or .rvz. The download is over 500 MB and unpacks to about 2 GB, because the author ships his whole build folder. Tested on Quest 2 and 3 only; cutscenes are best watched in flatscreen."
+        NoticeUrl   = "https://discord.gg/CxQJ9PjnjA"
+        NoticeUrlLabel = "Discord for bugs and help"
+        UninstallSteps = @(
+            "Delete the folder you installed it into - everything lives there, including your settings. Nothing was added anywhere else.",
+            "Delete the 'Twilight Princess VR' shortcut from your desktop.",
+            "Your own game dump is your file and is untouched - keep it wherever you put it."
+        )
+        Tags=@("zelda", "legend of zelda", "twilight princess", "link", "midna", "hyrule", "dusklight", "joeyaw", "gamecube", "nintendo", "action", "adventure", "fantasy", "exploration", "wip")
+    },
+    @{
+        Controls    = "MC"
         Title       = "Lethal Company VR"
         VideoUrl    = "https://www.youtube.com/watch?v=nrLkksXZVAo"
         SteamId     = "1966720"
@@ -1495,7 +1612,7 @@ $ownGames = @(
         Bat         = "MousePIVR\START_INSTALLER.bat"
         UninstallSteps = @(
             "To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.",
-            "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.",
+            "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.",
             "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into."
         )
         Color       = "#141210"
@@ -2867,20 +2984,21 @@ $ownGamesGP = @(
         VideoUrl    = "https://youtu.be/zk1qG2ozU1k?t=34"
         SteamId     = "1328670"
         Quip        = "I'm Commander Shepard, and this is my favorite mod on the Citadel."
-        Mod         = "MELE-VR V2"
-        # LastWriteTime the V2 build carries inside the modder's zip
-        # (read from MELE1-VR-V2.zip: dxgi.dll 2026-07-20 19:07). Anyone
-        # still on the first build has an older stamp on disk -> Update
-        # badge; a V2 install reads current, whenever it was extracted.
-        ModBuildStamp = "2026-07-20 19:07"
+        Mod         = "MELE-VR V3"
+        # Zeitstempel, den der V3-Build im Zip des Modders traegt
+        # (aus MELE1-VR-V3.zip gelesen: dxgi.dll 1.250.304 B, 2026-08-12
+        # 16:48). Wer noch auf V1 oder V2 sitzt, hat ein aelteres Datum
+        # auf der Platte -> Update-Kennzeichen. Eine V3-Installation gilt
+        # als aktuell, egal wann sie entpackt wurde.
+        ModBuildStamp = "2026-08-12 16:48"
         Description = "Legendary Edition required"
         Author      = "dhalcyon"
         Bat         = "MassEffect1VR\START_INSTALLER.bat"
         Color       = "#0a0e1a"
         Accent      = "#d93a3a"
-        InfoUrl     = "https://www.patreon.com/dhalcyon/posts/melevrv2-164395003"
-        ModPageUrl  = "https://www.patreon.com/dhalcyon/posts/melevrv2-164395003"
-        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/melevrv2-164395003"
+        InfoUrl     = "https://www.patreon.com/posts/166482031"
+        ModPageUrl  = "https://www.patreon.com/posts/166482031"
+        DownloadUrl = "https://www.patreon.com/posts/166482031"
         SteamFolder = "Mass Effect Legendary Edition"
         FallbackPaths=@("C:\Program Files\EA Games\Mass Effect Legendary Edition", "C:\Program Files (x86)\Origin Games\Mass Effect Legendary Edition", "C:\Program Files\Epic Games\Mass Effect Legendary Edition", "EPIC:Mass Effect Legendary Edition", "XBOX:Mass Effect Legendary Edition")
         ModFile     = "Game\ME1\Binaries\Win64\dxgi.dll"
@@ -2897,6 +3015,12 @@ $ownGamesGP = @(
         SteamId     = "1328670"
         Quip        = "Assemble the team. The Omega-4 relay is a one-way trip."
         Mod         = "MELE2-VR"
+        # ME2 hatte bisher KEIN Update-Signal - der Hub konnte dort nie
+        # eine neue Fassung melden. Zeitstempel wie bei ME1: aus dem Zip
+        # des Modders gelesen (dxgi.dll 849.408 B, 2026-08-01 20:29). Wer
+        # eine aeltere Datei auf der Platte hat, bekommt das
+        # Update-Kennzeichen.
+        ModBuildStamp = "2026-08-01 20:29"
         Description = "Legendary Edition required"
         Author      = "dhalcyon"
         Bat         = "MassEffect2VR\START_INSTALLER.bat"
@@ -2947,6 +3071,39 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="No One Lives Forever 2 VR"; SteamFolder="No One Lives Forever 2"; VideoUrl="https://www.youtube.com/watch?v=hJhE84R74_0"; Pill="NOLF2-R3"; Quip="Slip into Cate Archer's shoes, outwit H.A.R.M., and make spycraft look effortless."; PortraitUrl="Assets/NOLF2_portrait.jpg"; HeaderUrl="Assets/NOLF2_header.jpg"; ScreenshotUrl="Assets/NOLF2_screenshot.jpg"; Mod="Release 3"; Description="NOLF2 1.3 EN required"; Author="Luke Ross"; Bat="NOLF2VR\START_INSTALLER.bat"; Color="#171109"; Accent="#e8923a"; LaunchExe="Lithtech.exe"; ModFile="VRlaunchcmds.txt"; InfoUrl="https://github.com/LukeRoss00/nolf2-real-mod"; ModPageUrl="https://www.patreon.com/realvr"; Tags=@("no one lives forever 2", "nolf2", "nolf", "cate archer", "spy", "stealth", "shooter", "fps", "retro", "adventure", "luke ross", "real") },
     @{ Controls="GP"; Title="Onimusha 2 VR"; VideoUrl="https://youtu.be/42jEMrshZzc?t=1590"; VideoLabel="Watch gameplay"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v1.0.1"; ModReleasedAt="2026-07-21"; ModBuildStamp="2026-07-21 03:24"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="BepInEx\plugins\OutboundVR\OutboundVR.dll"; SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
+    @{
+        Controls    = "GP"
+        Title       = "Outlast VR"
+        Quip        = "You are not armed. You never were. Now you can look behind you."
+        SteamId     = "238320"
+        SteamFolder = "Outlast"
+        VideoUrl    = "https://www.youtube.com/watch?v=odXzJC-JABM"
+        Mod         = "Outlast VR by Halcyon"
+        Description = "Stereo, VR cutscenes"
+        Author      = "Halcyon"
+        # Blaue Zeile auf der Kachel. Ersetzt dort automatisch die
+        # "by <Modder>"-Zeile - genau wie bei Amnesia VR und den anderen
+        # elf Eintraegen mit einem Zusatzmod.
+        ImprovementTag = "+ remove film grain"
+        Bat         = "OutlastVR\START_INSTALLER.bat"
+        Color       = "#1a1c18"
+        Accent      = "#8fa33f"
+        InfoUrl     = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
+        ModPageUrl  = "https://www.patreon.com/dhalcyon"
+        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
+        # !!! Binaries\Win64, NICHT der Spielordner - haeufigste Verwechslung.
+        # Alle drei Laeden legen dieselbe Struktur an, nur an anderer Stelle.
+        ModFile     = "Binaries\Win64\d3d9.dll"
+        GameExe     = "Binaries\Win64\OLGame.exe"
+        FallbackPaths=@("C:\GOG Games\Outlast", "C:\Program Files (x86)\GOG Galaxy\Games\Outlast", "EPIC:Outlast", "C:\Program Files\Epic Games\Outlast", "C:\Program Files (x86)\Epic Games\Outlast")
+        UninstallSteps = @(
+            "Close Outlast first - the mod's own script checks and refuses to run while it is open.",
+            "Run 'Outlast-VR.bat' again from Outlast\Binaries\Win64 and choose [2] Uninstall. That is the author's own way and it puts the game config back.",
+            "If you would rather do it by hand, delete d3d9.dll, openxr_loader.dll, outlastvr.ini and Outlast-VR.bat from that folder - no base game file is touched.",
+            "Your VR tuning lives in outlastvr.ini beside the game, so it goes with those files."
+        )
+        Tags=@("outlast", "horror", "survival horror", "red barrels", "asylum", "halcyon", "stereo", "gamepad", "openxr", "patreon")
+    },
     @{
         Controls    = "VRGP"
         Title       = "Paperklay VR"
@@ -4197,4 +4354,3 @@ foreach ($__fg in (@($ownGames) + @($ownGamesGP) + @($externalGames))) {
         $global:FREE_GAME_TITLES += $__fg.Title
     }
 }
-

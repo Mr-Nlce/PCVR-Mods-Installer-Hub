@@ -68,6 +68,14 @@ overlay - the session recovers instantly.
 - Body-follows-head movement, stick pitch disabled, snap turn
 - In-headset F10 tuning overlay
 
+### Two controls that work everywhere
+
+- [[X]] + [[Y]] together on the left controller = the menu button, on every
+  runtime. Useful because Steam Link's overlay sometimes swallows the real one:
+  tap for pause, hold for back / select
+- Click **both sticks** at once to recenter the view - no trip into the [[F10]]
+  menu needed
+
 ## Settings
 Your tuning is stored **outside the game folder**, per game:
 
@@ -75,6 +83,30 @@ Your tuning is stored **outside the game folder**, per game:
 
 Upgrading keeps it: your values win key by key, and anything new arrives with
 working defaults.
+
+## Headsets
+
+Quest over Virtual Desktop / VDXR is the primary and most-tested path.
+
+**SteamVR and Steam Link now work too.** These games are 32-bit and SteamVR has
+never shipped a 32-bit OpenXR runtime, so the mod brings its own bridge - that is
+what `bvr_steamvr32.dll` and `openvr_api.dll` are for. Nothing to configure: the
+mod tries the native runtime first and falls back automatically. Index, Vive and
+WMR bindings ship as well; Vive and WMR defaults are partial (no face buttons) and
+everything is rebindable in SteamVR's own binding UI.
+
+Quitting SteamVR mid-game no longer kills the game - it drops to flat and keeps
+running. While the SteamVR dashboard is open, controller input pauses by design.
+
+## In the headset, but only a flat floating screen?
+
+That is **not** a runtime problem - VR started, but stereo and head-tracking are
+switched off. It is almost always an old `vrpreset.ini` that keeps overriding the
+shipped defaults, which is why reinstalling never helps.
+
+Fix it by copying the matching `preset-bs1` / `preset-bs2` / `preset-bsi`
+`vrpreset.ini` from the mod's zip over the one in `%LOCALAPPDATA%\BioshockVR\`
+(deleting yours works too), or arm it live in the [[F10]] menu.
 
 ## Known issues
 The author lists these openly for the early-access release:

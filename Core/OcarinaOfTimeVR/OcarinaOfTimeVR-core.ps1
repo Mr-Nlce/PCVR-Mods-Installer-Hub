@@ -619,7 +619,7 @@ if ($djipiInstalled) {
     Write-Host "  VR. The optional Djipi pack above fixes exactly that." -ForegroundColor Yellow
     Write-Host ""
 }
-Write-Host "  Menu tips, HUD options and troubleshooting are in the README" -ForegroundColor Gray
+Write-Host "  Menu tips, HUD options and troubleshooting are" -ForegroundColor Gray
 Write-Host "  on this game's page in the Hub." -ForegroundColor Gray
 Write-Host ""
 Pause-User "Press Enter to exit."

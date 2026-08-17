@@ -598,7 +598,8 @@ if ($store -eq "epic") {
 Write-Host "  Image quality and world scale are preset .bat files in the" -ForegroundColor Gray
 Write-Host "  game folder (Set_Resolution_*, Set_Scale_*). To play flat for" -ForegroundColor Gray
 Write-Host "  a while, use the Flat / VR switch on this game's Hub page -" -ForegroundColor Gray
-Write-Host "  it shows which mode is live. See the README for the rest." -ForegroundColor Gray
+Write-Host "  it shows which mode is live. This game's page in the Hub has" -ForegroundColor Gray
+Write-Host "  the rest." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Broadside a pirate cruiser with the nebula wrapped around you." -ForegroundColor Magenta
 Write-Host ""

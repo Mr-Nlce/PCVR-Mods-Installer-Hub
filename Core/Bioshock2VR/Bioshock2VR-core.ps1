@@ -43,7 +43,7 @@ $REPO_API     = "https://api.github.com/repos/$REPO/releases"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $APP_ID       = "409720"
 $GAME_EXE     = "Bioshock2HD.exe"
-$MOD_FILES    = @("xinput1_3.dll", "bioshockvr.dll")
+$MOD_FILES    = @("xinput1_3.dll", "bioshockvr.dll", "bvr_steamvr32.dll", "openvr_api.dll")
 # Steam and GOG put the binaries in Build\Final, Epic in Build\FinalEpic.
 $BIN_SUBDIRS  = @("Build\Final", "Build\FinalEpic")
 $CANDIDATE_ROOTS = @(
@@ -249,7 +249,8 @@ Write-Host "    then launch the game through Steam. Load your save - you are in 
 Write-Host "    Press F10 for the mod menu; APPLY at the top arms everything." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Right hand = weapons, left hand = plasmids. The shipped" -ForegroundColor DarkGray
-Write-Host "  calibration is already tuned; see the README for the rest." -ForegroundColor DarkGray
+Write-Host "  calibration is already tuned; this game's page in the Hub" -ForegroundColor DarkGray
+Write-Host "  has the rest." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Rapture never asked you to look away. Now you cannot." -ForegroundColor Magenta
 Write-Host ""

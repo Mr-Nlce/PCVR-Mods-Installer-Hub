@@ -341,8 +341,8 @@ Write-Host " way, in steps of 0.05. It saves itself and comes back on the" -Fore
 Write-Host " next launch. Default is 1.45, which fits the cabin to a normal" -ForegroundColor White
 Write-Host " seated height - 1.0 is the original scale." -ForegroundColor White
 Write-Host ""
-Write-Host " See the README for controls, mode switching, and how to" -ForegroundColor Gray
-Write-Host " uninstall. Switch .bat files sit in the game folder:" -ForegroundColor Gray
+Write-Host " This game's page in the Hub covers controls and mode switching." -ForegroundColor Gray
+Write-Host " Switch .bat files sit in the game folder:" -ForegroundColor Gray
 Write-Host "   $gamePath" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host " Big rig, bigger view - haul the void in stereo." -ForegroundColor Magenta

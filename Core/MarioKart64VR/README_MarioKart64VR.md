@@ -5,9 +5,21 @@ in PCVR, built on SpaghettiKart, the Mario Kart 64 PC port. Put on a
 headset and you are sitting in the kart in stereo 3D with full head
 tracking. No headset? The same game runs flat on your monitor.
 
-BETA - expect bugs. This port is early and still changing; not
-everything is polished yet. Bug reports are welcome on the GitHub
-page.
+
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Mario Kart 64 VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
 
 ## What it does
 1. Downloads the latest release from GitHub (auto-updates to

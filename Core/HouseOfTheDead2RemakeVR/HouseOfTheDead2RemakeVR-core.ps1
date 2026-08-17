@@ -148,7 +148,7 @@ Write-Host ""
 Write-Host " IMPORTANT BEFORE INSTALLING:" -ForegroundColor Yellow
 Write-Host " ----------------------------" -ForegroundColor Yellow
 Write-Host " This mod uses OpenVR by default. OpenXR is supported" -ForegroundColor White
-Write-Host " via a config edit if you prefer (see README)." -ForegroundColor White
+Write-Host " via a config edit if you prefer (see this game's page in the Hub)." -ForegroundColor White
 Write-Host ""
 Write-Host " This is a MOTION CONTROLS mod. To use VR controllers you" -ForegroundColor White
 Write-Host " MUST install ViGEmBus (the installer can do it for you)." -ForegroundColor White

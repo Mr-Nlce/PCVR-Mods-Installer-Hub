@@ -5,6 +5,21 @@ Super Mario 64 in immersive VR, built on the **sm64coopdx** PC port. With a head
 **Mod**: sm64coopdx VR - by RaYRoD (VR work), on sm64coopdx by the Coop Deluxe Team
 **Source**: https://github.com/RaYRoD-TV/sm64coopdx-vr
 
+## Two ways to get this
+
+The installer asks which you want - both give you the same port.
+
+**1. This installer.** It puts Super Mario 64 VR straight into your game folder, and
+**Start in VR** launches the game itself.
+
+**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
+his ports and keeps them updated; future builds land there first. You choose the
+folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
+then opens that app instead of the game - you pick the port and hit Play there.
+
+Either way the games stay on your own PC and you still bring your own ROM where
+one is needed. Use one or the other, not both at once.
+
 ## About
 
 Tested on Quest 3 and Pimax Dream Air, but it should run with any PCVR / OpenXR runtime. Super Mario 64 belongs to Nintendo - **you bring your own Super Mario 64 US ROM**. Nothing from Nintendo is in the repo or downloaded; coopdx reads the ROM locally when the game starts and it never leaves your machine.

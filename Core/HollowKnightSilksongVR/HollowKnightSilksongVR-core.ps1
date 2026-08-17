@@ -683,7 +683,8 @@ if ($doA) {
     Write-Host "  whether OpenVR is connected." -ForegroundColor White
 }
 Write-Host ""
-Write-Host "  See the README for settings, tuning and known issues." -ForegroundColor Gray
+Write-Host "  Settings, tuning and known issues are on this game's page" -ForegroundColor Gray
+Write-Host "  in the Hub." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Climb high, Hornet. The Citadel waits." -ForegroundColor Magenta
 Write-Host ""

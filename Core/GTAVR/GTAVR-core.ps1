@@ -537,7 +537,7 @@ Write-Host '    "Use Desktop Game Theatre while SteamVR is active" - otherwise' 
 Write-Host "    VR shows only a flat/transparent screen, not the real game." -ForegroundColor Yellow
 Write-Host " 3) Quickly shake your head to recenter the view." -ForegroundColor White
 Write-Host " 4) Hotkeys are off at start - press F11 to turn them on" -ForegroundColor White
-Write-Host "    (full hotkey list is in README_GTAVR.md)." -ForegroundColor White
+Write-Host "    (full hotkey list is on this game's page in the Hub)." -ForegroundColor White
 if (Test-Path -LiteralPath "$gtaDir\GTAVR.asi") {
     Write-Host ""
     Write-Host " Motion (use the 'Motion (WIP)' shortcut): NUMPAD 0 opens the menu," -ForegroundColor White

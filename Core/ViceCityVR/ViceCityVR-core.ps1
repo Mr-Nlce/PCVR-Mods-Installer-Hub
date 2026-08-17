@@ -45,6 +45,12 @@ $PINNED_URL        = "https://github.com/$REPO/releases/download/v0.5.0/Vice-Cit
 $VCRT_REG          = "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
 $VCRT_URL          = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
 
+# Optional prebuilt HD vehicle/character model pack. Google Drive serves a
+# browser page, so the user downloads it there and the installer picks the
+# finished ZIP up from Downloads (or accepts it via drag and drop).
+$HD_MODELS_URL     = "https://drive.google.com/file/d/1aYSgzPE3UeA2_zuA_66eSf1ZhzCEgFMe/view?usp=sharing"
+$HD_MODELS_ARCHIVE = "GTA VC VR Prebuilt HD Models.zip"
+
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
@@ -71,6 +77,51 @@ function Test-ViceCityRoot {
     try { return (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $GAME_EXE))) } catch { return $false }
 }
 
+# Merge one HD-pack payload folder into the matching game folder. Existing
+# files are backed up once as <name>.hubbak before replacement; re-running an
+# already installed pack does not turn the HD file itself into a backup.
+function Copy-HDModelsTree {
+    param(
+        [Parameter(Mandatory=$true)][string]$Source,
+        [Parameter(Mandatory=$true)][string]$Target
+    )
+    $copied = 0
+    $backedUp = 0
+    $sourceFiles = @(Get-ChildItem -LiteralPath $Source -Recurse -File -Force -ErrorAction Stop)
+    if ($sourceFiles.Count -eq 0) { throw "HD payload folder is empty: $Source" }
+    foreach ($item in $sourceFiles) {
+        $rel = $item.FullName.Substring($Source.Length).TrimStart('\')
+        $dest = Join-Path $Target $rel
+        $destDir = Split-Path -Parent $dest
+        if (-not (Test-Path -LiteralPath $destDir)) {
+            New-Item -ItemType Directory -Path $destDir -Force -ErrorAction Stop | Out-Null
+        }
+
+        $same = $false
+        if (Test-Path -LiteralPath $dest -PathType Leaf) {
+            try {
+                $existing = Get-Item -LiteralPath $dest -ErrorAction Stop
+                if ($existing.Length -eq $item.Length) {
+                    $same = ((Get-FileHash -LiteralPath $dest -Algorithm MD5).Hash -eq
+                             (Get-FileHash -LiteralPath $item.FullName -Algorithm MD5).Hash)
+                }
+            } catch { $same = $false }
+            if (-not $same -and -not (Test-Path -LiteralPath "$dest.hubbak")) {
+                Copy-Item -LiteralPath $dest -Destination "$dest.hubbak" -Force -ErrorAction Stop
+                $backedUp++
+            }
+        }
+        if (-not $same) {
+            Copy-Item -LiteralPath $item.FullName -Destination $dest -Force -ErrorAction Stop
+            $copied++
+        }
+        if (-not (Test-Path -LiteralPath $dest -PathType Leaf)) {
+            throw "Copy verification failed: $dest"
+        }
+    }
+    return @{ Copied=$copied; BackedUp=$backedUp; Verified=$sourceFiles.Count }
+}
+
 Write-Header
 
 Write-Host "  Vice City VR turns the original 2003 Grand Theft Auto: Vice" -ForegroundColor White
@@ -87,7 +138,7 @@ Pause-User "Press Enter to start..."
 # -------------------------------------------------------
 # STEP 1: locate Grand Theft Auto: Vice City
 # -------------------------------------------------------
-Write-Step 1 4 "Locating Grand Theft Auto: Vice City"
+Write-Step 1 5 "Locating Grand Theft Auto: Vice City"
 
 $gamePath = $null
 
@@ -130,7 +181,7 @@ $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile $MOD_EXE -
 # -------------------------------------------------------
 # STEP 2: prerequisite - Visual C++ 2015-2022 x64 runtime
 # -------------------------------------------------------
-Write-Step 2 4 "Checking the Visual C++ runtime"
+Write-Step 2 5 "Checking the Visual C++ runtime"
 
 $vcOk = $false
 try {
@@ -168,7 +219,7 @@ if ($vcOk) {
 # -------------------------------------------------------
 # STEP 3: resolve + download the release
 # -------------------------------------------------------
-Write-Step 3 4 "Downloading the latest Vice City VR release"
+Write-Step 3 5 "Downloading the latest Vice City VR release"
 Write-Info "Resolving the newest release via the GitHub API..."
 
 $zipUrl = $null
@@ -221,7 +272,7 @@ Write-OK "Archive ready."
 # -------------------------------------------------------
 # STEP 4: install into the game folder
 # -------------------------------------------------------
-Write-Step 4 4 "Installing into the game folder"
+Write-Step 4 5 "Installing into the game folder"
 
 # The game must be closed or reVC.exe / the DLLs stay locked.
 $vcProc = Get-Process -Name "reVC","gta-vc" -ErrorAction SilentlyContinue
@@ -270,6 +321,117 @@ $lnk = New-DesktopShortcut -TargetPath $modExePath -ShortcutName "GTA Vice City 
 if ($lnk) { Write-OK "Desktop shortcut created: GTA Vice City VR" }
 else      { Write-Warn "Could not create the desktop shortcut - start $MOD_EXE from the game folder or use 'Start in VR' in the Hub." }
 
+# -------------------------------------------------------
+# STEP 5: optional prebuilt HD Models Pack
+# -------------------------------------------------------
+Write-Step 5 5 "Optional: HD Models Pack"
+Write-Host "  This replaces supported low-detail models with the prebuilt HD" -ForegroundColor White
+Write-Host "  model set. From modelsets\modern, its 'models' and 'txd'" -ForegroundColor White
+Write-Host "  folders are merged beside $GAME_EXE in the game directory." -ForegroundColor White
+Write-Host ""
+$hdChoice = (Read-Host "  Press Enter to set it up, or type N to skip").Trim()
+if ($hdChoice -notmatch '^(?i)n(?:o)?$') {
+    Write-Host ""
+    Pause-User "Press Enter to open the HD Models Pack download page..." | Out-Null
+    try { Start-Process $HD_MODELS_URL; Write-OK "Opened the Google Drive page." }
+    catch {
+        Write-Warn "Could not open the browser. Open this page manually:"
+        Write-Host "  $HD_MODELS_URL" -ForegroundColor Cyan
+    }
+    Write-Host ""
+    Write-Host "  Download '$HD_MODELS_ARCHIVE' from Google Drive and wait" -ForegroundColor White
+    Write-Host "  until the browser has completely finished writing the ZIP." -ForegroundColor White
+    Pause-User "Press Enter once the download has finished..." | Out-Null
+
+    $hdPatterns = @(
+        $HD_MODELS_ARCHIVE,
+        "GTA*VC*VR*Prebuilt*HD*Models*.zip",
+        "*Vice*City*HD*Models*.zip"
+    )
+    # The shared scan ignores .crdownload/.part files and asks before using
+    # a match, so a partial or wrongly guessed download is never selected.
+    $hdZip = Find-PredownloadedFile -Patterns $hdPatterns -Label "the GTA Vice City HD Models Pack" -PageAlreadyOpen
+    while (-not ($hdZip -and (Test-Path -LiteralPath $hdZip))) {
+        Write-Host ""
+        Write-Warn "The finished ZIP was not found in Downloads or was not selected."
+        Write-Host "  Drag and drop '$HD_MODELS_ARCHIVE' onto this window," -ForegroundColor White
+        Write-Host "  or paste its complete path. Type N to skip the pack." -ForegroundColor Gray
+        $hdRaw = (Read-Host "  HD Models ZIP").Trim().Trim('"')
+        if ($hdRaw -match '^(?i)n(?:o)?$') { break }
+        if (-not $hdRaw) { continue }
+        if (-not (Test-Path -LiteralPath $hdRaw -PathType Leaf)) {
+            Write-Fail "File not found: $hdRaw"
+            continue
+        }
+        if ([System.IO.Path]::GetExtension($hdRaw) -ine ".zip") {
+            Write-Fail "That file is not a ZIP archive."
+            continue
+        }
+        $hdZip = [string](Resolve-Path -LiteralPath $hdRaw).Path
+        Write-OK "Using: $hdZip"
+    }
+
+    if ($hdZip -and (Test-Path -LiteralPath $hdZip)) {
+        $hdExtractDir = Join-Path $tmp "HDModels"
+        try {
+            if (Test-Path -LiteralPath $hdExtractDir) {
+                Remove-Item -LiteralPath $hdExtractDir -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            New-Item -ItemType Directory -Path $hdExtractDir -Force -ErrorAction Stop | Out-Null
+
+            # Use the Hub's native 7-Zip percentage display. A ZIP fallback
+            # remains available if 7-Zip cannot be installed or started.
+            $hdExtracted = $false
+            $sevenZip = Get-SevenZip
+            if ($sevenZip) {
+                $hdExtracted = Expand-7zWithProgress -SevenZip $sevenZip -Archive $hdZip -Dest $hdExtractDir -Label "HD Models Pack"
+            }
+            if (-not $hdExtracted) {
+                $hdFallback = Expand-ArchiveOrFallback -ArchivePath $hdZip -DestinationFolder $hdExtractDir `
+                    -Label "HD Models Pack" -AllowSkip $false
+                $hdExtracted = ([string]$hdFallback -in @("ok", "manual"))
+            }
+
+            if ($hdExtracted) {
+                # Expected layout:
+                # GTA VC VR Prebuilt HD Models\modelsets\modern\models
+                # GTA VC VR Prebuilt HD Models\modelsets\modern\txd
+                $modernSource = Get-ChildItem -LiteralPath $hdExtractDir -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+                                Where-Object {
+                                    $_.Name -ieq "modern" -and
+                                    $_.Parent -and $_.Parent.Name -ieq "modelsets" -and
+                                    (Test-Path -LiteralPath (Join-Path $_.FullName "models") -PathType Container) -and
+                                    (Test-Path -LiteralPath (Join-Path $_.FullName "txd") -PathType Container)
+                                } |
+                                Select-Object -First 1
+                if (-not $modernSource) {
+                    throw "The required modelsets\modern\models and modelsets\modern\txd folders were not found inside $HD_MODELS_ARCHIVE."
+                }
+
+                $modelsSource = Join-Path $modernSource.FullName "models"
+                $txdSource = Join-Path $modernSource.FullName "txd"
+                $modelsTarget = Join-Path $gamePath "models"
+                $txdTarget = Join-Path $gamePath "txd"
+                $modelsResult = Copy-HDModelsTree -Source $modelsSource -Target $modelsTarget
+                $txdResult = Copy-HDModelsTree -Source $txdSource -Target $txdTarget
+                $verified = [int]$modelsResult.Verified + [int]$txdResult.Verified
+                $backups = [int]$modelsResult.BackedUp + [int]$txdResult.BackedUp
+                Write-OK "HD Models Pack installed into: $modelsTarget and $txdTarget"
+                Write-Info "$verified HD files verified; $backups replaced original file(s) kept as .hubbak."
+            } else {
+                Write-Warn "The HD Models Pack was not extracted. The VR mod itself is installed normally."
+            }
+        } catch {
+            Write-Warn "Could not install the HD Models Pack: $($_.Exception.Message)"
+            Write-Host "  Manual layout: $gamePath\models\... and $gamePath\txd\..." -ForegroundColor Gray
+        }
+    } else {
+        Write-Info "HD Models Pack skipped. The VR mod itself is installed normally."
+    }
+} else {
+    Write-Info "HD Models Pack skipped."
+}
+
 try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
 
 # -------------------------------------------------------
@@ -301,7 +463,8 @@ Write-Host ""
 Write-Host "    Misaligned view? Both grips + both thumbstick clicks recenters." -ForegroundColor Gray
 Write-Host "    Both grips + Menu opens the in-headset settings." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  See the README for the full control scheme and troubleshooting." -ForegroundColor DarkGray
+Write-Host "  The full control scheme and troubleshooting are on this game's" -ForegroundColor DarkGray
+Write-Host "  page in the Hub." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Welcome to the 1980s - the neon, the pastels, the whole coast." -ForegroundColor Magenta
 Write-Host ""

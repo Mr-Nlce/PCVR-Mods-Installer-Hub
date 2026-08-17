@@ -333,7 +333,8 @@ if ($doData -in @("y","Y")) {
         if (-not $copied) {
             Write-Warn "No *.WL6 or *.SOD data files were found in the detected folders."
             Write-Host "  You can add them later: put *.WL6 in '$gamesDir\WL6' and" -ForegroundColor Gray
-            Write-Host "  *.SOD in '$gamesDir\M1'. See the README for the full table." -ForegroundColor Gray
+            Write-Host "  *.SOD in '$gamesDir\M1'. The full table is on this game's page" -ForegroundColor Gray
+            Write-Host "  in the Hub." -ForegroundColor Gray
         }
     } else {
         Write-Info "Skipped - shareware episode 1 is still installed and playable."
@@ -369,7 +370,8 @@ Write-Host ""
 Write-Host "  Episode 1 (shareware) plays out of the box. If you copied full" -ForegroundColor Gray
 Write-Host "  data, pick the game from WolfSharp's in-game menu." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  See the README for adding game data and the controls." -ForegroundColor DarkGray
+Write-Host "  Adding game data and the controls are covered on this game's" -ForegroundColor DarkGray
+Write-Host "  page in the Hub." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Storm Castle Wolfenstein - now the maze wraps around your head." -ForegroundColor Magenta
 Pause-User "Press Enter to exit" | Out-Null

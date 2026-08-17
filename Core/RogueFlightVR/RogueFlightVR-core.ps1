@@ -327,7 +327,7 @@ Write-Host " - You're NOT using Virtual Desktop's gamepad emulation" -Foreground
 Write-Host ""
 Write-Host " When ViGEmBus is installed AND vrControllersSupport is" -ForegroundColor Gray
 Write-Host " set to true in the config, your VR controllers emulate" -ForegroundColor Gray
-Write-Host " an Xbox gamepad. See the README for the layout." -ForegroundColor Gray
+Write-Host " an Xbox gamepad. The layout is on this game's page in the Hub." -ForegroundColor Gray
 Write-Host ""
 
 $vigemExe = Get-ChildItem -Path (Join-Path $gamePath "BepInEx\redist") -Filter "ViGEmBus_*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1

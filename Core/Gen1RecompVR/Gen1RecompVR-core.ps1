@@ -612,8 +612,8 @@ Write-Host "    'Pokemon Gen 1 VR' desktop shortcut." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  The mod lives outside the game folder, at:" -ForegroundColor Gray
 Write-Host "    $modDir" -ForegroundColor Cyan
-Write-Host "  Delete that folder to remove it. See the README for the" -ForegroundColor DarkGray
-Write-Host "  VR controls and the options rows." -ForegroundColor DarkGray
+Write-Host "  Delete that folder to remove it. This game's page in the Hub" -ForegroundColor DarkGray
+Write-Host "  has the VR controls and the options rows." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  That Snorlax is blocking the road at full size now. Still no flute." -ForegroundColor Magenta
 Write-Host ""
