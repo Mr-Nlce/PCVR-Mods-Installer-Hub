@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (228)</summary>
+<summary>Show all currently listed titles (230)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -27,6 +27,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Amnesia: The Dark Descent VR (+ HD texture mod) (motion controls)
 * Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
+* ARMA 3 [EARLY WIP]
 * Art of Rally VR
 * Ashes 2063 VR (motion controls)
 * Assassin's Creed Mirage
@@ -229,6 +230,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The House of the Dead 2 Remake (motion controls)
 * The Legend of Zelda: Breath of the Wild (motion controls)
 * The Legend of Zelda: Ocarina of Time (+ HD texture mod) (motion controls)
+* The Legend of Zelda: Twilight Princess (+ HD texture mod) (motion controls)
 * The Witcher 3: Wild Hunt
 * Tinykin VR
 * TLOU Part I
