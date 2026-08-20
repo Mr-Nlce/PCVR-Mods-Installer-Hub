@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (232)</summary>
+<summary>Show all currently listed titles (238)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -36,6 +36,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Astrodogs VR (motion controls)
 * Atomic Heart
 * Avatar: Frontiers of Pandora
+* AWAY: Journey to the Unexpected (motion controls)
 * Banjo Kazooie (N64 ROM)
 * Battlefield 1942 VR (motion controls)
 * Bendy VR (motion controls)
@@ -46,6 +47,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Black Mesa Source VR (motion controls)
 * Bomb Rush Cyberfunk (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
+* Call of Duty: World at War (motion controls)
 * Circuit Superstars VR
 * Cloudpunk
 * Cloudpunk: City of Ghosts
@@ -64,6 +66,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Deep Rock Galactic VR (motion controls)
 * Descenders
 * Devil May Cry 5 VR
+* Diddy Kong Racing
 * Dinkum
 * Dino Trauma VR (motion controls)
 * Doom (+ 3D weapons) (motion controls)
@@ -92,6 +95,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Forza Horizon 5
 * Forza Horizon 6
 * Freespace 2
+* F-Zero X
 * Garry's Mod VR (motion controls)
 * Ghost of Tsushima
 * Ghosts 'n Goblins Resurrection
@@ -180,6 +184,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Rebel Galaxy
 * Receiver VR (motion controls)
 * Receiver 2 VR (motion controls)
+* Red Faction VR (motion controls)
 * R.E.P.O. VR (motion controls)
 * RE Requiem (motion controls)
 * RE Village (motion controls)
@@ -197,6 +202,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Scrap Mechanic VR (motion controls)
 * Selaco VR (motion controls)
 * Shenmue I & II
+* Singularity (motion controls)
 * Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
