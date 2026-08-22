@@ -16,12 +16,12 @@
 # commandline.txt vs the RC2 notes file, and the value in
 # gtaiv_dxvk_vr.ipd.
 #
-# STAND v0.9.09-hud4 (2026-08): der Installer SCHREIBT KEINE Einstellungen
-# mehr. Frueher fragte er nach "AER" oder "Other stereo" und setzte danach
-# ipd/stereoscale/fpfov aus den damaligen Release-Notes. Das Paket bringt
-# seine Einstellungsdateien inzwischen selbst und abgestimmt mit
-# (Modus 909, vres 2048, fpfov 90 90 90) - eigene Werte hineinzuschreiben
-# wuerde sie nur verschlechtern. Er zeigt jetzt nur noch, was da liegt.
+# AS OF v0.9.09-hud4 (2026-08): the installer WRITES NO SETTINGS any
+# more. It used to ask for "AER" or "Other stereo" and then set
+# ipd/stereoscale/fpfov from the release notes of the time. The package
+# now ships its own settings files, already tuned (mode 909, vres 2048,
+# fpfov 90 90 90) - writing our own values in would only make them
+# worse. It now merely shows what is there.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -237,18 +237,18 @@ if (-not (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI))) {
 }
 if (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI)) { Write-OK "Mod files are in place." }
 
-# ---- 4. was das Paket selbst mitbringt --------------------------
+# ---- 4. what the package brings itself --------------------------
 Write-Step 4 4 "Checking the settings the pack shipped"
 
-# !!! HIER WURDEN FRUEHER EIGENE WERTE HINEINGESCHRIEBEN - DAS IST SEIT
-# v0.9.09-hud4 FALSCH UND WURDE ENTFERNT !!!
-# Der Installer fragte nach "AER" oder "Other stereo" und schrieb danach
-# ipd = 1 bzw. ipd 6 / stereoscale 130 / fpfov 110 110 110 in den
-# Spielordner. Diese Zahlen stammten aus den Release-Notes einer FRUEHEREN
-# Fassung. Das Paket bringt seine Einstellungsdateien inzwischen SELBST mit
-# und ab Werk abgestimmt (Modus 909, vres 2048, fpfov 90 90 90) - unsere
-# Werte haetten sie ueberschrieben und die Mod schlechter gemacht.
-# Jetzt wird NICHTS mehr geschrieben, nur noch gezeigt, was da liegt.
+# !!! OUR OWN VALUES USED TO BE WRITTEN HERE - THAT IS WRONG SINCE
+# v0.9.09-hud4 AND HAS BEEN REMOVED !!!
+# The installer asked for "AER" or "Other stereo" and then wrote
+# ipd = 1, or ipd 6 / stereoscale 130 / fpfov 110 110 110, into the game
+# folder. Those numbers came from the release notes of an EARLIER build.
+# The package now ships its settings files ITSELF and tuned out of the
+# box (mode 909, vres 2048, fpfov 90 90 90) - our values would have
+# overwritten them and made the mod worse.
+# NOTHING is written any more, only shown.
 $sidecars = @("gtaiv_dxvk_vr.stereo", "gtaiv_dxvk_vr.vres", "gtaiv_dxvk_vr.ipd",
               "gtaiv_dxvk_vr.stereoscale", "gtaiv_dxvk_vr.fpfov", "gtaiv_dxvk_vr.buildid")
 Write-Host "  The pack ships its own settings, already tuned. Nothing is" -ForegroundColor Gray

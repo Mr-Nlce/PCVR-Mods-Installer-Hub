@@ -184,7 +184,7 @@ Write-Host "  you start the game. This installer places BepInEx 5 and the mod" -
 Write-Host "  into your Steam copy of Mage Arena." -ForegroundColor White
 Write-Host ""
 try {
-    # Abhaengigkeiten der Abhaengigkeiten pruefen - siehe PEAK.
+    # Check the dependencies of the dependencies - see PEAK.
     $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($PINNED_URLS.Values))
     Show-ThunderstoreDependencyWarning -Missing $tsMissing
 } catch {}
@@ -286,14 +286,13 @@ if ($failed.Count -gt 0) {
  exit 1
 }
 
-# !!! DER MARKER GEHOERT IN DEN INSTALLERORDNER, NICHT IN DEN SPIELORDNER !!!
-# Der Hub sucht .installed_path ueber Get-InstalledPathFile, und das setzt
-# den Pfad aus dem Bat-Ordner des Eintrags zusammen (hier MageArenaVR\) -
-# NICHT aus dem Spielordner. Frueher landete er in $gamePath und wurde
-# deshalb nie gefunden: nach der Installation konnte die Kachel falsch
-# bleiben, besonders bei einem ungewoehnlichen Spielpfad, den die
-# FallbackPaths nicht erraten.
-# $PSScriptRoot ist genau dieser Installerordner.
+# !!! THE MARKER BELONGS IN THE INSTALLER FOLDER, NOT THE GAME FOLDER !!!
+# The Hub looks for .installed_path through Get-InstalledPathFile, and
+# that builds the path from the entry's bat folder (here MageArenaVR\) -
+# NOT from the game folder. It used to land in $gamePath and was
+# therefore never found: after installing, the tile could stay wrong,
+# especially with an unusual game path the FallbackPaths do not guess.
+# $PSScriptRoot is exactly that installer folder.
 try {
     Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
 } catch {

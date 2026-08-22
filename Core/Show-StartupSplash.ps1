@@ -33,13 +33,13 @@ try {
 # external tool entries are deliberately NOT counted, so an auto-count of
 # catalog entries reads high. RULE: bump this by +1 with EVERY new game
 # tile added to the Hub (games only - never for tools like UEVR).
-$tileCount = 230
+$tileCount = 240
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
 # Steam/GOG/Epic for detection, nothing that implies the Hub is shaky.
 $hints = @(
-    # --- Bedienung und Suche (2026-08-13 von Martin ergaenzt) ---
+    # --- Controls and search (added 2026-08-13) -----------------
     "Put - before a genre or modder in search to exclude it: try racing -horror.",
     "Exclusions stack: resident -praydog -horror keeps narrowing until only courage remains.",
     "Permanently hidden a modder? Search +name to let their games back onto the shelf.",
@@ -151,7 +151,7 @@ $hints = @(
     "Reinstalling keeps your saves and ROMs - set aside, put back, like nothing happened.",
     "Search speaks tags: try 'horror', 'racing' or your favourite modder's name.",
     "Every card carries a power tier, so your GPU knows what it's signing up for.",
-    "Motion controllers posing as a gamepad? They are marked, you decide if you are interested.",
+    "Motion controllers posing as a gamepad? They are clearly marked, so you can decide whether they interest you.",
     "One framework covers a dozen Capcom titles - the Hub keeps them straight.",
     "A blue add-on banner means optional extra content, one click deeper.",
     "Slow mirror tonight? The check finishes in the background and shows the results with the next scan.",

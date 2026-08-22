@@ -167,8 +167,25 @@ echo   [152] GTA IV VR
 echo   [153] BioShock 2 Remastered
 echo   [154] My Friendly Neighborhood VR
 echo   [155] Big Walk VR
+echo   [156] Diddy Kong Racing VR
+echo   [157] Arma 3 VR
+echo   [158] Battlefield 1942 VR
+echo   [159] BioShock Infinite VR
+echo   [160] C^&C Generals: Zero Hour
+echo   [161] Call of Duty: World at War VR
+echo   [162] Legend of Zelda: Twilight Princess
+echo   [163] Pathfinder: Kingmaker
+echo   [164] Outlast VR
+echo   [165] Shenmue I ^& II
+echo   [166] theHunter: Call of the Wild VR
+echo   [167] F-Zero X VR
+echo   [168] Singularity VR
+echo   [169] Red Faction VR
+echo   [170] AWAY VR
+echo   [171] Sons of the Forest
+echo   [172] White Knuckle VR
 echo.
-set /p choice="Enter number (1-155): "
+set /p choice="Enter number (1-172): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -324,6 +341,23 @@ if "%choice%"=="152" (set SCRIPT=%~dp0GTA4VR\GTA4VR-core.ps1)
 if "%choice%"=="153" (set SCRIPT=%~dp0Bioshock2VR\Bioshock2VR-core.ps1)
 if "%choice%"=="154" (set SCRIPT=%~dp0MFNVR\MFNVR-core.ps1)
 if "%choice%"=="155" (set SCRIPT=%~dp0BigWalkVR\BigWalkVR-core.ps1)
+if "%choice%"=="156" (set SCRIPT=%~dp0DiddyKongRacingVR\DiddyKongRacingVR-core.ps1)
+if "%choice%"=="157" (set SCRIPT=%~dp0Arma3VR\Arma3VR-core.ps1)
+if "%choice%"=="158" (set SCRIPT=%~dp0BattlefieldVR\BattlefieldVR-core.ps1)
+if "%choice%"=="159" (set SCRIPT=%~dp0BioshockInfiniteVR\BioshockInfiniteVR-core.ps1)
+if "%choice%"=="160" (set SCRIPT=%~dp0GeneralsVR\GeneralsVR-core.ps1)
+if "%choice%"=="161" (set SCRIPT=%~dp0CallOfDutyWaWVR\CallOfDutyWaWVR-core.ps1)
+if "%choice%"=="162" (set SCRIPT=%~dp0TwilightPrincessVR\TwilightPrincessVR-core.ps1)
+if "%choice%"=="163" (set SCRIPT=%~dp0PathfinderKingmakerVR\PathfinderKingmakerVR-core.ps1)
+if "%choice%"=="164" (set SCRIPT=%~dp0OutlastVR\OutlastVR-core.ps1)
+if "%choice%"=="165" (set SCRIPT=%~dp0ShenmueVR\ShenmueVR-core.ps1)
+if "%choice%"=="166" (set SCRIPT=%~dp0TheHunterCotWVR\TheHunterCotWVR-core.ps1)
+if "%choice%"=="167" (set SCRIPT=%~dp0FZeroXVR\FZeroXVR-core.ps1)
+if "%choice%"=="168" (set SCRIPT=%~dp0SingularityVR\SingularityVR-core.ps1)
+if "%choice%"=="169" (set SCRIPT=%~dp0RedFactionVR\RedFactionVR-core.ps1)
+if "%choice%"=="170" (set SCRIPT=%~dp0AwayVR\AwayVR-core.ps1)
+if "%choice%"=="171" (set SCRIPT=%~dp0SonsVR\SonsVR-core.ps1)
+if "%choice%"=="172" (set SCRIPT=%~dp0WhiteKnuckleVR\WhiteKnuckleVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

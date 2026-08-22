@@ -419,7 +419,7 @@ Write-Host ""
 Write-Host "  Set these in MCC's OWN menus before playing. Without them" -ForegroundColor White
 Write-Host "  the mod is nearly unplayable:" -ForegroundColor White
 Write-Host ""
-# Der Autor verlangt seit Alpha 0.3.3 UNLIMITED, nicht mehr 120.
+# Since alpha 0.3.3 the author requires UNLIMITED, no longer 120.
 Write-Host "   Settings > Video > Max Frame Rate " -NoNewline -ForegroundColor White; Write-Host " Unlimited " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Settings > Video > V-Sync         " -NoNewline -ForegroundColor White; Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Halo 3  > Settings > Field of View" -NoNewline -ForegroundColor White; Write-Host " 120 " -ForegroundColor Black -BackgroundColor Yellow

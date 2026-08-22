@@ -1,90 +1,127 @@
 # ============================================================
-#  PEAK VR Installer (PEAK_VR by AstienVR)
+#  PEAK VR Installer
 # ============================================================
+#  Two routes, two completely different mods:
 #
-#  PEAK gets updated frequently and the VR mod stopped being
-#  compatible with versions past 1.44.a. We pin the game to the
-#  last known compatible Steam manifest using Steam Console's
-#  download_depot command, then move the depot out of Steam's
-#  reach into a stable folder so a future Steam update can't
-#  blow the VR setup away.
+#    [1] PeakVR by Andrey04o  - into the normal Steam copy.
+#        THIS PART WAS REWRITTEN FROM SCRATCH ON 2026-08-19.
+#    [2] PEAK_VR by AstienVR  - its own folder with a pinned game
+#        build. Unchanged, starting below the divider.
 #
-#  Flow:
-#    1) 7-Zip pre-flight + Steam Console download_depot for manifest
-#       1663614006819171465 of App 3527290 / Depot 3527291 - that's
-#       PEAK v1.44.a or the last known compatible build
-#    2) Auto-detect the depot folder under steamapps\content\
-#       and move it to C:\Games\PEAK VR (default, user can change)
-#    3) Drop steam_appid.txt so the EXE can be launched directly
-#    4) Auto-download PEAK_VR.zip from GitHub release v1.0.0
-#       and extract into the pinned game folder
-#    5) Drop kirigiri's PeakVersionBypass.dll into BepInEx\plugins\
-#       so PEAK doesn't bail at the version check on launch
-#    6) Run ViGEmBus_1.22.0_x64_x86_arm64.exe interactively -
-#       Windows driver, requires UAC, can't be silent without
-#       admin elevation
-#    7) Desktop shortcut on PEAK.exe in the pinned folder
+#  ------------------------------------------------------------
+#  WHY IT WAS REWRITTEN, AND WHAT IS DIFFERENT NOW
+#  ------------------------------------------------------------
+#  The old version kept making decisions WHILE installing: it
+#  installed, then checked, fetched what was missing, checked
+#  again. Every fault of that evening came out of that
+#  interleaving - endless loops, half-installed states, warnings
+#  that multiplied with every round.
+#
+#  THE NEW VERSION SEPARATES THREE PHASES STRICTLY:
+#
+#    PHASE 1  PLAN     - work everything out, touch nothing.
+#    PHASE 2  FETCH    - download and verify everything, still
+#                        touching nothing in the game.
+#    PHASE 3  INSTALL  - only once the WHOLE plan stands is
+#                        anything written. After that nothing is
+#                        downloaded and nothing is decided.
+#
+#  WHY THIS CANNOT HANG, short and checkable:
+#    - Phase 1 is a breadth-first search over a SET. Every package
+#      name enters the queue AT MOST ONCE, so it ends after at
+#      most as many steps as there are packages. No repetition,
+#      no asking twice.
+#    - Every package is queried over the network AT MOST ONCE and
+#      downloaded AT MOST ONCE. A failure is remembered too, so it
+#      is not retried.
+#    - Phase 3 is a plain list with no conditions and no loop
+#      waiting on a state.
+#    - There is NO while loop in this part apart from the input
+#      prompts, and those are capped at 20 attempts.
+#
+#  DEPENDENCY VERSIONS ARE MINIMUMS, NOT PINS.
+#  Thunderstore names a version for every dependency. If one
+#  package asks for 1.6.0 and another for 1.7.2, then 1.7.2
+#  satisfies both. So: the highest requirement wins, and anything
+#  already newer on disk stays where it is.
+#
+#  THE MAIN MOD SHIPS ON TWO TRACKS. Andrey publishes on GitHub;
+#  Thunderstore follows later or not at all. 1.4.1 ("Fixed: The
+#  loading screen could stay over the whole view after spawning
+#  in") sat on GitHub for four days while Thunderstore still
+#  served 1.4.0. Both are queried and the newer one wins.
 # ============================================================
 
 $Host.UI.RawUI.WindowTitle = "PEAK VR Installer"
 $ErrorActionPreference = "Stop"
 
-# Load shared installer safety helpers
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
 # -------------------------------------------------------
-#  Configuration
+#  Depot-route settings (used further down)
 # -------------------------------------------------------
 $MOD_NAME       = "PEAK_VR v1.0.0 (by AstienVR)"
 $MOD_URL        = "https://github.com/AstienVR/PEAK_VR/releases/download/1.0.0/PEAK_VR.zip"
 $GITHUB_URL     = "https://github.com/AstienVR/PEAK_VR"
-
-# kirigiri's PeakVersionBypass: disables PEAK's online version check
-# so the game can actually launch when pinned to an older manifest.
-# Without this, PEAK refuses to enter the main menu, displays a
-# "version outdated" prompt and locks you out of offline play.
-# Hosted on Thunderstore; small DLL that goes into BepInEx\plugins.
 $BYPASS_NAME    = "PeakVersionBypass v1.0.2 (by kirigiri)"
 $BYPASS_URL     = "https://thunderstore.io/package/download/kirigiri/PeakVersionBypass/1.0.2/"
 $BYPASS_PAGE    = "https://thunderstore.io/package/kirigiri/PeakVersionBypass/"
 $BYPASS_DLL     = "PeakVersionBypass.dll"
-
-# PEAK pinned to last mod-compatible manifest (game 1.44.a)
 $DEPOT_APPID    = "3527290"
 $DEPOT_DEPOTID  = "3527291"
 $DEPOT_MANIFEST = "1663614006819171465"
 $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
-
-# Game executable inside the depot
 $GAME_EXE       = "PEAK.exe"
-
-# Target install folder
 $DEFAULT_PATH   = "C:\Games\PEAK VR"
-
-# ViGEmBus driver location after mod extract (the mod ships with it)
 $VIGEM_REL_PATH = "BepInEx\redist\ViGEmBus_1.22.0_x64_x86_arm64.exe"
 
 # -------------------------------------------------------
-#  Helpers
+#  Ausgabe
 # -------------------------------------------------------
 function Write-Header {
     Clear-Host
+    Write-Host ""
     Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host "   PEAK VR - Mod Installer" -ForegroundColor Cyan
-    Write-Host "   Installs: $MOD_NAME" -ForegroundColor Gray
+    Write-Host " PEAK VR Installer" -ForegroundColor Cyan
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
 function Write-Step { param($num, $total, $text)
     Write-Host ""
-    Write-Host "--- [$num/$total] $text ---" -ForegroundColor Cyan
-    Write-Host ""
+    Write-Host "  [$num/$total] $text" -ForegroundColor Cyan
+    Write-Host "  ------------------------------------------------------" -ForegroundColor DarkGray
 }
 function Write-OK   { param($text) Write-Host "  [OK] $text" -ForegroundColor Green }
 function Write-Info { param($text) Write-Host "  [..] $text" -ForegroundColor Gray }
 function Write-Warn { param($text) Write-Host "  [!!] $text" -ForegroundColor Yellow }
 function Write-Fail { param($text) Write-Host "  [XX] $text" -ForegroundColor Red }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow")
+    Write-Host ""
+    Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow
+    Read-Host
+}
+
+# EVERY prompt is bounded. With no console - task scheduler, a pipe,
+# a closed window - Read-Host returns an empty line immediately, and
+# an unbounded prompt would then spin forever.
+function Read-Choice {
+    param([string]$Prompt, [string[]]$Valid, [string]$Default = $null)
+    for ($i = 0; $i -lt 20; $i++) {
+        # ("" + ...) CATCHES $null: with the input closed Read-Host returns
+        # $null, and .Trim() on it throws - with ErrorActionPreference
+        # Stop that would have aborted the whole installer. Reproduced
+        # on real PowerShell 7.4 with empty input.
+        $a = ("" + (Read-Host "  $Prompt")).Trim()
+        foreach ($v in $Valid) { if ($a -eq $v) { return $v } }
+        Write-Warn ("Please answer with: " + ($Valid -join " / "))
+    }
+    Write-Warn "No usable answer after 20 tries."
+    return $Default
+}
+function Read-YesNoP { param([string]$Prompt)
+    $a = Read-Choice -Prompt "$Prompt [Y/N]" -Valid @("Y","y","N","n") -Default "N"
+    return ($a -eq "Y" -or $a -eq "y")
+}
 
 function Find-7Zip {
     foreach ($c in @(
@@ -94,156 +131,161 @@ function Find-7Zip {
     return $null
 }
 
-# -------------------------------------------------------
-#  Pre-flight
-# -------------------------------------------------------
-
-# =======================================================
-#  MODE SELECTION - two mods, two game builds
-# =======================================================
-# PEAK now has TWO VR mods, and they need DIFFERENT game builds:
-#   [1] PeakVR by Andrey04o - for the CURRENT PEAK. Comes from
-#       Thunderstore together with its four dependencies, and the
-#       Hub can therefore auto-update it and see when it is
-#       deprecated. Installs into the normal Steam copy.
-#   [2] PEAK_VR by AstienVR - the original entry. Needs the pinned
-#       Steam depot build 1.44.a in a separate folder. Left exactly
-#       as it was.
-# Everything below the "return" at the end of branch [1] is the
-# untouched depot route.
-$TS_MOD_AUTHOR  = "Andrey04o"
-$TS_MOD_NAME    = "PeakVR"
-# Dependency set exactly as PeakVR's own manifest.json lists it.
-# Read out of Andrey04o-PeakVR-1.3.0.zip, not from the web page.
-$TS_PACKAGES = @(
-    @{ Key = "BepInEx-BepInExPack_PEAK";      Author = "BepInEx";      Name = "BepInExPack_PEAK"; Pinned = "5.4.75301"; Label = "BepInEx (PEAK pack)" }
-    # !!! ABHAENGIGKEITEN VON PEAKLib_Core - DIE FEHLTEN !!!
-    # PEAKLib_Core 1.7.2 fuehrt auf seiner Thunderstore-Seite selbst zwei
-    # Pflichtabhaengigkeiten auf. Unsere Liste war aus PeakVRs manifest.json
-    # abgeschrieben - und dort stehen nur die DIREKTEN Abhaengigkeiten, nicht
-    # deren eigene. Sie stehen VOR PEAKLib_Core, damit sie zuerst liegen.
-    @{ Key = "MonoDetour-MonoDetour_BepInEx_5"; Author = "MonoDetour"; Name = "MonoDetour_BepInEx_5"; Pinned = "0.6.7"; Label = "MonoDetour (BepInEx 5)" }
-    @{ Key = "PEAKModding-SoftDependencyFix"; Author = "PEAKModding"; Name = "SoftDependencyFix";   Pinned = "1.0.0";     Label = "SoftDependencyFix" }
-    @{ Key = "PEAKModding-PEAKLib_Core";      Author = "PEAKModding";  Name = "PEAKLib_Core";     Pinned = "1.7.2";     Label = "PEAKLib Core" }
-    @{ Key = "PEAKModding-PEAKLib_UI";        Author = "PEAKModding";  Name = "PEAKLib_UI";       Pinned = "1.6.1";     Label = "PEAKLib UI" }
-    @{ Key = "PEAKModding-ModConfig";         Author = "PEAKModding";  Name = "ModConfig";        Pinned = "1.6.0";     Label = "ModConfig" }
-    @{ Key = "Andrey04o-PeakVR";              Author = "Andrey04o";    Name = "PeakVR";           Pinned = "1.3.0";     Label = "PeakVR" }
-)
-
 function Get-SteamPathP {
     foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
-        try { $p = (Get-ItemProperty -Path $r -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { return $p } } catch {}
+        try {
+            $v = Get-ItemProperty -Path $r -ErrorAction Stop
+            if ($v.InstallPath) { return $v.InstallPath }
+            if ($v.SteamPath)   { return $v.SteamPath }
+        } catch {}
     }
     return $null
 }
 function Get-SteamLibrariesP { param($sp)
     $libs = @($sp)
     $vdf = Join-Path $sp "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdf) {
-        [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
-            $l = $_.Groups[1].Value -replace '\\\\','\'
+    if (Test-Path -LiteralPath $vdf) {
+        foreach ($m in [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s*"([^"]+)"')) {
+            $l = $m.Groups[1].Value -replace '\\\\','\'
             if (Test-Path $l) { $libs += $l }
         }
     }
     return $libs
 }
-function Get-TSInfo { param($author,$name)
-    foreach ($u in @("https://thunderstore.io/api/experimental/package/$author/$name/")) {
+
+# -------------------------------------------------------
+#  Versionsvergleich
+# -------------------------------------------------------
+# Returns -1 / 0 / 1. Everything after a non-digit is cut off
+# ("1.4.1-beta" -> "1.4.1") so [version] accepts it; if the
+# comparison still fails, it falls back to a string compare
+# instead of throwing.
+function Compare-ModVersion { param([string]$a,[string]$b)
+    if ($a -eq $b) { return 0 }
+    if (-not $a) { return -1 }
+    if (-not $b) { return 1 }
+    try {
+        $va = [version](($a -replace '^[vV]','') -replace '[^0-9.].*$','')
+        $vb = [version](($b -replace '^[vV]','') -replace '[^0-9.].*$','')
+        if ($va -gt $vb) { return 1 }
+        if ($va -lt $vb) { return -1 }
+        return 0
+    } catch {
+        if ($a -gt $b) { return 1 }
+        if ($a -lt $b) { return -1 }
+        return 0
+    }
+}
+
+# -------------------------------------------------------
+#  Network: every address is queried AT MOST ONCE
+# -------------------------------------------------------
+# Failures are cached too. That is the difference from the old
+# version, where a throttled package was queried again in every
+# round - against the very service that was throttling us.
+$script:Net       = @{}
+$script:NetFails  = @{}
+
+function Get-Json { param([string]$Url, [string]$Key)
+    if ($script:Net.ContainsKey($Key)) { return $script:Net[$Key] }
+    $r = $null
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $r = Invoke-RestMethod -Uri $Url -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+    } catch {
+        $script:NetFails[$Key] = $_.Exception.Message
+        $r = $null
+    }
+    $script:Net[$Key] = $r
+    return $r
+}
+
+function Get-ThunderstorePackage { param([string]$Author, [string]$Name)
+    $k = "ts:$Author/$Name".ToLowerInvariant()
+    $d = Get-Json -Url "https://thunderstore.io/api/experimental/package/$Author/$Name/" -Key $k
+    if (-not $d -or -not $d.latest) { return $null }
+    return @{
+        Version      = [string]$d.latest.version_number
+        Url          = [string]$d.latest.download_url
+        Dependencies = @($d.latest.dependencies)
+    }
+}
+
+function Get-GithubRelease { param([string]$Repo, [string]$AssetPattern)
+    $k = "gh:$Repo".ToLowerInvariant()
+    $d = Get-Json -Url "https://api.github.com/repos/$Repo/releases/latest" -Key $k
+    if (-not $d) { return $null }
+    $a = @($d.assets) | Where-Object { $_.name -match $AssetPattern } | Select-Object -First 1
+    if (-not $a -or -not $a.browser_download_url) { return $null }
+    return @{
+        Version = ([string]$d.tag_name) -replace '^[vV]',''
+        Url     = [string]$a.browser_download_url
+        Asset   = [string]$a.name
+        Body    = [string]$d.body
+    }
+}
+
+# -------------------------------------------------------
+#  Paket-Werkzeuge
+# -------------------------------------------------------
+# Thunderstore dependencies are named "namespace-name-version".
+# Split from the END: the name may contain hyphens, the version
+# may not.
+function Split-DependencyString { param([string]$Dep)
+    if (-not $Dep) { return $null }
+    $p = [string]$Dep -split '-'
+    if ($p.Count -lt 3) { return $null }
+    return @{
+        Author  = $p[0]
+        Name    = ($p[1..($p.Count-2)]) -join '-'
+        Version = $p[-1]
+        Key     = ($p[0] + "-" + (($p[1..($p.Count-2)]) -join '-'))
+    }
+}
+
+# The dependencies are inside the package ITSELF (manifest.json).
+# That is the most reliable source: it belongs to exactly the
+# build we are holding, and it needs no network.
+function Get-ManifestDependencies { param([string]$ZipPath)
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $z = [System.IO.Compression.ZipFile]::OpenRead($ZipPath)
         try {
-            $d = (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop).Content | ConvertFrom-Json
-            return @{
-                Version      = $d.latest.version_number
-                DownloadUrl  = $d.latest.download_url
-                Deprecated   = ($d.is_deprecated -eq $true)
-                # Thunderstore nennt hier die Pflichtabhaengigkeiten als
-                # Zeichenketten der Form "Namespace-Name-Version".
-                Dependencies = @($d.latest.dependencies)
-            }
-        } catch { }
-    }
-    return $null
-}
-# ---------------------------------------------------------------
-#  Resolve-TSDependencies - Abhaengigkeiten wirklich aufloesen
-# ---------------------------------------------------------------
-# WARUM ES DAS GIBT: die feste Liste oben stammt aus PeakVRs eigener
-# manifest.json. Dort stehen aber nur die DIREKTEN Abhaengigkeiten -
-# nicht das, was DIESE wiederum brauchen. Genau daran hat es gefehlt:
-# PEAKLib_Core verlangt MonoDetour_BepInEx_5 und SoftDependencyFix,
-# und beide wurden nie mitinstalliert.
-#
-# Thunderstore nennt zu jedem Paket seine Pflichtabhaengigkeiten als
-# Zeichenketten "Namespace-Name-Version". Diese Funktion geht die Liste
-# durch, fragt jedes Paket ab, haengt Unbekanntes hinten an und
-# wiederholt das, bis nichts Neues mehr dazukommt - also auch ueber
-# mehrere Ebenen.
-#
-# OHNE NETZ passiert nichts: dann bleibt es bei der festen Liste, und
-# die enthaelt die bekannten Faelle bereits.
-function Resolve-TSDependencies {
-    param([array]$Packages)
-    $list = @($Packages)
-    $seen = @{}
-    foreach ($p in $list) { $seen[$p.Key.ToLowerInvariant()] = $true }
-    # Modloader nie als Abhaengigkeit nachziehen - BepInEx steht schon
-    # als erster Eintrag in der Liste und wird gesondert behandelt.
-    $skip = @("bepinex-bepinexpack_peak","bepinex-bepinexpack")
-
-    $round = 0
-    while ($round -lt 5) {
-        $round++
-        $added = 0
-        foreach ($p in @($list)) {
-            $info = Get-TSInfo -author $p.Author -name $p.Name
-            if (-not $info -or -not $info.Dependencies) { continue }
-            foreach ($dep in $info.Dependencies) {
-                if (-not $dep) { continue }
-                # "Namespace-Name-Version" von HINTEN trennen: der Name
-                # darf selbst Bindestriche enthalten, die Version nicht.
-                $parts = [string]$dep -split '-'
-                if ($parts.Count -lt 3) { continue }
-                $ver  = $parts[-1]
-                $ns   = $parts[0]
-                $name = ($parts[1..($parts.Count-2)]) -join '-'
-                $key  = "$ns-$name"
-                if ($skip -contains $key.ToLowerInvariant()) { continue }
-                if ($seen.ContainsKey($key.ToLowerInvariant())) { continue }
-                $seen[$key.ToLowerInvariant()] = $true
-                $list += @{ Key = $key; Author = $ns; Name = $name; Pinned = $ver; Label = "$name (required by $($p.Name))" }
-                $added++
-                Write-Info "Additional requirement found: $ns-$name $ver"
-            }
-        }
-        if ($added -eq 0) { break }
-    }
-    return $list
+            $e = $z.Entries | Where-Object { $_.FullName -eq "manifest.json" } | Select-Object -First 1
+            if (-not $e) { return $null }
+            $sr = New-Object System.IO.StreamReader($e.Open())
+            try { $json = $sr.ReadToEnd() } finally { $sr.Dispose() }
+            $m = $json | ConvertFrom-Json
+            return @($m.dependencies)
+        } finally { $z.Dispose() }
+    } catch { return $null }
 }
 
-function Get-TSInstalledVersion { param($key,$gamePath)
-    $f = Join-Path $gamePath "BepInEx\.ts_versions\$key"
+function Get-InstalledVersion { param([string]$Key, [string]$GamePath)
+    $f = Join-Path $GamePath "BepInEx\.ts_versions\$Key"
     if (Test-Path -LiteralPath $f) { return (Get-Content -LiteralPath $f -Raw).Trim() }
     return $null
 }
-function Set-TSInstalledVersion { param($key,$version,$gamePath)
-    $d = Join-Path $gamePath "BepInEx\.ts_versions"
+function Set-InstalledVersion { param([string]$Key, [string]$Version, [string]$GamePath)
+    $d = Join-Path $GamePath "BepInEx\.ts_versions"
     if (-not (Test-Path -LiteralPath $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
-    Set-Content -LiteralPath (Join-Path $d $key) -Value $version -Encoding UTF8 -Force
+    Set-Content -LiteralPath (Join-Path $d $Key) -Value $Version -Encoding UTF8 -Force
 }
 
-# Thunderstore layout -> game folder. This is the part a blind
-# extract-in-place gets wrong: a package's top level can be
-#   BepInExPack_PEAK\   -> a wrapper, its CONTENT goes to the root
-#   plugins\ patchers\  -> these belong under BepInEx\, NOT the root
-# Verified against all five uploaded packages.
-function Install-TSPackage { param($Zip,$Work,$GamePath,$Key)
+# Thunderstore layout -> game folder.
+#   BepInExPack_PEAK\  is a wrapper folder; its CONTENT belongs in
+#                      die Spielwurzel
+#   plugins\ patchers\ monomod\  go under BepInEx\, and every
+#                      package gets its own folder in there
+#   core\ config\      are shared, with no subfolder
+function Install-Package { param([string]$Zip, [string]$Work, [string]$GamePath, [string]$Key)
     if (Test-Path -LiteralPath $Work) { Remove-Item -LiteralPath $Work -Recurse -Force -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Path $Work -Force | Out-Null
     Expand-Archive -LiteralPath $Zip -DestinationPath $Work -Force -ErrorAction Stop
+
     $meta = @("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
     $root = $Work
-    # A single wrapper folder that is not itself a BepInEx layout dir.
-    # -Force: .doorstop_version is a dot-file and would be skipped
-    # without it on any host that treats those as hidden.
+    # -Force, because .doorstop_version is a dot file
     $top = @(Get-ChildItem -LiteralPath $Work -Force | Where-Object { $_.Name -notin $meta })
     if ($top.Count -eq 1 -and $top[0].PSIsContainer -and $top[0].Name -notin @("BepInEx","plugins","patchers","monomod","core","config")) {
         $root = $top[0].FullName
@@ -251,13 +293,10 @@ function Install-TSPackage { param($Zip,$Work,$GamePath,$Key)
     $copied = 0
     foreach ($item in @(Get-ChildItem -LiteralPath $root -Force | Where-Object { $_.Name -notin $meta })) {
         if ($item.PSIsContainer -and $item.Name -in @("plugins","patchers","monomod","core","config")) {
-            # BepInEx sub-tree: give each package its own folder so an
-            # update can replace it and two packages never collide.
             $dest = Join-Path $GamePath ("BepInEx\" + $item.Name + "\" + $Key)
             if ($item.Name -in @("core","config")) { $dest = Join-Path $GamePath ("BepInEx\" + $item.Name) }
             if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
-            # -Path, NOT -LiteralPath: with -LiteralPath the "*" is taken
-            # literally and the copy fails with "cannot find path ...\*".
+            # -Path, NOT -LiteralPath: otherwise the * is taken literally
             Copy-Item -Path (Join-Path $item.FullName "*") -Destination $dest -Recurse -Force
             $copied += @(Get-ChildItem -LiteralPath $item.FullName -Recurse -File).Count
         } else {
@@ -268,22 +307,43 @@ function Install-TSPackage { param($Zip,$Work,$GamePath,$Key)
     return $copied
 }
 
-Write-Header
-Write-Host "  PEAK has TWO VR mods, and each needs a different build of the game." -ForegroundColor White
-Write-Host ""
+# -------------------------------------------------------
+#  The main mod and what it stands on
+# -------------------------------------------------------
+$MOD_KEY        = "Andrey04o-PeakVR"
+$MOD_AUTHOR     = "Andrey04o"
+$MOD_TSNAME     = "PeakVR"
+$MOD_GITHUB     = "Andrey04o/PeakVR"
+$MOD_GH_ASSET   = '(?i)^Andrey04o-PeakVR-.*\.zip$'
+$MOD_PROOF      = "BepInEx\plugins\Andrey04o-PeakVR\com.andrey04o.PeakVR.dll"
+# Launch option the author recommends (framerate). Declared up here
+# so the closing text and the clipboard use the same value.
+$D3D11_ARG      = "-force-d3d11"
 
-$tsLatest = Get-TSInfo -author $TS_MOD_AUTHOR -name $TS_MOD_NAME
+# ------------------------------------------------------------
+#  HARD UPPER BOUNDS
+# ------------------------------------------------------------
+# There is not a single loop left in this branch whose end depends
+# on a condition. Each runs on a counter with a fixed upper bound -
+# the number of passes is settled BEFORE the first one starts. If a
+# limit is reached, the run aborts with a message, having changed
+# nothing in the game.
+$MAX_RESOLVE_STEPS = 500   # steps of the dependency search
+$MAX_CROSS_ROUNDS  = 10    # rounds of the cross-check
+# BepInEx is the loader, not an ordinary package - it is always
+# installed first and never pulled in by the dependency search.
+$LOADER_KEY     = "BepInEx-BepInExPack_PEAK"
+$LOADER_AUTHOR  = "BepInEx"
+$LOADER_NAME    = "BepInExPack_PEAK"
+$LOADER_MIN     = "5.4.75301"
+
+Write-Header
+Write-Host "  Two VR mods exist for PEAK. Pick one:" -ForegroundColor White
+Write-Host ""
 Write-Host "  [1] Current PEAK" -NoNewline -ForegroundColor White
-if ($tsLatest -and $tsLatest.Deprecated) {
-    Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
-    Write-Warn "This mod is marked DEPRECATED on Thunderstore."
-} elseif ($tsLatest) {
-    Write-Host "  - PeakVR by Andrey04o, v$($tsLatest.Version)" -ForegroundColor Gray
-    Write-Host "       Auto-updating, installs into your normal Steam copy." -ForegroundColor Gray
-} else {
-    Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
-    Write-Warn "Could not reach Thunderstore - the pinned versions will be used."
-}
+Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
+Write-Host "       Installs into your normal Steam copy and keeps itself" -ForegroundColor Gray
+Write-Host "       up to date." -ForegroundColor Gray
 Write-Host ""
 $depotHere = Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)
 Write-Host "  [2] Older PEAK 1.44.a" -NoNewline -ForegroundColor White
@@ -291,11 +351,19 @@ Write-Host "  - PEAK_VR by AstienVR" -ForegroundColor Gray
 if ($depotHere) { Write-Host "       Already installed at $DEFAULT_PATH" -ForegroundColor Green }
 else            { Write-Host "       Downloads a pinned Steam depot build into its own folder." -ForegroundColor Gray }
 Write-Host ""
-$peakMode = ""
-while ($peakMode -notin @("1","2")) { $peakMode = (Read-Host "  Your choice (1 or 2)").Trim() }
+$peakMode = Read-Choice -Prompt "Your choice (1 or 2)" -Valid @("1","2") -Default $null
+if (-not $peakMode) {
+    Write-Fail "No choice made - nothing was changed."
+    Pause-User "Press Enter to exit..." | Out-Null
+    return
+}
 
 if ($peakMode -eq "1") {
-    Write-Step 1 3 "Finding your PEAK installation"
+
+    # ===================================================
+    #  PHASE 0 - find the game
+    # ===================================================
+    Write-Step 1 4 "Finding your PEAK installation"
     $gamePath = $null
     $sp = Get-SteamPathP
     if ($sp) {
@@ -312,50 +380,395 @@ if ($peakMode -eq "1") {
     }
     Write-OK "PEAK: $gamePath"
 
-    Write-Step 2 3 "Installing PeakVR and its dependencies"
+    # ===================================================
+    #  PHASE 1 - PLAN. Nothing is written here.
+    # ===================================================
+    Write-Step 2 4 "Working out what is needed"
+
     $tmp = Join-Path $env:TEMP ("peakvr_" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-    # Erst die Abhaengigkeiten aufloesen, dann installieren. Bringt das
-    # Netz nichts, bleibt es bei der festen Liste.
-    $TS_PACKAGES = Resolve-TSDependencies -Packages $TS_PACKAGES
-    Write-OK "$($TS_PACKAGES.Count) package(s) to check."
-    $allOk = $true
-    foreach ($pkg in $TS_PACKAGES) {
-        $ver = $pkg.Pinned
-        $url = "https://thunderstore.io/package/download/$($pkg.Author)/$($pkg.Name)/$($pkg.Pinned)/"
-        $info = Get-TSInfo -author $pkg.Author -name $pkg.Name
-        if ($info -and $info.Version -and $info.DownloadUrl) { $ver = $info.Version; $url = $info.DownloadUrl }
-        $have = Get-TSInstalledVersion -key $pkg.Key -gamePath $gamePath
-        if ($have -eq $ver) { Write-OK "$($pkg.Label) $ver already installed."; continue }
-        $zip = Join-Path $tmp ("$($pkg.Key).zip")
-        Write-Info "$($pkg.Label) $ver ..."
-        $ok = Invoke-SafeDownload -Urls @($url) -Destination $zip -Label $pkg.Label `
-                  -ManualUrl "https://thunderstore.io/c/peak/p/$($pkg.Author)/$($pkg.Name)/" `
-                  -Instructions "Download the ZIP for $($pkg.Label) from the Thunderstore page and drop it here."
-        if (-not $ok -or -not (Test-Path -LiteralPath $zip)) { Write-Fail "$($pkg.Label) could not be downloaded."; $allOk = $false; break }
+
+    # --- the main mod: query both sources, the newer one wins -----
+    $ts = Get-ThunderstorePackage -Author $MOD_AUTHOR -Name $MOD_TSNAME
+    $gh = Get-GithubRelease -Repo $MOD_GITHUB -AssetPattern $MOD_GH_ASSET
+    $main = $null
+    if ($ts -and $gh) {
+        if ((Compare-ModVersion $gh.Version $ts.Version) -gt 0) {
+            Write-Info "GitHub has $($gh.Version), Thunderstore has $($ts.Version) - taking GitHub."
+            $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" }
+        } else {
+            $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" }
+        }
+    } elseif ($gh) { $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" } }
+    elseif ($ts)   { $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" } }
+
+    if (-not $main) {
+        Write-Fail "Neither Thunderstore nor GitHub could be reached."
+        foreach ($k in $script:NetFails.Keys) { Write-Host "     $k - $($script:NetFails[$k])" -ForegroundColor DarkGray }
+        Write-Host "  Nothing was changed. Try again in a minute." -ForegroundColor White
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    Write-OK "PeakVR $($main.Version) (from $($main.From))"
+
+    # --- fetch the main mod so its manifest can be read
+    # The manifest INSIDE THE PACKAGE is the most reliable
+    # dependency list there is: it belongs to exactly this build.
+    $mainZip = Join-Path $tmp "$MOD_KEY.zip"
+    if (-not (Invoke-SafeDownload -Urls @($main.Url) -Destination $mainZip -Label "PeakVR $($main.Version)" `
+                -ManualUrl "https://github.com/$MOD_GITHUB/releases/latest" `
+                -Instructions "Download the PeakVR zip and save it as '$mainZip', then choose Retry.")) {
+        Write-Fail "PeakVR could not be downloaded - nothing was changed."
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    if ($main.Body -and $main.Asset) {
+        $chk = Confirm-ReleaseChecksum -FilePath $mainZip -AssetName $main.Asset -ReleaseBody $main.Body -ReportTo "Andrey04o"
+        if ([string]$chk -eq "mismatch") {
+            Write-Fail "The download does not match the author's checksum - nothing was changed."
+            try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            Pause-User "Press Enter to exit..." | Out-Null
+            return
+        }
+    }
+
+    # --- breadth-first search over the dependencies ---------------
+    # WHY THIS TERMINATES: $need is a SET. Every key is entered at
+    # most once and taken off the queue at most once. There is no
+    # branch that re-queues a key already seen.
+    $need    = @{}          # Key -> geforderte Mindestversion
+    $order   = New-Object System.Collections.Generic.List[string]
+    $queue   = New-Object System.Collections.Generic.Queue[object]
+    $seen    = @{}
+    $planFail = @()
+
+    $mainDeps = Get-ManifestDependencies -ZipPath $mainZip
+    if (-not $mainDeps) {
+        Write-Warn "The package has no readable manifest - falling back to the Thunderstore list."
+        if ($ts) { $mainDeps = $ts.Dependencies }
+    }
+    foreach ($d in @($mainDeps)) { $queue.Enqueue($d) }
+
+    # A COUNTED LOOP, NOT A CONDITIONAL ONE. The number of passes is
+    # settled BEFORE the first one runs. Whether $queue ever empties no
+    # longer decides the end - after $MAX_RESOLVE_STEPS it stops, no
+    # matter what. 500 is far beyond any real tree (a real one has 5
+    # packages).
+    $resolveOverflow = $false
+    for ($step = 0; $step -lt $MAX_RESOLVE_STEPS; $step++) {
+        if ($queue.Count -eq 0) { break }
+        if ($step -eq ($MAX_RESOLVE_STEPS - 1)) { $resolveOverflow = $true }
+        $dep = $queue.Dequeue()
+        $p = Split-DependencyString -Dep $dep
+        if (-not $p) { continue }
+        $k = $p.Key
+        # The loader is handled outside the normal order.
+        if ($k -ieq $LOADER_KEY) {
+            if ((Compare-ModVersion $p.Version $LOADER_MIN) -gt 0) { $LOADER_MIN = $p.Version }
+            continue
+        }
+        # The HIGHEST requirement wins - versions are minimums.
+        if (-not $need.ContainsKey($k) -or (Compare-ModVersion $p.Version $need[$k]) -gt 0) {
+            $need[$k] = $p.Version
+        }
+        if ($seen.ContainsKey($k)) { continue }
+        $seen[$k] = $true
+        $order.Add($k) | Out-Null
+
+        $info = Get-ThunderstorePackage -Author $p.Author -Name $p.Name
+        if (-not $info) { $planFail += $k; continue }
+        foreach ($d2 in @($info.Dependencies)) { $queue.Enqueue($d2) }
+    }
+
+    if ($resolveOverflow) {
+        Write-Fail "The dependency tree did not settle within $MAX_RESOLVE_STEPS steps."
+        Write-Host "  That should be impossible with a healthy set of packages," -ForegroundColor White
+        Write-Host "  so something is wrong upstream. Nothing was changed." -ForegroundColor White
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    Write-OK ("Dependency tree: " + ($order.Count + 1) + " package(s), resolved in one pass.")
+
+    if ($planFail.Count -gt 0) {
+        Write-Warn "Thunderstore did not answer for these, so their own requirements are unknown:"
+        foreach ($k in $planFail) { Write-Host "     $k" -ForegroundColor Yellow }
+        Write-Host "  An incomplete plan is exactly what makes the mod fail" -ForegroundColor White
+        Write-Host "  silently later. Waiting a minute usually fixes it." -ForegroundColor White
+        if (-not (Read-YesNoP "Continue anyway?")) {
+            Write-Info "Stopped. Nothing was changed."
+            try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            Pause-User "Press Enter to exit..." | Out-Null
+            return
+        }
+    }
+
+    # --- which of these are actually missing? ---------------------
+    # The loader first, then the dependencies in the order they were
+    # found, the main mod last.
+    $plan = New-Object System.Collections.Generic.List[object]
+
+    $haveLoader = Get-InstalledVersion -Key $LOADER_KEY -GamePath $gamePath
+    if (-not $haveLoader -or (Compare-ModVersion $haveLoader $LOADER_MIN) -lt 0) {
+        $li = Get-ThunderstorePackage -Author $LOADER_AUTHOR -Name $LOADER_NAME
+        if ($li) {
+            $plan.Add(@{ Key = $LOADER_KEY; Label = "BepInEx (PEAK pack)"; Version = $li.Version; Url = $li.Url }) | Out-Null
+        } elseif (-not $haveLoader) {
+            Write-Fail "BepInEx could not be looked up and is not installed - nothing was changed."
+            try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+            Pause-User "Press Enter to exit..." | Out-Null
+            return
+        }
+    } else {
+        Write-OK "BepInEx $haveLoader already installed."
+    }
+
+    foreach ($k in $order) {
+        $p = Split-DependencyString -Dep ($k + "-" + $need[$k])
+        $have = Get-InstalledVersion -Key $k -GamePath $gamePath
+        # ANYTHING NEWER THAN REQUIRED IS LEFT ALONE.
+        if ($have -and (Compare-ModVersion $have $need[$k]) -ge 0) {
+            Write-OK "$k $have already installed (needs $($need[$k]) or newer)."
+            continue
+        }
+        $info = Get-ThunderstorePackage -Author $p.Author -Name $p.Name
+        $ver  = $need[$k]
+        $url  = "https://thunderstore.io/package/download/$($p.Author)/$($p.Name)/$ver/"
+        # Take the newest build if it satisfies the requirement -
+        # otherwise exactly the one required.
+        if ($info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
+        $plan.Add(@{ Key = $k; Label = $k; Version = $ver; Url = $url }) | Out-Null
+    }
+
+    $haveMain = Get-InstalledVersion -Key $MOD_KEY -GamePath $gamePath
+    $mainNeeded = (-not $haveMain -or (Compare-ModVersion $haveMain $main.Version) -lt 0 -or -not (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROOF)))
+    if ($mainNeeded) {
+        $plan.Add(@{ Key = $MOD_KEY; Label = "PeakVR"; Version = $main.Version; Url = $main.Url; Zip = $mainZip }) | Out-Null
+    } else {
+        Write-OK "PeakVR $haveMain already installed and up to date."
+    }
+
+    if ($plan.Count -eq 0) {
+        Write-Host ""
+        Write-OK "Everything is already in place - nothing to do."
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Write-Step 4 4 "Done"
+        Write-Host ""
+        Write-Host "  START: " -NoNewline -ForegroundColor Cyan
+        Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+        Write-Host "in the Hub." -ForegroundColor Cyan
+        Write-Host ""
+        Pause-User "Press Enter to exit." | Out-Null
+        return
+    }
+
+    Write-Host ""
+    Write-Host "  This will be installed:" -ForegroundColor White
+    foreach ($p in $plan) { Write-Host ("     " + $p.Label + " " + $p.Version) -ForegroundColor Gray }
+
+    # ===================================================
+    #  PHASE 2 - FETCH. Still nothing touched in the game.
+    # ===================================================
+    Write-Step 3 4 "Downloading everything first"
+
+    $downloadFailed = @()
+    foreach ($p in $plan) {
+        if ($p.Zip -and (Test-Path -LiteralPath $p.Zip)) { continue }   # main mod already fetched
+        $z = Join-Path $tmp ("$($p.Key).zip")
+        Write-Info "$($p.Label) $($p.Version) ..."
+        $ok = Invoke-SafeDownload -Urls @($p.Url) -Destination $z -Label "$($p.Label) $($p.Version)" `
+                  -ManualUrl "https://thunderstore.io/c/peak/" `
+                  -Instructions "Download the ZIP for $($p.Label) and save it as '$z', then choose Retry."
+        if (-not $ok -or -not (Test-Path -LiteralPath $z)) { $downloadFailed += $p.Label; continue }
+        $p.Zip = $z
+    }
+
+    # Every archive must open and must have content. A damaged
+    # archive shows up HERE, not halfway through the game folder.
+    $badZip = @()
+    foreach ($p in $plan) {
+        if (-not $p.Zip -or -not (Test-Path -LiteralPath $p.Zip)) { continue }
         try {
-            $n = Install-TSPackage -Zip $zip -Work (Join-Path $tmp $pkg.Key) -GamePath $gamePath -Key $pkg.Key
-            Write-OK "$($pkg.Label) $ver - $n file(s)."
-            Set-TSInstalledVersion -key $pkg.Key -version $ver -gamePath $gamePath
+            Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+            $z = [System.IO.Compression.ZipFile]::OpenRead($p.Zip)
+            try { if ($z.Entries.Count -lt 1) { $badZip += $p.Label } } finally { $z.Dispose() }
+        } catch { $badZip += $p.Label }
+    }
+
+    if ($downloadFailed.Count -gt 0 -or $badZip.Count -gt 0) {
+        Write-Host ""
+        Write-Fail "The download stage did not complete - THE GAME WAS NOT TOUCHED."
+        foreach ($l in $downloadFailed) { Write-Host "     could not download: $l" -ForegroundColor Red }
+        foreach ($l in $badZip)         { Write-Host "     damaged archive:    $l" -ForegroundColor Red }
+        Write-Host "  Run this again in a minute." -ForegroundColor White
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    Write-OK "$($plan.Count) package(s) downloaded and readable."
+
+    # ===================================================
+    #  PHASE 2b - CROSS-CHECK FROM THE PACKAGES THEMSELVES
+    # ===================================================
+    # Phase 1 resolved the tree through the Thunderstore API. That
+    # names the dependencies of the NEWEST build of each package -
+    # and we do not always install the newest. Where the API says
+    # something different from the package actually on disk, THE
+    # PACKAGE WINS.
+    #
+    # So every downloaded file is opened here and its own
+    # manifest.json is read. If a dependency turns up that is missing
+    # from the plan or too old in it, it is fetched NOW - before the
+    # first write.
+    #
+    # WHY THIS TERMINATES: a round only starts when the previous one
+    # added something NEW, and every package key can be added at most
+    # once ($seen only grows). After at most as many rounds as there
+    # are packages, it is over.
+    Write-Info "Cross-checking the packages against their own manifests ..."
+
+    $extraRounds  = 0
+    $extraTotal   = 0
+    $lateFail     = @()
+    $roundAdded   = 0
+    $crossOverflow = $false
+    # COUNTED HERE TOO. Ten rounds cover any chain that occurs in
+    # reality; the deepest ever seen had three links.
+    for ($round = 1; $round -le $MAX_CROSS_ROUNDS; $round++) {
+        if ($round -gt 1 -and $roundAdded -eq 0) { break }
+        if ($round -eq $MAX_CROSS_ROUNDS -and $roundAdded -gt 0) { $crossOverflow = $true }
+        $roundAdded = 0
+        $extraRounds = $round
+        # A snapshot: whatever is added in this round is only read in
+        # the next one - otherwise the list changes while it is being
+        # walked.
+        # .ToArray() AND NOT @($plan): the @() form throws "Argument
+        # types do not match" on a generic list of hashtables and the
+        # whole round aborts. Reproduced on real PowerShell 7.4, not
+        # assumed. ToArray() gives a true snapshot - what is added in
+        # this round is read in the next, exactly as intended.
+        foreach ($p in $plan.ToArray()) {
+            if (-not $p.Zip -or -not (Test-Path -LiteralPath $p.Zip)) { continue }
+            if ($p.Checked) { continue }
+            $p.Checked = $true
+            foreach ($dep in @(Get-ManifestDependencies -ZipPath $p.Zip)) {
+                $d = Split-DependencyString -Dep $dep
+                if (-not $d) { continue }
+                $k = $d.Key
+                if ($k -ieq $LOADER_KEY) { continue }
+                # Is what is already planned or installed good enough?
+                $planned = $plan | Where-Object { $_.Key -eq $k } | Select-Object -First 1
+                if ($planned -and (Compare-ModVersion $planned.Version $d.Version) -ge 0) { continue }
+                if (-not $planned) {
+                    $have = Get-InstalledVersion -Key $k -GamePath $gamePath
+                    if ($have -and (Compare-ModVersion $have $d.Version) -ge 0) { continue }
+                }
+                # No - so fetch it now.
+                Write-Warn "$($p.Label) also requires $k $($d.Version) - the API had not listed it."
+                $info = Get-ThunderstorePackage -Author $d.Author -Name $d.Name
+                $ver  = $d.Version
+                $url  = "https://thunderstore.io/package/download/$($d.Author)/$($d.Name)/$ver/"
+                if ($info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
+                $z = Join-Path $tmp ("late_$k.zip")
+                $ok = Invoke-SafeDownload -Urls @($url) -Destination $z -Label "$k $ver" `
+                          -ManualUrl "https://thunderstore.io/c/peak/" `
+                          -Instructions "Download the ZIP for $k and save it as '$z', then choose Retry."
+                if (-not $ok -or -not (Test-Path -LiteralPath $z)) { $lateFail += "$k $ver"; continue }
+                try {
+                    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+                    $zz = [System.IO.Compression.ZipFile]::OpenRead($z)
+                    try { if ($zz.Entries.Count -lt 1) { throw "empty archive" } } finally { $zz.Dispose() }
+                } catch { $lateFail += "$k $ver (damaged)"; continue }
+
+                if ($planned) {
+                    # Already in the plan but too old - raise the entry.
+                    $planned.Version = $ver
+                    $planned.Url     = $url
+                    $planned.Zip     = $z
+                    $planned.Checked = $false
+                } else {
+                    # Insert BEFORE the main mod: that one comes last.
+                    $plan.Insert([Math]::Max(0, $plan.Count - 1), @{ Key = $k; Label = $k; Version = $ver; Url = $url; Zip = $z; Checked = $false }) | Out-Null
+                }
+                $need[$k] = $ver
+                if (-not $order.Contains($k)) { $order.Add($k) | Out-Null }
+                $roundAdded++
+                $extraTotal++
+            }
+        }
+    }
+
+    if ($crossOverflow) {
+        Write-Fail "The cross-check was still finding new packages after $MAX_CROSS_ROUNDS rounds."
+        Write-Host "  A dependency chain that deep is not plausible - something is" -ForegroundColor White
+        Write-Host "  wrong upstream. THE GAME WAS NOT TOUCHED." -ForegroundColor White
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+
+    if ($lateFail.Count -gt 0) {
+        Write-Host ""
+        Write-Fail "These extra requirements could not be fetched - THE GAME WAS NOT TOUCHED."
+        foreach ($l in $lateFail) { Write-Host "     $l" -ForegroundColor Red }
+        Write-Host "  Run this again in a minute." -ForegroundColor White
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    if ($extraTotal -gt 0) {
+        Write-OK "$extraTotal extra package(s) found in the manifests and fetched (after $extraRounds rounds)."
+        Write-Host "  Final list:" -ForegroundColor White
+        foreach ($p in $plan) { Write-Host ("     " + $p.Label + " " + $p.Version) -ForegroundColor Gray }
+    } else {
+        Write-OK "The manifests agree with the plan - nothing was missing."
+    }
+
+    # ===================================================
+    #  PHASE 3 - INSTALL. No more decisions.
+    # ===================================================
+    Write-Step 4 4 "Installing"
+
+    $failed = @()
+    foreach ($p in $plan) {
+        try {
+            $n = Install-Package -Zip $p.Zip -Work (Join-Path $tmp ("x_" + $p.Key)) -GamePath $gamePath -Key $p.Key
+            if ($n -lt 1) { throw "the package contained no files" }
+            Set-InstalledVersion -Key $p.Key -Version $p.Version -GamePath $gamePath
+            Write-OK "$($p.Label) $($p.Version) - $n file(s)."
         } catch {
-            Write-Fail "$($pkg.Label) could not be installed: $($_.Exception.Message)"
-            $allOk = $false; break
+            Write-Fail "$($p.Label): $($_.Exception.Message)"
+            $failed += $p.Label
         }
     }
     try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-    # Proof, not a claim: the mod's own DLL has to be on disk.
-    $proof = Join-Path $gamePath "BepInEx\plugins\Andrey04o-PeakVR\com.andrey04o.PeakVR.dll"
-    if (-not $allOk -or -not (Test-Path -LiteralPath $proof)) {
-        Write-Fail "PeakVR is not in place - the install is incomplete."
-        Write-Info "Expected: $proof"
+    # --- Final check: the claim against the disk -----------------
+    Write-Host ""
+    $proofPath = Join-Path $gamePath $MOD_PROOF
+    $missingNow = @()
+    foreach ($k in $order) {
+        $have = Get-InstalledVersion -Key $k -GamePath $gamePath
+        if (-not $have -or (Compare-ModVersion $have $need[$k]) -lt 0) { $missingNow += "$k (needs $($need[$k]))" }
+    }
+    if (-not (Test-Path -LiteralPath $proofPath)) { $missingNow += "PeakVR itself" }
+
+    if ($failed.Count -gt 0 -or $missingNow.Count -gt 0) {
+        Write-Fail "The install is NOT complete:"
+        foreach ($l in $failed)     { Write-Host "     failed to install: $l" -ForegroundColor Red }
+        foreach ($l in $missingNow) { Write-Host "     still missing:     $l" -ForegroundColor Red }
+        Write-Host ""
+        Write-Host "  Run this installer again. If it keeps failing on the same" -ForegroundColor White
+        Write-Host "  package, install that one from Thunderstore by hand." -ForegroundColor White
         Pause-User "Press Enter to exit..." | Out-Null
         return
     }
-    Write-OK "PeakVR is installed."
 
-    Write-Step 3 3 "Finishing up"
+    Write-OK "Verified on disk: PeakVR and all $($order.Count) requirement(s)."
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $main.Version -Encoding UTF8 -Force } catch {}
     try {
         $sc = New-DesktopShortcut -ShortcutName "PEAK VR" -TargetPath "steam://rungameid/$DEPOT_APPID" `
                   -WorkingDir $gamePath -Description "PEAK in VR (PeakVR)"
@@ -364,19 +777,99 @@ if ($peakMode -eq "1") {
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host " PeakVR is installed!" -ForegroundColor Green
+    Write-Host " PeakVR $($main.Version) is installed!" -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
-    Write-Host "  START: " -NoNewline -ForegroundColor Cyan; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or launch PEAK from Steam." -ForegroundColor Cyan
+    Write-Host "  START: " -NoNewline -ForegroundColor Cyan
+    Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "in the Hub, or launch PEAK from Steam." -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  IMAGE LOOKS BLURRY? In the game: Settings > Mod Settings >" -ForegroundColor Cyan
-    Write-Host "  PEAK VR > VR GRAPHICS > " -NoNewline -ForegroundColor Cyan; Write-Host " MAKE IMAGE SHARPER = Enable " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "  PEAK VR > VR GRAPHICS > " -NoNewline -ForegroundColor Cyan
+    Write-Host " MAKE IMAGE SHARPER = Enable " -ForegroundColor Black -BackgroundColor Yellow
     Write-Host ""
-    Write-Host "  Extra frames: add the launch option " -NoNewline -ForegroundColor Gray; Write-Host "-force-d3d11" -NoNewline -ForegroundColor White; Write-Host " in Steam." -ForegroundColor Gray
+    Write-Host "  TOO MUCH TUNNEL VISION? Settings > Mod Settings > PEAK VR >" -ForegroundColor Gray
+    Write-Host "  COMFORT > Movement Tunneling = off." -ForegroundColor Gray
+    Write-Host ""
     Write-Host "  You climb the way the base game does - this is not a" -ForegroundColor Gray
     Write-Host "  hand-over-hand climbing simulator." -ForegroundColor Gray
     Write-Host ""
-    Write-Host "  Works in lobbies with flat players. Tested against PEAK 1.65.a." -ForegroundColor Gray
+    # ===================================================
+    #  FINAL STEP - DirectX 11 as a launch option
+    # ===================================================
+    # The author recommends this explicitly for the framerate (it says
+    # so in his mod's About window). Steam does not let launch options
+    # be set from outside - editing localconfig.vdf would mean writing
+    # into Steam's own file, which can be overwritten on the next Steam
+    # start or worse. So the same route as the depot command further
+    # down: put it on the clipboard, open the right window, let the
+    # user paste.
+    # OPTIONAL: saying no leaves a finished install, just without this
+    # one setting.
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  ONE OPTIONAL SETTING" -ForegroundColor Cyan
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  The mod author recommends running PEAK on " -NoNewline -ForegroundColor White
+    Write-Host "DirectX 11" -NoNewline -ForegroundColor White -BackgroundColor DarkBlue
+    Write-Host " for a" -ForegroundColor White
+    Write-Host "  better framerate in VR. It is a Steam launch option:" -ForegroundColor White
+    Write-Host ""
+    Write-Host "    $D3D11_ARG" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Steam does not let anything set that from the outside, so" -ForegroundColor Gray
+    Write-Host "  this is a copy-and-paste job - the same way the depot route" -ForegroundColor Gray
+    Write-Host "  works. Your game is fully installed either way." -ForegroundColor Gray
+    Write-Host ""
+
+    if (Read-YesNoP "Set it up now?") {
+        $clip = $false
+        try { Set-Clipboard -Value $D3D11_ARG; $clip = $true } catch {}
+        Write-Host ""
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Host "   ACTION REQUIRED - paste into Steam" -ForegroundColor Yellow
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Host ""
+        if ($clip) {
+            Write-Host "  [OK] $D3D11_ARG copied to your clipboard." -ForegroundColor Yellow
+        } else {
+            Write-Warn "The clipboard could not be used - type it by hand:"
+            Write-Host "    $D3D11_ARG" -ForegroundColor Yellow
+        }
+        Write-Host ""
+        Write-Host "  Next: PEAK's properties window opens." -ForegroundColor White
+        Write-Host "    1. Stay on the GENERAL page" -ForegroundColor White
+        Write-Host "    2. Click the LAUNCH OPTIONS field" -ForegroundColor White
+        Write-Host "    3. Paste with Ctrl+V, then close the window" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  If there is already something in that field, put a space" -ForegroundColor Gray
+        Write-Host "  between the entries instead of replacing it." -ForegroundColor Gray
+        Write-Host ""
+        Pause-User "Press Enter to open PEAK's properties in Steam..."
+        $opened = $false
+        # Two protocol addresses, because depending on the Steam build
+        # only one of them works - exactly as with the Steam console in
+        # the depot route.
+        foreach ($u in @("steam://gameproperties/$DEPOT_APPID", "steam://nav/games/details/$DEPOT_APPID")) {
+            try { Start-Process $u -ErrorAction Stop; $opened = $true; break } catch {}
+        }
+        if ($opened) {
+            Write-OK "Steam should be showing PEAK's properties now."
+        } else {
+            Write-Warn "Steam could not be opened from here."
+            Write-Host "  Do it by hand: Steam library, right-click PEAK, Properties," -ForegroundColor White
+            Write-Host "  General, Launch Options - then paste." -ForegroundColor White
+        }
+        Write-Host ""
+        Write-Host "  (i) Virtual Desktop users: windows opened from inside a VD" -ForegroundColor DarkGray
+        Write-Host "      session sometimes appear on the desktop only. Take the" -ForegroundColor DarkGray
+        Write-Host "      headset off for a moment if you cannot see it." -ForegroundColor DarkGray
+        Write-Host ""
+        Pause-User "Press Enter when you are done."
+    } else {
+        Write-Info "Skipped. You can add $D3D11_ARG later: Steam, right-click PEAK,"
+        Write-Info "Properties, General, Launch Options."
+    }
+
     Write-Host ""
     Write-Host "  The mountain does not care that you can see it properly now." -ForegroundColor Magenta
     Write-Host ""
@@ -453,7 +946,7 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..."
-# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+# Both protocol addresses: depending on the Steam build only one works.
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
@@ -519,7 +1012,11 @@ if (-not (Test-Path $depotExe)) {
     Write-Host "  This usually means the download is incomplete or the wrong" -ForegroundColor Gray
     Write-Host "  manifest was downloaded. Install anyway?" -ForegroundColor White
     $choice = ""
-    while ($choice -notin @("y","Y","n","N")) { $choice = (Read-Host "  Continue? (Y/N)").Trim() }
+    for ($t = 0; $t -lt 20; $t++) {
+        $choice = ("" + (Read-Host "  Continue? (Y/N)")).Trim()
+        if ($choice -in @("y","Y","n","N")) { break }
+    }
+    if ($choice -notin @("y","Y","n","N")) { Write-Warn "No usable answer - assuming No."; $choice = "n" }
     if ($choice -in @("n","N")) {
         Write-Info "Aborted by user."
         Pause-User "Press Enter to exit..."
@@ -537,7 +1034,7 @@ Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
+$userInput = ("" + (Read-Host "  Press Enter to use default, or type a different full path")).Trim().Trim('"')
 if (-not $userInput) {
     $targetPath = $DEFAULT_PATH
 } else {
@@ -776,7 +1273,7 @@ if (-not (Test-Path $vigemExe)) {
         Write-Host "  Press ENTER to continue to the next step (recommended)." -ForegroundColor White
         Write-Host "  If your VR controllers give you trouble, you can (re)install" -ForegroundColor Gray
         Write-Host "  it: type V then Enter." -ForegroundColor Gray
-        $reinst = (Read-Host "  [Enter] skip / [V] reinstall").Trim()
+        $reinst = ("" + (Read-Host "  [Enter] skip / [V] reinstall")).Trim()
         if ($reinst -in @("v","V")) {
             Write-Info "Launching ViGEmBus installer..."
             try {
@@ -796,7 +1293,7 @@ if (-not (Test-Path $vigemExe)) {
         Write-Host "  If ViGEmBus is ALREADY installed on your system, just close the" -ForegroundColor Cyan
         Write-Host "  setup window when it appears - no re-install needed." -ForegroundColor Cyan
         Write-Host ""
-        $skip = (Read-Host "  Run ViGEmBus installer now? (Y/N)").Trim()
+        $skip = ("" + (Read-Host "  Run ViGEmBus installer now? (Y/N)")).Trim()
         if ($skip -in @("y","Y","")) {
             Write-Info "Launching ViGEmBus installer..."
             try {

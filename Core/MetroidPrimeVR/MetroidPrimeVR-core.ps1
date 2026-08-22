@@ -46,8 +46,9 @@ $RELEASES_LATEST   = "https://github.com/Nobbie248/PrimedGun/releases/latest"
 $INFO_URL          = "https://github.com/Nobbie248/PrimedGun"
 # Last-known-good asset, used only if the GitHub API cannot be reached.
 # (The API path above always prefers the newest release.)
-# Rueckfall NUR ohne Netz - der Normalweg loest die neueste Fassung auf.
-# 2026-08-13 von v1.0.2 auf v1.1.5 gezogen (drei Fassungen Rueckstand).
+# Fallback for no-network ONLY - the normal path resolves the newest
+# build. Moved from v1.0.2 to v1.1.5 on 2026-08-13 (three builds
+# behind).
 $KNOWN_FALLBACK_ZIP = "https://github.com/Nobbie248/PrimedGun/releases/download/v1.1.5/PrimedGun.v1.1.5.zip"
 $GAME_FOLDER       = "Metroid Prime VR"
 $GAME_EXE          = "PrimedGun.exe"

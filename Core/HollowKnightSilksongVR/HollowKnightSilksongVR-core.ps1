@@ -406,12 +406,12 @@ $st = Expand-ArchiveToTarget -ArchivePath $modZip -TargetDir $gameRoot `
         -RelModFile "$PLUGINS_REL\$A_DLL" -Markers @("winhttp.dll", "doorstop_config.ini", "BepInEx") `
         -Label "$A_NAME mod" -SkipMessage "Skipped - the mod files were NOT installed." -AllowSkip $true
 
-# R3 - der Beweis liegt AM ZIEL: die Datei ist da. NICHT "sie hat sich
-# gegenueber vorher geaendert" - eine zweite Installation derselben
-# Version kopiert dieselbe Datei mit demselben Zeitstempel, und genau
-# das hat der alte Vergleich als MISSERFOLG gemeldet, obwohl alles
-# richtig lag. Ein unveraenderter Zeitstempel ist bei einem Kopiervorgang
-# kein Fehler, sondern der Normalfall beim Neuinstallieren.
+# R3 - the proof is AT THE DESTINATION: the file is there. NOT "it
+# changed compared to before" - a second install of the same version
+# copies the same file with the same timestamp, and that is exactly
+# what the old comparison reported as FAILURE although everything was
+# in place. An unchanged timestamp is not an error in a copy
+# operation; it is the normal case when reinstalling.
 $installedOk = (Test-Path -LiteralPath $aTarget)
 
 if (-not $installedOk) {
@@ -538,17 +538,18 @@ if ($src) {
 }
 try { Remove-Item -LiteralPath $mTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# R3 - der Beweis ist ein Vergleich ZIEL gegen QUELLE, nicht Ziel gegen
-# "wie es vorher war". Beim zweiten Lauf derselben Version ist die Datei
-# byte- und zeitgleich - der alte Vor/Nach-Vergleich hielt das fuer einen
-# Fehlschlag und brach mit "did not arrive" ab, obwohl die DLL korrekt lag.
+# R3 - the proof compares DESTINATION against SOURCE, not destination
+# against "how it was before". On a second run of the same version the
+# file is identical in bytes and timestamp - the old before/after
+# comparison took that for a failure and aborted with "did not
+# arrive", although the DLL was correctly in place.
 $bOk = $false
 if (Test-Path -LiteralPath $bTarget) {
     if ($src) {
         try { $bOk = ((Get-Item -LiteralPath $bTarget).Length -eq $src.Length) } catch { $bOk = $true }
     } else {
-        # Kein Quellobjekt (Archiv nicht lesbar), aber die Datei liegt am
-        # Ziel - dann ist sie von einem frueheren Lauf und in Ordnung.
+        # No source object (archive unreadable) but the file is at the
+        # destination - then it is from an earlier run and fine.
         $bOk = $true
     }
 }
@@ -563,18 +564,18 @@ if (-not $bOk) {
 Write-OK "$B_DLL installed."
 
 # --- 3/3 openvr_api.dll -----------------------------------------
-# ZWEI ZIELE, und das zweite ist das entscheidende. Die Mod ruft
-# openvr_api ueber P/Invoke auf; aufgeloest wird das von Unitys Mono,
-# und Mono sucht native Bibliotheken einer Unity-App in
-# <Spiel>_Data\Plugins\x86_64\ - nicht zuverlaessig im Spielordner.
-# Liegt die DLL nur in der Wurzel, meldet die Mod genau das, was der
-# Nutzer sieht: "openvr_api.dll not found: openvr_api assembly:
-# <unknown assembly>", die Mono-Meldung fuer eine nicht gefundene
-# native Bibliothek. Dass Plugins\x86_64 der richtige Ort ist, ist
-# belegt: Star Trucker VR und Outbound VR liefern ihre eigenen
-# OpenXR-Bibliotheken genau dort aus (<Spiel>_Data\Plugins\x86_64\
-# openxr_loader.dll). Wir legen sie in BEIDE Ordner - die Wurzel steht
-# so in der Nexus-Anleitung, Plugins\x86_64 ist das, was laedt.
+# TWO DESTINATIONS, and the second one is the decisive one. The mod
+# calls openvr_api through P/Invoke; that is resolved by Unity's Mono,
+# and Mono looks for a Unity app's native libraries in
+# <game>_Data\Plugins\x86_64\ - not reliably in the game folder.
+# With the DLL only at the root, the mod reports exactly what users
+# see: "openvr_api.dll not found: openvr_api assembly: <unknown
+# assembly>", Mono's message for a native library it cannot find.
+# That Plugins\x86_64 is the right place is documented: Star Trucker
+# VR and Outbound VR ship their own OpenXR libraries exactly there
+# (<game>_Data\Plugins\x86_64\openxr_loader.dll). We put it in BOTH
+# folders - the root is what the Nexus instructions say, and
+# Plugins\x86_64 is what actually loads.
 $ovrName    = "openvr_api.dll"
 $ovrTargets = @( (Join-Path $gameRoot $ovrName) )
 $pluginNative = Join-Path $gameRoot "$DATA_DIR\Plugins\x86_64"

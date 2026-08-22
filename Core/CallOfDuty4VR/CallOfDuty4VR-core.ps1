@@ -17,13 +17,13 @@
 #  flat game can be put back by hand.
 #
 #  LAUNCHING: the game is started by Launch-KisakCOD-VR.bat, which
-#  STAND v0.10.0-beta.12 (2026-08-13): das Paket bringt jetzt
-#  KisakCOD-VR-Configurator.exe mit - eine grafische Oberflaeche mit
-#  Presets (Tested Quest 3, Performance, Comfort Snap, Smooth Turn,
-#  Seated, Minimal HUD) und Save & Launch. Profile liegen unter
-#  LocalAppData, ueberleben also Paketupdates. Der Batch-Starter bleibt
-#  und benutzt das letzte gespeicherte Profil. Das ZIP ist vollstaendig,
-#  keine fruehere Beta noetig.
+#  AS OF v0.10.0-beta.12 (2026-08-13): the package now ships
+#  KisakCOD-VR-Configurator.exe - a graphical front end with presets
+#  (Tested Quest 3, Performance, Comfort Snap, Smooth Turn, Seated,
+#  Minimal HUD) and Save & Launch. Profiles live under LocalAppData and
+#  therefore survive package updates. The batch launcher stays and uses
+#  the last saved profile. The ZIP is complete; no earlier beta is
+#  needed.
 #  loads VR-Settings.bat and then runs KisakCOD-sp.exe with a long
 #  list of console variables. Starting KisakCOD-sp.exe directly skips
 #  all of that, and steam://rungameid does not start the VR build - so the
@@ -54,15 +54,15 @@ $PROJECT_URL   = "https://github.com/$REPO"
 $MOD_EXE     = "KisakCOD-sp.exe"
 $LAUNCH_BAT  = "Launch-KisakCOD-VR.bat"
 $SETTINGS_BAT= "VR-Settings.bat"
-# Seit v0.10.0-beta.7 liegt ein grafischer Konfigurator im Paket. Er ist
-# der vorgesehene Weg zum Einstellen; die VR-Settings.bat bleibt daneben
-# bestehen und der Batch-Starter benutzt das letzte gespeicherte Profil.
+# Since v0.10.0-beta.7 a graphical configurator ships in the package. It
+# is the intended way to change settings; VR-Settings.bat remains beside
+# it and the batch launcher uses the last saved profile.
 $CONFIG_EXE  = "KisakCOD-VR-Configurator.exe"
-# Seit v0.10.0-beta.12 liegt ZUSAETZLICH ein Eingabe-Zuordner im Paket
-# (822.784 B). Der Konfigurator stellt VR und Grafik ein, der Zuordner
-# die Tastenbelegung - zwei getrennte Werkzeuge.
+# Since v0.10.0-beta.12 an input mapper ships ADDITIONALLY (822,784 B).
+# The configurator sets VR and graphics, the mapper sets the key
+# bindings - two separate tools.
 $INPUT_EXE   = "KisakCOD-VR-Input-Mapper.exe"
-# Kopie der VORHANDENEN VR-Settings.bat vor dem Ueberschreiben.
+# A copy of the EXISTING VR-Settings.bat before it is overwritten.
 $SETTINGS_PREV = "VR-Settings.bat.hubprev"
 $ICON_FILE   = "CallOfDuty4_VR.ico"
 
@@ -238,12 +238,12 @@ Write-Info "Payload: $srcRoot"
 # Copy everything, backing up each file we would overwrite exactly once.
 # The COD4 install already owns mss32.dll, binkw32.dll, steam_api.dll and
 # miles\ - those are the ones that matter.
-# EIGENE SICHERUNG DER VR-Settings.bat, JEDEN LAUF.
-# Die Schleife unten sichert eine Datei nur, wenn noch KEINE .hubbak da
-# ist - beim zweiten Lauf (Aufstieg von beta.6 auf beta.7) waere also
-# eine von Hand bearbeitete VR-Settings.bat ohne Sicherung ueberschrieben
-# worden. Genau davor warnen die Release-Notes ("keep a copy so it can be
-# imported"). Deshalb hier eine Kopie, die JEDER Lauf frisch schreibt.
+# A DEDICATED BACKUP OF VR-Settings.bat, ON EVERY RUN.
+# The loop below only backs a file up when NO .hubbak exists yet - so on
+# a second run (moving from beta.6 to beta.7) a hand-edited
+# VR-Settings.bat would have been overwritten without a backup. That is
+# exactly what the release notes warn about ("keep a copy so it can be
+# imported"). Hence a copy here that EVERY run writes fresh.
 $settingsDest = [System.IO.Path]::Combine($gamePath, $SETTINGS_BAT)
 $settingsSaved = $false
 if (Test-Path -LiteralPath $settingsDest) {

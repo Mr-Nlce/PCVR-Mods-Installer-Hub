@@ -102,7 +102,7 @@ downloads nothing here:
 The last four are fetched at their newest release: the installer reads the current tag from
 GitHub and falls back to a known-good build if GitHub cannot be reached.
 
-## Empfohlene Zusatzmods
+## Recommended companion mods
 The mod author recommends four more mods. They live on Nexus, so the Hub cannot download them
 automatically - **the installer offers them anyway**: it opens each page in turn, then takes the
 file from your Downloads folder or from a drag & drop onto the window, and you can skip any of

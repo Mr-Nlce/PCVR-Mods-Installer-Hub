@@ -230,7 +230,7 @@ else {
  Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
@@ -472,12 +472,12 @@ try {
  # User chose Skip - continue at own risk
 }
 
-# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
-# robocopy meldet nur seinen eigenen Exitcode. Ein leeres oder falsches
-# Archiv waere bisher als "Mod files installed." durchgegangen; erst der
-# IPA-Schritt danach waere gestolpert, ohne zu sagen warum. Geprueft wird
-# am ZIEL, gegen vier Wege aus dem echten Archiv: der Patcher selbst,
-# seine Injektor-Bibliothek, das VR-Plugin und die OpenVR-Bibliothek.
+# ---- SAFEGUARD: did the right thing actually arrive? ----
+# robocopy only reports its own exit code. An empty or wrong archive
+# used to pass as "Mod files installed."; only the IPA step afterwards
+# would have stumbled, without saying why. The check is at the
+# DESTINATION, against four paths from the real archive: the patcher
+# itself, its injector library, the VR plugin and the OpenVR library.
 $MOD_MUST_HAVE = @(
     "IPA.exe",
     "IPA\Data\Managed\IllusionInjector.dll",

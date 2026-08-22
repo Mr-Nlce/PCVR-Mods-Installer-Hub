@@ -114,7 +114,7 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
-# Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+# Both protocol addresses: depending on the Steam build only one works.
 $conOk = $false
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; $conOk = $true; Start-Sleep -Milliseconds 900 } catch {}

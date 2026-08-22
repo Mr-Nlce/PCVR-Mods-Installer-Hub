@@ -28,6 +28,28 @@ $STEAM_APPID = "22180"
 $GAME_FOLDER   = "Penumbra Overture VR"
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $INFO_URL    = "https://github.com/newyork167/penumbra_vr"
+
+# ---- The SECOND mod, added 2026-08-20 -------------------------
+# rubocopter's rework. Same game, different approach - and, most
+# importantly, A DIFFERENT PLACE ON DISK:
+#   original : the whole game is COPIED to C:\Games\Penumbra
+#              Overture VR and the mod goes in that copy's redist\
+#   rework   : merges into the STEAM installation's redist\ and
+#              backs up every file it replaces
+# So the two do NOT overwrite each other, even though both ship a
+# file called Penumbra_vr.exe. Nothing has to be parked; which one
+# you play is simply which copy you launch.
+#
+# ALL RELEASES ARE PRERELEASES -> the list is queried, never
+# /releases/latest.
+$RW_NAME    = "Penumbra VR rework"
+$RW_AUTHOR  = "rubocopter"
+$RW_REPO    = "rubocopter/penumbra_vr_rework"
+$RW_RELEASES = "https://github.com/$RW_REPO/releases"
+# Read from the real v0.1.0-alpha.2 archive (52 entries, 5,852,294 B,
+# sha256 b06270e2...), not guessed.
+$RW_SETUP   = "Install-PenumbraVR.bat"
+$RW_MUST_HAVE = @("Penumbra_vr.exe", "openvr_api.dll", $RW_SETUP, "SHA256SUMS.txt")
 $DL_URLS     = @(
     "https://github.com/newyork167/penumbra_vr/releases/download/untagged-aceffe2e650abce1e795/penumbra_vr_v01.zip"
 )
@@ -119,6 +141,50 @@ Write-Host "  - The game's old engine can fail under Program Files (UAC)." -Fore
 Write-Host "  - So we COPY the game to C:\Games\$GAME_FOLDER and add the" -ForegroundColor Gray
 Write-Host "    VR mod there. Your Steam copy stays untouched." -ForegroundColor Gray
 Write-Host ""
+Write-Host ""
+
+# -------------------------------------------------------
+# STEP 0: WHICH MOD?
+# -------------------------------------------------------
+Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+Write-Host "   Two Penumbra VR mods exist. Which one?" -ForegroundColor Cyan
+Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "   [1] $MOD_NAME by $MOD_AUTHOR" -ForegroundColor White
+Write-Host "       The long-standing one, built in the HTC Vive era." -ForegroundColor Gray
+Write-Host "       Head and hand tracking, modern controllers through" -ForegroundColor Gray
+Write-Host "       SteamVR bindings. Installs into a COPY of the game" -ForegroundColor Gray
+Write-Host "       under C:\Games - your Steam copy stays untouched." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [2] $RW_NAME by $RW_AUTHOR" -ForegroundColor White
+Write-Host "       " -NoNewline
+Write-Host " EARLY ALPHA " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "       A rework with per-finger hand animation: on PS VR2" -ForegroundColor Gray
+Write-Host "       Sense, Index and Touch every finger follows its own" -ForegroundColor Gray
+Write-Host "       measured curl. Other devices get a synthesized closing" -ForegroundColor Gray
+Write-Host "       sequence. Only PS VR2 Sense is hardware-validated." -ForegroundColor Gray
+Write-Host "       Merges into your STEAM copy and backs up what it" -ForegroundColor Gray
+Write-Host "       replaces, so it can put everything back." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   They land in different folders, so having both is fine." -ForegroundColor DarkGray
+Write-Host ""
+$modChoice = ""
+for ($i = 1; $i -le 20; $i++) {
+    $modChoice = ("" + (Read-Host "  Your choice [1/2]")).Trim()
+    if ($modChoice -in @("1","2")) { break }
+    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+}
+if ($modChoice -notin @("1","2")) {
+    Write-Fail "No choice made - nothing was installed."
+    Pause-User "Press Enter to exit."
+    exit 1
+}
+
+if ($modChoice -eq "2") {
+    . (Join-Path $PSScriptRoot "PenumbraVR-rework.ps1")
+    exit 0
+}
+
 Pause-User "Press Enter to begin..."
 
 # -------------------------------------------------------
@@ -307,12 +373,12 @@ try {
     }
 }
 
-# SICHERUNG: nicht nur die Exe, sondern der ganze Satz. Vorher wurde nur
-# Penumbra_vr.exe geprueft - ein Archiv, dem die Modelle, Karten oder die
-# openvr_api.dll fehlen, waere damit als vollstaendig durchgegangen und das
-# Spiel haette erst im Betrieb versagt. Diese vier Wege deckt das Archiv
-# ab: die Mod-Exe, die OpenVR-Bibliothek, das VR-Tutorial-Level und die
-# VR-Handmodelle. Aus dem echten Archiv gelesen, nicht geraten.
+# SAFEGUARD: not just the exe but the whole set. Only Penumbra_vr.exe
+# used to be checked - an archive missing the models, maps or
+# openvr_api.dll would have passed as complete and the game would only
+# have failed in play. These four paths cover the archive: the mod exe,
+# the OpenVR library, the VR tutorial level and the VR hand models. Read
+# from the real archive, not guessed.
 $MOD_MUST_HAVE = @(
     $MOD_EXE,
     "openvr_api.dll",

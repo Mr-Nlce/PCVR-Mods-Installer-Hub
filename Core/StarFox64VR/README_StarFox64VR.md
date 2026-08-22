@@ -5,20 +5,28 @@ A full PCVR port of Star Fox 64, built on **Starship** (the HarbourMasters PC po
 **Mod**: Starship VR - by RaYRoD (VR work), on HarbourMasters Starship
 **Source**: https://github.com/RaYRoD-TV/StarFox64-VR
 
-## Two ways to get this
+## How this is installed
 
-The installer asks which you want - both give you the same port.
+**RaYRoD-TV removed the downloads from GitHub.** In his own words on the project
+page: *nothing to download here anymore, no PC builds and no Quest builds - the
+hub is the one place it all lives now.*
 
-**1. This installer.** It puts Star Fox 64 VR straight into your game folder, and
-**Start in VR** launches the game itself.
+So there is one route, and the installer takes it for you: it fetches
+**RaYRoD-TV's Multiverse VR Hub**, one small app that carries all of his VR
+ports and keeps them updated. You choose where it goes
+(`C:\Games\Multiverse VR Hub` by default). Open it, pick the port, hit Play -
+it pulls the official build and applies the VR patch itself.
 
-**2. RaYRoD-TV's own Multiverse VR Hub.** One small app that installs all six of
-his ports and keeps them updated; future builds land there first. You choose the
-folder it goes in (`C:\Games\Multiverse VR Hub` by default), and **Start in VR**
-then opens that app instead of the game - you pick the port and hit Play there.
+**Start in VR** in the PCVR Hub opens that app from then on, not the game.
 
-Either way the games stay on your own PC and you still bring your own ROM where
-one is needed. Use one or the other, not both at once.
+**The Hub checks the download for you.** RaYRoD-TV publishes a SHA-256 checksum
+with every release and asks people to verify it with `certutil`. The installer
+does that step itself: it reads the checksum out of his release note, hashes the
+file it just downloaded, and shows both side by side. If they do not match it
+stops and installs nothing.
+
+The games stay on your own PC, and you still bring your own ROM where one is
+needed.
 
 ## About
 

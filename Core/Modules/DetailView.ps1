@@ -1,6 +1,38 @@
 # Subtle scale-up on hover for non-clickable elements (hero
 # banner, description images, info pills). RenderTransform = no
 # layout shift, no clipping issues. Origin centered.
+# ------------------------------------------------------------
+#  Start-GameProcess
+# ------------------------------------------------------------
+#  A single place for "open the game/launcher". The reason this
+#  function exists is ONE catalog field: LaunchAsAdmin.
+#
+#  WHY IT BECAME NECESSARY (2026-08-19, found via World War VR):
+#  RyanCraighead states plainly in his README that his launcher must
+#  run AS ADMINISTRATOR. "Start in VR" used to start it normally -
+#  without the rights to inspect the game files under Program Files.
+#  His error message is then "The game executables are from an
+#  unsupported build", which looks like a broken game and is not one.
+#
+#  Only entries WITH the field are elevated - nothing changes for the
+#  others. If the user cancels the UAC prompt, it is NOT started
+#  unelevated as a substitute: that would be exactly the run that
+#  produces the misleading message.
+# ------------------------------------------------------------
+function global:Start-GameProcess {
+    param(
+        [Parameter(Mandatory=$true)][string]$FilePath,
+        [string]$Arguments = "",
+        [string]$WorkingDirectory = "",
+        $Game = $null
+    )
+    $sp = @{ FilePath = $FilePath }
+    if ($Arguments)        { $sp["ArgumentList"] = $Arguments }
+    if ($WorkingDirectory) { $sp["WorkingDirectory"] = $WorkingDirectory }
+    if ($Game -and $Game.LaunchAsAdmin) { $sp["Verb"] = "RunAs" }
+    Start-Process @sp
+}
+
 function global:Add-HoverScale {
     param($Element, [double]$Scale = 1.02)
     if (-not $Element) { return }
@@ -1592,6 +1624,25 @@ function global:Get-FlatVRProxyInfo {
     # candidate that is actually there wins, so the switch always toggles
     # whichever mod is currently installed. A single name behaves exactly
     # as before - one candidate, same result.
+    # FlatVRSwap: for mods that REWRITE a file instead of dropping a
+    # proxy DLL next to it (Pathfinder: its VRPatcher writes OpenVR into
+    # Kingmaker_Data\globalgamemanagers). Renaming does not work there -
+    # the game needs the file. So it is swapped:
+    #   <file>|<backup of the original>|<parking spot for the VR copy>
+    # If the parking spot exists, FLAT is currently active.
+    if ($Game.FlatVRSwap) {
+        $sw = @(([string]$Game.FlatVRSwap) -split '\|' | Where-Object { $_ })
+        if ($sw.Count -ge 3) {
+            $live = Join-Path $dir $sw[0].Trim()
+            $orig = Join-Path $dir $sw[1].Trim()
+            $park = Join-Path $dir $sw[2].Trim()
+            if (Test-Path -LiteralPath $live) {
+                return @{ Dir=$dir; Path=$live; Active=(-not (Test-Path -LiteralPath $park));
+                          Swap=@{ Live=$live; Orig=$orig; Park=$park; LiveRoot=$dir };
+                          EnabledLeaf=(Split-Path -Leaf $live); DisabledLeaf=(Split-Path -Leaf $live) }
+            }
+        }
+    }
     if ($Game.FlatVREnabled -and $Game.FlatVRDisabled) {
         $enList  = @(([string]$Game.FlatVREnabled)  -split '\|' | Where-Object { $_ })
         $disList = @(([string]$Game.FlatVRDisabled) -split '\|' | Where-Object { $_ })
@@ -1792,7 +1843,32 @@ function global:New-FlatVRToggleButton {
                 return
             }
             $parent = Split-Path -Parent $info.Path
-            if ($info.Active) {
+            if ($info.Swap) {
+                # Swapping. Take the BepInEx loader hook along as well,
+                # so both halves match - otherwise the plugin loads
+                # without a VR device or the other way round.
+                $hookOn  = Join-Path $info.Swap.LiveRoot "winhttp.dll"
+                $hookOff = Join-Path $info.Swap.LiveRoot "winhttp_bak.dll"
+                if ($info.Active) {
+                    Copy-Item -LiteralPath $info.Swap.Live -Destination $info.Swap.Park -Force -ErrorAction Stop
+                    Copy-Item -LiteralPath $info.Swap.Orig -Destination $info.Swap.Live -Force -ErrorAction Stop
+                    if (Test-Path -LiteralPath $hookOn) {
+                        if (Test-Path -LiteralPath $hookOff) { Remove-Item -LiteralPath $hookOff -Force -ErrorAction SilentlyContinue }
+                        Rename-Item -LiteralPath $hookOn -NewName "winhttp_bak.dll" -Force -ErrorAction SilentlyContinue
+                    }
+                    $nowVR = $false
+                    $msg = $Game.Title + " is now in FLAT mode (VR mod off)."
+                } else {
+                    Copy-Item -LiteralPath $info.Swap.Park -Destination $info.Swap.Live -Force -ErrorAction Stop
+                    Remove-Item -LiteralPath $info.Swap.Park -Force -ErrorAction SilentlyContinue
+                    if (Test-Path -LiteralPath $hookOff) {
+                        if (Test-Path -LiteralPath $hookOn) { Remove-Item -LiteralPath $hookOn -Force -ErrorAction SilentlyContinue }
+                        Rename-Item -LiteralPath $hookOff -NewName "winhttp.dll" -Force -ErrorAction SilentlyContinue
+                    }
+                    $nowVR = $true
+                    $msg = $Game.Title + " is now in VR mode (mod on)."
+                }
+            } elseif ($info.Active) {
                 $bak = Join-Path $parent $info.DisabledLeaf
                 if (Test-Path -LiteralPath $bak) { Remove-Item -LiteralPath $bak -Force -ErrorAction SilentlyContinue }
                 Rename-Item -LiteralPath $info.Path -NewName $info.DisabledLeaf -Force -ErrorAction Stop
@@ -2170,6 +2246,292 @@ function global:New-LocateButton {
             }
             [System.Windows.Forms.MessageBox]::Show($msg, "Locate Game") | Out-Null
         } catch {}
+    }.GetNewClosure())
+
+    return $btn
+}
+
+# ---------------------------------------------------------------
+#  Resolve-UninstallExe / New-UninstallNowButton
+# ---------------------------------------------------------------
+#  A SECOND button beside the uninstall guide, for the handful of
+#  mods that ship an uninstaller of their own. Added 2026-08-20.
+#
+#  DELIBERATELY NARROW. The Hub never deletes anything itself here:
+#  it starts what the mod author wrote, and nothing else. No file
+#  lists, no .hubbak restores, no touching Steam launch options.
+#  With 246 entries, a wrongly emptied game folder is the one
+#  mistake that cannot be taken back - so the automatic route only
+#  exists where the author already solved it.
+#
+#  TWO CONDITIONS, BOTH REQUIRED, and the second one is the point:
+#    1. the entry carries UninstallExe
+#    2. that file is REALLY on disk right now
+#  So the button cannot point at nothing - not on an uninstalled
+#  game, not on a depot copy somewhere else, not after a half
+#  finished removal. Everything without the field behaves exactly
+#  as before.
+#
+#  THE PATH IS RESOLVED AGAINST THE INSTALL ROOT, not blindly
+#  against the Steam folder: Battlefield 1942 keeps its uninstaller
+#  in BFVR\, and World at War installs into its own program folder
+#  entirely. Order: the path the installer recorded, then
+#  VrInstallRoot, then the game folder.
+function global:Resolve-UninstallExe {
+    param($Game)
+
+    if (-not $Game.UninstallExe) { return $null }
+    $rel = [string]$Game.UninstallExe
+
+    $roots = @()
+    # 1. The folder the scan resolved for this game - the same source
+    #    the rest of the detail page uses.
+    try {
+        $st = $global:gameStateMap[$Game.Title]
+        if ($st -and $st.GameDir) { $roots += [string]$st.GameDir }
+    } catch {}
+    # 2. What the installer itself recorded, read straight from
+    #    <Core>\<BatFolder>\.installed_path. Not via a helper: the one
+    #    that reads this file lives in VRModHub.ps1 and is not global,
+    #    so it is not reliably in scope here.
+    try {
+        if ($Game.Bat) {
+            $batDir = ([string]$Game.Bat).Split('\')[0]
+            $marker = "$global:scriptDir\$batDir\.installed_path"
+            if (Test-Path -LiteralPath $marker) {
+                $v = (Get-Content -LiteralPath $marker -Raw -ErrorAction SilentlyContinue)
+                if ($v) { $roots += $v.Trim() }
+            }
+        }
+    } catch {}
+    # 3. A mod that installs into a place of its own. The catalog
+    #    writes these with a prefix (LOCALAPPDATA: / APPDATA: /
+    #    PROGRAMDATA:) - expanded exactly as Filter.ps1 does, so both
+    #    read the same folder. World at War lives entirely under
+    #    %LocalAppData%\Programs\World War VR, for instance.
+    if ($Game.VrInstallRoot) {
+        try {
+            $vr = [string]$Game.VrInstallRoot
+            if ($vr -like "LOCALAPPDATA:*") {
+                $vr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($vr.Substring("LOCALAPPDATA:".Length))
+            } elseif ($vr -like "APPDATA:*") {
+                $vr = Join-Path ([Environment]::GetFolderPath("ApplicationData")) ($vr.Substring("APPDATA:".Length))
+            } elseif ($vr -like "PROGRAMDATA:*") {
+                $vr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vr.Substring("PROGRAMDATA:".Length))
+            }
+            $roots += $vr
+        } catch {}
+    }
+
+    foreach ($r in $roots) {
+        if (-not $r) { continue }
+        # String concatenation, not Join-Path: a dead drive letter
+        # would make Join-Path throw (hub-wide rule).
+        $full = "$($r.TrimEnd('\'))\$rel"
+        if (Test-Path -LiteralPath $full) { return $full }
+    }
+    return $null
+}
+
+function global:New-UninstallNowButton {
+    param(
+        $Game,
+        [string]$ExePath,
+        [string]$AccentHex = "#e07a63"
+    )
+
+    $accent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+
+    $btn = New-Object System.Windows.Controls.Border
+    $btn.CornerRadius  = [System.Windows.CornerRadius]::new(4)
+    $btn.Padding       = [System.Windows.Thickness]::new(10, 6, 10, 6)
+    $btn.Margin        = [System.Windows.Thickness]::new(8, 8, 0, 0)
+    $btn.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+    # NO fixed height on purpose. The guide button beside it and the
+    # Steam Theatre button both measure themselves, and pinning a number
+    # here once made all three SHRINK - padding 6+6, border 1.5*2 and a
+    # 12pt line come to about 31 px, not the 29 that was pinned.
+    # Both buttons carry the same padding, border, icon box and font
+    # size, so left to measure themselves they come out identical.
+    $btn.Cursor = [System.Windows.Input.Cursors]::Hand
+    # Slightly stronger than the guide beside it: the guide stays the
+    # quiet default, this one is the shortcut.
+    $fill = [System.Windows.Media.Color]::FromArgb([byte]46, $accent.Color.R, $accent.Color.G, $accent.Color.B)
+    $btn.Background = New-Object System.Windows.Media.SolidColorBrush $fill
+    $bord = [System.Windows.Media.Color]::FromArgb([byte]200, $accent.Color.R, $accent.Color.G, $accent.Color.B)
+    $btn.BorderBrush     = New-Object System.Windows.Media.SolidColorBrush $bord
+    $btn.BorderThickness = [System.Windows.Thickness]::new(1.5)
+    # A REAL hover panel, built like the guide's: the plain string
+    # tooltip it had before barely showed, so beside a button that
+    # opens a full panel this one looked like it did nothing on hover.
+    $tt = New-Object System.Windows.Controls.ToolTip
+    $tt.Background = [System.Windows.Media.Brushes]::Transparent
+    $tt.BorderThickness = [System.Windows.Thickness]::new(0)
+    $tt.Padding = [System.Windows.Thickness]::new(0)
+    $ttOuter = New-Object System.Windows.Controls.Border
+    $ttOuter.Background   = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#15171a")
+    $ttOuter.CornerRadius = [System.Windows.CornerRadius]::new(6)
+    $ttOuter.Padding      = [System.Windows.Thickness]::new(8)
+    $ttInner = New-Object System.Windows.Controls.Border
+    $ttInner.Background   = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1f2227")
+    $ttInner.CornerRadius = [System.Windows.CornerRadius]::new(4)
+    $ttInner.Padding      = [System.Windows.Thickness]::new(14, 12, 14, 12)
+    $ttInner.MinWidth = 300; $ttInner.MaxWidth = 420
+    $ttStack = New-Object System.Windows.Controls.StackPanel
+    $ttHead = New-Object System.Windows.Controls.TextBlock
+    $ttHead.Text = "Run the uninstaller that came with the mod"
+    $ttHead.FontSize = 13
+    $ttHead.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $ttHead.Foreground = [System.Windows.Media.Brushes]::White
+    $ttHead.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $ttHead.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+    $ttStack.Children.Add($ttHead) | Out-Null
+    $ttBody = New-Object System.Windows.Controls.TextBlock
+    $ttBody.Text = "It removes what it installed and nothing else. Your saves are not touched, and the Hub checks afterwards whether the mod is really gone."
+    $ttBody.FontSize = 12
+    $ttBody.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9bdc4")
+    $ttBody.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $ttBody.TextWrapping = [System.Windows.TextWrapping]::Wrap
+    $ttBody.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+    $ttStack.Children.Add($ttBody) | Out-Null
+    $ttPath = New-Object System.Windows.Controls.TextBlock
+    $ttPath.Text = $ExePath
+    $ttPath.FontSize = 11
+    $ttPath.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas")
+    $ttPath.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9fd8b0")
+    $ttPath.TextWrapping = [System.Windows.TextWrapping]::Wrap
+    $ttStack.Children.Add($ttPath) | Out-Null
+
+    # UAC LINE, ONLY FOR AN .exe. The Inno uninstallers (Sons of the
+    # Forest, Battlefield 1942, World at War) carry a manifest asking
+    # for administrator rights, so Windows raises its prompt the moment
+    # they start - and an unexpected UAC dialog looks like something
+    # went wrong. A .bat uninstaller like AWAY VR's does not ask, so
+    # saying it there would be wrong.
+    if ($ExePath -match '(?i)\.exe$') {
+        $ttUac = New-Object System.Windows.Controls.TextBlock
+        $ttUac.Text = "Windows will ask for administrator rights - that prompt comes from the uninstaller itself."
+        $ttUac.FontSize = 12
+        $ttUac.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#e0b060")
+        $ttUac.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        $ttUac.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $ttUac.Margin = [System.Windows.Thickness]::new(0, 8, 0, 0)
+        $ttStack.Children.Add($ttUac) | Out-Null
+    }
+
+    $ttInner.Child = $ttStack
+    $ttOuter.Child = $ttInner
+    $tt.Content = $ttOuter
+    $btn.ToolTip = $tt
+    [System.Windows.Controls.ToolTipService]::SetInitialShowDelay($btn, 200)
+    [System.Windows.Controls.ToolTipService]::SetShowDuration($btn, 600000)
+    # The panel is closed again on leave, exactly as the guide button
+    # does it - without this a panel opened by hover can stay behind
+    # when the pointer moves on.
+    $ttRef = $tt
+    $btn.Add_MouseLeave({
+        try { if ($ttRef.IsOpen) { $ttRef.IsOpen = $false } } catch { }
+    }.GetNewClosure())
+
+    $row = New-Object System.Windows.Controls.StackPanel
+    $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+
+    # Play triangle in a 13x13 box - the SAME box size the guide
+    # button uses for its trash can. Without it the icon is only 10 px
+    # tall, the whole row sits lower, and the button reads as smaller
+    # than its neighbour even though padding and font match exactly.
+    $iconBox = New-Object System.Windows.Controls.Grid
+    $iconBox.Width = 13; $iconBox.Height = 13
+    $iconBox.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $iconBox.Margin = [System.Windows.Thickness]::new(0, 0, 6, 0)
+    $tri = New-Object System.Windows.Shapes.Polygon
+    $tri.Points = New-Object System.Windows.Media.PointCollection
+    $tri.Points.Add((New-Object System.Windows.Point(0, 0)))   | Out-Null
+    $tri.Points.Add((New-Object System.Windows.Point(10, 5.5))) | Out-Null
+    $tri.Points.Add((New-Object System.Windows.Point(0, 11)))  | Out-Null
+    $tri.Fill = New-Object System.Windows.Media.SolidColorBrush $accent.Color
+    $tri.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $tri.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
+    $iconBox.Children.Add($tri) | Out-Null
+    $row.Children.Add($iconBox) | Out-Null
+
+    $lbl = New-Object System.Windows.Controls.TextBlock
+    $lbl.Text = "Uninstall now"
+    $lbl.FontSize = 12
+    $lbl.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $lblColor = [System.Windows.Media.Color]::FromRgb(
+        [byte]([Math]::Min(255, $accent.Color.R + 30)),
+        [byte]([Math]::Min(255, $accent.Color.G + 30)),
+        [byte]([Math]::Min(255, $accent.Color.B + 30))
+    )
+    $lbl.Foreground = New-Object System.Windows.Media.SolidColorBrush $lblColor
+    $lbl.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $row.Children.Add($lbl) | Out-Null
+    $btn.Child = $row
+
+    # SAME hover as the guide and theatre buttons beside it: 16 elements
+    # in this file use Add-StandardHover, and it draws the lit ring plus
+    # the sweep. Add-SoftHover, which stood here before, only recolours
+    # TextBlocks - on a bordered pill it does nothing visible, which is
+    # why this button felt dead on hover next to its neighbours.
+    Add-StandardHover -Border $btn
+
+    $gameTitle = [string]$Game.Title
+    $modFileRel = [string]$Game.ModFile
+    $probeRel   = if ($Game.UninstallProbeFile) { [string]$Game.UninstallProbeFile } else { $modFileRel }
+    $exeCapture = $ExePath
+
+    $btn.Add_MouseLeftButtonUp({
+        # NO CONFIRMATION DIALOG HERE. It used to repeat, word for word,
+        # what the hover panel on this button already says - including
+        # the full path. A second window that says the same thing twice
+        # is not a safeguard, it is noise, and people learn to click it
+        # away. The panel explains, the click decides.
+        # The uninstallers themselves still ask: the Inno ones open with
+        # their own "are you sure" prompt.
+        try {
+            $proc = Start-Process -FilePath $exeCapture -WorkingDirectory (Split-Path $exeCapture -Parent) -PassThru -Wait -ErrorAction Stop
+        } catch {
+            [System.Windows.MessageBox]::Show(
+                "Could not start the uninstaller:`n$($_.Exception.Message)",
+                "Uninstall", [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+            return
+        }
+
+        # VERIFY BY THE RESULT, NOT BY THE EXIT CODE. An uninstaller
+        # the user cancelled looks exactly like one that finished.
+        # UninstallProbeFile exists for the case where the uninstaller
+        # DELETES ITSELF - AWAY VR's "uninstall VR.bat" does - so the
+        # bat is gone either way and proves nothing; there we watch
+        # the restored globalgamemanagers.orig instead.
+        $stillThere = $false
+        try {
+            $root = Split-Path $exeCapture -Parent
+            if ($probeRel) {
+                $p = "$($root.TrimEnd('\'))\$probeRel"
+                $stillThere = Test-Path -LiteralPath $p
+            }
+        } catch {}
+
+        if ($stillThere) {
+            [System.Windows.MessageBox]::Show(
+                "The mod is still in place.`n`nThe uninstaller may have been cancelled, or it needs a restart to finish. The guide beside this button lists the files if you would rather remove them by hand.",
+                "Uninstall", [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+        } else {
+            [System.Windows.MessageBox]::Show(
+                "$gameTitle is back to its unmodded state.`n`nRun a scan to refresh the tile.",
+                "Uninstall", [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information) | Out-Null
+        }
+    # .GetNewClosure() IS REQUIRED HERE, and its absence is why the
+    # button reported "the argument cannot be bound to Path because it
+    # is NULL". $exeCapture, $gameTitle and $probeRel are LOCAL to this
+    # function; without the closure the handler runs later with none of
+    # them set. Both neighbouring buttons capture both their handlers
+    # the same way - a handler that reads a function-local variable
+    # must close over it.
     }.GetNewClosure())
 
     return $btn
@@ -3646,9 +4008,9 @@ function global:Start-GameInVR {
     if ($Mode -and $Game.DualMode) {
         $state = $global:gameStateMap[$Game.Title]
         if ($Mode -eq "Depot" -and $Game.DepotPath -and $Game.DepotLaunchExe) {
-            # Der Nutzer darf den Depot-Ordner frei waehlen; der Installer
-            # zeichnet den gewaehlten auf. Erst Katalogpfad, dann der
-            # aufgezeichnete - sonst startet der Knopf ins Leere.
+            # The user may pick the depot folder freely; the installer
+            # records the chosen one. Catalog path first, then the
+            # recorded one - otherwise the button launches into nothing.
             $depotRoot = $Game.DepotPath
             $depotExe  = Join-Path $depotRoot $Game.DepotLaunchExe
             if (-not (Test-Path $depotExe)) {
@@ -3812,7 +4174,7 @@ function global:Start-GameInVR {
                     $altLaunch = Join-Path $altBase $Game.LaunchExeAlt
                     if (Test-Path -LiteralPath $altLaunch) {
                         try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
-                        Start-Process -FilePath $altLaunch -WorkingDirectory (Split-Path -Parent $altLaunch)
+                        Start-GameProcess -FilePath $altLaunch -WorkingDirectory (Split-Path -Parent $altLaunch) -Game $Game
                         return
                     }
                 }
@@ -3824,9 +4186,9 @@ function global:Start-GameInVR {
             try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
             $ovDir = Split-Path -Parent $launchOverride
             if ($Game.LaunchArgs) {
-                Start-Process -FilePath $launchOverride -ArgumentList $Game.LaunchArgs -WorkingDirectory $ovDir
+                Start-GameProcess -FilePath $launchOverride -Arguments $Game.LaunchArgs -WorkingDirectory $ovDir -Game $Game
             } else {
-                Start-Process -FilePath $launchOverride -WorkingDirectory $ovDir
+                Start-GameProcess -FilePath $launchOverride -WorkingDirectory $ovDir -Game $Game
             }
             return
         }
@@ -4046,9 +4408,9 @@ function global:Start-GameInVR {
                 }
 
                 if ($effectiveArgs) {
-                    Start-Process -FilePath $exePath -ArgumentList $effectiveArgs -WorkingDirectory $launchWorkDir
+                    Start-GameProcess -FilePath $exePath -Arguments $effectiveArgs -WorkingDirectory $launchWorkDir -Game $Game
                 } else {
-                    Start-Process -FilePath $exePath -WorkingDirectory $launchWorkDir
+                    Start-GameProcess -FilePath $exePath -WorkingDirectory $launchWorkDir -Game $Game
                 }
                 return
             } catch { }
@@ -5198,6 +5560,8 @@ function global:Show-DiscoverDetail {
         "Hytale VR" = "Hytale is a block-based sandbox RPG that combines exploration, combat, crafting and building in a large fantasy world. Explore dangerous dungeons, fight creatures, create your own adventures and shape the world however you like. This entry adds an experimental SteamVR injector by heurazy with native motion-controlled hands, driven by an external camera dashboard."
         "Star Fox 64 VR" = "Star Fox 64 VR is a full PCVR port of the N64 classic, built on the Starship PC port with an OpenXR layer on top. Put on a headset and you are flying the Arwing for real - the scene renders once per eye with full head tracking, and the motion controllers drive flight, menus and everything else. No headset connected? The same exe runs as the normal flat game. You bring your own Star Fox 64 US ROM dump."
         "Super Mario 64 VR" = "sm64coopdx VR brings Super Mario 64 to immersive virtual reality, built on the sm64coopdx PC port. Look and lean naturally into the world with a VR headset. You bring your own Super Mario 64 US ROM - nothing from Nintendo is included, and the ROM never leaves your machine."
+        "F-Zero X VR" = "F-Zero X is a high-speed futuristic racing game where players compete in anti-gravity machines across extreme tracks filled with sharp turns, jumps, and hazards. Featuring up to 30 racers at once, it focuses on intense speed, aggressive competition, and mastering each vehicle's unique handling. This VR build renders it in real stereo with 6DoF head tracking, on top of G-Diffuser, Zorkats' native PC port - you bring your own US Rev 0 ROM."
+        "Diddy Kong Racing VR" = "Diddy Kong Racing is a colorful kart racing adventure where players explore a hub world, compete in races, and take on special challenges and boss battles. Unlike traditional kart racers, it features three different vehicle types - cars, hovercrafts, and planes - each offering a distinct way to race across its varied tracks. This VR build renders the whole game inside the headset with full head tracking, on top of Golden Balloon, akratch's PC port - you bring your own US 1.1 or EU 1.1 ROM."
         "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
         "Pokemon Gen 1 VR" = "Pokemon Gen 1 Recomp Voxel VR brings the classic first-generation adventure into a fully explorable voxel-based 3D world. Travel across Kanto, catch and battle Pokemon, and experience the familiar journey from an immersive first-person VR perspective."
         "Battlefield 1942 VR" = "Battlefield 1942 is a classic World War II first-person shooter that lets you fight across large battlefields as infantry or take control of tanks, aircraft, ships, and other vehicles."
@@ -5304,10 +5668,10 @@ function global:Show-DiscoverDetail {
             $noticeStack.Children.Add($noticeTxt) | Out-Null
             if ($Game.NoticeUrl) {
                 $noticeLink = New-Object System.Windows.Controls.TextBlock
-                # Beschriftung ist frei setzbar (NoticeUrlLabel). Ohne Angabe
-                # bleibt der alte Text - die beiden Bestandseintraege
-                # (Metal Hellsinger, Trombone Champ) zeigen auf eine
-                # offizielle VR-Fassung im Steam-Store.
+                # The label is free to set (NoticeUrlLabel). Without one
+                # the old text stays - the two existing entries (Metal
+                # Hellsinger, Trombone Champ) point at an official VR
+                # edition in the Steam store.
                 $noticeLink.Text = if ($Game.NoticeUrlLabel) { [string]$Game.NoticeUrlLabel } else { "Open the official VR version on Steam" }
                 $noticeLink.FontSize = 13
                 $noticeLink.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -5991,6 +6355,20 @@ function global:Show-DiscoverDetail {
             $uninstallBtn.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
             $standaloneRow.Children.Add($uninstallBtn) | Out-Null
 
+            # "Uninstall now" beside the guide - ONLY when the entry
+            # names an uninstaller AND that file is really on disk.
+            # Everything without UninstallExe is untouched by this.
+            $unExe = Resolve-UninstallExe -Game $Game
+            if ($unExe) {
+                $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $unExe
+                # SAME top and bottom margin as the guide next to it. The
+                # call site zeroes that one, so any other value here drops
+                # this button lower and makes the whole row taller - which
+                # is exactly what made it look like the wrong size.
+                $unNowBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+                $standaloneRow.Children.Add($unNowBtn) | Out-Null
+            }
+
             # If the Theatre button is alongside (box has 2 buttons),
             # render now - before the quip. If the Uninstall button is
             # alone, defer it so the quip renders first.
@@ -6254,8 +6632,8 @@ function global:Show-DiscoverDetail {
         # slate that visibly steps back so Get on Steam dominates as
         # the primary CTA. Background ~40% darker than previous
         # iteration (factor 0.10+8 instead of 0.18+10), foreground
-        # desaturated (150+0.22 instead of 180+0.30). Familie-Identitaet
-        # bleibt sichtbar, der Button tritt aber klar zurueck.
+        # desaturated (150+0.22 instead of 180+0.30). Family identity
+        # stays visible, but the button clearly steps back.
         # Label follows the same tile-button convention as the
         # isInstalledNoMod branch above.
         if ($Game.ButtonLabel) {
@@ -7105,7 +7483,7 @@ function global:Show-DiscoverDetail {
         # used to be neutral grey which read as disabled next
         # to the also-greyish Open-in-Steam button. Teal pulls
         # it out of the grey-band and signals "info/docs" tone
-        # while staying gedaempft vs the primary CTAs.
+        # while staying muted next to the primary CTAs.
         $infoBtnD.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0e1c21")
         $infoBtnD.BorderThickness = [System.Windows.Thickness]::new(1.5)
         $infoBtnD.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a9ab0")
@@ -7182,7 +7560,7 @@ function global:Show-DiscoverDetail {
             $steamIconKind  = "check"
             $steamIconColor = "#FFFFFF"
         } else {
-            # V6 gedaempftes blue palette. Open-in-Steam keeps a
+            # V6 muted blue palette. Open-in-Steam keeps a
             # clear Steam-blue identity so it reads as "the Steam
             # button" rather than a generic grey tile - but the
             # tones stay matter than the Get-on-Steam CTA above

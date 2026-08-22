@@ -34,10 +34,11 @@ $GAME_EXE     = "ReadyOrNot.exe"
 $STEAM_FOLDER = "Ready Or Not"
 $PAKS_SUBDIR  = "ReadyOrNot\Content\Paks"
 $PAK_NAME     = "pakchunk98-VR_OR_NOT_P.pak"
-# Nur noch der Stamm des Namens - die vollstaendige Datei heisst bei
-# jedem anders, weil Nexus Zaehler und Zufallskennung anhaengt. Nirgends
-# mehr als "so heisst deine Datei" ausgeben; erkannt wird ueber Groesse
-# und Inhalt (Find-RonModDownload / Test-RonModArchive).
+# Only the stem of the name - the full file is called something
+# different on every machine because Nexus appends counters and a
+# random id. Never print it as "this is what your file is called";
+# detection goes by size and content (Find-RonModDownload /
+# Test-RonModArchive).
 $ZIP_NAME     = "pakchunk98-VR_OR_NOT_P ... .zip"
 $APP_ID       = "1144200"
 $NEXUS_URL    = "https://www.nexusmods.com/readyornot/mods/6914"
@@ -75,23 +76,23 @@ $DEPOT_SHORTCUT_NAME  = "Ready or Not VR"
 # 2026-06-15 13:10. That build time is what the catalog carries as
 # ModBuildStamp. Version 1031 is the CURRENT file - there is no 1016 on
 # the page, not even under older versions.
-# Kennzahlen der RICHTIGEN Datei, aus dem echten Archiv gelesen. Der
-# Dateiname taugt NICHT zur Pruefung - Nexus haengt Zaehler und Zeit an
-# ("pakchunk98-VR_OR_NOT_P 6914 1031 2026-06-15T10-17Z AHhotnRjo.zip"),
-# und ein aehnlich benanntes Archiv aus dem Downloads-Ordner sieht genauso
-# aus. Geprueft wird deshalb der INHALT: genau eine .pak mit diesem Namen
-# und dieser Groesse.
+# Fingerprint of the RIGHT file, read from the real archive. The file
+# name is NO good for checking - Nexus appends counters and a
+# timestamp ("pakchunk98-VR_OR_NOT_P 6914 1031 2026-06-15T10-17Z
+# AHhotnRjo.zip"), and a similarly named archive in the downloads
+# folder looks exactly the same. So the CONTENT is checked: exactly
+# one .pak with this name and this size.
 $PAK_SIZE_1031    = 299048886
-$MOD_ZIP_SIZE     = 295601160   # das Nexus-Zip selbst, Version 1031
+$MOD_ZIP_SIZE     = 295601160   # the Nexus zip itself, version 1031
 $MOD_FILE_DATE    = "15 June 2026"
 $MOD_FILE_SIZE    = "281.9 MB"
 $MOD_FILE_VERSION = "1031"
-# DLSS Swapper wird zur LAUFZEIT aufgeloest, nicht festgenagelt: Get-
-# DlssSwapperUrl fragt die GitHub-API nach dem neuesten Release und
-# nimmt den passenden Anhang. Die beiden Werte hier sind nur der
-# Rueckfall, wenn die API nicht erreichbar oder rate-limited ist - sie
-# muessen trotzdem mitgezogen werden, sonst laedt ein Rechner ohne
-# API-Zugang etwas Altes.
+# DLSS Swapper is resolved at RUN TIME, not pinned:
+# Get-DlssSwapperUrl asks the GitHub API for the newest release and
+# takes the matching asset. The two values here are only the fallback
+# for when the API is unreachable or rate limited - they still have to
+# be kept current, otherwise a machine without API access downloads
+# something old.
 $DLSS_PINNED_TAG    = "v1.2.5.0"
 $DLSS_PINNED_VER    = "1.2.5.0"
 $DLSS_INSTALLER_URL = "https://github.com/beeradmoore/dlss-swapper/releases/download/$DLSS_PINNED_TAG/DLSS.Swapper-$DLSS_PINNED_VER-installer.exe"
@@ -186,10 +187,10 @@ function Get-DroppedFile {
     }
 }
 
-# Neueste DLSS-Swapper-Datei von GitHub holen. $Kind ist "installer"
-# oder "portable"; gesucht wird im neuesten Release der Anhang, dessen
-# Name darauf endet. Kommt die API nicht durch, gibt die Funktion $null
-# zurueck und der Aufrufer nimmt die gepinnte URL.
+# Fetch the newest DLSS Swapper file from GitHub. $Kind is "installer"
+# or "portable"; in the newest release the asset whose name ends in
+# that is taken. If the API does not answer, the function returns
+# $null and the caller uses the pinned URL.
 function Get-DlssSwapperUrl {
     param([ValidateSet("installer","portable")][string]$Kind)
     try {
@@ -205,11 +206,11 @@ function Get-DlssSwapperUrl {
     return $null
 }
 
-# Die Mod im Downloads- oder Desktop-Ordner finden, OHNE sich auf den
-# Dateinamen zu verlassen: Nexus haengt Zaehler und Zufallskennung an
+# Find the mod in the downloads or desktop folder WITHOUT relying on
+# the file name: Nexus appends counters and a random id
 # ("pakchunk98-VR_OR_NOT_P 6914 1031 2026-06-15T10-17Z AHhotnRjo.zip").
-# Zuerst die exakte Dateigroesse, dann Namensbruchstuecke - und jeder
-# Kandidat wird anschliessend am INHALT geprueft.
+# Exact file size first, then fragments of the name - and every
+# candidate is then checked by its CONTENT.
 function Find-RonModDownload {
     $folders = @()
     foreach ($f in @(
@@ -227,7 +228,7 @@ function Find-RonModDownload {
     }
     if ($cands.Count -eq 0) { return $null }
 
-    # Reihenfolge: exakte Groesse zuerst, dann Name, dann der Rest der Zips.
+    # Order: exact size first, then name, then the remaining zips.
     $ranked = @()
     $ranked += $cands | Where-Object { $_.Length -eq $MOD_ZIP_SIZE -or $_.Length -eq $PAK_SIZE_1031 }
     $ranked += $cands | Where-Object { $_.Name -imatch 'VR_OR_NOT' -and $ranked -notcontains $_ }
@@ -248,10 +249,10 @@ function Find-RonModDownload {
     return $null
 }
 
-# Ist das WIRKLICH die Mod-Datei? Geprueft wird der Inhalt, nicht der
-# Name. Rueckgabe: "ok" (Name und Groesse stimmen), "other" (die pak ist
-# drin, aber eine andere Groesse - anderer Build), "no" (keine passende
-# pak im Archiv) oder "unknown" (Archiv nicht lesbar).
+# Is this REALLY the mod file? The content is checked, not the name.
+# Returns: "ok" (name and size match), "other" (the pak is in there but
+# a different size - another build), "no" (no matching pak in the
+# archive) or "unknown" (archive unreadable).
 function Test-RonModArchive {
     param([string]$Path)
     try {
@@ -263,8 +264,8 @@ function Test-RonModArchive {
         }
         if (-not $hit) { return "no" }
     } catch { return "unknown" }
-    # Groesse der pak IM Archiv lesen - nur .zip, alles andere bleibt
-    # bei der Namenspruefung oben.
+    # Read the pak's size INSIDE the archive - .zip only, everything
+    # else stays with the name check above.
     if ($Path -match '(?i)\.zip$') {
         try {
             Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
@@ -367,11 +368,11 @@ if ($isDepot) {
     }
     Pause-User "Press Enter to open the Steam Console..."
 
-    # STEAM MUSS LAUFEN, sonst verschluckt der Protokoll-Handler die
-    # Navigation: er startet Steam und die Konsole erscheint nie. Also
-    # erst pruefen, notfalls Steam starten und ihm Zeit lassen.
-    # steam.exe IMMER aufloesen, nicht nur wenn Steam gerade aus ist -
-    # der Hinweis unten braucht den vollen Pfad in jedem Fall.
+    # STEAM MUST BE RUNNING, otherwise the protocol handler swallows
+    # the navigation: it starts Steam and the console never appears. So
+    # check first, start Steam if needed and give it time.
+    # ALWAYS resolve steam.exe, not only when Steam happens to be
+    # closed - the note below needs the full path in every case.
     $steamExe = $null
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try {
@@ -391,8 +392,8 @@ if ($isDepot) {
         Start-Sleep -Seconds 3
     }
 
-    # Zwei Protokoll-Adressen, weil je nach Client-Version nur eine
-    # zieht: open/console ist die aeltere, nav/console die neuere.
+    # Two protocol addresses, because depending on the client version
+    # only one works: open/console is the older, nav/console the newer.
     foreach ($u in @("steam://open/console", "steam://nav/console")) {
         try { Start-Process $u; Start-Sleep -Milliseconds 900 } catch {}
     }
@@ -409,14 +410,14 @@ if ($isDepot) {
     Write-Host "  this line - then come back here:" -ForegroundColor White
     Write-Host "    Depot download complete : ...\depot_$DEPOT_DEPOTID " -ForegroundColor Black -BackgroundColor Yellow
     Write-Host ""
-    # Nur fuer den Fall, dass die Zwischenablage nicht ging - deshalb grau
-    # und unmarkiert. Beim normalen Weg tippt das niemand ab.
+    # Only in case the clipboard did not work - hence grey and
+    # unhighlighted. On the normal route nobody types this out.
     Write-Host "  If the clipboard did not work, the command reads:" -ForegroundColor DarkGray
     Write-Host "    $DEPOT_COMMAND" -ForegroundColor DarkGray
     Write-Host ""
-    # AB HIER NUR NOCH RUECKFALL - durchgehend DarkGray und ohne
-    # Hervorhebung, damit es nicht wie eine Aufgabe aussieht. Es hat nur
-    # Bedeutung, wenn die Konsole nicht aufgegangen ist.
+    # FALLBACK ONLY FROM HERE - all DarkGray and unhighlighted so it
+    # does not look like a task. It only matters if the console failed
+    # to open.
     Write-Host "  If no console window opened:" -ForegroundColor DarkGray
     Write-Host "    Steam menu bar: View - Console. If there is no Console entry," -ForegroundColor DarkGray
     Write-Host "    close Steam and start it once with the -console switch:" -ForegroundColor DarkGray
@@ -496,9 +497,9 @@ if ($isDepot) {
     # back to Steam or refuse to start.
     try { Set-Content -Path (Join-Path $targetPath "steam_appid.txt") -Value $DEPOT_APPID -Encoding ASCII -NoNewline -Force; Write-OK "steam_appid.txt written." }
     catch { Write-Warn "Could not write steam_appid.txt - if the game bounces to Steam, create it by hand with: $DEPOT_APPID" }
-    # Ein eigener Ordner ist voellig in Ordnung: der Hub liest den
-    # gewaehlten Pfad aus .installed_path (Get-DepotCandidatePaths), der
-    # Katalogpfad ist nur der Vorschlag. Nichts weiter zu tun.
+    # A folder of your own is perfectly fine: the Hub reads the chosen
+    # path from .installed_path (Get-DepotCandidatePaths); the catalog
+    # path is only the suggestion. Nothing further to do.
     $gameDir = $targetPath
 } else {
 
@@ -566,8 +567,8 @@ try { Start-Process $NEXUS_FILES_URL } catch { Write-Warn "Open manually: $NEXUS
 
 # Accept the .zip (preferred) or the .pak directly if the user already
 # extracted it. Both are fine.
-# ZUERST SELBER SUCHEN. Der Dateiname taugt dafuer nicht, also gehen wir
-# ueber die Groesse und pruefen jeden Kandidaten am Inhalt.
+# SEARCH OURSELVES FIRST. The file name is no use for that, so we go
+# by size and check every candidate by its content.
 $auto = Find-RonModDownload
 if ($auto) {
     Write-Host ""
@@ -593,8 +594,8 @@ while ($true) {
     }
     if (-not $drop) { Write-Fail "No file provided - cannot install without the mod."; Pause-User "Press Enter to exit..."; exit 1 }
 
-    # Eine losgelassene .pak wird an ihrer Groesse gemessen, ein Archiv an
-    # seinem Inhalt. Der Dateiname zaehlt in keinem der beiden Faelle.
+    # A dropped .pak is measured by its size, an archive by its
+    # content. The file name counts in neither case.
     if ([System.IO.Path]::GetExtension($drop).ToLower() -eq ".pak") {
         $pLen = 0
         try { $pLen = (Get-Item -LiteralPath $drop).Length } catch {}
@@ -620,7 +621,7 @@ while ($true) {
         Write-Host "  in. Needed is the main file from the mod's Files page." -ForegroundColor White
         continue
     }
-    # "other" - richtige pak, andere Groesse
+    # "other" - right pak, different size
     Write-Warn "The archive holds $PAK_NAME, but not the build documented here"
     Write-Host "  (expected $PAK_SIZE_1031 bytes for version $MOD_FILE_VERSION)." -ForegroundColor White
     Write-Host "  That is fine if the modder shipped a newer file." -ForegroundColor White
@@ -642,9 +643,9 @@ if ($dropExt -eq ".pak") {
     try { New-Item -ItemType Directory -Force -Path $xtemp | Out-Null } catch {}
     try {
         Expand-Archive -Path $drop -DestinationPath $xtemp -Force
-        # NUR die richtige .pak. Der frueher hier stehende Rueckfall "nimm
-        # irgendeine .pak" war genau das Loch, durch das ein aehnlich
-        # benanntes Archiv gerutscht waere - geprueft wurde vorher nichts.
+        # ONLY the right .pak. The fallback that used to stand here -
+        # "take any .pak" - was exactly the hole a similarly named
+        # archive would slip through; nothing was verified before.
         $pakHit = Get-ChildItem -Path $xtemp -Filter $PAK_NAME -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($pakHit) {
             Copy-Item -Path $pakHit.FullName -Destination $destPak -Force
@@ -797,9 +798,9 @@ if ($wantDlss) {
     Write-Host ""
     Write-Host ""
     if ($isDepot) {
-        # Der Depot-Build liegt nicht in der Steam-Bibliothek, also findet
-        # ihn die automatische Spielesuche des Swappers nicht. Er muss von
-        # Hand ueber den Ordner hinzugefuegt werden.
+        # The depot build is not in the Steam library, so the Swapper's
+        # automatic game search does not find it. It has to be added by
+        # hand through the folder.
         Write-Host "  +==========================================================+" -ForegroundColor Yellow
         Write-Host "  |  ADD THIS BUILD BY HAND - IT IS NOT FOUND AUTOMATICALLY  |" -ForegroundColor Yellow
         Write-Host "  +==========================================================+" -ForegroundColor Yellow
@@ -854,8 +855,9 @@ Write-Host "============================================================" -Foreg
 # ---- Launch once in flat mode to apply the settings ----
 Pause-User "Press Enter to start the game and apply these settings (this installer stays open)..." -Color Yellow
 if ($isDepot) {
-    # NIEMALS steam://rungameid im Depot-Zweig - das startet die STEAM-
-    # Kopie, nicht den gerade eingerichteten Build. Genau das war zu sehen.
+    # NEVER steam://rungameid in the depot route - that launches the
+    # STEAM copy, not the build just set up. That is exactly what was
+    # observed.
     $depotExeRun = Join-Path $gameDir $GAME_EXE
     if (Test-Path -LiteralPath $depotExeRun) {
         try { Start-Process -FilePath $depotExeRun -ArgumentList $DEPOT_LAUNCH_OPTS -WorkingDirectory $gameDir }
@@ -879,8 +881,8 @@ Write-Host "   1) Manual    - press the U key in-game after the mission loads." 
 Write-Host "   2) Automatic - drop into VR about 3 seconds after a mission loads." -ForegroundColor White
 $vrChoice = Read-OneTwo "Choose 1 or 2"
 if ($isDepot) {
-    # Kein Steam-Feld fuer diese Kopie - die Wahl landet auf der
-    # Verknuepfung, sonst waere sie wirkungslos.
+    # No Steam field for this copy - the choice lands on the shortcut,
+    # otherwise it would have no effect.
     if ($vrChoice -eq 2) {
         $depotExeVr = Join-Path $gameDir $GAME_EXE
         $lnk2 = $null

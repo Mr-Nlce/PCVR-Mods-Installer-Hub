@@ -103,6 +103,8 @@ function global:New-ControlTypeIcon {
 # run but are still rough / early. Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
+    "Sons of the Forest",
+    "theHunter: Call of the Wild VR",
     "Legend of Zelda: Twilight Princess",
     "Arma 3 VR",
     "C&C Generals: Zero Hour",
@@ -112,7 +114,9 @@ $global:WIP_GAME_TITLES = @(
     "Stardew Valley VR",
     "GTA IV VR",
     "My Friendly Neighborhood VR",
-    "Shenmue I & II"
+    "Shenmue I & II",
+    "Red Faction VR",
+    "Singularity VR"
 )
 
 # -------------------------------------------------------
@@ -1127,9 +1131,30 @@ function global:New-GameCardFrosted {
     # ". by <Author>" tail so it stays on ONE line instead of being
     # ellipsised. A tile-space decision only - the detail page still
     # credits the creator, and the Author field stays intact for search.
-    $hideTileAuthor = ($game.Title -in @("Assassin's Creed Valhalla VR",
-                                         "Assassin's Creed Odyssey VR",
-                                         "Assassin's Creed Mirage VR"))
+    # MEASURED, NOT MAINTAINED: with a TWO-LINE title, mod name and
+    # modder move into ONE shared line. If "<mod> . by <author>" does
+    # not fit there, the author is cut off at the end - you then see
+    # "... by R" or just "by". That must never happen: in that case the
+    # author is dropped ENTIRELY.
+    # The author stays in the catalog (for search) and remains on the
+    # detail page - this is purely a space decision on the tile.
+    # There used to be a hand-maintained title list here; it had to be
+    # updated with every new entry and was forgotten.
+    $hideTileAuthor = $false
+    if ($isLongTitle -and $game.Mod -and $game.Author -and -not $game.ImprovementTag) {
+        try {
+            $metaProbe = New-Object System.Windows.Media.FormattedText(
+                ($game.Mod + " . by " + $game.Author),
+                [System.Globalization.CultureInfo]::CurrentCulture,
+                [System.Windows.FlowDirection]::LeftToRight,
+                $titleTypeface,
+                $titleText.FontSize,
+                [System.Windows.Media.Brushes]::White,
+                96
+            )
+            if ($metaProbe.Width -gt $titleAvailWidth) { $hideTileAuthor = $true }
+        } catch { }
+    }
     # Scoped overrides: titles that visibly wrap to two lines but measure
     # UNDER the cutoff, so the width test alone puts them on the
     # short-title path - which gives them mod and author on SEPARATE
@@ -1418,7 +1443,7 @@ function global:New-GameCardFrosted {
     # between the card's bottom-gradient and pure black) keeps the
     # button calm and readable; a 3px accent-color cap on the left
     # signals "action pending" and preserves the card's color
-    # identity without the full-bleed quietsch. Cap color is the
+    # identity without the full-bleed garishness. Cap color is the
     # game's accent; text is a soft warm-white tinted by accent
     # luminance for legibility.
     $btnAccentHex = Get-DampenedAccentHex $accentHex
@@ -3345,9 +3370,30 @@ function global:New-GameCardClassic {
     # ". by <Author>" tail so it stays on ONE line instead of being
     # ellipsised. A tile-space decision only - the detail page still
     # credits the creator, and the Author field stays intact for search.
-    $hideTileAuthor = ($game.Title -in @("Assassin's Creed Valhalla VR",
-                                         "Assassin's Creed Odyssey VR",
-                                         "Assassin's Creed Mirage VR"))
+    # MEASURED, NOT MAINTAINED: with a TWO-LINE title, mod name and
+    # modder move into ONE shared line. If "<mod> . by <author>" does
+    # not fit there, the author is cut off at the end - you then see
+    # "... by R" or just "by". That must never happen: in that case the
+    # author is dropped ENTIRELY.
+    # The author stays in the catalog (for search) and remains on the
+    # detail page - this is purely a space decision on the tile.
+    # There used to be a hand-maintained title list here; it had to be
+    # updated with every new entry and was forgotten.
+    $hideTileAuthor = $false
+    if ($isLongTitle -and $game.Mod -and $game.Author -and -not $game.ImprovementTag) {
+        try {
+            $metaProbe = New-Object System.Windows.Media.FormattedText(
+                ($game.Mod + " . by " + $game.Author),
+                [System.Globalization.CultureInfo]::CurrentCulture,
+                [System.Windows.FlowDirection]::LeftToRight,
+                $titleTypeface,
+                $titleText.FontSize,
+                [System.Windows.Media.Brushes]::White,
+                96
+            )
+            if ($metaProbe.Width -gt $titleAvailWidth) { $hideTileAuthor = $true }
+        } catch { }
+    }
     # Scoped overrides: titles that visibly wrap to two lines but measure
     # UNDER the cutoff, so the width test alone puts them on the
     # short-title path - which gives them mod and author on SEPARATE
@@ -3636,7 +3682,7 @@ function global:New-GameCardClassic {
     # between the card's bottom-gradient and pure black) keeps the
     # button calm and readable; a 3px accent-color cap on the left
     # signals "action pending" and preserves the card's color
-    # identity without the full-bleed quietsch. Cap color is the
+    # identity without the full-bleed garishness. Cap color is the
     # game's accent; text is a soft warm-white tinted by accent
     # luminance for legibility.
     $btnAccentHex = Get-DampenedAccentHex $accentHex

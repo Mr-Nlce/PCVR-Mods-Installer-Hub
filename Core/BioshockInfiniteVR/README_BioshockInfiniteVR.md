@@ -98,6 +98,28 @@ everything is rebindable in SteamVR's own binding UI.
 Quitting SteamVR mid-game no longer kills the game - it drops to flat and keeps
 running. While the SteamVR dashboard is open, controller input pauses by design.
 
+## The VR switches (the installer sets these for you)
+
+Infinite is the odd one of the three BioShocks: it has **no one-click VR button**.
+BioShock 1 has *VR PRESET 1* and BioShock 2 has *APPLY PRESET* - Infinite has
+neither, and its stereo and head-tracking switches are not armed on their own.
+
+That is what a flat panel with black borders in the headset means: VR started, but
+stereo and head tracking are off, and the game is still rendering 16:9 into a
+near-square headset panel.
+
+**The Hub's installer handles it.** It writes the author's tested settings to:
+
+    %APPDATA%\..\Local\BioshockVR\bsi\vrpreset.ini
+
+Eight lines, and three of them are what matter: stereo on, head drive on, and a
+near-square resolution of 2064x2208. If you already had settings there, the
+installer asks first and backs yours up as `vrpreset.ini.bak`.
+
+Note the folder: the three BioShocks **never share files**. BioShock 1 uses
+`BioshockVR\`, BioShock 2 uses `BioshockVR\bs2\`, Infinite uses
+`BioshockVR\bsi\`.
+
 ## In the headset, but only a flat floating screen?
 
 That is **not** a runtime problem - VR started, but stereo and head-tracking are

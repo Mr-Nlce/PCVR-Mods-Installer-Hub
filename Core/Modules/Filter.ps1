@@ -573,14 +573,14 @@ function global:Set-InstallFilterMode {
         if ($tb -and $tb.Resources.Contains("shFg")) { $tb.Resources.Remove("shFg") | Out-Null }
         $pill.Background = $glassBg
     }
-    # DIE ZAHL IM TRAEGER HAT DIESELBE FALLE, und sie hat zugeschlagen:
-    # Add-SoftHover sammelt ALLE TextBlocks unter der Pille - also auch die
-    # Ziffer - und legt beim Hover die Ruhefarbe in "shFg" ab. Die Schleife
-    # oben raeumt nur Child.Children[0] auf, das ist die Beschriftung. Wer
-    # die Pille also erst ueberfahren und dann angeklickt hat, bekam beim
-    # Verlassen die ALTE, gedaempfte Ziffernfarbe zurueckgeschrieben -
-    # deshalb war die Zahl im ausgewaehlten Zustand schlecht lesbar und
-    # wurde erst beim naechsten Hover wieder heller.
+    # THE NUMBER IN THE BADGE HAS THE SAME TRAP, and it did bite:
+    # Add-SoftHover collects ALL TextBlocks under the pill - the digit
+    # included - and stores the resting colour in "shFg" on hover. The
+    # loop above only clears Child.Children[0], which is the label. So
+    # anyone who hovered the pill and then clicked it got the OLD, muted
+    # digit colour written back on leaving - which is why the number was
+    # hard to read while selected and only brightened again on the next
+    # hover.
     if ($filterUpdCount -and $filterUpdCount.Resources.Contains("shFg")) {
         $filterUpdCount.Resources.Remove("shFg") | Out-Null
     }
@@ -612,11 +612,11 @@ function global:Set-InstallFilterMode {
         }
     }
 
-    # --- Updates-Pille: sichtbar nur nach einem Scan UND nur wenn es
-    # ueberhaupt etwas zu aktualisieren gibt. Sie steht bewusst NEBEN dem
-    # Anker/Partner-Tausch der beiden oberen Pillen und macht daran nichts
-    # mit. Hier zentral erledigt, weil alle drei Stellen, die die Pillen
-    # nach einem Scan einblenden, ohnehin Set-InstallFilterMode aufrufen.
+    # --- Updates pill: visible only after a scan AND only when there is
+    # something to update at all. It deliberately sits OUTSIDE the
+    # anchor/partner swap of the two pills above and takes no part in it.
+    # Handled centrally here because all three places that reveal the
+    # pills after a scan call Set-InstallFilterMode anyway.
     if ($filterUpdate) {
         $updCount = 0
         try {
@@ -631,27 +631,28 @@ function global:Set-InstallFilterMode {
             $filterUpdate.Visibility = [System.Windows.Visibility]::Visible
             if ($filterUpdCount) { $filterUpdCount.Text = [string]$updCount }
         } else {
-            # Nichts zu aktualisieren -> Pille weg. War sie der aktive
-            # Filter, faellt der Modus zurueck, sonst zeigte die Liste
-            # nichts mehr und niemand wuesste warum.
+            # Nothing to update -> pill gone. If it was the active
+            # filter, the mode falls back - otherwise the list would show
+            # nothing and nobody would know why.
             $filterUpdate.Visibility = [System.Windows.Visibility]::Collapsed
             if ($filterUpdCount) { $filterUpdCount.Text = "0" }
             if ($Mode -eq "update") { $script:installFilterMode = "off"; $Mode = "off" }
         }
-        # Der Traeger der Zahl. Sie steht auch im ABGEWAEHLTEN Zustand da -
-        # deshalb dort ein zurueckhaltendes, halbdurchlaessiges Blau (12 %
-        # Deckung) mit gedaempfter Ziffer; angewaehlt wird beides kraeftiger
-        # (27 %, helle Ziffer). #AARRGGBB, die ersten zwei Stellen sind Alpha.
+        # The badge carrying the number. It is on screen in the
+        # DESELECTED state too - hence a restrained, semi-transparent blue
+        # there (12 % opacity) with a muted digit; selected, both get
+        # stronger (27 %, bright digit). #AARRGGBB, the first two digits
+        # are alpha.
         if ($filterUpdBadge) {
             $filterUpdBadge.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString(
                 $(if ($Mode -eq "update") { "#4460A5FA" } else { "#1F60A5FA" }))
         }
         if ($filterUpdCount) {
-            # ANGEWAEHLT: REINES WEISS, mit Absicht. Add-SoftHover hellt beim
-            # Hover jeden Text auf #dddddd auf, der NICHT reinweiss ist -
-            # bei #EAF3FD wurde die Ziffer dadurch beim Ueberfahren sogar
-            # dunkler und sprang hin und her. Reinweiss laesst der Hover in
-            # Ruhe, genau wie bei der Beschriftung der aktiven Pille.
+            # SELECTED: PURE WHITE, on purpose. On hover Add-SoftHover
+            # lifts any text that is NOT pure white to #dddddd - with
+            # #EAF3FD the digit actually got darker when hovered and
+            # flickered back and forth. Pure white is left alone by the
+            # hover, exactly like the label of the active pill.
             $filterUpdCount.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString(
                 $(if ($Mode -eq "update") { "#FFFFFF" } else { "#8FB6DD" }))
         }
@@ -852,8 +853,8 @@ function global:Test-GamePassesFilter {
             } else {
                 $st = $global:gameStateMap[$GameData.Title]
                 if ($script:installFilterMode -eq "update") {
-                    # Updates = installiert UND es liegt eine neuere Version
-                    # vor. Echte Teilmenge von VR Ready.
+                    # Updates = installed AND a newer version exists. A
+                    # true subset of VR Ready.
                     $instMatch = ($st -ne $null) -and ($st.State -eq "update")
                 } elseif ($script:installFilterMode -eq "ready") {
                     # VR Ready = the VR mod is installed (states ready/update).
@@ -1001,8 +1002,8 @@ $filterVRReady.Add_PreviewMouseLeftButtonDown({
 })
 
 $filterUpdate.Add_PreviewMouseLeftButtonDown({
-    # Eigener Schalter, kein Tausch: an oder aus. Die beiden anderen
-    # Pillen behalten ihr Wechselspiel unter sich.
+    # A switch of its own, not a swap: on or off. The other two pills
+    # keep their exchange to themselves.
     $newMode = if ($script:installFilterMode -eq "update") { "off" } else { "update" }
     Set-InstallFilterMode $newMode
     Apply-Filter
@@ -1294,6 +1295,35 @@ if ($searchHideChk) {
         Update-SearchHint
     })
 }
+# SELF-HEALING FOR THE SEARCH BAR (2026-08-20). Reported symptom:
+# the bar sometimes gets stuck showing one of the rotating example
+# words, looking as if something were selected, and clicking into it
+# does nothing.
+# HONEST NOTE: the root cause is not proven. What is certain: the
+# bar's whole state hangs on GotKeyboardFocus/LostKeyboardFocus, and
+# LostKeyboardFocus has an early exit (a click into the hint row) -
+# after which the example timer kept running even though the box no
+# longer holds keyboard focus. If the window loses focus at that
+# moment, an example word stays on screen and nobody can type.
+# This handler rebuilds the state on EVERY click on the search pill,
+# whatever caused it: force focus, reset timer and placeholder.
+# PreviewMouseDown so it also fires when a child would swallow the
+# click.
+$searchPill = $window.FindName("SearchPill")
+if ($searchPill -and $searchBox) {
+    $searchPill.Add_PreviewMouseDown({
+        try {
+            if (-not $searchBox.IsKeyboardFocusWithin) {
+                $searchBox.Focus() | Out-Null
+                [System.Windows.Input.Keyboard]::Focus($searchBox) | Out-Null
+            }
+            # Rebuild the state instead of hoping it is right.
+            if ($searchBox.Text.Length -eq 0) { Start-SearchExamples } else { Stop-SearchExamples }
+            Update-SearchHint
+        } catch {}
+    })
+}
+
 if ($searchBox) {
     $searchBox.Add_GotKeyboardFocus({ Start-SearchExamples; Update-SearchHint })
     $searchBox.Add_LostKeyboardFocus({
@@ -1303,7 +1333,14 @@ if ($searchBox) {
         try {
             $to = $e.NewFocus
             while ($to) {
-                if ($to -eq $searchHintHost) { return }
+                if ($to -eq $searchHintHost) {
+                    # Focus moved into the hint row - that stays open.
+                    # BUT: the example timer used to keep running here even
+                    # though the box no longer holds the keyboard. That is
+                    # exactly the state that then looks "stuck".
+                    try { $script:SearchExampleTimer.Stop() } catch {}
+                    return
+                }
                 $to = [System.Windows.Media.VisualTreeHelper]::GetParent($to)
             }
         } catch {}
@@ -1832,9 +1869,10 @@ function global:Get-DualModePresence {
     # files is present. For entries where ModFileAlt is just the parked
     # "disabled" name, that reads correctly too: the mod IS installed.
     $relList = @($Game.ModFile)
-    if ($Game.ModFileAlt) { $relList += $Game.ModFileAlt }
-    # Nicht nur der Katalogpfad: der Nutzer darf den Depot-Ordner frei
-    # waehlen, und der Installer hat den gewaehlten aufgezeichnet.
+    if ($Game.ModFileAlt)  { $relList += $Game.ModFileAlt }
+    if ($Game.ModFileAlt2) { $relList += $Game.ModFileAlt2 }
+    # Not just the catalog path: the user may pick the depot folder
+    # freely, and the installer recorded the one that was chosen.
     $depotDir = $null
     foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
         foreach ($rel in $relList) {
@@ -1907,18 +1945,16 @@ function global:Invoke-ScanWebGet {
 }
 
 function global:Get-CodebergLatestTagCached {
-    # Wie Get-GithubLatestTagCached, nur fuer Codeberg. Codeberg laeuft auf
-    # FORGEJO und hat dieselbe API-Form wie Gitea:
+    # Like Get-GithubLatestTagCached, but for Codeberg. Codeberg runs on
+    # FORGEJO and has the same API shape as Gitea:
     #   https://codeberg.org/api/v1/repos/<owner>/<repo>/releases?limit=1
-    # Das erste Element traegt tag_name. Anders als bei GitHub gibt es kein
-    # enges 60/Stunde-Limit, deshalb steht hier die API VORNE und der
-    # RSS-Feed (/releases.rss, ebenfalls von Forgejo bereitgestellt) ist nur
-    # der Rueckfall.
+    # The first element carries tag_name. Unlike GitHub there is no tight
+    # 60/hour limit, so the API comes FIRST here and the RSS feed
+    # (/releases.rss, also served by Forgejo) is only the fallback.
     #
-    # Eigene Cache-Datei .cb_version_cache, damit sich Codeberg- und
-    # GitHub-Schluessel nie in die Quere kommen. Gleiche TTL von 6 Stunden,
-    # gleiches Verhalten bei Fehlern: der ZULETZT bekannte Tag wird
-    # zurueckgegeben, damit der Update-Zustand stabil bleibt.
+    # A separate cache file .cb_version_cache, so Codeberg and GitHub keys
+    # can never collide. Same TTL of six hours, same behaviour on errors:
+    # the LAST known tag is returned, so the update state stays stable.
     param([string]$Repo, [switch]$IncludePrerelease)
     if (-not $Repo) { return $null }
     $cacheKey = if ($IncludePrerelease) { "$Repo#pre" } else { $Repo }
@@ -1943,10 +1979,9 @@ function global:Get-CodebergLatestTagCached {
             if ($age -lt $ttlHours) { return [string]$entry.tag }
         } catch {}
     }
-    # Dieselbe Sicherung wie bei GitHub: ist eine fruehere Onlinepruefung in
-    # DIESEM Scan schon gescheitert, wird das Netz nicht noch einmal
-    # angefasst - sonst stapeln sich Zeitueberschreitungen zu einem langen
-    # Einfrieren der Oberflaeche.
+    # The same guard as with GitHub: if an earlier online check failed in
+    # THIS scan, the network is not touched again - otherwise timeouts
+    # stack up into a long freeze of the interface.
     if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
@@ -1961,7 +1996,7 @@ function global:Get-CodebergLatestTagCached {
             if ($r.tag_name) { $tag = [string]$r.tag_name.Trim(); break }
         }
     } catch {
-        Write-Host "[CodebergCheck] $Repo : API-Pruefung fehlgeschlagen ($($_.Exception.Message)) - versuche den RSS-Feed"
+        Write-Host "[CodebergCheck] ${Repo}: API check failed ($($_.Exception.Message)) - trying the RSS feed"
     }
     if (-not $tag) {
         try {
@@ -1970,7 +2005,7 @@ function global:Get-CodebergLatestTagCached {
                            -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop
             $rss = [string]$rssResp.Content
             if ($rss) {
-                # Forgejo setzt den Tag in die <link>-Adresse des Eintrags:
+                # Forgejo puts the tag into the entry's <link> address:
                 #   https://codeberg.org/<owner>/<repo>/releases/tag/<tag>
                 $m = [regex]::Match($rss, [regex]::Escape($Repo) + '/releases/tag/([^<"&]+)')
                 if ($m.Success) {
@@ -1979,9 +2014,9 @@ function global:Get-CodebergLatestTagCached {
                 }
             }
         } catch {
-            Write-Host "[CodebergCheck] $Repo : auch der RSS-Feed ging nicht ($($_.Exception.Message))"
-            # Nur ein echter Verbindungsfehler darf den Scan-weiten Schalter
-            # umlegen - eine Begrenzung bedeutet, der Rechner ist erreichbar.
+            Write-Host "[CodebergCheck] ${Repo}: the RSS feed failed too ($($_.Exception.Message))"
+            # Only a genuine connection failure may flip the scan-wide
+            # switch - being rate limited means the host is reachable.
             if ($_.Exception.Message -notmatch "rate limit|403|forbidden") { $global:HubScanOnlineDown = $true }
         }
     }
@@ -2033,15 +2068,15 @@ function global:Get-GithubLatestTagCached {
     if ($entry -and $entry.tag -and $entry.checked) {
         try {
             $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
-            # !!! AUCH EIN FRISCHER CACHEWERT KANN EIN QUELLTEXT-TAG SEIN !!!
-            # Der Filter weiter unten greift erst, wenn wirklich online
-            # nachgesehen wird. Ein Wert, den Prefetch-Versions.ps1 (oder ein
-            # aelterer Lauf) hinterlegt hat, wird hier SOFORT zurueckgegeben -
-            # also noch davor. Deshalb wird er hier ebenfalls geprueft, statt
-            # sich auf das Schreiben zu verlassen: alte Cachedateien aus der
-            # Zeit vor dieser Aenderung enthalten das Tag ja bereits.
+            # !!! A FRESH CACHE VALUE CAN BE A SOURCE TAG TOO !!!
+            # The filter further down only applies when the code really
+            # looks online. A value left behind by Prefetch-Versions.ps1
+            # (or by an older run) is returned RIGHT HERE - before that
+            # filter. So it is checked here as well, rather than trusting
+            # the write path: cache files from before this change already
+            # contain such tags.
             if ($entry.tag -match '(?i)source|hub-patch|sdk|symbols') {
-                Write-Host "[GithubCheck] $Repo : zwischengespeichertes Tag '$($entry.tag)' ist ein Quelltext-Release - wird verworfen"
+                Write-Host "[GithubCheck] ${Repo}: cached tag '$($entry.tag)' is a source release - discarding it"
                 $script:ghVerCache.Remove($cacheKey)
             } elseif ($age -lt $ttlHours) {
                 return [string]$entry.tag
@@ -2129,20 +2164,20 @@ function global:Get-GithubLatestTagCached {
         if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
-        # !!! EIN QUELLTEXT-RELEASE IST KEIN UPDATE !!!
-        # RaYRoD-TV hat bei allen seinen VR-Ports ein Release "hub-patch-2"
-        # hochgeladen, das nur Quelltext enthaelt. Bei Banjo ist es als
-        # Vorabversion markiert und faellt hier ohnehin weg - bei
-        # StarFox64-VR NICHT, dort ist es das offizielle "latest". Die
-        # Kachel haette also ein Update gemeldet, das keins ist.
-        # Solche Tags werden verworfen; der zuletzt bekannte Stand bleibt
-        # dann stehen, und die Kachel meldet nichts.
+        # !!! A SOURCE RELEASE IS NOT AN UPDATE !!!
+        # RaYRoD-TV uploaded a release "hub-patch-2" to all of his VR
+        # ports that contains source only. On Banjo it is marked as a
+        # prerelease and drops out here anyway - on StarFox64-VR it is
+        # NOT, there it is the official "latest". The tile would have
+        # reported a nonexistent update.
+        # Such tags are discarded; the last known state then stays and
+        # the tile reports nothing.
         if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols')) {
-            Write-Host "[GithubCheck] $Repo : Tag '$tag' sieht nach einem Quelltext-Release aus - wird uebergangen"
+            Write-Host "[GithubCheck] ${Repo}: tag '$tag' looks like a source release - skipping it"
             $tag = $null
         }
     } catch {
-        Write-Host "[GithubCheck] $Repo : web check failed ($($_.Exception.Message)) - using cached tag if present"
+        Write-Host "[GithubCheck] ${Repo}: web check failed ($($_.Exception.Message)) - using cached tag if present"
         # A timeout / connection failure means github.com is unreachable or
         # too slow. Trip the scan-wide breaker so the remaining repos this
         # scan skip the network instead of each eating another timeout.
@@ -2475,6 +2510,13 @@ function global:Invoke-CheckInstalledScan {
     $checkInstalledText.Visibility = [System.Windows.Visibility]::Visible
     $checkInstalledText.Text = "Scanning..."
     $checkInstalledText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffcc44")
+    # BIGGER AND BETWEEN TWO MAGNIFIERS WHILE SCANNING (2026-08-20):
+    # on a re-scan the content shrinks to a small "Scanning..." inside
+    # a button sized for "X on PC, Y VR Ready" - which looked empty and
+    # broken. The state is reset below when the counter takes over.
+    $checkInstalledText.FontSize = 14
+    $magRight = $global:window.FindName("CheckInstalledMagRight")
+    if ($magRight) { $magRight.Visibility = [System.Windows.Visibility]::Visible }
 
     # A check is now running: hide + disable the Scan-on-Startup hover toggle
     # BEFORE the dispatcher pump below, so it actually leaves the screen before
@@ -3074,6 +3116,19 @@ function global:Invoke-CheckInstalledScan {
             if (-not $modPathFound -and $game.ModFileAlt) {
                 $modPathFound = Test-Path (Join-Path $gameDir $game.ModFileAlt)
             }
+            # THIRD marker, deliberately narrow (2026-08-20). Four Luke
+            # Ross titles put their executable in a DIFFERENT subfolder
+            # per store - Xbox builds use WinGDK instead of Win64, and
+            # Kingdom Come II has its own folder per store. The mod goes
+            # next to that exe, so ModFile (which holds the Steam path)
+            # misses those installs: they run fine but the tile never
+            # said "VR Ready".
+            # ModFileAlt2 is OPTIONAL and only set on those four entries.
+            # Anything without it behaves exactly as before - this cannot
+            # affect the other 241 games.
+            if (-not $modPathFound -and $game.ModFileAlt2) {
+                $modPathFound = Test-Path (Join-Path $gameDir $game.ModFileAlt2)
+            }
 
             # Alternative: VrInstallRoot is set when the mod
             # installs to a separate location (e.g. GZDoomVR in
@@ -3102,6 +3157,17 @@ function global:Invoke-CheckInstalledScan {
                 # Now altRoot is an absolute path. The base check is
                 # ModFile relative to it.
                 $altPath = Join-Path $altRoot $game.ModFile
+                # ModFileAlt COUNTS HERE TOO (2026-08-20, found via
+                # PEAK): there ModFile holds the file of the CURRENT
+                # mod and ModFileAlt the one of the DEPOT build.
+                # Anyone who installed the depot build into
+                # C:\Games\PEAK VR was never detected, because only
+                # ModFile was checked at this spot. A second marker
+                # that counts in the game folder must also count at
+                # the alternative root.
+                if ((-not (Test-Path $altPath)) -and $game.ModFileAlt) {
+                    $altPath = Join-Path $altRoot $game.ModFileAlt
+                }
                 if (Test-Path $altPath) {
                     $modPathFound = $true
                     # If extra evidence files are required (e.g. the
@@ -3406,7 +3472,14 @@ function global:Invoke-CheckInstalledScan {
                             Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
                             $installedVer = $ghVer
                         }
-                    } elseif ($installedVer -ne $ghVer) {
+                    # Strip the tag's leading "v" - exactly as in the
+                    # Codeberg branch. Otherwise a marker "1.3.18" is
+                    # forever unequal to the tag "v1.3.18" and the tile
+                    # keeps reporting an update after EVERY install.
+                    # ONLY when online is GENUINELY NEWER - an installed
+                    # build that is AHEAD must not raise an update badge
+                    # (see Test-OnlineVersionIsNewer).
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $ghVer) {
                         $needsUpdate = $true
                     }
                 }
@@ -3432,7 +3505,12 @@ function global:Invoke-CheckInstalledScan {
                         if ($tsLocal) { $installedVer = $tsLocal }
                     }
 
-                    if (-not $tsDepr -and $installedVer -and $installedVer -ne $tsVer) {
+                    # ONLY when Thunderstore is GENUINELY NEWER. PEAK VR
+                    # is now installed from GitHub (1.4.1) while the check
+                    # runs against Thunderstore (1.4.0) - an inequality
+                    # test made the tile show a permanent update that does
+                    # not exist.
+                    if (-not $tsDepr -and $installedVer -and (Test-OnlineVersionIsNewer -Installed $installedVer -Online $tsVer)) {
                         $needsUpdate = $true
                         # Do NOT pin installed_version to the OLD value
                         # here - the .ts_versions/ file already holds
@@ -3440,7 +3518,10 @@ function global:Invoke-CheckInstalledScan {
                         # the user installs the update.
                     } elseif (-not $installedVer -and -not $tsDepr) {
                         Write-InstalledVersion -Game $game -Version $tsVer -GameDir $gameDir
-                    } elseif ($installedVer -and $installedVer -eq $tsVer) {
+                    } elseif ($installedVer) {
+                        # Equal OR installed is ahead - both mean "up to
+                        # date". The cache gets the value that is ACTUALLY
+                        # installed.
                         # Up to date - keep the Hub cache in sync so a
                         # later scan without .ts_versions still works.
                         Write-InstalledVersion -Game $game -Version $installedVer -GameDir $gameDir
@@ -3484,7 +3565,7 @@ function global:Invoke-CheckInstalledScan {
                 if ($hyInst) {
                     $installedVer = $hyInst
                     Write-InstalledVersion -Game $game -Version $hyInst -GameDir $gameDir
-                    if ($ghVer -and (($hyInst -replace '^[vV]','') -ne ($ghVer -replace '^[vV]',''))) { $needsUpdate = $true }
+                    if ($ghVer -and (Test-OnlineVersionIsNewer -Installed $hyInst -Online $ghVer)) { $needsUpdate = $true }
                 } else {
                     # 1.0.0+ always ships CHANGELOG.md, so its absence means a
                     # pre-1.0 install - flag the update regardless of whatever
@@ -3570,16 +3651,23 @@ function global:Invoke-CheckInstalledScan {
                             Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
                             $installedVer = $ghVer
                         }
-                    } elseif ($installedVer -ne $ghVer) {
+                    # Strip the tag's leading "v" - exactly as in the
+                    # Codeberg branch. Otherwise a marker "1.3.18" is
+                    # forever unequal to the tag "v1.3.18" and the tile
+                    # keeps reporting an update after EVERY install.
+                    # ONLY when online is GENUINELY NEWER - an installed
+                    # build that is AHEAD must not raise an update badge
+                    # (see Test-OnlineVersionIsNewer).
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $ghVer) {
                         $needsUpdate = $true
                     }
                 }
             } elseif ($game.CodebergRepo) {
-                # Wie der GitHub-Zweig darueber, nur gegen Codeberg. Gleiche
-                # Regeln: fehlt der Marker, wird er mit dem aktuellen Tag
-                # gesetzt ("kein Marker = gerade das Neueste installiert"),
-                # es sei denn NoVersionSeed sagt etwas anderes; weicht der
-                # Marker vom Tag ab, gibt es eine Update-Kachel.
+                # Like the GitHub branch above, only against Codeberg.
+                # Same rules: a missing marker is seeded with the current
+                # tag ("no marker = the newest was just installed") unless
+                # NoVersionSeed says otherwise; if the marker differs from
+                # the tag, an update badge appears.
                 $cbVer = Get-CodebergLatestTagCached -Repo $game.CodebergRepo -IncludePrerelease:([bool]$game.CodebergPrerelease)
                 if ($cbVer) {
                     if (-not $installedVer) {
@@ -3721,15 +3809,15 @@ function global:Invoke-CheckInstalledScan {
                 } catch {}
             }
 
-            # ModRequiredFile: eine Datei, die eine VOLLSTAENDIGE Installation
-            # haben MUSS. Ist die Mod da (ModFile vorhanden), diese Datei aber
-            # NICHT, dann wurde mit einem aelteren Rezept installiert - z.B.
-            # bevor eine Abhaengigkeit dazukam. Das ist der Gegenfall zu
-            # ModLegacyFile: dort verraet eine ALTE Datei den alten Stand,
-            # hier verraet eine FEHLENDE Datei den unvollstaendigen.
-            # Ohne diesen Fall bekaeme niemand ein Update angezeigt, dessen
-            # Installation nur unvollstaendig ist - die Version der Hauptmod
-            # hat sich ja nicht geaendert.
+            # ModRequiredFile: a file a COMPLETE install MUST have. If the
+            # mod is present (ModFile there) but this file is NOT, then it
+            # was installed with an older recipe - e.g. before a dependency
+            # was added. This is the mirror image of ModLegacyFile: there
+            # an OLD file betrays the old state, here a MISSING file
+            # betrays the incomplete one.
+            # Without this case nobody with a merely incomplete install
+            # would ever see an update - the main mod's version has not
+            # changed, after all.
             if (-not $needsUpdate -and $game.ModRequiredFile -and $game.ModFile -and $gameDir) {
                 try {
                     if ((Test-Path -LiteralPath (Join-Path $gameDir $game.ModFile)) -and
@@ -3982,7 +4070,13 @@ function global:Invoke-CheckInstalledScan {
     # ready segment entirely to keep the button compact.
     if ($checkInstalledText) {
         $checkInstalledText.Visibility = [System.Windows.Visibility]::Collapsed
+        # Undo the scanning state: the font size and the second
+        # magnifier belonged to "Scanning..." only. Without this the
+        # right-hand magnifier would sit next to the finished counter.
+        $checkInstalledText.FontSize = 12
     }
+    $magRightDone = $global:window.FindName("CheckInstalledMagRight")
+    if ($magRightDone) { $magRightDone.Visibility = [System.Windows.Visibility]::Collapsed }
     if ($checkInstalledCountInst)  { $checkInstalledCountInst.Text  = "$found" }
     if ($checkInstalledCountReady) { $checkInstalledCountReady.Text = "$vrFound" }
     if ($checkInstalledCount) {

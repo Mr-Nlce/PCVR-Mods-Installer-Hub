@@ -52,10 +52,10 @@ $REL_LAUNCHER      = "bin\x64_dx12\Witcher3VRLauncher.exe"
 $GITHUB_REPO       = "tig3rmast3r/witcher3-vr"
 $GITHUB_API_LIST   = "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=1"
 $GITHUB_RELEASES   = "https://github.com/$GITHUB_REPO/releases"
-# Rueckfall NUR ohne Netz. 2026-08-13 von v0.9.0-alpha.1 auf v0.9.4
-# gezogen - VIER Fassungen Rueckstand. Der Normalweg loest die
-# neueste Vorabversion ohnehin live auf (das Repo hat NUR
-# Prereleases, /releases/latest laeuft deshalb ins Leere).
+# Fallback for no-network ONLY. Moved from v0.9.0-alpha.1 to v0.9.4 on
+# 2026-08-13 - FOUR builds behind. The normal path resolves the newest
+# prerelease live anyway (the repo has ONLY prereleases, so
+# /releases/latest goes nowhere).
 $PINNED_TAG        = "v0.9.4"
 $PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.4/Witcher3VR-v0.9.4-V1117.zip"
 

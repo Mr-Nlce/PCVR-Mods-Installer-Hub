@@ -137,10 +137,10 @@ Write-Header
 Write-Host " RepoXR by DaXcess is a full 6DoF motion-controlled VR mod for R.E.P.O.," -ForegroundColor White
 Write-Host " built on Unity's OpenXR plugin. Works in lobbies with non-VR players." -ForegroundColor White
 Write-Host ""
-# Abhaengigkeiten der Abhaengigkeiten pruefen. Unsere Paketliste kennt
-# nur die DIREKTE Ebene; Thunderstore weiss, was diese Pakete ihrerseits
-# verlangen. Aendert nichts, meldet nur - siehe PEAK, wo genau das
-# gefehlt hat.
+# Check the dependencies of the dependencies. Our package list only
+# knows the DIRECT level; Thunderstore knows what those packages require
+# in turn. Changes nothing, only reports - see PEAK, where exactly this
+# was missing.
 try {
     $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($LEGACY_URLS.Values))
     Show-ThunderstoreDependencyWarning -Missing $tsMissing
@@ -288,7 +288,7 @@ if (-not $useLegacy) {
  Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }

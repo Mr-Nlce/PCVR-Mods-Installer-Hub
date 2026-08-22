@@ -1,21 +1,20 @@
 # ============================================================
 #  The Legend of Zelda: Twilight Princess VR - Dusklight VR
-#  von JoeyAW
+#  by JoeyAW
 # ------------------------------------------------------------
-#  EIGENSTAENDIG, wie Ocarina of Time VR: es gibt kein Spiel zum
-#  Patchen. Der Port bringt eine eigene dusklight.exe mit, und der
-#  Nutzer legt seinen EIGENEN Spielabzug daneben. Wir laden also
-#  das Release, entpacken es an einen Ort seiner Wahl und legen
-#  eine Verknuepfung an.
+#  STANDALONE, like Ocarina of Time VR: there is no game to patch.
+#  The port brings its own dusklight.exe, and the user puts their
+#  OWN game dump next to it. So we download the release, unpack it
+#  to a location of their choice and create a shortcut.
 #
-#  ZWEI DINGE, DIE DIESEN EINTRAG BESONDERS MACHEN:
-#  1. DAS ARCHIV IST RIESIG - ueber 500 MB gepackt, rund 2 GB
-#     entpackt. Der Autor liefert seinen KOMPLETTEN Bauordner mit
-#     (_deps, CMakeFiles, .pdb, .lib, .obj). Zum Spielen braucht es
-#     davon vielleicht 90 MB. Das sagen wir dem Nutzer vorher, damit
-#     er nicht denkt, etwas sei schiefgelaufen.
-#  2. DIE EXE LIEGT IN EINEM UNTERORDNER windows-msvc-relwithdebinfo,
-#     nicht in der Wurzel des Archivs.
+#  TWO THINGS THAT MAKE THIS ENTRY SPECIAL:
+#  1. THE ARCHIVE IS HUGE - over 500 MB packed, around 2 GB
+#     unpacked. The author ships his COMPLETE build folder (_deps,
+#     CMakeFiles, .pdb, .lib, .obj). Playing needs maybe 90 MB of
+#     that. We say so beforehand, so nobody thinks something went
+#     wrong.
+#  2. THE EXE SITS IN A SUBFOLDER windows-msvc-relwithdebinfo, not
+#     at the archive root.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -23,7 +22,7 @@
 $Host.UI.RawUI.WindowTitle = "Twilight Princess VR Installer"
 $ErrorActionPreference = "Stop"
 
-# Die Ausgabehelfer bringt JEDER Installer selbst mit.
+# EVERY installer brings its own console helpers.
 function Write-Step {
     param([int]$Step, [int]$Total, [string]$Title)
     Write-Host ""
@@ -84,11 +83,11 @@ $BUILD_SUB   = "windows-msvc-relwithdebinfo"
 $GAME_EXE    = "dusklight.exe"
 $DEFAULT_DIR = "C:\Games\Twilight Princess VR"
 $TEX_PAGE    = "https://www.henrikomagnifico.com/zelda-twilight-princess-4k"
-# Der Texturordner liegt NICHT im Installationsordner, sondern unter
-# %APPDATA% - das ist die haeufigste Verwechslung bei diesem Paket.
+# The texture folder is NOT in the install folder but under
+# %APPDATA% - the most common mix-up with this package.
 $TEX_DIR     = Join-Path $env:APPDATA "TwilitRealm\Dusklight\texture_replacements"
 
-# ---- Kopf -----------------------------------------------------
+# ---- Header ---------------------------------------------------
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " The Legend of Zelda: Twilight Princess VR" -ForegroundColor Cyan
@@ -112,7 +111,7 @@ Write-Host "  the author's recommendation for performance." -ForegroundColor Gra
 Write-Host ""
 Pause-User "Press Enter to start..." | Out-Null
 
-# ---- 1. Ort waehlen -------------------------------------------
+# ---- 1. Pick the location -------------------------------------
 Write-Step 1 5 "Choosing where it goes"
 Write-Host ""
 Write-Host "  This is a standalone build - it does not go into any existing" -ForegroundColor White
@@ -131,7 +130,7 @@ catch {
 }
 Write-OK "Install folder: $dir"
 
-# ---- 2. Herunterladen -----------------------------------------
+# ---- 2. Download ----------------------------------------------
 Write-Step 2 5 "Downloading $MOD_NAME"
 Write-Host ""
 Write-Host "  HEADS UP - THIS IS A BIG ONE. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
@@ -161,8 +160,8 @@ try {
     Write-OK "Release: $tag"
 } catch { Write-Warn "GitHub could not be reached - trying the direct link." }
 
-# Vorhandene Datei auf der Platte zuerst - bei dieser Groesse ein
-# echter Zeitgewinn, wenn der Nutzer sie schon geladen hat.
+# An existing file on disk first - at this size a real time saver
+# when the user already downloaded it.
 $have = Find-PredownloadedFile -Patterns @("Dusklight-VR-Windows*.zip", "*Dusklight*VR*.zip") -Label "the Dusklight VR release"
 if ($have -and (Test-Path -LiteralPath $have)) {
     $zip = $have
@@ -183,8 +182,8 @@ Write-Step 3 5 "Unpacking"
 Write-Host "  This takes a few minutes - it is a lot of small files." -ForegroundColor Gray
 [void](Expand-TwilightArchive -Archive $zip -Destination $dir -Label $MOD_NAME)
 
-# Die Exe liegt in windows-msvc-relwithdebinfo, nicht in der Wurzel -
-# aber ueber den ganzen Baum suchen, falls der Autor das aendert.
+# The exe sits in windows-msvc-relwithdebinfo, not at the root - but
+# search the whole tree in case the author changes that.
 $exe = Get-ChildItem -LiteralPath $dir -Recurse -File -Force -ErrorAction SilentlyContinue |
        Where-Object { $_.Name -ieq $GAME_EXE } | Select-Object -First 1
 if (-not $exe) {
@@ -197,7 +196,7 @@ if (-not $exe) {
 Write-OK "Ready: $($exe.FullName)"
 try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 
-# ---- 4. Verknuepfung und Merker -------------------------------
+# ---- 4. Shortcut and marker -----------------------------------
 Write-Step 4 5 "Finishing up"
 $exeDir = Split-Path $exe.FullName -Parent
 try {
@@ -209,14 +208,14 @@ try {
     Write-OK "Desktop shortcut created."
 } catch { Write-Warn "Could not create the desktop shortcut." }
 
-# Merker fuer den Hub - in den INSTALLERORDNER.
+# Marker for the Hub - into the INSTALLER folder.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $dir -Encoding UTF8 -Force } catch {}
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $exe.FullName -Encoding UTF8 -Force } catch {}
 
-# ---- 5. 4K-Texturpaket (freiwillig) ---------------------------
-# Von Henriko Magnifico. Liegt auf MediaFire - eine Adresse, die wir
-# NICHT selbst laden koennen (Weiterleitung ueber eine Downloadseite).
-# Also: Seite oeffnen, warten, danach in den Downloads suchen.
+# ---- 5. 4K texture pack (optional) ----------------------------
+# By Henriko Magnifico. Hosted on MediaFire - an address we canNOT
+# fetch ourselves (it redirects through a download page). So: open
+# the page, wait, then look in the downloads folder.
 Write-Step 5 5 "Optional: the 4K texture pack"
 Write-Host ""
 Write-Host "  Henriko Magnifico's pack redraws the game's textures at 4K." -ForegroundColor White

@@ -291,10 +291,10 @@ if (-not (Test-Path $bepinexDir)) {
  Write-OK "BepInEx + PanzerDragoonRemakeVR.dll present."
 }
 
-# Der Patcher kam mit dem Archivaustausch vom 2026-08-06 dazu - unter
-# DEMSELBEN Release-Tag 1.0, die Versionsnummer aendert sich also nicht.
-# Wer vorher installiert hat, hat ihn nicht. Deshalb wird er hier
-# ausdruecklich geprueft und nicht stillschweigend vorausgesetzt.
+# The patcher arrived with the archive swap of 2026-08-06 - under the
+# SAME release tag 1.0, so the version number does not change. Anyone
+# who installed before that does not have it. Hence it is checked here
+# explicitly rather than silently assumed.
 $fixPatcher = Join-Path $gamePath "BepInEx\patchers\PDRReflectionFix.Patcher.dll"
 if (Test-Path -LiteralPath $fixPatcher) {
  Write-OK "Reflection-fix patcher present ($([math]::Round((Get-Item -LiteralPath $fixPatcher).Length/1KB)) KB)."

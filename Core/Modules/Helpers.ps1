@@ -1634,6 +1634,22 @@ function global:Get-PowerTier {
         "Super Mario 64 VR"            = "BASIC"
         "Star Fox 64 VR"               = "BASIC"
         "Banjo-Kazooie VR"             = "BASIC"
+        "Diddy Kong Racing VR"         = "BASIC"
+        "AWAY VR"                      = "SOLID"
+        # Unity HDRP open world, and the mod draws TWO FULL RENDER PASSES
+        # per frame - single-pass stereo cannot be added to a shipped
+        # game. The author himself measures a 20 ms frame budget and
+        # names shadows as the largest per-camera cost. STRONG.
+        "Sons of the Forest"           = "STRONG"
+        # The author states it plainly: the mod renders MULTI-PASS,
+        # because the game's custom shaders are not compiled for
+        # single-pass stereo - so every frame is drawn twice in full.
+        # A small indie game, but that doubling is the whole cost.
+        # renderScale is his own first lever against it.
+        "White Knuckle VR"             = "SOLID"
+        "F-Zero X VR"                  = "BASIC"
+        "Singularity VR"               = "SOLID"
+        "Red Faction VR"               = "BASIC"
         "Pokemon Gen 1 VR"               = "BASIC"
         "Bendy VR"                     = "SOLID"
         "Call of Duty 4 VR"            = "STRONG"
@@ -1734,26 +1750,37 @@ function global:Get-PowerTier {
         "Road Redemption VR"           = "SOLID"
         "Skate Story VR"               = "SOLID"
         "Sonic P-06 VR"                = "SOLID"
-        # 2018er HD-Ports von Dreamcast-Titeln - selbst mit verdoppelter
-        # Stereo-Last weit unter dem, was diese Stufe leistet. Die 30-FPS-
-        # Sperre ist eine Spielgrenze, keine Hardwarefrage; sie wird mit
-        # Frame-Interpolation ausgeglichen, nicht mit einer groesseren Karte.
-        # Engine von 2002, aber grosse offene Karten mit vielen Spielern,
-        # Fahrzeugen und Flugzeugen - und Stereo verdoppelt das. Deutlich
-        # mehr als die reinen Dreamcast-Ports eine Zeile weiter unten.
-        # Der Mod-Autor schreibt ausdruecklich, dass Infinite in VR SCHWERER
-        # ist als die beiden Remaster - UE3 von 2013, Stereo verdoppelt es,
-        # und er empfiehlt zuerst die Aufloesung zu senken. Die Remaster
-        # stehen auf SOLID, Infinite gehoert eine Stufe hoeher.
-        # Outlast ist Unreal Engine 3 von 2013 - genuegsam. Stereo
-        # verdoppelt die Last, aber es bleibt ein leichtes Spiel: BASIC.
-        # Ein Spiel von 2003 ueber DXVK auf Vulkan - genuegsam, auch in VR.
+        # 2018 HD ports of Dreamcast titles - even with stereo doubling
+        # the load, far below what this tier delivers. The 30 FPS cap is
+        # a game limit, not a hardware question; it is compensated with
+        # frame interpolation, not with a bigger card.
+        # A 2002 engine, but large open maps with many players, vehicles
+        # and aircraft - and stereo doubles that. Clearly more than the
+        # plain Dreamcast ports a line below.
+        # The mod author states plainly that Infinite is HEAVIER in VR
+        # than the two remasters - UE3 from 2013, doubled by stereo, and
+        # he recommends lowering the resolution first. The remasters sit
+        # at SOLID; Infinite belongs one tier above.
+        # Outlast is Unreal Engine 3 from 2013 - undemanding. Stereo
+        # doubles the load, but it stays a light game: BASIC.
+        # A 2003 game running through DXVK on Vulkan - undemanding, in
+        # VR as well.
         "C&C Generals: Zero Hour" = "BASIC"
-        # GameCube-Titel von 2006, aber die Neuimplementierung rendert
-        # ueber D3D12/WebGPU in Stereo; der Autor empfiehlt ausdruecklich
-        # Virtual Desktop "for performance". Deshalb SOLID, nicht BASIC.
+        # A 2006 GameCube title, but the reimplementation renders in
+        # stereo through D3D12/WebGPU; the author explicitly recommends
+        # Virtual Desktop "for performance". Hence SOLID, not BASIC.
         "Legend of Zelda: Twilight Princess" = "SOLID"
         "Outlast VR"            = "BASIC"
+        # A large open world, rendered twice in stereo. The author offers
+        # DLSS to buy frames back - that says enough.
+        # A 2018 Unity CRPG, mostly top-down - undemanding. The author
+        # names only its own city hub as a dip: BASIC.
+        # A 2008 shooter, but rendered twice in stereo. The author
+        # offers his own resolution tiers up to "Performance" - which
+        # argues for SOLID, not BASIC.
+        "Call of Duty: World at War VR" = "SOLID"
+        "Pathfinder: Kingmaker" = "BASIC"
+        "theHunter: Call of the Wild VR" = "STRONG"
         "BioShock Infinite VR"  = "STRONG"
         "Battlefield 1942 VR"   = "SOLID"
         "Shenmue I & II"        = "BASIC"
@@ -2885,3 +2912,56 @@ function global:Resolve-VrInstallRoot {
     }
     return $Root
 }
+# ---------------------------------------------------------------
+#  Test-OnlineVersionIsNewer
+# ---------------------------------------------------------------
+#  !!! 2026-08-20: A TILE MAY ONLY REPORT AN UPDATE WHEN THE
+#  !!! ONLINE BUILD IS GENUINELY NEWER.
+#  Update detection used to test for INEQUALITY. As soon as the
+#  installed build was NEWER than the source being queried, the
+#  tile showed a permanent update that did not exist.
+#  That is exactly what happened to PEAK VR: the installer now
+#  fetches PeakVR from GitHub (1.4.1) while the check runs
+#  against Thunderstore (1.4.0) - unequal, so an update badge
+#  forever.
+#
+#  Returns $true ONLY when online is genuinely greater. Equal,
+#  "installed is ahead", and anything that cannot be read as a
+#  number sequence all return $false - better no badge than a
+#  false one nobody can get rid of.
+#  When the numeric parts are equal, the remainder decides: a
+#  date stamp like 2026-08-01 against 2026-08-20 has "2026" as
+#  its only leading number, so comparing numbers alone would
+#  never see the change.
+# ---------------------------------------------------------------
+function global:Test-OnlineVersionIsNewer {
+    param([string]$Installed, [string]$Online)
+    $a = ([string]$Installed).Trim() -replace '^[vV]',''
+    $b = ([string]$Online).Trim()    -replace '^[vV]',''
+    if (-not $a -or -not $b) { return $false }
+    if ($a -eq $b) { return $false }
+    # Compare only the leading numeric part: "1.4.1-beta" -> "1.4.1"
+    $na = ([regex]::Match($a, '^\d+(\.\d+)*')).Value
+    $nb = ([regex]::Match($b, '^\d+(\.\d+)*')).Value
+    if (-not $na -or -not $nb) { return ($a -ne $b) }
+    $pa = @($na -split '\.' | ForEach-Object { [int]$_ })
+    $pb = @($nb -split '\.' | ForEach-Object { [int]$_ })
+    $n = [Math]::Max($pa.Count, $pb.Count)
+    for ($i = 0; $i -lt $n; $i++) {
+        $x = if ($i -lt $pa.Count) { $pa[$i] } else { 0 }
+        $y = if ($i -lt $pb.Count) { $pb[$i] } else { 0 }
+        if ($y -gt $x) { return $true }
+        if ($y -lt $x) { return $false }
+    }
+    # NUMERIC PARTS EQUAL - then the REMAINDER decides.
+    # Why not simply $false: for a date stamp like "2026-08-01"
+    # against "2026-08-20" the leading numeric part is just "2026"
+    # both times. A plain $false would NEVER report an update there.
+    # So what follows the numbers is compared, and only a difference
+    # THERE counts as newer. "1.4" against "1.4.0" has an empty
+    # remainder both times and stays equal, which is correct.
+    $ra = $a.Substring($na.Length)
+    $rb = $b.Substring($nb.Length)
+    return ($ra -ne $rb)
+}
+

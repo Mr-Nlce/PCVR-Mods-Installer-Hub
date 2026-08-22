@@ -76,14 +76,14 @@ try {
             if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
             if ($final -match '/releases/tag/([^/?#]+)') {
                 $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim()
-                # !!! QUELLTEXT-RELEASES NICHT IN DEN CACHE SCHREIBEN !!!
-                # RaYRoD-TV hat bei allen seinen VR-Ports ein Release
-                # "hub-patch-2" mit NUR Quelltext veroeffentlicht, bei
-                # StarFox64-VR sogar als offizielles "latest". Filter.ps1
-                # verwirft solche Tags beim Hauptscan - aber es UEBERNIMMT
-                # einen frischen Cachewert, BEVOR sein Filter greift.
-                # Landet das Tag also hier im Cache, meldet die Kachel ein
-                # Update, das keins ist. Deshalb wird hier genauso gefiltert.
+                # !!! DO NOT WRITE SOURCE RELEASES INTO THE CACHE !!!
+                # RaYRoD-TV published a release "hub-patch-2" containing
+                # source ONLY on all of his VR ports - on StarFox64-VR
+                # even as the official "latest". Filter.ps1 discards such
+                # tags during the main scan - but it ACCEPTS a fresh cache
+                # value BEFORE that filter applies.
+                # So if the tag lands in the cache here, the tile reports
+                # a nonexistent update. Hence the same filter here.
                 if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols')) {
                     $tag = $null
                 }

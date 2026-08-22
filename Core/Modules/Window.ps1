@@ -172,7 +172,7 @@ $xaml = @"
                          banner/cards behind it the way a Popup did. -->
 
                 </StackPanel>
-                <Border Grid.Column="2" Background="#16161a" CornerRadius="6"
+                <Border x:Name="SearchPill" Grid.Column="2" Background="#16161a" CornerRadius="6"
                         BorderThickness="1" BorderBrush="#2a2a35"
                         VerticalAlignment="Center">
                     <!-- The TextBox fills the whole pill so any click on
@@ -372,14 +372,14 @@ $xaml = @"
                                    TextWrapping="NoWrap"/>
                     </StackPanel>
                 </Border>
-                <!-- Updates: dritte Pille, ABSICHTLICH ausserhalb des
-                     Anker/Partner-Tauschs der beiden oberen. Die zwei
-                     tauschen sich gegenseitig ein und aus; eine dritte in
-                     dieses Wechselspiel zu haengen haette es zerlegt.
-                     Diese hier ist schlicht sichtbar, sobald ein Scan
-                     gelaufen ist UND es ueberhaupt etwas zu aktualisieren
-                     gibt - sonst bleibt sie eingeklappt und nimmt keinen
-                     Platz. Sichtbarkeit und Anstrich macht
+                <!-- Updates: a third pill, DELIBERATELY outside the
+                     anchor/partner swap of the two above. Those two
+                     exchange each other in and out; hanging a third one
+                     into that interplay would have broken it.
+                     This one is simply visible once a scan has run AND
+                     there is something to update at all - otherwise it
+                     stays collapsed and takes up no space.
+                     Visibility and styling are handled by
                      Set-InstallFilterMode. -->
                 <Border x:Name="FilterUpdate" CornerRadius="6" Padding="15,9" Margin="6,0,0,0"
                         BorderThickness="1" BorderBrush="#0fffffff" Visibility="Collapsed"
@@ -389,12 +389,12 @@ $xaml = @"
                         <TextBlock Text="Updates" FontSize="13" FontWeight="SemiBold"
                                    Foreground="#aaaaaa" FontFamily="Segoe UI"
                                    TextWrapping="NoWrap" VerticalAlignment="Center"/>
-                        <!-- Zahl in einem eigenen Traeger: MinWidth 20 haelt sie
-                             bei einer Ziffer rund, CornerRadius 10 plus das
-                             Innenpolster laesst sie bei zwei Ziffern zur Ellipse
-                             wachsen. Farben setzt Set-InstallFilterMode - die
-                             Zahl steht auch im ABGEWAEHLTEN Zustand da, deshalb
-                             ein zurueckhaltendes, halbdurchlaessiges Blau. -->
+                        <!-- The number in a badge of its own: MinWidth 20 keeps it
+                             round with one digit; CornerRadius 10 plus the
+                             inner padding grows it into an ellipse at two digits.
+                             Colours are set by Set-InstallFilterMode - the number
+                             is on screen in the DESELECTED state too, hence a
+                             restrained, semi-transparent blue there. -->
                         <Border x:Name="FilterUpdateBadge" CornerRadius="10"
                                 MinWidth="20" Height="20" Margin="9,0,0,0"
                                 Padding="7,0" Background="#1F60A5FA"
@@ -477,7 +477,12 @@ $xaml = @"
                                     </LinearGradientBrush>
                                 </Border.Background>
                             </Border>
-                            <StackPanel Orientation="Horizontal">
+                            <!-- HorizontalAlignment=Center: on a RE-scan the
+                                 content shrinks to "Scanning..." while
+                                 the button still holds the width of "X on PC, Y VR Ready".
+                                 Left-aligned, the short text clung to the edge of an
+                                 otherwise empty-looking row. -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <!-- Pre-scan text. Hidden once a
                                      scan completes; replaced by
                                      the count block to its right.
@@ -496,6 +501,16 @@ $xaml = @"
                                            Foreground="#e8f5ec" FontFamily="Segoe UI"
                                            VerticalAlignment="Center"
                                            TextWrapping="NoWrap"/>
+                                <!-- A second magnifier, visible ONLY while scanning.
+                                     It frames "Scanning..." and fills the width the
+                                     counter otherwise needs. Collapsed outside of a
+                                     scan, so that "Scan games" and the finished
+                                     counter look exactly as they did before. -->
+                                <Viewbox x:Name="CheckInstalledMagRight" Width="13" Height="13"
+                                         Margin="7,0,0,0" VerticalAlignment="Center"
+                                         Visibility="Collapsed">
+                                    <Path Data="M4.5 10A5.5 5.5 0 1 1 15.5 10A5.5 5.5 0 1 1 4.5 10Z M13.9 13.9L19 19" Stroke="#ffcc44" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
+                                </Viewbox>
                                 <!-- Post-scan count block. Stays
                                      Collapsed until the scan runs. -->
                                 <StackPanel x:Name="CheckInstalledCount"
@@ -2988,7 +3003,11 @@ function global:Add-BannerTopo {
 }
 
 function global:Add-BannerVortex {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex,
+          # 0.5 = centre of the image (the default, as before). Other
+          # values place the galaxy off to one side so two fit next to
+          # each other.
+          [double]$CenterFrac = 0.5, [double]$Scale = 1.0)
     try {
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
@@ -3017,10 +3036,10 @@ function global:Add-BannerVortex {
         $ra.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
         $rot.BeginAnimation([System.Windows.Media.RotateTransform]::AngleProperty, $ra)
         $reflow = { $cw = $canvas.ActualWidth; if ($cw -lt 20) { return }
-            $cx = $cw / 2; $cy = $BannerH / 2; $rot.CenterX = $cx; $rot.CenterY = $cy
+            $cx = $cw * $CenterFrac; $cy = $BannerH / 2; $rot.CenterX = $cx; $rot.CenterY = $cy
             foreach ($o in $info) {
-                [System.Windows.Controls.Canvas]::SetLeft($o.el, $cx + [Math]::Cos($o.th) * $o.rad * 1.8 - ($o.sz / 2))
-                [System.Windows.Controls.Canvas]::SetTop($o.el, $cy + [Math]::Sin($o.th) * $o.rad - ($o.sz / 2))
+                [System.Windows.Controls.Canvas]::SetLeft($o.el, $cx + [Math]::Cos($o.th) * $o.rad * 1.8 * $Scale - ($o.sz / 2))
+                [System.Windows.Controls.Canvas]::SetTop($o.el, $cy + [Math]::Sin($o.th) * $o.rad * $Scale - ($o.sz / 2))
             } }.GetNewClosure()
         $canvas.Add_SizeChanged($reflow); & $reflow
         $canvas.Tag = "BannerFx"
@@ -3685,6 +3704,45 @@ function global:Add-BannerEffect {
         "field"     { Add-BannerField     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "silk"      { Add-BannerSilk      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "bubbles"   { Add-BannerBubbles   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
+        # ---- Colour variants (2026-08-16) --------------------------
+        # The same animation, only the colour is pinned instead of
+        # following the banner accent. Five per effect.
+        "sparkgold"     { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffc247" }
+        "sparkice"      { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd8ff" }
+        "sparkviolet"   { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#c07bff" }
+        "sparkblood"    { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff3b30" }
+        "sparkmint"     { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#4fe0a8" }
+        "bubblesdeep"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#2f8fd8" }
+        "bubblestoxic"  { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#8aff3a" }
+        "bubblesgold"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffcf5c" }
+        "bubblesviolet" { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#b06bff" }
+        "bubblesmono"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#cfd8e3" }
+        "meteorsember"  { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff7a1a" }
+        "meteorsice"    { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#8fe4ff" }
+        "meteorstoxic"  { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#9bff5a" }
+        "meteorsrose"   { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff5f8a" }
+        "meteorsgold"   { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffd36e" }
+        "hexcyan"       { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#8fd3e2" }
+        "hexmagenta"    { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#dda2bf" }
+        "hexlime"       { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#bcd8a0" }
+        "hexamber"      { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#e0c599" }
+        "hexsteel"      { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#b9c4cf" }
+        "fieldcyan"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#39d8ff" }
+        "fieldrose"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff6fa8" }
+        "fieldgold"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffc95c" }
+        "fieldtoxic"    { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#93ff4d" }
+        "fieldsteel"    { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#a8bccd" }
+        "vortexgold"    { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffcb57" }
+        "vortexice"     { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" }
+        "vortexrose"    { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff6fa8" }
+        "vortextoxic"   { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#8dff5c" }
+        "vortexviolet"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#b478ff" }
+        # Two galaxies instead of one - the same function twice, offset
+        # and a little smaller so they fit side by side.
+        "vortextwin"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.36 -Scale 0.72
+                        Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.64 -Scale 0.72 }
+        "vortextwinice"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" -CenterFrac 0.36 -Scale 0.72
+                           Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" -CenterFrac 0.64 -Scale 0.72 }
         # Theme-fitting recolours of existing effects. Same animation code,
         # only the colour is pinned instead of following the banner accent.
         # These names are deliberately NOT in $global:BannerFxPool - they are
@@ -3773,7 +3831,7 @@ function global:Invoke-ListLibBannerRotation {
 # NOT in here: it is the one theme-specific effect, so it only appears
 # for futuristic / techy games via Get-BannerFxFor (below). Every other
 # effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","blobmidnight","blobamber","blobrose","blobforest","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","bokehmidnight","bokehgold","bokehmint","bokehcoral","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles")
+$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","blobmidnight","blobamber","blobrose","blobforest","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","bokehmidnight","bokehgold","bokehmint","bokehcoral","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles","sparkgold","sparkice","sparkviolet","sparkblood","sparkmint","bubblesdeep","bubblestoxic","bubblesgold","bubblesviolet","bubblesmono","meteorsember","meteorsice","meteorstoxic","meteorsrose","meteorsgold","hexcyan","hexmagenta","hexlime","hexamber","hexsteel","fieldcyan","fieldrose","fieldgold","fieldtoxic","fieldsteel","vortexgold","vortexice","vortexrose","vortextoxic","vortexviolet","vortextwin")
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).
@@ -3963,6 +4021,21 @@ function global:Get-BannerFxFor {
     }
     if (Test-PinkBubbleGame -Game $Game) {
         $pool += @("pinkbubbles","pinkbubbles","pinkbubbles","pinkbubbles")
+    }
+    # Genre-flavoured colour variants (2026-08-16). The same restraint as
+    # above: a few extra copies so they stand out on matching games - not
+    # a permanent effect.
+    if (Test-FuturisticGame -Game $Game) {
+        # Neon on hexagons and a dot grid - cyberpunk, sci-fi.
+        $pool += @("hexcyan","hexcyan","hexmagenta","hexmagenta","fieldcyan","vortextwinice")
+    }
+    if (Test-AquaticGame -Game $Game) {
+        # Deep blue and colourless grey read as water.
+        $pool += @("bubblesdeep","bubblesdeep","bubblesmono")
+    }
+    if (Test-GoreGame -Game $Game) {
+        # Red sparks instead of rain - same mood, different motion.
+        $pool += @("sparkblood","sparkblood","meteorsember")
     }
     return ($pool | Get-Random)
 }

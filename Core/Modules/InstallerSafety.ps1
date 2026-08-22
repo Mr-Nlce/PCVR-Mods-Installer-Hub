@@ -582,16 +582,47 @@ function global:Expand-ArchiveOrFallback {
         }
     }
 
-    # Fall back to PowerShell's Expand-Archive (zip only)
-    if ($ArchivePath -match '\.zip$') {
-        Write-Host "  [..] Extracting $Label with Expand-Archive..." -ForegroundColor Gray
-        try {
-            Expand-Archive -Path $ArchivePath -DestinationPath $DestinationFolder -Force -ErrorAction Stop
-            Write-Host "  [OK] Extracted: $Label" -ForegroundColor Green
-            return "ok"
-        } catch {
-            Write-Host "  [!!] Expand-Archive failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    # Fall back to .NET instead of Expand-Archive.
+    #
+    # !!! WHY NOT Expand-Archive (found 2026-08-20 in a real run):
+    # the cmdlet decides by FILE EXTENSION, not by content. A file
+    # with clean zip content under a different name is rejected with
+    # "'.bin' is not a supported archive file format". On top of
+    # that, the old condition -match '\.zip$' never let such files
+    # reach this point at all - the user ended up doing it by hand
+    # for no reason.
+    # CAREFUL WHEN TESTING: PowerShell 7 accepts the .bin without
+    # complaint, WINDOWS POWERSHELL 5.1 DOES NOT - and 5.1 is what
+    # runs our installers (powershell.exe). So this is NOT
+    # reproducible in a Linux container.
+    # ZipFile::ExtractToDirectory looks inside the file and is
+    # therefore independent of the name.
+    Write-Host "  [..] Extracting $Label ..." -ForegroundColor Gray
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        if (-not (Test-Path -LiteralPath $DestinationFolder)) {
+            New-Item -ItemType Directory -Path $DestinationFolder -Force | Out-Null
         }
+        # The overwrite overload only exists from .NET 4.7.2 / PS 7 -
+        # hence entry by entry, so a second run does not fail on an
+        # already existing file.
+        $zf = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        try {
+            foreach ($en in $zf.Entries) {
+                $dest = Join-Path $DestinationFolder $en.FullName
+                if ([string]::IsNullOrEmpty($en.Name)) {
+                    if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
+                    continue
+                }
+                $parent = Split-Path -Parent $dest
+                if ($parent -and -not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($en, $dest, $true)
+            }
+        } finally { $zf.Dispose() }
+        Write-Host "  [OK] Extracted: $Label" -ForegroundColor Green
+        return "ok"
+    } catch {
+        Write-Host "  [!!] Extraction failed: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
     # Both auto-paths failed - hand off to user
@@ -1303,6 +1334,114 @@ function global:Find-SteamGameFolder {
     return $null
 }
 
+# ---- Point at the game executable yourself -----------------
+#
+# The last resort when a game ships several files with the same
+# name, or when the exe is somewhere we do not expect. Added
+# 2026-08-20 after Ghostwire: Tokyo, where a launcher stub in the
+# game root shares its name with the real 98 MB executable in
+# Snowfall\Binaries\Win64 - the mod went next to the stub and
+# RealConfig refused the folder.
+#
+# The automatic tie-breakers come first and are usually right.
+# This exists for the case where they are not, and it asks before
+# doing anything: the user confirms, Explorer opens at the game
+# folder, and they drag the exe into this window. A dragged file
+# arrives as its full path in quotes, which is exactly what
+# Read-Host returns - no dialog needed, and it works over remote
+# desktop where a file picker often does not.
+#
+# Returns the FULL PATH of the exe, or $null if the user declines
+# or gives up. The caller decides what to do with it - normally
+# Split-Path -Parent to get the folder the mod belongs in.
+function global:Get-GameExeByDrop {
+    param(
+        [Parameter(Mandatory=$true)][string]$GameFolder,
+        [string]$ExeName = "",
+        [string]$GameName = "the game"
+    )
+
+    if (-not (Test-Path -LiteralPath $GameFolder)) { return $null }
+
+    Write-Host ""
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host "   Point at the game executable yourself?" -ForegroundColor Yellow
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  The mod has to sit in the SAME folder as the executable" -ForegroundColor White
+    Write-Host "  that actually starts $GameName. If that is not where it" -ForegroundColor White
+    Write-Host "  landed, you can point at the right file directly." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Explorer opens at the game folder. Find the executable -" -ForegroundColor Gray
+    if ($ExeName) {
+        Write-Host "  it is called $ExeName, and it is often inside a" -ForegroundColor Gray
+        Write-Host "  subfolder such as Binaries\Win64 - then DRAG IT INTO" -ForegroundColor Gray
+    } else {
+        Write-Host "  it is often inside a subfolder such as Binaries\Win64 -" -ForegroundColor Gray
+        Write-Host "  then DRAG IT INTO" -ForegroundColor Gray
+    }
+    Write-Host "  THIS WINDOW and press Enter." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Tip: if two files share the name, the real one is by far" -ForegroundColor DarkGray
+    Write-Host "  the larger - the small one is only a launcher." -ForegroundColor DarkGray
+    Write-Host ""
+
+    # Counted, and ("" + ...) catches $null: with no console Read-Host
+    # returns $null and .Trim() on it would throw (hub-wide rule).
+    $answer = ""
+    for ($i = 1; $i -le 20; $i++) {
+        $answer = ("" + (Read-Host "  Do that now? [Y/N]")).Trim().ToLower()
+        if ($answer -in @("y","yes","j","n","no")) { break }
+        Write-Host "  Please answer Y or N." -ForegroundColor Yellow
+    }
+    if ($answer -notin @("y","yes","j")) {
+        Write-Host "  Left as it is." -ForegroundColor Gray
+        return $null
+    }
+
+    try { Start-Process "explorer.exe" -ArgumentList "`"$GameFolder`"" } catch {
+        Write-Host "  Could not open Explorer. The folder is:" -ForegroundColor Yellow
+        Write-Host "    $GameFolder" -ForegroundColor White
+    }
+
+    for ($i = 1; $i -le 5; $i++) {
+        Write-Host ""
+        # Dropped paths arrive wrapped in quotes - strip those, plus any
+        # stray whitespace Explorer adds after the drop.
+        $raw = ("" + (Read-Host "  Drop the .exe here (attempt $i/5, or press Enter to cancel)")).Trim().Trim('"').Trim()
+        if (-not $raw) {
+            Write-Host "  Cancelled - nothing was changed." -ForegroundColor Gray
+            return $null
+        }
+        if (-not (Test-Path -LiteralPath $raw)) {
+            Write-Host "  That path does not exist - try again." -ForegroundColor Yellow
+            continue
+        }
+        $item = Get-Item -LiteralPath $raw -ErrorAction SilentlyContinue
+        if (-not $item -or $item.PSIsContainer) {
+            Write-Host "  That is a folder, not a file - drop the .exe itself." -ForegroundColor Yellow
+            continue
+        }
+        if ($item.Extension -ne ".exe") {
+            Write-Host "  That is not an .exe - drop the game executable." -ForegroundColor Yellow
+            continue
+        }
+        # A name mismatch is a warning, not a refusal: the user may know
+        # better than our catalog does, and some stores rename the exe.
+        if ($ExeName -and $item.Name -ne $ExeName) {
+            Write-Host "  Note: expected $ExeName but got $($item.Name)." -ForegroundColor Yellow
+            $ok = ("" + (Read-Host "  Use it anyway? [Y/N]")).Trim().ToLower()
+            if ($ok -notin @("y","yes","j")) { continue }
+        }
+        Write-Host "  [OK] Using: $($item.FullName)" -ForegroundColor Green
+        Write-Host "       ($([math]::Round($item.Length / 1MB, 1)) MB)" -ForegroundColor DarkGray
+        return $item.FullName
+    }
+
+    Write-Host "  Too many attempts - leaving it as it is." -ForegroundColor Yellow
+    return $null
+}
+
 function global:Get-GameFolderInteractive {
     param(
         [Parameter(Mandatory=$true)][string]$GameName,
@@ -1463,7 +1602,7 @@ function global:Resolve-DepotPath {
             Write-Host "    4. Paste with Ctrl+V and press Enter." -ForegroundColor Gray
             Write-Host "    5. Wait for 'Depot download complete' before continuing." -ForegroundColor Gray
             Write-Host ""
-            # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+            # Both protocol addresses: depending on the Steam build only one works.
             foreach ($cu in @("steam://open/console", "steam://nav/console")) {
                 try { Start-Process $cu -ErrorAction SilentlyContinue | Out-Null; Start-Sleep -Milliseconds 900 } catch {}
             }
@@ -2047,64 +2186,147 @@ function global:Protect-InstallUserData {
 # has to match this string, so use the same shape.
 # $Second is for entries that track two mods in one tile.
 # ---------------------------------------------------------------
-#  Test-ThunderstoreDependencies - fehlende Abhaengigkeiten finden
+#  Test-ThunderstoreDependencies - find missing dependencies
 # ---------------------------------------------------------------
-# WARUM ES DAS GIBT: unsere Thunderstore-Installer tragen feste Listen
-# von Paketen. Die stammen aus der manifest.json der Hauptmod oder aus
-# Handarbeit - und beides kennt nur die DIREKTEN Abhaengigkeiten, nicht
-# das, was diese wiederum brauchen. Bei PEAK ist genau das aufgefallen:
-# PEAKLib_Core verlangt MonoDetour_BepInEx_5 und SoftDependencyFix, und
-# beide wurden nie mitinstalliert.
+# WHY THIS EXISTS: our Thunderstore installers carry fixed lists
+# of packages. Those come from the main mod's manifest.json or from
+# hand-written lists - and both only know the DIRECT dependencies, not
+# what those in turn require. PEAK is exactly where this showed up:
+# PEAKLib_Core requires MonoDetour_BepInEx_5 and SoftDependencyFix, and
+# neither was ever installed along with it.
 #
-# DIESE FUNKTION AENDERT NICHTS. Sie liest die Abhaengigkeiten der
-# angegebenen Pakete von Thunderstore und gibt zurueck, was in der
-# Liste fehlt. Der Aufrufer entscheidet, was er damit tut.
+# THIS FUNCTION CHANGES NOTHING. It reads the dependencies of the given
+# packages from Thunderstore and returns what is missing from the list.
+# The caller decides what to do with that.
 #
-# EINGABE: Adressen der Form
-#   https://thunderstore.io/package/download/<Autor>/<Name>/<Version>/
-# Daraus werden Autor und Name gelesen - die Installer haben solche
-# Listen ohnehin, es braucht keine Umbauten an ihren Datenstrukturen.
+# INPUT: addresses of the form
+#   https://thunderstore.io/package/download/<author>/<name>/<version>/
+# Author and name are read from those - the installers have such lists
+# anyway, so no rework of their data structures is needed.
 # ---------------------------------------------------------------
 #  Test-IsPayloadRelease / Select-PayloadAsset
 # ---------------------------------------------------------------
-# WARUM ES DAS GIBT: RaYRoD-TV hat am 2026-08-13 bei ALLEN seinen
-# VR-Ports ein Release "hub-patch-2" hochgeladen, das NUR QUELLTEXT
-# enthaelt - BanjoKazooie-VR, MarioKart64-VR, RingRacers-VR,
-# sm64coopdx-vr, SRB2-VR und StarFox64-VR. Nachgezaehlt am
-# Banjo-Beispiel: 87 Dateien, 324 KB, KEINE ausfuehrbare Datei.
-# Das echte Paket derselben Reihe hat 16 Dateien und 5,5 MB.
+# WHY THIS EXISTS: on 2026-08-13 RaYRoD-TV uploaded a release
+# "hub-patch-2" to ALL of his VR ports containing SOURCE ONLY -
+# BanjoKazooie-VR, MarioKart64-VR, RingRacers-VR, sm64coopdx-vr,
+# SRB2-VR and StarFox64-VR. Counted on the Banjo example: 87 files,
+# 324 KB, NO executable. The real package of the same series has 16
+# files and 5.5 MB.
 #
-# Ein Installer, der "das neueste Release mit einer .zip" nimmt,
-# haette den Quelltext ausgepackt - der Anhang traegt ja denselben
-# Projektnamen (BanjoKazooie-VR-2-source.zip enthaelt "banjo").
+# An installer taking "the newest release carrying a .zip" would have
+# unpacked the source - the asset carries the same project name
+# (BanjoKazooie-VR-2-source.zip contains "banjo").
 #
-# DREI SIGNALE, alle drei noetig, weil jedes fuer sich zu weich ist:
-#   1. Tag oder Titel des Releases sieht nach Quelltext aus
-#   2. "source" (oder patch/sdk/symbols/debug) im DATEINAMEN
-#   3. GROESSE: Martins Beobachtung - die Quelltextpakete liegen
-#      immer UNTER 1 MB, die echten deutlich darueber. Das faengt
-#      auch einen kuenftigen Anhang, der sich anders nennt.
+# THREE SIGNALS, all three needed because each alone is too weak:
+#   1. the release tag or title looks like source
+#   2. "source" (or patch/sdk/symbols/debug) in the FILE NAME
+#   3. SIZE: the source packages always come in well under the real
+#      ones. That also catches a future asset under a different name.
 # ---------------------------------------------------------------
-#  Install-MultiverseVRHub - RaYRoD-TVs eigener Hub als ZWEITER Weg
+#  Install-MultiverseVRHub - RaYRoD-TV's own hub as a SECOND route
 # ---------------------------------------------------------------
-# WORUM ES GEHT: RaYRoD-TV pflegt seine sechs VR-Ports inzwischen
-# ueber einen eigenen kleinen Hub (MultiverseVRHub.exe, eine einzige
-# Datei). Kuenftige Fassungen erscheinen laut seiner Ankuendigung
-# dort - moeglicherweise sogar zuerst oder ausschliesslich.
+# WHAT THIS IS ABOUT: RaYRoD-TV now ships his VR ports through a small
+# hub of his own (MultiverseVRHub.exe, a single file). Per his own
+# announcement, future builds appear there - possibly first, possibly
+# exclusively.
 #
-# DAS PROBLEM MIT SEINEM HUB, und deshalb ist es die ZWEITE Option:
-# er installiert die Spiele selbst, an einen Ort, den WIR nicht
-# kennen. Damit wuessten wir weder, ob ein Spiel installiert ist,
-# noch wo seine Exe liegt - "Start in VR" haette nichts zu starten.
+# THE PROBLEM WITH HIS HUB, and why this is the SECOND option: it
+# installs the games itself, to a place WE do not know. We would know
+# neither whether a game is installed nor where its exe is - "Start in
+# VR" would have nothing to launch.
 #
-# MARTINS LOESUNG, und sie ist die einfachste: WIR bestimmen den Ort.
-# Der Nutzer bekommt einen Pfad vorgeschlagen (C:\Games\Multiverse
-# VR Hub), darf ihn aendern, und danach ist GENAU DIESE Exe das, was
-# "Start in VR" oeffnet. Wir behaupten nichts ueber die Spiele
-# darin - wir bringen den Nutzer nur wieder an die Stelle, an der
-# er sie gestartet hat.
+# THE SIMPLEST ANSWER: WE decide the location. The user is offered a
+# path (C:\Games\Multiverse VR Hub), may change it, and from then on
+# EXACTLY THAT exe is what "Start in VR" opens. We claim nothing about
+# the games inside it - we only bring the user back to the place they
+# launched them from.
 #
-# Rueckgabe: der volle Pfad der Exe, oder $null.
+# Returns: the full path of the exe, or $null.
+# ============================================================
+#  Confirm-ReleaseChecksum
+# ------------------------------------------------------------
+#  Recomputes the SHA-256 of a freshly downloaded file and holds it
+#  against the value the author writes INTO THE RELEASE NOTE.
+#
+#  WHY FROM THE NOTE AND NOT HARD-CODED: a built-in checksum matches
+#  exactly ONE build and fails on the next release - the user then sees
+#  a warning although everything is fine, and learns to click it away.
+#  Read from the note, the check keeps working on EVERY future build,
+#  as long as the author keeps publishing it.
+#
+#  RETURNS (always a string, never $null):
+#    "match"    - value found and equal. Carry on.
+#    "mismatch" - value found and DIFFERENT. The caller MUST abort and
+#                 must not run the file.
+#    "none"     - no value in the note (or the file was unreadable).
+#                 Not an error - there was simply nothing to compare,
+#                 and the caller carries on.
+#
+#  The pattern is deliberately generous: file name, then 64 hex digits
+#  somewhere in the next 200 characters. That covers colons, bullets,
+#  code blocks and tables - every shape that occurs in release notes.
+#  Case does not matter.
+# ============================================================
+function global:Confirm-ReleaseChecksum {
+    param(
+        [Parameter(Mandatory=$true)][string]$FilePath,
+        [Parameter(Mandatory=$true)][string]$AssetName,
+        [string]$ReleaseBody = "",
+        [string]$ReportTo    = "the author"
+    )
+    if (-not (Test-Path -LiteralPath $FilePath)) { return "none" }
+
+    $expect = $null
+    if ($ReleaseBody) {
+        try {
+            # [\s\S] instead of (?s): same effect (newlines are
+            # included), but without an inline option switch - that is
+            # unambiguous in every regex engine.
+            $m = [regex]::Match($ReleaseBody, [regex]::Escape($AssetName) + '[\s\S]{0,200}?([0-9a-fA-F]{64})')
+            if ($m.Success) { $expect = $m.Groups[1].Value.ToLower() }
+        } catch { }
+    }
+
+    $got = $null
+    try { $got = (Get-FileHash -LiteralPath $FilePath -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() } catch { }
+    if (-not $got) { return "none" }
+
+    $sizeB = 0
+    try { $sizeB = (Get-Item -LiteralPath $FilePath).Length } catch { }
+
+    Write-Host ""
+    Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host " CHECKING WHAT YOU GOT" -ForegroundColor Cyan
+    Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ("   File   : {0}  ({1:N0} bytes)" -f $AssetName, $sizeB) -ForegroundColor White
+    Write-Host "   SHA-256: $got" -ForegroundColor Gray
+
+    if (-not $expect) {
+        Write-Host ""
+        Write-Host "   No checksum in the release note this time, so there was" -ForegroundColor Gray
+        Write-Host "   nothing to compare against. You can compare it yourself" -ForegroundColor Gray
+        Write-Host "   on the release page if you want to be sure." -ForegroundColor Gray
+        Write-Host ""
+        return "none"
+    }
+
+    Write-Host "   Author's: $expect" -ForegroundColor Gray
+    Write-Host ""
+    if ($got -eq $expect) {
+        Write-Host "   CHECKSUM MATCHES THE AUTHOR'S RELEASE NOTE. " -ForegroundColor Black -BackgroundColor Green
+        Write-Host "   The file is exactly what was published." -ForegroundColor White
+        Write-Host ""
+        return "match"
+    }
+    Write-Host "   CHECKSUM DOES NOT MATCH. " -ForegroundColor White -BackgroundColor Red
+    Write-Host "   Do NOT run this file. Delete it and try again - and if it" -ForegroundColor Yellow
+    Write-Host "   keeps failing, report it to $ReportTo before running it." -ForegroundColor Yellow
+    Write-Host "   Expected: $expect" -ForegroundColor White
+    Write-Host "   Got     : $got" -ForegroundColor White
+    Write-Host ""
+    return "mismatch"
+}
+
 function global:Install-MultiverseVRHub {
     param(
         [string]$DefaultDir = "C:\Games\Multiverse VR Hub",
@@ -2133,15 +2355,22 @@ function global:Install-MultiverseVRHub {
         return $null
     }
 
-    # Neueste Fassung aufloesen. Der Anhang ist eine EXE, keine .zip -
-    # Select-PayloadAsset sucht nur .zip, taugt hier also nicht.
-    $url = $pinned; $tag = "latest"
+    # Resolve the newest build. The asset is an EXE, not a .zip -
+    # Select-PayloadAsset only looks for .zip, so it does not fit here.
+    $url = $pinned; $tag = "latest"; $expectHash = $null
     try {
         $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" `
                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
         foreach ($a in @($rel.assets)) {
             if ($a.name -ieq $exeName) { $url = [string]$a.browser_download_url; $tag = [string]$rel.tag_name; break }
         }
+        # RaYRoD-TV puts the SHA-256 of his files into EVERY release
+        # note, in the shape "<file>, <size> bytes" followed by the hex
+        # value. It is read out here and recomputed below - so the user
+        # never has to reach for certutil.
+        $body = [string]$rel.body
+        $m = [regex]::Match($body, [regex]::Escape($exeName) + '(?s).{0,120}?([0-9a-fA-F]{64})')
+        if ($m.Success) { $expectHash = $m.Groups[1].Value.ToLower() }
     } catch { }
 
     $dest = Join-Path $dir $exeName
@@ -2150,6 +2379,41 @@ function global:Install-MultiverseVRHub {
         -Instructions "Download $exeName from the releases page and save it as '$dest', then choose Retry."
 
     if (Test-Path -LiteralPath $dest) {
+        # RECOMPUTE THE CHECKSUM. The author publishes it with every
+        # build and tells people to run certutil - we take that off the
+        # user's hands and show the result prominently.
+        $gotHash = $null
+        try { $gotHash = (Get-FileHash -LiteralPath $dest -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() } catch { }
+        $sizeB = 0
+        try { $sizeB = (Get-Item -LiteralPath $dest).Length } catch { }
+        Write-Host ""
+        Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host " CHECKING WHAT YOU GOT" -ForegroundColor Cyan
+        Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host ("   File   : {0}  ({1:N0} bytes)" -f $exeName, $sizeB) -ForegroundColor White
+        if ($gotHash) { Write-Host "   SHA-256: $gotHash" -ForegroundColor Gray }
+        if ($expectHash -and $gotHash) {
+            Write-Host "   Author's: $expectHash" -ForegroundColor Gray
+            Write-Host ""
+            if ($gotHash -eq $expectHash) {
+                Write-Host "   CHECKSUM MATCHES THE AUTHOR'S RELEASE NOTE. " -ForegroundColor Black -BackgroundColor Green
+                Write-Host "   The file is exactly what he published." -ForegroundColor White
+            } else {
+                Write-Host "   CHECKSUM DOES NOT MATCH. " -ForegroundColor White -BackgroundColor Red
+                Write-Host "   Do NOT run this file. Delete it and try again - and if it" -ForegroundColor Yellow
+                Write-Host "   keeps failing, report it to RaYRoD-TV before running it." -ForegroundColor Yellow
+                Write-Host "   Expected: $expectHash" -ForegroundColor White
+                Write-Host "   Got     : $gotHash" -ForegroundColor White
+                Write-Host ""
+                return $null
+            }
+        } elseif ($gotHash) {
+            Write-Host ""
+            Write-Host "   No checksum in the release note this time, so there was" -ForegroundColor Gray
+            Write-Host "   nothing to compare against. Compare it yourself on the" -ForegroundColor Gray
+            Write-Host "   release page if you want to be sure." -ForegroundColor Gray
+        }
+        Write-Host ""
         Write-OK "Multiverse VR Hub $tag is at: $dest"
         return $dest
     }
@@ -2168,10 +2432,20 @@ function global:Test-IsPayloadRelease {
 function global:Select-PayloadAsset {
     param(
         $Assets,
-        # Plattformkennzeichen, auf das der Anhang zeigen MUSS.
+        # Platform marker the asset MUST carry.
         [string]$PlatformPattern = '(?i)(win64|win32|windows|x64)',
-        # Alles darunter ist kein spielbares Paket, sondern Quelltext.
-        [int]$MinBytes = 1048576
+        # !!! 2026-08-20: LOWERED FROM 1 MB TO 150 KB !!!
+        # The old limit came from a SINGLE case - RaYRoD-TV's repos
+        # put source archives next to the package, and 1 MB separated
+        # the two cleanly. Those repos carry no releases at all any
+        # more, so the reason is gone - but the limit stayed and threw
+        # away small, perfectly valid mods (Singularity VR: 833 KB,
+        # whose installer had to hunt for its asset by hand).
+        # 150 KB still catches what is never a package here: checksum
+        # and signature files, notes, empty archives.
+        # Source archives are already excluded by NAME
+        # (source|patch|sdk|symbols|debug), not by size.
+        [int]$MinBytes = 153600
     )
     $zips = @($Assets | Where-Object { $_.name -match '(?i)\.zip$' })
     if ($zips.Count -eq 0) { return $null }
@@ -2182,8 +2456,8 @@ function global:Select-PayloadAsset {
     })
     if ($clean.Count -eq 0) { return $null }
 
-    # Erst der Anhang mit Plattformkennzeichen, sonst der groesste -
-    # das spielbare Paket ist immer das dickste.
+    # Prefer the asset carrying a platform marker, otherwise the
+    # largest one - the playable package is always the biggest.
     $pick = $clean | Where-Object { $_.name -match $PlatformPattern } | Select-Object -First 1
     if (-not $pick) { $pick = $clean | Sort-Object { [int64]$_.size } -Descending | Select-Object -First 1 }
     return $pick
@@ -2203,8 +2477,8 @@ function global:Test-ThunderstoreDependencies {
         $have[$key.ToLowerInvariant()] = $true
         $todo += @{ Author = $m.Groups[1].Value; Name = $m.Groups[2].Value }
     }
-    # Modloader nie melden - der steht in jeder Liste ohnehin ganz oben
-    # und wird von den Installern gesondert behandelt.
+    # Never report the mod loader - it is at the top of every list
+    # anyway and the installers handle it separately.
     foreach ($b in @("bepinex-bepinexpack","bepinex-bepinexpack_peak","denikson-bepinexpack_valheim")) { $have[$b] = $true }
 
     $missing = @()
@@ -2218,8 +2492,8 @@ function global:Test-ThunderstoreDependencies {
         if (-not $info -or -not $info.latest -or -not $info.latest.dependencies) { continue }
         foreach ($dep in @($info.latest.dependencies)) {
             if (-not $dep) { continue }
-            # "Namespace-Name-Version" von HINTEN trennen: der Name darf
-            # selbst Bindestriche enthalten, die Version nicht.
+            # Split "namespace-name-version" from the END: the name may
+            # itself may contain hyphens, the version may not.
             $parts = [string]$dep -split '-'
             if ($parts.Count -lt 3) { continue }
             $ver  = $parts[-1]
@@ -2236,17 +2510,17 @@ function global:Test-ThunderstoreDependencies {
             }
         }
     }
-    # KOMMA VOR DER RUECKGABE, das ist kein Tippfehler: PowerShell packt
-    # ein Array mit GENAU EINEM Element beim Zurueckgeben aus. Der
-    # Aufrufer bekaeme dann die Hashtabelle selbst - und .Count waere die
-    # Zahl ihrer SCHLUESSEL statt 1. Genau darauf bin ich beim Testen
-    # hereingefallen. Das Komma erzwingt ein Array.
+    # THE COMMA BEFORE THE RETURN IS NOT A TYPO: PowerShell unwraps an
+    # array holding EXACTLY ONE element when returning it. The caller
+    # would then get the hashtable itself - and .Count would be the
+    # number of its KEYS instead of 1. That is exactly what caught me
+    # during testing. The comma forces an array.
     return ,$missing
 }
 
-# Das Ergebnis in einer einheitlichen Form ausgeben. Bewusst als
-# WARNUNG und nicht als Abbruch: fehlt etwas, laeuft die Mod oft
-# trotzdem - nur eben nicht vollstaendig.
+# Report the result in one consistent shape. Deliberately a WARNING
+# and not an abort: if something is missing the mod often still runs -
+# just not completely.
 function global:Show-ThunderstoreDependencyWarning {
     param([array]$Missing)
     if (-not $Missing -or $Missing.Count -eq 0) { return }
@@ -2321,17 +2595,55 @@ function global:New-DesktopShortcut {
 # one pattern the newest file wins. Also looks in the Hub folder itself,
 # since browsers configured to "always ask" often land next to the Hub.
 # The user always confirms - a wrong guess must never be silently used.
+# ---------------------------------------------------------------
+#  Find-PredownloadedFile
+# ---------------------------------------------------------------
+#  !!! 2026-08-20 - THIS FUNCTION WAS TOO TRUSTING !!!
+#  It offered any file whose NAME roughly matched. An old
+#  "SomeMod-1.2.zip" sitting in the downloads folder therefore
+#  looked just as good as the current release - the user confirmed,
+#  and the installer put an outdated mod in place. From the outside
+#  that looked like a broken update; in truth it was never the
+#  current package.
+#
+#  FROM NOW ON THE CALLER MUST SAY WHAT IT EXPECTS:
+#    -ExpectedName   exact file name of the current release
+#    -ExpectedSize   size in bytes (from the release data)
+#    -ExpectedSha256 checksum, when the author publishes one
+#  If any of those does not match, the file is NOT offered - what
+#  was found and why it is unsuitable is stated, and the download
+#  proceeds normally.
+#
+#  WITH NO EXPECTATION AT ALL THERE IS NO SUGGESTION ANY MORE.
+#  Anyone who still wants the reuse must pass -AllowUnverified and
+#  then gets a clear warning. That is deliberate: better one
+#  download too many than a wrong build in the game folder.
+# ---------------------------------------------------------------
 function global:Find-PredownloadedFile {
     param(
         [Parameter(Mandatory=$true)][string[]]$Patterns,
         [string]$Label = "the download",
         [string[]]$ExtraFolders = @(),
         [int]$MaxAgeDays = 0,         # 0 = no age limit
+        [string]$ExpectedName = "",
+        [long]$ExpectedSize = 0,
+        [string]$ExpectedSha256 = "",
+        [switch]$AllowUnverified,
         # Set this on the SECOND pass, after the download page has already
         # been opened. There is no download left to skip at that point, and
         # saying so would suggest this is some additional, separate file.
         [switch]$PageAlreadyOpen
     )
+
+    # No expectation and no explicit opt-in -> do not even search.
+    # Silently, so nobody thinks they did something wrong.
+    if ((-not $ExpectedName) -and ($ExpectedSize -le 0) -and (-not $ExpectedSha256) -and (-not $AllowUnverified)) {
+        return $null
+    }
+
+    # When an exact name is known, ONLY that counts. The loose
+    # patterns are meaningless then - they were the problem.
+    if ($ExpectedName) { $Patterns = @($ExpectedName) }
     $folders = New-Object System.Collections.ArrayList
     foreach ($f in @(
         (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"),
@@ -2362,6 +2674,28 @@ function global:Find-PredownloadedFile {
     }
     if (-not $hit) { return $null }
 
+    # ---- Cross-check: is this really the current release? --------
+    $reject = $null
+    if ($ExpectedName -and ($hit.Name -ne $ExpectedName)) {
+        $reject = "the file is called '$($hit.Name)', expected '$ExpectedName'"
+    }
+    if ((-not $reject) -and ($ExpectedSize -gt 0) -and ($hit.Length -ne $ExpectedSize)) {
+        $reject = "it is $($hit.Length) bytes, expected $ExpectedSize"
+    }
+    if ((-not $reject) -and $ExpectedSha256) {
+        $got = $null
+        try { $got = (Get-FileHash -LiteralPath $hit.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() } catch {}
+        if ($got -ne $ExpectedSha256.ToLower()) { $reject = "its checksum does not match the published one" }
+    }
+    if ($reject) {
+        Write-Host ""
+        Write-Host "  There is a file in your downloads that looks like $Label," -ForegroundColor Gray
+        Write-Host "  but it is NOT the current release - $reject." -ForegroundColor Gray
+        Write-Host "    $($hit.Name)" -ForegroundColor DarkGray
+        Write-Host "  Downloading the correct one instead." -ForegroundColor Gray
+        return $null
+    }
+
     $sizeTxt = if ($hit.Length -ge 1GB) { "{0:N2} GB" -f ($hit.Length / 1GB) } else { "{0:N1} MB" -f ($hit.Length / 1MB) }
     Write-Host ""
     Write-Host "  Found what looks like $Label already on disk:" -ForegroundColor Cyan
@@ -2369,8 +2703,16 @@ function global:Find-PredownloadedFile {
     Write-Host "    $sizeTxt   $($hit.LastWriteTime.ToString('yyyy-MM-dd HH:mm'))" -ForegroundColor DarkGray
     Write-Host "    in $($hit.DirectoryName)" -ForegroundColor DarkGray
     Write-Host ""
+    if ($AllowUnverified -and (-not $ExpectedName) -and ($ExpectedSize -le 0) -and (-not $ExpectedSha256)) {
+        Write-Host "  [!] This could not be checked against the current release -" -ForegroundColor Yellow
+        Write-Host "      only the name looks right. If the mod misbehaves later," -ForegroundColor Yellow
+        Write-Host "      answer N here and let it download fresh." -ForegroundColor Yellow
+        Write-Host ""
+    }
     $question = if ($PageAlreadyOpen) { "  Use this file? [Y/N]" } else { "  Use this file and skip the download? [Y/N]" }
-    $ans = (Read-Host $question).Trim().ToUpper()
+    # ("" + ...) catches a closed input - Read-Host then returns
+    # $null and .Trim() on it would throw.
+    $ans = ("" + (Read-Host $question)).Trim().ToUpper()
     if ($ans -in @("Y","YES","")) {
         Write-Host "  [OK] Using: $($hit.FullName)" -ForegroundColor Green
         return [string]$hit.FullName

@@ -9,8 +9,8 @@
 # Install = copy two files next to the game exe:
 #   <game>\Binaries\Win32\xinput1_3.dll     (the injector)
 #   <game>\Binaries\Win32\bioshockvr.dll    (the mod)
-# ACHTUNG: NICHT Build\Final wie bei BioShock 1 und 2 - Infinite laeuft
-# auf der Unreal Engine 3 und legt seine Binaerdateien woanders ab. Beide
+# NOTE: NOT Build\Final as in BioShock 1 and 2 - Infinite runs on
+# Unreal Engine 3 and keeps its binaries elsewhere. Both are
 # handled. No game file is modified; uninstalling is deleting the two.
 #
 # The calibration is BUILT INTO the DLL, so nothing has to be written to
@@ -36,6 +36,16 @@ function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
 function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
 function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
+function Read-YesNo {
+    param([string]$Prompt)
+    while ($true) {
+        Write-Host ""
+        $a = (Read-Host " $Prompt [Y/N]").Trim().ToUpper()
+        if ($a -eq "Y" -or $a -eq "YES") { return $true }
+        if ($a -eq "N" -or $a -eq "NO")  { return $false }
+        Write-Warn "Please type Y or N."
+    }
+}
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 $SCRIPT_DIR   = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -45,11 +55,11 @@ $RELEASES_URL = "https://github.com/$REPO/releases"
 $APP_ID       = "8870"
 $GAME_EXE     = "BioShockInfinite.exe"
 $MOD_FILES    = @("xinput1_3.dll", "bioshockvr.dll", "bvr_steamvr32.dll", "openvr_api.dll")
-# Steam, GOG und Epic legen die Binaerdateien alle unter Binaries\Win32 ab.
-# !!! NICHT Build\Final - DAS IST DER UNTERSCHIED ZU BIOSHOCK 1 UND 2 !!!
-# Infinite laeuft auf der Unreal Engine 3 und legt seine Binaerdateien
-# woanders ab: Binaries\Win32. Der Autor schreibt das in seinen
-# Anmerkungen ausdruecklich dazu, weil es die haeufigste Verwechslung ist.
+# Steam, GOG and Epic all put the binaries under Binaries\Win32.
+# !!! NOT Build\Final - THAT IS THE DIFFERENCE TO BIOSHOCK 1 AND 2 !!!
+# Infinite runs on Unreal Engine 3 and keeps its binaries elsewhere:
+# Binaries\Win32. The author spells this out in his notes because it
+# is the most common mix-up.
 $BIN_SUBDIRS  = @("Binaries\Win32")
 $CANDIDATE_ROOTS = @(
     "C:\Program Files (x86)\Steam\steamapps\common\BioShock Infinite",
@@ -103,7 +113,7 @@ Write-Host "  OpenXR runtime - Virtual Desktop (VDXR), Steam Link or SteamVR." -
 Pause-User "Press Enter to start the installation..." | Out-Null
 
 # ---- 1. locate the game -------------------------------------
-Write-Step 1 4 "Locating BioShock Infinite"
+Write-Step 1 5 "Locating BioShock Infinite"
 
 $binDir = Find-BioshockInfiniteBin
 if ($binDir) { Write-OK "Found: $binDir" }
@@ -136,7 +146,7 @@ if (Test-Path -LiteralPath $existing) {
 }
 
 # ---- 2. download --------------------------------------------
-Write-Step 2 4 "Downloading the mod"
+Write-Step 2 5 "Downloading the mod"
 
 $tmp = Join-Path $env:TEMP ("bs2vr_" + [Guid]::NewGuid().ToString("N"))
 try { New-Item -ItemType Directory -Path $tmp -Force -ErrorAction Stop | Out-Null }
@@ -174,7 +184,7 @@ while (-not (Test-Path -LiteralPath $zipDest)) {
 Write-OK "Archive ready."
 
 # ---- 3. install ---------------------------------------------
-Write-Step 3 4 "Installing into $binDir"
+Write-Step 3 5 "Installing into $binDir"
 
 $exDir = Join-Path $tmp "x"
 try {
@@ -211,6 +221,58 @@ foreach ($f in $MOD_FILES) {
         Write-Fail "Could not copy $f - is the game running? ($($_.Exception.Message))"
     }
 }
+Write-Step 4 5 "Turning VR on"
+# ---- THE PRESET, AND WHY IT IS MANDATORY HERE ------------------
+# FINDING FROM THE PACKAGE'S THREE PRESETS: bs1 and bs2 carry
+# "toggles are implied ON" in their header plus autoVr=1 - the mod
+# arms itself there. preset-bsi has NO autoVr but is the ONLY one of
+# the three to list vrstereoOn=1 and driveHmd=1 explicitly.
+# On top of that the README mentions the one-click button only for
+# BS1 and BS2 ("VR PRESET 1 (BS1) / APPLY PRESET (BS2)") - Infinite
+# does not appear in it. The result without this file: the VR session
+# starts, but stereo and head tracking stay off - a flat panel in the
+# headset with black bars, because the game renders 16:9 while the
+# panel is nearly square. That is exactly what was observed, by more
+# than one person.
+# The file sets all of it in one go: stereo on, head tracking on, and
+# the nearly square resolution 2064x2208.
+# IT DOES NOT BELONG IN THE GAME FOLDER but in THIS game's settings
+# folder - the three BioShocks share no files.
+$presetSrc = Get-ChildItem -LiteralPath $exDir -Filter "vrpreset.ini" -Recurse -File -ErrorAction SilentlyContinue |
+             Where-Object { $_.DirectoryName -match '(?i)preset-bsi' } | Select-Object -First 1
+$presetDir = Join-Path $env:LOCALAPPDATA "BioshockVR\bsi"
+$presetDst = Join-Path $presetDir "vrpreset.ini"
+
+if (-not $presetSrc) {
+    Write-Warn "No preset-bsi\vrpreset.ini in the archive - skipping the VR switches."
+} else {
+    try { New-Item -ItemType Directory -Path $presetDir -Force -ErrorAction Stop | Out-Null } catch {}
+    $haveOld = Test-Path -LiteralPath $presetDst
+    $write   = $true
+    if ($haveOld) {
+        # An existing file may hold the user's own tuning - that is not
+        # overwritten silently.
+        Write-Host ""
+        Write-Host "  You already have VR settings for Infinite:" -ForegroundColor White
+        Write-Host "     $presetDst" -ForegroundColor Gray
+        Write-Host "  Replacing them turns stereo and head tracking on and sets a" -ForegroundColor White
+        Write-Host "  near-square resolution. Your own tuning would be backed up." -ForegroundColor White
+        $write = Read-YesNo "  Replace them with the author's tested settings?"
+        if ($write) {
+            try { Copy-Item -LiteralPath $presetDst -Destination ($presetDst + ".bak") -Force -ErrorAction Stop
+                  Write-OK "Your settings backed up as vrpreset.ini.bak" } catch {}
+        }
+    }
+    if ($write) {
+        try {
+            Copy-Item -LiteralPath $presetSrc.FullName -Destination $presetDst -Force -ErrorAction Stop
+            Write-OK "VR switches set: stereo on, head tracking on, near-square resolution."
+        } catch { Write-Warn "Could not write the preset: $($_.Exception.Message)" }
+    } else {
+        Write-Info "Kept your own settings."
+    }
+}
+
 try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 if ($copied -lt $MOD_FILES.Count) {
@@ -220,7 +282,7 @@ if ($copied -lt $MOD_FILES.Count) {
 }
 
 # ---- 4. markers ---------------------------------------------
-Write-Step 4 4 "Finishing up"
+Write-Step 5 5 "Finishing up"
 # RECORD THE GAME ROOT, NOT THE BIN FOLDER. The post-install refresh joins
 # the catalog's ModFile ("Binaries\Win32\xinput1_3.dll") onto this path, so
 # recording ...\Binaries\Win32 here would make it look for

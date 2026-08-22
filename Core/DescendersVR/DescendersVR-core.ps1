@@ -1,6 +1,6 @@
 # ============================================================
 # Descenders VR Mod Installer
-# Mod by Holydh, Fork von kyanite-rock - neueste Fassung wird geholt
+# Mod by Holydh, a fork of kyanite-rock - the newest build is fetched
 # https://github.com/kyanite-rock/DescendersVRMod
 # ============================================================
 
@@ -16,19 +16,19 @@ $ErrorActionPreference = "Stop"
 $GAME_NAME = "Descenders"
 $GAME_EXE = "Descenders.exe"
 $STEAM_APP_ID = "681280"
-# !!! FRUEHER STAND HIER EINE FESTE ADRESSE AUF v1.0.5 - DAMIT WAERE JEDE
-# NEUE FASSUNG AN UNS VORBEIGEGANGEN !!! Der Autor hat nach langer Pause
-# v1.0.6 veroeffentlicht (Unterstuetzung fuer das "Community Gear Update"),
-# und der Installer haette weiter 1.0.5 geholt.
-# Jetzt wird die neueste Fassung zur Laufzeit aufgeloest; die feste Adresse
-# ist nur noch der Rueckfall ohne Netz.
+# !!! A FIXED ADDRESS FOR v1.0.5 USED TO STAND HERE - EVERY NEW BUILD
+# WOULD HAVE PASSED US BY !!! After a long pause the author published
+# v1.0.6 (support for the "Community Gear Update"), and the installer
+# would have kept fetching 1.0.5.
+# The newest build is now resolved at run time; the fixed address is only
+# the no-network fallback.
 $MOD_REPO = "kyanite-rock/DescendersVRMod"
 $PINNED_TAG = "descenders_vr_mod_v1.0.6"
 $MOD_URL = "https://github.com/$MOD_REPO/releases/download/$PINNED_TAG/DescendersVRMod_v1.0.6.zip"
 
-# Neueste Fassung von GitHub holen. Der Anhang wird ueber seinen NAMEN
-# gesucht (DescendersVRMod*.zip), nicht ueber die Versionsnummer - dann
-# bricht eine Umbenennung nichts.
+# Fetch the newest build from GitHub. The asset is matched by its NAME
+# (DescendersVRMod*.zip), not by the version number - that way a rename
+# breaks nothing.
 function Get-DescendersLatest {
     try {
         $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
@@ -260,9 +260,9 @@ try {
  # User chose Skip - continue at own risk
 }
 
-# Das Archiv hat einen Wrapper-Ordner mit der Version im Namen
-# (DescendersVRMod_v1.0.6 usw.) - deshalb wird der ERSTE Unterordner
-# genommen, nicht ein fester Name.
+# The archive has a wrapper folder with the version in its name
+# (DescendersVRMod_v1.0.6 and so on) - so the FIRST subfolder is taken,
+# not a fixed name.
 $inner = Get-ChildItem -Path $extractDir -Directory | Select-Object -First 1
 if (-not $inner) {
  Write-Fail "Extracted archive does not contain expected folder structure."

@@ -25,9 +25,12 @@ $LR_CACHE_ZIP = Join-Path $LR_CACHE_DIR ("REALVR_" + $REAL_VERSION + ".zip")
 # Older builds cached the zip next to this script; used as a migration source.
 $LEGACY_CACHED_ZIP = Join-Path $SCRIPT_DIR "REALVR_cached.zip"
 
-# EXE is found recursively inside Folder - Sub field kept for reference only
+# The EXE is found recursively inside Folder. Sub / AltSubs name the
+# subfolder holding the REAL executable when a game ships more than one
+# file with the same name - see the exe search below for why that
+# matters.
 $GAMES = @(
- @{ Name = "Atomic Heart"; Folder = "Atomic Heart"; Sub = ""; Exe = "AtomicHeart-Win64-Shipping.exe"; AppId = 668580
+ @{ Name = "Atomic Heart"; Folder = "Atomic Heart"; Sub = "AtomicHeart\Binaries\Win64"; AltSubs = @("AtomicHeart\Binaries\WinGDK"); Exe = "AtomicHeart-Win64-Shipping.exe"; AppId = 668580
  Settings = @(
  "Display Mode -> Windowed Fullscreen"
  "VSync -> Off | HDR -> Disabled | Frame Rate -> Unlimited"
@@ -56,7 +59,7 @@ $GAMES = @(
  )
  Flavor = "Don't go hollow."
  },
- @{ Name = "Dark Souls II"; Folder = "Dark Souls II Scholar of the First Sin"; Sub = ""; Exe = "DarkSoulsII.exe"; AppId = 335300
+ @{ Name = "Dark Souls II"; Folder = "Dark Souls II Scholar of the First Sin"; Sub = "Game"; Exe = "DarkSoulsII.exe"; AppId = 335300
  Settings = @(
  "Display Mode -> Windowed | VSync -> Off"
  "Anti-Aliasing -> Off (FXAA causes blur; disable entirely)"
@@ -113,7 +116,7 @@ $GAMES = @(
  )
  Flavor = "Become Elden Lord. The Lands Between are waiting."
  },
- @{ Name = "Far Cry 4"; Folder = "Far Cry 4"; Sub = ""; Exe = "FarCry4.exe"; AppId = 298110
+ @{ Name = "Far Cry 4"; Folder = "Far Cry 4"; Sub = "bin"; Exe = "FarCry4.exe"; AppId = 298110
  Settings = @(
  "Window Mode -> Windowed (NOT Borderless - zoom bug) | Aspect Ratio -> Auto"
  "VSync -> Off | Motion Blur -> Off | Aim Assist -> Off"
@@ -121,7 +124,7 @@ $GAMES = @(
  )
  Flavor = "Welcome to Kyrat. Pagan Min sends his regards."
  },
- @{ Name = "Far Cry 5"; Folder = "Far Cry 5"; Sub = ""; Exe = "FarCry5.exe"; AppId = 552520
+ @{ Name = "Far Cry 5"; Folder = "Far Cry 5"; Sub = "bin"; Exe = "FarCry5.exe"; AppId = 552520
  Settings = @(
  "Reticle Position -> Offset | Window Mode -> Borderless"
  "Aspect Ratio -> Native 16:9 | VSync -> Off | Frame Rate Lock -> Off"
@@ -129,7 +132,7 @@ $GAMES = @(
  )
  Flavor = "Hope County wasn't asking. The Father is listening."
  },
- @{ Name = "Far Cry 6"; Folder = "Far Cry 6"; Sub = ""; Exe = "FarCry6.exe"; AppId = 933420
+ @{ Name = "Far Cry 6"; Folder = "Far Cry 6"; Sub = "bin"; Exe = "FarCry6.exe"; AppId = 933420
  Settings = @(
  "Window Mode -> Borderless (different from other Far Cry games!)"
  "VSync -> Off | Frame Rate Lock -> Off | Motion Blur -> Off"
@@ -138,7 +141,7 @@ $GAMES = @(
  )
  Flavor = "Yara is burning. Castillo's reign ends with you."
  },
- @{ Name = "Far Cry New Dawn"; Folder = "Far Cry New Dawn"; Sub = ""; Exe = "FarCryNewDawn.exe"; AppId = 703220
+ @{ Name = "Far Cry New Dawn"; Folder = "Far Cry New Dawn"; Sub = "bin"; Exe = "FarCryNewDawn.exe"; AppId = 703220
  Settings = @(
  "Reticle Position -> Offset | Window Mode -> Borderless"
  "Aspect Ratio -> Native 16:9 | VSync -> Off | Frame Rate Lock -> Off"
@@ -146,7 +149,7 @@ $GAMES = @(
  )
  Flavor = "Post-apocalypse pastels. The Highwaymen are ready."
  },
- @{ Name = "Far Cry Primal"; Folder = "Far Cry Primal"; Sub = ""; Exe = "FCPrimal.exe"; AppId = 371970
+ @{ Name = "Far Cry Primal"; Folder = "Far Cry Primal"; Sub = "bin"; Exe = "FCPrimal.exe"; AppId = 371970
  Settings = @(
  "Window Mode -> Windowed | Aspect Ratio -> 5:4 | VSync -> Off"
  "FOV Scaling -> 120"
@@ -155,7 +158,7 @@ $GAMES = @(
  )
  Flavor = "Fire. Beasts. Bone weapons. Tame the wild, Takkar."
  },
- @{ Name = "FF VII Remake"; Folder = "FINAL FANTASY VII REMAKE"; AltFolders = @("Final Fantasy VII Remake"); Sub = ""; Exe = "ff7remake_.exe"; AppId = 1462040
+ @{ Name = "FF VII Remake"; Folder = "FINAL FANTASY VII REMAKE"; AltFolders = @("Final Fantasy VII Remake"); Sub = "End\Binaries\Win64"; Exe = "ff7remake_.exe"; AppId = 1462040
  Settings = @(
  "Window Mode -> Windowed Borderless | Frame Rate -> Uncapped"
  "Anti-Aliasing -> Keep TAA enabled (hair and materials rely on it)"
@@ -166,7 +169,7 @@ $GAMES = @(
  )
  Flavor = "Cloud's sword in your hand. Midgar in your eyes."
  },
- @{ Name = "FF VII Rebirth"; Folder = "FINAL FANTASY VII REBIRTH"; AltFolders = @("Final Fantasy VII Rebirth"); Sub = ""; Exe = "ff7rebirth_.exe"; AppId = 2909400
+ @{ Name = "FF VII Rebirth"; Folder = "FINAL FANTASY VII REBIRTH"; AltFolders = @("Final Fantasy VII Rebirth"); Sub = "End\Binaries\Win64"; Exe = "ff7rebirth_.exe"; AppId = 2909400
  Settings = @(
  "Window Mode -> Windowed Borderless | Frame Rate -> Uncapped"
  "DLSS -> Quality or Performance | Frame Generation -> Off | Ray Reconstruction -> Off"
@@ -188,7 +191,7 @@ $GAMES = @(
  )
  Flavor = "Ride the gold. The Khan landed. Tsushima needs a Ghost."
  },
- @{ Name = "Ghostwire: Tokyo"; Folder = "GhostWire Tokyo"; Sub = ""; Exe = "GWT.exe"; AppId = 1475810
+ @{ Name = "Ghostwire: Tokyo"; Folder = "GhostWire- Tokyo"; AltFolders = @("Ghostwire Tokyo", "GhostWire Tokyo", "GhostwireTokyo"); Sub = "Snowfall\Binaries\Win64"; AltSubs = @("Snowfall\Binaries\WinGDK"); Exe = "GWT.exe"; AppId = 1475810
  Settings = @(
  "Window Mode -> Windowed or Borderless | VSync -> Off | HDR -> Off | Frame Rate -> Uncapped"
  "Upscaling -> DLSS recommended (game's built-in TAA is very blurry)"
@@ -199,7 +202,7 @@ $GAMES = @(
  )
  Flavor = "Tokyo, emptied. Spirits everywhere. Hand-weave the visible."
  },
- @{ Name = "Grounded"; Folder = "Grounded"; Sub = ""; Exe = "Maine-Win64-Shipping.exe"; AppId = 962130
+ @{ Name = "Grounded"; Folder = "Grounded"; Sub = "Maine\Binaries\Win64"; AltSubs = @("Maine\Binaries\WinGDK"); Exe = "Maine-Win64-Shipping.exe"; AppId = 962130
  Settings = @(
  "Window Mode -> Windowed | VSync -> Off | HDR -> Off"
  "Motion Blur -> Off (if available) | Frame Rate -> Uncapped"
@@ -207,7 +210,7 @@ $GAMES = @(
  )
  Flavor = "Backyard, but bigger. That spider is the size of a car."
  },
- @{ Name = "High on Life"; Folder = "High On Life"; Sub = ""; Exe = "Oregon-Win64-Shipping.exe"; AppId = 1583230
+ @{ Name = "High on Life"; Folder = "High On Life"; Sub = "Oregon\Binaries\Win64"; AltSubs = @("Oregon\Binaries\WinGDK"); Exe = "Oregon-Win64-Shipping.exe"; AppId = 1583230
  Settings = @(
  "Window Mode -> Windowed | VSync -> Off | HDR -> Off"
  "Motion Blur -> Off | Depth of Field -> Off | Film Grain -> Off"
@@ -216,7 +219,7 @@ $GAMES = @(
  )
  Flavor = "Talking guns. Cosmic crime lords. Gleeful chaos."
  },
- @{ Name = "Hogwarts Legacy"; Folder = "Hogwarts Legacy"; Sub = ""; Exe = "HogwartsLegacy.exe"; AppId = 990080
+ @{ Name = "Hogwarts Legacy"; Folder = "Hogwarts Legacy"; Sub = "Phoenix\Binaries\Win64"; Exe = "HogwartsLegacy.exe"; AppId = 990080
  Settings = @(
  "Window Mode -> Windowed Fullscreen | VSync -> Off | HDR -> Off | Frame Rate -> Uncapped"
  "Upscale Type -> NVIDIA DLSS | All Ray Tracing -> Off"
@@ -268,7 +271,7 @@ $GAMES = @(
  )
  Flavor = "It's not the years, it's the mileage. Whip in hand."
  },
- @{ Name = "Kingdom Come: Deliverance II"; Folder = "KingdomComeDeliverance2"; AltFolders = @("Kingdom Come Deliverance 2"); Sub = ""; Exe = "KingdomCome.exe"; AppId = 1771300
+ @{ Name = "Kingdom Come: Deliverance II"; Folder = "KingdomComeDeliverance2"; AltFolders = @("Kingdom Come Deliverance 2"); Sub = "Bin\Win64MasterMasterSteamPGO"; AltSubs = @("Bin\Win64MasterMasterEpicPGO", "Bin\Win64MasterMasterWinGDKPGO"); Exe = "KingdomCome.exe"; AppId = 1771300
  Settings = @(
  "Window Mode -> Windowed | VSync -> Off"
  "Frame Rate -> Lock to 240 FPS"
@@ -299,7 +302,7 @@ $GAMES = @(
  )
  Flavor = "Brooklyn's hero. Venom blast in 1:1."
  },
- @{ Name = "Spiderman 2"; Folder = "Marvel's Spider-Man 2"; AltFolders = @("Marvels Spider-Man 2"); Sub = ""; Exe = "Spider-Man2.exe"; AppId = 2482550
+ @{ Name = "Spiderman 2"; Folder = "Marvel's Spider-Man 2"; AltFolders = @("Marvels Spider-Man 2"); Sub = ""; Exe = "Spider-Man2.exe"; AltExes = @("SpiderMan2.exe"); AppId = 2482550
  Settings = @(
  "Window Mode -> Windowed | Aspect Ratio -> Auto | VSync -> Off | HDR -> Off"
  "Upscale -> DLSS (set level) | Frame Generation -> Off | Dynamic Resolution Scaling -> Off"
@@ -318,7 +321,7 @@ $GAMES = @(
  )
  Flavor = "Outer Rim outlaw. Kay Vess, Nix, and the long con."
  },
- @{ Name = "Stray"; Folder = "Stray"; Sub = ""; Exe = "Stray-Win64-Shipping.exe"; AppId = 1888160
+ @{ Name = "Stray"; Folder = "Stray"; Sub = "Hk_project\Binaries\Win64"; Exe = "Stray-Win64-Shipping.exe"; AppId = 1888160
  Settings = @(
  "Window Mode -> Windowed or Borderless | VSync -> Off | HDR -> Off"
  "Motion Blur -> Off | Depth of Field -> Off (if available) | Film Grain -> Off"
@@ -336,7 +339,7 @@ $GAMES = @(
  )
  Flavor = "Joel and Ellie. Cordyceps world. Smuggle her west."
  },
- @{ Name = "TLOU Part II"; Folder = "The Last of Us Part II Remastered"; Sub = ""; Exe = "tlou-ii.exe"; AppId = 2531310
+ @{ Name = "TLOU Part II"; Folder = "The Last of Us Part II Remastered"; Sub = ""; Exe = "tlou-ii.exe"; AltExes = @("tlou-ii-l.exe", "t2r-steam-final-pgo-lto.exe", "t2r-epic-final-pgo-lto.exe"); AppId = 2531310
  Settings = @(
  "Display Mode -> Windowed | Aspect Ratio -> Auto | VSync -> Off | Frame Rate Cap -> 360"
  "Scaling -> NVIDIA DLSS | Frame Generation -> Off"
@@ -354,7 +357,7 @@ $GAMES = @(
  )
  Flavor = "Treasure, ruin, gunfights. Drake's journal, Chloe's smirk."
  },
- @{ Name = "Watch Dogs"; Folder = "Watch_Dogs"; Sub = ""; Exe = "watch_dogs.exe"; AppId = 243470
+ @{ Name = "Watch Dogs"; Folder = "Watch_Dogs"; Sub = "bin"; Exe = "watch_dogs.exe"; AppId = 243470
  Settings = @(
  "Window Mode -> Windowed | VSync -> Off"
  "Anti-Aliasing -> FXAA or SMAA (avoid heavy MSAA)"
@@ -363,7 +366,7 @@ $GAMES = @(
  )
  Flavor = "Chicago runs on ctOS. Hack it, Marcus."
  },
- @{ Name = "Watch Dogs 2"; Folder = "Watch_Dogs2"; Sub = ""; Exe = "WatchDogs2.exe"; AppId = 447040
+ @{ Name = "Watch Dogs 2"; Folder = "Watch_Dogs2"; Sub = "bin"; Exe = "WatchDogs2.exe"; AppId = 447040
  Settings = @(
  "Window Mode -> Windowed or Borderless | VSync -> Off | Frame Rate -> Uncapped"
  "Anti-Aliasing -> Temporal AA | DirectX -> DX11 recommended (more stable than DX12)"
@@ -372,7 +375,7 @@ $GAMES = @(
  )
  Flavor = "DedSec is recruiting. The Bay is your playground."
  },
- @{ Name = "Watch Dogs Legion"; Folder = "Watch Dogs Legion"; Sub = ""; Exe = "WatchDogsLegion.exe"; AppId = 775935
+ @{ Name = "Watch Dogs Legion"; Folder = "Watch Dogs Legion"; Sub = "bin"; Exe = "WatchDogsLegion.exe"; AppId = 775935
  Settings = @(
  "Aim Snap -> Off | Aim Magnetism -> Off"
  "Window Mode -> Windowed | VSync -> Off | FPS Limit -> Off | FOV -> 70"
@@ -637,16 +640,112 @@ if (-not $steamGamePath) {
  }
 }
 
-# Find the EXE recursively inside the Steam game folder - handles sub-folders like bin\, Game\, etc.
-$exeFound = Get-ChildItem -Path $steamGamePath -Filter $selectedGame.Exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+# Find the EXE recursively inside the game folder - handles sub-folders
+# like bin\, Game\, Binaries\Win64\ and so on.
+#
+# !!! SOME GAMES SHIP THE SAME FILE NAME TWICE - AND -First 1 PICKED THE
+# !!! WRONG ONE (2026-08-20, found on Ghostwire: Tokyo).
+# Ghostwire has a small launcher stub GWT.exe in the game root AND the
+# real 98 MB executable in Snowfall\Binaries\Win64\. Get-ChildItem
+# -Recurse lists the top folder first, so -First 1 always returned the
+# stub, the mod was extracted into the game root, and RealConfig refused
+# it with "This folder does not seem to belong to any of the supported
+# games ... extracted to the very same folder where the main game
+# executable is found".
+#
+# TWO TIE-BREAKERS, in this order:
+#   1. Sub / AltSubs from the entry - the known good subfolder. Exact,
+#      and it also covers the Xbox build, which uses WinGDK instead of
+#      Win64.
+#   2. Otherwise the LARGEST match. A launcher stub is always tiny next
+#      to the real game binary, so size separates them reliably even
+#      for a game we have not listed a Sub for.
+# SEARCH ALTERNATIVE EXE NAMES TOO (2026-08-20). Two titles are named
+# differently depending on the store or edition: Marvel's Spider-Man 2
+# ships SpiderMan2.exe (no hyphen), and The Last of Us Part II has no
+# tlou-ii.exe at all - there the main file is t2r-steam-final-pgo-lto.exe
+# or t2r-epic-final-pgo-lto.exe depending on the store.
+# With only ONE name the search found nothing, the installer fell back to
+# the game root and RealConfig refused it - the same failure as
+# Ghostwire, for a different reason.
+$exeNames = @($selectedGame.Exe)
+if ($selectedGame.AltExes) { $exeNames += @($selectedGame.AltExes) }
+$exeMatches = @()
+foreach ($en in $exeNames) {
+    $exeMatches += @(Get-ChildItem -Path $steamGamePath -Filter $en -Recurse -ErrorAction SilentlyContinue)
+}
+$exeMatches = @($exeMatches | Sort-Object FullName -Unique)
+$exeFound = $null
+# Was the pick a CERTAIN one? Exactly one match, or a match on the
+# subfolder this entry names, are both certain. Falling back to "the
+# largest file" is not - that is the only case that asks the user.
+$exePickWasCertain = $false
+if ($exeMatches.Count -eq 1) {
+    $exeFound = $exeMatches[0]
+    $exePickWasCertain = $true
+} elseif ($exeMatches.Count -gt 1 -and
+          (@($exeMatches | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique).Count -eq 1)) {
+    # SEVERAL MATCHES, BUT ALL IN THE SAME FOLDER - then there is nothing
+    # to decide: the mod goes next to them either way. The Last of Us
+    # Part II is the case (tlou-ii-l.exe and t2r-steam-final-pgo-lto.exe
+    # sit side by side at the game root). Asking there would be a
+    # question without a choice.
+    $exeFound = $exeMatches | Sort-Object Length -Descending | Select-Object -First 1
+    $exePickWasCertain = $true
+} elseif ($exeMatches.Count -gt 1) {
+    Write-Info "Found $($exeMatches.Count) files named $($selectedGame.Exe) - picking the real one."
+    $wanted = @()
+    if ($selectedGame.Sub)     { $wanted += [string]$selectedGame.Sub }
+    if ($selectedGame.AltSubs) { $wanted += @($selectedGame.AltSubs) }
+    foreach ($w in $wanted) {
+        # Match against the name of the FOUND file, not the one from the
+        # entry - otherwise this never matches when AltExes was used.
+        $hit = $exeMatches | Where-Object {
+            $_.FullName.Replace('/','\').TrimEnd('\').EndsWith(($w.Trim('\') + '\' + $_.Name), [StringComparison]::OrdinalIgnoreCase)
+        } | Select-Object -First 1
+        if ($hit) { $exeFound = $hit; $exePickWasCertain = $true; Write-Info "Matched the known subfolder: $w"; break }
+    }
+    if (-not $exeFound) {
+        # NO known subfolder for this game - the largest file is a good
+        # guess, but it stays a guess. This is what triggers the question.
+        $exeFound = $exeMatches | Sort-Object Length -Descending | Select-Object -First 1
+        Write-Info "No known subfolder - taking the largest ($([math]::Round($exeFound.Length / 1MB, 1)) MB)."
+    }
+}
 
 $installPath = if ($exeFound) {
  Write-OK "EXE found: $($exeFound.FullName)"
  $exeFound.DirectoryName
 } else {
  Write-Warn "EXE '$($selectedGame.Exe)' not found in: $steamGamePath"
- Write-Info "Falling back to game root folder - continuing anyway."
  $steamGamePath
+}
+
+# LAST RESORT - AND ONLY THAT.
+# This asks in exactly two situations, and both mean we do NOT know
+# where the executable is:
+#   - no file of that name was found at all
+#   - several were found and NONE sat in a subfolder this entry names,
+#     so the pick came down to "the largest file"
+# A single match, or a match on the known subfolder, is certain and
+# passes through silently. Ghostwire will never ask again now that its
+# Sub is set - asking on every install of a game we have already solved
+# would only train people to hit Enter without reading.
+$needsConfirm = -not $exePickWasCertain
+if ($needsConfirm) {
+ if (-not $exeFound) {
+  Write-Host "  Without the executable the mod cannot be placed correctly." -ForegroundColor Yellow
+ } else {
+  Write-Host "  Several files are named $($selectedGame.Exe) and none sits in" -ForegroundColor Yellow
+  Write-Host "  a folder we know - if the mod ends up next to the wrong one," -ForegroundColor Yellow
+  Write-Host "  the game starts flat." -ForegroundColor Yellow
+ }
+ $dropped = Get-GameExeByDrop -GameFolder $steamGamePath -ExeName $selectedGame.Exe -GameName $selectedGame.Name
+ if ($dropped) { $installPath = Split-Path -Parent $dropped }
+}
+if (-not $installPath) {
+ Write-Warn "Falling back to the game root folder - continuing anyway."
+ $installPath = $steamGamePath
 }
 Write-OK "Install target: $installPath"
 

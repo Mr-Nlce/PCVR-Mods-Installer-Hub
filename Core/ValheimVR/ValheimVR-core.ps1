@@ -13,10 +13,10 @@ $GAME_NAME    = "Valheim"
 $GAME_EXE     = "valheim.exe"
 
 # BepInExPack Valheim (Thunderstore direct download)
-# Einziges Thunderstore-Paket dieses Eintrags: der Modloader selbst.
-# Es gibt hier keine Abhaengigkeitsliste, die unvollstaendig sein
-# koennte - die Pruefung Test-ThunderstoreDependencies waere ohne
-# Gegenstand. (Die VR-Mod selbst kommt nicht von Thunderstore.)
+# The only Thunderstore package in this entry: the mod loader itself.
+# There is no dependency list here that could be incomplete - the check
+# Test-ThunderstoreDependencies would have nothing to work on. (The VR
+# mod itself does not come from Thunderstore.)
 $BEPINEX_URL  = "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2333/"
 
 # vhvr-mod v0.9.21 (GitHub release)

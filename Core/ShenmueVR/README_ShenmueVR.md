@@ -3,13 +3,16 @@
 Stereoscopic VR with a first-person view for the **Steam release** of Shenmue I
 and Shenmue II. By **Tensai37**, hosted on Codeberg.
 
-> **A game controller is required.** VR motion controllers are not supported yet.
+> **A controller is required.** Since v1.3 your VR controllers work too - but as
+> a plain gamepad. There are no motion-tracked controls and nothing is held in
+> your hands.
 
 ## Frame interpolation is required - read this first
 
-Both games are hard-capped at **30 FPS**. A faster PC does not lift that cap, so
-the mod needs frame interpolation to feel right. Turn on whichever your setup
-offers, **before** you play:
+Shenmue II is hard-capped at **30 FPS**, and so is Shenmue I outside normal
+first-person play. A faster PC does not lift that cap, so the mod needs frame
+interpolation to feel right. Turn on whichever your setup offers, **before** you
+play:
 
 | Setup | Turn on |
 |---|---|
@@ -28,8 +31,10 @@ Without it the picture judders, and the game can crash.
 ## What the installer does
 The mod ships as its own **setup program**, not as a zip. The Hub fetches the
 newest release from Codeberg, finds your game folder, puts that path on your
-clipboard and starts the setup for you. You answer two questions in it: the game
-folder, and which of the two games to patch.
+clipboard and starts the setup for you. You answer three questions in it: the
+game folder, which of the two games to patch, and - new in v1.3 - **OpenVR or
+OpenXR**. Pick OpenXR: the framerate boost for Shenmue I exists only on that
+path.
 
 > **About the folder name.** The author's instructions say to pick your
 > `SMLaunch` folder. There is no such folder - the real one holds
@@ -67,6 +72,20 @@ Hold the **left trigger** to bring the game's own camera back, so the zoom and
 search functions work. Release it and you are in first person again. If the
 native camera is already active, the trigger does not force a change.
 
+## What v1.3 changed
+- **OpenXR support.** The setup now asks for OpenVR or OpenXR.
+- **An adaptive framerate boost for Shenmue I** - and it exists **only on the
+  OpenXR path**. Pick OpenVR out of habit and you lose the boost without any
+  warning - nothing on screen tells you.
+- **VR controllers work** - but as a plain gamepad. There are no motion-tracked
+  controls, and nothing is held in your hands.
+
+**The boost does not replace frame interpolation.** It runs during normal
+first-person play only; cutscenes and third-person sequences stay at 30 FPS,
+and Shenmue II stays at 30 throughout. Leave the smoothing on.
+
+v1.3 installs straight over an earlier version - no need to uninstall first.
+
 ## What v1.1 changed
 - Corrected the first-person player height in Shenmue I
 - The left-trigger camera behaviour above, in both games
@@ -74,8 +93,12 @@ native camera is already active, the trigger does not force a change.
   the old `ShenmueVR.ini` files with the settings v1.1 needs
 
 ## Known limitations
-- A controller is required; motion controllers are not supported
-- Both games stay capped at 30 FPS
+- **Seated play only.** You can look around freely, but turning your body or
+  chair is not supported yet.
+- A controller is required - a gamepad, or VR controllers acting as one.
+  Motion-tracked controls do not exist in this mod.
+- Shenmue II stays capped at 30 FPS; Shenmue I only lifts above it during
+  normal first-person play, on OpenXR
 - The headset and its runtime must be active **before** launching
 - The desktop window has to be clicked once after the game enters VR
 - Parts of the picture are cut off in the corners at times

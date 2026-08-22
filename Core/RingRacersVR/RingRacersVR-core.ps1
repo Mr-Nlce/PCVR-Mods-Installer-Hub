@@ -27,12 +27,7 @@ $ErrorActionPreference = "Stop"
 $GAME_FOLDER       = "Ring Racers VR"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_EXE          = "ringracers-vr.exe"
-$GITHUB_API_LATEST = "https://api.github.com/repos/RaYRoD-TV/RingRacers-VR/releases/latest"
-$GITHUB_RELEASES   = "https://github.com/RaYRoD-TV/RingRacers-VR/releases"
 # Pinned direct links as a network fallback if the API is rate-limited.
-$PINNED_FULL_URL   = "https://github.com/RaYRoD-TV/RingRacers-VR/releases/download/v2.5-vr1/RingRacers-VR-full-win64.zip"
-$PINNED_VRONLY_URL = "https://github.com/RaYRoD-TV/RingRacers-VR/releases/download/v2.5-vr1/RingRacers-VR-win64.zip"
-$PINNED_TAG        = "v2.5-vr1"
 $ASSET_FULL        = "RingRacers-VR-full-win64.zip"
 $ASSET_VRONLY      = "RingRacers-VR-win64.zip"
 
@@ -68,40 +63,34 @@ Write-Host " The full game is a large download; a progress bar shows it while it
 Write-Host " You'll pick where to install it on the next screen." -ForegroundColor Gray
 Pause-User "Press Enter to start..."
 
-# ---- ZWEITER WEG: RaYRoD-TVs eigener Multiverse VR Hub --------
-# Er pflegt seine sechs VR-Ports inzwischen ueber einen eigenen
-# kleinen Hub und kuendigt an, dass kuenftige Fassungen dort
-# erscheinen. Deshalb steht der Weg hier zur Wahl.
-# WARUM WIR DEN ORT BESTIMMEN: sein Hub installiert die Spiele
-# selbst, an eine Stelle die wir sonst nicht kennen - wir wuessten
-# dann weder ob Ring Racers installiert ist noch was "Start in VR"
-# oeffnen soll. Der Nutzer waehlt den Ordner, und genau die Exe
-# dort wird danach gestartet.
+# ---- THE ONLY ROUTE: RaYRoD-TV's Multiverse VR Hub ------------
+# On 2026-08-18 RaYRoD-TV wiped the releases from ALL six of his VR
+# port repos. His README says it outright: "Nothing to download here
+# anymore, no PC builds & no Quest builds. The hub is the one place
+# it all lives now." A direct route via GitHub releases CANNOT work
+# any more and has been removed - a choice between a dead route and a
+# living one would be no choice at all.
+# WHY WE DECIDE THE LOCATION: his hub installs the games itself, to
+# a place we would not otherwise know - we would know neither whether
+# the game is installed nor what "Start in VR" should open.
+# The user picks the folder, and exactly that exe is launched.
 Write-Host ""
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host " TWO WAYS TO GET THIS" -ForegroundColor Cyan
+Write-Host " HOW THIS ONE IS INSTALLED" -ForegroundColor Cyan
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "    [1] This installer" -ForegroundColor White
-Write-Host "        Installs Ring Racers VR straight into your game folder." -ForegroundColor Gray
-Write-Host "        Start in VR launches the game itself." -ForegroundColor Gray
+Write-Host "  RaYRoD-TV ships all of his VR ports through one small app of" -ForegroundColor White
+Write-Host "  his own, the Multiverse VR Hub. There are no separate" -ForegroundColor White
+Write-Host "  downloads any more - his words: the hub is the one place it" -ForegroundColor White
+Write-Host "  all lives now." -ForegroundColor White
 Write-Host ""
-Write-Host "    [2] RaYRoD-TV's own Multiverse VR Hub" -ForegroundColor White
-Write-Host "        One small app that installs all six of his ports and" -ForegroundColor Gray
-Write-Host "        keeps them updated. Future builds land there first." -ForegroundColor Gray
-Write-Host "        You pick the folder; Start in VR then opens that app." -ForegroundColor Gray
+Write-Host "  So this installer fetches that app, you pick where it goes," -ForegroundColor White
+Write-Host "  and Start in VR opens it from then on." -ForegroundColor White
 Write-Host ""
-$mvrhChoice = ""
-while ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") {
-    $mvrhChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
-    if ($mvrhChoice -eq "") { $mvrhChoice = "1" }
-    if ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") { Write-Warn "Please type 1 or 2." }
-}
-if ($mvrhChoice -eq "2") {
-    $mvrhExe = Install-MultiverseVRHub
+$mvrhExe = Install-MultiverseVRHub
     if ($mvrhExe) {
-        # Start in VR zeigt auf SEINEN Hub. Wir behaupten NICHTS darueber,
-        # welche Spiele darin liegen - wir bringen den Nutzer nur an die
-        # Stelle zurueck, an der er sie gestartet hat.
+        # Start in VR points at HIS hub. We claim NOTHING about
+        # which games live in there - we only bring the user back to the
+        # place they started them from.
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value (Split-Path $mvrhExe -Parent) -Encoding UTF8 -Force } catch {}
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $mvrhExe -Encoding UTF8 -Force } catch {}
         Write-Host ""
@@ -111,193 +100,5 @@ if ($mvrhChoice -eq "2") {
         Write-Host ""
         try { Start-Process -FilePath $mvrhExe -WorkingDirectory (Split-Path $mvrhExe -Parent) } catch {}
     }
-    Pause-User "Press Enter to exit."
-    exit 0
-}
-
-
-
-# -------------------------------------------------------
-# STEP 1: Install location (choose folder, then update / reinstall)
-# -------------------------------------------------------
-Write-Step 1 4 "Install location"
-
-function Test-WritableRoot {
-    param([string]$Root)
-    if (-not $Root) { return $false }
-    try {
-        if (-not (Test-Path $Root)) {
-            New-Item -ItemType Directory -Path $Root -Force -ErrorAction Stop | Out-Null
-        }
-        $probe = Join-Path $Root ".pcvrhub_write_probe"
-        Set-Content -Path $probe -Value "ok" -ErrorAction Stop
-        Remove-Item $probe -Force -ErrorAction SilentlyContinue
-        return $true
-    } catch { return $false }
-}
-
-Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
-Write-Host "  Press Enter to accept it, or type a different folder to install into" -ForegroundColor Gray
-Write-Host "  (the '$GAME_FOLDER' folder is created inside whatever you choose)." -ForegroundColor Gray
-Write-Host "  C:\Games needs no admin rights, so there's no Windows UAC prompt." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
-
-$installRoot = $null
-if ($chosen) {
-    if (Test-WritableRoot -Root $chosen) { $installRoot = [string]$chosen }
-    else { Write-Fail "Not writable: $chosen - falling back to the defaults." }
-}
-if (-not $installRoot) {
-    foreach ($r in $DEFAULT_ROOTS) {
-        if (Test-WritableRoot -Root $r) { $installRoot = [string]$r; break }
-    }
-}
-if (-not $installRoot) {
-    Write-Warn "None of C:\Games, D:\Games, E:\Games is writable."
-    Write-Host "  Enter a folder where the game should be installed." -ForegroundColor White
-    while (-not $installRoot) {
-        $r = (Read-Host "  Install root").Trim().Trim('"')
-        if (-not $r) { continue }
-        if (Test-WritableRoot -Root $r) { $installRoot = [string]$r }
-        else { Write-Fail "Not writable: $r (try a non-Program-Files location, or run as admin)" }
-    }
-}
-$INSTALL_ROOT = Join-Path $installRoot $GAME_FOLDER
-Write-OK "Install location: $INSTALL_ROOT"
-
-# Existing installations always use the small update payload and are merged.
-$updateMode = $false
-if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- $updateMode = $true
- Write-OK "Existing install found - merging the VR update; saves, addons and settings are kept."
-}
-if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
- New-Item -ItemType Directory -Path $INSTALL_ROOT -Force | Out-Null
- Write-OK "Created $INSTALL_ROOT"
-}
-
-# -------------------------------------------------------
-# STEP 2: Download the latest release from GitHub
-# -------------------------------------------------------
-$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $GAME_EXE -Label "Ring Racers VR"
-Write-Step 2 4 "Downloading the latest release"
-
-# Choose which asset we want: full bundle for a fresh install, the
-# small VR exe zip for an update over an existing game.
-$wantAsset  = if ($updateMode) { $ASSET_VRONLY } else { $ASSET_FULL }
-$pinnedUrl  = if ($updateMode) { $PINNED_VRONLY_URL } else { $PINNED_FULL_URL }
-
-# Resolve the newest matching asset via the GitHub API. Falls back
-# to the pinned release link, and finally to a manual browser grab.
-$dlUrl = $null
-$relTag = $null
-try {
- [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
- $asset = $rel.assets | Where-Object { $_.name -eq $wantAsset } | Select-Object -First 1
- if (-not $asset -and $updateMode) { $asset = $rel.assets | Where-Object { $_.name -like "*win64*.zip" -and $_.name -notlike "*full*" } | Select-Object -First 1 }
- if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -like "*full*win64*.zip" } | Select-Object -First 1 }
- if ($asset) {
-  $dlUrl = $asset.browser_download_url
-  $relTag = [string]$rel.tag_name
-  Write-Info "Latest release: $relTag"
- }
-} catch {
- Write-Warn "Could not query GitHub for the latest release (rate limit / offline)."
- Write-Warn "Falling back to the pinned $PINNED_TAG build."
-}
-if (-not $dlUrl) { $dlUrl = $pinnedUrl; $relTag = $PINNED_TAG }
-
-$zipPath = Join-Path $env:TEMP ("RingRacersVR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-if (-not (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "Ring Racers VR ($wantAsset)" `
-   -ManualUrl $GITHUB_RELEASES `
-   -Instructions "Download $wantAsset from the Releases page, then drop it into your Downloads folder and retry.")) {
- # Last resort: a copy the user downloaded by hand
- $pat = if ($updateMode) { "RingRacers-VR-win64*.zip" } else { "RingRacers-VR-full*.zip" }
- $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter $pat -ErrorAction SilentlyContinue |
-   Sort-Object LastWriteTime -Descending | Select-Object -First 1
- if ($manualZip) {
-  Write-OK "Found a manual download: $($manualZip.Name)"
-  $zipPath = $manualZip.FullName
- } else {
-  Write-Fail "No Ring Racers VR bundle available - cannot continue."
-  Pause-User "Press Enter to exit."; exit 1
- }
-}
-
-# -------------------------------------------------------
-# STEP 3: Extract + verify
-# -------------------------------------------------------
-Write-Step 3 4 "Installing to $INSTALL_ROOT"
-
-$exRes = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $INSTALL_ROOT -Label "Ring Racers VR"
-if (-not $exRes) {
- Write-Fail "Extraction failed."
- Pause-User "Press Enter to exit."; exit 1
-}
-# The bundle is flat (ringracers-vr.exe at the zip root); if a future
-# release wraps everything in one folder, flatten it.
-if (-not (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE))) {
- $inner = Get-ChildItem -Path $INSTALL_ROOT -Directory | Where-Object {
-  Test-Path -LiteralPath (Join-Path $_.FullName $GAME_EXE)
- } | Select-Object -First 1
- if ($inner) {
-  Write-Info "Flattening wrapper folder '$($inner.Name)'..."
-  Get-ChildItem -Path $inner.FullName -Force | ForEach-Object {
-   Move-Item -LiteralPath $_.FullName -Destination $INSTALL_ROOT -Force
-  }
-  Remove-Item -LiteralPath $inner.FullName -Recurse -Force
- }
-}
-if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-OK "Game files in place ($GAME_EXE found)."
-} else {
- Write-Fail "$GAME_EXE missing after extraction - the bundle layout may have changed."
- Pause-User "Press Enter to exit."; exit 1
-}
-# Clean up the temp zip (keep a manual Downloads copy untouched)
-if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $zipPath -Force } catch {} }
-
-# -------------------------------------------------------
-# STEP 4: Desktop shortcut + Hub markers
-# -------------------------------------------------------
-Write-Step 4 4 "Desktop shortcut"
-
-try {
- $sh = New-Object -ComObject WScript.Shell
- $lnk = $sh.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Ring Racers VR.lnk"))
- $lnk.TargetPath = Join-Path $INSTALL_ROOT $GAME_EXE
- $lnk.WorkingDirectory = $INSTALL_ROOT
- $lnk.IconLocation = (Join-Path $INSTALL_ROOT $GAME_EXE) + ",0"
- $lnk.Description = "Dr. Robotnik's Ring Racers VR (OpenXR) - headset on = VR, headset off = regular Ring Racers"
- $lnk.Save()
- Write-OK "Desktop shortcut created."
-} catch {
- Write-Warn "Could not create the desktop shortcut: $_"
-}
-
-# Hub markers: install path for "Start in VR" + the EXACT release tag
-# for the update badge (the Hub compares this string against the
-# GitHub latest tag, so it must match tag_name verbatim).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $INSTALL_ROOT -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
-
-# -------------------------------------------------------
-# DONE
-# -------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Blue
-Write-Host " Setup complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Blue
-Write-Host ""
-Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
-Write-Host "  Put your headset on, then launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the" -ForegroundColor White
-Write-Host "  Hub or the 'Ring Racers VR' desktop shortcut. Headset on = VR," -ForegroundColor White
-Write-Host "  headset off = regular flat Ring Racers." -ForegroundColor White
-Write-Host "  VR settings live in Options -> VR Options." -ForegroundColor White
-Write-Host ""
-Write-Host " Controls and tips are on this game's page in the Hub." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host " Start your engines - the rings are RIGHT there now." -ForegroundColor Blue
-Write-Host ""
 Pause-User "Press Enter to exit."
+    exit 0

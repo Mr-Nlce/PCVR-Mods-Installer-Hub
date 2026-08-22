@@ -3,8 +3,8 @@
 #
 #   A) BioVRDev  - github.com/BioVRDev/Bioshock-Remastered-VR
 #      dxgi.dll, BioshockVR.dll, BioshockVR.ini, both OpenXR loaders and
-#      Setup.bat (1.0.3 - hiess vorher FirstTimeSetup.bat). dxgi.dll ist
-#      der Injektor; Setup.bat waehlt die Laufzeit und schreibt
+#      Setup.bat (1.0.3 - formerly FirstTimeSetup.bat). dxgi.dll is
+#      the injector; Setup.bat picks the runtime and writes
 #      resolution/FOV/windowed into Bioshock.ini before the game can
 #      overwrite them again.
 #   B) balouza   - github.com/mohamad-balouza/bioshock-vr
@@ -47,16 +47,18 @@ $NEXUS_CUTSCENES = "https://www.nexusmods.com/bioshock/mods/81?tab=files"
 # What each mod owns. Everything listed here is copied into the game
 # folder when that mod is active and removed again when the other one
 # takes over - so these lists are also the switch's delete lists.
-# !!! DATEIBESTAND KOMPLETT GEAENDERT IN 1.0.3 - GEGEN DAS ECHTE ZIP GEPRUEFT !!!
-# Frueher: dxgi.dll, BioshockVR.dll, BioshockVR.ini, openxr_loader.dll und
-# FirstTimeSetup.bat. Von den fuenf gibt es ZWEI nicht mehr:
-#   openxr_loader.dll  -> das Paket bringt jetzt BEIDE Laufzeiten unter
-#                         eigenen Namen mit (openxr_loader_standard.dll und
-#                         openxr_loader_steam.dll). Setup.bat kopiert die
-#                         gewaehlte auf den Namen, den die Mod laedt - deshalb
-#                         steht openxr_loader.dll weiter in der Liste: sie
-#                         ENTSTEHT beim Setup und muss beim Umschalten mit.
-#   FirstTimeSetup.bat -> heisst jetzt Setup.bat, dazu Uninstall.bat und
+# !!! THE FILE SET CHANGED COMPLETELY IN 1.0.3 - CHECKED AGAINST THE
+# !!! REAL ZIP !!!
+# Formerly: dxgi.dll, BioshockVR.dll, BioshockVR.ini, openxr_loader.dll
+# and FirstTimeSetup.bat. Two of those five are gone:
+#   openxr_loader.dll  -> the package now ships BOTH runtimes under
+#                         their own names (openxr_loader_standard.dll and
+#                         openxr_loader_steam.dll). Setup.bat copies the
+#                         chosen one onto the name the mod loads - which
+#                         is why openxr_loader.dll is still in the list:
+#                         it is CREATED by the setup and has to move
+#                         along when switching.
+#   FirstTimeSetup.bat -> now called Setup.bat, plus Uninstall.bat and
 #                         logs\CollectLogs.bat.
 $FILES_A = @(
     "dxgi.dll", "BioshockVR.dll", "BioshockVR.ini",
@@ -285,14 +287,15 @@ function Set-ActiveMod {
         if (-not (Test-Path -LiteralPath $victim)) { continue }
         if (-not $OtherStore) { continue }
         $keep = [System.IO.Path]::Combine($OtherStore, $f)
-        # NUR LOESCHEN, WAS SICH ZURUECKLEGEN LAESST. Liegt die Datei noch
-        # nicht im Lager der anderen Mod, wird sie ZUERST DORTHIN GESICHERT
-        # und danach entfernt.
-        # WARUM DAS NOETIG WURDE: seit BioVRDev 1.0.3 entsteht
-        # openxr_loader.dll erst BEIM SETUP - sie ist in keinem Archiv und
-        # kam deshalb nie ins Lager. Ohne diese Sicherung griff die alte
-        # Sperre, die Datei blieb beim Umschalten liegen, und balouza lief
-        # mit einem fremden OpenXR-Loader daneben.
+        # ONLY DELETE WHAT CAN BE PUT BACK. If the file is not yet in
+        # the other mod's store, it is SAVED THERE FIRST and removed
+        # afterwards.
+        # WHY THIS BECAME NECESSARY: since BioVRDev 1.0.3
+        # openxr_loader.dll is only created BY THE SETUP - it is in no
+        # archive and therefore never reached the store. Without this
+        # safeguard the old lock applied, the file stayed put when
+        # switching, and balouza ran alongside a foreign OpenXR
+        # loader.
         if (-not (Test-Path -LiteralPath $keep)) {
             try {
                 $keepDir = Split-Path -Parent $keep
@@ -300,7 +303,7 @@ function Set-ActiveMod {
                     New-Item -ItemType Directory -Path $keepDir -Force -ErrorAction SilentlyContinue | Out-Null
                 }
                 Copy-Item -LiteralPath $victim -Destination $keep -Force -ErrorAction Stop
-            } catch { continue }   # nicht sicherbar -> auch nicht loeschen
+            } catch { continue }   # cannot be backed up -> do not delete either
         }
         try { Remove-Item -LiteralPath $victim -Force -ErrorAction Stop } catch {}
     }
@@ -322,8 +325,8 @@ function Set-ActiveMod {
             if ((Test-Path -LiteralPath $dest) -and -not $isOtherModsFile -and -not (Test-Path -LiteralPath "$dest.hubbak")) {
                 Copy-Item -LiteralPath $dest -Destination "$dest.hubbak" -Force -ErrorAction SilentlyContinue
             }
-            # Seit 1.0.3 steht auch eine Datei in einem UNTERORDNER
-            # (logs\CollectLogs.bat). Copy-Item legt den nicht selbst an.
+            # Since 1.0.3 one file also lives in a SUBFOLDER
+            # (logs\CollectLogs.bat). Copy-Item does not create it.
             $destDir = Split-Path -Parent $dest
             if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
                 New-Item -ItemType Directory -Path $destDir -Force -ErrorAction SilentlyContinue | Out-Null
@@ -594,29 +597,28 @@ if ($haveA -and $haveB) {
 # BioVRDev's one-time setup - only meaningful while BioVRDev is active,
 # because it writes the resolution and FOV that mod needs.
 if ($activeName -eq "BioVRDev") {
-    # HEISST SEIT 1.0.3 Setup.bat (vorher FirstTimeSetup.bat) UND MUSS ALS
-    # ADMINISTRATOR LAUFEN - der Autor schreibt das ausdruecklich in die
-    # Anleitung. Ohne diesen Lauf startet das Spiel gar nicht erst in VR:
-    # das Paket bringt BEIDE OpenXR-Laufzeiten unter eigenen Namen mit, und
-    # erst Setup kopiert die passende auf den Namen, den die Mod laedt.
-    # Zusaetzlich setzt es Aufloesung und FOV, die ohne es fuer VR falsch sind.
-    # ---- EINE ALTE openxr_loader.dll MUSS WEG, SONST BRICHT SETUP AB ----
-    # NACHGEWIESEN, nicht vermutet: Setup.bat arbeitet mit RENAMES ("These
-    # are RENAMES, not copies"). Es erwartet genau zwei Loader-Dateien und
-    # vergleicht eine vorhandene openxr_loader.dll per :sameas mit den
-    # beiden mitgelieferten. Eine openxr_loader.dll aus einer AELTEREN
-    # BioVRDev-Fassung ist mit keiner von beiden identisch - Setup landet
-    # dann in :loaderambiguous und bricht ab mit "all three loader names
-    # exist, but the live DLL matches neither saved DLL ... Re-extract the
-    # two clean loader DLLs and run Setup again."
+    # CALLED Setup.bat SINCE 1.0.3 (formerly FirstTimeSetup.bat) AND IT
+    # MUST RUN AS ADMINISTRATOR - the author states that plainly in his
+    # instructions. Without this run the game does not come up in VR at
+    # all: the package ships BOTH OpenXR runtimes under their own names,
+    # and only Setup copies the right one onto the name the mod loads.
+    # It also sets resolution and FOV, which are wrong for VR without it.
+    # ---- AN OLD openxr_loader.dll MUST GO OR SETUP ABORTS ----
+    # PROVEN, not assumed: Setup.bat works with RENAMES ("These are
+    # RENAMES, not copies"). It expects exactly two loader files and
+    # compares any existing openxr_loader.dll via :sameas against the two
+    # shipped ones. An openxr_loader.dll from an OLDER BioVRDev build
+    # matches neither - Setup then lands in :loaderambiguous and aborts
+    # with "all three loader names exist, but the live DLL matches
+    # neither saved DLL ... Re-extract the two clean loader DLLs and run
+    # Setup again."
     #
-    # Die Datei kommt NICHT im Zip von 1.0.3 vor, wird also von der
-    # Installation NICHT ueberschrieben. Sie muss weg, damit Setup den
-    # sauberen Ausgangszustand vorfindet.
+    # The file does NOT appear in the 1.0.3 zip, so the install does NOT
+    # overwrite it. It has to go, so Setup finds a clean starting state.
     #
-    # NUR DIESE EINE DATEI, und nur wenn sie WEDER dem einen NOCH dem
-    # anderen mitgelieferten Loader entspricht - ist sie identisch, hat
-    # Setup selbst sie angelegt und sie bleibt.
+    # ONLY THIS ONE FILE, and only when it matches NEITHER of the two
+    # shipped loaders - if it is identical, Setup created it itself and
+    # it stays.
     if ($activeName -eq "BioVRDev") {
         $live = [System.IO.Path]::Combine($buildDir, "openxr_loader.dll")
         $std  = [System.IO.Path]::Combine($buildDir, "openxr_loader_standard.dll")
@@ -651,7 +653,7 @@ if ($activeName -eq "BioVRDev") {
         Pause-User "Press Enter to run Setup.bat - UAC required..." | Out-Null
         $ranSetup = $false
         try {
-            # -Verb RunAs: die Anleitung des Autors sagt "Right click Setup.bat
+            # -Verb RunAs: the author's instructions say "Right click Setup.bat
             # and choose Run as administrator".
             Start-Process -FilePath $setup -WorkingDirectory $buildDir -Verb RunAs -Wait -ErrorAction Stop
             $ranSetup = $true
@@ -661,8 +663,8 @@ if ($activeName -eq "BioVRDev") {
             Write-Host "  Run Setup.bat yourself in $buildDir - right-click," -ForegroundColor Yellow
             Write-Host "  Run as administrator. Without it the game starts flat." -ForegroundColor Yellow
         }
-        # Am ERGEBNIS pruefen: Setup legt den geladenen Loader unter dem
-        # Namen an, den die Mod erwartet.
+        # Check the RESULT: Setup puts the chosen loader under the name
+        # the mod expects.
         if ($ranSetup) {
             $loader = [System.IO.Path]::Combine($buildDir, "openxr_loader.dll")
             if (Test-Path -LiteralPath $loader) {

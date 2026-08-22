@@ -3,12 +3,12 @@
 # ============================================================
 # Mod: MFNVR by LeviGaming1248,
 #      github.com/LeviGaming1248/MyFriendlyNeighborhoodVR
-#      (das Repo hiess vorher MFNVR; GitHub leitet noch um, aber wir
-#       nennen den neuen Namen, damit nichts an der Umleitung haengt)
+#      (the repo used to be called MFNVR; GitHub still redirects, but we
+#       name the new one so nothing depends on that redirect)
 #
 # Everything below is taken from the release archive itself, not
-# from the description. Layout, gelesen aus dem Build vom 2026-08-10
-# (Wrapper "MFNVR-v0.2.0\", 42 Eintraege, 1.488.219 Bytes):
+# from the description. Layout, read from the build of 2026-08-10
+# (wrapper "MFNVR-v0.2.0\", 42 entries, 1,488,219 bytes):
 #
 #   .doorstop_version                            (4.5.0)
 #   doorstop_config.ini
@@ -25,15 +25,15 @@
 #   BepInEx\plugins\MFNVRRenderBridge.dll
 #   My Friendly Neighborhood_Data\Plugins\MFNOpenXR.dll
 #
-# MFNOpenXR.dll gehoert in den _Data\Plugins-Ordner und NICHT in die
-# Spielwurzel - dort sucht Unitys Mono native Bibliotheken. Der Payload
-# spiegelt den Spielbaum, deshalb landet sie von selbst richtig.
+# MFNOpenXR.dll belongs in the _Data\Plugins folder and NOT at the game
+# root - that is where Unity's Mono looks for native libraries. The
+# payload mirrors the game tree, so it lands correctly by itself.
 #
-# DER WRAPPERNAME AENDERT SICH mit jedem Build (frueher "MFNVR v0.10
-# alpha\", jetzt "MFNVR-v0.2.0\"), und der Autor hat denselben Build
-# auch schon flach ausgeliefert. Die Payload-Wurzel wird deshalb ueber
-# den Marker doorstop_config.ini AUFGELOEST statt angenommen
-# (Archivregeln R1/R2) - jedes Layout installiert korrekt.
+# THE WRAPPER NAME CHANGES with every build (formerly "MFNVR v0.10
+# alpha\", now "MFNVR-v0.2.0\"), and the author has shipped the same
+# build flat as well. The payload root is therefore RESOLVED through the
+# marker doorstop_config.ini rather than assumed (archive rules R1/R2) -
+# every layout installs correctly.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")

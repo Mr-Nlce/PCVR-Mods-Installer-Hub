@@ -1,5 +1,61 @@
 # Outlast VR
 
+## Two mods, one page
+
+There are two Outlast VR mods and they work in completely different ways. The
+installer offers either, or both.
+
+| | **Halcyon** | **Hammerthis** |
+|---|---|---|
+| **Controls** | **gamepad only** | **tracked VR controllers + VR hands** |
+| State | the more mature, stable option | **early alpha** |
+| Camcorder | raised with a button | reach out, grab it, raise it yourself |
+| Night vision | button | R3 while holding the camcorder |
+| Movement | gamepad sticks | left stick; click it while moving to sprint |
+| How it works | a `d3d9.dll` next to the game exe | injects into the running game |
+| Touches the game folder | yes, four files | no |
+| Where to get it | Patreon | GitHub, free |
+
+**This is why the tile shows both a gamepad and a controller icon.** Which one
+you actually play with depends on the mod you install - the entry is not
+gamepad-only any more, and it is not motion-controls-only either.
+
+### Hammerthis controls in detail
+- [[Left Stick]] move
+- [[Left Stick Click]] while moving: sprint
+- [[Right Stick]] horizontal only - turning. Vertical is suppressed, because
+  pitch follows your head.
+- [[A]] / [[B]] / [[X]] / [[Y]] and the triggers behave like Outlast's normal
+  gamepad buttons
+- **Grab the camcorder** with your hand and raise it to your face
+- [[R3]] while the camcorder is up: Outlast's own night vision
+
+Motion interactions with doors and pickups are in, but experimental.
+
+**They must not run at the same time.** Halcyon's proxy loads when Outlast
+starts; Hammerthis injects into the running process, so with both active they
+would land in one process. With both installed the installer writes two
+launchers into `_vrmods\VRLaunch` and each one parks the other mod's proxy
+before starting - the Hub shows one Play button per mod.
+
+### Hammerthis, in short
+Run once through his `PLAY_OUTLAST_VR.bat`: it applies VR-safe settings,
+launches Outlast through Steam, waits for `OLGame.exe` and injects. His folder
+also holds `UNLOAD_VR.bat` (stop VR mid-session) and
+`RESTORE_OUTLAST_SETTINGS.bat` (put your graphics settings back).
+
+It is an alpha, so expect rough edges: props and documents can vanish at some angles
+because Outlast's UE3 visibility system was built for a flat screen, shadows
+can shift with head movement, and the framerate can drop.
+
+---
+
+## The Halcyon mod
+
+**Everything from here on describes Halcyon's mod only** - the download, the
+installation, the in-game settings and the known issues. Hammerthis' alpha is
+covered above and installs entirely through the Hub.
+
 Stereoscopic VR with full head tracking for **Outlast**, by **Halcyon**. Cutscenes
 play in VR too. You play with a **gamepad** - this is not a motion-control mod.
 

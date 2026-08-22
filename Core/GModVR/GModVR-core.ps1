@@ -312,13 +312,13 @@ try {
  # User chose Skip - continue at own risk
 }
 
-# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
-# robocopy meldet nur seinen eigenen Exitcode. Ein leeres, falsches oder
-# nur teilweise entpacktes Archiv waere bisher als "Modules installed."
-# durchgegangen und GMod haette einfach flach gestartet. Geprueft wird am
-# ZIEL, gegen die Dateien, die das Modulpaket mitbringen MUSS - aus dem
-# echten Archiv gelesen: das Lua-Binaermodul, das GMod laedt, und die
-# OpenVR-Bibliothek in beiden Bitness-Varianten des bin-Ordners.
+# ---- SAFEGUARD: did the right thing actually arrive? ----
+# robocopy only reports its own exit code. An empty, wrong or partially
+# extracted archive used to pass as "Modules installed." and GMod would
+# simply have started flat. The check is at the DESTINATION, against the
+# files the module package MUST bring - read from the real archive: the
+# Lua binary module GMod loads, and the OpenVR library in both bitness
+# variants of the bin folder.
 $MOD_MUST_HAVE = @(
     "garrysmod\lua\bin\gmcl_vrmod_win64.dll",
     "bin\win64\openvr_api.dll",

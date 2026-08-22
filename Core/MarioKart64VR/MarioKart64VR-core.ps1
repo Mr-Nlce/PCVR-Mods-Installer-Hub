@@ -25,10 +25,6 @@ $ErrorActionPreference = "Stop"
 
 $INSTALL_ROOT      = "C:\Games\Mario Kart 64 VR"
 $GAME_EXE          = "Spaghettify.exe"
-$GITHUB_API_LATEST = "https://api.github.com/repos/RaYRoD-TV/MarioKart64-VR/releases/latest"
-$GITHUB_RELEASES   = "https://github.com/RaYRoD-TV/MarioKart64-VR/releases/latest"
-$PINNED_URL        = "https://github.com/RaYRoD-TV/MarioKart64-VR/releases/download/v1.0.0/MarioKart64-VR-win64.zip"
-$PINNED_TAG        = "v1.0.0"
 # HD texture pack (optional): MK64 Reloaded by GhostlyDark. Must be
 # the .o2r asset; there are two SpaghettiKart variants (sk-4k and
 # sk-hd) - we prefer 4k, matching the recommended build.
@@ -68,40 +64,34 @@ Write-Host "  here will run, so have it ready." -ForegroundColor Gray
 # -------------------------------------------------------
 Pause-User "Press Enter to start..."
 
-# ---- ZWEITER WEG: RaYRoD-TVs eigener Multiverse VR Hub --------
-# Er pflegt seine sechs VR-Ports inzwischen ueber einen eigenen
-# kleinen Hub und kuendigt an, dass kuenftige Fassungen dort
-# erscheinen. Deshalb steht der Weg hier zur Wahl.
-# WARUM WIR DEN ORT BESTIMMEN: sein Hub installiert die Spiele
-# selbst, an eine Stelle die wir sonst nicht kennen - wir wuessten
-# dann weder ob Mario Kart 64 installiert ist noch was "Start in VR"
-# oeffnen soll. Der Nutzer waehlt den Ordner, und genau die Exe
-# dort wird danach gestartet.
+# ---- THE ONLY ROUTE: RaYRoD-TV's Multiverse VR Hub ------------
+# On 2026-08-18 RaYRoD-TV wiped the releases from ALL six of his VR
+# port repos. His README says it outright: "Nothing to download here
+# anymore, no PC builds & no Quest builds. The hub is the one place
+# it all lives now." A direct route via GitHub releases CANNOT work
+# any more and has been removed - a choice between a dead route and a
+# living one would be no choice at all.
+# WHY WE DECIDE THE LOCATION: his hub installs the games itself, to
+# a place we would not otherwise know - we would know neither whether
+# the game is installed nor what "Start in VR" should open.
+# The user picks the folder, and exactly that exe is launched.
 Write-Host ""
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host " TWO WAYS TO GET THIS" -ForegroundColor Cyan
+Write-Host " HOW THIS ONE IS INSTALLED" -ForegroundColor Cyan
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "    [1] This installer" -ForegroundColor White
-Write-Host "        Installs Mario Kart 64 VR straight into your game folder." -ForegroundColor Gray
-Write-Host "        Start in VR launches the game itself." -ForegroundColor Gray
+Write-Host "  RaYRoD-TV ships all of his VR ports through one small app of" -ForegroundColor White
+Write-Host "  his own, the Multiverse VR Hub. There are no separate" -ForegroundColor White
+Write-Host "  downloads any more - his words: the hub is the one place it" -ForegroundColor White
+Write-Host "  all lives now." -ForegroundColor White
 Write-Host ""
-Write-Host "    [2] RaYRoD-TV's own Multiverse VR Hub" -ForegroundColor White
-Write-Host "        One small app that installs all six of his ports and" -ForegroundColor Gray
-Write-Host "        keeps them updated. Future builds land there first." -ForegroundColor Gray
-Write-Host "        You pick the folder; Start in VR then opens that app." -ForegroundColor Gray
+Write-Host "  So this installer fetches that app, you pick where it goes," -ForegroundColor White
+Write-Host "  and Start in VR opens it from then on." -ForegroundColor White
 Write-Host ""
-$mvrhChoice = ""
-while ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") {
-    $mvrhChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
-    if ($mvrhChoice -eq "") { $mvrhChoice = "1" }
-    if ($mvrhChoice -ne "1" -and $mvrhChoice -ne "2") { Write-Warn "Please type 1 or 2." }
-}
-if ($mvrhChoice -eq "2") {
-    $mvrhExe = Install-MultiverseVRHub
+$mvrhExe = Install-MultiverseVRHub
     if ($mvrhExe) {
-        # Start in VR zeigt auf SEINEN Hub. Wir behaupten NICHTS darueber,
-        # welche Spiele darin liegen - wir bringen den Nutzer nur an die
-        # Stelle zurueck, an der er sie gestartet hat.
+        # Start in VR points at HIS hub. We claim NOTHING about
+        # which games live in there - we only bring the user back to the
+        # place they started them from.
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value (Split-Path $mvrhExe -Parent) -Encoding UTF8 -Force } catch {}
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $mvrhExe -Encoding UTF8 -Force } catch {}
         Write-Host ""
@@ -111,195 +101,5 @@ if ($mvrhChoice -eq "2") {
         Write-Host ""
         try { Start-Process -FilePath $mvrhExe -WorkingDirectory (Split-Path $mvrhExe -Parent) } catch {}
     }
-    Pause-User "Press Enter to exit."
-    exit 0
-}
-
-
-Write-Step 1 5 "Install location"
-
-Write-Info "Install folder: $INSTALL_ROOT"
-Write-Host ""
-
-if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-OK "Existing install found - merging the latest release; ROM choice, settings and mods are kept."
-}
-if (-not (Test-Path -LiteralPath $INSTALL_ROOT)) {
- New-Item -ItemType Directory -Path $INSTALL_ROOT -Force | Out-Null
- Write-OK "Created $INSTALL_ROOT"
-}
-
-# -------------------------------------------------------
-# STEP 2: Download the latest release from GitHub
-# -------------------------------------------------------
-$null = Show-UpdateNoticeIfInstalled -TargetDir $INSTALL_ROOT -RelModFile $GAME_EXE -Label "Mario Kart 64 VR"
-Write-Step 2 5 "Downloading the latest release"
-
-$dlUrl = $null
-$relTag = $null
-try {
- [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
- $asset = $rel.assets | Where-Object { $_.name -like "MarioKart64-VR*win64*.zip" } | Select-Object -First 1
- if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1 }
- if ($asset) {
-  $dlUrl = $asset.browser_download_url
-  $relTag = [string]$rel.tag_name
-  Write-Info "Latest release: $relTag"
- }
-} catch {
- Write-Warn "Could not query GitHub for the latest release (rate limit / offline)."
- Write-Warn "Falling back to the pinned $PINNED_TAG build."
-}
-if (-not $dlUrl) { $dlUrl = $PINNED_URL; $relTag = $PINNED_TAG }
-
-$zipPath = Join-Path $env:TEMP ("MK64VR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-if (-not (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "Mario Kart 64 VR" `
-   -ManualUrl $GITHUB_RELEASES `
-   -Instructions "Download MarioKart64-VR-win64.zip from the Releases page, then drop it into your Downloads folder and retry.")) {
- $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "MarioKart64-VR*.zip" -ErrorAction SilentlyContinue |
-   Sort-Object LastWriteTime -Descending | Select-Object -First 1
- if ($manualZip) {
-  Write-OK "Found a manual download: $($manualZip.Name)"
-  $zipPath = $manualZip.FullName
- } else {
-  Write-Fail "No Mario Kart 64 VR bundle available - cannot continue."
-  Pause-User "Press Enter to exit."; exit 1
- }
-}
-
-# -------------------------------------------------------
-# STEP 3: Extract + flatten + verify
-# -------------------------------------------------------
-Write-Step 3 5 "Installing to $INSTALL_ROOT"
-
-$exRes = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $INSTALL_ROOT -Label "Mario Kart 64 VR"
-if (-not $exRes) {
- Write-Fail "Extraction failed."
- Pause-User "Press Enter to exit."; exit 1
-}
-# The release zip wraps everything in a "MarioKart64-VR" folder
-# (verified against v1.0.0: Spaghettify.exe is NOT at the zip root).
-# Flatten so the exe sits directly in the install root - and stay
-# generic in case a future release renames or drops the wrapper.
-if (-not (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE))) {
- $inner = Get-ChildItem -Path $INSTALL_ROOT -Directory | Where-Object {
-  Test-Path -LiteralPath (Join-Path $_.FullName $GAME_EXE)
- } | Select-Object -First 1
- if ($inner) {
-  Write-Info "Flattening wrapper folder '$($inner.Name)'..."
-  Get-ChildItem -Path $inner.FullName -Force | ForEach-Object {
-   Move-Item -LiteralPath $_.FullName -Destination $INSTALL_ROOT -Force
-  }
-  Remove-Item -LiteralPath $inner.FullName -Recurse -Force
- }
-}
-if (Test-Path -LiteralPath (Join-Path $INSTALL_ROOT $GAME_EXE)) {
- Write-OK "Game files in place ($GAME_EXE found)."
-} else {
- Write-Fail "$GAME_EXE missing after extraction - the bundle layout may have changed."
- Pause-User "Press Enter to exit."; exit 1
-}
-if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $zipPath -Force } catch {} }
-
-# -------------------------------------------------------
-# STEP 4: Optional HD texture pack (MK64 Reloaded)
-# -------------------------------------------------------
-Write-Step 4 5 "Optional: HD textures (MK64 Reloaded by GhostlyDark)"
-
-Write-Host " Want it in HD? The MK64 Reloaded texture pack loads as a mod -" -ForegroundColor White
-Write-Host " one .o2r file in a mods folder, no rebuild needed. Recommended." -ForegroundColor White
-Write-Host ""
-$hdAns = ""
-while ($hdAns -notin @("Y","N")) { $hdAns = (Read-Host " Install the HD texture pack? [Y/N]").Trim().ToUpper() }
-if ($hdAns -eq "Y") {
- # Resolve the newest .o2r via the GitHub API. It MUST be the .o2r
- # asset; the release ships two SpaghettiKart variants (sk-4k and
- # sk-hd) - prefer 4k, then any sk build, then any .o2r at all.
- $hdUrl = $null
- $hdName = $null
- try {
-  $hdRel = Invoke-RestMethod -Uri $HD_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
-  $hdAsset = $hdRel.assets | Where-Object { $_.name -like "*-sk-4k.o2r" } | Select-Object -First 1
-  if (-not $hdAsset) { $hdAsset = $hdRel.assets | Where-Object { $_.name -like "*sk*.o2r" } | Select-Object -First 1 }
-  if (-not $hdAsset) { $hdAsset = $hdRel.assets | Where-Object { $_.name -like "*.o2r" } | Select-Object -First 1 }
-  if ($hdAsset) {
-   $hdUrl = $hdAsset.browser_download_url
-   $hdName = $hdAsset.name
-   Write-Info "Latest texture pack: $($hdRel.tag_name) ($hdName)"
-  }
- } catch {
-  Write-Warn "Could not query GitHub for the latest texture pack."
-  Write-Warn "Falling back to the pinned v2026.04.03 4k build."
- }
- if (-not $hdUrl) { $hdUrl = $HD_PINNED_URL; $hdName = ($HD_PINNED_URL -split '/')[-1] }
-
- $modsDir = Join-Path $INSTALL_ROOT "mods"
- New-Item -ItemType Directory -Path $modsDir -Force | Out-Null
- $hdDest = Join-Path $modsDir $hdName
- if (Invoke-DownloadOrFallback -Url $hdUrl -Destination $hdDest -Label "MK64 Reloaded texture pack" `
-    -ManualUrl $HD_RELEASES `
-    -Instructions "Download the -sk-4k .o2r file from the Releases page and drop it into $modsDir - then just continue." `
-    -SkipMessage "Skipped - the game runs fine with the original textures; rerun this installer any time to add HD.") {
-  # Clear any OLDER Reloaded builds so two packs never fight.
-  Get-ChildItem -Path $modsDir -Filter "mk64-reloaded*.o2r" -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -ne $hdName } | ForEach-Object {
-     Write-Info "Removing older texture pack: $($_.Name)"
-     Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue
-    }
-  Write-OK "HD texture pack installed to mods\$hdName"
- }
-} else {
- Write-Info "Skipping HD textures - the original look it is. Rerun this"
- Write-Info "installer any time to add them."
-}
-
-# -------------------------------------------------------
-# STEP 5: Desktop shortcut + Hub markers
-# -------------------------------------------------------
-Write-Step 5 5 "Desktop shortcut"
-
-try {
- $sh = New-Object -ComObject WScript.Shell
- $lnk = $sh.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Mario Kart 64 VR.lnk"))
- $lnk.TargetPath = Join-Path $INSTALL_ROOT $GAME_EXE
- $lnk.WorkingDirectory = $INSTALL_ROOT
- $lnk.IconLocation = (Join-Path $INSTALL_ROOT $GAME_EXE) + ",0"
- $lnk.Description = "Mario Kart 64 VR (SpaghettiKart) - headset on = VR, headset off = flat"
- $lnk.Save()
- Write-OK "Desktop shortcut created."
-} catch {
- Write-Warn "Could not create the desktop shortcut: $_"
-}
-
-# Hub markers: install path for "Start in VR" + the EXACT release tag
-# for the update badge (string-compared against the GitHub latest tag).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $INSTALL_ROOT -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
-
-# -------------------------------------------------------
-# DONE
-# -------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Blue
-Write-Host " Setup complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Blue
-Write-Host ""
-Write-Host " HOW TO PLAY:" -ForegroundColor Yellow
-Write-Host "  1. Start your VR runtime (Virtual Desktop, SteamVR, Quest" -ForegroundColor White
-Write-Host "     Link / Air Link) - or skip this to play flat." -ForegroundColor White
-Write-Host "  2. Launch via the desktop shortcut or" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub." -ForegroundColor White
-Write-Host "  3. FIRST LAUNCH ONLY: the game asks for your Mario Kart 64" -ForegroundColor White
-Write-Host "     US .z64 ROM. Pick it once and you are set." -ForegroundColor White
-Write-Host "  4. Pause, then pull the right trigger (R1 on gamepad): the" -ForegroundColor White
-Write-Host "     VR OPTIONS menu floats in front of you - view mode, world" -ForegroundColor White
-Write-Host "     scale, stereo depth, HUD and more, all live." -ForegroundColor White
-Write-Host ""
-Write-Host " QUICK CONTROLS (VR controllers - gamepad works alongside):" -ForegroundColor Yellow
-Write-Host "  A gas, B brake/reverse, left trigger or X item, right" -ForegroundColor White
-Write-Host "  trigger/grip hop & drift, hold Y look behind, right-stick" -ForegroundColor White
-Write-Host "  click switches Third/First Person, Theater, Diorama." -ForegroundColor White
-Write-Host ""
-Write-Host " Rainbow Road has no guardrails. Neither does karma." -ForegroundColor Magenta
-Write-Host ""
 Pause-User "Press Enter to exit."
+    exit 0

@@ -1,23 +1,22 @@
 # ============================================================
 #  Command & Conquer Generals Zero Hour VR - GeneralsVR
-#  von Gonzorro
+#  by Gonzorro
 # ------------------------------------------------------------
-#  DIESE MOD FASST DAS SPIEL NIE AN. Sie lebt komplett in
-#  %LOCALAPPDATA%\GeneralsVR und zeigt die Spiel-Engine nur auf
-#  die vorhandene Zero-Hour-Installation. Deinstallieren heisst:
-#  diesen Ordner und die Verknuepfung loeschen.
+#  THIS MOD NEVER TOUCHES THE GAME. It lives entirely in
+#  %LOCALAPPDATA%\GeneralsVR and merely points the game engine at
+#  the existing Zero Hour install. Uninstalling means deleting that
+#  folder and the shortcut.
 #
-#  DESHALB SUCHT DIESER INSTALLER DAS SPIEL AUCH NICHT SELBST -
-#  der Starter der Mod findet Steam, EA und GOG von sich aus und
-#  fragt sonst einmal nach. Wir wuerden das nur schlechter
-#  nachbauen.
+#  WHICH IS ALSO WHY THIS INSTALLER DOES NOT SEARCH FOR THE GAME -
+#  the mod's launcher finds Steam, EA and GOG by itself and asks
+#  once if it cannot. Reimplementing it here would only make it worse.
 #
-#  ZWEI WEGE, beide vom Autor vorgesehen und gleichwertig:
-#    [1] Setup.cmd - laedt die neueste Fassung und richtet alles
-#        ein. Nichts zu entpacken.
-#    [2] das ZIP - dasselbe Ergebnis von Hand.
-#  Der Starter aktualisiert sich danach bei JEDEM Spielstart
-#  selbst; ein Auto-Update von uns braucht es nicht.
+#  TWO ROUTES, both intended by the author and equivalent:
+#    [1] Setup.cmd - downloads the newest build and sets everything
+#        up. Nothing to unpack.
+#    [2] the ZIP - the same result by hand.
+#  The launcher then updates itself on EVERY game start; an
+#  auto-update from us is not needed.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -25,9 +24,9 @@
 $Host.UI.RawUI.WindowTitle = "Generals Zero Hour VR Installer"
 $ErrorActionPreference = "Stop"
 
-# Die Ausgabehelfer bringt JEDER Installer selbst mit - sie stehen NICHT
-# in InstallerSafety.ps1, und WELCHE vorhanden sind, ist von Installer zu
-# Installer verschieden.
+# EVERY installer brings its own console helpers - they are NOT in
+# InstallerSafety.ps1, and WHICH ones exist differs from installer to
+# installer.
 function Write-Step {
     param([int]$Step, [int]$Total, [string]$Title)
     Write-Host ""
@@ -54,7 +53,7 @@ $SETUP_CMD   = "GeneralsVR-Setup.cmd"
 $START_CMD   = "START-GeneralsVR.cmd"
 $INSTALL_DIR = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "GeneralsVR"
 
-# ---- Kopf -----------------------------------------------------
+# ---- Header ---------------------------------------------------
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Command & Conquer Generals Zero Hour VR - Installer" -ForegroundColor Cyan
@@ -82,7 +81,7 @@ Write-Host "     other PC VR headsets are untested." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter to start..." | Out-Null
 
-# ---- 1. Weg waehlen -------------------------------------------
+# ---- 1. Pick the route ----------------------------------------
 Write-Step 1 3 "How do you want to install it"
 Write-Host ""
 Write-Host "    [1] The setup file" -ForegroundColor White
@@ -131,7 +130,7 @@ function Show-Afterwards {
     Write-Host ""
 }
 
-# ---- 2. Datei besorgen ----------------------------------------
+# ---- 2. Fetch the file ----------------------------------------
 Write-Step 2 3 "Getting the files"
 
 $tmp = Join-Path $env:TEMP ("generalsvr_" + [System.IO.Path]::GetRandomFileName())
@@ -154,8 +153,8 @@ if ($route -eq "1") {
     $zip = Find-PredownloadedFile -Patterns $patterns -Label "the GeneralsVR ZIP"
     if (-not $zip) {
         $dest = Join-Path $tmp "GeneralsVR.zip"
-        # Der Anhang traegt die Version im Namen, also ueber die API
-        # aufloesen statt eine feste Adresse zu raten.
+        # The asset carries the version in its name, so resolve it
+        # through the API instead of guessing a fixed address.
         $url = $null
         try {
             $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
@@ -178,15 +177,15 @@ if ($route -eq "1") {
         }
     }
     if ($zip -and (Test-Path -LiteralPath $zip)) {
-        # BLEIBENDER Ordner, NICHT %TEMP%: der Starter laeuft von hier
-        # aus weiter. Ein geloeschter Ordner unter einem laufenden
-        # Programm ist genau der Fehler, den der ZIP-Weg vorher hatte.
+        # A PERMANENT folder, NOT %TEMP%: the launcher keeps running
+        # from here. A deleted folder underneath a running program is
+        # exactly the fault the ZIP route used to have.
         $ex = Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\GeneralsVR-setup"
         try { New-Item -ItemType Directory -Path $ex -Force -ErrorAction Stop | Out-Null }
         catch { $ex = Join-Path $tmp "x"; New-Item -ItemType Directory -Path $ex -Force | Out-Null }
         [void](Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $MOD_NAME)
-        # START-GeneralsVR liegt in der Wurzel des Archivs - ueber den
-        # ganzen Baum suchen, falls ein Wrapper-Ordner dazwischen sitzt.
+        # START-GeneralsVR sits at the archive root - search the whole
+        # tree in case a wrapper folder gets in between.
         $hit = Get-ChildItem -LiteralPath $ex -Recurse -File -Force -ErrorAction SilentlyContinue |
                Where-Object { $_.Name -ieq $START_CMD } | Select-Object -First 1
         if ($hit) { $runMe = $hit.FullName }
@@ -203,7 +202,7 @@ if (-not $runMe -or -not (Test-Path -LiteralPath $runMe)) {
 }
 Write-OK "Using: $runMe"
 
-# ---- 3. Den Starter der Mod laufen lassen ---------------------
+# ---- 3. Run the mod's own launcher ----------------------------
 Write-Step 3 3 "Running the author's own installer"
 Write-Host ""
 Write-Host "  From here the mod takes over: it finds your Zero Hour install" -ForegroundColor White
@@ -221,13 +220,13 @@ try {
 
 if (Test-Path -LiteralPath (Join-Path $INSTALL_DIR "Data\generalszhv.exe")) {
     Write-OK "GeneralsVR is installed in $INSTALL_DIR"
-    # Merker fuer den Hub - in den INSTALLERORDNER, nicht ins Spiel.
+    # Marker for the Hub - into the INSTALLER folder, not the game.
     try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force } catch {}
 } else {
     Write-Info "If you cancelled, run this installer again - nothing was left behind."
 }
-# Nur das Zwischenverzeichnis fuer den Download aufraeumen. Der ENTPACKTE
-# Ordner bleibt liegen - der Starter arbeitet weiter daraus.
+# Only clean up the temporary download directory. The EXTRACTED folder
+# stays - the launcher keeps working out of it.
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 if ($ex -and (Test-Path -LiteralPath $ex) -and ($ex -notlike "$tmp*")) {
     Write-Host ""

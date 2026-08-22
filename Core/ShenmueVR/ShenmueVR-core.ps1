@@ -2,42 +2,46 @@
 # Shenmue I & II VR Mod Installer
 # Shenmue_1_and_2_VR_mod by Tensai37 - hosted on CODEBERG
 #
-# BESONDERHEIT: die Mod kommt NICHT als Zip, sondern als
-# INNO-SETUP-PROGRAMM (ShenmueVR-Setup-<version>.exe, Inno 6.7.0).
-# Dieses Setup muss der Nutzer SELBST durchklicken - es fragt nach
-# dem Spielordner und laesst ihn Shenmue I, II oder beide waehlen.
-# Wir laden es herunter, pruefen den Spielordner, legen den Pfad in
-# die Zwischenablage und starten das Setup. Danach pruefen wir am
-# ERGEBNIS, ob die Mod wirklich liegt.
+# SPECIAL CASE: the mod does NOT come as a zip but as an INNO SETUP
+# PROGRAM (ShenmueVR-Setup-<version>.exe, Inno 6.7.0).
+# The user has to click through that setup THEMSELVES - it asks for
+# the game folder and lets them pick Shenmue I, II or both.
+# We download it, check the game folder, put the path on the
+# clipboard and start the setup. Afterwards we verify by the RESULT
+# whether the mod is really in place.
 #
-# WARUM NICHT STILL IM HINTERGRUND: Inno kann /SILENT /DIR= - aber
-# die Auswahl "Shenmue I / II / beide" sind Komponenten, deren
-# interne Namen wir nicht kennen. Ein stiller Lauf koennte also das
-# falsche Spiel patchen. Interaktiv ist hier das Ehrlichere.
+# WHY NOT SILENTLY IN THE BACKGROUND: Inno supports /SILENT /DIR= -
+# but the "Shenmue I / II / both" choice is made of components whose
+# internal names we do not know. A silent run could therefore patch
+# the wrong game. Interactive is the honest option here.
 #
-# WAS DAS SETZUP ANLEGT, aus einem echten Vorher/Nachher-Vergleich
-# des Spielordners belegt - GENAU ZEHN Dateien, nichts wird
-# entfernt, keine Bestandsdatei aendert ihre Groesse:
-#   sm1\XINPUT1_3.dll            412.672   (Proxy-DLL, laedt die Mod)
-#   sm1\openvr_api.dll           837.272
-#   sm1\ShenmueVR.ini                504   (Einstellungen der Mod)
-#   sm2\XINPUT1_3.dll            436.224   (eigener Build je Spiel!)
-#   sm2\openvr_api.dll           837.272
+# WHAT THE SETUP CREATES, from a real before/after comparison of the
+# game folder made on v1.1 - EXACTLY TEN files, nothing is removed and
+# no existing file changes size.
+#
+# !!! v1.3 ADDS AN OpenVR / OpenXR CHOICE, so the runtime library
+# !!! differs when OpenXR is picked (an OpenXR loader rather than
+# openvr_api.dll). The list below has NOT been re-measured against 1.3.
+# Detection therefore rests on ShenmueVR.ini, which is written either
+# way - do not tighten the check onto openvr_api.dll.
+#   sm1\XINPUT1_3.dll            412,672   (proxy DLL, loads the mod)
+#   sm1\openvr_api.dll           837,272
+#   sm1\ShenmueVR.ini                504   (the mod's settings)
+#   sm2\XINPUT1_3.dll            436,224   (its own build per game!)
+#   sm2\openvr_api.dll           837,272
 #   sm2\ShenmueVR.ini                707
 #   sm1\.ShenmueVR-installer-backup\Shenmue.exe.preinstall + state.ini
 #   sm2\.ShenmueVR-installer-backup\Shenmue2.exe.preinstall + state.ini
 #
-# DIE SPIEL-EXE WIRD IN PLACE GEPATCHT, OHNE GROESSENAENDERUNG:
-# Shenmue.exe ist vorher wie nachher 11.651.072 Bytes - genau wie die
-# .preinstall-Sicherung daneben. Ein Groessenvergleich taugt hier
-# also NICHT zur Erkennung; nur die neuen Dateien verraten die
-# Installation. Das Setup verweigert unbekannte Exe-Versionen und
-# verlangt Steam 1.07.
+# THE GAME EXE IS PATCHED IN PLACE, WITHOUT A SIZE CHANGE:
+# Shenmue.exe is 11,651,072 bytes before and after - exactly like the
+# .preinstall backup next to it. A size comparison is therefore NO
+# use for detection here; only the new files reveal the install. The
+# setup refuses unknown exe versions and requires Steam 1.07.
 #
-# ORDNERSTRUKTUR: die Anleitung des Autors spricht von einem Ordner
-# "SMLaunch" - den gibt es in der echten Installation NICHT. Die
-# Wurzel enthaelt SteamLauncher.exe, sm1\ und sm2\. Genau danach
-# wird gesucht.
+# FOLDER STRUCTURE: the author's instructions speak of a folder
+# "SMLaunch" - that does NOT exist in a real install. The root holds
+# SteamLauncher.exe, sm1\ and sm2\. That is what is searched for.
 # -------------------------------------------------------
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -49,21 +53,25 @@ $MOD_AUTHOR  = "Tensai37"
 $MOD_REPO    = "Tensai37/Shenmue_1_and_2_VR_mod"
 $RELEASES    = "https://codeberg.org/$MOD_REPO/releases"
 
-# Gepinnte Fassung - NUR der Rueckfall. Die Adresse wird zur Laufzeit
-# aus dem neuesten Codeberg-Release aufgeloest (Get-ShenmueSetupUrl).
-# Trotzdem mitziehen: ohne Netzzugang laedt sonst dauerhaft Altes.
-$PINNED_VER  = "v1.1"
-# Nur fuer die Kopfzeile - geladen wird das neueste Release.
+# Pinned build - the FALLBACK only. The address is resolved at run
+# time from the newest Codeberg release (Get-ShenmueSetupUrl). Keep it
+# current anyway: without network access something old would be
+# downloaded forever.
+$PINNED_VER  = "v1.3"
+# For the header line only - what is downloaded is the newest release.
 $MOD_VERSION = $PINNED_VER
-$PINNED_URL  = "https://codeberg.org/$MOD_REPO/releases/download/$PINNED_VER/ShenmueVR-Setup-1.1.exe"
+$PINNED_URL  = "https://codeberg.org/$MOD_REPO/releases/download/$PINNED_VER/ShenmueVR-Setup-1.3.exe"
 
 $GAME_APPID  = "758330"
 $GAME_LAUNCH = "SteamLauncher.exe"
 $SM1_EXE     = "sm1\Shenmue.exe"
 $SM2_EXE     = "sm2\Shenmue2.exe"
 
-# Woran erkannt wird, dass die Mod liegt. Eines von beiden genuegt -
-# der Nutzer darf im Setup auch nur EIN Spiel auswaehlen.
+# How the mod is detected as installed. Either one is enough - in the
+# setup the user may well pick only ONE of the games.
+# ShenmueVR.ini ON PURPOSE, not a runtime library: since v1.3 the user
+# chooses OpenVR or OpenXR during setup, so what lands next to it
+# differs. The ini is written either way.
 $MOD_MARK_1  = "sm1\ShenmueVR.ini"
 $MOD_MARK_2  = "sm2\ShenmueVR.ini"
 
@@ -80,10 +88,10 @@ function Write-Warn { param($m) Write-Host " [!] $m"  -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m"  -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
-# Neuestes Setup vom Codeberg-Release holen. Codeberg laeuft auf
-# Forgejo, die API hat dieselbe Form wie Gitea. Gesucht wird der
-# Anhang, dessen Name auf .exe endet - nicht die Versionsnummer,
-# damit eine Umbenennung nichts bricht.
+# Fetch the newest setup from the Codeberg release. Codeberg runs on
+# Forgejo; the API has the same shape as Gitea. The asset whose name
+# ends in .exe is the one taken - not the version number, so a rename
+# breaks nothing.
 function Get-ShenmueSetupUrl {
     try {
         $rel = Invoke-RestMethod -Uri "https://codeberg.org/api/v1/repos/$MOD_REPO/releases?limit=5" `
@@ -110,13 +118,15 @@ Write-Host ""
 Write-Host " Stereoscopic VR and a first-person view for the Steam release" -ForegroundColor White
 Write-Host " of Shenmue I & II." -ForegroundColor White
 Write-Host ""
-Write-Host " A GAME CONTROLLER IS REQUIRED. VR motion controllers are not" -ForegroundColor White
-Write-Host " supported yet." -ForegroundColor White
+Write-Host " A CONTROLLER IS REQUIRED. Since v1.3 your VR controllers work" -ForegroundColor White
+Write-Host " too - but as a plain gamepad, with no motion tracking." -ForegroundColor White
 Write-Host ""
 Write-Host "  +==============================================================+" -ForegroundColor Yellow
-Write-Host "  |  FRAME INTERPOLATION IS REQUIRED - BOTH GAMES CAP AT 30 FPS  |" -ForegroundColor Yellow
+Write-Host "  |  FRAME INTERPOLATION IS REQUIRED - 30 FPS IS THE BASELINE   |" -ForegroundColor Yellow
 Write-Host "  +==============================================================+" -ForegroundColor Yellow
-Write-Host "   A faster PC does not lift that cap. Turn on whichever your" -ForegroundColor White
+Write-Host "   Shenmue II stays at 30 throughout, and so does Shenmue I" -ForegroundColor White
+Write-Host "   outside normal first-person play. A faster PC does not lift" -ForegroundColor White
+Write-Host "   that cap. Turn on whichever your" -ForegroundColor White
 Write-Host "   setup offers BEFORE you play:" -ForegroundColor White
 Write-Host "     Quest over Link / Air Link  -> " -NoNewline -ForegroundColor Gray
 Write-Host " Asynchronous Spacewarp (ASW) " -ForegroundColor Black -BackgroundColor Yellow
@@ -125,6 +135,16 @@ Write-Host " Synchronous Spacewarp (SSW) " -ForegroundColor Black -BackgroundCol
 Write-Host "     SteamVR headsets, PS VR2    -> " -NoNewline -ForegroundColor Gray
 Write-Host " Motion Smoothing " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "   Without it the picture judders and the game can crash." -ForegroundColor White
+Write-Host ""
+# STILL REQUIRED IN v1.3 - the new boost does NOT replace it. The
+# boost runs in normal first-person play only; cutscenes and
+# third-person sequences stay at 30 FPS, and Shenmue II stays at 30
+# throughout. Without saying so, "framerate boost" reads like the
+# interpolation is no longer needed.
+Write-Host "   v1.3 adds a framerate boost for Shenmue I, but you still need" -ForegroundColor White
+Write-Host "   the above: it covers normal first-person play only. Cutscenes" -ForegroundColor White
+Write-Host "   and third-person scenes stay at 30, and Shenmue II stays at 30" -ForegroundColor White
+Write-Host "   throughout." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter to start..."
 
@@ -165,7 +185,7 @@ Write-Step 2 3 "Downloading the mod setup"
 # -------------------------------------------------------
 $rel = Get-ShenmueSetupUrl
 $setupUrl  = if ($rel) { $rel.Url }  else { $PINNED_URL }
-$setupName = if ($rel) { $rel.Name } else { "ShenmueVR-Setup-1.1.exe" }
+$setupName = if ($rel) { $rel.Name } else { "ShenmueVR-Setup-1.3.exe" }
 if ($rel) { Write-Info "Newest release on Codeberg: $($rel.Tag)" }
 else      { Write-Info "Codeberg not reachable - using the pinned $PINNED_VER build." }
 
@@ -184,7 +204,7 @@ Write-Step 3 3 "Running the mod's own setup"
 $clip = $false
 try { Set-Clipboard -Value $gamePath; $clip = $true } catch {}
 Write-Host ""
-Write-Host "  The setup asks two things. Here is what to answer:" -ForegroundColor White
+Write-Host "  The setup asks three things. Here is what to answer:" -ForegroundColor White
 Write-Host ""
 Write-Host "   1) The setup looks for your Shenmue folder." -ForegroundColor White
 Write-Host "      Usually it is found and set already." -ForegroundColor White
@@ -197,6 +217,19 @@ Write-Host ""
 Write-Host "   2) Which games to patch. Pick what you own:" -ForegroundColor White
 Write-Host ("      Shenmue I  " + $(if ($has1) { "- present" } else { "- NOT in this folder, leave unticked" })) -ForegroundColor Gray
 Write-Host ("      Shenmue II " + $(if ($has2) { "- present" } else { "- NOT in this folder, leave unticked" })) -ForegroundColor Gray
+Write-Host ""
+# THIRD QUESTION, NEW IN v1.3. It is not a matter of taste: the
+# adaptive framerate boost for Shenmue I only exists on the OpenXR
+# path. Picking OpenVR out of habit quietly gives that up, and nothing
+# on screen would ever say so.
+Write-Host "   3) OpenVR or OpenXR. " -NoNewline -ForegroundColor White
+Write-Host " Pick OpenXR " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "      New in v1.3, and it is not just a runtime swap:" -ForegroundColor Gray
+Write-Host "      the adaptive framerate boost for Shenmue I ONLY works" -ForegroundColor Gray
+Write-Host "      on OpenXR. Choose OpenVR and you lose the boost" -ForegroundColor Gray
+Write-Host "      without warning." -ForegroundColor Gray
+Write-Host "      Choose OpenVR only if your headset gives you trouble" -ForegroundColor DarkGray
+Write-Host "      with OpenXR." -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  Windows may warn about an unknown publisher. That is expected for" -ForegroundColor DarkGray
 Write-Host "  an unsigned fan tool; the author has reported it to Microsoft." -ForegroundColor DarkGray
@@ -215,7 +248,7 @@ try {
     Pause-User "Press Enter once you have finished the setup..."
 }
 
-# ---- Am ERGEBNIS pruefen, nicht am Rueckgabewert des Setups ----
+# ---- Verify by the RESULT, not by the setup's exit code --------
 $m1 = Test-Path -LiteralPath (Join-Path $gamePath $MOD_MARK_1)
 $m2 = Test-Path -LiteralPath (Join-Path $gamePath $MOD_MARK_2)
 Write-Host ""

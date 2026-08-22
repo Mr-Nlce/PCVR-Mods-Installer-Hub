@@ -1,20 +1,21 @@
 # ============================================================
 #  Outlast VR - Halcyon (dhalcyon)
 # ------------------------------------------------------------
-#  DIE MOD BRINGT IHREN EIGENEN INSTALLER MIT: Outlast-VR.bat.
-#  Der MUSS aus dem Spielordner heraus laufen - er prueft selbst,
-#  ob OLGame.exe daneben liegt, und bricht sonst ab. Wir kopieren
-#  also die vier Dateien nach Binaries\Win64 und starten die Bat
-#  DORT. Sie uebernimmt danach den Rest, unter anderem die
-#  Konfiguration unter Dokumente\My Games\Outlast.
+#  THE MOD BRINGS ITS OWN INSTALLER: Outlast-VR.bat.
+#  It MUST run from inside the game folder - it checks for
+#  OLGame.exe next to it and aborts otherwise. So the four files
+#  are copied into Binaries\Win64 and the bat is started THERE.
+#  It handles the rest from then on, including the configuration
+#  under Documents\My Games\Outlast.
 #
-#  DER DOWNLOAD LIEGT HINTER PATREON und braucht eine Anmeldung -
-#  wir koennen ihn nicht selbst holen. Deshalb derselbe Weg wie bei
-#  den Nexus-Eintraegen: erst auf der Platte nachsehen, sonst die
-#  Seite oeffnen und den Nutzer die Datei ablegen lassen.
+#  THE DOWNLOAD IS HOSTED ON PATREON BUT NEEDS NO ACCOUNT: an
+#  address of the form patreon.com/file?h=...&m=... is public, so
+#  the installer fetches it directly (same as the Luke Ross one).
+#  A copy already on disk is used first; the page is only opened
+#  if the download itself fails.
 #
-#  ZIELORDNER IST Binaries\Win64, NICHT der Spielordner selbst -
-#  das ist die haeufigste Verwechslung bei diesem Spiel.
+#  THE TARGET FOLDER IS Binaries\Win64, NOT the game folder
+#  itself - the most common mix-up with this game.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -22,8 +23,8 @@
 $Host.UI.RawUI.WindowTitle = "Outlast VR Installer"
 $ErrorActionPreference = "Stop"
 
-# Die Ausgabehelfer bringt JEDER Installer selbst mit - sie stehen NICHT
-# in InstallerSafety.ps1.
+# EVERY installer brings its own console helpers - they are NOT in
+# InstallerSafety.ps1.
 function Write-Step {
     param([int]$Step, [int]$Total, [string]$Title)
     Write-Host ""
@@ -66,7 +67,37 @@ $GRAIN_URL   = "https://www.nexusmods.com/outlast/mods/65?tab=files"
 $TFC_URL     = "https://www.nexusmods.com/site/mods/588?tab=files"
 $DOTNET6_URL = "https://aka.ms/dotnet/6.0/windowsdesktop-runtime-win-x64.exe"
 
-# ---- Kopf -----------------------------------------------------
+# ---- The SECOND mod, added 2026-08-20 -------------------------
+# Hammerthis' mod is built on a completely different idea: it does
+# NOT put anything in the game folder. It launches Outlast through
+# Steam, waits for OLGame.exe and injects a DLL into the running
+# process. His README says "Extract this ZIP anywhere. You do not
+# need to copy files into the Outlast game directory."
+#
+# WE STILL PUT IT UNDER THE GAME - in <game>\_vrmods\hammerthis\ -
+# and "anywhere" covers that. Three reasons: the Hub can then find
+# it the same way it finds every other mod, uninstalling is one
+# folder to delete, and the two mods sit side by side where anyone
+# can see both. No file of the game itself is touched either way.
+#
+# ALL RELEASES ARE PRERELEASES -> the list is queried, not /latest.
+$MODB_NAME   = "Outlast VR (alpha)"
+$MODB_AUTHOR = "Hammerthis"
+$MODB_REPO   = "Hammerthis/Outlast-Vr-Mod"
+$MODB_RELEASES = "https://github.com/$MODB_REPO/releases"
+$MODB_DIR    = "_vrmods\hammerthis"
+$MODB_BAT    = "PLAY_OUTLAST_VR.bat"
+# Read from the real archive, not guessed: 18 entries, 5,943,108 B,
+# sha256 c72196d7613a15f119060f0a5447b7b9a9897076804c95cc51b825ad49a236c7
+$MODB_FILES  = @("PLAY_OUTLAST_VR.bat", "PLAY_OUTLAST_VR.ps1", "INJECT_VR_NOW.bat",
+                 "UNLOAD_VR.bat", "RESTORE_OUTLAST_SETTINGS.bat", "injector.exe",
+                 "OutlastVRDiagnostic.dll", "outlast_vr.ini")
+# Where the two switch launchers go - same shape as BioShock.
+$VRLAUNCH    = "_vrmods\VRLaunch"
+$LAUNCH_A    = "Outlast VR (Halcyon).bat"
+$LAUNCH_B    = "Outlast VR (Hammerthis).bat"
+
+# ---- Header ---------------------------------------------------
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Outlast VR - Installer" -ForegroundColor Cyan
@@ -74,7 +105,8 @@ Write-Host " Installs: $MOD_NAME $MOD_VERSION by $MOD_AUTHOR" -ForegroundColor G
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Stereo rendering, full head tracking and VR cutscenes for" -ForegroundColor White
-Write-Host "  Outlast. Gamepad in hand - this is not a motion-control mod." -ForegroundColor White
+Write-Host "  Outlast. Two mods exist: one is gamepad-only, the other" -ForegroundColor White
+Write-Host "  adds tracked controllers and VR hands." -ForegroundColor White
 Write-Host ""
 Write-Host "  One thing before you start:" -ForegroundColor White
 Write-Host "   - " -NoNewline -ForegroundColor White
@@ -82,13 +114,58 @@ Write-Host " RUN OUTLAST ONCE NORMALLY FIRST " -ForegroundColor Black -Backgroun
 Write-Host "     The game creates its settings files on that first launch," -ForegroundColor White
 Write-Host "     and the mod's own installer needs them to be there." -ForegroundColor White
 Write-Host ""
-Pause-User "Press Enter to start..." | Out-Null
 
-# ---- 1. Spiel finden ------------------------------------------
+# ---- 0. WHICH MOD? --------------------------------------------
+# Two mods, two very different approaches - the choice is not a
+# matter of taste, so both are described before it is made.
+Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+Write-Host "   Two Outlast VR mods exist. Which one?" -ForegroundColor Cyan
+Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "   [1] $MOD_NAME by $MOD_AUTHOR" -ForegroundColor White
+Write-Host "       Controls: " -NoNewline -ForegroundColor Gray
+Write-Host " GAMEPAD ONLY " -ForegroundColor Black -BackgroundColor DarkCyan
+Write-Host "       Stereo rendering, full head tracking, VR cutscenes." -ForegroundColor Gray
+Write-Host "       You hold a gamepad. There are no VR hands, and the" -ForegroundColor Gray
+Write-Host "       camcorder is raised with a button, not with your arm." -ForegroundColor Gray
+Write-Host "       The more mature of the two. Available via Patreon." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [2] $MODB_NAME by $MODB_AUTHOR" -ForegroundColor White
+Write-Host "       Controls: " -NoNewline -ForegroundColor Gray
+Write-Host " VR CONTROLLERS " -ForegroundColor Black -BackgroundColor Magenta
+Write-Host "       Tracked controllers and VR hands. You reach out and" -ForegroundColor Gray
+Write-Host "       GRAB the camcorder, raise it to your face yourself," -ForegroundColor Gray
+Write-Host "       and R3 on it gives you the night vision." -ForegroundColor Gray
+Write-Host "       " -NoNewline
+Write-Host " EARLY ALPHA - expect bugs " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "       Props can vanish at some angles, shadows can shift," -ForegroundColor Gray
+Write-Host "       framerate can drop, and the motion interactions are" -ForegroundColor Gray
+Write-Host "       incomplete. Free, on GitHub." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [3] Both - installed side by side, switchable afterwards." -ForegroundColor White
+Write-Host "       The Hub then shows one Play button per mod, so you" -ForegroundColor Gray
+Write-Host "       can pick gamepad or VR controllers per session." -ForegroundColor Gray
+Write-Host ""
+$modChoice = ""
+for ($i = 1; $i -le 20; $i++) {
+    $modChoice = ("" + (Read-Host "  Your choice [1/2/3]")).Trim()
+    if ($modChoice -in @("1","2","3")) { break }
+    Write-Host "  Please answer 1, 2 or 3." -ForegroundColor Yellow
+}
+if ($modChoice -notin @("1","2","3")) {
+    Write-Fail "No choice made - nothing was installed."
+    Pause-User "Press Enter to exit."
+    exit 1
+}
+$doA = ($modChoice -eq "1" -or $modChoice -eq "3")
+$doB = ($modChoice -eq "2" -or $modChoice -eq "3")
+Write-Host ""
+
+# ---- 1. Locate the game ---------------------------------------
 Write-Step 1 5 "Locating $GAME_NAME"
 $gameRoot = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @("Outlast") -ProbeExe "$BIN_SUB\$GAME_EXE"
 if (-not $gameRoot) {
-    # GOG und Epic legen dieselbe Struktur an, nur woanders.
+    # GOG and Epic create the same structure, just elsewhere.
     foreach ($c in @("C:\GOG Games\Outlast",
                      "C:\Program Files (x86)\GOG Galaxy\Games\Outlast",
                      "C:\Program Files\Epic Games\Outlast",
@@ -112,7 +189,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $binDir $GAME_EXE))) {
 Write-OK "Game folder: $gameRoot"
 Write-OK "Mod files go into: $binDir"
 
-# Schreibrechte still pruefen - die Ansage kommt dort, wo sie gilt.
+# Probe write access quietly - the announcement comes where it applies.
 $needsAdmin = $false
 try {
     $probe = Join-Path $binDir ".pcvrhub_write_probe"
@@ -120,112 +197,234 @@ try {
     Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
 } catch { $needsAdmin = $true }
 
-# ---- 2. Archiv besorgen ---------------------------------------
-Write-Step 2 5 "The download"
-Write-Host ""
-# !!! PATREON-DATEILINKS SIND OEFFENTLICH - WIR KOENNEN SIE HOLEN !!!
-# Eine Adresse der Form patreon.com/file?h=...&m=... braucht KEINE
-# Anmeldung und ist unabhaengig vom Konto abrufbar. Der Luke-Ross-
-# Installer laedt seine Mod seit jeher genau so (Zeile 448 dort).
-# Deshalb wird hier NICHT nach einer Handablage gefragt, sondern
-# direkt geladen - die Suche auf der Platte ist nur der Rueckfall,
-# falls die Datei schon da liegt oder das Netz streikt.
-$patterns = @("*Outlast*VR*.zip", "*OutlastVR*.zip", "*Outlast*.zip")
-$modZip = Find-PredownloadedFile -Patterns $patterns -Label "the Outlast VR mod"
-if (-not $modZip) {
-    $tmpDl = Join-Path $env:TEMP ("outlastvr_dl_" + [System.IO.Path]::GetRandomFileName())
-    New-Item -ItemType Directory -Path $tmpDl -Force | Out-Null
-    $dest = Join-Path $tmpDl "Outlast-VR.zip"
-    Invoke-SafeDownload -Urls @($FILE_URL) -Destination $dest -Label "$MOD_NAME" `
-        -ManualUrl $POST_URL `
-        -Instructions "Download the Outlast VR ZIP from the Patreon post, save it as '$dest', then choose Retry."
-    if (Test-Path -LiteralPath $dest) { $modZip = $dest }
+if ($doA) {
+# ---- Halcyon: the file-copy route -----------------------------
+    # ---- 2. Fetch the archive -------------------------------------
+    Write-Step 2 5 "The download"
+    Write-Host ""
+    # !!! PATREON FILE LINKS ARE PUBLIC - WE CAN FETCH THEM !!!
+    # An address of the form patreon.com/file?h=...&m=... needs NO login
+    # and works independently of any account. The Luke Ross installer has
+    # always downloaded its mod exactly that way.
+    # So no hand-placement is requested here, it is downloaded directly -
+    # the search on disk is only the fallback for when the file is
+    # already there or the network is down.
+    $patterns = @("*Outlast*VR*.zip", "*OutlastVR*.zip", "*Outlast*.zip")
+    $modZip = Find-PredownloadedFile -Patterns $patterns -Label "the Outlast VR mod"
+    if (-not $modZip) {
+        $tmpDl = Join-Path $env:TEMP ("outlastvr_dl_" + [System.IO.Path]::GetRandomFileName())
+        New-Item -ItemType Directory -Path $tmpDl -Force | Out-Null
+        $dest = Join-Path $tmpDl "Outlast-VR.zip"
+        Invoke-SafeDownload -Urls @($FILE_URL) -Destination $dest -Label "$MOD_NAME" `
+            -ManualUrl $POST_URL `
+            -Instructions "Download the Outlast VR ZIP from the Patreon post, save it as '$dest', then choose Retry."
+        if (Test-Path -LiteralPath $dest) { $modZip = $dest }
+    }
+    if (-not $modZip -or -not (Test-Path -LiteralPath $modZip)) {
+        Write-Fail "No archive found - nothing was changed."
+        Write-Host "  Download it from:" -ForegroundColor White
+        Write-Host "     $POST_URL" -ForegroundColor Cyan
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    Write-OK "Using: $modZip"
+
+    # ---- 3. Put the files in place --------------------------------
+    Write-Step 3 5 "Copying the files next to $GAME_EXE"
+
+    $tmp = Join-Path $env:TEMP ("outlastvr_" + [System.IO.Path]::GetRandomFileName())
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    [void](Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tmp -Label $MOD_NAME)
+
+    # The files may sit flat or inside a wrapper folder - so search the
+    # WHOLE tree for the known bat rather than one fixed level.
+    $allFiles = @(Get-ChildItem -LiteralPath $tmp -Recurse -File -Force -ErrorAction SilentlyContinue)
+    if ($needsAdmin) {
+        Pause-User "Press Enter to copy the files into the game folder - UAC required..." | Out-Null
+    }
+    $sources = @(); $copyFailed = $false
+    foreach ($f in $MOD_FILES) {
+        $hit = $allFiles | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
+        if (-not $hit) { continue }
+        $sources += $hit.FullName
+        try { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $binDir $f) -Force -ErrorAction Stop }
+        catch { $copyFailed = $true }
+    }
+    if ($copyFailed -and $sources.Count -gt 0) {
+        Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
+        $srcList = ($sources | ForEach-Object { "'" + $_ + "'" }) -join ","
+        $ps = "foreach (`$s in @($srcList)) { Copy-Item -LiteralPath `$s -Destination '$binDir' -Force }"
+        try { Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop }
+        catch { Write-Warn "The elevated copy was declined or failed." }
+    }
+
+    $missing = @()
+    foreach ($f in $MOD_FILES) { if (-not (Test-Path -LiteralPath (Join-Path $binDir $f))) { $missing += $f } }
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+
+    if ($missing.Count -gt 0) {
+        Write-Fail "These files did not arrive:"
+        foreach ($m in $missing) { Write-Host "   $m" -ForegroundColor Yellow }
+        Write-Host "  Copy them by hand into:" -ForegroundColor White
+        Write-Host "     $binDir" -ForegroundColor Yellow
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    Write-OK "All four files are in place."
+
+    # ---- 4. The mod's own installer -------------------------------
+    Write-Step 4 5 "Running the mod's own installer"
+    Write-Host ""
+    Write-Host "  $MOD_BAT does the actual setup, and it has to run from the" -ForegroundColor White
+    Write-Host "  game folder - which is where it now sits. It also writes to" -ForegroundColor White
+    Write-Host "  Outlast's config under your Documents folder." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Make sure Outlast is CLOSED - the script checks and refuses" -ForegroundColor White
+    Write-Host "  to run otherwise." -ForegroundColor White
+    Write-Host ""
+    $batPath = Join-Path $binDir $MOD_BAT
+    Pause-User "Press Enter to run $MOD_BAT..." | Out-Null
+    try {
+        Start-Process -FilePath $batPath -WorkingDirectory $binDir -Wait -ErrorAction Stop
+        Write-OK "$MOD_BAT finished."
+    } catch {
+        Write-Warn "Could not start it: $($_.Exception.Message)"
+        Write-Host "  Run it yourself from: $binDir" -ForegroundColor Yellow
+    }
+
+    # Marker for the Hub - into the INSTALLER folder, not the game folder.
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
+
+} else {
+    Write-Info "Skipping the Halcyon mod - not chosen."
+    $grainRemoved = $false
 }
-if (-not $modZip -or -not (Test-Path -LiteralPath $modZip)) {
-    Write-Fail "No archive found - nothing was changed."
-    Write-Host "  Download it from:" -ForegroundColor White
-    Write-Host "     $POST_URL" -ForegroundColor Cyan
-    Pause-User "Press Enter to exit."
-    exit 1
+
+# ---- 4b. Hammerthis: the injector route -----------------------
+# Nothing is copied into the game folder here. The whole mod lives
+# in one folder and drives Outlast from outside.
+if ($doB) {
+    Write-Host ""
+    Write-Info "Installing $MODB_NAME by $MODB_AUTHOR"
+    $bDir = Join-Path $gameRoot $MODB_DIR
+
+    # All releases are prereleases -> query the LIST. /releases/latest
+    # returns nothing for a repo that has never had a stable release.
+    $bUrl = $null; $bTag = ""; $bAsset = ""; $bSize = 0
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$MODB_REPO/releases" `
+                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        foreach ($r in @($rels)) {
+            $a = @($r.assets) | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1
+            if ($a) { $bUrl = [string]$a.browser_download_url; $bTag = [string]$r.tag_name
+                      $bAsset = [string]$a.name; $bSize = [long]$a.size; break }
+        }
+    } catch { Write-Warn "GitHub could not be reached." }
+    if ($bUrl) { Write-OK "Release: $bTag  ($bAsset)" } else { $bUrl = $MODB_RELEASES }
+
+    $bTmp = Join-Path $env:TEMP ("outlastvrb_" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $bTmp -Force | Out-Null
+    $bZip = Join-Path $bTmp "OutlastVR.zip"
+
+    # Name AND size have to match the current release, or an older copy
+    # in the downloads folder would install silently.
+    $bHave = Find-PredownloadedFile -Patterns @("OutlastVR-v*.zip") -Label "the Outlast VR alpha" `
+                 -ExpectedName $bAsset -ExpectedSize $bSize
+    if ($bHave -and (Test-Path -LiteralPath $bHave)) {
+        $bZip = $bHave
+        Write-Info "Using the copy you already downloaded."
+    } else {
+        Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
+            -ManualUrl $MODB_RELEASES `
+            -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
+    }
+
+    if (Test-Path -LiteralPath $bZip) {
+        # The archive carries a wrapper folder (OutlastVR-v0.1.0-alpha\)
+        # whose name changes with every release - so the payload root is
+        # RESOLVED through a marker file rather than assumed.
+        $st = Expand-ArchiveToTarget -ArchivePath $bZip -TargetDir $bDir `
+                -RelModFile $MODB_BAT `
+                -Markers @("injector.exe", "outlast_vr.ini") `
+                -Label "$MODB_NAME" `
+                -SkipMessage "Nothing was copied."
+        if ([string]$st -eq "ok" -or [string]$st -eq "manual") {
+            # Proof on disk, file by file - the archive has eight parts
+            # that all have to be there for the injector to work.
+            $bMissing = @()
+            foreach ($f in $MODB_FILES) {
+                if (-not (Test-Path -LiteralPath (Join-Path $bDir $f))) { $bMissing += $f }
+            }
+            if ($bMissing.Count -gt 0) {
+                Write-Fail ("These did not arrive: " + ($bMissing -join ", "))
+                $doB = $false
+            } else {
+                Write-OK "Installed and verified: $bDir"
+            }
+        } else {
+            Write-Fail "The package could not be unpacked."
+            $doB = $false
+        }
+    } else {
+        Write-Fail "No package - the alpha was not installed."
+        $doB = $false
+    }
+    try { Remove-Item -LiteralPath $bTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
-Write-OK "Using: $modZip"
 
-# ---- 3. Dateien an ihren Platz --------------------------------
-Write-Step 3 5 "Copying the files next to $GAME_EXE"
+# ---- 4c. The switch, when both are installed ------------------
+# !!! THE TWO MODS MUST NOT RUN AT THE SAME TIME.
+# Halcyon works through d3d9.dll, which Outlast loads at startup.
+# Hammerthis injects into the running process. With Halcyon's proxy in
+# place, launching through his bat would put both in the same process.
+# So each launcher puts the other one out of the way first: parking
+# d3d9.dll means renaming it, never deleting it.
+$haveA = Test-Path -LiteralPath (Join-Path $gameRoot "$BIN_SUB\d3d9.dll")
+$haveAParked = Test-Path -LiteralPath (Join-Path $gameRoot "$BIN_SUB\d3d9.dll.off")
+$haveB = Test-Path -LiteralPath (Join-Path $gameRoot "$MODB_DIR\$MODB_BAT")
+if (($haveA -or $haveAParked) -and $haveB) {
+    Write-Host ""
+    Write-Info "Both mods are installed - writing the two launchers."
+    $vl = Join-Path $gameRoot $VRLAUNCH
+    New-Item -ItemType Directory -Path $vl -Force | Out-Null
+    $binAbs = Join-Path $gameRoot $BIN_SUB
+    $bAbs   = Join-Path $gameRoot $MODB_DIR
 
-$tmp = Join-Path $env:TEMP ("outlastvr_" + [System.IO.Path]::GetRandomFileName())
-New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-[void](Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tmp -Label $MOD_NAME)
-
-# Die Dateien koennen flach oder in einem Wrapper-Ordner liegen - deshalb
-# ueber den GANZEN Baum nach der bekannten Bat suchen, nicht auf einer
-# festen Ebene.
-$allFiles = @(Get-ChildItem -LiteralPath $tmp -Recurse -File -Force -ErrorAction SilentlyContinue)
-if ($needsAdmin) {
-    Pause-User "Press Enter to copy the files into the game folder - UAC required..." | Out-Null
-}
-$sources = @(); $copyFailed = $false
-foreach ($f in $MOD_FILES) {
-    $hit = $allFiles | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
-    if (-not $hit) { continue }
-    $sources += $hit.FullName
-    try { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $binDir $f) -Force -ErrorAction Stop }
-    catch { $copyFailed = $true }
-}
-if ($copyFailed -and $sources.Count -gt 0) {
-    Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
-    $srcList = ($sources | ForEach-Object { "'" + $_ + "'" }) -join ","
-    $ps = "foreach (`$s in @($srcList)) { Copy-Item -LiteralPath `$s -Destination '$binDir' -Force }"
-    try { Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop }
-    catch { Write-Warn "The elevated copy was declined or failed." }
-}
-
-$missing = @()
-foreach ($f in $MOD_FILES) { if (-not (Test-Path -LiteralPath (Join-Path $binDir $f))) { $missing += $f } }
-try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-if ($missing.Count -gt 0) {
-    Write-Fail "These files did not arrive:"
-    foreach ($m in $missing) { Write-Host "   $m" -ForegroundColor Yellow }
-    Write-Host "  Copy them by hand into:" -ForegroundColor White
-    Write-Host "     $binDir" -ForegroundColor Yellow
-    Pause-User "Press Enter to exit."
-    exit 1
-}
-Write-OK "All four files are in place."
-
-# ---- 4. Der Installer der Mod ---------------------------------
-Write-Step 4 5 "Running the mod's own installer"
-Write-Host ""
-Write-Host "  $MOD_BAT does the actual setup, and it has to run from the" -ForegroundColor White
-Write-Host "  game folder - which is where it now sits. It also writes to" -ForegroundColor White
-Write-Host "  Outlast's config under your Documents folder." -ForegroundColor White
-Write-Host ""
-Write-Host "  Make sure Outlast is CLOSED - the script checks and refuses" -ForegroundColor White
-Write-Host "  to run otherwise." -ForegroundColor White
-Write-Host ""
-$batPath = Join-Path $binDir $MOD_BAT
-Pause-User "Press Enter to run $MOD_BAT..." | Out-Null
-try {
-    Start-Process -FilePath $batPath -WorkingDirectory $binDir -Wait -ErrorAction Stop
-    Write-OK "$MOD_BAT finished."
-} catch {
-    Write-Warn "Could not start it: $($_.Exception.Message)"
-    Write-Host "  Run it yourself from: $binDir" -ForegroundColor Yellow
+    $batA = @"
+@echo off
+title Outlast VR - Halcyon
+rem Bring Halcyon's proxy back if the other launcher parked it, then
+rem start the game normally through Steam.
+if exist "$binAbs\d3d9.dll.off" move /Y "$binAbs\d3d9.dll.off" "$binAbs\d3d9.dll" >nul
+start "" "steam://rungameid/$APP_ID"
+"@
+    $batB = @"
+@echo off
+title Outlast VR - Hammerthis (alpha)
+rem Park Halcyon's proxy so the two do not end up in one process,
+rem then hand over to the alpha's own launcher.
+if exist "$binAbs\d3d9.dll" move /Y "$binAbs\d3d9.dll" "$binAbs\d3d9.dll.off" >nul
+cd /d "$bAbs"
+call "$MODB_BAT"
+"@
+    try {
+        Set-Content -LiteralPath (Join-Path $vl $LAUNCH_A) -Value $batA -Encoding ASCII -Force
+        Set-Content -LiteralPath (Join-Path $vl $LAUNCH_B) -Value $batB -Encoding ASCII -Force
+        Write-OK "Switch ready - the Hub shows one Play button per mod."
+    } catch { Write-Warn "Could not write the launchers: $($_.Exception.Message)" }
 }
 
-# Merker fuer den Hub - in den INSTALLERORDNER, nicht in den Spielordner.
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-
-# ---- 5. Filmkorn entfernen (freiwillig) -----------------------
-# !!! DIESER ZUSATZMOD LAESST SICH NICHT DURCH KOPIEREN INSTALLIEREN !!!
-# Nachgezaehlt: das Archiv enthaelt SIEBEN Dateien und KEINE EINZIGE
-# davon gehoert ins Spiel - es sind GameProfile.xml, ObjectDescriptors
-# und ein TexturePack, also ANWEISUNGEN FUER EIN PATCH-WERKZEUG. Laut
-# GameProfile.xml aendert es die .upk-Pakete unter OLGame\CookedPCConsole.
-# Ohne dieses Werkzeug gibt es NICHTS zu kopieren, und wir tun auch
-# nicht so. Was wir tun koennen: die Datei besorgen und sie dorthin
-# legen, wo der Nutzer sie findet.
+# ---- 5. Remove the film grain (optional) ----------------------
+# !!! THIS COMPANION MOD CANNOT BE INSTALLED BY COPYING !!!
+# Counted: the archive holds SEVEN files and NOT ONE of them belongs
+# in the game - they are GameProfile.xml, ObjectDescriptors and a
+# TexturePack, i.e. INSTRUCTIONS FOR A PATCHING TOOL. Per
+# GameProfile.xml it modifies the .upk packages under
+# OLGame\CookedPCConsole.
+# Without that tool there is NOTHING to copy, and we do not pretend
+# otherwise. What we can do: fetch the file and put it where the user
+# will find it.
 $grainRemoved = $false
 Write-Step 5 5 "Optional: remove the film grain"
 Write-Host ""
@@ -237,8 +436,8 @@ Write-Host "  minutes: two downloads, then three clicks in a small tool that" -F
 Write-Host "  this installer opens and walks you through." -ForegroundColor Gray
 Write-Host ""
 if (Read-YesNo "  Fetch the film-grain mod as well?") {
-    # Gegenstueck zur Ueberschrift der zweiten Haelfte weiter unten -
-    # sonst sieht nur die zweite wie ein eigener Abschnitt aus.
+    # Counterpart to the heading of the second half further down -
+    # otherwise only that one looks like a section of its own.
     Write-Host ""
     Write-Host " ============================================================" -ForegroundColor Magenta
     Write-Host "  FIRST HALF - getting the two downloads" -ForegroundColor Cyan
@@ -252,29 +451,29 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
         $fgZip = Find-PredownloadedFile -Patterns $fgPatterns -Label "the film-grain mod" -PageAlreadyOpen
     }
     if ($fgZip -and (Test-Path -LiteralPath $fgZip)) {
-        # Neben das Spiel legen - NICHT hinein, es gehoert ja nicht dorthin.
+        # Put it NEXT TO the game - not inside, it does not belong there.
         $fgDir = Join-Path $gameRoot "_FilmGrainMod"
         try {
             New-Item -ItemType Directory -Path $fgDir -Force -ErrorAction Stop | Out-Null
             [void](Expand-ArchiveOrFallback -ArchivePath $fgZip -DestinationFolder $fgDir -Label "film-grain mod")
-            # Im Archiv liegt ein Unterordner mit der GameProfile.xml - und
-            # GENAU DEN will das Werkzeug haben, nicht den darueber.
+            # The archive holds a subfolder with the GameProfile.xml -
+            # and THAT is the one the tool wants, not the one above it.
             $gp = Get-ChildItem -LiteralPath $fgDir -Recurse -File -Force -ErrorAction SilentlyContinue |
                   Where-Object { $_.Name -ieq "GameProfile.xml" } | Select-Object -First 1
             if ($gp) { $fgDir = $gp.DirectoryName }
             Write-OK "Mod folder ready: $fgDir"
         } catch { Write-Warn "Could not unpack it: $($_.Exception.Message)" }
 
-        # ---- Das Werkzeug besorgen ------------------------------------
-        # !!! DER TEXT ALLEIN NUTZT NIEMANDEM - er scrollt weg, bevor man
-        # ihn braucht. Also holen wir das Werkzeug auch, legen es neben den
-        # Mod-Ordner und starten es. Die drei Schritte stehen dann direkt
-        # ueber dem laufenden Fenster.
-        # !!! DIESER UEBERGANG GING IM DOWNLOADRAUSCHEN UNTER !!!
-        # Der Nutzer hat gerade zwei Fragen zu Downloads beantwortet und
-        # sieht lauter [OK]-Zeilen. Ein weisser Absatz dazwischen faellt
-        # nicht auf - hier faengt aber ein EIGENER Abschnitt an. Also
-        # dieselbe Ueberschrift wie bei den Schritten weiter unten.
+        # ---- Fetch the tool -------------------------------------------
+        # !!! TEXT ALONE HELPS NOBODY - it scrolls away before it is
+        # needed. So the tool is fetched too, placed next to the mod
+        # folder and started. The three steps then sit directly above the
+        # running window.
+        # !!! THIS TRANSITION USED TO DROWN IN THE DOWNLOAD NOISE !!!
+        # The user has just answered two download questions and sees a
+        # wall of [OK] lines. A white paragraph in between does not
+        # stand out - but a SEPARATE section starts here. So it gets the
+        # same heading as the steps further down.
         Write-Host ""
         Write-Host ""
         Write-Host " ============================================================" -ForegroundColor Magenta
@@ -313,12 +512,12 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
         }
 
         if ($tfcExe) {
-            # ---- ZUERST STARTEN, DANN FUEHREN -------------------------
-            # Frueher standen hier alle drei Schritte auf einmal, und
-            # danach kam erst der Start - bis der Nutzer sie brauchte,
-            # waren sie weggescrollt. Jetzt: Werkzeug oeffnen, pruefen ob
-            # es laeuft, und DANN je EIN Schritt mit eigener Enter-Schranke
-            # und dem passenden Pfad in der Zwischenablage.
+            # ---- START IT FIRST, THEN WALK THROUGH IT -----------------
+            # All three steps used to be printed at once and only then
+            # came the launch - by the time the user needed them they had
+            # scrolled away. Now: open the tool, check that it runs, and
+            # THEN one step at a time, each with its own Enter gate and
+            # the matching path on the clipboard.
             Write-Host ""
             Write-Host "  The tool opens now. Leave this window where it is -" -ForegroundColor White
             Write-Host "  it will walk you through three steps, one at a time." -ForegroundColor White
@@ -327,7 +526,7 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
                 Write-Warn "Could not start it: $($_.Exception.Message)"
             }
 
-            # ---- Laeuft es ueberhaupt? --------------------------------
+            # ---- Is it running at all? --------------------------------
             Write-Host ""
             Write-Host "  Did a window open?" -ForegroundColor White
             Write-Host "     Enter        yes - carry on" -ForegroundColor Gray
@@ -335,10 +534,10 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
             $ans = ""
             try { $ans = (Read-Host "  Your answer").Trim().ToUpper() } catch {}
             if ($ans -eq "I") {
-                # Das Werkzeug nennt .Net 6 in seiner eigenen
-                # Requirements.txt. Fehlt sie, kommt WEDER Fenster NOCH
-                # Fehlermeldung - deshalb ist die Frage oben der einzige
-                # verlaessliche Weg, das zu erkennen.
+                # The tool names .NET 6 in its own requirements.txt.
+                # If that is missing, there is NEITHER a window NOR an
+                # error message - which is why the question above is the
+                # only reliable way to detect this.
                 Write-Host ""
                 Write-Host "  Then the .NET Desktop Runtime 6 is missing - the tool" -ForegroundColor White
                 Write-Host "  needs it and says so in its own requirements. Without it" -ForegroundColor White
@@ -362,7 +561,7 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
                 try { Remove-Item -LiteralPath $rtDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
             }
 
-            # ---- Schritt 1 von 3 --------------------------------------
+            # ---- Step 1 of 3 ------------------------------------------
             try { Set-Clipboard -Value $gameRoot } catch {}
             Write-Host ""
             Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
@@ -382,7 +581,7 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
             Write-Host ""
             Pause-User "Done? Press Enter for step 2..." | Out-Null
 
-            # ---- Schritt 2 von 3 --------------------------------------
+            # ---- Step 2 of 3 ------------------------------------------
             try { Set-Clipboard -Value $fgDir } catch {}
             Write-Host ""
             Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
@@ -401,7 +600,7 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
             Write-Host ""
             Pause-User "Done? Press Enter for step 3..." | Out-Null
 
-            # ---- Schritt 3 von 3 --------------------------------------
+            # ---- Step 3 of 3 ------------------------------------------
             Write-Host ""
             Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
             Write-Host " STEP 3 of 3 - apply it" -ForegroundColor Cyan
@@ -420,8 +619,8 @@ if (Read-YesNo "  Fetch the film-grain mod as well?") {
             Write-Host ""
             Pause-User "Closed it? Press Enter to finish..." | Out-Null
             Write-OK "Film grain removed. Start the game and see."
-            # Merken, damit der Schlusstext weiter unten nicht behauptet,
-            # das Korn sei noch da.
+            # Remember this, so the closing text further down does not
+            # claim the film grain is still there.
             $grainRemoved = $true
         } else {
             Write-Info "Without the tool the files just sit there - they are here when you want them:"

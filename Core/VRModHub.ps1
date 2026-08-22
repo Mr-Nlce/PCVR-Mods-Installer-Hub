@@ -82,7 +82,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.6.2"
+$HUB_VERSION = "0.8.6.5"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null
@@ -180,24 +180,24 @@ function Read-InstalledPath {
     return $v
 }
 
-# WO LIEGT DER DEPOT-BUILD WIRKLICH?
-# Das Katalogfeld DepotPath ist ein FESTER Vorschlag (C:\Games\<Spiel> VR),
-# aber der Installer laesst den Nutzer den Ordner frei waehlen - und
-# schreibt den gewaehlten in .installed_path. Wer woanders installiert,
-# war fuer den Hub bisher unsichtbar: sowohl der Start-Depot-Knopf als
-# auch die Erkennung des geteilten Buttons sahen nur im Katalogpfad nach.
-# Also beide Quellen befragen, den Katalogpfad zuerst.
-# Der aufgezeichnete Pfad zaehlt NUR, wenn er nicht unter steamapps\common
-# liegt - dort steht die normale Steam-Kopie, und die ist der andere Teil
-# eines DualMode-Eintrags, nicht der Depot-Build.
+# WHERE DOES THE DEPOT BUILD ACTUALLY LIVE?
+# The catalog field DepotPath is a FIXED suggestion
+# (C:\Games\<game> VR), but the installer lets the user choose the
+# folder freely - and writes the chosen one into .installed_path.
+# Anyone installing elsewhere used to be invisible to the Hub: both the
+# start-depot button and the split-button detection only looked at the
+# catalog path. So query both sources, catalog path first.
+# The recorded path only counts when it is NOT under
+# steamapps\common - that is where the normal Steam copy lives, and
+# that is the other half of a DualMode entry, not the depot build.
 function Get-DepotCandidatePaths {
     param($Game)
     $out = @()
     if ($Game.DepotPath) { $out += [string]$Game.DepotPath }
     try {
         $rec = Read-InstalledPath -Game $Game
-        # Trennzeichen-unabhaengig, damit die Pruefung nicht an einem
-        # Schraegstrich vorbeilaeuft.
+        # Separator-independent, so the check does not slip past on a
+        # forward slash.
         if ($rec -and ($rec -notmatch '(?i)steamapps[\\/]+common') -and ($out -notcontains $rec)) { $out += $rec }
     } catch {}
     return $out
@@ -323,12 +323,11 @@ function Write-InstalledVersion {
         (Get-InstalledVersionPath -Game $Game)
     )) {
         if (-not $target) { continue }
-        # NICHT SCHREIBEN, WENN SCHON DASSELBE DRINSTEHT. Einer der
-        # Aufrufer im Scan meldet "ist aktuell" und schreibt dabei
-        # denselben Wert - ohne diese Bremse wuerde bei jedem Scan eine
-        # Datei im SPIELORDNER neu geschrieben, nur um sich selbst zu
-        # bestaetigen. Im eingeschwungenen Zustand faellt jetzt gar kein
-        # Schreibvorgang mehr an.
+        # DO NOT WRITE WHEN THE SAME VALUE IS ALREADY THERE. One of the
+        # callers in the scan reports "up to date" and writes the same
+        # value while doing so - without this brake, every scan would
+        # rewrite a file in the GAME FOLDER just to confirm itself. In
+        # the settled state no write happens at all now.
         $same = $false
         try {
             if (Test-Path -LiteralPath $target -PathType Leaf) {
@@ -415,43 +414,41 @@ function Clear-UpdateOkMarker {
 # ones have already defined their helpers, $window, globals
 # etc. Do not reorder without checking dependencies.
 # -------------------------------------------------------
-# HIER, VOR DEM LADEN DER MODULE. Startup.ps1 ist das LETZTE Modul in
-# der Schleife unten und ruft darin $window.ShowDialog() auf - alles,
-# was NACH der Schleife steht, laeuft erst beim Schliessen des Fensters.
-# Die Reparatur muss vor dem ersten Scan greifen, also vor die Schleife.
+# HERE, BEFORE THE MODULES ARE LOADED. Startup.ps1 is the LAST module
+# in the loop below and calls $window.ShowDialog() inside it - so
+# anything placed AFTER the loop only runs when the window closes.
+# This repair has to take effect before the first scan, so it goes
+# ahead of the loop.
 # -------------------------------------------------------
-#  EINMALIGE REPARATUR: falscher Versionsmarker fuer BotW
-#  WEGWERFCODE - EINGEBAUT 2026-08-10, RAUS AB HUB 0.8.6.x
+#  ONE-OFF REPAIR: wrong version marker for BotW
+#  THROWAWAY CODE - ADDED 2026-08-10, REMOVE FROM HUB 0.8.6.x
 # -------------------------------------------------------
-# EIN ausgeliefertes Bundle enthielt versehentlich
-# Core\BreathOfTheWildVR\.installed_version mit dem Inhalt "1.0" -
-# hineingeschrieben beim Bauen, nicht von einer Installation. Der Scan
-# vergleicht diesen Wert gegen den GitHub-Tag von BetterVR (0.9.x) und
-# zeigt deshalb dauerhaft eine Update-Kachel, die nicht verschwindet.
+# One shipped bundle accidentally contained
+# Core\BreathOfTheWildVR\.installed_version holding "1.0" - written
+# during the build, not by an install. The scan compares that value
+# against BetterVR's GitHub tag (0.9.x) and therefore shows a permanent
+# update badge that never goes away.
 #
-# WARUM EIN NEUES BUNDLE ALLEIN NICHT REICHT: der Updater kopiert mit
-# robocopy und hat .installed_version in der Ausschlussliste (/XF), damit
-# echte Nutzerdaten ueberleben. Die falsche Datei bleibt also auch nach
-# einem Hub-Update liegen und muss aktiv geleert werden.
+# WHY A NEW BUNDLE ALONE IS NOT ENOUGH: the updater copies with
+# robocopy and has .installed_version on its exclusion list (/XF) so
+# real user data survives. The wrong file therefore stays behind even
+# after a Hub update and has to be cleared actively.
 #
-# ES BLEIBT NICHTS ZURUECK. Kein Merker, keine neue Datei im Hub-Ordner:
-# der Block braucht keinen, weil er sich SELBST entwaffnet. Nach dem
-# Leeren steht dort nicht mehr "1.0", und der naechste Scan schreibt den
-# echten Tag hinein - die Bedingung trifft also nie wieder zu. Ein
-# frueherer Entwurf legte dafuer .repair_botw_marker an; das war
-# unnoetiger Muell in einem Ordner, aus dem Updates nie etwas entfernen.
+# NOTHING IS LEFT BEHIND. No marker, no new file in the Hub folder:
+# this block needs none because it DISARMS ITSELF. After clearing, the
+# file no longer says "1.0", and the next scan writes the real tag into
+# it - so the condition never holds again. An earlier draft created
+# .repair_botw_marker for this; that was needless litter in a folder
+# updates never remove anything from.
 #
-# GELEERT, NICHT GELOESCHT, und nur bei genau diesem Inhalt.
-# HIER, VOR DEM LADEN DER MODULE: Startup.ps1 ist das LETZTE Modul in der
-# Schleife unten und ruft darin $window.ShowDialog() auf - alles, was
-# NACH der Schleife steht, laeuft erst beim Schliessen des Fensters.
+# CLEARED, NOT DELETED, and only on exactly this content.
 try {
     $badMarker = Join-Path $scriptDir "BreathOfTheWildVR\.installed_version"
     if (Test-Path -LiteralPath $badMarker -PathType Leaf) {
-        # -ErrorAction Stop, NICHT SilentlyContinue: ein fehlgeschlagenes
-        # LESEN (Datei gesperrt, Virenscanner, Rechte) darf nicht als
-        # "Inhalt ist nicht 1.0" durchgehen. Es landet im catch, und der
-        # naechste Start versucht es erneut.
+        # -ErrorAction Stop, NOT SilentlyContinue: a failed
+        # A FAILED READ (file locked, antivirus, permissions) must not
+        # pass as "the content is not 1.0". It lands in the catch, and
+        # the next start tries again.
         $cur = Get-Content -LiteralPath $badMarker -Raw -ErrorAction Stop
         if ((([string]$cur -replace '[^\x20-\x7E]', '').Trim()) -eq "1.0") {
             [System.IO.File]::WriteAllText($badMarker, "", (New-Object System.Text.UTF8Encoding $false))

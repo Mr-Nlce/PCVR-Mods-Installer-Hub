@@ -15,21 +15,22 @@
 $Host.UI.RawUI.WindowTitle = "Starfield VR Mod Installer"
 $ErrorActionPreference = "Stop"
 
-# GEPINNTE FASSUNG - nur der Rueckfall. Die Download-Adressen werden zur
-# Laufzeit aus dem NEUESTEN Release geholt (Get-Starfield2VrUrls weiter
-# unten), damit ein neues Release nicht wieder von Hand nachgezogen werden
-# muss. Trotzdem mitziehen: ohne API-Zugang laedt sonst dauerhaft Altes.
+# PINNED BUILD - the fallback only. The download addresses are resolved
+# at run time from the NEWEST release (Get-Starfield2VrUrls further
+# down), so a new release does not have to be tracked by hand again.
+# Keep it current anyway: without API access something old would be
+# downloaded forever.
 $MOD_VERSION = "v2.0.1.Public"
 $MOD_INFO_URL = "https://github.com/mutars/starfield2vr"
 $MOD_REPO       = "mutars/starfield2vr"
 $MOD_URL_OPENVR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openvr-$MOD_VERSION.zip"
 $MOD_URL_OPENXR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openxr-$MOD_VERSION.zip"
 
-# Neuestes Release von GitHub holen und darin die beiden Anhaenge finden.
-# Der Autor benennt sie starfield-vr-openvr-<tag>.zip und
-# starfield-vr-openxr-<tag>.zip - gesucht wird nach "openvr"/"openxr" im
-# Namen, nicht nach der Version, damit eine Umbenennung nichts bricht.
-# Kommt die API nicht durch, bleiben die gepinnten Adressen oben.
+# Fetch the newest release from GitHub and find the two assets in it.
+# The author names them starfield-vr-openvr-<tag>.zip and
+# starfield-vr-openxr-<tag>.zip - the search is for "openvr"/"openxr" in
+# the name, not for the version, so a rename breaks nothing.
+# If the API does not answer, the pinned addresses above stand.
 function Get-Starfield2VrUrls {
     try {
         $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
@@ -51,11 +52,11 @@ if ($sfRel) {
     $MOD_URL_OPENXR = $sfRel.OpenXR
 }
 
-# WAS NACH DEM KOPIEREN AM ZIEL LIEGEN MUSS. Bisher wurde die Nutzlast
-# per robocopy in den Spielordner geschoben und danach NICHTS geprueft -
-# ein leeres oder falsches Archiv haette "Mod files installed." gemeldet.
-# dxgi.dll ist der Proxy, den das Spiel laedt; dazu die Bibliothek der
-# gewaehlten Fassung.
+# WHAT MUST BE AT THE DESTINATION AFTER COPYING. The payload used to be
+# pushed into the game folder with robocopy and NOTHING was checked
+# afterwards - an empty or wrong archive would still have reported "Mod
+# files installed." dxgi.dll is the proxy the game loads; alongside it
+# the library of the chosen edition.
 $MOD_MUST_HAVE_COMMON = @("dxgi.dll")
 $MOD_MUST_HAVE_OPENVR = @("openvr_api.dll")
 $MOD_MUST_HAVE_OPENXR = @("openxr_loader.dll")
@@ -311,11 +312,11 @@ try {
  # User chose Skip - continue at own risk
 }
 
-# ---- SICHERUNG: ist wirklich das Richtige angekommen? ----
-# robocopy meldet nur eigene Fehler. Ein leeres, falsches oder fuer die
-# andere Fassung gedachtes Archiv waere sonst als "Mod files installed."
-# durchgegangen. Geprueft wird am ZIEL, gegen die Dateien, die diese
-# Fassung mitbringen MUSS.
+# ---- SAFEGUARD: did the right thing actually arrive? ----
+# robocopy only reports its own failures. An empty, wrong or
+# other-edition archive would otherwise have passed as "Mod files
+# installed." The check is at the DESTINATION, against the files this
+# edition MUST bring.
 $need = @($MOD_MUST_HAVE_COMMON) + $(if ($useOpenXR) { $MOD_MUST_HAVE_OPENXR } else { $MOD_MUST_HAVE_OPENVR })
 $missing = @()
 foreach ($n in $need) {

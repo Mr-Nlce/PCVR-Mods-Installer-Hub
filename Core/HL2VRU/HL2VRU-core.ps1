@@ -87,11 +87,6 @@ Write-Host " be installed via Steam (AppID $BASE_APPID). HL2VRU works with" -For
 Write-Host " the base mod AND with Episode One + Episode Two if you" -ForegroundColor Yellow
 Write-Host " have them installed." -ForegroundColor Yellow
 Write-Host ""
-Write-Host " REMOVAL: To uninstall, right-click 'Half-Life 2: VR Mod' in" -ForegroundColor Gray
-Write-Host " your Steam library, Properties -> Installed Files ->" -ForegroundColor Gray
-Write-Host " 'Verify integrity of game files'. Steam will re-download" -ForegroundColor Gray
-Write-Host " the original files and the add-on is gone." -ForegroundColor Gray
-Write-Host ""
 Pause-User "Press Enter to continue..."
 
 # -------------------------------------------------------
@@ -500,9 +495,6 @@ Write-Host " - Recommended: rebind 'Toggle Menu' to a long press or" -Foreground
 Write-Host " chord so it doesn't conflict with left-hand Alt Fire." -ForegroundColor White
 Write-Host " - Recommended: unbind 'Sprint' on the left hand. Sprint" -ForegroundColor White
 Write-Host " still works via double-tap on the joystick." -ForegroundColor White
-Write-Host ""
-Write-Host " Tip: to uninstall, right-click 'Half-Life 2: VR Mod' in" -ForegroundColor Gray
-Write-Host " Steam, Properties -> Installed Files -> Verify integrity." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Dual wield the crowbar. Two-fist the gravity gun. Unleashed." -ForegroundColor Magenta
 Write-Host ""

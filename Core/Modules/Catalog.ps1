@@ -16,18 +16,52 @@ $ownGames = @(
         Color       = "#0f1a0f"
         Accent      = "#55aa33"
         InfoUrl     = "https://docs.google.com/document/d/1gI9_EpF7ACiZu3bndAj1A5uGy0TKVUnfVfvTbHtWsPM/view?tab=t.0"
-        # !!! GEAENDERT 2026-08-13 - DIE ALTE DATEI GIBT ES IN DER
-        # INSTALLATION GAR NICHT !!! Frueher stand hier
-        # 7DaysToDie_Data\Managed\UnityEngine.VRModule.dll. In Martins
-        # echter Dateiliste einer laufenden 7DVR-4.1.0.227-Installation
-        # kommt sie NICHT vor - dort liegen unter Managed\ nur
-        # netstandard.dll und Valve.Newtonsoft.Json.dll, die VR-DLLs
-        # stecken im Unterordner "7DVR Extra DLLs".
-        # Die Mod selbst ist eindeutig an ihrer eigenen Datei zu erkennen.
+        # !!! CHANGED 2026-08-13 - THE OLD FILE DOES NOT EXIST IN THE
+        # INSTALL AT ALL !!! This used to read
+        # 7DaysToDie_Data\Managed\UnityEngine.VRModule.dll. In a real
+        # file listing of a working 7DVR 4.1.0.227 install it does NOT
+        # appear - Managed\ only holds netstandard.dll and
+        # Valve.Newtonsoft.Json.dll, while the VR DLLs sit in the
+        # subfolder "7DVR Extra DLLs".
+        # The mod is unmistakable by its own file.
         ModFile     = "BepInEx\plugins\7DaysVR.dll"
         SteamFolder = "7 Days To Die"
         GameExe     = "7DaysToDie.exe"
         Tags=@("7 days", "7dtd", "7d2d", "7d2dvr", "zombies", "fps", "open world", "shooter", "survival")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "AWAY VR"; Roomscale=$true
+        VideoUrl    = "https://www.youtube.com/watch?v=rFmsyaH_jfU"
+        SteamId     = "573110"
+        Quip        = "The narrator promised an adventure, not sore arms."
+        Mod         = "AwayVR (auto-update)"
+        Description = "SteamVR must be running"
+        Author      = "Pk-c"
+        Bat         = "AwayVR\START_INSTALLER.bat"
+        Color       = "#101f2e"
+        Accent      = "#4fb8a5"
+        InfoUrl     = "https://github.com/Pk-c/AwayVR"
+        ModPageUrl  = "https://github.com/Pk-c/AwayVR"
+        DownloadUrl = "https://github.com/Pk-c/AwayVR/releases"
+        GithubRepo  = "Pk-c/AwayVR"
+        GameExe     = "Away.exe"
+        ModFile     = "BepInEx\plugins\AwayVR.dll"
+        # The author ships "uninstall VR.bat" in the game folder.
+        # !!! IT DELETES ITSELF when it finishes, so checking for the
+        # bat afterwards proves nothing - it is gone either way.
+        # UninstallProbeFile therefore watches the file the bat puts
+        # BACK: globalgamemanagers.orig is consumed and removed on a
+        # successful restore, so its absence is the real proof.
+        UninstallExe = "uninstall VR.bat"
+        UninstallProbeFile = "Away_Data\globalgamemanagers.orig"
+        SteamFolder = "AWAY Journey to the Unexpected"
+        FallbackPaths=@("GOG:AWAY Journey to the Unexpected", "C:\GOG Games\AWAY Journey to the Unexpected", "C:\Program Files (x86)\GOG Galaxy\Games\AWAY Journey to the Unexpected")
+        UninstallSteps = @(
+            "Double-click 'uninstall VR.bat' in the game folder. It restores the original configuration file, removes every file the mod added, and deletes itself.",
+            "That backup matters: the mod replaces Away_Data\globalgamemanagers and keeps the original beside it as .orig."
+        )
+        Tags=@("away", "journey to the unexpected", "aurelien regard", "pk-c", "chromatic mod", "action", "adventure", "rpg", "roguelite", "indie", "colourful", "bepinex", "openvr")
     },
     @{
         Controls    = "MC"
@@ -176,8 +210,8 @@ $ownGames = @(
         Tags=@("ashes", "ashes 2063", "gzdoom", "doom", "doom mod", "total conversion", "post-apocalyptic", "wasteland", "fps", "shooter", "boomer shooter", "fallout", "stalker", "retro", "free", "vostyok", "afterglow", "hard reset", "motion controls")
     },
     @{
-        # Volle Motion Controls: getracktes Zielen, Zweihandgriff, Quick Menu
-        # per Zeigen. Maus und Tastatur bleiben zusaetzlich nutzbar.
+        # Full motion controls: tracked aiming, two-handed grip, quick menu
+        # by pointing. Mouse and keyboard stay usable alongside.
         Controls    = "MC"
         Title       = "Battlefield 1942 VR"
         VideoUrl    = "https://www.youtube.com/watch?v=htv_u67kUKw"
@@ -195,28 +229,32 @@ $ownGames = @(
         ModPageUrl  = "https://github.com/JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod"
         DownloadUrl = "https://github.com/JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod/releases"
         GithubRepo  = "JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod"
-        # KEIN SteamId: das Spiel wird nirgends mehr verkauft. Der Nutzer
-        # muss eine eigene Fassung besitzen, und die liegt bei jedem
-        # woanders - der Installer sucht die ueblichen Orte ab und laesst
-        # den Ordner sonst ablegen.
+        # NO SteamId: the game is not sold anywhere any more. The user
+        # must own a copy already, and it sits in a different place on
+        # every machine - the installer probes the usual locations and
+        # otherwise asks for the folder.
         SteamId     = ""
-        # !!! SteamFolder MUSS GESETZT SEIN, AUCH OHNE STEAM-FASSUNG !!!
-        # Der Scan baut in Prioritaet 2 den Pfad steamapps\common\<SteamFolder>.
-        # Ist das Feld LEER, entsteht daraus der Sammelordner selbst - der
-        # existiert immer, der Scan haelt das Spiel fuer gefunden und setzt
-        # den Spielordner auf steamapps\common. Danach wird die Moddatei
-        # dort gesucht, nie gefunden, und die Fallback-Pfade kommen gar
-        # nicht mehr dran. Genau so wie bei Sonic P-06 VR gehandhabt.
+        # !!! SteamFolder MUST BE SET, EVEN WITHOUT A STEAM EDITION !!!
+        # At priority 2 the scan builds steamapps\common\<SteamFolder>.
+        # If the field is EMPTY that collapses to the container folder
+        # itself - which always exists, so the scan believes the game was
+        # found and sets the game folder to steamapps\common. The mod
+        # file is then looked for there, never found, and the fallback
+        # paths are never reached. Handled the same way as Sonic P-06 VR.
         SteamFolder = "Battlefield 1942"
         ModFile     = "BFVR\BFVR.exe"
+        # The setup installs into BFVR\ and leaves its uninstaller there.
+        # The "Uninstall now" button only appears when this file is
+        # really on disk, so it can never point at nothing.
+        UninstallExe = "BFVR\unins000.exe"
         LaunchExe   = "BFVR\BFVR.exe"
-        # Gestartet wird AUSSCHLIESSLICH ueber BFVR.exe. Es gibt keinen
-        # Steam-Eintrag, auf den ausgewichen werden koennte, und BF1942.exe
-        # direkt zu starten gibt das flache Spiel.
+        # Launching goes EXCLUSIVELY through BFVR.exe. There is no Steam
+        # entry to fall back to, and starting BF1942.exe directly gives
+        # you the flat game.
         NeverSteamLaunch = $true
-        # Martins eigene Installation liegt unter "EA Games" mit KLEINEM g -
-        # Windows selbst ist da gleichgueltig, PowerShells -LiteralPath bei
-        # manchen Vergleichen nicht. Beide Schreibweisen stehen deshalb drin.
+        # A real install was found under "EA Games" with a LOWERCASE g -
+        # Windows itself does not care about case, but PowerShell's
+        # -LiteralPath does in some comparisons. Both spellings are listed.
         FallbackPaths = @(
             "C:\Program Files (x86)\EA Games\Battlefield 1942",
             "C:\Program Files (x86)\EA GAMES\Battlefield 1942",
@@ -226,10 +264,10 @@ $ownGames = @(
             "D:\Games\Battlefield 1942",
             "C:\Battlefield 1942"
         )
-        # KURZ HALTEN. Die Warnbox nennt NUR das, was jemanden vom Kauf
-        # oder vom Loslegen abhaelt - alles Weitere (BF42++, Startweg ueber
-        # BFVR.exe, Mehrspieler-Regeln) steht im README in eigenen
-        # Abschnitten und muss hier nicht wiederholt werden.
+        # KEEP IT SHORT. The warning box names ONLY what would stop
+        # someone from buying or from getting started - everything else
+        # (BF42++, launching via BFVR.exe, multiplayer rules) has its own
+        # section in the README and need not be repeated here.
         Notice      = "Battlefield 1942 is no longer sold anywhere - you need your own copy."
         NoticeUrl   = "https://steamcommunity.com/sharedfiles/filedetails/?id=2721068159"
         NoticeUrlLabel = "You can find helpful information in the Community Guide"
@@ -255,7 +293,12 @@ $ownGames = @(
         Color       = "#1a0f00"
         Accent      = "#cc8800"
         InfoUrl     = "https://github.com/Team-Beef-Studios/BendyVR"
-        ModFile     = "winhttp.dll"
+        # !!! 2026-08-19 - winhttp.dll IS THE BEPINEX LOADER, NOT VR PROOF !!!
+        # Any BepInEx mod drops it, including a flat-screen one.
+        # BendyVRInstall is created in the game folder by our own
+        # installer and left there - it only exists after a real VR
+        # install.
+        ModFile     = "BendyVRInstall"
         SteamFolder = "Bendy and the Ink Machine"
         LaunchExe   = "Bendy and the Ink Machine.exe"
         FallbackPaths = @(
@@ -350,6 +393,11 @@ $ownGames = @(
         ModBLaunch    = "BioShock VR (BioVRDev).bat"
         ModBProbeFile = "Build\Final\dxgi.dll"
         ModFile     = "Build\Final\BioshockVR.dll"
+        # BioVRDev ships Uninstall.bat since 1.0.3. It sits in
+        # Build\Final beside the mod, so the button only shows when
+        # THAT mod is the one installed - which is what we want,
+        # because it knows nothing about the other mod here.
+        UninstallExe = "Build\Final\Uninstall.bat"
         ModFileAlt  = "Build\FinalEpic\BioshockVR.dll"
         # No LaunchExe on purpose: starting BioshockHD.exe directly doesn't
         # work - the game wants to come up through Steam. Without the field
@@ -409,10 +457,10 @@ $ownGames = @(
         Title       = "BioShock Infinite VR"
         Quip        = "Bring us the girl. Look up while you do it."
         SteamId     = "8870"
-        # !!! DAS ALTE VIDEO WAR VON BIOSHOCK 2 UEBERNOMMEN !!!
-        # Von Infinite gibt es noch KEIN VR-Mod-Gameplay, deshalb zeigt
-        # der Streifen bewusst nur normales Spielmaterial - und die
-        # Beschriftung sagt "Watch gameplay", nicht "Watch VR gameplay".
+        # !!! THE OLD VIDEO WAS CARRIED OVER FROM BIOSHOCK 2 !!!
+        # There is NO VR mod footage of Infinite yet, so the strip shows
+        # plain gameplay on purpose - and the label says "Watch gameplay",
+        # not "Watch VR gameplay".
         VideoUrl    = "https://youtu.be/Cq-XVUgy4uY?t=17"
         VideoLabel  = "Watch gameplay"
         Mod         = "bioshock-vr (auto-update)"
@@ -427,12 +475,12 @@ $ownGames = @(
         DownloadUrl = "https://github.com/mohamad-balouza/bioshock-vr/releases"
         SteamFolder = "BioShock Infinite"
         FallbackPaths=@("C:\GOG Games\BioShock Infinite", "C:\Program Files (x86)\GOG Galaxy\Games\BioShock Infinite", "EPIC:BioShockInfinite", "EPIC:BioshockInfiniteCompleteEdition", "C:\Program Files\Epic Games\BioshockInfiniteCompleteEdition", "C:\Program Files (x86)\Epic Games\BioshockInfiniteCompleteEdition")
-        # !!! NICHT Build\Final WIE BEI BIOSHOCK 1 UND 2 !!!
-        # Infinite laeuft auf der Unreal Engine 3 und legt seine
-        # Binaerdateien unter Binaries\Win32 ab. Der Mod-Autor schreibt
-        # das ausdruecklich dazu, weil es die haeufigste Verwechslung ist.
-        # Deshalb gibt es hier auch KEIN ModFileAlt - alle Laeden nutzen
-        # denselben Pfad.
+        # !!! NOT Build\Final AS IN BIOSHOCK 1 AND 2 !!!
+        # Infinite runs on Unreal Engine 3 and keeps its binaries under
+        # Binaries\Win32. The mod author spells this out because it is
+        # the most common mix-up.
+        # That is also why there is NO ModFileAlt here - every store uses
+        # the same path.
         ModFile     = "Binaries\Win32\xinput1_3.dll"
         GameExe     = "Binaries\Win32\BioShockInfinite.exe"
         Notice      = "Early access: playable and comfortable from the start of the game through the early city, which is the range the author tested. Later chapters, the Skyline and the DLCs have not had a VR pass yet. Infinite is also heavier in VR than the two remasters - if it judders, lower the game resolution in the F10 overlay first (keep it roughly square), then your streaming quality."
@@ -496,19 +544,19 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        # Die Mod ist AUSSCHLIESSLICH fuer Zero Hour - der Autor schreibt
-        # "I'm turning Command & Conquer: Generals - Zero Hour into a VR
-        # game", verlangt eine Zero-Hour-Installation, und seine Exe heisst
-        # generalszhv.exe (zh = Zero Hour). Der Titel sagt das jetzt auch.
-        # Die Suche nach "command and conquer" oder "command & conquer"
-        # findet ihn weiterhin - beide Schreibweisen stehen in den Tags,
-        # und die Suche prueft Titel UND Tags mit Contains.
+        # The mod is for Zero Hour ONLY - the author writes "I'm turning
+        # Command & Conquer: Generals - Zero Hour into a VR game",
+        # requires a Zero Hour install, and his exe is called
+        # generalszhv.exe (zh = Zero Hour). The title now says so too.
+        # Searching for "command and conquer" or "command & conquer"
+        # still finds it - both spellings are in the tags, and search
+        # checks title AND tags with Contains.
         Title       = "C&C Generals: Zero Hour"
         Quip        = "Sir, the war table is ready. Mind the tanks near your boots."
-        # !!! 2229870 IST DAS GRUNDSPIEL, NICHT ZERO HOUR !!! Die Mod ist
-        # fuer Zero Hour, und das hat auf Steam die eigene Kennung
-        # 2732960 (store.steampowered.com/app/2732960). Mit der
-        # falschen Kennung sucht der Scan das falsche Spiel.
+        # !!! 2229870 IS THE BASE GAME, NOT ZERO HOUR !!! The mod is for
+        # Zero Hour, which has its own Steam id 2732960
+        # (store.steampowered.com/app/2732960). With the wrong id the
+        # scan looks for the wrong game.
         SteamId     = "2732960"
         SteamFolder = "Command & Conquer Generals - Zero Hour"
         VideoUrl    = "https://v.redd.it/uiaj4g2jgkdh1/CMAF_1080.mp4?source=fallback"
@@ -523,17 +571,17 @@ $ownGames = @(
         DownloadUrl = "https://github.com/Gonzorro/GeneralsVR/releases"
         GithubRepo  = "Gonzorro/GeneralsVR"
         GithubPrerelease = $true
-        # !!! DIE MOD LIEGT NICHT IM SPIELORDNER !!! Sie fasst Zero Hour
-        # nie an und lebt komplett in %LOCALAPPDATA%\GeneralsVR - deshalb
-        # VrInstallRoot, genau wie bei den GZDoom-Eintraegen. ModFile ist
-        # dann relativ zu diesem Ordner, nicht zum Spiel.
+        # !!! THE MOD DOES NOT LIVE IN THE GAME FOLDER !!! It never
+        # touches Zero Hour and lives entirely in %LOCALAPPDATA%\GeneralsVR
+        # - hence VrInstallRoot, exactly like the GZDoom entries. ModFile
+        # is then relative to that root, not to the game.
         VrInstallRoot = "LOCALAPPDATA:GeneralsVR"
         ModFile     = "Data\generalszhv.exe"
         LaunchExe   = "START-GeneralsVR.cmd"
-        # Zero Hour gibt es in vielen Ausgaben, und der Starter der Mod
-        # findet sie selbst - diese Pfade helfen nur unserem Scan.
-        # Der erste Eintrag zeigte auf das GRUNDSPIEL Generals - falsch.
-        # Alle Pfade hier meinen Zero Hour.
+        # Zero Hour ships in many editions and the mod's own launcher
+        # finds them itself - these paths only help our scan.
+        # The first entry pointed at the BASE GAME Generals - wrong.
+        # Every path here means Zero Hour.
         FallbackPaths=@("STEAM:Command & Conquer Generals - Zero Hour", "C:\Program Files\EA Games\Command and Conquer Generals Zero Hour", "C:\Program Files (x86)\Origin Games\Command & Conquer Generals Zero Hour", "C:\Program Files (x86)\EA Games\Command & Conquer Generals Zero Hour", "C:\Program Files (x86)\EA Games\Command & Conquer The First Decade\Command & Conquer(tm) Generals Zero Hour", "GOG:Command and Conquer Generals Zero Hour")
         Notice      = "Early alpha - skirmish plays end to end, but expect rough edges. Quest 3 over Quest Link is the only tested headset; others are untested. The headset stays dark in the menus, which is normal - only the battlefield is rendered, so start a skirmish before you go looking for the picture."
         UninstallSteps = @(
@@ -543,7 +591,7 @@ $ownGames = @(
             "Or let the mod do it: run GeneralsVR.ps1 -Uninstall from that folder before you delete it.",
             "The setup wrote a few registry entries the game engine needs. The uninstall switch above removes them; deleting the folder by hand leaves them, which is harmless."
         )
-        Tags=@("command and conquer", "command & conquer", "c&c", "cnc", "generals", "zero hour", "zerohour", "rts", "strategy", "ea", "gonzorro", "openxr", "dxvk", "war table", "alpha", "wip")
+        Tags=@("command and conquer", "command & conquer", "c&c", "cnc", "generals", "zero hour", "zerohour", "rts", "strategy", "action", "adventure", "ea", "gonzorro", "openxr", "dxvk", "war table", "alpha", "wip")
     },
     @{
         Controls    = "MC"
@@ -590,6 +638,52 @@ $ownGames = @(
             "Nothing else is touched - your maps, fastfiles and saves are untouched, and the flat game keeps working the whole time."
         )
         Tags        = @("call of duty", "cod", "cod4", "modern warfare", "kisakcod", "jplakon", "fps", "shooter", "action", "war", "military", "campaign", "story", "singleplayer")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "Call of Duty: World at War VR"
+        Quip        = "The war is loud in here. Duck anyway."
+        SteamId     = "10090"
+        SteamFolder = "Call of Duty World at War"
+        VideoUrl    = "https://www.youtube.com/watch?v=lXi0ZRygAb0"
+        Mod         = "World War VR (auto-update)"
+        GithubRepo  = "RyanCraighead/WorldWarVR-Releases"
+        # Every release is a prerelease - without this field the Hub
+        # would never see a new version.
+        GithubPrerelease = $true
+        Description = "Zombies is the tested mode"
+        Author      = "RyanCraighead"
+        Bat         = "CallOfDutyWaWVR\START_INSTALLER.bat"
+        Color       = "#241d14"
+        Accent      = "#b8892f"
+        InfoUrl     = "https://github.com/RyanCraighead/WorldWarVR-Releases"
+        ModPageUrl  = "https://github.com/RyanCraighead/WorldWarVR-Releases"
+        DownloadUrl = "https://github.com/RyanCraighead/WorldWarVR-Releases/releases"
+        # The mod puts NOTHING in the game folder - it is a program of
+        # its own under %LOCALAPPDATA%\Programs\World War VR. Hence
+        # VrInstallRoot instead of a ModFile in the game, and LaunchExe
+        # points at ITS launcher, not at the game exe.
+        VrInstallRoot = "LOCALAPPDATA:Programs\World War VR"
+        # The author's README explicitly demands running it AS
+        # ADMINISTRATOR. Without those rights it cannot reach the game
+        # files under Program Files and reports "unsupported build" -
+        # which looks like a broken game and is not one.
+        LaunchAsAdmin = $true
+        ModFile     = "WorldWarVR.exe"
+        # The mod is a standalone program under VrInstallRoot; its uninstaller sits beside it.
+        # The "Uninstall now" button only appears when this file is
+        # really on disk, so it can never point at nothing.
+        UninstallExe = "unins000.exe"
+        LaunchExe   = "WorldWarVR.exe"
+        GameExe     = "CoDWaW.exe"
+        FallbackPaths=@("C:\Program Files (x86)\Activision\Call of Duty - World at War", "C:\Program Files\Activision\Call of Duty - World at War")
+        UninstallSteps = @(
+            "Close the launcher and the game first.",
+            "Uninstall 'World War VR' the normal way: Windows Settings > Apps > Installed apps. It brings its own uninstaller.",
+            "Your game folder was never modified - Call of Duty: World at War runs flat again with nothing to undo.",
+            "If you set up the optional bots, the launcher kept its own copy inside its program folder; removing the app removes that too."
+        )
+        Tags=@("call of duty", "cod", "world at war", "waw", "zombies", "nazi zombies", "fps", "shooter", "action", "war", "ww2", "treyarch", "activision", "openxr", "wip")
     },
     @{
         Controls    = "MC"
@@ -685,9 +779,9 @@ $ownGames = @(
     @{
         Controls    = "MC"
         Title       = "Daggerfall VR"
-        # Der Steam-Ordner des ORIGINALSPIELS, aus dem Daggerfall Unity
-        # seine Daten zieht - nicht der Ordner der VR-Installation. Von
-        # Martin genannt: C:\Program Files (x86)\Steam\steamapps\common\
+        # The Steam folder of the ORIGINAL GAME, which Daggerfall Unity
+        # pulls its data from - not the folder of the VR install. Known
+        # location: C:\Program Files (x86)\Steam\steamapps\common\
         # The Elder Scrolls Daggerfall (SteamId 1812390).
         SteamFolder = "The Elder Scrolls Daggerfall"; Roomscale=$true
         VideoUrl    = "https://youtu.be/kssQ8SPzNMM?t=198"
@@ -806,7 +900,9 @@ $ownGames = @(
         Color       = "#001a1a"
         Accent      = "#1a3d4a"
         InfoUrl     = "https://github.com/xen-42/DredgeVR"
-        ModFile     = "winhttp.dll"
+        # !!! 2026-08-19 - winhttp.dll IS THE BEPINEX LOADER, NOT VR PROOF !!!
+        # Any BepInEx mod drops it, including a flat-screen one.
+        ModFile     = "Mods\xen.DredgeVR\DredgeVR.dll"
         SteamFolder = "DREDGE"
         FallbackPaths=@("GOG:DREDGE", "GOG:Dredge", "EPIC:DREDGE")
         Tags=@("dredge", "fishing", "atmospheric", "horror", "mystery")
@@ -1192,13 +1288,14 @@ $ownGames = @(
         Accent      = "#cc3333"
         InfoUrl     = "https://discord.com/channels/1001138422972432597/1391730397418881067/1391730397418881067"; DownloadUrl="https://discord.com/channels/1001138422972432597/1391730397418881067/1535371792041115658"
         ModFile     = "BepInEx\plugins\TheHouseOfTheDead_VR.dll"
-        # Wie bei Teil 2: die Ueberarbeitung kam als EIGENE Zusatzdateien.
-        # Neu im Archiv sind HOTD1_SourceCameraFluidWeaponAuto.dll (39.936 B)
-        # und HOTD1_AmmoMetricFrameLab.dll (53.760 B), beide 2026-08-07 -
-        # die Haupt-DLL ist mit 139.264 B vom 2026-05-14 UNVERAENDERT.
-        # Ohne Merker wuerde eine bestehende Installation nichts davon
-        # mitbekommen. Geprueft wird die Kamera-/Waffendatei, weil sie das
-        # Spielgefuehl betrifft; die zweite kommt im selben Paket mit.
+        # Same as part 2: the rework arrived as SEPARATE extra files.
+        # New in the archive are HOTD1_SourceCameraFluidWeaponAuto.dll
+        # (39,936 B) and HOTD1_AmmoMetricFrameLab.dll (53,760 B), both
+        # dated 2026-08-07 - while the main DLL is UNCHANGED at
+        # 139,264 B from 2026-05-14.
+        # Without a marker an existing install would never notice. The
+        # camera/weapon file is the one checked, because it is what
+        # changes how the game feels; the second ships alongside it.
         ModRequiredFile = "BepInEx\plugins\HOTD1_SourceCameraFluidWeaponAuto.dll"
         SteamFolder = "The House of the Dead Remake"
         FallbackPaths=@("STEAM:THE HOUSE OF THE DEAD Remake", "STEAM:House of the Dead Remake", "STEAM:TheHouseOfTheDeadRemake", "GOG:THE HOUSE OF THE DEAD Remake", "GOG:House of the Dead Remake", "GOG:The House of the Dead - Remake", "GOG:The House of the Dead Remake")
@@ -1222,10 +1319,10 @@ $ownGames = @(
         Accent      = "#cc3333"
         InfoUrl     = "https://discord.com/channels/1001138422972432597/1504155922572775554/1504155922572775554"; DownloadUrl="https://discord.com/channels/1001138422972432597/1504155922572775554/1534909633393856512"
         ModFile     = "BepInEx\plugins\TheHouseOfTheDead2_VR.dll"
-        # Die FPS-Korrektur kam als EIGENE Zusatzdatei im aufgefrischten
-        # Archiv (HOTD2_SourceCameraFluidShooting.dll, 29.184 B, 2026-08-05).
-        # Die Haupt-DLL ist dabei unveraendert geblieben, also merkt eine
-        # bestehende Installation ohne diesen Merker nichts vom Update.
+        # The FPS fix arrived as a SEPARATE extra file in the refreshed
+        # archive (HOTD2_SourceCameraFluidShooting.dll, 29,184 B,
+        # 2026-08-05). The main DLL stayed unchanged, so without this
+        # marker an existing install would never see the update.
         ModRequiredFile = "BepInEx\plugins\HOTD2_SourceCameraFluidShooting.dll"
         SteamFolder = "THE HOUSE OF THE DEAD 2 Remake"
         FallbackPaths=@("STEAM:House of the Dead 2 Remake", "STEAM:TheHouseOfTheDead2Remake", "GOG:THE HOUSE OF THE DEAD 2 Remake", "GOG:House of the Dead 2 Remake")
@@ -1415,9 +1512,9 @@ $ownGames = @(
         InfoUrl     = "https://github.com/JoeyAW/dusklight-vr"
         ModPageUrl  = "https://github.com/JoeyAW/dusklight-vr"
         DownloadUrl = "https://github.com/JoeyAW/dusklight-vr/releases"
-        # EIGENSTAENDIG wie Ocarina of Time VR - es gibt kein Spiel zum
-        # Patchen. Die Exe liegt in einem Unterordner des Archivs, nicht
-        # in der Wurzel: windows-msvc-relwithdebinfo\dusklight.exe.
+        # STANDALONE like Ocarina of Time VR - there is no game to patch.
+        # The exe sits in a subfolder of the archive rather than at its
+        # root: windows-msvc-relwithdebinfo\dusklight.exe.
         SteamFolder = "Twilight Princess VR"
         ModFile     = "windows-msvc-relwithdebinfo\dusklight.exe"
         LaunchExe   = "windows-msvc-relwithdebinfo\dusklight.exe"
@@ -1444,7 +1541,19 @@ $ownGames = @(
         Color       = "#0a0a1a"
         Accent      = "#aacc22"
         InfoUrl     = "https://thunderstore.io/c/lethal-company/p/DaXcess/LethalCompanyVR/"
-        ModFile     = "Lethal Company_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! CHANGED 2026-08-19 - THE OLD FILE WAS NOT A MOD MARKER !!!
+        # This used to read
+        # Lethal Company_Data\Managed\UnityEngine.VRModule.dll.
+        # That is a STOCK UNITY ASSEMBLY, not a sign of LCVR: a user
+        # reported "already VR ready" on a freshly reinstalled copy that
+        # had NEVER been modded for VR - and it started flat, as it
+        # should. Same class of mistake as 7 Days To Die on 2026-08-13.
+        # NOW it is the file our own installer demonstrably writes: the
+        # Thunderstore route copies BepInEx\plugins\LCVR\, the legacy
+        # route puts it under BepInEx\plugins\DaXcess-LethalCompanyVR\
+        # LCVR\ - both shapes covered.
+        ModFile     = "BepInEx\plugins\LCVR\LCVR.dll"
+        ModFileAlt  = "BepInEx\plugins\DaXcess-LethalCompanyVR\LCVR\LCVR.dll"
         SteamFolder = "Lethal Company"
         ThunderstoreAuthor  = "DaXcess"
         ThunderstorePackage = "LethalCompanyVR"
@@ -1619,12 +1728,12 @@ $ownGames = @(
         Accent      = "#c9a24b"
         InfoUrl     = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"; DownloadUrl="https://discord.com/channels/1001138422972432597/1523984295633490031/1528716538314756278"
         ModFile     = "BepInEx\plugins\MousePI_VR.dll"
-        # Die ueberarbeitete Fassung (Controller-Vibration, behobene
-        # Sticks, Nachlade- und Trittgeste, korrigiertes Schwimmen) hat
-        # KEINE neue Datei mitgebracht - nur die Haupt-DLL ist neuer
-        # (151.040 B, 2026-07-20). Deshalb hier ein Zeitstempel statt
-        # einer Pflichtdatei: ist die installierte DLL aelter, meldet
-        # die Kachel ein Update.
+        # The reworked build (controller vibration, fixed
+        # sticks, reload and kick gestures, fixed swimming) brought NO
+        # new file with it - only the main DLL is newer (151,040 B,
+        # 2026-07-20). Hence a timestamp here instead of a required
+        # file: if the installed DLL is older, the tile reports an
+        # update.
         ModBuildStamp = "2026-07-20 00:00"
         SteamFolder = "MOUSE"
         FallbackPaths=@("STEAM:MOUSE", "STEAM:Mouse", "STEAM:MOUSE P.I. For Hire", "C:\XboxGames\MOUSE P.I. For Hire\Content", "XBOX:MOUSE P.I. For Hire")
@@ -1643,23 +1752,23 @@ $ownGames = @(
         Color       = "#1b1210"
         Accent      = "#c8452e"
         InfoUrl     = "https://github.com/LeviGaming1248/MyFriendlyNeighborhoodVR"
-        # Repo UMBENANNT: LeviGaming1248/MFNVR leitet auf
-        # MyFriendlyNeighborhoodVR um. GitHub folgt der Umleitung noch, aber
-        # der neue Name steht direkt hier, damit es nicht an dem Tag bricht,
-        # an dem die Umleitung wegfaellt. Dort gibt es ein stabiles Release
-        # (v0.2.0), die Prerelease-Flagge braucht dieser Eintrag also nicht.
+        # Repo RENAMED: LeviGaming1248/MFNVR redirects to
+        # to MyFriendlyNeighborhoodVR. GitHub still follows the redirect,
+        # but the new name is written here directly so nothing breaks on
+        # the day the redirect goes away. That repo has a stable release
+        # (v0.2.0), so this entry needs no prerelease flag.
         GithubRepo  = "LeviGaming1248/MyFriendlyNeighborhoodVR"
         ModFile     = "BepInEx\plugins\MFNVR.dll"
-        # DER AUTOR ERSETZT DEN ANHANG, OHNE DEN TAG ZU AENDERN. Am
-        # 2026-08-10 kam ein deutlich neuer Build - Werkzeugkiste, grosse
-        # Leistungsverbesserungen, Kamera in Zwischensequenzen, physisches
-        # Waffenwechseln - und das Release heisst weiterhin v0.2.0 mit dem
-        # Anhang MFNVR-v0.2.0.zip. Der Tag-Vergleich gegen GitHub kann das
-        # also NICHT sehen. ModBuildStamp ist der Zeitstempel, den
-        # BepInEx\plugins\MFNVR.dll IM Archiv traegt (39.424 Bytes) und den
-        # das Entpacken erhaelt - jede Installation dieses Builds liest
-        # denselben Wert, jeder aeltere liest frueher. BEI JEDEM NEUEN
-        # BUILD MITZIEHEN, auch wenn der Tag gleich bleibt.
+        # THE AUTHOR REPLACES THE ASSET WITHOUT CHANGING THE TAG. On
+        # 2026-08-10 a clearly newer build arrived - toolbox, large
+        # performance gains, cutscene camera, physical weapon swapping -
+        # and the release is still called v0.2.0 with the asset
+        # MFNVR-v0.2.0.zip. A tag comparison against GitHub therefore
+        # CANNOT see it. ModBuildStamp is the timestamp that
+        # BepInEx\plugins\MFNVR.dll carries INSIDE the archive (39,424
+        # bytes) and that extraction preserves - every install of this
+        # build reads the same value, every older one reads earlier.
+        # UPDATE THIS WITH EVERY NEW BUILD, even when the tag stays.
         ModBuildStamp = "2026-08-10 16:45"
         GameExe     = "My Friendly Neighborhood.exe"
         SteamFolder = "My Friendly Neighborhood"
@@ -1678,7 +1787,12 @@ $ownGames = @(
         Color       = "#0a1a2e"
         Accent      = "#ffcc44"
         InfoUrl     = "https://outerwildsmods.com/mods/nomaivr/"
-        ModFile     = "OuterWilds_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! 2026-08-19 - THE OLD MARKER WAS NOT A MOD MARKER !!!
+        # This used to read OuterWilds_Data\Managed\UnityEngine.VRModule.dll - a
+        # STOCK UNITY ASSEMBLY, present in EVERY copy including one that
+        # was never modded. Replaced by the file OUR installer
+        # demonstrably writes itself.
+        ModFile     = "OWML\Mods\Raicuparta.NomaiVR"
         SteamFolder = "Outer Wilds"
         FallbackPaths=@("EPIC:Outer Wilds", "EPIC:OuterWilds", "XBOX:Outer Wilds", "C:\Program Files\WindowsApps\AnnapurnaInteractive.OuterWilds_*_x64__c96c51jf6wkvm")
         LaunchExe   = "OWML\OWML.Launcher.exe"
@@ -1746,19 +1860,58 @@ $ownGames = @(
         Accent      = "#aa6644"
         InfoUrl     = "https://github.com/Astienth/Panzer_Dragoon_Remake_VR_bHaptics_Provolver"
         ModFile     = "BepInEx\plugins\PanzerDragoonRemakeVR.dll"
-        # !!! DER AUTOR HAT DAS ARCHIV AM 2026-08-06 UNTER DEMSELBEN TAG (1.0)
-        # AUSGETAUSCHT - DIE VERSIONSNUMMER AENDERT SICH ALSO NICHT !!!
-        # Neu darin: BepInEx\patchers\PDRReflectionFix.Patcher.dll (15.360 B)
-        # und eine ueberarbeitete Lizenzdatei. Die eigentliche Mod-DLL ist
-        # unveraendert (796.672 B, 2025-01-23).
-        # Ohne diese Zeile wuerde niemand, der vorher installiert hat, je von
-        # dem Patcher erfahren: die Kachel zeigt "VR Ready" und die Moddatei
-        # liegt ja da. Der Merker greift genau dort - Mod vorhanden, neue
-        # Pflichtdatei fehlt -> Update.
+        # !!! ON 2026-08-06 THE AUTHOR REPLACED THE ARCHIVE UNDER THE SAME
+        # TAG (1.0) - SO THE VERSION NUMBER DOES NOT CHANGE !!!
+        # New inside: BepInEx\patchers\PDRReflectionFix.Patcher.dll
+        # (15,360 B) and a revised licence file. The mod DLL itself is
+        # unchanged (796,672 B, 2025-01-23).
+        # Without this line nobody who installed earlier would ever learn
+        # about the patcher: the tile says "VR Ready" and the mod file is
+        # right there. The marker catches exactly that - mod present, new
+        # required file missing -> update.
         ModRequiredFile = "BepInEx\patchers\PDRReflectionFix.Patcher.dll"
         SteamFolder = "Panzer Dragoon Remake"
         FallbackPaths=@("STEAM:PanzerDragoonRemake", "STEAM:Panzer Dragoon Remake Demo", "GOG:Panzer Dragoon Remake")
-        Tags=@("panzer dragoon", "panzer dragoon remake", "astienth", "rail shooter", "shmup", "dragon", "sega", "saturn", "remake", "provolver", "protubevr", "bhaptics", "fantasy", "arcade")
+        Tags=@("panzer dragoon", "panzer dragoon remake", "astienth", "rail shooter", "shooter", "shmup", "dragon", "sega", "saturn", "remake", "provolver", "protubevr", "bhaptics", "fantasy", "arcade")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "Pathfinder: Kingmaker"
+        Quip        = "Your kingdom can wait. The dice cannot."
+        SteamId     = "640820"
+        SteamFolder = "Pathfinder Kingmaker"
+        VideoUrl    = "https://www.youtube.com/watch?v=7107oFZ8ieE"
+        Mod         = "VRMaker (auto-update)"
+        GithubRepo  = "PinkMilkProductions/VRMaker"
+        Description = "SteamVR required"
+        Author      = "PinkMilkProductions"
+        Bat         = "PathfinderKingmakerVR\START_INSTALLER.bat"
+        Color       = "#1b1526"
+        Accent      = "#c9a24a"
+        InfoUrl     = "https://github.com/PinkMilkProductions/VRMaker"
+        ModPageUrl  = "https://github.com/PinkMilkProductions/VRMaker"
+        DownloadUrl = "https://github.com/PinkMilkProductions/VRMaker/releases"
+        # BepInEx mod, everything relative to the game root.
+        ModFile     = "BepInEx\plugins\VRMaker.dll"
+        # The Flat/VR switch SWAPS here instead of renaming: the mod's
+        # VRPatcher writes "OpenVR" into Unity's own VR switch inside
+        # globalgamemanagers. The game needs that file - it cannot be
+        # renamed away, only swapped against the original.
+        # Order: <live file>|<original>|<parking spot for the VR copy>
+        FlatVRSwap  = "Kingmaker_Data\globalgamemanagers|Kingmaker_Data\globalgamemanagers.bak|Kingmaker_Data\globalgamemanagers.vr"
+        GameExe     = "Kingmaker.exe"
+        # Per his own manifest the author supports Steam AND GOG
+        # (1982293831). He does NOT mention Epic - the path is listed
+        # here but untested.
+        FallbackPaths=@("C:\GOG Games\Pathfinder Kingmaker", "C:\Program Files (x86)\GOG Galaxy\Games\Pathfinder Kingmaker", "GOG:Pathfinder Kingmaker", "C:\Program Files\Epic Games\PathfinderKingmaker", "C:\Program Files (x86)\Epic Games\PathfinderKingmaker")
+        UninstallSteps = @(
+            "Close the game first.",
+            "FIRST, AND MOST IMPORTANT: in Kingmaker_Data, copy 'globalgamemanagers.bak' over 'globalgamemanagers'. The mod's patcher rewrote that file to switch Unity's own VR mode on, and it stays on even after every mod file is gone - the game would start to a blank blue screen instead of the main menu. If the .bak is missing, use Steam: Properties > Installed Files > Verify integrity of game files.",
+            "Delete these from the game folder, beside Kingmaker.exe: 'winhttp.dll', 'doorstop_config.ini', the 'BepInEx' folder and the 'VRMakerAssets' folder.",
+            "In Kingmaker_Data\Managed delete 'SteamVR.dll' and 'SteamVR_Actions.dll'; in Kingmaker_Data\Plugins delete 'openvr_api.dll' and 'SteamVR_Actions.dll'; in Kingmaker_Data\StreamingAssets delete the 'SteamVR' folder.",
+            "Once globalgamemanagers is back, the game runs flat again straight away - menu cutscene and all."
+        )
+        Tags=@("pathfinder", "kingmaker", "rpg", "crpg", "turn based", "strategy", "adventure", "party", "fantasy", "dungeons", "owlcat", "vrmaker", "pinkmilk", "steamvr", "wip")
     },
     @{
         Controls    = "MC"
@@ -1769,7 +1922,10 @@ $ownGames = @(
         Description = "Coop climbing, 2 mods"
         Author      = "Andrey04o / AstienVR"
         PortraitUrl = "Assets/PEAKVR_portrait.jpg"
-        HeaderUrl   = "https://cdn.cloudflare.steamstatic.com/steam/apps/3527290/library_hero.jpg"
+        # Steam no longer serves a usable header image for this AppId
+        # (the library_hero address came back empty), so this one ships
+        # with us. Portrait and screenshot still come from Steam.
+        HeaderUrl   = "Assets/PEAKVR_header.jpg"
         Bat         = "PEAKVR\START_INSTALLER.bat"
         Color       = "#0a1a14"
         Accent      = "#3da876"
@@ -1779,19 +1935,27 @@ $ownGames = @(
         # the auto-update tracks. ModFileAlt is the OLD mod (PEAK_VR by
         # AstienVR), which only ever exists in the pinned depot build.
         ModFile     = "BepInEx\plugins\Andrey04o-PeakVR\com.andrey04o.PeakVR.dll"
-        # Wer PeakVR VOR dem 2026-08-13 ueber den Hub installiert hat, dem
-        # fehlen zwei Pflichtpakete (MonoDetour_BepInEx_5, SoftDependencyFix) -
-        # unsere Paketliste kannte sie nicht. Die Version der Hauptmod hat sich
-        # dadurch NICHT geaendert, es gaebe also kein Update-Zeichen.
-        # Diese Merkerdatei schreibt der Installer selbst beim Installieren von
-        # SoftDependencyFix. Fehlt sie, ist die Installation unvollstaendig und
-        # der Hub zeigt "Update".
+        # Anyone who installed PeakVR through the Hub BEFORE 2026-08-13 is
+        # missing two required packages (MonoDetour_BepInEx_5,
+        # SoftDependencyFix) - our package list did not know them. The main
+        # mod's version did NOT change, so there would be no update sign.
+        # This marker file is written by the installer itself when it
+        # installs SoftDependencyFix. If it is absent the install is
+        # incomplete and the Hub shows "Update".
         ModRequiredFile = "BepInEx\.ts_versions\PEAKModding-SoftDependencyFix"
         ModFileAlt  = "BepInEx\plugins\PEAK_VR.dll"
         SteamFolder = "PEAK"
         # The depot build sits outside the Steam library, so without this
         # the scan never looks there at all - the entry had no
         # FallbackPaths whatsoever. Depot folder first, same as Bendy.
+        # THE DEPOT BUILD LIVES IN A FOLDER OF ITS OWN. Without this line
+        # the Hub finds the Steam game but never the depot copy it
+        # installed itself - it then reported "installed, but not VR
+        # ready" while everything was in place. Since 2026-08-20
+        # Filter.ps1 also checks ModFileAlt at this alternative root, and
+        # that is exactly what the depot build carries
+        # (BepInEx\plugins\PEAK_VR.dll).
+        VrInstallRoot = "C:\Games\PEAK VR"
         FallbackPaths = @("C:\Games\PEAK VR", "STEAM:PEAK")
         ThunderstoreAuthor  = "Andrey04o"
         ThunderstorePackage = "PeakVR"
@@ -1814,15 +1978,44 @@ $ownGames = @(
         VideoUrl    = "https://www.youtube.com/watch?v=FCbwW119lAw"
         Quip        = "The deeper you go, the less the dark feels empty."
         SteamId     = "22180"
-        Mod         = "Penumbra VR v0.1"
-        Description = "Head + hand tracking mod"
-        Author      = "simply-jos / newyork167"
+        Mod         = "simply-jos, rubocopter (alpha)"
+        Description = "Two mods, separate folders"
+        Author      = "simply-jos / rubocopter"
         Bat         = "PenumbraVR\START_INSTALLER.bat"
         Color       = "#0d0b08"
         Accent      = "#b58a3a"
         InfoUrl     = "https://github.com/newyork167/penumbra_vr"
         SteamFolder = "Penumbra Overture"
         ModFile     = "redist\Penumbra_vr.exe"
+        # THE SECOND MOD LANDS SOMEWHERE ELSE ENTIRELY, and that is
+        # why nothing has to be parked here: the original copies the
+        # whole game to C:\Games\Penumbra Overture VR and mods that
+        # copy, while rubocopter's rework merges into the STEAM
+        # installation. Both ship a Penumbra_vr.exe, but never in the
+        # same folder - unlike the two BioShock mods.
+        # Its marker is the state folder its installer creates.
+        ModFileAlt2 = ".penumbravr\deploy-state.json"
+        # SPLIT BUTTON over the two installations, using the SAME
+        # DualMode machinery PEAK and Bendy already use - not the
+        # TwoMods one, which searches both mods under ONE root and
+        # therefore cannot express this entry at all.
+        #   "Depot"   side = C:\Games\Penumbra Overture VR, the copy the
+        #                    older mod makes and works on
+        #   "Current" side = the Steam copy, where the rework merges
+        # Get-DualModePresence counts a side when ANY of ModFile,
+        # ModFileAlt or ModFileAlt2 is there - the old mod is found by
+        # redist\Penumbra_vr.exe, the rework by its state file.
+        DualMode        = $true
+        DepotPath       = "C:\Games\Penumbra Overture VR"
+        DepotLaunchExe  = "redist\Penumbra_vr.exe"
+        DepotLaunchArgs = ""
+        GithubRepoB = "rubocopter/penumbra_vr_rework"
+        # Only checked when the rework is REALLY on disk - otherwise a
+        # release of his would raise an update badge on an install that
+        # does not have his mod at all.
+        GithubRepoBPresenceFile = ".penumbravr\deploy-state.json"
+        # He publishes prereleases only.
+        GithubPrerelease = $true
         LaunchExe   = "redist\Penumbra_vr.exe"
         FallbackPaths = @(
             "C:\Games\Penumbra Overture VR",
@@ -2083,6 +2276,46 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Title       = "Red Faction VR"
+        VideoUrl    = "https://www.youtube.com/live/eu48sXIfOQk?t=1662"
+        SteamId     = "20530"
+        Quip        = "Mars is ours. Now swing the sledgehammer with your own arm."
+        Mod         = "AlpineFactionVR (auto-update)"
+        Description = "Early alpha - expect bugs"
+        Author      = "CactusVRStudios"
+        Bat         = "RedFactionVR\START_INSTALLER.bat"
+        Color       = "#1a0b08"
+        Accent      = "#c0392b"
+        InfoUrl     = "https://github.com/CactusVRStudios/alpinefactionVR"
+        ModPageUrl  = "https://github.com/CactusVRStudios/alpinefactionVR"
+        DownloadUrl = "https://github.com/CactusVRStudios/alpinefactionVR/releases"
+        # Every build ships as a PRERELEASE - without this field the Hub
+        # would never find an update.
+        GithubRepo  = "CactusVRStudios/alpinefactionVR"
+        GithubPrerelease = $true
+        GameExe     = "RF.exe"
+        # The mod does NOT launch the game exe but its own - the same
+        # lesson as theHunter and World at War.
+        # AND IT DOES NOT LIVE IN THE GAME FOLDER: the setup puts it in a
+        # folder of its OWN (default C:\Program Files (x86)\Alpine
+        # Faction VR), confirmed in a real run. So VrInstallRoot as with
+        # World War VR, with ModFile relative to it. The .installed_path
+        # written by the installer takes precedence and catches any
+        # different choice the user made.
+        VrInstallRoot = "C:\Program Files (x86)\Alpine Faction VR"
+        ModFile     = "AlpineFactionVR.exe"
+        LaunchExe   = "AlpineFactionVR.exe"
+        SteamFolder = "red faction"
+        FallbackPaths=@("GOG:Red Faction", "C:\GOG Games\Red Faction", "C:\Program Files (x86)\GOG Galaxy\Games\Red Faction", "C:\games\RedFaction")
+        UninstallSteps = @(
+            "Reinstall the regular Alpine Faction release - that restores its original files, which is the author's own removal route.",
+            "The VR build sits in its own folder (by default C:\Program Files (x86)\Alpine Faction VR), so deleting that folder removes it too.",
+            "Red Faction itself is unaffected either way - it was never modified."
+        )
+        Tags=@("red faction", "redfaction", "alpine faction", "alpinefaction", "dash faction", "cactusvrstudios", "volition", "thq", "geo-mod", "mars", "openxr", "fps", "shooter", "action", "story", "sci-fi", "retro", "alpha", "wip")
+    },
+    @{
+        Controls    = "MC"
         Title       = "Richard Burns Rally VR"
         SteamFolder = "Richard Burns Rally"
         VideoUrl    = "https://youtu.be/i8Y4nFo5OxA?t=69"
@@ -2162,23 +2395,23 @@ $ownGames = @(
         FallbackPaths = @("STEAM:Saints Row the Third", "GOG:Saints Row 3")
         Tags=@("saints row", "saints row 3", "saints row the third", "sr3", "zolika", "zmenu", "open world", "action", "sandbox", "shooter", "third person")
     },
-    # WIEDER AKTIV. Der Eintrag lag ausgeklammert, "bis eine Mod-Version zu
-    # einem beschaffbaren Spielbuild passt" - genau das ist jetzt der Fall:
-    # der Installer laedt ueber das Depot GENAU Build 22163681, gegen den
-    # die Mod v1.17.0 gebaut ist. Vorher stand dort das Manifest des
-    # NEUESTEN Builds, deshalb lief es bei uns nicht.
+    # ACTIVE AGAIN. The entry was commented out "until a mod version
+    # matches a game build we can obtain" - which is now the case: the
+    # installer pulls EXACTLY build 22163681 through the depot, the one
+    # mod v1.17.0 was built against. Previously the manifest of the
+    # NEWEST build was in there, which is why it did not work for us.
     @{
         Controls    = "MC"
         Title       = "Scrap Mechanic VR"; Roomscale=$true
         Quip        = "Build it, then climb inside and grab the wrench yourself."
         SteamId     = "387990"
-        # KEIN AUTO-UPDATE. Die Mod ist an Steam-Build 22163681 gebunden,
-        # den der Installer per Depot holt. Eine kuenftige Mod-Version wird
-        # sehr wahrscheinlich einen ANDEREN Build verlangen - dann muessen
-        # Manifest und Mod zusammen angefasst werden, nicht die Mod allein.
-        # Deshalb ist die Version hier festgeschrieben und GithubRepo ist
-        # bewusst NICHT gesetzt: kein Online-Check, keine Update-Kachel,
-        # die zu einem Stand fuehrt, der auf diesem Build nicht laeuft.
+        # NO AUTO-UPDATE. The mod is tied to Steam build 22163681, which
+        # the installer fetches through the depot. A future mod version
+        # will very likely require a DIFFERENT build - manifest and mod
+        # then have to be changed together, not the mod alone.
+        # That is why the version is pinned here and GithubRepo is
+        # deliberately NOT set: no online check, no update badge leading
+        # to a state that will not run on this build.
         Mod         = "Native VR v1.17.0"
         Description = "Steam depot build required"
         Author      = "21Suspect"
@@ -2199,27 +2432,27 @@ $ownGames = @(
         ModFile     = "Release\scrap_native_vr.addon64"
         SteamFolder = "Scrap Mechanic"
         LaunchExe   = "NativeVR\Start Scrap Mechanic VR.bat"
-        # Das Spiel kommt NUR ueber diese Bat in VR hoch: sie setzt die
-        # Steam-App-Id und startet die OpenXR-Runtime. Und die Depot-Kopie
-        # liegt gar nicht in der Steam-Bibliothek - steam://rungameid wuerde
-        # die RETAIL-Kopie flach starten. Also lieber sagen, dass der
-        # Starter fehlt, als still das falsche Spiel oeffnen.
+        # The game only comes up in VR through this bat: it sets the
+        # Steam app id and starts the OpenXR runtime. And the depot copy
+        # is not in the Steam library at all - steam://rungameid would
+        # launch the RETAIL copy flat. Better to say the launcher is
+        # missing than to silently open the wrong game.
         NeverSteamLaunch = $true
-        # KEIN VideoLabel: der Standard ist "Watch VR gameplay", und genau das
-        # ist es hier. Das Feld setzt man nur bei Eintraegen, deren einziges
-        # Material FLACHES Gameplay ist.
+        # NO VideoLabel: the default is "Watch VR gameplay", and that is
+        # exactly what this is. The field is only set on entries whose
+        # only footage is FLAT gameplay.
         VideoUrl    = "https://www.youtube.com/watch?v=jzslO2oT12I"
         FallbackPaths = @("STEAM:Scrap Mechanic", "C:\Games\Scrap Mechanic VR", "D:\Games\Scrap Mechanic VR", "E:\Games\Scrap Mechanic VR")
-        # Der Eintrag hatte KEINE Deinstallationsliste. Wichtig hier, weil
-        # die Nutzlast nicht nur Dateien HINZUFUEGT, sondern acht
-        # Original-Lua-Skripte des Spiels UEBERSCHREIBT - und zwar ohne
-        # .hubbak-Sicherung, weil sie per robocopy /E ueber den Spielbaum
-        # gelegt werden. Loeschen der neuen Dateien genuegt also nicht.
-        # Die Deinstallation ist hier kurz, WEIL es nur den Depot-Weg gibt:
-        # der Hub legt eine SEPARATE Spielkopie an und arbeitet nur in der.
-        # Alles, was die Mod anfasst - auch die neun ersetzten Lua-Skripte -
-        # liegt in diesem einen Ordner. Loeschen genuegt, es gibt nichts
-        # zurueckzusetzen und keine Integritaetspruefung anzustossen.
+        # The entry had NO uninstall list. It matters here because the
+        # payload does not only ADD files, it OVERWRITES eight of the
+        # game's original Lua scripts - and without a .hubbak backup,
+        # because they are laid over the game tree with robocopy /E.
+        # Deleting the new files is therefore not enough.
+        # The uninstall is short here BECAUSE only the depot route exists:
+        # the Hub creates a SEPARATE copy of the game and works only in
+        # that. Everything the mod touches - including the nine replaced
+        # Lua scripts - lives in that one folder. Deleting it is enough;
+        # there is nothing to restore and no integrity check to trigger.
         UninstallSteps = @(
             "Close the game.",
             "Delete the folder the Hub installed into - C:\Games\Scrap Mechanic VR, or wherever you pointed it. That folder holds nothing but the separate game copy and the VR files.",
@@ -2249,6 +2482,42 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Title       = "Singularity VR"
+        VideoUrl    = "https://www.youtube.com/watch?v=z7DL9z8lSQ4"
+        SteamId     = "42670"
+        # Steam has NO portrait image for this game, so one ships with
+        # us. Header and screenshot still come from Steam.
+        PortraitUrl = "Assets/SingularityVR_portrait.jpg"
+        Quip        = "Time is a weapon here. So is your other hand."
+        Mod         = "SingularityVR (auto-update)"
+        Description = "EARLY ACCESS, VDXR ONLY"
+        Author      = "letsgosportsteam"
+        Bat         = "SingularityVR\START_INSTALLER.bat"
+        Color       = "#1a1008"
+        Accent      = "#c9722a"
+        InfoUrl     = "https://github.com/letsgosportsteam/singularity-vr-mod"
+        ModPageUrl  = "https://github.com/letsgosportsteam/singularity-vr-mod"
+        DownloadUrl = "https://github.com/letsgosportsteam/singularity-vr-mod/releases"
+        # Every build ships as a PRERELEASE - without this field the Hub
+        # would never find an update (/releases/latest is empty for this
+        # repo, verified via the web redirect).
+        GithubRepo  = "letsgosportsteam/singularity-vr-mod"
+        GithubPrerelease = $true
+        GameExe     = "Binaries\Singularity.exe"
+        ModFile     = "Binaries\d3d9.dll"
+        ModFileAlt  = "Binaries\d3d9.dll.off"
+        FlatVREnabled  = "Binaries\d3d9.dll"
+        FlatVRDisabled = "Binaries\d3d9.dll.off"
+        SteamFolder = "Singularity"
+        FallbackPaths=@("GOG:Singularity", "C:\GOG Games\Singularity", "C:\Program Files (x86)\GOG Galaxy\Games\Singularity", "C:\Program Files (x86)\Activision\Singularity")
+        UninstallSteps = @(
+            "To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks d3d9.dll as d3d9.dll.off, and one click brings VR back.",
+            "To remove it completely, delete d3d9.dll, openxr_loader.dll and SingularityVR.ini from the game's Binaries folder. No game file was ever modified."
+        )
+        Tags=@("singularity", "raven software", "activision", "tmd", "time manipulation device", "letsgosportsteam", "d3d9", "openxr", "vdxr", "fps", "shooter", "action", "horror", "story", "sci-fi", "unreal engine 3", "alpha", "wip")
+    },
+    @{
+        Controls    = "MC"
         Title       = "Slime Rancher VR"
         VideoUrl    = "https://www.youtube.com/watch?v=wvYcMAlmI40"
         SteamId     = "433340"
@@ -2260,7 +2529,12 @@ $ownGames = @(
         Color       = "#1a0a2e"
         Accent      = "#ff66cc"
         InfoUrl     = "https://github.com/Atmudia/SRVR"
-        ModFile     = "SlimeRancher_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! 2026-08-19 - THE OLD MARKER WAS NOT A MOD MARKER !!!
+        # This used to read SlimeRancher_Data\Managed\UnityEngine.VRModule.dll - a
+        # STOCK UNITY ASSEMBLY, present in EVERY copy including one that
+        # was never modded. Replaced by the file OUR installer
+        # demonstrably writes itself.
+        ModFile     = "SRML\Mods\SRVR.dll"
         SteamFolder = "Slime Rancher"
         FallbackPaths=@("GOG:Slime Rancher", "EPIC:SlimeRancher", "XBOX:Slime Rancher")
         Tags=@("slime rancher", "srvr", "atmospheric", "exploration", "survival")
@@ -2286,6 +2560,47 @@ $ownGames = @(
         SteamFolder = "Slyders"
         LaunchExe   = "Slyders.exe"
         Tags=@("slyders", "astienth", "roguelite", "bullet hell", "fps", "shooter")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "Sons of the Forest"; Roomscale=$true
+        VideoUrl    = "https://www.youtube.com/watch?v=IwvhH3islZw"
+        VideoLabel  = "Watch gameplay"
+        SteamId     = "1326470"
+        Quip        = "No VR mode shipped for this island. Someone built one anyway."
+        Mod         = "SonsVR_Mod (auto-update)"
+        Description = "ALPHA, first start is slow"
+        Author      = "Anthony"
+        Bat         = "SonsVR\START_INSTALLER.bat"
+        ReadmeDir   = "SonsVR"
+        Color       = "#101a12"
+        Accent      = "#5f8f45"
+        InfoUrl     = "https://github.com/iPowerTech/SonsVR_Mod"
+        ModPageUrl  = "https://github.com/iPowerTech/SonsVR_Mod"
+        DownloadUrl = "https://github.com/iPowerTech/SonsVR_Mod/releases"
+        GithubRepo  = "iPowerTech/SonsVR_Mod"
+        # EVERY release of this project is a prerelease, so the scan must
+        # read the release LIST - /releases/latest is empty for this repo
+        # and an update would never show.
+        GithubPrerelease = $true
+        GameExe     = "SonsOfTheForest.exe"
+        # Read from the tagged source, not guessed: ModInfo.cs declares
+        # Name = "SonsVR_Mod", so MelonLoader loads Mods\SonsVR_Mod.dll.
+        # NOT version.dll or the MelonLoader folder - those belong to the
+        # loader and would also be there for any other MelonLoader mod.
+        ModFile     = "Mods\SonsVR_Mod.dll"
+        # Inno setup from the one-click installer, in the game folder.
+        # The "Uninstall now" button only appears when this file is
+        # really on disk, so it can never point at nothing.
+        UninstallExe = "unins000.exe"
+        SteamFolder = "Sons Of The Forest"
+        FallbackPaths=@("STEAM:Sons of the Forest", "STEAM:SonsOfTheForest")
+        UninstallSteps = @(
+            "The mod registers an uninstaller: Settings - Apps - Installed apps, or run unins000.exe in the game folder. That is the clean way.",
+            "By hand instead: delete Mods\\, UserLibs\\, MelonLoader\\, UserData\\MelonPreferences.cfg and version.dll.",
+            "Nothing to restore either way - a before/after comparison of the game folder shows 172 files added, none removed and none changed in size. Saves and other mods are untouched."
+        )
+        Tags=@("wip", "sons of the forest", "sonsvr", "ipowertech", "endnight", "survival", "horror", "crafting", "open world", "coop", "multiplayer", "island", "melonloader", "alpha")
     },
     @{
         Controls    = "MC"
@@ -2373,7 +2688,12 @@ $ownGames = @(
         Color       = "#001a20"
         Accent      = "#00ccdd"
         InfoUrl     = "https://github.com/jbusfield/SubmersedVR_BZ"
-        ModFile     = "SubnauticaZero_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! 2026-08-19 - THE OLD MARKER WAS NOT A MOD MARKER !!!
+        # This used to read SubnauticaZero_Data\Managed\UnityEngine.VRModule.dll - a
+        # STOCK UNITY ASSEMBLY, present in EVERY copy including one that
+        # was never modded. Replaced by the file OUR installer
+        # demonstrably writes itself.
+        ModFile     = "BepInEx\plugins\SubmersedVR.dll"
         SteamFolder = "SubnauticaZero"
         FallbackPaths=@("EPIC:SubnauticaBelowZero", "EPIC:Subnautica Below Zero", "XBOX:Subnautica Below Zero", "STEAM:Subnautica Zero", "EPIC:Subnautica Zero", "GOG:Subnautica Zero")
         Tags=@("subnautica", "below zero", "submersed", "exploration", "open world", "survival", "underwater")
@@ -2540,10 +2860,55 @@ $ownGames = @(
         Color       = "#1a2a1a"
         Accent      = "#66cc66"
         InfoUrl     = "https://www.nexusmods.com/valheim/mods/847"
-        ModFile     = "valheim_Data\Managed\UnityEngine.VRModule.dll"
+        # !!! 2026-08-19 - THE OLD MARKER WAS NOT A MOD MARKER !!!
+        # This used to read valheim_Data\Managed\UnityEngine.VRModule.dll - a
+        # STOCK UNITY ASSEMBLY, present in EVERY copy including one that
+        # was never modded. Replaced by the file OUR installer
+        # demonstrably writes itself.
+        ModFile     = "BepInEx\plugins\ValheimVRMod.dll"
         SteamFolder = "Valheim"
         FallbackPaths=@("XBOX:Valheim")
         Tags        = @("vhvr", "survival", "crafting", "viking")
+    },
+    @{
+        Controls    = "MC"
+        Title       = "White Knuckle VR"; Roomscale=$true
+        VideoUrl    = "https://www.youtube.com/watch?v=A_MBM38Z3r4"
+        SteamId     = "3195790"
+        Quip        = "Your hands are the only thing between you and the drop."
+        Mod         = "WhiteKnuckleVR (auto-update)"
+        Description = "First launch is flat by design"
+        Author      = "kyanite-rock"
+        Bat         = "WhiteKnuckleVR\START_INSTALLER.bat"
+        ReadmeDir   = "WhiteKnuckleVR"
+        Color       = "#12100e"
+        Accent      = "#c8873c"
+        InfoUrl     = "https://github.com/kyanite-rock/White_Knuckle_VR"
+        ModPageUrl  = "https://github.com/kyanite-rock/White_Knuckle_VR"
+        DownloadUrl = "https://github.com/kyanite-rock/White_Knuckle_VR/releases"
+        GithubRepo  = "kyanite-rock/White_Knuckle_VR"
+        GameExe     = "White Knuckle.exe"
+        # Read from the real v1.0.2 archive: the mod ships as a
+        # BepInEx plugin. NOT the OpenXR libraries next to it - those
+        # land in the game data folder and would also be there for any
+        # other OpenXR mod.
+        ModFile     = "BepInEx\plugins\WhiteKnuckleVRMod.dll"
+        # FLAT/VR SWITCH by parking the plugin. The author documents
+        # activateVR in VRToggle.json instead - but that file only
+        # exists AFTER the first launch, so before then there would be
+        # nothing to toggle. Renaming the plugin works at every point
+        # and is the same mechanism the other entries use.
+        ModFileAlt  = "BepInEx\plugins\WhiteKnuckleVRMod.dll.off"
+        FlatVREnabled  = "BepInEx\plugins\WhiteKnuckleVRMod.dll"
+        FlatVRDisabled = "BepInEx\plugins\WhiteKnuckleVRMod.dll.off"
+        SteamFolder = "White Knuckle"
+        FallbackPaths=@("STEAM:White Knuckle", "STEAM:WhiteKnuckle")
+        UninstallSteps = @(
+            "Delete BepInEx\\ and the WhiteKnuckleVR\\ folder from the game directory.",
+            "The mod also placed OpenXR libraries in White Knuckle_Data: Managed\\Unity.XR.OpenXR.dll, Managed\\Unity.XR.Management.dll, Plugins\\x86_64\\openxr_loader.dll, Plugins\\x86_64\\UnityOpenXR.dll and UnitySubsystems\\UnityOpenXR\\. Delete those too, or verify the game files in Steam.",
+            "No original game file was replaced, so nothing needs restoring - a Steam verify only re-adds what the mod added."
+        )
+        Tags=@("white knuckle", "whiteknuckle", "kyanite-rock", "dark machine games", "climbing", "speed climbing", "horror", "survival", "action", "exploration", "first person", "roguelite", "indie", "bepinex")
     },
     @{
         Controls    = "MC"
@@ -2700,7 +3065,7 @@ $ownGamesGP = @(
         FallbackPaths=@("STEAM:AstroDogs", "STEAM:astrodogs", "STEAM:Astrodogs Demo", "GOG:Astrodogs")
         Tags=@("astrodogs", "astienth", "star fox", "starfox", "dogs", "anime", "shooter", "space", "arcade", "indie", "colorful")
     },
-    @{ Controls="GP"; Title="Atomic Heart VR"; VideoUrl="https://www.youtube.com/watch?v=ZW66XATBJ_g"; Quip="Welcome to Facility 3826, Comrade. Mind the robots."; SteamId="668580";                 Mod="R.E.A.L."; SteamFolder="AtomicHeart"; FallbackPaths=@("STEAM:Atomic Heart"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc3344"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, atomic heart", "fps", "shooter", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Atomic Heart VR"; VideoUrl="https://www.youtube.com/watch?v=ZW66XATBJ_g"; Quip="Welcome to Facility 3826, Comrade. Mind the robots."; SteamId="668580";                 Mod="R.E.A.L."; SteamFolder="AtomicHeart"; FallbackPaths=@("STEAM:Atomic Heart"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc3344"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, atomic heart", "fps", "shooter", "story") ; ModFile="AtomicHeart\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="AtomicHeart\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="AtomicHeart\Binaries\WinGDK\RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Avatar: Frontiers of Pandora VR"; VideoUrl="https://www.youtube.com/watch?v=cUelil7M4fU"; Quip="Breathe Pandora's air. Hunt the skies with the Na'vi."; SteamId="2840770"; Mod="R.E.A.L."; SteamFolder="Avatar Frontiers of Pandora"; FallbackPaths=@("STEAM:AFOP"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a8aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, avatar, pandora", "adventure", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Controls    = "VRGP"
@@ -2714,8 +3079,7 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/BanjoKazooieVR_header.jpg"
         ScreenshotUrl = "Assets/BanjoKazooieVR_screenshot.jpg"
         Quip        = "Grab your bird and go. Gruntilda's tower won't climb itself."
-        Mod         = "Lighthouse VR (auto-update)"
-        GithubRepo  = "RaYRoD-TV/BanjoKazooie-VR"
+        Mod         = "Lighthouse VR"
         Description = "US (NTSC) 1.0 .z64 ROM"
         Author      = "RaYRoD"
         Bat         = "BanjoKazooieVR\START_INSTALLER.bat"
@@ -2756,10 +3120,10 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Circuit Superstars VR"; VideoUrl="https://www.youtube.com/watch?v=ZRt0-P-c4vU"; Pill="CIRCUITSUPER_VR"; SteamId="1097130"; Mod="CIRCUITSUPER_VR_1.0.0"; SteamFolder="Circuit Superstars"; FallbackPaths=@("STEAM:CircuitSuperstars"); Description="bHaptics support included"; Author="Astienth"; Bat="CircuitSuperstarsVR\START_INSTALLER.bat"; Color="#180a08"; Accent="#dd2255"; InfoUrl="https://github.com/Astienth/Circuit_Superstars_VR_bHaptics"; Tags=@("circuit superstars", "circuitsuperstars", "astienth", "racing", "arcade", "top down", "indie", "sports", "cartoon", "stylized", "bhaptics"); ModFile="BepInEx\plugins\CircuitSuperstars_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Cloudpunk VR"; VideoUrl="https://www.youtube.com/watch?v=aW_UTxKZjRs"; SteamId="746850"; Mod="Cloudpunk VR v1.0.0"; SteamFolder="Cloudpunk"; FallbackPaths=@("GOG:Cloudpunk", "EPIC:Cloudpunk"); Description="Best option Gamepad VR."; Author="Astienth"; Bat="CloudpunkVR\START_INSTALLER.bat"; Color="#0a0a1a"; Accent="#cc44ff"; InfoUrl="https://github.com/Astienth/Cloudpunk-VR/releases"; Tags=@("cloudpunk", "astienth", "atmospheric", "cyberpunk", "exploration", "narrative"); ModFile="BepInEx\plugins\CloudpunkVR.dll" },
     @{ Controls="GP"; Title="Cloudpunk: City of Ghosts VR"; VideoUrl="https://www.youtube.com/watch?v=H2M6MkWgGqI"; VideoLabel="Watch gameplay"; Pill="CLOUDP_COG_DLC"; SteamId="1536370"; Mod="CoG VR v1.0.0"; SteamFolder="Cloudpunk - City of Ghosts"; FallbackPaths=@("STEAM:Cloudpunk\City of Ghosts", "GOG:Cloudpunk", "EPIC:Cloudpunk"); Description="BepInEx VR mod"; Author="Astienth"; Bat="CloudpunkCOGVR\START_INSTALLER.bat"; Color="#0a0a1a"; Accent="#aa33dd"; InfoUrl="https://github.com/Astienth/Cloudpunk-VR/releases"; Tags=@("cloudpunk", "city of ghosts", "astienth", "atmospheric", "cyberpunk", "exploration", "narrative"); ModFile="BepInEx\plugins\CloudpunkVR_CityofGhosts.dll" },
-    @{ Controls="GP"; Title="Dark Souls II VR"; VideoUrl="https://www.youtube.com/watch?v=XChyB_UAltY"; Quip="Bearer of the curse, seek souls. Drangleic awaits."; SteamId="236430";                Mod="R.E.A.L."; SteamFolder="Dark Souls II Scholar of the First Sin"; FallbackPaths=@("STEAM:Dark Souls II"); GameExe="Game\DarkSoulsII.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a6a3c"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Dark Souls II VR"; VideoUrl="https://www.youtube.com/watch?v=XChyB_UAltY"; Quip="Bearer of the curse, seek souls. Drangleic awaits."; SteamId="236430";                Mod="R.E.A.L."; SteamFolder="Dark Souls II Scholar of the First Sin"; FallbackPaths=@("STEAM:Dark Souls II"); GameExe="Game\DarkSoulsII.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a6a3c"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="Game\RealRepo\RealVR64.dll"; ModFileAlt="Game\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Dark Souls III VR"; VideoUrl="https://youtu.be/TKNWjx6OHh0?t=152"; Quip="Bonfire lit. Estus ready. The Lords await your link."; SteamId="374320";               Mod="R.E.A.L."; SteamFolder="DARK SOULS III"; GameExe="Game\DarkSoulsIII.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="Game\RealRepo\RealVR64.dll"; ModFileAlt="Game\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Dark Souls Remastered"; VideoUrl="https://youtu.be/6aaQqSZXyTY?t=39"; Quip="Praise the sun - now you can raise your own hands to it."; SteamId="570940";        Mod="R.E.A.L."; SteamFolder="DARK SOULS REMASTERED"; GameExe="Dark Souls.exe"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a07a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Days Gone VR"; VideoUrl="https://youtu.be/Lsdkpj7XJp0?t=90"; Quip="Ride the broken road. The horde is right behind you."; SteamId="1259420"; Mod="R.E.A.L."; SteamFolder="Days Gone"; FallbackPaths=@("GOG:Days Gone", "EPIC:DaysGone"); GameExe="BendGame\Binaries\Win64\DaysGone.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a5713f"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, days gone", "open world", "survival", "action", "post-apocalyptic") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Days Gone VR"; VideoUrl="https://youtu.be/Lsdkpj7XJp0?t=90"; Quip="Ride the broken road. The horde is right behind you."; SteamId="1259420"; Mod="R.E.A.L."; SteamFolder="Days Gone"; FallbackPaths=@("GOG:Days Gone", "EPIC:DaysGone"); GameExe="BendGame\Binaries\Win64\DaysGone.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a5713f"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, days gone", "open world", "survival", "action", "post-apocalyptic") ; ModFile="BendGame\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="BendGame\Binaries\Win64\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Death Stranding VR"; VideoUrl="https://youtu.be/8-pWfJcRbow?t=72"; Quip="Reconnect a broken America, Sam. Mind the BTs."; SteamId="1850570";              Mod="R.E.A.L."; SteamFolder="DEATH STRANDING DIRECTORS CUT"; FallbackPaths=@("STEAM:Death Stranding", "STEAM:DEATH STRANDING DIRECTORS CUT"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a6a7a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, death stranding, kojima", "atmospheric", "story", "walking sim") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Controls    = "VRGP"
@@ -2783,12 +3147,44 @@ $ownGamesGP = @(
         Tags=@("decimate drive", "astienth", "horror", "driving", "arcade", "indie", "fast paced")
     },
     @{ Controls="GP"; Title="Descenders VR"; VideoUrl="https://www.youtube.com/watch?v=tn_c77QIJ9Q"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod (auto-update)"
-        # AUTO-UPDATE NEU (2026-08-13). Vorher gab es KEINES: der Installer
-        # hatte eine feste Adresse auf v1.0.5, und der Katalog kein
-        # Update-Feld. Nach langer Pause kam v1.0.6 - niemand haette es
-        # erfahren. Die Tags heissen descenders_vr_mod_vX.Y.Z.
+        # AUTO-UPDATE IS NEW (2026-08-13). There was NONE before: the
+        # installer had a hard-coded address for v1.0.5 and the catalog
+        # had no update field. After a long pause v1.0.6 appeared and
+        # nobody would have known. Tags read descenders_vr_mod_vX.Y.Z.
         GithubRepo  = "kyanite-rock/DescendersVRMod"; SteamFolder="Descenders"; FallbackPaths=@("EPIC:Descenders"); Description="KB`&Mouse or Gamepad VR."; Author="Holydh / kyanite-rock"; Bat="DescendersVR\START_INSTALLER.bat"; Color="#0a0f1a"; Accent="#5588dd"; InfoUrl="https://github.com/kyanite-rock/DescendersVRMod"; Tags=@("descenders", "downhill", "mountain bike", "mtb", "indie", "racing", "sports"); ModFile="BepInEx\plugins\DescendersVRmod.dll" },
     @{ Controls="GP"; Title="Devil May Cry 5 VR"; VideoUrl="https://youtu.be/oY7eJfpDqr4?t=292"; Quip="Son of Sparda, stay stylish. Hit that SSS rank."; SteamId="601150"; Mod="REF (auto-update)"; SteamFolder="Devil May Cry 5"; FallbackPaths=@("STEAM:DevilMayCry5", "EPIC:Devil May Cry 5"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DevilMayCry5.exe"; Color="#1a0000"; Accent="#cc2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("devil may cry", "reframework", "praydog", "action", "fast paced", "hack and slash", "stylish"); ModFile="openxr_loader.dll" },
+    @{
+        Controls    = "VRGP"
+        Title       = "Diddy Kong Racing VR"
+        # The clip is FLAT gameplay - there is no VR capture of this one,
+        # so VideoLabel renames the strip instead of promising VR footage.
+        VideoUrl    = "https://www.youtube.com/watch?v=_y6aoXiXeN0"
+        VideoLabel  = "Watch gameplay"
+        SteamId     = ""
+        PortraitUrl = "Assets/DiddyKongRacingVR_portrait.jpg"
+        HeaderUrl   = "Assets/DiddyKongRacingVR_header.jpg"
+        ScreenshotUrl = "Assets/DiddyKongRacingVR_screenshot.jpg"
+        Quip        = "Car, hovercraft or plane - Wizpig laughs at all three."
+        Mod         = "Golden Balloon"
+        Description = "US or EU 1.1 ROM required"
+        Author      = "RaYRoD"
+        Bat         = "DiddyKongRacingVR\START_INSTALLER.bat"
+        Color       = "#0b2412"
+        Accent      = "#5fc23a"
+        InfoUrl     = "https://github.com/RaYRoD-TV/DiddyKongRacing-VR"
+        ModPageUrl  = "https://github.com/RaYRoD-TV/DiddyKongRacing-VR"
+        # No GithubRepo: his game repo carries NO releases ("No builds
+        # here, the hub is the one spot for all of it"). The download
+        # address therefore points at the Multiverse VR Hub, which
+        # everything runs through.
+        DownloadUrl = "https://github.com/RaYRoD-TV/MVRH/releases/latest"
+        ModFile     = "GoldenBalloon.exe"
+        LaunchExe   = "GoldenBalloon.exe"
+        StandaloneVR = $true
+        SteamFolder = "Diddy Kong Racing VR"
+        FallbackPaths=@("C:\Games\Diddy Kong Racing VR", "D:\Games\Diddy Kong Racing VR", "E:\Games\Diddy Kong Racing VR")
+        Tags=@("diddy kong racing", "diddy kong", "dkr", "golden balloon", "goldenballoon", "akratch", "rare", "nintendo", "nintendo 64", "n64", "rayrod", "racing", "action", "adventure", "kart racer", "arcade", "retro", "openxr")
+    },
     @{ Controls="GP"; Title="Dinkum VR"; Quip="Farm, fish and mine your patch of the Aussie outback, now in stereoscopic VR."; SteamId="1062520"; VideoUrl="https://youtu.be/YebR5go9hGw"; VideoLabel="Watch gameplay"; Mod="DinkumVR v1.0.0"; ModReleasedAt="2026-07-25"; Description="Nexus download required"; Author="Destroyjevski"; Bat="DinkumVR\START_INSTALLER.bat"; Color="#171009"; Accent="#e0902e"; InfoUrl="https://www.nexusmods.com/dinkum/mods/440"; DownloadUrl="https://www.nexusmods.com/dinkum/mods/440?tab=files"; ModFile="BepInEx\plugins\DinkumVR\DinkumVR.dll"; ModFileAlt="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; FlatVREnabled="BepInEx\plugins\DinkumVR\DinkumVR.dll"; FlatVRDisabled="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; SteamFolder="Dinkum"; Tags=@("dinkum", "farming", "simulation", "survival", "crafting", "fishing", "mining", "sandbox", "open world", "cozy", "island", "destroyjevski") },
     @{
         Controls    = "VRGP"
@@ -2836,13 +3232,45 @@ $ownGamesGP = @(
     },
     @{ Controls="GP"; Title="Echo Generation 2 VR"; VideoUrl="https://youtu.be/ybrAhkNBnnw?t=299"; VideoLabel="Watch gameplay"; SteamId="1115990"; PortraitUrl="Assets/EchoGeneration2VR_portrait.jpg"; HeaderUrl="Assets/EchoGeneration2VR_header.jpg"; Mod="EchoGeneration2_VR v1.0.0"; Description="Discord login, OpenXR"; Author="Astienth"; Bat="EchoGeneration2VR\START_INSTALLER.bat"; Color="#120c22"; Accent="#8a5cff"; InfoUrl="https://discord.com/channels/1001138422972432597/1521547069804908565/1521547128973955296"; ModFile="BepInEx\plugins\EchoGeneration2_VR.dll"; SteamFolder="Echo Generation 2"; FallbackPaths=@("STEAM:Echo Generation 2", "C:\XboxGames\Echo Generation 2\Content", "D:\XboxGames\Echo Generation 2\Content", "XBOX:Echo Generation 2"); Tags=@("echo generation 2", "echo generation", "echogeneration2", "astienth", "rpg", "deckbuilding", "deckbuilder", "card game", "turn-based", "sci-fi", "space", "adventure", "story", "indie"); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For a full uninstall, delete the renamed file plus the 'BepInEx\' folder.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Elden Ring VR"; VideoUrl="https://www.youtube.com/watch?v=n69V9sGFzjE"; Quip="Rise, Tarnished, and stand life-size before the Erdtree."; SteamId="1245620";                   Mod="R.E.A.L."; SteamFolder="ELDEN RING"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#c89a3c"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, elden ring, fromsoftware, souls", "action", "fantasy", "open world", "rpg", "souls-like") ; ModFile="Game\RealRepo\RealVR64.dll"; ModFileAlt="Game\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry 4 VR"; VideoUrl="https://www.youtube.com/watch?v=p4EYaeZhOx4"; Quip="Welcome to Kyrat. The Himalayas have never looked so close."; SteamId="298110";                    Mod="R.E.A.L."; SteamFolder="Far Cry 4"; GameExe="bin\FarCry4.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry 5 VR"; VideoUrl="https://www.youtube.com/watch?v=VPN1wppEkB8"; Quip="Hope County needs a deputy. Step into the cult's backyard."; SteamId="552520";                    Mod="R.E.A.L."; SteamFolder="Far Cry 5"; GameExe="FarCry5.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa6633"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry 6 VR"; VideoUrl="https://youtu.be/OR6BJ2q3rrk?t=464"; Quip="Viva Libertad! Tear down the regime from inside the headset."; SteamId="2369390";                    Mod="R.E.A.L."; SteamFolder="Far Cry 6"; GameExe="bin\FarCry6.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#dd9933"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry New Dawn VR"; VideoUrl="https://www.youtube.com/watch?v=FTJ9SZr6UTU"; Quip="After the collapse, the pink-and-neon apocalypse awaits."; SteamId="939960";             Mod="R.E.A.L."; SteamFolder="FarCryNewDawn"; FallbackPaths=@("STEAM:Far Cry New Dawn"); GameExe="bin\FarCryNewDawn.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "post-apocalyptic") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry Primal VR"; VideoUrl="https://www.youtube.com/watch?v=Ithr5auywNI"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="FF VII Rebirth VR"; VideoUrl="https://youtu.be/WwJYlCZmQM0?t=23"; VideoLabel="Watch gameplay"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="FF VII Remake VR"; VideoUrl="https://www.youtube.com/watch?v=fEGt4aB-YMM"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{
+        Controls    = "VRGP"
+        Title       = "F-Zero X VR"
+        # The clip is FLAT gameplay - there is no VR capture of this one,
+        # so VideoLabel renames the strip instead of promising VR footage.
+        VideoUrl    = "https://www.youtube.com/watch?v=aAnxpyUbUWY"
+        VideoLabel  = "Watch gameplay"
+        SteamId     = ""
+        PortraitUrl = "Assets/FZeroXVR_portrait.jpg"
+        HeaderUrl   = "Assets/FZeroXVR_header.jpg"
+        ScreenshotUrl = "Assets/FZeroXVR_screenshot.jpg"
+        Quip        = "Thirty machines, no brakes, one energy bar."
+        Mod         = "G-Diffuser"
+        Description = "US Rev 0 ROM required"
+        Author      = "RaYRoD"
+        Bat         = "FZeroXVR\START_INSTALLER.bat"
+        Color       = "#180a2b"
+        Accent      = "#a259ff"
+        InfoUrl     = "https://github.com/RaYRoD-TV/FZeroX-VR"
+        ModPageUrl  = "https://github.com/RaYRoD-TV/FZeroX-VR"
+        # No GithubRepo: his game repo carries NO releases ("No builds
+        # here, the hub is the one spot for all of it"). The download
+        # address therefore points at the Multiverse VR Hub, which
+        # everything runs through.
+        DownloadUrl = "https://github.com/RaYRoD-TV/MVRH/releases/latest"
+        ModFile     = "G-Diffuser.exe"
+        LaunchExe   = "G-Diffuser.exe"
+        StandaloneVR = $true
+        SteamFolder = "F-Zero X VR"
+        FallbackPaths=@("C:\Games\F-Zero X VR", "D:\Games\F-Zero X VR", "E:\Games\F-Zero X VR")
+        Tags=@("f-zero x", "f-zero", "fzero", "fzerox", "g-diffuser", "gdiffuser", "zorkats", "nintendo", "nintendo 64", "n64", "rayrod", "racing", "action", "fast paced", "futuristic", "sci-fi", "arcade", "retro", "openxr")
+    },
+    @{ Controls="GP"; Title="Far Cry 4 VR"; VideoUrl="https://www.youtube.com/watch?v=p4EYaeZhOx4"; Quip="Welcome to Kyrat. The Himalayas have never looked so close."; SteamId="298110";                    Mod="R.E.A.L."; SteamFolder="Far Cry 4"; GameExe="bin\FarCry4.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Far Cry 5 VR"; VideoUrl="https://www.youtube.com/watch?v=VPN1wppEkB8"; Quip="Hope County needs a deputy. Step into the cult's backyard."; SteamId="552520";                    Mod="R.E.A.L."; SteamFolder="Far Cry 5"; GameExe="FarCry5.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa6633"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Far Cry 6 VR"; VideoUrl="https://youtu.be/OR6BJ2q3rrk?t=464"; Quip="Viva Libertad! Tear down the regime from inside the headset."; SteamId="2369390";                    Mod="R.E.A.L."; SteamFolder="Far Cry 6"; GameExe="bin\FarCry6.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#dd9933"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Far Cry New Dawn VR"; VideoUrl="https://www.youtube.com/watch?v=FTJ9SZr6UTU"; Quip="After the collapse, the pink-and-neon apocalypse awaits."; SteamId="939960";             Mod="R.E.A.L."; SteamFolder="FarCryNewDawn"; FallbackPaths=@("STEAM:Far Cry New Dawn"); GameExe="bin\FarCryNewDawn.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "post-apocalyptic") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Far Cry Primal VR"; VideoUrl="https://www.youtube.com/watch?v=Ithr5auywNI"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="FF VII Rebirth VR"; VideoUrl="https://youtu.be/WwJYlCZmQM0?t=23"; VideoLabel="Watch gameplay"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="FF VII Remake VR"; VideoUrl="https://www.youtube.com/watch?v=fEGt4aB-YMM"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Forza Horizon 5 VR"; VideoUrl="https://youtu.be/n-07s0oObI8?t=76"; VideoLabel="Watch gameplay"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"; Mod="VRMod (auto-update)"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; Description="OpenXR, 6DoF"; Author="lufz"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"; ModFile="vrmod-launcher.exe"; SteamFolder="ForzaHorizon5"; FallbackPaths=@("STEAM:ForzaHorizon5", "C:\XboxGames\Forza Horizon 5\Content", "XBOX:Forza Horizon 5"); InfoUrl="https://github.com/oofz/vrmod-releases/releases"; Tags=@("forza horizon 5", "forza", "fh5", "lufz", "vrmod", "racing", "driving", "open world", "mexico", "arcade racing", "sim", "simulation"); UninstallSteps=@("Delete 'C:\Games\Forza Horizon 5 VR' and the desktop shortcut.", "Verify the game files afterwards if you used Install VR Mod on the game folder (Steam: right-click the game > Properties > Installed Files > Verify; Xbox app: three-dot menu > Manage > Files > Verify and repair).") },
     @{ Controls="GP"; Title="Forza Horizon 6 VR"; VideoUrl="https://youtu.be/q1Xudpmnk6M?t=147"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"; Mod="NALULUNA or lufz VRMod"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; NoVersionSeed=$true; Description="6DoF, cockpit view"; Author="lufz (auto-update)"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"; SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); TwoMods=$true; ModAName="NALULUNA"; ModASub="NALULUNA"; ModALaunch="fh6vr.exe"; ModBName="lufz"; ModBSub="lufz"; ModBLaunch="vrmod-launcher.exe"; InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "racing", "driving", "open world", "arcade racing", "sim", "simulation") },
     @{ Controls="GP"; Title="Ghost of Tsushima VR"; VideoUrl="https://www.youtube.com/watch?v=L7NIei0xkEs"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
@@ -2881,11 +3309,11 @@ $ownGamesGP = @(
         FlatVREnabled  = "dxgi.dll"
         FlatVRDisabled = "dxgi.dll.off"
         SteamFolder = "Wildlands"
-        # SEIT v0.7.0-alpha AUCH UBISOFT CONNECT. Der Vorbehalt von 0.5.0
-        # ("nur Steam, andere Laeden sind eine andere Exe") ist weg: nach
-        # Ubisofts August-2026-Patch liefern Steam und Ubisoft Connect die
-        # BYTE-GLEICHE GRW.exe, eine Adresstabelle deckt beide. Epic bleibt
-        # draussen - dazu sagt der Autor nichts.
+        # UBISOFT CONNECT TOO SINCE v0.7.0-alpha. The 0.5.0 caveat
+        # ("Steam only, other stores are a different exe") is gone: after
+        # Ubisoft's August 2026 patch, Steam and Ubisoft Connect ship a
+        # BYTE-IDENTICAL GRW.exe and one offset table covers both. Epic
+        # stays out - the author says nothing about it.
         FallbackPaths=@("STEAM:Wildlands", "UBI:Tom Clancy's Ghost Recon Wildlands")
         UninstallSteps = @(
             "Close the game.",
@@ -2898,8 +3326,8 @@ $ownGamesGP = @(
         Tags        = @("ghost recon", "wildlands", "grw", "firejumper93", "openxr", "shooter", "fps", "action", "tactical", "military", "open world", "third person", "stealth", "ubisoft")
     },
     @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; VideoUrl="https://youtu.be/5sgmy9nJqZY?t=4402"; VideoLabel="Watch gameplay"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-update)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; VideoUrl="https://youtu.be/jwMUMGtPpwU?t=89"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Grounded VR"; VideoUrl="https://www.youtube.com/watch?v=4A5yO10xSHs"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; VideoUrl="https://youtu.be/jwMUMGtPpwU?t=89"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="Snowfall\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Snowfall\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Grounded VR"; VideoUrl="https://www.youtube.com/watch?v=4A5yO10xSHs"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="Maine\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Maine\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Maine\Binaries\WinGDK\RealRepo\RealVR64.dll" },
     @{
         Controls    = "GP"
         Title       = "GTA IV VR"
@@ -2928,8 +3356,8 @@ $ownGamesGP = @(
         )
         Tags=@("gta", "gta 4", "gta iv", "grand theft auto", "liberty city", "niko bellic", "rockstar", "dxvk", "open world", "action", "shooter", "driving", "story")
     },
-    @{ Controls="GP"; Title="High on Life VR"; VideoUrl="https://www.youtube.com/watch?v=Yzn5Rf_vwLc"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Hogwarts Legacy VR"; VideoUrl="https://www.youtube.com/watch?v=CT9WPSiKHzA"; Quip="Wand at the ready. Walk the halls of Hogwarts yourself."; SteamId="990080";              Mod="R.E.A.L."; SteamFolder="Hogwarts Legacy"; FallbackPaths=@("EPIC:HogwartsLegacy"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a5a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, hogwarts, harry potter", "adventure", "fantasy", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="High on Life VR"; VideoUrl="https://www.youtube.com/watch?v=Yzn5Rf_vwLc"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="Oregon\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Oregon\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Oregon\Binaries\WinGDK\RealRepo\RealVR64.dll" },
+    @{ Controls="GP"; Title="Hogwarts Legacy VR"; VideoUrl="https://www.youtube.com/watch?v=CT9WPSiKHzA"; Quip="Wand at the ready. Walk the halls of Hogwarts yourself."; SteamId="990080";              Mod="R.E.A.L."; SteamFolder="Hogwarts Legacy"; FallbackPaths=@("EPIC:HogwartsLegacy"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a5a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, hogwarts, harry potter", "adventure", "fantasy", "rpg", "story") ; ModFile="Phoenix\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Phoenix\Binaries\Win64\RealRepo_\RealVR64.dll" },
     # TWO MODS, ONE PLUGINS FOLDER. Astienth's mod adds parallax depth
     # between the sprite layers; SadMonsterParty's Flat to VR puts the
     # flat picture on several floating OpenVR overlay planes. Both are
@@ -2948,7 +3376,7 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Horizon Zero Dawn Remastered VR"; VideoUrl="https://www.youtube.com/live/8_CNr418TMg?t=748"; Quip="Aloy's world, remastered. The machines tower over you."; SteamId="2561580"; Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc7733"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Hypogea VR"; VideoUrl="https://www.youtube.com/watch?v=eUZdcHg2riI"; SteamId="2980260"; Mod="Hypogea_VR v1.0.0"; SteamFolder="Hypogea"; FallbackPaths=@("STEAM:Hypogea Demo", "STEAM:HYPOGEA"); Description="Discord login required."; Author="Astienth"; Bat="HypogeaVR\START_INSTALLER.bat"; Color="#100818"; Accent="#aa66ee"; InfoUrl="https://discord.com/channels/1001138422972432597/1465600243939672115/1465600264210878691"; Tags=@("hypogea", "astienth", "atmospheric", "retro", "ps1", "platformer", "indie", "narrative", "exploration", "story"); ModFile="BepInEx\plugins\Hypogea_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Indiana Jones: Great Circle VR"; VideoUrl="https://www.youtube.com/watch?v=IpzWP3u84lM"; Quip="Fortune and glory, kid. The whip's in your hand now."; SteamId="2677660";  Mod="R.E.A.L."; SteamFolder="Indiana Jones and the Great Circle"; FallbackPaths=@("STEAM:The Great Circle", "XBOX:The Great Circle"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#b88846"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, indiana jones", "adventure", "action", "puzzle") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Kingdom Come: Deliverance II VR"; VideoUrl="https://www.youtube.com/watch?v=mZYRtwL7iXk"; Quip="Jesus Christ be praised - medieval Bohemia, life-size."; SteamId="1771300"; Mod="R.E.A.L."; SteamFolder="KingdomComeDeliverance2"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a4a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, kingdom come", "rpg", "fantasy", "medieval", "realistic") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Kingdom Come: Deliverance II VR"; VideoUrl="https://www.youtube.com/watch?v=mZYRtwL7iXk"; Quip="Jesus Christ be praised - medieval Bohemia, life-size."; SteamId="1771300"; Mod="R.E.A.L."; SteamFolder="KingdomComeDeliverance2"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a4a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, kingdom come", "rpg", "fantasy", "medieval", "realistic") ; ModFile="Bin\Win64MasterMasterSteamPGO\RealRepo\RealVR64.dll"; ModFileAlt="Bin\Win64MasterMasterSteamPGO\RealRepo_\RealVR64.dll"; ModFileAlt2="Bin\Win64MasterMasterEpicPGO\RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Kunitsu-Gami: Path of the Goddess VR"; VideoUrl="https://youtu.be/J1gSrZenM0w?t=120"; Quip="Cleanse the defilement by day, defend the maiden by night."; SteamId="2510710"; Mod="REF (auto-update)"; SteamFolder="KUNITSU-GAMI"; FallbackPaths=@("STEAM:Kunitsu-Gami", "STEAM:KunitsuGami", "STEAM:Kunitsu-Gami Path of the Goddess", "XBOX:Kunitsu-Gami- Path of the Goddess"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="KunitsuGami.exe"; Color="#1a0a00"; Accent="#cc2244"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("kunitsu-gami", "reframework", "praydog", "action", "rpg", "strategy", "japanese"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Lunistice VR"; VideoUrl="https://www.youtube.com/watch?v=tQTkUIKj3tw"; VideoLabel="Watch gameplay"; SteamId="1701800"; Mod="Lunistice_VR v1.0.0"; SteamFolder="Lunistice"; FallbackPaths=@("STEAM:Lunistice Demo", "GOG:Lunistice"); Description="Discord login required."; Author="Astienth"; Bat="LunisticeVR\START_INSTALLER.bat"; Color="#1a0820"; Accent="#ff77cc"; InfoUrl="https://discord.com/channels/1001138422972432597/1465598630382669916/1465598630382669916"; Tags=@("lunistice", "astienth", "cute", "kawaii", "retro", "platformer", "indie", "fast paced", "anime"); ModFile="BepInEx\plugins\Lunistice_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
@@ -2961,8 +3389,7 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/MarioKart64_header.jpg"
         ScreenshotUrl = "Assets/MarioKart64_screenshot.jpg"
         Quip        = "Rainbow Road has no guardrails. Neither does karma."
-        Mod         = "SpaghettiKart (auto-update)"
-        GithubRepo  = "RaYRoD-TV/MarioKart64-VR"
+        Mod         = "SpaghettiKart"
         Description = "US (NTSC) .z64 ROM required"
         Author      = "RaYRoD"
         Bat         = "MarioKart64VR\START_INSTALLER.bat"
@@ -2985,11 +3412,11 @@ $ownGamesGP = @(
         SteamId     = "1328670"
         Quip        = "I'm Commander Shepard, and this is my favorite mod on the Citadel."
         Mod         = "MELE-VR V3"
-        # Zeitstempel, den der V3-Build im Zip des Modders traegt
-        # (aus MELE1-VR-V3.zip gelesen: dxgi.dll 1.250.304 B, 2026-08-12
-        # 16:48). Wer noch auf V1 oder V2 sitzt, hat ein aelteres Datum
-        # auf der Platte -> Update-Kennzeichen. Eine V3-Installation gilt
-        # als aktuell, egal wann sie entpackt wurde.
+        # Timestamp the V3 build carries inside the modder's zip (read
+        # from MELE1-VR-V3.zip: dxgi.dll 1,250,304 B, 2026-08-12 16:48).
+        # Anyone still on V1 or V2 has an older date on disk -> update
+        # badge. A V3 install counts as current no matter when it was
+        # unpacked.
         ModBuildStamp = "2026-08-12 16:48"
         Description = "Legendary Edition required"
         Author      = "dhalcyon"
@@ -3015,11 +3442,10 @@ $ownGamesGP = @(
         SteamId     = "1328670"
         Quip        = "Assemble the team. The Omega-4 relay is a one-way trip."
         Mod         = "MELE2-VR"
-        # ME2 hatte bisher KEIN Update-Signal - der Hub konnte dort nie
-        # eine neue Fassung melden. Zeitstempel wie bei ME1: aus dem Zip
-        # des Modders gelesen (dxgi.dll 849.408 B, 2026-08-01 20:29). Wer
-        # eine aeltere Datei auf der Platte hat, bekommt das
-        # Update-Kennzeichen.
+        # ME2 had NO update signal at all - the Hub could never report a
+        # new build there. Timestamp as with ME1, read from the modder's
+        # zip (dxgi.dll 849,408 B, 2026-08-01 20:29). Anyone with an
+        # older file on disk gets the update badge.
         ModBuildStamp = "2026-08-01 20:29"
         Description = "Legendary Edition required"
         Author      = "dhalcyon"
@@ -3039,7 +3465,7 @@ $ownGamesGP = @(
         Tags=@("mass effect", "mass effect 2", "mele2", "legendary edition", "shepard", "normandy", "omega", "collectors", "suicide mission", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
     },
     @{ Controls="GP"; Title="Mega Man Star Force Legacy VR"; VideoUrl="https://youtu.be/oIjb5ArHI_M?t=33"; VideoLabel="Watch gameplay"; Quip="Transer online. EM Wave Change, Geo - ride on!"; SteamId="3500390"; PortraitUrl="Assets/MegaManStarForce_portrait.jpg"; HeaderUrl="Assets/MegaManStarForce_header.jpg"; Mod="REF (auto-update)"; SteamFolder="Mega Man Star Force Legacy Collection"; FallbackPaths=@("STEAM:MMSFLEGACYCOLLECTION", "STEAM:MegaManStarForceLegacyCollection"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="STARFORCE.exe"; Color="#001a1a"; Accent="#00cccc"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("mega man star force", "reframework", "praydog", "action", "rpg", "jrpg"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Mirage Feathers VR"; VideoUrl="https://www.youtube.com/watch?v=SSebsIfxrVk"; VideoLabel="Watch gameplay"; SteamId="2719060"; Mod="MirageFeathers_VR v1.0.0"; SteamFolder="Mirage Feathers"; FallbackPaths=@("STEAM:MirageFeathers", "STEAM:Mirage Feathers Demo", "STEAM:MirageFeathersDemo"); Description="Discord login, Demo or Full"; Author="Astienth"; Bat="MirageFeathersVR\START_INSTALLER.bat"; Color="#180814"; Accent="#88ccdd"; InfoUrl="https://discord.com/channels/1001138422972432597/1325853693530079232/1325853693530079232"; Tags=@("mirage feathers", "miragefeathers", "astienth", "rail shooter", "shmup", "after burner", "space harrier", "hang on", "super scaler", "anime", "arcade", "indie"); ModFile="BepInEx\plugins\MirageFeathers_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ Controls="GP"; Title="Mirage Feathers VR"; VideoUrl="https://www.youtube.com/watch?v=SSebsIfxrVk"; VideoLabel="Watch gameplay"; SteamId="2719060"; Mod="MirageFeathers_VR v1.0.0"; SteamFolder="Mirage Feathers"; FallbackPaths=@("STEAM:MirageFeathers", "STEAM:Mirage Feathers Demo", "STEAM:MirageFeathersDemo"); Description="Discord login, Demo or Full"; Author="Astienth"; Bat="MirageFeathersVR\START_INSTALLER.bat"; Color="#180814"; Accent="#88ccdd"; InfoUrl="https://discord.com/channels/1001138422972432597/1325853693530079232/1325853693530079232"; Tags=@("mirage feathers", "miragefeathers", "astienth", "rail shooter", "shooter", "shmup", "after burner", "space harrier", "hang on", "super scaler", "anime", "arcade", "indie"); ModFile="BepInEx\plugins\MirageFeathers_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Monster Hunter Rise VR"; VideoUrl="https://www.youtube.com/watch?v=O0cxLPaYzUE"; Quip="Wirebug up, monster down. The hunt is yours."; SteamId="1446780"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterRise"; FallbackPaths=@("XBOX:Monster Hunter Rise"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterRise.exe"; Color="#1a0a00"; Accent="#dd6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter rise", "reframework", "praydog", "action", "coop", "rpg"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Monster Hunter Stories 3 VR"; VideoUrl="https://www.youtube.com/watch?v=Itzcp6_bWfM"; VideoLabel="Watch gameplay"; Quip="Hatch the egg, ride the monstie. Forge your kinship."; SteamId="2852190"; PortraitUrl="Assets/MonsterHunterStories3_portrait.jpg"; HeaderUrl="Assets/MonsterHunterStories3_header.jpg"; Mod="REF (auto-update)"; SteamFolder="MONSTER HUNTER STORIES 3"; FallbackPaths=@("STEAM:Monster Hunter Stories 3", "STEAM:MonsterHunterStories3", "STEAM:MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MHSTORIES3.exe"; Color="#0a1a0a"; Accent="#ee9933"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter stories", "reframework", "praydog", "rpg", "story", "jrpg", "turn-based", "adventure"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Monster Hunter Wilds"; VideoUrl="https://www.youtube.com/watch?v=lLWE5328LPs"; VideoLabel="Watch gameplay"; Quip="Track the herd across the wilds, hunter. Bring your blade."; SteamId="2246340"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterWilds"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterWilds.exe"; Color="#1a0800"; Accent="#ff5500"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter wilds", "reframework", "praydog", "action", "coop", "open world", "rpg"); ModFile="openxr_loader.dll" },
@@ -3072,18 +3498,24 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Onimusha 2 VR"; VideoUrl="https://youtu.be/42jEMrshZzc?t=1590"; VideoLabel="Watch gameplay"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v1.0.1"; ModReleasedAt="2026-07-21"; ModBuildStamp="2026-07-21 03:24"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="BepInEx\plugins\OutboundVR\OutboundVR.dll"; SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
     @{
-        Controls    = "GP"
+        # "BOTH" SINCE THE SECOND MOD ARRIVED (2026-08-20). Halcyon is
+        # gamepad only; Hammerthis brings tracked controllers and VR
+        # hands. The tile draws both glyphs side by side, and the entry
+        # now shows up under the Motion Controls filter as well as under
+        # Gamepad - which is the honest answer, because which one you get
+        # depends on the mod you install.
+        Controls    = "BOTH"
         Title       = "Outlast VR"
         Quip        = "You are not armed. You never were. Now you can look behind you."
         SteamId     = "238320"
         SteamFolder = "Outlast"
         VideoUrl    = "https://www.youtube.com/watch?v=odXzJC-JABM"
-        Mod         = "Outlast VR by Halcyon"
-        Description = "Stereo, VR cutscenes"
-        Author      = "Halcyon"
-        # Blaue Zeile auf der Kachel. Ersetzt dort automatisch die
-        # "by <Modder>"-Zeile - genau wie bei Amnesia VR und den anderen
-        # elf Eintraegen mit einem Zusatzmod.
+        Mod         = "Halcyon, Hammerthis (alpha)"
+        Description = "Two mods, switchable"
+        Author      = "Halcyon / Hammerthis"
+        # Blue line on the tile. It automatically replaces the
+        # "by <modder>" line there - exactly as with Amnesia VR and the
+        # other entries that carry a companion mod.
         ImprovementTag = "+ remove film grain"
         Bat         = "OutlastVR\START_INSTALLER.bat"
         Color       = "#1a1c18"
@@ -3091,8 +3523,34 @@ $ownGamesGP = @(
         InfoUrl     = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
         ModPageUrl  = "https://www.patreon.com/dhalcyon"
         DownloadUrl = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
-        # !!! Binaries\Win64, NICHT der Spielordner - haeufigste Verwechslung.
-        # Alle drei Laeden legen dieselbe Struktur an, nur an anderer Stelle.
+        # TWO MODS, TWO COMPLETELY DIFFERENT APPROACHES.
+        # Halcyon copies a d3d9 proxy next to OLGame.exe - Outlast loads
+        # it at startup. Hammerthis never touches the game folder at all:
+        # it launches Outlast through Steam, waits for the process and
+        # injects a DLL. So unlike BioShock the two do NOT collide over a
+        # file name and both can sit on disk at once - but they must not
+        # end up in the SAME process, which is what the two launchers in
+        # _vrmods\VRLaunch are for. Each parks the other's proxy first.
+        # The installer puts Hammerthis under _vrmods\hammerthis; his
+        # README says "extract anywhere", and there the Hub can find it.
+        TwoMods       = $true
+        ModAName      = "Halcyon"
+        ModASub       = "_vrmods"
+        ModALaunch    = "Outlast VR (Halcyon).bat"
+        ModBName      = "Hammerthis"
+        ModBSub       = "_vrmods"
+        ModBLaunch    = "Outlast VR (Hammerthis).bat"
+        ModBProbeFile = "_vrmods\hammerthis\PLAY_OUTLAST_VR.bat"
+        # Hammerthis publishes prereleases only - without this flag the
+        # scan asks /releases/latest, which is empty for that repo, and
+        # an update would never show. Checked only when his mod is really
+        # on disk, so a release of his cannot raise a badge on a
+        # Halcyon-only install.
+        GithubRepoB   = "Hammerthis/Outlast-Vr-Mod"
+        GithubRepoBPresenceFile = "_vrmods\hammerthis\PLAY_OUTLAST_VR.bat"
+        GithubPrerelease = $true
+        # !!! Binaries\Win64, NOT the game root - the most common mix-up.
+        # All three stores create the same structure, just elsewhere.
         ModFile     = "Binaries\Win64\d3d9.dll"
         GameExe     = "Binaries\Win64\OLGame.exe"
         FallbackPaths=@("C:\GOG Games\Outlast", "C:\Program Files (x86)\GOG Galaxy\Games\Outlast", "EPIC:Outlast", "C:\Program Files\Epic Games\Outlast", "C:\Program Files (x86)\Epic Games\Outlast")
@@ -3100,9 +3558,12 @@ $ownGamesGP = @(
             "Close Outlast first - the mod's own script checks and refuses to run while it is open.",
             "Run 'Outlast-VR.bat' again from Outlast\Binaries\Win64 and choose [2] Uninstall. That is the author's own way and it puts the game config back.",
             "If you would rather do it by hand, delete d3d9.dll, openxr_loader.dll, outlastvr.ini and Outlast-VR.bat from that folder - no base game file is touched.",
-            "Your VR tuning lives in outlastvr.ini beside the game, so it goes with those files."
+            "Your VR tuning lives in outlastvr.ini beside the game, so it goes with those files.",
+            "Hammerthis' mod: delete the _vrmods folder in your Outlast directory. It holds his whole mod plus the two switch launchers, and it never wrote anything anywhere else.",
+            "If d3d9.dll.off is sitting in Binaries\\Win64, a launcher parked Halcyon's proxy - rename it back to d3d9.dll to have that mod active again.",
+            "His launcher changed your graphics settings on first VR launch; RESTORE_OUTLAST_SETTINGS.bat in his folder puts them back - run it BEFORE deleting the folder."
         )
-        Tags=@("outlast", "horror", "survival horror", "red barrels", "asylum", "halcyon", "stereo", "gamepad", "openxr", "patreon")
+        Tags=@("outlast", "hammerthis", "alpha", "horror", "survival horror", "red barrels", "asylum", "halcyon", "stereo", "gamepad", "openxr", "patreon")
     },
     @{
         Controls    = "VRGP"
@@ -3155,28 +3616,27 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/Gen1RecompVR_header.jpg"
         ScreenshotUrl = "Assets/Gen1RecompVR_screenshot.jpg"
         Quip        = "That Snorlax is blocking the road at full size now. Still no flute."
-        # Der Fork ist die lebende Quelle. Das alte Repo (und das Konto)
-        # DramaticShape ist weg, GitHub antwortet mit 404.
+        # The fork is the actively maintained source. The old repo (and the account)
+        # DramaticShape is gone; GitHub answers with 404.
         Mod         = "Voxel Mod - two versions"
-        # !!! KEIN AUTO-UPDATE MEHR - MIT ABSICHT !!!
-        # In DRAMALESS 2.0.0 hat der Autor die VR-Unterstuetzung KOMPLETT
-        # entfernt (Changelog: "VR support was removed entirely for the time
-        # being ... I have no equipment to test and debug it"; README: "The
-        # removed OpenXR loader is not distributed in 2.0."). Aus dem Archiv
-        # nachgezaehlt fehlen assets\vr\openxr_loader.dll und lib\VR.lua,
-        # VRGL.lua, VRRig.lua, VRXR.lua.
-        # Bliebe GithubRepo stehen, wuerde der Hub 2.0.0 als Update melden
-        # und jeden, der es annimmt, seine VR-Fassung kosten. Der Eintrag
-        # bleibt deshalb auf v1.6.4, der letzten Fassung MIT VR.
-        # WIEDER EINSCHALTEN, sobald VR zurueck ist - der Autor nennt im
-        # Changelog jemanden, der an einer neuen VR-Anbindung fuer Gen1Recomp
-        # arbeitet.
-        # DER INSTALLER BIETET SEIT 2026-08-13 ZWEI MODS ZUR AUSWAHL, beide
-        # mit VR und beide fest gepinnt: die ORIGINALE Dramatic Shape v1.8.2
-        # (gespiegelt bei scottcandy34, mit eingebautem First-Person-Modus
-        # und den Kampf-Funktionen) und die schlankere Dramaless v1.6.4.
-        # Immer nur eine darf in mods\ liegen - die andere wird ganz
-        # herausbewegt, nicht umbenannt und nicht geloescht.
+        # !!! NO AUTO-UPDATE ANY MORE - ON PURPOSE !!!
+        # In DRAMALESS 2.0.0 the author removed VR support ENTIRELY
+        # (changelog: "VR support was removed entirely for the time being
+        # ... I have no equipment to test and debug it"; README: "The
+        # removed OpenXR loader is not distributed in 2.0."). Counted from
+        # the archive, assets\vr\openxr_loader.dll and lib\VR.lua,
+        # VRGL.lua, VRRig.lua, VRXR.lua are all missing.
+        # If GithubRepo stayed, the Hub would report 2.0.0 as an update
+        # and cost anyone who accepted it their VR build. The entry
+        # therefore stays on v1.6.4, the last release WITH VR.
+        # TURN IT BACK ON once VR returns - the changelog names someone
+        # working on a new VR layer for Gen1Recomp.
+        # SINCE 2026-08-13 THE INSTALLER OFFERS TWO MODS, both with VR and
+        # both pinned: the ORIGINAL Dramatic Shape v1.8.2 (mirrored by
+        # scottcandy34, with built-in first-person mode and the combat
+        # features) and the leaner Dramaless v1.6.4.
+        # Only one may sit in mods\ at a time - the other is moved out
+        # entirely, not renamed and not deleted.
         Description = "US .gb or .gbc ROM required"
         Author      = "artyrambles"
         Bat         = "Gen1RecompVR\START_INSTALLER.bat"
@@ -3186,15 +3646,16 @@ $ownGamesGP = @(
         ModPageUrl  = "https://github.com/artyrambles/DRAMALESS_SHAPE"
         DownloadUrl = "https://github.com/artyrambles/DRAMALESS_SHAPE/releases"
         ModFile     = "gen1recomp.exe"
-        # gen1recomp.exe gehoert zum FLACHEN Port - sie liegt auch dann da,
-        # wenn die Installation der VR-Mod gescheitert ist. Die Mod selbst
-        # liegt in %APPDATA%\pokemon-love2d\mods\ und damit ausserhalb des
-        # Spielordners, laesst sich also nicht ueber ModFile pruefen.
-        # Der Installer legt deshalb diesen Merker im Spielordner an - und
-        # NUR, wenn die manifest.json der Mod wirklich im Mod-Ordner liegt.
-        # Fehlt er, meldet die Kachel ein Update statt faelschlich VR Ready.
-        # (Wer vor dem 2026-08-13 sauber installiert hat, sieht einmalig ein
-        # Update; ein Lauf des Installers legt den Merker an.)
+        # gen1recomp.exe belongs to the FLAT port - it is present even
+        # when installing the VR mod failed. The mod itself lives in
+        # %APPDATA%\pokemon-love2d\mods\, outside the game folder, so it
+        # cannot be checked through ModFile.
+        # The installer therefore writes this marker into the game folder
+        # - and ONLY when the mod's manifest.json really is in the mod
+        # folder. Without it the tile reports an update instead of
+        # wrongly claiming VR Ready.
+        # (Anyone who installed cleanly before 2026-08-13 sees one update
+        # once; a single installer run writes the marker.)
         ModRequiredFile = ".pcvrhub_voxelmod"
         LaunchExe   = "gen1recomp.exe"
         StandaloneVR = $true
@@ -3298,7 +3759,6 @@ $ownGamesGP = @(
         # Background update check: the Hub compares the GitHub latest
         # tag against .installed_version (written verbatim by the
         # installer), so the tile flips to Update on a new release.
-        GithubRepo  = "RaYRoD-TV/RingRacers-VR"
         ModFile     = "ringracers-vr.exe"
         LaunchExe   = "ringracers-vr.exe"
         SteamFolder = "Ring Racers VR"
@@ -3329,15 +3789,21 @@ $ownGamesGP = @(
     @{ Controls="VRGP"; Title="Rogue Flight VR"; VideoUrl="https://www.youtube.com/watch?v=0Bqa7dPUHrM"; SteamId="2784620"; Mod="RogueFlight_VR v1.0.0"; SteamFolder="Rogue Flight"; FallbackPaths=@("STEAM:RogueFlight", "STEAM:ROGUE FLIGHT", "STEAM:ROGUE_FLIGHT", "STEAM:Rogue Flight Demo"); Description="Discord login required."; Author="Astienth"; Bat="RogueFlightVR\START_INSTALLER.bat"; Color="#080820"; Accent="#66ccff"; InfoUrl="https://discord.com/channels/1001138422972432597/1443945389454528634/1443945389454528634"; Tags=@("rogue flight", "rogueflight", "astienth", "anime", "manga", "shooter", "space", "bullet hell", "fast paced", "arcade", "indie"); ModFile="BepInEx\plugins\RogueFlight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Sayonara Wild Hearts"; VideoUrl="https://www.youtube.com/watch?v=Zcg-dsjjyYs"; Pill="SAYONARAWH_VR"; SteamId="1122720"; Mod="SayonaraWH_VR v1.0.0"; SteamFolder="Sayonara Wild Hearts"; FallbackPaths=@("STEAM:SayonaraWildHearts", "GOG:Sayonara Wild Hearts", "EPIC:Sayonara Wild Hearts", "EPIC:SayonaraWildHearts"); Description="Discord login, depth + bHaptics"; Author="Astienth"; Bat="SayonaraWildHeartsVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#cc44aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1253317358735327354/1253317358735327354"; Tags=@("sayonara wild hearts", "sayonarawildhearts", "astienth", "simogo", "annapurna", "music", "rhythm", "arcade", "casual", "stylized", "indie", "lgbtq", "atmospheric", "bhaptics"); ModFile="BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
-        # NUR GAMEPAD: der Autor sagt ausdruecklich, dass VR-Motioncontroller
-        # noch nicht unterstuetzt werden und ein Controller Pflicht ist.
+        # GAMEPAD ONLY: the author states plainly that VR motion
+        # controllers are not supported yet and a gamepad is required.
+        # STAYS "GP" EVEN THOUGH v1.3 ADDED VR CONTROLLER SUPPORT.
+        # The author is explicit: they "function as a standard gamepad
+        # and do not use motion-tracked controls". Flipping this to MC
+        # would promise motion controls the mod does not have.
         Controls    = "GP"
         Title       = "Shenmue I & II"
-        VideoUrl    = "https://www.youtube.com/watch?v=tCwMbR1QdWI"
+        # v1.3 video (OpenXR, framerate boost). The older clip showed
+        # v1.0 and no longer matches what the installer sets up.
+        VideoUrl    = "https://www.youtube.com/watch?v=UB_LzA7hYT8"
         Quip        = "The sailors are a lie. The forklift is real."
         SteamId     = "758330"
         Mod         = "ShenmueVR (auto-update)"
-        Description = "30 FPS, motion smoothing"
+        Description = "Seated; needs interpolation"
         Author      = "Tensai37"
         Bat         = "ShenmueVR\START_INSTALLER.bat"
         Color       = "#101820"
@@ -3347,22 +3813,22 @@ $ownGamesGP = @(
         DownloadUrl = "https://codeberg.org/Tensai37/Shenmue_1_and_2_VR_mod/releases"
         DonateUrl   = "https://ko-fi.com/tensai37"
         DonateUrlAlt= "https://www.patreon.com/cw/Tensai37/membership"
-        # ERSTER CODEBERG-EINTRAG IM HUB. Codeberg laeuft auf Forgejo und hat
-        # dieselbe API-Form wie Gitea; Get-CodebergLatestTagCached in
-        # Filter.ps1 fragt sie ab (API zuerst, RSS-Feed als Rueckfall) und
-        # legt das Ergebnis in .cb_version_cache mit 6 Stunden Haltbarkeit.
+        # FIRST CODEBERG ENTRY IN THE HUB. Codeberg runs on Forgejo and
+        # has the same API shape as Gitea; Get-CodebergLatestTagCached in
+        # Filter.ps1 queries it (API first, RSS feed as fallback) and
+        # caches the result in .cb_version_cache for six hours.
         CodebergRepo = "Tensai37/Shenmue_1_and_2_VR_mod"
-        # ERKENNUNG: aus einem echten Vorher/Nachher-Vergleich des
-        # Spielordners, nicht geraten. Beide Marker noetig, weil man im
-        # Setup auch nur EINES der beiden Spiele auswaehlen kann.
+        # DETECTION: taken from a real before/after comparison of the
+        # game folder, not guessed. Both markers are needed because the
+        # setup lets you pick just ONE of the two games.
         ModFile     = "sm1\ShenmueVR.ini"
         ModFileAlt  = "sm2\ShenmueVR.ini"
         SteamFolder = "Shenmue I & II"
         FallbackPaths=@("STEAM:Shenmue I & II", "C:\XboxGames\Shenmue I & II\Content", "XBOX:Shenmue I & II")
-        # KURZ HALTEN, siehe Konventionen: nur was vor dem Loslegen stehen
-        # muss. Controller-Pflicht, Exe-Patch und die 1.07-Anforderung
-        # stehen im README in eigenen Abschnitten.
-        Notice      = "Both games are hard-capped at 30 FPS, and a faster PC does not lift that cap - frame interpolation is REQUIRED: Asynchronous Spacewarp on Quest over Link or Air Link, Synchronous Spacewarp on Virtual Desktop, Motion Smoothing on SteamVR headsets including PS VR2. Without it the picture judders and the game can crash."
+        # KEEP IT SHORT, per the conventions: only what has to be known
+        # before starting. The gamepad requirement, the exe patch and the
+        # 1.07 requirement each have their own README section.
+        Notice      = "Shenmue II is hard-capped at 30 FPS, and so is Shenmue I outside normal first-person play - frame interpolation is required. Since v1.3 the setup asks for OpenVR or OpenXR: the framerate boost for Shenmue I only works on OpenXR."
         UninstallSteps = @(
             "Close both games and the Steam launcher.",
             "Open Windows Settings - Apps - Installed apps, search for 'Shenmue I & II VR Mod', open the three-dot menu and choose Uninstall. The mod's own uninstaller restores your game executables from the backup it made.",
@@ -3395,7 +3861,6 @@ $ownGamesGP = @(
         # Background update check: the Hub compares the GitHub latest
         # tag against .installed_version (written verbatim by the
         # installer), so the tile flips to Update on a new release.
-        GithubRepo  = "RaYRoD-TV/SRB2-VR"
         ModFile     = "srb2win.exe"
         LaunchExe   = "srb2win.exe"
         SteamFolder = "Sonic Robo Blast 2 VR"
@@ -3415,14 +3880,13 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/StarFox64_header.jpg"
         ScreenshotUrl = "Assets/StarFox64_screenshot.jpg"
         Quip        = "Do a barrel roll, Fox - the Lylat System is counting on you."
-        Mod         = "Starship VR (auto-update)"
-        GithubRepo  = "RaYRoD-TV/StarFox64-VR"
-        # DAS PROJEKT HAT AUSSCHLIESSLICH PRERELEASES (v0.1.2-beta bis
-        # v0.1.6-beta, jede als Pre-release markiert). Ohne diese Flagge
-        # fragt der Scan /releases/latest ab, und das gibt es dort nicht -
-        # es kam also NIE eine Update-Kachel, egal wie alt der installierte
-        # Stand war. Der Installer holt schon immer die neueste Ausgabe mit
-        # einer .zip aus /releases, nur der Katalog wusste es nicht.
+        Mod         = "Starship VR"
+        # THIS PROJECT SHIPS PRERELEASES ONLY (v0.1.2-beta through
+        # v0.1.6-beta, each marked as a pre-release). Without this flag
+        # the scan queries /releases/latest, which does not exist there -
+        # so an update badge NEVER appeared, however old the installed
+        # build was. The installer has always taken the newest release
+        # carrying a .zip from /releases; only the catalog did not know.
         GithubPrerelease = $true
         Description = "US (NTSC) .z64 ROM required"
         Author      = "RaYRoD"
@@ -3503,7 +3967,7 @@ $ownGamesGP = @(
     },
     @{ Controls="GP"; Title="Star Wars Outlaws VR"; VideoUrl="https://www.youtube.com/watch?v=tOv5RlTEx9k"; Quip="Scoundrel's life in a galaxy far, far away - up close."; SteamId="2842040";            Mod="R.E.A.L."; SteamFolder="Star Wars Outlaws"; FallbackPaths=@("EPIC:StarWarsOutlaws", "UBI:Star Wars Outlaws"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8844"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, star wars, outlaws", "open world", "action", "sci-fi") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Starfield VR"; VideoUrl="https://youtu.be/3KEH4H-wSI8?t=94"; Roomscale=$true; SteamId="1716740"; Mod="starfield2vr (auto-update)"; GithubRepo="mutars/starfield2vr"; SteamFolder="Starfield"; FallbackPaths=@("XBOX:Starfield", "C:\XboxGames\Starfield\Content", "EPIC:Starfield"); Description="KB&M or Gamepad VR"; Author="mutars"; Bat="StarfieldVR\START_INSTALLER.bat"; Color="#0a1020"; Accent="#4488dd"; InfoUrl="https://github.com/mutars/starfield2vr"; Tags=@("starfield", "bethesda", "space", "fps", "open world", "rpg", "sci-fi", "shooter") ; ModFile="dxgi.dll"; UninstallSteps=@("Delete the files the mod added to the game folder: dxgi.dll and openvr_api.dll (OpenVR version) or openxr_loader.dll (OpenXR version).", "On Steam, 'Verify integrity of game files' is the cleanest way back to the vanilla state.", "Your saves are untouched - Starfield keeps them outside the game folder.") },
-    @{ Controls="GP"; Title="Stray VR"; VideoUrl="https://youtu.be/pxNbbUyfc9Y?t=20"; Quip="Be the cat. Knock things off ledges in the neon depths."; SteamId="1332010";                        Mod="R.E.A.L."; SteamFolder="Stray"; FallbackPaths=@("EPIC:Stray"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8833"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, stray, cat", "adventure", "exploration", "cyberpunk") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Stray VR"; VideoUrl="https://youtu.be/pxNbbUyfc9Y?t=20"; Quip="Be the cat. Knock things off ledges in the neon depths."; SteamId="1332010";                        Mod="R.E.A.L."; SteamFolder="Stray"; FallbackPaths=@("EPIC:Stray"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8833"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, stray, cat", "adventure", "exploration", "cyberpunk") ; ModFile="Hk_project\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Hk_project\Binaries\Win64\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Street Fighter 6 VR"; VideoUrl="https://www.youtube.com/watch?v=TqSGRPczCwc"; Quip="Round one. Fight! Throw hands face to face."; SteamId="1364780"; Mod="REF (auto-update)"; SteamFolder="Street Fighter 6"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="SF6.exe"; Color="#1a0000"; Accent="#ff2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("street fighter 6", "reframework", "praydog", "action", "fast paced", "fighting", "arcade", "competitive"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="StreetDog BMX VR"; VideoUrl="https://www.youtube.com/watch?v=6n3lxLmrPPA"; SteamId="2707870"; Mod="StreetDogBMX_VR v1.0.0"; SteamFolder="Street Dog BMX"; FallbackPaths=@("STEAM:StreetDogBMX", "STEAM:Streetdog BMX", "STEAM:StreetDog BMX", "STEAM:Street Dog BMX Demo"); Description="Discord login required."; Author="Astienth"; Bat="StreetDogBMXVR\START_INSTALLER.bat"; Color="#1a0a08"; Accent="#ff7744"; InfoUrl="https://discord.com/channels/1001138422972432597/1481693413479944417/1481693511601357072"; Tags=@("streetdog bmx", "streetdog", "street dog", "astienth", "racing", "sports", "fast paced", "indie", "bmx", "cartoon"); ModFile="BepInEx\plugins\StreetDogBMX_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Sunrise GP VR"; VideoUrl="https://www.youtube.com/watch?v=yoUHwjvXzmM"; SteamId="2670800"; Mod="SunriseGP_VR v1.0.0"; SteamFolder="Sunrise GP"; FallbackPaths=@("STEAM:SunriseGP", "STEAM:Sunrise GP Demo"); Description="Discord login required."; Author="Astienth"; Bat="SunriseGPVR\START_INSTALLER.bat"; Color="#180a08"; Accent="#ffaa66"; InfoUrl="https://discord.com/channels/1001138422972432597/1362074365952528494/1362074365952528494"; Tags=@("sunrise gp", "sunrisegp", "astienth", "racing", "cell shading", "cel-shaded", "arcade", "indie", "cartoon"); ModFile="BepInEx\plugins\SunriseGP_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
@@ -3517,8 +3981,7 @@ $ownGamesGP = @(
         HeaderUrl   = "Assets/SuperMario64_header.jpg"
         ScreenshotUrl = "Assets/SuperMario64_screenshot.jpg"
         Quip        = "Wahoo! Grab your cap and go bag every last star."
-        Mod         = "sm64coopdx VR (auto-update)"
-        GithubRepo  = "RaYRoD-TV/sm64coopdx-vr"
+        Mod         = "sm64coopdx VR"
         Description = "US (NTSC) .z64 ROM required"
         Author      = "RaYRoD"
         Bat         = "SuperMario64VR\START_INSTALLER.bat"
@@ -3535,6 +3998,40 @@ $ownGamesGP = @(
     },
     @{ Controls="VRGP"; Title="Super Polygon Grand Prix VR"; VideoUrl="https://www.youtube.com/live/feihSAnJVsU?t=259"; VideoLabel="Watch gameplay"; Pill="SPGP_VR"; SteamId="2459860"; Mod="SPGP_VR_1.0"; SteamFolder="SP-GP Super Polygon Grand Prix"; FallbackPaths=@("STEAM:Super Polygon Grand Prix", "STEAM:SuperPolygonGrandPrix", "STEAM:SPGP", "STEAM:SP-GP Super Polygon Grand Prix Demo"); Description="Discord login required."; Author="Astienth"; Bat="SuperPolygonGrandPrixVR\START_INSTALLER.bat"; Color="#0a0a18"; Accent="#5588ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1492448070862901308/1492448247090778173"; Tags=@("super polygon grand prix", "spgp", "spgp_vr", "astienth", "racing", "sports", "fast paced", "indie", "arcade", "virtua racing"); ModFile="BepInEx\plugins\SPGP_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="The Dark Mod VR"; VideoUrl="https://youtu.be/25vCsHJdeeo?t=214"; Mod="thedarkmodvr"; Description="Thief-like stealth, gamepad."; Author="Holger Frydrych"; Bat="TheDarkModVR\START_INSTALLER.bat"; Color="#0e0b07"; Accent="#c9a227"; InfoUrl="https://github.com/fholger/thedarkmodvr/wiki/Installation"; ModPageUrl="https://github.com/fholger/thedarkmodvr"; SupportUrl="https://ko-fi.com/fholger"; SupportText="fholger maintains these PC VR mods. If you enjoy them, consider supporting him:"; Quip="Stay to the shadows, taffer - the City has gone three-dimensional."; PortraitUrl="Assets/TheDarkModVR_portrait.png"; HeaderUrl="Assets/TheDarkModVR_header.png"; ScreenshotUrl="Assets/TheDarkModVR_screenshot.jpg"; LaunchExe="TheDarkModVRx64.exe"; ModFile="TheDarkModVRx64.exe"; SteamFolder="The Dark Mod VR"; FallbackPaths=@("C:\Games\The Dark Mod VR", "D:\Games\The Dark Mod VR", "E:\Games\The Dark Mod VR"); Tags=@("the dark mod", "dark mod", "darkmod", "tdm", "thief", "stealth", "frydrych", "fholger", "free", "open source", "gothic", "steampunk", "action", "adventure", "horror") },
+    @{
+        Controls    = "GP"
+        Title       = "theHunter: Call of the Wild VR"
+        Quip        = "A bad shot in VR still counts. The elk knows."
+        SteamId     = "518790"
+        SteamFolder = "theHunterCotW"
+        VideoUrl    = "https://youtu.be/Exc2b_AZJ7U?t=57"
+        # There is NO VR footage of this mod yet, hence the label for
+        # flat gameplay.
+        VideoLabel  = "Watch gameplay"
+        Mod         = "theHunterCotWVR (auto-update)"
+        GithubRepo  = "vaas993/theHunterCotW-VR"
+        Description = "Steam only, single player"
+        Author      = "Vaas993"
+        Bat         = "TheHunterCotWVR\START_INSTALLER.bat"
+        Color       = "#1c2417"
+        Accent      = "#8fa860"
+        InfoUrl     = "https://github.com/vaas993/theHunterCotW-VR"
+        ModPageUrl  = "https://github.com/vaas993/theHunterCotW-VR"
+        DownloadUrl = "https://github.com/vaas993/theHunterCotW-VR/releases"
+        # Every file sits NEXT TO the game exe in the root folder.
+        ModFile     = "cotwvr.dll"
+        # "Start in VR" opens the settings program, so options can be
+        # changed and the game launched from there.
+        LaunchExe   = "theHunterCotW VR Settings.exe"
+        GameExe     = "theHunterCotW_F.exe"
+        UninstallSteps = @(
+            "Close the game first.",
+            "Delete these from the game folder, beside theHunterCotW_F.exe: cotwvr.dll, XINPUT9_1_0.dll, openxr_loader.dll, nvngx_dlss.dll, cotwvr.ini, cotwvr_launcher.cfg and 'theHunterCotW VR Settings.exe'. Nothing else is touched - no game file was ever modified.",
+            "You do not have to uninstall to play flat: set 'VR mod' to off in the settings program and every file stays where it is.",
+            "The mod's log lives in %LOCALAPPDATA%\theHunterCotWVR\ - delete that folder too if you want it gone completely."
+        )
+        Tags=@("thehunter", "call of the wild", "hunting", "hunt", "wildlife", "outdoor", "simulation", "sim", "open world", "expansive worlds", "avalanche", "vaas993", "openxr", "dlss", "wip")
+    },
     @{ Controls="GP"; Title="Tinykin VR"; VideoUrl="https://www.youtube.com/watch?v=YAD5O90SsFU"; SteamId="1599020"; Mod="TinykinVR v1.0.0"; SteamFolder="Tinykin"; FallbackPaths=@("STEAM:Tinykin Demo", "STEAM:TinykinDemo", "GOG:Tinykin"); Description="Discord login, depth only"; Author="Astienth"; Bat="TinykinVR\START_INSTALLER.bat"; Color="#0f180a"; Accent="#ff7733"; InfoUrl="https://discord.com/channels/1001138422972432597/1276919154678693908/1276919154678693908"; Tags=@("tinykin", "astienth", "tinybuild", "platformer", "3d platformer", "puzzle", "collectathon", "cute", "cartoon", "stylized", "indie", "story", "exploration", "depth"); ModFile="BepInEx\plugins\TinykinVR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="TLOU Part I VR"; VideoUrl="https://youtu.be/8jTfVwXV9PQ?t=35"; Quip="Joel and Ellie's road through a cordyceps America."; SteamId="1888930";                  Mod="R.E.A.L."; SteamFolder="The Last of Us Part I"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a7a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="TLOU Part II VR"; VideoUrl="https://www.youtube.com/watch?v=vOIFCTiwinI"; Quip="The cycle of revenge, told at arm's length. Brace yourself."; SteamId="2531310";                 Mod="R.E.A.L."; SteamFolder="The Last of Us Part II Remastered"; FallbackPaths=@("STEAM:The Last of Us Part II"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a6a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
@@ -3585,9 +4082,9 @@ $ownGamesGP = @(
         GameExe     = "WH40KRT.exe"
         Tags=@("warhammer", "40k", "rogue trader", "rtvr", "rpg", "story", "turn-based", "crpg", "strategy", "owlcat")
     },
-    @{ Controls="GP"; Title="Watch Dogs VR"; VideoUrl="https://youtu.be/qUWwPB5by3s?t=504"; Quip="Hack Chicago from the inside. The city's in your palm."; SteamId="243470"; PortraitUrl="Assets/WatchDogs1_portrait.jpg"; Mod="R.E.A.L."; SteamFolder="Watch_Dogs"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a7aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Watch Dogs 2 VR"; VideoUrl="https://www.youtube.com/watch?v=NDtGUJV4iMU"; Quip="DedSec needs you, Marcus. Hack all of San Francisco."; SteamId="447040";                 Mod="R.E.A.L."; SteamFolder="Watch_Dogs2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa6a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Watch Dogs Legion VR"; VideoUrl="https://youtu.be/qCktuvWwys8?t=62"; Quip="Recruit anyone. Take back a near-future London."; SteamId="2239550";            Mod="R.E.A.L."; SteamFolder="Watch Dogs Legion"; FallbackPaths=@("STEAM:WatchDogs_Legion"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4488"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "sandbox") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Watch Dogs VR"; VideoUrl="https://youtu.be/qUWwPB5by3s?t=504"; Quip="Hack Chicago from the inside. The city's in your palm."; SteamId="243470"; PortraitUrl="Assets/WatchDogs1_portrait.jpg"; Mod="R.E.A.L."; SteamFolder="Watch_Dogs"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a7aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Watch Dogs 2 VR"; VideoUrl="https://www.youtube.com/watch?v=NDtGUJV4iMU"; Quip="DedSec needs you, Marcus. Hack all of San Francisco."; SteamId="447040";                 Mod="R.E.A.L."; SteamFolder="Watch_Dogs2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa6a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ Controls="GP"; Title="Watch Dogs Legion VR"; VideoUrl="https://youtu.be/qCktuvWwys8?t=62"; Quip="Recruit anyone. Take back a near-future London."; SteamId="2239550";            Mod="R.E.A.L."; SteamFolder="Watch Dogs Legion"; FallbackPaths=@("STEAM:WatchDogs_Legion"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4488"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "sandbox") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Witcher 3 VR"; VideoUrl="https://x.com/BadHostile/status/2082683764757426437/video/1"; Quip="Toss a coin to your Witcher - and stand in Velen yourself."; SteamId="292030"; Mod="Witcher3VR (auto-update)"; GithubRepo="tig3rmast3r/witcher3-vr"; GithubPrerelease=$true; Description="Gamepad or KB&M, DX12 only"; Author="tig3rmast3r"; Bat="Witcher3VR\START_INSTALLER.bat"; Color="#12100c"; Accent="#b8973f"; InfoUrl="https://github.com/tig3rmast3r/witcher3-vr"; DownloadUrl="https://github.com/tig3rmast3r/witcher3-vr/releases"; SteamFolder="The Witcher 3"; FallbackPaths=@("STEAM:The Witcher 3 Game of the Year Edition", "GOG:The Witcher 3 Wild Hunt", "GOG:The Witcher 3 Wild Hunt GOTY", "EPIC:TheWitcher3"); ModFile="bin\x64_dx12\dxgi.dll"; LaunchExe="bin\x64_dx12\Witcher3VRLauncher.exe"; Tags=@("witcher 3", "the witcher", "witcher3", "wild hunt", "geralt", "cd projekt", "tig3rmast3r", "rpg", "open world", "action", "story", "atmospheric", "fantasy", "medieval", "dx12") },
     @{ Controls="GP"; Title="Yooka-Laylee VR"; VideoUrl="https://youtu.be/6dPRxLQFETo?t=89"; SteamId="360830"; Mod="VookaRaylee v0.3"; SteamFolder="YookaLaylee"; FallbackPaths=@("C:\Games\Yooka-Laylee VR", "STEAM_CONTENT\YookaLaylee-VR", "GOG:Yooka-Laylee"); DepotInstall=$true; DualMode=$true; DepotPath="C:\Games\Yooka-Laylee VR"; DepotLaunchExe="YookaLaylee64.exe"; DepotLaunchArgs=""; Description="Optional Steam depot version."; Author="Eusth"; Bat="YookaLayleeVR\START_INSTALLER.bat"; Color="#0a1a10"; Accent="#44cc88"; InfoUrl="https://github.com/Eusth/VookaRaylee"; Tags=@("yooka", "laylee", "vooka", "raylee", "platformer", "collectathon", "cartoon") ; ModFile="IPA.exe"; LaunchExe="YookaLaylee64.exe"; UninstallSteps=@("If you modded your own Steam copy: run 'IPA.exe --revert' in the game folder, or use Steam's 'Verify integrity of game files'.", "If you used the separate depot copy: delete the 'Yooka-Laylee VR' folder and the desktop shortcut. Nothing of yours is in there.") }
 )
@@ -4081,19 +4578,26 @@ $externalGames = @(
         ReadmeDir   = "ResidentEvil4RVR"
         SteamId     = "2050650"
         InfoUrl     = "https://www.biohazardvr.com/re4"
-        Mod         = "REFramework VR + Motion"
-        Description = "by praydog + Talemann"
+        Mod         = "RE4VR 2.0 (one setup)"
+        Description = "Fresh Steam install required"
         Author      = "praydog + Talemann"
         SupportUrl  = "https://www.patreon.com/c/praydog"
         SupportText = "praydog develops REFramework. If you enjoy his work, consider supporting him:"
-        Url         = "https://mrsurvivor-installers.com/"
+        # "Get Installer" opens DownloadUrl. That is deliberately the
+        # author's DIRECT setup address here, no longer a third party's
+        # page: one click and the download starts. His setup does all the
+        # rest itself - finds the game folder, downgrades the game, asks
+        # OpenVR/OpenXR and installs ViGEm. The Hub needs nothing of its
+        # own for that.
+        DownloadUrl = "https://biohazardvr.com/downloads/click.php?id=RE4VR_2.0_Setup.exe"
+        Url         = "https://www.biohazardvr.com/re4"
         Color       = "#1e2a22"
         Accent      = "#7a1a1a"
         Type        = "external"
         ModFile     = "dinput8.dll"
         SteamFolder = "RESIDENT EVIL 4  BIOHAZARD RE4"
         FallbackPaths=@("EPIC:Resident Evil 4", "STEAM:RESIDENT EVIL 4")
-        Tags        = @("re4", "resident", "resident evil", "action", "horror", "shooter")
+        Tags        = @("re4", "resident", "resident evil", "biohazard", "action", "horror", "shooter", "praydog", "talemann", "reframework")
     },
     @{
         Controls    = "MC"
@@ -4186,7 +4690,7 @@ $externalGames = @(
         ModFile     = "BepInEx\plugins\ShipbreakerVr\ShipbreakerVr.dll"
         LaunchExe   = "Shipbreaker.exe"
         FallbackPaths=@("GOG:Hardspace Shipbreaker", "EPIC:HardspaceShipbreaker", "C:\Program Files\WindowsApps\FocusHomeInteractiveSA.HardspaceShipbreaker-PCVers_*_x64__4hny5m903y3g0")
-        Tags        = @("shipbreaker vr", "hardspace", "hardspace shipbreaker", "shipbreaker", "simulation", "space", "physics")
+        Tags        = @("shipbreaker vr", "hardspace", "hardspace shipbreaker", "shipbreaker", "simulation", "sim", "space", "physics")
     },
     @{
         Controls    = "MC"

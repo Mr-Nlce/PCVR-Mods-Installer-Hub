@@ -146,10 +146,10 @@ Write-Header
 Write-Host " CWVR by DaXcess turns Content Warning into a full 6DOF VR experience" -ForegroundColor White
 Write-Host " with motion controls. Works in online lobbies with non-VR players too." -ForegroundColor White
 Write-Host ""
-# Abhaengigkeiten der Abhaengigkeiten pruefen. Unsere Paketliste kennt
-# nur die DIREKTE Ebene; Thunderstore weiss, was diese Pakete ihrerseits
-# verlangen. Aendert nichts, meldet nur - siehe PEAK, wo genau das
-# gefehlt hat.
+# Check the dependencies of the dependencies. Our package list only
+# knows the DIRECT level; Thunderstore knows what those packages require
+# in turn. Changes nothing, only reports - see PEAK, where exactly this
+# was missing.
 try {
     $tsMissing = @(Test-ThunderstoreDependencies -PackageUrls @($LEGACY_URLS.Values))
     Show-ThunderstoreDependencyWarning -Missing $tsMissing
@@ -300,7 +300,7 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  Write-Host ""
  }
  Pause-User "Press Enter to open the Steam Console..."
- # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+ # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }

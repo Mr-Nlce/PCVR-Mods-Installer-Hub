@@ -411,11 +411,11 @@ if ($doDjipi -in @("y","Y")) {
 
     # -- which look --------------------------------------------
     Write-Host ""
-    # [2] IST DIE EMPFEHLUNG, UNABHAENGIG VOM HD-PACK. Der komplette
-    # Pack kann Abstuerze in Zwischensequenzen verursachen - bei Martin
-    # nachgewiesen an Sarias Mod aus dem Pack: den einen Teil abgeschaltet,
-    # Absturz weg. Es ist also NICHT die VR-Mod. Die reinen 3D-Hintergruende
-    # sind der Teil, den VR ueberhaupt braucht; der Rest ist Optik.
+    # [2] IS THE RECOMMENDATION, INDEPENDENTLY OF THE HD PACK. The full
+    # pack can cause crashes in cutscenes - demonstrated on a real
+    # machine with Saria's mod from the pack: that one part turned off,
+    # crash gone. So it is NOT the VR mod. The plain 3D backgrounds are
+    # the part VR actually needs; the rest is looks.
     Write-Host "   [2] Only the 3D backgrounds - RECOMMENDED." -ForegroundColor Green
     Write-Host "       This is the part VR actually needs, and it pairs with" -ForegroundColor Gray
     Write-Host "       the HD textures." -ForegroundColor Gray
@@ -583,10 +583,10 @@ Write-Host "  ENHANCEMENTS (Esc > VR mod settings > Enhancements, on the right):
 # longer offer that entry and load the mods folder on their own.
 Write-Host "   - Tick 'Disable Black Bar Letterboxes' (bars in cutscenes)." -ForegroundColor Gray
 Write-Host ""
-# DIE VIER EINSTELLUNGEN, DIE VR WIRKLICH BRAUCHT - von Martin genannt und
-# hier zusammengezogen, damit sie nicht ueber drei Menues verstreut gesucht
-# werden muessen. Die 2D-Kulissen standen bisher nur im Djipi-Zweig weiter
-# unten; hier ist der Platz, an dem alle vier auf einmal stehen.
+# THE FOUR SETTINGS VR ACTUALLY NEEDS - gathered here so they do not have
+# to be hunted across three menus. The 2D backdrops used to appear only
+# in the Djipi branch further down; this is the place where all four
+# stand together.
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
 Write-Host "  |  THE SETTINGS THAT MATTER FOR VR                         |" -ForegroundColor Yellow
 Write-Host "  +==========================================================+" -ForegroundColor Yellow

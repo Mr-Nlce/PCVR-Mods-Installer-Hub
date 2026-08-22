@@ -236,7 +236,7 @@ if ($modChoice -eq "2") {
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
     # 1.2.3, so that workaround is retired - the zip is honest again.)
-    $lufzVer = "1.3.15"
+    $lufzVer = "1.3.18"
     $lufzVerFile = Join-Path $modFolder "VERSION"
     $lufzVerFound = $false
     if (Test-Path -LiteralPath $lufzVerFile) {

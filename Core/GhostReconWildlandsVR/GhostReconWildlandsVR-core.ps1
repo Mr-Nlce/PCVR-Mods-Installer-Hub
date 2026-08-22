@@ -27,13 +27,13 @@
 #  release is taken from /releases and NOT /releases/latest, which skips
 #  prereleases. Nothing to bump here - the newest build arrives by itself.
 #
-#  STAND 0.7.0-alpha, "The Update Update": Ubisofts "Last Rites"-Patch
-#  (August 2026) hat GRW.exe ersetzt, damit liefen aeltere Mod-Builds nur
-#  flach - die Mod fasst eine Exe nicht an, die sie nicht kennt. 0.7.0 hat
-#  alle Engine-Adressen gegen die neue Exe neu abgeleitet. NEU DABEI:
-#  Steam und Ubisoft Connect liefern jetzt die BYTE-GLEICHE Exe, eine
-#  Adresstabelle deckt beide Laeden - der Steam-only-Vorbehalt aus 0.5.0
-#  ist damit hinfaellig.
+#  AS OF 0.7.0-alpha, "The Update Update": Ubisoft's "Last Rites" patch
+#  (August 2026) replaced GRW.exe, so older mod builds only ran flat -
+#  the mod does not touch an exe it does not recognise. 0.7.0 rederived
+#  every engine offset against the new exe. NEW WITH IT: Steam and
+#  Ubisoft Connect now ship a BYTE-IDENTICAL exe and one offset table
+#  covers both stores - the Steam-only caveat from 0.5.0 no longer
+#  applies.
 #
 #  ANTI-CHEAT: the game ships Easy Anti-Cheat for multiplayer. The mod
 #  is SOLO CAMPAIGN ONLY and that warning is repeated on the end screen.
@@ -58,8 +58,8 @@ $MOD_FILE   = "dxgi.dll"
 $LOADER     = "openxr_loader.dll"
 $REAL_PROXY = "dxgi_real.dll"
 $CFG_REL    = "GRWVR\grwxr.cfg"
-# Schieberegler-Editor fuer grwxr.cfg, liegt im Release-Paket. Optional:
-# fehlt er in einem Paket, wird er stillschweigend uebersprungen.
+# Slider editor for grwxr.cfg, shipped in the release package.
+# Optional: if a package lacks it, it is silently skipped.
 $CFG_GUI    = "cfg_gui.exe"
 
 function Write-Header {
@@ -168,9 +168,9 @@ if (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue) {
         -EpicNames @("GhostReconWildlands")
     if ($gamePath -and -not (Test-GRWRoot -Root $gamePath)) { $gamePath = $null }
 }
-# Ubisoft Connect and Epic keep the game elsewhere. Seit 0.7.0-alpha ist
-# die Ubisoft-Connect-Kopie ausdruecklich mitgedeckt (byte-gleiche Exe wie
-# Steam), also wird dort genauso gesucht.
+# Ubisoft Connect and Epic keep the game elsewhere. Since 0.7.0-alpha
+# the Ubisoft Connect copy is explicitly covered (byte-identical exe to
+# Steam), so it is searched there just the same.
 if (-not $gamePath) {
     $candidates = @()
     foreach ($d in @("C:", "D:", "E:")) {
@@ -360,9 +360,9 @@ if ($missing.Count -gt 0) {
     Pause-User "Press Enter to exit." | Out-Null
     exit 1
 }
-# cfg_gui.exe daneben legen, wenn das Paket es mitbringt - das ist der
-# Editor fuer grwxr.cfg, den das README nennt. Ohne ihn muesste der Nutzer
-# die cfg im Texteditor bearbeiten.
+# Place cfg_gui.exe alongside if the package ships it - that is the
+# editor for grwxr.cfg the README mentions. Without it the user would
+# have to edit the cfg in a text editor.
 $guiSrc = Get-ChildItem -LiteralPath $srcRoot -Filter $CFG_GUI -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($guiSrc) {
     try {

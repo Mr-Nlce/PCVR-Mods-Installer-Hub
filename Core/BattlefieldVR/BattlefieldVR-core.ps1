@@ -2,30 +2,30 @@
 # Battlefield 1942 VR (BFVR) Installer
 # BFVR by JayBiggsGMG - github.com/JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod
 #
-# DAS SPIEL IST NICHT MEHR ZU KAUFEN. Der Nutzer muss eine eigene,
-# legal erworbene Fassung besitzen. Deshalb wird der Spielordner
-# gesucht statt vorausgesetzt, und es gibt keinen Steam-Weg.
+# THE GAME IS NO LONGER FOR SALE. The user must own a legally
+# acquired copy. That is why the game folder is searched for rather
+# than assumed, and there is no Steam route.
 #
-# ZWEI TEILE, UND DIE REIHENFOLGE ZAEHLT:
-#  1) BF42++ 2.0 RC6 - Voraussetzung, NICHT in BFVR enthalten.
-#     Drei Dateien neben BF1942.exe: bf42++.dll (414.208),
-#     bf42++.exe (14.848), bf42++BlackScreen.exe (16.384).
-#     MANCHE Community-Pakete bringen BF42++ schon als erkannte
-#     dsound.dll mit - dann NICHT zusaetzlich kopieren.
-#  2) BFVR selbst, ein INNO-SETUP 6.7.0 (BFVR-Setup-v1.0.1.exe).
-#     Es legt einen Unterordner BFVR\ an und ersetzt BF1942.exe NICHT.
+# TWO PARTS, AND THE ORDER MATTERS:
+#  1) BF42++ 2.0 RC6 - a prerequisite, NOT included in BFVR.
+#     Three files next to BF1942.exe: bf42++.dll (414,208),
+#     bf42++.exe (14,848), bf42++BlackScreen.exe (16,384).
+#     SOME community packs already bring BF42++ as a recognised
+#     dsound.dll - then do NOT copy it again.
+#  2) BFVR itself, an INNO SETUP 6.7.0 (BFVR-Setup-v1.0.1.exe).
+#     It creates a subfolder BFVR\ and does NOT replace BF1942.exe.
 #
-# WAS DAS SETUP ANLEGT, aus einem echten Vorher/Nachher-Vergleich
-# belegt - 68 Dateien, ALLE unter BFVR\, nichts wird ersetzt und
-# keine Bestandsdatei aendert ihre Groesse:
-#   BFVR\BFVR.exe 1.188.352, BFVRClient.dll 2.101.248,
-#   BFVRD3D8To9.dll 1.176.576, BFVRPresenter.exe 626.688,
-#   UserConfig.txt 12.416 (die Einstellungen des NUTZERS),
-#   runtime\openxr\win64\openxr_loader.dll 2.119.680,
-#   assets\ (Menuegrafiken), docs\, licenses\,
-#   unins000.exe + .dat (der eigene Deinstallierer).
+# WHAT THE SETUP CREATES, proven by a real before/after comparison -
+# 68 files, ALL under BFVR\, nothing is replaced and no existing
+# file changes size:
+#   BFVR\BFVR.exe 1,188,352, BFVRClient.dll 2,101,248,
+#   BFVRD3D8To9.dll 1,176,576, BFVRPresenter.exe 626,688,
+#   UserConfig.txt 12,416 (the USER's settings),
+#   runtime\openxr\win64\openxr_loader.dll 2,119,680,
+#   assets\ (menu art), docs\, licenses\,
+#   unins000.exe + .dat (its own uninstaller).
 #
-# GESTARTET WIRD UEBER BFVR\BFVR.exe, nicht ueber BF1942.exe.
+# LAUNCHING GOES THROUGH BFVR\BFVR.exe, not BF1942.exe.
 # -------------------------------------------------------
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -37,11 +37,11 @@ $MOD_AUTHOR = "JayBiggsGMG"
 $MOD_REPO   = "JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod"
 $RELEASES   = "https://github.com/$MOD_REPO/releases"
 
-# Gepinnte Fassung - nur der Rueckfall. Die Adresse kommt zur Laufzeit
-# aus dem neuesten Release. Trotzdem bei jedem Release mitziehen.
+# Pinned build - the fallback only. The address is resolved at run
+# time from the newest release. Update it with every release anyway.
 $PINNED_VER = "v1.0.1"
-# Nur fuer die Kopfzeile - die tatsaechlich geladene Fassung kommt aus
-# dem neuesten Release und wird beim Herunterladen genannt.
+# For the header line only - the build actually downloaded comes from
+# the newest release and is named while downloading.
 $MOD_VERSION = $PINNED_VER
 $PINNED_URL = "https://github.com/$MOD_REPO/releases/download/$PINNED_VER/BFVR-Setup-$PINNED_VER.exe"
 
@@ -95,9 +95,9 @@ function Get-DroppedFile {
     }
 }
 
-# Ordner statt Datei - das Spiel liegt bei jedem woanders, weil es nicht
-# mehr verkauft wird. Ein abgelegter ORDNER liefert in der Konsole
-# denselben Pfadtext wie eine Datei.
+# A folder rather than a file - the game sits somewhere different on
+# every machine because it is no longer sold. A dropped FOLDER gives
+# the console the same path text as a file does.
 function Get-DroppedFolder {
     param([string]$Label)
     while ($true) {
@@ -113,27 +113,25 @@ function Get-DroppedFolder {
     }
 }
 
-# Neuestes BFVR-Setup vom Release holen. Gesucht wird der Anhang, dessen
-# Name auf .exe endet - nicht die Versionsnummer, damit eine Umbenennung
-# nichts bricht.
+# Fetch the newest BFVR setup from the release. The asset whose name
+# ends in .exe is the one taken - not the version number, so a rename
+# breaks nothing.
 # ---------------------------------------------------------------
-#  Set-RunAsAdminFlag - der Windows-Schalter "Als Administrator
-#  ausfuehren", derselbe wie im Eigenschaften-Dialog unter
-#  Kompatibilitaet.
+#  Set-RunAsAdminFlag - the Windows "Run as administrator" switch,
+#  the same one as in the properties dialog under Compatibility.
 # ---------------------------------------------------------------
-# WARUM DAS NOETIG IST: liegt das Spiel unter Program Files, kann der
-# BF42++-Loader seine DLL NICHT in den BF1942-Prozess schieben -
-# Windows verbietet das, und man bekommt "Failed to inject
-# 'bf42++.dll' into 'BF1942.exe'". Mit dem Schalter startet Windows
-# die Exe von sich aus erhoeht; es kommt EINE UAC-Abfrage, danach
-# laeuft es.
+# WHY THIS IS NEEDED: if the game sits under Program Files, the
+# BF42++ loader CANNOT inject its DLL into the BF1942 process -
+# Windows forbids it and you get "Failed to inject 'bf42++.dll' into
+# 'BF1942.exe'". With this switch Windows starts the exe elevated on
+# its own; there is ONE UAC prompt, and then it runs.
 #
-# DER SCHALTER BRAUCHT SELBST KEINE ADMINRECHTE: er steht unter
-# HKCU (nur fuer den angemeldeten Benutzer), nicht unter HKLM.
+# THE SWITCH ITSELF NEEDS NO ADMIN RIGHTS: it lives under HKCU (for
+# the signed-in user only), not under HKLM.
 #
-# EIN VORHANDENER WERT WIRD NICHT UEBERSCHRIEBEN: dort koennen schon
-# andere Kompatibilitaetsangaben stehen (z.B. WIN7RTM oder
-# DISABLEDXMAXIMIZEDWINDOWEDMODE). RUNASADMIN wird nur ergaenzt.
+# AN EXISTING VALUE IS NOT OVERWRITTEN: other compatibility flags may
+# already be there (e.g. WIN7RTM or DISABLEDXMAXIMIZEDWINDOWEDMODE).
+# RUNASADMIN is only appended.
 function Set-RunAsAdminFlag {
     param([Parameter(Mandatory=$true)][string]$ExePath)
     $key = "HKCU:\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers"
@@ -163,8 +161,8 @@ function Get-BfvrSetupUrl {
     return $null
 }
 
-# Liegt BF42++ schon? Entweder als eigene bf42++.dll oder als erkannter
-# dsound.dll-Proxy eines Community-Pakets.
+# Is BF42++ already there? Either as its own bf42++.dll or as a
+# recognised dsound.dll proxy from a community pack.
 function Test-Bf42PlusPlus {
     param([string]$GameDir)
     $ownDll = Test-Path -LiteralPath (Join-Path $GameDir "bf42++.dll")
@@ -222,9 +220,9 @@ if (-not $gamePath) {
 }
 Write-OK "Game folder: $gamePath"
 
-# Schreibrechte einmal still pruefen. Das Ergebnis wird hier NICHT
-# ausgegeben - die Ansage gehoert genau an die Stelle, wo die
-# UAC-Abfrage wirklich kommt, nicht als eigener Punkt weiter oben.
+# Probe write access once, quietly. The result is NOT printed here -
+# that announcement belongs exactly where the UAC prompt actually
+# appears, not as a separate item further up.
 $needsAdmin = $false
 try {
     $probe = Join-Path $gamePath ".pcvrhub_write_probe"
@@ -232,10 +230,10 @@ try {
     Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
 } catch { $needsAdmin = $true }
 if ($needsAdmin) {
-    # Kurz, und nur EINE Zeile: die meisten haben das Spiel laengst dort
-    # liegen und werden es nicht mehr verschieben. Der Rechte-Schalter am
-    # Ende des Installers loest es fuer sie; dieser Hinweis ist fuer die,
-    # die neu installieren und die Wahl noch haben.
+    # Short, and ONE line only: most people already have the game
+    # there and will not move it. The rights switch at the end of the
+    # installer solves it for them; this note is for those installing
+    # fresh who still have the choice.
     Write-Info "Under Program Files, Windows needs extra rights - a folder like C:\Games\Battlefield 1942 avoids that. This installer handles it either way."
 }
 
@@ -274,12 +272,13 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
         $tmp = Join-Path $env:TEMP ("bfpp_" + [System.IO.Path]::GetRandomFileName())
         New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
-        # DAS ARCHIV IST EIN .7z, UND POWERSHELL KANN DAS NICHT VON SICH AUS.
-        # Expand-ArchiveOrFallback versucht 7-Zip und faellt sonst auf
-        # Expand-Archive zurueck - das kann NUR .zip. Ohne installiertes
-        # 7-Zip wurde deshalb gar nichts entpackt, der innere Ordner blieb
-        # leer und alle drei Dateien fehlten. Get-SevenZip holt 7-Zip bei
-        # Bedarf nach (fragt vorher), damit der .7z-Weg ueberhaupt geht.
+        # THE ARCHIVE IS A .7z, AND POWERSHELL CANNOT HANDLE THAT ON ITS
+        # OWN. Expand-ArchiveOrFallback tries 7-Zip and otherwise falls
+        # back to the built-in extraction, which handles zip content
+        # only. Without 7-Zip installed nothing was unpacked at all, the
+        # inner folder stayed empty and all three files were missing.
+        # Get-SevenZip fetches 7-Zip on demand (asking first) so the .7z
+        # route works at all.
         if ($arch -match '(?i)\.7z$') {
             $sz = Get-SevenZip
             if (-not $sz) {
@@ -290,9 +289,10 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
         }
         $exRes = Expand-ArchiveOrFallback -ArchivePath $arch -DestinationFolder $tmp -Label "BF42++"
 
-        # ZWEITE EBENE: im .7z liegt BF42PLUSPLUS-v2.0-RC6-Install.zip, und
-        # ERST DARIN stecken die drei Dateien. Wird das uebersehen, meldet
-        # der Installer alle drei als fehlend - genau das ist passiert.
+        # SECOND LAYER: inside the .7z sits
+        # BF42PLUSPLUS-v2.0-RC6-Install.zip, and only INSIDE THAT are the
+        # three files. Miss this and the installer reports all three as
+        # missing - which is exactly what happened.
         $searchRoot = $tmp
         foreach ($round in 1..2) {
             $hit = Get-ChildItem -LiteralPath $searchRoot -Recurse -File -ErrorAction SilentlyContinue |
@@ -307,15 +307,16 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
             [void](Expand-ArchiveOrFallback -ArchivePath $inner.FullName -DestinationFolder $nested -Label "BF42++ install files")
             $searchRoot = $nested
         }
-        # !!! UEBER DEN GANZEN ENTPACKBAUM SUCHEN, NICHT NUR UNTER $searchRoot,
-        # UND OHNE -Filter. Zwei Gruende, beide real aufgetreten:
-        # (a) -Filter geht an die Windows-Dateisuche und behandelt den
-        #     Namen als DOS-Muster - bei "bf42++.dll" hat das nicht
-        #     zuverlaessig getroffen. Ein Namensvergleich in PowerShell
-        #     ist eindeutig.
-        # (b) wo die Dateien nach zwei Entpackstufen genau landen, haengt
-        #     vom Entpacker ab. Der ganze Temp-Baum wird ohnehin gleich
-        #     geloescht - also einmal komplett durchsuchen und fertig.
+        # !!! SEARCH THE WHOLE EXTRACTION TREE, NOT JUST UNDER
+        # $searchRoot, AND WITHOUT -Filter. Two reasons, both seen for
+        # real:
+        # (a) -Filter is handed to the Windows file search and treats the
+        #     name as a DOS pattern - with "bf42++.dll" that did not
+        #     match reliably. A name comparison in PowerShell is
+        #     unambiguous.
+        # (b) where the files end up after two extraction layers depends
+        #     on the extractor. The whole temp tree is deleted right
+        #     afterwards anyway - so search it once, completely, done.
         if ($needsAdmin) {
             Pause-User "Press Enter to copy BF42++ into the game folder - UAC required..."
         }
@@ -330,12 +331,12 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
             catch { $copyFail = $true }
         }
 
-        # PROGRAM FILES BRAUCHT ADMINRECHTE. Genau dort liegt das Spiel bei
-        # vielen (C:\Program Files (x86)\EA Games\Battlefield 1942), und der
-        # Hub laeuft ohne erhoehte Rechte - das Kopieren scheitert dann mit
-        # "Zugriff verweigert". Der Hub macht das an anderer Stelle laengst
-        # so: den Kopierschritt EINMAL erhoeht wiederholen. Gleiche Form wie
-        # im GTA-IV-Installer.
+        # PROGRAM FILES NEEDS ADMIN RIGHTS. That is exactly where many
+        # people have the game (C:\Program Files (x86)\EA Games\
+        # Battlefield 1942), and the Hub runs unelevated - the copy then
+        # fails with access denied. The Hub already does this elsewhere:
+        # retry the copy step ONCE, elevated. Same shape as in the GTA IV
+        # installer.
         if ($copyFail -and $sources.Count -gt 0) {
             Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
             Write-Host "  A UAC prompt will appear now." -ForegroundColor Gray
@@ -347,14 +348,14 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
                 Write-Warn "The elevated copy was declined or failed."
             }
         }
-        # Falls etwas fehlt: BEVOR der Temp-Baum weg ist, aufschreiben was
-        # tatsaechlich darin lag. Ohne das raet man beim naechsten Bericht
-        # wieder - genau das ist hier schon zweimal passiert.
+        # If something is missing: BEFORE the temp tree is gone, write
+        # down what was actually in it. Without that you are guessing at
+        # the next report - which has already happened twice here.
         $foundNames = @($allFiles | ForEach-Object { $_.Name })
         try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-        # Am ZIEL pruefen, nicht am Kopierbefehl - Groessen gegen die
-        # belegten Werte halten.
+        # Check at the DESTINATION, not on the copy command - hold the
+        # sizes against the documented values.
         $bad = @()
         foreach ($f in $BFPP_FILES) {
             $dst = Join-Path $gamePath $f
@@ -434,7 +435,7 @@ catch {
     Pause-User "Press Enter once you have finished the setup..."
 }
 
-# ---- Am ERGEBNIS pruefen ----
+# ---- Verify by the RESULT ----
 $modFull = Join-Path $gamePath $MOD_MARK
 Write-Host ""
 if (Test-Path -LiteralPath $modFull) {
@@ -449,11 +450,11 @@ if (Test-Path -LiteralPath $modFull) {
     Write-Host "  this installer again." -ForegroundColor White
 }
 
-# ---- Der Rechte-Schalter, wenn das Spiel unter Program Files liegt ----
-# Ohne ihn scheitert der BF42++-Loader mit "Failed to inject
-# 'bf42++.dll' into 'BF1942.exe'" - Windows laesst einen Prozess ohne
-# erhoehte Rechte nicht in einen erhoehten hineinschreiben. Wird NUR
-# gefragt, wenn die Schreibprobe vorhin durchgefallen ist.
+# ---- The rights switch, when the game lives under Program Files ----
+# Without it the BF42++ loader fails with "Failed to inject
+# 'bf42++.dll' into 'BF1942.exe'" - Windows will not let an unelevated
+# process write into an elevated one. It is only offered when the
+# write probe above failed.
 if ($needsAdmin) {
     $exeList = @()
     if (Test-Path -LiteralPath $modFull) { $exeList += $modFull }

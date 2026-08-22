@@ -10,18 +10,18 @@
 # %LOCALAPPDATA% manager - we make our own desktop shortcut.
 #
 # Two install paths:
-# ES GIBT NUR EINEN WEG, und das ist Absicht: Steam-Console-Download von
-# GENAU Build 22163681 nach C:\Games\Scrap Mechanic VR (Pfad waehlbar),
-# dann die VR-Dateien darauf. Die Retail-Kopie bleibt unangetastet und
-# darf weiter aktualisieren.
-# Die frueher angebotene Wahl "auf die eigene Steam-Kopie kopieren" ist
-# ENTFALLEN: sie setzt voraus, dass diese Kopie noch Build 22163681 ist,
-# und das ist seit dem 24. Juli 2026 nicht mehr der Live-Stand. Sie war
-# damit fuer praktisch jeden die falsche Wahl.
-# KEIN AUTO-UPDATE: die Mod haengt an diesem einen Build. v1.17.0 ist
-# festgeschrieben; eine kuenftige Version braucht sehr wahrscheinlich
-# einen anderen Build und damit auch ein neues Manifest - das wird dann
-# zusammen angefasst, nicht die Mod allein.
+# THERE IS ONLY ONE ROUTE, and that is deliberate: a Steam console
+# download of EXACTLY build 22163681 into C:\Games\Scrap Mechanic VR
+# (path selectable), then the VR files on top. The retail copy stays
+# untouched and may keep updating.
+# The option once offered - "copy onto your own Steam copy" - is GONE:
+# it assumed that copy is still build 22163681, which stopped being
+# the live state on 24 July 2026. It was the wrong choice for
+# practically everyone.
+# NO AUTO-UPDATE: the mod is tied to this one build. v1.17.0 is
+# pinned; a future version will very likely need a different build and
+# therefore a new manifest - the two get changed together, not the mod
+# alone.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -43,42 +43,41 @@ $MOD_VERSION = "v1.17.0"
 $SOURCE_URL  = "https://github.com/$REPO/archive/refs/tags/$MOD_VERSION.zip"
 $INFO_URL    = "https://github.com/$REPO"
 
-# Steam depot - GENAU DER BUILD, DEN DIE MOD UNTERSTUETZT. Depot 387993
-# ist die Content-Depot mit der Exe; 387992 ist nur Daten (keine Exe).
+# Steam depot - EXACTLY THE BUILD THE MOD SUPPORTS. Depot 387993 is
+# the content depot holding the exe; 387992 is data only (no exe).
 #
-# HIER LAG DER FEHLER: bisher stand hier das Manifest des NEUESTEN
-# Content-Builds. Die Mod v1.17.0 sagt in ihren Release-Notes aber
-# ausdruecklich "supports Scrap Mechanic Steam build 22163681 only" -
-# ihre Binaerdateien sind gegen die Exe dieses Builds gebaut. Auf jedem
-# anderen Build laeuft sie nicht, und weil unser Installer die Nutzlast
-# von Hand kopiert, faellt die Buildpruefung des Patchers dabei weg: es
-# sieht installiert aus und funktioniert trotzdem nicht.
+# THIS IS WHERE THE FAULT WAS: the manifest of the NEWEST content
+# build used to stand here. But the mod v1.17.0 states in its release
+# notes that it "supports Scrap Mechanic Steam build 22163681 only" -
+# its binaries are built against that build's exe. On any other build
+# it does not run, and because our installer copies the payload by
+# hand, the patcher's own build check is bypassed: it looks installed
+# and still does not work.
 #
-# Zeitleiste, bei SteamDB nachgesehen: Build 22163681 ist "Hotfix 0.7.4"
-# vom 2. Maerz 2026 und war bis zum 24. Juli 2026 der LIVE-Build. Die Mod
-# kam am 23. Juli heraus - einen Tag, bevor "Drilling Thunder" den Build
-# ersetzt hat. Wer die Mod also vor dem 24. Juli aufgesetzt hat oder den
-# passenden Build besitzt, bei dem laeuft sie; auf dem heutigen Steam-Stand
-# nicht.
+# Timeline, checked on SteamDB: build 22163681 is "Hotfix 0.7.4" from
+# 2 March 2026 and was the LIVE build until 24 July 2026. The mod came
+# out on 23 July - one day before "Drilling Thunder" replaced the
+# build. So anyone who set the mod up before 24 July, or who owns the
+# matching build, is fine; on today's Steam state it is not.
 #
-# !!! DER BUILD BESTEHT AUS ZWEI DEPOTS, BEIDE SIND NOETIG !!!
-# Vorher wurde nur 387993 geladen - das ist die Win64-Depot mit der Exe,
-# rund 2 GB. Die Spieldaten (Data\, Survival\, Challenges\ ...) liegen in
-# der zweiten Depot 387992. Ergebnis: Ordner ~2 GB statt ~5 GB, Exe da,
-# und das Spiel bricht mit "Failed to find game data directory" ab.
-# Bei SteamDB fuer Build 22163681 sind unter "Changed files in this
-# update" GENAU DIESE ZWEI Depots aufgefuehrt, mit diesen Manifesten.
+# !!! THE BUILD CONSISTS OF TWO DEPOTS, BOTH ARE REQUIRED !!!
+# Previously only 387993 was downloaded - the Win64 depot with the
+# exe, around 2 GB. The game data (Data\, Survival\, Challenges\ ...)
+# lives in the second depot 387992. Result: a folder of ~2 GB instead
+# of ~5 GB, exe present, and the game aborts with "Failed to find game
+# data directory".
+# On SteamDB, build 22163681 lists EXACTLY THESE TWO depots under
+# "Changed files in this update", with these manifests.
 $DEPOT_APPID    = "387990"
 $SUPPORTED_BUILD = "22163681"
-# Reihenfolge: Daten zuerst, dann die Exe-Depot - so ist der Ordner nach
-# dem letzten Schritt vollstaendig und die Exe-Pruefung greift auf dem
-# fertigen Baum.
+# Order: data first, then the exe depot - so the folder is complete
+# after the last step and the exe check runs on the finished tree.
 $DEPOTS = @(
     @{ Id = "387992"; Manifest = "4615519036154398529"; Label = "Scrap Mechanic Data" },
     @{ Id = "387993"; Manifest = "1969835134401920665"; Label = "Windows 64-bit (with the exe)" }
 )
 foreach ($d in $DEPOTS) { $d.Command = "download_depot $DEPOT_APPID $($d.Id) $($d.Manifest)" }
-# Fuer Meldungen und den Rueckfall: die Exe-Depot.
+# For messages and the fallback: the exe depot.
 $DEPOT_DEPOTID  = $DEPOTS[1].Id
 $DEPOT_MANIFEST = $DEPOTS[1].Manifest
 $DEPOT_COMMAND  = $DEPOTS[1].Command
@@ -307,11 +306,11 @@ try {
  }
 } catch {}
 
-# NUR NOCH DER DEPOT-WEG. Die Wahl "auf die eigene Steam-Kopie kopieren"
-# ist ENTFALLEN (Martins Entscheidung nach dem erfolgreichen Test): sie
-# funktioniert nur auf Build 22163681, und der ist seit dem 24. Juli 2026
-# nicht mehr der Live-Stand - sie war also fuer praktisch jeden die falsche
-# Wahl und hat nur Verwirrung erzeugt.
+# THE DEPOT ROUTE ONLY. The option "copy onto your own Steam copy" is
+# GONE (decided after the successful test): it only works on build
+# 22163681, which stopped being the live state on 24 July 2026 - so it
+# was the wrong choice for practically everyone and only caused
+# confusion.
 Write-Host "  This mod needs Steam build $SUPPORTED_BUILD - and that is not" -ForegroundColor White
 Write-Host "  what Steam installs today. So the Hub fetches that exact build" -ForegroundColor White
 Write-Host "  as a SEPARATE copy and puts the VR files on it." -ForegroundColor White
@@ -323,7 +322,7 @@ Write-Host ""
 Pause-User "Press Enter to start..."
 
 # ============================================================
-# DER EINZIGE WEG: DEPOT (build 22163681, der von der Mod unterstuetzte)
+# THE ONLY ROUTE: DEPOT (build 22163681, the one the mod supports)
 # ============================================================
  Pause-User "Press Enter to start..."
  Write-Step 1 4 "Steam Depot Download"
@@ -348,14 +347,14 @@ Pause-User "Press Enter to start..."
   Write-Host ""
  }
 
- # ---- Beide Depots, einer nach dem anderen ----
- # DIE KONSOLE WIRD IN JEDEM DURCHGANG NEU NACH VORN GEHOLT.
- # Vorher wurde sie EINMAL vor der Schleife geoeffnet. Nach dem ersten
- # Download steht aber dieses Fenster im Vordergrund, und der zweite
- # Durchgang begann direkt mit "paste with Ctrl+V" - ohne die Konsole
- # ueberhaupt sichtbar zu machen. Wer dann Enter drueckt, um sie nach vorn
- # zu holen, bestaetigt in Wahrheit "Download fertig". Also laeuft Durchgang
- # 2 jetzt Schritt fuer Schritt genauso wie Durchgang 1.
+ # ---- Both depots, one after the other ----
+ # THE CONSOLE IS BROUGHT TO THE FRONT AGAIN IN EVERY PASS.
+ # It used to be opened ONCE before the loop. After the first download
+ # this window is in the foreground, though, and the second pass began
+ # straight at "paste with Ctrl+V" - without ever making the console
+ # visible. Anyone pressing Enter to bring it forward would actually be
+ # confirming "download finished". So pass 2 now walks step by step
+ # exactly like pass 1.
  $steamInstallPath = Get-SteamPath
  $depotDirs = @()
  $step = 0
@@ -370,7 +369,8 @@ Pause-User "Press Enter to start..."
   Write-Host ""
   if ($step -eq 1) { Pause-User "Press Enter to open the Steam Console..." }
   else            { Pause-User "Press Enter to bring the Steam Console back to the front..." }
-  # Beide Protokoll-Adressen: je nach Steam-Version zieht nur eine.
+  # Both protocol addresses: depending on the Steam version only one
+ # works.
   foreach ($cu in @("steam://open/console", "steam://nav/console")) {
       try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
   }
@@ -409,7 +409,7 @@ Pause-User "Press Enter to start..."
   $depotDirs += $found
  }
 
- # Die Exe-Depot ist die Basis, in die die Datendepot hineingemischt wird.
+ # The exe depot is the base that the data depot is merged into.
  $depotBase = $depotDirs[-1]
  for ($k = 0; $k -lt ($depotDirs.Count - 1); $k++) {
   Write-Host ""

@@ -1,30 +1,30 @@
 # ============================================================
 #  Arma 3 VR - A3VR Hybrid (gborgogno)
 # ------------------------------------------------------------
-#  ZWEI WEGE, und der Nutzer waehlt in Schritt 1:
-#    [1] GitHub-Build - dieser Installer legt @A3VR_Hybrid neben
-#        das Spiel und holt kuenftige Fassungen selbst.
-#    [2] Steam Workshop - die Mod wird ueber Steam abonniert und
-#        von Steam aktuell gehalten. Wir installieren dann NICHTS,
-#        sondern oeffnen die Workshop-Seite und zeigen den Ablauf.
+#  TWO ROUTES, and the user picks in step 1:
+#    [1] GitHub build - this installer places @A3VR_Hybrid next to
+#        the game and fetches future builds itself.
+#    [2] Steam Workshop - the mod is subscribed through Steam and
+#        kept current by Steam. We then install NOTHING and open the
+#        workshop page showing the procedure instead.
 #
-#  WICHTIG BEI BEIDEN: das Archiv bringt einen WRAPPER-ORDNER
-#  @A3VR_Hybrid mit - der gehoert komplett in den Arma-Ordner,
-#  nicht sein Inhalt. Der offizielle Arma-Launcher sucht genau
-#  diesen Ordnernamen.
+#  IMPORTANT FOR BOTH: the archive carries a WRAPPER FOLDER
+#  @A3VR_Hybrid - that whole folder belongs in the Arma folder, not
+#  its contents. The official Arma launcher looks for exactly that
+#  folder name.
 #
-#  UND: die Mod ist damit noch NICHT fertig eingerichtet. Der
-#  Launcher-Eintrag, BattlEye und FreeTrack sind Handarbeit im
-#  Spiel - das steht am Ende als Quick Start auf dem Schirm.
+#  AND: the mod is NOT fully set up at that point. The launcher
+#  entry, BattlEye and FreeTrack are hand work inside the game -
+#  that appears as a Quick Start on screen at the end.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Arma 3 VR Installer"
 
-# Die Ausgabehelfer bringt JEDER Installer selbst mit - sie stehen NICHT
-# in InstallerSafety.ps1. Wortgleich zu den anderen Installern, damit die
-# Ausgabe im ganzen Hub identisch aussieht.
+# EVERY installer brings its own console helpers - they are NOT in
+# InstallerSafety.ps1. Word for word the same as in the other
+# installers, so output looks identical across the whole Hub.
 function Write-Step {
     param([int]$Step, [int]$Total, [string]$Title)
     Write-Host ""
@@ -73,11 +73,12 @@ $REPO         = "gborgogno/a3vr-arma3"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=3782798344"
 $OPENTRACK_URL = "https://github.com/opentrack/opentrack/releases/latest"
-# Rueckfall NUR ohne Netz - der Normalweg loest die neueste Fassung auf.
+# Fallback for no-network ONLY - the normal path resolves the newest
+# build.
 $PINNED_TAG   = "v1.13.1-alpha.1"
 $PINNED_URL   = "https://github.com/$REPO/releases/download/$PINNED_TAG/A3VR-Hybrid-$($PINNED_TAG.TrimStart('v')).zip"
 
-# ---- Kopf -----------------------------------------------------
+# ---- Header ---------------------------------------------------
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Arma 3 VR - Installer" -ForegroundColor Cyan
@@ -98,7 +99,7 @@ Write-Host "     contextual commands with no VR binding yet." -ForegroundColor W
 Write-Host ""
 Pause-User "Press Enter to start..." | Out-Null
 
-# ---- 1. Weg waehlen -------------------------------------------
+# ---- 1. Pick the route ----------------------------------------
 Write-Step 1 4 "How do you want to install it"
 Write-Host ""
 Write-Host "    [1] From GitHub  (this installer does it)" -ForegroundColor Green
@@ -184,7 +185,7 @@ if ($route -eq "2") {
     return
 }
 
-# ---- 2. Spiel finden ------------------------------------------
+# ---- 2. Locate the game ---------------------------------------
 Write-Step 2 4 "Locating $GAME_NAME"
 $gamePath = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @("Arma 3") -ProbeExe $GAME_EXE
 if (-not $gamePath) {
@@ -200,7 +201,8 @@ if (-not $gamePath -or -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_E
 }
 Write-OK "Game folder: $gamePath"
 
-# Schreibrechte still pruefen - die Ansage kommt erst dort, wo sie gilt.
+# Probe write access quietly - the announcement comes only where it
+# applies.
 $needsAdmin = $false
 try {
     $probe = Join-Path $gamePath ".pcvrhub_write_probe"
@@ -208,7 +210,7 @@ try {
     Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
 } catch { $needsAdmin = $true }
 
-# ---- 3. Holen und auspacken -----------------------------------
+# ---- 3. Fetch and unpack --------------------------------------
 Write-Step 3 4 "Downloading $MOD_NAME"
 
 $dlUrl = $PINNED_URL; $relTag = $PINNED_TAG
@@ -217,7 +219,7 @@ try {
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     foreach ($r in @($rel)) {
         if ($r.draft) { continue }
-        # Quelltext- und Patch-Releases ueberspringen (siehe InstallerSafety).
+        # Skip source and patch releases (see InstallerSafety).
         if (-not (Test-IsPayloadRelease -Release $r)) { continue }
         $pick = Select-PayloadAsset -Assets $r.assets -PlatformPattern '(?i)A3VR' -MinBytes 50000
         if ($pick -and $pick.browser_download_url) {
@@ -247,9 +249,9 @@ $ex = Join-Path $tmp "x"
 New-Item -ItemType Directory -Path $ex -Force | Out-Null
 [void](Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $MOD_NAME)
 
-# DER WRAPPER-ORDNER IST DIE NUTZLAST. Der offizielle Arma-Launcher
-# sucht genau den Namen @A3VR_Hybrid - also wird der ORDNER kopiert,
-# nicht sein Inhalt.
+# THE WRAPPER FOLDER IS THE PAYLOAD. The official Arma launcher looks
+# for exactly the name @A3VR_Hybrid - so the FOLDER is copied, not its
+# contents.
 $srcDir = Get-ChildItem -LiteralPath $ex -Recurse -Directory -ErrorAction SilentlyContinue |
           Where-Object { $_.Name -ieq $MOD_DIR_NAME } | Select-Object -First 1
 if (-not $srcDir) {
@@ -285,11 +287,11 @@ if (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROBE)) {
 }
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Merker fuer den Hub - in den INSTALLERORDNER, nicht in den Spielordner.
+# Marker for the Hub - into the INSTALLER folder, not the game folder.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
 
-# ---- 4. Was der Installer NICHT tun kann ----------------------
+# ---- 4. What the installer CANNOT do --------------------------
 Write-Step 4 4 "The parts you have to do yourself"
 Write-Host ""
 Write-Host "  The FOV and graphics profile is NOT applied by copying files." -ForegroundColor White
@@ -299,15 +301,15 @@ Write-Host "  It backs up your Arma profile before changing anything." -Foregrou
 Write-Host "  Without it the image looks zoomed in." -ForegroundColor Gray
 Show-QuickStart
 
-# ---- Der FreeTrack-Eintrag in Windows -------------------------
-# BELEGT AUS DEM DISCORD DES AUTORS: Arma zeigt FreeTrack in den
-# Geraeteeinstellungen NUR, wenn die FreeTrack-Registrierungsschluessel
-# (NPClient.dll) existieren. Ein Rechner, auf dem nie Head-Tracking lief,
-# hat sie nicht - dann fehlt der Eintrag und es gibt kein Head-Tracking,
-# egal wie oft man die Mod neu installiert. Ein Tester hatte genau das;
-# nach einer OpenTrack-Installation war der Eintrag da und es lief.
-# Der Autor hat nachgesehen: seine Mod braucht OpenTrack NICHT - nur
-# dessen Registrierungsschluessel.
+# ---- The FreeTrack registry entry in Windows ------------------
+# DOCUMENTED FROM THE AUTHOR'S DISCORD: Arma only shows FreeTrack in
+# its device settings when the FreeTrack registry keys (NPClient.dll)
+# exist. A machine that never ran head tracking does not have them -
+# the entry is then missing and there is no head tracking, however
+# often the mod is reinstalled. A tester hit exactly that; after
+# installing OpenTrack the entry was there and it worked.
+# The author checked: his mod does NOT need OpenTrack - only its
+# registry keys.
 Write-Host " ============================================================" -ForegroundColor Magenta
 Write-Host "  ONE MORE THING - the FreeTrack entry in Windows" -ForegroundColor Cyan
 Write-Host " ============================================================" -ForegroundColor Magenta
