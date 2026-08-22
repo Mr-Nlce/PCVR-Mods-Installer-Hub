@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (238)</summary>
+<summary>Show all currently listed titles (240)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -206,6 +206,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
+* Sons Of The Forest [WIP] (motion controls)
 * Sonic P-06 VR
 * Sonic Robo Blast 2 VR
 * Spiderman 2
@@ -257,6 +258,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Watch Dogs
 * Watch Dogs 2
 * Watch Dogs Legion
+* White Knuckle VR (motion controls)
 * Wolfenstein 3D VR (motion controls)
 * World of Warcraft VR (motion controls)
 * Yooka-Laylee VR
