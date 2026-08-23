@@ -67,6 +67,38 @@ Start your VR software **first**, then launch Dusklight. A window opens on your
 desktop - press [[Enter]] there or click **Play** to start. **Nothing appears in
 the headset until you do**, so that empty view is expected.
 
+## New in v1.1.0 - the VR settings update
+
+**The Dusklight overlay now works in VR.** Hold [[Right Stick Click]] and
+[[Right Trigger]] together for a couple of seconds to open it - there is no other
+way in from inside the headset. The VR-specific settings live under
+**Settings > VR**.
+
+That tab holds:
+
+| Setting | What it does |
+|---|---|
+| **VR desktop mirror** | mirror the view on your monitor |
+| **Third person** | see below - it also works on a plain gamepad |
+| **Hide body** | hides Link's model except hands and items; his model comes back for cutscenes. Off by default |
+| **Cutscenes first-person** | experimental. Cutscenes are **third person by default now**; this reverts that |
+| **Swap sword/shield hands** | sword in the right hand, shield in the left, like the Wii version - the motion controls swap with it |
+| **VR brightness compensation** | separate values for the normal path and for SteamVR |
+
+**Third person is the big one if you have no VR controllers.** It makes the game
+playable with an ordinary gamepad and no 6DOF: aiming follows your **headset**
+direction instead of the right controller. With it on, the camera also faces Link
+while Z-targeting.
+
+**Also changed:** the reticle grows with distance, so far targets (the monkey, the
+beehive with the owl) stay visible. The headset view now snaps along when a
+cutscene cuts to a new angle, while smooth camera moves are left alone. Area
+transitions play in third person even with third person off, to avoid visual
+bugs. Smooth rotation on the right stick was added for ordinary controllers.
+
+**The gamma problem is properly fixed** - rather than correcting it every frame,
+Meta Link and VDXR now read the game's colour format directly.
+
 ## Known issues - all named by the author
 
 - **Cutscenes are broken in VR.** Link is sometimes loaded out of bounds, and you

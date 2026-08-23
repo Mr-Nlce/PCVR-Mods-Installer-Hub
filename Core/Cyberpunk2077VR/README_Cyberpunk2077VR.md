@@ -1,10 +1,11 @@
 # Cyberpunk 2077 VR
 
 **CyberpunkVRPort** by **dariulone** - a 6-DoF VR mod for **Cyberpunk 2077**, built as a
-**RED4ext plugin**. `CyberpunkVR_Stereo` drives OpenXR head tracking, real stereo and the
-in-headset overlay; `CyberpunkVR_Hands` drives a full-body VR avatar with motion-controlled
-hands; a set of CET and redscript mods add VR weapon aiming, motion melee, hand-to-holster
-equipping and a VR-friendly HUD. Everything is configured from the in-headset **F10** overlay.
+**RED4ext plugin**. `CyberpunkVR_Stereo` is now the **only** native plugin: it drives OpenXR
+head tracking, real stereo, the in-headset overlay **and** the full-body VR avatar with
+motion-controlled hands that used to live in a second DLL. A set of CET and redscript mods add
+VR weapon aiming, the physical reload, motion melee and hand-to-holster equipping. Everything
+is configured from the in-headset **F10** overlay.
 
 Experimental community mod, not affiliated with CD PROJEKT RED. Keep backups of your saves.
 
@@ -80,9 +81,15 @@ Cyberpunk is very demanding in VR.
 An in-place mod: the files land in your existing Cyberpunk 2077 folder.
 
 - `red4ext\plugins\CyberpunkVR_Stereo\` - the VR plugin, its sight shaders, the settings template
-- `red4ext\plugins\CyberpunkVR_Hands\` - the avatar, hand IK and weapon-aim plugin
+  (the avatar, hand IK and weapon aim are **inside this one DLL** since the single-plugin build)
 - `bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_*\` - the CET mods
 - `r6\scripts\CyberpunkVRPort_*\` - the redscript mods
+
+> **Coming from an older build?** `CyberpunkVR_Hands.dll` no longer exists - its code moved
+> into `CyberpunkVR_Stereo.dll`. A copy left behind from an earlier install makes **two plugins
+> hook the same address**, and the game dies on launch with a fault at `FFFFFFFFFFFFFFFF`.
+> Extracting the new build over the old one does **not** remove it. The Hub installer parks it
+> for you - if it ever reports that it could not, rename that `.dll` yourself.
 
 **Keep only one `.dll` in each `CyberpunkVR_*` folder.** RED4ext loads every DLL it finds there,
 so a renamed backup next to the real build loads as a second copy of the plugin and the two

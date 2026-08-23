@@ -47,6 +47,15 @@ Make sure you have:
 8. Type `/vr` in chat to open VR settings — enable **"Start in VR automatically"**
 9. Restart FFXIV
 
+## Switching between first and third person
+
+Press [[Home]] on your keyboard - that is the default binding and it is easy to
+miss, because nothing in VR points at it.
+
+There is a nicer way: in the game's own settings under **Character Configuration
+> Movement > General**, enable *"Switch to 1st person view when fully zoomed
+in."* Then zooming all the way in does the same job.
+
 ## Controls
 
 Configure bindings in the **Controls** tab of the VR settings window.

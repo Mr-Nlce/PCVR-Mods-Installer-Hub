@@ -85,14 +85,22 @@ $GAME_EXE     = "gen1recomp.exe"
 # id from manifest.json - which is why only one can be active and the
 # other has to leave mods\ entirely.
 #
-# ORIGINAL: DRAMATIC_SHAPE 1.8.2, mirrored by scottcandy34. The full
+# ORIGINAL: DRAMATIC_SHAPE 1.8.5, mirrored by scottcandy34. The full
 # mod with everything Dramaless later threw out - among it the
-# built-in first-person mode. 310 files, 19.7 MB unpacked.
-# NO AUTO-UPDATE: pinned to v1.8.2 because it is a MIRROR and can
-# disappear at any time.
+# built-in first-person mode. 266 files, 18.9 MB unpacked (v1.8.5,
+# counted from the real archive).
+# NO AUTO-UPDATE, and now for TWO reasons (2026-08-20):
+#   1. it is a MIRROR and can disappear at any time, and
+#   2. !!! v1.9.0 DROPPED VR ENTIRELY. Measured, not guessed: 1.8.5 is
+#      8,416,358 bytes / 266 files, 1.9.0 is 1,382,938 / 233. The 33
+#      missing files are every openxr_loader.dll (arm, arm64, x64,
+#      Win32 and their UWP variants), oxr.zip, and lib/VR.lua plus
+#      lib/VRXR.lua - 15.9 MB of VR layer, with nothing added in return.
+#      Anything from 1.9.0 on is a flat build for this entry's purpose.
+# Raised from v1.8.2 to v1.8.5, the LAST release that still carries VR.
 $DRAMATIC_ID   = "DRAMATIC_SHAPE"
-$DRAMATIC_TAG  = "v1.8.2"
-$DRAMATIC_URL  = "https://github.com/scottcandy34/DramaticShapeVoxelMod-latest/releases/download/v1.8.2/DRAMATIC_SHAPE-1.8.2.zip"
+$DRAMATIC_TAG  = "v1.8.5"
+$DRAMATIC_URL  = "https://github.com/scottcandy34/DramaticShapeVoxelMod-latest/releases/download/v1.8.5/DRAMATIC_SHAPE-1.8.5.zip"
 $DRAMATIC_PAGE = "https://github.com/scottcandy34/DramaticShapeVoxelMod-latest/releases"
 # FORK: DRAMALESS_SHAPE 1.6.4, the last release WITH VR. Leaner, but
 # without the features 2.0.0 removed for good.

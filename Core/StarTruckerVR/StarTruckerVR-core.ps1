@@ -35,7 +35,7 @@
 $Host.UI.RawUI.WindowTitle = "Star Trucker VR Installer"
 
 $MOD_NAME = "StarTruckerVR"
-$MOD_VERSION = "v1.1.0"
+$MOD_VERSION = "v1.2.2"
 $MOD_AUTHOR = "Destroyjevski"
 
 $GAME_APPID = "2380050"

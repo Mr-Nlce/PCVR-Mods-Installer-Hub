@@ -13,10 +13,54 @@ You play with a **gamepad or mouse and keyboard**. VR motion controllers are not
 The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 30-degree snap turning and headset-directed movement - it only applies while the experimental first-person view is active, and it is off by default.
 
 ## Hotkeys
+- [[F7]] Switch the HUD between the VR and Cinema3D banks
 - [[F8]] Toggle between Standard and Near view
 - [[F9]] Recenter the VR view
-- [[F10]] Toggle 2D cinema mode
+- [[F10]] Toggle cinema mode - mono or stereoscopic, following your render mode
 - [[F11]] Toggle first person (experimental)
+
+After a loading-screen video ends, the view recentres by itself two seconds
+later, along the same path as [[F9]].
+
+## New in v0.9.5 Alpha 1
+
+**Two new render modes: AER + AFW**, as TAAU or DLSS. AER draws one whole eye at
+a time and PureDark's AFW generates the other - a high-performance alternative to
+classic stereo, which renders both eyes independently. These are also the **only**
+routes that can use ray tracing.
+
+**Ray tracing**, experimental: the game's ray-traced ambient occlusion, shadows
+and reflections in VR. Considerable GPU and VRAM cost, and it can flicker or leave
+artefacts around cutscenes.
+
+**Asymmetric projection now works in every mode**, not just Stereo without AA.
+Each eye uses its real off-axis OpenXR view instead of rendering a larger
+symmetric area whose outer pixels you never see. The gain depends on the headset -
+on a Quest 3 the author reckons asymmetric at Virtual Desktop **HIGH** looks like
+symmetric at **GODLIKE**, so you can drop two resolution steps.
+
+**The first-person view was overhauled** ([[F11]]): better camera placement,
+Geralt turns to your view while standing, optional strafe and backpedal, snap turn
+at 30/45/60 degrees, headset-directed movement, less head bobbing, and face and
+hair hidden so they cannot clip into the camera. It can hand over to third person
+during combat and come back afterwards.
+
+**The launcher detects your headset resolution itself** - AUTO asks the OpenXR
+runtime right before launch and writes that exact value. Cinema mode gained a
+**4:3** option beside 5:4.
+
+**Subtitles and dialogue can be moved and resized** in the HUD editor, separately
+for the VR and Cinema3D profiles, with preview text so you can adjust them without
+being in a conversation. **If you had tuned your HUD before, check those two after
+updating** - they now control the real cutscene text.
+
+**Optional: hide the static HUD outside combat** (off by default). Minimap, quest
+tracker, buffs, health, equipment and the rest disappear while exploring and come
+back by themselves in combat, with Witcher Sense, or during a horse race.
+
+> **Pimax owners:** Pimax's own OpenXR can cap **Stereo** mode at half your
+> headset refresh - 45 fps on a 90 Hz display. AER is not affected. Use SteamVR's
+> OpenXR for proper stereo.
 
 ## What you need first
 - The Witcher 3: Wild Hunt **Next-Gen**, at **Patch 4.04** or newer. Older versions and rollback branches are not supported.
@@ -53,7 +97,7 @@ The launcher's **Configure Settings for VR** button applies the settings the mod
 
 | Setting | Value |
 |---|---|
-| Ray tracing | Off |
+| Ray tracing | **Only** with AER + AFW (TAAU or DLSS). The launcher forces it off in every other mode |
 | Screen Space Reflections | Off or Low |
 | Motion blur | Off |
 | VSync | Off |
@@ -87,7 +131,9 @@ The codes are two letters: `EN` English, `DE` German, `FR` French, `IT` Italian,
 Since the next-gen update this is the DirectX 12 profile; the DirectX 11 build reads the same section in `user.settings` instead.
 
 ## Known limitations
-- Ray tracing, high Screen Space Reflections and native canted displays are not implemented. Ray tracing must be off and SSR must be Low or Off.
+- **High Screen Space Reflections** and the **far/distant camera modes** are not implemented. SSR must be Low or Off.
+- **Ray tracing is experimental** and works only on the AER + AFW routes. It can flicker, and can leave artefacts when a cutscene starts or ends.
+- Native canted displays ARE supported - each OpenXR eye pose is used directly, so no parallel-projection workaround is needed.
 - Loading screens are not yet presented correctly in VR - they may change size, appear blank or show duplicated images.
 - Some shadows can flicker in stereo.
 - Third-party mods **and ASI loaders** are unsupported at this stage. Before reporting a bug to the author, reproduce it with all other mods disabled.

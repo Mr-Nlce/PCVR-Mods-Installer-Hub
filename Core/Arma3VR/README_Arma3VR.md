@@ -98,6 +98,26 @@ scrolls.
 **Keep keyboard and mouse within reach.** Arma has many contextual commands with
 no VR binding yet, and no VR button sends Escape or opens the pause menu.
 
+## New in v1.14.0-alpha.1
+- **Stances cycle on a deliberate right-stick flick** - one flick per level
+  through stand, crouch and prone.
+- **Physical crouch** is read from your headset height, with hysteresis so the
+  stance does not flicker while you shift about.
+- The **right controller aims more directly**: the native weapon and the soldier's
+  body follow controller rotation more closely than before.
+- **Smooth turning is faster**, and vehicle camera/turret aiming got its own
+  vertical input.
+- Doors and vehicle actions respond better, and the mod now tells game, UI, Zeus
+  and vehicle context apart reliably - a stale menu state can no longer leave
+  locomotion or motion aiming switched off.
+- **The sharp comfort profile is back**: wide FOV, a 17.5 x 9.84 surface at 5 m,
+  3840x2160 internally and 1920x1080 borderless out. Expect **moderate black
+  borders** - that is the profile, not a fault.
+- **It follows your system's active OpenXR runtime** instead of forcing a
+  Meta-specific path, so non-Meta setups no longer need a workaround.
+- Startup works again when a Workshop folder has **square brackets** in its name,
+  such as `[Public Alpha]`.
+
 ## Headset support
 
 - **Validated:** Meta Quest over Air Link with the Meta OpenXR runtime

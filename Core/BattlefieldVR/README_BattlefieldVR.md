@@ -93,6 +93,40 @@ action can be bound in SteamVR. Vive Wands use their trackpads; the limited
 button count leaves Prone, Scoreboard and Reload unbound by default, and SteamVR
 can remap BFVR's named actions.
 
+## New in v1.0.2
+Mostly comfort and tuning, but several of these are settings you will want to
+find rather than discover by accident:
+
+- **Show hands: `hands + arms`, `hands only`, or `none`.** The arm IK was redone
+  and elbows should stop flailing; the author also admits hand-to-controller
+  alignment is still inconsistent weapon to weapon, so there are **sliders to
+  align them yourself**.
+- **3D crosshairs** got colours (white, red, blue, green, pink, purple, orange,
+  yellow), an **opacity slider**, and a separate toggle for knives, throwables
+  and gadgets - off, on, or hitmarker only.
+- **A death-cam comfort vignette**, with its own toggle.
+- **The native game HUD can be switched off**, and there is a toggle to keep it
+  upright instead of following a sideways head tilt.
+- **Colour profiles** (Original / Filmic / Vibrant) plus exposure, contrast and
+  saturation sliders.
+- **An optional Battlefield-style kill sound.**
+- Turret and cannon aiming by controller motion is **twice as sensitive** as
+  before, up to the game's native maximum, and has its own sensitivity slider.
+- The left-hand grab radius grew from 12 to 18 cm, and holding reload to recentre
+  now takes 2 seconds instead of 2.5.
+- Quick menu gained the broadcasts **"Roger", "Negative"** and **"Go go go!"**.
+
+**Fixes worth knowing:** left-hand grip positions on the Russian DP, MP18,
+Japanese Type 5, Chinese AK47 and Saiga 12k; wrist alignment when twisting a
+controller; weapon and arms left misaligned after a paradrop; ground shadows for
+vehicles and soldiers; an ambient-occlusion artefact that drew a box-shaped
+brightness cutoff across floors, walls and ceilings. Controller motion no longer
+moves your view in a **non-gunner passenger** seat (it may still happen in some
+vehicles, especially in mods).
+
+**WMR users on the Oasis driver**: the author added a fix meant to let you play -
+he marks it "hopefully", so it is worth a try but not a promise.
+
 ## VR Settings
 Hold right A, then open the VR Settings panel from the strip. It holds
 seated/standing mode and manual height, snap or smooth turning with speed and

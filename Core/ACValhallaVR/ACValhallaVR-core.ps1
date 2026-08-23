@@ -291,6 +291,12 @@ if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $
 # Game Pass installs use ACValhalla_Plus.exe).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+# ALSO write the durable stamp next to the GAME (2026-08-20).
+# The line above lands inside the Hub folder and is gone as
+# soon as a new Hub build is dropped in; the scan then finds
+# no marker and seeds the CURRENT online tag, swallowing a
+# pending update. The game-side stamp survives that.
+Save-InstalledStamp -GameDir $gamePath -Version $relTag
 try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value ([System.IO.Path]::Combine($gamePath, $exeName)) -Encoding UTF8 -Force } catch {}
 
 

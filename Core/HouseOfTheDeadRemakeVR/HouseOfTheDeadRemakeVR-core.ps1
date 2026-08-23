@@ -34,7 +34,7 @@ $GAME_NAME = "The House of the Dead Remake"
 # other Astienth mods; different mod channel + post IDs.
 $DISCORD_INVITE_URL = "https://discord.gg/G8zZBTGuhP"
 $DISCORD_RULES_URL = "https://discord.com/channels/1001138422972432597/1001138600781557862/1111681500711235664"
-$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/1001138422972432597/1391730397418881067/1504351282914136074"
+$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/1001138422972432597/1391730397418881067/1535371792041115658"
 $DISCORD_INFO_URL = "https://discord.com/channels/1001138422972432597/1391730397418881067/1391730397418881067"
 
 # -------------------------------------------------------

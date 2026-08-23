@@ -39,6 +39,24 @@ Close the game first (saves are shared - it's the same install):
 - To play flat: run **Play in Flat.bat** in the game folder.
 - To return to VR: run **Back to VR.bat** there.
 
+## New since v1.1.0
+- **Road beacons, gantries and signs render at full distance** again (v1.2.0).
+  They used to appear only very close up: those objects go through the game's
+  instanced debris system, which did not know about the VR camera. The camera now
+  registers through the game's own secondary-camera interface. The author measured
+  no performance cost, so the flat-mode draw distance is simply always used.
+- **The EVA helmet interior is visible** (v1.2.1). The game sizes the helmet from
+  its own flat field of view, so only the top of the visor ever made it into
+  frame - and the world-scale change in 1.1.0 made that fragment fold into itself.
+  It is now sized for the view you actually have and scales with world scale, so
+  the interior and the power and oxygen readouts are there.
+- **The truck shows up in the paint shop and workshop** (v1.2.2), and the paint
+  and customization lists show their previews.
+- **Cockpit monitors no longer stay black** (v1.1.0). Note that monitors refresh
+  every second frame by design, and a short delay before a feed appears is the
+  game's own monitor boot sequence.
+- **Putting a carried object down returns your view to horizontal** (v1.1.1).
+
 ## Known limitations
 - Virtual Desktop with VDXR is the only tested runtime; SteamVR and Quest Link are untested.
 - No tracked motion-controller support (gamepad / KB&M only).

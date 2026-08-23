@@ -6,7 +6,9 @@
 #  and separate supersampling for world and HUD. Gamepad only -
 #  motion controllers are not supported.
 #
-#  PACKAGE (read from the real v1.1.2 archive, 14 files, flat):
+#  PACKAGE (read from the real v1.1.5 archive: Steam 14 files, Epic 15 -
+#  the extra one is Epic_Repair_XInput.bat. v1.1.5 ships FLAT, with no
+#  wrapper folder; v1.1.2 had one. Both work, see below):
 #    XINPUT1_3.dll        <- THE HOOK (proxy DLL, this is the mod)
 #    openxr_loader.dll
 #    RebelGalaxyVR.ini
@@ -27,7 +29,8 @@
 #  No version number is spelled out anywhere in this installer's text:
 #  Nexus has no version API, we cannot auto-update, and the number will
 #  move. The store word is what identifies the file, not the version.
-#  The HOOK IS IDENTICAL in both (XINPUT1_3.dll, 197120 bytes, same build
+#  The HOOK IS IDENTICAL in both (XINPUT1_3.dll, 202752 bytes in v1.1.5,
+#  same sha256 in the Steam and Epic packages - re-checked 2026-08-20; same build
 #  stamp) - what differs is the game exe the helper bats watch for, and
 #  the Epic-only xinput handling below.
 #
@@ -73,7 +76,7 @@
 $Host.UI.RawUI.WindowTitle = "Rebel Galaxy VR Installer"
 
 $MOD_NAME    = "RebelGalaxyVR"
-$MOD_VERSION = "v1.1.2"
+$MOD_VERSION = "v1.1.5"
 $MOD_AUTHOR  = "Destroyjevski"
 
 $GAME_APPID  = "290300"
@@ -492,6 +495,12 @@ if ($missing.Count -eq 0) {
 # -------------------------------------------------------
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
+# ALSO write the durable stamp next to the GAME (2026-08-20).
+# The line above lands inside the Hub folder and is gone as
+# soon as a new Hub build is dropped in; the scan then finds
+# no marker and seeds the CURRENT online tag, swallowing a
+# pending update. The game-side stamp survives that.
+Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION
 
 # Steam installs launch through Steam (the store handles its own DRM and
 # overlay), so no .launch_exe there. Every other store gets a direct exe

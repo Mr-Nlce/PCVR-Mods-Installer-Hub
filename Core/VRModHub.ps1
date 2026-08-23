@@ -82,7 +82,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.6.5"
+$HUB_VERSION = "0.8.6.6"
 
 $updateInfoFile  = Join-Path $scriptDir ".update_available"
 $script:updateInfo = $null

@@ -35,7 +35,7 @@ $GAME_NAME = "Mouse"
 # other Astienth mods; different mod channel + post IDs.
 $DISCORD_INVITE_URL = "https://discord.gg/G8zZBTGuhP"
 $DISCORD_RULES_URL = "https://discord.com/channels/1001138422972432597/1001138600781557862/1111681500711235664"
-$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523985169625911388"
+$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/1001138422972432597/1523984295633490031/1541072649634189372"
 $DISCORD_INFO_URL = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"
 
 # -------------------------------------------------------

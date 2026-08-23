@@ -75,8 +75,15 @@ $WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=37827983
 $OPENTRACK_URL = "https://github.com/opentrack/opentrack/releases/latest"
 # Fallback for no-network ONLY - the normal path resolves the newest
 # build.
-$PINNED_TAG   = "v1.13.1-alpha.1"
-$PINNED_URL   = "https://github.com/$REPO/releases/download/$PINNED_TAG/A3VR-Hybrid-$($PINNED_TAG.TrimStart('v')).zip"
+$PINNED_TAG   = "v1.14.0-alpha.1"
+# !!! THE ASSET NAME KEEPS THE LEADING v (2026-08-20). This line used to
+# build it with $PINNED_TAG.TrimStart('v'), which gives
+# A3VR-Hybrid-1.14.0-alpha.1.zip - and that URL is a 404. The real asset
+# is A3VR-Hybrid-v1.14.0-alpha.1.zip, checked against both the current
+# and the previous release (404 against 200). The fallback therefore
+# never worked; it only ever went unnoticed because the normal path
+# resolves the newest build and this is the no-network route.
+$PINNED_URL   = "https://github.com/$REPO/releases/download/$PINNED_TAG/A3VR-Hybrid-$PINNED_TAG.zip"
 
 # ---- Header ---------------------------------------------------
 Write-Host ""
@@ -290,6 +297,12 @@ try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinu
 # Marker for the Hub - into the INSTALLER folder, not the game folder.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
+# ALSO write the durable stamp next to the GAME (2026-08-20).
+# The line above lands inside the Hub folder and is gone as
+# soon as a new Hub build is dropped in; the scan then finds
+# no marker and seeds the CURRENT online tag, swallowing a
+# pending update. The game-side stamp survives that.
+Save-InstalledStamp -GameDir $gamePath -Version $relTag
 
 # ---- 4. What the installer CANNOT do --------------------------
 Write-Step 4 4 "The parts you have to do yourself"

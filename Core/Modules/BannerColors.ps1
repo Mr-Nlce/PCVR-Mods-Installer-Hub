@@ -23,6 +23,7 @@ $global:BannerColorMap = @{
     "steam:573110" = "#4fb8a5"  # AWAY VR (teal of the game's art, matches tile accent)
     "steam:1326470" = "#5f8f45"  # Sons of the Forest (forest green, matches tile accent)
     "steam:3195790" = "#c8873c"  # White Knuckle VR (rusted amber of the superstructure)
+    "Virtua Cop 2 VR" = "#d92b2b"  # no SteamId - keyed by title (arcade cabinet red)
     "steam:20530" = "#c0392b"  # Red Faction VR (Mars rust-red of the mod's own controls art, matches tile accent)
     "name:Gen1RecompVR" = "#e8c53c"  # Banjo-Kazooie VR (jiggy gold on the blue sky header, matches tile accent)
     "steam:39530" = "#b52a24"  # Painkiller Black Edition (blood-red gothic FPS, matches tile accent)

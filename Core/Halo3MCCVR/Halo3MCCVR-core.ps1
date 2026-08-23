@@ -79,7 +79,25 @@ function Get-LatestHaloRelease {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rels = Invoke-RestMethod -Uri $REPO_API_RELEASES -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        $rel = $rels | Select-Object -First 1
+
+        # !!! NEVER TAKE THE TOP OF THE LIST BLINDLY (2026-08-20). The
+        # author publishes throwaway diagnostic builds beside the real
+        # ones - "broken_build" sat at the top of this list, is tagged as
+        # a prerelease, says "for that guy who asked" and carries a
+        # Halo 4 diagnostic only. Installing it would replace a working
+        # mod with a build its own author calls broken.
+        # Rule: skip anything whose tag or title says broken / diagnostic
+        # / test / debug, and prefer the release the AUTHOR marked as the
+        # latest one.
+        $junk = '(?i)broken|diagnostic|debug|scratch|dontuse|do.not.use'
+        $usable = @($rels | Where-Object {
+            (-not ([string]$_.tag_name -match $junk)) -and
+            (-not ([string]$_.name     -match $junk))
+        })
+        # The author's own "Latest" wins when there is one - that is the
+        # release he stands behind.
+        $rel = $usable | Where-Object { -not $_.prerelease } | Select-Object -First 1
+        if (-not $rel) { $rel = $usable | Select-Object -First 1 }
         if ($rel) {
             # Asset naming has changed across releases: older ones are
             # "HaloMCCVR-alpha-<ver>.zip", 0.2.1+ are "MCC_VR_ALPHA_<ver>.zip".
@@ -379,6 +397,12 @@ try {
 # so a fresh Hub with no marker still confirms the real file on disk.
 try {
     if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
+    # ALSO write the durable stamp next to the GAME (2026-08-20).
+    # The line above lands inside the Hub folder and is gone as
+    # soon as a new Hub build is dropped in; the scan then finds
+    # no marker and seeds the CURRENT online tag, swallowing a
+    # pending update. The game-side stamp survives that.
+    Save-InstalledStamp -GameDir $modDir -Version $relTag
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $mccPath -Encoding UTF8 -Force
 } catch {}
 

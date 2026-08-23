@@ -184,8 +184,10 @@ echo   [169] Red Faction VR
 echo   [170] AWAY VR
 echo   [171] Sons of the Forest
 echo   [172] White Knuckle VR
+echo   [173] Virtua Cop 2 VR
+echo   [174] Mass Effect 3 LE VR
 echo.
-set /p choice="Enter number (1-172): "
+set /p choice="Enter number (1-174): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -358,6 +360,8 @@ if "%choice%"=="169" (set SCRIPT=%~dp0RedFactionVR\RedFactionVR-core.ps1)
 if "%choice%"=="170" (set SCRIPT=%~dp0AwayVR\AwayVR-core.ps1)
 if "%choice%"=="171" (set SCRIPT=%~dp0SonsVR\SonsVR-core.ps1)
 if "%choice%"=="172" (set SCRIPT=%~dp0WhiteKnuckleVR\WhiteKnuckleVR-core.ps1)
+if "%choice%"=="173" (set SCRIPT=%~dp0VirtuaCop2VR\VirtuaCop2VR-core.ps1)
+if "%choice%"=="174" (set SCRIPT=%~dp0MassEffect3VR\MassEffect3VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

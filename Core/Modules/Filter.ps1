@@ -2075,7 +2075,7 @@ function global:Get-GithubLatestTagCached {
             # filter. So it is checked here as well, rather than trusting
             # the write path: cache files from before this change already
             # contain such tags.
-            if ($entry.tag -match '(?i)source|hub-patch|sdk|symbols') {
+            if ($entry.tag -match '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
                 Write-Host "[GithubCheck] ${Repo}: cached tag '$($entry.tag)' is a source release - discarding it"
                 $script:ghVerCache.Remove($cacheKey)
             } elseif ($age -lt $ttlHours) {
@@ -2165,6 +2165,11 @@ function global:Get-GithubLatestTagCached {
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
         # !!! A SOURCE RELEASE IS NOT AN UPDATE !!!
+        # "broken" and "diagnostic" joined the list on 2026-08-20:
+        # pancreations published a prerelease tagged "broken_build" that
+        # sat ABOVE the real Alpha 0.3.3 in the list, carried a Halo 4
+        # diagnostic only, and is called broken by its own author. A tag
+        # like that must never raise an Update badge.
         # RaYRoD-TV uploaded a release "hub-patch-2" to all of his VR
         # ports that contains source only. On Banjo it is marked as a
         # prerelease and drops out here anyway - on StarFox64-VR it is
@@ -2172,7 +2177,7 @@ function global:Get-GithubLatestTagCached {
         # reported a nonexistent update.
         # Such tags are discarded; the last known state then stays and
         # the tile reports nothing.
-        if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols')) {
+        if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols|broken|diagnostic')) {
             Write-Host "[GithubCheck] ${Repo}: tag '$tag' looks like a source release - skipping it"
             $tag = $null
         }
@@ -4543,6 +4548,24 @@ function global:Invoke-PostInstallRefresh {
                     if (-not $modPresent -and $game.ModFileAlt) {
                         $modPresent = (Test-Path (Join-Path $recordedPath $game.ModFileAlt))
                     }
+                    # !!! VrInstallRoot GAMES KEEP THE MOD OUTSIDE THE GAME
+                    # FOLDER (2026-08-20) - %LocalAppData% and the like. The
+                    # recorded path is then the GAME folder, so looking only
+                    # there finds nothing and the card falls back to
+                    # "Install VR Mod" even though the mod is right there.
+                    # The Locate dialog already checks this root and reports
+                    # the mod as found; without the same check here the two
+                    # disagree, which is exactly what the user sees.
+                    if (-not $modPresent -and $game.VrInstallRoot) {
+                        $vr = $game.VrInstallRoot
+                        if     ($vr -like "LOCALAPPDATA:*") { $vr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($vr.Substring("LOCALAPPDATA:".Length)) }
+                        elseif ($vr -like "APPDATA:*")      { $vr = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vr.Substring("APPDATA:".Length)) }
+                        elseif ($vr -like "PROGRAMDATA:*")  { $vr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vr.Substring("PROGRAMDATA:".Length)) }
+                        elseif ($vr -like "USERPROFILE:*")  { $vr = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vr.Substring("USERPROFILE:".Length)) }
+                        try {
+                            if (Test-Path -LiteralPath (Join-Path $vr $game.ModFile)) { $modPresent = $true }
+                        } catch {}
+                    }
                 }
                 if ($recordedPath -and (Test-Path $recordedPath) -and $modPresent) {
                     $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
@@ -4589,6 +4612,27 @@ function global:Invoke-PostInstallRefresh {
                     # state entry are skipped (continue), so this
                     # does NOT scan or repaint cards we didn't ask
                     # for - only the one we just installed.
+                    try { Rebuild-Lookups } catch {}
+                }
+                elseif ($recordedPath -and (Test-Path $recordedPath)) {
+                    # GAME FOUND, MOD NOT THERE YET (2026-08-20). The branch
+                    # above only fires when the mod file is on disk, so
+                    # locating a game by hand wrote NO state at all - and
+                    # without a state entry the detail page shows no
+                    # "Game installed - ready for the VR mod" pill until a
+                    # full scan has run. For a title that no scan can find
+                    # anyway (Virtua Cop 2 is in no library), that pill
+                    # would never appear.
+                    # Same shape the full scan writes for this case, so both
+                    # agree and nothing downstream has to tell them apart.
+                    $global:gameStateMap[$title] = @{
+                        Tag      = "installed"
+                        State    = "installed"
+                        Border   = "#2a5c38"
+                        BtnText  = "Install VR Mod"
+                        BtnColor = "#66dd88"
+                        GameDir  = $recordedPath
+                    }
                     try { Rebuild-Lookups } catch {}
                 }
             }

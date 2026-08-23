@@ -10,19 +10,67 @@ https://github.com/Firejumper93/GhostReconWildlandsVR
 ## This is an alpha - read this first
 It is **not a complete VR experience**. Stereo depth and a fullscreen view work, but this is a development snapshot and every release changes things.
 
-> **The August 2026 game patch (Ubisoft "Last Rites") replaced `GRW.exe`.** The mod
-> refuses to touch an executable it does not recognise, so older mod builds simply
-> ran flat on the patched game - no crash, no risk, no VR either. Release
-> **v0.7.0-alpha** re-derived every engine address against the new executable and
-> was verified in the headset on 2026-08-08. The Hub always installs the newest
-> release, so you get this by itself.
+> **Ubisoft shipped three executables in August 2026, and each one needed its own
+> verified address table.** The mod locates engine code at specific addresses, so a
+> new `GRW.exe` means every address must be re-derived before anything is written.
+> It refuses to touch an executable it does not recognise - older mod builds simply
+> ran flat on a patched game. No crash, no risk, no VR either.
+>
+> | Game update | First mod release that supports it |
+> |---|---|
+> | late-July 2026 | v0.7.0-alpha |
+> | 2026-08-13 "Last Rites" | v0.9.0-test1 |
+> | **2026-08-19** | **v0.9.1-test2** |
+>
+> **The Hub always installs the newest release**, so the current game version is
+> covered. If you are stuck on "the mod does nothing since the update", that is
+> what this is. The symptom of an unrecognised build is a small flat window that
+> ignores head movement - check `GRWVR\grwxr-<pid>.log` for the `build pin:` line.
+
+> **Known bug in v0.9.1-test2: the two-handed hold flips 180 degrees at random.**
+> The gun appears to split and reform, and reads as reversed every so often. The
+> author measured it - 5466 flips in one 90-second run - names the cause (the
+> front-hand test has no deadband, so hand jitter flips it frame to frame) and
+> says plainly that the fix is not in this release.
+> **Workaround: set `wgun_twohand = 0`** in `GRWVR\grwxr.cfg` for a one-handed
+> hold, which does not have the problem.
+
+### New in v0.9.1-test2
+- **Head hiding in first person is back** on the current executables. It had been
+  off since v0.7.0 because the engine function had been recompiled, not moved -
+  and this mod never guesses an address.
+- **A settings panel in the headset on [[F1]]**, driven with your controller.
+- **Whole configs on the numpad** - see the warning in the key section below.
+- **The eye sign was inverted and is now flipped.** The shipped config is
+  `ipd_scale = 1.00` with `ipd_swap = 1`. If you were running a very small
+  `ipd_scale` because everything looked huge, you were compensating for this.
+  The author calls it "better, tested once", not "correct" - so it is the first
+  row on the panel. Flip it if it looks wrong to you.
 
 **Working today**
 - Native OpenXR session on the game's own D3D11 device, paced by the headset at 72 Hz
 - Full head tracking driving the real game camera, with stereoscopic depth via alternate-eye rendering
 - Fullscreen view - the mod overrides the rendered field of view (default 1.92 rad, about 110 degrees) so the image fills the headset instead of floating as a window
 - Working scopes: while scoped the mod steps aside, so the optic renders exactly as in the flat game and bullets land on the crosshair. Magnified optics are shown across a comfortable window so they actually magnify
-- First-person demo mode, a toggleable camera push that puts the view at the character instead of behind them
+- **True first person, anchored to your character's head bone** - eye height
+  follows standing, crouch and prone by itself, and the head is hidden so you do
+  not see hair or helmet from inside. The close-range body blur is gone.
+- **The weapon follows your controller**, position and rotation, one to one. It
+  is the game's own weapon, placed by writing the bone the engine mounts it on -
+  not an overlay. Since v0.8.0.
+- **Two-handed handling**: the rear hand sets where the gun is, the front hand
+  where it points, and your wrist rolls it about the barrel. Front-hand authority
+  fades in with hand separation, so bringing your hands together degrades to a
+  one-handed hold. **See the known bug above before you rely on it.**
+
+**Still not there, and the author is blunt about it**
+- **Bullets follow your gaze, not the gun**, so aiming down sights stays the
+  accurate way to shoot. This is the last big piece.
+- Your Touch controllers are otherwise read as an **emulated gamepad** - sticks,
+  triggers, grips and face buttons become ordinary gamepad input. That is gamepad
+  emulation, not motion control, and the author refuses to call it anything else.
+- No hands, no gestures, no physical reloads. Your character's arms do not follow
+  the weapon, so the gun can look detached.
 
 **Not there yet**
 - **No motion controls.** You play on a gamepad. Aiming from the hip and in ADS follows the game's own aim, not your view, so the true ballistic aim point drifts from your crosshair until the game catches up. While scoped, ballistics are exact.
@@ -127,18 +175,36 @@ Check the file in your Wildlands folder: right-click `dxgi_real.dll` > Propertie
 To rule the mod out entirely, rename `dxgi.dll` to `dxgi.dll.off` and start the game. If it runs then, the problem is on the mod side, not with your game install.
 
 ## Keys in the headset
+
+> **The key map changed in v0.9.1-test2.** The numpad digits used to be feature
+> toggles. **They are preset loaders now**, and what they carried moved onto the
+> F1 panel. The mod prints its own key list at startup, generated from what the
+> keys actually do - that log line is the authority if this table ever drifts.
+
 | Key | Action |
 |---|---|
+| [[F1]] | Open / close the **settings panel** - driven with your controller |
+| [[F2]] | First person on / off. Head hiding follows it, and it recenters |
 | [[Home]] | Recenter - look where forward should be, then press |
-| [[Numpad 9]] / [[Numpad -]] | Eye separation + / - (0.05 steps) |
-| [[Numpad *]] | Reset eye separation to the startup value |
-| [[Numpad 1]] | Fullscreen field-of-view override on / off |
-| [[Numpad +]] / [[Numpad 2]] | Field of view wider / narrower (0.10 rad steps) |
-| [[Numpad 8]] | First-person demo mode on / off |
-| [[Numpad 7]] / [[Numpad 4]] | First-person camera forward / back (0.10 m) |
-| [[Numpad 6]] / [[Numpad 5]] | First-person camera right / left (0.10 m) |
-| [[Numpad 3]] / [[Numpad 0]] | First-person camera up / down (0.10 m) |
-| [[Numpad /]] | Desktop recording view on / off (experimental) |
+| [[Space]] | Also recenters, and still vaults (the mod does not intercept it) |
+| [[Numpad .]] | 1:1 head aim on / off - bullets follow your gaze |
+| [[Numpad /]] / [[Numpad *]] | World bigger / smaller (`ipd_scale`) |
+| [[Insert]] | Cycle which setting the live tuner edits |
+| [[Page Up]] / [[Page Down]] | Step that setting up / down |
+| [[Delete]] | Reset that setting |
+| [[End]] | Guided spoken test run (silent with `voice = 0`) |
+
+### The numpad digits now overwrite your settings
+[[Numpad 1]]-[[Numpad 9]] and [[Numpad 0]] each **replace your entire
+`grwxr.cfg`** with a preset from `GRWVR\presets\`, in file-name order.
+
+- With **no** `presets\` folder they do nothing and the log says so.
+- With one, **a stray press changes every setting at once.** Each load announces
+  its name out loud, and your live config is backed up once before the first
+  load of a session.
+- Preset files must be **whole copies** of `grwxr.cfg`. Loading is additive: keys
+  a preset leaves out keep the previous preset's values instead of resetting to
+  defaults. The mod names every missing key.
 
 Every tuning key prints the exact `grwxr.cfg` line for its current value into the log, so you can make a setting permanent.
 

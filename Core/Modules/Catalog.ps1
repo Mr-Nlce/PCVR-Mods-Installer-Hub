@@ -1015,7 +1015,7 @@ $ownGames = @(
         Title       = "Final Fantasy XIV VR"
         VideoUrl    = "https://www.youtube.com/watch?v=H9Lx7n7zFBo"
         SteamId     = "39210"
-        Mod         = "FFXIV VR v0.0.62"
+        Mod         = "FFXIV VR via Dalamud"
         Description = "Dalamud plugin, guided setup."
         Author      = "WesleyLuk90"
         Bat         = "FfxivVR\START_INSTALLER.bat"
@@ -1182,7 +1182,10 @@ $ownGames = @(
         Description = "Halo 3 + ODST + Reach"
         Author      = "pancreations"
         GithubRepo  = "pancreations/Halo-MCC-VR"
-        GithubPrerelease = $true
+        # THE AUTHOR MARKS A PROPER LATEST (Alpha 0.3.3), so /releases/latest
+        # is the right source here. Reading the LIST instead would put
+        # his "broken_build" diagnostic prerelease on top.
+        GithubPrerelease = $false
         Bat         = "Halo3MCCVR\START_INSTALLER.bat"
         Color       = "#0a1420"
         Accent      = "#4a90c8"
@@ -1458,6 +1461,18 @@ $ownGames = @(
         Accent      = "#cc2222"
         InfoUrl     = "https://github.com/keyou91/l4d2vr"
         ModFile     = "openvr_api.dll"
+        # FLAT/VR SWITCH by parking the mod's d3d9.dll (2026-08-20). The
+        # author names exactly this as one of his two ways back to the
+        # flat game.
+        # !!! WORTH KNOWING, AND IT IS IN THE README: that d3d9.dll is
+        # ALSO DXVK. Parking it does not just turn VR off, it drops the
+        # Vulkan translation layer with it - the author says he would
+        # keep the file for that reason alone. His other route is the
+        # launch option -nohmd, which leaves DXVK in place; that is the
+        # better one if you only want a flat session.
+        ModFileAlt     = "d3d9.dll.off"
+        FlatVREnabled  = "d3d9.dll"
+        FlatVRDisabled = "d3d9.dll.off"
         SteamFolder = "Left 4 Dead 2"
         Tags=@("l4d2", "left 4 dead", "left4dead", "coop", "fps", "horror", "shooter")
     },
@@ -1499,7 +1514,7 @@ $ownGames = @(
         Quip        = "Twilight and light, and you between them - with a sword."
         VideoUrl    = "https://www.youtube.com/watch?v=ioJsbBGZ0Cs"
         Mod         = "Dusklight VR (auto-update)"
-        GithubRepo  = "JoeyAW/dusklight-vr"
+        GithubRepo  = "JoeyAW/TPVR"
         Description = "GameCube dump required"
         Author      = "JoeyAW"
         ImprovementTag = "+ 4K texture pack"
@@ -1726,7 +1741,7 @@ $ownGames = @(
         )
         Color       = "#141210"
         Accent      = "#c9a24b"
-        InfoUrl     = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"; DownloadUrl="https://discord.com/channels/1001138422972432597/1523984295633490031/1528716538314756278"
+        InfoUrl     = "https://discord.com/channels/1001138422972432597/1523984295633490031/1523984342077014069"; DownloadUrl = "https://discord.com/channels/1001138422972432597/1523984295633490031/1541072649634189372"
         ModFile     = "BepInEx\plugins\MousePI_VR.dll"
         # The reworked build (controller vibration, fixed
         # sticks, reload and kick gestures, fixed swimming) brought NO
@@ -2281,7 +2296,7 @@ $ownGames = @(
         SteamId     = "20530"
         Quip        = "Mars is ours. Now swing the sledgehammer with your own arm."
         Mod         = "AlpineFactionVR (auto-update)"
-        Description = "Early alpha - expect bugs"
+        Description = "Beta, back up saves"
         Author      = "CactusVRStudios"
         Bat         = "RedFactionVR\START_INSTALLER.bat"
         Color       = "#1a0b08"
@@ -2569,7 +2584,7 @@ $ownGames = @(
         SteamId     = "1326470"
         Quip        = "No VR mode shipped for this island. Someone built one anyway."
         Mod         = "SonsVR_Mod (auto-update)"
-        Description = "ALPHA, first start is slow"
+        Description = "Alpha, slow first start"
         Author      = "Anthony"
         Bat         = "SonsVR\START_INSTALLER.bat"
         ReadmeDir   = "SonsVR"
@@ -2872,12 +2887,60 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Title       = "Virtua Cop 2 VR"; Roomscale=$true
+        VideoUrl    = "https://www.youtube.com/watch?v=Wd_cD4H6gsE"
+        VideoLabel  = "Watch VR gameplay"
+        # NO SteamId: the 1997 PC game is not sold anywhere, so there is
+        # no store page to pull art or blurb from - hence the three own
+        # assets below.
+        Quip        = "Point. Shoot. Just like the cabinet."
+        Mod         = "VC2VR (auto-update)"
+        Description = "1997 copy required"
+        Author      = "NeuralF"
+        Bat         = "VirtuaCop2VR\START_INSTALLER.bat"
+        ReadmeDir   = "VirtuaCop2VR"
+        Color       = "#0b1024"
+        Accent      = "#d92b2b"
+        HeaderUrl     = "Assets/VirtuaCop2VR_header.jpg"
+        PortraitUrl   = "Assets/VirtuaCop2VR_portrait.jpg"
+        ScreenshotUrl = "Assets/VirtuaCop2VR_screenshot.jpg"
+        InfoUrl     = "https://github.com/NeuralF/Rea-Virtua-Cop-2-VR"
+        ModPageUrl  = "https://github.com/NeuralF/Rea-Virtua-Cop-2-VR"
+        DownloadUrl = "https://github.com/NeuralF/Rea-Virtua-Cop-2-VR/releases"
+        GithubRepo  = "NeuralF/Rea-Virtua-Cop-2-VR"
+        GameExe     = "PPJ2DD.EXE"
+        # The game is in NO library - no Steam, GOG or Epic - so a scan
+        # can never detect it. Show "Locate Game" right away instead of
+        # waiting for a scan that cannot help. Once the user points at
+        # PPJ2DD.EXE, the installer already knows where the game is.
+        AlwaysOfferLocate = $true
+        # The VR half lives in its own program folder, NOT in the game
+        # directory - the game is 32-bit and the VR runtime 64-bit, so
+        # they cannot share one process.
+        VrInstallRoot = "LOCALAPPDATA:Programs\Virtua Cop 2 VR"
+        ModFile     = "VC2VR.exe"
+        # "Start in VR" runs this, NOT one of the two executables. Two
+        # programs have to start in order, from two different folders,
+        # and the game only finds its data when PROJECT is the working
+        # directory - the installer writes this batch file so none of
+        # that is the user's problem.
+        LaunchExe   = "Play Virtua Cop 2 VR.bat"
+        UninstallSteps = @(
+            "Delete the folder %LOCALAPPDATA%\\Programs\\Virtua Cop 2 VR - that is the whole VR side, launcher and icon included.",
+            "Delete the 'Virtua Cop 2 VR' shortcut from your Desktop if you made one.",
+            "In your game folder, delete the PROJECT subfolder the installer created. Everything in it is a copy; your original files in the game root were never touched.",
+            "Nothing else was changed, so there is nothing to restore."
+        )
+        Tags=@("virtua cop", "virtuacop", "sega", "am2", "neuralf", "light gun", "lightgun", "arcade", "shooter", "fps", "fast paced", "rail shooter", "story", "retro", "1997")
+    },
+    @{
+        Controls    = "MC"
         Title       = "White Knuckle VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=A_MBM38Z3r4"
         SteamId     = "3195790"
         Quip        = "Your hands are the only thing between you and the drop."
         Mod         = "WhiteKnuckleVR (auto-update)"
-        Description = "First launch is flat by design"
+        Description = "First launch runs flat"
         Author      = "kyanite-rock"
         Bat         = "WhiteKnuckleVR\START_INSTALLER.bat"
         ReadmeDir   = "WhiteKnuckleVR"
@@ -3291,7 +3354,7 @@ $ownGamesGP = @(
         # taken including prereleases - /releases/latest would skip them.
         GithubRepo  = "Firejumper93/GhostReconWildlandsVR"
         GithubPrerelease = $true
-        Description = "Alpha, no motion controls"
+        Description = "Test build, known bug"
         Author      = "Firejumper93"
         Notice      = "This mod is an ALPHA and not a complete VR experience yet. Full stereo, head tracking, a fullscreen view, 4K internal rendering, head aim and working scopes are in - but there are NO real motion controls: the Touch controllers act as an emulated gamepad, with head aim and hand markers as the only tracked layers. Currently BROKEN by the August 2026 game patch: hiding your head in first person, so you may see hair or a helmet from inside - the author calls it the top priority for the next release. Keep the game's new FSR upscaling OFF with this mod. Treat it as a preview, not as a finished way to play. IMPORTANT: the game runs Easy Anti-Cheat for multiplayer - solo campaign only, never co-op, PvP or matchmaking, and offline mode is recommended."
         Bat         = "GhostReconWildlandsVR\START_INSTALLER.bat"
@@ -3425,7 +3488,7 @@ $ownGamesGP = @(
         Accent      = "#d93a3a"
         InfoUrl     = "https://www.patreon.com/posts/166482031"
         ModPageUrl  = "https://www.patreon.com/posts/166482031"
-        DownloadUrl = "https://www.patreon.com/posts/166482031"
+        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
         SteamFolder = "Mass Effect Legendary Edition"
         FallbackPaths=@("C:\Program Files\EA Games\Mass Effect Legendary Edition", "C:\Program Files (x86)\Origin Games\Mass Effect Legendary Edition", "C:\Program Files\Epic Games\Mass Effect Legendary Edition", "EPIC:Mass Effect Legendary Edition", "XBOX:Mass Effect Legendary Edition")
         ModFile     = "Game\ME1\Binaries\Win64\dxgi.dll"
@@ -3454,12 +3517,41 @@ $ownGamesGP = @(
         Accent      = "#e0862a"
         InfoUrl     = "https://www.patreon.com/dhalcyon/posts/suicide-mission-165506412"
         ModPageUrl  = "https://www.patreon.com/dhalcyon/posts/suicide-mission-165506412"
-        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/suicide-mission-165506412"
+        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
         SteamFolder = "Mass Effect Legendary Edition"
         FallbackPaths=@("C:\Program Files\EA Games\Mass Effect Legendary Edition", "C:\Program Files (x86)\Origin Games\Mass Effect Legendary Edition", "C:\Program Files\Epic Games\Mass Effect Legendary Edition", "EPIC:Mass Effect Legendary Edition", "XBOX:Mass Effect Legendary Edition")
         ModFile     = "Game\ME2\Binaries\Win64\dxgi.dll"
         UninstallSteps = @(
             "Re-run MELE2-VR.bat in ...\Game\ME2\Binaries\Win64 and follow its uninstall option - or simply delete 'dxgi.dll' and 'openxr_loader.dll' from that folder.",
+            "The base game (Legendary Edition) is left untouched."
+        )
+        Tags=@("mass effect", "mass effect 2", "mele2", "legendary edition", "shepard", "normandy", "omega", "collectors", "suicide mission", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
+    },
+    @{
+        Controls    = "GP"
+        Title       = "Mass Effect 3 LE VR"
+        VideoUrl    = "https://youtu.be/rdnmQ6vfBTk?t=690"
+        SteamId     = "1328670"
+        Quip        = "Assemble the team. The Omega-4 relay is a one-way trip."
+        Mod         = "MELE3-VR"
+        # ME2 had NO update signal at all - the Hub could never report a
+        # new build there. Timestamp as with ME1, read from the modder's
+        # zip (dxgi.dll 849,408 B, 2026-08-01 20:29). Anyone with an
+        # older file on disk gets the update badge.
+        ModBuildStamp = "2026-08-01 20:29"
+        Description = "Legendary Edition required"
+        Author      = "dhalcyon"
+        Bat         = "MassEffect3VR\START_INSTALLER.bat"
+        Color       = "#0a0e1a"
+        Accent      = "#e0862a"
+        InfoUrl     = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
+        ModPageUrl  = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
+        DownloadUrl = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
+        SteamFolder = "Mass Effect Legendary Edition"
+        FallbackPaths=@("C:\Program Files\EA Games\Mass Effect Legendary Edition", "C:\Program Files (x86)\Origin Games\Mass Effect Legendary Edition", "C:\Program Files\Epic Games\Mass Effect Legendary Edition", "EPIC:Mass Effect Legendary Edition", "XBOX:Mass Effect Legendary Edition")
+        ModFile     = "Game\ME3\Binaries\Win64\dxgi.dll"
+        UninstallSteps = @(
+            "Re-run MELE3-VR.bat in ...\Game\ME3\Binaries\Win64 and follow its uninstall option - or simply delete 'dxgi.dll' and 'openxr_loader.dll' from that folder.",
             "The base game (Legendary Edition) is left untouched."
         )
         Tags=@("mass effect", "mass effect 2", "mele2", "legendary edition", "shepard", "normandy", "omega", "collectors", "suicide mission", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
@@ -3675,7 +3767,7 @@ $ownGamesGP = @(
         VideoLabel  = "Watch gameplay"
         Quip        = "Broadside a pirate cruiser with the nebula wrapped around you."
         SteamId     = "290300"
-        Mod         = "RebelGalaxyVR v1.1.2"
+        Mod         = "RebelGalaxyVR v1.1.5"
         # Nexus has no version API, so the tile flips to Update when the
         # installed hook is older than this date (minus the 7-day grace).
         # Bump it whenever Destroyjevski ships a newer build.
@@ -3931,7 +4023,7 @@ $ownGamesGP = @(
         VideoLabel  = "Watch gameplay"
         Quip        = "Big rig, bigger view - haul the void in stereo."
         SteamId     = "2380050"
-        Mod         = "StarTruckerVR v1.1.0"
+        Mod         = "StarTruckerVR v1.2.2"
         Description = "Nexus download required"
         Author      = "Destroyjevski"
         Bat         = "StarTruckerVR\START_INSTALLER.bat"
@@ -4790,7 +4882,7 @@ $externalGames = @(
         Title       = "UUVR / Rai Pal"
         VideoUrl    = "https://www.youtube.com/watch?v=5JmIM0tmnCA"
         Quip        = "Every Unity game is a door. Rai Pal hands you the key."
-        Mod         = "Rai Pal v0.19.2"
+        Mod         = "Rai Pal (always latest)"
         Author      = "Raicuparta"
         Description = "Universal Unity VR Injector"
         Url         = "https://raicuparta.com/rai-pal/"

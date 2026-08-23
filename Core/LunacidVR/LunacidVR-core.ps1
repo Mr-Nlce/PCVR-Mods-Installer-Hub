@@ -413,6 +413,12 @@ try {
 } catch {}
 try {
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force
+    # ALSO write the durable stamp next to the GAME (2026-08-20).
+    # The line above lands inside the Hub folder and is gone as
+    # soon as a new Hub build is dropped in; the scan then finds
+    # no marker and seeds the CURRENT online tag, swallowing a
+    # pending update. The game-side stamp survives that.
+    Save-InstalledStamp -GameDir @($gamePath, $destDir) -Version $MOD_VERSION
 } catch {}
 
 # -------------------------------------------------------

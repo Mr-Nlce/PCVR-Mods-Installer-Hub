@@ -1621,6 +1621,7 @@ function global:Get-PowerTier {
         "Astrodogs VR"                 = "BASIC"
         "Mass Effect 1 LE VR"          = "STRONG"
         "Mass Effect 2 LE VR"          = "STRONG"
+        "Mass Effect 3 LE VR"          = "STRONG"
         "GTA IV VR"                    = "SOLID"
         "Mouse P.I. For Hire VR"       = "STRONG"
         "My Friendly Neighborhood VR"  = "STRONG"
@@ -1647,6 +1648,10 @@ function global:Get-PowerTier {
         # A small indie game, but that doubling is the whole cost.
         # renderScale is his own first lever against it.
         "White Knuckle VR"             = "SOLID"
+        # A 1997 software-rendered game rebuilt into 3D. The scene is
+        # tiny by modern standards and the mod does the reconstruction
+        # on the CPU side; the GPU load is next to nothing. LOW.
+        "Virtua Cop 2 VR"              = "LOW"
         "F-Zero X VR"                  = "BASIC"
         "Singularity VR"               = "SOLID"
         "Red Faction VR"               = "BASIC"
@@ -2936,32 +2941,93 @@ function global:Resolve-VrInstallRoot {
 # ---------------------------------------------------------------
 function global:Test-OnlineVersionIsNewer {
     param([string]$Installed, [string]$Online)
-    $a = ([string]$Installed).Trim() -replace '^[vV]',''
-    $b = ([string]$Online).Trim()    -replace '^[vV]',''
+
+    # SIX CHECKS, in order, and each one can settle it (2026-08-20).
+    # Rebuilt because the tile kept nagging: the old version treated ANY
+    # difference after the numbers as "newer", so a marker of "1.3.19"
+    # against a tag of "1.3.19-hotfix" reported an update on every scan
+    # and no reinstall could ever clear it.
+    # The guiding rule: WHEN IN DOUBT, REPORT NO UPDATE. A missed update
+    # is a small annoyance the next release fixes; a badge that cannot
+    # be cleared destroys trust in every badge on the page.
+
+    # 1. Normalise: trim, drop a leading v, fold case, and treat the
+    #    common separators as equal so "1.3.19_beta" and "1.3.19-beta"
+    #    are the same string.
+    $a = ([string]$Installed).Trim() -replace '^[vV]', ''
+    $b = ([string]$Online).Trim()    -replace '^[vV]', ''
     if (-not $a -or -not $b) { return $false }
-    if ($a -eq $b) { return $false }
-    # Compare only the leading numeric part: "1.4.1-beta" -> "1.4.1"
-    $na = ([regex]::Match($a, '^\d+(\.\d+)*')).Value
-    $nb = ([regex]::Match($b, '^\d+(\.\d+)*')).Value
-    if (-not $na -or -not $nb) { return ($a -ne $b) }
-    $pa = @($na -split '\.' | ForEach-Object { [int]$_ })
-    $pb = @($nb -split '\.' | ForEach-Object { [int]$_ })
-    $n = [Math]::Max($pa.Count, $pb.Count)
-    for ($i = 0; $i -lt $n; $i++) {
-        $x = if ($i -lt $pa.Count) { $pa[$i] } else { 0 }
-        $y = if ($i -lt $pb.Count) { $pb[$i] } else { 0 }
-        if ($y -gt $x) { return $true }
-        if ($y -lt $x) { return $false }
+    $an = ($a.ToLowerInvariant() -replace '[_\s]', '-')
+    $bn = ($b.ToLowerInvariant() -replace '[_\s]', '-')
+
+    # 2. Identical after normalising - nothing to do. This is the check
+    #    that has to survive: it is what makes an install clear a badge.
+    if ($an -eq $bn) { return $false }
+
+    # 3. Date stamps (2026-08-20 or 20260820) compare as dates, never as
+    #    version numbers - "2026" alone would otherwise look equal.
+    $reDate = '^(\d{4})-?(\d{2})-?(\d{2})'
+    $ma = [regex]::Match($an, $reDate)
+    $mb = [regex]::Match($bn, $reDate)
+    if ($ma.Success -and $mb.Success) {
+        $da = [int]("$($ma.Groups[1].Value)$($ma.Groups[2].Value)$($ma.Groups[3].Value)")
+        $db = [int]("$($mb.Groups[1].Value)$($mb.Groups[2].Value)$($mb.Groups[3].Value)")
+        if ($db -ne $da) { return ($db -gt $da) }
+        # Same date - fall through to the suffix rank below.
+    } else {
+        # 4. Numeric parts, component by component. Missing components
+        #    count as 0, so "1.4" and "1.4.0" are equal.
+        $na = ([regex]::Match($an, '^\d+(\.\d+)*')).Value
+        $nb = ([regex]::Match($bn, '^\d+(\.\d+)*')).Value
+        # TAGS THAT DO NOT START WITH A DIGIT still carry their number
+        # further in: "alpha-0.7", "beta-2.1", "release-1.4". Looking
+        # only at the start would call those uncomparable and silently
+        # swallow every update on such a repo - Red Faction publishes
+        # exactly this shape (alpha-0.1 ... alpha-0.7, then 0.8, 0.9).
+        if (-not $na) { $na = ([regex]::Match($an, '\d+(\.\d+)+|\d+')).Value }
+        if (-not $nb) { $nb = ([regex]::Match($bn, '\d+(\.\d+)+|\d+')).Value }
+        if (-not $na -or -not $nb) {
+            # Genuinely no digits anywhere on one side.
+            return $false
+        }
+        $pa = @($na -split '\.' | ForEach-Object { [int]$_ })
+        $pb = @($nb -split '\.' | ForEach-Object { [int]$_ })
+        $n = [Math]::Max($pa.Count, $pb.Count)
+        for ($i = 0; $i -lt $n; $i++) {
+            $x = if ($i -lt $pa.Count) { $pa[$i] } else { 0 }
+            $y = if ($i -lt $pb.Count) { $pb[$i] } else { 0 }
+            if ($y -gt $x) { return $true }
+            if ($y -lt $x) { return $false }
+        }
+        $an = $an.Substring($na.Length)
+        $bn = $bn.Substring($nb.Length)
     }
-    # NUMERIC PARTS EQUAL - then the REMAINDER decides.
-    # Why not simply $false: for a date stamp like "2026-08-01"
-    # against "2026-08-20" the leading numeric part is just "2026"
-    # both times. A plain $false would NEVER report an update there.
-    # So what follows the numbers is compared, and only a difference
-    # THERE counts as newer. "1.4" against "1.4.0" has an empty
-    # remainder both times and stays equal, which is correct.
-    $ra = $a.Substring($na.Length)
-    $rb = $b.Substring($nb.Length)
-    return ($ra -ne $rb)
+
+    # 5. Numbers equal - now the pre-release suffix decides, by RANK and
+    #    not by mere difference. A finished release outranks rc, rc
+    #    outranks beta, beta outranks alpha.
+    $rank = {
+        param($t)
+        if ($t -match 'alpha')            { return 1 }
+        if ($t -match 'beta')             { return 2 }
+        if ($t -match '(^|[-.])rc[\d-]*') { return 3 }
+        if ($t -match 'pre')              { return 2 }
+        if (-not $t.Trim('-.')) { return 5 }   # nothing left = final
+        # UNKNOWN SUFFIX RANKS WITH "final", NOT BELOW IT. "1.3.19-hotfix"
+        # may well be newer than "1.3.19" - we cannot know - so neither
+        # direction may claim an update. Ranking it lower made the swap
+        # back to the plain tag look like one.
+        return 5
+    }
+    $ra = & $rank $an
+    $rb = & $rank $bn
+    if ($rb -ne $ra) { return ($rb -gt $ra) }
+
+    # 6. Same rank, still different text - e.g. "1.3.19-hotfix" against
+    #    "1.3.19-patch". There is no honest ordering between those, so
+    #    NO update is reported. This is the case that used to nag
+    #    forever, and silence is the right answer: the next real version
+    #    bump raises the badge through check 3 or 4.
+    return $false
 }
 

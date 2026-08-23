@@ -95,6 +95,30 @@ restart the game after editing the file by hand.
 
 `Launch-KisakCOD-VR-Diagnostics.bat` starts the same game with developer messages restored - useful when writing a bug report.
 
+## New in beta.14 and beta.15
+- **The legacy flat crosshair is gone in VR**, even on an older profile that kept
+  `cg_drawCrosshair 1`. Mission Select artwork and text now use the same eye-local
+  geometry, and the Quit dialogs are centred in both eyes.
+- **Air support in Safehouse and Heat follows your right controller** - the
+  targeting ray, the marker and the strike placement. The handheld device model
+  itself stays invisible; that is cosmetic, the targeting works.
+- **The Configurator can be resized**, maximised and restored, and asks for a real
+  1160x750 client area so Windows DPI and theme metrics can no longer clip the
+  controls along the right and bottom edges.
+- A **Pimax Crystal Light Full FOV** preset was added (7924x4082 packed: two
+  3450x4082 eyes plus the 1024-pixel scope panel). The older cropped preset stays,
+  Quest modes are untouched. **Real Pimax confirmation is still pending** - the
+  author asks testers for it.
+- beta.15 adds Index/OpenVR hand and squeeze work, right-safe ammo and grenade
+  counters, a suppressed oversized in-headset error overlay, canonical 4:3 menus,
+  and **yaw-only startup and recentring that rejects an unstable pose instead of
+  inventing one**.
+
+**The author also ships a guided Windows Setup now.** The Hub keeps using the
+portable ZIP: both are built from the same deterministic payload, and the ZIP
+needs no installer, no elevation and no unsigned-publisher warning. Your settings
+live under `%LOCALAPPDATA%\KisakCOD-VR` either way and survive an update.
+
 ## Known limitations
 - **Death From Above is not playable in VR and must be skipped.** It looks unlocked - do not pick it. Open the console and run `/spmap bog_b` to continue with **War Pig**.
 - New Game starts at **Crew Expendable** on purpose - the F.N.G. training mission performs poorly in VR.

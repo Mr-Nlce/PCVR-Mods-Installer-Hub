@@ -245,6 +245,12 @@ Write-Step 4 4 "Finishing setup"
 
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+# ALSO write the durable stamp next to the GAME (2026-08-20).
+# The line above lands inside the Hub folder and is gone as
+# soon as a new Hub build is dropped in; the scan then finds
+# no marker and seeds the CURRENT online tag, swallowing a
+# pending update. The game-side stamp survives that.
+Save-InstalledStamp -GameDir $gamePath -Version $relTag
 if (Test-Path -LiteralPath $launcherFull) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcherFull -Encoding UTF8 -Force } catch {}
     # Witcher3VRLauncher.exe carries no icon resource, so the shortcut

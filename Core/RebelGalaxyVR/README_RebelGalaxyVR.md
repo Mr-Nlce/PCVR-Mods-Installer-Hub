@@ -9,6 +9,19 @@ This is a custom VR implementation built from scratch by the author, after findi
 
 https://www.nexusmods.com/rebelgalaxy/mods/11
 
+## If VR does not start - three causes the author has since fixed
+Everything below was a real report, and all three are handled from **v1.1.5**.
+If you are on an older build and see one of these, updating is the fix:
+
+- **The game starts flat, in a side-by-side image, and VR never engages.**
+  VR startup used to depend on the mod being able to create its log file. If the
+  game folder did not allow that, VR silently stayed off. That dependency is gone
+  (v1.1.3), and the log is written elsewhere when the folder is read-only.
+- **`XR_RUNTIME_JSON` forced the loader to the wrong bit width** and VR did not
+  start (v1.1.4). This environment variable is left behind by other VR software.
+- **Another program's OpenXR API layer aborted the VR start** (v1.1.5). API layers
+  are installed by all sorts of VR tools and sit between the mod and the runtime.
+
 ## Controls
 You play with a **gamepad**, exactly like the flat game. Motion controllers are not supported.
 

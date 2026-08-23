@@ -2724,3 +2724,154 @@ function global:Find-PredownloadedFile {
     }
     return $null
 }
+
+# ---------------------------------------------------------------
+#  Save-InstalledStamp
+# ---------------------------------------------------------------
+#  Writes the installed version to BOTH places the Hub looks at:
+#    <Core>\<Installer>\.installed_version   - convenient, but it is
+#         INSIDE THE HUB FOLDER and therefore GONE the moment the user
+#         drops in a new Hub build.
+#    <GameDir>\.pcvrhub_version              - lives with the game and
+#         survives a Hub update. Read-InstalledVersion prefers it.
+#
+#  !!! WHY THIS EXISTS (2026-08-20): 29 installers wrote only the Hub
+#  copy. After every Hub update those markers were gone, the next scan
+#  found none, and the seeding branch then recorded THE CURRENT ONLINE
+#  TAG as "installed" - which silently swallowed a pending update. That
+#  is why an Update badge could be there one day and gone after
+#  installing a new Hub, without anything having been updated.
+function global:Save-InstalledStamp {
+    # $GameDir takes ONE folder or SEVERAL. Several matter for the mods
+    # that do not live in the game folder: Red Faction installs into its
+    # own "Alpine Faction VR" directory, World at War into a program
+    # folder of its own. The scan reads the stamp from wherever it
+    # resolved the mod, and guessing wrong means no stamp at all - so
+    # both candidates get one. A stamp in a folder nobody reads is a
+    # harmless dotfile; a missing one brings back the swallowed update.
+    param($GameDir, [string]$Version, [string]$HubDir)
+
+    if ([string]::IsNullOrWhiteSpace($Version)) { return }
+    $val = ([string]$Version).Trim()
+    $enc = New-Object System.Text.UTF8Encoding $false
+
+    $targets = @()
+    foreach ($d in @($GameDir)) {
+        if ([string]::IsNullOrWhiteSpace($d)) { continue }
+        # String concatenation, not Join-Path: a dead drive letter would
+        # make Join-Path throw (hub-wide rule).
+        $t = "$(([string]$d).TrimEnd('\'))\.pcvrhub_version"
+        if ($targets -notcontains $t) { $targets += $t }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($HubDir)) {
+        $targets += "$($HubDir.TrimEnd('\'))\.installed_version"
+    }
+    foreach ($t in $targets) {
+        try { [System.IO.File]::WriteAllText($t, $val, $enc) } catch {}
+    }
+}
+
+# ---------------------------------------------------------------
+#  Expand-NestedArchive
+# ---------------------------------------------------------------
+#  Some publishers ship ONE download that only contains further
+#  zips. Mass Effect is the case that forced this (2026-08-20):
+#  MELE-VR.zip holds MELE1VR.zip, MELE2VR.zip and MELE3VR.zip -
+#  one per game - so an installer that unpacks the outer file and
+#  looks for its own payload finds three archives and nothing else.
+#
+#  Given the already-extracted folder and a file that must exist in
+#  the payload, this returns the folder that really holds it:
+#    - payload directly in the folder    -> that folder
+#    - inside a wrapper folder           -> the wrapper
+#    - inside one of several inner zips  -> unpacks the RIGHT one
+#  Returns $null when no inner archive carries the marker, so the
+#  caller can fail with a clear message instead of copying nothing.
+function global:Expand-NestedArchive {
+    param(
+        [Parameter(Mandatory=$true)][string]$Root,
+        [Parameter(Mandatory=$true)][string]$Marker,
+        [string]$Label = "the package"
+    )
+
+    if (-not (Test-Path -LiteralPath $Root)) { return $null }
+
+    # 1. Already there.
+    if (Test-Path -LiteralPath "$($Root.TrimEnd('\'))\$Marker") { return $Root }
+
+    # 2. A wrapper folder somewhere below.
+    $hit = Get-ChildItem -LiteralPath $Root -Recurse -Filter (Split-Path $Marker -Leaf) -ErrorAction SilentlyContinue |
+           Select-Object -First 1
+    if ($hit) { return $hit.DirectoryName }
+
+    # 3. Inner archives. Unpack each into its own folder and keep the
+    #    one that carries the marker - never the first one blindly,
+    #    because the sibling zips belong to the OTHER games.
+    # Try the archive whose NAME already looks like the marker first, so
+    # the common case unpacks ONE inner zip instead of all of them. The
+    # loop still falls through to the rest, so a misleading name costs
+    # nothing - it just is not tried first.
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension((Split-Path $Marker -Leaf))
+    $zips = @(Get-ChildItem -LiteralPath $Root -Recurse -Filter "*.zip" -ErrorAction SilentlyContinue |
+              Sort-Object @{ Expression = {
+                  $n = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
+                  # 0 sorts first: exact-ish name match on either side.
+                  if (($n -replace '[^a-zA-Z0-9]','') -like "*$($stem -replace '[^a-zA-Z0-9]','')*") { 0 } else { 1 }
+              } }, Name)
+    foreach ($z in $zips) {
+        $sub = Join-Path $Root ("_inner_" + [System.IO.Path]::GetFileNameWithoutExtension($z.Name))
+        try {
+            New-Item -ItemType Directory -Path $sub -Force -ErrorAction Stop | Out-Null
+            $r = Expand-ArchiveOrFallback -ArchivePath $z.FullName -DestinationFolder $sub -Label "$Label ($($z.Name))"
+            if ([string]$r -ne "ok" -and [string]$r -ne "manual") { continue }
+        } catch { continue }
+
+        if (Test-Path -LiteralPath "$($sub.TrimEnd('\'))\$Marker") { return $sub }
+        $deep = Get-ChildItem -LiteralPath $sub -Recurse -Filter (Split-Path $Marker -Leaf) -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+        if ($deep) { return $deep.DirectoryName }
+    }
+    return $null
+}
+
+# ---------------------------------------------------------------
+#  Test-ArchiveContains
+# ---------------------------------------------------------------
+#  Looks INSIDE a zip and says whether it carries an entry whose
+#  name matches - without extracting anything.
+#
+#  !!! WHY THIS EXISTS (2026-08-20): a filename is not proof. The
+#  Mass Effect installer offered MELE2-VR.zip while installing
+#  ME3, because its search pattern still matched the sibling
+#  game's download sitting in the same Downloads folder. Accepting
+#  it would have copied one game's mod into another game's folder.
+#  A name can be wrong, renamed by a browser, or belong to a
+#  neighbouring product; what is INSIDE cannot.
+#
+#  Pass -Entry as a wildcard ("MELE3VR.zip", "*MELE3-VR.bat").
+#  Returns $true only when the archive really holds it.
+function global:Test-ArchiveContains {
+    param(
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [Parameter(Mandatory=$true)][string]$Entry
+    )
+
+    if (-not (Test-Path -LiteralPath $ArchivePath)) { return $false }
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $za = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        try {
+            foreach ($e in $za.Entries) {
+                # Match the bare name as well as the full path, so an
+                # entry inside a wrapper folder still counts.
+                if (($e.Name -like $Entry) -or ($e.FullName -like $Entry) -or ($e.FullName -like "*/$Entry")) {
+                    return $true
+                }
+            }
+        } finally { $za.Dispose() }
+    } catch {
+        # Not a readable zip - treat as "cannot confirm", never as yes.
+        return $false
+    }
+    return $false
+}

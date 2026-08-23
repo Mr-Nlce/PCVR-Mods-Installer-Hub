@@ -4835,11 +4835,29 @@ function global:Build-RecentlyPlayed {
             foreach ($g in @($ownGames + $ownGamesGP + $externalGames)) {
                 if ($g.Title) { $byTitle[$g.Title] = $g }
             }
+            # ONLY GAMES WHOSE VR MOD IS STILL THERE (2026-08-20).
+            # Before this, the row was built from playHistory alone, so
+            # a game stayed in "Recently Played" after its mod had been
+            # deleted - and clicking it tried to launch something that
+            # no longer exists. History records what WAS played; it must
+            # not decide what CAN be played now.
+            # "ready" and "update" both mean the mod is on disk;
+            # "installed" means only the game is there, and "free" means
+            # nothing at all.
+            # NOTE ON THE EMPTY MAP: before the first scan gameStateMap
+            # is empty. Filtering then would blank the row on every cold
+            # start, so with no map at all the history is shown as
+            # before, and the next scan trims it.
+            $haveState = ($global:gameStateMap -and $global:gameStateMap.Count -gt 0)
             foreach ($title in $history) {
                 if ($candidates.Count -ge 5) { break }
-                if ($byTitle.ContainsKey($title)) {
-                    $candidates += $byTitle[$title]
+                if (-not $byTitle.ContainsKey($title)) { continue }
+                if ($haveState) {
+                    $st = $global:gameStateMap[$title]
+                    if (-not $st) { continue }
+                    if (@("ready", "update") -notcontains [string]$st.State) { continue }
                 }
+                $candidates += $byTitle[$title]
             }
         }
     } catch { }
@@ -4858,7 +4876,17 @@ function global:Build-RecentlyPlayed {
     # and rebuilding the tiles when nothing has changed makes the
     # portrait images flicker. So we cache a signature of the last
     # built tile order and bail out early if it matches.
-    $sig = (($candidates | ForEach-Object { $_.Title }) -join "`n") + "|scale=$($global:SCALE)"
+    # The signature has to carry the install state too: the candidate
+    # list now depends on it, and without it a rescan that removed a
+    # game would leave the old row on screen.
+    $stateSig = ""
+    try {
+        $stateSig = (($candidates | ForEach-Object {
+            $s = $global:gameStateMap[$_.Title]
+            if ($s) { "$($_.Title)=$($s.State)" } else { "$($_.Title)=?" }
+        }) -join ";")
+    } catch { }
+    $sig = (($candidates | ForEach-Object { $_.Title }) -join "`n") + "|scale=$($global:SCALE)|st=$stateSig"
     if ($script:recentBuiltSig -eq $sig -and $recentList.Children.Count -gt 0) {
         # Already rendering the same tiles. Just ensure visibility
         # state is correct in case it was collapsed/hidden before.

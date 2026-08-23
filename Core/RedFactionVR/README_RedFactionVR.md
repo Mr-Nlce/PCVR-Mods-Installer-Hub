@@ -2,8 +2,27 @@
 
 Automated installer for **Alpine Faction VR** by CactusVRStudios - an experimental VR build of **Red Faction** (2001), built on top of **Alpine Faction**, the maintained Red Faction engine project. Native OpenXR, stereoscopic rendering, 6DOF head tracking, motion-controlled weapons and room-scale movement.
 
-## This is an early alpha
-The author says it plainly: expect bugs, crashes, unfinished features and systems it simply does not work on. **Back up your saves before you try it.** Known right now: open mesh issues on some guns, and two-handed weapon grips are buggy.
+## This is a beta
+As of **1.0 Beta** the mod has left alpha, but the author still asks for the same
+care: back up your files and saves, and report crashes, visual problems or
+gameplay regressions. Known right now: open mesh issues on some guns, and
+two-handed weapon grips are buggy.
+
+### New in 1.0 Beta
+- The **bomb-defusal sequence and the end credits** now render through the
+  VR-compatible OpenXR quad layer, so they are readable in the headset.
+- The **defusal interface takes left-thumbstick directions**.
+- **Menus and the native Precision/Sniper scope views stay fixed in tracking
+  space** until you recentre - they no longer swim with your head.
+- New save games get **automatic date-and-time names**.
+- **Shake to reload is on by default**, triggered by a downward hand motion; the
+  threshold is adjustable and sits at 80 cm/s.
+- The laser sight is **half as thick**.
+- The bundled **`VR` mod is selected automatically** whenever VR mode is enabled -
+  one less thing to get wrong.
+- `mods/VR/vr_weapons.vpp` now ships in **both** the installer and the manual ZIP.
+- Includes the 0.9 swimming hotfix: **look up or down and push forward** to
+  ascend or descend.
 
 Singleplayer is the target. Multiplayer as a client is best-effort and unsupported; dedicated-server VR is not supported at all.
 

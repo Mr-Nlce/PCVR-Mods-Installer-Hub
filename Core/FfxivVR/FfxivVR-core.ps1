@@ -18,7 +18,7 @@ function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Final Fantasy XIV - FFXIV VR Plugin Installer" -ForegroundColor Cyan
- Write-Host " FFXIV VR v0.0.62 via XIVLauncher / Dalamud" -ForegroundColor Gray
+ Write-Host " FFXIV VR via XIVLauncher / Dalamud" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
@@ -224,7 +224,7 @@ Write-Host " 9. Click 'Refresh' (bottom left)." -ForegroundColor White
 Write-Host ""
 Write-Host " 10. Go to 'All Plugins' and search for: FFXIV VR" -ForegroundColor White
 Write-Host ""
-Write-Host " 11. Click FFXIV VR -> Install v0.0.62." -ForegroundColor White
+Write-Host " 11. Click FFXIV VR -> Install the newest version." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter once FFXIV VR is installed..."
 
@@ -264,7 +264,7 @@ if ($recordRoot) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_
 if ($ffxivRoot) {
  $marker = Join-Path $ffxivRoot "vr-installed.txt"
  try {
- Set-Content -Path $marker -Value "FFXIV VR v0.0.62 installed via Hub on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Encoding UTF8 -Force
+ Set-Content -Path $marker -Value "FFXIV VR installed via Hub on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Encoding UTF8 -Force
  Write-OK "Wrote VR marker: $marker"
  } catch {
  Write-Warn "Could not write VR marker file: $_"

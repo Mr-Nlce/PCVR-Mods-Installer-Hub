@@ -52,12 +52,39 @@ Open the in-game settings first and adjust to taste. For the best VR feel you pr
 
 Edit `BepInEx\config\MousePI_VR.cfg`:
 
+The file is written on the **first game start** - it is not in the package, so
+launch once before you look for it.
+
 ```
 leftHanded              = false   # swaps to left hand; also swaps LT/RT, bHaptics + ProTube adapt
 useTransparentFixShader = true    # alternate UI shader; try false if you prefer
 usePostProcessing       = true    # false can raise fps (loses the game's look, minor glitches)
 mirrorView              = true    # false can raise fps (disables the desktop camera)
 ```
+
+### Turning your body instead of the stick
+Two settings decide how your character's facing follows you. **They must never
+both be true** - if they are, `movementFollowHeadsetNOJOYSTICK` wins.
+
+| Setting | Who it is for |
+|---|---|
+| `movementFollowHeadset = true` | **standing, but only turning about 180 degrees** - not all the way round |
+| `movementFollowHeadsetNOJOYSTICK = true` | **standing and turning a full 360** |
+
+The second one makes your character always face the same way as your headset,
+which fixes several things at once: the **kick** always goes where you look, the
+**dash** works in any direction you are moving (like the flat game), and it very
+likely also fixes the ladders and the character quietly walking slowly when
+moving backwards.
+
+**What it costs you:** the right stick no longer turns you at all - you turn
+physically. And cutscenes may not put you facing the action, though standing up
+you can simply turn to it.
+
+### New in this build
+- **Controller vibration.**
+- **Reload and kick gestures.**
+- Joystick handling fixed, and the swimming system fixed.
 
 ## Known issues
 

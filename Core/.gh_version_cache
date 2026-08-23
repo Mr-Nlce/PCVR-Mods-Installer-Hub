@@ -1,0 +1,198 @@
+﻿{
+    "RyanCraighead/WorldWarVR-Releases#pre":  {
+                                                  "checked":  "2026-08-22T22:40:04.2820758Z",
+                                                  "tag":  "v0.4.0-beta.2"
+                                              },
+    "JoeyAW/dusklight-vr":  {
+                                "checked":  "2026-08-22T22:39:47.2781383Z",
+                                "tag":  "v1.1.0"
+                            },
+    "iPowerTech/SonsVR_Mod#pre":  {
+                                      "checked":  "2026-08-22T22:40:05.6195739Z",
+                                      "tag":  "v0.0.4-alpha"
+                                  },
+    "heurazy/HytaleVRInjector-mod":  {
+                                         "checked":  "2026-08-22T22:39:44.9549843Z",
+                                         "tag":  "v1.0.1"
+                                     },
+    "jbusfield/SubmersedVR_BZ":  {
+                                     "checked":  "2026-08-22T22:39:54.9050190Z",
+                                     "tag":  "v0.8.0"
+                                 },
+    "LeviGaming1248/MyFriendlyNeighborhoodVR":  {
+                                                    "checked":  "2026-08-22T22:39:48.4871884Z",
+                                                    "tag":  "v1.0.0"
+                                                },
+    "CactusVRStudios/alpinefactionVR#pre":  {
+                                                "checked":  "2026-08-22T22:40:05.1315051Z",
+                                                "tag":  "1.0-beta"
+                                            },
+    "hh79/gzdoomvr":  {
+                          "checked":  "2026-08-22T22:39:40.0945435Z",
+                          "tag":  "gvr4.13.2.2"
+                      },
+    "vaas993/theHunterCotW-VR":  {
+                                     "checked":  "2026-08-22T22:40:00.3170168Z",
+                                     "tag":  "v1.1"
+                                 },
+    "Abyss-c0re/vrmod-module-master":  {
+                                           "checked":  "2026-08-22T22:39:42.7026474Z",
+                                           "tag":  "170625"
+                                       },
+    "Gonzorro/GeneralsVR":  {
+                                "checked":  "2026-08-22T22:39:37.4754470Z",
+                                "tag":  "v0.2.0.2-alpha"
+                            },
+    "Okabintaro/SubmersedVR":  {
+                                   "checked":  "2026-08-22T22:39:54.3669187Z",
+                                   "tag":  "0.2.0"
+                               },
+    "JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod":  {
+                                                     "checked":  "2026-08-22T22:39:35.5145041Z",
+                                                     "tag":  "v1.0.1"
+                                                 },
+    "Nobbie248/PrimedGun":  {
+                                "checked":  "2026-08-22T22:39:47.7533600Z",
+                                "tag":  "v1.1.5"
+                            },
+    "SanguShellz/GTA-VRV-Patcher":  {
+                                        "checked":  "2026-08-22T22:39:43.2545723Z",
+                                        "tag":  "1.2.7"
+                                    },
+    "dubrovskiy-yevhen-stakelogic/vice-city-vr":  {
+                                                      "checked":  "2026-08-22T22:39:43.8448765Z",
+                                                      "tag":  "v0.5.2"
+                                                  },
+    "gborgogno/a3vr-arma3":  {
+                                 "checked":  "2026-08-22T22:39:35.0036755Z",
+                                 "tag":  "v1.14.0-alpha.1"
+                             },
+    "pancreations/Halo-MCC-VR":  {
+                                     "checked":  "2026-08-22T22:39:44.4357244Z",
+                                     "tag":  "MCC_VR_ALPHA_0.3.3"
+                                 },
+    "Firejumper93/GhostReconWildlandsVR":  {
+                                               "checked":  "2026-08-22T22:39:58.6832867Z",
+                                               "tag":  "v0.9.1-test2"
+                                           },
+    "Alex-LeTux/perfect_dark_VR":  {
+                                       "checked":  "2026-08-22T22:39:50.0952561Z",
+                                       "tag":  "v1.7.1-beta"
+                                   },
+    "Gonzorro/GeneralsVR#pre":  {
+                                    "checked":  "2026-08-22T22:40:03.6961057Z",
+                                    "tag":  "v0.2.0.2-alpha"
+                                },
+    "cybensis/SPT-VR":  {
+                            "checked":  "2026-08-22T22:39:41.1645182Z",
+                            "tag":  "v1.3.0"
+                        },
+    "Pk-c/AwayVR":  {
+                        "checked":  "2026-08-22T22:39:34.2357344Z",
+                        "tag":  "V1.0"
+                    },
+    "PinkMilkProductions/VRMaker":  {
+                                        "checked":  "2026-08-22T22:39:49.5631077Z",
+                                        "tag":  "0.11.0"
+                                    },
+    "Atmudia/SRVR":  {
+                         "checked":  "2026-08-22T22:39:53.0134956Z",
+                         "tag":  "v1.1"
+                     },
+    "mohamad-balouza/bioshock-vr":  {
+                                        "checked":  "2026-08-22T22:39:36.2429941Z",
+                                        "tag":  "v0.8.2"
+                                    },
+    "Crementif/BotW-BetterVR":  {
+                                    "checked":  "2026-08-22T22:39:36.9738909Z",
+                                    "tag":  "0.9.20"
+                                },
+    "CactusVRStudios/alpinefactionVR":  {
+                                            "checked":  "2026-08-22T22:39:51.1915372Z",
+                                            "tag":  "1.0-beta"
+                                        },
+    "Firejumper93/GhostReconWildlandsVR#pre":  {
+                                                   "checked":  "2026-08-22T22:40:06.0998247Z",
+                                                   "tag":  "v0.9.1-test2"
+                                               },
+    "oofz/vrmod-releases":  {
+                                "checked":  "2026-08-22T22:39:58.1466518Z",
+                                "tag":  "v1.3.19"
+                            },
+    "DR-89/fear-vr#pre":  {
+                              "checked":  "2026-08-22T22:40:04.5407661Z",
+                              "tag":  "v1.0.0-beta.8"
+                          },
+    "kyanite-rock/White_Knuckle_VR":  {
+                                          "checked":  "2026-08-22T22:39:55.3966972Z",
+                                          "tag":  "v1.0.2"
+                                      },
+    "jplakon/CallOfDuty4_VR#pre":  {
+                                       "checked":  "2026-08-22T22:40:03.9766278Z",
+                                       "tag":  "v0.10.0-beta.15"
+                                   },
+    "kyanite-rock/DescendersVRMod":  {
+                                         "checked":  "2026-08-22T22:39:57.5372742Z",
+                                         "tag":  "descenders_vr_mod_v1.0.6"
+                                     },
+    "LXE97/UGVR-IdolsOfAsh":  {
+                                  "checked":  "2026-08-22T22:39:45.5107269Z",
+                                  "tag":  "v2.1.0"
+                              },
+    "FirstPersonKSP/Kerbal-VR":  {
+                                     "checked":  "2026-08-22T22:39:46.0547186Z",
+                                     "tag":  "0.9.4.5"
+                                 },
+    "tig3rmast3r/witcher3-vr#pre":  {
+                                        "checked":  "2026-08-22T22:40:06.4297063Z",
+                                        "tag":  "v1295"
+                                    },
+    "BioVRDev/Bioshock-Remastered-VR":  {
+                                            "checked":  "2026-08-22T22:40:03.1055846Z",
+                                            "tag":  "v1.0.3a"
+                                        },
+    "letsgosportsteam/singularity-vr-mod#pre":  {
+                                                    "checked":  "2026-08-22T22:40:05.4241638Z",
+                                                    "tag":  "v0.1.0-alpha"
+                                                },
+    "oofz/vrmod-releases#pre":  {
+                                    "checked":  "2026-08-22T22:40:05.8340051Z",
+                                    "tag":  "v1.3.19"
+                                },
+    "Blah64/Vostok-VR-Mod":  {
+                                 "checked":  "2026-08-22T22:39:51.7586343Z",
+                                 "tag":  "v1.4.0"
+                             },
+    "FluorescentHallucinogen/painkiller-vr-mod":  {
+                                                      "checked":  "2026-08-22T22:39:48.9986904Z",
+                                                      "tag":  "v0.1.7"
+                                                  },
+    "pancreations/Halo-MCC-VR#pre":  {
+                                         "checked":  "2026-08-22T22:40:04.7782210Z",
+                                         "tag":  "broken_build"
+                                     },
+    "Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod":  {
+                                                                      "checked":  "2026-08-22T22:39:59.1844103Z",
+                                                                      "tag":  "GTA4VR"
+                                                                  },
+    "ShinyWindow/Shipwright-VR":  {
+                                      "checked":  "2026-08-22T22:39:46.5501387Z",
+                                      "tag":  "v1.2"
+                                  },
+    "Spencer0187/portal2vr-roomscale":  {
+                                            "checked":  "2026-08-22T22:39:50.6984738Z",
+                                            "tag":  "V0.2.2"
+                                        },
+    "xen-42/DredgeVR":  {
+                            "checked":  "2026-08-22T22:39:40.6092013Z",
+                            "tag":  "v0.4.2"
+                        },
+    "mutars/anvilengine2vr":  {
+                                  "checked":  "2026-08-22T22:39:55.9459383Z",
+                                  "tag":  "v2.0.0.Public"
+                              },
+    "mutars/starfield2vr":  {
+                                "checked":  "2026-08-22T22:39:59.7595732Z",
+                                "tag":  "v2.0.1.Public"
+                            }
+}

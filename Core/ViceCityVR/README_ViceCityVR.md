@@ -32,6 +32,40 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 
 > **Meta Quest 3 through Quest Link or Air Link is the modder's primary tested setup.** The mod uses OpenXR and does not need the legacy Oculus PC SDK. Other PC OpenXR headsets may work but have not had the same testing. **NVIDIA DLAA** additionally needs a compatible RTX GPU and a current driver; a non-DLAA anti-aliasing path is available on other hardware.
 
+## New in 0.5.2-alpha
+
+**Cutscenes and menus run at full rate on SteamVR again.** They used to drop to
+about 15 fps: SteamVR throttles a session that stops submitting stereo frames,
+and flat content on the theatre screen counted as stopping. The screen is now
+drawn through a real stereo pass, so the session is never throttled. Other
+runtimes keep their proven path. If it causes trouble, set
+`CinemaProjection=0` under `[VR]` in `vr_settings.ini` to go back.
+
+**An experimental immersive HUD.** Minimap, status and clock can sit on real
+stereo wrist panels, with separate placement per hand, side and for
+foot/car/bike. The head-locked **Classic HUD stays the default**, and every
+panel falls back to its Classic copy if its anchor is unavailable.
+Motorcycles now use the **right trigger** for throttle by default; the physical
+wrist-twist is still there, in Vehicle Settings.
+
+**`PREPARE_MODERN_MODELS.bat` does the HD model job for you.** It asks for your
+legal Vice City install, fetches and verifies the two source packs, builds into
+a staging folder, validates the result and only then replaces
+`modelsets\modern`. The manual route below still works and is what the Hub
+installer uses.
+
+Also worth knowing: a save that cannot be written now **says so** instead of
+reporting success into an empty slot list, and falls back to
+`Documents\GTA Vice City User Files`. Nine memory leaks in the D3D12 backend
+were fixed, so long sessions no longer creep upward.
+
+### Three escape hatches in `vr_settings.ini`
+| Key | When you need it |
+|---|---|
+| `CinemaProjection=0` | the new SteamVR cutscene path misbehaves |
+| `StreamlineEnabled=0` | black frames from DLSS/Streamline (seen on some VDXR setups) - DLAA is off in that mode |
+| `LegacyGamepad=1` | you have a real wheel or pad that the mod now ignores by default. It ignores legacy DirectInput devices because phantom HID gear fed constant input under the VR sticks |
+
 ## Optional HD Models Pack
 
 At the end of installation, press **Enter** when the installer offers the HD

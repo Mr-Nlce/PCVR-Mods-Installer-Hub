@@ -259,6 +259,12 @@ if ($m1 -or $m2) {
     Write-OK ("VR mod verified in the game folder for: " + ($which -join " and "))
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     if ($rel) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $rel.Tag -Encoding UTF8 -Force } catch {} }
+    # ALSO write the durable stamp next to the GAME (2026-08-20).
+    # The line above lands inside the Hub folder and is gone as
+    # soon as a new Hub build is dropped in; the scan then finds
+    # no marker and seeds the CURRENT online tag, swallowing a
+    # pending update. The game-side stamp survives that.
+    Save-InstalledStamp -GameDir $gamePath -Version $rel
 } else {
     Write-Warn "No ShenmueVR.ini found in sm1\ or sm2\ - the mod does not look installed."
     Write-Host "  Checked: $gamePath" -ForegroundColor Gray

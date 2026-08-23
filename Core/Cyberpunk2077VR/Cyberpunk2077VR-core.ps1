@@ -373,6 +373,54 @@ if ($modUrls -notcontains $MOD_URL) { $modUrls += $MOD_URL }
 $modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER
 if ($modOk) {
     Write-OK "CyberpunkVRPort $installedTag installed into the game folder."
+
+    # !!! REMOVE THE OLD SECOND PLUGIN (2026-08-20). CyberpunkVR_Hands.dll
+    # no longer exists - its code moved INTO CyberpunkVR_Stereo.dll. But
+    # RED4ext loads EVERY dll it finds under red4ext\plugins, so a copy
+    # left over from an earlier install loads as a second plugin, both
+    # detour the same address, and the game dies with a fault at
+    # FFFFFFFFFFFFFFFF. Extracting the new build over the old one does
+    # NOT remove it, so this is on us.
+    # THE .dll ITSELF IS RENAMED, NOT ITS FOLDER. Renaming the folder to
+    # ...\.old does NOT help: RED4ext walks EVERY subfolder of
+    # red4ext\plugins and loads every *.dll it finds, whatever the folder
+    # is called. Only the file extension takes it out of that scan.
+    # (Found by actually running this against a rebuilt folder - the
+    # folder-rename version left the dll perfectly loadable.)
+    $oldHands = "$($gameRoot.TrimEnd('\'))\red4ext\plugins\CyberpunkVR_Hands"
+    if (Test-Path -LiteralPath $oldHands) {
+        $handsDlls = @(Get-ChildItem -LiteralPath $oldHands -Filter "*.dll" -Recurse -ErrorAction SilentlyContinue)
+        foreach ($hd in $handsDlls) {
+            try {
+                $parked = $hd.FullName + ".old"
+                if (Test-Path -LiteralPath $parked) { Remove-Item -LiteralPath $parked -Force -ErrorAction Stop }
+                Rename-Item -LiteralPath $hd.FullName -NewName ($hd.Name + ".old") -Force -ErrorAction Stop
+                Write-OK "Parked the old plugin $($hd.Name) - leaving it would crash the game."
+            } catch {
+                Write-Warn "An old CyberpunkVR_Hands plugin is still loadable and MUST go:"
+                Write-Host "  $($hd.FullName)" -ForegroundColor Yellow
+                Write-Host "  Its code is inside CyberpunkVR_Stereo.dll now. Two plugins hooking" -ForegroundColor Gray
+                Write-Host "  the same address crash the game on launch." -ForegroundColor Gray
+            }
+        }
+    }
+
+    # Same trap one level down: RED4ext reads every .dll in the plugin's
+    # own folder too, so a renamed backup beside the real build loads as
+    # a second copy of the SAME plugin.
+    $stereoDir = "$($gameRoot.TrimEnd('\'))\red4ext\plugins\CyberpunkVR_Stereo"
+    try {
+        $strays = @(Get-ChildItem -LiteralPath $stereoDir -Filter "*.dll" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -ne "CyberpunkVR_Stereo.dll" })
+        foreach ($sd in $strays) {
+            try {
+                Rename-Item -LiteralPath $sd.FullName -NewName ($sd.Name + ".old") -Force -ErrorAction Stop
+                Write-OK "Parked a stray plugin copy: $($sd.Name)"
+            } catch {
+                Write-Warn "Remove $($sd.FullName) by hand - RED4ext would load it as a second copy."
+            }
+        }
+    } catch {}
     # Record the installed release tag so the Hub can flip the card to
     # "Update" when GitHub publishes a newer release (same scheme as the
     # other GitHub-tracked mods). File lives next to this installer.

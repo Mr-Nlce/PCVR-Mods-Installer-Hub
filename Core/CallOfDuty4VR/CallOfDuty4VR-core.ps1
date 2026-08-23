@@ -113,10 +113,40 @@ function Get-NewestRelease {
         $rels = Invoke-RestMethod -Uri $RELEASES_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         $rel = $rels | Select-Object -First 1
         if (-not $rel) { return $null }
+        # THE PORTABLE ZIP IS AND STAYS THE NORMAL ROUTE. The author now
+        # also publishes a guided Windows Setup and calls it the
+        # recommended download, but both are built from the SAME
+        # deterministic payload - and the zip needs no installer, no
+        # elevation and raises no unsigned-publisher warning.
+        # The .sha256 sidecars end in .sha256, so they never match here.
         $asset = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -notlike "*source*" } | Select-Object -First 1
-        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1 }
-        if (-not $asset) { return $null }
-        return [pscustomobject]@{ Tag = $rel.tag_name; Url = $asset.browser_download_url; Name = $asset.name; Pre = [bool]$rel.prerelease }
+
+        # ORDER MATTERS: a real package, then the Setup, and only then
+        # any leftover zip. The "any zip" line used to sit directly under
+        # the first one and happily picked source-code.zip - a source
+        # archive is NOT an install, so the author's own installer is the
+        # better answer when the package is missing.
+
+        # FALLBACK, and ONLY if that release carries no zip at all
+        # (2026-08-20): should the author ever drop the portable package,
+        # the Setup.exe keeps this entry working instead of dead-ending.
+        # Kind is carried out so the caller can ask before running an
+        # installer that will raise a UAC prompt.
+        if ($asset) {
+            return [pscustomobject]@{ Tag = $rel.tag_name; Url = $asset.browser_download_url; Name = $asset.name; Pre = [bool]$rel.prerelease; Kind = "zip" }
+        }
+        $setup = $rel.assets | Where-Object { $_.name -like "*Setup*.exe" -and $_.name -notlike "*.sha256" } | Select-Object -First 1
+        if (-not $setup) { $setup = $rel.assets | Where-Object { $_.name -like "*.exe" -and $_.name -notlike "*.sha256" } | Select-Object -First 1 }
+        if ($setup) {
+            return [pscustomobject]@{ Tag = $rel.tag_name; Url = $setup.browser_download_url; Name = $setup.name; Pre = [bool]$rel.prerelease; Kind = "setup" }
+        }
+        # Last resort: any zip at all, source archives included. Better
+        # than nothing, and the user still sees the name before it runs.
+        $any = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
+        if ($any) {
+            return [pscustomobject]@{ Tag = $rel.tag_name; Url = $any.browser_download_url; Name = $any.name; Pre = [bool]$rel.prerelease; Kind = "zip" }
+        }
+        return $null
     } catch { return $null }
 }
 
@@ -186,16 +216,62 @@ $zipPath = Join-Path $work "KisakCOD-VR.zip"
 $relTag  = $null
 
 $rel = Get-NewestRelease
+$useSetup = $false
 if ($rel) {
     $relTag = $rel.Tag
     if ($rel.Pre) { Write-Info "Newest release is a beta: $($rel.Tag)" } else { Write-Info "Newest release: $($rel.Tag)" }
-    Invoke-SafeDownload -Urls @($rel.Url) -Destination $zipPath -Label "$MOD_NAME $($rel.Tag)" -ManualUrl $RELEASES_URL | Out-Null
+
+    if ([string]$rel.Kind -eq "setup") {
+        # No portable zip in this release - ask before going the
+        # installer route, because it is a different kind of thing: it
+        # writes by itself and Windows will ask for administrator
+        # rights.
+        Write-Host ""
+        Write-Warn "This release carries NO portable zip - only the author's Setup."
+        Write-Host "  Found: $($rel.Name)" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "  The Hub normally unpacks the portable package itself. His" -ForegroundColor White
+        Write-Host "  Setup instead installs on its own, and:" -ForegroundColor White
+        Write-Host "   - Windows WILL ask for administrator rights (UAC)." -ForegroundColor Yellow
+        Write-Host "   - It is not code-signed, so Windows may say Unknown Publisher." -ForegroundColor Yellow
+        Write-Host "   - It finds Steam itself and offers a Browse fallback." -ForegroundColor Gray
+        Write-Host "   - It backs up every file it replaces and restores them on" -ForegroundColor Gray
+        Write-Host "     uninstall; your saves and settings are left alone." -ForegroundColor Gray
+        Write-Host ""
+        $ans = ""
+        for ($i = 1; $i -le 20; $i++) {
+            $ans = ("" + (Read-Host "  Use the author's Setup? [y/n]")).Trim().ToLower()
+            if ($ans -in @("y","n","yes","no")) { break }
+            Write-Host "  Please answer y or n." -ForegroundColor Yellow
+        }
+        if ($ans -in @("y","yes")) {
+            $setupPath = Join-Path $work $rel.Name
+            Invoke-SafeDownload -Urls @($rel.Url) -Destination $setupPath -Label "$MOD_NAME $($rel.Tag) Setup" -ManualUrl $RELEASES_URL | Out-Null
+            if (Test-Path -LiteralPath $setupPath) {
+                Write-Info "Starting the author's Setup - answer its prompts, then come back here."
+                try {
+                    $sp = Start-Process -FilePath $setupPath -PassThru -Wait -ErrorAction Stop
+                    Write-Info "Setup closed (exit code $($sp.ExitCode))."
+                    $useSetup = $true
+                } catch {
+                    Write-Fail "Could not start it: $($_.Exception.Message)"
+                }
+            }
+        } else {
+            Write-Info "Skipped. You can still drop a zip in by hand below."
+        }
+    } else {
+        Invoke-SafeDownload -Urls @($rel.Url) -Destination $zipPath -Label "$MOD_NAME $($rel.Tag)" -ManualUrl $RELEASES_URL | Out-Null
+    }
 }
-if (-not (Test-Path -LiteralPath $zipPath)) {
+if (-not $useSetup -and -not (Test-Path -LiteralPath $zipPath)) {
     $found = Find-PredownloadedFile -Patterns @("*KisakCOD*VR*.zip", "*KisakCOD*.zip", "*CallOfDuty4*VR*.zip") -Label "the KisakCOD VR package"
     if ($found) { Copy-Item -LiteralPath $found -Destination $zipPath -Force }
 }
-while (-not (Test-Path -LiteralPath $zipPath)) {
+# When the author's Setup ran, there is no zip to unpack - it has already
+# written into the game folder itself. Insisting on one here would send
+# the user hunting for a file that does not exist.
+while (-not $useSetup -and -not (Test-Path -LiteralPath $zipPath)) {
     Write-Warn "Automatic download did not work."
     Pause-User "Press Enter to open the releases page..." | Out-Null
     try { Start-Process $RELEASES_URL } catch { Write-Warn "Open manually: $RELEASES_URL" }
@@ -212,8 +288,22 @@ Write-Step 3 5 "Installing into the game folder"
 
 $extract = Join-Path $work "extracted"
 New-Item -ItemType Directory -Path $extract -Force | Out-Null
+if ($useSetup) {
+    # The Setup already put the files in place. Verify the result on disk
+    # rather than the exit code - the user may have cancelled it, or
+    # pointed it at a different copy of the game.
+    Write-Info "The author's Setup did the copying - checking the game folder."
+    if (Test-Path -LiteralPath (Join-Path $gameDir $MOD_EXE)) {
+        Write-OK "$MOD_EXE is in place: $gameDir"
+    } else {
+        Write-Fail "$MOD_EXE is not in the game folder - the Setup may have been cancelled,"
+        Write-Host "  or it installed into a different copy of the game." -ForegroundColor White
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+}
 try {
-    Expand-Archive -LiteralPath $zipPath -DestinationPath $extract -Force -ErrorAction Stop
+    if (-not $useSetup) { Expand-Archive -LiteralPath $zipPath -DestinationPath $extract -Force -ErrorAction Stop }
 } catch {
     Write-Fail "Could not extract the archive: $($_.Exception.Message)"
     $fb = Invoke-InstallerFallback -Action "extracting the mod archive" `

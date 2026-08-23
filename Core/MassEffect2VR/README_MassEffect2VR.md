@@ -5,9 +5,24 @@ Legendary Edition in full head-tracked PCVR. Real stereo depth: look
 around Omega and the Citadel, walk the Collector ship, drive the
 Hammerhead, stand on the Normandy SR-2. Gamepad only.
 
+> **One download now covers all three games.** dhalcyon ships a single
+> `MELE-VR.zip` that contains `MELE1VR.zip`, `MELE2VR.zip` and
+> `MELE3VR.zip`. The Hub installer picks the archive for **this** game out
+> of it by itself - the other two games are never touched.
+
+
 Cutscenes and conversations are in VR too, including first-person
 conversations. The mod is free, and its author states that updates
 will stay free as well.
+
+
+## From the author
+
+> All three games. Start to finish. Head-tracked, real stereo VR, first-person
+> and third-person. ME1, ME2 and ME3 are all playable now in VR.
+>
+> At the start of the year, I wanted to play all games in proper VR, but no mod
+> was available. Now, here we are. Thank you for playing.
 
 ## What it does
 1. Finds your Mass Effect Legendary Edition install on any store -

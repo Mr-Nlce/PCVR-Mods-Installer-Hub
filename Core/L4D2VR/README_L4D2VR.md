@@ -67,6 +67,40 @@ updates. Either way it's the same mod by the same author.
 - **[[A]]:** Jump
 - **[[B]]:** Grab objects, open / close doors
 
+## Turning VR off
+Two ways, and they are not equivalent:
+
+- **Launch option `-nohmd`** - the game starts flat and **keeps DXVK**. This is
+  the author's preferred route and the better one for a quick flat session.
+- **Park `d3d9.dll`** (the Hub's Flat/VR button does this). It also turns VR off,
+  but that file **is DXVK** - parking it drops the Vulkan translation layer with
+  it, along with its shader-stutter and frame-pacing work. The author says he
+  would keep the file for that reason alone.
+
+Either way, the mod hides the crosshair, so type `crosshair 1` in the console to
+get it back.
+
+## New in v0.7.9 - v0.8.1
+- **Manual throwing.** Press the trigger to enter throwing mode with a throwable,
+  cola bottle or map item; release to throw by your controller's swing. **Use +
+  trigger** throws weapons and consumables too, without arming a throwable.
+- **Object pull.** Aim at an item in range, and when its outline lights up, hold
+  grip and pull back. Keep holding, or press grip again, to take it into your hand.
+- **First-person body and arm IK** - VR players can see each other's body and hand
+  movement. Arms are rendered by default and the SteamVR gloves are off; if you
+  would rather not see the arms, enable the cropped native viewmodel arms.
+- **`vrconfig` in the console, or just [[F8]]**, opens the settings panel - you no
+  longer have to go through the pause menu.
+- **Separate grab / reload input.** With it on, grip only enters two-handed mode
+  and reload grabbing goes on the trigger (which must be bound to Reload, Crouch,
+  Jump or SecondaryAttack).
+- **DXVK async pipeline and shader compilation** cut the stutter that shader
+  compilation used to cause, plus a low-latency mode for input lag. Full ReShade
+  support needs the **add-on version** of ReShade.
+- **A HUD that stays hidden** if you want it, no longer triggered by an action.
+- v0.8.1 fixes the first-person body not following the headset, arm IK distortion,
+  and a reset-settings button that did nothing.
+
 ## Notes
 
 - Start SteamVR **before** launching Left 4 Dead 2

@@ -2234,6 +2234,25 @@ function global:New-LocateButton {
                 }
             } catch {}
 
+            # A LOCATED ENTRY MAY BE MISSING ITS LAUNCHER (2026-08-20).
+            # Entries whose LaunchExe is a batch file the installer writes
+            # can end up without it - located by hand, or installed before
+            # that launcher existed. Saying so HERE, once and plainly, is
+            # far better than letting "Start in VR" fail later.
+            try {
+                if ($Game.LaunchExe -and $Game.LaunchExe -like "*.bat" -and $Game.VrInstallRoot) {
+                    $lr = $Game.VrInstallRoot
+                    if     ($lr -like "LOCALAPPDATA:*") { $lr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($lr.Substring("LOCALAPPDATA:".Length)) }
+                    elseif ($lr -like "APPDATA:*")      { $lr = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($lr.Substring("APPDATA:".Length)) }
+                    elseif ($lr -like "PROGRAMDATA:*")  { $lr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($lr.Substring("PROGRAMDATA:".Length)) }
+                    elseif ($lr -like "USERPROFILE:*")  { $lr = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($lr.Substring("USERPROFILE:".Length)) }
+                    if ((Test-Path -LiteralPath $lr) -and -not (Test-Path -LiteralPath (Join-Path $lr $Game.LaunchExe))) {
+                        [System.Windows.Forms.MessageBox]::Show(
+                            ($Game.Title + " is linked, but the file that starts it is not there yet." + "`r`n`r`nRun the installer once from this page. It writes that file and leaves everything else as it is."),
+                            "One more step") | Out-Null
+                    }
+                }
+            } catch {}
             $global:PendingInstallTitle = $Game.Title
             try { Invoke-PostInstallRefresh } catch {}
 
@@ -4426,6 +4445,45 @@ function global:Start-GameInVR {
     # must NOT fall through to the steam://rungameid handler below,
     # which would launch the unmodded retail game instead.
     $isCustomInstall = ($Game.VrInstallRoot -or (Get-InstalledPathFile -Game $Game))
+
+    # !!! BUT FIRST: IS THE MOD ITSELF STILL THERE? (2026-08-20)
+    # Not finding the LAUNCHER is not the same as the install being gone.
+    # An entry whose LaunchExe is a batch file the installer writes can
+    # lose that one file - an older install, a cleanup, a new Hub build
+    # that added the launcher - while the mod sits perfectly fine next to
+    # it. Wiping the recorded path and the state in that situation
+    # destroys a working install and tells the user something false.
+    # So: if the ModFile is still on disk, say what is actually missing
+    # and leave everything alone.
+    $modStillThere = $false
+    if ($isCustomInstall -and -not $gameDir -and $Game.ModFile) {
+        $probeRoots = @()
+        if ($Game.VrInstallRoot) {
+            $pr = $Game.VrInstallRoot
+            if     ($pr -like "LOCALAPPDATA:*") { $pr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($pr.Substring("LOCALAPPDATA:".Length)) }
+            elseif ($pr -like "APPDATA:*")      { $pr = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($pr.Substring("APPDATA:".Length)) }
+            elseif ($pr -like "PROGRAMDATA:*")  { $pr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($pr.Substring("PROGRAMDATA:".Length)) }
+            elseif ($pr -like "USERPROFILE:*")  { $pr = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($pr.Substring("USERPROFILE:".Length)) }
+            $probeRoots += $pr
+        }
+        try { $rp = Read-InstalledPath -Game $Game; if ($rp) { $probeRoots += $rp } } catch {}
+        foreach ($rt in $probeRoots) {
+            if (-not $rt) { continue }
+            try { if (Test-Path -LiteralPath "$($rt.TrimEnd('\'))\$($Game.ModFile)") { $modStillThere = $true; break } } catch {}
+        }
+    }
+    if ($modStillThere) {
+        try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Normal } } catch {}
+        try {
+            [System.Windows.MessageBox]::Show(
+                "$($Game.Title) is installed, but the file that starts it is missing.`n`nRun the installer once from this page - it writes that file and changes nothing else about your install.",
+                "Launcher missing",
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Information) | Out-Null
+        } catch {}
+        return
+    }
+
     if ($isCustomInstall -and -not $gameDir) {
         # Clear the cached "VR Ready" state so the card flips back
         # to "Install" on next paint, and wipe any stale
@@ -5565,6 +5623,7 @@ function global:Show-DiscoverDetail {
         "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
         "Pokemon Gen 1 VR" = "Pokemon Gen 1 Recomp Voxel VR brings the classic first-generation adventure into a fully explorable voxel-based 3D world. Travel across Kanto, catch and battle Pokemon, and experience the familiar journey from an immersive first-person VR perspective."
         "Battlefield 1942 VR" = "Battlefield 1942 is a classic World War II first-person shooter that lets you fight across large battlefields as infantry or take control of tanks, aircraft, ships, and other vehicles."
+        "Virtua Cop 2 VR" = "Virtua Cop 2 is a fast-paced arcade light-gun shooter where players take down criminals across a series of action-packed stages. It features branching routes, boss battles, and quick target-based gameplay built around accuracy, reaction speed, and avoiding civilian casualties."
         "Metroid Prime VR" = "Metroid Prime is a critically acclaimed first-person action-adventure game developed by Retro Studios and published by Nintendo. Originally released for the GameCube in November 2002 and now fully playable in VR with 6DoF motion controls."
         "Perfect Dark VR" = "Perfect Dark is a legendary sci-fi secret agent shooter launched by the developer studio Rare in 2000. The series centers on secret agent Joanna Dark, who works for the Carrington Institute and battles the rival megacorporation dataDyne as well as extraterrestrial threats."
         "Ashes 2063 VR" = "Ashes 2063 is a free, post-apocalyptic total conversion for GZDoom by Vostyok - build-style ruins and fast Doom combat with a Stalker and Fallout flavour. This entry adds motion controls through gzdoomvr, an OpenVR fork of GZDoom by hh79. Includes the Enriched campaign, Afterglow and the Hard Reset expansion."
@@ -7100,7 +7159,14 @@ function global:Show-DiscoverDetail {
 
             $btnRow.Children.Add($locGroup) | Out-Null
         } catch {}
-    } elseif ($global:HasRunInstalledScan -and (-not ($isReady -or $isUpdate -or $isInstalledNoMod -or $isFreeScanned)) -and ($Game.ModFile -or $Game.TwoMods)) {
+    # AlwaysOfferLocate: normally the Locate button waits for a scan to
+    # have run, because before that "not detected" means nothing. For a
+    # game that is IN NO LIBRARY AT ALL - not on Steam, GOG or Epic, the
+    # user brings their own copy - a scan can never find it, so waiting
+    # for one hides the button forever. Those entries set the flag and
+    # get the button as soon as the tile is not showing an install.
+    # Everything without the flag behaves exactly as before.
+    } elseif (($global:HasRunInstalledScan -or $Game.AlwaysOfferLocate) -and (-not ($isReady -or $isUpdate -or $isInstalledNoMod -or $isFreeScanned)) -and ($Game.ModFile -or $Game.TwoMods)) {
         try {
             $locateBtn = New-LocateButton -Game $Game -AccentHex $accentHex
             $locateBtn.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)

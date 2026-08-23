@@ -112,7 +112,41 @@ single `logs\BioshockVR.log` also helps: the block at the top lists every settin
 the mod actually read.
 
 `Uninstall.bat` restores your game config, keeps your tuned `BioshockVR.ini` as a
-`.bak` instead of deleting it, and asks before removing `dxgi.dll`.
+`.bak` instead of deleting it, and asks before removing `dxgi.dll` - ReShade and
+Special K use that file too.
+
+**If Setup.bat closed the instant you ran it, use 1.0.3a.** On a machine whose
+only OpenXR runtime is SteamVR it died before it could ask which runtime you
+wanted - which hit exactly the group that needs the bundled SteamVR shim: Index,
+Vive and PSVR2. If you worked around it by renaming the loader by hand, you did
+what Setup would have done; there is nothing to undo.
+
+### The two controls nobody can guess
+Since **1.0.3a** Setup prints these for the exact runtime and headset you picked,
+and writes them to `logs\setup.log` as well - a bug report then carries the layout
+its author was really using. The combination cannot be worked out from either
+answer alone, so read it off the screen at the end of Setup rather than assuming:
+
+| | |
+|---|---|
+| **Pause** | the **Menu** button on the **left** controller |
+| **Modifier** | rest your thumb on the **right thumbrest** |
+| **Map** | hold **Modifier**, then **Pause** for half a second |
+| **Alt menu button** | hold **Modifier** and tap **Pause** |
+
+Hold the Modifier and the left stick stops moving you - it becomes a D-pad for
+the interface.
+
+Two devices are named differently by their own hardware: **Touch** has exactly
+one menu button and it is on the left controller, and the **Index has no menu
+button at all** in OpenXR, so the mod uses a firm press on the left trackpad.
+
+**Vive wands and WMR** get the Modifier on the **right stick click** instead -
+neither controller binds the thumbrest, so on those the map was previously
+unreachable. **WMR** gets its own button layout with jump, hack and use, and the
+med hypo moved to the radial. **Vive wands** can only bind one face action, Use;
+med hypo, hack/reload and jump have nowhere to go, and Setup says so rather than
+pretending otherwise. If your headset shipped with Index controllers, pick Index.
 
 ### What v1.0.3 brought
 - **Both hands.** The off hand now appears and follows its controller, with a gun

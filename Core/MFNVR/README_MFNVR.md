@@ -31,6 +31,21 @@ Xbox app, and asks for the folder only if nothing is found.
 | Game options | **Field of View around 100** - the author's own recommendation |
 | Windows / headset | SteamVR or Oculus must be the active OpenXR runtime |
 
+## The settings menu in the headset (v1.0.0)
+There are now three ways in, and the mod's own notes name two different sticks
+for it - so if one does not work, try the other:
+
+- **Hold [[L3]] for two seconds** (the release notes), or **hold [[L2]] for two
+  seconds** (the project page).
+- Or press the **VR Settings** button in the main menu or the pause menu.
+
+**Player height is adjustable there, with a recalibrate button** - that is the
+first thing to set if your view sits too low or too high.
+
+**Also new in v1.0.0:** the pointer shows up in the main menu when enabled and no
+longer sticks to a slider in the settings, interaction menus draw their interface,
+and in Neighborhorde your hands match the character you are playing.
+
 ## Playing
 Start with **Start in VR** in the Hub or the **My Friendly Neighborhood VR**
 desktop shortcut, then put the headset on once the game is running.

@@ -236,21 +236,53 @@ if ($modChoice -eq "2") {
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
     # 1.2.3, so that workaround is retired - the zip is honest again.)
-    $lufzVer = "1.3.18"
+    # ---- The installed version, from THREE sources that must agree ----
+    # Same mod, same publisher, same well-behaved shape as on the
+    # Horizon 5 entry: tag v1.3.19, asset VRMod-v1.3.19.zip, VERSION
+    # file 1.3.19. Read all three, cross-check, and write plain digits -
+    # that is exactly what the tile compares against.
+    $verFromTag = $null
+    if ($rel -and $rel.Tag) {
+        $m = [regex]::Match([string]$rel.Tag, '(\d+(?:\.\d+)+)')
+        if ($m.Success) { $verFromTag = $m.Groups[1].Value }
+    }
+    $verFromName = $null
+    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
+        $cand = $matches[1].Replace("_", ".").Trim(".")
+        if ($cand -match '^\d+(\.\d+)+$') { $verFromName = $cand }
+    }
+    $verFromFile = $null
     $lufzVerFile = Join-Path $modFolder "VERSION"
-    $lufzVerFound = $false
     if (Test-Path -LiteralPath $lufzVerFile) {
         try {
             $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
             if ($fv) { $fv = $fv.Trim() }
-            if ($fv -match '^\d+\.\d+') { $lufzVer = $fv; $lufzVerFound = $true }
+            if ($fv -match '^(\d+(?:\.\d+)+)') { $verFromFile = $matches[1] }
         } catch {}
     }
-    if (-not $lufzVerFound -and $zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
-        $pv = $matches[1].Replace("_", ".").Trim(".")
-        if ($pv -match '^\d+\.\d+') { $lufzVer = $pv }
+    $lufzVer = $null
+    foreach ($cand in @($verFromName, $verFromTag, $verFromFile)) {
+        if ($cand) { $lufzVer = $cand; break }
     }
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
+    $seen = @($verFromName, $verFromTag, $verFromFile) | Where-Object { $_ }
+    $agree = (@($seen | Sort-Object -Unique).Count -le 1)
+    if ($lufzVer) {
+        if ($agree) {
+            Write-OK "Installed version $lufzVer (confirmed by $($seen.Count) of 3 sources)."
+        } else {
+            Write-Warn ("Version sources disagree: name=$verFromName tag=$verFromTag file=$verFromFile - using $lufzVer.")
+        }
+        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
+        # ALSO write the durable stamp next to the GAME (2026-08-20).
+        # The line above lands inside the Hub folder and is gone as
+        # soon as a new Hub build is dropped in; the scan then finds
+        # no marker and seeds the CURRENT online tag, swallowing a
+        # pending update. The game-side stamp survives that.
+        Save-InstalledStamp -GameDir $installRoot -Version $lufzVer
+    } else {
+        Write-Warn "No version could be read - the Hub will seed it on the next scan."
+        try { Remove-Item -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+    }
 }
 
 # ---- STEP 6: how to play ----

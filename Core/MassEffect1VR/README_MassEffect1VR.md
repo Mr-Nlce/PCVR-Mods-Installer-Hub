@@ -5,10 +5,30 @@ Legendary Edition in full head-tracked PCVR. Real stereo depth: look
 around the Normandy, walk the Citadel, stand under a Reaper. Gamepad
 only.
 
+> **One download now covers all three games.** dhalcyon ships a single
+> `MELE-VR.zip` that contains `MELE1VR.zip`, `MELE2VR.zip` and
+> `MELE3VR.zip`. The Hub installer picks the archive for **this** game out
+> of it by itself - the other two games are never touched.
+
+
 "You exist because we allow it, and you will end because we demand
 it."
 
 The mod currently covers ME1; this installer sets up exactly that.
+
+
+## From the author
+
+> All three games. Start to finish. Head-tracked, real stereo VR, first-person
+> and third-person. ME1, ME2 and ME3 are all playable now in VR.
+>
+> At the start of the year, I wanted to play all games in proper VR, but no mod
+> was available. Now, here we are. Thank you for playing.
+
+### Known: the Ilos conduit run in ME1
+In **Stereo** mode the Ilos conduit escape sequence runs **faster than normal**.
+Switch to **AER** or **Mono** in the Insert menu for that drive, then switch back
+afterwards.
 
 ## What it does
 1. Finds your Mass Effect Legendary Edition install on any store -

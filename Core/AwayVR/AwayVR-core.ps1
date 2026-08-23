@@ -159,6 +159,12 @@ if ($missing.Count -gt 0) {
 Write-OK "Installed and verified on disk."
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
 if ($tag) { try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {} }
+# ALSO write the durable stamp next to the GAME (2026-08-20).
+# The line above lands inside the Hub folder and is gone as
+# soon as a new Hub build is dropped in; the scan then finds
+# no marker and seeds the CURRENT online tag, swallowing a
+# pending update. The game-side stamp survives that.
+Save-InstalledStamp -GameDir $gameDir -Version $tag
 
 # ---- 3. Playing -----------------------------------------------
 Write-Step 3 3 "Playing"

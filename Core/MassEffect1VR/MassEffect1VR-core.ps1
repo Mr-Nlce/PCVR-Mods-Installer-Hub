@@ -123,11 +123,23 @@ Write-Step 2 5 "Getting MELE-VR (Patreon)"
 
 $zip = $null
 $dl = Join-Path $env:USERPROFILE "Downloads"
-# Exclude MELE2*: part 2 ships MELE2-VR.zip into the same Downloads
-# folder, and picking that here would place ME2 files into ME1.
-$found = Get-ChildItem -Path $dl -Filter "MELE*VR*.zip" -ErrorAction SilentlyContinue |
-  Where-Object { $_.Name -notmatch "(?i)MELE2" } |
-  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# !!! THE NAME IS NOT PROOF, THE CONTENT IS (2026-08-20). All three
+# Mass Effect games now ship in ONE MELE-VR.zip, and older
+# per-game downloads may still sit in the same Downloads folder.
+# Matching on the name alone offered MELE2-VR.zip while installing
+# ME3 - which would have put one game's mod into another game's
+# folder. So every candidate is OPENED and only accepted when it
+# really carries this game's payload: MELE1VR.zip inside the
+# combined package, or MELE-VR.bat in a single-game download.
+$cands = @(Get-ChildItem -Path $dl -Filter "*.zip" -ErrorAction SilentlyContinue |
+           Sort-Object LastWriteTime -Descending)
+$found = $null
+foreach ($c in $cands) {
+    if ((Test-ArchiveContains -ArchivePath $c.FullName -Entry "MELE1VR.zip") -or
+        (Test-ArchiveContains -ArchivePath $c.FullName -Entry "MELE-VR.bat")) {
+        $found = $c; break
+    }
+}
 if ($found) {
  Write-Host " Found in Downloads: $($found.Name)" -ForegroundColor Cyan
  Write-Host " [1] Use this file" -ForegroundColor White
@@ -185,14 +197,17 @@ if (-not $exRes) {
  Write-Fail "Extraction failed."
  Pause-User "Press Enter to exit."; exit 1
 }
-# The zip is flat (verified: 4 payload files + a README at the root),
-# but stay tolerant of a future wrapper folder.
-$srcDir = $tmp
-if (-not (Test-Path -LiteralPath (Join-Path $tmp "MELE-VR.bat"))) {
- $inner = Get-ChildItem -Path $tmp -Directory | Where-Object {
-  Test-Path -LiteralPath (Join-Path $_.FullName "MELE-VR.bat")
- } | Select-Object -First 1
- if ($inner) { $srcDir = $inner.FullName }
+# THE DOWNLOAD IS NOW AN ARCHIVE OF ARCHIVES (2026-08-20): the
+# author ships ONE MELE-VR.zip holding MELE1VR.zip, MELE2VR.zip
+# and MELE3VR.zip - one per game. Unpacking the outer file alone
+# leaves three zips and no payload, so the shared helper is used:
+# it walks a wrapper folder OR unpacks the inner archive that
+# really carries this game's marker - never a sibling belonging
+# to one of the other two games.
+$srcDir = Expand-NestedArchive -Root $tmp -Marker "MELE-VR.bat" -Label "MELE-VR"
+if (-not $srcDir) {
+ Write-Fail "MELE-VR.bat is not in the download - neither loose nor in an inner archive."
+ Pause-User "Press Enter to exit."; exit 1
 }
 $missing = @()
 foreach ($f in $MOD_FILES) {
@@ -288,6 +303,69 @@ Write-Host " GamerSettings.ini: rerun this installer as administrator, or" -Fore
 Write-Host " turn " -NoNewline -ForegroundColor Gray
 Write-Host "HDR OFF" -NoNewline -ForegroundColor Green
 Write-Host " and Motion Blur off yourself in the in-game video menu." -ForegroundColor Gray
+
+# -------------------------------------------------------
+# OPTIONAL: the other two games from the SAME download
+# -------------------------------------------------------
+# One MELE-VR.zip now carries all three games, and the whole
+# Legendary Edition sits under ONE folder - so the other two are
+# a copy and a setup run away, with nothing more to download.
+# ASKED, never assumed: someone may own the trilogy but only want
+# VR in one part, and each game runs its own interactive setup.
+$ALL_GAMES = @(
+    @{ Key = "ME1"; Name = "Mass Effect 1"; Sub = "Game\ME1\Binaries\Win64"; Exe = "MassEffect1.exe"; Bat = "MELE-VR.bat";  Ini = "MELEVR.ini" }
+    @{ Key = "ME2"; Name = "Mass Effect 2"; Sub = "Game\ME2\Binaries\Win64"; Exe = "MassEffect2.exe"; Bat = "MELE2-VR.bat"; Ini = "MELE2VR.ini" }
+    @{ Key = "ME3"; Name = "Mass Effect 3"; Sub = "Game\ME3\Binaries\Win64"; Exe = "MassEffect3.exe"; Bat = "MELE3-VR.bat"; Ini = "MELE3VR.ini" }
+)
+$others = @($ALL_GAMES | Where-Object { $_.Key -ne "ME1" -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $_.Sub, $_.Exe))) })
+if ($others.Count -gt 0 -and $srcDir) {
+    Write-Host ""
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host "   The same download also covers the other games you own" -ForegroundColor Cyan
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host ""
+    foreach ($o in $others) { Write-Host "   - $($o.Name)" -ForegroundColor White }
+    Write-Host ""
+    Write-Host "   Nothing more to download - each one just needs its files" -ForegroundColor Gray
+    Write-Host "   copied and its own setup answered (VR mode + quality)." -ForegroundColor Gray
+    Write-Host ""
+    $doAll = ""
+    for ($i = 1; $i -le 20; $i++) {
+        $doAll = ("" + (Read-Host "  Install VR for those too? [y/n]")).Trim().ToLower()
+        if ($doAll -in @("y","n","yes","no")) { break }
+        Write-Host "  Please answer y or n." -ForegroundColor Yellow
+    }
+    if ($doAll -in @("y","yes")) {
+        foreach ($o in $others) {
+            Write-Host ""
+            Write-Host "  === $($o.Name) ===" -ForegroundColor Cyan
+            # Each game has its OWN payload inside the download - the
+            # dxgi.dll differs per game, so the folders must not be mixed.
+            $oSrc = Expand-NestedArchive -Root $tmp -Marker $o.Bat -Label $o.Name
+            if (-not $oSrc) { Write-Warn "$($o.Bat) is not in this download - skipping $($o.Name)."; continue }
+            $oDir = [System.IO.Path]::Combine($gamePath, $o.Sub)
+            $oOk = $true
+            foreach ($f in @($o.Bat, "dxgi.dll", "openxr_loader.dll", $o.Ini)) {
+                $src = Join-Path $oSrc $f
+                if (-not (Test-Path -LiteralPath $src)) { Write-Warn "Missing in the package: $f"; $oOk = $false; continue }
+                try { Copy-Item -LiteralPath $src -Destination (Join-Path $oDir $f) -Force -ErrorAction Stop }
+                catch {
+                    $cmd = "Copy-Item -LiteralPath '$src' -Destination '$(Join-Path $oDir $f)' -Force"
+                    try { Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList "-NoProfile","-Command",$cmd } catch {}
+                    if (-not (Test-Path -LiteralPath (Join-Path $oDir $f))) { Write-Warn "Could not place $f"; $oOk = $false }
+                }
+            }
+            if (-not $oOk) { Write-Warn "$($o.Name) was not completed."; continue }
+            Write-OK "Files placed for $($o.Name)."
+            Write-Host "  Its setup opens now - answer VR mode and quality." -ForegroundColor White
+            Pause-User "Press Enter to start the $($o.Name) setup..." | Out-Null
+            try { Start-Process -FilePath (Join-Path $oDir $o.Bat) -WorkingDirectory $oDir -Wait -ErrorAction Stop }
+            catch { Write-Warn "Could not start it: $($_.Exception.Message)" }
+            if (Test-Path -LiteralPath (Join-Path $oDir "dxgi.dll")) { Write-OK "$($o.Name) is set up." }
+        }
+    }
+}
+
 Pause-User "Press Enter to finish..."
 
 # -------------------------------------------------------

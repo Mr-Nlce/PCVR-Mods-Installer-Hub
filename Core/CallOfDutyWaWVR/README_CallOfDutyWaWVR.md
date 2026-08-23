@@ -45,6 +45,22 @@ the game by itself, *Browse* to the folder holding `CoDWaW.exe`.
 Other OpenXR headsets may work but are unverified. If one fails, name the
 connection method and the active OpenXR runtime in the bug report.
 
+## If the launcher refuses to start in VR
+Since **v0.4.0 Beta 2** it tells you why instead of just failing. The usual cause
+is a **VR resolution larger than your Windows desktop**: the launcher now names
+both numbers - your actual desktop resolution and the VR source resolution it
+was asked for - and explains that the oversized mode cannot start.
+
+Two ways out:
+- **Pick a smaller quality preset** in the launcher, or
+- **raise your Windows desktop resolution**. On supported NVIDIA cards the
+  launcher also points at DSR / DLDSR, which fakes a larger desktop for exactly
+  this purpose.
+
+Beta 2 also stopped the **rapid repeated hover sound** in the menus, which came
+from a stationary desktop mouse polling over the top of the VR pointer. Moving
+the physical mouse still works alongside pointing.
+
 ## Controls
 
 | Input | Action |
