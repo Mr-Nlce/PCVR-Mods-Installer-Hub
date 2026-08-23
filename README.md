@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (240)</summary>
+<summary>Show all currently listed titles (242)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -143,6 +143,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Mage Arena (motion controls)
 * Mass Effect 1 Legendary Edition
 * Mass Effect 2 Legendary Edition
+* Mass Effect 3 Legendary Edition
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
@@ -254,6 +255,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Unmourned VR (motion controls)
 * Valheim VR (motion controls)
 * Vivecraft VR (motion controls)
+* Virtua Cop 2 VR (motion controls)
 * Warhammer 40,000: Rogue Trader
 * Watch Dogs
 * Watch Dogs 2
