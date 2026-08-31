@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (244)</summary>
+<summary>Show all currently listed titles (246)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -69,6 +69,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Diddy Kong Racing
 * Dinkum
 * Dino Trauma VR (motion controls)
+* Dishonored VR [WIP] (motion controls)
 * Doom (+ 3D weapons) (motion controls)
 * Doom 2 (+ 3D weapons) (motion controls)
 * Doom 3 BFG VR (motion controls)
@@ -87,7 +88,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Far Cry New Dawn
 * Far Cry Primal
 * Far Cry VR (motion controls)
-* F.E.A.R. VR [WIP] (motion controls)
+* F.E.A.R. Platinum Edition [WIP] (motion controls) GOG
+* F.E.A.R. Ultimate Shooter Edition [WIP] (motion controls) Steam store
 * FF VII Rebirth
 * FF VII Remake
 * Final Fantasy XIV VR (motion controls)
