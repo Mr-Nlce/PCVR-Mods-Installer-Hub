@@ -1,7 +1,13 @@
 # ============================================================
 # Luke Ross R.E.A.L. VR Mod Installer
 # ============================================================
-param([string]$GameTitle = "")
+param(
+ [string]$GameTitle = "",
+ # Optional exact game root supplied by a wrapper installer. Elden Ring uses
+ # this for its separate pinned-depot copy; without an override the shared
+ # detector always finds the live Steam copy and installs into the wrong build.
+ [string]$GamePath = ""
+)
 
 
 # Load installer-safety helpers (Invoke-SafeDownload,
@@ -544,7 +550,23 @@ if (-not $selectedGame) {
 $steamGamePath = $null
 $detectedSource = $null # "Steam", "Epic", "Ubisoft", "Gamepass", or $null
 
-try {
+# A caller-provided path is authoritative only after the selected game's EXE
+# has been verified below. Do not run store detection first: it would silently
+# replace the requested depot copy with the current Steam install.
+if ($GamePath) {
+ $forced = $GamePath.Trim().Trim('"').Trim("'")
+ if (Test-Path -LiteralPath $forced -PathType Container) {
+  $steamGamePath = $forced
+  $detectedSource = "Specified path"
+  Write-OK "Using specified install: $steamGamePath"
+ } else {
+  Write-Fail "The specified game folder does not exist: $forced"
+  Pause-User "Press Enter to exit..."
+  exit 1
+ }
+}
+
+if (-not $steamGamePath) { try {
  $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
  if (Test-Path $__utilsPath) {
  . $__utilsPath
@@ -605,7 +627,7 @@ try {
  }
 } catch {
  Write-Info "Detection library failed, falling back to legacy Steam lookup."
-}
+} }
 
 # Legacy Steam-only fallback (unchanged behaviour for users with Steam installs)
 if (-not $steamGamePath) {

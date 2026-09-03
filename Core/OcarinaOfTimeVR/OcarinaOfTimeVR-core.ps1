@@ -266,7 +266,19 @@ if ($lnk) { Write-OK "Desktop shortcut created: Ocarina of Time VR" }
 else      { Write-Warn "Could not create the desktop shortcut - use 'Start in VR' in the Hub." }
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+if ($relTag -and $relTag -ne $KNOWN_FALLBACK_TAG) {
+    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
+    # Also next to the GAME, so a new Hub build does not lose the marker.
+    try { Save-InstalledStamp -GameDir $installRoot -Version $relTag -HubDir $SCRIPT_DIR } catch {}
+} else {
+    # !!! NEVER RECORD THE FALLBACK TAG (2026-08-20). $KNOWN_FALLBACK_TAG
+    # is what we use when GitHub was unreachable - it is a guess, not the
+    # version that was installed. Writing it would age exactly like the
+    # hard-coded number that plagued Forza: the tile would show an Update
+    # badge no reinstall can clear. No marker is self-healing - the next
+    # scan seeds the real current tag.
+    try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+}
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
 
 # ---- HD texture pack (optional) -----------------------------

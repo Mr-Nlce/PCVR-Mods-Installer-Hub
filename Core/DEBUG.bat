@@ -52,7 +52,6 @@ echo   [37] REFramework VR (game selector)
 echo   [38] Yooka-Laylee VR
 echo   [39] Moto Rush Reborn VR
 echo   [40] Slyders VR
-echo   [41] Super Polygon Grand Prix VR
 echo   [42] StreetDog BMX VR
 echo   [43] Hypogea VR
 echo   [44] Lunistice VR
@@ -186,8 +185,15 @@ echo   [171] Sons of the Forest
 echo   [172] White Knuckle VR
 echo   [173] Virtua Cop 2 VR
 echo   [174] Mass Effect 3 LE VR
+echo   [175] Retrowave 2 VR
+echo   [176] Elden Ring VR (Motion Controls)
+echo   [177] Silent Hill VR
+echo   [178] Elden Ring (Gamepad)
+echo   [179] Dishonored VR
+echo   [180] Star Wars Episode I Racer
+echo   [181] Silent Hill 3 VR
 echo.
-set /p choice="Enter number (1-174): "
+set /p choice="Enter number (1-181): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -228,7 +234,6 @@ if "%choice%"=="37" (set SCRIPT=%~dp0REFrameworkVR\REFrameworkVR-core.ps1)
 if "%choice%"=="38" (set SCRIPT=%~dp0YookaLayleeVR\YookaLayleeVR-core.ps1)
 if "%choice%"=="39" (set SCRIPT=%~dp0MotoRushRebornVR\MotoRushRebornVR-core.ps1)
 if "%choice%"=="40" (set SCRIPT=%~dp0SlydersVR\SlydersVR-core.ps1)
-if "%choice%"=="41" (set SCRIPT=%~dp0SuperPolygonGrandPrixVR\SuperPolygonGrandPrixVR-core.ps1)
 if "%choice%"=="42" (set SCRIPT=%~dp0StreetDogBMXVR\StreetDogBMXVR-core.ps1)
 if "%choice%"=="43" (set SCRIPT=%~dp0HypogeaVR\HypogeaVR-core.ps1)
 if "%choice%"=="44" (set SCRIPT=%~dp0LunisticeVR\LunisticeVR-core.ps1)
@@ -362,6 +367,13 @@ if "%choice%"=="171" (set SCRIPT=%~dp0SonsVR\SonsVR-core.ps1)
 if "%choice%"=="172" (set SCRIPT=%~dp0WhiteKnuckleVR\WhiteKnuckleVR-core.ps1)
 if "%choice%"=="173" (set SCRIPT=%~dp0VirtuaCop2VR\VirtuaCop2VR-core.ps1)
 if "%choice%"=="174" (set SCRIPT=%~dp0MassEffect3VR\MassEffect3VR-core.ps1)
+if "%choice%"=="175" (set SCRIPT=%~dp0Retrowave2VR\Retrowave2VR-core.ps1)
+if "%choice%"=="176" (set SCRIPT=%~dp0EldenRingVR\EldenRingVR-core.ps1)
+if "%choice%"=="177" (set SCRIPT=%~dp0SilentHillVR\SilentHillVR-core.ps1)
+if "%choice%"=="178" (set SCRIPT=%~dp0EldenRingRealVR\EldenRingRealVR-core.ps1)
+if "%choice%"=="179" (set SCRIPT=%~dp0DishonoredVR\DishonoredVR-core.ps1)
+if "%choice%"=="180" (set SCRIPT=%~dp0StarWarsEpisodeIRacerVR\StarWarsEpisodeIRacerVR-core.ps1)
+if "%choice%"=="181" (set SCRIPT=%~dp0SilentHill3VR\SilentHill3VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

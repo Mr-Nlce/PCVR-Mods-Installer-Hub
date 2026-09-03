@@ -58,7 +58,7 @@ try {
     $ghFile  = Join-Path $dir ".gh_version_cache"
     $ghCache = Get-PfCache $ghFile
     $repos = [System.Collections.Generic.List[string]]::new()
-    foreach ($m in [regex]::Matches($text, 'GithubRepo\s*=\s*"([^"]+)"')) {
+    foreach ($m in [regex]::Matches($text, 'GithubRepo(?:Alt|B)?\s*=\s*"([^"]+)"')) {
         $r = $m.Groups[1].Value.Trim()
         if ($r -and -not $repos.Contains($r)) { $repos.Add($r) }
     }

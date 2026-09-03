@@ -17,6 +17,100 @@ $global:HoverPendingCard  = $null
 $global:HoverMediaElement = $null
 $global:HoverDelayMs      = 600
 
+# While a ScrollViewer is moving, cards repeatedly crossing the stationary
+# mouse pointer would otherwise build sparks, spotlights and tint brushes on
+# every MouseEnter. Pause only those expensive card-hover paths until 120 ms
+# after the final wheel/ScrollChanged event, then restore the single card that
+# actually remains under the pointer.
+$global:CardScrollHoverDelayMs = 120
+$global:CardScrollHoverActive  = $false
+$global:CardScrollHoverReplay  = $false
+$global:CardScrollHoverTimer   = $null
+
+function global:Test-CardHoverSuppressed {
+    return ([bool]$global:CardScrollHoverActive -and -not [bool]$global:CardScrollHoverReplay)
+}
+
+function global:Get-CardUnderPointer {
+    $node = [System.Windows.Input.Mouse]::DirectlyOver
+    while ($node -and $node -is [System.Windows.DependencyObject]) {
+        if ($node -is [System.Windows.Controls.Border] -and
+            $node.Resources -and $node.Resources.Contains("gameData")) {
+            return $node
+        }
+
+        $parent = $null
+        try { $parent = [System.Windows.Media.VisualTreeHelper]::GetParent($node) } catch { }
+        if (-not $parent) {
+            try { $parent = [System.Windows.LogicalTreeHelper]::GetParent($node) } catch { }
+        }
+        $node = $parent
+    }
+    return $null
+}
+
+function global:Invoke-CardHoverMouseEvent {
+    param($Target, $RoutedEvent)
+    if (-not $Target -or -not $RoutedEvent -or -not [System.Windows.Input.Mouse]::PrimaryDevice) { return }
+    try {
+        $args = [System.Windows.Input.MouseEventArgs]::new(
+            [System.Windows.Input.Mouse]::PrimaryDevice,
+            [Environment]::TickCount
+        )
+        $args.RoutedEvent = $RoutedEvent
+        $Target.RaiseEvent($args)
+    } catch { }
+}
+
+function global:Register-CardScrollActivity {
+    # The first event in a scroll burst tears down a hover that may already be
+    # running. Subsequent ScrollChanged events only restart the quiet timer.
+    if (-not $global:CardScrollHoverActive) {
+        $currentCard = Get-CardUnderPointer
+        if ($currentCard) {
+            Invoke-CardHoverMouseEvent -Target $currentCard -RoutedEvent ([System.Windows.Input.Mouse]::MouseLeaveEvent)
+        }
+        if ($global:HoverTimer) { try { $global:HoverTimer.Stop() } catch { } }
+        $global:HoverPendingCard = $null
+        if ($global:HoverActiveCard -and (Get-Command End-CardPreview -ErrorAction SilentlyContinue)) {
+            try { End-CardPreview } catch { }
+        }
+    }
+
+    $global:CardScrollHoverActive = $true
+    $global:CardScrollHoverReplay = $false
+
+    if (-not $global:CardScrollHoverTimer) {
+        $global:CardScrollHoverTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $global:CardScrollHoverTimer.Add_Tick({
+            $global:CardScrollHoverTimer.Stop()
+            $global:CardScrollHoverActive = $false
+
+            $card = Get-CardUnderPointer
+            if (-not $card -or -not $card.IsMouseOver) { return }
+
+            # Synthetic replay is exempt from the gate. MouseEnter is a direct
+            # routed event, so replay the card and its preview hot-zone once.
+            $global:CardScrollHoverReplay = $true
+            try {
+                Invoke-CardHoverMouseEvent -Target $card -RoutedEvent ([System.Windows.Input.Mouse]::MouseEnterEvent)
+                if ($card.Resources.Contains("hotZone")) {
+                    $hotZone = $card.Resources.Item("hotZone")
+                    if ($hotZone -and $hotZone.IsMouseOver) {
+                        Invoke-CardHoverMouseEvent -Target $hotZone -RoutedEvent ([System.Windows.Input.Mouse]::MouseEnterEvent)
+                    }
+                }
+            } finally {
+                $global:CardScrollHoverReplay = $false
+            }
+        })
+    }
+
+    $global:CardScrollHoverTimer.Stop()
+    $global:CardScrollHoverTimer.Interval = [TimeSpan]::FromMilliseconds($global:CardScrollHoverDelayMs)
+    $global:CardScrollHoverTimer.Start()
+}
+
 # Anomaly VR stores its VR mod under <gameDir>\MODS\ as a versioned
 # folder named "amomaly_aoe_vr <version>" (the "amomaly" typo is
 # upstream). To detect an available update we read the actually-
@@ -1608,12 +1702,24 @@ function global:Get-PowerTier {
         "Dredge VR"                               = "LOW"
         "Hexen II VR"                             = "LOW"
         "Lunistice VR"                            = "LOW"
+        # 4032x2268 total, developed on an RTX 4090, and the game is
+        # CPU-bound in places on top - the author says so himself.
+        "Dishonored VR"                           = "STRONG"
+        # A 1999 PlayStation game rebuilt as a native PC port. The
+        # geometry is what it was in 1999; the stereo is generated on the
+        # GPU from that same geometry, so there is very little to render
+        # twice. The author develops it on an RTX A4500 over Virtual
+        # Desktop, but the load is nowhere near that.
+        "Silent Hill VR"                          = "LOW"
 
         # ---- BASIC ----
         "Alba VR"                      = "BASIC"
         "No One Lives Forever 2 VR"    = "BASIC"
         "Richard Burns Rally VR"       = "BASIC"
         "Rebel Galaxy VR"              = "BASIC"
+        # A small stylised Unity racer put through UUVR - light scene,
+        # no heavy effects. BASIC.
+        "Retrowave 2 VR"              = "BASIC"
         "Amnesia VR"                   = "BASIC"
         "Apollo Justice: Ace Attorney Trilogy VR" = "BASIC"
         "Art of Rally VR"              = "BASIC"
@@ -1704,14 +1810,15 @@ function global:Get-PowerTier {
         "Saints Row: The Third VR"     = "SOLID"
         "Selaco VR"                   = "SOLID"
         "Shipbreaker VR"              = "SOLID"
+        "Silent Hill 3 VR"            = "BASIC"
         "Slime Rancher VR"             = "BASIC"
         "Slyders VR"                   = "BASIC"
         "Moto Rush Reborn VR"          = "BASIC"
         "Stanley Parable VR"           = "BASIC"
         "StreetDog BMX VR"             = "BASIC"
+        "Star Wars Episode I Racer"    = "BASIC"
         "Strife VR"                    = "BASIC"
         "Sunrise GP VR"                = "BASIC"
-        "Super Polygon Grand Prix VR"  = "BASIC"
         "Tomb Raider 1 VR"             = "BASIC"
         "Yooka-Laylee VR"              = "BASIC"
 
@@ -1821,7 +1928,10 @@ function global:Get-PowerTier {
         "Crysis VR"                    = "STRONG"
         "Deep Rock Galactic VR"        = "STRONG"
         "Devil May Cry 5 VR"           = "STRONG"
-        "Elden Ring VR"               = "STRONG"
+        # Two mods on one tile. The motion mod renders BOTH eyes when AER
+        # is on and does full hand IK, so the tile carries the heavier of
+        # the two. HIGH (R.E.A.L. alone was STRONG).
+        "Elden Ring VR (Motion Controls)" = "HIGH"
         "Far Cry 4 VR"                = "STRONG"
         "Far Cry 5 VR"                = "STRONG"
         "Far Cry New Dawn VR"         = "STRONG"
@@ -2798,7 +2908,7 @@ function global:Set-SafeBannerImage {
 # cannot be tee'd (the elevated child owns its own console); left unlogged on
 # purpose rather than break elevation.
 function global:Start-LoggedInstaller {
-    param($Game, [string]$BatPath, [switch]$RequiresAdmin)
+    param($Game, [string]$BatPath, [switch]$RequiresAdmin, [string]$InstallerChoice = '')
     if (-not $Game -or [string]::IsNullOrWhiteSpace($BatPath)) { return $null }
 
     # Logs dir from the known Core path (passed to the wrapper as an absolute
@@ -2816,11 +2926,28 @@ function global:Start-LoggedInstaller {
     $folder = if ($Game.SteamFolder) { [string]$Game.SteamFolder } else { "" }
     $exe    = if ($Game.GameExe)     { [string]$Game.GameExe }     else { "" }
 
+    # One explicit set of marker paths for the child wrapper.  Deriving
+    # these again from the core script is wrong for shared installers
+    # (REFramework, Luke Ross, QuestZDoom): the core can live in a
+    # different folder from the catalog entry, and multi-game folders use
+    # title-keyed marker names.  Passing the Hub's own resolved paths keeps
+    # both processes on the same files.
+    $statusPath = Get-UpdateOkMarkerPath -Game $Game
+    $versionPath = Get-InstalledVersionPath -Game $Game
+    $versionPathB = Get-InstalledVersionPathB -Game $Game
+    $installPath = Get-InstalledPathFile -Game $Game
+    # Every launch route starts with a clean completion flag.  Otherwise a
+    # stale .update_ok from a previous run makes a cancelled reinstall look
+    # successful and the post-refresh can overwrite correct version state.
+    Clear-UpdateOkMarker -Game $Game
+
     $wrapper = $global:RunInstallerPath
     $argString =
         "-NoProfile -ExecutionPolicy Bypass -File `"$wrapper`" " +
         "-Title `"$title`" -Kind $kind -BatPath `"$BatPath`" -Ps1Path `"$ps1`" " +
-        "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -LogsDir `"$logsDir`""
+        "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -LogsDir `"$logsDir`" " +
+        "-StatusPath `"$statusPath`" -VersionPath `"$versionPath`" -VersionPathB `"$versionPathB`" -InstallPath `"$installPath`""
+    if ($InstallerChoice) { $argString += " -InstallerChoice `"$InstallerChoice`"" }
 
     if ($RequiresAdmin -and $kind -eq "Bat") {
         # Elevated install (e.g. Alien Isolation, which needs admin for a
@@ -2977,15 +3104,17 @@ function global:Test-OnlineVersionIsNewer {
     } else {
         # 4. Numeric parts, component by component. Missing components
         #    count as 0, so "1.4" and "1.4.0" are equal.
-        $na = ([regex]::Match($an, '^\d+(\.\d+)*')).Value
-        $nb = ([regex]::Match($bn, '^\d+(\.\d+)*')).Value
+        $maNumber = [regex]::Match($an, '^\d+(\.\d+)*')
+        $mbNumber = [regex]::Match($bn, '^\d+(\.\d+)*')
         # TAGS THAT DO NOT START WITH A DIGIT still carry their number
         # further in: "alpha-0.7", "beta-2.1", "release-1.4". Looking
         # only at the start would call those uncomparable and silently
         # swallow every update on such a repo - Red Faction publishes
         # exactly this shape (alpha-0.1 ... alpha-0.7, then 0.8, 0.9).
-        if (-not $na) { $na = ([regex]::Match($an, '\d+(\.\d+)+|\d+')).Value }
-        if (-not $nb) { $nb = ([regex]::Match($bn, '\d+(\.\d+)+|\d+')).Value }
+        if (-not $maNumber.Success) { $maNumber = [regex]::Match($an, '\d+(\.\d+)+|\d+') }
+        if (-not $mbNumber.Success) { $mbNumber = [regex]::Match($bn, '\d+(\.\d+)+|\d+') }
+        $na = $maNumber.Value
+        $nb = $mbNumber.Value
         if (-not $na -or -not $nb) {
             # Genuinely no digits anywhere on one side.
             return $false
@@ -2999,8 +3128,12 @@ function global:Test-OnlineVersionIsNewer {
             if ($y -gt $x) { return $true }
             if ($y -lt $x) { return $false }
         }
-        $an = $an.Substring($na.Length)
-        $bn = $bn.Substring($nb.Length)
+        # Remove the matched numeric part at its ACTUAL position. Substring
+        # by length only worked when the number started at index zero; for
+        # alpha-1.0/beta-1.0 it accidentally discarded "alp"/"bet" and
+        # made their release-channel rank impossible to recognise.
+        $an = $an.Remove($maNumber.Index, $maNumber.Length)
+        $bn = $bn.Remove($mbNumber.Index, $mbNumber.Length)
     }
 
     # 5. Numbers equal - now the pre-release suffix decides, by RANK and
@@ -3023,11 +3156,23 @@ function global:Test-OnlineVersionIsNewer {
     $rb = & $rank $bn
     if ($rb -ne $ra) { return ($rb -gt $ra) }
 
-    # 6. Same rank, still different text - e.g. "1.3.19-hotfix" against
-    #    "1.3.19-patch". There is no honest ordering between those, so
-    #    NO update is reported. This is the case that used to nag
-    #    forever, and silence is the right answer: the next real version
-    #    bump raises the badge through check 3 or 4.
+    # 6. SAME RANK - then a NUMBER inside the suffix still decides.
+    #    "beta.5" against "beta.8" is a real update, and missing it is
+    #    not caution, it is a hole: some projects publish ONLY
+    #    prereleases (F.E.A.R. VR ships v1.0.0-beta.N and nothing else),
+    #    so without this every single update there would go unnoticed.
+    $da = [regex]::Match($an, '(\d+)\s*$')
+    $db = [regex]::Match($bn, '(\d+)\s*$')
+    if ($da.Success -and $db.Success) {
+        $ia = [int]$da.Groups[1].Value
+        $ib = [int]$db.Groups[1].Value
+        if ($ib -ne $ia) { return ($ib -gt $ia) }
+    }
+
+    # 7. Same rank, no number to separate them - e.g. "1.3.19-hotfix"
+    #    against "1.3.19-patch". There is no honest ordering between
+    #    those, so NO update is reported. This is the case that used to
+    #    nag forever, and silence is the right answer: the next real
+    #    version bump raises the badge through check 3 or 4.
     return $false
 }
-

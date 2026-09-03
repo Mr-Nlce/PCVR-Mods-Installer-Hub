@@ -107,6 +107,7 @@ Write-Host ""
 Write-Host " The mod replaces two game files in \Bin; this installer backs up" -ForegroundColor Gray
 Write-Host " the originals (*.vrbak) so you can restore flat mode." -ForegroundColor Gray
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..."
 
 # -------------------------------------------------------
@@ -152,6 +153,9 @@ if (-not $modZip) {
  try { Remove-Item $tempExtract -Recurse -Force -EA SilentlyContinue } catch {}
  Pause-User "Press Enter to exit."; exit 1
 }
+# Always point antivirus recovery at the archive that was actually chosen,
+# including a manual Downloads fallback.
+$zipPath = $modZip
 
 # -------------------------------------------------------
 # STEP 2: unpack + find the Bin payload
@@ -272,6 +276,20 @@ try {
  Save-InstalledStamp -GameDir $gamePath -Version $relTag
  Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value ([System.IO.Path]::Combine($gamePath, "Bin", "PainKiller.exe")) -Encoding UTF8 -Force
 } catch {}
+
+# The scanner usually sweeps a moment AFTER the write, so the files can
+# be gone right here. This must run BEFORE the temp folder below is
+# removed - the recovery needs that archive.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths @($MOD_BIN_FILES | ForEach-Object { Join-Path $gameBin $_ }) `
+    -GameDir $gamePath `
+    -ArchivePath $zipPath
+if (-not $avFilesOk) {
+    try { Remove-Item $tempExtract -Recurse -Force -EA SilentlyContinue } catch {}
+    Write-Fail "Painkiller VR could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again."
+    exit 1
+}
 
 try { Remove-Item $tempExtract -Recurse -Force -EA SilentlyContinue } catch {}
 

@@ -20,7 +20,10 @@
 ## How to install (external)
 1. Open the info page and grab the latest JKXR release with Jedi Academy support for PCVR.
 2. Follow Team Beef's instructions to point the port at your Jedi Academy `GameData\base` assets.
-3. Launch in VR per the project's PCVR guide.
+3. Return to the Hub and select **Start in VR**. It launches `GameData\openjk_sp.x86_64.exe` with `GameData` as its working directory.
+
+## Uninstall
+When JKXR's Inno uninstaller exists, **Uninstall now** opens `GameData\unins000.exe`. This is the author's remover; the Hub does not delete Jedi Academy assets itself.
 
 > Note: historically the Academy build was the later, sometimes Patreon early-access target while Outcast was the public release. Check the project page for the current PCVR build status.
 

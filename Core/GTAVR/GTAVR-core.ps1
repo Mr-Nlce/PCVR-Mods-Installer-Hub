@@ -23,6 +23,7 @@ $SCRIPTHOOK_FILE = "ScriptHookV_3788.0_1013.34.zip"
 # CURRENT build (no downgrade). Public GitHub release.
 $PATCHER_URL    = "https://github.com/FranciscoManzanilla/GTA-VRV-Patcher/releases/download/VRV-1.1/GTAVRV.Patcher.zip"
 $PATCHER_FILE   = "GTAVRV.Patcher.zip"
+$PATCHER_BACKUP_VERSION = "VRV-1.1"
 $SEVENZIP_URL   = "https://www.7-zip.org/download.html"
 $SEVENZIP_DL    = "https://7-zip.org/a/7z2501-x64.exe"
 $KEY_FILE       = "RealVR.ini"   # root marker inside the patcher zip
@@ -141,6 +142,7 @@ Write-Host ""
 Write-Host " IMPORTANT: start Grand Theft Auto V once (into Story Mode) and" -ForegroundColor Yellow
 Write-Host " quit it BEFORE installing. That first launch creates your game" -ForegroundColor Yellow
 Write-Host " profile and settings.xml, which the VR setup needs." -ForegroundColor Yellow
+Show-AntivirusNotice
 Pause-User "Have you launched GTA V at least once already? Press Enter to continue..."
 Write-Host ""
 
@@ -293,6 +295,12 @@ $rar = Join-Path $env:TEMP $PATCHER_FILE
 Write-Host "  [..] Downloading $MOD_NAME" -ForegroundColor Gray
 $patcherUrl = Get-LatestPatcherUrl
 $usedFork = ($patcherUrl -match '(?i)SanguShellz')
+# The tag is READ OUT OF THE ADDRESS WE ALREADY HAVE - a GitHub release
+# asset always sits under /download/<tag>/. No second request, no address
+# built from a variable: those shapes are what made a scanner flag this
+# file. Falls back to the pinned build's own tag.
+$patcherVersion = $PATCHER_BACKUP_VERSION
+if ($patcherUrl -match '/download/([^/]+)/') { $patcherVersion = $Matches[1] }
 [void](Get-BrowserFile -Url $patcherUrl -Dest $rar)
 
 # Antivirus false-positive watch: the fork patcher bundles ScriptHook-style
@@ -377,6 +385,19 @@ if (-not $installedOk) {
 }
 if ($installedOk) {
     Write-OK "Patcher installed - RealVR.ini is in place."
+    # A scanner often sweeps a moment after the write - and this mod is
+    # one of the ones that gets flagged. $rar is the downloaded patcher
+    # archive, still on disk here, so recovery can unpack it again
+    # inside the game folder.
+    $avFilesOk = Confirm-PlacedFilesSurvive `
+        -Paths @((Join-Path $gtaDir $KEY_FILE), (Join-Path $gtaDir "RealVR.asi")) `
+        -GameDir $gtaDir `
+        -ArchivePath $rar
+    if (-not $avFilesOk) {
+        Write-Fail "The GTA V VR patcher could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again."
+        exit 1
+    }
     if (Test-Path -LiteralPath "$gtaDir\RealVR.asi") {
         Write-OK "VR plugin in place - RealVR.asi."
     } else {
@@ -553,3 +574,14 @@ Write-Host ""
 Write-Host " Pull off the heist, outrun the stars, and own the streets of Los Santos." -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Press Enter to exit"
+
+
+if ($installedOk) {
+    $srcName = if ($usedFork) { "sangu" } else { "francisco" }
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".vrv_source") -Value $srcName -Encoding ASCII -Force } catch {}
+    try { Set-Content -Path ([IO.Path]::Combine($gtaDir, ".pcvrhub_source")) -Value $srcName -Encoding ASCII -Force } catch {}
+    if (Test-IsTrackableInstalledVersion -Version $patcherVersion) {
+        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $patcherVersion -Encoding UTF8 -Force } catch {}
+        Save-InstalledStamp -GameDir $gtaDir -Version $patcherVersion
+    }
+}

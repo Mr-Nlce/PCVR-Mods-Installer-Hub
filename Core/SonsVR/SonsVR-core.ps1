@@ -229,7 +229,10 @@ foreach ($f in $SVR_FILES) {
 if ($svrNeed.Count -eq 0) {
     Write-OK "SteamVR action files are in place."
 } else {
-    Write-Warn ("The mod installer left these out: " + ($svrNeed -join ", "))
+    # v0.0.5-alpha ships these files - so reaching this branch now means
+    # an OLDER install, or a copy that went wrong, not a fault in the
+    # current release.
+    Write-Warn ("These SteamVR files are missing or empty: " + ($svrNeed -join ", "))
     Write-Info "Without them SteamVR has no bindings and no trigger reaches the game."
     $svrTag = if ($tag) { $tag } else { "master" }
     try { New-Item -ItemType Directory -Path $svrDir -Force -ErrorAction Stop | Out-Null } catch {}

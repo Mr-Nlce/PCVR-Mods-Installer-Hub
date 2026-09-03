@@ -2,18 +2,18 @@
 
 ## Two mods, one page
 
-There are two Outlast VR mods and they work in completely different ways. The
+There are two Outlast VR mods with different controls. The
 installer offers either, or both.
 
 | | **Halcyon** | **Hammerthis** |
 |---|---|---|
 | **Controls** | **gamepad only** | **tracked VR controllers + VR hands** |
-| State | the more mature, stable option | **early alpha** |
+| State | gamepad-focused option | **v1.0 drop-in** |
 | Camcorder | raised with a button | reach out, grab it, raise it yourself |
 | Night vision | button | R3 while holding the camcorder |
 | Movement | gamepad sticks | left stick; click it while moving to sprint |
-| How it works | a `d3d9.dll` next to the game exe | injects into the running game |
-| Touches the game folder | yes, four files | no |
+| How it works | a `d3d9.dll` next to the game exe | a different `d3d9.dll` in the same folder |
+| Active files | four files | loaders, config and the body texture |
 | Where to get it | Patreon | GitHub, free |
 
 **This is why the tile shows both a gamepad and a controller icon.** Which one
@@ -32,19 +32,25 @@ gamepad-only any more, and it is not motion-controls-only either.
 
 Motion interactions with doors and pickups are in, but experimental.
 
-**They must not run at the same time.** Halcyon's proxy loads when Outlast
-starts; Hammerthis injects into the running process, so with both active they
-would land in one process. With both installed the installer writes two
-launchers into `_vrmods\VRLaunch` and each one parks the other mod's proxy
-before starting - the Hub shows one Play button per mod.
+**Close Outlast before switching.** Both mods now use `d3d9.dll`,
+`openxr_loader.dll` and `outlastvr.ini` in `Binaries\Win64`. The installer
+keeps separate copies under `_vrmods\halcyon` and `_vrmods\hammerthis`.
+Launchers in `_vrmods\VRLaunch` save the active config, verify and copy the
+chosen mod, then start the game. A failed switch restores the previous files
+and does not start Outlast. With both installed, the Hub shows both Play buttons.
 
 ### Hammerthis, in short
-Run once through his `PLAY_OUTLAST_VR.bat`: it applies VR-safe settings,
-launches Outlast through Steam, waits for `OLGame.exe` and injects. His folder
-also holds `UNLOAD_VR.bat` (stop VR mid-session) and
-`RESTORE_OUTLAST_SETTINGS.bat` (put your graphics settings back).
+Version 1.0 needs no injector or author-provided launcher. A Hammerthis-only
+installation is activated immediately. Use the Hub or
+`_vrmods\VRLaunch\Outlast VR (Hammerthis).bat` to play.
+Its extra files are `openxr_loader_real.dll` and
+`assets\miles\body_albedo.tga` below `Binaries\Win64`.
 
-It is an alpha, so expect rough edges: props and documents can vanish at some angles
+If upgrading from the old injector release, its files are retained in the
+Hammerthis folder. `RESTORE_OUTLAST_SETTINGS.bat` belongs to that old release
+and can undo its graphics changes; it is not required by the new drop-in mod.
+
+Expect rough edges: props and documents can vanish at some angles
 because Outlast's UE3 visibility system was built for a flat screen, shadows
 can shift with head movement, and the framerate can drop.
 
@@ -53,7 +59,7 @@ can shift with head movement, and the framerate can drop.
 ## The Halcyon mod
 
 **Everything from here on describes Halcyon's mod only** - the download, the
-installation, the in-game settings and the known issues. Hammerthis' alpha is
+installation, the in-game settings and the known issues. Hammerthis' mod is
 covered above and installs entirely through the Hub.
 
 Stereoscopic VR with full head tracking for **Outlast**, by **Halcyon**. Cutscenes
@@ -66,7 +72,7 @@ first launch, and the mod's own installer needs them to be there.
 
 ## Where the files go
 
-Not the game folder - one level down:
+Inside the game folder, two levels down in `Binaries\Win64`:
 
     ...\Outlast\Binaries\Win64\
 
@@ -85,8 +91,8 @@ The mod is published as a Patreon post, but the **file link itself is public** -
 no account needed. The installer fetches it directly; if the ZIP is already in
 your Downloads it uses that instead.
 
-After the files are in place the installer runs the mod's own `Outlast-VR.bat`
-from the game folder, which does the actual setup and adjusts Outlast's config
+After the files are in place the installer runs `Binaries\Win64\Outlast-VR.bat`
+from that `Binaries\Win64` folder, which does the actual setup and adjusts Outlast's config
 under your Documents folder.
 
 ## In the game

@@ -585,6 +585,7 @@ if ($modReallyThere) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
     try { if ($modTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $modTag -Encoding UTF8 -Force } } catch {}
+    if ($modTag) { Save-InstalledStamp -GameDir $gameRoot -Version $modTag -HubDir $SCRIPT_DIR }
 } else {
     # Old markers from an earlier successful run would distort the
     # picture just as much - they have to go, or the tile stays green.

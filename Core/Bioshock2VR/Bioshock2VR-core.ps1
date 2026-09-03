@@ -95,6 +95,7 @@ Write-Host "  readable floating panel, and the calibration ships tuned." -Foregr
 Write-Host ""
 Write-Host "  Needed: BioShock 2 REMASTERED (not the 2010 original) and an" -ForegroundColor White
 Write-Host "  OpenXR runtime - Virtual Desktop (VDXR), Steam Link or SteamVR." -ForegroundColor White
+Show-AntivirusNotice
 Pause-User "Press Enter to start the installation..." | Out-Null
 
 # ---- 1. locate the game -------------------------------------
@@ -117,6 +118,13 @@ else {
         if (-not $binDir) { Write-Fail "$GAME_EXE not found under: $r" }
     }
     Write-OK "Using: $binDir"
+}
+
+# Resolve this before installation: the exclusion covers the complete game
+# root, while the watched DLLs themselves land in Build\Final or FinalEpic.
+$gameRoot = $binDir
+foreach ($sub in $BIN_SUBDIRS) {
+    if ($gameRoot -like ("*\" + $sub)) { $gameRoot = $gameRoot.Substring(0, $gameRoot.Length - $sub.Length - 1); break }
 }
 
 # A leftover injector from the other head-tracking mod uses the SAME file
@@ -206,6 +214,20 @@ foreach ($f in $MOD_FILES) {
         Write-Fail "Could not copy $f - is the game running? ($($_.Exception.Message))"
     }
 }
+# A scanner usually sweeps a moment AFTER the write, so the files can be
+# gone right after this point. If they are, the user is walked through an
+# exclusion and they are put back FROM INSIDE the game folder.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths @($MOD_FILES | ForEach-Object { Join-Path $binDir $_ }) `
+    -GameDir $gameRoot `
+    -ArchivePath $zipDest
+if (-not $avFilesOk) {
+    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Write-Fail "The VR mod could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again."
+    exit 1
+}
+
 try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 if ($copied -lt $MOD_FILES.Count) {
@@ -221,12 +243,10 @@ Write-Step 4 4 "Finishing up"
 # recording ...\Build\Final here would make it look for
 # ...\Build\Final\Build\Final\xinput1_3.dll - never found, and the tile
 # would stay on "Needs Mod" until the next full scan.
-$gameRoot = $binDir
-foreach ($sub in $BIN_SUBDIRS) {
-    if ($gameRoot -like ("*\" + $sub)) { $gameRoot = $gameRoot.Substring(0, $gameRoot.Length - $sub.Length - 1); break }
-}
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
 try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+if ($relTag) { Save-InstalledStamp -GameDir $gameRoot -Version $relTag -HubDir $SCRIPT_DIR }
+
 Write-OK "Installed."
 
 Write-Host ""

@@ -68,8 +68,16 @@ alone. It sits under the optional add-ons in the app with its own
 **Install** button.
 
 ## Removing it again
-The app's **Uninstall** takes out every installed mod, MelonLoader and the
-`Mods`, `Plugins`, `UserLibs` and `UserData` folders. Your saves are kept.
+
+**Plan A:** use **Open launcher uninstall** beside the uninstall guide in
+the Hub, then choose **Uninstall** in the Big Walk VR app. It removes every
+installed add-on, MelonLoader and the `Mods`, `Plugins`, `UserLibs` and
+`UserData` folders. Your saves are kept.
+
+**Plan B:** if the launcher cannot remove it, use the install records under
+`UserData\BigWalkVRInstaller` to identify its files. Remove only recorded
+Big Walk VR files. Delete the complete shared mod folders only when you are
+sure no other Big Walk add-on uses them.
 
 ## If something goes wrong
 The app's **Logs** tab has its own history, and **Mod logs** opens

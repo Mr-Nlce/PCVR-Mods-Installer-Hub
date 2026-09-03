@@ -159,6 +159,7 @@ Write-Host " You need the 2007 original - Modern Warfare Remastered will" -Foreg
 Write-Host " not work. Start the flat game once before installing." -ForegroundColor Yellow
 Write-Host ""
 Write-Host " The mod ships no game data. Maps and fastfiles stay yours." -ForegroundColor Gray
+Show-AntivirusNotice
 Pause-User "Press Enter to start..." | Out-Null
 
 # -------------------------------------------------------
@@ -371,6 +372,20 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 Write-OK "$copied files installed, $backed original file(s) kept as .hubbak"
+
+# A scanner often sweeps a moment after the write; the work folder still
+# holds the archive here, so recovery can unpack it again inside the
+# game folder.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths @([System.IO.Path]::Combine($gamePath, $MOD_EXE)) `
+    -GameDir $gamePath `
+    -ArchivePath $zipPath
+if (-not $avFilesOk) {
+    try { Remove-Item $work -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Write-Fail "The VR mod could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again."
+    exit 1
+}
 if ($settingsSaved) { Write-Info "Your previous $SETTINGS_BAT was saved as $SETTINGS_PREV - the configurator can import it." }
 $configFull = [System.IO.Path]::Combine($gamePath, $CONFIG_EXE)
 if (-not (Test-Path -LiteralPath $configFull)) {
@@ -526,6 +541,7 @@ try {
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
+if ($relTag) { Save-InstalledStamp -GameDir $gamePath -Version $relTag -HubDir $SCRIPT_DIR }
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $launchFull -Encoding UTF8 -Force } catch {}
 try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
 

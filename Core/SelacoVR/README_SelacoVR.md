@@ -16,7 +16,7 @@ not include the game - it loads the game's own `Selaco.ipk3`.
 - Finds your Steam Selaco folder automatically
 - Downloads the SelacoVR engine and installs it into a `SelacoVR`
   subfolder inside the game folder (your Steam copy is left untouched)
-- Copies `Selaco.ipk3` from the game into the engine folder
+- Copies the game's `Selaco.ipk3` to `SelacoVR\Selaco.ipk3`
 - Turns on the engine's Laser Sight aim dot by default
 - Creates a **Selaco VR** desktop shortcut
 
@@ -86,7 +86,7 @@ controller menu button**) - VR Options.
 
 Launch with the **Selaco VR** desktop shortcut (or **Start in VR** in
 the Hub). Valve Index only: if your stick / button mapping feels off,
-an alternative Index launch profile sits in the engine folder - point
+the alternative launch profile is `SelacoVR\SelacoVR_ValveIndex.bat` - point
 the desktop shortcut at it (right-click -> Properties -> Target).
 
 To play flat (2D) instead of VR, set the cvar `vr_mode` to `0`.

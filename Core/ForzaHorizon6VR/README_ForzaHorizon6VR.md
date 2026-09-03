@@ -8,7 +8,7 @@ under `C:\Games\Forza Horizon 6 VR` (deliberately **outside** the game
 folder) and makes a desktop shortcut.
 
 You can install **both** mods side by side to compare them - each lives
-in its own subfolder (`\NALULUNA` and `\lufz`) so they never overwrite
+in its own subfolder (`NALULUNA\` and `lufz\` inside `C:\Games\Forza Horizon 6 VR` by default) so they never overwrite
 each other. Re-run the installer and pick the other mod to switch which
 one is the active "Start in VR" target.
 
@@ -83,6 +83,19 @@ toggle it off and on again.
 - A Forza Horizon 6 game update can break a mod until the author ships an
   update - re-download the newest build when that happens. Do **not**
   contact the official Forza team about a broken mod.
+
+## Flat play and removal
+
+There is no game-folder mode switch to operate here. Both VR choices use a
+separate launcher, while **Open in Steam** on this page starts the original
+game normally for flat play.
+
+**Uninstall now** first shows NALULUNA and lufz separately. NALULUNA's copied
+game hook is removed only when it is byte-identical to the hook in that
+installation. For lufz, the Hub opens the author's own **Uninstall VR Mod**
+action and verifies that its deployment manifest is gone before removing the
+separate launcher package. The retail game, saves, settings and unrelated
+wrappers are never deleted.
 
 ## Support & credits
 

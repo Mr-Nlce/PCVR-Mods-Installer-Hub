@@ -3,6 +3,127 @@
 # ---------------------------------------------------------------
 
 # Helper: open detail page for a banner game from a given origin.
+# =============================================================
+#  Absolute mod markers
+# =============================================================
+# !!! SOME MODS NEVER TOUCH THE GAME FOLDER. Hotbite's Elden Ring mod
+# installs entirely under %LOCALAPPDATA%\Programs\Elden Ring VR Motion
+# and runs the game through ModEngine from there. Every other marker
+# field is relative to the game directory, so there was no honest way
+# to detect it - the tile fell back to the launcher WE write, which
+# meant it read "VR Ready" for anyone who had ever run the installer,
+# mod or no mod.
+#
+# ModFileAbs takes full paths instead, environment variables included.
+# They are checked on their own, never joined to a game directory.
+function global:Test-AbsolutePathMarker {
+    param($Values)
+    if (-not $Values) { return $false }
+    foreach ($raw in @($Values)) {
+        if ([string]::IsNullOrWhiteSpace($raw)) { continue }
+        try {
+            $full = [Environment]::ExpandEnvironmentVariables([string]$raw)
+            # Never Join-Path here: the value may name a drive that is
+            # gone, and Join-Path resolves it and throws.
+            if ([IO.File]::Exists($full) -or [IO.Directory]::Exists($full)) { return $true }
+        } catch {}
+    }
+    return $false
+}
+
+function global:Test-AbsoluteModMarker {
+    param($Game)
+    if (-not $Game) { return $false }
+    return (Test-AbsolutePathMarker -Values $Game.ModFileAbs)
+}
+
+# A catalog probe may list more than one legitimate relative location (for
+# example F.E.A.R.'s old staged layout and its newer in-game overlay). Keep
+# that representation out of Join-Path callers: arrays and pipe-separated
+# legacy values are both accepted here, and a hit always has to exist below
+# the supplied installation root.
+function global:Test-RelativePathMarker {
+    param([string]$Root, $Values)
+    if ([string]::IsNullOrWhiteSpace($Root) -or -not $Values) { return $false }
+    foreach ($rawValue in @($Values)) {
+        foreach ($raw in (([string]$rawValue) -split '\|')) {
+            $rel = $raw.Trim()
+            if (-not $rel) { continue }
+            try {
+                # Catalog paths are stored with Windows separators because the
+                # shipped Hub runs on Windows. Tests and diagnostics also run
+                # under PowerShell on Linux, where a backslash is a literal
+                # filename character. Normalize either separator before the
+                # filesystem probe so both hosts inspect the same path tree.
+                $separator = [string][IO.Path]::DirectorySeparatorChar
+                $nativeRel = $rel.Replace('\', $separator).Replace('/', $separator)
+                $candidate = Join-Path $Root $nativeRel
+                if ([IO.File]::Exists($candidate) -or [IO.Directory]::Exists($candidate)) { return $true }
+            } catch {}
+        }
+    }
+    return $false
+}
+
+# RaiManager can keep BepInEx beside the downloaded manager package instead
+# of copying it into the game. Its game-side doorstop_config.ini then points
+# at BepInEx.Preloader.dll through an absolute targetAssembly path. Firewatch
+# uses that layout in the wild, so a plain game-root ModFile probe misses a
+# working installation. Follow only that explicit Doorstop path, require the
+# configured preloader and the VR-specific marker below the same payload tree,
+# and also require the game-side proxy (active or parked by our Flat/VR switch).
+# This deliberately does not treat winhttp.dll or doorstop_config.ini alone as
+# VR proof: both can be left behind by a partial or unrelated BepInEx install.
+function global:Test-DoorstopTargetModMarker {
+    param(
+        [string]$GameRoot,
+        [string]$TargetMarker,
+        [string]$LoaderFile = 'winhttp.dll'
+    )
+    if ([string]::IsNullOrWhiteSpace($GameRoot) -or [string]::IsNullOrWhiteSpace($TargetMarker)) { return $false }
+    try {
+        $configPath = Join-Path $GameRoot 'doorstop_config.ini'
+        if (-not [IO.File]::Exists($configPath)) { return $false }
+
+        if ($LoaderFile) {
+            $loaderRel = $LoaderFile.Trim()
+            $loaderDir = Split-Path $loaderRel -Parent
+            $loaderLeaf = Split-Path $loaderRel -Leaf
+            $stem = [IO.Path]::GetFileNameWithoutExtension($loaderLeaf)
+            $ext = [IO.Path]::GetExtension($loaderLeaf)
+            $loaderCandidates = @(
+                $loaderRel,
+                $(if ($loaderDir) { Join-Path $loaderDir ($stem + '_bak' + $ext) } else { $stem + '_bak' + $ext }),
+                ($loaderRel + '.pcvrhub_off')
+            )
+            if (-not (Test-RelativePathMarker -Root $GameRoot -Values $loaderCandidates)) { return $false }
+        }
+
+        $config = [IO.File]::ReadAllText($configPath)
+        $match = [regex]::Match($config, '(?im)^\s*targetAssembly\s*=\s*(?<path>[^\r\n]+?)\s*$')
+        if (-not $match.Success) { return $false }
+        $assemblyRaw = [Environment]::ExpandEnvironmentVariables($match.Groups['path'].Value.Trim().Trim('"', "'"))
+        if (-not $assemblyRaw) { return $false }
+        $separator = [string][IO.Path]::DirectorySeparatorChar
+        $assemblyNative = $assemblyRaw.Replace('\', $separator).Replace('/', $separator)
+        $assemblyPath = if ([IO.Path]::IsPathRooted($assemblyNative)) {
+            [IO.Path]::GetFullPath($assemblyNative)
+        } else {
+            [IO.Path]::GetFullPath((Join-Path $GameRoot $assemblyNative))
+        }
+        if (-not [IO.File]::Exists($assemblyPath)) { return $false }
+
+        $candidateRoot = Split-Path $assemblyPath -Parent
+        for ($depth = 0; $depth -lt 6 -and $candidateRoot; $depth++) {
+            if (Test-RelativePathMarker -Root $candidateRoot -Values $TargetMarker) { return $true }
+            $parent = [IO.Directory]::GetParent($candidateRoot)
+            if (-not $parent) { break }
+            $candidateRoot = $parent.FullName
+        }
+    } catch {}
+    return $false
+}
+
 function global:Open-BannerDetail {
     param($Game, [string]$Origin)
     if (-not $Game) { return }
@@ -314,6 +435,12 @@ Setup-BannerHoverClose `
 $filterAll       = $window.FindName("FilterAll")
 $filterMC        = $window.FindName("FilterMC")
 $filterGP        = $window.FindName("FilterGP")
+$filterAllRing   = $window.FindName("FilterAllRing")
+$filterMCRing    = $window.FindName("FilterMCRing")
+$filterGPRing    = $window.FindName("FilterGPRing")
+$filterAllGlowRing = $window.FindName("FilterAllGlowRing")
+$filterMCGlowRing  = $window.FindName("FilterMCGlowRing")
+$filterGPGlowRing  = $window.FindName("FilterGPGlowRing")
 $filterInstalled = $window.FindName("FilterInstalled")
 $filterVRReady   = $window.FindName("FilterVRReady")
 $filterUpdate    = $window.FindName("FilterUpdate")
@@ -381,6 +508,31 @@ function global:New-ChipGlow { param($hex = "#f0d860")
     $e.Color = [System.Windows.Media.ColorConverter]::ConvertFromString($hex)
     $e.BlurRadius = 13; $e.ShadowDepth = 0; $e.Opacity = 1.0
     return $e
+}
+
+# The three type pills render their selection edge in a dedicated top
+# layer. Their faint outer ring is another real Border behind the opaque
+# button, never a bitmap Effect on the button itself - a DropShadowEffect
+# is cast by the pill's SILHOUETTE, so an opaque black pill threw a dark
+# halo that showed up wherever it fell across its neighbour.
+#
+# GlowHex lets the two SOURCES of a lit pill look different:
+#   the user picked it in the header  -> the amber selection glow
+#   the Hub marked it on a game page  -> a cooler blue, so nobody reads
+#                                        it as their own filter choice
+function global:Sync-TypeFilterRing {
+    param($Button, $Ring, $GlowRing, [bool]$GlowOn, [string]$GlowHex = "#80ffeeb0")
+    if ($Button -and $Ring) { $Ring.BorderBrush = $Button.BorderBrush }
+    if ($GlowRing) {
+        if ($GlowOn) {
+            try { $GlowRing.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($GlowHex) } catch {}
+        }
+        $GlowRing.Visibility = if ($GlowOn) {
+            [System.Windows.Visibility]::Visible
+        } else {
+            [System.Windows.Visibility]::Collapsed
+        }
+    }
 }
 
 function global:Set-FilterStyle {
@@ -452,9 +604,15 @@ function global:Set-FilterStyle {
     $filterGP.Background  = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($active -eq "GP") { $script:glassBgGPOn } else { $script:glassBgGPOff }))
     $filterGP.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($active -eq "GP") { $script:glassActiveBdGP } else { $script:glassInactiveBdGP }))
     ($filterGP.Child.Children[1]).Foreground = $(if ($active -eq "GP") { $whiteBrush } else { $inactiveFg })
-    $filterAll.Effect = $(if ($active -eq "ALL") { New-ChipGlow } else { $null })
-    $filterMC.Effect  = $(if ($active -eq "MC")  { New-ChipGlow } else { $null })
-    $filterGP.Effect  = $(if ($active -eq "GP")  { New-ChipGlow } else { $null })
+    # USER'S OWN CHOICE: amber glow, the look the header has always had.
+    Sync-TypeFilterRing $filterAll $filterAllRing $filterAllGlowRing ($active -eq "ALL")
+    Sync-TypeFilterRing $filterMC  $filterMCRing  $filterMCGlowRing  ($active -eq "MC")
+    Sync-TypeFilterRing $filterGP  $filterGPRing  $filterGPGlowRing  ($active -eq "GP")
+    # Never put an Effect back on the opaque button layer. Selection glow
+    # and the topmost crisp outline are handled by the sibling rings above.
+    $filterAll.Effect = $null
+    $filterMC.Effect  = $null
+    $filterGP.Effect  = $null
 }
 
 # Detail-page ONLY: visually MARK which attributes the shown game has
@@ -493,6 +651,9 @@ function global:Set-DetailFilterMarks {
     if ($global:gameStateMap) { $st = $global:gameStateMap[$Game.Title] }
     $isReady     = $st -and ($st.Tag -in @("vrinstalled", "vrupdate"))
     $installedOnly = $st -and ($st.Tag -eq "installed")
+    # An available update is its own fact about THIS game, so the Update
+    # pill is marked here too - same as Needs Mod and VR Ready.
+    $isUpdateLit = $st -and ($st.Tag -eq "vrupdate")
     # Needs Mod lights ONLY when the base game is present but the mod is
     # NOT installed yet. A VR Ready title already has the mod, so it marks
     # VR Ready only (not Needs Mod). Both pills stay open via DetailBothPills.
@@ -502,17 +663,32 @@ function global:Set-DetailFilterMarks {
     $global:DetailBothPills = [bool]$isReady
 
     # All pill is not an attribute -> always dimmed on a detail page.
+    # !!! THIS IS THE HUB TALKING, NOT THE USER (2026-08-20).
+    # On a game page these pills stop being a filter and become a label:
+    # they say which category THIS game falls into. If that looked exactly
+    # like a header selection it would read as "my filter changed by
+    # itself" - so the two must not share one look.
+    # THE HEADER uses the ring layers (no Effect, no shadow artefact).
+    # THE HUB'S OWN MARK uses the SOFT GLOW FRAME the Hub has always had
+    # for this - a DropShadowEffect on the pill. Different mechanism,
+    # visibly different edge, and no ring is shown alongside it.
     if ($filterAll) {
         $filterAll.BorderBrush = $inactBd
         ($filterAll.Child).Foreground = $inactFg
+        Sync-TypeFilterRing $filterAll $filterAllRing $filterAllGlowRing $false
+        $filterAll.Effect = $null
     }
     if ($filterMC) {
         $filterMC.BorderBrush = if ($hasMC) { [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassActiveBdMC) } else { $inactBd }
         ($filterMC.Child.Children[1]).Foreground = if ($hasMC) { $whiteBr } else { $inactFg }
+        Sync-TypeFilterRing $filterMC $filterMCRing $filterMCGlowRing $false
+        $filterMC.Effect = $(if ($hasMC) { New-ChipGlow $script:glassActiveBdMC } else { $null })
     }
     if ($filterGP) {
         $filterGP.BorderBrush = if ($hasGP) { [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassActiveBdGP) } else { $inactBd }
         ($filterGP.Child.Children[1]).Foreground = if ($hasGP) { $whiteBr } else { $inactFg }
+        Sync-TypeFilterRing $filterGP $filterGPRing $filterGPGlowRing $false
+        $filterGP.Effect = $(if ($hasGP) { New-ChipGlow $script:glassActiveBdGP } else { $null })
     }
     if ($filterInstalled) {
         # Always visible. Lit only for "Needs Mod" (base present, no mod);
@@ -520,6 +696,8 @@ function global:Set-DetailFilterMarks {
         $filterInstalled.Visibility = [System.Windows.Visibility]::Visible
         $filterInstalled.BorderBrush = if ($installedLit) { [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassActiveBdInst) } else { $inactBd }
         ($filterInstalled.Child.Children[0]).Foreground = if ($installedLit) { $whiteBr } else { $inactFg }
+        # Set BY THE HUB, so it wears the soft glow frame - see the note above.
+        $filterInstalled.Effect = $(if ($installedLit) { New-ChipGlow $script:glassActiveBdInst } else { $null })
     }
     # VR Ready: ALWAYS visible (no hover-reveal). Marked when the game is
     # VR Ready, otherwise shown unselected - so the pill is always present
@@ -529,9 +707,25 @@ function global:Set-DetailFilterMarks {
         if ($isReady) {
             $filterVRReady.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassActiveBdReady)
             ($filterVRReady.Child.Children[0]).Foreground = $whiteBr
+            $filterVRReady.Effect = New-ChipGlow $script:glassActiveBdReady
         } else {
             $filterVRReady.BorderBrush = $inactBd
             ($filterVRReady.Child.Children[0]).Foreground = $inactFg
+            $filterVRReady.Effect = $null
+        }
+    }
+    # Update: only shown at all when this game HAS one, and then lit the
+    # same way. Its blue is the colour the header uses for Update too.
+    if ($filterUpdate) {
+        if ($isUpdateLit) {
+            $filterUpdate.Visibility = [System.Windows.Visibility]::Visible
+            $filterUpdate.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#60a5fa")
+            ($filterUpdate.Child.Children[0]).Foreground = $whiteBr
+            $filterUpdate.Effect = New-ChipGlow "#60a5fa"
+        } else {
+            $filterUpdate.BorderBrush = $inactBd
+            ($filterUpdate.Child.Children[0]).Foreground = $inactFg
+            $filterUpdate.Effect = $null
         }
     }
 }
@@ -834,9 +1028,13 @@ function global:Test-GamePassesFilter {
                      ($tags | Where-Object { $_ -and "$_".ToLower().Contains($Query) }).Count -gt 0
         # Keyword shortcuts: typing "free" lists every FREE title and "wip"
         # lists every work-in-progress title (matched by Title, on top of the
-        # normal text match above). $null -contains is safe -> false.
+        # normal text match above). "new" is reserved exclusively for titles
+        # added to the Hub during the rolling 10.5-day window; without the
+        # override below it would also return unrelated names such as New Star
+        # GP. $null -contains is safe -> false.
         if ($Query -eq "free" -and ($global:FREE_GAME_TITLES -contains $GameData.Title)) { $textMatch = $true }
         if ($Query -eq "wip"  -and ($global:WIP_GAME_TITLES  -contains $GameData.Title)) { $textMatch = $true }
+        if ($Query -eq "new") { $textMatch = ($global:NEW_GAME_TITLES -contains $GameData.Title) }
         # "roomscale" / "room-scale" / "room scale" lists every title whose
         # VR mod supports room-scale play (Roomscale flag in the catalog).
         if (($Query -eq "roomscale" -or $Query -eq "room-scale" -or $Query -eq "room scale") -and $GameData.Roomscale) { $textMatch = $true }
@@ -1811,38 +2009,136 @@ Rebuild-Lookups
 # game showed a single button until the Hub was restarted.
 function global:Get-TwoModsPresence {
     param($Game, [string]$FallbackRoot)
-    $res = @{ APresent = $false; BPresent = $false; ADir = $null; BDir = $null; Root = $null }
+    $res = @{ APresent = $false; BPresent = $false; ADir = $null; BDir = $null; ARoot = $null; BRoot = $null; Root = $null }
     if (-not $Game -or -not $Game.TwoMods) { return $res }
-    # The recorded .installed_path is the precise answer - but it lives in
-    # the HUB folder, so a fresh Hub (or one installed next to an older
-    # one) has none even though the mods are sitting in the game folder.
-    # In that case fall back to the folder the scan already resolved, so
-    # an install made by another Hub still shows both mods instead of a
-    # single button.
-    $root = $null
+    # Search every relevant root. Most TwoMods titles use one recorded
+    # parent, while Elden Ring can have the current Steam build and a pinned
+    # depot at the same time. Stopping at .installed_path made the other
+    # build (and the mod inside it) invisible.
+    $roots = New-Object System.Collections.ArrayList
+    $rootScopes = @{}
+    $normaliseRoot = {
+        param([string]$Path)
+        if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+        try { return ([IO.Path]::GetFullPath($Path).TrimEnd('\')).ToLowerInvariant() } catch { return $Path.TrimEnd('\').ToLowerInvariant() }
+    }
+    $addRoot = {
+        param([string]$Path, [string]$Scope)
+        if ([string]::IsNullOrWhiteSpace($Path)) { return }
+        try {
+            if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
+            $key = & $normaliseRoot $Path
+            foreach ($known in $roots) {
+                if ((& $normaliseRoot ([string]$known)) -eq $key) {
+                    if ($Scope) { $rootScopes[$key] = $Scope }
+                    return
+                }
+            }
+            [void]$roots.Add([IO.Path]::GetFullPath($Path))
+            if ($Scope) { $rootScopes[$key] = $Scope }
+        } catch {}
+    }
     $ipf = Get-InstalledPathFile -Game $Game
-    if ($ipf -and (Test-Path $ipf)) {
-        try { $root = Read-InstalledPath -Game $Game } catch {}
+
+    # Two independent mods may intentionally live in two independent roots.
+    # Their dedicated records survive whichever installer happened to write
+    # the shared legacy .installed_path last.
+    $markerDir = if ($ipf) { Split-Path -Parent $ipf } else { $null }
+    foreach ($def in @(
+        @{ File = $Game.ModAInstalledPathFile; Scope = $(if ($Game.ModAProbeScope) { [string]$Game.ModAProbeScope } else { 'A' }) },
+        @{ File = $Game.ModBInstalledPathFile; Scope = $(if ($Game.ModBProbeScope) { [string]$Game.ModBProbeScope } else { 'B' }) }
+    )) {
+        if (-not $def.File -or -not $markerDir) { continue }
+        try {
+            $recordFile = if ([IO.Path]::IsPathRooted([string]$def.File)) { [string]$def.File } else { Join-Path $markerDir ([string]$def.File) }
+            if (-not (Test-Path -LiteralPath $recordFile -PathType Leaf)) { continue }
+            $recorded = ([string](Get-Content -LiteralPath $recordFile -Raw -ErrorAction Stop)).Trim()
+            & $addRoot $recorded ([string]$def.Scope)
+        } catch {}
     }
-    if ((-not $root) -and $FallbackRoot) {
-        try { if (Test-Path -LiteralPath $FallbackRoot) { $root = $FallbackRoot } } catch {}
+    if ($ipf -and (Test-Path -LiteralPath $ipf)) {
+        try { & $addRoot (Read-InstalledPath -Game $Game) } catch {}
     }
-    if (-not $root -or -not (Test-Path $root)) { return $res }
-    $res.Root = $root
-    # Each mod's launcher lives somewhere under its subfolder - searched
-    # RECURSIVELY so a mod that unpacked one level deeper still counts.
-    if ($Game.ModASub -and $Game.ModALaunch) {
-        $subA = Join-Path $root $Game.ModASub
-        if (Test-Path $subA) {
-            $hitA = Get-ChildItem -Path $subA -Filter $Game.ModALaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($hitA) { $res.APresent = $true; $res.ADir = (Split-Path -Parent $hitA.FullName) }
+    & $addRoot $FallbackRoot
+    if ($Game.VrInstallRoot) {
+        try {
+            $stageRoot = if (Get-Command Resolve-VrInstallRoot -ErrorAction SilentlyContinue) { Resolve-VrInstallRoot -Root ([string]$Game.VrInstallRoot) } else { [Environment]::ExpandEnvironmentVariables([string]$Game.VrInstallRoot) }
+            & $addRoot $stageRoot
+        } catch {}
+    }
+    if ($Game.DualMode) {
+        try { foreach ($candidate in (Get-DepotCandidatePaths -Game $Game)) { & $addRoot $candidate } } catch {}
+    }
+    foreach ($fallback in @($Game.FallbackPaths)) {
+        # Keep native drive paths such as C:\Games; skip catalog resolver
+        # prefixes such as STEAM:, XBOX: and GOG:.
+        if ($fallback -and $fallback -notmatch '^[A-Za-z_]{2,}:') { & $addRoot ([string]$fallback) }
+    }
+    if ($roots.Count -eq 0) { return $res }
+    $res.Root = [string]$roots[0]
+
+    # Launchers are launch paths, not installation evidence. A stale batch
+    # file must never resurrect a deleted mod. When a catalog entry declares
+    # a real probe marker, that marker decides presence and the launcher only
+    # supplies ADir/BDir for the Play button.
+    $aAbsDeclared = [bool]$Game.ModAProbeAbs
+    $bAbsDeclared = [bool]$Game.ModBProbeAbs
+    $aAbsPresent  = if ($aAbsDeclared) { Test-AbsolutePathMarker -Values $Game.ModAProbeAbs } else { $false }
+    $bAbsPresent  = if ($bAbsDeclared) { Test-AbsolutePathMarker -Values $Game.ModBProbeAbs } else { $false }
+    $aProbeDeclared = ($aAbsDeclared -or [bool]$Game.ModAProbeFile)
+    $bProbeDeclared = ($bAbsDeclared -or [bool]$Game.ModBProbeFile)
+
+    foreach ($root in $roots) {
+        $hitA = $null; $hitB = $null
+        if ($Game.ModASub -and $Game.ModALaunch) {
+            $subA = Join-Path $root $Game.ModASub
+            if (Test-Path -LiteralPath $subA -PathType Container) {
+                $hitA = Get-ChildItem -LiteralPath $subA -File -Filter $Game.ModALaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            }
         }
-    }
-    if ($Game.ModBSub -and $Game.ModBLaunch) {
-        $subB = Join-Path $root $Game.ModBSub
-        if (Test-Path $subB) {
-            $hitB = Get-ChildItem -Path $subB -Filter $Game.ModBLaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($hitB) { $res.BPresent = $true; $res.BDir = (Split-Path -Parent $hitB.FullName) }
+        if ($Game.ModBSub -and $Game.ModBLaunch) {
+            $subB = Join-Path $root $Game.ModBSub
+            if (Test-Path -LiteralPath $subB -PathType Container) {
+                $hitB = Get-ChildItem -LiteralPath $subB -File -Filter $Game.ModBLaunch -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            }
+        }
+        $aRelPresent = Test-RelativePathMarker -Root $root -Values $Game.ModAProbeFile
+        $bRelPresent = Test-RelativePathMarker -Root $root -Values $Game.ModBProbeFile
+
+        # Some dual-build entries deliberately use a shared file for the old
+        # depot mod. Scope keeps that shared marker from claiming the current
+        # fork as well. A dedicated path record wins; for old installs, the
+        # current-only marker is strong evidence and an otherwise B-only root
+        # is the pinned depot.
+        $rootKey = & $normaliseRoot ([string]$root)
+        $scope = if ($rootScopes.ContainsKey($rootKey)) { [string]$rootScopes[$rootKey] } else { $null }
+        if (-not $scope -and ($Game.ModAProbeScope -or $Game.ModBProbeScope)) {
+            if ($aRelPresent -and $Game.ModAProbeScope) { $scope = [string]$Game.ModAProbeScope }
+            elseif ($bRelPresent -and -not $aRelPresent -and $Game.ModBProbeScope) { $scope = [string]$Game.ModBProbeScope }
+        }
+        if ($Game.ModAProbeScope -and $scope -and $scope -ine [string]$Game.ModAProbeScope) { $aRelPresent = $false }
+        if ($Game.ModBProbeScope -and $scope -and $scope -ine [string]$Game.ModBProbeScope) { $bRelPresent = $false }
+        $aHere = if ($aProbeDeclared) { ($aAbsPresent -or $aRelPresent) } else { [bool]$hitA }
+        $bHere = if ($bProbeDeclared) { ($bAbsPresent -or $bRelPresent) } else { [bool]$hitB }
+        # Optional hard prerequisites are AND conditions, unlike the
+        # alternative probe arrays above. Outward uses this to reject a
+        # copied BepInEx/VR payload on the IL2CPP branch: the files exist,
+        # but can only load when the Mono Assembly-CSharp.dll exists too.
+        if ($aHere -and $Game.ModARequiredFile) {
+            $aHere = Test-RelativePathMarker -Root $root -Values $Game.ModARequiredFile
+        }
+        if ($bHere -and $Game.ModBRequiredFile) {
+            $bHere = Test-RelativePathMarker -Root $root -Values $Game.ModBRequiredFile
+        }
+        if ($aHere) {
+            $res.APresent = $true
+            if (-not $res.ARoot) { $res.ARoot = [string]$root }
+            if (-not $res.ADir -and $hitA) { $res.ADir = Split-Path -Parent $hitA.FullName }
+        }
+        if ($bHere) {
+            $res.BPresent = $true
+            if (-not $res.BRoot) { $res.BRoot = [string]$root }
+            if (-not $res.BDir -and $hitB) { $res.BDir = Split-Path -Parent $hitB.FullName }
         }
     }
     return $res
@@ -1857,7 +2153,7 @@ function global:Get-TwoModsPresence {
 function global:Get-DualModePresence {
     param($Game, $Libs)
     $res = @{ BothPresent = $false; CurrentDir = $null; DepotDir = $null }
-    if (-not $Game -or -not $Game.DualMode -or -not $Game.DepotPath -or -not $Game.ModFile) { return $res }
+    if (-not $Game -or -not $Game.DualMode -or -not $Game.DepotPath -or (-not $Game.ModFile -and -not $Game.TwoMods)) { return $res }
     # THE TWO SIDES DO NOT ALWAYS CARRY THE SAME MOD FILE. This used to
     # test ModFile in both places, which only works when it is one mod on
     # two builds (Bendy, REPO). PEAK is two DIFFERENT mods: the current
@@ -1868,16 +2164,35 @@ function global:Get-DualModePresence {
     # installed. Each side now counts if EITHER of the entry's two mod
     # files is present. For entries where ModFileAlt is just the parked
     # "disabled" name, that reads correctly too: the mod IS installed.
-    $relList = @($Game.ModFile)
+    $relList = @($Game.ModFile | Where-Object { $_ })
     if ($Game.ModFileAlt)  { $relList += $Game.ModFileAlt }
     if ($Game.ModFileAlt2) { $relList += $Game.ModFileAlt2 }
     # Not just the catalog path: the user may pick the depot folder
     # freely, and the installer recorded the one that was chosen.
+    $rootHasVr = {
+        param([string]$Root)
+        if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container)) { return $false }
+        if ($Game.TwoMods) {
+            $aMarker = $false; $bMarker = $false
+            if ($Game.ModAProbeAbs) { $aMarker = Test-AbsolutePathMarker -Values $Game.ModAProbeAbs }
+            if (-not $aMarker -and $Game.ModAProbeFile) { $aMarker = Test-RelativePathMarker -Root $Root -Values $Game.ModAProbeFile }
+            if ($Game.ModBProbeAbs) { $bMarker = Test-AbsolutePathMarker -Values $Game.ModBProbeAbs }
+            if (-not $bMarker -and $Game.ModBProbeFile) { $bMarker = Test-RelativePathMarker -Root $Root -Values $Game.ModBProbeFile }
+            if ($aMarker -and $Game.ModARequiredFile) { $aMarker = Test-RelativePathMarker -Root $Root -Values $Game.ModARequiredFile }
+            if ($bMarker -and $Game.ModBRequiredFile) { $bMarker = Test-RelativePathMarker -Root $Root -Values $Game.ModBRequiredFile }
+            $common = ($Game.LaunchExe -and (Test-Path -LiteralPath (Join-Path $Root $Game.LaunchExe)))
+            $aLaunch = ($Game.ModASub -and $Game.ModALaunch -and (Test-Path -LiteralPath (Join-Path $Root (Join-Path $Game.ModASub $Game.ModALaunch))))
+            $bLaunch = ($Game.ModBSub -and $Game.ModBLaunch -and (Test-Path -LiteralPath (Join-Path $Root (Join-Path $Game.ModBSub $Game.ModBLaunch))))
+            if ($Game.EldenRingDirectMotionLaunch) { return ($aMarker -or $bMarker) }
+            return (($aMarker -and ($aLaunch -or $common)) -or ($bMarker -and ($bLaunch -or $common)))
+        }
+        foreach ($rel in $relList) { if (Test-Path -LiteralPath (Join-Path $Root $rel)) { return $true } }
+        return $false
+    }
+
     $depotDir = $null
     foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
-        foreach ($rel in $relList) {
-            if (Test-Path (Join-Path $cand $rel)) { $depotDir = $cand; break }
-        }
+        if (& $rootHasVr $cand) { $depotDir = $cand }
         if ($depotDir) { break }
     }
     if (-not $depotDir) { return $res }
@@ -1901,10 +2216,7 @@ function global:Get-DualModePresence {
     foreach ($lib in $Libs) {
         $c = Join-Path $lib "steamapps\common\$($Game.SteamFolder)"
         if (-not (Test-Path $c)) { continue }
-        $currentHit = $false
-        foreach ($rel in $relList) {
-            if (Test-Path (Join-Path $c $rel)) { $currentHit = $true; break }
-        }
+        $currentHit = & $rootHasVr $c
         if ($currentHit) {
             $res.BothPresent = $true
             $res.CurrentDir  = $c
@@ -1913,6 +2225,31 @@ function global:Get-DualModePresence {
         }
     }
     return $res
+}
+
+# Some installers let the user choose a stable GitHub release or the newest
+# prerelease. Keep future update checks on the installed channel instead of
+# silently moving a stable user to a test build (or hiding test-build updates).
+function global:Get-GithubPrereleasePreference {
+    param($Game, [string]$GameDir)
+    $default = [bool]$Game.GithubPrerelease
+    if (-not $Game -or -not $Game.GithubChannelChoice -or -not $Game.GithubChannelFile) { return $default }
+    $roots = @()
+    if ($GameDir) { $roots += $GameDir }
+    try {
+        $recorded = Read-InstalledPath -Game $Game
+        if ($recorded -and $recorded -notin $roots) { $roots += $recorded }
+    } catch {}
+    foreach ($root in $roots) {
+        try {
+            $marker = Join-PathLexical $root $Game.GithubChannelFile
+            if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { continue }
+            $channel = (Get-Content -LiteralPath $marker -Raw -ErrorAction Stop).Trim().ToLowerInvariant()
+            if ($channel -in @("prerelease","pre","preview","test")) { return $true }
+            if ($channel -in @("stable","latest","release")) { return $false }
+        } catch {}
+    }
+    return $default
 }
 
 # Online state for the scan's per-game version checks. Once the server
@@ -2113,10 +2450,12 @@ function global:Get-GithubLatestTagCached {
                             -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop
             $atom = [string]$atomResp.Content
             if ($atom) {
-                $m = [regex]::Match($atom, 'Repository/[0-9]+/([^<]+)')
-                if ($m.Success) {
+                foreach ($m in [regex]::Matches($atom, 'Repository/[0-9]+/([^<]+)')) {
                     $t = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
-                    if ($t) { $tag = $t }
+                    if ($t -and $t -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
+                        $tag = $t
+                        break
+                    }
                 }
             }
         } catch {
@@ -2124,9 +2463,14 @@ function global:Get-GithubLatestTagCached {
         }
         if (-not $tag) {
           try {
-            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=1" -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 2 -EA Stop 2>$null
-            $first = $rel | Select-Object -First 1
-            if ($first -and $first.tag_name) { $tag = [string]$first.tag_name.Trim() }
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=10" -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 2 -EA Stop 2>$null
+            foreach ($candidate in @($rel)) {
+                $candidateTag = [string]$candidate.tag_name
+                if (-not $candidate.draft -and $candidateTag -and $candidateTag -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
+                    $tag = $candidateTag.Trim()
+                    break
+                }
+            }
         } catch {
             Write-Host "[GithubCheck] $Repo (prerelease) : API check failed ($($_.Exception.Message)) - using cached tag if present"
             # A 403 (rate limit) means the host is reachable - do NOT trip the
@@ -2201,6 +2545,40 @@ function global:Get-GithubLatestTagCached {
     }
     if ($entry -and $entry.tag) { return [string]$entry.tag }
     return $null
+}
+
+# Select the repository that belongs to the installed payload. GTA V can
+# switch from the primary fork to Francisco's clean backup after an antivirus
+# false positive. The choice is written beside the game as well as in the Hub,
+# so a replacement Hub still compares the installed tag against the right
+# release feed.
+function global:Get-SelectedGithubRepo {
+    param($Game, [string]$GameDir)
+    if (-not $Game -or -not $Game.GithubRepo) { return $null }
+    if (-not $Game.GithubRepoAlt) { return [string]$Game.GithubRepo }
+
+    $source = $null
+    if ($GameDir) {
+        try {
+            $gameSource = [IO.Path]::Combine($GameDir, ".pcvrhub_source")
+            if (Test-Path -LiteralPath $gameSource -PathType Leaf) {
+                $source = (Get-Content -LiteralPath $gameSource -Raw -ErrorAction Stop).Trim()
+            }
+        } catch {}
+    }
+    if (-not $source) {
+        try {
+            $pathFile = Get-InstalledPathFile -Game $Game
+            if ($pathFile) {
+                $hubSource = Join-Path (Split-Path -Parent $pathFile) ".vrv_source"
+                if (Test-Path -LiteralPath $hubSource -PathType Leaf) {
+                    $source = (Get-Content -LiteralPath $hubSource -Raw -ErrorAction Stop).Trim()
+                }
+            }
+        } catch {}
+    }
+    if ($source -eq "francisco") { return [string]$Game.GithubRepoAlt }
+    return [string]$Game.GithubRepo
 }
 
 function global:Get-WebVersionCached {
@@ -2326,21 +2704,21 @@ function global:Invoke-RotatingOnlinePrewarm {
         $items = @()
         foreach ($g in $global:allGameData) {
             if ($g.GithubRepo) {
-                $repo = $g.GithubRepo
-                if ($g.GithubRepoAlt) {
-                    try {
-                        $ipf = Get-InstalledPathFile -Game $g
-                        if ($ipf) {
-                            $vs = Join-Path (Split-Path -Parent $ipf) ".vrv_source"
-                            if ((Test-Path $vs) -and ((Get-Content $vs -Raw -EA Stop).Trim() -eq "francisco")) { $repo = $g.GithubRepoAlt }
-                        }
-                    } catch {}
+                $repo = Get-SelectedGithubRepo -Game $g
+                $channelPrefs = if ($g.GithubChannelChoice) { @($false,$true) } else { @([bool]$g.GithubPrerelease) }
+                foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $repo; P = $pref } }
+                # A replacement Hub has not reconstructed GTA's Hub-local
+                # source marker yet. Warm the alternate repo too; the later
+                # game-side marker then selects the correct already-cached tag.
+                if ($g.GithubRepoAlt -and $g.GithubRepoAlt -ne $repo) {
+                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepoAlt; P = $pref } }
+                } elseif ($g.GithubRepoAlt -and $g.GithubRepo -ne $repo) {
+                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepo; P = $pref } }
                 }
-                $items += , @{ K = "gh"; A = $repo; P = [bool]$g.GithubPrerelease }
                 # Two-mod entries track a second repo - warm that one as well,
                 # otherwise its badge check would be the only live call left
                 # in the scan.
-                if ($g.GithubRepoB) { $items += , @{ K = "gh"; A = $g.GithubRepoB; P = [bool]$g.GithubPrerelease } }
+                if ($g.GithubRepoB) { foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepoB; P = $pref } } }
             } elseif ($g.WebVersionUrl) {
                 $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title }
             }
@@ -2422,6 +2800,7 @@ function global:Unlock-ScanUi {
 # the user opted into full scans - doing so made every installer end with an
 # unwanted scan over all games.
 $global:UserRanFullScan = $false
+$global:InstalledScanCompleted = $false
 
 # Align the TopScanSlot's left edge with where the STATE pills begin one
 # row below, so the "X on PC | Y VR Ready" totals sit exactly above the
@@ -2474,6 +2853,8 @@ function global:Invoke-CheckInstalledScan {
     }
     $global:ScanInProgress = $true
     $global:ScanQueued = $false
+    $global:InstalledScanCompleted = $false
+    $global:InstalledScanFailedGames = @{}
 
     # Lock mouse + keyboard for the duration (see Lock-ScanUi above).
     Lock-ScanUi
@@ -2748,17 +3129,18 @@ function global:Invoke-CheckInstalledScan {
         $pending = @()
         foreach ($g in $global:allGameData) {
             if ($g.GithubRepo) {
-                $repo = $g.GithubRepo
-                if ($g.GithubRepoAlt) {
-                    try {
-                        $ipfP = Get-InstalledPathFile -Game $g
-                        if ($ipfP) {
-                            $vsP = Join-Path (Split-Path -Parent $ipfP) ".vrv_source"
-                            if ((Test-Path $vsP) -and ((Get-Content $vsP -Raw -EA Stop).Trim() -eq "francisco")) { $repo = $g.GithubRepoAlt }
+                $repo = Get-SelectedGithubRepo -Game $g
+                $reposToWarm = @($repo)
+                if ($g.GithubRepoAlt -and $g.GithubRepoAlt -notin $reposToWarm) { $reposToWarm += $g.GithubRepoAlt }
+                if ($g.GithubRepoAlt -and $g.GithubRepo -notin $reposToWarm) { $reposToWarm += $g.GithubRepo }
+                $channelPrefs = if ($g.GithubChannelChoice) { @($false,$true) } else { @([bool]$g.GithubPrerelease) }
+                foreach ($warmRepo in $reposToWarm) {
+                    foreach ($pref in $channelPrefs) {
+                        if (-not (Test-CacheFresh $ghDisk $(if ($pref) { "$warmRepo#pre" } else { $warmRepo }))) {
+                            $pending += , @{ K = "gh"; A = $warmRepo; P = $pref }
                         }
-                    } catch {}
+                    }
                 }
-                if (-not (Test-CacheFresh $ghDisk $(if ($g.GithubPrerelease) { "$repo#pre" } else { $repo }))) { $pending += , @{ K = "gh"; A = $repo; P = [bool]$g.GithubPrerelease } }
             } elseif ($g.WebVersionUrl) {
                 if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title } }
             }
@@ -2830,9 +3212,9 @@ function global:Invoke-CheckInstalledScan {
         # Locate support: a game the user pointed the Hub at (via the
         # "Locate install" button) has a recorded path file even without
         # a SteamFolder - let it through so Priority 1 can verify it.
-        $ipfGate = $null
-        try { $ipfGate = Get-InstalledPathFile -Game $game } catch {}
-        $hasLocated = ($ipfGate -and (Test-Path $ipfGate))
+        $locatedGate = $null
+        try { $locatedGate = Read-InstalledPath -Game $game } catch {}
+        $hasLocated = [bool]$locatedGate
         if (-not $game.SteamFolder -and -not $isFreeGame -and -not $hasLocated) { continue }
         $installed = $false
         $gameDir   = $null
@@ -2927,7 +3309,7 @@ function global:Invoke-CheckInstalledScan {
                 if ($fp -like "STEAM_CONTENT*") {
                     $tail = $fp.Substring("STEAM_CONTENT".Length)
                     foreach ($lib in $steamLibs) {
-                        $candidates += (Join-Path $lib "steamapps\content$tail")
+                        $candidates += [System.IO.Path]::Combine(([string]$lib).TrimEnd([char[]]"\/"), ("steamapps\content$tail").TrimStart([char[]]"\/"))
                     }
                 } elseif ($fp -like "STEAM_COMMON*") {
                     $tail = $fp.Substring("STEAM_COMMON".Length)
@@ -3055,14 +3437,43 @@ function global:Invoke-CheckInstalledScan {
         # proof of a working VR install - that folder only appears
         # after the depot download we orchestrated. Skip all other
         # heuristics for these games.
+        # !!! NOT ON ITS OWN. The comment above assumed the folder we
+        # matched could only be the depot copy we downloaded. That is
+        # false wherever FallbackPaths also lists the PLAIN STEAM
+        # INSTALL - Elden Ring and Ready Or Not both do - and then
+        # simply owning the game read as "VR Ready" with no mod on disk
+        # at all. Martin hit exactly that: motion mod installed, no Luke
+        # Ross, and the gamepad tile claimed VR Ready.
+        #
+        # So the mod's own marker still has to be there. Every
+        # DepotInstall entry declares one (checked: all 15), and in a
+        # real depot copy it is present, so nothing that genuinely works
+        # loses its state.
         if ($depotMatched) {
-            $vrInstalled = $true
+            if ($game.ModFile) {
+                $dmMarker = Join-Path $gameDir $game.ModFile
+                if (Test-Path -LiteralPath $dmMarker) {
+                    $vrInstalled = $true
+                } elseif ($game.ModFileAlt -and (Test-Path -LiteralPath (Join-Path $gameDir $game.ModFileAlt))) {
+                    $vrInstalled = $true
+                } elseif ($game.ModFileAlt2 -and (Test-Path -LiteralPath (Join-Path $gameDir $game.ModFileAlt2))) {
+                    $vrInstalled = $true
+                } elseif (Test-AbsoluteModMarker -Game $game) {
+                    $vrInstalled = $true
+                }
+            } else {
+                $vrInstalled = $true
+            }
         }
         # If this install was placed by our installer (.installed_path exists),
         # we trust that as a strong signal - BUT we still verify the
         # ModFile is actually on disk at the recorded path. Otherwise
         # the user could delete the VR mod manually and the hub would
         # still display "VR Ready" indefinitely (stale state).
+        # An absolute marker settles it on its own - it does not depend
+        # on any recorded game path.
+        if (-not $vrInstalled -and (Test-AbsoluteModMarker -Game $game)) { $vrInstalled = $true }
+
         $recordedPathFile = Get-InstalledPathFile -Game $game
         if (-not $vrInstalled -and $recordedPathFile -and (Test-Path $recordedPathFile)) {
             $recordedPath = $null
@@ -3077,6 +3488,8 @@ function global:Invoke-CheckInstalledScan {
                     } elseif ($game.ModFileAlt -and (Test-Path (Join-Path $recordedPath $game.ModFileAlt))) {
                         # Alternate marker - e.g. Anomaly is VR-ready via the
                         # new AoeVrLauncher.exe OR the old JSGME.exe.
+                        $vrInstalled = $true
+                    } elseif ($game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile)) {
                         $vrInstalled = $true
                     } elseif ($game.ModFile -like "*RealVR64*") {
                         # Luke Ross: user may have renamed RealVR64.dll
@@ -3133,6 +3546,9 @@ function global:Invoke-CheckInstalledScan {
             # affect the other 241 games.
             if (-not $modPathFound -and $game.ModFileAlt2) {
                 $modPathFound = Test-Path (Join-Path $gameDir $game.ModFileAlt2)
+            }
+            if (-not $modPathFound -and $game.DoorstopTargetModFile) {
+                $modPathFound = Test-DoorstopTargetModMarker -GameRoot $gameDir -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile
             }
 
             # Alternative: VrInstallRoot is set when the mod
@@ -3285,7 +3701,7 @@ function global:Invoke-CheckInstalledScan {
                         # require it at the recorded path too - a leftover
                         # launcher alone must NOT read as VR Ready without
                         # the actual VR mod on disk.
-                        if ($game.ModFile) {
+                        if ($game.ModFile -and $game.TwoModsRequireBoth) {
                             $tmRoot = $null
                             try { $tmRoot = Read-InstalledPath -Game $game } catch {}
                             if (-not $tmRoot) { $tmRoot = $tmParent }
@@ -3309,24 +3725,19 @@ function global:Invoke-CheckInstalledScan {
             }
         }
 
-        # Foreign-install / lost-marker fallback: if the game folder is known
-        # (VR detected via ModFile) but the Hub-side launcher markers were
-        # absent, detect each mod directly from its real file on disk - so a
-        # GTA5 install done by ANOTHER Hub still shows that Motion is
-        # available, not just VR Ready.
-        # TwoModsRequireBoth games are skipped here on purpose: their two
-        # mods share the game folder, so a file probe cannot tell them
-        # apart (BioShock's payloads are BioshockVR.dll and bioshockvr.dll -
-        # the same name on Windows). Only the per-mod launchers written by
-        # the installer are trustworthy for those.
-        if ($game.TwoMods -and $gameDir -and -not $game.TwoModsRequireBoth) {
-            if (-not $tmAPresent -and $game.ModFile -and (Test-Path (Join-Path $gameDir $game.ModFile))) {
-                $tmAPresent = $true
-            }
-            if (-not $tmBPresent -and $game.ModBProbeFile -and (Test-Path (Join-Path $gameDir $game.ModBProbeFile))) {
-                $tmBPresent = $true
-            }
-            if ($tmAPresent -or $tmBPresent) { $twoModsAnyPresent = $true }
+        # Get-TwoModsPresence already probes the known game root, dedicated
+        # per-mod records, external roots and absolute markers. Re-probing
+        # individual catalog fields here used to bypass its scope rules and
+        # could fabricate Mod A from Mod B's shared file (notably Elden Ring
+        # and Outward). Its verdict is therefore authoritative.
+
+        # For alternative-mod entries, the per-mod probes above are the
+        # authoritative answer. This clears earlier broad signals such as an
+        # absolute Hotbite folder or ERVR's generic ModFile when there is no
+        # valid game/depot root, and prevents stale common launchers from
+        # painting the card VR Ready.
+        if ($game.TwoMods -and -not $game.TwoModsRequireBoth) {
+            $vrInstalled = [bool]$twoModsAnyPresent
         }
 
         # One-time lufz VRMod baseline migration: lufz installs made before
@@ -3418,6 +3829,10 @@ function global:Invoke-CheckInstalledScan {
             # $gameDir is resolved above; hand it over so the in-game
             # marker outranks the Hub-local copy.
             $installedVer = Read-InstalledVersion -Game $game -GameDir $gameDir
+            # Migration/repair pass: once any valid copy was found, mirror it
+            # to the game/mod folder, Hub cache and LocalAppData index.  The
+            # writer skips identical values, so settled scans remain read-only.
+            if ($installedVer) { Write-InstalledVersion -Game $game -Version $installedVer -GameDir $gameDir }
 
             if ($game.GitHubNightly) {
                 $ghVer = $null
@@ -3504,10 +3919,21 @@ function global:Invoke-CheckInstalledScan {
                     # cache that goes stale the moment the installer
                     # updates .ts_versions, so we must read .ts_versions
                     # first and let it override the cache.
-                    $tsVerFile = Join-Path $gameDir "BepInEx\.ts_versions\$($game.ThunderstoreAuthor)-$($game.ThunderstorePackage)"
-                    if (Test-Path $tsVerFile) {
-                        $tsLocal = (Get-Content $tsVerFile -Raw).Trim()
-                        if ($tsLocal) { $installedVer = $tsLocal }
+                    # Current installers use Author-Package; Mage Arena and a
+                    # few older profiles used Package only.  Accept both so
+                    # an existing exact marker always wins over the live feed.
+                    foreach ($tsVersionKey in @(
+                        "$($game.ThunderstoreAuthor)-$($game.ThunderstorePackage)",
+                        "$($game.ThunderstorePackage)"
+                    )) {
+                        $tsVerFile = Join-Path $gameDir "BepInEx\.ts_versions\$tsVersionKey"
+                        if (Test-Path -LiteralPath $tsVerFile -PathType Leaf) {
+                            $tsLocal = (Get-Content -LiteralPath $tsVerFile -Raw).Trim()
+                            if (Test-IsTrackableInstalledVersion -Version $tsLocal) {
+                                $installedVer = $tsLocal
+                                break
+                            }
+                        }
                     }
 
                     # ONLY when Thunderstore is GENUINELY NEWER. PEAK VR
@@ -3589,35 +4015,46 @@ function global:Invoke-CheckInstalledScan {
                 # each mod parks in its own store; both fields may list
                 # alternatives separated by "|" (Steam's Build\Final and
                 # Epic's Build\FinalEpic).
-                $twoRootV = $null
-                try { $twoRootV = Read-InstalledPath -Game $game } catch {}
-                if (-not $twoRootV) { $twoRootV = $gameDir }
                 $twoPairs = @()
-                if ($twoRootV -and (Test-Path -LiteralPath $twoRootV)) {
+                if ($game.TwoMods) {
+                    if (-not $tmProbe) { $tmProbe = Get-TwoModsPresence -Game $game -FallbackRoot $gameDir }
                     $twoDefs = @(
-                        @{ Probe = $game.GithubRepoPresenceFile;  Repo = $game.GithubRepo;  Path = (Get-InstalledVersionPath  -Game $game) },
-                        @{ Probe = $game.GithubRepoBPresenceFile; Repo = $game.GithubRepoB; Path = (Get-InstalledVersionPathB -Game $game) }
+                        @{ Present = [bool]$tmProbe.APresent; Root = $tmProbe.ARoot; Probe = $game.GithubRepoPresenceFile;  Repo = $game.GithubRepo;  Slot = 'A' },
+                        @{ Present = [bool]$tmProbe.BPresent; Root = $tmProbe.BRoot; Probe = $game.GithubRepoBPresenceFile; Repo = $game.GithubRepoB; Slot = 'B' }
                     )
                     foreach ($td in $twoDefs) {
-                        if (-not $td.Probe -or -not $td.Repo -or -not $td.Path) { continue }
-                        foreach ($cand in (([string]$td.Probe) -split '\|')) {
-                            $cand = $cand.Trim()
-                            if (-not $cand) { continue }
-                            if (Test-Path -LiteralPath (Join-Path $twoRootV $cand)) { $twoPairs += , $td; break }
+                        if (-not $td.Present -or -not $td.Repo -or -not $td.Root) { continue }
+                        if ($td.Probe -and -not (Test-RelativePathMarker -Root $td.Root -Values $td.Probe)) { continue }
+                        $twoPairs += , $td
+                    }
+                } else {
+                    $twoRootV = $null
+                    try { $twoRootV = Read-InstalledPath -Game $game } catch {}
+                    if (-not $twoRootV) { $twoRootV = $gameDir }
+                    if ($twoRootV -and (Test-Path -LiteralPath $twoRootV)) {
+                        foreach ($td in @(
+                            @{ Probe = $game.GithubRepoPresenceFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV },
+                            @{ Probe = $game.GithubRepoBPresenceFile; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV }
+                        )) {
+                            if ($td.Probe -and $td.Repo -and (Test-RelativePathMarker -Root $twoRootV -Values $td.Probe)) { $twoPairs += , $td }
                         }
                     }
                 }
                 foreach ($tp in $twoPairs) {
                     $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$game.GithubPrerelease)
                     if (-not $tag) { continue }
-                    $have = $null
-                    if (Test-Path -LiteralPath $tp.Path) {
-                        try { $have = (Get-Content -LiteralPath $tp.Path -Raw -ErrorAction Stop).Trim() } catch {}
+                    $versionRoot = [string]$tp.Root
+                    $have = if ($tp.Slot -eq 'B') { Read-InstalledVersionB -Game $game -GameDir $versionRoot }
+                            else { Read-InstalledVersion -Game $game -GameDir $versionRoot }
+                    if ($have) {
+                        if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $have -GameDir $versionRoot }
+                        else { Write-InstalledVersion -Game $game -Version $have -GameDir $versionRoot }
                     }
                     if ([string]::IsNullOrWhiteSpace($have)) {
                         # First scan after an install: seed, don't nag.
-                        try { [System.IO.File]::WriteAllText($tp.Path, $tag, (New-Object System.Text.UTF8Encoding $false)) } catch {}
-                    } elseif ($have -ne $tag) {
+                        if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $tag -GameDir $versionRoot }
+                        else { Write-InstalledVersion -Game $game -Version $tag -GameDir $versionRoot }
+                    } elseif (Test-OnlineVersionIsNewer -Installed $have -Online $tag) {
                         $needsUpdate = $true
                     }
                 }
@@ -3626,20 +4063,11 @@ function global:Invoke-CheckInstalledScan {
                 # Mirrors the Thunderstore branch above. Seeds the cache on
                 # the first scan after install (GitHub installers always pull
                 # releases/latest, so "no stored version yet" = current latest).
-                $repoToCheck = $game.GithubRepo
-                # Honor an AV-fallback choice: if the installer switched this
-                # machine to the backup source, track THAT repo for updates so
-                # the user is not nagged to update to a fork their AV blocks.
-                if ($game.GithubRepoAlt) {
-                    try {
-                        $ipfV = Get-InstalledPathFile -Game $game
-                        if ($ipfV) {
-                            $vsrcV = Join-Path (Split-Path -Parent $ipfV) ".vrv_source"
-                            if ((Test-Path $vsrcV) -and ((Get-Content $vsrcV -Raw -ErrorAction Stop).Trim() -eq "francisco")) { $repoToCheck = $game.GithubRepoAlt }
-                        }
-                    } catch {}
-                }
-                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:([bool]$game.GithubPrerelease)
+                # Honor an AV-fallback choice from either the durable game-side
+                # source marker or the Hub cache.
+                $repoToCheck = Get-SelectedGithubRepo -Game $game -GameDir $gameDir
+                $checkPrerelease = Get-GithubPrereleasePreference -Game $game -GameDir $gameDir
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease
                 if ($ghVer) {
                     if (-not $installedVer) {
                         # Seeding a missing marker with the current tag says
@@ -3680,7 +4108,7 @@ function global:Invoke-CheckInstalledScan {
                             Write-InstalledVersion -Game $game -Version $cbVer -GameDir $gameDir
                             $installedVer = $cbVer
                         }
-                    } elseif (($installedVer -replace '^[vV]','') -ne ($cbVer -replace '^[vV]','')) {
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $cbVer) {
                         $needsUpdate = $true
                     }
                 }
@@ -3698,7 +4126,7 @@ function global:Invoke-CheckInstalledScan {
                     if (-not $installedVer) {
                         Write-InstalledVersion -Game $game -Version $wv -GameDir $gameDir
                         $installedVer = $wv
-                    } elseif ($installedVer -ne $wv) {
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $wv) {
                         $needsUpdate = $true
                     }
                   }
@@ -3741,7 +4169,7 @@ function global:Invoke-CheckInstalledScan {
                     if (-not $installedVer) {
                         Write-InstalledVersion -Game $game -Version $expectedVer -GameDir $gameDir
                         $installedVer = $expectedVer
-                    } elseif ($installedVer -ne $expectedVer) {
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $expectedVer) {
                         $needsUpdate = $true
                     }
                 }
@@ -3921,7 +4349,7 @@ function global:Invoke-CheckInstalledScan {
                 # tint it back in the original game accent.
                 $card.Resources.Remove("baseAccent") | Out-Null
                 $card.Resources.Add("baseAccent", $UPDATE_BLUE)
-                $global:gameStateMap[$game.Title] = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText="Update"; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; TwoMods=$twoModsAnyPresent; ModAPresent=$tmAPresent; ModBPresent=$tmBPresent; ModADir=$twoModsADir; ModBDir=$twoModsBDir; ModAName=$game.ModAName; ModBName=$game.ModBName; GameDir=$gameDir }
+                $global:gameStateMap[$game.Title] = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText="Update"; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; TwoMods=$twoModsAnyPresent; ModAPresent=$tmAPresent; ModBPresent=$tmBPresent; ModADir=$twoModsADir; ModBDir=$twoModsBDir; ModARoot=$twoModsPresence.ARoot; ModBRoot=$twoModsPresence.BRoot; ModAName=$game.ModAName; ModBName=$game.ModBName; GameDir=$gameDir }
             } else {
                 # VR Ready: shift the whole card to a calm green tint.
                 # Button becomes outline-style with checkmark.
@@ -3947,7 +4375,7 @@ function global:Invoke-CheckInstalledScan {
                 $card.Resources.Remove("baseBdBrush") | Out-Null
                 $card.Resources.Add("baseBgBrush", $card.Background)
                 $card.Resources.Add("baseBdBrush", $card.BorderBrush)
-                $global:gameStateMap[$game.Title] = @{ Tag="vrinstalled"; Accent=$accentHex; State="ready"; BtnText="VR Ready"; GameDir=$gameDir; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; TwoMods=$twoModsAnyPresent; ModAPresent=$tmAPresent; ModBPresent=$tmBPresent; ModADir=$twoModsADir; ModBDir=$twoModsBDir; ModAName=$game.ModAName; ModBName=$game.ModBName }
+                $global:gameStateMap[$game.Title] = @{ Tag="vrinstalled"; Accent=$accentHex; State="ready"; BtnText="VR Ready"; GameDir=$gameDir; DualMode=$dualModeBothPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; TwoMods=$twoModsAnyPresent; ModAPresent=$tmAPresent; ModBPresent=$tmBPresent; ModADir=$twoModsADir; ModBDir=$twoModsBDir; ModARoot=$twoModsPresence.ARoot; ModBRoot=$twoModsPresence.BRoot; ModAName=$game.ModAName; ModBName=$game.ModBName }
             }
             $vrFound++
             $found++
@@ -4059,6 +4487,7 @@ function global:Invoke-CheckInstalledScan {
         Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
             } catch {
             try {
+                $global:InstalledScanFailedGames[$game.Title] = $true
                 if (-not $global:ScanGameErrors) { $global:ScanGameErrors = New-Object System.Collections.ArrayList }
                 [void]$global:ScanGameErrors.Add(("{0}: {1}" -f $game.Title, $_.Exception.Message))
                 Write-Host ("  [scan] detection failed for '" + $game.Title + "': " + $_.Exception.Message) -ForegroundColor Yellow
@@ -4369,6 +4798,9 @@ function global:Invoke-CheckInstalledScan {
 
     # Check finished: re-enable + re-arm the Scan-on-Startup hover toggle.
     $global:ScanInProgress = $false
+    $global:InstalledScanCompleted = $true
+    if (Get-Command Update-UninstallGuideLinks -ErrorAction SilentlyContinue) { Update-UninstallGuideLinks }
+    if (Get-Command Update-DetailReadmeLinks -ErrorAction SilentlyContinue) { Update-DetailReadmeLinks }
     $cosbEnd = $global:window.FindName("CheckOnStartupBtn")
     if ($cosbEnd) { $cosbEnd.IsEnabled = $true; $cosbEnd.Visibility = [System.Windows.Visibility]::Hidden }
 
@@ -4449,6 +4881,74 @@ $checkInstalledBtn.Add_PreviewMouseLeftButtonDown({
         })
 }.GetNewClosure())
 
+# Resolve one freshly installed game's tracked version without scanning any
+# other library.  This closes the first-use gap for older installers that do
+# not write their downloaded tag themselves: previously the version was only
+# seeded by a later full scan, so replacing the Hub in between lost the fact.
+function global:Get-PostInstallTrackedVersion {
+    param($Game, [string]$GameDir)
+    if (-not $Game) { return $null }
+    if ($Game.ThunderstoreAuthor -and $Game.ThunderstorePackage) {
+        # Thunderstore installers normally leave the exact installed package
+        # version in BepInEx\.ts_versions. Read that first: unlike the live
+        # endpoint it tells us what THIS run installed, and it also works
+        # offline. Older/depot installer modes may not have the file, so the
+        # package endpoint remains the fallback.
+        if ($GameDir) {
+            try {
+                foreach ($tsVersionKey in @(
+                    "$($Game.ThunderstoreAuthor)-$($Game.ThunderstorePackage)",
+                    "$($Game.ThunderstorePackage)"
+                )) {
+                    $tsLocalPath = Join-Path $GameDir "BepInEx\.ts_versions\$tsVersionKey"
+                    if (Test-Path -LiteralPath $tsLocalPath -PathType Leaf) {
+                        $tsLocal = (Get-Content -LiteralPath $tsLocalPath -Raw -ErrorAction Stop).Trim()
+                        if (Test-IsTrackableInstalledVersion -Version $tsLocal) { return $tsLocal }
+                    }
+                }
+            } catch {}
+        }
+        try {
+            $tsUri = "https://thunderstore.io/api/experimental/package/$($Game.ThunderstoreAuthor)/$($Game.ThunderstorePackage)/"
+            $tsData = Invoke-RestMethod -Uri $tsUri -TimeoutSec 5 -ErrorAction Stop
+            if ($tsData -and $tsData.latest -and $tsData.latest.version_number) {
+                return ([string]$tsData.latest.version_number).Trim()
+            }
+        } catch {}
+    }
+    if ($Game.GithubRepo -and -not $Game.GithubRepoB) {
+        try {
+            $postRepo = Get-SelectedGithubRepo -Game $Game -GameDir $GameDir
+            $postPrerelease = Get-GithubPrereleasePreference -Game $Game -GameDir $GameDir
+            $uri = if ($postPrerelease) {
+                "https://api.github.com/repos/$postRepo/releases?per_page=1"
+            } else {
+                "https://api.github.com/repos/$postRepo/releases/latest"
+            }
+            $r = Invoke-RestMethod -Uri $uri -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 5 -ErrorAction Stop
+            if ($postPrerelease) { $r = @($r) | Select-Object -First 1 }
+            if ($r -and $r.tag_name) { return ([string]$r.tag_name).Trim() }
+        } catch {}
+    }
+    if ($Game.GitHubNightly) {
+        try {
+            $r = Invoke-RestMethod -Uri "https://api.github.com/repos/$($Game.GitHubNightly)/releases/latest" `
+                    -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 5 -ErrorAction Stop
+            if ($Game.RollingUpdate -and $Game.RollingUpdateAsset) {
+                $a = @($r.assets | Where-Object { $_.name -eq $Game.RollingUpdateAsset }) | Select-Object -First 1
+                if ($a -and $a.updated_at) { return ([string]$a.updated_at).Trim() }
+            } elseif ($r.tag_name) { return ([string]$r.tag_name).Trim() }
+        } catch {}
+    }
+    if ($Game.CodebergRepo) {
+        try { return (Get-CodebergLatestTagCached -Repo $Game.CodebergRepo -IncludePrerelease:([bool]$Game.CodebergPrerelease)) } catch {}
+    }
+    if ($Game.WebVersionUrl) {
+        try { return (Get-WebVersionCached -Url $Game.WebVersionUrl -Title $Game.Title) } catch {}
+    }
+    return (Get-ModVersionFromString -ModString $Game.Mod)
+}
+
 # Post-install auto-refresh: when an installer cmd.exe exits,
 # we want the Hub to silently re-render the detail page so the
 # user sees the new INSTALLED pill and green VR Ready button
@@ -4489,24 +4989,51 @@ function global:Invoke-PostInstallRefresh {
             if ($pendGame) {
                 $okMk = Get-UpdateOkMarkerPath -Game $pendGame
                 if ($okMk -and (Test-Path $okMk)) {
-                    # The in-game marker has to go as well, otherwise the OLD
-                    # version stays the ground truth and the card keeps saying
-                    # Update after a successful reinstall. The folder comes
-                    # from the path the installer just recorded, with the
-                    # scan's own state as a second source.
+                    # The wrapper records whether THIS installer run wrote an
+                    # authoritative version marker.  Preserve and mirror such
+                    # a value; only legacy installers that wrote no version
+                    # need the old clear-and-seed path.  Unconditionally
+                    # clearing here was the Forza 5/6 loop: the installer wrote
+                    # 1.3.19 correctly and this refresh blanked it immediately.
+                    $status = $null
+                    try { $status = Get-Content -LiteralPath $okMk -Raw -ErrorAction Stop | ConvertFrom-Json } catch {}
+                    $primaryWritten = [bool]($status -and $status.versionWritten)
+                    $secondaryWritten = [bool]($status -and $status.versionBWritten)
+
+                    # The folder comes from the path the installer just
+                    # recorded, with the scan's own state as a second source.
                     $pendDir = $null
                     try { $pendDir = Read-InstalledPath -Game $pendGame } catch {}
+                    # Reading once migrates a freshly written .launch_exe to
+                    # the durable state index as well.  This is essential for
+                    # external launchers after the Hub folder is replaced.
+                    try { [void](Read-LaunchOverride -Game $pendGame) } catch {}
                     if (-not $pendDir) {
                         try {
                             $stP = $global:gameStateMap[$pendGame.Title]
                             if ($stP -and $stP.GameDir) { $pendDir = $stP.GameDir }
                         } catch {}
                     }
-                    # Blank the tracked version instead of deleting the
-                    # marker - same effect for the scan (empty reads as
-                    # "unknown"), without a delete anywhere near a game
-                    # folder.
-                    Reset-InstalledVersion -Game $pendGame -GameDir $pendDir
+                    if ($primaryWritten -or $secondaryWritten) {
+                        if ($primaryWritten) {
+                            $exact = Read-InstalledVersion -Game $pendGame -GameDir $pendDir
+                            if ($exact) { Write-InstalledVersion -Game $pendGame -Version $exact -GameDir $pendDir }
+                        }
+                        if ($secondaryWritten) {
+                            $exactB = Read-InstalledVersionB -Game $pendGame -GameDir $pendDir
+                            if ($exactB) { Write-InstalledVersionB -Game $pendGame -Version $exactB -GameDir $pendDir }
+                        }
+                    } elseif (-not ($pendGame.NoVersionSeed -and $pendGame.TwoMods)) {
+                        # Blank the tracked version instead of deleting the
+                        # marker.  The next targeted/full scan seeds legacy
+                        # installers from their online source.
+                        Reset-InstalledVersion -Game $pendGame -GameDir $pendDir
+                    } else {
+                        # FH6 can install NALULUNA without touching the lufz
+                        # build.  No version write in that branch means "the
+                        # tracked lufz mod was untouched", not "forget it".
+                        # Keeping the marker preserves a pending lufz update.
+                    }
                     if (Test-Path -LiteralPath $okMk -PathType Leaf) {
                         Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
                     }
@@ -4543,10 +5070,21 @@ function global:Invoke-PostInstallRefresh {
                 # can't flip the card to "VR Ready". Games without a
                 # ModFile (depot installs) keep folder-existence as before.
                 $modPresent = $true
-                if ($recordedPath -and $game.ModFile) {
+                $postTwoProbe = $null
+                if ($game.TwoMods) {
+                    $postTwoProbe = Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath
+                    $modPresent = if ($game.TwoModsRequireBoth) {
+                        ($postTwoProbe.APresent -and $postTwoProbe.BPresent)
+                    } else {
+                        ($postTwoProbe.APresent -or $postTwoProbe.BPresent)
+                    }
+                } elseif ($recordedPath -and $game.ModFile) {
                     $modPresent = (Test-Path (Join-Path $recordedPath $game.ModFile))
                     if (-not $modPresent -and $game.ModFileAlt) {
                         $modPresent = (Test-Path (Join-Path $recordedPath $game.ModFileAlt))
+                    }
+                    if (-not $modPresent -and $game.DoorstopTargetModFile) {
+                        $modPresent = Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile
                     }
                     # !!! VrInstallRoot GAMES KEEP THE MOD OUTSIDE THE GAME
                     # FOLDER (2026-08-20) - %LocalAppData% and the like. The
@@ -4568,6 +5106,15 @@ function global:Invoke-PostInstallRefresh {
                     }
                 }
                 if ($recordedPath -and (Test-Path $recordedPath) -and $modPresent) {
+                    # A version-aware installer already supplied the exact
+                    # value.  A legacy installer did not; resolve only this
+                    # game's source now and durably mirror the result.  No
+                    # full disk/library scan is triggered.
+                    $postVer = Read-InstalledVersion -Game $game -GameDir $recordedPath
+                    if (-not $postVer -and -not $game.NoVersionSeed) {
+                        $postVer = Get-PostInstallTrackedVersion -Game $game -GameDir $recordedPath
+                        if ($postVer) { Write-InstalledVersion -Game $game -Version $postVer -GameDir $recordedPath }
+                    }
                     $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
                     $stateEntry = @{
                         Tag     = "vrinstalled"
@@ -4594,7 +5141,7 @@ function global:Invoke-PostInstallRefresh {
                         }
                     }
                     if ($game.TwoMods) {
-                        $pi = Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath
+                        $pi = if ($postTwoProbe) { $postTwoProbe } else { Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath }
                         $anyTwo = if ($game.TwoModsRequireBoth) { $pi.APresent -and $pi.BPresent }
                                   else { $pi.APresent -or $pi.BPresent }
                         $stateEntry.TwoMods     = $anyTwo
@@ -4602,6 +5149,8 @@ function global:Invoke-PostInstallRefresh {
                         $stateEntry.ModBPresent = $pi.BPresent
                         $stateEntry.ModADir     = $pi.ADir
                         $stateEntry.ModBDir     = $pi.BDir
+                        $stateEntry.ModARoot    = $pi.ARoot
+                        $stateEntry.ModBRoot    = $pi.BRoot
                         $stateEntry.ModAName    = $game.ModAName
                         $stateEntry.ModBName    = $game.ModBName
                     }
@@ -4625,11 +5174,20 @@ function global:Invoke-PostInstallRefresh {
                     # would never appear.
                     # Same shape the full scan writes for this case, so both
                     # agree and nothing downstream has to tell them apart.
+                    # The LABEL is computed exactly as the full scan does
+                    # it (Filter.ps1 line 3962), so both paths put the same
+                    # word on the button. Writing a literal here gave the
+                    # tile "Install VR Mod" after a Locate and "Install"
+                    # after a scan - same state, two different buttons.
+                    $lbl = if ($game.Bat) { "Install" }
+                           elseif ($game.Type -eq "steam") { "Open in Steam" }
+                           elseif ($game.Type -eq "itch")  { "Open on itch.io" }
+                           else { "Get Installer" }
                     $global:gameStateMap[$title] = @{
                         Tag      = "installed"
                         State    = "installed"
                         Border   = "#2a5c38"
-                        BtnText  = "Install VR Mod"
+                        BtnText  = $lbl
                         BtnColor = "#66dd88"
                         GameDir  = $recordedPath
                     }
@@ -4692,4 +5250,3 @@ function global:Watch-InstallMarkerForRefresh {
         $timer.Start()
     } catch {}
 }
-

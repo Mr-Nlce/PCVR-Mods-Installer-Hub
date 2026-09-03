@@ -5,6 +5,32 @@
 # titles, motion-controller glyph for motion titles. Tooltip names the
 # control scheme on hover.
 # -------------------------------------------------------
+# A SPLIT BUTTON NEEDS SOMETHING TO SPLIT BETWEEN.
+#
+# DualMode (REPO VR, Content Warning) always has both halves - the live
+# build and the pinned depot build - so it splits unconditionally.
+#
+# TwoMods is different: it is two RIVAL mods, and normally only one of
+# them is installed. Splitting the button then offers a choice that does
+# not exist and advertises the mod the user did not pick. So the split
+# appears only when BOTH are on disk; with one, the tile keeps its normal
+# "Start in VR", and Start-GameInVR with no mode launches whichever one
+# is actually there.
+function global:Test-ShowDualSplit {
+    param($st)
+    if (-not $st) { return $false }
+    # An entry can deliberately be BOTH DualMode and TwoMods (Elden Ring:
+    # Current/Depot build choice plus Hotbite/ERVR mod choice). Its card is
+    # the two-MOD card, so do not let DualMode force two mod buttons while
+    # only one mod exists. The per-mod names are present in every scanned
+    # TwoMods state and distinguish that shape from ordinary DualMode cards.
+    if ($st.ModAName -or $st.ModBName) {
+        return ([bool]$st.TwoMods -and [bool]$st.ModAPresent -and [bool]$st.ModBPresent)
+    }
+    if ($st.DualMode) { return $true }
+    return ([bool]$st.TwoMods -and [bool]$st.ModAPresent -and [bool]$st.ModBPresent)
+}
+
 function global:New-ControlTypeIcon {
     param([string]$Controls, [double]$Sc = 1.0, $Stroke = $null)
 
@@ -108,6 +134,7 @@ $global:WIP_GAME_TITLES = @(
     "Legend of Zelda: Twilight Princess",
     "Arma 3 VR",
     "C&C Generals: Zero Hour",
+    "Elden Ring VR",
     "Ghost Recon Wildlands VR",
     "Halo 3 MCC VR",
     "F.E.A.R. VR",
@@ -116,6 +143,7 @@ $global:WIP_GAME_TITLES = @(
     "My Friendly Neighborhood VR",
     "Shenmue I & II",
     "Red Faction VR",
+    "Silent Hill 3 VR",
     "Singularity VR"
 )
 
@@ -384,6 +412,10 @@ function global:Set-NeonButtonState {
     $glow.ShadowDepth = 0
     $glow.Opacity     = $op
     $Button.Effect = $glow
+    # The button is static between state/hover changes. Cache the small neon
+    # surface so list scrolling moves a bitmap instead of re-running the
+    # shadow shader for every visible card on every frame.
+    $Button.CacheMode = New-Object System.Windows.Media.BitmapCache
     if ($Text) {
         # Capture the build-time font once so state paints can reset
         # it - VR Ready bumps weight/size, everything else returns to
@@ -1645,8 +1677,15 @@ function global:New-GameCardFrosted {
     $dualSplit = New-Object System.Windows.Controls.Grid
     $dualSplit.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $dualSplit.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+    # NO NEGATIVE TOP/BOTTOM ANY MORE. Those -6 cancelled out
+    # $btnBorder.Padding back when the split lived INSIDE that
+    # border. It now sits in $btnShell as a sibling of the border,
+    # where there is no padding to cancel - so the -6 made the
+    # split taller than the button: divider too long, hover area
+    # overhanging. Zero matches the border exactly; the 28 on the
+    # right still keeps the reload pill clear.
     $dualSplit.Margin              = [System.Windows.Thickness]::new(
-        0, [int](-6*$sc), [int](28*$sc), [int](-6*$sc)
+        0, 0, [int](28*$sc), 0
     )
     $dualSplit.Visibility = [System.Windows.Visibility]::Collapsed
     $col1 = New-Object System.Windows.Controls.ColumnDefinition
@@ -1664,8 +1703,9 @@ function global:New-GameCardFrosted {
     $dualCurrentBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
-    $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
+    $dualCurrentLabel = if ($game.TwoMods -and $game.ModAButtonLabel) { [string]$game.ModAButtonLabel } elseif ($game.TwoMods -and $game.ModAName) { [string]$game.ModAName } else { "Current" }
+    $dualCurrentTxt.Text = ([char]0x25B6) + " " + $dualCurrentLabel
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($dualCurrentLabel.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -1679,8 +1719,9 @@ function global:New-GameCardFrosted {
     $dualDepotBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
-    $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
+    $dualDepotLabel = if ($game.TwoMods -and $game.ModBButtonLabel) { [string]$game.ModBButtonLabel } elseif ($game.TwoMods -and $game.ModBName) { [string]$game.ModBName } else { "Depot" }
+    $dualDepotTxt.Text = ([char]0x25B6) + " " + $dualDepotLabel
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($dualDepotLabel.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -1688,7 +1729,14 @@ function global:New-GameCardFrosted {
     $dualDepotBtn.Child = $dualDepotTxt
     $dualSplit.Children.Add($dualDepotBtn) | Out-Null
 
-    $btnInner.Children.Add($dualSplit) | Out-Null
+    # !!! NOT INSIDE $btnInner. That border carries the neon halo,
+    # and a DropShadowEffect rasterises its WHOLE subtree - so the
+    # split labels ("balouza", "BioVRDev") were being blurred by the
+    # glow, worst on hover where the halo is strongest and at the
+    # 7.8pt the split uses. It goes into $btnShell instead, as a
+    # sibling ABOVE the glowing border - exactly what the single
+    # button label already does. Added further down, once
+    # $btnShell exists.
 
     $btnBorder.Child = $btnInner
     # Neon button redesign (test): no accent cap, no glass frills -
@@ -1710,6 +1758,7 @@ function global:New-GameCardFrosted {
         $btnTextLayer.IsHitTestVisible = $false
         $btnShell.Children.Add($btnTextLayer) | Out-Null
     }
+    if ($dualSplit) { $btnShell.Children.Add($dualSplit) | Out-Null }
     $grid.Children.Add($btnShell) | Out-Null
     # Store btnText, reload pill, accent cap on card for later access by Check Installed
     if ($card.Resources.Contains("btnText")) { $card.Resources.Remove("btnText") }
@@ -1828,7 +1877,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 $bt = $owner.Resources.Item("btnText")
                 # Hidden (not Collapsed): keep the text's layout slot so
                 # the button keeps its normal height; the split overlays.
@@ -1892,7 +1941,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 # Stash + clear the blue background so the split row
                 # underneath reads cleanly. Leave + click restore use
                 # the same stashed values.
@@ -2061,7 +2110,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 # DualMode only: if the cursor is still over the card
                 # (moved from button onto the split overlay on top of
                 # it), don't tear down - otherwise button-leave/enter
@@ -2111,7 +2160,7 @@ function global:New-GameCardFrosted {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 $ds = $owner.Resources.Item("dualSplit")
                 if ($ds) { $ds.Visibility = [System.Windows.Visibility]::Collapsed }
                 $bt = $owner.Resources.Item("btnText")
@@ -2408,6 +2457,7 @@ function global:New-GameCardFrosted {
     # We check the URL stash that was set up earlier in this function.
     if ($card.Resources.Contains("previewHeaderUrl")) {
         $hotZone.Add_MouseEnter({
+            if (Test-CardHoverSuppressed) { return }
             $info = $this.Tag
             if (-not $info) { return }
             $global:HoverPendingCard = $info.Card
@@ -2543,6 +2593,7 @@ function global:New-GameCardFrosted {
     $tiltScale = New-Object System.Windows.Media.ScaleTransform 1.0, 1.0
     $card.Add_MouseEnter({
         param($s, $e)
+        if (Test-CardHoverSuppressed) { return }
         if ($global:HoverActiveCard) { return }   # preview owns the transform
         try {
             $tiltScale.ScaleX = 1.06; $tiltScale.ScaleY = 1.06
@@ -2627,6 +2678,7 @@ function global:New-GameCardFrosted {
     # the stored base brush on leave. Tag determines which accent / base
     # combination is currently in play (default / vrinstalled / vrupdate).
     $card.Add_MouseEnter({
+        if (Test-CardHoverSuppressed) { return }
         $tag = $this.Tag
         $acc = $this.Resources.Item("baseAccent")
         if (-not $acc) { return }
@@ -2647,7 +2699,7 @@ function global:New-GameCardFrosted {
             $isDual = $false
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
-                if ($st -and ($st.DualMode -or $st.TwoMods)) { $isDual = $true }
+                if ($st -and (Test-ShowDualSplit $st)) { $isDual = $true }
             }
             if ($true) {  # every VR-Ready card reveals on whole-tile hover now (was DualMode only)
                 $bb = $this.Resources.Item("btnBorder")
@@ -2996,7 +3048,7 @@ function global:New-GameCardFrosted {
                     if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                         $st = $global:gameStateMap[$g.Title]
                     }
-                    if ($st -and ($st.DualMode -or $st.TwoMods)) {
+                    if ($st -and (Test-ShowDualSplit $st)) {
                         $bt = $owner.Resources.Item("btnText")
                         if ($bt) { $bt.Visibility = [System.Windows.Visibility]::Hidden }
                         $ds = $owner.Resources.Item("dualSplit")
@@ -3020,7 +3072,7 @@ function global:New-GameCardFrosted {
                     if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                         $st = $global:gameStateMap[$g.Title]
                     }
-                    if ($st -and ($st.DualMode -or $st.TwoMods)) {
+                    if ($st -and (Test-ShowDualSplit $st)) {
                         # DualMode only: keep the split while the cursor
                         # is still over the card (anti-flicker). Card
                         # MouseLeave restores on true tile exit.
@@ -3901,8 +3953,9 @@ function global:New-GameCardClassic {
     $dualCurrentBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
     $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
-    $dualCurrentTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModAName) { $game.ModAName } else { "Current" })
-    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModAName -and $game.ModAName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
+    $dualCurrentLabel = if ($game.TwoMods -and $game.ModAButtonLabel) { [string]$game.ModAButtonLabel } elseif ($game.TwoMods -and $game.ModAName) { [string]$game.ModAName } else { "Current" }
+    $dualCurrentTxt.Text = ([char]0x25B6) + " " + $dualCurrentLabel
+    $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($dualCurrentLabel.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualCurrentTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualCurrentTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3916,8 +3969,9 @@ function global:New-GameCardClassic {
     $dualDepotBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
     $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
-    $dualDepotTxt.Text = ([char]0x25B6) + " " + $(if ($game.TwoMods -and $game.ModBName) { $game.ModBName } else { "Depot" })
-    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($game.ModBName -and $game.ModBName.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
+    $dualDepotLabel = if ($game.TwoMods -and $game.ModBButtonLabel) { [string]$game.ModBButtonLabel } elseif ($game.TwoMods -and $game.ModBName) { [string]$game.ModBName } else { "Depot" }
+    $dualDepotTxt.Text = ([char]0x25B6) + " " + $dualDepotLabel
+    $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($dualDepotLabel.Length -gt 8) { 7.8 } else { 8.5 } } else { 11 })*$sc
     $dualDepotTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $dualDepotTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -3925,6 +3979,8 @@ function global:New-GameCardClassic {
     $dualDepotBtn.Child = $dualDepotTxt
     $dualSplit.Children.Add($dualDepotBtn) | Out-Null
 
+    # The classic card has NO glow on this border (Add-NeonButtonFx is
+    # frosted-only), so the split stays inside - nothing rasterises it.
     $btnInner.Children.Add($dualSplit) | Out-Null
 
     $btnBorder.Child = $btnInner
@@ -4046,7 +4102,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 $bt = $owner.Resources.Item("btnText")
                 # Hidden (not Collapsed): keep the text's layout slot so
                 # the button keeps its normal height; the split overlays.
@@ -4110,7 +4166,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 # Stash + clear the blue background so the split row
                 # underneath reads cleanly. Leave + click restore use
                 # the same stashed values.
@@ -4279,7 +4335,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 # DualMode only: if the cursor is still over the card
                 # (moved from button onto the split overlay on top of
                 # it), don't tear down - otherwise button-leave/enter
@@ -4329,7 +4385,7 @@ function global:New-GameCardClassic {
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
             }
-            if ($st -and ($st.DualMode -or $st.TwoMods)) {
+            if ($st -and (Test-ShowDualSplit $st)) {
                 $ds = $owner.Resources.Item("dualSplit")
                 if ($ds) { $ds.Visibility = [System.Windows.Visibility]::Collapsed }
                 $bt = $owner.Resources.Item("btnText")
@@ -4621,6 +4677,7 @@ function global:New-GameCardClassic {
     # We check the URL stash that was set up earlier in this function.
     if ($card.Resources.Contains("previewHeaderUrl")) {
         $hotZone.Add_MouseEnter({
+            if (Test-CardHoverSuppressed) { return }
             $info = $this.Tag
             if (-not $info) { return }
             $global:HoverPendingCard = $info.Card
@@ -4749,6 +4806,7 @@ function global:New-GameCardClassic {
     # the stored base brush on leave. Tag determines which accent / base
     # combination is currently in play (default / vrinstalled / vrupdate).
     $card.Add_MouseEnter({
+        if (Test-CardHoverSuppressed) { return }
         $tag = $this.Tag
         $acc = $this.Resources.Item("baseAccent")
         if (-not $acc) { return }
@@ -4769,7 +4827,7 @@ function global:New-GameCardClassic {
             $isDual = $false
             if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                 $st = $global:gameStateMap[$g.Title]
-                if ($st -and ($st.DualMode -or $st.TwoMods)) { $isDual = $true }
+                if ($st -and (Test-ShowDualSplit $st)) { $isDual = $true }
             }
             if ($true) {  # every VR-Ready card reveals on whole-tile hover now (was DualMode only)
                 $bb = $this.Resources.Item("btnBorder")
@@ -5118,7 +5176,7 @@ function global:New-GameCardClassic {
                     if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                         $st = $global:gameStateMap[$g.Title]
                     }
-                    if ($st -and ($st.DualMode -or $st.TwoMods)) {
+                    if ($st -and (Test-ShowDualSplit $st)) {
                         $bt = $owner.Resources.Item("btnText")
                         if ($bt) { $bt.Visibility = [System.Windows.Visibility]::Hidden }
                         $ds = $owner.Resources.Item("dualSplit")
@@ -5142,7 +5200,7 @@ function global:New-GameCardClassic {
                     if ($g -and $global:gameStateMap.ContainsKey($g.Title)) {
                         $st = $global:gameStateMap[$g.Title]
                     }
-                    if ($st -and ($st.DualMode -or $st.TwoMods)) {
+                    if ($st -and (Test-ShowDualSplit $st)) {
                         # DualMode only: keep the split while the cursor
                         # is still over the card (anti-flicker). Card
                         # MouseLeave restores on true tile exit.

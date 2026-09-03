@@ -42,7 +42,7 @@ it. You can keep playing the retail version normally.
 ## Launching
 
 Always launch with **Start in VR** in the Hub or the desktop shortcut (or directly via
-`<install folder>\TormentedSouls.exe`) with SteamVR already
+`TormentedSouls.exe` from the separate VR build's directory) with SteamVR already
 running. Launching through Steam's library would start your
 retail copy, not the VR build.
 

@@ -21,14 +21,15 @@ it is never copied into the cache. Later launches do not ask again.
 | what | where |
 |---|---|
 | the port | `C:\Games\Pokemon Gen 1 VR` (you can pick another root) |
-| the mod | `C:\Users\<you>\AppData\Roaming\pokemon-love2d\mods\DRAMALESS_SHAPE` |
+| Dramatic Shape (when selected) | `%APPDATA%\pokemon-love2d\mods\DRAMATIC_SHAPE\` |
+| Dramaless (when selected) | `%APPDATA%\pokemon-love2d\mods\DRAMALESS_SHAPE\` |
+| inactive mod | `%APPDATA%\pokemon-love2d\mods-disabled\` |
 
-The second path is **fixed by the mod platform**, not by this Hub: the
+The mod paths are **fixed by the mod platform**, not by this Hub: the
 port's mod loader scans `mods` through LÖVE's own filesystem, which is the
 per-user save directory. A `mods` folder next to the exe is not on its read
-path, and `portable.txt` does not move it either. This is the only entry in
-this Hub that writes outside the game folder, and it is listed here so you
-always know where it went.
+path, and `portable.txt` does not move it either. These mods live outside
+the game folder; `%APPDATA%` points to your own Windows roaming profile.
 
 ## Two mods to choose from - and why
 
@@ -53,13 +54,13 @@ Both need the port below `2.0.0`, so the port stays pinned at `v0.1.81` either
 way - the newest one that is still below that line.
 
 ### Only one may be active
-Both mods install into the same `mods\` folder under their own id - `DRAMATIC_SHAPE`
+Both mods install under `%APPDATA%\pokemon-love2d\mods\` with their own id - `DRAMATIC_SHAPE`
 and `DRAMALESS_SHAPE` - and their manifests list each other as conflicting. If
 both are there, neither loads properly.
 
 Renaming the folder is **not** enough: the loader goes by the `manifest.json`
 inside it, not by the folder name. So the installer **moves the other one right
-out of `mods\`** into `mods-disabled\` next to it. Nothing is deleted - switch
+out of the active mods directory** into `%APPDATA%\pokemon-love2d\mods-disabled\`. Nothing is deleted - switch
 back any time by running the installer again and picking the other one.
 
 ## If Windows Defender eats the download

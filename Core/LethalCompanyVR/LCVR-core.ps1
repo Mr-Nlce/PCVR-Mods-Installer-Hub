@@ -25,6 +25,8 @@ $STEAM_APP = "1966720"
 
 $PACKAGES_CURRENT = @(
  @{ Author="BepInEx"; Name="BepInExPack"; FriendlyName="BepInEx" },
+ @{ Author="MonoDetour"; Name="MonoDetour"; FriendlyName="MonoDetour"; InstallType="MonoDetourCore" },
+ @{ Author="MonoDetour"; Name="MonoDetour_BepInEx_5"; FriendlyName="MonoDetour BepInEx 5"; InstallType="MonoDetourBepInEx5" },
  @{ Author="Evaisa"; Name="FixPluginTypesSerialization"; FriendlyName="FixPluginTypesSerialization" },
  @{ Author="Hamunii"; Name="TypeLoadExceptionFixer"; FriendlyName="TypeLoadExceptionFixer" },
  @{ Author="DaXcess"; Name="LethalCompanyVR"; FriendlyName="LethalCompanyVR" }
@@ -166,8 +168,8 @@ Write-Host ""
 $depotInstalledStatus = $null
 $depotInstalledColor  = "Gray"
 try {
- $depotTargetCheck = Join-Path "C:\Games" "Lethal Company VR"
- $depotExeCheck    = Join-Path $depotTargetCheck "Lethal Company.exe"
+ $depotTargetCheck = Join-PathLexical "C:\Games" "Lethal Company VR"
+ $depotExeCheck    = Join-PathLexical $depotTargetCheck "Lethal Company.exe"
  if (Test-Path $depotExeCheck) {
    $depotInstalledStatus = " [installed at $depotTargetCheck]"
    $depotInstalledColor  = "Green"
@@ -242,8 +244,8 @@ if (-not $useLegacy) {
 
  if ($toInstall.Count -eq 0) {
  Write-Host ""; Write-Host " [OK] All packages are up to date!" -ForegroundColor Green; Write-Host ""
- Pause-User "Press Enter to exit."
- try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}; exit 0
+ # Continue through the common finish block so a first run of this Hub
+ # still records path and exact installed version.
  }
 
  Write-Host ""; Write-Host " $($toInstall.Count) package(s) to install/update." -ForegroundColor White
@@ -255,10 +257,26 @@ if (-not $useLegacy) {
  if (-not $info) { $failed+=$pkg.FriendlyName; continue }
  if (-not (Get-Zip "$($pkg.FriendlyName) $($info.Version)" $info.DownloadUrl "$tmp\$key.zip")) { $failed+=$pkg.FriendlyName; continue }
  $ext="$tmp\$key"; Expand-To "$tmp\$key.zip" $ext
- $children=@(Get-ChildItem $ext | Where-Object { $_.Name -notin @("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE") })
- $payload=if($children.Count -eq 1 -and $children[0].PSIsContainer -and $children[0].Name -ne "BepInEx"){$children[0].FullName}else{$ext}
- $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
- Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{Copy-Item $_.FullName $gamePath -Recurse -Force}
+ if ($pkg.InstallType -eq "MonoDetourCore") {
+   $src = if (Test-Path (Join-Path $ext "core")) { Join-Path $ext "core" } else { $ext }
+   $dest = Join-Path $gamePath "BepInEx\core\MonoDetour-MonoDetour"
+   New-Item $dest -ItemType Directory -Force | Out-Null
+   Get-ChildItem $src -Filter "*.dll" -File | ForEach-Object { Copy-Item $_.FullName $dest -Force }
+ } elseif ($pkg.InstallType -eq "MonoDetourBepInEx5") {
+   foreach ($part in @("core", "patchers")) {
+     $src = Join-Path $ext $part
+     if (Test-Path $src) {
+       $dest = Join-Path $gamePath "BepInEx\$part\MonoDetour-MonoDetour_BepInEx_5"
+       New-Item $dest -ItemType Directory -Force | Out-Null
+       Get-ChildItem $src -Filter "*.dll" -File | ForEach-Object { Copy-Item $_.FullName $dest -Force }
+     }
+   }
+ } else {
+   $children=@(Get-ChildItem $ext | Where-Object { $_.Name -notin @("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE") })
+   $payload=if($children.Count -eq 1 -and $children[0].PSIsContainer -and $children[0].Name -ne "BepInEx"){$children[0].FullName}else{$ext}
+   $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
+   Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{Copy-Item $_.FullName $gamePath -Recurse -Force}
+ }
  Set-InstalledVersion -key $key -ver $info.Version -gp $gamePath
  Write-Info "$($pkg.FriendlyName) $($info.Version) installed."
  }
@@ -366,7 +384,13 @@ if ($lcvrVersion) {
 }
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("LCVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
+$lcvrProofA = Join-Path $gamePath "BepInEx\plugins\LCVR\LCVR.dll"
+$lcvrProofB = Join-Path $gamePath "BepInEx\plugins\DaXcess-LethalCompanyVR\LCVR\LCVR.dll"
+if ($lcvrVersion -and ((Test-Path -LiteralPath $lcvrProofA) -or (Test-Path -LiteralPath $lcvrProofB))) {
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lcvrVersion -Encoding UTF8 -Force } catch {}
+ Save-InstalledStamp -GameDir $gamePath -Version $lcvrVersion
+}
 
 # Summary
 Write-Host ""

@@ -18,8 +18,11 @@ A full Virtual Reality conversion of the 2004 Crytek shooter **Far Cry** by modd
 
 ## How to install (external)
 1. Open the info page and go to the mod's **Releases**.
-2. Download the latest installer (ignore the other files). Note: it isn't code-signed, so Windows SmartScreen may warn - that's expected.
-3. Run it and point it at your Far Cry folder. The installer creates `FarCryVR.exe` - run that to play in VR.
+2. Download the installer asset named `farcry-vrmod-1.0.0.exe`. The filename is older than the release label, but this is the asset the author attached to current release v1.1.0. It is not code-signed, so Windows SmartScreen may warn.
+3. Run it and point it at your Far Cry folder. Afterwards use **Start in VR** here; the Hub opens `FarCryVR.exe`, not the flat game.
+
+## Uninstall
+Use **Uninstall now** on this page. It opens the author's `Uninstall_FarCryVR.exe` from the game folder.
 
 ## Controls
 Index and Touch-style controllers are supported out of the box; other controllers may need custom SteamVR bindings. The full, up-to-date binding chart lives in the official manual:

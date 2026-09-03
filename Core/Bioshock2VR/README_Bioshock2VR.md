@@ -12,8 +12,8 @@ two installs are independent and do not share settings.
 https://github.com/mohamad-balouza/bioshock-vr
 
 ## What the installer does
-1. Finds BioShock 2 Remastered on Steam, GOG or Epic - Epic keeps its
-   binaries in `Build\FinalEpic`, the others in `Build\Final`
+1. Finds BioShock 2 Remastered on Steam, GOG or Epic - the executable and
+   mod files go in `Build\FinalEpic` on Epic, or `Build\Final` on Steam/GOG
 2. Downloads the newest release from GitHub
 3. Copies the two DLLs (`xinput1_3.dll`, `bioshockvr.dll`) next to
    `Bioshock2HD.exe`. No game file is changed.
@@ -94,7 +94,7 @@ The release zip carries the author's own tuning as files as well, in
 `preset-bs2\`. You only need those if you changed settings, pressed SAVE and
 want the shipped tuning back: copy them into
 
-    C:\Users\<you>\AppData\Roaming\..\Local\BioshockVR\bs2\
+    %LOCALAPPDATA%\BioshockVR\bs2\
 
 (that is `%LOCALAPPDATA%\BioshockVR\bs2\`) and restart the game. The installer
 deliberately does not write there. BioShock 2 keeps its settings in that `bs2`

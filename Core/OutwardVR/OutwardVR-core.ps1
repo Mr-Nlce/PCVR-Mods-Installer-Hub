@@ -117,6 +117,52 @@ function Find-GameRoot {
 # -------------------------------------------------------
 Write-Header
 
+# =============================================================
+#  Which build?
+# =============================================================
+# !!! TWO MODS, TWO GAME BUILDS. The CompoundVR fork runs on the current
+# default-mono Definitive Edition, with no old depot download.
+# cybensis's original v0.9.2 only runs on an OLD build, which is why
+# that route pulls a pinned Steam depot and works on Steam alone.
+#
+# The fork is first because it is what almost everyone wants. The old
+# route stays because it is the only one some setups can run.
+Write-Host ""
+Write-Host "  Two versions of this mod exist:" -ForegroundColor White
+Write-Host ""
+Write-Host "   [1] CompoundVR fork " -NoNewline -ForegroundColor Cyan
+Write-Host "- RECOMMENDED" -ForegroundColor Green
+Write-Host "       Runs on the current Mono build (Steam: default-mono)." -ForegroundColor White
+Write-Host "       Real hands and held weapons, snap turning, quicker melee." -ForegroundColor Gray
+Write-Host "       Nothing to download but the mod itself." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [2] Original OutwardVR v0.9.2 by cybensis" -ForegroundColor Cyan
+Write-Host "       Needs an OLD game build, so this downloads a pinned Steam" -ForegroundColor White
+Write-Host "       depot into its own folder. STEAM ONLY - a GOG copy cannot" -ForegroundColor White
+Write-Host "       provide the depot." -ForegroundColor White
+Write-Host "       Full-body rig, the way the original beta played." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Both can be installed side by side - they live in different" -ForegroundColor DarkGray
+Write-Host "  folders and the Hub then offers a launcher for each." -ForegroundColor DarkGray
+Write-Host ""
+$owPick = ""
+for ($k = 1; $k -le 20; $k++) {
+    $owPick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
+    if ($owPick -in @("1","2")) { break }
+    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+}
+if ($owPick -eq "1") {
+    $fork = Join-Path $PSScriptRoot "OutwardVR-Fork.ps1"
+    if (-not (Test-Path -LiteralPath $fork)) {
+        Write-Host "  The fork installer is missing: $fork" -ForegroundColor Red
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    & $fork
+    exit 0
+}
+
+
 Write-Host " OutwardVR by cybensis - a full 6DOF VR conversion of Outward Definitive" -ForegroundColor White
 Write-Host " Edition with motion-controlled combat." -ForegroundColor White
 Write-Host ""
@@ -552,6 +598,7 @@ try {
  # Hub stores the parent install folder; ModFile and LaunchExe
  # in the game-def are relative to it (Outward_Defed\...).
  Set-Content -Path $pathFile -Value $installPath -Encoding UTF8 -Force
+ Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_depot") -Value $installPath -Encoding UTF8 -Force
 } catch {}
 
 # Clean up tools + temp
@@ -560,6 +607,25 @@ try { Remove-Item $toolsDir -Recurse -Force -ErrorAction SilentlyContinue } catc
 # -------------------------------------------------------
 # STEP 4: Summary + Desktop Shortcut
 # -------------------------------------------------------
+# !!! ONE LAUNCHER PER MOD, BOUND TO THE REAL FILE. Without a launcher
+# of its own this half of the tile could never appear beside the fork's -
+# and a launcher that outlives its mod makes the Hub claim something
+# that is gone. Written only when the plugin is really there, removed
+# again when it is not.
+$owLaunchDir = Join-PathLexical $installPath "VRLaunch"
+$owLaunch    = Join-PathLexical $owLaunchDir "Outward VR (cybensis).bat"
+$owPlugin    = Join-PathLexical $installPath "$GAME_SUBDIR\BepInEx\plugins\OutwardVR.dll"
+try {
+    if (Test-Path -LiteralPath $owPlugin) {
+        if (-not (Test-Path -LiteralPath $owLaunchDir)) { New-Item -ItemType Directory -Path $owLaunchDir -Force | Out-Null }
+        $owRelativeGameDir = if ((Split-Path $defedPath -Leaf) -ieq $GAME_SUBDIR) { "..\$GAME_SUBDIR" } else { ".." }
+        $owBody = "@echo off`r`nrem Outward VR - original v0.9.2 by cybensis (pinned depot build)`r`ncd /d `"%~dp0$owRelativeGameDir`"`r`nstart `"`" `"$GAME_EXE`"`r`n"
+        Set-Content -LiteralPath $owLaunch -Value $owBody -Encoding ASCII -Force
+    } elseif (Test-Path -LiteralPath $owLaunch) {
+        Remove-Item -LiteralPath $owLaunch -Force -ErrorAction SilentlyContinue
+    }
+} catch {}
+
 Write-Step 4 4 "All Done!"
 
 Write-Host " Your Outward VR installation is ready." -ForegroundColor White

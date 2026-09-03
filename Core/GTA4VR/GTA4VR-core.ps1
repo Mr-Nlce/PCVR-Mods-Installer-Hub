@@ -282,6 +282,7 @@ if (Test-Path -LiteralPath $qs) {
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gtaDir -Encoding UTF8 -Force } catch {}
 try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+if ($relTag) { Save-InstalledStamp -GameDir $gtaDir -Version $relTag -HubDir $SCRIPT_DIR }
 
 # -------------------------------------------------------------
 Write-Host ""

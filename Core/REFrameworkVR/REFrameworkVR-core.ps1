@@ -477,7 +477,11 @@ if ($isPragmata) {
 # games share this folder (matches Get-InstalledVersionPath / .installed_path).
 $verSafe = if ($GameTitle) { ($GameTitle -replace '[^A-Za-z0-9]','_') } else { ($selectedGame.Title -replace '[^A-Za-z0-9]','_') }
 $tagFile = Join-Path $PSScriptRoot ".installed_version_$verSafe"
-try { Set-Content $tagFile $tagName -Encoding UTF8 -Force } catch {}
+try { Set-Content (Join-Path $PSScriptRoot ".installed_path_$verSafe") $gamePath -Encoding UTF8 -Force } catch {}
+if (Test-IsTrackableInstalledVersion -Version $tagName) {
+    try { Set-Content $tagFile $tagName -Encoding UTF8 -Force } catch {}
+    Write-ModStamp -GameDir $gamePath -Version $tagName | Out-Null
+}
 
 # -------------------------------------------------------
 # Summary

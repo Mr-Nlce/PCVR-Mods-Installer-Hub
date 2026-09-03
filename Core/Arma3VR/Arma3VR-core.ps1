@@ -68,14 +68,14 @@ $MOD_PROBE    = "$MOD_DIR_NAME\A3VRHybridCore_x64.dll"
 
 $MOD_NAME     = "A3VR Hybrid"
 $MOD_AUTHOR   = "gborgogno"
-$MOD_VERSION  = "v1.13.1-alpha.1 (public alpha)"
+$MOD_VERSION  = "v1.0.1"
 $REPO         = "gborgogno/a3vr-arma3"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=3782798344"
 $OPENTRACK_URL = "https://github.com/opentrack/opentrack/releases/latest"
 # Fallback for no-network ONLY - the normal path resolves the newest
 # build.
-$PINNED_TAG   = "v1.14.0-alpha.1"
+$PINNED_TAG   = "v1.0.1"
 # !!! THE ASSET NAME KEEPS THE LEADING v (2026-08-20). This line used to
 # build it with $PINNED_TAG.TrimStart('v'), which gives
 # A3VR-Hybrid-1.14.0-alpha.1.zip - and that URL is a 404. The real asset
@@ -104,6 +104,7 @@ Write-Host "   - Vehicles, Zeus, scopes and the VR cursor are experimental." -Fo
 Write-Host "   - Keep keyboard and mouse within reach: Arma has many" -ForegroundColor White
 Write-Host "     contextual commands with no VR binding yet." -ForegroundColor White
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..." | Out-Null
 
 # ---- 1. Pick the route ----------------------------------------
@@ -287,6 +288,19 @@ if ($copyFailed) {
 
 if (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROBE)) {
     Write-OK "$MOD_DIR_NAME is in place."
+    # A scanner often sweeps a moment after the write; the archive is
+    # still in the temp folder here, so recovery can unpack it again
+    # inside the game folder.
+    $avFilesOk = Confirm-PlacedFilesSurvive `
+        -Paths @((Join-Path $gamePath $MOD_PROBE)) `
+        -GameDir $gamePath `
+        -ArchivePath $zip
+    if (-not $avFilesOk) {
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Write-Fail "The VR mod could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again."
+        exit 1
+    }
 } else {
     Write-Fail "$MOD_PROBE is not there - the install did not complete."
     Write-Host "  Extract the archive by hand so that this exists:" -ForegroundColor White

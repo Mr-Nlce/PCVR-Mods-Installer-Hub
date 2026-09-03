@@ -24,6 +24,125 @@ $global:listScroll         = $window.FindName("ListScroll")
 $global:DiscoverTilesBuilt = $false
 
 # ---------------------------------------------------------------
+# DRAG TO SCROLL - middle mouse button, and finger on a touchscreen
+# ---------------------------------------------------------------
+# The middle button did nothing at all before this, not even a click,
+# so nothing can be taken away from it. That is the whole reason it was
+# picked: no existing gesture changes behaviour.
+#
+# THE 10-PIXEL THRESHOLD IS THE IMPORTANT PART. A press that never
+# travels that far is not a drag - it is a click, and it must reach the
+# tile underneath untouched. Only once the pointer has actually moved
+# does this start scrolling and swallow the event. That is what keeps a
+# shaky hand from turning a click into a scroll, or the other way round.
+$global:DragScrollDeadZone = 10      # px from the anchor before anything moves
+$global:DragScrollSpeed    = 0.35    # px of scroll per px of distance, per tick
+$global:DragScrollTick     = 16      # ms between ticks (~60 per second)
+# A CEILING, because distance has none. Drag 800px from the anchor and
+# the raw figure is 280px per tick - roughly 17,000px a second, which
+# crosses the whole catalog in a blink and cannot be aimed. Capped at
+# 45px per tick, about 2,800 a second: still faster than anyone needs,
+# and still controllable.
+$global:DragScrollMaxStep  = 45
+
+function global:Enable-DragScroll {
+    param($Scroll)
+    if (-not $Scroll) { return }
+
+    # THIS IS BROWSER AUTOSCROLL, NOT TOUCH PANNING - and the difference
+    # is the whole point.
+    #
+    # Touch panning moves the content WITH the finger: drag down 40px and
+    # the page moves down 40px, then stops. That is right for a finger on
+    # glass, and it is what this did before - which is why it went the
+    # wrong way and only moved as far as the mouse did.
+    #
+    # Autoscroll instead drops an ANCHOR where the button went down. From
+    # then on the pointer's DISTANCE from that anchor is a speed: hold it
+    # 100px below the anchor and the content keeps scrolling down until
+    # the button is released. Further away is faster. That is what every
+    # browser does with the middle button, and it is what a long list
+    # actually needs - you can cross the whole catalog without moving the
+    # mouse more than a few centimetres.
+    $Scroll.Tag = [pscustomobject]@{
+        Active   = $false
+        AnchorY  = 0.0
+        Timer    = $null
+        Viewer   = $Scroll
+    }
+
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromMilliseconds($global:DragScrollTick)
+    $timer.Add_Tick({
+        # The timer carries its own viewer, so several scroll areas never
+        # end up driving each other.
+        $st = $this.Tag
+        if (-not $st -or -not $st.Active) { return }
+        $sv = $st.Viewer
+        try {
+            $y  = [System.Windows.Input.Mouse]::GetPosition($sv).Y
+            $dy = $y - $st.AnchorY
+            if ([Math]::Abs($dy) -lt $global:DragScrollDeadZone) { return }
+            # Subtract the dead zone so motion starts from a standstill
+            # instead of jumping to speed the moment it is crossed.
+            $eff  = $dy - ([Math]::Sign($dy) * $global:DragScrollDeadZone)
+            $step = $eff * $global:DragScrollSpeed
+            if ([Math]::Abs($step) -gt $global:DragScrollMaxStep) {
+                $step = [Math]::Sign($step) * $global:DragScrollMaxStep
+            }
+            $sv.ScrollToVerticalOffset($sv.VerticalOffset + $step)
+        } catch {}
+    })
+    $timer.Tag = $Scroll.Tag
+    $Scroll.Tag.Timer = $timer
+
+    $Scroll.Add_PreviewMouseDown({
+        param($s, $e)
+        if ($e.ChangedButton -ne [System.Windows.Input.MouseButton]::Middle) { return }
+        $st = $s.Tag
+        if (-not $st) { return }
+        $st.AnchorY = $e.GetPosition($s).Y
+        $st.Active  = $true
+        try { [void]$s.CaptureMouse() } catch {}
+        try { $s.Cursor = [System.Windows.Input.Cursors]::ScrollNS } catch {}
+        try { $st.Timer.Start() } catch {}
+        $e.Handled = $true
+    })
+
+    $stopScroll = {
+        param($s, $e)
+        $st = $s.Tag
+        if (-not $st -or -not $st.Active) { return }
+        $st.Active = $false
+        try { $st.Timer.Stop() } catch {}
+        try { $s.ReleaseMouseCapture() } catch {}
+        try { $s.Cursor = $null } catch {}
+        if ($e) { $e.Handled = $true }
+    }
+    $Scroll.Add_PreviewMouseUp({
+        param($s, $e)
+        if ($e.ChangedButton -ne [System.Windows.Input.MouseButton]::Middle) { return }
+        & $stopScroll $s $e
+    }.GetNewClosure())
+    # Never leave it scrolling because the pointer left the window or the
+    # capture was taken away by something else.
+    $Scroll.Add_LostMouseCapture({ param($s, $e) & $stopScroll $s $null }.GetNewClosure())
+
+    # TOUCH stays panning, and that is correct: a finger drags the content
+    # with it. WPF's own threshold decides between a tap and a pan, so a
+    # tap still reaches the tile underneath. VerticalOnly because the tile
+    # grid has nothing to scroll sideways to.
+    try {
+        $Scroll.PanningMode = [System.Windows.Controls.PanningMode]::VerticalOnly
+        $Scroll.PanningDeceleration = 0.001
+    } catch {}
+}
+
+foreach ($__sv in @($global:discoverTiles, $global:discoverDetail, $global:discoverOverview, $global:listScroll)) {
+    try { Enable-DragScroll -Scroll $__sv } catch {}
+}
+
+# ---------------------------------------------------------------
 # Header back arrow. A small chevron in the filter bar (left of the
 # "All" pill) that mirrors the in-page Back button. Hidden on the
 # library/home view; on detail/explore pages it starts grey (but is
@@ -33,6 +152,15 @@ $global:DiscoverTilesBuilt = $false
 $global:HeaderBackBtn   = $window.FindName("HeaderBackBtn")
 $global:HeaderBackArrow = $window.FindName("HeaderBackArrow")
 $global:OverviewBackBtn = $window.FindName("OverviewBackBtn")
+if ($global:HeaderBackArrow) {
+    # Reuse one mutable brush instead of allocating a new brush on every
+    # ScrollChanged event (touch/middle-drag can fire this at 60 Hz).
+    $global:HeaderBackArrowBrush = New-Object System.Windows.Media.SolidColorBrush (
+        [System.Windows.Media.Color]::FromRgb(0x55, 0x55, 0x60)
+    )
+    $global:HeaderBackArrow.Stroke = $global:HeaderBackArrowBrush
+    $global:HeaderBackArrowColorKey = "85,85,96"
+}
 
 # Same back semantics as the mouse XButton1: detail -> overview or
 # library, overview -> library. Pushes the source onto the forward
@@ -92,7 +220,15 @@ function global:Set-HeaderArrowWhiteness {
     $g = [byte][int](0x55 + (0xF2 - 0x55) * $f)
     $b = [byte][int](0x60 + (0xF5 - 0x60) * $f)
     if ($global:HeaderBackArrow) {
-        $global:HeaderBackArrow.Stroke = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb($r, $g, $b))
+        $key = "$r,$g,$b"
+        if ($key -ne $global:HeaderBackArrowColorKey) {
+            if (-not $global:HeaderBackArrowBrush) {
+                $global:HeaderBackArrowBrush = New-Object System.Windows.Media.SolidColorBrush
+                $global:HeaderBackArrow.Stroke = $global:HeaderBackArrowBrush
+            }
+            $global:HeaderBackArrowBrush.Color = [System.Windows.Media.Color]::FromRgb($r, $g, $b)
+            $global:HeaderBackArrowColorKey = $key
+        }
     }
 }
 
@@ -157,6 +293,15 @@ if ($global:discoverDetail) {
 }
 if ($global:discoverOverview) {
     $global:discoverOverview.Add_ScrollChanged({ try { Update-HeaderBackArrow } catch { } })
+}
+
+# Mouse wheel, touch panning, scrollbar dragging and the Hub's middle-button
+# drag all surface as ScrollChanged. Gate expensive card hover work for the
+# short period in which tiles are moving beneath a stationary pointer.
+foreach ($cardScrollViewer in @($global:discoverTiles, $global:discoverOverview, $global:listScroll)) {
+    if ($cardScrollViewer) {
+        $cardScrollViewer.Add_ScrollChanged({ try { Register-CardScrollActivity } catch { } })
+    }
 }
 # Initial paint: the Hub opens on the library, so show the grey arrow
 # right away once layout has settled.
@@ -375,6 +520,9 @@ $window.Add_PreviewMouseDown({
 # in screen space - close the tooltip so it doesn't float over
 # unrelated content.
 $window.Add_PreviewMouseWheel({
+    # Preview fires before the ScrollViewer moves, allowing an existing hover
+    # to be cleaned up before a new tile crosses the cursor.
+    try { Register-CardScrollActivity } catch { }
     if ($global:OpenTheatreTooltip -and $global:OpenTheatreTooltip.IsOpen) {
         try { $global:OpenTheatreTooltip.IsOpen = $false } catch { }
         $global:OpenTheatreTooltip = $null
@@ -489,4 +637,3 @@ function global:Update-FilterBarForMode {
 if ($global:discoverBtn -and $global:discoverHost) {
     Update-DiscoverBtnState
 }
-

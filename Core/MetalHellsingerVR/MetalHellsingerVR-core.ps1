@@ -46,7 +46,7 @@ $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 # stable location so Steam never overwrites it on a future download.
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME    = "Metal Hellsinger VR"
-$DEFAULT_PATH   = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 # Game executable + the mod plugin we verify after extraction
 $GAME_EXE   = "Metal.exe"
@@ -113,11 +113,24 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host "      Steam menu bar - View - Console, then paste-and-Enter." -ForegroundColor DarkGray
     Write-Host ""
 }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
 # Both protocol addresses: depending on the Steam build only one works.
 $conOk = $false
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; $conOk = $true; Start-Sleep -Milliseconds 900 } catch {}
+}
 }
 if (-not $conOk) {
     Write-Warn "Could not open the Steam Console automatically."
@@ -145,25 +158,12 @@ foreach ($reg in @(
     } catch {}
 }
 
-$depotPath = $null
-if ($steamInstallPath) {
-    $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-    Write-Info "Expected depot path: $autoPath"
-    if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) {
-        $depotPath = $autoPath
-        Write-Info "Depot folder found automatically."
-    } else {
-        Write-Warn "Depot folder not found yet (download may still be running)."
-    }
-} else {
-    Write-Warn "Could not find Steam in the registry."
-}
+$probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+$depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+if ($depotPath) { Write-Info "Depot folder found automatically: $depotPath" }
+else { Write-Warn "Depot folder not found yet in any Steam library." }
 
 if (-not $depotPath) {
-    $probePaths = @()
-    if ($steamInstallPath) {
-        $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID")
-    }
     $depotPath = Resolve-DepotPath -GameName "Metal Hellsinger" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
     if (-not $depotPath) {
         Write-Fail "No depot folder provided - cannot continue."
@@ -174,7 +174,7 @@ if (-not $depotPath) {
     }
 }
 
-$depotExe = Join-Path $depotPath $GAME_EXE
+$depotExe = Join-PathLexical $depotPath $GAME_EXE
 if (-not (Test-Path $depotExe)) {
     Write-Warn "'$GAME_EXE' not found inside the depot - download may be incomplete."
     $choice = ""
@@ -188,7 +188,7 @@ if (-not (Test-Path $depotExe)) {
 # STEP 2: Move & rename the depot folder
 # -------------------------------------------------------
 Write-Step 2 4 "Moving the game to a stable folder"
-$parentOfDepot = Split-Path $depotPath -Parent
+$parentOfDepot = Get-PathParentLexical $depotPath
 
 Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
@@ -197,19 +197,16 @@ Write-Host ""
 $userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
 $targetPath = if (-not $userInput) { $DEFAULT_PATH } else { $userInput }
 
-$targetParent = Split-Path $targetPath -Parent
-if ($targetParent -and -not (Test-Path $targetParent)) {
-    try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-    catch {
-        Write-Fail "Could not create parent folder $targetParent : $_"
-        $__fb = Invoke-InstallerFallback -Action "create the install folder" `
-            -Instructions "Create the folder '$targetParent' manually (or pick a writable location), then choose Retry." `
-            -DestFolder "$targetParent" -AllowSkip $false
-        if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-    }
+$targetParent = Get-PathParentLexical $targetPath
+if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+    Write-Fail "The target folder is not writable: $targetParent"
+    $__fb = Invoke-InstallerFallback -Action "create the install folder" `
+        -Instructions "Create the folder '$targetParent' manually (or pick a writable location), then choose Retry." `
+        -DestFolder "$targetParent" -RetryCheck { Test-InstallerTargetWritable -TargetPath $targetPath } -AllowSkip $false
+    if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
 }
 
-if (Test-Path $targetPath) {
+if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
     Write-Warn "A folder already exists at $targetPath"
     Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
@@ -230,7 +227,7 @@ while (-not $moved) {
             -SourceFolder "$depotPath" -DestFolder "$targetPath" -AllowSkip $true
         if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
         if ([string]$__fb -eq "skip") { $targetPath = $depotPath; $moved = $true }
-        elseif (Test-Path $targetPath) { $moved = $true }
+        elseif (Test-LiteralPathSafe -Path $targetPath -PathType Container) { $moved = $true }
     }
 }
 

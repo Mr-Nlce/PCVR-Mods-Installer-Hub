@@ -111,7 +111,7 @@ Both are hosted on MediaFire, so the download may need a manual click.
 
 ## Returning to flatscreen
 
-Remove the VR mod folders from the mods directory, then verify the game
+Remove the VR mod folders from `%APPDATA%\Godot\app_userdata\Cruelty Squad\mods`, then verify the game
 files in Steam (right-click -> Properties -> Local Files -> Verify).
 
 ## More info

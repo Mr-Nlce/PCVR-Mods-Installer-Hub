@@ -19,6 +19,7 @@
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
 
 $Host.UI.RawUI.WindowTitle = "Outlast VR Installer"
 $ErrorActionPreference = "Stop"
@@ -68,34 +69,75 @@ $TFC_URL     = "https://www.nexusmods.com/site/mods/588?tab=files"
 $DOTNET6_URL = "https://aka.ms/dotnet/6.0/windowsdesktop-runtime-win-x64.exe"
 
 # ---- The SECOND mod, added 2026-08-20 -------------------------
-# Hammerthis' mod is built on a completely different idea: it does
-# NOT put anything in the game folder. It launches Outlast through
-# Steam, waits for OLGame.exe and injects a DLL into the running
-# process. His README says "Extract this ZIP anywhere. You do not
-# need to copy files into the Outlast game directory."
+# The original Hammerthis alpha injected into the running game.
+# Version 1.0 instead copies its runtime beside OLGame.exe.
 #
 # WE STILL PUT IT UNDER THE GAME - in <game>\_vrmods\hammerthis\ -
-# and "anywhere" covers that. Three reasons: the Hub can then find
+# so each mod has a separate store. The Hub can then find
 # it the same way it finds every other mod, uninstalling is one
 # folder to delete, and the two mods sit side by side where anyone
 # can see both. No file of the game itself is touched either way.
 #
-# ALL RELEASES ARE PRERELEASES -> the list is queried, not /latest.
-$MODB_NAME   = "Outlast VR (alpha)"
+# Query the release list to support both stable and prerelease builds.
+$MODB_NAME   = "Outlast VR (drop-in)"
 $MODB_AUTHOR = "Hammerthis"
 $MODB_REPO   = "Hammerthis/Outlast-Vr-Mod"
 $MODB_RELEASES = "https://github.com/$MODB_REPO/releases"
+# !!! v1.0 CHANGED THE WHOLE DELIVERY MODEL (2026-08-28). Up to the
+# alpha this was an INJECTOR: extract anywhere, launch Steam, inject a
+# DLL. v1.0 is a DROP-IN - its README says so outright: no injector, no
+# build tools, no extra launcher, extract into the game folder.
+#
+# AND IT SHIPS THE SAME FILE NAMES AS HALCYON'S MOD. Read from the real
+# archive: d3d9.dll, openxr_loader.dll and outlastvr.ini all land in
+# Binaries\Win64, exactly where Halcyon's do. The two cannot lie in that
+# folder at the same time, and the old trick of renaming d3d9.dll to
+# .off is useless now - the file the other mod needs is called the same.
+#
+# So both are PARKED, the way BioShock does it: each keeps its files in
+# a store, only the active one has them in Binaries\Win64, and the two
+# launchers swap them using the verified OutlastVR-Switch.ps1 runtime.
 $MODB_DIR    = "_vrmods\hammerthis"
-$MODB_BAT    = "PLAY_OUTLAST_VR.bat"
-# Read from the real archive, not guessed: 18 entries, 5,943,108 B,
-# sha256 c72196d7613a15f119060f0a5447b7b9a9897076804c95cc51b825ad49a236c7
-$MODB_FILES  = @("PLAY_OUTLAST_VR.bat", "PLAY_OUTLAST_VR.ps1", "INJECT_VR_NOW.bat",
-                 "UNLOAD_VR.bat", "RESTORE_OUTLAST_SETTINGS.bat", "injector.exe",
-                 "OutlastVRDiagnostic.dll", "outlast_vr.ini")
+$MODA_DIR    = "_vrmods\halcyon"
+# $MODB_BAT is gone: v1.0 ships no launcher of its own (drop-in).
+# Read from the real v1.0 archive, not guessed: 7 entries, 6,072,933 B,
+# sha256 3fc1491e413cfec68636670212de9bbd06dff3e3262e328546de82051f3e5a86.
+# Everything sits under Binaries\Win64 except the readme.
+# openxr_loader_real.dll is new in v1.0: the mod's own loader ships
+# beside the proxy it replaces.
+$MODB_FILES  = @("d3d9.dll", "openxr_loader.dll", "openxr_loader_real.dll",
+                 "outlastvr.ini", "assets\miles\body_albedo.tga")
 # Where the two switch launchers go - same shape as BioShock.
 $VRLAUNCH    = "_vrmods\VRLaunch"
 $LAUNCH_A    = "Outlast VR (Halcyon).bat"
 $LAUNCH_B    = "Outlast VR (Hammerthis).bat"
+
+function Install-OutlastPackage {
+    param([string]$GameRoot, [string]$Name, [string]$ArchivePath)
+    $layout = Get-OutlastLayout $GameRoot
+    $listing = Get-ArchiveTopLevel -ArchivePath $ArchivePath
+    if ($listing.Ok) {
+        foreach ($file in Get-OutlastModFiles $Name) {
+            $found = @($listing.Entries | Where-Object { $_.Replace('/','\') -eq $file -or $_.Replace('/','\').EndsWith('\' + $file, [StringComparison]::OrdinalIgnoreCase) })
+            if (-not $found.Count) { throw "Wrong or incomplete $Name archive: $file is not included." }
+        }
+    }
+    $stage = Join-Path $layout.Stores ('.install-' + [Guid]::NewGuid().ToString('N'))
+    try {
+        $status = Expand-ArchiveOrFallback -ArchivePath $ArchivePath -DestinationFolder $stage -Label $Name -AllowSkip $false
+        if ([string]$status -notin @('ok','manual')) { throw "$Name extraction was not completed." }
+        $source = Get-ExtractedPayloadRoot -ExtractDir $stage -RelModFile 'd3d9.dll' -Markers @('outlastvr.ini','openxr_loader.dll')
+        $paths = @(Get-OutlastModFiles $Name | ForEach-Object { Join-Path $source $_ })
+        $stageSurvived = Confirm-PlacedFilesSurvive -Paths $paths -GameDir $GameRoot -ArchivePath $ArchivePath
+        if (-not $stageSurvived) { throw "$Name files are missing; installation stopped." }
+        Install-OutlastStore -GameRoot $GameRoot -Name $Name -Source $source
+    } finally {
+        if (Test-Path -LiteralPath $stage) {
+            $resolved = (Resolve-Path -LiteralPath $stage).Path
+            if ($resolved.StartsWith($layout.Stores + '\.install-', [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction Stop }
+        }
+    }
+}
 
 # ---- Header ---------------------------------------------------
 Write-Host ""
@@ -108,6 +150,7 @@ Write-Host "  Stereo rendering, full head tracking and VR cutscenes for" -Foregr
 Write-Host "  Outlast. Two mods exist: one is gamepad-only, the other" -ForegroundColor White
 Write-Host "  adds tracked controllers and VR hands." -ForegroundColor White
 Write-Host ""
+Show-AntivirusNotice
 Write-Host "  One thing before you start:" -ForegroundColor White
 Write-Host "   - " -NoNewline -ForegroundColor White
 Write-Host " RUN OUTLAST ONCE NORMALLY FIRST " -ForegroundColor Black -BackgroundColor Yellow
@@ -137,7 +180,7 @@ Write-Host "       Tracked controllers and VR hands. You reach out and" -Foregro
 Write-Host "       GRAB the camcorder, raise it to your face yourself," -ForegroundColor Gray
 Write-Host "       and R3 on it gives you the night vision." -ForegroundColor Gray
 Write-Host "       " -NoNewline
-Write-Host " EARLY ALPHA - expect bugs " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " DROP-IN BUILD - expect rough edges " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host "       Props can vanish at some angles, shadows can shift," -ForegroundColor Gray
 Write-Host "       framerate can drop, and the motion interactions are" -ForegroundColor Gray
 Write-Host "       incomplete. Free, on GitHub." -ForegroundColor Gray
@@ -188,14 +231,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $binDir $GAME_EXE))) {
 }
 Write-OK "Game folder: $gameRoot"
 Write-OK "Mod files go into: $binDir"
-
-# Probe write access quietly - the announcement comes where it applies.
-$needsAdmin = $false
-try {
-    $probe = Join-Path $binDir ".pcvrhub_write_probe"
-    Set-Content -LiteralPath $probe -Value "ok" -ErrorAction Stop
-    Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
-} catch { $needsAdmin = $true }
+Initialize-OutlastStores -GameRoot $gameRoot
 
 if ($doA) {
 # ---- Halcyon: the file-copy route -----------------------------
@@ -209,15 +245,16 @@ if ($doA) {
     # So no hand-placement is requested here, it is downloaded directly -
     # the search on disk is only the fallback for when the file is
     # already there or the network is down.
-    $patterns = @("*Outlast*VR*.zip", "*OutlastVR*.zip", "*Outlast*.zip")
+    $patterns = @("Outlast-VR*.zip", "*Outlast*Halcyon*.zip")
     $modZip = Find-PredownloadedFile -Patterns $patterns -Label "the Outlast VR mod"
     if (-not $modZip) {
         $tmpDl = Join-Path $env:TEMP ("outlastvr_dl_" + [System.IO.Path]::GetRandomFileName())
         New-Item -ItemType Directory -Path $tmpDl -Force | Out-Null
         $dest = Join-Path $tmpDl "Outlast-VR.zip"
-        Invoke-SafeDownload -Urls @($FILE_URL) -Destination $dest -Label "$MOD_NAME" `
+        $download = Invoke-SafeDownload -Urls @($FILE_URL) -Destination $dest -Label "$MOD_NAME" `
             -ManualUrl $POST_URL `
             -Instructions "Download the Outlast VR ZIP from the Patreon post, save it as '$dest', then choose Retry."
+        if ([string]$download -in @('skip','quit')) { throw 'Halcyon download was cancelled.' }
         if (Test-Path -LiteralPath $dest) { $modZip = $dest }
     }
     if (-not $modZip -or -not (Test-Path -LiteralPath $modZip)) {
@@ -229,48 +266,10 @@ if ($doA) {
     }
     Write-OK "Using: $modZip"
 
-    # ---- 3. Put the files in place --------------------------------
-    Write-Step 3 5 "Copying the files next to $GAME_EXE"
-
-    $tmp = Join-Path $env:TEMP ("outlastvr_" + [System.IO.Path]::GetRandomFileName())
-    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-    [void](Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tmp -Label $MOD_NAME)
-
-    # The files may sit flat or inside a wrapper folder - so search the
-    # WHOLE tree for the known bat rather than one fixed level.
-    $allFiles = @(Get-ChildItem -LiteralPath $tmp -Recurse -File -Force -ErrorAction SilentlyContinue)
-    if ($needsAdmin) {
-        Pause-User "Press Enter to copy the files into the game folder - UAC required..." | Out-Null
-    }
-    $sources = @(); $copyFailed = $false
-    foreach ($f in $MOD_FILES) {
-        $hit = $allFiles | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
-        if (-not $hit) { continue }
-        $sources += $hit.FullName
-        try { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $binDir $f) -Force -ErrorAction Stop }
-        catch { $copyFailed = $true }
-    }
-    if ($copyFailed -and $sources.Count -gt 0) {
-        Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
-        $srcList = ($sources | ForEach-Object { "'" + $_ + "'" }) -join ","
-        $ps = "foreach (`$s in @($srcList)) { Copy-Item -LiteralPath `$s -Destination '$binDir' -Force }"
-        try { Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop }
-        catch { Write-Warn "The elevated copy was declined or failed." }
-    }
-
-    $missing = @()
-    foreach ($f in $MOD_FILES) { if (-not (Test-Path -LiteralPath (Join-Path $binDir $f))) { $missing += $f } }
-    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-    if ($missing.Count -gt 0) {
-        Write-Fail "These files did not arrive:"
-        foreach ($m in $missing) { Write-Host "   $m" -ForegroundColor Yellow }
-        Write-Host "  Copy them by hand into:" -ForegroundColor White
-        Write-Host "     $binDir" -ForegroundColor Yellow
-        Pause-User "Press Enter to exit."
-        exit 1
-    }
-    Write-OK "All four files are in place."
+    # Validate the whole package before replacing any active file.
+    Write-Step 3 5 "Installing Halcyon into its own store"
+    Install-OutlastPackage -GameRoot $gameRoot -Name 'Halcyon' -ArchivePath $modZip
+    Switch-OutlastMod -GameRoot $gameRoot -Name 'Halcyon'
 
     # ---- 4. The mod's own installer -------------------------------
     Write-Step 4 5 "Running the mod's own installer"
@@ -285,135 +284,125 @@ if ($doA) {
     $batPath = Join-Path $binDir $MOD_BAT
     Pause-User "Press Enter to run $MOD_BAT..." | Out-Null
     try {
-        Start-Process -FilePath $batPath -WorkingDirectory $binDir -Wait -ErrorAction Stop
+        $setup = Start-Process -FilePath $batPath -WorkingDirectory $binDir -Wait -PassThru -ErrorAction Stop
+        if ($setup.ExitCode -ne 0) { throw "The mod's setup exited with code $($setup.ExitCode)." }
         Write-OK "$MOD_BAT finished."
     } catch {
-        Write-Warn "Could not start it: $($_.Exception.Message)"
-        Write-Host "  Run it yourself from: $binDir" -ForegroundColor Yellow
+        throw "Halcyon setup did not complete. Run $batPath manually. $($_.Exception.Message)"
     }
 
     # Marker for the Hub - into the INSTALLER folder, not the game folder.
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
+    Save-OutlastActiveConfig -GameRoot $gameRoot
 
 } else {
     Write-Info "Skipping the Halcyon mod - not chosen."
     $grainRemoved = $false
 }
 
-# ---- 4b. Hammerthis: the injector route -----------------------
-# Nothing is copied into the game folder here. The whole mod lives
-# in one folder and drives Outlast from outside.
+# ---- 4b. Hammerthis: stage the drop-in files in its own store ---
 if ($doB) {
     Write-Host ""
     Write-Info "Installing $MODB_NAME by $MODB_AUTHOR"
     $bDir = Join-Path $gameRoot $MODB_DIR
 
-    # All releases are prereleases -> query the LIST. /releases/latest
-    # returns nothing for a repo that has never had a stable release.
-    $bUrl = $null; $bTag = ""; $bAsset = ""; $bSize = 0
+    # Include stable v1.0 as well as any future prerelease packages.
+    $bUrl = 'https://github.com/Hammerthis/Outlast-Vr-Mod/releases/download/v1.0/OutlastVR_v1.0.zip'
+    $bTag = 'v1.0'; $bAsset = 'OutlastVR_v1.0.zip'; $bSize = 6072933
+    $bHash = '3fc1491e413cfec68636670212de9bbd06dff3e3262e328546de82051f3e5a86'
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$MODB_REPO/releases" `
                     -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         foreach ($r in @($rels)) {
+            if ($r.draft) { continue }
             $a = @($r.assets) | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1
             if ($a) { $bUrl = [string]$a.browser_download_url; $bTag = [string]$r.tag_name
-                      $bAsset = [string]$a.name; $bSize = [long]$a.size; break }
+                      $bAsset = [string]$a.name; $bSize = [long]$a.size
+                      $bHash = if ($a.digest -match '^sha256:(\w{64})$') { $Matches[1] } else { $null }; break }
         }
     } catch { Write-Warn "GitHub could not be reached." }
-    if ($bUrl) { Write-OK "Release: $bTag  ($bAsset)" } else { $bUrl = $MODB_RELEASES }
+    Write-OK "Release: $bTag  ($bAsset)"
 
-    $bTmp = Join-Path $env:TEMP ("outlastvrb_" + [Guid]::NewGuid().ToString("N"))
+    # Keep the downloaded package under the game root. Defender has been
+    # observed quarantining the v1.0 ZIP itself, before extraction. If that
+    # happens, the same game-folder exclusion used for the DLL recovery also
+    # protects the retry; a retry in %TEMP% would simply be removed again.
+    $bTmp = Join-Path $gameRoot ("_vrmods\.download-hammerthis-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $bTmp -Force | Out-Null
-    $bZip = Join-Path $bTmp "OutlastVR.zip"
+    $safeAssetName = [IO.Path]::GetFileName($bAsset)
+    if (-not $safeAssetName) { $safeAssetName = 'OutlastVR.zip' }
+    $bZip = Join-Path $bTmp $safeAssetName
+    $bDownload = @{}
 
-    # Name AND size have to match the current release, or an older copy
-    # in the downloads folder would install silently.
-    $bHave = Find-PredownloadedFile -Patterns @("OutlastVR-v*.zip") -Label "the Outlast VR alpha" `
-                 -ExpectedName $bAsset -ExpectedSize $bSize
-    if ($bHave -and (Test-Path -LiteralPath $bHave)) {
-        $bZip = $bHave
-        Write-Info "Using the copy you already downloaded."
-    } else {
-        Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
-            -ManualUrl $MODB_RELEASES `
-            -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
-    }
-
-    if (Test-Path -LiteralPath $bZip) {
-        # The archive carries a wrapper folder (OutlastVR-v0.1.0-alpha\)
-        # whose name changes with every release - so the payload root is
-        # RESOLVED through a marker file rather than assumed.
-        $st = Expand-ArchiveToTarget -ArchivePath $bZip -TargetDir $bDir `
-                -RelModFile $MODB_BAT `
-                -Markers @("injector.exe", "outlast_vr.ini") `
-                -Label "$MODB_NAME" `
-                -SkipMessage "Nothing was copied."
-        if ([string]$st -eq "ok" -or [string]$st -eq "manual") {
-            # Proof on disk, file by file - the archive has eight parts
-            # that all have to be there for the injector to work.
-            $bMissing = @()
-            foreach ($f in $MODB_FILES) {
-                if (-not (Test-Path -LiteralPath (Join-Path $bDir $f))) { $bMissing += $f }
-            }
-            if ($bMissing.Count -gt 0) {
-                Write-Fail ("These did not arrive: " + ($bMissing -join ", "))
-                $doB = $false
-            } else {
-                Write-OK "Installed and verified: $bDir"
-            }
-        } else {
-            Write-Fail "The package could not be unpacked."
-            $doB = $false
-        }
-    } else {
-        Write-Fail "No package - the alpha was not installed."
-        $doB = $false
-    }
-    try { Remove-Item -LiteralPath $bTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-}
-
-# ---- 4c. The switch, when both are installed ------------------
-# !!! THE TWO MODS MUST NOT RUN AT THE SAME TIME.
-# Halcyon works through d3d9.dll, which Outlast loads at startup.
-# Hammerthis injects into the running process. With Halcyon's proxy in
-# place, launching through his bat would put both in the same process.
-# So each launcher puts the other one out of the way first: parking
-# d3d9.dll means renaming it, never deleting it.
-$haveA = Test-Path -LiteralPath (Join-Path $gameRoot "$BIN_SUB\d3d9.dll")
-$haveAParked = Test-Path -LiteralPath (Join-Path $gameRoot "$BIN_SUB\d3d9.dll.off")
-$haveB = Test-Path -LiteralPath (Join-Path $gameRoot "$MODB_DIR\$MODB_BAT")
-if (($haveA -or $haveAParked) -and $haveB) {
-    Write-Host ""
-    Write-Info "Both mods are installed - writing the two launchers."
-    $vl = Join-Path $gameRoot $VRLAUNCH
-    New-Item -ItemType Directory -Path $vl -Force | Out-Null
-    $binAbs = Join-Path $gameRoot $BIN_SUB
-    $bAbs   = Join-Path $gameRoot $MODB_DIR
-
-    $batA = @"
-@echo off
-title Outlast VR - Halcyon
-rem Bring Halcyon's proxy back if the other launcher parked it, then
-rem start the game normally through Steam.
-if exist "$binAbs\d3d9.dll.off" move /Y "$binAbs\d3d9.dll.off" "$binAbs\d3d9.dll" >nul
-start "" "steam://rungameid/$APP_ID"
-"@
-    $batB = @"
-@echo off
-title Outlast VR - Hammerthis (alpha)
-rem Park Halcyon's proxy so the two do not end up in one process,
-rem then hand over to the alpha's own launcher.
-if exist "$binAbs\d3d9.dll" move /Y "$binAbs\d3d9.dll" "$binAbs\d3d9.dll.off" >nul
-cd /d "$bAbs"
-call "$MODB_BAT"
-"@
     try {
-        Set-Content -LiteralPath (Join-Path $vl $LAUNCH_A) -Value $batA -Encoding ASCII -Force
-        Set-Content -LiteralPath (Join-Path $vl $LAUNCH_B) -Value $batB -Encoding ASCII -Force
-        Write-OK "Switch ready - the Hub shows one Play button per mod."
-    } catch { Write-Warn "Could not write the launchers: $($_.Exception.Message)" }
+        # Name AND size have to match the current release, or an older copy
+        # in the downloads folder would install silently. Even a matching
+        # copy is first moved onto the protected game-folder staging ground.
+        $bHave = Find-PredownloadedFile -Patterns @('OutlastVR_v*.zip','OutlastVR-v*.zip') -Label 'the Hammerthis mod' `
+                     -ExpectedName $bAsset -ExpectedSize $bSize
+        $copiedExisting = $false
+        if ($bHave -and (Test-Path -LiteralPath $bHave)) {
+            try {
+                Copy-Item -LiteralPath $bHave -Destination $bZip -Force -ErrorAction Stop
+                $copiedExisting = $true
+                Write-Info "Using the copy you already downloaded."
+            } catch { Write-Warn "The downloaded copy could not be staged; downloading a clean copy instead." }
+        }
+        if (-not $copiedExisting) {
+            $download = Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
+                -DownloadInfo $bDownload `
+                -ManualUrl $MODB_RELEASES `
+                -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
+            if ([string]$download -in @('skip','quit')) { throw 'Hammerthis download was cancelled.' }
+        }
+
+        # This is deliberately a separate survival check for the ZIP itself.
+        # The package can disappear before Install-OutlastPackage ever gets a
+        # chance to inspect or unpack it. After the user excludes the game
+        # folder, retry straight into that folder and verify it again.
+        $archiveSurvived = Confirm-PlacedFilesSurvive -Paths @($bZip) -GameDir $gameRoot -Recopy {
+            $retry = Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
+                -DownloadInfo $bDownload `
+                -ManualUrl $MODB_RELEASES `
+                -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
+            if ([string]$retry -in @('skip','quit')) { throw 'Hammerthis download was cancelled.' }
+        }
+        if (-not $archiveSurvived) { throw 'The Hammerthis package was removed before it could be installed.' }
+
+        if ($bDownload.Url -match 'github\.com/Hammerthis/Outlast-Vr-Mod/releases/download/([^/]+)/') {
+            $actualTag = [Uri]::UnescapeDataString($Matches[1])
+            if ($actualTag -ne $bTag) { $bHash = $null }
+            $bTag = $actualTag
+        } elseif ($bDownload.Count -gt 0) { $bTag = ''; $bHash = $null }
+
+        if ($bHash -and (Get-FileHash -LiteralPath $bZip -Algorithm SHA256).Hash -ne $bHash) { throw 'Hammerthis package checksum mismatch; no files were installed.' }
+        Install-OutlastPackage -GameRoot $gameRoot -Name 'Hammerthis' -ArchivePath $bZip
+    } finally {
+        try { Remove-Item -LiteralPath $bTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
 }
+
+# Activate even a single-mod installation. Never infer Halcyon's identity
+# from the shared d3d9.dll filename; stores and deployed hashes identify it.
+$selectedMod = if ($doA) { 'Halcyon' } else { 'Hammerthis' }
+Switch-OutlastMod -GameRoot $gameRoot -Name $selectedMod
+$placed = @(Get-OutlastModFiles $selectedMod | ForEach-Object { Join-Path $binDir $_ })
+$activeSurvived = Confirm-PlacedFilesSurvive -Paths $placed -GameDir $gameRoot -Recopy {
+    Switch-OutlastMod -GameRoot $gameRoot -Name $selectedMod
+}
+if (-not $activeSurvived) { throw 'The active Outlast mod did not survive verification.' }
+Write-OutlastLaunchers -GameRoot $gameRoot -RuntimePath (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
+Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Value $gameRoot -Encoding UTF8 -ErrorAction Stop
+if ($doB -and $bTag) {
+    [void](Write-ModStamp -GameDir $gameRoot -Version $bTag -Second)
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_version_b') -Value $bTag -Encoding UTF8
+} elseif ($doB) {
+    foreach ($record in @((Join-Path $gameRoot '.pcvrhub_version_b'), (Join-Path $PSScriptRoot '.installed_version_b'))) {
+        if (Test-Path -LiteralPath $record) { Remove-Item -LiteralPath $record -Force }
+    }
+    Write-Warn 'The manually supplied Hammerthis version is unknown; no version was guessed.'
+}
+Write-OK "$selectedMod is active. Each installed mod has a verified launcher."
 
 # ---- 5. Remove the film grain (optional) ----------------------
 # !!! THIS COMPANION MOD CANNOT BE INSTALLED BY COPYING !!!
@@ -639,13 +628,16 @@ Write-Host ""
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
 Write-Host " IN THE GAME" -ForegroundColor Cyan
 Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-Write-Host "  Press Insert to open the menu, then the VR tab - tune Eye" -ForegroundColor White
-Write-Host "  Separation and Convergence until it sits right for you." -ForegroundColor White
+if ($doA) {
+    Write-Host "  Halcyon: press Insert to open the menu, then the VR tab." -ForegroundColor White
+    Write-Host "  Tune Eye Separation and Convergence until it sits right." -ForegroundColor White
+    Write-Host "  Halcyon's known issue: light flares can pass through walls." -ForegroundColor Gray
+}
+if ($doB) {
+    Write-Host "  Hammerthis: use its launcher under _vrmods\VRLaunch." -ForegroundColor White
+    Write-Host "  Its settings are in the active Binaries\Win64\outlastvr.ini." -ForegroundColor White
+}
 Write-Host "  Turn motion blur OFF in Outlast's own settings." -ForegroundColor White
-Write-Host ""
-Write-Host "  One thing the author names himself, so it does not surprise" -ForegroundColor Gray
-Write-Host "  you: light flares can pass through walls. Harmless, and not" -ForegroundColor Gray
-Write-Host "  fixed yet." -ForegroundColor Gray
 Write-Host ""
 if ($grainRemoved) {
     Write-Host "  Outlast has film grain baked in - but you just removed it" -ForegroundColor Gray

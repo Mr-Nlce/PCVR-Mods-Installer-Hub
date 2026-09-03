@@ -371,6 +371,7 @@ Write-Host "installs both and lets you switch between them." -ForegroundColor Wh
 Write-Host ""
 Write-Host " Both are free and both come straight from GitHub." -ForegroundColor Gray
 Write-Host ""
+Show-AntivirusNotice
 $choice = ""
 while ($choice -notin @("1","2","3")) { $choice = (Read-Host "  Your choice (1/2/3)").Trim() }
 $wantA = ($choice -in @("2","3"))
@@ -442,6 +443,8 @@ $work = Join-Path $env:TEMP ("bioshockvr_" + [Guid]::NewGuid().ToString("N").Sub
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 $tagA = $null; $tagB = $null
 $haveA = $false; $haveB = $false
+$zipA = $null; $zipB = $null
+$placedA = @(); $placedB = @()
 
 if ($wantA) {
     $zipA = Join-Path $work "biovrdev.zip"
@@ -450,6 +453,7 @@ if ($wantA) {
         $exA = Join-Path $work "exA"; New-Item -ItemType Directory -Path $exA -Force | Out-Null
         if (Expand-ZipSafe -Zip $zipA -Dest $exA) {
             $res = Fill-Store -Extract $exA -StoreDir $storeA -Files $FILES_A
+            $placedA = @($res.Copied | ForEach-Object { [System.IO.Path]::Combine($storeA, $_) })
             if (($res.Copied -contains "BioshockVR.dll") -and ($res.Copied -contains "dxgi.dll")) {
                 $haveA = $true
                 Write-OK "BioVRDev files ready: $($res.Copied -join ', ')"
@@ -467,6 +471,7 @@ if ($wantB) {
         $exB = Join-Path $work "exB"; New-Item -ItemType Directory -Path $exB -Force | Out-Null
         if (Expand-ZipSafe -Zip $zipB -Dest $exB) {
             $res = Fill-Store -Extract $exB -StoreDir $storeB -Files $FILES_B -WithPreset
+            $placedB = @($res.Copied | ForEach-Object { [System.IO.Path]::Combine($storeB, $_) })
             if ($res.Missing.Count -eq 0) {
                 $haveB = $true
                 Write-OK "balouza files ready: $($res.Copied -join ', ')"
@@ -481,6 +486,34 @@ if ($wantB) {
 # later or re-running the installer works without a fresh download.
 if (-not $haveA -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($storeA, "dxgi.dll")))) { $haveA = $true }
 if (-not $haveB -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($storeB, "xinput1_3.dll")))) { $haveB = $true }
+
+# BOTH MODS SEPARATELY - each has its own file list and its own archive,
+# and the stores sit inside the game folder, so that is what gets
+# excluded. Only what was actually installed is checked.
+if ($haveA -and $zipA -and $placedA.Count -gt 0) {
+    $avFilesOkA = Confirm-PlacedFilesSurvive `
+        -Paths $placedA `
+        -GameDir $gameRoot `
+        -ArchivePath $zipA
+    if (-not $avFilesOkA) {
+        try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
+        Write-Fail "BioVRDev could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again." | Out-Null
+        exit 1
+    }
+}
+if ($haveB -and $zipB -and $placedB.Count -gt 0) {
+    $avFilesOkB = Confirm-PlacedFilesSurvive `
+        -Paths $placedB `
+        -GameDir $gameRoot `
+        -ArchivePath $zipB
+    if (-not $avFilesOkB) {
+        try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
+        Write-Fail "balouza could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again." | Out-Null
+        exit 1
+    }
+}
 
 if (-not $haveA -and -not $haveB) {
     Write-Fail "Nothing was installed."
@@ -770,9 +803,11 @@ try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRo
 # file is seeded by the next scan, so no wrong version is ever claimed.
 if ($haveB -and $tagB) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $tagB -Encoding UTF8 -Force } catch {}
+    Write-ModStamp -GameDir $gameRoot -Version $tagB | Out-Null
 }
 if ($haveA -and $tagA) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version_b") -Value $tagA -Encoding UTF8 -Force } catch {}
+    Write-ModStamp -GameDir $gameRoot -Version $tagA -Second | Out-Null
 }
 try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
 

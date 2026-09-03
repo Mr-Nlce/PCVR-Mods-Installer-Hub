@@ -19,6 +19,8 @@
 2. Run `RaiManager.exe` (or use the itch.io app for automatic updates) and follow the installer.
 3. Launch The Stanley Parable: Ultra Deluxe as usual; it starts in VR.
 
+> RaiManager versions may keep BepInEx beside the downloaded package and reference it through `doorstop_config.ini`. The Hub recognises both that layout and a normal in-game BepInEx install. If `targetAssembly` contains an absolute path, do not move or delete that RaiManager/package folder; reinstall from a permanent location instead.
+
 > To uninstall: run `RaiManager.exe` again and click the uninstall button. Your game files and progress are untouched.
 
 ## Controls

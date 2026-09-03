@@ -98,6 +98,29 @@ scrolls.
 **Keep keyboard and mouse within reach.** Arma has many contextual commands with
 no VR binding yet, and no VR button sends Escape or opens the pause menu.
 
+## New in v1.0.1
+
+The author has left the alpha numbering behind - **v1.0.1 follows v1.14.0-alpha.1**,
+despite the smaller number. This release is mostly about headsets other than Meta.
+
+- **SteamVR no longer shows a black image.** Arma handed over DXGI format 28 while
+  SteamVR offered the compatible 29; the mod now accepts compatible UNORM/sRGB
+  variants instead of demanding an exact match.
+- **Controller bindings for far more hardware**: Oculus Touch, Valve Index, Vive,
+  WMR, PICO, HTC Cosmos and Focus 3, plus the Khronos simple-controller fallback.
+- **The runtime stays neutral** - Meta OpenXR, SteamVR, VDXR, Pimax, PICO, WMR or
+  whatever else is active. A3VR now reports the runtime's name and version in its
+  status output, which makes a wrong runtime much easier to spot.
+- With SteamVR it sets the Steam Streaming Speakers and Microphone on the Arma
+  profile before launch, **backing up your existing values first**, and finds the
+  SteamVR audio logs even in Steam libraries outside Program Files.
+- The package now ships an **OpenXR compatibility matrix** (`docs\OPENXR_COMPATIBILITY.md`)
+  and a neutral runtime template.
+
+> The author lists SteamVR controller feel, haptics, automatic audio routing,
+> head-roll warping and 3DoF motion controllers as **still awaiting headset
+> acceptance tests**. Other headset routes are implemented but not yet live-tested.
+
 ## New in v1.14.0-alpha.1
 - **Stances cycle on a deliberate right-stick flick** - one flick per level
   through stand, crouch and prone.

@@ -82,6 +82,45 @@ function Test-WritableRoot {
 # STEP 1: Locate Quake base-game id1 (PAK0.PAK + PAK1.PAK)
 # -------------------------------------------------------
 Write-Header
+
+# =============================================================
+#  Which Quake VR?
+# =============================================================
+# !!! TWO SEPARATE PROJECTS. Vittorio Romeo's Quake VR is a VR mod of
+# its own design; GameOrDie007 ported Team Beef's QuakeQuest - the
+# standalone Quest build - across to PCVR. Different engines, different
+# feel, different folders. Both can be installed at once.
+Write-Host ""
+Write-Host "  Two Quake VR builds exist:" -ForegroundColor White
+Write-Host ""
+Write-Host "   [1] Quake VR by Vittorio Romeo" -ForegroundColor Cyan
+Write-Host "       Its own VR design - physical weapon handling, hand" -ForegroundColor Gray
+Write-Host "       interactions, a heavily reworked feel." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [2] Quake PCVR by GameOrDie007" -ForegroundColor Cyan
+Write-Host "       Team Beef's QuakeQuest brought to PC. Plays exactly like" -ForegroundColor Gray
+Write-Host "       the Quest version, at PC resolution. All six games from" -ForegroundColor Gray
+Write-Host "       Single Player, both mission packs and all four episodes." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Each lives in its own folder, so both can be installed." -ForegroundColor DarkGray
+Write-Host ""
+$quakePick = ""
+for ($k = 1; $k -le 20; $k++) {
+    $quakePick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
+    if ($quakePick -in @("1","2")) { break }
+    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+}
+if ($quakePick -eq "2") {
+    $pcvr = Join-Path $PSScriptRoot "QuakeVR-PCVR.ps1"
+    if (-not (Test-Path -LiteralPath $pcvr)) {
+        Write-Host "  The Quake PCVR installer is missing: $pcvr" -ForegroundColor Red
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    & $pcvr
+    exit 0
+}
+
 Write-Host " Quake VR by Vittorio Romeo - a QuakeSpasm-based VR port of Quake with" -ForegroundColor White
 Write-Host " full motion controls and room-scale movement (SteamVR/OpenVR)." -ForegroundColor White
 Write-Host ""
@@ -324,7 +363,12 @@ if ((Test-Path $musicSrc) -and -not (Test-Path $musicDst)) {
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ($failed.Count -eq 0) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {} }
+if ($failed.Count -eq 0) {
+    try {
+        Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force
+        Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_romeo") -Value $installRoot -Encoding UTF8 -Force
+    } catch {}
+}
 
 # -------------------------------------------------------
 # STEP 5: Summary + desktop shortcut + first-launch notes

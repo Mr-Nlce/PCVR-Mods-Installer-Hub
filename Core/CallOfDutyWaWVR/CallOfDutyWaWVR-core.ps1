@@ -154,7 +154,7 @@ $gameDir = Find-SteamGameFolder -AppId $APP_ID `
 if (-not $gameDir) {
     foreach ($c in @("C:\Program Files (x86)\Activision\Call of Duty - World at War",
                      "C:\Program Files\Activision\Call of Duty - World at War")) {
-        if (Test-Path -LiteralPath (Join-Path $c $GAME_EXE)) { $gameDir = $c; break }
+        if (Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf) { $gameDir = $c; break }
     }
 }
 if ($gameDir) {
@@ -263,6 +263,16 @@ if ($edition -eq "cut") {
             Write-Host "      Steam menu bar - View - Console." -ForegroundColor DarkGray
             Write-Host ""
         }
+        # !!! LOOK BEFORE ASKING (2026-08-29). Steam keeps a finished
+        # depot under steamapps\content, so a second run - or a run after
+        # a crash - already has the files. Asking first and probing only
+        # afterwards means telling the user to download it all again.
+        $script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+        if ($script:PreFoundDepot) {
+            Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+            Write-Info "Skipping the download."
+        }
+        if (-not $script:PreFoundDepot) {
         Pause-User "Press Enter to open the Steam Console..."
         # Both protocol addresses: depending on the Steam build only
         # one works.
@@ -271,32 +281,23 @@ if ($edition -eq "cut") {
         }
         Write-Host ""
         Pause-User "Press Enter once the depot download has finished..."
+        }
 
         # --- 2c) copy the depot content into the game -------------
         # THIS we take on, because we know the path and it would
         # otherwise be the most common point of failure.
         Write-Host ""
         Write-Info "Looking for the downloaded depot ..."
-        $steamRoot = $null
-        foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
-            try {
-                $v = Get-ItemProperty -Path $reg -ErrorAction Stop
-                if ($v.InstallPath) { $steamRoot = $v.InstallPath; break }
-                if ($v.SteamPath)   { $steamRoot = $v.SteamPath;   break }
-            } catch {}
-        }
         $depotDir = $null
-        if ($steamRoot) {
-            $c = Join-Path $steamRoot "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-            if (Test-Path -LiteralPath (Join-Path $c $GAME_EXE)) { $depotDir = $c }
-        }
+        if ($script:PreFoundDepot) { $depotDir = $script:PreFoundDepot }
+        if (-not $depotDir) { $depotDir = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE }
         if (-not $depotDir) {
             Write-Warn "The depot folder was not where it usually is."
             Write-Host "  It should be here:" -ForegroundColor White
             Write-Host "    <Steam>\steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID" -ForegroundColor Gray
             Write-Host "  Drag that folder in here, or leave empty to skip." -ForegroundColor White
             $raw = ("" + (Read-Host "  Depot folder")).Trim().Trim('"').TrimEnd('\')
-            if ($raw -and (Test-Path -LiteralPath (Join-Path $raw $GAME_EXE))) { $depotDir = $raw }
+            if ($raw -and (Test-Path -LiteralPath (Join-PathLexical $raw $GAME_EXE))) { $depotDir = $raw }
         }
 
         if ($depotDir -and $gameDir) {
@@ -392,7 +393,9 @@ Write-OK "Installed: $MOD_ROOT"
 
 # Marker for the Hub - into the INSTALLER folder.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $MOD_ROOT -Encoding UTF8 -Force } catch {}
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+if (Test-IsTrackableInstalledVersion -Version $tag) {
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

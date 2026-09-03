@@ -153,20 +153,64 @@ function Get-SteamLibraries {
     }
     return $libs
 }
-function Find-FearRetail {
-    # Return the folder holding FEAR.exe (Steam / GOG / retail).
+function Find-FearSteam {
+    # DR-89 supports the Steam Ultimate Shooter Edition only. Never allow
+    # the first chooser option to silently pick a GOG/retail copy.
     foreach ($lib in (Get-SteamLibraries (Get-SteamPath))) {
         foreach ($nm in @("FEAR Ultimate Shooter Edition","F.E.A.R. - Ultimate Shooter Edition","F.E.A.R. Ultimate Shooter Edition","FEAR","F.E.A.R.")) {
             $c = Join-Path $lib "steamapps\common\$nm"
             if (Test-Path -LiteralPath (Join-Path $c "FEAR.exe")) { return $c }
         }
     }
-    foreach ($c in @("C:\GOG Games\F.E.A.R. Platinum Collection",
-                     "C:\Program Files (x86)\GOG Galaxy\Games\F.E.A.R. Platinum Collection",
-                     "C:\Program Files\Sierra\FEAR")) {
-        if (Test-Path -LiteralPath (Join-Path $c "FEAR.exe")) { return $c }
+    return $null
+}
+function Find-FearGogForChooser {
+    # Mirrors the dedicated GOG installer's probe so the chooser can show
+    # useful status without changing that installer's behavior.
+    foreach ($root in @("C:\GOG Games", "D:\GOG Games", "E:\GOG Games",
+                        "C:\Program Files (x86)\GOG Galaxy\Games",
+                        "C:\Program Files\GOG Galaxy\Games")) {
+        foreach ($folder in @("F.E.A.R. Platinum Collection", "FEAR Platinum Collection",
+                              "F.E.A.R. Platinum", "FEAR")) {
+            $c = $root.TrimEnd([char[]]"\/") + "\" + $folder
+            if (Test-Path -LiteralPath ($c + "\FEAR.exe")) { return $c }
+        }
     }
     return $null
+}
+function Test-FearVrMarker {
+    param(
+        [string[]]$RecordFiles,
+        [string[]]$FallbackRoots,
+        [string[]]$RelativeMarkers
+    )
+    # A path record is only a lead; the mod-owned payload file is the
+    # evidence. This also upgrades older installs that only have the shared
+    # legacy .installed_path record without confusing the two VR mods.
+    $roots = New-Object System.Collections.Generic.List[string]
+    foreach ($recordFile in @($RecordFiles)) {
+        if (-not $recordFile -or -not (Test-Path -LiteralPath $recordFile -PathType Leaf)) { continue }
+        try {
+            $recorded = ([string](Get-Content -LiteralPath $recordFile -Raw -ErrorAction Stop)).Trim()
+            if ($recorded) { [void]$roots.Add($recorded) }
+        } catch {}
+    }
+    foreach ($root in @($FallbackRoots)) {
+        if ($root) { [void]$roots.Add([string]$root) }
+    }
+    $separator = [string][IO.Path]::DirectorySeparatorChar
+    foreach ($root in @($roots | Select-Object -Unique)) {
+        if (-not $root) { continue }
+        foreach ($marker in @($RelativeMarkers)) {
+            if (-not $marker) { continue }
+            try {
+                $nativeMarker = ([string]$marker).Replace('\', $separator).Replace('/', $separator)
+                $candidate = [IO.Path]::Combine([string]$root, $nativeMarker)
+                if ([IO.File]::Exists($candidate)) { return $true }
+            } catch {}
+        }
+    }
+    return $false
 }
 # True when a folder holds all five Public Tools modules.
 function Test-PtGameFolder {
@@ -241,6 +285,77 @@ function Test-PublicTools {
 }
 
 Write-Header
+
+$fearSteamRoot = Find-FearSteam
+$fearGogRoot = Find-FearGogForChooser
+$legacyPathRecord = Join-Path $SCRIPT_DIR ".installed_path"
+$fearSteamModAdded = Test-FearVrMarker `
+    -RecordFiles @((Join-Path $SCRIPT_DIR ".installed_path_dr89"), $legacyPathRecord) `
+    -FallbackRoots @($fearSteamRoot, "C:\Games\$GAME_FOLDER", "D:\Games\$GAME_FOLDER", "E:\Games\$GAME_FOLDER", $OLD_INSTALL_DIR) `
+    -RelativeMarkers @("bin\x64\fearvr-host.exe", "FEARVR\bin\x64\fearvr-host.exe")
+$fearGogModAdded = Test-FearVrMarker `
+    -RecordFiles @((Join-Path $SCRIPT_DIR ".installed_path_gog"), $legacyPathRecord) `
+    -FallbackRoots @($fearGogRoot) `
+    -RelativeMarkers @("fearvr_bridge.dll")
+
+# =============================================================
+#  Which build?
+# =============================================================
+# !!! TWO MODS, TWO GAME EDITIONS. DR-89's build targets the Steam
+# Ultimate Shooter Edition; thefreemike's targets the GOG Platinum
+# Collection and supports nothing else. They are separate projects by
+# separate authors, not two settings of one thing.
+Write-Host ""
+Write-Host "  Two VR mods exist for F.E.A.R., one per game edition:" -ForegroundColor White
+Write-Host ""
+Write-Host "   [1] DR-89 " -NoNewline -ForegroundColor Cyan
+Write-Host "- for the STEAM Ultimate Shooter Edition" -ForegroundColor White
+Write-Host "       Open source, downloaded automatically from GitHub." -ForegroundColor Gray
+if ($fearSteamRoot) {
+    if ($fearSteamModAdded) {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD WAS ADDED" -ForegroundColor Green
+    } else {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD CAN BE ADDED" -ForegroundColor Green
+    }
+    Write-Host "       $fearSteamRoot" -ForegroundColor DarkGreen
+} else {
+    Write-Host "       Steam game not detected" -ForegroundColor DarkGray
+}
+Write-Host ""
+Write-Host "   [2] thefreemike " -NoNewline -ForegroundColor Cyan
+Write-Host "- for the GOG Platinum Collection" -ForegroundColor White
+Write-Host "       Body holsters, physical pickups, two-handed props." -ForegroundColor Gray
+Write-Host "       Private beta, handed out in his Discord - you download it" -ForegroundColor Gray
+Write-Host "       yourself and drag it in." -ForegroundColor Gray
+if ($fearGogRoot) {
+    if ($fearGogModAdded) {
+        Write-Host "       GAME INSTALLED (GOG) - VR MOD WAS ADDED" -ForegroundColor Green
+    } else {
+        Write-Host "       GAME INSTALLED (GOG) - VR MOD CAN BE ADDED" -ForegroundColor Green
+    }
+    Write-Host "       $fearGogRoot" -ForegroundColor DarkGreen
+} else {
+    Write-Host "       GOG game not detected" -ForegroundColor DarkGray
+}
+Write-Host ""
+Write-Host "  Pick the one that matches the copy you own." -ForegroundColor DarkGray
+Write-Host ""
+$fearPick = ""
+for ($k = 1; $k -le 20; $k++) {
+    $fearPick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
+    if ($fearPick -in @("1","2")) { break }
+    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+}
+if ($fearPick -eq "2") {
+    $gogScript = Join-Path $PSScriptRoot "FearVR-Gog.ps1"
+    if (-not (Test-Path -LiteralPath $gogScript)) {
+        Write-Host "  The GOG installer is missing: $gogScript" -ForegroundColor Red
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    & $gogScript
+    exit 0
+}
 Write-Host "  F.E.A.R. VR is an open-source OpenXR mod for the single-player" -ForegroundColor Gray
 Write-Host "  base game of F.E.A.R. 1.08: native stereo rendering, full motion" -ForegroundColor Gray
 Write-Host "  controls, slow-mo, a hand flashlight and a VR settings page." -ForegroundColor Gray
@@ -248,14 +363,15 @@ Write-Host "  Confirmed on Quest 3 with SteamVR and VirtualDesktopXR." -Foregrou
 Write-Host ""
 Write-Host "  This is an early open beta built with heavy AI assistance." -ForegroundColor Yellow
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to begin (or close this window to cancel)..." | Out-Null
 
 # ---- 1. locate retail F.E.A.R. ------------------------------
 Write-Step 1 5 "Finding your F.E.A.R. installation"
-$retailRoot = Find-FearRetail
+$retailRoot = if ($fearSteamRoot) { $fearSteamRoot } else { Find-FearSteam }
 if (-not $retailRoot) {
-    Write-Fail "Could not find F.E.A.R. (looked in Steam, GOG and retail locations)."
-    Write-Host "  Install F.E.A.R. 1.08 (Ultimate Shooter Edition) first, then run" -ForegroundColor Gray
+    Write-Fail "Could not find the Steam Ultimate Shooter Edition."
+    Write-Host "  Install F.E.A.R. 1.08 (Ultimate Shooter Edition) in Steam, then run" -ForegroundColor Gray
     Write-Host "  this again. If it's on an unusual drive, make sure FEAR.exe is" -ForegroundColor Gray
     Write-Host "  present in the game folder." -ForegroundColor Gray
     Pause-User "Press Enter to exit..." | Out-Null
@@ -1281,7 +1397,10 @@ $batBody = @(
 ) -join "`r`n"
 try { Set-Content -Path $launchBat -Value $batBody -Encoding ASCII -Force } catch {}
 
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force } catch {}
+try {
+    Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force
+    Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path_dr89") -Value $INSTALL_DIR -Encoding UTF8 -Force
+} catch {}
 if (Test-Path -LiteralPath $launchBat) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $launchBat -Encoding UTF8 -Force } catch {}
     # The classic install.ps1 wrote "F.E.A.R. VR.lnk" to the desktop itself,
@@ -1299,7 +1418,14 @@ if (Test-Path -LiteralPath $launchBat) {
         } catch { Write-Warn "Could not write the desktop shortcut - start the game from the Hub." }
     }
 }
-if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
+if ($relTag) {
+    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
+    # Also next to the GAME (2026-08-20). The line above lives INSIDE the
+    # Hub folder and is gone the moment a new Hub build is dropped in -
+    # the next scan then finds no marker and seeds the CURRENT tag, which
+    # silently swallows a pending update. The game-side stamp survives.
+    try { Save-InstalledStamp -GameDir $installRoot -Version $relTag -HubDir $SCRIPT_DIR } catch {}
+}
 
 # Verify the launch route instead of assuming it. If the bat or the marker
 # is missing, the Hub falls back to steam://rungameid - which starts F.E.A.R.
@@ -1321,6 +1447,27 @@ if ($routeOk) {
     Write-Host "  or run this file directly:" -ForegroundColor Gray
     Write-Host "  $launchBat" -ForegroundColor Gray
 }
+# LAST STEP BEFORE THE WORK FOLDER GOES. F.E.A.R. has several install
+# routes and $INSTALL_DIR only settles at the end, so the check belongs
+# here - and the archive is still in $work, which the line below removes.
+# The folder to exclude is where the mod lives, which for the overlay
+# route is inside the game and otherwise its own folder.
+if ($INSTALL_DIR -and (Test-Path -LiteralPath $INSTALL_DIR)) {
+    # Watch archive-owned VR files, not the Public Tools source modules.
+    # Filtering with Test-Path here would hide a file that the scanner had
+    # already removed before this line was reached.
+    $avFilesOk = Confirm-PlacedFilesSurvive `
+        -Paths @((Join-Path $INSTALL_DIR "bin\x64\fearvr-host.exe"), (Join-Path $INSTALL_DIR "tools\play.ps1")) `
+        -GameDir $INSTALL_DIR `
+        -ArchivePath $zipPath
+    if (-not $avFilesOk) {
+        try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
+        Write-Fail "F.E.A.R. VR could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again." | Out-Null
+        exit 1
+    }
+}
+
 try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
 
 Write-Host ""

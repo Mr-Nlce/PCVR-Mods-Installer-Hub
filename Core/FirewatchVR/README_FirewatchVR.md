@@ -19,9 +19,11 @@
 ## How to install (external)
 1. Open the info page (itch.io) and download Two Forks VR (name-your-price; free is fine).
 2. Run `RaiManager.exe` (or use the itch.io app for automatic updates) and follow the installer.
-3. Launch Firewatch as usual; it starts in VR.
+3. Return to the Hub and run **Check Installed**. RaiManager may keep BepInEx beside its downloaded package instead of copying it into Firewatch. The Hub validates the `doorstop_config.ini` target, the Two Forks VR plug-in there, and Firewatch's loader before showing **VR Ready**. **Start in VR** then opens `Firewatch.exe`.
 
-> To uninstall: run `RaiManager.exe` again and click the uninstall button. Your game files and save progress are untouched.
+> Keep the RaiManager/package folder where it was when you installed the mod. Its location is written into `doorstop_config.ini`; moving, renaming, or deleting that folder breaks the mod. Reinstall through RaiManager if you want to place it somewhere permanent.
+
+> To uninstall: open the official RaiManager again and use its uninstall option. It is not stored at a stable path inside the game, so the Hub deliberately does not invent an **Uninstall now** executable.
 
 ## Controls
 Motion controls only. The in-game tutorials teach the VR buttons; if you already finished them, disable the "hide interface" option to see the button prompts. The tool picker opens with a controller button, and the radio is on the non-dominant hand's trigger. Left-handed mode is available.

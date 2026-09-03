@@ -19,7 +19,10 @@
 ## How to install (external)
 1. Open the info page and grab the latest JKXR release for PCVR.
 2. Follow Team Beef's instructions to point the port at your Jedi Outcast `GameData\base` assets.
-3. Launch in VR per the project's PCVR guide.
+3. Return to the Hub and select **Start in VR**. It launches `GameData\openjk_sp.x86_64.exe` with `GameData` as its working directory.
+
+## Uninstall
+When JKXR's Inno uninstaller exists, **Uninstall now** opens `GameData\unins000.exe`. This is the author's remover; the Hub does not delete Jedi Outcast assets itself.
 
 > In the campaign you start without the lightsaber or Force powers (as in the original). Use the Datapad cheat menu if you'd rather start fully armed.
 

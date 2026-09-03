@@ -9,7 +9,7 @@ This is a full motion-controller VR mod with bHaptics vest support. **OpenXR ONL
 - **BepInEx (IL2CPP)** - mod loader
 - **ViGEmBus driver** (optional, but required for VR controllers) - emulates an Xbox controller
 
-The mod files go into `<GameRoot>\release\` (the subfolder where `DecimateDrive.exe` lives), NOT the Steam folder root.
+The mod files go into `release\` inside the game folder, next to `release\DecimateDrive.exe`, NOT the Steam folder root.
 
 ## Requirements
 - Decimate Drive owned on Steam (App ID 2427950)
@@ -58,7 +58,7 @@ VR controllers, mapped roughly as follows:
 
 ## Configuration
 
-`<GameRoot>\release\BepInEx\config\DecimateDrive_VR.cfg`:
+`release\BepInEx\config\DecimateDrive_VR.cfg` inside the game folder:
 ```
 leftHanded = false # true = left-hand mode. Note: in menus, validate with LEFT trigger instead of right trigger.
 swapCrouchInput = false # true = crouch becomes R3/right-stick-click instead of right grip. Useful for Index controllers where the grip can be too sensitive.

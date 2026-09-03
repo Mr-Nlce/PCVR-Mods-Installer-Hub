@@ -10,8 +10,9 @@ game from the same zip.
 
 ## A different engine, a different folder
 
-BioShock 1 and 2 are remasters and keep their binaries in `Build\Final`.
-**Infinite does not.** It runs on Unreal Engine 3 and its binaries live in:
+BioShock 1 and 2 Remastered use `Build\Final` on Steam/GOG and
+`Build\FinalEpic` on Epic. **Infinite does not.** It runs on Unreal Engine 3
+and uses the `Binaries\Win32` folder on all three stores:
 
     ...\steamapps\common\BioShock Infinite\Binaries\Win32\
 
@@ -20,8 +21,8 @@ installer looks in the right place by itself.
 
 ## Which store editions work
 
-The mod is two DLLs dropped next to the game binaries, and **all three stores put
-those in the same place**:
+The mod's DLLs go next to the game executable in `Binaries\Win32`, and
+**all three stores use that same subfolder**:
 
     ...\BioShock Infinite\Binaries\Win32\
 

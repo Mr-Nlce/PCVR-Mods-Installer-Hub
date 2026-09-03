@@ -5,8 +5,8 @@ Automated installer for the **painkiller-vr-mod** by FluorescentHallucinogen - n
 ## What it does
 - Downloads the latest release from GitHub (the Hub flags the tile when a newer build ships).
 - Locates your Painkiller install (Steam / GOG, with a manual paste fallback).
-- **Backs up** the two original files the mod replaces (`PainKiller.exe`, `Engine.dll` -> `*.vrbak`), then copies the mod's four `Bin` files into `<game>\Bin`.
-- Enables VR by adding `Cfg.VideoVR = true` to `<game>\Bin\config.ini`.
+- **Backs up** the two original files the mod replaces (`Bin\PainKiller.exe`, `Bin\Engine.dll` -> `*.vrbak`), then copies the mod's four files into `Bin\` inside the game folder.
+- Enables VR by adding `Cfg.VideoVR = true` to `Bin\config.ini`.
 
 ## Requirements
 - **Painkiller 1.64** (Painkiller: Heaven's Got a Hitman and/or Battle Out of Hell). Black Edition on Steam is the tested build.
@@ -31,7 +31,7 @@ Set your OpenXR runtime, put your headset on, then launch with **Start in VR** i
 Compatible with other mods that do not modify the game's executable files (e.g. Painkiller Advanced Cheats).
 
 ## Back to flat
-Restore `PainKiller.exe.vrbak` and `Engine.dll.vrbak` in `\Bin` (drop the `.vrbak`), or set `Cfg.VideoVR = false` in `Bin\config.ini`.
+Restore `Bin\PainKiller.exe.vrbak` and `Bin\Engine.dll.vrbak` (drop the `.vrbak`), or set `Cfg.VideoVR = false` in `Bin\config.ini`.
 
 ## Info
 https://github.com/FluorescentHallucinogen/painkiller-vr-mod

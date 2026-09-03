@@ -27,8 +27,8 @@
 $Host.UI.RawUI.WindowTitle = "Mass Effect 1 VR Installer"
 $ErrorActionPreference = "Stop"
 
-$PATREON_URL   = "https://www.patreon.com/posts/166482031"
-$DIRECT_URL    = "https://www.patreon.com/file?h=166482031&m=716780057"
+$PATREON_URL   = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
+$DIRECT_URL    = "https://www.patreon.com/file?h=167394663&m=723054662"
 $STEAM_APPID   = "1328670"
 $STEAM_FOLDER  = "Mass Effect Legendary Edition"
 $ME1_SUBPATH   = "Game\ME1\Binaries\Win64"

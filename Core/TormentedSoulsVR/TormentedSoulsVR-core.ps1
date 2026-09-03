@@ -48,7 +48,7 @@ $DEPOT_COMMAND = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 # completely separate from the retail game.
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME = "Tormented Souls VR"
-$DEFAULT_PATH = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 # Game executable details
 $GAME_EXE = "TormentedSouls.exe"
@@ -125,10 +125,23 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
  Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
  Write-Host ""
 }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
 Pause-User "Press Enter to open the Steam Console..."
 # Both protocol addresses: depending on the Steam build only one works.
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 }
 Write-OK "Steam Console opening..."
 
@@ -153,28 +166,12 @@ foreach ($reg in @(
  } catch {}
 }
 
-$depotPath = $null
-
-if ($steamInstallPath) {
- $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
- Write-Info "Expected depot path: $autoPath"
- if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) {
- $depotPath = $autoPath
- Write-OK "Depot folder found automatically!"
- } else {
- Write-Warn "Depot folder not found at expected location."
- Write-Host " This usually means the download isn't finished yet," -ForegroundColor Gray
- Write-Host " or Steam used a different path." -ForegroundColor Gray
- }
-} else {
- Write-Warn "Could not find Steam installation in registry."
-}
+$probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+$depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+if ($depotPath) { Write-OK "Depot folder found automatically: $depotPath" }
+else { Write-Warn "Depot folder not found yet in any Steam library." }
 
 if (-not $depotPath) {
-    $probePaths = @()
-    if ($steamInstallPath) {
-        $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID")
-    }
     $depotPath = Resolve-DepotPath -GameName "Tormented Souls" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
     if (-not $depotPath) {
         Write-Fail "No depot folder provided."
@@ -184,7 +181,7 @@ if (-not $depotPath) {
 }
 
 # Sanity check: depot should contain the game exe
-$depotExe = Join-Path $depotPath $GAME_EXE
+$depotExe = Join-PathLexical $depotPath $GAME_EXE
 if (-not (Test-Path $depotExe)) {
  Write-Warn "'$GAME_EXE' not found inside depot."
  Write-Host " Expected: $depotExe" -ForegroundColor Gray
@@ -206,7 +203,7 @@ if (-not (Test-Path $depotExe)) {
 # -------------------------------------------------------
 Write-Step 2 4 "Moving game to stable folder"
 
-$parentOfDepot = Split-Path $depotPath -Parent # ...\app_1367590
+$parentOfDepot = Get-PathParentLexical $depotPath # ...\app_1367590
 
 Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
@@ -220,10 +217,10 @@ if (-not $userInput) {
 }
 
 # Make sure parent exists so the move can succeed
-$targetParent = Split-Path $targetPath -Parent
-if ($targetParent -and -not (Test-Path $targetParent)) {
- try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
- catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+$targetParent = Get-PathParentLexical $targetPath
+if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+ Write-Fail "The target folder is not writable: $targetParent"
+ Pause-User "Press Enter to exit..."; exit 1
 }
 
 Write-Host ""
@@ -235,7 +232,7 @@ Write-Host " future depot downloads. Moving to a stable name keeps the" -Foregro
 Write-Host " VR install safe and separate from your retail Tormented Souls." -ForegroundColor Gray
 Write-Host ""
 
-if (Test-Path $targetPath) {
+if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
  Write-Warn "A folder already exists at $targetPath"
  Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }

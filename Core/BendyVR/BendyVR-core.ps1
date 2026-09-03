@@ -36,7 +36,7 @@ $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 # Stable target for the depot build, kept off the Steam library
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME    = "Bendy VR"
-$DEFAULT_PATH   = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 # -------------------------------------------------------
 # Helpers
@@ -214,8 +214,8 @@ Write-Host ""
 $depotInstalledStatus = $null
 $depotInstalledColor  = "Gray"
 try {
-    $depotTargetCheck = Join-Path "C:\Games" "Bendy VR"
-    $depotExeCheck    = Join-Path $depotTargetCheck "Bendy and the Ink Machine.exe"
+    $depotTargetCheck = Join-PathLexical "C:\Games" "Bendy VR"
+    $depotExeCheck    = Join-PathLexical $depotTargetCheck "Bendy and the Ink Machine.exe"
     if (Test-Path $depotExeCheck) {
         $depotInstalledStatus = " [installed at $depotTargetCheck]"
         $depotInstalledColor  = "Green"
@@ -238,6 +238,22 @@ Write-Host "      build - on Steam it may not launch in VR. If it" -ForegroundCo
 Write-Host "      doesn't work, re-run and pick option 1." -ForegroundColor Gray
 Write-Host ""
 $mode = ""
+# !!! WMR HEADSETS ON THE OASIS DRIVER WILL PROBABLY NOT RUN THIS. On a
+# Reverb G2: the mod asks SteamVR for skeletal hand data every frame, the
+# Oasis driver does not provide it, and GetBonePositions throws in a loop
+# - the hands stay on the floor at the player origin. The depot build
+# failed the same way on the same machine, so changing the game build is
+# unlikely to help. Said here as well as in the readme, because the readme is not
+# what someone reads before installing.
+Write-Host ""
+Write-Host "  WARNING: WMR + OASIS WILL PROBABLY NOT WORK. " -NoNewline -ForegroundColor Black -BackgroundColor Red
+Write-Host ""
+Write-Host "  The mod needs SteamVR skeletal finger tracking, which Oasis" -ForegroundColor White
+Write-Host "  did not provide in our Reverb G2 test: the hands stayed on" -ForegroundColor White
+Write-Host "  the floor and the mod errored repeatedly. Both choices below" -ForegroundColor White
+Write-Host "  are likely affected. A future Oasis update may change this." -ForegroundColor White
+Write-Host ""
+
 while ($mode -notin @("1","2")) { $mode = (Read-Host " Enter 1 or 2").Trim() }
 
 # ============================================================
@@ -277,11 +293,24 @@ if ($mode -eq "1") {
         Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
         Write-Host ""
     }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
     Pause-User "Press Enter to open the Steam Console..."
     # Both protocol addresses: depending on the Steam build only one works.
     foreach ($cu in @("steam://open/console", "steam://nav/console")) {
         try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
     }
+}
     Write-OK "Steam Console opening..."
     Write-Host ""
     Pause-User "Press Enter once the Steam depot download is complete..."
@@ -290,24 +319,17 @@ if ($mode -eq "1") {
     Write-Host ""
     Write-Host " Looking for Steam installation..." -ForegroundColor White
     $steamInstallPath = Get-SteamPath
-    $depotPath = $null
-    if ($steamInstallPath) {
-        $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-        Write-Info "Expected depot path: $autoPath"
-        if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) { $depotPath = $autoPath; Write-OK "Depot folder found automatically!" }
-        else { Write-Warn "Depot folder not found yet at the expected location." }
-    } else {
-        Write-Warn "Could not find Steam installation in registry."
-    }
+    $probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+    $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+    if ($depotPath) { Write-OK "Depot folder found automatically: $depotPath" }
+    else { Write-Warn "Depot folder not found yet in any Steam library." }
     if (-not $depotPath) {
-        $probePaths = @()
-        if ($steamInstallPath) { $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID") }
         $depotPath = Resolve-DepotPath -GameName "Bendy and the Ink Machine" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
         if (-not $depotPath) { Write-Fail "No depot folder provided."; Pause-User "Press Enter to exit..."; exit 1 }
     }
 
     # Sanity check
-    $depotExe = Join-Path $depotPath $GAME_EXE
+    $depotExe = Join-PathLexical $depotPath $GAME_EXE
     if (-not (Test-Path $depotExe)) {
         Write-Warn "'$GAME_EXE' not found inside the depot."
         Write-Host " Expected: $depotExe" -ForegroundColor Gray
@@ -320,7 +342,7 @@ if ($mode -eq "1") {
 
     # Move + rename
     Write-Step 2 4 "Moving game to stable folder"
-    $parentOfDepot = Split-Path $depotPath -Parent
+    $parentOfDepot = Get-PathParentLexical $depotPath
     Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
     Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
     Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
@@ -328,13 +350,13 @@ if ($mode -eq "1") {
     $userInput = (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"')
     if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }
 
-    $targetParent = Split-Path $targetPath -Parent
-    if ($targetParent -and -not (Test-Path $targetParent)) {
-        try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-        catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+    $targetParent = Get-PathParentLexical $targetPath
+    if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+        Write-Fail "The target folder is not writable: $targetParent"
+        Pause-User "Press Enter to exit..."; exit 1
     }
 
-    if (Test-Path $targetPath) {
+    if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
         Write-Warn "A folder already exists at $targetPath"
         Write-Info "The pinned build will be merged into it; saves, configs, mods and other additional files are preserved."
     }
@@ -444,8 +466,10 @@ if (-not $gamePath) {
     $steamPath = Get-SteamPath
     if ($steamPath) {
         foreach ($lib in (Get-SteamLibraries $steamPath)) {
-            $c = Join-Path $lib "steamapps\common\$GAME_FOLDER"
-            if (Test-Path $c) { $gamePath = $c; break }
+            # Lexical: $lib comes from libraryfolders.vdf and may name a drive
+            # that no longer exists - Join-Path would resolve it and throw.
+            $c = Join-PathLexical $lib "steamapps\common\$GAME_FOLDER"
+            if (Test-LiteralPathSafe -Path $c -PathType Container) { $gamePath = $c; break }
         }
     }
 }

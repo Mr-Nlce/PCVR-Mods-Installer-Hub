@@ -64,7 +64,7 @@ To switch variants later, re-run the installer in **Update / Switch** mode and p
 
 ## Config: mounts, snap turning, etc.
 
-Edit `<WoW folder>\vr\config.txt`:
+Edit `vr\config.txt` inside your WoW game folder:
 
 - **Mount shortcut:** set `groundMountID` and `flyingMountID` to a Wowhead **spell ID** (NOT item ID). Example for Sea Turtle: `groundMountID: 64731` (from `wowhead.com/wotlk/spell=64731/sea-turtle`)
 - **Snap turning:** `snapRotateX` / `snapRotateY` = 0 disables, 1 enables. Adjust `snapRotateAmountX` / `snapRotateAmountY` for the degrees per step.

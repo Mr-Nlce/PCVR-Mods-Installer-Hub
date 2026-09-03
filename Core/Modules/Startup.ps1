@@ -247,8 +247,14 @@ $window.Add_Activated({
         # and unlikely after a fresh Steam install.
         $vrInstalled = $false
         if ($game.ModFile) {
-            $modPath = Join-Path $gameDir $game.ModFile
-            if (Test-Path $modPath) {
+            # A mod may have more than one legitimate on-disk marker. Halo
+            # MCC, for example, uses HaloMCCVR.dll in the prerelease channel
+            # and halo3xr.dll in Latest/Stable. The full scan already accepts
+            # all three catalog marker fields; startup must reach the same
+            # verdict or a correctly installed channel disappears on launch.
+            if (Test-RelativePathMarker -Root $gameDir -Values @($game.ModFile, $game.ModFileAlt, $game.ModFileAlt2)) {
+                $vrInstalled = $true
+            } elseif ($game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $gameDir -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile)) {
                 $vrInstalled = $true
             } elseif ($game.VrInstallRoot) {
                 $altRoot = $game.VrInstallRoot
@@ -261,8 +267,7 @@ $window.Add_Activated({
                 } elseif ($altRoot -like "USERPROFILE:*") {
                     $altRoot = Join-Path ([Environment]::GetFolderPath("UserProfile")) ($altRoot.Substring("USERPROFILE:".Length))
                 }
-                $altPath = Join-Path $altRoot $game.ModFile
-                if (Test-Path $altPath) {
+                if (Test-RelativePathMarker -Root $altRoot -Values @($game.ModFile, $game.ModFileAlt, $game.ModFileAlt2)) {
                     $vrInstalled = $true
                     if ($game.VrInstallEvidence) {
                         foreach ($ev in $game.VrInstallEvidence) {

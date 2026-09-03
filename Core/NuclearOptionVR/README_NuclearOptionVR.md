@@ -1,53 +1,44 @@
 # Nuclear Option VR
 
-**NOVR** by InfernoSuperNova is a reworked build of **UUVR (Universal Unity VR)** designed and optimized specifically for Nuclear Option, the Shockfront Studios combat flight game.
+**NOVR** by **InfernoSuperNova** adds stereoscopic VR to Nuclear Option while keeping the game's normal gamepad, keyboard and HOTAS controls.
 
-This is an **external mod**: the Hub button links you straight to the official NOVR releases page. There is no Hub installer - you run NOVR's own GUI installer, which handles everything for you (and can update, repair, or uninstall NOVR later).
+## Install
 
-## Requirements
-- Nuclear Option on Steam
-- SteamVR (NOVR uses the OpenVR runtime)
-- BepInEx **5.x** only - do NOT use 6.x unless the project explicitly says it is supported (the GUI installer handles this for you)
-
-## Recommended: GUI installer
-1. Close Nuclear Option before installing or updating.
-2. Download the latest installer from the NOVR releases page:
-   - Windows: `NOVR.Installer-Win.exe`
-   - Linux / Proton: `NOVR.Installer-Linux`
-3. Run the installer. On Linux you may need to make it executable first: `chmod +x NOVR.Installer-Linux`.
-4. If Nuclear Option is not found automatically, choose the game folder manually - the folder must contain `NuclearOption_Data/Managed`.
-5. Click Install.
-6. Launch Nuclear Option from Steam.
-
-## What the installer does
-- Finds your Nuclear Option install
-- Installs BepInEx 5.x if it is missing
-- Downloads the latest NOVR release zip
-- Installs NOVR into `BepInEx/plugins/NOVR` and `BepInEx/patchers/NOVR`
-- Writes the installed version to `BepInEx/plugins/NOVR/version.txt`
-- On Linux/Proton, configures the `winhttp` Wine override that BepInEx needs
-
-## Manual zip install (fallback)
-Use this only if the GUI installer does not work for your setup.
 1. Close Nuclear Option.
-2. Install BepInEx 5.x into the game folder - afterwards `Nuclear Option/BepInEx/core` should exist.
-3. Download `NOVR.zip` from the latest NOVR release.
-4. Extract the contents of `NOVR.zip` into `Nuclear Option/BepInEx` (NOT the game root - the zip already contains `plugins` and `patchers` folders).
-5. Confirm these files exist:
+2. Select **Install Mod** in the Hub.
+3. The Hub downloads verified **BepInEx 5** only when needed, then downloads the current `NOVR.zip` and installs its `plugins\NOVR` and `patchers\NOVR` folders.
+4. Start Nuclear Option with **Start in VR** here or through Steam.
 
-```
-Nuclear Option/BepInEx/plugins/NOVR/NOVR.dll
-Nuclear Option/BepInEx/patchers/NOVR/NOVR.Patcher.dll
-```
+The small `NOVR.zip` is the complete current NOVR payload. It is much smaller than the retired GUI installer because BepInEx is no longer bundled in that release; the Hub supplies it separately.
 
-6. Launch Nuclear Option from Steam.
+## First launch
 
-## First launch behavior
-On startup, the NOVR BepInEx patcher copies the required XR support files into `NuclearOption_Data`. These may be overwritten every time the game starts. If the game is already running while installing or rebuilding, Windows can block those files from being replaced - so always close Nuclear Option before installing, updating, or building the mod.
+NOVR's patcher copies its XR support files into `NuclearOption_Data` when the game starts. Let that first start finish before judging the install.
 
-## Credits
-- **NOVR** by InfernoSuperNova - https://github.com/InfernoSuperNova/novr
-- Fork of **UUVR** by Raicuparta - https://github.com/Raicuparta/uuvr
-- Built on BepInEx (downloaded as a managed dependency by the installer)
+The first VR start can show only a grey view, with the left eye white and the right eye black. Watch the desktop mirror instead of trying to navigate blind. Let the game reach its menu, close it, then launch it in VR once more if the headset view does not recover.
 
->>> Arm the payload, bank hard, and rule the contested skies.
+## Controls and starting a flight
+
+NOVR adds VR rendering and head tracking, not motion controls. Use a physical [[Gamepad]], HOTAS, or keyboard and mouse. With a gamepad, switch the first prompt to **Gamepad** and continue normally.
+
+Some later menus and the map remain mouse-first. The reliable route is the desktop mirror with [[Mouse]]:
+
+1. Open or join a mission.
+2. Click an airbase on the map.
+3. Click **Select Aircraft** at the bottom, choose an aircraft, and continue into the cockpit.
+
+If **Select Aircraft** will not react, this is a [known NOVR cursor-layer issue](https://github.com/InfernoSuperNova/novr/issues/40). Click once elsewhere on the map, close and reopen the map, then retry the button through the desktop mirror. Once inside the cockpit, the game's normal gamepad, keyboard, or HOTAS bindings apply and can be changed under **Settings -> Controls**.
+
+## Flat / VR
+
+Use the **VR / Flat** switch on this page. It parks or restores the BepInEx loader; do not rename files by hand.
+
+## Uninstall
+
+Select **Uninstall now** beside the guide. It removes only NOVR's plugin and patcher folders. Shared BepInEx, configurations, saves and unrelated mods remain. First-launch XR support files are deliberately retained because they may be shared or replaced by the game and are inert without NOVR.
+
+## More info
+
+Project and releases: https://github.com/InfernoSuperNova/novr
+
+> Jets are complicated enough before you strap the cockpit to your face.

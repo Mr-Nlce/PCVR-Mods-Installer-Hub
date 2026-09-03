@@ -23,7 +23,14 @@ The installer asks which one you want: **balouza**, **BioVRDev**, or **both**. I
 ## If you install both - the one thing to know
 Both mods put their files in the **same folder**, and their payload DLLs are called `BioshockVR.dll` and `bioshockvr.dll` - on Windows that is the **same filename**. They physically cannot sit there together, so **only one can be active at a time**.
 
-The installer handles it: each mod is parked in `Build\Final\_vrmods\<mod>\`, and only the active one has its files next to the exe. Two launchers in `Build\Final\VRLaunch\` do the swap and then start the game through Steam:
+The installer handles it: each mod is parked under `_vrmods` beside the game executable, and only the active one has its files next to the exe. The parent differs by store:
+
+| Store | Parked mods | Launchers |
+|---|---|---|
+| Steam / GOG | `Build\Final\_vrmods\` | `Build\Final\VRLaunch\` |
+| Epic | `Build\FinalEpic\_vrmods\` | `Build\FinalEpic\VRLaunch\` |
+
+The `balouza` and `biovrdev` subfolders keep the two mods separate. The two launchers swap the active mod and then start the game:
 
 - `BioShock VR (balouza).bat`
 - `BioShock VR (BioVRDev).bat`

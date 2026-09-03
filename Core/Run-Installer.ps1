@@ -20,7 +20,12 @@ param(
     [string]$GameTitle  = "",
     [string]$GameFolder = "",
     [string]$GameExe    = "",
-    [string]$LogsDir    = ""
+    [string]$LogsDir    = "",
+    [string]$StatusPath = "",
+    [string]$VersionPath = "",
+    [string]$VersionPathB = "",
+    [string]$InstallPath = "",
+    [string]$InstallerChoice = ""
 )
 
 $ErrorActionPreference = 'Continue'
@@ -129,9 +134,52 @@ switch ($Kind) {
         } catch {}
     }
 }
+if ($InstallerChoice) { $coreArgs['Mod'] = $InstallerChoice }
 
 $transcriptOn = $false
 try { Start-Transcript -LiteralPath $log -Append -ErrorAction Stop | Out-Null; $transcriptOn = $true } catch {}
+
+# Snapshot the exact files the Hub reads before the installer runs.  A
+# successful core may write an authoritative downloaded tag; generic older
+# installers write no version at all.  The parent must distinguish those
+# cases, otherwise its old "clear and reseed" step erases good Forza-style
+# markers as soon as they are written.
+function Get-MarkerSnapshot {
+    param([string]$Path)
+    $o = [ordered]@{ Path = $Path; Exists = $false; Ticks = 0; Length = 0; Value = '' }
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return [pscustomobject]$o }
+    try {
+        $i = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        $o.Exists = $true
+        $o.Ticks = $i.LastWriteTimeUtc.Ticks
+        $o.Length = $i.Length
+        $o.Value = "" + (Get-Content -LiteralPath $Path -Raw -ErrorAction SilentlyContinue)
+    } catch {}
+    return [pscustomobject]$o
+}
+
+function Test-MarkerChanged {
+    param($Before, $After)
+    if (-not $Before -or -not $After) { return $false }
+    return (($Before.Path -cne $After.Path) -or ($Before.Exists -ne $After.Exists) -or ($Before.Ticks -ne $After.Ticks) -or
+            ($Before.Length -ne $After.Length) -or ($Before.Value -cne $After.Value))
+}
+
+function Get-RecordedInstallRoot {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    try {
+        $v = ("" + (Get-Content -LiteralPath $Path -Raw -ErrorAction Stop)).Trim()
+        if ($v -and (Test-Path -LiteralPath $v -PathType Container)) { return $v }
+    } catch {}
+    return $null
+}
+
+$beforeVersion  = Get-MarkerSnapshot -Path $VersionPath
+$beforeVersionB = Get-MarkerSnapshot -Path $VersionPathB
+$beforeRoot = Get-RecordedInstallRoot -Path $InstallPath
+$beforeGameVersion  = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $beforeRoot '.pcvrhub_version' } else { '' })
+$beforeGameVersionB = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $beforeRoot '.pcvrhub_version_b' } else { '' })
 
 try {
     if ($coreScript -and (Test-Path $coreScript)) {
@@ -139,12 +187,30 @@ try {
         try { & $coreScript @coreArgs } finally { Pop-Location }
         # Core returned normally (no 'exit') = the install ran to the
         # end. A cancel inside the core calls 'exit' first and never
-        # reaches here, so this marker means a real (re)install. The Hub
-        # reads it next to .installed_version to decide whether to reseed
-        # the tracked version after the installer window closes.
+        # reaches here. Record whether either authoritative version marker
+        # was really written during THIS run; the parent uses that fact to
+        # preserve exact installer values and only seeds legacy installers.
         try {
-            $okMk = Join-Path (Split-Path $coreScript -Parent) ".update_ok"
-            [System.IO.File]::WriteAllText($okMk, (Get-Date -Format o), (New-Object System.Text.UTF8Encoding $false))
+            $afterVersion  = Get-MarkerSnapshot -Path $VersionPath
+            $afterVersionB = Get-MarkerSnapshot -Path $VersionPathB
+            $afterRoot = Get-RecordedInstallRoot -Path $InstallPath
+            $afterGameVersion  = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version' } else { '' })
+            $afterGameVersionB = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version_b' } else { '' })
+            $primaryWritten = (Test-MarkerChanged -Before $beforeVersion -After $afterVersion) -or
+                              (Test-MarkerChanged -Before $beforeGameVersion -After $afterGameVersion)
+            $secondaryWritten = (Test-MarkerChanged -Before $beforeVersionB -After $afterVersionB) -or
+                                (Test-MarkerChanged -Before $beforeGameVersionB -After $afterGameVersionB)
+            $okMk = $StatusPath
+            if ([string]::IsNullOrWhiteSpace($okMk)) { $okMk = Join-Path (Split-Path $coreScript -Parent) ".update_ok" }
+            $okParent = Split-Path -Parent $okMk
+            if ($okParent -and -not (Test-Path -LiteralPath $okParent)) { New-Item -ItemType Directory -Path $okParent -Force | Out-Null }
+            $status = [ordered]@{
+                completedAt = (Get-Date -Format o)
+                versionWritten = [bool]$primaryWritten
+                versionBWritten = [bool]$secondaryWritten
+                installedPath = [string]$afterRoot
+            }
+            [System.IO.File]::WriteAllText($okMk, ($status | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding $false))
         } catch {}
     } else {
         # Could not resolve a core .ps1: run the bat the old way. No pipe, so

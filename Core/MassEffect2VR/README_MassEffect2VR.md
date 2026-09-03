@@ -31,8 +31,8 @@ will stay free as well.
 2. Gets MELE2-VR from the creator's public Patreon post (checks your
    Downloads folder first; otherwise it opens the post and you drag
    the zip in)
-3. Places the four mod files next to MassEffect2.exe
-   (...\Game\ME2\Binaries\Win64) - asking for Administrator rights
+3. Places the four mod files in `Game\ME2\Binaries\Win64`, next to
+   `Game\ME2\Binaries\Win64\MassEffect2.exe` - asking for Administrator rights
    only if that folder needs them
 4. Runs the mod's own interactive setup where you pick the VR mode
    and image quality
@@ -98,7 +98,7 @@ EA/Origin on a machine that has never run the game.
 - A gamepad
 
 ## Mod page
-https://www.patreon.com/dhalcyon/posts/suicide-mission-165506412
+https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663
 
 ## Support dhalcyon
 dhalcyon develops the MELE-VR mods. If you enjoy their work, consider

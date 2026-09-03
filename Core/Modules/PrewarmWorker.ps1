@@ -57,7 +57,20 @@ function Merge-CacheEntry {
 function Get-GithubTagBackground {
     # Same source as the Hub's getter: the /releases/latest WEB redirect (not
     # the rate-limited API). HEAD only; the tag is in the final URL.
-    param([string]$Repo)
+    param([string]$Repo, [bool]$IncludePrerelease = $false)
+    if ($IncludePrerelease) {
+        try {
+            $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=10" `
+                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 15 -EA Stop
+            foreach ($rel in @($rels)) {
+                $candidate = [string]$rel.tag_name
+                if (-not $rel.draft -and $candidate -and $candidate -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
+                    return $candidate.Trim()
+                }
+            }
+        } catch {}
+        return $null
+    }
     try {
         $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 15 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
         $final = ""
@@ -68,7 +81,8 @@ function Get-GithubTagBackground {
         if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
         if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
         if ($final -match '/releases/tag/([^/?#]+)') {
-            return [System.Uri]::UnescapeDataString($matches[1]).Trim()
+            $stableTag = [System.Uri]::UnescapeDataString($matches[1]).Trim()
+            if ($stableTag -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') { return $stableTag }
         }
     } catch {}
     return $null
@@ -105,9 +119,11 @@ try {
         try {
             $now = [DateTime]::UtcNow
             if ([string]$it.K -eq "gh") {
-                $tag = Get-GithubTagBackground -Repo ([string]$it.A)
+                $pre = [bool]$it.P
+                $tag = Get-GithubTagBackground -Repo ([string]$it.A) -IncludePrerelease:$pre
                 if ($tag) {
-                    Merge-CacheEntry -File $ghCacheFile -Key ([string]$it.A) -Entry @{ tag = $tag; checked = $now.ToString("o") }
+                    $cacheKey = if ($pre) { ([string]$it.A) + "#pre" } else { [string]$it.A }
+                    Merge-CacheEntry -File $ghCacheFile -Key $cacheKey -Entry @{ tag = $tag; checked = $now.ToString("o") }
                 }
             } else {
                 $ver = Get-WebVersionBackground -Url ([string]$it.A)

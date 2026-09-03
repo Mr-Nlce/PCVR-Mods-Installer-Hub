@@ -35,7 +35,7 @@ $DEPOT_MANIFEST = "8725320754369790225"
 $DEPOT_COMMAND = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME = "Content Warning VR"
-$DEFAULT_PATH = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 $LEGACY_URLS = @{
  BepInEx = "https://thunderstore.io/package/download/BepInEx/BepInExPack/5.4.2304/"
@@ -183,8 +183,8 @@ Write-Host ""
 $depotInstalledStatus = $null
 $depotInstalledColor  = "Gray"
 try {
- $depotTargetCheck = Join-Path "C:\Games" "Content Warning VR"
- $depotExeCheck    = Join-Path $depotTargetCheck "Content Warning.exe"
+ $depotTargetCheck = Join-PathLexical "C:\Games" "Content Warning VR"
+ $depotExeCheck    = Join-PathLexical $depotTargetCheck "Content Warning.exe"
  if (Test-Path $depotExeCheck) {
    $depotInstalledStatus = " [installed at $depotTargetCheck]"
    $depotInstalledColor  = "Green"
@@ -212,8 +212,10 @@ if (-not $useLegacy) {
  $sp = Get-SteamPath
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries $sp)) {
- $c=Join-Path $lib "steamapps\common\$GAME_NAME"
- if(Test-Path(Join-Path $c $GAME_EXE)){$gamePath=$c;Write-Info "Found: $gamePath";break}
+ # Lexical: $lib comes from libraryfolders.vdf and may name a drive
+ # that no longer exists - Join-Path would resolve it and throw.
+ $c=Join-PathLexical $lib "steamapps\common\$GAME_NAME"
+ if(Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf){$gamePath=$c;Write-Info "Found: $gamePath";break}
  }
  }
  if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2881650" -SteamFolderNames @("Content Warning") -ProbeExe "Content Warning.exe" }
@@ -246,7 +248,8 @@ if (-not $useLegacy) {
 
  if ($toInstall.Count -eq 0) {
  Write-Host ""; Write-Host " [OK] All packages are up to date!" -ForegroundColor Green; Write-Host ""
- Pause-User "Press Enter to exit."; exit 0
+ # Do not exit here: the common finish block below still has to persist
+ # path and exact version for a first run of this Hub.
  }
 
  Write-Host ""; Write-Host " $($toInstall.Count) package(s) to install/update." -ForegroundColor White
@@ -299,29 +302,31 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
  Write-Host ""
  }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
  Pause-User "Press Enter to open the Steam Console..."
  # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
+}
  Pause-User "Press Enter once the Steam depot download is complete..."
 
  # Locate depot
  $steamPath = Get-SteamPath
- $depotPath = $null
- $probePaths = @()
- if ($steamPath) {
- $auto = Join-Path $steamPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
- $probePaths += $auto
- if ((Test-Path $auto) -and (Test-Path (Join-Path $auto $GAME_EXE))) { $depotPath = $auto; Write-Info "Depot found: $depotPath" }
- }
- if (-not $depotPath) {
- foreach ($lib in (Get-SteamLibraries $steamPath)) {
- $auto = Join-Path $lib "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
- $probePaths += $auto
- if ((Test-Path $auto) -and (Test-Path (Join-Path $auto $GAME_EXE))) { $depotPath = $auto; Write-Info "Depot found: $depotPath"; break }
- }
- }
+ $probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamPath))
+ $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamPath)
+ if ($depotPath) { Write-Info "Depot found: $depotPath" }
  if (-not $depotPath) {
  $depotPath = Resolve-DepotPath -GameName "Content Warning" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
  if (-not $depotPath) {
@@ -345,19 +350,19 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  $targetPath = $userInput
  }
 
- $targetParent = Split-Path $targetPath -Parent
- if ($targetParent -and -not (Test-Path $targetParent)) {
- try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
- catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ $targetParent = Get-PathParentLexical $targetPath
+ if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+ Write-Fail "The target folder is not writable: $targetParent"
+ Pause-User "Press Enter to exit..."; exit 1
  }
 
- if (Test-Path $targetPath) {
+ if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
  Write-Warn "Folder already exists: $targetPath"
  Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
  }
  $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Content Warning depot build"
  Write-Info "Installed at: $targetPath"
- try { $pd=Split-Path $depotPath -Parent; if((Get-ChildItem $pd -Force|Measure-Object).Count -eq 0){Remove-Item $pd -Force} } catch {}
+ try { $pd=Get-PathParentLexical $depotPath; if((Get-ChildItem -LiteralPath $pd -Force|Measure-Object).Count -eq 0){Remove-Item -LiteralPath $pd -Force} } catch {}
 
  $gamePath = $targetPath
 
@@ -385,6 +390,16 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 
  $cwvrVersion = $LEGACY_CWVR_VERSION
+}
+
+# Persist the exact build from THIS installer run. This is intentionally
+# common to current and pinned-depot mode: using Thunderstore's current live
+# value for a legacy install would record a build that was never installed.
+$cwvrProof = Join-Path $gamePath "BepInEx\plugins\CWVR\CWVR.dll"
+if ($cwvrVersion -and (Test-Path -LiteralPath $cwvrProof)) {
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $cwvrVersion -Encoding UTF8 -Force } catch {}
+ Save-InstalledStamp -GameDir $gamePath -Version $cwvrVersion
 }
 
 # -------------------------------------------------------

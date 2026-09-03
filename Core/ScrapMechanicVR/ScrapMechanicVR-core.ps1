@@ -84,7 +84,7 @@ $DEPOT_COMMAND  = $DEPOTS[1].Command
 
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME    = "Scrap Mechanic VR"
-$DEFAULT_PATH   = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 # -------------------------------------------------------
 # Helpers
@@ -131,7 +131,9 @@ function Get-SteamLibraries {
 function Find-GamePath {
  foreach ($lib in (Get-SteamLibraries (Get-SteamPath))) {
   $cand = "$lib\steamapps\common\$GAME_NAME"
-  try { if (Test-Path -LiteralPath (Join-Path $cand $GAME_EXE)) { return $cand } } catch {}
+  # Lexical: $cand is built from a library path that may be on a drive
+  # that no longer exists.
+  try { if (Test-Path -LiteralPath (Join-PathLexical $cand $GAME_EXE)) { return $cand } } catch {}
  }
  return $null
 }
@@ -209,6 +211,19 @@ function Install-ManualMod {
   return $null
  }
  Write-OK "VR files installed."
+
+ # A scanner often sweeps a moment after the write; the archive is still
+ # in the temp folder here, so recovery can unpack it again inside the
+ # game folder.
+ $avFilesOk = Confirm-PlacedFilesSurvive `
+     -Paths @((Join-Path $gamePath $MOD_FILE), (Join-Path $gamePath $LAUNCH_PS1)) `
+     -GameDir $gamePath `
+     -ArchivePath $zipPath
+ if (-not $avFilesOk) {
+  Write-Fail "Scrap Mechanic VR could not be restored after the antivirus check."
+  Pause-User "Press Enter to exit, then run the installer again."
+  return $null
+ }
 
  # Write our own launch bat next to Start-NativeVR.ps1. Start-Process
  # cannot run a .ps1 directly, and the script sets $env:SteamAppId and
@@ -325,6 +340,7 @@ Write-Host ""
 Write-Host "  Lands in $DEFAULT_PATH or a folder of your choice." -ForegroundColor Gray
 Write-Host "  Your retail Steam copy stays untouched and keeps updating." -ForegroundColor Gray
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..."
 
 # ============================================================
@@ -373,6 +389,18 @@ Pause-User "Press Enter to start..."
   $clipOk = $false
   try { Set-Clipboard -Value $d.Command; $clipOk = $true } catch {}
   Write-Host ""
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
   if ($step -eq 1) { Pause-User "Press Enter to open the Steam Console..." }
   else            { Pause-User "Press Enter to bring the Steam Console back to the front..." }
   # Both protocol addresses: depending on the Steam version only one
@@ -380,6 +408,7 @@ Pause-User "Press Enter to start..."
   foreach ($cu in @("steam://open/console", "steam://nav/console")) {
       try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
   }
+}
   Write-OK "Steam Console in front."
   Write-Host ""
   if ($clipOk) {
@@ -400,15 +429,11 @@ Pause-User "Press Enter to start..."
   Write-Host ""
   Pause-User "Press Enter once THIS download has finished..."
 
-  $found = $null
-  if ($steamInstallPath) {
-   $auto = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$($d.Id)"
-   if (Test-Path $auto) { $found = $auto; Write-OK "Found: $auto" }
-   else { Write-Warn "Not at the expected place: $auto" }
-  }
+  $probe = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $d.Id -AdditionalSteamRoots @($steamInstallPath))
+  $found = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $d.Id -GameExe $GAME_EXE_LEAF -AdditionalSteamRoots @($steamInstallPath)
+  if ($found) { Write-OK "Found: $found" }
+  else { Write-Warn "Depot not found yet in any Steam library." }
   if (-not $found) {
-   $probe = @()
-   if ($steamInstallPath) { $probe += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$($d.Id)") }
    $found = Resolve-DepotPath -GameName "$GAME_NAME ($($d.Label))" -DepotCommand $d.Command -GameExe $GAME_EXE_LEAF -ProbePaths $probe -AppId $DEPOT_APPID -DepotId $d.Id -Manifest $d.Manifest
   }
   if (-not $found) { Write-Fail "Depot $($d.Id) not found - cannot continue."; Pause-User "Press Enter to exit..."; exit 1 }
@@ -449,7 +474,7 @@ Pause-User "Press Enter to start..."
 
  # Move to stable folder
  Write-Step 2 4 "Moving game to stable folder"
- $parentOfDepot = Split-Path $depotPath -Parent
+ $parentOfDepot = Get-PathParentLexical $depotPath
  Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
  Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
  Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
@@ -457,13 +482,13 @@ Pause-User "Press Enter to start..."
  $userInput = (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"')
  if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }
 
- $targetParent = Split-Path $targetPath -Parent
- if ($targetParent -and -not (Test-Path $targetParent)) {
-  try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-  catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ $targetParent = Get-PathParentLexical $targetPath
+ if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+  Write-Fail "The target folder is not writable: $targetParent"
+  Pause-User "Press Enter to exit..."; exit 1
  }
 
- if (Test-Path $targetPath) {
+ if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
   Write-Warn "A folder already exists at $targetPath"
   Write-Info "Merging the pinned build; saves, NativeVR files, mods and other additional files are preserved."
  }

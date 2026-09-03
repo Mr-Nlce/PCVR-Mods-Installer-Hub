@@ -42,7 +42,10 @@ $REPO_API_LATEST   = "https://api.github.com/repos/heurazy/HytaleVRInjector-mod/
 $RELEASES_LATEST   = "https://github.com/heurazy/HytaleVRInjector-mod/releases/latest"
 $INFO_URL          = "https://github.com/heurazy/HytaleVRInjector-mod"
 # Last-known-good windows-x64 asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/heurazy/HytaleVRInjector-mod/releases/download/v1.0.0/HytaleVRInjector-mod-v1.0.0-windows-x64.zip"
+# Bumped to v1.0.4 (2026-08-28). Only ever used when the API cannot be
+# reached - the normal path resolves the newest release itself. Address
+# tested: the v1.0.4 asset answers 200 under this exact name.
+$KNOWN_FALLBACK_ZIP = "https://github.com/heurazy/HytaleVRInjector-mod/releases/download/v1.0.4/HytaleVRInjector-mod-v1.0.4-windows-x64.zip"
 $GAME_FOLDER       = "Hytale VR"
 $DASH_EXE          = "hytale_camera_dashboard.exe"
 $COMBO_BAT         = "Start Hytale VR.bat"
@@ -86,6 +89,7 @@ Write-Host ""
 Write-Host "  NOTE: close Hytale before installing or updating - a hook DLL" -ForegroundColor Yellow
 Write-Host "  that is already injected cannot be replaced while the game runs." -ForegroundColor Yellow
 Write-Host "  The view is centered manually per session (see the final steps)." -ForegroundColor Gray
+Show-AntivirusNotice
 Pause-User "Press Enter to begin the installation or update..." | Out-Null
 
 # ---- 0. sanity check: is Hytale itself installed? ------------
@@ -256,6 +260,10 @@ while (-not $exeItem) {
     $exeItem = Get-ChildItem -Path $unpack -Filter $DASH_EXE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
+$placedFiles = @(Get-ChildItem -LiteralPath $payloadDir -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
+    $rel = $_.FullName.Substring($payloadDir.Length).TrimStart('\')
+    Join-Path $gameRoot $rel
+})
 
 $placedOk = $false
 while (-not $placedOk) {
@@ -279,6 +287,20 @@ while (-not $placedOk) {
         if ([string]$fb -eq "skip") { break }
     }
 }
+# Hytale's mod is an injector, which is exactly the shape scanners react
+# to. The temp folder still holds the archive at this point, so recovery
+# can unpack it again inside the game folder.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths $placedFiles `
+    -GameDir $gameRoot `
+    -ArchivePath $zipDest
+if (-not $avFilesOk) {
+    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Write-Fail "Hytale VR could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again." | Out-Null
+    exit 1
+}
+
 Write-OK "Mod installed at: $gameRoot"
 
 # ---- 4. combo launcher + desktop shortcut + finish -----------
@@ -363,8 +385,20 @@ try {
     # Version marker for the Update tile: the EXACT GitHub tag (string-
     # compared against the latest tag by the background check). Fallback
     # v1.0.0 covers the pinned-URL path when the API was unreachable.
-    $verTag = if ($script:LatestTag) { $script:LatestTag } else { "v1.0.0" }
-    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
+    # !!! NO HARD-CODED FALLBACK (2026-08-20). "v1.0.0" ages with every
+    # release the author publishes: once he is past it, the tile shows an
+    # Update badge that reinstalling can never clear, because the
+    # installer writes the same stale number again. Exactly the bug that
+    # plagued Forza. With NO marker the next scan seeds the current tag,
+    # which is self-healing.
+    $verTag = $script:LatestTag
+    if ($verTag) {
+        try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
+        # Also next to the GAME, so a new Hub build does not lose it.
+        try { Save-InstalledStamp -GameDir $installRoot -Version $verTag -HubDir $SCRIPT_DIR } catch {}
+    } else {
+        try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+    }
 } catch {}
 
 Write-Host ""

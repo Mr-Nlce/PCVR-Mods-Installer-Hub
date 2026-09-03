@@ -235,6 +235,7 @@ $global:OvGenreColors = @{
     "PUZZLE"    = "#dd9922"
     "SIM"       = "#88aa44"
     "FREE"      = "#34D399"
+    "NEW"       = "#38BDF8"
 }
 
 # Genre icons. Built programmatically as Geometry objects -
@@ -416,6 +417,14 @@ function global:New-OvGenreIcon {
             $bow.Figures.Add($rf) | Out-Null
             $g.Children.Add($bow) | Out-Null
         }
+        "NEW" {
+            # Two clean sparkle crosses: instantly reads as fresh/new at the
+            # same small size as the other line icons.
+            & $addLine 8 1.5 8 10.5
+            & $addLine 3.5 6 12.5 6
+            & $addLine 12.5 10.5 12.5 14.5
+            & $addLine 10.5 12.5 14.5 12.5
+        }
     }
 
     return $g
@@ -430,9 +439,10 @@ function global:Build-OvGenreFilter {
     foreach ($g in $global:OverviewGenres) {
         $chips += @{ Key=$g.Key; Label=$g.Label }
     }
-    # FREE is not a genre but lives in the same row as a quick
-    # filter to the free games (matched by Title, not by tag).
+    # FREE and NEW are cross-genre shortcuts. NEW deliberately comes
+    # immediately after FREE and uses the same rolling title list as search.
     $chips += @{ Key="FREE"; Label="Free" }
+    $chips += @{ Key="NEW"; Label="New" }
     foreach ($c in $chips) {
         $accent = $global:OvGenreColors[$c.Key]
         if (-not $accent) { $accent = "#dd6600" }
@@ -449,6 +459,7 @@ function global:Build-OvGenreFilter {
                                  -IsActive ($c.Key -eq "ALL") `
                                  -AccentColor $accent `
                                  -IconGeometry $iconGeo
+        if ($c.Key -eq 'NEW') { $chip.ToolTip = 'Added to the Hub during the last 10.5 days' }
         $keyCap = $c.Key
         $chip.Add_MouseLeftButtonUp({
             $global:OvActiveGenre = $keyCap
@@ -1017,14 +1028,15 @@ function global:Apply-OvFilters {
     if (-not $global:OvGenreRowsPanel) { return }
     $genreKey = if ($global:OvActiveGenre) { $global:OvActiveGenre } else { "ALL" }
     $powerKey = if ($global:OvActivePower) { $global:OvActivePower } else { "ALL" }
-    # FREE is a cross-genre filter: keep every genre row, but show
-    # only the free titles inside each (rows with none collapse via
-    # the visibleCount check below).
+    # FREE and NEW are cross-genre filters: keep every genre row, but show
+    # only titles from their shared catalog-derived lists inside each.
     $freeOnly = ($genreKey -eq "FREE")
+    $newOnly  = ($genreKey -eq "NEW")
+    $crossGenreOnly = ($freeOnly -or $newOnly)
 
     foreach ($row in $global:OvGenreRowsPanel.Children) {
         $rowGenre = $row.Resources.Item("genreKey")
-        $genreOk = ($genreKey -eq "ALL") -or $freeOnly -or ($rowGenre -eq $genreKey)
+        $genreOk = ($genreKey -eq "ALL") -or $crossGenreOnly -or ($rowGenre -eq $genreKey)
         if (-not $genreOk) {
             $row.Visibility = [System.Windows.Visibility]::Collapsed
             continue
@@ -1057,6 +1069,7 @@ function global:Apply-OvFilters {
                 if (-not $g) { continue }
                 $show = $true
                 if ($freeOnly -and ($global:FREE_GAME_TITLES -notcontains $g.Title)) { $show = $false }
+                if ($newOnly -and ($global:NEW_GAME_TITLES -notcontains $g.Title)) { $show = $false }
                 if ($maxPowerIdx -ge 0) {
                     $bucket = Get-GamePowerBucket -Game $g
                     $bucketIdx = Get-OverviewPowerBucketIndex -Key $bucket
@@ -1506,4 +1519,3 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
         }
     }
 })
-

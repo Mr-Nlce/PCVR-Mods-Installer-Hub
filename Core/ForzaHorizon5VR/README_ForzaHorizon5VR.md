@@ -44,7 +44,7 @@ The launcher window has three columns:
 ## How to play
 
 1. Start with **Start in VR** in the Hub, or the **Forza Horizon 5 VR** desktop shortcut (or run
-   `vrmod-launcher.exe` from the install folder).
+   `vrmod-launcher.exe` from the separate VR mod directory, `C:\Games\Forza Horizon 5 VR` by default).
 2. Add/select Forza Horizon 5 and click **Install VR Mod** (first run
    only).
 3. Start SteamVR (or your OpenXR runtime), then click **Play in VR**.

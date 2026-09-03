@@ -80,7 +80,10 @@ Launch with **Start in VR** in the Hub, or from the **The Witcher 3 VR** desktop
 ## Start the game once first
 The VR launcher works on the game's own DirectX 12 profile:
 
-`C:\Users\<You>\Documents\The Witcher 3\dx12user.settings`
+`Documents\The Witcher 3\dx12user.settings`
+
+Here `Documents` means your Windows Documents location, including a redirected
+OneDrive location if configured; it is not a subfolder of the game.
 
 **The game writes that file, the mod does not.** On a fresh install it does not exist yet, and neither does it exist if you have only ever played the DirectX 11 version - DX11 and DX12 keep separate profiles (`user.settings` and `dx12user.settings`).
 
@@ -114,7 +117,7 @@ The launcher's **Configure Settings for VR** rewrites your whole DirectX 12 prof
 
 Close the game, open
 
-`C:\Users\<You>\Documents\The Witcher 3\dx12user.settings`
+`Documents\The Witcher 3\dx12user.settings`
 
 in Notepad, find the `[Localization]` section and set all four lines to the language you want:
 

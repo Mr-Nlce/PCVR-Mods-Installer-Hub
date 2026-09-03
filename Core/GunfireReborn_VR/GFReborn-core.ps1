@@ -18,7 +18,7 @@ $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 # game launches via a desktop shortcut, not via Steam.
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME    = "Gunfire Reborn VR"
-$DEFAULT_PATH   = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 $GAME_EXE       = "Gunfire Reborn.exe"
 
 $VRMOD_URL    = "https://github.com/Astienth/gunfire-reborn-bhaptics/releases/download/1.0.0/GunfireRebornVR.V1.0.9.1.zip"
@@ -69,7 +69,7 @@ function Get-SteamLibraries {
         $found = [regex]::Matches($content, '"path"\s+"([^"]+)"')
         foreach ($m in $found) {
             $lib = $m.Groups[1].Value -replace '\\\\', '\'
-            if (Test-Path $lib) { $libraries += $lib }
+            if (Test-LiteralPathSafe -Path $lib -PathType Container) { $libraries += $lib }
         }
     }
     return $libraries
@@ -115,10 +115,23 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host "      next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
     Write-Host ""
 }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
 Pause-User "Press Enter to open the Steam Console..."
 # Both protocol addresses: depending on the Steam build only one works.
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 }
 Write-OK "Steam Console opening..."
 
@@ -146,21 +159,12 @@ if (-not $steamPath) {
     }
 }
 
-$depotPath = $null
-$autoPath = Join-Path $steamPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-Write-Info "Expected depot path: $autoPath"
-if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) {
-    $depotPath = $autoPath
-    Write-OK "Depot folder found automatically!"
-} else {
-    Write-Warn "Depot folder not found at expected location."
-}
+$probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamPath))
+$depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamPath)
+if ($depotPath) { Write-OK "Depot folder found automatically: $depotPath" }
+else { Write-Warn "Depot folder not found in any Steam library." }
 
 if (-not $depotPath) {
-    $probePaths = @()
-    if ($steamInstallPath) {
-        $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID")
-    }
     $depotPath = Resolve-DepotPath -GameName "Gunfire Reborn" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
     if (-not $depotPath) {
         Write-Fail "No depot folder provided."
@@ -190,19 +194,19 @@ if (-not $userInput) {
     $targetPath = $userInput
 }
 
-$targetParent = Split-Path $targetPath -Parent
-if ($targetParent -and -not (Test-Path $targetParent)) {
-    try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-    catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+$targetParent = Get-PathParentLexical $targetPath
+if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+    Write-Fail "The target folder is not writable: $targetParent"
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
-if (Test-Path $targetPath) {
+if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
     Write-Warn "A folder already exists at $targetPath"
     Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }
 
 try {
-    $parentOfDepot = Split-Path $depotPath -Parent
+    $parentOfDepot = Get-PathParentLexical $depotPath
     $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Gunfire Reborn depot build"
     Write-OK "Game installed at: $targetPath"
     # Clean up empty app_<id> folder

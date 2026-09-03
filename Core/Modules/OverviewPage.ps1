@@ -212,8 +212,10 @@ function global:New-OverviewTile {
     $tile.Resources.Add("flash", $flash)
 
     # Glow: an outer drop-shadow tinted to the game's accent
-    # colour. Pre-attached with Opacity 0 so it costs nothing at
-    # idle, then faded in on MouseEnter. We pre-brighten the
+    # colour. Create it now but attach it only on hover/click. In WPF an
+    # Effect with Opacity 0 still rasterizes its full input surface, so an
+    # invisible effect on every idle tile makes scrolling needlessly costly.
+    # We pre-brighten the
     # accent toward white so dark accents still read as a glow,
     # and keep the blur tight so it reads as a clean rim, not a
     # soft halo. ShadowDepth = 0 paints the shadow evenly around
@@ -230,7 +232,6 @@ function global:New-OverviewTile {
     $glow.BlurRadius = 14
     $glow.ShadowDepth = 0
     $glow.Opacity = 0
-    $tile.Effect = $glow
     $tile.Resources.Add("glow", $glow)
 
     # Closures must capture these before any event handler is
@@ -262,6 +263,8 @@ function global:New-OverviewTile {
     $tile.Add_MouseLeftButtonDown({
         $flashCap.Opacity = 0.10
         $this.Tag = "pressed"
+        $this.Effect = $glowCap
+        $glowCap.Opacity = 0.95
         $tileCap = $this
         $fcap = $flashCap
         $gcap = $glowCap
@@ -271,6 +274,7 @@ function global:New-OverviewTile {
             $this.Stop()
             $fcap.Opacity = 0
             $gcap.Opacity = 0
+            $tileCap.Effect = $null
             $tileCap.Tag = $null
             $tileCap.RenderTransform = $null
             $tileCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
@@ -284,6 +288,7 @@ function global:New-OverviewTile {
         $this.RenderTransformOrigin = New-Object System.Windows.Point 0.5, 0.5
         $this.RenderTransform = $sc
         $this.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+        $this.Effect = $glowCap
         $glowCap.Opacity = 0.95
     }.GetNewClosure())
     $tile.Add_MouseLeave({
@@ -297,6 +302,7 @@ function global:New-OverviewTile {
         $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
         $this.RenderTransform = $null
         $glowCap.Opacity = 0
+        $this.Effect = $null
     }.GetNewClosure())
 
     return $tile
@@ -854,15 +860,16 @@ function global:Set-OvBannerForActiveGenre {
         Set-OvBanner
         return
     }
-    if ($genreKey -eq "FREE") {
+    if ($genreKey -eq "FREE" -or $genreKey -eq "NEW") {
         $pool = @(); $pool += $ownGames; $pool += $ownGamesGP; $pool += $externalGames
-        $freePool = @($pool | Where-Object { $_.Title -and ($global:FREE_GAME_TITLES -contains $_.Title) })
-        if ($freePool.Count -eq 0) { return }
+        $specialTitles = if ($genreKey -eq 'FREE') { $global:FREE_GAME_TITLES } else { $global:NEW_GAME_TITLES }
+        $specialPool = @($pool | Where-Object { $_.Title -and ($specialTitles -contains $_.Title) })
+        if ($specialPool.Count -eq 0) { return }
         $cur = if ($global:OvBannerGame) { $global:OvBannerGame.Title } else { $null }
-        if ($cur -and $freePool.Count -gt 1) { $freePool = @($freePool | Where-Object { $_.Title -ne $cur }) }
-        $game = $freePool[(Get-Random -Minimum 0 -Maximum $freePool.Count)]
+        if ($cur -and $specialPool.Count -gt 1) { $specialPool = @($specialPool | Where-Object { $_.Title -ne $cur }) }
+        $game = $specialPool[(Get-Random -Minimum 0 -Maximum $specialPool.Count)]
         $global:OvBannerGame = $game
-        $kicker = "BROWSING FREE GAMES"
+        $kicker = if ($genreKey -eq 'FREE') { "BROWSING FREE GAMES" } else { "BROWSING NEW VR MODS" }
         $global:OvBannerKickerText = $kicker
         Set-BannerForGame -Game $game `
             -TitleEl  ($window.FindName("OvBannerTitle")) `
@@ -941,4 +948,3 @@ function global:Set-HubSetting {
         $obj | ConvertTo-Json -Compress | Set-Content -Path $global:HubSettingsFile -Encoding UTF8
     } catch { }
 }
-

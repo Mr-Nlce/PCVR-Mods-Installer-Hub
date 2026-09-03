@@ -20,7 +20,7 @@ A full Virtual Reality conversion of the 2007 Crytek shooter **Crysis** by modde
 1. Open the info page and go to the mod's **Releases**.
 2. Download the latest `crysis-vrmod-x.y.exe` installer (ignore the other files).
 3. Run it and point it at your Crysis folder. On Steam: right-click Crysis -> Manage -> Browse local files.
-4. The installer creates `CrysisVR.exe` in the game's `Bin64` folder - run that to play in VR.
+4. The installer creates VR launchers in `Bin32` and `Bin64`. Use **Start in VR** in the Hub; it opens `Bin64\CrysisVR.exe` with the correct working folder. The 32-bit launcher is also accepted as a valid installed marker.
 
 > It does not matter if the flat game won't launch on its own - just install the mod and play in VR.
 
@@ -38,6 +38,9 @@ Crysis in VR is **demanding** - both because it's Crysis and because of how the 
 
 ## Savegame note
 Saves live in `Documents\My Games\Crysis VR`. To migrate old flat-game saves, copy the `SaveGames` folder from `Documents\My Games\Crysis` into the VR folder manually.
+
+## Uninstall
+Use **Uninstall now** on this page. It opens the author's generated `Uninstall_CrysisVR.exe`; the Hub does not guess at individual Crysis files.
 
 ## Credits
 - VR mod by **fholger** (Holger Frydrych) - https://github.com/fholger/crysis_vrmod

@@ -60,7 +60,7 @@ $DEPOT_MANIFEST = "6744259790683578909"
 $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 $DEPOT_DEFAULT_PARENT = "C:\Games"
 $DEPOT_TARGET_NAME    = "Ready or Not VR"
-$DEPOT_DEFAULT_PATH   = Join-Path $DEPOT_DEFAULT_PARENT $DEPOT_TARGET_NAME
+$DEPOT_DEFAULT_PATH   = Join-PathLexical $DEPOT_DEFAULT_PARENT $DEPOT_TARGET_NAME
 # Steam's DirectX 11 entry as a plain switch - the depot copy has
 # no Steam dropdown to select it from.
 $DX11_OPT             = "-dx11"
@@ -135,8 +135,10 @@ function Find-SteamRon {
         } catch {}
     }
     foreach ($lib in ($libs | Select-Object -Unique)) {
-        $cand = Join-Path $lib "steamapps\common\$STEAM_FOLDER"
-        if (Test-Path (Join-Path $cand $GAME_EXE)) { return $cand }
+        # Lexical throughout: $lib comes from libraryfolders.vdf and may
+        # name a drive that is gone. Join-Path would resolve it and throw.
+        $cand = Join-PathLexical $lib "steamapps\common\$STEAM_FOLDER"
+        if (Test-Path -LiteralPath (Join-PathLexical $cand $GAME_EXE)) { return $cand }
     }
     return $null
 }
@@ -366,6 +368,16 @@ if ($isDepot) {
         Write-Host "      from inside a streaming session. If it does not, use" -ForegroundColor DarkGray
         Write-Host "      Steam's menu bar - View - Console." -ForegroundColor DarkGray
     }
+    # !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+    # steamapps\content, so a second run already has the files.
+    # Prompting first and probing only afterwards sends the user to
+    # fetch 50 GB that are already on disk.
+    $script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+    if ($script:PreFoundDepot) {
+        Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+        Write-Info "Skipping the download - nothing to fetch again."
+    }
+    if (-not $script:PreFoundDepot) {
     Pause-User "Press Enter to open the Steam Console..."
 
     # STEAM MUST BE RUNNING, otherwise the protocol handler swallows
@@ -430,6 +442,7 @@ if ($isDepot) {
     Write-Host "    found, and the next step offers DepotDownloader instead." -ForegroundColor DarkGray
     Write-Host ""
     Pause-User "Press Enter once the depot download has finished..."
+    }
 
     # Where Steam put it. Registry first, then the shared resolver
     # (which also offers the DepotDownloader fallback).
@@ -437,22 +450,15 @@ if ($isDepot) {
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { $steamInstallPath = $p; break } } catch {}
     }
-    $depotPath = $null
-    if ($steamInstallPath) {
-        $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-        Write-Info "Expected depot folder: $autoPath"
-        if (Test-Path $autoPath) { $depotPath = $autoPath; Write-OK "Depot folder found." }
-        else { Write-Warn "Not at the expected location - the download may still be running." }
-    } else {
-        Write-Warn "Could not read the Steam path from the registry."
-    }
+    $probe = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+    $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+    if ($depotPath) { Write-OK "Depot folder found: $depotPath" }
+    else { Write-Warn "Depot folder not found yet in any Steam library." }
     if (-not $depotPath) {
-        $probe = @()
-        if ($steamInstallPath) { $probe += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID") }
         $depotPath = Resolve-DepotPath -GameName $GAME_NAME -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probe -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
     }
     if (-not $depotPath) { Write-Fail "No depot folder - cannot continue."; Pause-User "Press Enter to exit..."; exit 1 }
-    if (-not (Test-Path (Join-Path $depotPath $GAME_EXE))) {
+    if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $depotPath $GAME_EXE) -PathType Leaf)) {
         Write-Warn "$GAME_EXE is not in $depotPath - that may be the wrong folder."
     }
 
@@ -470,17 +476,17 @@ if ($isDepot) {
     Write-Host ""
     $answer = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
     $targetPath = if ($answer) { $answer } else { $DEPOT_DEFAULT_PATH }
-    $targetParent = Split-Path $targetPath -Parent
-    if ($targetParent -and -not (Test-Path $targetParent)) {
-        try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-        catch { Write-Fail "Could not create $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+    $targetParent = Get-PathParentLexical $targetPath
+    if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+        Write-Fail "The target folder is not writable: $targetParent"
+        Pause-User "Press Enter to exit..."; exit 1
     }
-    if (Test-Path $targetPath) {
+    if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
         Write-Warn "Something is already at $targetPath"
         Write-Info "Merging the pinned build; saves, custom Paks and other additional files are preserved."
     }
     try {
-        $parentOfDepot = Split-Path $depotPath -Parent
+        $parentOfDepot = Get-PathParentLexical $depotPath
         $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "Ready or Not depot build"
         Write-OK "Build installed at: $targetPath"
         try {
@@ -495,7 +501,7 @@ if ($isDepot) {
     # Outside the Steam library the game has no app id to read, so it
     # gets one next to the exe - otherwise Steamworks can bounce it
     # back to Steam or refuse to start.
-    try { Set-Content -Path (Join-Path $targetPath "steam_appid.txt") -Value $DEPOT_APPID -Encoding ASCII -NoNewline -Force; Write-OK "steam_appid.txt written." }
+    try { Set-Content -Path (Join-PathLexical $targetPath "steam_appid.txt") -Value $DEPOT_APPID -Encoding ASCII -NoNewline -Force; Write-OK "steam_appid.txt written." }
     catch { Write-Warn "Could not write steam_appid.txt - if the game bounces to Steam, create it by hand with: $DEPOT_APPID" }
     # A folder of your own is perfectly fine: the Hub reads the chosen
     # path from .installed_path (Get-DepotCandidatePaths); the catalog

@@ -1,4 +1,4 @@
-# Subtle scale-up on hover for non-clickable elements (hero
+﻿# Subtle scale-up on hover for non-clickable elements (hero
 # banner, description images, info pills). RenderTransform = no
 # layout shift, no clipping issues. Origin centered.
 # ------------------------------------------------------------
@@ -47,6 +47,23 @@ function global:Add-HoverScale {
     })
 }
 
+# Decode Steam portrait art close to the largest on-screen Library tile size
+# instead of keeping every 600x900 source fully decoded. At 250+ games this
+# removes hundreds of megabytes of bitmap pressure. The DPI-aware cap retains
+# full sharpness on scaled displays and never upscales beyond Steam's source.
+function global:Get-LibraryPortraitDecodeWidth {
+    if ($global:LibraryPortraitDecodeWidth) { return [int]$global:LibraryPortraitDecodeWidth }
+    $w = 320
+    try {
+        $dpi = [System.Windows.Media.VisualTreeHelper]::GetDpi($global:window)
+        $w = [int][Math]::Ceiling(285.0 * $dpi.DpiScaleX)
+    } catch { }
+    if ($w -lt 320) { $w = 320 }
+    if ($w -gt 600) { $w = 600 }
+    $global:LibraryPortraitDecodeWidth = $w
+    return $w
+}
+
 function global:New-DiscoverTile {
     param($Game)
     $tile = New-Object System.Windows.Controls.Border
@@ -56,6 +73,7 @@ function global:New-DiscoverTile {
     $dim = $global:DiscoverTileSizes[$sizeKey]
     $tile.Width  = $dim.W
     $tile.Height = $dim.H
+    $portraitDecodeWidth = Get-LibraryPortraitDecodeWidth
     # Vertical margin big enough that the hover glow (drop-shadow,
     # blur radius 14) can render above and below the tile without
     # being clipped by the row above/the WrapPanel itself. Same
@@ -115,11 +133,24 @@ function global:New-DiscoverTile {
     if ($portraitUrl) {
         $img = New-Object System.Windows.Controls.Image
         $img.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+        # Linear filtering is sufficient because the bitmap is decoded almost
+        # exactly at its physical display width. It is substantially cheaper
+        # than Fant resampling while the portrait grid is moving.
+        [System.Windows.Media.RenderOptions]::SetBitmapScalingMode(
+            $img,
+            [System.Windows.Media.BitmapScalingMode]::LowQuality
+        )
         try {
             $bmp = New-Object System.Windows.Media.Imaging.BitmapImage
             $bmp.BeginInit()
-            $bmp.UriSource = New-Object System.Uri $portraitUrl
-            $bmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $bmpUri = New-Object System.Uri $portraitUrl
+            $bmp.UriSource = $bmpUri
+            $bmp.DecodePixelWidth = $portraitDecodeWidth
+            $bmp.CacheOption = if ($bmpUri.IsFile) {
+                [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            } else {
+                [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
+            }
             # If the portrait fails (older Steam titles often miss
             # library_600x900.jpg), fall back through:
             # fastly portrait -> akamai header -> fastly header.
@@ -134,9 +165,9 @@ function global:New-DiscoverTile {
                         $hb = New-Object System.Windows.Media.Imaging.BitmapImage
                         $hb.BeginInit()
                         $hb.UriSource = New-Object System.Uri (Get-SteamPortraitUrlFastly $sidCap)
-                        $hb.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                        $hb.DecodePixelWidth = $portraitDecodeWidth
+                        $hb.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
                         $hb.EndInit()
-                        if ($hb.CanFreeze) { $hb.Freeze() }
                         $imgRef.Source = $hb
                         $imgRef.Stretch = [System.Windows.Media.Stretch]::UniformToFill
                         return
@@ -147,10 +178,16 @@ function global:New-DiscoverTile {
                     try {
                         $hb = New-Object System.Windows.Media.Imaging.BitmapImage
                         $hb.BeginInit()
-                        $hb.UriSource = New-Object System.Uri $hdrCap
-                        $hb.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                        $hbUri = New-Object System.Uri $hdrCap
+                        $hb.UriSource = $hbUri
+                        $hb.DecodePixelWidth = $portraitDecodeWidth
+                        $hb.CacheOption = if ($hbUri.IsFile) {
+                            [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                        } else {
+                            [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
+                        }
                         $hb.EndInit()
-                        if ($hb.CanFreeze) { $hb.Freeze() }
+                        if ($hbUri.IsFile -and $hb.CanFreeze) { $hb.Freeze() }
                         $imgRef.Source = $hb
                         $imgRef.Stretch = [System.Windows.Media.Stretch]::UniformToFill
                         return
@@ -162,16 +199,16 @@ function global:New-DiscoverTile {
                         $hb = New-Object System.Windows.Media.Imaging.BitmapImage
                         $hb.BeginInit()
                         $hb.UriSource = New-Object System.Uri (Get-SteamHeaderUrlFastly $sidCap)
-                        $hb.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                        $hb.DecodePixelWidth = $portraitDecodeWidth
+                        $hb.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
                         $hb.EndInit()
-                        if ($hb.CanFreeze) { $hb.Freeze() }
                         $imgRef.Source = $hb
                         $imgRef.Stretch = [System.Windows.Media.Stretch]::UniformToFill
                     } catch { }
                 }
             }.GetNewClosure())
             $bmp.EndInit()
-            if ($bmp.CanFreeze) { $bmp.Freeze() }
+            if ($bmpUri.IsFile -and $bmp.CanFreeze) { $bmp.Freeze() }
             $img.Source = $bmp
         } catch { }
         $grid.Children.Add($img) | Out-Null
@@ -257,6 +294,8 @@ function global:New-DiscoverTile {
     $ts.Color = [System.Windows.Media.Color]::FromRgb(0,0,0)
     $ts.BlurRadius = 6; $ts.ShadowDepth = 1; $ts.Opacity = 0.95
     $titleTxt.Effect = $ts
+    # Small, static text shadow: cache once so scrolling only moves it.
+    $titleTxt.CacheMode = New-Object System.Windows.Media.BitmapCache
     $titleStack.Children.Add($titleTxt) | Out-Null
 
     $grid.Children.Add($titleStack) | Out-Null
@@ -299,6 +338,7 @@ function global:New-DiscoverTile {
         $freeShadowPt.ShadowDepth = 1
         $freeShadowPt.Opacity = 0.9
         $freePillPt.Effect = $freeShadowPt
+        $freePillPt.CacheMode = New-Object System.Windows.Media.BitmapCache
         $freeTxtPt = New-Object System.Windows.Controls.TextBlock
         $freeTxtPt.Text = "FREE"
         $freeTxtPt.FontSize = 9
@@ -343,8 +383,9 @@ function global:New-DiscoverTile {
     # Accent-colored glow on hover - same pattern as the explore-
     # area tiles in OverviewPage.ps1. Pre-brighten the accent 50%
     # toward white so dark accents still read as a halo. Effect is
-    # pre-attached at Opacity=0 (no perf cost) and faded in on
-    # MouseEnter, reset on MouseLeave + the press-auto-reset timer.
+    # created up front but attached only during hover/click. An Effect with
+    # Opacity=0 still makes WPF rasterize the full tile-sized frame, so leaving
+    # it attached to every idle tile is a major scrolling cost.
     $accentRawDt = if ($Game.Accent) { $Game.Accent } else { "#ffcc66" }
     $accentColorDt = [System.Windows.Media.ColorConverter]::ConvertFromString($accentRawDt)
     $glowRDt = [byte]([Math]::Round($accentColorDt.R * 0.5 + 255 * 0.5))
@@ -356,7 +397,6 @@ function global:New-DiscoverTile {
     $glowDt.BlurRadius = 14
     $glowDt.ShadowDepth = 0
     $glowDt.Opacity = 0
-    $glowFrame.Effect = $glowDt
     $tile.Resources.Add("glow", $glowDt)
     $tile.Resources.Add("glowFrame", $glowFrame)
     $glowCapDt = $glowDt
@@ -370,6 +410,7 @@ function global:New-DiscoverTile {
         # clear it regardless of where the mouse ended up.
         $gcap = $this.Resources["glow"]
         $gfcap = $this.Resources["glowFrame"]
+        if ($gfcap -and $gcap) { $gfcap.Effect = $gcap; $gcap.Opacity = 0.95 }
         $resetT = New-Object System.Windows.Threading.DispatcherTimer
         $resetT.Interval = [TimeSpan]::FromMilliseconds(2600)
         $resetT.Add_Tick({
@@ -379,6 +420,7 @@ function global:New-DiscoverTile {
             $tileCap.RenderTransform = $null
             if ($gfcap) { $gfcap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32") }
             if ($gcap) { $gcap.Opacity = 0 }
+            if ($gfcap) { $gfcap.Effect = $null }
         }.GetNewClosure())
         $resetT.Start()
     }.GetNewClosure())
@@ -396,7 +438,7 @@ function global:New-DiscoverTile {
         $gf = $this.Resources["glowFrame"]
         if ($gf) { $gf.BorderBrush = [System.Windows.Media.Brushes]::Transparent }
         $g = $this.Resources["glow"]
-        if ($g) { $g.Opacity = 0.95 }
+        if ($gf -and $g) { $gf.Effect = $g; $g.Opacity = 0.95 }
     })
     $tile.Add_MouseLeave({
         # Skip reset if pressed - press state persists until the
@@ -407,6 +449,7 @@ function global:New-DiscoverTile {
         $this.RenderTransform = $null
         $g = $this.Resources["glow"]
         if ($g) { $g.Opacity = 0 }
+        if ($gf) { $gf.Effect = $null }
     }.GetNewClosure())
 
     return $tile
@@ -1597,6 +1640,58 @@ function global:New-ClearLocationButton {
     return $btn
 }
 
+# Read and update one conventional INI value without replacing the rest of
+# the file. A few ports expose their official Flat / VR switch as a setting
+# instead of a proxy rename; preserving comments and unrelated settings is
+# essential because the file belongs to the game/mod, not to the Hub.
+function global:Get-FlatVRIniValue {
+    param([string]$Path, [string]$Section, [string]$Key)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
+    $inside = $false
+    try {
+        foreach ($line in @(Get-Content -LiteralPath $Path -ErrorAction Stop)) {
+            if ($line -match '^\s*\[([^\]]+)\]\s*$') {
+                $inside = ($matches[1] -ieq $Section)
+                continue
+            }
+            if ($inside -and $line -match ('^\s*' + [regex]::Escape($Key) + '\s*=\s*(.*?)\s*(?:[;#].*)?$')) {
+                return $matches[1].Trim()
+            }
+        }
+    } catch {}
+    return $null
+}
+
+function global:Set-FlatVRIniValue {
+    param([string]$Path, [string]$Section, [string]$Key, [string]$Value)
+    if (-not $Path -or -not $Section -or -not $Key) { throw 'Incomplete INI switch configuration.' }
+    $lines = @()
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { $lines = @(Get-Content -LiteralPath $Path -ErrorAction Stop) }
+    $sectionStart = -1; $sectionEnd = $lines.Count; $keyIndex = -1
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\s*\[([^\]]+)\]\s*$') {
+            if ($sectionStart -ge 0) { $sectionEnd = $i; break }
+            if ($matches[1] -ieq $Section) { $sectionStart = $i }
+        } elseif ($sectionStart -ge 0 -and $lines[$i] -match ('^\s*' + [regex]::Escape($Key) + '\s*=')) {
+            $keyIndex = $i
+        }
+    }
+    if ($keyIndex -ge 0) {
+        $lines[$keyIndex] = "$Key=$Value"
+    } elseif ($sectionStart -ge 0) {
+        $before = if ($sectionEnd -gt 0) { @($lines[0..($sectionEnd - 1)]) } else { @() }
+        $after = if ($sectionEnd -lt $lines.Count) { @($lines[$sectionEnd..($lines.Count - 1)]) } else { @() }
+        $lines = @($before) + "$Key=$Value" + @($after)
+    } else {
+        if ($lines.Count -gt 0 -and $lines[-1] -ne '') { $lines += '' }
+        $lines += "[$Section]"
+        $lines += "$Key=$Value"
+    }
+    $parent = [IO.Path]::GetDirectoryName($Path)
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) { [void][IO.Directory]::CreateDirectory($parent) }
+    [IO.File]::WriteAllLines($Path, [string[]]$lines, (New-Object Text.UTF8Encoding($false)))
+}
+
 # Resolve a BepInEx-winhttp game's folder and locate its winhttp proxy.
 # Returns @{ Dir; Path; Active } (Active=$true VR on, $false flat, $null
 # unknown) or $null if the folder can't be resolved. Shared by the
@@ -1613,6 +1708,19 @@ function global:Get-FlatVRProxyInfo {
         }
     }
     if (-not $dir) { return $null }
+    # Official INI switch. Missing file/key means the mod's default (VR on),
+    # and the first click creates only the documented setting.
+    if ($Game.FlatVRIniFile -and $Game.FlatVRIniSection -and $Game.FlatVRIniKey) {
+        $iniPath = Join-Path $dir ([string]$Game.FlatVRIniFile)
+        $flatValue = if ($null -ne $Game.FlatVRIniFlatValue) { [string]$Game.FlatVRIniFlatValue } else { '1' }
+        $vrValue = if ($null -ne $Game.FlatVRIniVRValue) { [string]$Game.FlatVRIniVRValue } else { '0' }
+        $value = Get-FlatVRIniValue -Path $iniPath -Section ([string]$Game.FlatVRIniSection) -Key ([string]$Game.FlatVRIniKey)
+        return @{
+            Dir=$dir; Path=$iniPath; Active=($value -ne $flatValue)
+            Ini=@{ Path=$iniPath; Section=[string]$Game.FlatVRIniSection; Key=[string]$Game.FlatVRIniKey; VRValue=$vrValue; FlatValue=$flatValue }
+            EnabledLeaf=[IO.Path]::GetFileName($iniPath); DisabledLeaf=[IO.Path]::GetFileName($iniPath)
+        }
+    }
     # Per-game override for the proxy file (e.g. Portal 2 uses
     # bin\openvr_api.dll <-> bin\openvr_api.dll-). Enabled = VR on.
     #
@@ -1710,7 +1818,10 @@ function global:Get-RealVRToggleInfo {
     # Fast path: the recorded folder already holds the mod (usual case -
     # .installed_path records the exe folder).
     foreach ($probe in @("RealConfig.bat","RealRepo","RealRepo_")) {
-        if (Test-Path -LiteralPath (Join-Path $base $probe)) { $modDir = $base; break }
+        # Lexical: library roots come from libraryfolders.vdf and can name a
+        # drive that is gone. Join-Path resolves it and throws, which would
+        # take down the scan instead of skipping one dead entry.
+        if (Test-Path -LiteralPath (Join-PathLexical $base $probe)) { $modDir = $base; break }
     }
     # Fallback: recorded path is the game root; find RealConfig.bat below it.
     if (-not $modDir) {
@@ -1780,6 +1891,10 @@ function global:New-FlatVRToggleButton {
     $tip = New-Object System.Windows.Controls.ToolTip
     $tip.Content = if ($isReal) {
         "Switch this game between VR and flat the official R.E.A.L. way (renames RealRepo, re-runs RealConfig). The active mode is shown in gold. Close the game first."
+    } elseif ($Game.FlatVRIniFile) {
+        "Switch this game between VR and flat with the mod's official INI setting. The active mode is shown in gold. Close the game first."
+    } elseif ($Game.FlatVREnabled) {
+        "Switch this game between VR and flat by parking its configured VR loader. The active mode is shown in gold. Close the game first."
     } else {
         "Switch this game between VR and flat (renames winhttp.dll). The active mode is shown in gold. Close the game first."
     }
@@ -1792,6 +1907,21 @@ function global:New-FlatVRToggleButton {
     $btn.Add_MouseLeftButtonUp({
         try {
             Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+            # Do not rely on Windows denying a rename of a loaded DLL. Some
+            # games share their proxy file permissively, which would let the
+            # UI report a mode change while the running process still uses
+            # the old one. Entries with an executable probe can be checked
+            # explicitly before touching their loader.
+            $processProbe = if ($Game.GameExe) { [string]$Game.GameExe } elseif ($Game.LaunchExe) { [string]$Game.LaunchExe } else { "" }
+            if ($processProbe) {
+                $processName = [IO.Path]::GetFileNameWithoutExtension($processProbe)
+                if ($processName -and @(Get-Process -Name $processName -ErrorAction SilentlyContinue).Count -gt 0) {
+                    [System.Windows.Forms.MessageBox]::Show(
+                        ($Game.Title + " is running. Close it completely before changing between VR and flat mode."),
+                        "Flat / VR Switch") | Out-Null
+                    return
+                }
+            }
             $nowVR = $true
             $msg = ""
             if ($isReal) {
@@ -1836,12 +1966,19 @@ function global:New-FlatVRToggleButton {
                     "Flat / VR Switch") | Out-Null
                 return
             }
-            if (-not $info.Path) {
+            if ($info.Ini) {
+                $newValue = if ($info.Active) { [string]$info.Ini.FlatValue } else { [string]$info.Ini.VRValue }
+                Set-FlatVRIniValue -Path $info.Ini.Path -Section $info.Ini.Section -Key $info.Ini.Key -Value $newValue
+                $nowVR = -not [bool]$info.Active
+                if ($nowVR) { $msg = $Game.Title + " is now in VR mode." }
+                else        { $msg = $Game.Title + " is now in FLAT mode." }
+            } elseif (-not $info.Path) {
+                $missingName = if ($Game.FlatVREnabled) { "configured VR loader" } else { "winhttp.dll" }
                 [System.Windows.Forms.MessageBox]::Show(
-                    ("Couldn't find the VR mod's winhttp.dll for " + $Game.Title + ". This switch only works for winhttp-based mods."),
+                    ("Couldn't find the VR mod's " + $missingName + " for " + $Game.Title + ". Reinstall the mod, then try again."),
                     "Flat / VR Switch") | Out-Null
                 return
-            }
+            } else {
             $parent = Split-Path -Parent $info.Path
             if ($info.Swap) {
                 # Swapping. Take the BepInEx loader hook along as well,
@@ -1880,6 +2017,7 @@ function global:New-FlatVRToggleButton {
                 Rename-Item -LiteralPath $info.Path -NewName $info.EnabledLeaf -Force -ErrorAction Stop
                 $nowVR = $true
                 $msg = $Game.Title + " is now in VR mode (mod on)."
+            }
             }
             }
             # Repaint the label so the active mode shows gold.
@@ -2073,6 +2211,19 @@ function global:New-LocateButton {
             if ($Game.ModFile) {
                 $r = Resolve-LocatedRoot -Picked $picked -RelFile $Game.ModFile
                 if ($r) { $modHit = $true; $picked = $r }
+            }
+            # Alternate payload generations are equally valid evidence. In
+            # particular Halo MCC's Latest/Stable channel still uses
+            # halo3xr.dll while the prerelease uses HaloMCCVR.dll.
+            if (-not $modHit) {
+                foreach ($alternateMarker in @($Game.ModFileAlt, $Game.ModFileAlt2)) {
+                    if (-not $alternateMarker) { continue }
+                    $r = Resolve-LocatedRoot -Picked $picked -RelFile $alternateMarker
+                    if ($r) { $modHit = $true; $picked = $r; break }
+                }
+            }
+            if (-not $modHit -and $Game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $picked -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile)) {
+                $modHit = $true
             }
             # VrInstallRoot games keep the mod OUTSIDE the game folder
             # (%LocalAppData% etc.); check that root too. We do NOT move
@@ -2279,7 +2430,7 @@ function global:New-LocateButton {
 #  DELIBERATELY NARROW. The Hub never deletes anything itself here:
 #  it starts what the mod author wrote, and nothing else. No file
 #  lists, no .hubbak restores, no touching Steam launch options.
-#  With 246 entries, a wrongly emptied game folder is the one
+#  With 247 games, a wrongly emptied game folder is the one
 #  mistake that cannot be taken back - so the automatic route only
 #  exists where the author already solved it.
 #
@@ -2296,18 +2447,28 @@ function global:New-LocateButton {
 #  in BFVR\, and World at War installs into its own program folder
 #  entirely. Order: the path the installer recorded, then
 #  VrInstallRoot, then the game folder.
-function global:Resolve-UninstallExe {
+function global:Resolve-UninstallActions {
     param($Game)
 
-    if (-not $Game.UninstallExe) { return $null }
-    $rel = [string]$Game.UninstallExe
+    if (-not $Game.UninstallExe) { return @() }
+    $relativePaths = @($Game.UninstallExe | Where-Object { $_ })
+    $labels = @($Game.UninstallLabel)
+    $probes = @($Game.UninstallProbeFile)
+    $targets = @($Game.UninstallTargetMod)
+    $arguments = @($Game.UninstallArguments)
+    $restrictToTargetRoots = @($Game.UninstallRestrictToDetectedMod)
+    $requireProbes = @($Game.UninstallRequireProbe)
 
     $roots = @()
     # 1. The folder the scan resolved for this game - the same source
     #    the rest of the detail page uses.
+    $st = $null
     try {
         $st = $global:gameStateMap[$Game.Title]
         if ($st -and $st.GameDir) { $roots += [string]$st.GameDir }
+        foreach ($stateDir in @($st.CurrentDir, $st.DepotDir, $st.ModADir, $st.ModBDir)) {
+            if ($stateDir) { $roots += [string]$stateDir }
+        }
     } catch {}
     # 2. What the installer itself recorded, read straight from
     #    <Core>\<BatFolder>\.installed_path. Not via a helper: the one
@@ -2342,20 +2503,172 @@ function global:Resolve-UninstallExe {
         } catch {}
     }
 
-    foreach ($r in $roots) {
-        if (-not $r) { continue }
-        # String concatenation, not Join-Path: a dead drive letter
-        # would make Join-Path throw (hub-wide rule).
-        $full = "$($r.TrimEnd('\'))\$rel"
-        if (Test-Path -LiteralPath $full) { return $full }
+    # 4. The Hub's OWN installer folder. Some mods leave nothing in the
+    #    game to uninstall - they live in a folder of their own - so the
+    #    remover ships beside the installer instead. Without this root a
+    #    Hub-side uninstaller could never be found.
+    try {
+        if ($Game.Bat) {
+            $batDir2 = ([string]$Game.Bat).Split('\')[0]
+            $roots += "$global:scriptDir\$batDir2"
+        }
+    } catch {}
+
+    $actions = New-Object 'System.Collections.Generic.List[object]'
+    $seen = @{}
+    for ($index = 0; $index -lt $relativePaths.Count; $index++) {
+        $rel = [string]$relativePaths[$index]
+        if (-not $rel -or $rel -notmatch '(?i)\.(exe|bat|cmd)$') { continue }
+        $label = if ($index -lt $labels.Count -and $labels[$index]) { [string]$labels[$index] } else { 'Uninstall now' }
+        $probe = if ($index -lt $probes.Count -and $probes[$index]) { [string]$probes[$index] } elseif ($probes.Count -eq 1) { [string]$probes[0] } else { $null }
+        $target = if ($index -lt $targets.Count -and $targets[$index]) { [string]$targets[$index] } else { $null }
+        $argument = if ($index -lt $arguments.Count -and $arguments[$index]) { [string]$arguments[$index] } else { $null }
+        $restrict = if ($index -lt $restrictToTargetRoots.Count) { [bool]$restrictToTargetRoots[$index] } elseif ($restrictToTargetRoots.Count -eq 1) { [bool]$restrictToTargetRoots[0] } else { $false }
+        $requireProbe = if ($index -lt $requireProbes.Count) { [bool]$requireProbes[$index] } elseif ($requireProbes.Count -eq 1) { [bool]$requireProbes[0] } else { $false }
+        $searchRoots = $roots
+        if ($restrict -and $target -eq 'ModA') { $searchRoots = @($st.ModADir | Where-Object { $_ }) }
+        if ($restrict -and $target -eq 'ModB') { $searchRoots = @($st.ModBDir | Where-Object { $_ }) }
+        if ($requireProbe) {
+            $probePresent = $false
+            foreach ($probeRoot in $searchRoots) {
+                if (-not $probeRoot) { continue }
+                foreach ($oneProbe in @($probe -split '\|')) {
+                    if ($oneProbe -and (Test-Path -LiteralPath "$(([string]$probeRoot).TrimEnd('\'))\$oneProbe")) { $probePresent = $true; break }
+                }
+                if ($probePresent) { break }
+            }
+            if (-not $probePresent) { continue }
+        }
+        foreach ($r in $searchRoots) {
+            if (-not $r) { continue }
+            # String concatenation, not Join-Path: a dead drive letter
+            # would make Join-Path throw (hub-wide rule).
+            $full = "$($r.TrimEnd('\'))\$rel"
+            $actionKey = $full + "`n" + $argument
+            if ((Test-Path -LiteralPath $full -PathType Leaf) -and -not $seen.ContainsKey($actionKey)) {
+                $seen[$actionKey] = $true
+                [void]$actions.Add([pscustomobject]@{
+                    Path=$full; Label=$label; ProbeFile=$probe
+                    TargetMod=$target; Arguments=$argument
+                })
+                break
+            }
+        }
+    }
+    return $actions.ToArray()
+}
+
+# Backwards-compatible scalar helper used by installer-flow tests and any
+# older call site. The detail page itself consumes every resolved action.
+function global:Resolve-UninstallExe {
+    param($Game)
+    $actions = @(Resolve-UninstallActions -Game $Game)
+    if ($actions.Count) { return [string]$actions[0].Path }
+    return $null
+}
+
+# Build the state shown before a two-mod removal. This is deliberately a pure
+# helper: the same data drives the dialog and the regression tests, so a tile
+# can never claim that a missing remover is available.
+function global:Get-TwoModUninstallChoices {
+    param($Game, [object[]]$Actions, $State = $null)
+
+    if (-not $State) {
+        try { $State = $global:gameStateMap[$Game.Title] } catch {}
+    }
+    $result = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($mode in @('ModA','ModB')) {
+        $name = if ($mode -eq 'ModA') { [string]$Game.ModAName } else { [string]$Game.ModBName }
+        $installed = if ($mode -eq 'ModA') { [bool]$State.ModAPresent } else { [bool]$State.ModBPresent }
+        $action = @($Actions | Where-Object { $_.TargetMod -eq $mode } | Select-Object -First 1)
+        $oneAction = if ($action.Count) { $action[0] } else { $null }
+        $removable = [bool]($installed -and $oneAction)
+        $status = if ($removable) {
+            'INSTALLED - can remove now'
+        } elseif ($installed) {
+            'INSTALLED - no verified automatic uninstaller found'
+        } else {
+            'not detected'
+        }
+        [void]$result.Add([pscustomobject]@{
+            Mode=$mode; Name=$name; Installed=$installed
+            Removable=$removable; Status=$status; Action=$oneAction
+        })
+    }
+    return $result.ToArray()
+}
+
+function global:Select-TwoModUninstallAction {
+    param($Game, [object[]]$Choices)
+
+    $a = @($Choices | Where-Object Mode -eq 'ModA' | Select-Object -First 1)[0]
+    $b = @($Choices | Where-Object Mode -eq 'ModB' | Select-Object -First 1)[0]
+    $lines = @(
+        "Choose which VR mod to remove from $($Game.Title):",
+        '',
+        "A - $($a.Name): $($a.Status)",
+        "B - $($b.Name): $($b.Status)",
+        ''
+    )
+    $removable = @($Choices | Where-Object Removable)
+    if ($removable.Count -eq 2) {
+        $lines += "Yes removes A - $($a.Name).`nNo removes B - $($b.Name).`nCancel changes nothing."
+        $answer = [System.Windows.MessageBox]::Show(
+            ($lines -join "`n"), 'Uninstall VR mod',
+            [System.Windows.MessageBoxButton]::YesNoCancel,
+            [System.Windows.MessageBoxImage]::Question)
+        if ($answer -eq [System.Windows.MessageBoxResult]::Yes) { return $a.Action }
+        if ($answer -eq [System.Windows.MessageBoxResult]::No)  { return $b.Action }
+        return $null
+    }
+    if ($removable.Count -eq 1) {
+        $only = $removable[0]
+        $lines += "OK removes $($only.Name).`nCancel changes nothing."
+        $answer = [System.Windows.MessageBox]::Show(
+            ($lines -join "`n"), 'Uninstall VR mod',
+            [System.Windows.MessageBoxButton]::OKCancel,
+            [System.Windows.MessageBoxImage]::Question)
+        if ($answer -eq [System.Windows.MessageBoxResult]::OK) { return $only.Action }
     }
     return $null
+}
+
+function global:Invoke-ResolvedUninstallAction {
+    param($Game, $Action)
+
+    if (-not $Action -or -not $Action.Path) { return }
+    try {
+        $startArgs = @{
+            FilePath=[string]$Action.Path
+            WorkingDirectory=(Split-Path ([string]$Action.Path) -Parent)
+            PassThru=$true; Wait=$true; ErrorAction='Stop'
+        }
+        if ($Action.Arguments) { $startArgs.ArgumentList = [string]$Action.Arguments }
+        $null = Start-Process @startArgs
+    } catch {
+        [System.Windows.MessageBox]::Show(
+            "Could not start the uninstaller:`n$($_.Exception.Message)",
+            'Uninstall', [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Warning) | Out-Null
+        return
+    }
+
+    # Exactly the same scope-respecting refresh used after an installer:
+    # a user who already ran Scan games gets a coherent full re-scan;
+    # otherwise only the game whose uninstaller just closed is rechecked.
+    # Cancellation is safe too: the recheck simply finds the marker again.
+    $global:PendingInstallTitle = $Game.Title
+    try { Invoke-PostInstallRefresh } catch {}
 }
 
 function global:New-UninstallNowButton {
     param(
         $Game,
         [string]$ExePath,
+        [string]$Label = 'Uninstall now',
+        [string]$ProbeFile = $null,
+        [string]$Arguments = $null,
+        [object[]]$Choices = $null,
         [string]$AccentHex = "#e07a63"
     )
 
@@ -2398,7 +2711,7 @@ function global:New-UninstallNowButton {
     $ttInner.MinWidth = 300; $ttInner.MaxWidth = 420
     $ttStack = New-Object System.Windows.Controls.StackPanel
     $ttHead = New-Object System.Windows.Controls.TextBlock
-    $ttHead.Text = "Run the uninstaller that came with the mod"
+    $ttHead.Text = if ($Choices) { 'Choose which installed VR mod to remove' } else { 'Run the uninstaller that came with the mod' }
     $ttHead.FontSize = 13
     $ttHead.FontWeight = [System.Windows.FontWeights]::SemiBold
     $ttHead.Foreground = [System.Windows.Media.Brushes]::White
@@ -2406,7 +2719,7 @@ function global:New-UninstallNowButton {
     $ttHead.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
     $ttStack.Children.Add($ttHead) | Out-Null
     $ttBody = New-Object System.Windows.Controls.TextBlock
-    $ttBody.Text = "It removes what it installed and nothing else. Your saves are not touched, and the Hub checks afterwards whether the mod is really gone."
+    $ttBody.Text = if ($Choices) { 'The Hub first shows both mods, their installed state and which verified remover is available. You then choose one; Cancel changes nothing.' } else { 'It removes what it installed and nothing else. Your saves are not touched, and the Hub checks afterwards whether the mod is really gone.' }
     $ttBody.FontSize = 12
     $ttBody.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9bdc4")
     $ttBody.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -2414,7 +2727,9 @@ function global:New-UninstallNowButton {
     $ttBody.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
     $ttStack.Children.Add($ttBody) | Out-Null
     $ttPath = New-Object System.Windows.Controls.TextBlock
-    $ttPath.Text = $ExePath
+    $ttPath.Text = if ($Choices) {
+        (@($Choices | ForEach-Object { "$($_.Name): $($_.Status)" }) -join "`n")
+    } else { $ExePath }
     $ttPath.FontSize = 11
     $ttPath.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas")
     $ttPath.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#9fd8b0")
@@ -2475,7 +2790,7 @@ function global:New-UninstallNowButton {
     $row.Children.Add($iconBox) | Out-Null
 
     $lbl = New-Object System.Windows.Controls.TextBlock
-    $lbl.Text = "Uninstall now"
+    $lbl.Text = $Label
     $lbl.FontSize = 12
     $lbl.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $lblColor = [System.Windows.Media.Color]::FromRgb(
@@ -2497,8 +2812,10 @@ function global:New-UninstallNowButton {
 
     $gameTitle = [string]$Game.Title
     $modFileRel = [string]$Game.ModFile
-    $probeRel   = if ($Game.UninstallProbeFile) { [string]$Game.UninstallProbeFile } else { $modFileRel }
-    $exeCapture = $ExePath
+    $probeRel   = if ($ProbeFile) { [string]$ProbeFile } elseif ($Game.UninstallProbeFile -and @($Game.UninstallProbeFile).Count -eq 1) { [string](@($Game.UninstallProbeFile)[0]) } else { $modFileRel }
+    $singleAction = [pscustomobject]@{ Path=$ExePath; Label=$Label; ProbeFile=$probeRel; Arguments=$Arguments }
+    $choicesCapture = $Choices
+    $gameCapture = $Game
 
     $btn.Add_MouseLeftButtonUp({
         # NO CONFIRMATION DIALOG HERE. It used to repeat, word for word,
@@ -2508,42 +2825,8 @@ function global:New-UninstallNowButton {
         # away. The panel explains, the click decides.
         # The uninstallers themselves still ask: the Inno ones open with
         # their own "are you sure" prompt.
-        try {
-            $proc = Start-Process -FilePath $exeCapture -WorkingDirectory (Split-Path $exeCapture -Parent) -PassThru -Wait -ErrorAction Stop
-        } catch {
-            [System.Windows.MessageBox]::Show(
-                "Could not start the uninstaller:`n$($_.Exception.Message)",
-                "Uninstall", [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Warning) | Out-Null
-            return
-        }
-
-        # VERIFY BY THE RESULT, NOT BY THE EXIT CODE. An uninstaller
-        # the user cancelled looks exactly like one that finished.
-        # UninstallProbeFile exists for the case where the uninstaller
-        # DELETES ITSELF - AWAY VR's "uninstall VR.bat" does - so the
-        # bat is gone either way and proves nothing; there we watch
-        # the restored globalgamemanagers.orig instead.
-        $stillThere = $false
-        try {
-            $root = Split-Path $exeCapture -Parent
-            if ($probeRel) {
-                $p = "$($root.TrimEnd('\'))\$probeRel"
-                $stillThere = Test-Path -LiteralPath $p
-            }
-        } catch {}
-
-        if ($stillThere) {
-            [System.Windows.MessageBox]::Show(
-                "The mod is still in place.`n`nThe uninstaller may have been cancelled, or it needs a restart to finish. The guide beside this button lists the files if you would rather remove them by hand.",
-                "Uninstall", [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Warning) | Out-Null
-        } else {
-            [System.Windows.MessageBox]::Show(
-                "$gameTitle is back to its unmodded state.`n`nRun a scan to refresh the tile.",
-                "Uninstall", [System.Windows.MessageBoxButton]::OK,
-                [System.Windows.MessageBoxImage]::Information) | Out-Null
-        }
+        $chosen = if ($choicesCapture) { Select-TwoModUninstallAction -Game $gameCapture -Choices $choicesCapture } else { $singleAction }
+        if ($chosen) { Invoke-ResolvedUninstallAction -Game $gameCapture -Action $chosen }
     # .GetNewClosure() IS REQUIRED HERE, and its absence is why the
     # button reported "the argument cannot be bound to Path because it
     # is NULL". $exeCapture, $gameTitle and $probeRel are LOCAL to this
@@ -2559,10 +2842,14 @@ function global:New-UninstallNowButton {
 function global:New-UninstallGuideButton {
     param(
         $Game,
-        [string]$AccentHex = "#cc6655"
+        [string]$AccentHex = "#cc6655",
+        [Parameter(Mandatory=$true)][System.Windows.Controls.StackPanel]$HostPanel
     )
 
     $accent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+
+    $guideSize = $global:DetailTextSizes[$global:DetailSize]
+    if (-not $guideSize) { $guideSize = $global:DetailTextSizes['M'] }
 
     # Heuristic: which games need a "clear Steam launch options"
     # step? Detected by the mod family / install pattern rather
@@ -2612,31 +2899,30 @@ function global:New-UninstallGuideButton {
     $isNolf2 = ($Game.Title -eq "No One Lives Forever 2 VR")
     $isUserProvidedMod = ($isGtaVr -or $isNolf2)
 
-    $tooltip = New-Object System.Windows.Controls.ToolTip
-    $tooltip.Background  = [System.Windows.Media.Brushes]::Transparent
-    $tooltip.BorderBrush = [System.Windows.Media.Brushes]::Transparent
-    $tooltip.Padding     = [System.Windows.Thickness]::new(0)
-    $tooltip.HasDropShadow = $false
-
     $tipOuter = New-Object System.Windows.Controls.Border
     $tipOuter.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1a1a24")
     $tipOuter.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a35")
     $tipOuter.BorderThickness = [System.Windows.Thickness]::new(1)
     $tipOuter.CornerRadius    = [System.Windows.CornerRadius]::new(6)
     $tipOuter.Padding         = [System.Windows.Thickness]::new(8)
-    $tipShadow = New-Object System.Windows.Media.Effects.DropShadowEffect
-    $tipShadow.Color = [System.Windows.Media.Color]::FromArgb(180,0,0,0)
-    $tipShadow.BlurRadius = 16
-    $tipShadow.ShadowDepth = 4
-    $tipShadow.Opacity = 0.6
-    $tipOuter.Effect = $tipShadow
+    $tipOuter.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+    $tipOuter.Tag = 'uninstall-guide'
+    $guideMaxW = 720
+    try {
+        $guideHostWidth = if ($global:discoverDetail -and $global:discoverDetail.ActualWidth -gt 0) { $global:discoverDetail.ActualWidth } elseif ($global:window -and $global:window.ActualWidth -gt 0) { $global:window.ActualWidth } else { 0 }
+        if ($guideHostWidth -gt 0) {
+            $guideMaxW = [int]($guideHostWidth * 0.78)
+            if ($guideMaxW -lt 720)  { $guideMaxW = 720 }
+            if ($guideMaxW -gt 1040) { $guideMaxW = 1040 }
+        }
+    } catch {}
+    $tipOuter.MaxWidth = $guideMaxW
+    if ($null -ne $global:DetailWidthBlocks) { [void]$global:DetailWidthBlocks.Add($tipOuter) }
 
     $tipInner = New-Object System.Windows.Controls.Border
     $tipInner.Background   = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1f2227")
     $tipInner.CornerRadius = [System.Windows.CornerRadius]::new(4)
     $tipInner.Padding      = [System.Windows.Thickness]::new(14, 12, 14, 12)
-    $tipInner.MinWidth     = 360
-    $tipInner.MaxWidth     = 420
 
     $tipStack = New-Object System.Windows.Controls.StackPanel
     $tipInner.Child = $tipStack
@@ -2644,79 +2930,84 @@ function global:New-UninstallGuideButton {
     # Header
     $tipHeader = New-Object System.Windows.Controls.TextBlock
     $tipHeader.Text = if ($isStandaloneFolder) { "How to remove this VR build" } else { "How to safely remove the VR mod" }
-    $tipHeader.FontSize = 13
+    $tipHeader.FontSize = [int]$guideSize.Font + 1
+    $tipHeader.Tag = 'heading'
+    $tipHeader.TextWrapping = 'Wrap'
+    if ($null -ne $global:DetailReadmeTextBlocks) { [void]$global:DetailReadmeTextBlocks.Add($tipHeader) }
     $tipHeader.FontWeight = [System.Windows.FontWeights]::SemiBold
     $tipHeader.Foreground = [System.Windows.Media.Brushes]::White
     $tipHeader.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $tipHeader.Margin = [System.Windows.Thickness]::new(0, 0, 0, 10)
     $tipStack.Children.Add($tipHeader) | Out-Null
 
-    # Build step list. Order:
-    #   1. (only if launch options set) Clear Steam launch options
-    #   2. Browse local files (so user knows where the folder lives)
-    #   3. Uninstall via Steam
-    #   4. Delete leftover files
-    $steps = @()
-    if ($Game.UninstallSteps -and @($Game.UninstallSteps).Count -gt 0) {
-        # Game-specific steps supplied by the catalog (single source of
-        # truth - the per-game README no longer repeats them).
-        $steps = @($Game.UninstallSteps)
-    } elseif ($isUserProvidedMod) {
-        if ($isGtaVr) {
-            $steps += "The R.E.A.L. VR mod was layered into your OWN copy of GTA V - the Hub never installed the base game, so do NOT uninstall it via Steam or Epic."
-            $steps += "To remove just the VR mod, open your GTA V folder and delete the mod files: RealVR.ini, the 'asi' folder, ScriptHookV.dll, dinput8.dll, RealConfig.bat and the RealRepo folder (plus GTAVR.asi and openvr_api.dll if you added motion controls)."
-            $steps += "If you ran RealConfig.bat, rename settings_ori.xml back to settings.xml to undo the VR graphics preset."
-            $steps += "Your base game stays fully playable in flat mode afterwards."
-        } else {
-            $steps += "The R.E.A.L. VR mod was layered into your OWN copy of No One Lives Forever 2 - the Hub never installed the game, which is a retail / non-Steam install."
-            $steps += "To remove just the VR mod, open your NOLF2 folder and restore the originals the installer saved in the '_backup_pre_REAL' folder (copy them back, overwriting the modded files), then delete the VR-only files: VR.rez, VRlaunchcmds.txt and the NOLF2Revive folder."
-            $steps += "To remove the game itself, uninstall it via Windows Settings -> Apps -> Installed apps (or its own uninstaller) - it is not in Steam."
-        }
-        $steps += "Delete the '$($Game.Title)' desktop shortcut the installer created."
-    } elseif ($isStandaloneFolder) {
-        $folderLeaf = Split-Path $standaloneFolderPath -Leaf
-        $steps += "This VR build lives in its own folder and is NOT registered in Steam - there is nothing to uninstall there."
-        $steps += "Just delete the folder 'C:\Games\$folderLeaf'. That removes the VR build completely."
-        $steps += "Anything you added or the game saved - ROMs, save games, generated data - lives inside that folder, so back up whatever you want to keep before deleting it."
-        $steps += "Delete the desktop shortcut too, if the installer created one."
-        if ($Game.SteamId) {
-            $steps += "Your original game (in Steam or GOG, if you own it) is left completely untouched - this never modified it."
-        }
-        if ($Game.DualMode) {
-            $steps += "If you instead chose the in-place Steam version, remove that one the Steam way: Browse local files, Uninstall in Steam, then delete any leftover mod files."
-        }
-    } else {
-        if ($hasSteamArgs -and $isSteam) {
-            $steps += "Open Steam, right-click the game -> Properties -> General -> clear the Launch Options text field."
-        }
-        if ($isSteam) {
-            $steps += "Right-click the game in Steam -> Manage -> Browse local files. The install folder opens in Explorer - keep it open for step 4."
-            $steps += "Back in Steam: right-click the game -> Manage -> Uninstall. Steam removes most files but often leaves mod files behind."
-            $steps += "In the Explorer window from step 2, delete the whole game folder. Now the VR mod is gone for good."
-        } else {
-            $steps += "Open the game's install folder (GOG Galaxy: right-click -> Manage installation -> Show folder; itch.io: in the launcher, right-click -> Show local files)."
-            $steps += "Uninstall the game through your launcher (GOG Galaxy or itch.io)."
-            $steps += "Delete any remaining files from the install folder."
-        }
-        $steps += "Optional: reinstall the game later if you want to play it without VR mods."
+    # Every path now goes through the safe guide builder. Its fallback removes
+    # only verified mod markers and explicitly refuses to uninstall the base
+    # game or delete the whole game folder. Catalog-specific guides still win,
+    # except for legacy shared-loader boilerplate that could erase other mods.
+    $steps = @(Get-SafeUninstallSteps -Game $Game -HasSteamArgs $hasSteamArgs -StandaloneFolderPath $standaloneFolderPath)
+
+    $guideHint = New-Object System.Windows.Controls.TextBlock
+    $guideHint.FontSize = $guideSize.Font
+    $guideHint.LineHeight = $guideSize.LineHeight
+    $guideHint.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#b8b8c7')
+    $guideHint.TextWrapping = 'Wrap'
+    $guideHint.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
+    [void]$tipStack.Children.Add($guideHint)
+    $guideShortcuts = New-Object System.Windows.Controls.TextBlock
+    $guideShortcuts.FontSize = $guideSize.Font
+    $guideShortcuts.LineHeight = $guideSize.LineHeight
+    $guideShortcuts.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#b8b8c7')
+    $guideShortcuts.TextWrapping = 'Wrap'
+    $guideShortcuts.Margin = [System.Windows.Thickness]::new(0, 0, 0, 14)
+    [void]$tipStack.Children.Add($guideShortcuts)
+    if ($null -ne $global:DetailReadmeTextBlocks) {
+        [void]$global:DetailReadmeTextBlocks.Add($guideHint)
+        [void]$global:DetailReadmeTextBlocks.Add($guideShortcuts)
     }
 
+    # Put the exact source used for version-specific removal instructions in
+    # the guide itself. This is deliberately a web link, not a guessed local
+    # path or a destructive action.
+    $guideSourceUrl = Get-UninstallSourceUrl $Game
+    if ($guideSourceUrl) {
+        $guideSource = New-Object System.Windows.Controls.TextBlock
+        $guideSource.FontSize = $guideSize.Font
+        $guideSource.LineHeight = $guideSize.LineHeight
+        $guideSource.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#b8b8c7')
+        $guideSource.TextWrapping = 'Wrap'
+        $guideSource.Margin = [System.Windows.Thickness]::new(0, 0, 0, 14)
+        [void]$guideSource.Inlines.Add([System.Windows.Documents.Run]::new('Current author instructions: '))
+        $sourceRun = [System.Windows.Documents.Run]::new('Open the linked mod page')
+        $sourceLink = [System.Windows.Documents.Hyperlink]::new($sourceRun)
+        $sourceLink.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+        $sourceLink.TextDecorations = [System.Windows.TextDecorations]::Underline
+        $sourceUrlCapture = [string]$guideSourceUrl
+        $sourceLink.ToolTip = $sourceUrlCapture
+        $sourceLink.Add_Click({ try { Start-Process $sourceUrlCapture } catch {} }.GetNewClosure())
+        [void]$guideSource.Inlines.Add($sourceLink)
+        [void]$tipStack.Children.Add($guideSource)
+        if ($null -ne $global:DetailReadmeTextBlocks) { [void]$global:DetailReadmeTextBlocks.Add($guideSource) }
+    }
+    $guideTextBlocks = New-Object 'System.Collections.Generic.List[object]'
     $stepIdx = 1
     foreach ($s in $steps) {
-        $row = New-Object System.Windows.Controls.StackPanel
-        $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        $row = New-Object System.Windows.Controls.DockPanel
         $row.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
 
         $num = New-Object System.Windows.Controls.Border
-        $num.Width = 20
-        $num.Height = 20
+        $num.MinWidth = 24
+        $num.Padding = [System.Windows.Thickness]::new(5, 0, 5, 0)
+        [System.Windows.Controls.DockPanel]::SetDock($num, 'Left')
         $num.CornerRadius = [System.Windows.CornerRadius]::new(10)
         $num.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(60, $accent.Color.R, $accent.Color.G, $accent.Color.B))
         $num.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
         $num.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
         $numTxt = New-Object System.Windows.Controls.TextBlock
         $numTxt.Text = "$stepIdx"
-        $numTxt.FontSize = 11
+        $numTxt.FontSize = [int]$guideSize.Font - 2
+        $numTxt.LineHeight = $guideSize.LineHeight
+        $numTxt.Tag = 'guide-number'
+        if ($null -ne $global:DetailReadmeTextBlocks) { [void]$global:DetailReadmeTextBlocks.Add($numTxt) }
         $numTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
         $numTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
         $numTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
@@ -2727,11 +3018,13 @@ function global:New-UninstallGuideButton {
 
         $stepTxt = New-Object System.Windows.Controls.TextBlock
         $stepTxt.Text = $s
-        $stepTxt.FontSize = 12
+        $stepTxt.FontSize = $guideSize.Font
+        $stepTxt.LineHeight = $guideSize.LineHeight
         $stepTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cccccc")
         $stepTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $stepTxt.TextWrapping = [System.Windows.TextWrapping]::Wrap
-        $stepTxt.MaxWidth = 360
+        [void]$guideTextBlocks.Add($stepTxt)
+        if ($null -ne $global:DetailReadmeTextBlocks) { [void]$global:DetailReadmeTextBlocks.Add($stepTxt) }
         $row.Children.Add($stepTxt) | Out-Null
 
         $tipStack.Children.Add($row) | Out-Null
@@ -2741,7 +3034,6 @@ function global:New-UninstallGuideButton {
     # Footer removed - the steps stand on their own.
 
     $tipOuter.Child = $tipInner
-    $tooltip.Content = $tipOuter
 
     # The clickable button itself - same visual rhythm as the
     # Steam Theatre button (info icon + label, accent-tinted bg).
@@ -2756,9 +3048,6 @@ function global:New-UninstallGuideButton {
     $tintBorder = [System.Windows.Media.Color]::FromArgb([byte]160, $accent.Color.R, $accent.Color.G, $accent.Color.B)
     $btn.BorderBrush     = New-Object System.Windows.Media.SolidColorBrush $tintBorder
     $btn.BorderThickness = [System.Windows.Thickness]::new(1.5)
-    $btn.ToolTip = $tooltip
-    [System.Windows.Controls.ToolTipService]::SetInitialShowDelay($btn, 200)
-    [System.Windows.Controls.ToolTipService]::SetShowDuration($btn, 600000)
 
     $labelColor = [System.Windows.Media.Color]::FromRgb(
         [byte]([Math]::Min(255, $accent.Color.R + 30)),
@@ -2801,31 +3090,48 @@ function global:New-UninstallGuideButton {
     $btnContent.Children.Add($lbl) | Out-Null
     $btn.Child = $btnContent
 
-    # Click toggle (matches theatre-button behavior).
-    $tooltipRef = $tooltip
-    $btnRef     = $btn
-    $btn.Add_MouseLeftButtonUp({
-        param($s, $e)
-        if ($tooltipRef.IsOpen) {
-            $tooltipRef.IsOpen = $false
-            $global:OpenTheatreTooltip = $null
-            $global:OpenTheatreOwner   = $null
-        } else {
-            $tooltipRef.PlacementTarget = $this
-            $tooltipRef.Placement = [System.Windows.Controls.Primitives.PlacementMode]::Bottom
-            $tooltipRef.StaysOpen = $true
-            $tooltipRef.IsOpen = $true
-            $global:OpenTheatreTooltip = $tooltipRef
-            $global:OpenTheatreOwner   = $btnRef
-        }
-        $e.Handled = $true
-    }.GetNewClosure())
+    $chevron = New-Object System.Windows.Controls.TextBlock
+    $chevron.Text = [char]0x25BE
+    $chevron.Foreground = $labelBrush
+    $chevron.FontSize = 14
+    $chevron.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+    [void]$btnContent.Children.Add($chevron)
+    $btn.Focusable = $true
+    [System.Windows.Automation.AutomationProperties]::SetName($btn, 'Uninstall Guide, collapsed')
 
-    $btn.Add_MouseLeave({
-        if ($tooltipRef.IsOpen) {
-            $tooltipRef.IsOpen = $false
-            $global:OpenTheatreTooltip = $null
-            $global:OpenTheatreOwner   = $null
+    $panelHost = New-Object System.Windows.Controls.Border
+    $panelHost.Margin = [System.Windows.Thickness]::new(0, 8, 0, 14)
+    $panelHost.Visibility = 'Collapsed'
+    $panelHost.Child = $tipOuter
+    [void]$HostPanel.Children.Add($panelHost)
+    $guide = [pscustomobject]@{
+        Game = $Game; Steps = $steps; TextBlocks = $guideTextBlocks
+        Panel = $panelHost; Hint = $guideHint; Shortcuts = $guideShortcuts
+    }
+    $global:DetailUninstallGuide = $guide
+    Update-UninstallGuideLinks -Guide $guide
+    $toggle = {
+        if ($guide.Panel.Visibility -eq 'Visible') {
+            $guide.Panel.Visibility = 'Collapsed'
+            $chevron.Text = [char]0x25BE
+            [System.Windows.Automation.AutomationProperties]::SetName($btn, 'Uninstall Guide, collapsed')
+        } else {
+            $guide.Panel.Visibility = 'Visible'
+            $chevron.Text = [char]0x25B4
+            [System.Windows.Automation.AutomationProperties]::SetName($btn, 'Uninstall Guide, expanded')
+            Update-UninstallGuideLinks -Guide $guide
+        }
+    }.GetNewClosure()
+    $btn.Add_MouseLeftButtonUp({
+        param($sender, $eventArgs)
+        & $toggle
+        $eventArgs.Handled = $true
+    }.GetNewClosure())
+    $btn.Add_KeyDown({
+        param($sender, $eventArgs)
+        if ($eventArgs.Key -in @([System.Windows.Input.Key]::Return, [System.Windows.Input.Key]::Space)) {
+            & $toggle
+            $eventArgs.Handled = $true
         }
     }.GetNewClosure())
 
@@ -2847,51 +3153,29 @@ function global:Set-TextBlockWithLinks {
         [System.Windows.Controls.TextBlock]$TextBlock,
         [string]$Text,
         [string]$AccentHex = $null,
-        [double]$BaseFont = 14
+        [double]$BaseFont = 14,
+        $Game = $null,
+        $LinkSession = $null,
+        [switch]$Literal,
+        [switch]$NoRegister
     )
     if (-not $TextBlock) { return }
     $TextBlock.Inlines.Clear()
     if ([string]::IsNullOrEmpty($Text)) { return }
 
-    # We parse the text into typed spans (text / url / bold / code)
-    # so the final TextBlock renders bold + inline code as real
-    # Inlines instead of leaving raw `**` and `` ` `` in the
-    # output. Order of parsing matters: URLs first (they may
-    # contain `*` or `_`), then code (covers paths and command
-    # names), then bold.
-    $spans = New-Object System.Collections.Generic.List[object]
-    $spans.Add(@{ Kind='text'; Text=$Text }) | Out-Null
-
-    $splitFn = {
-        param($inSpans, $pattern, $kind)
-        $out = New-Object System.Collections.Generic.List[object]
-        foreach ($s in $inSpans) {
-            if ($s.Kind -ne 'text') { $out.Add($s) | Out-Null; continue }
-            $cur = 0
-            $matches = [regex]::Matches($s.Text, $pattern)
-            foreach ($m in $matches) {
-                if ($m.Index -gt $cur) {
-                    $out.Add(@{ Kind='text'; Text=$s.Text.Substring($cur, $m.Index - $cur) }) | Out-Null
-                }
-                $inner = if ($m.Groups.Count -gt 1 -and $m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Value }
-                $out.Add(@{ Kind=$kind; Text=$inner }) | Out-Null
-                $cur = $m.Index + $m.Length
-            }
-            if ($cur -lt $s.Text.Length) {
-                $out.Add(@{ Kind='text'; Text=$s.Text.Substring($cur) }) | Out-Null
-            }
-        }
-        return $out
+    # One path index for the entire README, shared by paragraphs and tables.
+    # Keeping original text lets scan completion refresh links without losing
+    # formatting, controller pills, scroll position or the current S/M/L size.
+    if (-not $LinkSession -and $Game) {
+        $LinkSession = New-ReadmeLinkSession -Game $Game -Texts @($Text)
     }
-    $spans = & $splitFn $spans '(?i)\bhttps?://[^\s<>"\)\],]+' 'url'
-
-    # Combined bold+code first: **`text`** -> one bold-mono span.
-    # Must run before the standalone bold/code passes, otherwise
-    # the code pass eats the backticks and leaves the ** stranded
-    # as literal text on either side.
-    $spans = & $splitFn $spans '\*\*`([^`]+)`\*\*'           'boldcode'
-    $spans = & $splitFn $spans '\*\*([^\*]+)\*\*'             'bold'
-    $spans = & $splitFn $spans '`([^`]+)`'                    'code'
+    if ($LinkSession) {
+        $Game = $LinkSession.Game
+        if (-not $NoRegister) { [void]$LinkSession.Blocks.Add(@{ Control=$TextBlock; Text=$Text; Accent=$AccentHex; Literal=[bool]$Literal }) }
+    }
+    $spanStyle = if ($Literal) { 'code' } else { 'text' }
+    $spans = @(Get-ReadmeInlineSpans -Text $Text -Style $spanStyle -Literal:$Literal)
+    $spans = @(Add-ReadmePathSpans -Spans $spans -Session $LinkSession)
 
     # Typography pass: prettify dashes and arrows in prose. Runs after
     # url/bold/code are split out so it only touches plain text spans -
@@ -2933,36 +3217,8 @@ function global:Set-TextBlockWithLinks {
         }
         return $out
     }
-    $spans = & $typoSplit $spans
+    if (-not $Literal) { $spans = & $typoSplit $spans }
 
-    # Button pills: [[A]], [[Grip]], [[Both Back Buttons]] -> small grey
-    # key-cap pills. Done LAST and across text AND bold spans, so a pill
-    # written inside **bold** (e.g. "**[[A]] button**") keeps the rest of
-    # the run bold instead of leaving stray ** in the output. A pill that
-    # came from a bold span is tagged 'pill' either way (the cap styling
-    # is the same); only the leftover words around it stay bold.
-    $pillSplit = {
-        param($inSpans)
-        $out = New-Object System.Collections.Generic.List[object]
-        foreach ($s in $inSpans) {
-            if ($s.Kind -ne 'text' -and $s.Kind -ne 'bold') { $out.Add($s) | Out-Null; continue }
-            $cur = 0
-            $matches = [regex]::Matches($s.Text, '\[\[([^\]]+)\]\]')
-            if ($matches.Count -eq 0) { $out.Add($s) | Out-Null; continue }
-            foreach ($m in $matches) {
-                if ($m.Index -gt $cur) {
-                    $out.Add(@{ Kind=$s.Kind; Text=$s.Text.Substring($cur, $m.Index - $cur) }) | Out-Null
-                }
-                $out.Add(@{ Kind='pill'; Text=$m.Groups[1].Value }) | Out-Null
-                $cur = $m.Index + $m.Length
-            }
-            if ($cur -lt $s.Text.Length) {
-                $out.Add(@{ Kind=$s.Kind; Text=$s.Text.Substring($cur) }) | Out-Null
-            }
-        }
-        return $out
-    }
-    $spans = & $pillSplit $spans
 
     foreach ($s in $spans) {
         switch ($s.Kind) {
@@ -2996,13 +3252,17 @@ function global:Set-TextBlockWithLinks {
                 $TextBlock.Inlines.Add($run) | Out-Null
             }
             'code' {
-                # Inline code: monospace + subtle warm tint, no
-                # background box (would break line height). Reads
-                # as "this is a file/command/path token".
                 $run = New-Object System.Windows.Documents.Run $s.Text
                 $run.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas, Cascadia Mono, Courier New")
                 $run.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#e6c992")
                 $TextBlock.Inlines.Add($run) | Out-Null
+            }
+            'local' {
+                $color = if ($s.Style -in @('code','boldcode')) { '#e6c992' } else { '#e99583' }
+                $localLink = New-UninstallGuideLink -Text $s.Text -Target $s.Target -Game $Game -AccentHex $color
+                if ($s.Style -in @('code','boldcode')) { $localLink.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas, Cascadia Mono, Courier New') }
+                if ($s.Style -in @('bold','boldcode')) { $localLink.FontWeight = [System.Windows.FontWeights]::Bold }
+                [void]$TextBlock.Inlines.Add($localLink)
             }
             'pill' {
                 # Controller-button key-cap: small neutral grey rounded
@@ -3046,29 +3306,23 @@ function global:Set-TextBlockWithLinks {
                 $container.BaselineAlignment = [System.Windows.BaselineAlignment]::Center
                 $TextBlock.Inlines.Add($container) | Out-Null
             }
+            'destination' {
+                # !!! A MARKDOWN LINK - [label](address) - AND IT HAD NO
+                # BRANCH HERE. Get-ReadmeInlineSpans reports a bare URL as
+                # 'url' but a markdown link as 'destination', and the switch
+                # only knew the first. Every [text](url) in every readme fell
+                # through the switch and vanished ENTIRELY - not just the
+                # link, the label with it. Same rendering as 'url': the label
+                # is shown, the address is where it goes.
+                $mdLink = New-ReadmeWebLink -Text $s.Text -Address $s.Address
+                if ($s.Style -in @('code','boldcode')) { $mdLink.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas, Cascadia Mono, Courier New') }
+                if ($s.Style -in @('bold','boldcode')) { $mdLink.FontWeight = [System.Windows.FontWeights]::Bold }
+                $TextBlock.Inlines.Add($mdLink) | Out-Null
+            }
             'url' {
-                $url = $s.Text
-                $trim = '.,;:!?'
-                while ($url.Length -gt 0 -and $trim.Contains($url[$url.Length - 1])) {
-                    $url = $url.Substring(0, $url.Length - 1)
-                }
-                $hyperlink = New-Object System.Windows.Documents.Hyperlink
-                $linkText = New-Object System.Windows.Documents.Run $url
-                $hyperlink.Inlines.Add($linkText) | Out-Null
-                try { $hyperlink.NavigateUri = New-Object System.Uri($url) } catch { }
-                $hyperlink.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#6cb6ff")
-                $hyperlink.TextDecorations = $null
-                $hyperlink.Cursor = [System.Windows.Input.Cursors]::Hand
-                $urlCapture = $url
-                $hyperlink.Add_Click({
-                    try { Start-Process $urlCapture } catch { }
-                }.GetNewClosure())
-                $hyperlink.Add_MouseEnter({
-                    $this.TextDecorations = [System.Windows.TextDecorations]::Underline
-                })
-                $hyperlink.Add_MouseLeave({
-                    $this.TextDecorations = $null
-                })
+                $hyperlink = New-ReadmeWebLink -Text $s.Text -Address $s.Address
+                if ($s.Style -in @('code','boldcode')) { $hyperlink.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas, Cascadia Mono, Courier New') }
+                if ($s.Style -in @('bold','boldcode')) { $hyperlink.FontWeight = [System.Windows.FontWeights]::Bold }
                 $TextBlock.Inlines.Add($hyperlink) | Out-Null
             }
         }
@@ -3089,8 +3343,25 @@ function global:Get-YouTubeId {
 # failure it swaps to the game's Steam header, and if that is unavailable
 # too the dark tile plus the red play button still read cleanly - so the
 # strip looks right even offline. The whole strip opens the video.
+# !!! TWO VIDEOS SIDE BY SIDE (2026-08-29). Tiles that carry two mods for
+# one game often have footage of each - Steam build and GOG build, old
+# fork and new fork. -Which picks the second one, so the caller can build
+# both cards and lay them out next to each other.
+#
+# Only VideoUrl2 turns the second card on. Every existing entry has just
+# VideoUrl and is untouched.
 function global:New-VideoStripElement {
-    param($Game, [string]$AccentHex = "#cdb77a")
+    param($Game, [string]$AccentHex = "#cdb77a", [ValidateSet("Primary","Secondary")][string]$Which = "Primary")
+    if ($Which -eq "Secondary") {
+        if (-not $Game.VideoUrl2) { return $null }
+        # A shallow copy with the second video's fields in the primary
+        # slots - the body below then needs no second code path.
+        $alt = @{}
+        foreach ($k in $Game.Keys) { $alt[$k] = $Game[$k] }
+        $alt.VideoUrl   = $Game.VideoUrl2
+        $alt.VideoLabel = if ($Game.VideoLabel2) { $Game.VideoLabel2 } else { "Watch VR gameplay" }
+        $Game = $alt
+    }
     try {
         if (-not $Game.VideoUrl) { return $null }
         $vid = Get-YouTubeId -Url $Game.VideoUrl
@@ -3118,8 +3389,16 @@ function global:New-VideoStripElement {
         $card.Margin = [System.Windows.Thickness]::new(0,0,0,14)
         $card.Cursor = [System.Windows.Input.Cursors]::Hand
 
-        $row = New-Object System.Windows.Controls.StackPanel
-        $row.Orientation = "Horizontal"
+        # A Grid gives the text a finite star-width. The previous horizontal
+        # StackPanel measured it at infinity, so two half-width video cards
+        # could overflow the detail pane instead of wrapping their labels.
+        $row = New-Object System.Windows.Controls.Grid
+        $thumbCol = New-Object System.Windows.Controls.ColumnDefinition
+        $thumbCol.Width = New-Object System.Windows.GridLength(132)
+        $textCol = New-Object System.Windows.Controls.ColumnDefinition
+        $textCol.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+        $row.ColumnDefinitions.Add($thumbCol) | Out-Null
+        $row.ColumnDefinitions.Add($textCol) | Out-Null
 
         $thumbWrap = New-Object System.Windows.Controls.Border
         $thumbWrap.Width = 132; $thumbWrap.Height = 74
@@ -3186,6 +3465,7 @@ function global:New-VideoStripElement {
         $thumbGrid.Children.Add($play) | Out-Null
 
         $thumbWrap.Child = $thumbGrid
+        [System.Windows.Controls.Grid]::SetColumn($thumbWrap, 0)
         $row.Children.Add($thumbWrap) | Out-Null
 
         $txt = New-Object System.Windows.Controls.StackPanel
@@ -3198,11 +3478,14 @@ function global:New-VideoStripElement {
         $t1.Text = if ($Game.VideoLabel) { [string]$Game.VideoLabel } else { "Watch VR gameplay" }
         $t1.Foreground = $accentBrush
         $t1.FontSize = 14; $t1.FontWeight = "SemiBold"
+        $t1.TextWrapping = [System.Windows.TextWrapping]::Wrap
         $t2 = New-Object System.Windows.Controls.TextBlock
         $t2.Text = "See it in action on $provider"
         $t2.Foreground = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(0x8A,0x8A,0x95))
         $t2.FontSize = 12; $t2.Margin = [System.Windows.Thickness]::new(0,2,0,0)
+        $t2.TextWrapping = [System.Windows.TextWrapping]::Wrap
         $txt.Children.Add($t1) | Out-Null; $txt.Children.Add($t2) | Out-Null
+        [System.Windows.Controls.Grid]::SetColumn($txt, 1)
         $row.Children.Add($txt) | Out-Null
 
         $card.Child = $row
@@ -3221,9 +3504,15 @@ function global:New-DetailSection {
         [string]$Heading,
         [string]$Body,
         [string]$AccentHex = "#666677",
+        $Game = $null,
+        $LinkSession = $null,
         $AppendChild = $null,
-        [string]$ImageBaseDir = $null
+        [string]$ImageBaseDir = $null,
+        [switch]$PreserveSubheadings
     )
+    if (-not $LinkSession) {
+        $LinkSession = New-ReadmeLinkSession -Game $Game -Texts @($Heading, $Body) -BaseDir $ImageBaseDir
+    }
     # Markdown -> nice typography. Source is ASCII via [char]
     # escapes so the release audit stays clean. The actual
     # bold/code inline parsing happens in Set-TextBlockWithLinks
@@ -3251,6 +3540,10 @@ function global:New-DetailSection {
     # A flavour "quip" line (markdown prefix '>>> '). Rendered as a
     # single accent-coloured box with no heading at the very end.
     $quipMark = [char]0x0006
+    # Grouped two-mod READMEs opt in to preserving their level-3 headings.
+    # This keeps one author-labelled H2 per mod while its Overview / Install /
+    # Controls subsections remain visibly separated inside that group.
+    $subheadingMark = [char]0x0007
     # Table sentinels: $tableMark prefixes a markdown table row, with
     # cells joined by $cellSep. $tableHdr marks the header row so it
     # renders bolder. The |---| separator line is dropped.
@@ -3316,6 +3609,11 @@ function global:New-DetailSection {
                 $lastWasParagraph = $false
                 $inStep = $false
                 $inBullet = $false
+                continue
+            }
+            if ($PreserveSubheadings -and $line -match '^[ \t]*###[ \t]+(.+?)\s*$') {
+                $out.Add($subheadingMark + $Matches[1].Trim()) | Out-Null
+                $inStep = $false; $inBullet = $false; $lastWasParagraph = $false
                 continue
             }
             if ($line -match '^[ \t]*#{1,6}[ \t]+\S') { continue }
@@ -3457,13 +3755,35 @@ function global:New-DetailSection {
         if (-not $cleaned) { return }
         $cfg = $global:DetailTextSizes[$global:DetailSize]
         if (-not $cfg) { $cfg = $global:DetailTextSizes["M"] }
-        foreach ($ln in ($cleaned -split "`n")) {
+        # Reset between tables: any non-table line ends the current one, so
+        # two tables never share a container and therefore never share
+        # column widths.
+        $tableHost = $null
+        $bodyLines = $cleaned -split "`n"
+        for ($lineIndex = 0; $lineIndex -lt $bodyLines.Count; $lineIndex++) {
+            $ln = $bodyLines[$lineIndex]
+            $isTableRow = $ln.Length -gt 0 -and ($ln[0] -eq $tableMark -or $ln[0] -eq $tableHdr)
+            if (-not $isTableRow) { $tableHost = $null }
+            if ($ln.Length -gt 0 -and $ln[0] -eq $subheadingMark) {
+                $sub = New-Object System.Windows.Controls.TextBlock
+                Set-TextBlockWithLinks -TextBlock $sub -Text $ln.Substring(1) -LinkSession $LinkSession -AccentHex $AccentHex -BaseFont ([int]$cfg.Font + 1)
+                $sub.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+                $sub.FontSize = [int]$cfg.Font + 1
+                $sub.FontWeight = [System.Windows.FontWeights]::SemiBold
+                $sub.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+                $sub.Margin = [System.Windows.Thickness]::new(0, 12, 0, 3)
+                $sub.TextWrapping = [System.Windows.TextWrapping]::Wrap
+                $target.Children.Add($sub) | Out-Null
+                if ($null -ne $global:DetailReadmeTextBlocks) { $global:DetailReadmeTextBlocks.Add($sub) | Out-Null }
+                if ($null -ne $global:DetailWidthBlocks) { $global:DetailWidthBlocks.Add($sub) | Out-Null }
+                continue
+            }
             # Code-fence line: sentinel-prefixed. Render as a
             # monospace row inside a subtle dark chip so launch
             # options / commands stand out as copy-pasteable code.
             # Plain code-fence line ($codeMark): a monospace chip for
-            # config blocks, paths, cvars. NOT clickable - these aren't
-            # one-shot commands you'd copy wholesale.
+            # config blocks, paths, cvars. Known paths and web addresses can
+            # be opened; commands and settings remain literal text.
             if ($ln.Length -gt 0 -and $ln[0] -eq $codeMark) {
                 $codeText = $ln.Substring(1)
                 # Blank line inside a fence: skip it rather than draw an
@@ -3478,7 +3798,7 @@ function global:New-DetailSection {
                 $codeBox.Margin = [System.Windows.Thickness]::new(0, 2, 0, 2)
                 $codeBox.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
                 $ctb = New-Object System.Windows.Controls.TextBlock
-                $ctb.Text = $codeText
+                Set-TextBlockWithLinks -TextBlock $ctb -Text $codeText -LinkSession $LinkSession -Literal -BaseFont $cfg.Font
                 $ctb.FontFamily = [System.Windows.Media.FontFamily]::new("Consolas, Cascadia Mono, Courier New")
                 $ctb.FontSize = $cfg.Font
                 $ctb.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#e6c992")
@@ -3606,7 +3926,7 @@ function global:New-DetailSection {
                 # Accent bar on the left edge for a clean, branded look.
                 $qBox.BorderThickness = [System.Windows.Thickness]::new(3, 0, 0, 0)
                 $qtb = New-Object System.Windows.Controls.TextBlock
-                $qtb.Text = $qtext
+                Set-TextBlockWithLinks -TextBlock $qtb -Text $qtext -LinkSession $LinkSession -AccentHex $AccentHex -BaseFont ([int]$cfg.Font + 1)
                 $qtb.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
                 $qtb.FontSize = [int]$cfg.Font + 1
                 $qtb.FontStyle = [System.Windows.FontStyles]::Italic
@@ -3620,14 +3940,89 @@ function global:New-DetailSection {
                 continue
             }
 
-            # a subtle striped chip so multi-column control lists read
-            # as a real table rather than raw "| a | b |" text.
-            if ($ln.Length -gt 0 -and ($ln[0] -eq $tableMark -or $ln[0] -eq $tableHdr)) {
+            if ($isTableRow) {
+                # One Grid for the ENTIRE table: independent row Grids can
+                # negotiate different star widths during WPF's arrange pass.
+                if (-not $tableHost) {
+                    $tableRows = New-Object 'System.Collections.Generic.List[object]'
+                    $columnCount = 0
+                    $textHeavy = $false
+                    for ($look = $lineIndex; $look -lt $bodyLines.Count; $look++) {
+                        $row = $bodyLines[$look]
+                        if (-not $row.Length -or ($row[0] -ne $tableMark -and $row[0] -ne $tableHdr)) { break }
+                        $rowCells = $row.Substring(1) -split ([regex]::Escape([string]$cellSep))
+                        $columnCount = [Math]::Max($columnCount, $rowCells.Count)
+                        $lengths = @($rowCells | ForEach-Object {
+                            $visible = (@(Get-ReadmeInlineSpans $_) | ForEach-Object { $_.Text }) -join ''
+                            if ($visible.Length -ge 64) { $textHeavy = $true }
+                            # A raw URL should not outweigh a description just
+                            # because its destination happens to be very long.
+                            if ($visible -match '^https?://\S+$') { [Math]::Min(48, $visible.Length) }
+                            else { $visible.Length }
+                        })
+                        [void]$tableRows.Add($lengths)
+                    }
+                    $weights = @(for ($ci = 0; $ci -lt $columnCount; $ci++) {
+                        if ($textHeavy) {
+                            $values = @($tableRows | ForEach-Object { if ($ci -lt $_.Count) { $_[$ci] } })
+                            $stats = $values | Measure-Object -Maximum -Average
+                            [Math]::Max(1, ($stats.Maximum + $stats.Average) / 2)
+                        } elseif ($ci -eq 0 -and $columnCount -gt 1) { 1.2 }
+                        else { 1.0 }
+                    })
+                    if ($textHeavy) {
+                        # Keep labels readable, while giving a long prose
+                        # column up to 2.5 times a short one's width. The floor
+                        # also keeps labels intact at the largest text size.
+                        $floor = ($weights | Measure-Object -Maximum).Maximum * 0.4
+                        $weights = @($weights | ForEach-Object { [Math]::Max($floor, $_) })
+                    }
+                    $tableHost = New-Object System.Windows.Controls.Grid
+                    $tableHost.Tag = 'readme-table'
+                    $tableHost.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+                    $tableHost.MaxWidth = $readmeMaxW
+                    $tableHost.Margin = [System.Windows.Thickness]::new(0, 2, 0, 2)
+                    # !!! TWO KINDS OF TABLE, AND THEY NEED OPPOSITE TREATMENT.
+                    #
+                    # A PROSE table (a cell of 64+ characters) has to wrap, so
+                    # it takes the full reading width and shares it out by the
+                    # weights worked out above.
+                    #
+                    # A SHORT table - every controls list is one - has nothing
+                    # to wrap. Stretching it across the page pushed "Right
+                    # Trigger" half a screen away from "Fire weapon" and left a
+                    # gulf between the two. Those columns size to their content
+                    # instead, so the table is only as wide as it needs to be
+                    # and the pairs stay side by side. No width binding either:
+                    # the grid shrinks to fit rather than filling the page.
+                    if ($textHeavy) {
+                        $widthBinding = [System.Windows.Data.Binding]::new('ActualWidth')
+                        $widthBinding.Source = $target
+                        [void]$tableHost.SetBinding([System.Windows.FrameworkElement]::WidthProperty, $widthBinding)
+                        foreach ($weight in $weights) {
+                            $cd = New-Object System.Windows.Controls.ColumnDefinition
+                            $cd.Width = [System.Windows.GridLength]::new($weight, [System.Windows.GridUnitType]::Star)
+                            [void]$tableHost.ColumnDefinitions.Add($cd)
+                        }
+                    } else {
+                        for ($ci = 0; $ci -lt $columnCount; $ci++) {
+                            $cd = New-Object System.Windows.Controls.ColumnDefinition
+                            $cd.Width = [System.Windows.GridLength]::Auto
+                            [void]$tableHost.ColumnDefinitions.Add($cd)
+                        }
+                    }
+                    $target.Children.Add($tableHost) | Out-Null
+                    if ($null -ne $global:DetailWidthBlocks) { $global:DetailWidthBlocks.Add($tableHost) | Out-Null }
+                }
                 $isHdr = ($ln[0] -eq $tableHdr)
                 $cells = $ln.Substring(1) -split ([regex]::Escape([string]$cellSep))
                 # Defensive: an all-empty header row (e.g. "| | |") would
                 # render as a blank highlighted bar - skip it entirely.
                 if ($isHdr -and (($cells | Where-Object { $_.Trim() -ne '' }).Count -eq 0)) { continue }
+                $rowIndex = $tableHost.RowDefinitions.Count
+                $rd = New-Object System.Windows.Controls.RowDefinition
+                $rd.Height = [System.Windows.GridLength]::Auto
+                [void]$tableHost.RowDefinitions.Add($rd)
                 $rowBorder = New-Object System.Windows.Controls.Border
                 if ($isHdr) {
                     $rowBorder.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1c1c24")
@@ -3636,26 +4031,25 @@ function global:New-DetailSection {
                 }
                 $rowBorder.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
                 $rowBorder.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a34")
-                $rowBorder.Padding = [System.Windows.Thickness]::new(8, 5, 8, 5)
-                $rowBorder.MaxWidth = $readmeMaxW
-                $rowBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-                $grid = New-Object System.Windows.Controls.Grid
-                for ($ci = 0; $ci -lt $cells.Count; $ci++) {
-                    $cd = New-Object System.Windows.Controls.ColumnDefinition
-                    if ($ci -eq 0 -and $cells.Count -gt 1) {
-                        $cd.Width = [System.Windows.GridLength]::new(170)
-                    } else {
-                        $cd.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-                    }
-                    $grid.ColumnDefinitions.Add($cd)
-                }
+                $rowBorder.IsHitTestVisible = $false
+                [System.Windows.Controls.Grid]::SetRow($rowBorder, $rowIndex)
+                [System.Windows.Controls.Grid]::SetColumnSpan($rowBorder, $columnCount)
+                [void]$tableHost.Children.Add($rowBorder)
                 for ($ci = 0; $ci -lt $cells.Count; $ci++) {
                     $ctb = New-Object System.Windows.Controls.TextBlock
-                    Set-TextBlockWithLinks -TextBlock $ctb -Text $cells[$ci] -AccentHex $AccentHex -BaseFont $rmCfg0.Font
+                    Set-TextBlockWithLinks -TextBlock $ctb -Text $cells[$ci] -AccentHex $AccentHex -BaseFont $cfg.Font -LinkSession $LinkSession
                     $ctb.FontSize = $cfg.Font
                     $ctb.LineHeight = $cfg.LineHeight
                     $ctb.TextWrapping = [System.Windows.TextWrapping]::Wrap
-                    $ctb.Margin = [System.Windows.Thickness]::new(0, 0, 12, 0)
+                    # An Auto column measures with unlimited width, so a long
+                    # cell in a short table would run past the page instead of
+                    # wrapping. Capping the cell keeps the wrap working while
+                    # the column still hugs whatever is shorter than the cap.
+                    if (-not $textHeavy) { $ctb.MaxWidth = [Math]::Max(160, $readmeMaxW * 0.55) }
+                    $cellPadding = if ($textHeavy -and -not $isHdr) { 8 } else { 5 }
+                    $ctb.Margin = [System.Windows.Thickness]::new(8, $cellPadding, 12, $cellPadding + 1)
+                    $ctb.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+                    $ctb.TextAlignment = [System.Windows.TextAlignment]::Left
                     $ctb.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
                     if ($isHdr) {
                         $ctb.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -3664,13 +4058,11 @@ function global:New-DetailSection {
                         $ctb.FontWeight = [System.Windows.FontWeights]::Medium
                         $ctb.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#c8c8d4")
                     }
+                    [System.Windows.Controls.Grid]::SetRow($ctb, $rowIndex)
                     [System.Windows.Controls.Grid]::SetColumn($ctb, $ci)
-                    $grid.Children.Add($ctb) | Out-Null
+                    $tableHost.Children.Add($ctb) | Out-Null
                     if ($null -ne $global:DetailReadmeTextBlocks) { $global:DetailReadmeTextBlocks.Add($ctb) | Out-Null }
                 }
-                $rowBorder.Child = $grid
-                $target.Children.Add($rowBorder) | Out-Null
-                if ($null -ne $global:DetailWidthBlocks) { $global:DetailWidthBlocks.Add($rowBorder) | Out-Null }
                 continue
             }
 
@@ -3685,11 +4077,11 @@ function global:New-DetailSection {
             $stepTxt = if ($isStep) { $Matches[2] } else { $null }
 
             if ($isStep) {
-                $row = New-Object System.Windows.Controls.StackPanel
-                $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+                $row = New-Object System.Windows.Controls.DockPanel
                 $row.Margin = [System.Windows.Thickness]::new(0, 3, 0, 3)
                 $badgeSize = [int]$cfg.Font + 8
                 $badge = New-Object System.Windows.Controls.Border
+                [System.Windows.Controls.DockPanel]::SetDock($badge, 'Left')
                 $badge.Width = $badgeSize
                 $badge.Height = $badgeSize
                 $badge.CornerRadius = [System.Windows.CornerRadius]::new($badgeSize / 2)
@@ -3708,7 +4100,7 @@ function global:New-DetailSection {
                 $badge.Child = $bnum
                 $row.Children.Add($badge) | Out-Null
                 $stb = New-Object System.Windows.Controls.TextBlock
-                Set-TextBlockWithLinks -TextBlock $stb -Text $stepTxt -AccentHex $AccentHex -BaseFont $rmCfg0.Font
+                Set-TextBlockWithLinks -TextBlock $stb -Text $stepTxt -AccentHex $AccentHex -BaseFont $cfg.Font -LinkSession $LinkSession
                 $stb.FontSize = $cfg.Font
                 $stb.LineHeight = $cfg.LineHeight
                 $stb.FontWeight = [System.Windows.FontWeights]::Medium
@@ -3716,6 +4108,7 @@ function global:New-DetailSection {
                 $stb.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#c8c8d4")
                 $stb.TextWrapping = [System.Windows.TextWrapping]::Wrap
                 $stb.MaxWidth = $readmeMaxW
+                $stb.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
                 $row.Children.Add($stb) | Out-Null
                 $target.Children.Add($row) | Out-Null
                 if ($null -ne $global:DetailReadmeTextBlocks) { $global:DetailReadmeTextBlocks.Add($stb) | Out-Null }
@@ -3724,11 +4117,11 @@ function global:New-DetailSection {
             }
 
             if ($isB1 -or $isB2) {
-                $row = New-Object System.Windows.Controls.StackPanel
-                $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+                $row = New-Object System.Windows.Controls.DockPanel
                 $leftMargin = if ($isB2) { 22 } else { 0 }
                 $row.Margin = [System.Windows.Thickness]::new($leftMargin, 3, 0, 3)
                 $mk = New-Object System.Windows.Controls.TextBlock
+                [System.Windows.Controls.DockPanel]::SetDock($mk, 'Left')
                 if ($isB2) {
                     $mk.Text = "$sq"
                     $mk.FontSize = [int]$cfg.Font - 3
@@ -3746,7 +4139,7 @@ function global:New-DetailSection {
                 $row.Children.Add($mk) | Out-Null
                 $btb = New-Object System.Windows.Controls.TextBlock
                 $bodyText = if ($isB2) { $b2text } else { $b1text }
-                Set-TextBlockWithLinks -TextBlock $btb -Text $bodyText -AccentHex $AccentHex -BaseFont $rmCfg0.Font
+                Set-TextBlockWithLinks -TextBlock $btb -Text $bodyText -AccentHex $AccentHex -BaseFont $cfg.Font -LinkSession $LinkSession
                 $btb.FontSize = $cfg.Font
                 $btb.LineHeight = $cfg.LineHeight
                 $btb.FontWeight = [System.Windows.FontWeights]::Medium
@@ -3754,6 +4147,7 @@ function global:New-DetailSection {
                 $btb.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#c8c8d4")
                 $btb.TextWrapping = [System.Windows.TextWrapping]::Wrap
                 $btb.MaxWidth = $readmeMaxW
+                $btb.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
                 $row.Children.Add($btb) | Out-Null
                 $target.Children.Add($row) | Out-Null
                 if ($null -ne $global:DetailReadmeTextBlocks) { $global:DetailReadmeTextBlocks.Add($btb) | Out-Null }
@@ -3763,7 +4157,7 @@ function global:New-DetailSection {
 
             # Plain paragraph line
             $ptb = New-Object System.Windows.Controls.TextBlock
-            Set-TextBlockWithLinks -TextBlock $ptb -Text $ln -AccentHex $AccentHex -BaseFont $rmCfg0.Font
+            Set-TextBlockWithLinks -TextBlock $ptb -Text $ln -AccentHex $AccentHex -BaseFont $cfg.Font -LinkSession $LinkSession
             $ptb.FontSize = $cfg.Font
             $ptb.LineHeight = $cfg.LineHeight
             $ptb.FontWeight = [System.Windows.FontWeights]::Medium
@@ -3801,7 +4195,7 @@ function global:New-DetailSection {
     $headRow.Children.Add($bar) | Out-Null
 
     $h = New-Object System.Windows.Controls.TextBlock
-    $h.Text = $Heading
+    Set-TextBlockWithLinks -TextBlock $h -Text $Heading -LinkSession $LinkSession -AccentHex $AccentHex -BaseFont $headFont
     $h.FontSize = $headFont
     $h.FontWeight = [System.Windows.FontWeights]::SemiBold
     $h.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#f0f0f4")
@@ -4019,6 +4413,28 @@ function global:Start-GameInVR {
         } catch { }
     }
 
+    # The Elden Ring motion entry never executes its historical common
+    # launcher. Older copies of that file contain a console choice between
+    # Hotbite and ERVR. Even a generic Current/Depot launch is kept inside
+    # the Hub: try the installed payloads directly and otherwise point back
+    # to the two explicit Play buttons.
+    if ($Game.EldenRingDirectMotionLaunch -and $Mode -in @('Current','Depot')) {
+        $erState = $global:gameStateMap[$Game.Title]
+        $erRoot = if ($Mode -eq 'Depot') {
+            if ($erState -and $erState.DepotDir) { [string]$erState.DepotDir } else { [string]$Game.DepotPath }
+        } else {
+            if ($erState -and $erState.CurrentDir) { [string]$erState.CurrentDir } else { [string]$erState.GameDir }
+        }
+        foreach ($erKind in @('Hotbite','ERVR')) {
+            if ($erRoot -and (Invoke-EldenRingDirectMotionLaunch -Kind $erKind -GameDir $erRoot)) {
+                try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch {}
+                return
+            }
+        }
+        try { [void](Show-EldenRingSaveMessage -Text 'Use Play Hotbite or Play ERVR on this page. The Hub will not reopen the obsolete console chooser.' -Title 'Choose the Elden Ring VR mod' -Icon Information) } catch {}
+        return
+    }
+
     # DualMode shortcut: when the caller explicitly picks a variant,
     # bypass the priority chain and launch the requested variant
     # directly. This keeps the dual-button hover behaviour simple -
@@ -4031,17 +4447,17 @@ function global:Start-GameInVR {
             # records the chosen one. Catalog path first, then the
             # recorded one - otherwise the button launches into nothing.
             $depotRoot = $Game.DepotPath
-            $depotExe  = Join-Path $depotRoot $Game.DepotLaunchExe
+            $depotExe  = [System.IO.Path]::Combine(([string]$depotRoot).TrimEnd([char[]]"\/"), ([string]$Game.DepotLaunchExe).TrimStart([char[]]"\/"))
             if (-not (Test-Path $depotExe)) {
                 foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
-                    $try = Join-Path $cand $Game.DepotLaunchExe
+                    $try = [System.IO.Path]::Combine(([string]$cand).TrimEnd([char[]]"\/"), ([string]$Game.DepotLaunchExe).TrimStart([char[]]"\/"))
                     if (Test-Path $try) { $depotRoot = $cand; $depotExe = $try; break }
                 }
             }
             if (Test-Path $depotExe) {
                 # steam_appid.txt safety net (same as the normal path)
                 if ($Game.SteamId) {
-                    $appidFile = Join-Path $depotRoot "steam_appid.txt"
+                    $appidFile = [System.IO.Path]::Combine(([string]$depotRoot).TrimEnd([char[]]"\/"), "steam_appid.txt")
                     if (-not (Test-Path $appidFile)) {
                         try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
                     }
@@ -4057,6 +4473,29 @@ function global:Start-GameInVR {
                     }
                 } catch { }
                 return
+            }
+        }
+        if ($Mode -eq "Current" -and $Game.CurrentLaunchExe) {
+            # Some current-build variants need their own offline/mod launcher
+            # rather than steam:// (Elden Ring would otherwise start EAC and
+            # bypass the selected VR route). The scan records the exact Steam
+            # root in CurrentDir when both variants are present.
+            $currentRoot = if ($state -and $state.CurrentDir) { [string]$state.CurrentDir } else { $null }
+            if ($currentRoot) {
+                $currentExe = Join-Path $currentRoot $Game.CurrentLaunchExe
+                if (Test-Path -LiteralPath $currentExe) {
+                    try {
+                        if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized }
+                    } catch { }
+                    try {
+                        if ($Game.CurrentLaunchArgs) {
+                            Start-Process -FilePath $currentExe -ArgumentList $Game.CurrentLaunchArgs -WorkingDirectory $currentRoot
+                        } else {
+                            Start-Process -FilePath $currentExe -WorkingDirectory $currentRoot
+                        }
+                    } catch { }
+                    return
+                }
             }
         }
         if ($Mode -eq "Current" -and $Game.SteamId) {
@@ -4086,6 +4525,24 @@ function global:Start-GameInVR {
         $tmState = $global:gameStateMap[$Game.Title]
         if ((-not $tmParent) -and $tmState -and $tmState.GameDir) {
             try { if (Test-Path -LiteralPath $tmState.GameDir) { $tmParent = $tmState.GameDir } } catch { }
+        }
+        # Elden Ring used to fall back to a shared batch file which asked
+        # Hotbite or ERVR AGAIN in a console. The split-button click already
+        # made that choice. Launch its real payload directly, including old
+        # installations which never received the dedicated launchers.
+        if ($Game.EldenRingDirectMotionLaunch -and ($Mode -in @('ModA','ModB') -or -not $Mode)) {
+            $kind = if ($Mode -eq 'ModB' -or (-not $Mode -and $tmState -and -not $tmState.ModAPresent -and $tmState.ModBPresent)) { 'ERVR' } else { 'Hotbite' }
+            $preferred = if ($Mode -eq 'ModA' -and $tmState -and $tmState.ModARoot) { [string]$tmState.ModARoot }
+                         elseif ($Mode -eq 'ModB' -and $tmState -and $tmState.ModBRoot) { [string]$tmState.ModBRoot }
+                         else { [string]$tmParent }
+            $directRoots = @($preferred)
+            if ($tmState) { $directRoots += @($tmState.GameDir, $tmState.CurrentDir, $tmState.DepotDir) }
+            foreach ($directRoot in @($directRoots | Where-Object { $_ } | Select-Object -Unique)) {
+                if (Invoke-EldenRingDirectMotionLaunch -Kind $kind -GameDir ([string]$directRoot)) {
+                    try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
+                    return
+                }
+            }
         }
         # Resolve each mod's launcher under its own subfolder, searching
         # RECURSIVELY so a mod that unpacked one level deep still launches.
@@ -4126,6 +4583,27 @@ function global:Start-GameInVR {
             try { Start-Process -FilePath $tmPick -WorkingDirectory (Split-Path -Parent $tmPick) } catch { }
             return
         }
+        # Migration fallback for Elden Ring installs made by a Hub version
+        # that wrote only the shared chooser, before dedicated Hotbite/ERVR
+        # launchers existed. Real probe markers still decide presence; this
+        # fallback only supplies a usable launch path. A new install/reinstall
+        # writes the dedicated launchers and no longer reaches this branch.
+        $requestedPresent = (($Mode -eq "ModA" -and $tmState -and $tmState.ModAPresent) -or
+                             ($Mode -eq "ModB" -and $tmState -and $tmState.ModBPresent))
+        if ($requestedPresent -and $Game.LaunchExe -and -not $Game.DisableSharedTwoModsFallback) {
+            $legacyRoots = @($tmParent)
+            if ($tmState) { $legacyRoots += @($tmState.GameDir, $tmState.CurrentDir, $tmState.DepotDir) }
+            foreach ($legacyRoot in $legacyRoots) {
+                if (-not $legacyRoot) { continue }
+                if ($Mode -eq "ModB" -and $Game.ModBProbeFile -and -not (Test-RelativePathMarker -Root $legacyRoot -Values $Game.ModBProbeFile)) { continue }
+                $legacyCommon = Join-Path $legacyRoot $Game.LaunchExe
+                if (Test-Path -LiteralPath $legacyCommon -PathType Leaf) {
+                    try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
+                    try { Start-Process -FilePath $legacyCommon -WorkingDirectory (Split-Path -Parent $legacyCommon) } catch { }
+                    return
+                }
+            }
+        }
         # The requested mod is not installed yet: open its installer so
         # the user can add it (the installer lets them pick which mod),
         # rather than silently doing nothing.
@@ -4134,7 +4612,8 @@ function global:Start-GameInVR {
                 $tmBat = Join-Path $global:scriptDir $Game.Bat
                 if (Test-Path $tmBat) {
                     try {
-                        $tmProc = Start-LoggedInstaller -Game $Game -BatPath $tmBat -RequiresAdmin:([bool]$Game.RequiresAdmin)
+                        $installerChoice = if ($Mode -eq 'ModA') { [string]$Game.ModAInstallerChoice } else { [string]$Game.ModBInstallerChoice }
+                        $tmProc = Start-LoggedInstaller -Game $Game -BatPath $tmBat -RequiresAdmin:([bool]$Game.RequiresAdmin) -InstallerChoice $installerChoice
                         # Same auto-refresh as the primary Install button
                         # (DispatcherTimer poll, see the comment there for
                         # why not Register-ObjectEvent): without this, a mod
@@ -4164,10 +4643,21 @@ function global:Start-GameInVR {
             }
             if ($Game.InfoUrl) { try { Start-Process $Game.InfoUrl } catch { }; return }
         }
+        if ($Game.DisableSharedTwoModsFallback) { return }
     }
 
     $state = $global:gameStateMap[$Game.Title]
     $gameDir = $null
+
+    # Some mods require the store bootstrap even when a valid executable or
+    # an older locate-game override exists. Dishonored VR is the first strict
+    # case: its author documents that a direct Dishonored.exe start crashes
+    # at the menu. This route intentionally outranks saved executable paths.
+    if ($Game.SteamLaunchOnly -and $Game.SteamId) {
+        try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch {}
+        try { Start-Process ("steam://rungameid/" + [string]$Game.SteamId) } catch {}
+        return
+    }
 
     # Launch override (from the "Locate Game" exe-picker): the user's
     # explicit choice of which exe runs the game - e.g. a differently
@@ -4298,7 +4788,7 @@ function global:Start-GameInVR {
                 }
                 $folder = $p.Substring("STEAM:".Length)
                 foreach ($lib in $steamLibsResolved) {
-                    $candidatePaths += (Join-Path $lib "steamapps\common\$folder")
+                    $candidatePaths += (Join-PathLexical $lib "steamapps\common\$folder")
                 }
             } else {
                 $candidatePaths += $p
@@ -4393,6 +4883,10 @@ function global:Start-GameInVR {
                 # included for shortcut/Hub parity. Explicit whitelist so
                 # no game outside this set changes behaviour.
                 $subfolderExeTitles = @(
+                    "Crysis VR",
+                    "Cyberpunk 2077",
+                    "Jedi Knight: Jedi Academy VR",
+                    "Jedi Knight: Jedi Outcast VR",
                     "Penumbra: Overture VR",
                     "Outer Wilds VR",
                     "Outward DE VR",
@@ -4594,6 +5088,8 @@ function global:Show-DiscoverDetail {
     # so Apply-DetailSize can resize them live. New empty list per
     # detail-page open; cleared again by Hide-DiscoverDetail.
     $global:DetailReadmeTextBlocks = New-Object System.Collections.Generic.List[object]
+    $global:DetailUninstallGuide = $null
+    $global:DetailReadmeLinkSessions = New-Object 'System.Collections.Generic.List[object]'
     # Blocks whose MaxWidth should track the window/container width
     # live (paragraphs, bullets, steps, code). Headings are NOT in
     # here - they stay full width. Recreated per detail-page open.
@@ -4752,6 +5248,9 @@ function global:Show-DiscoverDetail {
     # NameScope the effect just won't attach and the layout still works.
     $heroFxName = "DetailHeroBanner"
     foreach ($nm in @($heroFxName, "DetailHeroBandLeft", "DetailHeroBandRight")) {
+        if (Get-Command Stop-BannerNetTimer -ErrorAction SilentlyContinue) {
+            try { Stop-BannerNetTimer -BannerName $nm } catch { }
+        }
         try { $global:window.UnregisterName($nm) } catch {}
     }
 
@@ -5591,6 +6090,24 @@ function global:Show-DiscoverDetail {
     $btnRow.Margin = [System.Windows.Thickness]::new(0, 10, 0, 18)
     $stack.Children.Add($btnRow) | Out-Null
 
+    # Elden Ring's current and pinned builds share one save location. Keep
+    # the choice visible and actionable beside the page's main controls,
+    # instead of burying a non-clickable filename in the README.
+    if ($Game.SaveBuildSwitch) {
+        try {
+            $saveBuildControl = New-EldenRingSaveBuildControl -Game $Game -AccentHex $accentHex
+            $saveBuildControl.Margin = [System.Windows.Thickness]::new(0, -8, 0, 18)
+            $stack.Children.Add($saveBuildControl) | Out-Null
+        } catch {}
+    }
+    if ($Game.EldenRingSettingsTools) {
+        try {
+            $eldenSettings = New-EldenRingSettingsControl -Game $Game
+            $eldenSettings.Margin = [System.Windows.Thickness]::new(0, -10, 0, 18)
+            $stack.Children.Add($eldenSettings) | Out-Null
+        } catch {}
+    }
+
     # PC Power Scale: hardware-tier indicator. Sits between the
     # action buttons and the README so the user sees recommended
     # specs before reading the rest. Tier mapping is in
@@ -5609,6 +6126,8 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "Silent Hill 3 VR" = "Silent Hill 3 follows Heather Mason as an ordinary trip through a shopping mall turns into a nightmare tied to the cult and events of Silent Hill. Explore oppressive environments, solve puzzles and fight grotesque creatures while uncovering why Heather is being drawn into the town's history."
+        "Silent Hill VR" = "Silent Hill (1999) is a psychological survival horror game in which Harry Mason searches for his missing daughter in the fog-covered town of Silent Hill. Explore unsettling locations, solve puzzles, and survive terrifying creatures while uncovering the town's dark secrets."
         "F.E.A.R. VR" = "F.E.A.R. is a supernatural first-person shooter that combines intense gunfights, slow-motion combat, and psychological horror. As a member of an elite response unit, you investigate a mysterious military force connected to the unsettling psychic child Alma."
         "Mario Kart 64 VR" = "Experience the classic kart racing action of Mario Kart 64 in immersive VR. Race through iconic tracks with full 6DOF head tracking, bringing the world to life from inside the driver's seat. Built on SpaghettiKart, the Mario Kart 64 PC port - you bring your own US ROM, and nothing from Nintendo is included."
         "Legend of Zelda: Ocarina of Time VR" = "The Legend of Zelda: Ocarina of Time is a groundbreaking action-adventure game originally released for the Nintendo 64 in 1998. According to Metacritic, it is considered one of the best video games of all time. Shipwright-VR brings its 3D world into the headset via an OpenVR renderer for the Ship of Harkinian PC port, with motion-controller input."
@@ -6042,6 +6561,9 @@ function global:Show-DiscoverDetail {
                 $shotBorder.ClipToBounds = $true
                 $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
                 $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+                # Preserve the complete source image in its own aspect ratio.
+                # Never impose Height/MaxHeight here: UniformToFill would then
+                # crop square or portrait artwork to the artificial viewport.
                 $shotImg = New-Object System.Windows.Controls.Image
                 # Steam screenshots are 16:9; UniformToFill keeps
                 # the aspect while filling the available width.
@@ -6122,7 +6644,7 @@ function global:Show-DiscoverDetail {
     # extra candidates so the visible count can grow to fill a tall
     # Game Info box (e.g. when a Notice is shown) and re-balance on
     # window resize.
-    $similar = Get-SimilarGames -Game $Game -Count 8
+    $similar = Get-SimilarGames -Game $Game -Count 12
     $simTileList = New-Object System.Collections.ArrayList
     if ($similar -and $similar.Count -gt 0) {
         foreach ($simGame in $similar) {
@@ -6280,12 +6802,34 @@ function global:Show-DiscoverDetail {
     if ($Game.VideoUrl) {
         try {
             $vstrip = New-VideoStripElement -Game $Game -AccentHex $accentHex
-            if ($vstrip) { $stack.Children.Add($vstrip) | Out-Null }
+            $vstrip2 = $null
+            if ($Game.VideoUrl2) { $vstrip2 = New-VideoStripElement -Game $Game -AccentHex $accentHex -Which "Secondary" }
+            if ($vstrip -and $vstrip2) {
+                # Side by side with a gap, each taking half the width.
+                $vrow = New-Object System.Windows.Controls.Grid
+                $c1 = New-Object System.Windows.Controls.ColumnDefinition
+                $cgap = New-Object System.Windows.Controls.ColumnDefinition
+                $c2 = New-Object System.Windows.Controls.ColumnDefinition
+                $c1.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+                $cgap.Width = New-Object System.Windows.GridLength(14)
+                $c2.Width = New-Object System.Windows.GridLength(1, [System.Windows.GridUnitType]::Star)
+                $vrow.ColumnDefinitions.Add($c1) | Out-Null
+                $vrow.ColumnDefinitions.Add($cgap) | Out-Null
+                $vrow.ColumnDefinitions.Add($c2) | Out-Null
+                [System.Windows.Controls.Grid]::SetColumn($vstrip, 0)
+                [System.Windows.Controls.Grid]::SetColumn($vstrip2, 2)
+                $vrow.Children.Add($vstrip) | Out-Null
+                $vrow.Children.Add($vstrip2) | Out-Null
+                $stack.Children.Add($vrow) | Out-Null
+            } elseif ($vstrip) {
+                $stack.Children.Add($vstrip) | Out-Null
+            }
         } catch {}
     }
 
     # README sections (if available)
     $sections = Read-GameReadme -Game $Game
+    $readmeLinks = $null
     $deferredUninstallBox = $null
     # README sections (if available). isExternal was already
     # determined above (for the get-the-game hint) - reusing here.
@@ -6318,6 +6862,9 @@ function global:Show-DiscoverDetail {
         # Pull baseDir so embedded images like ![Layout](pic.webp)
         # can resolve to absolute paths during rendering.
         $imgBase = if ($sections.Contains("_baseDir")) { $sections["_baseDir"] } else { $null }
+        $readmeTexts = @($sections.get_Keys() | Where-Object { -not $_.StartsWith('_') } | ForEach-Object { [string]$_; [string]$sections[$_] })
+        if ($sections.Contains('_quip')) { $readmeTexts += [string]$sections['_quip'] }
+        $readmeLinks = New-ReadmeLinkSession -Game $Game -Texts $readmeTexts -BaseDir $imgBase
         # Helper: does a heading match any tail pattern?
         $isTail = {
             param($heading)
@@ -6335,7 +6882,7 @@ function global:Show-DiscoverDetail {
                     $theatreBtnPlaced = $true
                 }
                 try {
-                    $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -AppendChild $append -ImageBaseDir $imgBase
+                    $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -AppendChild $append -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks -PreserveSubheadings:$keepOrder
                     if ($sec) { $stack.Children.Add($sec) | Out-Null }
                 } catch { }
                 $shown[$key] = $true
@@ -6351,7 +6898,7 @@ function global:Show-DiscoverDetail {
             if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
             if ((& $isTail $key)) { continue }
             try {
-                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
+                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks -PreserveSubheadings:$keepOrder
                 if ($sec) { $stack.Children.Add($sec) | Out-Null }
             } catch { }
             $shown[$key] = $true
@@ -6364,7 +6911,7 @@ function global:Show-DiscoverDetail {
                 if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
                 if (-not $key.ToString().ToLower().Contains($pat)) { continue }
                 try {
-                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase
+                $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks -PreserveSubheadings:$keepOrder
                 if ($sec) { $stack.Children.Add($sec) | Out-Null }
             } catch { }
                 $shown[$key] = $true
@@ -6382,7 +6929,10 @@ function global:Show-DiscoverDetail {
         # Uninstall button - and ending on "here's how to uninstall"
         # right before the flavour quip looks backwards. In that case
         # we defer the box so the quip comes first.
-        if (-not $isExternal) {
+        # External mods need safe removal guidance too. They skip the Steam
+        # Theatre control, but still get the guide and any located author
+        # uninstaller beside it.
+        if ($true) {
             $standaloneBox = New-Object System.Windows.Controls.Border
             $standaloneBox.CornerRadius = [System.Windows.CornerRadius]::new(6)
             $standaloneBox.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#13131a")
@@ -6395,9 +6945,16 @@ function global:Show-DiscoverDetail {
             $standaloneRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
             $standaloneBox.Child = $standaloneRow
 
+            # Holds the button row AND, under it, the uninstall guide
+            # when it is expanded. One container, so both travel
+            # together whether the box renders here or is deferred
+            # below the quip.
+            $guideHost = New-Object System.Windows.Controls.StackPanel
+            $guideHost.Children.Add($standaloneBox) | Out-Null
+
             # Only add the Theatre button if it wasn't already placed
             # in the Requirements section above.
-            if (-not $theatreBtnPlaced) {
+            if (-not $isExternal -and -not $theatreBtnPlaced) {
                 $standaloneBtn = New-SteamTheatreButton -AccentHex $accentHex
                 $standaloneBtn.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
                 $standaloneRow.Children.Add($standaloneBtn) | Out-Null
@@ -6410,31 +6967,53 @@ function global:Show-DiscoverDetail {
             # Uninstall Guide button: always shown for non-external
             # games. Adapts steps based on whether the game uses
             # Steam launch options that need clearing first.
-            $uninstallBtn = New-UninstallGuideButton -Game $Game -AccentHex "#cc6655"
+            $uninstallBtn = New-UninstallGuideButton -Game $Game -AccentHex "#cc6655" -HostPanel $guideHost
             $uninstallBtn.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
             $standaloneRow.Children.Add($uninstallBtn) | Out-Null
 
             # "Uninstall now" beside the guide - ONLY when the entry
             # names an uninstaller AND that file is really on disk.
             # Everything without UninstallExe is untouched by this.
-            $unExe = Resolve-UninstallExe -Game $Game
-            if ($unExe) {
-                $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $unExe
+            $uninstallActions = @(Resolve-UninstallActions -Game $Game)
+            $targetedActions = @($uninstallActions | Where-Object { $_.TargetMod })
+            if ($Game.TwoMods -and $targetedActions.Count -gt 0) {
+                $uninstallChoices = @(Get-TwoModUninstallChoices -Game $Game -Actions $targetedActions)
+                if ($Game.SeparateUninstallButtons) {
+                    # BioShock has two independent removers. Naming both
+                    # actions directly is clearer than a generic Windows
+                    # Yes/No/Cancel dialog whose buttons cannot say A and B.
+                    foreach ($choice in @($uninstallChoices | Where-Object Removable)) {
+                        $action = $choice.Action
+                        $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $action.Path -Label $action.Label -ProbeFile $action.ProbeFile -Arguments $action.Arguments
+                        $unNowBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+                        $standaloneRow.Children.Add($unNowBtn) | Out-Null
+                    }
+                } elseif (@($uninstallChoices | Where-Object Removable).Count -gt 0) {
+                    # Other two-mod entries keep one compact entry point. Its
+                    # dialog shows detected states before either action runs.
+                    $unNowBtn = New-UninstallNowButton -Game $Game -Label 'Uninstall now' -Choices $uninstallChoices
+                    $unNowBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
+                    $standaloneRow.Children.Add($unNowBtn) | Out-Null
+                }
+            } else {
+              foreach ($uninstallAction in $uninstallActions) {
+                $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $uninstallAction.Path -Label $uninstallAction.Label -ProbeFile $uninstallAction.ProbeFile -Arguments $uninstallAction.Arguments
                 # SAME top and bottom margin as the guide next to it. The
                 # call site zeroes that one, so any other value here drops
                 # this button lower and makes the whole row taller - which
                 # is exactly what made it look like the wrong size.
                 $unNowBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
                 $standaloneRow.Children.Add($unNowBtn) | Out-Null
+              }
             }
 
             # If the Theatre button is alongside (box has 2 buttons),
             # render now - before the quip. If the Uninstall button is
             # alone, defer it so the quip renders first.
             if (-not $theatreBtnPlaced -or $flatBtnPlaced) {
-                $stack.Children.Add($standaloneBox) | Out-Null
+                $stack.Children.Add($guideHost) | Out-Null
             } else {
-                $deferredUninstallBox = $standaloneBox
+                $deferredUninstallBox = $guideHost
             }
         }
     } elseif ($Game.Description -and -not $isExternal) {
@@ -6491,7 +7070,7 @@ function global:Show-DiscoverDetail {
         $cqBox.RenderTransform = $cqScale
         $cqBox.RenderTransformOrigin = (New-Object System.Windows.Point(0, 0.5))
         $cqtb = New-Object System.Windows.Controls.TextBlock
-        $cqtb.Text = $quipText
+        Set-TextBlockWithLinks -TextBlock $cqtb -Text $quipText -LinkSession $readmeLinks -Game $Game -AccentHex $accentHex
         $cqtb.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $cqtb.FontSize = 14
         $cqtb.FontStyle = [System.Windows.FontStyles]::Italic
@@ -6758,8 +7337,14 @@ function global:Show-DiscoverDetail {
         # so the row reads as a coherent button group.
         $reinstallBtn.Padding         = [System.Windows.Thickness]::new(16, 10, 16, 10)
         if ($isUpdate) {
-            $reinstallBtn.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2563eb")
-            $reinstallBtn.BorderThickness = [System.Windows.Thickness]::new(0)
+            # !!! NOT THE UPDATE BLUE. #2563eb belongs to the update, and
+            # the update is the button beside this one - two blue buttons
+            # side by side is the colour saying the same thing twice, the
+            # same mistake the labels used to make. This button launches,
+            # so it wears the Start in VR green from the ready state.
+            $reinstallBtn.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#161d18")
+            $reinstallBtn.BorderThickness = [System.Windows.Thickness]::new(1.5)
+            $reinstallBtn.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5fa873")
         } else {
             $reinstallBtn.Background      = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#15151e")
             $reinstallBtn.BorderThickness = [System.Windows.Thickness]::new(1.5)
@@ -6780,21 +7365,34 @@ function global:Show-DiscoverDetail {
         # font - so the two reinstall affordances read as the same
         # control across both views.
         if ($isUpdate) {
-            $reinstallIconColor = "#FFFFFF"
+            # Green text to match the border, same as the ready-state
+            # Start in VR button.
+            $reinstallIconColor = "#88dd99"
         } else {
             $reinstallIconColor = "#dddddd"
         }
         $reinstallIcon = New-Object System.Windows.Controls.TextBlock
-        $reinstallIcon.Text = [char]0x21BB
+        # The reload arrow means "run the installer again". In update
+        # state this button LAUNCHES, and its label already carries the
+        # play triangle - a reload arrow in front of it would say the
+        # opposite of what the button does.
+        $reinstallIcon.Text = $(if ($isUpdate) { "" } else { [char]0x21BB })
         $reinstallIcon.FontSize = 16
         $reinstallIcon.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI Symbol")
         $reinstallIcon.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($reinstallIconColor)
-        $reinstallIcon.Margin = [System.Windows.Thickness]::new(0, 0, 8, 0)
+        $reinstallIcon.Margin = [System.Windows.Thickness]::new(0, 0, $(if ($isUpdate) { 0 } else { 8 }), 0)
         $reinstallIcon.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         $reinstallStack.Children.Add($reinstallIcon) | Out-Null
         $reinstallTxt = New-Object System.Windows.Controls.TextBlock
         if ($isUpdate) {
-            $reinstallTxt.Text = "Update Mod"
+            # !!! NOT "Update Mod" A SECOND TIME. The primary button
+            # already carries the update; repeating it here left the row
+            # saying the same thing twice and hid Start in VR behind a
+            # hover nobody discovers. The tile has had this right all
+            # along: update is the big button, playing is the one beside
+            # it. Once the update has run the state flips to ready and
+            # Start in VR becomes primary again by itself.
+            $reinstallTxt.Text = "Start in VR  $([char]0x25B6)"
         } else {
             $reinstallTxt.Text = "Reinstall Mod"
         }
@@ -6806,7 +7404,8 @@ function global:Show-DiscoverDetail {
         $reinstallTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $reinstallTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         if ($isUpdate) {
-            $reinstallTxt.Foreground = [System.Windows.Media.Brushes]::White
+            # Same green as the ready-state Start in VR label.
+            $reinstallTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
         } else {
             $reinstallTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dddddd")
         }
@@ -6856,7 +7455,14 @@ function global:Show-DiscoverDetail {
                 if ($global:gameStateMap.ContainsKey($Game.Title)) {
                     $st = $global:gameStateMap[$Game.Title]
                 }
-                if ($st -and $st.DualMode) {
+                # !!! NOT IN UPDATE STATE ANY MORE. Start in VR is a real
+                # button beside this one now, so morphing the update
+                # button into it on hover only made the update vanish
+                # under the cursor - and it meant the row said "Update"
+                # twice while the way to play was hidden.
+                if ($isUpdate) {
+                    # leave the label alone: this button updates.
+                } elseif ($st -and $st.DualMode) {
                     $primaryTxt.Text = "Start Current  $([char]0x25B6)"
                 } else {
                     $primaryTxt.Text = $startText
@@ -6935,9 +7541,22 @@ function global:Show-DiscoverDetail {
         }.GetNewClosure())
 
         $reinstallGameRef = $Game
+        # Captured for the closure below, same as the game reference.
+        $isUpdateForPill  = $isUpdate
         $reinstallScriptDir = $script:scriptDir
         $reinstallBtn.Add_MouseLeftButtonUp({
             if (-not $reinstallGameRef) { return }
+            # In update state this button is Start in VR, not a second
+            # way to run the installer - the primary button does that.
+            if ($isUpdateForPill) {
+                $stPill = $null
+                if ($global:gameStateMap.ContainsKey($reinstallGameRef.Title)) { $stPill = $global:gameStateMap[$reinstallGameRef.Title] }
+                try {
+                    if ($stPill -and $stPill.DualMode) { Start-GameInVR -Game $reinstallGameRef -Mode "Current" }
+                    else { Start-GameInVR -Game $reinstallGameRef }
+                } catch {}
+                return
+            }
             if (-not $reinstallGameRef.Bat) { return }
             if (-not $reinstallScriptDir) { return }
             $batPath = Join-Path $reinstallScriptDir $reinstallGameRef.Bat
@@ -6991,18 +7610,10 @@ function global:Show-DiscoverDetail {
             Start-GameInVR -Game $gameForBtn
             return
         }
-        # Update state: if the user is currently hovering (button
-        # has morphed to green "Start in VR"), launch the game.
-        # Otherwise (button still shows blue "Update Mod"), run the
-        # installer to apply the update.
-        if ($isUpdate -and $hoverState -and $hoverState.PrimaryHover) {
-            if ($stForBtn -and $stForBtn.DualMode) {
-                Start-GameInVR -Game $gameForBtn -Mode "Current"
-            } else {
-                Start-GameInVR -Game $gameForBtn
-            }
-            return
-        }
+        # Update state falls through to the installer below: this button
+        # updates, and Start in VR is the button beside it. It used to
+        # launch when hovered, back when hover was the only way to reach
+        # Start in VR at all.
         if (-not $gameForBtn.Bat) {
             # "Get Installer" should open the DOWNLOAD, not the info
             # page. Prefer DownloadUrl (the installer/release asset);
@@ -7096,29 +7707,42 @@ function global:Show-DiscoverDetail {
     # flow, so we suppress the generic Install/primary button here.
     if (-not $Game.WabbajackUrl) {
         $twoSt = $global:gameStateMap[$Game.Title]
-        if ($Game.TwoMods -and $twoSt -and $twoSt.TwoMods) {
-            # TwoMods: offer a launch choice between the two alternative
-            # mods. A present mod shows "Play X" and launches; a not-yet-
-            # installed mod shows "Install X" and opens its installer.
-            # The choice appears as soon as one mod is on disk.
-            $aPresent = [bool]$twoSt.ModAPresent
-            $bPresent = [bool]$twoSt.ModBPresent
-            $playA = New-TwoModsButton -Game $Game -Mode "ModA" -Label ($(if ($aPresent) { "Play " } else { "Install " }) + $twoSt.ModAName) -AccentHex $accentHex -Installed:$aPresent
-            $playA.Margin = [System.Windows.Thickness]::new(0,0,10,0)
-            $btnRow.Children.Add($playA) | Out-Null
-            $playB = New-TwoModsButton -Game $Game -Mode "ModB" -Label ($(if ($bPresent) { "Play " } else { "Install " }) + $twoSt.ModBName) -AccentHex $accentHex -Installed:$bPresent
-            $playB.Margin = [System.Windows.Thickness]::new(0,0,10,0)
-            $btnRow.Children.Add($playB) | Out-Null
-            # These two used to carry ONLY the popover handlers that
-            # revealed the Reinstall pill. With the popover gone they
-            # had no visible hover left at all - on a TwoMods game
-            # (BioShock 1: balouza / BioVRDev) nothing reacted to the
-            # cursor. They get the same treatment as every other button
-            # in this row: the sweep shine plus the gloss overlay.
-            Add-StandardHover -Border $playA
-            Add-StandardHover -Border $playB
-            Add-ButtonGloss -Border $playA -Intensity 0.10
-            Add-ButtonGloss -Border $playB -Intensity 0.10
+        if ($Game.TwoMods -and (($twoSt -and $twoSt.TwoMods) -or $Game.TwoModsAlwaysShowChoices)) {
+            # Most TwoMods pages only show installed choices. Entries with
+            # TwoModsAlwaysShowChoices deliberately expose both install/play
+            # actions: the chosen button is then passed into the installer,
+            # so a console never asks for the same mod choice again.
+            $aPresent = [bool]($twoSt -and $twoSt.ModAPresent)
+            $bPresent = [bool]($twoSt -and $twoSt.ModBPresent)
+            $aName = if ($twoSt -and $twoSt.ModAName) { [string]$twoSt.ModAName } else { [string]$Game.ModAName }
+            $bName = if ($twoSt -and $twoSt.ModBName) { [string]$twoSt.ModBName } else { [string]$Game.ModBName }
+            # The hover treatment goes on RIGHT HERE, per button. It used
+            # to sit below for both at once, which would now hand a $null
+            # to Add-StandardHover whenever only one mod is installed.
+            if ($aPresent) {
+                $playA = New-TwoModsButton -Game $Game -Mode "ModA" -Label ("Play " + $aName) -AccentHex $accentHex -Installed:$true
+                $playA.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+                $btnRow.Children.Add($playA) | Out-Null
+                Add-StandardHover -Border $playA
+                Add-ButtonGloss  -Border $playA -Intensity 0.10
+            } elseif ($Game.TwoModsAlwaysShowChoices) {
+                $installA = New-TwoModsButton -Game $Game -Mode "ModA" -Label ("Install " + $aName) -AccentHex $accentHex
+                $installA.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+                $btnRow.Children.Add($installA) | Out-Null
+                Add-StandardHover -Border $installA
+            }
+            if ($bPresent) {
+                $playB = New-TwoModsButton -Game $Game -Mode "ModB" -Label ("Play " + $bName) -AccentHex $accentHex -Installed:$true
+                $playB.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+                $btnRow.Children.Add($playB) | Out-Null
+                Add-StandardHover -Border $playB
+                Add-ButtonGloss  -Border $playB -Intensity 0.10
+            } elseif ($Game.TwoModsAlwaysShowChoices) {
+                $installB = New-TwoModsButton -Game $Game -Mode "ModB" -Label ("Install " + $bName) -AccentHex $accentHex
+                $installB.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+                $btnRow.Children.Add($installB) | Out-Null
+                Add-StandardHover -Border $installB
+            }
         } else {
             $btnRow.Children.Add($primaryBtn) | Out-Null
         }
@@ -7183,7 +7807,7 @@ function global:Show-DiscoverDetail {
     #   Start Current | Start Depot | Reinstall Mod
     $depotBtn = $null
     $isDualMode = $false
-    if ($Game.DualMode -and ($isReady -or $isUpdate)) {
+    if ($Game.DualMode -and -not $Game.TwoMods -and ($isReady -or $isUpdate)) {
         $st = $global:gameStateMap[$Game.Title]
         if ($st -and $st.DualMode) {
             $isDualMode = $true
@@ -7305,7 +7929,7 @@ function global:Show-DiscoverDetail {
                             $pathMatches = [regex]::Matches($vdfText, '"path"\s+"([^"]+)"')
                             foreach ($m in $pathMatches) {
                                 $p = $m.Groups[1].Value -replace '\\\\', '\'
-                                if ($p -and (Test-Path $p) -and ($libs -notcontains $p)) {
+                                if ($p -and (Test-LiteralPathSafe -Path $p -PathType Container) -and ($libs -notcontains $p)) {
                                     $libs += $p
                                 }
                             }
@@ -7313,8 +7937,8 @@ function global:Show-DiscoverDetail {
                     }
                 }
                 foreach ($lib in $libs) {
-                    $candidate = Join-Path $lib "steamapps\common\$($Game.SteamFolder)"
-                    if (Test-Path $candidate) { $baseDir = $candidate; break }
+                    $candidate = Join-PathLexical $lib "steamapps\common\$($Game.SteamFolder)"
+                    if (Test-LiteralPathSafe -Path $candidate -PathType Container) { $baseDir = $candidate; break }
                 }
             } catch { }
         }
@@ -7331,14 +7955,16 @@ function global:Show-DiscoverDetail {
             }
         }
 
-        # Addon-installed detection: use the installer's own
-        # .installed_path marker file. We can't probe for a "new" file
-        # under the base game's folder because some add-ons (like
-        # HL2VRU) overwrite vanilla files rather than adding new ones,
-        # so an existence check would false-positive on every fresh
-        # base install. The marker lives next to the installer .ps1
-        # and is only written when our installer ran successfully.
-        if ($baseInstalled -and $Game.AddonInstaller) {
+        # Add-ons with a unique payload marker are detected directly. That
+        # survives a Hub update, whose clean release intentionally contains
+        # no runtime .installed_path files. Older/overlay add-ons without a
+        # unique probe retain the installer-marker fallback below.
+        if ($baseInstalled -and $baseDir -and $Game.AddonProbeFile) {
+            foreach ($addonProbe in @(([string]$Game.AddonProbeFile) -split '\|' | Where-Object { $_ })) {
+                if (Test-Path -LiteralPath (Join-Path $baseDir $addonProbe.Trim()) -PathType Leaf) { $addonInstalled = $true; break }
+            }
+        }
+        if ($baseInstalled -and -not $addonInstalled -and $Game.AddonInstaller) {
             try {
                 $coreRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
                 $addonDir = [System.IO.Path]::GetDirectoryName((Join-Path $coreRoot $Game.AddonInstaller))
@@ -7357,7 +7983,14 @@ function global:Show-DiscoverDetail {
                             # into one of the HL2VR siblings - the
                             # add-on lives in the same folder anyway,
                             # so any valid recorded path counts.
-                            $addonInstalled = $true
+                            $probeOkay = $true
+                            if ($Game.AddonProbeFile) {
+                                $probeOkay = $false
+                                foreach ($addonProbe in @(([string]$Game.AddonProbeFile) -split '\|' | Where-Object { $_ })) {
+                                    if (Test-Path -LiteralPath (Join-Path $recorded $addonProbe.Trim()) -PathType Leaf) { $probeOkay = $true; break }
+                                }
+                            }
+                            $addonInstalled = [bool]$probeOkay
                         }
                     }
                 }
@@ -7677,7 +8310,7 @@ function global:Show-DiscoverDetail {
     # Only for winhttp-based BepInEx mods (or a game with an explicit
     # FlatVR proxy, e.g. Portal 2) that are actually VR-installed.
     $fvSt2 = $global:gameStateMap[$Game.Title]
-    if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
+    if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or $Game.FlatVRIniFile -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
         $flatBtn = New-FlatVRToggleButton -Game $Game -AccentHex $accentHex
         $flatBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
         Add-StandardHover -Border $flatBtn
@@ -7698,8 +8331,18 @@ function global:Hide-DiscoverDetail {
         $global:HoverMediaElement.Source = $null
         $global:HoverMediaElement = $null
     }
+    # Wide detail heroes can own two 30-Hz network-effect timers. Their visual
+    # tree is about to be discarded, so stop those timers explicitly instead
+    # of letting detached simulations accumulate across visited games.
+    if (Get-Command Stop-BannerNetTimer -ErrorAction SilentlyContinue) {
+        foreach ($nm in @("DetailHeroBanner", "DetailHeroBandLeft", "DetailHeroBandRight")) {
+            try { Stop-BannerNetTimer -BannerName $nm } catch { }
+        }
+    }
     $global:DetailDescTxt = $null
     $global:DetailReadmeTextBlocks = $null
+    $global:DetailUninstallGuide = $null
+    $global:DetailReadmeLinkSessions = $null
     $global:DetailWidthBlocks = $null
     $global:discoverDetailHost.Children.Clear()
     $global:discoverDetail.Visibility = [System.Windows.Visibility]::Collapsed

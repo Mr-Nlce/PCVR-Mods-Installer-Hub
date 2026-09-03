@@ -29,11 +29,11 @@ try {
     }
 } catch { }
 
-# Mod count shown in the {N} hints - the real VR-mod tally. Tools and
-# external tool entries are deliberately NOT counted, so an auto-count of
-# catalog entries reads high. RULE: bump this by +1 with EVERY new game
-# tile added to the Hub (games only - never for tools like UEVR).
-$tileCount = 242
+# Game count shown in the {N} hints - distinct games, not individual mods.
+# Second mods and external tool entries are deliberately NOT counted, so an
+# auto-count of catalog entries reads high. RULE: bump this by +1 with EVERY
+# new game tile added to the Hub (games only - never for tools like UEVR).
+$tileCount = 247
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -44,7 +44,7 @@ $hints = @(
     "Exclusions stack: resident -praydog -horror keeps narrowing until only courage remains.",
     "Permanently hidden a modder? Search +name to let their games back onto the shelf.",
     "Type -modder and the search hint can remember that exclusion permanently.",
-    "Search shortcuts include roomscale and wip - useful when names tell only half the story.",
+    "Search shortcuts include roomscale, free, wip and new - useful when names tell only half the story.",
     "Two-word modder names work after a minus too: -luke ross is treated as one exclusion.",
     "Start typing while a game page is open and the Hub returns to the filtered shelf.",
     "Scan games checks what is already present; it does not install anything.",
@@ -118,7 +118,7 @@ $hints = @(
     "Slotting the last tile into place.",
     "Polishing portraits until they shine through the frost.",
     "The frost is hand-tuned. You'll notice.",
-    "{N} PC VR mods, guides and installers in one place.",
+    "{N} games with PC VR mods, guides and installers in one place.",
     "{N} games in the library - one home for all of them.",
     "The boring setup parts, handled so you don't have to.",
     "More fallbacks than any installer should reasonably need.",
@@ -133,7 +133,7 @@ $hints = @(
     "Modding PC VR, minus the spreadsheet.",
     "Orbs, embers, meteors - the banner picks its own mood.",
     "Filter by control type, genre or power in Explore. Your shelf, your rules.",
-    "{N} cards, frosted and filed.",
+    "{N} games, frosted and filed.",
     "Nearly there. Headset within reach.",
     "Can't decide? Hit Shuffle in the Explore area and let the Hub pick for you.",
     "Cards scale to S, M or L. Size the shelf to taste.",
@@ -166,7 +166,7 @@ $hints = @(
     "The scan is quick by design: disk first, online second, freeze never.",
     "Update badges land on the tile itself - no digging, no changelog spelunking.",
     "More great VR games in here than Pokemon in Gen 1. Gotta mod 'em all.",
-    "{N} entries. Roll for initiative on your next install.",
+    "{N} games. Roll for initiative on your next install.",
     "It's dangerous to go alone. Take {N} VR games.",
     "Another game needs your VR mod.",
     "I used to play flat, then I took a headset to the face.",

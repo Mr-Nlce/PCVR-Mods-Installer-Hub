@@ -47,7 +47,7 @@ Interactions are aimed **with your head**, not the camera stick. A small bracket
 VR is active right after install. To play flat, run **`Switch to flat.bat`** in the game folder; run **`Back to VR.bat`** to return. **Quit the game before switching.** Saves are shared - it's the same game.
 
 ## Configuration
-Arm position/size and other tweaks live in the mod's config under `<GameRoot>\BepInEx\config`.
+Arm position/size and other tweaks live in `BepInEx\config` inside the game folder.
 
 ## Removing the mod
 Delete the mod files from the game folder - the vanilla game is restored. No original game files were changed.

@@ -83,9 +83,9 @@ The required payload is two folders deep inside the archive:
 The installer extracts the ZIP with a visible percentage, then merges the
 contents of those two folders into the matching folders beside the executable:
 
-    <Vice City folder>\models\...
-    <Vice City folder>\txd\...
-    <Vice City folder>\gta-vc.exe
+    models\
+    txd\
+    gta-vc.exe
 
 The `modelsets` and `modern` wrapper folders are not copied. If an HD file
 replaces an existing game file, the original is preserved once beside it as

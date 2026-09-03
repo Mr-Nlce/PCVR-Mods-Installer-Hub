@@ -85,6 +85,7 @@ Write-Host "  Single player only - do not use it in multiplayer sessions." -Fore
 Write-Host "  No RTX card? You lose nothing: the mod brings its own" -ForegroundColor Gray
 Write-Host "  per-eye smoothing for every other card. DLSS is optional." -ForegroundColor Gray
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..." | Out-Null
 
 # ---- 1. Locate the game ---------------------------------------
@@ -203,6 +204,23 @@ if ($copyFailed -and $sources.Count -gt 0) {
 # settings program, nvngx_dlss.dll only on NVIDIA cards.
 $core = @("cotwvr.dll", "XINPUT9_1_0.dll", "openxr_loader.dll", $SETTINGS_EXE)
 $missing = @($core | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameDir $_)) })
+
+# BEFORE THE TEMP FOLDER GOES. A scanner usually sweeps a moment after
+# the write, so the files can vanish right after this check passes - and
+# the recovery needs the archive, which the cleanup below deletes.
+if ($missing.Count -eq 0) {
+    $avFilesOk = Confirm-PlacedFilesSurvive `
+        -Paths @($core | ForEach-Object { Join-Path $gameDir $_ }) `
+        -GameDir $gameDir `
+        -ArchivePath $zip
+    if (-not $avFilesOk) {
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Write-Fail "theHunter VR could not be restored after the antivirus check."
+        Pause-User "Press Enter to exit, then run the installer again."
+        exit 1
+    }
+}
+
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 if ($missing.Count -gt 0) {
@@ -217,7 +235,9 @@ Write-OK "Files are in place."
 
 # Marker for the Hub - into the INSTALLER folder, not the game.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+if (Test-IsTrackableInstalledVersion -Version $tag) {
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

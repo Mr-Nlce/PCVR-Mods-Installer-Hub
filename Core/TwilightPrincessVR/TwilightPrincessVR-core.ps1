@@ -109,6 +109,7 @@ Write-Host "  Tested on Quest 2 and 3; other headsets are untested. Needs a" -Fo
 Write-Host "  D3D12-capable GPU, Windows only. Virtual Desktop with VDXR is" -ForegroundColor Gray
 Write-Host "  the author's recommendation for performance." -ForegroundColor Gray
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..." | Out-Null
 
 # ---- 1. Pick the location -------------------------------------
@@ -194,6 +195,20 @@ if (-not $exe) {
     exit 1
 }
 Write-OK "Ready: $($exe.FullName)"
+
+# THE FOLDER TO EXCLUDE IS WHERE THE MOD LIVES - this one installs into
+# its own folder, not into a game directory. The archive is still there,
+# so recovery can unpack it again on excluded ground.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths @($exe.FullName) `
+    -GameDir $dir `
+    -ArchivePath $zip
+if (-not $avFilesOk) {
+    try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
+    Write-Fail "Twilight Princess VR could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again."
+    exit 1
+}
 try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 
 # ---- 4. Shortcut and marker -----------------------------------
@@ -211,6 +226,10 @@ try {
 # Marker for the Hub - into the INSTALLER folder.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $dir -Encoding UTF8 -Force } catch {}
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $exe.FullName -Encoding UTF8 -Force } catch {}
+if (Test-IsTrackableInstalledVersion -Version $tag) {
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+    Save-InstalledStamp -GameDir $dir -Version $tag
+}
 
 # ---- 5. 4K texture pack (optional) ----------------------------
 # By Henriko Magnifico. Hosted on MediaFire - an address we canNOT

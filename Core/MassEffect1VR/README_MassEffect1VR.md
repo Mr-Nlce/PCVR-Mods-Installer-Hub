@@ -37,8 +37,8 @@ afterwards.
 2. Gets MELE-VR from the creator's public Patreon post (checks your
    Downloads folder first; otherwise it opens the post and you drag
    the zip in)
-3. Places the four mod files next to MassEffect1.exe
-   (...\Game\ME1\Binaries\Win64) - asking for Administrator rights
+3. Places the four mod files in `Game\ME1\Binaries\Win64`, next to
+   `Game\ME1\Binaries\Win64\MassEffect1.exe` - asking for Administrator rights
    only if that folder needs them
 4. Runs the mod's own interactive setup where you pick the VR mode
    and image quality
@@ -103,7 +103,7 @@ EA/Origin on a machine that has never run the game.
 - A gamepad
 
 ## Mod page
-https://www.patreon.com/posts/166482031
+https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663
 
 ## Support dhalcyon
 dhalcyon develops the MELE-VR mod. If you enjoy their work, consider

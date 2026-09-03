@@ -4,6 +4,18 @@ Hytale in PCVR through **HytaleVRInjector-mod** by **heurazy** - a Windows x64 V
 
 **Version 1.0** - the AFW prototype has grown into a fuller, more comfortable VR experience. It is not affiliated with or endorsed by Hytale, Hypixel Studios, Valve, OpenVR, or MinHook.
 
+## New in v1.0.4
+
+- **SteamVR depth submission**, on by default. If your runtime turns it down, the mod falls
+  back to colour-only by itself - nothing to configure.
+- **Fixed SteamVR waiting with no image** when supersampling was switched off.
+- Handles **full, half and quarter resolution** Hytale depth buffers.
+- The AFW colour path is kept clear of the depth conversion, so normal rendering stays
+  stable.
+
+The author reports all three automated test suites passing, and the Windows x64 archive
+verified through both PowerShell and Explorer extraction (77 of 77 files).
+
 ## What you need
 
 | Requirement | Notes |

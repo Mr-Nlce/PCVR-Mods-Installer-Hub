@@ -133,6 +133,7 @@ Write-Host ""
 Write-Host "  This is an early alpha: the full campaign has not been played" -ForegroundColor Yellow
 Write-Host "  through yet. Back up any saves you care about." -ForegroundColor Yellow
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..."
 
 # -------------------------------------------------------
@@ -300,6 +301,20 @@ if (-not (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $MOD_EXE)
     try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
     Pause-User "Press Enter to exit."; exit 1
 }
+# A scanner usually sweeps a moment AFTER the write. This runs while the
+# temp folder still holds the archive, so recovery can unpack it again -
+# inside the game folder, which the exclusion covers.
+$avFilesOk = Confirm-PlacedFilesSurvive `
+    -Paths @([System.IO.Path]::Combine($gamePath, $MOD_EXE)) `
+    -GameDir $gamePath `
+    -ArchivePath $zipPath
+if (-not $avFilesOk) {
+    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
+    Write-Fail "Vice City VR could not be restored after the antivirus check."
+    Pause-User "Press Enter to exit, then run the installer again."
+    exit 1
+}
+
 Write-OK "Mod files in place ($MOD_EXE next to $GAME_EXE)."
 Write-Info "$GAME_EXE was not touched - the flat game still works."
 

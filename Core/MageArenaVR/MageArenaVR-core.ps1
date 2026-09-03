@@ -254,6 +254,9 @@ foreach ($pkg in $PACKAGES) {
  try {
   Install-Pkg -zip $zip -dest $ex -gamePath $gamePath
   Set-InstalledVersion -packageName $name -version $ver -gamePath $gamePath
+  # Canonical Thunderstore key used by the Hub scan. Keep the old bare-name
+  # file above for compatibility with previous installer runs.
+  Set-InstalledVersion -packageName "$($pkg.Author)-$name" -version $ver -gamePath $gamePath
   Write-OK "$($pkg.FriendlyName) $ver installed."
  } catch {
   Write-Fail "$($pkg.FriendlyName) could not be unpacked: $($_.Exception.Message)"
@@ -297,6 +300,12 @@ try {
     Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
 } catch {
     Write-Warn "Could not record the install path - the Hub may need 'Locate install'."
+}
+$maVersion = Get-InstalledVersion -packageName "J_axon-MAVR" -gamePath $gamePath
+if (-not $maVersion) { $maVersion = Get-InstalledVersion -packageName "MAVR" -gamePath $gamePath }
+if ($maVersion) {
+ try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $maVersion -Encoding UTF8 -Force } catch {}
+ Save-InstalledStamp -GameDir $gamePath -Version $maVersion
 }
 
 # -------------------------------------------------------

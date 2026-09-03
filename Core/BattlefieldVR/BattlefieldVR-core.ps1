@@ -186,6 +186,7 @@ Write-Host ""
 Write-Host " MULTIPLAYER: BFVR is a client-side mod. Use it only on servers" -ForegroundColor White
 Write-Host " whose rules allow client mods. It does not bypass anti-cheat." -ForegroundColor White
 Write-Host ""
+Show-AntivirusNotice
 Pause-User "Press Enter to start..."
 
 # -------------------------------------------------------
@@ -365,6 +366,19 @@ if ($bfpp.Proxy -and -not $bfpp.OwnDll) {
         }
         if ($bad.Count -eq 0) {
             Write-OK "BF42++ in place and verified (3 files)."
+            # A scanner often sweeps a moment after the write. The temp
+            # tree is already gone here, but the archive the user supplied
+            # is not - so recovery can unpack it again, inside the game
+            # folder this time.
+            $avFilesOk = Confirm-PlacedFilesSurvive `
+                -Paths @($BFPP_FILES | ForEach-Object { Join-Path $gamePath $_ }) `
+                -GameDir $gamePath `
+                -ArchivePath $arch
+            if (-not $avFilesOk) {
+                Write-Fail "BF42++ could not be restored after the antivirus check."
+                Pause-User "Press Enter to exit, then run the installer again."
+                exit 1
+            }
         } else {
             Write-Warn "BF42++ is not complete:"
             foreach ($b in $bad) { Write-Host "   $b" -ForegroundColor Yellow }
@@ -442,13 +456,16 @@ if (Test-Path -LiteralPath $modFull) {
     Write-OK "BFVR verified: $MOD_MARK"
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $modFull -Encoding UTF8 -Force } catch {}
-    if ($rel) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $rel.Tag -Encoding UTF8 -Force } catch {} }
+    $bfvrInstalledVersion = if ($rel -and $rel.Tag) { $rel.Tag } else { $PINNED_VER }
+    if (Test-IsTrackableInstalledVersion -Version $bfvrInstalledVersion) {
+        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $bfvrInstalledVersion -Encoding UTF8 -Force } catch {}
+    }
     # ALSO write the durable stamp next to the GAME (2026-08-20).
     # The line above lands inside the Hub folder and is gone as
     # soon as a new Hub build is dropped in; the scan then finds
     # no marker and seeds the CURRENT online tag, swallowing a
     # pending update. The game-side stamp survives that.
-    Save-InstalledStamp -GameDir $gamePath -Version $rel
+    Save-InstalledStamp -GameDir $gamePath -Version $bfvrInstalledVersion
 } else {
     Write-Warn "BFVR\BFVR.exe is not there - the mod does not look installed."
     Write-Host "  Checked: $gamePath" -ForegroundColor Gray

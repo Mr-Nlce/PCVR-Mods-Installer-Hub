@@ -378,6 +378,7 @@ if ($guiSrc) {
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
+if ($relTag) { Save-InstalledStamp -GameDir $gamePath -Version $relTag -HubDir $SCRIPT_DIR }
 
 # Steam starts the game and the proxy loads itself - no launcher, no
 # shortcut needed. Only a copy from another store gets a direct route.

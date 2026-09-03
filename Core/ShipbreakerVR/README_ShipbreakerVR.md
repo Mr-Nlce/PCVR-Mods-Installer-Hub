@@ -18,6 +18,8 @@ This is a simple mod that enables a VR camera via a key binding. The UI and aimi
 2. Run `RaiManager.exe` (or click **Open** in the itch.io app) and follow the instructions in the installer.
 3. Launch the game as usual.
 
+> RaiManager versions may keep BepInEx beside the downloaded package and reference it through `doorstop_config.ini`. The Hub recognises both that layout and a normal in-game BepInEx install. If `targetAssembly` contains an absolute path, do not move or delete that RaiManager/package folder; reinstall from a permanent location instead.
+
 > To uninstall: run `RaiManager.exe` again and use the uninstall option. Your game files and save progress are untouched.
 
 ## How to play

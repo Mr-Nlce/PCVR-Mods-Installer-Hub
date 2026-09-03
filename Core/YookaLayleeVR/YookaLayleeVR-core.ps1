@@ -29,7 +29,7 @@ $DEPOT_MANIFEST = "8385432844974171919"
 $DEPOT_COMMAND = "download_depot $GAME_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 $DEFAULT_PARENT = "C:\Games"
 $TARGET_NAME = "Yooka-Laylee VR"
-$DEFAULT_PATH = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 # -------------------------------------------------------
 # Helpers
@@ -76,7 +76,7 @@ function Get-SteamLibraries {
  $found = [regex]::Matches($content, '"path"\s+"([^"]+)"')
  foreach ($m in $found) {
  $lib = $m.Groups[1].Value -replace '\\\\', '\'
- if (Test-Path $lib) { $libraries += $lib }
+ if (Test-LiteralPathSafe -Path $lib -PathType Container) { $libraries += $lib }
  }
  }
  return $libraries
@@ -136,8 +136,10 @@ if (-not $useDepot) {
 
  $libraries = Get-SteamLibraries $steamPath
  foreach ($lib in $libraries) {
- $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
- if (Test-Path $candidate) { $gamePath = $candidate; break }
+ # Lexical: $lib comes from libraryfolders.vdf and may name a drive
+ # that no longer exists - Join-Path would resolve it and throw.
+ $candidate = Join-PathLexical $lib "steamapps\common\$GAME_NAME"
+ if (Test-LiteralPathSafe -Path $candidate -PathType Container) { $gamePath = $candidate; break }
  }
  }
 
@@ -229,11 +231,24 @@ else {
  Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
  Write-Host ""
  }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
  Pause-User "Press Enter to open the Steam Console..."
  # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
+}
  Write-OK "Steam Console opening..."
 
  Write-Host ""
@@ -243,22 +258,11 @@ else {
  Write-Host ""
  Write-Host " Looking for Steam installation..." -ForegroundColor White
  $steamInstallPath = Get-SteamPath
- $depotPath = $null
- if ($steamInstallPath) {
- $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$GAME_APPID\depot_$DEPOT_DEPOTID"
- Write-Info "Expected depot path: $autoPath"
- if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) {
- $depotPath = $autoPath
- Write-OK "Depot folder found automatically!"
- } else {
- Write-Warn "Depot folder not found at expected location."
- }
- }
+ $probePaths = @(Get-SteamDepotProbePaths -AppId $GAME_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+ $depotPath = Find-SteamDepotPath -AppId $GAME_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+ if ($depotPath) { Write-OK "Depot folder found automatically: $depotPath" }
+ else { Write-Warn "Depot folder not found yet in any Steam library." }
  if (-not $depotPath) {
- $probePaths = @()
- if ($steamInstallPath) {
- $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$GAME_APPID\depot_$DEPOT_DEPOTID")
- }
  $depotPath = Resolve-DepotPath -GameName "Yooka-Laylee" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $GAME_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
  if (-not $depotPath) {
  Write-Fail "No depot folder provided."
@@ -267,7 +271,7 @@ else {
  }
  }
 
- $depotExe = Join-Path $depotPath $GAME_EXE
+ $depotExe = Join-PathLexical $depotPath $GAME_EXE
  if (-not (Test-Path $depotExe)) {
  Write-Fail "$GAME_EXE not found inside depot folder."
  # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
@@ -304,7 +308,7 @@ else {
  # Move & rename
  Write-Step 2 5 "Moving game to stable folder"
 
- $parentOfDepot = Split-Path $depotPath -Parent # ...\app_360830
+ $parentOfDepot = Get-PathParentLexical $depotPath # ...\app_360830
 
  Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
  Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
@@ -317,10 +321,10 @@ else {
  $targetPath = $userInput
  }
 
- $targetParent = Split-Path $targetPath -Parent
- if ($targetParent -and -not (Test-Path $targetParent)) {
- try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
- catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ $targetParent = Get-PathParentLexical $targetPath
+ if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+ Write-Fail "The target folder is not writable: $targetParent"
+ Pause-User "Press Enter to exit..."; exit 1
  }
 
  Write-Host ""
@@ -328,7 +332,7 @@ else {
  Write-Host " Moving to: $targetPath" -ForegroundColor Gray
  Write-Host ""
 
- if (Test-Path $targetPath) {
+ if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
  Write-Warn "A folder already exists at $targetPath"
  Write-Info "Merging the pinned build; saves, IPA plugins, vr_settings.xml and other additional files are preserved."
  }

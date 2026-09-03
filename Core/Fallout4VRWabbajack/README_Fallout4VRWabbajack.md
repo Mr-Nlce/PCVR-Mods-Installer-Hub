@@ -49,8 +49,8 @@ story and world.
 
 1. Download and run Wabbajack once so it can set itself up.
 2. In Wabbajack, open the Gallery and select the modlist you want (or open its `.wabbajack` file).
-3. Set an Install folder and a Download folder - any location with enough free space.
+3. Choose the mod-list installation directory and download directory in Wabbajack - locations with enough free space, separate from the game's own folder.
 4. Click Begin and let Wabbajack download and build the modlist.
-5. When it finishes, launch the game through the Mod Organizer 2 instance that Wabbajack created in your Install folder.
+5. When it finishes, launch the game through the Mod Organizer 2 instance that Wabbajack created in that mod-list installation directory.
 
 >>> War never changes. The wasteland's just life-size now.

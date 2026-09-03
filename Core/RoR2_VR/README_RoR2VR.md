@@ -57,8 +57,8 @@ ProperSave (load).
 
 ## Launching
 
-The VR build installs to its own folder (default `C:\Games\Risk of Rain 2
-VR`) and is separate from your retail Steam copy. **Launch via the desktop
+The VR build installs to its own folder (default `C:\Games\Risk of Rain 2 VR`)
+and is separate from your retail Steam copy. **Launch via the desktop
 shortcut or the Hub's Start in VR button — not via Steam**, which would
 start your flat retail version.
 

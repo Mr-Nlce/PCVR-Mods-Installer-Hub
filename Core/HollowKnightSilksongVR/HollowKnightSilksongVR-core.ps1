@@ -629,6 +629,26 @@ Write-OK "$B_NAME is the active mod."
 # =======================================================
 # Shared tail
 # =======================================================
+# Installing either choice means the next launch is intentionally VR. If the
+# Hub's Flat / VR control had parked the shared Doorstop loader earlier, bring
+# that exact parked loader back. An archive merge may already have written a
+# fresh active copy; in that case the Hub-owned parked duplicate is obsolete
+# and must go, otherwise the detail-page toggle correctly refuses to guess
+# between two files on the next click.
+$activeLoader = Join-Path $gameRoot 'winhttp.dll'
+$parkedLoader = Join-Path $gameRoot 'winhttp.dll.pcvrhub_off'
+try {
+    if ((Test-Path -LiteralPath $activeLoader -PathType Leaf) -and (Test-Path -LiteralPath $parkedLoader -PathType Leaf)) {
+        Remove-Item -LiteralPath $parkedLoader -Force -ErrorAction Stop
+        Write-OK 'Cleared the obsolete parked loader; VR is active.'
+    } elseif ((Test-Path -LiteralPath $parkedLoader -PathType Leaf) -and -not (Test-Path -LiteralPath $activeLoader)) {
+        Rename-Item -LiteralPath $parkedLoader -NewName 'winhttp.dll' -Force -ErrorAction Stop
+        Write-OK 'Reactivated the shared loader; VR is active.'
+    }
+} catch {
+    Write-Warn 'Could not normalize the Flat / VR loader state. Use the switch on the game page before launching.'
+}
+
 $bothNow = Update-SwitchLaunchers -Root $gameRoot -ExeName $exeName
 
 # R5 - the marker is written only after the checks above passed. It is

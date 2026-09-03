@@ -81,7 +81,7 @@ programs it starts are:
 
 | | |
 |---|---|
-| the game | `<your game folder>\PROJECT\PPJ2DD.EXE` - working directory **must** be `PROJECT` |
+| the game | `PROJECT\PPJ2DD.EXE` inside your game folder - working directory **must** be `PROJECT` |
 | the VR half | `%LOCALAPPDATA%\Programs\Virtua Cop 2 VR\VC2VR.exe`, started **after** you are in a level |
 
 ## Controls

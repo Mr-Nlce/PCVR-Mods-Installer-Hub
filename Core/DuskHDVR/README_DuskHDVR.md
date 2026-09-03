@@ -11,7 +11,7 @@ This is a full motion-controller VR mod with bHaptics + ProTube/ForceTube suppor
 - **BepInEx** - mod loader
 - **ViGEmBus driver** (optional, but required for VR controllers) - emulates an Xbox controller
 
-The mod files go into `<GameRoot>\DLC\DUSK HD\`, NOT the game root.
+The mod files go into `DLC\DUSK HD\` inside the DUSK game folder, NOT the game root.
 
 ## Requirements
 - Dusk owned on Steam (App ID 519860)
@@ -68,7 +68,7 @@ Hold your **left controller close to the left side of your head**. The controlle
 
 ## Configuration
 
-`<GameRoot>\DLC\DUSK HD\BepInEx\config\UnityVR_DuskHD.cfg`:
+`DLC\DUSK HD\BepInEx\config\UnityVR_DuskHD.cfg` inside the DUSK game folder:
 ```
 handRotationOffsetX = 40 # weapon angle on X axis; 40 is a good middle value across controller types
 leftHanded = false # set "leftHanded = true" for left-hand mode
@@ -80,7 +80,7 @@ Astienth has a separate optional plugin for tweaking roomscale behaviour. Most p
 
 Download post: https://discord.com/channels/1001138422972432597/1449484957671227555/1449729394322182266
 
-To install: extract the ZIP into `<GameRoot>\DLC\DUSK HD\` (the same folder as the main mod). Read the included PDF for usage.
+To install: extract the ZIP into `DLC\DUSK HD\` inside the DUSK game folder (the same folder as the main mod). Read the included PDF for usage.
 
 ## Known issues (from Astienth)
 - No weapon zoom.

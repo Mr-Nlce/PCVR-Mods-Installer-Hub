@@ -27,8 +27,8 @@
 $Host.UI.RawUI.WindowTitle = "Mass Effect 2 VR Installer"
 $ErrorActionPreference = "Stop"
 
-$PATREON_URL   = "https://www.patreon.com/dhalcyon/posts/suicide-mission-165506412"
-$DIRECT_URL    = "https://www.patreon.com/file?h=165506412&m=709853965"
+$PATREON_URL   = "https://www.patreon.com/dhalcyon/posts/mass-effect-vr-167394663"
+$DIRECT_URL    = "https://www.patreon.com/file?h=167394663&m=723054662"
 $STEAM_APPID   = "1328670"
 $STEAM_FOLDER  = "Mass Effect Legendary Edition"
 $ME2_SUBPATH   = "Game\ME2\Binaries\Win64"

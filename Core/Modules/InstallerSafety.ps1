@@ -352,8 +352,10 @@ function global:Invoke-SafeDownload {
         [Parameter(Mandatory=$true)][string]$Label,
         [string]$ManualUrl    = "",
         [string]$Instructions = "",
-        [string]$SkipMessage  = ""
+        [string]$SkipMessage  = "",
+        [hashtable]$DownloadInfo
     )
+    if ($null -ne $DownloadInfo) { $DownloadInfo.Clear() }
     # Auto-expand: for every GitHub URL also try a Web Archive mirror
     # of the file. Many "releases" assets are also archived there. This
     # gives us a no-cost auto-fallback when GitHub itself is down or
@@ -372,6 +374,7 @@ function global:Invoke-SafeDownload {
         try {
             # Preferred: streaming copy with a live progress bar + rate.
             if (_Invoke-DownloadWithProgress -Url $u -Destination $Destination -Label $Label) {
+                if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $u }
                 Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
                 return $true
             }
@@ -386,6 +389,7 @@ function global:Invoke-SafeDownload {
                 Invoke-WebRequest -Uri $u -OutFile $Destination -UseBasicParsing -ErrorAction Stop
                 $ProgressPreference = $old
                 if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
+                    if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $u }
                     Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
                     return $true
                 }
@@ -440,6 +444,7 @@ function global:Invoke-SafeDownload {
                 Write-Host "       From: $au" -ForegroundColor DarkGray
                 try {
                     if (_Invoke-DownloadWithProgress -Url $au -Destination $Destination -Label $Label) {
+                        if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $au }
                         Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
                         return $true
                     }
@@ -451,6 +456,7 @@ function global:Invoke-SafeDownload {
                         Invoke-WebRequest -Uri $au -OutFile $Destination -UseBasicParsing -ErrorAction Stop
                         $ProgressPreference = $old
                         if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
+                            if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $au }
                             Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
                             return $true
                         }
@@ -1112,15 +1118,19 @@ function global:Expand-7zWithProgress {
         [Parameter(Mandatory=$true)][string]$SevenZip,
         [Parameter(Mandatory=$true)][string]$Archive,
         [Parameter(Mandatory=$true)][string]$Dest,
-        [string]$Label = "archive"
+        [string]$Label = "archive",
+        [string]$Password = ""
     )
     if (-not (Test-Path -LiteralPath $Dest)) {
         try { New-Item -ItemType Directory -Path $Dest -Force | Out-Null } catch {}
     }
     $progFile = Join-Path ([System.IO.Path]::GetTempPath()) ("7zp_" + [Guid]::NewGuid().ToString("N") + ".log")
     try {
+        $extractArgs = @("x","-y","-bso0","-bsp1")
+        if ($Password) { $extractArgs += "-p$Password" }
+        $extractArgs += @("`"$Archive`"","-o`"$Dest`"")
         $proc = Start-Process -FilePath $SevenZip `
-            -ArgumentList "x","-y","-bso0","-bsp1","`"$Archive`"","-o`"$Dest`"" `
+            -ArgumentList $extractArgs `
             -PassThru -NoNewWindow -RedirectStandardOutput $progFile
     } catch {
         Write-Host "  [X] Could not start 7-Zip: $($_.Exception.Message)" -ForegroundColor Red
@@ -1176,6 +1186,221 @@ function global:Expand-7zWithProgress {
 #   - "quit"  if the user gave up
 #   - "skip"  if no path could be verified after several tries
 #
+# ---- Provider-free local path construction -----------------
+#
+# Join-Path asks the PowerShell provider to resolve the drive. That is
+# useful for registry paths, but dangerous for filesystem CANDIDATES:
+# with ErrorActionPreference=Stop, merely constructing D:\Steam\... on a
+# PC without a D: drive terminates the complete installer. Depot probes
+# must be strings until Test-Path decides whether they exist.
+#
+# Do not use IO.Path.Combine here either. It applies the TEST HOST's path
+# grammar. On Linux that turns a Windows candidate into D:\Steam/foo; on
+# Windows it treats a POSIX test fixture differently. These helpers keep
+# the grammar of the supplied base path and perform no filesystem access.
+function global:Test-WindowsStylePathLexical {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    return ($Path -match '^[A-Za-z]:(?:[\\/]|$)' -or
+            $Path -match '^[\\/]{2}[^\\/]' -or
+            (-not $Path.StartsWith('/') -and $Path.Contains('\')))
+}
+
+function global:Test-NativeFileSystemPath {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $windowsHost = ([System.IO.Path]::DirectorySeparatorChar -eq '\')
+    if (-not $windowsHost -and (Test-WindowsStylePathLexical $Path)) { return $false }
+    return $true
+}
+
+function global:Join-PathLexical {
+    param(
+        [Parameter(Mandatory=$true)][string]$BasePath,
+        [Parameter(Mandatory=$true)][string]$ChildPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BasePath)) { return $null }
+    if ([string]::IsNullOrWhiteSpace($ChildPath)) { return $BasePath }
+
+    $windowsStyle = Test-WindowsStylePathLexical $BasePath
+    if (-not $windowsStyle -and -not $BasePath.StartsWith('/') -and -not $BasePath.Contains('/')) {
+        $windowsStyle = ([System.IO.Path]::DirectorySeparatorChar -eq '\')
+    }
+    $separator = if ($windowsStyle) { '\' } else { '/' }
+    $base = if ($windowsStyle) { $BasePath.Replace('/', '\') } else { $BasePath.Replace('\', '/') }
+    $child = if ($windowsStyle) { $ChildPath.Replace('/', '\') } else { $ChildPath.Replace('\', '/') }
+    $child = $child.TrimStart([char[]]"\/")
+
+    # Preserve filesystem roots. Trimming C:\ to C: would create a
+    # drive-relative path; trimming / would lose the POSIX root entirely.
+    $base = $base.TrimEnd([char[]]"\/")
+    if ($windowsStyle -and $base -match '^[A-Za-z]:$') { return ($base + '\' + $child) }
+    if (-not $windowsStyle -and [string]::IsNullOrEmpty($base) -and $BasePath.StartsWith('/')) {
+        return ('/' + $child)
+    }
+    if ([string]::IsNullOrEmpty($base)) { return $child }
+    return ($base + $separator + $child)
+}
+
+function global:Get-PathLeafLexical {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $trimmed = $Path.TrimEnd([char[]]"\/")
+    if (-not $trimmed) { return '' }
+    $parts = @($trimmed -split '[\\/]')
+    return [string]$parts[-1]
+}
+
+function global:Get-PathParentLexical {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return '' }
+    $windowsStyle = Test-WindowsStylePathLexical $Path
+    $separator = if ($windowsStyle) { '\' } else { '/' }
+    $normalized = if ($windowsStyle) { $Path.Replace('/', '\') } else { $Path.Replace('\', '/') }
+    $trimmed = $normalized.TrimEnd([char[]]"\/")
+    if ($windowsStyle -and $trimmed -match '^[A-Za-z]:$') { return '' }
+    if (-not $windowsStyle -and -not $trimmed -and $normalized.StartsWith('/')) { return '' }
+    $index = $trimmed.LastIndexOf($separator)
+    if ($index -lt 0) { return '' }
+    if ($windowsStyle -and $index -eq 2 -and $trimmed[1] -eq ':') { return $trimmed.Substring(0, 3) }
+    if (-not $windowsStyle -and $index -eq 0) { return '/' }
+    return $trimmed.Substring(0, $index)
+}
+
+function global:Test-LiteralPathSafe {
+    param(
+        [string]$Path,
+        [ValidateSet('Any','Container','Leaf')][string]$PathType = 'Any'
+    )
+    if (-not (Test-NativeFileSystemPath $Path)) { return $false }
+    try {
+        if ($PathType -eq 'Container') {
+            return [bool](Test-Path -LiteralPath $Path -PathType Container -ErrorAction SilentlyContinue)
+        }
+        if ($PathType -eq 'Leaf') {
+            return [bool](Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)
+        }
+        return [bool](Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)
+    } catch { return $false }
+}
+
+# Validate a user-selected depot destination before a multi-gigabyte
+# download is moved or copied. This is shared by every pinned-build
+# installer so an absent drive, a foreign path grammar or a read-only
+# parent always becomes a normal $false result, never a provider error.
+function global:Test-InstallerTargetWritable {
+    param([string]$TargetPath)
+    if (-not (Test-NativeFileSystemPath $TargetPath)) { return $false }
+    $parent = Get-PathParentLexical $TargetPath
+    if (-not $parent) { return $false }
+    $probe = Join-PathLexical $parent ('.pcvrhub_write_probe_' + [Guid]::NewGuid().ToString('N'))
+    try {
+        if (-not (Test-LiteralPathSafe -Path $parent -PathType Container)) {
+            New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+        }
+        Set-Content -LiteralPath $probe -Value 'ok' -Encoding ASCII -NoNewline -ErrorAction Stop
+        Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
+        return $true
+    } catch {
+        try { Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue } catch {}
+        return $false
+    }
+}
+
+# Return every plausible Steam Console depot location without resolving
+# any drive. Registry entries and libraryfolders.vdf are authoritative;
+# conventional roots are harmless fallbacks because they remain lexical
+# strings. A stale VDF entry for a removed drive is therefore safe too.
+function global:Get-SteamDepotProbePaths {
+    param(
+        [Parameter(Mandatory=$true)][string]$AppId,
+        [Parameter(Mandatory=$true)][string]$DepotId,
+        [string[]]$AdditionalSteamRoots = @()
+    )
+
+    $roots = @($AdditionalSteamRoots)
+    $windowsHost = ([System.IO.Path]::DirectorySeparatorChar -eq '\')
+    if ($windowsHost) {
+        foreach ($reg in @(
+            "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
+            "HKLM:\SOFTWARE\Valve\Steam",
+            "HKCU:\SOFTWARE\Valve\Steam"
+        )) {
+            try {
+                $props = Get-ItemProperty -Path $reg -ErrorAction Stop
+                foreach ($value in @($props.InstallPath, $props.SteamPath)) {
+                    if ($value) { $roots += ([string]$value -replace '/','\') }
+                }
+            } catch {}
+        }
+        foreach ($fallback in @(
+            "${env:ProgramFiles(x86)}\Steam", "${env:ProgramFiles}\Steam",
+            "C:\Program Files (x86)\Steam", "C:\Program Files\Steam", "C:\Steam",
+            "D:\Steam", "E:\Steam", "D:\SteamLibrary", "E:\SteamLibrary"
+        )) {
+            if ($fallback) { $roots += $fallback }
+        }
+    } else {
+        $profile = [Environment]::GetFolderPath('UserProfile')
+        if ($env:XDG_DATA_HOME) { $roots += (Join-PathLexical $env:XDG_DATA_HOME 'Steam') }
+        if ($profile) {
+            $roots += (Join-PathLexical $profile '.steam/steam')
+            $roots += (Join-PathLexical $profile '.local/share/Steam')
+            if ($PSVersionTable.OS -match 'Darwin') {
+                $roots += (Join-PathLexical $profile 'Library/Application Support/Steam')
+            }
+        }
+    }
+
+    # Parse every reachable library list. Entries inside the VDF are not
+    # required to exist: keeping a stale entry as a safe Test-Path probe
+    # is preferable to ever resolving it with Join-Path.
+    foreach ($root in @($roots | Where-Object { $_ } | Select-Object -Unique)) {
+        $vdf = Join-PathLexical $root "steamapps\libraryfolders.vdf"
+        if (-not (Test-LiteralPathSafe -Path $vdf -PathType Leaf)) { continue }
+        try {
+            foreach ($m in [regex]::Matches(
+                (Get-Content -LiteralPath $vdf -Raw -ErrorAction Stop),
+                '"path"\s+"([^"]+)"'
+            )) {
+                $library = $m.Groups[1].Value -replace '\\\\','\'
+                if ($library) { $roots += $library }
+            }
+        } catch {}
+    }
+
+    $relative = "steamapps\content\app_$AppId\depot_$DepotId"
+    return @($roots | Where-Object { $_ } | Select-Object -Unique | ForEach-Object {
+        Join-PathLexical ([string]$_) $relative
+    } | Select-Object -Unique)
+}
+
+# Find a completed depot among all safe candidates. GameExe may be a
+# nested relative path. No provider-backed join occurs before existence
+# checks, so missing drives and stale Steam libraries cannot terminate.
+function global:Find-SteamDepotPath {
+    param(
+        [Parameter(Mandatory=$true)][string]$AppId,
+        [Parameter(Mandatory=$true)][string]$DepotId,
+        [string]$GameExe = "",
+        [string[]]$AdditionalSteamRoots = @()
+    )
+
+    foreach ($candidate in (Get-SteamDepotProbePaths -AppId $AppId -DepotId $DepotId -AdditionalSteamRoots $AdditionalSteamRoots)) {
+        if (-not (Test-LiteralPathSafe -Path $candidate -PathType Container)) { continue }
+        if (-not $GameExe) { return $candidate }
+        $expected = Join-PathLexical $candidate $GameExe
+        if (Test-LiteralPathSafe -Path $expected -PathType Leaf) { return $candidate }
+        try {
+            $leaf = Get-PathLeafLexical $GameExe
+            $found = Get-ChildItem -LiteralPath $candidate -Recurse -File -Filter $leaf -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { return $candidate }
+        } catch {}
+    }
+    return $null
+}
+
 # ---- Canonical Steam/GOG/Epic game-folder finder ------------
 #
 # Authoritative, shared replacement for the per-installer Steam
@@ -1205,29 +1430,43 @@ function global:Find-SteamGameFolder {
         [string[]]$EpicNames = @()
     )
 
-    # Steam roots: registry (HKLM InstallPath / HKCU SteamPath) PLUS
-    # default install paths, so detection survives a failed registry read.
+    # Steam roots: Windows registry/defaults or the native Linux/macOS
+    # locations. Keeping this branch host-native lets the same detection
+    # logic be executed by the portable regression suite.
     $steamRoots = @()
-    foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam")) {
-        try { $rp = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($rp) { $steamRoots += $rp } } catch {}
+    $windowsHost = ([System.IO.Path]::DirectorySeparatorChar -eq '\')
+    if ($windowsHost) {
+        foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam")) {
+            try { $rp = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($rp) { $steamRoots += $rp } } catch {}
+        }
+        try { $rp = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Valve\Steam" -ErrorAction Stop).SteamPath; if ($rp) { $steamRoots += ($rp -replace '/','\') } } catch {}
+        foreach ($d in @(
+            "${env:ProgramFiles(x86)}\Steam", "${env:ProgramFiles}\Steam",
+            "C:\Program Files (x86)\Steam", "C:\Program Files\Steam",
+            "C:\Steam", "D:\Steam", "E:\Steam", "D:\SteamLibrary", "E:\SteamLibrary"
+        )) { if ($d) { $steamRoots += $d } }
+    } else {
+        $profile = [Environment]::GetFolderPath('UserProfile')
+        if ($env:XDG_DATA_HOME) { $steamRoots += (Join-PathLexical $env:XDG_DATA_HOME 'Steam') }
+        if ($profile) {
+            $steamRoots += (Join-PathLexical $profile '.steam/steam')
+            $steamRoots += (Join-PathLexical $profile '.local/share/Steam')
+            if ($PSVersionTable.OS -match 'Darwin') {
+                $steamRoots += (Join-PathLexical $profile 'Library/Application Support/Steam')
+            }
+        }
     }
-    try { $rp = (Get-ItemProperty -Path "HKCU:\SOFTWARE\Valve\Steam" -ErrorAction Stop).SteamPath; if ($rp) { $steamRoots += ($rp -replace '/','\') } } catch {}
-    foreach ($d in @(
-        "${env:ProgramFiles(x86)}\Steam", "${env:ProgramFiles}\Steam",
-        "C:\Program Files (x86)\Steam", "C:\Program Files\Steam",
-        "C:\Steam", "D:\Steam", "E:\Steam", "D:\SteamLibrary", "E:\SteamLibrary"
-    )) { if ($d) { $steamRoots += $d } }
 
     $libs = @()
     foreach ($root in ($steamRoots | Select-Object -Unique)) {
-        if (-not (Test-Path $root)) { continue }
+        if (-not (Test-LiteralPathSafe -Path $root -PathType Container)) { continue }
         $libs += $root
-        $vdf = Join-Path $root "steamapps\libraryfolders.vdf"
-        if (Test-Path $vdf) {
+        $vdf = Join-PathLexical $root "steamapps\libraryfolders.vdf"
+        if (Test-LiteralPathSafe -Path $vdf -PathType Leaf) {
             try {
                 foreach ($m in [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"')) {
                     $lp = $m.Groups[1].Value -replace '\\\\', '\'
-                    if (Test-Path $lp) { $libs += $lp }
+                    if (Test-LiteralPathSafe -Path $lp -PathType Container) { $libs += $lp }
                 }
             } catch {}
         }
@@ -1237,14 +1476,14 @@ function global:Find-SteamGameFolder {
     # PRIMARY: Steam appmanifest for this AppId -> real installdir.
     if ($AppId) {
         foreach ($lib in $libs) {
-            $acf = Join-Path $lib "steamapps\appmanifest_$AppId.acf"
-            if (Test-Path $acf) {
+            $acf = Join-PathLexical $lib "steamapps\appmanifest_$AppId.acf"
+            if (Test-LiteralPathSafe -Path $acf -PathType Leaf) {
                 try {
                     $mm = [regex]::Match((Get-Content $acf -Raw), '"installdir"\s+"([^"]+)"')
                     if ($mm.Success) {
-                        $g = Join-Path $lib "steamapps\common\$($mm.Groups[1].Value)"
-                        if ($Subdir) { $g = Join-Path $g $Subdir }
-                        if (Test-Path $g) { return $g }
+                        $g = Join-PathLexical $lib "steamapps\common\$($mm.Groups[1].Value)"
+                        if ($Subdir) { $g = Join-PathLexical $g $Subdir }
+                        if (Test-LiteralPathSafe -Path $g -PathType Container) { return $g }
                     }
                 } catch {}
             }
@@ -1257,18 +1496,18 @@ function global:Find-SteamGameFolder {
     # game whose folder name matches, or that contains the probe exe.
     if ($GogNames.Count) {
         foreach ($base in @("HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games","HKLM:\SOFTWARE\GOG.com\Games")) {
-            if (-not (Test-Path $base)) { continue }
+            if (-not (Test-LiteralPathSafe -Path $base)) { continue }
             foreach ($key in (Get-ChildItem -Path $base -ErrorAction SilentlyContinue)) {
                 try {
                     $props = Get-ItemProperty -Path $key.PSPath -ErrorAction Stop
                     $gp = $props.path
-                    if (-not $gp -or -not (Test-Path $gp)) { continue }
+                    if (-not $gp -or -not (Test-LiteralPathSafe -Path $gp -PathType Container)) { continue }
                     $leaf = Split-Path -Leaf $gp
-                    $g = if ($Subdir) { Join-Path $gp $Subdir } else { $gp }
+                    $g = if ($Subdir) { Join-PathLexical $gp $Subdir } else { $gp }
                     $isMatch = $false
                     foreach ($n in $GogNames) { if (($leaf -ieq $n) -or ($props.gameName -ieq $n)) { $isMatch = $true; break } }
-                    if (-not $isMatch -and $ProbeExe -and (Test-Path (Join-Path $g $ProbeExe))) { $isMatch = $true }
-                    if ($isMatch -and (Test-Path $g)) { return $g }
+                    if (-not $isMatch -and $ProbeExe -and (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { $isMatch = $true }
+                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container)) { return $g }
                 } catch {}
             }
         }
@@ -1278,19 +1517,19 @@ function global:Find-SteamGameFolder {
     # manifests (%ProgramData%\Epic\EpicGamesLauncher\Data\Manifests\*.item,
     # JSON with InstallLocation). Authoritative; match by folder name.
     if ($EpicNames.Count) {
-        $mfDir = Join-Path $env:ProgramData "Epic\EpicGamesLauncher\Data\Manifests"
-        if (Test-Path $mfDir) {
+        $mfDir = Join-PathLexical $env:ProgramData "Epic\EpicGamesLauncher\Data\Manifests"
+        if (Test-LiteralPathSafe -Path $mfDir -PathType Container) {
             foreach ($item in (Get-ChildItem -Path $mfDir -Filter *.item -ErrorAction SilentlyContinue)) {
                 try {
                     $j = Get-Content $item.FullName -Raw | ConvertFrom-Json
                     $loc = $j.InstallLocation
-                    if (-not $loc -or -not (Test-Path $loc)) { continue }
+                    if (-not $loc -or -not (Test-LiteralPathSafe -Path $loc -PathType Container)) { continue }
                     $leaf = Split-Path -Leaf $loc
-                    $g = if ($Subdir) { Join-Path $loc $Subdir } else { $loc }
+                    $g = if ($Subdir) { Join-PathLexical $loc $Subdir } else { $loc }
                     $isMatch = $false
                     foreach ($n in $EpicNames) { if (($leaf -ieq $n) -or ($j.MandatoryAppFolderName -ieq $n)) { $isMatch = $true; break } }
-                    if (-not $isMatch -and $ProbeExe -and (Test-Path (Join-Path $g $ProbeExe))) { $isMatch = $true }
-                    if ($isMatch -and (Test-Path $g)) { return $g }
+                    if (-not $isMatch -and $ProbeExe -and (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { $isMatch = $true }
+                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container)) { return $g }
                 } catch {}
             }
         }
@@ -1300,8 +1539,8 @@ function global:Find-SteamGameFolder {
     $cands = @()
     foreach ($n in $SteamFolderNames) {
         foreach ($lib in $libs) {
-            $c = Join-Path $lib "steamapps\common\$n"
-            if ($Subdir) { $c = Join-Path $c $Subdir }
+            $c = Join-PathLexical $lib "steamapps\common\$n"
+            if ($Subdir) { $c = Join-PathLexical $c $Subdir }
             $cands += $c
         }
     }
@@ -1312,7 +1551,7 @@ function global:Find-SteamGameFolder {
             "C:\GOG Games", "D:\GOG Games", "E:\GOG Games",
             "D:\Program Files (x86)\GOG Galaxy\Games", "E:\Program Files (x86)\GOG Galaxy\Games"
         )) {
-            if ($root) { foreach ($n in $GogNames) { $c = Join-Path $root $n; if ($Subdir) { $c = Join-Path $c $Subdir }; $cands += $c } }
+            if ($root) { foreach ($n in $GogNames) { $c = Join-PathLexical $root $n; if ($Subdir) { $c = Join-PathLexical $c $Subdir }; $cands += $c } }
         }
     }
     if ($EpicNames.Count) {
@@ -1321,16 +1560,16 @@ function global:Find-SteamGameFolder {
             "C:\Program Files\Epic Games", "C:\Epic Games", "D:\Epic Games", "E:\Epic Games",
             "D:\Program Files\Epic Games", "E:\Program Files\Epic Games"
         )) {
-            if ($root) { foreach ($n in $EpicNames) { $c = Join-Path $root $n; if ($Subdir) { $c = Join-Path $c $Subdir }; $cands += $c } }
+            if ($root) { foreach ($n in $EpicNames) { $c = Join-PathLexical $root $n; if ($Subdir) { $c = Join-PathLexical $c $Subdir }; $cands += $c } }
         }
     }
     $cands = $cands | Select-Object -Unique
 
     # Prefer a folder that holds the exe, then accept a folder that exists.
     if ($ProbeExe) {
-        foreach ($c in $cands) { if ($c -and (Test-Path $c) -and (Test-Path (Join-Path $c $ProbeExe))) { return $c } }
+        foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container) -and (Test-LiteralPathSafe -Path (Join-PathLexical $c $ProbeExe) -PathType Leaf)) { return $c } }
     }
-    foreach ($c in $cands) { if ($c -and (Test-Path $c)) { return $c } }
+    foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } }
     return $null
 }
 
@@ -1533,12 +1772,13 @@ function global:Resolve-DepotPath {
         # Re-probe expected paths every loop iteration: the user
         # may have just finished the download via option 1.
         foreach ($probe in $ProbePaths) {
-            if ($probe -and (Test-Path $probe)) {
+            if ($probe -and (Test-LiteralPathSafe -Path $probe -PathType Container)) {
                 $probeOk = $true
                 if ($GameExe) {
-                    $probeOk = [bool](Test-Path (Join-Path $probe $GameExe))
+                    $probeOk = Test-LiteralPathSafe -Path (Join-PathLexical $probe $GameExe) -PathType Leaf
                     if (-not $probeOk) {
-                        $probeOk = [bool](Get-ChildItem -Path $probe -Recurse -Filter $GameExe -ErrorAction SilentlyContinue | Select-Object -First 1)
+                        $leaf = Get-PathLeafLexical $GameExe
+                        $probeOk = [bool](Get-ChildItem -LiteralPath $probe -Recurse -File -Filter $leaf -ErrorAction SilentlyContinue | Select-Object -First 1)
                     }
                 }
                 if ($probeOk) {
@@ -1627,13 +1867,13 @@ function global:Resolve-DepotPath {
                 Write-Host "  Press Enter on its own to go back to the menu." -ForegroundColor DarkGray
                 $raw = (Read-Host "  Depot path").Trim().Trim('"')
                 if (-not $raw) { break }
-                if (-not (Test-Path $raw)) {
+                if (-not (Test-LiteralPathSafe -Path $raw -PathType Container)) {
                     Write-Host "  [XX] Path not found: $raw" -ForegroundColor Red
                     continue
                 }
                 if ($GameExe) {
-                    $probe = Join-Path $raw $GameExe
-                    if (-not (Test-Path $probe)) {
+                    $probe = Join-PathLexical $raw $GameExe
+                    if (-not (Test-LiteralPathSafe -Path $probe -PathType Leaf)) {
                         Write-Host "  [!!] Path exists but '$GameExe' is not inside it." -ForegroundColor Yellow
                         $ok = (Read-Host "  Accept anyway? [Y/N]").Trim().ToLower()
                         if ($ok -ne "y") { continue }
@@ -2171,6 +2411,23 @@ function global:Protect-InstallUserData {
 }
 
 # ============================================================
+#  Installed-version validation + durable stamp writer
+# ============================================================
+# Download fallbacks sometimes use labels such as "latest" or "cached"
+# while the real release tag is unknown. Those labels must never become an
+# installed version: the Hub cannot order them against a later numeric tag,
+# and the game-side copy would mask a valid durable backup. Keep this rule
+# in sync with VRModHub.ps1 (installers run in another process).
+function global:Test-IsTrackableInstalledVersion {
+    param($Version)
+    if ($null -eq $Version) { return $false }
+    if ($Version -isnot [string] -and $Version -isnot [ValueType] -and $Version -isnot [version]) { return $false }
+    $versionText = ([string]$Version).Trim()
+    if ([string]::IsNullOrWhiteSpace($versionText)) { return $false }
+    return ($versionText -match '\d')
+}
+
+# ============================================================
 #  Write-ModStamp - record WHICH build got installed, next to the mod
 # ============================================================
 # One marker name for every game, written into the GAME folder. The Hub
@@ -2538,11 +2795,11 @@ function global:Show-ThunderstoreDependencyWarning {
 function global:Write-ModStamp {
     param(
         [string]$GameDir,
-        [string]$Version,
+        $Version,
         [switch]$Second
     )
     if ([string]::IsNullOrWhiteSpace($GameDir)) { return $false }
-    if ([string]::IsNullOrWhiteSpace($Version)) { return $false }
+    if (-not (Test-IsTrackableInstalledVersion -Version $Version)) { return $false }
     if (-not (Test-Path -LiteralPath $GameDir)) { return $false }
     # Same literal as Get-GameStampPath in VRModHub.ps1 - installers run in
     # their own process and never load that file, so the name is repeated
@@ -2551,7 +2808,7 @@ function global:Write-ModStamp {
     if ($Second) { $name = "$name" + "_b" }
     try {
         [System.IO.File]::WriteAllText(
-            (Join-Path $GameDir $name), $Version.Trim(),
+            ([IO.Path]::Combine($GameDir, $name)), ([string]$Version).Trim(),
             (New-Object System.Text.UTF8Encoding $false)
         )
         return $true
@@ -2627,6 +2884,18 @@ function global:Find-PredownloadedFile {
         [int]$MaxAgeDays = 0,         # 0 = no age limit
         [string]$ExpectedName = "",
         [long]$ExpectedSize = 0,
+        # !!! THINK TWICE BEFORE SETTING THIS, AND CURRENTLY NOBODY DOES.
+        # Slack in percent around $ExpectedSize. It sounds harmless and
+        # is not: five percent of a 150 MB archive is a 15 MB window, and
+        # anyone who has updated a mod a few times has an OLDER build of
+        # it sitting in Downloads - very likely inside that window. The
+        # file would then be offered as if it were the current release.
+        #
+        # A missed match costs one drag-and-drop. A wrong archive
+        # accepted costs a working install. Leave it at 0 unless the
+        # size genuinely cannot be known, and even then prefer no
+        # search at all over a loose one.
+        [int]$SizeTolerancePercent = 0,
         [string]$ExpectedSha256 = "",
         [switch]$AllowUnverified,
         # Set this on the SECOND pass, after the download page has already
@@ -2679,8 +2948,13 @@ function global:Find-PredownloadedFile {
     if ($ExpectedName -and ($hit.Name -ne $ExpectedName)) {
         $reject = "the file is called '$($hit.Name)', expected '$ExpectedName'"
     }
-    if ((-not $reject) -and ($ExpectedSize -gt 0) -and ($hit.Length -ne $ExpectedSize)) {
-        $reject = "it is $($hit.Length) bytes, expected $ExpectedSize"
+    if ((-not $reject) -and ($ExpectedSize -gt 0)) {
+        $slack = if ($SizeTolerancePercent -gt 0) { [long][Math]::Ceiling($ExpectedSize * ($SizeTolerancePercent / 100.0)) } else { 0 }
+        $delta = [Math]::Abs($hit.Length - $ExpectedSize)
+        if ($delta -gt $slack) {
+            $reject = if ($slack -gt 0) { "it is $($hit.Length) bytes, expected about $ExpectedSize" }
+                      else { "it is $($hit.Length) bytes, expected $ExpectedSize" }
+        }
     }
     if ((-not $reject) -and $ExpectedSha256) {
         $got = $null
@@ -2749,22 +3023,23 @@ function global:Save-InstalledStamp {
     # resolved the mod, and guessing wrong means no stamp at all - so
     # both candidates get one. A stamp in a folder nobody reads is a
     # harmless dotfile; a missing one brings back the swallowed update.
-    param($GameDir, [string]$Version, [string]$HubDir)
+    param($GameDir, $Version, [string]$HubDir)
 
-    if ([string]::IsNullOrWhiteSpace($Version)) { return }
+    if (-not (Test-IsTrackableInstalledVersion -Version $Version)) { return }
     $val = ([string]$Version).Trim()
     $enc = New-Object System.Text.UTF8Encoding $false
 
     $targets = @()
     foreach ($d in @($GameDir)) {
         if ([string]::IsNullOrWhiteSpace($d)) { continue }
-        # String concatenation, not Join-Path: a dead drive letter would
-        # make Join-Path throw (hub-wide rule).
-        $t = "$(([string]$d).TrimEnd('\'))\.pcvrhub_version"
+        # Provider-independent: does not require a dead drive letter to be
+        # mounted, and uses the host separator so the regression suite also
+        # works outside Windows.
+        $t = [IO.Path]::Combine(([string]$d), ".pcvrhub_version")
         if ($targets -notcontains $t) { $targets += $t }
     }
     if (-not [string]::IsNullOrWhiteSpace($HubDir)) {
-        $targets += "$($HubDir.TrimEnd('\'))\.installed_version"
+        $targets += [IO.Path]::Combine($HubDir, ".installed_version")
     }
     foreach ($t in $targets) {
         try { [System.IO.File]::WriteAllText($t, $val, $enc) } catch {}
@@ -2784,7 +3059,7 @@ function global:Save-InstalledStamp {
 #  the payload, this returns the folder that really holds it:
 #    - payload directly in the folder    -> that folder
 #    - inside a wrapper folder           -> the wrapper
-#    - inside one of several inner zips  -> unpacks the RIGHT one
+#    - inside one of several inner archives -> unpacks the RIGHT one
 #  Returns $null when no inner archive carries the marker, so the
 #  caller can fail with a clear message instead of copying nothing.
 function global:Expand-NestedArchive {
@@ -2812,17 +3087,18 @@ function global:Expand-NestedArchive {
     # loop still falls through to the rest, so a misleading name costs
     # nothing - it just is not tried first.
     $stem = [System.IO.Path]::GetFileNameWithoutExtension((Split-Path $Marker -Leaf))
-    $zips = @(Get-ChildItem -LiteralPath $Root -Recurse -Filter "*.zip" -ErrorAction SilentlyContinue |
+    $archives = @(Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue |
+              Where-Object { [IO.Path]::GetExtension($_.Name).ToLower() -in @('.zip','.7z','.rar') } |
               Sort-Object @{ Expression = {
                   $n = [System.IO.Path]::GetFileNameWithoutExtension($_.Name)
                   # 0 sorts first: exact-ish name match on either side.
                   if (($n -replace '[^a-zA-Z0-9]','') -like "*$($stem -replace '[^a-zA-Z0-9]','')*") { 0 } else { 1 }
               } }, Name)
-    foreach ($z in $zips) {
-        $sub = Join-Path $Root ("_inner_" + [System.IO.Path]::GetFileNameWithoutExtension($z.Name))
+    foreach ($archive in $archives) {
+        $sub = Join-Path $Root ("_inner_" + [System.IO.Path]::GetFileNameWithoutExtension($archive.Name))
         try {
             New-Item -ItemType Directory -Path $sub -Force -ErrorAction Stop | Out-Null
-            $r = Expand-ArchiveOrFallback -ArchivePath $z.FullName -DestinationFolder $sub -Label "$Label ($($z.Name))"
+            $r = Expand-ArchiveOrFallback -ArchivePath $archive.FullName -DestinationFolder $sub -Label "$Label ($($archive.Name))"
             if ([string]$r -ne "ok" -and [string]$r -ne "manual") { continue }
         } catch { continue }
 
@@ -2874,4 +3150,471 @@ function global:Test-ArchiveContains {
         return $false
     }
     return $false
+}
+
+# ---------------------------------------------------------------
+#  Antivirus: the warning up front, and the explanation afterwards
+# ---------------------------------------------------------------
+# WHY THIS EXISTS. A VR mod hooks into a running game, and the file that
+# does it is almost never signed. That is the same shape as an injector,
+# so a handful of scanners flag some of these mods. It is a false
+# positive in practice - but WE CANNOT PROMISE THAT, and this text must
+# never say "safe". It says what the mod does and why a scanner reacts.
+#
+# The second half matters more than the first: when a scanner removes a
+# file mid-install, the mod simply does not work and nothing explains
+# why. Show-AntivirusFileLoss turns that silence into an answer.
+
+# ONE WORDING, TWO SHAPES. Some installers open with a full-screen
+# intro box that is already crowded - there the notice has to fit INSIDE
+# the box rather than add five lines under it. So the text lives here
+# once and can be fetched as lines; Show-AntivirusNotice just prints
+# them. Short form for a box, long form for open screen.
+function global:Get-AntivirusNoticeLines {
+    param([switch]$Short)
+    if ($Short) {
+        # 56 characters is what Write-Box pads to - keep inside that.
+        return @(
+            "Some VR mods inject into the game or use unsigned",
+            "executables, so a few antivirus tools flag them -",
+            "usually a false positive. If a file disappears during",
+            "this install, the installer says so and shows you how",
+            "to add a folder exclusion."
+        )
+    }
+    return @(
+        "Some VR mods inject into the game and/or are built on unsigned",
+        "executables, so a few antivirus tools may flag them - usually as",
+        "a false positive. After placing the mod, this installer waits",
+        "three seconds and checks it again. If files disappear, it shows",
+        "the active antivirus and the folder-exclusion steps."
+    )
+}
+
+function global:Show-AntivirusNotice {
+    # !!! DARKGRAY THROUGHOUT, HEADING INCLUDED. This concerns a minority
+    # of readers, and in white-on-grey it competed with the things
+    # everyone has to read - on a long intro page it was one more block
+    # that looked like all the others. Quiet, present, skippable.
+    Write-Host ""
+    Write-Host "  A note on antivirus software" -ForegroundColor DarkGray
+    foreach ($l in (Get-AntivirusNoticeLines)) { Write-Host "  $l" -ForegroundColor DarkGray }
+    Write-Host ""
+}
+
+# SecurityCenter2 retains disabled and passive products as well as the
+# product that is protecting the machine right now. The 0x1000 bit in
+# productState is the real-time-enabled flag; without this filter the first
+# registered entry can easily be dormant Defender instead of the third-party
+# scanner that actually removed the file.
+function global:Test-AntivirusProductActive {
+    param($ProductState)
+    if ($null -eq $ProductState) { return $false }
+    try {
+        $state = [int64]$ProductState
+        return (($state -band 0x1000) -eq 0x1000)
+    } catch { return $false }
+}
+
+function global:Get-ActiveAntivirusNames {
+    $products = @()
+    try {
+        $products = @(Get-CimInstance -Namespace "root\SecurityCenter2" -ClassName AntiVirusProduct -ErrorAction Stop)
+    } catch {}
+
+    # SecurityCenter2 can be access-restricted by policy. Windows mirrors the
+    # same provider records under this read-only registry key, including the
+    # same product-state value, so detection still works without elevation.
+    if ($products.Count -eq 0) {
+        try {
+            $products = @(Get-ChildItem -LiteralPath "HKLM:\SOFTWARE\Microsoft\Security Center\Provider\Av" -ErrorAction Stop |
+                ForEach-Object {
+                    $p = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction Stop
+                    [pscustomobject]@{ displayName=$p.DisplayName; productState=$p.State }
+                })
+        } catch {}
+    }
+
+    $active = @($products | Where-Object { $_.displayName -and (Test-AntivirusProductActive -ProductState $_.productState) })
+    if ($active.Count -gt 0) {
+
+        # If two engines really are active, show both. Put third-party tools
+        # before Microsoft Defender so their instructions are not hidden by a
+        # passive-looking Defender entry on unusual Security Center builds.
+        return @($active |
+            Sort-Object @{ Expression = { if ($_.displayName -match '(?i)windows defender|microsoft defender') { 1 } else { 0 } } }, displayName |
+            Select-Object -ExpandProperty displayName -Unique)
+    }
+    return @()
+}
+
+function global:Get-ActiveAntivirusName {
+    $names = @(Get-ActiveAntivirusNames)
+    if ($names.Count -gt 0) { return ($names -join ', ') }
+    return $null
+}
+
+# Call this when a file that WAS written is no longer there.
+function global:Show-AntivirusFileLoss {
+    param([string]$What, [string]$GameDir)
+    Write-Host ""
+    Write-Host "  A FILE WAS INSTALLED AND IS NOW GONE. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host ""
+    Write-Host "  Missing: $What" -ForegroundColor White
+    $av = Get-ActiveAntivirusName
+    if ($av) {
+        Write-Host "  Your antivirus ($av) most likely quarantined it." -ForegroundColor White
+    } else {
+        Write-Host "  An antivirus tool most likely quarantined it." -ForegroundColor White
+    }
+    Write-Host ""
+    Write-Host "  What to do:" -ForegroundColor White
+    Write-Host "   1. Open your antivirus and restore the file from quarantine," -ForegroundColor Gray
+    Write-Host "      or add an EXCLUSION for this folder:" -ForegroundColor Gray
+    if ($GameDir) { Write-Host "        $GameDir" -ForegroundColor DarkGray }
+    Write-Host "   2. Then run this installer again. With the folder excluded" -ForegroundColor Gray
+    Write-Host "      the files are written straight into protected ground." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Alternatively, if you don't want to do that, you can simply leave" -ForegroundColor DarkGray
+    Write-Host "  it here. Nothing further will be changed." -ForegroundColor DarkGray
+    Write-Host ""
+    # NOT AUTOMATED ON PURPOSE. Adding an exclusion from a script is
+    # exactly what malware does to clear its own path, and doing it would
+    # get the Hub flagged far harder than any mod. We open the page at
+    # most; the user decides.
+    if ($av -and ($av -match '(?i)windows defender|microsoft defender') -and ($av -notmatch '(?i)bitdefender')) {
+        Write-Host "   Defender: Settings > Privacy & security > Windows Security >" -ForegroundColor DarkGray
+        Write-Host "   Virus & threat protection > Manage settings > Exclusions" -ForegroundColor DarkGray
+        Write-Host ""
+    }
+}
+
+# ---------------------------------------------------------------
+#  Did the files we just wrote survive?
+# ---------------------------------------------------------------
+# A scanner does not always strike while the file is being written. It
+# often sweeps a moment later, and the file is gone AFTER the installer
+# has already reported success. So the check waits, looks again, and if
+# something vanished it walks the user through an exclusion and copies
+# the files a second time.
+#
+# WHERE THE EXCLUSION IS SET, per product. Only the menu path - the Hub
+# never sets an exclusion itself. Doing that from a script is what
+# malware does to clear its own way, and it would get the Hub flagged
+# far harder than any mod ever could.
+$global:AV_EXCLUSION_PATHS = @{
+    'defender'    = 'Windows Security > Virus & threat protection > Manage settings > Add or remove exclusions > Add an exclusion > Folder (the installer can open this for you)'
+    'bitdefender' = 'Bitdefender > Protection > Antivirus > Open > Settings > Manage Exceptions > + Add an Exception > choose the folder > enable Antivirus > Save'
+    'kaspersky'   = 'Kaspersky > Settings (gear) > Security settings > Threats and exclusions > Manage exclusions > Add > choose the folder'
+    'avast'       = 'Avast > Menu > Settings > General > Exceptions > Add exception > File / Folder > choose the folder > Add'
+    'avg'         = 'AVG > Menu > Settings > General > Exceptions > Add exception > File / Folder > choose the folder > Add'
+    'norton'      = 'Norton > Security > Advanced Security > Computer > Antivirus > Exclusions > Add > choose the folder'
+    'eset'        = 'ESET > press F5 (Advanced setup) > Scan > Performance Exclusions > Edit > Add > choose the folder > OK'
+    'mcafee'      = 'McAfee > My Protection > Real-Time Scanning > Excluded files. If your edition offers Add folder, choose this folder; otherwise restore and exclude each reported file (some McAfee consumer editions have no real-time folder exclusion)'
+    'malwarebytes'= 'Malwarebytes > Detection History > Allow list > Add item > select Folder > choose the folder > Save'
+}
+
+function global:Get-AvExclusionPath {
+    param([string]$Name)
+    if (-not $Name) { return $null }
+    $n = $Name.ToLower()
+    # !!! BITDEFENDER BEFORE DEFENDER. "bitdefender" contains "defender",
+    # so testing defender first handed every Bitdefender user Microsoft's
+    # menu path - a wrong instruction is worse than none.
+    foreach ($k in @('bitdefender','malwarebytes','kaspersky','avast','avg','norton','eset','mcafee','defender')) {
+        if ($n -match $k) { return $global:AV_EXCLUSION_PATHS[$k] }
+    }
+    return $null
+}
+
+# Put the files back FROM INSIDE the game folder. Generic, so that no
+# installer has to hand-roll it: the archive is copied onto excluded
+# ground, unpacked THERE, and each missing file is fetched out of it by
+# name. ZIP, 7z and RAR all use the Hub's normal extractor. A package that
+# contains a second archive (BF42++ does) is opened one level further as
+# needed. The staging folder is removed afterwards either way.
+function global:Restore-FromArchiveInGameFolder {
+    param([string]$ArchivePath, [string]$GameDir, [string[]]$Paths)
+    if (-not $GameDir) {
+        Write-Warn "No exclusion folder was supplied, so the files cannot be restored safely."
+        return $false
+    }
+    if (-not $ArchivePath -or -not (Test-Path -LiteralPath $ArchivePath)) {
+        Write-Warn "The downloaded archive is gone as well - run the installer again once the exclusion is set."
+        return $false
+    }
+    $stage = Join-Path $GameDir "_pcvrhub_restage"
+    $restored = $false
+    try {
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+        $sourceDir = Join-Path $stage "source"
+        $contentDir = Join-Path $stage "content"
+        New-Item -ItemType Directory -Path $sourceDir,$contentDir -Force | Out-Null
+
+        # The archive itself is now on excluded ground BEFORE it is opened.
+        # Preserve its extension so 7-Zip can identify .7z/.rar immediately;
+        # the central extractor also inspects ZIP content when the name has no
+        # useful extension.
+        $localArchive = Join-Path $sourceDir ("package" + [IO.Path]::GetExtension($ArchivePath))
+        Copy-Item -LiteralPath $ArchivePath -Destination $localArchive -Force -ErrorAction Stop
+        $unpack = Expand-ArchiveOrFallback -ArchivePath $localArchive -DestinationFolder $contentDir `
+                    -Label "antivirus recovery package" -AllowSkip $false
+        if ([string]$unpack -ne "ok" -and [string]$unpack -ne "manual") {
+            Write-Warn "The package could not be unpacked inside the excluded folder."
+            return $false
+        }
+
+        # If a watched file is not in the outer package, open the matching
+        # inner archive. This is intentionally marker-driven: sibling archives
+        # for other games must never be unpacked blindly.
+        foreach ($want in $Paths) {
+            if (Test-Path -LiteralPath $want) { continue }
+            $leaf = Split-Path -Leaf $want
+            $hit = Get-ChildItem -LiteralPath $contentDir -Filter $leaf -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $hit) {
+                [void](Expand-NestedArchive -Root $contentDir -Marker $leaf -Label "antivirus recovery package")
+            }
+        }
+
+        foreach ($want in $Paths) {
+            if (Test-Path -LiteralPath $want) { continue }
+            $leaf = Split-Path -Leaf $want
+            $hit  = Get-ChildItem -LiteralPath $contentDir -Filter $leaf -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $hit) { continue }
+            $dir = Split-Path -Parent $want
+            if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+            Copy-Item -LiteralPath $hit.FullName -Destination $want -Force -ErrorAction Stop
+        }
+        $restored = (@($Paths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0)
+    } catch {
+        Write-Warn "Could not put the files back: $($_.Exception.Message)"
+    } finally {
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    return $restored
+}
+
+function global:Confirm-PlacedFilesSurvive {
+    param(
+        [string[]]$Paths,          # files that must still be there
+        [string]$GameDir,          # what the user should exclude
+        [scriptblock]$Recopy,      # optional: installer-specific recovery
+        [string]$ArchivePath,      # or just the archive - handled generically
+        [int]$WaitSeconds = 3
+    )
+    if (-not $Paths -or $Paths.Count -eq 0) { return $true }
+    Start-Sleep -Seconds $WaitSeconds
+    $gone = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_) })
+    if ($gone.Count -eq 0) { return $true }
+
+    Write-Host ""
+    Write-Host "  FILES THAT WERE JUST PLACED HAVE DISAPPEARED. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host ""
+    foreach ($g in ($gone | Select-Object -First 6)) { Write-Host "    $g" -ForegroundColor DarkGray }
+    if ($gone.Count -gt 6) { Write-Host "    ... and $($gone.Count - 6) more" -ForegroundColor DarkGray }
+    Write-Host ""
+    $avNames = @(Get-ActiveAntivirusNames)
+    $av = if ($avNames.Count -gt 0) { $avNames -join ', ' } else { $null }
+    if ($av) { Write-Host "  The cause is most likely your antivirus. You are running: $av" -ForegroundColor White }
+    else      { Write-Host "  The cause is most likely an antivirus tool on this machine." -ForegroundColor White }
+    Write-Host "  It flagged one of the mod's files - almost always a false positive." -ForegroundColor Gray
+    Write-Host ""
+
+    $guidance = @()
+    foreach ($avName in $avNames) {
+        $howTo = Get-AvExclusionPath -Name $avName
+        if ($howTo) { $guidance += [pscustomobject]@{ Name=$avName; Path=$howTo } }
+    }
+    if ($guidance.Count -gt 0) {
+        Write-Host "  Where to add the exclusion:" -ForegroundColor White
+        foreach ($guide in $guidance) {
+            Write-Host "    $($guide.Name): $($guide.Path)" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host "  Add a FOLDER exclusion in your antivirus for the path below." -ForegroundColor White
+    }
+    Write-Host ""
+    Write-Host "  The folder to exclude:" -ForegroundColor White
+    Write-Host "    $GameDir" -ForegroundColor Cyan
+    $copied = $false
+    try { Set-Clipboard -Value $GameDir -ErrorAction Stop; $copied = $true } catch {}
+    if ($copied) { Write-Host "    (already on your clipboard - just paste it)" -ForegroundColor DarkGray }
+    Write-Host ""
+
+    # Same trap here: only MICROSOFT's Defender has that settings page.
+    # THE WAY OUT IS NAMED, IN GREY. Adding an exclusion is a real
+    # security decision and it is not ours to push. Whoever would rather
+    # not do it must be able to see that stopping here is a normal
+    # choice, not a failure - so it is said plainly, and said quietly.
+    Write-Host "  Alternatively, if you don't want to do that, you can close the" -ForegroundColor DarkGray
+    Write-Host "  installer at this point. Nothing further will be changed." -ForegroundColor DarkGray
+    Write-Host ""
+
+    $microsoftDefenderActive = (@($avNames | Where-Object { $_ -match '(?i)windows defender|microsoft defender' }).Count -gt 0)
+    if ($microsoftDefenderActive) {
+        # windowsdefender://exclusions lands on the exclusion list ITSELF,
+        # not on the Windows Security overview - five clicks saved. Only
+        # Microsoft's Defender has such a handler; the third-party tools
+        # below have no equivalent, so for those we can only say where to
+        # look.
+        Pause-User "Press Enter to open the exclusion list, then add the folder..."
+        try { Start-Process "windowsdefender://exclusions" } catch {
+            try { Start-Process "ms-settings:windowsdefender" } catch {}
+        }
+    } else {
+        Pause-User "Press Enter once you have opened your antivirus..."
+    }
+
+    Pause-User "Press Enter when the exclusion is set - the files are then copied again..."
+    $restoreAttempted = $false
+    if ($Recopy) {
+        # !!! THE SECOND ATTEMPT MUST HAPPEN INSIDE THE EXCLUDED FOLDER.
+        # The exclusion the user just added covers the GAME folder - it
+        # does not cover %TEMP%. So a Recopy block that pulls from a temp
+        # staging folder can fail twice over: the scanner may have taken
+        # the source there as well, and it will keep taking it. Every
+        # Recopy block therefore has to fetch or unpack into a folder
+        # UNDER $GameDir, which is now protected ground.
+        Write-Host "  Putting the files back - this time from inside the excluded folder..." -ForegroundColor White
+        $restoreAttempted = $true
+        try { & $Recopy | Out-Null } catch { Write-Warn "The second attempt failed: $($_.Exception.Message)" }
+    } elseif ($ArchivePath) {
+        Write-Host "  Putting the files back - this time from inside the excluded folder..." -ForegroundColor White
+        $restoreAttempted = $true
+        [void](Restore-FromArchiveInGameFolder -ArchivePath $ArchivePath -GameDir $GameDir -Paths $Paths)
+    }
+
+    # A successful copy is not enough: the original problem was a delayed
+    # scanner sweep. Give the second copy the same three-second survival
+    # window before allowing the installer to continue.
+    if ($restoreAttempted) { Start-Sleep -Seconds $WaitSeconds }
+    $still = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_) })
+    if ($still.Count -eq 0) { Write-OK "The files are in place now."; return $true }
+    Write-Warn "Still missing: $($still.Count) file(s). The exclusion may not cover this folder yet."
+    foreach ($missing in ($still | Select-Object -First 6)) { Write-Host "    $missing" -ForegroundColor DarkGray }
+    Write-Host "  Correct the folder exclusion, then run this installer again." -ForegroundColor Gray
+    return $false
+}
+
+
+# ---------------------------------------------------------------
+#  Parking two mods that share a folder
+# ---------------------------------------------------------------
+# Lifted out of BioshockVR-core.ps1 (2026-08-28) because Outlast now
+# needs exactly the same thing: two mods that write THE SAME FILE NAMES
+# into the same folder, so only one can be in place at a time.
+#
+# The shape: each mod keeps a full copy of its files in a store under
+# _vrmods\<mod>\, and only the ACTIVE one has them lying in the game
+# folder. Switching means putting the other one's files back in the
+# store first - Set-ActiveMod never deletes anything it cannot restore.
+
+function global:Fill-Store {
+    param([string]$Extract, [string]$StoreDir, [string[]]$Files, [switch]$WithPreset)
+    if (-not (Test-Path -LiteralPath $StoreDir)) { New-Item -ItemType Directory -Path $StoreDir -Force | Out-Null }
+    $got = @(); $miss = @()
+    foreach ($f in $Files) {
+        $hit = Get-ChildItem -LiteralPath $Extract -Filter $f -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $hit) { $miss += $f; continue }
+        try { Copy-Item -LiteralPath $hit.FullName -Destination ([System.IO.Path]::Combine($StoreDir, $f)) -Force -ErrorAction Stop; $got += $f }
+        catch { $miss += $f }
+    }
+    if ($WithPreset) {
+        # The bundled calibration travels with the store, not into the game
+        # folder - it belongs in %LOCALAPPDATA%\BioshockVR and only if the
+        # user wants it. The README explains that.
+        # SINCE v0.7.0 THE ZIP CARRIES TWO CALIBRATIONS: preset-bs1\ for this
+        # game and preset-bs2\ for BioShock 2, with the SAME file names
+        # (vrpreset.ini, weapons.ini, HOW-TO-USE.txt). A plain recursive
+        # search with "first hit wins" could therefore drop BioShock 2's
+        # tuning into BioShock 1's store. Prefer a bs1 folder, and only fall
+        # back to a loose file when no bs1 folder exists (older releases had
+        # the presets in "preset\" or at the root).
+        foreach ($p in @("vrpreset.ini","hands.ini","weapons.ini","HOW-TO-USE.txt","README.txt")) {
+            $all = @(Get-ChildItem -LiteralPath $Extract -Filter $p -Recurse -File -ErrorAction SilentlyContinue)
+            if ($all.Count -eq 0) { continue }
+            $hit = $all | Where-Object { $_.DirectoryName -match '(?i)preset[-_]?bs1' } | Select-Object -First 1
+            if (-not $hit) { $hit = $all | Where-Object { $_.DirectoryName -notmatch '(?i)bs2' } | Select-Object -First 1 }
+            if (-not $hit) { continue }
+            try { Copy-Item -LiteralPath $hit.FullName -Destination ([System.IO.Path]::Combine($StoreDir, $p)) -Force -ErrorAction SilentlyContinue } catch {}
+        }
+    }
+    return [pscustomobject]@{ Copied = $got; Missing = $miss }
+}
+
+function global:Set-ActiveMod {
+    param([string]$BuildDir, [string]$StoreDir, [string[]]$Files, [string[]]$OtherFiles, [string]$OtherStore)
+    foreach ($f in $OtherFiles) {
+        if ($Files -contains $f) { continue }
+        $victim = [System.IO.Path]::Combine($BuildDir, $f)
+        if (-not (Test-Path -LiteralPath $victim)) { continue }
+        if (-not $OtherStore) { continue }
+        $keep = [System.IO.Path]::Combine($OtherStore, $f)
+        # ONLY DELETE WHAT CAN BE PUT BACK. If the file is not yet in
+        # the other mod's store, it is SAVED THERE FIRST and removed
+        # afterwards.
+        # WHY THIS BECAME NECESSARY: since BioVRDev 1.0.3
+        # openxr_loader.dll is only created BY THE SETUP - it is in no
+        # archive and therefore never reached the store. Without this
+        # safeguard the old lock applied, the file stayed put when
+        # switching, and balouza ran alongside a foreign OpenXR
+        # loader.
+        if (-not (Test-Path -LiteralPath $keep)) {
+            try {
+                $keepDir = Split-Path -Parent $keep
+                if ($keepDir -and -not (Test-Path -LiteralPath $keepDir)) {
+                    New-Item -ItemType Directory -Path $keepDir -Force -ErrorAction SilentlyContinue | Out-Null
+                }
+                Copy-Item -LiteralPath $victim -Destination $keep -Force -ErrorAction Stop
+            } catch { continue }   # cannot be backed up -> do not delete either
+        }
+        try { Remove-Item -LiteralPath $victim -Force -ErrorAction Stop } catch {}
+    }
+    $ok = $true
+    $failed = @()
+    foreach ($f in $Files) {
+        $src = [System.IO.Path]::Combine($StoreDir, $f)
+        if (-not (Test-Path -LiteralPath $src)) { continue }
+        $dest = [System.IO.Path]::Combine($BuildDir, $f)
+        try {
+            # .hubbak means "the file YOU had before the Hub touched it".
+            # It must never be made from the OTHER mod's file: BioshockVR.dll
+            # and bioshockvr.dll are the same name on Windows, so without
+            # this guard every switch parked a 3 MB copy of the other mod's
+            # payload as BioshockVR.dll.hubbak - junk that also lied about
+            # what it was. -contains is case-insensitive, which is exactly
+            # what catches the collision.
+            $isOtherModsFile = ($OtherFiles -contains $f)
+            if ((Test-Path -LiteralPath $dest) -and -not $isOtherModsFile -and -not (Test-Path -LiteralPath "$dest.hubbak")) {
+                Copy-Item -LiteralPath $dest -Destination "$dest.hubbak" -Force -ErrorAction SilentlyContinue
+            }
+            # Since 1.0.3 one file also lives in a SUBFOLDER
+            # (logs\CollectLogs.bat). Copy-Item does not create it.
+            $destDir = Split-Path -Parent $dest
+            if ($destDir -and -not (Test-Path -LiteralPath $destDir)) {
+                New-Item -ItemType Directory -Path $destDir -Force -ErrorAction SilentlyContinue | Out-Null
+            }
+            Copy-Item -LiteralPath $src -Destination $dest -Force -ErrorAction Stop
+        } catch { $ok = $false; $failed += $f }
+    }
+    if ($failed.Count -gt 0) {
+        Write-Fail "Could not write: $($failed -join ', ')"
+        Write-Warn "That usually means the game is still running. Close it and run this installer again."
+    }
+    return $ok
+}
+
+function global:Import-LegacyInstall {
+    param([string]$BuildDir, [string]$StoreDir, [string[]]$Files, [string]$Marker)
+    $taken = @()
+    if ($Marker -and -not (Test-Path -LiteralPath ([System.IO.Path]::Combine($BuildDir, $Marker)))) { return $taken }
+    foreach ($f in $Files) {
+        $loose = [System.IO.Path]::Combine($BuildDir, $f)
+        if (-not (Test-Path -LiteralPath $loose)) { continue }
+        $inStore = [System.IO.Path]::Combine($StoreDir, $f)
+        if (Test-Path -LiteralPath $inStore) { continue }   # store wins - it is the newer copy
+        if (-not (Test-Path -LiteralPath $StoreDir)) { New-Item -ItemType Directory -Path $StoreDir -Force | Out-Null }
+        try { Copy-Item -LiteralPath $loose -Destination $inStore -Force -ErrorAction Stop; $taken += $f } catch {}
+    }
+    return $taken
 }

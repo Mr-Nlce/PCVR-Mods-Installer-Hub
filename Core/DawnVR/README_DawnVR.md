@@ -45,7 +45,7 @@ The image above shows the full button layout. The main ones:
 
 ## Configurable options
 
-The config file is at `<game folder>/UserData/MelonPreferences.cfg` (open
+The config file is `UserData\MelonPreferences.cfg` inside the game folder (open
 with any text editor). Highlights:
 - **Movement/turning:** `MovementThumbstick` (dominant hand, default Left),
   `UseSmoothTurning` (default true), `SmoothTurnSpeed` (default 120),
@@ -64,7 +64,7 @@ settings; other graphics options still affect visuals and performance.
 If you see an **Initialization Error** on startup:
 1. Make sure `-vrmode OpenVR` is set in Launch Options
 2. Make sure SteamVR is open before launching
-3. Go into the game's `_Data` folder and delete `globalgamemanagers.bak`, then restart
+3. Next to the game executable, find the matching data folder (its name ends in `_Data`; the full name depends on the original/remastered edition). Delete `globalgamemanagers.bak` from that folder, then restart.
 
 ## Source
 DawnVR mod: https://github.com/TrevTV/DawnVR

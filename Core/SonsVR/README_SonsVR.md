@@ -90,6 +90,49 @@ The thumbstick moves the pointer when the beam is off the panel.
 trigger clicks and the thumbstick drives the pointer. You can also start the beam
 on the left hand instead with `LaserLeftHand = true`.
 
+## Fixed in v0.0.5-alpha
+
+- **The world sheared when you turned your head.** On headsets with **canted
+  (angled) displays - the Quest 3 among them** - a rectangle turned into a
+  trapezium as you looked around. The projection is now taken from the runtime
+  exactly as given instead of being rebuilt from field-of-view tangents, which
+  could not describe the shear a tilted panel puts in. **Pico 4, Pimax Crystal
+  and Index were never affected**, which is why it went unnoticed for so long.
+- **The pause and save screens could not be clicked.** They were visible but the
+  laser passed straight through them - they rode on a surface locked to your
+  head, which is the one thing a pointer cannot aim at. While a menu is open that
+  surface is now anchored in the room, and handed back the moment it closes.
+- **A clean install had no controller input at all.** The SteamVR action manifest
+  was missing from the package. Without it every action reads zero, and it looks
+  like anything but a missing file: the headset tracks, the hands track, the
+  laser is drawn - and no trigger, stick or button does anything. It ships with
+  the release now.
+
+## Thumbsticks changed in v0.0.5-alpha
+
+| Control | Sends | Now needs |
+|---|---|---|
+| Right stick up | [[Left Shift]] - sprint | close to the end of its travel |
+| Right stick down | [[Left Ctrl]] - crouch | close to the end of its travel |
+| Left stick sideways | A / D | past half |
+
+The right stick also turns you, and a turn is rarely a perfectly sideways push -
+the stray forward or back picked up while sweeping the thumb was enough to break
+into a run or drop into a crouch mid-look. **Sprint was not bound at all before
+this release.**
+
+Each direction lets go at a *lower* threshold than it took to engage, so a thumb
+resting on the line does not make the key flicker.
+
+Two new settings, on the headset panel under **Movement**:
+
+| Setting | Default | Range |
+|---|---|---|
+| `RunCrouchThreshold` | 0.85 | 0.50 - 0.98 |
+| `StrafeThreshold` | 0.50 | 0.20 - 0.90 |
+
+**If you liked the old, much lighter crouch**, set `RunCrouchThreshold` to `0.30`.
+
 ## Settings worth knowing
 Most are on the panel in the headset. All of them live in
 `UserData/MelonPreferences.cfg` under `[SonsVR]`, each with a description. Values
@@ -112,7 +155,11 @@ in the file win over the defaults, so a file from an older version keeps yours.
   provider, which has to be present when the game is built and cannot be added to
   a shipped one. The mod's own code costs about 0.35 ms of a 20 ms frame - the
   rest is the engine drawing two cameras, shadows being the largest item.
-- Individual screen-space overlays can still be missing from the headset.
+- Individual screen-space overlays can still be missing from the headset. The
+  pause and save screens were the worst of these and are fixed in v0.0.5; if you
+  hit another one, **F9 and F10 write the whole interface state to the MelonLoader
+  log** - two keys rather than one, so two screens can be captured and compared.
+  That log is exactly what the author needs in a bug report.
 - **Cutscenes take their heading from your headset**, so the framing a cutscene
   intended is not always what you are looking at. That is deliberate: inheriting
   a tumbling camera is the fastest way to make someone ill.

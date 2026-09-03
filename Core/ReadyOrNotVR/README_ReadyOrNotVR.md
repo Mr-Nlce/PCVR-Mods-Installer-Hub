@@ -4,7 +4,7 @@ Layers the free **Ready Or Not VRO Mod** by **Virtual Reality Oasis &
 KITT** onto an existing, working Steam copy of **Ready Or Not** that
 **you provide**. No game files are bundled. The mod is hosted on Nexus
 Mods behind a free login, so you download one file and drag it into the
-installer, which drops the VR `.pak` into the game's `Paks` folder.
+installer, which drops the VR `.pak` into `ReadyOrNot\Content\Paks` inside the game folder.
 
 ## Important - read first
 

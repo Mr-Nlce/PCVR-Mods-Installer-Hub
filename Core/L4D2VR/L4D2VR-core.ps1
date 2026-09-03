@@ -238,6 +238,7 @@ if ($updateOnly) {
 # currently-uploaded asset under the latest release tag.
 $l4d2vrUrl = $null
 $tagName = $null
+$assetStamp = $null
 Write-Host " Querying GitHub for latest release ... " -NoNewline -ForegroundColor White
 try {
  $apiResp = Invoke-WebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop `
@@ -247,6 +248,7 @@ try {
  foreach ($asset in $release.assets) {
  if ($asset.name -eq $L4D2VR_ASSET_NAME) {
  $l4d2vrUrl = $asset.browser_download_url
+ $assetStamp = [string]$asset.updated_at
  break
  }
  }
@@ -374,6 +376,10 @@ if ($choice -in @("y","Y")) {
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+# Rolling-release source of truth: this repo can replace L4D2VR.zip under
+# the same tag, so the Hub compares the asset's updated_at timestamp rather
+# than tag_name. Record that exact timestamp beside the installed payload.
+if ($assetStamp) { Save-InstalledStamp -GameDir $gamePath -Version $assetStamp -HubDir $PSScriptRoot }
 
 # -------------------------------------------------------
 # DONE

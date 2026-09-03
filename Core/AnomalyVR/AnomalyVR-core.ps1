@@ -48,6 +48,7 @@ function Get-ExeFromUser {
 }
 
 Write-Header
+Show-AntivirusNotice
 
 # -------------------------------------------------------
 # STEP 1: pick the Anomaly folder
@@ -163,6 +164,36 @@ if (-not $skipDownload) {
     try {
         Copy-Item -LiteralPath $src -Destination $launcherDest -Force
         Write-OK "Launcher placed in: $gameDir"
+
+        # NO ARCHIVE HERE - the user hands over the launcher itself, so
+        # recovery just copies their file in again. The folder to exclude
+        # is where the launcher lives, which is all this installer places.
+        $avFilesOk = Confirm-PlacedFilesSurvive `
+            -Paths @($launcherDest) `
+            -GameDir $gameDir `
+            -Recopy {
+                if (Test-Path -LiteralPath $src) {
+                    # Even without an archive, the second write starts on
+                    # excluded ground. This mirrors the archive recovery
+                    # path used by the other installers.
+                    $stage = Join-Path $gameDir "_pcvrhub_restage"
+                    try {
+                        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+                        New-Item -ItemType Directory -Path $stage -Force | Out-Null
+                        $localLauncher = Join-Path $stage $LAUNCHER_EXE
+                        Copy-Item -LiteralPath $src -Destination $localLauncher -Force -ErrorAction Stop
+                        Copy-Item -LiteralPath $localLauncher -Destination $launcherDest -Force -ErrorAction Stop
+                    } catch { Write-Warn "Could not copy it in again: $($_.Exception.Message)" }
+                    finally { if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue } }
+                } else {
+                    Write-Warn "Your copy of the launcher is gone too - download it again, the exclusion is set now."
+                }
+            }
+        if (-not $avFilesOk) {
+            Write-Fail "The launcher could not be restored after the antivirus check."
+            Pause-User "Press Enter to exit, then run the installer again."
+            return
+        }
     } catch {
         Write-Fail "Could not copy it in."
         Write-Do  "Move it to $gameDir yourself."

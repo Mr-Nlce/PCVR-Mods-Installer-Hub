@@ -306,43 +306,74 @@ $xaml = @"
                 </Border>
                 <TextBlock Text="TYPE" FontSize="11" FontWeight="SemiBold" Foreground="#6f6f7a"
                            FontFamily="Segoe UI" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <Border x:Name="FilterAll" CornerRadius="6" Padding="15,9" Margin="0,0,7,0"
-                        BorderThickness="1" BorderBrush="#5566aa"
-                        Background="#000000" Cursor="Hand">
-                    <TextBlock Text="All" FontSize="13" FontWeight="SemiBold"
-                               Foreground="White" FontFamily="Segoe UI"/>
-                </Border>
-                <Border x:Name="FilterMC" CornerRadius="6" Padding="15,9" Margin="0,0,7,0"
-                        BorderThickness="1" BorderBrush="#0fffffff"
-                        Background="#000000" Cursor="Hand">
-                    <!-- Motion Controls: kept as a single line on
-                         purpose; if it wraps the pill grows much
-                         taller than its neighbours and the bar
-                         looks broken. WPF wraps TextBlock by
-                         default when its parent has limited width,
-                         so we leave it unconstrained and rely on
-                         the bar's MinWidth to keep things sane. -->
-                    <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="14" Height="14" Margin="0,0,7,0" VerticalAlignment="Center">
-                            <Path Data="M7.7 8.2A4.3 2.2 0 1 1 16.3 8.2A4.3 2.2 0 1 1 7.7 8.2Z M12 9.8C10.8 9.8 10.2 10.9 10.3 12.1L10.9 17.6C11 18.8 11.2 19.4 12 19.4C12.8 19.4 13 18.8 13.1 17.6L13.7 12.1C13.8 10.9 13.2 9.8 12 9.8Z M11.1 11A0.9 0.9 0 1 1 12.9 11A0.9 0.9 0 1 1 11.1 11Z" Stroke="#44cc66" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
-                        </Viewbox>
-                        <TextBlock Text="Motion Controls" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="#aaaaaa" FontFamily="Segoe UI"
-                                   TextWrapping="NoWrap"/>
-                    </StackPanel>
-                </Border>
-                <Border x:Name="FilterGP" CornerRadius="6" Padding="15,9"
-                        BorderThickness="1" BorderBrush="#0fffffff"
-                        Background="#000000" Cursor="Hand">
-                    <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="18" Height="18" Margin="11,0,10,0" VerticalAlignment="Center">
-                            <Path Data="M8 8.7C5.3 8.7 3.9 10.7 3.3 13.8C2.9 16.1 4 17.6 5.7 17.6C7 17.6 7.6 16.5 8.5 16.1L15.5 16.1C16.4 16.5 17 17.6 18.3 17.6C20 17.6 21.1 16.1 20.7 13.8C20.1 10.7 18.7 8.7 16 8.7Z M6.4 11.6L6.4 14 M5.2 12.8L7.6 12.8 M14.7 11.7A1 1 0 1 1 16.7 11.7A1 1 0 1 1 14.7 11.7Z M16.5 13.3A1 1 0 1 1 18.5 13.3A1 1 0 1 1 16.5 13.3Z" Stroke="#dd6600" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
-                        </Viewbox>
-                        <TextBlock Text="Gamepad" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="#aaaaaa" FontFamily="Segoe UI"
-                                   TextWrapping="NoWrap"/>
-                    </StackPanel>
-                </Border>
+                <!-- Type pills use three real layers instead of a WPF Effect:
+                     a faint outer ring, the opaque button, and a crisp outline
+                     above everything. This keeps the lit edge intact without
+                     rasterizing the whole pill into a round shadow bitmap. -->
+                <Grid Margin="0,0,7,0">
+                    <Border x:Name="FilterAllGlowRing" Margin="-1" CornerRadius="7"
+                            BorderThickness="2" BorderBrush="#80ffeeb0"
+                            IsHitTestVisible="False"/>
+                    <Border x:Name="FilterAll" CornerRadius="6" Padding="15,9"
+                            BorderThickness="1" BorderBrush="Transparent"
+                            Background="#000000" Cursor="Hand">
+                        <TextBlock Text="All" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="White" FontFamily="Segoe UI"/>
+                    </Border>
+                    <Border x:Name="FilterAllRing" CornerRadius="6"
+                            BorderThickness="1" BorderBrush="#ffeeb0"
+                            Background="Transparent" IsHitTestVisible="False"
+                            Panel.ZIndex="10"/>
+                </Grid>
+                <Grid Margin="0,0,7,0">
+                    <Border x:Name="FilterMCGlowRing" Margin="-1" CornerRadius="7"
+                            BorderThickness="2" BorderBrush="#80ffeeb0"
+                            Visibility="Collapsed" IsHitTestVisible="False"/>
+                    <Border x:Name="FilterMC" CornerRadius="6" Padding="15,9"
+                            BorderThickness="1" BorderBrush="Transparent"
+                            Background="#000000" Cursor="Hand">
+                        <!-- Motion Controls: kept as a single line on
+                             purpose; if it wraps the pill grows much
+                             taller than its neighbours and the bar
+                             looks broken. WPF wraps TextBlock by
+                             default when its parent has limited width,
+                             so we leave it unconstrained and rely on
+                             the bar's MinWidth to keep things sane. -->
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="14" Height="14" Margin="0,0,7,0" VerticalAlignment="Center">
+                                <Path Data="M7.7 8.2A4.3 2.2 0 1 1 16.3 8.2A4.3 2.2 0 1 1 7.7 8.2Z M12 9.8C10.8 9.8 10.2 10.9 10.3 12.1L10.9 17.6C11 18.8 11.2 19.4 12 19.4C12.8 19.4 13 18.8 13.1 17.6L13.7 12.1C13.8 10.9 13.2 9.8 12 9.8Z M11.1 11A0.9 0.9 0 1 1 12.9 11A0.9 0.9 0 1 1 11.1 11Z" Stroke="#44cc66" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
+                            </Viewbox>
+                            <TextBlock Text="Motion Controls" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#aaaaaa" FontFamily="Segoe UI"
+                                       TextWrapping="NoWrap"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="FilterMCRing" CornerRadius="6"
+                            BorderThickness="1" BorderBrush="#0fffffff"
+                            Background="Transparent" IsHitTestVisible="False"
+                            Panel.ZIndex="10"/>
+                </Grid>
+                <Grid>
+                    <Border x:Name="FilterGPGlowRing" Margin="-1" CornerRadius="7"
+                            BorderThickness="2" BorderBrush="#80ffeeb0"
+                            Visibility="Collapsed" IsHitTestVisible="False"/>
+                    <Border x:Name="FilterGP" CornerRadius="6" Padding="15,9"
+                            BorderThickness="1" BorderBrush="Transparent"
+                            Background="#000000" Cursor="Hand">
+                        <StackPanel Orientation="Horizontal">
+                            <Viewbox Width="18" Height="18" Margin="11,0,10,0" VerticalAlignment="Center">
+                                <Path Data="M8 8.7C5.3 8.7 3.9 10.7 3.3 13.8C2.9 16.1 4 17.6 5.7 17.6C7 17.6 7.6 16.5 8.5 16.1L15.5 16.1C16.4 16.5 17 17.6 18.3 17.6C20 17.6 21.1 16.1 20.7 13.8C20.1 10.7 18.7 8.7 16 8.7Z M6.4 11.6L6.4 14 M5.2 12.8L7.6 12.8 M14.7 11.7A1 1 0 1 1 16.7 11.7A1 1 0 1 1 14.7 11.7Z M16.5 13.3A1 1 0 1 1 18.5 13.3A1 1 0 1 1 16.5 13.3Z" Stroke="#dd6600" StrokeThickness="1.9" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Fill="{x:Null}"/>
+                            </Viewbox>
+                            <TextBlock Text="Gamepad" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#aaaaaa" FontFamily="Segoe UI"
+                                       TextWrapping="NoWrap"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="FilterGPRing" CornerRadius="6"
+                            BorderThickness="1" BorderBrush="#0fffffff"
+                            Background="Transparent" IsHitTestVisible="False"
+                            Panel.ZIndex="10"/>
+                </Grid>
                 <!-- Installed + VR Ready share a transparent hover group.
                      Background="Transparent" makes the gap between the two
                      pills hit-testable, so resting the cursor between them
@@ -620,7 +651,15 @@ $xaml = @"
         <ScrollViewer Grid.Row="2" x:Name="ListScroll" VerticalScrollBarVisibility="Auto">
             <Border>
                 <Border.Background>
-                    <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
+                    <!-- CachingHint: without it WPF re-tessellates this 24x24
+                         pattern across the whole viewport on EVERY frame, and
+                         it is the background BEHIND a scrolling list - so it
+                         redraws for every pixel of movement. Cached, it is
+                         rasterised once and blitted. -->
+                    <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute"
+                                  RenderOptions.CachingHint="Cache"
+                                  RenderOptions.CacheInvalidationThresholdMinimum="0.5"
+                                  RenderOptions.CacheInvalidationThresholdMaximum="2.0">
                         <DrawingBrush.Drawing>
                             <DrawingGroup>
                                 <GeometryDrawing Brush="#0f0f12">
@@ -918,7 +957,12 @@ $xaml = @"
              between this and the list. -->
         <Grid Grid.Row="2" x:Name="DiscoverHost" Visibility="Collapsed">
             <Grid.Background>
-                <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute">
+                <!-- Same reasoning as the list background above: cached, or
+                     it re-tiles the whole viewport on every scrolled pixel. -->
+                <DrawingBrush TileMode="Tile" Viewport="0,0,24,24" ViewportUnits="Absolute"
+                              RenderOptions.CachingHint="Cache"
+                              RenderOptions.CacheInvalidationThresholdMinimum="0.5"
+                              RenderOptions.CacheInvalidationThresholdMaximum="2.0">
                     <DrawingBrush.Drawing>
                         <DrawingGroup>
                             <GeometryDrawing Brush="#0f0f12">
@@ -1626,6 +1670,9 @@ function global:Add-BannerStarfield {
         $canvas.Opacity = 0.7
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
+        # Hundreds of static stars move as one layer. Cache the composed
+        # field once so WPF only translates a bitmap while it animates.
+        $canvas.CacheMode = New-Object System.Windows.Media.BitmapCache
 
         # Deterministic field (seeded) so it looks identical every launch.
         $rand  = New-Object System.Random 1337
@@ -1698,6 +1745,8 @@ function global:Add-BannerOrbs {
             $blur = New-Object System.Windows.Media.Effects.BlurEffect
             $blur.Radius = 22
             $orb.Effect = $blur
+            # Static blur + moving transform: render the blur once.
+            $orb.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $orb.RenderTransform = $tt
             $dur = 6.0 + ($rand.NextDouble() * 5.0)
@@ -1797,6 +1846,7 @@ function global:Add-BannerSynthGrid {
         }
         $tt = New-Object System.Windows.Media.TranslateTransform
         $floor.RenderTransform = $tt
+        $floor.CacheMode = New-Object System.Windows.Media.BitmapCache
         $an = New-Object System.Windows.Media.Animation.DoubleAnimation
         $an.From = 0.0; $an.To = $spacing
         $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(1.6))
@@ -1879,7 +1929,9 @@ function global:Add-BannerNetwork {
         $canvas.IsHitTestVisible = $false
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $n = 14; $maxD = 150.0
+        # Ten nodes still read as a connected constellation, while cutting the
+        # all-pairs line updates from 91 to 45 per animation tick.
+        $n = 10; $maxD = 180.0
         $rand = New-Object System.Random
         $nodeBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.ColorConverter]::ConvertFromString("#5fff8f")); $nodeBrush.Freeze()
         $nodes = New-Object System.Collections.ArrayList
@@ -1904,9 +1956,12 @@ function global:Add-BannerNetwork {
         }
         $state = [pscustomobject]@{ nodes = $nodes; lines = $lines; w = $fieldW; h = $BannerH; maxD = $maxD; last = [DateTime]::Now }
         $timer = New-Object System.Windows.Threading.DispatcherTimer
-        $timer.Interval = [TimeSpan]::FromMilliseconds(33)
+        $timer.Interval = [TimeSpan]::FromMilliseconds(40)
         $timer.Add_Tick({
             try {
+                # List, Library, Explore and Detail keep separate banner
+                # visuals alive. Do no simulation work for a collapsed page.
+                if (-not $banner.IsVisible) { $state.last = [DateTime]::Now; return }
                 $now = [DateTime]::Now; $dt = ($now - $state.last).TotalSeconds; if ($dt -gt 0.1) { $dt = 0.1 }; $state.last = $now
                 foreach ($nd in $state.nodes) {
                     $nd.x += $nd.vx * $dt; $nd.y += $nd.vy * $dt
@@ -2030,6 +2085,7 @@ function global:Add-BannerEmbers {
             $em.Fill = [System.Windows.Media.SolidColorBrush]::new($ec)
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 2.0
             $em.Effect = $bl
+            $em.CacheMode = New-Object System.Windows.Media.BitmapCache
             [System.Windows.Controls.Canvas]::SetLeft($em, $rand.NextDouble() * $fieldW)
             [System.Windows.Controls.Canvas]::SetTop($em, 0)
             $tt = New-Object System.Windows.Media.TranslateTransform
@@ -2105,6 +2161,7 @@ function global:Add-BannerParallax {
             }
             $tt = New-Object System.Windows.Media.TranslateTransform
             $layer.RenderTransform = $tt
+            $layer.CacheMode = New-Object System.Windows.Media.BitmapCache
             $an = New-Object System.Windows.Media.Animation.DoubleAnimation
             $an.From = 0.0; $an.To = -$period
             $an.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($L.dur))
@@ -2127,11 +2184,22 @@ function global:Add-BannerNebula {
         $canvas.IsHitTestVisible = $false
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $cols = @("#c850ff","#3a8add","#36e0e0")
+        # Nebula used to ignore ColorHex and always paint a cyan/blue/violet
+        # wash. That made dark or warm games look unrelated to their own art.
+        # Build three visible shades from the caller's game accent instead.
+        $baseCol = [System.Windows.Media.ColorConverter]::ConvertFromString($ColorHex)
+        $makeTint = {
+            param([double]$WhiteMix)
+            [System.Windows.Media.Color]::FromRgb(
+                [byte][Math]::Round($baseCol.R + ((255 - $baseCol.R) * $WhiteMix)),
+                [byte][Math]::Round($baseCol.G + ((255 - $baseCol.G) * $WhiteMix)),
+                [byte][Math]::Round($baseCol.B + ((255 - $baseCol.B) * $WhiteMix)))
+        }.GetNewClosure()
+        $cols = @((& $makeTint 0.08), (& $makeTint 0.30), (& $makeTint 0.16))
         $rand = New-Object System.Random
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 3; $i++) {
-            $col = [System.Windows.Media.ColorConverter]::ConvertFromString($cols[$i])
+            $col = $cols[$i]
             $rg = New-Object System.Windows.Media.RadialGradientBrush
             $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new($col, 0.0)) | Out-Null
             $rg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, $col.R, $col.G, $col.B), 1.0)) | Out-Null
@@ -2139,9 +2207,12 @@ function global:Add-BannerNebula {
             $sz = $BannerH * 2.4
             $blob.Width = $sz; $blob.Height = $sz; $blob.Fill = $rg; $blob.Opacity = 0.5
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 40; $blob.Effect = $bl
+            $blob.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $blob.RenderTransform = $tt
-            $dur = 18.0 + $rand.NextDouble() * 10.0
+            # Keep the cloudy drift calm, but make it legible: the former
+            # 18-28 second travel looked completely static in narrow side bands.
+            $dur = 10.0 + $rand.NextDouble() * 6.0
             $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
             $ax.From = -(40 + $rand.NextDouble() * 40); $ax.To = (40 + $rand.NextDouble() * 50)
             $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur)); $ax.AutoReverse = $true
@@ -2152,6 +2223,16 @@ function global:Add-BannerNebula {
             $ay.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur * 0.9)); $ay.AutoReverse = $true
             $ay.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ay.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
             $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $ay)
+            # A cheap composited opacity pulse makes the motion readable even
+            # when most of a large blurred cloud is clipped by a side band.
+            $oa = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $oa.From = 0.32; $oa.To = 0.60
+            $oa.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur * 0.55))
+            $oa.AutoReverse = $true
+            $oa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $oa.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+            $oa.BeginTime = [TimeSpan]::FromSeconds(-($i * 1.1))
+            $blob.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $oa)
             [System.Windows.Controls.Canvas]::SetTop($blob, ($BannerH / 2) - ($sz / 2))
             [void]$canvas.Children.Add($blob)
             [void]$info.Add([pscustomobject]@{ el = $blob; sz = $sz; fx = (($i + 0.5) / 3.0) })
@@ -2471,6 +2552,7 @@ function global:Add-BannerPlasma {
             $sz = $BannerH * 1.9
             $blob.Width = $sz; $blob.Height = $sz; $blob.Fill = $rg; $blob.Opacity = 0.6
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 36; $blob.Effect = $bl
+            $blob.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $blob.RenderTransform = $tt
             $dur = 12.0 + $rand.NextDouble() * 6.0
@@ -2479,18 +2561,10 @@ function global:Add-BannerPlasma {
             $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur)); $ax.AutoReverse = $true
             $ax.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ax.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
             $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $ax)
-            $ca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
-            $hueDur = 14.0 + $rand.NextDouble() * 6.0
-            $ca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($hueDur))
-            for ($k = 0; $k -lt $palette.Count; $k++) {
-                $c = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[($i + $k) % $palette.Count])
-                $kt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur * ($k / [double]$palette.Count)))
-                $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($c, $kt)) | Out-Null
-            }
-            $endkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur))
-            $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($start, $endkt)) | Out-Null
-            $ca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-            $stop0.BeginAnimation([System.Windows.Media.GradientStop]::ColorProperty, $ca)
+            # Keep each blob's palette colour fixed while it drifts. Animating
+            # the GradientStop invalidated BitmapCache every frame and forced
+            # the radius-36 blur to be recomputed continuously. The three
+            # differently coloured blobs preserve the multi-colour look.
             [System.Windows.Controls.Canvas]::SetTop($blob, ($BannerH / 2) - ($sz / 2))
             [void]$canvas.Children.Add($blob)
             [void]$info.Add([pscustomobject]@{ el = $blob; sz = $sz; fx = (($i + 0.5) / 3.0) })
@@ -2526,6 +2600,7 @@ function global:Add-BannerBlobs {
             $sz = $BannerH * 1.9
             $blob.Width = $sz; $blob.Height = $sz; $blob.Fill = $rg; $blob.Opacity = 0.6
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 36; $blob.Effect = $bl
+            $blob.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $blob.RenderTransform = $tt
             $dur = 12.0 + $rand.NextDouble() * 6.0
@@ -2534,18 +2609,9 @@ function global:Add-BannerBlobs {
             $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur)); $ax.AutoReverse = $true
             $ax.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever; $ax.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
             $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $ax)
-            $ca = New-Object System.Windows.Media.Animation.ColorAnimationUsingKeyFrames
-            $hueDur = 14.0 + $rand.NextDouble() * 6.0
-            $ca.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($hueDur))
-            for ($k = 0; $k -lt $palette.Count; $k++) {
-                $c = [System.Windows.Media.ColorConverter]::ConvertFromString($palette[($i + $k) % $palette.Count])
-                $kt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur * ($k / [double]$palette.Count)))
-                $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($c, $kt)) | Out-Null
-            }
-            $endkt = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($hueDur))
-            $ca.KeyFrames.Add([System.Windows.Media.Animation.LinearColorKeyFrame]::new($start, $endkt)) | Out-Null
-            $ca.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-            $stop0.BeginAnimation([System.Windows.Media.GradientStop]::ColorProperty, $ca)
+            # A changing fill invalidates the cached blur every frame. The
+            # palette remains visible across the three drifting blobs without
+            # cycling every individual blob through every hue.
             [System.Windows.Controls.Canvas]::SetTop($blob, ($BannerH / 2) - ($sz / 2))
             [void]$canvas.Children.Add($blob)
             [void]$info.Add([pscustomobject]@{ el = $blob; sz = $sz; fx = (($i + 0.5) / 3.0) })
@@ -2692,6 +2758,7 @@ function global:Add-BannerBokeh {
             $e = New-Object System.Windows.Shapes.Ellipse
             $e.Width = $sz; $e.Height = $sz; $e.Fill = $rg; $e.Opacity = 0.5
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 6 + $rand.NextDouble() * 14; $e.Effect = $bl
+            $e.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $e.RenderTransform = $tt
             $durx = 9 + $rand.NextDouble() * 10
@@ -2854,6 +2921,7 @@ function global:Add-BannerRays {
             $lg.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, $c.R, $c.G, $c.B), 1.0)) | Out-Null
             $rect.Fill = $lg
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 6; $rect.Effect = $bl
+            $rect.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tg = New-Object System.Windows.Media.TransformGroup
             $tg.Children.Add([System.Windows.Media.RotateTransform]::new(16)) | Out-Null
             $tt = New-Object System.Windows.Media.TranslateTransform
@@ -2905,6 +2973,7 @@ function global:Add-BannerLava {
             $e = New-Object System.Windows.Shapes.Ellipse
             $e.Width = $sz; $e.Height = $sz; $e.Fill = $rg; $e.Opacity = 0.6
             $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 14; $e.Effect = $bl
+            $e.CacheMode = New-Object System.Windows.Media.BitmapCache
             $e.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
             $tg = New-Object System.Windows.Media.TransformGroup
             $sct = [System.Windows.Media.ScaleTransform]::new(1, 1)
@@ -3030,6 +3099,7 @@ function global:Add-BannerVortex {
         }
         $rot = [System.Windows.Media.RotateTransform]::new(0)
         $canvas.RenderTransform = $rot
+        $canvas.CacheMode = New-Object System.Windows.Media.BitmapCache
         $ra = New-Object System.Windows.Media.Animation.DoubleAnimation
         $ra.From = 0; $ra.To = 360
         $ra.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds(22.0))
@@ -3395,9 +3465,11 @@ function global:Add-BannerComet {
             if ($i -eq 0) {
                 # Glowing head ball: bright core + soft halo.
                 $gl = New-Object System.Windows.Media.Effects.BlurEffect; $gl.Radius = 10; $dot.Effect = $gl; $dot.Opacity = 1.0
+                $dot.CacheMode = New-Object System.Windows.Media.BitmapCache
             } elseif ($i -le 3) {
                 # A couple of near-head dots glow too so the ball reads as luminous, not a hard disc.
                 $gl2 = New-Object System.Windows.Media.Effects.BlurEffect; $gl2.Radius = 4; $dot.Effect = $gl2
+                $dot.CacheMode = New-Object System.Windows.Media.BitmapCache
             }
             $rot = [System.Windows.Media.RotateTransform]::new(0)
             $dot.RenderTransform = $rot
@@ -3764,6 +3836,12 @@ function global:Add-BannerEffect {
 # any previously added effect layer (tagged "BannerFx") first.
 function global:Set-BannerEffect {
     param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$Effect)
+    # Network is the only banner effect driven by a DispatcherTimer. Stop its
+    # old timer before replacing/removing the visual, otherwise a detached
+    # 30-Hz simulation keeps consuming the UI thread indefinitely.
+    if (Get-Command Stop-BannerNetTimer -ErrorAction SilentlyContinue) {
+        Stop-BannerNetTimer -BannerName $BannerName
+    }
     $banner = $global:window.FindName($BannerName)
     if ($banner -and ($banner.Child -is [System.Windows.Controls.Grid])) {
         $g = $banner.Child
@@ -3879,8 +3957,7 @@ $global:ColorfulBannerTitles = @(
     "Slime Rancher VR",
     "Trombone Champ VR",
     "Alba VR",
-    "StreetDog BMX VR",
-    "Super Polygon Grand Prix VR"
+    "StreetDog BMX VR"
 )
 
 # Tags that mark a game as comic / cartoon / vividly colourful enough for
@@ -4635,6 +4712,9 @@ function global:Apply-DetailSize { param($sizeKey)
                     # Section headings sit one point above body and
                     # scale together with it.
                     $tb.FontSize = [int]$cfg.Font + 1
+                } elseif ($tb.Tag -eq 'guide-number') {
+                    $tb.FontSize = [int]$cfg.Font - 2
+                    $tb.LineHeight = $cfg.LineHeight
                 } else {
                     $tb.FontSize   = $cfg.Font
                     $tb.LineHeight = $cfg.LineHeight
@@ -5276,4 +5356,3 @@ if ($headerVrIcon) {
         if (Get-Command Switch-HubStyle -ErrorAction SilentlyContinue) { Switch-HubStyle }
     })
 }
-

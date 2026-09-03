@@ -31,8 +31,8 @@ will stay free as well.
 2. Gets MELE3-VR from the creator's public Patreon post (checks your
    Downloads folder first; otherwise it opens the post and you drag
    the zip in)
-3. Places the four mod files next to MassEffect3.exe
-   (...\Game\ME3\Binaries\Win64) - asking for Administrator rights
+3. Places the four mod files in `Game\ME3\Binaries\Win64`, next to
+   `Game\ME3\Binaries\Win64\MassEffect3.exe` - asking for Administrator rights
    only if that folder needs them
 4. Runs the mod's own interactive setup where you pick the VR mode
    and image quality

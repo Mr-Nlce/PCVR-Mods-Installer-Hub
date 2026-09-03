@@ -123,10 +123,23 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host "  (i) Virtual Desktop: if it doesn't open, use Steam - View -" -ForegroundColor DarkGray
     Write-Host "      Console. DepotDownloader fallback kicks in after 2 tries." -ForegroundColor DarkGray
 }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
 # Both protocol addresses: depending on the Steam build only one works.
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+}
 }
 
 Write-Host ""
@@ -151,26 +164,12 @@ foreach ($reg in @(
     } catch {}
 }
 
-$depotPath = $null
-
-if ($steamInstallPath) {
-    $autoPath = Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
-    Write-Info "Expected depot path: $autoPath"
-    if ((Test-Path $autoPath) -and (Test-Path (Join-Path $autoPath $GAME_EXE))) {
-        $depotPath = $autoPath
-        Write-OK "Depot folder found automatically!"
-    } else {
-        Write-Warn "Depot folder not found at expected location yet."
-    }
-} else {
-    Write-Warn "Could not find Steam installation in registry."
-}
+$probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+$depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+if ($depotPath) { Write-OK "Depot folder found automatically: $depotPath" }
+else { Write-Warn "Depot folder not found yet in any Steam library." }
 
 if (-not $depotPath) {
-    $probePaths = @()
-    if ($steamInstallPath) {
-        $probePaths += (Join-Path $steamInstallPath "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID")
-    }
     $depotPath = Resolve-DepotPath -GameName "Trombone Champ" -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
     if (-not $depotPath) {
         Write-Fail "No depot folder provided."
@@ -180,7 +179,7 @@ if (-not $depotPath) {
 }
 
 # Sanity check: depot should contain the game exe
-$depotExe = Join-Path $depotPath $GAME_EXE
+$depotExe = Join-PathLexical $depotPath $GAME_EXE
 if (-not (Test-Path $depotExe)) {
     Write-Warn "'$GAME_EXE' not found inside depot."
     Write-Host "  Download may be incomplete or the wrong manifest." -ForegroundColor Gray
@@ -196,7 +195,7 @@ if (-not (Test-Path $depotExe)) {
 }
 
 # Pick target folder and move there
-$parentOfDepot = Split-Path $depotPath -Parent  # ...\app_1059990
+$parentOfDepot = Get-PathParentLexical $depotPath  # ...\app_1059990
 
 Write-Host ""
 Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
@@ -209,16 +208,16 @@ if (-not $userInput) {
     $targetPath = $userInput
 }
 
-$targetParent = Split-Path $targetPath -Parent
-if ($targetParent -and -not (Test-Path $targetParent)) {
-    try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
-    catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
+$targetParent = Get-PathParentLexical $targetPath
+if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+    Write-Fail "The target folder is not writable: $targetParent"
+    Pause-User "Press Enter to exit..." | Out-Null; exit 1
 }
 
 Write-Host ""
 Write-Host "  Moving to: $targetPath" -ForegroundColor Gray
 
-if (Test-Path $targetPath) {
+if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
     Write-Warn "A folder already exists at $targetPath"
     Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
 }

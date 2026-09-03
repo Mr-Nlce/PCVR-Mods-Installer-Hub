@@ -36,7 +36,7 @@ $DEPOT_MANIFEST = "180069324351455863"
 $DEPOT_COMMAND = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 $TARGET_NAME = "REPO VR"
 $DEFAULT_PARENT = "C:\Games"
-$DEFAULT_PATH = Join-Path $DEFAULT_PARENT $TARGET_NAME
+$DEFAULT_PATH = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 
 $LEGACY_URLS = @{
  BepInEx = "https://thunderstore.io/package/download/BepInEx/BepInExPack/5.4.2304/"
@@ -173,8 +173,8 @@ Write-Host ""
 $depotInstalledStatus = $null
 $depotInstalledColor  = "Gray"
 try {
- $depotTargetCheck = Join-Path "C:\Games" "REPO VR"
- $depotExeCheck    = Join-Path $depotTargetCheck "REPO.exe"
+ $depotTargetCheck = Join-PathLexical "C:\Games" "REPO VR"
+ $depotExeCheck    = Join-PathLexical $depotTargetCheck "REPO.exe"
  if (Test-Path $depotExeCheck) {
    $depotInstalledStatus = " [installed at $depotTargetCheck]"
    $depotInstalledColor  = "Green"
@@ -202,8 +202,10 @@ if (-not $useLegacy) {
  $sp = Get-SteamPath
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries $sp)) {
- $c=Join-Path $lib "steamapps\common\$GAME_NAME"
- if(Test-Path(Join-Path $c $GAME_EXE)){$gamePath=$c;Write-Info "Found: $gamePath";break}
+ # Lexical: $lib comes from libraryfolders.vdf and may name a drive
+ # that no longer exists - Join-Path would resolve it and throw.
+ $c=Join-PathLexical $lib "steamapps\common\$GAME_NAME"
+ if(Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf){$gamePath=$c;Write-Info "Found: $gamePath";break}
  }
  }
  if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "3241660" -SteamFolderNames @("REPO") }
@@ -236,7 +238,8 @@ if (-not $useLegacy) {
 
  if ($toInstall.Count -eq 0) {
  Write-Host ""; Write-Host " [OK] All packages are up to date!" -ForegroundColor Green; Write-Host ""
- Pause-User "Press Enter to exit."; exit 0
+ # Continue through the common finish block so path and exact version are
+ # repaired even when there was nothing new to download.
  }
 
  Write-Host ""; Write-Host " $($toInstall.Count) package(s) to install/update." -ForegroundColor White
@@ -287,21 +290,30 @@ if (-not $useLegacy) {
  Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
  Write-Host ""
  }
+# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
+# steamapps\content, so a second run - or a run after a crash - already
+# has the files. Prompting first and probing only afterwards sends the
+# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
+# is cheap and touches nothing.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
+    Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
+
  Pause-User "Press Enter to open the Steam Console..."
  # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
+}
  Pause-User "Press Enter once the Steam depot download is complete..."
 
  $sp = Get-SteamPath
- $depotPath = $null
- $probePaths = @()
- foreach ($lib in (Get-SteamLibraries $sp)) {
- $auto=Join-Path $lib "steamapps\content\app_$DEPOT_APPID\depot_$DEPOT_DEPOTID"
- $probePaths += $auto
- if(Test-Path $auto){$depotPath=$auto;Write-Info "Depot found: $depotPath";break}
- }
+ $probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($sp))
+ $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($sp)
+ if ($depotPath) { Write-Info "Depot found: $depotPath" }
  if (-not $depotPath) {
  $depotPath = Resolve-DepotPath -GameName "R.E.P.O." -DepotCommand $DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $DEPOT_MANIFEST
  if (-not $depotPath) {
@@ -324,19 +336,19 @@ if (-not $useLegacy) {
  $targetPath = $userInput
  }
 
- $targetParent = Split-Path $targetPath -Parent
- if ($targetParent -and -not (Test-Path $targetParent)) {
- try { New-Item -ItemType Directory -Path $targetParent -Force | Out-Null }
- catch { Write-Fail "Could not create parent folder $targetParent : $_"; Pause-User "Press Enter to exit..."; exit 1 }
+ $targetParent = Get-PathParentLexical $targetPath
+ if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+ Write-Fail "The target folder is not writable: $targetParent"
+ Pause-User "Press Enter to exit..."; exit 1
  }
 
- if (Test-Path $targetPath) {
+ if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
  Write-Warn "Folder already exists: $targetPath"
  Write-Info "Merging the pinned build; saves, BepInEx configs/plugins and other additional files are preserved."
  }
  $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "REPO depot build"
  Write-Info "Installed at: $targetPath"
- try{$pd=Split-Path $depotPath -Parent;if((Get-ChildItem $pd -Force|Measure-Object).Count -eq 0){Remove-Item $pd -Force}}catch{}
+ try{$pd=Get-PathParentLexical $depotPath;if((Get-ChildItem -LiteralPath $pd -Force|Measure-Object).Count -eq 0){Remove-Item -LiteralPath $pd -Force}}catch{}
  $gamePath = $targetPath
 
  # MANDATORY: steam_appid.txt next to the EXE. Without this, Steam
@@ -406,6 +418,13 @@ if (-not $useLegacy -and $repoXRVersion) {
  Start-Process "steam://gameproperties/$STEAM_APP"
  try{Set-Clipboard -Value $launchOpt}catch{}
  Pause-User "Press Enter once you have pasted the launch option and closed Properties..."
+}
+
+$repoProof = Join-Path $gamePath "BepInEx\plugins\RepoXR\RepoXR.dll"
+if ($repoXRVersion -and (Test-Path -LiteralPath $repoProof)) {
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $repoXRVersion -Encoding UTF8 -Force } catch {}
+ Save-InstalledStamp -GameDir $gamePath -Version $repoXRVersion
 }
 
 # Summary

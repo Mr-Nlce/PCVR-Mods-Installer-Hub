@@ -731,11 +731,9 @@ if (Test-Path $gameExe) {
 # the BeefRaiderXR subfolder (where the EXE actually lives) rather
 # than the parent install dir - the hub uses .installed_path as
 # WorkingDirectory at launch time, and BeefRaiderXR.exe needs to
-# run with its own folder as CWD. The hub will write
-# .installed_version on its own first scan (normalized to match
-# Get-ModVersionFromString output - we MUST NOT write it here
-# with a "v" prefix or the version compare will treat it as
-# permanently out-of-date).
+# run with its own folder as CWD. Record the known fixed build here too,
+# so path and version survive even if the Hub is replaced before its
+# automatic post-install refresh runs.
 try {
  $beefRaiderFolder = Split-Path -Parent $gameExe
  if (-not $beefRaiderFolder -or -not (Test-Path $beefRaiderFolder)) {
@@ -747,12 +745,12 @@ try {
  }
  $pathFile = Join-Path $PSScriptRoot ".installed_path"
  Set-Content -Path $pathFile -Value $beefRaiderFolder -Encoding UTF8 -Force
- # Clean up any stale .installed_version left by an older
- # buggy version of this installer (which wrote "v1.0.0" while
- # the hub expects "1.0.0"). Removing it lets the hub's first
- # scan rewrite it correctly.
- $verFile = Join-Path $PSScriptRoot ".installed_version"
- if (Test-Path $verFile) { Remove-Item $verFile -Force -EA SilentlyContinue }
+ $beefRaiderProof = Join-Path $beefRaiderFolder "BeefRaiderXR.exe"
+ $installedVersion = $MOD_VERSION -replace '^[vV]', ''
+ if ((Test-Path -LiteralPath $beefRaiderProof) -and (Test-IsTrackableInstalledVersion -Version $installedVersion)) {
+  Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $installedVersion -Encoding UTF8 -Force
+  Save-InstalledStamp -GameDir $beefRaiderFolder -Version $installedVersion
+ }
 } catch { }
 
 Write-Host ""

@@ -29,7 +29,7 @@ The mod files go into the **game root folder** (the folder that ends up with a `
 
 ## Configuration
 
-`<GameRoot>\BepInEx\config\EchoGeneration2_VR.cfg`:
+`BepInEx\config\EchoGeneration2_VR.cfg` inside the game folder:
 ```
 disableBloom = false           # true disables the bloom effect if it is too excessive
 camOffsetDistance = 2          # higher = closer to the action. Applies during cinematics AND gameplay.

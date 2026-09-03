@@ -1,14 +1,76 @@
 # DOOM 3 BFG VR Installer
 
-Automated installer for **Fully Possessed v0.021j-Alpha** by NPi2Loup —
-full native VR support with motion controls for DOOM 3 BFG Edition. This
-is the NPi2Loup fork of the original KozGit mod.
+Automated installer for the current **Fully Possessed** release maintained by
+**CommanderKeen83** — native VR, motion controls and two-handed weapons for
+DOOM 3 BFG Edition. It continues the earlier NPi2Loup/KozGit work.
+
+
+## New maintainer, new features
+
+NPi2Loup's Fully Possessed stopped at v0.021j. **CommanderKeen83 carries it on**, and the
+installer now follows his releases:
+
+- **Two-handed weapon gripping.** Hold the off-hand grip near a weapon's foregrip - shotgun,
+  submachine gun, chaingun, plasma gun, rocket launcher, BFG 9000, chainsaw - for real
+  two-handed stabilisation.
+- **Dual shoulder holsters.** Stash and draw two separate primary weapons behind your left
+  and right shoulders. Reach back with a weapon and press Grip to holster it; reach back
+  empty-handed to draw. Pistols stay on the hip, the flashlight on your chest.
+- **Off-hand terminal interaction.** Operate computer terminals, video disks, security doors
+  and keypads with your free hand while still holding your gun. Your index finger extends
+  automatically as you approach.
+- **Holstered weapons survive saves** and level transitions.
+- **Physical chest-holster flashlight** - reach to your chest and squeeze grip.
+- **Full weapon cycling** fixed; thumbstick switching no longer skips weapons.
+
+## The clipping fix is applied for you
+
+Older builds put the camera inside the marine's chest armour when you looked down, crouched
+or jumped. The fix is two values, `vr_nodalX` at `-11` and `vr_nodalZ` at `-5`, in
+`Fully Possessed\vr_openvr_default.cfg` and `vr_oculus_default.cfg`.
+
+**The installer sets them.** 1.1.0 already ships the right numbers, but an install carried
+over from an older version still has the old ones - so both files are checked and only those
+two lines are changed. Existing player configs at
+`%UserProfile%\Saved Games\id Software\DOOM 3 BFG\Fully Possessed\vr_openvr.cfg`
+and `vr_oculus.cfg` are corrected as well. Missing keys are added, and the first
+original of every changed file is kept beside it as `.pre-vrfix`.
+
+### Manual clipping fix for an older Hub installation
+
+An older profile can still keep the previous offsets even after the Hub
+updates the mod. If the marine's body or weapons still clip into your view,
+open the in-game console with the `~` key and enter these commands one by one:
+
+```text
+set vr_nodalZ "-5"
+set vr_nodalX "-11"
+```
+
+This is the direct fallback when the automatic config correction does not
+take effect for an install carried over from an older Hub version.
+
+For the best full-body alignment, set **VR Options > Character Options > Use Height** to
+*Normal view height* in the game.
+
+## Full package or update?
+
+The releases page carries two kinds of download, and the installer picks for you:
+
+| | Size | Contains |
+|---|---|---|
+| **Full package** | ~340 MB | the executable, the libraries **and** the `Fully Possessed` data folder |
+| **Update** | ~29 MB | executable and libraries only |
+
+An update alone is not enough for a fresh install. If you have nothing yet, the installer
+fetches the newest **full package** and then applies a newer update on top if one exists.
+If you already have it installed, it takes the newest download only.
 
 ## What it installs
 
-- **Fully Possessed v0.021j-Alpha** — a complete VR package with motion
-  controls, comfort options, and voice commands (everything you need is
-  included)
+- The newest complete **Fully Possessed** package available from CommanderKeen83.
+- If the newest GitHub asset is only a small update, the required full package is
+  fetched first on a fresh install and the update is applied afterwards.
 
 ## Requirements
 
@@ -117,6 +179,6 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 
 ## More info
 
-https://github.com/NPi2Loup/DOOM-3-BFG-VR
+https://github.com/CommanderKeen83/DOOM-3-BFG-VR
 
 >>> The Mars facility breathes wrong. Trust your flashlight.

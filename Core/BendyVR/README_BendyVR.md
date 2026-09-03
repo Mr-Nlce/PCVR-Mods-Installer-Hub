@@ -16,6 +16,14 @@ with this mod (Team Beef, June 2025). The installer offers two options:
   on Steam it may not launch in VR. If it doesn't work, re-run and choose
   the depot version.
 
+## Warning: WMR with Oasis will probably not work
+
+On a Reverb G2, the mod repeatedly failed because it asks SteamVR for
+skeletal finger tracking and the Oasis driver did not provide that data.
+The hands stayed on the floor at the player origin. Both the depot and
+current-game choices are likely affected; this is not fixed by choosing
+the other game build. A future Oasis update may change the situation.
+
 ## Features
 
 - Motion-controlled hands with melee combat

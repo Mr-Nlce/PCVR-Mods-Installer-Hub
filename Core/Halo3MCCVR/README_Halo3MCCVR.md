@@ -1,12 +1,44 @@
 # Halo 3 MCC VR Installer
 
-Automated installer for **Halo MCC VR** by pancreations - a native OpenXR VR mod for **Halo: The Master Chief Collection** on Steam. The supported campaigns are **Halo 3**, **Halo 3: ODST** and **Halo: Reach**. Of the collection only **Halo 4** is still missing.
+Automated installer for **Halo MCC VR** by pancreations - a native OpenXR VR mod for
+**Halo: The Master Chief Collection**. The supported campaigns depend on the selected
+release channel.
 
-> **Early alpha.** Halo 4, online play, custom games, Forge, and long sessions are not validated. **Reach** is the newest addition and the roughest of the three; the author suggests holding off on it unless you want to help find bugs. The code was AI-written under a human modder's direction and is public, unaudited, and MIT-licensed. No game files are patched or redistributed - normal Steam launches stay unmodded.
+> **Alpha.** The author labels the five-game build a pre-release "for testing purposes".
+> Launch MCC **without anti-cheat** and do not use the mod in matchmaking. The code was
+> AI-written under a human modder's direction and is public, unaudited, and MIT-licensed.
+> No game files are patched or redistributed - normal Steam launches stay unmodded.
+
+## Stable or pre-release?
+
+When the author's latest stable release and his newest pre-release differ, the installer
+asks which one you want:
+
+| | |
+|---|---|
+| **Stable 0.3.3** | the release the author marks Latest; Halo 3, ODST and Reach |
+| **Pre-release 0.3.5** | test build adding Halo 2 Anniversary and Halo 4 |
+
+Both install into the same folder, but they use different DLL/launcher names. The installer
+detects the complete payload pair, removes the other channel's stale pair, writes one common
+Hub launcher, and records the selected update channel. Switching later is safe: run the
+installer again and choose the other channel.
+
+## Known limitations in the five-game build
+
+- **Halo 2 Anniversary** has no VR HUD yet, and its multiplayer is not compatible - campaign
+  only, in both Anniversary and Classic graphics.
+- **Halo 4** uses floating hands rather than full arm IK.
+- **Reach** passenger seats draw no floating hands, though aiming and firing work, and
+  character tags and navpoints can sit wrong in 3D.
+- **ODST's** first captioned opening cutscene can appear black - skip that scene once and
+  the drop sequence plays normally.
+- The **Microsoft Store edition** can pause about nine seconds on its first loading screen.
+- Co-op, headset and long-session coverage remain incomplete.
 
 ## What it does
-- Resolves the newest release from GitHub (**prerelease-aware** - the mod ships alpha pre-releases), so the Hub can flag updates and re-running updates in place.
-- Downloads and unpacks the release, locates your MCC install (Steam library / Xbox / Microsoft Store, with a manual drag & drop fallback), copies the two mod files into a `Halo_MCC_VR` folder inside MCC, and creates the **Halo MCC VR** desktop shortcut. No game files are modified.
+- Resolves both the proper Latest release and the newest usable prerelease, excluding diagnostic/broken releases, and asks which channel to install.
+- Downloads and unpacks the release, recognizes either supported payload layout, locates MCC, copies the files into `Halo_MCC_VR`, and creates the **Halo MCC VR** shortcut.
 
 ## What works
 - True per-eye stereo and 6DOF head tracking
@@ -19,7 +51,7 @@ Automated installer for **Halo MCC VR** by pancreations - a native OpenXR VR mod
 
 ## Requirements
 - **Windows 10/11 64-bit**
-- The **Steam** version of MCC with **Halo 3** installed *(Xbox / Game Pass / MS Store paths are also detected - see the note below)*
+- MCC from **Steam** or the **Microsoft Store / Xbox app**, with the campaigns you want to play installed
 - **SteamVR set as your default OpenXR runtime.** The mod requires this - the modder states it in the install steps and names it as the first thing to check when something misbehaves.
 - **Steam Input turned OFF for the gamepad.** With it left on, your shots do not land where you aim and enemies become almost impossible to hit. In the Steam library, right-click **Halo: The Master Chief Collection** -> **Properties** -> **Controller**, then set the dropdown to **Disable Steam Input**. Older Steam builds label it **Steam Input Per-Game Setting** -> **Force Off**. If you launch MCC outside Steam (Game Pass), turn the controller support off globally instead: **Steam -> Settings -> Controller**.
 - No compiler, CMake, or Visual C++ redistributable needed
@@ -27,7 +59,7 @@ Automated installer for **Halo MCC VR** by pancreations - a native OpenXR VR mod
 > **Sign in to MCC in flat once before installing.** At some point before installing the VR mod, launch Halo: The Master Chief Collection normally (flat) and sign in to the Microsoft service, so it's done and out of the way. On that first flat sign-in, if the sign-in box is off-position on the desktop, click the game window and press **Alt+Enter** to re-center it.
 
 - **SteamVR on its Beta branch**, and set as your default OpenXR runtime.
-- **Halo 3, ODST and Reach all installed** in MCC - with any of them missing the 3D hook does not engage.
+- **The campaigns you want to play installed** in MCC - the hook engages per title.
 ## Required MCC settings
 Set these in MCC's own menus (you can change them with the headset on, from inside the VR session):
 
@@ -43,11 +75,7 @@ Set these in MCC's own menus (you can change them with the headset on, from insi
 > **Do not enable FSR** in MCC's video menu - it breaks the VR image scale. Use the mod's picture-quality presets instead. **FOV 120** is the one that visibly breaks the game if wrong: at a lower FOV the engine stops drawing geometry at the edges, so scenery pops in and out in the headset.
 
 ## Xbox / Game Pass / Microsoft Store builds
-The Store build ships the same executable under a different name: `MCCWinStore-Win64-Shipping.exe` instead of `MCC-Win64-Shipping.exe` (343 renamed it in the Season 6 update). The mod's launcher looks for the Steam name, so on a Store install it would find nothing.
-
-The installer handles this: it **copies** the Store executable to the expected name and leaves the original in place. Copying rather than renaming matters - the Xbox app still finds the file it expects, so it won't flag a missing file and start a repair download, and the game keeps launching normally outside VR. The copy is a second name for the same bytes; the only cost is disk space.
-
-Those folders are often not writable without elevation, so you may get a UAC prompt. If the copy fails anyway, the installer prints the exact folder and file names so you can make the copy by hand - the rest of the installation still completes.
+Both the stable and pre-release launchers support the Store/Xbox executable directly. The installer detects `MCCWinStore-Win64-Shipping.exe` and installs the same mod payload; it never renames, duplicates or patches an MCC executable. Start the Store edition through the Hub launcher and remain signed in to the Xbox app.
 
 ## Halo 3: ODST notes
 ODST is playable but experimental. A few things are specific to it:
@@ -108,7 +136,7 @@ ones you actually use and ignore the rest.
 - Dual-wield crosshair follows the right hand; two-handed weapon hand placement is adjustable
 
 ## Known alpha limitations
-- **Halo 3**, **Halo 3: ODST** and **Halo: Reach** are the supported titles; loading Halo 4 breaks the 3D hook. All three must be installed in MCC or the 3D hook does not engage at all. If switching between titles drops you to the menu, fully restart MCC (see the ODST notes above).
+- On stable 0.3.3, **Halo 3**, **Halo 3: ODST** and **Halo: Reach** are supported; do not load Halo 4 there. The 0.3.5 prerelease additionally supports Halo 2 Anniversary and Halo 4, with the limitations listed above.
 - Right-stick click currently clips/hides your character instead of zooming
 - Some toggles in the [[F1]] menu are still rough
 - Cutscenes play in a room-fixed theatre in stereo 3D; the flamethrower stays third-person

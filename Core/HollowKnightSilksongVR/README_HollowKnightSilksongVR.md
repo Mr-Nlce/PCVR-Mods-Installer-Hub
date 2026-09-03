@@ -6,7 +6,7 @@ Silksong has two VR mods. They do completely different things, they cannot run a
 
 **Neither mod puts you inside a VR world.** Silksong stays a 2D game shown on a screen in front of you; what the mods add is depth to that picture. You do not walk around in Pharloom, you do not look around a room, and there are no motion controls - gamepad or keyboard, exactly like the flat game. If you are expecting to stand in the world, neither of these is that.
 
-Both mods are BepInEx plugins and both live in `BepInEx\plugins`, so only one may be active at a time. The installer parks the inactive one as `<name>.dll.off`. Once **both** are on disk it writes two launchers into `<game>\VRLaunch\`, and the Hub tile turns its Play button into a split button - pick a mod there and it flips the pair for you before the game starts.
+Both mods are BepInEx plugins and both live in `BepInEx\plugins`, so only one may be active at a time. The installer parks the inactive one as `<name>.dll.off`. Once **both** are on disk the Hub turns its Play button into a split button - pick a mod there and it flips the pair for you before the game starts.
 
 Run the installer once per mod. It asks which one you want and tells you which ones are already there.
 
@@ -39,13 +39,13 @@ https://discord.com/channels/1001138422972432597/1414940597579419679/14149405975
 5. Reads the archive before unpacking, resolves the payload by the mod DLL itself, and merges it into the game folder
 6. Verifies `HollowKnightSilksong_VR.dll` really arrived, then makes this mod the active one
 
-If Flat to VR is already installed it is parked as `SilksongFlatToVR4.dll.off`, and both switch launchers are written.
+If Flat to VR is already installed it is parked as `SilksongFlatToVR4.dll.off`, and both choices become available on the Hub page.
 
 ## Launching - Astienth
 
 Start your runtime first, then launch with **Start in VR** in the Hub, or Silksong from Steam.
 
-With both mods installed the Hub tile shows a split button - the **Astienth** side runs `VRLaunch\Silksong VR (Astienth).bat`, which activates this plugin and starts the game through Steam. Close the game before switching: a loaded DLL is locked by Windows and the switch would fail.
+With both mods installed the Hub tile shows a split button. The **Astienth** side activates this plugin and starts the game through Steam. Close the game before switching: a loaded DLL is locked by Windows and the switch would fail.
 
 ## Controls - Astienth
 
@@ -84,7 +84,8 @@ A bigger world, as tested by the mod author: `worldScale = 20`, `UIScale = 10`, 
 
 Compatible with other BepInEx mods, with no guarantee against conflicts.
 
-To disable everything BepInEx-related without removing files, rename `winhttp.dll` in the game folder to `winhttp_bak.dll`. That stops both mods at once.
+To play flat without removing anything, use the **Flat / VR** switch on this
+page. It parks the shared loader and one click restores VR later.
 
 ## Support Astienth
 
@@ -126,13 +127,13 @@ https://www.nexusmods.com/hollowknightsilksong/mods/942
 
 One thing worth knowing: the instructions on the Nexus page say to copy `SilksongFlatToVR.dll`, but the file in the archive is named `SilksongFlatToVR4.dll`, with the 4. The installer handles either name.
 
-If the Astienth mod is already installed it is parked as `HollowKnightSilksong_VR.dll.off`, and both switch launchers are written.
+If the Astienth mod is already installed it is parked as `HollowKnightSilksong_VR.dll.off`, and both choices become available on the Hub page.
 
 ## Launching - Flat to VR
 
 Start SteamVR before the game to avoid it potentially starting sometimes out of focus. Then launch with **Start in VR** in the Hub, or Silksong from Steam.
 
-With both mods installed the Hub tile shows a split button - the **Flat to VR** side runs `VRLaunch\Silksong VR (Flat to VR).bat`, which activates this plugin and starts the game through Steam. Close the game before switching.
+With both mods installed the Hub tile shows a split button. The **Flat to VR** side activates this plugin and starts the game through Steam. Close the game before switching.
 
 ## Controls - Flat to VR
 
@@ -167,5 +168,18 @@ Objects land on a plane by their name (keywords such as background, foreground, 
 - Some objects end up on the wrong plane
 - The flat OpenVR API function names differ between OpenVR versions
 - Some layers carry little or nothing visible, because the game builds its glow and bloom out of several layers
+
+## Flat play and removal
+
+The **Flat / VR** switch parks only the shared BepInEx loader. It does not
+uninstall either mod and it does not change which of the two plugins is
+selected.
+
+**Uninstall now** shows Astienth and Flat to VR separately. It removes only
+the selected plugin and activates the other one when present. Shared BepInEx
+and Unity/OpenVR support files stay while either mod needs them. After the
+final mod is removed, the loader is parked so Silksong starts flat; optional
+Steam verification can return the folder to a pristine state without touching
+saves.
 
 >>> Climb high, Hornet. The Citadel waits.

@@ -14,7 +14,7 @@ The Total Chaos weapons are 2D sprites, so aiming works like other classic-engin
 1. You supply the free **Total Chaos Standalone ZIP** from ModDB (red DOWNLOAD NOW, `totalchaos_standalone_1000b.zip`, ~1.42 GB).
 2. Drag that ZIP onto the installer window.
 3. It extracts Total Chaos into `C:\Games\Total Chaos VR`.
-4. It downloads **gzdoomvr** (the VR engine) from GitHub and copies it over the bundled engine inside `gamedata\`, keeping all of Total Chaos's own content files.
+4. It downloads **gzdoomvr** (the VR engine) from GitHub into the separate `gzdoomvr\` folder. The original `gamedata\` folder stays untouched; the VR launcher reads `gamedata\doom.wad` and `gamedata\totalchaos.pk3` from there.
 5. It writes a VR launcher and a desktop shortcut - launch with **Start in VR** in the Hub or that shortcut.
 
 Nothing game-related is bundled in the Hub; the standalone is a manual download and gzdoomvr is fetched at install time.
