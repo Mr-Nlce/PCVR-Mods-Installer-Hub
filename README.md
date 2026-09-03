@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (246)</summary>
+<summary>Show all currently listed titles (247)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -206,7 +206,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Scrap Mechanic VR (motion controls)
 * Selaco VR (motion controls)
 * Shenmue I & II
-* Silent Hill VR
+* Silent Hill 
+* Silent Hill 3 VR (motion controls)
 * Singularity (motion controls)
 * Skate Story
 * Slime Rancher VR (motion controls)
@@ -222,6 +223,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Stanley Parable VR (motion controls)
 * Star Racer VR (motion controls)
 * Star Trucker
+* Star Wars: Episode I Racer VR
 * Star Wars Outlaws
 * Star Wars - X-Wing SE VR
 * Stardew Valley VR [WIP] (motion controls)
@@ -236,7 +238,6 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Super Mario 64 Coop VR
 * (Super) Mario Kart 64 VR
 * Sunrise GP VR
-* Super Polygon Grand Prix
 * Techtonica (motion controls)
 * The Dark Mod VR
 * The House of the Dead Remake (motion controls)
