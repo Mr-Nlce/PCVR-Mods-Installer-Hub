@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (247)</summary>
+<summary>Show all currently listed titles (256)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -44,8 +44,10 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Bioshock Infinite (motion controls)
 * Bioshock Remastered (motion controls)
 * Bioshock 2 Remastered (motion controls)
-* Black Mesa Source VR (motion controls)
+* Black Mesa VR (motion controls)
+* Black Mesa Source VR (Half Life 2 Episode 2 Mod) (motion controls) 
 * Bomb Rush Cyberfunk (motion controls)
+* Borderlands GOTY Enhanced VR [WIP] (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
 * Call of Duty: World at War (motion controls)
 * Circuit Superstars VR
@@ -126,6 +128,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Horizon Forbidden West
 * Horizon Zero Dawn
 * Horizon Zero Dawn Remastered
+* How to Fish XR (motion controls)
 * Hypogea
 * Hytale VR (WIP) (motion controls)
 * I Can Gun VR (motion controls)
@@ -146,6 +149,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Mass Effect 1 Legendary Edition
 * Mass Effect 2 Legendary Edition
 * Mass Effect 3 Legendary Edition
+* Max Payne 2 VR [WIP] (motion controls)
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
@@ -156,6 +160,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Morrowind VR (motion controls)
 * Moto Rush Reborn VR (motion controls)
 * MOUSE: P.I. For Hire VR (motion controls)
+* Muck VR [WIP]
 * My Friendly Neighborhood [WIP] (motion controls)
 * Neon White VR (motion controls)
 * New Star GP
@@ -179,7 +184,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Portal 2: Community Edition (motion controls)
 * Pragmata
 * Quake VR (motion controls)
-* Quake 2 VR (motion controls)
+* Quake 2 VR + Quake II (Team Beef port) VR (motion controls)
 * Quake 3 Arena VR (motion controls)
 * Ratchet & Clank VR (fan game) (motion controls)
 * Raft VR (motion controls)
@@ -208,10 +213,12 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Shenmue I & II
 * Silent Hill 
 * Silent Hill 3 VR (motion controls)
+* SiN Episodes: Emergence VR (motion controls)
 * Singularity (motion controls)
 * Skate Story
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
+* SnowRunner VR
 * Sons Of The Forest [WIP] (motion controls)
 * Sonic P-06 VR
 * Sonic Robo Blast 2 VR
@@ -247,6 +254,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The Legend of Zelda: Ocarina of Time (+ HD texture mod) (motion controls)
 * The Legend of Zelda: Twilight Princess (+ HD texture mod) (motion controls)
 * The Witcher 3: Wild Hunt
+* The Witness VR [WIP]
 * Tinykin VR
 * TLOU Part I
 * TLOU Part II
