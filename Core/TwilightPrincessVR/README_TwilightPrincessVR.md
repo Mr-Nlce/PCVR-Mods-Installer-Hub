@@ -31,16 +31,20 @@ Nothing is broken if the unpacking takes a few minutes.
 The Hub's installer puts it wherever you choose - it is standalone and does not
 go into any existing game folder.
 
-## Optional: the 4K texture pack
+## Optional: the ZTP HD texture pack
 
-Henriko Magnifico's pack redraws the game's textures at 4K and works with
-Dusklight. The Hub's installer offers to set it up.
+Henriko Magnifico's pack redraws the game's textures in HD and works with
+Dusklight. The download page offers three alternatives: **1080p Mobile**,
+**1080p PC**, and **4K PC**. Choose and install one edition, not all three.
 
-**It is large** - around 5 GB unpacked, 1823 texture files. Purely cosmetic; the
-game runs fine without it.
+The 4K PC edition is especially large - around 4 GB packed and several GB
+unpacked. The pack is purely cosmetic; the game runs fine without it.
 
 The pack is hosted on the author's own site, so the installer opens the page and
-picks the file up from your Downloads afterwards:
+waits while you download it. Back in the installer, drag or paste the ZIP's full
+path, or press Enter to search Downloads. Paths on another drive or an SMB share
+are accepted when Windows can see them; if a mapped drive is hidden from the
+installer, paste its UNC path or copy the ZIP to Downloads:
 https://www.henrikomagnifico.com/zelda-twilight-princess-4k
 
 The textures do **not** go into your install folder. They belong here:

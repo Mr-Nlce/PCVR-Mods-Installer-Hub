@@ -307,6 +307,7 @@ if (-not (Test-Path $modsDir)) {
  Write-Warn "MelonLoader is there, but StarTruckerVR.dll is missing from the Mods folder."
 } else {
  Write-OK "Mods + version.dll + StarTruckerVR.dll present in the game folder."
+ Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
 }
 
 # -------------------------------------------------------
@@ -325,8 +326,7 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host " VR is active immediately - no batch file is needed to start" -ForegroundColor White
-Write-Host " in VR. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
+Write-Host " VR is active immediately. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
 Write-Host " (or GOG) normally. Set VDXR as your OpenXR runtime first." -ForegroundColor White
 Write-Host ""
 Write-Host " FIRST LAUNCH ONLY: expect a longer startup (several minutes;" -ForegroundColor Yellow
@@ -342,8 +342,6 @@ Write-Host " next launch. Default is 1.45, which fits the cabin to a normal" -Fo
 Write-Host " seated height - 1.0 is the original scale." -ForegroundColor White
 Write-Host ""
 Write-Host " This game's page in the Hub covers controls and mode switching." -ForegroundColor Gray
-Write-Host " Switch .bat files sit in the game folder:" -ForegroundColor Gray
-Write-Host "   $gamePath" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host " Big rig, bigger view - haul the void in stereo." -ForegroundColor Magenta
 Write-Host ""

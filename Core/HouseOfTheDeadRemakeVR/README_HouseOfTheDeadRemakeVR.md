@@ -77,7 +77,7 @@ vrApi = OpenVR
 
 - Server invite: https://discord.gg/G8zZBTGuhP
 - Mod info post: https://discord.com/channels/1001138422972432597/1391730397418881067/1391730397418881067
-- Mod download: https://discord.com/channels/1001138422972432597/1391730397418881067/1504351282914136074
+- Mod download: https://discord.com/channels/1001138422972432597/1391730397418881067/1535371792041115658
 
 ## Support Astienth
 

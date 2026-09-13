@@ -1,95 +1,114 @@
 # S.T.A.L.K.E.R. GAMMA VR (Anomaly Gamma)
 
-A motion-controlled VR build of **S.T.A.L.K.E.R. GAMMA** - the large,
-curated modpack built on top of S.T.A.L.K.E.R. Anomaly. Unlike Anomaly
-VR (which self-updates through a launcher), this ships as a **complete,
-self-contained package**: you extract it and play.
+A motion-controlled VR build of **S.T.A.L.K.E.R. GAMMA**, the large curated
+modpack built on S.T.A.L.K.E.R. Anomaly. GAMMA VR is a free, complete,
+standalone package; no separate Anomaly installation is required.
 
-**Free** - distributed through the mod's Discord (the **same server** as
-Anomaly VR, so your existing membership works).
+The current package is **GAMMA VR v0.3.4** with **AOEVR 0.5.0**.
 
-## What this Hub installer does
+## What v0.3.4 adds
 
-1. Looks at the folder you point it at. If GAMMA VR is already there, the
-   **update** is offered first and named; if not, the **complete build** is.
-   Either way it names the exact file and opens the matching post.
-2. Opens the mod's Discord (join if you are not a member yet).
-3. You drag the downloaded `.7z` into the installer window.
-4. Fresh install: it extracts the **`Gamma VR`** folder into your Games
-   root (default `C:\Games` -> `C:\Games\Gamma VR`).
-   Update: it unpacks over your existing install, replacing files, and
-   then clears the shader cache for you (see below).
-5. Switches the in-game language to **English** (`localization.ltx`).
-6. Drops the game icon and creates a desktop shortcut **`Anomaly Gamma`**.
+- **Physical manual reloading for every weapon class**: remove and insert
+  magazines, operate bolts, pump shotguns, use break-action weapons and clear
+  jams by hand. Magazines remain physical items and keep their ammunition.
+- **Physical grenades** are drawn from a body holster and thrown using hand
+  movement; throw distance follows the swing.
+- **Wearable left-hand HUD** through Wearable Devices 0.8.8 and its VR fixes.
+- **Faster stereo rendering** through second-eye hidden-geometry culling,
+  shared shadow work and reduced post-processing.
+- Improved grips and weapon scaling, HUD fixes, updated weapon shaders and a
+  better unjam fix.
+- Updated defaults: `vr_cut_dead 44`, debug pointers off and anisotropic
+  filtering at x16.
+- Fixes for level-change and dual-GPU startup crashes, scope lighting and
+  GAMMA water/reflections.
 
-## Which of the two archives do I need?
+This remains an evolving community VR build. The physical PDA, melee weapons,
+physical food/medkit use and extended magazine handling are still planned.
 
-Both files are offered together in the same download folder, so the only
-thing that can go wrong is grabbing the wrong one.
+## What the Hub installer does
 
-| your situation | the file to download |
+1. Finds an existing `Gamma VR` installation from the Hub's saved Locate Game
+   path, its installer receipt or the standard `C:\Games`, `D:\Games` and
+   `E:\Games` locations.
+2. Offers the small update only when **v0.3.3 is positively identified**.
+   Older or unknown builds use the complete v0.3.4 package.
+3. Uses the required Discord sequence: server invite, current download post,
+   then Downloads-folder search or drag-and-drop, each behind its own Enter
+   confirmation.
+4. Rejects only an unreadable/incomplete archive, unsafe archive paths or a
+   package missing files required to run v0.3.4. Historical names, sizes and
+   hashes are not used as download gates.
+5. Stages the package before touching the installation. The v0.3.3 update
+   backs up every replaced file and records newly added files in an ownership
+   manifest. A complete replacement keeps the previous folder as a recoverable
+   same-drive backup.
+6. Removes the obsolete `appdata\shaders_cache` from the active update route,
+   records v0.3.4 atomically, keeps the language file byte-safe, and refreshes
+   the **Anomaly Gamma** desktop shortcut.
+
+## Which package do I need?
+
+| Your situation | Official v0.3.4 package |
 |---|---|
-| nothing installed yet | `STALKER GAMMA VR v0.3.2.7z` (the complete build, ~110 GB) |
-| v0.3.1 already installed | `UPDATE FROM v0.3.1 TO v0.3.2c.7z` (small, goes on top) |
+| Exact GAMMA VR v0.3.3 installation | `UPDATE FROM v0.3.3 TO v0.3.4.7z` |
+| Fresh, older or unknown installation | `STALKER GAMMA VR v0.3.4.7z` (complete package) |
 
-The installer picks the right row for you from what it finds on disk, and if
-you drop the other archive by mistake it says so before unpacking anything.
+The small archive is **only** an update from v0.3.3. It must not be applied to
+v0.3.2 or an unknown build. The complete package needs at least **110 GB of
+free space** and should be installed into a short path without spaces, such as
+`C:\Games\Gamma VR`.
 
-After the update the **shader cache must go** - v0.3.2 changes the weapon
-shaders and the engine would otherwise keep serving the compiled old ones.
-The installer deletes the `shaders_cache` folder inside `appdata` for you;
-if it reports that it could not find or remove it, delete it by hand before
-playing.
+The current Discord post may offer the complete package through a torrent. If
+you do not already have a torrent client, [qBittorrent](https://www.qbittorrent.org/download)
+is the recommended free, open-source client and contains no advertising. Let
+`STALKER GAMMA VR v0.3.4.7z` finish completely before returning to the
+installer; a preallocated but incomplete torrent file is not a readable archive.
 
-The Hub's **Start in VR** button and the desktop shortcut are your two
-launch routes - both start the game the same way.
+## First launch and language
 
-## Requirements
+Run `GAMMA VR.bat` at least once after installing or updating. This generates
+or refreshes `ModOrganizer.ini` and prepares the build for further changes in
+Mod Organizer 2. The installer offers to launch it, but never opens the game
+before you choose that action. A black headset for 10–15 seconds during start
+and loading screens is normal.
 
-- **Strong PC** - GAMMA is heavier than base Anomaly; in VR more so.
-- **7-Zip** installed, so the installer can unpack the `.7z`
-  (a manual-extract fallback is offered if it is missing).
-- **Runtime**: Oculus OpenXR, SteamVR or VDXR.
-- **Discord account** to reach the download.
-- Plenty of free disk space, and a simple path on a spare drive -
-  avoid `C:\Program Files`, the desktop, or paths with odd characters.
-
-## Language
-
-The pack starts in **Russian**. The installer sets it to English by
-changing `language = rus` to `language = eng` in:
-
-`...\Gamma VR\overwrite\gamedata\configs\localization.ltx`
-
-If the game still shows Russian, set it **in-game**: open the **4th item**
-in the main menu, then the **second-to-last item** in that list - the
-language option is at the **top-right**. (You can navigate by position
-without reading Russian.) Alternatively, set `language = eng` in the
-`.ltx` by hand.
+The installer changes `language = rus` to `language = eng` in
+`overwrite\gamedata\configs\localization.ltx` without adding a BOM or changing
+the file's byte encoding. If the game remains Russian, use its language menu or
+make the same plain-text change manually.
 
 ## Motion controls
 
-GAMMA VR is fully motion-controlled - two-handed weapon handling, a
-physical inventory, and gesture actions. The exact bindings live in the
-in-game **VR controls / bindings** menu; common defaults:
+- [[Trigger]] Fire / interact; operate the active manual-reload point
+- [[Grip]] Hold a weapon foregrip, ladders and world items
+- [[Stick]] Move and smooth/snap turn
+- [[A]] / [[X]] Jump / crouch according to the active binding profile
+- [[B]] / [[Y]] Reload/holster actions according to the active profile
+- [[Left hand]] Wearable HUD and physical inventory
+- [[Body holster]] Draw grenades, then throw with real hand movement
 
-- [[Trigger]] - fire / interact
-- [[Grip]] - grab weapon foregrip, ladders, items
-- [[Stick]] - move / smooth or snap turn
-- [[A]] / [[X]] - jump / crouch
-- [[B]] / [[Y]] - reload / holster
-- Reach over your shoulder or to your belt for the **physical inventory**
+Interaction points on weapons can be highlighted and configured in MCM.
+Physical reloading can also be disabled there. Check the current in-game VR
+bindings because GAMMA's control set is broader than base Anomaly's.
 
-Check the in-game bindings screen for the full, current layout - GAMMA's
-controls are richer than base Anomaly's.
+## Support and updates
 
-## Updating
+Join the [Anomaly VR Discord](https://discord.gg/kGhd7GvJ5F), then use the
+[current GAMMA VR v0.3.4 download and information post](https://discord.com/channels/1495664880311734313/1511657141990199356/1548102620571373668).
+The Hub intentionally sends users through this official post and does not
+publish its temporary file-hosting URL.
 
-This is a **pinned package**, not a launcher build. To update, grab the
-newer `STALKER GAMMA` archive from the Discord and re-run this installer
-(it re-extracts into the same folder).
+For a reproducible problem, include `appdata\engineLogs\xray.log` and
+`engine_breadcrumbs.log`. The developers accept bug reports for clean builds
+without unrelated third-party mods on top.
 
 ## Credits
 
-- **GAMMA VR build**: GAMMA VR Team (distributed via Discord)
-- **GAMMA modpack** and **S.T.A.L.K.E.R. Anomaly** teams
+- GAMMA VR package and integration: GAMMA VR community team
+- AOEVR 0.5.0 and its contributors
+- Manual Reload Project v5 and improved unjam fix: killua._.107
+- HUD fixes: NITROYUASH and Juarri
+- Weapon Scaling Fix + Grips v0.3.5: Mr.Enry
+- Wearable Devices: Sulik, Jeremussy and Wiarubane; VR fixes by Marsy and NITROYUASH
+- S.T.A.L.K.E.R. GAMMA and S.T.A.L.K.E.R. Anomaly teams

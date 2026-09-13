@@ -52,6 +52,7 @@ echo   [37] REFramework VR (game selector)
 echo   [38] Yooka-Laylee VR
 echo   [39] Moto Rush Reborn VR
 echo   [40] Slyders VR
+echo   [41] Nuclear Option VR
 echo   [42] StreetDog BMX VR
 echo   [43] Hypogea VR
 echo   [44] Lunistice VR
@@ -141,7 +142,7 @@ echo   [127] Assassin's Creed Mirage VR
 echo   [128] Assassin's Creed Odyssey VR
 echo   [129] Mass Effect 1 LE VR
 echo   [130] Outbound VR
-echo   [131] Halo 3 MCC VR
+echo   [131] Halo Master Chief Collection VR
 echo   [132] Ring Racers VR
 echo   [133] Star Trucker VR
 echo   [134] Painkiller Black Edition
@@ -192,8 +193,25 @@ echo   [178] Elden Ring (Gamepad)
 echo   [179] Dishonored VR
 echo   [180] Star Wars Episode I Racer
 echo   [181] Silent Hill 3 VR
+echo   [182] Black Mesa VR
+echo   [183] How to Fish XR
+echo   [184] Max Payne 2 VR
+echo   [185] Muck VR
+echo   [186] Borderlands GOTY Enhanced
+echo   [187] The Witness
+echo   [188] SiN Episodes: Emergence
+echo   [189] SnowRunner VR
+echo   [190] Blood VR
+echo   [191] Duke Nukem 3D VR
+echo   [192] Shadow Warrior VR
+echo   [193] Redneck Rampage VR
+echo   [194] NAM VR
+echo   [195] World War II GI VR
+echo   [196] PowerSlave / Exhumed VR
+echo   [197] Metal Gear Solid V VR
+echo   [198] DOOM (2016) VR
 echo.
-set /p choice="Enter number (1-181): "
+set /p choice="Enter number (1-198): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -234,6 +252,7 @@ if "%choice%"=="37" (set SCRIPT=%~dp0REFrameworkVR\REFrameworkVR-core.ps1)
 if "%choice%"=="38" (set SCRIPT=%~dp0YookaLayleeVR\YookaLayleeVR-core.ps1)
 if "%choice%"=="39" (set SCRIPT=%~dp0MotoRushRebornVR\MotoRushRebornVR-core.ps1)
 if "%choice%"=="40" (set SCRIPT=%~dp0SlydersVR\SlydersVR-core.ps1)
+if "%choice%"=="41" (set SCRIPT=%~dp0NuclearOptionVR\NuclearOptionVR-core.ps1)
 if "%choice%"=="42" (set SCRIPT=%~dp0StreetDogBMXVR\StreetDogBMXVR-core.ps1)
 if "%choice%"=="43" (set SCRIPT=%~dp0HypogeaVR\HypogeaVR-core.ps1)
 if "%choice%"=="44" (set SCRIPT=%~dp0LunisticeVR\LunisticeVR-core.ps1)
@@ -295,7 +314,7 @@ if "%choice%"=="99" (set SCRIPT=%~dp0MetalHellsingerVR\MetalHellsingerVR-core.ps
 if "%choice%"=="100" (set SCRIPT=%~dp0BreathOfTheWildVR\BreathOfTheWildVR-core.ps1)
 if "%choice%"=="101" (set SCRIPT=%~dp0RichardBurnsRallyVR\RichardBurnsRallyVR-core.ps1)
 if "%choice%"=="102" (set SCRIPT=%~dp0ForzaHorizon6VR\ForzaHorizon6VR-core.ps1)
-if "%choice%"=="103" (set SCRIPT=%~dp0GTAVR\GTAVR-core.ps1)
+if "%choice%"=="103" (set SCRIPT=%~dp0GTAVR\GTAVR-router.ps1)
 if "%choice%"=="104" (set SCRIPT=%~dp0NOLF2VR\NOLF2VR-core.ps1)
 if "%choice%"=="105" (set SCRIPT=%~dp0SPTVR\SPTVR-core.ps1)
 if "%choice%"=="106" (set SCRIPT=%~dp0ReadyOrNotVR\ReadyOrNotVR-core.ps1)
@@ -374,6 +393,23 @@ if "%choice%"=="178" (set SCRIPT=%~dp0EldenRingRealVR\EldenRingRealVR-core.ps1)
 if "%choice%"=="179" (set SCRIPT=%~dp0DishonoredVR\DishonoredVR-core.ps1)
 if "%choice%"=="180" (set SCRIPT=%~dp0StarWarsEpisodeIRacerVR\StarWarsEpisodeIRacerVR-core.ps1)
 if "%choice%"=="181" (set SCRIPT=%~dp0SilentHill3VR\SilentHill3VR-core.ps1)
+if "%choice%"=="182" (set SCRIPT=%~dp0BlackMesaVR\BlackMesaVR-core.ps1)
+if "%choice%"=="183" (set SCRIPT=%~dp0HowToFishXR\HowToFishXR-core.ps1)
+if "%choice%"=="184" (set SCRIPT=%~dp0MaxPayne2VR\MaxPayne2VR-core.ps1)
+if "%choice%"=="185" (set SCRIPT=%~dp0MuckVR\MuckVR-core.ps1)
+if "%choice%"=="186" (set SCRIPT=%~dp0BorderlandsGOTYVR\BorderlandsGOTYVR-core.ps1)
+if "%choice%"=="187" (set SCRIPT=%~dp0TheWitnessVR\TheWitnessVR-core.ps1)
+if "%choice%"=="188" (set SCRIPT=%~dp0SinEpisodesVR\SinEpisodesVR-core.ps1)
+if "%choice%"=="189" (set SCRIPT=%~dp0SnowRunnerVR\SnowRunnerVR-core.ps1)
+if "%choice%"=="190" (set SCRIPT=%~dp0BloodRazeXR\BloodRazeXR-core.ps1)
+if "%choice%"=="191" (set SCRIPT=%~dp0DukeNukem3DVR\DukeNukem3DVR-core.ps1)
+if "%choice%"=="192" (set SCRIPT=%~dp0ShadowWarriorRazeXR\ShadowWarriorRazeXR-core.ps1)
+if "%choice%"=="193" (set SCRIPT=%~dp0RedneckRampageVR\RedneckRampageVR-core.ps1)
+if "%choice%"=="194" (set SCRIPT=%~dp0NAMVR\NAMVR-core.ps1)
+if "%choice%"=="195" (set SCRIPT=%~dp0WW2GIVR\WW2GIVR-core.ps1)
+if "%choice%"=="196" (set SCRIPT=%~dp0PowerSlaveRazeXR\PowerSlaveRazeXR-core.ps1)
+if "%choice%"=="197" (set SCRIPT=%~dp0MGS5VR\MGS5VR-core.ps1)
+if "%choice%"=="198" (set SCRIPT=%~dp0Doom2016VR\Doom2016VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

@@ -26,6 +26,12 @@
 # the Hub tile detects per mod (catalog: ModALaunch / ModBLaunch).
 # -------------------------------------------------------
 
+param(
+    [Alias('InstallerChoice')]
+    [ValidateSet('','balouza','biovrdev')]
+    [string]$Mod = ''
+)
+
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
 $Host.UI.RawUI.WindowTitle = "BioShock Remastered VR Installer"
@@ -372,8 +378,18 @@ Write-Host ""
 Write-Host " Both are free and both come straight from GitHub." -ForegroundColor Gray
 Write-Host ""
 Show-AntivirusNotice
-$choice = ""
-while ($choice -notin @("1","2","3")) { $choice = (Read-Host "  Your choice (1/2/3)").Trim() }
+$choice = switch ($Mod) {
+    'balouza'  { '1' }
+    'biovrdev' { '2' }
+    default    { '' }
+}
+if ($choice) {
+    $selectedByHub = if ($choice -eq '1') { 'balouza' } else { 'BioVRDev' }
+    Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
+    Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
+} else {
+    while ($choice -notin @("1","2","3")) { $choice = (Read-Host "  Your choice (1/2/3)").Trim() }
+}
 $wantA = ($choice -in @("2","3"))
 $wantB = ($choice -in @("1","3"))
 

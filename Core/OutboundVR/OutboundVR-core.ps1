@@ -8,24 +8,20 @@
 # 3. Auto-locate Outbound install folder (Steam / Epic / Xbox)
 # 4. Merge the mod's GameFiles/ contents into the game ROOT folder
 #
-# IMPORTANT: this mod merges into the game ROOT (the folder that
-# ends up with a "BepInEx" folder + winhttp.dll at its root), NOT
-# a subfolder. The mod ZIP wraps everything in Outbound_VR-<ver>/
-# GameFiles/, so we step into GameFiles/ and copy ITS contents.
-# No original game files are modified; the two "Switch to flat.bat"
-# / "Back to VR.bat" files ship inside the mod and land in the game
-# folder for the user to toggle modes.
+# IMPORTANT: 2.0.0 is a NEW LAYOUT. It no longer uses BepInEx,
+# Doorstop or a bundled .NET runtime. The package now has only 14
+# archive entries and its actual mod is dxgi.dll beside Outbound.exe.
+# It still wraps the payload in Outbound_VR-<ver>\GameFiles\, so we
+# step into GameFiles and merge its contents into the game root.
 #
-# v1.0.1 (read from the real archive): the payload wrapper is
-# Outbound_VR-1.0.1\GameFiles\, 244 entries, and the mod itself is
-# BepInEx\plugins\OutboundVR\OutboundVR.dll - 175616 bytes, built
-# 2026-07-21 03:24. That build time is what the catalog carries as
-# ModBuildStamp, so the tile can tell an older install apart from a
-# current one. Everything else in the package (BepInEx 6 IL2CPP, the
-# bundled dotnet runtime, Unity OpenXR) is older third-party material
-# and useless as an update marker.
-# New in v1.0.1 besides the HUD fix: an audited file manifest
-# (OutboundVR-SHA256SUMS.txt) and the OutboundVR-LICENSES folder.
+# An old 1.x BepInEx plugin MUST be removed before 2.x is copied or
+# both generations load at once. We remove only the two precise old
+# plugin locations, never a shared BepInEx folder or another mod.
+#
+# Inspected Nexus file 64, uploaded 2026-08-29:
+#   archive 1,038,062 bytes, SHA-256
+#   C2894ADCD1AAA2B3181E9C126D8787761CA7A2FB1B688E2541DEB3F1C6F916A5
+#   dxgi.dll 120,832 bytes, built 2026-08-28 23:50.
 # -------------------------------------------------------
 
 
@@ -37,7 +33,7 @@
 $Host.UI.RawUI.WindowTitle = "Outbound VR Installer"
 
 $MOD_NAME = "OutboundVR"
-$MOD_VERSION = "v1.0.1"
+$MOD_VERSION = "v2.0.0"
 $MOD_AUTHOR = "Destroyjevski"
 
 $GAME_APPID = "2681030"
@@ -49,6 +45,8 @@ $GAME_EXE  = "Outbound.exe"
 # tab and let the user grab it, then drag it back here.
 $NEXUS_URL       = "https://www.nexusmods.com/outbound/mods/28"
 $NEXUS_FILES_URL = "$NEXUS_URL`?tab=files"
+$INSTALL_MANIFEST = ".pcvrhub-outbound-install.tsv"
+$BACKUP_DIR       = ".pcvrhub-outbound-backup"
 
 # -------------------------------------------------------
 # Helpers
@@ -74,6 +72,20 @@ function Write-Info { param($m) Write-Host " [i] $m" -ForegroundColor Cyan }
 function Write-Warn { param($m) Write-Host " [!] $m" -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+
+function Get-OutboundSha256([string]$Path) {
+ try { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant() } catch { return "" }
+}
+
+function Read-OutboundManifest([string]$Path) {
+ $map = @{}
+ if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $map }
+ foreach ($line in @(Get-Content -LiteralPath $Path -Encoding UTF8 -ErrorAction SilentlyContinue | Select-Object -Skip 1)) {
+  $p = $line -split "`t", 4
+  if ($p.Count -eq 4 -and $p[1]) { $map[$p[1]] = @{ Action=$p[0]; RelativePath=$p[1]; InstalledSha256=$p[2]; BackupRelativePath=$p[3] } }
+ }
+ return $map
+}
 
 function Get-SteamPath {
  foreach ($reg in @(
@@ -140,13 +152,8 @@ Write-Host " experience with head tracking - played on a gamepad, just" -Foregro
 Write-Host " like the flat game. No original game files are modified;" -ForegroundColor White
 Write-Host " removing the mod restores the vanilla game." -ForegroundColor White
 Write-Host ""
-Write-Host " Set your OpenXR runtime once before playing (pick one):" -ForegroundColor White
-Write-Host "   - Virtual Desktop: choose VDXR in the Streamer app" -ForegroundColor Gray
-Write-Host "     (recommended and the most-tested setup)." -ForegroundColor Gray
-Write-Host "   - SteamVR: Settings -> OpenXR -> Set SteamVR as OpenXR" -ForegroundColor Gray
-Write-Host "     runtime." -ForegroundColor Gray
-Write-Host "   - Quest Link: set the Oculus runtime as the active OpenXR" -ForegroundColor Gray
-Write-Host "     runtime in the Meta PC app." -ForegroundColor Gray
+Write-Host " Virtual Desktop with VDXR is the developed and tested runtime." -ForegroundColor White
+Write-Host " Other OpenXR runtimes may work, but are not comparably tested." -ForegroundColor Gray
 Write-Host ""
 
 # -------------------------------------------------------
@@ -279,10 +286,49 @@ if ($gameFilesDir) {
 
 Write-Host " Copying mod files into: $gamePath" -ForegroundColor Gray
 try {
- Get-ChildItem -LiteralPath $srcRoot | ForEach-Object {
- Copy-Item -LiteralPath $_.FullName -Destination $gamePath -Recurse -Force
+ # 1.x and 2.x must never load together. Remove only the old mod's
+ # precise plugin path; a shared BepInEx installation stays intact.
+ foreach ($oldPlugin in @(
+     (Join-Path $gamePath "BepInEx\plugins\OutboundVR"),
+     (Join-Path $gamePath "BepInEx\plugins\OutboundVR.dll")
+ )) {
+     if (Test-Path -LiteralPath $oldPlugin) {
+         Remove-Item -LiteralPath $oldPlugin -Recurse -Force -ErrorAction Stop
+         Write-OK "Removed the old OutboundVR 1.x plugin before upgrading."
+     }
  }
+ # Record ownership for a safe Uninstall now action. Existing files are
+ # backed up before replacement; on an update the original action/backup
+ # from the previous manifest is retained instead of backing up an older
+ # mod build as though it were a vanilla file.
+ $manifestPath = Join-Path $gamePath $INSTALL_MANIFEST
+ $backupRoot = Join-Path $gamePath $BACKUP_DIR
+ $oldRows = Read-OutboundManifest $manifestPath
+ $newRows = New-Object System.Collections.Generic.List[object]
+ foreach ($src in @(Get-ChildItem -LiteralPath $srcRoot -Recurse -File -ErrorAction Stop)) {
+  $rel = $src.FullName.Substring($srcRoot.Length).TrimStart('\','/')
+  $dest = [IO.Path]::Combine($gamePath, $rel)
+  $destParent = Split-Path -Parent $dest
+  if (-not (Test-Path -LiteralPath $destParent)) { [void](New-Item -ItemType Directory -Path $destParent -Force) }
+  $action = "remove"; $backupRel = ""
+  if ($oldRows.ContainsKey($rel)) {
+   $action = [string]$oldRows[$rel].Action
+   $backupRel = [string]$oldRows[$rel].BackupRelativePath
+  } elseif (Test-Path -LiteralPath $dest -PathType Leaf) {
+   $action = "restore"; $backupRel = $rel
+   $backup = [IO.Path]::Combine($backupRoot, $backupRel)
+   $backupParent = Split-Path -Parent $backup
+   if (-not (Test-Path -LiteralPath $backupParent)) { [void](New-Item -ItemType Directory -Path $backupParent -Force) }
+   Copy-Item -LiteralPath $dest -Destination $backup -Force -ErrorAction Stop
+  }
+  Copy-Item -LiteralPath $src.FullName -Destination $dest -Force -ErrorAction Stop
+  $newRows.Add([pscustomobject]@{ Action=$action; RelativePath=$rel; InstalledSha256=(Get-OutboundSha256 $dest); BackupRelativePath=$backupRel }) | Out-Null
+ }
+ $manifestLines = @("Action`tRelativePath`tInstalledSha256`tBackupRelativePath")
+ foreach ($row in $newRows) { $manifestLines += ("{0}`t{1}`t{2}`t{3}" -f $row.Action,$row.RelativePath,$row.InstalledSha256,$row.BackupRelativePath) }
+ Set-Content -LiteralPath $manifestPath -Value $manifestLines -Encoding UTF8 -Force
  Write-OK "Mod files installed into the game folder."
+ Write-Info "Safe uninstall record written: $INSTALL_MANIFEST"
 } catch {
  Write-Fail "Copy failed: $_"
  $__fb = Invoke-InstallerFallback -Action "file copy into game folder" `
@@ -301,18 +347,18 @@ try {
 
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$winhttp    = Join-Path $gamePath "winhttp.dll"
-$modDll     = Join-Path $gamePath "BepInEx\plugins\OutboundVR\OutboundVR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $winhttp)) {
- Write-Warn "BepInEx is there but winhttp.dll is missing - the mod loader may not start."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx + winhttp.dll are there, but OutboundVR.dll is missing from BepInEx\plugins\OutboundVR."
+# Sanity check for the 2.x standalone layout. BepInEx is neither a
+# requirement nor evidence of a working OutboundVR install any more.
+$modDll     = Join-Path $gamePath "dxgi.dll"
+$openxrDll = Join-Path $gamePath "Outbound_Data\Plugins\x86_64\openxr_loader.dll"
+$unityXrDll = Join-Path $gamePath "Outbound_Data\Plugins\x86_64\UnityOpenXR.dll"
+if (-not (Test-Path -LiteralPath $modDll)) {
+ Write-Warn "dxgi.dll is missing from the game root - OutboundVR 2.x cannot load."
+} elseif (-not (Test-Path -LiteralPath $openxrDll) -or -not (Test-Path -LiteralPath $unityXrDll)) {
+ Write-Warn "The VR mod is present, but its required Unity OpenXR files are incomplete."
 } else {
- Write-OK "BepInEx + winhttp.dll + OutboundVR.dll present in the game folder."
+ Write-OK "OutboundVR 2.x and both required Unity OpenXR files are present."
+ Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
 }
 
 # -------------------------------------------------------
@@ -331,13 +377,11 @@ Write-Host "============================================================" -Foreg
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host " VR is active immediately - no batch file is needed to start" -ForegroundColor White
-Write-Host " in VR. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
+Write-Host " VR is active immediately. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or through Steam" -ForegroundColor White
 Write-Host " (or Epic) normally." -ForegroundColor White
 Write-Host ""
-Write-Host " FIRST LAUNCH ONLY: expect a longer startup (up to several" -ForegroundColor Yellow
-Write-Host " minutes; the window may stay black) while the mod generates" -ForegroundColor Yellow
-Write-Host " helper files once. Don't close it - every later launch is fast." -ForegroundColor Yellow
+Write-Host " Version 2 starts normally: no BepInEx generation and no long" -ForegroundColor Green
+Write-Host " first-launch wait." -ForegroundColor Green
 Write-Host ""
 Write-Host " Controls: GAMEPAD, just like flat mode." -ForegroundColor White
 Write-Host "   - Aim with your head: interactions follow your gaze. A small" -ForegroundColor Gray
@@ -346,13 +390,10 @@ Write-Host "   - Right stick turns left/right; look up/down with your head." -Fo
 Write-Host "   - Click the right stick (R3) to re-center the view any time." -ForegroundColor Gray
 Write-Host "   - L3 + R3 together toggles the entire HUD on/off." -ForegroundColor Gray
 Write-Host ""
-Write-Host " Switching modes (quit the game first; saves are shared):" -ForegroundColor White
-Write-Host "   - To play flat: run 'Switch to flat.bat' in the game folder." -ForegroundColor Gray
-Write-Host "   - To return to VR: run 'Back to VR.bat' there." -ForegroundColor Gray
-Write-Host "   $gamePath" -ForegroundColor DarkGray
+Write-Host " For flat play, quit the game and use the Flat / VR switch on" -ForegroundColor White
+Write-Host " this game's Hub detail page. Saves are shared." -ForegroundColor Gray
 Write-Host ""
-Write-Host " Config (arms position/size, etc.): BepInEx\config in the game" -ForegroundColor Gray
-Write-Host " folder." -ForegroundColor Gray
+Write-Host " Version 2 has no configuration file; its tested values are built in." -ForegroundColor Gray
 Write-Host ""
 Write-Host " Chart the drift, trust your gut, and roll on into the unknown." -ForegroundColor Magenta
 Write-Host ""

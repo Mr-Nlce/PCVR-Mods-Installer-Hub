@@ -1,12 +1,15 @@
 # ============================================================
 #  PEAK VR Installer
 # ============================================================
-#  Two routes, two completely different mods:
+#  Three routes, two VR mods and three game builds:
 #
-#    [1] PeakVR by Andrey04o  - into the normal Steam copy.
+#    [1] PeakVR by Andrey04o  - into the normal Steam copy. This
+#        route is currently broken by PEAK's 2026-08-27 update.
 #        THIS PART WAS REWRITTEN FROM SCRATCH ON 2026-08-19.
-#    [2] PEAK_VR by AstienVR  - its own folder with a pinned game
-#        build. Unchanged, starting below the divider.
+#    [2] PeakVR by Andrey04o  - recommended pinned PEAK 2.1.a in
+#        C:\Games\PEAK VR 2.1a, with PeakVersionBypass.
+#    [3] PEAK_VR by AstienVR  - its own folder with pinned PEAK
+#        1.44.a. The original route remains below the divider.
 #
 #  ------------------------------------------------------------
 #  WHY IT WAS REWRITTEN, AND WHAT IS DIFFERENT NOW
@@ -39,11 +42,13 @@
 #    - There is NO while loop in this part apart from the input
 #      prompts, and those are capped at 20 attempts.
 #
-#  DEPENDENCY VERSIONS ARE MINIMUMS, NOT PINS.
+#  CURRENT-ROUTE DEPENDENCY VERSIONS ARE MINIMUMS, NOT PINS.
 #  Thunderstore names a version for every dependency. If one
 #  package asks for 1.6.0 and another for 1.7.2, then 1.7.2
-#  satisfies both. So: the highest requirement wins, and anything
-#  already newer on disk stays where it is.
+#  satisfies both. So, on option 1, the highest requirement wins.
+#  Option 2 is different: its tested PeakVR 1.4.1 package and every
+#  exact dependency version named by the package manifests stay
+#  frozen together with the PEAK 2.1.a game depot.
 #
 #  THE MAIN MOD SHIPS ON TWO TRACKS. Andrey publishes on GitHub;
 #  Thunderstore follows later or not at all. 1.4.1 ("Fixed: The
@@ -73,6 +78,19 @@ $DEPOT_MANIFEST = "1663614006819171465"
 $DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $DEPOT_MANIFEST"
 $GAME_EXE       = "PEAK.exe"
 $DEFAULT_PATH   = "C:\Games\PEAK VR"
+$ANDREY_DEPOT_MANIFEST = "4845579380240751548"
+$ANDREY_DEPOT_COMMAND  = "download_depot $DEPOT_APPID $DEPOT_DEPOTID $ANDREY_DEPOT_MANIFEST"
+$ANDREY_DEFAULT_PATH   = "C:\Games\PEAK VR 2.1a"
+$ANDREY_BYPASS_NAME    = "PeakVersionBypass v1.2.0 (by RadiatorExtrem)"
+$ANDREY_BYPASS_URL     = "https://thunderstore.io/package/download/RadiatorExtrem/PeakVersionBypass/1.2.0/"
+$ANDREY_BYPASS_PAGE    = "https://thunderstore.io/c/peak/p/RadiatorExtrem/PeakVersionBypass/"
+$ANDREY_BYPASS_MARKER  = ".pcvrhub-peak-version-bypass-1.2.0"
+$ANDREY_PINNED_MOD_VERSION = "1.4.1"
+$ANDREY_PINNED_MOD_ASSET   = "Andrey04o-PeakVR-1.4.1.zip"
+$ANDREY_PINNED_MOD_URL     = "https://github.com/Andrey04o/PeakVR/releases/download/v1.4.1/Andrey04o-PeakVR-1.4.1.zip"
+$ANDREY_CURRENT_FALLBACK_VERSION = "1.5.0"
+$ANDREY_CURRENT_FALLBACK_GITHUB  = "https://github.com/Andrey04o/PeakVR/releases/download/v1.5.0/Andrey04o-PeakVR-1.5.0.zip"
+$ANDREY_CURRENT_FALLBACK_TS      = "https://gcdn.thunderstore.io/live/repository/packages/Andrey04o-PeakVR-1.5.0.zip"
 $VIGEM_REL_PATH = "BepInEx\redist\ViGEmBus_1.22.0_x64_x86_arm64.exe"
 
 # -------------------------------------------------------
@@ -278,7 +296,7 @@ function Set-InstalledVersion { param([string]$Key, [string]$Version, [string]$G
 #   plugins\ patchers\ monomod\  go under BepInEx\, and every
 #                      package gets its own folder in there
 #   core\ config\      are shared, with no subfolder
-function Install-Package { param([string]$Zip, [string]$Work, [string]$GamePath, [string]$Key)
+function Install-Package { param([string]$Zip, [string]$Work, [string]$GamePath, [string]$Key, [switch]$ReplaceOwnedFolders)
     if (Test-Path -LiteralPath $Work) { Remove-Item -LiteralPath $Work -Recurse -Force -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Path $Work -Force | Out-Null
     Expand-Archive -LiteralPath $Zip -DestinationPath $Work -Force -ErrorAction Stop
@@ -295,6 +313,11 @@ function Install-Package { param([string]$Zip, [string]$Work, [string]$GamePath,
         if ($item.PSIsContainer -and $item.Name -in @("plugins","patchers","monomod","core","config")) {
             $dest = Join-Path $GamePath ("BepInEx\" + $item.Name + "\" + $Key)
             if ($item.Name -in @("core","config")) { $dest = Join-Path $GamePath ("BepInEx\" + $item.Name) }
+            elseif ($ReplaceOwnedFolders -and (Test-Path -LiteralPath $dest -PathType Container)) {
+                # Only package-owned, namespaced folders are replaced. Shared
+                # core/config and every unrelated mod or user config survive.
+                Remove-Item -LiteralPath $dest -Recurse -Force -ErrorAction Stop
+            }
             if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
             # -Path, NOT -LiteralPath: otherwise the * is taken literally
             Copy-Item -Path (Join-Path $item.FullName "*") -Destination $dest -Recurse -Force
@@ -305,6 +328,233 @@ function Install-Package { param([string]$Zip, [string]$Work, [string]$GamePath,
         }
     }
     return $copied
+}
+
+# -------------------------------------------------------
+#  Recommended pinned build for Andrey04o's PeakVR
+# -------------------------------------------------------
+# Steam uses one content folder for every manifest of this depot. Do not
+# treat an arbitrary leftover depot as 2.1.a: the user is always shown the
+# exact command, and the stable target receives a manifest proof file after
+# the verified move. A completed Hub install can therefore be reused safely.
+function Get-AndreyDepotDurablePathFile {
+    try {
+        $localState = [Environment]::GetFolderPath('LocalApplicationData')
+        if ([string]::IsNullOrWhiteSpace($localState)) { return $null }
+        return [IO.Path]::Combine($localState, 'PCVR Mods Installer Hub', 'State', '3527290_PEAK_VR', 'installed_path_depot.txt')
+    } catch { return $null }
+}
+
+function Get-AndreyDepotInstalledPath {
+    param(
+        [string]$DefaultPath = $ANDREY_DEFAULT_PATH,
+        [string]$HubPathFile = (Join-Path $PSScriptRoot '.installed_path_depot'),
+        [string]$DurablePathFile = (Get-AndreyDepotDurablePathFile)
+    )
+
+    $candidates = @($DefaultPath)
+    foreach ($record in @($HubPathFile, $DurablePathFile)) {
+        if ([string]::IsNullOrWhiteSpace($record) -or -not (Test-Path -LiteralPath $record -PathType Leaf)) { continue }
+        try {
+            $candidate = ('' + (Get-Content -LiteralPath $record -Raw -ErrorAction Stop)).Trim().Trim('"')
+            if ($candidate -and $candidates -notcontains $candidate) { $candidates = @($candidate) + $candidates }
+        } catch {}
+    }
+
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        # Never let a stale or hand-edited record turn the normal Steam copy
+        # into the pinned route, even if somebody copied the proof file there.
+        if ($candidate -match '(?i)steamapps[\\/]+common[\\/]+PEAK[\\/]*$') { continue }
+        $exe = Join-PathLexical $candidate $GAME_EXE
+        $proofFile = Join-PathLexical $candidate '.pcvrhub_depot_manifest'
+        if (-not (Test-LiteralPathSafe -Path $exe -PathType Leaf) -or
+            -not (Test-LiteralPathSafe -Path $proofFile -PathType Leaf)) { continue }
+        try {
+            $proof = ('' + (Get-Content -LiteralPath $proofFile -Raw -ErrorAction Stop)).Trim()
+            if ($proof -eq $ANDREY_DEPOT_MANIFEST) { return $candidate }
+        } catch {}
+    }
+    return $null
+}
+
+function Save-AndreyDepotPathRecords {
+    param([string]$GamePath, [string]$Version)
+    if ([string]::IsNullOrWhiteSpace($GamePath)) { return }
+    $enc = New-Object System.Text.UTF8Encoding $false
+    foreach ($record in @(
+        (Join-Path $PSScriptRoot '.installed_path'),
+        (Join-Path $PSScriptRoot '.installed_path_depot'),
+        (Get-AndreyDepotDurablePathFile)
+    )) {
+        if ([string]::IsNullOrWhiteSpace($record)) { continue }
+        try {
+            $parent = Split-Path -Parent $record
+            if (-not (Test-Path -LiteralPath $parent -PathType Container)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
+            [IO.File]::WriteAllText($record, $GamePath.Trim(), $enc)
+        } catch {}
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Version)) {
+        try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version_depot'), $Version.Trim(), $enc) } catch {}
+        Save-InstalledStamp -GameDir $GamePath -Version $Version
+    }
+}
+
+function Ensure-AndreyDepotShortcut {
+    param([string]$GamePath)
+    try {
+        $gameExePath = Join-Path $GamePath $GAME_EXE
+        $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\PEAK VR 2.1a.lnk" -TargetPath $gameExePath `
+                  -WorkingDir $GamePath -IconPath "$gameExePath,0" -Arguments $D3D11_ARG
+        if ($sc) { Write-OK "Desktop shortcut 'PEAK VR 2.1a' created." }
+    } catch { Write-Warn "Could not create the desktop shortcut: $($_.Exception.Message)" }
+}
+
+function Install-AndreyDepotBuild {
+    $existingPath = Get-AndreyDepotInstalledPath
+    if ($existingPath) {
+        Write-OK "PEAK 2.1.a depot already installed: $existingPath"
+        return $existingPath
+    }
+
+    $targetPath = $ANDREY_DEFAULT_PATH
+    $manifestProof = Join-PathLexical $targetPath ".pcvrhub_depot_manifest"
+    $targetExe = Join-PathLexical $targetPath $GAME_EXE
+
+    Write-Header
+    Write-Host "  RECOMMENDED: PEAK 2.1.a + PeakVR by Andrey04o" -ForegroundColor Green
+    Write-Host "  This creates a separate pinned game copy. Your current Steam" -ForegroundColor White
+    Write-Host "  install and the older AstienVR depot are not touched." -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Steam Console command:" -ForegroundColor Gray
+    Write-Host "    $ANDREY_DEPOT_COMMAND" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Manifest $ANDREY_DEPOT_MANIFEST = PEAK 2.1.a (13 August 2026)." -ForegroundColor Gray
+    Write-Host "  Steam must be running, logged in, and PEAK must be owned." -ForegroundColor Gray
+    Write-Host ""
+    # LOOK BEFORE ASKING: Steam keeps completed depots under
+    # steamapps\content.  A retry or interrupted earlier run must reuse those
+    # files instead of prompting the user to download the same 4 GB again.
+    $steamInstallPath = Get-SteamPathP
+    $probePaths = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -AdditionalSteamRoots @($steamInstallPath))
+    $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+    if (-not $depotPath) {
+        Pause-User "Press Enter to prepare the Steam depot download..." | Out-Null
+        try { Set-Clipboard -Value $ANDREY_DEPOT_COMMAND } catch {}
+        Write-Host ""
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Host "   ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Host "  The exact command is in your clipboard. Paste it with Ctrl+V" -ForegroundColor White
+        Write-Host "  into Steam Console, press Enter, and wait for completion." -ForegroundColor White
+        Write-Host ""
+        foreach ($cu in @("steam://open/console", "steam://nav/console")) {
+            try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
+        }
+        Pause-User "Press Enter once this exact depot download is complete..." | Out-Null
+
+        $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
+        if (-not $depotPath) {
+            $depotPath = Resolve-DepotPath -GameName "PEAK 2.1.a" -DepotCommand $ANDREY_DEPOT_COMMAND -GameExe $GAME_EXE -ProbePaths $probePaths -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -Manifest $ANDREY_DEPOT_MANIFEST
+        }
+    } else {
+        Write-OK "The completed PEAK 2.1.a depot is already downloaded: $depotPath"
+        Write-Info "Skipping Steam Console - nothing needs to be fetched again."
+    }
+    if (-not $depotPath -or -not (Test-LiteralPathSafe -Path (Join-PathLexical $depotPath $GAME_EXE) -PathType Leaf)) {
+        Write-Fail "The completed PEAK depot could not be verified. Nothing was moved."
+        return $null
+    }
+    Write-OK "Downloaded depot found: $depotPath"
+
+    Write-Host ""
+    Write-Host "  Default install location: $ANDREY_DEFAULT_PATH" -ForegroundColor Gray
+    $userInput = ("" + (Read-Host "  Press Enter to use default, or type a different full path")).Trim().Trim('"')
+    if ($userInput) { $targetPath = $userInput }
+    if ($targetPath -match '(?i)steamapps[\\/]+common[\\/]+PEAK[\\/]*$') {
+        Write-Fail "The pinned build cannot replace the normal Steam copy."
+        return $null
+    }
+    if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
+        Write-Fail "The target folder is not writable: $targetPath"
+        return $null
+    }
+
+    if (Test-LiteralPathSafe -Path $targetPath -PathType Container) {
+        Write-Warn "A folder already exists at $targetPath"
+        Write-Info "The depot is merged safely; existing BepInEx configs and extra files remain."
+    }
+    try {
+        $null = Merge-DirectoryTreeVerified -Source $depotPath -Destination $targetPath -RemoveSource -Label "PEAK 2.1.a depot build"
+        if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $targetPath $GAME_EXE) -PathType Leaf)) {
+            throw "$GAME_EXE is missing after the verified move"
+        }
+        Set-Content -LiteralPath (Join-PathLexical $targetPath "steam_appid.txt") -Value $DEPOT_APPID -Encoding ASCII -NoNewline -Force
+        Set-Content -LiteralPath (Join-PathLexical $targetPath ".pcvrhub_depot_manifest") -Value $ANDREY_DEPOT_MANIFEST -Encoding ASCII -NoNewline -Force
+        Write-OK "PEAK 2.1.a pinned at: $targetPath"
+        return $targetPath
+    } catch {
+        Write-Fail "The depot could not be installed safely: $($_.Exception.Message)"
+        Write-Info "The downloaded files remain recoverable at: $depotPath"
+        return $null
+    }
+}
+
+function Install-AndreyDepotVersionBypass {
+    param([string]$GamePath)
+    $bypassDst = Join-PathLexical $GamePath "BepInEx\plugins\$BYPASS_DLL"
+    $markerPath = Join-PathLexical $GamePath "BepInEx\plugins\$ANDREY_BYPASS_MARKER"
+    if ((Test-LiteralPathSafe -Path $bypassDst -PathType Leaf) -and
+        (Test-LiteralPathSafe -Path $markerPath -PathType Leaf)) {
+        Write-OK "$BYPASS_DLL is already installed for the 2.1.a depot."
+        return $true
+    }
+    if (Test-LiteralPathSafe -Path $bypassDst -PathType Leaf) {
+        Write-Warn "An existing $BYPASS_DLL will be backed up before the pinned 1.2.0 package is installed."
+    }
+
+    Write-Info "Adding $ANDREY_BYPASS_NAME for the pinned game build..."
+    $bypassTmp = Join-Path $env:TEMP ("PeakVersionBypass_Andrey_" + [Guid]::NewGuid().ToString("N"))
+    $bypassZip = Join-Path $bypassTmp "PeakVersionBypass.zip"
+    $bypassExtract = Join-Path $bypassTmp "extract"
+    $bypassStaged = "$bypassDst.pcvrhub-new"
+    $bypassBackup = "$bypassDst.pre-pcvrhub"
+    $rollbackCopy = Join-Path $bypassTmp "previous-$BYPASS_DLL"
+    $hadExisting = Test-LiteralPathSafe -Path $bypassDst -PathType Leaf
+    New-Item -ItemType Directory -Path $bypassTmp -Force | Out-Null
+    try {
+        $download = Invoke-DownloadOrFallback -Url $ANDREY_BYPASS_URL -Destination $bypassZip `
+            -Label "PEAK 2.1.a Version Bypass" -ManualUrl $ANDREY_BYPASS_PAGE `
+            -Instructions "Download RadiatorExtrem PeakVersionBypass v1.2.0, place its ZIP at '$bypassZip', then choose Retry." `
+            -SkipMessage "Skipped - the pinned build cannot pass PEAK's version check without this plugin."
+        if ([string]$download -eq "quit" -or -not (Test-LiteralPathSafe -Path $bypassZip -PathType Leaf)) { return $false }
+        $expanded = Expand-ArchiveOrFallback -ArchivePath $bypassZip -DestinationFolder $bypassExtract -Label "PeakVersionBypass" `
+            -SkipMessage "Skipped - PeakVersionBypass was not extracted."
+        if ([string]$expanded -notin @("ok","manual")) { return $false }
+        $source = Get-ChildItem -LiteralPath $bypassExtract -Filter $BYPASS_DLL -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $source) { Write-Fail "$BYPASS_DLL was not found in the downloaded package."; return $false }
+        $plugins = Split-Path -Parent $bypassDst
+        if (-not (Test-LiteralPathSafe -Path $plugins -PathType Container)) { New-Item -ItemType Directory -Path $plugins -Force | Out-Null }
+        if ($hadExisting) { Copy-Item -LiteralPath $bypassDst -Destination $rollbackCopy -Force }
+        Copy-Item -LiteralPath $source.FullName -Destination $bypassStaged -Force
+        if ((Test-LiteralPathSafe -Path $bypassDst -PathType Leaf) -and -not (Test-LiteralPathSafe -Path $bypassBackup -PathType Leaf)) {
+            Copy-Item -LiteralPath $bypassDst -Destination $bypassBackup
+        }
+        Copy-Item -LiteralPath $bypassStaged -Destination $bypassDst -Force
+        if (-not (Test-LiteralPathSafe -Path $bypassDst -PathType Leaf)) { throw "$BYPASS_DLL was not copied into the depot." }
+        Set-Content -LiteralPath $markerPath -Value "RadiatorExtrem-PeakVersionBypass-1.2.0" -Encoding ASCII -NoNewline -Force
+        Write-OK "$BYPASS_DLL installed from the pinned 1.2.0 package."
+        return $true
+    } catch {
+        if ($hadExisting -and (Test-LiteralPathSafe -Path $rollbackCopy -PathType Leaf)) {
+            try { Copy-Item -LiteralPath $rollbackCopy -Destination $bypassDst -Force } catch {}
+        } elseif (-not $hadExisting) { try { Remove-Item -LiteralPath $bypassDst -Force -ErrorAction SilentlyContinue } catch {} }
+        Write-Fail "PeakVersionBypass failed: $($_.Exception.Message)"
+        return $false
+    } finally {
+        try { Remove-Item -LiteralPath $bypassStaged -Force -ErrorAction SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath $bypassTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    }
 }
 
 # -------------------------------------------------------
@@ -338,49 +588,58 @@ $LOADER_NAME    = "BepInExPack_PEAK"
 $LOADER_MIN     = "5.4.75301"
 
 Write-Header
-Write-Host "  Two VR mods exist for PEAK. Pick one:" -ForegroundColor White
+Write-Host "  Three PEAK VR installs can coexist. Pick one:" -ForegroundColor White
 Write-Host ""
 Write-Host "  [1] Current PEAK" -NoNewline -ForegroundColor White
 Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
-Write-Host "       Installs into your normal Steam copy and keeps itself" -ForegroundColor Gray
-Write-Host "       up to date." -ForegroundColor Gray
+Write-Host "       CURRENTLY RECOMMENDED" -ForegroundColor Green
+Write-Host "       PeakVR 1.5.0 supports the current PEAK 2.4.b build." -ForegroundColor Gray
 Write-Host ""
-$depotHere = Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)
-Write-Host "  [2] Older PEAK 1.44.a" -NoNewline -ForegroundColor White
+$andreyDepotPath = Get-AndreyDepotInstalledPath
+Write-Host "  [2] PEAK 2.1.a depot" -NoNewline -ForegroundColor White
+Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
+Write-Host "       LAST-CONFIRMED FALLBACK" -ForegroundColor Yellow
+if ($andreyDepotPath) { Write-Host "       Already installed at $andreyDepotPath" -ForegroundColor Green }
+else                    { Write-Host "       Separate pinned build with version-check bypass." -ForegroundColor Gray }
+Write-Host ""
+$legacyDepotHere = Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)
+Write-Host "  [3] Older PEAK 1.44.a depot" -NoNewline -ForegroundColor White
 Write-Host "  - PEAK_VR by AstienVR" -ForegroundColor Gray
-if ($depotHere) { Write-Host "       Already installed at $DEFAULT_PATH" -ForegroundColor Green }
-else            { Write-Host "       Downloads a pinned Steam depot build into its own folder." -ForegroundColor Gray }
+if ($legacyDepotHere) { Write-Host "       Already installed at $DEFAULT_PATH" -ForegroundColor Green }
+else                  { Write-Host "       Downloads the legacy pinned build into its own folder." -ForegroundColor Gray }
 Write-Host ""
-$peakMode = Read-Choice -Prompt "Your choice (1 or 2)" -Valid @("1","2") -Default $null
+$peakMode = Read-Choice -Prompt "Your choice (1, 2 or 3)" -Valid @("1","2","3") -Default $null
 if (-not $peakMode) {
     Write-Fail "No choice made - nothing was changed."
     Pause-User "Press Enter to exit..." | Out-Null
     return
 }
 
-if ($peakMode -eq "1") {
+if ($peakMode -in @("1","2")) {
 
     # ===================================================
     #  PHASE 0 - find the game
     # ===================================================
-    Write-Step 1 4 "Finding your PEAK installation"
-    $gamePath = $null
-    $sp = Get-SteamPathP
-    if ($sp) {
-        foreach ($lib in (Get-SteamLibrariesP $sp)) {
-            # Lexical: $lib comes from libraryfolders.vdf and may name a drive
-            # that no longer exists - Join-Path would resolve it and throw.
-            $c = Join-PathLexical $lib "steamapps\common\PEAK"
-            if (Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf) { $gamePath = $c; break }
+    Write-Step 1 4 $(if ($peakMode -eq "2") { "Preparing the PEAK 2.1.a depot" } else { "Finding your PEAK installation" })
+    $gamePath = if ($peakMode -eq "2") { Install-AndreyDepotBuild } else { $null }
+    if ($peakMode -eq "1") {
+        $sp = Get-SteamPathP
+        if ($sp) {
+            foreach ($lib in (Get-SteamLibrariesP $sp)) {
+                # Lexical: $lib comes from libraryfolders.vdf and may name a drive
+                # that no longer exists - Join-Path would resolve it and throw.
+                $c = Join-PathLexical $lib "steamapps\common\PEAK"
+                if (Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf) { $gamePath = $c; break }
+            }
         }
+        if (-not $gamePath) { $gamePath = Get-GameFolderInteractive -GameName "PEAK" -ProbeFile $GAME_EXE }
     }
-    if (-not $gamePath) { $gamePath = Get-GameFolderInteractive -GameName "PEAK" -ProbeFile $GAME_EXE }
     if (-not $gamePath -or -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE))) {
         Write-Fail "Could not find $GAME_EXE - nothing was installed."
         Pause-User "Press Enter to exit..." | Out-Null
         return
     }
-    Write-OK "PEAK: $gamePath"
+    Write-OK $(if ($peakMode -eq "2") { "PEAK 2.1.a depot: $gamePath" } else { "PEAK: $gamePath" })
 
     # ===================================================
     #  PHASE 1 - PLAN. Nothing is written here.
@@ -390,52 +649,69 @@ if ($peakMode -eq "1") {
     $tmp = Join-Path $env:TEMP ("peakvr_" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 
-    # --- the main mod: query both sources, the newer one wins -----
-    $ts = Get-ThunderstorePackage -Author $MOD_AUTHOR -Name $MOD_TSNAME
-    $gh = Get-GithubRelease -Repo $MOD_GITHUB -AssetPattern $MOD_GH_ASSET
+    # --- main mod --------------------------------------------------
+    # Option 1 follows the newer live source. Option 2 never consults a
+    # moving release endpoint: PeakVR 1.4.1 is the author-tested partner
+    # for the PEAK 2.1.a depot and remains fixed until a reviewed update
+    # round replaces this whole confirmed pairing.
+    $ts = $null
+    $gh = $null
     $main = $null
-    if ($ts -and $gh) {
-        if ((Compare-ModVersion $gh.Version $ts.Version) -gt 0) {
-            Write-Info "GitHub has $($gh.Version), Thunderstore has $($ts.Version) - taking GitHub."
-            $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" }
-        } else {
-            $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" }
+    if ($peakMode -eq "2") {
+        $main = @{
+            Version = $ANDREY_PINNED_MOD_VERSION
+            Url = $ANDREY_PINNED_MOD_URL
+            Asset = $ANDREY_PINNED_MOD_ASSET
+            Body = $null
+            From = "pinned GitHub release"
         }
-    } elseif ($gh) { $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" } }
-    elseif ($ts)   { $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" } }
-
-    if (-not $main) {
-        Write-Fail "Neither Thunderstore nor GitHub could be reached."
-        foreach ($k in $script:NetFails.Keys) { Write-Host "     $k - $($script:NetFails[$k])" -ForegroundColor DarkGray }
-        Write-Host "  Nothing was changed. Try again in a minute." -ForegroundColor White
-        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..." | Out-Null
-        return
+    } else {
+        $ts = Get-ThunderstorePackage -Author $MOD_AUTHOR -Name $MOD_TSNAME
+        $gh = Get-GithubRelease -Repo $MOD_GITHUB -AssetPattern $MOD_GH_ASSET
+        if ($ts -and $gh) {
+            if ((Compare-ModVersion $gh.Version $ts.Version) -gt 0) {
+                Write-Info "GitHub has $($gh.Version), Thunderstore has $($ts.Version) - taking GitHub."
+                $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" }
+            } else {
+                $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" }
+            }
+        } elseif ($gh) { $main = @{ Version = $gh.Version; Url = $gh.Url; Asset = $gh.Asset; Body = $gh.Body; From = "GitHub" } }
+        elseif ($ts)   { $main = @{ Version = $ts.Version; Url = $ts.Url; From = "Thunderstore" } }
+        else {
+            $main = @{
+                Version = $ANDREY_CURRENT_FALLBACK_VERSION
+                Url = $ANDREY_CURRENT_FALLBACK_GITHUB
+                From = "last reviewed fallback"
+            }
+            Write-Warn "Live release lookup unavailable - trying reviewed PeakVR $ANDREY_CURRENT_FALLBACK_VERSION fallbacks."
+        }
     }
+
     Write-OK "PeakVR $($main.Version) (from $($main.From))"
 
     # --- fetch the main mod so its manifest can be read
     # The manifest INSIDE THE PACKAGE is the most reliable
     # dependency list there is: it belongs to exactly this build.
     $mainZip = Join-Path $tmp "$MOD_KEY.zip"
-    if (-not (Invoke-SafeDownload -Urls @($main.Url) -Destination $mainZip -Label "PeakVR $($main.Version)" `
-                -ManualUrl "https://github.com/$MOD_GITHUB/releases/latest" `
-                -Instructions "Download the PeakVR zip and save it as '$mainZip', then choose Retry.")) {
+    $mainManualUrl = if ($peakMode -eq "2") { "https://github.com/$MOD_GITHUB/releases/tag/v$ANDREY_PINNED_MOD_VERSION" } else { "https://github.com/$MOD_GITHUB/releases/latest" }
+    $mainInstructions = if ($peakMode -eq "2") {
+        "Download '$ANDREY_PINNED_MOD_ASSET' from the v$ANDREY_PINNED_MOD_VERSION release and save it as '$mainZip', then choose Retry."
+    } else { "Download the PeakVR zip and save it as '$mainZip', then choose Retry." }
+    $mainUrls = @($main.Url)
+    if ($peakMode -ne "2" -and (Compare-ModVersion $main.Version $ANDREY_CURRENT_FALLBACK_VERSION) -eq 0) {
+        $mainUrls += @($ANDREY_CURRENT_FALLBACK_GITHUB, $ANDREY_CURRENT_FALLBACK_TS)
+    }
+    $mainUrls = @($mainUrls | Where-Object { $_ } | Select-Object -Unique)
+    $mainDownload = @{
+        Urls=$mainUrls; Destination=$mainZip; Label="PeakVR $($main.Version)"
+        ManualUrl=$mainManualUrl; Instructions=$mainInstructions
+    }
+    if (-not (Invoke-SafeDownload @mainDownload)) {
         Write-Fail "PeakVR could not be downloaded - nothing was changed."
         try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
         Pause-User "Press Enter to exit..." | Out-Null
         return
     }
-    if ($main.Body -and $main.Asset) {
-        $chk = Confirm-ReleaseChecksum -FilePath $mainZip -AssetName $main.Asset -ReleaseBody $main.Body -ReportTo "Andrey04o"
-        if ([string]$chk -eq "mismatch") {
-            Write-Fail "The download does not match the author's checksum - nothing was changed."
-            try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-            Pause-User "Press Enter to exit..." | Out-Null
-            return
-        }
-    }
-
     # --- breadth-first search over the dependencies ---------------
     # WHY THIS TERMINATES: $need is a SET. Every key is entered at
     # most once and taken off the queue at most once. There is no
@@ -479,9 +755,11 @@ if ($peakMode -eq "1") {
         $seen[$k] = $true
         $order.Add($k) | Out-Null
 
-        $info = Get-ThunderstorePackage -Author $p.Author -Name $p.Name
-        if (-not $info) { $planFail += $k; continue }
-        foreach ($d2 in @($info.Dependencies)) { $queue.Enqueue($d2) }
+        if ($peakMode -ne "2") {
+            $info = Get-ThunderstorePackage -Author $p.Author -Name $p.Name
+            if (-not $info) { $planFail += $k; continue }
+            foreach ($d2 in @($info.Dependencies)) { $queue.Enqueue($d2) }
+        }
     }
 
     if ($resolveOverflow) {
@@ -513,8 +791,11 @@ if ($peakMode -eq "1") {
     $plan = New-Object System.Collections.Generic.List[object]
 
     $haveLoader = Get-InstalledVersion -Key $LOADER_KEY -GamePath $gamePath
-    if (-not $haveLoader -or (Compare-ModVersion $haveLoader $LOADER_MIN) -lt 0) {
-        $li = Get-ThunderstorePackage -Author $LOADER_AUTHOR -Name $LOADER_NAME
+    $loaderMatches = if ($peakMode -eq "2") { $haveLoader -eq $LOADER_MIN } else { $haveLoader -and (Compare-ModVersion $haveLoader $LOADER_MIN) -ge 0 }
+    if (-not $loaderMatches) {
+        $li = if ($peakMode -eq "2") {
+            @{ Version=$LOADER_MIN; Url="https://thunderstore.io/package/download/$LOADER_AUTHOR/$LOADER_NAME/$LOADER_MIN/" }
+        } else { Get-ThunderstorePackage -Author $LOADER_AUTHOR -Name $LOADER_NAME }
         if ($li) {
             $plan.Add(@{ Key = $LOADER_KEY; Label = "BepInEx (PEAK pack)"; Version = $li.Version; Url = $li.Url }) | Out-Null
         } elseif (-not $haveLoader) {
@@ -530,22 +811,26 @@ if ($peakMode -eq "1") {
     foreach ($k in $order) {
         $p = Split-DependencyString -Dep ($k + "-" + $need[$k])
         $have = Get-InstalledVersion -Key $k -GamePath $gamePath
-        # ANYTHING NEWER THAN REQUIRED IS LEFT ALONE.
-        if ($have -and (Compare-ModVersion $have $need[$k]) -ge 0) {
-            Write-OK "$k $have already installed (needs $($need[$k]) or newer)."
+        # Current accepts newer dependencies; the confirmed depot accepts
+        # only the exact version named by its frozen package manifests.
+        $dependencyMatches = if ($peakMode -eq "2") { $have -eq $need[$k] } else { $have -and (Compare-ModVersion $have $need[$k]) -ge 0 }
+        if ($dependencyMatches) {
+            if ($peakMode -eq "2") { Write-OK "$k $have already installed (exact pinned version)." }
+            else { Write-OK "$k $have already installed (needs $($need[$k]) or newer)." }
             continue
         }
-        $info = Get-ThunderstorePackage -Author $p.Author -Name $p.Name
+        $info = if ($peakMode -eq "2") { $null } else { Get-ThunderstorePackage -Author $p.Author -Name $p.Name }
         $ver  = $need[$k]
         $url  = "https://thunderstore.io/package/download/$($p.Author)/$($p.Name)/$ver/"
         # Take the newest build if it satisfies the requirement -
         # otherwise exactly the one required.
-        if ($info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
+        if ($peakMode -ne "2" -and $info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
         $plan.Add(@{ Key = $k; Label = $k; Version = $ver; Url = $url }) | Out-Null
     }
 
     $haveMain = Get-InstalledVersion -Key $MOD_KEY -GamePath $gamePath
-    $mainNeeded = (-not $haveMain -or (Compare-ModVersion $haveMain $main.Version) -lt 0 -or -not (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROOF)))
+    $mainVersionMatches = if ($peakMode -eq "2") { $haveMain -eq $main.Version } else { $haveMain -and (Compare-ModVersion $haveMain $main.Version) -ge 0 }
+    $mainNeeded = (-not $mainVersionMatches -or -not (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROOF)))
     if ($mainNeeded) {
         $plan.Add(@{ Key = $MOD_KEY; Label = "PeakVR"; Version = $main.Version; Url = $main.Url; Zip = $mainZip }) | Out-Null
     } else {
@@ -556,6 +841,15 @@ if ($peakMode -eq "1") {
         Write-Host ""
         Write-OK "Everything is already in place - nothing to do."
         try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        if ($peakMode -eq "2") {
+            if (-not (Install-AndreyDepotVersionBypass -GamePath $gamePath)) {
+                Write-Fail "PeakVersionBypass could not be repaired. No completion state was changed."
+                Pause-User "Press Enter to exit..." | Out-Null
+                return
+            }
+            Save-AndreyDepotPathRecords -GamePath $gamePath -Version $main.Version
+            Ensure-AndreyDepotShortcut -GamePath $gamePath
+        }
         Write-Step 4 4 "Done"
         Write-Host ""
         Write-Host "  START: " -NoNewline -ForegroundColor Cyan
@@ -669,10 +963,10 @@ if ($peakMode -eq "1") {
                 }
                 # No - so fetch it now.
                 Write-Warn "$($p.Label) also requires $k $($d.Version) - the API had not listed it."
-                $info = Get-ThunderstorePackage -Author $d.Author -Name $d.Name
+                $info = if ($peakMode -eq "2") { $null } else { Get-ThunderstorePackage -Author $d.Author -Name $d.Name }
                 $ver  = $d.Version
                 $url  = "https://thunderstore.io/package/download/$($d.Author)/$($d.Name)/$ver/"
-                if ($info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
+                if ($peakMode -ne "2" -and $info -and (Compare-ModVersion $info.Version $ver) -ge 0) { $ver = $info.Version; $url = $info.Url }
                 $z = Join-Path $tmp ("late_$k.zip")
                 $ok = Invoke-SafeDownload -Urls @($url) -Destination $z -Label "$k $ver" `
                           -ManualUrl "https://thunderstore.io/c/peak/" `
@@ -736,7 +1030,7 @@ if ($peakMode -eq "1") {
     $failed = @()
     foreach ($p in $plan) {
         try {
-            $n = Install-Package -Zip $p.Zip -Work (Join-Path $tmp ("x_" + $p.Key)) -GamePath $gamePath -Key $p.Key
+            $n = Install-Package -Zip $p.Zip -Work (Join-Path $tmp ("x_" + $p.Key)) -GamePath $gamePath -Key $p.Key -ReplaceOwnedFolders:($peakMode -eq "2")
             if ($n -lt 1) { throw "the package contained no files" }
             Set-InstalledVersion -Key $p.Key -Version $p.Version -GamePath $gamePath
             Write-OK "$($p.Label) $($p.Version) - $n file(s)."
@@ -753,7 +1047,8 @@ if ($peakMode -eq "1") {
     $missingNow = @()
     foreach ($k in $order) {
         $have = Get-InstalledVersion -Key $k -GamePath $gamePath
-        if (-not $have -or (Compare-ModVersion $have $need[$k]) -lt 0) { $missingNow += "$k (needs $($need[$k]))" }
+        $verifiedVersion = if ($peakMode -eq "2") { $have -eq $need[$k] } else { $have -and (Compare-ModVersion $have $need[$k]) -ge 0 }
+        if (-not $verifiedVersion) { $missingNow += "$k (needs $($need[$k]))" }
     }
     if (-not (Test-Path -LiteralPath $proofPath)) { $missingNow += "PeakVR itself" }
 
@@ -769,8 +1064,20 @@ if ($peakMode -eq "1") {
     }
 
     Write-OK "Verified on disk: PeakVR and all $($order.Count) requirement(s)."
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $main.Version -Encoding UTF8 -Force } catch {}
+    if ($peakMode -eq "2" -and -not (Install-AndreyDepotVersionBypass -GamePath $gamePath)) {
+        Write-Fail "The depot and PeakVR are present, but the required version-check bypass is missing."
+        Write-Host "  Run this installer again; no VR Ready marker or shortcut was created." -ForegroundColor White
+        Pause-User "Press Enter to exit..." | Out-Null
+        return
+    }
+    try {
+        if ($peakMode -eq "2") {
+            Save-AndreyDepotPathRecords -GamePath $gamePath -Version $main.Version
+        } else {
+            Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
+            Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $main.Version -Encoding UTF8 -Force
+        }
+    } catch {}
     # ALSO write the durable stamp next to the GAME (2026-08-20).
     # The line above lands inside the Hub folder and is gone as
     # soon as a new Hub build is dropped in; the scan then finds
@@ -778,9 +1085,13 @@ if ($peakMode -eq "1") {
     # pending update. The game-side stamp survives that.
     Save-InstalledStamp -GameDir $gamePath -Version $main.Version
     try {
-        $sc = New-DesktopShortcut -ShortcutName "PEAK VR" -TargetPath "steam://rungameid/$DEPOT_APPID" `
-                  -WorkingDir $gamePath -Description "PEAK in VR (PeakVR)"
-        if ($sc) { Write-OK "Desktop shortcut 'PEAK VR' created." }
+        if ($peakMode -eq "2") {
+            Ensure-AndreyDepotShortcut -GamePath $gamePath
+        } else {
+            $sc = New-DesktopShortcut -ShortcutName "PEAK VR" -TargetPath "steam://rungameid/$DEPOT_APPID" `
+                      -WorkingDir $gamePath -Description "PEAK in VR (PeakVR)"
+            if ($sc) { Write-OK "Desktop shortcut 'PEAK VR' created." }
+        }
     } catch { Write-Warn "Could not create the desktop shortcut: $($_.Exception.Message)" }
 
     Write-Host ""
@@ -790,7 +1101,11 @@ if ($peakMode -eq "1") {
     Write-Host ""
     Write-Host "  START: " -NoNewline -ForegroundColor Cyan
     Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-    Write-Host "in the Hub, or launch PEAK from Steam." -ForegroundColor Cyan
+    if ($peakMode -eq "2") {
+        Write-Host "then choose Depot 2.1a, or use the PEAK VR 2.1a shortcut." -ForegroundColor Cyan
+    } else {
+        Write-Host "in the Hub, or launch PEAK from Steam." -ForegroundColor Cyan
+    }
     Write-Host ""
     Write-Host "  IMAGE LOOKS BLURRY? In the game: Settings > Mod Settings >" -ForegroundColor Cyan
     Write-Host "  PEAK VR > VR GRAPHICS > " -NoNewline -ForegroundColor Cyan
@@ -802,6 +1117,15 @@ if ($peakMode -eq "1") {
     Write-Host "  You climb the way the base game does - this is not a" -ForegroundColor Gray
     Write-Host "  hand-over-hand climbing simulator." -ForegroundColor Gray
     Write-Host ""
+    if ($peakMode -eq "2") {
+        Write-Host "  The pinned copy stays in $gamePath" -ForegroundColor Gray
+        Write-Host "  Steam is still required for ownership authentication." -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "  The mountain does not care which manifest got you there." -ForegroundColor Magenta
+        Write-Host ""
+        Pause-User "Press Enter to exit." | Out-Null
+        return
+    }
     # ===================================================
     #  FINAL STEP - DirectX 11 as a launch option
     # ===================================================
@@ -886,8 +1210,8 @@ if ($peakMode -eq "1") {
 }
 
 # =======================================================
-#  From here on: the ORIGINAL depot route for PEAK_VR by
-#  AstienVR, unchanged.
+#  From here on: option 3, the original depot route for PEAK_VR
+#  by AstienVR. Its game/mod flow remains unchanged.
 # =======================================================
 
 Write-Header
@@ -1316,8 +1640,13 @@ if (-not (Test-Path $vigemExe)) {
     }
 }
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+# Record the general path for the immediate one-game refresh, plus a
+# dedicated legacy marker so the detail page never mistakes this 1.44.a
+# copy for the recommended Andrey 2.1.a depot.
+try {
+    Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
+    Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_legacy_depot") -Value $gamePath -Encoding UTF8 -Force
+} catch {}
 
 # -------------------------------------------------------
 #  STEP 7: Desktop shortcut

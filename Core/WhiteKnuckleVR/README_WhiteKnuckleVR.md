@@ -15,6 +15,13 @@ debuffs keep working out of the box, and why no game file is replaced.
    run writes the mod's three config files. Close the game.
 2. Start your VR runtime, then launch again. Now it comes up in VR.
 
+## Current v1.1.4 changes
+
+- Wall jumps no longer change direction with headset rotation.
+- Standing on moving platforms no longer judders.
+- Player rotation can follow moving platforms; turn it off in the in-game VR
+  Settings if you prefer the old behavior.
+
 ## Requirements
 
 | | |
@@ -84,6 +91,11 @@ hold the rest, written on that first flat launch:
 | `VRToggle.json` | `activateVR` and `useMotionControls` - the flat/VR switch |
 | `WhiteKnuckleVRSettings.json` | the same settings the in-game menu shows |
 | `ModParameters.json` | gesture thresholds and tuning |
+
+Since v1.1.4 the plug-in and its OpenXR dependencies live together under
+`BepInEx/plugins/WhiteKnuckleVRMod/`. Older v1.0.2 installs used a loose DLL
+and put OpenXR files under `White Knuckle_Data`; the installer parks that old
+loose plug-in during an update instead of deleting unknown shared files.
 
 Worth knowing from `ModParameters.json`: `reachMultiplier` (6 by default - needed
 so your VR reach matches the flat game), `gripScheme` (`auto` uses the trigger on

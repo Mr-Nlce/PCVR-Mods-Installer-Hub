@@ -315,7 +315,7 @@ function global:Open-UninstallGuideTarget {
     param($Game, $Target)
     if (-not (Get-UninstallGuideContext $Game) -or -not $Target) { return }
     try {
-        if (-not (Test-Path -LiteralPath $Target.Folder -PathType Container)) { throw 'This folder no longer exists. Run Scan games to refresh the detected installation.' }
+        if (-not (Test-Path -LiteralPath $Target.Folder -PathType Container)) { throw 'This folder no longer exists. Run Scan installed games to refresh the detected installation.' }
         $argument = '"' + $Target.Folder + '"'
         if ($Target.Select -and (Test-Path -LiteralPath $Target.Select -PathType Leaf)) {
             $argument = '/select,"' + $Target.Select + '"'
@@ -373,7 +373,7 @@ function global:Update-UninstallGuideLinks {
         }
         $Guide.Hint.Text = 'Click a folder to open it, or a file to select it in Explorer. The guide stays open while you switch windows.'
     } else {
-        $Guide.Hint.Text = if (-not $global:InstalledScanCompleted) { 'Run Scan games to enable folder links for an installed game with a detected VR mod.' } else { 'Folder links require a completed Scan games check with both the game and its VR mod installed.' }
+        $Guide.Hint.Text = if (-not $global:InstalledScanCompleted) { 'Run Scan installed games to enable folder links for an installed game with a detected VR mod.' } else { 'Folder links require a completed Scan installed games check with both the game and its VR mod installed.' }
     }
     $Guide.Shortcuts.Visibility = if ($context) { 'Visible' } else { 'Collapsed' }
     # The expensive part is lazy; unopened guides do not enumerate directories.

@@ -13,7 +13,7 @@
 $LAUNCHER_EXE       = "AoeVrLauncher.exe"
 $DEFAULT_GAME_DIR   = "C:\games\Anomaly VR"
 $DISCORD_INVITE_URL = "https://discord.gg/kGhd7GvJ5F"
-$DISCORD_POST_URL   = "https://discord.com/channels/1495664880311734313/1520470650144161923/1520470650144161923"
+$DISCORD_POST_URL   = "https://discord.com/channels/1495664880311734313/1502562334420504577/threads/1547680945929195672"
 
 # ---- console helpers ----
 function Write-Header {
@@ -72,6 +72,8 @@ Write-Step 1 4 "Choose where to install"
 Write-Host "  This installs the Anomaly VR launcher. That launcher then" -ForegroundColor White
 Write-Host "  downloads the game + the VR modpack for you and keeps them" -ForegroundColor White
 Write-Host "  updated - you do not need anything beforehand." -ForegroundColor White
+Write-Host "  Current public VR build: alpha 0.5.0. An existing launcher" -ForegroundColor Gray
+Write-Host "  obtains that update itself; it does not need replacing." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Press ENTER for a fresh install at the recommended location:" -ForegroundColor Yellow
 Write-Host "      $DEFAULT_GAME_DIR" -ForegroundColor Gray

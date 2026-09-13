@@ -18,6 +18,12 @@
 #  itself - the most common mix-up with this game.
 # ============================================================
 
+param(
+    [Alias('InstallerChoice')]
+    [ValidateSet('','halcyon','hammerthis')]
+    [string]$Mod = ''
+)
+
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 . (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
 
@@ -189,11 +195,21 @@ Write-Host "   [3] Both - installed side by side, switchable afterwards." -Foreg
 Write-Host "       The Hub then shows one Play button per mod, so you" -ForegroundColor Gray
 Write-Host "       can pick gamepad or VR controllers per session." -ForegroundColor Gray
 Write-Host ""
-$modChoice = ""
-for ($i = 1; $i -le 20; $i++) {
-    $modChoice = ("" + (Read-Host "  Your choice [1/2/3]")).Trim()
-    if ($modChoice -in @("1","2","3")) { break }
-    Write-Host "  Please answer 1, 2 or 3." -ForegroundColor Yellow
+$modChoice = switch ($Mod) {
+    'halcyon'    { '1' }
+    'hammerthis' { '2' }
+    default      { '' }
+}
+if ($modChoice) {
+    $selectedByHub = if ($modChoice -eq '1') { 'Halcyon' } else { 'Hammerthis' }
+    Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
+    Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
+} else {
+    for ($i = 1; $i -le 20; $i++) {
+        $modChoice = ("" + (Read-Host "  Your choice [1/2/3]")).Trim()
+        if ($modChoice -in @("1","2","3")) { break }
+        Write-Host "  Please answer 1, 2 or 3." -ForegroundColor Yellow
+    }
 }
 if ($modChoice -notin @("1","2","3")) {
     Write-Fail "No choice made - nothing was installed."

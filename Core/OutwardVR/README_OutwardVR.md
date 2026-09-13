@@ -56,7 +56,7 @@ Those choices, including the remembered first-/third-person state, are stored th
 Unity PlayerPrefs rather than in a user-facing VR configuration file. Do not look for a
 missing mod CFG.
 
-After **Scan games** has found Outward, the paths below are clickable on this detail page:
+After **Scan installed games** has found Outward, the paths below are clickable on this detail page:
 
 - Game folder: `Outward_Defed\`
 - BepInEx loader settings: `Outward_Defed\BepInEx\config\BepInEx.cfg`

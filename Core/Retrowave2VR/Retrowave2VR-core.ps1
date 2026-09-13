@@ -39,7 +39,7 @@ $GAME_EXE    = "Retrowave 2.exe"
 $MOD_MARKER  = "BepInEx\plugins\Uuvr.dll"
 
 $DISCORD_INVITE_URL   = "https://discord.gg/uAeQkYBM4n"
-$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/747967102895390741/1541093763768782919/1541094326422081566"
+$DISCORD_DOWNLOAD_URL = "https://discord.com/channels/747967102895390741/1541093763768782919/1541879576894898177"
 
 # Read from the real archive: 58 entries, BepInEx at the root next to
 # winhttp.dll. These two prefixes are what must NOT travel.

@@ -11,8 +11,8 @@ Automated installer for 7DaysVR.
 
 ## Requirements
 - Windows 10/11
-- Steam with **7 Days to Die** installed
-- SteamVR installed
+- Steam with **7 Days to Die 3.1** installed (current mod build: 4.1.0.227)
+- An active **OpenXR runtime** for your headset
 - A Nexus Mods account (free) to download the mod
 
 ## Mod download
@@ -20,7 +20,11 @@ https://www.nexusmods.com/7daystodie/mods/3011
 
 ## Important notes
 - **EAC must be disabled** — you can only join servers with EAC also off
-- **7 Days must be the active foreground window** while playing — disable SteamVR Always on Top
+- **7 Days must be the active foreground window** while playing
+- **Virtual Desktop:** select **VDXR** as the runtime and do **not** launch
+  SteamVR. Version 4.1 moved 7DVR from SteamVR/OpenVR to OpenXR.
+- Other headsets: make the OpenXR runtime belonging to your headset software
+  active. Index and Vive users can use SteamVR as their OpenXR runtime.
 - World loading screen is very jittery — this is normal (CPU at 100%)
 - VR options in-game: Options -> Controls -> VR (far right tab)
 - Recalibrate height: stand straight, hold both thumbsticks for 2 seconds
@@ -29,8 +33,8 @@ https://www.nexusmods.com/7daystodie/mods/3011
 
 ![Controller layout](ControllerLayout.jpg)
 
-Default VR controls. All of these can be remapped via standard SteamVR
-controller bindings if you prefer.
+Default VR controls. Locomotion, grip and comfort options live in the
+in-game VR options under **Options -> Controls -> VR**.
 
 **Left controller:**
 - **[[Left Stick]]:** Move; press = Run

@@ -43,6 +43,11 @@
   ```
 - Play flat for a while without uninstalling: in `<Portal 2>\bin`, add a `-` to the end of `openvr_api.dll` to turn VR off; remove the `-` to turn it back on
 
+## Additional Portal 2 mods
+
+- [Portal4Dead: Portal 2 community mods](https://www.portal4dead.com/portal2#pj2009)
+- These are optional, are not installed by the Hub, and may vary in VR compatibility
+
 ## Credits
 
 - Portal2VR Mod by **Gistix**

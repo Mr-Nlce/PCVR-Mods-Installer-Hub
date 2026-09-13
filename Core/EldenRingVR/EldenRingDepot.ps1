@@ -273,7 +273,11 @@ function global:Backup-EldenRingSave {
         return $true
     } catch {
         Write-Warn "Could not move the save: $($_.Exception.Message)"
-        Write-Do "Run SWITCH_SAVE.bat after closing Elden Ring."
+        # This shared depot module is also loaded by the Hotbite entry point,
+        # which deliberately has no Write-Do helper.  Keep the original
+        # exception visible instead of replacing it with "Write-Do not
+        # recognized" in the recovery path.
+        Write-Warn "Run SWITCH_SAVE.bat after closing Elden Ring."
         return $false
     }
 }

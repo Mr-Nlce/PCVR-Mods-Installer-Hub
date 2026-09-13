@@ -13,9 +13,9 @@ The VR mod requires two components:
 
 - **Silent Hill 3 PC Fix by Steam006.** Its download page is opened when
   needed. Download the ZIP, return to setup and press Enter, or drag the
-  downloaded ZIP into the window. The Hub verifies the exact file and
+  downloaded ZIP into the window. The Hub checks the archive and
   handles the archive password.
-- **Zealot's Camera Mod.** The Hub downloads, verifies and installs v1.0
+- **Zealot's Camera Mod.** The Hub downloads, checks and installs v1.0
   automatically.
 
 The VR release itself auto-updates from the author's GitHub releases.
@@ -24,10 +24,10 @@ Existing files are backed up before replacement. Your `sh3vr.ini` and
 
 ## Starting it
 
-Connect your Quest through Virtual Desktop, then use **Start in VR** here
-or the **Silent Hill 3 VR** desktop shortcut. The current beta has only
-been validated with Meta Quest 3 through Virtual Desktop. SteamVR and
-other headsets are not supported yet.
+Start your chosen OpenXR runtime, then use **Start in VR** here or the
+**Silent Hill 3 VR** desktop shortcut. Beta 0.1.5 adds SteamVR support.
+Meta Quest 3 through Virtual Desktop remains the author's validated setup;
+other headsets and runtime combinations still need testing.
 
 Use the **Flat / VR** switch on this page whenever you want to start the
 original game without loading the VR layer.
@@ -55,7 +55,8 @@ while the game is running.
 
 Some models or textures may disappear in places. The intro environment,
 sewer reflections, shadows, blood and muzzle flashes can also render
-incorrectly. A complete playthrough has not yet been validated.
+incorrectly. Knife hit registration and the experimental noise-effect fix
+still need testing. A complete playthrough has not yet been validated.
 
 ## Removing it
 
@@ -77,4 +78,3 @@ https://github.com/zealottormunds/sh3cammod
 
 Silent Hill 3 and its VR modifications are community projects. They are
 not affiliated with or endorsed by Konami.
-

@@ -43,7 +43,7 @@ Quest Touch bindings. Other OpenXR controllers may map differently.
 ## Launching
 The VR build **only** starts through `Launch-KisakCOD-VR.bat`, which loads the settings and then runs `KisakCOD-sp.exe` with the console variables the mod needs. Starting the game from Steam does not start the VR build.
 
-Use **Start in VR** in the Hub or the desktop shortcut the installer creates - both point at that launcher. Start your OpenXR runtime before launching.
+Use **Start in VR** in the Hub or the desktop shortcut the installer creates - both point at that launcher. They do **not** reopen the configurator; they load your last saved profile and start the game immediately. Run `KisakCOD-VR-Configurator.exe` only for the first setup or whenever you want to change that profile, then use **Save & Launch** there. Start your OpenXR runtime before launching.
 
 ## If the game says d3dx9d_43.dll is missing
 This one is not your fault and not a broken install. The mod's binary links against `d3dx9d_43.dll` - the **debug** build of Microsoft's D3DX9 library (note the extra `d`). Microsoft does not put debug D3DX in the DirectX End-User Runtime and does not permit shipping it with a product, so no game, no DirectX installer and no Windows update ever places that file on your PC.
@@ -95,7 +95,7 @@ restart the game after editing the file by hand.
 
 `Launch-KisakCOD-VR-Diagnostics.bat` starts the same game with developer messages restored - useful when writing a bug report.
 
-## New in beta.14 and beta.15
+## Recent beta changes
 - **The legacy flat crosshair is gone in VR**, even on an older profile that kept
   `cg_drawCrosshair 1`. Mission Select artwork and text now use the same eye-local
   geometry, and the Quit dialogs are centred in both eyes.
@@ -113,6 +113,10 @@ restart the game after editing the file by hand.
   counters, a suppressed oversized in-headset error overlay, canonical 4:3 menus,
   and **yaw-only startup and recentring that rejects an unstable pose instead of
   inventing one**.
+- beta.16 fixes dog and corpse ground orientation, scripted flash/shellshock
+  frames, Ultimatum sky streaks, stopped tank tracks, mission-start crouching and
+  a weapon-related logging slowdown. It also adds calibrated two-hand aiming,
+  smaller HUD layouts down to 0.25 and a safer OpenVR control preset.
 
 **The author also ships a guided Windows Setup now.** The Hub keeps using the
 portable ZIP: both are built from the same deterministic payload, and the ZIP

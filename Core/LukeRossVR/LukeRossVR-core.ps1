@@ -19,7 +19,7 @@ $Host.UI.RawUI.WindowTitle = "Luke Ross R.E.A.L. VR Installer"
 $ErrorActionPreference = "Stop"
 
 $DOWNLOAD_URL = "https://www.patreon.com/file?h=152405468&m=708822249"
-$PATREON_URL = "https://www.patreon.com/posts/152405468"
+$PATREON_URL = "https://www.patreon.com/realvr/posts/how-to-setup-r-e-152405468"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 # The R.E.A.L. VR mod is ONE universal package that works for every Luke
 # Ross game, so once the user has supplied it we keep it centrally in the

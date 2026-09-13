@@ -41,6 +41,9 @@ subfolder.
 - WASD Movement and Toy Box are REQUIRED by RTVR; Servo-Skull Camera
   Controls is optional (3rd-person over-the-shoulder camera - RTVR
   builds on its camera work and they pair well)
+- For Toy Box choose the stable **ToyBox 1.7.34** main file. Nexus also
+  lists a separate 2.0 Beta rewrite, but RTVR does not currently confirm
+  compatibility with that branch, so the installer does not recommend it.
 
 ## Mod pages
 - RTVR: https://www.nexusmods.com/warhammer40kroguetrader/mods/518

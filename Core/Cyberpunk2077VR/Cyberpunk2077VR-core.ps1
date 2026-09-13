@@ -550,7 +550,8 @@ function Install-Component {
     $null = Invoke-SafeDownload -Urls $Urls -Destination $tmpZip -Label $Label `
                 -ManualUrl $ManualUrl `
                 -Instructions "Download $ManualName from the page that opened and drop it into the opened folder, then choose Retry." `
-                -SkipMessage "Skipped - $Label was NOT installed."
+                -SkipMessage "Skipped - $Label was NOT installed." `
+                -ExpectedSha256 $ExpectedSha
     if (-not (Test-Path $tmpZip)) { return $false }
 
     # A PUBLISHED HASH IS ONLY WORTH ANYTHING IF IT IS CHECKED. For a live

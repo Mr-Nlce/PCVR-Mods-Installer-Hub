@@ -2,10 +2,9 @@
 #  theHunter: Call of the Wild VR - by Vaas993
 # ------------------------------------------------------------
 #  A SIMPLE FLOW, BUT WITH TWO SPECIAL CASES:
-#  1. The mod brings its OWN settings program ("theHunterCotW VR
-#     Settings.exe"). Without one run of it nothing is configured -
-#     the author makes it step 5 of his own instructions. So we
-#     start it ourselves.
+#  1. The mod brings its OWN settings program under "VR Settings".
+#     The complete folder must stay together because the executable
+#     depends on its adjacent _internal Python runtime.
 #  2. It is built against GAME VERSION 9.2 and identifies the game
 #     by fingerprint. On a newer game build it does NOT start at
 #     all and does not guess either - that is the author's
@@ -14,6 +13,13 @@
 #  STEAM ONLY. Other editions are not supported.
 # ============================================================
 
+param(
+    [switch]$ElevatedCopy,
+    [string]$CopySource,
+    [string]$CopyDestination
+)
+
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
 $Host.UI.RawUI.WindowTitle = "theHunter Call of the Wild VR Installer"
@@ -32,9 +38,7 @@ function Write-Warn { param($m) Write-Host " [!] $m"  -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m"  -ForegroundColor Red }
 function Pause-User {
     param($text = "Press Enter to continue...")
-    Write-Host ""
-    Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow
-    Read-Host
+    [void](Wait-PCVRExplicitEnter -Message $text)
 }
 function Read-YesNo {
     param([string]$Prompt)
@@ -55,10 +59,53 @@ $MOD_AUTHOR  = "Vaas993"
 $REPO        = "vaas993/theHunterCotW-VR"
 $RELEASES    = "https://github.com/$REPO/releases"
 $SETTINGS_EXE = "theHunterCotW VR Settings.exe"
-# Taken in full from the author's uninstall list.
-$MOD_FILES   = @("cotwvr.dll", "XINPUT9_1_0.dll", "openxr_loader.dll",
-                 "nvngx_dlss.dll", "cotwvr.ini", "cotwvr_launcher.cfg",
-                 $SETTINGS_EXE)
+$SETTINGS_REL = "VR Settings\$SETTINGS_EXE"
+
+function Install-TheHunterPayload {
+    param(
+        [Parameter(Mandatory=$true)][string]$SourceRoot,
+        [Parameter(Mandatory=$true)][string]$DestinationRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $DestinationRoot -PathType Container)) {
+        New-Item -ItemType Directory -Path $DestinationRoot -Force -ErrorAction Stop | Out-Null
+    }
+
+    # These are exactly the mod-owned runtime items named by the author's
+    # uninstall instructions. Merge complete folders: copying only the
+    # settings EXE strands it without VR Settings\_internal\python*.dll.
+    foreach ($name in @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',
+                         'nvngx_dlss.dll','cotwvr.ini','cotwvr_launcher.cfg')) {
+        $source = Join-Path $SourceRoot $name
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { continue }
+        $target = Join-Path $DestinationRoot $name
+        if ($name -ieq 'cotwvr.ini' -and (Test-Path -LiteralPath $target -PathType Leaf)) { continue }
+        Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop
+        if ((Get-Item -LiteralPath $target -Force -ErrorAction Stop).Length -ne
+            (Get-Item -LiteralPath $source -Force -ErrorAction Stop).Length) {
+            throw "Verification failed after copying '$name'."
+        }
+    }
+    foreach ($name in @('VR Settings','cotwvr-nr')) {
+        $source = Join-Path $SourceRoot $name
+        if (Test-Path -LiteralPath $source -PathType Container) {
+            Copy-DirectoryTreeVerified -Source $source -Destination (Join-Path $DestinationRoot $name)
+        }
+    }
+}
+
+# The same script performs only the protected copy when Windows starts it
+# elevated. No second installer UI is shown in that helper process.
+if ($ElevatedCopy) {
+    try {
+        if (-not $CopySource -or -not $CopyDestination) { throw 'Elevated copy paths are missing.' }
+        Install-TheHunterPayload -SourceRoot $CopySource -DestinationRoot $CopyDestination
+        exit 0
+    } catch {
+        [Console]::Error.WriteLine($_.Exception.Message)
+        exit 1
+    }
+}
 
 # ---- Header ---------------------------------------------------
 Write-Host ""
@@ -150,7 +197,12 @@ try {
     $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     if (Test-IsPayloadRelease -Release $rel) {
-        $pick = Select-PayloadAsset -Assets $rel.assets -PlatformPattern '(?i)cotw|hunter' -MinBytes 100000
+        # The release also carries a much smaller Source archive. Select only
+        # the publisher's runtime package; never install a source bundle.
+        $pick = $rel.assets | Where-Object {
+            $_.name -match '(?i)^theHunterCotW-VR-v[^/]+\.zip$' -and
+            $_.name -notmatch '(?i)source'
+        } | Select-Object -First 1
         if ($pick -and $pick.browser_download_url) {
             $url = [string]$pick.browser_download_url
             $tag = [string]$rel.tag_name
@@ -158,7 +210,10 @@ try {
     }
     if ($url) { Write-OK "Release: $tag" }
 } catch { Write-Warn "GitHub could not be reached - trying the direct link." }
-if (-not $url) { $url = "https://github.com/$REPO/releases/latest/download/theHunterCotW-VR-v1.1.zip" }
+if (-not $url) {
+    $url = "https://github.com/vaas993/theHunterCotW-VR/releases/download/v1.3.1/theHunterCotW-VR-v1.3.1.zip"
+    $tag = 'v1.3.1'
+}
 
 Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "$MOD_NAME $tag" `
     -ManualUrl $RELEASES `
@@ -170,39 +225,69 @@ if (-not (Test-Path -LiteralPath $zip)) {
     exit 1
 }
 
-# ---- 3. Put the files in place --------------------------------
-Write-Step 4 5 "Copying the files next to $GAME_EXE"
+# ---- 4. Put the files in place --------------------------------
+Write-Step 4 5 "Extracting and copying the VR mod files"
+Write-Host ""
+Write-Host "  The VR mod archive will now be extracted and its files" -ForegroundColor White
+Write-Host "  copied into the game folder beside $GAME_EXE." -ForegroundColor White
+Write-Host "  Windows may show a UAC prompt for PowerShell so the Hub can" -ForegroundColor Yellow
+Write-Host "  write there. Approve it to complete the installation." -ForegroundColor Yellow
+Pause-User "Press Enter to extract and copy the VR mod files..." | Out-Null
 
 $ex = Join-Path $tmp "x"
 New-Item -ItemType Directory -Path $ex -Force | Out-Null
 [void](Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $MOD_NAME)
 
-# The files may sit flat or inside a wrapper folder - so search the
-# WHOLE tree for each name.
-$allFiles = @(Get-ChildItem -LiteralPath $ex -Recurse -File -Force -ErrorAction SilentlyContinue)
-if ($needsAdmin) {
-    Pause-User "Press Enter to copy the files into the game folder - UAC required..." | Out-Null
+# Allow one harmless wrapper folder, but require only files that are actually
+# needed to run the mod and its settings application. No historical size,
+# filename-version or content identity is used as a download gate.
+$payloadRoot = Get-ChildItem -LiteralPath $ex -Filter 'cotwvr.dll' -File -Recurse -ErrorAction SilentlyContinue |
+               ForEach-Object { $_.DirectoryName } |
+               Where-Object { Test-Path -LiteralPath (Join-Path $_ $SETTINGS_REL) -PathType Leaf } |
+               Select-Object -First 1
+if (-not $payloadRoot) {
+    Write-Fail "The extracted release does not contain the VR runtime and its complete settings folder."
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit."
+    exit 1
 }
-$sources = @(); $copyFailed = $false
-foreach ($f in $MOD_FILES) {
-    $hit = $allFiles | Where-Object { $_.Name -ieq $f } | Select-Object -First 1
-    if (-not $hit) { continue }
-    $sources += $hit.FullName
-    try { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $gameDir $f) -Force -ErrorAction Stop }
-    catch { $copyFailed = $true }
-}
-if ($copyFailed -and $sources.Count -gt 0) {
-    Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
-    $srcList = ($sources | ForEach-Object { "'" + $_ + "'" }) -join ","
-    $ps = "foreach (`$s in @($srcList)) { Copy-Item -LiteralPath `$s -Destination '$gameDir' -Force }"
-    try { Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop }
-    catch { Write-Warn "The elevated copy was declined or failed." }
+$settingsInternal = Join-Path $payloadRoot 'VR Settings\_internal'
+$pythonRuntime = Get-ChildItem -LiteralPath $settingsInternal -Filter 'python*.dll' -File -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+$sourceRequired = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL)
+$sourceMissing = @($sourceRequired | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payloadRoot $_) -PathType Leaf) })
+if (-not $pythonRuntime) { $sourceMissing += 'VR Settings\_internal\python*.dll' }
+if ($sourceMissing.Count -gt 0) {
+    Write-Fail "The publisher package is missing required runtime files:"
+    foreach ($m in $sourceMissing) { Write-Host "   $m" -ForegroundColor Yellow }
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit."
+    exit 1
 }
 
-# The three load-bearing files must be present. cotwvr.ini and
-# cotwvr_launcher.cfg are otherwise created on the first run of the
-# settings program, nvngx_dlss.dll only on NVIDIA cards.
-$core = @("cotwvr.dll", "XINPUT9_1_0.dll", "openxr_loader.dll", $SETTINGS_EXE)
+$preservedIni = Test-Path -LiteralPath (Join-Path $gameDir 'cotwvr.ini') -PathType Leaf
+$copyFailed = $needsAdmin
+if (-not $copyFailed) {
+    try { Install-TheHunterPayload -SourceRoot $payloadRoot -DestinationRoot $gameDir }
+    catch { $copyFailed = $true }
+}
+if ($copyFailed) {
+    Write-Warn "Copying into that folder needs administrator rights. Asking for them ..."
+    try {
+        $copyProcess = Start-Process powershell.exe -ArgumentList @(
+            '-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"",
+            '-ElevatedCopy','-CopySource',"`"$payloadRoot`"",
+            '-CopyDestination',"`"$gameDir`""
+        ) -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+        $copyFailed = ($copyProcess.ExitCode -ne 0)
+    } catch { $copyFailed = $true }
+    if ($copyFailed) { Write-Warn "The elevated copy was declined or failed." }
+}
+
+# The settings executable is not standalone. Its adjacent Python runtime is a
+# load-bearing part of the v1.3.1 layout and is verified at the destination.
+$pythonRelative = $pythonRuntime.FullName.Substring($payloadRoot.Length).TrimStart('\')
+$core = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL,$pythonRelative)
 $missing = @($core | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameDir $_)) })
 
 # BEFORE THE TEMP FOLDER GOES. A scanner usually sweeps a moment after
@@ -232,6 +317,7 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 Write-OK "Files are in place."
+if ($preservedIni) { Write-Info "Your existing cotwvr.ini settings were preserved." }
 
 # Marker for the Hub - into the INSTALLER folder, not the game.
 try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
@@ -245,7 +331,7 @@ if (Test-IsTrackableInstalledVersion -Version $tag) {
 # pending update. The game-side stamp survives that.
 Save-InstalledStamp -GameDir $gameDir -Version $tag
 
-# ---- 4. The mod's settings program ----------------------------
+# ---- 5. The mod's settings program ----------------------------
 Write-Step 5 5 "Setting it up"
 Write-Host ""
 Write-Host "  The mod brings its own settings program, and it has to run" -ForegroundColor White
@@ -256,9 +342,10 @@ Write-Host "   a) Field of View > Field of View given to the game: " -NoNewline 
 Write-Host " 90 " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
 Write-Host " (the game's maximum)" -ForegroundColor White
 Write-Host ""
-Write-Host "   b) Picture > Anti-aliasing: you can set it to " -NoNewline -ForegroundColor White
+Write-Host "   b) Picture > Anti-aliasing: try the available settings." -ForegroundColor White
+Write-Host "      If one causes a black screen, set it to " -NoNewline -ForegroundColor Yellow
 Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "      Other settings can cause a black screen." -ForegroundColor Yellow
+Write-Host "      The game will use its own DLSS instead." -ForegroundColor White
 Write-Host ""
 Write-Host "   c) Head tracking mode: " -NoNewline -ForegroundColor White
 Write-Host " 6-DoF " -ForegroundColor Black -BackgroundColor Yellow
@@ -269,9 +356,9 @@ Write-Host " Save " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
 Write-Host " and accept the notice regarding the config file." -ForegroundColor White
 Write-Host "      Afterwards close the launcher and press Enter." -ForegroundColor White
 Write-Host ""
-$settingsPath = Join-Path $gameDir $SETTINGS_EXE
+$settingsPath = Join-Path $gameDir $SETTINGS_REL
 if (Read-YesNo "  Open the settings program now?") {
-    try { Start-Process -FilePath $settingsPath -WorkingDirectory $gameDir }
+    try { Start-Process -FilePath $settingsPath -WorkingDirectory (Split-Path $settingsPath -Parent) }
     catch { Write-Warn "Could not start it: $($_.Exception.Message)" }
     # THE GATE SITS HERE SO THE FIVE POINTS ABOVE STAY ON SCREEN for
     # as long as the user needs them. Only after the Enter does the
@@ -305,7 +392,8 @@ Write-Host "  with a gamepad. A gamepad plays better than mouse and" -Foreground
 Write-Host "  keyboard here." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  BLACK IN THE HEADSET, GAME FINE ON THE MONITOR?" -ForegroundColor Yellow
-Write-Host "   1. In the mod settings: Picture > Anti-aliasing > Off" -ForegroundColor White
+Write-Host "   1. Try Picture > Anti-aliasing modes; if one causes this," -ForegroundColor White
+Write-Host "      set it to Off. The game will use its own DLSS instead." -ForegroundColor White
 Write-Host "   2. Turn HDR off in Windows: press Win+Alt+B" -ForegroundColor White
 Write-Host "      Windows 11: Settings > System > Display > Use HDR" -ForegroundColor Cyan
 Write-Host "      Windows 10: Settings > System > Display > Windows HD Color" -ForegroundColor Cyan

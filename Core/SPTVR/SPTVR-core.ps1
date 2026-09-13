@@ -49,8 +49,7 @@ $GITHUB_RELEASES    = "https://github.com/cybensis/SPT-VR/releases/latest"
 # comes back as a redirect - it costs nothing, because the list is
 # worked through in order.
 $SPT_INSTALLER_URLS = @(
-    "https://github.com/sp-tarkov/installer/releases/latest/download/SPTInstaller.exe",
-    "https://github.com/waffle-lord/spt-installer/releases/latest/download/SPTInstaller.exe"
+    "https://github.com/sp-tarkov/installer/releases/latest/download/SPTInstaller.exe"
 )
 $SPT_INSTALLER_PAGE = "https://hub.sp-tarkov.com/files/file/1963-spt-installer/"
 

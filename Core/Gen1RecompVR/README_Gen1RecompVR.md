@@ -36,10 +36,11 @@ the game folder; `%APPDATA%` points to your own Windows roaming profile.
 Two mods draw this game as a 3D voxel world. **Both still have VR**, and the
 installer lets you pick. Only one can be active at a time.
 
-**1. Dramatic Shape `v1.8.2` - the original, with everything in it.**
+**1. Dramatic Shape `v1.8.5` - the original, with everything in it.**
 Built-in first person, the battle and Stadium features, VR. This is the fullest
 version there is. It comes from a **mirror**, because the original repository may
-not stay up - so it is pinned to `v1.8.2` and never auto-updates.
+not stay up - so it is pinned to `v1.8.5`, the last mirrored release that still
+contains VR, and never auto-updates.
 
 **2. Dramaless `v1.6.4` - the slimmed-down fork.**
 Still has VR, but its author kept removing things. First person and the battle
@@ -50,8 +51,8 @@ features are among what went.
 > not shipped any more and the four VR source files went with it. The Hub
 > deliberately offers neither an update nor that version.
 
-Both need the port below `2.0.0`, so the port stays pinned at `v0.1.81` either
-way - the newest one that is still below that line.
+Both need the port below `2.0.0`, so the port stays pinned at `v0.2.56` either
+way - the current Windows release remains inside that compatibility range.
 
 ### Only one may be active
 Both mods install under `%APPDATA%\pokemon-love2d\mods\` with their own id - `DRAMATIC_SHAPE`

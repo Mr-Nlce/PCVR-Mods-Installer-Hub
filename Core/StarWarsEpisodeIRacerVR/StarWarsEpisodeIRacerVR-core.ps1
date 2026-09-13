@@ -56,7 +56,7 @@ function Get-LatestRacerRelease {
         $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
         $asset = @($release.assets | Where-Object { $_.name -match '(?i)^Star-Wars-Episode-I-Racer-PCVR-v.*\.zip$' } | Select-Object -First 1)[0]
         if (-not $asset) { return $null }
-        [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url; Digest=[string]$asset.digest; Body=[string]$release.body }
+        [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url; Body=[string]$release.body }
     } catch { return $null }
 }
 
@@ -135,7 +135,7 @@ Write-Host ""
 Write-Host " REQUIRED: a 32-bit OpenXR runtime." -ForegroundColor Yellow
 Write-Host " Virtual Desktop with VDXR works. SteamVR is 64-bit only and" -ForegroundColor Yellow
 Write-Host " cannot load this port. Connect the headset before launch." -ForegroundColor Yellow
-Show-AntivirusNotice
+Show-AntivirusNotice -Compact
 Pause-User "Press Enter to proceed with setup..." | Out-Null
 
 Write-Step 1 3 "Locating the game"
@@ -165,19 +165,8 @@ $installedTag = "v1.1"
 if ($release) {
     $installedTag = $release.Tag
     Write-Info "Newest release: $installedTag"
-    $downloaded = Invoke-SafeDownload -Urls @($release.Url) -Destination $zipPath -Label "$MOD_NAME $installedTag" -ManualUrl $RELEASES_URL
-    if ($downloaded -and $release.Digest -match '^sha256:([0-9a-fA-F]{64})$') {
-        $actual = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
-        if ($actual -ne $matches[1]) { throw "The downloaded archive does not match GitHub's SHA-256 digest." }
-    }
-}
-if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) {
-    $local = Find-PredownloadedFile -Patterns @("Star-Wars-Episode-I-Racer-PCVR-v1.1.zip") `
-        -ExpectedName "Star-Wars-Episode-I-Racer-PCVR-v1.1.zip" -ExpectedSize 3355298 `
-        -ExpectedSha256 "C25F1480CBB20A94687CBC707F09D372822023AF64006B245F7AB792F56E1534" `
-        -ExtraFolders @((Join-Path (Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent) "Archive Input\Neue Spiele")) `
-        -Label "Racer PCVR v1.1"
-    if ($local) { Copy-Item -LiteralPath $local -Destination $zipPath -Force }
+    $downloaded = Invoke-SafeDownload -Urls @($release.Url) -Destination $zipPath -Label "$MOD_NAME $installedTag" `
+        -ManualUrl $RELEASES_URL
 }
 while (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) {
     Write-Warn "Automatic download did not complete."

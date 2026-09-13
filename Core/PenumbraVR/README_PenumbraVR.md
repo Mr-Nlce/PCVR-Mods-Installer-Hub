@@ -6,11 +6,11 @@ There are two Penumbra VR mods, and the installer offers both.
 
 | | **simply-jos / newyork167** | **rubocopter (rework)** |
 |---|---|---|
-| State | the long-standing one | **early alpha** |
-| Hands | head and hand tracking | **per-finger animation** |
+| State | the long-standing one | **first stable release** |
+| Hands | head and hand tracking | **roomscale collision hands and per-finger animation** |
 | Installs into | a **copy** of the game under `C:\Games` | your **Steam** copy |
 | Your Steam files | untouched | replaced, with backups |
-| Undo | delete the copied folder | `Install-PenumbraVR.bat -Restore` |
+| Undo | delete the copied folder | the author's **Restore** mode |
 
 **They do not collide.** Both ship a file called `Penumbra_vr.exe`, but never in
 the same folder - the old mod works on its own copy of the game, the rework
@@ -18,6 +18,12 @@ merges into the Steam installation. You can have both, and which one you play is
 simply which copy you launch. Nothing has to be switched off.
 
 ### The rework, in short
+The stable rework adds collision-constrained roomscale hands, physical props and
+mechanisms, assisted inventory pickup, seated/standing and left/right-hand modes.
+It also bundles binaural audio and an **optional Enhanced visuals** mode with
+refined lighting and a reviewed texture selection. Enhanced visuals are off by
+default and switch live under **Options -> VR Settings -> Display**.
+
 Per-finger hand animation from the SteamVR skeletal input: on **PS VR2 Sense**,
 **Valve Index** and **Touch** controllers every finger follows its own measured
 curl. Devices without skeletal input get a synthesized closing sequence - pinky
@@ -35,7 +41,8 @@ and the WMR fallback have no per-finger input at all and get the synthesized
 sequence only.
 
 The rework backs up every file it replaces under `.penumbravr\backup` in the game
-folder and can put them all back with `Install-PenumbraVR.bat -Restore`.
+folder and can put them all back with the author's **Restore** mode. Its installer
+can also omit or remove only the texture selection with **Skip texture pack**.
 
 
 Adds head and hand tracking to **Penumbra: Overture**, the classic survival-horror game by Frictional Games. Built in the HTC Vive era; works with modern motion controllers through SteamVR bindings.

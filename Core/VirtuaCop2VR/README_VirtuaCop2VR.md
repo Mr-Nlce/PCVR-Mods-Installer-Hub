@@ -6,6 +6,10 @@ screen floating in a headset: the mod intercepts the game's own renderer,
 and re-renders it through OpenXR - with the original textures, lighting and sky.
 You can look around corners the flat game never showed you.
 
+The current beta expands that reconstruction to **360 degrees**, adds a
+revolver model with recoil/reload animation, corrected brightness and world
+scale, a world-fixed sky dome and sharper zoom-aware HUD rendering.
+
 Your motion controller is the light gun. **Where the laser points is where the
 game registers the hit**, at any zoom level.
 
@@ -92,14 +96,19 @@ programs it starts are:
 - [[Right Stick Click]] floating menu screen: auto / always / off
 - [[Right Grip]] / [[Left Grip]] recentre the view
 
+With **akimbo** enabled, the second controller is player 2. Press its [[A]] or
+[[X]] to join. A second person can then play on the monitor while you use the
+other controller in VR. The release ships with akimbo enabled; for the monitor
+crosshair keep `akimbo=1` in both ini files and `hidexhair=3` in `HGL_VIEW.ini`.
+
 The game's own cinematic zoom moments are mirrored in VR automatically. Menus,
 cutscenes and score screens appear on a floating screen you click with the laser.
 
 ## Settings
 | File | What is in it |
 |---|---|
-| `VC2VR.ini` (with the VR app) | `msaa`, `supersample`, `zoom` (magnification cap), `zoomspeed`, `autozoom`, `hidecross` (hide the flat crosshair sprite - the laser replaces it), `aimreach`, `focusgame` |
-| `HGL_VIEW.ini` (in `PROJECT`) | `units_per_metre` - **world scale**. Smaller if the world feels like a dollhouse, larger if everything is gigantic. Plus the capture and rendering keys. |
+| `VC2VR.ini` (with the VR app) | `msaa`, `supersample`, `zoom`, `zoomspeed`, `autozoom`, gun model and `akimbo` |
+| `HGL_VIEW.ini` (in `PROJECT`) | `units_per_metre` world scale, 360-degree capture, HUD, monitor window, `hidexhair` and `akimbo` |
 
 Both files are commented.
 

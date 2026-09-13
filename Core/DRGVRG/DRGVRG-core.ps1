@@ -180,15 +180,20 @@ try {
       "https://drive.google.com/uc?id=$CONFIG_ZIP_ID&export=download&confirm=t"
     )
     foreach ($dlUrl in $dlUrls) {
+        $downloadStage = Join-Path $tempDir ('.pcvr-drg-' + [Guid]::NewGuid().ToString('N') + '.zip')
         try {
-            Invoke-WebRequest -Uri $dlUrl -OutFile $configZip -WebSession $session -UseBasicParsing -ErrorAction Stop
-            if ((Test-Path $configZip) -and ((Get-Item $configZip).Length -gt 1000)) {
+            Invoke-WebRequest -Uri $dlUrl -OutFile $downloadStage -WebSession $session -UseBasicParsing -ErrorAction Stop
+            if ((Get-Item -LiteralPath $downloadStage).Length -gt 1000 -and (Test-DownloadedPayload -Path $downloadStage -IntendedPath $configZip)) {
+                Move-Item -LiteralPath $downloadStage -Destination $configZip -Force
                 Write-Host "OK" -ForegroundColor Green
                 $downloadOk = $true
                 break
             }
+            Write-Host "  source returned a web/login page or invalid ZIP - trying next..." -ForegroundColor Yellow
         } catch {
             Write-Host "  source failed - trying next..." -ForegroundColor Yellow
+        } finally {
+            if (Test-Path -LiteralPath $downloadStage) { Remove-Item -LiteralPath $downloadStage -Force -ErrorAction SilentlyContinue }
         }
     }
     if (-not $downloadOk) {

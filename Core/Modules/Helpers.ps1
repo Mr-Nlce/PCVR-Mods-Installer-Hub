@@ -3,6 +3,79 @@
 # -------------------------------------------------------
 $global:SCALE = 1.0
 
+# VRModHub loads HubState first. Keep Helpers independently loadable as well:
+# integration tests and maintenance scripts intentionally dot-source this file
+# without booting the WPF shell.
+if (-not (Get-Command Get-HubImageCacheRoot -ErrorAction SilentlyContinue)) {
+    $hubStateModule = Join-Path $PSScriptRoot 'HubState.ps1'
+    if (Test-Path -LiteralPath $hubStateModule -PathType Leaf) { . $hubStateModule }
+}
+
+# Fixed when this file is loaded, independent of whichever test/launcher later
+# calls a global helper. A global function must not rely on the caller's
+# $script:scriptDir: that variable belongs to a different script scope on some
+# PowerShell hosts (and disappeared entirely in Linux maintenance runs).
+$global:HubHelpersCoreRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
+
+# Provider-free path construction for Hub-side probes. Join-Path asks the
+# PowerShell provider to resolve a drive before a candidate is tested; that is
+# wrong for optional D:/E: locations and for Linux path-contract tests. Keep
+# this lightweight helper in the Hub itself instead of loading the much larger
+# installer-only safety module during startup.
+function global:Test-HubWindowsStylePathLexical {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    return ($Path -match '^[A-Za-z]:(?:[\\/]|$)' -or
+            $Path -match '^[\\/]{2}[^\\/]' -or
+            (-not $Path.StartsWith('/') -and $Path.Contains('\')))
+}
+
+function global:Join-HubPathLexical {
+    param(
+        [Parameter(Mandatory=$true)][string]$BasePath,
+        [Parameter(Mandatory=$true)][string]$ChildPath
+    )
+    if ([string]::IsNullOrWhiteSpace($BasePath)) { return $null }
+    if ([string]::IsNullOrWhiteSpace($ChildPath)) { return $BasePath }
+    $windowsStyle = Test-HubWindowsStylePathLexical $BasePath
+    if (-not $windowsStyle -and -not $BasePath.StartsWith('/') -and -not $BasePath.Contains('/')) {
+        $windowsStyle = ([IO.Path]::DirectorySeparatorChar -eq '\')
+    }
+    $separator = if ($windowsStyle) { '\' } else { '/' }
+    $base = if ($windowsStyle) { $BasePath.Replace('/', '\') } else { $BasePath.Replace('\', '/') }
+    $child = if ($windowsStyle) { $ChildPath.Replace('/', '\') } else { $ChildPath.Replace('\', '/') }
+    $child = $child.TrimStart([char[]]"\/")
+    $base = $base.TrimEnd([char[]]"\/")
+    if ($windowsStyle -and $base -match '^[A-Za-z]:$') { return ($base + '\' + $child) }
+    if (-not $windowsStyle -and [string]::IsNullOrEmpty($base) -and $BasePath.StartsWith('/')) { return ('/' + $child) }
+    if ([string]::IsNullOrEmpty($base)) { return $child }
+    return ($base + $separator + $child)
+}
+
+# Optional store locations come from registry values and launcher metadata that
+# can outlive the drive or folder they reference.  Resolve those candidates
+# lexically first: Join-Path asks the PowerShell provider to mount/resolve the
+# drive and therefore throws before Test-Path can reject a stale D:/E: entry.
+# Discovery evidence is best-effort, so malformed or inaccessible candidates
+# are a normal miss and must never abort the installed-games scan.
+function global:Get-HubExistingChildDirectory {
+    param(
+        [AllowNull()][object]$BasePath,
+        [Parameter(Mandatory=$true)][string]$ChildPath
+    )
+    if ($null -eq $BasePath) { return $null }
+    try {
+        $base = ([string]$BasePath).Trim().Trim('"')
+        if ([string]::IsNullOrWhiteSpace($base)) { return $null }
+        $base = [Environment]::ExpandEnvironmentVariables($base)
+        $candidate = Join-HubPathLexical -BasePath $base -ChildPath $ChildPath
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue)) {
+            return $candidate
+        }
+    } catch { }
+    return $null
+}
+
 # -------------------------------------------------------
 # Steam preview hover manager (singleton state).
 # When the user pauses on a card with a SteamId, the card
@@ -164,6 +237,128 @@ function global:Get-SteamPortraitUrlFastly {
     "https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/$SteamId/library_600x900.jpg"
 }
 
+# Steam discovery is shared by startup refreshes, the installed-game scan,
+# detail-page launching and the depot repair pass.  Those paths used to query
+# the same three registry keys independently with -ErrorAction Stop.  A missing
+# key is normal (32/64-bit and per-user installs differ), but throwing and
+# catching the exception is expensive and Start-Transcript still records every
+# TerminatingError.  On a machine where none of the keys is visible this was
+# repeated once per depot game while Explore was prewarming.
+#
+# Resolve the roots once per Hub process, never throw for an absent key, and
+# accept both registry value names Steam has used.  The default folders are a
+# final read-only fallback for valid installs without a usable registry value.
+$global:HubSteamPathCacheReady = $false
+$global:HubSteamPathCache = $null
+$global:HubSteamLibrariesCacheReady = $false
+$global:HubSteamLibrariesCache = @()
+
+# Registry discovery is optional evidence, never an exceptional condition.
+# Using the Registry provider here made an absent Steam/GOG key generate a
+# transcripted PowerShell error on some 5.1 hosts even with SilentlyContinue.
+# The .NET API simply returns $null and also lets us query the 32/64-bit views
+# explicitly instead of relying on the bitness of the Hub process.
+function global:Get-HubRegistryValueQuiet {
+    param(
+        [ValidateSet('LocalMachine','CurrentUser')] [string]$Hive,
+        [string]$SubKey,
+        [string]$Name,
+        [ValidateSet('Default','Registry32','Registry64')] [string]$View = 'Default'
+    )
+    if (-not $SubKey -or -not $Name -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { return $null }
+    $base = $null
+    $key = $null
+    try {
+        $hiveValue = [Microsoft.Win32.RegistryHive]([Enum]::Parse([Microsoft.Win32.RegistryHive], $Hive))
+        $viewValue = [Microsoft.Win32.RegistryView]([Enum]::Parse([Microsoft.Win32.RegistryView], $View))
+        $base = [Microsoft.Win32.RegistryKey]::OpenBaseKey($hiveValue, $viewValue)
+        $key = $base.OpenSubKey($SubKey, $false)
+        if (-not $key) { return $null }
+        $value = $key.GetValue($Name, $null, [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+        if ($null -eq $value) { return $null }
+        return [string]$value
+    } catch {
+        return $null
+    } finally {
+        if ($key) { $key.Dispose() }
+        if ($base) { $base.Dispose() }
+    }
+}
+
+function global:Get-HubSteamInstallPath {
+    param([switch]$Refresh)
+
+    if ($Refresh) {
+        $global:HubSteamPathCacheReady = $false
+        $global:HubSteamPathCache = $null
+        $global:HubSteamLibrariesCacheReady = $false
+        $global:HubSteamLibrariesCache = @()
+    }
+    if ($global:HubSteamPathCacheReady) { return $global:HubSteamPathCache }
+
+    $global:HubSteamPathCacheReady = $true
+    $candidates = @()
+    foreach ($probe in @(
+        @{ Hive='LocalMachine'; View='Registry64'; Sub='SOFTWARE\Valve\Steam' },
+        @{ Hive='LocalMachine'; View='Registry32'; Sub='SOFTWARE\Valve\Steam' },
+        @{ Hive='LocalMachine'; View='Registry64'; Sub='SOFTWARE\WOW6432Node\Valve\Steam' },
+        @{ Hive='CurrentUser';  View='Default';    Sub='SOFTWARE\Valve\Steam' }
+    )) {
+        foreach ($name in @('InstallPath','SteamPath')) {
+            $value = Get-HubRegistryValueQuiet -Hive $probe.Hive -View $probe.View -SubKey $probe.Sub -Name $name
+            if (-not [string]::IsNullOrWhiteSpace([string]$value)) {
+                $candidates += ([string]$value -replace '/', '\')
+            }
+        }
+    }
+    foreach ($fallback in @(
+        "${env:ProgramFiles(x86)}\Steam",
+        "${env:ProgramFiles}\Steam"
+    )) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$fallback)) { $candidates += $fallback }
+    }
+
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        try {
+            if (Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) {
+                $global:HubSteamPathCache = $candidate
+                return $candidate
+            }
+        } catch { }
+    }
+    return $null
+}
+
+function global:Get-HubSteamLibraries {
+    param([switch]$Refresh)
+
+    if ($Refresh) {
+        [void](Get-HubSteamInstallPath -Refresh)
+    }
+    if ($global:HubSteamLibrariesCacheReady) { return @($global:HubSteamLibrariesCache) }
+
+    $global:HubSteamLibrariesCacheReady = $true
+    $libraries = @()
+    $steamPath = Get-HubSteamInstallPath
+    if ($steamPath) {
+        $libraries += $steamPath
+        $vdf = Join-Path $steamPath 'steamapps\libraryfolders.vdf'
+        try {
+            if (Test-Path -LiteralPath $vdf -PathType Leaf -ErrorAction SilentlyContinue) {
+                $content = Get-Content -LiteralPath $vdf -Raw -ErrorAction SilentlyContinue
+                foreach ($match in [regex]::Matches([string]$content, '"path"\s+"([^"]+)"')) {
+                    $library = $match.Groups[1].Value -replace '\\\\', '\'
+                    if (Test-Path -LiteralPath $library -PathType Container -ErrorAction SilentlyContinue) {
+                        $libraries += $library
+                    }
+                }
+            }
+        } catch { }
+    }
+    $global:HubSteamLibrariesCache = @($libraries | Select-Object -Unique)
+    return @($global:HubSteamLibrariesCache)
+}
+
 # Per-process caches so opening the same detail page twice doesn't
 # refetch. Description and screenshot are both populated by the
 # same /appdetails fetch so we cache both side-by-side.
@@ -171,15 +366,15 @@ if (-not $global:SteamDescCache) { $global:SteamDescCache = @{} }
 if (-not $global:SteamScreenshotCache) { $global:SteamScreenshotCache = @{} }
 
 # Load the persisted Steam store info (short description + screenshot
-# URL) from Assets\cache\steam_info.json into the in-memory caches, so
+# URL) from the LocalAppData image cache into the in-memory caches, so
 # we never re-hit the /appdetails API for an app we've already seen.
 # Path is built directly from $script:scriptDir so this is independent
 # of when the cache-dir helpers load. Silent + best-effort: a missing
 # or malformed file just leaves the caches empty (first-run behaviour).
 function global:Import-SteamInfoCache {
-    $base = if ($global:scriptDir) { $global:scriptDir } else { $script:scriptDir }
+    $base = Get-HubImageCacheRoot
     if (-not $base) { return }
-    $file = Join-Path $base "Assets\cache\steam_info.json"
+    $file = Join-Path $base "steam_info.json"
     if (-not (Test-Path $file)) { return }
     try {
         $raw = Get-Content $file -Raw -ErrorAction Stop
@@ -203,7 +398,7 @@ function global:Import-SteamInfoCache {
 Import-SteamInfoCache
 
 # The background warm runs in its OWN runspace and writes
-# Assets\cache\steam_info.json as it goes. The UI process never saw any
+# the LocalAppData steam_info.json as it goes. The UI process never saw any
 # of it, because Import-SteamInfoCache runs exactly once at module load -
 # so descriptions fetched during a session only showed up after a
 # restart. This re-imports, but only when the file has actually changed.
@@ -216,9 +411,9 @@ Import-SteamInfoCache
 # $null (nothing known yet) must be replaced once the file has a real
 # description for it. A null in the file never overwrites a real value.
 function global:Sync-SteamInfoCache {
-    $base = if ($global:scriptDir) { $global:scriptDir } else { $script:scriptDir }
+    $base = Get-HubImageCacheRoot
     if (-not $base) { return }
-    $file = Join-Path $base "Assets\cache\steam_info.json"
+    $file = Join-Path $base "steam_info.json"
     try {
         if (-not (Test-Path -LiteralPath $file)) { return }
         $stamp = (Get-Item -LiteralPath $file).LastWriteTimeUtc
@@ -271,19 +466,13 @@ function global:Get-CachedBitmap {
 # Steam header/portrait art is downloaded at display time. First-load
 # network races sometimes leave a banner blank (it's there after a
 # restart, served from the HTTP cache). To make that permanent: the
-# first time art loads OK we save it to Assets\cache\, and later runs
+# first time art loads OK we save it to LocalAppData, and later runs
 # load the local file synchronously - no network, no race. The cache
 # folder is SEPARATE from any manually-bundled Assets\*.jpg so we never
 # touch hand-placed art (games with no Steam page). All four functions
 # are global so they're visible from background/delegate contexts.
 function global:Get-ImageCacheDir {
-    $base = if ($global:scriptDir) { $global:scriptDir } else { $script:scriptDir }
-    if (-not $base) { return $null }
-    $dir = Join-Path $base "Assets\cache"
-    if (-not (Test-Path $dir)) {
-        try { New-Item -ItemType Directory -Path $dir -Force | Out-Null } catch { }
-    }
-    return $dir
+    return (Get-HubImageCacheRoot)
 }
 
 # Stable per-game/per-kind cache file path. Keyed on SteamId so it
@@ -309,6 +498,28 @@ function global:Get-YtThumbCachePath {
     return (Join-Path $dir "yt_${safe}.jpg")
 }
 
+# Build a real absolute file URI on every supported host. Casting a plain Unix
+# path through [Uri] is host-dependent: some .NET/PowerShell combinations keep
+# it relative and therefore return an empty AbsoluteUri. UriBuilder makes both
+# C:\... and /tmp/... explicit file addresses and safely escapes spaces.
+function global:ConvertTo-HubFileUri {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+    try {
+        # Keep an already absolute Unix path intact even when this contract is
+        # regression-tested from Windows; real Windows inputs carry a drive or
+        # UNC prefix and still go through GetFullPath below.
+        $fullPath = if ($Path.StartsWith('/')) { $Path } else { [IO.Path]::GetFullPath($Path) }
+        $builder = [UriBuilder]::new()
+        $builder.Scheme = [Uri]::UriSchemeFile
+        $builder.Host = ''
+        $builder.Path = $fullPath.Replace('\', '/')
+        return $builder.Uri.AbsoluteUri
+    } catch {
+        return $null
+    }
+}
+
 # If a non-empty cached file exists, return its file:// URI; else $null.
 function global:Get-CachedImageUri {
     param([string]$SteamId, [string]$Kind)
@@ -316,7 +527,7 @@ function global:Get-CachedImageUri {
     if ($p -and (Test-Path $p)) {
         try {
             if ((Get-Item $p).Length -gt 0) {
-                return ([System.Uri]$p).AbsoluteUri
+                return (ConvertTo-HubFileUri -Path $p)
             }
         } catch { }
     }
@@ -382,6 +593,10 @@ function global:Save-ImageToCache {
 # scriptblock on a foreign thread; here there is no such handler.
 function global:Start-ImageCacheWarm {
     param([object[]]$Games)
+    # Deterministic offline UI labs render from their shipped/local assets and
+    # must never start hundreds of unrelated network requests in the middle of
+    # a timing run. Production never sets this switch.
+    if ($global:HubDisableImageWarm) { return }
     if (-not $Games -or $Games.Count -eq 0) { return }
     $cacheDir = Get-ImageCacheDir
     if (-not $cacheDir) { return }
@@ -394,7 +609,7 @@ function global:Start-ImageCacheWarm {
         foreach ($kind in @("header", "portrait")) {
             $dest = Get-ImageCachePath -SteamId $sid -Kind $kind
             if (-not $dest) { continue }
-            if (Test-Path $dest) { continue }   # already cached
+            if ([System.IO.File]::Exists($dest)) { continue }   # already cached
             if ($kind -eq "header") {
                 $urls = @(
                     (Get-SteamHeaderUrl $sid),
@@ -420,7 +635,7 @@ function global:Start-ImageCacheWarm {
         if (-not $vid) { continue }
         $dest = Get-YtThumbCachePath -Id $vid
         if (-not $dest) { continue }
-        if (Test-Path $dest) { continue }
+        if ([System.IO.File]::Exists($dest)) { continue }
         $urls = @(
             "https://img.youtube.com/vi/$vid/mqdefault.jpg",
             "https://i.ytimg.com/vi/$vid/mqdefault.jpg",
@@ -446,6 +661,7 @@ function global:Start-ImageCacheWarm {
     $infoJsonPath = Join-Path $cacheDir "steam_info.json"
 
     if ($work.Count -eq 0 -and $infoIds.Count -eq 0) { return }
+    Write-Host ("[ImageWarm] queued {0} image(s) and {1} Steam info record(s)." -f $work.Count, $infoIds.Count)
 
     # The runspace script: pure data in, files out. No host scope.
     $script = {
@@ -459,20 +675,26 @@ function global:Start-ImageCacheWarm {
         foreach ($it in $items) {
             $dest = $it.Dest
             $tmp  = "$dest.tmp"
-            if (Test-Path $dest) { continue }
+            # This isolated runspace deliberately stays on System.IO for file
+            # work. Loading the PowerShell Management module here can collide
+            # with host type data and used to emit hundreds of Import-Module
+            # errors while the installed-games scan was running.
+            if ([System.IO.File]::Exists($dest)) { continue }
             foreach ($u in $it.Urls) {
                 try {
-                    $wc = New-Object System.Net.WebClient
+                    $wc = [System.Net.WebClient]::new()
                     $wc.DownloadFile($u, $tmp)
                     $wc.Dispose()
-                    if ((Test-Path $tmp) -and ((Get-Item $tmp).Length -gt 0)) {
-                        Move-Item -Path $tmp -Destination $dest -Force
+                    $tmpInfo = [System.IO.FileInfo]::new($tmp)
+                    if ($tmpInfo.Exists -and $tmpInfo.Length -gt 0) {
+                        if ([System.IO.File]::Exists($dest)) { [System.IO.File]::Delete($dest) }
+                        [System.IO.File]::Move($tmp, $dest)
                         break
                     } else {
-                        Remove-Item $tmp -ErrorAction SilentlyContinue
+                        if ([System.IO.File]::Exists($tmp)) { [System.IO.File]::Delete($tmp) }
                     }
                 } catch {
-                    try { Remove-Item $tmp -ErrorAction SilentlyContinue } catch { }
+                    try { if ([System.IO.File]::Exists($tmp)) { [System.IO.File]::Delete($tmp) } } catch { }
                 }
             }
         }
@@ -485,9 +707,9 @@ function global:Start-ImageCacheWarm {
         if ($infoIds -and $infoIds.Count -gt 0 -and $infoJsonPath) {
             $cacheDir = [System.IO.Path]::GetDirectoryName($infoJsonPath)
             $store = @{}
-            if (Test-Path $infoJsonPath) {
+            if ([System.IO.File]::Exists($infoJsonPath)) {
                 try {
-                    $existing = (Get-Content $infoJsonPath -Raw) | ConvertFrom-Json
+                    $existing = ([System.IO.File]::ReadAllText($infoJsonPath)) | ConvertFrom-Json
                     foreach ($p in $existing.PSObject.Properties) {
                         $t = 0
                         if ($p.Value.tries) { $t = [int]$p.Value.tries }
@@ -535,20 +757,22 @@ function global:Start-ImageCacheWarm {
                 # description panel image works offline next launch.
                 if ($s -and $cacheDir) {
                     try {
-                        $shotDest = Join-Path $cacheDir "steam_${sid}_screenshot.jpg"
-                        if (-not (Test-Path $shotDest)) {
+                        $shotDest = [System.IO.Path]::Combine($cacheDir, "steam_${sid}_screenshot.jpg")
+                        if (-not [System.IO.File]::Exists($shotDest)) {
                             $shotTmp = "$shotDest.tmp"
-                            $swc = New-Object System.Net.WebClient
+                            $swc = [System.Net.WebClient]::new()
                             $swc.DownloadFile($s, $shotTmp)
                             $swc.Dispose()
-                            if ((Test-Path $shotTmp) -and ((Get-Item $shotTmp).Length -gt 0)) {
-                                Move-Item -Path $shotTmp -Destination $shotDest -Force
+                            $shotTmpInfo = [System.IO.FileInfo]::new($shotTmp)
+                            if ($shotTmpInfo.Exists -and $shotTmpInfo.Length -gt 0) {
+                                if ([System.IO.File]::Exists($shotDest)) { [System.IO.File]::Delete($shotDest) }
+                                [System.IO.File]::Move($shotTmp, $shotDest)
                             } else {
-                                Remove-Item $shotTmp -ErrorAction SilentlyContinue
+                                if ([System.IO.File]::Exists($shotTmp)) { [System.IO.File]::Delete($shotTmp) }
                             }
                         }
                     } catch {
-                        try { Remove-Item $shotTmp -ErrorAction SilentlyContinue } catch { }
+                        try { if ($shotTmp -and [System.IO.File]::Exists($shotTmp)) { [System.IO.File]::Delete($shotTmp) } } catch { }
                     }
                 }
                 $prevTries = 0
@@ -574,23 +798,25 @@ function global:Start-ImageCacheWarm {
                 if (($flushCount % 10) -eq 0) {
                     try {
                         $tmpJson = "$infoJsonPath.tmp"
-                        ($store | ConvertTo-Json -Depth 4 -Compress) |
-                            Set-Content -Path $tmpJson -Encoding UTF8
-                        Move-Item -Path $tmpJson -Destination $infoJsonPath -Force
+                        $jsonText = ($store | ConvertTo-Json -Depth 4 -Compress)
+                        [System.IO.File]::WriteAllText($tmpJson, $jsonText, [System.Text.UTF8Encoding]::new($false))
+                        if ([System.IO.File]::Exists($infoJsonPath)) { [System.IO.File]::Delete($infoJsonPath) }
+                        [System.IO.File]::Move($tmpJson, $infoJsonPath)
                     } catch { }
                 }
                 if ($hit429) {
-                    Start-Sleep -Milliseconds 5000   # back off hard, yield to user clicks
+                    [System.Threading.Thread]::Sleep(5000)   # back off hard, yield to user clicks
                 } else {
-                    Start-Sleep -Milliseconds 600    # gentle steady pace
+                    [System.Threading.Thread]::Sleep(600)    # gentle steady pace
                 }
             }
             if ($changed) {
                 try {
                     $tmpJson = "$infoJsonPath.tmp"
-                    ($store | ConvertTo-Json -Depth 4 -Compress) |
-                        Set-Content -Path $tmpJson -Encoding UTF8
-                    Move-Item -Path $tmpJson -Destination $infoJsonPath -Force
+                    $jsonText = ($store | ConvertTo-Json -Depth 4 -Compress)
+                    [System.IO.File]::WriteAllText($tmpJson, $jsonText, [System.Text.UTF8Encoding]::new($false))
+                    if ([System.IO.File]::Exists($infoJsonPath)) { [System.IO.File]::Delete($infoJsonPath) }
+                    [System.IO.File]::Move($tmpJson, $infoJsonPath)
                 } catch { }
             }
         }
@@ -607,70 +833,102 @@ function global:Start-ImageCacheWarm {
     } catch { }
 }
 
-# Internal helper: do a single /appdetails fetch and seed both
-# caches. Idempotent. IMPORTANT: distinguishes a genuine "no data"
-# (Steam says success=false -> cache null, don't refetch) from a
-# TRANSIENT failure (429 rate-limit while the background warm is
-# hammering Steam, timeout, network blip -> do NOT cache, so the
-# next time the user opens this game it tries again). Caching a
-# transient failure as null was why some games stayed blank even
-# after reconnecting.
+# Start one targeted Steam app-details request without ever blocking the WPF
+# thread. HttpClient performs the network work on its task scheduler; a small
+# DispatcherTimer merely observes completion and invokes the callbacks on the
+# UI thread. This avoids the old up-to-four-second pause when an uncached game
+# detail page was opened. The regular background warm still persists the same
+# data to disk; this request only gives the page that the user actually opened
+# priority in the current session.
+function global:Start-SteamDetailInfoFetch {
+    param([string]$SteamId, [scriptblock]$Completed)
+    if (-not $SteamId) { return }
+
+    Sync-SteamInfoCache
+    if ($global:SteamDescCache.ContainsKey($SteamId)) {
+        if ($Completed) {
+            & $Completed $global:SteamDescCache[$SteamId] $global:SteamScreenshotCache[$SteamId] $false
+        }
+        return
+    }
+    if ($global:SteamFetchDownUntil -and ([DateTime]::UtcNow -lt $global:SteamFetchDownUntil)) {
+        if ($Completed) { & $Completed $null $null $true }
+        return
+    }
+
+    if (-not $global:SteamDetailFetches) { $global:SteamDetailFetches = @{} }
+    if ($global:SteamDetailFetches.ContainsKey($SteamId)) {
+        if ($Completed) { [void]$global:SteamDetailFetches[$SteamId].Callbacks.Add($Completed) }
+        return
+    }
+
+    try {
+        Add-Type -AssemblyName System.Net.Http -ErrorAction SilentlyContinue
+        $client = New-Object System.Net.Http.HttpClient
+        $client.Timeout = [TimeSpan]::FromSeconds(4)
+        $url = "https://store.steampowered.com/api/appdetails?appids=$SteamId&l=english"
+        $callbacks = New-Object System.Collections.ArrayList
+        if ($Completed) { [void]$callbacks.Add($Completed) }
+        $state = [pscustomobject]@{
+            Client    = $client
+            Task      = $client.GetStringAsync($url)
+            Timer     = $null
+            Callbacks = $callbacks
+        }
+        $timer = New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval = [TimeSpan]::FromMilliseconds(100)
+        $state.Timer = $timer
+        $global:SteamDetailFetches[$SteamId] = $state
+        $sidCap = $SteamId
+        $timer.Add_Tick({
+            $current = $global:SteamDetailFetches[$sidCap]
+            if (-not $current -or -not $current.Task.IsCompleted) { return }
+            $current.Timer.Stop()
+            $desc = $null
+            $shot = $null
+            $failed = $false
+            try {
+                $json = $current.Task.GetAwaiter().GetResult()
+                $resp = $json | ConvertFrom-Json
+                $entry = $resp.$sidCap
+                if ($entry -and $entry.success -and $entry.data) {
+                    if ($entry.data.short_description) {
+                        $desc = [System.Net.WebUtility]::HtmlDecode([string]$entry.data.short_description)
+                    }
+                    if ($entry.data.screenshots -and $entry.data.screenshots.Count -gt 0) {
+                        $shot = [string]$entry.data.screenshots[0].path_thumbnail
+                    }
+                    $global:SteamDescCache[$sidCap] = $desc
+                    $global:SteamScreenshotCache[$sidCap] = $shot
+                } else {
+                    # A valid Steam response with success=false is stable data,
+                    # unlike a timeout. Remember it so repeated opens stay fast.
+                    $global:SteamDescCache[$sidCap] = $null
+                    $global:SteamScreenshotCache[$sidCap] = $null
+                }
+            } catch {
+                $failed = $true
+                $global:SteamFetchDownUntil = [DateTime]::UtcNow.AddSeconds(60)
+            }
+            foreach ($callback in @($current.Callbacks)) {
+                try { & $callback $desc $shot $failed } catch { }
+            }
+            try { $current.Client.Dispose() } catch { }
+            try { $global:SteamDetailFetches.Remove($sidCap) } catch { }
+        }.GetNewClosure())
+        $timer.Start()
+    } catch {
+        try { if ($client) { $client.Dispose() } } catch { }
+        $global:SteamFetchDownUntil = [DateTime]::UtcNow.AddSeconds(60)
+        if ($Completed) { & $Completed $null $null $true }
+    }
+}
+
+# Compatibility wrapper for older callers. The name is retained, but the
+# operation is now asynchronous and therefore safe to call from WPF events.
 function global:_Steam-FetchAppDetails {
     param([string]$SteamId)
-    if (-not $SteamId) { return }
-    if ($global:SteamDescCache.ContainsKey($SteamId)) { return }
-    # This fetch runs SYNCHRONOUSLY on the UI thread when a detail page
-    # opens before the background warm has cached this id. Two guards keep
-    # a dead network from freezing every page open:
-    #   1. Respect the scan-wide circuit breaker - if online checks already
-    #      failed this scan, don't try Steam either.
-    #   2. Steam-wide cooldown - after ONE transient failure, skip all
-    #      Steam detail fetches for 60s. Worst case is a single 4s wait
-    #      per minute across ALL detail pages (instead of 2x4s per page).
-    # Skipped pages simply show no description/screenshot yet; the
-    # background warm (or a later open) fills them in - shown later, never
-    # frozen now.
-    # NOT gated by $global:HubScanOnlineDown any more. That flag belongs
-    # to the SCAN's version probes and, once a single GitHub/web check
-    # failed, it stayed set for the WHOLE session - which silently killed
-    # the store fetch for EVERY game until the Hub was restarted. Steam
-    # has its own, self-healing breaker right below: one transient Steam
-    # failure arms a 60s cooldown, and that is the correct scope.
-    if ($global:SteamFetchDownUntil -and ([DateTime]::UtcNow -lt $global:SteamFetchDownUntil)) { return }
-    # Pick up whatever the background warm has written since this process
-    # started - otherwise its results only appear after a restart.
-    Sync-SteamInfoCache
-    try {
-        $url = "https://store.steampowered.com/api/appdetails?appids=$SteamId&l=english"
-        $resp = Invoke-RestMethod -Uri $url -TimeoutSec 4 -ErrorAction Stop
-        $entry = $resp.$SteamId
-        if ($entry -and $entry.success -and $entry.data) {
-            $data = $entry.data
-            $desc = $null
-            if ($data.short_description) {
-                $desc = [System.Net.WebUtility]::HtmlDecode($data.short_description)
-            }
-            $global:SteamDescCache[$SteamId] = $desc
-            $shotUrl = $null
-            if ($data.screenshots -and $data.screenshots.Count -gt 0) {
-                # First screenshot tends to be representative
-                $shotUrl = $data.screenshots[0].path_thumbnail
-            }
-            $global:SteamScreenshotCache[$SteamId] = $shotUrl
-        } else {
-            # Steam responded but reports no usable data for this app
-            # (private depot, delisted, etc.) - cache null so we don't
-            # keep asking for something that genuinely has nothing.
-            $global:SteamDescCache[$SteamId] = $null
-            $global:SteamScreenshotCache[$SteamId] = $null
-        }
-    } catch {
-        # Transient failure (429/timeout/network). Do NOT cache the id -
-        # leave the entry absent so a later open retries once Steam
-        # recovers - but arm the 60s cooldown so the very next page open
-        # doesn't eat another synchronous timeout on the UI thread.
-        $global:SteamFetchDownUntil = [DateTime]::UtcNow.AddSeconds(60)
-    }
+    Start-SteamDetailInfoFetch -SteamId $SteamId
 }
 
 # True if the free DOS Daggerfall (Steam app 1812390) is present on disk -
@@ -681,44 +939,31 @@ function global:_Steam-FetchAppDetails {
 # the normal install-state scan (which looks at the mod folder) never sees
 # the base game.
 function global:Test-DosDaggerfallOnDisk {
-    $steam = $null
-    foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
-        try { $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { $steam = $p; break } } catch {}
-    }
-    if (-not $steam) { return $false }
-    $libs = @($steam)
-    $vdf = Join-Path $steam "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdf) {
-        try {
-            $content = Get-Content $vdf -Raw
-            foreach ($m in [regex]::Matches($content, '"path"\s+"([^"]+)"')) {
-                $p = $m.Groups[1].Value -replace '\\\\', '\'
-                if (Test-Path $p) { $libs += $p }
-            }
-        } catch {}
-    }
-    foreach ($lib in ($libs | Select-Object -Unique)) {
+    $libs = @(Get-HubSteamLibraries)
+    if ($libs.Count -eq 0) { return $false }
+    foreach ($lib in $libs) {
         if (Test-Path (Join-Path $lib "steamapps\appmanifest_1812390.acf")) { return $true }
         if (Test-Path (Join-Path $lib "steamapps\common\The Elder Scrolls Daggerfall\DF\DAGGER\DAGGER.exe")) { return $true }
     }
     return $false
 }
 
-# Fetch the short Steam store description for an app id. Returns
-# $null if no SteamId or the request fails.
+# Return a cached Steam store description. This accessor is deliberately
+# cache-only: opening a page must never perform network I/O on the UI thread.
 function global:Get-SteamShortDescription {
     param([string]$SteamId)
     if (-not $SteamId) { return $null }
-    _Steam-FetchAppDetails -SteamId $SteamId
+    Sync-SteamInfoCache
     return $global:SteamDescCache[$SteamId]
 }
 
-# Fetch a representative screenshot URL (the first one Steam
-# returns) for the given app id. Returns $null if unavailable.
+# Return a cached representative screenshot URL. A missing value falls back
+# to the already-visible header image in the detail view while the targeted
+# background request runs.
 function global:Get-SteamScreenshot {
     param([string]$SteamId)
     if (-not $SteamId) { return $null }
-    _Steam-FetchAppDetails -SteamId $SteamId
+    Sync-SteamInfoCache
     return $global:SteamScreenshotCache[$SteamId]
 }
 
@@ -727,8 +972,9 @@ function global:Get-SteamScreenshot {
 #   1. PortraitUrl / HeaderUrl on the game definition (manual override)
 #   2. Steam default if SteamId set
 #   3. $null - caller must handle (fall back to title placeholder)
-# A LocalImage path resolves to a file:// URI rooted at $script:scriptDir,
-# letting us bundle hub-side artwork (e.g. for tools that have no Steam page).
+# A local image path resolves to a file:// URI rooted at the Core folder that
+# loaded Helpers.ps1, letting us bundle artwork without depending on mutable
+# caller scope such as $script:scriptDir.
 function global:Get-GameImageUrl {
     param($Game, [string]$Kind)  # Kind: "portrait" | "header"
     $override = $null
@@ -740,9 +986,9 @@ function global:Get-GameImageUrl {
     if ($override) {
         if ($override -match '^https?://') { return $override }
         # Relative path: resolve against script root and convert to file:// URI
-        $abs = Join-Path $script:scriptDir $override
+        $abs = Join-Path $global:HubHelpersCoreRoot $override
         if (Test-Path $abs) {
-            return ([System.Uri]$abs).AbsoluteUri
+            return (ConvertTo-HubFileUri -Path $abs)
         }
         # Fall through if file missing - try Steam next
     }
@@ -793,6 +1039,61 @@ function global:End-CardPreview {
     }
 }
 
+# Build the hidden preview surface only when a deliberate card hover actually
+# requests it. Constructing an Image, two Grids, a clipping geometry and the
+# fade overlay for every catalog entry added about a second to every Hub start,
+# even though most of those surfaces were never shown. The card already keeps
+# all preview metadata, so this changes no lookup, search or sorting behavior.
+function global:Ensure-CardPreviewVisual {
+    param($Card)
+    if (-not $Card) { return $null }
+    $existing = $Card.Resources.Item("previewHost")
+    if ($existing) { return $existing }
+    $overlay = $Card.Child
+    if (-not ($overlay -is [System.Windows.Controls.Grid])) { return $null }
+    $sc = $Card.Resources.Item("cardScale")
+    if (-not $sc) { $sc = 1.0 }
+
+    $previewHost = [System.Windows.Controls.Grid]::new()
+    $previewHost.Visibility = [System.Windows.Visibility]::Collapsed
+    $previewHost.VerticalAlignment   = [System.Windows.VerticalAlignment]::Top
+    $previewHost.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+    $previewHost.Height = [int](80 * $sc)
+    $clip = [System.Windows.Media.RectangleGeometry]::new()
+    $clip.Rect = [System.Windows.Rect]::new(0, 0, ([int](175*$sc)), ([int](80*$sc)))
+    $clip.RadiusX = [int](7*$sc)
+    $clip.RadiusY = [int](7*$sc)
+    $previewHost.Clip = $clip
+
+    $previewImage = [System.Windows.Controls.Image]::new()
+    $previewImage.Stretch = [System.Windows.Media.Stretch]::UniformToFill
+    [void]$previewHost.Children.Add($previewImage)
+    $previewMediaHost = [System.Windows.Controls.Grid]::new()
+    [void]$previewHost.Children.Add($previewMediaHost)
+
+    $fadeBottom = [System.Windows.Shapes.Rectangle]::new()
+    $fadeBottom.Height = [int](18*$sc)
+    $fadeBottom.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
+    if (-not $global:CardPreviewFadeBrush) {
+        $fadeGrad = [System.Windows.Media.LinearGradientBrush]::new()
+        $fadeGrad.StartPoint = [System.Windows.Point]::new(0, 0)
+        $fadeGrad.EndPoint   = [System.Windows.Point]::new(0, 1)
+        [void]$fadeGrad.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0,0,0,0), 0.0))
+        [void]$fadeGrad.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(220,22,22,26), 1.0))
+        $fadeGrad.Freeze()
+        $global:CardPreviewFadeBrush = $fadeGrad
+    }
+    $fadeBottom.Fill = $global:CardPreviewFadeBrush
+    [void]$previewHost.Children.Add($fadeBottom)
+
+    if ($overlay.Children.Count -ge 1) { [void]$overlay.Children.Insert(1, $previewHost) }
+    else                               { [void]$overlay.Children.Add($previewHost) }
+    $Card.Resources.Add("previewHost",      $previewHost)
+    $Card.Resources.Add("previewImage",     $previewImage)
+    $Card.Resources.Add("previewMediaHost", $previewMediaHost)
+    return $previewHost
+}
+
 function global:Start-CardPreview {
     param($Card)
     if ($Card -eq $global:HoverActiveCard) { return }
@@ -816,6 +1117,8 @@ function global:Start-CardPreview {
         } catch { }
     }
     $hasVideo = [bool]$Card.Resources.Item("hasVideo")
+    $previewHost = Ensure-CardPreviewVisual -Card $Card
+    if (-not $previewHost) { return }
 
     if ($Card.Resources.Contains("savedEffect")) { $Card.Resources.Remove("savedEffect") }
     $Card.Resources.Add("savedEffect", $Card.Effect)
@@ -851,7 +1154,6 @@ function global:Start-CardPreview {
     $shadow.Opacity = 0.6
     $Card.Effect = $shadow
 
-    $previewHost = $Card.Resources.Item("previewHost")
     if ($previewHost) {
         $previewHost.Visibility = [System.Windows.Visibility]::Visible
         $img = $Card.Resources.Item("previewImage")
@@ -922,6 +1224,114 @@ function global:Start-CardPreview {
         # URLs that WPF MediaElement cannot decode anyway.
     }
     $global:HoverActiveCard = $Card
+}
+
+# -------------------------------------------------------
+# Alternative VR-mod definitions
+# -------------------------------------------------------
+# Catalog entries historically exposed exactly ModA and ModB.  Keep those
+# fields fully compatible, but discover additional slots in one predictable
+# place so a third (or later) mod does not require another rewrite of every
+# card, scanner and detail-page branch.  Eight slots are intentionally more
+# than the UI needs; a tile still renders at most two installed choices.
+function global:Get-AlternativeModValue {
+    param($Source, [string]$Name)
+    if ($null -eq $Source -or [string]::IsNullOrWhiteSpace($Name)) { return $null }
+    if ($Source -is [System.Collections.IDictionary]) {
+        try { if ($Source.Contains($Name)) { return $Source[$Name] } } catch {}
+    }
+    try {
+        $property = $Source.PSObject.Properties[$Name]
+        if ($property) { return $property.Value }
+    } catch {}
+    return $null
+}
+
+function global:Get-AlternativeModDefinitions {
+    param($Game, $State = $null)
+    $definitions = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($slot in @('A','B','C','D','E','F','G','H')) {
+        $name = Get-AlternativeModValue -Source $Game -Name ("Mod${slot}Name")
+        if ([string]::IsNullOrWhiteSpace([string]$name)) { continue }
+        $prefix = "Mod$slot"
+        [void]$definitions.Add([pscustomobject]@{
+            Slot              = $slot
+            Mode              = $prefix
+            Name              = [string]$name
+            ButtonLabel       = $(if (Get-AlternativeModValue $Game "${prefix}ButtonLabel") { [string](Get-AlternativeModValue $Game "${prefix}ButtonLabel") } else { [string]$name })
+            Sub               = Get-AlternativeModValue $Game "${prefix}Sub"
+            Launch            = Get-AlternativeModValue $Game "${prefix}Launch"
+            LaunchAlt         = Get-AlternativeModValue $Game "${prefix}LaunchAlt"
+            ProbeFile         = Get-AlternativeModValue $Game "${prefix}ProbeFile"
+            ProbeAbs          = Get-AlternativeModValue $Game "${prefix}ProbeAbs"
+            ProbeScope        = Get-AlternativeModValue $Game "${prefix}ProbeScope"
+            RequiredFile      = Get-AlternativeModValue $Game "${prefix}RequiredFile"
+            RootLaunch        = [bool](Get-AlternativeModValue $Game "${prefix}RootLaunch")
+            InstalledPathFile = Get-AlternativeModValue $Game "${prefix}InstalledPathFile"
+            InstallerChoice   = Get-AlternativeModValue $Game "${prefix}InstallerChoice"
+            Present           = [bool](Get-AlternativeModValue $State "${prefix}Present")
+            Dir               = Get-AlternativeModValue $State "${prefix}Dir"
+            Root              = Get-AlternativeModValue $State "${prefix}Root"
+        })
+    }
+    return $definitions.ToArray()
+}
+
+function global:Set-AlternativeModStateFields {
+    param([System.Collections.IDictionary]$State, $Game, $Presence)
+    if (-not $State -or -not $Game) { return }
+    foreach ($definition in @(Get-AlternativeModDefinitions -Game $Game -State $Presence)) {
+        $prefix = [string]$definition.Mode
+        $State["${prefix}Present"] = [bool](Get-AlternativeModValue $Presence "${prefix}Present")
+        $State["${prefix}Dir"]     = Get-AlternativeModValue $Presence "${prefix}Dir"
+        $State["${prefix}Root"]    = Get-AlternativeModValue $Presence "${prefix}Root"
+        $State["${prefix}Name"]    = [string]$definition.Name
+    }
+}
+
+# Resolve an Update click to a preselected installer branch only when the
+# scanner has exact single-slot evidence and that catalog slot explicitly
+# opts into a choice value. Unknown or multi-slot updates keep opening the
+# installer's normal menu, so this cannot guess the wrong mod.
+function global:Get-InstallerChoiceForUpdate {
+    param($Game, $State = $null)
+    if (-not $Game) { return '' }
+    if (-not $State -and $global:gameStateMap -and $Game.Title -and $global:gameStateMap.ContainsKey($Game.Title)) {
+        $State = $global:gameStateMap[$Game.Title]
+    }
+    $slot = [string](Get-AlternativeModValue -Source $State -Name 'UpdateTargetSlot')
+    if ($slot -notmatch '^[A-H]$') { return '' }
+    $choice = Get-AlternativeModValue -Source $Game -Name ("Mod${slot}InstallerChoice")
+    if ([string]::IsNullOrWhiteSpace([string]$choice)) { return '' }
+    return ([string]$choice).Trim()
+}
+
+# Keep update wording tied to the same exact physical slot used for installer
+# routing.  A multi-mod tile must never merely say "Update Mod" when the scan
+# can prove that only one of its installed alternatives is stale.
+function global:Get-UpdateTargetDisplayName {
+    param($Game, $State = $null)
+    if (-not $Game) { return '' }
+    if (-not $State -and $global:gameStateMap -and $Game.Title -and $global:gameStateMap.ContainsKey($Game.Title)) {
+        $State = $global:gameStateMap[$Game.Title]
+    }
+    $slot = [string](Get-AlternativeModValue -Source $State -Name 'UpdateTargetSlot')
+    if ($slot -notmatch '^[A-H]$') { return '' }
+    $name = Get-AlternativeModValue -Source $Game -Name ("Mod${slot}Name")
+    if ([string]::IsNullOrWhiteSpace([string]$name)) { return '' }
+    return ([string]$name).Trim()
+}
+
+function global:Get-UpdateActionLabel {
+    param($Game, $State = $null, [string]$Fallback = 'Update Mod')
+    $name = Get-UpdateTargetDisplayName -Game $Game -State $State
+    if ($name) { return "Update $name" }
+    return $Fallback
+}
+
+function global:Get-AlternativeModTilePair {
+    param($Game, $State)
+    return @(Get-AlternativeModDefinitions -Game $Game -State $State | Where-Object Present | Select-Object -First 2)
 }
 
 # -------------------------------------------------------
@@ -1705,6 +2115,9 @@ function global:Get-PowerTier {
         # 4032x2268 total, developed on an RTX 4090, and the game is
         # CPU-bound in places on top - the author says so himself.
         "Dishonored VR"                           = "STRONG"
+        # KHARVOX renders DOOM 2016 in stereo at headset refresh rates;
+        # the original game remains demanding even before VR overhead.
+        "DOOM (2016) VR"                          = "STRONG"
         # A 1999 PlayStation game rebuilt as a native PC port. The
         # geometry is what it was in 1999; the stereo is generated on the
         # GPU from that same geometry, so there is very little to render
@@ -1735,6 +2148,7 @@ function global:Get-PowerTier {
         "Stardew Valley VR"            = "STRONG"
         "BioShock Remastered"          = "STRONG"
         "BioShock 2 Remastered"        = "STRONG"
+        "Black Mesa VR"                = "STRONG"
         "Dinkum VR"                    = "STRONG"
         "New Star GP VR"                = "BASIC"
         "Mario Kart 64 VR"             = "BASIC"
@@ -1785,7 +2199,7 @@ function global:Get-PowerTier {
         "Iron Lung VR"                 = "BASIC"
         "Hexen VR"                     = "BASIC"
         "Hytale VR"                    = "SOLID"
-        "Halo 3 MCC VR"                = "SOLID"
+        "Halo Master Chief Collection VR" = "SOLID"
         "Hollow Knight VR"             = "BASIC"
         "Horizon Chase Turbo"          = "BASIC"
         "Hypogea VR"                   = "BASIC"
@@ -1811,9 +2225,12 @@ function global:Get-PowerTier {
         "Selaco VR"                   = "SOLID"
         "Shipbreaker VR"              = "SOLID"
         "Silent Hill 3 VR"            = "BASIC"
+        "SiN Episodes: Emergence"     = "BASIC"
         "Slime Rancher VR"             = "BASIC"
         "Slyders VR"                   = "BASIC"
         "Moto Rush Reborn VR"          = "BASIC"
+        "Muck VR"                      = "BASIC"
+        "The Witness"                  = "BASIC"
         "Stanley Parable VR"           = "BASIC"
         "StreetDog BMX VR"             = "BASIC"
         "Star Wars Episode I Racer"    = "BASIC"
@@ -1821,6 +2238,15 @@ function global:Get-PowerTier {
         "Sunrise GP VR"                = "BASIC"
         "Tomb Raider 1 VR"             = "BASIC"
         "Yooka-Laylee VR"              = "BASIC"
+        # RazeXR runs classic Build-engine data with lightweight voxel
+        # weapon models. Stereo adds little load to these 1990s scenes.
+        "Blood VR"                     = "BASIC"
+        "Duke Nukem 3D VR"             = "BASIC"
+        "NAM VR"                       = "BASIC"
+        "PowerSlave / Exhumed VR"      = "BASIC"
+        "Redneck Rampage VR"           = "BASIC"
+        "Shadow Warrior VR"            = "BASIC"
+        "World War II GI VR"           = "BASIC"
 
         # ---- SOLID ----
         "Dark Souls Remastered" = "SOLID"
@@ -1832,6 +2258,7 @@ function global:Get-PowerTier {
         "Alien: Isolation VR"          = "SOLID"
         "Another Crab's Treasure"      = "SOLID"
         "Black Mesa Source VR"         = "SOLID"
+        "Borderlands GOTY Enhanced"    = "SOLID"
         "Circuit Superstars VR"        = "SOLID"
         "Content Warning VR"           = "SOLID"
         "Cruelty Squad VR"             = "SOLID"
@@ -1849,6 +2276,8 @@ function global:Get-PowerTier {
         "Lethal Company VR"            = "SOLID"
         "Scrap Mechanic VR"            = "STRONG"
         "Mage Arena VR"                = "SOLID"
+        "How to Fish XR"               = "SOLID"
+        "Max Payne 2 VR"               = "BASIC"
         "Mega Man Star Force Legacy VR"= "SOLID"
         "Big Walk VR"                  = "SOLID"
         "Moros Protocol VR"            = "SOLID"
@@ -1897,6 +2326,10 @@ function global:Get-PowerTier {
         "Battlefield 1942 VR"   = "SOLID"
         "Shenmue I & II"        = "BASIC"
         "Sonic Robo Blast 2 VR" = "BASIC"
+        # A current open-world truck simulation rendered for two eyes.
+        # The early mod offers AER/DIBR trade-offs and was demonstrated on
+        # RTX 4080-class hardware, so STRONG is the honest starting tier.
+        "SnowRunner VR"               = "STRONG"
         "Ring Racers VR"        = "BASIC"
         "Star Racer VR"                = "SOLID"
         "Star Trucker VR"              = "SOLID"
@@ -1961,6 +2394,10 @@ function global:Get-PowerTier {
         "Valheim VR"                   = "STRONG"
         "Watch Dogs 2 VR"             = "STRONG"
         "Witcher 3 VR"                = "STRONG"
+        # Native same-frame stereo replays MGSV's large 2015 open world for
+        # both eyes. The publisher's current 1440p Quest test targets about
+        # 86 fresh frames, so STRONG is the honest baseline.
+        "Metal Gear Solid V: The Phantom Pain VR" = "STRONG"
 
         # ---- HIGH ----
         "Stray VR" = "HIGH"
@@ -2485,44 +2922,21 @@ function global:New-ActionIcon {
 # -------------------------------------------------------
 
 # ---------------------------------------------------------------
-# Hub-settings persistence. Lives here in Helpers.ps1 (loads
-# first) so that Window.ps1 and other early modules can read the
-# user's saved S/M/L preferences during their initial setup.
-# OverviewPage.ps1 redefines these identically further down; both
-# versions are safe because they share the same .json file.
+# Hub-settings persistence. The durable state module is loaded before
+# Helpers.ps1, so settings share the same checksummed LocalAppData document
+# and its one-way portable backup as game paths/versions.
 # ---------------------------------------------------------------
 if (-not $global:HubSettingsFile) {
-    $global:HubSettingsFile = Join-Path $scriptDir ".hub-settings.json"
+    $global:HubSettingsFile = Get-HubStateFilePath
 }
 if (-not (Get-Command Get-HubSetting -ErrorAction SilentlyContinue)) {
     function Get-HubSetting {
         param([string]$Key, $Default = $null)
-        if (-not (Test-Path $global:HubSettingsFile)) { return $Default }
-        try {
-            $raw = Get-Content $global:HubSettingsFile -Raw
-            $obj = $raw | ConvertFrom-Json
-            if ($obj.PSObject.Properties.Name -contains $Key) {
-                return $obj.$Key
-            }
-        } catch { }
-        return $Default
+        return (Read-PersistentHubSetting -Key $Key -Default $Default)
     }
     function Set-HubSetting {
         param([string]$Key, $Value)
-        $obj = @{}
-        if (Test-Path $global:HubSettingsFile) {
-            try {
-                $raw = Get-Content $global:HubSettingsFile -Raw
-                $parsed = $raw | ConvertFrom-Json
-                foreach ($p in $parsed.PSObject.Properties) {
-                    $obj[$p.Name] = $p.Value
-                }
-            } catch { }
-        }
-        $obj[$Key] = $Value
-        try {
-            $obj | ConvertTo-Json -Compress | Set-Content -Path $global:HubSettingsFile -Encoding UTF8
-        } catch { }
+        Write-PersistentHubSetting -Key $Key -Value $Value
     }
 }
 
@@ -2534,10 +2948,8 @@ if (-not (Get-Command Get-HubSetting -ErrorAction SilentlyContinue)) {
 # picks up icon changes. Some users don't want one at all, so the
 # behaviour is opt-OUT via "Desktop Shortcut" in the 3-dots menu.
 #
-# The flag lives in .hub-settings.json next to the modules. That file
-# is NOT part of the shipped zip, and the updater copies with robocopy
-# WITHOUT /MIR or /PURGE, so it is never overwritten or deleted by a
-# Hub update - the choice keeps holding across versions.
+# The flag lives in the durable LocalAppData state and therefore survives a
+# replaced, moved or deleted Hub folder. Core\UserData carries its recovery copy.
 #
 #   Get-HubShortcutFlag        -> $true when a shortcut is wanted (default)
 #   Set-HubDesktopShortcut     -Enabled $true  -> (re)write the .lnk
@@ -2895,10 +3307,67 @@ function global:Set-SafeBannerImage {
 }
 
 # ------------------------------------------------------------
+# Write-HubActionFailure
+# ------------------------------------------------------------
+# One failure path for user-triggered Hub actions. Cosmetic effects may still
+# fail quietly, but a scan, installer launch or other primary action must leave
+# evidence and tell the user what happened. Help & Feedback opens the same
+# Core\Logs folder used by the Hub and every installer wrapper.
+function global:Write-HubActionFailure {
+    param(
+        [string]$Action,
+        $ErrorRecord,
+        [string]$Message = '',
+        [switch]$Quiet
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Action)) { $Action = 'Hub action' }
+    $detail = $Message
+    $trace = $Message
+    try {
+        if ($ErrorRecord -and $ErrorRecord.Exception) {
+            if (-not $detail) { $detail = [string]$ErrorRecord.Exception.Message }
+            $trace = [string]$ErrorRecord.Exception.ToString()
+        } elseif ($ErrorRecord) {
+            if (-not $detail) { $detail = [string]$ErrorRecord }
+            $trace = [string]$ErrorRecord
+        }
+    } catch {}
+    if (-not $detail) { $detail = 'No additional error information was returned.' }
+    if (-not $trace) { $trace = $detail }
+
+    try {
+        $logsDir = Get-HubRuntimeLogsRoot
+        if ($logsDir -and -not (Test-Path -LiteralPath $logsDir -PathType Container)) {
+            [void][IO.Directory]::CreateDirectory($logsDir)
+        }
+        if ($logsDir) {
+            $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+            Add-Content -LiteralPath (Join-Path $logsDir 'hub-errors.log') `
+                -Value ("[{0}] {1}`r`n{2}`r`n" -f $stamp, $Action, $trace) `
+                -Encoding UTF8 -ErrorAction SilentlyContinue
+        }
+    } catch {}
+    try { Write-Host ("[HubError] {0}: {1}" -f $Action, $detail) -ForegroundColor Red } catch {}
+
+    if (-not $Quiet -and -not $global:HubSuppressModalErrors) {
+        try {
+            [System.Windows.MessageBox]::Show(
+                ($Action + ' could not be completed.' + [Environment]::NewLine + [Environment]::NewLine +
+                 $detail + [Environment]::NewLine + [Environment]::NewLine +
+                 'The Hub is still running. Open Help & Feedback > Logs & report a problem for the full report.'),
+                'PCVR Mods Installer Hub',
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Warning) | Out-Null
+        } catch {}
+    }
+}
+
+# ------------------------------------------------------------
 # Start-LoggedInstaller
 # ------------------------------------------------------------
 # Launch an installer through Run-Installer.ps1 so its console output is saved
-# to <HubRoot>\Logs\<Title>-<timestamp>.log. Returns the launched (wrapper)
+# to the portable Core\Logs folder. Returns the launched (wrapper)
 # process so callers can poll HasExited for post-install refresh.
 # Branch logic matches the legacy launch sites exactly:
 #   Bat -like 'LukeRossVR\*'    -> powershell -File <bat> -GameTitle
@@ -2907,13 +3376,47 @@ function global:Set-SafeBannerImage {
 # A RequiresAdmin standard install keeps its elevated (RunAs) launch, which
 # cannot be tee'd (the elevated child owns its own console); left unlogged on
 # purpose rather than break elevation.
+function global:Test-InstallerRefreshReady {
+    param($Process)
+    if (-not $Process) { return $true }
+    try { if ($Process.HasExited) { return $true } } catch { return $true }
+    # Save-InstalledStamp can prove completion before the final informational
+    # prompt closes. Refresh the tile immediately at that point; users should
+    # not have to dismiss a success screen merely to clear an Update badge.
+    try {
+        $status = '' + $Process.PcvrStatusPath
+        if ($status -and (Test-Path -LiteralPath $status -PathType Leaf)) { return $true }
+    } catch {}
+    return $false
+}
+
 function global:Start-LoggedInstaller {
     param($Game, [string]$BatPath, [switch]$RequiresAdmin, [string]$InstallerChoice = '')
-    if (-not $Game -or [string]::IsNullOrWhiteSpace($BatPath)) { return $null }
+    # One obvious portable log folder shared by the Hub and all installers.
+    $logsDir = Get-HubRuntimeLogsRoot
+    try { if (-not (Test-Path -LiteralPath $logsDir -PathType Container)) { [void][IO.Directory]::CreateDirectory($logsDir) } } catch {}
 
-    # Logs dir from the known Core path (passed to the wrapper as an absolute
-    # path so it never depends on the wrapper's own $PSCommandPath).
-    $logsDir = Join-Path $global:scriptDir "Logs"
+    # A normal launch already receives its own titled installer log. Do not
+    # create a second installer-launches.log containing one PID line per click:
+    # it duplicates no useful installer output and makes the Logs folder look
+    # noisier than it is. A rare pre-launch failure is written once to the
+    # existing Hub session transcript and also shown directly to the user.
+    $showLaunchError = {
+        param([string]$Message)
+        try { Write-Warning ("[InstallerLaunch] " + $Message) } catch {}
+        try {
+            [System.Windows.MessageBox]::Show(
+                ($Message + [Environment]::NewLine + [Environment]::NewLine + 'The Hub is still running. Open Help & Feedback > Logs & report a problem if this repeats.'),
+                'Installer could not start',
+                [System.Windows.MessageBoxButton]::OK,
+                [System.Windows.MessageBoxImage]::Error) | Out-Null
+        } catch {}
+    }.GetNewClosure()
+
+    if (-not $Game -or [string]::IsNullOrWhiteSpace($BatPath)) {
+        & $showLaunchError 'The Hub has no valid installer path for this entry.'
+        return $null
+    }
 
     $title = [string]$Game.Title
     if ($Game.Bat -like "LukeRossVR\*") {
@@ -2925,6 +3428,7 @@ function global:Start-LoggedInstaller {
     }
     $folder = if ($Game.SteamFolder) { [string]$Game.SteamFolder } else { "" }
     $exe    = if ($Game.GameExe)     { [string]$Game.GameExe }     else { "" }
+    $gameId = if (Get-Command Get-HubGameStateId -ErrorAction SilentlyContinue) { '' + (Get-HubGameStateId -Game $Game) } else { '' }
 
     # One explicit set of marker paths for the child wrapper.  Deriving
     # these again from the core script is wrong for shared installers
@@ -2942,10 +3446,18 @@ function global:Start-LoggedInstaller {
     Clear-UpdateOkMarker -Game $Game
 
     $wrapper = $global:RunInstallerPath
+    if (-not $wrapper -or -not (Test-Path -LiteralPath $wrapper -PathType Leaf)) {
+        & $showLaunchError ("The installer logging wrapper is missing: " + [string]$wrapper)
+        return $null
+    }
+    if (-not (Test-Path -LiteralPath $BatPath -PathType Leaf)) {
+        & $showLaunchError ("The selected installer is missing: " + [string]$BatPath)
+        return $null
+    }
     $argString =
         "-NoProfile -ExecutionPolicy Bypass -File `"$wrapper`" " +
         "-Title `"$title`" -Kind $kind -BatPath `"$BatPath`" -Ps1Path `"$ps1`" " +
-        "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -LogsDir `"$logsDir`" " +
+        "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -GameId `"$gameId`" -LogsDir `"$logsDir`" " +
         "-StatusPath `"$statusPath`" -VersionPath `"$versionPath`" -VersionPathB `"$versionPathB`" -InstallPath `"$installPath`""
     if ($InstallerChoice) { $argString += " -InstallerChoice `"$InstallerChoice`"" }
 
@@ -2953,21 +3465,37 @@ function global:Start-LoggedInstaller {
         # Elevated install (e.g. Alien Isolation, which needs admin for a
         # Windows 11 registry fix): run the WRAPPER itself elevated - one UAC
         # prompt. The elevated wrapper spawns the installer .bat (which
-        # inherits elevation, no second prompt) while Tee-Object inside the
-        # elevated process still captures everything to Logs\. A bare
+        # inherits elevation, no second prompt) while the transcript inside
+        # the elevated process still captures everything to Core\Logs.
         # 'Start-Process $BatPath -Verb RunAs' could not be logged, because
         # output cannot be piped across the UAC elevation boundary.
         try {
-            return (Start-Process "powershell.exe" -ArgumentList $argString -Verb RunAs -PassThru -ErrorAction Stop)
+            $process = Start-Process "powershell.exe" -ArgumentList $argString -Verb RunAs -PassThru -ErrorAction Stop
+            $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+            return $process
         } catch {
             # UAC declined or elevation failed: fall back to the un-elevated
             # wrapper. The installer detects it is not elevated and prints its
             # "needs admin" notice - and that now lands in the log too.
-            try { return (Start-Process "powershell.exe" -ArgumentList $argString -PassThru) } catch { return $null }
+            try {
+                $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
+                $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+                return $process
+            } catch {
+                & $showLaunchError ("Windows could not start the installer: " + $_.Exception.Message)
+                return $null
+            }
         }
     }
 
-    try { return (Start-Process "powershell.exe" -ArgumentList $argString -PassThru) } catch { return $null }
+    try {
+        $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
+        $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+        return $process
+    } catch {
+        & $showLaunchError ("Windows could not start the installer: " + $_.Exception.Message)
+        return $null
+    }
 }
 
 function global:Get-BannerColorForGame {

@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $GAME_NAME    = "DREDGE"
 $GAME_EXE     = "DREDGE.exe"
 
-$WINCH_URL    = "https://github.com/DREDGE-Mods/Winch/releases/download/v0.6.1/Winch.zip"
+$WINCH_URL    = "https://github.com/DREDGE-Mods/Winch/releases/download/v0.6.2/Winch.zip"
 $DREDGEVR_URL = "https://github.com/xen-42/DredgeVR/releases/latest/download/xen.DredgeVR.zip"
 
 # -------------------------------------------------------
@@ -21,7 +21,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   DREDGE - VR Mod Installer" -ForegroundColor Cyan
-    Write-Host "   Winch v0.6.1  +  DredgeVR (latest)" -ForegroundColor Gray
+    Write-Host "   Winch v0.6.2  +  DredgeVR (latest)" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -133,7 +133,7 @@ else { Write-Warn "DREDGE.exe not found - folder may still be correct." }
 # STEP 2: Install Winch + DredgeVR
 # -------------------------------------------------------
 $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "Mods\xen.DredgeVR\DredgeVR.dll" -Label "DredgeVR"
-Write-Step 2 3 "Installing Winch v0.6.1 + DredgeVR"
+Write-Step 2 3 "Installing Winch v0.6.2 + DredgeVR"
 
 $tempDir = Join-Path $env:TEMP "DredgeVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -144,8 +144,8 @@ $failed = @()
 $winchZip     = Join-Path $tempDir "Winch.zip"
 $winchExtract = Join-Path $tempDir "Winch"
 $r = Invoke-DownloadOrFallback -Url $WINCH_URL -Destination $winchZip `
-        -Label "Winch mod loader v0.6.1" `
-        -ManualUrl "https://github.com/DREDGE-Mods/Winch/releases/tag/v0.6.1" `
+        -Label "Winch mod loader v0.6.2" `
+        -ManualUrl "https://github.com/DREDGE-Mods/Winch/releases/tag/v0.6.2" `
         -Instructions "Download 'Winch.zip' from the GitHub releases page. Place it at '$winchZip' and choose Retry." `
         -SkipMessage "Skipped - Winch mod loader missing; DredgeVR will NOT load (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
@@ -168,7 +168,7 @@ if (Test-Path $winchZip) {
             else { Write-Warn "winhttp.dll not found." }
             if (Test-Path -LiteralPath "$gamePath\Winch.dll")   { Write-OK "Winch.dll verified." }
             else { Write-Warn "Winch.dll not found." }
-            Write-OK "Winch v0.6.1 installed!"
+            Write-OK "Winch v0.6.2 installed!"
         } catch {
             Write-Host "FAILED to install Winch: $_" -ForegroundColor Red
             $failed += "Winch"
@@ -273,7 +273,7 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
-if ("Winch"    -notin $failed) { Write-Host "    [x] Winch v0.6.1" -ForegroundColor Green     } else { Write-Host "    [ ] Winch v0.6.1  -- FAILED" -ForegroundColor Red }
+if ("Winch"    -notin $failed) { Write-Host "    [x] Winch v0.6.2" -ForegroundColor Green     } else { Write-Host "    [ ] Winch v0.6.2  -- FAILED" -ForegroundColor Red }
 if ("DredgeVR" -notin $failed) { Write-Host "    [x] DredgeVR (latest)" -ForegroundColor Green } else { Write-Host "    [ ] DredgeVR      -- FAILED" -ForegroundColor Red }
 Write-Host "    [x] mod_list.json (mods enabled)" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta

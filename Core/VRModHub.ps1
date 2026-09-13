@@ -27,17 +27,101 @@ $script:scriptDir = $scriptDir
 $global:scriptDir = $scriptDir   # global mirror for global: functions (cache helpers)
 $rootDir   = Split-Path -Parent $scriptDir   # Hub root (one level up from Core\)
 
+# Load the WPF-free durable-state layer before anything creates runtime files.
+# LocalAppData is authoritative; <Hub>\Core\UserData receives only its verified
+# recovery copy.  Keeping this ahead of logging/settings also leaves the Hub
+# program tree replaceable without losing user state.
+. (Join-Path $scriptDir "Modules\HubState.ps1")
+
 # Path to the installer log wrapper (used by Start-LoggedInstaller).
 $global:RunInstallerPath = Join-Path $scriptDir "Run-Installer.ps1"
 
-# Session log: capture the Hub's own console output to Logs\Hub-<timestamp>.log.
-# Start-Transcript writes live, so the file survives a crash. Best-effort and
-# never blocks startup. Logs live in Core\Logs (the installer wrapper uses the
-# same folder), keeping the Hub's top folder clean; robocopy /E in
-# Update-Hub.ps1 leaves the folder untouched.
+# Session log: capture the Hub's own console output to Core\Logs.
+# Windows PowerShell 5.1 has no minimal transcript header and therefore writes
+# profile/computer names, its full command line and many runtime internals.
+# Keep the live crash evidence, then compact it into a privacy-safe log when
+# the Hub closes. A transcript left by a crash is compacted on the next start.
+function global:ConvertTo-HubPrivacySafeText {
+    param([string]$Text)
+    if ($null -eq $Text) { return '' }
+    $safeText = [string]$Text
+    foreach ($pair in @(
+        @($env:LOCALAPPDATA, '%LOCALAPPDATA%'),
+        @($env:APPDATA, '%APPDATA%'),
+        @($env:TEMP, '%TEMP%'),
+        @($env:USERPROFILE, '%USERPROFILE%'),
+        @($env:COMPUTERNAME, '%COMPUTERNAME%')
+    )) {
+        $value = [string]$pair[0]
+        if ([string]::IsNullOrWhiteSpace($value)) { continue }
+        $safeText = [regex]::Replace($safeText, [regex]::Escape($value), [string]$pair[1], [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    }
+    return $safeText
+}
+
+function global:Compress-HubSessionLog {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+    try {
+        $rawLines = @(Get-Content -LiteralPath $Path -ErrorAction Stop)
+        $started = ''
+        $psVersion = ''
+        foreach ($line in $rawLines) {
+            if (-not $started -and $line -match '^Started:\s*(.+)$') { $started = $matches[1].Trim() }
+            if (-not $psVersion -and $line -match '^PSVersion:\s*(.+)$') { $psVersion = $matches[1].Trim() }
+            if (-not $psVersion -and $line -match '^PowerShell:\s*([^\s]+)') { $psVersion = $matches[1].Trim() }
+        }
+        if (-not $started) { $started = (Get-Item -LiteralPath $Path).CreationTime.ToString('yyyy-MM-dd HH:mm:ss') }
+        if (-not $psVersion) { $psVersion = '' + $PSVersionTable.PSVersion }
+
+        $payload = New-Object 'System.Collections.Generic.List[string]'
+        $seenUpdateEvidence = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+        $lastBlank = $false
+        foreach ($rawLine in $rawLines) {
+            $line = [string]$rawLine
+            if ($line -match '^=== PCVR Mods Installer Hub - Session Log ===$' -or
+                $line -match '^Started:\s*' -or $line -match '^Hub Core:\s*' -or
+                $line -match '^Windows:\s*' -or $line -match '^PowerShell:\s*' -or
+                $line -match '^=+$' -or $line -match '^\*+$' -or
+                $line -match '(?i)^(n?Start der Windows PowerShell-Aufzeichnung|Ende der Windows PowerShell-Aufzeichnung|Windows PowerShell transcript (start|end))$' -or
+                $line -match '(?i)^(Startzeit|Endzeit|Start time|End time|Benutzername|Username|RunAs-Benutzer|RunAs User|Konfigurationsname|Configuration Name|Computer|Machine|Hostanwendung|Host Application|Prozess-ID|Process ID|PSVersion|PSEdition|PSCompatibleVersions|BuildVersion|CLRVersion|WSManStackVersion|PSRemotingProtocolVersion|SerializationVersion):') {
+                continue
+            }
+            $line = ConvertTo-HubPrivacySafeText $line
+            if ($line -match '^\[UpdateCheck\]') {
+                if (-not $seenUpdateEvidence.Add($line)) { continue }
+            }
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                if ($lastBlank) { continue }
+                $lastBlank = $true
+                [void]$payload.Add('')
+                continue
+            }
+            $lastBlank = $false
+            [void]$payload.Add($line)
+        }
+        while ($payload.Count -gt 0 -and [string]::IsNullOrWhiteSpace($payload[$payload.Count - 1])) { $payload.RemoveAt($payload.Count - 1) }
+
+        $clean = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($line in @(
+            '=== PCVR Mods Installer Hub - Session Log ===',
+            "Started:    $started",
+            "Windows:    $([Environment]::OSVersion.VersionString)",
+            "PowerShell: $psVersion ($($PSVersionTable.PSEdition))",
+            '============================================='
+        )) { [void]$clean.Add($line) }
+        if ($payload.Count) { [void]$clean.Add(''); foreach ($line in $payload) { [void]$clean.Add($line) } }
+        [IO.File]::WriteAllLines($Path, [string[]]$clean, (New-Object Text.UTF8Encoding($false)))
+    } catch {}
+}
+
+$script:HubTranscriptStarted = $false
 try {
-    $logsDir = Join-Path $scriptDir "Logs"
+    $logsDir = Get-HubRuntimeLogsRoot
     if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir -Force | Out-Null }
+    foreach ($oldHubLog in @(Get-ChildItem $logsDir -Filter 'Hub-*.log' -File -ErrorAction SilentlyContinue)) {
+        Compress-HubSessionLog -Path $oldHubLog.FullName
+    }
     # -File: without it a DIRECTORY called something.log would come back
     # from the filter and get handed to Remove-Item. Cheap guard, and the
     # rule everywhere now is that a delete only ever sees a file.
@@ -45,13 +129,22 @@ try {
         Sort-Object LastWriteTime -Descending | Select-Object -Skip 30 |
         Remove-Item -Force -ErrorAction SilentlyContinue
     $hubLog = Join-Path $logsDir ("Hub-{0}.log" -f (Get-Date -Format "yyyy-MM-dd_HH-mm-ss"))
-    Start-Transcript -Path $hubLog -Force -ErrorAction SilentlyContinue | Out-Null
+    @(
+        '=== PCVR Mods Installer Hub - Session Log ===',
+        ('Started:    ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')),
+        ('Windows:    ' + [Environment]::OSVersion.VersionString),
+        ('PowerShell: ' + $PSVersionTable.PSVersion + ' (' + $PSVersionTable.PSEdition + ')'),
+        '============================================='
+    ) | Out-File -LiteralPath $hubLog -Encoding utf8
+    Start-Transcript -Path $hubLog -Append -ErrorAction Stop | Out-Null
+    $script:HubTranscriptStarted = $true
 } catch {}
 
 # -------------------------------------------------------
 # Startup timing (diagnostic, opt-in).
 # Enable by creating an empty file '.timing' in the Hub root
-# (next to PCVRModsHub.bat). When present, phase timestamps are
+# or by setting PCVR_HUB_STARTUP_TIMING=1 for an isolated test run.
+# When enabled, phase timestamps are
 # appended to %TEMP%\PCVRHub_startup.log so we can see where the
 # startup time goes. No file is written to the Hub itself
 # (state-file ship guard - rule #2 / audit #15).
@@ -59,7 +152,7 @@ try {
 $global:HubTiming = @{ Enabled = $false; Start = $null; Log = $null }
 try {
     $timingFlag = Join-Path $rootDir ".timing"
-    if (Test-Path $timingFlag) {
+    if ((Test-Path $timingFlag) -or $env:PCVR_HUB_STARTUP_TIMING -eq '1') {
         $global:HubTiming.Enabled = $true
         $global:HubTiming.Start = [DateTime]::UtcNow
         $global:HubTiming.Log = Join-Path $env:TEMP "PCVRHub_startup.log"
@@ -82,9 +175,9 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.7.0"
+$HUB_VERSION = "0.8.7.2"
 
-$updateInfoFile  = Join-Path $scriptDir ".update_available"
+$updateInfoFile  = Get-HubUpdateInfoPath
 $script:updateInfo = $null
 if (Test-Path $updateInfoFile) {
     try { $script:updateInfo = Get-Content $updateInfoFile -Raw | ConvertFrom-Json } catch {}
@@ -121,69 +214,6 @@ function Test-IsTrackableInstalledVersion {
     $versionText = ([string]$Version).Trim()
     if ([string]::IsNullOrWhiteSpace($versionText)) { return $false }
     return ($versionText -match '\d')
-}
-
-# Runtime state must outlive the Hub folder.  The in-game
-# .pcvrhub_version file is still the portable source of truth, but it
-# cannot solve every case by itself: some mods deliberately live in a
-# separate launcher/staging folder, and after replacing the Hub we no
-# longer know where that folder is.  Keep a tiny per-game index under
-# LocalAppData as the second durable copy.  The files contain paths and
-# version strings only; downloaded mods and game data never live here.
-function Get-PersistentGameStatePath {
-    param($Game, [string]$Name)
-    if (-not $Game -or [string]::IsNullOrWhiteSpace($Game.Title) -or [string]::IsNullOrWhiteSpace($Name)) { return $null }
-    $root = $null
-    if ($global:HubStateRootOverride) {
-        $root = [string]$global:HubStateRootOverride
-    } else {
-        try {
-            $localState = [Environment]::GetFolderPath('LocalApplicationData')
-            if (-not [string]::IsNullOrWhiteSpace($localState)) {
-                $root = [IO.Path]::Combine($localState, 'PCVR Mods Installer Hub', 'State')
-            }
-        } catch {}
-    }
-    if ([string]::IsNullOrWhiteSpace($root)) { return $null }
-    $safeTitle = ([string]$Game.Title -replace '[^A-Za-z0-9]', '_').Trim('_')
-    if (-not $safeTitle) { return $null }
-    $key = if ($Game.SteamId) { ([string]$Game.SteamId) + '_' + $safeTitle } else { $safeTitle }
-    return ([IO.Path]::Combine($root, $key, ($Name + '.txt')))
-}
-
-function Read-PersistentGameStateValue {
-    param($Game, [string]$Name)
-    $p = Get-PersistentGameStatePath -Game $Game -Name $Name
-    if (-not $p -or -not (Test-Path -LiteralPath $p -PathType Leaf)) { return $null }
-    try {
-        $v = (("" + (Get-Content -LiteralPath $p -Raw -ErrorAction Stop)) -replace '[\x00-\x08\x0B\x0C\x0E-\x1F]', '').Trim()
-        if ([string]::IsNullOrWhiteSpace($v)) { return $null }
-        return $v
-    } catch { return $null }
-}
-
-function Write-PersistentGameStateValue {
-    param($Game, [string]$Name, [string]$Value)
-    if ([string]::IsNullOrWhiteSpace($Value)) { return }
-    $p = Get-PersistentGameStatePath -Game $Game -Name $Name
-    if (-not $p) { return }
-    try {
-        if (Test-Path -LiteralPath $p -PathType Leaf) {
-            $current = ("" + (Get-Content -LiteralPath $p -Raw -ErrorAction Stop)).Trim()
-            if ($current -ceq $Value.Trim()) { return }
-        }
-        $parent = Split-Path -Parent $p
-        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
-        $enc = New-Object System.Text.UTF8Encoding $false
-        [System.IO.File]::WriteAllText($p, $Value.Trim(), $enc)
-    } catch {}
-}
-
-function Reset-PersistentGameStateValue {
-    param($Game, [string]$Name)
-    $p = Get-PersistentGameStatePath -Game $Game -Name $Name
-    if (-not $p -or -not (Test-Path -LiteralPath $p -PathType Leaf)) { return }
-    try { [System.IO.File]::WriteAllText($p, '', (New-Object System.Text.UTF8Encoding $false)) } catch {}
 }
 
 # Given a $game hash, return full path to its .installed_version file.
@@ -262,8 +292,9 @@ function Get-InstalledPathFile {
     return ([IO.Path]::Combine($script:scriptDir, $modFolder, ".installed_path"))
 }
 
-# Read the recorded install path. Returns $null if file missing, empty,
-# or pointing to a folder that no longer exists.
+# Read the recorded install path. The single LocalAppData state is primary;
+# Get-InstalledPathFile names only the old per-installer receipt that existing
+# installers may still emit and that is imported once for compatibility.
 function Read-InstalledPath {
     param($Game)
     $hubFile = Get-InstalledPathFile -Game $Game
@@ -272,19 +303,14 @@ function Read-InstalledPath {
         try { $hubValue = ("" + (Get-Content -LiteralPath $hubFile -Raw -ErrorAction Stop)).Trim() } catch {}
     }
     $durableValue = Read-PersistentGameStateValue -Game $Game -Name 'installed_path'
-    foreach ($candidate in @($hubValue, $durableValue)) {
+    # LocalAppData is authoritative. The old Hub marker is consulted only
+    # when no valid canonical path exists, then imported once. Never mirror
+    # the canonical value back into per-game folders: Core\UserData is the
+    # only Hub-side copy.
+    foreach ($candidate in @($durableValue, $hubValue)) {
         if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
-        # Migrate in either direction.  A fresh Hub rebuilds its fast local
-        # cache from LocalAppData; an older Hub install automatically gains
-        # the durable copy the first time it is seen.
         if ($candidate -eq $hubValue) {
             Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value $candidate
-        } elseif ($hubFile) {
-            try {
-                $parent = Split-Path -Parent $hubFile
-                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
-                [System.IO.File]::WriteAllText($hubFile, $candidate, (New-Object System.Text.UTF8Encoding $false))
-            } catch {}
         }
         return $candidate
     }
@@ -299,7 +325,10 @@ function Read-InstalledPath {
             if ($Game.TwoMods) {
                 $a = if ($Game.ModASub -and $Game.ModALaunch) { Join-Path $candidate (Join-Path $Game.ModASub $Game.ModALaunch) } else { $null }
                 $b = if ($Game.ModBSub -and $Game.ModBLaunch) { Join-Path $candidate (Join-Path $Game.ModBSub $Game.ModBLaunch) } else { $null }
-                $evidence = (($a -and (Test-Path -LiteralPath $a -PathType Leaf)) -or ($b -and (Test-Path -LiteralPath $b -PathType Leaf)))
+                $bRoot = if ($Game.ModBRootLaunch -and $Game.ModBLaunch) { Join-Path $candidate $Game.ModBLaunch } else { $null }
+                $evidence = (($a -and (Test-Path -LiteralPath $a -PathType Leaf)) -or
+                             ($b -and (Test-Path -LiteralPath $b -PathType Leaf)) -or
+                             ($bRoot -and (Test-Path -LiteralPath $bRoot -PathType Leaf)))
             } elseif ($Game.ModFile) {
                 $evidence = Test-Path -LiteralPath (Join-Path $candidate $Game.ModFile) -PathType Leaf
             } elseif ($Game.LaunchExe) {
@@ -308,13 +337,6 @@ function Read-InstalledPath {
         } catch { $evidence = $false }
         if (-not $evidence) { continue }
         Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value $candidate
-        if ($hubFile) {
-            try {
-                $parent = Split-Path -Parent $hubFile
-                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
-                [System.IO.File]::WriteAllText($hubFile, $candidate, (New-Object System.Text.UTF8Encoding $false))
-            } catch {}
-        }
         return $candidate
     }
     return $null
@@ -323,7 +345,8 @@ function Read-InstalledPath {
 # WHERE DOES THE DEPOT BUILD ACTUALLY LIVE?
 # The catalog field DepotPath is a FIXED suggestion
 # (C:\Games\<game> VR), but the installer lets the user choose the
-# folder freely - and writes the chosen one into .installed_path.
+# folder freely. Older installers write the chosen one into .installed_path;
+# the Hub imports it into the canonical state after confirmed success.
 # Anyone installing elsewhere used to be invisible to the Hub: both the
 # start-depot button and the split-button detection only looked at the
 # catalog path. So query both sources, catalog path first.
@@ -333,7 +356,33 @@ function Read-InstalledPath {
 function Get-DepotCandidatePaths {
     param($Game)
     $out = @()
-    if ($Game.DepotPath) { $out += [string]$Game.DepotPath }
+    # The disposable installer lab supplies recorded roots for every title and
+    # must not probe real C:\Games depots on the host PC. Production never sets
+    # HubFileSystemLabRoot, so normal catalog suggestions are unchanged.
+    if (-not $global:HubFileSystemLabRoot -and $Game.DepotPath) { $out += [string]$Game.DepotPath }
+
+    # A game may have more than one pinned depot (PEAK: recommended
+    # Andrey 2.1.a plus legacy Astien 1.44.a). In that case only the
+    # dedicated depot marker may feed the normal Depot button. Falling
+    # back to .installed_path would let the last installed legacy copy
+    # silently hijack the recommended button.
+    if ($Game.DepotInstalledPathFile) {
+        try {
+            $base = Get-InstalledPathFile -Game $Game
+            $variantFile = if ($base) { Join-Path (Split-Path -Parent $base) ([string]$Game.DepotInstalledPathFile) } else { $null }
+            $hubValue = if ($variantFile -and (Test-Path -LiteralPath $variantFile -PathType Leaf)) {
+                ("" + (Get-Content -LiteralPath $variantFile -Raw -ErrorAction Stop)).Trim()
+            } else { $null }
+            $durableValue = Read-PersistentGameStateValue -Game $Game -Name 'installed_path_depot'
+            foreach ($candidate in @($durableValue, $hubValue)) {
+                if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
+                if ($out -notcontains $candidate) { $out += $candidate }
+                if ($candidate -eq $hubValue) { Write-PersistentGameStateValue -Game $Game -Name 'installed_path_depot' -Value $candidate }
+                break
+            }
+        } catch {}
+        return $out
+    }
     try {
         $rec = Read-InstalledPath -Game $Game
         # Separator-independent, so the check does not slip past on a
@@ -343,10 +392,32 @@ function Get-DepotCandidatePaths {
     return $out
 }
 
-# The "Locate Game" exe-picker can record the exact exe that launches
-# a user-located install (e.g. a differently named exe from another
-# store). Stored next to .installed_path as .launch_exe, holding the
-# full exe path. Start-GameInVR prefers it over everything else.
+function Get-LegacyDepotCandidatePaths {
+    param($Game)
+    $out = @()
+    if (-not $Game -or -not $Game.LegacyDepotPath) { return $out }
+    if (-not $global:HubFileSystemLabRoot) { $out += [string]$Game.LegacyDepotPath }
+    if (-not $Game.LegacyDepotInstalledPathFile) { return $out }
+    try {
+        $base = Get-InstalledPathFile -Game $Game
+        $variantFile = if ($base) { Join-Path (Split-Path -Parent $base) ([string]$Game.LegacyDepotInstalledPathFile) } else { $null }
+        $hubValue = if ($variantFile -and (Test-Path -LiteralPath $variantFile -PathType Leaf)) {
+            ("" + (Get-Content -LiteralPath $variantFile -Raw -ErrorAction Stop)).Trim()
+        } else { $null }
+        $durableValue = Read-PersistentGameStateValue -Game $Game -Name 'installed_path_legacy_depot'
+        foreach ($candidate in @($durableValue, $hubValue)) {
+            if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
+            if ($out -notcontains $candidate) { $out += $candidate }
+            if ($candidate -eq $hubValue) { Write-PersistentGameStateValue -Game $Game -Name 'installed_path_legacy_depot' -Value $candidate }
+            break
+        }
+    } catch {}
+    return $out
+}
+
+# The "Locate Game" exe-picker records the exact executable in the canonical
+# state (e.g. a differently named exe from another store). The legacy
+# .launch_exe path below remains solely as a one-way migration source.
 function Get-LaunchOverrideFile {
     param($Game)
     $base = Get-InstalledPathFile -Game $Game
@@ -362,16 +433,10 @@ function Read-LaunchOverride {
         try { $hubValue = ("" + (Get-Content -LiteralPath $p -Raw -ErrorAction Stop)).Trim() } catch {}
     }
     $durableValue = Read-PersistentGameStateValue -Game $Game -Name 'launch_exe'
-    foreach ($candidate in @($hubValue, $durableValue)) {
+    foreach ($candidate in @($durableValue, $hubValue)) {
         if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
         if ($candidate -eq $hubValue) {
             Write-PersistentGameStateValue -Game $Game -Name 'launch_exe' -Value $candidate
-        } elseif ($p) {
-            try {
-                $parent = Split-Path -Parent $p
-                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
-                [System.IO.File]::WriteAllText($p, $candidate, (New-Object System.Text.UTF8Encoding $false))
-            } catch {}
         }
         return $candidate
     }
@@ -388,11 +453,6 @@ function Read-LaunchOverride {
                 $candidate = Join-Path $root $relativeExe
                 if (Test-Path -LiteralPath $candidate -PathType Leaf) {
                     Write-PersistentGameStateValue -Game $Game -Name 'launch_exe' -Value $candidate
-                    if ($p) {
-                        $parent = Split-Path -Parent $p
-                        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null }
-                        [System.IO.File]::WriteAllText($p, $candidate, (New-Object System.Text.UTF8Encoding $false))
-                    }
                     return $candidate
                 }
             } catch {}
@@ -425,15 +485,10 @@ function Get-UserLocatedFile {
 # online, and every outdated mod silently counts as up to date. No
 # Update badge, ever, and nothing looks broken.
 #
-# So the marker now lives WITH THE MOD, in the game folder, under one
-# name for every game. That file survives any Hub replacement, and it
-# is the same fact the Hub needs: which build is on this disk. The
-# Hub-local copy is still written as a mirror, so nothing that reads
-# it directly breaks, and it still answers when a game folder is not
-# resolvable at that moment.
-#
-# Reading order is deliberate: game folder first, Hub folder second.
-# The game folder is the ground truth; the Hub copy is a cache.
+# The canonical value now lives in one checksummed LocalAppData document. A
+# checksummed install manifest and the compact marker beside the mod provide
+# recovery evidence after Hub replacement. Old Hub-folder markers are imported
+# only when the canonical value is absent, then become inert.
 # Path of the in-game marker. $Second is the B slot for entries that
 # track TWO mods in one tile (BioShock), mirroring the Hub-local
 # .installed_version / _b pair.
@@ -443,8 +498,8 @@ function Get-UserLocatedFile {
 # reason the name became "", the path combiner handed back THE GAME FOLDER
 # ITSELF - and back then this path was handed to a delete. The literal
 # cannot be unset, and the guard below refuses any result that is not
-# strictly below $GameDir. Nothing in this file deletes any more (see
-# Reset-InstalledVersion), so that class of accident is gone at the
+# strictly below $GameDir. Nothing in this file deletes these markers (see
+# Invalidate-SupersededInstalledVersion), so that class of accident is gone at the
 # root rather than merely guarded against.
 # InstallerSafety.ps1 carries the same literal for Write-ModStamp,
 # because installers run in their own process and never load this file.
@@ -478,56 +533,122 @@ function Read-VersionStampFile {
     } catch { return $null }
 }
 
-# Read installed version for a game. Game folder wins over the Hub copy.
-# Returns $null if neither has a usable value.
-function Read-InstalledVersion {
-    param($Game, [string]$GameDir)
-
-    # !!! TAKE THE NEWER OF THE TWO, NOT THE FIRST ONE FOUND (2026-08-20).
-    # There are two markers and they can disagree:
-    #   <GameDir>\.pcvrhub_version  - survives a Hub replacement
-    #   <Core>\<Installer>\...      - what the installer just wrote
-    # Several mods install OUTSIDE the game folder on purpose (Forza's
-    # VRMod lives in C:\Games\Forza Horizon 5 VR). Their installer
-    # cannot write into the game folder, while the SCAN seeds a stamp
-    # there. Preferring the game stamp then pins an old value forever:
-    # the user updates, the installer records the new version, and the
-    # tile still reads the stale stamp and shows an Update badge that no
-    # reinstall can clear. That is exactly what happened on Forza.
-    # Taking the newer value is right in BOTH directions - after a Hub
-    # replacement the game stamp is the only one left and still wins.
-    $vGame = Read-VersionStampFile -Path (Get-GameStampPath -GameDir $GameDir)
-    $vHub  = Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game)
-    $vKeep = Read-PersistentGameStateValue -Game $Game -Name 'installed_version'
-    if (-not (Test-IsTrackableInstalledVersion -Version $vKeep)) { $vKeep = $null }
-
-    $values = @(@($vGame, $vHub, $vKeep) | Where-Object { Test-IsTrackableInstalledVersion -Version ([string]$_) })
-    if ($values.Count -eq 0) { return $null }
-    $chosen = [string]$values[0]
-
-    # Reconcile old installations in which only one of the copies was
-    # refreshed.  Prefer a genuinely newer comparable value; when two
-    # opaque tags cannot be ordered, the game-side value remains first.
-    foreach ($candidate in $values | Select-Object -Skip 1) {
-        try {
-            if (Test-OnlineVersionIsNewer -Installed $chosen -Online $candidate) { $chosen = [string]$candidate }
-        } catch {}
-    }
-    return $chosen
+# Import an exact installer result even when the UI timer that normally handles
+# it did not get a chance to run (Hub closed, scan already busy, Windows focus
+# change, etc.). The transaction remains until either post-install refresh or a
+# later scan has durably copied its exact value into canonical state. This
+# closes the retry loop where the first successful run wrote the new version, a
+# missed timer left the old canonical value behind, and every repeat then
+# appeared to write "nothing new".
+function Import-PendingInstallerVersion {
+    param($Game, [string]$GameDir, [switch]$Second)
+    if (-not $Game -or -not (Get-Command Get-UpdateOkMarkerPath -ErrorAction SilentlyContinue)) { return $null }
+    $path = Get-UpdateOkMarkerPath -Game $Game
+    if (-not $path -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    try {
+        $status = Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json
+        if (-not $status -or ([string]$status.outcome -ne 'success')) { return $null }
+        $wasWritten = if ($Second) { [bool]$status.versionBWritten } else { [bool]$status.versionWritten }
+        if (-not $wasWritten) { return $null }
+        $exact = if ($Second) { ('' + $status.versionBValue).Trim() } else { ('' + $status.versionValue).Trim() }
+        if (-not (Test-IsTrackableInstalledVersion -Version $exact)) { return $null }
+        $root = $GameDir
+        if (-not $root -and $status.installedPath -and (Test-Path -LiteralPath ([string]$status.installedPath) -PathType Container)) {
+            $root = [string]$status.installedPath
+        }
+        if ($Second) { Write-InstalledVersionB -Game $Game -Version $exact -GameDir $root }
+        else { Write-InstalledVersion -Game $Game -Version $exact -GameDir $root }
+        $saved = if ($Second) {
+            Read-PersistentGameStateValue -Game $Game -Name 'installed_version_b'
+        } else {
+            Read-PersistentGameStateValue -Game $Game -Name 'installed_version'
+        }
+        if (([string]$saved).Trim() -ceq $exact) {
+            Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        }
+        return $exact
+    } catch { return $null }
 }
 
-# Write installed version for a game - into the game folder AND the Hub
-# copy. Passing no $GameDir keeps the old behaviour (Hub copy only), so
-# a caller that has not resolved a folder yet still works.
+# Some upstream packages carry their own immutable version file. A catalog
+# entry may opt in with InstalledVersionProofFile + InstalledVersionProofRegex.
+# Unlike a generic recovery marker, this is release-owned evidence and can
+# safely repair a missed transaction when it proves a genuinely newer build.
+function Read-InstalledVersionProof {
+    param($Game, [string]$GameDir)
+    if (-not $Game -or -not $GameDir -or -not $Game.InstalledVersionProofFile) { return $null }
+    try {
+        $root = [IO.Path]::GetFullPath([string]$GameDir).TrimEnd([char[]]@('\','/'))
+        $path = [IO.Path]::GetFullPath([IO.Path]::Combine($root, [string]$Game.InstalledVersionProofFile))
+        $prefix = $root + [IO.Path]::DirectorySeparatorChar
+        if (-not $path.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { return $null }
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+        $raw = Get-Content -LiteralPath $path -Raw -ErrorAction Stop
+        $pattern = '' + $Game.InstalledVersionProofRegex
+        if ([string]::IsNullOrWhiteSpace($pattern)) { $pattern = '(?im)^\s*(?:version|tag)\s*:\s*(v?[0-9][^\r\n]*)\s*$' }
+        $match = [regex]::Match([string]$raw, $pattern)
+        if (-not $match.Success) { return $null }
+        $value = if ($match.Groups.Count -gt 1) { $match.Groups[1].Value } else { $match.Value }
+        $value = ([string]$value).Trim()
+        if (Test-IsTrackableInstalledVersion -Version $value) { return $value }
+    } catch {}
+    return $null
+}
+
+# Read installed version for a game. LocalAppData wins. The checked install
+# manifest and old marker files are recovery sources only and are imported
+# when the canonical value is absent.
+function Read-InstalledVersion {
+    param($Game, [string]$GameDir)
+    $pending = Import-PendingInstallerVersion -Game $Game -GameDir $GameDir
+    if (Test-IsTrackableInstalledVersion -Version $pending) { return ([string]$pending) }
+    $vKeep = Read-PersistentGameStateValue -Game $Game -Name 'installed_version'
+    if (Test-IsTrackableInstalledVersion -Version $vKeep) {
+        $proof = Read-InstalledVersionProof -Game $Game -GameDir $GameDir
+        if ($proof -and (Get-Command Test-OnlineVersionIsNewer -ErrorAction SilentlyContinue) -and
+            (Test-OnlineVersionIsNewer -Installed ([string]$vKeep) -Online ([string]$proof))) {
+            Write-InstalledVersion -Game $Game -Version $proof -GameDir $GameDir
+            return ([string]$proof)
+        }
+        return ([string]$vKeep)
+    }
+
+    $proof = Read-InstalledVersionProof -Game $Game -GameDir $GameDir
+    if (Test-IsTrackableInstalledVersion -Version $proof) {
+        Write-InstalledVersion -Game $Game -Version $proof -GameDir $GameDir
+        return ([string]$proof)
+    }
+
+    # A confirmed successful legacy installer may be unable to tell us the
+    # exact new release (for example while its source is temporarily offline).
+    # In that state old game-side recovery is known to be superseded and must
+    # not be imported again.  The durable block survives Hub replacement via
+    # Core\UserData and is removed as soon as an exact version is written.
+    if ((Read-PersistentGameStateValue -Game $Game -Name 'installed_version_recovery_blocked') -eq '1') { return $null }
+
+    $recovery = @(
+        (Read-HubInstallManifestVersion -Game $Game -GameDir $GameDir),
+        (Read-VersionStampFile -Path (Get-GameStampPath -GameDir $GameDir)),
+        (Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game))
+    )
+    foreach ($candidate in $recovery) {
+        if (-not (Test-IsTrackableInstalledVersion -Version $candidate)) { continue }
+        $chosen = ([string]$candidate).Trim()
+        Write-PersistentGameStateValue -Game $Game -Name 'installed_version' -Value $chosen
+        if ($GameDir) { Write-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Version $chosen }
+        return $chosen
+    }
+    return $null
+}
+
+# Write the installed version to canonical state and, when the install path is
+# known, to the installation-side recovery marker and manifest as well.
 function Write-InstalledVersion {
     param($Game, $Version, [string]$GameDir)
     if (-not (Test-IsTrackableInstalledVersion -Version $Version)) { return }
     $val = ([string]$Version).Trim()
     $enc = New-Object System.Text.UTF8Encoding $false
-    foreach ($target in @(
-        (Get-GameStampPath -GameDir $GameDir),
-        (Get-InstalledVersionPath -Game $Game)
-    )) {
+    foreach ($target in @((Get-GameStampPath -GameDir $GameDir))) {
         if (-not $target) { continue }
         # DO NOT WRITE WHEN THE SAME VALUE IS ALREADY THERE. One of the
         # callers in the scan reports "up to date" and writes the same
@@ -542,9 +663,14 @@ function Write-InstalledVersion {
             }
         } catch {}
         if ($same) { continue }
+        $targetDir = Split-Path -Parent $target
+        if ((Get-Command Test-HubDirectoryWritableQuiet -ErrorAction SilentlyContinue) -and
+            -not (Test-HubDirectoryWritableQuiet -Directory $targetDir)) { continue }
         try { [System.IO.File]::WriteAllText($target, $val, $enc) } catch {}
     }
     Write-PersistentGameStateValue -Game $Game -Name 'installed_version' -Value $val
+    Reset-PersistentGameStateValue -Game $Game -Name 'installed_version_recovery_blocked'
+    if ($GameDir) { Write-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Version $val }
 }
 
 # Second tracked version, for entries that carry TWO independent mods in
@@ -559,19 +685,23 @@ function Get-InstalledVersionPathB {
 
 function Read-InstalledVersionB {
     param($Game, [string]$GameDir)
-    $values = @(@(
+    $pending = Import-PendingInstallerVersion -Game $Game -GameDir $GameDir -Second
+    if (Test-IsTrackableInstalledVersion -Version $pending) { return ([string]$pending) }
+    $keep = Read-PersistentGameStateValue -Game $Game -Name 'installed_version_b'
+    if (Test-IsTrackableInstalledVersion -Version $keep) { return ([string]$keep) }
+    if ((Read-PersistentGameStateValue -Game $Game -Name 'installed_version_b_recovery_blocked') -eq '1') { return $null }
+    foreach ($candidate in @(
+        (Read-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Second),
         (Read-VersionStampFile -Path (Get-GameStampPath -GameDir $GameDir -Second)),
-        (Read-VersionStampFile -Path (Get-InstalledVersionPathB -Game $Game)),
-        (Read-PersistentGameStateValue -Game $Game -Name 'installed_version_b')
-    ) | Where-Object { Test-IsTrackableInstalledVersion -Version ([string]$_) })
-    if ($values.Count -eq 0) { return $null }
-    $chosen = [string]$values[0]
-    foreach ($candidate in $values | Select-Object -Skip 1) {
-        try {
-            if (Test-OnlineVersionIsNewer -Installed $chosen -Online $candidate) { $chosen = [string]$candidate }
-        } catch {}
+        (Read-VersionStampFile -Path (Get-InstalledVersionPathB -Game $Game))
+    )) {
+        if (-not (Test-IsTrackableInstalledVersion -Version $candidate)) { continue }
+        $chosen = ([string]$candidate).Trim()
+        Write-PersistentGameStateValue -Game $Game -Name 'installed_version_b' -Value $chosen
+        if ($GameDir) { Write-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Version $chosen -Second }
+        return $chosen
     }
-    return $chosen
+    return $null
 }
 
 function Write-InstalledVersionB {
@@ -579,10 +709,7 @@ function Write-InstalledVersionB {
     if (-not (Test-IsTrackableInstalledVersion -Version $Version)) { return }
     $val = ([string]$Version).Trim()
     $enc = New-Object System.Text.UTF8Encoding $false
-    foreach ($target in @(
-        (Get-GameStampPath -GameDir $GameDir -Second),
-        (Get-InstalledVersionPathB -Game $Game)
-    )) {
+    foreach ($target in @((Get-GameStampPath -GameDir $GameDir -Second))) {
         if (-not $target) { continue }
         $same = $false
         try {
@@ -591,66 +718,65 @@ function Write-InstalledVersionB {
                 if ((([string]$cur -replace '[^\x20-\x7E]', '').Trim()) -eq $val) { $same = $true }
             }
         } catch {}
-        if (-not $same) { try { [System.IO.File]::WriteAllText($target, $val, $enc) } catch {} }
-    }
-    Write-PersistentGameStateValue -Game $Game -Name 'installed_version_b' -Value $val
-}
-
-# Remove installed version file (used when user clicks Update). The second
-# marker goes with it - otherwise a two-mod entry would keep a stale
-# version for mod B and show Update forever after an install.
-# Mark the tracked version as UNKNOWN after a completed (re)install, so
-# the next scan fills it in with whatever is current online.
-#
-# THIS DOES NOT DELETE ANYTHING, ON PURPOSE. It used to, and that was
-# wrong twice over. First, a delete is a bigger operation than the job
-# needs: the job is "this value is stale", and emptying a file says that
-# just as well. Second, a delete is the one operation whose blast radius
-# depends entirely on the path being right - get the path wrong by one
-# empty string and you are removing a directory instead of a marker.
-# Overwriting cannot do that: the worst a wrong path can do here is
-# create or blank a stray 0-byte file, which the next scan overwrites.
-#
-# An empty marker reads back as $null (see Read-VersionStampFile), which
-# is exactly the "no version recorded" state the scan already handles.
-# Files that do not exist are left alone - no new files are created.
-function Reset-InstalledVersion {
-    param($Game, [string]$GameDir)
-    $enc = New-Object System.Text.UTF8Encoding $false
-    foreach ($path in @(
-        (Get-InstalledVersionPath  -Game $Game),
-        (Get-InstalledVersionPathB -Game $Game),
-        (Get-GameStampPath -GameDir $GameDir),
-        (Get-GameStampPath -GameDir $GameDir -Second)
-    )) {
-        if ($path -and (Test-Path -LiteralPath $path -PathType Leaf)) {
-            try { [System.IO.File]::WriteAllText($path, "", $enc) } catch {}
+        if (-not $same) {
+            $targetDir = Split-Path -Parent $target
+            if ((Get-Command Test-HubDirectoryWritableQuiet -ErrorAction SilentlyContinue) -and
+                -not (Test-HubDirectoryWritableQuiet -Directory $targetDir)) { continue }
+            try { [System.IO.File]::WriteAllText($target, $val, $enc) } catch {}
         }
     }
-    Reset-PersistentGameStateValue -Game $Game -Name 'installed_version'
-    Reset-PersistentGameStateValue -Game $Game -Name 'installed_version_b'
+    Write-PersistentGameStateValue -Game $Game -Name 'installed_version_b' -Value $val
+    Reset-PersistentGameStateValue -Game $Game -Name 'installed_version_b_recovery_blocked'
+    if ($GameDir) { Write-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Version $val -Second }
 }
 
-# Path to the per-game ".update_ok" marker the installer wrapper drops
-# next to .installed_version when its core ran to completion. A cancel
-# inside the core calls 'exit' first, so the marker is absent on cancel.
+# A completed legacy installer and a cancelled installer are different state
+# transitions.  Cancellation leaves every recovery source untouched.  A
+# CONFIRMED success without an exact version makes the former version stale:
+# block its recovery durably, then clear only the selected slot's comparison
+# evidence.  Exact known files are blanked rather than deleted, and the central
+# block still protects correctness when the game directory is read-only.
+function Invalidate-SupersededInstalledVersion {
+    param($Game, [string]$GameDir, [switch]$Second)
+    if (-not $Game) { return }
+    $versionName = if ($Second) { 'installed_version_b' } else { 'installed_version' }
+    $blockName = if ($Second) { 'installed_version_b_recovery_blocked' } else { 'installed_version_recovery_blocked' }
+
+    # Block first.  If the process is interrupted between these two writes, the
+    # old canonical value still wins; once it is removed no stale fallback can
+    # race back in.
+    Write-PersistentGameStateValue -Game $Game -Name $blockName -Value '1'
+    Reset-PersistentGameStateValue -Game $Game -Name $versionName
+
+    $targets = @(
+        (Get-GameStampPath -GameDir $GameDir -Second:$Second),
+        $(if ($Second) { Get-InstalledVersionPathB -Game $Game } else { Get-InstalledVersionPath -Game $Game })
+    )
+    $enc = New-Object System.Text.UTF8Encoding $false
+    foreach ($target in $targets) {
+        if (-not $target -or -not (Test-Path -LiteralPath $target -PathType Leaf)) { continue }
+        $leaf = [IO.Path]::GetFileName([string]$target)
+        if ($leaf -notmatch '^\.pcvrhub_version(?:_b)?$' -and $leaf -notmatch '^\.installed_version(?:_[A-Za-z0-9_]+)?(?:_b)?$') { continue }
+        try { [IO.File]::WriteAllText([string]$target, '', $enc) } catch {}
+    }
+    if ($GameDir) { Clear-HubInstallManifestVersion -Game $Game -GameDir $GameDir -Second:$Second }
+}
+
+# Path to the per-game installer transaction result. It is transient runtime
+# data in LocalAppData, never durable state and never part of the Hub folder.
 function Get-UpdateOkMarkerPath {
     param($Game)
-    $vp = Get-InstalledVersionPath -Game $Game
-    if (-not $vp) { return $null }
-    $leaf = Split-Path -Leaf $vp
-    if ($leaf -like '.installed_version_*') {
-        return ([IO.Path]::Combine((Split-Path -Parent $vp), ($leaf -replace '^\.installed_version_', '.update_ok_')))
-    }
-    return ([IO.Path]::Combine((Split-Path -Parent $vp), ".update_ok"))
+    $root = Get-HubRuntimeRoot
+    $id = Get-HubGameStateId -Game $Game
+    if (-not $root -or -not $id) { return $null }
+    return [IO.Path]::Combine($root, 'Transactions', ('install_' + $id + '.json'))
 }
 
 # Clear a stale completion marker before launching an update installer,
 # so only a freshly completed run can clear the tracked version.
-# This one stays a delete: it is a PRESENCE flag - "the installer core
-# finished" - and a flag you cannot remove is not a flag. It lives in the
-# Hub's own Core\<Game>\ folder under a fixed literal name, so no path
-# here can ever point at user data. -PathType Leaf all the same.
+# This one stays a delete: it is a presence flag under the fixed per-user
+# Transactions directory, never a game file or user save. -PathType Leaf
+# ensures a malformed path can never remove a directory.
 function Clear-UpdateOkMarker {
     param($Game)
     $mk = Get-UpdateOkMarkerPath -Game $Game
@@ -724,6 +850,7 @@ foreach ($mod in @(
     "OverviewPage.ps1",
     "BannerOvFilters.ps1",
     "Filter.ps1",
+    "CatalogSort.ps1",
     "Startup.ps1"
 )) {
     . (Join-Path $modulesDir $mod)

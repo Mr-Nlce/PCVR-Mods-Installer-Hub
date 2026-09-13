@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet('naluluna','lufz')]
+    [ValidateSet('naluluna','lufz','cheeky')]
     [string]$Mod,
     [string]$InstallRoot = '',
     [string[]]$GameRoot = @(),
@@ -21,7 +21,8 @@ function Stop-Here  { param([int]$Code=0); if (-not $NoPause) { Write-Host ''; R
 function Test-ForzaVrRoot([string]$Path) {
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
     return (Test-Path -LiteralPath (Join-Path $Path 'NALULUNA\fh6vr.exe') -PathType Leaf) -or
-           (Test-Path -LiteralPath (Join-Path $Path 'lufz\vrmod-launcher.exe') -PathType Leaf)
+           (Test-Path -LiteralPath (Join-Path $Path 'lufz\vrmod-launcher.exe') -PathType Leaf) -or
+           (Test-Path -LiteralPath (Join-Path $Path 'CheekyRender\CheekyRender.exe') -PathType Leaf)
 }
 
 function Resolve-ForzaVrRoot([string]$Preferred, [string]$MarkerRoot) {
@@ -58,7 +59,7 @@ function Get-JsonPathStrings($Value) {
     return $out.ToArray()
 }
 
-function Get-ForzaGameRoots([string]$LufzRoot, [string[]]$PreferredRoots = @()) {
+function Get-ForzaGameRoots([string]$LufzRoot, [string]$CheekyRoot, [string[]]$PreferredRoots = @()) {
     $roots = New-Object 'System.Collections.Generic.List[string]'
     $add = {
         param([string]$Path)
@@ -85,6 +86,16 @@ function Get-ForzaGameRoots([string]$LufzRoot, [string[]]$PreferredRoots = @()) 
             try {
                 $json = Get-Content -LiteralPath $path -Raw -ErrorAction Stop | ConvertFrom-Json
                 foreach ($value in (Get-JsonPathStrings $json)) { & $add $value }
+            } catch {}
+        }
+    }
+    if ($CheekyRoot) {
+        $settingsPath = Join-Path $CheekyRoot 'settings.ini'
+        if (Test-Path -LiteralPath $settingsPath -PathType Leaf) {
+            try {
+                foreach ($line in @(Get-Content -LiteralPath $settingsPath -ErrorAction Stop)) {
+                    if ([string]$line -match '^\s*gamePath\s*=\s*(.+?)\s*$') { & $add ([string]$matches[1]) }
+                }
             } catch {}
         }
     }
@@ -133,13 +144,20 @@ $InstallRoot = Resolve-ForzaVrRoot -Preferred $InstallRoot -MarkerRoot $StateRoo
 if (-not $InstallRoot) { Write-Warn 'The separate Forza Horizon 6 VR folder was not found. Nothing was changed.'; Stop-Here 1 }
 $nalRoot = Join-Path $InstallRoot 'NALULUNA'
 $lufzRoot = Join-Path $InstallRoot 'lufz'
-$selectedRoot = if ($Mod -eq 'naluluna') { $nalRoot } else { $lufzRoot }
-$selectedLauncher = if ($Mod -eq 'naluluna') { Join-Path $nalRoot 'fh6vr.exe' } else { Join-Path $lufzRoot 'vrmod-launcher.exe' }
-$remainingLauncher = if ($Mod -eq 'naluluna') { Join-Path $lufzRoot 'vrmod-launcher.exe' } else { Join-Path $nalRoot 'fh6vr.exe' }
+$cheekyRoot = Join-Path $InstallRoot 'CheekyRender'
+$launchers = [ordered]@{
+    naluluna = Join-Path $nalRoot 'fh6vr.exe'
+    lufz     = Join-Path $lufzRoot 'vrmod-launcher.exe'
+    cheeky   = Join-Path $cheekyRoot 'CheekyRender.exe'
+}
+$roots = @{ naluluna=$nalRoot; lufz=$lufzRoot; cheeky=$cheekyRoot }
+$selectedRoot = $roots[$Mod]
+$selectedLauncher = $launchers[$Mod]
+$remainingLauncher = @($launchers.GetEnumerator() | Where-Object { $_.Key -ne $Mod -and (Test-Path -LiteralPath $_.Value -PathType Leaf) } | ForEach-Object { $_.Value })[0]
 if (-not (Test-Path -LiteralPath $selectedLauncher -PathType Leaf)) { Write-Info "$Mod is not detected. Nothing was changed."; Stop-Here 0 }
 
-foreach ($processName in @('ForzaHorizon6','fh6vr')) {
-    if (Get-Process -Name $processName -ErrorAction SilentlyContinue) { Write-Warn 'Close Forza Horizon 6 and both VR launchers before uninstalling.'; Stop-Here 1 }
+foreach ($processName in @('ForzaHorizon6','fh6vr','vrmod-launcher','CheekyRender','xrfb-openxr-host')) {
+    if (Get-Process -Name $processName -ErrorAction SilentlyContinue) { Write-Warn 'Close Forza Horizon 6 and every VR launcher before uninstalling.'; Stop-Here 1 }
 }
 if (-not $HubConfirmed) {
     $answer = (Read-Host "  Type yes to remove $Mod only").Trim()
@@ -152,7 +170,7 @@ Write-Host " Forza Horizon 6 VR - remove $Mod" -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Magenta
 Write-Host "  VR package: $selectedRoot" -ForegroundColor Gray
 
-$gameRoots = @(Get-ForzaGameRoots -LufzRoot $lufzRoot -PreferredRoots $GameRoot)
+$gameRoots = @(Get-ForzaGameRoots -LufzRoot $lufzRoot -CheekyRoot $cheekyRoot -PreferredRoots $GameRoot)
 if ($Mod -eq 'naluluna') {
     $hook = Join-Path $nalRoot 'fh6vrhook.dll'
     foreach ($gameRoot in $gameRoots) {
@@ -167,7 +185,7 @@ if ($Mod -eq 'naluluna') {
     }
     foreach ($file in @('fh6vr.exe','fh6vrhook.dll','openxr_loader.dll')) { Remove-OwnedLeaf -Root $nalRoot -Relative $file }
     Remove-EmptyOwnedFolders -Root $nalRoot -RelativeFolders @('.')
-} else {
+} elseif ($Mod -eq 'lufz') {
     Write-Host ''
     Write-Host '  The author-provided VRMod launcher will open now.' -ForegroundColor White
     Write-Host "  Select Forza Horizon 6, click 'Uninstall VR Mod', then close VRMod." -ForegroundColor Yellow
@@ -204,12 +222,67 @@ if ($Mod -eq 'naluluna') {
     }
     $durable = Join-Path $InstallRoot '.pcvrhub_version'
     if (Test-Path -LiteralPath $durable -PathType Leaf) { Remove-Item -LiteralPath $durable -Force -ErrorAction SilentlyContinue }
+} else {
+    Write-Host ''
+    Write-Host '  The author-provided CheekyRender launcher will open now.' -ForegroundColor White
+    Write-Host "  Click 'Uninstall Mod', confirm its result, then close CheekyRender." -ForegroundColor Yellow
+    Write-Host '  The Hub will verify the deployed DXGI proxy before removing the package.' -ForegroundColor Gray
+    Write-Host ''
+    try { Start-Process -FilePath $selectedLauncher -WorkingDirectory $cheekyRoot -Wait -ErrorAction Stop }
+    catch { Write-Warn "Could not start the author's uninstaller: $($_.Exception.Message)"; Stop-Here 1 }
+
+    # The author UI can correct the selected FH6 path while it is open.
+    # Re-read settings.ini after it closes rather than verifying a stale path.
+    $gameRoots = @(Get-ForzaGameRoots -LufzRoot $lufzRoot -CheekyRoot $cheekyRoot -PreferredRoots $GameRoot)
+    if ($gameRoots.Count -eq 0) {
+        Write-Warn 'No deployed game folder could be verified after CheekyRender closed.'
+        Write-Info 'The separate package was kept so the Hub cannot strand an unverified DXGI deployment.'
+        Stop-Here 1
+    }
+    $shippedProxy = Join-Path $cheekyRoot 'dxgi.dll'
+    $deployments = @()
+    $unverifiedProxies = @()
+    foreach ($gameRoot in $gameRoots) {
+        $proxy = Join-Path $gameRoot 'dxgi.dll'
+        if (-not (Test-Path -LiteralPath $proxy -PathType Leaf) -or -not (Test-Path -LiteralPath $shippedProxy -PathType Leaf)) { continue }
+        try {
+            if ((Get-FileHash -LiteralPath $proxy -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $shippedProxy -Algorithm SHA256).Hash) {
+                $deployments += $gameRoot
+            } else {
+                $unverifiedProxies += $proxy
+            }
+        } catch {
+            Write-Warn "Could not verify $proxy; the CheekyRender package was kept."
+            Stop-Here 1
+        }
+    }
+    if ($deployments.Count) {
+        Write-Warn "CheekyRender is still deployed in: $($deployments -join ', ')"
+        Write-Info "The package was kept. Open it again and complete 'Uninstall Mod'."
+        Stop-Here 1
+    }
+    if ($unverifiedProxies.Count) {
+        Write-Warn "A different or older dxgi.dll remains in: $($unverifiedProxies -join ', ')"
+        Write-Info 'It was not deleted, and the CheekyRender package was kept because ownership cannot be proven.'
+        Stop-Here 1
+    }
+    foreach ($file in @('CheekyRender.exe','dxgi.dll','README.txt','host\xrfb-openxr-host.exe')) {
+        Remove-OwnedLeaf -Root $cheekyRoot -Relative $file
+    }
+    Remove-EmptyOwnedFolders -Root $cheekyRoot -RelativeFolders @('host','.')
+    foreach ($marker in @('.installed_version_b')) {
+        $path = Join-Path $StateRoot $marker
+        if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+    }
+    $durable = Join-Path $InstallRoot '.pcvrhub_version_b'
+    if (Test-Path -LiteralPath $durable -PathType Leaf) { Remove-Item -LiteralPath $durable -Force -ErrorAction SilentlyContinue }
 }
 
 Update-ForzaShortcut -RemovedLauncher $selectedLauncher -RemainingLauncher $remainingLauncher -SharedRoot $InstallRoot
 if (-not (Test-Path -LiteralPath (Join-Path $nalRoot 'fh6vr.exe') -PathType Leaf) -and
-    -not (Test-Path -LiteralPath (Join-Path $lufzRoot 'vrmod-launcher.exe') -PathType Leaf)) {
-    foreach ($file in @('.installed_path','.installed_version')) {
+    -not (Test-Path -LiteralPath (Join-Path $lufzRoot 'vrmod-launcher.exe') -PathType Leaf) -and
+    -not (Test-Path -LiteralPath (Join-Path $cheekyRoot 'CheekyRender.exe') -PathType Leaf)) {
+    foreach ($file in @('.installed_path','.installed_version','.installed_version_b')) {
         $path = Join-Path $StateRoot $file
         if (Test-Path -LiteralPath $path -PathType Leaf) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
     }

@@ -42,10 +42,10 @@ If the in-installer auto-download fails, open the URL above in your browser and 
 
 ## Mod download (Discord)
 
-- Mod info / parent post: https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221
 - Mod download (standard): https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199
+- Upside-down-bug fix: https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221
 
-The upside-down-bug fix variant is attached to the same mod post in Discord. Look for the file with `fixupsidedownbug` in the name.
+The installer opens the matching Discord post for the selected variant. For the fix, look for the file with `fixupsidedownbug` in the name.
 
 ## Controls
 
@@ -75,7 +75,8 @@ vrApi = OpenXR
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP
-- Mod info post: https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221
+- Mod download (standard): https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199
+- Upside-down-bug fix: https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221
 
 ## Support Astienth
 

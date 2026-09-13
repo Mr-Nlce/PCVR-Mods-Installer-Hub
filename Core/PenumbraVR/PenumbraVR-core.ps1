@@ -40,14 +40,13 @@ $INFO_URL    = "https://github.com/newyork167/penumbra_vr"
 # file called Penumbra_vr.exe. Nothing has to be parked; which one
 # you play is simply which copy you launch.
 #
-# ALL RELEASES ARE PRERELEASES -> the list is queried, never
-# /releases/latest.
+# The list is queried so both stable releases and a newer prerelease can
+# be offered; the rework reached its first stable release with v0.1.0.
 $RW_NAME    = "Penumbra VR rework"
 $RW_AUTHOR  = "rubocopter"
 $RW_REPO    = "rubocopter/penumbra_vr_rework"
 $RW_RELEASES = "https://github.com/$RW_REPO/releases"
-# Read from the real v0.1.0-alpha.2 archive (52 entries, 5,852,294 B,
-# sha256 b06270e2...), not guessed.
+# Required files are common to the author's reversible release packages.
 $RW_SETUP   = "Install-PenumbraVR.bat"
 $RW_MUST_HAVE = @("Penumbra_vr.exe", "openvr_api.dll", $RW_SETUP, "SHA256SUMS.txt")
 $DL_URLS     = @(
@@ -158,8 +157,11 @@ Write-Host "       under C:\Games - your Steam copy stays untouched." -Foregroun
 Write-Host ""
 Write-Host "   [2] $RW_NAME by $RW_AUTHOR" -ForegroundColor White
 Write-Host "       " -NoNewline
-Write-Host " EARLY ALPHA " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "       A rework with per-finger hand animation: on PS VR2" -ForegroundColor Gray
+Write-Host " FIRST STABLE RELEASE " -ForegroundColor Black -BackgroundColor Green
+Write-Host "       Roomscale hands, physical props and per-finger animation." -ForegroundColor Gray
+Write-Host "       Optional enhanced lighting and reviewed textures can be" -ForegroundColor Gray
+Write-Host "       switched live under Options > VR Settings > Display." -ForegroundColor Gray
+Write-Host "       On PS VR2" -ForegroundColor Gray
 Write-Host "       Sense, Index and Touch every finger follows its own" -ForegroundColor Gray
 Write-Host "       measured curl. Other devices get a synthesized closing" -ForegroundColor Gray
 Write-Host "       sequence. Only PS VR2 Sense is hardware-validated." -ForegroundColor Gray

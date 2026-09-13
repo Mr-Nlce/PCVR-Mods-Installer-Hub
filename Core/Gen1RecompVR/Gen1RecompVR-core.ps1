@@ -67,11 +67,11 @@ $MOD_PAGE     = "https://github.com/$MOD_REPO/releases"
 # Known-good pair, verified together: the mod's manifest.json requires
 # the port to be >=0.1.37 and <2.0.0, and this is the newest pair at
 # the time of writing.
-# Port moved to v0.1.81 (2026-08-13). Per their manifests BOTH mods
-# manifest.json says ">=0.1.37 <2.0.0" - 0.1.81 sits safely inside
+# Port moved to v0.2.56 (2026-09-04). Per their manifests BOTH mods
+# manifest.json says ">=0.1.37 <2.0.0" - 0.2.56 sits safely inside
 # that. The port stays pinned so it cannot one day jump to 2.x and
 # lock the mods out.
-$PIN_PORT_TAG = "v0.1.81"
+$PIN_PORT_TAG = "v0.2.56"
 $PIN_MOD_TAG  = "v1.6.4"
 
 $GAME_FOLDER  = "Pokemon Gen 1 VR"

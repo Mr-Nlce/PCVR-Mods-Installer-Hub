@@ -233,14 +233,17 @@ function global:Get-ReadmeDownloadsRoot {
 }
 
 function global:New-ReadmeLinkSession {
-    param($Game, [string[]]$Texts, [string]$BaseDir)
+    param($Game, [string[]]$Texts, [string]$BaseDir, [switch]$DeferLocalIndex)
     $session = [pscustomobject]@{
         Game=$Game; Texts=$Texts; BaseDir=$BaseDir; Context=$null; Targets=@{}; AmbiguousTargets=@{}; Pattern=$null
         DocumentsRoot=[Environment]::GetFolderPath('MyDocuments')
         DownloadsRoot=(Get-ReadmeDownloadsRoot)
         Blocks=(New-Object 'System.Collections.Generic.List[object]')
     }
-    Update-ReadmeLinkSession $session
+    # Enumerating the immediate children of a large installed game folder can
+    # be noticeable. Detail pages may defer only this local-path index until
+    # the first idle UI tick; web links, pills and all text still render now.
+    if (-not $DeferLocalIndex) { Update-ReadmeLinkSession $session }
     if ($null -ne $global:DetailReadmeLinkSessions) { [void]$global:DetailReadmeLinkSessions.Add($session) }
     return $session
 }

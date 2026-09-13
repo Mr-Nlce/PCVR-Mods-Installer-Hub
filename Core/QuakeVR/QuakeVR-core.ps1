@@ -9,6 +9,12 @@
 # mod is always downloaded at install time.
 # ============================================================
 
+param(
+    [Alias('InstallerChoice')]
+    [ValidateSet('','romeo','pcvr')]
+    [string]$Mod = ''
+)
+
 # Load installer-safety helpers (Invoke-SafeDownload,
 # Expand-ArchiveOrFallback, Invoke-InstallerFallback, Get-SevenZip).
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -104,11 +110,21 @@ Write-Host "       Single Player, both mission packs and all four episodes." -Fo
 Write-Host ""
 Write-Host "  Each lives in its own folder, so both can be installed." -ForegroundColor DarkGray
 Write-Host ""
-$quakePick = ""
-for ($k = 1; $k -le 20; $k++) {
-    $quakePick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
-    if ($quakePick -in @("1","2")) { break }
-    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+$quakePick = switch ($Mod) {
+    'romeo' { '1' }
+    'pcvr'  { '2' }
+    default { '' }
+}
+if ($quakePick) {
+    $selectedByHub = if ($quakePick -eq '1') { 'Vittorio Romeo' } else { 'Team Beef port' }
+    Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
+    Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
+} else {
+    for ($k = 1; $k -le 20; $k++) {
+        $quakePick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
+        if ($quakePick -in @("1","2")) { break }
+        Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+    }
 }
 if ($quakePick -eq "2") {
     $pcvr = Join-Path $PSScriptRoot "QuakeVR-PCVR.ps1"

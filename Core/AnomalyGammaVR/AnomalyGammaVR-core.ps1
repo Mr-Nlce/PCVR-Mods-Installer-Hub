@@ -1,416 +1,404 @@
 # ============================================================
-#  S.T.A.L.K.E.R. GAMMA VR ("Anomaly Gamma") Installer
+# S.T.A.L.K.E.R. GAMMA VR v0.3.4 (Anomaly Gamma)
 # ============================================================
-# A complete GAMMA VR package (based on Anomaly). The user grabs the
-# either the complete "STALKER GAMMA VR v0.3.2.7z" or the small
-# "UPDATE FROM v0.3.1 TO v0.3.2c.7z" - which one is offered first depends on
-# whether an install already sits in the chosen folder
-# from the mod's Discord (same server as
-# Anomaly VR) and drags it in. We extract its "Gamma VR" folder into
-# a Games root (-> <root>\Gamma VR), switch the language to English,
-# drop the game icon, and make a desktop shortcut to GAMMA VR.bat.
-# Nothing is bundled except the small game icon.
+# The current official package is supplied through the Anomaly VR Discord.
+# A small update is valid only for a proven v0.3.3 installation. Every other
+# state uses the complete v0.3.4 package. The implementation is deliberately
+# library-testable; set PCVR_ANOMALYGAMMA_LIBRARY_ONLY=1 before dot-sourcing.
 # ============================================================
 
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 
-$GAME_TITLE           = "Anomaly Gamma"
-$LAUNCH_BAT           = "GAMMA VR.bat"
-$MOD_FOLDER           = "Gamma VR"          # folder name inside the .7z
-$DEFAULT_ROOTS        = @("C:\Games", "D:\Games", "E:\Games")
-$ICON_SRC             = Join-Path $PSScriptRoot "GammaVR.ico"
-$DISCORD_INVITE_URL   = "https://discord.gg/kGhd7GvJ5F"
-# TWO posts, and both link into the SAME gofile folder - so the file the
-# user has to pick is what actually matters. Naming the exact archive is
-# the whole point of the branch below.
-$POST_FULL_URL        = "https://discord.com/channels/1495664880311734313/1511657141990199356/1530927349837861106"
-$POST_UPDATE_URL      = "https://discord.com/channels/1495664880311734313/1511657141990199356/1532382868238766203"
-$FILE_FULL            = "STALKER GAMMA VR v0.3.2.7z"
-$FILE_UPDATE          = "UPDATE FROM v0.3.1 TO v0.3.2c.7z"
+$script:GammaCurrentVersion = '0.3.4'
+$script:GammaFolderName = 'Gamma VR'
+$script:GammaLaunchFile = 'GAMMA VR.bat'
+$script:GammaInviteUrl = 'https://discord.gg/kGhd7GvJ5F'
+$script:GammaDownloadPostUrl = 'https://discord.com/channels/1495664880311734313/1511657141990199356/1548102620571373668'
+$script:QBitTorrentUrl = 'https://www.qbittorrent.org/download'
+$script:GammaContract = New-PCVRInstallerContract -Id 'anomaly-gamma' -GameName 'Anomaly GAMMA VR' `
+    -Acquisition Discord -Routes @('CurrentFull','UpdateFrom0.3.3') `
+    -DiscordInviteUrl $script:GammaInviteUrl -DiscordDownloadUrl $script:GammaDownloadPostUrl `
+    -RequiredInstalledFileGroups @(
+        'GAMMA VR.bat',
+        'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0\modlist.txt|profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0 - NITROYUASH\modlist.txt',
+        'mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini'
+    )
 
-# ---- console helpers ----
-function Write-Header {
+function Write-GammaHeader {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host "  S.T.A.L.K.E.R. GAMMA VR Installer" -ForegroundColor Cyan
-    Write-Host "  Anomaly Gamma - complete package, motion controls" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Magenta
+    Write-Host '============================================================' -ForegroundColor Magenta
+    Write-Host '  S.T.A.L.K.E.R. GAMMA VR Installer' -ForegroundColor Cyan
+    Write-Host '  Current package v0.3.4 - manual reloading and grenades' -ForegroundColor Gray
+    Write-Host '============================================================' -ForegroundColor Magenta
 }
-function Write-Step { param($n,$t,$txt) Write-Host ""; Write-Host "[$n/$t] $txt" -ForegroundColor Cyan; Write-Host "----------------------------------------" -ForegroundColor DarkGray }
-function Write-Do   { param($m) Write-Host "  >> $m" -ForegroundColor Yellow }
-function Write-OK   { param($m) Write-Host "  [OK] $m" -ForegroundColor Green }
-function Write-Info { param($m) Write-Host "     $m" -ForegroundColor Gray }
-function Write-Warn { param($m) Write-Host "  [!] $m" -ForegroundColor Yellow }
-function Write-Fail { param($m) Write-Host "  [X] $m" -ForegroundColor Red }
-function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host "  >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 
-function Test-WritableRoot {
-    param([string]$Root)
+function Write-GammaStep([int]$Number,[int]$Total,[string]$Text) {
+    Write-Host ''
+    Write-Host ("--- [{0}/{1}] {2} ---" -f $Number,$Total,$Text) -ForegroundColor Cyan
+    Write-Host '------------------------------------------------------------' -ForegroundColor DarkGray
+}
+
+function Write-GammaOk([string]$Text) { Write-Host "[OK] $Text" -ForegroundColor Green }
+function Write-GammaInfo([string]$Text) { Write-Host "[..] $Text" -ForegroundColor Gray }
+function Write-GammaWarn([string]$Text) { Write-Host "[!!] $Text" -ForegroundColor Yellow }
+
+function Get-GammaInstalledVersion([string]$InstallPath) {
+    if (-not $InstallPath -or -not (Test-Path -LiteralPath ([IO.Path]::Combine($InstallPath,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue)) { return '' }
+    foreach ($stampName in @('gamma_vr_version.txt','.pcvrhub_version')) {
+        $stamp = Join-Path $InstallPath $stampName
+        if (Test-Path -LiteralPath $stamp -PathType Leaf -ErrorAction SilentlyContinue) {
+            try {
+                $value = (Get-Content -LiteralPath $stamp -Raw -ErrorAction Stop).Trim()
+                if ($value -match '(?i)(?:^|[^0-9])v?(0\.3\.[0-9]+[a-z]?)(?:$|[^0-9])') { return $matches[1] }
+            } catch {}
+        }
+    }
+    $profiles = Join-Path $InstallPath 'profiles'
+    if (Test-Path -LiteralPath $profiles -PathType Container -ErrorAction SilentlyContinue) {
+        $versions = @(Get-ChildItem -LiteralPath $profiles -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Name -match '(?i)GAMMA VR v(0\.3\.[0-9]+[a-z]?)') { $matches[1] }
+        })
+        if ($versions -contains '0.3.4') { return '0.3.4' }
+        if ($versions -contains '0.3.3') { return '0.3.3' }
+        if ($versions.Count -gt 0) { return [string]$versions[0] }
+    }
+    return 'unknown'
+}
+
+function Get-GammaKnownInstallPath {
+    $candidates = New-Object System.Collections.Generic.List[string]
     try {
-        if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force -ErrorAction Stop | Out-Null }
-        $probe = Join-Path $Root ".pcvrhub_write_probe"
-        Set-Content -Path $probe -Value "ok" -ErrorAction Stop
-        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        $located = Get-HubLocatedGameFolder -GameId 'anomaly-gamma' -ProbeFiles @($script:GammaLaunchFile)
+        if ($located) { [void]$candidates.Add($located) }
+    } catch {}
+    $receipt = Join-Path $PSScriptRoot '.installed_path'
+    if (Test-Path -LiteralPath $receipt -PathType Leaf -ErrorAction SilentlyContinue) {
+        try {
+            $recorded = (Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop).Trim().Trim('"')
+            if ($recorded) { [void]$candidates.Add($recorded) }
+        } catch {}
+    }
+    foreach ($root in @('C:\Games','D:\Games','E:\Games')) { [void]$candidates.Add([IO.Path]::Combine($root,$script:GammaFolderName)) }
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if (Test-Path -LiteralPath ([IO.Path]::Combine($candidate,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue) {
+            return [IO.Path]::GetFullPath($candidate)
+        }
+    }
+    return ''
+}
+
+function Resolve-GammaInstallPath([string]$InputPath,[string]$DefaultPath) {
+    $value = ('' + $InputPath).Trim().Trim('"').Trim("'")
+    if (-not $value) { $value = $DefaultPath }
+    if (-not $value) { $value = 'C:\Games\Gamma VR' }
+    $full = [IO.Path]::GetFullPath($value)
+    if ((Split-Path $full -Leaf) -ieq $script:GammaFolderName -or (Test-Path -LiteralPath ([IO.Path]::Combine($full,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue)) {
+        return $full.TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+    }
+    return ([IO.Path]::Combine($full,$script:GammaFolderName)).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+}
+
+function Test-GammaWritableParent([string]$InstallPath) {
+    try {
+        $parent = Split-Path -Parent ([IO.Path]::GetFullPath($InstallPath))
+        if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+        $probe = Join-Path $parent ('.pcvr-gamma-write-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+        [IO.File]::WriteAllText($probe,'ok',(New-Object Text.UTF8Encoding $false))
+        Remove-Item -LiteralPath $probe -Force -ErrorAction Stop
         return $true
     } catch { return $false }
 }
 
-function Find-7Zip {
-    # Return an existing 7z.exe, or download + silently install 7-Zip if
-    # it is missing (the pack ships as a .7z, which PowerShell cannot open).
-    $cands = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe")
-    foreach ($p in $cands) { if (Test-Path $p) { return $p } }
-    try { $c = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source; if ($c) { return $c } } catch {}
-    Write-Warn "7-Zip is required to unpack the .7z and is not installed."
-    Pause-User "Press Enter to download + install 7-Zip (silent - accept the UAC prompt)..."
-    $inst = Join-Path $env:TEMP "7z-setup.exe"
+function Test-GammaArchive {
+    param(
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [Parameter(Mandatory=$true)][ValidateSet('CurrentFull','UpdateFrom0.3.3')][string]$Route,
+        [Parameter(Mandatory=$true)][string]$SevenZip,
+        [switch]$Quiet
+    )
+    if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+    $layout = Get-ArchiveTopLevel -ArchivePath $ArchivePath -SevenZip $SevenZip
+    if (-not $layout.Ok -or @($layout.Entries).Count -eq 0) {
+        if (-not $Quiet) { Write-GammaWarn 'The file is not a completed, readable archive yet. If it is downloading through a torrent, let it finish first.' }
+        return $false
+    }
+    $entries = @($layout.Entries | ForEach-Object { ('' + $_).Replace('/','\').TrimStart('.\') })
+    foreach ($entry in $entries) {
+        $parts = @($entry -split '\\' | Where-Object { $_ })
+        if ([IO.Path]::IsPathRooted($entry) -or $entry -match '^[A-Za-z]:' -or $parts -contains '..') {
+            if (-not $Quiet) { Write-GammaWarn "Unsafe archive path rejected: $entry" }
+            return $false
+        }
+    }
+    $has = {
+        param([string]$Suffix)
+        $needle = $Suffix.Replace('/','\')
+        return @($entries | Where-Object { $_ -ieq $needle -or $_.EndsWith(('\' + $needle),[StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+    }
+    $functional = (& $has 'GAMMA VR.bat') -and
+                  ((& $has 'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0\modlist.txt') -or (& $has 'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0 - NITROYUASH\modlist.txt')) -and
+                  (& $has 'mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini')
+    if (-not $functional) {
+        if (-not $Quiet) { Write-GammaWarn 'This archive does not contain the files needed for the official GAMMA VR v0.3.4 setup.' }
+        return $false
+    }
+    if ($Route -eq 'CurrentFull' -and -not (& $has 'ModOrganizer.exe')) {
+        if (-not $Quiet) { Write-GammaWarn 'This is the small v0.3.3 update, not the complete standalone v0.3.4 package.' }
+        return $false
+    }
+    return $true
+}
+
+function Get-GammaPayloadRoot([string]$ExtractRoot) {
+    $root = Get-ExtractedPayloadRoot -ExtractDir $ExtractRoot -RelModFile $script:GammaLaunchFile
+    if (-not $root -or -not (Test-Path -LiteralPath (Join-Path $root $script:GammaLaunchFile) -PathType Leaf)) { throw 'The extracted GAMMA VR payload root could not be found.' }
+    return [IO.Path]::GetFullPath($root)
+}
+
+function Assert-GammaPathInside([string]$Path,[string]$Root,[switch]$AllowRoot) {
+    $fullPath = [IO.Path]::GetFullPath($Path).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+    $fullRoot = [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+    if (($AllowRoot -and $fullPath.Equals($fullRoot,[StringComparison]::OrdinalIgnoreCase)) -or $fullPath.StartsWith(($fullRoot + [IO.Path]::DirectorySeparatorChar),[StringComparison]::OrdinalIgnoreCase)) { return $true }
+    throw "Path escapes its transaction root: $Path"
+}
+
+function Install-GammaFullPayload {
+    param([Parameter(Mandatory=$true)][string]$PayloadRoot,[Parameter(Mandatory=$true)][string]$InstallPath)
+    $gamesRoot = Split-Path -Parent $InstallPath
+    [void](Assert-GammaPathInside -Path $PayloadRoot -Root $gamesRoot)
+    [void](Assert-GammaPathInside -Path $InstallPath -Root $gamesRoot)
+    $backupPath = ''
+    if (Test-Path -LiteralPath $InstallPath -PathType Container) {
+        $backupBase = Join-Path $gamesRoot '.pcvrhub-backups\Anomaly Gamma'
+        [void][IO.Directory]::CreateDirectory($backupBase)
+        $backupPath = Join-Path $backupBase ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8) + '-before-v0.3.4')
+        Move-Item -LiteralPath $InstallPath -Destination $backupPath -ErrorAction Stop
+    }
     try {
-        Invoke-WebRequest -Uri "https://7-zip.org/a/7z2501-x64.exe" -OutFile $inst -UseBasicParsing
-        Start-Process -FilePath $inst -ArgumentList "/S" -Verb RunAs -Wait
-        Remove-Item $inst -Force -ErrorAction SilentlyContinue
-    } catch { Write-Warn "7-Zip install failed: $($_.Exception.Message)" }
-    foreach ($p in $cands) { if (Test-Path $p) { return $p } }
-    try { $c = (Get-Command 7z.exe -ErrorAction SilentlyContinue).Source; if ($c) { return $c } } catch {}
-    return $null
-}
-
-# Extract with 7-Zip's NATIVE progress (accurate %), but redirect its
-# stdout to a temp file so the noisy "NN - filename" lines never reach the
-# console. We poll the file and print ONLY the percentage + elapsed timer.
-function Invoke-SevenZipExtract {
-    param([string]$SevenZip, [string]$Archive, [string]$Dest)
-    $progFile = Join-Path ([System.IO.Path]::GetTempPath()) ("7zp_" + [Guid]::NewGuid().ToString("N") + ".log")
-    $proc = Start-Process -FilePath $SevenZip `
-        -ArgumentList "x","-y","-bso0","-bsp1","`"$Archive`"","-o`"$Dest`"" `
-        -PassThru -NoNewWindow -RedirectStandardOutput $progFile
-    $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    $pct = 0
-    while (-not $proc.HasExited) {
-        Start-Sleep -Milliseconds 500
-        try {
-            $fs = [System.IO.File]::Open($progFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
-            $sr = New-Object System.IO.StreamReader($fs)
-            $txt = $sr.ReadToEnd()
-            $sr.Close(); $fs.Close()
-            $mm = [regex]::Matches($txt, '(\d+)%')
-            if ($mm.Count -gt 0) { $pct = [int]$mm[$mm.Count - 1].Groups[1].Value }
-        } catch { }
-        $el = $sw.Elapsed.ToString('mm\:ss')
-        Write-Host ("`r  Extracting... {0,3}%   {1} elapsed        " -f $pct, $el) -NoNewline -ForegroundColor Gray
-    }
-    Write-Host "`r  Extracting... 100%   done                        " -ForegroundColor Gray
-    Remove-Item $progFile -Force -ErrorAction SilentlyContinue
-}
-
-Write-Header
-
-# -------------------------------------------------------
-# STEP 1: where GAMMA VR lives (fresh install target OR existing install)
-# -------------------------------------------------------
-Write-Host " A motion-controlled VR build of S.T.A.L.K.E.R. GAMMA, the large curated" -ForegroundColor White
-Write-Host " Anomaly modpack. GAMMA is a complete standalone package - it includes" -ForegroundColor White
-Write-Host " everything; no separate Anomaly or game install is needed." -ForegroundColor White
-Write-Host ""
-Pause-User "Press Enter to start..."
-Write-Step 1 5 "Where GAMMA VR lives"
-Write-Host "  If you already have GAMMA VR, point this at the folder holding it." -ForegroundColor White
-Write-Host "  If not, this is where it gets installed." -ForegroundColor White
-Write-Host ""
-Write-Host "  Default: C:\Games\$MOD_FOLDER - press Enter to take it, or type another folder." -ForegroundColor Gray
-Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
-Write-Host "  A fresh install needs at least 110 GB of free space." -ForegroundColor Yellow
-Write-Host "  If you type a custom path, the mod authors recommend a folder WITHOUT spaces." -ForegroundColor DarkGray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
-
-$gamesRoot = $null
-if ($chosen) {
-    if (Test-WritableRoot -Root $chosen) { $gamesRoot = [string]$chosen }
-    else { Write-Fail "Not writable: $chosen - falling back to the defaults." }
-}
-if (-not $gamesRoot) {
-    foreach ($r in $DEFAULT_ROOTS) { if (Test-WritableRoot -Root $r) { $gamesRoot = [string]$r; break } }
-}
-if (-not $gamesRoot) {
-    Write-Warn "None of C:\Games, D:\Games, E:\Games is writable."
-    while (-not $gamesRoot) {
-        $r = (Read-Host "  Install root").Trim().Trim('"')
-        if (-not $r) { continue }
-        if (Test-WritableRoot -Root $r) { $gamesRoot = [string]$r }
-        else { Write-Fail "Not writable: $r (try a non-Program-Files location, or run as admin)" }
+        Move-Item -LiteralPath $PayloadRoot -Destination $InstallPath -ErrorAction Stop
+        return [pscustomobject]@{ BackupPath=$backupPath; Rollback={
+            if (Test-Path -LiteralPath $InstallPath -PathType Container) { Remove-Item -LiteralPath $InstallPath -Recurse -Force -ErrorAction SilentlyContinue }
+            if ($backupPath -and (Test-Path -LiteralPath $backupPath -PathType Container)) { Move-Item -LiteralPath $backupPath -Destination $InstallPath -ErrorAction SilentlyContinue }
+        }.GetNewClosure() }
+    } catch {
+        if ($backupPath -and -not (Test-Path -LiteralPath $InstallPath) -and (Test-Path -LiteralPath $backupPath -PathType Container)) { Move-Item -LiteralPath $backupPath -Destination $InstallPath -ErrorAction SilentlyContinue }
+        throw
     }
 }
-Write-OK "Install root: $gamesRoot"
-$installPath = Join-Path $gamesRoot $MOD_FOLDER
-$hasOld = Test-Path (Join-Path $installPath $LAUNCH_BAT)
-if ($hasOld) { Write-OK "GAMMA VR is already installed in: $installPath" }
-else         { Write-Info "GAMMA VR will live in: $installPath" }
 
-# -------------------------------------------------------
-# STEP 2: Discord join + download (same server as Anomaly)
-# -------------------------------------------------------
-Write-Step 2 5 $(if ($hasOld) { "Get the update archive" } else { "Get the GAMMA VR package" })
-
-# The installed state decides what is offered FIRST and what the plain Enter
-# does. Someone who already has GAMMA in this folder wants the small update
-# in practically every case - a second full copy of the same 110 GB build
-# would be pointless - so the update leads, highlighted, and the full build
-# stays available underneath without competing for attention.
-if ($hasOld) {
-    Write-Host "  You already have GAMMA VR here, so you probably want the UPDATE archive." -ForegroundColor White
-    Write-Host ""
-    Write-Host "    [1] UPDATE to GAMMA VR v0.3.2c" -ForegroundColor Green
-    Write-Host "        Download exactly this file:" -ForegroundColor Gray
-    Write-Host "         $FILE_UPDATE " -ForegroundColor Black -BackgroundColor Yellow
-    Write-Host ""
-    Write-Host "    [2] Install the complete build again from scratch (about 110 GB)" -ForegroundColor DarkGray
-    Write-Host "        Only if your install is broken and you want to start over." -ForegroundColor DarkGray
-} else {
-    Write-Host "  No GAMMA VR install was found here, so you probably want the COMPLETE build." -ForegroundColor White
-    Write-Host ""
-    Write-Host "    [1] COMPLETE build of GAMMA VR v0.3.2 - about 110 GB" -ForegroundColor Green
-    Write-Host "        Download exactly this file:" -ForegroundColor Gray
-    Write-Host "         $FILE_FULL " -ForegroundColor Black -BackgroundColor Yellow
-    Write-Host ""
-    Write-Host "    [2] Update an existing v0.3.1 that lives somewhere else" -ForegroundColor DarkGray
-    Write-Host "        Only if you already have GAMMA VR in a different folder." -ForegroundColor DarkGray
-}
-Write-Host ""
-$mode = ""
-while ($mode -ne "1" -and $mode -ne "2") {
-    $mode = (Read-Host "  Press Enter for [1], or type 2").Trim()
-    if ($mode -eq "") { $mode = "1" }
-    if ($mode -ne "1" -and $mode -ne "2") { Write-Warn "Please press Enter or type 1 or 2." }
-}
-# [1] is always the recommended route, so what it MEANS flips with $hasOld.
-$isUpdate  = if ($hasOld) { ($mode -eq "1") } else { ($mode -eq "2") }
-$wantFile  = if ($isUpdate) { $FILE_UPDATE } else { $FILE_FULL }
-$wantPost  = if ($isUpdate) { $POST_UPDATE_URL } else { $POST_FULL_URL }
-$wantLabel = if ($isUpdate) { "update archive" } else { "complete build" }
-
-if ($isUpdate -and -not $hasOld) {
-    Write-Warn "No install was found in $installPath - the update can only go on top of an existing one."
-    Write-Info "If yours sits elsewhere, restart the installer and enter that folder in step 1."
-}
-
-Write-Host ""
-Write-Host "  The download is on the mod's Discord (same server as Anomaly VR)." -ForegroundColor White
-Write-Do  "Join the server. If you are already a member, still press Enter - just skip the joining."
-Pause-User "Press Enter to open the Discord invite..."
-try { Start-Process $DISCORD_INVITE_URL } catch { Write-Info $DISCORD_INVITE_URL }
-Write-Host ""
-Write-Host "  Both archives sit in the same download folder. Take this one:" -ForegroundColor White
-Write-Host "   $wantFile " -ForegroundColor Black -BackgroundColor Yellow
-Pause-User "Press Enter to open the download post..."
-try { Start-Process $wantPost } catch { Write-Info "$wantPost (must be a server member)" }
-
-# -------------------------------------------------------
-# STEP 3: drag the .7z + extract into the Games root
-# -------------------------------------------------------
-Write-Step 3 5 $(if ($isUpdate) { "Apply the update to $installPath" } else { "Extract into $gamesRoot" })
-Write-Do  "Drag the downloaded file here (or paste its path), then Enter:"
-Write-Host "   $wantFile " -ForegroundColor Black -BackgroundColor Yellow
-$arc = $null
-while (-not $arc) {
-    $r = (Read-Host "  Archive").Trim().Trim('"').Trim("'")
-    if (-not $r) { Write-Warn "No archive provided - cannot continue."; Pause-User "Press Enter to exit..."; return }
-    if (-not (Test-Path -LiteralPath $r)) { Write-Fail "Not found: $r"; continue }
-    $leaf  = Split-Path $r -Leaf
-    $other = if ($isUpdate) { $FILE_FULL } else { $FILE_UPDATE }
-    if ($leaf -ieq $other) {
-        Write-Warn "That is the other archive: $leaf"
-        Write-Info "You picked the $wantLabel, which is: $wantFile"
-        $go = (Read-Host "  Use the dropped file anyway? (y/N)").Trim()
-        if ($go -notmatch '^(?i)y') { continue }
-    }
-    $arc = $r
-}
-try { New-Item -ItemType Directory -Force -Path $gamesRoot | Out-Null } catch {}
-$sevenZip = Find-7Zip
-$extracted = $false
-
-# SNAPSHOT BEFORE TOUCHING ANYTHING. The update runs on top of an
-# existing v0.3.1, so "$LAUNCH_BAT exists" proves NOTHING afterwards -
-# it was already there. We remember its timestamp and only accept the
-# update as applied when something actually changed on disk.
-$batBefore = Join-Path $installPath $LAUNCH_BAT
-$hadBat    = Test-Path -LiteralPath $batBefore
-$batStamp  = $null
-if ($hadBat) { try { $batStamp = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {} }
-
-# LOOK INSIDE THE ARCHIVE FIRST - never extract and hope. The v0.3.2c
-# update .7z carries a wrapper folder named after the archive itself
-# ("UPDATE FROM v0.3.1 to v0.3.2\Gamma VR\..."), so a plain extract
-# into the Games root drops it NEXT TO the install instead of onto it.
-$layout = $null
-if ($sevenZip) { $layout = Get-ArchiveTopLevel -ArchivePath $arc -SevenZip $sevenZip }
-if ($layout -and $layout.Ok) {
-    $inner = @($layout.Entries | Where-Object { (Split-Path $_ -Leaf) -ieq $LAUNCH_BAT } | Select-Object -First 1)
-    if ($inner.Count -gt 0) {
-        $prefix = Split-Path $inner[0] -Parent
-        if ($prefix) { Write-Info "Archive layout: the payload sits in '$prefix' inside the archive." }
-        else         { Write-Info "Archive layout: the payload sits at the archive root." }
-    } else {
-        Write-Warn "'$LAUNCH_BAT' is not in this archive at all - it may be the wrong file."
-    }
-} else {
-    Write-Warn "Could not read the archive listing - the layout will be verified after unpacking."
-}
-
-if ($sevenZip) {
-    if ($isUpdate) { Write-Info "Applying the update over the existing install, replacing files..." }
-    else           { Write-Info "Extracting the complete build with 7-Zip - 110 GB, give it time..." }
+function Install-GammaUpdatePayload {
+    param([Parameter(Mandatory=$true)][string]$PayloadRoot,[Parameter(Mandatory=$true)][string]$InstallPath)
+    if (-not (Test-Path -LiteralPath (Join-Path $InstallPath $script:GammaLaunchFile) -PathType Leaf)) { throw 'The v0.3.3 base installation is missing.' }
+    $backupRoot = Join-Path $InstallPath ('.pcvrhub_gamma_backups\v0.3.3-before-v0.3.4-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    [void][IO.Directory]::CreateDirectory($backupRoot)
+    $records = New-Object System.Collections.Generic.List[object]
     try {
-        Invoke-SevenZipExtract -SevenZip $sevenZip -Archive $arc -Dest $gamesRoot
-
-        # Find where the payload REALLY landed and move it into place if
-        # the archive wrapped it. A move on the same volume is instant,
-        # which is why the 110 GB build is not extracted to temp first.
-        $place = Move-PayloadIntoPlace -SearchRoot $gamesRoot -TargetDir $installPath -Marker $LAUNCH_BAT
-        if (-not $place.Ok) {
-            Write-Warn "Payload not located after extraction: $($place.Message)"
-        } else {
-            if ($place.Merged) { Write-OK "Payload merged into the install: $($place.Moved) file(s) from '$($place.PayloadRoot)'." }
-            # Proof that something actually arrived, not just that an old
-            # file is still lying around.
-            if ($place.Merged -and $place.Moved -gt 0) {
-                $extracted = $true
-            } elseif (-not $hadBat) {
-                $extracted = (Test-Path -LiteralPath $batBefore)      # fresh install: it did not exist before
-            } else {
-                $now = $null
-                try { $now = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {}
-                if ($now -and $batStamp -and $now -ne $batStamp) { $extracted = $true }
-                elseif ($place.AlreadyInPlace -and -not $isUpdate)  { $extracted = $true }
-                else { Write-Warn "Nothing on disk changed - the archive did not deliver anything new." }
+        foreach ($source in @(Get-ChildItem -LiteralPath $PayloadRoot -Recurse -File -Force -ErrorAction Stop)) {
+            $relative = $source.FullName.Substring($PayloadRoot.Length).TrimStart('\','/')
+            $target = Join-Path $InstallPath $relative
+            [void](Assert-GammaPathInside -Path $target -Root $InstallPath)
+            $hadOriginal = Test-Path -LiteralPath $target -PathType Leaf
+            if ($hadOriginal) {
+                $backupFile = Join-Path $backupRoot $relative
+                $backupParent = Split-Path -Parent $backupFile
+                if (-not (Test-Path -LiteralPath $backupParent -PathType Container)) { [void][IO.Directory]::CreateDirectory($backupParent) }
+                Copy-Item -LiteralPath $target -Destination $backupFile -Force -ErrorAction Stop
             }
+            [void]$records.Add([pscustomobject]@{ Path=$relative; HadOriginal=[bool]$hadOriginal })
+            $targetParent = Split-Path -Parent $target
+            if (-not (Test-Path -LiteralPath $targetParent -PathType Container)) { [void][IO.Directory]::CreateDirectory($targetParent) }
+            Copy-Item -LiteralPath $source.FullName -Destination $target -Force -ErrorAction Stop
         }
-    } catch { Write-Warn "7-Zip extraction failed: $($_.Exception.Message)" }
-}
-if (-not $extracted) {
-    Write-Warn "Could not auto-extract (7-Zip missing, or the archive layout differs)."
-    if ($isUpdate) {
-        Write-Do  "Extract the archive over your existing install in: $gamesRoot"
-        Write-Info "Agree to replace files. Afterwards this must still exist: $installPath\$LAUNCH_BAT"
-    } else {
-        Write-Do  "Extract the '$MOD_FOLDER' folder from the archive into: $gamesRoot"
-        Write-Info "So that this exists: $installPath\$LAUNCH_BAT"
-    }
-    try { Start-Process (Split-Path -Parent $arc) } catch {}
-    try { Start-Process $gamesRoot } catch {}
-    if ($isUpdate) { Pause-User "Press Enter once the update is unpacked over $installPath..." }
-    else           { Pause-User "Press Enter once '$MOD_FOLDER' is extracted into $gamesRoot..." }
-    # Same rule after the manual route: relocate a wrapped payload, and
-    # only count it as done when files actually moved or the timestamp
-    # changed. A pre-existing $LAUNCH_BAT is not proof of anything.
-    $place2 = Move-PayloadIntoPlace -SearchRoot $gamesRoot -TargetDir $installPath -Marker $LAUNCH_BAT
-    if ($place2.Ok -and $place2.Merged -and $place2.Moved -gt 0) {
-        Write-OK "Payload merged into the install: $($place2.Moved) file(s) from '$($place2.PayloadRoot)'."
-        $extracted = $true
-    } elseif (-not $hadBat) {
-        $extracted = (Test-Path -LiteralPath $batBefore)
-    } else {
-        $now2 = $null
-        try { $now2 = (Get-Item -LiteralPath $batBefore).LastWriteTimeUtc } catch {}
-        if ($now2 -and $batStamp -and $now2 -ne $batStamp) { $extracted = $true }
-    }
-}
-if ($extracted) {
-    if ($isUpdate) { Write-OK "Update applied to: $installPath" }
-    else           { Write-OK "GAMMA VR is in: $installPath" }
-}
-else {
-    if ($isUpdate) { Write-Fail "The update was NOT applied - nothing under $installPath changed." }
-    else           { Write-Fail "$LAUNCH_BAT not found under $installPath - extraction incomplete." }
-    $stray = @(Get-ChildItem -LiteralPath $gamesRoot -Directory -ErrorAction SilentlyContinue |
-               Where-Object { $_.FullName.TrimEnd('\') -ine $installPath.TrimEnd('\') -and
-                              (Get-ChildItem -LiteralPath $_.FullName -Recurse -Depth 3 -Filter $LAUNCH_BAT -File -ErrorAction SilentlyContinue) })
-    foreach ($sd in $stray) {
-        Write-Info "The unpacked files are sitting here instead: $($sd.FullName)"
-        Write-Info "Move the '$MOD_FOLDER' folder from there into $gamesRoot and let it replace files."
-    }
-    Pause-User "Press Enter to exit..."; return
-}
-
-# The update ships new weapon shaders, and the engine would keep serving the
-# compiled ones. The mod author calls deleting this folder mandatory, so the
-# installer does it instead of asking. The folder name is searched rather than
-# assumed, because the appdata folder sits under the install root and its
-# parent has been named differently across builds.
-if ($isUpdate) {
-    $cacheHits = @()
-    try {
-        $cacheHits = @(Get-ChildItem -LiteralPath $installPath -Directory -Recurse -Depth 3 -Filter "shaders_cache" -ErrorAction SilentlyContinue |
-                       Where-Object { $_.Parent.Name -ieq "appdata" })
-    } catch {}
-    if ($cacheHits.Count -gt 0) {
-        foreach ($h in $cacheHits) {
-            try { Remove-Item -LiteralPath $h.FullName -Recurse -Force -ErrorAction Stop; Write-OK "Cleared shader cache: $($h.FullName)" }
-            catch { Write-Warn "Could not delete $($h.FullName) - delete it by hand before playing." }
+        $manifestPath = Join-Path $backupRoot 'ownership-manifest.json'
+        Write-PCVRAtomicText -Path $manifestPath -Value ($records.ToArray() | ConvertTo-Json -Depth 3)
+        $rollback = {
+            foreach ($record in $records.ToArray()) {
+                $target = Join-Path $InstallPath ([string]$record.Path)
+                $backupFile = Join-Path $backupRoot ([string]$record.Path)
+                if ([bool]$record.HadOriginal -and (Test-Path -LiteralPath $backupFile -PathType Leaf)) {
+                    $parent = Split-Path -Parent $target
+                    if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+                    Copy-Item -LiteralPath $backupFile -Destination $target -Force -ErrorAction SilentlyContinue
+                } elseif (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
+            }
+        }.GetNewClosure()
+        return [pscustomobject]@{ BackupPath=$backupRoot; Rollback=$rollback; FileCount=$records.Count }
+    } catch {
+        foreach ($record in $records.ToArray()) {
+            $target = Join-Path $InstallPath ([string]$record.Path)
+            $backupFile = Join-Path $backupRoot ([string]$record.Path)
+            if ([bool]$record.HadOriginal -and (Test-Path -LiteralPath $backupFile -PathType Leaf)) { Copy-Item -LiteralPath $backupFile -Destination $target -Force -ErrorAction SilentlyContinue }
+            elseif (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
         }
-    } else {
-        Write-Warn "No appdata\shaders_cache folder found - if the game looks broken after the update,"
-        Write-Info "delete the 'shaders_cache' folder inside the 'appdata' folder of your GAMMA install."
+        throw
     }
 }
 
-# -------------------------------------------------------
-# STEP 4: language -> English + game icon
-# -------------------------------------------------------
-Write-Step 4 5 "Set language to English + icon"
-$loc = Join-Path $installPath "overwrite\gamedata\configs\localization.ltx"
-if (Test-Path -LiteralPath $loc) {
-    try {
-        # Byte-preserving edit: read with Latin1 (each byte -> one char, 1:1),
-        # swap ONLY "rus" -> "eng" on the language line, then write the exact
-        # bytes back. This never adds a BOM or re-encodes the file - the X-Ray
-        # engine rejects a BOM here (fatal error: Can't open section 'string_table').
-        $enc  = [System.Text.Encoding]::GetEncoding(28591)
-        $txt  = $enc.GetString([System.IO.File]::ReadAllBytes($loc))
-        $txt2 = $txt -replace '(?m)^(\s*language\s*=\s*)rus\b', '${1}eng'
-        [System.IO.File]::WriteAllBytes($loc, $enc.GetBytes($txt2))
-        Write-OK "Language set to English (localization.ltx)."
-    } catch { Write-Warn "Could not edit localization.ltx - set 'language = eng' by hand (plain text, no BOM)." }
-} else {
-    Write-Warn "localization.ltx not found - if the game starts in Russian, change it in-game:"
-    Write-Info "Open the 4th item in the main menu, then the second-to-last item in that list;"
-    Write-Info "the language option is at the top-right. (Or set 'language = eng' in the .ltx.)"
+function Move-GammaShaderCachesToBackup {
+    param([Parameter(Mandatory=$true)][string]$InstallPath,[Parameter(Mandatory=$true)][string]$BackupRoot)
+    $moves = New-Object System.Collections.Generic.List[object]
+    foreach ($cache in @(Get-ChildItem -LiteralPath $InstallPath -Directory -Recurse -Depth 3 -Filter 'shaders_cache' -ErrorAction SilentlyContinue | Where-Object { $_.Parent.Name -ieq 'appdata' })) {
+        [void](Assert-GammaPathInside -Path $cache.FullName -Root $InstallPath)
+        $destinationRoot = Join-Path $BackupRoot 'removed-shader-cache'
+        [void][IO.Directory]::CreateDirectory($destinationRoot)
+        $destination = Join-Path $destinationRoot ([Guid]::NewGuid().ToString('N'))
+        Move-Item -LiteralPath $cache.FullName -Destination $destination -ErrorAction Stop
+        [void]$moves.Add([pscustomobject]@{ Original=$cache.FullName; Backup=$destination })
+    }
+    return $moves.ToArray()
 }
-$iconDest = Join-Path $installPath "GammaVR.ico"
-if (Test-Path $ICON_SRC) { try { Copy-Item -LiteralPath $ICON_SRC -Destination $iconDest -Force } catch {} }
 
-# -------------------------------------------------------
-# STEP 5: desktop shortcut + record
-# -------------------------------------------------------
-Write-Step 5 5 "Desktop shortcut"
-$launchPath = Join-Path $installPath $LAUNCH_BAT
-$iconArg = if (Test-Path $iconDest) { $iconDest } else { "$launchPath,0" }
-$lnkPath = "$env:USERPROFILE\Desktop\Anomaly Gamma.lnk"
-# On the update route the shortcut is nearly always there already.
-$lnkExisted = Test-Path -LiteralPath $lnkPath
+function Set-GammaEnglishLanguage([string]$InstallPath) {
+    $localization = Join-Path $InstallPath 'overwrite\gamedata\configs\localization.ltx'
+    if (-not (Test-Path -LiteralPath $localization -PathType Leaf)) { return $false }
+    $encoding = [Text.Encoding]::GetEncoding(28591)
+    $text = $encoding.GetString([IO.File]::ReadAllBytes($localization))
+    $updated = $text -replace '(?m)^(\s*language\s*=\s*)rus\b','${1}eng'
+    [IO.File]::WriteAllBytes($localization,$encoding.GetBytes($updated))
+    return $true
+}
+
+if ($env:PCVR_ANOMALYGAMMA_LIBRARY_ONLY -eq '1') { return }
+
 try {
-    $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $launchPath -WorkingDir $installPath -IconPath $iconArg
-    if ($lnkExisted) { Write-OK "Desktop shortcut 'Anomaly Gamma' exists." }
-    else             { Write-OK "Desktop shortcut 'Anomaly Gamma' created." }
-} catch { Write-Warn "Could not create the shortcut - launch '$launchPath' yourself." }
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installPath -Encoding UTF8 -Force } catch {}
-# Version stamp IN THE GAME FOLDER. The pack carries no version anywhere on
-# disk, and file dates inside the archives do not match their release - so
-# without this the Hub can only guess from timestamps and keeps offering an
-# update that is already installed. The catalog compares this file.
-try { Set-Content -Path (Join-Path $installPath "gamma_vr_version.txt") -Value "0.3.2c" -Encoding ASCII -Force } catch {}
+    Write-GammaHeader
+    Write-Host '  GAMMA VR v0.3.4 adds physical reloading for every weapon,' -ForegroundColor White
+    Write-Host '  physical grenades, a left-hand wearable HUD and major performance fixes.' -ForegroundColor White
+    Write-Host '  The complete standalone package needs at least 110 GB free.' -ForegroundColor Yellow
+    Write-Host '  It may currently be offered as a torrent. qBittorrent is the recommended' -ForegroundColor Gray
+    Write-Host '  free, open-source, ad-free client: https://www.qbittorrent.org/download' -ForegroundColor Gray
+    Write-Host '  An exact v0.3.3 install can use the much smaller update archive.' -ForegroundColor Gray
+    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to start setup.')
 
-# -------------------------------------------------------
-# Done
-# -------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host $(if ($isUpdate) { "  Updated to v0.3.2c. Launch via the desktop shortcut or the Hub's Start in VR." }
-             else { "  Done. Launch via the desktop shortcut or the Hub's Start in VR." }) -ForegroundColor Green
-Write-Host "  On launch, VR stays BLACK for 10-15s while it loads - that is" -ForegroundColor Gray
-Write-Host "  normal, and the same happens during in-game loading screens." -ForegroundColor Gray
-Write-Host "  If something goes wrong, you will hear an error sound." -ForegroundColor Gray
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "  Into the Zone, stalker - GAMMA and all. The atom hums." -ForegroundColor Magenta
-Write-Host ""
-Pause-User "Press Enter to exit"
+    Write-GammaStep 1 5 'Choosing and checking the install folder'
+    $knownPath = Get-GammaKnownInstallPath
+    $defaultPath = if ($knownPath) { $knownPath } else { 'C:\Games\Gamma VR' }
+    Write-Host "  Press Enter for: $defaultPath" -ForegroundColor White
+    Write-Host '  Or enter the existing Gamma VR folder / a Games root without spaces.' -ForegroundColor Gray
+    $enteredPath = Read-Host '  Install path'
+    $installPath = Resolve-GammaInstallPath -InputPath $enteredPath -DefaultPath $defaultPath
+    if (-not (Test-GammaWritableParent -InstallPath $installPath)) { throw "The install parent is not writable: $(Split-Path -Parent $installPath)" }
+    $installedVersion = Get-GammaInstalledVersion -InstallPath $installPath
+    $hasInstall = Test-Path -LiteralPath (Join-Path $installPath $script:GammaLaunchFile) -PathType Leaf
+    if ($hasInstall) { Write-GammaOk "Found GAMMA VR $installedVersion at $installPath" }
+    else { Write-GammaInfo "The complete package will be installed at $installPath" }
+
+    $route = 'CurrentFull'
+    if ($installedVersion -eq '0.3.3') {
+        Write-Host ''
+        Write-Host '  [1] Update v0.3.3 to v0.3.4 (recommended)' -ForegroundColor Green
+        Write-Host '  [2] Replace it with the complete v0.3.4 package' -ForegroundColor Gray
+        $choice = (Read-Host '  Press Enter for 1, or type 2').Trim()
+        if (-not $choice -or $choice -eq '1') { $route = 'UpdateFrom0.3.3' }
+        elseif ($choice -ne '2') { throw 'Setup stopped because no valid route was selected.' }
+    } elseif ($hasInstall) {
+        Write-GammaWarn $(if ($installedVersion -eq '0.3.4') { 'v0.3.4 is already installed; this run will repair it from the complete package.' } else { "Only v0.3.3 can use the small update. The detected '$installedVersion' build needs the complete package." })
+    }
+
+    if ($route -eq 'CurrentFull') {
+        Write-Host ''
+        Write-Host '  Download from the official Discord post. If it offers only a .torrent,' -ForegroundColor White
+        Write-Host '  use qBittorrent to finish STALKER GAMMA VR v0.3.4.7z first.' -ForegroundColor Gray
+        $qbitChoice = (Read-Host '  Press Enter to continue, or type Q to open the official qBittorrent page').Trim()
+        if ($qbitChoice -match '^(?i)q$') {
+            Start-Process $script:QBitTorrentUrl -ErrorAction Stop | Out-Null
+            [void](Wait-PCVRExplicitEnter -Message 'After installing qBittorrent, press Enter to continue to Discord.')
+        } elseif ($qbitChoice) { throw 'Setup stopped because no valid choice was selected.' }
+    }
+
+    Write-GammaStep 2 5 'Getting the official GAMMA VR v0.3.4 package'
+    $sevenZip = Get-SevenZip -Required
+    if (-not $sevenZip) { throw '7-Zip is required to read and extract the GAMMA VR package.' }
+    $patterns = if ($route -eq 'UpdateFrom0.3.3') { @('*UPDATE*0.3.3*0.3.4*.7z','*UPDATE*v0.3.3*v0.3.4*.7z') } else { @('STALKER GAMMA VR v0.3.4.7z','*STALKER*GAMMA*VR*v0.3.4*.7z') }
+    $routeForValidator = $route
+    $sevenZipForValidator = $sevenZip
+    $validator = { param($path) Test-GammaArchive -ArchivePath $path -Route $routeForValidator -SevenZip $sevenZipForValidator }.GetNewClosure()
+    $archive = Invoke-PCVRDiscordDownloadFlow -Label 'GAMMA VR v0.3.4' -InviteUrl $script:GammaInviteUrl `
+        -DownloadPostUrl $script:GammaDownloadPostUrl -FilePatterns $patterns `
+        -SourceDescription 'provided through the official Anomaly VR Discord post' -ValidateCandidate $validator
+    if (-not $archive) { throw 'Setup was cancelled before a usable archive was supplied.' }
+    Write-GammaOk "Readable $route package selected: $(Split-Path $archive -Leaf)"
+
+    Write-GammaStep 3 5 'Staging and verifying the package before installation'
+    $gamesRoot = Split-Path -Parent $installPath
+    $stageRoot = Join-Path $gamesRoot ('.pcvr-gamma-stage-' + [Guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($stageRoot)
+    if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $archive -Dest $stageRoot -Label 'GAMMA VR v0.3.4')) { throw '7-Zip could not extract the selected archive.' }
+    $payloadRoot = Get-GammaPayloadRoot -ExtractRoot $stageRoot
+    if (-not (Test-GammaArchive -ArchivePath $archive -Route $route -SevenZip $sevenZip -Quiet)) { throw 'The staged package no longer matches the selected installation route.' }
+    foreach ($group in @($script:GammaContract.RequiredInstalledFileGroups)) {
+        $found = $false
+        foreach ($relative in @(($group -split '\|') | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+            if (Test-Path -LiteralPath (Join-Path $payloadRoot $relative) -PathType Leaf) { $found = $true; break }
+        }
+        if (-not $found) { throw "The staged package is incomplete: $group" }
+    }
+    Write-GammaOk 'The staged v0.3.4 payload and safe archive paths were verified.'
+
+    Write-GammaStep 4 5 $(if ($route -eq 'UpdateFrom0.3.3') { 'Applying the recoverable v0.3.3 to v0.3.4 update' } else { 'Installing the complete recoverable v0.3.4 package' })
+    $installResult = if ($route -eq 'UpdateFrom0.3.3') { Install-GammaUpdatePayload -PayloadRoot $payloadRoot -InstallPath $installPath } else { Install-GammaFullPayload -PayloadRoot $payloadRoot -InstallPath $installPath }
+    try {
+        if ($route -eq 'UpdateFrom0.3.3') {
+            $cacheMoves = @(Move-GammaShaderCachesToBackup -InstallPath $installPath -BackupRoot $installResult.BackupPath)
+            if ($cacheMoves.Count -gt 0) {
+                $payloadRollback = $installResult.Rollback
+                $cacheMovesForRollback = $cacheMoves
+                $installResult.Rollback = {
+                    & $payloadRollback
+                    foreach ($cacheMove in $cacheMovesForRollback) {
+                        if (Test-Path -LiteralPath $cacheMove.Backup -PathType Container) {
+                            $parent = Split-Path -Parent $cacheMove.Original
+                            if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+                            Move-Item -LiteralPath $cacheMove.Backup -Destination $cacheMove.Original -ErrorAction SilentlyContinue
+                        }
+                    }
+                }.GetNewClosure()
+            }
+            Write-GammaOk $(if ($cacheMoves.Count -gt 0) { "Moved $($cacheMoves.Count) obsolete shader cache folder(s) into the recovery backup." } else { 'No obsolete shader cache folder was present.' })
+        }
+        [void](Complete-PCVRInstallTransaction -Contract $script:GammaContract -GameDir $installPath -Version $script:GammaCurrentVersion `
+            -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) `
+            -AdditionalVersionReceiptPaths @((Join-Path $installPath 'gamma_vr_version.txt')) -Route $route)
+    } catch {
+        if ($installResult -and $installResult.Rollback) { & $installResult.Rollback }
+        throw
+    }
+    if ($installResult.BackupPath) { Write-GammaInfo "Previous files remain recoverable at: $($installResult.BackupPath)" }
+    if (Set-GammaEnglishLanguage -InstallPath $installPath) { Write-GammaOk 'Language set to English without changing the file encoding.' }
+
+    $iconSource = Join-Path $PSScriptRoot 'GammaVR.ico'
+    $iconDest = Join-Path $installPath 'GammaVR.ico'
+    if (Test-Path -LiteralPath $iconSource -PathType Leaf) { Copy-Item -LiteralPath $iconSource -Destination $iconDest -Force -ErrorAction SilentlyContinue }
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if ($desktop) {
+        try {
+            $launchPath = Join-Path $installPath $script:GammaLaunchFile
+            [void](New-DesktopShortcut -LnkPath (Join-Path $desktop 'Anomaly Gamma.lnk') -TargetPath $launchPath -WorkingDir $installPath -IconPath $(if (Test-Path -LiteralPath $iconDest) { $iconDest } else { "$launchPath,0" }))
+            Write-GammaOk 'Desktop shortcut created or refreshed.'
+        } catch { Write-GammaWarn 'The desktop shortcut could not be created; use GAMMA VR.bat or Start in VR.' }
+    }
+
+    if (Test-Path -LiteralPath $stageRoot -PathType Container) { Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue }
+
+    Write-GammaStep 5 5 'First launch after v0.3.4'
+    Write-Host '  The official instructions require GAMMA VR.bat to run at least once.' -ForegroundColor White
+    Write-Host '  A black headset for 10-15 seconds during startup/loading is normal.' -ForegroundColor Gray
+    $launchChoice = (Read-Host '  Type L to launch now, or press Enter to finish without launching').Trim()
+    if ($launchChoice -match '^(?i)l$') {
+        Start-Process -FilePath (Join-Path $installPath $script:GammaLaunchFile) -WorkingDirectory $installPath -ErrorAction Stop | Out-Null
+        Write-GammaOk 'GAMMA VR.bat started.'
+    } elseif ($launchChoice) { Write-GammaWarn 'Unknown choice; the game was not launched.' }
+
+    Write-Host ''
+    Write-Host '============================================================' -ForegroundColor Magenta
+    Write-Host '  GAMMA VR v0.3.4 is installed and recorded.' -ForegroundColor Green
+    Write-Host '  Manual reloading, grenades and the performance update are ready.' -ForegroundColor Gray
+    Write-Host '============================================================' -ForegroundColor Magenta
+} catch {
+    Write-Host ''
+    Write-GammaWarn ("Setup stopped safely: " + $_.Exception.Message)
+    Write-Host '  No successful v0.3.4 receipt was written for an incomplete install.' -ForegroundColor Gray
+} finally {
+    Write-Host ''
+    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close the installer.')
+}

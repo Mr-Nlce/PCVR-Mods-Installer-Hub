@@ -5,7 +5,7 @@ Automated installer for **StarTruckerVR** by Destroyjevski - a native OpenXR VR 
 ## What it does
 - Downloads the mod from Nexus Mods (free login gated - opens the Files page for you).
 - Locates your Star Trucker install (Steam / GOG / Xbox, with a manual paste fallback).
-- Merges the mod's `GameFiles` contents into the game root (adds `Mods`, `MelonLoader`, `version.dll`, the two switch `.bat` files, and the OpenXR plugins).
+- Merges the mod's `GameFiles` contents into the game root (adds `Mods`, `MelonLoader`, `version.dll` and the OpenXR plugins).
 
 ## Requirements
 - **Star Trucker** (Steam / GOG / Xbox - Game Pass)
@@ -13,7 +13,7 @@ Automated installer for **StarTruckerVR** by Destroyjevski - a native OpenXR VR 
 - **MelonLoader 0.7.3** is bundled with the mod - don't merge it with a different MelonLoader version or the mod may not load.
 
 ## How to play
-VR is active immediately after install - no batch file needed. Launch with **Start in VR** in the Hub, or through Steam / GOG normally. Set **VDXR** as your OpenXR runtime in the Virtual Desktop Streamer app first.
+VR is active immediately after install. Launch with **Start in VR** in the Hub, or through Steam / GOG normally. Set **VDXR** as your OpenXR runtime in the Virtual Desktop Streamer app first.
 
 > **First launch only:** expect a longer startup (several minutes; the window may stay black) while MelonLoader generates IL2CPP helper files. Don't kill it - later launches are much faster.
 
@@ -35,9 +35,7 @@ The default is **1.45**, which matches the cabin to a normal seated height and p
 The value is stored as `PlayerScale` in `UserData\MelonPreferences.cfg` in the game folder and can be edited there too. That file is not part of the mod package, so re-running the installer for a newer build leaves a scale you have dialled in alone.
 
 ## Switching VR / Flat
-Close the game first (saves are shared - it's the same install):
-- To play flat: run **Play in Flat.bat** in the game folder.
-- To return to VR: run **Back to VR.bat** there.
+Close the game first, then use the **VR / Flat switch** on this game's Hub detail page. The highlighted state shows which mode will start. Saves are shared because both modes use the same installation.
 
 ## New since v1.1.0
 - **Road beacons, gantries and signs render at full distance** again (v1.2.0).

@@ -18,8 +18,8 @@
 #  this keeps working on future builds without any value being
 #  hard-coded here.
 #
-#  ALL RELEASES ARE PRERELEASES -> GithubPrerelease = $true in the
-#  catalog, and query the release LIST here instead of /latest.
+#  Query the release LIST so stable builds and any newer beta/prerelease
+#  are both visible.
 #
 #  WHY WE STILL SEARCH FOR THE GAME even though the setup can do it:
 #  the Hub needs the path for .installed_path, for VR-ready detection
@@ -72,14 +72,16 @@ Write-Host "  collides with real walls, VR ladders and swimming, and turret" -Fo
 Write-Host "  and vehicle support. Oculus Touch and Index Knuckles are both" -ForegroundColor White
 Write-Host "  mapped. Geo-Mod still tears the level apart." -ForegroundColor White
 Write-Host ""
-Write-Host "  THIS IS AN EARLY ALPHA. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "  THIS IS A BETA. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
 Write-Host "  The author says it plainly: expect bugs, crashes, unfinished" -ForegroundColor White
 Write-Host "  features and systems it simply does not work on. Known right" -ForegroundColor White
 Write-Host "  now: open mesh issues on some guns, and two-handed grips are" -ForegroundColor White
 Write-Host "  buggy. Back up your saves before you try it." -ForegroundColor White
 Write-Host ""
-Write-Host "  You need Red Faction installed and an OpenXR runtime running." -ForegroundColor Gray
+Write-Host "  You need Red Faction, Virtual Desktop and VDXR." -ForegroundColor Gray
+Write-Host "  Native Meta OpenXR and SteamVR OpenXR do not currently supply" -ForegroundColor Gray
+Write-Host "  the working 32-bit runtime path this build needs." -ForegroundColor Gray
 Write-Host "  Singleplayer is the target; multiplayer is best-effort and" -ForegroundColor Gray
 Write-Host "  unsupported." -ForegroundColor Gray
 Write-Host ""
@@ -117,7 +119,7 @@ $null = Show-UpdateNoticeIfInstalled -TargetDir $gameDir -RelModFile $MOD_EXE -L
 # ---- 2. Fetch the setup ---------------------------------------
 Write-Step 2 4 "Downloading the $MOD_NAME setup"
 
-# All builds are prereleases -> query the list, /latest is empty.
+# Query the list so stable and prerelease builds can both be selected.
 # The asset is named differently per build (version number in the
 # name), so match by pattern and do NOT insist on a fixed name.
 $url = $null; $tag = ""; $assetName = ""; $body = ""
@@ -236,23 +238,20 @@ if ($modDir) {
 }
 
 # ---- 4. Playing -----------------------------------------------
-Write-Step 4 4 "Turning VR on"
+Write-Step 4 4 "Starting in VR"
 Write-Host ""
-Write-Host "  VR IS OFF UNTIL YOU SWITCH IT ON. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "  VDXR IS CURRENTLY REQUIRED. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
-Write-Host "  Hit " -NoNewline -ForegroundColor White
+Write-Host "  In Virtual Desktop Streamer choose VDXR, connect the headset," -ForegroundColor White
+Write-Host "  then use " -NoNewline -ForegroundColor White
 Write-Host "Start in VR" -NoNewline -ForegroundColor Cyan
-Write-Host " on this game's page in the Hub, then open" -ForegroundColor White
-Write-Host "  " -NoNewline
-Write-Host "Options" -NoNewline -ForegroundColor Cyan
-Write-Host ", enable " -NoNewline -ForegroundColor White
-Write-Host "VR / OpenXR" -NoNewline -ForegroundColor Cyan
-Write-Host " and pick your turn mode -" -ForegroundColor White
-Write-Host "  snap or smooth. Then make sure your headset's OpenXR runtime is" -ForegroundColor White
-Write-Host "  running and start the game from there." -ForegroundColor White
+Write-Host " on this game's page in the Hub." -ForegroundColor White
+Write-Host "  VR / OpenXR is enabled by default in the current launcher." -ForegroundColor White
+Write-Host "  Open Options only when you want to change snap/smooth turning" -ForegroundColor White
+Write-Host "  or another VR setting." -ForegroundColor White
 Write-Host ""
-Write-Host "  You only do this once - the choice is remembered. VR mode runs" -ForegroundColor Gray
-Write-Host "  on the Direct3D 11 renderer." -ForegroundColor Gray
+Write-Host "  Native Meta OpenXR currently crashes during the 32-bit session;" -ForegroundColor Gray
+Write-Host "  current SteamVR does not provide the required 32-bit runtime." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  The controller map for Touch and Index is on this game's page in" -ForegroundColor Gray
 Write-Host "  the Hub, with the layout picture next to it." -ForegroundColor Gray

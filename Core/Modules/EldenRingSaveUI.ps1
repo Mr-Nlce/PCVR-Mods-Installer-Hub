@@ -308,7 +308,7 @@ function global:Select-EldenRingSettingsCandidate {
     $choices = @(Get-EldenRingSettingsCandidates -Kind $Kind -Game $Game)
     if ($Purpose) { $choices = @($choices | Where-Object { $_.Purpose -eq $Purpose }) }
     if ($choices.Count -eq 0) {
-        [void](Show-EldenRingSaveMessage -Text "$Kind settings were not found. Install the mod first, then run Check Installed." -Title 'Elden Ring VR settings' -Icon Warning)
+        [void](Show-EldenRingSaveMessage -Text "$Kind settings were not found. Install the mod first, then run Scan installed games." -Title 'Elden Ring VR settings' -Icon Warning)
         return $null
     }
     if ($choices.Count -eq 1) { return $choices[0] }

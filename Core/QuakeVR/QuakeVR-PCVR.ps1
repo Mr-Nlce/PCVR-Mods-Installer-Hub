@@ -184,7 +184,7 @@ Write-Host ""
 Write-Host "  No game data ships with this and none is downloaded. Setup" -ForegroundColor Gray
 Write-Host "  copies it out of your own Steam or GOG install." -ForegroundColor Gray
 Write-Host ""
-Show-AntivirusNotice
+Show-AntivirusNotice -Compact
 
 # ---- 1. Where does it go? ------------------------------------
 Write-Step 1 4 "Choosing the folder"

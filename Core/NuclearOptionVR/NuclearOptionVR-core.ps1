@@ -112,7 +112,7 @@ function Ensure-BepInEx5 {
     $downloaded=$false
     if (-not $ArchivePath) {
         $ArchivePath=Join-Path ([IO.Path]::GetTempPath()) ('BepInEx_5_4_23_5_' + [Guid]::NewGuid().ToString('N') + '.zip'); $downloaded=$true
-        $got=Invoke-SafeDownload -Urls @($BEPINEX_URL) -Destination $ArchivePath -Label "BepInEx $BEPINEX_VERSION" -ManualUrl $BEPINEX_URL -Instructions "Download BepInEx_win_x64_$BEPINEX_VERSION.zip and give that file to the installer." -SkipMessage 'NOVR cannot run without BepInEx 5.'
+        $got=Invoke-SafeDownload -Urls @($BEPINEX_URL) -Destination $ArchivePath -Label "BepInEx $BEPINEX_VERSION" -ManualUrl $BEPINEX_URL -Instructions "Download BepInEx_win_x64_$BEPINEX_VERSION.zip and give that file to the installer." -SkipMessage 'NOVR cannot run without BepInEx 5.' -ExpectedSha256 $BEPINEX_SHA -ExpectedBytes $BEPINEX_SIZE
         if (-not $got) { throw 'BepInEx download was not completed.' }
     }
     try {
@@ -131,7 +131,7 @@ Write-Host ' Nuclear Option VR / NOVR Installer' -ForegroundColor Cyan
 Write-Host ' Current GitHub release + compatible BepInEx' -ForegroundColor Gray
 Write-Host '============================================================' -ForegroundColor Magenta
 Write-Host ''; Write-Host ' The current small NOVR.zip is the complete NOVR plug-in.' -ForegroundColor White; Write-Host ' Unlike the retired GUI installer, it does not include BepInEx;' -ForegroundColor White; Write-Host ' this Hub installer adds that required loader for you.' -ForegroundColor White
-Show-AntivirusNotice
+Show-AntivirusNotice -Compact
 Read-Host '  Press Enter to start' | Out-Null
 
 Write-Step 1 4 'Locating Nuclear Option'

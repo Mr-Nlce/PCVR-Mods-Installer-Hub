@@ -1,5 +1,5 @@
 # ============================================================
-# Road to Vostok - VR Mod Installer v1.3.5
+# Road to Vostok - VR Mod Installer
 # ============================================================
 #
 # Installs the Road to Vostok VR Mod by Blah64.
@@ -18,12 +18,17 @@ $ErrorActionPreference = "Stop"
 
 $GAME_NAME = "Road to Vostok"
 $GAME_EXE = "RTV.exe"
-$STEAM_APP = "1939830"
-$MOD_URL = "https://github.com/Blah64/Vostok-VR-Mod/releases/download/v1.3.5/vr-mod-full.zip"
-$MOD_NAME = "Road to Vostok VR Mod v1.3.5"
+$STEAM_APP = "1963610"
+$MOD_API = "https://api.github.com/repos/Blah64/Vostok-VR-Mod/releases/latest"
+$MOD_FALLBACK_URL = "https://github.com/Blah64/Vostok-VR-Mod/releases/download/v1.4.0/vr-mod-full.zip"
+$MOD_FALLBACK_TAG = "v1.4.0"
+$MOD_NAME = "Road to Vostok VR Mod"
 $INFO_URL = "https://github.com/Blah64/Vostok-VR-Mod"
-$MML_URL = "https://modworkshop.net/mod/55623"
-$MML_DL_URL = "https://storage.modworkshop.net/mods/files/55623_220962_qNbtcJXGDmIQkp9Q2rTz9Vv80E0KPBrXQpuE4hl2.zip?filename=MetroModLoader3-1-0.zip"
+$MML_RELEASE = "https://github.com/ametrocavich/vostok-mod-loader/releases/tag/v3.2.1"
+$MML_FILES = @(
+ @{ Name="modloader.gd"; Url="https://github.com/ametrocavich/vostok-mod-loader/releases/download/v3.2.1/modloader.gd"; Size=637690; Sha256="60fcf7feec0a47c6472e3b7a190b46987b374618ae3d149c081b222542bc6135" },
+ @{ Name="override.cfg"; Url="https://github.com/ametrocavich/vostok-mod-loader/releases/download/v3.2.1/override.cfg"; Size=63; Sha256="9750a66fcf0cb1d9bf84284271f52e064f455cdd5a1cdc4981a007e4011a684b" }
+)
 
 function Write-Header {
  Clear-Host
@@ -49,6 +54,20 @@ function Get-SteamLibraries { param($sp)
  if(Test-Path $vdf){ [regex]::Matches((Get-Content $vdf -Raw),'"path"\s+"([^"]+)"') | ForEach-Object {
  $l=$_.Groups[1].Value -replace '\\\\','\'; if(Test-Path $l){$libs+=$l} } }
  return $libs
+}
+
+# The catalog marks this mod as auto-update. Resolve the release and its
+# exact vr-mod-full.zip asset at install time; the pinned URL is only the
+# last-known fallback when GitHub's API is temporarily unavailable.
+function Get-LatestVostokVrRelease {
+ try {
+  $rel = Invoke-RestMethod -Uri $MOD_API -Headers @{ "User-Agent"="PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+  $asset = $rel.assets | Where-Object { $_.name -ieq "vr-mod-full.zip" } | Select-Object -First 1
+  if ($asset -and $asset.browser_download_url -and $rel.tag_name) {
+   return @{ Url=[string]$asset.browser_download_url; Tag=[string]$rel.tag_name }
+  }
+ } catch { }
+ return $null
 }
 
 # -------------------------------------------------------
@@ -87,71 +106,58 @@ if (-not $gamePath) {
 $tmp = Join-Path $env:TEMP "VostokVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
-$mmlCheck = Join-Path $gamePath "mods"
-if (Test-Path $mmlCheck) {
- Write-Info "Metro Mod Loader already installed."
+$mmlCurrent = $true
+foreach ($file in $MML_FILES) {
+ $installedFile = Join-Path $gamePath $file.Name
+ if (-not (Test-Path -LiteralPath $installedFile -PathType Leaf)) { $mmlCurrent = $false; break }
+ # The VR package deliberately replaces the loader's 63-byte override.cfg
+ # with its own extension configuration. Presence is the right proof there;
+ # modloader.gd itself must still match the current loader release exactly.
+ if ($file.Name -ieq "override.cfg") { continue }
+ try {
+  $installedHash = (Get-FileHash -LiteralPath $installedFile -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+  if ($installedHash -ne $file.Sha256) { $mmlCurrent = $false; break }
+ } catch { $mmlCurrent = $false; break }
+}
+
+if ($mmlCurrent) {
+ Write-Info "Metro Mod Loader v3.2.1 already installed."
 } else {
- Write-Host " Metro Mod Loader not found - installing automatically..." -ForegroundColor White
+ Write-Host " Installing or updating Metro Mod Loader v3.2.1..." -ForegroundColor White
+ Write-Host " The current release is two individual files, not a ZIP." -ForegroundColor Gray
  Write-Host ""
- $mmlZip = Join-Path $tmp "MetroModLoader.zip"
- $mmlExtract = Join-Path $tmp "MML"
+ $mmlOk = $true
+ foreach ($file in $MML_FILES) {
+  $download = Join-Path $tmp $file.Name
+  $r = Invoke-SafeDownload -Urls @($file.Url) -Destination $download `
+         -Label "Metro Mod Loader v3.2.1 - $($file.Name)" `
+         -ManualUrl $MML_RELEASE `
+         -Instructions "Download '$($file.Name)' from the v3.2.1 release and drop that file onto this window." `
+         -SkipMessage "Skipped - $($file.Name) is required; the VR mod cannot load without it."
+  if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+  if (-not (Test-Path -LiteralPath $download -PathType Leaf)) { $mmlOk = $false; continue }
 
- # Multi-source download. GitHub releases is the stable upstream
- # source (the same files the ModWorkshop CDN serves), with the
- # ModWorkshop hash-CDN as a backup. Invoke-SafeDownload appends
- # a web.archive mirror automatically for GitHub URLs.
- $mmlSources = @(
-   "https://github.com/ametrocavich/vostok-mod-loader/releases/download/v3.1.0/MetroModLoader3-1-0.zip",
-   $MML_DL_URL
- )
- $r = Invoke-SafeDownload -Urls $mmlSources -Destination $mmlZip `
-        -Label "Metro Mod Loader v3.1.0" `
-        -ManualUrl "https://github.com/ametrocavich/vostok-mod-loader/releases" `
-        -Instructions "Download the latest Metro Mod Loader release ZIP from the GitHub releases page that just opened in your browser. Place it at '$mmlZip' and choose Retry." `
-        -SkipMessage "Skipped - the Vostok mod loader was not installed; the VR mod will not load (questionable result)."
- if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$r -eq "skip") {
-   Write-Warn "Continuing without Metro Mod Loader."
- } elseif ([string]$r -eq "retry") {
-   # User dropped the file manually - check it exists
-   if (-not (Test-Path $mmlZip)) {
-     Pause-User "Still no MML zip at $mmlZip. Press Enter to exit..."; exit 1
-   }
+  $valid = $true
+  try {
+   $actualSize = (Get-Item -LiteralPath $download -ErrorAction Stop).Length
+   $actualHash = (Get-FileHash -LiteralPath $download -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+   if ($actualSize -ne [long]$file.Size -or $actualHash -ne $file.Sha256) { $valid = $false }
+  } catch { $valid = $false }
+  if (-not $valid) {
+   Write-Fail "$($file.Name) does not match the official v3.2.1 release."
+   $mmlOk = $false
+   continue
+  }
+  Copy-Item -LiteralPath $download -Destination (Join-Path $gamePath $file.Name) -Force
+  Write-OK "$($file.Name) installed and checksum verified."
  }
 
- # If we have the zip, extract + install
- if (Test-Path $mmlZip) {
-   Write-Host " Extracting Metro Mod Loader ... " -NoNewline -ForegroundColor White
-   try {
-     Expand-Archive -Path $mmlZip -DestinationPath $mmlExtract -Force
-     Write-Host "OK" -ForegroundColor Green
-     # Both override.cfg and modloader.gd go into the game folder (res:// = game root)
-     foreach ($f in @("override.cfg", "modloader.gd")) {
-       $src = Join-Path $mmlExtract $f
-       if (Test-Path $src) { Copy-Item $src $gamePath -Force }
-     }
-     New-Item -ItemType Directory -Path (Join-Path $gamePath "mods") -Force | Out-Null
-     Write-Info "Metro Mod Loader installed."
-   } catch {
-     Write-Host "FAILED" -ForegroundColor Red
-     $__fb = Invoke-InstallerFallback -Action "Metro Mod Loader extraction" `
-       -Instructions "Open '$mmlZip' with 7-Zip or Windows Explorer, extract its contents, and copy override.cfg + modloader.gd into '$gamePath'. Then choose Retry." `
-       -SkipMessage "Skipped - the mod loader is not installed; the VR mod will not run (questionable result)." `
-       -SourceFolder (Split-Path "$mmlZip" -Parent) `
-       -DestFolder "$gamePath" `
-       -AllowSkip $true
-     if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-     if ([string]$__fb -eq "retry") {
-       # Check if user copied the files manually
-       if ((Test-Path -LiteralPath "$gamePath\modloader.gd") -and (Test-Path -LiteralPath "$gamePath\override.cfg")) {
-         New-Item -ItemType Directory -Path (Join-Path $gamePath "mods") -Force | Out-Null
-         Write-OK "Manual install detected - continuing."
-       } else {
-         Pause-User "Still no modloader.gd + override.cfg in $gamePath. Press Enter to exit..."; exit 1
-       }
-     }
-   }
+ if (-not $mmlOk -or -not (Test-Path -LiteralPath "$gamePath\modloader.gd") -or -not (Test-Path -LiteralPath "$gamePath\override.cfg")) {
+  Pause-User "Metro Mod Loader is incomplete. Press Enter to exit without installing the VR mod."
+  exit 1
  }
+ New-Item -ItemType Directory -Path (Join-Path $gamePath "mods") -Force | Out-Null
+ Write-Info "Metro Mod Loader v3.2.1 installed."
 }
 
 
@@ -163,33 +169,36 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "mods\vr-mod.
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
-Write-Step 2 3 "Downloading $MOD_NAME"
+Write-Step 2 3 "Downloading the latest $MOD_NAME"
 $modZip = Join-Path $tmp "vr-mod-full.zip"
-
-Write-Host " Downloading VR mod ... " -NoNewline -ForegroundColor White
-try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -EA Stop
- Write-Host "OK" -ForegroundColor Green
-} catch {
- Write-Host "FAILED" -ForegroundColor Red
- Write-Fail "Download failed: $_"
- Write-Host " Download manually from: $INFO_URL/releases" -ForegroundColor Yellow
- Write-Host " Extract into: $gamePath" -ForegroundColor Yellow
- $__fb = Invoke-InstallerFallback -Action "VR mod download" `
- -Url "https://github.com/Blah64/Vostok-VR-Mod/releases" `
- -Instructions "Download the mod ZIP manually from $INFO_URL/releases and extract its contents into $gamePath, then choose Skip to continue." `
- -SkipMessage "Skipped - the VR mod files were NOT installed; if you copied them manually the rest of this installer can continue." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-check is not possible here without knowing local state.
- # If the user fixed the issue, the next pass through the
- # installer will succeed. Exit cleanly so they can re-run.
- Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+$modRelease = Get-LatestVostokVrRelease
+$modVersion = $MOD_FALLBACK_TAG
+$modUrls = New-Object System.Collections.Generic.List[string]
+if ($modRelease) {
+ $modVersion = [string]$modRelease.Tag
+ [void]$modUrls.Add([string]$modRelease.Url)
+ Write-Info "Latest release: $modVersion"
+} else {
+ Write-Warn "GitHub release lookup failed - using the last-known release."
 }
+if (-not $modRelease -or ([string]$modRelease.Url -ne $MOD_FALLBACK_URL)) { [void]$modUrls.Add($MOD_FALLBACK_URL) }
+
+$downloadInfo = @{}
+$r = Invoke-SafeDownload -Urls @($modUrls) -Destination $modZip `
+       -Label "$MOD_NAME $modVersion" `
+       -ManualUrl "$INFO_URL/releases" `
+       -Instructions "Download the newest 'vr-mod-full.zip' and drop it onto this window." `
+       -SkipMessage "Skipped - the VR mod archive was not downloaded; nothing can be installed." `
+       -DownloadInfo $downloadInfo
+if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+if (-not (Test-Path -LiteralPath $modZip -PathType Leaf)) {
+ Pause-User "The VR mod archive is missing. Press Enter to exit..."
+ exit 1
+}
+# A manual drop cannot prove which release tag it contains. Do not invent a
+# version marker; the next Hub scan will query the current tag itself.
+if (-not ($r -is [bool] -and $r)) { $modVersion = $null }
+elseif ($downloadInfo.Url -and ([string]$downloadInfo.Url -like "*$MOD_FALLBACK_URL*")) { $modVersion = $MOD_FALLBACK_TAG }
 
 Write-Step 3 3 "Installing"
 
@@ -236,8 +245,14 @@ $launchBat = Join-Path $gamePath "launch_vr.bat"
 $vmzFile = Join-Path $gamePath "mods\vr-mod.vmz"
 $allGood = (Test-Path $launchBat) -and (Test-Path $vmzFile)
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+# Record install path and only an exact release tag after both proof files exist.
+if ($allGood) {
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+ if (Test-IsTrackableInstalledVersion $modVersion) {
+  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $modVersion -Encoding UTF8 -Force } catch {}
+  Save-InstalledStamp -GameDir $gamePath -Version $modVersion
+ }
+}
 
 # Desktop shortcut
 $shortcutCreated = $false

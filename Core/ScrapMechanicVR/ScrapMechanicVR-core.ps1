@@ -1,27 +1,12 @@
 # ============================================================
-# Scrap Mechanic - Native VR Installer (manual, no exe patcher)
+# Scrap Mechanic - Native VR Installer
 # ============================================================
-# The upstream mod ships a guarded one-file patcher that only
-# accepts Steam build 22163681 - and the live Steam build has
-# moved past it. So we install the VR files OURSELVES from the
-# source archive's payload folder (which mirrors the game tree)
-# and launch through the mod's own Start-NativeVR.ps1, which sets
-# $env:SteamAppId and starts the OpenXR runtime. No patcher, no
-# %LOCALAPPDATA% manager - we make our own desktop shortcut.
-#
-# Two install paths:
-# THERE IS ONLY ONE ROUTE, and that is deliberate: a Steam console
-# download of EXACTLY build 22163681 into C:\Games\Scrap Mechanic VR
-# (path selectable), then the VR files on top. The retail copy stays
-# untouched and may keep updating.
-# The option once offered - "copy onto your own Steam copy" - is GONE:
-# it assumed that copy is still build 22163681, which stopped being
-# the live state on 24 July 2026. It was the wrong choice for
-# practically everyone.
-# NO AUTO-UPDATE: the mod is tied to this one build. v1.17.0 is
-# pinned; a future version will very likely need a different build and
-# therefore a new manifest - the two get changed together, not the mod
-# alone.
+# Three install paths:
+# 1. CURRENT: latest stable GitHub release against the live Steam game.
+# 2. CONFIRMED: the newest pairing verified during an update round, frozen
+#    as a complete separate depot so a later game update cannot break it.
+# 3. LEGACY: the original pre-1.0 build and v1.17.0 fallback, unchanged.
+# All routes have separate game roots, path records and launchers.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -33,15 +18,26 @@ $GAME_NAME     = "Scrap Mechanic"
 $GAME_EXE      = "Release\ScrapMechanic.exe"
 $GAME_EXE_LEAF = "ScrapMechanic.exe"
 $MOD_FILE      = "Release\scrap_native_vr.addon64"
+$CURRENT_MOD_FILE = "Release\smvr_native_vr_v1.addon64"
 $LAUNCH_PS1    = "NativeVR\Start-NativeVR.ps1"
 $LAUNCH_BAT    = "NativeVR\Start Scrap Mechanic VR.bat"
 
-$REPO        = "21Suspect/Scrap-Mechanic-Native-VR"
-$MOD_VERSION = "v1.17.0"
+$REPO                  = "21Suspect/Scrap-Mechanic-Native-VR"
+$INFO_URL              = "https://github.com/$REPO"
+$CURRENT_RELEASES_API  = "https://api.github.com/repos/$REPO/releases/latest"
+$CURRENT_INSTALLER     = "ScrapMechanicVR-Installer.exe"
+$CURRENT_FALLBACK_TAG  = "v1.4.8"
+$CURRENT_FALLBACK_ASSET = "ScrapMechanicVR-Installer-1.4.8.exe"
+$CURRENT_FALLBACK_URL  = "https://github.com/$REPO/releases/download/$CURRENT_FALLBACK_TAG/$CURRENT_FALLBACK_ASSET"
+$CONFIRMED_GAME_VERSION = "1.0.5"
+$CONFIRMED_GAME_BUILD   = "24529696"
+$CONFIRMED_MOD_VERSION  = "v1.4.8"
+$CONFIRMED_ASSET_NAME   = "ScrapMechanicVR-Installer-1.4.8.exe"
+$CONFIRMED_ASSET_URL    = "https://github.com/$REPO/releases/download/v1.4.8/$CONFIRMED_ASSET_NAME"
+$LEGACY_MOD_VERSION     = "v1.17.0"
 # Source archive - contains payload\ (the VR files) which mirrors the
 # game folder tree. We copy payload\* into the game root.
-$SOURCE_URL  = "https://github.com/$REPO/archive/refs/tags/$MOD_VERSION.zip"
-$INFO_URL    = "https://github.com/$REPO"
+$SOURCE_URL  = "https://github.com/$REPO/archive/refs/tags/$LEGACY_MOD_VERSION.zip"
 
 # Steam depot - EXACTLY THE BUILD THE MOD SUPPORTS. Depot 387993 is
 # the content depot holding the exe; 387992 is data only (no exe).
@@ -68,23 +64,24 @@ $INFO_URL    = "https://github.com/$REPO"
 # data directory".
 # On SteamDB, build 22163681 lists EXACTLY THESE TWO depots under
 # "Changed files in this update", with these manifests.
-$DEPOT_APPID    = "387990"
-$SUPPORTED_BUILD = "22163681"
+$DEPOT_APPID = "387990"
+$CONFIRMED_DEPOTS = @(
+    @{ Id = "387992"; Manifest = "3609790474044595719"; Label = "Scrap Mechanic Data" },
+    @{ Id = "387993"; Manifest = "8377913301090149728"; Label = "Windows 64-bit (with the exe)" }
+)
+$LEGACY_SUPPORTED_BUILD = "22163681"
 # Order: data first, then the exe depot - so the folder is complete
 # after the last step and the exe check runs on the finished tree.
-$DEPOTS = @(
+$LEGACY_DEPOTS = @(
     @{ Id = "387992"; Manifest = "4615519036154398529"; Label = "Scrap Mechanic Data" },
     @{ Id = "387993"; Manifest = "1969835134401920665"; Label = "Windows 64-bit (with the exe)" }
 )
-foreach ($d in $DEPOTS) { $d.Command = "download_depot $DEPOT_APPID $($d.Id) $($d.Manifest)" }
-# For messages and the fallback: the exe depot.
-$DEPOT_DEPOTID  = $DEPOTS[1].Id
-$DEPOT_MANIFEST = $DEPOTS[1].Manifest
-$DEPOT_COMMAND  = $DEPOTS[1].Command
+foreach ($d in $CONFIRMED_DEPOTS) { $d.Command = "download_depot $DEPOT_APPID $($d.Id) $($d.Manifest)" }
+foreach ($d in $LEGACY_DEPOTS) { $d.Command = "download_depot $DEPOT_APPID $($d.Id) $($d.Manifest)" }
 
 $DEFAULT_PARENT = "C:\Games"
-$TARGET_NAME    = "Scrap Mechanic VR"
-$DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
+$CONFIRMED_DEFAULT_PATH = Join-PathLexical $DEFAULT_PARENT "Scrap Mechanic $CONFIRMED_GAME_VERSION VR"
+$LEGACY_DEFAULT_PATH    = Join-PathLexical $DEFAULT_PARENT "Scrap Mechanic VR"
 
 # -------------------------------------------------------
 # Helpers
@@ -93,7 +90,7 @@ function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host "  Scrap Mechanic - Native VR Installer" -ForegroundColor Cyan
- Write-Host "  by 21Suspect | native OpenXR (manual install)" -ForegroundColor Gray
+ Write-Host "  by 21Suspect | native OpenXR" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
@@ -138,6 +135,217 @@ function Find-GamePath {
  return $null
 }
 
+# Resolve the exact stable release asset the author's Hub entry tracks. An
+# Current follows the author's moving stable release. A changed digest or file
+# size never blocks it; the author installer's own completed marker is the
+# proof used before the Hub records success. Frozen depot routes opt into their
+# exact pinned package separately.
+function Get-CurrentRelease {
+ try {
+  try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
+  $headers = @{ "User-Agent" = "PCVR-Mods-Hub"; "Accept" = "application/vnd.github+json" }
+  $rel = Invoke-RestMethod -Uri $CURRENT_RELEASES_API -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+  # The author changed from a stable filename to versioned assets in v1.4.8.
+  # Accept both forms, but never an unrelated executable from the release.
+  $asset = @($rel.assets | Where-Object { [string]$_.name -match '(?i)^ScrapMechanicVR-Installer(?:-[0-9][0-9A-Za-z.\-]*)?\.exe$' } | Select-Object -First 1)[0]
+  if ($asset -and $asset.browser_download_url) {
+    return [pscustomobject]@{ Tag=[string]$rel.tag_name; Url=[string]$asset.browser_download_url; AssetName=[string]$asset.name }
+  }
+  Write-Warn "The latest release did not contain the author installer."
+ } catch {
+  Write-Warn "The latest release could not be checked: $($_.Exception.Message)"
+ }
+ return [pscustomobject]@{ Tag=$CURRENT_FALLBACK_TAG; Url=$CURRENT_FALLBACK_URL; AssetName=$CURRENT_FALLBACK_ASSET }
+}
+
+function Write-CurrentLauncher {
+ param([string]$gamePath)
+ $nativeDir = Join-Path $gamePath "NativeVR"
+ try { New-Item -ItemType Directory -Path $nativeDir -Force | Out-Null } catch { return $null }
+ $ps1Path = Join-Path $nativeDir "Start-HubVR.ps1"
+ $ps1Body = @'
+$ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+$gameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$manager = Join-Path $gameRoot 'ScrapMechanicVR-Installer.exe'
+if (-not (Test-Path -LiteralPath $manager -PathType Leaf)) {
+    [void][Windows.Forms.MessageBox]::Show('The Scrap Mechanic VR manager is missing. Run the Hub installer again.','Scrap Mechanic VR')
+    [void](Read-Host 'Press Enter to close')
+    exit 1
+}
+$stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ScrapMechanicVR-Chapter2'
+New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $stateRoot 'installed-game.txt'), $gameRoot, (New-Object Text.UTF8Encoding $false))
+Start-Process -FilePath $manager -ArgumentList '--start' -WorkingDirectory $gameRoot
+'@
+ try {
+  [IO.File]::WriteAllText($ps1Path, $ps1Body, (New-Object Text.UTF8Encoding $false))
+  $managePs1Path = Join-Path $nativeDir 'Manage-HubVR.ps1'
+  $managePs1Body = $ps1Body.Replace("Start-Process -FilePath `$manager -ArgumentList '--start' -WorkingDirectory `$gameRoot", "Start-Process -FilePath `$manager -WorkingDirectory `$gameRoot")
+  [IO.File]::WriteAllText($managePs1Path, $managePs1Body, (New-Object Text.UTF8Encoding $false))
+ } catch { return $null }
+ $batPath = Join-Path $gamePath $LAUNCH_BAT
+ $batBody = @(
+  '@echo off',
+  'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start-HubVR.ps1"'
+ ) -join "`r`n"
+ try {
+  Set-Content -LiteralPath $batPath -Value $batBody -Encoding ASCII -Force
+  $manageBat = Join-Path $nativeDir 'Manage-HubVR.bat'
+  Set-Content -LiteralPath $manageBat -Value "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0Manage-HubVR.ps1`"" -Encoding ASCII -Force
+  return $batPath
+ } catch { return $null }
+}
+
+function Set-ManagedGameSelection {
+ param([string]$gamePath)
+ try {
+  $stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ScrapMechanicVR-Chapter2'
+  New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
+  [IO.File]::WriteAllText((Join-Path $stateRoot 'installed-game.txt'), $gamePath, (New-Object Text.UTF8Encoding $false))
+  return $true
+ } catch { return $false }
+}
+
+function Save-CurrentHubState {
+ param([string]$gamePath, [string]$batPath, [string]$version, [string]$PathFile = '.installed_path', [string]$VersionFile = '.installed_version')
+ try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot $PathFile), $gamePath, (New-Object Text.UTF8Encoding $false)) } catch {}
+ # .launch_exe remains the current-Steam compatibility handoff. Depot launch
+ # routes are resolved from their own roots and catalog fields.
+ if ($PathFile -eq '.installed_path' -and $batPath -and (Test-Path -LiteralPath $batPath)) {
+  try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.launch_exe'), $batPath, (New-Object Text.UTF8Encoding $false)) } catch {}
+ }
+ try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot $VersionFile), $version, (New-Object Text.UTF8Encoding $false)) } catch {}
+ Save-InstalledStamp -GameDir $gamePath -Version $version
+}
+
+function Get-CurrentManagedPatchVersion {
+ param([string]$gamePath)
+ try {
+  $normalized = [IO.Path]::GetFullPath($gamePath).TrimEnd([char[]]@('\','/')).ToLowerInvariant()
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { $keyBytes = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized)) }
+  finally { $sha.Dispose() }
+  $key = ([BitConverter]::ToString($keyBytes)).Replace('-','').Substring(0,16)
+  $stateRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ScrapMechanicVR-Chapter2'
+  $statePath = Join-Path $stateRoot ("install-state-$key.json")
+  if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) { return $null }
+  $state = Get-Content -LiteralPath $statePath -Raw -ErrorAction Stop | ConvertFrom-Json
+  if ($state.patchVersion) { return [string]$state.patchVersion }
+ } catch {}
+ return $null
+}
+
+function Remove-CurrentStaging {
+ param([string]$tempDir)
+ try { if ($tempDir -and (Test-Path -LiteralPath $tempDir)) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
+}
+
+function Install-ManagedVersion {
+ param(
+  [string]$GamePath,
+  $Release,
+  [switch]$LocateCurrent,
+  [string]$PathFile = '.installed_path',
+  [string]$VersionFile = '.installed_version',
+  [string]$ShortcutName = 'Scrap Mechanic VR',
+  [string]$RouteLabel = 'Current Steam version',
+  [int]$DownloadStep = 2,
+  [int]$TotalSteps = 3
+ )
+ if ($LocateCurrent) {
+  Write-Step 1 $TotalSteps "Locating the current Steam version"
+  $GamePath = Find-GamePath
+ }
+ if (-not $GamePath) {
+  Write-Warn "The current Steam installation was not found."
+  try { Start-Process "steam://install/$DEPOT_APPID" } catch {}
+  Pause-User "Install Scrap Mechanic through Steam, then press Enter to check again..."
+  $GamePath = Find-GamePath
+ }
+ while (-not $GamePath) {
+  Write-Host " Enter the Scrap Mechanic folder that contains Release\ScrapMechanic.exe:" -ForegroundColor White
+  $manual = (Read-Host " Path").Trim().Trim('"')
+  if ($manual -and (Test-Path -LiteralPath (Join-PathLexical $manual $GAME_EXE))) { $GamePath = $manual }
+  else { Write-Fail "Release\ScrapMechanic.exe was not found there." }
+ }
+ Write-OK "$RouteLabel found: $GamePath"
+
+ Write-Step $DownloadStep $TotalSteps "Downloading the current author installer"
+ if (-not $Release) { $Release = Get-CurrentRelease }
+ $tempDir = Join-Path $env:TEMP ("ScrapVRCurrent_" + [System.IO.Path]::GetRandomFileName())
+ New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+ $assetName = if ($Release.AssetName) { [string]$Release.AssetName } else { $CURRENT_INSTALLER }
+ $downloaded = Join-Path $tempDir $assetName
+ $downloadArgs = @{
+  Urls=@($Release.Url); Destination=$downloaded; Label='Scrap Mechanic VR author installer'
+  ManualUrl="$INFO_URL/releases"
+  Instructions="Download $assetName from the stable release and place it in the opened folder, then choose Retry."
+  SkipMessage='Skipped - the VR mod was not installed.'
+ }
+ # Current and depot packages are accepted from their publisher URLs without
+ # a stored fingerprint gate. The depot route stays pinned by its exact tag.
+ $null = Invoke-SafeDownload @downloadArgs
+ if (-not (Test-Path -LiteralPath $downloaded)) {
+  Remove-CurrentStaging -tempDir $tempDir
+  Write-Fail "No installer was downloaded."
+  return $false
+ }
+ $manager = Join-Path $GamePath $CURRENT_INSTALLER
+ Write-OK "Author installer is ready."
+ Write-Host ""
+ Write-Host " The author's installer opens next. Click " -NoNewline -ForegroundColor White
+ Write-Host " Install VR Mod " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+ Write-Host "and approve its Windows prompt." -ForegroundColor White
+ Write-Host " Close that window after it reports a verified installation; this setup" -ForegroundColor Gray
+ Write-Host " then connects the result to the Hub." -ForegroundColor Gray
+ if (-not (Set-ManagedGameSelection -gamePath $GamePath)) {
+  Write-Fail "The selected game path could not be handed to the author installer. Nothing was started."
+  Remove-CurrentStaging -tempDir $tempDir
+  return $false
+ }
+ Pause-User "Press Enter to open the author installer..."
+ # Run from staging first. Only after the author confirms that THIS release
+ # is actually installed do we replace the persistent manager in the game
+ # root. Cancelling an update therefore cannot replace a working older
+ # launcher with a newer launcher that rejects the older payload hashes.
+ try { $null = Start-Process -FilePath $downloaded -WorkingDirectory $tempDir -Wait -PassThru -ErrorAction Stop }
+ catch { Write-Fail "The author installer could not be started: $_"; Remove-CurrentStaging -tempDir $tempDir; return $false }
+
+ Write-Step ($DownloadStep + 1) $TotalSteps "Connecting this version to the Hub"
+ if (-not (Test-Path -LiteralPath (Join-Path $GamePath $CURRENT_MOD_FILE))) {
+  Write-Warn "The current VR marker was not found. The author installer may have been closed without installing."
+  Write-Info "No VR Ready state was written. Run this setup again when you want to continue."
+  Remove-CurrentStaging -tempDir $tempDir
+  return $false
+ }
+ $managedPatch = Get-CurrentManagedPatchVersion -gamePath $GamePath
+ $managedNumber = if ($managedPatch) { [regex]::Match($managedPatch, '\d+(?:\.\d+)+').Value } else { '' }
+ $releaseNumber = [regex]::Match([string]$Release.Tag, '\d+(?:\.\d+)+').Value
+ if (-not $managedNumber) {
+  Write-Warn "The VR marker exists, but the author's managed install-state is missing."
+  Write-Info "The Hub will not replace the launcher or claim a verified version. Use Install VR Mod in the author manager."
+  Remove-CurrentStaging -tempDir $tempDir
+  return $false
+ }
+ if ($managedNumber -ne $releaseNumber) {
+  Write-Warn "The author manager still reports version $managedNumber; $($Release.Tag) was not installed."
+  Write-Info "The existing version and its launcher were left untouched."
+  Remove-CurrentStaging -tempDir $tempDir
+  return $false
+ }
+ try { Copy-Item -LiteralPath $downloaded -Destination $manager -Force -ErrorAction Stop }
+ catch { Write-Fail "The verified author installer could not be saved in the game folder: $_"; Remove-CurrentStaging -tempDir $tempDir; return $false }
+ Write-OK "Verified author manager saved beside the current game."
+ $batPath = Write-CurrentLauncher -gamePath $GamePath
+ if (-not $batPath) { Write-Fail "The Hub launch route could not be written."; Remove-CurrentStaging -tempDir $tempDir; return $false }
+ Save-CurrentHubState -gamePath $GamePath -batPath $batPath -version $Release.Tag -PathFile $PathFile -VersionFile $VersionFile
+ Make-Shortcut -gamePath $GamePath -batPath $batPath -ShortcutName $ShortcutName
+ Write-OK "$RouteLabel is installed and will be detected as VR Ready."
+ Remove-CurrentStaging -tempDir $tempDir
+ return $true
+}
+
 # ============================================================
 # Manual mod install: download the source archive, copy its
 # payload\ tree (which mirrors the game folder) into $gamePath,
@@ -155,7 +363,7 @@ function Install-ManualMod {
  New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
  $zipPath = Join-Path $tempDir "source.zip"
 
- Write-Host " Downloading the VR files ($MOD_VERSION source) ..." -ForegroundColor White
+ Write-Host " Downloading the VR files ($LEGACY_MOD_VERSION source) ..." -ForegroundColor White
  $haveZip = $false
  try {
   Invoke-WebRequest -Uri $SOURCE_URL -OutFile $zipPath -UseBasicParsing -EA Stop
@@ -164,8 +372,8 @@ function Install-ManualMod {
  if (-not $haveZip) {
   $fb = Invoke-InstallerFallback `
         -Action "VR source archive download" `
-        -Url "$INFO_URL/releases/tag/$MOD_VERSION" `
-        -Instructions "Download the $MOD_VERSION source zip from the page that opened, place it at '$zipPath', then choose Retry." `
+        -Url "$INFO_URL/releases/tag/$LEGACY_MOD_VERSION" `
+        -Instructions "Download the $LEGACY_MOD_VERSION source zip from the page that opened, place it at '$zipPath', then choose Retry." `
         -SkipMessage "Skipped - without the VR files nothing can be installed." `
         -DestFile $zipPath -AllowSkip $true
   if ([string]$fb -eq "quit") { return $null }
@@ -252,34 +460,32 @@ function Install-ManualMod {
 # runs Start-NativeVR.ps1) via .launch_exe - it sets the Steam context
 # and starts the OpenXR runtime, then launches the game.
 function Write-Markers {
- param([string]$gamePath, [string]$batPath)
- try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
- if ($batPath -and (Test-Path -LiteralPath $batPath)) {
-  try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe") -Value $batPath -Encoding UTF8 -Force } catch {}
- }
- try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
+ param([string]$gamePath, [string]$batPath, [string]$PathFile = '.installed_path_legacy_depot')
+ try { Set-Content -LiteralPath (Join-Path $PSScriptRoot $PathFile) -Value $gamePath -Encoding UTF8 -Force } catch {}
+ try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version_legacy_depot") -Value $LEGACY_MOD_VERSION -Encoding UTF8 -Force } catch {}
  # ALSO write the durable stamp next to the GAME (2026-08-20).
  # The line above lands inside the Hub folder and is gone as
  # soon as a new Hub build is dropped in; the scan then finds
  # no marker and seeds the CURRENT online tag, swallowing a
  # pending update. The game-side stamp survives that.
- Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION
+ Save-InstalledStamp -GameDir $gamePath -Version $LEGACY_MOD_VERSION
 }
 
 # Our own desktop shortcut pointing at the launch bat.
 function Make-Shortcut {
- param([string]$gamePath, [string]$batPath)
+ param([string]$gamePath, [string]$batPath, [string]$ShortcutName = 'Scrap Mechanic VR')
  if (-not ($batPath -and (Test-Path -LiteralPath $batPath))) { return }
  $iconExe = Join-Path $gamePath $GAME_EXE
  $workDir = Split-Path -Parent $batPath
  try {
-  [void](New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Scrap Mechanic VR.lnk" -TargetPath $batPath -WorkingDir $workDir -IconPath "$iconExe,0")
-  Write-OK "Desktop shortcut 'Scrap Mechanic VR' created."
+  [void](New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\$ShortcutName.lnk" -TargetPath $batPath -WorkingDir $workDir -IconPath "$iconExe,0")
+  Write-OK "Desktop shortcut '$ShortcutName' created."
  } catch {}
 }
 
 # Shared end-screen notes.
 function Write-EndNotes {
+ param([ValidateSet("Current","Confirmed","Legacy")][string]$Mode)
  Write-Host ""
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host "  Setup complete." -ForegroundColor Green
@@ -289,20 +495,20 @@ function Write-EndNotes {
  Write-Host "  |            SET THESE OUTSIDE THE GAME                |" -ForegroundColor Yellow
  Write-Host "  +======================================================+" -ForegroundColor Yellow
  Write-Host ""
- Write-Host "   Active OpenXR runtime   " -NoNewline -ForegroundColor White; Write-Host " Meta Quest Link or SteamVR " -ForegroundColor Black -BackgroundColor Yellow
+ Write-Host "   Active OpenXR runtime   " -NoNewline -ForegroundColor White; Write-Host " Meta Link, VDXR or SteamVR " -ForegroundColor Black -BackgroundColor Yellow
  Write-Host ""
- Write-Host "  The launch script checks the active OpenXR runtime and starts" -ForegroundColor Gray
- Write-Host "  it (Quest Link or SteamVR) for you. Set your runtime in Meta" -ForegroundColor Gray
- Write-Host "  Horizon Link (Settings > General) or via SteamVR." -ForegroundColor Gray
- Write-Host ""
- Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
- Write-Host "    Use" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "on the Hub tile, or the 'Scrap Mechanic VR'" -ForegroundColor Gray
- Write-Host "    desktop shortcut. Both run the VR launch script. Never start" -ForegroundColor Gray
- Write-Host "    from Steam - that runs the flat game." -ForegroundColor Gray
- Write-Host ""
- Write-Host "  This is a manual install on a build the mod wasn't cut against," -ForegroundColor DarkGray
- Write-Host "  so VR may need fiddling. Details are on this game's page in" -ForegroundColor DarkGray
- Write-Host "  the Hub." -ForegroundColor DarkGray
+ if ($Mode -eq "Current") {
+  Write-Host "  Use" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub. The author's start route checks" -ForegroundColor Gray
+  Write-Host "  the active runtime and a connected headset before Steam opens." -ForegroundColor Gray
+  Write-Host "  The author's desktop shortcut is an equivalent second route." -ForegroundColor Gray
+ } elseif ($Mode -eq "Confirmed") {
+  Write-Host "  Use" -NoNewline -ForegroundColor Gray; Write-Host " Start 1.0.5 " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the Scrap Mechanic 1.0.5 VR" -ForegroundColor Gray
+  Write-Host "  desktop shortcut. This confirmed copy remains separate from Steam updates." -ForegroundColor Gray
+ } else {
+  Write-Host "  Use" -NoNewline -ForegroundColor Gray; Write-Host " Start Legacy " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the Scrap Mechanic Legacy VR" -ForegroundColor Gray
+  Write-Host "  desktop shortcut. Do not launch the legacy copy from Steam:" -ForegroundColor Gray
+  Write-Host "  Steam starts the separate current game instead." -ForegroundColor Gray
+ }
  Write-Host ""
  Write-Host "  Build it, then climb inside and grab the wrench yourself." -ForegroundColor Magenta
  Write-Host ""
@@ -312,41 +518,58 @@ function Write-EndNotes {
 # MENU
 # ============================================================
 Write-Header
-Write-Host " The upstream patcher only accepts Steam build 22163681, which the" -ForegroundColor White
-Write-Host " live game has moved past. This installer copies the VR files in" -ForegroundColor White
-Write-Host " manually instead. Choose how to install:" -ForegroundColor White
+Write-Host " Choose the game version you want to prepare for VR." -ForegroundColor White
+Write-Host " All three versions can be installed side by side." -ForegroundColor Gray
 Write-Host ""
 
-$depotInstalledStatus = $null
-$depotInstalledColor  = "Gray"
-try {
- if (Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)) {
-  $depotInstalledStatus = " [installed at $DEFAULT_PATH]"; $depotInstalledColor = "Green"
- } else {
-  $depotInstalledStatus = " [not yet installed]"; $depotInstalledColor = "Gray"
- }
-} catch {}
+$currentGame = Find-GamePath
+$currentStatus = if ($currentGame -and (Test-Path -LiteralPath (Join-Path $currentGame $CURRENT_MOD_FILE))) { "installed" }
+                 elseif ($currentGame) { "game found, VR not installed" }
+                 else { "game not found" }
+$confirmedStatus = if (Test-Path -LiteralPath (Join-Path $CONFIRMED_DEFAULT_PATH $CURRENT_MOD_FILE) -PathType Leaf) { "installed at $CONFIRMED_DEFAULT_PATH" } else { "not yet installed" }
+$legacyStatus = if (Test-Path -LiteralPath (Join-Path $LEGACY_DEFAULT_PATH $MOD_FILE) -PathType Leaf) { "installed at $LEGACY_DEFAULT_PATH" } else { "not yet installed" }
 
-# THE DEPOT ROUTE ONLY. The option "copy onto your own Steam copy" is
-# GONE (decided after the successful test): it only works on build
-# 22163681, which stopped being the live state on 24 July 2026 - so it
-# was the wrong choice for practically everyone and only caused
-# confusion.
-Write-Host "  This mod needs Steam build $SUPPORTED_BUILD - and that is not" -ForegroundColor White
-Write-Host "  what Steam installs today. So the Hub fetches that exact build" -ForegroundColor White
-Write-Host "  as a SEPARATE copy and puts the VR files on it." -ForegroundColor White
-if ($depotInstalledStatus) { Write-Host "   $depotInstalledStatus" -ForegroundColor $depotInstalledColor }
+Write-Host "  [1] Current Steam version" -ForegroundColor Cyan
+Write-Host "      Latest stable VR release; author-managed install and restore." -ForegroundColor Gray
+Write-Host "      Status: $currentStatus" -ForegroundColor $(if ($currentStatus -eq "installed") { "Green" } else { "Gray" })
 Write-Host ""
-Write-Host "  Lands in $DEFAULT_PATH or a folder of your choice." -ForegroundColor Gray
-Write-Host "  Your retail Steam copy stays untouched and keeps updating." -ForegroundColor Gray
+Write-Host "  [2] Last confirmed working version - recommended fallback" -ForegroundColor Cyan
+Write-Host "      Scrap Mechanic $CONFIRMED_GAME_VERSION / build $CONFIRMED_GAME_BUILD / Native VR $CONFIRMED_MOD_VERSION." -ForegroundColor Gray
+Write-Host "      Status: $confirmedStatus" -ForegroundColor $(if ($confirmedStatus -like 'installed*') { 'Green' } else { 'Gray' })
 Write-Host ""
+Write-Host "  [3] Original legacy depot" -ForegroundColor Cyan
+Write-Host "      Pre-1.0 build $LEGACY_SUPPORTED_BUILD with Native VR $LEGACY_MOD_VERSION." -ForegroundColor Gray
+Write-Host "      Status: $legacyStatus" -ForegroundColor $(if ($legacyStatus -like 'installed*') { 'Green' } else { 'Gray' })
+Write-Host ""
+Write-Host "  [Q] Cancel" -ForegroundColor DarkGray
+Write-Host ""
+$choice = ""
+while ($choice -notin @("1","2","3","q","Q")) { $choice = (Read-Host " Choice").Trim() }
+if ($choice -in @("q","Q")) { Write-Info "Cancelled."; exit 0 }
 Show-AntivirusNotice
-Pause-User "Press Enter to start..."
+if ($choice -eq "1") {
+ if (Install-ManagedVersion -LocateCurrent -ShortcutName 'Scrap Mechanic VR' -RouteLabel 'Current Steam version') {
+  Write-EndNotes -Mode Current
+ }
+ Pause-User "Press Enter to exit."
+ exit 0
+}
 
 # ============================================================
-# THE ONLY ROUTE: DEPOT (build 22163681, the one the mod supports)
+# DEPOT ROUTES
 # ============================================================
- Pause-User "Press Enter to start..."
+$routeKind = if ($choice -eq '2') { 'Confirmed' } else { 'Legacy' }
+if ($routeKind -eq 'Confirmed') {
+ $DEPOTS = $CONFIRMED_DEPOTS
+ $SUPPORTED_BUILD = $CONFIRMED_GAME_BUILD
+ $DEFAULT_PATH = $CONFIRMED_DEFAULT_PATH
+ $routeModVersion = $CONFIRMED_MOD_VERSION
+} else {
+ $DEPOTS = $LEGACY_DEPOTS
+ $SUPPORTED_BUILD = $LEGACY_SUPPORTED_BUILD
+ $DEFAULT_PATH = $LEGACY_DEFAULT_PATH
+ $routeModVersion = $LEGACY_MOD_VERSION
+}
  Write-Step 1 4 "Steam Depot Download"
 
  Write-Host " We'll download a separate game copy via Steam Console. Your" -ForegroundColor White
@@ -394,21 +617,22 @@ Pause-User "Press Enter to start..."
 # has the files. Prompting first and probing only afterwards sends the
 # user to fetch gigabytes that are already on disk. Find-SteamDepotPath
 # is cheap and touches nothing.
-$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+ $depotProbeLeaf = if ($d.Id -eq '387993') { $GAME_EXE_LEAF } else { '' }
+ $script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $d.Id -GameExe $depotProbeLeaf
 if ($script:PreFoundDepot) {
     Write-OK "The depot is already downloaded: $script:PreFoundDepot"
     Write-Info "Skipping the download - nothing to fetch again."
+    $depotDirs += $script:PreFoundDepot
+    continue
 }
-if (-not $script:PreFoundDepot) {
 
   if ($step -eq 1) { Pause-User "Press Enter to open the Steam Console..." }
   else            { Pause-User "Press Enter to bring the Steam Console back to the front..." }
   # Both protocol addresses: depending on the Steam version only one
- # works.
+  # works.
   foreach ($cu in @("steam://open/console", "steam://nav/console")) {
       try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
   }
-}
   Write-OK "Steam Console in front."
   Write-Host ""
   if ($clipOk) {
@@ -430,11 +654,11 @@ if (-not $script:PreFoundDepot) {
   Pause-User "Press Enter once THIS download has finished..."
 
   $probe = @(Get-SteamDepotProbePaths -AppId $DEPOT_APPID -DepotId $d.Id -AdditionalSteamRoots @($steamInstallPath))
-  $found = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $d.Id -GameExe $GAME_EXE_LEAF -AdditionalSteamRoots @($steamInstallPath)
+  $found = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $d.Id -GameExe $depotProbeLeaf -AdditionalSteamRoots @($steamInstallPath)
   if ($found) { Write-OK "Found: $found" }
   else { Write-Warn "Depot not found yet in any Steam library." }
   if (-not $found) {
-   $found = Resolve-DepotPath -GameName "$GAME_NAME ($($d.Label))" -DepotCommand $d.Command -GameExe $GAME_EXE_LEAF -ProbePaths $probe -AppId $DEPOT_APPID -DepotId $d.Id -Manifest $d.Manifest
+   $found = Resolve-DepotPath -GameName "$GAME_NAME ($($d.Label))" -DepotCommand $d.Command -GameExe $depotProbeLeaf -ProbePaths $probe -AppId $DEPOT_APPID -DepotId $d.Id -Manifest $d.Manifest
   }
   if (-not $found) { Write-Fail "Depot $($d.Id) not found - cannot continue."; Pause-User "Press Enter to exit..."; exit 1 }
   $depotDirs += $found
@@ -513,15 +737,33 @@ if (-not $script:PreFoundDepot) {
 
  $gamePath = $targetPath
 
- Write-Step 3 4 "Installing the VR files"
- $batPath = Install-ManualMod -gamePath $gamePath
- if (-not $batPath) { Pause-User "Press Enter to exit."; exit 1 }
+ # Every independent depot must identify its owning Steam app when the
+ # generated launcher starts it outside steamapps\common.
+ try {
+  [IO.File]::WriteAllText((Join-PathLexical $gamePath 'steam_appid.txt'), $DEPOT_APPID, [Text.Encoding]::ASCII)
+  Write-OK "steam_appid.txt created ($DEPOT_APPID)."
+ } catch {
+  Write-Fail "Could not create steam_appid.txt: $_"
+  Pause-User "Press Enter to exit..."; exit 1
+ }
 
- Write-Markers -gamePath $gamePath -batPath $batPath
- Make-Shortcut -gamePath $gamePath -batPath $batPath
+ if ($routeKind -eq 'Confirmed') {
+  $confirmedRelease = [pscustomobject]@{ Tag=$CONFIRMED_MOD_VERSION; Url=$CONFIRMED_ASSET_URL; AssetName=$CONFIRMED_ASSET_NAME }
+  $managed = Install-ManagedVersion -GamePath $gamePath -Release $confirmedRelease `
+      -PathFile '.installed_path_depot' -VersionFile '.installed_version_depot' `
+      -ShortcutName "Scrap Mechanic $CONFIRMED_GAME_VERSION VR" -RouteLabel "Confirmed $CONFIRMED_GAME_VERSION depot" `
+      -DownloadStep 3 -TotalSteps 4
+  if (-not $managed) { Pause-User "Press Enter to exit."; exit 1 }
+ } else {
+  Write-Step 3 4 "Installing the legacy VR files"
+  $batPath = Install-ManualMod -gamePath $gamePath
+  if (-not $batPath) { Pause-User "Press Enter to exit."; exit 1 }
+  Write-Markers -gamePath $gamePath -batPath $batPath
+  Make-Shortcut -gamePath $gamePath -batPath $batPath -ShortcutName 'Scrap Mechanic Legacy VR'
+ }
 
  Write-Step 4 4 "All Done!"
- Write-Host " Depot install ready at: $gamePath" -ForegroundColor Yellow
- Write-EndNotes
+ Write-Host " $routeKind depot ready at: $gamePath" -ForegroundColor Yellow
+ Write-EndNotes -Mode $routeKind
  Pause-User "Press Enter to exit."
  exit 0

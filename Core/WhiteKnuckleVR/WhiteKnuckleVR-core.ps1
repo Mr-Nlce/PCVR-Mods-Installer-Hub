@@ -48,17 +48,17 @@ $RELEASES   = "https://github.com/$REPO/releases"
 $BEPINEX_URL = "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x64_5.4.23.2.zip"
 $BEPINEX_TAG = "https://github.com/BepInEx/BepInEx/releases/latest"
 
-# Read from the real archive of v1.0.2 (10 entries, 1,200,149 B,
-# sha256 853710e7...), not guessed. The archive mirrors the game
-# folder, so it is copied over the root unchanged.
-$REL_MOD    = "BepInEx\plugins\WhiteKnuckleVRMod.dll"
+# Read from the real archive of v1.1.4. The OpenXR dependencies moved
+# out of White Knuckle_Data into the plug-in's own folder; these paths
+# must follow the release instead of the original v1.0.2 layout.
+$REL_MOD    = "BepInEx\plugins\WhiteKnuckleVRMod\WhiteKnuckleVRMod.dll"
+$LEGACY_MOD = "BepInEx\plugins\WhiteKnuckleVRMod.dll"
 $MOD_FILES  = @(
-    "BepInEx\plugins\WhiteKnuckleVRMod.dll",
-    "White Knuckle_Data\Managed\Unity.XR.OpenXR.dll",
-    "White Knuckle_Data\Managed\Unity.XR.Management.dll",
-    "White Knuckle_Data\Plugins\x86_64\openxr_loader.dll",
-    "White Knuckle_Data\Plugins\x86_64\UnityOpenXR.dll",
-    "White Knuckle_Data\UnitySubsystems\UnityOpenXR\UnitySubsystemsManifest.json"
+    "BepInEx\plugins\WhiteKnuckleVRMod\WhiteKnuckleVRMod.dll",
+    "BepInEx\plugins\WhiteKnuckleVRMod\Managed\Unity.XR.OpenXR.dll",
+    "BepInEx\plugins\WhiteKnuckleVRMod\Managed\Unity.XR.Management.dll",
+    "BepInEx\plugins\WhiteKnuckleVRMod\x86_64\openxr_loader.dll",
+    "BepInEx\plugins\WhiteKnuckleVRMod\x86_64\UnityOpenXR.dll"
 )
 
 Write-Host ""
@@ -160,9 +160,8 @@ if (-not (Test-Path -LiteralPath $modZip)) {
     exit 1
 }
 
-# The archive MIRRORS the game folder (BepInEx\, White Knuckle_Data\,
-# WhiteKnuckleVR\), so it is extracted over the root unchanged - no
-# wrapper folder to resolve.
+# The archive mirrors the game folder (BepInEx\ and WhiteKnuckleVR\),
+# so it is extracted over the root unchanged - no wrapper to resolve.
 $st = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $gameDir -Label "$MOD_NAME"
 if ([string]$st -ne "ok" -and [string]$st -ne "manual") {
     Write-Fail "The package could not be unpacked."
@@ -171,9 +170,22 @@ if ([string]$st -ne "ok" -and [string]$st -ne "manual") {
     exit 1
 }
 
+# v1.0.2 used one loose plug-in DLL. It would otherwise load beside the
+# new folder-based build. The name is unique to this mod, so park it
+# rather than deleting it; unknown legacy OpenXR files are left alone.
+$legacyPath = Join-Path $gameDir $LEGACY_MOD
+if (Test-Path -LiteralPath $legacyPath -PathType Leaf) {
+    $legacyParked = $legacyPath + ".pcvrhub-legacy-off"
+    if (Test-Path -LiteralPath $legacyParked) {
+        $legacyParked += "." + (Get-Date -Format "yyyyMMddHHmmss")
+    }
+    Move-Item -LiteralPath $legacyPath -Destination $legacyParked
+    Write-Info "Parked the old loose White Knuckle VR plug-in; it is not loaded beside v1.1.4."
+}
+
 # Proof on disk, file by file. The mod DLL alone is not enough: the
-# OpenXR runtime pieces go into the game's own data folder, and
-# without them the plugin loads and finds no headset.
+# OpenXR runtime pieces live beside the plug-in now, and without them
+# the plug-in loads but cannot find a headset.
 $missing = @()
 foreach ($f in $MOD_FILES) {
     if (-not (Test-Path -LiteralPath "$gameDir\$f")) { $missing += $f }

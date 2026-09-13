@@ -42,7 +42,7 @@ $REPO_API_LATEST   = "https://api.github.com/repos/Alex-LeTux/perfect_dark_VR/re
 $RELEASES_LATEST   = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/latest"
 $INFO_URL          = "https://github.com/Alex-LeTux/perfect_dark_VR"
 # Last-known-good PCVR asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v1.1-beta/Perfect_Dark_PCVR_v1.1-beta.zip"
+$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v1.8-beta/Perfect_Dark_PCVR_v.1.8-beta.zip"
 $GAME_FOLDER       = "Perfect Dark VR"
 $GAME_EXE          = "pd.x86_64.exe"
 $ROM_NAME          = "pd.ntsc-final.z64"

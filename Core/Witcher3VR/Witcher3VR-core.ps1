@@ -52,12 +52,13 @@ $REL_LAUNCHER      = "bin\x64_dx12\Witcher3VRLauncher.exe"
 $GITHUB_REPO       = "tig3rmast3r/witcher3-vr"
 $GITHUB_API_LIST   = "https://api.github.com/repos/$GITHUB_REPO/releases?per_page=1"
 $GITHUB_RELEASES   = "https://github.com/$GITHUB_REPO/releases"
-# Fallback for no-network ONLY. Moved from v0.9.0-alpha.1 to v0.9.4 on
-# 2026-08-13 - FOUR builds behind. The normal path resolves the newest
-# prerelease live anyway (the repo has ONLY prereleases, so
-# /releases/latest goes nowhere).
-$PINNED_TAG        = "v0.9.4"
-$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.4/Witcher3VR-v0.9.4-V1117.zip"
+# Fallback for no-network ONLY. The normal path resolves the newest
+# prerelease live (the repo has ONLY prereleases, so /releases/latest
+# goes nowhere). Keep the fallback on the last structurally inspected
+# main package - never guess a build number from the tag.
+$PINNED_TAG        = "v0.9.6"
+$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.6/Witcher3VR-v0.9.6-V1526.zip"
+$PINNED_OPTI_URL   = "https://github.com/$GITHUB_REPO/releases/download/v0.9.6/Witcher3VR-v0.9.6-V1526-OptiScaler-Addon.zip"
 
 # -------------------------------------------------------
 # Helpers
@@ -103,12 +104,13 @@ function Get-W3ProfileState {
 Write-Header
 
 Write-Host " Witcher3VR brings native stereo VR to the DirectX 12 build of" -ForegroundColor White
-Write-Host " The Witcher 3, with 6DoF head look and crossbow HMD aiming." -ForegroundColor White
+Write-Host " The Witcher 3, with 6DoF head look, Mono/AER/Stereo modes" -ForegroundColor White
+Write-Host " and crossbow HMD aiming." -ForegroundColor White
 Write-Host " You play with a gamepad or mouse+keyboard - motion controllers" -ForegroundColor White
 Write-Host " are not supported by the mod." -ForegroundColor White
 Write-Host ""
 Write-Host " Needs the Next-Gen version at Patch 4.04 or newer." -ForegroundColor Yellow
-Write-Host " Alpha refers to validation - tested on few headsets so far." -ForegroundColor Yellow
+Write-Host " This is an actively developed WIP tested on limited hardware." -ForegroundColor Yellow
 Write-Host ""
 Write-Host " The game must have been started as DirectX 12 at least once." -ForegroundColor Yellow
 Write-Host " That first start creates the profile the VR launcher edits." -ForegroundColor Yellow
@@ -174,6 +176,7 @@ Write-Step 2 4 "Getting the latest Witcher3VR release"
 
 $dlUrl  = $null
 $relTag = $null
+$optiUrl = $null
 # Prereleases only in this repo, so /releases/latest is useless here -
 # the list endpoint returns the newest release of any kind first.
 try {
@@ -181,9 +184,17 @@ try {
     $rel  = @($resp) | Select-Object -First 1
     if ($rel) {
         $relTag = [string]$rel.tag_name
-        # The release also carries a -SHA256.txt next to the zip; take the zip.
-        $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
+        # Releases can contain optional Addon zips BEFORE the main package.
+        # Select the plain V<build>.zip explicitly or the installer would
+        # install only OptiScaler and then fail its dxgi.dll verification.
+        $asset = $rel.assets | Where-Object {
+            $_.name -match '^Witcher3VR-v.+-V\d+\.zip$'
+        } | Select-Object -First 1
+        $optiAsset = $rel.assets | Where-Object {
+            $_.name -match '^Witcher3VR-v.+-V\d+-OptiScaler-Addon\.zip$'
+        } | Select-Object -First 1
         if ($asset) { $dlUrl = [string]$asset.browser_download_url }
+        if ($optiAsset) { $optiUrl = [string]$optiAsset.browser_download_url }
     }
     if ($relTag) { Write-Info "Latest release: $relTag" }
 } catch {
@@ -193,6 +204,7 @@ if (-not $dlUrl) {
     Write-Warn "Falling back to the pinned $PINNED_TAG build."
     $dlUrl  = $PINNED_URL
     $relTag = $PINNED_TAG
+    $optiUrl = $PINNED_OPTI_URL
 }
 
 $zipPath = Join-Path $env:TEMP ("W3VR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
@@ -200,6 +212,7 @@ if (-not (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "Wi
         -ManualUrl $GITHUB_RELEASES `
         -Instructions "Download the Witcher3VR-...zip (NOT the -SHA256.txt) from the Releases page, drop it into your Downloads folder and retry.")) {
     $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "Witcher3VR*.zip" -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -match '^Witcher3VR-v.+-V\d+\.zip$' } |
                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($manualZip) {
         Write-OK "Found a manual download: $($manualZip.Name)"
@@ -237,6 +250,40 @@ if (Test-Path -LiteralPath $launcherFull) {
     Write-Warn "Witcher3VRLauncher.exe not found - check the extracted files."
 }
 if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $zipPath -Force } catch {} }
+
+# v0.9.6 added native OptiScaler support as a separate optional release
+# asset. It is never needed for the normal mod, so keep the choice explicit.
+# The add-on is inert until enabled in the VR launcher and must be installed
+# only AFTER the main package, exactly as the author specifies.
+if ($optiUrl) {
+    Write-Host ""
+    Write-Host " OPTIONAL: OPTISCALER" -ForegroundColor Cyan
+    Write-Host "  Can provide another upscaling route. It is not required for" -ForegroundColor White
+    Write-Host "  normal play and may conflict with other graphics injectors." -ForegroundColor White
+    Write-Host "  If installed, enable it in the VR Launcher and disable" -ForegroundColor Gray
+    Write-Host "  DLSS Override there." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  [Y] Install / update the matching OptiScaler add-on" -ForegroundColor White
+    Write-Host "  [N] Skip it" -ForegroundColor White
+    $installOpti = ((Read-Host " Choice [Y/N]").Trim().ToLowerInvariant() -eq "y")
+    if ($installOpti) {
+        $optiZip = Join-Path $env:TEMP ("W3VR_Opti_" + [System.IO.Path]::GetRandomFileName() + ".zip")
+        if (Invoke-DownloadOrFallback -Url $optiUrl -Destination $optiZip -Label "Witcher3VR OptiScaler add-on" `
+                -ManualUrl $GITHUB_RELEASES `
+                -Instructions "Download the OptiScaler-Addon zip matching the current Witcher3VR release and retry.") {
+            $optiRes = Expand-ArchiveToTarget -ArchivePath $optiZip -TargetDir $gamePath `
+                -RelModFile "bin\x64_dx12\OptiScaler.dll" -Label "Witcher3VR OptiScaler add-on"
+            if ($optiRes -and (Test-Path -LiteralPath ([IO.Path]::Combine($gamePath, "bin\x64_dx12\OptiScaler.dll")))) {
+                Write-OK "Matching OptiScaler add-on installed."
+            } else {
+                Write-Warn "OptiScaler add-on was not installed; the main VR mod is still complete."
+            }
+        } else {
+            Write-Warn "OptiScaler add-on skipped; the main VR mod is still complete."
+        }
+        try { Remove-Item -LiteralPath $optiZip -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
 
 # -------------------------------------------------------
 # STEP 4: Hub markers + desktop shortcut

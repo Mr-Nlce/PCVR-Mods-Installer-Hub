@@ -2,7 +2,7 @@
 
 A motion-controlled VR overhaul for S.T.A.L.K.E.R. Anomaly - the free standalone fan-mod successor to the original S.T.A.L.K.E.R. trilogy. Runs on the 64-bit X-Ray engine and stitches the maps of Shadow of Chornobyl, Clear Sky, and Call of Pripyat into one interconnected Zone.
 
-**Mod**: AoE VR (public alpha 0.4.5) - installed and updated through the mod team's own launcher.
+**Mod**: AoE VR (public alpha 0.5.0) - installed and updated through the mod team's own launcher.
 **Base game**: Anomaly 1.5.3 (free, no Steam/GOG account needed) - the launcher can download it for you.
 
 **This is a public alpha, not the final VR release.** Expect bugs and crashes - VR digs into the deepest parts of the renderer, plus AOE multithreading.
@@ -25,10 +25,11 @@ The Hub's **Start in VR** button also runs `AoeVrLauncher.exe`.
 
 ## Getting the launcher (Discord-gated)
 
-The launcher download lives behind the mod's Discord server, so the installer opens the exact post for you. In that post:
+The launcher download lives behind the mod's Discord server, so the installer opens the current alpha 0.5 post for you. In that post:
 
 - Take the **FIRST** download link - the one with the rocket icon, labelled "Launcher (recommended)". That is `AoeVrLauncher.exe` on Google Drive.
 - Do **NOT** take the second link - that is the manual full archive (unsupported).
+- If `AoeVrLauncher.exe` is already installed, keep it. The same launcher updates itself and obtains alpha 0.5 automatically.
 
 ## Using the launcher
 
@@ -37,6 +38,19 @@ The launcher download lives behind the mod's Discord server, so the installer op
 3. Accept the **UAC / admin** prompt.
 
 Because the launcher sits in the same folder as the install, it detects the game automatically.
+
+## Alpha 0.5 highlights
+
+- **Physical hand reloading for every weapon class** - remove and insert magazines, rack bolts, use slide locks, pump shotguns without releasing the forend, break open shotguns, and clear jams by hand. Interaction points can be adjusted or disabled in MCM.
+- **Persistent magazines** - removed magazines retain their ammunition, can be dropped, recovered, or stored in the belt pouch. To change ammunition type, fully unload the weapon; ejected rounds return to the backpack.
+- **Physical grenades** - draw them from a body holster and throw with either hand; distance follows swing speed.
+- **Expanded hand interaction** - optional second-hand pistol support, one-handed scopes, forend-only grips, improved arm reach, and the `vr_hud_scale` hand/weapon scale control.
+- **Faster rendering** - second-eye hidden-geometry culling, shared lamp/sun shadow work, and reduced duplicate post-processing are enabled by default.
+- **Important fixes** - level-change and dual-GPU laptop crashes, scoped lamp lighting, GAMMA water/reflections, accidental debug gestures, weapon-pose sprint blocking, and the launcher's endless headset check.
+
+[Watch the alpha 0.5 gameplay video](https://youtu.be/EBwZ0yBCDjU).
+
+This remains an **alpha**. A physical PDA, melee weapons, physical food/medkit use, and extended magazine handling are not included yet.
 
 ## Requirements
 
@@ -49,6 +63,10 @@ Because the launcher sits in the same folder as the install, it detects the game
 ## Updating
 
 Open the launcher (or the Hub's Start in VR) and hit **Updates**. No re-install, no Hub round-trip - the launcher handles base + modpack + itself.
+
+After an update, use **Reset settings** and **Clear shaders** in the launcher if rendering or weapon presentation looks wrong.
+
+For support, use the server's support checklist first. Reproducible bugs should be reported from a **clean build without third-party mods**, together with `appdata/engineLogs/xray.log` and `appdata/engineLogs/engine_breadcrumbs.log`.
 
 ## Manual archive (unsupported)
 

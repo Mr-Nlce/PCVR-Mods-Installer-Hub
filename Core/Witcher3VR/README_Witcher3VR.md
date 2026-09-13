@@ -1,7 +1,7 @@
 # The Witcher 3 VR Installer
 
 ## About this mod
-**Witcher3VR** by tig3rmast3r brings native stereo VR to the **DirectX 12** build of The Witcher 3: Wild Hunt. Same-tick geometry stereo, 6DoF head look synchronised with OpenXR, crossbow aiming that follows the headset, a resizable HUD and menus, and an adjustable render window inside the headset. DLSS, DLAA and TAAU all work; there is also an optional 5:4 cinema framing and an experimental first-person exploration view.
+**Witcher3VR** by tig3rmast3r brings native stereo VR to the **DirectX 12** build of The Witcher 3: Wild Hunt. Same-tick geometry stereo, 6DoF head look synchronised with OpenXR, crossbow aiming that follows the headset, adjustable HUD and menus, Mono/AER/Stereo render routes and an experimental first-person exploration view are included.
 
 This is a work in progress and under active development. The **Alpha** label refers to validation, not to the state of the game: it has been tested on a limited number of headset and OpenXR combinations, and on that tested hardware the author describes the core game as fully playable.
 
@@ -13,6 +13,7 @@ You play with a **gamepad or mouse and keyboard**. VR motion controllers are not
 The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 30-degree snap turning and headset-directed movement - it only applies while the experimental first-person view is active, and it is off by default.
 
 ## Hotkeys
+- [[F2]] Temporarily switch asymmetric projection to the older symmetric path for diagnosis
 - [[F7]] Switch the HUD between the VR and Cinema3D banks
 - [[F8]] Toggle between Standard and Near view
 - [[F9]] Recenter the VR view
@@ -22,45 +23,37 @@ The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 
 After a loading-screen video ends, the view recentres by itself two seconds
 later, along the same path as [[F9]].
 
-## New in v0.9.5 Alpha 1
+## Current release changes (0.9.6)
 
-**Two new render modes: AER + AFW**, as TAAU or DLSS. AER draws one whole eye at
-a time and PureDark's AFW generates the other - a high-performance alternative to
-classic stereo, which renders both eyes independently. These are also the **only**
-routes that can use ray tracing.
+The current release adds **OFXR frame generation**. FidelityFX is the faster but
+more artifact-prone option; NVIDIA Optical Flow usually gains less performance
+with a cleaner result. It is new and has been tested with VDXR and partly with
+SteamVR OpenXR. Some counters can show half the perceived frame rate while it is
+active. Always launch through the VR Launcher when using OFXR.
 
-**Ray tracing**, experimental: the game's ray-traced ambient occlusion, shadows
-and reflections in VR. Considerable GPU and VRAM cost, and it can flicker or leave
-artefacts around cutscenes.
+**Mono mode is back** as the lightest route and supports No AA, FXAA, TAAU, DLSS
+and DLAA. Its validation is still limited, and some cutscenes can temporarily
+lose their selected anti-aliasing mode.
 
-**Asymmetric projection now works in every mode**, not just Stereo without AA.
-Each eye uses its real off-axis OpenXR view instead of rendering a larger
-symmetric area whose outer pixels you never see. The gain depends on the headset -
-on a Quest 3 the author reckons asymmetric at Virtual Desktop **HIGH** looks like
-symmetric at **GODLIKE**, so you can drop two resolution steps.
+**Ray tracing has been removed for now.** The previous experimental route does
+not work correctly with asymmetric projection, so leave ray tracing off. This is
+a removal from the prior release, not a hidden setting to re-enable.
 
-**The first-person view was overhauled** ([[F11]]): better camera placement,
-Geralt turns to your view while standing, optional strafe and backpedal, snap turn
-at 30/45/60 degrees, headset-directed movement, less head bobbing, and face and
-hair hidden so they cannot clip into the camera. It can hand over to third person
-during combat and come back afterwards.
+Asymmetric projection is now the default. [[F2]] temporarily switches to the
+older symmetric projection for diagnosis. Cinema mode adds 16:9 and 16:10, the
+launcher gains a World Detail Range control, and **Alt. Resize** is available for
+SteamVR configurations where Presentation Size otherwise has no effect.
 
-**The launcher detects your headset resolution itself** - AUTO asks the OpenXR
-runtime right before launch and writes that exact value. Cinema mode gained a
-**4:3** option beside 5:4.
+The release also fixes AER/DLSS black screens, vertical mouse/gamepad pitch,
+first-person galloping, doubled Witcher Senses and lights, several cutscenes and
+general HUD/render stability.
 
-**Subtitles and dialogue can be moved and resized** in the HUD editor, separately
-for the VR and Cinema3D profiles, with preview text so you can adjust them without
-being in a conversation. **If you had tuned your HUD before, check those two after
-updating** - they now control the real cutscene text.
+### Optional OptiScaler add-on
 
-**Optional: hide the static HUD outside combat** (off by default). Minimap, quest
-tracker, buffs, health, equipment and the rest disappear while exploring and come
-back by themselves in combat, with Witcher Sense, or during a horse race.
-
-> **Pimax owners:** Pimax's own OpenXR can cap **Stereo** mode at half your
-> headset refresh - 45 fps on a 90 Hz display. AER is not affected. Use SteamVR's
-> OpenXR for proper stereo.
+The installer offers the matching **OptiScaler add-on** after the main mod. It is
+not required. If you install it, enable OptiScaler in the VR Launcher and disable
+**DLSS Override** there. Leave it off if you already use another graphics
+injector or do not specifically want OptiScaler.
 
 ## What you need first
 - The Witcher 3: Wild Hunt **Next-Gen**, at **Patch 4.04** or newer. Older versions and rollback branches are not supported.
@@ -69,10 +62,12 @@ back by themselves in combat, with Witcher Sense, or during a horse race.
 - A working OpenXR runtime.
 - An NVIDIA RTX card if you want DLSS or DLAA.
 
-Headsets with canted displays (Pimax and similar) need the manufacturer's **Parallel Projection** mode; native canted support is not implemented yet.
+Headsets with canted displays are supported natively. For Pimax, the author now
+recommends SteamVR OpenXR; enable **Alt. Resize** only if Presentation Size does
+not work through the normal path.
 
 ## How the installer works
-The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, downloads the newest release from GitHub and merges it into the game root. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods` and `Witcher3VR` where the game expects them. The bundled `modWitcher3VRStateBridge` script is part of the mod and supplies the movement and combat state the first-person view needs.
+The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, then downloads the plain main-package ZIP from the newest prerelease. Optional add-on ZIPs are deliberately excluded from that selection. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods`, `dlc` and `Witcher3VR` where the game expects them. The matching OptiScaler add-on is offered separately after the main installation.
 
 ## Launching
 Launch with **Start in VR** in the Hub, or from the **The Witcher 3 VR** desktop shortcut. Both open the mod's own launcher, where you choose the rendering mode and resolution and then start the game from there. The launcher exists because each mode needs different hooks, and some have to be active before the game starts.
@@ -100,7 +95,7 @@ The launcher's **Configure Settings for VR** button applies the settings the mod
 
 | Setting | Value |
 |---|---|
-| Ray tracing | **Only** with AER + AFW (TAAU or DLSS). The launcher forces it off in every other mode |
+| Ray tracing | **Off. It was removed from the current release** |
 | Screen Space Reflections | Off or Low |
 | Motion blur | Off |
 | VSync | Off |
@@ -135,7 +130,7 @@ Since the next-gen update this is the DirectX 12 profile; the DirectX 11 build r
 
 ## Known limitations
 - **High Screen Space Reflections** and the **far/distant camera modes** are not implemented. SSR must be Low or Off.
-- **Ray tracing is experimental** and works only on the AER + AFW routes. It can flicker, and can leave artefacts when a cutscene starts or ends.
+- **Ray tracing is currently removed** because it does not work correctly with asymmetric projection.
 - Native canted displays ARE supported - each OpenXR eye pose is used directly, so no parallel-projection workaround is needed.
 - Loading screens are not yet presented correctly in VR - they may change size, appear blank or show duplicated images.
 - Some shadows can flicker in stereo.
@@ -156,19 +151,3 @@ https://ko-fi.com/tig3rmast3r
 ## Credits
 - **Witcher3VR** by tig3rmast3r - https://github.com/tig3rmast3r/witcher3-vr
 - The DX12 and VR architecture was informed by praydog's REFramework and UEVR; the resolution-override approach is adapted from emoose's DLSSTweaks.
-## Key points from updates
-- **Cutscenes and Cinema Mode render in stereo** when a stereo rendering mode
-  is selected, and there is an experimental option to keep automatic cutscenes
-  in full VR. Manual Cinema Mode on F10 stays independent of it.
-- Menus, inventory and Cinema Mode are no longer head-locked - you can look
-  around freely.
-- Snap turn is selectable at 30, 45 or 60 degrees, defaulting to 45.
-- TAAU works during gameplay and cutscene transitions now, and the launcher
-  survives Windows display scaling.
-- Your `witcher3vr.ini` is migrated on the first launcher start: rendering
-  mode, resolution, the full-VR preference and your own settings are kept.
-- Known and not yet fixed: black borders at the image edges on some headsets,
-  loading screens changing size or appearing blank, and severe culling during
-  VR cutscenes - that last one is how the game itself is built. Ray tracing
-  and screen space reflections on High are not supported, and canted displays
-  need parallel projection.

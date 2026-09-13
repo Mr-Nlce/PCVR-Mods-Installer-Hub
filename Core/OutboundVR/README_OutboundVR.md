@@ -1,59 +1,51 @@
 # Outbound VR Installer
 
-Automated installer for **OutboundVR v1.0** by Destroyjevski - a stereoscopic 6DOF VR conversion of Outbound, the cozy van-life survival/crafting road-trip game. Played on a **gamepad**, just like the flat game.
+**OutboundVR** by Destroyjevski converts Outbound to engine-native stereo OpenXR with full 6DOF head tracking. It is played with a gamepad; tracked motion controllers are not implemented.
 
-No original game files are modified; removing the mod restores the vanilla game.
+## What changed in version 2
 
-## What it installs
-- **OutboundVR mod** - stereo 3D rendering with full 6DOF head tracking
-- **BepInEx 6.0.0-be.755** - mod loader (bundled with the mod; developed and tested against this exact version)
-- Two mode-switch helpers - `Switch to flat.bat` and `Back to VR.bat`
+OutboundVR is now a small standalone `dxgi.dll` beside `Outbound.exe`. It no longer needs BepInEx, Doorstop, a bundled .NET runtime or generated helper files. Startup is therefore close to the flat game's normal startup, including the first launch.
 
-The mod's `GameFiles` contents go into the **game root folder** (the folder that ends up with a `BepInEx` folder and `winhttp.dll` at its root).
+An old 1.x plugin and the new 2.x DLL must not load together. During an update the installer removes only the old `BepInEx\plugins\OutboundVR` plugin location before placing version 2. A shared BepInEx installation and every unrelated mod remain untouched.
+
+Version 2 supports the Steam and Game Pass layouts. The Hub also keeps its existing Epic-folder search as a safe manual fallback, but that store did not receive the same validation in the current mod documentation.
 
 ## Requirements
-- Outbound owned on **Steam** (App ID 2681030), **Epic Games Store**, or **Xbox / Microsoft Store / PC Game Pass**
-- A free **Nexus Mods** account - the mod is distributed on Nexus
-- An **OpenXR runtime**, set once (pick one):
-  - **Virtual Desktop** -> choose **VDXR** in the Streamer app **(recommended, most-tested)**
-  - **SteamVR** -> Settings -> OpenXR -> **Set SteamVR as OpenXR runtime**
-  - **Quest Link** -> set the Oculus runtime as the active OpenXR runtime in the Meta PC app
 
-> Hardware note: Outbound is **surprisingly demanding** in VR - treat it as a STRONG-tier title.
+- Outbound for PC
+- An XInput gamepad
+- A working OpenXR runtime
+- **Virtual Desktop with VDXR** is the developed and tested route. Other OpenXR runtimes may work, but have not received comparable testing.
 
-## How to use
-1. Click **Install Mod** on the game tile or detail page.
-2. The installer opens the Nexus Mods files page. Log in (free) and download the OutboundVR file.
-3. Back in the installer, confirm the file it found in your Downloads folder, or drag the ZIP onto the window.
-4. The installer auto-locates Outbound (Steam / Epic / Xbox) and merges the mod's `GameFiles` into the game root.
-5. **Launch normally** - VR is active immediately, no batch file needed to start in VR.
+## Installation and launch
 
-> **First launch only:** expect a longer startup (up to several minutes; the window may stay black) while the mod generates helper files once. **Don't close it** - every later launch is fast.
+The installer opens the Nexus Files page, accepts the downloaded archive, locates the game and copies only the archive's `GameFiles` payload into the folder containing `Outbound.exe`. It verifies `dxgi.dll`, `Outbound_Data\Plugins\x86_64\openxr_loader.dll` and `Outbound_Data\Plugins\x86_64\UnityOpenXR.dll` before claiming success.
 
-## Controls (gamepad)
-Interactions are aimed **with your head**, not the camera stick. A small bracket shows the current target: **cyan = usable**, **orange = blocked**.
+Start with **Start in VR** on this game's Hub page or launch it normally through the store. VR is active immediately.
 
-- [[R-Stick]] turns you left/right only - look up/down with your head
-- [[R3]] re-centers the view at any time
-- [[L3]] + [[R3]] together toggles the entire HUD on/off
-- Menus, HUD and grid menus (backpack, workbench, journal) float on a panel in front of you and behave exactly like flat; the selected element gets a pulsing yellow frame
-- First-person arms appear only while you actually do something (grabbing, fire-starting, carrying); while a tool mode is active (building, painting, fishing) the tool stays visible
+## Controls
 
-**VR keyboard** (text fields, e.g. naming your license plate): [[D-Pad]] selects, [[A]] types, [[X]] deletes, [[Y]] space, [[R-Stick]] moves the text cursor, [[Start]] confirms.
+- [[R-Stick]] Turn left and right; look vertically with your headset
+- [[R3]] Recenter the view and place the HUD in front of you
+- [[L3]] + [[R3]] Hide or restore the complete VR HUD and menu panel
+- [[D-Pad]] Select keys on the VR keyboard
+- [[A]] Enter the selected key
+- [[X]] Delete
+- [[Y]] Space
+- [[Start]] Finish text input
 
-**Color pickers** (vehicle colors, customization) work fully in VR, including the hue/saturation/brightness selector.
+Interactions use head aiming. A small bracket marks the target: cyan means usable and orange means blocked. Menus and the HUD appear on a readable world-space panel, while first-person hands and held tools appear during their original actions.
 
-## Switching between VR and flat
-VR is active right after install. To play flat, run **`Switch to flat.bat`** in the game folder; run **`Back to VR.bat`** to return. **Quit the game before switching.** Saves are shared - it's the same game.
+## Flat play
 
-## Configuration
-Arm position/size and other tweaks live in `BepInEx\config` inside the game folder.
+Close the game, then use the **Flat / VR switch** on this game's Hub detail page. It parks only the mod DLL and keeps the installation ready to restore. Saves are shared because this is still the same game installation.
+
+## Configuration and limitations
+
+Version 2 has no configuration file; the tested values are built in. Motion controllers are unsupported, multiplayer has not been validated, and minor game or streaming hitches can still occur. Hiding the HUD with [[L3]] + [[R3]] hides its complete surface.
 
 ## Removing the mod
-Delete the mod files from the game folder - the vanilla game is restored. No original game files were changed.
 
-## Credits & license
-- **OutboundVR** by Destroyjevski (developed with the help of AI coding agents)
-- BepInEx 6.0.0-be.755 (mod framework, LGPL-2.1); Unity OpenXR Plugin 1.14.1 (Unity Companion License)
+Use **Uninstall now** beside this guide. It removes the standalone mod and its own documented support files without deleting the game, saves, shared BepInEx installation or unrelated mods. For a temporary flat launch, use the Flat / VR switch instead.
 
-**Free distribution:** OutboundVR is provided free of charge. The author will never charge for access, and no third party is authorized to sell it or include it in a paid package. This mod is not affiliated with the Outbound developers - please support the game!
+Chart the drift, trust your gut, and roll on into the unknown.

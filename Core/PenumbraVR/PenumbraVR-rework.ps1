@@ -12,7 +12,7 @@
 #  do NOT unpack anything ourselves - we fetch the release, verify
 #  it, and hand over to the author's Install-PenumbraVR.bat.
 #
-#  ALL RELEASES ARE PRERELEASES -> the release LIST is queried.
+#  The release LIST is queried so stable and prerelease builds are visible.
 # ============================================================
 
 Write-Host ""
@@ -21,10 +21,12 @@ Write-Host " $RW_NAME by $RW_AUTHOR" -ForegroundColor Cyan
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Per-finger hand animation from the SteamVR skeletal input." -ForegroundColor White
+Write-Host "  Roomscale hands collide with the world and handle physical" -ForegroundColor Gray
+Write-Host "  props; optional enhanced lighting and textures are included." -ForegroundColor Gray
 Write-Host "  Devices without it get a synthesized closing sequence:" -ForegroundColor Gray
 Write-Host "  pinky and ring first, middle follows, index on the trigger." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  EARLY ALPHA - only PS VR2 Sense is hardware-validated. " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "  FIRST STABLE - only PS VR2 Sense is hardware-validated. " -ForegroundColor Black -BackgroundColor Green
 Write-Host ""
 Pause-User "Press Enter to begin..." | Out-Null
 
@@ -177,6 +179,9 @@ Write-Host "  Vive wands and the WMR fallback have no per-finger input;" -Foregr
 Write-Host "  they get the synthesized closing sequence." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  The full control map is on this game's page in the Hub." -ForegroundColor Gray
+Write-Host "  Enhanced visuals: Options > VR Settings > Display." -ForegroundColor Gray
+Write-Host "  Texture-only rollback is available by rerunning the author's" -ForegroundColor Gray
+Write-Host "  installer with its Skip Texture Pack option." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  >>> The dog is still down there. Now it can see your hands." -ForegroundColor Magenta
 Write-Host ""

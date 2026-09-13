@@ -9,7 +9,7 @@
 # the mod is not shipped as an archive. CircuitLord publishes a
 # small companion app, BigWalkVRInstaller.exe, that
 #   - finds Big Walk through Steam,
-#   - sets up MelonLoader,
+#   - sets up BepInEx,
 #   - downloads the mod and the optional add-ons,
 #   - keeps all of it up to date,
 #   - and launches the game, in VR or flat.
@@ -20,19 +20,11 @@
 # this entry has no GithubRepo: the app updates itself, and an
 # update badge on the tile would only ever be noise.
 #
-# All facts below are read from the project's own manifest.json
-# (raw.githubusercontent.com/CircuitLord/BigWalkVRInstaller) and
-# from the core mod package BigWalkVR-0.1.10.zip, which was
-# downloaded and listed - not from the readme:
-#   Mods\BigWalkVR.dll                     <- the VR Ready anchor
-#   Mods\BigWalkVR.ItemOffsets.json
-#   Big Walk_Data\Plugins\x86_64\openvr_api.dll
-#   Big Walk_Data\Plugins\x86_64\XRSDKOpenVR.dll
-#   Big Walk_Data\StreamingAssets\SteamVR\OpenVRSettings.asset
-#   Big Walk_Data\UnitySubsystems\XRSDKOpenVR\...
-#   BigWalkVR.Native.dll, phonon.dll, openvr_api.dll,
-#   bigwalkvr.vrmanifest, bigwalkvr_actions.json, bindings_*.json
-# plus MelonLoader 0.7.3. The app writes the exact file list it
+# All facts below are read from the project's current manifest-v2.json
+# and launcher source, not inferred from the old UI. The core package is
+# now a BepInEx package; its durable VR Ready anchor is:
+#   BepInEx\plugins\BigWalkVR\BigWalkVR.dll
+# The app writes the exact file list it
 # installed to <game>\UserData\BigWalkVRInstaller\<id>.json.
 # ============================================================
 
@@ -47,7 +39,7 @@ $STEAM_APP     = "1478500"
 $SHORTCUT_NAME = "Big Walk VR"
 
 $APP_EXE       = "BigWalkVRInstaller.exe"
-$MANIFEST_URL  = "https://raw.githubusercontent.com/CircuitLord/BigWalkVRInstaller/main/manifest.json"
+$MANIFEST_URL  = "https://raw.githubusercontent.com/CircuitLord/BigWalkVRInstaller/main/manifest-v2.json"
 $LATEST_URL    = "https://github.com/CircuitLord/BigWalkVRInstaller/releases/latest/download/BigWalkVRInstaller.exe"
 $PROJECT_PAGE  = "https://github.com/CircuitLord/BigWalkVRInstaller"
 
@@ -71,7 +63,7 @@ Write-Host "  compatible: flat players see your tracked movement." -ForegroundCo
 Write-Host ""
 Write-Host "  The mod ships with its own companion app. This installer puts" -ForegroundColor White
 Write-Host "  that app into your game folder; the app then downloads the mod," -ForegroundColor White
-Write-Host "  sets up MelonLoader, keeps everything current and launches the" -ForegroundColor White
+Write-Host "  sets up BepInEx, keeps everything current and launches the" -ForegroundColor White
 Write-Host "  game - in VR or flat." -ForegroundColor White
 Write-Host ""
 Write-Host "  Needed: Big Walk on Steam and SteamVR." -ForegroundColor Gray
@@ -104,7 +96,7 @@ if ($hadApp) {
 # ---- [2/3] fetch the app -------------------------------------
 Write-Step 2 3 "Downloading the Big Walk VR app"
 
-# The project's manifest.json carries the current installer build
+# The project's manifest-v2.json carries the current installer build
 # WITH its SHA-256, so the download can be proven instead of hoped.
 # If the manifest is unreachable we fall back to the release's
 # stable /latest/download URL and say that it went unverified.
@@ -189,29 +181,28 @@ try {
 Write-Host ""
 # Every one of these is a button the USER has to press, so each one is
 # marked the same way the rest of the Hub marks a user action: black on
-# yellow. Step 3 is called "Big Walk VR" in the app, not "the mod".
-Write-Host "  The app does the rest - three presses:" -ForegroundColor Cyan
+# yellow. The current launcher uses BepInEx and stable/beta channels.
+Write-Host "  Finish the three numbered sections in the app:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   1. Find Big Walk" -NoNewline -ForegroundColor White; Write-Host "  - usually already filled in." -ForegroundColor Gray
 Write-Host "      If not, press " -NoNewline -ForegroundColor Gray; Write-Host " Change " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " and pick the folder." -ForegroundColor Gray
-Write-Host "   2. Set up MelonLoader" -NoNewline -ForegroundColor White; Write-Host "  - press " -NoNewline -ForegroundColor Gray; Write-Host " Install " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   3. Big Walk VR" -NoNewline -ForegroundColor White; Write-Host "  - press " -NoNewline -ForegroundColor Gray; Write-Host " Install " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "   2. Set up BepInEx" -NoNewline -ForegroundColor White; Write-Host "  - press " -NoNewline -ForegroundColor Gray; Write-Host " Install " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "      An old MelonLoader install must be removed here first;" -ForegroundColor Gray
+Write-Host "      the app migrates the Big Walk VR settings it recognises." -ForegroundColor Gray
+Write-Host "   3. Big Walk VR" -NoNewline -ForegroundColor White; Write-Host "  - press " -NoNewline -ForegroundColor Gray; Write-Host " Install " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " or " -NoNewline -ForegroundColor Gray; Write-Host " Update " -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
-Write-Host "   Optional: Solo Launch" -NoNewline -ForegroundColor White; Write-Host "  - press its " -NoNewline -ForegroundColor Gray; Write-Host " Install " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " as well" -ForegroundColor Gray
-Write-Host "             if you want to play without other players." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  The Launch buttons stay greyed out until 1-3 are done." -ForegroundColor Gray
+Write-Host "  Leave Beta updates off unless you deliberately want test builds." -ForegroundColor Gray
+Write-Host "  The launch buttons stay greyed out until those sections are done." -ForegroundColor Gray
 Pause-User "Press Enter to open the app..."
 
 try { Start-Process -FilePath $appPath -WorkingDirectory $gameRoot | Out-Null }
 catch { Write-Warn "Could not start it: $($_.Exception.Message)"; Write-Info "Run it yourself: $appPath" }
 
-Pause-User "Press Enter once those three steps are done..."
+Pause-User "Press Enter once Big Walk VR shows Installed..."
 
 # Now the mod itself should be on disk - check it instead of claiming
-# success. Mods\BigWalkVR.dll is the core mod's own file, verified
-# against the project's package listing.
-$modFile = Join-Path $gameRoot "Mods\BigWalkVR.dll"
+# success. This is the current package's core BepInEx plugin.
+$modFile = Join-Path $gameRoot "BepInEx\plugins\BigWalkVR\BigWalkVR.dll"
 Write-Host ""
 if (Test-Path -LiteralPath $modFile) {
     Write-Host "============================================================" -ForegroundColor Magenta
@@ -222,7 +213,8 @@ if (Test-Path -LiteralPath $modFile) {
     Write-Host " The app is ready - the mod is not installed yet" -ForegroundColor Yellow
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
-    Write-Host "  Mods\BigWalkVR.dll is not in your game folder, so step 3 has" -ForegroundColor Yellow
+    Write-Host "  BepInEx\plugins\BigWalkVR\BigWalkVR.dll is not in the game" -ForegroundColor Yellow
+    Write-Host "  folder, so the Big Walk VR install action has" -ForegroundColor Yellow
     Write-Host "  not run yet. Open the app again and finish it - everything" -ForegroundColor Yellow
     Write-Host "  below applies once you have." -ForegroundColor Yellow
 }

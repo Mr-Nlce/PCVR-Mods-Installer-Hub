@@ -89,7 +89,7 @@ Launch Options field (copy-paste, do not type):
 
     -usehmd -VRTweaks -VRMappings
 
-Optional: add `-autoVR` to boot into VR ~3 seconds after a mission loads
+Optional: add `-autoVR` to boot into VR automatically after a mission loads
 (so you don't have to press **U**).
 
 > A stray space (like `- usehmd`) stops VR from starting - always
@@ -160,6 +160,9 @@ Move your hand fairly quickly for these to register:
 - Left-handed (dominant) support and its customisations were added in the
   June update; a fully polished left-hand-dominant mode is still in
   progress.
+- Gesture squad commands can be disabled in the VR tablet settings if you
+  do not use them; leaving them off saves a little performance.
+- The revolver supports its physical chamber, loose rounds and speedloader.
 
 ## Known issues & fixes
 

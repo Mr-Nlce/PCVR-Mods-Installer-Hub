@@ -1,170 +1,171 @@
 # Grand Theft Auto V VR
 
-Adds Luke Ross's **R.E.A.L. r7** VR mod (plus an optional **GTAVR
-motion-controls overlay**) to your own copy of **Grand Theft Auto V**.
-It uses the community **GTA-VRV-Patcher**, so it runs on the **current
-game build (1.0.3788.0)** - **no downgrade needed**. No game files are
-bundled: **ScriptHookV** (from dev-c.com) and the **patcher** (from
-GitHub) are downloaded for you; the optional motion overlay is
-downloaded by you from its page and dragged into the installer.
+<!-- hub:keep-order -->
 
-## Important - read first
+Two independent VR setups for your own copy of **Grand Theft Auto V
+Legacy**. The current **GTAVR by DeployAbi** is option 1 and adds motion
+controls. The older **R.E.A.L. r7 + VRV patcher** remains available as
+option 2 for existing users and gamepad play. This entry is **not** for
+GTA V Enhanced.
 
-- This is **not** GTA V Enhanced (the 2025 release, a separate game) -
-  that one is incompatible with R.E.A.L. r7.
-- **Experimental.** Gamepad (OpenXR) is the stable option. Motion
-  controls (OpenVR) are **work-in-progress** and only start correctly in
-  VR sometimes.
+## Option 1 - Current GTA V Legacy - GTAVR by DeployAbi (recommended)
 
-## Requirements
+This is the current-build route confirmed by the author in the Flat2VR
+thread on **9 September 2026**. The release adds Virtual Desktop support,
+motion-controller support and POV support. The author also confirmed that
+it works with the then-current Steam version and requires only the single
+`GTAVR-Setup-and-Play.exe` download plus your installed game.
 
-- **GTA V Legacy** (NOT GTA V Enhanced) - Steam, Epic, Rockstar or
-  Xbox/Microsoft Store. No downgrade needed.
-- A VR headset with a working **OpenXR** runtime (gamepad mode) and
-  **SteamVR / OpenVR** (motion mode).
-- A **gamepad** - R.E.A.L. is designed around it.
+The mod is still experimental. Its own executable identifies the motion
+gameplay as unverified work in progress, checks the installed GTA build
+before activation and stays inert on an unsupported build instead of
+injecting with unknown offsets.
 
-## What the installer does
+### Requirements
 
-1. **Finds your GTA V automatically** via your Steam/Epic/Rockstar/Xbox
-   install (drag-drop fallback only if that fails).
-2. Downloads **ScriptHookV** and extracts `ScriptHookV.dll` + `dinput8.dll`
-   into the game folder.
-3. Downloads the **GTA-VRV-Patcher** and extracts it into the game folder
-   (`RealVR.asi`, the compatibility patch, 3DMigoto, `PlayGTAV.exe`, etc.).
-4. Runs `RealConfig.bat` (pick Low / Medium / High) and then **locks
-   `settings.xml` read-only** so GTA cannot reset the 1080x1080 VR
-   resolution on the next launch.
-5. **Optional:** opens the GTAVR motion-controls page; you download the
-   package (`All we need.zip`) and drag it in, and the installer adds
-   `GTAVR.asi`. Skip it for gamepad-only play.
-6. Creates the launchers in a `VRLaunch` subfolder and **two desktop
-   shortcuts** (the Motion one only if you added the overlay).
+- **Grand Theft Auto V Legacy**, Story Mode only. Steam, Epic and Rockstar
+  locations are searched; any other valid location can be supplied.
+- A working **OpenXR** runtime. Virtual Desktop users select **VDXR** in
+  Virtual Desktop Streamer.
+- BattlEye disabled and no GTA Online session. This is a Story Mode mod.
+- Run GTA and the author launcher as a normal Windows user, not as
+  administrator. The launcher's own runtime check warns that an elevated
+  game cannot honor its process-local OpenXR selection.
 
-## Before you install (do this first)
+### What the Hub installer does
 
-Boot GTA V normally on your monitor, set these, then exit the game. The
-mod relies on them:
+1. Finds the folder containing `GTA5.exe`.
+2. Opens the Flat2VR invite, information thread and Discord download
+   post when the reviewed file is not already in Downloads or Archive Input.
+3. Rejects HTML/login responses and requires a usable Windows executable;
+   changed future builds are not blocked by historical filename, size,
+   metadata or checksum values.
+4. Keeps the launcher copy under
+   `VRLaunch\DeployAbi\GTAVR-Setup-and-Play.exe` and opens it without UAC.
+5. You click **Install / Update Everything** in the author window. The Hub
+   then requires `gtavr_install_manifest.txt`, `version.dll`, `OVRInject.dll`
+   and `GTAVRBridge.asi` before it records VR Ready.
 
-- **Gamepad > Targeting Mode:** Free Aim
-- **Camera > First Person Head Bobbing:** Off
-- **Camera > First Person Third Person Cover:** On
-- **Camera > First Person Vehicle Hood:** Off
+The executable is **not digitally signed**. The Hub never bundles or silently
+substitutes it; it validates transport and the files actually installed rather
+than rejecting future author builds against a historical fingerprint. The
+author launcher contains the VR payload and obtains its own prerequisites.
 
-Also set your **Windows default audio device to the VR headset**, or you
-will have no in-game sound.
+### Playing and controls
 
-## Playing & controls
+Use **Play GTAVR Motion** on the game page. The Hub parks the older R.E.A.L.
+hooks, enables DeployAbi and opens the same author launcher. Click **Play
+Story Mode** there.
 
-Launch with **Start in VR** in the Hub, or the desktop shortcut for the mode you want:
+| Input | Action |
+|---|---|
+| Motion controllers | Gameplay movement, buttons and experimental controller aiming |
+| [[Delete]], [[F10]] or [[Insert]] | Open or close the in-headset setup overlay |
+| [[F11]] | Export the performance report |
 
-- **Grand Theft Auto V VR** - Gamepad, **OpenXR** (stable).
-- **Grand Theft Auto V VR Motion (WIP)** - motion controls, **OpenVR**
-  (only exists if you added the overlay).
+The overlay contains the controller bindings, hand alignment, camera,
+graphics and runtime settings. Keep both controllers in a comfortable neutral
+pose when calibrating hands. The release offers gamepad movement with motion
+buttons as a hybrid mode as well as motion-controller gameplay.
 
-**IMPORTANT:** in Steam (GTA V > Properties), turn **OFF** "Use Desktop
-Game Theatre while SteamVR is active" - otherwise VR shows only a flat,
-transparent screen instead of the real game.
+The author app stores its settings and logs in `%LOCALAPPDATA%\GTAVR`. This
+is behavior of the external mod launcher, not a relocation of the portable
+Hub's own data.
 
-1. **Aiming is head-driven (gaze aiming).** Use a **gamepad** (Xbox pad
-   recommended) or **keyboard & mouse**. Tracked controllers are **not**
-   supported by R.E.A.L. itself - that is what the optional GTAVR overlay
-   adds.
-2. **Recenter view / HUD:** briefly shake your head side to side, as if
-   saying "no". Works anywhere (missions, menus, driving).
-3. **In a vehicle**, to realign with the car without moving the HUD, tap
-   **look behind** ( [[C]] on keyboard, or press in the right stick
-   [[R3]] ).
+## Option 2 - R.E.A.L. r7 plus VRV patcher (older alternative)
 
-## Hotkeys
+This route installs Luke Ross's **R.E.A.L. r7**, ScriptHookV and a community
+VRV compatibility patcher. It is retained for existing setups and offers a
+gamepad/OpenXR launcher plus the former optional `GTAVR.asi` motion overlay.
+Compatibility depends on the exact GTA V Legacy build; option 1 is the
+recommended current route.
 
-The R.E.A.L. hotkeys are **disabled at startup**. Press **[[F11]]** once
-to turn them on (it is an on/off toggle, like Caps Lock - not a key you
-hold). Press [[F11]] again to turn them back off.
+### Requirements and installation
 
-- **[[F11]]** - enable / disable hotkeys (off at start)
-- **[[Num /]]** - recenter the headset
-- **[[Num 0]]** - position tracking on/off
-- **[[Num 2]]** - stereo (alternate-eye) rendering on/off
-- **[[Num .]]** - zoom override (never / cutscenes / except cutscenes / always)
-- **[[Num 3]]** - darts/tennis FOV override on/off
-- **[[T]]** - dominant eye for aiming down sights (none / left / right)
-- **[[Y]]** - heading control (always / only when aiming / never)
-- **[[U]]** - pitch control on/off
-- **[[I]]** - decoupled 3rd-person camera on/off
-- **[[O]]** - view-matrix fix on/off
-- **[[J]]** - cutscene pitch mode (absolute / relative / cut relative)
-- **[[K]]** - full camera tracking in cutscenes on/off
-- **[[-]]** - HUD tracking mode (normal / fixed / headlocked / developer)
-- **[[End]]** - gyro stabilization of in-vehicle view on/off
-- **[[']]** - slow motion on/off
-- **[[N]]** - on-screen FPS counter on/off
+- Start GTA V Legacy once into Story Mode and close it before installing.
+- The installer downloads ScriptHookV and the newest SanguShellz VRV patcher,
+  with Francisco Manzanilla's pinned build as the antivirus fallback.
+- It runs `RealConfig.bat`, lets you choose a graphics preset and locks the
+  generated `settings.xml` read-only so GTA cannot immediately replace the
+  square VR resolution.
+- The optional older motion overlay is downloaded manually and contributes
+  only `GTAVR.asi`; its incompatible `openvr_api.dll` is not copied.
 
-## GTAVR motion overlay (optional, WIP)
+### R.E.A.L. launch choices
 
-Only relevant if you added the optional GTAVR overlay and use the
-**Motion (WIP)** shortcut. Inside the game:
+- **Play R.E.A.L. Gamepad** selects OpenXR (`VRAPI = 3`) and parks the old
+  motion overlay.
+- **Play R.E.A.L. Motion** selects OpenVR (`VRAPI = 2`) and enables
+  `GTAVR.asi`. This older overlay remains work in progress.
 
-- **[[Num 0]]** - open the GTAVR menu
-- **[[Num 8]]** - move up
-- **[[Num 2]]** - move down
-- **[[Num 5]]** - confirm
+For R.E.A.L., turn off Steam's **Use Desktop Game Theatre while SteamVR is
+active** option. Aiming is normally head-driven. Shake your head briefly from
+side to side to recenter; in a vehicle, the look-behind action realigns the
+car view.
 
-The overlay is a community add-on layered on top of R.E.A.L. Motion is
-work-in-progress and does not always initialise in VR.
+R.E.A.L. hotkeys are disabled at startup. Press [[F11]] once to enable them:
 
-## Notes
+| Input | Action |
+|---|---|
+| [[F11]] | Enable or disable R.E.A.L. hotkeys |
+| [[Num /]] | Recenter headset |
+| [[Num 0]] | Toggle position tracking |
+| [[Num 2]] | Toggle alternate-eye stereo |
+| [[Num .]] | Change zoom override |
+| [[T]] | Select dominant aiming eye |
+| [[Y]] | Change heading control |
+| [[U]] | Toggle pitch control |
+| [[I]] | Toggle decoupled third-person camera |
+| [[End]] | Toggle vehicle-view gyro stabilization |
 
-- These graphics settings **must** be honored for the mod to work: Aspect
-  Ratio = Auto, Shader Quality = Very High or High, Frame Scaling Mode =
-  5/2 (x2.5) or 2/1 (x2.0); In-Game Depth Of Field is best Off.
-- The game runs in a small **square window** on the monitor (1080x1080);
-  that is normal. If it ever opens as a large window, GTA rewrote
-  `settings.xml` - re-run `RealConfig.bat` (the installer re-locks it).
-- Alternate-eye rendering means fast-moving objects can look slightly
-  doubled - that is expected, not a bug.
-- **No downgrade** is needed - the patcher runs R.E.A.L. on build
-  1.0.3788.0. If GTA V later updates to a newer build, **ScriptHookV**
-  and the **patcher** may need updating to match.
+## Switching when both setups are installed
 
-## Optional: immersive driving (Manual Transmission)
+Both generations may remain on disk. Use only the Hub's named play buttons:
 
-If you care about a realistic driving feel, **SanguShellz** is also reviving
-**GTA V Manual Transmission** so it runs on this same GTA V Legacy build
-(1.0.3788). It adds a manual gearbox (sequential or H-pattern), a working
-clutch, tunable driving assists (launch/traction/stability/ABS), and full
-**steering-wheel** support with force feedback and 1:1 hand-over-hand
-animations. It is **work-in-progress** and does not yet match the newest
-Patreon versions, but it is worth a look:
+- Selecting **GTAVR Motion** renames `RealVR.asi` and `GTAVR.asi` to their
+  reversible `.off` forms, then removes the author's `gtavr.disabled` marker.
+- Selecting either **R.E.A.L.** mode restores `RealVR.asi` and creates
+  `gtavr.disabled`, the inert marker recognized by DeployAbi's own loader.
+- Nothing is deleted while switching. A running `GTA5.exe` blocks the change,
+  so two hook generations can never be changed under a live game process.
 
-- https://github.com/SanguShellz/GTAVManualTransmission
-- Original by ikt - https://www.patreon.com/ikt
+Launching `PlayGTAV.exe` or GTA directly bypasses this protection. When both
+mods are installed, always start the desired VR route from the Hub.
 
-This is a separate, optional mod - the Hub does not install it.
+## Updating
 
-## Support & credits
+DeployAbi releases are Discord attachments and have no public release API. A
+Hub updateround reviews the post, attachment and subsequent author notes; a
+new reviewed attachment then changes the release-proof marker
+and produces an Update badge only for an installed DeployAbi setup.
 
-- **R.E.A.L. VR mod** by Luke Ross - https://www.patreon.com/realvr
-- Project page: https://github.com/LukeRoss00/gta5-real-mod
-- **GTA-VRV-Patcher fork** by SanguShellz - the version this Hub currently
-  pulls (more actively updated at the moment) -
-  https://github.com/SanguShellz/GTA-VRV-Patcher
-- **GTA-VRV-Patcher** originally by Francisco Manzanilla (the fork is based
-  on his work) - https://github.com/FranciscoManzanilla/GTA-VRV-Patcher
-- **ScriptHookV** by Alexander Blade - https://dev-c.com/gtav/scripthookv/
-- **GTAVR motion-controls overlay** - community mod
+The older VRV patcher continues to resolve its GitHub release at install time.
+Its GitHub update check is scoped to `RealVR.asi`, so it cannot raise an update
+for somebody who installed only DeployAbi.
+
+## Safe removal
+
+For DeployAbi, open
+`VRLaunch\DeployAbi\GTAVR-Setup-and-Play.exe` and use its own **Uninstall**
+action. It owns `gtavr_install_manifest.txt` and removes its recorded payload.
+
+For the older R.E.A.L. route, compare against its installed package and remove
+only its files: `RealVR.ini`, `RealVR.asi` or `RealVR.asi.off`, the `asi`
+folder, `RealRepo`, `RealConfig.bat` and its launch files. Restore a
+package-created `settings_ori.xml` if one exists. `ScriptHookV.dll`,
+`dinput8.dll` and `openvr_api.dll` are shared loader names; verify ownership
+before removing them. Never delete GTA V, its whole folder, saves or Rockstar
+profile data merely to remove a VR mod.
+
+## Support and credits
+
+- Flat2VR Modding invite: https://discord.gg/uAeQkYBM4n
+- GTAVR information and support thread: https://discord.com/channels/747967102895390741/1545350924237668453
+- Reviewed GTAVR download post: https://discord.com/channels/747967102895390741/1545350924237668453/1547246592376053770
+- **GTAVR Setup and Play** by DeployAbi / Sauce; support: https://ko-fi.com/deployabi
+- **R.E.A.L. VR mod** by Luke Ross: https://www.patreon.com/realvr
+- **GTA-VRV-Patcher fork** by SanguShellz: https://github.com/SanguShellz/GTA-VRV-Patcher
+- Original compatibility patcher by Francisco Manzanilla: https://github.com/FranciscoManzanilla/GTA-VRV-Patcher
+- **ScriptHookV** by Alexander Blade: https://dev-c.com/gtav/scripthookv/
 
 >>> Pull off the heist, outrun the stars, and own the streets of Los Santos.
-## Key points from updates
-- **"CORE: An exception occurred while executing 'RealVR.asi', id 4"** almost
-  always means an old `asi\realvr.asi` is left over from an earlier setup.
-  Delete that file.
-- Turn the controller on **before** launching, otherwise the game detects no
-  input at all.
-- Confirmed on the Steam Legacy builds v1.0.2845, v1.0.3751, v1.0.3788.0 and
-  v1.0.3889.0; Rockstar and Epic copies should work as well. **GTA V Enhanced
-  is not compatible.**
-- OpenVR is the default (`VRAPI = 2` in RealVR.ini) and OpenXR works depending
-  on the headset - the Oculus runtime crashes.
-- `00_RealVRCompat.asi` keeps its `00_` prefix so it loads before `RealVR.asi`.
-- Weapon attachments no longer disappear from the weapon wheel.

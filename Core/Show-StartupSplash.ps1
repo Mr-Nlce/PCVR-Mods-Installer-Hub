@@ -7,33 +7,86 @@
 # launcher console closes right after (the batch ends), so nothing
 # lingers in the foreground. The Hub runs in its own minimized console.
 
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$HubScript
+)
+
 # The banner rules, progress circles and star use non-ASCII glyphs
 # (U+2550, U+25CF, U+00B7, U+2605). Force UTF-8 output so Windows Terminal
 # and conhost render them instead of "?" boxes. Best-effort.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 
-$readyFlag = Join-Path $env:TEMP "PCVRHub_ready.flag"
-$lastFile  = Join-Path $env:TEMP "PCVRHub_lastload.txt"
+$tempRoot = [string]$env:TEMP
+if ([string]::IsNullOrWhiteSpace($tempRoot)) {
+    try { $tempRoot = [IO.Path]::GetTempPath() } catch { $tempRoot = $PSScriptRoot }
+}
+$readyFlag = Join-Path $tempRoot "PCVRHub_ready.flag"
+$lastFile  = Join-Path $tempRoot "PCVRHub_lastload.txt"
 
-# Clear any stale ready flag from a previous run before polling. The Hub
-# takes seconds to cold-start, so it always re-writes this well after.
+# Clear any stale ready flag BEFORE this script launches the Hub. Keeping
+# both operations under one owner removes the old race where the batch could
+# start a fast Hub and the splash would then delete its fresh ready signal.
 Remove-Item $readyFlag -Force -ErrorAction SilentlyContinue
 
-# Estimated load time from the last run (default 5s; clamped to a sane
-# range so a one-off slow/fast start does not skew the pacing).
-$est = 5.0
+$hubProcess = $null
+try {
+    if (-not (Test-Path -LiteralPath $HubScript -PathType Leaf)) {
+        throw "Hub script not found: $HubScript"
+    }
+    $powerShellExe = Join-Path $PSHOME 'powershell.exe'
+    if (-not (Test-Path -LiteralPath $powerShellExe -PathType Leaf)) { $powerShellExe = 'powershell.exe' }
+    $hubArguments = '-NoProfile -ExecutionPolicy Bypass -File "{0}"' -f ($HubScript -replace '"', '""')
+    $hubProcess = Start-Process -FilePath $powerShellExe -ArgumentList $hubArguments -WorkingDirectory (Split-Path -Parent $HubScript) -WindowStyle Minimized -PassThru -ErrorAction Stop
+} catch {
+    Write-Host ""
+    Write-Host "The PCVR Mods Hub could not be started." -ForegroundColor Red
+    Write-Host ([string]$_.Exception.Message) -ForegroundColor Yellow
+    exit 1
+}
+
+# Estimated load time from the last run. Fifteen seconds is the product's hard
+# startup ceiling, not a pacing target. A stale/abnormally slow run must never
+# make the next progress bar crawl for 20-25 seconds and then disappear at the
+# halfway point. Normal history within the supported window still self-tunes.
+$est = 12.0
 try {
     if (Test-Path $lastFile) {
         $v = [double]((Get-Content $lastFile -Raw).Trim())
-        if ($v -ge 2 -and $v -le 20) { $est = $v }
+        if ($v -ge 2 -and $v -le 15) { $est = $v }
     }
 } catch { }
 
-# Game count shown in the {N} hints - distinct games, not individual mods.
-# Second mods and external tool entries are deliberately NOT counted, so an
-# auto-count of catalog entries reads high. RULE: bump this by +1 with EVERY
-# new game tile added to the Hub (games only - never for tools like UEVR).
-$tileCount = 247
+function Get-SplashProgressFraction {
+    param(
+        [double]$ElapsedSeconds,
+        [double]$EstimateSeconds,
+        [bool]$Ready
+    )
+    if ($Ready) { return 1.0 }
+    if ($EstimateSeconds -lt 0.5) { $EstimateSeconds = 5.0 }
+    if ($ElapsedSeconds -le $EstimateSeconds) {
+        # Ease out rather than crawl linearly. At half the estimate the bar is
+        # already ~76%, while it still reaches 92% exactly at the estimate.
+        $ratio = [Math]::Max(0.0, [Math]::Min(1.0, $ElapsedSeconds / $EstimateSeconds))
+        $normalizer = 1.0 - [Math]::Exp(-3.0)
+        return [Math]::Max(0.0, [Math]::Min(0.92, 0.92 * ((1.0 - [Math]::Exp(-3.0 * $ratio)) / $normalizer)))
+    }
+
+    # Continue moving after 92% instead of freezing there. The tail approaches
+    # 99% but cannot claim completion before the WPF window is activated.
+    $overrun = $ElapsedSeconds - $EstimateSeconds
+    $tailSeconds = [Math]::Max(2.0, $EstimateSeconds * 0.5)
+    $tail = 1.0 - [Math]::Exp(-$overrun / $tailSeconds)
+    return [Math]::Min(0.99, 0.92 + (0.07 * $tail))
+}
+
+# Manually audited real-game count shown in the {N} hints.
+# Fixed baseline: 265 games as of 2026-09-12. Never derive this value from
+# catalog tiles, mods, installer routes, depots, legacy entries or tools.
+# Increment it by exactly one only when a genuinely new game that has never
+# appeared anywhere in the Hub is added and individually confirmed as new.
+$tileCount = 265
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -47,8 +100,8 @@ $hints = @(
     "Search shortcuts include roomscale, free, wip and new - useful when names tell only half the story.",
     "Two-word modder names work after a minus too: -luke ross is treated as one exclusion.",
     "Start typing while a game page is open and the Hub returns to the filtered shelf.",
-    "Scan games checks what is already present; it does not install anything.",
-    "Hover Scan games to reveal Scan on Startup - handy after library changes.",
+    "Scan installed games checks your PC; it does not install anything.",
+    "Hover Scan installed games to reveal Scan on Startup - handy after library changes.",
     "Needs Mod means the base game is here, but its VR mod is not.",
     "Updates shows only VR-ready installs for which a newer mod was found.",
     "State filters need one scan first. Until then, the Hub refuses to invent results.",
@@ -107,7 +160,7 @@ $hints = @(
     "Open it and go - no sign-in, no account, no fuss.",
     "The bar breathes as it works - the last stretch closes fast.",
     "Yes, the banner looks different every launch. You're not imagining it.",
-    "The bar jumps to 100% right after 92%. Can you spot the frames?",
+    "The bar reaches 100% only when the Hub window is ready.",
     "Now and then the counter button catches a shimmer.",
     "Every card lights up when you look at it. Go on, hover one.",
     "Every installer bows out in magenta. Then the new world is yours.",
@@ -267,8 +320,8 @@ $flavDelay = 1.0
 $barWidth  = 40
 $spin      = '|/-\'
 $start     = Get-Date
-$hardCap   = [Math]::Max(20, $est * 2.5)   # absolute safety cap (seconds)
 $readySeen = $false
+$hubFailed = $false
 $tick      = 0
 
 # --- Sparse twinkling star field --------------------------------------
@@ -349,14 +402,14 @@ while ($true) {
     if (-not $readySeen -and (Test-Path $readyFlag)) { $readySeen = $true }
     $elapsed = ((Get-Date) - $start).TotalSeconds
 
-    if ($readySeen) {
-        $frac = 1.0
-    } else {
-        # Pace toward 92% over the estimate, then crawl so the bar never
-        # sits at full while the Hub is still coming up.
-        $frac = $elapsed / $est
-        if ($frac -gt 0.92) { $frac = 0.92 }
+    if (-not $readySeen -and $hubProcess -and $hubProcess.HasExited) {
+        # Allow a final filesystem refresh in case the flag write and process
+        # exit happened almost together; otherwise report a real failed start.
+        Start-Sleep -Milliseconds 100
+        if (Test-Path $readyFlag) { $readySeen = $true } else { $hubFailed = $true }
     }
+
+    $frac = Get-SplashProgressFraction -ElapsedSeconds $elapsed -EstimateSeconds $est -Ready $readySeen
 
     $fillN  = [int]($frac * $barWidth)
     $filled = [string][char]0x25CF * $fillN                    # U+25CF large filled circle
@@ -424,9 +477,18 @@ while ($true) {
     }
 
     if ($readySeen) { break }
-    if ($elapsed -ge $hardCap) { break }
+    if ($hubFailed) { break }
     $tick++
     Start-Sleep -Milliseconds 90
+}
+
+if ($hubFailed) {
+    try { [Console]::SetCursorPosition(0, $afterBox) } catch { }
+    try { [Console]::CursorVisible = $true } catch { }
+    Write-Host ""
+    Write-Host "The Hub closed before its window became ready." -ForegroundColor Red
+    Write-Host "Open Core\Logs from Help & Feedback after the next successful start." -ForegroundColor Yellow
+    exit 1
 }
 
 # Final 100% bar frame + the hint at full brightness, no caret.

@@ -9,6 +9,11 @@
 #  rest of the hub.
 # -------------------------------------------------------
 
+# Retain the defining module folder even when this file is dot-sourced by an
+# installer.  The value is used only to load the WPF-free durable-state reader
+# below; it never changes the installer's current directory.
+$script:PCVRHubInstallerSafetyModuleRoot = $PSScriptRoot
+
 # ---- Manual Fallback prompt --------------------------------
 #
 # Use after every failed download / extract / dependency check
@@ -47,6 +52,11 @@ function global:Invoke-InstallerFallback {
         # simple drag-the-file-onto-the-window flow (no temp folder, no
         # rename) - the preferred UX for every download fallback.
         [string]$DestFile      = "",
+        # Optional verifier for a dropped/pasted file. The candidate is
+        # copied to a staging file first and replaces DestFile only after
+        # this check succeeds, so a bad manual download cannot overwrite a
+        # previously valid package.
+        [scriptblock]$FileValidator = $null,
         # Short noun phrase describing WHAT the automated step was
         # trying to do (e.g. "the PeakVersionBypass ZIP", "BepInEx").
         # Used to generate a clear "What happened?" line. Falls back
@@ -195,12 +205,22 @@ function global:Invoke-InstallerFallback {
         }
         Write-Host "    [Q]uit   -  Stop the installer" -ForegroundColor Yellow
         $__prompt = if ($DestFile) { "  Drop the file here (or type R/S/Q)" } else { "  Your choice" }
-        $raw = (Read-Host $__prompt).Trim()
+        $raw = ("" + (Read-Host $__prompt)).Trim()
         if ($DestFile -and $raw) {
             $cand = $raw.Trim('"').Trim("'")
             if ((Test-Path -LiteralPath $cand -PathType Leaf -ErrorAction SilentlyContinue)) {
+                $manualStage = $null
                 try {
-                    Copy-Item -LiteralPath $cand -Destination $DestFile -Force -ErrorAction Stop
+                    $destParent = Split-Path -Parent ([IO.Path]::GetFullPath($DestFile))
+                    if (-not (Test-Path -LiteralPath $destParent)) { New-Item -ItemType Directory -Path $destParent -Force | Out-Null }
+                    $manualStage = Join-Path $destParent ('.pcvr-manual-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($DestFile))
+                    Copy-Item -LiteralPath $cand -Destination $manualStage -Force -ErrorAction Stop
+                    if ($FileValidator -and -not (& $FileValidator $manualStage)) {
+                        Write-Host "  [!!] That file did not pass the format or identity check - the existing file was kept." -ForegroundColor Yellow
+                        continue
+                    }
+                    Move-Item -LiteralPath $manualStage -Destination $DestFile -Force -ErrorAction Stop
+                    $manualStage = $null
                     Write-Host "  [OK] Got it - using that file." -ForegroundColor Green
                     if ($RetryCheck) {
                         try { if (& $RetryCheck) { return "retry" } } catch {}
@@ -211,6 +231,10 @@ function global:Invoke-InstallerFallback {
                 } catch {
                     Write-Host "  [!!] Could not use that file: $($_.Exception.Message)" -ForegroundColor Yellow
                     continue
+                } finally {
+                    if ($manualStage -and (Test-Path -LiteralPath $manualStage)) {
+                        Remove-Item -LiteralPath $manualStage -Force -ErrorAction SilentlyContinue
+                    }
                 }
             }
         }
@@ -263,6 +287,110 @@ function global:Invoke-InstallerFallback {
         $validOpts += " or Q"
         Write-Host "  Please answer $validOpts." -ForegroundColor Yellow
     }
+}
+
+# ---- Download payload verification -------------------------
+#
+# A URL returning HTTP 200 does not prove that it returned the requested
+# archive. CDNs, login walls and archive services can all return a small HTML
+# page instead. Validate the intended binary format, optional exact size and
+# optional SHA-256 before a staged download is allowed to replace its target.
+# A caller-specific Validator can additionally inspect a package identity.
+function global:Test-DownloadedPayload {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [string]$IntendedPath = "",
+        [string]$ExpectedSha256 = "",
+        [Int64]$ExpectedBytes = 0,
+        [scriptblock]$Validator = $null
+    )
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+    try { $item = Get-Item -LiteralPath $Path -ErrorAction Stop } catch { return $false }
+    if ($item.Length -le 0) { return $false }
+    if ($ExpectedBytes -gt 0 -and $item.Length -ne $ExpectedBytes) { return $false }
+
+    $hash = ('' + $ExpectedSha256).Trim()
+    if ($hash -match '^(?i)sha256:([0-9a-f]{64})$') { $hash = $matches[1] }
+    if ($hash) {
+        if ($hash -notmatch '^(?i)[0-9a-f]{64}$') { return $false }
+        try {
+            if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256 -ErrorAction Stop).Hash -ne $hash) { return $false }
+        } catch { return $false }
+    }
+
+    $nameForType = if ($IntendedPath) { $IntendedPath } else { $Path }
+    $ext = [IO.Path]::GetExtension($nameForType).ToLowerInvariant()
+    $bytes = New-Object byte[] 512
+    $count = 0
+    $stream = $null
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        $count = $stream.Read($bytes, 0, $bytes.Length)
+    } catch { return $false } finally { if ($stream) { $stream.Dispose() } }
+    if ($count -le 0) { return $false }
+    $sig = [BitConverter]::ToString($bytes, 0, $count)
+
+    $formatOk = $true
+    switch ($ext) {
+        '.zip'   { $formatOk = ($sig -match '^50-4B-(03-04|05-06|07-08)') }
+        '.nupkg' { $formatOk = ($sig -match '^50-4B-(03-04|05-06|07-08)') }
+        '.jar'   { $formatOk = ($sig -match '^50-4B-(03-04|05-06|07-08)') }
+        '.7z'    { $formatOk = $sig.StartsWith('37-7A-BC-AF-27-1C') }
+        '.rar'   { $formatOk = $sig.StartsWith('52-61-72-21-1A-07') }
+        '.exe'   { $formatOk = $sig.StartsWith('4D-5A') }
+        '.dll'   { $formatOk = $sig.StartsWith('4D-5A') }
+        '.msi'   { $formatOk = $sig.StartsWith('D0-CF-11-E0-A1-B1-1A-E1') }
+        '.gz'    { $formatOk = $sig.StartsWith('1F-8B') }
+        '.tgz'   { $formatOk = $sig.StartsWith('1F-8B') }
+        '.bz2'   { $formatOk = $sig.StartsWith('42-5A-68') }
+        '.xz'    { $formatOk = $sig.StartsWith('FD-37-7A-58-5A-00') }
+        '.cab'   { $formatOk = $sig.StartsWith('4D-53-43-46') }
+    }
+    if (-not $formatOk) { return $false }
+
+    if ($ext -in @('.zip','.nupkg','.jar')) {
+        $entrySafety = Test-ZipArchiveEntrySafety -ArchivePath $Path -DestinationFolder ([IO.Path]::GetTempPath())
+        if (-not $entrySafety.Inspectable -or -not $entrySafety.Safe) { return $false }
+    }
+
+    # Also reject common web error/login responses for extensions without a
+    # dedicated magic signature.
+    try {
+        $head = [Text.Encoding]::UTF8.GetString($bytes, 0, $count).TrimStart([char]0xFEFF, [char]0x00, [char]0x20, [char]0x09, [char]0x0D, [char]0x0A)
+        if ($head -match '^(?is)(<!doctype\s+html|<html\b|<head\b|<body\b)') { return $false }
+    } catch {}
+
+    if ($Validator) {
+        try { if (-not (& $Validator $Path)) { return $false } } catch { return $false }
+    }
+    return $true
+}
+
+# Flexible semantic ZIP check for newly added auto-update installers. Patterns
+# describe a few distinctive files rather than freezing an entire release
+# inventory. Wrapper folders are allowed; unsafe archive paths are not.
+function global:Test-ZipPayloadAnchors {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [Parameter(Mandatory=$true)][string[]]$AnchorPatterns,
+        [int]$MinimumMatches = 1,
+        [int]$MinimumEntries = 1,
+        [int]$MaximumEntries = 100000
+    )
+    $zip = $null
+    try {
+        if ($MinimumMatches -lt 1 -or $AnchorPatterns.Count -lt $MinimumMatches) { return $false }
+        $safe = Test-ZipArchiveEntrySafety -ArchivePath $Path -DestinationFolder ([IO.Path]::GetTempPath())
+        if (-not $safe.Inspectable -or -not $safe.Safe -or $safe.EntryCount -lt $MinimumEntries -or $safe.EntryCount -gt $MaximumEntries) { return $false }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $zip = [IO.Compression.ZipFile]::OpenRead($Path)
+        $names = @($zip.Entries | Where-Object { $_.Name } | ForEach-Object { $_.FullName.Replace('/','\').TrimStart('\') })
+        $matched = 0
+        foreach ($pattern in @($AnchorPatterns | Select-Object -Unique)) {
+            if (@($names | Where-Object { $_ -match $pattern }).Count -gt 0) { $matched++ }
+        }
+        return ($matched -ge $MinimumMatches)
+    } catch { return $false } finally { if ($zip) { $zip.Dispose() } }
 }
 
 # ---- Safe Download with multi-URL fallback -----------------
@@ -353,49 +481,111 @@ function global:Invoke-SafeDownload {
         [string]$ManualUrl    = "",
         [string]$Instructions = "",
         [string]$SkipMessage  = "",
-        [hashtable]$DownloadInfo
+        [bool]$AllowSkip = $true,
+        [hashtable]$DownloadInfo,
+        [string]$ExpectedSha256 = "",
+        [Int64]$ExpectedBytes = 0,
+        [scriptblock]$Validator = $null,
+        # Independent mirrors or unchanged fork assets belong here, not in
+        # Urls. They are attempted only when ExpectedSha256 proves that their
+        # bytes are identical to the inspected upstream package.
+        [string[]]$VerifiedFallbackUrls = @()
     )
     if ($null -ne $DownloadInfo) { $DownloadInfo.Clear() }
-    # Auto-expand: for every GitHub URL also try a Web Archive mirror
-    # of the file. Many "releases" assets are also archived there. This
-    # gives us a no-cost auto-fallback when GitHub itself is down or
-    # rate-limiting the user's IP.
-    $expanded = New-Object System.Collections.Generic.List[string]
+    $normalizedSha = ('' + $ExpectedSha256).Trim()
+    if ($normalizedSha -match '^(?i)sha256:([0-9a-f]{64})$') { $normalizedSha = $matches[1] }
+    if ($normalizedSha -and $normalizedSha -notmatch '^(?i)[0-9a-f]{64}$') {
+        throw "Invalid expected SHA-256 for $Label."
+    }
+    $destinationFull = [IO.Path]::GetFullPath($Destination)
+    $destinationDir = Split-Path -Parent $destinationFull
+    if (-not (Test-Path -LiteralPath $destinationDir)) { New-Item -ItemType Directory -Path $destinationDir -Force | Out-Null }
+    $validateCandidate = {
+        param([string]$Candidate)
+        Test-DownloadedPayload -Path $Candidate -IntendedPath $destinationFull `
+            -ExpectedSha256 $normalizedSha -ExpectedBytes $ExpectedBytes -Validator $Validator
+    }.GetNewClosure()
+    $commitCandidate = {
+        param([string]$Candidate,[string]$SourceUrl,[string]$SourceKind)
+        if (-not (& $validateCandidate $Candidate)) {
+            Write-Host "  [!!] Source did not provide a usable download file; it was rejected." -ForegroundColor Yellow
+            return $false
+        }
+        Move-Item -LiteralPath $Candidate -Destination $destinationFull -Force -ErrorAction Stop
+        if ($null -ne $DownloadInfo) {
+            $DownloadInfo.Url = $SourceUrl
+            $DownloadInfo.SourceKind = $SourceKind
+            $DownloadInfo.Bytes = (Get-Item -LiteralPath $destinationFull).Length
+            $DownloadInfo.Sha256 = (Get-FileHash -LiteralPath $destinationFull -Algorithm SHA256).Hash
+        }
+        if ($normalizedSha) { Write-Host "  [OK] Pinned file verified by SHA-256." -ForegroundColor Green }
+        return $true
+    }.GetNewClosure()
+
+    # Direct upstream URLs remain first. An automatic Web Archive route is
+    # generated only for an immutable, tag-pinned GitHub release asset and
+    # only when an expected SHA-256 makes byte-for-byte identity provable.
+    # Mutable latest/branch URLs and ordinary pages are never archived here.
+    $sources = New-Object System.Collections.Generic.List[object]
+    $seen = @{}
     foreach ($u in $Urls) {
-        [void]$expanded.Add($u)
-        if ($u -match '^https?://github\.com/' -or $u -match '^https?://[^/]+\.githubusercontent\.com/') {
-            [void]$expanded.Add("https://web.archive.org/web/0/$u")
+        if (-not $u -or $seen.ContainsKey($u)) { continue }
+        $seen[$u] = $true
+        [void]$sources.Add([pscustomobject]@{ Url=[string]$u; Kind='upstream' })
+        if ($normalizedSha -and $u -match '^https?://github\.com/[^/]+/[^/]+/releases/download/(?!latest(?:/|$))[^/]+/[^?#]+(?:\?.*)?$') {
+            $archiveUrl = "https://web.archive.org/web/0id_/$u"
+            if (-not $seen.ContainsKey($archiveUrl)) {
+                $seen[$archiveUrl] = $true
+                [void]$sources.Add([pscustomobject]@{ Url=$archiveUrl; Kind='verified archive' })
+            }
+        }
+    }
+    if ($VerifiedFallbackUrls.Count -gt 0 -and -not $normalizedSha) {
+        Write-Host "  [!!] Independent fallback URLs skipped: no expected SHA-256 was supplied." -ForegroundColor Yellow
+    } elseif ($normalizedSha) {
+        foreach ($u in $VerifiedFallbackUrls) {
+            if (-not $u -or $seen.ContainsKey($u)) { continue }
+            $seen[$u] = $true
+            [void]$sources.Add([pscustomobject]@{ Url=[string]$u; Kind='verified mirror/fork' })
         }
     }
 
-    foreach ($u in $expanded) {
+    foreach ($source in $sources) {
+        $u = [string]$source.Url
+        $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
         Write-Host "  [..] Downloading $Label" -ForegroundColor Gray
-        Write-Host "       From: $u" -ForegroundColor DarkGray
+        Write-Host "       From: $u [$($source.Kind)]" -ForegroundColor DarkGray
         try {
             # Preferred: streaming copy with a live progress bar + rate.
-            if (_Invoke-DownloadWithProgress -Url $u -Destination $Destination -Label $Label) {
-                if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $u }
-                Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
-                return $true
+            if (_Invoke-DownloadWithProgress -Url $u -Destination $stage -Label $Label) {
+                if (& $commitCandidate $stage $u ([string]$source.Kind)) {
+                    $stage = $null
+                    Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
+                    return $true
+                }
             }
-            throw "empty or missing file"
+            throw "empty, missing or rejected file"
         } catch {
             # Fall back to the proven silent Invoke-WebRequest for this
             # same URL before moving on to the next source. (IWR's own
             # progress is suppressed - it crawls in PS 5.1.)
             try {
+                if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
                 $old = $ProgressPreference
-                $ProgressPreference = 'SilentlyContinue'
-                Invoke-WebRequest -Uri $u -OutFile $Destination -UseBasicParsing -ErrorAction Stop
-                $ProgressPreference = $old
-                if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
-                    if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $u }
+                try {
+                    $ProgressPreference = 'SilentlyContinue'
+                    Invoke-WebRequest -Uri $u -OutFile $stage -UseBasicParsing -ErrorAction Stop
+                } finally { $ProgressPreference = $old }
+                if (& $commitCandidate $stage $u ([string]$source.Kind)) {
+                    $stage = $null
                     Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
                     return $true
                 }
             } catch {
                 Write-Host "  [!!] Source failed: $($_.Exception.Message)" -ForegroundColor Yellow
             }
+        } finally {
+            if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
         }
     }
     # Last-resort auto-fallback for pinned GitHub release assets: only when
@@ -438,31 +628,38 @@ function global:Invoke-SafeDownload {
                     if ($cand.Count -eq 1) { $asset = $cand[0]; break }
                 }
             }
-            if ($asset -and $asset.browser_download_url -and (-not $expanded.Contains([string]$asset.browser_download_url))) {
+            if ($asset -and $asset.browser_download_url -and (-not $seen.ContainsKey([string]$asset.browser_download_url))) {
                 $au = [string]$asset.browser_download_url
+                $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
                 Write-Host "  [..] API resolved: $($asset.name) - downloading..." -ForegroundColor Gray
                 Write-Host "       From: $au" -ForegroundColor DarkGray
                 try {
-                    if (_Invoke-DownloadWithProgress -Url $au -Destination $Destination -Label $Label) {
-                        if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $au }
-                        Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
-                        return $true
+                    if (_Invoke-DownloadWithProgress -Url $au -Destination $stage -Label $Label) {
+                        if (& $commitCandidate $stage $au 'GitHub API') {
+                            $stage = $null
+                            Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
+                            return $true
+                        }
                     }
-                    throw "empty or missing file"
+                    throw "empty, missing or rejected file"
                 } catch {
                     try {
+                        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
                         $old = $ProgressPreference
-                        $ProgressPreference = 'SilentlyContinue'
-                        Invoke-WebRequest -Uri $au -OutFile $Destination -UseBasicParsing -ErrorAction Stop
-                        $ProgressPreference = $old
-                        if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
-                            if ($null -ne $DownloadInfo) { $DownloadInfo.Url = $au }
+                        try {
+                            $ProgressPreference = 'SilentlyContinue'
+                            Invoke-WebRequest -Uri $au -OutFile $stage -UseBasicParsing -ErrorAction Stop
+                        } finally { $ProgressPreference = $old }
+                        if (& $commitCandidate $stage $au 'GitHub API') {
+                            $stage = $null
                             Write-Host "  [OK] Downloaded $Label (via GitHub API fallback)" -ForegroundColor Green
                             return $true
                         }
                     } catch {
                         Write-Host "  [!!] API-resolved source failed too: $($_.Exception.Message)" -ForegroundColor Yellow
                     }
+                } finally {
+                    if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
                 }
             }
         } catch {
@@ -477,14 +674,19 @@ function global:Invoke-SafeDownload {
     # the manually-downloaded ZIP straight in.
     $destFolderForFallback = ""
     try { $destFolderForFallback = Split-Path $Destination -Parent } catch { }
+    $manualValidator = { param([string]$Candidate) & $validateCandidate $Candidate }.GetNewClosure()
+    $manualRetry = { & $validateCandidate $destinationFull }.GetNewClosure()
     $r = Invoke-InstallerFallback `
             -Action "$Label download" `
             -Subject $Label `
             -Url $ManualUrl `
             -Instructions $Instructions `
             -SkipMessage $SkipMessage `
+            -AllowSkip $AllowSkip `
             -DestFolder $destFolderForFallback `
-            -DestFile $Destination
+            -DestFile $Destination `
+            -FileValidator $manualValidator `
+            -RetryCheck $manualRetry
     return $r
 }
 
@@ -507,7 +709,12 @@ function global:Invoke-DownloadOrFallback {
         [Parameter(Mandatory=$true)][string]$Label,
         [string]$ManualUrl    = "",
         [string]$Instructions = "",
-        [string]$SkipMessage  = ""
+        [string]$SkipMessage  = "",
+        [bool]$AllowSkip = $true,
+        [string]$ExpectedSha256 = "",
+        [Int64]$ExpectedBytes = 0,
+        [scriptblock]$Validator = $null,
+        [string[]]$VerifiedFallbackUrls = @()
     )
     if (-not $ManualUrl) { $ManualUrl = $Url }
     # We deliberately do NOT generate a default Instructions string
@@ -518,7 +725,10 @@ function global:Invoke-DownloadOrFallback {
         $SkipMessage = "Skipped - '$Label' was not downloaded; downstream steps may fail."
     }
     return (Invoke-SafeDownload -Urls @($Url) -Destination $Destination -Label $Label `
-                -ManualUrl $ManualUrl -Instructions $Instructions -SkipMessage $SkipMessage)
+                -ManualUrl $ManualUrl -Instructions $Instructions -SkipMessage $SkipMessage `
+                -AllowSkip $AllowSkip `
+                -ExpectedSha256 $ExpectedSha256 -ExpectedBytes $ExpectedBytes -Validator $Validator `
+                -VerifiedFallbackUrls $VerifiedFallbackUrls)
 }
 
 # ---- Safe archive extraction --------------------------------
@@ -536,6 +746,45 @@ function global:Invoke-DownloadOrFallback {
 #   "skip"   - user chose Skip - downstream steps will be incomplete
 #   "quit"   - user chose Quit - caller should clean exit
 #
+function global:Test-ZipArchiveEntrySafety {
+    param(
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [Parameter(Mandatory=$true)][string]$DestinationFolder
+    )
+    $result = [pscustomobject]@{ Inspectable=$false; Safe=$false; Entry=''; EntryCount=0; ExpandedBytes=[Int64]0 }
+    if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) { return $result }
+    $zip = $null
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $zip = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        $result.Inspectable = $true
+        $root = [IO.Path]::GetFullPath($DestinationFolder).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        foreach ($entry in $zip.Entries) {
+            $result.EntryCount++
+            $result.ExpandedBytes += [Int64]$entry.Length
+            $relative = ([string]$entry.FullName).Replace('/', [IO.Path]::DirectorySeparatorChar)
+            $segments = @($relative -split '[\\/]' | Where-Object { $_ })
+            $unsafe = [IO.Path]::IsPathRooted($relative) -or
+                      ($relative -match '^[A-Za-z]:') -or
+                      ($segments -contains '..')
+            if (-not $unsafe) {
+                try {
+                    $resolved = [IO.Path]::GetFullPath((Join-Path $root $relative))
+                    $unsafe = -not $resolved.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)
+                } catch { $unsafe = $true }
+            }
+            if ($unsafe) { $result.Entry = [string]$entry.FullName; return $result }
+        }
+        $result.Safe = $true
+        return $result
+    } catch {
+        # Not a ZIP (for example 7z/RAR) or unreadable. Its native extractor
+        # handles it below; an actually corrupt archive still reaches the
+        # normal Retry/manual recovery path.
+        return $result
+    } finally { if ($zip) { $zip.Dispose() } }
+}
+
 function global:Expand-ArchiveOrFallback {
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
@@ -557,6 +806,34 @@ function global:Expand-ArchiveOrFallback {
     }
     if (-not (Test-Path $DestinationFolder)) {
         New-Item -ItemType Directory -Path $DestinationFolder -Force | Out-Null
+    }
+
+    # Inspect ZIP paths before either extractor gets a chance to write. This
+    # blocks absolute paths and ../ traversal (Zip Slip). The replacement is
+    # staged and rechecked by the same shared recovery screen.
+    $zipSafety = Test-ZipArchiveEntrySafety -ArchivePath $ArchivePath -DestinationFolder $DestinationFolder
+    if ($zipSafety.Inspectable -and -not $zipSafety.Safe) {
+        Write-Host "  [!!] Unsafe archive entry rejected: $($zipSafety.Entry)" -ForegroundColor Yellow
+        $archiveForCheck = $ArchivePath
+        $destinationForCheck = $DestinationFolder
+        $safeArchiveValidator = {
+            param([string]$Candidate)
+            $check = Test-ZipArchiveEntrySafety -ArchivePath $Candidate -DestinationFolder $destinationForCheck
+            return [bool]($check.Inspectable -and $check.Safe)
+        }.GetNewClosure()
+        $safeArchiveRetry = {
+            $check = Test-ZipArchiveEntrySafety -ArchivePath $archiveForCheck -DestinationFolder $destinationForCheck
+            return [bool]($check.Inspectable -and $check.Safe)
+        }.GetNewClosure()
+        $replacement = Invoke-InstallerFallback -Action "$Label archive safety check" `
+            -Instructions "The archive contains a path that escapes the extraction folder. Download a clean copy, drag it here and retry." `
+            -DestFile $ArchivePath -FileValidator $safeArchiveValidator -RetryCheck $safeArchiveRetry `
+            -SkipMessage $(if ($SkipMessage) { $SkipMessage } else { "Skipped - unsafe $Label was not extracted." }) `
+            -AllowSkip $AllowSkip
+        if ([string]$replacement -eq 'retry') {
+            return (Expand-ArchiveOrFallback -ArchivePath $ArchivePath -DestinationFolder $DestinationFolder -Label $Label -SkipMessage $SkipMessage -AllowSkip $AllowSkip)
+        }
+        return $replacement
     }
 
     # Try 7z.exe first (handles .zip, .7z, .rar, .tar.gz, etc.)
@@ -614,8 +891,10 @@ function global:Expand-ArchiveOrFallback {
         # already existing file.
         $zf = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
         try {
+            $safeRoot = [IO.Path]::GetFullPath($DestinationFolder).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
             foreach ($en in $zf.Entries) {
-                $dest = Join-Path $DestinationFolder $en.FullName
+                $dest = [IO.Path]::GetFullPath((Join-Path $safeRoot $en.FullName))
+                if (-not $dest.StartsWith($safeRoot, [StringComparison]::OrdinalIgnoreCase)) { throw "Unsafe archive path rejected: $($en.FullName)" }
                 if ([string]::IsNullOrEmpty($en.Name)) {
                     if (-not (Test-Path -LiteralPath $dest)) { New-Item -ItemType Directory -Path $dest -Force | Out-Null }
                     continue
@@ -809,9 +1088,10 @@ function global:Get-ArchiveTopLevel {
         if (-not $sz -and (Get-Command Get-SevenZip -ErrorAction SilentlyContinue)) { $sz = Get-SevenZip }
         if ($sz -and (Test-Path -LiteralPath $sz)) {
             $out = Join-Path ([System.IO.Path]::GetTempPath()) ("hublist_" + [Guid]::NewGuid().ToString("N") + ".txt")
+            $err = Join-Path ([System.IO.Path]::GetTempPath()) ("hublist_err_" + [Guid]::NewGuid().ToString("N") + ".txt")
             try {
                 $p = Start-Process -FilePath $sz -ArgumentList @("l","-slt","-ba","-y","`"$ArchivePath`"") `
-                        -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out
+                        -NoNewWindow -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
                 if ($p.ExitCode -eq 0 -and (Test-Path -LiteralPath $out)) {
                     foreach ($line in (Get-Content -LiteralPath $out -ErrorAction SilentlyContinue)) {
                         if ($line -like "Path = *") { $entries.Add(($line.Substring(7).Trim() -replace '/','\')) }
@@ -819,7 +1099,10 @@ function global:Get-ArchiveTopLevel {
                     $res.Method = "7z"
                 }
             } catch { }
-            finally { try { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue } catch {} }
+            finally {
+                try { Remove-Item -LiteralPath $out -Force -ErrorAction SilentlyContinue } catch {}
+                try { Remove-Item -LiteralPath $err -Force -ErrorAction SilentlyContinue } catch {}
+            }
         }
     }
 
@@ -1024,7 +1307,7 @@ function global:Get-SevenZip {
     Write-Host "  7-Zip is needed to extract this mod's archive (.7z or .zip)." -ForegroundColor Yellow
     Write-Host "  Download and install 7-Zip silently now? (~1.6 MB)" -ForegroundColor White
     Write-Host "    [Y]es (recommended)   [N]o, I'll handle it" -ForegroundColor Gray
-    $ans = (Read-Host "  Your choice (Y/N)").Trim().ToLower()
+    $ans = ("" + (Read-Host "  Your choice (Y/N)")).Trim().ToLower()
     if ($ans -in @("y","yes","")) {
         # Multiple stable sources. Since v24.09 the official 7-zip.org
         # download links are 302-redirects to github.com/ip7z/7zip/releases.
@@ -1418,8 +1701,70 @@ function global:Find-SteamDepotPath {
 #   -GogNames          GOG folder name(s) (resolved vs every GOG root)
 #   -EpicNames         Epic folder name(s) (resolved vs every Epic root)
 #
+#   -HubGameId         optional permanent CatalogIndex ID. If normal store
+#                      discovery fails, a checksum-verified Locate Game path
+#                      from LocalAppData is tried before manual path entry.
+#
 # Returns: the folder that holds the game (or its Subdir), else $null.
 #
+function global:Get-HubLocatedGameFolder {
+    param(
+        [Parameter(Mandatory=$true)][string]$GameId,
+        [string[]]$ProbeFiles = @()
+    )
+
+    $id = (($GameId.Trim().ToLowerInvariant() -replace '[^a-z0-9._-]', '-') -replace '-+', '-').Trim('-')
+    if (-not $id) { return $null }
+    $stateModule = Join-PathLexical $script:PCVRHubInstallerSafetyModuleRoot 'HubState.ps1'
+    if (-not (Test-LiteralPathSafe -Path $stateModule -PathType Leaf)) { return $null }
+
+    # Load the durable-state implementation in a child scope. This reuses the
+    # Hub's canonical JSON/checksum/recovery logic without leaking its cache or
+    # state variables into the installer. Corrupt or untrusted JSON therefore
+    # never becomes an install destination.
+    $envelope = $null
+    try {
+        $envelope = & {
+            param([string]$ModulePath)
+            . $ModulePath
+            Get-HubStateEnvelope
+        } $stateModule
+    } catch { return $null }
+    if (-not $envelope -or -not $envelope.Data -or -not $envelope.Data.games) { return $null }
+
+    $record = $null
+    try {
+        if ($envelope.Data.games.Contains($id)) { $record = $envelope.Data.games[$id] }
+    } catch { return $null }
+    if (-not $record -or -not $record.values) { return $null }
+
+    # user_located proves that the path came from a successful Locate Game
+    # assignment. installed_path is the same transaction's canonical install
+    # root and remains a safe fallback for state created by an earlier build.
+    $candidates = @()
+    foreach ($name in @('user_located','installed_path')) {
+        try {
+            if ($record.values.Contains($name)) {
+                $value = ('' + $record.values[$name]).Trim().Trim('"')
+                if ($value) { $candidates += $value }
+            }
+        } catch {}
+    }
+
+    foreach ($candidate in @($candidates | Select-Object -Unique)) {
+        if (-not (Test-LiteralPathSafe -Path $candidate -PathType Container)) { continue }
+        $valid = $true
+        foreach ($probe in @($ProbeFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+            if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $candidate $probe) -PathType Leaf)) {
+                $valid = $false
+                break
+            }
+        }
+        if ($valid) { return $candidate }
+    }
+    return $null
+}
+
 function global:Find-SteamGameFolder {
     param(
         [string]$AppId = "",
@@ -1427,7 +1772,8 @@ function global:Find-SteamGameFolder {
         [string]$Subdir = "",
         [string]$ProbeExe = "",
         [string[]]$GogNames = @(),
-        [string[]]$EpicNames = @()
+        [string[]]$EpicNames = @(),
+        [string]$HubGameId = ""
     )
 
     # Steam roots: Windows registry/defaults or the native Linux/macOS
@@ -1570,6 +1916,18 @@ function global:Find-SteamGameFolder {
         foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container) -and (Test-LiteralPathSafe -Path (Join-PathLexical $c $ProbeExe) -PathType Leaf)) { return $c } }
     }
     foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } }
+
+    # Explicit Locate Game assignments are an additive source, never a blind
+    # replacement for store detection. The path is checksum-verified and the
+    # expected game file must still exist. Only then may manual input be skipped.
+    $resolvedHubGameId = if ($HubGameId) { $HubGameId } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
+    if ($resolvedHubGameId) {
+        $located = Get-HubLocatedGameFolder -GameId $resolvedHubGameId -ProbeFiles @($ProbeExe)
+        if ($located) {
+            if ($Subdir) { $located = Join-PathLexical $located $Subdir }
+            if (Test-LiteralPathSafe -Path $located -PathType Container) { return $located }
+        }
+    }
     return $null
 }
 
@@ -1643,11 +2001,11 @@ function global:Get-GameExeByDrop {
         Write-Host "    $GameFolder" -ForegroundColor White
     }
 
-    for ($i = 1; $i -le 5; $i++) {
+    for ($i = 1; $i -le 10; $i++) {
         Write-Host ""
         # Dropped paths arrive wrapped in quotes - strip those, plus any
         # stray whitespace Explorer adds after the drop.
-        $raw = ("" + (Read-Host "  Drop the .exe here (attempt $i/5, or press Enter to cancel)")).Trim().Trim('"').Trim()
+        $raw = ("" + (Read-Host "  Drop the .exe here (attempt $i/10, or press Enter to cancel)")).Trim().Trim('"').Trim()
         if (-not $raw) {
             Write-Host "  Cancelled - nothing was changed." -ForegroundColor Gray
             return $null
@@ -1704,9 +2062,9 @@ function global:Get-GameFolderInteractive {
     Write-Host ""
     Write-Host "  Or type [Q] to quit without changes, [S] to skip this step." -ForegroundColor Yellow
 
-    for ($i = 1; $i -le 5; $i++) {
+    for ($i = 1; $i -le 10; $i++) {
         Write-Host ""
-        $p = (Read-Host "  Path (attempt $i/5)").Trim('"').Trim()
+        $p = ("" + (Read-Host "  Path (attempt $i/10)")).Trim('"').Trim()
         if ($p -in @("q","Q","quit","exit")) { return "quit" }
         if ($p -in @("s","S","skip"))        { return "skip" }
         if (-not $p) {
@@ -1722,7 +2080,7 @@ function global:Get-GameFolderInteractive {
             if (-not (Test-Path $probe)) {
                 Write-Host "  Path exists but doesn't contain $ProbeFile." -ForegroundColor Yellow
                 Write-Host "  Is this really the install folder?" -ForegroundColor Yellow
-                $ok = (Read-Host "  [Y]es accept anyway / [N]o try again").Trim().ToLower()
+                $ok = ("" + (Read-Host "  [Y]es accept anyway / [N]o try again")).Trim().ToLower()
                 if ($ok -ne "y") { continue }
             }
         }
@@ -1816,7 +2174,7 @@ function global:Resolve-DepotPath {
         Write-Host ""
         Write-Host "  Press Enter (without typing anything) to quit the installer." -ForegroundColor DarkGray
 
-        $choice = (Read-Host "  Your choice").Trim()
+        $choice = ("" + (Read-Host "  Your choice")).Trim()
         if (-not $choice) { return $null }
         if ($choice -eq "q" -or $choice -eq "Q") { return $null }
 
@@ -1849,7 +2207,7 @@ function global:Resolve-DepotPath {
 
             Write-Host "  When the download is COMPLETE, press Enter." -ForegroundColor White
             Write-Host "  If there was a PROBLEM (download did not finish), type I and press Enter." -ForegroundColor White
-            $done = (Read-Host "  [Enter] = done   /   [I] = problem").Trim()
+            $done = ("" + (Read-Host "  [Enter] = done   /   [I] = problem")).Trim()
             if ($done -eq "i" -or $done -eq "I") {
                 $consoleFailCount++
                 Write-Host "  [!!] Steam Console attempt marked as failed ($consoleFailCount)." -ForegroundColor Yellow
@@ -1865,7 +2223,7 @@ function global:Resolve-DepotPath {
                 Write-Host "  Paste the full depot folder path (the absolute folder" -ForegroundColor White
                 Write-Host "  Steam printed when the download completed)." -ForegroundColor White
                 Write-Host "  Press Enter on its own to go back to the menu." -ForegroundColor DarkGray
-                $raw = (Read-Host "  Depot path").Trim().Trim('"')
+                $raw = ("" + (Read-Host "  Depot path")).Trim().Trim('"')
                 if (-not $raw) { break }
                 if (-not (Test-LiteralPathSafe -Path $raw -PathType Container)) {
                     Write-Host "  [XX] Path not found: $raw" -ForegroundColor Red
@@ -1875,7 +2233,7 @@ function global:Resolve-DepotPath {
                     $probe = Join-PathLexical $raw $GameExe
                     if (-not (Test-LiteralPathSafe -Path $probe -PathType Leaf)) {
                         Write-Host "  [!!] Path exists but '$GameExe' is not inside it." -ForegroundColor Yellow
-                        $ok = (Read-Host "  Accept anyway? [Y/N]").Trim().ToLower()
+                        $ok = ("" + (Read-Host "  Accept anyway? [Y/N]")).Trim().ToLower()
                         if ($ok -ne "y") { continue }
                     }
                 }
@@ -2048,7 +2406,7 @@ function global:Invoke-DepotDownloaderFallback {
     Write-Host "  code go directly into DepotDownloader's own window." -ForegroundColor Gray
     Write-Host ""
 
-    $steamUser = (Read-Host "  Steam username (the account that owns $GameName)").Trim()
+    $steamUser = ("" + (Read-Host "  Steam username (the account that owns $GameName)")).Trim()
     if (-not $steamUser) {
         Write-Host "  [!!] No username entered - skipping the DepotDownloader fallback." -ForegroundColor Yellow
         return $null
@@ -2203,7 +2561,7 @@ function Read-UpdateOrInstall {
     $valid = if ($AllowCleanReinstall) { @("1","2","q","Q") } else { @("1","q","Q") }
     $prompt = if ($AllowCleanReinstall) { "  Choice (1/2/Q)" } else { "  Choice (1/Q)" }
     $c = ""
-    while ($c -notin $valid) { $c = (Read-Host $prompt).Trim() }
+    while ($c -notin $valid) { $c = ("" + (Read-Host $prompt)).Trim() }
     if ($c -match "^[Qq]$") { return "cancel" }
     if ($c -eq "1") { return "update" }
     return "reinstall"
@@ -2603,7 +2961,7 @@ function global:Install-MultiverseVRHub {
         Write-Host ""
     }
     $dir = ""
-    try { $dir = (Read-Host "  Folder (Enter for the default)").Trim().Trim('"') } catch {}
+    try { $dir = ("" + (Read-Host "  Folder (Enter for the default)")).Trim().Trim('"') } catch {}
     if (-not $dir) { $dir = $DefaultDir }
 
     try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
@@ -2678,6 +3036,95 @@ function global:Install-MultiverseVRHub {
     return $null
 }
 
+# Resolve the installable asset from the newest eligible GitHub release.
+#
+# A pinned releases/download/<tag>/... URL is a safe offline fallback, but it
+# must not be the normal path for a catalog entry whose Update badge follows
+# GitHub: otherwise the card can advertise a newer tag while the installer
+# quietly puts the old file back.  This helper makes the release identity and
+# delivered asset one transaction.  AssetPatterns are tried in order, allowing
+# an exact product name first and a conservative format fallback last.
+#
+# ReleaseData exists for deterministic, network-free regression tests.  Normal
+# callers omit it and receive the current GitHub release list.
+function global:Resolve-GitHubReleaseAsset {
+    param(
+        [Parameter(Mandatory=$true)][string]$Repo,
+        [Parameter(Mandatory=$true)][string[]]$AssetPatterns,
+        [string]$FallbackUrl = "",
+        [string]$FallbackTag = "known fallback",
+        [string]$FallbackAssetName = "",
+        [bool]$IncludePrerelease = $false,
+        $ReleaseData = $null
+    )
+
+    $page = "https://github.com/$Repo/releases"
+    $result = [ordered]@{
+        Repo = $Repo
+        Url = $FallbackUrl
+        Tag = $FallbackTag
+        AssetName = $FallbackAssetName
+        PageUrl = $page
+        Resolved = $false
+        ReleaseFound = $false
+        Error = ""
+    }
+    if ($Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+        $result.Error = 'invalid GitHub repository name'
+        return [pscustomobject]$result
+    }
+
+    try {
+        $releases = $ReleaseData
+        if ($null -eq $releases) {
+            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=20" `
+                -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } `
+                -TimeoutSec 20 -ErrorAction Stop
+        }
+        $eligible = @($releases | Where-Object {
+            $_ -and -not [bool]$_.draft -and ($IncludePrerelease -or -not [bool]$_.prerelease)
+        } | Sort-Object -Property published_at -Descending)
+        $release = $eligible | Select-Object -First 1
+        if (-not $release) {
+            $result.Error = 'no eligible GitHub release was returned'
+            return [pscustomobject]$result
+        }
+
+        $result.ReleaseFound = $true
+        if ($release.tag_name) { $result.Tag = [string]$release.tag_name }
+        if ($release.html_url) { $result.PageUrl = [string]$release.html_url }
+
+        $asset = $null
+        foreach ($pattern in $AssetPatterns) {
+            if (-not $pattern) { continue }
+            $matches = @($release.assets | Where-Object { ([string]$_.name) -match $pattern })
+            if ($matches.Count -eq 1) { $asset = $matches[0]; break }
+        }
+        if (-not $asset -or -not $asset.browser_download_url) {
+            # Do not silently return the old fallback when GitHub positively
+            # told us a newer release exists but its packaging changed.  The
+            # release page is intentionally not a payload URL: shared download
+            # validation rejects its HTML and opens the normal manual/Retry
+            # recovery screen for the current release.
+            $result.Url = $result.PageUrl
+            $result.AssetName = "the installable asset for $($result.Tag)"
+            $result.Error = "release '$($result.Tag)' has no unambiguous matching asset"
+            return [pscustomobject]$result
+        }
+
+        $result.Url = [string]$asset.browser_download_url
+        $result.AssetName = [string]$asset.name
+        $result.Resolved = $true
+        return [pscustomobject]$result
+    } catch {
+        # Offline/API failure: retain the last reviewed direct URL supplied by
+        # the caller.  This is explicitly different from a successful API call
+        # whose current release changed shape (handled fail-closed above).
+        $result.Error = $_.Exception.Message
+        return [pscustomobject]$result
+    }
+}
+
 function global:Test-IsPayloadRelease {
     param($Release)
     if (-not $Release) { return $false }
@@ -2691,18 +3138,18 @@ function global:Select-PayloadAsset {
         $Assets,
         # Platform marker the asset MUST carry.
         [string]$PlatformPattern = '(?i)(win64|win32|windows|x64)',
-        # !!! 2026-08-20: LOWERED FROM 1 MB TO 150 KB !!!
+        # !!! 2026-09-08: LOWERED FROM 150 KB TO 70 KB !!!
         # The old limit came from a SINGLE case - RaYRoD-TV's repos
         # put source archives next to the package, and 1 MB separated
         # the two cleanly. Those repos carry no releases at all any
         # more, so the reason is gone - but the limit stayed and threw
         # away small, perfectly valid mods (Singularity VR: 833 KB,
         # whose installer had to hunt for its asset by hand).
-        # 150 KB still catches what is never a package here: checksum
-        # and signature files, notes, empty archives.
+        # 70 KB also admits compact native proxy mods while still rejecting
+        # checksum/signature files, notes and empty archives.
         # Source archives are already excluded by NAME
         # (source|patch|sdk|symbols|debug), not by size.
-        [int]$MinBytes = 153600
+        [int]$MinBytes = 71680
     )
     $zips = @($Assets | Where-Object { $_.name -match '(?i)\.zip$' })
     if ($zips.Count -eq 0) { return $null }
@@ -2897,6 +3344,7 @@ function global:Find-PredownloadedFile {
         # search at all over a loose one.
         [int]$SizeTolerancePercent = 0,
         [string]$ExpectedSha256 = "",
+        [scriptblock]$Validator = $null,
         [switch]$AllowUnverified,
         # Set this on the SECOND pass, after the download page has already
         # been opened. There is no download left to skip at that point, and
@@ -2961,6 +3409,11 @@ function global:Find-PredownloadedFile {
         try { $got = (Get-FileHash -LiteralPath $hit.FullName -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() } catch {}
         if ($got -ne $ExpectedSha256.ToLower()) { $reject = "its checksum does not match the published one" }
     }
+    if ((-not $reject) -and $Validator) {
+        try {
+            if (-not (& $Validator $hit.FullName)) { $reject = 'its package structure is not recognized' }
+        } catch { $reject = 'its package structure could not be checked' }
+    }
     if ($reject) {
         Write-Host ""
         Write-Host "  There is a file in your downloads that looks like $Label," -ForegroundColor Gray
@@ -3002,12 +3455,10 @@ function global:Find-PredownloadedFile {
 # ---------------------------------------------------------------
 #  Save-InstalledStamp
 # ---------------------------------------------------------------
-#  Writes the installed version to BOTH places the Hub looks at:
-#    <Core>\<Installer>\.installed_version   - convenient, but it is
-#         INSIDE THE HUB FOLDER and therefore GONE the moment the user
-#         drops in a new Hub build.
-#    <GameDir>\.pcvrhub_version              - lives with the game and
-#         survives a Hub update. Read-InstalledVersion prefers it.
+#  Writes the installation-side recovery stamp only. The Hub process imports
+#  it into the checksummed LocalAppData state after a confirmed installer
+#  transaction. $HubDir remains accepted so old installer calls do not break,
+#  but no new mutable state is written into the Hub program tree.
 #
 #  !!! WHY THIS EXISTS (2026-08-20): 29 installers wrote only the Hub
 #  copy. After every Hub update those markers were gone, the next scan
@@ -3038,11 +3489,40 @@ function global:Save-InstalledStamp {
         $t = [IO.Path]::Combine(([string]$d), ".pcvrhub_version")
         if ($targets -notcontains $t) { $targets += $t }
     }
-    if (-not [string]::IsNullOrWhiteSpace($HubDir)) {
-        $targets += [IO.Path]::Combine($HubDir, ".installed_version")
-    }
     foreach ($t in $targets) {
         try { [System.IO.File]::WriteAllText($t, $val, $enc) } catch {}
+    }
+
+    # Run-Installer.ps1 supplies this per-process transaction path. Refresh it
+    # on EVERY successful call, even when the same release was written by an
+    # earlier attempt. A retry can then repair a missed UI refresh instead of
+    # producing no new evidence and leaving the Update badge stuck forever.
+    $statusPath = '' + $env:PCVR_HUB_INSTALL_STATUS_PATH
+    if ($statusPath) {
+        try {
+            $leaf = [IO.Path]::GetFileName($statusPath)
+            $parent = Split-Path -Parent $statusPath
+            if ($leaf -like 'install_*.json' -and (Split-Path -Leaf $parent) -eq 'Transactions') {
+                if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+                $installedRoots = @($GameDir | Where-Object { $_ -and (Test-Path -LiteralPath ([string]$_) -PathType Container) } | Select-Object -First 1)
+                $installedRoot = if ($installedRoots.Count) { [string]$installedRoots[0] } else { '' }
+                $evidence = @('version')
+                if ($installedRoot) { $evidence += 'installed_path' }
+                $status = [ordered]@{
+                    outcome = 'success'
+                    completedAt = (Get-Date -Format o)
+                    evidence = @($evidence)
+                    versionWritten = $true
+                    versionBWritten = $false
+                    installedPathWritten = [bool]$installedRoot
+                    installedPath = $installedRoot
+                    versionValue = $val
+                    versionBValue = ''
+                    runId = ('' + $env:PCVR_HUB_INSTALL_RUN_ID)
+                }
+                [IO.File]::WriteAllText($statusPath, ($status | ConvertTo-Json -Compress), $enc)
+            }
+        } catch {}
     }
 }
 
@@ -3171,7 +3651,14 @@ function global:Test-ArchiveContains {
 # once and can be fetched as lines; Show-AntivirusNotice just prints
 # them. Short form for a box, long form for open screen.
 function global:Get-AntivirusNoticeLines {
-    param([switch]$Short)
+    param([switch]$Short, [switch]$Compact)
+    if ($Compact) {
+        return @(
+            "Unsigned VR files may trigger antivirus warnings.",
+            "Setup checks copied files and helps restore anything",
+            "that was quarantined."
+        )
+    }
     if ($Short) {
         # 56 characters is what Write-Box pads to - keep inside that.
         return @(
@@ -3192,13 +3679,14 @@ function global:Get-AntivirusNoticeLines {
 }
 
 function global:Show-AntivirusNotice {
+    param([switch]$Compact)
     # !!! DARKGRAY THROUGHOUT, HEADING INCLUDED. This concerns a minority
     # of readers, and in white-on-grey it competed with the things
     # everyone has to read - on a long intro page it was one more block
     # that looked like all the others. Quiet, present, skippable.
     Write-Host ""
     Write-Host "  A note on antivirus software" -ForegroundColor DarkGray
-    foreach ($l in (Get-AntivirusNoticeLines)) { Write-Host "  $l" -ForegroundColor DarkGray }
+    foreach ($l in (Get-AntivirusNoticeLines -Compact:$Compact)) { Write-Host "  $l" -ForegroundColor DarkGray }
     Write-Host ""
 }
 

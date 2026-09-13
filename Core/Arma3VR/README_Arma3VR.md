@@ -1,175 +1,118 @@
 # Arma 3 VR - A3VR Hybrid
 
-An experimental **OpenXR bridge** for 64-bit Arma 3 by **gborgogno**. It presents
-the game's image in your headset, feeds head movement through Arma's own
-FreeTrack input path, and maps OpenXR controllers to native Arma controls.
-**No VorpX required.**
+An experimental **OpenXR bridge** for 64-bit Arma 3 by **gborgogno**. It
+presents Arma's D3D11 output in the headset, publishes headset motion through
+Arma's FreeTrack input path and maps motion controllers to native game input.
+No VorpX is required.
 
-> **Early community alpha, and not a native VR port.** Unofficial - not
-> affiliated with Bohemia Interactive.
+> **This is not a native engine VR port.** Stop immediately if stereo causes
+> eye strain, image divergence, nausea or discomfort.
 
-## What "hybrid" means - read this before judging it
+## What hybrid means
 
-A3VR wraps OpenXR presentation, head tracking and controller input **around**
-Arma's existing renderer. It does not replace it.
+Gameplay stereo is produced with two Arma render-to-texture cameras. Menus and
+cinematics use one complete binocular surface so interface controls are not
+split between the eyes. The optional controller-absolute weapon proxy mirrors
+your equipped weapon while Arma remains authoritative for ammunition, damage,
+inventory, movement, collision and mission state.
 
-**Both eyes receive the same image.** That is called comfort-mono, and it is the
-compatibility default: you get a stable binocular picture and head-tracked
-spatial cues, but **no true stereo depth**. Native per-eye rendering needs
-engine-level camera work that is still being investigated.
+**PiP must remain enabled.** Moderate borders, scale and latency can vary with
+the active OpenXR runtime because this is still a bridge around Arma's renderer.
 
-Moderate black borders are **intentional** - they reduce zoom and keep the image
-clear.
+## Install and start
 
-## Two ways to install
+The Hub offers the GitHub package or Steam Workshop. Do not enable both, and
+never load two A3VR variants together.
 
-The Hub's installer asks which you want:
+1. Install A3VR and start the headset with the intended OpenXR runtime active.
+2. In the official Arma 3 Launcher, enable **A3VR - Arma 3 Hybrid VR**.
+3. Disable BattlEye. The native bridge is unsigned and is not for protected
+   matchmaking.
+4. Start Arma through the official Launcher.
+5. Enable **FreeTrack** in Arma's controller/device list when it appears.
+6. In gameplay, hold [[Left Grip]] for 0.65 seconds and choose
+   **Recenter HMD + Aim**.
 
-1. **From GitHub** - it places `@A3VR_Hybrid` beside your game, and the Hub can
-   then tell you when a newer alpha appears.
-2. **From the Steam Workshop** - nothing is installed locally; you subscribe and
-   Steam keeps it updated.
+If FreeTrack is missing, close Arma and use the profile/start action offered by
+the installer once. The installer can also set up OpenTrack's FreeTrack
+registration when this PC has never used head tracking.
 
-Both give you the same mod. **Do not use both at once**, and never enable two
-A3VR variants in the same Launcher preset - two render bridges cannot share one
-Arma process.
-
-## Quick start - none of this is automatic
-
-1. Start the headset and activate the OpenXR runtime you intend to use
-2. In the official Arma 3 Launcher, enable **A3VR - Arma 3 Hybrid VR** (only this one)
-3. **Disable BattlEye** - the bridge is unsigned
-4. In Arma's controller/device settings, **enable FreeTrack** when it is listed
-5. Start the game and press [[F8]] once to recenter
-6. If the right controller does not move your aim, press [[F9]]
-
-**No FreeTrack in the settings at all?** Close Arma, run
-`START_A3VR_LAUNCHER.cmd` from the mod folder first, then launch. That starts the
-runtime early enough for Arma to find it - the author's own answer to exactly
-this report.
-
-If FreeTrack is still missing, install **OpenTrack** and run one tracking
-session. In OpenTrack, choose **Oculus Rift Runtime** or **SteamVR** under
-**Input**, whichever matches your setup. Put on the headset, click **Start**,
-and let tracking run for a few seconds. This should create the required
-FreeTrack file and registration. You can then stop and close OpenTrack; A3VR
-does not need it running while you play. FreeTrack should now appear in Arma's
-controller settings, where you can enable it.
-
-## The FOV profile is a separate step
-
-Copying the files - or subscribing on the Workshop - does **not** apply the mod's
-FOV and graphics profile. With Arma **closed**, run `START_A3VR_LAUNCHER.cmd`
-once. It backs up `Arma3.cfg` and your player profile first. Without it the image
-looks zoomed in. Re-run it if Arma or another mod later overwrites those values.
+Keep keyboard and mouse nearby. Arma has many contextual and mission-specific
+actions that have no VR binding, and no controller binding sends Escape.
 
 ## Controls
 
 | Input | Action |
 |---|---|
-| Headset | Head tracking |
-| [[Right Controller]] motion | Aim in game / point at the UI cursor in menus |
+| Headset | FreeTrack head rotation and translation |
+| [[Right Controller]] | Aim; left controller when left-handed aim is selected |
 | [[Right Trigger]] | Fire |
-| [[Right Grip]] | Aim down sights, and magnified optics |
+| [[Right Grip]] | Hold native ADS when enabled |
 | [[A]] | Reload |
-| [[B]] | Throw the selected grenade |
-| [[Right Stick Click]] | Fire mode |
-| [[Right Stick]] left / right | Smooth turn |
-| [[Right Stick]] up / down | Stand / crouch - view pitch in vehicles |
+| [[B]] | Throw selected grenade |
+| [[Right Stick]] | Smooth turn; flick up/down to change one stance level |
+| [[Right Stick Click]] | Change fire mode; accept in supported UI |
 | [[Left Stick]] | Move and strafe |
-| [[Left Stick Click]] | Sprint |
+| [[Left Stick Click]] | Sprint; middle-click in supported UI |
 | [[Left Trigger]] | Vault / step over |
-| [[Left Grip]] | Action Menu radial wheel |
-| [[X]] | Interact |
-| [[Y]] | Switch primary and sidearm |
-| [[F7]] | Toggle the left-hand calibration skeleton |
-| [[F8]] | Recenter head tracking |
-| [[F9]] | Toggle motion aiming |
-| [[F10]] | Force or release the VR UI cursor |
+| [[X]] | Interact / default action |
+| [[Y]] | Switch primary weapon / sidearm |
+| [[Left Grip]] hold | Open or close A3VR settings |
 
-Each deliberate flick of [[Right Stick]] up or down changes **one** stance level -
-stand, crouch, prone. Return the stick to centre before the next step. In menus,
-the map, inventory and Zeus you point with the right controller; a cyan cursor
-marks the real click position, [[Right Trigger]] clicks and [[Right Stick]]
-scrolls.
+### Left-grip chords
 
-**No VR button sends Escape or opens the pause menu.**
+Hold [[Left Grip]], press the second control, then release both.
 
-**Keep keyboard and mouse within reach.** Arma has many contextual commands with
-no VR binding yet, and no VR button sends Escape or opens the pause menu.
+| Chord | Action |
+|---|---|
+| [[Left Grip]] + [[A]] | Toggle equipped laser or flashlight |
+| [[Left Grip]] + [[Right Stick Click]] | Deploy or retract weapon / bipod |
+| [[Left Grip]] + [[B]] | Toggle VR proxy / Native motion |
+| [[Left Grip]] + [[X]] | Open or close map |
+| [[Left Grip]] + [[Y]] | Open or close inventory |
 
-## New in v1.0.1
+In supported controller UI, [[Right Trigger]] clicks, [[Right Stick]] scrolls,
+[[Right Stick Click]] accepts and [[Left Stick Click]] sends middle mouse.
+Configuration screens, Zeus, Eden and some DLC dialogs still use the mouse.
 
-The author has left the alpha numbering behind - **v1.0.1 follows v1.14.0-alpha.1**,
-despite the smaller number. This release is mostly about headsets other than Meta.
+## New in v1.0.2
 
-- **SteamVR no longer shows a black image.** Arma handed over DXGI format 28 while
-  SteamVR offered the compatible 29; the mod now accepts compatible UNORM/sRGB
-  variants instead of demanding an exact match.
-- **Controller bindings for far more hardware**: Oculus Touch, Valve Index, Vive,
-  WMR, PICO, HTC Cosmos and Focus 3, plus the Khronos simple-controller fallback.
-- **The runtime stays neutral** - Meta OpenXR, SteamVR, VDXR, Pimax, PICO, WMR or
-  whatever else is active. A3VR now reports the runtime's name and version in its
-  status output, which makes a wrong runtime much easier to spot.
-- With SteamVR it sets the Steam Streaming Speakers and Microphone on the Arma
-  profile before launch, **backing up your existing values first**, and finds the
-  SteamVR audio logs even in Steam libraries outside Program Files.
-- The package now ships an **OpenXR compatibility matrix** (`docs\OPENXR_COMPATIBILITY.md`)
-  and a neutral runtime template.
-
-> The author lists SteamVR controller feel, haptics, automatic audio routing,
-> head-roll warping and 3DoF motion controllers as **still awaiting headset
-> acceptance tests**. Other headset routes are implemented but not yet live-tested.
-
-## New in v1.14.0-alpha.1
-- **Stances cycle on a deliberate right-stick flick** - one flick per level
-  through stand, crouch and prone.
-- **Physical crouch** is read from your headset height, with hysteresis so the
-  stance does not flicker while you shift about.
-- The **right controller aims more directly**: the native weapon and the soldier's
-  body follow controller rotation more closely than before.
-- **Smooth turning is faster**, and vehicle camera/turret aiming got its own
-  vertical input.
-- Doors and vehicle actions respond better, and the mod now tells game, UI, Zeus
-  and vehicle context apart reliably - a stale menu state can no longer leave
-  locomotion or motion aiming switched off.
-- **The sharp comfort profile is back**: wide FOV, a 17.5 x 9.84 surface at 5 m,
-  3840x2160 internally and 1920x1080 borderless out. Expect **moderate black
-  borders** - that is the profile, not a fault.
-- **It follows your system's active OpenXR runtime** instead of forcing a
-  Meta-specific path, so non-Meta setups no longer need a workaround.
-- Startup works again when a Workshop folder has **square brackets** in its name,
-  such as `[Public Alpha]`.
+- The stereo path stamps each completed Arma backbuffer with the matching
+  per-eye OpenXR poses instead of reusing a later pose.
+- Controller-absolute proxy gameplay submits from its captured local-space
+  pose, allowing the active runtime to reproject the older image correctly.
+- The pose stamp refreshes every presented frame even when the shared D3D11
+  texture handle does not change.
+- Native motion, vehicles, menus and cinematics keep their established
+  view-space presentation path.
+- Runtime selection remains neutral: Meta OpenXR, SteamVR, VDXR, Pimax, PICO,
+  WMR and other conformant runtimes are chosen by Windows, not hard-coded.
 
 ## Headset support
 
-- **Validated:** Meta Quest over Air Link with the Meta OpenXR runtime
-- **Reported working:** VDXR
-- **Not validated:** Virtual Desktop through SteamVR, native SteamVR headsets, Pimax
+- **Primary development route:** Meta Quest over Air Link with Meta OpenXR
+- **Community-tested:** VDXR
+- **Partially exercised:** SteamVR/OpenXR image and head tracking on Quest 3S
+- **Still experimental:** SteamVR controller feel, haptics/audio and other
+  headset/runtime combinations
 
-Only one application can own the active OpenXR session. If the headset stays
-black, make sure the intended runtime is active and close other VR apps first.
+Only one application can own the OpenXR session. If the headset stays black,
+confirm the intended runtime is active and close other VR games or overlays.
 
-## Multiplayer
+## Known limits
 
-**Keep BattlEye off.** Play locally, or only on servers that explicitly allow
-client-side native modifications. Do not join protected servers.
+- Experimental stereo RTT costs more than the old mono surface; PiP is required.
+- No independent physical hands, arm IK or manual magazine/bolt interaction.
+- Magnified PiP/depth optics are not implemented; use native ADS for scopes.
+- Vehicle, door, ladder, medical, Zeus and scripted mission interaction may
+  still require keyboard and mouse.
+- Generic weapon proxy support cannot guarantee correct geometry and effects
+  for every third-party weapon.
+- The binaries and PBO are unsigned: keep BattlEye off and avoid protected
+  multiplayer.
 
-## Known limits in this alpha
+Mod and full documentation:
 
-- No true stereo, no independent hands, no manual reload or physical inventory
-- Full stand / crouch / prone cycling is not reliable
-- Vehicles, Zeus and the editor, scopes and the VR cursor are experimental
-- The Action Menu radial wheel is discouraged - its input can fight VR controls
-
-## Credits and legal
-
-Mod by **gborgogno** - https://github.com/gborgogno/a3vr-arma3
-Steam Workshop: https://steamcommunity.com/sharedfiles/filedetails/?id=3782798344
-
-An unofficial community project, not affiliated with Bohemia Interactive. The
-project does not modify network traffic and does not overwrite base-game files.
-
-**Stop immediately if the image causes eye strain, nausea or headache.**
+https://github.com/gborgogno/a3vr-arma3
 
 >>> Someone already took the high ground. It is always the sniper.

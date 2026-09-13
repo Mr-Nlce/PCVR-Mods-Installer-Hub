@@ -236,7 +236,7 @@ else {
 # has the files. Prompting first and probing only afterwards sends the
 # user to fetch gigabytes that are already on disk. Find-SteamDepotPath
 # is cheap and touches nothing.
-$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $GAME_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
 if ($script:PreFoundDepot) {
     Write-OK "The depot is already downloaded: $script:PreFoundDepot"
     Write-Info "Skipping the download - nothing to fetch again."
@@ -372,7 +372,9 @@ if (-not $script:PreFoundDepot) {
  } catch {}
 
  $gamePath = $targetPath
-try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value "538210" -Encoding ASCII -NoNewline -Force } catch {}
+try {
+ Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $GAME_APPID -Encoding ASCII -NoNewline -Force
+} catch { Write-Warn "Could not create steam_appid.txt: $_" }
 
 # Write .installed_path for Hub detection
 try {

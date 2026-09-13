@@ -1,9 +1,8 @@
 # ============================================================
-# F.E.A.R. VR Installer (fear-vr by DR-89)
+# F.E.A.R. VR Installer (thefreemike public GOG + DR-89 Steam)
 # ============================================================
-# Downloads the latest release (pre-releases included) from
-# github.com/DR-89/fear-vr, unpacks it to the chosen mod folder,
-# and runs the mod's own installer with explicit paths.
+# Option 1 resolves the latest stable thefreemike public release for
+# GOG. Option 2 resolves the latest DR-89 prerelease for Steam.
 #
 # The mod needs the official F.E.A.R. Public Tools 1.08 (it copies
 # five proprietary engine modules from there). Installing Public
@@ -15,6 +14,8 @@
 # written to by the mod's installer.
 # ============================================================
 
+param([string]$Mod = '')
+
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
 $Host.UI.RawUI.WindowTitle = "F.E.A.R. VR Installer"
@@ -23,7 +24,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " F.E.A.R. VR Installer" -ForegroundColor Cyan
-    Write-Host " fear-vr by DR-89 | open beta (GitHub)" -ForegroundColor Gray
+    Write-Host " thefreemike stable (GOG) | DR-89 beta (Steam)" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -301,32 +302,17 @@ $fearGogModAdded = Test-FearVrMarker `
 # =============================================================
 #  Which build?
 # =============================================================
-# !!! TWO MODS, TWO GAME EDITIONS. DR-89's build targets the Steam
-# Ultimate Shooter Edition; thefreemike's targets the GOG Platinum
+# !!! TWO MODS, TWO GAME EDITIONS. thefreemike's build targets the GOG
+# Platinum Collection; DR-89's confirmed build targets the Steam Ultimate
 # Collection and supports nothing else. They are separate projects by
 # separate authors, not two settings of one thing.
 Write-Host ""
 Write-Host "  Two VR mods exist for F.E.A.R., one per game edition:" -ForegroundColor White
 Write-Host ""
-Write-Host "   [1] DR-89 " -NoNewline -ForegroundColor Cyan
-Write-Host "- for the STEAM Ultimate Shooter Edition" -ForegroundColor White
-Write-Host "       Open source, downloaded automatically from GitHub." -ForegroundColor Gray
-if ($fearSteamRoot) {
-    if ($fearSteamModAdded) {
-        Write-Host "       GAME INSTALLED (STEAM) - VR MOD WAS ADDED" -ForegroundColor Green
-    } else {
-        Write-Host "       GAME INSTALLED (STEAM) - VR MOD CAN BE ADDED" -ForegroundColor Green
-    }
-    Write-Host "       $fearSteamRoot" -ForegroundColor DarkGreen
-} else {
-    Write-Host "       Steam game not detected" -ForegroundColor DarkGray
-}
-Write-Host ""
-Write-Host "   [2] thefreemike " -NoNewline -ForegroundColor Cyan
+Write-Host "   [1] thefreemike " -NoNewline -ForegroundColor Cyan
 Write-Host "- for the GOG Platinum Collection" -ForegroundColor White
+Write-Host "       Public stable release, downloaded automatically from GitHub." -ForegroundColor Gray
 Write-Host "       Body holsters, physical pickups, two-handed props." -ForegroundColor Gray
-Write-Host "       Private beta, handed out in his Discord - you download it" -ForegroundColor Gray
-Write-Host "       yourself and drag it in." -ForegroundColor Gray
 if ($fearGogRoot) {
     if ($fearGogModAdded) {
         Write-Host "       GAME INSTALLED (GOG) - VR MOD WAS ADDED" -ForegroundColor Green
@@ -338,15 +324,38 @@ if ($fearGogRoot) {
     Write-Host "       GOG game not detected" -ForegroundColor DarkGray
 }
 Write-Host ""
+Write-Host "   [2] DR-89 " -NoNewline -ForegroundColor Cyan
+Write-Host "- for the STEAM Ultimate Shooter Edition" -ForegroundColor White
+Write-Host "       Open beta, downloaded automatically from GitHub." -ForegroundColor Gray
+if ($fearSteamRoot) {
+    if ($fearSteamModAdded) {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD WAS ADDED" -ForegroundColor Green
+    } else {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD CAN BE ADDED" -ForegroundColor Green
+    }
+    Write-Host "       $fearSteamRoot" -ForegroundColor DarkGreen
+} else {
+    Write-Host "       Steam game not detected" -ForegroundColor DarkGray
+}
+Write-Host ""
 Write-Host "  Pick the one that matches the copy you own." -ForegroundColor DarkGray
 Write-Host ""
-$fearPick = ""
-for ($k = 1; $k -le 20; $k++) {
-    $fearPick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
-    if ($fearPick -in @("1","2")) { break }
-    Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+$fearPick = switch -Regex (("" + $Mod).Trim()) {
+    '^(?i:1|thefreemike|gog|modb)$'     { '1'; break }
+    '^(?i:2|dr-?89|steam|moda)$'        { '2'; break }
+    default                             { '' }
 }
-if ($fearPick -eq "2") {
+if ($fearPick) {
+    $pickedName = if ($fearPick -eq '1') { 'thefreemike (GOG)' } else { 'DR-89 (Steam)' }
+    Write-Host "  Update target selected by the Hub: $pickedName" -ForegroundColor Green
+} else {
+    for ($k = 1; $k -le 20; $k++) {
+        $fearPick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
+        if ($fearPick -in @("1","2")) { break }
+        Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+    }
+}
+if ($fearPick -eq "1") {
     $gogScript = Join-Path $PSScriptRoot "FearVR-Gog.ps1"
     if (-not (Test-Path -LiteralPath $gogScript)) {
         Write-Host "  The GOG installer is missing: $gogScript" -ForegroundColor Red

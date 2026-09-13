@@ -11,12 +11,12 @@
 # scan / Hub start picks them up from disk and paints the
 # update badges.
 #
-# Self-contained BY DESIGN: no dot-sourcing of Hub modules (they
-# carry UI top-level code), no WPF, no globals from the Hub. The
-# ONLY contract with the Hub is:
-#   - input:  <ScriptDir>\.prewarm_pending.json  (list of checks)
+# UI-independent BY DESIGN: only the WPF-free state/path helper is
+# dot-sourced; no UI modules or globals from the Hub are loaded. The
+# ONLY runtime contract with the Hub is:
+#   - input:  LocalAppData version cache\prewarm_pending.json
 #   - output: merge-writes into the two cache JSON files
-#   - lock:   <ScriptDir>\.prewarm_worker.lock   (single instance)
+#   - lock:   LocalAppData version cache\.prewarm_worker.lock
 # Cache entry shapes MUST match Filter.ps1's getters exactly:
 #   gh :  { "<repo>": { "tag": "<tag>", "checked": "<ISO-o>" } }
 #   web:  { "<url>":  { "ver": "<ver>", "checked": "<ISO-o>" } }
@@ -28,10 +28,15 @@ param(
 $ErrorActionPreference = "SilentlyContinue"
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$pendingFile = Join-Path $ScriptDir ".prewarm_pending.json"
-$lockFile    = Join-Path $ScriptDir ".prewarm_worker.lock"
-$ghCacheFile = Join-Path $ScriptDir ".gh_version_cache"
-$webCacheFile= Join-Path $ScriptDir ".web_version_cache"
+$script:scriptDir = $ScriptDir
+$global:scriptDir = $ScriptDir
+try { . (Join-Path $ScriptDir 'Modules\HubState.ps1') } catch { return }
+$runtimeDir = Get-HubVersionCacheRoot
+if (-not $runtimeDir) { return }
+$pendingFile = Join-Path $runtimeDir ".prewarm_pending.json"
+$lockFile    = Join-Path $runtimeDir ".prewarm_worker.lock"
+$ghCacheFile = Join-Path $runtimeDir ".gh_version_cache"
+$webCacheFile= Join-Path $runtimeDir ".web_version_cache"
 
 # Merge ONE entry into a cache JSON file: read the file fresh, update the
 # key, write it back. Read-fresh-per-write keeps concurrent writes from the
@@ -88,6 +93,21 @@ function Get-GithubTagBackground {
     return $null
 }
 
+function Get-GithubCommitBackground {
+    param([string]$Repo, [string]$Branch = 'main')
+    try {
+        $branchEscaped = [Uri]::EscapeDataString($Branch)
+        $commit = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/commits/$branchEscaped" `
+            -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } -TimeoutSec 15 -EA Stop
+        $dateText = [string]$commit.commit.committer.date
+        if (-not $dateText) { $dateText = [string]$commit.commit.author.date }
+        if ($dateText) {
+            return ([DateTime]::Parse($dateText, $null, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()).ToString('yyyy.MM.dd.HHmmss')
+        }
+    } catch {}
+    return $null
+}
+
 function Get-WebVersionBackground {
     # Same three patterns, in the same order, as the Hub's getter - so the
     # background result is byte-identical to what a foreground check finds.
@@ -124,6 +144,12 @@ try {
                 if ($tag) {
                     $cacheKey = if ($pre) { ([string]$it.A) + "#pre" } else { [string]$it.A }
                     Merge-CacheEntry -File $ghCacheFile -Key $cacheKey -Entry @{ tag = $tag; checked = $now.ToString("o") }
+                }
+            } elseif ([string]$it.K -eq 'ghcommit') {
+                $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
+                $commitVersion = Get-GithubCommitBackground -Repo ([string]$it.A) -Branch $branch
+                if ($commitVersion) {
+                    Merge-CacheEntry -File $ghCacheFile -Key (([string]$it.A) + '#commit:' + $branch) -Entry @{ tag=$commitVersion; checked=$now.ToString('o') }
                 }
             } else {
                 $ver = Get-WebVersionBackground -Url ([string]$it.A)

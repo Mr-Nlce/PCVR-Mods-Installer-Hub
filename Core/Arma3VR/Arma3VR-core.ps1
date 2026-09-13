@@ -68,14 +68,13 @@ $MOD_PROBE    = "$MOD_DIR_NAME\A3VRHybridCore_x64.dll"
 
 $MOD_NAME     = "A3VR Hybrid"
 $MOD_AUTHOR   = "gborgogno"
-$MOD_VERSION  = "v1.0.1"
 $REPO         = "gborgogno/a3vr-arma3"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $WORKSHOP_URL = "https://steamcommunity.com/sharedfiles/filedetails/?id=3782798344"
 $OPENTRACK_URL = "https://github.com/opentrack/opentrack/releases/latest"
 # Fallback for no-network ONLY - the normal path resolves the newest
 # build.
-$PINNED_TAG   = "v1.0.1"
+$PINNED_TAG   = "v1.0.2"
 # !!! THE ASSET NAME KEEPS THE LEADING v (2026-08-20). This line used to
 # build it with $PINNED_TAG.TrimStart('v'), which gives
 # A3VR-Hybrid-1.14.0-alpha.1.zip - and that URL is a 404. The real asset
@@ -89,16 +88,16 @@ $PINNED_URL   = "https://github.com/$REPO/releases/download/$PINNED_TAG/A3VR-Hyb
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Arma 3 VR - Installer" -ForegroundColor Cyan
-Write-Host " Installs: $MOD_NAME $MOD_VERSION by $MOD_AUTHOR" -ForegroundColor Gray
+Write-Host " Installs: $MOD_NAME by $MOD_AUTHOR" -ForegroundColor Gray
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  An OpenXR bridge for 64-bit Arma 3 - it presents the game in" -ForegroundColor White
 Write-Host "  your headset, feeds head movement through Arma's own FreeTrack" -ForegroundColor White
 Write-Host "  path and maps VR controllers to native Arma controls. No VorpX." -ForegroundColor White
 Write-Host ""
-Write-Host "  This is an early community alpha and NOT native VR:" -ForegroundColor Yellow
-Write-Host "   - Comfort-mono - both eyes get the SAME image, so there is no" -ForegroundColor White
-Write-Host "     true stereo depth yet." -ForegroundColor White
+Write-Host "  This is an experimental bridge and NOT native engine VR:" -ForegroundColor Yellow
+Write-Host "   - Gameplay stereo uses two Arma render-to-texture cameras;" -ForegroundColor White
+Write-Host "     menus and cinematics use one complete binocular surface." -ForegroundColor White
 Write-Host "   - Moderate black borders are intentional, for clarity." -ForegroundColor White
 Write-Host "   - Vehicles, Zeus, scopes and the VR cursor are experimental." -ForegroundColor White
 Write-Host "   - Keep keyboard and mouse within reach: Arma has many" -ForegroundColor White
@@ -112,7 +111,7 @@ Write-Step 1 4 "How do you want to install it"
 Write-Host ""
 Write-Host "    [1] From GitHub  (this installer does it)" -ForegroundColor Green
 Write-Host "        Places $MOD_DIR_NAME beside your game. The Hub can then" -ForegroundColor Gray
-Write-Host "        tell you when a newer alpha appears." -ForegroundColor Gray
+Write-Host "        tell you when a newer release appears." -ForegroundColor Gray
 Write-Host ""
 Write-Host "    [2] From the Steam Workshop  (Steam keeps it updated)" -ForegroundColor White
 Write-Host "        Nothing is installed here - the page opens and you" -ForegroundColor Gray
@@ -153,8 +152,8 @@ function Show-QuickStart {
     Write-Host "     multiplayer is out." -ForegroundColor White
     Write-Host "  5. In Arma's controller/device settings, enable FreeTrack" -ForegroundColor White
     Write-Host "     when it is listed - WITHOUT IT THERE IS NO HEAD TRACKING." -ForegroundColor White
-    Write-Host "  6. Start the game. Press F8 once to recenter." -ForegroundColor White
-    Write-Host "  7. If the right controller does not move your aim, press F9." -ForegroundColor White
+    Write-Host "  6. Start the game. Hold the left grip for 0.65 seconds," -ForegroundColor White
+    Write-Host "     then choose Recenter HMD + Aim in A3VR settings." -ForegroundColor White
     Write-Host ""
     Write-Host "  NO FreeTrack ENTRY IN ARMA'S CONTROLLER SETTINGS AT ALL?" -ForegroundColor Yellow
     Write-Host "  Then Windows is missing the FreeTrack registry keys. Arma" -ForegroundColor White
@@ -162,10 +161,9 @@ function Show-QuickStart {
     Write-Host "  never run head tracking does not have them." -ForegroundColor White
     Write-Host "  This installer can fix that - it is the last step." -ForegroundColor White
     Write-Host ""
-    Write-Host "  Tested by the author on Quest over Air Link with the Meta" -ForegroundColor Gray
-    Write-Host "  OpenXR runtime. VDXR is reported to work. Virtual Desktop" -ForegroundColor Gray
-    Write-Host "  through SteamVR, native SteamVR headsets and Pimax are NOT" -ForegroundColor Gray
-    Write-Host "  validated yet." -ForegroundColor Gray
+    Write-Host "  Meta OpenXR is the primary test route; VDXR works in community" -ForegroundColor Gray
+    Write-Host "  tests. SteamVR image and head tracking were exercised on Quest" -ForegroundColor Gray
+    Write-Host "  3S; its controller, haptic and audio paths remain experimental." -ForegroundColor Gray
     Write-Host ""
 }
 

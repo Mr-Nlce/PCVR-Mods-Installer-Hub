@@ -46,8 +46,8 @@ $REPO_API          = "https://api.github.com/repos/$REPO/releases"
 $RELEASES_PAGE     = "https://github.com/$REPO/releases"
 $INFO_URL          = "https://github.com/$REPO"
 # Last-known-good asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/ShinyWindow/Shipwright-VR/releases/download/v1.1/Ship-9.0.0-win64-ship.zip"
-$KNOWN_FALLBACK_TAG = "v1.1"
+$KNOWN_FALLBACK_ZIP = "https://github.com/ShinyWindow/Shipwright-VR/releases/download/v1.2/Ship-9.2.3-win64-ship.zip"
+$KNOWN_FALLBACK_TAG = "v1.2"
 $GAME_FOLDER       = "Ocarina of Time VR"
 $GAME_EXE          = "soh.exe"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")

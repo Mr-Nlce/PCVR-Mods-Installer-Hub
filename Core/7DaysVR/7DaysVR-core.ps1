@@ -356,12 +356,12 @@ Write-Host " [x] VR video settings applied" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
-Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan
+Write-Host "--- OpenXR Runtime ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " In SteamVR Settings -> Dashboard:" -ForegroundColor White
-Write-Host " Set 'Present Non-VR Applications on Theater Screen Upon Launch' -> OFF" -ForegroundColor Gray
-Write-Host ""
-Pause-User "Press Enter to confirm you are aware of this setting..."
+Write-Host " 7DVR 4.1 uses OpenXR - it no longer relies on SteamVR/OpenVR." -ForegroundColor White
+Write-Host " Virtual Desktop: select VDXR and do NOT launch SteamVR." -ForegroundColor Yellow
+Write-Host " Other headsets: set the matching OpenXR runtime active." -ForegroundColor Gray
+Write-Host " Index / Vive can use SteamVR as their OpenXR runtime." -ForegroundColor Gray
 
 Write-Host ""
 Write-Host "--- Important Notes ---" -ForegroundColor Cyan
@@ -370,8 +370,10 @@ Write-Host " - Launch with" -NoNewline -ForegroundColor White; Write-Host " Star
 Write-Host " Steam may warn the game is not VR-ready - click OK." -ForegroundColor Gray
 Write-Host ""
 Write-Host " - 7 Days must be the ACTIVE, FOREGROUND window while playing." -ForegroundColor Yellow
-Write-Host " If SteamVR is on top, controls may not work!" -ForegroundColor Yellow
-Write-Host " Disable 'SteamVR Always on Top' in SteamVR Settings -> Developer." -ForegroundColor Gray
+Write-Host " If another window has focus, controller input may not work." -ForegroundColor Gray
+Write-Host ""
+Write-Host " - This build supports 7 Days to Die through version 3.1." -ForegroundColor White
+Write-Host " Use the matching older Nexus file for an older game build." -ForegroundColor Gray
 Write-Host ""
 Write-Host " - VR options are in-game under Options -> Controls -> VR (far right)." -ForegroundColor White
 Write-Host ""

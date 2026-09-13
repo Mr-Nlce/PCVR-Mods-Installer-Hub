@@ -45,6 +45,9 @@ If you enjoy this VR fork, consider supporting Alex-LeTux:
 
 >>> Joanna Dark goes hands-on - dataDyne never saw it coming.
 ## Key points from updates
+- A **left-handed mode** now lives in VR settings. The VR options are grouped
+  into categorized sub-menus, and glare brightness can be adjusted in the
+  Extended menu.
 - Two-handed weapons are now aimed with **both hands**, and the off-hand is a
   real fist instead of a placeholder.
 - Menu and HUD moved onto XR layers: the menu rides your left hand, the weapon

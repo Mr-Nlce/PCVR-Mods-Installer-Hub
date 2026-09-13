@@ -14,16 +14,10 @@ $RELEASES_URL = "https://github.com/$REPO/releases"
 $PC_FIX_URL = "https://community.pcgamingwiki.com/files/file/1331-silent-hill-3-pc-fix-by-steam006/"
 $CAMERA_URL = "https://github.com/zealottormunds/sh3cammod/releases/download/1.0/Silent.Hill.3.-.Zealot.s.Camera.Mod.v1.0.rar"
 $PC_FIX_NAME = "Silent_Hill_3_PC_Fix_2.8.5-Steam006.zip"
-$PC_FIX_SIZE = 2201976
-$PC_FIX_SHA = "E83B69A2A12471E44C490B586766F982166D85F1FAD1C0F2FDFCD4A37E6995EC"
 $PC_FIX_PASSWORD = "pcgw"
 $CAMERA_NAME = "Silent.Hill.3.-.Zealot.s.Camera.Mod.v1.0.rar"
-$CAMERA_SIZE = 258530
-$CAMERA_SHA = "84BF24BA23B992ADA94D3E0A2D4A424A082A447FE457A4405144F4CCC2269A7B"
-$PINNED_VR_NAME = "Silent.Hill.3.VR.v0.1-beta_hotfix1.zip"
-$PINNED_VR_SIZE = 999606
-$PINNED_VR_SHA = "00C05E12CD3DA64635946B0EB856FFD1C385702419127860AB8ACFAE556AC3EB"
-$PINNED_VR_URL = "https://github.com/$REPO/releases/download/Beta_0.1/$PINNED_VR_NAME"
+$PINNED_VR_NAME = "Silent.Hill.3.VR.v0.1.5-beta.zip"
+$PINNED_VR_URL = "https://github.com/$REPO/releases/download/Beta_0.1.5/$PINNED_VR_NAME"
 $MANIFEST_NAME = ".pcvrhub-sh3vr-install.tsv"
 $BACKUP_NAME = ".pcvrhub-sh3vr-backup"
 
@@ -82,77 +76,64 @@ function Get-ArchiveInputFolder {
     } catch { return "" }
 }
 
-function Test-ExactFile([string]$Path,[string]$Name,[long]$Size,[string]$Sha) {
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
-    $item = Get-Item -LiteralPath $Path
-    if ($Name -and $item.Name -ne $Name) { return $false }
-    if ($Size -gt 0 -and $item.Length -ne $Size) { return $false }
-    if ($Sha -and (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Sha) { return $false }
-    return $true
-}
-
 function Get-PCFixArchive {
     $extra = Get-ArchiveInputFolder
-    $found = Find-PredownloadedFile -Patterns @($PC_FIX_NAME) -ExpectedName $PC_FIX_NAME `
-        -ExpectedSize $PC_FIX_SIZE -ExpectedSha256 $PC_FIX_SHA -ExtraFolders @($extra) -Label "Silent Hill 3 PC Fix 2.8.5"
+    $found = Find-PredownloadedFile -Patterns @($PC_FIX_NAME) -AllowUnverified `
+        -ExtraFolders @($extra) -Label "Silent Hill 3 PC Fix 2.8.5"
     if ($found) { return $found }
     Write-Host ""
     Write-Host " The required PC Fix must be downloaded by you from PCGamingWiki." -ForegroundColor Yellow
-    Write-Host " The Hub validates the exact archive and handles its password." -ForegroundColor Gray
+    Write-Host " The Hub checks that it is a usable archive, then verifies the required files after extraction." -ForegroundColor Gray
     try { Start-Process $PC_FIX_URL } catch { Write-Warn "Open this page manually: $PC_FIX_URL" }
     for ($attempt = 1; $attempt -le 10; $attempt++) {
         $raw = ("" + (Read-Host " Download it, then press Enter to search Downloads - or drag the ZIP here")).Trim().Trim('"').Trim("'")
         if ($raw) {
-            if (Test-ExactFile $raw $PC_FIX_NAME $PC_FIX_SIZE $PC_FIX_SHA) { return $raw }
-            Write-Fail "That is not the verified PC Fix 2.8.5 archive."
+            if (Test-DownloadedPayload -Path $raw -IntendedPath $PC_FIX_NAME) { return $raw }
+            Write-Fail "That is not a usable ZIP archive."
             continue
         }
-        $found = Find-PredownloadedFile -Patterns @($PC_FIX_NAME) -ExpectedName $PC_FIX_NAME `
-            -ExpectedSize $PC_FIX_SIZE -ExpectedSha256 $PC_FIX_SHA -ExtraFolders @($extra) `
+        $found = Find-PredownloadedFile -Patterns @($PC_FIX_NAME) -AllowUnverified -ExtraFolders @($extra) `
             -PageAlreadyOpen -Label "Silent Hill 3 PC Fix 2.8.5"
         if ($found) { return $found }
-        Write-Warn "The verified archive is not in Downloads yet."
+        Write-Warn "The archive is not in Downloads yet."
     }
     return $null
 }
 
 function Get-CameraArchive([string]$Destination) {
     $extra = Get-ArchiveInputFolder
-    $found = Find-PredownloadedFile -Patterns @($CAMERA_NAME) -ExpectedName $CAMERA_NAME `
-        -ExpectedSize $CAMERA_SIZE -ExpectedSha256 $CAMERA_SHA -ExtraFolders @($extra) -Label "Zealot's Camera Mod v1.0"
+    $found = Find-PredownloadedFile -Patterns @($CAMERA_NAME) -AllowUnverified `
+        -ExtraFolders @($extra) -Label "Zealot's Camera Mod v1.0"
     if ($found) { Copy-Item -LiteralPath $found -Destination $Destination -Force; return $Destination }
-    if (Invoke-SafeDownload -Urls @($CAMERA_URL) -Destination $Destination -Label "Zealot's Camera Mod v1.0" -ManualUrl "https://github.com/zealottormunds/sh3cammod/releases") {
-        if (Test-ExactFile $Destination $CAMERA_NAME $CAMERA_SIZE $CAMERA_SHA) { return $Destination }
-        Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
-        throw "The Camera Mod archive did not match the verified v1.0 release."
-    }
+    if (Invoke-SafeDownload -Urls @($CAMERA_URL) -Destination $Destination -Label "Zealot's Camera Mod v1.0" `
+        -ManualUrl "https://github.com/zealottormunds/sh3cammod/releases") { return $Destination }
     return $null
 }
 
 function Get-LatestVRRelease {
     try {
-        $releases = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop)
+        # Do not wrap Invoke-RestMethod directly in @(...). PowerShell 7 can
+        # retain GitHub's JSON array as one nested object in that form, so the
+        # release loop never reaches .assets and silently falls back to an old
+        # package. Materialize the response first, then normalize it.
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
+        $releases = @($response)
         foreach ($release in $releases) {
             if ($release.draft) { continue }
             $asset = @($release.assets | Where-Object { $_.name -match '(?i)Silent[._ -]?Hill[._ -]?3.*VR.*\.zip$' } | Select-Object -First 1)[0]
             if ($asset) {
-                return [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url; Size=[long]$asset.size; Digest=[string]$asset.digest }
+                return [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url }
             }
         }
     } catch {}
-    return [pscustomobject]@{ Tag="Beta_0.1"; Name=$PINNED_VR_NAME; Url=$PINNED_VR_URL; Size=$PINNED_VR_SIZE; Digest="sha256:$($PINNED_VR_SHA.ToLower())" }
+    return [pscustomobject]@{ Tag="Beta_0.1.5"; Name=$PINNED_VR_NAME; Url=$PINNED_VR_URL }
 }
 
 function Get-VRArchive([string]$Destination,$Release) {
-    $expectedSha = ""
-    if ($Release.Digest -match '^sha256:([0-9a-fA-F]{64})$') { $expectedSha = $matches[1] }
-    if ($Release.Name -eq $PINNED_VR_NAME) { $expectedSha = $PINNED_VR_SHA }
-    $found = Find-PredownloadedFile -Patterns @($Release.Name) -ExpectedName $Release.Name `
-        -ExpectedSize ([long]$Release.Size) -ExpectedSha256 $expectedSha -ExtraFolders @((Get-ArchiveInputFolder)) -Label "Silent Hill 3 VR $($Release.Tag)"
+    $found = Find-PredownloadedFile -Patterns @($Release.Name) -ExtraFolders @((Get-ArchiveInputFolder)) -Label "Silent Hill 3 VR $($Release.Tag)"
     if ($found) { Copy-Item -LiteralPath $found -Destination $Destination -Force; return $Destination }
-    if (-not (Invoke-SafeDownload -Urls @($Release.Url) -Destination $Destination -Label "Silent Hill 3 VR $($Release.Tag)" -ManualUrl $RELEASES_URL)) { return $null }
-    if ($Release.Size -gt 0 -and (Get-Item -LiteralPath $Destination).Length -ne [long]$Release.Size) { throw "The VR archive size does not match GitHub's release data." }
-    if ($expectedSha -and (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash -ne $expectedSha) { throw "The VR archive checksum does not match the release." }
+    if (-not (Invoke-SafeDownload -Urls @($Release.Url) -Destination $Destination -Label "Silent Hill 3 VR $($Release.Tag)" `
+        -ManualUrl $RELEASES_URL)) { return $null }
     return $Destination
 }
 
@@ -262,9 +243,10 @@ try {
     Write-Host " The PC Fix download page opens only when its exact ZIP is" -ForegroundColor White
     Write-Host " not already in Downloads; you may also drag the ZIP here." -ForegroundColor White
     Write-Host ""
-    Write-Host " Current runtime status: Quest 3 through Virtual Desktop." -ForegroundColor Gray
-    Write-Host " SteamVR and other headsets are not validated by the author." -ForegroundColor Gray
-    Show-AntivirusNotice
+    Write-Host " The current beta supports the system OpenXR runtime and" -ForegroundColor Gray
+    Write-Host " SteamVR. Quest 3 through Virtual Desktop remains the author's" -ForegroundColor Gray
+    Write-Host " validated setup; other headsets still need testing." -ForegroundColor Gray
+    Show-AntivirusNotice -Compact
     Pause-User "Press Enter to proceed with setup..." | Out-Null
 
     Write-Step 1 5 "Locating Silent Hill 3"
@@ -372,9 +354,10 @@ try {
 
     Write-Host ""
     Write-Host " STARTING THE GAME" -ForegroundColor Cyan
-    Write-Host " Connect through Virtual Desktop, then use Start in VR in" -ForegroundColor White
+    Write-Host " Start your chosen OpenXR runtime, then use Start in VR in" -ForegroundColor White
     Write-Host " the Hub or the Silent Hill 3 VR desktop shortcut." -ForegroundColor White
-    Write-Host " SteamVR is not supported by the current beta." -ForegroundColor Yellow
+    Write-Host " SteamVR is supported from Beta 0.1.5; Virtual Desktop remains" -ForegroundColor Gray
+    Write-Host " the author's tested route." -ForegroundColor Gray
     Write-Host ""
     Write-Host " CONTROLS AND CAMERA" -ForegroundColor Cyan
     Write-Host " The Camera Mod menu is available with F1; F2 toggles its" -ForegroundColor White
@@ -384,6 +367,7 @@ try {
 } catch {
     Write-Host ""
     Write-Fail $_.Exception.Message
+    throw
 } finally {
     if ($work -and (Test-Path -LiteralPath $work)) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
 }

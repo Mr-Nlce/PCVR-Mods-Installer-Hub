@@ -50,6 +50,151 @@ function Read-YesNo {
     }
 }
 
+# Henriko Magnifico currently offers three ZTP variants. Keep the filename
+# rules broad enough for browser duplicate suffixes and future point releases,
+# while still excluding unrelated ZIP files in Downloads.
+$script:TwilightTexturePatterns = @(
+    'ZTP*1080p*Mobile Edition*.zip',
+    'ZTP*1080p*PC Edition*.zip',
+    'ZTP*4K*PC Edition*.zip',
+    'ZTP*Henriko*.zip',
+    '*Twilight*Texture*.zip'
+)
+
+function Test-TwilightTextureArchive {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+    if ([IO.Path]::GetExtension($Path) -ine '.zip') { return $false }
+
+    # Transport validation only, never a release-identity gate: verify that the
+    # selected file is a non-empty ZIP. The texture layout is checked after
+    # extraction, so future releases are not rejected over name, size or SHA.
+    $stream = $null
+    try {
+        $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite)
+        if ($stream.Length -lt 4) { return $false }
+        $header = New-Object byte[] 4
+        if ($stream.Read($header, 0, 4) -ne 4) { return $false }
+        return ($header[0] -eq 0x50 -and $header[1] -eq 0x4B -and
+                (($header[2] -eq 0x03 -and $header[3] -eq 0x04) -or
+                 ($header[2] -eq 0x05 -and $header[3] -eq 0x06) -or
+                 ($header[2] -eq 0x07 -and $header[3] -eq 0x08)))
+    } catch { return $false }
+    finally { if ($stream) { $stream.Dispose() } }
+}
+
+function Get-TwilightTextureDownloadFolders {
+    param([string[]]$ExtraFolders = @())
+    $folders = New-Object System.Collections.Generic.List[string]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+
+    # Honour a redirected Downloads known folder, then the ordinary profile
+    # and OneDrive locations. Pasted M:\ and UNC paths are accepted separately.
+    try {
+        $shellFolders = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -ErrorAction Stop
+        $redirected = '' + $shellFolders.'{374DE290-123F-4565-9164-39C4925E467B}'
+        if ($redirected) { $redirected = [Environment]::ExpandEnvironmentVariables($redirected); [void]$folders.Add($redirected) }
+    } catch {}
+    $profile = [Environment]::GetFolderPath('UserProfile')
+    if ($profile) { [void]$folders.Add((Join-Path $profile 'Downloads')) }
+    if ($env:OneDrive) { [void]$folders.Add((Join-Path $env:OneDrive 'Downloads')) }
+    foreach ($extra in @($ExtraFolders)) { if ($extra) { [void]$folders.Add([string]$extra) } }
+
+    $usable = New-Object System.Collections.Generic.List[string]
+    foreach ($folder in $folders) {
+        if ($folder -and $seen.Add($folder) -and (Test-Path -LiteralPath $folder -PathType Container -ErrorAction SilentlyContinue)) {
+            [void]$usable.Add($folder)
+        }
+    }
+    return @($usable)
+}
+
+function Get-TwilightTextureArchiveCandidates {
+    param([string[]]$Folders = @())
+    if (-not $Folders -or $Folders.Count -eq 0) { $Folders = @(Get-TwilightTextureDownloadFolders) }
+    $candidates = New-Object System.Collections.Generic.List[System.IO.FileInfo]
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($folder in @($Folders)) {
+        if (-not $folder -or -not (Test-Path -LiteralPath $folder -PathType Container -ErrorAction SilentlyContinue)) { continue }
+        try {
+            foreach ($file in @(Get-ChildItem -LiteralPath $folder -Filter '*.zip' -File -ErrorAction SilentlyContinue)) {
+                $nameMatches = $false
+                foreach ($pattern in $script:TwilightTexturePatterns) {
+                    if ($file.Name -like $pattern) { $nameMatches = $true; break }
+                }
+                if ($nameMatches -and $seen.Add($file.FullName) -and (Test-TwilightTextureArchive $file.FullName)) {
+                    [void]$candidates.Add($file)
+                }
+            }
+        } catch {}
+    }
+    return @($candidates | Sort-Object LastWriteTime -Descending)
+}
+
+function Read-TwilightTextureArchive {
+    param([switch]$FoundInDownloads)
+
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        Write-Host ''
+        Write-Host '  You can drag or paste the downloaded ZIP path here.' -ForegroundColor Yellow
+        if ($FoundInDownloads) {
+            Write-Host '  Or press Enter to show/use the found ZIP in Downloads.' -ForegroundColor Yellow
+        } else {
+            Write-Host '  Or press Enter to search Downloads for the finished ZIP.' -ForegroundColor Yellow
+        }
+        Write-Host '  Type O to reopen the page, or S to skip the texture pack.' -ForegroundColor Gray
+        $raw = ('' + (Read-Host '  ZIP path / Enter / O / S')).Trim()
+        $choice = $raw.ToUpperInvariant()
+        if ($choice -eq 'S') { return '__SKIP__' }
+        if ($choice -eq 'O') {
+            Pause-User 'Press Enter to reopen the download page...' | Out-Null
+            try { Start-Process $TEX_PAGE } catch { Write-Warn "Open manually: $TEX_PAGE" }
+            continue
+        }
+        if ($raw) {
+            $candidate = $raw.Trim('"').Trim("'").Trim()
+            if (Test-TwilightTextureArchive $candidate) {
+                Write-OK "Using: $candidate"
+                return $candidate
+            }
+            Write-Warn 'That path is not a readable ZIP file.'
+            if ($candidate -match '^[A-Za-z]:\\') {
+                Write-Host '  If it is a mapped network drive, paste its UNC path or copy' -ForegroundColor Gray
+                Write-Host '  the ZIP to Downloads if this installer cannot see the mapping.' -ForegroundColor Gray
+            }
+            continue
+        }
+
+        $found = @(Get-TwilightTextureArchiveCandidates)
+        if ($found.Count -eq 0) {
+            Write-Warn "No matching ZTP texture ZIP was found in Downloads (attempt $attempt/10)."
+            continue
+        }
+        Write-Host ''
+        Write-Host '  Matching ZTP texture downloads:' -ForegroundColor Cyan
+        for ($i = 0; $i -lt $found.Count; $i++) {
+            $size = if ($found[$i].Length -ge 1GB) { '{0:N2} GB' -f ($found[$i].Length / 1GB) } else { '{0:N1} MB' -f ($found[$i].Length / 1MB) }
+            Write-Host ("   [{0}] {1}" -f ($i + 1), $found[$i].Name) -ForegroundColor White
+            Write-Host ("       {0}  {1}" -f $size, $found[$i].DirectoryName) -ForegroundColor DarkGray
+        }
+        if ($found.Count -eq 1) {
+            $selectionPrompt = '  Press Enter to use [1], or type B to go back'
+        } else {
+            $selectionPrompt = "  Press Enter to use [1], choose 1-$($found.Count), or type B to go back"
+        }
+        $pick = ('' + (Read-Host $selectionPrompt)).Trim()
+        if ($pick -ieq 'B') { continue }
+        if (-not $pick) { $pick = '1' }
+        $number = 0
+        if ([int]::TryParse($pick, [ref]$number) -and $number -ge 1 -and $number -le $found.Count) {
+            Write-OK "Using: $($found[$number - 1].FullName)"
+            return [string]$found[$number - 1].FullName
+        }
+    }
+    Write-Warn 'No texture archive was selected after 10 attempts.'
+    return $null
+}
+
 # Use the Hub's clean native 7-Zip percentage display for both large
 # Twilight Princess archives. Resolve 7-Zip only once; if the user declines
 # it or the progress extraction fails, keep the established safe fallback.
@@ -231,23 +376,31 @@ if (Test-IsTrackableInstalledVersion -Version $tag) {
     Save-InstalledStamp -GameDir $dir -Version $tag
 }
 
-# ---- 5. 4K texture pack (optional) ----------------------------
-# By Henriko Magnifico. Hosted on MediaFire - an address we canNOT
-# fetch ourselves (it redirects through a download page). So: open
-# the page, wait, then look in the downloads folder.
-Write-Step 5 5 "Optional: the 4K texture pack"
+# ---- 5. ZTP HD texture pack (optional) ------------------------
+# By Henriko Magnifico. Hosted behind the author's download page,
+# so the user chooses one variant and supplies the downloaded ZIP.
+Write-Step 5 5 "Optional: the ZTP HD texture pack"
 Write-Host ""
-Write-Host "  Henriko Magnifico's pack redraws the game's textures at 4K." -ForegroundColor White
+Write-Host "  Henriko Magnifico's pack redraws the game's textures in HD." -ForegroundColor White
 Write-Host "  It works with Dusklight and is switched on inside the game." -ForegroundColor White
 Write-Host ""
-Write-Host "  ANOTHER BIG ONE - about 5 GB unpacked. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "  CHOOSE ONE VERSION: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host " 1080p Mobile, 1080p PC, or 4K PC." -ForegroundColor White
+Write-Host "  The 4K PC edition is about 4 GB packed and several GB unpacked." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Purely cosmetic; the game runs fine without it." -ForegroundColor Gray
 Write-Host ""
-if (Read-YesNo "  Set up the 4K texture pack as well?") {
-    $texPatterns = @("ZTP*4K*.zip", "*Twilight*4K*.zip", "*HenrikosTP4K*.zip")
-    $texZip = Find-PredownloadedFile -Patterns $texPatterns -Label "the 4K texture pack"
-    if (-not $texZip) {
+if (Read-YesNo "  Set up one ZTP texture-pack version as well?") {
+    $texZip = $null
+    $textureSkipRequested = $false
+    $existingTextureDownloads = @(Get-TwilightTextureArchiveCandidates)
+    if ($existingTextureDownloads.Count -gt 0) {
+        Write-OK 'Found a matching ZTP download in Downloads.'
+        $texChoice = Read-TwilightTextureArchive -FoundInDownloads
+        if ($texChoice -eq '__SKIP__') { $textureSkipRequested = $true }
+        else { $texZip = $texChoice }
+    }
+    if (-not $texZip -and -not $textureSkipRequested) {
         Write-Host ""
         Write-Host "  The pack is hosted on the author's site, so it cannot be" -ForegroundColor White
         Write-Host "  fetched from here - the page opens and you download it" -ForegroundColor White
@@ -256,11 +409,13 @@ if (Read-YesNo "  Set up the 4K texture pack as well?") {
         Pause-User "Press Enter to open the download page..." | Out-Null
         try { Start-Process $TEX_PAGE } catch { Write-Warn "Open manually: $TEX_PAGE" }
         Write-Host ""
-        Write-Host "  Grab the newest 'ZTP 4K ... (4K, PC Edition)' file, then" -ForegroundColor White
-        Write-Host "  come back here. Leave it in your Downloads folder or drag" -ForegroundColor White
-        Write-Host "  it onto this window." -ForegroundColor White
-        Pause-User "Press Enter once the download has finished..." | Out-Null
-        $texZip = Find-PredownloadedFile -Patterns $texPatterns -Label "the 4K texture pack" -PageAlreadyOpen
+        Write-Host "  Download ONE edition: 1080p Mobile, 1080p PC, or 4K PC." -ForegroundColor White
+        Write-Host "  When it is complete, return here. You can leave it in" -ForegroundColor White
+        Write-Host "  Downloads, or supply its full path from any local, mapped" -ForegroundColor White
+        Write-Host "  or network location." -ForegroundColor White
+        $texChoice = Read-TwilightTextureArchive
+        if ($texChoice -eq '__SKIP__') { $textureSkipRequested = $true }
+        else { $texZip = $texChoice }
     }
     if ($texZip -and (Test-Path -LiteralPath $texZip)) {
         Write-Host ""
@@ -268,7 +423,7 @@ if (Read-YesNo "  Set up the 4K texture pack as well?") {
         $textureLocation = Join-Path $TEX_DIR "HenrikosTP4K_..."
         try {
             New-Item -ItemType Directory -Path $TEX_DIR -Force -ErrorAction Stop | Out-Null
-            [void](Expand-TwilightArchive -Archive $texZip -Destination $TEX_DIR -Label "4K texture pack")
+            [void](Expand-TwilightArchive -Archive $texZip -Destination $TEX_DIR -Label "ZTP texture pack")
             # IMPORTANT: Dusklight expects the pack's own HenrikosTP4K...
             # folder to remain directly below texture_replacements. Do not
             # flatten it or move its province folders one level upwards.

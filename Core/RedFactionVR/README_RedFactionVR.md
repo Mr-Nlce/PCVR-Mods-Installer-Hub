@@ -24,6 +24,13 @@ two-handed weapon grips are buggy.
 - Includes the 0.9 swimming hotfix: **look up or down and push forward** to
   ascend or descend.
 
+### Current 1.1 runtime fix
+
+The current package contains the verified VDXR-compatible build. **VDXR is the
+only supported runtime at the moment.** Native Meta OpenXR currently crashes
+while creating the 32-bit OpenXR session, and current SteamVR does not provide
+the required 32-bit runtime. Additional runtimes are still being investigated.
+
 Singleplayer is the target. Multiplayer as a client is best-effort and unsupported; dedicated-server VR is not supported at all.
 
 ## Requirements
@@ -31,7 +38,7 @@ Singleplayer is the target. Multiplayer as a client is best-effort and unsupport
 | | |
 |---|---|
 | Game | **Red Faction (2001)** - Steam, GOG or retail |
-| Runtime | any active **OpenXR** runtime with a working PC VR setup |
+| Runtime | **Virtual Desktop with VDXR** selected |
 | Controllers | **Oculus Touch** or **Valve Index Knuckles** - both are mapped |
 | Renderer | VR forces Alpine Faction's **Direct3D 11** path |
 
@@ -46,7 +53,10 @@ The VR build gets its own folder rather than living inside Red Faction, and your
 There is also an advanced ZIP with just the mod files, for people who already have Alpine Faction prepared. The author recommends the setup, so that is what this installer uses.
 
 ## Turning VR on
-**VR is off until you switch it on.** Hit **Start in VR** on this game's page in the Hub, open **Options**, enable **VR / OpenXR** and pick your turn mode - snap or smooth. Make sure your headset's OpenXR runtime is running, then start the game from there.
+In Virtual Desktop Streamer select **VDXR**, connect the headset, then hit
+**Start in VR** on this game's page in the Hub. **VR / OpenXR is enabled by
+default** in the current launcher. Open **Options** only to choose snap/smooth
+turning or change another VR setting.
 
 The choice is stored in `alpine_settings.ini`, so this is a one-time setup. The `-vr` command line switch does the same job.
 

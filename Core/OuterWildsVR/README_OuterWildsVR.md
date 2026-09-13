@@ -6,7 +6,7 @@ was Raicuparta's first VR mod and one of the most popular Flat2VR mods.
 
 ## What it installs
 
-- **OWML 2.15.5** — the Outer Wilds Mod Loader
+- **OWML 2.16.2** — the Outer Wilds Mod Loader
 - **NomaiVR 2.10.0** — the VR mod with full motion controls
 
 ## Requirements

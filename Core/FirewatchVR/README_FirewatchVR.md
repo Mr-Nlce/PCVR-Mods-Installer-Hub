@@ -19,7 +19,7 @@
 ## How to install (external)
 1. Open the info page (itch.io) and download Two Forks VR (name-your-price; free is fine).
 2. Run `RaiManager.exe` (or use the itch.io app for automatic updates) and follow the installer.
-3. Return to the Hub and run **Check Installed**. RaiManager may keep BepInEx beside its downloaded package instead of copying it into Firewatch. The Hub validates the `doorstop_config.ini` target, the Two Forks VR plug-in there, and Firewatch's loader before showing **VR Ready**. **Start in VR** then opens `Firewatch.exe`.
+3. Return to the Hub and run **Scan installed games**. RaiManager may keep BepInEx beside its downloaded package instead of copying it into Firewatch. The Hub validates the `doorstop_config.ini` target, the Two Forks VR plug-in there, and Firewatch's loader before showing **VR Ready**. **Start in VR** then opens `Firewatch.exe`.
 
 > Keep the RaiManager/package folder where it was when you installed the mod. Its location is written into `doorstop_config.ini`; moving, renaming, or deleting that folder breaks the mod. Reinstall through RaiManager if you want to place it somewhere permanent.
 

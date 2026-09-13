@@ -9,7 +9,7 @@ same lobby — even with vanilla clients, and even if the host has no mods.
 
 ## What it installs
 **Option 1 — Current version (auto-updates):**
-- BepInEx, FixPluginTypesSerialization, TypeLoadExceptionFixer, LethalCompanyVR — all from Thunderstore
+- BepInEx, FixPluginTypesSerialization and LethalCompanyVR — the current dependency set from Thunderstore
 
 **Option 2 — Legacy pinned (LCVR 1.4.6 / V73):**
 - Same packages at pinned versions, requires switching to the "previous" Steam branch

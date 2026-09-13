@@ -5,7 +5,8 @@ support for DMC5, the RE Engine hack-and-slash. You play DMC5's stylish
 combat on a huge stereoscopic 3D screen-in-VR with full head tracking.
 
 ## What it installs
-- **REFramework Nightly v01320** — extracts directly into the DMC5 game folder
+- The current monolithic **REFramework.zip** and **VR.zip** from praydog's
+  nightly release. Per-game `DMC5.zip` files are retired.
 
 ## Features
 
@@ -26,15 +27,14 @@ headset rotation.
 ## How to use
 
 Click **Install Mod** on the game tile or detail page and follow the prompts.
-The installer asks for your VR platform and handles the setup automatically.
+The shared REFramework installer always resolves the current nightly assets and
+installs the complete pair into DMC5's folder.
 
 ## VR Platform
 
-**SteamVR** — Quest via Link/Air Link, Valve Index, and other SteamVR headsets.
-No extra steps needed.
-
-**OpenXR** — Oculus/Meta PC app, or Virtual Desktop in OpenXR mode.
-The installer automatically removes `openvr_api.dll` to switch to OpenXR.
+Use the runtime selected in REFramework's VR settings. The current nightly uses
+one monolithic REFramework build across all supported RE Engine games; install
+`VR.zip` as well, because it carries the VR runtime/configuration files.
 
 ## Controls
 

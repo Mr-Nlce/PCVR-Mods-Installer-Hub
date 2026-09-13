@@ -17,8 +17,29 @@
 
 $global:ScanSpinnerReady = $false
 try {
-    if (-not ([System.Management.Automation.PSTypeName]'PcvrScanSpinner').Type) {
-        Add-Type -ReferencedAssemblies @("PresentationCore","PresentationFramework","WindowsBase","System.Xaml") -TypeDefinition @'
+    # The shipped launcher uses Windows PowerShell 5.1. Its .NET Framework WPF
+    # compiler supports the dedicated render thread below. PowerShell 7's
+    # runtime compiler cannot combine the .NET 10 WPF implementation assemblies
+    # with System.Private.CoreLib in one Add-Type compilation; attempting it
+    # only produced a caught TerminatingError. On that non-shipping host the
+    # scan remains fully functional and simply omits the decorative spinner.
+    if ($PSVersionTable.PSEdition -eq 'Desktop') {
+      if (-not ([System.Management.Automation.PSTypeName]'PcvrScanSpinner').Type) {
+        # Use exact loaded assembly paths rather than short GAC names. This
+        # prevents a normal Windows PowerShell launch from logging a false
+        # missing-reference error before the window opens.
+        $spinnerReferences = @(
+            [System.Windows.Application].Assembly.Location,
+            [System.Windows.Media.Visual].Assembly.Location,
+            [System.Windows.Threading.Dispatcher].Assembly.Location,
+            [System.Windows.Markup.XamlReader].Assembly.Location
+        )
+        # .NET Framework's FrameworkElement surface exposes IQueryAmbient from
+        # System.Xaml; include its exact loaded GAC path as well.
+        Add-Type -AssemblyName System.Xaml -ErrorAction Stop
+        $spinnerReferences += [System.Xaml.XamlReader].Assembly.Location
+        $spinnerReferences = @($spinnerReferences | Where-Object { $_ } | Select-Object -Unique)
+        Add-Type -ReferencedAssemblies $spinnerReferences -TypeDefinition @'
 using System;
 using System.Threading;
 using System.Windows;
@@ -190,8 +211,9 @@ public class PcvrScanSpinner
     }
 }
 '@
+      }
+      $global:ScanSpinnerReady = $true
     }
-    $global:ScanSpinnerReady = $true
 } catch {
     $global:ScanSpinnerReady = $false
 }

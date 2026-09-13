@@ -154,7 +154,7 @@ Write-Host "  Dishonored should have been started once before this setup so" -Fo
 Write-Host "  it can create DishonoredEngine.ini. If it is missing, the" -ForegroundColor White
 Write-Host "  installer will launch the game once through Steam for you." -ForegroundColor White
 Write-Host ""
-Show-AntivirusNotice
+Show-AntivirusNotice -Compact
 Pause-User "Press Enter to proceed with setup..."
 
 # ---- 1. The game ---------------------------------------------

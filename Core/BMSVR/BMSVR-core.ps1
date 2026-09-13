@@ -71,6 +71,8 @@ Write-Header
 # Big upfront context for the user
 # ------------------------------------------------------------
 Write-Host " This installer automates Ashok's Black Mesa Source VR mod." -ForegroundColor White
+Write-Host " It is based on the old Half-Life 2: Episode Two VR mod files" -ForegroundColor Gray
+Write-Host " and is not a VR mod for the newer game Black Mesa." -ForegroundColor Gray
 Write-Host ""
 Write-Host " What it does:" -ForegroundColor White
 Write-Host " * Verifies all required Steam games are owned" -ForegroundColor Gray

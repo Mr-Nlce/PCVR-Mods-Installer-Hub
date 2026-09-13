@@ -7,7 +7,7 @@ This is a ground-up build for Dinkum on Unity 6 (URP), not a revival of the old 
 ## What it installs
 - **DinkumVR mod** - stereo 3D rendering with full 6DOF head tracking
 - **BepInEx 5 (Mono, x64)** - mod loader, bundled with the mod and tested against this exact version
-- Two mode-switch helpers - `Play in Flat.bat` and `Back to VR.bat`
+- Flat / VR switching through the Hub detail page
 
 The mod's `GameFiles` contents go into the **game root folder** (the folder that ends up with a `BepInEx` folder and `winhttp.dll` next to `Dinkum.exe`).
 
@@ -54,7 +54,7 @@ Delete the config file to get the defaults back.
 - During cut scenes and scripted moments the camera goes where the game wants it.
 
 ## Removing the mod
-Close the game, then delete the mod files (the `BepInEx\plugins\DinkumVR` folder, the two switch `.bat` files, and the added OpenXR files). The vanilla game is restored. Only remove BepInEx or the OpenXR files if no other mod depends on them.
+Close the game, then delete `BepInEx\plugins\DinkumVR` (or its parked variant if the Hub shows Flat mode). That removes DinkumVR itself. The shared BepInEx and OpenXR runtime files may stay; remove those only after confirming no other mod uses them. The vanilla game and saves remain untouched.
 
 ## Credits & license
 - **DinkumVR** by Destroyjevski

@@ -376,7 +376,7 @@ if ($updateMode -and $toyPresent) {
 } else {
  if (-not (Install-UmmMod -Label "Toy Box (cheats/tweaks toolbox; RTVR builds on it)" `
    -NexusUrl $NEXUS_TOYBOX -ZipPattern "ToyBox*.zip" `
-  -Purpose "REQUIRED by RTVR." `
+  -Purpose "REQUIRED by RTVR. Use the stable ToyBox 1.7.34 main file, not the unverified 2.0 Beta." `
    -TargetSubfolder "0ToyBox0" -VerifyFile "0ToyBox0\ToyBox.dll")) {
   $failed += "Toy Box"
  }

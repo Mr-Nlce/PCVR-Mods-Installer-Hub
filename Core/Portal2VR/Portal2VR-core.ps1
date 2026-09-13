@@ -13,7 +13,10 @@ $GAME_NAME   = "Portal 2"
 $GAME_EXE    = "portal2.exe"
 
 # Spencer0187's roomscale fork - adds motion controls on top of Gistix's original
+$PORTAL2VR_REPO = "Spencer0187/portal2vr-roomscale"
 $PORTAL2VR_URL = "https://github.com/Spencer0187/portal2vr-roomscale/releases/download/V0.2.2/Simple_P2VR_install_v2_roomscale.zip"
+$PORTAL2VR_VERSION = "V0.2.2"
+$PORTAL2VR_ASSET = "Simple_P2VR_install_v2_roomscale.zip"
 
 # Launch parameters from the mod's included INSTRUCTIONS.txt
 $LAUNCH_PARAMS = "-insecure -window -novid +mat_motion_blur_percent_of_screen_max 0 +mat_queue_mode 0 +mat_vsync 0 +mat_antialias 0 +mat_grain_scale_override 0 +snd_surround_speakers 5"
@@ -25,7 +28,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Portal 2 - VR Mod Installer" -ForegroundColor Cyan
-    Write-Host "   Portal2VR Roomscale v0.2.2 by Spencer0187" -ForegroundColor Gray
+    Write-Host "   Portal2VR Roomscale by Spencer0187" -ForegroundColor Gray
     Write-Host "   (based on Portal2VR by Gistix)" -ForegroundColor DarkGray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
@@ -170,7 +173,7 @@ if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
 $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "VR\manifest.vrmanifest" -Label "Portal2VR"
-Write-Step 3 5 "Installing Portal2VR Roomscale v0.2.2"
+Write-Step 3 5 "Installing the current Portal2VR Roomscale release"
 
 $tempDir = Join-Path $env:TEMP "Portal2VRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -178,10 +181,19 @@ $failed  = @()
 
 $vrZip     = Join-Path $tempDir "Portal2VR.zip"
 $vrExtract = Join-Path $tempDir "Portal2VR"
+$portalRelease = Resolve-GitHubReleaseAsset -Repo $PORTAL2VR_REPO `
+    -AssetPatterns @('(?i)^Simple_P2VR_install.*roomscale.*\.zip$','(?i)roomscale.*\.zip$','(?i)\.zip$') `
+    -FallbackUrl $PORTAL2VR_URL -FallbackTag $PORTAL2VR_VERSION -FallbackAssetName $PORTAL2VR_ASSET
+$PORTAL2VR_URL = [string]$portalRelease.Url
+$PORTAL2VR_VERSION = [string]$portalRelease.Tag
+$PORTAL2VR_ASSET = [string]$portalRelease.AssetName
+if ($portalRelease.Resolved) { Write-Info "GitHub resolved $PORTAL2VR_VERSION ($PORTAL2VR_ASSET)." }
+elseif ($portalRelease.ReleaseFound) { Write-Warn $portalRelease.Error }
+else { Write-Warn "Live release lookup unavailable; using reviewed $PORTAL2VR_VERSION fallback." }
 $r = Invoke-DownloadOrFallback -Url $PORTAL2VR_URL -Destination $vrZip `
-        -Label "Portal 2 VR Roomscale v0.2.2" `
-        -ManualUrl "https://github.com/Spencer0187/portal2vr-roomscale/releases/tag/V0.2.2" `
-        -Instructions "Download 'Simple_P2VR_install_v2_roomscale.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
+        -Label "Portal 2 VR Roomscale $PORTAL2VR_VERSION" `
+        -ManualUrl $portalRelease.PageUrl `
+        -Instructions "Download '$PORTAL2VR_ASSET' from the current GitHub release. Place it at '$vrZip' and choose Retry." `
         -SkipMessage "Skipped - Portal 2 VR mod missing; install is incomplete (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "Portal2VR" }
@@ -210,7 +222,7 @@ if (Test-Path $vrZip) {
                 Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
             }
             Write-Host "OK" -ForegroundColor Green
-            Write-OK "Portal2VR Roomscale v0.2.2 installed!"
+            Write-OK "Portal2VR Roomscale $PORTAL2VR_VERSION installed!"
         } catch {
             Write-Host "FAILED" -ForegroundColor Red
             Write-Fail "Install error: $_"
@@ -418,9 +430,10 @@ if ("Portal2VR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRo
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 if ("Portal2VR" -notin $failed) {
-    Write-Host "  [x] Portal2VR Roomscale v0.2.2 installed" -ForegroundColor Green
+    Save-InstalledStamp -GameDir $gamePath -Version $PORTAL2VR_VERSION
+    Write-Host "  [x] Portal2VR Roomscale $PORTAL2VR_VERSION installed" -ForegroundColor Green
 } else {
-    Write-Host "  [ ] Portal2VR Roomscale v0.2.2  -- FAILED, install manually" -ForegroundColor Red
+    Write-Host "  [ ] Portal2VR Roomscale $PORTAL2VR_VERSION  -- FAILED, install manually" -ForegroundColor Red
 }
 Write-Host "============================================================" -ForegroundColor Magenta
 

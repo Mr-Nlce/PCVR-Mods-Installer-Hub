@@ -17,9 +17,34 @@
 # fetched at install time.
 # ============================================================
 
+param([string]$Mod = '')
+
 # Load installer-safety helpers (Invoke-SafeDownload,
 # Expand-ArchiveOrFallback, Invoke-InstallerFallback, Get-SevenZip).
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
+
+# The maintained OpenXR port is the primary route.  The existing q2vr
+# installer remains intact below as a second, explicitly legacy option.
+if (-not $Mod) {
+    Clear-Host
+    Write-Host ('=' * 60) -ForegroundColor Magenta
+    Write-Host '  Quake 2 VR' -ForegroundColor Cyan
+    Write-Host '  Choose the VR port to install' -ForegroundColor Gray
+    Write-Host ('=' * 60) -ForegroundColor Magenta
+    Write-Host ''
+    Write-Host '  [1] Quake II PCVR by GameOrDie007 - OpenXR (recommended)' -ForegroundColor White
+    Write-Host '  [2] Q2VR by Luke Groeninger / Malcolm Smith - Oculus legacy' -ForegroundColor Gray
+    Write-Host ''
+    $pick = ''
+    while ($pick -notin @('1','2')) { $pick = (Read-Host '  Choice (1/2)').Trim() }
+    $Mod = if ($pick -eq '1') { 'pcvr' } else { 'legacy' }
+}
+if ($Mod -ieq 'pcvr') {
+    & (Join-Path $PSScriptRoot 'Quake2PCVR-current.ps1')
+    return
+}
+if ($Mod -ine 'legacy') { throw "Unknown Quake II installer option: $Mod" }
 
 $Host.UI.RawUI.WindowTitle = "Quake 2 VR Installer"
 $ErrorActionPreference = "Stop"
@@ -357,9 +382,7 @@ if (-not (Test-Path (Join-Path $payload $GAME_EXE))) {
 
 Write-Host "  Copying Quake 2 VR files ... " -NoNewline -ForegroundColor White
 try {
-    Get-ChildItem -Path $payload | ForEach-Object {
-        Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force
-    }
+    Install-OwnedModPayload -SourceRoot $payload -GameRoot $installRoot -Identity 'q2vrlegacy' -AdoptIdenticalExisting | Out-Null
     Write-Host "OK" -ForegroundColor Green
 } catch {
     Write-Host "FAILED" -ForegroundColor Red

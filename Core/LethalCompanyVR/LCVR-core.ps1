@@ -25,10 +25,7 @@ $STEAM_APP = "1966720"
 
 $PACKAGES_CURRENT = @(
  @{ Author="BepInEx"; Name="BepInExPack"; FriendlyName="BepInEx" },
- @{ Author="MonoDetour"; Name="MonoDetour"; FriendlyName="MonoDetour"; InstallType="MonoDetourCore" },
- @{ Author="MonoDetour"; Name="MonoDetour_BepInEx_5"; FriendlyName="MonoDetour BepInEx 5"; InstallType="MonoDetourBepInEx5" },
  @{ Author="Evaisa"; Name="FixPluginTypesSerialization"; FriendlyName="FixPluginTypesSerialization" },
- @{ Author="Hamunii"; Name="TypeLoadExceptionFixer"; FriendlyName="TypeLoadExceptionFixer" },
  @{ Author="DaXcess"; Name="LethalCompanyVR"; FriendlyName="LethalCompanyVR" }
 )
 

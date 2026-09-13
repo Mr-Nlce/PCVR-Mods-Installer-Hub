@@ -3,7 +3,7 @@
 Automated installer for DredgeVR by xen-42.
 
 ## What it installs
-- **Winch v0.6.1** — DREDGE mod loader
+- **Winch v0.6.2** — DREDGE mod loader
 - **DredgeVR (latest)** — full VR mod with motion controls
 
 ## Features

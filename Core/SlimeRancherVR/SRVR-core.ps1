@@ -10,8 +10,14 @@ $ErrorActionPreference = "Stop"
 
 $GAME_NAME = "Slime Rancher"
 $GAME_EXE  = "SlimeRancher.exe"
+$SRML_REPO = "SlimeRancherModding/SRML"
+$SRVR_REPO = "Atmudia/SRVR"
 $SRML_URL  = "https://github.com/SlimeRancherModding/SRML/releases/download/v0.2.1/SRMLInstaller_0.2.1c.zip"
 $SRVR_URL  = "https://github.com/Atmudia/SRVR/releases/download/v1.1/SRVR.dll"
+$SRML_VERSION = "v0.2.1"
+$SRVR_VERSION = "v1.1"
+$SRML_ASSET = "SRMLInstaller_0.2.1c.zip"
+$SRVR_ASSET = "SRVR.dll"
 
 # -------------------------------------------------------
 # Helpers
@@ -20,7 +26,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Slime Rancher - VR Mod Installer" -ForegroundColor Cyan
-    Write-Host "   SRML v0.2.1  +  SRVR v1.1" -ForegroundColor Gray
+    Write-Host "   Current SRML + SRVR releases" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -132,7 +138,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "SlimeRancher
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
-Write-Step 2 4 "Installing SRML v0.2.1"
+Write-Step 2 4 "Installing the current SRML release"
 
 $tempDir = Join-Path $env:TEMP "SRVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -141,10 +147,19 @@ $failed = @()
 $srmlFolder = Join-Path $gamePath "SRML"
 
 $srmlZip = Join-Path $tempDir "SRML.zip"
+$srmlRelease = Resolve-GitHubReleaseAsset -Repo $SRML_REPO `
+    -AssetPatterns @('(?i)^SRMLInstaller.*\.zip$','(?i)\.zip$') `
+    -FallbackUrl $SRML_URL -FallbackTag $SRML_VERSION -FallbackAssetName $SRML_ASSET
+$SRML_URL = [string]$srmlRelease.Url
+$SRML_VERSION = [string]$srmlRelease.Tag
+$SRML_ASSET = [string]$srmlRelease.AssetName
+if ($srmlRelease.Resolved) { Write-Info "GitHub resolved SRML $SRML_VERSION ($SRML_ASSET)." }
+elseif ($srmlRelease.ReleaseFound) { Write-Warn $srmlRelease.Error }
+else { Write-Warn "SRML live release lookup unavailable; using reviewed $SRML_VERSION fallback." }
 $r = Invoke-DownloadOrFallback -Url $SRML_URL -Destination $srmlZip `
-        -Label "SRML installer v0.2.1c" `
-        -ManualUrl "https://github.com/SlimeRancherModding/SRML/releases/tag/v0.2.1" `
-        -Instructions "Download 'SRMLInstaller_0.2.1c.zip' from the GitHub releases page. Place it at '$srmlZip' and choose Retry." `
+        -Label "SRML installer $SRML_VERSION" `
+        -ManualUrl $srmlRelease.PageUrl `
+        -Instructions "Download '$SRML_ASSET' from the current GitHub release. Place it at '$srmlZip' and choose Retry." `
         -SkipMessage "Skipped - SRML mod loader missing; SRVR will NOT load (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "SRML" }
@@ -198,7 +213,7 @@ if ((Test-Path $srmlZip) -and ("SRML" -notin $failed)) {
 # -------------------------------------------------------
 # STEP 3: Install SRVR.dll
 # -------------------------------------------------------
-Write-Step 3 4 "Installing SRVR v1.1"
+Write-Step 3 4 "Installing the current SRVR release"
 
 $srmlModsDir = Join-Path $gamePath "SRML\Mods"
 if (-not (Test-Path $srmlModsDir)) {
@@ -209,10 +224,19 @@ if (-not (Test-Path $srmlModsDir)) {
 
 if ("SRVR" -notin $failed) {
     $srvrDest = Join-Path $srmlModsDir "SRVR.dll"
+    $srvrRelease = Resolve-GitHubReleaseAsset -Repo $SRVR_REPO `
+        -AssetPatterns @('(?i)^SRVR.*\.dll$','(?i)\.dll$') `
+        -FallbackUrl $SRVR_URL -FallbackTag $SRVR_VERSION -FallbackAssetName $SRVR_ASSET
+    $SRVR_URL = [string]$srvrRelease.Url
+    $SRVR_VERSION = [string]$srvrRelease.Tag
+    $SRVR_ASSET = [string]$srvrRelease.AssetName
+    if ($srvrRelease.Resolved) { Write-Info "GitHub resolved SRVR $SRVR_VERSION ($SRVR_ASSET)." }
+    elseif ($srvrRelease.ReleaseFound) { Write-Warn $srvrRelease.Error }
+    else { Write-Warn "SRVR live release lookup unavailable; using reviewed $SRVR_VERSION fallback." }
     $r = Invoke-DownloadOrFallback -Url $SRVR_URL -Destination $srvrDest `
-            -Label "SRVR v1.1 (SRVR.dll)" `
-            -ManualUrl "https://github.com/Atmudia/SRVR/releases/tag/v1.1" `
-            -Instructions "Download 'SRVR.dll' from the GitHub releases page. Place it at '$srvrDest' and choose Retry." `
+            -Label "SRVR $SRVR_VERSION ($SRVR_ASSET)" `
+            -ManualUrl $srvrRelease.PageUrl `
+            -Instructions "Download '$SRVR_ASSET' from the current GitHub release. Place it at '$srvrDest' and choose Retry." `
             -SkipMessage "Skipped - SRVR mod missing; install is incomplete (questionable result)."
     if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ($r -eq $true) {
@@ -264,8 +288,11 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
-if ("SRML" -notin $failed) { Write-Host "    [x] SRML v0.2.1" -ForegroundColor Green } else { Write-Host "    [ ] SRML v0.2.1  -- FAILED" -ForegroundColor Red }
-if ("SRVR" -notin $failed) { Write-Host "    [x] SRVR v1.1" -ForegroundColor Green   } else { Write-Host "    [ ] SRVR v1.1    -- FAILED" -ForegroundColor Red }
+if ("SRML" -notin $failed) { Write-Host "    [x] SRML $SRML_VERSION" -ForegroundColor Green } else { Write-Host "    [ ] SRML $SRML_VERSION  -- FAILED" -ForegroundColor Red }
+if ("SRVR" -notin $failed) {
+    Save-InstalledStamp -GameDir $gamePath -Version $SRVR_VERSION
+    Write-Host "    [x] SRVR $SRVR_VERSION" -ForegroundColor Green
+} else { Write-Host "    [ ] SRVR $SRVR_VERSION    -- FAILED" -ForegroundColor Red }
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""

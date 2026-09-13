@@ -1,7 +1,7 @@
 # ============================================================
 #  PCVR Mods Installer Hub - Auto Updater
-#  Called by Start PCVR Mods Hub.bat before launching the GUI.
-#  Checks GitHub for a newer release, downloads + extracts if found.
+#  Called silently by Start PCVR Mods Hub.bat after the GUI is visible.
+#  Checks GitHub and writes an update marker for the live Hub banner.
 # ============================================================
 
 param(
@@ -26,6 +26,9 @@ if ($FromTemp -and $env:PCVR_HUB_INSTALL_DIR) {
     $rootDir        = Split-Path -Parent $PSScriptRoot
 }
 $CURRENT_VERSION_FILE = Join-Path $installCoreDir "version.txt"
+$localStateRoot = [Environment]::GetFolderPath('LocalApplicationData')
+$updateRuntimeDir = if ($localStateRoot) { Join-Path $localStateRoot 'PCVR Mods Installer Hub\Update' } else { $null }
+$updateInfoFile = if ($updateRuntimeDir) { Join-Path $updateRuntimeDir 'update_available.json' } else { Join-Path $installCoreDir '.update_available' }
 
 # -------------------------------------------------------
 #  Read current local version
@@ -90,7 +93,7 @@ if ($cmp -le 0) {
         Write-Host "[Updater] Already up to date ($currentVersion)." -ForegroundColor DarkGray
     }
     # Clean up stale update marker
-    $stale = Join-Path $installCoreDir ".update_available"
+    $stale = $updateInfoFile
     if (Test-Path $stale) { Remove-Item $stale -Force -ErrorAction SilentlyContinue }
     exit 0
 }
@@ -98,7 +101,9 @@ if ($cmp -le 0) {
 # -------------------------------------------------------
 #  Update available - write info file for the GUI to read
 # -------------------------------------------------------
-$updateInfoFile = Join-Path $installCoreDir ".update_available"
+if ($updateRuntimeDir -and -not (Test-Path -LiteralPath $updateRuntimeDir)) {
+    New-Item -ItemType Directory -Path $updateRuntimeDir -Force -ErrorAction SilentlyContinue | Out-Null
+}
 @{
     LatestVersion  = $latestVersion
     CurrentVersion = $currentVersion
@@ -399,21 +404,28 @@ try {
     #   version.txt           -> updater writes the new version explicitly below
     #   .shortcut_created     -> user preference flag (anywhere in tree)
     #   .update_available     -> will be deleted after update anyway
-    #   .hub-settings.json    -> user settings (style, window, desktop
-    #                            shortcut opt-out). Robocopy runs without
-    #                            /MIR or /PURGE and the file is not in the
-    #                            zip, so it already survives - listed here
-    #                            so a future zip can never clobber it.
+    #   .hub-settings.json    -> legacy settings migration source. Current
+    #                            state lives outside Core, but an old source
+    #                            is preserved until it has been imported.
+    # UserData content is excluded defensively at both the former root-level
+    # location and Core\UserData. A release must never replace this
+    # installation's byte-for-byte recovery backup. The canonical empty
+    # Core\UserData folder is created explicitly after the program copy.
     $robocopyArgs = @(
         $extractedRoot.FullName,
         $installDir,
         "/E", "/NFL", "/NDL", "/NJH", "/NJS", "/R:2", "/W:1",
-        "/XF", "version.txt", ".shortcut_created", ".update_available", ".installed_version", ".hub-settings.json"
+        "/XD", "UserData",
+        "/XF", "version.txt", ".shortcut_created", ".update_available", ".installed_version", ".hub-settings.json", "HubStateBackup.json"
     )
     & robocopy @robocopyArgs | Out-Null
     # Robocopy exit codes 0-7 are success, 8+ are errors
     if ($LASTEXITCODE -ge 8) {
         throw "Robocopy failed with exit code $LASTEXITCODE"
+    }
+    $canonicalUserData = Join-Path $installCoreDir 'UserData'
+    if (-not (Test-Path -LiteralPath $canonicalUserData -PathType Container)) {
+        New-Item -ItemType Directory -Path $canonicalUserData -Force -ErrorAction Stop | Out-Null
     }
 
     # Step 4: Write new version number
@@ -429,7 +441,7 @@ try {
     Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue
 
     # Remove update marker
-    Remove-Item (Join-Path $installCoreDir ".update_available") -Force -ErrorAction SilentlyContinue
+    Remove-Item $updateInfoFile -Force -ErrorAction SilentlyContinue
 
     # Point of no return: files are in place and the version is written. From
     # here on, the update has succeeded no matter what the relaunch does.

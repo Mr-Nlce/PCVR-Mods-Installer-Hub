@@ -1,14 +1,16 @@
 # Road to Vostok VR Installer
 
-Automated installer for the Road to Vostok VR Mod v1.3.5 by Blah64 — full VR support with motion controls, physical weapon handling, and a holster system.
+Automated installer for the latest Road to Vostok VR Mod by Blah64 — full VR support with motion controls, physical weapon handling, and a holster system.
 
 ## Requirements
 - Road to Vostok owned on Steam
-- **Metro Mod Loader** installed (the installer will check and guide you if missing)
+- **Metro Mod Loader** (the installer downloads its current `modloader.gd`
+  and `override.cfg` files when they are missing or outdated)
 - SteamVR or Meta PC app running before launch
 
 ## What it installs
 - **vr-mod.vmz** — main VR mod (loaded by Metro Mod Loader)
+- **modloader.gd + override.cfg** — Metro Mod Loader's current two-file release
 - **Road to Vostok VR desktop shortcut** — your launch route into VR
 - **VR runtime DLLs** and injector
 
@@ -76,7 +78,8 @@ Health and status effects shown on your non-dominant wrist. Raise toward your fa
 - **Weapon sway** can be disabled in F8 → VR settings
 - **Grip adjust mode**: draw weapon, press [[X]] to fine-tune grip position live
 - **Foregrip adjust**: grab with off-hand, press [[X]] to calibrate two-hand grip point
-- To update the mod later: replace `mods\vr-mod.vmz` only — no other files needed
+- To update later, run the Hub installer again. It resolves the newest VR-mod
+  release and refreshes Metro Mod Loader when its two files have changed.
 
 ## Troubleshooting
 - **Black screen after launch** — make sure SteamVR/Meta PC app is running before starting

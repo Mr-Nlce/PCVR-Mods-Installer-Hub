@@ -302,13 +302,26 @@ if ($edition -eq "cut") {
 
         if ($depotDir -and $gameDir) {
             Write-Info "Copying the depot files over your game folder ..."
+            $depotCopied = $false
             try {
                 Copy-Item -Path (Join-Path $depotDir "*") -Destination $gameDir -Recurse -Force -ErrorAction Stop
                 Write-OK "Copied."
+                $depotCopied = $true
             } catch {
                 Write-Fail "Copying failed: $($_.Exception.Message)"
                 Write-Host "  Copy the CONTENTS of the depot folder into your game" -ForegroundColor White
                 Write-Host "  folder by hand, overwriting when asked." -ForegroundColor White
+            }
+            if ($depotCopied) {
+                try {
+                    $steamAppIdPath = Join-Path $gameDir 'steam_appid.txt'
+                    Set-Content -LiteralPath $steamAppIdPath -Value $DEPOT_APPID -Encoding ASCII -NoNewline -Force -ErrorAction Stop
+                    $writtenAppId = (Get-Content -LiteralPath $steamAppIdPath -Raw -ErrorAction Stop).Trim()
+                    if ($writtenAppId -ne $DEPOT_APPID) { throw "steam_appid.txt did not retain App ID $DEPOT_APPID." }
+                    Write-OK "steam_appid.txt created for Steam App $DEPOT_APPID."
+                } catch {
+                    Write-Warn "Could not verify steam_appid.txt: $($_.Exception.Message)"
+                }
             }
             # --- Cross-check: did it take effect? ----------------
             $edition = Get-WaWEdition -Dir $gameDir

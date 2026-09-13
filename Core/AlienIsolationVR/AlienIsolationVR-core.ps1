@@ -13,14 +13,17 @@ $ErrorActionPreference = "Stop"
 
 $GAME_NAME = "Alien Isolation"
 $GAME_EXE = "AI.exe"
+$MOTHERVR_REPO = "Nibre/MotherVR"
 $MOTHERVR_URL = "https://github.com/Nibre/MotherVR/releases/download/0.8.1/MotherVR.0.8.1.zip"
+$MOTHERVR_VERSION = "0.8.1"
+$MOTHERVR_ASSET = "MotherVR.0.8.1.zip"
 $GRAND_URL = "https://alienisolationvr.com/downloads/click.php?id=GRAND-Release.zip"
 
 function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Yellow
  Write-Host " Alien: Isolation - VR Mod Installer" -ForegroundColor Cyan
- Write-Host " MotherVR v0.8.1 + GRAND (latest)" -ForegroundColor Gray
+ Write-Host " MotherVR + GRAND (latest)" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Yellow
  Write-Host ""
 }
@@ -89,10 +92,24 @@ $mvrZip = Join-Path $tmp "MotherVR.zip"
 $grandZip = Join-Path $tmp "GRAND.zip"
 $failed = @()
 
+# MotherVR's newest public build is currently a prerelease. Resolve the
+# newest release asset live so this installer cannot remain pinned if Nibre
+# publishes another build; the reviewed 0.8.1 URL remains the offline/API
+# fallback. GRAND's publisher URL already resolves its current package.
+$motherRelease = Resolve-GitHubReleaseAsset -Repo $MOTHERVR_REPO -IncludePrerelease $true `
+    -AssetPatterns @('(?i)^MotherVR.*\.zip$') -FallbackUrl $MOTHERVR_URL `
+    -FallbackTag $MOTHERVR_VERSION -FallbackAssetName $MOTHERVR_ASSET
+$MOTHERVR_URL = [string]$motherRelease.Url
+$MOTHERVR_VERSION = [string]$motherRelease.Tag
+$MOTHERVR_ASSET = [string]$motherRelease.AssetName
+if ($motherRelease.Resolved) { Write-Info "GitHub resolved MotherVR $MOTHERVR_VERSION ($MOTHERVR_ASSET)." }
+elseif ($motherRelease.ReleaseFound) { Write-Warn $motherRelease.Error }
+else { Write-Warn "MotherVR live release lookup unavailable; using reviewed $MOTHERVR_VERSION fallback." }
+
 $r = Invoke-DownloadOrFallback -Url $MOTHERVR_URL -Destination $mvrZip `
-        -Label "MotherVR v0.8.1" `
-        -ManualUrl "https://github.com/Nibre/MotherVR/releases/tag/0.8.1" `
-        -Instructions "Download 'MotherVR.0.8.1.zip' from the GitHub releases page. Place it at '$mvrZip' and choose Retry." `
+        -Label "MotherVR $MOTHERVR_VERSION" `
+        -ManualUrl $motherRelease.PageUrl `
+        -Instructions "Download '$MOTHERVR_ASSET' from the current GitHub release. Place it at '$mvrZip' and choose Retry." `
         -SkipMessage "Skipped - MotherVR is missing; VR mode will NOT work (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "MotherVR" }
@@ -108,12 +125,12 @@ if (-not ($r -is [bool] -and $r)) { $failed += "GRAND" }
 # STEP 3: Install
 Write-Step 3 4 "Installing"
 
-# MotherVR: ZIP structure is "MotherVR 0.8.1\dxgi.dll" - must unwrap root folder
+# MotherVR releases may wrap their payload in one version-named root folder.
 if ("MotherVR" -notin $failed) {
  try {
  $mvrExtract = Join-Path $tmp "MotherVR"
  Expand-Archive -Path $mvrZip -DestinationPath $mvrExtract -Force
- # Unwrap the single root folder "MotherVR 0.8.1\"
+ # Unwrap a single release root folder when present.
  $root = Get-ChildItem -Path $mvrExtract -Directory | Select-Object -First 1
  $payload = if ($root) { $root.FullName } else { $mvrExtract }
  # Copy only DLL files into game root
@@ -168,8 +185,8 @@ Write-Host "============================================================" -Foreg
 Write-Host " Installation Summary" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
-if ("MotherVR" -notin $failed) { Write-Host " [x] MotherVR v0.8.1 (dxgi.dll)" -ForegroundColor Green }
-else { Write-Host " [ ] MotherVR v0.8.1 -- FAILED" -ForegroundColor Red }
+if ("MotherVR" -notin $failed) { Write-Host " [x] MotherVR $MOTHERVR_VERSION (dxgi.dll)" -ForegroundColor Green }
+else { Write-Host " [ ] MotherVR $MOTHERVR_VERSION -- FAILED" -ForegroundColor Red }
 if ("GRAND" -notin $failed) { Write-Host " [x] GRAND (XINPUT1_3.dll + grand.ini)" -ForegroundColor Green }
 else { Write-Host " [ ] GRAND -- FAILED" -ForegroundColor Red }
 if ($isWin11) {

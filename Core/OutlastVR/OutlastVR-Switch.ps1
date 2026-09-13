@@ -9,7 +9,7 @@ function Get-OutlastModFiles {
 
 function Get-OutlastLayout {
     param([string]$GameRoot)
-    $root = [IO.Path]::GetFullPath($GameRoot).TrimEnd('\')
+    $root = [IO.Path]::GetFullPath($GameRoot).TrimEnd([IO.Path]::DirectorySeparatorChar)
     if (-not (Test-Path -LiteralPath "$root\Binaries\Win64\OLGame.exe" -PathType Leaf)) { throw 'Select the Outlast folder containing Binaries\Win64\OLGame.exe.' }
     foreach ($relative in @('','Binaries','Binaries\Win64','_vrmods','_vrmods\halcyon','_vrmods\hammerthis','_vrmods\VRLaunch')) {
         $path = if ($relative) { Join-Path $root $relative } else { $root }
@@ -97,7 +97,8 @@ function Invoke-OutlastFileTransaction {
     try {
         foreach ($target in $Targets) {
             $full = [IO.Path]::GetFullPath($target)
-            if (-not $full.StartsWith($layout.Root + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Target outside Outlast folder.' }
+            $rootPrefix = $layout.Root + [IO.Path]::DirectorySeparatorChar
+            if (-not $full.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Target outside Outlast folder.' }
             $check = $full
             while ($check.Length -gt $layout.Root.Length) {
                 $item = Get-Item -LiteralPath $check -Force -ErrorAction SilentlyContinue

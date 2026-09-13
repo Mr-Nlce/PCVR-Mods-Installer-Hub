@@ -52,9 +52,12 @@ $zipPath = Join-Path $work "community_tracks.zip"
 $tag = "v0.17"
 if ($release) {
     $tag = $release.Tag
-    $ok = Invoke-SafeDownload -Urls @($release.Url) -Destination $zipPath -Label "SW_RACER_RE $tag" -ManualUrl $RELEASES_URL
-    if ($ok -and $release.Digest -match '^sha256:([0-9a-fA-F]{64})$') {
-        if ((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash -ne $matches[1]) { throw "The download does not match GitHub's SHA-256 digest." }
+    $releaseSha = ''
+    if ($release.Digest -match '^sha256:([0-9a-fA-F]{64})$') { $releaseSha = $matches[1] }
+    $ok = Invoke-SafeDownload -Urls @($release.Url) -Destination $zipPath -Label "SW_RACER_RE $tag" `
+        -ManualUrl $RELEASES_URL -ExpectedSha256 $releaseSha
+    if ($ok -and $releaseSha) {
+        if ((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash -ne $releaseSha) { throw "The download does not match GitHub's SHA-256 digest." }
     }
 }
 if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) {

@@ -39,7 +39,11 @@ fault, and it is the most common "nothing happens" report.
 
 ## You do not need an RTX card
 
-Three anti-aliasing choices, and the mod sets the game's own to match:
+The current v1.3.1 launcher offers DLSS Quality, Balanced, Performance, Ultra
+Performance, DLAA and Custom source sizes. Supported source-size changes can be
+applied live; headset/output resolution still requires a restart.
+
+Three anti-aliasing choices are available:
 
 | Choice | Needs | What you get |
 |---|---|---|
@@ -49,14 +53,16 @@ Three anti-aliasing choices, and the mod sets the game's own to match:
 
 ## Setting it up
 
-Copying the files is only half of it: the mod brings **its own settings program**.
-**Start in VR in the Hub opens that program** so you can change options.
+Copying the files is only half of it: the mod brings **its own settings program**
+at `VR Settings\theHunterCotW VR Settings.exe`. Its complete adjacent
+`VR Settings\_internal` runtime must remain in place. **Start in VR in the Hub
+opens that program** so you can change options.
 
 Inside, set these options:
 
 - **Field of View > Field of View given to the game: 90** (the game's maximum).
-- **Picture > Anti-aliasing:** you can set it to **Off**. Other settings can cause
-  a black screen.
+- **Picture > Anti-aliasing:** try the available settings. If one causes a black
+  screen, set it to **Off**; the game will use its own DLSS instead.
 - **Head tracking mode: 6-DoF.** This lets you lean and step around.
 
 Then click **Save** and **Launch game**.
@@ -71,11 +77,18 @@ Then click **Save** and **Launch game**.
 | [[Pause]] | recentre the view - use it whenever forward stops being forward |
 | [[Delete]] | show the flat game screen, for menus and the map |
 | [[Alt]] held | free look - the view turns, the weapon stays put |
+| [[Enter]] / controller [[A]] | apply the selected live picture change |
 
 Everything is rebindable in the panel, and the panel works with a gamepad. A
 gamepad plays better here than mouse and keyboard.
 
 ## Known issues - all named by the author
+
+- **Experimental Neural Rendering is optional and off by default.** Its separate
+  NVIDIA `nvngx_dlssnr.dll` runtime is not bundled. Ordinary DLSS still works
+  without it. NR adds GPU cost; it is not frame generation.
+- **An unsafe NR/device fault requires a game restart.** Turning NR off does not
+  clear that state. Lower NR scales can improve cost but may soften the image.
 
 - **Shimmer with DLSS on**, worst on close-up geometry and edges. Weapon depth
   makes it worse, and it reads as the *world* shaking rather than the weapon. Two
@@ -97,7 +110,8 @@ gamepad plays better here than mouse and keyboard.
 
 **Black screen in the headset, game fine on the monitor:**
 
-- In the mod settings, set *Picture > Anti-aliasing* to **Off**.
+- Try the available *Picture > Anti-aliasing* settings. If one produces the
+  black screen, set it to **Off**; the game will use its own DLSS instead.
 - Turn HDR off in Windows with **Win + Alt + B**.
 - Windows 11: *Settings > System > Display > Use HDR*.
 - Windows 10: *Settings > System > Display > Windows HD Color*.
@@ -119,5 +133,9 @@ Mod by **Vaas993** - https://github.com/vaas993/theHunterCotW-VR
 Includes NVIDIA DLSS, the Khronos OpenXR loader and MinHook. theHunter: Call of
 the Wild is a trademark of Expansive Worlds / Avalanche Studios; this mod is
 unofficial and not affiliated with them.
+
+Current reviewed release: **v1.3.1**, published 2026-09-10 for game update 9.2.
+It removes exact Neural Rendering file-hash restrictions while retaining the
+author's runtime/API and GPU-safety checks.
 
 >>> A bad shot in VR still counts. The elk knows.

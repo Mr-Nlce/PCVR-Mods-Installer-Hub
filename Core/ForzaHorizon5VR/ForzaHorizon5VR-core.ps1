@@ -1,11 +1,18 @@
 # ============================================================
 # Forza Horizon 5 VR Installer
-# lufz / VRMod (GitHub releases)    launcher: vrmod-launcher.exe
-# VRMod supports Forza Horizon 5 and 6 from the same
-# launcher. The launcher injects into the game; the mod files
-# must NOT live in the game folder, so we extract to
-# C:\Games\Forza Horizon 5 VR and launch from there.
+# Two VR mods to choose from:
+#   1) NALULUNA (free, ko-fi)          launcher: fh5vr.exe
+#   2) lufz / VRMod (GitHub releases)  launcher: vrmod-launcher.exe
+# Both use a separate launcher. Their packages live outside the
+# retail game under C:\Games\Forza Horizon 5 VR so they can be
+# installed side by side without bundling any mod in the Hub.
 # ============================================================
+
+param(
+    [Alias('InstallerChoice')]
+    [ValidateSet('','naluluna','lufz')]
+    [string]$Mod = ''
+)
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 
@@ -14,45 +21,39 @@ $ErrorActionPreference = "Stop"
 
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $GAME_FOLDER   = "Forza Horizon 5 VR"
-# lufz publishes on GitHub now, so the download is automatic. The releases
-# are tagged as PRERELEASES, which is why the newest one is taken from
-# /releases and never from /releases/latest - the latter skips them.
+$KOFI_URL      = "https://ko-fi.com/s/1724b05721"
+# lufz publishes on GitHub. Releases are frequently prereleases, so use the
+# releases feed rather than /releases/latest, which can skip the newest build.
 $VRMOD_REPO    = "oofz/vrmod-releases"
 $VRMOD_API     = "https://api.github.com/repos/$VRMOD_REPO/releases"
 $VRMOD_PAGE    = "https://github.com/$VRMOD_REPO/releases"
-$ZIP_HINT      = "VRMod-v1_3_3.zip"
-$LAUNCHER_NAME = "vrmod-launcher.exe"
 
 function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Forza Horizon 5 VR Installer" -ForegroundColor Cyan
-    Write-Host " lufz VRMod - downloaded automatically from GitHub" -ForegroundColor Gray
+    Write-Host " Two community VR mods to choose from" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
 function Write-Step { param($n,$t,$txt) Write-Host ""; Write-Host "--- [$n/$t] $txt ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-OK   { param($t) Write-Host " [OK] $t" -ForegroundColor Green }
 function Write-Warn { param($t) Write-Host " [!!] $t" -ForegroundColor Yellow }
-function Write-Fail { param($t) Write-Host " [XX] $t" -ForegroundColor Red }
 function Write-Info { param($t) Write-Host " [..] $t" -ForegroundColor Gray }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Test-WritableRoot {
     param([string]$Root)
     if (-not $Root) { return $false }
     try {
-        if (-not (Test-Path $Root)) { New-Item -ItemType Directory -Path $Root -Force -ErrorAction Stop | Out-Null }
+        if (-not (Test-Path -LiteralPath $Root)) { New-Item -ItemType Directory -Path $Root -Force -ErrorAction Stop | Out-Null }
         $probe = Join-Path $Root ".pcvrhub_write_probe"
-        Set-Content -Path $probe -Value "ok" -ErrorAction Stop
-        Remove-Item $probe -Force -ErrorAction SilentlyContinue
+        Set-Content -LiteralPath $probe -Value "ok" -ErrorAction Stop
+        Remove-Item -LiteralPath $probe -Force -ErrorAction SilentlyContinue
         return $true
     } catch { return $false }
 }
 
-# Drag-drop loop: the user drags the downloaded mod .zip onto the
-# window. Accepts a dragged (quoted) path or a typed path; loops until
-# a real .zip is given or the user cancels.
 function Get-DraggedZip {
     param([string]$ExpectHint)
     while ($true) {
@@ -70,14 +71,6 @@ function Get-DraggedZip {
     }
 }
 
-Write-Header
-Write-Host " This sets up the lufz VRMod for your EXISTING Forza Horizon 5" -ForegroundColor White
-Write-Host " install (Steam / Microsoft Store / Game Pass). No game files" -ForegroundColor Gray
-Write-Host " are bundled - you download the free community mod yourself and" -ForegroundColor Gray
-Write-Host " drag the .zip onto this window; the Hub does the rest." -ForegroundColor Gray
-Write-Host ""
-
-# Newest release INCLUDING prereleases - that is what this project ships.
 function Get-VRModRelease {
     try {
         $rels = Invoke-RestMethod -Uri $VRMOD_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
@@ -90,222 +83,241 @@ function Get-VRModRelease {
     } catch { return $null }
 }
 
-# ---- STEP 1: get the download ----
-Pause-User "Press Enter to start..."
-Write-Step 1 5 "Downloading the mod"
-$dlWork = Join-Path $env:TEMP ("vrmod_" + [Guid]::NewGuid().ToString("N").Substring(0,8))
-New-Item -ItemType Directory -Path $dlWork -Force | Out-Null
-$zipPath = $null
-$rel = Get-VRModRelease
-if ($rel) {
-    Write-Info "Newest VRMod release: $($rel.Tag) ($($rel.Name))"
-    $target = Join-Path $dlWork $rel.Name
-    Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE | Out-Null
-    if (Test-Path -LiteralPath $target) { $zipPath = $target }
+Write-Header
+Write-Host " This sets up a VR mod for your EXISTING Forza Horizon 5" -ForegroundColor White
+Write-Host " install (Steam / Microsoft Store / Game Pass). No game or" -ForegroundColor Gray
+Write-Host " VR-mod files are bundled. Each mod gets its own external" -ForegroundColor Gray
+Write-Host " folder, so both packages can remain installed." -ForegroundColor Gray
+Write-Host ""
+
+# ---- STEP 1: choose the mod ----
+Write-Step 1 6 "Choosing a VR mod"
+$modChoice = ""
+if ($Mod) {
+    $modChoice = if ($Mod -eq 'lufz') { '2' } else { '1' }
+    $selectedByHub = if ($modChoice -eq '2') { 'lufz VRMod' } else { 'NALULUNA' }
+    Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
+    Write-Host "  The Hub identified this exact installed mod as the update target." -ForegroundColor Gray
+} else {
+    Write-Host "  Which VR mod do you want to set up?" -ForegroundColor White
+    Write-Host ""
+    Write-Host "   [1] NALULUNA  - free on ko-fi" -ForegroundColor Green
+    Write-Host "   [2] lufz VRMod - free, downloaded automatically" -ForegroundColor White
+    Write-Host ""
+    while ($modChoice -ne "1" -and $modChoice -ne "2") {
+        $modChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
+        if ($modChoice -eq "") { $modChoice = "1" }
+        if ($modChoice -ne "1" -and $modChoice -ne "2") { Write-Warn "Please type 1 or 2." }
+    }
 }
-if (-not $zipPath) {
-    $found = Find-PredownloadedFile -Patterns @("VRMod-v*.zip", "*VRMod*.zip") -Label "the VRMod package"
-    if ($found) { $zipPath = $found }
+if ($modChoice -eq "1") {
+    $modName      = "NALULUNA"
+    $modSub       = "NALULUNA"
+    $launcherName = "fh5vr.exe"
+    $zipHint      = "fh5vr_<version>.zip"
+} else {
+    $modName      = "lufz VRMod"
+    $modSub       = "lufz"
+    $launcherName = "vrmod-launcher.exe"
+    $zipHint      = "VRMod-v<version>.zip"
+}
+Write-OK "Selected: $modName"
+
+# ---- STEP 2: get the download ----
+Write-Step 2 6 "Downloading the mod"
+if ($modChoice -eq "1") {
+    Write-Host "  NALULUNA's mod is FREE on ko-fi. On the page that opens:" -ForegroundColor White
+    Write-Host "   - set the amount to 0 (or any tip you like) and download," -ForegroundColor Gray
+    Write-Host "   - take the newest file named like '$zipHint'." -ForegroundColor Gray
+    try { Start-Process $KOFI_URL } catch { Write-Warn "Could not open the browser. Open manually: $KOFI_URL" }
+    Write-Host ""
+    Write-Host "  ko-fi page: $KOFI_URL" -ForegroundColor DarkGray
+} else {
+    Write-Info "The newest lufz release (including prereleases) will be downloaded automatically."
 }
 
-# ---- STEP 2: browser + drag & drop, only if the download failed ----
-Write-Step 2 5 "Locating the downloaded zip"
-if (-not $zipPath) {
-    Write-Warn "Automatic download did not work."
-    Write-Host "  Opening the releases page - take the newest VRMod zip." -ForegroundColor Gray
-    Pause-User "Press Enter to open the releases page..."
-    try { Start-Process $VRMOD_PAGE } catch { Write-Warn "Open manually: $VRMOD_PAGE" }
-    $zipPath = Get-DraggedZip -ExpectHint $ZIP_HINT
+# ---- STEP 3: get the file ----
+Write-Step 3 6 "Locating the downloaded zip"
+$zipPath = $null
+$rel = $null
+if ($modChoice -eq "2") {
+    $dlWork = Join-Path $env:TEMP ("vrmod_" + [Guid]::NewGuid().ToString("N").Substring(0,8))
+    New-Item -ItemType Directory -Path $dlWork -Force | Out-Null
+    $rel = Get-VRModRelease
+    if ($rel) {
+        Write-Info "Newest VRMod release: $($rel.Tag) ($($rel.Name))"
+        $target = Join-Path $dlWork $rel.Name
+        Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE | Out-Null
+        if (Test-Path -LiteralPath $target) { $zipPath = $target }
+    }
+    if (-not $zipPath) {
+        $found = Find-PredownloadedFile -Patterns @("VRMod-v*.zip", "*VRMod*.zip") -Label "the VRMod package"
+        if ($found) { $zipPath = $found }
+    }
+    if (-not $zipPath) {
+        Write-Warn "Automatic download did not work."
+        Pause-User "Press Enter to open the releases page..."
+        try { Start-Process $VRMOD_PAGE } catch { Write-Warn "Open manually: $VRMOD_PAGE" }
+    }
 }
+if (-not $zipPath) { $zipPath = Get-DraggedZip -ExpectHint $zipHint }
 if (-not $zipPath) { Write-Info "No zip provided - cancelled."; Pause-User "Press Enter to exit..."; exit 0 }
 $zipLeaf = Split-Path -Leaf $zipPath
-if ($zipLeaf -notlike "VRMod-*") {
+if ($modChoice -eq "1" -and $zipLeaf -notlike "fh5vr_*") {
+    Write-Warn "Expected an 'fh5vr_*.zip' - continuing anyway with '$zipLeaf'."
+} elseif ($modChoice -eq "2" -and $zipLeaf -notlike "VRMod-*") {
     Write-Warn "Expected a 'VRMod-*.zip' - continuing anyway with '$zipLeaf'."
 }
 Write-OK "Using: $zipLeaf"
 
-# ---- STEP 3: choose location + extract ----
-Write-Step 3 5 "Installing the mod files"
+# ---- STEP 4: choose location + extract ----
+Write-Step 4 6 "Installing the mod files"
 $defaultParent = $null
-foreach ($r in $DEFAULT_ROOTS) { if (Test-WritableRoot -Root $r) { $defaultParent = [string]$r; break } }
+foreach ($root in $DEFAULT_ROOTS) { if (Test-WritableRoot -Root $root) { $defaultParent = [string]$root; break } }
 if (-not $defaultParent) { $defaultParent = "C:\Games" }
 $installRoot = Join-Path $defaultParent $GAME_FOLDER
-Write-Host "  Install location: $installRoot" -ForegroundColor Gray
-Write-Host "  (Kept OUT of the game folder on purpose - the mod must not" -ForegroundColor DarkGray
-Write-Host "   live inside Forza Horizon 5's own install folder.)" -ForegroundColor DarkGray
 try { New-Item -ItemType Directory -Force -Path $installRoot | Out-Null } catch {}
 
-$r = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $installRoot -Label "lufz VRMod" `
+# Fresh installs use one subfolder per mod. Existing FH5 lufz installs from
+# older Hub builds lived directly in the parent folder; update those in place
+# so settings and the already-deployed game profile are not stranded.
+$modFolder = Join-Path $installRoot $modSub
+if ($modChoice -eq "2" -and
+    (Test-Path -LiteralPath (Join-Path $installRoot "vrmod-launcher.exe") -PathType Leaf) -and
+    -not (Test-Path -LiteralPath (Join-Path $modFolder "vrmod-launcher.exe") -PathType Leaf)) {
+    $modFolder = $installRoot
+    Write-Info "Updating the existing lufz installation in its legacy location."
+}
+Write-Host "  Install location: $modFolder" -ForegroundColor Gray
+Write-Host "  (Kept OUT of the retail game folder on purpose.)" -ForegroundColor DarkGray
+try { New-Item -ItemType Directory -Force -Path $modFolder | Out-Null } catch {}
+
+$expandResult = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $modFolder -Label "$modName VR mod" `
         -SkipMessage "Skipped - the mod files were NOT extracted. The install is incomplete."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if ([string]$r -eq "ok" -or [string]$r -eq "manual") { Write-OK "Mod files extracted to $installRoot" }
+if ([string]$expandResult -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+if ([string]$expandResult -eq "ok" -or [string]$expandResult -eq "manual") { Write-OK "Mod files extracted to $modFolder" }
 
-# ---- STEP 4: verify launcher + desktop shortcut ----
-Write-Step 4 5 "Finishing setup"
-$launcherPath = Join-Path $installRoot $LAUNCHER_NAME
-if (-not (Test-Path $launcherPath)) {
-    # Fallback: the zip may have unpacked into a nested subfolder - search.
-    $found = Get-ChildItem -Path $installRoot -Filter $LAUNCHER_NAME -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($found) { $launcherPath = $found.FullName; $installRoot = Split-Path -Parent $launcherPath }
+# ---- STEP 5: verify launcher + desktop shortcut ----
+Write-Step 5 6 "Finishing setup"
+$launcherPath = Join-Path $modFolder $launcherName
+if (-not (Test-Path -LiteralPath $launcherPath -PathType Leaf)) {
+    $found = Get-ChildItem -LiteralPath $modFolder -Filter $launcherName -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) { $launcherPath = $found.FullName; $modFolder = Split-Path -Parent $launcherPath }
 }
-if (Test-Path $launcherPath) {
-    Write-OK "Launcher found: $LAUNCHER_NAME"
+if (Test-Path -LiteralPath $launcherPath -PathType Leaf) {
+    Write-OK "Launcher found: $launcherName"
 } else {
-    Write-Warn "$LAUNCHER_NAME not found under $installRoot - check the extracted files manually."
+    Write-Warn "$launcherName not found under $modFolder - check the extracted files manually."
 }
 
-# Custom desktop-shortcut icon. Copy the bundled .ico into the install
-# root so the shortcut keeps a stable icon path (mirrors the FH6
-# installer). Falls back to the launcher's own icon if the copy fails.
 $iconDest = Join-Path $installRoot "ForzaHorizon5_VR.ico"
-try { Copy-Item -Path (Join-Path $PSScriptRoot "ForzaHorizon5_VR.ico") -Destination $iconDest -Force } catch {}
-
+try { Copy-Item -LiteralPath (Join-Path $PSScriptRoot "ForzaHorizon5_VR.ico") -Destination $iconDest -Force } catch {}
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "Forza Horizon 5 VR.lnk"
-    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launcherPath -WorkingDir $installRoot -IconPath $(if (Test-Path $iconDest) { $iconDest } else { $launcherPath }) -Description "Launch the Forza Horizon 5 VR mod (lufz VRMod)"
+    $sc = New-DesktopShortcut -LnkPath $lnk -TargetPath $launcherPath -WorkingDir $modFolder -IconPath $(if (Test-Path -LiteralPath $iconDest) { $iconDest } else { $launcherPath }) -Description "Launch the Forza Horizon 5 VR mod ($modName)"
     Write-OK "Desktop shortcut created with custom icon: Forza Horizon 5 VR"
 } catch {
-    Write-Warn "Could not create the desktop shortcut. You can start $LAUNCHER_NAME from $installRoot."
+    Write-Warn "Could not create the desktop shortcut. You can start $launcherName from $modFolder."
 }
 
-# Record install path + launcher for the Hub. Single-mod game: the
-# .launch_exe override makes "Start in VR" open vrmod-launcher.exe
-# directly (unlike FH6, which keeps the two-mod choice instead).
-# DOES THIS BUILD STILL COVER FORZA HORIZON 5? The launcher drives each
-# game from a profile in profiles\. v1.3.3 shipped WITHOUT
-# forza_horizon_5.json and lists only Forza Horizon 6 as supported, so a
-# newer release can silently be an FH6-only build - and then Install and
-# Play stay greyed out with no explanation. Say so plainly instead, and
-# point at the older release that still has the profile. Checked, never
-# guessed: the file is either there or it is not.
-$fh5Profile = Join-Path $installRoot "profiles\forza_horizon_5.json"
-if (-not (Test-Path -LiteralPath $fh5Profile)) {
-    Write-Host ""
-    Write-Warn "This VRMod build does NOT include a Forza Horizon 5 profile."
-    Write-Host "  The launcher needs profiles\forza_horizon_5.json to drive FH5;" -ForegroundColor White
-    Write-Host "  without it, Install VR Mod and Play in VR stay disabled for" -ForegroundColor White
-    Write-Host "  this game. Newer builds have been focusing on Horizon 6." -ForegroundColor White
-    Write-Host "  If FH5 is what you want, take an older release that still has" -ForegroundColor White
-    Write-Host "  that profile:" -ForegroundColor White
-    Write-Host "    $VRMOD_PAGE" -ForegroundColor Gray
-    Write-Host ""
-}
-
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
-try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $launcherPath -Encoding UTF8 -Force } catch {}
-
-# Record the installed mod version so the Hub's update badge works
-# (catalog pins the current lufz version; a mismatch shows Update).
-# NORMALIZED without a leading "v" - the Hub compares against
-# Get-ModVersionFromString output, which strips the v.
-#
-# PRIMARY source: the VERSION file lufz ships inside the zip. It is
-# authoritative and survives a renamed zip, so it beats parsing the
-# file name. Fall back to the zip name, then to the pinned release.
-#
-# (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
-# so the Hub had to track them as 1.2.1b/1.2.1c. lufz moved to a real
-# 1.2.3, so that workaround is retired - the zip is honest again.)
-# ---- The installed version, from THREE sources that must agree ----
-# This mod is unusually well behaved: every release carries the exact
-# version in THREE places, and they have never disagreed.
-#     release tag   v1.3.19
-#     asset name    VRMod-v1.3.19.zip
-#     VERSION file  1.3.19
-# So the version is not guessed here - it is read from all three and
-# cross-checked. Anything that disagrees is reported on screen instead
-# of being silently preferred.
-#
-# THE MARKER IS WRITTEN AS PLAIN DIGITS ("1.3.19"), because that is what
-# the tile compares against after it strips the tag's leading v. Same
-# shape on both sides, so the comparison is exact - no guessing, no
-# tolerance needed.
-$verFromTag = $null
-if ($rel -and $rel.Tag) {
-    $m = [regex]::Match([string]$rel.Tag, '(\d+(?:\.\d+)+)')
-    if ($m.Success) { $verFromTag = $m.Groups[1].Value }
-}
-$verFromName = $null
-if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
-    $cand = $matches[1].Replace("_", ".").Trim(".")
-    if ($cand -match '^\d+(\.\d+)+$') { $verFromName = $cand }
-}
-$verFromFile = $null
-$lufzVerFile = Join-Path $installRoot "VERSION"
-if (Test-Path -LiteralPath $lufzVerFile) {
-    try {
-        $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
-        if ($fv) { $fv = $fv.Trim() }
-        if ($fv -match '^(\d+(?:\.\d+)+)') { $verFromFile = $matches[1] }
-    } catch {}
-}
-
-# Order of preference: the asset name is the strongest, because it is
-# the file that was actually installed and it carries the version in a
-# shape that has never varied. Tag second, VERSION file third.
-$lufzVer = $null
-foreach ($cand in @($verFromName, $verFromTag, $verFromFile)) {
-    if ($cand) { $lufzVer = $cand; break }
-}
-
-$seen = @($verFromName, $verFromTag, $verFromFile) | Where-Object { $_ }
-$agree = (@($seen | Sort-Object -Unique).Count -le 1)
-if ($lufzVer) {
-    if ($agree) {
-        Write-OK "Installed version $lufzVer (confirmed by $($seen.Count) of 3 sources)."
-    } else {
-        # Not fatal - but say it, because a mismatch means the author
-        # changed something and the next release may need a look.
-        Write-Warn ("Version sources disagree: name=$verFromName tag=$verFromTag file=$verFromFile - using $lufzVer.")
+# lufz needs a game profile. Validate the actual archive instead of assuming
+# that every release still covers FH5.
+if ($modChoice -eq "2") {
+    $fh5Profile = Join-Path $modFolder "profiles\forza_horizon_5.json"
+    if (-not (Test-Path -LiteralPath $fh5Profile -PathType Leaf)) {
+        Write-Host ""
+        Write-Warn "This VRMod build does NOT include a Forza Horizon 5 profile."
+        Write-Host "  Without profiles\forza_horizon_5.json, Install VR Mod and" -ForegroundColor White
+        Write-Host "  Play in VR stay disabled for this game. Check the release page:" -ForegroundColor White
+        Write-Host "    $VRMOD_PAGE" -ForegroundColor Gray
     }
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
-    # ALSO write the durable stamp next to the GAME (2026-08-20).
-    # The line above lands inside the Hub folder and is gone as
-    # soon as a new Hub build is dropped in; the scan then finds
-    # no marker and seeds the CURRENT online tag, swallowing a
-    # pending update. The game-side stamp survives that.
-    Save-InstalledStamp -GameDir $installRoot -Version $lufzVer
-} else {
-    # NO HARD-CODED FALLBACK. A wrong number nags forever; no marker at
-    # all lets the next scan seed the current tag, which self-heals.
-    Write-Warn "No version could be read - the Hub will seed it on the next scan."
-    try { Remove-Item -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
 }
 
-# ---- STEP 5: how to play ----
-Write-Step 5 5 "How to play"
+# Record the shared parent. TwoMods detection checks both subfolders and also
+# understands the older root-level lufz layout. Never keep a stale fixed
+# launcher override: it would bypass the Hub's split launch buttons.
+try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
+try { $ov = Join-Path $PSScriptRoot ".launch_exe"; if (Test-Path -LiteralPath $ov) { Remove-Item -LiteralPath $ov -Force -ErrorAction SilentlyContinue } } catch {}
+
+# The Hub's automatic update badge tracks the lufz GitHub branch. NALULUNA is
+# a manual ko-fi source and deliberately leaves this marker untouched.
+if ($modChoice -eq "2") {
+    $verFromTag = $null
+    if ($rel -and $rel.Tag) {
+        $m = [regex]::Match([string]$rel.Tag, '(\d+(?:\.\d+)+)')
+        if ($m.Success) { $verFromTag = $m.Groups[1].Value }
+    }
+    $verFromName = $null
+    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
+        $cand = $matches[1].Replace("_", ".").Trim(".")
+        if ($cand -match '^\d+(\.\d+)+$') { $verFromName = $cand }
+    }
+    $verFromFile = $null
+    $lufzVerFile = Join-Path $modFolder "VERSION"
+    if (Test-Path -LiteralPath $lufzVerFile -PathType Leaf) {
+        try {
+            $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
+            if ($fv) { $fv = $fv.Trim() }
+            if ($fv -match '^(\d+(?:\.\d+)+)') { $verFromFile = $matches[1] }
+        } catch {}
+    }
+    $lufzVer = $null
+    foreach ($cand in @($verFromName, $verFromTag, $verFromFile)) {
+        if ($cand) { $lufzVer = $cand; break }
+    }
+    $seen = @($verFromName, $verFromTag, $verFromFile) | Where-Object { $_ }
+    $agree = (@($seen | Sort-Object -Unique).Count -le 1)
+    if ($lufzVer) {
+        if ($agree) { Write-OK "Installed version $lufzVer (confirmed by $($seen.Count) of 3 sources)." }
+        else { Write-Warn ("Version sources disagree: name=$verFromName tag=$verFromTag file=$verFromFile - using $lufzVer.") }
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
+        Save-InstalledStamp -GameDir $installRoot -Version $lufzVer
+    } else {
+        Write-Warn "No version could be read - the Hub will seed it on the next scan."
+        try { Remove-Item -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+    }
+}
+
+# ---- STEP 6: how to play ----
+Write-Step 6 6 "How to play"
 Write-Host "============================================================" -ForegroundColor Yellow
-Write-Host " lufz VRMod - HOW TO PLAY" -ForegroundColor Yellow
-Write-Host "============================================================" -ForegroundColor Yellow
+if ($modChoice -eq "1") {
+    Write-Host " NALULUNA - HOW TO PLAY" -ForegroundColor Yellow
+    Write-Host "============================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host " 1) Launch with " -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host " in the Hub, the desktop" -ForegroundColor White
+    Write-Host "    shortcut, or fh5vr.exe, then press 'Launch'." -ForegroundColor White
+    Write-Host " 2) Once you are in a car, press Tab until cockpit view is" -ForegroundColor White
+    Write-Host "    active. That is the view rendered in VR." -ForegroundColor White
+    Write-Host " 3) Press both controller sticks, or Ctrl + Space, to recenter." -ForegroundColor White
+    Write-Host ""
+    Write-Host " Recommended: Meta Link at 72 Hz. Keep Sync FPS on and SteamVR" -ForegroundColor Gray
+    Write-Host " closed. Disable OpenXR Toolkit, motion blur, DLSS and frame" -ForegroundColor Gray
+    Write-Host " generation. On Game Pass also close overlay tools such as" -ForegroundColor Gray
+    Write-Host " Afterburner / RivaTuner." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host " This build targets Steam 1.688.109.0 and Microsoft Store /" -ForegroundColor Gray
+    Write-Host " Game Pass 3.688.109.0. A later game update may need a new mod." -ForegroundColor Gray
+} else {
+    Write-Host " lufz VRMod - HOW TO PLAY" -ForegroundColor Yellow
+    Write-Host "============================================================" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host " 1) Start from the Hub, desktop shortcut, or vrmod-launcher.exe." -ForegroundColor White
+    Write-Host " 2) Click '+ Add Game', choose the game folder, select the row," -ForegroundColor White
+    Write-Host "    then click 'Install VR Mod'. On Game Pass choose" -ForegroundColor White
+    Write-Host "    " -NoNewline -ForegroundColor White
+    Write-Host " C:\XboxGames\Forza Horizon 5\Content " -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host "    On Steam you can also use '+ Add .exe' or Auto-detect Running." -ForegroundColor White
+    Write-Host " 3) Start your OpenXR runtime, then click 'Play in VR'." -ForegroundColor White
+    Write-Host ""
+    Write-Host " For OpenXR 6DoF turn HDR OFF, set in-game FOV to maximum and" -ForegroundColor Gray
+    Write-Host " leave Frame Generation OFF." -ForegroundColor Gray
+}
 Write-Host ""
-Write-Host " 1) Start from the desktop shortcut (or run vrmod-launcher.exe)." -ForegroundColor White
-Write-Host " 2) Click '+ Add Game' and pick the game FOLDER, select the row," -ForegroundColor White
-Write-Host "    then click 'Install VR Mod' (once per game install folder)." -ForegroundColor White
-Write-Host "    On Game Pass pick " -NoNewline -ForegroundColor White
-Write-Host " C:\XboxGames\Forza Horizon 5\Content " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-Write-Host " -" -ForegroundColor White
-Write-Host "    Windows blocks opening the exe there. On Steam you can also" -ForegroundColor White
-Write-Host "    use '+ Add .exe', or 'Auto-detect Running' if it is open." -ForegroundColor White
-Write-Host " 3) Start SteamVR, then click 'Play in VR' - it launches the" -ForegroundColor White
-Write-Host "    game, or enables the headset if it is already running" -ForegroundColor White
-Write-Host "    (best from the main menu, garage, or while driving)." -ForegroundColor White
-Write-Host ""
-Write-Host " Settings: for OpenXR 6DoF turn HDR OFF and set in-game FOV to" -ForegroundColor Gray
-Write-Host " maximum." -ForegroundColor Gray
-Write-Host ""
-Write-Host " Leave " -NoNewline -ForegroundColor White
-Write-Host " Frame Generation " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-Write-Host " OFF - the mod author asks for that" -ForegroundColor White
-Write-Host " with this version. It also clears out a few old config values" -ForegroundColor White
-Write-Host " that could cause trouble - the rest of your tuning stays." -ForegroundColor White
-Write-Host ""
-Write-Host " Your VR mod is installed here (opening it now):" -ForegroundColor White
-Write-Host "   $installRoot" -ForegroundColor Gray
-Write-Host " Run it from this folder or the desktop shortcut - the launcher" -ForegroundColor Gray
-Write-Host " connects to Forza Horizon 5 itself." -ForegroundColor Gray
-try { Start-Process $installRoot } catch {}
-# ---- Signoff ----
+Write-Host " Your selected VR mod is installed here (opening it now):" -ForegroundColor White
+Write-Host "   $modFolder" -ForegroundColor Gray
+try { Start-Process $modFolder } catch {}
 Write-Host ""
 Write-Host " Viva Mexico - drop the roof, floor it, and chase that horizon." -ForegroundColor Magenta
 Write-Host ""

@@ -65,8 +65,11 @@ function Get-SteamInstallPath {
         "HKCU:\SOFTWARE\Valve\Steam"
     )) {
         try {
-            $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
-            if ($p -and (Test-Path $p)) { return $p }
+            if (-not (Test-Path -LiteralPath $reg -ErrorAction SilentlyContinue)) { continue }
+            $props = Get-ItemProperty -LiteralPath $reg -ErrorAction SilentlyContinue
+            foreach ($p in @($props.InstallPath, $props.SteamPath)) {
+                if ($p -and (Test-Path -LiteralPath $p -ErrorAction SilentlyContinue)) { return $p }
+            }
         } catch {}
     }
     return $null

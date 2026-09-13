@@ -9,12 +9,12 @@ House, with 6DOF motion controls, grabbing and throwing. By CircuitLord.
 
 This entry works differently from the rest of the Hub: the mod is not a
 downloadable archive. CircuitLord ships a small companion app that finds
-Big Walk, sets up **MelonLoader**, downloads the mod plus any optional
+Big Walk, sets up **BepInEx**, downloads the mod plus any optional
 add-ons, keeps all of it up to date, and launches the game in VR or
 flat. So the Hub installs that app and hands over.
 
 The Hub verifies the download against the SHA-256 in the project's own
-`manifest.json` before it writes anything into your game folder.
+`manifest-v2.json` before it writes anything into your game folder.
 
 ## Requirements
 - Big Walk on Steam
@@ -27,11 +27,11 @@ the app:
 
 1. **Find Big Walk** - usually already filled in. If not, press
    **Change** and pick the folder.
-2. **Set up MelonLoader** - press its **Install**.
-3. **Big Walk VR** - press its **Install**.
-
-Optional: **Solo Launch** has its own **Install** - press that too if you
-want to play without other players.
+2. **Set up BepInEx** - press **Install**. If an old MelonLoader setup is
+   present, the app offers to remove it first and migrates the Big Walk VR
+   settings it recognises.
+3. **Big Walk VR** - press **Install**, or **Update** when a newer package is
+   offered. Leave **Beta updates** off unless you deliberately want test builds.
 
 The Launch buttons stay greyed out until 1-3 are done. Back in the
 installer, press Enter and it checks whether the mod really arrived.
@@ -62,26 +62,21 @@ together and see each other's tracked movement.
 The app updates itself and the mod. There is nothing to chase in the Hub
 for this entry.
 
-## Optional add-on
-**Solo Launch** bypasses the initial player-count check, so you can walk
-alone. It sits under the optional add-ons in the app with its own
-**Install** button.
-
 ## Removing it again
 
 **Plan A:** use **Open launcher uninstall** beside the uninstall guide in
-the Hub, then choose **Uninstall** in the Big Walk VR app. It removes every
-installed add-on, MelonLoader and the `Mods`, `Plugins`, `UserLibs` and
-`UserData` folders. Your saves are kept.
+the Hub, then choose **Uninstall** on the **Big Walk VR** entry. The app
+removes exactly the files recorded for that package.
 
 **Plan B:** if the launcher cannot remove it, use the install records under
 `UserData\BigWalkVRInstaller` to identify its files. Remove only recorded
-Big Walk VR files. Delete the complete shared mod folders only when you are
-sure no other Big Walk add-on uses them.
+Big Walk VR files. Do not delete the complete shared `BepInEx` folder while
+another Big Walk add-on uses it. **Restore vanilla** in the app is the separate
+action that removes every managed mod and the mod loader.
 
 ## If something goes wrong
 The app's **Logs** tab has its own history, and **Mod logs** opens
-`MelonLoader\Latest.log` in your game folder - that is where the mod
+`BepInEx\LogOutput.log` in your game folder - that is where the mod
 itself reports errors.
 
 Big Walk VR and its app are community projects, not affiliated with or

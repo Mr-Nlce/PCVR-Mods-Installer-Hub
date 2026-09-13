@@ -31,6 +31,8 @@ $ErrorActionPreference = "Stop"
 # Configuration
 # -------------------------------------------------------
 $MOD_URL    = "https://github.com/LivingFray/HellsingerVR/releases/download/0.9.0/Hellsinger_0.9.0.zip"
+$MOD_SIZE   = 33391564
+$MOD_SHA256 = "1C66A4DA273103F10ACDB284B756DCC54544444E8F0AF7090A41277A2E989A42"
 $MOD_NAME   = "HellsingerVR v0.9.0"
 $MOD_AUTHOR = "LivingFray"
 $GITHUB_URL = "https://github.com/LivingFray/HellsingerVR"
@@ -252,39 +254,17 @@ $modExtract = Join-Path $tempDir "HellsingerVR"
 
 $modDone = $false
 while (-not $modDone) {
-    Write-Host "  Downloading $MOD_NAME ... " -NoNewline -ForegroundColor White
-    $dlOk = $false
-    try {
-        Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
-        Write-Host "OK" -ForegroundColor Green
-        $dlOk = $true
-    } catch {
-        Write-Host "FAILED" -ForegroundColor Red
-        Write-Fail "Mod download failed: $_"
-        Write-Host "  Download it manually from:" -ForegroundColor Yellow
-        Write-Host "   $GITHUB_URL/releases" -ForegroundColor Yellow
-        Write-Host "  Save '$([System.IO.Path]::GetFileName($MOD_URL))' to: $tempDir" -ForegroundColor Yellow
-        $__fb = Invoke-InstallerFallback -Action "download the HellsingerVR mod" `
-            -Subject "$MOD_NAME" -Url "$GITHUB_URL/releases" `
-            -Instructions "Download the mod ZIP from the releases page and save it as '$modZip'. Then choose Retry." `
-            -DestFolder "$tempDir" -AllowSkip $false
-        if ([string]$__fb -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-        if (Test-Path $modZip) { $dlOk = $true }
-    }
+    $downloadResult = Invoke-SafeDownload -Urls @($MOD_URL) -Destination $modZip -Label $MOD_NAME `
+        -ManualUrl "$GITHUB_URL/releases" -Instructions "Download Hellsinger_0.9.0.zip and give that file to the installer." `
+        -AllowSkip $false -ExpectedSha256 $MOD_SHA256 -ExpectedBytes $MOD_SIZE
+    if ([string]$downloadResult -eq 'quit') { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
+    $dlOk = Test-DownloadedPayload -Path $modZip -IntendedPath $modZip -ExpectedSha256 $MOD_SHA256 -ExpectedBytes $MOD_SIZE
     if (-not $dlOk) { continue }
 
-    try {
-        if (Test-Path $modExtract) { Remove-Item $modExtract -Recurse -Force -ErrorAction SilentlyContinue }
-        Expand-Archive -Path $modZip -DestinationPath $modExtract -Force -ErrorAction Stop
-    } catch {
-        Write-Fail "Could not extract the mod ZIP: $_"
-        $__fb = Invoke-InstallerFallback -Action "extract the HellsingerVR mod" `
-            -Subject "the downloaded mod ZIP" -Url "$GITHUB_URL/releases" `
-            -Instructions "The ZIP may be incomplete. Re-download it to '$modZip', then choose Retry." `
-            -DestFolder "$tempDir" -AllowSkip $false
-        if ([string]$__fb -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-        continue
-    }
+    if (Test-Path $modExtract) { Remove-Item $modExtract -Recurse -Force -ErrorAction SilentlyContinue }
+    $extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $modExtract -Label $MOD_NAME -AllowSkip $false
+    if ([string]$extractResult -eq 'quit') { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
+    if ([string]$extractResult -notin @('ok','manual')) { continue }
 
     # The mod ZIP extracts flat (winhttp.dll, openvr_api.dll, BepInEx\,
     # dotnet\, Metal_Data\ at the root). A defensive single-folder

@@ -1,8 +1,9 @@
 # ============================================================
 # Grand Theft Auto V VR Installer
 # Adds Luke Ross's R.E.A.L. r7 VR mod to the user's own Grand Theft
-# Auto V. Uses the community GTA-VRV-Patcher to run on the CURRENT
-# build (1.0.3788.0) - no downgrade. We ship ZERO game/mod files;
+# Auto V. Uses the community GTA-VRV-Patcher as the retained older
+# alternative. Compatibility depends on the installed Legacy build.
+# We ship ZERO game/mod files;
 # ScriptHookV (dev-c.com) and the patcher (GitHub) are downloaded
 # at install time.
 # ============================================================
@@ -12,15 +13,16 @@
 $Host.UI.RawUI.WindowTitle = "Grand Theft Auto V VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME       = "GTA-VRV-Patcher fork (R.E.A.L. r7 on current build)"
+$MOD_NAME       = "GTA-VRV-Patcher fork (older R.E.A.L. r7 route)"
 $TARGET_VERSION = "1.0.3788.0"
 $GAME_EXE       = "GTA5.exe"
 $LAUNCH_EXE     = "PlayGTAV.exe"
 # ScriptHookV must match the game build (3788). Official, from dev-c.com.
 $SCRIPTHOOK_URL  = "https://dev-c.com/files/ScriptHookV_3788.0_1013.34.zip"
 $SCRIPTHOOK_FILE = "ScriptHookV_3788.0_1013.34.zip"
-# Francisco Manzanilla's VRV patcher runs Luke Ross R.E.A.L. r7 on the
-# CURRENT build (no downgrade). Public GitHub release.
+# Francisco Manzanilla's VRV patcher runs Luke Ross R.E.A.L. r7 on
+# compatible GTA V Legacy builds. Public GitHub release retained for
+# existing users; the DeployAbi current-build route is installer option 1.
 $PATCHER_URL    = "https://github.com/FranciscoManzanilla/GTA-VRV-Patcher/releases/download/VRV-1.1/GTAVRV.Patcher.zip"
 $PATCHER_FILE   = "GTAVRV.Patcher.zip"
 $PATCHER_BACKUP_VERSION = "VRV-1.1"
@@ -48,6 +50,21 @@ function Write-Info { param($t) Write-Host " [i] $t" -ForegroundColor Cyan }
 function Write-Warn { param($t) Write-Host " [!] $t" -ForegroundColor Yellow }
 function Write-Fail { param($t) Write-Host " [X] $t" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+
+function Test-GtaBaseGame {
+    param([string]$Path)
+    if (-not $Path) { return $false }
+    try {
+        $exe = Join-Path $Path 'GTA5.exe'
+        if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { return $false }
+        $archive = @(
+            (Join-Path $Path 'update\update.rpf'),
+            (Join-Path $Path 'x64a.rpf')
+        ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
+        if (-not $archive) { return $false }
+        return (([int64](Get-Item -LiteralPath $exe -ErrorAction Stop).Length + [int64](Get-Item -LiteralPath $archive -ErrorAction Stop).Length) -ge 100MB)
+    } catch { return $false }
+}
 
 function Find-7Zip {
     # Registry first - the 7-Zip installer records its path here no
@@ -121,21 +138,22 @@ function Get-GtaFolder {
         $p = $raw.Trim().Trim('"').Trim("'").Trim()
         if (-not (Test-Path $p)) { Write-Warn "Path not found: $p"; continue }
         if (Test-Path $p -PathType Container) {
-            if (Test-Path (Join-Path $p $GAME_EXE)) { return $p }
-            Write-Warn "No $GAME_EXE in that folder. Drag the folder that contains it."
+            if (Test-GtaBaseGame $p) { return $p }
+            Write-Warn "The complete GTA V base game was not found there; a small VR-mod remnant is not enough."
             continue
         }
         # A file was dragged - use its folder if GTA5.exe sits there.
         $dir = Split-Path -Parent $p
-        if (Test-Path (Join-Path $dir $GAME_EXE)) { return $dir }
-        Write-Warn "That file is not next to $GAME_EXE. Drag the GTA V folder or GTA5.exe."
+        if (Test-GtaBaseGame $dir) { return $dir }
+        Write-Warn "That file is not inside a complete GTA V base-game folder."
     }
 }
 
 Write-Header
 Write-Host " Adds the R.E.A.L. r7 VR mod to your Grand Theft Auto V." -ForegroundColor White
-Write-Host " Runs on the current build - no downgrade. ScriptHookV and the" -ForegroundColor Gray
+Write-Host " This is the older compatibility route. ScriptHookV and the" -ForegroundColor Gray
 Write-Host " community VRV patcher are downloaded for you." -ForegroundColor Gray
+Write-Host " If it no longer matches your Legacy build, use recommended option 1." -ForegroundColor Yellow
 Write-Host ""
 Write-Host " NOT GTA V Enhanced (2025) - different, incompatible game." -ForegroundColor Gray
 Write-Host ""
@@ -149,6 +167,10 @@ Write-Host ""
 # ---- STEP 1: locate GTA V via the Steam install ----
 Write-Step 1 6 "Locating your GTA V install"
 $gtaDir = Find-SteamGameFolder -AppId "271590" -SteamFolderNames @("Grand Theft Auto V") -ProbeExe $GAME_EXE
+if ($gtaDir -and -not (Test-GtaBaseGame $gtaDir)) {
+    Write-Warn "Only GTA V leftovers were found; the complete base game is not installed there."
+    $gtaDir = $null
+}
 if (-not $gtaDir) {
     Write-Warn "Could not find Grand Theft Auto V via Steam automatically."
     $gtaDir = Get-GtaFolder
@@ -197,26 +219,27 @@ $manualExtract = $false
 # Some sites return an HTML page to scripted requests instead of the file.
 function Test-IsZipFile {
     param([string]$Path)
-    if (-not (Test-Path $Path)) { return $false }
-    try {
-        $fs = [System.IO.File]::OpenRead($Path)
-        $sig = New-Object byte[] 2
-        [void]$fs.Read($sig, 0, 2); $fs.Close()
-        return ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B)
-    } catch { return $false }
+    return (Test-DownloadedPayload -Path $Path -IntendedPath 'payload.zip')
 }
 # Download with a real browser User-Agent (+ optional Referer) so servers
 # that block non-browser requests still hand over the file.
 function Get-BrowserFile {
     param([string]$Url, [string]$Dest, [string]$Referer = "")
+    $stage = $null
     try {
-        if (Test-Path $Dest) { Remove-Item $Dest -Force -ErrorAction SilentlyContinue }
+        $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Dest))
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        $stage = Join-Path $parent ('.pcvr-browser-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($Dest))
         $wc = New-Object System.Net.WebClient
         $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
         if ($Referer) { $wc.Headers.Add("Referer", $Referer) }
-        $wc.DownloadFile($Url, $Dest)
+        $wc.DownloadFile($Url, $stage)
+        if (-not (Test-DownloadedPayload -Path $stage -IntendedPath $Dest)) { return $false }
+        Move-Item -LiteralPath $stage -Destination $Dest -Force
+        $stage = $null
         return $true
     } catch { return $false }
+    finally { if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue } }
 }
 
 # ---- STEP 3: ScriptHookV (must match the game build) ----
@@ -497,11 +520,29 @@ if (Test-Path $realIni) { try { (Get-Content $realIni) -replace '^\s*VRAPI\s*=.*
 # motion overlay OFF; motion -> OpenVR (VRAPI 2) + GTAVR.asi ON. Then it
 # launches with -nobattleye.
 $modeScript = @'
-param([string]$Mode = "gamepad")
+param([ValidateSet("deployabi","gamepad","motion")][string]$Mode = "gamepad")
 $dir = Split-Path -Parent $PSScriptRoot
 $ini = Join-Path $dir "RealVR.ini"
 $asiOn  = Join-Path $dir "GTAVR.asi"
 $asiOff = Join-Path $dir "GTAVR.asi.off"
+$realOn = Join-Path $dir "RealVR.asi"
+$realOff = Join-Path $dir "RealVR.asi.off"
+$deployDisabled = Join-Path $dir "gtavr.disabled"
+$deployManifest = Join-Path $dir "gtavr_install_manifest.txt"
+if (Get-Process -Name "GTA5","GTA5_BE" -ErrorAction SilentlyContinue) { throw "Close GTA V before switching VR mods." }
+if ($Mode -eq "deployabi") {
+    if (Test-Path $realOn) { Move-Item $realOn $realOff -Force }
+    if (Test-Path $asiOn) { Move-Item $asiOn $asiOff -Force }
+    if (Test-Path $deployDisabled) { Remove-Item $deployDisabled -Force }
+    $deployLauncher = Join-Path $PSScriptRoot "DeployAbi\GTAVR-Setup-and-Play.exe"
+    if (-not (Test-Path $deployLauncher)) { throw "The reviewed GTAVR launcher is missing. Re-run installer option 1." }
+    Start-Process -FilePath $deployLauncher -WorkingDirectory (Split-Path -Parent $deployLauncher)
+    return
+}
+if ((Test-Path $deployManifest) -and -not (Test-Path $deployDisabled)) {
+    Set-Content -LiteralPath $deployDisabled -Value "Disabled by PCVR Mods Hub while R.E.A.L. is selected." -Encoding ASCII -Force
+}
+if (Test-Path $realOff) { Move-Item $realOff $realOn -Force }
 if ($Mode -eq "motion") {
     if (Test-Path $ini) { (Get-Content $ini) -replace '^\s*VRAPI\s*=.*', 'VRAPI = 2' | Set-Content $ini }
     if (Test-Path $asiOff) { Move-Item $asiOff $asiOn -Force }
@@ -522,6 +563,14 @@ $gpLauncher = Join-Path $vrl "GTA5 VR (Gamepad).bat"
 $moLauncher = Join-Path $vrl "GTA5 VR Motion (WIP).bat"
 try { Set-Content -Path $gpLauncher -Value $gpBat -Encoding ASCII -Force -NoNewline } catch {}
 try { Set-Content -Path $moLauncher -Value $moBat -Encoding ASCII -Force -NoNewline } catch {}
+
+# If DeployAbi is already present, retain its launcher while refreshing the
+# older R.E.A.L. path. Both generations then share the same safe switcher.
+$deployExe = Join-Path $vrl "DeployAbi\GTAVR-Setup-and-Play.exe"
+if (Test-Path -LiteralPath $deployExe -PathType Leaf) {
+    $deployBat = "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"%~dp0SetVRMode.ps1`" -Mode deployabi`r`n"
+    try { Set-Content -Path (Join-Path $vrl "GTA5 VR (DeployAbi).bat") -Value $deployBat -Encoding ASCII -Force -NoNewline } catch {}
+}
 
 $desktop = [Environment]::GetFolderPath("Desktop")
 try {

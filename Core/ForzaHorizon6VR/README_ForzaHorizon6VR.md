@@ -1,106 +1,129 @@
 # Forza Horizon 6 VR
 
-Two community VR mods bring Forza Horizon 6 to the headset. You own the
-game (Steam / Microsoft Store / Game Pass); the Hub installer lets you
-pick a mod, opens its download, and you drag the downloaded `.zip` onto
-the installer window - it extracts the mod into its **own subfolder**
-under `C:\Games\Forza Horizon 6 VR` (deliberately **outside** the game
-folder) and makes a desktop shortcut.
+<!-- hub:keep-order -->
 
-You can install **both** mods side by side to compare them - each lives
-in its own subfolder (`NALULUNA\` and `lufz\` inside `C:\Games\Forza Horizon 6 VR` by default) so they never overwrite
-each other. Re-run the installer and pick the other mod to switch which
-one is the active "Start in VR" target.
+Three separate community launchers support the Steam and Microsoft Store /
+Game Pass versions. The Hub keeps them in `C:\Games\Forza Horizon 6 VR`
+under their own `NALULUNA`, `lufz` and `CheekyRender` folders. You may keep
+all three packages installed, and the detail page always shows every choice.
 
-There is no single "best" mod - opinions differ, so both are offered.
+Only **one** launcher proxy can be active inside the retail game at a time:
+all three ultimately use `dxgi.dll`. Before changing mods, open the currently
+active launcher's uninstall action, remove its game deployment, close it, and
+then start the other launcher. Never combine or copy their DLLs by hand.
 
-## The two mods
+The original game, saves and graphics settings stay outside these packages.
+**Open in Steam** starts flat; no Flat / VR file switch is needed.
 
-- **NALULUNA** **(recommended)** - free on ko-fi (set the amount to 0). The newest build is
-  always on the page, named like `fh6vr_<version>.zip`. Launcher:
-  `fh6vr.exe`.
-- **lufz / VRMod** - free on the author's GitHub releases. The installer
-  fetches the newest build automatically; no account needed. Launcher:
-  `vrmod-launcher.exe`.
+## Option 1 - NALULUNA (recommended)
 
-  https://github.com/oofz/vrmod-releases/releases
+### Setup and launch
 
-## Requirements
+The installer opens the free ko-fi page. Set the amount to 0 (or add a tip),
+download `fh6vr_<version>.zip`, then drag that ZIP into the installer. Start
+NALULUNA through **[[Start in VR]]**, its desktop shortcut or `fh6vr.exe`, and
+press **[[Launch]]**. Once you are in a car, press **[[Tab]]** until cockpit
+view is active.
 
-- An owned copy of **Forza Horizon 6** (Steam app 2483190, Microsoft
-  Store, or Game Pass).
-- A PC VR headset with an OpenXR / SteamVR runtime.
-- **Do not** place the mod inside Forza Horizon 6's own install folder -
-  the installer keeps it in `C:\Games\Forza Horizon 6 VR`.
+https://ko-fi.com/s/03bdcc5fe9
 
-## Playing - NALULUNA
+### Settings and controls
 
-1. Start from the desktop shortcut (or run `fh6vr.exe`) and press the
-   **[[Launch]]** button to start Forza Horizon 6.
-2. Once you are in a car, press **[[Tab]]** a few times to switch to
-   cockpit view - that view is shown in the headset.
-3. **[[Ctrl]] + [[Space]]** recenters the headset.
+- Gamepad or wheel controls the car.
+- **[[Ctrl]] + [[Space]]** recenters the headset.
+- Start with lower graphics, V-Sync off, an unlimited frame rate, and motion
+  blur / film grain off.
+- DIBR is the smoother starting point; AFR gives cleaner stereo but halves
+  the effective frame rate.
+- DLSS Super Resolution is usable. Leave Frame Generation off so it does not
+  fight the mod's D3D12 injection path.
+- If the map or speedometer is missing in the car, set **HUD Safe Frame
+  Vertical** to 25 under **Settings > HUD & Gameplay**.
 
-Settings: lower graphics, **V-Sync OFF**, frame rate unlimited, motion blur
-and film grain **off**. DIBR mode runs smoothest; AFR looks cleaner but halves
-the frame rate.
+### Switching or removal
 
-**DLSS: Super Resolution is fine, Frame Generation is not.** The mod ships that
-recommendation in its own Forza Horizon 6 profile and gives the reason: VRMod's
-AFR frame generation runs on the inject path, and the game's own DLSS-G would
-fight it for the same D3D12 device. Quality, Balanced or Performance upscaling
-alone is fine.
+Use NALULUNA's own removal first when switching. **Uninstall now** only removes
+the game-folder `dxgi.dll` when it is byte-identical to this installation's
+`fh6vrhook.dll`; any unrelated wrapper is left untouched. The separate package
+and retail game are handled independently.
 
-**Can't see the in-car UI** (map, speedometer, etc.)? In **Settings > HUD & Gameplay**, set **HUD Safe Frame Vertical** to **25** (all the way right).
+## Option 2 - lufz / VRMod
 
-## Playing - lufz / VRMod
+### Setup and launch
 
-1. Start from the desktop shortcut (or run `vrmod-launcher.exe`).
-2. **+ Add Game** and pick the game's install **folder** - on Game Pass that
-   is `C:\XboxGames\Forza Horizon 6\Content`, because Windows blocks opening
-   `ForzaHorizon6.exe` there. On Steam you can also use **+ Add .exe**, or
-   **Auto-detect Running** if the game is already open. Then click
-   **[[Install VR Mod]]**.
-3. Start SteamVR, start the game, then click **[[Play in VR]]** once you
-   reach the main menu, garage, or are driving.
+The Hub downloads the newest lufz release automatically, including the
+author's prereleases. Start `vrmod-launcher.exe`, choose **[[+ Add Game]]** and
+pick the FH6 install folder, then press **[[Install VR Mod]]**. On Game Pass the
+usual folder is `C:\XboxGames\Forza Horizon 6\Content`; Windows may block
+selecting `ForzaHorizon6.exe` itself. Steam users may also use **[[+ Add .exe]]**
+or **[[Auto-detect Running]]**.
 
-Settings: for **OpenXR 6DoF** turn HDR off and set in-game FOV to maximum;
-**Leave Frame Generation off** - the mod author asks for that with this
-version. It also clears out a few old config values that could cause trouble;
-only those are reset, the rest of your tuning stays as you set it.
-Head tracking stuck? Press **[[F8]]** to
-toggle it off and on again.
+Start SteamVR, launch the game, and press **[[Play in VR]]** after reaching the
+main menu, garage or road.
 
-## Controls
+https://github.com/oofz/vrmod-releases/releases
 
-- **Gamepad** is the expected scheme for both mods (wheel works too).
-- Recenter (NALULUNA): **[[Ctrl]] + [[Space]]**.
+### Settings and controls
 
-## Notes & safety
+- Gamepad or wheel controls the car.
+- For OpenXR 6DoF, turn HDR off and set the in-game FOV to maximum.
+- Leave Frame Generation off. The launcher clears only obsolete conflicting
+  profile values and preserves the rest of your tuning.
+- If head tracking sticks, press **[[F8]]** to toggle it off and on.
 
-- Both mods interfere with the running game (memory/camera/render hooks),
-  so there is no guarantee against anti-cheat action. Use at your own risk.
-- A Forza Horizon 6 game update can break a mod until the author ships an
-  update - re-download the newest build when that happens. Do **not**
-  contact the official Forza team about a broken mod.
+### Switching or removal
 
-## Flat play and removal
+Before switching, select Forza Horizon 6 inside VRMod and run
+**[[Uninstall VR Mod]]**. **Uninstall now** opens that author action, waits for
+it to finish, and removes the separate lufz package only after
+`.vrmod_install.json` is gone from every verified game location.
 
-There is no game-folder mode switch to operate here. Both VR choices use a
-separate launcher, while **Open in Steam** on this page starts the original
-game normally for flat play.
+## Option 3 - CheekyRender by ClarkCheekyKent
 
-**Uninstall now** first shows NALULUNA and lufz separately. NALULUNA's copied
-game hook is removed only when it is byte-identical to the hook in that
-installation. For lufz, the Hub opens the author's own **Uninstall VR Mod**
-action and verifies that its deployment manifest is gone before removing the
-separate launcher package. The retail game, saves, settings and unrelated
-wrappers are never deleted.
+### Setup and first launch
 
-## Support & credits
+The Hub automatically downloads the newest published release, whether the
+author labels it stable or prerelease, and installs the four-file payload into
+one stable `CheekyRender` folder. Microsoft Visual C++ 2015-2022 Redistributable
+(x64) is required.
 
-- **NALULUNA** - https://ko-fi.com/naluluna/shop
-- **lufz / VRMod** - Lufz (https://x.com/djlufz); JP translation by Monkin.
-- Forza Horizon 6 by Playground Games / Turn 10.
+Prepare the headset and preferred OpenXR runtime, start CheekyRender through
+**[[Start in VR]]**, select the FH6 install if detection did not fill it in,
+then press **[[Start VR + FH6]]**.
+
+On the first run and after every update, the launcher rebuilds its camera-hook
+profile. Follow the status instructions: switch to Driver Camera, switch to Far
+Chase Camera, then pause and unpause five times. When it reports that the
+profile was updated, restart the game. The next run should report
+`generated profile active`.
+
+https://github.com/ClarkCheekyKent/cheeky-render-releases
+
+### Modes and settings
+
+- **Mono** has the best performance and clarity but no stereo depth.
+- **AFR-Half** adds stereo at half the per-eye rate. **AFR full rate** needs the
+  game to sustain twice the headset refresh rate.
+- Unlock the frame rate, turn V-Sync off and start with the in-game FOV sliders
+  at maximum. Dropping below the headset target can cause AFR flicker.
+- Foveated rendering and peripheral DLAA trade image quality against speed;
+  foveated DLSS-SR provides the largest reported performance gain.
+- **[[Alt]] + [[Shift]] + [[W]] / [[A]] / [[S]] / [[D]] / [[Q]] / [[E]]**
+  adjusts the seating position live.
+- This is an early preview tested by the author on Quest 3, Virtual Desktop,
+  an NVIDIA 5070 and Game Pass. Other combinations are not yet validated.
+
+### Switching or removal
+
+Use **[[Uninstall Mod]]** in CheekyRender before switching or deleting its
+folder. **Uninstall now** opens that author action and verifies that a matching
+CheekyRender `dxgi.dll` is no longer deployed before removing only the four
+shipped payload files. A different or older `dxgi.dll` is never guessed away;
+the separate package is kept for a safe retry. Generated settings are preserved.
+
+All three mods inject render and camera hooks into the running game. There is
+no guarantee against future anti-cheat action, and a game update may require a
+new mod release. Use them at your own risk and do not ask the official Forza
+team to support a broken VR mod.
 
 >>> Chase the horizon, feel every gear change, and let the festival roar.

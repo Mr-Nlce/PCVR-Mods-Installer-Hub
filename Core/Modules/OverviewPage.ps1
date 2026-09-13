@@ -591,7 +591,7 @@ function global:Set-BannerForGame {
         # Candidate chain, tried in order by Set-SafeBannerImage (which
         # walks the WHOLE list and does delayed retry passes for
         # transient CDN hiccups). FIRST candidate is the local disk
-        # cache (Assets\cache\) if we've successfully loaded this art
+        # LocalAppData image cache if we've successfully loaded this art
         # before - it loads synchronously from file, so once seen a
         # banner is never blank again. Then the network sources: the
         # catalog/header URL, BOTH Steam header CDNs (akamai + fastly -
@@ -910,41 +910,18 @@ function global:Set-OvBannerForActiveGenre {
 }
 
 # ---------------------------------------------------------------
-# Hub settings file: small JSON next to VRModHub.ps1 storing
-# user toggles (checkOnStartup, banner disable flags, etc.).
-# Created on first write, never shipped in the release ZIP.
-# Defined here near the top of the post-XAML code so any
-# subsequent UI wiring can read/write settings.
+# Hub settings use the checksummed LocalAppData document loaded by
+# HubState.ps1. The old Core\.hub-settings.json is read only as a migration
+# source and never written again.
 # ---------------------------------------------------------------
-$global:HubSettingsFile = Join-Path $scriptDir ".hub-settings.json"
+$global:HubSettingsFile = Get-HubStateFilePath
 
 function global:Get-HubSetting {
     param([string]$Key, $Default = $null)
-    if (-not (Test-Path $global:HubSettingsFile)) { return $Default }
-    try {
-        $raw = Get-Content $global:HubSettingsFile -Raw
-        $obj = $raw | ConvertFrom-Json
-        if ($obj.PSObject.Properties.Name -contains $Key) {
-            return $obj.$Key
-        }
-    } catch { }
-    return $Default
+    return (Read-PersistentHubSetting -Key $Key -Default $Default)
 }
 
 function global:Set-HubSetting {
     param([string]$Key, $Value)
-    $obj = @{}
-    if (Test-Path $global:HubSettingsFile) {
-        try {
-            $raw = Get-Content $global:HubSettingsFile -Raw
-            $parsed = $raw | ConvertFrom-Json
-            foreach ($p in $parsed.PSObject.Properties) {
-                $obj[$p.Name] = $p.Value
-            }
-        } catch { }
-    }
-    $obj[$Key] = $Value
-    try {
-        $obj | ConvertTo-Json -Compress | Set-Content -Path $global:HubSettingsFile -Encoding UTF8
-    } catch { }
+    Write-PersistentHubSetting -Key $Key -Value $Value
 }

@@ -294,8 +294,8 @@ if ($useSetup) {
     # rather than the exit code - the user may have cancelled it, or
     # pointed it at a different copy of the game.
     Write-Info "The author's Setup did the copying - checking the game folder."
-    if (Test-Path -LiteralPath (Join-Path $gameDir $MOD_EXE)) {
-        Write-OK "$MOD_EXE is in place: $gameDir"
+    if (Test-Path -LiteralPath (Join-Path $gamePath $MOD_EXE)) {
+        Write-OK "$MOD_EXE is in place: $gamePath"
     } else {
         Write-Fail "$MOD_EXE is not in the game folder - the Setup may have been cancelled,"
         Write-Host "  or it installed into a different copy of the game." -ForegroundColor White
@@ -562,6 +562,8 @@ Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Ye
 Write-Host " in the Hub or the new desktop shortcut." -ForegroundColor White
 Write-Host "   Starting the game from Steam does not start the VR build -" -ForegroundColor White
 Write-Host "   it only comes up through $LAUNCH_BAT" -ForegroundColor White
+Write-Host "   Start in VR uses your last saved profile; it does not reopen" -ForegroundColor Gray
+Write-Host "   the configurator." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  +==========================================================+" -ForegroundColor Yellow
 Write-Host "  |            TWO THINGS TO KNOW                            |" -ForegroundColor Yellow

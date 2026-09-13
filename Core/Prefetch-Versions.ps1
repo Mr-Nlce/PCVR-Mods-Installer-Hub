@@ -1,8 +1,8 @@
 # Prefetch-Versions.ps1
 # Detached, silent cache warmer launched next to the Hub at startup.
 #
-# It ONLY fills the on-disk version caches (.gh_version_cache and
-# .web_version_cache) that a later scan reads. It never opens a window,
+# It ONLY fills the LocalAppData version caches that a later scan reads. It
+# never opens a window,
 # never touches a game card, and never marks anything as an update. A mod
 # is shown as "Update" ONLY when the user runs a scan from the Hub - this
 # script just makes that first scan fast by pre-warming the same 6h caches
@@ -19,8 +19,13 @@ $ErrorActionPreference = "SilentlyContinue"
 $ProgressPreference = "SilentlyContinue"
 
 try {
-    $dir = $PSScriptRoot
-    $catalog = Join-Path $dir "Modules\Catalog.ps1"
+    $coreDir = $PSScriptRoot
+    $script:scriptDir = $coreDir
+    $global:scriptDir = $coreDir
+    . (Join-Path $coreDir 'Modules\HubState.ps1')
+    $dir = Get-HubVersionCacheRoot
+    if (-not $dir) { return }
+    $catalog = Join-Path $coreDir "Modules\Catalog.ps1"
     if (-not (Test-Path $catalog)) { return }
     $text = Get-Content $catalog -Raw
 

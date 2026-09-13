@@ -52,8 +52,8 @@ $GAME_DRIVE_VIEW_URL = "https://drive.google.com/file/d/$GAME_DRIVE_FILE_ID/view
 # Discord URLs (mod is Discord-gated even though the game isn't).
 $DISCORD_INVITE_URL = "https://discord.gg/G8zZBTGuhP"
 $DISCORD_RULES_URL = "https://discord.com/channels/1001138422972432597/1001138600781557862/1111681500711235664"
-$DISCORD_INFO_URL = "https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221"
 $DISCORD_DOWNLOAD_STD_URL = "https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199"
+$DISCORD_DOWNLOAD_FIX_URL = "https://discord.com/channels/1001138422972432597/1267088216456953907/1316306250354524221"
 
 # -------------------------------------------------------
 # Helpers
@@ -427,22 +427,20 @@ $isUpsideDownFix = ($variantPick -in @("u","U"))
 if ($isUpsideDownFix) {
  $expectedZipKeyword = "fixupsidedownbug"
  $variantLabel = "Upside-down-bug fix"
+ $variantDownloadUrl = $DISCORD_DOWNLOAD_FIX_URL
 } else {
  $expectedZipKeyword = "Sonic_P-06_VR"
  $variantLabel = "Standard"
+ $variantDownloadUrl = $DISCORD_DOWNLOAD_STD_URL
 }
 
-# Both variants live in the same Discord post (single mod channel,
-# multiple files attached on the same message + later messages).
-# Direct deep-links to specific attachments aren't reliable, so we
-# point the user at the parent info post and let them grab the
-# variant they picked.
+# Each variant has its own verified Discord message. Open the one the
+# user selected so the wrong archive is not offered by default.
 Write-Host ""
-Write-Host " Opening the mod info post (both variants are linked there)..." -ForegroundColor Gray
-Write-Host " -> $DISCORD_DOWNLOAD_STD_URL" -ForegroundColor DarkGray
-Write-Host " Mod-channel info post: $DISCORD_INFO_URL" -ForegroundColor DarkGray
+Write-Host " Opening the $variantLabel download post..." -ForegroundColor Gray
+Write-Host " -> $variantDownloadUrl" -ForegroundColor DarkGray
 Pause-User "Press Enter to open the mod post..."
-try { Start-Process $DISCORD_DOWNLOAD_STD_URL } catch {}
+try { Start-Process $variantDownloadUrl } catch {}
 
 # -------------------------------------------------------
 # STEP 5: Drag-drop the chosen mod variant

@@ -1,79 +1,132 @@
 # Forza Horizon 5 VR
 
-The lufz **VRMod** brings Forza Horizon 5 to the headset with OpenXR
-per-eye rendering and experimental 6DoF head tracking. You own the game
-(Steam / Microsoft Store / Game Pass); the free community mod is
-downloaded automatically from the author's GitHub releases and the
-installer sets it up under `C:\Games\Forza Horizon 5 VR` (deliberately
-**outside** the game folder). The same VRMod launcher also supports Forza Horizon 6 - if you
-install both, one launcher install per game folder is still required.
+Two community VR mods bring Forza Horizon 5 to the headset. You own the
+game (Steam / Microsoft Store / Game Pass); the Hub installer lets you
+choose a mod, obtains or opens its current download and installs it under
+`C:\Games\Forza Horizon 5 VR`, deliberately **outside** the retail game.
+
+Both packages can remain installed. Fresh installs use separate
+`NALULUNA\` and `lufz\` folders; an existing root-level lufz installation
+from an older Hub remains supported and is updated in place. When the Hub
+finds both launchers, the game tile and detail page let you choose which
+one to start.
+
+## The two mods
+
+- **NALULUNA** - free on ko-fi (enter 0 or any tip). The installer opens
+  the current product page; download the newest `fh5vr_<version>.zip` and
+  drag it onto the installer. Launcher: `fh5vr.exe`.
+
+  https://ko-fi.com/s/1724b05721
+- **lufz / VRMod** - free on GitHub. The installer downloads the newest
+  release, including prereleases, automatically. Launcher:
+  `vrmod-launcher.exe`.
+
+  https://github.com/oofz/vrmod-releases/releases
+
+There is no universal winner. NALULUNA has dedicated AFR/DIBR rendering
+modes and launches the game itself; lufz uses its multi-game VRMod launcher
+and offers its own install, tuning and VR-session controls.
 
 ## Requirements
 
 - An owned copy of **Forza Horizon 5** (Steam app 1551360, Microsoft
-  Store, or PC Game Pass)
-- A PC VR headset with a working OpenXR runtime (SteamVR or the
-  headset's own runtime)
-- **Do not** place the mod inside Forza Horizon 5's own install folder -
-  the installer keeps it in `C:\Games\Forza Horizon 5 VR`.
+  Store, or PC Game Pass).
+- A PC VR headset with a working OpenXR runtime.
+- Do not put either launcher package in the retail game folder. Both
+  authors expect the launcher to live elsewhere.
 
-## The VRMod launcher, at a glance
+## Playing - NALULUNA
 
-The launcher window has three columns:
+1. Use **[[Start in VR]]** in the Hub, the desktop shortcut, or start
+   `fh5vr.exe`, then press **[[Launch]]**.
+2. Once you are in a car, press **[[Tab]]** until cockpit view is active.
+   That is the view displayed in the headset.
+3. Press both controller sticks together, or **[[Ctrl]] + [[Space]]**, to
+   recenter.
 
-1. **Games** (left) - your library. Use **+ Add Game** and pick the
-   game's install **folder** - on Game Pass that is
-   `C:\XboxGames\Forza Horizon 5\Content`, because Windows blocks
-   opening `ForzaHorizon5.exe` there. On Steam you can also use
-   **+ Add .exe**, or start the game first and click
-   **Auto-detect Running**. Select the game's row, then click
-   **Install VR Mod** (needed once per game install folder). The
-   **Check My Setup** panel below flags conflicts (e.g. a missing
-   proxy) with a **Re-check** button.
-2. **Play in VR** (middle) - pick your headset (Auto / OpenXR works for
-   most), then click **Play in VR**: it launches the game, or enables
-   the headset if the game is already running (best from the main menu,
-   the garage, or while driving). **Exit VR** returns to flat.
-   The Options block below controls Stereo Strength, Game FOV, Render
-   Scale, upscale quality and picture look.
-3. **Tracking & Advanced** (right) - the experimental 6DoF block:
-   head-look sensitivity, smoothing, lean amount/direction and seat
-   position. **Re-acquire camera (re-hook)** fixes a warped or stuck
-   view after a teleport.
+Use **Meta Link at 72 Hz** as the first setup to try. Keep **Sync FPS on**
+and SteamVR closed. If SteamVR is unavoidable, disable its Theater Mode and
+enable **Force Minimize Game** in the mod. Do not use OpenXR Toolkit.
 
-## How to play
+Choose the rendering mode that fits the PC:
 
-1. Start with **Start in VR** in the Hub, or the **Forza Horizon 5 VR** desktop shortcut (or run
-   `vrmod-launcher.exe` from the separate VR mod directory, `C:\Games\Forza Horizon 5 VR` by default).
-2. Add/select Forza Horizon 5 and click **Install VR Mod** (first run
-   only).
-3. Start SteamVR (or your OpenXR runtime), then click **Play in VR**.
+- **AFR** alternates complete left/right eye frames. Stereo is clean, but
+  the delivered frame rate per eye is halved. AFR-half adds interpolation.
+- **DIBR** reconstructs stereo from depth. It is much lighter, but may show
+  artifacts around mirrors, pillars and the steering wheel. DIBR-half is
+  the lowest-load option.
+- **Mono** has no stereo depth but is useful for troubleshooting.
+
+Keep the custom resolution roughly square or slightly wider, for example
+1600 x 1440 or 2160 x 1920. Turn off motion blur, DLSS and frame generation;
+raise the mod resolution before raising the game's graphics preset. On the
+Microsoft Store / Game Pass build, close Afterburner, RivaTuner and similar
+overlay tools.
+
+The currently inspected build supports Steam **1.688.109.0** and Microsoft
+Store / Game Pass **3.688.109.0**. A later game update can require a new
+NALULUNA build.
+
+## Playing - lufz / VRMod
+
+1. Use **[[Start in VR]]** in the Hub, the desktop shortcut, or start
+   `vrmod-launcher.exe`.
+2. Choose **[[+ Add Game]]** and select the game's install folder. On Game
+   Pass this is normally `C:\XboxGames\Forza Horizon 5\Content`, because
+   Windows may block selecting the executable itself. On Steam you can also
+   use **[[+ Add .exe]]** or **[[Auto-detect Running]]**. Select the FH5 row
+   and press **[[Install VR Mod]]** once for that game folder.
+3. Start the selected OpenXR runtime and press **[[Play in VR]]**. This can
+   launch the game or attach after it is already at the menu, garage or in
+   a car. **[[Exit VR]]** returns the session to flat.
+
+For OpenXR 6DoF, turn HDR off, set the in-game FOV to maximum and leave
+Frame Generation off. If head tracking becomes stuck, use the launcher's
+re-acquire control.
 
 ## Controls
 
-Driving uses a **gamepad or wheel**, exactly like flat Forza:
+Driving uses the normal gamepad or wheel controls:
 
-- [[LT]] Brake / reverse
-- [[RT]] Accelerate
-- [[Left Stick]] Steering
-- [[A]] Handbrake (default layout)
-- Head movement looks around the cockpit (6DoF is experimental - tune
-  it in the Tracking & Advanced column)
+- **[[LT]]** Brake / reverse
+- **[[RT]]** Accelerate
+- **[[Left Stick]]** Steering
+- **[[A]]** Handbrake on the default layout
+- NALULUNA recenter: press **[[Left Stick]] + [[Right Stick]]**, or
+  **[[Ctrl]] + [[Space]]**
 
-## Tips & known quirks
+## Notes and safety
 
-- For OpenXR 6DoF, turn **HDR OFF** and set the in-game FOV slider to
-  **maximum**.
-- **Leave Frame Generation off.** The mod author asks for that with this
-  version. The launcher's toggle stays there, but it is not the setting to
-  experiment with right now.
-- This version clears out a few old config values that could cause trouble.
-  Only those are reset - the rest of your tuning stays as you set it.
-- Lower in-game graphics, V-Sync OFF, frame rate unlimited, motion
-  blur / DLSS / frame generation OFF is the smoothest starting point.
-- A Forza Horizon 5 game update can break the mod until the author
-  ships an update - re-run the installer, which always fetches the
-  newest build. Do not contact the official Forza team about a broken
-  mod.
-- The launcher shows **"No supported games running"** until Forza is
-  started or added to the library - that line is normal at first run.
+- Both mods inject into the running game and read or change camera and
+  rendering data. The authors cannot guarantee that no account action will
+  occur. Use them at your own risk.
+- NALULUNA copies its own hook into the detected retail game folder as
+  `dxgi.dll`. The Hub's uninstaller removes it only when it is byte-identical
+  to the selected NALULUNA package; a different DXGI wrapper is preserved.
+- A Forza Horizon 5 update can break either mod until its author publishes a
+  compatible build. Do not contact the official Forza team about mod issues.
+
+## Flat play and removal
+
+No Flat / VR file switch is needed. **Open in Steam** starts the original
+game normally; **Start in VR** opens the selected external launcher.
+
+**Uninstall now** shows NALULUNA and lufz separately:
+
+- NALULUNA: the Hub verifies and removes only its matching game-folder
+  `dxgi.dll`, then removes the three archive-owned launcher files. Generated
+  `fh5vr.ini` and logs remain available.
+- lufz: the Hub opens the author's **Uninstall VR Mod** action first. Only
+  after `.vrmod_install.json` is gone does it remove the known launcher
+  payload. Generated library/settings files remain available.
+
+The retail game, saves, settings and unrelated wrappers are never deleted.
+
+## Support and credits
+
+- **NALULUNA** - https://ko-fi.com/naluluna/shop
+- **lufz / VRMod** - https://github.com/oofz/vrmod-releases
+- Forza Horizon 5 by Playground Games / Turn 10.
+
+>>> Viva Mexico - drop the roof, floor it, and chase that horizon.

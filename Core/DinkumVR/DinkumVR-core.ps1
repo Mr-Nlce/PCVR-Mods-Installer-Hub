@@ -281,6 +281,7 @@ if (-not (Test-Path $bepinexDir)) {
  Write-Warn "BepInEx + winhttp.dll are there, but DinkumVR.dll is missing from BepInEx\plugins\DinkumVR."
 } else {
  Write-OK "BepInEx + winhttp.dll + DinkumVR.dll present in the game folder."
+ Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
 }
 
 # -------------------------------------------------------

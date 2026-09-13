@@ -1,580 +1,389 @@
-# ============================================================
-# Halo 3 MCC VR Installer (Halo MCC VR, by pancreations)
-# ============================================================
-# A native OpenXR VR mod for Halo: The Master Chief Collection on
-# Steam or Microsoft Store / Xbox app.
+# Halo MCC VR installer
 #
-# The mod ships NO install.bat. Stable 0.3.3 contains the halo3xr pair;
-# prerelease 0.3.5 contains the renamed HaloMCCVR pair. Both also ship
-# halomccvr.cfg and are meant to
-# be copied by hand into a "Halo_MCC_VR" folder inside the MCC install.
-# So the Hub does that copy itself:
-#   1. Resolves the newest release from GitHub (prerelease-aware).
-#   2. Downloads and unpacks HaloMCCVR-alpha-<ver>.zip.
-#   3. Finds the MCC game folder (Steam library / Xbox / MS Store,
-#      with a manual drag & drop fallback).
-#   4. Creates <MCC>\Halo_MCC_VR and copies the mod files in,
-#      then makes a "Halo MCC VR" desktop shortcut to the launcher.
-#      No game files are modified; removing the folder removes the mod.
-#
-# The launcher starts MCC through its official anti-cheat-DISABLED
-# mode. It must never be used in anti-cheat-enabled matchmaking.
-#
-# Auto-update follows the stable/prerelease channel selected here.
-# ============================================================
+# Installs the maintained MCCVR continuation by moistman42069. The Hub no
+# longer offers the abandoned original builds as installation choices.
 
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 
-$Host.UI.RawUI.WindowTitle = "Halo 3 MCC VR Installer"
+$Host.UI.RawUI.WindowTitle = 'Halo MCC VR Installer'
+$MCC_APPID = '976730'
+$MCC_STEAM_FOLDER = 'Halo The Master Chief Collection'
+$MCC_BIN_DIR = 'MCC\Binaries\Win64'
+$MCC_EXE_STEAM = 'MCC-Win64-Shipping.exe'
+$MCC_EXE_STORE = 'MCCWinStore-Win64-Shipping.exe'
+$CONTINUATION_REPO = 'moistman42069/MCCVR-Halo-Build'
+$CONTINUATION_PAGE = "https://github.com/$CONTINUATION_REPO/releases"
+$QUIP = 'Finish the fight - now from inside the visor.'
+
+$CONTINUATION_PIN = [pscustomobject]@{
+    Family='Community'; Channel='stable'; Tag='MCCVR-d77c9dd'; Name='HaloMCCVR-d77c9dd-WIP-Test.zip'
+    Url='https://github.com/moistman42069/MCCVR-Halo-Build/releases/download/MCCVR-d77c9dd/HaloMCCVR-d77c9dd-WIP-Test.zip'
+    Page=$CONTINUATION_PAGE; Folder='Halo_MCC_VR_community'; Marker='.pcvrhub-halomccvr-community'; Manifest='.pcvrhub-halomccvr-community-install.tsv'
+    Shortcut='Halo MCC VR'
+}
 
 function Write-Header {
     Clear-Host
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host " Halo 3 MCC VR Installer" -ForegroundColor Cyan
-    Write-Host " Halo MCC VR (alpha) by pancreations | Steam + Xbox app MCC" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host ""
+    Write-Host '============================================================' -ForegroundColor Magenta
+    Write-Host ' Halo MCC VR Installer' -ForegroundColor Cyan
+    Write-Host ' Installs: Halo MCC VR by moistman42069' -ForegroundColor Gray
+    Write-Host '============================================================' -ForegroundColor Magenta
+    Write-Host ''
 }
-function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
-function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
-function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
-function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
-function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Write-Step { param([int]$Number,[int]$Total,[string]$Text) Write-Host ''; Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan; Write-Host '' }
+function Write-OK   { param([string]$Text) Write-Host " [OK] $Text" -ForegroundColor Green }
+function Write-Info { param([string]$Text) Write-Host " [..] $Text" -ForegroundColor Gray }
+function Write-Warn { param([string]$Text) Write-Host " [!!] $Text" -ForegroundColor Yellow }
+function Write-Fail { param([string]$Text) Write-Host " [X]  $Text" -ForegroundColor Red }
+function Pause-User { param([string]$Text='Press Enter to continue...') Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Read-YesNo {
+    param([string]$Prompt)
+    while ($true) {
+        Write-Host ''
+        $answer = ('' + (Read-Host " $Prompt [Y/N]")).Trim().ToUpperInvariant()
+        if ($answer -in @('Y','YES')) { return $true }
+        if ($answer -in @('N','NO'))  { return $false }
+        Write-Warn 'Please type Y or N.'
+    }
+}
 
-$REPO              = "pancreations/Halo-MCC-VR"
-$REPO_API_RELEASES = "https://api.github.com/repos/$REPO/releases?per_page=5"
-$RELEASES_PAGE     = "https://github.com/$REPO/releases"
-$INFO_URL          = "https://github.com/$REPO"
-# Last-known-good asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/pancreations/Halo-MCC-VR/releases/download/MCC_VR_ALPHA_0.3.3/MCC_VR_ALPHA_0.3.3.zip"
-$KNOWN_FALLBACK_TAG = "MCC_VR_ALPHA_0.3.3"
+function Test-MCCRoot([string]$Root) {
+    if (-not $Root) { return $false }
+    $bin = Join-Path $Root $MCC_BIN_DIR
+    return [bool]((Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_STEAM) -PathType Leaf) -or
+                  (Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_STORE) -PathType Leaf))
+}
 
-$MCC_STEAM_FOLDER  = "Halo The Master Chief Collection"
-$MCC_APPID         = "976730"
-# The Microsoft Store / Game Pass build ships the SAME executable under a
-# different name: MCCWinStore-Win64-Shipping.exe instead of
-# MCC-Win64-Shipping.exe (renamed by 343 in the Season 6 update). Detection
-# has to accept either, or Game Pass owners cannot even get past this step -
-# not via auto-detect and not via drag & drop.
-$MCC_BIN_DIR       = "MCC\Binaries\Win64"
-$MCC_EXE_STEAM     = "MCC-Win64-Shipping.exe"
-$MCC_EXE_WINSTORE  = "MCCWinStore-Win64-Shipping.exe"
-$MCC_PROBE_EXE     = "$MCC_BIN_DIR\$MCC_EXE_STEAM"
-$MOD_FOLDER_NAME   = "Halo_MCC_VR"
-# !!! RENAMED BY THE AUTHOR. Up to 0.3.x the payload was halo3xr.dll and
-# halo3xr_launcher.exe; from Alpha 0.3.5 it is HaloMCCVR.dll and
-# HaloMCCVRLauncher.exe, plus a third file, halomccvr.cfg. Searching for
-# the old names found nothing in the new archive.
-#
-# The release notes are explicit about upgrades: remove the obsolete
-# halo3xr files and replace ALL THREE current ones. The old names are
-# kept here so the installer can clear them out.
-$PAYLOAD_LAYOUTS   = @(
-    @{ Name="current"; Dll="HaloMCCVR.dll"; Launcher="HaloMCCVRLauncher.exe" },
-    @{ Name="legacy";  Dll="halo3xr.dll";   Launcher="halo3xr_launcher.exe" }
-)
-$ALL_PAYLOAD_FILES = @("HaloMCCVR.dll", "HaloMCCVRLauncher.exe", "halo3xr.dll", "halo3xr_launcher.exe")
-$HUB_LAUNCHER      = "HaloMCCVRHubLauncher.bat"
-$HALO_MANAGED_FILES = @($ALL_PAYLOAD_FILES + @($HUB_LAUNCHER, "halomccvr.cfg", "MANUAL-README.txt", "ALPHA-README.txt", "BUILD-INFO.txt"))
-$MOD_DLL           = $null
-$MOD_LAUNCHER      = $null
-# 0.3.0 SHIPS halomccvr.cfg and it MUST replace an older one: the new build
-# adds settings older files do not have, and anything missing silently falls
-# back to a built-in default instead of the shipped value. The visible
-# casualty is fit_desktop_window (built-in default OFF, shipped ON), which
-# caps the headset frame rate. The user's old file is backed up, not lost.
-$MOD_CFG           = "halomccvr.cfg"
-
-# Resolve the newest release ZIP asset (prerelease included) via the
-# GitHub API. Returns @{ Url; Tag; Channel } or $null on any failure.
-function Get-LatestHaloRelease {
+function Find-MCCRoot {
+    $found = $null
+    try { $found = Find-SteamGameFolder -AppId $MCC_APPID -SteamFolderNames @($MCC_STEAM_FOLDER) -ProbeExe (Join-Path $MCC_BIN_DIR $MCC_EXE_STEAM) } catch {}
+    if (Test-MCCRoot $found) { return $found }
     try {
-        $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri $REPO_API_RELEASES -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-
-        # !!! NEVER TAKE THE TOP OF THE LIST BLINDLY (2026-08-20). The
-        # author publishes throwaway diagnostic builds beside the real
-        # ones - "broken_build" sat at the top of this list, is tagged as
-        # a prerelease, says "for that guy who asked" and carries a
-        # Halo 4 diagnostic only. Installing it would replace a working
-        # mod with a build its own author calls broken.
-        # Rule: skip anything whose tag or title says broken / diagnostic
-        # / debug, and prefer the release the AUTHOR marked as the latest
-        # one. Do not reject the valid 0.3.5 build merely because its notes
-        # correctly call it a test prerelease.
-        $junk = '(?i)broken|diagnostic|debug|scratch|dontuse|do.not.use'
-        $usable = @($rels | Where-Object {
-            (-not ([string]$_.tag_name -match $junk)) -and
-            (-not ([string]$_.name     -match $junk))
-        })
-        # THE USER DECIDES WHEN THE TWO DIFFER. The stable release is the
-        # one the author stands behind; the newest pre-release usually
-        # covers more Halo titles but is, in his own words, for testing.
-        # Only asked when there is something to choose between.
-        $stable = $usable | Where-Object { -not $_.prerelease } | Select-Object -First 1
-        $prerelease = $usable | Where-Object { $_.prerelease } | Select-Object -First 1
-        $rel = $stable
-        if ($prerelease -and $stable -and ([string]$prerelease.tag_name -ne [string]$stable.tag_name)) {
-            Write-Host ""
-            Write-Host "  Two builds are available:" -ForegroundColor White
-            Write-Host "   [1] $($stable.tag_name)" -NoNewline -ForegroundColor Green
-            Write-Host "  - stable, the one the author stands behind" -ForegroundColor Gray
-            Write-Host "   [2] $($prerelease.tag_name)" -NoNewline -ForegroundColor Yellow
-            Write-Host "  - pre-release, usually more Halo titles," -ForegroundColor Gray
-            Write-Host "       and more likely to misbehave" -ForegroundColor Gray
-            Write-Host ""
-            $pick = ""
-            for ($k = 1; $k -le 20; $k++) {
-                $pick = ("" + (Read-Host "  Which one? [1/2]")).Trim()
-                if ($pick -in @("1","2")) { break }
-                Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
-            }
-            if ($pick -eq "2") { $rel = $prerelease }
+        $recorded = (Get-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Raw -ErrorAction Stop).Trim()
+        if (Test-MCCRoot $recorded) { return $recorded }
+    } catch {}
+    foreach ($drive in @('C:','D:','E:','F:')) {
+        foreach ($relative in @('XboxGames\Halo- The Master Chief Collection\Content','XboxGames\Halo The Master Chief Collection\Content')) {
+            $candidate = Join-Path $drive $relative
+            if (Test-MCCRoot $candidate) { return $candidate }
         }
-        if (-not $rel) { $rel = $prerelease }
-        if ($rel) {
-            # Asset naming has changed across releases: older ones are
-            # "HaloMCCVR-alpha-<ver>.zip", 0.2.1+ are "MCC_VR_ALPHA_<ver>.zip".
-            # GitHub's assets list never includes the auto-generated source
-            # zips, so match any .zip, preferring a mod-looking name, then
-            # fall back to the first zip - future-proof against renames.
-            $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
-            $asset = $zips | Where-Object { $_.name -match '(?i)(HaloMCCVR|MCC.?VR)' } | Select-Object -First 1
-            if (-not $asset) { $asset = $zips | Select-Object -First 1 }
-            if ($asset -and $asset.browser_download_url) {
-                $channel = if ([bool]$rel.prerelease) { "prerelease" } else { "stable" }
-                return @{ Url = [string]$asset.browser_download_url; Tag = [string]$rel.tag_name; Channel = $channel }
-            }
-        }
-    } catch { }
+    }
+    foreach ($candidate in @('C:\Program Files\ModifiableWindowsApps\Halo- TheMasterChiefCollection','C:\Program Files\ModifiableWindowsApps\Halo The Master Chief Collection')) {
+        if (Test-MCCRoot $candidate) { return $candidate }
+    }
     return $null
 }
 
-# Does this folder look like a real MCC install?
-function Test-MCCRoot {
-    param([string]$Root)
-    if (-not $Root) { return $false }
-    try {
-        $bin = Join-Path $Root $MCC_BIN_DIR
-        if (Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_STEAM))    { return $true }
-        if (Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_WINSTORE)) { return $true }
-        return $false
-    } catch { return $false }
+function Test-MCCVRBuild([string]$Root,[string]$Folder) {
+    if (-not (Test-MCCRoot $Root) -or [string]::IsNullOrWhiteSpace($Folder)) { return $false }
+    $modRoot = Join-Path $Root $Folder
+    if (-not (Test-Path -LiteralPath $modRoot -PathType Container)) { return $false }
+    $runtimePresent = (Test-Path -LiteralPath (Join-Path $modRoot 'HaloMCCVR.dll') -PathType Leaf) -or
+                      (Test-Path -LiteralPath (Join-Path $modRoot 'halo3xr.dll') -PathType Leaf)
+    $launcherPresent = (Test-Path -LiteralPath (Join-Path $modRoot 'HaloMCCVRLauncher.exe') -PathType Leaf) -or
+                       (Test-Path -LiteralPath (Join-Path $modRoot 'halo3xr_launcher.exe') -PathType Leaf)
+    return [bool]($runtimePresent -and $launcherPresent)
 }
 
-# Restore only files this installer owns. The backup is made before any
-# channel switch, so a locked file, copy error or antivirus removal cannot
-# turn a working stable/prerelease installation into a broken half-update.
-function Restore-HaloManagedFiles {
-    param([string]$ModDir, [string]$BackupDir, [string[]]$ManagedFiles)
+function Test-LegacyOnlyMCCVRInstall([string]$Root) {
+    return [bool]((Test-MCCVRBuild -Root $Root -Folder 'Halo_MCC_VR') -and
+                  -not (Test-MCCVRBuild -Root $Root -Folder 'Halo_MCC_VR_community'))
+}
+
+function Get-MCCRootInteractive {
+    $root = Find-MCCRoot
+    while (-not (Test-MCCRoot $root)) {
+        Write-Warn 'Halo: The Master Chief Collection was not found automatically.'
+        Write-Host ' Drag the MCC game folder into this window and press Enter.' -ForegroundColor White
+        Write-Host " It must contain $MCC_BIN_DIR and the Steam or Store executable." -ForegroundColor Gray
+        Write-Host ' Leave the line empty to cancel.' -ForegroundColor DarkGray
+        $raw = ('' + (Read-Host ' MCC folder')).Trim().Trim('"')
+        if (-not $raw) { return $null }
+        if (Test-MCCRoot $raw) { $root = (Get-Item -LiteralPath $raw).FullName }
+        else { Write-Fail 'That is not an MCC installation root.' }
+    }
+    return $root
+}
+
+function Get-ArchiveInputFolders {
     try {
-        foreach ($name in $ManagedFiles) {
-            $dest = Join-PathLexical $ModDir $name
-            if (Test-Path -LiteralPath $dest -PathType Leaf) { Remove-Item -LiteralPath $dest -Force -ErrorAction Stop }
-        }
-        if ($BackupDir -and (Test-Path -LiteralPath $BackupDir -PathType Container)) {
-            foreach ($saved in (Get-ChildItem -LiteralPath $BackupDir -File -ErrorAction Stop)) {
-                Copy-Item -LiteralPath $saved.FullName -Destination (Join-PathLexical $ModDir $saved.Name) -Force -ErrorAction Stop
+        $workspace = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
+        return @((Join-Path $workspace 'Archive Input\Halo MCC VR'))
+    } catch { return @() }
+}
+
+function Get-LatestContinuationRelease {
+    try {
+        $releases = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$CONTINUATION_REPO/releases?per_page=20" -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25 -ErrorAction Stop)
+        foreach ($release in $releases) {
+            if ($release.draft) { continue }
+            $asset = @($release.assets | Where-Object {
+                $_.name -match '(?i)^HaloMCCVR.*\.zip$' -and $_.name -notmatch '(?i)source|symbols|debug'
+            } | Select-Object -First 1)[0]
+            if (-not $asset) { continue }
+            return [pscustomobject]@{
+                Family='Community'; Channel=$(if ($release.prerelease) {'prerelease'} else {'stable'})
+                Tag=[string]$release.tag_name; Name=[string]$asset.name
+                Url=[string]$asset.browser_download_url; Page=$CONTINUATION_PAGE
+                Folder='Halo_MCC_VR_community'; Marker='.pcvrhub-halomccvr-community'
+                Manifest='.pcvrhub-halomccvr-community-install.tsv'; Shortcut='Halo MCC VR'
             }
         }
-        return $true
-    } catch {
-        Write-Warn "Could not fully restore the previous Halo MCC VR files: $($_.Exception.Message)"
-        return $false
+    } catch { Write-Warn 'The continuation release lookup failed; using the last known playable release URL.' }
+    return $CONTINUATION_PIN
+}
+
+function Get-ReleaseArchive([object]$Release,[string]$Destination) {
+    $findArgs = @{
+        Patterns=@([string]$Release.Name)
+        ExtraFolders=(Get-ArchiveInputFolders); Label=("Halo MCC VR " + [string]$Release.Tag)
     }
-}
-
-Write-Header
-
-Write-Host "  Halo MCC VR turns Halo: The Master Chief Collection into a" -ForegroundColor Gray
-Write-Host "  native OpenXR VR experience: true per-eye stereo, 6DOF head" -ForegroundColor Gray
-Write-Host "  tracking, motion-controller input, and articulated VR arms." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  THIS IS AN EARLY ALPHA. Supported campaigns depend on the" -ForegroundColor Yellow
-Write-Host "  release channel. The code is AI-written," -ForegroundColor Gray
-Write-Host "  public, unaudited, MIT-licensed." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Install the MCC campaigns you intend to play; each supported" -ForegroundColor Yellow
-Write-Host "  title hooks independently." -ForegroundColor Yellow
-Write-Host "  Supports Steam and Microsoft Store / Xbox installs. SteamVR" -ForegroundColor Gray
-Write-Host "  must be set as" -NoNewline -ForegroundColor Gray
-Write-Host " the default OpenXR runtime." -ForegroundColor Gray
-Write-Host "  Launch MCC in flat once first to sign in to your Microsoft account." -ForegroundColor Gray
-Write-Host ""
-Show-AntivirusNotice
-Pause-User "Press Enter to start..."
-
-# -------------------------------------------------------
-# STEP 1: resolve + download the release
-# -------------------------------------------------------
-Write-Step 1 4 "Fetching the latest Halo MCC VR release"
-Write-Info "Resolving the newest release via the GitHub API (prerelease-aware)..."
-
-$rel = Get-LatestHaloRelease
-$zipUrl = $null
-$relTag = $null
-$relChannel = "stable"
-if ($rel) {
-    $zipUrl = $rel.Url
-    $relTag = $rel.Tag
-    $relChannel = $rel.Channel
-    Write-OK "Selected $relChannel release: $relTag"
-} else {
-    Write-Warn "GitHub API not reachable (rate limit / offline). Using last-known URL."
-    $zipUrl = $KNOWN_FALLBACK_ZIP
-    $relTag = $KNOWN_FALLBACK_TAG
-}
-
-$tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("HaloMCCVR_" + [System.Guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-$zipPath = Join-Path $tmp "HaloMCCVR.zip"
-
-$dl = Invoke-DownloadOrFallback -Url $zipUrl -Destination $zipPath `
-        -Label "Halo MCC VR ($relTag)" `
-        -ManualUrl $RELEASES_PAGE `
-        -Instructions "Download the mod .zip asset from the latest release on the releases page, save it as '$zipPath', then choose Retry." `
-        -SkipMessage "Skipped - the mod was not downloaded, so nothing can be installed."
-if ([string]$dl -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($dl -is [bool] -and $dl)) {
-    Write-Fail "No mod archive available - cannot continue."
-    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit..."; exit 1
-}
-Write-OK "Downloaded: $zipPath"
-
-# -------------------------------------------------------
-# STEP 2: unpack + locate the two mod files
-# -------------------------------------------------------
-Write-Step 2 4 "Unpacking"
-$extract = Join-Path $tmp "extract"
-New-Item -ItemType Directory -Path $extract -Force | Out-Null
-$efb = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $extract `
-        -Label "Halo MCC VR archive" `
-        -SkipMessage "Skipped - the archive was not unpacked, so the installer cannot continue."
-if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-
-# A manually selected fallback must not bypass the release filter above.
-# pancreations has published diagnostic/broken packages beside real releases.
-$diagnosticMarker = Get-ChildItem -LiteralPath $extract -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -match '(?i)diagnostic|broken.build|do.not.use|read.this.first.diagnostic' } |
-    Select-Object -First 1
-if ($diagnosticMarker) {
-    Write-Fail "That archive is a diagnostic/broken test package, not a playable release."
-    Write-Info "Choose the 0.3.3 Latest asset or the 0.3.5 prerelease asset."
-    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit..."
-    exit 1
-}
-
-# Stable 0.3.3 and prerelease 0.3.5 use different payload names. Detect
-# a COMPLETE pair from the archive rather than assuming the newest names.
-$dllSrc = $null
-$lncSrc = $null
-foreach ($layout in $PAYLOAD_LAYOUTS) {
-    $tryDll = Get-ChildItem -LiteralPath $extract -Recurse -Filter $layout.Dll -File -ErrorAction SilentlyContinue | Select-Object -First 1
-    $tryLnc = Get-ChildItem -LiteralPath $extract -Recurse -Filter $layout.Launcher -File -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($tryDll -and $tryLnc) {
-        $MOD_DLL = $layout.Dll
-        $MOD_LAUNCHER = $layout.Launcher
-        $dllSrc = $tryDll
-        $lncSrc = $tryLnc
-        break
-    }
-}
-if (-not $dllSrc -or -not $lncSrc) {
-    Write-Fail "No complete supported DLL/launcher pair was found inside the archive."
-    Write-Info "The release layout may have changed. Get it manually from:"
-    Write-Info "  $RELEASES_PAGE"
-    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit..."; exit 1
-}
-$modSrcDir = Split-Path -Parent $dllSrc.FullName
-Write-OK "Mod files ready: $MOD_DLL / $MOD_LAUNCHER"
-
-# -------------------------------------------------------
-# STEP 3: locate the MCC game folder
-# -------------------------------------------------------
-Write-Step 3 4 "Locating Halo: The Master Chief Collection"
-
-$mccPath = $null
-# Steam (registry + libraryfolders + appmanifest), via the shared helper.
-if (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue) {
-    $mccPath = Find-SteamGameFolder -AppId $MCC_APPID -SteamFolderNames @($MCC_STEAM_FOLDER) -ProbeExe $MCC_PROBE_EXE
-}
-# Xbox app / Microsoft Store install locations (helper is Steam-only).
-if (-not (Test-MCCRoot $mccPath)) {
-    $xboxCands = @()
-    foreach ($d in @("C:","D:","E:","F:")) {
-        $xboxCands += "$d\XboxGames\Halo- The Master Chief Collection\Content"
-    }
-    $xboxCands += "C:\Program Files\ModifiableWindowsApps\Halo- TheMasterChiefCollection"
-    foreach ($c in $xboxCands) { if (Test-MCCRoot $c) { $mccPath = $c; break } }
-}
-# A location recorded by a previous install.
-if (-not (Test-MCCRoot $mccPath)) {
-    try {
-        $rec = Get-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -ErrorAction Stop | Select-Object -First 1
-        if ($rec) { $rec = $rec.Trim(); if (Test-MCCRoot $rec) { $mccPath = $rec } }
-    } catch {}
-}
-# Manual fallback: drag & drop the MCC folder onto the window.
-while (-not (Test-MCCRoot $mccPath)) {
-    Write-Warn "Could not find MCC automatically."
-    Write-Host "  Drag & drop your MCC GAME FOLDER onto this window (the one" -ForegroundColor White
-    Write-Host "  containing the 'MCC' folder), then press Enter." -ForegroundColor White
-    Write-Host "  Or press Enter on an empty line to exit." -ForegroundColor Gray
-    $raw = (Read-Host "  MCC folder").Trim().Trim('"')
-    if (-not $raw) { Write-Fail "No game folder - cannot continue."; try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit."; exit 1 }
-    if (Test-MCCRoot $raw) { $mccPath = $raw }
-    else { Write-Fail "That folder does not contain $MCC_BIN_DIR\$MCC_EXE_STEAM (or $MCC_EXE_WINSTORE)." }
-}
-Write-OK "Found MCC: $mccPath"
-
-# Both current release channels support Steam and Microsoft Store / Xbox
-# app directly. Never rename or duplicate an MCC executable: the launchers
-# select the correct edition themselves.
-$mccBinDir   = Join-Path $mccPath $MCC_BIN_DIR
-$exeSteam    = Join-Path $mccBinDir $MCC_EXE_STEAM
-$exeWinStore = Join-Path $mccBinDir $MCC_EXE_WINSTORE
-if (Test-Path -LiteralPath $exeWinStore) { Write-Info "Microsoft Store / Xbox app edition detected; no executable copy is needed." }
-
-# -------------------------------------------------------
-# STEP 4: install the mod files into <MCC>\Halo_MCC_VR
-# -------------------------------------------------------
-Write-Step 4 4 "Installing the mod"
-
-# MCC must be closed or the launcher/dll copy is locked.
-$mccProc = Get-Process -Name "MCC-Win64-Shipping","MCCWinStore-Win64-Shipping" -ErrorAction SilentlyContinue
-if ($mccProc) {
-    Write-Warn "Halo MCC is running - close it completely, then press Enter."
-    Pause-User "Press Enter once MCC is closed..."
-}
-
-$modDir = Join-Path $mccPath $MOD_FOLDER_NAME
-
-# If an old 0.1.0-style "halo3xr" folder exists, leave it alone but note
-# it: the new build uses Halo_MCC_VR and never merges the two.
-$oldDir = Join-Path $mccPath "halo3xr"
-if ((Test-Path -LiteralPath $oldDir) -and -not (Test-Path -LiteralPath $modDir)) {
-    Write-Info "An older 'halo3xr' folder is present; installing the new build"
-    Write-Info "into '$MOD_FOLDER_NAME' separately (your old one is left untouched)."
-}
-
-$isUpgrade = [bool](@($ALL_PAYLOAD_FILES | Where-Object { Test-Path -LiteralPath (Join-Path $modDir $_) }).Count)
-$rollbackDir = Join-Path $tmp "rollback"
-$haveRollback = $false
-try {
-    if (-not (Test-Path -LiteralPath $modDir)) { New-Item -ItemType Directory -Path $modDir -Force -ErrorAction Stop | Out-Null }
-
-    $existingManaged = @($HALO_MANAGED_FILES | Where-Object { Test-Path -LiteralPath (Join-Path $modDir $_) -PathType Leaf })
-    if ($existingManaged.Count) {
-        New-Item -ItemType Directory -Path $rollbackDir -Force -ErrorAction Stop | Out-Null
-        foreach ($name in $existingManaged) {
-            Copy-Item -LiteralPath (Join-Path $modDir $name) -Destination (Join-Path $rollbackDir $name) -Force -ErrorAction Stop
-        }
-        $haveRollback = $true
-    }
-
-    # The author's release notes say to remove the old files before adding the
-    # new ones. Overwriting would usually do, but a stale file that is no
-    # longer shipped would survive - so the known ones go first. Every managed
-    # file was backed up above, making this channel switch transactional.
-    if ($isUpgrade) {
-        foreach ($stale in $HALO_MANAGED_FILES) {
-            $sp = Join-Path $modDir $stale
-            if (Test-Path -LiteralPath $sp) { try { Remove-Item -LiteralPath $sp -Force -ErrorAction Stop } catch {} }
-        }
-    }
-
-    Copy-Item -LiteralPath $dllSrc.FullName -Destination (Join-Path $modDir $MOD_DLL) -Force -ErrorAction Stop
-    Copy-Item -LiteralPath $lncSrc.FullName -Destination (Join-Path $modDir $MOD_LAUNCHER) -Force -ErrorAction Stop
-
-    # Stable and prerelease builds have different executable names. The Hub
-    # always targets this small stable wrapper, which in turn launches the
-    # pair that was actually selected and installed.
-    $hubBody = "@echo off`r`ncd /d `"%~dp0`"`r`nif not exist `"$MOD_LAUNCHER`" (`r`n  echo $MOD_LAUNCHER is missing.`r`n  pause`r`n  exit /b 1`r`n)`r`nstart `"`" `"%~dp0$MOD_LAUNCHER`"`r`n"
-    Set-Content -LiteralPath (Join-Path $modDir $HUB_LAUNCHER) -Value $hubBody -Encoding ASCII -Force
-
-    # The shipped config MUST land, replacing any older one.
-    $cfgSrc = Get-ChildItem -LiteralPath $modSrcDir -Filter $MOD_CFG -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($cfgSrc) {
-        Copy-Item -LiteralPath $cfgSrc.FullName -Destination (Join-Path $modDir $MOD_CFG) -Force -ErrorAction Stop
-        Write-OK "Installed the shipped $MOD_CFG (tuned by the author)."
+    $found = Find-PredownloadedFile @findArgs
+    if ($found) {
+        Copy-Item -LiteralPath $found -Destination $Destination -Force
     } else {
-        Write-Warn "$MOD_CFG was not in the package - the mod will fall back to built-in defaults."
-        $oldCfg = Join-Path $rollbackDir $MOD_CFG
-        if ($haveRollback -and (Test-Path -LiteralPath $oldCfg)) {
-            Copy-Item -LiteralPath $oldCfg -Destination (Join-Path $modDir $MOD_CFG) -Force -ErrorAction Stop
-            Write-Info "Kept the previous config because the selected package had none."
+        $downloadArgs = @{
+            Urls=@([string]$Release.Url); Destination=$Destination
+            Label=("Halo MCC VR " + [string]$Release.Tag)
+            ManualUrl=[string]$Release.Page
+            Instructions="Download the playable build ZIP named '$($Release.Name)', then choose Retry. Do not select a source ZIP."
         }
+        $null = Invoke-SafeDownload @downloadArgs
+        if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) { return $null }
+    }
+    return $Destination
+}
+
+function Get-PayloadRoot([string]$ExtractRoot) {
+    $dll = Get-ChildItem -LiteralPath $ExtractRoot -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -in @('HaloMCCVR.dll','halo3xr.dll') } | Select-Object -First 1
+    if (-not $dll -or $dll.Length -lt 2) { return $null }
+    $root = $dll.DirectoryName
+    $launcher = if ($dll.Name -eq 'halo3xr.dll') { 'halo3xr_launcher.exe' } else { 'HaloMCCVRLauncher.exe' }
+    $launcherPath = Join-Path $root $launcher
+    $configPath = Join-Path $root 'halomccvr.cfg'
+    if (-not (Test-Path -LiteralPath $launcherPath -PathType Leaf) -or (Get-Item -LiteralPath $launcherPath).Length -lt 2) { return $null }
+    if (-not (Test-Path -LiteralPath $configPath -PathType Leaf) -or (Get-Item -LiteralPath $configPath).Length -lt 1) { return $null }
+
+    # Release notes, manifests and supplementary document names change often.
+    # They are useful evidence but are not runtime requirements. The matching
+    # DLL, launcher and config are required to run a playable MCCVR package;
+    # source/diagnostic assets are already excluded
+    # by Get-LatestContinuationRelease before download.
+    return $root
+}
+
+function Get-RelativeFiles([string]$Root) {
+    $prefix = $Root.TrimEnd('\')
+    return @(Get-ChildItem -LiteralPath $Root -Recurse -File | ForEach-Object {
+        [pscustomobject]@{ File=$_; Relative=$_.FullName.Substring($prefix.Length).TrimStart('\') }
+    })
+}
+
+function Save-OwnershipManifest([string]$Path,[object[]]$Rows) {
+    $tab = [char]9
+    $lines = @("Action$($tab)RelativePath$($tab)InstalledSha256")
+    foreach ($row in @($Rows | Sort-Object RelativePath)) {
+        $lines += "$($row.Action)$($tab)$($row.RelativePath)$($tab)$($row.InstalledSha256)"
+    }
+    [IO.File]::WriteAllLines($Path,[string[]]$lines,(New-Object Text.UTF8Encoding($false)))
+}
+
+function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,[string]$WorkRoot) {
+    $modDir = Join-Path $MccRoot ([string]$Release.Folder)
+    New-Item -ItemType Directory -Path $modDir -Force | Out-Null
+    $payloadFiles = Get-RelativeFiles $PayloadRoot
+    $launcher = if (@($payloadFiles | Where-Object { $_.Relative -eq 'HaloMCCVRLauncher.exe' }).Count) { 'HaloMCCVRLauncher.exe' } else { 'halo3xr_launcher.exe' }
+
+    $affected = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in $payloadFiles) { if (-not $affected.Contains([string]$entry.Relative)) { [void]$affected.Add([string]$entry.Relative) } }
+    foreach ($known in @('HaloMCCVR.dll','HaloMCCVRLauncher.exe','halo3xr.dll','halo3xr_launcher.exe',[string]$Release.Marker,[string]$Release.Manifest)) {
+        if (-not $affected.Contains($known)) { [void]$affected.Add($known) }
+    }
+    $rollback = Join-Path $WorkRoot 'rollback'
+    New-Item -ItemType Directory -Path $rollback -Force | Out-Null
+    foreach ($relative in $affected) {
+        $source = Join-Path $modDir $relative
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { continue }
+        $backup = Join-Path $rollback $relative
+        $parent = Split-Path -Parent $backup
+        if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+        Copy-Item -LiteralPath $source -Destination $backup -Force
     }
 
-    # DID THEY SURVIVE? Halo 3 MCC is the worst case in the whole Hub -
-    # eight engines react to this mod - and a scanner usually sweeps a
-    # moment AFTER the write, so the copy above can report success and
-    # the file still be gone. Wait, look again, and if something is
-    # missing walk the user through an exclusion and copy once more.
-    $avFilesOk = Confirm-PlacedFilesSurvive `
-        -Paths @((Join-Path $modDir $MOD_DLL), (Join-Path $modDir $MOD_LAUNCHER)) `
-        -GameDir $mccPath `
-        -Recopy {
-            # UNPACKED INSIDE THE GAME FOLDER, not from %TEMP%. The
-            # exclusion covers this folder now; the temp staging area it
-            # first came from is still being scanned, and its copy may
-            # already be gone too.
-            $stage = Join-Path $mccPath "_pcvrhub_restage"
+    $configRelative = 'halomccvr.cfg'
+    $oldConfigRollback = Join-Path $rollback $configRelative
+    $newConfigSource = Join-Path $PayloadRoot $configRelative
+    $savePreviousConfig = $false
+    if ((Test-Path -LiteralPath $oldConfigRollback -PathType Leaf) -and (Test-Path -LiteralPath $newConfigSource -PathType Leaf)) {
+        $savePreviousConfig = ((Get-FileHash -LiteralPath $oldConfigRollback -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $newConfigSource -Algorithm SHA256).Hash)
+    }
+
+    try {
+        foreach ($entry in $payloadFiles) {
+            $destination = Join-Path $modDir ([string]$entry.Relative)
+            $parent = Split-Path -Parent $destination
+            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+            Copy-Item -LiteralPath $entry.File.FullName -Destination $destination -Force
+        }
+
+        $launcherPath = Join-Path $modDir $launcher
+        if (-not (Test-Path -LiteralPath $launcherPath -PathType Leaf)) { throw "Installed launcher is missing: $launcher" }
+        [IO.File]::WriteAllText((Join-Path $modDir ([string]$Release.Marker)),([string]$Release.Tag),(New-Object Text.UTF8Encoding($false)))
+
+        $dllName = if ($launcher -eq 'HaloMCCVRLauncher.exe') { 'HaloMCCVR.dll' } else { 'halo3xr.dll' }
+        $watch = @((Join-Path $modDir $dllName),$launcherPath)
+        $copyRoot = $PayloadRoot
+        $copyLauncher = $launcher
+        $copyDll = $dllName
+        $recover = {
+            foreach ($name in @($copyDll,$copyLauncher)) {
+                $from = Join-Path $copyRoot $name
+                $to = Join-Path $modDir $name
+                if ((Test-Path -LiteralPath $from -PathType Leaf) -and -not (Test-Path -LiteralPath $to -PathType Leaf)) { Copy-Item -LiteralPath $from -Destination $to -Force }
+            }
+        }.GetNewClosure()
+        $survivedAntivirusCheck = Confirm-PlacedFilesSurvive -Paths $watch -GameDir $MccRoot -Recopy $recover
+        if (-not $survivedAntivirusCheck) { throw 'The installed binaries did not survive the antivirus check.' }
+
+        $rows = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($entry in $payloadFiles) {
+            $installed = Join-Path $modDir ([string]$entry.Relative)
+            if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) { continue }
+            $action = if ($entry.Relative -ieq 'halomccvr.cfg') { 'preserve' } else { 'remove' }
+            [void]$rows.Add([pscustomobject]@{ Action=$action; RelativePath=[string]$entry.Relative; InstalledSha256=(Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash })
+        }
+        foreach ($extra in @([string]$Release.Marker)) {
+            $installed = Join-Path $modDir $extra
+            [void]$rows.Add([pscustomobject]@{ Action='remove'; RelativePath=$extra; InstalledSha256=(Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash })
+        }
+        Save-OwnershipManifest -Path (Join-Path $modDir ([string]$Release.Manifest)) -Rows $rows.ToArray()
+
+        $desktop = [Environment]::GetFolderPath('Desktop')
+        $shortcut = Join-Path $desktop ([string]$Release.Shortcut + '.lnk')
+        $mayWrite = $true
+        if (Test-Path -LiteralPath $shortcut -PathType Leaf) {
             try {
-                if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
-                New-Item -ItemType Directory -Path $stage -Force | Out-Null
-                if (Test-Path -LiteralPath $zipPath) {
-                    Copy-Item -LiteralPath $zipPath -Destination (Join-Path $stage "pkg.zip") -Force -ErrorAction Stop
-                    Expand-Archive -LiteralPath (Join-Path $stage "pkg.zip") -DestinationPath $stage -Force -ErrorAction Stop
-                    foreach ($want in @($MOD_DLL, $MOD_LAUNCHER)) {
-                        $hit = Get-ChildItem -LiteralPath $stage -Filter $want -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                        if ($hit) { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $modDir $want) -Force -ErrorAction Stop }
-                    }
-                } else {
-                    # No archive left to unpack - fall back to the original
-                    # staging copy and say so if that is gone as well.
-                    if (Test-Path -LiteralPath $dllSrc.FullName) { Copy-Item -LiteralPath $dllSrc.FullName -Destination (Join-Path $modDir $MOD_DLL) -Force -ErrorAction Stop }
-                    if (Test-Path -LiteralPath $lncSrc.FullName) { Copy-Item -LiteralPath $lncSrc.FullName -Destination (Join-Path $modDir $MOD_LAUNCHER) -Force -ErrorAction Stop }
+                $existing = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
+                if ($existing.TargetPath -ine $launcherPath) { $mayWrite=$false; Write-Warn "Kept an unrelated desktop shortcut named '$($Release.Shortcut)'." }
+            } catch { $mayWrite=$false }
+        }
+        if ($mayWrite) {
+            $bin = Join-Path $MccRoot $MCC_BIN_DIR
+            $icon = if (Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_STEAM)) { Join-Path $bin $MCC_EXE_STEAM } else { Join-Path $bin $MCC_EXE_STORE }
+            if (New-DesktopShortcut -LnkPath $shortcut -TargetPath $launcherPath -WorkingDir $modDir -IconPath "$icon,0" -Description ("Launch " + [string]$Release.Shortcut + ' without anti-cheat')) { Write-OK "Desktop shortcut created: $($Release.Shortcut)" }
+        }
+        # Older Hub builds used a longer Community shortcut name. Remove it
+        # only when its target proves that it belongs to this exact install.
+        $legacyShortcut = Join-Path $desktop 'Halo MCC Community VR.lnk'
+        if ($legacyShortcut -ne $shortcut -and (Test-Path -LiteralPath $legacyShortcut -PathType Leaf)) {
+            try {
+                $legacy = (New-Object -ComObject WScript.Shell).CreateShortcut($legacyShortcut)
+                if ($legacy.TargetPath -ieq $launcherPath) {
+                    Remove-Item -LiteralPath $legacyShortcut -Force
+                    Write-Info 'Replaced the former Halo MCC Community VR shortcut.'
                 }
-            } catch {
-                Write-Warn "Could not put the files back: $($_.Exception.Message)"
-            } finally {
-                if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+            } catch { Write-Warn 'The former desktop shortcut could not be verified and was kept.' }
+        }
+
+        if ($savePreviousConfig) {
+            $configBackupDir = Join-Path $modDir '.pcvrhub-backups'
+            New-Item -ItemType Directory -Path $configBackupDir -Force | Out-Null
+            $stamp = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmssfff')
+            $configBackup = Join-Path $configBackupDir ("halomccvr-$stamp.cfg.bak")
+            Copy-Item -LiteralPath $oldConfigRollback -Destination $configBackup -Force
+            Write-OK "Previous personal config saved: $configBackup"
+        }
+        return $modDir
+    } catch {
+        foreach ($relative in $affected) {
+            $target = Join-Path $modDir $relative
+            $backup = Join-Path $rollback $relative
+            if (Test-Path -LiteralPath $backup -PathType Leaf) {
+                $parent = Split-Path -Parent $target
+                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+                Copy-Item -LiteralPath $backup -Destination $target -Force
+            } else {
+                Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue
             }
         }
-    if (-not $avFilesOk) {
-        Write-Fail "Halo MCC VR could not be restored after the antivirus check."
-        if (Restore-HaloManagedFiles -ModDir $modDir -BackupDir $(if ($haveRollback) { $rollbackDir } else { $null }) -ManagedFiles $HALO_MANAGED_FILES) {
-            Write-Info "The previous Halo MCC VR installation was restored."
+        throw
+    }
+}
+
+$work = $null
+try {
+    Write-Header
+    Write-Host ' Installs the maintained Halo MCC VR build. On updates, the previous' -ForegroundColor White
+    Write-Host ' personal config is backed up before the release config is installed.' -ForegroundColor White
+    Write-Host ''
+    Write-Warn 'Always launch without anti-cheat. Never use the mod in matchmaking.'
+    Write-Info 'Start MCC flat once first and finish the Microsoft account sign-in.'
+    Show-AntivirusNotice
+    $startupMccPath = Find-MCCRoot
+    if (Test-LegacyOnlyMCCVRInstall -Root $startupMccPath) {
+        Write-Host ''
+        Write-Host ' LEGACY HALO MCC VR INSTALL DETECTED' -ForegroundColor Yellow
+        Write-Host ' You still have an older Halo MCC VR mod.' -ForegroundColor White
+        Write-Host ' That version is no longer maintained in its original form.' -ForegroundColor White
+        Write-Host ' Other modders now continue the project, support more campaigns,' -ForegroundColor White
+        Write-Host ' and follow their own development priorities.' -ForegroundColor White
+        Write-Host ' The maintained build installs beside it. Your older build stays' -ForegroundColor Green
+        Write-Host ' untouched and remains available as Legacy in the Hub.' -ForegroundColor Green
+        if (-not (Read-YesNo 'Install the maintained Halo MCC VR version now?')) {
+            Write-Info 'Setup cancelled. No files were changed.'
+            return
         }
-        Pause-User "Press Enter to exit, then run the installer again."
-        exit 1
+    } else {
+        Pause-User 'Press Enter to proceed with setup...' | Out-Null
     }
 
-    # Preserve the outgoing config only after the new pair survived all
-    # checks; failed updates restore it as the active config instead.
-    $previousCfg = Join-Path $rollbackDir $MOD_CFG
-    if ($haveRollback -and (Test-Path -LiteralPath $previousCfg)) {
-        Copy-Item -LiteralPath $previousCfg -Destination (Join-Path $modDir ($MOD_CFG + ".previous")) -Force -ErrorAction Stop
-        Write-Info "Your old config was kept as $MOD_CFG.previous"
-    }
+    $release = Get-LatestContinuationRelease
+    Write-Step 1 4 'Getting the latest release'
+    $work = Join-Path $env:TEMP ('pcvr_halomccvr_' + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $archive = Get-ReleaseArchive -Release $release -Destination (Join-Path $work ([string]$release.Name))
+    if (-not $archive) { throw 'The selected archive is unavailable. No files were changed.' }
 
-    # Carry the readmes across too, so the notes sit next to the mod.
-    foreach ($doc in @("MANUAL-README.txt","ALPHA-README.txt","BUILD-INFO.txt")) {
-        $ds = Join-Path $modSrcDir $doc
-        if (Test-Path -LiteralPath $ds) { Copy-Item -LiteralPath $ds -Destination (Join-Path $modDir $doc) -Force -ErrorAction SilentlyContinue }
-    }
-    if ($isUpgrade) { Write-OK "Updated the mod files in $modDir" }
-    else { Write-OK "Installed the mod into $modDir" }
+    Write-Step 2 4 'Extracting and checking the package'
+    $extract = Join-Path $work 'payload'
+    $expanded = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'Halo MCC VR archive' -AllowSkip $false
+    if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The archive was not extracted.' }
+    $payload = Get-PayloadRoot -ExtractRoot $extract
+    if (-not $payload) { throw 'The package layout is incomplete or is a source/diagnostic archive.' }
+    $count = @(Get-ChildItem -LiteralPath $payload -Recurse -File).Count
+    Write-OK "Playable MCCVR runtime validated ($count packaged files)."
+
+    Write-Step 3 4 'Locating Halo: The Master Chief Collection'
+    $mccPath = if (Test-MCCRoot $startupMccPath) { $startupMccPath } else { Get-MCCRootInteractive }
+    if (-not $mccPath) { throw 'Setup was cancelled before the game was changed.' }
+    if (@(Get-Process -Name 'MCC-Win64-Shipping','MCCWinStore-Win64-Shipping' -ErrorAction SilentlyContinue).Count) { throw 'MCC is running. Close it completely and run setup again.' }
+    Write-OK "Found: $mccPath"
+
+    Write-Step 4 4 'Installing Halo MCC VR safely'
+    $installedDir = Install-Payload -PayloadRoot $payload -MccRoot $mccPath -Release $release -WorkRoot $work
+    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$mccPath,(New-Object Text.UTF8Encoding($false)))
+    Save-InstalledStamp -GameDir $mccPath -Version ([string]$release.Tag) -HubDir $PSScriptRoot
+    [IO.File]::WriteAllText((Join-Path $installedDir '.pcvrhub-channel'),([string]$release.Channel),(New-Object Text.UTF8Encoding($false)))
+    Write-OK "Halo MCC VR installed in $installedDir"
+
+    Write-Host ''
+    Write-Host ' HOW TO PLAY' -ForegroundColor Cyan
+    Write-Host ' Start SteamVR with SteamVR as the active OpenXR runtime.' -ForegroundColor White
+    Write-Host ' Then use Start in VR in the Hub or the matching desktop shortcut.' -ForegroundColor White
+    Write-Host ' Open F1 in game for VR settings. Launch only with anti-cheat off.' -ForegroundColor Gray
+    Write-Host ''
+    Write-Warn 'Halo 2 AI perception/aim can malfunction in this release.'
+    Write-Info 'World collision and Physical melee are experimental and disabled by default.'
+    Write-Info 'Physical melee currently requires World collision to remain enabled.'
+    Write-Host ''
+    Write-Host " $QUIP" -ForegroundColor Magenta
 } catch {
-    Write-Fail "Could not copy the mod files: $($_.Exception.Message)"
-    if (Restore-HaloManagedFiles -ModDir $modDir -BackupDir $(if ($haveRollback) { $rollbackDir } else { $null }) -ManagedFiles $HALO_MANAGED_FILES) {
-        Write-Info "The previous Halo MCC VR installation was restored."
-    }
-    Write-Info "Make sure MCC is closed and try again."
-    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit."; exit 1
+    Write-Host ''
+    Write-Fail $_.Exception.Message
+    throw
+} finally {
+    if ($work -and (Test-Path -LiteralPath $work)) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
 }
-
-# Desktop shortcut to the mod launcher (anti-cheat-off VR route).
-try {
-    $ws = New-Object -ComObject WScript.Shell
-    $lnk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Halo MCC VR.lnk"))
-    $lnk.TargetPath = Join-Path $modDir $HUB_LAUNCHER
-    $lnk.WorkingDirectory = $modDir
-    # Use whichever MCC executable actually exists - on a Store install
-    # where the copy above could not be made, only the WinStore name is
-    # there, and a dead icon path would leave the shortcut blank.
-    $iconSrc = if (Test-Path -LiteralPath $exeSteam) { $exeSteam }
-               elseif (Test-Path -LiteralPath $exeWinStore) { $exeWinStore }
-               else { Join-Path $modDir $HUB_LAUNCHER }
-    $lnk.IconLocation = "$iconSrc,0"
-    $lnk.Description = "Halo MCC with the VR mod (anti-cheat off)"
-    $lnk.Save()
-    Write-OK "Desktop shortcut 'Halo MCC VR' created."
-} catch {
-    Write-Warn "Could not create the desktop shortcut - you can still launch from the Hub."
-}
-
-# -------------------------------------------------------
-# Record the install so the Hub can detect + flag updates
-# -------------------------------------------------------
-# The Hub wrapper is the common launch target for both payload layouts. The
-# Hub detects presence from the channel's real DLL (HaloMCCVR.dll or
-# halo3xr.dll), while this channel marker keeps update checks on the branch
-# the user actually chose.
-try {
-    if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
-    # ALSO write the durable stamp next to the GAME (2026-08-20).
-    # The line above lands inside the Hub folder and is gone as
-    # soon as a new Hub build is dropped in; the scan then finds
-    # no marker and seeds the CURRENT online tag, swallowing a
-    # pending update. The game-side stamp survives that.
-    Save-InstalledStamp -GameDir @($mccPath, $modDir) -Version $relTag
-    Set-Content -Path (Join-Path $modDir ".pcvrhub-channel") -Value $relChannel -Encoding ASCII -NoNewline -Force
-    Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $mccPath -Encoding UTF8 -Force
-} catch {}
-
-try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-
-# -------------------------------------------------------
-# Done - important play notes
-# -------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host " Setup complete!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host "  |             SET THESE OUTSIDE THE GAME               |" -ForegroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "   Default OpenXR runtime  " -NoNewline -ForegroundColor White; Write-Host " SteamVR " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   SteamVR branch          " -NoNewline -ForegroundColor White; Write-Host " Beta " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   Steam Input (gamepad)   " -NoNewline -ForegroundColor White; Write-Host " OFF " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host ""
-Write-Host "  The mod requires SteamVR as the default OpenXR runtime AND its" -ForegroundColor Gray
-Write-Host "  Beta branch (Steam library > SteamVR > Properties > Betas >" -ForegroundColor Gray
-Write-Host "  beta). If the mod does not hook, check both first." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  With Steam Input left on, shots can land away from your aim." -ForegroundColor Gray
-Write-Host "  In the Steam library: right-click MCC > Properties > Controller," -ForegroundColor Gray
-Write-Host "  set the dropdown to 'Disable Steam Input' (older Steam builds" -ForegroundColor Gray
-Write-Host "  call it 'Steam Input Per-Game Setting' > 'Force Off')." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Still hitting nothing? In MCC: Settings > Controls > gamepad" -ForegroundColor Gray
-Write-Host "  layout - if a weapon/aim option shows INVERTED, un-invert it." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host "  |              IMPORTANT IN-GAME SETTINGS              |" -ForegroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  Set these in MCC's OWN menus before playing. Without them" -ForegroundColor White
-Write-Host "  the mod is nearly unplayable:" -ForegroundColor White
-Write-Host ""
-# Since alpha 0.3.3 the author requires UNLIMITED, no longer 120.
-Write-Host "   Settings > Video > Max Frame Rate " -NoNewline -ForegroundColor White; Write-Host " Unlimited " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   Settings > Video > V-Sync         " -NoNewline -ForegroundColor White; Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   Halo 3  > Settings > Field of View" -NoNewline -ForegroundColor White; Write-Host " 120 " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   ODST    > Look Sensitivity        " -NoNewline -ForegroundColor White; Write-Host " Maximum " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   ODST    > Look Acceleration       " -NoNewline -ForegroundColor White; Write-Host " Off " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "   Do NOT enable FSR in MCC          " -NoNewline -ForegroundColor White; Write-Host " use mod's picture setting " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or the 'Halo MCC VR'" -ForegroundColor Gray
-Write-Host "    desktop shortcut (only that route loads the mod, anti-cheat" -ForegroundColor Gray
-Write-Host "    OFF). Press F1 in game for settings incl. picture quality." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  NEVER use this in anti-cheat-enabled matchmaking." -NoNewline -ForegroundColor White; Write-Host " " -NoNewline; Write-Host " AC OFF ONLY " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host ""
-Write-Host "  Controls and tips are on this game's page in the Hub." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host "  Finish the fight - now from inside the visor." -ForegroundColor Magenta
-Write-Host ""
-Pause-User "Press Enter to exit."
+Pause-User 'Press Enter to exit...' | Out-Null

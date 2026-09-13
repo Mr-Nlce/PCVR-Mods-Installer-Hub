@@ -2,7 +2,7 @@
 # Banner hover-close: after dwelling on a banner for 5 seconds,
 # show a small Close + Always-disable overlay top-right. Close
 # hides the banner for this session; Always disable persists
-# the choice to .hub-settings.json so the banner stays hidden
+# the choice to the durable Hub state so the banner stays hidden
 # on future launches.
 # ---------------------------------------------------------------
 function global:Setup-BannerHoverClose {
@@ -1019,6 +1019,9 @@ function global:Build-OvGenreRows {
         $row = New-OvGenreRow -Genre $genre -Games $genreGames
         $panel.Children.Add($row) | Out-Null
     }
+    if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) {
+        Apply-CatalogSort -Scope Explore -SkipFilter
+    }
 }
 
 # Apply Genre + Power filter PLUS the header filter bar's
@@ -1223,6 +1226,9 @@ function global:Invoke-OverviewPrewarmStep {
         $global:OverviewBuilt = $true
         $global:OvPrewarmActive = $false
         $global:OvPrewarmCurPanel = $null
+        if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) {
+            try { Apply-CatalogSort -Scope Explore -SkipFilter } catch { }
+        }
         if (Get-Command Apply-OvFilters -ErrorAction SilentlyContinue) { try { Apply-OvFilters } catch { } }
         return
     }
@@ -1245,6 +1251,9 @@ function global:Invoke-OverviewPrewarmStep {
                 $global:OvPrewarmTi++
             }
             if ($global:OvPrewarmTi -ge $games.Count) {
+                if (Get-Command Set-CatalogPanelOrder -ErrorAction SilentlyContinue) {
+                    try { Set-CatalogPanelOrder -Panel $global:OvPrewarmCurPanel -Mode $global:CatalogSortMode } catch { }
+                }
                 # Row finished - advance to the next genre next step.
                 $global:OvPrewarmGi++
                 $global:OvPrewarmCurPanel = $null

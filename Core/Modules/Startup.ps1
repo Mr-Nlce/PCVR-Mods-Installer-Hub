@@ -129,7 +129,7 @@ if ($checkOnStartupBtn) {
 # on every launch, which is idempotent and also picks up icon changes.
 # The one thing that DOES stop it is the user's own opt-out: the
 # "Desktop Shortcut" item in the 3-dots menu writes desktopShortcut=false
-# into .hub-settings.json, and then nothing is recreated here, so a
+# into the durable Hub state, and then nothing is recreated here, so a
 # shortcut the user deleted stays deleted. Both the flag reader and the
 # writer live in Helpers.ps1 so the menu handler can reuse them.
 if ((Get-Command Get-HubShortcutFlag -ErrorAction SilentlyContinue) -and
@@ -144,10 +144,9 @@ try {
     if (Test-Path $oldFlag) { Remove-Item $oldFlag -Force -ErrorAction SilentlyContinue }
 } catch {}
 
-# Populate the Recently Played row on first paint. Test mode shows
-# the first 5 installed games (pre-scan: first 5 catalog entries
-# with artwork). Once Start-GameInVR tracks launches, this list
-# will be replaced by actual play history.
+# Populate the real Recently Played history before first paint. A cold start
+# deliberately shows saved launches before any optional installed-games scan;
+# the scan later removes entries whose VR mod is no longer available.
 Write-HubTiming "before Build-RecentlyPlayed"
 if (Get-Command Build-RecentlyPlayed -ErrorAction SilentlyContinue) {
     Build-RecentlyPlayed
@@ -184,7 +183,7 @@ $window.Add_Activated({
     $hadFullScan = [bool]$global:UserRanFullScan
     if ($hadFullScan) {
         # User already opted into global state - keep it coherent.
-        try { Invoke-CheckInstalledScan } catch { }
+        try { Invoke-CheckInstalledScan } catch { Fail-InstalledScan -ErrorRecord $_ -Quiet }
         return
     }
 
@@ -200,21 +199,11 @@ $window.Add_Activated({
         }
         if (-not $game) { return }
 
-        # Resolve Steam libraries the same way the full scan does.
-        $steamPath = $null
-        foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
-            try { $p=(Get-ItemProperty -Path $reg -EA Stop).InstallPath; if($p -and (Test-Path $p)){$steamPath=$p; break} } catch {}
-        }
-        $steamLibs = @()
-        if ($steamPath) {
-            $steamLibs += $steamPath
-            $vdf = Join-Path $steamPath "steamapps\libraryfolders.vdf"
-            if (Test-Path $vdf) {
-                [regex]::Matches((Get-Content $vdf -Raw),'"path"\s+"([^"]+)"') | ForEach-Object {
-                    $l=$_.Groups[1].Value -replace '\\\\','\'; if(Test-Path $l){$steamLibs+=$l}
-                }
-            }
-        }
+        # Shared per-session Steam discovery: no repeated registry exceptions
+        # when this focused refresh follows a store button click.
+        $steamLibs = if (Get-Command Get-HubSteamLibraries -ErrorAction SilentlyContinue) {
+            @(Get-HubSteamLibraries)
+        } else { @() }
 
         # Test if game is installed: SteamFolder, then FallbackPaths
         # (only the STEAM:* prefix variant - GOG/absolute aren't
@@ -315,60 +304,94 @@ $window.Add_Activated({
     } catch { }
 })
 
-# ---------------------------------------------------------------
-# Proactive steam_appid.txt heal for all DepotInstall games.
-# Walks every catalog entry marked DepotInstall = $true, resolves
-# its install path via FallbackPaths, and writes steam_appid.txt
-# next to the EXE if missing. Catches the case where an install
-# predates the per-installer steam_appid.txt fix - those folders
-# would otherwise trigger Steam's "install this game" dialog on
-# every launch attempt. Silent / non-blocking: any failure is
-# swallowed, the rest of Hub startup proceeds normally.
-# ---------------------------------------------------------------
-# steam_appid.txt proactive heal. This walks every depot-install game,
-# resolves its folder via .installed_path / FallbackPaths, and drops a
-# steam_appid.txt if missing (so depot launches don't trigger Steam's
-# "install this game" dialog). It does a lot of disk Test-Path work and
-# Steam-library resolution, so it MUST NOT run before the window is shown
-# - doing so delayed window open by 6-8s. We hook it to ContentRendered,
-# which fires AFTER the first paint (window already visible). The handler
-# body runs in module scope, so $ownGames / $ownGamesGP are in reach with
-# no closure juggling. Healing only needs to finish before a game launch,
-# and the launch path writes steam_appid.txt itself as a final safety net.
-# Dismiss the launcher splash the INSTANT the window is first painted - BEFORE
-# the heavier ContentRendered work below (steam_appid heal, Explore prewarm).
-# That work used to run first and the ready flag was only written in the LAST
-# handler, so the splash lingered ~0.5-1s after the Hub was already visible.
-# Registered before the others so it fires first; the flag write is a couple
-# of bytes to %TEMP% and returns immediately.
+# Complete the visible hand-off as one ordered event: restore the window,
+# activate it, then and only then tell the launcher splash to close. The old
+# split handlers wrote the ready flag before a later disk-heavy depot pass and
+# before foreground activation, which could leave a blank desktop gap.
+$global:HubStartupTransitionComplete = $false
 $window.Add_ContentRendered({
-    try { Set-Content -Path (Join-Path $env:TEMP "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue } catch { }
-})
+    if ($global:HubStartupTransitionComplete) { return }
+    $global:HubStartupTransitionComplete = $true
 
-# The startup scan ran BEFORE the window was shown, so the counter's
-# header slot was positioned against a visual tree that had never been
-# arranged - the "X on PC | Y VR Ready" totals then sit too far left.
-# Now that a real layout exists, measure once more. Only ever runs when
-# the pre-paint scan set the flag; a normal start does nothing here.
-$window.Add_ContentRendered({
-    if (-not $global:TopScanSlotNeedsAlign) { return }
-    $global:TopScanSlotNeedsAlign = $false
-    try { if (Get-Command Align-TopScanSlot -ErrorAction SilentlyContinue) { Align-TopScanSlot } } catch { }
-})
-
-$window.Add_ContentRendered({
     try {
-        $depotCatalog = @($ownGames + $ownGamesGP)
-        foreach ($g in $depotCatalog) {
-            if (-not $g.DepotInstall) { continue }
-            if (-not $g.SteamId)      { continue }
+        if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) {
+            $window.WindowState = [System.Windows.WindowState]::Normal
+        }
+        [void]$window.Activate()
+        $window.Topmost = $true
+        $window.Topmost = $false
+        [void]$window.Focus()
+    } catch { }
 
+    $startupTemp = [string]$env:TEMP
+    if ([string]::IsNullOrWhiteSpace($startupTemp)) {
+        try { $startupTemp = [IO.Path]::GetTempPath() } catch { $startupTemp = $PSScriptRoot }
+    }
+    try {
+        if ($global:HubLoadStart) {
+            $secs = ([DateTime]::UtcNow - $global:HubLoadStart).TotalSeconds
+            if ($secs -gt 0.5 -and $secs -lt 300) {
+                Set-Content -Path (Join-Path $startupTemp "PCVRHub_lastload.txt") -Value ([string]([Math]::Round($secs, 2))) -ErrorAction SilentlyContinue
+            }
+        }
+    } catch { }
+    try {
+        Set-Content -Path (Join-Path $startupTemp "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue
+        Write-HubTiming "window activated; launcher ready signal written"
+    } catch { }
+})
+
+# Check on Startup must not turn application startup into a 20-25 second
+# blocking operation. The window/launcher hand-off above completes first; the
+# opted-in scan then starts on the dispatcher and uses its normal UI-pump path,
+# so status fills in while the already-open Hub remains responsive.
+$window.Add_ContentRendered({
+    if ($global:StartupInstalledScanScheduled -or -not (Get-CheckOnStartupFlag)) { return }
+    $global:StartupInstalledScanScheduled = $true
+    $window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Background,
+        [action]{
+            Write-HubTiming "before startup scan (post-paint)"
+            if (-not ($global:ScanInProgress -or $global:ScanQueued)) {
+                $global:HubScanOnlineDown = $false
+                $global:HubThunderstoreOnlineDown = $false
+                try { Invoke-CheckInstalledScan }
+                catch { Fail-InstalledScan -ErrorRecord $_ -Quiet }
+                try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch { }
+            }
+            Write-HubTiming "after startup scan (post-paint)"
+        }.GetNewClosure()
+    ) | Out-Null
+})
+
+# ---------------------------------------------------------------
+# Proactive steam_appid.txt heal for DepotInstall games. This is recovery
+# for older Hub depots; each installer and launch route still writes the file
+# itself. Process one catalog entry per low-priority dispatcher turn so the
+# newly visible Hub remains responsive and the work cannot delay the splash
+# hand-off or foreground activation.
+# ---------------------------------------------------------------
+function global:Invoke-StartupDepotHealStep {
+    try {
+        $queue = $global:StartupDepotHealQueue
+        $dispatcher = $global:StartupDepotHealDispatcher
+        if ($null -eq $queue -or $queue.Count -eq 0) {
+            if (-not $global:StartupImageWarmScheduled -and (Get-Command Start-ImageCacheWarm -ErrorAction SilentlyContinue)) {
+                $global:StartupImageWarmScheduled = $true
+                $dispatcher.BeginInvoke(
+                    [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+                    [action]{
+                        try { Start-ImageCacheWarm -Games @($global:StartupImageWarmGames) } catch { }
+                    }
+                ) | Out-Null
+            }
+            return
+        }
+
+        $g = $queue.Dequeue()
+        try {
             $healedPath = $null
 
-            # Primary signal: .installed_path file written by the installer.
-            # This is the ground truth - it points at the exact folder
-            # where the game was placed, regardless of whether that's
-            # in FallbackPaths or a custom drive/location.
             if (Get-Command Read-InstalledPath -ErrorAction SilentlyContinue) {
                 try {
                     $recorded = Read-InstalledPath -Game $g
@@ -376,35 +399,18 @@ $window.Add_ContentRendered({
                 } catch {}
             }
 
-            # Fallback: catalog FallbackPaths. STEAM: tokens are resolved
-            # against every known Steam library.
             if (-not $healedPath -and $g.FallbackPaths) {
-                $steamLibsLocal = $null
                 foreach ($p in $g.FallbackPaths) {
                     $candidatePaths = @()
                     if ($p -like "STEAM:*") {
-                        if ($null -eq $steamLibsLocal) {
-                            $steamLibsLocal = @()
-                            foreach ($rk in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam", "HKLM:\SOFTWARE\Valve\Steam", "HKCU:\SOFTWARE\Valve\Steam")) {
-                                try {
-                                    $sp = (Get-ItemProperty -Path $rk -ErrorAction Stop).InstallPath
-                                    if ($sp -and (Test-Path $sp)) { $steamLibsLocal += $sp; break }
-                                } catch {}
-                            }
-                            if ($steamLibsLocal.Count -gt 0) {
-                                $vdf = Join-Path $steamLibsLocal[0] "steamapps\libraryfolders.vdf"
-                                if (Test-Path $vdf) {
-                                    [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
-                                        $lib = $_.Groups[1].Value -replace '\\\\', '\'
-                                        if ((Test-Path $lib) -and ($steamLibsLocal -notcontains $lib)) {
-                                            $steamLibsLocal += $lib
-                                        }
-                                    }
-                                }
-                            }
+                        if (-not $global:StartupDepotSteamLibrariesReady) {
+                            $global:StartupDepotSteamLibrariesReady = $true
+                            $global:StartupDepotSteamLibraries = if (Get-Command Get-HubSteamLibraries -ErrorAction SilentlyContinue) {
+                                @(Get-HubSteamLibraries)
+                            } else { @() }
                         }
                         $folder = $p.Substring("STEAM:".Length)
-                        foreach ($lib in $steamLibsLocal) {
+                        foreach ($lib in @($global:StartupDepotSteamLibraries)) {
                             $candidatePaths += (Join-Path $lib "steamapps\common\$folder")
                         }
                     } else {
@@ -417,36 +423,37 @@ $window.Add_ContentRendered({
                 }
             }
 
-            if (-not $healedPath) { continue }
+            if ($healedPath) {
+                $appidFile = Join-Path $healedPath "steam_appid.txt"
+                if (-not (Test-Path -LiteralPath $appidFile -PathType Leaf)) {
+                    Set-Content -LiteralPath $appidFile -Value $g.SteamId -Encoding ASCII -NoNewline -Force -ErrorAction Stop
+                }
+            }
+        } catch { }
 
-            # Drop steam_appid.txt unconditionally - the file is harmless
-            # if the folder turns out not to be the right one, but missing
-            # it breaks depot launches with Steam's install-this-game
-            # dialog. Folder existence is signal enough.
-            $appidFile = Join-Path $healedPath "steam_appid.txt"
-            if (Test-Path $appidFile) { continue }   # Already healed
-            try {
-                Set-Content -Path $appidFile -Value $g.SteamId -Encoding ASCII -NoNewline -Force
-            } catch { }
-        }
-        # Warm the on-disk image cache for any games whose art we haven't
-        # saved yet. Runs in one decoupled background runspace. Deferred to
-        # an ApplicationIdle tick so creating/starting the runspace (a brief
-        # UI-thread cost - the mouse "busy" spinner) doesn't hold up the
-        # first interactive frame; it happens once the UI is idle instead.
-        # Capture the game list HERE (script-scoped collections are visible
-        # in this handler) and close over it, so the deferred delegate
-        # doesn't rely on script-scope visibility from its own context.
-        if (Get-Command Start-ImageCacheWarm -ErrorAction SilentlyContinue) {
-            $warmGames = @($ownGames + $ownGamesGP + $externalGames)
-            $window.Dispatcher.BeginInvoke(
-                [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
-                [action]{
-                    try { Start-ImageCacheWarm -Games $warmGames } catch { }
-                }.GetNewClosure()
-            ) | Out-Null
-        }
+        $dispatcher.BeginInvoke(
+            [System.Windows.Threading.DispatcherPriority]::Background,
+            [action]{ Invoke-StartupDepotHealStep }
+        ) | Out-Null
     } catch { }
+}
+
+$window.Add_ContentRendered({
+    if ($global:StartupDepotHealScheduled) { return }
+    $global:StartupDepotHealScheduled = $true
+    $global:StartupDepotHealDispatcher = $window.Dispatcher
+    $global:StartupDepotSteamLibrariesReady = $false
+    $global:StartupDepotSteamLibraries = @()
+    $global:StartupImageWarmScheduled = $false
+    $global:StartupImageWarmGames = @($ownGames + $ownGamesGP + $externalGames)
+    $global:StartupDepotHealQueue = New-Object System.Collections.Queue
+    foreach ($g in @($ownGames + $ownGamesGP)) {
+        if ($g.DepotInstall -and $g.SteamId) { $global:StartupDepotHealQueue.Enqueue($g) }
+    }
+    $window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Background,
+        [action]{ Invoke-StartupDepotHealStep }
+    ) | Out-Null
 })
 
 # Restore the view the user last had open (mod list or library), the same
@@ -480,55 +487,9 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
     }
 }
 
-# ---------------------------------------------------------------
-# Check on Startup - PRE-PAINT scan (design decision 2026-08-01).
-# The setting is persisted in .hub-settings.json ("checkOnStartup").
-# With it active, the full scan runs HERE: the cards already exist
-# (built in Window.ps1 at load) and the start view is restored, but
-# ShowDialog has not run yet. The FIRST frame the user ever sees is
-# the scanned state - no unscanned tiles that reload moments later.
-#
-# The launcher splash covers the whole wait: its ready flag is only
-# written at ContentRendered, so it simply stays up (progress bar =
-# visible sign of life, no perceived freeze), and its pacing
-# self-corrects from the next run on because PCVRHub_lastload.txt
-# records the real duration including the scan.
-#
-# The scan checks ONLINE, same as a manual click - Check on Startup
-# is the only update check most users ever run. The circuit breaker
-# (Invoke-ScanWebGet) caps an unreachable server at one ~2s timeout,
-# then disk-only for the rest, so a dead network cannot hold the
-# splash hostage. Crash safety: a failing scan must NEVER keep the
-# window from showing - same cleanup as the manual click handler.
-# ---------------------------------------------------------------
-# Logged unconditionally: if the Hub ever scans when the toggle is off (or
-# the other way round), this line says which value the gate actually read.
+# Log the persisted choice before ShowDialog, but never execute the scan here:
+# doing so made an optional library refresh part of application startup.
 Write-HubTiming ("checkOnStartup resolved to: {0}" -f (Get-CheckOnStartupFlag))
-if (Get-CheckOnStartupFlag) {
-    Write-HubTiming "before startup scan (pre-paint)"
-    if (-not ($global:ScanInProgress -or $global:ScanQueued)) {
-        $global:HubScanOnlineDown = $false
-        # Tells the scan epilog that the window is not on screen yet: it
-        # then skips the lift-off animation, shows the Needs Mod / VR Ready
-        # pills immediately, and flags the header slot for a re-measure
-        # (positions cannot be measured before the first layout).
-        $global:PrePaintScanActive = $true
-        try { Invoke-CheckInstalledScan }
-        catch {
-            Unlock-ScanUi
-            try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
-            $global:ScanInProgress = $false
-        }
-        finally { $global:PrePaintScanActive = $false }
-        # Library tiles read their status pills from gameStateMap,
-        # which the scan just filled. Sync them now so a LIBRARY
-        # start view is scanned-first too - cheap (map lookups, no
-        # disk probing), and guarded because the discover panel only
-        # exists when the library view was restored above.
-        try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch { }
-    }
-    Write-HubTiming "after startup scan (pre-paint)"
-}
 
 # Permanently hidden modders (settings key "hiddenModders") only took effect
 # once the user typed something: the library is built with every tile visible
@@ -581,27 +542,6 @@ $window.Add_Closing({
     } catch { }
 })
 
-# Bring the window to the foreground once it is first rendered. A
-# normal launch (shortcut / double-click) inherits foreground rights
-# from the launching process, but the post-update relaunch is started
-# by a background PowerShell process that does NOT hold those rights -
-# so Windows would leave the new window behind whatever was last active
-# (typically the Explorer folder it was started from). Activate() alone
-# is blocked by the foreground lock; the brief Topmost toggle is the
-# reliable WPF way to lift the window above others without needing
-# foreground rights, then drop it back to a normal z-order on top.
-$window.Add_ContentRendered({
-    try {
-        if ($window.WindowState -eq [System.Windows.WindowState]::Minimized) {
-            $window.WindowState = [System.Windows.WindowState]::Normal
-        }
-        [void]$window.Activate()
-        $window.Topmost = $true
-        $window.Topmost = $false
-        [void]$window.Focus()
-    } catch { }
-})
-
 # ---------------------------------------------------------------
 # Live update-banner reveal. The update check runs DETACHED in the
 # background (see Start PCVR Mods Hub.bat) so it never blocks the
@@ -624,7 +564,7 @@ $window.Add_ContentRendered({
     $global:UpdateProbeTimer.Add_Tick({
         $global:UpdateProbeCount++
         try {
-            $markerFile = Join-Path $global:scriptDir ".update_available"
+            $markerFile = Get-HubUpdateInfoPath
             if (Test-Path $markerFile) {
                 # The updater writes this marker ONLY when a newer release
                 # exists (it deletes a stale one when up to date), so its
@@ -693,21 +633,6 @@ $window.Add_ContentRendered({
     ) | Out-Null
 })
 
-# Signal the launcher splash that the window is up, and record the real
-# load time for the next launch's progress estimate. Best-effort; written
-# to %TEMP% only (never the Hub folder - ship-guard).
-$window.Add_ContentRendered({
-    try {
-        Set-Content -Path (Join-Path $env:TEMP "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue
-        if ($global:HubLoadStart) {
-            $secs = ([DateTime]::UtcNow - $global:HubLoadStart).TotalSeconds
-            if ($secs -gt 0.5 -and $secs -lt 60) {
-                Set-Content -Path (Join-Path $env:TEMP "PCVRHub_lastload.txt") -Value ([string]([Math]::Round($secs, 2))) -ErrorAction SilentlyContinue
-            }
-        }
-    } catch { }
-})
-
 # ------------------------------------------------------------
 # Crash guard
 # ------------------------------------------------------------
@@ -725,7 +650,7 @@ try {
         $msg = ""
         try { $msg = [string]$ev.Exception.Message } catch {}
         try {
-            $logDir = Join-Path $global:scriptDir "Logs"
+            $logDir = Get-HubRuntimeLogsRoot
             if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
             $stamp = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
             $trace = ""
@@ -736,7 +661,7 @@ try {
             [System.Windows.MessageBox]::Show(
                 ("Something went wrong, but the Hub is still running." + [Environment]::NewLine + [Environment]::NewLine +
                  $msg + [Environment]::NewLine + [Environment]::NewLine +
-                 "Details were written to Logs\hub-errors.log."),
+                 "Open Help & Feedback > Logs & report a problem for the full report."),
                 "Unexpected error",
                 [System.Windows.MessageBoxButton]::OK,
                 [System.Windows.MessageBoxImage]::Warning) | Out-Null
@@ -745,3 +670,14 @@ try {
 } catch {}
 
 $window.ShowDialog() | Out-Null
+
+# End the transcript while the WPF host is still in a normal script frame.
+# Letting PowerShell tear an active transcript down together with the closed
+# dispatcher can append a content-free `TerminatingError(): System error.` to
+# an otherwise clean log. This is lifecycle cleanup, not error filtering:
+# every exception that occurred while the Hub was running remains recorded.
+if ($script:HubTranscriptStarted) {
+    try { Stop-Transcript -ErrorAction SilentlyContinue | Out-Null } catch {}
+    $script:HubTranscriptStarted = $false
+    try { Compress-HubSessionLog -Path $hubLog } catch {}
+}

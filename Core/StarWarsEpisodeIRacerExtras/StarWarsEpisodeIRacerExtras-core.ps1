@@ -1,5 +1,7 @@
 param([string]$GameRoot = "")
 
+. "$PSScriptRoot\..\Modules\InstallerSafety.ps1"
+
 $mainDir = Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerVR"
 $tracksScript = Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerTracks\StarWarsEpisodeIRacerTracks-core.ps1"
 
@@ -20,23 +22,28 @@ if (-not (Test-RacerRoot $GameRoot)) {
     try { $GameRoot = (Get-Content -LiteralPath (Join-Path $mainDir ".installed_path") -Raw).Trim() } catch {}
 }
 if (-not (Test-RacerRoot $GameRoot)) {
-    Write-Host "[X] Racer PCVR must be installed first." -ForegroundColor Red
-    Pause-User "Press Enter to exit..." | Out-Null
-    exit 1
+    $locatedRoot = Get-GameFolderInteractive -GameName "Star Wars Episode I Racer" -ProbeFile "SWEP1RCR.EXE"
+    if ($locatedRoot -in @('quit','skip') -or -not (Test-RacerRoot $locatedRoot)) { exit 1 }
+    $GameRoot = $locatedRoot
 }
 
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $tracksScript -GameRoot $GameRoot -NoIntro -NoPause
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[X] Community tracks could not be installed." -ForegroundColor Red
-    Pause-User "Press Enter to exit..." | Out-Null
-    exit 1
+    $trackProbe = Join-Path $GameRoot "assets\custom_tracks\bigblue\out_modelblock.bin"
+    $recovery = Invoke-InstallerFallback -Action "install the community tracks" `
+        -Instructions "The automatic track installer did not finish. Copy only the community pack's 'assets\custom_tracks' folder into '$GameRoot\assets\custom_tracks'. Never copy its dinput.dll over the PCVR build, then choose Retry." `
+        -RetryCheck { Test-Path -LiteralPath $trackProbe -PathType Leaf } `
+        -SourceFolder (Split-Path -Parent $tracksScript) -DestFolder $GameRoot -AllowSkip $false
+    if ($recovery -eq 'quit') { exit 1 }
 }
 
 $trackProbe = Join-Path $GameRoot "assets\custom_tracks\bigblue\out_modelblock.bin"
 if (-not (Test-Path -LiteralPath $trackProbe -PathType Leaf)) {
-    Write-Host "[X] Community tracks could not be verified." -ForegroundColor Red
-    Pause-User "Press Enter to exit..." | Out-Null
-    exit 1
+    $recovery = Invoke-InstallerFallback -Action "verify the community tracks" `
+        -Instructions "The expected track file is still missing. Copy only 'assets\custom_tracks' from the community pack into '$GameRoot\assets\custom_tracks', then choose Retry." `
+        -RetryCheck { Test-Path -LiteralPath $trackProbe -PathType Leaf } `
+        -DestFolder $GameRoot -AllowSkip $false
+    if ($recovery -eq 'quit') { exit 1 }
 }
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot ".installed_path"), $GameRoot, (New-Object Text.UTF8Encoding($false)))
 Pause-User "Press Enter to exit..." | Out-Null
