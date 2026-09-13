@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (256)</summary>
+<summary>Show all currently listed titles (265)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -75,11 +75,13 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Doom (+ 3D weapons) (motion controls)
 * Doom 2 (+ 3D weapons) (motion controls)
 * Doom 3 BFG VR (motion controls)
+* DOOM (2016) VR (motion controls)
 * Doom Eternal
 * Dr. Robotnik's Ring Racers
 * Dragon's Dogma 2
 * Dredge VR (motion controls)
 * Driftwood VR (motion controls)
+* Duke Nukem 3D VR (motion controls)
 * Dusk HD (DLC) VR (motion controls)
 * Echo Generation 2
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
@@ -150,6 +152,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Mass Effect 2 Legendary Edition
 * Mass Effect 3 Legendary Edition
 * Max Payne 2 VR [WIP] (motion controls)
+* Metal Gear Solid V: The Phantom Pain [WIP] (motion controls)
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
@@ -162,10 +165,12 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * MOUSE: P.I. For Hire VR (motion controls)
 * Muck VR [WIP]
 * My Friendly Neighborhood [WIP] (motion controls)
+* NAM VR (motion controls)
 * Neon White VR (motion controls)
 * New Star GP
 * No One Lives Forever 2
 * Nuclear Option
+* One Unit Whole Blood VR (motion controls)
 * Onimusha 2: Samurai's Destiny
 * Outbound
 * Outer Wilds VR (motion controls)
@@ -182,6 +187,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Pokemon Gen 1 Recomp Voxel
 * Portal 2 VR (motion controls)
 * Portal 2: Community Edition (motion controls)
+* PowerSlave / Exhumed VR (motion controls)
 * Pragmata
 * Quake VR (motion controls)
 * Quake 2 VR + Quake II (Team Beef port) VR (motion controls)
@@ -193,6 +199,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Receiver VR (motion controls)
 * Receiver 2 VR (motion controls)
 * Red Faction VR (motion controls)
+* Redneck Rampage VR (motion controls)
 * R.E.P.O. VR (motion controls)
 * RE Requiem (motion controls)
 * RE Village (motion controls)
@@ -210,6 +217,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Sayonara Wild Hearts
 * Scrap Mechanic VR (motion controls)
 * Selaco VR (motion controls)
+* Shadow Warrior VR (motion controls)
 * Shenmue I & II
 * Silent Hill 
 * Silent Hill 3 VR (motion controls)
@@ -276,6 +284,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * White Knuckle VR (motion controls)
 * Wolfenstein 3D VR (motion controls)
 * World of Warcraft VR (motion controls)
+* World War II GI VR (motion controls)
 * Yooka-Laylee VR
 * (Dolphin VR + Redux)
 * (Skyrim VR + Fallout 4 VR Wabbajack modlists)
