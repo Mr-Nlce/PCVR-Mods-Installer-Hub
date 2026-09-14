@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (265)</summary>
+<summary>Show all currently listed titles (268)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -83,6 +83,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Driftwood VR (motion controls)
 * Duke Nukem 3D VR (motion controls)
 * Dusk HD (DLC) VR (motion controls)
+* EARTH DEFENSE FORCE 6 VR [WIP] (motion controls)
 * Echo Generation 2
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
 * Escape from Tarkov - Single Player Tarkov SPT (motion controls)
@@ -264,6 +265,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The Witcher 3: Wild Hunt
 * The Witness VR [WIP]
 * Tinykin VR
+* Titanfall 2 VR [WIP] (motion controls)
 * TLOU Part I
 * TLOU Part II
 * Tom Clancy’s Ghost Recon Wildlands [WIP]
@@ -277,6 +279,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Valheim VR (motion controls)
 * Vivecraft VR (motion controls)
 * Virtua Cop 2 VR (motion controls)
+* Warhammer 40K: Darktide VR (motion controls)
 * Warhammer 40,000: Rogue Trader
 * Watch Dogs
 * Watch Dogs 2
