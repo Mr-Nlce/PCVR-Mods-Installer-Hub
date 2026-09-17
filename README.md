@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (268)</summary>
+<summary>Show all currently listed titles (273)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -86,6 +86,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * EARTH DEFENSE FORCE 6 VR [WIP] (motion controls)
 * Echo Generation 2
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
+* ELDERBORN VR (motion controls)
 * Escape from Tarkov - Single Player Tarkov SPT (motion controls)
 * Far Cry 4
 * Far Cry 5
@@ -107,6 +108,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Ghost of Tsushima
 * Ghosts 'n Goblins Resurrection
 * Ghostwire: Tokyo
+* Gloomhaven VR (motion controls)
 * Grounded
 * GTA 4: The Complete Edition [WIP]
 * GTA 5 VR
@@ -190,6 +192,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Portal 2: Community Edition (motion controls)
 * PowerSlave / Exhumed VR (motion controls)
 * Pragmata
+* Prey (2006) VR (motion controls)
 * Quake VR (motion controls)
 * Quake 2 VR + Quake II (Team Beef port) VR (motion controls)
 * Quake 3 Arena VR (motion controls)
@@ -270,6 +273,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * TLOU Part II
 * Tom Clancy’s Ghost Recon Wildlands [WIP]
 * Tormented Souls (motion controls)
+* TrackMania Nations Forever [FREE]
+* TrackMania United Forever
 * Tomb Raider (1) VR (motion controls)
 * Total Chaos VR (GZDoom) (motion controls)
 * Trombone Champ VR (motion controls)
