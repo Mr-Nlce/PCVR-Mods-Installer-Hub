@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (273)</summary>
+<summary>Show all currently listed titles (278)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -67,6 +67,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Decimate Drive VR (motion controls)
 * Deep Rock Galactic VR (motion controls)
 * Descenders
+* Deus Ex: Human Revolution - Director's Cut [WIP] (motion controls)
 * Devil May Cry 5 VR
 * Diddy Kong Racing
 * Dinkum
@@ -109,6 +110,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Ghosts 'n Goblins Resurrection
 * Ghostwire: Tokyo
 * Gloomhaven VR (motion controls)
+* GoldenEye 007 VR [WIP] (motion controls)
 * Grounded
 * GTA 4: The Complete Edition [WIP]
 * GTA 5 VR
@@ -180,6 +182,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Outlast
 * Outward Definitive Edition (motion controls)
 * Painkiller: Black Edition (motion controls)
+* Painkiller: Overdose VR (motion controls)
 * Panzer Dragoon Remake (motion controls)
 * Paperklay VR (motion controls)
 * Paranoia Place VR (motion controls)
@@ -191,6 +194,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Portal 2 VR (motion controls)
 * Portal 2: Community Edition (motion controls)
 * PowerSlave / Exhumed VR (motion controls)
+* PowerWash Simulator 2 VR [WIP] (motion controls)
 * Pragmata
 * Prey (2006) VR (motion controls)
 * Quake VR (motion controls)
@@ -275,6 +279,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Tormented Souls (motion controls)
 * TrackMania Nations Forever [FREE]
 * TrackMania United Forever
+* Tribes 2 VR [FREE] [WIP] (motion controls)
 * Tomb Raider (1) VR (motion controls)
 * Total Chaos VR (GZDoom) (motion controls)
 * Trombone Champ VR (motion controls)
