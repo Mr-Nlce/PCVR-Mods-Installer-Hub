@@ -112,7 +112,7 @@ function global:New-ClearLocationButton {
                 if ($remaining) { throw "The saved $stateName value could not be cleared." }
             }
             $global:PendingInstallTitle = $Game.Title
-            Invoke-PostInstallRefreshSafely
+            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
             [System.Windows.Forms.MessageBox]::Show(
                 ($Game.Title + " location cleared."),
                 "Clear location") | Out-Null
@@ -615,7 +615,7 @@ function global:Start-AlternativeModInstaller {
                 $proc = $s.Tag
                 if (Test-InstallerRefreshReady -Process $proc) {
                     try { $s.Stop() } catch {}
-                    Invoke-PostInstallRefreshSafely
+                    Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                 }
             })
             $installerTimer.Start()
@@ -818,6 +818,9 @@ function global:New-LocateButton {
             if (-not $modHit -and $Game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $picked -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile)) {
                 $modHit = $true
             }
+            if ($modHit -and -not (Test-VrInstallEvidenceContract -Game $Game -Root $picked)) {
+                $modHit = $false
+            }
             # VrInstallRoot games keep the mod OUTSIDE the game folder
             # (%LocalAppData% etc.); check that root too. We do NOT move
             # $picked - it stays the game folder the user pointed at.
@@ -827,7 +830,8 @@ function global:New-LocateButton {
                 elseif ($vrRoot -like "APPDATA:*")      { $vrRoot = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vrRoot.Substring("APPDATA:".Length)) }
                 elseif ($vrRoot -like "PROGRAMDATA:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vrRoot.Substring("PROGRAMDATA:".Length)) }
                 elseif ($vrRoot -like "USERPROFILE:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vrRoot.Substring("USERPROFILE:".Length)) }
-                if ($vrRoot -and (Test-Path -LiteralPath (Join-Path $vrRoot $Game.ModFile))) { $modHit = $true }
+                if ($vrRoot -and (Test-RelativePathMarker -Root $vrRoot -Values @($Game.ModFile, $Game.ModFileAlt, $Game.ModFileAlt2)) -and
+                    (Test-VrInstallEvidenceContract -Game $Game -Root $vrRoot)) { $modHit = $true }
             }
             # Alternative-mod games have no single ModFile. Discover every
             # declared slot (A-H), not just the historic A/B pair, and prefer
@@ -1060,7 +1064,7 @@ function global:New-LocateButton {
                 }
             } catch {}
             $global:PendingInstallTitle = $Game.Title
-            Invoke-PostInstallRefreshSafely
+            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
 
             if ($modHit) {
                 $msg = "Success - " + $modLabel + " found for " + $Game.Title + "." + "`r`n`r`nLocation:`r`n" + $picked + "`r`n`r`nIt will now show as VR Ready."
@@ -1107,6 +1111,18 @@ function global:New-LocateButton {
 function global:Resolve-UninstallActions {
     param($Game)
 
+    # Easy External Installer entries with Type=steam are complete Steam
+    # applications, not in-place mods. Steam owns their files and their
+    # uninstall transaction, so expose Steam's own removal page instead of
+    # inventing a file remover. This deliberately does not apply to ordinary
+    # Hub entries that merely happen to have a Steam AppID.
+    if ($Game.Type -eq 'steam' -and -not [string]::IsNullOrWhiteSpace([string]$Game.SteamId)) {
+        return @([pscustomobject]@{
+            Path=("steam://uninstall/" + [string]$Game.SteamId)
+            Label='Uninstall in Steam'; ProbeFile=$null
+            TargetMod=$null; Arguments=$null; Kind='Steam'
+        })
+    }
     if (-not $Game.UninstallExe) { return @() }
     $relativePaths = @($Game.UninstallExe | Where-Object { $_ })
     $labels = @($Game.UninstallLabel)
@@ -1218,7 +1234,7 @@ function global:Resolve-UninstallActions {
                 $seen[$actionKey] = $true
                 [void]$actions.Add([pscustomobject]@{
                     Path=$full; Label=$label; ProbeFile=$probe
-                    TargetMod=$target; Arguments=$argument
+                    TargetMod=$target; Arguments=$argument; Kind='File'
                 })
                 break
             }
@@ -1353,6 +1369,10 @@ function global:Invoke-ResolvedUninstallAction {
 
     if (-not $Action -or -not $Action.Path) { return }
     try {
+        if ($Action.Kind -eq 'Steam') {
+            Start-Process ([string]$Action.Path) -ErrorAction Stop
+            return
+        }
         $startArgs = @{
             FilePath=[string]$Action.Path
             WorkingDirectory=(Split-Path ([string]$Action.Path) -Parent)
@@ -1368,12 +1388,10 @@ function global:Invoke-ResolvedUninstallAction {
         return
     }
 
-    # Exactly the same scope-respecting refresh used after an installer:
-    # a user who already ran Scan games gets a coherent full re-scan;
-    # otherwise only the game whose uninstaller just closed is rechecked.
-    # Cancellation is safe too: the recheck simply finds the marker again.
+    # Recheck only the exact game whose uninstaller just closed. Cancellation
+    # is safe too: the same route evidence is simply found again.
     $global:PendingInstallTitle = $Game.Title
-    Invoke-PostInstallRefreshSafely
+    Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
 }
 
 function global:New-UninstallNowButton {
@@ -1383,6 +1401,7 @@ function global:New-UninstallNowButton {
         [string]$Label = 'Uninstall now',
         [string]$ProbeFile = $null,
         [string]$Arguments = $null,
+        [string]$Kind = 'File',
         [object[]]$Choices = $null,
         [string]$AccentHex = "#e07a63"
     )
@@ -1426,7 +1445,7 @@ function global:New-UninstallNowButton {
     $ttInner.MinWidth = 300; $ttInner.MaxWidth = 420
     $ttStack = New-Object System.Windows.Controls.StackPanel
     $ttHead = New-Object System.Windows.Controls.TextBlock
-    $ttHead.Text = if ($Choices) { 'Choose which installed VR mod to remove' } else { 'Run the uninstaller that came with the mod' }
+    $ttHead.Text = if ($Choices) { 'Choose which installed VR mod to remove' } elseif ($Kind -eq 'Steam') { 'Remove this separate VR app through Steam' } else { 'Run the uninstaller that came with the mod' }
     $ttHead.FontSize = 13
     $ttHead.FontWeight = [System.Windows.FontWeights]::SemiBold
     $ttHead.Foreground = [System.Windows.Media.Brushes]::White
@@ -1434,7 +1453,7 @@ function global:New-UninstallNowButton {
     $ttHead.Margin = [System.Windows.Thickness]::new(0, 0, 0, 8)
     $ttStack.Children.Add($ttHead) | Out-Null
     $ttBody = New-Object System.Windows.Controls.TextBlock
-    $ttBody.Text = if ($Choices) { 'The Hub first shows every mod, its installed state and which verified remover is available. You then choose one; Cancel changes nothing.' } else { 'It removes what it installed and nothing else. Your saves are not touched, and the Hub checks afterwards whether the mod is really gone.' }
+    $ttBody.Text = if ($Choices) { 'The Hub first shows every mod, its installed state and which verified remover is available. You then choose one; Cancel changes nothing.' } elseif ($Kind -eq 'Steam') { 'Steam installed and owns this complete VR application. This opens Steam confirmation; the Hub does not delete files itself.' } else { 'It removes what it installed and nothing else. Your saves are not touched, and the Hub checks afterwards whether the mod is really gone.' }
     $ttBody.FontSize = 12
     $ttBody.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9bdc4")
     $ttBody.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -1528,7 +1547,7 @@ function global:New-UninstallNowButton {
     $gameTitle = [string]$Game.Title
     $modFileRel = [string]$Game.ModFile
     $probeRel   = if ($ProbeFile) { [string]$ProbeFile } elseif ($Game.UninstallProbeFile -and @($Game.UninstallProbeFile).Count -eq 1) { [string](@($Game.UninstallProbeFile)[0]) } else { $modFileRel }
-    $singleAction = [pscustomobject]@{ Path=$ExePath; Label=$Label; ProbeFile=$probeRel; Arguments=$Arguments }
+    $singleAction = [pscustomobject]@{ Path=$ExePath; Label=$Label; ProbeFile=$probeRel; Arguments=$Arguments; Kind=$Kind }
     $choicesCapture = $Choices
     $gameCapture = $Game
 
@@ -1644,7 +1663,13 @@ function global:New-UninstallGuideButton {
 
     # Header
     $tipHeader = New-Object System.Windows.Controls.TextBlock
-    $tipHeader.Text = if ($isStandaloneFolder) { "How to remove this VR build" } else { "How to safely remove the VR mod" }
+    $tipHeader.Text = if ($Game.Type -eq 'steam' -and $Game.SteamId) {
+        "How to uninstall this Steam VR app"
+    } elseif ($isStandaloneFolder) {
+        "How to remove this VR build"
+    } else {
+        "How to safely remove the VR mod"
+    }
     $tipHeader.FontSize = [int]$guideSize.Font + 1
     $tipHeader.Tag = 'heading'
     $tipHeader.TextWrapping = 'Wrap'
@@ -1683,7 +1708,7 @@ function global:New-UninstallGuideButton {
     # Put the exact source used for version-specific removal instructions in
     # the guide itself. This is deliberately a web link, not a guessed local
     # path or a destructive action.
-    $guideSourceUrl = Get-UninstallSourceUrl $Game
+    $guideSourceUrl = if ($Game.Type -eq 'steam' -and $Game.SteamId) { $null } else { Get-UninstallSourceUrl $Game }
     if ($guideSourceUrl) {
         $guideSource = New-Object System.Windows.Controls.TextBlock
         $guideSource.FontSize = $guideSize.Font
@@ -1820,7 +1845,7 @@ function global:New-UninstallGuideButton {
     $panelHost.Child = $tipOuter
     [void]$HostPanel.Children.Add($panelHost)
     $guide = [pscustomobject]@{
-        Game = $Game; Steps = $steps; TextBlocks = $guideTextBlocks
+        Game = $Game; Steps = $steps; TextBlocks = $guideTextBlocks; Header = $tipHeader
         Panel = $panelHost; Hint = $guideHint; Shortcuts = $guideShortcuts
     }
     $global:DetailUninstallGuide = $guide

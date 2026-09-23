@@ -76,16 +76,16 @@ only for now, there are no motion controls for it yet.
 
 ### Controls
 
-| Action | Binding |
+| Button | Action |
 |---|---|
-| Sword | swing your arm, or [[Right Trigger]] |
-| Crouch | duck physically, or [[A]] on the right controller |
-| Block / choke | [[Right Stick Click]] |
-| Blink | [[Left Trigger]], aimed with your left hand |
-| Crossbow, pistol, grenades | [[Left Trigger]], aimed with your hand |
-| Interact | [[X]] on the left controller, or [[A]] on Index |
-| Weapon wheel | [[Left Trackpad]] on Index, [[Left Grip]] on Quest, then [[Stick]] |
-| Health | open the weapon wheel, press [[B]] on the right controller |
+| swing your arm, or [[Right Trigger]] | Sword |
+| duck physically, or [[A]] on the right controller | Crouch |
+| [[Right Stick Click]] | Block / choke |
+| [[Left Trigger]], aimed with your left hand | Blink |
+| [[Left Trigger]], aimed with your hand | Crossbow, pistol, grenades |
+| [[X]] on the left controller, or [[A]] on Index | Interact |
+| [[Left Trackpad]] on Index, [[Left Grip]] on Quest, then [[Stick]] | Weapon wheel |
+| open the weapon wheel, press [[B]] on the right controller | Health |
 
 Lean by leaning physically. If the range feels short, adjust `RoomDeadM` and `RoomBleedMS`
 in `Binaries\Win32\dishonored_vr.ini`.

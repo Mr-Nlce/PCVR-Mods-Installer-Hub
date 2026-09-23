@@ -1,6 +1,6 @@
 . (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1');. (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $ErrorActionPreference='Stop';$Host.UI.RawUI.WindowTitle='Max Payne 2 VR Installer'
-$repo='betotron/MaxPayne2VR-release';$branch='main';$fallbackSha='2c25657a78dcfe4f8bb709453ecaae4b2954a36f';$fallbackVersion='2026.09.07.013528';$fallbackUrl='https://codeload.github.com/betotron/MaxPayne2VR-release/zip/2c25657a78dcfe4f8bb709453ecaae4b2954a36f'
+$repo='betotron/MaxPayne2VR-release';$fallbackVersion='v1.2';$fallbackName='MaxPayne2VR-v1.2.zip';$fallbackUrl='https://github.com/betotron/MaxPayne2VR-release/releases/download/v1.2/MaxPayne2VR-v1.2.zip'
 function Write-Header {
     Clear-Host
     Write-Host ('=' * 60) -ForegroundColor Magenta
@@ -10,8 +10,6 @@ function Write-Header {
     Write-Host ''
 }
 function S($n,$t,$x){Write-Host '';Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan;Write-Host ''};function OK($x){Write-Host " [OK] $x" -ForegroundColor Green};function W($x){Write-Host " [!!] $x" -ForegroundColor Yellow};function P($x='Press Enter to continue...'){Write-Host '';Write-Host " >>> $x " -ForegroundColor Black -BackgroundColor Yellow;Read-Host|Out-Null}
-function Get-Head{try{$c=Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/commits/$branch" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 12 -ErrorAction Stop;$d=[string]$c.commit.committer.date;if(-not$d){$d=[string]$c.commit.author.date};@{Sha=[string]$c.sha;Version=([DateTime]::Parse($d,$null,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()).ToString('yyyy.MM.dd.HHmmss')}}catch{$null}}
-
 Write-Header
 Write-Host '  This beta adds stereo OpenXR, roomscale and motion controls.' -ForegroundColor White
 Write-Host '  Virtual Desktop is the only runtime currently confirmed by' -ForegroundColor White
@@ -25,11 +23,12 @@ $game=Find-SteamGameFolder -AppId '12150' -SteamFolderNames @('Max Payne 2 The F
 if(-not$game){$game=Get-GameFolderInteractive -GameName 'Max Payne 2' -ProbeFile 'MaxPayne2.exe' -ManualUrl 'https://store.steampowered.com/app/12150/'}
 if($game -in @('quit','skip',$null)){W 'No verified game folder was selected.';P 'Press Enter to exit';exit 1};OK "Found: $game"
 
-S 2 4 'Resolving the maintained branch head'
-$head=Get-Head
-if($head){$sha=$head.Sha;$version=$head.Version;$url="https://codeload.github.com/$repo/zip/$sha";OK "Current commit: $($sha.Substring(0,7)) ($version UTC)"}else{$sha=$fallbackSha;$version=$fallbackVersion;$url=$fallbackUrl;W "GitHub did not answer; using the last known commit $($sha.Substring(0,7))."}
+S 2 4 'Resolving the current stable release'
+$release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^MaxPayne2VR-v.+\.zip$') -FallbackUrl $fallbackUrl -FallbackTag $fallbackVersion -FallbackAssetName $fallbackName
+$version=[string]$release.Tag;$url=[string]$release.Url
+if($release.Resolved){OK "Current stable release: $version"}else{W "GitHub did not provide the current asset; using the reviewed $fallbackVersion route."}
 $tmp=Join-Path ([IO.Path]::GetTempPath()) ('MaxPayne2VR_'+[Guid]::NewGuid().ToString('N'));New-Item -ItemType Directory -Path $tmp -Force|Out-Null;$zip=Join-Path $tmp 'MaxPayne2VR.zip'
-$got=Invoke-SafeDownload -Urls @($url) -Destination $zip -Label 'MaxPayne2VR' -ManualUrl 'https://github.com/betotron/MaxPayne2VR-release' -AllowSkip $false
+$got=Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "MaxPayne2VR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
 if(-not$got){W 'The required archive was not obtained.';P 'Press Enter to exit';exit 1}
 
 S 3 4 'Installing with exact-file recovery'
@@ -50,7 +49,7 @@ if(@($watch|Where-Object{-not(Test-Path -LiteralPath $_ -PathType Leaf)}).Count)
 $survived=Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -ArchivePath $zip
 if(-not$survived){throw 'Required MaxPayne2VR files did not survive the antivirus check.'}
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$game,(New-Object Text.UTF8Encoding $false));[IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version'),$version,(New-Object Text.UTF8Encoding $false));Save-InstalledStamp -GameDir $game -Version $version
-OK "Installed commit $($sha.Substring(0,7)).";Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+OK "Installed release $version.";Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
 Write-Host '';Write-Host ('='*60) -ForegroundColor Magenta;Write-Host '  Setup complete.' -ForegroundColor Green;Write-Host ('='*60) -ForegroundColor Magenta
 Write-Host '';Write-Host '  Start Virtual Desktop first, then launch from the Hub or Steam.' -ForegroundColor White;Write-Host '  The first launch begins with a short flat wait and calibration.' -ForegroundColor White
 Write-Host '';Write-Host '  Nothing was bulletproof. Not even the weather.' -ForegroundColor Magenta;Write-Host '';P 'Press Enter to exit'

@@ -823,7 +823,35 @@ function global:Show-DiscoverDetail {
             $modVal.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#dddddd")
             $modVal.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $modVal.Margin = [System.Windows.Thickness]::new(0, 2, 0, 0)
-            $modCol.Children.Add($modVal) | Out-Null
+            $modValueRow = New-Object System.Windows.Controls.StackPanel
+            $modValueRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+            $gemModName = [string]$Game.GemModName
+            $gemNameAt = if ($Game.Gem -and $gemModName) { $modClean.IndexOf($gemModName, [StringComparison]::OrdinalIgnoreCase) } else { -1 }
+            if ($gemNameAt -ge 0) {
+                # A shared tile can expose more than one VR mod. Keep the Gem
+                # beside the specifically polished mod instead of implying
+                # that every alternative on the tile has the same status.
+                $modVal.Text = $modClean.Substring(0, $gemNameAt + $gemModName.Length)
+                $modValueRow.Children.Add($modVal) | Out-Null
+                $modValueRow.Children.Add((New-GemMarker -Detail)) | Out-Null
+                $tailText = $modClean.Substring($gemNameAt + $gemModName.Length)
+                if ($tailText) {
+                    $modTail = New-Object System.Windows.Controls.TextBlock
+                    $modTail.Text = $tailText
+                    $modTail.FontSize = $modVal.FontSize
+                    $modTail.FontWeight = $modVal.FontWeight
+                    $modTail.Foreground = $modVal.Foreground
+                    $modTail.FontFamily = $modVal.FontFamily
+                    $modTail.Margin = $modVal.Margin
+                    $modValueRow.Children.Add($modTail) | Out-Null
+                }
+            } else {
+                $modValueRow.Children.Add($modVal) | Out-Null
+                if ($Game.Gem) {
+                    $modValueRow.Children.Add((New-GemMarker -Detail)) | Out-Null
+                }
+            }
+            $modCol.Children.Add($modValueRow) | Out-Null
             $metaRow.Children.Add($modCol) | Out-Null
             Add-HoverScale -Element $modVal -Scale 1.04
         }
@@ -1091,7 +1119,7 @@ function global:Show-DiscoverDetail {
         "F-Zero X VR" = "F-Zero X is a high-speed futuristic racing game where players compete in anti-gravity machines across extreme tracks filled with sharp turns, jumps, and hazards. Featuring up to 30 racers at once, it focuses on intense speed, aggressive competition, and mastering each vehicle's unique handling. This VR build renders it in real stereo with 6DoF head tracking, on top of G-Diffuser, Zorkats' native PC port - you bring your own US Rev 0 ROM."
         "Diddy Kong Racing VR" = "Diddy Kong Racing is a colorful kart racing adventure where players explore a hub world, compete in races, and take on special challenges and boss battles. Unlike traditional kart racers, it features three different vehicle types - cars, hovercrafts, and planes - each offering a distinct way to race across its varied tracks. This VR build renders the whole game inside the headset with full head tracking, on top of Golden Balloon, akratch's PC port - you bring your own US 1.1 or EU 1.1 ROM."
         "Banjo-Kazooie VR" = "Banjo the bear and Kazooie the bird explore interconnected worlds to rescue Banjo's sister from the witch Gruntilda. The game combines platforming, exploration, puzzles, collectibles, and a wide range of abilities unlocked throughout the adventure. This VR build renders the whole game per eye with head tracking, on top of Lighthouse, the Harbour Masters PC port - you bring your own US ROM."
-        "Pokemon Gen 1 VR" = "Pokemon Gen 1 Recomp Voxel VR brings the classic first-generation adventure into a fully explorable voxel-based 3D world. Travel across Kanto, catch and battle Pokemon, and experience the familiar journey from an immersive first-person VR perspective."
+        "Pokemon Dramatic Shape VR" = "Dramatic Shape reimagines Red, Blue, Yellow, Crystal and Pokemon Pinball as interactive VR and mixed-reality worlds with diorama, first-person and physical tabletop play."
         "Blood VR" = "Blood: One Unit Whole Blood is the complete DOS release of Monolith's cult horror shooter, including the Plasma Pak and Cryptic Passage expansion. RazeXR brings Caleb's campaign into PCVR with tracked motion controls and controller-held voxel weapons."
         "NAM VR" = "NAM is a Build-engine Vietnam War shooter created with input from Vietnam veterans. RazeXR brings its campaign into PCVR with tracked motion controls and controller-held voxel weapons; the related NAPALM release can be imported separately."
         "Battlefield 1942 VR" = "Battlefield 1942 is a classic World War II first-person shooter that lets you fight across large battlefields as infantry or take control of tanks, aircraft, ships, and other vehicles."
@@ -1120,6 +1148,9 @@ function global:Show-DiscoverDetail {
         "Quake 3 VR"           = "Quake III Arena is id Software's acclaimed 1999 arena shooter - fast, skill-based combat in gothic and sci-fi arenas, with bot matches and up to 16-player multiplayer. This installs Quake 3 VR (q3vr): a 6DoF motion-controlled PCVR port built on ioquake3 and Quake3Quest, with the full single-player campaign and crossplay multiplayer with PC and Quest players."
         "Breath of the Wild VR" = "Experience Hyrule like never before! BetterVR transforms The Legend of Zelda: Breath of the Wild into a full 6DOF PCVR adventure. Explore vast landscapes, climb towering mountains, and face powerful enemies with a whole new sense of scale and immersion."
         "Escape from Tarkov VR" = "SPT VR brings the harsh extraction shooter experience of Tarkov into immersive PCVR. Raid alone against AI PMCs and Scavs, manage your gear, loot dangerous locations, and survive tense firefights where every mistake can cost you everything. Build your stash, upgrade your setup, and make it back alive before the raid turns against you."
+        "Tribes 2 VR"          = "Tribes 2 is a classic fast-paced sci-fi team shooter famed for its massive open maps and iconic jetpack-assisted skiing mechanics."
+        "GoldenEye 007 VR"     = "Experience the iconic 1997 stealth-action classic re-imagined for modern virtual reality, placing you directly inside the shoes of MI6's top agent."
+        "Painkiller: Overdose VR" = "Painkiller: Overdose is a fast-paced, dark retro shooter released in 2007 that serves as both a prequel and a sequel to the original game. Armed with brutal new weapons and powers, the game delivers relentless arcade-style carnage through massive waves of enemies across bizarre, gothic environments."
     }
     $toolInfoTitles = @("UEVR Deluxe", "UUVR / Rai Pal", "Dolphin VR + ReduX")
     $steamDescPending = $false
@@ -2003,7 +2034,7 @@ function global:Show-DiscoverDetail {
                     # Yes/No/Cancel dialog whose buttons cannot say A and B.
                     foreach ($choice in @($uninstallChoices | Where-Object Removable)) {
                         $action = $choice.Action
-                        $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $action.Path -Label $action.Label -ProbeFile $action.ProbeFile -Arguments $action.Arguments
+                        $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $action.Path -Label $action.Label -ProbeFile $action.ProbeFile -Arguments $action.Arguments -Kind $action.Kind
                         $unNowBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
                         $standaloneRow.Children.Add($unNowBtn) | Out-Null
                     }
@@ -2016,7 +2047,7 @@ function global:Show-DiscoverDetail {
                 }
             } else {
               foreach ($uninstallAction in $uninstallActions) {
-                $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $uninstallAction.Path -Label $uninstallAction.Label -ProbeFile $uninstallAction.ProbeFile -Arguments $uninstallAction.Arguments
+                $unNowBtn = New-UninstallNowButton -Game $Game -ExePath $uninstallAction.Path -Label $uninstallAction.Label -ProbeFile $uninstallAction.ProbeFile -Arguments $uninstallAction.Arguments -Kind $uninstallAction.Kind
                 # SAME top and bottom margin as the guide next to it. The
                 # call site zeroes that one, so any other value here drops
                 # this button lower and makes the whole row taller - which
@@ -2609,7 +2640,7 @@ function global:Show-DiscoverDetail {
                         $proc = $s.Tag
                         if (Test-InstallerRefreshReady -Process $proc) {
                             try { $s.Stop() } catch {}
-                            Invoke-PostInstallRefreshSafely
+                            Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                         }
                     })
                     $riTimer.Start()
@@ -2721,7 +2752,7 @@ function global:Show-DiscoverDetail {
                     $proc = $s.Tag
                     if (Test-InstallerRefreshReady -Process $proc) {
                         try { $s.Stop() } catch {}
-                        Invoke-PostInstallRefreshSafely
+                        Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                     }
                 })
                 $timer.Start()
@@ -2747,7 +2778,11 @@ function global:Show-DiscoverDetail {
             # while CombinedModInstaller pages expose ONE setup button and
             # let the shared batch show its numbered menu. The latter scales
             # cleanly when a fourth or fifth alternative arrives.
-            $alternativeDefinitions = @(Get-AlternativeModDefinitions -Game $Game -State $twoSt)
+            $alternativeDefinitions = if ($Game.RouteModMatrix) {
+                @(Get-RouteModMatrixDefinitions -Game $Game -State $twoSt)
+            } else {
+                @(Get-AlternativeModDefinitions -Game $Game -State $twoSt)
+            }
             $useCombinedInstaller = [bool]$Game.CombinedModInstaller
             foreach ($definition in $alternativeDefinitions) {
                 if ($definition.Present) {
@@ -2898,8 +2933,7 @@ function global:Show-DiscoverDetail {
     if ($Game.LegacyDepotPath -and $Game.LegacyDepotLaunchExe -and $Game.LegacyDepotModFile) {
         $legacyPresent = $false
         foreach ($cand in (Get-LegacyDepotCandidatePaths -Game $Game)) {
-            if ((Test-Path -LiteralPath (Join-Path $cand $Game.LegacyDepotLaunchExe) -PathType Leaf) -and
-                (Test-Path -LiteralPath (Join-Path $cand $Game.LegacyDepotModFile) -PathType Leaf)) {
+            if (Test-LegacyDepotRouteReady -Game $Game -Root $cand) {
                 $legacyPresent = $true; break
             }
         }
@@ -3448,8 +3482,66 @@ function global:Hide-DiscoverDetail {
     if (Get-Command Sync-ScaleButtonsToMode -ErrorAction SilentlyContinue) { Sync-ScaleButtonsToMode }
 }
 
+function global:Queue-DiscoverTileBuildPass {
+    if (-not $global:DiscoverTilesBuilding -or -not $global:window -or -not $global:window.Dispatcher) { return }
+    $global:window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Background,
+        [Action]{ try { Invoke-DiscoverTileBuildBatch } catch { $global:DiscoverTilesBuilding = $false } }
+    ) | Out-Null
+}
+
+function global:Invoke-DiscoverTileBuildBatch {
+    if (-not $global:DiscoverTilesBuilding -or -not $global:DiscoverTileBuildQueue) { return }
+    $global:DiscoverTileBuildPasses = [int]$global:DiscoverTileBuildPasses + 1
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    $made = 0
+    while ($global:DiscoverTileBuildQueue.Count -gt 0 -and $made -lt 4 -and $watch.ElapsedMilliseconds -lt 12) {
+        $g = $global:DiscoverTileBuildQueue.Dequeue()
+        try {
+            $tile = New-DiscoverTile -Game $g
+            $global:discoverPanel.Children.Add($tile) | Out-Null
+            # A full Refresh-DiscoverStatuses call made after Build returns can
+            # only see the tiles already present. Give every later batch its
+            # current state at creation time so Install/VR Ready never lags.
+            if (Get-Command Update-DiscoverTileStatus -ErrorAction SilentlyContinue) {
+                try { Update-DiscoverTileStatus -Tile $tile } catch { }
+            }
+            # Apply the live query/filter to this tile while the global built
+            # flag is still false. Apply-Filter intentionally skips an
+            # incomplete library and is run once more after the final batch.
+            if (Get-Command Test-GamePassesFilter -ErrorAction SilentlyContinue) {
+                $query = ''
+                try { if ($global:searchBox) { $query = $global:searchBox.Text.Trim().ToLower() } } catch { }
+                try {
+                    if (-not (Test-GamePassesFilter -GameData $g -Query $query)) {
+                        $tile.Visibility = [System.Windows.Visibility]::Collapsed
+                    }
+                } catch { }
+            }
+        } catch {
+            try { Write-Host "  [library-build] skipped '$($g.Title)': $_" -ForegroundColor DarkYellow } catch { }
+        }
+        $made++
+    }
+    $watch.Stop()
+
+    if ($global:DiscoverTileBuildQueue.Count -gt 0) {
+        Queue-DiscoverTileBuildPass
+        return
+    }
+
+    $global:DiscoverTilesBuilding = $false
+    $global:DiscoverTilesBuilt = $true
+    $global:DiscoverTileBuildQueue = $null
+    if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) {
+        Apply-CatalogSort -Scope Library -SkipFilter
+    }
+    if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
+    if (Get-Command Apply-LibrarySize -ErrorAction SilentlyContinue) { Apply-LibrarySize $global:LibrarySize }
+}
+
 function global:Build-DiscoverTiles {
-    if ($global:DiscoverTilesBuilt) { return }
+    if ($global:DiscoverTilesBuilt -or $global:DiscoverTilesBuilding) { return }
     $allGames = @()
     $allGames += $ownGames
     $allGames += $ownGamesGP
@@ -3494,14 +3586,16 @@ function global:Build-DiscoverTiles {
         }
     } catch { }
 
-    foreach ($g in $allGames) {
-        $tile = New-DiscoverTile -Game $g
-        $global:discoverPanel.Children.Add($tile) | Out-Null
-    }
-    $global:DiscoverTilesBuilt = $true
-    if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) {
-        Apply-CatalogSort -Scope Library -SkipFilter
-    }
+    # Building 276 portrait controls, including cached bitmap decoding, used
+    # to happen in one synchronous loop on the first Library click. Keep the
+    # exact same tiles and order, but create a maximum of four (and at most
+    # about 12 ms worth) per Background dispatcher pass. The window can paint
+    # and accept input between passes instead of looking frozen for ~5 s.
+    $global:DiscoverTileBuildQueue = New-Object System.Collections.Queue
+    foreach ($g in $allGames) { $global:DiscoverTileBuildQueue.Enqueue($g) }
+    $global:DiscoverTileBuildPasses = 0
+    $global:DiscoverTilesBuilding = $true
+    Queue-DiscoverTileBuildPass
 }
 
 function global:Refresh-DiscoverStatuses {

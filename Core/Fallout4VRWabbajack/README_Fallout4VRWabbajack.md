@@ -10,9 +10,12 @@ downloads and assembles a complete, curated setup for you.
 - **Wabbajack** from https://www.wabbajack.org/
 - A free **Nexus Mods** account (Wabbajack uses it to fetch mods)
 
-## Fallout 4 VR Essentials
+## Fallout 4 VR Essentials — Mad God Overhaul 20.1
 
 A complete VR overhaul focused on visuals, immersion and stability.
+
+Version 20.1 was published on 13 September 2026. Updating from version 19 or
+earlier requires a new game; do not continue an older save with that upgrade.
 
 - **Full body & holsters** - the latest FRIK with a visible body and holsters
 - **HD visuals** - high-res textures, forest overhaul, optimized textures, darker nights

@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 
 $MOD_URL      = "https://junk.kegetys.fi/RBRvr16.zip"
 $MOD_INFO_URL = "https://www.kegetys.fi/category/gaming/rbrmods/"
+$MOD_VERSION  = "1.6"
 $GAME_EXE     = "RichardBurnsRally_SSE.exe"
 
 function Write-Header {
@@ -37,6 +38,11 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 # learn the exact install folder. Loops until a valid EXE is given or
 # the user cancels.
 function Get-RbrExePath {
+    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+    if ($remembered) {
+        Write-OK "Using remembered Richard Burns Rally folder: $remembered"
+        return (Join-Path $remembered $GAME_EXE)
+    }
     while ($true) {
         Write-Host ""
         Write-Host " Drag your $GAME_EXE onto this window and press Enter." -ForegroundColor Yellow
@@ -104,8 +110,12 @@ if (Test-Path $modZip) {
 
 # Verify the VR-specific plugin landed.
 $probe = Join-Path $rbrDir "Plugins\RBRvrConfig.dll"
-if (Test-Path $probe) { Write-OK "RBRvr plugin verified." }
-else { Write-Warn "RBRvrConfig.dll not found - check $rbrDir\Plugins\ manually (you can re-run with the correct game folder)." }
+if (Test-Path -LiteralPath $probe -PathType Leaf) {
+    Write-OK "RBRvr plugin verified."
+    Save-InstalledStamp -GameDir $rbrDir -Version $MOD_VERSION -HubDir $PSScriptRoot
+} else {
+    throw "RBRvrConfig.dll is missing after extraction; no successful installation will be recorded."
+}
 
 # ---- STEP 4: desktop shortcut ----
 Write-Step 4 4 "Creating desktop shortcut"

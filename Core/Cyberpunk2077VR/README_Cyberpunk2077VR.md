@@ -53,14 +53,14 @@ VR controller input is merged into the native gamepad, so the game's own **Setti
 Bindings -> Controller** applies. Buttons follow each runtime's interaction profile (Touch,
 Index, Vive, WMR).
 
-| Input | Action |
-|-------|--------|
-| Left stick | Move - **one speed** whatever the deflection, so a thumb tremor cannot change your pace |
-| Left stick fully forward, held 0.2 s | **Sprint** - held, not toggled, and it survives a dash |
-| Right stick X | Turn - a snap needs a **full** push, so a resting thumb cannot turn you |
-| Right stick fully up | **Dash / dodge**, once per push |
-| Right stick fully down | Crouch |
-| Right stick click | **Slide release** - racks the weapon during a physical reload |
+| Button | Action |
+|---|---|
+| [[Left stick]] | Move - **one speed** whatever the deflection, so a thumb tremor cannot change your pace |
+| [[Left stick fully forward, held 0.2 s]] | **Sprint** - held, not toggled, and it survives a dash |
+| [[Right stick X]] | Turn - a snap needs a **full** push, so a resting thumb cannot turn you |
+| [[Right stick fully up]] | **Dash / dodge**, once per push |
+| [[Right stick fully down]] | Crouch |
+| [[Right stick click]] | **Slide release** - racks the weapon during a physical reload |
 | [[Right Trigger]] / [[Left Trigger]] | Fire / Aim. Left trigger is also melee block |
 | [[A]] | Jump - double and charge jump unchanged. **In a vehicle: confirms a dialogue line** |
 | [[B]] | **Weapon in hand:** drop the magazine. **Phone, radio, vehicle list or a menu open:** the game's own B closes or backs out instead |
@@ -68,7 +68,7 @@ Index, Vive, WMR).
 | [[Right Grip]] + reach to shoulder or hip | Hand-to-holster equip and unequip |
 | [[Left Grip]] | Grab the magazine during a reload |
 | Left hand to your **left ear** + [[Left Grip]] | **Scanner - a toggle since 0.1.5:** squeeze to open, squeeze again to close, hand free in between |
-| Swinging a melee weapon | Native melee attack along the blade |
+| [[Swinging a melee weapon]] | Native melee attack along the blade |
 
 **Quickhacks (0.1.5):** the list moved off the face buttons onto the **left stick, pushed to
 the stop**, with [[X]] as a plain apply. It presses the arrow keys rather than the D-pad,
@@ -136,6 +136,13 @@ downloads nothing here:
 - **ArchiveXL** - loads the packed assets
 - **Codeware** - shared scripting library; **1.20 or newer**, older builds fail script compilation
 
+The reviewed Codeware fallback is **1.20.4**. It adds fail-safe node and
+appearance checks and fixes crashes around native type imports; the installer
+still asks GitHub for the current release first.
+
+The reviewed ArchiveXL fallback is **1.27.3**. It fixes parsing of override tags in
+ArchiveXL configuration files; the installer still asks GitHub for the current release first.
+
 The last four are fetched at their newest release: the installer reads the current tag from
 GitHub and falls back to a known-good build if GitHub cannot be reached.
 
@@ -163,7 +170,7 @@ GitHub and falls back to a known-good build if GitHub cannot be reached.
 
 ## Keys outside the controller
 
-| | |
+| Button | Action |
 |---|---|
 | [[F10]] or [[Insert]] | the VR menu / settings overlay |
 | [[F7]] | recentre |

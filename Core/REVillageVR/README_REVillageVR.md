@@ -26,7 +26,7 @@ These are the default VR-mod (motion-controller) bindings. The biohazardvr.com c
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Left Stick]] | Move - click & hold = Run |
 | [[Y]] | Open Inventory |
 | [[X]] | Back / Cancel (menu) |
@@ -35,7 +35,7 @@ These are the default VR-mod (motion-controller) bindings. The biohazardvr.com c
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Right Stick]] | Turn - click = Toggle crouch / stand |
 | [[B]] | Reload; Move Items (in inventory) |
 | [[A]] | Interact / Pickup / Select (menu) |

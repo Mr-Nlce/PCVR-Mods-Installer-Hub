@@ -9,6 +9,14 @@ A **VR fork** of the Perfect Dark decompilation port by **Alex-LeTux**, targetin
 - Widescreen, configurable FOV, 60 FPS (and higher) support
 - The latest PCVR build, pulled straight from the official GitHub releases
 
+## Current v1.9.3 beta
+
+v1.9.3 fixes a pistol-whip edge case while switching weapons. v1.9.2 fixed
+controller tracking, Datadyne mission completion, standalone-XR-layer color
+and the Combat Simulator HUD and timer. The earlier stereo flare, sun and star
+rendering, XR-layer health bar, PSVR2 profile, texture downloader, 3D crosshair,
+scoped HUD, analog movement and hand/arm presentation remain included.
+
 ## How to install
 1. The installer downloads the newest **PCVR** release ZIP from GitHub (never the `.apk`, which is the Quest standalone build) and unpacks it to `C:\Games\Perfect Dark VR`.
 2. It then asks you to **drag your Perfect Dark NTSC v1.1 `.z64` ROM** onto the window (a `.zip` containing the ROM works too - it is unpacked automatically). It copies the ROM into the `data` folder and renames it to exactly `pd.ntsc-final.z64`.
@@ -23,15 +31,18 @@ Start your **VR runtime** first, then either:
 
 ## Controls
 Motion controls (VR is a work in progress - confirm the current mapping in-game). Typical bindings, based on the port's Xbox scheme:
-- **[[Right Trigger]]:** fire / accept
-- **[[Left Trigger]]:** aim mode
-- **[[A]]:** use / accept
-- **[[X]]:** reload
-- **[[B]]:** previous weapon
-- **[[Y]]:** next weapon
-- **[[Right Grip]]:** alt-fire mode
-- **[[Left Grip]]:** radial menu
-- **[[Stick]]:** move / crouch cycle
+
+| Button | Action |
+|---|---|
+| [[Right Trigger]] | Fire / accept |
+| [[Left Trigger]] | Aim mode |
+| [[A]] | Use / accept |
+| [[X]] | Reload |
+| [[B]] | Previous weapon |
+| [[Y]] | Next weapon |
+| [[Right Grip]] | Alt-fire mode |
+| [[Left Grip]] | Radial menu |
+| [[Stick]] | Move / crouch cycle |
 
 Bindings can also be rebound in `pd.ini`.
 

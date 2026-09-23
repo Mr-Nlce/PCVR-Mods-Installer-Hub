@@ -4,6 +4,12 @@ Automated installer for **REFramework VR** by praydog — generic 6DOF VR
 support for all RE Engine games. Always downloads the latest nightly build
 from GitHub automatically.
 
+## Current reviewed nightly
+
+The Hub's update list was reviewed against **nightly 01422** on 13 September 2026.
+That build does not publish separate user-facing patch notes; installing again still
+resolves the newest official nightly rather than pinning this review snapshot.
+
 ## Features
 
 - **Generic 6DOF VR** with full head tracking for any supported RE Engine

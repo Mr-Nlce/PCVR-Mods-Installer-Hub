@@ -66,7 +66,7 @@ bugs still.
   certain animations)
 - **Flashlight:** hold the right controller near your headset and press
   Interact [[A]], or just press [[RS]]
-- **D-pad** (minigames / terminal keypads): hold [[Left Grip]] + use [[Left Stick]]
+- [[D-pad]] (minigames / terminal keypads): hold [[Left Grip]] + use [[Left Stick]]
 - Controls are not configurable - the fixed MotherVR control set is used
 
 ## Things to note & tweaks (grand.ini)

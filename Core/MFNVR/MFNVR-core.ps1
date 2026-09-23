@@ -84,6 +84,21 @@ function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 # become part of their return value.
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 
+function Resolve-MFNVRReleaseVersion {
+    param([string]$Source)
+    if ([string]::IsNullOrWhiteSpace($Source)) { return '' }
+    $candidate=''
+    if ($Source -match '(?i)/releases/download/(?<tag>[^/]+)/') {
+        $candidate=[Uri]::UnescapeDataString([string]$matches.tag)
+    } elseif ($Source -match '(?i)(?:^|[\\/])MFNVR[-_. ]*(?<tag>v?\d+(?:\.\d+){2}(?:[-+][0-9A-Za-z.-]+)?)') {
+        $candidate=[string]$matches.tag
+    } elseif ($Source -match '(?i)^v?\d+(?:\.\d+){2}(?:[-+][0-9A-Za-z.-]+)?$') {
+        $candidate=$Source.Trim()
+    }
+    if (Test-IsTrackableInstalledVersion -Version $candidate) { return $candidate.Trim() }
+    return ''
+}
+
 # ---- intro ---------------------------------------------------
 Write-Header
 Write-Host "  Full 6DOF head tracking and motion controllers for My Friendly" -ForegroundColor White
@@ -148,6 +163,7 @@ $zipPath = Join-Path $dlDir "MFNVR.zip"
 # root is resolved below.
 $assetUrl = $null
 $relTag   = ""
+$installedReleaseVersion = ""
 try {
     $api = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
                              -Headers @{ "User-Agent" = "PCVRModsHub" } -TimeoutSec 25
@@ -164,6 +180,7 @@ if ($assetUrl) {
     $haveZip = Invoke-SafeDownload -Urls @($assetUrl) -Destination $zipPath -Label "MFNVR" `
                    -ManualUrl $RELEASES_PAGE `
                    -Instructions "Download the MFNVR .zip from the releases page, then drag it onto this window."
+    if ($haveZip) { $installedReleaseVersion=Resolve-MFNVRReleaseVersion -Source $assetUrl }
 }
 if (-not $haveZip) {
     $pre = Find-PredownloadedFile -Patterns @("MFN*VR*.zip", "MFNVR*.zip", "*MFN*alpha*.zip") -Label "the MFNVR release"
@@ -192,6 +209,7 @@ if (-not $haveZip) {
         Pause-User "Press Enter to exit."
         return
     }
+    $installedReleaseVersion=Resolve-MFNVRReleaseVersion -Source $pre
     Copy-Item -LiteralPath $pre -Destination $zipPath -Force
     $haveZip = $true
 }
@@ -209,12 +227,22 @@ if ($layout -and $layout.Ok) {
         $pfx = Split-Path $inArc[0] -Parent
         if ($pfx) { Write-Info "Archive wraps the mod in '$pfx' - it will be unwrapped." }
         else      { Write-Info "Archive is flat." }
+        if (-not $installedReleaseVersion -and $pfx) { $installedReleaseVersion=Resolve-MFNVRReleaseVersion -Source $pfx }
     } else {
         Write-Warn "'$PAYLOAD_MARKER' is not in this archive - it may be the wrong file."
     }
 } else {
     Write-Warn "Could not read the archive listing - the layout is checked after unpacking."
 }
+
+if (-not $installedReleaseVersion) {
+    Write-Fail "The exact MFNVR release version could not be proven from this archive."
+    Write-Info "Nothing was copied into the game folder. Download the named release ZIP from: $RELEASES_PAGE"
+    try { Remove-Item -LiteralPath $dlDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit."
+    return
+}
+Write-OK "Release version resolved: $installedReleaseVersion"
 
 $exDir = Join-Path $dlDir "unpacked"
 try {
@@ -276,6 +304,8 @@ Write-OK "MFNVR is in place."
 # ---- [4/4] shortcut and marker -------------------------------
 # R5: state markers are written only now, after the proof passed.
 Write-Step 4 4 "Finishing up"
+
+Save-InstalledStamp -GameDir $gameRoot -Version $installedReleaseVersion -HubDir $PSScriptRoot
 
 try {
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gameRoot -Encoding UTF8 -Force

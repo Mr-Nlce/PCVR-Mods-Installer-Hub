@@ -23,6 +23,17 @@ function global:Get-SafeUninstallSteps {
         [string]$StandaloneFolderPath = $null
     )
 
+    # These Easy External Installer entries are complete, independently
+    # registered Steam apps. Steam installed the VR app and Steam owns its
+    # removal; showing in-place mod cleanup for them is both confusing and
+    # factually wrong.
+    if ($Game.Type -eq 'steam' -and -not [string]::IsNullOrWhiteSpace([string]$Game.SteamId)) {
+        return @(
+            "Open Steam > Library, right-click '$($Game.Title)', then choose Manage > Uninstall.",
+            'Confirm Uninstall in Steam. Steam removes this separate VR app; no manual file cleanup is required.'
+        )
+    }
+
     $explicit = @($Game.UninstallSteps | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
     $explicitText = $explicit -join ' '
     $legacySharedLoaderGuide = $explicitText -match '(?i)(delete\s+(?:the\s+)?(?:whole\s+)?[''"]?BepInEx|delete\s+winhttp\.dll\s+and\s+the\s+BepInEx\s+folder|delete\s+Mods\\,\s+UserLibs\\,\s+MelonLoader)'
@@ -358,6 +369,17 @@ function global:Set-StepTextWithFolderLinks {
 function global:Update-UninstallGuideLinks {
     param($Guide = $global:DetailUninstallGuide)
     if (-not $Guide) { return }
+    if ($Guide.Game.Type -eq 'steam' -and -not [string]::IsNullOrWhiteSpace([string]$Guide.Game.SteamId)) {
+        $Guide.Hint.Text = ''
+        $Guide.Hint.Visibility = 'Collapsed'
+        $Guide.Shortcuts.Inlines.Clear()
+        $Guide.Shortcuts.Visibility = 'Collapsed'
+        for ($i = 0; $i -lt $Guide.Steps.Count; $i++) {
+            Set-StepTextWithFolderLinks -TextBlock $Guide.TextBlocks[$i] -Text $Guide.Steps[$i] -Targets @{} -Game $Guide.Game
+        }
+        return
+    }
+    $Guide.Hint.Visibility = 'Visible'
     $context = Get-UninstallGuideContext $Guide.Game
     $Guide.Shortcuts.Inlines.Clear()
     if ($context) {

@@ -20,6 +20,7 @@ $MOD_EXE     = "Penumbra_vr.exe"       # VR mod exe shipped in the zip
 $REDIST_SUB  = "redist"                # mod files go here, next to the original game data
 $MOD_NAME    = "Penumbra: Overture VR"
 $MOD_AUTHOR  = "simply-jos / newyork167"
+$MOD_VERSION = "v0.1"
 $STEAM_APPID = "22180"
 # Install target: HPL1 engine throws "couldn't load pointlight2d" when
 # run from Program Files (UAC). So we copy the whole game out to
@@ -433,6 +434,7 @@ if (Test-Path $modExePath) {
         $pathFile = Join-Path $PSScriptRoot ".installed_path"
         Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
     } catch {}
+    Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
 } else {
     Write-Warn "$MOD_EXE not found in redist\ after install."
     Write-Host "  Check $redistPath for a subfolder and move $MOD_EXE up." -ForegroundColor Yellow

@@ -22,7 +22,7 @@ Disable SteamVR Desktop Theater for this non-native SteamVR application if Steam
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move relative to your headset direction |
 | [[Left Stick Click]] | Toggle walking and running |

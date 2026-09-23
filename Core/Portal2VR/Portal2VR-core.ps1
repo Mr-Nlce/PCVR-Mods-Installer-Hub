@@ -242,7 +242,7 @@ try { Remove-Item $tempDir -Recurse -Force } catch {}
 # -------------------------------------------------------
 Write-Step 4 5 "Steam Launch Parameters"
 
-try { Set-Clipboard -Value $LAUNCH_PARAMS } catch {}
+try { Set-Clipboard -Value $LAUNCH_PARAMS -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Yellow
@@ -258,6 +258,7 @@ Write-Host "  Then paste (Ctrl+V) and close Properties." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to open Steam game properties..."
 Start-Process "steam://gameproperties/$GAME_APPID"
+Show-PCVRClipboardManualFallback -Text $LAUNCH_PARAMS
 Pause-User "Press Enter once you have pasted the launch parameters and closed Steam properties..."
 
 # -------------------------------------------------------
@@ -471,5 +472,4 @@ Pause-User "Press Enter to confirm you are aware of this setting..."
 Write-Host ""
 Write-Host "  The cake is a lie. The VR is real." -ForegroundColor Magenta
 Write-Host ""
-Pause-User "Press Enter to open the Portal 2 folder and exit."
-try { Start-Process explorer.exe "`"$gamePath`"" } catch {}
+Pause-User "Press Enter to close setup."

@@ -440,7 +440,7 @@ function Install-AndreyDepotBuild {
     $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
     if (-not $depotPath) {
         Pause-User "Press Enter to prepare the Steam depot download..." | Out-Null
-        try { Set-Clipboard -Value $ANDREY_DEPOT_COMMAND } catch {}
+        try { Set-Clipboard -Value $ANDREY_DEPOT_COMMAND -DeferManualFallback } catch {}
         Write-Host ""
         Write-Host "  ============================================================" -ForegroundColor Yellow
         Write-Host "   ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
@@ -451,6 +451,7 @@ function Install-AndreyDepotBuild {
         foreach ($cu in @("steam://open/console", "steam://nav/console")) {
             try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
         }
+        Show-PCVRClipboardManualFallback -Text $ANDREY_DEPOT_COMMAND
         Pause-User "Press Enter once this exact depot download is complete..." | Out-Null
 
         $depotPath = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamInstallPath)
@@ -1155,7 +1156,7 @@ if ($peakMode -in @("1","2")) {
 
     if (Read-YesNoP "Set it up now?") {
         $clip = $false
-        try { Set-Clipboard -Value $D3D11_ARG; $clip = $true } catch {}
+        try { Set-Clipboard -Value $D3D11_ARG -DeferManualFallback; $clip = $true } catch {}
         Write-Host ""
         Write-Host "  ============================================================" -ForegroundColor Yellow
         Write-Host "   ACTION REQUIRED - paste into Steam" -ForegroundColor Yellow
@@ -1184,6 +1185,7 @@ if ($peakMode -in @("1","2")) {
         foreach ($u in @("steam://gameproperties/$DEPOT_APPID", "steam://nav/games/details/$DEPOT_APPID")) {
             try { Start-Process $u -ErrorAction Stop; $opened = $true; break } catch {}
         }
+        Show-PCVRClipboardManualFallback -Text $D3D11_ARG
         if ($opened) {
             Write-OK "Steam should be showing PEAK's properties now."
         } else {
@@ -1257,7 +1259,7 @@ Write-Host "  Manifest $DEPOT_MANIFEST is PEAK v1.44.a (the last mod-compatible 
 Write-Host "  About 4 GB to download." -ForegroundColor Gray
 Write-Host ""
 
-try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
 Write-Host "  ============================================================" -ForegroundColor Yellow
 Write-Host "   ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
@@ -1294,6 +1296,7 @@ Pause-User "Press Enter to open the Steam Console..."
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 Write-OK "Steam Console opening..."
 

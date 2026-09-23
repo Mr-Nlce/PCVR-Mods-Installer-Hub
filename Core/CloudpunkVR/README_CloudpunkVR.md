@@ -16,8 +16,8 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 ## Controls
 No motion-controller support — you play with a **gamepad** (recommended) or
 keyboard & mouse. With keyboard & mouse the cursor isn't visible, so a
-gamepad is the better option. Press the **Menu** action to recenter the VR
-view (Start on a gamepad, or Escape on a keyboard).
+gamepad is the better option. Press the [[Menu]] action to recenter the VR
+view ([[Start]] on a gamepad, or [[Escape]] on a keyboard).
 
 ## Configuration
 All settings in `BepInEx\config\`:

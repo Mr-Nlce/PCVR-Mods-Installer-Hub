@@ -492,7 +492,13 @@ function global:Invoke-CheckInstalledScan {
                 if ($rawRecordedPath) { $rawRecordedPath = $rawRecordedPath.Trim() }
             } catch { }
         }
-        if (-not $installed -and $rawRecordedPath -and (Test-Path $rawRecordedPath)) {
+        # A legacy receipt may deliberately point at a separate VR runtime.
+        # It is a base-game location only when it satisfies the same proof
+        # contract as every canonical, Steam and fallback candidate. Without
+        # this guard a surviving mod folder can impersonate an uninstalled
+        # game and block the real store discovery that follows.
+        if (-not $installed -and $rawRecordedPath -and (Test-Path $rawRecordedPath) -and
+            (Test-BaseGameInstallProof -Game $game -Root $rawRecordedPath)) {
             $installed = $true
             $gameDir   = $rawRecordedPath
         } elseif (-not $installed -and $rawRecordedPath -and -not (Test-Path $rawRecordedPath)) {
@@ -771,12 +777,7 @@ function global:Invoke-CheckInstalledScan {
         $recordedPath = $locatedGate
         if (-not $vrInstalled -and $recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container)) {
             $recordedEvidenceOk = $true
-            foreach ($ev in @($game.VrInstallEvidence)) {
-                if ($ev -and -not (Test-Path -LiteralPath (Join-Path $recordedPath ([string]$ev)))) {
-                    $recordedEvidenceOk = $false
-                    break
-                }
-            }
+            $recordedEvidenceOk = Test-VrInstallEvidenceContract -Game $game -Root $recordedPath
             if ($recordedPath -and (Test-Path $recordedPath)) {
                 # Recorded path is still valid. If we know what the
                 # mod's marker file looks like (ModFile), verify it.
@@ -830,6 +831,7 @@ function global:Invoke-CheckInstalledScan {
             # DLLs etc).
             $modPath = Join-Path $gameDir $game.ModFile
             $modPathFound = Test-Path $modPath
+            $modEvidenceRoot = $gameDir
             # Alternate marker: VR-ready via either of two files (e.g.
             # Anomaly: new AoeVrLauncher.exe OR the old JSGME.exe).
             if (-not $modPathFound -and $game.ModFileAlt) {
@@ -890,23 +892,22 @@ function global:Invoke-CheckInstalledScan {
                 if ((-not (Test-Path $altPath)) -and $game.ModFileAlt) {
                     $altPath = Join-Path $altRoot $game.ModFileAlt
                 }
+                if ((-not (Test-Path $altPath)) -and $game.ModFileAlt2) {
+                    $altPath = Join-Path $altRoot $game.ModFileAlt2
+                }
                 if (Test-Path $altPath) {
                     $modPathFound = $true
+                    $modEvidenceRoot = $altRoot
                     # If extra evidence files are required (e.g. the
                     # game-specific WAD must be there too), check
                     # all of them - any one missing fails the match.
-                    if ($game.VrInstallEvidence) {
-                        foreach ($ev in $game.VrInstallEvidence) {
-                            $evPath = Join-Path $altRoot $ev
-                            if (-not (Test-Path $evPath)) {
-                                $modPathFound = $false
-                                break
-                            }
-                        }
-                    }
+                    if (-not (Test-VrInstallEvidenceContract -Game $game -Root $altRoot)) { $modPathFound = $false }
                 }
             }
 
+            if ($modPathFound -and -not (Test-VrInstallEvidenceContract -Game $game -Root $modEvidenceRoot)) {
+                $modPathFound = $false
+            }
             if ($modPathFound) {
                 $vrInstalled = $true
             } elseif ($game.ModFile -like "*RealRepo*") {
@@ -1072,6 +1073,16 @@ function global:Invoke-CheckInstalledScan {
             $vrInstalled = [bool]$twoModsAnyPresent
         }
 
+        # VR Ready and Update are strict subsets of "base game installed".
+        # Absolute markers, separate runtimes and old path receipts are useful
+        # mod evidence, but none may surface a playable/updateable state after
+        # the base-game proof above failed. Steam deliberately leaves third-
+        # party files behind on uninstall, so this final invariant must run
+        # after every specialised mod/route probe has had its turn.
+        if ($vrInstalled -and -not $installed) {
+            $vrInstalled = $false
+        }
+
         # One-time lufz VRMod baseline migration: lufz installs made before
         # the catalog pinned a version have no .installed_version file - the
         # generic version block below would silently SEED those to the
@@ -1165,6 +1176,8 @@ function global:Invoke-CheckInstalledScan {
             # Optional exact alternative slot. This is set only when the
             # evidence itself identifies one and only one installed mod.
             $updateTargetSlot = $null
+            $updateTargetRoute = $null
+            $updateTargetCount = 0
             # $gameDir is resolved above; hand it over so checked
             # installation-side recovery evidence is available when the
             # canonical LocalAppData value is absent.
@@ -1234,20 +1247,10 @@ function global:Invoke-CheckInstalledScan {
                 }
                 if ($ghVer) {
                     if (-not $installedVer) {
-                        # Seeding a missing marker with the current tag says
-                        # "no marker = just installed latest". That only holds
-                        # when the tracked mod is the ONLY mod for the entry.
-                        # On a TwoMods entry (Forza Horizon 6: NALULUNA from
-                        # ko-fi OR lufz from GitHub) the installer writes the
-                        # marker ONLY for the lufz branch - so a missing
-                        # marker means "lufz is not installed here". Seeding
-                        # it anyway would nag a NALULUNA user with an Update
-                        # badge for a mod they never installed. NoVersionSeed
-                        # keeps that entry silent until lufz is really there.
-                        if (-not $game.NoVersionSeed) {
-                            Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
-                            $installedVer = $ghVer
-                        }
+                        # Missing installed evidence is unknown, never proof
+                        # that the currently published build was installed.
+                        # Exact installer receipts or release-owned files are
+                        # the only sources allowed to establish this value.
                     # Strip the tag's leading "v" - exactly as in the
                     # Codeberg branch. Otherwise a marker "1.3.18" is
                     # forever unequal to the tag "v1.3.18" and the tile
@@ -1277,7 +1280,7 @@ function global:Invoke-CheckInstalledScan {
                     # invisible. Opt-in keeps every other Thunderstore entry's
                     # existing channel behavior unchanged.
                     if ($game.UpdateCheckBothSources -and $game.GithubRepo) {
-                        $ghAlso = Get-GithubLatestTagCached -Repo $game.GithubRepo -IncludePrerelease:$false
+                        $ghAlso = Get-GithubLatestTagCached -Repo $game.GithubRepo -IncludePrerelease:$false -RequiredAssetPatterns @($game.GithubReleaseAssetPatterns)
                         if ($ghAlso -and (Test-OnlineVersionIsNewer -Installed $tsVer -Online $ghAlso)) { $tsVer = $ghAlso }
                     }
 
@@ -1341,7 +1344,7 @@ function global:Invoke-CheckInstalledScan {
                 # wrote a marker, so on the first scan after 1.0.0 shipped
                 # the Hub stamped stale 0.1.x installs as "v1.0.0" and the
                 # Update tile never appeared.
-                $ghVer  = Get-GithubLatestTagCached -Repo $game.GithubRepo -IncludePrerelease:([bool]$game.GithubPrerelease)
+                $ghVer  = Get-GithubLatestTagCached -Repo $game.GithubRepo -IncludePrerelease:([bool]$game.GithubPrerelease) -RequiredAssetPatterns @($game.GithubReleaseAssetPatterns)
                 $hyInst = $null
                 if ($gameDir) {
                     try {
@@ -1392,8 +1395,8 @@ function global:Invoke-CheckInstalledScan {
                     $repoAModSlot = if ($game.GithubRepoModSlot) { [string]$game.GithubRepoModSlot } else { 'A' }
                     $repoBModSlot = if ($game.GithubRepoBModSlot) { [string]$game.GithubRepoBModSlot } else { 'B' }
                     $twoDefs = @(
-                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Root"); Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; TargetSlot = $repoAModSlot; Prerelease = $repoAPre },
-                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Root"); Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; Repo = $game.GithubRepoB; Slot = 'B'; TargetSlot = $repoBModSlot; Prerelease = $repoBPre }
+                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Root"); Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; TargetSlot = $repoAModSlot; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns) },
+                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Root"); Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; Repo = $game.GithubRepoB; Slot = 'B'; TargetSlot = $repoBModSlot; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
                     )
                     foreach ($td in $twoDefs) {
                         if (-not $td.Present -or -not $td.Repo -or -not $td.Root) { continue }
@@ -1408,8 +1411,8 @@ function global:Invoke-CheckInstalledScan {
                         $repoAPre = Get-GithubPrereleasePreference -Game $game -GameDir $twoRootV
                         $repoBPre = if ($null -ne $game.GithubRepoBPrerelease) { [bool]$game.GithubRepoBPrerelease } else { [bool]$game.GithubPrerelease }
                         foreach ($td in @(
-                            @{ Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV; Prerelease = $repoAPre },
-                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre }
+                            @{ Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns) },
+                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
                         )) {
                             if ($td.Probe -and $td.Repo -and (Test-RelativePathMarker -Root $twoRootV -Values $td.Probe)) { $twoPairs += , $td }
                         }
@@ -1418,7 +1421,7 @@ function global:Invoke-CheckInstalledScan {
                 $githubUpdateTargetSlots = New-Object 'System.Collections.Generic.List[string]'
                 $githubUpdateEvidence = New-Object 'System.Collections.Generic.List[string]'
                 foreach ($tp in $twoPairs) {
-                    $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$tp.Prerelease)
+                    $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$tp.Prerelease) -RequiredAssetPatterns @($tp.AssetPatterns)
                     if (-not $tag) { continue }
                     $versionRoot = [string]$tp.Root
                     $have = $null
@@ -1451,11 +1454,7 @@ function global:Invoke-CheckInstalledScan {
                         if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $have -GameDir $versionRoot }
                         else { Write-InstalledVersion -Game $game -Version $have -GameDir $versionRoot }
                     }
-                    if ([string]::IsNullOrWhiteSpace($have)) {
-                        # First scan after an install: seed, don't nag.
-                        if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $tag -GameDir $versionRoot }
-                        else { Write-InstalledVersion -Game $game -Version $tag -GameDir $versionRoot }
-                    } elseif (Test-OnlineVersionIsNewer -Installed $have -Online $tag) {
+                    if (-not [string]::IsNullOrWhiteSpace($have) -and (Test-OnlineVersionIsNewer -Installed $have -Online $tag)) {
                         [void]$githubUpdateEvidence.Add("GitHub release $tag is newer than installed alternative-build version $have")
                         if ($game.TwoMods -and $tp.TargetSlot -match '^[A-H]$') {
                             [void]$githubUpdateTargetSlots.Add([string]$tp.TargetSlot)
@@ -1477,7 +1476,7 @@ function global:Invoke-CheckInstalledScan {
                 # source marker or the Hub cache.
                 $repoToCheck = Get-SelectedGithubRepo -Game $game -GameDir $gameDir
                 $checkPrerelease = Get-GithubPrereleasePreference -Game $game -GameDir $gameDir
-                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease -RequiredAssetPatterns @($game.GithubReleaseAssetPatterns)
                 if ($ghVer) {
                     $releaseRoute = Get-CurrentRouteInstallState -Game $game -Presence $dmProbe `
                         -GameDir $gameDir -FallbackVersion $installedVer -Source Release
@@ -1491,20 +1490,8 @@ function global:Invoke-CheckInstalledScan {
                         $needsUpdate = $true
                         $updateEvidence = "Current GitHub release $ghVer is available; installed Current route has no release-version marker"
                     } elseif (-not $installedVer) {
-                        # Seeding a missing marker with the current tag says
-                        # "no marker = just installed latest". That only holds
-                        # when the tracked mod is the ONLY mod for the entry.
-                        # On a TwoMods entry (Forza Horizon 6: NALULUNA from
-                        # ko-fi OR lufz from GitHub) the installer writes the
-                        # marker ONLY for the lufz branch - so a missing
-                        # marker means "lufz is not installed here". Seeding
-                        # it anyway would nag a NALULUNA user with an Update
-                        # badge for a mod they never installed. NoVersionSeed
-                        # keeps that entry silent until lufz is really there.
-                        if (-not $game.NoVersionSeed) {
-                            Write-InstalledVersion -Game $game -Version $ghVer -GameDir $gameDir
-                            $installedVer = $ghVer
-                        }
+                        # Unknown stays unknown. Never stamp the online tag as
+                        # installed merely because the mod files are present.
                     # Strip the tag's leading "v" - exactly as in the
                     # Codeberg branch. Otherwise a marker "1.3.18" is
                     # forever unequal to the tag "v1.3.18" and the tile
@@ -1529,12 +1516,7 @@ function global:Invoke-CheckInstalledScan {
                 # the tag, an update badge appears.
                 $cbVer = Get-CodebergLatestTagCached -Repo $game.CodebergRepo -IncludePrerelease:([bool]$game.CodebergPrerelease)
                 if ($cbVer) {
-                    if (-not $installedVer) {
-                        if (-not $game.NoVersionSeed) {
-                            Write-InstalledVersion -Game $game -Version $cbVer -GameDir $gameDir
-                            $installedVer = $cbVer
-                        }
-                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $cbVer) {
+                    if ($installedVer -and (Test-OnlineVersionIsNewer -Installed $installedVer -Online $cbVer)) {
                         $needsUpdate = $true
                         $updateEvidence = "Codeberg release $cbVer is newer than installed $installedVer"
                     }
@@ -1550,10 +1532,7 @@ function global:Invoke-CheckInstalledScan {
                 if (-not $global:HubScanOnlineDown) {
                   $wv = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title
                   if ($wv) {
-                    if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $wv -GameDir $gameDir
-                        $installedVer = $wv
-                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $wv) {
+                    if ($installedVer -and (Test-OnlineVersionIsNewer -Installed $installedVer -Online $wv)) {
                         $needsUpdate = $true
                         $updateEvidence = "published web release $wv is newer than installed $installedVer"
                     }
@@ -1601,15 +1580,19 @@ function global:Invoke-CheckInstalledScan {
                 # first, then fall back to a legacy version embedded in Mod.
                 # Catalog release dates are presentation metadata only and are
                 # NEVER allowed to decide whether an installed build is older.
-                $expectedVer = if ($game.TrackedVersion) {
+                $expectedVer = if ($game.DisableVersionTracking) {
+                    $null
+                } elseif ($game.TrackedVersion) {
                     ([string]$game.TrackedVersion).Trim()
                 } else {
                     Get-ModVersionFromString -ModString $game.Mod
                 }
                 if ($expectedVer) {
                     if (-not $installedVer) {
-                        Write-InstalledVersion -Game $game -Version $expectedVer -GameDir $gameDir
-                        $installedVer = $expectedVer
+                        # Presence proves only that some build exists. Older
+                        # Hubs stamped the catalog's reviewed version here and
+                        # could therefore hide a real update. Only an installer
+                        # transaction may create the first exact receipt.
                     } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $expectedVer) {
                         $needsUpdate = $true
                         $updateEvidence = "reviewed manual build $expectedVer is newer than installed $installedVer"
@@ -1650,6 +1633,19 @@ function global:Invoke-CheckInstalledScan {
             # for the slot that is actually installed. This is used for
             # sources such as authenticated Discord posts where no live API
             # version comparison is possible.
+            # A source can move from an incomparable legacy version identity
+            # (for example a branch timestamp) to normal release tags. Opt-in
+            # entries name only that obsolete marker shape; a successful new
+            # install writes the release tag and naturally clears this path.
+            if (-not $needsUpdate -and $installedVer -and $game.LegacyInstalledVersionRegex) {
+                try {
+                    if ([string]$installedVer -match [string]$game.LegacyInstalledVersionRegex) {
+                        $needsUpdate = $true
+                        $updateEvidence = "installed legacy version identity $installedVer must migrate to the current release channel"
+                    }
+                } catch {}
+            }
+
             if (-not $needsUpdate -and $game.TwoMods) {
                 if (-not $tmProbe) { $tmProbe = Get-TwoModsPresence -Game $game -FallbackRoot $gameDir }
                 $migrationUpdate = Get-AlternativeMigrationUpdate -Game $game -Presence $tmProbe
@@ -1665,9 +1661,16 @@ function global:Invoke-CheckInstalledScan {
                 $manualUpdateTargets = @(Get-AlternativeModsNeedingManualUpdate -Game $game -Presence $tmProbe)
                 if ($manualUpdateTargets.Count -gt 0) {
                     $needsUpdate = $true
-                    $manualNames = @($manualUpdateTargets | ForEach-Object { if ($_.Name) { $_.Name } else { "Mod $($_.Slot)" } })
+                    $manualNames = @($manualUpdateTargets | ForEach-Object {
+                        $label = if ($_.Name) { [string]$_.Name } else { "Mod $($_.Slot)" }
+                        if ($_.Route) { "$label ($($_.Route))" } else { $label }
+                    })
                     $updateEvidence = (($manualNames -join ', ') + ' is missing its required current-release proof file')
-                    if ($manualUpdateTargets.Count -eq 1) { $updateTargetSlot = [string]$manualUpdateTargets[0].Slot }
+                    $uniqueManualSlots = @($manualUpdateTargets | ForEach-Object { [string]$_.Slot } | Where-Object { $_ } | Sort-Object -Unique)
+                    $uniqueManualRoutes = @($manualUpdateTargets | ForEach-Object { [string]$_.Route } | Where-Object { $_ } | Sort-Object -Unique)
+                    $updateTargetCount = $manualUpdateTargets.Count
+                    if ($uniqueManualSlots.Count -eq 1) { $updateTargetSlot = [string]$uniqueManualSlots[0] }
+                    if ($uniqueManualRoutes.Count -eq 1) { $updateTargetRoute = [string]$uniqueManualRoutes[0] }
                 }
             }
 
@@ -1789,11 +1792,11 @@ function global:Invoke-CheckInstalledScan {
                 $glow.Opacity = 0.55
                 $card.Effect = $glow
                 $card.Tag = "vrupdate"
-                $updateUiState = @{ UpdateTargetSlot = $updateTargetSlot }
+                $updateUiState = @{ UpdateTargetSlot = $updateTargetSlot; UpdateTargetRoute = $updateTargetRoute; UpdateTargetCount = $updateTargetCount }
                 $updateActionLabel = Get-UpdateActionLabel -Game $game -State $updateUiState -Fallback 'Update Mod'
                 if ($btnTxt) {
                     $btnTxt.Text       = $updateActionLabel
-                    $btnTxt.Foreground = [System.Windows.Media.Brushes]::White
+                    $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9ccf4")
                 }
                 $reloadForUpdate = $card.Resources.Item("reloadPill")
                 if ($btnBrd) {
@@ -1822,7 +1825,7 @@ function global:Invoke-CheckInstalledScan {
                 # tint it back in the original game accent.
                 $card.Resources.Remove("baseAccent") | Out-Null
                 $card.Resources.Add("baseAccent", $UPDATE_BLUE)
-                $stateEntry = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText=$updateActionLabel; UpdateEvidence=$updateEvidence; UpdateTargetSlot=$updateTargetSlot; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent; GameDir=$gameDir }
+                $stateEntry = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText=$updateActionLabel; UpdateEvidence=$updateEvidence; UpdateTargetSlot=$updateTargetSlot; UpdateTargetRoute=$updateTargetRoute; UpdateTargetCount=$updateTargetCount; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent; GameDir=$gameDir }
                 if ($game.TwoMods) { Set-AlternativeModStateFields -State $stateEntry -Game $game -Presence $tmProbe }
                 $global:gameStateMap[$game.Title] = $stateEntry
                 if ($reloadForUpdate) {
@@ -2107,7 +2110,7 @@ function global:Invoke-CheckInstalledScan {
                     $card.Effect = $glow
                     if ($btnTxt) {
                         $btnTxt.Text = "Update"
-                        $btnTxt.Foreground = [System.Windows.Media.Brushes]::White
+                        $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9ccf4")
                     }
                     if ($btnBrd) {
                         $btnBrd.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($UPDATE_BLUE)
@@ -2327,11 +2330,10 @@ function global:Invoke-CheckInstalledScan {
     # An installer finished while this scan was running - do the refresh it
     # asked for now that the collections are stable again.
     if ($global:PostInstallRefreshPending) {
-        $global:PostInstallRefreshPending = $false
         try {
             [void]$global:window.Dispatcher.BeginInvoke(
                 [System.Windows.Threading.DispatcherPriority]::Background,
-                [action]{ Invoke-PostInstallRefreshSafely })
+                [action]{ Invoke-DeferredPostInstallRefresh })
         } catch {}
     }
 
@@ -2375,7 +2377,7 @@ $checkInstalledBtn.Add_PreviewMouseLeftButtonDown({
     # ScanQueued is separate from ScanInProgress on purpose: the scan
     # function itself owns ScanInProgress as its re-entrancy guard, so
     # setting it here would make the deferred call below bail out.
-    if ($global:ScanInProgress -or $global:ScanQueued) { return }
+    if ($global:ScanInProgress -or $global:ScanQueued -or $global:PostInstallRefreshInProgress) { return }
     # Explicit check -> probe online fresh, even if a previous scan in
     # this session marked the server as down.
     $global:HubScanOnlineDown = $false

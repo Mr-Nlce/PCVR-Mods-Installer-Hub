@@ -409,6 +409,9 @@ $activeSurvived = Confirm-PlacedFilesSurvive -Paths $placed -GameDir $gameRoot -
 if (-not $activeSurvived) { throw 'The active Outlast mod did not survive verification.' }
 Write-OutlastLaunchers -GameRoot $gameRoot -RuntimePath (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
 Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Value $gameRoot -Encoding UTF8 -ErrorAction Stop
+if ($doA) {
+    [void](Write-ModStamp -GameDir $gameRoot -Version $MOD_VERSION)
+}
 if ($doB -and $bTag) {
     [void](Write-ModStamp -GameDir $gameRoot -Version $bTag -Second)
     Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_version_b') -Value $bTag -Encoding UTF8

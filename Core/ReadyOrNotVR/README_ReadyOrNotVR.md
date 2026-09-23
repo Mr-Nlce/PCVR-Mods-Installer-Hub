@@ -156,7 +156,7 @@ Move your hand fairly quickly for these to register:
 
 - **Enter VR:** [[U]] (keyboard) once the mission has loaded
 - **Exit VR:** [[Home]] (keyboard) - restart the mission afterwards
-- **Multitool toggle:** alt-fire to switch lock pick / wire cutters
+- **Multitool toggle:** [[Alt Fire]] switches lock pick / wire cutters
 - Left-handed (dominant) support and its customisations were added in the
   June update; a fully polished left-hand-dominant mode is still in
   progress.

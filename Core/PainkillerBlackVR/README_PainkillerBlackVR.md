@@ -2,6 +2,9 @@
 
 Automated installer for the **painkiller-vr-mod** by FluorescentHallucinogen - native OpenXR VR with motion-controller aiming for the original **Painkiller** (People Can Fly / DreamCatcher). Tested with **Painkiller: Black Edition** on Steam, a Quest 2, and Virtual Desktop; expected to work with other OpenXR headsets and runtimes.
 
+The current reviewed package is **v0.1.9**. Its GitHub release does not include
+public change notes, so the Hub does not invent feature claims for this build.
+
 ## What it does
 - Downloads the latest release from GitHub (the Hub flags the tile when a newer build ships).
 - Locates your Painkiller install (Steam / GOG, with a manual paste fallback).

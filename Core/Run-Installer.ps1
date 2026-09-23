@@ -25,10 +25,16 @@ param(
     [string]$VersionPathB = "",
     [string]$InstallPath = "",
     [string]$InstallerChoice = "",
+    [string]$ExpectedInstalledVersion = "",
+    [string]$InstallerScript = "",
+    [switch]$RequireVersionEvidence,
     [switch]$NoProcessExit
 )
 
 $ErrorActionPreference = 'Continue'
+$recoveryModule = Join-Path (Split-Path -Parent $PSCommandPath) 'Modules\InstallerRecovery.ps1'
+if (-not (Test-Path -LiteralPath $recoveryModule -PathType Leaf)) { throw "Universal installer recovery module is missing: $recoveryModule" }
+. $recoveryModule
 # Whether THIS wrapper process is already elevated. Set when the
 # RequiresAdmin path (Start-LoggedInstaller) relaunched us via RunAs - in
 # that case a self-elevating installer .bat can run its core in-process here
@@ -47,12 +53,17 @@ $wrapperExitCode = 0
 $oldInstallStatusPath = $env:PCVR_HUB_INSTALL_STATUS_PATH
 $oldInstallRunId = $env:PCVR_HUB_INSTALL_RUN_ID
 $oldHubGameId = $env:PCVR_HUB_GAME_ID
+$oldRecoveryInput = $env:PCVR_HUB_RECOVERY_INPUT
+Remove-Item Env:PCVR_HUB_RECOVERY_INPUT -ErrorAction SilentlyContinue
 if (-not [string]::IsNullOrWhiteSpace($GameId)) { $env:PCVR_HUB_GAME_ID = $GameId }
 if (-not [string]::IsNullOrWhiteSpace($StatusPath)) {
     $env:PCVR_HUB_INSTALL_STATUS_PATH = $StatusPath
     $env:PCVR_HUB_INSTALL_RUN_ID = [Guid]::NewGuid().ToString('N')
 }
+$installerAttempt = 0
 :InstallerRun while ($true) {
+$installerAttempt++
+if (-not [string]::IsNullOrWhiteSpace($StatusPath)) { $env:PCVR_HUB_INSTALL_RUN_ID = [Guid]::NewGuid().ToString('N') }
 $wrapperExitCode = 0
 try {
     $rawUI = $Host.UI.RawUI
@@ -77,7 +88,7 @@ try {
 
 $safe = ($Title -replace '[\\/:*?"<>|]', '').Trim()
 if ([string]::IsNullOrWhiteSpace($safe)) { $safe = "Installer" }
-$stamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$stamp = (Get-Date -Format "yyyy-MM-dd_HH-mm-ss-fff") + ("-try{0}" -f $installerAttempt)
 $log = Join-Path $logsDir ("{0}-{1}.log" -f $safe, $stamp)
 
 function Get-InstallerLogHeader {
@@ -128,7 +139,9 @@ Get-InstallerLogHeader | Out-File -FilePath $log -Encoding utf8
 # leaks into this wrapper.
 $coreScript = $null
 $coreArgs   = @{}
-switch ($Kind) {
+if (-not [string]::IsNullOrWhiteSpace($InstallerScript)) {
+    $coreScript = if ([IO.Path]::IsPathRooted($InstallerScript)) { $InstallerScript } else { Join-Path $wrapperDir $InstallerScript }
+} else { switch ($Kind) {
     "LukeRoss" { $coreScript = $BatPath; $coreArgs = @{ GameTitle = $GameTitle } }
     "Ref"      { $coreScript = $Ps1Path; $coreArgs = @{ GameTitle = $GameTitle; GameFolder = $GameFolder; GameExe = $GameExe } }
     "Direct"   { $coreScript = $BatPath }
@@ -151,9 +164,16 @@ switch ($Kind) {
             # bat's own RunAs (a fresh, unavoidably unlogged elevated window) so
             # the UAC prompt still appears.
             if ((-not $selfElevates) -or $wrapperIsAdmin) {
-                $m = [regex]::Match($batText, '(?i)-File\s+"%~dp0([^"]+\.ps1)"')
-                if ($m.Success) { $coreScript = Join-Path (Split-Path $BatPath -Parent) $m.Groups[1].Value }
+                # Some launchers hand an installer core to this wrapper. Do
+                # not mistake Run-Installer.ps1 itself for the game installer
+                # and recursively start the wrapper without its BatPath.
+                $handoff = [regex]::Match($batText, '(?i)-InstallerScript\s+"%~dp0([^"]+\.ps1)"')
+                if ($handoff.Success) { $coreScript = Join-Path (Split-Path $BatPath -Parent) $handoff.Groups[1].Value }
                 else {
+                    $m = [regex]::Match($batText, '(?i)-File\s+"%~dp0([^"]+\.ps1)"')
+                    if ($m.Success -and ([IO.Path]::GetFileName($m.Groups[1].Value) -ine 'Run-Installer.ps1')) {
+                        $coreScript = Join-Path (Split-Path $BatPath -Parent) $m.Groups[1].Value
+                    }
                     # 32 of the bats build the path in a variable first
                     # (set "PS1=%SCRIPT_DIR%X-core.ps1" ... -File "%PS1%"),
                     # which the pattern above cannot see. Those installers ran
@@ -163,17 +183,28 @@ switch ($Kind) {
                     # So: take any .ps1 NAME the bat mentions and accept the
                     # first one that really sits next to the bat. Works for
                     # both styles and for whatever a future bat invents.
-                    $batDir = Split-Path $BatPath -Parent
-                    foreach ($cand in [regex]::Matches($batText, '(?i)([A-Za-z0-9._-]+\.ps1)')) {
-                        $try = Join-Path $batDir $cand.Groups[1].Value
-                        if (Test-Path -LiteralPath $try) { $coreScript = $try; break }
+                    if (-not $coreScript) {
+                        $batDir = Split-Path $BatPath -Parent
+                        foreach ($cand in [regex]::Matches($batText, '(?i)([A-Za-z0-9._-]+\.ps1)')) {
+                            if ($cand.Groups[1].Value -ieq 'Run-Installer.ps1') { continue }
+                            $try = Join-Path $batDir $cand.Groups[1].Value
+                            if (Test-Path -LiteralPath $try) { $coreScript = $try; break }
+                        }
                     }
                 }
             }
         } catch {}
     }
-}
+} }
 if ($InstallerChoice) { $coreArgs['Mod'] = $InstallerChoice }
+$bootstrapFailure = ''
+if (-not [string]::IsNullOrWhiteSpace($InstallerScript) -and (-not $coreScript -or -not (Test-Path -LiteralPath $coreScript -PathType Leaf -ErrorAction SilentlyContinue))) {
+    $bootstrapFailure = "The selected installer core is missing: $InstallerScript"
+} elseif ([string]::IsNullOrWhiteSpace($InstallerScript) -and ([string]::IsNullOrWhiteSpace($BatPath) -or -not (Test-Path -LiteralPath $BatPath -PathType Leaf -ErrorAction SilentlyContinue))) {
+    $bootstrapFailure = "The selected installer entry point is missing: $BatPath"
+} elseif ($coreScript -and -not (Test-Path -LiteralPath $coreScript -PathType Leaf -ErrorAction SilentlyContinue)) {
+    $bootstrapFailure = "The selected installer core is missing: $coreScript"
+}
 
 # Snapshot the exact files the Hub reads before the installer runs.  A
 # successful core may write an authoritative downloaded tag; generic older
@@ -254,11 +285,26 @@ function Write-FreshInstallerSuccessResult {
         # marker is authoritative enough to clear an Update badge.
         $installPathWritten = $afterInstallPath.Exists -and
                               (Test-MarkerChanged -Before $beforeInstallPath -After $afterInstallPath) -and [bool]$afterRoot
+        $pinnedVersionReceipt = $false
+        if (-not ($primaryWritten -or $secondaryWritten) -and $installPathWritten -and
+            -not [string]::IsNullOrWhiteSpace($ExpectedInstalledVersion) -and
+            $ExpectedInstalledVersion -match '\d') {
+            # Fixed/manual packages have no live publisher identity. Their
+            # reviewed catalog version is part of the installer contract and
+            # may be committed only after this run produced fresh install-path
+            # evidence. Live GitHub/Thunderstore/etc. routes never receive this
+            # argument and must write the release they actually downloaded.
+            $primaryWritten = $true
+            $pinnedVersionReceipt = $true
+        }
         $successEvidence = @()
-        if ($primaryWritten)     { $successEvidence += 'version' }
+        if ($primaryWritten)     { $successEvidence += $(if ($pinnedVersionReceipt) { 'catalog_pinned_version' } else { 'version' }) }
         if ($secondaryWritten)   { $successEvidence += 'version_b' }
         if ($installPathWritten) { $successEvidence += 'installed_path' }
 
+        if ($RequireVersionEvidence -and -not ($primaryWritten -or $secondaryWritten)) {
+            throw 'This version-tracked installer finished without an exact version receipt. The Hub did not mark the update complete.'
+        }
         if ($successEvidence.Count -gt 0) {
             $okMk = $StatusPath
             if ([string]::IsNullOrWhiteSpace($okMk)) { $okMk = Join-Path (Split-Path $coreScript -Parent) ".update_ok" }
@@ -273,7 +319,8 @@ function Write-FreshInstallerSuccessResult {
                 installedPathWritten = [bool]$installPathWritten
                 installedPath = [string]$afterRoot
                 versionValue = if ($primaryWritten) {
-                    if ((Test-MarkerChanged -Before $beforeVersion -After $afterVersion) -and $afterVersion.Value) { [string]$afterVersion.Value }
+                    if ($pinnedVersionReceipt) { [string]$ExpectedInstalledVersion }
+                    elseif ((Test-MarkerChanged -Before $beforeVersion -After $afterVersion) -and $afterVersion.Value) { [string]$afterVersion.Value }
                     elseif ($afterGameVersion.Value) { [string]$afterGameVersion.Value }
                     else { '' }
                 } else { '' }
@@ -285,7 +332,7 @@ function Write-FreshInstallerSuccessResult {
             }
             [System.IO.File]::WriteAllText($okMk, ($status | ConvertTo-Json -Compress), (New-Object System.Text.UTF8Encoding $false))
         }
-    } catch {}
+    } catch { throw }
 }
 
 # Run installer cores in their own PowerShell runspace while keeping this
@@ -301,6 +348,7 @@ function Invoke-InstallerCoreRunspace {
     $pipeline = $null
     try {
         $runspace = [RunspaceFactory]::CreateRunspace($Host)
+        try { $runspace.ApartmentState = 'STA' } catch { }
         $runspace.Open()
         try { $runspace.SessionStateProxy.Path.SetLocation((Split-Path $Path -Parent)) } catch {}
         $pipeline = [PowerShell]::Create()
@@ -310,9 +358,11 @@ function Invoke-InstallerCoreRunspace {
         # fills while an interactive installer is still open, not only after
         # its last "Press Enter" prompt has closed.
         $invokeScript = {
-            param([string]$InstallerPath,[hashtable]$InstallerArguments,[string]$LiveTranscriptPath)
+            param([string]$InstallerPath,[hashtable]$InstallerArguments,[string]$LiveTranscriptPath,[string]$RecoveryModulePath)
             $liveTranscript = $false
             try {
+                . $RecoveryModulePath
+                Enable-PCVRReadHostPathGuard
                 if ($LiveTranscriptPath) {
                     Start-Transcript -LiteralPath $LiveTranscriptPath -Append -ErrorAction Stop | Out-Null
                     $liveTranscript = $true
@@ -326,6 +376,7 @@ function Invoke-InstallerCoreRunspace {
         [void]$pipeline.AddArgument($Path)
         [void]$pipeline.AddArgument($Arguments)
         [void]$pipeline.AddArgument($TranscriptPath)
+        [void]$pipeline.AddArgument($recoveryModule)
 
         $invokeFailure = $null
         $output = @()
@@ -337,7 +388,12 @@ function Invoke-InstallerCoreRunspace {
         $capture = New-Object System.Collections.Generic.List[string]
         foreach ($item in $output) {
             $line = ('' + $item).TrimEnd()
-            if ($line) { [void]$capture.Add($line); Write-Host $line }
+            # Write-Host / Information records were already rendered live by
+            # the shared console host. Ordinary pipeline objects only belong
+            # in the diagnostic log: replaying them here happens after the
+            # installer's final Enter prompt and makes text flash while the
+            # successful window is closing.
+            if ($line) { [void]$capture.Add($line) }
         }
         foreach ($record in @($pipeline.Streams.Information)) {
             $message = $null
@@ -372,6 +428,16 @@ function Invoke-InstallerCoreRunspace {
     }
 }
 
+function Test-PCVRInstallerCaptureFailureSignal {
+    param($Result)
+    if(-not $Result){return $false}
+    foreach($line in @($Result.Capture)){
+        $text=(''+$line).Trim()
+        if($text -match '^(\[X{1,2}\]|\[FAIL\]|\[ERROR\])(?:\s|$)'){return $true}
+    }
+    return $false
+}
+
 function Save-InstallerCoreCapture {
     param($Result)
     if (-not $Result -or -not $log) { return }
@@ -395,6 +461,7 @@ function Save-InstallerCoreCapture {
 }
 
 try {
+    if ($bootstrapFailure) { throw $bootstrapFailure }
     if ($coreScript -and (Test-Path $coreScript)) {
         $coreResult = Invoke-InstallerCoreRunspace -Path $coreScript -Arguments $coreArgs -TranscriptPath $log
         Save-InstallerCoreCapture -Result $coreResult
@@ -406,6 +473,10 @@ try {
             throw $why
         }
         Write-FreshInstallerSuccessResult
+        if((Test-PCVRInstallerCaptureFailureSignal -Result $coreResult) -and
+           (-not $StatusPath -or -not(Test-Path -LiteralPath $StatusPath -PathType Leaf))){
+            throw 'The installer reported a failure but returned without an error code or completed transaction.'
+        }
     } else {
         # Could not resolve a core .ps1: run the bat the old way. No pipe, so
         # colors still work; the bat's nested powershell just isn't captured.
@@ -418,43 +489,27 @@ try {
     try {
         Add-Content -LiteralPath $log -Value ("[WRAPPER] Failure: " + (ConvertTo-PrivacySafeInstallerLogText ([string]$_.Exception.Message))) -Encoding UTF8 -ErrorAction SilentlyContinue
     } catch {}
-    Write-Host ""
-    Write-Host "============================================================" -ForegroundColor Red
-    Write-Host "  The installer hit an unexpected error" -ForegroundColor Red
-    Write-Host "============================================================" -ForegroundColor Red
-    Write-Host ""
-    Write-Host ("  " + $_.Exception.Message) -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Nothing is marked complete. You can retry the same installer" -ForegroundColor White
-    Write-Host "  without returning to the Hub, or inspect the installer log first." -ForegroundColor White
-    Write-Host "  Download and extraction failures normally use the richer" -ForegroundColor DarkGray
-    Write-Host "  Retry / drag-and-drop screen before they can reach this point." -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host "  [R] Retry installer from the beginning" -ForegroundColor Cyan
-    Write-Host "  [L] Open the installer log" -ForegroundColor Cyan
-    Write-Host "  [F] Open the installer folder" -ForegroundColor Cyan
-    Write-Host "  [Q] Close this installer" -ForegroundColor Cyan
-    Write-Host ""
+    $failureMessage=$_.Exception.Message
+    $installerFolder = if ($coreScript) { Split-Path -Parent $coreScript } elseif ($BatPath) { Split-Path -Parent $BatPath } else { $wrapperDir }
     while ($true) {
-        $errorChoice = ("" + (Read-Host "  Your choice")).Trim().ToLowerInvariant()
-        if ($errorChoice -in @('r','retry')) {
-            Write-Host ""
-            Write-Host "  Retrying..." -ForegroundColor Green
-            continue InstallerRun
+        try {
+            $decision=Invoke-PCVRUniversalRecovery -FailureMessage $failureMessage -LogPath $log -InstallerFolder $installerFolder
+            if($decision.Action -eq 'retry'){
+                $replacement=Resolve-PCVRRecoveryEntryPoint -Path $decision.RecoveryInput
+                if($replacement){
+                    $BatPath=$replacement.Path
+                    $Kind=$replacement.Kind
+                    $Ps1Path=''
+                    Write-Host ('  Using replacement installer entry point: '+$BatPath) -ForegroundColor Cyan
+                }
+                Write-Host ''
+                Write-Host '  Retrying with all available recovery information...' -ForegroundColor Green
+                continue InstallerRun
+            }
+        }catch{
+            Write-Host ('  The recovery screen itself encountered a problem: '+$_.Exception.Message) -ForegroundColor Yellow
+            Write-Host '  It will be rebuilt now; the installer remains open.' -ForegroundColor DarkGray
         }
-        if ($errorChoice -in @('l','log')) {
-            try { Start-Process notepad.exe -ArgumentList "`"$log`"" -ErrorAction Stop | Out-Null }
-            catch { Write-Host "  Log: $log" -ForegroundColor Yellow }
-            continue
-        }
-        if ($errorChoice -in @('f','folder')) {
-            $installerFolder = if ($coreScript) { Split-Path -Parent $coreScript } elseif ($BatPath) { Split-Path -Parent $BatPath } else { $wrapperDir }
-            try { Start-Process explorer.exe -ArgumentList "`"$installerFolder`"" -ErrorAction Stop | Out-Null }
-            catch { Write-Host "  Folder: $installerFolder" -ForegroundColor Yellow }
-            continue
-        }
-        if ($errorChoice -in @('q','quit','close')) { break InstallerRun }
-        Write-Host "  Please choose R, L, F or Q." -ForegroundColor Yellow
     }
 }
 }
@@ -466,4 +521,5 @@ try {
 if ($null -eq $oldInstallStatusPath) { Remove-Item Env:PCVR_HUB_INSTALL_STATUS_PATH -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_INSTALL_STATUS_PATH = $oldInstallStatusPath }
 if ($null -eq $oldInstallRunId) { Remove-Item Env:PCVR_HUB_INSTALL_RUN_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_INSTALL_RUN_ID = $oldInstallRunId }
 if ($null -eq $oldHubGameId) { Remove-Item Env:PCVR_HUB_GAME_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_GAME_ID = $oldHubGameId }
+if ($null -eq $oldRecoveryInput) { Remove-Item Env:PCVR_HUB_RECOVERY_INPUT -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_RECOVERY_INPUT = $oldRecoveryInput }
 if (-not $NoProcessExit) { exit $wrapperExitCode }

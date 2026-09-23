@@ -29,7 +29,7 @@ Index and Touch-style controllers are supported out of the box; other controller
 - Manual: https://farcryvr.de/manual/
 
 A few notes:
-- Vehicles use **throttle on the left stick** by default (a secondary "triggers" binding set is selectable in the SteamVR controller bindings menu).
+- Vehicles use throttle on [[Left Stick]] by default (a secondary trigger binding set is selectable in the SteamVR controller bindings menu).
 - Grenades throw on a button press (no physical throwing yet).
 
 ## Known quirks

@@ -52,9 +52,9 @@ If you opted into **left-handed mode** during install:
 
 ### Game-specific hotkeys
 
-- **Both stick clicks at once**: recenter the VR view
-- **[[Right Stick]] click + A**: force-reattach weapons / flashlight / kick (use this if anything detaches)
-- **Look up/down + left stick forward**: climb ladders / swim. Ladders can be tricky and may need a few tries.
+- [[Left Stick Click]] + [[Right Stick Click]]: recenter the VR view
+- [[Right Stick Click]] + [[A]]: force-reattach weapons / flashlight / kick (use this if anything detaches)
+- Look up/down + [[Left Stick Forward]]: climb ladders / swim. Ladders can be tricky and may need a few tries.
 
 ### Hotkey gesture
 

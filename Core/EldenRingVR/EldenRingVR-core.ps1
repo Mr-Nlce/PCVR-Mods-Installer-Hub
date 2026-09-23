@@ -45,14 +45,6 @@ Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Elden Ring VR - Motion Controls" -ForegroundColor Cyan
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host ""
-if (-not $Mod) {
-    Write-Fail "No mod was selected by the Hub."
-    Write-Info "Use Install Hotbite or Install ERVR on the Elden Ring detail page."
-    Pause-User "Press Enter to exit."
-    exit 1
-}
-Write-OK "Selected in the Hub: $Mod"
-
 $currentGame = Get-EldenRingFolder
 if (Test-EldenRingRoot $currentGame) {
     Write-OK "Current Steam copy: $currentGame"
@@ -62,14 +54,39 @@ if (Test-EldenRingRoot $currentGame) {
     Write-Info "You can still build the separate pinned depot if you own Elden Ring on Steam."
 }
 
-$target = Select-EldenRingBuildTarget -CurrentGameDir $currentGame
-if (-not $target -or -not (Test-EldenRingRoot $target.GameDir)) {
-    Write-Fail "No valid Elden Ring target was selected."
+$selection = Select-EldenRingInstallCombination -CurrentGameDir $currentGame -PreferredMod $Mod
+if (-not $selection) {
+    Write-Info "Setup cancelled. No route was installed or marked updated."
+    exit 0
+}
+$Mod = [string]$selection.Mod
+$target = @{ GameDir=[string]$selection.GameDir; Mode=[string]$selection.Route; Label=[string]$selection.RouteLabel }
+if ($selection.Route -eq 'Depot') {
+    # Current and Depot share one save location. Prepare it before either a
+    # newly downloaded or already-present pinned build can be launched.
+    if (-not (Backup-EldenRingSave)) {
+        Write-Fail "The shared Elden Ring save was not prepared; depot setup stopped."
+        Pause-User "Press Enter to exit."
+        exit 1
+    }
+    if (-not (Test-EldenRingRoot $selection.GameDir)) {
+        $createdDepot = Install-EldenRingDepotCopy -CurrentGameDir $currentGame -TargetPath ([string]$selection.GameDir)
+        if (-not $createdDepot) {
+            Write-Fail "The pinned depot was not completed. Nothing was marked installed."
+            Pause-User "Press Enter to exit."
+            exit 1
+        }
+        $target.GameDir = [string]$createdDepot
+    }
+}
+if (-not (Test-EldenRingRoot $target.GameDir)) {
+    Write-Fail "The selected $($target.Mode) game build is not complete."
     Pause-User "Press Enter to exit."
     exit 1
 }
 $gameDir = [string]$target.GameDir
-Write-OK "Install target: $gameDir ($($target.Label))"
+Write-OK "Selected: $($target.Label) + $Mod"
+Write-OK "Install target: $gameDir"
 
 if ($Mod -eq "ERVR") {
     $ervr = Join-Path $PSScriptRoot "EldenRingErvr.ps1"
@@ -206,11 +223,13 @@ try {
 } catch { Write-Warn "Could not create the desktop shortcut; launch from the Hub." }
 
 Write-Step 3 3 "Finished"
-Write-Host "  Installed Hotbite for: $gameDir" -ForegroundColor White
-Write-Host "  Start SteamVR first, then use Start Current / Start Depot in" -ForegroundColor Gray
-Write-Host "  the Hub (or the matching desktop shortcut)." -ForegroundColor Gray
+Write-Host "  Installed: $($target.Label) + Hotbite" -ForegroundColor White
+Write-Host "  Start SteamVR first, then use the matching build + Hotbite" -ForegroundColor Gray
+Write-Host "  action in the Hub (or the matching desktop shortcut)." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Display and input settings are directly available on the" -ForegroundColor Gray
 Write-Host "  Elden Ring detail page: Hotbite 3D / Hotbite config." -ForegroundColor Cyan
 Write-Host ""
-Pause-User "Press Enter to exit."
+Write-Host "  Rise, Tarnished, and raise the shield yourself." -ForegroundColor Magenta
+Write-Host ""
+Pause-User "Press Enter to close setup..."

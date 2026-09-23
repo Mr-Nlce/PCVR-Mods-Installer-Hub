@@ -51,8 +51,8 @@ The installer opens the matching Discord post for the selected variant. For the 
 
 **Gamepad or keyboard only - no VR controller support.**
 
-- **F1** or **double-press START** on gamepad - toggle first-person view on/off
-- **F2** or **hold START** on gamepad - recenter view
+- [[F1]] or double-press [[Start]] on gamepad - toggle first-person view on/off
+- [[F2]] or hold [[Start]] on gamepad - recenter view
 
 ## Heads-up notes from Astienth
 

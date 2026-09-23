@@ -43,15 +43,15 @@ VR controllers are mapped as a virtual Xbox controller:
 
 The mod adds proper VR gestures on top of the gamepad mapping:
 
-- **Both hands above your head (while airborne)** → activate the **glider**
-- **Punch forward with your hand** → trigger the **attack**
-- **Quick downward swing while in the air** → trigger the **stomp** attack
+- [[Both Hands Above Head]] while airborne → activate the **glider**
+- [[Punch Forward]] → trigger the **attack**
+- [[Quick Downward Swing]] while in the air → trigger the **stomp** attack
 
 You can disable gestures entirely (config below) if you'd rather play with just buttons.
 
 ### Recentering
 
-Click **both joysticks at the same time** to recenter the view at any time.
+Click [[Left Stick Click]] + [[Right Stick Click]] to recenter the view at any time.
 
 ### Hotkey gesture
 

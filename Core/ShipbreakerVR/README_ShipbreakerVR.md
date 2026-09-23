@@ -34,9 +34,9 @@ Two extra key bindings help on lower-end hardware:
 
 ## Controls
 Gamepad (or mouse & keyboard) - the same controls as the flat game. The mod adds keyboard toggles only:
-- `[F3]` toggle VR camera on/off
-- `[F5]` ultra low quality mode
-- `[F6]` disable scene lights (performance)
+- [[F3]] toggle VR camera on/off
+- [[F5]] ultra low quality mode
+- [[F6]] disable scene lights (performance)
 
 ## Credits
 - VR mod by **Raicuparta** - https://raicuparta.itch.io/shipbreaker-vr (source: https://github.com/Raicuparta/ShipbreakerVr)

@@ -96,7 +96,7 @@ Write-Host "    Depot download complete : ...\depot_1217061" -ForegroundColor Ye
 Write-Host ""
 
 try {
-    Set-Clipboard -Value $DEPOT_COMMAND
+    Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback
     Write-OK "Download command copied to clipboard!"
 } catch {
     Write-Warn "Could not copy to clipboard. Command to paste manually:"
@@ -132,6 +132,7 @@ Pause-User "Press Enter to open the Steam Console..."
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 Write-OK "Steam Console opening..."
 
@@ -187,7 +188,9 @@ Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
+$rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+$userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"') }
+if ($rememberedTarget) { Write-OK "Using remembered install location: $rememberedTarget" }
 if (-not $userInput) {
     $targetPath = $DEFAULT_PATH
 } else {

@@ -38,8 +38,8 @@ Hold your left controller close to the left side of your head (in real life). Th
 - [[Right Stick]] click = Start button
 
 ### Other controls
-- Both joysticks clicked at the same time = recenter view
-- [[Right Stick]] click (without hotkey) = toggle laser pointer on/off
+- [[Left Stick Click]] + [[Right Stick Click]] = recenter view
+- [[Right Stick Click]] (without hotkey) = toggle laser pointer on/off
 
 ## Configuration
 

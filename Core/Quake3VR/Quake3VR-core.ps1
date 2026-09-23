@@ -186,7 +186,9 @@ Write-Step 3 4 "Installing"
 # <root>\Quake 3 VR - a self-contained folder, NOT inside the Steam
 # library (q3vr ships its own q3vr.exe and is not launched through
 # Steam).
-$installParent = $null
+$rememberedInstallRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('q3vr.exe')
+$installParent = if ($rememberedInstallRoot) { Split-Path -Parent $rememberedInstallRoot } else { $null }
+if ($rememberedInstallRoot) { Write-OK "Using remembered install location: $rememberedInstallRoot" }
 foreach ($r in $DEFAULT_ROOTS) {
     if (Test-WritableRoot -Root $r) { $installParent = [string]$r; break }
 }
@@ -202,7 +204,7 @@ if (-not $installParent) {
     }
 }
 Write-OK "Install root: $installParent"
-$installRoot = Join-Path $installParent $GAME_FOLDER
+$installRoot = if ($rememberedInstallRoot) { $rememberedInstallRoot } else { Join-Path $installParent $GAME_FOLDER }
 
 if (Test-Path $installRoot) {
     Write-Info "Existing installation found. Quake 3 VR files will be merged; additional files are preserved."

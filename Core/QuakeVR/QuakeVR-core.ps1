@@ -26,6 +26,7 @@ $MOD_NAME    = "Quake VR v0.0.8.1"
 $MOD_AUTHOR  = "Vittorio Romeo"
 $INFO_URL    = "https://github.com/vittorioromeo/quakevr"
 $MOD_URL     = "https://github.com/vittorioromeo/quakevr/releases/download/v0.0.8.1/quakevr_v0.0.8.1.7z"
+$MOD_VERSION = "v0.0.8.1"
 $GAME_FOLDER = "Quake VR"
 $GAME_EXE    = "quakevr.exe"
 $STEAM_FOLDER = "Quake"
@@ -384,6 +385,7 @@ if ($failed.Count -eq 0) {
         Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force
         Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_romeo") -Value $installRoot -Encoding UTF8 -Force
     } catch {}
+    Save-InstalledStamp -GameDir $installRoot -Version $MOD_VERSION -HubDir $PSScriptRoot
 }
 
 # -------------------------------------------------------

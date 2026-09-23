@@ -95,7 +95,7 @@ Write-Host " VRTRAKILL_FRAUD requires a specific older version of ULTRAKILL." -F
 Write-Host " We download it as a separate copy - your retail ULTRAKILL stays untouched." -ForegroundColor White
 Write-Host ""
 
-try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
@@ -133,6 +133,7 @@ Pause-User "Press Enter to open the Steam Console..."
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 Write-Info "Steam Console opening..."
 

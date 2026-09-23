@@ -276,7 +276,7 @@ if ($mode -eq "1") {
     Write-Host "   Depot download complete : ...\depot_$DEPOT_DEPOTID" -ForegroundColor Yellow
     Write-Host ""
 
-    try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+    try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
     Write-Host " ============================================================" -ForegroundColor Yellow
     Write-Host " ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
@@ -310,6 +310,7 @@ if (-not $script:PreFoundDepot) {
     foreach ($cu in @("steam://open/console", "steam://nav/console")) {
         try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
     }
+    Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
     Write-OK "Steam Console opening..."
     Write-Host ""

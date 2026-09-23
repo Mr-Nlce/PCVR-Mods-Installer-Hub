@@ -211,8 +211,77 @@ $global:WIP_GAME_TITLES = @(
     "Singularity VR",
     "Max Payne 2 VR",
     "The Witness",
-    "SnowRunner VR"
+    "SnowRunner VR",
+    "EARTH DEFENSE FORCE 6 VR",
+    "Titanfall 2 VR",
+    "Tribes 2 VR",
+    "GoldenEye 007 VR",
+    "Deus Ex: Human Revolution - DC",
+    "PowerWash Simulator 2 VR",
+    "Mirror's Edge VR",
+    "Kingdom Come: Deliverance VR",
+    "Oblivion (2006)",
+    "Thief (2014) VR"
 )
+
+# A Gem marks the primary VR mod as one of the Hub's most complete and
+# polished experiences. It is intentionally a catalog fact instead of a
+# presentation-only tag: cards, search and the primary-mod detail row all read
+# the same value. Optional add-ons are not implied by the primary Gem flag.
+function global:New-GemMarker {
+    param(
+        [double]$Scale = 1.0,
+        [switch]$Detail,
+        [switch]$Preview
+    )
+
+    # A small faceted jewel reads as an actual diamond at every scale; the
+    # former solid rhombus looked like an ordinary bullet or decoration.
+    $marker = New-Object System.Windows.Controls.Grid
+    $size = if ($Detail) { 14.0 } elseif ($Preview) { [Math]::Max(10.0, [Math]::Round(12.0 * $Scale)) } else { [Math]::Max(11.0, [Math]::Round(14.0 * $Scale)) }
+    $marker.Width = $size
+    $marker.Height = $size
+    $view = New-Object System.Windows.Controls.Viewbox
+    $gemCanvas = New-Object System.Windows.Controls.Grid
+    $gemCanvas.Width = 20
+    $gemCanvas.Height = 20
+    $outline = New-Object System.Windows.Shapes.Path
+    $outline.Data = [System.Windows.Media.Geometry]::Parse('M 2,7 L 6,2 L 14,2 L 18,7 L 10,18 Z')
+    $outline.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#18394c')
+    $outline.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#71d7ff')
+    $outline.StrokeThickness = 1.5
+    $outline.StrokeLineJoin = [System.Windows.Media.PenLineJoin]::Round
+    $facets = New-Object System.Windows.Shapes.Path
+    $facets.Data = [System.Windows.Media.Geometry]::Parse('M 2,7 L 18,7 M 6,2 L 10,7 L 14,2 M 2,7 L 10,18 L 18,7 M 10,7 L 10,18')
+    $facets.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#b9edff')
+    $facets.StrokeThickness = 1.0
+    $facets.StrokeLineJoin = [System.Windows.Media.PenLineJoin]::Round
+    $facets.Opacity = 0.9
+    $gemCanvas.Children.Add($outline) | Out-Null
+    $gemCanvas.Children.Add($facets) | Out-Null
+    $view.Child = $gemCanvas
+    $marker.Children.Add($view) | Out-Null
+    $marker.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $marker.Margin = if ($Detail) {
+        [System.Windows.Thickness]::new(6, 1, 0, 0)
+    } elseif ($Preview) {
+        [System.Windows.Thickness]::new([int](5 * $Scale), 0, 0, 0)
+    } else {
+        [System.Windows.Thickness]::new([int](5 * $Scale), 0, 0, [int](8 * $Scale))
+    }
+    $marker.ToolTip = if ($Preview) { "Polished Gem" } else { "Gem - polished, native-feeling VR" }
+    if ($Preview) {
+        $marker.Opacity = 0.72
+        $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+        $glow.Color = [System.Windows.Media.Color]::FromRgb(113, 215, 255)
+        $glow.BlurRadius = 5
+        $glow.ShadowDepth = 0
+        $glow.Opacity = 0.35
+        $marker.Effect = $glow
+    }
+    [System.Windows.Automation.AutomationProperties]::SetName($marker, "Gem: highly complete and polished VR mod")
+    return $marker
+}
 
 # -------------------------------------------------------
 # Pulsing border glow shown immediately on a tile-body click.
@@ -536,6 +605,11 @@ function global:Set-CardStateVisual {
                 [void]$BtnTxt.Inlines.Add((New-Object System.Windows.Documents.Run ([string]" Update")))
             }
             Set-NeonButtonState -Button $BtnBrd -Text $BtnTxt -ColorHex $UPDATE_BLUE -Filled
+            # Resting Update text stays clearly readable but remains visually
+            # distinct from the pure-white real mouse-over state.
+            if ($BtnTxt) {
+                $BtnTxt.Foreground = $conv.ConvertFromString("#b9ccf4")
+            }
             if ($BtnBrd) {
                 # Semi-transparent blue fill so the card's ember/frost FX show
                 # through the Update button - a bit more opaque than VR Ready

@@ -42,9 +42,9 @@ actions that have no VR binding, and no controller binding sends Escape.
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
-| Headset | FreeTrack head rotation and translation |
+| [[Headset]] | FreeTrack head rotation and translation |
 | [[Right Controller]] | Aim; left controller when left-handed aim is selected |
 | [[Right Trigger]] | Fire |
 | [[Right Grip]] | Hold native ADS when enabled |
@@ -63,7 +63,7 @@ actions that have no VR binding, and no controller binding sends Escape.
 
 Hold [[Left Grip]], press the second control, then release both.
 
-| Chord | Action |
+| Button | Action |
 |---|---|
 | [[Left Grip]] + [[A]] | Toggle equipped laser or flashlight |
 | [[Left Grip]] + [[Right Stick Click]] | Deploy or retract weapon / bipod |

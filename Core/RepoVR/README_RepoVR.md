@@ -26,10 +26,10 @@ All packages are downloaded directly from Thunderstore. Running the installer ag
 Click **Install Mod** on the game tile or detail page and follow the prompts.
 
 ## Controls
-- **Grab items** — reach out and use Grip (physical hands, not face-targeting)
+- **Grab items** — reach out and use [[Grip]] (physical hands, not face-targeting)
 - **Pull/push held items** — [[Right Stick]] up/down to adjust hold distance
 - **Rotate items** — rotate your hand while holding
-- **Map** — grab from the toolbelt in front of you (right side) using Grip
+- **Map** — grab from the toolbelt in front of you (right side) using [[Grip]]
 - **Dominant hand** — switchable in settings at any time (manual rebind required after switching)
 - **Controls rebinding** — Settings → Controls, works in-game and in menus
 

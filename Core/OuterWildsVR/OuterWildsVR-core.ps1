@@ -10,11 +10,11 @@ $ErrorActionPreference = "Stop"
 
 $GAME_FOLDER  = "Outer Wilds"
 $GAME_EXE     = "OuterWilds.exe"
-$OWML_URL     = "https://github.com/ow-mods/owml/releases/download/2.16.2/OWML.zip"
+$OWML_URL     = "https://github.com/ow-mods/owml/releases/download/2.16.3/OWML.zip"
 $MOD_URL      = "https://github.com/Raicuparta/nomai-vr/releases/download/2.10.0/Raicuparta.NomaiVR.zip"
 $INFO_URL     = "https://outerwildsmods.com/mods/nomaivr/"
 
-function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "   Outer Wilds - NomaiVR Installer" -ForegroundColor Yellow; Write-Host "   OWML 2.16.2  +  NomaiVR 2.10.0 by Raicuparta" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "" }
+function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "   Outer Wilds - NomaiVR Installer" -ForegroundColor Yellow; Write-Host "   OWML 2.16.3  +  NomaiVR 2.10.0 by Raicuparta" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "" }
 function Write-Step   { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-OK     { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
 function Write-Warn   { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
@@ -91,11 +91,11 @@ Write-Step 2 4 "Downloading OWML + NomaiVR"
 $tempDir = Join-Path $env:TEMP "OuterWildsVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 
-Write-Host "  Downloading OWML 2.16.2 ... " -NoNewline -ForegroundColor White
+Write-Host "  Downloading OWML 2.16.3 ... " -NoNewline -ForegroundColor White
 $owmlZip = Join-Path $tempDir "OWML.zip"
 $r = Invoke-DownloadOrFallback -Url $OWML_URL -Destination $owmlZip `
-        -Label "OWML v2.16.2" `
-        -ManualUrl "https://github.com/ow-mods/owml/releases/tag/2.16.2" `
+        -Label "OWML v2.16.3" `
+        -ManualUrl "https://github.com/ow-mods/owml/releases/tag/2.16.3" `
         -Instructions "Download 'OWML.zip' from the GitHub releases page. Place it at '$owmlZip' and choose Retry." `
         -SkipMessage "Skipped - OWML mod loader missing; NomaiVR will NOT load (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }

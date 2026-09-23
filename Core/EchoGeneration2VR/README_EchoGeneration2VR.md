@@ -24,7 +24,7 @@ The mod files go into the **game root folder** (the folder that ends up with a `
 
 ## Controls
 - **KEYBOARD or GAMEPAD only.**
-- **Recenter**: press **F1**, or click **both gamepad sticks** at the same time.
+- **Recenter**: press [[F1]], or click [[Left Stick]] + [[Right Stick]] at the same time.
 - **VR players**: this mod is OpenXR-only and does not read VR controllers directly. To play with your controllers, use **Virtual Desktop** and enable **Input > Use touch controllers as gamepad**.
 
 ## Configuration

@@ -57,6 +57,17 @@ Add this to your Steam Launch Options:
 -novr
 ```
 
+## Uninstall
+
+Use **Uninstall now** on the Slime Rancher detail page. New installations use
+an ownership manifest, so the Hub removes only the files it installed and
+restores replaced originals. The reviewed legacy SRVR v1.1 DLL can also be
+removed when its exact unchanged file hash still matches.
+
+SRML itself and every other SRML mod are deliberately retained because they
+may be shared. An unknown or user-modified `SRVR.dll` is never deleted by
+guesswork.
+
 ## Source
 SRVR: https://github.com/Atmudia/SRVR
 SRML: https://github.com/SlimeRancherModding/SRML

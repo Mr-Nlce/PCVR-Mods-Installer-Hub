@@ -87,6 +87,24 @@ function Find-ModZip {
  return $found
 }
 
+function Get-7DaysVrVersionFromExtractedFiles {
+ param([Parameter(Mandatory=$true)][string]$ExtractedRoot)
+ foreach ($relativePath in @("Mods\7DVR\mod.xml", "Mods\7DVR\ModInfo.xml")) {
+  $metadataPath = Join-Path $ExtractedRoot $relativePath
+  if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) { continue }
+  try {
+   $metadata = Get-Content -LiteralPath $metadataPath -Raw -ErrorAction Stop
+   foreach ($pattern in @('<mod_version>\s*([^<]+?)\s*</mod_version>', '<Version\s+value="([^"]+)"')) {
+    $match = [regex]::Match($metadata, $pattern, [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($match.Success -and $match.Groups[1].Value.Trim() -match '\d') {
+     return $match.Groups[1].Value.Trim()
+    }
+   }
+  } catch {}
+ }
+ return $null
+}
+
 # -------------------------------------------------------
 # STEP 1: Locate 7 Days to Die
 # -------------------------------------------------------
@@ -231,11 +249,17 @@ Write-Step 3 5 "Installing 7DaysVR"
 $tempDir = Join-Path $env:TEMP "7DaysVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 $failed = @()
+$installedModVersion = $null
 
 Write-Host " Extracting mod files ... " -NoNewline -ForegroundColor White
 try {
  Expand-Archive -Path $modZipPath -DestinationPath $tempDir -Force
  Write-Host "OK" -ForegroundColor Green
+
+ $installedModVersion = Get-7DaysVrVersionFromExtractedFiles -ExtractedRoot $tempDir
+ if (-not $installedModVersion) {
+  throw "The selected archive does not expose an exact 7DaysVR version in Mods\7DVR\mod.xml or ModInfo.xml."
+ }
 
  # Merge all contents into game folder
  Get-ChildItem -Path $tempDir | ForEach-Object {
@@ -244,8 +268,13 @@ try {
 
  # Verify key files
  $winhttpCheck = Join-Path $gamePath "winhttp.dll"
- if (Test-Path $winhttpCheck) { Write-OK "winhttp.dll verified." }
- else { Write-Warn "winhttp.dll not found - mod may not have installed correctly." }
+ $pluginCheck = Join-Path $gamePath "BepInEx\plugins\7DaysVR.dll"
+ if ((Test-Path -LiteralPath $winhttpCheck -PathType Leaf) -and (Test-Path -LiteralPath $pluginCheck -PathType Leaf)) {
+  Write-OK "Required VR files verified."
+  Save-InstalledStamp -GameDir $gamePath -Version $installedModVersion -HubDir $PSScriptRoot
+ } else {
+  throw "Required 7DaysVR files are missing after extraction."
+ }
 
  Write-OK "7DaysVR mod installed!"
 } catch {
@@ -341,7 +370,7 @@ if (-not (Test-Path $settingsPath)) {
 }
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("7DaysVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
+if ("7DaysVR" -notin $failed -and $installedModVersion) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
 
 # -------------------------------------------------------
 # DONE

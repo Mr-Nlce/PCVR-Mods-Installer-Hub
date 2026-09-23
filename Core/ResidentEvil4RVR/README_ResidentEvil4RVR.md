@@ -2,7 +2,7 @@
 
 **REFramework** by **praydog**, with the **RE4VR** motion-control add-on by **Talemann** - turns **Resident Evil 4 (Remake)** into a cinematic, action-heavy VR horror experience. The village ambush, castle siege, and Regenerator encounters are especially intense in VR.
 
-> This is an **external** mod. **Get Installer** starts the download of the author's own setup (about 312 MB) straight from his site - he asks people to take it from there and nowhere else. The setup then does everything itself.
+> This is an **external** mod. **Get Installer** starts the download of the author's own **RE4VR 2.1** setup (about 100 MB) straight from his site - he asks people to take it from there and nowhere else. The setup then does everything itself.
 
 ## What you get
 - Full VR conversion with head tracking and first-person gameplay enhancements
@@ -49,7 +49,7 @@ These are the official RE4VR default bindings (praydog mod + Talemann VR).
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Left Stick]] | Move - click & hold = Run |
 | [[Y]] | Open Inventory |
 | [[X]] | Open Map; long press = command Ashley; Back / Cancel (menu) |
@@ -58,7 +58,7 @@ These are the official RE4VR default bindings (praydog mod + Talemann VR).
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Right Stick]] | Turn - click = Toggle crouch / stand |
 | [[B]] | Reload; Move Items (in inventory) |
 | [[A]] | Interact / Pickup / Select (menu) |

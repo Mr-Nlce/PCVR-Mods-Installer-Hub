@@ -300,7 +300,7 @@ if ("DawnVR"      -notin $failed) { Write-Host "    [x] DawnVR v1.0.1 ($EDITION_
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
-try { Set-Clipboard -Value "-vrmode OpenVR" } catch {}
+try { Set-Clipboard -Value "-vrmode OpenVR" -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Yellow
@@ -316,7 +316,8 @@ Write-Host "  Then paste (Ctrl+V) and close Properties." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to open Steam Launch Options..."
 Start-Process "steam://gameproperties/$GAME_APPID"
-try { Set-Clipboard -Value "-vrmode OpenVR" } catch {}
+try { Set-Clipboard -Value "-vrmode OpenVR" -DeferManualFallback } catch {}
+Show-PCVRClipboardManualFallback -Text "-vrmode OpenVR"
 
 Pause-User "Press Enter once you have pasted the launch option and closed Properties..."
 

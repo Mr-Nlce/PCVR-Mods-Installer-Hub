@@ -25,17 +25,17 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 The installer shows whether the current mod version is deprecated. If deprecated, use Option 2 (pinned depot build with CWVR 1.2.0).
 
 ## Controls
-| Action | Button |
-|--------|--------|
-| Move | [[Left Stick]] |
-| Turn | [[Right Stick]] |
-| Jump | [[Left Stick]] Click |
-| Sprint | [[Left Grip]] |
-| Interact | [[Right Trigger]] |
-| Grab | [[Right Grip]] |
-| Use item | [[Left Trigger]] |
-| Inventory | [[Y]] |
-| Camera zoom | Hold Interact + push [[Right Stick]] |
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move |
+| [[Right Stick]] | Turn |
+| [[Left Stick]] Click | Jump |
+| [[Left Grip]] | Sprint |
+| [[Right Trigger]] | Interact |
+| [[Right Grip]] | Grab |
+| [[Left Trigger]] | Use item |
+| [[Y]] | Inventory |
+| Hold Interact + push [[Right Stick]] | Camera zoom |
 
 Controls can be fully rebound in Settings → Controls at any time, even mid-game.
 

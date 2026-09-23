@@ -23,11 +23,11 @@ The mod adds support for bHaptics and a ViGEmBus-based gamepad emulation.
 
 ## Controls
 - **VR controllers map like an Xbox gamepad** — by default the bike steers with the analogue stick, no motion needed.
-- **Recenter view**: click both joysticks at once.
-- **Toggle motion controls**: [[Right Stick]] click + left controller [[X]]. The game starts with motion controls **OFF**.
+- **Recenter view**: click [[Left Stick Click]] + [[Right Stick Click]].
+- **Toggle motion controls**: [[Right Stick Click]] + [[Left X]]. The game starts with motion controls **OFF**.
 
 ### Motion controls (when enabled)
-- Hold both grips to control the bike. VR hands won't stay glued to the handlebars.
+- Hold [[Left Grip]] + [[Right Grip]] to control the bike. VR hands won't stay glued to the handlebars.
 - **Wheelie**: pull both hands **up**.
 - **Slide**: pull both hands **down**.
 - **Duck**: pull both hands **towards you**.

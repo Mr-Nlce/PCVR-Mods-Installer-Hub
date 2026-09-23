@@ -1,5 +1,5 @@
 # DOOM (2016) VR - KHARVOX installer.
-# Contract: Steam/GOG base game proof DOOMx64.exe + DOOMx64vk.exe; the mod
+# Contract: Steam base game proof DOOMx64.exe + DOOMx64vk.exe; the mod
 # remains in a separate DOOM 2016 VR folder; launcher, OpenXR layer and
 # ownership manifest prove the Current route; LocalAppData launcher settings
 # and the original game directory remain outside Hub ownership.
@@ -12,8 +12,8 @@ $Host.UI.RawUI.WindowTitle = 'DOOM (2016) VR Installer'
 $APP_ID = '379720'
 $REPO = 'CactusVRStudios/KHARVOX'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'v0.7-beta'
-$FALLBACK_NAME = 'KHARVOX-v0.7-beta.zip'
+$FALLBACK_TAG = 'v1.1.0'
+$FALLBACK_NAME = 'KHARVOX-v1.1.zip'
 $FALLBACK_URL = "https://github.com/$REPO/releases/download/$FALLBACK_TAG/$FALLBACK_NAME"
 $IDENTITY = 'kharvox'
 $QUIP = 'Rip and tear now means reaching out and doing it yourself.'
@@ -80,6 +80,44 @@ function Find-KharvoxPayload([string]$Root) {
     return $null
 }
 
+function Install-DoomKharvoxPayload([string]$Payload,[string]$Target) {
+    # KHARVOX itself rewrites this publisher-owned Vulkan layer manifest from
+    # a relative path to the selected absolute install path. Prepare the new
+    # release with that final value before ownership hashes are recorded. This
+    # is runtime metadata, not the user's launcher settings (those remain in
+    # LocalAppData), so an earlier launcher rewrite is safe to replace.
+    $layerPath = Join-Path $Payload 'KharvoxLayer.json'
+    $layer = Get-Content -LiteralPath $layerPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    if (-not $layer.layer -or [string]$layer.layer.name -ne 'VK_LAYER_KHARVOX_OPENXR') {
+        throw 'The publisher package has an unexpected KHARVOX layer manifest.'
+    }
+    $layer.layer.library_path = Join-Path $Target 'KharvoxLayer.dll'
+    [IO.File]::WriteAllText($layerPath,($layer | ConvertTo-Json -Depth 8),(New-Object Text.UTF8Encoding $false))
+    [void](Install-OwnedModPayload -SourceRoot $Payload -GameRoot $Target -Identity $IDENTITY `
+        -ReplaceChangedOwnedRelativePaths @('KharvoxLayer.json') -AdoptIdenticalExisting)
+}
+
+function global:Restore-DoomKharvoxInsideTarget([string]$ArchivePath,[string]$Target) {
+    $fullTarget = [IO.Path]::GetFullPath($Target).TrimEnd('\','/')
+    if ((Split-Path -Leaf $fullTarget) -ne 'DOOM 2016 VR') { throw "Recovery refused unexpected target: $Target" }
+    $stage = Join-Path $fullTarget '_pcvrhub_kharvox_recovery'
+    try {
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+        [void][IO.Directory]::CreateDirectory($stage)
+        $localArchive = Join-Path $stage ('KHARVOX' + [IO.Path]::GetExtension($ArchivePath))
+        Copy-Item -LiteralPath $ArchivePath -Destination $localArchive -Force -ErrorAction Stop
+        $extract = Join-Path $stage 'release'
+        $expanded = Expand-ArchiveOrFallback -ArchivePath $localArchive -DestinationFolder $extract -Label 'KHARVOX antivirus recovery' -AllowSkip $false
+        if ([string]$expanded -notin @('ok','manual','retry')) { throw 'KHARVOX could not be unpacked inside the excluded VR folder.' }
+        $payload = Find-KharvoxPayload $extract
+        if (-not $payload) { throw 'The recovery package contains no usable KHARVOX payload.' }
+        Install-DoomKharvoxPayload -Payload $payload -Target $fullTarget
+        return $true
+    } finally {
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 function Save-DoomTargetSnapshot([string]$Target,[string]$SnapshotRoot) {
     $existed = Test-Path -LiteralPath $Target -PathType Container
     [void][IO.Directory]::CreateDirectory($SnapshotRoot)
@@ -122,15 +160,15 @@ function global:Invoke-Doom2016VRInstaller {
         Write-Host '  and tracked motion controls through OpenXR.' -ForegroundColor White
         Write-Host '  Before first VR launch, start original DOOM flat once and' -ForegroundColor Yellow
         Write-Host '  accept its license; otherwise loading a save can appear stuck.' -ForegroundColor Yellow
-        Write-Host '  This beta keeps the VR runtime outside the DOOM folder.' -ForegroundColor Gray
-        Write-Host '  Steam is author-tested. GOG is detected but not yet' -ForegroundColor Yellow
-        Write-Host '  confirmed by the author. AER rendering is recommended.' -ForegroundColor Yellow
+        Write-Host '  The VR runtime stays outside the original DOOM folder.' -ForegroundColor Gray
+        Write-Host '  KHARVOX v1.0 supports the legal Steam version of DOOM.' -ForegroundColor Yellow
+        Write-Host '  Start with the default SFS rendering mode.' -ForegroundColor Yellow
         Show-AntivirusNotice -Compact
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to proceed with setup...')
 
         Write-DoomStep 1 5 'Locating DOOM (2016)'
         $game = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('DOOM') -ProbeExe 'DOOMx64.exe' `
-            -GogNames @('DOOM (2016)') -HubGameId 'doom-2016-vr'
+            -HubGameId 'doom-2016-vr'
         if (-not (Test-DoomGameRoot $game)) {
             if ($game -and (Test-Path -LiteralPath (Join-Path $game 'DOOMx64.exe') -PathType Leaf)) {
                 Write-DoomWarn 'DOOMx64vk.exe is missing. KHARVOX requires the Vulkan game executable.'
@@ -176,11 +214,11 @@ function global:Invoke-Doom2016VRInstaller {
         if (-not $payload) { throw 'The downloaded package has no usable KHARVOX launcher and OpenXR layer.' }
         $snapshot = Save-DoomTargetSnapshot -Target $target -SnapshotRoot (Join-Path $work 'rollback')
         $changesStarted = $true
-        [void](Install-OwnedModPayload -SourceRoot $payload -GameRoot $target -Identity $IDENTITY -AdoptIdenticalExisting)
+        Install-DoomKharvoxPayload -Payload $payload -Target $target
         $watch = @('KharvoxLauncher.exe','KharvoxLayer.dll','KharvoxLayer.json','openxr_loader.dll') |
             ForEach-Object { Join-Path $target $_ }
         $recopy = {
-            [void](Install-OwnedModPayload -SourceRoot $payload -GameRoot $target -Identity $IDENTITY -AdoptIdenticalExisting)
+            [void](Restore-DoomKharvoxInsideTarget -ArchivePath $archive -Target $target)
         }.GetNewClosure()
         if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $target -Recopy $recopy)) {
             throw 'The required KHARVOX files did not survive the antivirus recovery check.'
@@ -200,9 +238,10 @@ function global:Invoke-Doom2016VRInstaller {
         Write-DoomOK "KHARVOX $($release.Tag) is installed and tracked."
         Write-Host ''
         Write-Host '  The KHARVOX launcher opens next only after your confirmation.' -ForegroundColor White
-        Write-Host '  Steam: confirm the detected DOOM folder.' -ForegroundColor White
-        Write-Host '  GOG: use Browse and select its DOOM (2016) folder.' -ForegroundColor White
-        Write-Host '  Start with AER rendering; Native Stereo is experimental.' -ForegroundColor Yellow
+        Write-Host '  Confirm the detected Steam DOOM folder.' -ForegroundColor White
+        Write-Host '  Start with SFS; use AER only as a fallback.' -ForegroundColor Yellow
+        Write-Host '  Native Stereo was removed in KHARVOX v1.0.' -ForegroundColor Gray
+        Write-Host '  With SteamVR active, set resolution in SteamVR itself.' -ForegroundColor Gray
         Write-Host '  Change graphics quality only from the main menu.' -ForegroundColor Gray
         Write-Host '  Keep all launcher files together in the VR folder.' -ForegroundColor Gray
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to open the KHARVOX configuration launcher...')
@@ -213,7 +252,7 @@ function global:Invoke-Doom2016VRInstaller {
         Write-Host ('=' * 60) -ForegroundColor Magenta
         Write-Host ''
         Write-Host '  KHARVOX is installed in its separate VR folder.' -ForegroundColor White
-        Write-Host '  Your original Steam or GOG installation remains unchanged.' -ForegroundColor Gray
+        Write-Host '  Your original Steam installation remains unchanged.' -ForegroundColor Gray
         Write-Host '  Finish any settings in the launcher, then return here.' -ForegroundColor Gray
         Write-Host ''
         Write-Host "  $QUIP" -ForegroundColor Magenta

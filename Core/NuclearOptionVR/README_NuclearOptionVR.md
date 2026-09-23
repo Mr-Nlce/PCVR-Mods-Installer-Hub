@@ -2,6 +2,8 @@
 
 **NOVR** by **InfernoSuperNova** adds stereoscopic VR to Nuclear Option while keeping the game's normal gamepad, keyboard and HOTAS controls.
 
+The current **0.4.4** hotfix repairs the bomb sight and a runway regression.
+
 ## Install
 
 1. Close Nuclear Option.

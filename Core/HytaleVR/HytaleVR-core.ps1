@@ -126,7 +126,9 @@ Write-Host "  Default location: C:\Games\$GAME_FOLDER  (recommended)" -Foregroun
 Write-Host "  Installing under C:\Games avoids UAC / Program Files permission" -ForegroundColor Gray
 Write-Host "  weirdness - the injector writes next to its own files at runtime." -ForegroundColor Gray
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @($DASH_EXE)
+$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 
 $installRoot = $null
 if ($chosen) {
@@ -149,7 +151,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 
 # ---- 2. download the latest windows-x64 release --------------
 $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $DASH_EXE

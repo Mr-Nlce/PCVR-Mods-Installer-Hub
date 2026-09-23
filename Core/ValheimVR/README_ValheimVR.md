@@ -6,8 +6,14 @@ controls. Become a Viking and explore the tenth Norse world in first-person VR.
 
 ## What it installs
 
-- **BepInExPack Valheim 5.4.2333** — the required mod framework
-- **VHVR-Mod v0.9.21** — the VR mod
+- **BepInExPack Valheim 5.4.2350** — the required mod framework
+- **VHVR-Mod v0.10.5** — the current VR mod
+
+## Current release
+
+VHVR 0.10.5 updates the mod for Valheim 1.0.15. BepInExPack Valheim
+5.4.2350 carries BepInEx 5.4.23.5 and fixes loading plugins whose semantic
+versions contain prerelease suffixes. Its manifest declares no dependencies.
 
 ## Requirements
 
@@ -41,16 +47,20 @@ Oculus Touch / Index layout:
 
 ![Controller layout](ControllerLayout.jpg)
 
-- **Left:** [[Stick]] = Move, press = toggle Map; SteamVR Menu; Toggle
-  Inventory; [[Y]] = press & hold for Quick Switch; [[Grip]] = Grab (weapon
-  holstering)
-- **Right:** [[Stick]] Left/Right = Rotate, Up = Sprint, Down = Crouch, press =
-  toggle Menu; [[A]] = Jump (Build Mode: hold Grip to remove object); [[B]] = press
-  & hold for Quick Switch; [[Grip]] = Grab (hold while building, then use the
-  right stick to rotate objects)
-- **Triggers:** Right = Use / place object / left-click with laser pointers;
-  Left = click modifier (split inventory stacks); right-click brings up the
-  Build Menu in build mode
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move; click to toggle the map |
+| [[Y]] hold | Left-hand quick switch |
+| [[Left Grip]] | Grab and holster weapons |
+| [[Right Stick Left / Right]] | Rotate |
+| [[Right Stick Up]] | Sprint |
+| [[Right Stick Down]] | Crouch |
+| [[Right Stick Click]] | Toggle menu |
+| [[A]] | Jump; in build mode hold grip and press to remove an object |
+| [[B]] hold | Right-hand quick switch |
+| [[Right Grip]] | Grab; while building, hold and rotate with the right stick |
+| [[Right Trigger]] | Use / place / primary laser-pointer click |
+| [[Left Trigger]] | Click modifier; split inventory stacks |
 
 ## Setup tips
 
@@ -66,10 +76,10 @@ Oculus Touch / Index layout:
 - Mods that change controls or add custom weapons can conflict with motion
   controls, since VHVR modifies core mechanics to implement them
 - Valheim updates occasionally break the mod until VHVR is patched — check
-  the Nexus page if something stops working after a game update
+  the maintained GitHub releases if something stops working after a game update
 
 ## More info
 
-https://www.nexusmods.com/valheim/mods/847
+https://github.com/brandonmousseau/vhvr-mod
 
 >>> Odin is watching. Swing that axe in VR!

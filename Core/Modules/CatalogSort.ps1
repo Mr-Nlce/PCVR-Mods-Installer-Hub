@@ -275,14 +275,20 @@ if ($global:catalogOrderPill) {
     $global:catalogOrderPill.Add_MouseLeave({
         Set-CatalogOrderPillActive -Active (Test-CatalogOrderMenuOpen)
     })
-    $global:catalogOrderPill.Add_PreviewMouseLeftButtonDown({
+    # Open only after the physical click is complete. If the overlay becomes
+    # visible on button-down, its scrim receives that same click's button-up
+    # and immediately closes the menu again.
+    $global:catalogOrderPill.Add_PreviewMouseLeftButtonUp({
         param($s, $e)
         $e.Handled = $true
         if (Test-CatalogOrderMenuOpen) { Close-CatalogOrderMenu } else { Open-CatalogOrderMenu }
     })
 }
 if ($global:catalogOrderScrim) {
-    $global:catalogOrderScrim.Add_MouseLeftButtonDown({
+    # Keep the overlay hit-testable until this physical click has fully
+    # finished. Collapsing it on button-down can retarget the matching
+    # button-up to a featured banner underneath and open that game.
+    $global:catalogOrderScrim.Add_PreviewMouseLeftButtonUp({
         param($s, $e)
         $e.Handled = $true
         Close-CatalogOrderMenu
@@ -305,12 +311,25 @@ foreach ($mode in $orderChoiceMap.Keys) {
     })
     $choice.Add_MouseLeave({ $this.Background = [System.Windows.Media.Brushes]::Transparent })
     $modeCapture = $mode
-    $choice.Add_PreviewMouseLeftButtonDown({
+    $choice.Add_PreviewMouseLeftButtonUp({
+        param($s, $e)
+        $e.Handled = $true
+        Set-CatalogSortMode -Mode $modeCapture -Persist
+        Close-CatalogOrderMenu
+    }.GetNewClosure())
+}
+
+# The Gem facet acts on button-down in Filter.Controls so the selection state
+# paints immediately. Close the menu only on button-up; this retains the
+# overlay until the physical click is complete and prevents click-through to
+# a featured banner or game card underneath.
+$orderGemChoice = $window.FindName('FilterGem')
+if ($orderGemChoice) {
+    $orderGemChoice.Add_PreviewMouseLeftButtonUp({
         param($s, $e)
         $e.Handled = $true
         Close-CatalogOrderMenu
-        Set-CatalogSortMode -Mode $modeCapture -Persist
-    }.GetNewClosure())
+    })
 }
 
 $window.Add_PreviewKeyDown({

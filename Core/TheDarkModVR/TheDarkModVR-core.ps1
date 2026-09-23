@@ -86,14 +86,16 @@ if (-not $baseRoot) {
     $baseRoot = $null
 }
 
-$defaultPath = if ($baseRoot) { Join-Path $baseRoot $FOLDER_NAME } else { $null }
+$rememberedGamePath = Get-PCVRRememberedGameFolder -ProbeFiles @('TheDarkModVRx64.exe')
+$defaultPath = if ($rememberedGamePath) { $rememberedGamePath } elseif ($baseRoot) { Join-Path $baseRoot $FOLDER_NAME } else { $null }
 
 if ($defaultPath) {
     Write-Host " Default location (do NOT use Program Files - TDM needs write access):" -ForegroundColor Gray
     Write-Host " $defaultPath" -ForegroundColor Cyan
     Write-Host ""
     Write-Host " Press Enter to use this. To pick a different folder, type any key first, then Enter." -ForegroundColor Yellow
-    $choice = (Read-Host " Your choice").Trim()
+    $choice = if ($rememberedGamePath) { '' } else { (Read-Host " Your choice").Trim() }
+    if ($rememberedGamePath) { Write-OK "Using remembered install location: $rememberedGamePath" }
 } else {
     # No writable default root found - go straight to the custom path prompt.
     $choice = "x"

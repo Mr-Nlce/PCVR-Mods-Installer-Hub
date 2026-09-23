@@ -1,18 +1,22 @@
 # Elden Ring VR — Motion Controls
 
-This page contains **two independent VR mods**. The button you click in the Hub is
-the final choice: **Play/Install Hotbite** never asks for ERVR, and
-**Play/Install ERVR** never asks for Hotbite.
+This page contains **two independent VR mods** for **two independent game builds**.
+Open **Install / update VR routes** and choose one exact combination: Current +
+Hotbite, Current + ERVR, Depot 1.16.2 + Hotbite, or Depot 1.16.2 + ERVR. The menu
+marks every installed combination and puts **UPDATE AVAILABLE** only beside the
+combination whose own release proof is old.
 
 Before either mod:
 
 1. Play **offline** with Easy Anti-Cheat disabled. Using either mod online risks a ban.
 2. Select the matching **SAVE SET · Current / Depot 1.16.2** above. The Hub backs up
    and separates the incompatible saves.
-3. Use the Hotbite or ERVR button — not Steam's normal Play button.
+3. Use the exact Current/Depot + Hotbite/ERVR play button — not Steam's normal Play
+   button.
 
-Patch 1.17 currently breaks both motion mods. Until they are updated, use the pinned
-**Depot 1.16.2** copy. It is separate from the current Steam installation.
+**Build compatibility differs by mod.** Hotbite still needs the pinned **Depot 1.16.2**
+copy. ERVR v0.4.0 supports both Elden Ring 1.16.2 and the current 1.17.1 build. The
+depot remains separate from the current Steam installation.
 
 # Hotbite [WIP] — by Hotbite
 
@@ -26,7 +30,8 @@ game folder. This is an early alpha tested by the author only on Quest 3 with St
 
 1. Start SteamVR.
 2. Select the correct save set above.
-3. Click **Play Hotbite**. The Hub starts Hotbite directly and silently.
+3. Click the matching **Current + Hotbite** or **Depot 1.16.2 + Hotbite** button.
+   The Hub starts that exact combination directly and silently.
 
 Steam's Play button starts the unmodded current game instead.
 
@@ -53,7 +58,7 @@ shimmers, lower Elden Ring's resolution/settings first; mono is the performance 
 - [[X]] use item; [[Y]] interact; hold [[Y]] for the pouch.
 - [[Left Trigger]] Ash of War; [[Right Trigger]] fires or casts held tools.
 - Bring both hands together and use [[Left Grip]] to two-hand a weapon.
-- Hold both stick clicks to open Hotbite's tuning panel.
+- Hold [[Left Stick Click]] + [[Right Stick Click]] to open Hotbite's tuning panel.
 
 ## Useful fixes
 
@@ -75,7 +80,8 @@ portable mod folder; the game, ERVR and all saves remain untouched.
 
 # ERVR — by Ilyamez
 
-ERVR uses native OpenXR, true stereo rendering, 6DoF head tracking and physical melee.
+ERVR v0.4.0 is the first public release. It uses native OpenXR, true stereo rendering,
+6DoF head tracking and physical melee on Oculus, VDXR and SteamVR runtimes.
 The visible blade is the hitbox; swing speed affects damage, shields block by posture,
 and two-handing works by grabbing the weapon with the free hand.
 
@@ -86,7 +92,8 @@ and two-handing works by grabbing the weapon with the free hand.
 1. Make the intended OpenXR runtime active: Meta/Oculus for Link, VDXR for Virtual
    Desktop, or SteamVR for Index, Vive, WMR, Pico and Steam Link.
 2. Select the correct save set above.
-3. Click **Play ERVR**. The Hub starts that Elden Ring build directly.
+3. Click the matching **Current + ERVR** or **Depot 1.16.2 + ERVR** button. The Hub
+   starts that exact Elden Ring build directly.
 
 ## First setup: switch the window to Full 3D
 
@@ -112,6 +119,8 @@ game is already running, restart it after changing the stereo mode.
 - Grab the hilt or shaft with the free hand to two-hand; move it away to release.
 - Menu and crouch buttons use tap/hold layers for Map and quick slots.
 - Controller-relative movement and snap turning are available in **ERVR config**.
+- Touch-to-XInput menu navigation, controller haptics, Ash of War aiming and cast aiming
+  are included in v0.4.0.
 
 ## Performance and troubleshooting
 

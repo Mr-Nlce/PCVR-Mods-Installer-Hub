@@ -82,11 +82,11 @@ function Get-SplashProgressFraction {
 }
 
 # Manually audited real-game count shown in the {N} hints.
-# Fixed baseline: 265 games as of 2026-09-12. Never derive this value from
+# Fixed baseline: 282 games as of 2026-09-21. Never derive this value from
 # catalog tiles, mods, installer routes, depots, legacy entries or tools.
 # Increment it by exactly one only when a genuinely new game that has never
 # appeared anywhere in the Hub is added and individually confirmed as new.
-$tileCount = 265
+$tileCount = 282
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -109,6 +109,18 @@ $hints = @(
     "Gamepad includes native pads and VR-controller-to-gamepad mappings.",
     "Filters and search combine: Gamepad plus racing -horror is a valid life choice.",
     "Click PC POWER in Explore to switch between Your PC and one Exact Tier.",
+    "Gems mark polished, native-feeling VR. Search gem when you want the crown jewels.",
+    "The little diamond means Polished Gem, not premium currency. No wallet required.",
+    "Open Order and choose Show Gems to browse polished, native-feeling VR picks.",
+    "Looking for native-feeling VR? Open Order, then Show Gems, and follow the diamonds.",
+    "Sort by Release to chase fresh mods, or Added to Hub to inspect the new arrivals.",
+    "Alphabetical, Release or Added to Hub: the shelf now accepts orderly suggestions.",
+    "Uninstall Now follows the install receipt. Your saves are not invited to the cleanup.",
+    "Changed a mod file yourself? Safe uninstall leaves it behind instead of playing detective.",
+    "No ownership proof, no reckless delete button. The Hub prefers caution to confetti.",
+    "A vanished Update badge means the installed version was actually acknowledged.",
+    "Start in VR is option one. Hunting for mystery batch files is officially a fallback.",
+    "Gems sparkle; update badges glow; uninstallers clean. The cards have learned manners.",
     "Power tiers are guidance, not prophecy. Resolution and headset still matter.",
     "GPU comparison reads the adapter name locally, and only after you allow it.",
     "Genre and PC Power filters work together when Explore gets a little too exciting.",

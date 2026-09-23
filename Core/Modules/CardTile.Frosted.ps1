@@ -101,18 +101,29 @@ function global:New-GameCardFrosted {
     $famTxt.TextWrapping = [System.Windows.TextWrapping]::NoWrap
     $famPill.ClipToBounds = $true
     $__widePill = ($game.Controls -eq "VRGP" -or $game.Controls -eq "BOTH")
-    $famPill.MaxWidth = if ($__widePill) { [int](68 * $sc) } else { [int](104 * $sc) }
+    $famPill.MaxWidth = if ($__widePill) {
+        if ($game.Gem) { [int](50 * $sc) } else { [int](68 * $sc) }
+    } else {
+        if ($game.Gem) { [int](86 * $sc) } else { [int](104 * $sc) }
+    }
 
     # Top stack holds pill + title group together in row 0
     $topStack = New-Object System.Windows.Controls.StackPanel
     $topStack.Orientation = [System.Windows.Controls.Orientation]::Vertical
     [System.Windows.Controls.Grid]::SetRow($topStack, 0)
-    $topStack.Children.Add($famPill) | Out-Null
+    $familyRow = New-Object System.Windows.Controls.StackPanel
+    $familyRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $familyRow.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+    $familyRow.Children.Add($famPill) | Out-Null
+    if ($game.Gem) {
+        $familyRow.Children.Add((New-GemMarker -Scale $sc)) | Out-Null
+    }
+    $topStack.Children.Add($familyRow) | Out-Null
     $grid.Children.Add($topStack) | Out-Null
     # Stash family pill ref so the steam-preview manager can hide
     # it while the big image is shown (otherwise the pill covers
     # part of the artwork)
-    $card.Resources.Add("famPill", $famPill)
+    $card.Resources.Add("famPill", $familyRow)
     $isFreeGame = $global:FREE_GAME_TITLES -contains $game.Title
     $isWipGame  = $global:WIP_GAME_TITLES -contains $game.Title
 
@@ -667,9 +678,11 @@ function global:New-GameCardFrosted {
     }
     $descText.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
     if ($game.Description) { $descText.ToolTip = $game.Description }
-    [System.Windows.Controls.Grid]::SetRow($descText, 1)
-    $grid.Children.Add($descText) | Out-Null
-
+    $descRow = New-Object System.Windows.Controls.DockPanel
+    $descRow.LastChildFill = $true
+    [System.Windows.Controls.Grid]::SetRow($descRow, 1)
+    $descRow.Children.Add($descText) | Out-Null
+    $grid.Children.Add($descRow) | Out-Null
     # Button: solid accent color. Smart text-contrast: light accents
     # (high luminance, e.g. Alba green #88cc44) get dark text; dark
     # accents get white text. Threshold ~150 picks the right side
@@ -1576,6 +1589,20 @@ function global:New-GameCardFrosted {
         $card.Child = $overlay
     }
 
+    if ($game.Gem) {
+        # The hover artwork is exactly 80*scale pixels high. Anchor the Gem in
+        # the outer card overlay just below that boundary, independent of the
+        # variable title row, so the portrait/header can never cover it.
+        $previewGem = New-GemMarker -Scale $sc -Preview
+        $previewGem.Visibility = [System.Windows.Visibility]::Collapsed
+        $previewGem.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $previewGem.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+        $previewGem.Margin = [System.Windows.Thickness]::new(0,[int](83*$sc),[int](8*$sc),0)
+        [System.Windows.Controls.Panel]::SetZIndex($previewGem, 16)
+        $overlay.Children.Add($previewGem) | Out-Null
+        $card.Resources.Add("previewGem", $previewGem)
+    }
+
     # Frosted-glass redesign (test): elevation shadow + milky sheen +
     # glass bevel + glowing accent top bar. Additive overlay only -
     # everything above (text/size/handlers/hover) is untouched.
@@ -2124,7 +2151,7 @@ function global:New-GameCardFrosted {
                             $proc = $s.Tag
                             if (Test-InstallerRefreshReady -Process $proc) {
                                 try { $s.Stop() } catch {}
-                                Invoke-PostInstallRefreshSafely
+                                Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                             }
                         })
                         $timer.Start()
@@ -2181,7 +2208,7 @@ function global:New-GameCardFrosted {
                             $tp = $ts.Tag
                             if (Test-InstallerRefreshReady -Process $tp) {
                                 try { $ts.Stop() } catch {}
-                                Invoke-PostInstallRefreshSafely
+                                Invoke-PostInstallRefreshSafely -GameId ('' + $tp.PcvrGameId) -Title ('' + $tp.PcvrGameTitle) -ShowScanActivity
                             }
                         })
                         $plTimer.Start()

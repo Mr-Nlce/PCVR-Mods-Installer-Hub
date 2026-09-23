@@ -1,6 +1,7 @@
 # Metal Gear Solid V: The Phantom Pain VR - GitHub prerelease installer.
 # Contract: Steam game 287700; current/prerelease route; game proof
-# mgsvtpp.exe; mod proof dinput8.dll + mgs5vr.ini + ownership manifest;
+# mgsvtpp.exe; mod proof hook + configs + controls helper + owned binocular
+# assets + ownership manifest;
 # normal Steam launch; MGS5VR configuration and all unrelated files survive
 # updates/removal; dinput8.dll collisions are backed up and restored.
 
@@ -13,15 +14,30 @@ $APP_ID = '287700'
 $GAME_EXE = 'mgsvtpp.exe'
 $REPO = 'nikamigaming-create/MGS5VR'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'experimental-2026-09-09'
-$FALLBACK_NAME = 'MGS5VR-experimental-2026-09-09.zip'
+$FALLBACK_TAG = 'experimental-2026-09-20'
+$FALLBACK_NAME = 'MGS5VR-experimental-2026-09-20.zip'
 $FALLBACK_URL = "https://github.com/$REPO/releases/download/$FALLBACK_TAG/$FALLBACK_NAME"
 $IDENTITY = 'mgs5vr'
 $QUIP = 'The battlefield changes when every movement is your own.'
+$MGS_MANAGED_PATHS = @(
+    'dinput8.dll',
+    'mgs5vr.ini',
+    'mgs5vr-controls.ini',
+    'mgs5vr_controls.exe',
+    'Edit-Controls.cmd',
+    'tools\edit-controls.ps1',
+    'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
+    'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds',
+    '.pcvrhub_mgs5vr_ownership.csv'
+)
 $contract = New-PCVRInstallerContract -Id 'metal-gear-solid-v-the-phantom-pain-vr' `
     -GameName 'Metal Gear Solid V: The Phantom Pain VR' -Acquisition GitHub `
     -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups @(
-        'dinput8.dll','mgs5vr.ini','.pcvrhub_mgs5vr_ownership.csv'
+        'dinput8.dll','mgs5vr.ini','mgs5vr-controls.ini','mgs5vr_controls.exe',
+        'Edit-Controls.cmd','tools\edit-controls.ps1',
+        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
+        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds',
+        '.pcvrhub_mgs5vr_ownership.csv'
     )
 
 function Write-MGSStep([int]$Number,[int]$Total,[string]$Text) {
@@ -46,12 +62,17 @@ function Set-MGSConfigEnabled([string]$Source,[string]$Destination) {
 
 function Save-MGSInstallSnapshot([string]$GameRoot,[string]$SnapshotRoot) {
     [void][IO.Directory]::CreateDirectory($SnapshotRoot)
+    $filesRoot = Join-Path $SnapshotRoot 'files'
     $records = @()
-    foreach ($relative in @('dinput8.dll','mgs5vr.ini','.pcvrhub_mgs5vr_ownership.csv')) {
+    foreach ($relative in $MGS_MANAGED_PATHS) {
         $source = Join-Path $GameRoot $relative
         $exists = Test-Path -LiteralPath $source -PathType Leaf
         $records += [pscustomobject]@{ Relative=$relative; Exists=$exists }
-        if ($exists) { Copy-Item -LiteralPath $source -Destination (Join-Path $SnapshotRoot ([IO.Path]::GetFileName($relative))) -Force -ErrorAction Stop }
+        if ($exists) {
+            $copy = Join-Path $filesRoot $relative
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $copy))
+            Copy-Item -LiteralPath $source -Destination $copy -Force -ErrorAction Stop
+        }
     }
     $backup = Join-Path $GameRoot '.pcvrhub_mgs5vr_backup'
     $backupCopy = Join-Path $SnapshotRoot 'ownership-backup'
@@ -65,7 +86,8 @@ function Restore-MGSInstallSnapshot([string]$GameRoot,$Snapshot) {
         $target = Join-Path $GameRoot ([string]$record.Relative)
         if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
         if ($record.Exists) {
-            Copy-Item -LiteralPath (Join-Path $Snapshot.SnapshotRoot ([IO.Path]::GetFileName([string]$record.Relative))) `
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+            Copy-Item -LiteralPath (Join-Path (Join-Path $Snapshot.SnapshotRoot 'files') ([string]$record.Relative)) `
                 -Destination $target -Force -ErrorAction Stop
         }
     }
@@ -134,9 +156,28 @@ function global:Invoke-MGS5VRInstaller {
     $payload = $dll.DirectoryName
     $configSource = Join-Path $payload 'mgs5vr.ini'
     if (-not (Test-Path -LiteralPath $configSource -PathType Leaf)) { throw 'The current release contains no mgs5vr.ini configuration.' }
+    $controlsConfigSource = Join-Path $payload 'mgs5vr-controls.ini'
+    if (-not (Test-Path -LiteralPath $controlsConfigSource -PathType Leaf)) { throw 'The current release contains no mgs5vr-controls.ini configuration.' }
     $stage = Join-Path $work 'owned-payload'
     [void][IO.Directory]::CreateDirectory($stage)
-    Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $stage 'dinput8.dll') -Force -ErrorAction Stop
+    foreach ($relative in @('dinput8.dll','mgs5vr_controls.exe','Edit-Controls.cmd','tools\edit-controls.ps1')) {
+        $source = Join-Path $payload $relative
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "The current release is missing its required $relative file." }
+        $target = Join-Path $stage $relative
+        [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+        Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop
+    }
+    $importer = Join-Path $payload 'mgs5vr_import.exe'
+    if (-not (Test-Path -LiteralPath $importer -PathType Leaf)) { throw 'The current release contains no owned-game asset importer.' }
+    Write-MGSInfo 'Importing the binocular model and material from your owned game data...'
+    & $importer $game (Join-Path $stage 'retail-assets')
+    if ($LASTEXITCODE -ne 0) { throw 'The owned binocular asset import failed. Verify the game files in Steam and retry.' }
+    foreach ($relative in @(
+        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
+        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds'
+    )) {
+        if (-not (Test-Path -LiteralPath (Join-Path $stage $relative) -PathType Leaf)) { throw "The importer did not create $relative." }
+    }
     $snapshot = Save-MGSInstallSnapshot -GameRoot $game -SnapshotRoot (Join-Path $work 'rollback')
     $changesStarted = $true
     [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity $IDENTITY -AdoptIdenticalExisting)
@@ -147,8 +188,19 @@ function global:Invoke-MGS5VRInstaller {
     } else {
         Write-MGSOK 'Existing mgs5vr.ini settings preserved.'
     }
-    $watch = @((Join-Path $game 'dinput8.dll'),$configTarget)
-    $recopy = { Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $game 'dinput8.dll') -Force -ErrorAction Stop }
+    $controlsConfigTarget = Join-Path $game 'mgs5vr-controls.ini'
+    if (-not (Test-Path -LiteralPath $controlsConfigTarget -PathType Leaf)) {
+        Copy-Item -LiteralPath $controlsConfigSource -Destination $controlsConfigTarget -Force -ErrorAction Stop
+        Write-MGSOK 'Current default controls installed.'
+    } else {
+        Write-MGSOK 'Existing mgs5vr-controls.ini bindings preserved.'
+    }
+    $watch = @(
+        'dinput8.dll','mgs5vr_controls.exe','Edit-Controls.cmd','tools\edit-controls.ps1',
+        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
+        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds'
+    ) | ForEach-Object { Join-Path $game $_ }
+    $recopy = { [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity $IDENTITY -AdoptIdenticalExisting) }.GetNewClosure()
     if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -Recopy $recopy)) {
         throw 'The required MGS5VR files did not survive the antivirus recovery check.'
     }
@@ -162,7 +214,8 @@ function global:Invoke-MGS5VRInstaller {
     Write-Host '  1. Make your headset software the active OpenXR runtime.' -ForegroundColor White
     Write-Host '  2. Start MGSV normally through Steam and use Action Type.' -ForegroundColor White
     Write-Host '  3. Load Continue > Resume Game first.' -ForegroundColor White
-    Write-Host '  4. Hold left grip + click left stick to enter or leave VR.' -ForegroundColor Yellow
+    Write-Host '  4. Tracked VR now enters automatically.' -ForegroundColor Yellow
+    Write-Host '  Use Edit-Controls.cmd in the game folder to change bindings.' -ForegroundColor Gray
     Write-Host '  The complete illustrated controls are on the game page.' -ForegroundColor Gray
     Write-Host ''
     Write-Host ('=' * 60) -ForegroundColor Magenta

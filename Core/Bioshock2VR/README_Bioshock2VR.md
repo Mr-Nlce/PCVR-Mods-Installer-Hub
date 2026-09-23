@@ -50,7 +50,7 @@ and both smooth and snap turn carry your body with you.
 - [[X]] + [[Y]] together on the left controller = the menu button, on every
   runtime. Useful because Steam Link's overlay sometimes swallows the real one:
   tap for pause, hold for back / select
-- Click **both sticks** at once to recenter the view - works anywhere, no trip
+- Click [[Left Stick]] + [[Right Stick]] at once to recenter the view - works anywhere, no trip
   into the [[F10]] menu needed
 
 ## Headsets
@@ -100,12 +100,11 @@ want the shipped tuning back: copy them into
 deliberately does not write there. BioShock 2 keeps its settings in that `bs2`
 subfolder - the two games never share files.
 
-## A flicker in the left eye?
+## Current v0.8.3 fix
 
-There is an open report about this and the author is hunting it. The mod now
-carries an instrument that watches the layer the previous one could not see, so
-**if you can reproduce it, your log is genuinely useful evidence** - attach an
-up-to-date one when you report it.
+Release v0.8.3 fixes the BioShock 2 issue where the hand and weapon could flicker
+in the left eye. If it still reproduces with a clean v0.8.3 configuration,
+attach an up-to-date `bioshockvr.log` when reporting it.
 
 ## If it misbehaves
 Close the game and delete the files in `%LOCALAPPDATA%\BioshockVR\bs2\`. They

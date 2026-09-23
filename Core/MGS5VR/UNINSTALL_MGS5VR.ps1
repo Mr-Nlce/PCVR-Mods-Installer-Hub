@@ -28,7 +28,7 @@ if (-not $HubConfirmed) {
 }
 $result = Uninstall-OwnedModPayload -GameRoot $GameRoot -Identity 'mgs5vr'
 Write-Host "[OK] Removed $($result.Removed), restored $($result.Restored), preserved $($result.Preserved) changed file(s)." -ForegroundColor Green
-Write-Host '[KEEP] mgs5vr.ini contains your settings and remains in the game folder.' -ForegroundColor Gray
+Write-Host '[KEEP] mgs5vr.ini and mgs5vr-controls.ini contain your settings and remain in the game folder.' -ForegroundColor Gray
 Write-Host '[KEEP] Game files, saves, logs and unrelated mods were not touched.' -ForegroundColor Gray
 if ($result.Preserved -eq 0 -and -not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
     Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue

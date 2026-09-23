@@ -68,7 +68,7 @@ The game executables themselves are patched in place. Their size does not change
 If the controller stops responding, click the game window again.
 
 ## Controls
-Hold the **left trigger** to bring the game's own camera back, so the zoom and
+Hold [[Left Trigger]] to bring the game's own camera back, so the zoom and
 search functions work. Release it and you are in first person again. If the
 native camera is already active, the trigger does not force a change.
 

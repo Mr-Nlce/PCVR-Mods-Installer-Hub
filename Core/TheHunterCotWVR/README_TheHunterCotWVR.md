@@ -71,7 +71,7 @@ Then click **Save** and **Launch game**.
 
 ## Controls
 
-| Key | |
+| Button | Action |
 |---|---|
 | [[Insert]] | open the settings panel in the headset |
 | [[Pause]] | recentre the view - use it whenever forward stops being forward |

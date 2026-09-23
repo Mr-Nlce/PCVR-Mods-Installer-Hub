@@ -56,9 +56,8 @@ $GITHUB_RELEASES   = "https://github.com/$GITHUB_REPO/releases"
 # prerelease live (the repo has ONLY prereleases, so /releases/latest
 # goes nowhere). Keep the fallback on the last structurally inspected
 # main package - never guess a build number from the tag.
-$PINNED_TAG        = "v0.9.6"
-$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.6/Witcher3VR-v0.9.6-V1526.zip"
-$PINNED_OPTI_URL   = "https://github.com/$GITHUB_REPO/releases/download/v0.9.6/Witcher3VR-v0.9.6-V1526-OptiScaler-Addon.zip"
+$PINNED_TAG        = "v0.9.7-alpha.2"
+$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.7-alpha.2/Witcher3VR-v0.9.7-V1535.zip"
 
 # -------------------------------------------------------
 # Helpers
@@ -176,7 +175,6 @@ Write-Step 2 4 "Getting the latest Witcher3VR release"
 
 $dlUrl  = $null
 $relTag = $null
-$optiUrl = $null
 # Prereleases only in this repo, so /releases/latest is useless here -
 # the list endpoint returns the newest release of any kind first.
 try {
@@ -184,17 +182,12 @@ try {
     $rel  = @($resp) | Select-Object -First 1
     if ($rel) {
         $relTag = [string]$rel.tag_name
-        # Releases can contain optional Addon zips BEFORE the main package.
-        # Select the plain V<build>.zip explicitly or the installer would
-        # install only OptiScaler and then fail its dxgi.dll verification.
+        # Select the plain V<build>.zip explicitly. OptiScaler is integrated
+        # in v0.9.7 and later, so no second add-on package is needed.
         $asset = $rel.assets | Where-Object {
             $_.name -match '^Witcher3VR-v.+-V\d+\.zip$'
         } | Select-Object -First 1
-        $optiAsset = $rel.assets | Where-Object {
-            $_.name -match '^Witcher3VR-v.+-V\d+-OptiScaler-Addon\.zip$'
-        } | Select-Object -First 1
         if ($asset) { $dlUrl = [string]$asset.browser_download_url }
-        if ($optiAsset) { $optiUrl = [string]$optiAsset.browser_download_url }
     }
     if ($relTag) { Write-Info "Latest release: $relTag" }
 } catch {
@@ -204,7 +197,6 @@ if (-not $dlUrl) {
     Write-Warn "Falling back to the pinned $PINNED_TAG build."
     $dlUrl  = $PINNED_URL
     $relTag = $PINNED_TAG
-    $optiUrl = $PINNED_OPTI_URL
 }
 
 $zipPath = Join-Path $env:TEMP ("W3VR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
@@ -250,40 +242,6 @@ if (Test-Path -LiteralPath $launcherFull) {
     Write-Warn "Witcher3VRLauncher.exe not found - check the extracted files."
 }
 if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $zipPath -Force } catch {} }
-
-# v0.9.6 added native OptiScaler support as a separate optional release
-# asset. It is never needed for the normal mod, so keep the choice explicit.
-# The add-on is inert until enabled in the VR launcher and must be installed
-# only AFTER the main package, exactly as the author specifies.
-if ($optiUrl) {
-    Write-Host ""
-    Write-Host " OPTIONAL: OPTISCALER" -ForegroundColor Cyan
-    Write-Host "  Can provide another upscaling route. It is not required for" -ForegroundColor White
-    Write-Host "  normal play and may conflict with other graphics injectors." -ForegroundColor White
-    Write-Host "  If installed, enable it in the VR Launcher and disable" -ForegroundColor Gray
-    Write-Host "  DLSS Override there." -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "  [Y] Install / update the matching OptiScaler add-on" -ForegroundColor White
-    Write-Host "  [N] Skip it" -ForegroundColor White
-    $installOpti = ((Read-Host " Choice [Y/N]").Trim().ToLowerInvariant() -eq "y")
-    if ($installOpti) {
-        $optiZip = Join-Path $env:TEMP ("W3VR_Opti_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-        if (Invoke-DownloadOrFallback -Url $optiUrl -Destination $optiZip -Label "Witcher3VR OptiScaler add-on" `
-                -ManualUrl $GITHUB_RELEASES `
-                -Instructions "Download the OptiScaler-Addon zip matching the current Witcher3VR release and retry.") {
-            $optiRes = Expand-ArchiveToTarget -ArchivePath $optiZip -TargetDir $gamePath `
-                -RelModFile "bin\x64_dx12\OptiScaler.dll" -Label "Witcher3VR OptiScaler add-on"
-            if ($optiRes -and (Test-Path -LiteralPath ([IO.Path]::Combine($gamePath, "bin\x64_dx12\OptiScaler.dll")))) {
-                Write-OK "Matching OptiScaler add-on installed."
-            } else {
-                Write-Warn "OptiScaler add-on was not installed; the main VR mod is still complete."
-            }
-        } else {
-            Write-Warn "OptiScaler add-on skipped; the main VR mod is still complete."
-        }
-        try { Remove-Item -LiteralPath $optiZip -Force -ErrorAction SilentlyContinue } catch {}
-    }
-}
 
 # -------------------------------------------------------
 # STEP 4: Hub markers + desktop shortcut

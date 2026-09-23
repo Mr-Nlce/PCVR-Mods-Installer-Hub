@@ -96,7 +96,8 @@ Write-Host ""
 # hold PPJ2DD.EXE. A moved or deleted install falls straight through to
 # the prompt below, so a stale note can never send the installer at the
 # wrong folder.
-$gameRoot = $null
+$gameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+if ($gameRoot) { Write-OK "Using remembered Virtua Cop 2 game folder: $gameRoot" }
 # TWO FILES CAN HOLD A PATH HERE, and they mean different things:
 #   .game_path      - the GAME folder, written by this installer.
 #   .installed_path - what the SCAN reads. It ends up pointing at the VR
@@ -104,7 +105,7 @@ $gameRoot = $null
 #                     but "Locate Game" writes the GAME folder into it.
 # So both are read, and whichever actually holds PPJ2DD.EXE wins - the
 # file's name decides nothing, its content does.
-$recorded = $null
+$recorded = $gameRoot
 foreach ($cand in @(".game_path", ".installed_path")) {
     if ($recorded) { break }
     try {

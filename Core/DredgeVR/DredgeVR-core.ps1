@@ -13,6 +13,14 @@ $GAME_EXE     = "DREDGE.exe"
 
 $WINCH_URL    = "https://github.com/DREDGE-Mods/Winch/releases/download/v0.6.2/Winch.zip"
 $DREDGEVR_URL = "https://github.com/xen-42/DredgeVR/releases/latest/download/xen.DredgeVR.zip"
+$DREDGEVR_VERSION = ''
+$dredgeRelease = Resolve-GitHubReleaseAsset -Repo 'xen-42/DredgeVR' `
+    -AssetPatterns @('(?i)^xen\.DredgeVR\.zip$','(?i)^DredgeVR.*\.zip$') `
+    -FallbackUrl $DREDGEVR_URL -FallbackTag '' -FallbackAssetName 'xen.DredgeVR.zip' -SkipReleasesWithoutMatchingAsset
+if ($dredgeRelease.Resolved) {
+    $DREDGEVR_URL = [string]$dredgeRelease.Url
+    $DREDGEVR_VERSION = [string]$dredgeRelease.Tag
+}
 
 # -------------------------------------------------------
 # Helpers
@@ -264,7 +272,19 @@ foreach ($name in $checks.Keys) {
 }
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("DredgeVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
+if ("DredgeVR" -notin $failed) {
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+    if (-not $DREDGEVR_VERSION -and (Test-Path -LiteralPath (Join-Path $modDir 'mod_meta.json') -PathType Leaf)) {
+        try {
+            $meta = Get-Content -LiteralPath (Join-Path $modDir 'mod_meta.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+            foreach ($property in @('Version','version','ModVersion','modVersion')) {
+                $candidate = '' + $meta.$property
+                if ($candidate -match '\d') { $DREDGEVR_VERSION = $candidate.Trim(); break }
+            }
+        } catch {}
+    }
+    if ($DREDGEVR_VERSION) { Save-InstalledStamp -GameDir $gamePath -Version $DREDGEVR_VERSION -HubDir $PSScriptRoot }
+}
 
 # -------------------------------------------------------
 # DONE

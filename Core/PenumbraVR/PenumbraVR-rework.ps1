@@ -160,7 +160,10 @@ $proofState = "$rwGame\.penumbravr\deploy-state.json"
 if ((Test-Path -LiteralPath $proofExe) -and (Test-Path -LiteralPath $proofState)) {
     Write-OK "Installed and verified: $rwGame"
     try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $rwGame -Encoding UTF8 -Force } catch {}
-    if ($rwTag) { try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $rwTag -Encoding UTF8 -Force } catch {} }
+    if ($rwTag) {
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version_b") -Value $rwTag -Encoding UTF8 -Force } catch {}
+        Save-InstalledStamp -GameDir $rwGame -Version $rwTag -HubDir $PSScriptRoot -Second
+    }
 } else {
     Write-Warn "The mod is not in place yet - the installer may have been cancelled."
 }

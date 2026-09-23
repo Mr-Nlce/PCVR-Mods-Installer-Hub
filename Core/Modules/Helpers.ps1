@@ -1030,6 +1030,12 @@ function global:End-CardPreview {
         if ($modText) { $modText.Visibility = [System.Windows.Visibility]::Visible }
         $addonBanner = $card.Resources.Item("addonBanner")
         if ($addonBanner) { $addonBanner.Visibility = [System.Windows.Visibility]::Visible }
+        $previewGem = $card.Resources.Item("previewGem")
+        if ($previewGem) {
+            try { $previewGem.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null) } catch { }
+            $previewGem.Opacity = 0.72
+            $previewGem.Visibility = [System.Windows.Visibility]::Collapsed
+        }
 
         $card.RenderTransform = $null
         [System.Windows.Controls.Panel]::SetZIndex($card, 0)
@@ -1141,6 +1147,17 @@ function global:Start-CardPreview {
     # this the blue "+ add-on" pill clips through the preview image.
     $addonBanner = $Card.Resources.Item("addonBanner")
     if ($addonBanner) { $addonBanner.Visibility = [System.Windows.Visibility]::Hidden }
+    $previewGem = $Card.Resources.Item("previewGem")
+    if ($previewGem) {
+        $previewGem.Visibility = [System.Windows.Visibility]::Visible
+        $sparkle = New-Object System.Windows.Media.Animation.DoubleAnimation
+        $sparkle.From = 0.55
+        $sparkle.To = 1.0
+        $sparkle.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(900))
+        $sparkle.AutoReverse = $true
+        $sparkle.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+        $previewGem.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $sparkle)
+    }
 
     $scale = New-Object System.Windows.Media.ScaleTransform 1.4, 1.4
     $Card.RenderTransformOrigin = New-Object System.Windows.Point 0.5, 0.5
@@ -1287,6 +1304,15 @@ function global:Set-AlternativeModStateFields {
         $State["${prefix}Root"]    = Get-AlternativeModValue $Presence "${prefix}Root"
         $State["${prefix}Name"]    = [string]$definition.Name
     }
+    if ($Game.RouteModMatrix -and $Presence) {
+        foreach ($name in @(
+            'CurrentRoot','DepotRoot','CurrentModAPresent','CurrentModBPresent',
+            'DepotModAPresent','DepotModBPresent','RouteUpdateTargets'
+        )) {
+            $value = Get-AlternativeModValue -Source $Presence -Name $name
+            if ($null -ne $value) { $State[$name] = $value }
+        }
+    }
 }
 
 # Resolve an Update click to a preselected installer branch only when the
@@ -1296,6 +1322,10 @@ function global:Set-AlternativeModStateFields {
 function global:Get-InstallerChoiceForUpdate {
     param($Game, $State = $null)
     if (-not $Game) { return '' }
+    # A route/mod matrix must remain visible. Preselecting only the mod would
+    # throw away whether Current or Depot needs attention and recreates the
+    # ambiguous two-stage Elden Ring flow this matrix replaces.
+    if ($Game.RouteModMatrix) { return '' }
     if (-not $State -and $global:gameStateMap -and $Game.Title -and $global:gameStateMap.ContainsKey($Game.Title)) {
         $State = $global:gameStateMap[$Game.Title]
     }
@@ -1319,7 +1349,13 @@ function global:Get-UpdateTargetDisplayName {
     if ($slot -notmatch '^[A-H]$') { return '' }
     $name = Get-AlternativeModValue -Source $Game -Name ("Mod${slot}Name")
     if ([string]::IsNullOrWhiteSpace([string]$name)) { return '' }
-    return ([string]$name).Trim()
+    $name = ([string]$name).Trim()
+    $route = ('' + (Get-AlternativeModValue -Source $State -Name 'UpdateTargetRoute')).Trim()
+    $count = 0
+    try { $count = [int](Get-AlternativeModValue -Source $State -Name 'UpdateTargetCount') } catch {}
+    if ($route) { return "$name ($route)" }
+    if ($count -gt 1) { return "$name ($count builds)" }
+    return $name
 }
 
 function global:Get-UpdateActionLabel {
@@ -1332,6 +1368,26 @@ function global:Get-UpdateActionLabel {
 function global:Get-AlternativeModTilePair {
     param($Game, $State)
     return @(Get-AlternativeModDefinitions -Game $Game -State $State | Where-Object Present | Select-Object -First 2)
+}
+
+function global:Get-RouteModMatrixDefinitions {
+    param($Game, $State)
+    $result = New-Object 'System.Collections.Generic.List[object]'
+    if (-not $Game -or -not $Game.RouteModMatrix -or -not $State) { return $result.ToArray() }
+    foreach ($route in @('Current','Depot')) {
+        foreach ($slot in @('A','B')) {
+            $present = [bool](Get-AlternativeModValue $State "${route}Mod${slot}Present")
+            if (-not $present) { continue }
+            $modName = [string](Get-AlternativeModValue $Game "Mod${slot}Name")
+            $routeLabel = if ($route -eq 'Depot') { 'Depot 1.16.2' } else { 'Current' }
+            [void]$result.Add([pscustomobject]@{
+                Mode="${route}Mod${slot}"; Present=$true
+                Name="$routeLabel + $modName"; ButtonLabel="$routeLabel + $modName"
+                Route=$route; Slot=$slot
+            })
+        }
+    }
+    return $result.ToArray()
 }
 
 # -------------------------------------------------------
@@ -2118,6 +2174,20 @@ function global:Get-PowerTier {
         # KHARVOX renders DOOM 2016 in stereo at headset refresh rates;
         # the original game remains demanding even before VR overhead.
         "DOOM (2016) VR"                          = "STRONG"
+        # Native stereo and tracked controllers add substantial load to an
+        # already demanding renderer. HIGH stays conservative without claiming
+        # an unproven RTX 4090/5090-class floor for this early alpha.
+        "Warhammer 40K: Darktide VR"              = "HIGH"
+        # Native stereo at a fixed 4K render target, with all four classes,
+        # vehicles and tracked weapon presentation.
+        "EARTH DEFENSE FORCE 6 VR"                = "STRONG"
+        # A 2016 DX11 campaign rendered in alternate-frame stereo through
+        # Northstar. The 75% default is intended for a broad range of GPUs.
+        "Titanfall 2 VR"                          = "STRONG"
+        # The 2008 Forever engine is lightweight; TMFOXR adds native stereo
+        # without replacing its renderer. BASIC leaves practical VR overhead.
+        "TrackMania Nations Forever"              = "BASIC"
+        "TrackMania United Forever"               = "BASIC"
         # A 1999 PlayStation game rebuilt as a native PC port. The
         # geometry is what it was in 1999; the stereo is generated on the
         # GPU from that same geometry, so there is very little to render
@@ -2133,6 +2203,9 @@ function global:Get-PowerTier {
         # A small stylised Unity racer put through UUVR - light scene,
         # no heavy effects. BASIC.
         "Retrowave 2 VR"              = "BASIC"
+        # The profile author reports excellent performance in this compact
+        # Unity melee game; UUVR stereo still needs practical VR headroom.
+        "ELDERBORN VR"                = "BASIC"
         "Amnesia VR"                   = "BASIC"
         "Apollo Justice: Ace Attorney Trilogy VR" = "BASIC"
         "Art of Rally VR"              = "BASIC"
@@ -2175,7 +2248,7 @@ function global:Get-PowerTier {
         "F-Zero X VR"                  = "BASIC"
         "Singularity VR"               = "SOLID"
         "Red Faction VR"               = "BASIC"
-        "Pokemon Gen 1 VR"               = "BASIC"
+        "Pokemon Dramatic Shape VR"      = "BASIC"
         "Bendy VR"                     = "SOLID"
         "Call of Duty 4 VR"            = "STRONG"
         "Ghost Recon Wildlands VR"     = "STRONG"
@@ -2237,6 +2310,15 @@ function global:Get-PowerTier {
         "Strife VR"                    = "BASIC"
         "Sunrise GP VR"                = "BASIC"
         "Tomb Raider 1 VR"             = "BASIC"
+        # Tribes 2 uses a lightweight 2001 renderer. The early OpenVR layer
+        # adds stereo and tracked input, but no modern high-end rendering
+        # workload; BASIC keeps sensible VR headroom without the SOLID
+        # fallback that previously applied only because no entry existed.
+        "Tribes 2 VR"                  = "BASIC"
+        # The 2008 D3D9 base game and native-stereo shim are light by current
+        # standards. BASIC still preserves sensible headroom for headset
+        # resolution without overstating the renderer as a SOLID-class load.
+        "Mirror's Edge VR"             = "BASIC"
         "Yooka-Laylee VR"              = "BASIC"
         # RazeXR runs classic Build-engine data with lightweight voxel
         # weapon models. Stereo adds little load to these 1990s scenes.
@@ -2326,6 +2408,7 @@ function global:Get-PowerTier {
         "Battlefield 1942 VR"   = "SOLID"
         "Shenmue I & II"        = "BASIC"
         "Sonic Robo Blast 2 VR" = "BASIC"
+        "GoldenEye 007 VR"      = "BASIC"
         # A current open-world truck simulation rendered for two eyes.
         # The early mod offers AER/DIBR trade-offs and was demonstrated on
         # RTX 4080-class hardware, so STRONG is the honest starting tier.
@@ -2378,6 +2461,7 @@ function global:Get-PowerTier {
         "Monster Hunter Stories 3 VR"  = "STRONG"
         "Onimusha 2 VR"                = "STRONG"
         "Painkiller Black Edition"     = "SOLID"
+        "Painkiller: Overdose VR"      = "SOLID"
         "Panzer Dragoon Remake"        = "STRONG"
         "Paranoia Place VR"            = "STRONG"
         "Resident Evil 2R VR"             = "STRONG"
@@ -2439,7 +2523,10 @@ function global:Get-PowerTier {
         "FF VII Rebirth VR"           = "EXTREME"
         "Horizon Forbidden West VR"   = "EXTREME"
         "Indiana Jones: Great Circle VR" = "EXTREME"
+        "Kingdom Come: Deliverance VR"    = "HIGH"
         "Kingdom Come: Deliverance II VR" = "EXTREME"
+    "Oblivion (2006)"                 = "BASIC"
+        "Thief (2014) VR"                 = "STRONG"
         "Monster Hunter Wilds"         = "EXTREME"
         "Star Wars Outlaws VR"        = "EXTREME"
         "Starfield VR"                 = "EXTREME"
@@ -3380,13 +3467,11 @@ function global:Test-InstallerRefreshReady {
     param($Process)
     if (-not $Process) { return $true }
     try { if ($Process.HasExited) { return $true } } catch { return $true }
-    # Save-InstalledStamp can prove completion before the final informational
-    # prompt closes. Refresh the tile immediately at that point; users should
-    # not have to dismiss a success screen merely to clear an Update badge.
-    try {
-        $status = '' + $Process.PcvrStatusPath
-        if ($status -and (Test-Path -LiteralPath $status -PathType Leaf)) { return $true }
-    } catch {}
+    # A typed status file proves that installation succeeded; it does NOT prove
+    # that the installer process has ended. Save-InstalledStamp is deliberately
+    # allowed to write that evidence before the final information/Enter screen.
+    # Stopping the timer on the file therefore loses the only refresh attempt.
+    # Keep polling until the wrapper process itself has exited.
     return $false
 }
 
@@ -3450,15 +3535,29 @@ function global:Start-LoggedInstaller {
         & $showLaunchError ("The installer logging wrapper is missing: " + [string]$wrapper)
         return $null
     }
-    if (-not (Test-Path -LiteralPath $BatPath -PathType Leaf)) {
-        & $showLaunchError ("The selected installer is missing: " + [string]$BatPath)
-        return $null
-    }
+    # A missing catalog entry is itself recoverable. Launch the wrapper with
+    # the intended path so its universal screen can accept a replacement BAT,
+    # PS1 or installer folder instead of leaving the user at an OK-only dialog.
     $argString =
         "-NoProfile -ExecutionPolicy Bypass -File `"$wrapper`" " +
         "-Title `"$title`" -Kind $kind -BatPath `"$BatPath`" -Ps1Path `"$ps1`" " +
         "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -GameId `"$gameId`" -LogsDir `"$logsDir`" " +
         "-StatusPath `"$statusPath`" -VersionPath `"$versionPath`" -VersionPathB `"$versionPathB`" -InstallPath `"$installPath`""
+    $hasLiveVersionSource = [bool]($Game.GithubRepo -or $Game.GithubRepoB -or $Game.GitHubNightly -or $Game.GithubCommitRepo -or
+        $Game.CodebergRepo -or ($Game.ThunderstoreAuthor -and $Game.ThunderstorePackage) -or $Game.WebVersionUrl -or
+        (('' + $Game.Mod) -match '(?i)auto-update'))
+    $installerMustWriteVersion = [bool]$Game.InstallerMustWriteVersion
+    $versionTrackingDisabled = [bool]$Game.DisableVersionTracking
+    $expectedInstalledVersion = ''
+    if (-not $hasLiveVersionSource -and -not $installerMustWriteVersion -and -not $versionTrackingDisabled) {
+        if ($Game.TrackedVersion) { $expectedInstalledVersion = ('' + $Game.TrackedVersion).Trim() }
+        elseif (Get-Command Get-ModVersionFromString -ErrorAction SilentlyContinue) {
+            $expectedInstalledVersion = ('' + (Get-ModVersionFromString -ModString ('' + $Game.Mod))).Trim()
+        }
+    }
+    $requiresExactVersion = [bool](-not $versionTrackingDisabled -and ($hasLiveVersionSource -or $installerMustWriteVersion -or $expectedInstalledVersion))
+    if ($requiresExactVersion) { $argString += ' -RequireVersionEvidence' }
+    if ($expectedInstalledVersion) { $argString += " -ExpectedInstalledVersion `"$expectedInstalledVersion`"" }
     if ($InstallerChoice) { $argString += " -InstallerChoice `"$InstallerChoice`"" }
 
     if ($RequiresAdmin -and $kind -eq "Bat") {
@@ -3472,6 +3571,8 @@ function global:Start-LoggedInstaller {
         try {
             $process = Start-Process "powershell.exe" -ArgumentList $argString -Verb RunAs -PassThru -ErrorAction Stop
             $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+            $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
+            $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
             return $process
         } catch {
             # UAC declined or elevation failed: fall back to the un-elevated
@@ -3480,6 +3581,8 @@ function global:Start-LoggedInstaller {
             try {
                 $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
                 $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+                $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
+                $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
                 return $process
             } catch {
                 & $showLaunchError ("Windows could not start the installer: " + $_.Exception.Message)
@@ -3491,6 +3594,8 @@ function global:Start-LoggedInstaller {
     try {
         $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
         $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
+        $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
+        $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
         return $process
     } catch {
         & $showLaunchError ("Windows could not start the installer: " + $_.Exception.Message)
@@ -3571,6 +3676,77 @@ function global:Resolve-VrInstallRoot {
         return (Join-Path ([Environment]::GetFolderPath("UserProfile")) ($Root.Substring("USERPROFILE:".Length)))
     }
     return $Root
+}
+
+# Optional evidence used by mod loaders whose publisher package keeps the
+# runtime in a version-named child folder. All named files must coexist in one
+# child directory; a loose file elsewhere cannot make the title VR Ready.
+function global:Test-VrInstallEvidenceContract {
+    param($Game, [string]$Root)
+    if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container -ErrorAction SilentlyContinue)) { return $false }
+    foreach ($evidence in @($Game.VrInstallEvidence)) {
+        if (-not $evidence) { continue }
+        try {
+            if (-not (Test-Path -LiteralPath (Join-Path $Root ([string]$evidence)) -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+        } catch { return $false }
+    }
+    # Some installers expose two structurally different routes under one tile.
+    # VrInstallEvidenceRoutes is an OR-list: every Files item of one route must
+    # exist, and all SameChild leaf names of that route must coexist inside one
+    # descendant directory. This prevents the direct and loader payloads from
+    # being mixed into a false positive while keeping their evidence separate.
+    $routes = @($Game.VrInstallEvidenceRoutes | Where-Object { $_ })
+    if ($routes.Count -gt 0) {
+        $routeMatched = $false
+        foreach ($route in $routes) {
+            $filesPresent = $true
+            foreach ($file in @($route.Files | Where-Object { $_ })) {
+                try {
+                    if (-not (Test-Path -LiteralPath (Join-Path $Root ([string]$file)) -PathType Leaf -ErrorAction SilentlyContinue)) {
+                        $filesPresent = $false
+                        break
+                    }
+                } catch { $filesPresent = $false; break }
+            }
+            if (-not $filesPresent) { continue }
+            $sameChild = @($route.SameChild | Where-Object { $_ })
+            if ($sameChild.Count -gt 0) {
+                $sameChildMatched = $false
+                foreach ($directory in @(Get-ChildItem -LiteralPath $Root -Directory -Recurse -ErrorAction SilentlyContinue)) {
+                    $allPresent = $true
+                    foreach ($leaf in $sameChild) {
+                        if ([IO.Path]::GetFileName([string]$leaf) -ne [string]$leaf -or
+                            -not (Test-Path -LiteralPath (Join-Path $directory.FullName ([string]$leaf)) -PathType Leaf -ErrorAction SilentlyContinue)) {
+                            $allPresent = $false
+                            break
+                        }
+                    }
+                    if ($allPresent) { $sameChildMatched = $true; break }
+                }
+                if (-not $sameChildMatched) { continue }
+            }
+            $routeMatched = $true
+            break
+        }
+        if (-not $routeMatched) { return $false }
+    }
+    $sameChildFiles = @($Game.VrInstallEvidenceSameChild | Where-Object { $_ })
+    if ($sameChildFiles.Count -gt 0) {
+        $matchedDirectory = $false
+        foreach ($directory in @(Get-ChildItem -LiteralPath $Root -Directory -Recurse -ErrorAction SilentlyContinue)) {
+            $allPresent = $true
+            foreach ($leaf in $sameChildFiles) {
+                if ([IO.Path]::GetFileName([string]$leaf) -ne [string]$leaf -or
+                    -not (Test-Path -LiteralPath (Join-Path $directory.FullName ([string]$leaf)) -PathType Leaf -ErrorAction SilentlyContinue)) {
+                    $allPresent = $false
+                    break
+                }
+            }
+            if ($allPresent) { $matchedDirectory = $true; break }
+        }
+        if (-not $matchedDirectory) { return $false }
+    }
+    return $true
 }
 # ---------------------------------------------------------------
 #  Test-OnlineVersionIsNewer

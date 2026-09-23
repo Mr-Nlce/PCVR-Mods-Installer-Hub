@@ -8,11 +8,27 @@ Run the unmodded game once, let it reach the main menu, then quit. The Hub insta
 
 SteamVR and a Vulkan-capable GPU are required. The mod uses OpenVR and was tested on Vive Cosmos and HP Reverb G2; other SteamVR-compatible headsets should work.
 
+The current **SiN VR 1.0.2** release requires the Steam game to use its **`loose` beta
+branch**. Steam otherwise ignores the loose content that supplies the VR body and the
+character's arms can stretch across the view. The Hub checks this before copying files and,
+when necessary, opens Steam Properties only after an Enter confirmation so you can select
+**Betas > loose** and wait for Steam to finish the update.
+
+## New in 1.0.2
+
+- Fixes a graphics-driver crash caused by the eye images moving while SteamVR
+  copied them.
+- Adds a hung-game exit/report path and writes `sinvr_stall.dmp` for diagnosis.
+- Retains the 1.0.1 desktop-window, aiming, laser, roomscale and clickable-menu fixes.
+
+
 ## Install
 
 1. Select **Install VR mod** in the Hub.
 2. Choose the optional readable GUI scaling and Arcade Reload files inside setup.
-3. The installer downloads the current official GitHub release, verifies its structure, backs up every overwritten file and copies the mod beside `SinEpisodes.exe`.
+3. For Steam, setup confirms the required `loose` beta branch before it downloads the
+   current official GitHub release, verifies its functional files, backs up every overwritten
+   file and copies the mod beside `SinEpisodes.exe`.
 4. For Steam, paste the visibly printed launch option into the Steam Properties window. The installer verifies its clipboard copy, but the complete line remains on screen for manual copying. Do not add `-w` or `-h`.
 5. For a non-Steam copy, no Steam option is used. Setup creates **SiN Episodes VR** on the desktop and configures **Start in VR** in the Hub to call `sinvr_launcher.exe` directly with `--exe`. This is a best-effort Hub route, not an upstream-confirmed game build.
 6. Start SteamVR, then launch through the route prepared for your installation.
@@ -21,7 +37,7 @@ On first VR launch, `sinvr.cfg` and `sinvr.log` appear beside the game executabl
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move |
 | [[Right Stick]] | Smooth or snap turn |

@@ -298,7 +298,7 @@ try {
     $installedTag = [string]$plan[$plan.Count - 1].Tag
     if ($installedTag) {
         Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $installedTag -Encoding UTF8 -Force
-        Set-Content -Path (Join-PathLexical $gamePath ".pcvrhub_version") -Value $installedTag -Encoding UTF8 -Force
+        Save-InstalledStamp -GameDir $gamePath -Version $installedTag -HubDir $PSScriptRoot
     }
 } catch {}
 

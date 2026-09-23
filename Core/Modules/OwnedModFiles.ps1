@@ -16,7 +16,13 @@ function global:Install-OwnedModPayload {
         [string[]]$IncludeRelativePrefixes = @(),
         [string[]]$SkipRelativePaths = @(),
         [string[]]$KeepExistingRelativePaths = @(),
-        [switch]$AdoptIdenticalExisting
+        # Narrow opt-in for publisher-owned/generated files which the
+        # publisher's own launcher legitimately rewrites after installation
+        # (for example an API-layer manifest receiving an absolute DLL path).
+        # Ordinary user-edited files still fail closed.
+        [string[]]$ReplaceChangedOwnedRelativePaths = @(),
+        [switch]$AdoptIdenticalExisting,
+        [string]$ProgressLabel = ''
     )
     $manifest = Join-Path $GameRoot ".pcvrhub_${Identity}_ownership.csv"
     $backupRoot = Join-Path $GameRoot ".pcvrhub_${Identity}_backup"
@@ -27,9 +33,18 @@ function global:Install-OwnedModPayload {
     $skip = @($SkipRelativePaths | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
     $include = @($IncludeRelativePrefixes | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
     $keep = @($KeepExistingRelativePaths | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
+    $replaceChangedOwned = @($ReplaceChangedOwnedRelativePaths | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
     $rows = New-Object System.Collections.Generic.List[object]
-    foreach ($file in @(Get-ChildItem -LiteralPath $SourceRoot -Recurse -File -ErrorAction Stop)) {
-        $sourceBase=[IO.Path]::GetFullPath($SourceRoot).TrimEnd([char[]]"\/")
+    $sourceFiles = @(Get-ChildItem -LiteralPath $SourceRoot -Recurse -File -ErrorAction Stop)
+    $sourceBase=[IO.Path]::GetFullPath($SourceRoot).TrimEnd([char[]]"\/")
+    $progressIndex = 0
+    try {
+      foreach ($file in $sourceFiles) {
+        $progressIndex++
+        if ($ProgressLabel) {
+            $percent = if ($sourceFiles.Count -gt 0) { [Math]::Min(100, [int](($progressIndex * 100) / $sourceFiles.Count)) } else { 100 }
+            Write-Progress -Activity $ProgressLabel -Status ("Copying file {0} of {1}" -f $progressIndex, $sourceFiles.Count) -PercentComplete $percent -CurrentOperation $file.Name
+        }
         $relative = $file.FullName.Substring($sourceBase.Length + 1).Replace('/','\')
         if ($include.Count -gt 0) {
             $included = $false
@@ -40,14 +55,22 @@ function global:Install-OwnedModPayload {
         }
         if ($skip -contains $relative) { continue }
         $target = Join-OwnedRelativePath $GameRoot $relative
-        if (($keep -contains $relative) -and (Test-Path -LiteralPath $target -PathType Leaf)) { continue }
         $prior = $old[$relative]
+        if (($keep -contains $relative) -and (Test-Path -LiteralPath $target -PathType Leaf)) {
+            # KeepExisting is also an update promise.  If this file belonged
+            # to the previous install, retain its ownership row so the later
+            # retired-file pass cannot mistake the preserved configuration
+            # for a file removed by the publisher's new package.
+            if ($prior) { $rows.Add($prior) }
+            continue
+        }
         $hadOriginal = $false
         if ($prior) {
             $hadOriginal = ([string]$prior.HadOriginal -eq 'True')
             if (Test-Path -LiteralPath $target -PathType Leaf) {
                 $currentSha = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
-                if ($prior.InstalledSha256 -and $currentSha -ne [string]$prior.InstalledSha256) {
+                if ($prior.InstalledSha256 -and $currentSha -ne [string]$prior.InstalledSha256 -and
+                    $replaceChangedOwned -notcontains $relative) {
                     throw "Refusing to overwrite a file changed after installation: $relative"
                 }
             }
@@ -78,6 +101,9 @@ function global:Install-OwnedModPayload {
             HadOriginal=$hadOriginal
             InstalledSha256=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
         })
+      }
+    } finally {
+        if ($ProgressLabel) { Write-Progress -Activity $ProgressLabel -Completed }
     }
 
     # Retire files dropped by a newer upstream package, but only when the

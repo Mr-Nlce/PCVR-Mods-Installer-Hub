@@ -87,8 +87,8 @@ function Install-DishonoredPayloadSafely {
     $ownership = @{}
     if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
         foreach ($line in @(Get-Content -LiteralPath $manifestPath -ErrorAction SilentlyContinue)) {
-            $parts = @($line -split "`t", 2)
-            if ($parts.Count -eq 2 -and $parts[0] -in @("restore","remove")) { $ownership[$parts[1]] = $parts[0] }
+            $parts = @($line -split "`t", 3)
+            if ($parts.Count -ge 2 -and $parts[0] -in @("restore","remove")) { $ownership[$parts[1]] = $parts[0] }
         }
     }
 
@@ -128,11 +128,16 @@ function Install-DishonoredPayloadSafely {
                 $mode = "remove"
             }
         }
-        $records += ($mode + "`t" + $relative)
+        $records += [pscustomobject]@{Mode=$mode;RelativePath=$relative}
     }
 
     [void](Copy-DirectoryTreeVerified -Source $sourceBase -Destination $GameRoot)
-    Set-Content -LiteralPath $manifestPath -Value $records -Encoding UTF8 -Force -ErrorAction Stop
+    $manifestLines=@($records | ForEach-Object {
+        $installed=Join-PathLexical $GameRoot $_.RelativePath
+        if (-not (Test-Path -LiteralPath $installed -PathType Leaf)) { throw "Installed payload file is missing before ownership commit: $($_.RelativePath)" }
+        $_.Mode + "`t" + $_.RelativePath + "`t" + (Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash
+    })
+    Set-Content -LiteralPath $manifestPath -Value $manifestLines -Encoding UTF8 -Force -ErrorAction Stop
     return $manifestPath
 }
 

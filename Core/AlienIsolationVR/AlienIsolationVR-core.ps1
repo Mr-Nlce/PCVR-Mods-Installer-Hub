@@ -18,6 +18,23 @@ $MOTHERVR_URL = "https://github.com/Nibre/MotherVR/releases/download/0.8.1/Mothe
 $MOTHERVR_VERSION = "0.8.1"
 $MOTHERVR_ASSET = "MotherVR.0.8.1.zip"
 $GRAND_URL = "https://alienisolationvr.com/downloads/click.php?id=GRAND-Release.zip"
+$GRAND_VERSION = ''
+
+function Get-GrandVersionFromText {
+ param([string]$Text)
+ if (-not $Text) { return '' }
+ if ($Text -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { return ('v' + $matches[1]) }
+ if ($Text -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { return ('v' + $matches[1]) }
+ if ($Text -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { return ('v' + $matches[1]) }
+ return ''
+}
+
+function Get-GrandPublishedVersion {
+ try {
+  $page = Invoke-WebRequest -Uri 'https://www.alienisolationvr.com/' -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
+  return (Get-GrandVersionFromText -Text ([string]$page.Content))
+ } catch { return '' }
+}
 
 function Write-Header {
  Clear-Host
@@ -86,6 +103,7 @@ if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
 Write-Step 2 4 "Downloading"
+$GRAND_VERSION = Get-GrandPublishedVersion
 $tmp = Join-Path $env:TEMP "AIVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $mvrZip = Join-Path $tmp "MotherVR.zip"
@@ -149,6 +167,10 @@ if ("GRAND" -notin $failed) {
  try {
  $grandExtract = Join-Path $tmp "GRAND"
  Expand-Archive -Path $grandZip -DestinationPath $grandExtract -Force
+ if (-not $GRAND_VERSION) {
+  $grandReadme = Get-ChildItem -LiteralPath $grandExtract -File -Filter 'readme*' -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($grandReadme) { $GRAND_VERSION = Get-GrandVersionFromText -Text (Get-Content -LiteralPath $grandReadme.FullName -Raw -ErrorAction SilentlyContinue) }
+ }
  # Copy every file (except readme.txt) directly into game folder
  Get-ChildItem -Path $grandExtract -File | Where-Object { $_.Name -ne "readme.txt" } | ForEach-Object {
  Copy-Item $_.FullName (Join-Path $gamePath $_.Name) -Force
@@ -178,6 +200,9 @@ try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 if ("MotherVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
+if (("GRAND" -notin $failed) -and $GRAND_VERSION) {
+ Save-InstalledStamp -GameDir $gamePath -Version $GRAND_VERSION -HubDir $PSScriptRoot
+}
 
 # Summary
 Clear-Host

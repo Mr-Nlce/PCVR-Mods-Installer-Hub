@@ -21,6 +21,7 @@
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "ShipwrightAssetPack.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Ocarina of Time VR Installer"
 
@@ -51,12 +52,13 @@ $KNOWN_FALLBACK_TAG = "v1.2"
 $GAME_FOLDER       = "Ocarina of Time VR"
 $GAME_EXE          = "soh.exe"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
-# Optional Djipi 3DS Experience pack (GameBanana mod 477979). The direct
-# download link is opened in the browser - GameBanana cannot be fetched
-# unattended, and the file is ~500 MB from a rate-limited source.
-$DJIPI_URL         = "https://gamebanana.com/dl/1766765"
+# Optional Djipi 3DS Experience pack (GameBanana mod 477979). File 1810733
+# replaced the removed Final Pack file. Its complete payload now uses .otr;
+# the former Final Pack used .o2r and remains supported as a manual legacy ZIP.
+$DJIPI_URL         = "https://gamebanana.com/dl/1810733"
 $DJIPI_PAGE        = "https://gamebanana.com/mods/477979"
-$DJIPI_FILE        = "djipi_s_3ds_experience_-_final_pack.zip"
+$DJIPI_FILE        = "djipi_s_3ds_experience_tot_fix.zip"
+$DJIPI_LEGACY_FILE = "djipi_s_3ds_experience_-_final_pack.zip"
 
 # Resolve the newest release zip via the GitHub API. Returns
 # @{ Url=...; Tag=... } or $null on any failure (rate limit / offline /
@@ -65,7 +67,7 @@ function Get-LatestShipwrightVR {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rels = Invoke-RestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        foreach ($rel in @($rels)) {
+        foreach ($rel in @($rels | Where-Object { -not $_.draft -and -not $_.prerelease })) {
             # Asset names may change between releases (currently
             # Ship-<soh-ver>-win64-ship.zip) - match any .zip, prefer a
             # win64/ship-looking name, else take the first zip.
@@ -117,7 +119,9 @@ function Test-WritableRoot {
 
 Write-Host "  Default C:\Games - no admin rights, no UAC prompt. The" -ForegroundColor White
 Write-Host "  '$GAME_FOLDER' folder is created inside whatever you choose." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('soh.exe')
+$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 
 $installRoot = $null
 if ($chosen) {
@@ -140,7 +144,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 
 # ---- 2. download the latest Shipwright-VR release ------------
 $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $GAME_EXE
@@ -403,8 +407,9 @@ if ($doHd -in @("y","Y")) {
 # of the player and block the view (the "feel your way to the exit"
 # problem). This pack ships real 3D geometry for those scenes, so the
 # 2D backdrops can be switched off and the rooms render properly.
-# The zip holds two folders: "0000 - Djipi's 3DS Experience" and
-# "0001 - Skilar's Art Plus Link"; only the first one is installed.
+# The current ZIP contains a flat .otr payload. The removed legacy Final Pack
+# used nested folders and .o2r files. The installer identifies both layouts by
+# their required numbered background payload, not by a broad filename guess.
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  OPTIONAL: Djipi's 3DS Experience (3D backgrounds)" -ForegroundColor Cyan
@@ -412,7 +417,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "  Castle Town and many interiors are flat backdrops that block" -ForegroundColor White
 Write-Host "  your view in VR. This pack replaces them with real 3D geometry." -ForegroundColor White
-Write-Host "  Browser download, about 500 MB, usually ~20 minutes." -ForegroundColor White
+Write-Host "  Browser download, about 625 MB. It can take a while." -ForegroundColor White
 Write-Host ""
 $doDjipi = ""
 while ($doDjipi -notin @("y","Y","n","N")) { $doDjipi = (Read-Host "  Install Djipi's 3DS Experience now? (Y/N)").Trim() }
@@ -452,16 +457,19 @@ if ($doDjipi -in @("y","Y")) {
     }
 
     # -- get the archive (browser download, then disk scan) -----
-    $djPat = @("djipi_s_3ds_experience*.zip", "*djipi*3ds*experience*.zip", "*djipi*.zip")
+    # Accept browser duplicate suffixes such as " (1)", but only for the two
+    # known publisher basenames. Functional payload validation below remains
+    # the authority before a single file can be copied.
+    $djPat = @("djipi_s_3ds_experience_tot_fix*.zip", "djipi_s_3ds_experience_-_final_pack*.zip")
     $djZip = Find-PredownloadedFile -Patterns $djPat -Label "the Djipi 3DS Experience pack"
     if (-not $djZip) {
         Write-Host ""
         Write-Host "  Enter starts '$DJIPI_FILE' in your browser." -ForegroundColor White
-        Write-Host "  Leave it running - roughly 20 minutes - then come back here." -ForegroundColor White
+        Write-Host "  Leave it running until the browser says it is complete." -ForegroundColor White
         Write-Host "  If it does not start: $DJIPI_PAGE" -ForegroundColor Gray
         Pause-User "Press Enter to start the download in your browser..."
         try { Start-Process $DJIPI_URL } catch { Write-Warn "Open this yourself: $DJIPI_URL" }
-        Pause-User "Press Enter once the download has finished (about 20 minutes)..."
+        Pause-User "Press Enter once the download has finished..."
         $djZip = Find-PredownloadedFile -Patterns $djPat -Label "the Djipi 3DS Experience pack" -PageAlreadyOpen
     }
     while (-not $djZip) {
@@ -476,97 +484,91 @@ if ($doDjipi -in @("y","Y")) {
         } else { Write-Warn "File not found: $djIn" }
     }
 
-    # -- unpack and copy the chosen files into mods\ ------------
+    # -- unpack, prove the functional payload, then copy it ------
     if ($djZip) {
         $djTmp = Join-Path $installRoot "_hub_djipi_tmp"
-        try {
-            if (Test-Path $djTmp) { Remove-Item $djTmp -Recurse -Force -EA SilentlyContinue }
-            New-Item -ItemType Directory -Path $djTmp -Force | Out-Null
-        } catch {}
-        $djOut = Join-Path $djTmp "extract"
+        $djRetryZip = Join-Path $installRoot "_hub_djipi_retry.zip"
+        while ($djZip -and -not $djipiInstalled) {
+            try {
+                if (Test-Path -LiteralPath $djTmp) { Remove-Item -LiteralPath $djTmp -Recurse -Force -EA SilentlyContinue }
+                New-Item -ItemType Directory -Path $djTmp -Force | Out-Null
+            } catch {}
+            $djOut = Join-Path $djTmp "extract"
 
-        Write-Host ""
-        Write-Info "Unpacking the pack - about 500 MB, this takes a moment..."
-        $okDj = $false
-        $sevenZipDj = Get-SevenZip
-        if ($sevenZipDj) {
-            $okDj = Expand-7zWithProgress -SevenZip $sevenZipDj -Archive $djZip -Dest $djOut -Label "Djipi 3DS Experience"
-        }
-        if (-not $okDj) {
-            try { Expand-Archive -LiteralPath $djZip -DestinationPath $djOut -Force -ErrorAction Stop; $okDj = $true }
-            catch { Write-Warn "Could not unpack the archive: $($_.Exception.Message)" }
-        }
+            Write-Host ""
+            Write-Info "Unpacking the pack - about 625 MB, this takes a moment..."
+            $okDj = $false
+            $sevenZipDj = Get-SevenZip
+            if ($sevenZipDj) {
+                $okDj = Expand-7zWithProgress -SevenZip $sevenZipDj -Archive $djZip -Dest $djOut -Label "Djipi 3DS Experience"
+            }
+            if (-not $okDj) {
+                try { Expand-Archive -LiteralPath $djZip -DestinationPath $djOut -Force -ErrorAction Stop; $okDj = $true }
+                catch { Write-Warn "Could not unpack the archive: $($_.Exception.Message)" }
+            }
 
-        $djAll = @()
-        if ($okDj) { $djAll = @(Get-ChildItem -LiteralPath $djOut -Recurse -Filter "*.o2r" -File -EA SilentlyContinue) }
-        if ($djAll.Count -eq 0) {
-            Write-Warn "No .o2r files were found in the archive - nothing installed."
-            Write-Host "  Unpack '$DJIPI_FILE' yourself and copy the .o2r files from" -ForegroundColor Gray
-            Write-Host "  the 'Djipi's 3DS Experience' folder into:" -ForegroundColor Gray
-            Write-Host "    $(Join-Path $gameRoot 'mods')" -ForegroundColor Cyan
-        } else {
-            # Skilar's Art Plus Link (folder 0001) is left out: it changes
-            # Link himself, and the pack's own troubleshooting names custom
-            # Link cosmetics as the first thing to remove when SoH crashes.
-            $djFiles  = @($djAll | Where-Object { $_.FullName -notmatch '(?i)(Skilar|Art\s*Plus)' })
-            $djSkilar = $djAll.Count - $djFiles.Count
-            $djPick   = @()
+            $djPayload = if ($okDj) { Get-ShipwrightDjipiPayload -Root $djOut } else { $null }
+            if (-not $djPayload -or -not $djPayload.IsComplete) {
+                Write-Warn "This is not a complete compatible Djipi pack. Nothing was copied."
+                Write-Host "  A usable package must contain both numbered background files:" -ForegroundColor Gray
+                Write-Host "    Djipi's 3DE - 26 Background 3DS.otr (or .o2r)" -ForegroundColor Gray
+                Write-Host "    Djipi's 3DE - 27 Background Textures.otr (or .o2r)" -ForegroundColor Gray
+                $djRecovery = Invoke-InstallerFallback -Action "Djipi 3DS Experience package verification" `
+                    -Subject "the complete Djipi 3DS Experience ZIP" `
+                    -Url $DJIPI_PAGE `
+                    -Instructions "Download the current complete ZIP from Files. A small patch or similarly named archive is not enough." `
+                    -DestFile $djRetryZip `
+                    -FileValidator { param($candidate) Test-DownloadedPayload -Path $candidate -IntendedPath "Djipi-3DS-Experience.zip" } `
+                    -SkipMessage "Skipped Djipi's 3DS Experience; Shipwright-VR itself remains installed."
+                if ($djRecovery -eq 'retry' -and (Test-Path -LiteralPath $djRetryZip -PathType Leaf)) {
+                    $djZip = $djRetryZip
+                    continue
+                }
+                break
+            }
 
-            if ($djipiMode -eq "bg") {
-                $djPick = @($djFiles | Where-Object { $_.Name -match '(?i)3DE\s*-\s*2[67]\s+Background' })
-                if ($djPick.Count -lt 2) {
+            $djPick = if ($djipiMode -eq "bg") {
+                @($djPayload.BackgroundFiles)
+            } else {
+                @($djPayload.AllPayloadFiles)
+            }
+            $djModsDir = Join-Path $gameRoot "mods"
+            try { if (-not (Test-Path -LiteralPath $djModsDir)) { New-Item -ItemType Directory -Path $djModsDir -Force | Out-Null } } catch {}
+            $djCopied = 0
+            foreach ($f in $djPick) {
+                try {
+                    Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $djModsDir $f.Name) -Force -ErrorAction Stop
+                    $djCopied++
+                } catch { Write-Warn "Could not copy $($f.Name): $($_.Exception.Message)" }
+            }
+            if ($djCopied -eq $djPick.Count -and $djCopied -gt 0) {
+                $djipiInstalled = $true
+                Write-OK "$djCopied file(s) copied into mods\"
+                if ($djipiMode -eq "bg") {
+                    foreach ($f in $djPick) { Write-Host "    $($f.Name)" -ForegroundColor Gray }
+                }
+                if ($djPayload.SkilarFileCount -gt 0) {
+                    Write-Info "Left out: Skilar's Art Plus Link ($($djPayload.SkilarFileCount) file(s))."
+                }
+                if ($djipiMode -eq "full" -and $doHd -in @("y","Y")) {
                     Write-Host ""
-                    Write-Warn "The two background files were not found by name in this pack."
-                    Write-Host "  Expected these two:" -ForegroundColor Gray
-                    Write-Host "    Djipi's 3DE - 26 Background 3DS.o2r" -ForegroundColor Gray
-                    Write-Host "    Djipi's 3DE - 27 Background Textures.o2r" -ForegroundColor Gray
-                    Write-Host "  The pack may have been renamed since. Choose:" -ForegroundColor White
-                    Write-Host "   [A] Install the whole pack instead (3DS look)" -ForegroundColor White
-                    Write-Host "   [S] Skip this pack" -ForegroundColor White
-                    $djAlt = (Read-Host "  A / S").Trim().ToUpper()
-                    if ($djAlt -eq "A") { $djPick = $djFiles; $djipiMode = "full" } else { $djPick = @() }
+                    Write-Warn "You now have BOTH the 3DS look and the HD texture pack in mods\."
+                    Write-Host "  They are two different art styles for the same surfaces. For" -ForegroundColor Gray
+                    Write-Host "  the 3DS look, delete this file from the mods folder:" -ForegroundColor Gray
+                    Write-Host "    OoT_Reloaded_v11.0.0_4K.o2r" -ForegroundColor Cyan
                 }
             } else {
-                $djPick = $djFiles
-            }
-
-            if ($djPick.Count -gt 0) {
-                $djModsDir = Join-Path $gameRoot "mods"
-                try { if (-not (Test-Path -LiteralPath $djModsDir)) { New-Item -ItemType Directory -Path $djModsDir -Force | Out-Null } } catch {}
-                $djCopied = 0
-                foreach ($f in $djPick) {
-                    try {
-                        Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $djModsDir $f.Name) -Force -ErrorAction Stop
-                        $djCopied++
-                    } catch { Write-Warn "Could not copy $($f.Name): $($_.Exception.Message)" }
-                }
-                if ($djCopied -gt 0) {
-                    $djipiInstalled = $true
-                    Write-OK "$djCopied file(s) copied into mods\"
-                    if ($djipiMode -eq "bg") {
-                        foreach ($f in $djPick) { Write-Host "    $($f.Name)" -ForegroundColor Gray }
-                    }
-                    if ($djSkilar -gt 0) {
-                        Write-Info "Left out: Skilar's Art Plus Link ($djSkilar file(s)) - it changes"
-                        Write-Host "       Link's own look, and custom Link cosmetics are the first" -ForegroundColor Gray
-                        Write-Host "       suspect if the game crashes. Copy them in yourself if you" -ForegroundColor Gray
-                        Write-Host "       want them." -ForegroundColor Gray
-                    }
-                    if ($djipiMode -eq "full" -and $doHd -in @("y","Y")) {
-                        Write-Host ""
-                        Write-Warn "You now have BOTH the 3DS look and the HD texture pack in mods\."
-                        Write-Host "  They are two different art styles for the same surfaces. For" -ForegroundColor Gray
-                        Write-Host "  the 3DS look, delete this file from the mods folder:" -ForegroundColor Gray
-                        Write-Host "    OoT_Reloaded_v11.0.0_4K.o2r" -ForegroundColor Cyan
-                    }
-                } else {
-                    Write-Warn "Nothing could be copied into mods\ - the pack is not installed."
-                }
-            } else {
-                Write-Info "Skipped Djipi's 3DS Experience."
+                Write-Warn "Only $djCopied of $($djPick.Count) required files could be copied."
+                [void](Invoke-InstallerFallback -Action "copy the Djipi files into the mods folder" `
+                    -SourceFolder $djOut -DestFolder $djModsDir `
+                    -RetryCheck { @($djPick | Where-Object { -not (Test-Path -LiteralPath (Join-Path $djModsDir $_.Name) -PathType Leaf) }).Count -eq 0 } `
+                    -SkipMessage "Djipi's optional asset pack remains incomplete; Shipwright-VR itself remains installed.")
+                $djipiInstalled = (@($djPick | Where-Object { -not (Test-Path -LiteralPath (Join-Path $djModsDir $_.Name) -PathType Leaf) }).Count -eq 0)
+                break
             }
         }
-        try { Remove-Item $djTmp -Recurse -Force -EA SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath $djTmp -Recurse -Force -EA SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath $djRetryZip -Force -EA SilentlyContinue } catch {}
     }
 }
 

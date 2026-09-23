@@ -115,7 +115,9 @@ function Test-WritableRoot {
     } catch { return $false }
 }
 
-$installRoot = $null
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+$installRoot = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { $null }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 foreach ($r in $DEFAULT_ROOTS) {
     if (Test-WritableRoot -Root $r) { $installRoot = [string]$r; break }
 }
@@ -130,7 +132,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 
 # If an old install exists, offer overwrite.
 if (Test-Path (Join-Path $gameRoot $GAME_EXE)) {

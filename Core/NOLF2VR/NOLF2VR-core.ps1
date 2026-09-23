@@ -118,6 +118,11 @@ function Set-VRReviveFlag {
 # containing NOLF2.exe). Auto-detects the common retail install paths
 # first, then falls back to asking. Loops until valid or cancelled.
 function Get-Nolf2Folder {
+    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @('VRlaunchcmds.txt')
+    if ($remembered) {
+        Write-OK "Using remembered NOLF2 folder: $remembered"
+        return $remembered
+    }
     $stdPaths = @(
         "${env:ProgramFiles(x86)}\Fox\No One Lives Forever 2",
         "${env:ProgramFiles}\Fox\No One Lives Forever 2",

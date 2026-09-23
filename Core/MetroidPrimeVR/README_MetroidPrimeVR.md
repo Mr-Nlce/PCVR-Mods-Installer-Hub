@@ -20,6 +20,12 @@ Dolphin installed, and it is not a hook or injector.
 - Easy cannon-texture swapping tool.
 - In-headset settings menu.
 
+## Current v1.1.6 update
+
+PrimedGun v1.1.6 adds a setup window, repairs movement and jumping, disables
+charged-shot recoil by default, adds mirror options and additional safeguards,
+improves Valve Index grip handling and lets a charging shot attract pickups.
+
 ## Requirements
 
 - A **Metroid Prime - NTSC 1.0 (Revision 0)** GameCube disc image

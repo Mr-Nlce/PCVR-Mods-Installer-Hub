@@ -115,7 +115,7 @@ Settings -> Controls -> Key Bindings.
 - **[[Left Trigger]]:** Hold to run
 - **[[Y]]:** Recenter view / reset height
 - **[[X]]:** Activate PDA (also skips the active cutscene)
-- **Menu button:** in-game pause / system menu on the PDA
+- [[Menu]]: in-game pause / system menu on the PDA
 
 **Right controller** (weapon hand):
 - **[[Right Stick]]** up/down: Next / Previous weapon

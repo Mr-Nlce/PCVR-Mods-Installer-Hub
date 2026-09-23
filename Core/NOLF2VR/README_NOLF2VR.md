@@ -55,7 +55,7 @@ Switch the controller on and connect it **before** starting the game
 (steady, non-blinking light) or it will not be recognised. Mouse +
 keyboard also work at a desk. Touch / Vive controllers are not supported.
 
-The Left Stick click acts as a **shift**: hold it to reach the alternate
+[[Left Stick Click]] acts as a shift: hold it to reach the alternate
 actions below; tap and release it to toggle Sneak (walk / always-run).
 
 **In game**
@@ -103,7 +103,7 @@ actions below; tap and release it to toggle Sneak (walk / always-run).
 - [[F3]] - toggle the in-game HUD
 - [[F6]] / [[F9]] - QuickSave / QuickLoad (hard-bound by the engine)
 
-> Vive note: if SteamVR has taken the controller **Menu** button for its
+> Vive note: if SteamVR has taken the controller [[Menu]] button for its
 > Dashboard, either double-click it quickly to reach Mission status, or
 > disable the Dashboard in the SteamVR developer settings.
 

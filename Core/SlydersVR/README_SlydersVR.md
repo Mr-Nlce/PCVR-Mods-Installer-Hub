@@ -22,11 +22,11 @@ The mod adds support for bHaptics and Provolver.
 5. The installer auto-locates Slyders, copies the mod files in, and offers to run the ViGEmBus installer if you don't have it yet.
 
 ## Controls
-- Dominant hand has the **red laser** — aim and shoot with the controller trigger.
+- Dominant hand has the **red laser** — aim and shoot with [[Trigger]].
 - Non-dominant hand has the **white laser** — aim perks/upgrades (turrets etc.).
-- When using dual weapons, each weapon aims with its own hand but both shoot with the dominant trigger.
-- **Recenter view**: click both joysticks at once.
-- **Toggle laser pointer**: [[Right Stick]] click + left controller [[A]]
+- When using dual weapons, each weapon aims with its own hand but both shoot with the dominant [[Trigger]].
+- **Recenter view**: click [[Left Stick Click]] + [[Right Stick Click]].
+- **Toggle laser pointer**: [[Right Stick Click]] + [[Left A]]
 - **D-Pad gesture**: hold your left hand close to the left side of your head (controllers buzz). While buzzing, [[Left Stick]] becomes D-Pad, [[Left Stick]] click = Back, [[Right Stick]] click = Start. Used for menus and upgrade selection.
 
 ## Configuration

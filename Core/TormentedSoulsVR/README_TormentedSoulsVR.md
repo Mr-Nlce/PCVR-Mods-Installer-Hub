@@ -48,8 +48,8 @@ retail copy, not the VR build.
 
 ## Controls
 
-- Shooting: hold the left trigger first, then pull the right
-  trigger to fire
+- Shooting: hold [[Left Trigger]] first, then pull [[Right Trigger]]
+  to fire
 - Height / rotation recalibration: hold [[Y]] while
   standing (or sitting) at your preferred height and facing
   until the recalibration menu opens

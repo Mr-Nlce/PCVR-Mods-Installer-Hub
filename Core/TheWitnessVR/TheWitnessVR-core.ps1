@@ -208,7 +208,7 @@ function Confirm-Executable([string]$Path) {
     Write-OK 'The Witness executable was found.'
 }
 
-function Test-WitnessRuntimeDll([string]$Path) {
+function global:Test-WitnessRuntimeDll([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
     try {
         $bytes = [IO.File]::ReadAllBytes($Path)

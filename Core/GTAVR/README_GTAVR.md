@@ -57,9 +57,9 @@ Use **Play GTAVR Motion** on the game page. The Hub parks the older R.E.A.L.
 hooks, enables DeployAbi and opens the same author launcher. Click **Play
 Story Mode** there.
 
-| Input | Action |
+| Button | Action |
 |---|---|
-| Motion controllers | Gameplay movement, buttons and experimental controller aiming |
+| [[Motion controllers]] | Gameplay movement, buttons and experimental controller aiming |
 | [[Delete]], [[F10]] or [[Insert]] | Open or close the in-headset setup overlay |
 | [[F11]] | Export the performance report |
 
@@ -105,7 +105,7 @@ car view.
 
 R.E.A.L. hotkeys are disabled at startup. Press [[F11]] once to enable them:
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[F11]] | Enable or disable R.E.A.L. hotkeys |
 | [[Num /]] | Recenter headset |

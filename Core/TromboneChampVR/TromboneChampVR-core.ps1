@@ -105,7 +105,7 @@ Pause-User "Press Enter to begin..." | Out-Null
 # -------------------------------------------------------
 Write-Step 1 5 "Download the compatible build via Steam Console"
 
-try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
 Write-Host "  This downloads the depot build of Trombone Champ." -ForegroundColor Gray
 Write-Host ""
@@ -140,6 +140,7 @@ Pause-User "Press Enter to open the Steam Console..." | Out-Null
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 
 Write-Host ""
@@ -201,11 +202,16 @@ Write-Host ""
 Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
-$userInput = (Read-Marked "Press Enter for default, or type a full path").Trim().Trim('"')
-if (-not $userInput) {
-    $targetPath = $DEFAULT_PATH
+$targetPath = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+if ($targetPath) {
+    Write-OK "Using the remembered Trombone Champ VR folder: $targetPath"
 } else {
-    $targetPath = $userInput
+    $userInput = (Read-Marked "Press Enter for default, or type a full path").Trim().Trim('"')
+    if (-not $userInput) {
+        $targetPath = $DEFAULT_PATH
+    } else {
+        $targetPath = $userInput
+    }
 }
 
 $targetParent = Get-PathParentLexical $targetPath
@@ -399,6 +405,11 @@ if ($modZip -and (Test-Path $modZip)) {
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+$stableId = ('' + $env:PCVR_HUB_GAME_ID).Trim()
+if ($stableId -and (Test-LiteralPathSafe -Path (Join-PathLexical $gamePath $GAME_EXE) -PathType Leaf)) {
+    [void](Save-HubRememberedGameFolder -GameId $stableId -Title 'Trombone Champ VR' `
+        -GameDir $gamePath -ProbeFiles @($GAME_EXE) -UserSelected)
+}
 
 # -------------------------------------------------------
 #  STEP 5: Desktop shortcut

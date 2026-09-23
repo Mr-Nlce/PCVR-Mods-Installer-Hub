@@ -465,6 +465,21 @@ function Find-GameInstall {
         $result.Log += "  + $Source match: $Path"
     }
 
+    # InstallerSafety is loaded by Hub-launched installers before this module.
+    # Prefer its checksummed LocalAppData assignment when available.  The
+    # executable probe prevents a stale or unrelated remembered folder from
+    # suppressing normal Steam/GOG/Epic/Xbox discovery.
+    if (Get-Command Get-PCVRRememberedGameFolder -ErrorAction SilentlyContinue) {
+        try {
+            $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($ExeName)
+            if ($remembered) {
+                Add-Candidate -Path $remembered -Source "Hub-Remembered" -Confidence "High"
+            }
+        } catch {
+            $result.Log += "Hub remembered-path lookup error: $($_.Exception.Message)"
+        }
+    }
+
     # ---- Steam (priority 1) ----
     if ($Steam) {
         try {
@@ -573,6 +588,7 @@ function Find-GameInstall {
     if ($result.Candidates.Count -gt 0) {
         # Source priority, then Confidence within source
         $priority = @{
+            "Hub-Remembered" = 0
             "Steam-Manifest" = 1; "Steam-Scan"    = 2
             "Gamepass-Appx"  = 3; "Gamepass-Scan" = 4
             "Epic"           = 5; "Ubisoft"       = 6

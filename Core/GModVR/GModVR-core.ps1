@@ -19,6 +19,7 @@ $GAME_EXE = "gmod.exe"
 $MODULES_API = "https://api.github.com/repos/Abyss-c0re/vrmod-module-master/releases/latest"
 $MODULES_FALLBACK_URL = "https://github.com/Abyss-c0re/vrmod-module-master/releases/download/170625/modules.zip"
 $MODULES_PAGE         = "https://github.com/Abyss-c0re/vrmod-module-master/releases"
+$modulesVersion      = "170625"
 
 # Workshop addon (the Lua half of the mod)
 $WORKSHOP_ID = "3442302711"
@@ -192,6 +193,7 @@ try {
  $zipAsset = $release.assets | Where-Object { $_.name -like "modules*.zip" -or $_.name -eq "modules.zip" } | Select-Object -First 1
  if ($zipAsset) {
  $downloadUrl = $zipAsset.browser_download_url
+ $modulesVersion = [string]$release.tag_name
  Write-Host "OK ($($release.tag_name))" -ForegroundColor Green
  } else {
  Write-Host "no zip asset found" -ForegroundColor Yellow
@@ -449,7 +451,7 @@ Write-Step 7 7 "Set Launch Options in Steam"
 
 $launchOptions = "+exec autoexec.cfg"
 
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
@@ -465,11 +467,15 @@ Write-Host " Then paste (Ctrl+V) and close Properties." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to open Garry's Mod properties in Steam..."
 Start-Process "steam://gameproperties/$GAME_APPID"
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
+Show-PCVRClipboardManualFallback -Text $launchOptions
 Pause-User "Press Enter once you have pasted the launch options and closed Properties..."
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+if (Test-Path -LiteralPath (Join-Path $gamePath 'garrysmod\lua\bin\gmcl_vrmod_win64.dll') -PathType Leaf) {
+ Save-InstalledStamp -GameDir $gamePath -Version $modulesVersion -HubDir $PSScriptRoot
+}
 
 # -------------------------------------------------------
 # DONE

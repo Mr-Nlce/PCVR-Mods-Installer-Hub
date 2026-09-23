@@ -28,7 +28,7 @@ The current publisher build can show yellow `deprecated checktype` script warnin
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Dominant Trigger]] | Fire |
 | [[Off-hand Trigger]] | Alternate fire |

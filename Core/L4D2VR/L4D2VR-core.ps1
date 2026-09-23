@@ -206,7 +206,7 @@ if (-not $updateOnly) {
  # -------------------------------------------------------
  Write-Step 3 $totalSteps "Steam Launch Parameters"
 
- try { Set-Clipboard -Value $LAUNCH_PARAMS } catch {}
+ try { Set-Clipboard -Value $LAUNCH_PARAMS -DeferManualFallback } catch {}
 
  Write-Host ""
  Write-Host " ============================================================" -ForegroundColor Yellow
@@ -220,6 +220,7 @@ if (-not $updateOnly) {
  Write-Host ""
  Pause-User "Press Enter to open Steam game properties..."
  Start-Process "steam://gameproperties/550"
+ Show-PCVRClipboardManualFallback -Text $LAUNCH_PARAMS
  Pause-User "Press Enter once you have pasted the launch parameters and closed Steam properties..."
 }
 

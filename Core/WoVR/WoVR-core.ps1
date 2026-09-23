@@ -74,6 +74,8 @@ function Find-7Zip {
 # C:\Games / C:\. We probe the common locations; if none match
 # the user types the path by hand.
 function Find-WoWFolder {
+    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @('vr\config.txt')
+    if ($remembered) { return $remembered }
     $candidates = @(
         "C:\Program Files (x86)\World of Warcraft",
         "C:\Program Files\World of Warcraft",

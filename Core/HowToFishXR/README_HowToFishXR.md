@@ -16,7 +16,7 @@ You can also launch once with `--disable-vr`.
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move or drive |
 | [[Left Stick Click]] | Sprint |

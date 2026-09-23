@@ -17,6 +17,10 @@ There are **two** VR mods for BioShock Remastered. The installer sets up either 
 
 Both are actively developed and neither is a successor to the other - pick by the feature list above. The installer offers balouza first because it has the larger set of VR-specific features today.
 
+The shared balouza package is currently **v0.8.3**. This release's documented
+code fix targets BioShock 2's left-eye hand and weapon flicker; no separate
+BioShock 1 behavior change is claimed for it.
+
 ## Install
 The installer asks which one you want: **balouza**, **BioVRDev**, or **both**. It finds the game (Steam, GOG or Epic - the exe lives in `Build\Final`, on Epic in `Build\FinalEpic`), pulls the latest release straight from GitHub and puts the files in place.
 
@@ -134,12 +138,12 @@ and writes them to `logs\setup.log` as well - a bug report then carries the layo
 its author was really using. The combination cannot be worked out from either
 answer alone, so read it off the screen at the end of Setup rather than assuming:
 
-| | |
+| Button | Action |
 |---|---|
-| **Pause** | the **Menu** button on the **left** controller |
-| **Modifier** | rest your thumb on the **right thumbrest** |
-| **Map** | hold **Modifier**, then **Pause** for half a second |
-| **Alt menu button** | hold **Modifier** and tap **Pause** |
+| [[Left Menu]] | Pause |
+| [[Right Thumbrest]] | Modifier |
+| [[Right Thumbrest]] + [[Left Menu]] (hold for half a second) | Map |
+| [[Right Thumbrest]] + [[Left Menu]] (tap) | Alternate menu button |
 
 Hold the Modifier and the left stick stops moving you - it becomes a D-pad for
 the interface.
@@ -148,7 +152,7 @@ Two devices are named differently by their own hardware: **Touch** has exactly
 one menu button and it is on the left controller, and the **Index has no menu
 button at all** in OpenXR, so the mod uses a firm press on the left trackpad.
 
-**Vive wands and WMR** get the Modifier on the **right stick click** instead -
+**Vive wands and WMR** get the Modifier on [[Right Stick Click]] instead -
 neither controller binds the thumbrest, so on those the map was previously
 unreachable. **WMR** gets its own button layout with jump, hack and use, and the
 med hypo moved to the radial. **Vive wands** can only bind one face action, Use;

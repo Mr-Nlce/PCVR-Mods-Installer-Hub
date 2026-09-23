@@ -328,6 +328,11 @@ if ($updateOnly) {
 
  try { Remove-Item $tempDir -Recurse -Force } catch {}
 
+ if ($kvrTag -and (Test-Path -LiteralPath (Join-Path $gamePath 'GameData\KerbalVR') -PathType Container)) {
+  try { Set-Content -Path (Join-Path $PSScriptRoot '.installed_path') -Value $gamePath -Encoding UTF8 -Force } catch {}
+  Save-InstalledStamp -GameDir $gamePath -Version $kvrTag -HubDir $PSScriptRoot
+ }
+
  Write-Host ""
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Update Complete" -ForegroundColor White
@@ -848,6 +853,9 @@ if (Test-Path $ckanExe) {
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+if ($kvrTag -and (Test-Path -LiteralPath (Join-Path $gamePath 'GameData\KerbalVR') -PathType Container)) {
+ Save-InstalledStamp -GameDir $gamePath -Version $kvrTag -HubDir $PSScriptRoot
+}
 
 # -------------------------------------------------------
 # DONE

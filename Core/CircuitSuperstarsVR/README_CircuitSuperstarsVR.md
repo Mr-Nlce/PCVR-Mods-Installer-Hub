@@ -36,8 +36,8 @@ If you have a bHaptics vest, **turn it on before launching the game** - the mod 
 
 ### VR-specific hotkeys
 
-- **Double-press START** (gamepad) / **F1** (keyboard) — Toggle first-person view on/off
-- **Hold START** (gamepad) / **F2** (keyboard) — Recenter VR view
+- Double-press [[Start]] (gamepad) / [[F1]] (keyboard) — Toggle first-person view on/off
+- Hold [[Start]] (gamepad) / [[F2]] (keyboard) — Recenter VR view
 
 The default camera is the game's native top-down view, with first-person available as a toggle. Switching back is on the same hotkey.
 

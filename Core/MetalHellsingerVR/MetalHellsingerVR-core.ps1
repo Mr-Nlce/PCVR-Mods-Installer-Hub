@@ -97,7 +97,7 @@ Write-Host "  We download the pinned build as a separate copy - your retail" -Fo
 Write-Host "  Metal: Hellsinger stays untouched." -ForegroundColor White
 Write-Host ""
 
-try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
 Write-Host "  ============================================================" -ForegroundColor Yellow
 Write-Host "  ACTION REQUIRED - Paste into the Steam Console" -ForegroundColor Yellow
@@ -133,6 +133,7 @@ $conOk = $false
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; $conOk = $true; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 if (-not $conOk) {
     Write-Warn "Could not open the Steam Console automatically."
@@ -196,7 +197,9 @@ Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
+$rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @('BepInEx\plugins\HellsingerVR.dll')
+$userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"') }
+if ($rememberedTarget) { Write-OK "Using remembered install location: $rememberedTarget" }
 $targetPath = if (-not $userInput) { $DEFAULT_PATH } else { $userInput }
 
 $targetParent = Get-PathParentLexical $targetPath

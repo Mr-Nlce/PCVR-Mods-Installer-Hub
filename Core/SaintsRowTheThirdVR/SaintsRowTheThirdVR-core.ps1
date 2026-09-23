@@ -10,6 +10,8 @@
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Saints Row: The Third VR Installer"
 $ErrorActionPreference = "Stop"
@@ -24,6 +26,11 @@ $MEGA_URL     = "https://mega.nz/file/jZQikZBD#tT2K3URk_7SvTR9kEep2m-RPIh4eKEcAd
 $VR_FOLDER    = "build with VR support"
 $MOD_MARKER   = "openvr_api.dll"
 $SHORTCUT     = "Saints Row The Third VR"
+$IDENTITY     = "saintsrowthirdvr"
+$MOD_VERSION  = "23.07.27.1"
+$contract = New-PCVRInstallerContract -Id 'saints-row-the-third-vr' -GameName $GAME_NAME `
+    -Acquisition External -ReleasePageUrl $INFO_URL -AntivirusNotice `
+    -RequiredInstalledFileGroups @('ZMenuSR3.asi','openvr_api.dll',".pcvrhub_${IDENTITY}_ownership.csv")
 
 # ---- inline console helpers --------------------------------
 function Write-Header {
@@ -57,13 +64,12 @@ function Get-Sr3Folder {
         if (-not (Test-Path $p)) { Write-Warn "Path not found: $p"; continue }
         if (Test-Path $p -PathType Container) {
             if (Test-Path (Join-Path $p $GAME_EXE)) { return $p }
-            Write-Warn "No $GAME_EXE in that folder (the exe name can vary by version)."
-            $ok = (Read-Host "  Use this folder anyway? [Y]es / [N]o").Trim().ToLower()
-            if ($ok -eq "y") { return $p }
+            Write-Warn "No $GAME_EXE in that folder. Choose the actual game folder."
             continue
         }
         $dir = Split-Path -Parent $p
-        return $dir
+        if (Test-Path -LiteralPath (Join-Path $dir $GAME_EXE) -PathType Leaf) { return $dir }
+        Write-Warn "That file is not inside a folder containing $GAME_EXE."
     }
 }
 
@@ -119,15 +125,17 @@ Write-Header
 # ---- STEP 1: locate Saints Row: The Third ----
 Write-Host " This installs zolika1351's ZMenu plus its VR build onto Saints Row: The" -ForegroundColor White
 Write-Host " Third Remastered, adding a stereoscopic VR view. Gamepad controls." -ForegroundColor White
+Show-AntivirusNotice -Compact
 Write-Host ""
 Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating your Saints Row: The Third install"
 $gameDir = $null
 try { $gameDir = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @($STEAM_FOLDER) -ProbeExe $GAME_EXE -GogNames @($GOG_FOLDER) } catch { $gameDir = $null }
 
-if ($gameDir) {
+if ($gameDir -and (Test-Path -LiteralPath (Join-Path $gameDir $GAME_EXE) -PathType Leaf)) {
     Write-OK "Found: $gameDir"
 } else {
+    $gameDir = $null
     Write-Warn "Could not auto-detect the install (Steam / GOG)."
     Write-Info "Steam:       ...\steamapps\common\$STEAM_FOLDER"
     Write-Info "GOG Galaxy:  C:\Program Files (x86)\GOG Galaxy\Games\$GOG_FOLDER"
@@ -136,12 +144,12 @@ if ($gameDir) {
     if (-not $gameDir) {
         # Last-resort manual path entry (shared helper).
         $manual = Get-GameFolderInteractive -GameName $GAME_NAME -ProbeFile $GAME_EXE -ManualUrl $INFO_URL
-        if ($manual -and ($manual -notin @("quit","skip")) -and (Test-Path $manual)) {
+        if ($manual -and ($manual -notin @("quit","skip")) -and (Test-Path -LiteralPath (Join-Path $manual $GAME_EXE) -PathType Leaf)) {
             $gameDir = $manual
         }
     }
 }
-if (-not $gameDir) {
+if (-not $gameDir -or -not (Test-Path -LiteralPath (Join-Path $gameDir $GAME_EXE) -PathType Leaf)) {
     Write-Fail "No valid Saints Row: The Third folder - cannot continue."
     Write-Info "Make sure the game is installed and that $GAME_EXE exists in its folder."
     Pause-User "Press Enter to exit..." -Color Yellow
@@ -208,32 +216,34 @@ if ($vrDir) {
 Write-Info "Mod files: $modRoot"
 
 $vrSupport = Join-Path $modRoot $VR_FOLDER
+$stageRoot = Join-Path ([IO.Path]::GetTempPath()) ('sr3vr-stage-' + [Guid]::NewGuid().ToString('N'))
 $copied = 0
+$ownedInstallActive = $false
+New-Item -ItemType Directory -Path $stageRoot -Force | Out-Null
 
-# Pass 1: copy everything EXCEPT the "build with VR support" folder
-# into the game folder.
+# Pass 1: stage everything EXCEPT the "build with VR support" folder.
 try {
     Get-ChildItem -Path $modRoot -Force | Where-Object { $_.Name -ne $VR_FOLDER } | ForEach-Object {
-        if ($_.PSIsContainer) { $copied += (Copy-Tree -Src $_.FullName -Dst (Join-Path $gameDir $_.Name)) }
-        else { Copy-Item -Path $_.FullName -Destination (Join-Path $gameDir $_.Name) -Force; $copied++ }
+        if ($_.PSIsContainer) { $copied += (Copy-Tree -Src $_.FullName -Dst (Join-Path $stageRoot $_.Name)) }
+        else { Copy-Item -Path $_.FullName -Destination (Join-Path $stageRoot $_.Name) -Force; $copied++ }
     }
-    Write-OK "Copied the base menu files into the game folder."
+    Write-OK "Prepared the base menu files."
 } catch {
-    Write-Fail "Could not copy the base files: $_"
+    Write-Fail "Could not stage the base files: $_"
     Pause-User "Press Enter to exit..." -Color Yellow
     exit 1
 }
 
 # Pass 2: overlay the CONTENTS of "build with VR support" into the
-# game folder (this swaps in the VR ZMenuSR3.asi + openvr_api.dll +
+# stage (this swaps in the VR ZMenuSR3.asi + openvr_api.dll +
 # the vr_actions json files). The folder itself is NOT copied.
 if (Test-Path $vrSupport) {
     try {
         Get-ChildItem -Path $vrSupport -Force | ForEach-Object {
-            if ($_.PSIsContainer) { $copied += (Copy-Tree -Src $_.FullName -Dst (Join-Path $gameDir $_.Name)) }
-            else { Copy-Item -Path $_.FullName -Destination (Join-Path $gameDir $_.Name) -Force; $copied++ }
+            if ($_.PSIsContainer) { $copied += (Copy-Tree -Src $_.FullName -Dst (Join-Path $stageRoot $_.Name)) }
+            else { Copy-Item -Path $_.FullName -Destination (Join-Path $stageRoot $_.Name) -Force; $copied++ }
         }
-        Write-OK "Applied the VR build on top."
+        Write-OK "Prepared the VR build overlay."
     } catch {
         Write-Warn "Could not apply the VR build: $_"
         Write-Warn "The menu may work but VR will not. Re-run to try again."
@@ -243,15 +253,34 @@ if (Test-Path $vrSupport) {
     Write-Warn "Make sure you downloaded the full ZMenu zip from the MEGA page."
 }
 
-# Verify the VR marker landed.
-if (Test-Path (Join-Path $gameDir $MOD_MARKER)) {
-    Write-OK "$MOD_MARKER present - VR build installed ($copied files copied)."
-} else {
-    Write-Warn "$MOD_MARKER missing after install - VR may not be active."
+try {
+    foreach ($required in @('ZMenuSR3.asi','openvr_api.dll','vr_actions.json')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $stageRoot $required) -PathType Leaf)) {
+            throw "The selected package is missing $required."
+        }
+    }
+    [void](Install-OwnedModPayload -SourceRoot $stageRoot -GameRoot $gameDir -Identity $IDENTITY `
+        -KeepExistingRelativePaths @('ZMenuSR3.ini') -AdoptIdenticalExisting)
+    $ownedInstallActive = $true
+    $watch = @('ZMenuSR3.asi','openvr_api.dll','vr_actions.json',".pcvrhub_${IDENTITY}_ownership.csv") | ForEach-Object { Join-Path $gameDir $_ }
+    $recopy = { [void](Install-OwnedModPayload -SourceRoot $stageRoot -GameRoot $gameDir -Identity $IDENTITY -KeepExistingRelativePaths @('ZMenuSR3.ini') -AdoptIdenticalExisting) }.GetNewClosure()
+    $archiveForCheck = if (Test-Path -LiteralPath $drop -PathType Leaf) { [string]$drop } else { '' }
+    if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $gameDir -ArchivePath $archiveForCheck -Recopy $recopy)) {
+        throw 'Required ZMenu VR files did not survive the post-copy check.'
+    }
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gameDir -Version $MOD_VERSION `
+        -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -Route Current)
+    $ownedInstallActive = $false
+    Write-OK "$MOD_MARKER present - VR build installed ($copied files tracked)."
+} catch {
+    if ($ownedInstallActive) {
+        try { [void](Uninstall-OwnedModPayload -GameRoot $gameDir -Identity $IDENTITY) } catch {}
+    }
+    throw
+} finally {
+    if (Test-Path -LiteralPath $stageRoot -PathType Container) { Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($xtemp -and (Test-Path -LiteralPath $xtemp -PathType Container)) { Remove-Item -LiteralPath $xtemp -Recurse -Force -ErrorAction SilentlyContinue }
 }
-
-# Record where we installed so the Hub launches the modded exe.
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch { Write-Warn "Could not write .installed_path (the Hub may need a manual path)." }
 
 # Desktop shortcut to the DX11 exe (the mod loads via dinput8.dll
 # when this exe runs).

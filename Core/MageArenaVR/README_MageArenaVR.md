@@ -35,7 +35,7 @@ Flatscreen mode is not "the mod off". It changes nothing about how you play, but
 Set `ForcedMode` to `VR` or `Flat` in the config to skip the dialog.
 
 ## Controls (motion controllers)
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move |
 | [[Left Stick Click]] | Sprint (hold) |

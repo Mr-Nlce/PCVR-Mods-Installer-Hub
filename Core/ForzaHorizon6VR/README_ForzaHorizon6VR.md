@@ -49,6 +49,8 @@ and retail game are handled independently.
 
 ## Option 2 - lufz / VRMod
 
+The current **v1.4.2** package includes the latest head-movement hotfix.
+
 ### Setup and launch
 
 The Hub downloads the newest lufz release automatically, including the
@@ -96,6 +98,10 @@ profile. Follow the status instructions: switch to Driver Camera, switch to Far
 Chase Camera, then pause and unpause five times. When it reports that the
 profile was updated, restart the game. The next run should report
 `generated profile active`.
+
+CheekyRender alpha 3.3 adds an in-launcher setup overlay for this first-run and
+post-update profile generation, so the required camera sequence stays visible
+while the profile is being prepared.
 
 https://github.com/ClarkCheekyKent/cheeky-render-releases
 

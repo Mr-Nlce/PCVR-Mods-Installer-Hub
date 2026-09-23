@@ -48,8 +48,8 @@ Game controls are unchanged from the flat-screen version.
 
 ### Recentering the view
 
-- Hold gamepad **START** for a few seconds
-- Or press **Esc** on keyboard
+- Hold gamepad [[Start]] for a few seconds
+- Or press [[Esc]] on keyboard
 - Or use SteamVR's own recenter function
 
 ### Seating

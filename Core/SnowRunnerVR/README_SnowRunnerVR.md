@@ -27,12 +27,12 @@ download_depot 1465360 1465361 1017218816943865737
 
 The installer looks for an already completed depot before opening Steam Console, checks the game structure, executable version and expected depot size, then creates `Sources\Bin\steam_appid.txt` beside `SnowRunner.exe`. Your normal Steam installation is not changed. Start this copy with **Start 1.886173** on the detail page or the `SnowRunner VR 1.886173` desktop shortcut.
 
-The same current stable SnowRunner VR release is installed into this frozen game copy. During later update rounds, this route advances only after a newer game/mod pairing has actually been confirmed.
+The frozen copy uses **SnowRunner VR v0.3**, the mod build confirmed with game version 1.886173. Current releases such as v0.4 are not mixed into this route. The depot route advances only after a newer game/mod pairing has actually been confirmed together.
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
+| Button | Action |
+|---|---|
 | [[Insert]] | Open or close the SnowRunner VR settings UI |
 | [[L3]] + [[R3]] | Open or close the settings UI on a gamepad |
 | [[Home]] | Recenter the VR view |
@@ -57,7 +57,7 @@ The dedicated depot game folder is never deleted by mod uninstall. Generated `Sn
 
 ## Current release notes
 
-The verified v0.3 build supports SnowRunner 1.886173, fixes VR cursor interaction, and adds possible wide-FOV and off-center render-target improvements for Pimax headsets. A later SnowRunner update can still require a newer mod build; the Hub tracks the author's latest stable GitHub release automatically.
+The verified v0.4 build keeps SnowRunner 1.886173 support and the VR cursor and Pimax rendering improvements from v0.3. It adds an experimental world-marker fix plus options for a 2D map and 2D garage. A later SnowRunner update can still require a newer mod build; the Hub tracks the author's latest stable GitHub release automatically.
 
 ## Credits and support
 

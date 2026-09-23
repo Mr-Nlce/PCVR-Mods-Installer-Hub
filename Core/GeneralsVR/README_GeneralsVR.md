@@ -70,20 +70,20 @@ whatever would happen if you pulled the trigger now.
 | Violet | Attack move armed - release to send |
 | Teal | Guard armed - release to place |
 
-| Action | Control |
+| Button | Action |
 |---|---|
-| Select | [[Right Trigger]] |
-| Select many | Hold [[Right Trigger]] and sweep a box across the ground |
-| Select all of a type | Double-tap one of your units |
-| Cancel a pending order | [[Left Trigger]] |
-| Command dial | Tap [[Left Stick]] - stop, attack move, guard, scatter, idle worker |
-| Group dial | Hold [[B]] - your ten control groups |
-| Move | [[Left Stick]], relative to where you look |
-| Turn | [[Right Stick]] left / right |
-| Resize yourself | [[Right Stick]] up to grow, down to shrink - or hold both grips and pull your hands apart |
-| Jump to selection | [[Right Stick Click]] |
-| Recenter | [[Menu]] on the left controller, short press |
-| Summon the HUD panel | [[Y]] left hand, [[B]] right hand |
+| [[Right Trigger]] | Select |
+| Hold [[Right Trigger]] and sweep a box across the ground | Select many |
+| [[Double-tap one of your units]] | Select all of a type |
+| [[Left Trigger]] | Cancel a pending order |
+| Tap [[Left Stick]] - stop, attack move, guard, scatter, idle worker | Command dial |
+| Hold [[B]] - your ten control groups | Group dial |
+| [[Left Stick]], relative to where you look | Move |
+| [[Right Stick]] left / right | Turn |
+| [[Right Stick]] up to grow, down to shrink - or hold both grips and pull your hands apart | Resize yourself |
+| [[Right Stick Click]] | Jump to selection |
+| [[Menu]] on the left controller, short press | Recenter |
+| [[Y]] left hand, [[B]] right hand | Summon the HUD panel |
 
 Mouse and keyboard keep working the whole time and the monitor mirrors
 everything. Moving the mouse takes control instantly; squeeze the trigger three

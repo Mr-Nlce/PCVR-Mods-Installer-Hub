@@ -18,6 +18,8 @@ $ErrorActionPreference = "Stop"
 # Engine download. Direct asset URL on hh79's GitHub release.
 $QZD_ENGINE_URL = "https://github.com/hh79/gzdoomvr/releases/download/gvr4.13.2.2/gzdoomvr-4-13-2-2.zip"
 $QZD_ENGINE_VER = "4.13.2.2"
+$QZD_ENGINE_TAG = "gvr4.13.2.2"
+$QZD_ENGINE_REPO = "hh79/gzdoomvr"
 $QZD_INSTALL_ROOT_NAME = "GZDoomVR"
 # Optional 3D-weapons mod (iAmErmac's Universal_Doom_3DWeapons_VR). ONE
 # universal .pk3 that FILTER/s per IWAD, so it fits Doom, Doom 2, Heretic,
@@ -86,6 +88,10 @@ function Get-SteamLibraries {
 # vs "DOOM II"). Returns the first match or $null.
 function Find-SteamGameFolder {
     param([string[]]$FolderNames, [string]$WadName = "")
+    $remembered = Get-PCVRRememberedGameFolder -StateNames @('source_game_path')
+    if ($remembered -and ((-not $WadName) -or (Find-WadInGameFolder -GameFolder $remembered -WadName $WadName))) {
+        return $remembered
+    }
     # Build the list of roots to scan: every Steam library's common\ folder,
     # plus GOG (C/D/E:\GOG Games) and Xbox (C/D/E:\XboxGames) roots. Xbox nests
     # the game under a \Content subfolder, so each name is tried both bare and
@@ -316,14 +322,36 @@ function Install-QuestZDoomGame {
         $r = (Read-Host "  Path (or empty to skip)").Trim().Trim('"')
         if ($r -and (Test-Path $r)) { $sourceWad = $r; Write-Info "Path set: $sourceWad" }
     }
+    if ($sourceWad) {
+        $sourceRoot = if ($gameFolder -and (Find-WadInGameFolder -GameFolder $gameFolder -WadName $WadName)) { $gameFolder } else { Split-Path -Parent $sourceWad }
+        [void](Save-HubRememberedGameFolder -GameId ('' + $env:PCVR_HUB_GAME_ID) -Title $GameTitle -GameDir $sourceRoot -StateName 'source_game_path')
+    }
 
     # ---- STEP 2: Engine ----
     Write-Step 2 4 "GZDoomVR Engine"
 
-    if (Test-EngineInstalled -InstallRoot $installRoot) {
-        Write-Info "Engine already present at $installRoot - reusing."
-    } else {
+    $engineRelease = Resolve-GitHubReleaseAsset -Repo $QZD_ENGINE_REPO `
+        -AssetPatterns @('(?i)^gzdoomvr.*\.zip$') -FallbackUrl $QZD_ENGINE_URL `
+        -FallbackTag $QZD_ENGINE_TAG -FallbackAssetName 'gzdoomvr-4-13-2-2.zip' -SkipReleasesWithoutMatchingAsset
+    $script:QZD_ENGINE_URL = [string]$engineRelease.Url
+    $script:QZD_ENGINE_TAG = [string]$engineRelease.Tag
+    $script:QZD_ENGINE_VER = ([string]$engineRelease.Tag -replace '^(?i)gvr','')
+    $engineStamp = Join-Path $installRoot '.pcvrhub_version'
+    $installedEngineVersion = ''
+    try {
+        if (Test-Path -LiteralPath $engineStamp -PathType Leaf) { $installedEngineVersion = (Get-Content -LiteralPath $engineStamp -Raw).Trim() }
+    } catch {}
+    $enginePresent = Test-EngineInstalled -InstallRoot $installRoot
+    $engineNeedsInstall = (-not $enginePresent) -or (-not $installedEngineVersion)
+    if ($engineRelease.Resolved -and $installedEngineVersion -and
+        (([string]$installedEngineVersion).TrimStart('v') -ne ([string]$QZD_ENGINE_TAG).TrimStart('v'))) {
+        $engineNeedsInstall = $true
+    }
+    if ($engineNeedsInstall) {
         Install-Engine -InstallRoot $installRoot
+        $installedEngineVersion = [string]$QZD_ENGINE_TAG
+    } else {
+        Write-Info "Engine $installedEngineVersion already present at $installRoot - reusing."
     }
 
     # ---- STEP 3: WAD ----
@@ -546,6 +574,9 @@ function Install-QuestZDoomGame {
             $__safeTitle = ($GameTitle -replace '[^A-Za-z0-9]', '_')
             Set-Content -Path (Join-Path $QZD_SHARED_DIR ".installed_path_$__safeTitle") -Value $installRoot -Encoding UTF8 -Force
         } catch {}
+    }
+    if (Test-EngineInstalled -InstallRoot $installRoot) {
+        Save-InstalledStamp -GameDir $installRoot -Version $installedEngineVersion -HubDir $QZD_SHARED_DIR
     }
 
     # Desktop shortcut points directly at gzdoomvr.exe with the

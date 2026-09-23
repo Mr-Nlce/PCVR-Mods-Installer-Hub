@@ -279,6 +279,27 @@ function ConvertTo-HubCanonicalJson {
         $utcText = $Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'",[Globalization.CultureInfo]::InvariantCulture)
         return (ConvertTo-HubJsonStringLiteral -Value $utcText -EscapeHtml:$EscapeHtml)
     }
+
+    # Primitive numeric values expose adapted PSObject properties (for
+    # example CompareTo and GetTypeCode).  They must be serialized before the
+    # generic property walker below.  Walking those adapted properties can
+    # feed another boxed number back into this function and recurse until the
+    # PowerShell CLR terminates.  Window geometry is numeric, so this ordering
+    # is part of the durable state contract rather than merely an optimization.
+    $typeCode = [Type]::GetTypeCode($Value.GetType())
+    switch ($typeCode) {
+        ([TypeCode]::Single)  { return ([single]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Double)  { return ([double]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Decimal) { return ([decimal]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Byte)    { return ([byte]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::SByte)   { return ([sbyte]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Int16)   { return ([int16]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::UInt16)  { return ([uint16]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Int32)   { return ([int32]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::UInt32)  { return ([uint32]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::Int64)   { return ([int64]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+        ([TypeCode]::UInt64)  { return ([uint64]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
+    }
     if ($Value -is [Collections.IDictionary]) {
         $parts = New-Object System.Collections.ArrayList
         $keys = @($Value.Keys | ForEach-Object { [string]$_ })
@@ -314,21 +335,6 @@ function ConvertTo-HubCanonicalJson {
             [void]$parts.Add($name + ':' + $item)
         }
         return '{' + ($parts -join ',') + '}'
-    }
-
-    $typeCode = [Type]::GetTypeCode($Value.GetType())
-    switch ($typeCode) {
-        ([TypeCode]::Single)  { return ([single]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Double)  { return ([double]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Decimal) { return ([decimal]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Byte)    { return ([byte]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::SByte)   { return ([sbyte]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Int16)   { return ([int16]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::UInt16)  { return ([uint16]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Int32)   { return ([int32]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::UInt32)  { return ([uint32]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::Int64)   { return ([int64]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
-        ([TypeCode]::UInt64)  { return ([uint64]$Value).ToString([Globalization.CultureInfo]::InvariantCulture) }
     }
 
     $ordered = ConvertTo-HubOrderedValue $Value
@@ -517,6 +523,16 @@ function Test-HubDirectoryWritableQuiet {
     param([string]$Directory)
     if ([string]::IsNullOrWhiteSpace($Directory)) { return $false }
     try {
+        # This helper is also copied into the isolated post-install runspace.
+        # That worker receives function definitions, not the top-level module
+        # initializers above, so its script-scoped cache can legitimately be
+        # absent. Treat an absent cache as an empty cache. Previously the null
+        # ContainsKey call was caught here and reported every real LocalAppData
+        # directory as non-writable; the worker then could not find the typed
+        # installer transaction and deliberately kept the old Update state.
+        if ($null -eq $script:HubWritableDirectoryCache) {
+            $script:HubWritableDirectoryCache = @{}
+        }
         $full = [IO.Path]::GetFullPath($Directory)
         if ($script:HubWritableDirectoryCache.ContainsKey($full)) {
             return [bool]$script:HubWritableDirectoryCache[$full]

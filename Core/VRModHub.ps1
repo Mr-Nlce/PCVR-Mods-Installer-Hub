@@ -175,7 +175,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.7.2"
+$HUB_VERSION = "0.8.7.6"
 
 $updateInfoFile  = Get-HubUpdateInfoPath
 $script:updateInfo = $null
@@ -396,8 +396,14 @@ function Get-LegacyDepotCandidatePaths {
     param($Game)
     $out = @()
     if (-not $Game -or -not $Game.LegacyDepotPath) { return $out }
-    if (-not $global:HubFileSystemLabRoot) { $out += [string]$Game.LegacyDepotPath }
+    if (-not $global:HubFileSystemLabRoot) {
+        $out += [string]$Game.LegacyDepotPath
+        foreach ($candidate in @($Game.LegacyDepotFallbackPaths | Where-Object { $_ })) {
+            if ($out -notcontains [string]$candidate) { $out += [string]$candidate }
+        }
+    }
     if (-not $Game.LegacyDepotInstalledPathFile) { return $out }
+    $hasDedicatedValue = $false
     try {
         $base = Get-InstalledPathFile -Game $Game
         $variantFile = if ($base) { Join-Path (Split-Path -Parent $base) ([string]$Game.LegacyDepotInstalledPathFile) } else { $null }
@@ -408,8 +414,52 @@ function Get-LegacyDepotCandidatePaths {
         foreach ($candidate in @($durableValue, $hubValue)) {
             if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
             if ($out -notcontains $candidate) { $out += $candidate }
+            $hasDedicatedValue = $true
             if ($candidate -eq $hubValue) { Write-PersistentGameStateValue -Game $Game -Name 'installed_path_legacy_depot' -Value $candidate }
             break
+        }
+    } catch {}
+    # A superseded standalone route may have been the only route when its
+    # ordinary .installed_path was written. Use that migration source only
+    # until a dedicated legacy receipt exists; every caller still verifies the
+    # exact legacy launcher and VR marker before accepting it.
+    if ($Game.LegacyDepotUseRecordedPath -and -not $hasDedicatedValue) {
+        try {
+            $recorded = Read-InstalledPath -Game $Game
+            if ($recorded -and (Test-Path -LiteralPath $recorded -PathType Container) -and ($out -notcontains $recorded)) {
+                $out += $recorded
+            }
+        } catch {}
+    }
+    return $out
+}
+
+function Get-CurrentStandaloneCandidatePaths {
+    param($Game)
+    $out = @()
+    if (-not $Game) { return $out }
+    if (-not $global:HubFileSystemLabRoot) {
+        foreach ($candidate in @($Game.CurrentStandalonePaths | Where-Object { $_ })) {
+            if ($out -notcontains [string]$candidate) { $out += [string]$candidate }
+        }
+    }
+    try {
+        $durableValue = Read-PersistentGameStateValue -Game $Game -Name 'installed_path_current'
+        $hubValue = $null
+        if ($Game.CurrentInstalledPathFile) {
+            $base = Get-InstalledPathFile -Game $Game
+            $variantFile = if ($base) { Join-Path (Split-Path -Parent $base) ([string]$Game.CurrentInstalledPathFile) } else { $null }
+            if (Test-Path -LiteralPath $variantFile -PathType Leaf) {
+                $hubValue = ('' + (Get-Content -LiteralPath $variantFile -Raw -ErrorAction Stop)).Trim().Trim('"')
+            }
+        }
+        $durableUsable = $durableValue -and (Test-Path -LiteralPath $durableValue -PathType Container)
+        $recorded = if ($durableUsable -or $hubValue) { $null } else { Read-InstalledPath -Game $Game }
+        foreach ($candidate in @($durableValue, $hubValue,$recorded)) {
+            if ([string]::IsNullOrWhiteSpace([string]$candidate) -or
+                -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
+            if ($out -notcontains [string]$candidate) { $out += [string]$candidate }
+            if ($candidate -eq $hubValue) { Write-PersistentGameStateValue -Game $Game -Name 'installed_path_current' -Value $candidate }
         }
     } catch {}
     return $out

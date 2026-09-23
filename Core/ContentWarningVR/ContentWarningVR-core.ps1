@@ -281,7 +281,7 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  Write-Host " CWVR 1.2.0 requires a specific older version of Content Warning." -ForegroundColor White
  Write-Host " We download it as a separate copy - your retail install stays untouched." -ForegroundColor White
  Write-Host ""
- try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+ try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
  Write-Host ""
  Write-Host " ============================================================" -ForegroundColor Yellow
@@ -319,6 +319,7 @@ if (-not $script:PreFoundDepot) {
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
+ Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
  Pause-User "Press Enter once the Steam depot download is complete..."
 

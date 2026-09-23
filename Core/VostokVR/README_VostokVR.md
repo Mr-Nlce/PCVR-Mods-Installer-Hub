@@ -29,15 +29,15 @@ Click **Install Mod** on the game tile or detail page and follow the prompts.
 ## Controls
 
 ### Movement
-| Input | Action |
-|-------|--------|
+| Button | Action |
+|---|---|
 | [[Left Stick]] | Move |
 | [[Right Stick]] | Turn |
 | [[A]] | Jump / click UI |
 | [[Y]] | Open/close inventory |
 | [[Left Stick]] click | Sprint |
 | [[Right Stick]] click | Crouch |
-| Menu | Pause |
+| [[Menu]] | Pause |
 
 ### Holster System
 Weapons are drawn by reaching to body locations and gripping. Your controller buzzes when entering a holster zone.
@@ -52,15 +52,15 @@ Weapons are drawn by reaching to body locations and gripping. Your controller bu
 Releasing grip away from body: primary weapon goes to **sling position** (hangs at chest, follows your turn). Sidearm/knife/grenade auto-holster.
 
 ### Weapon
-| Input | Action |
-|-------|--------|
-| Weapon hand trigger | Fire |
-| Support hand trigger (quick) | Reload |
-| Support hand trigger (hold 0.5s) | Ammo check |
-| Support hand grip | Two-hand grip (stabilised aim) |
+| Button | Action |
+|---|---|
+| [[Weapon hand trigger]] | Fire |
+| [[Support hand trigger (quick)]] | Reload |
+| [[Support hand trigger (hold 0.5s)]] | Ammo check |
+| [[Support hand grip]] | Two-hand grip (stabilised aim) |
 | [[Right Stick]] up/down | Zoom (variable scopes) |
 | [[B]] | Cycle fire mode / cycle bolt action |
-| B (weapon lowered) | Interact with objects |
+| [[B (weapon lowered)]] | Interact with objects |
 
 All weapon inputs follow the weapon hand — draw with left hand, left trigger fires.
 

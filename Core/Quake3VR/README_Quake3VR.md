@@ -13,7 +13,7 @@
 
 ### Right Controller (primary / active hand)
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Fire weapon |
 | [[Grip]] | Weapon selection wheel |
 | [[A]] | Jump |
@@ -22,7 +22,7 @@
 
 ### Left Controller (off hand)
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Jump |
 | [[Grip]] | Weapon stabilization |
 | [[X]] | Use item |
@@ -32,7 +32,7 @@
 
 ### In menus
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[B]] (left) | Menu — open/close or go up one level (like ESC) |
 | [[B]] (right) | Reset position of the Virtual Screen |
 | [[Trigger]] (active hand) | Cursor click |

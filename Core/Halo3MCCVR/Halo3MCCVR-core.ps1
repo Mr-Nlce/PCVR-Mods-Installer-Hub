@@ -17,8 +17,8 @@ $CONTINUATION_PAGE = "https://github.com/$CONTINUATION_REPO/releases"
 $QUIP = 'Finish the fight - now from inside the visor.'
 
 $CONTINUATION_PIN = [pscustomobject]@{
-    Family='Community'; Channel='stable'; Tag='MCCVR-d77c9dd'; Name='HaloMCCVR-d77c9dd-WIP-Test.zip'
-    Url='https://github.com/moistman42069/MCCVR-Halo-Build/releases/download/MCCVR-d77c9dd/HaloMCCVR-d77c9dd-WIP-Test.zip'
+    Family='Community'; Channel='prerelease'; Tag='MCC_VR_ALPHA_0.5.1'; Name='Halo-MCC-VR.zip'
+    Url='https://github.com/moistman42069/MCCVR-Halo-Build/releases/download/MCC_VR_ALPHA_0.5.1/Halo-MCC-VR.zip'
     Page=$CONTINUATION_PAGE; Folder='Halo_MCC_VR_community'; Marker='.pcvrhub-halomccvr-community'; Manifest='.pcvrhub-halomccvr-community-install.tsv'
     Shortcut='Halo MCC VR'
 }
@@ -119,7 +119,7 @@ function Get-LatestContinuationRelease {
         foreach ($release in $releases) {
             if ($release.draft) { continue }
             $asset = @($release.assets | Where-Object {
-                $_.name -match '(?i)^HaloMCCVR.*\.zip$' -and $_.name -notmatch '(?i)source|symbols|debug'
+                $_.name -match '(?i)^Halo(?:MCCVR|-MCC-VR).*\.zip$' -and $_.name -notmatch '(?i)source|symbols|debug'
             } | Select-Object -First 1)[0]
             if (-not $asset) { continue }
             return [pscustomobject]@{
@@ -212,17 +212,12 @@ function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,
         Copy-Item -LiteralPath $source -Destination $backup -Force
     }
 
-    $configRelative = 'halomccvr.cfg'
-    $oldConfigRollback = Join-Path $rollback $configRelative
-    $newConfigSource = Join-Path $PayloadRoot $configRelative
-    $savePreviousConfig = $false
-    if ((Test-Path -LiteralPath $oldConfigRollback -PathType Leaf) -and (Test-Path -LiteralPath $newConfigSource -PathType Leaf)) {
-        $savePreviousConfig = ((Get-FileHash -LiteralPath $oldConfigRollback -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $newConfigSource -Algorithm SHA256).Hash)
-    }
-
     try {
         foreach ($entry in $payloadFiles) {
             $destination = Join-Path $modDir ([string]$entry.Relative)
+            # The publisher explicitly requires updates to keep a tuned config.
+            # A fresh install still receives the packaged default.
+            if ($entry.Relative -ieq 'halomccvr.cfg' -and (Test-Path -LiteralPath $destination -PathType Leaf)) { continue }
             $parent = Split-Path -Parent $destination
             if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
             Copy-Item -LiteralPath $entry.File.FullName -Destination $destination -Force
@@ -287,14 +282,6 @@ function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,
             } catch { Write-Warn 'The former desktop shortcut could not be verified and was kept.' }
         }
 
-        if ($savePreviousConfig) {
-            $configBackupDir = Join-Path $modDir '.pcvrhub-backups'
-            New-Item -ItemType Directory -Path $configBackupDir -Force | Out-Null
-            $stamp = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmssfff')
-            $configBackup = Join-Path $configBackupDir ("halomccvr-$stamp.cfg.bak")
-            Copy-Item -LiteralPath $oldConfigRollback -Destination $configBackup -Force
-            Write-OK "Previous personal config saved: $configBackup"
-        }
         return $modDir
     } catch {
         foreach ($relative in $affected) {
@@ -315,8 +302,8 @@ function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,
 $work = $null
 try {
     Write-Header
-    Write-Host ' Installs the maintained Halo MCC VR build. On updates, the previous' -ForegroundColor White
-    Write-Host ' personal config is backed up before the release config is installed.' -ForegroundColor White
+    Write-Host ' Installs the maintained all-campaign Halo MCC VR build.' -ForegroundColor White
+    Write-Host ' Existing personal configuration is retained during updates.' -ForegroundColor White
     Write-Host ''
     Write-Warn 'Always launch without anti-cheat. Never use the mod in matchmaking.'
     Write-Info 'Start MCC flat once first and finish the Microsoft account sign-in.'
@@ -372,6 +359,7 @@ try {
     Write-Host ' HOW TO PLAY' -ForegroundColor Cyan
     Write-Host ' Start SteamVR with SteamVR as the active OpenXR runtime.' -ForegroundColor White
     Write-Host ' Then use Start in VR in the Hub or the matching desktop shortcut.' -ForegroundColor White
+    Write-Host ' Halo CE, Halo 2, Halo 3, ODST, Reach and Halo 4 campaigns are supported.' -ForegroundColor White
     Write-Host ' Open F1 in game for VR settings. Launch only with anti-cheat off.' -ForegroundColor Gray
     Write-Host ''
     Write-Warn 'Halo 2 AI perception/aim can malfunction in this release.'

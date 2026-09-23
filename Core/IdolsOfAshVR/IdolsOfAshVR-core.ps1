@@ -14,7 +14,14 @@ $ErrorActionPreference = "Stop"
 
 $REPO_URL   = "https://github.com/LXE97/UGVR-IdolsOfAsh"
 $MOD_ZIP    = "https://github.com/LXE97/UGVR-IdolsOfAsh/releases/download/v2.1.0/UGVR-IdolsOfAsh-v2.1.0.zip"
+$MOD_VERSION = 'v2.1.0'
 $GAME_EXE   = "idols_of_ash.exe"
+
+$idolsRelease = Resolve-GitHubReleaseAsset -Repo 'LXE97/UGVR-IdolsOfAsh' `
+    -AssetPatterns @('(?i)^UGVR-IdolsOfAsh.*\.zip$') -FallbackUrl $MOD_ZIP `
+    -FallbackTag $MOD_VERSION -FallbackAssetName 'UGVR-IdolsOfAsh-v2.1.0.zip' -SkipReleasesWithoutMatchingAsset
+$MOD_ZIP = [string]$idolsRelease.Url
+$MOD_VERSION = [string]$idolsRelease.Tag
 
 function Write-Header {
     Clear-Host
@@ -123,6 +130,7 @@ try { Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue } catch {}
 
 if (Test-Path -LiteralPath (Join-Path $gameDir "xr_injector\xr_injector.gd")) {
     Write-OK "Mod files in place (xr_injector, XRConfigs, override.cfg)."
+    Save-InstalledStamp -GameDir $gameDir -Version $MOD_VERSION -HubDir $PSScriptRoot
 } else {
     Write-Warn "xr_injector folder not found after extraction - check $gameDir manually."
 }

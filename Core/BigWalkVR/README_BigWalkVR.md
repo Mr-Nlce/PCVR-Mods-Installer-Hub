@@ -56,7 +56,9 @@ prompt, so reach out and take hold of things.
 ## Flat and VR together
 Launching Big Walk from Steam, or pressing **Launch in Non-VR**, starts
 the game flat with the mod still installed. Flat and VR players can play
-together and see each other's tracked movement.
+together. The host and the other players need the mod installed to see your
+VR hands; friends who want to stay in flat mode can install it and still launch
+the game in non-VR.
 
 ## Updates
 The app updates itself and the mod. There is nothing to chase in the Hub

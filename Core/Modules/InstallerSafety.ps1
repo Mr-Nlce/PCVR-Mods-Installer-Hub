@@ -9,17 +9,96 @@
 #  rest of the hub.
 # -------------------------------------------------------
 
+# Clipboard writes used to run directly in the installer's normal STA
+# powershell.exe process. The Hub now contains installers in a child runspace,
+# so keep one shared implementation that both writes the real Windows
+# clipboard and keeps the exact text available as a manual fallback. Callers
+# that open another window can defer rendering the fallback until after that
+# window opens, so the command is visible at the moment it is needed.
+function global:Set-Clipboard {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [object[]]$Value,
+        [switch]$Append,
+        [switch]$DeferManualFallback
+    )
+
+    begin {
+        $pcvrClipboardValues = @()
+    }
+    process {
+        $pcvrClipboardValues += @($Value)
+    }
+    end {
+        $text = ($pcvrClipboardValues | ForEach-Object { '' + $_ }) -join [Environment]::NewLine
+        $copied = $false
+        try {
+            $nativeArgs = @{ Value = @($pcvrClipboardValues); ErrorAction = 'Stop' }
+            if ($Append) { $nativeArgs.Append = $true }
+            Microsoft.PowerShell.Management\Set-Clipboard @nativeArgs
+            $copied = $true
+        } catch { }
+
+        # clip.exe is independent of PowerShell's apartment state and gives
+        # older/locked-down Windows profiles a second automatic route.
+        if (-not $copied -and -not $Append) {
+            try {
+                $clipExe = Join-Path $env:SystemRoot 'System32\clip.exe'
+                if (Test-Path -LiteralPath $clipExe -PathType Leaf) {
+                    $text | & $clipExe
+                    $copied = ($LASTEXITCODE -eq 0)
+                }
+            } catch { }
+        }
+
+        $global:PCVRLastClipboardWriteSucceeded = $copied
+        $global:PCVRLastClipboardText = $text
+        if (-not $DeferManualFallback) {
+            Show-PCVRClipboardManualFallback -Text $text
+        }
+    }
+}
+
+function global:Show-PCVRClipboardManualFallback {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text = $global:PCVRLastClipboardText
+    )
+
+    if ([string]::IsNullOrEmpty($Text)) { return }
+
+    Write-Host ''
+    if (-not $global:PCVRLastClipboardWriteSucceeded) {
+        Write-Host '  [!!] Windows clipboard could not be updated; use the text below.' -ForegroundColor Yellow
+    }
+    Write-Host '  If pasting does not work, mark the following text with the mouse' -ForegroundColor Gray
+    Write-Host '  (hold the left mouse button), then press Ctrl+C on your keyboard:' -ForegroundColor Gray
+    Write-Host ''
+    foreach ($line in @($Text -split '\r?\n')) {
+        Write-Host ('  ' + $line) -ForegroundColor DarkGray
+    }
+    Write-Host ''
+}
+
 # Retain the defining module folder even when this file is dot-sourced by an
 # installer.  The value is used only to load the WPF-free durable-state reader
 # below; it never changes the installer's current directory.
 $script:PCVRHubInstallerSafetyModuleRoot = $PSScriptRoot
+if (-not (Get-Command Invoke-PCVRUniversalRecovery -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'InstallerRecovery.ps1')
+}
 
 # ---- Manual Fallback prompt --------------------------------
 #
 # Use after every failed download / extract / dependency check
 # where the installer would otherwise just give up. Opens an
 # info URL in the user's browser, prints a manual instruction,
-# then presents [R]etry / [S]kip / [Q]uit choices.
+# then presents an unlimited [R]etry, optional [S]kip and direct handover flow.
 #
 # Parameters:
 #   -Action     Short description of what just failed
@@ -34,7 +113,7 @@ $script:PCVRHubInstallerSafetyModuleRoot = $PSScriptRoot
 #                  where the user MUST fix it (still no abort,
 #                  but the choices are only Retry/Quit).
 #
-# Returns one of: "retry" / "skip" / "quit"
+# Returns one of: "retry" / "skip"
 # Never returns until the user has made a choice.
 #
 function global:Invoke-InstallerFallback {
@@ -190,6 +269,8 @@ function global:Invoke-InstallerFallback {
     }
     if (-not $DestFile) { Write-Host "    $stepNum. Come back here and choose [R]etry." -ForegroundColor Gray }
 
+    $inheritedRecoveryFile = if ($DestFile) { Get-PCVRRecoveryInput -PathType Leaf } else { $null }
+    $inheritedRecoveryPending = [bool]$inheritedRecoveryFile
     while ($true) {
         Write-Host ""
         Write-Host "  Choices:" -ForegroundColor White
@@ -203,9 +284,14 @@ function global:Invoke-InstallerFallback {
                       else { "Reopen the folder in Explorer" }
             Write-Host "    [O]pen   -  $oLabel" -ForegroundColor Yellow
         }
-        Write-Host "    [Q]uit   -  Stop the installer" -ForegroundColor Yellow
-        $__prompt = if ($DestFile) { "  Drop the file here (or type R/S/Q)" } else { "  Your choice" }
-        $raw = ("" + (Read-Host $__prompt)).Trim()
+        $__prompt = if ($DestFile) { "  Drop the file here (or type R/S)" } else { "  Your choice" }
+        if ($inheritedRecoveryPending) {
+            $raw = [string]$inheritedRecoveryFile
+            $inheritedRecoveryPending = $false
+            Write-Host "  Trying the file handed over by the universal recovery screen." -ForegroundColor DarkGray
+        } else {
+            $raw = ("" + (Read-Host $__prompt)).Trim()
+        }
         if ($DestFile -and $raw) {
             $cand = $raw.Trim('"').Trim("'")
             if ((Test-Path -LiteralPath $cand -PathType Leaf -ErrorAction SilentlyContinue)) {
@@ -277,14 +363,10 @@ function global:Invoke-InstallerFallback {
             }
             continue
         }
-        if ($c -eq "q") {
-            return "quit"
-        }
         # Name exactly the options that are actually on offer.
         $validOpts = "R"
         if ($AllowSkip) { $validOpts += ", S" }
         if ($SourceFolder -or $DestFolder -or $Url) { $validOpts += ", O" }
-        $validOpts += " or Q"
         Write-Host "  Please answer $validOpts." -ForegroundColor Yellow
     }
 }
@@ -489,7 +571,10 @@ function global:Invoke-SafeDownload {
         # Independent mirrors or unchanged fork assets belong here, not in
         # Urls. They are attempted only when ExpectedSha256 proves that their
         # bytes are identical to the inspected upstream package.
-        [string[]]$VerifiedFallbackUrls = @()
+        [string[]]$VerifiedFallbackUrls = @(),
+        # New installers can provide their own compact progress line without
+        # changing the long-standing output of existing installers.
+        [switch]$QuietProgress
     )
     if ($null -ne $DownloadInfo) { $DownloadInfo.Clear() }
     $normalizedSha = ('' + $ExpectedSha256).Trim()
@@ -553,7 +638,7 @@ function global:Invoke-SafeDownload {
     foreach ($source in $sources) {
         $u = [string]$source.Url
         $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
-        Write-Host "  [..] Downloading $Label" -ForegroundColor Gray
+        if (-not $QuietProgress) { Write-Host "  [..] Downloading $Label" -ForegroundColor Gray }
         Write-Host "       From: $u [$($source.Kind)]" -ForegroundColor DarkGray
         try {
             # Preferred: streaming copy with a live progress bar + rate.
@@ -608,7 +693,7 @@ function global:Invoke-SafeDownload {
         $ghPrefix = ""
         if ($ghFile -match '^([A-Za-z]{4,})') { $ghPrefix = $matches[1] }
         try {
-            Write-Host "  [..] Trying the GitHub API to locate $Label (matching release asset)..." -ForegroundColor Gray
+            if (-not $QuietProgress) { Write-Host "  [..] Trying the GitHub API to locate $Label (matching release asset)..." -ForegroundColor Gray }
             $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$ghOwner/$ghRepo/releases" -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 10 -ErrorAction Stop
             if ($rels -isnot [array]) { $rels = @($rels) }
             $asset = $null
@@ -631,7 +716,7 @@ function global:Invoke-SafeDownload {
             if ($asset -and $asset.browser_download_url -and (-not $seen.ContainsKey([string]$asset.browser_download_url))) {
                 $au = [string]$asset.browser_download_url
                 $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
-                Write-Host "  [..] API resolved: $($asset.name) - downloading..." -ForegroundColor Gray
+                if (-not $QuietProgress) { Write-Host "  [..] API resolved: $($asset.name) - downloading..." -ForegroundColor Gray }
                 Write-Host "       From: $au" -ForegroundColor DarkGray
                 try {
                     if (_Invoke-DownloadWithProgress -Url $au -Destination $stage -Label $Label) {
@@ -699,7 +784,7 @@ function global:Invoke-SafeDownload {
 #
 # Usage:
 #   if (-not (Invoke-DownloadOrFallback -Url $MOD_URL -Destination $modZip -Label "MyMod")) {
-#       # user chose Skip or Quit - handle accordingly
+#       # user chose an explicitly allowed optional Skip - handle accordingly
 #   }
 #
 function global:Invoke-DownloadOrFallback {
@@ -791,7 +876,9 @@ function global:Expand-ArchiveOrFallback {
         [Parameter(Mandatory=$true)][string]$DestinationFolder,
         [string]$Label = "archive",
         [string]$SkipMessage = "",
-        [bool]$AllowSkip = $true
+        [bool]$AllowSkip = $true,
+        # Optional compact-output seam for newly governed installers.
+        [switch]$QuietProgress
     )
     if (-not (Test-Path $ArchivePath)) {
         Write-Host "  [!!] Archive not found at $ArchivePath" -ForegroundColor Yellow
@@ -801,6 +888,8 @@ function global:Expand-ArchiveOrFallback {
                 -SkipMessage $(if ($SkipMessage) { $SkipMessage } else { "Skipped - $Label was not extracted; downstream steps may fail (questionable result)." }) `
                 -SourceFolder (Split-Path "$ArchivePath" -Parent) `
                 -DestFolder $DestinationFolder `
+                -DestFile $ArchivePath `
+                -FileValidator { param($candidate) Test-DownloadedPayload -Path $candidate -IntendedPath $ArchivePath } `
                 -AllowSkip $AllowSkip
         return $r
     }
@@ -831,7 +920,7 @@ function global:Expand-ArchiveOrFallback {
             -SkipMessage $(if ($SkipMessage) { $SkipMessage } else { "Skipped - unsafe $Label was not extracted." }) `
             -AllowSkip $AllowSkip
         if ([string]$replacement -eq 'retry') {
-            return (Expand-ArchiveOrFallback -ArchivePath $ArchivePath -DestinationFolder $DestinationFolder -Label $Label -SkipMessage $SkipMessage -AllowSkip $AllowSkip)
+            return (Expand-ArchiveOrFallback -ArchivePath $ArchivePath -DestinationFolder $DestinationFolder -Label $Label -SkipMessage $SkipMessage -AllowSkip $AllowSkip -QuietProgress:$QuietProgress)
         }
         return $replacement
     }
@@ -850,7 +939,7 @@ function global:Expand-ArchiveOrFallback {
         } catch { }
     }
     if ($sevenZip) {
-        Write-Host "  [..] Extracting $Label with 7-Zip..." -ForegroundColor Gray
+        if (-not $QuietProgress) { Write-Host "  [..] Extracting $Label with 7-Zip..." -ForegroundColor Gray }
         try {
             $p = Start-Process -FilePath $sevenZip `
                     -ArgumentList "x","-y","-bso0","-bsp0","`"$ArchivePath`"","-o`"$DestinationFolder`"" `
@@ -880,7 +969,7 @@ function global:Expand-ArchiveOrFallback {
     # reproducible in a Linux container.
     # ZipFile::ExtractToDirectory looks inside the file and is
     # therefore independent of the name.
-    Write-Host "  [..] Extracting $Label ..." -ForegroundColor Gray
+    if (-not $QuietProgress) { Write-Host "  [..] Extracting $Label ..." -ForegroundColor Gray }
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
         if (-not (Test-Path -LiteralPath $DestinationFolder)) {
@@ -1282,7 +1371,7 @@ function global:Show-UpdateNoticeIfInstalled {
 # block with a single call:
 #
 #   $sevenZip = Get-SevenZip
-#   if (-not $sevenZip) { return }   # user chose Skip or Quit
+#   if (-not $sevenZip) { return }   # optional caller-specific Skip
 #
 function global:Get-SevenZip {
     param(
@@ -1701,16 +1790,18 @@ function global:Find-SteamDepotPath {
 #   -GogNames          GOG folder name(s) (resolved vs every GOG root)
 #   -EpicNames         Epic folder name(s) (resolved vs every Epic root)
 #
-#   -HubGameId         optional permanent CatalogIndex ID. If normal store
-#                      discovery fails, a checksum-verified Locate Game path
-#                      from LocalAppData is tried before manual path entry.
+#   -HubGameId         optional permanent CatalogIndex ID. A valid checksummed
+#                      Locate/install path from LocalAppData is tried before
+#                      store rediscovery and before any manual path entry.
 #
 # Returns: the folder that holds the game (or its Subdir), else $null.
 #
 function global:Get-HubLocatedGameFolder {
     param(
         [Parameter(Mandatory=$true)][string]$GameId,
-        [string[]]$ProbeFiles = @()
+        [string[]]$ProbeFiles = @(),
+        [string]$Subdir = '',
+        [string[]]$StateNames = @('user_located','installed_path')
     )
 
     $id = (($GameId.Trim().ToLowerInvariant() -replace '[^a-z0-9._-]', '-') -replace '-+', '-').Trim('-')
@@ -1742,7 +1833,7 @@ function global:Get-HubLocatedGameFolder {
     # assignment. installed_path is the same transaction's canonical install
     # root and remains a safe fallback for state created by an earlier build.
     $candidates = @()
-    foreach ($name in @('user_located','installed_path')) {
+    foreach ($name in @($StateNames | Where-Object { $_ -match '^[a-z0-9_]+$' } | Select-Object -Unique)) {
         try {
             if ($record.values.Contains($name)) {
                 $value = ('' + $record.values[$name]).Trim().Trim('"')
@@ -1753,16 +1844,82 @@ function global:Get-HubLocatedGameFolder {
 
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
         if (-not (Test-LiteralPathSafe -Path $candidate -PathType Container)) { continue }
+        $resolved = if ($Subdir) { Join-PathLexical $candidate $Subdir } else { $candidate }
+        if (-not (Test-LiteralPathSafe -Path $resolved -PathType Container)) { continue }
         $valid = $true
         foreach ($probe in @($ProbeFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
-            if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $candidate $probe) -PathType Leaf)) {
+            if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $resolved $probe) -PathType Leaf)) {
                 $valid = $false
                 break
             }
         }
-        if ($valid) { return $candidate }
+        if ($valid) { return $resolved }
     }
     return $null
+}
+
+# Return a durable folder previously confirmed by Locate Game or by a
+# successful installer transaction.  The wrapper supplies the stable catalog
+# id through PCVR_HUB_GAME_ID, so old and new installers can share this helper
+# without duplicating HubState parsing.  ProbeFiles are mandatory evidence for
+# the purpose of the caller (game exe, launcher, or mod file); a remembered
+# directory that no longer contains them is ignored and normal discovery may
+# continue.
+function global:Get-PCVRRememberedGameFolder {
+    param(
+        [string]$GameId = '',
+        [string[]]$ProbeFiles = @(),
+        [string]$Subdir = '',
+        [string[]]$StateNames = @('user_located','installed_path')
+    )
+
+    $resolvedId = if ($GameId) { $GameId.Trim() } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
+    if (-not $resolvedId) { return $null }
+    return Get-HubLocatedGameFolder -GameId $resolvedId -ProbeFiles $ProbeFiles -Subdir $Subdir -StateNames $StateNames
+}
+
+# Persist an installer-confirmed game root through the same checksummed
+# LocalAppData/portable-recovery state used by Locate Game.  This is the
+# installer-side half of the path contract: a manually selected folder must
+# survive both another installer run and replacement of the Hub directory.
+function global:Save-HubRememberedGameFolder {
+    param(
+        [Parameter(Mandatory=$true)][string]$GameId,
+        [Parameter(Mandatory=$true)][string]$Title,
+        [Parameter(Mandatory=$true)][string]$GameDir,
+        [string[]]$ProbeFiles = @(),
+        [string]$StateName = 'installed_path',
+        [switch]$UserSelected
+    )
+
+    $id = (($GameId.Trim().ToLowerInvariant() -replace '[^a-z0-9._-]', '-') -replace '-+', '-').Trim('-')
+    if (-not $id -or $StateName -notmatch '^[a-z0-9_]+$' -or -not (Test-LiteralPathSafe -Path $GameDir -PathType Container)) { return $false }
+    $full = $null
+    try { $full = [IO.Path]::GetFullPath($GameDir).TrimEnd([char[]]'\/') } catch { return $false }
+    foreach ($probe in @($ProbeFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+        if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $full $probe) -PathType Leaf)) { return $false }
+    }
+
+    $stateModule = Join-PathLexical $script:PCVRHubInstallerSafetyModuleRoot 'HubState.ps1'
+    if (-not (Test-LiteralPathSafe -Path $stateModule -PathType Leaf)) { return $false }
+    try {
+        return [bool](& {
+            param([string]$ModulePath,[string]$StableId,[string]$GameTitle,[string]$PathValue,[string]$ValueName,[bool]$Located)
+            . $ModulePath
+            $game = [pscustomobject]@{ Id=$StableId; Title=$GameTitle }
+            Write-PersistentGameStateValue -Game $game -Name $ValueName -Value $PathValue
+            if ($Located -and $ValueName -eq 'installed_path') {
+                Write-PersistentGameStateValue -Game $game -Name 'user_located' -Value $PathValue
+            }
+            $savedInstall = '' + (Read-PersistentGameStateValue -Game $game -Name $ValueName)
+            if ($savedInstall -cne $PathValue) { return $false }
+            if ($Located -and $ValueName -eq 'installed_path') {
+                $savedLocated = '' + (Read-PersistentGameStateValue -Game $game -Name 'user_located')
+                if ($savedLocated -cne $PathValue) { return $false }
+            }
+            return $true
+        } $stateModule $id $Title $full $StateName ([bool]$UserSelected))
+    } catch { return $false }
 }
 
 function global:Find-SteamGameFolder {
@@ -1775,6 +1932,16 @@ function global:Find-SteamGameFolder {
         [string[]]$EpicNames = @(),
         [string]$HubGameId = ""
     )
+
+    # A valid remembered assignment is authoritative. A user who already
+    # selected a custom store folder must not be sent through discovery (or a
+    # chooser) again merely because another copy exists in a default location.
+    # If its declared game file disappeared, discovery continues normally.
+    $resolvedHubGameId = if ($HubGameId) { $HubGameId } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
+    if ($resolvedHubGameId) {
+        $remembered = Get-HubLocatedGameFolder -GameId $resolvedHubGameId -ProbeFiles @($ProbeExe) -Subdir $Subdir
+        if ($remembered) { return $remembered }
+    }
 
     # Steam roots: Windows registry/defaults or the native Linux/macOS
     # locations. Keeping this branch host-native lets the same detection
@@ -1917,17 +2084,6 @@ function global:Find-SteamGameFolder {
     }
     foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } }
 
-    # Explicit Locate Game assignments are an additive source, never a blind
-    # replacement for store detection. The path is checksum-verified and the
-    # expected game file must still exist. Only then may manual input be skipped.
-    $resolvedHubGameId = if ($HubGameId) { $HubGameId } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
-    if ($resolvedHubGameId) {
-        $located = Get-HubLocatedGameFolder -GameId $resolvedHubGameId -ProbeFiles @($ProbeExe)
-        if ($located) {
-            if ($Subdir) { $located = Join-PathLexical $located $Subdir }
-            if (Test-LiteralPathSafe -Path $located -PathType Container) { return $located }
-        }
-    }
     return $null
 }
 
@@ -2001,14 +2157,16 @@ function global:Get-GameExeByDrop {
         Write-Host "    $GameFolder" -ForegroundColor White
     }
 
-    for ($i = 1; $i -le 10; $i++) {
+    $i = 0
+    while ($true) {
+        $i++
         Write-Host ""
         # Dropped paths arrive wrapped in quotes - strip those, plus any
         # stray whitespace Explorer adds after the drop.
-        $raw = ("" + (Read-Host "  Drop the .exe here (attempt $i/10, or press Enter to cancel)")).Trim().Trim('"').Trim()
+        $raw = ("" + (Read-Host "  Drop the .exe here (attempt $i)")).Trim().Trim('"').Trim()
         if (-not $raw) {
-            Write-Host "  Cancelled - nothing was changed." -ForegroundColor Gray
-            return $null
+            Write-Host "  No file was provided. Drag the executable here and try again." -ForegroundColor Yellow
+            continue
         }
         if (-not (Test-Path -LiteralPath $raw)) {
             Write-Host "  That path does not exist - try again." -ForegroundColor Yellow
@@ -2035,8 +2193,6 @@ function global:Get-GameExeByDrop {
         return $item.FullName
     }
 
-    Write-Host "  Too many attempts - leaving it as it is." -ForegroundColor Yellow
-    return $null
 }
 
 function global:Get-GameFolderInteractive {
@@ -2045,6 +2201,25 @@ function global:Get-GameFolderInteractive {
         [string]$ProbeFile = "",
         [string]$ManualUrl = ""
     )
+
+    # A successful Locate Game or earlier install is the first source.  This
+    # makes every installer using the shared interactive fallback remember a
+    # manually selected Steam/GOG/Epic/custom folder across Hub updates.
+    $rememberedPath = Get-PCVRRememberedGameFolder -ProbeFiles @($ProbeFile)
+    if ($rememberedPath) {
+        Write-Host "  [OK] Using the remembered install folder: $rememberedPath" -ForegroundColor Green
+        return $rememberedPath
+    }
+
+    $recoveryPath = Get-PCVRRecoveryInput
+    if ($recoveryPath) {
+        $candidate = if (Test-Path -LiteralPath $recoveryPath -PathType Leaf -ErrorAction SilentlyContinue) { Split-Path -Parent $recoveryPath } else { $recoveryPath }
+        if ((Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) -and
+            ((-not $ProbeFile) -or (Test-Path -LiteralPath (Join-Path $candidate $ProbeFile) -PathType Leaf -ErrorAction SilentlyContinue))) {
+            Write-Host "  [OK] Using the folder handed over by installer recovery: $candidate" -ForegroundColor Green
+            return (ConvertTo-PCVRCanonicalUserPath $candidate)
+        }
+    }
     Write-Host ""
     Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
     Write-Host "  Couldn't auto-detect the install folder for:" -ForegroundColor Yellow
@@ -2060,15 +2235,16 @@ function global:Get-GameFolderInteractive {
         Write-Host "  Help finding it:  $ManualUrl" -ForegroundColor Cyan
     }
     Write-Host ""
-    Write-Host "  Or type [Q] to quit without changes, [S] to skip this step." -ForegroundColor Yellow
+        Write-Host "  Or type [S] to skip this step deliberately." -ForegroundColor Yellow
 
-    for ($i = 1; $i -le 10; $i++) {
+    $i = 0
+    while ($true) {
+        $i++
         Write-Host ""
-        $p = ("" + (Read-Host "  Path (attempt $i/10)")).Trim('"').Trim()
-        if ($p -in @("q","Q","quit","exit")) { return "quit" }
+        $p = ("" + (Read-Host "  Path (attempt $i)")).Trim('"').Trim()
         if ($p -in @("s","S","skip"))        { return "skip" }
         if (-not $p) {
-            Write-Host "  Empty input - try again or [Q]uit." -ForegroundColor Yellow
+            Write-Host "  Empty input - try again or type S to skip deliberately." -ForegroundColor Yellow
             continue
         }
         if (-not (Test-Path $p)) {
@@ -2084,10 +2260,15 @@ function global:Get-GameFolderInteractive {
                 if ($ok -ne "y") { continue }
             }
         }
+        # This is a validated game location, not a claim that the VR mod is
+        # installed.  Persisting it here is therefore safe even if a later
+        # download fails; scanners still require their separate mod evidence.
+        $resolvedId = ('' + $env:PCVR_HUB_GAME_ID).Trim()
+        if ($resolvedId) {
+            [void](Save-HubRememberedGameFolder -GameId $resolvedId -Title $GameName -GameDir $p -ProbeFiles @($ProbeFile) -UserSelected)
+        }
         return $p
     }
-    Write-Host "  Too many invalid attempts - skipping this step." -ForegroundColor Yellow
-    return "skip"
 }
 
 # ---- Depot path resolver -----------------------------------
@@ -2104,10 +2285,9 @@ function global:Get-GameFolderInteractive {
 #   2) Paste the depot path manually.
 #
 # Empty input at the menu, or three failed manual-path attempts,
-# loops back to the menu. Pressing Enter at the top menu cleanly
-# ends the installer.
+# loops back to the menu. The error surface does not end the installer.
 #
-# Returns: validated absolute path, or $null on quit.
+# Returns: a validated absolute path.
 #
 function global:Resolve-DepotPath {
     param(
@@ -2172,15 +2352,14 @@ function global:Resolve-DepotPath {
             Write-Host "    [3] Use the DepotDownloader fallback (logs into Steam)" -ForegroundColor Yellow
         }
         Write-Host ""
-        Write-Host "  Press Enter (without typing anything) to quit the installer." -ForegroundColor DarkGray
+        Write-Host "  Press Enter to refresh the checks and show this menu again." -ForegroundColor DarkGray
 
         $choice = ("" + (Read-Host "  Your choice")).Trim()
-        if (-not $choice) { return $null }
-        if ($choice -eq "q" -or $choice -eq "Q") { return $null }
+        if (-not $choice) { continue }
 
         if ($choice -eq "1") {
             $clipOk = $false
-            try { Set-Clipboard -Value $DepotCommand -ErrorAction Stop; $clipOk = $true } catch {}
+            try { Set-Clipboard -Value $DepotCommand -DeferManualFallback -ErrorAction Stop; $clipOk = $true } catch {}
 
             Write-Host ""
             Write-Host "  Steam Console will open in your browser." -ForegroundColor White
@@ -2204,6 +2383,7 @@ function global:Resolve-DepotPath {
             foreach ($cu in @("steam://open/console", "steam://nav/console")) {
                 try { Start-Process $cu -ErrorAction SilentlyContinue | Out-Null; Start-Sleep -Milliseconds 900 } catch {}
             }
+            Show-PCVRClipboardManualFallback -Text $DepotCommand
 
             Write-Host "  When the download is COMPLETE, press Enter." -ForegroundColor White
             Write-Host "  If there was a PROBLEM (download did not finish), type I and press Enter." -ForegroundColor White
@@ -2250,7 +2430,7 @@ function global:Resolve-DepotPath {
             continue
         }
 
-        Write-Host "  Please enter a valid option (or press Enter to quit)." -ForegroundColor Yellow
+        Write-Host "  Please enter a valid option; Enter refreshes all checks." -ForegroundColor Yellow
     }
 }
 
@@ -2951,6 +3131,17 @@ function global:Install-MultiverseVRHub {
     $exeName = "MultiverseVRHub.exe"
     $pinned  = "https://github.com/$repo/releases/latest/download/$exeName"
 
+    # All catalog entries using this shared publisher hub receive their stable
+    # game ID from Run-Installer. Reuse the last verified folder before asking
+    # again; a moved/deleted executable simply falls through to normal choice.
+    $rememberedDir = Get-PCVRRememberedGameFolder -ProbeFiles @($exeName)
+    if ($rememberedDir) {
+        $DefaultDir = $rememberedDir
+        if (-not $Quiet) {
+            Write-OK "Using the remembered Multiverse VR Hub folder: $rememberedDir"
+        }
+    }
+
     if (-not $Quiet) {
         Write-Host ""
         Write-Host "  Where should the Multiverse VR Hub live?" -ForegroundColor White
@@ -2960,9 +3151,11 @@ function global:Install-MultiverseVRHub {
         Write-Host "    Default: $DefaultDir" -ForegroundColor Cyan
         Write-Host ""
     }
-    $dir = ""
-    try { $dir = ("" + (Read-Host "  Folder (Enter for the default)")).Trim().Trim('"') } catch {}
-    if (-not $dir) { $dir = $DefaultDir }
+    $dir = $rememberedDir
+    if (-not $dir) {
+        try { $dir = ("" + (Read-Host "  Folder (Enter for the default)")).Trim().Trim('"') } catch {}
+        if (-not $dir) { $dir = $DefaultDir }
+    }
 
     try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
     catch {
@@ -3030,6 +3223,11 @@ function global:Install-MultiverseVRHub {
         }
         Write-Host ""
         Write-OK "Multiverse VR Hub $tag is at: $dest"
+        $stableId = ('' + $env:PCVR_HUB_GAME_ID).Trim()
+        if ($stableId) {
+            [void](Save-HubRememberedGameFolder -GameId $stableId -Title 'Multiverse VR Hub route' `
+                -GameDir $dir -ProbeFiles @($exeName) -UserSelected)
+        }
         return $dest
     }
     Write-Warn "$exeName is not there - nothing was installed."
@@ -3055,6 +3253,7 @@ function global:Resolve-GitHubReleaseAsset {
         [string]$FallbackTag = "known fallback",
         [string]$FallbackAssetName = "",
         [bool]$IncludePrerelease = $false,
+        [switch]$SkipReleasesWithoutMatchingAsset,
         $ReleaseData = $null
     )
 
@@ -3067,6 +3266,7 @@ function global:Resolve-GitHubReleaseAsset {
         PageUrl = $page
         Resolved = $false
         ReleaseFound = $false
+        SkippedReleaseTags = @()
         Error = ""
     }
     if ($Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
@@ -3084,7 +3284,30 @@ function global:Resolve-GitHubReleaseAsset {
         $eligible = @($releases | Where-Object {
             $_ -and -not [bool]$_.draft -and ($IncludePrerelease -or -not [bool]$_.prerelease)
         } | Sort-Object -Property published_at -Descending)
-        $release = $eligible | Select-Object -First 1
+        $release = $null
+        $asset = $null
+        foreach ($candidate in $eligible) {
+            $candidateAsset = $null
+            foreach ($pattern in $AssetPatterns) {
+                if (-not $pattern) { continue }
+                $matches = @($candidate.assets | Where-Object { ([string]$_.name) -match $pattern })
+                if ($matches.Count -eq 1 -and $matches[0].browser_download_url) {
+                    $candidateAsset = $matches[0]
+                    break
+                }
+            }
+            if ($candidateAsset) {
+                $release = $candidate
+                $asset = $candidateAsset
+                break
+            }
+            if (-not $SkipReleasesWithoutMatchingAsset) {
+                $release = $candidate
+                break
+            }
+            if ($candidate.tag_name) { $result.SkippedReleaseTags += [string]$candidate.tag_name }
+        }
+        if (-not $release -and $eligible.Count -gt 0) { $release = $eligible[0] }
         if (-not $release) {
             $result.Error = 'no eligible GitHub release was returned'
             return [pscustomobject]$result
@@ -3094,11 +3317,12 @@ function global:Resolve-GitHubReleaseAsset {
         if ($release.tag_name) { $result.Tag = [string]$release.tag_name }
         if ($release.html_url) { $result.PageUrl = [string]$release.html_url }
 
-        $asset = $null
-        foreach ($pattern in $AssetPatterns) {
-            if (-not $pattern) { continue }
-            $matches = @($release.assets | Where-Object { ([string]$_.name) -match $pattern })
-            if ($matches.Count -eq 1) { $asset = $matches[0]; break }
+        if (-not $asset) {
+            foreach ($pattern in $AssetPatterns) {
+                if (-not $pattern) { continue }
+                $matches = @($release.assets | Where-Object { ([string]$_.name) -match $pattern })
+                if ($matches.Count -eq 1) { $asset = $matches[0]; break }
+            }
         }
         if (-not $asset -or -not $asset.browser_download_url) {
             # Do not silently return the old fallback when GitHub positively
@@ -3352,6 +3576,20 @@ function global:Find-PredownloadedFile {
         [switch]$PageAlreadyOpen
     )
 
+    # A path explicitly supplied on the wrapper's universal recovery screen
+    # is stronger than a historical browser filename. Validate functionally
+    # where the caller provided a validator, then let the normal extraction
+    # safety checks decide; old sizes and hashes are never gates here.
+    $recoveryFile = Get-PCVRRecoveryInput -PathType Leaf
+    if ($recoveryFile) {
+        $usable = $true
+        if ($Validator) { try { $usable = [bool](& $Validator $recoveryFile) } catch { $usable = $false } }
+        if ($usable) {
+            Write-Host "  [OK] Using the file handed over by installer recovery: $recoveryFile" -ForegroundColor Green
+            return $recoveryFile
+        }
+    }
+
     # No expectation and no explicit opt-in -> do not even search.
     # Silently, so nobody thinks they did something wrong.
     if ((-not $ExpectedName) -and ($ExpectedSize -le 0) -and (-not $ExpectedSha256) -and (-not $AllowUnverified)) {
@@ -3474,7 +3712,7 @@ function global:Save-InstalledStamp {
     # resolved the mod, and guessing wrong means no stamp at all - so
     # both candidates get one. A stamp in a folder nobody reads is a
     # harmless dotfile; a missing one brings back the swallowed update.
-    param($GameDir, $Version, [string]$HubDir)
+    param($GameDir, $Version, [string]$HubDir, [switch]$Second)
 
     if (-not (Test-IsTrackableInstalledVersion -Version $Version)) { return }
     $val = ([string]$Version).Trim()
@@ -3486,7 +3724,8 @@ function global:Save-InstalledStamp {
         # Provider-independent: does not require a dead drive letter to be
         # mounted, and uses the host separator so the regression suite also
         # works outside Windows.
-        $t = [IO.Path]::Combine(([string]$d), ".pcvrhub_version")
+        $stampName = if ($Second) { '.pcvrhub_version_b' } else { '.pcvrhub_version' }
+        $t = [IO.Path]::Combine(([string]$d), $stampName)
         if ($targets -notcontains $t) { $targets += $t }
     }
     foreach ($t in $targets) {
@@ -3512,12 +3751,12 @@ function global:Save-InstalledStamp {
                     outcome = 'success'
                     completedAt = (Get-Date -Format o)
                     evidence = @($evidence)
-                    versionWritten = $true
-                    versionBWritten = $false
+                    versionWritten = (-not $Second)
+                    versionBWritten = [bool]$Second
                     installedPathWritten = [bool]$installedRoot
                     installedPath = $installedRoot
-                    versionValue = $val
-                    versionBValue = ''
+                    versionValue = $(if ($Second) { '' } else { $val })
+                    versionBValue = $(if ($Second) { $val } else { '' })
                     runId = ('' + $env:PCVR_HUB_INSTALL_RUN_ID)
                 }
                 [IO.File]::WriteAllText($statusPath, ($status | ConvertTo-Json -Compress), $enc)
@@ -3780,11 +4019,10 @@ function global:Show-AntivirusFileLoss {
 # ---------------------------------------------------------------
 #  Did the files we just wrote survive?
 # ---------------------------------------------------------------
-# A scanner does not always strike while the file is being written. It
-# often sweeps a moment later, and the file is gone AFTER the installer
-# has already reported success. So the check waits, looks again, and if
-# something vanished it walks the user through an exclusion and copies
-# the files a second time.
+# A scanner can remove a file shortly after it is written, but missing files
+# can also expose an installer, path or permission problem. The check waits,
+# reports the symptom without claiming a proven cause, and offers both the
+# antivirus route and direct folder inspection before a controlled retry.
 #
 # WHERE THE EXCLUSION IS SET, per product. Only the menu path - the Hub
 # never sets an exclusion itself. Doing that from a script is what
@@ -3824,11 +4062,11 @@ function global:Get-AvExclusionPath {
 function global:Restore-FromArchiveInGameFolder {
     param([string]$ArchivePath, [string]$GameDir, [string[]]$Paths)
     if (-not $GameDir) {
-        Write-Warn "No exclusion folder was supplied, so the files cannot be restored safely."
+        Write-Host "  [!!] No exclusion folder was supplied, so the files cannot be restored safely." -ForegroundColor Yellow
         return $false
     }
     if (-not $ArchivePath -or -not (Test-Path -LiteralPath $ArchivePath)) {
-        Write-Warn "The downloaded archive is gone as well - run the installer again once the exclusion is set."
+        Write-Host "  [!!] The downloaded archive is gone as well - run the installer again once the exclusion is set." -ForegroundColor Yellow
         return $false
     }
     $stage = Join-Path $GameDir "_pcvrhub_restage"
@@ -3848,7 +4086,7 @@ function global:Restore-FromArchiveInGameFolder {
         $unpack = Expand-ArchiveOrFallback -ArchivePath $localArchive -DestinationFolder $contentDir `
                     -Label "antivirus recovery package" -AllowSkip $false
         if ([string]$unpack -ne "ok" -and [string]$unpack -ne "manual") {
-            Write-Warn "The package could not be unpacked inside the excluded folder."
+            Write-Host "  [!!] The package could not be unpacked inside the excluded folder." -ForegroundColor Yellow
             return $false
         }
 
@@ -3875,7 +4113,7 @@ function global:Restore-FromArchiveInGameFolder {
         }
         $restored = (@($Paths | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -eq 0)
     } catch {
-        Write-Warn "Could not put the files back: $($_.Exception.Message)"
+        Write-Host "  [!!] Could not put the files back: $($_.Exception.Message)" -ForegroundColor Yellow
     } finally {
         if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
     }
@@ -3888,100 +4126,107 @@ function global:Confirm-PlacedFilesSurvive {
         [string]$GameDir,          # what the user should exclude
         [scriptblock]$Recopy,      # optional: installer-specific recovery
         [string]$ArchivePath,      # or just the archive - handled generically
-        [int]$WaitSeconds = 3
+        [int]$WaitSeconds = 3,
+        # Test seams for the real interactive recovery loop.
+        [scriptblock]$ReadInput = $null,
+        [scriptblock]$OpenExclusions = $null,
+        [scriptblock]$OpenGameFolder = $null,
+        [scriptblock]$GetAntivirusNames = $null,
+        [switch]$NoClear
     )
     if (-not $Paths -or $Paths.Count -eq 0) { return $true }
     Start-Sleep -Seconds $WaitSeconds
     $gone = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_) })
     if ($gone.Count -eq 0) { return $true }
 
-    Write-Host ""
-    Write-Host "  FILES THAT WERE JUST PLACED HAVE DISAPPEARED. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-    Write-Host ""
-    foreach ($g in ($gone | Select-Object -First 6)) { Write-Host "    $g" -ForegroundColor DarkGray }
-    if ($gone.Count -gt 6) { Write-Host "    ... and $($gone.Count - 6) more" -ForegroundColor DarkGray }
-    Write-Host ""
-    $avNames = @(Get-ActiveAntivirusNames)
+    $avNames = if ($GetAntivirusNames) { @(& $GetAntivirusNames) } else { @(Get-ActiveAntivirusNames) }
     $av = if ($avNames.Count -gt 0) { $avNames -join ', ' } else { $null }
-    if ($av) { Write-Host "  The cause is most likely your antivirus. You are running: $av" -ForegroundColor White }
-    else      { Write-Host "  The cause is most likely an antivirus tool on this machine." -ForegroundColor White }
-    Write-Host "  It flagged one of the mod's files - almost always a false positive." -ForegroundColor Gray
-    Write-Host ""
-
-    $guidance = @()
-    foreach ($avName in $avNames) {
-        $howTo = Get-AvExclusionPath -Name $avName
-        if ($howTo) { $guidance += [pscustomobject]@{ Name=$avName; Path=$howTo } }
-    }
-    if ($guidance.Count -gt 0) {
-        Write-Host "  Where to add the exclusion:" -ForegroundColor White
-        foreach ($guide in $guidance) {
-            Write-Host "    $($guide.Name): $($guide.Path)" -ForegroundColor Gray
-        }
-    } else {
-        Write-Host "  Add a FOLDER exclusion in your antivirus for the path below." -ForegroundColor White
-    }
-    Write-Host ""
-    Write-Host "  The folder to exclude:" -ForegroundColor White
-    Write-Host "    $GameDir" -ForegroundColor Cyan
     $copied = $false
-    try { Set-Clipboard -Value $GameDir -ErrorAction Stop; $copied = $true } catch {}
-    if ($copied) { Write-Host "    (already on your clipboard - just paste it)" -ForegroundColor DarkGray }
-    Write-Host ""
-
-    # Same trap here: only MICROSOFT's Defender has that settings page.
-    # THE WAY OUT IS NAMED, IN GREY. Adding an exclusion is a real
-    # security decision and it is not ours to push. Whoever would rather
-    # not do it must be able to see that stopping here is a normal
-    # choice, not a failure - so it is said plainly, and said quietly.
-    Write-Host "  Alternatively, if you don't want to do that, you can close the" -ForegroundColor DarkGray
-    Write-Host "  installer at this point. Nothing further will be changed." -ForegroundColor DarkGray
-    Write-Host ""
-
+    try { Set-Clipboard -Value $GameDir -DeferManualFallback -ErrorAction Stop; $copied = [bool]$global:PCVRLastClipboardWriteSucceeded } catch {}
     $microsoftDefenderActive = (@($avNames | Where-Object { $_ -match '(?i)windows defender|microsoft defender' }).Count -gt 0)
-    if ($microsoftDefenderActive) {
-        # windowsdefender://exclusions lands on the exclusion list ITSELF,
-        # not on the Windows Security overview - five clicks saved. Only
-        # Microsoft's Defender has such a handler; the third-party tools
-        # below have no equivalent, so for those we can only say where to
-        # look.
-        Pause-User "Press Enter to open the exclusion list, then add the folder..."
-        try { Start-Process "windowsdefender://exclusions" } catch {
-            try { Start-Process "ms-settings:windowsdefender" } catch {}
+    $lastProblem = ''
+
+    while ($true) {
+        # Keep the actionable message on one screen. Clear-Host affects only
+        # the visible console; the transcript still retains earlier steps.
+        if (-not $NoClear) { try { Clear-Host } catch {} }
+        Write-Host ('=' * 60) -ForegroundColor Yellow
+        Write-Host '  REQUIRED FILES ARE MISSING' -ForegroundColor Black -BackgroundColor Yellow
+        Write-Host ('=' * 60) -ForegroundColor Yellow
+        Write-Host ''
+        Write-Host '  The listed files are missing after the copy check:' -ForegroundColor White
+        $rootPrefix = $null
+        try { if ($GameDir) { $rootPrefix = [IO.Path]::GetFullPath($GameDir).TrimEnd('\','/') + '\' } } catch {}
+        foreach ($missing in ($gone | Select-Object -First 6)) {
+            $shown = [string]$missing
+            try {
+                $fullMissing = [IO.Path]::GetFullPath([string]$missing)
+                if ($rootPrefix -and $fullMissing.StartsWith($rootPrefix,[StringComparison]::OrdinalIgnoreCase)) { $shown = $fullMissing.Substring($rootPrefix.Length) }
+            } catch {}
+            Write-Host "    $shown" -ForegroundColor DarkGray
         }
-    } else {
-        Pause-User "Press Enter once you have opened your antivirus..."
-    }
+        if ($gone.Count -gt 6) { Write-Host "    ... and $($gone.Count - 6) more" -ForegroundColor DarkGray }
+        Write-Host ''
+        Write-Host '  This may be antivirus-related, especially if the files appeared' -ForegroundColor White
+        Write-Host '  first and then vanished. An installer or path issue is also possible.' -ForegroundColor White
+        if ($av) { Write-Host "  Detected protection: $av" -ForegroundColor Gray }
+        Write-Host ''
+        if ($microsoftDefenderActive) {
+            Write-Host '  Windows Defender: Windows Security > Virus & threat protection >' -ForegroundColor Gray
+            Write-Host '  Manage settings > Add or remove exclusions >' -ForegroundColor Gray
+            Write-Host '  Add an exclusion > Folder' -ForegroundColor Gray
+        } else {
+            Write-Host '  Add a folder exclusion in your antivirus for:' -ForegroundColor Gray
+        }
+        Write-Host "  $GameDir" -ForegroundColor Cyan
+        if ($copied) { Write-Host '  The folder path is already on your clipboard.' -ForegroundColor DarkGray }
+        else { Write-Host '  If needed, select the folder path above and press Ctrl+C.' -ForegroundColor DarkGray }
+        if ($lastProblem) { Write-Host ''; Write-Host "  $lastProblem" -ForegroundColor Yellow }
+        Write-Host ''
+        Write-Host '  Choices:' -ForegroundColor White
+        if ($microsoftDefenderActive) { Write-Host '  [O] Open Windows Defender exclusions' -ForegroundColor Gray }
+        Write-Host '  [F] Open the game folder' -ForegroundColor Gray
+        Write-Host '  [R] Retry file placement now' -ForegroundColor Green
+        $prompt = if ($microsoftDefenderActive) { 'O, F or R' } else { 'F or R' }
+        $raw = if ($ReadInput) { & $ReadInput $prompt } else { Read-Host '  Your choice' }
+        $choice = ('' + $raw).Trim().ToUpperInvariant()
 
-    Pause-User "Press Enter when the exclusion is set - the files are then copied again..."
-    $restoreAttempted = $false
-    if ($Recopy) {
-        # !!! THE SECOND ATTEMPT MUST HAPPEN INSIDE THE EXCLUDED FOLDER.
-        # The exclusion the user just added covers the GAME folder - it
-        # does not cover %TEMP%. So a Recopy block that pulls from a temp
-        # staging folder can fail twice over: the scanner may have taken
-        # the source there as well, and it will keep taking it. Every
-        # Recopy block therefore has to fetch or unpack into a folder
-        # UNDER $GameDir, which is now protected ground.
-        Write-Host "  Putting the files back - this time from inside the excluded folder..." -ForegroundColor White
-        $restoreAttempted = $true
-        try { & $Recopy | Out-Null } catch { Write-Warn "The second attempt failed: $($_.Exception.Message)" }
-    } elseif ($ArchivePath) {
-        Write-Host "  Putting the files back - this time from inside the excluded folder..." -ForegroundColor White
-        $restoreAttempted = $true
-        [void](Restore-FromArchiveInGameFolder -ArchivePath $ArchivePath -GameDir $GameDir -Paths $Paths)
-    }
+        if ($choice -eq 'O' -and $microsoftDefenderActive) {
+            if ($OpenExclusions) { & $OpenExclusions | Out-Null }
+            else {
+                try { Start-Process 'windowsdefender://exclusions' -ErrorAction Stop | Out-Null }
+                catch { try { Start-Process 'ms-settings:windowsdefender' -ErrorAction Stop | Out-Null } catch {} }
+            }
+            $lastProblem = 'After adding the folder exclusion, choose R.'
+            continue
+        }
+        if ($choice -eq 'F') {
+            try {
+                if ($OpenGameFolder) { & $OpenGameFolder $GameDir | Out-Null }
+                elseif (Test-Path -LiteralPath $GameDir -PathType Container) { Invoke-Item -LiteralPath $GameDir -ErrorAction Stop }
+                else { throw 'The game folder is not available.' }
+                $lastProblem = 'After inspecting the folder, choose R to retry.'
+            } catch { $lastProblem = 'Could not open the game folder: ' + $_.Exception.Message }
+            continue
+        }
+        if ($choice -ne 'R') { $lastProblem = "Choose $prompt."; continue }
 
-    # A successful copy is not enough: the original problem was a delayed
-    # scanner sweep. Give the second copy the same three-second survival
-    # window before allowing the installer to continue.
-    if ($restoreAttempted) { Start-Sleep -Seconds $WaitSeconds }
-    $still = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_) })
-    if ($still.Count -eq 0) { Write-OK "The files are in place now."; return $true }
-    Write-Warn "Still missing: $($still.Count) file(s). The exclusion may not cover this folder yet."
-    foreach ($missing in ($still | Select-Object -First 6)) { Write-Host "    $missing" -ForegroundColor DarkGray }
-    Write-Host "  Correct the folder exclusion, then run this installer again." -ForegroundColor Gray
-    return $false
+        $lastProblem = ''
+        try {
+            if ($Recopy) {
+                & $Recopy | Out-Null
+            } elseif ($ArchivePath) {
+                [void](Restore-FromArchiveInGameFolder -ArchivePath $ArchivePath -GameDir $GameDir -Paths $Paths)
+            }
+        } catch { $lastProblem = 'Retry failed: ' + $_.Exception.Message }
+
+        # A successful copy is not enough: the original problem was a delayed
+        # scanner sweep. Give every retry the same survival window.
+        Start-Sleep -Seconds $WaitSeconds
+        $gone = @($Paths | Where-Object { -not (Test-Path -LiteralPath $_) })
+        if ($gone.Count -eq 0) { Write-Host '  [OK] The files are in place now.' -ForegroundColor Green; return $true }
+        if (-not $lastProblem) { $lastProblem = "$($gone.Count) file(s) are still missing. Check the folder or exclusion, then retry." }
+    }
 }
 
 

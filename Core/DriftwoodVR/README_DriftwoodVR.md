@@ -60,13 +60,13 @@ VR controllers are used directly (not mapped to a virtual gamepad).
 
 ### Hotkey combinations
 
-- **L stick click + R stick click** - recenter view
-- **[[Right Grip]] + L stick click** - toggle first/third person view
-- **[[Right Grip]] + L stick up** - switch wheels up
-- **[[Right Grip]] + L stick down** - switch wheels down
-- **[[Right Grip]] + L stick left** - switch board left
-- **[[Right Grip]] + L stick right** - switch board right
-- **[[Right Grip]] + Y** - skip song
+- [[Left Stick Click]] + [[Right Stick Click]] - recenter view
+- [[Right Grip]] + [[Left Stick Click]] - toggle first/third person view
+- [[Right Grip]] + [[Left Stick Up]] - switch wheels up
+- [[Right Grip]] + [[Left Stick Down]] - switch wheels down
+- [[Right Grip]] + [[Left Stick Left]] - switch board left
+- [[Right Grip]] + [[Left Stick Right]] - switch board right
+- [[Right Grip]] + [[Y]] - skip song
 
 ### Motion gaming
 

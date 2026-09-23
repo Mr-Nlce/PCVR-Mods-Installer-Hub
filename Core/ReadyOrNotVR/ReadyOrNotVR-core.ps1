@@ -360,7 +360,7 @@ if ($isDepot) {
     Write-Host "  The Steam Console opens next; what to do there comes right after." -ForegroundColor White
     Write-Host ""
     $clipDepot = $false
-    try { Set-Clipboard -Value $DEPOT_COMMAND; $clipDepot = $true } catch {}
+    try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback; $clipDepot = $true } catch {}
     if ($clipDepot) { Write-OK "Command copied to your clipboard." } else { Write-Warn "Could not copy to the clipboard - the command is printed below." }
     if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAction SilentlyContinue) {
         Write-Host ""
@@ -409,6 +409,7 @@ if ($isDepot) {
     foreach ($u in @("steam://open/console", "steam://nav/console")) {
         try { Start-Process $u; Start-Sleep -Milliseconds 900 } catch {}
     }
+    Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 
     Write-Host ""
     Write-Host "  The command is on your clipboard - click into the console," -NoNewline -ForegroundColor White
@@ -715,7 +716,7 @@ Next-Step "Steam launch options (required)"
 Write-Host "  The mod only activates with the right Steam launch options." -ForegroundColor White
 Write-Host ""
 $clipOk = $false
-try { Set-Clipboard -Value $LAUNCH_OPTS; $clipOk = $true } catch { $clipOk = $false }
+try { Set-Clipboard -Value $LAUNCH_OPTS -DeferManualFallback; $clipOk = $true } catch { $clipOk = $false }
 if ($clipOk) {
     Write-OK "Launch options copied to your clipboard:"
 } else {
@@ -731,6 +732,7 @@ Write-Host "  Tip: paste, do not type - a stray space (like '- usehmd')" -Foregr
 Write-Host "  stops VR from starting." -ForegroundColor Gray
 Pause-User "Press Enter to open Steam properties for Ready Or Not..."
 try { Start-Process "steam://gameproperties/$APP_ID" } catch { Write-Warn "Open Steam manually: right-click Ready Or Not -> Properties -> General." }
+Show-PCVRClipboardManualFallback -Text $LAUNCH_OPTS
 Pause-User "Press Enter once you have set DX11, pasted the options, and closed Steam properties..."
 }
 
@@ -907,7 +909,7 @@ if ($isDepot) {
     }
 } elseif ($vrChoice -eq 2) {
     $clip2 = $false
-    try { Set-Clipboard -Value $LAUNCH_OPTS_AUTOVR; $clip2 = $true } catch { $clip2 = $false }
+    try { Set-Clipboard -Value $LAUNCH_OPTS_AUTOVR -DeferManualFallback; $clip2 = $true } catch { $clip2 = $false }
     if ($clip2) { Write-OK "New launch options copied to your clipboard:" } else { Write-Warn "Could not copy - type these in by hand:" }
     Write-Host "        $LAUNCH_OPTS_AUTOVR" -ForegroundColor Green
     Write-Host ""
@@ -915,6 +917,7 @@ if ($isDepot) {
     Write-Host "  select all (Ctrl+A) and paste (Ctrl+V) to replace the command." -ForegroundColor White
     Pause-User "Press Enter to open Steam properties for Ready Or Not..."
     try { Start-Process "steam://gameproperties/$APP_ID" } catch { Write-Warn "Open Steam manually: right-click Ready Or Not -> Properties -> General." }
+    Show-PCVRClipboardManualFallback -Text $LAUNCH_OPTS_AUTOVR
     Pause-User "Press Enter once you have replaced the launch options and closed Steam properties..."
 } else {
     Write-OK "Manual it is - press U in-game after the mission loads to enter VR."

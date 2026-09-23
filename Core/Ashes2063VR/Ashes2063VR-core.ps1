@@ -198,7 +198,10 @@ try {
     # Detect from FILES ON DISK (a fresh Hub has no .installed_path). A
     # valid install has both Resources\ and gzdoomvr\ under the folder.
     $probeRoots = New-Object System.Collections.Generic.List[string]
-    # 1) The recorded path, if the marker happens to be present.
+    # 1) The checksummed cross-update Hub assignment.
+    $durableRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('Play Ashes 2063 VR.bat')
+    if ($durableRoot) { [void]$probeRoots.Add($durableRoot) }
+    # 2) The recorded path, if the legacy marker happens to be present.
     try {
         $ipFile = Join-Path $SCRIPT_DIR ".installed_path"
         if (Test-Path -LiteralPath $ipFile) {
@@ -206,7 +209,7 @@ try {
             if ($cand) { [void]$probeRoots.Add($cand.Trim()) }
         }
     } catch {}
-    # 2) The standard install locations (C:/D:/E:\Games\Ashes 2063 VR).
+    # 3) The standard install locations (C:/D:/E:\Games\Ashes 2063 VR).
     # Build these WITHOUT Join-Path: on some PowerShell versions Join-Path
     # throws DriveNotFound if D:/E: don't exist, which would abort the
     # whole detection. Plain string join never validates the drive.

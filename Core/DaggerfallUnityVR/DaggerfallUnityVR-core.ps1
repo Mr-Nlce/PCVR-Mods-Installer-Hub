@@ -163,12 +163,15 @@ foreach ($r in $DEFAULT_ROOTS) {
 }
 if (-not $defaultParent) { $defaultParent = "C:\Games" }
 $defaultPath = Join-Path $defaultParent $GAME_FOLDER
+$rememberedInstall = Get-PCVRRememberedGameFolder -ProbeFiles @($MOD_FILE)
+if ($rememberedInstall) { $defaultPath = $rememberedInstall }
 
 Write-Host "  Default install location: $defaultPath" -ForegroundColor Gray
 Write-Host "  (Recommended: C:\Games keeps it off the Steam library and away" -ForegroundColor DarkGray
 Write-Host "   from Program Files / UAC issues.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use the default, or type a different full path").Trim().Trim('"')
+$userInput = if ($rememberedInstall) { '' } else { (Read-Host "  Press Enter to use the default, or type a different full path").Trim().Trim('"') }
+if ($rememberedInstall) { Write-OK "Using remembered install location: $rememberedInstall" }
 if (-not $userInput) {
     $installRoot = $defaultPath
 } elseif ((Split-Path $userInput -Leaf) -eq $GAME_FOLDER) {

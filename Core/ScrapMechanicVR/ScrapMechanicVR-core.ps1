@@ -126,6 +126,8 @@ function Get-SteamLibraries {
 }
 
 function Find-GamePath {
+ $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_current','user_located')
+ if ($remembered) { return $remembered }
  foreach ($lib in (Get-SteamLibraries (Get-SteamPath))) {
   $cand = "$lib\steamapps\common\$GAME_NAME"
   # Lexical: $cand is built from a library path that may be on a drive
@@ -216,6 +218,12 @@ function Save-CurrentHubState {
   try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.launch_exe'), $batPath, (New-Object Text.UTF8Encoding $false)) } catch {}
  }
  try { [IO.File]::WriteAllText((Join-Path $PSScriptRoot $VersionFile), $version, (New-Object Text.UTF8Encoding $false)) } catch {}
+ $stateName = switch ($PathFile) {
+  '.installed_path_depot' { 'installed_path_depot' }
+  '.installed_path_legacy_depot' { 'installed_path_legacy_depot' }
+  default { 'installed_path_current' }
+ }
+ [void](Save-HubRememberedGameFolder -GameId 'scrap-mechanic-vr' -Title $GAME_NAME -GameDir $gamePath -StateName $stateName)
  Save-InstalledStamp -GameDir $gamePath -Version $version
 }
 
@@ -463,6 +471,7 @@ function Write-Markers {
  param([string]$gamePath, [string]$batPath, [string]$PathFile = '.installed_path_legacy_depot')
  try { Set-Content -LiteralPath (Join-Path $PSScriptRoot $PathFile) -Value $gamePath -Encoding UTF8 -Force } catch {}
  try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version_legacy_depot") -Value $LEGACY_MOD_VERSION -Encoding UTF8 -Force } catch {}
+ [void](Save-HubRememberedGameFolder -GameId 'scrap-mechanic-vr' -Title $GAME_NAME -GameDir $gamePath -StateName 'installed_path_legacy_depot')
  # ALSO write the durable stamp next to the GAME (2026-08-20).
  # The line above lands inside the Hub folder and is gone as
  # soon as a new Hub build is dropped in; the scan then finds
@@ -610,7 +619,7 @@ if ($routeKind -eq 'Confirmed') {
   Write-Host " DOWNLOAD $step OF $($DEPOTS.Count) - $($d.Label)" -ForegroundColor Yellow
   Write-Host " ============================================================" -ForegroundColor Yellow
   $clipOk = $false
-  try { Set-Clipboard -Value $d.Command; $clipOk = $true } catch {}
+  try { Set-Clipboard -Value $d.Command -DeferManualFallback; $clipOk = $true } catch {}
   Write-Host ""
 # !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
 # steamapps\content, so a second run - or a run after a crash - already
@@ -633,6 +642,7 @@ if ($script:PreFoundDepot) {
   foreach ($cu in @("steam://open/console", "steam://nav/console")) {
       try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
   }
+  Show-PCVRClipboardManualFallback -Text $d.Command
   Write-OK "Steam Console in front."
   Write-Host ""
   if ($clipOk) {
@@ -703,7 +713,10 @@ if ($script:PreFoundDepot) {
  Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
  Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
  Write-Host ""
- $userInput = (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"')
+ $routeStateName = if ($routeKind -eq 'Confirmed') { 'installed_path_depot' } else { 'installed_path_legacy_depot' }
+ $rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE) -StateNames @($routeStateName)
+ $userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"') }
+ if ($rememberedTarget) { Write-OK "Using remembered $routeKind depot location: $rememberedTarget" }
  if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }
 
  $targetParent = Get-PathParentLexical $targetPath

@@ -361,7 +361,7 @@ try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
 # Launch option
 if ($lcvrVersion) {
  $launchOpt = "--lcvr-skip-checksum=$lcvrVersion"
- try{Set-Clipboard -Value $launchOpt}catch{}
+ try{Set-Clipboard -Value $launchOpt -DeferManualFallback}catch{}
  Write-Host ""
  Write-Host " ============================================================" -ForegroundColor Yellow
  Write-Host " ACTION REQUIRED - Steam Launch Option" -ForegroundColor Yellow
@@ -376,7 +376,8 @@ if ($lcvrVersion) {
  Write-Host ""
  Pause-User "Press Enter to open Steam Launch Options..."
  Start-Process "steam://gameproperties/$STEAM_APP"
- try{Set-Clipboard -Value $launchOpt}catch{}
+ try{Set-Clipboard -Value $launchOpt -DeferManualFallback}catch{}
+ Show-PCVRClipboardManualFallback -Text $launchOpt
  Pause-User "Press Enter once you have pasted the launch option and closed Properties..."
 }
 

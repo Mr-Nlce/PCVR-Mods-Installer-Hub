@@ -243,7 +243,7 @@ Write-Step 3 5 "Steam Launch Options"
 
 $launchOptions = "-overridenohmd -dx11"
 
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Yellow
@@ -260,7 +260,8 @@ Write-Host ""
 Pause-User "Press Enter to open Steam Launch Options..."
 
 Start-Process "steam://gameproperties/$STEAM_APP_ID"
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
+Show-PCVRClipboardManualFallback -Text $launchOptions
 
 Pause-User "Press Enter once you have pasted the launch options and closed Properties..."
 

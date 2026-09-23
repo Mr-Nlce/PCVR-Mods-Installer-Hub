@@ -22,6 +22,9 @@ $global:discoverDetailHost = $window.FindName("DiscoverDetailHost")
 $global:discoverOverview   = $window.FindName("DiscoverOverviewScroll")
 $global:listScroll         = $window.FindName("ListScroll")
 $global:DiscoverTilesBuilt = $false
+$global:DiscoverTilesBuilding = $false
+$global:DiscoverTileBuildQueue = $null
+$global:DiscoverTileBuildPasses = 0
 
 # ---------------------------------------------------------------
 # DRAG TO SCROLL - middle mouse button, and finger on a touchscreen

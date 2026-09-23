@@ -1,4 +1,4 @@
-# F.E.A.R. VR - thefreemike's GOG build.
+# F.E.A.R. VR - thefreemike's unified GOG and Steam build.
 # The VR archive is acquired at run time and is never bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
@@ -9,15 +9,16 @@ $MOD_AUTHOR     = 'thefreemike'
 $REPO           = 'thefreemike31/fear-vr'
 $RELEASES_URL   = 'https://github.com/thefreemike31/fear-vr/releases'
 $GAME_EXE       = 'FEAR.exe'
+$HUB_GAME_ID    = 'f-e-a-r-vr'
 $MOD_MARKER     = 'fearvr_bridge.dll'
 $MOD_LAUNCHER   = 'F.E.A.R. VR.exe'
 $MOD_UNINSTALL  = 'FEAR-VR-Install\Uninstall F.E.A.R. VR.exe'
 $PUBLIC_MARKER  = '.pcvrhub_thefreemike_public'
 $SETUP_EXE      = 'F.E.A.R. VR Setup.exe'
-$PIN_VERSION    = 'v0.1.0'
-$PIN_NAME       = 'fear-vr-v0.1.0.zip'
-$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v0.1.0/fear-vr-v0.1.0.zip'
-$PIN_SHA        = '598BEB18A6058D96EB5F2FDFE7C1DD59040CF9CB812DB327501F359052AB4E6B'
+$PIN_VERSION    = 'v1.3.1'
+$PIN_NAME       = 'fear-vr-v1.3.1.zip'
+$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v1.3.1/fear-vr-v1.3.1.zip'
+$PIN_SHA        = '8F2B673E0E537EE83985547BB35A5879AA5B73CBC6689A5F5A00150809C3229C'
 $QUIP           = 'Slow time. Check the shadows. Alma is already here.'
 
 function Write-OK   { param([string]$Text) Write-Host "  [OK] $Text" -ForegroundColor Green }
@@ -32,6 +33,17 @@ function Get-Sha {
 }
 
 function Get-FearGogFolder {
+    foreach ($base in @('HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games','HKLM:\SOFTWARE\GOG.com\Games')) {
+        try {
+            foreach ($key in @(Get-ChildItem -Path $base -ErrorAction SilentlyContinue)) {
+                try {
+                    $props = Get-ItemProperty -Path $key.PSPath -ErrorAction Stop
+                    $candidate = ('' + $props.path).Trim().Trim('"')
+                    if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf)) { return $candidate }
+                } catch {}
+            }
+        } catch {}
+    }
     foreach ($root in @('C:\GOG Games','D:\GOG Games','E:\GOG Games','C:\Program Files (x86)\GOG Galaxy\Games','C:\Program Files\GOG Galaxy\Games')) {
         foreach ($folder in @('F.E.A.R. Platinum Collection','FEAR Platinum Collection','F.E.A.R. Platinum','FEAR')) {
             $candidate = $root.TrimEnd([char[]]'\/') + '\' + $folder
@@ -39,6 +51,84 @@ function Get-FearGogFolder {
         }
     }
     return $null
+}
+
+function Get-FearRememberedFolder {
+    $canonical = Get-HubLocatedGameFolder -GameId $HUB_GAME_ID -ProbeFiles @($GAME_EXE)
+    if ($canonical) { return $canonical }
+    # Migration bridge for existing Hub folders: older builds wrote these
+    # receipts but never read them. Once an update completes, the path is also
+    # committed to checksummed LocalAppData and survives Hub replacement.
+    foreach ($name in @('.installed_path_gog','.installed_path')) {
+        $receipt = Join-Path $PSScriptRoot $name
+        if (-not (Test-Path -LiteralPath $receipt -PathType Leaf)) { continue }
+        try {
+            $candidate = ('' + (Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop)).Trim().Trim('"')
+            if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf)) {
+                return (Get-Item -LiteralPath $candidate -ErrorAction Stop).FullName
+            }
+        } catch {}
+    }
+    return $null
+}
+
+function Get-FearSteamFolder {
+    $roots = [Collections.Generic.List[string]]::new()
+    foreach ($registryPath in @('HKLM:\SOFTWARE\WOW6432Node\Valve\Steam','HKLM:\SOFTWARE\Valve\Steam','HKCU:\SOFTWARE\Valve\Steam')) {
+        try {
+            $steam = [string](Get-ItemProperty -Path $registryPath -Name InstallPath -ErrorAction Stop).InstallPath
+            if ($steam -and (Test-Path -LiteralPath $steam -PathType Container)) { $roots.Add($steam) }
+        } catch {}
+    }
+    foreach ($steam in @($roots)) {
+        $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'
+        if (-not (Test-Path -LiteralPath $vdf -PathType Leaf)) { continue }
+        try {
+            foreach ($match in [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s*"([^"]+)"')) {
+                $library = $match.Groups[1].Value -replace '\\\\','\'
+                if ($library -and (Test-Path -LiteralPath $library -PathType Container)) { $roots.Add($library) }
+            }
+        } catch {}
+    }
+    foreach ($root in @($roots | Select-Object -Unique)) {
+        foreach ($folder in @('FEAR Ultimate Shooter Edition','F.E.A.R. - Ultimate Shooter Edition','F.E.A.R. Ultimate Shooter Edition','FEAR','F.E.A.R.')) {
+            $candidate = Join-Path $root "steamapps\common\$folder"
+            if (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf) { return $candidate }
+        }
+    }
+    foreach ($candidate in @(
+        'C:\Program Files (x86)\Steam\steamapps\common\FEAR Ultimate Shooter Edition',
+        'C:\Program Files\Steam\steamapps\common\FEAR Ultimate Shooter Edition'
+    )) {
+        if (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf) { return $candidate }
+    }
+    return $null
+}
+
+function Get-FearSupportedCopies {
+    $seen = @{}
+    $gog = Get-FearGogFolder
+    $steam = Get-FearSteamFolder
+    foreach ($item in @(
+        [pscustomobject]@{ Store='GOG'; Path=$gog },
+        [pscustomobject]@{ Store='Steam'; Path=$steam }
+    )) {
+        if (-not $item.Path) { continue }
+        $full = [IO.Path]::GetFullPath([string]$item.Path).TrimEnd('\')
+        if ($seen.ContainsKey($full.ToLowerInvariant())) { continue }
+        $seen[$full.ToLowerInvariant()] = $true
+        $item.Path = $full
+        Write-Output $item
+    }
+}
+
+function Test-FearDr89Payload {
+    param([string]$GameDir)
+    if ([string]::IsNullOrWhiteSpace($GameDir)) { return $false }
+    foreach ($relative in @('bin\x64\fearvr-host.exe','FEARVR\bin\x64\fearvr-host.exe')) {
+        if (Test-Path -LiteralPath (Join-Path $GameDir $relative) -PathType Leaf) { return $true }
+    }
+    return $false
 }
 
 function Get-ArchiveInputFolders {
@@ -113,10 +203,15 @@ function Test-InstalledRelease {
 }
 
 function Write-InstallState {
-    param([string]$GameDir,[string]$Version)
+    param([string]$GameDir,[string]$Version,[switch]$UserSelected)
     $utf8 = New-Object Text.UTF8Encoding($false)
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$GameDir,$utf8)
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path_gog'),$GameDir,$utf8)
+    $saved = Save-HubRememberedGameFolder -GameId $HUB_GAME_ID -Title 'F.E.A.R. VR' `
+        -GameDir $GameDir -ProbeFiles @($GAME_EXE) -UserSelected:$UserSelected
+    if ((('' + $env:PCVR_HUB_GAME_ID).Trim()) -and -not $saved) {
+        throw 'The installation completed, but the selected game folder could not be saved to the Hub state. Retry so future updates do not ask for it again.'
+    }
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version_gog'),$Version,$utf8)
     # The shared Hub tile tracks the GOG alternative in its second version
     # slot. Write both the wrapper-facing receipt and game-side recovery copy
@@ -124,6 +219,9 @@ function Write-InstallState {
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version_b'),$Version,$utf8)
     [IO.File]::WriteAllText((Join-Path $GameDir '.pcvrhub_version_b'),$Version,$utf8)
     [IO.File]::WriteAllText((Join-Path $GameDir $PUBLIC_MARKER),$Version,$utf8)
+    # Keep the typed transaction last: the Hub must never import success until
+    # path persistence and every game-side proof above have completed.
+    Save-InstalledStamp -GameDir $GameDir -Version $Version -HubDir $PSScriptRoot -Second
 }
 
 $work = $null
@@ -132,27 +230,55 @@ $installError = $null
 try {
     Write-Host ''
     Write-Host ('=' * 60) -ForegroundColor Magenta
-    Write-Host " F.E.A.R. VR - $MOD_AUTHOR public GOG build" -ForegroundColor Cyan
+    Write-Host " F.E.A.R. VR - $MOD_AUTHOR public GOG + Steam build" -ForegroundColor Cyan
     Write-Host " Installs: $MOD_NAME by $MOD_AUTHOR" -ForegroundColor Gray
     Write-Host ('=' * 60) -ForegroundColor Magenta
     Write-Host ''
-    Write-Host '  GOG F.E.A.R. PLATINUM COLLECTION ONLY. ' -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host '  VERIFIED GOG OR ORIGINAL STEAM BASE GAME. ' -NoNewline -ForegroundColor Black -BackgroundColor Yellow
     Write-Host ''
     Write-Host '  The current stable public release is downloaded from GitHub.' -ForegroundColor White
-    Write-Host '  RC6.2 and other private betas upgrade directly; saves, profiles' -ForegroundColor White
+    Write-Host '  Earlier public and private builds upgrade directly; saves, profiles' -ForegroundColor White
     Write-Host '  and the author setup recovery data are preserved.' -ForegroundColor White
     Write-Host '  Start the unmodified game once, reach the menu and load a level,' -ForegroundColor Yellow
     Write-Host '  then close it before installing the VR mod.' -ForegroundColor Yellow
     Show-AntivirusNotice -Compact
     Pause-User 'Press Enter to proceed with setup...'
 
-    Write-Step 1 4 'Finding the supported GOG game'
-    $gameDir = Get-FearGogFolder
+    Write-Step 1 4 'Finding a supported GOG or Steam game'
+    $gameDir = Get-FearRememberedFolder
+    $manualSelection = $false
+    if ($gameDir) {
+        Write-OK "Remembered game folder: $gameDir"
+    }
+    $copies = @()
+    if (-not $gameDir) { $copies = @(Get-FearSupportedCopies) }
+    if (-not $gameDir -and $copies.Count -eq 1) {
+        $gameDir = [string]$copies[0].Path
+        Write-OK "Detected $($copies[0].Store): $gameDir"
+    } elseif (-not $gameDir -and $copies.Count -gt 1) {
+        Write-Host '  Choose the clean base-game copy that should receive thefreemike:' -ForegroundColor White
+        for ($index=0; $index -lt $copies.Count; $index++) {
+            Write-Host ("  [{0}] {1}: {2}" -f ($index+1),$copies[$index].Store,$copies[$index].Path) -ForegroundColor Cyan
+        }
+        for ($attempt=1; $attempt -le 20 -and -not $gameDir; $attempt++) {
+            $answer = ('' + (Read-Host "  Choose 1-$($copies.Count), or Q to cancel")).Trim()
+            if ($answer -match '^(?i:q)$') { throw 'Setup cancelled before any game file was changed.' }
+            $selected = 0
+            if ([int]::TryParse($answer,[ref]$selected) -and $selected -ge 1 -and $selected -le $copies.Count) {
+                $gameDir = [string]$copies[$selected-1].Path
+                $manualSelection = $true
+            } else { Write-Warn 'Choose one of the listed numbers.' }
+        }
+    }
     if (-not $gameDir) {
-        Write-Warn 'No GOG F.E.A.R. Platinum Collection was found automatically.'
+        Write-Warn 'No supported GOG or Steam F.E.A.R. base game was found automatically.'
         $manual = ('' + (Read-Host '  Paste the folder that holds FEAR.exe')).Trim().Trim('"').Trim("'")
         if (-not $manual -or -not (Test-Path -LiteralPath (Join-Path $manual $GAME_EXE) -PathType Leaf)) { throw 'No supported game folder was supplied. Nothing was changed.' }
         $gameDir = (Get-Item -LiteralPath $manual).FullName
+        $manualSelection = $true
+    }
+    if (Test-FearDr89Payload $gameDir) {
+        throw 'DR-89 is already installed in this same game folder. The publisher requires a clean copy without another F.E.A.R. VR mod; remove DR-89 here or select a different copy.'
     }
     Write-OK "Game folder: $gameDir"
 
@@ -202,7 +328,7 @@ try {
     Write-Step 4 4 'Verifying the installation and saving recovery state'
     $watch = @($MOD_MARKER,$MOD_LAUNCHER,$MOD_UNINSTALL) | ForEach-Object { Join-Path $gameDir $_ }
     if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $gameDir -ArchivePath $archive)) { throw 'One or more required files did not survive the antivirus check.' }
-    Write-InstallState -GameDir $gameDir -Version ([string]$release.Tag)
+    Write-InstallState -GameDir $gameDir -Version ([string]$release.Tag) -UserSelected:$manualSelection
     Write-OK "$MOD_NAME $($release.Tag) is installed and will be detected as VR Ready."
 
     Write-Host ''

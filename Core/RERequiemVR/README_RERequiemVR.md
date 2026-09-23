@@ -26,7 +26,7 @@ These are the official RE9VR default bindings (praydog mod + Talemann VR).
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Left Stick]] | Move - click & hold = Run; double-tap down = 180 spin (enable the toggle in the wrist menu first) |
 | [[Y]] | Open Inventory |
 | [[X]] | Open Map; hold then right dpad = Taunt; Back / Cancel (menu) |
@@ -35,7 +35,7 @@ These are the official RE9VR default bindings (praydog mod + Talemann VR).
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Right Stick]] | Turn - click = Toggle crouch / stand |
 | [[B]] | Reload / Eject clip; Quick Throwable (long press); Move Items (in inventory) |
 | [[A]] | Interact / Pickup / Select (menu) |

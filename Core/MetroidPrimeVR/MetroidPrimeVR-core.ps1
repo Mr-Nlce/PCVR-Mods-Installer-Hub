@@ -47,9 +47,8 @@ $INFO_URL          = "https://github.com/Nobbie248/PrimedGun"
 # Last-known-good asset, used only if the GitHub API cannot be reached.
 # (The API path above always prefers the newest release.)
 # Fallback for no-network ONLY - the normal path resolves the newest
-# build. Moved from v1.0.2 to v1.1.5 on 2026-08-13 (three builds
-# behind).
-$KNOWN_FALLBACK_ZIP = "https://github.com/Nobbie248/PrimedGun/releases/download/v1.1.5/PrimedGun.v1.1.5.zip"
+# build. Moved from v1.1.5 to v1.1.6 on 2026-09-12 after archive review.
+$KNOWN_FALLBACK_ZIP = "https://github.com/Nobbie248/PrimedGun/releases/download/v1.1.6/PrimedGun.v1.1.6.zip"
 $GAME_FOLDER       = "Metroid Prime VR"
 $GAME_EXE          = "PrimedGun.exe"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
@@ -64,6 +63,19 @@ function Get-LatestPrimedGunZipUrl {
         $asset = $rel.assets | Where-Object { $_.name -match '(?i)^PrimedGun.*\.zip$' } | Select-Object -First 1
         if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
     } catch { }
+    return $null
+}
+
+function Get-PrimedGunReleaseTagFromSource {
+    param([string]$Source)
+    if ([string]::IsNullOrWhiteSpace($Source)) { return $null }
+    if ($Source -match '(?i)/releases/download/([^/]+)/') { return [Uri]::UnescapeDataString($matches[1]) }
+    $leaf = try { [IO.Path]::GetFileName($Source) } catch { '' }
+    if ($leaf -match '(?i)PrimedGun[._-](v?[0-9][0-9A-Za-z._-]*)\.zip$') {
+        $value=$matches[1].TrimEnd('.','-','_')
+        if ($value -notmatch '^v') { $value='v' + $value }
+        return $value
+    }
     return $null
 }
 
@@ -203,7 +215,9 @@ function Test-WritableRoot {
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into" -ForegroundColor Gray
 Write-Host "  (the '$GAME_FOLDER' folder is created inside whatever you choose)." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('PrimedGun.exe')
+$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 
 $installRoot = $null
 if ($chosen) {
@@ -226,7 +240,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 $romDir   = Join-Path $gameRoot "ROM"
 $userDir  = Join-Path $gameRoot "User"
 $preserveRoot = Join-Path $installRoot "_PCVRHub_PrimedGun_UserData_Backup"
@@ -264,6 +278,7 @@ try {
 $zipDest = Join-Path $tmp "PrimedGun_latest.zip"
 
 $urls = New-Object System.Collections.Generic.List[string]
+$downloadInfo = @{}
 Write-Info "Resolving the newest release via the GitHub API..."
 $apiUrl = Get-LatestPrimedGunZipUrl
 if ($apiUrl) {
@@ -279,6 +294,7 @@ Invoke-SafeDownload -Urls $urls -Destination $zipDest `
     -Label "PrimedGun (Metroid Prime VR build)" `
     -ManualUrl $RELEASES_LATEST `
     -Instructions "Open the releases page, download the newest 'PrimedGun.vX.Y.Z.zip', save it as '$zipDest', then choose Retry." `
+    -DownloadInfo $downloadInfo `
     -SkipMessage "" | Out-Null
 
 # Hard guarantee: regardless of the helper's outcome, make sure we have a ZIP.
@@ -299,6 +315,16 @@ while (-not (Test-Path $zipDest)) {
     if ($alt -and (Test-Path $alt) -and ($alt -match '\.zip$')) { $zipDest = [string]$alt }
 }
 Write-OK "PrimedGun archive ready: $zipDest"
+$installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source ('' + $downloadInfo.Url)
+if (-not $installedReleaseTag) { $installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source $zipDest }
+if (-not $installedReleaseTag) { $installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source $apiUrl }
+if (-not $installedReleaseTag) {
+    Write-Fail "The exact PrimedGun release version could not be verified."
+    Write-Host "  The files were not marked installed, so the Hub cannot hide a real update." -ForegroundColor Gray
+    Pause-User "Press Enter to exit..." | Out-Null
+    exit 1
+}
+Write-OK "Release version resolved: $installedReleaseTag"
 
 # ---- 3. extract + flatten into the game folder --------------
 Write-Step 3 5 "Installing PrimedGun"
@@ -573,6 +599,14 @@ if (-not (Test-Path $exePath)) {
         Write-Host "    $exePath" -ForegroundColor Cyan
     }
 }
+
+# Commit the exact release actually downloaded. PrimedGun previously wrote only
+# its path, so an old recovery version could survive a successful update and
+# make the Hub offer the same update forever.
+if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+    throw "PrimedGun.exe is missing; refusing to write a successful installation receipt."
+}
+Save-InstalledStamp -GameDir $gameRoot -Version $installedReleaseTag -HubDir $SCRIPT_DIR
 
 # Record the install path so the Hub's "VR Installed" check + Start-in-VR find it.
 try {

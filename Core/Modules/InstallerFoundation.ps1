@@ -10,6 +10,9 @@
 # ------------------------------------------------------------
 
 $script:PCVRInstallerFoundationRoot = $PSScriptRoot
+if (-not (Get-Command Invoke-PCVRUniversalRecovery -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'InstallerRecovery.ps1')
+}
 if (-not (Get-Command Test-IsTrackableInstalledVersion -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'InstallerSafety.ps1')
 }
@@ -115,6 +118,12 @@ function global:Find-PCVRDownloadedCandidate {
     if (-not $Folders -or $Folders.Count -eq 0) {
         $Folders = @([IO.Path]::Combine([Environment]::GetFolderPath('UserProfile'),'Downloads'))
     }
+    $recoveryFile = Get-PCVRRecoveryInput -PathType Leaf
+    if ($recoveryFile) {
+        foreach ($pattern in @($Patterns | Where-Object { $_ })) {
+            if ([IO.Path]::GetFileName($recoveryFile) -like $pattern) { return $recoveryFile }
+        }
+    }
     foreach ($pattern in @($Patterns | Where-Object { $_ })) {
         foreach ($folder in @($Folders | Where-Object { $_ } | Select-Object -Unique)) {
             if (-not (Test-Path -LiteralPath $folder -PathType Container -ErrorAction SilentlyContinue)) { continue }
@@ -152,8 +161,16 @@ function global:Invoke-PCVRDiscordDownloadFlow {
     [void](Wait-PCVRExplicitEnter -Message 'After the download has finished, press Enter to search your Downloads folder.' -ReadInput $ReadInput)
 
     $find = {
-        if ($FindCandidate) { return (& $FindCandidate) }
-        return (Find-PCVRDownloadedCandidate -Patterns $FilePatterns -Folders $SearchFolders)
+        try {
+            if ($FindCandidate) { return (& $FindCandidate) }
+            return (Find-PCVRDownloadedCandidate -Patterns $FilePatterns -Folders $SearchFolders)
+        } catch {
+            # Automatic discovery is a convenience, never a terminal gate.
+            # A broken custom finder must still lead to the standard manual
+            # path / drag-and-drop recovery screen.
+            Write-Host ("  Automatic Downloads search failed: " + $_.Exception.Message) -ForegroundColor Yellow
+            return $null
+        }
     }
     $accept = {
         param([string]$Path)
@@ -171,8 +188,8 @@ function global:Invoke-PCVRDiscordDownloadFlow {
         Write-Host ''
         Write-Host "  $Label was not found yet." -ForegroundColor Yellow
         Write-Host '  Drag the downloaded file onto this window and press Enter,' -ForegroundColor White
-        Write-Host '  or type R to search again, O to reopen the post, Q to quit.' -ForegroundColor Gray
-        $raw = if ($ReadInput) { & $ReadInput 'Downloaded file, R, O or Q' } else { Read-Host '  Downloaded file, R, O or Q' }
+        Write-Host '  or type R to search again, O to reopen the post.' -ForegroundColor Gray
+        $raw = if ($ReadInput) { & $ReadInput 'Downloaded file, R or O' } else { Read-Host '  Downloaded file, R or O' }
         $value = ('' + $raw).Trim().Trim('"').Trim("'")
         if ($value -and (Test-Path -LiteralPath $value -PathType Leaf -ErrorAction SilentlyContinue)) {
             $provided = (Get-Item -LiteralPath $value).FullName
@@ -191,8 +208,7 @@ function global:Invoke-PCVRDiscordDownloadFlow {
                 else { Start-Process $DownloadPostUrl -ErrorAction Stop | Out-Null }
                 continue
             }
-            'Q' { return $null }
-            default { Write-Host '  Enter a valid file path, R, O or Q.' -ForegroundColor Yellow }
+            default { Write-Host '  Enter a valid file path, R or O.' -ForegroundColor Yellow }
         }
     }
     return $candidate

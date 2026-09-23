@@ -29,7 +29,7 @@ Click **Install Mod** on the game tile or detail page and follow the prompts. Th
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Primary attack |
 | [[Grip]] | Select weapon from holster |
 | [[A]] | Next inventory artifact |
@@ -39,13 +39,13 @@ Click **Install Mod** on the game tile or detail page and follow the prompts. Th
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Use artifact |
 | [[Grip]] | Necromancer: toggle scythe / spell book |
 | [[X]] | Previous inventory artifact |
 | [[Y]] | Show console |
 | [[Stick]] | Move / strafe |
-| Menu | Game menu |
+| [[Menu]] | Game menu |
 
 ## Toggle VR / Flat mode
 Open the console (Y / ~) and type:

@@ -33,12 +33,12 @@ Two files in the archive deserve a mention, because they explain why this mod wo
 - [[Right Stick Down]] / [[Right Stick Up]] next / previous character
 - [[Both Stick Clicks]] the mod's VR settings
 
-No SteamVR configuration is needed. **A** and **X** are read from OpenVR directly - Unity's legacy input layer gives those two buttons no joystick index at all, which is why most Unity VR mods cannot use them.
+No SteamVR configuration is needed. [[A]] and [[X]] are read from OpenVR directly - Unity's legacy input layer gives those two buttons no joystick index at all, which is why most Unity VR mods cannot use them.
 
 The grenade leaves your hand in the direction of the throw, and as hard as you threw it. The robot is a lock-on weapon: look at an enemy to lock it, then fire.
 
 ## Settings menu
-Click **both sticks**. Everything applies live.
+Click [[Left Stick Click]] + [[Right Stick Click]]. Everything applies live.
 
 | Section | What it holds |
 |---|---|

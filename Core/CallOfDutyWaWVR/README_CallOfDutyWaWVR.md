@@ -63,9 +63,9 @@ the physical mouse still works alongside pointing.
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
-| Right controller | aims the visible weapon |
+| [[Right controller]] | aims the visible weapon |
 | [[Right Trigger]] | fire |
 | [[Left Trigger]] | reload |
 | [[Right Grip]] hold | cook a frag grenade, release to throw |

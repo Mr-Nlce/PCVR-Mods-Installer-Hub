@@ -5,8 +5,8 @@ $ErrorActionPreference = 'Stop'
 $Host.UI.RawUI.WindowTitle = 'SiN Episodes: Emergence VR Installer'
 $repo = 'RototRobot/Sin-Episodes-VR-Port'
 $appId = '1300'
-$pinnedTag = '1.0.0'
-$pinnedUrl = 'https://github.com/RototRobot/Sin-Episodes-VR-Port/releases/download/1.0.0/SiN-VR-v1.0.0.zip'
+$pinnedTag = '1.0.2'
+$pinnedUrl = 'https://github.com/RototRobot/Sin-Episodes-VR-Port/releases/download/1.0.2/SiN-VR-v1.0.2.zip'
 
 function Write-SinHeader {
     Clear-Host
@@ -21,10 +21,10 @@ function Write-SinOk([string]$Text) { Write-Host "  [OK] $Text" -ForegroundColor
 function Write-SinInfo([string]$Text) { Write-Host "  [..] $Text" -ForegroundColor Gray }
 function Write-SinWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
 function Pause-Sin([string]$Text='Press Enter to continue...') { Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
-function Set-SinClipboardText([string]$Text) {
+function Set-SinClipboardText([string]$Text,[switch]$DeferManualFallback) {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
     try {
-        Set-Clipboard -Value $Text -ErrorAction Stop
+        Set-Clipboard -Value $Text -DeferManualFallback:$DeferManualFallback -ErrorAction Stop
         $readBack = [string](Get-Clipboard -Raw -ErrorAction Stop)
         if ($readBack.TrimEnd([char[]]"`r`n") -ceq $Text) { return $true }
     } catch {}
@@ -45,6 +45,15 @@ function Test-SinSamePath([string]$Left,[string]$Right) {
         $a = [IO.Path]::GetFullPath($Left).TrimEnd([char[]]'\/')
         $b = [IO.Path]::GetFullPath($Right).TrimEnd([char[]]'\/')
         return $a.Equals($b,[StringComparison]::OrdinalIgnoreCase)
+    } catch { return $false }
+}
+function Test-SinLooseBranch([string]$GameRoot) {
+    if (-not $GameRoot) { return $false }
+    try {
+        $steamApps = Split-Path -Parent (Split-Path -Parent ([IO.Path]::GetFullPath($GameRoot)))
+        $manifest = Join-Path $steamApps 'appmanifest_1300.acf'
+        if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { return $false }
+        return ([IO.File]::ReadAllText($manifest) -match '(?i)"BetaKey"\s+"loose"')
     } catch { return $false }
 }
 function Set-SinCfgValue {
@@ -84,7 +93,7 @@ function Get-SinRelease {
         return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url; Name=[string]$asset.name }
     } catch {
         Write-SinWarn "GitHub did not answer; using the last known $pinnedTag release URL."
-        return [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl; Name='SiN-VR-v1.0.0.zip' }
+        return [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl; Name='SiN-VR-v1.0.2.zip' }
     }
 }
 function Copy-SinTree([string]$Source,[string]$Destination) {
@@ -105,6 +114,7 @@ Write-Host '  Native stereo, roomscale and full motion-controlled weapons.' -For
 Write-Host '  SteamVR and a Vulkan-capable GPU are required.' -ForegroundColor White
 Write-Host '  Before setup, run the unmodded game once to the main menu,' -ForegroundColor Yellow
 Write-Host '  then close it so the required configuration can be verified.' -ForegroundColor Yellow
+Write-Host '  Steam release 1.0.1 also requires the Beta branch named loose.' -ForegroundColor Yellow
 Write-Host '  The author supports the Steam build; other legitimate copies' -ForegroundColor Yellow
 Write-Host '  use a best-effort direct route and must work in flat mode first.' -ForegroundColor Yellow
 Write-Host ''
@@ -120,7 +130,20 @@ if ($game -in @('quit','skip',$null)) { throw 'No verified SiN Episodes folder w
 Write-SinOk "Found: $game"
 $steamGame = Find-SteamGameFolder -AppId $appId -SteamFolderNames @('SiN Episodes Emergence') -ProbeExe 'SinEpisodes.exe' -HubGameId '__steam_probe_only__'
 $isSteamInstall = Test-SinSamePath -Left $game -Right $steamGame
-if ($isSteamInstall) { Write-SinOk 'Steam-managed game installation detected.' }
+if ($isSteamInstall) {
+    Write-SinOk 'Steam-managed game installation detected.'
+    if (-not (Test-SinLooseBranch -GameRoot $game)) {
+        Write-SinWarn 'SiN VR 1.0.2 requires Steam Beta branch: loose'
+        Write-Host '  The normal packed branch ignores the loose VR content and can' -ForegroundColor White
+        Write-Host '  leave the motion-controlled arms stretched from your face.' -ForegroundColor White
+        Write-Host '  In Properties > Betas, select loose and let Steam finish updating.' -ForegroundColor White
+        Pause-Sin 'Press Enter to open Steam Properties...'
+        try { Start-Process "steam://gameproperties/$appId" } catch {}
+        Pause-Sin 'After selecting loose and Steam finishes updating, press Enter...'
+        if (-not (Test-SinLooseBranch -GameRoot $game)) { throw 'Steam still does not report the required loose beta branch. Select it, let Steam finish, then rerun setup.' }
+    }
+    Write-SinOk 'Required Steam loose beta branch detected.'
+}
 else { Write-SinWarn 'Non-Steam game folder detected. This route is best effort and is not confirmed by the mod author.' }
 $stockConfig = Join-Path $game 'SE1\cfg\config.cfg'
 if (-not (Test-Path -LiteralPath $stockConfig -PathType Leaf)) {
@@ -248,7 +271,7 @@ $launcher = Join-Path $game 'sinvr_launcher.exe'
 if ($isSteamInstall) {
     Write-SinStep 5 5 'Setting the required Steam launch route'
     $launchOption = '"' + $launcher + '" %command% -novid -windowed'
-    $clipboardReady = Set-SinClipboardText -Text $launchOption
+    $clipboardReady = Set-SinClipboardText -Text $launchOption -DeferManualFallback
     if ($clipboardReady) { Write-SinOk 'The exact launch option was copied and verified in the clipboard.' }
     else { Write-SinWarn 'The clipboard was unavailable. Copy the complete gray line below.' }
     Write-Host '  Launch option:' -ForegroundColor White
@@ -262,7 +285,8 @@ if ($isSteamInstall) {
     Write-SinWarn 'Do not add -w or -h; they override the headset resolution.'
     Pause-Sin 'Press Enter to open Steam Properties...'
     try { Start-Process "steam://gameproperties/$appId" } catch {}
-    [void](Set-SinClipboardText -Text $launchOption)
+    [void](Set-SinClipboardText -Text $launchOption -DeferManualFallback)
+    Show-PCVRClipboardManualFallback -Text $launchOption
     Pause-Sin 'After pasting and closing Properties, press Enter...'
 } else {
     Write-SinStep 5 5 'Creating the DVD / standalone launch route'

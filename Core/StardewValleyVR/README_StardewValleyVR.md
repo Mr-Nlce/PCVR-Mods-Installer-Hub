@@ -44,7 +44,7 @@ All of them can be rebound in the mod's settings menu.
 - [[Left Trigger]] interact, talk, open doors
 - [[A]] next toolbar slot, [[B]] shift toolbar row (right hand) - [[B]] on the left hand opens the menu
 - Swing your right hand for a melee swing or a gesture-controlled tool
-- Menus float in front of you: point with the right controller, trigger clicks, grip is right-click
+- Menus float in front of you: point with the right controller, [[Trigger]] clicks, [[Grip]] is right-click
 - Fishing is motion-controlled - jerk the rod up to hook, then raise and lower your hand to keep the fish in the bar
 
 ## Worth knowing

@@ -95,13 +95,20 @@ Manual install (if you grabbed the pack yourself): extract `oot-reloaded-v11.0.0
 ## 3D backgrounds - Djipi's 3DS Experience (optional, but the fix for VR)
 Castle Town and many interiors are drawn as flat pre-rendered backdrops. In VR they stand in front of you and block the view. **Djipi's 3DS Experience** ships real 3D geometry for those scenes, so the backdrops can be switched off and the rooms render normally - this is what makes those areas playable in the headset.
 
-The installer offers it at the end of setup. The download runs in your browser (`djipi_s_3ds_experience_-_final_pack.zip`, about **500 MB**); the source limits the speed, so roughly **20 minutes** is normal. When it has finished, the installer picks the file up from your Downloads folder, or you can drag it onto the installer window.
+The installer offers it at the end of setup. GameBanana replaced the removed
+`djipi_s_3ds_experience_-_final_pack.zip` with
+`djipi_s_3ds_experience_tot_fix.zip` (about **625 MiB**). Despite the word
+*fix*, the current file is the complete 37-file pack. Its assets use `.otr`;
+the older Final Pack used `.o2r`. The installer accepts and verifies both
+layouts by their actual background files instead of trusting the ZIP name.
+When the browser download has finished, the installer picks it up from your
+Downloads folder, or you can drag it onto the installer window.
 
 **Two looks, pick one when asked:**
 
 | | What lands in `mods\` | Combine with OoT Reloaded 4K? |
 |---|---|---|
-| **[2] Authentic Ocarina of Time - recommended** | only `Djipi's 3DE - 26 Background 3DS.o2r` and `Djipi's 3DE - 27 Background Textures.o2r` | yes - this is the pairing |
+| **[2] Authentic Ocarina of Time - recommended** | only numbered files 26 and 27 (`.otr` in the current pack, `.o2r` in the legacy pack) | yes - this is the pairing |
 | **[1] 3DS look** | the whole pack - 3DS textures, NPCs, objects and the 3D backgrounds | no - it is a different art style for the same surfaces |
 
 Both include the 3D backgrounds, which is the part VR needs. Everything else in
@@ -124,7 +131,9 @@ Also recommended with this pack: **Disable Grotto Fixed Rotation** and **Enable 
 
 **If Link's face looks wrong** next to another player model, delete `Djipi's 3DE - 02 Link's Textures (Delete if using a custom player model).o2r` from `mods\`.
 
-**Skilar's Art Plus Link** sits in the same zip (folder `0001`) and is deliberately *not* installed: it changes Link himself, and custom Link cosmetics are the first suspect when Ship of Harkinian crashes. Copy those `.o2r` files into `mods\` yourself if you want them.
+The separate **Skilar's Art Plus Link** download is deliberately not installed:
+it changes Link himself, and custom Link cosmetics are the first suspect when
+Ship of Harkinian crashes.
 
 Mod page: https://gamebanana.com/mods/477979
 

@@ -162,7 +162,7 @@ echo   [147] Call of Duty 4 VR
 echo   [148] Ghost Recon Wildlands VR
 echo   [149] Banjo-Kazooie VR
 echo   [150] Mass Effect 2 LE VR
-echo   [151] Pokemon Gen 1 VR
+echo   [151] Pokemon Dramatic Shape VR
 echo   [152] GTA IV VR
 echo   [153] BioShock 2 Remastered
 echo   [154] My Friendly Neighborhood VR
@@ -210,8 +210,25 @@ echo   [195] World War II GI VR
 echo   [196] PowerSlave / Exhumed VR
 echo   [197] Metal Gear Solid V VR
 echo   [198] DOOM (2016) VR
+echo   [199] Warhammer 40K: Darktide VR
+echo   [200] EARTH DEFENSE FORCE 6 VR
+echo   [201] Titanfall 2 VR
+echo   [202] TrackMania Nations Forever
+echo   [203] TrackMania United Forever
+echo   [204] ELDERBORN VR
+echo   [205] Gloomhaven VR
+echo   [206] Prey (2006) VR
+echo   [207] Tribes 2 VR
+echo   [208] Deus Ex Human Revolution Director's Cut VR
+echo   [209] GoldenEye 007 VR
+echo   [210] Painkiller: Overdose VR
+echo   [211] PowerWash Simulator 2 VR
+echo   [212] Mirror's Edge VR
+echo   [213] Thief (2014) VR
+echo   [214] Oblivion (2006)
+echo   [215] Kingdom Come: Deliverance VR
 echo.
-set /p choice="Enter number (1-198): "
+set /p choice="Enter number (1-215): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -410,6 +427,23 @@ if "%choice%"=="195" (set SCRIPT=%~dp0WW2GIVR\WW2GIVR-core.ps1)
 if "%choice%"=="196" (set SCRIPT=%~dp0PowerSlaveRazeXR\PowerSlaveRazeXR-core.ps1)
 if "%choice%"=="197" (set SCRIPT=%~dp0MGS5VR\MGS5VR-core.ps1)
 if "%choice%"=="198" (set SCRIPT=%~dp0Doom2016VR\Doom2016VR-core.ps1)
+if "%choice%"=="199" (set SCRIPT=%~dp0DarktideVR\DarktideVR-core.ps1)
+if "%choice%"=="200" (set SCRIPT=%~dp0EDF6VR\EDF6VR-core.ps1)
+if "%choice%"=="201" (set SCRIPT=%~dp0Titanfall2VR\Titanfall2VR-core.ps1)
+if "%choice%"=="202" (set SCRIPT=%~dp0TrackManiaNationsForeverVR\TrackManiaNationsForeverVR-core.ps1)
+if "%choice%"=="203" (set SCRIPT=%~dp0TrackManiaUnitedForeverVR\TrackManiaUnitedForeverVR-core.ps1)
+if "%choice%"=="204" (set SCRIPT=%~dp0ElderbornVR\ElderbornVR-core.ps1)
+if "%choice%"=="205" (set SCRIPT=%~dp0GloomhavenVR\GloomhavenVR-core.ps1)
+if "%choice%"=="206" (set SCRIPT=%~dp0Prey2006VR\Prey2006VR-core.ps1)
+if "%choice%"=="207" (set SCRIPT=%~dp0Tribes2VR\Tribes2VR-core.ps1)
+if "%choice%"=="208" (set SCRIPT=%~dp0DeusExHRVR\DeusExHRVR-core.ps1)
+if "%choice%"=="209" (set SCRIPT=%~dp0GoldenEye007VR\GoldenEye007VR-core.ps1)
+if "%choice%"=="210" (set SCRIPT=%~dp0PainkillerOverdoseVR\PainkillerOverdoseVR-core.ps1)
+if "%choice%"=="211" (set SCRIPT=%~dp0PowerWashSimulator2VR\PowerWashSimulator2VR-core.ps1)
+if "%choice%"=="212" (set SCRIPT=%~dp0MirrorsEdgeVR\MirrorsEdgeVR-core.ps1)
+if "%choice%"=="213" (set SCRIPT=%~dp0Thief2014VR\Thief2014VR-core.ps1)
+if "%choice%"=="214" (set SCRIPT=%~dp0Oblivion2006VR\Oblivion2006VR-core.ps1)
+if "%choice%"=="215" (set SCRIPT=%~dp0KCD1VR\KCD1VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

@@ -45,9 +45,9 @@ VR controllers are mapped as a virtual Xbox controller:
 
 - **[[Right Trigger]]**: fire / shoot
 - **[[Left Trigger]]**: reload
-- **D-pad left/right**: change weapon (D-pad available via the hotkey gesture below)
+- [[D-pad Left]] / [[D-pad Right]]: change weapon (D-pad available via the hotkey gesture below)
 - **Aim with your right hand** - a 3D pistol model is attached to it
-- **Both stick clicks at once**: recenter the VR view
+- [[Left Stick Click]] + [[Right Stick Click]]: recenter the VR view
 - **[[Right Stick]] click + [[Y]] on left controller**: force-recreate the pistol model if it doesn't appear properly
 
 ### Hotkey gesture

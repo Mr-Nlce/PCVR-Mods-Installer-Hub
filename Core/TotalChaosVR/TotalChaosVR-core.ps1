@@ -126,7 +126,9 @@ Write-Step 2 5 "Choose install location"
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('Play Total Chaos VR.bat')
+$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 
 $installRoot = $null
 if ($chosen) {
@@ -146,7 +148,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 
 if (Test-Path -LiteralPath "$gameRoot\gamedata") {
     Write-Warn "An existing Total Chaos VR install was found at: $gameRoot"

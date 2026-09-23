@@ -231,7 +231,7 @@ $xaml = @"
                               Margin="2,0,0,-19" Height="16"
                               Visibility="Collapsed" Panel.ZIndex="50">
                             <TextBlock x:Name="SearchHint"
-                                       Text="e.g.  cyberpunk  &#183;  praydog  &#183;  roomscale  &#183;  free -horror -praydog"
+                                       Text="e.g.  cyberpunk  &#183;  praydog  &#183;  roomscale  &#183;  gems  &#183;  free -horror -praydog"
                                        FontSize="10" Foreground="#555568"
                                        FontFamily="Segoe UI"
                                        IsHitTestVisible="False"/>
@@ -1366,6 +1366,57 @@ $xaml = @"
                             <Ellipse x:Name="OrderDotAdded" Grid.Column="1" Width="8" Height="8"
                                      Fill="#3a8add" Margin="10,0,3,0" VerticalAlignment="Center" Visibility="Collapsed"/>
                         </Grid>
+                    </Border>
+                    <!-- Gem is a quality facet rather than a fourth sort mode.
+                         It lives in this menu because it is an optional view,
+                         while the fixed header row stays compact. -->
+                    <Border BorderThickness="0,1,0,0" BorderBrush="#26262e"
+                            Margin="6,5,6,0" Padding="2,8,2,0">
+                        <StackPanel>
+                            <TextBlock Text="SHOW" FontSize="10"
+                                       Foreground="#555568" FontFamily="Segoe UI"
+                                       Margin="6,0,0,5"/>
+                            <Grid Height="46">
+                                <Border x:Name="FilterGemGlowRing" Margin="-1" CornerRadius="7"
+                                        BorderThickness="2" BorderBrush="#8071d7ff"
+                                        Visibility="Collapsed" IsHitTestVisible="False"/>
+                                <Border x:Name="FilterGem" Background="#000000"
+                                        CornerRadius="6" Padding="9,6" Cursor="Hand"
+                                        BorderThickness="1" BorderBrush="#0fffffff"
+                                        ToolTip="Show polished Gems"
+                                        AutomationProperties.Name="Show polished Gems">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Viewbox Width="17" Height="17" Margin="0,0,9,0"
+                                                 VerticalAlignment="Center">
+                                            <Grid Width="20" Height="20">
+                                                <Path x:Name="FilterGemIcon" Data="M 2,7 L 6,2 L 14,2 L 18,7 L 10,18 Z"
+                                                      Fill="#18394c" Stroke="#71d7ff" StrokeThickness="1.5"
+                                                      StrokeLineJoin="Round"/>
+                                                <Path Data="M 2,7 L 18,7 M 6,2 L 10,7 L 14,2 M 2,7 L 10,18 L 18,7 M 10,7 L 10,18"
+                                                      Fill="{x:Null}" Stroke="#b9edff" StrokeThickness="1"
+                                                      StrokeLineJoin="Round" Opacity="0.9"/>
+                                            </Grid>
+                                        </Viewbox>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock x:Name="FilterGemText" Text="Show Gems" FontSize="12"
+                                                       FontWeight="SemiBold" Foreground="#d8dee3"
+                                                       FontFamily="Segoe UI"/>
+                                            <TextBlock Text="Polished, native-feeling VR" FontSize="10"
+                                                       Foreground="#6a6a7e" FontFamily="Segoe UI"
+                                                       Margin="0,1,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <Border x:Name="FilterGemRing" CornerRadius="6"
+                                        BorderThickness="1" BorderBrush="#0fffffff"
+                                        Background="Transparent" IsHitTestVisible="False"
+                                        Panel.ZIndex="10"/>
+                            </Grid>
+                        </StackPanel>
                     </Border>
                     <TextBlock Text="Unknown dates keep their alphabetical order."
                                FontSize="10" Foreground="#555568" FontFamily="Segoe UI"

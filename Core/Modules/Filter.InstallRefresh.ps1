@@ -1,96 +1,25 @@
-# Resolve one freshly installed game's tracked version without scanning any
-# other library.  This closes the first-use gap for older installers that do
-# not write their downloaded tag themselves: previously the version was only
-# seeded by a later full scan, so replacing the Hub in between lost the fact.
-function global:Get-PostInstallTrackedVersion {
-    param($Game, [string]$GameDir)
+# Fast, disk-only version sources used by the visible post-install refresh.
+# Network sources are deliberately excluded: this function runs on WPF's UI
+# thread and must finish before the activity presentation is restored.
+function global:Get-PostInstallLocalTrackedVersion {
+    param($Game,[string]$GameDir)
     if (-not $Game) { return $null }
-    if ($Game.ThunderstoreAuthor -and $Game.ThunderstorePackage) {
-        # Thunderstore installers normally leave the exact installed package
-        # version in BepInEx\.ts_versions. Read that first: unlike the live
-        # endpoint it tells us what THIS run installed, and it also works
-        # offline. Older/depot installer modes may not have the file, so the
-        # package endpoint remains the fallback.
-        if ($GameDir) {
+    if ($Game.ThunderstoreAuthor -and $Game.ThunderstorePackage -and $GameDir) {
+        foreach ($key in @("$($Game.ThunderstoreAuthor)-$($Game.ThunderstorePackage)","$($Game.ThunderstorePackage)")) {
             try {
-                foreach ($tsVersionKey in @(
-                    "$($Game.ThunderstoreAuthor)-$($Game.ThunderstorePackage)",
-                    "$($Game.ThunderstorePackage)"
-                )) {
-                    $tsLocalPath = Join-Path $GameDir "BepInEx\.ts_versions\$tsVersionKey"
-                    if (Test-Path -LiteralPath $tsLocalPath -PathType Leaf) {
-                        $tsLocal = (Get-Content -LiteralPath $tsLocalPath -Raw -ErrorAction Stop).Trim()
-                        if (Test-IsTrackableInstalledVersion -Version $tsLocal) { return $tsLocal }
-                    }
+                $path=Join-Path $GameDir "BepInEx\.ts_versions\$key"
+                if (Test-Path -LiteralPath $path -PathType Leaf) {
+                    $value=([IO.File]::ReadAllText($path)).Trim()
+                    if (Test-IsTrackableInstalledVersion -Version $value) { return $value }
                 }
             } catch {}
         }
-        try {
-            $tsUri = "https://thunderstore.io/api/experimental/package/$($Game.ThunderstoreAuthor)/$($Game.ThunderstorePackage)/"
-            $tsData = Invoke-RestMethod -Uri $tsUri -TimeoutSec 5 -ErrorAction Stop
-            if ($tsData -and $tsData.latest -and $tsData.latest.version_number) {
-                return ([string]$tsData.latest.version_number).Trim()
-            }
-        } catch {}
     }
-    if ($Game.GithubCommitRepo) {
-        try {
-            $commitBranch = if ($Game.GithubCommitBranch) { [string]$Game.GithubCommitBranch } else { 'main' }
-            return (Get-GithubLatestCommitCached -Repo $Game.GithubCommitRepo -Branch $commitBranch)
-        } catch {}
-    }
-    if ($Game.GithubRepo -and -not $Game.GithubRepoB) {
-        try {
-            $postRepo = Get-SelectedGithubRepo -Game $Game -GameDir $GameDir
-            $postPrerelease = Get-GithubPrereleasePreference -Game $Game -GameDir $GameDir
-            $uri = if ($postPrerelease) {
-                "https://api.github.com/repos/$postRepo/releases?per_page=1"
-            } else {
-                "https://api.github.com/repos/$postRepo/releases/latest"
-            }
-            $r = Invoke-RestMethod -Uri $uri -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 5 -ErrorAction Stop
-            if ($postPrerelease) { $r = @($r) | Select-Object -First 1 }
-            if ($r -and $r.tag_name) { return ([string]$r.tag_name).Trim() }
-        } catch {}
-    }
-    if ($Game.GitHubNightly) {
-        try {
-            $r = Invoke-RestMethod -Uri "https://api.github.com/repos/$($Game.GitHubNightly)/releases/latest" `
-                    -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 5 -ErrorAction Stop
-            if ($Game.RollingUpdate -and $Game.RollingUpdateAsset) {
-                $a = @($r.assets | Where-Object { $_.name -eq $Game.RollingUpdateAsset }) | Select-Object -First 1
-                if ($a -and $a.updated_at) { return ([string]$a.updated_at).Trim() }
-            } elseif ($r.tag_name) { return ([string]$r.tag_name).Trim() }
-        } catch {}
-    }
-    if ($Game.CodebergRepo) {
-        try { return (Get-CodebergLatestTagCached -Repo $Game.CodebergRepo -IncludePrerelease:([bool]$Game.CodebergPrerelease)) } catch {}
-    }
-    if ($Game.WebVersionUrl) {
-        try { return (Get-WebVersionCached -Url $Game.WebVersionUrl -Title $Game.Title) } catch {}
-    }
-    # Manual/authenticated sources can expose a hidden machine version without
-    # putting it on the compact tile. Unlike release dates or file timestamps,
-    # this value is an exact build identity and is safe to compare later.
     if ($Game.TrackedVersion -and (Test-IsTrackableInstalledVersion -Version $Game.TrackedVersion)) {
         return ([string]$Game.TrackedVersion).Trim()
     }
-    return (Get-ModVersionFromString -ModString $Game.Mod)
-}
-
-# Finalize version tracking for a CONFIRMED successful legacy installer that
-# supplied path evidence but no version marker of its own. This is intentionally
-# separate from cancellation (which calls nothing and preserves old recovery).
-# Keeping it as a small production helper also makes the exact state transition
-# independently regression-testable without constructing a WPF detail page.
-function global:Complete-LegacyPostInstallVersionTracking {
-    param($Game, [string]$GameDir)
-    $resolvedVersion = Get-PostInstallTrackedVersion -Game $Game -GameDir $GameDir
-    if (Test-IsTrackableInstalledVersion -Version $resolvedVersion) {
-        Write-InstalledVersion -Game $Game -Version $resolvedVersion -GameDir $GameDir
-        return $resolvedVersion
-    }
-    Invalidate-SupersededInstalledVersion -Game $Game -GameDir $GameDir
+    $fromLabel=Get-ModVersionFromString -ModString $Game.Mod
+    if (Test-IsTrackableInstalledVersion -Version $fromLabel) { return $fromLabel }
     return $null
 }
 
@@ -99,306 +28,228 @@ function global:Complete-LegacyPostInstallVersionTracking {
 # user sees the new INSTALLED pill and green VR Ready button
 # immediately, without manually clicking Check Installed.
 #
-# IMPORTANT: scope-respecting behaviour.
-#   - If the user has run Check Installed at least once
-#     (gameStateMap is populated), trigger a full re-scan so all
-#     cards stay coherent with each other.
-#   - If they haven't (gameStateMap is empty), only update state
-#     for the one specific game they just installed. We don't
-#     force a full scan they didn't ask for.
-# Called from the DispatcherTimer poll above (see the install
-# button click handler in the detail view), which detects when
-# the launched cmd.exe terminates. The target title is stashed
-# in $global:PendingInstallTitle by the click handler.
-function global:Invoke-PostInstallRefresh {
-    # Not while a scan is walking the card collections. The scan hands the
-    # UI thread back between games, so the timers that call in here can now
-    # actually fire mid-scan - and this function rebuilds the very lookups
-    # the scan is enumerating. Remember it and run it once the scan is done,
-    # so the marker handling below is never simply lost.
-    if ($global:ScanInProgress) { $global:PostInstallRefreshPending = $true; return }
-    $title = $global:PendingInstallTitle
-    # Cancel-safe update tracking: the installer wrapper drops a typed
-    # transaction result in the per-user runtime folder ONLY when its core
-    # produced fresh version/path success evidence. Successful older cores may
-    # end with `exit 0`; Run-Installer finalizes those from its finally block.
-    # A cancel/failure changes no completion evidence, so no result is written.
-    # If the result is present the mod was really (re)installed. Exact version
-    # evidence is imported directly; a path-only legacy success resolves its
-    # current source version or blocks every superseded recovery value. No
-    # marker = cancelled = leave the tracked version untouched so the card
-    # correctly keeps showing "Update".
-    if ($title) {
-        try {
-            $pendGame = $null
-            foreach ($g in @($ownGames + $ownGamesGP + $externalGames)) {
-                if ($g.Title -eq $title) { $pendGame = $g; break }
-            }
-            if ($pendGame) {
-                $okMk = Get-UpdateOkMarkerPath -Game $pendGame
-                if ($okMk -and (Test-Path $okMk)) {
-                    # The wrapper records whether THIS installer run wrote an
-                    # authoritative version marker.  Preserve and mirror such
-                    # a value; only legacy installers that wrote no version
-                    # need the old clear-and-seed path.  Unconditionally
-                    # clearing here was the Forza 5/6 loop: the installer wrote
-                    # 1.3.19 correctly and this refresh blanked it immediately.
-                    $status = $null
-                    try { $status = Get-Content -LiteralPath $okMk -Raw -ErrorAction Stop | ConvertFrom-Json } catch {}
-                    # The wrapper's marker is a typed result, not a bare
-                    # presence flag. Only an explicitly successful result may
-                    # reset/reseed tracked versions. A malformed or legacy
-                    # marker is consumed harmlessly and cannot clear Update.
-                    $confirmedSuccess = [bool]($status -and ([string]$status.outcome -eq 'success'))
-                    $primaryWritten = [bool]($confirmedSuccess -and $status.versionWritten)
-                    $secondaryWritten = [bool]($confirmedSuccess -and $status.versionBWritten)
+# IMPORTANT: scope-respecting behaviour. Installation changes one catalog
+# entry, so this route always verifies and repaints only that process-bound
+# game. It never forces a full library scan the user did not request.
+# Called from the DispatcherTimer poll above (see the install button click
+# handler in the detail view), which detects when the launched wrapper really
+# terminates. A status file is success evidence only and never an end signal.
+function global:Test-PostInstallRefreshScanActive {
+    if (-not $global:ScanInProgress) { return $false }
+    $alive = $false
+    try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+    if ($alive) { return $true }
 
-                    # The transaction result is the one authoritative bridge
-                    # from legacy installer files into the canonical state.
-                    # Import it before a normal read, otherwise an older
-                    # LocalAppData value could hide the version/path written by
-                    # this installer run.
-                    if ($confirmedSuccess -and $status.installedPath -and (Test-Path -LiteralPath ([string]$status.installedPath) -PathType Container)) {
-                        Write-PersistentGameStateValue -Game $pendGame -Name 'installed_path' -Value ([string]$status.installedPath)
-                    }
+    # Use the same stale-heartbeat recovery as the scan entry point. A dead
+    # scan must not swallow an installer completion forever merely because its
+    # old global lock survived.
+    $global:ScanInProgress = $false
+    $global:ScanQueued = $false
+    try { Unlock-ScanUi } catch {}
+    try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+    return $false
+}
 
-                    # The folder comes from the path the installer just
-                    # recorded, with the scan's own state as a second source.
-                    $pendDir = $null
-                    try { $pendDir = Read-InstalledPath -Game $pendGame } catch {}
-                    # Reading once migrates a freshly written .launch_exe to
-                    # the durable state index as well.  This is essential for
-                    # external launchers after the Hub folder is replaced.
-                    try { [void](Read-LaunchOverride -Game $pendGame) } catch {}
-                    if (-not $pendDir) {
-                        try {
-                            $stP = $global:gameStateMap[$pendGame.Title]
-                            if ($stP -and $stP.GameDir) { $pendDir = $stP.GameDir }
-                        } catch {}
-                    }
-                    if (-not $confirmedSuccess) {
-                        # Fail closed: refresh detection below, but preserve
-                        # every installed-version value exactly as it was.
-                    } elseif ($primaryWritten -or $secondaryWritten) {
-                        if ($primaryWritten) {
-                            $exact = ('' + $status.versionValue).Trim()
-                            if (-not (Test-IsTrackableInstalledVersion -Version $exact)) {
-                                $exact = Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $pendGame)
-                            }
-                            if ($exact) { Write-InstalledVersion -Game $pendGame -Version $exact -GameDir $pendDir }
-                        }
-                        if ($secondaryWritten) {
-                            $exactB = ('' + $status.versionBValue).Trim()
-                            if (-not (Test-IsTrackableInstalledVersion -Version $exactB)) {
-                                $exactB = Read-VersionStampFile -Path (Get-InstalledVersionPathB -Game $pendGame)
-                            }
-                            if ($exactB) { Write-InstalledVersionB -Game $pendGame -Version $exactB -GameDir $pendDir }
-                        }
-                    } elseif (-not ($pendGame.NoVersionSeed -and $pendGame.TwoMods)) {
-                        # A confirmed path-only legacy install supersedes the
-                        # old version. Resolve the exact new build BEFORE any
-                        # read can recover the stale game-side stamp/manifest.
-                        # If the source is temporarily unavailable, durably
-                        # block that stale recovery and let a later scan seed
-                        # the version when the source becomes available.
-                        [void](Complete-LegacyPostInstallVersionTracking -Game $pendGame -GameDir $pendDir)
-                    } else {
-                        # FH6 can install NALULUNA without touching the lufz
-                        # build.  No version write in that branch means "the
-                        # tracked lufz mod was untouched", not "forget it".
-                        # Keeping the marker preserves a pending lufz update.
-                    }
-                    if (Test-Path -LiteralPath $okMk -PathType Leaf) {
-                        Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
-                    }
-                }
-            }
-        } catch { throw }
+function global:Resolve-PostInstallRefreshState {
+    param($PreviousState, $CandidateState, [bool]$ConfirmedInstallerSuccess)
+    if (-not $ConfirmedInstallerSuccess -and $PreviousState -and $PreviousState.State -eq 'update') {
+        return $PreviousState
     }
-    $hadFullScan = [bool]$global:UserRanFullScan
+    return $CandidateState
+}
 
-    if ($hadFullScan) {
-        # User has already scanned at least once - keep their
-        # global state coherent by re-running the full scan.
-        try { Invoke-CheckInstalledScan } catch { Fail-InstalledScan -ErrorRecord $_ }
-    } elseif ($title) {
-        # First-time scenario: the user installed a single mod
-        # without ever running Check Installed. We only mark
-        # this one game so the detail page can update, without
-        # forcing a global scan they never opted into.
-        try {
-            $game = $null
-            foreach ($g in @($ownGames + $ownGamesGP + $externalGames)) {
-                if ($g.Title -eq $title) { $game = $g; break }
+function global:Resolve-PostInstallRefreshTarget {
+    param([string]$GameId = '', [string]$Title = '')
+    if (-not $GameId) { $GameId = '' + $global:PendingInstallGameId }
+    if (-not $Title) { $Title = '' + $global:PendingInstallTitle }
+    $game = $null
+    $games=@($ownGames + $ownGamesGP + $externalGames)
+    foreach ($candidate in $games) {
+        $candidateId = if (Get-Command Get-HubGameStateId -ErrorAction SilentlyContinue) { '' + (Get-HubGameStateId -Game $candidate) } else { '' + $candidate.Id }
+        if ($GameId -and $candidateId -eq $GameId) { $game = $candidate; break }
+    }
+    if (-not $game -and $Title) {
+        foreach ($candidate in $games) {
+            if ($candidate.Title -eq $Title) { $game=$candidate; break }
+        }
+    }
+    return [pscustomobject]@{ Game=$game; GameId=$GameId; Title=$(if ($game) { [string]$game.Title } else { $Title }) }
+}
+
+# Disk and state probing is deliberately isolated from WPF. This function may
+# run synchronously for tests/fallbacks or inside the private post-install
+# runspace. It never touches a card, tile or other Dispatcher-owned object.
+function global:Get-PostInstallDetectionSnapshot {
+    param($Game,[string]$Title,$PreviousState=$null)
+    $result=[ordered]@{
+        Action='None'; Title=$Title; Game=$Game; StateEntry=$null; RecordedPath=''
+        ConfirmedInstallerSuccess=$false
+    }
+    if (-not $Game) { return [pscustomobject]$result }
+    $confirmedInstallerSuccess=$false
+
+    # Consume the process-bound transaction and perform all receipt migration
+    # on this worker too. Those calls can touch several recovery files and were
+    # the largest remaining source of UI-thread stalls.
+    $okMk=Get-UpdateOkMarkerPath -Game $Game
+    if ($okMk -and (Test-Path -LiteralPath $okMk -PathType Leaf)) {
+        $status=$null
+        try { $status=Get-Content -LiteralPath $okMk -Raw -ErrorAction Stop | ConvertFrom-Json } catch {}
+        $confirmedSuccess=[bool]($status -and ([string]$status.outcome -eq 'success'))
+        if ($confirmedSuccess) { $confirmedInstallerSuccess=$true }
+        $primaryWritten=[bool]($confirmedSuccess -and $status.versionWritten)
+        $secondaryWritten=[bool]($confirmedSuccess -and $status.versionBWritten)
+        if ($confirmedSuccess -and $status.installedPath -and (Test-Path -LiteralPath ([string]$status.installedPath) -PathType Container)) {
+            Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value ([string]$status.installedPath)
+        }
+        $pendDir=$null
+        try { $pendDir=Read-InstalledPath -Game $Game } catch {}
+        try { [void](Read-LaunchOverride -Game $Game) } catch {}
+        if (-not $pendDir -and $PreviousState -and $PreviousState.GameDir) { $pendDir=[string]$PreviousState.GameDir }
+        if ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten)) {
+            if ($primaryWritten) {
+                $exact=('' + $status.versionValue).Trim()
+                if (-not (Test-IsTrackableInstalledVersion -Version $exact)) { $exact=Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game) }
+                if ($exact) { Write-InstalledVersion -Game $Game -Version $exact -GameDir $pendDir }
             }
-            if ($game) {
-                # The installer wrote .installed_path on success.
-                # Its presence + a resolvable path is conclusive
-                # evidence that both the game is installed AND
-                # the mod is in place - no further heuristics
-                # needed. This mirrors the Priority 1 branch in
-                # the full scan.
-                $recordedPath = Read-InstalledPath -Game $game
-                # Verify the ModFile is actually on disk (not just the
-                # folder) so a half-failed install or a deleted mod file
-                # can't flip the card to "VR Ready". Games without a
-                # ModFile (depot installs) keep folder-existence as before.
-                $modPresent = $true
-                $postTwoProbe = $null
-                if ($game.TwoMods) {
-                    $postTwoProbe = Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath
-                    $modPresent = if ($game.TwoModsRequireBoth) {
-                        $postDefs = @(Get-AlternativeModDefinitions -Game $game)
-                        $postPresent = @($postDefs | Where-Object { [bool](Get-AlternativeModValue $postTwoProbe ("$($_.Mode)Present")) })
-                        ($postDefs.Count -gt 0 -and $postPresent.Count -eq $postDefs.Count)
-                    } else {
-                        (@(Get-AlternativeModDefinitions -Game $game | Where-Object { [bool](Get-AlternativeModValue $postTwoProbe ("$($_.Mode)Present")) }).Count -gt 0)
-                    }
-                } elseif ($recordedPath -and $game.ModFile) {
-                    $modPresent = (Test-Path (Join-Path $recordedPath $game.ModFile))
-                    if (-not $modPresent -and $game.ModFileAlt) {
-                        $modPresent = (Test-Path (Join-Path $recordedPath $game.ModFileAlt))
-                    }
-                    if (-not $modPresent -and $game.DoorstopTargetModFile) {
-                        $modPresent = Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile
-                    }
-                    # !!! VrInstallRoot GAMES KEEP THE MOD OUTSIDE THE GAME
-                    # FOLDER (2026-08-20) - %LocalAppData% and the like. The
-                    # recorded path is then the GAME folder, so looking only
-                    # there finds nothing and the card falls back to
-                    # "Install VR Mod" even though the mod is right there.
-                    # The Locate dialog already checks this root and reports
-                    # the mod as found; without the same check here the two
-                    # disagree, which is exactly what the user sees.
-                    if (-not $modPresent -and $game.VrInstallRoot) {
-                        $vr = $game.VrInstallRoot
-                        if     ($vr -like "LOCALAPPDATA:*") { $vr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($vr.Substring("LOCALAPPDATA:".Length)) }
-                        elseif ($vr -like "APPDATA:*")      { $vr = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vr.Substring("APPDATA:".Length)) }
-                        elseif ($vr -like "PROGRAMDATA:*")  { $vr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vr.Substring("PROGRAMDATA:".Length)) }
-                        elseif ($vr -like "USERPROFILE:*")  { $vr = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vr.Substring("USERPROFILE:".Length)) }
-                        try {
-                            if (Test-Path -LiteralPath (Join-Path $vr $game.ModFile)) { $modPresent = $true }
-                        } catch {}
-                    }
-                }
-                # A DualMode title can use distinct current/depot proof files.
-                # The exact side probes must therefore be allowed to confirm a
-                # successful install even when the catalog's generic ModFile
-                # belongs only to the other side.
-                $postDualProbe = $null
-                if ($game.DualMode) {
-                    try {
-                        $postDualProbe = Get-DualModePresence -Game $game
-                        if ($postDualProbe.AnyPresent) {
-                            $modPresent = $true
-                            # Depot/legacy routes use their own path receipts,
-                            # not the generic .installed_path. Use the exact
-                            # positive probe immediately so first-time installs
-                            # turn green without waiting for a full rescan.
-                            $postDualRoot = Get-DualModePreferredRoot -Presence $postDualProbe
-                            if ($postDualRoot) { $recordedPath = $postDualRoot }
-                        }
-                    } catch {}
-                }
-                if ($recordedPath -and (Test-Path $recordedPath) -and $modPresent) {
-                    # A version-aware installer already supplied the exact
-                    # value.  A legacy installer did not; resolve only this
-                    # game's source now and durably mirror the result.  No
-                    # full disk/library scan is triggered.
-                    $postVer = Read-InstalledVersion -Game $game -GameDir $recordedPath
-                    if (-not $postVer -and -not $game.NoVersionSeed) {
-                        $postVer = Get-PostInstallTrackedVersion -Game $game -GameDir $recordedPath
-                        if ($postVer) { Write-InstalledVersion -Game $game -Version $postVer -GameDir $recordedPath }
-                    }
-                    $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
-                    $stateEntry = @{
-                        Tag     = "vrinstalled"
-                        Accent  = $accentHex
-                        State   = "ready"
-                        BtnText = "VR Ready"
-                        GameDir = $recordedPath
-                    }
-                    # Two-mod entries need their per-mod fields here too.
-                    # Without them this fast path wrote a state without any
-                    # TwoMods info, and the tile fell back to ONE button
-                    # until the Hub was restarted - exactly what happened
-                    # after installing the second BioShock mod. Same probe
-                    # as the full scan, so both agree.
-                    # Same story for DualMode games (Bendy, Content Warning):
-                    # without these the split between the current build and
-                    # the pinned depot build only appeared after a restart.
-                    if ($game.DualMode) {
-                        $dm = if ($postDualProbe) { $postDualProbe } else { Get-DualModePresence -Game $game }
-                        $stateEntry.CurrentPresent = [bool]$dm.CurrentPresent
-                        $stateEntry.DepotPresent   = [bool]$dm.DepotPresent
-                        $stateEntry.LegacyPresent  = [bool]$dm.LegacyPresent
-                        $stateEntry.RouteSplit     = [bool]$dm.MultiplePresent
-                        $stateEntry.CurrentDir     = $dm.CurrentDir
-                        $stateEntry.DepotDir       = $dm.DepotDir
-                        $stateEntry.LegacyDir      = $dm.LegacyDir
-                        if ($dm.BothPresent) {
-                            $stateEntry.DualMode   = $true
-                        }
-                    }
-                    if ($game.TwoMods) {
-                        $pi = if ($postTwoProbe) { $postTwoProbe } else { Get-TwoModsPresence -Game $game -FallbackRoot $recordedPath }
-                        $piDefs = @(Get-AlternativeModDefinitions -Game $game)
-                        $piPresent = @($piDefs | Where-Object { [bool](Get-AlternativeModValue $pi ("$($_.Mode)Present")) })
-                        $anyTwo = if ($game.TwoModsRequireBoth) { $piDefs.Count -gt 0 -and $piPresent.Count -eq $piDefs.Count }
-                                  else { $piPresent.Count -gt 0 }
-                        $stateEntry.TwoMods     = $anyTwo
-                        Set-AlternativeModStateFields -State $stateEntry -Game $game -Presence $pi
-                    }
-                    $global:gameStateMap[$title] = $stateEntry
-                    # Repaint the library/list card for this title.
-                    # Rebuild-Lookups walks every card and applies
-                    # whatever is in gameStateMap; cards without a
-                    # state entry are skipped (continue), so this
-                    # does NOT scan or repaint cards we didn't ask
-                    # for - only the one we just installed.
-                    try { Rebuild-Lookups } catch {}
-                }
-                elseif ($recordedPath -and (Test-Path $recordedPath)) {
-                    # GAME FOUND, MOD NOT THERE YET (2026-08-20). The branch
-                    # above only fires when the mod file is on disk, so
-                    # locating a game by hand wrote NO state at all - and
-                    # without a state entry the detail page shows no
-                    # "Game installed - ready for the VR mod" pill until a
-                    # full scan has run. For a title that no scan can find
-                    # anyway (Virtua Cop 2 is in no library), that pill
-                    # would never appear.
-                    # Same shape the full scan writes for this case, so both
-                    # agree and nothing downstream has to tell them apart.
-                    # The LABEL is computed exactly as the full scan does
-                    # it (Filter.ps1 line 3962), so both paths put the same
-                    # word on the button. Writing a literal here gave the
-                    # tile "Install VR Mod" after a Locate and "Install"
-                    # after a scan - same state, two different buttons.
-                    $lbl = if ($game.Bat) { "Install" }
-                           elseif ($game.Type -eq "steam") { "Open in Steam" }
-                           elseif ($game.Type -eq "itch")  { "Open on itch.io" }
-                           else { "Get Installer" }
-                    $global:gameStateMap[$title] = @{
-                        Tag      = "installed"
-                        State    = "installed"
-                        Border   = "#2a5c38"
-                        BtnText  = $lbl
-                        BtnColor = "#66dd88"
-                        GameDir  = $recordedPath
-                    }
-                    try { Rebuild-Lookups } catch {}
-                }
+            if ($secondaryWritten) {
+                $exactB=('' + $status.versionBValue).Trim()
+                if (-not (Test-IsTrackableInstalledVersion -Version $exactB)) { $exactB=Read-VersionStampFile -Path (Get-InstalledVersionPathB -Game $Game) }
+                if ($exactB) { Write-InstalledVersionB -Game $Game -Version $exactB -GameDir $pendDir }
             }
-        } catch { throw }
+        } elseif ($confirmedSuccess -and -not ($Game.NoVersionSeed -and $Game.TwoMods)) {
+            Invalidate-SupersededInstalledVersion -Game $Game -GameDir $pendDir
+        }
+        Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
     }
 
-    # Re-render the open detail page so the new state shows up
-    # immediately, regardless of which branch we took.
+    $recordedPath=Read-InstalledPath -Game $Game
+    $modPresent=$true
+    $postTwoProbe=$null
+    if ($Game.TwoMods) {
+        $postTwoProbe=Get-TwoModsPresence -Game $Game -FallbackRoot $recordedPath
+        $postDefs=@(Get-AlternativeModDefinitions -Game $Game)
+        $postPresent=@($postDefs | Where-Object { [bool](Get-AlternativeModValue $postTwoProbe ("$($_.Mode)Present")) })
+        $modPresent=if ($Game.TwoModsRequireBoth) { $postDefs.Count -gt 0 -and $postPresent.Count -eq $postDefs.Count } else { $postPresent.Count -gt 0 }
+    } elseif ($recordedPath -and $Game.ModFile) {
+        $modPresent=Test-RelativePathMarker -Root $recordedPath -Values @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)
+        if (-not $modPresent -and $Game.DoorstopTargetModFile) {
+            $modPresent=Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile
+        }
+        if (-not $modPresent -and $Game.VrInstallRoot) {
+            $vr=$Game.VrInstallRoot
+            if     ($vr -like 'LOCALAPPDATA:*') { $vr=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ($vr.Substring('LOCALAPPDATA:'.Length)) }
+            elseif ($vr -like 'APPDATA:*')      { $vr=Join-Path ([Environment]::GetFolderPath('ApplicationData')) ($vr.Substring('APPDATA:'.Length)) }
+            elseif ($vr -like 'PROGRAMDATA:*')  { $vr=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) ($vr.Substring('PROGRAMDATA:'.Length)) }
+            elseif ($vr -like 'USERPROFILE:*')  { $vr=Join-Path ([Environment]::GetFolderPath('UserProfile')) ($vr.Substring('USERPROFILE:'.Length)) }
+            $modPresent=Test-RelativePathMarker -Root $vr -Values @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)
+            if ($modPresent) { $recordedPath=$vr }
+        }
+    }
+
+    $postDualProbe=$null
+    if ($Game.DualMode) {
+        $postDualProbe=Get-DualModePresence -Game $Game
+        if ($postDualProbe.AnyPresent) {
+            $modPresent=$true
+            $postDualRoot=Get-DualModePreferredRoot -Presence $postDualProbe
+            if ($postDualRoot) { $recordedPath=$postDualRoot }
+        }
+    }
+    if ($modPresent -and $recordedPath -and -not (Test-VrInstallEvidenceContract -Game $Game -Root $recordedPath)) { $modPresent=$false }
+    $baseGamePresent=$true
+    # Get-DualModePresence already validated the base-game proof belonging to
+    # the exact selected route. Reapplying the primary route's GameExe here
+    # would reject a valid legacy standalone executable (Gen1Recomp) merely
+    # because the successor uses a different filename (DramaticShapeVR.exe).
+    if ($postDualProbe -and $postDualProbe.AnyPresent) { $baseGamePresent=$true }
+    elseif ($recordedPath) { $baseGamePresent=Test-BaseGameInstallProof -Game $Game -Root $recordedPath }
+    if (-not $baseGamePresent -and $Game.VrInstallRoot) {
+        $previousBaseRoot=if ($PreviousState -and $PreviousState.GameDir) { [string]$PreviousState.GameDir } else { '' }
+        if ($previousBaseRoot -and (Test-BaseGameInstallProof -Game $Game -Root $previousBaseRoot)) { $baseGamePresent=$true }
+        elseif ($confirmedInstallerSuccess) { $baseGamePresent=$true }
+    }
+
+    if ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and $baseGamePresent -and $modPresent) {
+        $stateEntry=@{ Tag='vrinstalled'; Accent=$(if ($Game.Accent) { $Game.Accent } else { '#666677' }); State='ready'; BtnText='VR Ready'; GameDir=$recordedPath }
+        if ($Game.DualMode) {
+            $dm=if ($postDualProbe) { $postDualProbe } else { Get-DualModePresence -Game $Game }
+            $stateEntry.CurrentPresent=[bool]$dm.CurrentPresent; $stateEntry.DepotPresent=[bool]$dm.DepotPresent
+            $stateEntry.LegacyPresent=[bool]$dm.LegacyPresent; $stateEntry.RouteSplit=[bool]$dm.MultiplePresent
+            $stateEntry.CurrentDir=$dm.CurrentDir; $stateEntry.DepotDir=$dm.DepotDir; $stateEntry.LegacyDir=$dm.LegacyDir
+            if ($dm.BothPresent) { $stateEntry.DualMode=$true }
+        }
+        if ($Game.TwoMods) {
+            $pi=if ($postTwoProbe) { $postTwoProbe } else { Get-TwoModsPresence -Game $Game -FallbackRoot $recordedPath }
+            $piDefs=@(Get-AlternativeModDefinitions -Game $Game)
+            $piPresent=@($piDefs | Where-Object { [bool](Get-AlternativeModValue $pi ("$($_.Mode)Present")) })
+            $stateEntry.TwoMods=if ($Game.TwoModsRequireBoth) { $piDefs.Count -gt 0 -and $piPresent.Count -eq $piDefs.Count } else { $piPresent.Count -gt 0 }
+            Set-AlternativeModStateFields -State $stateEntry -Game $Game -Presence $pi
+            $remainingTargets=@(Get-AlternativeModsNeedingManualUpdate -Game $Game -Presence $pi)
+            if ($remainingTargets.Count -gt 0) {
+                $uniqueSlots=@($remainingTargets | ForEach-Object { [string]$_.Slot } | Where-Object { $_ } | Sort-Object -Unique)
+                $uniqueRoutes=@($remainingTargets | ForEach-Object { [string]$_.Route } | Where-Object { $_ } | Sort-Object -Unique)
+                $stateEntry.Tag='vrupdate'; $stateEntry.State='update'; $stateEntry.UpdateTargetCount=$remainingTargets.Count
+                $stateEntry.UpdateTargetSlot=if ($uniqueSlots.Count -eq 1) { [string]$uniqueSlots[0] } else { $null }
+                $stateEntry.UpdateTargetRoute=if ($uniqueRoutes.Count -eq 1) { [string]$uniqueRoutes[0] } else { $null }
+                $names=@($remainingTargets | ForEach-Object { $label=if ($_.Name) { [string]$_.Name } else { "Mod $($_.Slot)" }; if ($_.Route) { "$label ($($_.Route))" } else { $label } })
+                $stateEntry.UpdateEvidence=(($names -join ', ') + ' is missing its required current-release proof file')
+                $stateEntry.BtnText=Get-UpdateActionLabel -Game $Game -State $stateEntry -Fallback 'Update Mod'
+            }
+        }
+        $stateEntry=Resolve-PostInstallRefreshState -PreviousState $PreviousState -CandidateState $stateEntry -ConfirmedInstallerSuccess $confirmedInstallerSuccess
+        $postVer=Read-InstalledVersion -Game $Game -GameDir $recordedPath
+        if (-not $postVer -and -not $Game.NoVersionSeed) {
+            $postVer=Get-PostInstallLocalTrackedVersion -Game $Game -GameDir $recordedPath
+            if ($postVer) { Write-InstalledVersion -Game $Game -Version $postVer -GameDir $recordedPath }
+        }
+        $result.Action='Set'; $result.StateEntry=$stateEntry
+    } elseif ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and $baseGamePresent) {
+        $label=if ($Game.Bat) { 'Install' } elseif ($Game.Type -eq 'steam') { 'Open in Steam' } elseif ($Game.Type -eq 'itch') { 'Open on itch.io' } else { 'Get Installer' }
+        $result.Action='Set'
+        $result.StateEntry=@{ Tag='installed'; State='installed'; Border='#2a5c38'; BtnText=$label; BtnColor='#66dd88'; GameDir=$recordedPath }
+    } elseif ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and -not $baseGamePresent) {
+        $result.Action='Remove'
+    }
+    $result.RecordedPath='' + $recordedPath
+    $result.ConfirmedInstallerSuccess=$confirmedInstallerSuccess
+    return [pscustomobject]$result
+}
+
+function global:Apply-PostInstallDetectionSnapshot {
+    param($Snapshot)
+    if (-not $Snapshot) { return }
+    $title=[string]$Snapshot.Title
+    if ($Snapshot.Action -eq 'Set') { $global:gameStateMap[$title]=$Snapshot.StateEntry }
+    elseif ($Snapshot.Action -eq 'Remove' -and $global:gameStateMap.ContainsKey($title)) { $global:gameStateMap.Remove($title) | Out-Null }
+    if ($Snapshot.Action -in @('Set','Remove')) {
+        try { Rebuild-Lookups } catch {}
+        try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch {}
+    }
     try {
-        if ($global:currentDetailGame -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) {
-            Show-DiscoverDetail -Game $global:currentDetailGame
+        if ($global:window -and $global:window.Dispatcher) {
+            $global:window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Render,[action]{})
         }
     } catch {}
+    try {
+        if ($global:currentDetailGame -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) { Show-DiscoverDetail -Game $global:currentDetailGame }
+    } catch {}
+}
+
+function global:Invoke-PostInstallRefresh {
+    param([string]$GameId = '', [string]$Title = '')
+    $target=Resolve-PostInstallRefreshTarget -GameId $GameId -Title $Title
+    if (Test-PostInstallRefreshScanActive) {
+        $global:PostInstallRefreshPending=$true
+        if ($target.GameId) { $global:PendingInstallGameId=$target.GameId }
+        if ($target.Title) { $global:PendingInstallTitle=$target.Title }
+        return
+    }
+    if (-not $target.Game) { return }
+    $previousState=$null
+    try { $previousState=$global:gameStateMap[$target.Title] } catch {}
+    $snapshot=Get-PostInstallDetectionSnapshot -Game $target.Game -Title $target.Title -PreviousState $previousState
+    Apply-PostInstallDetectionSnapshot -Snapshot $snapshot
 }
 
 # Timer callbacks used to swallow every post-install refresh exception. That
@@ -406,16 +257,287 @@ function global:Invoke-PostInstallRefresh {
 # stayed on Update, and no log explained why. Every install surface now calls
 # this one guarded entry point, which keeps the Hub alive while making the
 # failure visible and durable.
-function global:Invoke-PostInstallRefreshSafely {
+function global:Start-PostInstallScanActivity {
+    # Preserve the exact completed-scan presentation. The focused refresh must
+    # temporarily use the same visible working state as a manual full scan, but
+    # must not replace its already-audited totals after the one-game check.
+    $state = [pscustomobject]@{
+        Count=$null; CountVisibility=$null
+        Text=$null; TextVisibility=$null; TextValue=$null; TextForeground=$null; TextFontSize=$null
+        Mag=$null; MagVisibility=$null
+        Shimmer=$null; ShimmerVisibility=$null
+        OwnsSpinner=$false
+    }
     try {
-        Invoke-PostInstallRefresh
+        if (-not $global:window) { return $state }
+        $state.Count = $global:window.FindName('CheckInstalledCount')
+        $state.Text = $global:window.FindName('CheckInstalledText')
+        $state.Mag = $global:window.FindName('CheckInstalledMagRight')
+        $state.Shimmer = $global:window.FindName('CheckInstalledShimmer')
+
+        if ($state.Count) {
+            $state.CountVisibility = $state.Count.Visibility
+            $state.Count.Visibility = [System.Windows.Visibility]::Collapsed
+        }
+        if ($state.Text) {
+            $state.TextVisibility = $state.Text.Visibility
+            $state.TextValue = [string]$state.Text.Text
+            $state.TextForeground = $state.Text.Foreground
+            $state.TextFontSize = [double]$state.Text.FontSize
+            $state.Text.Visibility = [System.Windows.Visibility]::Visible
+            $state.Text.Text = 'Scanning...'
+            $state.Text.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#ffcc44')
+            $state.Text.FontSize = 14
+        }
+        if ($state.Mag) {
+            $state.MagVisibility = $state.Mag.Visibility
+            $state.Mag.Visibility = [System.Windows.Visibility]::Visible
+        }
+        if ($state.Shimmer) {
+            $state.ShimmerVisibility = $state.Shimmer.Visibility
+            $state.Shimmer.Visibility = [System.Windows.Visibility]::Collapsed
+        }
+
+        $spinnerWasActive = [bool]$global:ScanSpinnerActive
+        if (Get-Command Start-ScanSpinner -ErrorAction SilentlyContinue) { Start-ScanSpinner }
+        $state.OwnsSpinner = [bool](-not $spinnerWasActive -and $global:ScanSpinnerActive)
+
+        # This is the part the former implementation missed. Starting a visual
+        # and immediately doing synchronous detection in the same timer tick
+        # does not guarantee that WPF has presented it. The manual scan drains
+        # the render queue before detection; use that exact barrier here too.
+        try { $global:window.UpdateLayout() } catch {}
+        if ($global:window.Dispatcher) {
+            $flushFrame = New-Object System.Windows.Threading.DispatcherFrame
+            $stopFlush = { $flushFrame.Continue = $false }.GetNewClosure()
+            [void]$global:window.Dispatcher.BeginInvoke(
+                [System.Windows.Threading.DispatcherPriority]::Background,
+                [action]$stopFlush)
+            [System.Windows.Threading.Dispatcher]::PushFrame($flushFrame)
+        }
+    } catch {}
+    return $state
+}
+
+function global:Stop-PostInstallScanActivity {
+    param($State)
+    if (-not $State) { return }
+    if ($State.OwnsSpinner) {
+        try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
+    }
+    try { if ($State.Count) { $State.Count.Visibility = $State.CountVisibility } } catch {}
+    try {
+        if ($State.Text) {
+            $State.Text.Visibility = $State.TextVisibility
+            $State.Text.Text = $State.TextValue
+            $State.Text.Foreground = $State.TextForeground
+            $State.Text.FontSize = $State.TextFontSize
+        }
+    } catch {}
+    try { if ($State.Mag) { $State.Mag.Visibility = $State.MagVisibility } } catch {}
+    try { if ($State.Shimmer) { $State.Shimmer.Visibility = $State.ShimmerVisibility } } catch {}
+}
+
+function global:Complete-PostInstallRefreshSafely {
+    param(
+        [string]$GameId = '',
+        [string]$Title = '',
+        $ActivityState = $null,
+        [bool]$PreviousPostInstallRefresh = $false
+    )
+    try {
+        Invoke-PostInstallRefresh -GameId $GameId -Title $Title
     } catch {
         if (Get-Command Write-HubActionFailure -ErrorAction SilentlyContinue) {
             Write-HubActionFailure -Action 'Refresh installed mod status' -ErrorRecord $_
         } else {
             try { Write-Host ("[HubError] Refresh installed mod status: " + $_.Exception.Message) -ForegroundColor Red } catch {}
         }
+    } finally {
+        if ($ActivityState) { Stop-PostInstallScanActivity -State $ActivityState }
+        $global:PostInstallRefreshInProgress = $PreviousPostInstallRefresh
     }
+}
+
+# Start the complete disk/state probe in a private runspace. Only the compact
+# snapshot crosses back to WPF, where state assignment and repaint remain
+# serialized on the Dispatcher thread.
+function global:Start-PostInstallDetectionAsync {
+    param(
+        [string]$GameId = '',
+        [string]$Title = '',
+        $ActivityState = $null,
+        [bool]$PreviousPostInstallRefresh = $false,
+        [scriptblock]$DetectionScript = $null,
+        [int]$PollMilliseconds = 40
+    )
+    if (-not $global:window -or -not $global:window.Dispatcher) { return $false }
+    if (Test-PostInstallRefreshScanActive) { return $false }
+    $target=Resolve-PostInstallRefreshTarget -GameId $GameId -Title $Title
+    if (-not $target.Game) { return $false }
+    $previousState=$null
+    try { $previousState=$global:gameStateMap[$target.Title] } catch {}
+    $runspace=$null; $powerShell=$null
+    try {
+        $iss=[Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+        $workerCommand='Get-PostInstallDetectionSnapshot'
+        if ($DetectionScript) {
+            $workerCommand='__PCVRPostInstallDetectionFixture'
+            $iss.Commands.Add((New-Object Management.Automation.Runspaces.SessionStateFunctionEntry($workerCommand,$DetectionScript.ToString())))
+        } else {
+            # Copy function *definitions*, never live ScriptBlock objects. A
+            # live block remains bound to the WPF runspace; invoking and later
+            # disposing it from another runspace can corrupt the Hub session.
+            $allowedLeaves=@('HubState.ps1','VRModHub.ps1','Helpers.ps1','Filter.ps1','Filter.Banners.ps1','Filter.ScanSources.ps1','Filter.InstallRefresh.ps1')
+            $explicitNames=@(
+                'Get-PostInstallDetectionSnapshot','Resolve-PostInstallRefreshState','Get-PostInstallLocalTrackedVersion',
+                'Test-IsTrackableInstalledVersion','Get-InstalledVersionPath','Get-InstalledPathFile','Read-InstalledPath',
+                'Get-LaunchOverrideFile','Read-LaunchOverride','Get-GameStampPath','Read-VersionStampFile',
+                'Import-PendingInstallerVersion','Read-InstalledVersionProof','Read-InstalledVersion','Write-InstalledVersion',
+                'Get-InstalledVersionPathB','Read-InstalledVersionB','Write-InstalledVersionB','Invalidate-SupersededInstalledVersion',
+                'Get-UpdateOkMarkerPath','Test-RelativePathMarker','Test-BaseGameInstallProof','Test-VrInstallEvidenceContract',
+                'Join-HubPathLexical','Test-HubWindowsStylePathLexical'
+            )
+            $added=@{}
+            foreach ($command in @(Get-Command -CommandType Function)) {
+                $sourceLeaf=''
+                # Dynamic/host functions have no ScriptBlock.File. Calling
+                # Split-Path with that empty value creates a terminating error
+                # for every such function under the Hub's Stop preference.
+                # A transcript records even caught errors, so one refresh used
+                # to spend minutes writing thousands of errors before the
+                # actual detection worker could start.
+                $sourceFile=''
+                try { $sourceFile='' + $command.ScriptBlock.File } catch {}
+                if ($sourceFile) {
+                    try { $sourceLeaf=[IO.Path]::GetFileName($sourceFile) } catch {}
+                }
+                if (($allowedLeaves -notcontains $sourceLeaf) -and ($explicitNames -notcontains $command.Name)) { continue }
+                if ($added.ContainsKey($command.Name)) { continue }
+                $definition=''+$command.Definition
+                if (-not $definition) { continue }
+                $iss.Commands.Add((New-Object Management.Automation.Runspaces.SessionStateFunctionEntry($command.Name,$definition)))
+                $added[$command.Name]=$true
+            }
+            if (-not $added.ContainsKey('Get-PostInstallDetectionSnapshot')) { throw 'Post-install detection function was not copied into the worker.' }
+            foreach ($variable in @(
+                @{Name='scriptDir';Value=$script:scriptDir},
+                @{Name='HubStateRootOverride';Value=$global:HubStateRootOverride},
+                @{Name='HubPortableStateRootOverride';Value=$global:HubPortableStateRootOverride},
+                @{Name='HubLegacyPortableStateRootOverride';Value=$global:HubLegacyPortableStateRootOverride},
+                @{Name='HubRuntimeRootOverride';Value=$global:HubRuntimeRootOverride}
+            )) {
+                $iss.Variables.Add((New-Object Management.Automation.Runspaces.SessionStateVariableEntry($variable.Name,$variable.Value,'')))
+            }
+            # Unlike the other override readers, Get-HubLocalApplicationDataRoot
+            # distinguishes an undefined variable from a defined-but-empty one.
+            # Do not inject a null override into production: that would hide the
+            # real Windows LocalAppData folder from the worker. Tests that use a
+            # deliberate isolated LocalAppData root still receive it explicitly.
+            if ($global:HubLocalAppDataRootOverride) {
+                $iss.Variables.Add((New-Object Management.Automation.Runspaces.SessionStateVariableEntry(
+                    'HubLocalAppDataRootOverride',$global:HubLocalAppDataRootOverride,'')))
+            }
+        }
+        $runspace=[Management.Automation.Runspaces.RunspaceFactory]::CreateRunspace($iss)
+        try { $runspace.ApartmentState='MTA' } catch {}
+        $runspace.Open()
+        $powerShell=[PowerShell]::Create(); $powerShell.Runspace=$runspace
+        [void]$powerShell.AddCommand($workerCommand).AddParameter('Game',$target.Game).AddParameter('Title',$target.Title).AddParameter('PreviousState',$previousState)
+        $async=$powerShell.BeginInvoke()
+        if (-not $script:PostInstallDetectionWorkers) { $script:PostInstallDetectionWorkers=@{} }
+        $workerRegistry=$script:PostInstallDetectionWorkers
+        $key=[Guid]::NewGuid().ToString('N')
+        $timer=New-Object System.Windows.Threading.DispatcherTimer
+        $timer.Interval=[TimeSpan]::FromMilliseconds([Math]::Max(10,$PollMilliseconds))
+        $workerPowerShell=$powerShell; $workerRunspace=$runspace; $workerAsync=$async; $workerKey=$key
+        $workerActivity=$ActivityState; $workerPreviousFlag=$PreviousPostInstallRefresh
+        $timer.Add_Tick({
+            param($sender,$eventArgs)
+            if (-not $workerAsync.IsCompleted) { return }
+            $sender.Stop()
+            try {
+                $allResults=@($workerPowerShell.EndInvoke($workerAsync))
+                $snapshot=@($allResults | Where-Object { $_ -and $_.PSObject.Properties['Action'] }) | Select-Object -Last 1
+                if (-not $snapshot) { throw 'The post-install worker returned no detection snapshot.' }
+                Apply-PostInstallDetectionSnapshot -Snapshot $snapshot
+            } catch {
+                if (Get-Command Write-HubActionFailure -ErrorAction SilentlyContinue) { Write-HubActionFailure -Action 'Refresh installed mod status' -ErrorRecord $_ }
+                else { try { Write-Host ("[HubError] Refresh installed mod status: " + $_.Exception.Message) -ForegroundColor Red } catch {} }
+            } finally {
+                try { $workerPowerShell.Dispose() } catch {}
+                try { $workerRunspace.Dispose() } catch {}
+                try { if ($workerRegistry) { $workerRegistry.Remove($workerKey) } } catch {}
+                if ($workerActivity) { Stop-PostInstallScanActivity -State $workerActivity }
+                $global:PostInstallRefreshInProgress=$workerPreviousFlag
+            }
+        }.GetNewClosure())
+        $workerRegistry[$key]=[pscustomobject]@{ Timer=$timer; PowerShell=$powerShell; Runspace=$runspace; Async=$async }
+        $timer.Start()
+        return $true
+    } catch {
+        try { if ($powerShell) { $powerShell.Dispose() } } catch {}
+        try { if ($runspace) { $runspace.Dispose() } } catch {}
+        return $false
+    }
+}
+
+function global:Invoke-PostInstallRefreshSafely {
+    param([string]$GameId = '', [string]$Title = '', [switch]$ShowScanActivity)
+    $activityState = $null
+    $previousPostInstallRefresh = [bool]$global:PostInstallRefreshInProgress
+    $global:PostInstallRefreshInProgress = $true
+    # A post-installer repaint touches both card renderers and can hold the UI
+    # thread for several seconds on a populated, already-scanned library. Give
+    # it the complete visible manual-scan prelude, not merely a spinner object
+    # that has not yet reached the screen. Never borrow or stop activity owned
+    # by an actual queued/running scan.
+    if ($ShowScanActivity -and -not $global:ScanInProgress -and -not $global:ScanQueued) {
+        $activityState = Start-PostInstallScanActivity
+    }
+
+    # Installer timers run on the WPF dispatcher. Queue the worker launch after
+    # the visible prelude, then keep every disk/state probe in its own runspace.
+    # The Dispatcher sees only the final state assignment and card repaint.
+    if ($activityState -and $global:window -and $global:window.Dispatcher) {
+        try {
+            $queuedGameId = $GameId
+            $queuedTitle = $Title
+            $queuedActivity = $activityState
+            $queuedPrevious = $previousPostInstallRefresh
+            $queuedWork = {
+                $started=Start-PostInstallDetectionAsync -GameId $queuedGameId -Title $queuedTitle `
+                    -ActivityState $queuedActivity -PreviousPostInstallRefresh $queuedPrevious
+                if (-not $started) {
+                    Complete-PostInstallRefreshSafely -GameId $queuedGameId -Title $queuedTitle `
+                        -ActivityState $queuedActivity -PreviousPostInstallRefresh $queuedPrevious
+                }
+            }.GetNewClosure()
+            [void]$global:window.Dispatcher.BeginInvoke(
+                [System.Windows.Threading.DispatcherPriority]::Input,
+                [action]$queuedWork)
+            return
+        } catch {
+            # A dispatcher teardown must not lose the completed install. Fall
+            # through to the same guarded synchronous cleanup path.
+        }
+    }
+    Complete-PostInstallRefreshSafely -GameId $GameId -Title $Title `
+        -ActivityState $activityState -PreviousPostInstallRefresh $previousPostInstallRefresh
+}
+
+# Consume an installer refresh that completed while a live installed-games
+# scan owned the collections. Keeping this transition in one helper makes the
+# scan epilogue explicit and prevents the saved game identity from expiring
+# unused after the global scan flag is released.
+function global:Invoke-DeferredPostInstallRefresh {
+    if (-not $global:PostInstallRefreshPending) { return }
+    $deferredGameId = '' + $global:PendingInstallGameId
+    $deferredTitle = '' + $global:PendingInstallTitle
+    $global:PostInstallRefreshPending = $false
+    $global:PendingInstallGameId = $null
+    $global:PendingInstallTitle = $null
+    Invoke-PostInstallRefreshSafely -GameId $deferredGameId -Title $deferredTitle -ShowScanActivity
 }
 
 # Fallback for launches where we get no process handle back (a UAC
@@ -440,7 +562,8 @@ function global:Watch-InstallMarkerForRefresh {
     try {
         $timer = New-Object System.Windows.Threading.DispatcherTimer
         $timer.Interval = [TimeSpan]::FromSeconds(2)
-        $timer.Tag = @{ Marker = $marker; Stamp = $stamp; Deadline = (Get-Date).AddMinutes(15) }
+        $watchId = if (Get-Command Get-HubGameStateId -ErrorAction SilentlyContinue) { '' + (Get-HubGameStateId -Game $Game) } else { '' + $Game.Id }
+        $timer.Tag = @{ Marker = $marker; Stamp = $stamp; Deadline = (Get-Date).AddMinutes(15); GameId = $watchId; Title = [string]$Game.Title }
         $timer.Add_Tick({
             param($s, $e)
             $st = $s.Tag
@@ -454,7 +577,7 @@ function global:Watch-InstallMarkerForRefresh {
             } catch {}
             if ($done) {
                 try { $s.Stop() } catch {}
-                Invoke-PostInstallRefreshSafely
+                Invoke-PostInstallRefreshSafely -GameId ([string]$st.GameId) -Title ([string]$st.Title) -ShowScanActivity
                 return
             }
             if ((Get-Date) -gt $st.Deadline) { try { $s.Stop() } catch {} }

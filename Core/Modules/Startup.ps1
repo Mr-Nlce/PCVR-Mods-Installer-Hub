@@ -228,7 +228,20 @@ $window.Add_Activated({
                 }
             }
         }
-        if (-not $installed) { return }
+        # A surviving steamapps folder is not a surviving game. Steam removes
+        # its own executable on uninstall but intentionally leaves VR-mod files
+        # behind; the focused refresh must apply the same executable/original-
+        # file contract as the full scan before it can paint Installed or Ready.
+        if ($installed -and -not (Test-BaseGameInstallProof -Game $game -Root $gameDir)) {
+            $installed = $false
+            $gameDir = $null
+        }
+        if (-not $installed) {
+            if ($global:gameStateMap.ContainsKey($title)) { $global:gameStateMap.Remove($title) | Out-Null }
+            try { Rebuild-Lookups } catch {}
+            try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch {}
+            return
+        }
 
         # Test if VR mod is also present. Mirrors the full-scan
         # logic but only for the ModFile / VrInstallRoot paths -
@@ -236,6 +249,7 @@ $window.Add_Activated({
         # and unlikely after a fresh Steam install.
         $vrInstalled = $false
         if ($game.ModFile) {
+            $vrEvidenceRoot = $gameDir
             # A mod may have more than one legitimate on-disk marker. Halo
             # MCC, for example, uses HaloMCCVR.dll in the prerelease channel
             # and halo3xr.dll in Latest/Stable. The full scan already accepts
@@ -258,11 +272,8 @@ $window.Add_Activated({
                 }
                 if (Test-RelativePathMarker -Root $altRoot -Values @($game.ModFile, $game.ModFileAlt, $game.ModFileAlt2)) {
                     $vrInstalled = $true
-                    if ($game.VrInstallEvidence) {
-                        foreach ($ev in $game.VrInstallEvidence) {
-                            if (-not (Test-Path (Join-Path $altRoot $ev))) { $vrInstalled = $false; break }
-                        }
-                    }
+                    $vrEvidenceRoot = $altRoot
+                    if (-not (Test-VrInstallEvidenceContract -Game $game -Root $altRoot)) { $vrInstalled = $false }
                     # The staged files alone prove nothing: they outlive the
                     # game. Same shared check the full scan uses - without it
                     # a fresh Hub shows a stale "VR Ready" on the very first
@@ -272,6 +283,9 @@ $window.Add_Activated({
                         $vrInstalled = $false
                     }
                 }
+            }
+            if ($vrInstalled -and -not (Test-VrInstallEvidenceContract -Game $game -Root $vrEvidenceRoot)) {
+                $vrInstalled = $false
             }
         }
 
@@ -339,6 +353,20 @@ $window.Add_ContentRendered({
         Set-Content -Path (Join-Path $startupTemp "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue
         Write-HubTiming "window activated; launcher ready signal written"
     } catch { }
+})
+
+# Pre-build the Steam-style portrait library only after the first window
+# paint. Build-DiscoverTiles itself yields between small batches, so this
+# warms the hidden alternate view without moving the old five-second cost
+# into startup or blocking interaction. A very fast user switch simply sees
+# the remaining tiles appear progressively while the same queue continues.
+$window.Add_ContentRendered({
+    if ($global:DiscoverLibraryWarmScheduled) { return }
+    $global:DiscoverLibraryWarmScheduled = $true
+    $window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::ApplicationIdle,
+        [Action]{ try { if (Get-Command Build-DiscoverTiles -ErrorAction SilentlyContinue) { Build-DiscoverTiles } } catch { } }
+    ) | Out-Null
 })
 
 # Check on Startup must not turn application startup into a 20-25 second

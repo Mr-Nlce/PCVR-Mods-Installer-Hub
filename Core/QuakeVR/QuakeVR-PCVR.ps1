@@ -378,7 +378,7 @@ try {
     Set-Content -LiteralPath (Join-PathLexical $PSScriptRoot ".installed_path_pcvr") -Value $installDir -Encoding UTF8 -Force
     if ($relTag) {
         Set-Content -LiteralPath (Join-PathLexical $PSScriptRoot ".installed_version_b") -Value $relTag -Encoding UTF8 -Force
-        Set-Content -LiteralPath (Join-PathLexical $installDir ".pcvrhub_version_b") -Value $relTag -Encoding UTF8 -Force
+        Save-InstalledStamp -GameDir $installDir -Version $relTag -HubDir $PSScriptRoot -Second
     }
 } catch {}
 

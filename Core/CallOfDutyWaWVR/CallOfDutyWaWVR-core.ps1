@@ -250,7 +250,7 @@ if ($edition -eq "cut") {
         Write-Host "    $DEPOT_COMMAND" -ForegroundColor Yellow
         Write-Host ""
         $clip = $false
-        try { Set-Clipboard -Value $DEPOT_COMMAND; $clip = $true } catch {}
+        try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback; $clip = $true } catch {}
         if ($clip) { Write-OK "Command copied to your clipboard." }
         else       { Write-Warn "Clipboard not available - type the command by hand." }
         Write-Host ""
@@ -279,6 +279,7 @@ if ($edition -eq "cut") {
         foreach ($cu in @("steam://open/console", "steam://nav/console")) {
             try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
         }
+        Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
         Write-Host ""
         Pause-User "Press Enter once the depot download has finished..."
         }

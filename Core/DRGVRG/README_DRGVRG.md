@@ -53,21 +53,21 @@ starts.
 
 ## Controls
 
-| Action | Button |
-|--------|--------|
-| Walk | [[Left Stick]] |
-| Rotate / rotate map | [[Right Stick]] |
-| VR settings menu | [[Right Stick]] Press |
-| Mine | Right [[B]] |
-| Jump (hold for hover boots) | Right [[A]] |
-| Use / reload | Left [[B]] |
-| Map in front of you | Left [[A]] |
-| Fire | [[Trigger]] |
-| Grab weapon / item | [[Grip]] near holster |
-| Power attack | [[Trigger]] while swinging pickaxe |
-| Recall sentries | Long-press Left [[B]] |
-| Useful menu | Hold [[Left Trigger]] (empty hand) |
-| Toggle VR off/on | Hold [[Right Stick]] 2 sec (Space Rig) |
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Walk |
+| [[Right Stick]] | Rotate / rotate map |
+| [[Right Stick]] Press | VR settings menu |
+| Right [[B]] | Mine |
+| Right [[A]] | Jump (hold for hover boots) |
+| Left [[B]] | Use / reload |
+| Left [[A]] | Map in front of you |
+| [[Trigger]] | Fire |
+| [[Grip]] near holster | Grab weapon / item |
+| [[Trigger]] while swinging pickaxe | Power attack |
+| Long-press Left [[B]] | Recall sentries |
+| Hold [[Left Trigger]] (empty hand) | Useful menu |
+| Hold [[Right Stick]] 2 sec (Space Rig) | Toggle VR off/on |
 
 You have five holsters: one on each leg, one on the torso, and one behind
 each shoulder (the shoulder ones are not visible). To open the Space Rig

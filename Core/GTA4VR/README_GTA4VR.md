@@ -57,7 +57,7 @@ The game plays on a gamepad; these are the VR layer's own keys.
 - [[F5]] cycle the eye resolution (it saves the new value back)
 - [[F6]] stereo scale, [[F8]] IPD / separation
 - [[F10]] set the seated lean baseline
-- Menu navigation: [[WASD]], arrows or the left stick; [[Enter]] applies
+- Menu navigation: [[WASD]], arrows or [[Left Stick]]; [[Enter]] applies
 
 If the gun glitches while aiming, recenter - that is a known rough edge.
 

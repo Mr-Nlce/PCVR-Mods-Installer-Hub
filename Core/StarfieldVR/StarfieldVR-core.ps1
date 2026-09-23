@@ -403,6 +403,7 @@ if ($vigem -in @("y","Y")) {
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
 
 # -------------------------------------------------------
 # STEP 4: Done + important settings reminder

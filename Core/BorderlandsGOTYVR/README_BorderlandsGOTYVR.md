@@ -2,6 +2,9 @@
 
 **BL1GOTYVR** by **Mastersellz** adds native OpenXR stereo rendering, roomscale head tracking and tracked weapon aiming to the 2019 Enhanced release.
 
+The current **BL1GOTYVR_V0.5.6.6** release improves SFR rendering and
+locomotion while retaining the existing configurator and launch route.
+
 ## Required game version
 
 This mod supports **Borderlands: Game of the Year Enhanced (2019), Win64/D3D11 only**. It does not support the original 2009 Borderlands release.
@@ -26,7 +29,7 @@ Start the game with the render preset you saved. If the left- and right-eye imag
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move |
 | [[Right Stick]] | Smooth or snap turn |
@@ -42,7 +45,7 @@ Start the game with the render preset you saved. If the left- and right-eye imag
 | [[Right Grip]] | Right shoulder action |
 | [[Right Stick Click]] | Crouch |
 | [[Left Stick Click]] + [[Right Stick Click]] | Recenter |
-| Physical controller swing | Melee attack |
+| [[Physical controller swing]] | Melee attack |
 
 Keyboard and gamepad input remain available.
 

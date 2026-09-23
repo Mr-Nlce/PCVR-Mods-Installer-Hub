@@ -6,8 +6,8 @@
 # Hotbite runs the game through ModEngine from its own folder under
 # LOCALAPPDATA, ERVR drops a ReShade add-on into the game folder.
 #
-# WHAT GOES WHERE (read from the real archive, 6 entries, 3,038,759 B,
-# sha256 ad9ca95a825299b1cf72e06d59e6694fab7e22af2f063ca273b8e0946ccec6e7):
+# WHAT GOES WHERE (read from the real v0.4.0 archive, 10 files,
+# 3,112,574 packed bytes, SHA-256 is documented outside the delivery):
 #   <game>\Game\dxgi.dll          ReShade 6.8.0 add-on build, bundled
 #   <game>\Game\dinput8.dll       ERVR's proxy loader
 #   <game>\Game\ReShade.ini
@@ -32,7 +32,7 @@ if (-not (Get-Command Write-EldenRingMotionLauncher -ErrorAction SilentlyContinu
 
 $MOD_NAME    = "Elden Ring VR - ERVR"
 $MOD_AUTHOR  = "Ilya"
-$MOD_VERSION = "V0.3.0"
+$MOD_VERSION = "V0.4.0"
 $NEXUS_MOD   = "https://www.nexusmods.com/eldenring/mods/10711"
 $NEXUS_FILES = "https://www.nexusmods.com/eldenring/mods/10711?tab=files"
 $STEAM_APPID = "1245620"
@@ -152,11 +152,10 @@ Write-Host "  and the file has to be fetched by hand - Nexus does not" -Foregrou
 Write-Host "  allow direct links." -ForegroundColor White
 Write-Host ""
 
-# The size is NOT pinned here: Nexus re-packages per version and this
-# mod moves fast. Matching only the name would offer an older build
-# from a previous update cycle, so the search is left to the drop.
+# No historical filename, size or checksum is used as an acceptance
+# gate. The current Nexus file is selected by the user, then the setup
+# checks only archive safety/readability and the ERVR.dll needed to install.
 $zip = Find-PredownloadedFile -Patterns @("ERVR_V*.zip", "ERVR*.zip") `
-        -ExpectedSize 3038759 `
         -Label "the ERVR $MOD_VERSION archive"
 if (-not $zip) {
     Pause-User "Press Enter to open the ERVR files page..."
@@ -362,7 +361,16 @@ try {
     }
 } catch { Write-Warn "Could not create the desktop shortcut." }
 
-Write-ModStamp -GameDir $gameDir -Version $MOD_VERSION
+[void](Write-ModStamp -GameDir $gameDir -Version $MOD_VERSION)
+try {
+    Set-Content -LiteralPath (Join-Path $gameSub "ERVR\.pcvrhub_ervr_v0.4.0") `
+        -Value "ERVR v0.4.0" -Encoding ASCII -Force -ErrorAction Stop
+} catch {
+    Write-Fail "Could not commit the v0.4.0 update receipt: $($_.Exception.Message)"
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit."
+    exit 1
+}
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
@@ -404,5 +412,7 @@ Write-Host "  the author's own words. Multiplayer is not supported and" -Foregro
 Write-Host "  never will be." -ForegroundColor White
 Write-Host ""
 Write-Host "  Launch through the VR launcher, never Steam's Play button." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Rise, Tarnished, and raise the shield yourself." -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Read the above, then press Enter to exit"

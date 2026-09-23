@@ -219,11 +219,229 @@ function Expand-TwilightArchive {
     return (Expand-ArchiveOrFallback -ArchivePath $Archive -DestinationFolder $Destination -Label $Label)
 }
 
+# A bare drive designator (for example F:) is drive-relative on Windows: it
+# means the hidden current directory of that drive, not F:\. Native extractors
+# and PowerShell can consequently write to and search two different folders.
+function Resolve-TwilightInstallRoot {
+    param([string]$InputPath,[string]$DefaultPath)
+    $candidate = [Environment]::ExpandEnvironmentVariables(('' + $InputPath).Trim().Trim('"').Trim("'"))
+    if (-not $candidate) { $candidate = $DefaultPath }
+    if ($candidate -match '^[A-Za-z]:$') { $candidate += '\' }
+    elseif ($candidate -match '^([A-Za-z]):([^\\/].*)$') { $candidate = $matches[1] + ':\' + $matches[2] }
+    try {
+        $full = [IO.Path]::GetFullPath($candidate)
+        $root = [IO.Path]::GetPathRoot($full)
+        if ($root -and $full -ieq $root) { return $root }
+        return $full.TrimEnd('\','/')
+    } catch { throw "That install folder is not a valid full filesystem path: $candidate" }
+}
+
+function Test-TwilightExecutable {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+    $stream = $null
+    try {
+        $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+        if ($item.Length -lt 65536) { return $false }
+        $stream = [IO.File]::Open($item.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+        return ($stream.ReadByte() -eq 0x4d -and $stream.ReadByte() -eq 0x5a)
+    } catch { return $false }
+    finally { if ($stream) { $stream.Dispose() } }
+}
+
+# Do not hard-code one publisher folder. Read every plausible Dusklight
+# executable path from the live archive and use those paths only as positive
+# discovery hints; names, sizes and hashes never reject a future release.
+function Get-TwilightArchiveExecutableRelatives {
+    param([string]$ArchivePath)
+    if (-not $ArchivePath -or -not (Test-Path -LiteralPath $ArchivePath -PathType Leaf -ErrorAction SilentlyContinue)) { return @() }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    $zip = $null
+    try {
+        $zip = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        return @($zip.Entries | Where-Object {
+            $_.Name -match '(?i)^dusklight[^\\/]*\.exe$' -and
+            -not [IO.Path]::IsPathRooted($_.FullName) -and
+            -not (@($_.FullName -split '[\\/]' | Where-Object { $_ }) -contains '..')
+        } | ForEach-Object { $_.FullName.Replace('/','\') } | Sort-Object -Unique)
+    } catch { return @() }
+    finally { if ($zip) { $zip.Dispose() } }
+}
+
+function Find-TwilightRuntime {
+    param(
+        [Parameter(Mandatory=$true)][string]$InstallRoot,
+        [string]$ArchivePath = '',
+        [string]$RawInstallInput = '',
+        [string[]]$AdditionalRoots = @()
+    )
+    $known = Join-Path (Join-Path $InstallRoot 'windows-msvc-relwithdebinfo') 'dusklight.exe'
+    if (Test-TwilightExecutable $known) {
+        return [pscustomobject]@{ Exe=(Get-Item -LiteralPath $known).FullName; RuntimeRoot=(Split-Path -Parent $known); Method='primary-known-layout' }
+    }
+
+    # Fallback 1: a future package may flatten the build beside the selected
+    # install root while keeping the executable name.
+    $rootLevel = Join-Path $InstallRoot 'dusklight.exe'
+    if (Test-TwilightExecutable $rootLevel) {
+        return [pscustomobject]@{ Exe=(Get-Item -LiteralPath $rootLevel).FullName; RuntimeRoot=$InstallRoot; Method='fallback-1-root-level' }
+    }
+
+    # Fallback 2: follow the live ZIP's own safe relative paths. This survives
+    # renamed build folders, added wrappers and suffixed executable names.
+    foreach ($relative in @(Get-TwilightArchiveExecutableRelatives -ArchivePath $ArchivePath)) {
+        $candidate = Join-Path $InstallRoot $relative
+        if (Test-TwilightExecutable $candidate) {
+            return [pscustomobject]@{ Exe=(Get-Item -LiteralPath $candidate).FullName; RuntimeRoot=(Split-Path -Parent $candidate); Method='fallback-2-archive-layout' }
+        }
+    }
+
+    # Fallback 3: packaging can change even when archive metadata is unavailable.
+    # Scan the entire chosen target for a functional Dusklight executable.
+    try {
+        $hit = Get-ChildItem -LiteralPath $InstallRoot -Recurse -File -Filter '*.exe' -Force -ErrorAction SilentlyContinue |
+               Where-Object { $_.Name -match '(?i)^dusklight.*\.exe$' -and (Test-TwilightExecutable $_.FullName) } |
+               Sort-Object @{Expression={ if ($_.Name -ieq 'dusklight.exe') { 0 } else { 1 } }}, @{Expression={$_.FullName.Length}} |
+               Select-Object -First 1
+        if ($hit) { return [pscustomobject]@{ Exe=$hit.FullName; RuntimeRoot=$hit.DirectoryName; Method='fallback-3-recursive-target' } }
+    } catch {}
+
+    # Fallback 4: recover the exact class of old F: versus F:\ failures and
+    # other extractor redirections by checking the raw provider location plus
+    # explicitly supplied related roots.
+    $related = New-Object System.Collections.Generic.List[string]
+    if ($RawInstallInput) {
+        try {
+            $rawResolved = (Get-Item -LiteralPath $RawInstallInput -Force -ErrorAction Stop).FullName
+            if ($rawResolved -and $rawResolved -ine $InstallRoot) { [void]$related.Add($rawResolved) }
+        } catch {}
+    }
+    foreach ($root in @($AdditionalRoots)) { if ($root) { [void]$related.Add([string]$root) } }
+    $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($root in $related) {
+        if (-not $seen.Add($root) -or -not (Test-Path -LiteralPath $root -PathType Container -ErrorAction SilentlyContinue)) { continue }
+        foreach ($relative in @(Get-TwilightArchiveExecutableRelatives -ArchivePath $ArchivePath)) {
+            $candidate = Join-Path $root $relative
+            if (Test-TwilightExecutable $candidate) {
+                return [pscustomobject]@{ Exe=(Get-Item -LiteralPath $candidate).FullName; RuntimeRoot=(Split-Path -Parent $candidate); Method='fallback-4-related-root' }
+            }
+        }
+        try {
+            $hit = Get-ChildItem -LiteralPath $root -Recurse -File -Filter '*.exe' -Force -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Name -match '(?i)^dusklight.*\.exe$' -and (Test-TwilightExecutable $_.FullName) } |
+                   Sort-Object @{Expression={ if ($_.Name -ieq 'dusklight.exe') { 0 } else { 1 } }}, @{Expression={$_.FullName.Length}} |
+                   Select-Object -First 1
+            if ($hit) { return [pscustomobject]@{ Exe=$hit.FullName; RuntimeRoot=$hit.DirectoryName; Method='fallback-4-related-root' } }
+        } catch {}
+    }
+    return $null
+}
+
+# The Hub keeps one stable on-disk contract even if upstream renames or nests
+# its build folder. Catalog detection and Start in VR therefore stay reliable.
+function Copy-TwilightRuntimeToCanonical {
+    param([Parameter(Mandatory=$true)][string]$SourceRoot,[Parameter(Mandatory=$true)][string]$InstallRoot)
+    if (-not (Test-Path -LiteralPath $SourceRoot -PathType Container -ErrorAction SilentlyContinue)) { return $null }
+    $destination = Join-Path $InstallRoot 'windows-msvc-relwithdebinfo'
+    $sourceFull = [IO.Path]::GetFullPath($SourceRoot).TrimEnd('\')
+    $destinationFull = [IO.Path]::GetFullPath($destination).TrimEnd('\')
+    if ($sourceFull -ieq $destinationFull) {
+        return Get-ChildItem -LiteralPath $destination -File -Filter '*.exe' -ErrorAction SilentlyContinue |
+               Where-Object { $_.Name -match '(?i)^dusklight.*\.exe$' -and (Test-TwilightExecutable $_.FullName) } |
+               Select-Object -First 1
+    }
+    $items = @(Get-ChildItem -LiteralPath $SourceRoot -Force -ErrorAction Stop)
+    [void][IO.Directory]::CreateDirectory($destination)
+    foreach ($item in $items) {
+        $target = Join-Path $destination $item.Name
+        if ([IO.Path]::GetFullPath($item.FullName).TrimEnd('\') -ieq $destinationFull) { continue }
+        Copy-Item -LiteralPath $item.FullName -Destination $target -Recurse -Force -ErrorAction Stop
+    }
+    return Get-ChildItem -LiteralPath $destination -File -Filter '*.exe' -ErrorAction SilentlyContinue |
+           Where-Object { $_.Name -match '(?i)^dusklight.*\.exe$' -and (Test-TwilightExecutable $_.FullName) } |
+           Select-Object -First 1
+}
+
+# Fallback 5 is deliberately last because the archive is large. It decouples
+# extraction from the chosen folder, discovers the payload in a clean tree,
+# and then normalizes it into the stable Hub layout.
+function Invoke-TwilightRecoveryExtraction {
+    param([Parameter(Mandatory=$true)][string]$ArchivePath,[Parameter(Mandatory=$true)][string]$InstallRoot)
+    $stage = Join-Path $InstallRoot ('.pcvrhub_dusklight_recovery_' + [Guid]::NewGuid().ToString('N'))
+    $success = $false
+    try {
+        [void][IO.Directory]::CreateDirectory($stage)
+        $result = Expand-TwilightArchive -Archive $ArchivePath -Destination $stage -Label 'Dusklight VR recovery'
+        if ([string]$result -ne 'ok') { return $null }
+        $found = Find-TwilightRuntime -InstallRoot $stage -ArchivePath $ArchivePath
+        if (-not $found) { return $null }
+        $canonicalExe = Copy-TwilightRuntimeToCanonical -SourceRoot $found.RuntimeRoot -InstallRoot $InstallRoot
+        if (-not $canonicalExe -or -not (Test-TwilightExecutable $canonicalExe.FullName)) { return $null }
+        $success = $true
+        return [pscustomobject]@{ Exe=$canonicalExe.FullName; RuntimeRoot=$canonicalExe.DirectoryName; Method='fallback-5-clean-reextract' }
+    } catch { return $null }
+    finally {
+        if (Test-Path -LiteralPath $stage) {
+            try { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction Stop } catch {
+                if ($success) { Write-Warn "Recovery staging could not be removed: $stage" }
+            }
+        }
+    }
+}
+
+function Resolve-TwilightRuntimeInteractively {
+    param(
+        [Parameter(Mandatory=$true)][string]$InstallRoot,
+        [Parameter(Mandatory=$true)][string]$ArchivePath,
+        [string]$RawInstallInput=''
+    )
+    $lastProblem = 'No functional Dusklight runtime was found after all automatic discovery and clean extraction routes.'
+    while ($true) {
+        try {
+            $manual = Get-PCVRRecoveryInput
+            $found = Find-TwilightRuntime -InstallRoot $InstallRoot -ArchivePath $ArchivePath -RawInstallInput $RawInstallInput `
+                -AdditionalRoots $(if ($manual -and (Test-Path -LiteralPath $manual -PathType Container -ErrorAction SilentlyContinue)) { @($manual) } else { @() })
+
+            if (-not $found -and $manual -and (Test-Path -LiteralPath $manual -PathType Leaf -ErrorAction SilentlyContinue)) {
+                if ([IO.Path]::GetFileName($manual) -like 'dusklight*.exe' -and (Test-TwilightExecutable $manual)) {
+                    $item = Get-Item -LiteralPath $manual -Force
+                    $found = [pscustomobject]@{ Exe=$item.FullName; RuntimeRoot=$item.DirectoryName; Method='manual-executable' }
+                } elseif ([IO.Path]::GetExtension($manual) -ieq '.zip') {
+                    $found = Invoke-TwilightRecoveryExtraction -ArchivePath $manual -InstallRoot $InstallRoot
+                } else {
+                    $lastProblem = 'The supplied file is neither a valid Dusklight executable nor a readable ZIP payload.'
+                }
+            }
+
+            if (-not $found) {
+                $found = Invoke-TwilightRecoveryExtraction -ArchivePath $ArchivePath -InstallRoot $InstallRoot
+            }
+            if ($found -and (Test-TwilightExecutable $found.Exe)) {
+                $canonicalRoot = Join-Path $InstallRoot $BUILD_SUB
+                if ([IO.Path]::GetFullPath($found.RuntimeRoot).TrimEnd('\') -ine [IO.Path]::GetFullPath($canonicalRoot).TrimEnd('\')) {
+                    $canonicalExe = Copy-TwilightRuntimeToCanonical -SourceRoot $found.RuntimeRoot -InstallRoot $InstallRoot
+                    if (-not $canonicalExe) { throw 'The recovered runtime could not be normalized into the stable Hub layout.' }
+                    $found = [pscustomobject]@{ Exe=$canonicalExe.FullName; RuntimeRoot=$canonicalExe.DirectoryName; Method=($found.Method+'-normalized') }
+                }
+                return $found
+            }
+        } catch {
+            $lastProblem = $_.Exception.Message
+        }
+
+        $decision = Invoke-PCVRUniversalRecovery -FailureMessage $lastProblem -InstallerFolder $PSScriptRoot
+        if ($decision.Action -eq 'retry') {
+            $lastProblem = 'The retry still found no usable Dusklight runtime. Supply the extracted folder, dusklight.exe, or the release ZIP.'
+            continue
+        }
+    }
+}
+
 $MOD_NAME    = "Dusklight VR"
 $MOD_AUTHOR  = "JoeyAW"
-$REPO        = "JoeyAW/dusklight-vr"
+$REPO        = "JoeyAW/TPVR"
 $RELEASES    = "https://github.com/$REPO/releases"
-$ASSET       = "Dusklight-VR-Windows-x64.zip"
+$ASSET       = "TPVR-Windows-x64.zip"
 $BUILD_SUB   = "windows-msvc-relwithdebinfo"
 $GAME_EXE    = "dusklight.exe"
 $DEFAULT_DIR = "C:\Games\Twilight Princess VR"
@@ -265,14 +483,23 @@ Write-Host "  game folder. Pick a place with room to spare." -ForegroundColor Wh
 Write-Host ""
 Write-Host "    Default: $DEFAULT_DIR" -ForegroundColor Cyan
 Write-Host ""
-$dir = ""
-try { $dir = (Read-Host "  Folder (Enter for the default)").Trim().Trim('"') } catch {}
-if (-not $dir) { $dir = $DEFAULT_DIR }
+$requestedDir = Get-PCVRRememberedGameFolder -ProbeFiles @('windows-msvc-relwithdebinfo\dusklight.exe')
+$recoveryInstallRoot = Get-PCVRRecoveryInput -PathType Container
+if ($recoveryInstallRoot) {
+    $requestedDir = $recoveryInstallRoot
+    Write-Info "Trying the folder handed over by installer recovery: $requestedDir"
+} elseif (-not $requestedDir) {
+    try { $requestedDir = (Read-Host "  Folder (Enter for the default)").Trim().Trim('"') } catch {}
+} else {
+    Write-Info "Using remembered install location: $requestedDir"
+}
+try { $dir = Resolve-TwilightInstallRoot -InputPath $requestedDir -DefaultPath $DEFAULT_DIR }
+catch {
+    throw "Install folder could not be resolved: $($_.Exception.Message)"
+}
 try { New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null }
 catch {
-    Write-Fail "Could not create $dir - $($_.Exception.Message)"
-    Pause-User "Press Enter to exit."
-    exit 1
+    throw "Could not create the selected install folder '$dir': $($_.Exception.Message)"
 }
 Write-OK "Install folder: $dir"
 
@@ -308,7 +535,7 @@ try {
 
 # An existing file on disk first - at this size a real time saver
 # when the user already downloaded it.
-$have = Find-PredownloadedFile -Patterns @("Dusklight-VR-Windows*.zip", "*Dusklight*VR*.zip") -Label "the Dusklight VR release"
+$have = Find-PredownloadedFile -Patterns @("TPVR-Windows*.zip", "Dusklight-VR-Windows*.zip", "*Dusklight*VR*.zip") -Label "the Dusklight VR release"
 if ($have -and (Test-Path -LiteralPath $have)) {
     $zip = $have
 } else {
@@ -317,28 +544,47 @@ if ($have -and (Test-Path -LiteralPath $have)) {
         -Instructions "Download $ASSET from the releases page, save it as '$zip', then choose Retry."
 }
 if (-not (Test-Path -LiteralPath $zip)) {
-    Write-Fail "No archive - nothing was changed."
     try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit."
-    exit 1
+    throw 'No usable Dusklight archive is available. Retry, or drag the downloaded ZIP onto the recovery screen.'
 }
 
 # ---- 3. Entpacken ---------------------------------------------
 Write-Step 3 5 "Unpacking"
 Write-Host "  This takes a few minutes - it is a lot of small files." -ForegroundColor Gray
-[void](Expand-TwilightArchive -Archive $zip -Destination $dir -Label $MOD_NAME)
-
-# The exe sits in windows-msvc-relwithdebinfo, not at the root - but
-# search the whole tree in case the author changes that.
-$exe = Get-ChildItem -LiteralPath $dir -Recurse -File -Force -ErrorAction SilentlyContinue |
-       Where-Object { $_.Name -ieq $GAME_EXE } | Select-Object -First 1
-if (-not $exe) {
-    Write-Fail "No $GAME_EXE below $dir - the install did not complete."
-    Write-Host "  Expected it in: $dir\$BUILD_SUB\" -ForegroundColor Yellow
-    try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
-    Pause-User "Press Enter to exit."
-    exit 1
+$extractResult = Expand-TwilightArchive -Archive $zip -Destination $dir -Label $MOD_NAME
+$runtime = $null
+if ([string]$extractResult -eq 'ok') {
+    $runtime = Find-TwilightRuntime -InstallRoot $dir -ArchivePath $zip -RawInstallInput $requestedDir
+} else {
+    Write-Warn 'The first extraction did not produce a verified result.'
 }
+
+if ($runtime) {
+    Write-Info "Runtime discovery: $($runtime.Method)"
+    $canonicalRoot = Join-Path $dir $BUILD_SUB
+    if ([IO.Path]::GetFullPath($runtime.RuntimeRoot).TrimEnd('\') -ine [IO.Path]::GetFullPath($canonicalRoot).TrimEnd('\')) {
+        Write-Warn 'The publisher layout changed; normalizing it for stable Hub detection.'
+        try {
+            $canonicalExe = Copy-TwilightRuntimeToCanonical -SourceRoot $runtime.RuntimeRoot -InstallRoot $dir
+            if ($canonicalExe) { $runtime = [pscustomobject]@{ Exe=$canonicalExe.FullName; RuntimeRoot=$canonicalExe.DirectoryName; Method=($runtime.Method + '-normalized') } }
+        } catch { $runtime = $null; Write-Warn "Layout normalization failed: $($_.Exception.Message)" }
+    }
+}
+
+if (-not $runtime -or -not (Test-TwilightExecutable $runtime.Exe)) {
+    Write-Warn 'The first extraction tree could not be verified.'
+    Write-Host '  Fallback 5 will now re-extract into a clean staging folder.' -ForegroundColor Gray
+    Write-Host '  This is active recovery, not a frozen installer; the large archive' -ForegroundColor Gray
+    Write-Host '  can take several more minutes to unpack a second time.' -ForegroundColor Gray
+    $runtime = Invoke-TwilightRecoveryExtraction -ArchivePath $zip -InstallRoot $dir
+}
+
+if (-not $runtime -or -not (Test-TwilightExecutable $runtime.Exe)) {
+    Write-Warn 'All automatic routes were exhausted. Manual recovery remains available.'
+    Write-Host '  You may supply the extracted folder, dusklight.exe, or the release ZIP.' -ForegroundColor Yellow
+    $runtime = Resolve-TwilightRuntimeInteractively -InstallRoot $dir -ArchivePath $zip -RawInstallInput $requestedDir
+}
+$exe = Get-Item -LiteralPath $runtime.Exe -Force
 Write-OK "Ready: $($exe.FullName)"
 
 # THE FOLDER TO EXCLUDE IS WHERE THE MOD LIVES - this one installs into
@@ -350,9 +596,7 @@ $avFilesOk = Confirm-PlacedFilesSurvive `
     -ArchivePath $zip
 if (-not $avFilesOk) {
     try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
-    Write-Fail "Twilight Princess VR could not be restored after the antivirus check."
-    Pause-User "Press Enter to exit, then run the installer again."
-    exit 1
+    throw 'Twilight Princess VR could not be restored after the post-copy survival check. Retry or supply the archive/runtime folder on the recovery screen.'
 }
 try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 

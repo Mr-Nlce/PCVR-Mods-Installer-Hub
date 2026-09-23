@@ -73,7 +73,7 @@ your VR legs are new.
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[A]] right | interact |
 | [[B]] right | whatever B does |

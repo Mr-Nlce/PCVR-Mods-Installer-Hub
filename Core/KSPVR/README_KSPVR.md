@@ -31,37 +31,37 @@ Press **C** to recenter, or the SteamVR system button.
 - **Buttons & switches:** extend index finger, push the button or
   flip the switch with the fingertip
 - **Covered switches:** open the cover with your finger first
-- **Twist knobs:** pinch (Trigger + B on Quest 2), rotate hand
+- **Twist knobs:** pinch ([[Trigger]] + [[B]] on Quest 2), rotate hand
 - **Levers (gear, flaps):** pinch and move up/down
 - **Throttle:** grip the lever on the left of the seat, push forward
 - **Flightstick:** grip the stick on the right; twist + tilt for
   roll/pitch/yaw. Click the thumbstick while holding it to swap
   rocket-mode and plane-mode mapping
-- **Tiny buttons giving you trouble:** hold PinchIndex + PinchThumb
+- **Tiny buttons giving you trouble:** hold [[Pinch Index]] + [[Pinch Thumb]]
   away from any object to summon a laser pointer
 - **EVA from cockpit:** grip the hatch lever, turn it
 - **Switch kerbal / take empty seat:** put your hand on the torso
-  area, press SeatInteraction (lower face button)
+  area, press [[Seat Interaction]] (lower face button)
 
 ### EVA
 
-| Action | Button |
+| Button | Action |
 |---|---|
-| Move | [[Left Stick]] |
-| Turn | [[Right Stick]] |
-| Jump | Right lower face button |
-| Sprint | Click [[Left Stick]] |
-| Toggle RCS (in space) | Left lower face button |
-| Grab ladder / wall | Grip button |
-| Up/down on ladder | [[Left Stick]] or triggers |
-| Board pod | Grab hatch lever with grip, move it |
+| [[Left Stick]] | Move |
+| [[Right Stick]] | Turn |
+| [[Right lower face button]] | Jump |
+| [[Left Stick Click]] | Sprint |
+| [[Left lower face button]] | Toggle RCS (in space) |
+| [[Grip button]] | Grab ladder / wall |
+| [[Left Stick]] or [[Triggers]] | Up/down on ladder |
+| [[Grab hatch lever with grip, move it]] | Board pod |
 
-**Part Action Window:** hold the RightClick button ([[B]]/[[Y]] on Quest 2)
+**Part Action Window:** hold [[Right Click]] ([[B]] / [[Y]] on Quest 2)
 to open it; a laser appears on the other hand for selecting parts.
 Tap the menu with your fingertip.
 
-**Jetpack:** left stick moves, right stick yaw/pitch, triggers go
-up/down. Click left stick = precision mode.
+**Jetpack:** [[Left Stick]] moves, [[Right Stick]] controls yaw/pitch, [[Triggers]] go
+up/down. [[Left Stick Click]] enables precision mode.
 
 ## Adding more mods later
 

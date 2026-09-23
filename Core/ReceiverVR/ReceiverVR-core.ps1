@@ -107,12 +107,15 @@ foreach ($r in $DEFAULT_ROOTS) {
 }
 if (-not $defaultParent) { $defaultParent = "C:\Games" }
 $defaultPath = Join-Path $defaultParent $GAME_FOLDER
+$rememberedInstall = Get-PCVRRememberedGameFolder -ProbeFiles @('UnityPlayer.dll')
+if ($rememberedInstall) { $defaultPath = $rememberedInstall }
 
 Write-Host "  Default install location: $defaultPath" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use the default, or type a different full path").Trim().Trim('"')
+$userInput = if ($rememberedInstall) { '' } else { (Read-Host "  Press Enter to use the default, or type a different full path").Trim().Trim('"') }
+if ($rememberedInstall) { Write-OK "Using remembered install location: $rememberedInstall" }
 if (-not $userInput) {
     $installRoot = $defaultPath
 } else {

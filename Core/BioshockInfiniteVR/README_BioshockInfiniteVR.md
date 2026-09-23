@@ -4,6 +4,10 @@ Stereoscopic VR with motion controllers for **BioShock Infinite**. By
 **mohamad-balouza** - the same mod as BioShock 1 and 2, now covering the third
 game from the same zip.
 
+The shared package is currently **v0.8.3**. Its documented change is specific to
+BioShock 2's left-eye hand and weapon flicker; no Infinite-specific change is
+claimed for this release.
+
 > **Early access.** Playable and comfortable from the start of the game through
 > the early city - that is the range the author tested. Later chapters, the
 > Skyline and the DLCs have not had a VR pass yet.

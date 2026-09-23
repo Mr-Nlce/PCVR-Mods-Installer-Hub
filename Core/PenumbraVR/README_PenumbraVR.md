@@ -69,7 +69,7 @@ Start **SteamVR** first, then either:
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Interact / equip pointed-at item |
 | [[Grip]] | Open inventory |
 | [[Trackpad]] | Sprint (press) / drag items to combine (press) |
@@ -77,7 +77,7 @@ Start **SteamVR** first, then either:
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trackpad]] | Move |
 | [[Grip]] | Quick-equip glowstick / flashlight |
 

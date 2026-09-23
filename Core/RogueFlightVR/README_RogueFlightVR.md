@@ -37,13 +37,13 @@ Hold your **left controller close to your head**. When it vibrates, the hotkey i
 ![Controller Layout](ControllerLayout.jpg)
 
 - [[Left Stick]] → D-Pad while hotkey active
-- [[Left Stick]] click → Back / View button while hotkey active
-- [[Right Stick]] click → Start / Menu button while hotkey active
-- Triggers, ABXY, sticks otherwise map directly to their gamepad equivalents.
+- [[Left Stick Click]] → Back / View button while hotkey active
+- [[Right Stick Click]] → Start / Menu button while hotkey active
+- [[Left Trigger]], [[Right Trigger]], [[A]], [[B]], [[X]], [[Y]], [[Left Stick]] and [[Right Stick]] otherwise map directly to their gamepad equivalents.
 
 ### Recentering
 
-Click **both joysticks at the same time** to recenter the view at any time. Recentering may be required after loading scenes.
+Click [[Left Stick Click]] + [[Right Stick Click]] to recenter the view at any time. Recentering may be required after loading scenes.
 
 ## bHaptics support (Vest only)
 

@@ -1,138 +1,194 @@
-# Pokemon Gen 1 VR Installer
+# Pokemon Dramatic Shape VR
 
-Automated installer for two things that belong together:
+This Hub setup installs the official standalone Windows build of
+**Dramatic Shape VR** by prismaticShape. It is one OpenXR application with a
+shared launcher for first-generation Pokemon, Pokemon Crystal and Pokemon
+Pinball. It supports VR and mixed-reality play with motion controls.
 
-- **Gen1Recomp** by bryanthaboi - a native LÖVE2D recreation of the Gen 1
-  games. It is not an emulator and ships no game data.
-- **Dramaless Shape Voxel Mod** by artyrambles - the overworld as a
-  voxelized 3D diorama, with experimental first-person and **PCVR**.
+## About the Game
 
-VR is a row in the game's own OPTIONS menu (**VR: OFF / ON**), not a
-separate launch mode. It drives a PCVR headset through OpenXR on Windows -
-SteamVR, Oculus or WMR. Standalone headsets are not supported.
+Dramatic Shape turns classic handheld Pokemon adventures into interactive 3D
+dioramas and first-person worlds. You can lean over the map, walk through it at
+room scale, use a physical Pokedex and party or bag racks, throw Poke Balls,
+fish with a physical rod, speak battle commands and move between full-VR and
+mixed-reality views. Pokemon Pinball runs on a physical VR table.
 
-## You provide the ROM
-Nothing from Nintendo is included or downloaded. On first launch the game
-asks for a **canonical US Red, Blue or Yellow `.gb` / `.gbc` ROM** you own,
-verifies its SHA-1, builds its own private data, and then releases the ROM -
-it is never copied into the cache. Later launches do not ask again.
+## What is supported
 
-## Two install locations - one of them is not the game folder
-| what | where |
+| Launcher card | ROM you provide |
 |---|---|
-| the port | `C:\Games\Pokemon Gen 1 VR` (you can pick another root) |
-| Dramatic Shape (when selected) | `%APPDATA%\pokemon-love2d\mods\DRAMATIC_SHAPE\` |
-| Dramaless (when selected) | `%APPDATA%\pokemon-love2d\mods\DRAMALESS_SHAPE\` |
-| inactive mod | `%APPDATA%\pokemon-love2d\mods-disabled\` |
+| Red | Canonical US Pokemon Red `.gb` ROM |
+| Blue | Canonical US Pokemon Blue `.gb` ROM |
+| Yellow | Canonical US Pokemon Yellow `.gb` ROM |
+| Crystal | US Pokemon Crystal `.gbc` ROM, revision 1.0 or 1.1 |
+| Pokemon Pinball | Pokemon Pinball (U) `.gbc` ROM |
 
-The mod paths are **fixed by the mod platform**, not by this Hub: the
-port's mod loader scans `mods` through LÖVE's own filesystem, which is the
-per-user save directory. A `mods` folder next to the exe is not on its read
-path, and `portable.txt` does not move it either. These mods live outside
-the game folder; `%APPDATA%` points to your own Windows roaming profile.
+**Gen 2 currently means Crystal only. Gold and Silver are present in parts of
+the underlying code but are deliberately hidden by the publisher and are not
+supported launcher choices.** Stadium, Stadium 2 and Cobblemon imports are
+additional optional features; they are not substitutes for the supported
+cartridge imports above.
 
-## Two mods to choose from - and why
+No Nintendo ROM or commercial game data is included, downloaded or copied by
+the Hub. The publisher archive was inspected and contains no ROM.
 
-Two mods draw this game as a 3D voxel world. **Both still have VR**, and the
-installer lets you pick. Only one can be active at a time.
+## Installation and updates
 
-**1. Dramatic Shape `v1.8.5` - the original, with everything in it.**
-Built-in first person, the battle and Stadium features, VR. This is the fullest
-version there is. It comes from a **mirror**, because the original repository may
-not stay up - so it is pinned to `v1.8.5`, the last mirrored release that still
-contains VR, and never auto-updates.
+The installer's first choice selects one of two independent routes. Press
+[[Enter]] on option 1 for the recommended current application, or choose
+option 2 to install the classic legacy route again:
 
-**2. Dramaless `v1.6.4` - the slimmed-down fork.**
-Still has VR, but its author kept removing things. First person and the battle
-features are among what went.
+1. **Dramatic Shape VR 3.x** — the current standalone OpenXR application and
+   default choice.
+2. **Legacy Gen1Recomp VR** — pinned Gen1Recomp v0.2.56 plus either the full
+   Dramatic Shape v1.8.5 profile or the leaner Dramaless Shape v1.6.4 profile.
 
-> **Do not take a newer Dramaless.** In `2.0.0` the author removed VR **entirely**
-> - his own words: he has no headset to test and debug with. The OpenXR loader is
-> not shipped any more and the four VR source files went with it. The Hub
-> deliberately offers neither an update nor that version.
+The legacy versions are deliberately pinned because both manifests support
+Gen1Recomp below 2.0.0, while later profile releases removed or materially
+changed the old VR path. Both source repositories and all three exact release
+assets were live-checked on 23 September 2026. The installer validates the
+functional files and OpenXR loader after extraction; historical size and hash
+records never block a future download.
 
-Both need the port below `2.0.0`, so the port stays pinned at `v0.2.56` either
-way - the current Windows release remains inside that compatibility range.
+The default install folder is `C:\Games\Pokemon Dramatic Shape VR`; the
+installer lets you choose another complete folder. Keep the application out of
+`Program Files`, because its built-in updater needs a writable folder.
 
-### Only one may be active
-Both mods install under `%APPDATA%\pokemon-love2d\mods\` with their own id - `DRAMATIC_SHAPE`
-and `DRAMALESS_SHAPE` - and their manifests list each other as conflicting. If
-both are there, neither loads properly.
+The Hub downloads the newest stable Windows ZIP from the official GitHub
+releases and checks the functional runtime after extraction. The installed
+application also has its own **UPDATES** control in the launcher. Its updater
+stages the complete official Windows package, restarts the executable and
+writes the installed version into `VERSION`; the Hub reads that same proof so
+an in-app update does not leave a stale Update badge.
 
-Renaming the folder is **not** enough: the loader goes by the `manifest.json`
-inside it, not by the folder name. So the installer **moves the other one right
-out of the active mods directory** into `%APPDATA%\pokemon-love2d\mods-disabled\`. Nothing is deleted - switch
-back any time by running the installer again and picking the other one.
+The official PC launcher can crash on the ROM-selection screen when a VR
+controller sends touch input. The Hub installer guards all three touch events
+in the local executable automatically before installation. If a future
+publisher build already handles them, the installer leaves it unchanged.
+ROMs, settings and saves are not changed.
 
-## If Windows Defender eats the download
-Defender's machine-learning heuristic sometimes flags the port with a
-generic detection. This is a **documented false positive**: the exe is the
-official LÖVE runtime with the game archive appended, which is how LÖVE
-games normally ship, and unsigned executables built that way trip the
-heuristic.
+The legacy installer defaults to `C:\Games\Pokemon Gen 1 VR` but accepts a
+different complete folder and remembers it separately. Its selected profile
+lives under `%APPDATA%\pokemon-love2d\mods`; a conflicting profile is moved
+without deletion to the adjacent `mods-disabled` folder. Scan installed games
+recognizes an existing or newly installed legacy route only when
+`gen1recomp.exe`, `.pcvrhub_voxelmod` and the selected profile's OpenXR files
+are present; the game page then offers **Start Legacy Gen 1**.
+A flat Gen1Recomp folder without that VR marker is deliberately
+not reported as VR Ready.
 
-Both projects publish a `sha256sums.txt` next to their release files, and
-the installer **checks every download against it**. If a hash does not
-match, the archive is thrown away and fetched again instead of being
-unpacked. Releases without a checksum list are simply installed without that
-step, and the installer says so.
+The new v3 application is independent and remains the recommended installer.
+Installing or removing it does not delete or modify the older application or
+`%APPDATA%\pokemon-love2d`. Its old saves can be migrated manually; they are
+not silently mixed with the new profile.
 
-The installer also checks a few seconds after each extraction whether all
-files are still there, because Defender removes them asynchronously. If something
-is missing it explains the situation, opens the exclusion settings, waits
-for you, and then unpacks again. If the ZIP disappears before that, the same
-happens for your Downloads folder and the download is repeated.
+## First start
 
-## VR controls
-Suggested onto Touch, Index and WMR controllers and rebindable in your
-runtime's own binding UI. Pad, keyboard and mouse keep working alongside.
+1. Make the OpenXR runtime you want to use active.
+2. Choose **Start in VR** on this game page.
+3. Import one of the supported ROMs you legally own from the launcher.
+4. Let the first world bake finish. Later bakes are incremental and only
+   rebuild maps whose source data changed.
 
-- [[Left Stick]] move - grid-walks the diorama, free-walks in first person
-- [[A]] / [[B]] (X / Y on the left hand) the A and B buttons
-- [[Trigger]] either one acts as START
-- [[Left Stick Click]] step the VOXEL angle ladder (same as the `3` key)
-- [[Right Stick]] up / down - zoom the model (diorama only)
-- [[Right Stick]] left / right - snap-turn 45° in first person
-- [[Grip]] squeeze and raise or lower that hand - drag the table's height
-- **Head:** look around in first person and battles; FreeMove walks where
-  you look
-- **Left hand:** your Pokédex - menus, dialogs and the 2D battle screen
-  live on its screen
+The launcher stores imported ROM-derived data, settings, screenshots and saves
+under `%APPDATA%\DramaticShapeVR`. The original ROM remains yours and is not
+placed in the Hub folder.
 
-**SMOOTH TURN** appears under the VR row while VR is on. It is off by
-default on purpose: a software turn moves the world past a head that did not
-move, which is the most reliable way to make somebody ill in a headset.
+Crystal is new in the v3 series. v3.0.1 substantially improves Gen 1 and Gen 2
+cave interiors, fixes an Options-menu regression and improves HGSS sprite
+imports. Large outdoor areas are heavier than Gen 1 and may miss a 90 Hz target
+on some hardware. Reduce **CULL RADIUS** if necessary.
 
-## Options rows worth knowing
-- **VOXEL** (`3`): OFF → 15 → 35 → 50 → 75 → 1ST → OFF, the camera pitch
-- **3D-BTL** (`8`): fight on the map instead of on a white field
-- **WATER** (`9`): FULL / SKY / OFF - reflections on water
-- **AA**: OFF / 2X / 4X, the most expensive row in the mod, off by default
-- **DAYTIME**: SYNC / DAY / NIGHT / DUSK / DAWN / CYCLE
-- **PERFORMANCE** (the port's own row): AUTO by default, scales the extras
-  for weaker hardware without touching the game logic
+## VR modes
 
-## Playing
-Start SteamVR (or your runtime) first, then launch with **Start in VR** in
-the Hub or the **Pokemon Gen 1 VR** desktop shortcut.
+Press [[Left Stick Click]] to cycle through **Diorama**, **Diorama + 2D**,
+**Diorama MR**, **Diorama MR + 2D**, **First Person** and **MR Portal**. The
+right-hand beam can operate launcher, menu and confirmation panels.
 
-Two places to set things:
+## Core controls
 
-- **Launcher window** (the one with *Import ROM* on the left): the gear icon
-  at the top opens its settings - **Colors: SGB → ADVANCED**, **Max FPS 120**.
-- **In-game OPTIONS menu**: press down a few times, then the **VOXEL** and
-  **VR** rows appear. VR → ON.
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move through the world |
+| [[A]] | Confirm or use the Game Boy A button |
+| [[B]] | Go back or use the Game Boy B button |
+| [[X]] | Open the Start menu; Controls is its first row |
+| [[Y]] | Cycle hands, Pokedex and hidden state in diorama; draw or stow the Pokedex in first person |
+| [[Left Stick Click]] | Cycle VR and MR modes |
+| [[Right Trigger]] + [[Right-Hand Beam]] | Point at and choose a menu row, move or Yes/No answer |
+| [[Trigger]] | Curl an index finger, operate the camera shutter or recall a held ball |
+| [[Grip]] | Curl and grab with that hand |
+| [[Headset Movement]] | Look around; in first person, physical room-scale walking moves through the map |
 
-## A word on sources
-The project warns about a lookalike website that it does not run. Only the
-GitHub repositories below and the project's own Discord are official, and
-this installer downloads from GitHub only.
+## Diorama controls
 
-https://github.com/bryanthaboi/gen1recomp
+| Button | Action |
+|---|---|
+| [[Grip]] | Carry the model; in +2D modes the left hand carries the 2D screen and the right carries the model |
+| [[Left Grip]] + [[Right Grip]] | Turn and resize the model |
+| [[Right Stick Up]] / [[Right Stick Down]] | Zoom the model |
+| [[Right Stick Left]] / [[Right Stick Right]] | Open or close the viewport |
+| [[Right Stick Click]] | Step the V-Curve setting |
+| [[B]] + [[Trigger]] | Pinch a sprite from the table and throw it |
+| [[Y]] + [[Left Trigger]] | Pinch a sprite with the left hand |
 
-https://github.com/artyrambles/DRAMALESS_SHAPE
+## First-person controls
 
-## Licenses
-The mod redistributes the Khronos OpenXR loader (Apache 2.0) as
-`assets/vr/openxr_loader.dll` with its license text alongside it. Keep the
-two files together.
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Walk |
+| [[Right Stick Left]] / [[Right Stick Right]] | Snap-turn 45 degrees, or smooth-turn when enabled |
+| [[Left Grip]] | Show the party rack; grab and throw a party ball or an HM disc |
+| [[Right Grip]] | Show the bag rack; grab and throw a ball, rock or bait when available |
+| [[Grip]] | Stow the visible rack; the other grip swaps racks |
+| [[Y]] | Draw the physical Pokedex |
+| [[Fingertip]] | Tap Pokedex apps and controls |
+
+## Pokemon Pinball controls
+
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Game Boy D-pad |
+| [[A]] / [[B]] | Game Boy A and B buttons |
+| [[X]] | Start |
+| [[Left Trigger]] / [[Right Trigger]] | Operate the pinball paddles |
+| [[Right Grip]] + [[Right Trigger]] | Grab, pull and release the plunger |
+| [[Y]] + [[Left Hand]] | Adjust the physical table |
+| [[Y]] + [[Right Stick]] | Adjust table orientation |
+| [[Left Stick Click]] | Switch between the room and void view |
+
+## Voice, fishing and physical tools
+
+Voice control is enabled by default under **Battles > Voice**. At the battle
+menu, commands include phrases such as “use Thundershock”, “fight” and “run
+away”. The included offline voice runtime stays inside the application folder.
+
+| Button | Action |
+|---|---|
+| [[Trigger]] or [[A]] | Hold and release to cast a fishing rod |
+| [[Controller Movement]] | Pull back or lift the rod tip to set the hook |
+| [[A]] | Reel in; release to ease line tension |
+| [[B]] | Stow the rod |
+| [[Y]] | Show the fishing controls popup |
+
+## Storage and removal
+
+**Uninstall now** removes files owned by the Hub installer and restores files
+that existed before installation. If the publisher's in-app updater changed an
+owned runtime file, the safety manifest preserves it rather than deleting an
+unexpectedly changed file and reports that fact. You may then remove the
+dedicated application folder after checking it contains no files you added.
+
+The uninstaller deliberately preserves `%APPDATA%\DramaticShapeVR`, including
+saves, imported data, settings and screenshots. Remove that profile manually
+only if you also want to erase your progress and local imports. Old
+`%APPDATA%\pokemon-love2d` profiles are unrelated and remain untouched.
+
+## Official sources
+
+- Project and documentation: https://github.com/prismaticShape/DramaticShapeVR
+- Releases: https://github.com/prismaticShape/DramaticShapeVR/releases
+
+The Windows archive carries the Khronos OpenXR loader and its license, the
+LÖVE runtime libraries, and the publisher's offline voice components and
+licenses. Keep the complete extracted package together.

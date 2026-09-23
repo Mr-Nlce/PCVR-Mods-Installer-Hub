@@ -111,7 +111,9 @@ Write-Step 1 4 "Choosing the install folder"
 
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different root folder." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedInstall = Get-PCVRRememberedGameFolder -ProbeFiles @($MOD_EXE_REL)
+$chosen = if ($rememberedInstall) { Split-Path -Parent $rememberedInstall } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedInstall) { Write-OK "Using remembered install location: $rememberedInstall" }
 
 $rootDir = $null
 if ($chosen) {
@@ -128,7 +130,7 @@ if (-not $rootDir) {
     Pause-User "Press Enter to exit."
     exit 1
 }
-$installRoot = Join-Path $rootDir $GAME_FOLDER
+$installRoot = if ($rememberedInstall) { $rememberedInstall } else { Join-Path $rootDir $GAME_FOLDER }
 Write-OK "Install folder: $installRoot"
 
 # ---- 2. The archive ------------------------------------------

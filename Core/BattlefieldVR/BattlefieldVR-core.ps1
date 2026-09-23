@@ -192,7 +192,8 @@ Pause-User "Press Enter to start..."
 # -------------------------------------------------------
 Write-Step 1 4 "Locating Battlefield 1942"
 # -------------------------------------------------------
-$gamePath = $null
+$gamePath = Get-PCVRRememberedGameFolder -ProbeFiles @($MOD_MARK)
+if ($gamePath) { Write-OK "Remembered Battlefield 1942 folder: $gamePath" }
 foreach ($p in @(
     "C:\Program Files (x86)\EA Games\Battlefield 1942",
     "C:\Program Files (x86)\EA GAMES\Battlefield 1942",
@@ -201,7 +202,7 @@ foreach ($p in @(
     "C:\Games\Battlefield 1942",
     "D:\Games\Battlefield 1942",
     "C:\Battlefield 1942"
-)) { if (Test-Path -LiteralPath (Join-Path $p $GAME_EXE)) { $gamePath = $p; break } }
+)) { if (-not $gamePath -and (Test-Path -LiteralPath (Join-Path $p $GAME_EXE))) { $gamePath = $p; break } }
 
 if (-not $gamePath) {
     Write-Info "No Battlefield 1942 folder found in the usual places."

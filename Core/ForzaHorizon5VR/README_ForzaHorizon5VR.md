@@ -70,6 +70,8 @@ NALULUNA build.
 
 ## Playing - lufz / VRMod
 
+The current **v1.4.2** package includes the latest head-movement hotfix.
+
 1. Use **[[Start in VR]]** in the Hub, the desktop shortcut, or start
    `vrmod-launcher.exe`.
 2. Choose **[[+ Add Game]]** and select the game's install folder. On Game

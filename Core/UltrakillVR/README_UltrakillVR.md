@@ -29,10 +29,10 @@ download_depot 1229490 1229491 5628746843149106870
 
 ![Controller layout](ControllerLayout.jpg)
 
-- **Left stick:** Move; press = Jump. **Left face buttons:** [[X]] Whiplash,
-  [[Y]] Dash, Stick Switch Arm
+- [[Left Stick]]: Move; [[Left Stick Click]] = Jump. **Left face buttons:** [[X]] Whiplash,
+  [[Y]] Dash, [[Stick]] Switch Arm
 - **[[Left Trigger]]:** hold = Punch. **[[Left Grip]]:** hold = Punch
-- **Right stick:** turn left/right / navigate the weapon wheel; press = Slide
+- [[Right Stick]]: turn left/right / navigate the weapon wheel; [[Right Stick Click]] = Slide
 - **Right buttons:** [[A]] press = last equipped weapon, hold = open weapon
   wheel, double-press = pause; [[B]] Change Variation
 - **[[Right Trigger]]:** Primary Fire. **[[Right Grip]]:** Alternative Fire

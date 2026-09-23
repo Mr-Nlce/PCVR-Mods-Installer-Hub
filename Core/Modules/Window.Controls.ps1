@@ -52,20 +52,32 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
 $global:hubStyle = [string](Get-HubSetting -Key "hubStyle" -Default "frosted")
 if ($global:hubStyle -ne "classic") { $global:hubStyle = "frosted" }
 
+# Keep a failed visual build in the collection without losing its game
+# identity. Rebuild-Lookups and Apply-Filter consume gameData directly from
+# every child, so even this invisible/empty scan placeholder cannot shift the
+# association of any card that follows it.
+function global:New-GameCardFailurePlaceholder {
+    param($Game)
+    $placeholder = New-Object System.Windows.Controls.Border
+    if ($Game) { $placeholder.Resources.Add('gameData', $Game) }
+    $placeholder.Resources.Add('cardBuildFailed', $true)
+    return $placeholder
+}
+
 Write-HubTiming "Controls before Motion cards"
 foreach ($game in $ownGames) {
     try   { $ownList.Children.Add((New-GameCard $game $false $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownList.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
 }
 Write-HubTiming "Controls after Motion cards"
 foreach ($game in $ownGamesGP) {
     try   { $ownListGP.Children.Add((New-GameCard $game $false $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownListGP.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownListGP.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
 }
 Write-HubTiming "Controls after Gamepad cards"
 foreach ($game in $externalGames) {
     try   { $extList.Children.Add((New-GameCard $game $true  $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $extList.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $extList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
 }
 Write-HubTiming "Controls after External cards"
 
@@ -162,15 +174,15 @@ function global:Switch-HubStyle {
     foreach ($p in @($ownList, $ownListGP, $extList)) { if ($p) { $p.Children.Clear() } }
     foreach ($game in $ownGames) {
         try   { $ownList.Children.Add((New-GameCard $game $false $global:window)) | Out-Null }
-        catch { $ownList.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+        catch { $ownList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
     }
     foreach ($game in $ownGamesGP) {
         try   { $ownListGP.Children.Add((New-GameCard $game $false $global:window)) | Out-Null }
-        catch { $ownListGP.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+        catch { $ownListGP.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
     }
     foreach ($game in $externalGames) {
         try   { $extList.Children.Add((New-GameCard $game $true $global:window)) | Out-Null }
-        catch { $extList.Children.Add((New-Object System.Windows.Controls.Border)) | Out-Null }
+        catch { $extList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
     }
     if (Get-Command Apply-CardScale     -ErrorAction SilentlyContinue) { Apply-CardScale }
     if (Get-Command Rebuild-Lookups     -ErrorAction SilentlyContinue) { Rebuild-Lookups }

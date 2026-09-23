@@ -42,7 +42,7 @@ $REPO_API_LATEST   = "https://api.github.com/repos/Alex-LeTux/perfect_dark_VR/re
 $RELEASES_LATEST   = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/latest"
 $INFO_URL          = "https://github.com/Alex-LeTux/perfect_dark_VR"
 # Last-known-good PCVR asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v1.8-beta/Perfect_Dark_PCVR_v.1.8-beta.zip"
+$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v1.9.3-beta/Perfect_Dark_PCVR_v.1.9.3-beta.zip"
 $GAME_FOLDER       = "Perfect Dark VR"
 $GAME_EXE          = "pd.x86_64.exe"
 $ROM_NAME          = "pd.ntsc-final.z64"
@@ -59,6 +59,25 @@ function Get-LatestPcvrZipUrl {
         if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1 }
         if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
     } catch { }
+    return $null
+}
+
+function Get-PerfectDarkReleaseTagFromSource {
+    param([string]$Source)
+    if ([string]::IsNullOrWhiteSpace($Source)) { return $null }
+
+    # Automatic downloads keep the immutable GitHub release URL. Manual
+    # downloads keep the publisher's version in either the archive or wrapper
+    # folder name (Perfect_Dark_PCVR_v.1.8-beta). Both routes therefore yield
+    # the exact release that actually supplied the installed files.
+    if ($Source -match '(?i)/releases/download/([^/]+)/') {
+        return [Uri]::UnescapeDataString($matches[1])
+    }
+    $leaf = try { [IO.Path]::GetFileName(('' + $Source).TrimEnd('\','/')) } catch { '' }
+    if ($leaf -match '(?i)^Perfect_Dark_PCVR[_-]+v[._-]?([0-9][0-9A-Za-z._-]*?)(?:\.zip)?$') {
+        $value = $matches[1].TrimEnd('.','-','_')
+        if ($value) { return 'v' + $value }
+    }
     return $null
 }
 
@@ -94,7 +113,9 @@ function Test-WritableRoot {
 
 Write-Host "  Default location: C:\Games\$GAME_FOLDER" -ForegroundColor White
 Write-Host "  Press Enter to accept it, or type a different folder to install into." -ForegroundColor Gray
-$chosen = (Read-Host "  Install root [C:\Games]").Trim().Trim('"')
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('pd.x86_64.exe')
+$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
+if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
 
 $installRoot = $null
 if ($chosen) {
@@ -117,7 +138,7 @@ if (-not $installRoot) {
     }
 }
 Write-OK "Install root: $installRoot"
-$gameRoot = Join-Path $installRoot $GAME_FOLDER
+$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
 $dataDir  = Join-Path $gameRoot "data"
 $preserveDir = Join-Path $installRoot "_PCVRHub_PerfectDarkVR_UserData_Backup"
 if (Test-Path -LiteralPath $preserveDir) {
@@ -148,6 +169,7 @@ try {
 $zipDest = Join-Path $tmp "PerfectDark_PCVR_latest.zip"
 
 $urls = New-Object System.Collections.Generic.List[string]
+$downloadInfo = @{}
 Write-Info "Resolving the newest PCVR release via the GitHub API..."
 $apiUrl = Get-LatestPcvrZipUrl
 if ($apiUrl) {
@@ -162,6 +184,7 @@ Invoke-SafeDownload -Urls $urls -Destination $zipDest `
     -Label "Perfect Dark VR (PCVR build)" `
     -ManualUrl $RELEASES_LATEST `
     -Instructions "Open the releases page, download the newest 'Perfect_Dark_PCVR_*.zip' (NOT the .apk), save it as '$zipDest', then choose Retry." `
+    -DownloadInfo $downloadInfo `
     -SkipMessage "" | Out-Null
 
 while (-not (Test-Path $zipDest)) {
@@ -238,6 +261,16 @@ while (-not $exeItem) {
     $exeItem = Get-ChildItem -Path $unpack -Filter $GAME_EXE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
+$installedReleaseTag = Get-PerfectDarkReleaseTagFromSource -Source ('' + $downloadInfo.Url)
+if (-not $installedReleaseTag) { $installedReleaseTag = Get-PerfectDarkReleaseTagFromSource -Source $payloadDir }
+if (-not $installedReleaseTag) {
+    Write-Fail "The exact Perfect Dark VR release version could not be verified."
+    Write-Host "  The game was not changed or marked installed, so the Hub cannot hide a real update." -ForegroundColor Gray
+    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit..." | Out-Null
+    exit 1
+}
+Write-OK "Release version resolved: $installedReleaseTag"
 
 # Preserve user-supplied ROMs, the optional Transfer Pak ROM, settings and
 # possible local save folders outside the ordinary extraction temp.
@@ -377,6 +410,14 @@ if (Test-Path $exePath) {
 } else {
     Write-Warn "Game EXE not found after install - shortcut skipped."
 }
+
+# Commit only after the release executable survived the complete install. The
+# exact release receipt replaces any older game-side recovery marker, so a
+# later full scan cannot resurrect an already-installed update.
+if (-not (Test-Path -LiteralPath $exePath -PathType Leaf)) {
+    throw "$GAME_EXE is missing; refusing to write a successful installation receipt."
+}
+Save-InstalledStamp -GameDir $gameRoot -Version $installedReleaseTag -HubDir $SCRIPT_DIR
 
 # Record the install path so the Hub's "VR Installed" check + Start-in-VR find it.
 try {

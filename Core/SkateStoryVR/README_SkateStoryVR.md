@@ -23,8 +23,8 @@ This is a basic VR mod - it adds 3D vision but no motion controls. **OpenVR ONLY
 
 ## Controls
 - **No VR-controller support** - use a gamepad.
-- Press **both joysticks at the same time** to recenter the view (insist if it doesn't catch first try).
-- **Double-tap Start / Options** to toggle between 3rd-person and 1st-person view.
+- Press [[Left Stick Click]] + [[Right Stick Click]] to recenter the view (insist if it doesn't catch first try).
+- Double-tap [[Start]] / [[Options]] to toggle between 3rd-person and 1st-person view.
 
 ## Critical first-launch settings
 - The in-game **"color bleeding"** option has been reported to cause memory usage issues. Turn it **OFF** if you run into problems.

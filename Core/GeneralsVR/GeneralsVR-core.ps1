@@ -52,6 +52,7 @@ $RELEASES    = "https://github.com/$REPO/releases"
 $SETUP_CMD   = "GeneralsVR-Setup.cmd"
 $START_CMD   = "START-GeneralsVR.cmd"
 $INSTALL_DIR = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "GeneralsVR"
+$installedGeneralsVersion = ''
 
 # ---- Header ---------------------------------------------------
 Write-Host ""
@@ -136,38 +137,39 @@ Write-Step 2 3 "Getting the files"
 $tmp = Join-Path $env:TEMP ("generalsvr_" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $runMe = $null
+$generalsPattern = if ($route -eq '1') { '(?i)^GeneralsVR-Setup\.cmd$' } else { '(?i)^GeneralsVR.*\.zip$' }
+$generalsFallbackUrl = if ($route -eq '1') { "https://github.com/$REPO/releases/download/$MOD_VERSION/$SETUP_CMD" } else { '' }
+$generalsRelease = Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $true `
+    -AssetPatterns @($generalsPattern) -FallbackUrl $generalsFallbackUrl -FallbackTag $MOD_VERSION `
+    -FallbackAssetName $(if ($route -eq '1') { $SETUP_CMD } else { '' }) -SkipReleasesWithoutMatchingAsset
 
 if ($route -eq "1") {
     $patterns = @("GeneralsVR-Setup.cmd", "*GeneralsVR*Setup*.cmd")
     $found = Find-PredownloadedFile -Patterns $patterns -Label "the GeneralsVR setup file"
     if (-not $found) {
         $dest = Join-Path $tmp $SETUP_CMD
-        Invoke-SafeDownload -Urls @("https://github.com/$REPO/releases/latest/download/$SETUP_CMD") `
+        Invoke-SafeDownload -Urls @([string]$generalsRelease.Url) `
             -Destination $dest -Label "$MOD_NAME setup" -ManualUrl $RELEASES `
             -Instructions "Download $SETUP_CMD from the releases page, save it as '$dest', then choose Retry."
         if (Test-Path -LiteralPath $dest) { $found = $dest }
     }
     $runMe = $found
+    if ($runMe) { $installedGeneralsVersion = [string]$generalsRelease.Tag }
 } else {
     $patterns = @("GeneralsVR-v*.zip", "*GeneralsVR*.zip")
     $zip = Find-PredownloadedFile -Patterns $patterns -Label "the GeneralsVR ZIP"
+    if ($zip -and ([IO.Path]::GetFileName($zip) -match '(?i)GeneralsVR[-_ ]+(v?[0-9][0-9A-Za-z.\-]+)')) {
+        $installedGeneralsVersion = [string]$matches[1]
+    }
     if (-not $zip) {
         $dest = Join-Path $tmp "GeneralsVR.zip"
         # The asset carries the version in its name, so resolve it
         # through the API instead of guessing a fixed address.
-        $url = $null
-        try {
-            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
-                       -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
-            if (Test-IsPayloadRelease -Release $rel) {
-                $pick = Select-PayloadAsset -Assets $rel.assets -PlatformPattern '(?i)GeneralsVR' -MinBytes 500000
-                if ($pick) { $url = [string]$pick.browser_download_url }
-            }
-        } catch {}
+        $url = if ($generalsRelease.Resolved) { [string]$generalsRelease.Url } else { $null }
         if ($url) {
             Invoke-SafeDownload -Urls @($url) -Destination $dest -Label "$MOD_NAME" -ManualUrl $RELEASES `
                 -Instructions "Download the GeneralsVR ZIP from the releases page, save it as '$dest', then choose Retry."
-            if (Test-Path -LiteralPath $dest) { $zip = $dest }
+            if (Test-Path -LiteralPath $dest) { $zip = $dest; $installedGeneralsVersion = [string]$generalsRelease.Tag }
         } else {
             Write-Warn "Could not resolve the release automatically."
             Pause-User "Press Enter to open the releases page..." | Out-Null
@@ -222,6 +224,7 @@ if (Test-Path -LiteralPath (Join-Path $INSTALL_DIR "Data\generalszhv.exe")) {
     Write-OK "GeneralsVR is installed in $INSTALL_DIR"
     # Marker for the Hub - into the INSTALLER folder, not the game.
     try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force } catch {}
+    if ($installedGeneralsVersion) { Save-InstalledStamp -GameDir $INSTALL_DIR -Version $installedGeneralsVersion -HubDir $PSScriptRoot }
 } else {
     Write-Info "If you cancelled, run this installer again - nothing was left behind."
 }

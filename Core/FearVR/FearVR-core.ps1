@@ -1,8 +1,9 @@
 # ============================================================
-# F.E.A.R. VR Installer (thefreemike public GOG + DR-89 Steam)
+# F.E.A.R. VR Installer (thefreemike public GOG/Steam + DR-89 Steam)
 # ============================================================
 # Option 1 resolves the latest stable thefreemike public release for
-# GOG. Option 2 resolves the latest DR-89 prerelease for Steam.
+# verified GOG or original Steam. Option 2 resolves the latest DR-89
+# prerelease for Steam.
 #
 # The mod needs the official F.E.A.R. Public Tools 1.08 (it copies
 # five proprietary engine modules from there). Installing Public
@@ -24,7 +25,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " F.E.A.R. VR Installer" -ForegroundColor Cyan
-    Write-Host " thefreemike stable (GOG) | DR-89 beta (Steam)" -ForegroundColor Gray
+    Write-Host " thefreemike stable (GOG/Steam) | DR-89 beta (Steam)" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -294,27 +295,30 @@ $fearSteamModAdded = Test-FearVrMarker `
     -RecordFiles @((Join-Path $SCRIPT_DIR ".installed_path_dr89"), $legacyPathRecord) `
     -FallbackRoots @($fearSteamRoot, "C:\Games\$GAME_FOLDER", "D:\Games\$GAME_FOLDER", "E:\Games\$GAME_FOLDER", $OLD_INSTALL_DIR) `
     -RelativeMarkers @("bin\x64\fearvr-host.exe", "FEARVR\bin\x64\fearvr-host.exe")
-$fearGogModAdded = Test-FearVrMarker `
-    -RecordFiles @((Join-Path $SCRIPT_DIR ".installed_path_gog"), $legacyPathRecord) `
+$fearGogPublicAdded = Test-FearVrMarker `
+    -RecordFiles @() `
     -FallbackRoots @($fearGogRoot) `
+    -RelativeMarkers @("fearvr_bridge.dll")
+$fearSteamPublicAdded = Test-FearVrMarker `
+    -RecordFiles @() `
+    -FallbackRoots @($fearSteamRoot) `
     -RelativeMarkers @("fearvr_bridge.dll")
 
 # =============================================================
 #  Which build?
 # =============================================================
-# !!! TWO MODS, TWO GAME EDITIONS. thefreemike's build targets the GOG
-# Platinum Collection; DR-89's confirmed build targets the Steam Ultimate
-# Collection and supports nothing else. They are separate projects by
-# separate authors, not two settings of one thing.
+# !!! TWO MODS. thefreemike supports verified GOG and original Steam copies;
+# DR-89 targets the Steam Ultimate Shooter Edition. They are separate projects
+# and must not be mixed in the same game folder.
 Write-Host ""
-Write-Host "  Two VR mods exist for F.E.A.R., one per game edition:" -ForegroundColor White
+Write-Host "  Two separate VR mods exist for F.E.A.R.:" -ForegroundColor White
 Write-Host ""
 Write-Host "   [1] thefreemike " -NoNewline -ForegroundColor Cyan
-Write-Host "- for the GOG Platinum Collection" -ForegroundColor White
+Write-Host "- for verified GOG or original Steam" -ForegroundColor White
 Write-Host "       Public stable release, downloaded automatically from GitHub." -ForegroundColor Gray
 Write-Host "       Body holsters, physical pickups, two-handed props." -ForegroundColor Gray
 if ($fearGogRoot) {
-    if ($fearGogModAdded) {
+    if ($fearGogPublicAdded) {
         Write-Host "       GAME INSTALLED (GOG) - VR MOD WAS ADDED" -ForegroundColor Green
     } else {
         Write-Host "       GAME INSTALLED (GOG) - VR MOD CAN BE ADDED" -ForegroundColor Green
@@ -322,6 +326,16 @@ if ($fearGogRoot) {
     Write-Host "       $fearGogRoot" -ForegroundColor DarkGreen
 } else {
     Write-Host "       GOG game not detected" -ForegroundColor DarkGray
+}
+if ($fearSteamRoot) {
+    if ($fearSteamPublicAdded) {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD WAS ADDED" -ForegroundColor Green
+    } else {
+        Write-Host "       GAME INSTALLED (STEAM) - VR MOD CAN BE ADDED" -ForegroundColor Green
+    }
+    Write-Host "       $fearSteamRoot" -ForegroundColor DarkGreen
+} else {
+    Write-Host "       Steam game not detected for this option" -ForegroundColor DarkGray
 }
 Write-Host ""
 Write-Host "   [2] DR-89 " -NoNewline -ForegroundColor Cyan
@@ -346,7 +360,7 @@ $fearPick = switch -Regex (("" + $Mod).Trim()) {
     default                             { '' }
 }
 if ($fearPick) {
-    $pickedName = if ($fearPick -eq '1') { 'thefreemike (GOG)' } else { 'DR-89 (Steam)' }
+    $pickedName = if ($fearPick -eq '1') { 'thefreemike (GOG or Steam)' } else { 'DR-89 (Steam)' }
     Write-Host "  Update target selected by the Hub: $pickedName" -ForegroundColor Green
 } else {
     for ($k = 1; $k -le 20; $k++) {
@@ -358,7 +372,7 @@ if ($fearPick) {
 if ($fearPick -eq "1") {
     $gogScript = Join-Path $PSScriptRoot "FearVR-Gog.ps1"
     if (-not (Test-Path -LiteralPath $gogScript)) {
-        Write-Host "  The GOG installer is missing: $gogScript" -ForegroundColor Red
+        Write-Host "  The thefreemike installer is missing: $gogScript" -ForegroundColor Red
         Pause-User "Press Enter to exit."
         exit 1
     }
@@ -387,6 +401,13 @@ if (-not $retailRoot) {
     exit 1
 }
 Write-OK "Found F.E.A.R. at: $retailRoot"
+if (Test-Path -LiteralPath (Join-Path $retailRoot 'fearvr_bridge.dll') -PathType Leaf) {
+    Write-Fail "thefreemike is already installed in this same Steam game folder."
+    Write-Host "  The two publishers' files must not be mixed. Remove thefreemike" -ForegroundColor Yellow
+    Write-Host "  from this copy or install DR-89 into a separate clean copy." -ForegroundColor Yellow
+    Pause-User "Press Enter to exit..." | Out-Null
+    exit 1
+}
 
 # ---- where the mod itself goes -------------------------------
 function Test-WritableRoot {

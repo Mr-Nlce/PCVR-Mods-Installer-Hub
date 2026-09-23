@@ -40,8 +40,8 @@ Each package's installed version is recorded under `BepInEx\.ts_versions\`, so r
 
 Motion controllers, with a pointer for the menus:
 
-- [[Left Stick]] Move, click to sprint, push forward to leap
-- [[Right Stick]] Turn, scroll, click to ping a location
+- [[Left Stick]] Move, [[Left Stick Click]] to sprint, push forward to leap
+- [[Right Stick]] Turn, scroll, [[Right Stick Click]] to ping a location
 - [[X]] Crouch, [[Y]] Pause
 - [[A]] Jump, [[B]] Stash item
 - [[Left Trigger]] Drop, hold to throw

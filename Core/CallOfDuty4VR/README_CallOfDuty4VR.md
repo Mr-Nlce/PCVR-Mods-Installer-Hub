@@ -16,25 +16,25 @@ https://github.com/jplakon/CallOfDuty4_VR
 ## Controls
 Quest Touch bindings. Other OpenXR controllers may map differently.
 
-| Action | Binding |
+| Button | Action |
 |---|---|
-| Move | [[Left Stick]] - movement follows where you look |
-| Snap turn | [[Right Stick]] left / right |
-| Fire | [[Right Trigger]] |
-| Aim / scope | Hold [[Left Grip]] and physically shoulder the weapon |
-| Reload | [[Left Trigger]] |
-| Jump | [[A]] |
-| Use / interact | [[X]] |
-| Sprint | Click [[Left Stick]] |
-| Crouch | Tap [[B]] |
-| Prone | Hold [[B]] |
-| Melee | Click [[Right Stick]] |
-| Frag grenade | Hold [[Y]] for 0.3 s, release to throw |
-| Flashbang / tactical | [[Right Grip]] |
-| Next weapon | Tap [[Y]] |
-| Night vision | [[Right Stick]] down |
-| Rifle grenade launcher | [[Right Stick]] up |
-| Pause / menu | [[Left Menu]] |
+| [[Left Stick]] | Move; movement follows where you look |
+| [[Right Stick Left / Right]] | Snap turn |
+| [[Right Trigger]] | Fire |
+| [[Left Grip]] | Hold and physically shoulder the weapon to aim / scope |
+| [[Left Trigger]] | Reload |
+| [[A]] | Jump |
+| [[X]] | Use / interact |
+| [[Left Stick Click]] | Sprint |
+| [[B]] tap | Crouch |
+| [[B]] hold | Prone |
+| [[Right Stick Click]] | Melee |
+| [[Y]] hold | Hold for 0.3 s, then release to throw a frag grenade |
+| [[Right Grip]] | Flashbang / tactical |
+| [[Y]] tap | Next weapon |
+| [[Right Stick Down]] | Night vision |
+| [[Right Stick Up]] | Rifle grenade launcher |
+| [[Left Menu]] | Pause / menu |
 
 **Mission controls:** touch and hold the [[Right Thumbrest]], then push [[Left Stick]] - up for the grenade launcher, down for night vision, left for an airstrike, right for C4. Normal movement is suspended while you hold it.
 
@@ -117,6 +117,10 @@ restart the game after editing the file by hand.
   frames, Ultimatum sky streaks, stopped tank tracks, mission-start crouching and
   a weapon-related logging slowdown. It also adds calibrated two-hand aiming,
   smaller HUD layouts down to 0.25 and a safer OpenVR control preset.
+- beta.18 rebuilds physical scopes, fixes narrow-scope visibility and the Bog
+  Javelin sight, upgrades controller input to V5, repairs the Valve Index mapping
+  and fixes configurator chord editing. The publisher also tested this build on
+  Quest 3 through VDXR.
 
 **The author also ships a guided Windows Setup now.** The Hub keeps using the
 portable ZIP: both are built from the same deterministic payload, and the ZIP

@@ -32,7 +32,15 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 
 > **Meta Quest 3 through Quest Link or Air Link is the modder's primary tested setup.** The mod uses OpenXR and does not need the legacy Oculus PC SDK. Other PC OpenXR headsets may work but have not had the same testing. **NVIDIA DLAA** additionally needs a compatible RTX GPU and a current driver; a non-DLAA anti-aliasing path is available on other hardware.
 
-## New in 0.5.2-alpha
+## Current release: v0.5.5.1
+
+The current build adds experimental DLSS 5 Neural Rendering at 1x, 2x and 3x,
+along with dynamic lighting, screen-space reflections, rain, wet-surface and
+reflection work. It also improves calibration, camera and body presentation,
+cutscenes, UI and profile handling. Treat the neural-rendering modes as
+experimental and keep a conventional anti-aliasing path available.
+
+## Earlier 0.5.2 changes
 
 **Cutscenes and menus run at full rate on SteamVR again.** They used to drop to
 about 15 fps: SteamVR throttles a session that stops submitting stereo frames,
@@ -45,7 +53,7 @@ runtimes keep their proven path. If it causes trouble, set
 stereo wrist panels, with separate placement per hand, side and for
 foot/car/bike. The head-locked **Classic HUD stays the default**, and every
 panel falls back to its Classic copy if its anchor is unavailable.
-Motorcycles now use the **right trigger** for throttle by default; the physical
+Motorcycles now use [[Right Trigger]] for throttle by default; the physical
 wrist-twist is still there, in Vehicle Settings.
 
 **`PREPARE_MODERN_MODELS.bat` does the HD model job for you.** It asks for your
@@ -100,33 +108,41 @@ https://drive.google.com/file/d/1aYSgzPE3UeA2_zuA_66eSf1ZhzCEgFMe/view?usp=shari
 3. If the initial viewpoint is misaligned, press **both grips + both thumbstick clicks** to recenter.
 
 ## Controls (motion controllers)
-- [[L-Stick]] move
-- [[R-Stick]] turn / look / vehicle steering
-- [[R3]] sprint on foot
-- [[A]] [[B]] [[X]] [[Y]] enter and exit vehicles plus the normal game actions
-- [[Grip]] near a body holster grabs that weapon; releasing the grip drops or throws it unless Grip Lock is on
-- [[Trigger]] on the weapon hand fires
-- [[Grip]] with the free hand at the saved foregrip position adds two-handed support
-- Grab a weapon with the other hand to transfer it, or toss it and catch it
-- **Punch:** close a free fist with [[Grip]] + [[Trigger]], then swing
-- **Melee:** grab the weapon from its holster and swing physically
-- **Throwables:** grab the center-chest slot and hold that hand's [[Trigger]] to aim the trajectory preview, then release to throw
-- **Remote charges:** use the [[Trigger]] on the controller that appears in the opposite hand
-- **Scopes:** bring the aligned weapon to your eye; long guns also need the support hand
-- **Mission camera:** bring it to your eye and press its [[Trigger]]
+
+| Button | Action |
+|---|---|
+| [[L-Stick]] | Move |
+| [[R-Stick]] | Turn, look and steer vehicles |
+| [[R3]] | Sprint on foot |
+| [[A]] / [[B]] / [[X]] / [[Y]] | Enter and exit vehicles and use normal game actions |
+| [[Grip]] near a body holster | Grab that weapon; releasing drops or throws it unless Grip Lock is on |
+| [[Trigger]] on the weapon hand | Fire |
+| [[Grip]] with the free hand at the saved foregrip | Add two-handed support |
+| [[Grip]] with the other hand | Transfer a weapon between hands, or toss and catch it |
+| [[Grip]] + [[Trigger]] with a free hand | Close the fist; swing it to punch |
+| [[Grip]] at a melee-weapon holster | Grab the weapon, then swing it physically |
+| [[Trigger]] while holding a throwable | Aim the trajectory preview; release to throw |
+| [[Trigger]] on the remote controller | Detonate placed remote charges |
+| [[Weapon raised to the eye]] | Use the physical scope; long guns also need the support hand |
+| [[Trigger]] with the mission camera at the eye | Take the mission photo |
 
 > **Optional manual reloading** (off by default): when a supported gun runs empty, grab a magazine from that weapon's body position with the free hand and insert it into the magazine well. Currently supported on the **Colt .45, TEC-9, Uzi and Ingram**; every other firearm keeps the game's automatic reload.
 
 ## In-headset menus and shortcuts
-- [[Both Grips]] + [[Menu]] open or close the VR settings
-- [[Both Grips]] + [[B]] open or close the cheat menu
-- [[Both Grips]] + [[A]] toggle the debug overlay
-- [[Both Grips]] + [[Y]] start or stop a performance capture
-- [[Both Grips]] + [[L3]] + [[R3]] recenter the gameplay view
-- [[Both Grips]] + [[L3]] + [[L2]] toggle the FULL and hybrid stereo diagnostic modes
-- [[Both Grips]] + [[R3]] + [[R2]] cycle the fixed-foveated VRS profile
 
-Inside a VR menu: [[L-Stick]] selects an entry, [[L2]] and [[R2]] decrease or increase a value, [[A]] opens or selects, [[B]] goes back or closes.
+| Button | Action |
+|---|---|
+| [[Both Grips]] + [[Menu]] | Open or close the VR settings |
+| [[Both Grips]] + [[B]] | Open or close the cheat menu |
+| [[Both Grips]] + [[A]] | Toggle the debug overlay |
+| [[Both Grips]] + [[Y]] | Start or stop a performance capture |
+| [[Both Grips]] + [[L3]] + [[R3]] | Recenter the gameplay view |
+| [[Both Grips]] + [[L3]] + [[L2]] | Toggle the FULL and hybrid stereo diagnostic modes |
+| [[Both Grips]] + [[R3]] + [[R2]] | Cycle the fixed-foveated VRS profile |
+| [[L-Stick]] inside a VR menu | Select an entry |
+| [[L2]] / [[R2]] inside a VR menu | Decrease or increase a value |
+| [[A]] inside a VR menu | Open or select |
+| [[B]] inside a VR menu | Go back or close |
 
 > **Defaults worth knowing.** The gameplay HUD is controlled only from VR settings and defaults to **off**, as do weapon lasers, body-holster highlights and manual reloading. Physical scopes default to **on**. The default driving Y offset is **+15 cm**.
 

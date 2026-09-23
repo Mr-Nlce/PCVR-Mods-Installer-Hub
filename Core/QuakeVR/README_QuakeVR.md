@@ -67,7 +67,7 @@ SteamVR Theatre Mode must be **OFF**: SteamVR → Settings → Dashboard → "Pr
 
 ### Right Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Fire equipped weapon |
 | [[Grip]] | Grab / draw weapon from a holster |
 | [[A]] | Jump |
@@ -77,13 +77,13 @@ SteamVR Theatre Mode must be **OFF**: SteamVR → Settings → Dashboard → "Pr
 
 ### Left Controller
 | Button | Action |
-|--------|--------|
+|---|---|
 | [[Trigger]] | Off-hand action (dual-wield / grab) |
 | [[Grip]] | Grab / draw weapon from a holster |
 | [[X]] | Quick melee |
 | [[Y]] | Menu / console |
 | [[Stick]] | Smooth locomotion (move / strafe) |
-| Menu | Game menu |
+| [[Menu]] | Game menu |
 
 > Tune holster hotspots, turn style, and comfort options in **Quake VR Settings** before a long session.
 
@@ -109,6 +109,12 @@ Team Beef's **QuakeQuest** - the standalone VR Quake for Quest headsets - ported
 over OpenXR. This is Simon Brown's VR work brought across from the exact DarkPlaces commit
 his Android build forked, with nothing changed except what PC requires. If you have played
 QuakeQuest on a Quest, this plays identically, at whatever resolution your PC can drive.
+
+### Current v1.1 update
+
+Release v1.1 adds in-world menus and the classic attract-mode demo sequence to
+the PCVR port. The installer follows this stable GitHub release and keeps the
+standalone game's settings, saves and copied PAK data during updates.
 
 ### What it does
 

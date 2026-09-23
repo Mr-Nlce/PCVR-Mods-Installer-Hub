@@ -14,6 +14,12 @@ $STEAM_APP_ID = "264710"
 
 $BEPINEX_URL  = "https://github.com/toebeann/BepInEx.Subnautica/releases/latest/download/Tobey.s.BepInEx.Pack.for.Subnautica.zip"
 $SVRVR_URL    = "https://github.com/Okabintaro/SubmersedVR/releases/download/0.2.0/SubmersedVR_0.2.0.zip"
+$SVRVR_VERSION = '0.2.0'
+$submersedRelease = Resolve-GitHubReleaseAsset -Repo 'Okabintaro/SubmersedVR' `
+    -AssetPatterns @('(?i)^SubmersedVR.*\.zip$') -FallbackUrl $SVRVR_URL `
+    -FallbackTag $SVRVR_VERSION -FallbackAssetName 'SubmersedVR_0.2.0.zip' -SkipReleasesWithoutMatchingAsset
+$SVRVR_URL = [string]$submersedRelease.Url
+$SVRVR_VERSION = [string]$submersedRelease.Tag
 
 # -------------------------------------------------------
 # Helpers
@@ -278,7 +284,7 @@ Write-Host ""
 $answer = Read-Host "  Are you using an Oculus headset? (y/n)"
 if ($answer -match "^[yYjJ]") {
     $launchOpt = "-vrmode openvr"
-    try { Set-Clipboard -Value $launchOpt } catch {}
+    try { Set-Clipboard -Value $launchOpt -DeferManualFallback } catch {}
 
     Write-Host ""
     Write-Host "  ============================================================" -ForegroundColor Yellow
@@ -294,14 +300,18 @@ if ($answer -match "^[yYjJ]") {
     Write-Host ""
     Pause-User "Press Enter to open the game properties in Steam..."
     Start-Process "steam://gameproperties/$STEAM_APP_ID"
-    try { Set-Clipboard -Value $launchOpt } catch {}
+    try { Set-Clipboard -Value $launchOpt -DeferManualFallback } catch {}
+    Show-PCVRClipboardManualFallback -Text $launchOpt
     Pause-User "Press Enter once you have pasted -vrmode openvr and closed Properties..."
 } else {
     Write-OK "No extra launch option needed for your headset."
 }
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("SubmersedVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
+if ("SubmersedVR" -notin $failed) {
+    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+    Save-InstalledStamp -GameDir $gamePath -Version $SVRVR_VERSION -HubDir $PSScriptRoot
+}
 
 # -------------------------------------------------------
 # DONE

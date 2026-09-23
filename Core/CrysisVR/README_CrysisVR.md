@@ -25,11 +25,11 @@ A full Virtual Reality conversion of the 2007 Crytek shooter **Crysis** by modde
 > It does not matter if the flat game won't launch on its own - just install the mod and play in VR.
 
 ## Controls
-| Input | Action |
-|-------|--------|
-| Grip (at a holster) | Cycle weapons - there are **3 weapon holsters**, each holding multiple weapons |
-| Right thumbstick | Aim vehicle weapons and stationary guns (instead of head/controller aim) |
-| Motion controllers | Standard VR aiming and interaction for on-foot combat |
+| Button | Action |
+|---|---|
+| [[Grip (at a holster)]] | Cycle weapons - there are **3 weapon holsters**, each holding multiple weapons |
+| [[Right thumbstick]] | Aim vehicle weapons and stationary guns (instead of head/controller aim) |
+| [[Motion controllers]] | Standard VR aiming and interaction for on-foot combat |
 
 Open the in-game **VR Settings** menu to configure locomotion, world scale, and comfort options.
 

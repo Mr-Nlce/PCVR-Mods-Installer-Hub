@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $Host.UI.RawUI.WindowTitle = "Silent Hill 3 VR Installer"
 $GAME_EXE = "sh3.exe"
 $MOD_NAME = "Silent Hill 3 VR"
-$MOD_VERSION = "Beta 0.1"
+$MOD_VERSION = "Pre-Release 1.0.2"
 $MOD_AUTHOR = "NotGodlikeUwU"
 $REPO = "NotGodlikeUwU/Silent-Hill-3-VR-Mod"
 $RELEASES_URL = "https://github.com/$REPO/releases"
@@ -16,8 +16,8 @@ $CAMERA_URL = "https://github.com/zealottormunds/sh3cammod/releases/download/1.0
 $PC_FIX_NAME = "Silent_Hill_3_PC_Fix_2.8.5-Steam006.zip"
 $PC_FIX_PASSWORD = "pcgw"
 $CAMERA_NAME = "Silent.Hill.3.-.Zealot.s.Camera.Mod.v1.0.rar"
-$PINNED_VR_NAME = "Silent.Hill.3.VR.v0.1.5-beta.zip"
-$PINNED_VR_URL = "https://github.com/$REPO/releases/download/Beta_0.1.5/$PINNED_VR_NAME"
+$PINNED_VR_NAME = "Silent.Hill.3.VR.v1.0.2.pre-release.zip"
+$PINNED_VR_URL = "https://github.com/$REPO/releases/download/Pre-Release_1.0.2/$PINNED_VR_NAME"
 $MANIFEST_NAME = ".pcvrhub-sh3vr-install.tsv"
 $BACKUP_NAME = ".pcvrhub-sh3vr-backup"
 
@@ -41,6 +41,8 @@ function Test-SH3Root([string]$Path) {
 }
 
 function Find-SH3Root {
+    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
+    if (Test-SH3Root $remembered) { return $remembered }
     $recorded = $null
     try { $recorded = (Get-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Raw).Trim() } catch {}
     if (Test-SH3Root $recorded) { return $recorded }
@@ -126,7 +128,7 @@ function Get-LatestVRRelease {
             }
         }
     } catch {}
-    return [pscustomobject]@{ Tag="Beta_0.1.5"; Name=$PINNED_VR_NAME; Url=$PINNED_VR_URL }
+    return [pscustomobject]@{ Tag="Pre-Release_1.0.2"; Name=$PINNED_VR_NAME; Url=$PINNED_VR_URL }
 }
 
 function Get-VRArchive([string]$Destination,$Release) {

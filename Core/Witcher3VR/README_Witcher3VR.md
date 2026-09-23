@@ -23,37 +23,20 @@ The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 
 After a loading-screen video ends, the view recentres by itself two seconds
 later, along the same path as [[F9]].
 
-## Current release changes (0.9.6)
+## Current release changes (0.9.7 alpha 2)
 
-The current release adds **OFXR frame generation**. FidelityFX is the faster but
-more artifact-prone option; NVIDIA Optical Flow usually gains less performance
-with a cleaner result. It is new and has been tested with VDXR and partly with
-SteamVR OpenXR. Some counters can show half the perceived frame rate while it is
-active. Always launch through the VR Launcher when using OFXR.
+The current package integrates **OptiScaler DLSS 5 v2** directly; it is no longer a
+separate installer choice. ReShade and RenoDX are integrated as well, and the update fixes
+the SteamVR/ReShade crash that affected the first 0.9.7 alpha package.
 
-**Mono mode is back** as the lightest route and supports No AA, FXAA, TAAU, DLSS
-and DLAA. Its validation is still limited, and some cutscenes can temporarily
-lose their selected anti-aliasing mode.
+Presentation and headset output received another pass, including fixes for OpenXR frame
+generation, the HUD and alternate-eye rendering. **Alt. Resize was removed**; use the
+launcher's current presentation controls instead. Ray tracing remains unsupported and
+should stay off.
 
-**Ray tracing has been removed for now.** The previous experimental route does
-not work correctly with asymmetric projection, so leave ray tracing off. This is
-a removal from the prior release, not a hidden setting to re-enable.
-
-Asymmetric projection is now the default. [[F2]] temporarily switches to the
-older symmetric projection for diagnosis. Cinema mode adds 16:9 and 16:10, the
-launcher gains a World Detail Range control, and **Alt. Resize** is available for
-SteamVR configurations where Presentation Size otherwise has no effect.
-
-The release also fixes AER/DLSS black screens, vertical mouse/gamepad pitch,
-first-person galloping, doubled Witcher Senses and lights, several cutscenes and
-general HUD/render stability.
-
-### Optional OptiScaler add-on
-
-The installer offers the matching **OptiScaler add-on** after the main mod. It is
-not required. If you install it, enable OptiScaler in the VR Launcher and disable
-**DLSS Override** there. Leave it off if you already use another graphics
-injector or do not specifically want OptiScaler.
+The existing Mono, Stereo and AER routes remain available. OFXR can improve perceived
+frame rate but may introduce artifacts, so compare it against the native route on your
+runtime and GPU.
 
 ## What you need first
 - The Witcher 3: Wild Hunt **Next-Gen**, at **Patch 4.04** or newer. Older versions and rollback branches are not supported.
@@ -62,12 +45,11 @@ injector or do not specifically want OptiScaler.
 - A working OpenXR runtime.
 - An NVIDIA RTX card if you want DLSS or DLAA.
 
-Headsets with canted displays are supported natively. For Pimax, the author now
-recommends SteamVR OpenXR; enable **Alt. Resize** only if Presentation Size does
-not work through the normal path.
+Headsets with canted displays are supported natively. For Pimax, the author recommends
+SteamVR OpenXR and the current presentation-size controls.
 
 ## How the installer works
-The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, then downloads the plain main-package ZIP from the newest prerelease. Optional add-on ZIPs are deliberately excluded from that selection. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods`, `dlc` and `Witcher3VR` where the game expects them. The matching OptiScaler add-on is offered separately after the main installation.
+The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, then downloads the plain main-package ZIP from the newest prerelease. Source archives and unrelated assets are excluded from that selection. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods`, `dlc` and `Witcher3VR` where the game expects them. OptiScaler, ReShade and RenoDX are already part of the current package.
 
 ## Launching
 Launch with **Start in VR** in the Hub, or from the **The Witcher 3 VR** desktop shortcut. Both open the mod's own launcher, where you choose the rendering mode and resolution and then start the game from there. The launcher exists because each mode needs different hooks, and some have to be active before the game starts.

@@ -17,10 +17,10 @@ $GAME_EXE     = "valheim.exe"
 # There is no dependency list here that could be incomplete - the check
 # Test-ThunderstoreDependencies would have nothing to work on. (The VR
 # mod itself does not come from Thunderstore.)
-$BEPINEX_URL  = "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2333/"
+$BEPINEX_URL  = "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2350/"
 
-# vhvr-mod v0.9.21 (GitHub release)
-$VHVR_URL     = "https://github.com/brandonmousseau/vhvr-mod/releases/download/v0.9.21/vhvr-0.9.21.zip"
+# vhvr-mod v0.10.5 (GitHub release)
+$VHVR_URL     = "https://github.com/brandonmousseau/vhvr-mod/releases/download/v0.10.5/vhvr.zip"
 
 # -------------------------------------------------------
 # Helpers
@@ -29,7 +29,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Valheim - VR Mod Installer" -ForegroundColor Cyan
-    Write-Host "   BepInExPack Valheim 5.4.2333  +  VHVR-Mod v0.9.21" -ForegroundColor Gray
+    Write-Host "   BepInExPack Valheim 5.4.2350  +  VHVR-Mod v0.10.5" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -160,16 +160,16 @@ $failed  = @()
 $bepinexFolder = Join-Path $gamePath "BepInEx"
 $winhttpDll    = Join-Path $gamePath "winhttp.dll"
 if ((Test-Path $bepinexFolder) -and (Test-Path $winhttpDll)) {
-    Write-Warn "BepInEx is already installed - replacing with correct version (5.4.2333)."
+    Write-Warn "BepInEx is already installed - replacing with correct version (5.4.2350)."
     Write-Host ""
 }
 
-Write-Host "  Downloading BepInExPack Valheim 5.4.2333 ... " -NoNewline -ForegroundColor White
+Write-Host "  Downloading BepInExPack Valheim 5.4.2350 ... " -NoNewline -ForegroundColor White
 $bepZip     = Join-Path $tempDir "BepInExPack.zip"
 $bepZip     = Join-Path $tempDir "BepInExPack.zip"
 $bepExtract = Join-Path $tempDir "BepInExPack"
 $r = Invoke-DownloadOrFallback -Url $BEPINEX_URL -Destination $bepZip `
-        -Label "BepInExPack Valheim 5.4.2333" `
+        -Label "BepInExPack Valheim 5.4.2350" `
         -ManualUrl "https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/" `
         -Instructions "Download the latest BepInExPack_Valheim ZIP from the Thunderstore page. Place it at '$bepZip' and choose Retry." `
         -SkipMessage "Skipped - BepInExPack missing; VHVR will NOT load (questionable result)."
@@ -201,14 +201,14 @@ if (Test-Path $bepZip) {
 # -------------------------------------------------------
 # STEP 3: Install vhvr-mod
 # -------------------------------------------------------
-Write-Step 3 3 "Installing VHVR-Mod v0.9.21"
+Write-Step 3 3 "Installing VHVR-Mod v0.10.5"
 
 $vrZip     = Join-Path $tempDir "vhvr.zip"
 $vrExtract = Join-Path $tempDir "vhvr"
 $r = Invoke-DownloadOrFallback -Url $VHVR_URL -Destination $vrZip `
-        -Label "Valheim VR (VHVR) v0.9.21" `
-        -ManualUrl "https://github.com/brandonmousseau/vhvr-mod/releases/tag/v0.9.21" `
-        -Instructions "Download 'vhvr-0.9.21.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
+        -Label "Valheim VR (VHVR) v0.10.5" `
+        -ManualUrl "https://github.com/brandonmousseau/vhvr-mod/releases/tag/v0.10.5" `
+        -Instructions "Download 'vhvr.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
         -SkipMessage "Skipped - VHVR mod missing; install is incomplete (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "VHVR-Mod" }
@@ -245,7 +245,7 @@ if (Test-Path $vrZip) {
                     Write-Warn "Could not locate ValheimVRMod.dll - please install manually."
                 }
             }
-            Write-OK "VHVR-Mod v0.9.21 installed!"
+            Write-OK "VHVR-Mod v0.10.5 installed!"
         } catch {
             Write-Host "FAILED to install VHVR-Mod: $_" -ForegroundColor Red
             $failed += "VHVR-Mod"
@@ -267,8 +267,8 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
-if ("BepInExPack" -notin $failed) { Write-Host "    [x] BepInExPack Valheim 5.4.2333" -ForegroundColor Green } else { Write-Host "    [ ] BepInExPack Valheim  -- FAILED, install manually" -ForegroundColor Red }
-if ("VHVR-Mod"   -notin $failed) { Write-Host "    [x] VHVR-Mod v0.9.21" -ForegroundColor Green             } else { Write-Host "    [ ] VHVR-Mod v0.9.21     -- FAILED, install manually" -ForegroundColor Red }
+if ("BepInExPack" -notin $failed) { Write-Host "    [x] BepInExPack Valheim 5.4.2350" -ForegroundColor Green } else { Write-Host "    [ ] BepInExPack Valheim  -- FAILED, install manually" -ForegroundColor Red }
+if ("VHVR-Mod"   -notin $failed) { Write-Host "    [x] VHVR-Mod v0.10.5" -ForegroundColor Green             } else { Write-Host "    [ ] VHVR-Mod v0.10.5     -- FAILED, install manually" -ForegroundColor Red }
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""
@@ -279,7 +279,7 @@ Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start
 Write-Host "  when the launch dialog appears, always choose:" -ForegroundColor White
 Write-Host "    'Play Valheim'  (NOT 'Play Valheim (Vulkan)')" -ForegroundColor Green
 Write-Host ""
-try { Set-Clipboard -Value "-force-d3d11" } catch {}
+try { Set-Clipboard -Value "-force-d3d11" -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host "  ============================================================" -ForegroundColor Yellow
@@ -295,7 +295,8 @@ Write-Host "  Then paste (Ctrl+V) and close Properties." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to open Valheim properties in Steam..."
 Start-Process "steam://gameproperties/$GAME_APPID"
-try { Set-Clipboard -Value "-force-d3d11" } catch {}
+try { Set-Clipboard -Value "-force-d3d11" -DeferManualFallback } catch {}
+Show-PCVRClipboardManualFallback -Text "-force-d3d11"
 Pause-User "Press Enter once you have set -force-d3d11 in Launch Options..."
 
 Write-Host ""

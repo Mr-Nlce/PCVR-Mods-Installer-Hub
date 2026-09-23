@@ -58,11 +58,11 @@ $FRAMEWORKS = @(
        Marker = "red4ext\plugins\TweakXL\TweakXL.dll" },
     @{ Name = "ArchiveXL"; Repo = "psiberx/cp2077-archive-xl"
        UrlPattern = "https://github.com/psiberx/cp2077-archive-xl/releases/download/{tag}/ArchiveXL-{v}.zip"
-       Pinned = "https://github.com/psiberx/cp2077-archive-xl/releases/download/v1.27.1/ArchiveXL-1.27.1.zip"
+       Pinned = "https://github.com/psiberx/cp2077-archive-xl/releases/download/v1.27.3/ArchiveXL-1.27.3.zip"
        Marker = "red4ext\plugins\ArchiveXL\ArchiveXL.dll" },
     @{ Name = "Codeware"; Repo = "psiberx/cp2077-codeware"
        UrlPattern = "https://github.com/psiberx/cp2077-codeware/releases/download/{tag}/Codeware-{v}.zip"
-       Pinned = "https://github.com/psiberx/cp2077-codeware/releases/download/v1.20.3/Codeware-1.20.3.zip"
+       Pinned = "https://github.com/psiberx/cp2077-codeware/releases/download/v1.20.5/Codeware-1.20.5.zip"
        Marker = "red4ext\plugins\Codeware\Codeware.dll" }
 )
 # ============================================================

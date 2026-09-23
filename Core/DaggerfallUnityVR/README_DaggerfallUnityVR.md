@@ -29,11 +29,11 @@ DFUVR brings full room-scale VR to Daggerfall Unity - the vast, procedurally gen
 
 ## Controls
 On first spawn, calibrate height and sheath position:
-- Press and hold **X**, then **Y** on the **left** controller.
-- Adjust height with the **right** thumbstick (up/down).
+- Press and hold [[Left X]], then [[Left Y]].
+- Adjust height with [[Right Stick Up]] / [[Right Stick Down]].
 - Your sheath sits at your left hand: put your left hand on your waist, look straight ahead, then release the buttons.
 
-The **X** button on the left controller is **SHIFT** - hold it for the red (alternate) actions in the diagram below. Bindings are fixed in this early-access build.
+[[Left X]] is the Shift modifier - hold it for the red (alternate) actions in the diagram below. Bindings are fixed in this early-access build.
 
 ### Left controller
 - **[[Thumbstick]]** — Move (click to sprint)

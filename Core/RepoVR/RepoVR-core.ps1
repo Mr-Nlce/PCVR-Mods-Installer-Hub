@@ -270,7 +270,7 @@ if (-not $useLegacy) {
  Write-Host " RepoXR 1.1.2 requires a specific older version of R.E.P.O." -ForegroundColor White
  Write-Host " We download it as a separate copy - your retail install stays untouched." -ForegroundColor White
  Write-Host ""
- try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+ try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
  Write-Host " ============================================================" -ForegroundColor Yellow
  Write-Host " ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
@@ -307,6 +307,7 @@ if (-not $script:PreFoundDepot) {
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
+ Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
  Pause-User "Press Enter once the Steam depot download is complete..."
 
@@ -401,7 +402,7 @@ if (-not $script:PreFoundDepot) {
 # so the user doesn't need to set a Steam launch option.
 if (-not $useLegacy -and $repoXRVersion) {
  $launchOpt = "--repoxr-skip-checksum=$repoXRVersion"
- try{Set-Clipboard -Value $launchOpt}catch{}
+ try{Set-Clipboard -Value $launchOpt -DeferManualFallback}catch{}
  Write-Host ""
  Write-Host " ============================================================" -ForegroundColor Yellow
  Write-Host " ACTION REQUIRED - Steam Launch Option" -ForegroundColor Yellow
@@ -416,7 +417,8 @@ if (-not $useLegacy -and $repoXRVersion) {
  Write-Host ""
  Pause-User "Press Enter to open Steam Launch Options..."
  Start-Process "steam://gameproperties/$STEAM_APP"
- try{Set-Clipboard -Value $launchOpt}catch{}
+ try{Set-Clipboard -Value $launchOpt -DeferManualFallback}catch{}
+ Show-PCVRClipboardManualFallback -Text $launchOpt
  Pause-User "Press Enter once you have pasted the launch option and closed Properties..."
 }
 

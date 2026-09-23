@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 
 # Load shared installer safety helpers
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
 
 $GAME_NAME = "Slime Rancher"
 $GAME_EXE  = "SlimeRancher.exe"
@@ -18,6 +20,10 @@ $SRML_VERSION = "v0.2.1"
 $SRVR_VERSION = "v1.1"
 $SRML_ASSET = "SRMLInstaller_0.2.1c.zip"
 $SRVR_ASSET = "SRVR.dll"
+$IDENTITY = 'slimeranchervr'
+$contract = New-PCVRInstallerContract -Id 'slime-rancher-vr' -GameName $GAME_NAME `
+    -Acquisition GitHub -ReleasePageUrl 'https://github.com/Atmudia/SRVR/releases' -AntivirusNotice `
+    -RequiredInstalledFileGroups @('SRML\Mods\SRVR.dll',".pcvrhub_${IDENTITY}_ownership.csv")
 
 # -------------------------------------------------------
 # Helpers
@@ -85,6 +91,7 @@ function Find-GamePath {
 Write-Header
 Write-Host " SRVR by Atmudia - full 6DOF motion-controlled VR for the entire Slime" -ForegroundColor White
 Write-Host " Rancher (not just the short official VR Playground)." -ForegroundColor White
+Show-AntivirusNotice -Compact
 Write-Host ""
 Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Slime Rancher"
@@ -100,19 +107,11 @@ try {
 } catch {}
 # --- End detection library attempt ---
 
-$steamPath = Get-SteamPath
-if (-not $steamPath) {
-    Write-Warn "Could not find Steam in registry. Please enter your Steam path manually:"
-    while (-not $steamPath) {
-        $rawInput = (Read-Host "  Steam path").Trim().Trim('"')
-        if (Test-Path $rawInput) { $steamPath = $rawInput; Write-OK "Steam path: $steamPath" }
-        else { Write-Fail "Not found: $rawInput" }
-    }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) { $gamePath = $null }
+if (-not $gamePath) {
+    $gamePath = Find-SteamGameFolder -AppId "433340" -SteamFolderNames @("Slime Rancher") `
+        -ProbeExe $GAME_EXE -GogNames @("Slime Rancher") -EpicNames @("SlimeRancher") -HubGameId 'slime-rancher-vr'
 }
-
-$libraries = Get-SteamLibraries $steamPath
-$gamePath  = Find-GamePath $libraries
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "433340" -SteamFolderNames @("Slime Rancher") -GogNames @("Slime Rancher") -EpicNames @("SlimeRancher") }
 
 if (-not $gamePath) {
     Write-Warn "Slime Rancher not found automatically."
@@ -120,15 +119,15 @@ if (-not $gamePath) {
     Write-Host "  Example: C:\Program Files (x86)\Steam\steamapps\common\Slime Rancher" -ForegroundColor Gray
     while (-not $gamePath) {
         $rawInput = (Read-Host "  Game path").Trim().Trim('"')
-        if (Test-Path $rawInput) { $gamePath = $rawInput; Write-OK "Game path: $gamePath" }
-        else { Write-Fail "Not found: $rawInput" }
+        if (Test-Path -LiteralPath (Join-Path $rawInput $GAME_EXE) -PathType Leaf) { $gamePath = $rawInput; Write-OK "Game path: $gamePath" }
+        else { Write-Fail "$GAME_EXE was not found in: $rawInput" }
     }
 } else {
     Write-OK "Slime Rancher found: $gamePath"
 }
 
-if (Test-Path (Join-Path $gamePath $GAME_EXE)) { Write-OK "SlimeRancher.exe verified." }
-else { Write-Warn "SlimeRancher.exe not found - folder may still be correct." }
+if (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf) { Write-OK "SlimeRancher.exe verified." }
+else { throw "The selected folder does not contain $GAME_EXE. No files were changed." }
 
 # -------------------------------------------------------
 # STEP 2: Install SRML
@@ -222,8 +221,12 @@ if (-not (Test-Path $srmlModsDir)) {
     catch { Write-Fail "Could not create SRML\Mods: $_"; $failed += "SRVR" }
 }
 
+$ownedInstallActive = $false
+try {
 if ("SRVR" -notin $failed) {
-    $srvrDest = Join-Path $srmlModsDir "SRVR.dll"
+    $ownedStage = Join-Path $tempDir 'owned-payload\SRML\Mods'
+    New-Item -ItemType Directory -Path $ownedStage -Force | Out-Null
+    $srvrDownload = Join-Path $ownedStage 'SRVR.dll'
     $srvrRelease = Resolve-GitHubReleaseAsset -Repo $SRVR_REPO `
         -AssetPatterns @('(?i)^SRVR.*\.dll$','(?i)\.dll$') `
         -FallbackUrl $SRVR_URL -FallbackTag $SRVR_VERSION -FallbackAssetName $SRVR_ASSET
@@ -233,20 +236,20 @@ if ("SRVR" -notin $failed) {
     if ($srvrRelease.Resolved) { Write-Info "GitHub resolved SRVR $SRVR_VERSION ($SRVR_ASSET)." }
     elseif ($srvrRelease.ReleaseFound) { Write-Warn $srvrRelease.Error }
     else { Write-Warn "SRVR live release lookup unavailable; using reviewed $SRVR_VERSION fallback." }
-    $r = Invoke-DownloadOrFallback -Url $SRVR_URL -Destination $srvrDest `
+    $r = Invoke-DownloadOrFallback -Url $SRVR_URL -Destination $srvrDownload `
             -Label "SRVR $SRVR_VERSION ($SRVR_ASSET)" `
             -ManualUrl $srvrRelease.PageUrl `
-            -Instructions "Download '$SRVR_ASSET' from the current GitHub release. Place it at '$srvrDest' and choose Retry." `
+        -Instructions "Download '$SRVR_ASSET' from the current GitHub release. Place it at '$srvrDownload' and choose Retry." `
             -SkipMessage "Skipped - SRVR mod missing; install is incomplete (questionable result)."
     if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ($r -eq $true) {
+        [void](Install-OwnedModPayload -SourceRoot (Join-Path $tempDir 'owned-payload') -GameRoot $gamePath -Identity $IDENTITY -AdoptIdenticalExisting)
+        $ownedInstallActive = $true
         Write-OK "SRVR.dll installed to SRML\Mods\"
     } else {
         $failed += "SRVR"
     }
 }
-
-try { Remove-Item $tempDir -Recurse -Force } catch {}
 
 # -------------------------------------------------------
 # STEP 4: First-launch VR patch
@@ -278,9 +281,6 @@ Write-Host "  Complete the patching process, then close the game and return here
 Write-Host ""
 Pause-User "Press Enter once patching is done and you have closed Slime Rancher..."
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("SRVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
-
 # -------------------------------------------------------
 # DONE
 # -------------------------------------------------------
@@ -290,7 +290,12 @@ Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
 if ("SRML" -notin $failed) { Write-Host "    [x] SRML $SRML_VERSION" -ForegroundColor Green } else { Write-Host "    [ ] SRML $SRML_VERSION  -- FAILED" -ForegroundColor Red }
 if ("SRVR" -notin $failed) {
-    Save-InstalledStamp -GameDir $gamePath -Version $SRVR_VERSION
+    if ("SRML" -in $failed) { throw 'SRML is not initialized; the VR mod cannot be committed.' }
+    $watch=@((Join-Path $gamePath 'SRML\Mods\SRVR.dll'),(Join-Path $gamePath ".pcvrhub_${IDENTITY}_ownership.csv"))
+    if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $gamePath -ArchivePath $srvrDownload)) { throw 'SRVR.dll did not survive the post-copy check.' }
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $SRVR_VERSION `
+        -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -Route Current)
+    $ownedInstallActive = $false
     Write-Host "    [x] SRVR $SRVR_VERSION" -ForegroundColor Green
 } else { Write-Host "    [ ] SRVR $SRVR_VERSION    -- FAILED" -ForegroundColor Red }
 Write-Host "============================================================" -ForegroundColor Magenta
@@ -320,5 +325,12 @@ Write-Host "  Snap Turn, Turn Sensitivity, Distance Grab, Height Adjust" -Foregr
 Write-Host ""
 Write-Host "  Vacpack ready. The plorts won't wrangle themselves." -ForegroundColor Magenta
 Write-Host ""
-Pause-User "Press Enter to open the Slime Rancher folder and exit."
-try { Start-Process explorer.exe "`"$gamePath`"" } catch {}
+Pause-User "Press Enter to close setup."
+} catch {
+    if ($ownedInstallActive) {
+        try { [void](Uninstall-OwnedModPayload -GameRoot $gamePath -Identity $IDENTITY) } catch {}
+    }
+    throw
+} finally {
+    if ($tempDir -and (Test-Path -LiteralPath $tempDir -PathType Container)) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+}

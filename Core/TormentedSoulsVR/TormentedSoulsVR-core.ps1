@@ -104,7 +104,7 @@ Write-Host " When Steam finishes it will show:" -ForegroundColor Gray
 Write-Host " Depot download complete : ...\depot_$DEPOT_DEPOTID" -ForegroundColor Yellow
 Write-Host ""
 
-try { Set-Clipboard -Value $DEPOT_COMMAND } catch {}
+try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
@@ -142,6 +142,7 @@ Pause-User "Press Enter to open the Steam Console..."
 foreach ($cu in @("steam://open/console", "steam://nav/console")) {
     try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
 }
+Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 Write-OK "Steam Console opening..."
 

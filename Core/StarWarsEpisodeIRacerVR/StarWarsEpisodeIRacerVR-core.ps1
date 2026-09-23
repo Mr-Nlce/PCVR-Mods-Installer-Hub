@@ -5,7 +5,7 @@
 
 $Host.UI.RawUI.WindowTitle = "Star Wars Episode I Racer PCVR Installer"
 $MOD_NAME = "Racer PCVR"
-$MOD_VERSION = "v1.1"
+$MOD_VERSION = "v1.4.1"
 $MOD_AUTHOR = "GameOrDie007"
 $GAME_EXE = "SWEP1RCR.EXE"
 $GAME_APPID = "808910"
@@ -131,10 +131,10 @@ function Install-RacerPayload([string]$PayloadRoot,[string]$GameRoot) {
 Write-Header
 Write-Host " This port adds stereo rendering, head tracking and Quest" -ForegroundColor White
 Write-Host " motion controls to the original podracing game." -ForegroundColor White
-Write-Host ""
+Write-Host "" 
 Write-Host " REQUIRED: a 32-bit OpenXR runtime." -ForegroundColor Yellow
-Write-Host " Virtual Desktop with VDXR works. SteamVR is 64-bit only and" -ForegroundColor Yellow
-Write-Host " cannot load this port. Connect the headset before launch." -ForegroundColor Yellow
+Write-Host " Use SteamVR 2.17 or newer as the active OpenXR runtime." -ForegroundColor Yellow
+Write-Host " The Meta/Oculus runtime does not work with this build." -ForegroundColor Yellow
 Show-AntivirusNotice -Compact
 Pause-User "Press Enter to proceed with setup..." | Out-Null
 
@@ -161,7 +161,7 @@ $work = Join-Path $env:TEMP ("pcvr_racer_" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 $zipPath = Join-Path $work "RacerPCVR.zip"
 $release = Get-LatestRacerRelease
-$installedTag = "v1.1"
+$installedTag = $MOD_VERSION
 if ($release) {
     $installedTag = $release.Tag
     Write-Info "Newest release: $installedTag"
@@ -236,7 +236,7 @@ if ($tracksChoice -eq "S") {
 Write-Host ""
 Write-Host " STARTING THE GAME" -ForegroundColor Cyan
 Write-Host " Use Start in VR in the Hub, or launch the game normally from" -ForegroundColor White
-Write-Host " Steam/GOG. Virtual Desktop and VDXR must already be connected." -ForegroundColor White
+Write-Host " Steam/GOG. SteamVR must already be running as OpenXR runtime." -ForegroundColor White
 Write-Host " The Hub launches $GAME_EXE with the correct game-folder context." -ForegroundColor Gray
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta

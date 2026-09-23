@@ -21,10 +21,10 @@ Start **SteamVR** (or your OpenXR runtime) first, then either:
 
 ## Controls
 The weapon is operated manually and in full detail, so the game ships its own interactive, on-demand help:
-- `[F1]` - toggle the in-game **interactive help** overlay (shows every current weapon-handling input)
-- `[Startup dialog]` - pick a lower graphics quality here if you hit performance issues
+- [[F1]] - toggle the in-game **interactive help** overlay (shows every current weapon-handling input)
+- [[Startup Dialog]] - pick a lower graphics quality here if you hit performance issues
 
-In VR the same manual operations are mapped to your **motion controllers**; the exact per-action bindings are shown live by the in-game `[F1]` help for your headset, so check it on your first run.
+In VR the same manual operations are mapped to your **motion controllers**; the exact per-action bindings are shown live by the in-game [[F1]] help for your headset, so check it on your first run.
 
 ## Credits
 - Game by **Patrick Koenig** - https://patrickkoenig.itch.io/i-can-gun

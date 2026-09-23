@@ -31,8 +31,8 @@ The bundled installer walks you through:
 
 ### VR-specific hotkeys
 
-- **F1** — Toggle first-person / third-person view
-- **F2** — Recenter VR view
+- [[F1]] — Toggle first-person / third-person view
+- [[F2]] — Recenter VR view
 
 (F2 is documented by Astienth as "press once or twice, same thing" — there's a known quirk from the older universal-mod build this is based on. Not a problem, just a behaviour to know about.)
 
@@ -40,8 +40,8 @@ The bundled installer walks you through:
 
 The mod author shared these in a Discord follow-up — they aren't in the main mod post. While first-person view is active you can reposition the camera with these key combos:
 
-- **Hold LEFT CTRL + arrow keys (up / down / left / right)** — move the camera on the horizontal plane
-- **Hold LEFT CTRL + PageUp / PageDown** — move the camera on the vertical axis
+- Hold [[Left Ctrl]] + [[Arrow Keys]] — move the camera on the horizontal plane
+- Hold [[Left Ctrl]] + [[Page Up]] / [[Page Down]] — move the camera on the vertical axis
 
 Use these to find a first-person seat position that fits your headset and seating arrangement.
 

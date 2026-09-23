@@ -70,19 +70,19 @@ Mouse and keyboard keep working, menus included.
 
 ![Controller layout](ControllerLayout.jpg)
 
-| | |
+| Button | Action |
 |---|---|
-| Left stick | Move. Click keeps the game's contextual vehicle action |
-| Right stick left/right | Turn. Click keeps the other vehicle action |
-| Right stick up / down | Jump and parachute / toggle crouch |
-| Right trigger | Fire, or click a menu item |
-| Right grip | Aim down sights, or the game's alternate fire |
-| Left trigger | Use and interact while held |
-| Left grip | Two-handed weapon hold, where the weapon supports it |
-| Right A | Hold for the Quick Menu, point, release to select |
-| Right B | Reload. Hold 2.5 s to recenter forward |
-| Left X / Y | Prone / hold the scoreboard |
-| Left Menu | Toggle the map |
+| [[Left stick]] | Move. Click keeps the game's contextual vehicle action |
+| [[Right stick left/right]] | Turn. Click keeps the other vehicle action |
+| [[Right stick up / down]] | Jump and parachute / toggle crouch |
+| [[Right trigger]] | Fire, or click a menu item |
+| [[Right grip]] | Aim down sights, or the game's alternate fire |
+| [[Left trigger]] | Use and interact while held |
+| [[Left grip]] | Two-handed weapon hold, where the weapon supports it |
+| [[Right A]] | Hold for the Quick Menu, point, release to select |
+| [[Right B]] | Reload. Hold 2.5 s to recenter forward |
+| [[Left X / Y]] | Prone / hold the scoreboard |
+| [[Left Menu]] | Toggle the map |
 
 Vehicle, aircraft, turret and mounted-gun stick behaviour follows whatever you
 are controlling.

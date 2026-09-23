@@ -6,7 +6,7 @@ with its **VR build** onto an existing, user-owned copy of
 and have the game installed via Steam or GOG.
 
 The VR support is part of zolika1351's SR3 menu. In VR you play with motion
-controllers; the menu itself is opened in-game with the **F7** key.
+controllers; the menu itself is opened in-game with [[F7]].
 
 ## What it installs
 
@@ -61,7 +61,7 @@ folder - the folder itself is not copied.
 
 1. Launch with **Start in VR** in the Hub, or `SaintsRowTheThird_DX11.exe` (the desktop shortcut,
    the Hub's Start button, or the exe directly).
-2. In-game, press **F7** to open the ZMenu trainer menu.
+2. In-game, press [[F7]] to open the ZMenu trainer menu.
 3. Scroll down to **VR** and press it.
 4. Choose **Start VR**, then put on your headset.
 
@@ -72,17 +72,19 @@ You can **stop VR** again from the same menu at any time.
 Default **Oculus Touch** bindings shipped with the mod (these are SteamVR
 action sets, so they can be rebound in SteamVR's controller bindings):
 
-- [Trigger] (right) - Fire weapon
-- [Stick] (left) - Move
-- [Stick] (right) - Snap turn left / right
-- [X] (left) or [Grip] (left) - Switch weapon
-- [Grip] (right) - Reload weapon
-- [Y] (left) - Action / interact
-- [B] (right) - Jump
+| Button | Action |
+|---|---|
+| [[Right Trigger]] | Fire weapon |
+| [[Left Stick]] | Move |
+| [[Right Stick]] | Snap turn left / right |
+| [[Left X]] or [[Left Grip]] | Switch weapon |
+| [[Right Grip]] | Reload weapon |
+| [[Left Y]] | Action / interact |
+| [[Right B]] | Jump |
 
 Action files for **Valve Index (Knuckles)**, **Oculus Touch**, and
 **Vive controllers** are all included. The trainer menu itself is opened with
-the **F7** key.
+[[F7]].
 
 ## Known issues and tips
 
@@ -90,6 +92,17 @@ the **F7** key.
   as they will otherwise sometimes spawn nearby.
 - If you're getting low FPS in VR, try enabling **Performance Mode** and
   adjusting its settings.
+
+## Uninstall
+
+Use **Uninstall now** on the Saints Row detail page. New installations use an
+ownership manifest, so the Hub removes only its own files and restores replaced
+originals. An older reviewed ZMenu v23.07.27.1 installation is removed only
+when the exact unchanged VR-file hashes match.
+
+`ZMenuSR3.ini`, saves, generic loaders and unrelated mods are retained whenever
+their ownership cannot be proven. Unknown or user-modified files are never
+deleted by guesswork.
 
 ## Supported versions
 

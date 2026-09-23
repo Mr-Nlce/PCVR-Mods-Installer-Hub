@@ -81,7 +81,8 @@ Write-Host "  (Recommended. C:\games\ keeps the install away from any 'Program F
 Write-Host "  Or type a different folder to install into." -ForegroundColor Gray
 Write-Host "  Or, if you ALREADY have S.T.A.L.K.E.R. Anomaly, drag that folder in." -ForegroundColor DarkGray
 
-$gameDir = $null
+$gameDir = Get-PCVRRememberedGameFolder -ProbeFiles @('fsgame.ltx')
+if ($gameDir) { Write-OK "Remembered Anomaly folder: $gameDir" }
 while (-not $gameDir) {
     $inputPath = (Read-Host "  Folder [Enter = $DEFAULT_GAME_DIR]").Trim().Trim('"').TrimEnd('\')
     if (-not $inputPath) { $cand = $DEFAULT_GAME_DIR } else { $cand = $inputPath }

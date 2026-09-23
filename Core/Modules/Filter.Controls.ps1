@@ -7,6 +7,11 @@ $filterGPRing    = $window.FindName("FilterGPRing")
 $filterAllGlowRing = $window.FindName("FilterAllGlowRing")
 $filterMCGlowRing  = $window.FindName("FilterMCGlowRing")
 $filterGPGlowRing  = $window.FindName("FilterGPGlowRing")
+$filterGem         = $window.FindName("FilterGem")
+$filterGemRing     = $window.FindName("FilterGemRing")
+$filterGemGlowRing = $window.FindName("FilterGemGlowRing")
+$filterGemText     = $window.FindName("FilterGemText")
+$filterGemIcon     = $window.FindName("FilterGemIcon")
 $filterInstalled = $window.FindName("FilterInstalled")
 $filterVRReady   = $window.FindName("FilterVRReady")
 $filterUpdate    = $window.FindName("FilterUpdate")
@@ -25,6 +30,7 @@ $installedFilterGroup = $window.FindName("InstalledFilterGroup")
 Add-SoftHover -Border $filterAll
 Add-SoftHover -Border $filterMC
 Add-SoftHover -Border $filterGP
+Add-SoftHover -Border $filterGem
 Add-SoftHover -Border $filterInstalled
 Add-SoftHover -Border $filterVRReady
 Add-SoftHover -Border $filterUpdate
@@ -37,6 +43,7 @@ $activeFilter      = "ALL"
 # The "Installed" pill toggles off<->installed, the "VR Ready" pill
 # toggles off<->ready; turning one on turns the other off.
 $script:installFilterMode = "off"
+$script:gemFilterEnabled = $false
 
 # Color tokens for the glass filter bar.
 # Active = border highlight in the filter's own accent + white text.
@@ -56,6 +63,7 @@ $script:glassActiveBdMC     = "#ffeeb0"     # MC dot color
 $script:glassActiveBdGP     = "#ffeeb0"     # GP dot color
 $script:glassActiveBdInst   = "#ffeeb0"     # Installed dot color
 $script:glassActiveBdReady  = "#34d399"     # VR Ready dot color (matches tile badge)
+$script:glassActiveBdGem    = "#71d7ff"     # polished quality facet
 $script:glassInactiveBdAll   = "#0fffffff"   # subtle grey resting (unified)
 $script:glassInactiveBdMC    = "#0fffffff"
 $script:glassInactiveBdGP    = "#0fffffff"
@@ -181,6 +189,26 @@ function global:Set-FilterStyle {
     $filterGP.Effect  = $null
 }
 
+# Polished Gem is a quality facet of its own. It stacks with TYPE, STATE and
+# text search rather than replacing any of them.
+function global:Set-GemFilterStyle {
+    param([bool]$Enabled)
+    $script:gemFilterEnabled = $Enabled
+    if (-not $filterGem) { return }
+    if ($filterGem.Resources.Contains("shBg")) { $filterGem.Resources.Remove("shBg") | Out-Null }
+    $gemText = $filterGemText
+    if ($gemText -and $gemText.Resources.Contains("shFg")) { $gemText.Resources.Remove("shFg") | Out-Null }
+    $filterGem.Background = [System.Windows.Media.Brushes]::Black
+    $filterGem.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($Enabled) { $script:glassActiveBdGem } else { $script:glassInactiveBd }))
+    if ($gemText) { $gemText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($Enabled) { "#b9edff" } else { "#d8dee3" })) }
+    if ($filterGemIcon) {
+        $filterGemIcon.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($Enabled) { "#245a74" } else { "#18394c" }))
+        $filterGemIcon.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($Enabled) { "#b9edff" } else { "#71d7ff" }))
+    }
+    Sync-TypeFilterRing $filterGem $filterGemRing $filterGemGlowRing $Enabled "#8071d7ff"
+    $filterGem.Effect = $null
+}
+
 # Detail-page ONLY: visually MARK which attributes the shown game has
 # (Motion Controls / Gamepad, Installed / VR Ready) so they read at a
 # glance, since the filter pills have no filtering purpose while a single
@@ -198,10 +226,10 @@ function global:Set-DetailFilterMarks {
 
     # Drop any Add-SoftHover stash so a later MouseLeave can't restore a
     # stale pre-hover look (same cleanup Set-FilterStyle does).
-    foreach ($pill in @($filterAll, $filterMC, $filterGP, $filterInstalled, $filterVRReady, $filterUpdate)) {
+    foreach ($pill in @($filterAll, $filterMC, $filterGP, $filterGem, $filterInstalled, $filterVRReady, $filterUpdate)) {
         if (-not $pill) { continue }
         if ($pill.Resources.Contains("shBg")) { $pill.Resources.Remove("shBg") | Out-Null }
-        $tb = if ($pill -eq $filterAll) { $pill.Child } elseif ($pill -eq $filterInstalled -or $pill -eq $filterVRReady -or $pill -eq $filterUpdate) { $pill.Child.Children[0] } else { $pill.Child.Children[1] }
+        $tb = if ($pill -eq $filterGem) { $filterGemText } elseif ($pill -eq $filterAll) { $pill.Child } elseif ($pill -eq $filterInstalled -or $pill -eq $filterVRReady -or $pill -eq $filterUpdate) { $pill.Child.Children[0] } else { $pill.Child.Children[1] }
         if ($tb -and $tb.Resources.Contains("shFg")) { $tb.Resources.Remove("shFg") | Out-Null }
         $pill.Background = [System.Windows.Media.Brushes]::Black
         # Detail-page marking is border + text only - drop any leftover
@@ -256,6 +284,17 @@ function global:Set-DetailFilterMarks {
         Sync-TypeFilterRing $filterGP $filterGPRing $filterGPGlowRing $false
         $filterGP.Effect = $(if ($hasGP) { New-ChipGlow $script:glassActiveBdGP } else { $null })
     }
+    if ($filterGem) {
+        $hasGem = [bool]$Game.Gem
+        $filterGem.BorderBrush = if ($hasGem) { [System.Windows.Media.BrushConverter]::new().ConvertFromString($script:glassActiveBdGem) } else { $inactBd }
+        if ($filterGemText) { $filterGemText.Foreground = if ($hasGem) { [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9edff") } else { $inactFg } }
+        if ($filterGemIcon) {
+            $filterGemIcon.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($hasGem) { "#245a74" } else { "#18394c" }))
+            $filterGemIcon.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($hasGem) { "#b9edff" } else { "#71d7ff" }))
+        }
+        Sync-TypeFilterRing $filterGem $filterGemRing $filterGemGlowRing $false
+        $filterGem.Effect = $(if ($hasGem) { New-ChipGlow $script:glassActiveBdGem } else { $null })
+    }
     if ($filterInstalled) {
         # Always visible. Lit only for "Needs Mod" (base present, no mod);
         # a VR Ready title does NOT light this pill.
@@ -303,6 +342,7 @@ function global:Restore-FilterPills {
     # correct Installed/VR Ready visibility via Sync-InstallPills.
     $global:DetailBothPills = $false
     if (Get-Command Set-FilterStyle -ErrorAction SilentlyContinue)      { Set-FilterStyle $script:activeFilter }
+    if (Get-Command Set-GemFilterStyle -ErrorAction SilentlyContinue)   { Set-GemFilterStyle ([bool]$script:gemFilterEnabled) }
     if (Get-Command Set-InstallFilterMode -ErrorAction SilentlyContinue) { Set-InstallFilterMode $script:installFilterMode }
 }
 
@@ -600,6 +640,7 @@ function global:Test-GamePassesFilter {
         # GP. $null -contains is safe -> false.
         if ($Query -eq "free" -and ($global:FREE_GAME_TITLES -contains $GameData.Title)) { $textMatch = $true }
         if ($Query -eq "wip"  -and ($global:WIP_GAME_TITLES  -contains $GameData.Title)) { $textMatch = $true }
+        if (($Query -eq "gem" -or $Query -eq "gems") -and [bool]$GameData.Gem) { $textMatch = $true }
         if ($Query -eq "new") { $textMatch = ($global:NEW_GAME_TITLES -contains $GameData.Title) }
         # "roomscale" / "room-scale" / "room scale" lists every title whose
         # VR mod supports room-scale play (Roomscale flag in the catalog).
@@ -634,7 +675,8 @@ function global:Test-GamePassesFilter {
                 }
             }
         }
-        return ($textMatch -and $ctrlMatch -and $instMatch)
+        $gemMatch = (-not [bool]$script:gemFilterEnabled) -or [bool]$GameData.Gem
+        return ($textMatch -and $ctrlMatch -and $instMatch -and $gemMatch)
     } catch {
         # Fail-open: a single malformed entry or transient error must NEVER
         # make a game vanish from search. Showing one extra card is harmless;
@@ -657,12 +699,14 @@ function global:Apply-Filter {
     # is already correct. Each card is FAIL-OPEN: if testing one game throws
     # (or its data is missing) that card is SHOWN, never hidden, and the loop
     # continues, so one bad entry can never freeze the search.
-    for ($i = 0; $i -lt $global:allCards.Count; $i++) {
-        $card = $global:allCards[$i]
+    foreach ($card in $global:allCards) {
         if (-not $card) { continue }
         $vis = [System.Windows.Visibility]::Visible
         try {
-            $gameData = if ($i -lt $global:allGameData.Count) { $global:allGameData[$i] } else { $null }
+            $gameData = $null
+            if ($card.Resources -and $card.Resources.Contains('gameData')) {
+                $gameData = $card.Resources.Item("gameData")
+            }
             if ($gameData -and -not (Test-GamePassesFilter -GameData $gameData -Query $query)) {
                 $vis = [System.Windows.Visibility]::Collapsed
             }
@@ -698,6 +742,12 @@ function global:Apply-Filter {
 $filterAll.Add_PreviewMouseLeftButtonDown({ Set-FilterStyle "ALL"; Apply-Filter })
 $filterMC.Add_PreviewMouseLeftButtonDown({  Set-FilterStyle "MC";  Apply-Filter })
 $filterGP.Add_PreviewMouseLeftButtonDown({  Set-FilterStyle "GP";  Apply-Filter })
+$filterGem.Add_PreviewMouseLeftButtonDown({
+    param($s,$e)
+    $e.Handled = $true
+    Set-GemFilterStyle (-not [bool]$script:gemFilterEnabled)
+    Apply-Filter
+})
 # Soft attention pulse on the Check Installed button. Used when
 # the user enables the "Installed" filter but hasn't run a scan
 # yet - we draw the eye to where they need to click. Pulses the
@@ -806,4 +856,3 @@ if ($filterInstalled -and $filterVRReady -and $installedFilterGroup) {
         $checkInstalledHoverGroup.Add_MouseLeave({ Schedule-InstallPartnerHide })
     }
 }
-

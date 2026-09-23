@@ -12,7 +12,7 @@ The first launch can remain flat for roughly 10-30 seconds while VR starts. Foll
 
 ## Controls
 
-| Input | Action |
+| Button | Action |
 |---|---|
 | [[Right Trigger]] | Fire or confirm |
 | [[Right Grip]] | Use |
@@ -37,7 +37,11 @@ Use the **Flat / VR switch** on this page. It parks only `winmm.dll` as `winmm.d
 
 ## Updates
 
-This project publishes its current build directly on GitHub's `main` branch instead of using Releases. The Hub records the exact commit timestamp and compares it with the current branch head, so a new commit produces the normal Update state without pretending a release tag exists.
+The current reviewed release is **v1.2**. It adds a diagnostic report and sanitises
+the information collected for troubleshooting. The Hub now follows the project's stable
+GitHub releases and records the release tag, so future releases produce the normal Update
+state. Existing Hub installations that still carry the former branch timestamp migrate to
+the first tracked release tag after a successful reinstall.
 
 ## Known limitations
 

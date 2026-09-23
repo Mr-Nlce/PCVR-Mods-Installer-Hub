@@ -5,8 +5,7 @@
 # ============================================================
 
 param(
-    [switch]$Silent,         # Silent background check (no UI)
-    [switch]$FromTemp        # Internal: indicates we're running from %TEMP% copy
+    [switch]$Silent          # Silent background check (no UI)
 )
 
 # -------------------------------------------------------
@@ -16,15 +15,8 @@ $GITHUB_USER    = "Mr-Nlce"
 $GITHUB_REPO    = "PCVR-Mods-Installer-Hub"
 $API_URL        = "https://api.github.com/repos/$GITHUB_USER/$GITHUB_REPO/releases/latest"
 
-# When running from temp, $PSScriptRoot points to %TEMP%, so we need
-# the original install dir passed via env var.
-if ($FromTemp -and $env:PCVR_HUB_INSTALL_DIR) {
-    $installCoreDir = Join-Path $env:PCVR_HUB_INSTALL_DIR "Core"
-    $rootDir        = $env:PCVR_HUB_INSTALL_DIR
-} else {
-    $installCoreDir = $PSScriptRoot
-    $rootDir        = Split-Path -Parent $PSScriptRoot
-}
+$installCoreDir = $PSScriptRoot
+$rootDir        = Split-Path -Parent $PSScriptRoot
 $CURRENT_VERSION_FILE = Join-Path $installCoreDir "version.txt"
 $localStateRoot = [Environment]::GetFolderPath('LocalApplicationData')
 $updateRuntimeDir = if ($localStateRoot) { Join-Path $localStateRoot 'PCVR Mods Installer Hub\Update' } else { $null }
@@ -118,22 +110,9 @@ if ($Silent) {
 }
 
 # -------------------------------------------------------
-#  Interactive mode: if we're NOT already running from temp,
-#  re-launch ourselves from %TEMP% so we can overwrite
-#  Update-Hub.ps1 safely during the install step.
-# -------------------------------------------------------
-if (-not $FromTemp) {
-    $tempUpdater = Join-Path $env:TEMP "PCVRModsHub-Updater.ps1"
-    Copy-Item -Path $PSCommandPath -Destination $tempUpdater -Force
-    $env:PCVR_HUB_INSTALL_DIR = $rootDir
-    Start-Process "powershell.exe" -ArgumentList `
-        "-NoProfile", "-ExecutionPolicy", "Bypass", `
-        "-File", "`"$tempUpdater`"", "-FromTemp"
-    exit 0
-}
-
-# -------------------------------------------------------
-#  Interactive mode (running from %TEMP%): show WPF dialog
+#  Interactive mode: show WPF dialog
+#  PowerShell reads the script before execution, so the updater can replace
+#  this source file in place without launching a second temp-script process.
 # -------------------------------------------------------
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore

@@ -69,8 +69,8 @@ Every button does something:
 - **[[Right grip]] (hold):** lock on / **[[Left grip]]:** toss flag (CTF)
 - **[[B]] / [[Y]] / [[Left-stick click]]:** Custom 1-3
 - **[[Right-stick click]]:** switch first/third person
-- In menus: sticks work as a d-pad, A or right trigger confirms, B or
-  left trigger backs out, left-stick click re-centers the screen
+- In menus: [[Left Stick]] / [[Right Stick]] work as a D-pad, [[A]] or [[Right Trigger]] confirms, [[B]] or
+  [[Left Trigger]] backs out, [[Left Stick Click]] re-centers the screen
 - Native profiles: Quest 3 (Touch Plus), Quest/Rift Touch, Valve
   Index, HP Reverb G2, WMR wands, Vive wands
 - A regular gamepad and mouse/keyboard still work too

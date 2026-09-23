@@ -31,6 +31,19 @@ Nothing is broken if the unpacking takes a few minutes.
 The Hub's installer puts it wherever you choose - it is standalone and does not
 go into any existing game folder.
 
+Use a complete folder path. A bare drive such as `F:` is automatically treated
+as `F:\` because Windows otherwise interprets it as that drive's hidden current
+directory. After extraction, the installer checks the established build path,
+the install root, the live archive layout, the complete selected folder and any
+related extractor location. If none is usable, it performs one clean recovery
+extraction and normalizes the playable runtime back into the stable Hub layout.
+Publisher wrapper folders and a future `dusklight-*.exe` suffix therefore do not
+break detection, **Start in VR**, or the desktop shortcut.
+
+If every automatic route is exhausted, Setup stays open. You can retry as often
+as needed or drag the extracted folder, `dusklight.exe`, or the release ZIP onto
+the shared recovery screen. A failure never ends in a close-only prompt.
+
 ## Optional: the ZTP HD texture pack
 
 Henriko Magnifico's pack redraws the game's textures in HD and works with
@@ -71,7 +84,17 @@ Start your VR software **first**, then launch Dusklight. A window opens on your
 desktop - press [[Enter]] there or click **Play** to start. **Nothing appears in
 the headset until you do**, so that empty view is expected.
 
-## New in v1.1.0 - the VR settings update
+## Current v2.1.0 release
+
+The current release adds snap turning, configurable snap increments and a
+smooth-turn speed setting. It also fixes scent trails, fire spouts and other
+visual or progression blockers. Full 6DoF positional tracking, the optional
+Wolf-form camera, the separate **Show Link's Body** setting and the earlier
+Gale Boomerang crash fix remain included. The Windows package still places
+`dusklight.exe` below `windows-msvc-relwithdebinfo`; setup discovers that live
+layout and normalizes it to the Hub's stable launch location.
+
+## Earlier v1.1.0 VR settings update
 
 **The Dusklight overlay now works in VR.** Hold [[Right Stick Click]] and
 [[Right Trigger]] together for a couple of seconds to open it - there is no other

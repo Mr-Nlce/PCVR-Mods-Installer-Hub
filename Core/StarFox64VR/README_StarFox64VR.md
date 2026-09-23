@@ -50,7 +50,7 @@ Start your VR runtime first (Quest Link / Air Link, Virtual Desktop, or SteamVR)
 
 ## VR controller layout
 
-| Control | Action |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Flight stick / menu navigation |
 | [[Right Trigger]] or [[A]] | Fire laser (hold to charge) |

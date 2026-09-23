@@ -11,6 +11,13 @@ the required `exec bmvr` line without replacing the rest of `autoexec.cfg`.
 The release auto-updates from the author's stable GitHub channel. The Hub does
 not contain or redistribute the VR mod archive.
 
+## Current multicore release
+
+The reviewed `multicore-2026-09-08` build introduces multicore rendering for
+better performance, adds lens flare and left-hand attack support, improves
+Valve Index poses and restores missing bindings. SteamVR's Y flip is now off by
+default; if right-stick aiming is disabled, that stick recenters the view.
+
 ## Start Black Mesa
 
 Close the game during installation. Afterwards use **Start in VR** in the Hub,

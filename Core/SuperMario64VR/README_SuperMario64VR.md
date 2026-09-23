@@ -51,7 +51,7 @@ Launch with **Start in VR** in the Hub, or the `Super Mario Coop VR` desktop sho
 
 The layout is fixed and works the same on every install:
 
-| Control | Does |
+| Button | Action |
 |---|---|
 | [[Left Stick]] | Move |
 | [[Right Stick]] | Camera (C buttons) |
@@ -61,7 +61,7 @@ The layout is fixed and works the same on every install:
 | [[Right Trigger]] | R |
 | [[Grip]] | Grab and throw objects (when in reach) |
 | [[Menu]] (left) | Pause (Start) |
-| [[Right Stick]] click | Cycle the VR mode |
+| [[Right Stick Click]] | Cycle the VR mode |
 | [[X]] / [[Y]] | X / Y |
 
 Menus: move the cursor with a stick, [[A]] select, [[B]] back, triggers flip pages. Rumble plays through the controllers.
@@ -70,7 +70,7 @@ Gamepads (DualSense, DualShock 4, Xbox, Switch Pro, any SDL controller) and mous
 
 ## VR menu
 
-All VR settings are in-game: pause and open the **VR** button (right after Cheats). It has the VR mode, diorama distance/size/height, menu & HUD size, stereo depth, head motion, first-person toggles, Hide HUD and camera anti-clip, plus Reset to Default. Cycle the VR mode (Diorama / Third-person / First-person) with **D-pad up** or **F10**. Each mode remembers its own settings, saved between launches.
+All VR settings are in-game: pause and open the **VR** button (right after Cheats). It has the VR mode, diorama distance/size/height, menu & HUD size, stereo depth, head motion, first-person toggles, Hide HUD and camera anti-clip, plus Reset to Default. Cycle the VR mode (Diorama / Third-person / First-person) with [[D-pad Up]] or [[F10]]. Each mode remembers its own settings, saved between launches.
 
 ## Credits
 

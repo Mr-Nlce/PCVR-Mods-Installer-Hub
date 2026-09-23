@@ -141,9 +141,10 @@ if ($go -notmatch '^[Yy]') { Write-Info "Cancelled by user."; Pause-User "Press 
 # ------------------------------------------------------------
 # Pick a writable install root: C:\Games then D: then E:
 # ------------------------------------------------------------
-$installRoot = $null
+$installRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('BetterVR_Launcher.exe')
+if ($installRoot) { Write-OK "Remembered Breath of the Wild VR folder: $installRoot" }
 $recorded = Join-Path $PSScriptRoot '.installed_path'
-if (Test-Path -LiteralPath $recorded) {
+if (-not $installRoot -and (Test-Path -LiteralPath $recorded)) {
     $existing = (Get-Content -LiteralPath $recorded -Raw).Trim()
     if ($existing -and ((Test-Path -LiteralPath "$existing\Cemu.exe") -or (Test-Path -LiteralPath "$existing\BetterVR_Launcher.exe"))) { $installRoot = $existing }
 }

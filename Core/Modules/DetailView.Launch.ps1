@@ -18,6 +18,68 @@ function global:Get-ReplacementForObsoleteBaseLaunchOverride {
     return $null
 }
 
+# Some publisher mods must enter a Steam-owned copy through Steam so the
+# store launcher can supply its authentication/session context. Keep this
+# conditional for titles that also expose an unverified non-Steam fallback:
+# a user with an Xbox/GOG path must never be redirected to a Steam license
+# they may not own. SteamLaunchOnly remains the unconditional legacy route.
+function global:Test-UseSteamBootstrapForInstall {
+    param($Game,[string]$GameRoot)
+    if (-not $Game -or -not $Game.SteamId) { return $false }
+    if ($Game.SteamLaunchOnly) { return $true }
+    if (-not $Game.SteamLaunchForSteamInstall -or [string]::IsNullOrWhiteSpace($GameRoot)) { return $false }
+    try {
+        $normal = [IO.Path]::GetFullPath($GameRoot).Replace('/','\')
+        return ($normal.IndexOf('\steamapps\common\',[StringComparison]::OrdinalIgnoreCase) -ge 0)
+    } catch { return $false }
+}
+
+# A Locate Game record may still point at the ordinary game executable. For
+# publisher titles that explicitly require Steam's session/bootstrap, that
+# stale base-EXE override must not outrank the Steam launch route. A genuinely
+# different executable selected by the user remains authoritative.
+function global:Test-IgnoreBaseLaunchOverrideForSteamBootstrap {
+    param($Game,[string]$InstalledRoot,[string]$LaunchOverride)
+    if (-not (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $InstalledRoot) -or
+        -not $Game.GameExe -or [string]::IsNullOrWhiteSpace($LaunchOverride)) { return $false }
+    try {
+        # Path.Combine does not require the recorded drive to be mounted while
+        # we compare a persisted Locate Game value. Join-Path would reject an
+        # otherwise valid stale/non-local drive before equality can be tested.
+        $baseExe=[IO.Path]::GetFullPath([IO.Path]::Combine($InstalledRoot,([string]$Game.GameExe))).TrimEnd([char[]]'\/')
+        $saved=[IO.Path]::GetFullPath($LaunchOverride).TrimEnd([char[]]'\/')
+        return $saved.Equals($baseExe,[StringComparison]::OrdinalIgnoreCase)
+    } catch { return $false }
+}
+
+# A title-specific Hub launch controller is the authoritative Start in VR
+# route. A persisted Locate Game/base-EXE value describes where the game is,
+# not how its VR runtime must be started. Letting that generic override run
+# first bypasses required orchestration such as KCD1VR's Steam +exec configs.
+function global:Test-AllowGenericLaunchOverride {
+    param($Game)
+    return [bool]($Game -and -not $Game.HubLaunchScript)
+}
+
+# Optional Hub-side launch controller for a publisher runtime that must remain
+# in the game folder. This lets a Hub update repair launch/recovery behavior
+# immediately without rewriting an already installed third-party runtime.
+function global:Get-HubLaunchScriptInvocation {
+    param($Game,[string]$GameRoot)
+    if (-not $Game -or -not $Game.HubLaunchScript -or [string]::IsNullOrWhiteSpace($GameRoot)) { return $null }
+    try {
+        $coreRoot=Split-Path -Parent $PSScriptRoot
+        $scriptPath=[IO.Path]::GetFullPath((Join-Path $coreRoot ([string]$Game.HubLaunchScript)))
+        $launchRoot=[IO.Path]::GetFullPath((Join-Path $GameRoot ([string]$Game.HubLaunchSubdirectory)))
+        $runtimeRoot=[IO.Path]::GetFullPath((Join-Path $GameRoot ([string]$Game.HubLaunchRuntimeSubdirectory)))
+        if (-not(Test-Path -LiteralPath $scriptPath -PathType Leaf) -or
+            -not(Test-Path -LiteralPath $launchRoot -PathType Container) -or
+            -not(Test-Path -LiteralPath $runtimeRoot -PathType Container)) { return $null }
+        $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -GameDirectory `"$launchRoot`" -RuntimeRoot `"$runtimeRoot`""
+        [pscustomobject]@{FilePath='powershell.exe';Arguments=$arguments;WorkingDirectory=$launchRoot;ScriptPath=$scriptPath;RuntimeRoot=$runtimeRoot}
+    } catch { return $null }
+}
+
 # Launch a VR-installed game using the most reliable method we
 # have for it. Priority:
 #   1. LaunchExe with optional LaunchArgs, run from the detected
@@ -78,6 +140,24 @@ function global:Start-GameInVR {
         return
     }
 
+    # The detail page exposes every installed Current/Depot x Hotbite/ERVR
+    # coordinate independently. Never guess the other axis after the user has
+    # clicked one of these exact actions.
+    if ($Game.RouteModMatrix -and $Game.EldenRingDirectMotionLaunch -and $Mode -match '^(Current|Depot)Mod([AB])$') {
+        $route = [string]$matches[1]
+        $slot = [string]$matches[2]
+        $matrixState = $global:gameStateMap[$Game.Title]
+        $matrixRoot = if ($route -eq 'Depot') { [string]$matrixState.DepotRoot } else { [string]$matrixState.CurrentRoot }
+        if (-not $matrixRoot) { $matrixRoot = if ($route -eq 'Depot') { [string]$matrixState.DepotDir } else { [string]$matrixState.CurrentDir } }
+        $matrixKind = if ($slot -eq 'B') { 'ERVR' } else { 'Hotbite' }
+        if ($matrixRoot -and (Invoke-EldenRingDirectMotionLaunch -Kind $matrixKind -GameDir $matrixRoot)) {
+            try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch {}
+            return
+        }
+        try { [void](Show-EldenRingSaveMessage -Text "$route + $matrixKind is no longer complete. Run the installer or Scan games again." -Title 'Elden Ring VR route not ready' -Icon Warning) } catch {}
+        return
+    }
+
     # A single installed PEAK variant still uses the ordinary card click.
     # Resolve it here once for every surface (card and detail page): prefer
     # the recommended 2.1.a depot when no current copy is present, and fall
@@ -88,8 +168,7 @@ function global:Start-GameInVR {
             $Mode = "Depot"
         } elseif ($Game.LegacyDepotLaunchExe -and (-not $autoState -or (-not $autoState.CurrentPresent -and -not $autoState.DepotPresent))) {
             foreach ($cand in (Get-LegacyDepotCandidatePaths -Game $Game)) {
-                if ((Test-Path -LiteralPath (Join-Path $cand $Game.LegacyDepotLaunchExe) -PathType Leaf) -and
-                    ($Game.LegacyDepotModFile -and (Test-Path -LiteralPath (Join-Path $cand $Game.LegacyDepotModFile) -PathType Leaf))) {
+                if (Test-LegacyDepotRouteReady -Game $Game -Root $cand) {
                     $Mode = "LegacyDepot"; break
                 }
             }
@@ -105,9 +184,7 @@ function global:Start-GameInVR {
         foreach ($cand in (Get-LegacyDepotCandidatePaths -Game $Game)) {
             if (-not $cand) { continue }
             $tryExe = Join-Path $cand $Game.LegacyDepotLaunchExe
-            $markerOK = $true
-            if ($Game.LegacyDepotModFile) { $markerOK = Test-Path -LiteralPath (Join-Path $cand $Game.LegacyDepotModFile) -PathType Leaf }
-            if ((Test-Path -LiteralPath $tryExe -PathType Leaf) -and $markerOK) {
+            if (Test-LegacyDepotRouteReady -Game $Game -Root $cand) {
                 $legacyRoot = $cand; $legacyExe = $tryExe; break
             }
         }
@@ -330,19 +407,29 @@ function global:Start-GameInVR {
     $gameDir = $null
 
     # Some mods require the store bootstrap even when a valid executable or
-    # an older locate-game override exists. Dishonored VR is the first strict
-    # case: its author documents that a direct Dishonored.exe start crashes
-    # at the menu. This route intentionally outranks saved executable paths.
-    if ($Game.SteamLaunchOnly -and $Game.SteamId) {
+    # an older locate-game override exists. Unconditional SteamLaunchOnly
+    # titles always take this path. SteamLaunchForSteamInstall is narrower:
+    # Darktide needs Steam authentication for its Steam build, while its
+    # separately catalogued Xbox fallback must not launch an unrelated Steam
+    # copy. This route intentionally outranks saved executable paths.
+    $steamBootstrapRoot = $null
+    try { if ($state -and $state.GameDir) { $steamBootstrapRoot = [string]$state.GameDir } } catch {}
+    if (-not $steamBootstrapRoot) {
+        try { $steamBootstrapRoot = Read-InstalledPath -Game $Game } catch {}
+    }
+    if (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $steamBootstrapRoot) {
         try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch {}
         try { Start-Process ("steam://rungameid/" + [string]$Game.SteamId) } catch {}
         return
     }
 
     # Launch override (from the "Locate Game" exe-picker): a genuinely
-    # different store executable wins. A legacy base-EXE override is upgraded
-    # to the installer's dedicated launcher when both resolve in one folder.
-    try {
+    # different store executable wins, except when the catalog defines a
+    # dedicated Hub launch controller. In that case the saved path is location
+    # evidence only; the controller below remains the authoritative VR route.
+    # A legacy base-EXE override is upgraded to the installer's dedicated
+    # launcher when both resolve in one folder.
+    if (Test-AllowGenericLaunchOverride -Game $Game) { try {
         # HIGHEST PRIORITY: the starter that sits in the GAME folder. For mods
         # that moved into the game folder this is the only file that is
         # guaranteed to be the current one - recorded paths and recorded
@@ -372,6 +459,9 @@ function global:Start-GameInVR {
 
         $launchOverride = Read-LaunchOverride -Game $Game
         $recordedForOverride = Read-InstalledPath -Game $Game
+        if (Test-IgnoreBaseLaunchOverrideForSteamBootstrap -Game $Game -InstalledRoot $recordedForOverride -LaunchOverride $launchOverride) {
+            $launchOverride = $null
+        }
         $replacementOverride = Get-ReplacementForObsoleteBaseLaunchOverride -Game $Game -InstalledRoot $recordedForOverride -LaunchOverride $launchOverride
         if ($replacementOverride) {
             Write-PersistentGameStateValue -Game $Game -Name 'launch_exe' -Value $replacementOverride
@@ -387,7 +477,7 @@ function global:Start-GameInVR {
             }
             return
         }
-    } catch { }
+    } catch { } }
 
     # Priority 0: an installer-recorded .installed_path wins over
     # everything (same rule the Check-Installed scan uses). Games we
@@ -491,6 +581,26 @@ function global:Start-GameInVR {
             $global:window.WindowState = [System.Windows.WindowState]::Minimized
         }
     } catch { }
+
+    # A Hub-side controller may wrap an installed publisher runtime when the
+    # launch preparation itself needs recoverable UI. The actual runtime and
+    # game remain in the detected game folder; only the orchestration script
+    # comes from the current Hub so older installs receive launch fixes too.
+    if ($Game.HubLaunchScript -and $gameDir) {
+        $hubLaunch=Get-HubLaunchScriptInvocation -Game $Game -GameRoot $gameDir
+        if ($hubLaunch) {
+            try {
+                Start-GameProcess -FilePath $hubLaunch.FilePath -Arguments $hubLaunch.Arguments -WorkingDirectory $hubLaunch.WorkingDirectory -Game $Game
+            } catch {
+                try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Normal } } catch {}
+                Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_
+            }
+            return
+        }
+        try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Normal } } catch {}
+        Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'The installed VR runtime is incomplete. Run the installer again to restore its launcher files.'
+        return
+    }
 
     if ($Game.LaunchExe -and $gameDir) {
         $exePath = Join-Path $gameDir $Game.LaunchExe

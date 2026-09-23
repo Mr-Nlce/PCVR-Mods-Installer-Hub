@@ -22,15 +22,15 @@ same lobby — even with vanilla clients, and even if the host has no mods.
 Click **Install Mod** on the game tile or detail page and select your preferred option. The installer checks Thunderstore for the current mod status and shows whether it's deprecated.
 
 ## Controls
-| Action | Button |
-|--------|--------|
-| Move | [[Left Stick]] |
-| Sprint | [[Left Stick]] Click |
-| Jump | [[A]] |
-| Interact | [[Right Trigger]] |
-| Use / Swing | [[Right Trigger]] |
-| Inventory | D-pad ([[Right Stick]]) |
-| Flashlight | [[B]] |
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move |
+| [[Left Stick]] Click | Sprint |
+| [[A]] | Jump |
+| [[Right Trigger]] | Interact |
+| [[Right Trigger]] | Use / Swing |
+| D-pad ([[Right Stick]]) | Inventory |
+| [[B]] | Flashlight |
 
 Controls can be rebound in the in-game settings.
 

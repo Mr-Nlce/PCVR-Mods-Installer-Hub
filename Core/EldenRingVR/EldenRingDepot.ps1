@@ -173,13 +173,14 @@ function global:Install-EldenRingDepotCopy {
         }
 
         Write-Host ""
-        try { Set-Clipboard -Value $cmd; Write-Info "Command copied to the clipboard." } catch {}
+        try { Set-Clipboard -Value $cmd -DeferManualFallback; Write-Info "Command copied to the clipboard." } catch {}
         Write-Host "    $cmd" -ForegroundColor Cyan
         Write-Host ""
         Pause-User "Press Enter to open the Steam Console..." | Out-Null
         foreach ($u in @("steam://open/console", "steam://nav/console")) {
             try { Start-Process $u; Start-Sleep -Milliseconds 900 } catch {}
         }
+        Show-PCVRClipboardManualFallback -Text $cmd
         Write-Host "  Paste the command, press Enter, and wait for Steam to say" -ForegroundColor White
         Write-Host "  'Depot download complete'." -ForegroundColor White
         Pause-User "Press Enter once this depot is complete..." | Out-Null
@@ -279,6 +280,107 @@ function global:Backup-EldenRingSave {
         # recognized" in the recovery path.
         Write-Warn "Run SWITCH_SAVE.bat after closing Elden Ring."
         return $false
+    }
+}
+
+function global:Get-EldenRingInstallerMatrix {
+    param(
+        [string]$CurrentGameDir = "",
+        [string]$DepotPath = $script:EldenRingDepotDefault,
+        [string]$HotbiteRoot = ""
+    )
+    if (-not $HotbiteRoot) {
+        $localData = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { [Environment]::GetFolderPath('LocalApplicationData') }
+        $HotbiteRoot = Join-Path $localData 'Programs\Elden Ring VR Motion'
+    }
+    $hotbitePayload = Test-Path -LiteralPath (Join-PathLexical $HotbiteRoot 'mod\eldenring_vr.dll') -PathType Leaf
+    $rows = New-Object System.Collections.Generic.List[object]
+    $index = 0
+    foreach ($route in @(
+        @{ Mode='Current'; Label='Current Steam'; Path=$CurrentGameDir; CanCreate=$false },
+        @{ Mode='Depot'; Label="Depot $script:EldenRingBuildLabel"; Path=$DepotPath; CanCreate=$true }
+    )) {
+        $gamePresent = [bool](Test-EldenRingRoot ([string]$route.Path))
+        foreach ($mod in @(
+            @{ Slot='A'; Name='Hotbite'; Marker=''; Launcher=$script:EldenRingHotbiteLauncher },
+            @{ Slot='B'; Name='ERVR'; Marker='Game\ERVR\ERVR.dll'; Launcher=$script:EldenRingErvrLauncher }
+        )) {
+            $index++
+            $present = $false
+            if ($gamePresent) {
+                if ($mod.Slot -eq 'A') {
+                    $present = [bool]($hotbitePayload -and (Test-Path -LiteralPath (Join-PathLexical ([string]$route.Path) ([string]$mod.Launcher)) -PathType Leaf))
+                } else {
+                    $present = Test-Path -LiteralPath (Join-PathLexical ([string]$route.Path) ([string]$mod.Marker)) -PathType Leaf
+                }
+            }
+            $needsUpdate = [bool]($present -and $mod.Slot -eq 'B' -and
+                -not (Test-Path -LiteralPath (Join-PathLexical ([string]$route.Path) 'Game\ERVR\.pcvrhub_ervr_v0.4.0') -PathType Leaf))
+            $status = if ($needsUpdate) { 'UPDATE AVAILABLE' }
+                      elseif ($present) { 'INSTALLED' }
+                      elseif (-not $gamePresent -and -not $route.CanCreate) { 'GAME NOT FOUND' }
+                      elseif (-not $gamePresent -and $route.CanCreate) { 'DEPOT WILL BE CREATED' }
+                      else { 'NOT INSTALLED' }
+            [void]$rows.Add([pscustomobject]@{
+                Index=$index; Route=[string]$route.Mode; RouteLabel=[string]$route.Label
+                Mod=[string]$mod.Name; Slot=[string]$mod.Slot; GameDir=[string]$route.Path
+                GamePresent=$gamePresent; CanCreate=[bool]$route.CanCreate
+                Present=$present; NeedsUpdate=$needsUpdate; Status=$status
+            })
+        }
+    }
+    return $rows.ToArray()
+}
+
+function global:Resolve-EldenRingInstallChoice {
+    param([object[]]$Rows, [string]$InputValue)
+    $value = ('' + $InputValue).Trim().ToLowerInvariant()
+    if ($value -in @('q','quit','cancel')) { return [pscustomobject]@{ Outcome='Cancel'; Selection=$null } }
+    $selected = @($Rows | Where-Object { [string]$_.Index -eq $value } | Select-Object -First 1)
+    if ($selected.Count -eq 0) { return [pscustomobject]@{ Outcome='Invalid'; Selection=$null } }
+    $selected = $selected[0]
+    if (-not $selected.GamePresent -and -not $selected.CanCreate) {
+        return [pscustomobject]@{ Outcome='Unavailable'; Selection=$selected }
+    }
+    return [pscustomobject]@{ Outcome='Selected'; Selection=$selected }
+}
+
+function global:Select-EldenRingInstallCombination {
+    param(
+        [string]$CurrentGameDir = "",
+        [string]$DepotPath = $script:EldenRingDepotDefault,
+        [string]$PreferredMod = ""
+    )
+    while ($true) {
+        $rows = @(Get-EldenRingInstallerMatrix -CurrentGameDir $CurrentGameDir -DepotPath $DepotPath)
+        Write-Host ""
+        Write-Host "  CHOOSE THE EXACT BUILD AND VR MOD  " -ForegroundColor Black -BackgroundColor Yellow
+        Write-Host ""
+        Write-Host "  Current and Depot are independent installations. Updating one" -ForegroundColor White
+        Write-Host "  never marks the other one updated." -ForegroundColor White
+        Write-Host ""
+        foreach ($row in $rows) {
+            $color = if ($row.NeedsUpdate) { 'Yellow' } elseif ($row.Present) { 'Green' } elseif ($row.Status -eq 'GAME NOT FOUND') { 'DarkGray' } else { 'White' }
+            $label = "   [$($row.Index)] $($row.RouteLabel) + $($row.Mod)"
+            Write-Host $label -ForegroundColor $color
+            Write-Host ("       [" + $row.Status + "]") -ForegroundColor $color
+            if ($row.Index -eq 1) { Write-Host "       Hotbite may be incompatible with the current live patch." -ForegroundColor DarkGray }
+            if ($row.Index -eq 3) { Write-Host "       Recommended Hotbite route; Steam's live copy stays untouched." -ForegroundColor DarkGray }
+        }
+        if ($PreferredMod) {
+            Write-Host ""
+            Write-Host "  The Hub opened this for $PreferredMod, but no build was guessed." -ForegroundColor Cyan
+        }
+        Write-Host ""
+        $pick = ('' + (Read-Host '  Choose 1-4, or Q to cancel')).Trim().ToLowerInvariant()
+        $resolved = Resolve-EldenRingInstallChoice -Rows $rows -InputValue $pick
+        if ($resolved.Outcome -eq 'Cancel') { return $null }
+        if ($resolved.Outcome -eq 'Invalid') { Write-Warn 'Please choose 1, 2, 3, 4 or Q.'; continue }
+        if ($resolved.Outcome -eq 'Unavailable') {
+            Write-Warn 'The current Steam build was not found. Choose a Depot option or install Elden Ring through Steam.'
+            continue
+        }
+        return $resolved.Selection
     }
 }
 

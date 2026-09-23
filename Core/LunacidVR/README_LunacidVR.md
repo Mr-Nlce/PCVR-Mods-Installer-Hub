@@ -26,19 +26,19 @@ Launch with **Start in VR** in the Hub, or from Steam. The game comes up directl
 
 Defaults for Oculus/Quest Touch and Index Knuckles; Vive wands have their own bindings.
 
-| Action | Button |
-| --- | --- |
-| Move | [[Left Stick]] |
-| Turn | [[Right Stick Left/Right]] |
-| Jump | [[Right A]] |
-| Swap spell | [[Right B]] |
-| Use item | [[Left A]] |
-| Open menu | [[Left B]] |
-| Previous item | [[Right Stick Up]] |
-| Next item | [[Right Stick Down]] |
-| Interact / pick up / off-hand ranged | [[Right Grip]] or [[Left Grip]] |
-| Attack, block, charge spell, swap weapon | [[Left Trigger]] or [[Right Trigger]] |
-| Skip the intro cutscene | [[A]] |
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move |
+| [[Right Stick Left/Right]] | Turn |
+| [[Right A]] | Jump |
+| [[Right B]] | Swap spell |
+| [[Left A]] | Use item |
+| [[Left B]] | Open menu |
+| [[Right Stick Up]] | Previous item |
+| [[Right Stick Down]] | Next item |
+| [[Right Grip]] or [[Left Grip]] | Interact / pick up / off-hand ranged |
+| [[Left Trigger]] or [[Right Trigger]] | Attack, block, charge spell, swap weapon |
+| [[A]] | Skip the intro cutscene |
 
 Which grip interacts and which fires the off-hand ranged weapon follows the game's own left/right hand setting.
 

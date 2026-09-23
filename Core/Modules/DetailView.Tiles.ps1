@@ -349,6 +349,22 @@ function global:New-DiscoverTile {
         $grid.Children.Add($freePillPt) | Out-Null
     }
 
+    # The portrait/Steam-style Library needs the same quality fact as the
+    # regular game cards. Bottom-right is deliberately reserved for this
+    # marker: FREE occupies top-left, install status top-right, controls and
+    # title stay bottom-left. Reuse the shared faceted marker so its shape,
+    # accessible name and tooltip cannot drift between the two views.
+    if ($Game.Gem) {
+        $libraryGem = New-GemMarker -Scale 1.0 -Preview
+        $libraryGem.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $libraryGem.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
+        $libraryGem.Margin = [System.Windows.Thickness]::new(0, 0, 10, 10)
+        $libraryGem.ToolTip = 'Polished Gem'
+        [System.Windows.Controls.Panel]::SetZIndex($libraryGem, 12)
+        $grid.Children.Add($libraryGem) | Out-Null
+        $tile.Resources.Add('libraryGem', $libraryGem)
+    }
+
     $tile.Resources.Add("statusPill", $statusPill)
     $tile.Resources.Add("statusTxt",  $statusTxt)
     $tile.Resources.Add("game",       $Game)
@@ -474,4 +490,3 @@ function global:Update-DiscoverTileStatus {
         default     { $pill.Visibility = [System.Windows.Visibility]::Collapsed }
     }
 }
-

@@ -48,10 +48,10 @@ To switch variants later, re-run the installer in **Update / Switch** mode and p
 - **[[Left Stick]]:** character movement; click for random mount
 - **[[Right Stick]]:** snap turning; click toggles 1st/3rd person + camera recenter
 - **[[Left Grip]] + [[Right Stick]]:** camera zoom
-- **Left hand angle:** controls direction of movement, flying, swimming
-- **Right hand angle:** target, interact with world & UI, AoE aiming
-- **Y:** Esc menu | **X:** Toggle map | **A:** Jump | **B:** Next target
-- **Triggers:** Left = Left Click | Right = Right Click
+- [[Left Hand Angle]]: controls direction of movement, flying, swimming
+- [[Right Hand Angle]]: target, interact with world & UI, AoE aiming
+- [[Y]]: Esc menu | [[X]]: Toggle map | [[A]]: Jump | [[B]]: Next target
+- [[Left Trigger]]: Left Click | [[Right Trigger]]: Right Click
 - **[[Grip]] + face buttons:** action set hotkeys (1/2/3/0/8/9 keys etc.)
 - **[[Left Trigger]] + [[Left Grip]]:** previous / next action set
 

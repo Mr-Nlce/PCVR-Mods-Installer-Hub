@@ -32,7 +32,7 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('outlast-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1537851737728221284'; Label='Outlast VR' }
     @{ Ids=@('outward-de-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1107289188350574702'; Label='Outward VR' }
     @{ Ids=@('warhammer-40k-rogue-trader-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1526432666285510676'; Label='Rogue Trader VR' }
-    @{ Ids=@('pokemon-gen-1-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535704850090823690'; Label='Pokemon Gen 1 VR' }
+    @{ Ids=@('pokemon-gen-1-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535704850090823690'; Label='Pokemon Dramatic Shape VR' }
     @{ Ids=@('sons-of-the-forest'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1472102733283725352'; Label='Sons of the Forest VR' }
     @{ Ids=@('forza-horizon-5-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1525532790408478902'; Label='Forza Horizon 5 VR' }
     @{ Ids=@('bioshock-remastered'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1530829951216128000'; Label='BioVRDev' }
@@ -100,6 +100,18 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('sin-episodes-emergence'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1546987501120651284'; Label='SiN Episodes VR' }
     @{ Ids=@('doom-2016-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542807734456680528'; Label='DOOM (2016) VR' }
     @{ Ids=@('metal-gear-solid-v-the-phantom-pain-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1547585795395813618'; Label='Metal Gear Solid V VR' }
+    @{ Ids=@('earth-defense-force-6-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1548208406408724510'; Label='EARTH DEFENSE FORCE 6 VR' }
+    @{ Ids=@('titanfall-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1544402832093089833'; Label='Titanfall 2 VR' }
+    @{ Ids=@('tribes-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1548700072697528461'; Label='Tribes 2 VR' }
+    @{ Ids=@('mirrors-edge-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535660675085631600'; Label="Mirror's Edge VR" }
+    @{ Ids=@('thief-2014-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1550396410967490570'; Label='ThiefVR' }
+    @{ Ids=@('oblivion-2006-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1547539304786436228'; Label='OBVR' }
+    @{ Ids=@('kingdom-come-deliverance-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1547235772971749497'; Label='KCD1VR' }
+    @{ Ids=@('deus-ex-human-revolution-directors-cut-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1548944616907087902'; Label='DeusExHRVR' }
+    @{
+        Ids=@('trackmania-nations-forever','trackmania-united-forever')
+        Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1548223965460303892'; Label='TrackMania Forever OpenXR'
+    }
     @{
         Ids=@('blood-vr','duke-nukem-3d-vr','nam-vr','powerslave-exhumed-vr','redneck-rampage-vr','shadow-warrior-vr','wwii-gi-vr')
         Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1547461710473072741'; Label='RazeXR PCVR'
@@ -139,6 +151,9 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('cyberpunk-2077'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1512549281825820672'; Label='Cyberpunk 2077 VR' }
     @{ Ids=@('witcher-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1527037966789251183'; Label='The Witcher 3 VR' }
     @{ Ids=@('how-to-fish-xr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542977898967867519'; Label='How to Fish XR' }
+    @{ Ids=@('elderborn-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542935421649027152'; Label='ELDERBORN VR' }
+    @{ Ids=@('gloomhaven-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1549192763680235590'; Label='Gloomhaven VR' }
+    @{ Ids=@('prey-2006-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1549901041384947772'; Label='Prey (2006) VR' }
     @{ Ids=@('arma-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1536545209897193584'; Label='Arma 3 VR' }
     @{ Ids=@('escape-from-tarkov-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1234961174429306890'; Label='Tarkov VR' }
 )

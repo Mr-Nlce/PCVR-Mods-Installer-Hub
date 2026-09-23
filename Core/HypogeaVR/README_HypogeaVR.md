@@ -23,7 +23,7 @@ This is a basic VR mod - it adds 6DoF stereoscopic 3D but no motion controls. **
 
 ## Controls
 - **No VR-controller support** - use a gamepad or keyboard.
-- Press **F1** to recenter the view at any time.
+- Press [[F1]] to recenter the view at any time.
 
 ## Configuration
 

@@ -22,10 +22,17 @@ The VR release itself auto-updates from the author's GitHub releases.
 Existing files are backed up before replacement. Your `sh3vr.ini` and
 `sh3vr_weapons.ini` settings are retained during updates and removal.
 
+The current **Pre-Release 1.0.2** retains the locomotion and shoot-while-running
+work, and fixes the late-game boss fight plus melee weapons. The separate
+Steam006 PC fix and Zealot camera mod remain required. If the game shows only
+a grey screen, use the included `GRAY SCREEN FIX` configuration as documented
+by the publisher. Meta Horizon Link remains reported as potentially incompatible;
+use another confirmed OpenXR route if it does not initialize.
+
 ## Starting it
 
 Start your chosen OpenXR runtime, then use **Start in VR** here or the
-**Silent Hill 3 VR** desktop shortcut. Beta 0.1.5 adds SteamVR support.
+**Silent Hill 3 VR** desktop shortcut. Current builds include SteamVR support.
 Meta Quest 3 through Virtual Desktop remains the author's validated setup;
 other headsets and runtime combinations still need testing.
 
@@ -51,7 +58,7 @@ Resolution and FPS lock can be adjusted in `sh3vr.ini`. Per-weapon tracked
 positions and aim offsets are stored in `sh3vr_weapons.ini` and reload
 while the game is running.
 
-## Current beta limitations
+## Current pre-release limitations
 
 Some models or textures may disappear in places. The intro environment,
 sewer reflections, shadows, blood and muzzle flashes can also render

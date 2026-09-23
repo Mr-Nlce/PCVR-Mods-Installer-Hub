@@ -144,7 +144,10 @@ click three things:
    `_FilmGrainMod`, the one holding `GameProfile.xml`
 3. **Update Outlast + DLCs** - it simply skips the DLCs if you do not have them
 
-The tool is **TFC Installer for UE2-UE3** (https://www.nexusmods.com/site/mods/588).
+The tool is **TFC Installer for UE2-UE3 2.5.6.0**
+(https://www.nexusmods.com/site/mods/588). This release includes a nested
+instruction-depth guard that prevents malformed script bytecode from causing
+stack-overflow crashes.
 It **backs your original packages up inside the game folder** before it changes
 anything, and *Restore Backup* / *Uninstall all* puts them back - so this is
 reversible.

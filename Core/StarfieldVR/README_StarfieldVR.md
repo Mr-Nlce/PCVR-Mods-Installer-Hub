@@ -52,9 +52,9 @@ Hotkey is F11 and it only shows on the flat monitor, not in the headset. Options
 
 ## Controls
 
-| Control | Action |
+| Button | Action |
 |---|---|
-| Thumbrest | Left/Right buttons |
+| [[Thumbrest]] | Left/Right buttons |
 | [[Left Grip]] + [[Left Stick]] Button | Switch to flat-screen view |
 | [[Left Grip]] + [[Left Stick]] | D-Pad |
 | [[Right Grip]] | Aim (trigger left of right stick) |

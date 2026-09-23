@@ -2,33 +2,38 @@
 
 Racer PCVR adds stereoscopic rendering, head tracking and Quest motion controls to the original game.
 
+The current **v1.4.1** release fixes the end-of-race crash introduced in v1.4
+and improves runtime diagnostics. SteamVR 2.17 or newer is now the confirmed
+runtime; the Meta runtime does not work, so switch the active OpenXR runtime to
+SteamVR before launch.
+
 ## Before launch
 
-- A **32-bit OpenXR runtime is required**. Connect Virtual Desktop and select VDXR before starting the game.
-- SteamVR cannot load this 32-bit port. The author also considers the Meta/Oculus runtime untested.
+- A **32-bit OpenXR runtime is required**. Select SteamVR 2.17 or newer as the active OpenXR runtime before starting the game.
+- The Meta/Oculus runtime does not work with the current build.
 - Use **Start in VR** on this page, or launch normally through Steam/GOG. The headset connection must already be active.
 - The Steam edition installs its own Windows XP compatibility profile. Its UAC prompt may identify the signed game as **rdroid_gnome release build**; GNOME is Racer's original engine name, not another Hub download. Racer PCVR itself does not request administrator rights.
 - For smoother racing, start at 72 Hz. The original physics are tied to frame rate and the game can become CPU-bound at higher refresh rates.
 
 ## Quest controls
 
-| Action | Control |
+| Button | Action |
 |---|---|
-| Steer / navigate menus | [[Left Stick]] |
-| Look around | [[Right Stick]] |
-| Accelerate | [[Right Trigger]] |
-| Brake | [[Left Trigger]] |
-| Boost | [[Left Grip]] |
-| Repair | [[Right Grip]] |
-| Taunt | [[Left Stick Click]] |
-| Slide | [[Right Stick Click]] |
-| Look back | [[X]] |
-| Change camera | [[Y]] |
-| Confirm | [[A]] |
-| Back / pause | [[B]] |
-| Pause | [[Left Menu]] |
-| Skip a cutscene | [[Both Grips]] |
-| Open PCVR settings | [[F5]] |
+| [[Left Stick]] | Steer / navigate menus |
+| [[Right Stick]] | Look around |
+| [[Right Trigger]] | Accelerate |
+| [[Left Trigger]] | Brake |
+| [[Left Grip]] | Boost |
+| [[Right Grip]] | Repair |
+| [[Left Stick Click]] | Taunt |
+| [[Right Stick Click]] | Slide |
+| [[X]] | Look back |
+| [[Y]] | Change camera |
+| [[A]] | Confirm |
+| [[B]] | Back / pause |
+| [[Left Menu]] | Pause |
+| [[Both Grips]] | Skip a cutscene |
+| [[F5]] | Open PCVR settings |
 
 ## Useful Hub actions
 

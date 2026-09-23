@@ -339,7 +339,7 @@ try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch
 # ------------------------------------------------------------
 Write-Step 5 6 "Steam Launch Options"
 
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
 
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
@@ -356,7 +356,8 @@ Write-Host ""
 Pause-User "Press Enter to open Steam Launch Options..."
 
 Start-Process "steam://gameproperties/$STEAM_APP_ID"
-try { Set-Clipboard -Value $launchOptions } catch {}
+try { Set-Clipboard -Value $launchOptions -DeferManualFallback } catch {}
+Show-PCVRClipboardManualFallback -Text $launchOptions
 
 Pause-User "Press Enter once you have pasted the launch option and closed Properties..."
 
@@ -385,6 +386,7 @@ Pause-User "Press Enter once you have set the controller override and closed Pro
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+Save-InstalledStamp -GameDir $gamePath -Version $PINNED_TAG -HubDir $PSScriptRoot
 
 # ------------------------------------------------------------
 # STEP 6: Desktop Shortcut + Final Notes

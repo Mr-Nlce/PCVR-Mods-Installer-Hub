@@ -12,9 +12,12 @@ $depotGameVersion = '1.886173'
 $depotBuild = '25096372'
 $depotExpectedBytes = [int64]73390577922
 $depotDefaultPath = 'C:\Games\SnowRunner VR'
-$pinnedTag = 'v0.3'
-$pinnedUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.3/dxgi.dll'
+$currentFallbackTag = 'v0.4'
+$currentFallbackUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.4/dxgi.dll'
+$confirmedModTag = 'v0.3'
+$confirmedModUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.3/dxgi.dll'
 $knownOfficialHashes = @(
+    'E982FB695273F259F03E658F3D6DFFED3589FFECDB17970898A4A1481CFEF92D',
     '2697B17C3BA3046834CA87365960E5869286C02DF0E7E98A2CA82E73F00CCBF5',
     '47ACD7C04C3AC1CFF883A6FD16FA0F8431CE7A099CE13F42815FF8078C985F59',
     'B7DDBB24D6A63EB9C608DE845E3F190F969EEFC4DCF6425C3DADACFBD3ECE0B'
@@ -103,14 +106,15 @@ function Install-SnowRunnerPinnedDepot {
         $depotPath = $null
     }
     if (-not $depotPath) {
-        Write-Host "  This downloads the Windows depot matched to SnowRunner VR ${pinnedTag}:" -ForegroundColor White
+        Write-Host "  This downloads the Windows depot matched to SnowRunner VR ${confirmedModTag}:" -ForegroundColor White
         Write-Host "  Game $depotGameVersion, Steam build $depotBuild" -ForegroundColor White
         Write-Host "  $depotCommand" -ForegroundColor DarkGray
-        try { Set-Clipboard -Value $depotCommand } catch {}
+        try { Set-Clipboard -Value $depotCommand -DeferManualFallback } catch {}
         Pause-Snow 'Press Enter to open the Steam Console...'
         foreach ($uri in @('steam://open/console','steam://nav/console')) {
             try { Start-Process $uri; Start-Sleep -Milliseconds 900 } catch {}
         }
+        Show-PCVRClipboardManualFallback -Text $depotCommand
         Write-Host '  Paste the command with Ctrl+V, press Enter, and wait for:' -ForegroundColor White
         Write-Host "  Depot download complete ...\depot_$depotId" -ForegroundColor Black -BackgroundColor Yellow
         Pause-Snow 'Press Enter only after the depot download has finished...'
@@ -151,8 +155,8 @@ function Get-SnowRunnerRelease {
         if (-not $asset -or -not $asset.browser_download_url -or [int64]$asset.size -lt 70000) { throw 'The latest stable release has no valid dxgi.dll asset.' }
         return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url }
     } catch {
-        Write-SnowWarn "GitHub did not answer; using the last known $pinnedTag release URL."
-        return [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl }
+        Write-SnowWarn "GitHub did not answer; using the last known $currentFallbackTag release URL."
+        return [pscustomobject]@{ Tag=$currentFallbackTag; Url=$currentFallbackUrl }
     }
 }
 
@@ -210,11 +214,11 @@ if (Get-Process -Name 'SnowRunner' -ErrorAction SilentlyContinue) { throw 'SnowR
 Write-SnowOk "Found: $gameExe"
 
 if ($installMode -eq '2') {
-    Write-SnowStep 2 4 "Downloading the pinned VR release $pinnedTag"
+    Write-SnowStep 2 4 "Downloading the pinned VR release $confirmedModTag"
     # The confirmed game depot and its confirmed VR binary are one immutable
     # pairing.  Never resolve GitHub latest for this route: a newer mod may
     # target a newer game build and would destroy the purpose of the fallback.
-    $release = [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl }
+    $release = [pscustomobject]@{ Tag=$confirmedModTag; Url=$confirmedModUrl }
 } else {
     Write-SnowStep 2 4 'Downloading the current official stable release'
     $release = Get-SnowRunnerRelease

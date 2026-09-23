@@ -40,7 +40,7 @@ function Write-GammaStep([int]$Number,[int]$Total,[string]$Text) {
 
 function Write-GammaOk([string]$Text) { Write-Host "[OK] $Text" -ForegroundColor Green }
 function Write-GammaInfo([string]$Text) { Write-Host "[..] $Text" -ForegroundColor Gray }
-function Write-GammaWarn([string]$Text) { Write-Host "[!!] $Text" -ForegroundColor Yellow }
+function global:Write-GammaWarn([string]$Text) { Write-Host "[!!] $Text" -ForegroundColor Yellow }
 
 function Get-GammaInstalledVersion([string]$InstallPath) {
     if (-not $InstallPath -or -not (Test-Path -LiteralPath ([IO.Path]::Combine($InstallPath,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue)) { return '' }
@@ -109,7 +109,7 @@ function Test-GammaWritableParent([string]$InstallPath) {
     } catch { return $false }
 }
 
-function Test-GammaArchive {
+function global:Test-GammaArchive {
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
         [Parameter(Mandatory=$true)][ValidateSet('CurrentFull','UpdateFrom0.3.3')][string]$Route,

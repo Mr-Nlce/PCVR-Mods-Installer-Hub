@@ -1,6 +1,6 @@
 # Final Fantasy XIV VR Installer
 
-Guided installer for FFXIV VR v0.0.62 by WesleyLuk90, installed via
+Guided installer for FFXIV VR v0.0.75 by WesleyLuk90, installed via
 XIVLauncher and Dalamud. A VR plugin for FFXIV implemented in C# using the
 Silk OpenXR bindings, based on the original xivr-Ex plugin.
 
@@ -43,9 +43,15 @@ Make sure you have:
 4. Open the **Experimental** tab
 5. Paste the repo URL into row 1 of the empty URL field (copied to clipboard)
 6. Check **Enabled**, click Save, then Refresh
-7. Find **FFXIV VR** in All Plugins → install v0.0.62
+7. Find **FFXIV VR** in All Plugins → install the current release (reviewed at v0.0.75)
 8. Type `/vr` in chat to open VR settings — enable **"Start in VR automatically"**
 9. Restart FFXIV
+
+## New in v0.0.75
+
+The current plugin converts several configuration values to integer fields, repairs an
+affected hook and updates its interface-manager integration. The release also adds a Linux
+build; the Hub's guided Windows/XIVLauncher route remains unchanged.
 
 ## Switching between first and third person
 
@@ -68,7 +74,7 @@ targeting); VR controllers work but are the least comfortable option.
 Advanced binding options to stretch the limited buttons:
 - **Layers:** hold a button bound to a layer to activate a second set of
   bindings (e.g. hold [[Left Grip]] = Layer 2, then [[X]] = Select)
-- **Left/Right Stick DPad:** hold a bound button to make a stick act as a
+- **Stick D-pad layer:** hold a bound button to make [[Left Stick]] or [[Right Stick]] act as a
   D-pad
 - **Mouse:** bind `EnableLeftMouseHold` / `EnableRightMouseHold` to aim the
   mouse by pointing a controller (or move it with your head, under Other);

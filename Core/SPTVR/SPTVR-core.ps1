@@ -238,13 +238,18 @@ if ($choice -eq "2") {
 # -------------------------------------------------------
 Write-Step 1 3 "Locating your SPT install"
 
-$sptRoot = $null
+$sptRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('BepInEx\plugins\sptvr\SPT-VR.dll')
 $sptCreatedByUs = $false
 
-Write-Host "  Do you already have a separate SPT install set up?" -ForegroundColor White
-$haveSpt = (Read-Host "  (Y = yes, locate it / N = no, help me set it up)").Trim()
+if ($sptRoot) {
+    Write-OK "Using remembered SPT install: $sptRoot"
+    $haveSpt = 'Y'
+} else {
+    Write-Host "  Do you already have a separate SPT install set up?" -ForegroundColor White
+    $haveSpt = (Read-Host "  (Y = yes, locate it / N = no, help me set it up)").Trim()
+}
 
-if ($haveSpt -match '^[Yy]') {
+if ($haveSpt -match '^[Yy]' -and -not $sptRoot) {
     # ---- Already set up: drag-and-drop SPT.Launcher.exe ----
     Write-Host ""
     Write-Host "  Drag SPT.Launcher.exe from your SPT folder onto this" -ForegroundColor White
@@ -362,6 +367,7 @@ Write-Step 2 3 "Downloading + installing SPT-VR"
 # the Hub auto-updater uses). Falls back to the releases page for a
 # manual grab if the API is unreachable / rate-limited.
 $modUrl = $null
+$installedModVersion = $null
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
@@ -369,6 +375,7 @@ try {
     $asset = $rel.assets | Where-Object { $_.name -match "\.zip$" } | Select-Object -First 1
     if ($asset) {
         $modUrl = $asset.browser_download_url
+        $installedModVersion = [string]$rel.tag_name
         Write-Info "Latest release: $($rel.tag_name)"
     }
 } catch {
@@ -548,6 +555,16 @@ try {
 try {
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $sptRoot -Encoding UTF8 -Force
 } catch {}
+$installedDll = Join-Path $sptRoot $MOD_DLL_REL
+if (-not $installedModVersion -and (Test-Path -LiteralPath $installedDll -PathType Leaf)) {
+    try {
+        $assemblyVersion = [Reflection.AssemblyName]::GetAssemblyName($installedDll).Version.ToString()
+        if ($assemblyVersion -and $assemblyVersion -match '\d') { $installedModVersion = "v$assemblyVersion" }
+    } catch {}
+}
+if ($installedModVersion -and (Test-Path -LiteralPath $installedDll -PathType Leaf)) {
+    Save-InstalledStamp -GameDir $sptRoot -Version $installedModVersion -HubDir $PSScriptRoot
+}
 
 # -------------------------------------------------------
 # Done
