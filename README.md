@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (278)</summary>
+<summary>Show all currently listed titles (282)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -145,6 +145,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
 * Kerbal Space Program VR (motion controls)
+* Kingdom Come: Deliverance [WIP]
 * Kingdom Come: Deliverance II
 * Kunitsu-Gami: Path of the Goddess
 * Left 4 Dead 2 VR (motion controls)
@@ -161,6 +162,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
+* Mirror’s Edge [WIP] (motion controls)
 * Monster Hunter Rise
 * Monster Hunter Stories 3
 * Monster Hunter Wilds
@@ -263,6 +265,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Sunrise GP VR
 * Techtonica (motion controls)
 * The Dark Mod VR
+* The Elder Scrolls IV: Oblivion [WIP]
 * The House of the Dead Remake (motion controls)
 * The House of the Dead 2 Remake (motion controls)
 * theHunter: Call of the Wild
@@ -271,6 +274,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The Legend of Zelda: Twilight Princess (+ HD texture mod) (motion controls)
 * The Witcher 3: Wild Hunt
 * The Witness VR [WIP]
+* Thief (2014) [WIP]
 * Tinykin VR
 * Titanfall 2 VR [WIP] (motion controls)
 * TLOU Part I
