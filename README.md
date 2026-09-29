@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (282)</summary>
+<summary>Show all currently listed titles (290)</summary>
 
 * 7 Days to Die VR (motion controls)
 * Alba VR
@@ -111,6 +111,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Ghostwire: Tokyo
 * Gloomhaven VR (motion controls)
 * GoldenEye 007 VR [WIP] (motion controls)
+* Gothic 2 VR [WIP] (motion controls)
 * Grounded
 * GTA 4: The Complete Edition [WIP]
 * GTA 5 VR
@@ -151,6 +152,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Left 4 Dead 2 VR (motion controls)
 * Lethal Company VR (motion controls)
 * Life is Strange: BtS (motion controls)
+* Little Witch Nobeta (motion controls)
 * Lunacid (motion controls)
 * Lunistice
 * Mage Arena (motion controls)
@@ -169,6 +171,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Moros Protocol VR (motion controls)
 * Morrowind VR (motion controls)
 * Moto Rush Reborn VR (motion controls)
+* Mount & Blade II: Bannerlord [WIP]
 * MOUSE: P.I. For Hire VR (motion controls)
 * Muck VR [WIP]
 * My Friendly Neighborhood [WIP] (motion controls)
@@ -182,6 +185,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Outbound
 * Outer Wilds VR (motion controls)
 * Outlast
+* Outlast 2
 * Outward Definitive Edition (motion controls)
 * Painkiller: Black Edition (motion controls)
 * Painkiller: Overdose VR (motion controls)
@@ -192,7 +196,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Peak VR (motion controls)
 * Penumbra: Overture VR (motion controls)
 * Perfect Dark VR (motion controls)
+* Pokemon Crystal
 * Pokemon Gen 1 Recomp Voxel
+* Pokemon Pinball
 * Portal 2 VR (motion controls)
 * Portal 2: Community Edition (motion controls)
 * PowerSlave / Exhumed VR (motion controls)
@@ -287,9 +293,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Tomb Raider (1) VR (motion controls)
 * Total Chaos VR (GZDoom) (motion controls)
 * Trombone Champ VR (motion controls)
+* Turok VR [WIP] (motion controls)
 * Ultrakill VR (motion controls)
 * Uncharted: Legacy of Thieves
 * Unmourned VR (motion controls)
+* Unreal Revived VR (motion controls)
 * Valheim VR (motion controls)
 * Vivecraft VR (motion controls)
 * Virtua Cop 2 VR (motion controls)
