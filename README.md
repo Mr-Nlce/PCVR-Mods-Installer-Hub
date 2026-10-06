@@ -19,11 +19,13 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (290)</summary>
+<summary>Show all currently listed titles (303)</summary>
 
 * 7 Days to Die VR (motion controls)
+* A Kingdom for Keflings (motion controls)
 * Alba VR
 * Alien: Isolation VR (motion controls)
+* Aliens versus Predator Classic (2000) (motion controls)
 * Amnesia: The Dark Descent VR (+ HD texture mod) (motion controls)
 * Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
@@ -45,7 +47,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Bioshock Remastered (motion controls)
 * Bioshock 2 Remastered (motion controls)
 * Black Mesa VR (motion controls)
-* Black Mesa Source VR (Half Life 2 Episode 2 Mod) (motion controls) 
+* Black Mesa Source VR (Half Life 2 Episode 2 Mod) (motion controls)
+* Blade of Darkness
 * Bomb Rush Cyberfunk (motion controls)
 * Borderlands GOTY Enhanced VR [WIP] (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
@@ -101,6 +104,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * FF VII Remake
 * Final Fantasy XIV VR (motion controls)
 * Firewatch VR (motion controls)
+* Flower (motion controls)
 * Forza Horizon 5
 * Forza Horizon 6
 * Freespace 2
@@ -112,6 +116,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Gloomhaven VR (motion controls)
 * GoldenEye 007 VR [WIP] (motion controls)
 * Gothic 2 VR [WIP] (motion controls)
+* Gran Turismo 2 PCVR
 * Grounded
 * GTA 4: The Complete Edition [WIP]
 * GTA 5 VR
@@ -125,6 +130,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Hardspace: Shipbreaker
 * Heretic (+ 3D weapons) (motion controls)
 * Hexen (+ 3D weapons) (motion controls)
+* High Entropy: Challenges (motion controls)
 * Hexen 2 VR (motion controls)
 * High on Life
 * HL2 VR Ep. One (+ Unleashed mod) (motion controls) 
@@ -156,6 +162,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Lunacid (motion controls)
 * Lunistice
 * Mage Arena (motion controls)
+* Mario Kart Wii (motion controls)
 * Mass Effect 1 Legendary Edition
 * Mass Effect 2 Legendary Edition
 * Mass Effect 3 Legendary Edition
@@ -165,6 +172,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
 * Mirror’s Edge [WIP] (motion controls)
+* MiSide (motion controls)
 * Monster Hunter Rise
 * Monster Hunter Stories 3
 * Monster Hunter Wilds
@@ -178,6 +186,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * NAM VR (motion controls)
 * Neon White VR (motion controls)
 * New Star GP
+* No One Lives Forever (motion controls)
 * No One Lives Forever 2
 * Nuclear Option
 * One Unit Whole Blood VR (motion controls)
@@ -243,6 +252,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Slime Rancher VR (motion controls)
 * Slyders VR (motion controls)
 * SnowRunner VR
+* SOMA
 * Sons Of The Forest [WIP] (motion controls)
 * Sonic P-06 VR
 * Sonic Robo Blast 2 VR
@@ -252,6 +262,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * S.T.A.L.K.E.R. Anomaly VR (motion controls)
 * S.T.A.L.K.E.R. GAMMA VR (motion controls)
 * Stanley Parable VR (motion controls)
+* Star Fox Enhanced (Starwing SNES)
 * Star Racer VR (motion controls)
 * Star Trucker
 * Star Wars: Episode I Racer VR
@@ -266,6 +277,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Strife (+ 3D weapons) (motion controls)
 * Subnautica VR (motion controls)
 * Subnautica: Below Zero (motion controls)
+* Super Mario 3D World
 * Super Mario 64 Coop VR
 * (Super) Mario Kart 64 VR
 * Sunrise GP VR
@@ -310,6 +322,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Wolfenstein 3D VR (motion controls)
 * World of Warcraft VR (motion controls)
 * World War II GI VR (motion controls)
+* X4: Foundations
 * Yooka-Laylee VR
 * (Dolphin VR + Redux)
 * (Skyrim VR + Fallout 4 VR Wabbajack modlists)
