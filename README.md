@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (303)</summary>
+<summary>Show all currently listed titles (310)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -63,6 +63,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Cyberpunk 2077 VR (motion controls)
 * Daggerfall Unity VR (motion controls)
 * Dark Souls II
+* Dark Souls II (motion controls) [WIP]
 * Dark Souls III
 * Dark Souls Remastered
 * Days Gone
@@ -70,8 +71,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Decimate Drive VR (motion controls)
 * Deep Rock Galactic VR (motion controls)
 * Descenders
+* Descent
+* Descent 2
 * Deus Ex: Human Revolution - Director's Cut [WIP] (motion controls)
 * Devil May Cry 5 VR
+* Diablo II: Resurrected (motion controls)
 * Diddy Kong Racing
 * Dinkum
 * Dino Trauma VR (motion controls)
@@ -151,6 +155,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Iron Lung VR (motion controls)
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
+* Judgment (motion controls)
 * Kerbal Space Program VR (motion controls)
 * Kingdom Come: Deliverance [WIP]
 * Kingdom Come: Deliverance II
@@ -211,6 +216,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Portal 2 VR (motion controls)
 * Portal 2: Community Edition (motion controls)
 * PowerSlave / Exhumed VR (motion controls)
+* PowerWash Simulator (motion controls)
 * PowerWash Simulator 2 VR [WIP] (motion controls)
 * Pragmata
 * Prey (2006) VR (motion controls)
@@ -223,6 +229,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Rebel Galaxy
 * Receiver VR (motion controls)
 * Receiver 2 VR (motion controls)
+* Red Dead Redemption (motion controls)
 * Red Faction VR (motion controls)
 * Redneck Rampage VR (motion controls)
 * R.E.P.O. VR (motion controls)
@@ -284,6 +291,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Techtonica (motion controls)
 * The Dark Mod VR
 * The Elder Scrolls IV: Oblivion [WIP]
+* The House of the Dead 2 (original game) (motion controls)
 * The House of the Dead Remake (motion controls)
 * The House of the Dead 2 Remake (motion controls)
 * theHunter: Call of the Wild
