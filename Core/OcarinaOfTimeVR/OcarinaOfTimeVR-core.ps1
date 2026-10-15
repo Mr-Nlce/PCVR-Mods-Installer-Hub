@@ -46,9 +46,6 @@ $REPO              = "ShinyWindow/Shipwright-VR"
 $REPO_API          = "https://api.github.com/repos/$REPO/releases"
 $RELEASES_PAGE     = "https://github.com/$REPO/releases"
 $INFO_URL          = "https://github.com/$REPO"
-# Last-known-good asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/ShinyWindow/Shipwright-VR/releases/download/v1.2/Ship-9.2.3-win64-ship.zip"
-$KNOWN_FALLBACK_TAG = "v1.2"
 $GAME_FOLDER       = "Ocarina of Time VR"
 $GAME_EXE          = "soh.exe"
 $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
@@ -62,25 +59,30 @@ $DJIPI_LEGACY_FILE = "djipi_s_3ds_experience_-_final_pack.zip"
 
 # Resolve the newest release zip via the GitHub API. Returns
 # @{ Url=...; Tag=... } or $null on any failure (rate limit / offline /
-# shape change) - the caller then falls back to the pinned URL.
+# shape change). GitHub's latest endpoint resolves the stable release;
+# list order is not a version comparison.
 function Get-LatestShipwrightVR {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        foreach ($rel in @($rels | Where-Object { -not $_.draft -and -not $_.prerelease })) {
-            # Asset names may change between releases (currently
-            # Ship-<soh-ver>-win64-ship.zip) - match any .zip, prefer a
-            # win64/ship-looking name, else take the first zip.
-            $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
-            if ($zips.Count -gt 0) {
-                $pick = $zips | Where-Object { $_.name -match '(?i)(win64|ship)' } | Select-Object -First 1
-                if (-not $pick) { $pick = $zips[0] }
-                if ($pick -and $pick.browser_download_url) {
-                    return @{ Url = [string]$pick.browser_download_url; Tag = [string]$rel.tag_name }
-                }
+        $rel = Invoke-RestMethod -Uri "$REPO_API/latest" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        if ($rel -and -not $rel.draft -and -not $rel.prerelease -and $rel.tag_name) {
+            $pick = @($rel.assets | Where-Object {
+                $_.name -match '(?i)(win64|windows[-_]?x64).*\.zip$' -and $_.browser_download_url
+            } | Select-Object -First 1)
+            if ($pick.Count -gt 0) {
+                return @{ Url = [string]$pick[0].browser_download_url; Tag = [string]$rel.tag_name }
             }
         }
     } catch { }
+    return $null
+}
+
+function Get-ShipwrightDownloadedTag {
+    param($Latest, [hashtable]$DownloadInfo)
+    if ($Latest -and $DownloadInfo -and $DownloadInfo.Url -and
+        [string]$DownloadInfo.Url -eq [string]$Latest.Url) {
+        return [string]$Latest.Tag
+    }
     return $null
 }
 
@@ -165,25 +167,29 @@ try {
 $zipDest = Join-Path $tmp "ShipwrightVR_latest.zip"
 
 $relTag = $null
-$urls = New-Object System.Collections.Generic.List[string]
 Write-Info "Resolving the newest release via the GitHub API..."
 $latest = Get-LatestShipwrightVR
 if ($latest) {
     Write-OK "Latest release: $($latest.Tag)"
-    $relTag = [string]$latest.Tag
-    [void]$urls.Add([string]$latest.Url)
 } else {
-    Write-Warn "GitHub API not reachable (rate limit / offline). Using last-known build."
-    $relTag = $KNOWN_FALLBACK_TAG
+    Write-Warn "The current Windows release could not be resolved. Choose the latest Windows ZIP from the publisher page."
 }
-# Always also queue the known-good URL as a secondary source.
-if (-not $latest -or ([string]$latest.Url -ne [string]$KNOWN_FALLBACK_ZIP)) { [void]$urls.Add($KNOWN_FALLBACK_ZIP) }
-
-Invoke-SafeDownload -Urls $urls -Destination $zipDest `
-    -Label "Shipwright-VR ($relTag)" `
-    -ManualUrl $RELEASES_PAGE `
-    -Instructions "Open the releases page, download the newest 'Ship-*-win64-ship.zip', save it as '$zipDest', then choose Retry." `
-    -SkipMessage "" | Out-Null
+$downloadInfo = @{}
+$manualInstructions = "Open the releases page, download the newest stable Windows ZIP (win64 or windows-x64), then drag it onto this window or paste its full path. Do not choose the Android prerelease."
+if ($latest) {
+    $downloadResult = Invoke-SafeDownload -Urls @([string]$latest.Url) -Destination $zipDest `
+        -DownloadInfo $downloadInfo -AllowSkip $false -DisableGitHubAssetReresolution `
+        -Label "Shipwright-VR Windows release" `
+        -ManualUrl $RELEASES_PAGE `
+        -Instructions $manualInstructions `
+        -SkipMessage ""
+} else {
+    $downloadResult = Invoke-InstallerFallback -Action "download Shipwright-VR" `
+        -Subject "the latest stable Windows release" -Url $RELEASES_PAGE `
+        -DestFile $zipDest -Instructions $manualInstructions -AllowSkip $false
+}
+if ([string]$downloadResult -eq 'quit') { exit 1 }
+$relTag = Get-ShipwrightDownloadedTag -Latest $latest -DownloadInfo $downloadInfo
 
 # Hard guarantee: regardless of the helper's outcome, make sure we have a ZIP.
 while (-not (Test-Path $zipDest)) {
@@ -270,18 +276,15 @@ if ($lnk) { Write-OK "Desktop shortcut created: Ocarina of Time VR" }
 else      { Write-Warn "Could not create the desktop shortcut - use 'Start in VR' in the Hub." }
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-if ($relTag -and $relTag -ne $KNOWN_FALLBACK_TAG) {
+if ($relTag) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
     # Also next to the GAME, so a new Hub build does not lose the marker.
-    try { Save-InstalledStamp -GameDir $installRoot -Version $relTag -HubDir $SCRIPT_DIR } catch {}
+    try { Save-InstalledStamp -GameDir $gameRoot -Version $relTag -HubDir $SCRIPT_DIR } catch {}
 } else {
-    # !!! NEVER RECORD THE FALLBACK TAG (2026-08-20). $KNOWN_FALLBACK_TAG
-    # is what we use when GitHub was unreachable - it is a guess, not the
-    # version that was installed. Writing it would age exactly like the
-    # hard-coded number that plagued Forza: the tile would show an Update
-    # badge no reinstall can clear. No marker is self-healing - the next
-    # scan seeds the real current tag.
+    # A manually supplied archive has no verified release identity.
+    Write-Warn "The archive was installed, but its release version is unverified. No current-version marker was written."
     try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+    try { Remove-Item -LiteralPath (Join-Path $gameRoot ".pcvrhub_version") -Force -ErrorAction SilentlyContinue } catch {}
 }
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
 
@@ -296,9 +299,9 @@ Write-Host ""
 Write-Host "  4K textures for Ocarina of Time. Download and unpack take a" -ForegroundColor White
 Write-Host "  while - about 4 GB, with a progress percentage." -ForegroundColor White
 Write-Host ""
-$doHd = ""
-while ($doHd -notin @("y","Y","n","N")) { $doHd = (Read-Host "  Install the HD texture pack now? (Y/N)").Trim() }
-if ($doHd -in @("y","Y")) {
+$existingHdPack = Get-ShipwrightInstalledHdPack -ModsDir (Join-Path $gameRoot 'mods')
+$doHd = Read-ShipwrightOptionalPackChoice -Name 'OoT Reloaded 4K' -InstalledFiles @($existingHdPack)
+if ($doHd) {
     $hdUrl  = "https://evilgames.eu/files/texture-packs/oot-reloaded-v11.0.0-soh-o2r-4k.7z"
     $hdName = "oot-reloaded-v11.0.0-soh-o2r-4k.7z"
     $hdTmp  = Join-Path $installRoot "_hub_hd_tmp"
@@ -308,7 +311,7 @@ if ($doHd -in @("y","Y")) {
     # Before pulling ~4 GB, see if the user already has the exact file in
     # their Downloads folder and offer to reuse it.
     $usedLocal = $false
-    $dlHit = Join-Path (Join-Path $env:USERPROFILE "Downloads") $hdName
+    $dlHit = Join-Path (Get-PCVRDownloadsFolder) $hdName
     if (Test-Path -LiteralPath $dlHit) {
         Write-Host ""
         Write-OK "Found '$hdName' already in your Downloads folder."
@@ -419,12 +422,13 @@ Write-Host "  Castle Town and many interiors are flat backdrops that block" -For
 Write-Host "  your view in VR. This pack replaces them with real 3D geometry." -ForegroundColor White
 Write-Host "  Browser download, about 625 MB. It can take a while." -ForegroundColor White
 Write-Host ""
-$doDjipi = ""
-while ($doDjipi -notin @("y","Y","n","N")) { $doDjipi = (Read-Host "  Install Djipi's 3DS Experience now? (Y/N)").Trim() }
+$existingDjipi = @(Get-ShipwrightInstalledDjipiBackgrounds -ModsDir (Join-Path $gameRoot 'mods'))
+$doDjipi = Read-ShipwrightOptionalPackChoice -Name "Djipi's 3DS Experience" -InstalledFiles $existingDjipi
 
-$djipiInstalled = $false
+$djipiInstalled = ($existingDjipi.Count -eq 2)
 $djipiMode      = ""
-if ($doDjipi -in @("y","Y")) {
+if ($doDjipi) {
+    $djipiInstalled = $false
 
     # -- which look --------------------------------------------
     Write-Host ""
@@ -442,7 +446,7 @@ if ($doDjipi -in @("y","Y")) {
     Write-Host "       have been seen to CRASH CUTSCENES (traced to Saria's" -ForegroundColor Gray
     Write-Host "       model). Purely cosmetic, and not for use with the HD" -ForegroundColor Gray
     Write-Host "       textures." -ForegroundColor Gray
-    if ($doHd -in @("y","Y")) {
+    if ($doHd -or $existingHdPack) {
         Write-Host "  You installed the HD pack - take [2]." -ForegroundColor Cyan
     }
     Write-Host ""
@@ -550,7 +554,7 @@ if ($doDjipi -in @("y","Y")) {
                 if ($djPayload.SkilarFileCount -gt 0) {
                     Write-Info "Left out: Skilar's Art Plus Link ($($djPayload.SkilarFileCount) file(s))."
                 }
-                if ($djipiMode -eq "full" -and $doHd -in @("y","Y")) {
+                if ($djipiMode -eq "full" -and ($doHd -or $existingHdPack)) {
                     Write-Host ""
                     Write-Warn "You now have BOTH the 3DS look and the HD texture pack in mods\."
                     Write-Host "  They are two different art styles for the same surfaces. For" -ForegroundColor Gray

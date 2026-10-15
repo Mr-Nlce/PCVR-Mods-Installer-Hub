@@ -25,6 +25,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "TinykinVR"
 $MOD_VERSION = "v1.0.0"
@@ -32,6 +33,7 @@ $MOD_AUTHOR = "Astienth"
 
 $GAME_APPID = "1599020"
 $GAME_NAME = "Tinykin"
+$GAME_EXE = "Tinykin.exe"
 
 # Discord URLs the installer hands the user, in the order they
 # appear in the welcome flow. Same FarmerTrueVR server as the
@@ -193,23 +195,29 @@ try { Start-Process $DISCORD_DOWNLOAD_URL } catch {}
 Write-Step 1 3 "Locate the downloaded ZIP"
 Write-Host " Once the Tinykin VR mod ZIP is on your disk, drop it here." -ForegroundColor Gray
 Write-Host ""
+Pause-User "Press Enter after the Discord ZIP download is complete..."
 
 $modZip = $null
 while (-not $modZip) {
  Write-Host " Drag-and-drop the downloaded ZIP into this window," -ForegroundColor Yellow
  Write-Host " or paste/type its full path, then press Enter:" -ForegroundColor White
- $r = (Read-Host " ZIP path").Trim().Trim('"')
+ $answer = Read-Host " ZIP path or Q"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
- if ($r -match '\.zip$|\.7z$|\.rar$') {
+ if (-not (Test-Path -LiteralPath $r -PathType Leaf)) { Write-Fail "File not found: $r"; continue }
+ if ($r -notmatch '(?i)\.zip$') { Write-Fail 'Choose the complete Tinykin VR ZIP from the Discord post.'; continue }
+ $anchors = @('(?i)(?:^|\\)winhttp\.dll$',
+              '(?i)(?:^|\\)BepInEx\\plugins\\TinykinVR\.dll$',
+              '(?i)(?:^|\\)BepInEx\\core\\BepInEx\.Preloader\.dll$',
+              '(?i)(?:^|\\)BepInEx\\config\\UnityVR_Bepinex\.cfg$')
+ if (-not (Test-ZipPayloadAnchors -Path $r -AnchorPatterns $anchors -MinimumMatches $anchors.Count)) {
+  Write-Fail 'The ZIP is unreadable, unsafe, or missing the Tinykin VR runtime. Select another ZIP or Q.'
+  continue
+ }
  $modZip = $r
- Write-OK "Archive located: $modZip"
- } else {
- Write-Fail "Path is not a ZIP/7z/RAR archive: $r"
- }
- } else {
- Write-Fail "File not found: $r"
- }
+ Write-OK "VR archive located and checked: $modZip"
 }
 
 # -------------------------------------------------------
@@ -219,6 +227,10 @@ Write-Step 2 3 "Locating Tinykin"
 
 $gamePath = Find-TinykinGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "1599020" -SteamFolderNames @("Tinykin") -GogNames @("Tinykin") }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) {
+ Write-Warn "Found a folder without ${GAME_EXE}: $gamePath"
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Tinykin at: $gamePath"
 } else {
@@ -227,13 +239,16 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Tinykin folder." -ForegroundColor White
  Write-Host ""
  while (-not $gamePath) {
- $r = (Read-Host " Tinykin folder").Trim().Trim('"')
+ $answer = Read-Host " Tinykin folder or Q to quit"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-Path -LiteralPath (Join-Path $r $GAME_EXE) -PathType Leaf) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "$GAME_EXE not found in: $r"
  }
  }
 }
@@ -245,84 +260,64 @@ Write-Step 3 3 "Installing mod files"
 
 $tempExtract = Join-Path $env:TEMP "TinykinVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
-
-try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
+$extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract -Label 'Tinykin VR' -AllowSkip $false
+if ([string]$extractResult -notin @('ok','manual','retry')) {
+ Write-Fail 'The VR archive was not extracted. The game was not changed.'
+ Pause-User 'Press Enter to exit...'
  exit 1
- }
- # User chose Skip - continue at own risk
 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
 $srcRoot = $tempExtract
 if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
- if ($rootEntries[0].Name -ne "BepInEx") {
- $srcRoot = $rootEntries[0].FullName
- }
+ if ($rootEntries[0].Name -ne "BepInEx") { $srcRoot = $rootEntries[0].FullName }
 }
+
+$requiredModFiles = @('winhttp.dll', 'doorstop_config.ini',
+ 'BepInEx\core\BepInEx.Preloader.dll', 'BepInEx\core\BepInEx.dll',
+ 'BepInEx\plugins\TinykinVR.dll', 'BepInEx\config\UnityVR_Bepinex.cfg',
+ 'Tinykin_Data\Plugins\x86_64\openvr_api.dll',
+ 'Tinykin_Data\Plugins\x86_64\openxr_loader.dll')
+try { $payloadHashes = Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
+catch { Write-Fail "The extracted VR package is incomplete: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+$contract = New-PCVRInstallerContract -Id 'tinykin-vr' -GameName 'Tinykin VR' -Acquisition Discord -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL -RequiredInstalledFileGroups (@($GAME_EXE, 'Tinykin_Data\globalgamemanagers', 'winhttp.dll|winhttp_bak.dll') + @($requiredModFiles | Where-Object { $_ -ne 'winhttp.dll' }))
+$keepConfigs = @('BepInEx\config\BepInEx.cfg', 'BepInEx\config\UnityVR_Bepinex.cfg')
+$activeProxy = Join-Path $gamePath 'winhttp.dll'
+$parkedProxy = Join-Path $gamePath 'winhttp_bak.dll'
+$wasFlat = (Test-Path -LiteralPath $parkedProxy -PathType Leaf) -and -not (Test-Path -LiteralPath $activeProxy -PathType Leaf)
+$oldParkedBytes = if ($wasFlat) { [IO.File]::ReadAllBytes($parkedProxy) } else { $null }
+$preservedConfigs = @($keepConfigs | Where-Object { Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf })
+$installed = $false
+while (-not $installed) {
+ $copyTransaction = $null
+ try {
+  $copyTransaction = Install-PCVRDropInCopy -SourceRoot $srcRoot -GameRoot $gamePath -SourceHashes $payloadHashes -KeepExistingFiles $keepConfigs
+  Assert-PCVRDropInCopiedFiles -GameRoot $gamePath -SourceHashes $payloadHashes -PreservedExistingFiles $preservedConfigs
+  if ($wasFlat) {
+   Copy-Item -LiteralPath $activeProxy -Destination $parkedProxy -Force -ErrorAction Stop
+   Remove-Item -LiteralPath $activeProxy -Force -ErrorAction Stop
+  }
+  [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $MOD_VERSION -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+  $installed = $true
+ } catch {
+  $failure = $_
+  if ($copyTransaction) {
+   try { Undo-PCVRDropInCopy -Transaction $copyTransaction }
+   catch { throw "Tinykin install failed and rollback failed: $failure; $_" }
+  }
+  if ($wasFlat) { [IO.File]::WriteAllBytes($parkedProxy,[byte[]]$oldParkedBytes) }
+  Write-Fail "Installation failed; previous files were restored: $failure"
+  Write-Host ' Correct the file or permission problem, then choose [R] to retry.' -ForegroundColor Yellow
+  $retry = Read-Host ' [R] Retry / [Q] Quit'
+  if ($null -eq $retry -or $retry.Trim() -notmatch '^(?i:r)$') { exit 1 }
  }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check - DLL is named TinykinVR.dll (no underscore between
-# Tinykin and VR, unlike most other Astienth mods which use
-# Underscore_VR style naming).
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\TinykinVR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but TinykinVR.dll is missing."
-} else {
- Write-OK "BepInEx + TinykinVR.dll present."
-}
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
-
+try { Complete-PCVRDropInCopy -Transaction $copyTransaction }
+catch { Write-Warn "Temporary rollback snapshot could not be removed: $_" }
+Write-OK 'VR runtime and version verified; existing configuration kept.'
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 # -------------------------------------------------------
 # Done
 # -------------------------------------------------------

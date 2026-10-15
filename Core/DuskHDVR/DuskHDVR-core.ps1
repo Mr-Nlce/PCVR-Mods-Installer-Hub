@@ -254,6 +254,10 @@ if (-not (Test-Path $dlcPath)) {
  }
  # User chose Skip - continue at own risk
 }
+if (-not (Test-Path -LiteralPath $dlcPath -PathType Container)) {
+ Write-Fail "DUSK HD DLC is still missing. Setup cannot continue."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 Write-OK "DUSK HD DLC folder found at: $dlcPath"
 
 # -------------------------------------------------------
@@ -293,11 +297,15 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  $srcRoot = $rootEntries[0].FullName
  }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $srcRoot 'BepInEx\plugins\UnityVR_DuskHD.dll') -PathType Leaf)) {
+ Write-Fail "The selected archive does not contain UnityVR_DuskHD.dll in its installable payload."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 
 Write-Host " Copying files into: $dlcPath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $dlcPath -Recurse -Force
+ Copy-Item -Path $_.FullName -Destination $dlcPath -Recurse -Force -ErrorAction Stop
  }
  Write-OK "Mod files installed into the DUSK HD DLC folder."
 } catch {
@@ -325,9 +333,11 @@ try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } c
 $bepinexDir = Join-Path $dlcPath "BepInEx"
 $modDll = Join-Path $dlcPath "BepInEx\plugins\UnityVR_DuskHD.dll"
 if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $dlcPath after copy."
+ Write-Fail "BepInEx folder not found in $dlcPath after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but UnityVR_DuskHD.dll is missing."
+ Write-Fail "BepInEx is there but UnityVR_DuskHD.dll is missing."
+ Pause-User "Press Enter to exit..."; exit 1
 } else {
  Write-OK "BepInEx + UnityVR_DuskHD.dll present in DLC folder."
 }

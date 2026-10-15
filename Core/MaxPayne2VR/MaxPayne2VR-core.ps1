@@ -19,16 +19,28 @@ Write-Host '  The Hub keeps your original game files recoverable.' -ForegroundCo
 Show-AntivirusNotice -Compact
 P 'Press Enter to start setup...'
 Write-Header;S 1 4 'Locating Max Payne 2'
-$game=Find-SteamGameFolder -AppId '12150' -SteamFolderNames @('Max Payne 2 The Fall of Max Payne','Max Payne 2') -ProbeExe 'MaxPayne2.exe' -GogNames @('Max Payne 2','Max Payne 2 The Fall of Max Payne') -HubGameId 'max-payne-2-vr'
+$game=$null
+if ($env:PCVR_MP2_SELECTED_GAME -and (Test-Path -LiteralPath (Join-Path $env:PCVR_MP2_SELECTED_GAME 'MaxPayne2.exe') -PathType Leaf)) {
+    $game=[IO.Path]::GetFullPath($env:PCVR_MP2_SELECTED_GAME)
+} else {
+    $game=Find-SteamGameFolder -AppId '12150' -SteamFolderNames @('Max Payne 2 The Fall of Max Payne','Max Payne 2') -ProbeExe 'MaxPayne2.exe' -GogNames @('Max Payne 2','Max Payne 2 The Fall of Max Payne') -HubGameId 'max-payne-2-vr'
+}
 if(-not$game){$game=Get-GameFolderInteractive -GameName 'Max Payne 2' -ProbeFile 'MaxPayne2.exe' -ManualUrl 'https://store.steampowered.com/app/12150/'}
 if($game -in @('quit','skip',$null)){W 'No verified game folder was selected.';P 'Press Enter to exit';exit 1};OK "Found: $game"
 
 S 2 4 'Resolving the current stable release'
-$release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^MaxPayne2VR-v.+\.zip$') -FallbackUrl $fallbackUrl -FallbackTag $fallbackVersion -FallbackAssetName $fallbackName
+$fixtureArchive=$null
+if($env:PCVR_MP2_SELECTED_GAME -and $env:PCVR_MP2_TEST_B_ARCHIVE -and $env:PCVR_MP2_TEST_B_TAG -and
+    (Test-Path -LiteralPath $env:PCVR_MP2_TEST_B_ARCHIVE -PathType Leaf)){
+    $fixtureArchive=[IO.Path]::GetFullPath($env:PCVR_MP2_TEST_B_ARCHIVE)
+    $release=[pscustomobject]@{Tag=$env:PCVR_MP2_TEST_B_TAG;Url='';PageUrl='https://github.com/betotron/MaxPayne2VR-release/releases';Resolved=$true}
+}else{
+    $release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^MaxPayne2VR-v.+\.zip$') -FallbackUrl $fallbackUrl -FallbackTag $fallbackVersion -FallbackAssetName $fallbackName
+}
 $version=[string]$release.Tag;$url=[string]$release.Url
 if($release.Resolved){OK "Current stable release: $version"}else{W "GitHub did not provide the current asset; using the reviewed $fallbackVersion route."}
 $tmp=Join-Path ([IO.Path]::GetTempPath()) ('MaxPayne2VR_'+[Guid]::NewGuid().ToString('N'));New-Item -ItemType Directory -Path $tmp -Force|Out-Null;$zip=Join-Path $tmp 'MaxPayne2VR.zip'
-$got=Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "MaxPayne2VR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+$got=if($fixtureArchive){Copy-Item -LiteralPath $fixtureArchive -Destination $zip -ErrorAction Stop;$true}else{Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "MaxPayne2VR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false}
 if(-not$got){W 'The required archive was not obtained.';P 'Press Enter to exit';exit 1}
 
 S 3 4 'Installing with exact-file recovery'

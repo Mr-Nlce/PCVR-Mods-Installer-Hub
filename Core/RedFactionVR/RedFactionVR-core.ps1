@@ -189,8 +189,16 @@ Write-Host ""
 Write-Host "  It is not code-signed, so Windows may show a SmartScreen" -ForegroundColor Gray
 Write-Host "  warning - choose More info, then Run anyway." -ForegroundColor Gray
 Pause-User "Press Enter to run the setup - UAC required..." | Out-Null
-try { Start-Process -FilePath $exe -Wait -Verb RunAs -ErrorAction Stop }
-catch { Write-Warn "The setup was declined or could not start: $($_.Exception.Message)" }
+try {
+    $setupProcess = Start-Process -FilePath $exe -Wait -PassThru -Verb RunAs -ErrorAction Stop
+    if (-not $setupProcess -or $setupProcess.ExitCode -ne 0) {
+        throw "Publisher setup exited with code $($setupProcess.ExitCode)."
+    }
+} catch {
+    Write-Fail "The setup was declined or did not complete: $($_.Exception.Message)"
+    Pause-User "Press Enter to exit; your previous installation was not marked updated."
+    exit 1
+}
 try { if ($exe -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 
 # WHERE THE SETUP PUTS IT WAS A MISTAKE ON MY PART: Alpine Faction VR
@@ -235,6 +243,10 @@ if ($modDir) {
     # no marker and seeds the CURRENT online tag, swallowing a
     # pending update. The game-side stamp survives that.
     Save-InstalledStamp -GameDir @($modDir, $gameDir) -Version $tag
+} else {
+    Write-Fail "$MOD_EXE could not be verified. Setup is not complete."
+    Pause-User "Press Enter to exit..."
+    exit 1
 }
 
 # ---- 4. Playing -----------------------------------------------

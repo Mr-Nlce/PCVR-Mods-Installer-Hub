@@ -4,7 +4,15 @@ param(
     [switch]$NoPause
 )
 
+$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+
+function Get-RacerSha256([string]$Path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+    finally { $stream.Dispose(); $sha.Dispose() }
+}
 
 $GAME_EXE = "SWEP1RCR.EXE"
 $REPO = "tim-tim707/SW_RACER_RE"
@@ -55,24 +63,20 @@ if ($release) {
     $releaseSha = ''
     if ($release.Digest -match '^sha256:([0-9a-fA-F]{64})$') { $releaseSha = $matches[1] }
     $ok = Invoke-SafeDownload -Urls @($release.Url) -Destination $zipPath -Label "SW_RACER_RE $tag" `
-        -ManualUrl $RELEASES_URL -ExpectedSha256 $releaseSha
+        -ManualUrl $RELEASES_URL
     if ($ok -and $releaseSha) {
-        if ((Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash -ne $releaseSha) { throw "The download does not match GitHub's SHA-256 digest." }
+        if ((Get-RacerSha256 $zipPath) -eq $releaseSha) { Write-Host '  [OK] The publisher SHA-256 also matches.' -ForegroundColor Green }
     }
 }
-if (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) {
-    $local = Find-PredownloadedFile -Patterns @("community_improvement_mod_v0_17.zip") `
-        -ExpectedName "community_improvement_mod_v0_17.zip" -ExpectedSize 87415815 `
-        -ExpectedSha256 "19B53C444DEDAC28E22C7AAD71C2932D07EE7053E3BB19969C900D20518B9A1D" `
-        -ExtraFolders @((Join-Path (Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent) "Archive Input\Neue Spiele")) `
-        -Label "SW_RACER_RE v0.17"
-    if ($local) { Copy-Item -LiteralPath $local -Destination $zipPath -Force }
-}
 while (-not (Test-Path -LiteralPath $zipPath -PathType Leaf)) {
-    try { Start-Process $RELEASES_URL } catch {}
-    $picked = ("" + (Read-Host "Drag the downloaded community ZIP here (empty to cancel)")).Trim().Trim('"').Trim("'")
-    if (-not $picked) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
+    Write-Host '  The community ZIP was not downloaded automatically.' -ForegroundColor Yellow
+    Write-Host '  Press Enter to open the release page, or drag/paste your chosen ZIP path.' -ForegroundColor White
+    Write-Host '  Type Q to leave the current Racer PCVR installation unchanged.' -ForegroundColor Gray
+    $picked = ("" + (Read-Host 'Community ZIP path, Enter or Q')).Trim().Trim('"').Trim("'")
+    if ($picked -ieq 'Q') { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue; exit 1 }
+    if (-not $picked) { try { Start-Process $RELEASES_URL } catch { Write-Host ("  Could not open the browser: " + $_.Exception.Message) -ForegroundColor Yellow }; continue }
     if (Test-Path -LiteralPath $picked -PathType Leaf) { Copy-Item -LiteralPath $picked -Destination $zipPath -Force }
+    else { Write-Host '  The selected ZIP path does not exist yet.' -ForegroundColor Yellow }
 }
 
 $extract = Join-Path $work "extracted"
@@ -110,7 +114,7 @@ foreach ($file in $trackFiles) {
         $action = "restore"
     }
     if ($oldRows.ContainsKey($gameRelative) -and (Test-Path -LiteralPath $target -PathType Leaf)) {
-        $currentHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+        $currentHash = Get-RacerSha256 $target
         if ($oldRows[$gameRelative].InstalledSha256 -and $currentHash -ne [string]$oldRows[$gameRelative].InstalledSha256) {
             $conflict = Join-Path (Join-Path $GameRoot ".pcvrhub-starwars-racer-tracks-conflicts") ($relative + "." + (Get-Date -Format "yyyyMMddHHmmss"))
             $conflictParent = Split-Path -Parent $conflict
@@ -120,7 +124,7 @@ foreach ($file in $trackFiles) {
         }
     }
     Copy-Item -LiteralPath $file.FullName -Destination $target -Force
-    $newRows += "$action`t$gameRelative`t$((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash)"
+    $newRows += "$action`t$gameRelative`t$(Get-RacerSha256 $target)"
 }
 foreach ($file in $trackFiles) {
     $relative = $file.FullName.Substring($sourceTracks.TrimEnd('\').Length).TrimStart('\')

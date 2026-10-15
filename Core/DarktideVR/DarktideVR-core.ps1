@@ -461,7 +461,7 @@ function global:Invoke-DarktideVRInstaller {
         Write-DarkInfo "Release: $($release.Tag)"
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_darktidevr_'+[Guid]::NewGuid().ToString('N')); [void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'darktidevr.zip'
-        $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "DarktideVR $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+        $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "DarktideVR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
         if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The DarktideVR release was not downloaded.' }
         $extract=Join-Path $work 'vr'; $expanded=Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'DarktideVR release' -AllowSkip $false
         if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The DarktideVR archive could not be extracted.' }

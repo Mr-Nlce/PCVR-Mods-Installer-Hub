@@ -24,9 +24,9 @@ $PINNED_MOD_TAG = 'v0.11.1'
 $PINNED_MOD_NAME = 'GRW-XR-0.11.1.zip'
 $PINNED_MOD_URL = 'https://github.com/Firejumper93/GhostReconWildlandsVR/releases/download/v0.11.1/GRW-XR-0.11.1.zip'
 $PINNED_MOD_ARCHIVE_SHA256 = 'DABD5C4FBDE22947216ABCF71354C26217E5E7A912E399AFB126934AE8664911'
-$CURRENT_FALLBACK_TAG = 'v0.11.2-test1'
-$CURRENT_FALLBACK_NAME = 'GRW-XR-0.11.2-test1.zip'
-$CURRENT_FALLBACK_URL = 'https://github.com/Firejumper93/GhostReconWildlandsVR/releases/download/v0.11.2-test1/GRW-XR-0.11.2-test1.zip'
+$CURRENT_FALLBACK_TAG = 'v0.13.0'
+$CURRENT_FALLBACK_NAME = 'GRW-XR-0.13.0.zip'
+$CURRENT_FALLBACK_URL = 'https://github.com/Firejumper93/GhostReconWildlandsVR/releases/download/v0.13.0/GRW-XR-0.13.0.zip'
 $PINNED_GRW_SHA256 = '33D58D9763264D4F2734F2939E928AF74F167A57F6C88C4C7FDE39014C022F63'
 $DEPOT_DEFAULT_PATH = 'C:\Games\Ghost Recon Wildlands VR 24821571'
 $DEPOT_MARKER = '.pcvrhub_grw_depot_24821571'
@@ -467,7 +467,7 @@ function global:Invoke-GhostReconWildlandsVRInstaller {
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_grwxr_'+[Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'grwxr.zip'
-        $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "GRW-XR $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+        $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "GRW-XR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
         if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The GRW-XR release was not downloaded.' }
         if ($installMode -eq 'Depot') {
             # Historical digest is positive provenance only. A mismatch never
@@ -510,11 +510,10 @@ function global:Invoke-GhostReconWildlandsVRInstaller {
         Write-GRWStep 5 5 'Committing route state and launch files'
         if ($installMode -eq 'Depot') { Write-GRWDepotSupportFiles $game }
         $receipt=Join-Path $PSScriptRoot $(if ($installMode -eq 'Depot') { '.installed_path_depot' } else { '.installed_path' })
-        $versionReceipt=Join-Path $PSScriptRoot $(if ($installMode -eq 'Depot') { '.installed_version_depot' } else { '.installed_version' })
         $contract=if ($installMode -eq 'Depot') { $depotContract } else { $currentContract }
         $route=if ($installMode -eq 'Depot') { 'Depot-24821571' } else { 'Current' }
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version ([string]$release.Tag) `
-            -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @($versionReceipt) -Route $route)
+            -InstalledPathReceiptPaths @($receipt) -Route $route)
         $changesStarted=$false
 
         if ($installMode -eq 'Depot') {

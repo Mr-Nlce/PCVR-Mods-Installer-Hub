@@ -107,6 +107,10 @@ if(-not $gp){
  Write-Host " Enter the Raft folder path (containing Raft.exe):" -ForegroundColor White
  while(-not $gp){ $r=(Read-Host " Path").Trim().Trim('"'); if(Test-Path -LiteralPath "$r\Raft.exe"){$gp=$r}else{Write-Fail "Raft.exe not found in: $r"} }
 } else { Write-OK "Found: $gp" }
+if (-not (Test-Path -LiteralPath (Join-Path $gp 'Raft.exe'))) {
+ Write-Fail "Raft.exe is missing from the selected game folder."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 
 $modsDir = Join-Path $gp "mods"
 New-Item -ItemType Directory -Path $modsDir -Force | Out-Null
@@ -148,6 +152,10 @@ if($modLoaderExe){
  Write-Fail "Download failed. Please download RMLLauncher.exe manually from raftmodding.com"
  }
 }
+if (-not $modLoaderExe -or -not (Test-Path -LiteralPath $modLoaderExe)) {
+ Write-Fail "RaftModLoader is required before installing RaftVR."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 
 # Desktop shortcut named "Raft VR"
 if($modLoaderExe -and (Test-Path $modLoaderExe)){
@@ -173,8 +181,12 @@ $vrDest = Join-Path $modsDir "RaftVR.rmod"
 if(-not (Get-File "RaftVR v1.1.0" $RAFTVR_URL $vrDest)){ $ok=$false }
 else { Write-OK "RaftVR.rmod installed." }
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+if (-not $ok -or -not (Test-Path -LiteralPath $esaDest) -or -not (Test-Path -LiteralPath $vrDest)) {
+ Write-Fail "Required mod downloads are incomplete. Re-run setup to finish."
+ Pause-User "Press Enter to exit..."; exit 1
+}
+# Record the verified game folder, not the unused detection-library variable.
+try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gp -Encoding UTF8 -Force } catch {}
 
 # Summary
 Write-Host ""

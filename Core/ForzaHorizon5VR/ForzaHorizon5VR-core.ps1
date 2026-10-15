@@ -140,6 +140,7 @@ if ($modChoice -eq "1") {
 Write-Step 3 6 "Locating the downloaded zip"
 $zipPath = $null
 $rel = $null
+$verifiedReleaseDownload = $false
 if ($modChoice -eq "2") {
     $dlWork = Join-Path $env:TEMP ("vrmod_" + [Guid]::NewGuid().ToString("N").Substring(0,8))
     New-Item -ItemType Directory -Path $dlWork -Force | Out-Null
@@ -147,8 +148,12 @@ if ($modChoice -eq "2") {
     if ($rel) {
         Write-Info "Newest VRMod release: $($rel.Tag) ($($rel.Name))"
         $target = Join-Path $dlWork $rel.Name
-        Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE | Out-Null
-        if (Test-Path -LiteralPath $target) { $zipPath = $target }
+        $downloadInfo = @{}
+        $downloadResult = Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "VRMod $($rel.Tag)" -ManualUrl $VRMOD_PAGE -DownloadInfo $downloadInfo
+        if (Test-Path -LiteralPath $target) {
+            $zipPath = $target
+            $verifiedReleaseDownload = ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$rel.Url)
+        }
     }
     if (-not $zipPath) {
         $found = Find-PredownloadedFile -Patterns @("VRMod-v*.zip", "*VRMod*.zip") -Label "the VRMod package"
@@ -176,6 +181,19 @@ $defaultParent = $null
 foreach ($root in $DEFAULT_ROOTS) { if (Test-WritableRoot -Root $root) { $defaultParent = [string]$root; break } }
 if (-not $defaultParent) { $defaultParent = "C:\Games" }
 $installRoot = Join-Path $defaultParent $GAME_FOLDER
+$listing = Get-ArchiveTopLevel -ArchivePath $zipPath
+$archiveHasVersion = @($listing.Entries | Where-Object { $_ -ieq 'VERSION' -or $_ -ilike '*\VERSION' }).Count -gt 0
+$requiredEntries = if ($modChoice -eq '2') {
+    @('vrmod-launcher.exe', 'dxgi.dll', 'profiles\forza_horizon_5.json')
+} else { @($launcherName) }
+$missingEntries = @($requiredEntries | Where-Object {
+    $required = $_
+    -not @($listing.Entries | Where-Object { $_ -ieq $required -or $_ -ilike "*\$required" }).Count
+})
+if (-not $listing.Ok -or $missingEntries.Count -gt 0) {
+    Write-Fail "The selected archive is missing required files: $($missingEntries -join ', '). No mod files were copied."
+    Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+}
 try { New-Item -ItemType Directory -Force -Path $installRoot | Out-Null } catch {}
 
 # Fresh installs use one subfolder per mod. Existing FH5 lufz installs from
@@ -195,6 +213,10 @@ try { New-Item -ItemType Directory -Force -Path $modFolder | Out-Null } catch {}
 $expandResult = Expand-ArchiveOrFallback -ArchivePath $zipPath -DestinationFolder $modFolder -Label "$modName VR mod" `
         -SkipMessage "Skipped - the mod files were NOT extracted. The install is incomplete."
 if ([string]$expandResult -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+if ([string]$expandResult -notin @('ok','manual')) {
+    Write-Fail "The mod archive was not extracted."
+    Pause-User "Press Enter to exit..."; exit 1
+}
 if ([string]$expandResult -eq "ok" -or [string]$expandResult -eq "manual") { Write-OK "Mod files extracted to $modFolder" }
 
 # ---- STEP 5: verify launcher + desktop shortcut ----
@@ -234,6 +256,16 @@ if ($modChoice -eq "2") {
     }
 }
 
+$runtimeRoot = Split-Path -Parent $launcherPath
+$missingInstalled = @($requiredEntries | Where-Object {
+    $required = $_
+    -not (Test-Path -LiteralPath (Join-Path $runtimeRoot $required) -PathType Leaf)
+})
+if ($missingInstalled.Count -gt 0) {
+    Write-Fail "Required VR runtime files are missing after extraction: $($missingInstalled -join ', '). No install receipt was written."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+
 # Record the shared parent. TwoMods detection checks both subfolders and also
 # understands the older root-level lufz layout. Never keep a stale fixed
 # launcher override: it would bypass the Hub's split launch buttons.
@@ -248,34 +280,31 @@ if ($modChoice -eq "2") {
         $m = [regex]::Match([string]$rel.Tag, '(\d+(?:\.\d+)+)')
         if ($m.Success) { $verFromTag = $m.Groups[1].Value }
     }
-    $verFromName = $null
-    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
-        $cand = $matches[1].Replace("_", ".").Trim(".")
-        if ($cand -match '^\d+(\.\d+)+$') { $verFromName = $cand }
-    }
     $verFromFile = $null
     $lufzVerFile = Join-Path $modFolder "VERSION"
-    if (Test-Path -LiteralPath $lufzVerFile -PathType Leaf) {
+    if ($archiveHasVersion -and (Test-Path -LiteralPath $lufzVerFile -PathType Leaf)) {
         try {
             $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
             if ($fv) { $fv = $fv.Trim() }
             if ($fv -match '^(\d+(?:\.\d+)+)') { $verFromFile = $matches[1] }
         } catch {}
     }
-    $lufzVer = $null
-    foreach ($cand in @($verFromName, $verFromTag, $verFromFile)) {
-        if ($cand) { $lufzVer = $cand; break }
+    # The downloaded file's name is not a payload version: a user may provide
+    # or rename an older archive. Trust its embedded VERSION, or the exact
+    # resolved release URL when the payload has no version file.
+    $lufzVer = if ($verFromFile) { $verFromFile } elseif ($verifiedReleaseDownload) { $verFromTag } else { $null }
+    if ($verifiedReleaseDownload -and $verFromFile -and $verFromTag -and $verFromFile -ne $verFromTag) {
+        $lufzVer = $null
+        Write-Warn "Downloaded release $verFromTag contains VERSION $verFromFile. No version receipt will be recorded."
     }
-    $seen = @($verFromName, $verFromTag, $verFromFile) | Where-Object { $_ }
-    $agree = (@($seen | Sort-Object -Unique).Count -le 1)
     if ($lufzVer) {
-        if ($agree) { Write-OK "Installed version $lufzVer (confirmed by $($seen.Count) of 3 sources)." }
-        else { Write-Warn ("Version sources disagree: name=$verFromName tag=$verFromTag file=$verFromFile - using $lufzVer.") }
+        Write-OK "Installed version $lufzVer verified from the payload or exact publisher download."
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
         Save-InstalledStamp -GameDir $installRoot -Version $lufzVer
     } else {
-        Write-Warn "No version could be read - the Hub will seed it on the next scan."
+        Write-Warn "The installed archive has no verified version; the Hub cannot mark this update complete."
         try { Remove-Item -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath (Join-Path $installRoot ".pcvrhub_version") -Force -ErrorAction SilentlyContinue } catch {}
     }
 }
 

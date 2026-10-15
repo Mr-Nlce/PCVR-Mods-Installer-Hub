@@ -158,10 +158,15 @@ if ($latest) {
     Write-Warn "GitHub API not reachable - you will be pointed at the releases page."
 }
 
-Invoke-SafeDownload -Urls $urls -Destination $zipDest -Label "bioshock-vr" `
+$downloadInfo = @{}
+if (-not $latest) { throw 'The current BioShock VR release could not be verified; no game files were changed.' }
+Invoke-SafeDownload -Urls $urls -Destination $zipDest -Label "bioshock-vr" -DownloadInfo $downloadInfo -AllowSkip $false `
     -ManualUrl $RELEASES_URL `
     -Instructions "Download the newest 'bioshock-vr-*.zip' from the releases page, save it as '$zipDest', then choose Retry." `
     -SkipMessage "" | Out-Null
+if (-not $latest -or [string]$downloadInfo.Url -ne [string]$latest.Url) {
+    throw 'The BioShock 2 VR archive has no verified release identity; no game files were changed.'
+}
 
 while (-not (Test-Path -LiteralPath $zipDest)) {
     Write-Fail "The archive is not present at: $zipDest"
@@ -189,64 +194,108 @@ try {
     Pause-User "Press Enter to exit."; exit 1
 }
 
-if ($foreignInjector) {
-    Write-Warn "Another mod's xinput1_3.dll is already there - the two cannot coexist."
-    $stamp  = Get-Date -Format "yyyyMMdd-HHmmss"
-    $parked = "$existing.replaced-$stamp"
-    try {
-        Copy-Item -LiteralPath $existing -Destination $parked -Force -ErrorAction Stop
-        Write-OK "Kept a copy as xinput1_3.dll.replaced-$stamp (rename it back to undo)"
-    } catch { Write-Warn "Could not back it up: $($_.Exception.Message)" }
-}
-
-# The two DLLs sit at the archive root, but search for them so a future
-# release can move them into a subfolder without breaking this.
-$copied = 0
+# Resolve and verify the whole payload before touching the game. A partial
+# copy must never leave an injector behind or claim an installed version.
+$payload = @{}
 foreach ($f in $MOD_FILES) {
     $hit = Get-ChildItem -LiteralPath $exDir -Filter $f -Recurse -File -ErrorAction SilentlyContinue |
            Where-Object { $_.DirectoryName -notmatch '(?i)preset' } | Select-Object -First 1
-    if (-not $hit) { Write-Fail "$f is not in the archive."; continue }
-    try {
-        Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $binDir $f) -Force -ErrorAction Stop
-        Write-OK "$f installed."
-        $copied++
-    } catch {
-        Write-Fail "Could not copy $f - is the game running? ($($_.Exception.Message))"
+    if (-not $hit -or $hit.Length -le 0) {
+        Write-Fail "Required mod file is absent or empty: $f"
+        try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User "Press Enter to exit, then retry with a complete archive." | Out-Null
+        exit 1
     }
+    $payload[$f] = $hit.FullName
 }
-# A scanner usually sweeps a moment AFTER the write, so the files can be
-# gone right after this point. If they are, the user is walked through an
-# exclusion and they are put back FROM INSIDE the game folder.
-$avFilesOk = Confirm-PlacedFilesSurvive `
-    -Paths @($MOD_FILES | ForEach-Object { Join-Path $binDir $_ }) `
-    -GameDir $gameRoot `
-    -ArchivePath $zipDest
-if (-not $avFilesOk) {
+if (-not $relTag -or -not (Test-IsTrackableInstalledVersion -Version $relTag)) {
+    Write-Fail "The release has no trackable version. Nothing was installed."
     try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Write-Fail "The VR mod could not be restored after the antivirus check."
-    Pause-User "Press Enter to exit, then run the installer again."
+    Pause-User "Press Enter to exit." | Out-Null
     exit 1
 }
 
-try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+$versionPath = Join-Path $gameRoot '.pcvrhub_version'
+$pathMarker = Join-Path $SCRIPT_DIR '.installed_path'
+$versionMarker = Join-Path $SCRIPT_DIR '.installed_version'
+$statusPath = [string]$env:PCVR_HUB_INSTALL_STATUS_PATH
+$targets = @($MOD_FILES | ForEach-Object { Join-Path $binDir $_ }) + @($versionPath,$pathMarker,$versionMarker)
+if ($statusPath) { $targets += $statusPath }
+$snapshots = @{}
+$rollbackDir = Join-Path $tmp 'rollback'
+$parked = $null
+$installError = $null
+try {
+    New-Item -ItemType Directory -Path $rollbackDir -Force -ErrorAction Stop | Out-Null
+    foreach ($target in $targets) {
+        if (Test-Path -LiteralPath $target -PathType Container) { throw "A file target is a directory: $target" }
+        if (Test-Path -LiteralPath $target -PathType Leaf) {
+            $snapshot = Join-Path $rollbackDir ([string]$snapshots.Count)
+            Copy-Item -LiteralPath $target -Destination $snapshot -ErrorAction Stop
+            $snapshots[$target] = $snapshot
+        } else { $snapshots[$target] = $null }
+    }
+    if ($foreignInjector) {
+        Write-Warn "Another mod's xinput1_3.dll is already there - the two cannot coexist."
+        $parked = "$existing.replaced-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        if (Test-Path -LiteralPath $parked) { throw "Backup destination already exists: $parked" }
+        Copy-Item -LiteralPath $existing -Destination $parked -ErrorAction Stop
+        Write-OK "Kept the previous injector as $(Split-Path $parked -Leaf)"
+    }
+    foreach ($f in $MOD_FILES) {
+        $target = Join-Path $binDir $f
+        Copy-Item -LiteralPath $payload[$f] -Destination $target -Force -ErrorAction Stop
+        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne
+            (Get-FileHash -LiteralPath $payload[$f] -Algorithm SHA256).Hash) {
+            throw "Copy verification failed: $f"
+        }
+        Write-OK "$f installed."
+    }
+    $avFilesOk = Confirm-PlacedFilesSurvive `
+        -Paths @($MOD_FILES | ForEach-Object { Join-Path $binDir $_ }) `
+        -GameDir $gameRoot -ArchivePath $zipDest
+    if (-not $avFilesOk) { throw 'Required mod files did not survive the post-copy check.' }
+    foreach ($f in $MOD_FILES) {
+        $target = Join-Path $binDir $f
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Required mod file is missing: $f" }
+    }
 
-if ($copied -lt $MOD_FILES.Count) {
-    Write-Fail "The mod is not fully installed."
-    Write-Host "  Copy both DLLs into: $binDir" -ForegroundColor Cyan
-    Pause-User "Press Enter to exit."; exit 1
+    # ---- 4. markers ---------------------------------------------
+    Write-Step 4 4 "Finishing up"
+    Set-Content -LiteralPath $pathMarker -Value $gameRoot -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath $versionMarker -Value $relTag -Encoding UTF8 -Force -ErrorAction Stop
+    Save-InstalledStamp -GameDir $gameRoot -Version $relTag -HubDir $SCRIPT_DIR
+    if (-not (Test-Path -LiteralPath $versionPath -PathType Leaf) -or
+        (Get-Content -LiteralPath $versionPath -Raw).Trim() -ne $relTag) {
+        throw 'The installed version receipt could not be written.'
+    }
+    if ($statusPath -and -not (Test-Path -LiteralPath $statusPath -PathType Leaf)) {
+        throw 'The Hub install status receipt could not be written.'
+    }
+} catch { $installError = $_ }
+
+if ($installError) {
+    $rollbackErrors = @()
+    foreach ($target in $targets) {
+        try {
+            if ($snapshots.ContainsKey($target) -and $snapshots[$target]) {
+                Copy-Item -LiteralPath $snapshots[$target] -Destination $target -Force -ErrorAction Stop
+            } elseif (Test-Path -LiteralPath $target -PathType Leaf) {
+                Remove-Item -LiteralPath $target -Force -ErrorAction Stop
+            }
+        } catch { $rollbackErrors += "$target : $($_.Exception.Message)" }
+    }
+    if ($parked -and (Test-Path -LiteralPath $parked -PathType Leaf)) {
+        try { Remove-Item -LiteralPath $parked -Force -ErrorAction Stop } catch { $rollbackErrors += "$parked : $($_.Exception.Message)" }
+    }
+    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Write-Fail "Installation did not complete: $($installError.Exception.Message)"
+    if ($rollbackErrors.Count) { Write-Fail "Rollback needs attention: $($rollbackErrors -join '; ')" }
+    else { Write-Warn 'Earlier game and Hub files were restored.' }
+    Pause-User "Press Enter to exit." | Out-Null
+    exit 1
 }
-
-# ---- 4. markers ---------------------------------------------
-Write-Step 4 4 "Finishing up"
-# RECORD THE GAME ROOT, NOT THE BIN FOLDER. The post-install refresh joins
-# the catalog's ModFile ("Build\Final\xinput1_3.dll") onto this path, so
-# recording ...\Build\Final here would make it look for
-# ...\Build\Final\Build\Final\xinput1_3.dll - never found, and the tile
-# would stay on "Needs Mod" until the next full scan.
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
-if ($relTag) { Save-InstalledStamp -GameDir $gameRoot -Version $relTag -HubDir $SCRIPT_DIR }
-
+try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 Write-OK "Installed."
 
 Write-Host ""

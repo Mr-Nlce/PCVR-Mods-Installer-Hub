@@ -219,16 +219,28 @@ while (-not $placedOk) {
             -Instructions "Copy the contents of '$extractedDir' into '$gameRoot' (so that $GAME_EXE sits at its root). Then choose Retry, or Skip to finish manually." `
             -SourceFolder "$extractedDir" `
             -DestFolder "$gameRoot" `
-            -AllowSkip $true
-        if ([string]$fb -eq "quit") {
+            -AllowSkip $false
+        if ([string]$fb -in @('quit','skip')) {
             try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-            Pause-User "Press Enter to exit..." | Out-Null
+            Write-Fail "The game files were not placed. Setup cannot mark this installation complete."
+            Pause-User "Press Enter to exit without recording an installation..." | Out-Null
             exit 1
         }
-        if ([string]$fb -eq "skip") { break }
     }
 }
 try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+$requiredInstalled = @(
+    (Join-Path $gameRoot $GAME_EXE),
+    (Join-Path $gameRoot 'ICG_Data\globalgamemanagers')
+)
+foreach ($requiredFile in $requiredInstalled) {
+    if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf) -or
+        (Get-Item -LiteralPath $requiredFile -ErrorAction SilentlyContinue).Length -le 0) {
+        Write-Fail "Required game file is missing or empty: $requiredFile"
+        Pause-User "Press Enter to exit without recording an installation..." | Out-Null
+        exit 1
+    }
+}
 Write-OK "Game installed at: $gameRoot"
 
 # ---- 4. desktop shortcut ------------------------------------
@@ -252,10 +264,14 @@ if (-not (Test-Path $exePath)) {
 }
 
 # Record the install path so the Hub's "VR Installed" check finds it.
+$marker = Join-Path $SCRIPT_DIR ".installed_path"
 try {
-    $marker = Join-Path $SCRIPT_DIR ".installed_path"
-    Set-Content -Path $marker -Value $gameRoot -Force -ErrorAction Stop
-} catch {}
+    Set-Content -LiteralPath $marker -Value $gameRoot -Force -ErrorAction Stop
+} catch {
+    Write-Fail "Could not record the completed installation: $_"
+    Pause-User "Press Enter to exit without recording an installation..." | Out-Null
+    exit 1
+}
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta

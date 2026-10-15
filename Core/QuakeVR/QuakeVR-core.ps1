@@ -327,6 +327,11 @@ if (-not (Test-Path (Join-Path $payload $GAME_EXE))) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $payload = Split-Path $hit.FullName -Parent }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $payload $GAME_EXE) -PathType Leaf)) {
+    Write-Fail "The selected VR archive has no $GAME_EXE. No game files were copied."
+    try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+}
 
 Write-Host "  Copying Quake VR files ... " -NoNewline -ForegroundColor White
 try {
@@ -380,12 +385,16 @@ if ((Test-Path $musicSrc) -and -not (Test-Path $musicDst)) {
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ($failed.Count -eq 0) {
+if ($failed.Count -eq 0 -and (Test-Path -LiteralPath (Join-Path $installRoot $GAME_EXE) -PathType Leaf)) {
     try {
         Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force
         Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_romeo") -Value $installRoot -Encoding UTF8 -Force
     } catch {}
     Save-InstalledStamp -GameDir $installRoot -Version $MOD_VERSION -HubDir $PSScriptRoot
+}
+if ($failed.Count -gt 0 -or -not (Test-Path -LiteralPath (Join-Path $installRoot $GAME_EXE) -PathType Leaf)) {
+    Write-Fail "Quake VR is incomplete. No success receipt was written."
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
 # -------------------------------------------------------

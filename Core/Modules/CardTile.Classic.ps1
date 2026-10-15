@@ -3,7 +3,7 @@
 #  Two switchable tile styles share one entry point. The active
 #  style is $global:hubStyle ('frosted' = default redesign, or
 #  'classic' = the original flat tiles). The Switch Hub Style
-#  menu item + the header VR-glasses click flip this and rebuild
+#  menu item flips this and rebuilds
 #  the cards. Both renderers take the same (game, isExternal,
 #  window) args and return the finished Border.
 # ============================================================
@@ -155,7 +155,7 @@ function global:New-GameCardClassic {
     # the second line. Glue "Outcast VR" together with a non-breaking
     # space so the break falls earlier ("...Jedi / Outcast VR"), matching
     # how the Academy tile reads. Scoped to this one title.
-    $titleDisplay = $game.Title
+    $titleDisplay = if ($game.TileTitle) { [string]$game.TileTitle } else { [string]$game.Title }
     if ($titleDisplay -eq "Jedi Knight: Jedi Outcast VR") {
         $nbsp = [char]0x00A0
         $titleDisplay = "Jedi Knight: Jedi Outcast" + $nbsp + "VR"
@@ -339,7 +339,7 @@ function global:New-GameCardClassic {
         [System.Windows.FontStretches]::Normal
     )
     $titleFormatted = New-Object System.Windows.Media.FormattedText(
-        $game.Title,
+        $titleDisplay,
         [System.Globalization.CultureInfo]::CurrentCulture,
         [System.Windows.FlowDirection]::LeftToRight,
         $titleTypeface,
@@ -1842,6 +1842,12 @@ function global:New-GameCardClassic {
                 Start-GameInVR -Game $gameCapture
                 return
             }
+            if ($gameCapture.Title -eq 'Resident Evil 4R VR' -and $downloadCapture) {
+                if (Invoke-HubExternalInstallerLink -Game $gameCapture -Url $downloadCapture) {
+                    Invoke-PostInstallRefreshSafely -GameId ('' + $gameCapture.Id) -Title $gameCapture.Title
+                }
+                return
+            }
             # Wabbajack-based entries: clicking just opens the
             # Wabbajack site. No download is triggered by us and
             # no Downloads folder needs opening - Wabbajack handles
@@ -1875,7 +1881,8 @@ function global:New-GameCardClassic {
                 # XWVM) - have no DownloadUrl, so nothing lands in Downloads
                 # and the explorer window would only clutter the desktop.
                 if ($downloadCapture -and -not $isDiscordOnly -and -not $isVivecraft -and -not $isSteamProtocol) {
-                    $downloadsPath = [Environment]::GetFolderPath("UserProfile") + "\Downloads"
+                    if (-not (Get-Command Get-PCVRDownloadsFolder -ErrorAction SilentlyContinue)) { . (Join-Path $PSScriptRoot 'KnownFolders.ps1') }
+                    $downloadsPath = Get-PCVRDownloadsFolder
                     try { Start-Process explorer.exe "`"$downloadsPath`"" } catch {}
                     Start-Sleep -Milliseconds 400
                 }

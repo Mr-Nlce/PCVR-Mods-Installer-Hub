@@ -63,6 +63,51 @@ function global:Show-ExePicker {
     return $null
 }
 
+function global:New-ExternalVrStartAppButton {
+    param($Game, [string]$AccentHex = '#8a72d8', [switch]$Clear)
+    $button = New-Object System.Windows.Controls.Border
+    $button.CornerRadius = [System.Windows.CornerRadius]::new(7)
+    $button.Padding = [System.Windows.Thickness]::new(16,10,16,10)
+    $button.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+    $button.Cursor = [System.Windows.Input.Cursors]::Hand
+    $button.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#211b32')
+    $button.BorderThickness = [System.Windows.Thickness]::new(1)
+    $button.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+    $label = New-Object System.Windows.Controls.TextBlock
+    $label.Text = if ($Clear) { 'Clear VR start app' } elseif (Get-ExternalVrStartApp -Game $Game) { 'Change VR start app' } else { 'Locate VR mod start app' }
+    $label.FontSize = 14
+    $label.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $label.Foreground = [System.Windows.Media.Brushes]::White
+    $button.Child = $label
+    $button.Add_MouseLeftButtonUp({
+        try {
+            Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+            if ($Clear) {
+                $answer=[System.Windows.Forms.MessageBox]::Show('Forget the VR mod start app for '+$Game.Title+'? No game or mod files will be deleted.','Clear VR start app',[System.Windows.Forms.MessageBoxButtons]::YesNo)
+                if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+                Reset-PersistentGameStateValue -Game $Game -Name 'external_vr_start_app'
+            } else {
+                $dialog=New-Object System.Windows.Forms.OpenFileDialog
+                $dialog.Title='Choose the VR mod launcher for '+$Game.Title
+                $dialog.Filter='Launch apps (*.exe;*.bat;*.cmd;*.lnk)|*.exe;*.bat;*.cmd;*.lnk'
+                $dialog.CheckFileExists=$true
+                if ($dialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
+                $selected=$dialog.FileName
+                if (-not (Test-ExternalVrStartAppPath -Game $Game -Path $selected)) {
+                    [System.Windows.Forms.MessageBox]::Show('Choose an existing VR mod launcher, not the original game executable.','VR mod start app') | Out-Null
+                    return
+                }
+                $message="Use this app to start the VR mod for $($Game.Title)?`r`n`r`n$selected`r`n`r`nThe Hub cannot inspect whether your Wabbajack modlist is enabled."
+                $answer=[System.Windows.Forms.MessageBox]::Show($message,'Confirm VR mod start app',[System.Windows.Forms.MessageBoxButtons]::YesNo)
+                if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+                Write-PersistentGameStateValue -Game $Game -Name 'external_vr_start_app' -Value $selected
+            }
+            Invoke-PostInstallRefreshSafely -GameId (''+(Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
+        } catch { Write-HubActionFailure -Action ('Set VR start app for '+$Game.Title) -ErrorRecord $_ }
+    }.GetNewClosure())
+    return $button
+}
+
 function global:New-ClearLocationButton {
     # Removes a user-located game's recorded path + launch override +
     # marker so the entry goes back to "not found" and the user can
@@ -1213,6 +1258,12 @@ function global:Resolve-UninstallActions {
         if ($restrict -and $target -eq 'LegacyDepot') {
             try { $searchRoots = @(Get-LegacyDepotCandidatePaths -Game $Game | Where-Object { $_ }) } catch { $searchRoots = @() }
         }
+        # Max Payne's remover ships with the Hub, while each installed mod
+        # must be proved in the game root selected by the current scan.
+        $exeRoots=$searchRoots
+        if($Game.MaxPayne2DualLaunch -and $restrict -and $target -in @('ModA','ModB')) {
+            $exeRoots=@((Join-Path $global:scriptDir 'MaxPayne2VR'))
+        }
         if ($requireProbe) {
             $probePresent = $false
             foreach ($probeRoot in $searchRoots) {
@@ -1224,7 +1275,7 @@ function global:Resolve-UninstallActions {
             }
             if (-not $probePresent) { continue }
         }
-        foreach ($r in $searchRoots) {
+        foreach ($r in $exeRoots) {
             if (-not $r) { continue }
             # String concatenation, not Join-Path: a dead drive letter
             # would make Join-Path throw (hub-wide rule).
@@ -1379,10 +1430,14 @@ function global:Invoke-ResolvedUninstallAction {
             PassThru=$true; Wait=$true; ErrorAction='Stop'
         }
         if ($Action.Arguments) { $startArgs.ArgumentList = [string]$Action.Arguments }
-        $null = Start-Process @startArgs
+        $uninstallProcess = Start-Process @startArgs
+        if ($null -eq $uninstallProcess -or $null -eq $uninstallProcess.ExitCode -or $uninstallProcess.ExitCode -ne 0) {
+            $code = if ($uninstallProcess -and $null -ne $uninstallProcess.ExitCode) { [string]$uninstallProcess.ExitCode } else { 'unknown' }
+            throw "The uninstaller did not finish (exit code $code). The installed files were not confirmed removed. Close the game, then retry."
+        }
     } catch {
         [System.Windows.MessageBox]::Show(
-            "Could not start the uninstaller:`n$($_.Exception.Message)",
+            "The uninstaller could not complete:`n$($_.Exception.Message)",
             'Uninstall', [System.Windows.MessageBoxButton]::OK,
             [System.Windows.MessageBoxImage]::Warning) | Out-Null
         return

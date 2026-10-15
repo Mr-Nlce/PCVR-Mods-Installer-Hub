@@ -15,6 +15,8 @@ There are **two separate mod ZIPs** on Discord, one for each store:
 
 Pick the one that matches your copy of the game. The Hub installer asks which you have and links the right download post.
 
+The **Steam demo is not supported**. The mod author says its older Unity build cannot use this VR mod; install the full Steam or Epic version before running setup. The Hub no longer offers the demo as a game location.
+
 **No VR controller support** - this mod only renders the game in VR. Use a gamepad or keyboard for control input. There is no ViGEmBus dependency.
 
 If you'd rather not use the in-Hub installer, the manual instructions live in the original mod post in the FarmerTrueVR Discord:
@@ -49,6 +51,7 @@ vrApi = OpenXR
 ## Known issues
 
 - Some menu UI glitches. The game itself stays fully playable.
+- If the Epic version appears upside down in the headset, the author suggests changing `upsideDownFix` in `BepInEx\config\UnityVR_Bepinex.cfg` from `0` to `2`, then trying `1` if necessary. This was advice in the Discord thread, not a confirmed fix for every headset.
 
 ## Discord
 

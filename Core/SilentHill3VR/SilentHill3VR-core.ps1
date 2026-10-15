@@ -132,10 +132,8 @@ function Get-LatestVRRelease {
 }
 
 function Get-VRArchive([string]$Destination,$Release) {
-    $found = Find-PredownloadedFile -Patterns @($Release.Name) -ExtraFolders @((Get-ArchiveInputFolder)) -Label "Silent Hill 3 VR $($Release.Tag)"
-    if ($found) { Copy-Item -LiteralPath $found -Destination $Destination -Force; return $Destination }
     if (-not (Invoke-SafeDownload -Urls @($Release.Url) -Destination $Destination -Label "Silent Hill 3 VR $($Release.Tag)" `
-        -ManualUrl $RELEASES_URL)) { return $null }
+        -ManualUrl $RELEASES_URL -ExpectedReleaseTag ([string]$Release.Tag))) { return $null }
     return $Destination
 }
 
@@ -267,41 +265,29 @@ try {
     $rows = Read-Manifest $manifestPath
     $recoverySpecs = New-Object 'System.Collections.Generic.List[object]'
 
-    Write-Step 2 5 "Installing the required PC Fix"
-    if (Test-Path -LiteralPath (Join-Path $gamePath "Silent_Hill_3_PC_Fix.dll") -PathType Leaf) {
-        Write-OK "PC Fix already present; it is left untouched."
-    } else {
+    # Resolve and validate every required package before changing the game.
+    # A missing VR archive must not leave an untracked PC Fix or Camera Mod.
+    Write-Info 'Checking all required packages before changing game files...'
+    $needPCFix = -not (Test-Path -LiteralPath (Join-Path $gamePath "Silent_Hill_3_PC_Fix.dll") -PathType Leaf)
+    $needCamera = -not ((Test-Path -LiteralPath (Join-Path $gamePath "plugins\OTSMod.dll") -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-Path $gamePath "dsound.dll") -PathType Leaf))
+    if ($needPCFix) {
         $pcArchive = Get-PCFixArchive
         if (-not $pcArchive) { throw "The required PC Fix was not supplied." }
         $pcOut = Join-Path $work "pcfix"
         if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $pcArchive -Dest $pcOut -Label "Silent Hill 3 PC Fix" -Password $PC_FIX_PASSWORD)) { throw "Could not extract the PC Fix." }
         $pcRoot = Get-ExtractedPayloadRoot -ExtractDir $pcOut -RelModFile "Silent_Hill_3_PC_Fix.dll"
         if (-not (Test-Path -LiteralPath (Join-Path $pcRoot "Silent_Hill_3_PC_Fix.dll") -PathType Leaf)) { throw "The PC Fix payload is incomplete." }
-        Install-Component -Name "PCFix" -PayloadRoot $pcRoot -GameRoot $gamePath -Rows $rows
-        $pcBinaries = @(Get-ChildItem -LiteralPath $pcRoot -Recurse -File | Where-Object Extension -in @('.dll','.exe') | ForEach-Object { $_.FullName.Substring($pcRoot.TrimEnd('\').Length).TrimStart('\') })
-        [void]$recoverySpecs.Add([pscustomobject]@{ Name="PCFix"; Archive=$pcArchive; Password=$PC_FIX_PASSWORD; Marker="Silent_Hill_3_PC_Fix.dll"; Relatives=$pcBinaries })
-        Write-OK "PC Fix 2.8.5 installed."
     }
-
-    Write-Step 3 5 "Installing Zealot's Camera Mod"
-    if ((Test-Path -LiteralPath (Join-Path $gamePath "plugins\OTSMod.dll") -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $gamePath "dsound.dll") -PathType Leaf)) {
-        Write-OK "Camera Mod already present; it is left untouched."
-    } else {
+    if ($needCamera) {
         $cameraArchive = Get-CameraArchive (Join-Path $work $CAMERA_NAME)
         if (-not $cameraArchive) { throw "Could not acquire the required Camera Mod." }
         $cameraOut = Join-Path $work "camera"
         if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $cameraArchive -Dest $cameraOut -Label "Camera Mod")) { throw "Could not extract the Camera Mod." }
         $cameraRoot = Get-ExtractedPayloadRoot -ExtractDir $cameraOut -RelModFile "dsound.dll"
         if (-not (Test-Path -LiteralPath (Join-Path $cameraRoot "plugins\OTSMod.dll") -PathType Leaf)) { throw "The Camera Mod payload is incomplete." }
-        Install-Component -Name "Camera" -PayloadRoot $cameraRoot -GameRoot $gamePath -Rows $rows
-        $cameraBinaries = @(Get-ChildItem -LiteralPath $cameraRoot -Recurse -File | Where-Object Extension -in @('.dll','.exe') | ForEach-Object { $_.FullName.Substring($cameraRoot.TrimEnd('\').Length).TrimStart('\') })
-        [void]$recoverySpecs.Add([pscustomobject]@{ Name="Camera"; Archive=$cameraArchive; Password=""; Marker="dsound.dll"; Relatives=$cameraBinaries })
-        Write-OK "Camera Mod v1.0 installed."
     }
-
-    Write-Step 4 5 "Downloading and installing the newest VR release"
     $release = Get-LatestVRRelease
-    Write-Info "Newest usable release: $($release.Tag)"
     $vrArchive = Get-VRArchive -Destination (Join-Path $work $release.Name) -Release $release
     if (-not $vrArchive) { throw "Could not acquire the Silent Hill 3 VR release." }
     $vrOut = Join-Path $work "vr"
@@ -310,6 +296,29 @@ try {
     foreach ($required in @("dinput8.dll","sh3vr_host64.exe","sh3vr.ini","sh3vr_weapons.ini","sh3vr_assets")) {
         if (-not (Test-Path -LiteralPath (Join-Path $vrRoot $required))) { throw "The VR release is incomplete: missing $required." }
     }
+
+    Write-Step 2 5 "Installing the required PC Fix"
+    if (-not $needPCFix) {
+        Write-OK "PC Fix already present; it is left untouched."
+    } else {
+        Install-Component -Name "PCFix" -PayloadRoot $pcRoot -GameRoot $gamePath -Rows $rows
+        $pcBinaries = @(Get-ChildItem -LiteralPath $pcRoot -Recurse -File | Where-Object Extension -in @('.dll','.exe') | ForEach-Object { $_.FullName.Substring($pcRoot.TrimEnd('\').Length).TrimStart('\') })
+        [void]$recoverySpecs.Add([pscustomobject]@{ Name="PCFix"; Archive=$pcArchive; Password=$PC_FIX_PASSWORD; Marker="Silent_Hill_3_PC_Fix.dll"; Relatives=$pcBinaries })
+        Write-OK "PC Fix 2.8.5 installed."
+    }
+
+    Write-Step 3 5 "Installing Zealot's Camera Mod"
+    if (-not $needCamera) {
+        Write-OK "Camera Mod already present; it is left untouched."
+    } else {
+        Install-Component -Name "Camera" -PayloadRoot $cameraRoot -GameRoot $gamePath -Rows $rows
+        $cameraBinaries = @(Get-ChildItem -LiteralPath $cameraRoot -Recurse -File | Where-Object Extension -in @('.dll','.exe') | ForEach-Object { $_.FullName.Substring($cameraRoot.TrimEnd('\').Length).TrimStart('\') })
+        [void]$recoverySpecs.Add([pscustomobject]@{ Name="Camera"; Archive=$cameraArchive; Password=""; Marker="dsound.dll"; Relatives=$cameraBinaries })
+        Write-OK "Camera Mod v1.0 installed."
+    }
+
+    Write-Step 4 5 "Downloading and installing the newest VR release"
+    Write-Info "Newest usable release: $($release.Tag)"
     Install-Component -Name "VR" -PayloadRoot $vrRoot -GameRoot $gamePath -Rows $rows -KeepFiles @("sh3vr.ini","sh3vr_weapons.ini")
     $vrBinaries = @(Get-ChildItem -LiteralPath $vrRoot -Recurse -File | Where-Object Extension -in @('.dll','.exe') | ForEach-Object { $_.FullName.Substring($vrRoot.TrimEnd('\').Length).TrimStart('\') })
     [void]$recoverySpecs.Add([pscustomobject]@{ Name="VR"; Archive=$vrArchive; Password=""; Marker="dinput8.dll"; Relatives=$vrBinaries })

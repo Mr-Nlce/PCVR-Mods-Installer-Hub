@@ -12,7 +12,8 @@ $GAME_TITLE = 'Pokemon Dramatic Shape VR'
 $REPO = 'prismaticShape/DramaticShapeVR'
 $FALLBACK_TAG = 'v3.0.1'
 $FALLBACK_ASSET = 'DramaticShapeVR-3.0.1-windows.zip'
-$FALLBACK_URL = 'https://github.com/prismaticShape/DramaticShapeVR/releases/download/v3.0.1/DramaticShapeVR-3.0.1-windows.zip'
+$DISCORD_INVITE = 'https://discord.gg/flat2vr'
+$DISCORD_POST = 'https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386'
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $DEFAULT_TARGET = 'C:\Games\Pokemon Dramatic Shape VR'
 $IDENTITY = 'dramaticshapevr'
@@ -52,6 +53,23 @@ function Write-DramaticStep([int]$Number,[int]$Total,[string]$Text) {
 }
 function Write-DramaticOK([string]$Text) { Write-Host "  [OK] $Text" -ForegroundColor Green }
 function Write-DramaticWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
+
+function Get-DramaticPackageVersion([string]$PayloadRoot,[string]$ExtractionRoot) {
+    $root=[IO.Path]::GetFullPath($ExtractionRoot).TrimEnd('\','/')+'\'
+    $payload=[IO.Path]::GetFullPath($PayloadRoot).TrimEnd('\','/')
+    if (-not $payload.StartsWith($root,[StringComparison]::OrdinalIgnoreCase)) { throw 'The selected runtime is outside the extracted archive.' }
+    $versionFile=Join-Path $payload 'VERSION'
+    if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+        $raw=(Get-Content -LiteralPath $versionFile -Raw -ErrorAction Stop).Trim()
+        if ($raw -match '^(?i:v)?([0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z.-]+)?)$') { return ('v'+$matches[1]) }
+    }
+    foreach ($part in @($payload.Substring($root.Length) -split '[\\/]')) {
+        if ($part -match '^(?i:DramaticShapeVR)-v?([0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z.-]+)?)-(?i:windows)$') {
+            return ('v'+$matches[1])
+        }
+    }
+    throw 'The selected Windows archive has no trackable internal version. Choose the complete publisher ZIP.'
+}
 
 function Repair-DramaticPcvrTouchDispatch([string]$ExecutablePath) {
     if (-not (Test-Path -LiteralPath $ExecutablePath -PathType Leaf)) { throw 'DramaticShapeVR.exe is missing.' }
@@ -110,7 +128,7 @@ function Repair-DramaticPcvrTouchDispatch([string]$ExecutablePath) {
 
 function Select-PokemonInstallerRoute([scriptblock]$ReadInput=$null) {
     Write-Host '  Choose the installation route:' -ForegroundColor White
-    Write-Host '    [1] Dramatic Shape VR 3.x - newest standalone app (recommended)' -ForegroundColor Green
+    Write-Host '    [1] Dramatic Shape VR 3.x - GitHub currently offline / not public' -ForegroundColor Yellow
     Write-Host '    [2] Legacy Gen1Recomp VR - pinned classic two-part setup' -ForegroundColor White
     Write-Host ''
     while ($true) {
@@ -118,7 +136,7 @@ function Select-PokemonInstallerRoute([scriptblock]$ReadInput=$null) {
         $choice = (''+$raw).Trim()
         if (-not $choice -or $choice -eq '1') { return 'Current' }
         if ($choice -eq '2') { return 'Legacy' }
-        Write-DramaticWarn 'Type 1 or 2. Press Enter for the recommended current route.'
+        Write-DramaticWarn 'Type 1 or 2. Press Enter for the standalone route; its GitHub source is currently offline.'
     }
 }
 
@@ -212,6 +230,14 @@ function Select-DramaticInstallFolder([scriptblock]$ReadInput=$null,[scriptblock
 }
 
 function Get-LegacyRememberedTarget {
+    $handover = Get-PCVRRecoveryInput
+    if ($handover) {
+        $folder = if (Test-Path -LiteralPath $handover -PathType Leaf -ErrorAction SilentlyContinue) {
+            Split-Path -Parent $handover
+        } else { $handover }
+        $exe = Join-PathLexical -BasePath $folder -ChildPath 'gen1recomp.exe'
+        if ($exe -and (Test-Path -LiteralPath $exe -PathType Leaf -ErrorAction SilentlyContinue)) { return $folder }
+    }
     $receipt = Join-Path $PSScriptRoot '.installed_path_legacy_depot'
     if (Test-Path -LiteralPath $receipt -PathType Leaf) {
         try {
@@ -226,7 +252,8 @@ function Get-LegacyRememberedTarget {
         if ($durable) { return $durable }
     } catch {}
     foreach ($candidate in @($LEGACY_DEFAULT_TARGET,'D:\Games\Pokemon Gen 1 VR','E:\Games\Pokemon Gen 1 VR')) {
-        if (Test-Path -LiteralPath (Join-Path $candidate 'gen1recomp.exe') -PathType Leaf) { return $candidate }
+        $probe = Join-PathLexical -BasePath $candidate -ChildPath 'gen1recomp.exe'
+        if ($probe -and (Test-Path -LiteralPath $probe -PathType Leaf -ErrorAction SilentlyContinue)) { return $candidate }
     }
     return $LEGACY_DEFAULT_TARGET
 }
@@ -302,11 +329,14 @@ function Save-DramaticSnapshot([string]$GameRoot,[string]$Stage,[string]$Snapsho
     }
     $manifest = Join-Path $GameRoot ".pcvrhub_${SnapshotIdentity}_ownership.csv"
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-        try { foreach ($row in @(Import-Csv -LiteralPath $manifest)) { if ($row.RelativePath) { $relatives.Add([string]$row.RelativePath) } } } catch {}
+        foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+            if ($row.RelativePath) { $relatives.Add((Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath))) }
+        }
     }
     foreach ($extra in @(".pcvrhub_${SnapshotIdentity}_ownership.csv",".pcvrhub_${SnapshotIdentity}_ownership.csv.new",'.pcvrhub_version','.pcvrhub_version_b','.pcvrhub_voxelmod')) { $relatives.Add($extra) }
     $records = @()
     foreach ($relative in @($relatives | Select-Object -Unique)) {
+        $relative = Assert-PCVROwnedRelativePath -Relative $relative
         $source = Join-Path $GameRoot $relative
         $exists = Test-Path -LiteralPath $source -PathType Leaf
         $key = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($relative)).Replace('/','_')
@@ -320,6 +350,17 @@ function Save-DramaticSnapshot([string]$GameRoot,[string]$Stage,[string]$Snapsho
 }
 
 function Restore-DramaticSnapshot([string]$GameRoot,$Snapshot) {
+    foreach ($record in @($Snapshot.Records)) {
+        $relative = Assert-PCVROwnedRelativePath -Relative ([string]$record.Relative)
+        $key = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($relative)).Replace('/','_')
+        if ([string]$record.Key -cne $key) { throw 'The Pokemon rollback record has an invalid file key.' }
+        if ($record.Exists -and -not (Test-Path -LiteralPath (Join-Path $Snapshot.Root $key) -PathType Leaf)) {
+            throw "Pokemon rollback data is missing: $relative"
+        }
+    }
+    if ($Snapshot.BackupExists -and -not (Test-Path -LiteralPath (Join-Path $Snapshot.Root 'backup') -PathType Container)) {
+        throw 'The Pokemon ownership backup is missing.'
+    }
     foreach ($record in @($Snapshot.Records)) {
         $target = Join-Path $GameRoot ([string]$record.Relative)
         if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
@@ -552,7 +593,7 @@ function Invoke-DramaticShapeCurrentRoute {
         Write-Host '  US Red, Blue or Yellow; US Crystal; or Pokemon Pinball (U).' -ForegroundColor Yellow
         Write-Host '  Gen 2 currently means Crystal only. Gold and Silver are not supported.' -ForegroundColor Yellow
         Show-AntivirusNotice -Compact
-        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to download the newest standalone release...')
+        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check the current standalone release...')
 
         Write-DramaticStep 1 4 'Choosing the standalone Dramatic Shape VR folder'
         $legacyRoute = Save-DramaticLegacyRouteReceipt
@@ -565,26 +606,40 @@ function Invoke-DramaticShapeCurrentRoute {
         if (Get-Process -Name 'DramaticShapeVR' -ErrorAction SilentlyContinue) { throw 'Dramatic Shape VR is running. Close it completely and retry.' }
         Write-DramaticOK "Standalone folder: $target"
 
-        Write-DramaticStep 2 4 'Downloading and validating the newest stable Windows release'
+        Write-DramaticStep 2 4 'Finding and validating the Windows release'
         $release = Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^DramaticShapeVR-[0-9][^/]*-windows\.zip$') `
-            -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset
-        $version = [string]$release.Tag
+            -SkipReleasesWithoutMatchingAsset
+        if ($release.ReleaseFound -and -not $release.Resolved) {
+            throw "GitHub has a release, but its Windows asset cannot be identified: $($release.Error). Check the release page before using an older package."
+        }
+        $useDiscord = -not [bool]$release.Resolved
+        $version = if ($useDiscord) { $FALLBACK_TAG } else { [string]$release.Tag }
         if (-not (Test-IsTrackableInstalledVersion $version)) { throw 'The publisher release did not provide a trackable version tag.' }
         $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr_dramaticshape_'+[Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)
-        $archive = Join-Path $work ([string]$release.AssetName)
-        $got = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "Dramatic Shape VR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
-        if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The official Dramatic Shape VR archive was not downloaded.' }
+        if ($useDiscord) {
+            Write-DramaticWarn 'GitHub is currently unavailable. The reviewed v3.0.1 Windows archive is in the Flat2VR Discord post.'
+            Write-Host '  Download the second attachment: DramaticShapeVR-3.0.1-windows.zip.' -ForegroundColor White
+            $archive = Invoke-PCVRDiscordDownloadFlow -Label 'Dramatic Shape VR v3.0.1' `
+                -InviteUrl $DISCORD_INVITE -DownloadPostUrl $DISCORD_POST `
+                -FilePatterns @($FALLBACK_ASSET) -SourceDescription 'the second file in the Flat2VR post' `
+                -ValidateCandidate { param($path) $check = Test-ZipArchiveEntrySafety -ArchivePath $path -DestinationFolder $work; [bool]($check.Inspectable -and $check.Safe) }
+        } else {
+            $archive = Join-Path $work ([string]$release.AssetName)
+            $got = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "Dramatic Shape VR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+            if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The official Dramatic Shape VR archive was not downloaded.' }
+        }
         $extract = Join-Path $work 'extract'
         $expanded = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'official Dramatic Shape VR Windows release' -AllowSkip $false -QuietProgress
         if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The Dramatic Shape VR archive could not be extracted.' }
         $payload = Get-DramaticPayloadRoot $extract
         if (-not $payload) { throw 'The release is missing DramaticShapeVR.exe, OpenXR, voice runtime or another required publisher file.' }
         if (-not (Test-DramaticPayloadHasNoRom $payload)) { throw 'The publisher package unexpectedly contains a game ROM and was rejected.' }
+        if ($useDiscord) { $version = Get-DramaticPackageVersion -PayloadRoot $payload -ExtractionRoot $extract }
         $touchFix=Repair-DramaticPcvrTouchDispatch -ExecutablePath (Join-Path $payload 'DramaticShapeVR.exe')
         if(-not $touchFix.Verified){throw 'The PCVR launcher touch fix could not be verified.'}
         Write-PCVRAtomicText -Path (Join-Path $payload $VERSION_FILE) -Value ($version.TrimStart('v','V'))
-        Write-DramaticOK "Official $version Windows runtime verified; the PCVR launcher touch crash is guarded and no ROM is present."
+        Write-DramaticOK "$version Windows runtime verified; the PCVR launcher touch crash is guarded and no ROM is present."
 
         Write-DramaticStep 3 4 'Installing the standalone OpenXR runtime recoverably'
         $snapshot = Save-DramaticSnapshot -GameRoot $target -Stage $payload -SnapshotRoot (Join-Path $work 'snapshot')

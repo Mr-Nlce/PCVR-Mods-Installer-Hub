@@ -184,6 +184,7 @@ if ($modChoice -eq "1") {
 # ---- STEP 3: get the file ----
 Write-Step 3 6 "Locating the downloaded zip"
 $zipPath = $null
+$verifiedReleaseDownload = $false
 if ($modChoice -in @("2","3")) {
     # Both GitHub authors publish usable prereleases. Resolve the newest
     # non-draft release containing that mod's actual Windows payload.
@@ -199,8 +200,12 @@ if ($modChoice -in @("2","3")) {
         Write-Info "Newest $modName release: $($rel.Tag) [$channel] ($($rel.Name))"
         $target = Join-Path $dlWork $rel.Name
         $releasePage = if ($modChoice -eq "2") { $VRMOD_PAGE } else { $CHEEKY_PAGE }
-        Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "$modName $($rel.Tag)" -ManualUrl $releasePage | Out-Null
-        if (Test-Path -LiteralPath $target) { $zipPath = $target }
+        $downloadInfo = @{}
+        $downloadResult = Invoke-SafeDownload -Urls @($rel.Url) -Destination $target -Label "$modName $($rel.Tag)" -ManualUrl $releasePage -DownloadInfo $downloadInfo
+        if (Test-Path -LiteralPath $target) {
+            $zipPath = $target
+            $verifiedReleaseDownload = ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$rel.Url)
+        }
     }
     if (-not $zipPath) {
         $patterns = if ($modChoice -eq "2") { @("VRMod-v*.zip", "*VRMod*.zip") } else { @("CheekyRender-*-win64.zip", "CheekyRender*.zip") }
@@ -225,6 +230,8 @@ if ($modChoice -eq "1" -and $zipLeaf -notlike "fh6vr_*") {
     Write-Warn "Expected a 'CheekyRender-*.zip' - continuing anyway with '$zipLeaf'."
 }
 Write-OK "Using: $zipLeaf"
+$archiveListing = Get-ArchiveTopLevel -ArchivePath $zipPath
+$archiveHasVersion = @($archiveListing.Entries | Where-Object { $_ -ieq 'VERSION' -or $_ -ilike '*\VERSION' }).Count -gt 0
 
 # ---- STEP 4: choose location + extract ----
 Write-Step 4 6 "Installing the mod files"
@@ -315,50 +322,36 @@ try { $ov = Join-Path $PSScriptRoot ".launch_exe"; if (Test-Path $ov) { Remove-I
 # NALULUNA installs deliberately do NOT touch this file: it tracks the
 # lufz build, and overwriting it here would wipe a pending lufz update.
 if ($modChoice -eq "2") {
-    # PRIMARY source: the VERSION file lufz ships inside the zip -
-    # authoritative and survives a renamed zip. Fall back to the zip
-    # name, then to the pinned release. Note $modFolder, not
-    # $installRoot: the lufz build lives in its own subfolder here.
+    # Use the VERSION file carried by this archive, or the selected online
+    # tag only when this exact release URL supplied the package. Note
+    # $modFolder, not $installRoot: lufz lives in its own subfolder.
     #
     # (History: the 1.2.1 hotfixes reused the same zip name AND VERSION,
     # so the Hub tracked them as 1.2.1b/1.2.1c. lufz moved to a real
     # 1.2.3, so that workaround is retired - the zip is honest again.)
-    # ---- The installed version, from THREE sources that must agree ----
-    # Same mod, same publisher, same well-behaved shape as on the
-    # Horizon 5 entry: tag v1.3.19, asset VRMod-v1.3.19.zip, VERSION
-    # file 1.3.19. Read all three, cross-check, and write plain digits -
-    # that is exactly what the tile compares against.
+    # Keep the installed digits aligned with the payload version. A filename
+    # alone does not prove the bytes supplied by a manual download.
     $verFromTag = $null
     if ($rel -and $rel.Tag) {
         $m = [regex]::Match([string]$rel.Tag, '(\d+(?:\.\d+)+)')
         if ($m.Success) { $verFromTag = $m.Groups[1].Value }
     }
-    $verFromName = $null
-    if ($zipLeaf -match '(?i)VRMod[-_]v?([0-9][0-9_.]*)') {
-        $cand = $matches[1].Replace("_", ".").Trim(".")
-        if ($cand -match '^\d+(\.\d+)+$') { $verFromName = $cand }
-    }
     $verFromFile = $null
     $lufzVerFile = Join-Path $modFolder "VERSION"
-    if (Test-Path -LiteralPath $lufzVerFile) {
+    if ($archiveHasVersion -and (Test-Path -LiteralPath $lufzVerFile)) {
         try {
             $fv = (Get-Content -LiteralPath $lufzVerFile -TotalCount 1 -ErrorAction Stop | Select-Object -First 1)
             if ($fv) { $fv = $fv.Trim() }
             if ($fv -match '^(\d+(?:\.\d+)+)') { $verFromFile = $matches[1] }
         } catch {}
     }
-    $lufzVer = $null
-    foreach ($cand in @($verFromName, $verFromTag, $verFromFile)) {
-        if ($cand) { $lufzVer = $cand; break }
+    $lufzVer = if ($verFromFile) { $verFromFile } elseif ($verifiedReleaseDownload) { $verFromTag } else { $null }
+    if ($verifiedReleaseDownload -and $verFromFile -and $verFromTag -and $verFromFile -ne $verFromTag) {
+        $lufzVer = $null
+        Write-Warn "Downloaded release $verFromTag contains VERSION $verFromFile. No version receipt will be recorded."
     }
-    $seen = @($verFromName, $verFromTag, $verFromFile) | Where-Object { $_ }
-    $agree = (@($seen | Sort-Object -Unique).Count -le 1)
     if ($lufzVer) {
-        if ($agree) {
-            Write-OK "Installed version $lufzVer (confirmed by $($seen.Count) of 3 sources)."
-        } else {
-            Write-Warn ("Version sources disagree: name=$verFromName tag=$verFromTag file=$verFromFile - using $lufzVer.")
-        }
+        Write-OK "Installed version $lufzVer verified from the payload or exact publisher download."
         try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
         # ALSO write the durable stamp next to the GAME (2026-08-20).
         # The line above lands inside the Hub folder and is gone as
@@ -367,22 +360,23 @@ if ($modChoice -eq "2") {
         # pending update. The game-side stamp survives that.
         Save-InstalledStamp -GameDir $installRoot -Version $lufzVer
     } else {
-        Write-Warn "No version could be read - the Hub will seed it on the next scan."
+        Write-Warn "The installed archive has no verified version; the Hub cannot mark this update complete."
         try { Remove-Item -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
+        try { Remove-Item -LiteralPath (Join-Path $installRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue } catch {}
     }
 } elseif ($modChoice -eq "3") {
-    # CheekyRender has no VERSION file, so preserve the exact release tag
-    # resolved from GitHub (or recover it from a manually supplied filename).
-    $cheekyVersion = if ($rel -and $rel.Tag) { [string]$rel.Tag } else { $null }
-    if (-not $cheekyVersion -and $zipLeaf -match '(?i)CheekyRender-v?(.+?)-win64\.zip$') {
-        $cheekyVersion = [string]$matches[1]
-    }
+    # CheekyRender has no embedded version. A manually supplied or renamed
+    # archive cannot inherit the online release tag.
+    $cheekyVersion = if ($verifiedReleaseDownload -and $rel -and $rel.Tag) { [string]$rel.Tag } else { $null }
     if ($cheekyVersion) {
         try { Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_version_b') -Value $cheekyVersion -Encoding UTF8 -Force } catch {}
         try { Set-Content -LiteralPath (Join-Path $installRoot '.pcvrhub_version_b') -Value $cheekyVersion -Encoding UTF8 -Force } catch {}
         Write-OK "Installed CheekyRender release $cheekyVersion."
     } else {
-        Write-Warn 'The release tag could not be recorded; the next scan will establish the current baseline.'
+        Write-Warn 'The installed CheekyRender archive has no verified release tag; the Hub cannot mark this update complete.'
+        foreach($receipt in @((Join-Path $PSScriptRoot '.installed_version_b'),(Join-Path $installRoot '.pcvrhub_version_b'))){
+            Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 

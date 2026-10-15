@@ -204,6 +204,10 @@ if ($gamePath) {
  }
  }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE))) {
+ Write-Fail "$GAME_EXE is missing from the selected game folder. No mod files were copied."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 
 # -------------------------------------------------------
 # STEP 3b: extract + merge the mod's GameFiles into the game ROOT
@@ -246,6 +250,16 @@ if ($gameFilesDir) {
  }
 }
 
+# Reject an incomplete archive before touching an existing installation.
+$requiredPayload = @('winhttp.dll', 'BepInEx\plugins\DinkumVR\DinkumVR.dll')
+foreach ($relative in $requiredPayload) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $relative))) {
+  Write-Fail "The archive is missing $relative. No mod files were copied."
+  try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+ }
+}
+
 Write-Host " Copying mod files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -LiteralPath $srcRoot | ForEach-Object {
@@ -274,11 +288,14 @@ $bepinexDir = Join-Path $gamePath "BepInEx"
 $winhttp    = Join-Path $gamePath "winhttp.dll"
 $modDll     = Join-Path $gamePath "BepInEx\plugins\DinkumVR\DinkumVR.dll"
 if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
+ Write-Fail "BepInEx folder not found in $gamePath after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } elseif (-not (Test-Path $winhttp)) {
- Write-Warn "BepInEx is there but winhttp.dll is missing - the mod loader may not start."
+ Write-Fail "winhttp.dll is missing after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx + winhttp.dll are there, but DinkumVR.dll is missing from BepInEx\plugins\DinkumVR."
+ Write-Fail "DinkumVR.dll is missing after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } else {
  Write-OK "BepInEx + winhttp.dll + DinkumVR.dll present in the game folder."
  Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot

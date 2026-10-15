@@ -13,8 +13,8 @@ $MOD_NAME = 'BL1GOTYVR'
 $MOD_AUTHOR = 'Mastersellz'
 $REPO = 'Mastersellz/BL1GOTYVR'
 $RELEASES_URL = "https://github.com/$REPO/releases"
-$PIN_TAG = 'BL1GOTYVR_V0.5.6.6'
-$PIN_NAME = 'BL1GOTYVR.V0.5.6.6.zip'
+$PIN_TAG = 'V0.5.7.3'
+$PIN_NAME = 'BL1GOTYVR.V0.5.7.3.zip'
 $PIN_URL = "https://github.com/$REPO/releases/download/$PIN_TAG/$PIN_NAME"
 $IDENTITY = 'borderlandsgotyenhancedvr'
 $QUIP = 'The vault was full of guns. Marcus still sold you another.'
@@ -103,11 +103,8 @@ function Get-LatestStableRelease {
 }
 
 function Get-ReleaseArchive([string]$Destination,$Release) {
-    $found = Find-PredownloadedFile -Patterns @([string]$Release.Name,'BL1GOTYVR*.zip') `
-        -ExtraFolders (Get-ArchiveInputFolders) -Label "BL1GOTYVR $($Release.Tag)"
-    if ($found) { Copy-Item -LiteralPath $found -Destination $Destination -Force; return $Destination }
     $ok = Invoke-SafeDownload -Urls @([string]$Release.Url) -Destination $Destination -Label "BL1GOTYVR $($Release.Tag)" `
-        -ManualUrl $RELEASES_URL -AllowSkip $false
+        -ManualUrl $RELEASES_URL -AllowSkip $false -ExpectedReleaseTag ([string]$Release.Tag)
     if ($ok -eq $true -or [string]$ok -in @('retry','manual')) { return $Destination }
     return $null
 }
@@ -125,6 +122,9 @@ $work = $null
 $gamePath = $null
 $binPath = $null
 $restoreFlat = $false
+$changesStarted = $false
+$fileStates = @()
+$backupState = $null
 try {
     Write-Header
     Write-Host ' This setup is only for Borderlands GOTY Enhanced (2019).' -ForegroundColor White
@@ -154,7 +154,6 @@ try {
         throw 'Required game configuration is missing. Start Borderlands GOTY Enhanced in Flat mode, reach the main menu, close it, then run setup again. No game file was changed.'
     }
     $binPath = Join-Path $gamePath $BIN_REL
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$gamePath,(New-Object Text.UTF8Encoding($false)))
     Write-OK "Found: $gamePath"
 
     Write-Step 2 5 'Getting the current stable VR release'
@@ -175,6 +174,45 @@ try {
     }
     $fileCount = @(Get-ChildItem -LiteralPath $payload -Recurse -File).Count
     if ($fileCount -lt 4 -or $fileCount -gt 20) { throw "Unexpected release layout ($fileCount files)." }
+
+    # Snapshot every file this package or its receipts may change before the
+    # first game write. A failed copy must never leave a half-installed DLL.
+    $manifest = Join-Path $binPath ".pcvrhub_${IDENTITY}_ownership.csv"
+    $backupRoot = Join-Path $binPath ".pcvrhub_${IDENTITY}_backup"
+    $priorOwned = @()
+    if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+        $priorOwned = @(Import-Csv -LiteralPath $manifest -ErrorAction Stop | ForEach-Object {
+            Assert-PCVROwnedRelativePath -Relative ([string]$_.RelativePath)
+        })
+    }
+    $payloadPaths = @(Get-ChildItem -LiteralPath $payload -Recurse -File -ErrorAction Stop | ForEach-Object {
+        Assert-PCVROwnedRelativePath -Relative ($_.FullName.Substring($payload.Length+1))
+    })
+    $tracked = @($payloadPaths + $priorOwned + @('BL1GOTYVR.ini','dxgi.dll.pcvrhub_off') | Select-Object -Unique | ForEach-Object { Join-Path $binPath $_ })
+    $tracked += @($manifest,(Join-Path $gamePath '.pcvrhub_version'),(Join-Path $PSScriptRoot '.installed_path'),
+        (Join-Path $PSScriptRoot '.installed_version'),
+        (Join-Path $binPath '.pcvrhub_borderlandsgotyenhancedvr_user_backup\BL1GOTYVR.ini.before-safe-start'))
+    $statusPath = ('' + $env:PCVR_HUB_INSTALL_STATUS_PATH).Trim()
+    if ($statusPath -and ([IO.Path]::GetFileName($statusPath) -like 'install_*.json') -and
+        ((Split-Path -Leaf (Split-Path -Parent $statusPath)) -eq 'Transactions')) {
+        $tracked += $statusPath
+    }
+    foreach ($target in $tracked) {
+        if (Test-Path -LiteralPath $target -PathType Container) { throw "A folder occupies a VR file path: $target. No game file was changed." }
+    }
+    $rollbackRoot = Join-Path $work 'rollback'
+    New-Item -ItemType Directory -Path $rollbackRoot -Force | Out-Null
+    $fileStates = @($tracked | Select-Object -Unique | ForEach-Object {
+        $copy = Join-Path $rollbackRoot ('file-'+[guid]::NewGuid().ToString('N'))
+        $existed = Test-Path -LiteralPath $_ -PathType Leaf
+        if ($existed) { Copy-Item -LiteralPath $_ -Destination $copy -Force -ErrorAction Stop }
+        [pscustomobject]@{ Live=$_; Copy=$copy; Existed=$existed }
+    })
+    $backupCopy = Join-Path $rollbackRoot 'owned-backup'
+    $hadBackup = Test-Path -LiteralPath $backupRoot -PathType Container
+    if ($hadBackup) { Copy-Item -LiteralPath $backupRoot -Destination $backupCopy -Recurse -Force -ErrorAction Stop }
+    $backupState = [pscustomobject]@{ Live=$backupRoot; Copy=$backupCopy; Existed=$hadBackup }
+    $changesStarted = $true
 
     $liveProxy = Join-Path $binPath 'dxgi.dll'
     $parkedProxy = Join-Path $binPath 'dxgi.dll.pcvrhub_off'
@@ -208,9 +246,16 @@ try {
     $watch = @('BL1GOTYVR.dll','BL1GOTYVRConfig.exe','dxgi.dll') | ForEach-Object { Join-Path $binPath $_ }
     foreach ($path in $watch) { if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Installation verification failed: $(Split-Path -Leaf $path) is missing." } }
     if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $binPath -ArchivePath $archive)) { throw 'One or more required VR binaries did not survive the antivirus check.' }
+    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$gamePath,(New-Object Text.UTF8Encoding($false)))
     [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version'),([string]$release.Tag),(New-Object Text.UTF8Encoding($false)))
     Save-InstalledStamp -GameDir $gamePath -Version ([string]$release.Tag) -HubDir $PSScriptRoot
+    $stamp = Join-Path $gamePath '.pcvrhub_version'
+    if (-not (Test-Path -LiteralPath $stamp -PathType Leaf) -or
+        ([IO.File]::ReadAllText($stamp)).Trim() -ne [string]$release.Tag) {
+        throw 'The installed version receipt could not be verified; the prior installation is being restored.'
+    }
     if ($restoreFlat) { Restore-FlatChoice -Bin $binPath -WasFlat $true; $restoreFlat = $false; Write-Info 'Your previous Flat mode was preserved.' }
+    $changesStarted = $false
     Write-OK "BL1GOTYVR $($release.Tag) is installed and detected as VR Ready."
 
     Write-Step 5 5 'Choosing VR render settings'
@@ -243,9 +288,28 @@ try {
     Write-Host ''
     Write-Host " $QUIP" -ForegroundColor Magenta
 } catch {
+    $failure = $_
+    if ($changesStarted) {
+        try {
+            foreach ($state in $fileStates) {
+                if ($state.Existed) {
+                    $parent = Split-Path -Parent $state.Live
+                    if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+                    Copy-Item -LiteralPath $state.Copy -Destination $state.Live -Force -ErrorAction Stop
+                } elseif (Test-Path -LiteralPath $state.Live -PathType Leaf) {
+                    Remove-Item -LiteralPath $state.Live -Force -ErrorAction Stop
+                }
+            }
+            if ($backupState) {
+                if (Test-Path -LiteralPath $backupState.Live -PathType Container) { Remove-Item -LiteralPath $backupState.Live -Recurse -Force -ErrorAction Stop }
+                if ($backupState.Existed) { Copy-Item -LiteralPath $backupState.Copy -Destination $backupState.Live -Recurse -Force -ErrorAction Stop }
+            }
+            $restoreFlat = $false
+        } catch { throw "BL1GOTYVR setup failed and rollback could not restore the previous files: $($_.Exception.Message); original error: $($failure.Exception.Message)" }
+    }
     Write-Host ''
-    Write-Host " [X] $($_.Exception.Message)" -ForegroundColor Red
-    throw
+    Write-Host " [X] $($failure.Exception.Message)" -ForegroundColor Red
+    throw $failure
 } finally {
     if ($restoreFlat -and $binPath) {
         try { Restore-FlatChoice -Bin $binPath -WasFlat $true } catch { Write-Warn 'Setup could not restore the parked Flat mode; use the Hub Flat / VR switch after reviewing the two proxy files.' }

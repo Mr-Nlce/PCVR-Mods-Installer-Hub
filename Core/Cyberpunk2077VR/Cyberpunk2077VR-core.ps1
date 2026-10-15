@@ -17,18 +17,14 @@
 $Host.UI.RawUI.WindowTitle = "Cyberpunk 2077 VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME     = "CyberpunkVRPort v0.1.6"
+$MOD_NAME     = "CyberpunkVRPort v0.1.7"
 $MOD_AUTHOR   = "dariulone"
 $INFO_URL     = "https://github.com/dariulone/cyberpunk-vr-port"
-$MOD_URL      = "https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.1.6/CyberpunkVRPort-0.1.6.zip"
+$MOD_URL      = "https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.1.7/CyberpunkVRPort-0.1.7.zip"
 # Tag of the pinned fallback build above - recorded as the installed
 # version when the live GitHub lookup can't be reached. Must match the
 # release tag_name the Hub sees via /releases/latest (no leading "v").
-$MOD_PINNED_TAG = "0.1.6"
-# The author's published sha256, checked against the supplied release ZIP.
-# GitHub now exposes the same digest for live release assets; the pinned
-# value remains the trusted fallback if that field is absent or offline.
-$MOD_PINNED_SHA = "3ccc058303812fb5525192e666ea89950735abe3a6c436e4ff8422cc5ac761e0"
+$MOD_PINNED_TAG = "0.1.7"
 $MOD_RELEASES = "https://github.com/dariulone/cyberpunk-vr-port/releases"
 # Frameworks needed for the motion-controlled hands + VR HUD. Pinned to
 # versions known to work with this mod build; only installed if missing.
@@ -95,10 +91,13 @@ $NEXUS_MODS = @(
        RequiredVersion = "0.2.3"
        Marker = "red4ext\plugins\input_loader\input_loader.dll"; Phase = "before"
        Requires = @()
-       # The port ships input files, but 0.1.6's own INSTALL.txt explicitly
-       # makes Input Loader optional with HUDitor: it is needed to merge the
-       # supplied HUD layout/editor bindings, not to run the VR port itself.
-       What = "merges r6\input\*.xml for HUDitor's supplied VR layout and F11 editor binding" },
+       What = "required for the VR scanner HUD editor's Right Shift binding" },
+    @{ Name = "More Occluders (Scripted)"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/33136?tab=files"
+       RequiredVersion = "0.3"
+       Marker = "r6\scripts\MoreOccluders.reds"; Phase = "before"
+       Requires = @()
+       FilenamePattern = '(?i)More[ _-]?Occluders.*Scripted.*33136.*0[._-]3'
+       What = "the separate Scripted v0.3 file requested by CyberpunkVRPort; do not select ArchiveXL v0.4" },
     @{ Name = "Mod Settings"; Url = "https://www.nexusmods.com/cyberpunk2077/mods/4885?tab=files"
        RequiredVersion = "0.2.21"
        Marker = "red4ext\plugins\mod_settings\mod_settings.dll"; Phase = "before"
@@ -191,7 +190,7 @@ $NEXUS_MODS = @(
 # window. Doing it twice, two ways, in one installer is how a user
 # stops trusting either.
 function Install-NexusMod {
-    param($Mod, [string]$GameRoot, [string]$TempDir)
+    param($Mod, [string]$GameRoot, [string]$TempDir, [switch]$Required)
 
     Write-Host ""
     Write-Host "  $($Mod.Name) - $($Mod.What)" -ForegroundColor White
@@ -203,10 +202,13 @@ function Install-NexusMod {
         # Say it BEFORE the download, not after it fails to load.
         Write-Host ("   REQUIRES THE " + $Mod.Dlc.ToUpper() + " DLC - skip this one if you do not own it") -ForegroundColor Yellow
     }
-    $ans = Pause-User "Press Enter to $(if ($Mod.DirectUrl) { 'fetch it' } else { 'open the page' }) (or type s to skip this one)..."
+    $ans = Pause-User "Press Enter to $(if ($Mod.DirectUrl) { 'fetch it' } else { 'open the page' })$(if (-not $Required) { ' (or type s to skip this one)' })..."
     # Exactly "s" or "skip" - NOT any word starting with s. Both
     # questions use the same test, so the same typing works in both.
-    if ("$ans".Trim() -match '^(?i)s(kip)?$') { Write-Info "Skipped $($Mod.Name)."; return $false }
+    if ("$ans".Trim() -match '^(?i)s(kip)?$') {
+        if (-not $Required) { Write-Info "Skipped $($Mod.Name)."; return $false }
+        Write-Warn "$($Mod.Name) is required; choose the correct archive to continue."
+    }
 
     # A REPOSITORY CAN JUST BE FETCHED. Nexus needs a login and a browser,
     # so those open a page - but a GitHub repo zip is a plain URL, and
@@ -238,7 +240,7 @@ function Install-NexusMod {
 
     # Downloads folder next - after a Nexus download the file is usually
     # right there, and picking it beats asking the user to go and find it.
-    $dl  = Join-Path $env:USERPROFILE "Downloads"
+    $dl  = Get-PCVRDownloadsFolder
     if (-not $zip -and (Test-Path -LiteralPath $dl)) {
         # THE NEXUS MOD ID IS THE RELIABLE KEY. Nexus puts it in every
         # file name, and it never changes. Matching on our DISPLAY name
@@ -247,7 +249,9 @@ function Install-NexusMod {
         # the name match found nothing and the mod went uninstalled.
         $modId = ([regex]::Match([string]$Mod.Url, '/mods/(\d+)')).Groups[1].Value
         $key   = ($Mod.Name -replace '[^A-Za-z]', '')
-        $files = @(Get-ChildItem -LiteralPath $dl -Filter "*.zip" -File -ErrorAction SilentlyContinue |
+        $files = @(Get-ChildItem -LiteralPath $dl -File -ErrorAction SilentlyContinue |
+                   Where-Object { [IO.Path]::GetExtension($_.Name).ToLowerInvariant() -in @('.zip', '.rar', '.7z') } |
+                   Where-Object { -not $Mod.FilenamePattern -or $_.Name -match $Mod.FilenamePattern } |
                    Sort-Object LastWriteTime -Descending)
 
         $cand = $null
@@ -270,20 +274,53 @@ function Install-NexusMod {
             $zip = $cand.FullName
         }
     }
+    $rejectedArchives = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    while ($true) {
     while (-not $zip) {
-        $inp = (Read-Host "  Drag the $($Mod.Name) .zip here and press Enter (or type s to skip)").Trim().Trim('"')
-        # "s" is the documented way out, the same as the question above.
-        # An empty line still works too - someone who just hits Enter
-        # here means the same thing, and refusing it would trap them.
-        if (-not $inp -or $inp -match '^(?i)s(kip)?$') { break }
+        $inp = ([string](Read-Host "  Drag the $($Mod.Name) archive here, or press Enter to check Downloads again$(if (-not $Required) { ' (s to skip)' })")).Trim().Trim('"')
+        if ($inp -match '^(?i)s(kip)?$') {
+            if (-not $Required) { Write-Info "Skipped $($Mod.Name)."; return $false }
+            Write-Warn "$($Mod.Name) is required. Download its correct archive or drag it here."
+            if ([Console]::IsInputRedirected) { return $false }
+            continue
+        }
+        if (-not $inp) {
+            # Enter means the download has finished. Recheck the registered
+            # Downloads folder; it must never silently mean Skip.
+            $fresh = @(Get-ChildItem -LiteralPath $dl -File -ErrorAction SilentlyContinue |
+                Where-Object { [IO.Path]::GetExtension($_.Name).ToLowerInvariant() -in @('.zip','.rar','.7z') -and
+                    (-not $Mod.FilenamePattern -or $_.Name -match $Mod.FilenamePattern) -and
+                    -not $rejectedArchives.Contains($_.FullName) } |
+                Sort-Object LastWriteTime -Descending)
+            $id = ([regex]::Match([string]$Mod.Url, '/mods/(\d+)')).Groups[1].Value
+            if ($id) { $fresh = @($fresh | Where-Object { $_.Name -match ("(?<![0-9])" + [regex]::Escape($id) + "(?![0-9])") }) }
+            if ($fresh.Count) { $zip = $fresh[0].FullName; Write-OK "Found in Downloads: $($fresh[0].Name)" }
+            else { Write-Warn "The $($Mod.Name) archive is not in Downloads yet. Download it or drag the correct file here." }
+            if (-not $zip -and [Console]::IsInputRedirected) { return $false }
+            continue
+        }
         if (Test-Path -LiteralPath $inp) { $zip = $inp } else { Write-Fail "Not found: $inp" }
     }
-    if (-not $zip) { Write-Info "Skipped $($Mod.Name)."; return $false }
+    # The Downloads scan filters the Scripted file by name, but a dragged path
+    # bypasses that scan. Reject the known ArchiveXL variant before extraction.
+    if ($Mod.FilenamePattern -and [IO.Path]::GetFileName($zip) -match '(?i)Archive[ _-]?XL' -and
+        [IO.Path]::GetFileName($zip) -notmatch $Mod.FilenamePattern) {
+        Write-Warn "That is the ArchiveXL file. $($Mod.Name) needs the Scripted v0.3 file."
+        [void]$rejectedArchives.Add($zip)
+        $zip = $null
+        continue
+    }
+    if ([IO.Path]::GetExtension($zip).ToLowerInvariant() -in @('.rar','.7z') -and -not (Get-SevenZip -Required)) {
+        Write-Warn "7-Zip is required to open this archive. Install it, then use the same file again."
+        $zip = $null
+        continue
+    }
 
     $exDir = Join-Path $TempDir ("nx_" + [System.IO.Path]::GetRandomFileName())
     try {
         New-Item -ItemType Directory -Path $exDir -Force | Out-Null
-        Expand-Archive -LiteralPath $zip -DestinationPath $exDir -Force -ErrorAction Stop
+        $extractResult = Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $exDir -Label $Mod.Name -AllowSkip (-not $Required)
+        if ([string]$extractResult -in @('skip', 'quit')) { return $false }
         # A Nexus ZIP may wrap everything in one folder.
         $root = Get-ExtractedPayloadRoot -ExtractDir $exDir -RelModFile $Mod.Marker -Markers @("bin","red4ext","r6","archive","engine","mods")
 
@@ -321,7 +358,10 @@ function Install-NexusMod {
             foreach ($t in @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Select-Object -First 8)) {
                 Write-Host "    $($t.Name)" -ForegroundColor DarkGray
             }
-            return $false
+            Write-Warn "Choose the $($Mod.Name) archive and try again."
+            [void]$rejectedArchives.Add($zip)
+            $zip = $null
+            continue
         }
 
         Copy-Tree -Src $root -Dst $dst
@@ -332,7 +372,15 @@ function Install-NexusMod {
         return $false
     } catch {
         Write-Fail "$($Mod.Name) could not be installed: $($_.Exception.Message)"
-        return $false
+        Write-Warn "Choose another $($Mod.Name) archive and try again."
+        [void]$rejectedArchives.Add($zip)
+        $zip = $null
+        continue
+    } finally {
+        if (Test-Path -LiteralPath $exDir -PathType Container) {
+            Remove-Item -LiteralPath $exDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
     }
 }
 
@@ -359,6 +407,12 @@ $GAME_EXE_REL = "bin\x64\Cyberpunk2077.exe"
 # Since 0.1.0 the mod loads through RED4ext instead of proxying dxgi.dll.
 # This file is what proves the VR mod is installed.
 $MOD_MARKER   = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll"
+$MOD_REQUIRED = @(
+    $MOD_MARKER,
+    'archive\pc\mod\cyberpunkvrport.archive',
+    'r6\input\CyberpunkVRPort_ScannerHud.xml',
+    'bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_Stereo\init.lua'
+)
 # A leftover dxgi.dll from an older CyberpunkVRPort or from R.E.A.L. VR must
 # go: the mod's own INSTALL.txt says two VR paths fight over the same hooks.
 $OLD_PROXY    = "bin\x64\dxgi.dll"
@@ -545,30 +599,24 @@ New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 # Download a zip (with mirrors + manual fallback) and overlay it into the
 # game folder. Returns $true on success.
 function Install-Component {
-    param([string]$Label, [string[]]$Urls, [string]$ManualUrl, [string]$ManualName, [string]$PayloadRelFile = "", [string]$ExpectedSha = "")
+    param([string]$Label, [string[]]$Urls, [string]$ManualUrl, [string]$ManualName, [string]$PayloadRelFile = "", [string]$ExpectedTag = "")
     $tmpZip = Join-Path $tempDir ("dl_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-    $null = Invoke-SafeDownload -Urls $Urls -Destination $tmpZip -Label $Label `
+    $downloadInfo = @{}
+    $downloadResult = Invoke-SafeDownload -Urls $Urls -Destination $tmpZip -Label $Label `
                 -ManualUrl $ManualUrl `
                 -Instructions "Download $ManualName from the page that opened and drop it into the opened folder, then choose Retry." `
-                -SkipMessage "Skipped - $Label was NOT installed." `
-                -ExpectedSha256 $ExpectedSha
+                -SkipMessage "Skipped - $Label was NOT installed." -DownloadInfo $downloadInfo
     if (-not (Test-Path $tmpZip)) { return $false }
-
-    # A PUBLISHED HASH IS ONLY WORTH ANYTHING IF IT IS CHECKED. For a live
-    # GitHub release this is the asset digest; for the offline fallback it
-    # is the author's published digest recorded above.
-    if ($ExpectedSha) {
-        try {
-            $got = (Get-FileHash -LiteralPath $tmpZip -Algorithm SHA256 -ErrorAction Stop).Hash
-            if ($got -and ($got.ToLower() -ne $ExpectedSha.ToLower())) {
-                Write-Fail "$Label : the download does not match the published checksum."
-                Write-Host "    expected $ExpectedSha" -ForegroundColor DarkGray
-                Write-Host "    got      $($got.ToLower())" -ForegroundColor DarkGray
-                Write-Host "    Nothing was installed." -ForegroundColor Gray
-                return $false
-            }
-            Write-OK "Checksum verified."
-        } catch { Write-Warn "Could not check the checksum - carrying on." }
+    if ($ExpectedTag) {
+        $manualName = if ($downloadInfo.SourcePath) { [IO.Path]::GetFileName([string]$downloadInfo.SourcePath) } else { '' }
+        $manualTag = if ($manualName -match '(?i)^CyberpunkVRPort-v?(\d+(?:\.\d+)+)(?: \(\d+\))?\.zip$') { $matches[1] } else { '' }
+        $wantedTag = $ExpectedTag.TrimStart('v','V')
+        $sameResolvedAsset = ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$Urls[0])
+        $sameManualRelease = ([string]$downloadResult -eq 'retry' -and $manualTag -eq $wantedTag)
+        if (-not ($sameResolvedAsset -or $sameManualRelease)) {
+            Write-Fail "The selected CyberpunkVRPort archive does not prove release $ExpectedTag. No game files were changed."
+            return $false
+        }
     }
 
     $exDir = Join-Path $tempDir ("ex_" + [System.IO.Path]::GetRandomFileName())
@@ -596,10 +644,26 @@ function Install-Component {
         Write-Fail "$Label : that archive does not contain $PayloadRelFile - nothing was copied."
         return $false
     }
+    if ($Label -like 'CyberpunkVRPort *') {
+        foreach ($relative in $MOD_REQUIRED) {
+            if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot $relative) -PathType Leaf)) {
+                Write-Fail "$Label : release payload is missing $relative - nothing was copied."
+                return $false
+            }
+        }
+    }
     try { Copy-Tree -Src $payloadRoot -Dst $gameRoot } catch { Write-Fail "Copy failed: $($_.Exception.Message)"; return $false }
     if ($PayloadRelFile -and -not (Test-Path -LiteralPath (Join-Path $gameRoot $PayloadRelFile))) {
         Write-Fail "$Label : copied, but $PayloadRelFile is not in the game folder."
         return $false
+    }
+    if ($Label -like 'CyberpunkVRPort *') {
+        foreach ($relative in $MOD_REQUIRED) {
+            if (-not (Test-Path -LiteralPath (Join-Path $gameRoot $relative) -PathType Leaf)) {
+                Write-Fail "$Label : copied, but $relative is missing from the game folder."
+                return $false
+            }
+        }
     }
     return $true
 }
@@ -749,6 +813,16 @@ function Get-LatestTagByRedirect {
     return $null
 }
 
+function Get-MissingCyberpunkRuntimeFiles {
+    param([string]$GameRoot)
+    $required = @($RED4EXT_MARK, $CET_MARK) + @($FRAMEWORKS | ForEach-Object { [string]$_.Marker })
+    foreach ($relative in $required) {
+        if (-not (Test-Path -LiteralPath (Join-Path $GameRoot $relative) -PathType Leaf)) {
+            Write-Output $relative
+        }
+    }
+}
+
 # A plain numeric comparison, kept LOCAL on purpose: the Hub's full
 # Test-OnlineVersionIsNewer lives in Helpers.ps1, which no installer
 # loads - pulling a whole module in for one comparison would be worse
@@ -866,6 +940,13 @@ foreach ($fw in $FRAMEWORKS) {
     }
 }
 
+$missingRuntime = @(Get-MissingCyberpunkRuntimeFiles -GameRoot $gameRoot)
+if ($missingRuntime.Count) {
+    foreach ($relative in $missingRuntime) { Write-Fail "Required framework file is missing: $relative" }
+    Pause-User 'Press Enter to close setup; CyberpunkVRPort was not copied or marked complete.'
+    exit 1
+}
+
 # -------------------------------------------------------
 # STEP 2b: HUDitor - OPTIONAL, and it has to happen NOW
 # -------------------------------------------------------
@@ -876,23 +957,21 @@ foreach ($fw in $FRAMEWORKS) {
 #  VR HUD layout is lost. So it is offered here, before the VR
 #  mod, or not at all this run.
 # -------------------------------------------------------
-$hudChain = Get-NexusChain -Names @("HUDitor")
-$hudMissing = @($hudChain | Where-Object { $global:RepairMode -or -not (Test-Path (Join-Path $gameRoot $_.Marker)) })
-
-if ($hudMissing.Count -gt 0) {
-    Write-Host ""
-    Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
-    Write-Host " HUDitor - optional, and it has to go in NOW" -ForegroundColor Cyan
-    Write-Host "------------------------------------------------------------" -ForegroundColor Magenta
-    Write-Host ""
-    Write-Host "  Moves the HUD into view. The VR mod overwrites its files," -ForegroundColor Gray
-    Write-Host "  so installed afterwards it stops working." -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "  For each one the page opens; download the file and drop it here." -ForegroundColor Gray
-    Write-Host "  Type s and Enter to skip one." -ForegroundColor Gray
-
-    foreach ($m in $hudMissing) {
-        [void](Install-NexusMod -Mod $m -GameRoot $gameRoot -TempDir $tempDir)
+$requiredNexus = @(Get-NexusChain -Names @("Input Loader", "More Occluders (Scripted)"))
+Write-Host ""
+Write-Host " Required Nexus components for CyberpunkVRPort 0.1.7" -ForegroundColor Cyan
+Write-Host " Input Loader and More Occluders (Scripted v0.3) must be present" -ForegroundColor White
+Write-Host " before the VR mod is copied. Select the Scripted file on Nexus," -ForegroundColor White
+Write-Host " not its ArchiveXL v0.4 main file." -ForegroundColor Yellow
+foreach ($m in $requiredNexus) {
+    if (-not $global:RepairMode -and (Test-Path -LiteralPath (Join-Path $gameRoot $m.Marker) -PathType Leaf)) {
+        Write-OK "$($m.Name) is already present."
+        continue
+    }
+    if (-not (Install-NexusMod -Mod $m -GameRoot $gameRoot -TempDir $tempDir -Required)) {
+        Write-Fail "$($m.Name) is required. The VR mod was not installed."
+        Pause-User "Press Enter to close setup."
+        exit 1
     }
 }
 
@@ -957,11 +1036,10 @@ if ($latest -and $latest.Url) {
 # latest tag as installed - so the tile showed no update, for a build the
 # user does not actually have. Two calls, and the tag follows whichever
 # one really landed.
-$liveSha = if ($latest -and $latest.Sha) { [string]$latest.Sha } else { "" }
-$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedSha $liveSha
+$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedTag $installedTag
 if (-not $modOk -and ($modUrls -notcontains $MOD_URL)) {
     Write-Warn "The $installedTag download did not work - falling back to the known build $MOD_PINNED_TAG."
-    $modOk = Install-Component -Label "CyberpunkVRPort $MOD_PINNED_TAG" -Urls @($MOD_URL) -ManualUrl $MOD_RELEASES -ManualName "the CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedSha $MOD_PINNED_SHA
+    $modOk = Install-Component -Label "CyberpunkVRPort $MOD_PINNED_TAG" -Urls @($MOD_URL) -ManualUrl $MOD_RELEASES -ManualName "the CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedTag $MOD_PINNED_TAG
     # The version recorded from here on is the one on disk, not the one
     # we hoped for - otherwise the real update would never be offered.
     if ($modOk) {
@@ -1029,6 +1107,48 @@ if ($modOk) {
             }
         }
     } catch {}
+    # The 0.1.7 publisher removed these older port files. Keep them outside
+    # the loadable CET/redscript paths so an update cannot run both versions.
+    $legacyPaths = @(
+        'r6\scripts\CyberpunkVRPort_LootUi\vrport_loot_ui.reds',
+        'r6\scripts\CyberpunkVRPort_SettingsGuard\vrport_settings_guard.reds',
+        'bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_QuickBoot'
+    )
+    foreach ($relative in $legacyPaths) {
+        $oldPath = Join-Path $gameRoot $relative
+        if (-not (Test-Path -LiteralPath $oldPath)) { continue }
+        try {
+            $backupPath = Join-Path (Join-Path $gameRoot '.pcvrhub_cyberpunkvrport_legacy_backup') $relative
+            if (Test-Path -LiteralPath $backupPath) { $backupPath += '.' + [guid]::NewGuid().ToString('N') }
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $backupPath))
+            Move-Item -LiteralPath $oldPath -Destination $backupPath -ErrorAction Stop
+            Write-OK "Parked obsolete port path: $relative"
+        } catch {
+            Write-Fail "Could not park obsolete ${relative}: $($_.Exception.Message)"
+            Pause-User 'Press Enter to close setup without marking this update complete.'
+            exit 1
+        }
+    }
+    foreach ($relative in $MOD_REQUIRED) {
+        if (-not (Test-Path -LiteralPath (Join-Path $gameRoot $relative) -PathType Leaf)) {
+            Write-Fail "Required port file is missing after installation: $relative"
+            Pause-User 'Press Enter to close setup without marking this update complete.'
+            exit 1
+        }
+    }
+    foreach ($m in $requiredNexus) {
+        if (-not (Test-Path -LiteralPath (Join-Path $gameRoot $m.Marker) -PathType Leaf)) {
+            Write-Fail "Required dependency is missing after installation: $($m.Name)"
+            Pause-User 'Press Enter to close setup without marking this update complete.'
+            exit 1
+        }
+    }
+    $missingRuntime = @(Get-MissingCyberpunkRuntimeFiles -GameRoot $gameRoot)
+    if ($missingRuntime.Count) {
+        foreach ($relative in $missingRuntime) { Write-Fail "Required framework file is missing after installation: $relative" }
+        Pause-User 'Press Enter to close setup without marking this update complete.'
+        exit 1
+    }
     # Record the installed release tag so the Hub can flip the card to
     # "Update" when GitHub publishes a newer release (same scheme as the
     # other GitHub-tracked mods). File lives next to this installer.

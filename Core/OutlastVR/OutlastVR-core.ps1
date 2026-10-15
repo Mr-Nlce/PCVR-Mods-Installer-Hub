@@ -20,12 +20,14 @@
 
 param(
     [Alias('InstallerChoice')]
-    [ValidateSet('','halcyon','hammerthis')]
+    [ValidateSet('','halcyon','insanity')]
     [string]$Mod = ''
 )
 
+$installerTargetMod = $Mod
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
 . (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
+$Mod = $installerTargetMod
 
 $Host.UI.RawUI.WindowTitle = "Outlast VR Installer"
 $ErrorActionPreference = "Stop"
@@ -74,49 +76,23 @@ $GRAIN_URL   = "https://www.nexusmods.com/outlast/mods/65?tab=files"
 $TFC_URL     = "https://www.nexusmods.com/site/mods/588?tab=files"
 $DOTNET6_URL = "https://aka.ms/dotnet/6.0/windowsdesktop-runtime-win-x64.exe"
 
-# ---- The SECOND mod, added 2026-08-20 -------------------------
-# The original Hammerthis alpha injected into the running game.
-# Version 1.0 instead copies its runtime beside OLGame.exe.
-#
-# WE STILL PUT IT UNDER THE GAME - in <game>\_vrmods\hammerthis\ -
-# so each mod has a separate store. The Hub can then find
-# it the same way it finds every other mod, uninstalling is one
-# folder to delete, and the two mods sit side by side where anyone
-# can see both. No file of the game itself is touched either way.
-#
-# Query the release list to support both stable and prerelease builds.
-$MODB_NAME   = "Outlast VR (drop-in)"
-$MODB_AUTHOR = "Hammerthis"
-$MODB_REPO   = "Hammerthis/Outlast-Vr-Mod"
+# The motion-control slot replaces Hammerthis with T-Diamond's mod.
+# Keep the old store identifiable until the new payload and publisher
+# setup have succeeded, so a failed migration can still be recovered.
+$MODB_NAME   = "Insanity Engine VR"
+$MODB_AUTHOR = "T-Diamond"
+$MODB_REPO   = "TdiamondOf/InsanityEngineVR"
 $MODB_RELEASES = "https://github.com/$MODB_REPO/releases"
-# !!! v1.0 CHANGED THE WHOLE DELIVERY MODEL (2026-08-28). Up to the
-# alpha this was an INJECTOR: extract anywhere, launch Steam, inject a
-# DLL. v1.0 is a DROP-IN - its README says so outright: no injector, no
-# build tools, no extra launcher, extract into the game folder.
-#
-# AND IT SHIPS THE SAME FILE NAMES AS HALCYON'S MOD. Read from the real
-# archive: d3d9.dll, openxr_loader.dll and outlastvr.ini all land in
-# Binaries\Win64, exactly where Halcyon's do. The two cannot lie in that
-# folder at the same time, and the old trick of renaming d3d9.dll to
-# .off is useless now - the file the other mod needs is called the same.
-#
-# So both are PARKED, the way BioShock does it: each keeps its files in
-# a store, only the active one has them in Binaries\Win64, and the two
-# launchers swap them using the verified OutlastVR-Switch.ps1 runtime.
-$MODB_DIR    = "_vrmods\hammerthis"
+# Both mods share d3d9.dll, openxr_loader.dll, outlastvr.ini and
+# Outlast-VR.bat. Their complete payloads must remain parked separately.
+$MODB_DIR    = "_vrmods\insanity"
 $MODA_DIR    = "_vrmods\halcyon"
-# $MODB_BAT is gone: v1.0 ships no launcher of its own (drop-in).
-# Read from the real v1.0 archive, not guessed: 7 entries, 6,072,933 B,
-# sha256 3fc1491e413cfec68636670212de9bbd06dff3e3262e328546de82051f3e5a86.
-# Everything sits under Binaries\Win64 except the readme.
-# openxr_loader_real.dll is new in v1.0: the mod's own loader ships
-# beside the proxy it replaces.
-$MODB_FILES  = @("d3d9.dll", "openxr_loader.dll", "openxr_loader_real.dll",
-                 "outlastvr.ini", "assets\miles\body_albedo.tga")
+$MODB_FILES  = @("d3d9.dll", "openxr_loader.dll", "dxvk_d3d9.dll",
+                 "outlastvr.ini", "OutlastVR_DoorHandles.ini", "Outlast-VR.bat")
 # Where the two switch launchers go - same shape as BioShock.
 $VRLAUNCH    = "_vrmods\VRLaunch"
 $LAUNCH_A    = "Outlast VR (Halcyon).bat"
-$LAUNCH_B    = "Outlast VR (Hammerthis).bat"
+$LAUNCH_B    = "Outlast VR (Insanity).bat"
 
 function Install-OutlastPackage {
     param([string]$GameRoot, [string]$Name, [string]$ArchivePath)
@@ -184,12 +160,10 @@ Write-Host "       Controls: " -NoNewline -ForegroundColor Gray
 Write-Host " VR CONTROLLERS " -ForegroundColor Black -BackgroundColor Magenta
 Write-Host "       Tracked controllers and VR hands. You reach out and" -ForegroundColor Gray
 Write-Host "       GRAB the camcorder, raise it to your face yourself," -ForegroundColor Gray
-Write-Host "       and R3 on it gives you the night vision." -ForegroundColor Gray
+Write-Host "       and use the camcorder with your hands." -ForegroundColor Gray
 Write-Host "       " -NoNewline
-Write-Host " DROP-IN BUILD - expect rough edges " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "       Props can vanish at some angles, shadows can shift," -ForegroundColor Gray
-Write-Host "       framerate can drop, and the motion interactions are" -ForegroundColor Gray
-Write-Host "       incomplete. Free, on GitHub." -ForegroundColor Gray
+Write-Host " EARLY BETA - expect rough edges " -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "       F10 opens its settings; G recenters. Free on GitHub." -ForegroundColor Gray
 Write-Host ""
 Write-Host "   [3] Both - installed side by side, switchable afterwards." -ForegroundColor White
 Write-Host "       The Hub then shows one Play button per mod, so you" -ForegroundColor Gray
@@ -197,11 +171,11 @@ Write-Host "       can pick gamepad or VR controllers per session." -ForegroundC
 Write-Host ""
 $modChoice = switch ($Mod) {
     'halcyon'    { '1' }
-    'hammerthis' { '2' }
+    'insanity'   { '2' }
     default      { '' }
 }
 if ($modChoice) {
-    $selectedByHub = if ($modChoice -eq '1') { 'Halcyon' } else { 'Hammerthis' }
+    $selectedByHub = if ($modChoice -eq '1') { 'Halcyon' } else { 'Insanity' }
     Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
     Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
 } else {
@@ -248,6 +222,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $binDir $GAME_EXE))) {
 Write-OK "Game folder: $gameRoot"
 Write-OK "Mod files go into: $binDir"
 Initialize-OutlastStores -GameRoot $gameRoot
+$activeBeforeInstall = Get-OutlastActiveMod -GameRoot $gameRoot
 
 if ($doA) {
 # ---- Halcyon: the file-copy route -----------------------------
@@ -309,53 +284,68 @@ if ($doA) {
 
     # Marker for the Hub - into the INSTALLER folder, not the game folder.
     Save-OutlastActiveConfig -GameRoot $gameRoot
+    Save-OutlastGameConfig -GameRoot $gameRoot -Name 'Halcyon'
 
 } else {
     Write-Info "Skipping the Halcyon mod - not chosen."
     $grainRemoved = $false
 }
 
-# ---- 4b. Hammerthis: stage the drop-in files in its own store ---
+# ---- 4b. Insanity Engine VR: stage its publisher files ---
 if ($doB) {
     Write-Host ""
     Write-Info "Installing $MODB_NAME by $MODB_AUTHOR"
     $bDir = Join-Path $gameRoot $MODB_DIR
 
-    # Include stable v1.0 as well as any future prerelease packages.
-    $bUrl = 'https://github.com/Hammerthis/Outlast-Vr-Mod/releases/download/v1.0/OutlastVR_v1.0.zip'
-    $bTag = 'v1.0'; $bAsset = 'OutlastVR_v1.0.zip'; $bSize = 6072933
-    $bHash = '3fc1491e413cfec68636670212de9bbd06dff3e3262e328546de82051f3e5a86'
+    # Resolve the publisher's current installable ZIP, including prereleases.
+    # Source ZIPs contain code rather than the Windows game payload.
+    $bUrl = ''; $bTag = ''; $bAsset = ''
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$MODB_REPO/releases" `
                     -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         foreach ($r in @($rels)) {
             if ($r.draft) { continue }
-            $a = @($r.assets) | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1
+            $a = @($r.assets) | Where-Object { $_.name -match '(?i)^InsanityEngineVR-v[^/]+\.zip$' -and $_.name -notmatch '(?i)-source\.zip$' } | Select-Object -First 1
             if ($a) { $bUrl = [string]$a.browser_download_url; $bTag = [string]$r.tag_name
-                      $bAsset = [string]$a.name; $bSize = [long]$a.size
-                      $bHash = if ($a.digest -match '^sha256:(\w{64})$') { $Matches[1] } else { $null }; break }
+                      $bAsset = [string]$a.name; break }
         }
     } catch { Write-Warn "GitHub could not be reached." }
+    $offlineBZip = $null
+    if (-not $bUrl) {
+        Write-Warn 'The current GitHub release could not be checked. A local file needs your confirmation.'
+        $usableInsanityZip = {
+            param($path)
+            if ([IO.Path]::GetFileName($path) -notmatch '(?i)^InsanityEngineVR-(v[^\\/]+)(?<!-source)\.zip$') { return $false }
+            $entries = Get-ArchiveTopLevel -ArchivePath $path
+            if (-not $entries.Ok) { return $false }
+            foreach ($needed in @('d3d9.dll','openxr_loader.dll','dxvk_d3d9.dll','outlastvr.ini','OutlastVR_DoorHandles.ini','Outlast-VR.bat')) {
+                if (-not @($entries.Entries | Where-Object { $_.Replace('/','\') -eq $needed -or $_.Replace('/','\').EndsWith('\' + $needed, [StringComparison]::OrdinalIgnoreCase) }).Count) { return $false }
+            }
+            return $true
+        }
+        $offlineBZip = Find-PredownloadedFile -Patterns @('InsanityEngineVR-v*-beta.zip','InsanityEngineVR-v*.zip') -Label 'Insanity Engine VR' -AllowUnverified -Validator $usableInsanityZip
+        if (-not $offlineBZip) {
+            Pause-User 'Press Enter to open the Insanity Engine VR download page...' | Out-Null
+            try { Start-Process $MODB_RELEASES } catch { Write-Warn "Open manually: $MODB_RELEASES" }
+            Pause-User 'Press Enter when the download is finished...' | Out-Null
+            $offlineBZip = Find-PredownloadedFile -Patterns @('InsanityEngineVR-v*-beta.zip','InsanityEngineVR-v*.zip') -Label 'Insanity Engine VR' -AllowUnverified -Validator $usableInsanityZip -PageAlreadyOpen
+        }
+        if (-not $offlineBZip) { throw 'No installable Insanity Engine VR ZIP was selected. Retry or drag the downloaded file onto installer recovery.' }
+        $bAsset = [IO.Path]::GetFileName($offlineBZip)
+        if ($bAsset -match '(?i)^InsanityEngineVR-(v[^\\/]+)\.zip$') { $bTag = $Matches[1] }
+    }
     Write-OK "Release: $bTag  ($bAsset)"
 
-    # Keep the downloaded package under the game root. Defender has been
-    # observed quarantining the v1.0 ZIP itself, before extraction. If that
-    # happens, the same game-folder exclusion used for the DLL recovery also
-    # protects the retry; a retry in %TEMP% would simply be removed again.
-    $bTmp = Join-Path $gameRoot ("_vrmods\.download-hammerthis-" + [Guid]::NewGuid().ToString("N"))
+    $bTmp = Join-Path $gameRoot ("_vrmods\.download-insanity-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $bTmp -Force | Out-Null
     $safeAssetName = [IO.Path]::GetFileName($bAsset)
-    if (-not $safeAssetName) { $safeAssetName = 'OutlastVR.zip' }
+    if (-not $safeAssetName) { $safeAssetName = 'InsanityEngineVR.zip' }
     $bZip = Join-Path $bTmp $safeAssetName
     $bDownload = @{}
 
     try {
-        # Name AND size have to match the current release, or an older copy
-        # in the downloads folder would install silently. Even a matching
-        # copy is first moved onto the protected game-folder staging ground.
-        $bHave = Find-PredownloadedFile -Patterns @('OutlastVR_v*.zip','OutlastVR-v*.zip') -Label 'the Hammerthis mod' `
-                     -ExpectedName $bAsset -ExpectedSize $bSize
+        $bHave = if ($offlineBZip) { $offlineBZip } else { Find-PredownloadedFile -Patterns @($bAsset) -Label 'Insanity Engine VR' -ExpectedName $bAsset }
         $copiedExisting = $false
         if ($bHave -and (Test-Path -LiteralPath $bHave)) {
             try {
@@ -365,34 +355,48 @@ if ($doB) {
             } catch { Write-Warn "The downloaded copy could not be staged; downloading a clean copy instead." }
         }
         if (-not $copiedExisting) {
+            if (-not $bUrl) { throw 'The selected local Insanity Engine VR ZIP could not be staged. Retry or drag another file onto installer recovery.' }
             $download = Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
                 -DownloadInfo $bDownload `
                 -ManualUrl $MODB_RELEASES `
-                -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
-            if ([string]$download -in @('skip','quit')) { throw 'Hammerthis download was cancelled.' }
+                -Instructions "Download $bAsset from the releases page, save it as '$bZip', then choose Retry."
+            if ([string]$download -in @('skip','quit')) { throw 'Insanity Engine VR download was cancelled.' }
         }
 
-        # This is deliberately a separate survival check for the ZIP itself.
-        # The package can disappear before Install-OutlastPackage ever gets a
-        # chance to inspect or unpack it. After the user excludes the game
-        # folder, retry straight into that folder and verify it again.
         $archiveSurvived = Confirm-PlacedFilesSurvive -Paths @($bZip) -GameDir $gameRoot -Recopy {
-            $retry = Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
-                -DownloadInfo $bDownload `
-                -ManualUrl $MODB_RELEASES `
-                -Instructions "Download the OutlastVR zip from the releases page, save it as '$bZip', then choose Retry."
-            if ([string]$retry -in @('skip','quit')) { throw 'Hammerthis download was cancelled.' }
+            if ($offlineBZip) { Copy-Item -LiteralPath $offlineBZip -Destination $bZip -Force -ErrorAction Stop }
+            else {
+                $retry = Invoke-SafeDownload -Urls @($bUrl) -Destination $bZip -Label "$MODB_NAME $bTag" `
+                    -DownloadInfo $bDownload `
+                    -ManualUrl $MODB_RELEASES `
+                    -Instructions "Download $bAsset from the releases page, save it as '$bZip', then choose Retry."
+                if ([string]$retry -in @('skip','quit')) { throw 'Insanity Engine VR download was cancelled.' }
+            }
         }
-        if (-not $archiveSurvived) { throw 'The Hammerthis package was removed before it could be installed.' }
+        if (-not $archiveSurvived) { throw 'The Insanity Engine VR package is missing before installation.' }
 
-        if ($bDownload.Url -match 'github\.com/Hammerthis/Outlast-Vr-Mod/releases/download/([^/]+)/') {
+        if ($bDownload.Url -match 'github\.com/TdiamondOf/InsanityEngineVR/releases/download/([^/]+)/') {
             $actualTag = [Uri]::UnescapeDataString($Matches[1])
-            if ($actualTag -ne $bTag) { $bHash = $null }
             $bTag = $actualTag
-        } elseif ($bDownload.Count -gt 0) { $bTag = ''; $bHash = $null }
+        } elseif ($bDownload.Count -gt 0) { $bTag = '' }
 
-        if ($bHash -and (Get-FileHash -LiteralPath $bZip -Algorithm SHA256).Hash -ne $bHash) { throw 'Hammerthis package checksum mismatch; no files were installed.' }
-        Install-OutlastPackage -GameRoot $gameRoot -Name 'Hammerthis' -ArchivePath $bZip
+        Install-OutlastPackage -GameRoot $gameRoot -Name 'Insanity' -ArchivePath $bZip
+
+        # The publisher requires its own settings step after the complete
+        # payload is beside OLGame.exe. Keep Halcyon parked while this runs.
+        Switch-OutlastMod -GameRoot $gameRoot -Name 'Insanity'
+        Write-Host ""
+        Write-Host "  Insanity Engine VR needs its one-time game settings." -ForegroundColor White
+        Write-Host "  In the publisher window choose [1] Install and enter your" -ForegroundColor White
+        Write-Host "  headset refresh rate. It backs up the original game INIs." -ForegroundColor White
+        Pause-User "Press Enter to open the publisher setup..." | Out-Null
+        $publisherBatch = Join-Path $binDir 'Outlast-VR.bat'
+        $publisherSetup = Start-Process -FilePath $publisherBatch -WorkingDirectory $binDir -Wait -PassThru -ErrorAction Stop
+        if ($publisherSetup.ExitCode -ne 0) { throw "Insanity Engine VR publisher setup failed with exit code $($publisherSetup.ExitCode)." }
+        $publisherConfig = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'My Games\Outlast\OLGame\Config\OLGame.ini.bak-outlastvr'
+        if (-not (Test-Path -LiteralPath $publisherConfig -PathType Leaf)) { throw 'Publisher setup did not create its game-settings backup. Nothing was marked complete.' }
+        Save-OutlastActiveConfig -GameRoot $gameRoot
+        Save-OutlastGameConfig -GameRoot $gameRoot -Name 'Insanity'
     } finally {
         try { Remove-Item -LiteralPath $bTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
     }
@@ -400,11 +404,12 @@ if ($doB) {
 
 # Activate even a single-mod installation. Never infer Halcyon's identity
 # from the shared d3d9.dll filename; stores and deployed hashes identify it.
-$selectedMod = if ($doA) { 'Halcyon' } else { 'Hammerthis' }
-Switch-OutlastMod -GameRoot $gameRoot -Name $selectedMod
-$placed = @(Get-OutlastModFiles $selectedMod | ForEach-Object { Join-Path $binDir $_ })
+$selectedMod = if ($doA) { 'Halcyon' } else { 'Insanity' }
+$activeAfterInstall = if ($activeBeforeInstall -eq 'Hammerthis' -and $doB) { 'Insanity' } elseif ($activeBeforeInstall) { $activeBeforeInstall } else { $selectedMod }
+Switch-OutlastMod -GameRoot $gameRoot -Name $activeAfterInstall
+$placed = @(Get-OutlastModFiles $activeAfterInstall | ForEach-Object { Join-Path $binDir $_ })
 $activeSurvived = Confirm-PlacedFilesSurvive -Paths $placed -GameDir $gameRoot -Recopy {
-    Switch-OutlastMod -GameRoot $gameRoot -Name $selectedMod
+    Switch-OutlastMod -GameRoot $gameRoot -Name $activeAfterInstall
 }
 if (-not $activeSurvived) { throw 'The active Outlast mod did not survive verification.' }
 Write-OutlastLaunchers -GameRoot $gameRoot -RuntimePath (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
@@ -419,9 +424,13 @@ if ($doB -and $bTag) {
     foreach ($record in @((Join-Path $gameRoot '.pcvrhub_version_b'), (Join-Path $PSScriptRoot '.installed_version_b'))) {
         if (Test-Path -LiteralPath $record) { Remove-Item -LiteralPath $record -Force }
     }
-    Write-Warn 'The manually supplied Hammerthis version is unknown; no version was guessed.'
+    Write-Warn 'The manually supplied Insanity Engine VR version is unknown; no version was guessed.'
 }
-Write-OK "$selectedMod is active. Each installed mod has a verified launcher."
+if ($doB) {
+    # Keep personal INI and unknown files, retire only the old Hub-owned mod.
+    Retire-OutlastHammerthisStore -GameRoot $gameRoot
+}
+Write-OK "$activeAfterInstall is active. Each installed mod has a verified launcher."
 
 # ---- 5. Remove the film grain (optional) ----------------------
 # !!! THIS COMPANION MOD CANNOT BE INSTALLED BY COPYING !!!
@@ -653,7 +662,7 @@ if ($doA) {
     Write-Host "  Halcyon's known issue: light flares can pass through walls." -ForegroundColor Gray
 }
 if ($doB) {
-    Write-Host "  Hammerthis: use its launcher under _vrmods\VRLaunch." -ForegroundColor White
+    Write-Host "  Insanity Engine VR: use Start in VR in the Hub." -ForegroundColor White
     Write-Host "  Its settings are in the active Binaries\Win64\outlastvr.ini." -ForegroundColor White
 }
 Write-Host "  Turn motion blur OFF in Outlast's own settings." -ForegroundColor White

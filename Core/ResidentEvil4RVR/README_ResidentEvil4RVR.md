@@ -2,7 +2,7 @@
 
 **REFramework** by **praydog**, with the **RE4VR** motion-control add-on by **Talemann** - turns **Resident Evil 4 (Remake)** into a cinematic, action-heavy VR horror experience. The village ambush, castle siege, and Regenerator encounters are especially intense in VR.
 
-> This is an **external** mod. **Get Installer** starts the download of the author's own **RE4VR 2.1** setup (about 100 MB) straight from his site - he asks people to take it from there and nowhere else. The setup then does everything itself.
+> This is an **external** mod. **Get Installer** starts the download of the author's own **RE4VR 2.1.5** setup (about 98 MB) straight from his site - he asks people to take it from there and nowhere else. The Hub records that the link was opened, not that the external setup completed.
 
 ## What you get
 - Full VR conversion with head tracking and first-person gameplay enhancements
@@ -17,9 +17,9 @@
 ## How to install
 Press **Get Installer** on this game's page - the download starts right away. Run the setup and click Next; it drives itself from there.
 
-**What the setup does, in its own words:** finds your RE4 folder, checks the game version and warns if it is wrong, **downgrades the game** to the last version before the 2026 update (the upscaler does not work on the newer one), asks whether you want OpenVR or OpenXR and Steam or Meta, installs ViGEm if you do not have it, and installs the newest mod build.
+**What the current publisher page says:** the setup finds your RE4 folder, removes leftovers from a previous mod install, asks for OpenVR or OpenXR and Steam or Meta, then installs the newest mod build. Its cleanup can remove other mods in the same game folder, so back them up first. Follow any game-version or prerequisite instructions shown by the external setup itself.
 
-**Because of that downgrade, the author asks for a fresh Steam installation of Resident Evil 4.** Both DLCs are optional. If your copy already carries other mods, reinstall the game first - otherwise you end up with two game versions mixed together.
+The publisher recommends a fresh Steam installation of Resident Evil 4. Both DLCs are optional. The Hub does not run or verify this separate setup, so use its own confirmation and the game's behavior to judge the result.
 
 ## If the controllers do nothing
 ViGEm was probably just installed. **Restart your PC once.** Then make sure no other controller is connected or switched on before your VR controllers. And keep the game window focused - it stops responding when it loses focus.

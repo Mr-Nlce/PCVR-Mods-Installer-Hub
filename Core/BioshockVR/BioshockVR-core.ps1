@@ -74,6 +74,8 @@ $FILES_A = @(
     "logs\CollectLogs.bat"
 )
 $FILES_B = @("xinput1_3.dll", "bioshockvr.dll", "bvr_steamvr32.dll", "openvr_api.dll")
+$REQUIRED_A = @('dxgi.dll','BioshockVR.dll','BioshockVR.ini','openvr_api.dll','openxr_loader_standard.dll','openxr_loader_steam.dll','Setup.bat')
+$REQUIRED_B = @('xinput1_3.dll','bioshockvr.dll','bvr_steamvr32.dll','openvr_api.dll')
 
 $STORE_REL  = "_vrmods"
 $SUB_A      = "biovrdev"
@@ -150,6 +152,27 @@ function Find-BioshockRoot {
 # normalised, so one odd entry cannot fail the whole install.
 function Expand-ZipSafe {
     param([string]$Zip, [string]$Dest)
+    # Validate every entry before either extraction path can write anything.
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $base = [System.IO.Path]::GetFullPath($Dest).TrimEnd('\') + '\'
+        $inspection = [System.IO.Compression.ZipFile]::OpenRead($Zip)
+        try {
+            foreach ($entry in $inspection.Entries) {
+                $relative = $entry.FullName -replace '/', '\'
+                if ($relative -match '^[\\/]' -or $relative -match '^[A-Za-z]:' -or $relative -match '(?i)^\\\\') {
+                    throw "Unsafe archive entry: $($entry.FullName)"
+                }
+                $target = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($Dest, $relative))
+                if (-not $target.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    throw "Unsafe archive entry: $($entry.FullName)"
+                }
+            }
+        } finally { $inspection.Dispose() }
+    } catch {
+        Write-Fail "Archive preflight failed: $($_.Exception.Message)"
+        return $false
+    }
     try {
         Expand-Archive -LiteralPath $Zip -DestinationPath $Dest -Force -ErrorAction Stop
         return $true
@@ -174,23 +197,32 @@ function Expand-ZipSafe {
     }
 }
 
-# Gets the latest release zip of a repo into $ZipPath. Returns the tag.
+# Gets a release ZIP into $ZipPath. Returns a tag only for the exact
+# automatically downloaded asset; a manually supplied archive is unversioned.
 function Get-ModRelease {
     param([string]$Api, [string]$PageUrl, [string]$ZipPath, [string]$Label, [string]$NameHint)
     $tag = $null
     try {
         $rel = Invoke-RestMethod -Uri $Api -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
-        $tag = $rel.tag_name
         $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
         if ($asset) {
-            Write-Info "$Label release $tag - downloading $($asset.name)"
-            Invoke-SafeDownload -Urls @($asset.browser_download_url) -Destination $ZipPath `
-                -Label "$Label $tag" -ManualUrl $PageUrl | Out-Null
+            Write-Info "$Label release $($rel.tag_name) - downloading $($asset.name)"
+            $downloadInfo = @{}
+            $downloadResult = Invoke-SafeDownload -Urls @($asset.browser_download_url) -Destination $ZipPath `
+                -Label "$Label $($rel.tag_name)" -ManualUrl $PageUrl -DownloadInfo $downloadInfo
+            if ((Test-Path -LiteralPath $ZipPath -PathType Leaf) -and
+                $downloadResult -eq $true -and
+                [string]$downloadInfo.Url -eq [string]$asset.browser_download_url) {
+                return [string]$rel.tag_name
+            }
         }
     } catch { }
-    if (Test-Path -LiteralPath $ZipPath) { return $tag }
+    if (Test-Path -LiteralPath $ZipPath -PathType Leaf) {
+        Write-Warn "$Label archive was provided manually; its release version is unverified."
+        return $null
+    }
 
-    $dl = Join-Path $env:USERPROFILE "Downloads"
+    $dl = Get-PCVRDownloadsFolder
     if (Test-Path -LiteralPath $dl) {
         $hit = Get-ChildItem -LiteralPath $dl -Filter "*.zip" -File -ErrorAction SilentlyContinue |
                Where-Object { $_.Name -match $NameHint } |
@@ -198,7 +230,7 @@ function Get-ModRelease {
         if ($hit) {
             Write-Host "  Found in Downloads: $($hit.Name)" -ForegroundColor Cyan
             $use = (Read-Host "  Use this file? Press Enter to accept, or type N").Trim()
-            if ($use -notin @("n","N")) { Copy-Item -LiteralPath $hit.FullName -Destination $ZipPath -Force; return $tag }
+            if ($use -notin @("n","N")) { Copy-Item -LiteralPath $hit.FullName -Destination $ZipPath -Force; return $null }
         }
     }
     Write-Warn "Automatic download of the $Label files did not work."
@@ -209,7 +241,7 @@ function Get-ModRelease {
         if (-not $r) { return $null }
         if (-not (Test-Path -LiteralPath $r)) { Write-Fail "File not found: $r"; continue }
         Copy-Item -LiteralPath $r -Destination $ZipPath -Force
-        return $tag
+        return $null
     }
 }
 
@@ -219,9 +251,17 @@ function Fill-Store {
     if (-not (Test-Path -LiteralPath $StoreDir)) { New-Item -ItemType Directory -Path $StoreDir -Force | Out-Null }
     $got = @(); $miss = @()
     foreach ($f in $Files) {
-        $hit = Get-ChildItem -LiteralPath $Extract -Filter $f -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+        $leaf = [System.IO.Path]::GetFileName($f)
+        $hit = Get-ChildItem -LiteralPath $Extract -Filter $leaf -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { $f -notmatch '[\\/]' -or $_.FullName.Replace('/','\').EndsWith($f,[StringComparison]::OrdinalIgnoreCase) } |
+            Select-Object -First 1
         if (-not $hit) { $miss += $f; continue }
-        try { Copy-Item -LiteralPath $hit.FullName -Destination ([System.IO.Path]::Combine($StoreDir, $f)) -Force -ErrorAction Stop; $got += $f }
+        try {
+            $destination = [System.IO.Path]::Combine($StoreDir, $f)
+            [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
+            Copy-Item -LiteralPath $hit.FullName -Destination $destination -Force -ErrorAction Stop
+            $got += $f
+        }
         catch { $miss += $f }
     }
     if ($WithPreset) {
@@ -245,6 +285,20 @@ function Fill-Store {
         }
     }
     return [pscustomobject]@{ Copied = $got; Missing = $miss }
+}
+
+function Test-BioPayloadComplete {
+    param([string]$Root, [string[]]$Required, [switch]$Extracted)
+    foreach ($name in $Required) {
+        if ($Extracted) {
+            $found = Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -ieq $name } | Select-Object -First 1
+            if (-not $found) { return $false }
+        } elseif (-not (Test-Path -LiteralPath ([IO.Path]::Combine($Root,$name)) -PathType Leaf)) {
+            return $false
+        }
+    }
+    return $true
 }
 
 # ADOPTS AN OLDER HUB INSTALL. Until now the Hub only ever offered
@@ -459,6 +513,7 @@ $work = Join-Path $env:TEMP ("bioshockvr_" + [Guid]::NewGuid().ToString("N").Sub
 New-Item -ItemType Directory -Path $work -Force | Out-Null
 $tagA = $null; $tagB = $null
 $haveA = $false; $haveB = $false
+$updatedA = $false; $updatedB = $false
 $zipA = $null; $zipB = $null
 $placedA = @(); $placedB = @()
 
@@ -467,17 +522,18 @@ if ($wantA) {
     $tagA = Get-ModRelease -Api $RELEASES_API_A -PageUrl $RELEASES_URL_A -ZipPath $zipA -Label "BioVRDev" -NameHint '(?i)bioshock'
     if (Test-Path -LiteralPath $zipA) {
         $exA = Join-Path $work "exA"; New-Item -ItemType Directory -Path $exA -Force | Out-Null
-        if (Expand-ZipSafe -Zip $zipA -Dest $exA) {
+        if ((Expand-ZipSafe -Zip $zipA -Dest $exA) -and (Test-BioPayloadComplete -Root $exA -Required $REQUIRED_A -Extracted)) {
             $res = Fill-Store -Extract $exA -StoreDir $storeA -Files $FILES_A
             $placedA = @($res.Copied | ForEach-Object { [System.IO.Path]::Combine($storeA, $_) })
-            if (($res.Copied -contains "BioshockVR.dll") -and ($res.Copied -contains "dxgi.dll")) {
+            if (Test-BioPayloadComplete -Root $storeA -Required $REQUIRED_A) {
                 $haveA = $true
+                $updatedA = $true
                 Write-OK "BioVRDev files ready: $($res.Copied -join ', ')"
                 if ($res.Missing.Count -gt 0) { Write-Warn "Not in this release: $($res.Missing -join ', ')" }
             } else {
                 Write-Fail "BioVRDev's core files were not in the archive."
             }
-        }
+        } else { Write-Fail 'BioVRDev archive is missing required runtime or setup files.' }
     }
 }
 if ($wantB) {
@@ -485,23 +541,29 @@ if ($wantB) {
     $tagB = Get-ModRelease -Api $RELEASES_API_B -PageUrl $RELEASES_URL_B -ZipPath $zipB -Label "balouza" -NameHint '(?i)bioshock'
     if (Test-Path -LiteralPath $zipB) {
         $exB = Join-Path $work "exB"; New-Item -ItemType Directory -Path $exB -Force | Out-Null
-        if (Expand-ZipSafe -Zip $zipB -Dest $exB) {
+        if ((Expand-ZipSafe -Zip $zipB -Dest $exB) -and (Test-BioPayloadComplete -Root $exB -Required $REQUIRED_B -Extracted)) {
             $res = Fill-Store -Extract $exB -StoreDir $storeB -Files $FILES_B -WithPreset
             $placedB = @($res.Copied | ForEach-Object { [System.IO.Path]::Combine($storeB, $_) })
-            if ($res.Missing.Count -eq 0) {
+            if (Test-BioPayloadComplete -Root $storeB -Required $REQUIRED_B) {
                 $haveB = $true
+                $updatedB = $true
                 Write-OK "balouza files ready: $($res.Copied -join ', ')"
             } else {
                 Write-Fail "balouza's files were not in the archive: missing $($res.Missing -join ', ')"
             }
-        }
+        } else { Write-Fail 'balouza archive is missing required runtime files.' }
     }
 }
 
 # A store filled by an earlier run still counts, so adding the second mod
 # later or re-running the installer works without a fresh download.
-if (-not $haveA -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($storeA, "dxgi.dll")))) { $haveA = $true }
-if (-not $haveB -and (Test-Path -LiteralPath ([System.IO.Path]::Combine($storeB, "xinput1_3.dll")))) { $haveB = $true }
+if (-not $haveA -and (Test-BioPayloadComplete -Root $storeA -Required $REQUIRED_A)) { $haveA = $true }
+if (-not $haveB -and (Test-BioPayloadComplete -Root $storeB -Required $REQUIRED_B)) { $haveB = $true }
+if (($wantA -and -not $updatedA) -or ($wantB -and -not $updatedB)) {
+    Write-Fail 'The selected release could not be installed completely. Existing parked mods were kept.'
+    Pause-User 'Press Enter to close without marking this run complete.' | Out-Null
+    exit 1
+}
 
 # BOTH MODS SEPARATELY - each has its own file list and its own archive,
 # and the stores sit inside the game folder, so that is what gets
@@ -558,9 +620,14 @@ elseif ($choice -eq "2" -and $haveA) { $activeName = "BioVRDev" }
 elseif ($haveB) { $activeName = "balouza" } else { $activeName = "BioVRDev" }
 
 if ($activeName -eq "balouza") {
-    $null = Set-ActiveMod -BuildDir $buildDir -StoreDir $storeB -Files $FILES_B -OtherFiles $FILES_A -OtherStore $storeA
+    $switched = Set-ActiveMod -BuildDir $buildDir -StoreDir $storeB -Files $FILES_B -OtherFiles $FILES_A -OtherStore $storeA
 } else {
-    $null = Set-ActiveMod -BuildDir $buildDir -StoreDir $storeA -Files $FILES_A -OtherFiles $FILES_B -OtherStore $storeB
+    $switched = Set-ActiveMod -BuildDir $buildDir -StoreDir $storeA -Files $FILES_A -OtherFiles $FILES_B -OtherStore $storeB
+}
+if (-not $switched) {
+    Write-Fail 'Could not activate the selected VR mod. No success was recorded.'
+    Pause-User 'Press Enter to close and repair the game folder before retrying.' | Out-Null
+    exit 1
 }
 Write-OK "Active mod: $activeName"
 
@@ -700,33 +767,39 @@ if ($activeName -eq "BioVRDev") {
         Write-Host " >>> Make sure BioShock is CLOSED, then let the setup run.        " -ForegroundColor Black -BackgroundColor Yellow
         Write-Host ""
         Pause-User "Press Enter to run Setup.bat - UAC required..." | Out-Null
-        $ranSetup = $false
+        $stdLoader = [System.IO.Path]::Combine($buildDir, 'openxr_loader_standard.dll')
+        $steamLoader = [System.IO.Path]::Combine($buildDir, 'openxr_loader_steam.dll')
+        $knownLoaderHashes = @((Get-FileHash -LiteralPath $stdLoader -Algorithm SHA256).Hash,
+                               (Get-FileHash -LiteralPath $steamLoader -Algorithm SHA256).Hash)
         try {
             # -Verb RunAs: the author's instructions say "Right click Setup.bat
             # and choose Run as administrator".
-            Start-Process -FilePath $setup -WorkingDirectory $buildDir -Verb RunAs -Wait -ErrorAction Stop
-            $ranSetup = $true
+            $setupProcess = Start-Process -FilePath $setup -WorkingDirectory $buildDir -Verb RunAs -Wait -PassThru -ErrorAction Stop
+            if (-not $setupProcess -or $setupProcess.ExitCode -ne 0) {
+                throw "Setup.bat exited with code $($setupProcess.ExitCode)."
+            }
             Write-OK "Setup finished."
         } catch {
             Write-Fail "Could not run it: $($_.Exception.Message)"
             Write-Host "  Run Setup.bat yourself in $buildDir - right-click," -ForegroundColor Yellow
             Write-Host "  Run as administrator. Without it the game starts flat." -ForegroundColor Yellow
+            Pause-User 'Press Enter to close without marking this setup complete.' | Out-Null
+            exit 1
         }
         # Check the RESULT: Setup puts the chosen loader under the name
         # the mod expects.
-        if ($ranSetup) {
-            $loader = [System.IO.Path]::Combine($buildDir, "openxr_loader.dll")
-            if (Test-Path -LiteralPath $loader) {
-                Write-OK "OpenXR loader in place ($([math]::Round((Get-Item -LiteralPath $loader).Length/1KB)) KB)."
-            } else {
-                Write-Warn "Setup ran but openxr_loader.dll is not there."
-                Write-Host "  If you picked the SteamVR shim it may use another name -" -ForegroundColor Gray
-                Write-Host "  check Setup's own output. Otherwise run Setup.bat again." -ForegroundColor Gray
-            }
+        $loader = [System.IO.Path]::Combine($buildDir, "openxr_loader.dll")
+        if (-not (Test-Path -LiteralPath $loader -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $loader -Algorithm SHA256).Hash -notin $knownLoaderHashes) {
+            Write-Fail 'Setup did not select one of the two publisher OpenXR loaders.'
+            Pause-User 'Press Enter to close without marking this setup complete.' | Out-Null
+            exit 1
         }
+        Write-OK "OpenXR loader in place ($([math]::Round((Get-Item -LiteralPath $loader).Length/1KB)) KB)."
     } else {
-        Write-Warn "Setup.bat is not in $buildDir - the mod cannot configure itself."
-        Write-Host "  Without it the game will not start in VR. Re-run this installer." -ForegroundColor Yellow
+        Write-Fail "Setup.bat is not in $buildDir - the mod cannot configure itself."
+        Pause-User 'Press Enter to close without marking this setup complete.' | Out-Null
+        exit 1
     }
 }
 
@@ -751,7 +824,7 @@ if ($activeName -eq "balouza") {
             Pause-User "Press Enter to open the Nexus download page..." | Out-Null
             try { Start-Process $NEXUS_CUTSCENES } catch { Write-Warn "Open manually: $NEXUS_CUTSCENES" }
 
-            $dl = Join-Path $env:USERPROFILE "Downloads"
+            $dl = Get-PCVRDownloadsFolder
             $cutArc = $null
             while (-not $cutArc) {
                 $hit = $null
@@ -817,13 +890,21 @@ try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRo
 #   .installed_version_b  -> BioVRDev (catalog GithubRepoB)
 # A mod that was not (re)installed now keeps whatever it had; a missing
 # file is seeded by the next scan, so no wrong version is ever claimed.
-if ($haveB -and $tagB) {
+if ($updatedB -and $tagB) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $tagB -Encoding UTF8 -Force } catch {}
     Write-ModStamp -GameDir $gameRoot -Version $tagB | Out-Null
+} elseif ($updatedB) {
+    foreach ($receipt in @((Join-Path $SCRIPT_DIR '.installed_version'),(Join-Path $gameRoot '.pcvrhub_version'))) {
+        Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+    }
 }
-if ($haveA -and $tagA) {
+if ($updatedA -and $tagA) {
     try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version_b") -Value $tagA -Encoding UTF8 -Force } catch {}
     Write-ModStamp -GameDir $gameRoot -Version $tagA -Second | Out-Null
+} elseif ($updatedA) {
+    foreach ($receipt in @((Join-Path $SCRIPT_DIR '.installed_version_b'),(Join-Path $gameRoot '.pcvrhub_version_b'))) {
+        Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+    }
 }
 try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
 

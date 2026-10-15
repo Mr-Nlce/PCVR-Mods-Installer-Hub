@@ -134,8 +134,12 @@ if (-not $gamePath) {
     Write-OK "DREDGE found: $gamePath"
 }
 
-if (Test-Path (Join-Path $gamePath $GAME_EXE)) { Write-OK "Game executable found: $GAME_EXE" }
-else { Write-Warn "DREDGE.exe not found - folder may still be correct." }
+if (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf) { Write-OK "Game executable found: $GAME_EXE" }
+else {
+    Write-Fail "$GAME_EXE was not found. This folder cannot prove a DREDGE installation."
+    Pause-User "Press Enter to exit and choose the game folder on the next run..."
+    exit 1
+}
 
 # -------------------------------------------------------
 # STEP 2: Install Winch + DredgeVR
@@ -167,18 +171,14 @@ if (Test-Path $winchZip) {
         try {
             $winchRelease = Join-Path $winchExtract "Release"
             if (-not (Test-Path $winchRelease)) { $winchRelease = $winchExtract }
-
-            Get-ChildItem -Path $winchRelease | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+            foreach ($name in @('winhttp.dll','Winch.dll','doorstop_config.ini')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $winchRelease $name) -PathType Leaf)) {
+                    throw "Winch archive is missing $name"
+                }
             }
-
-            if (Test-Path -LiteralPath "$gamePath\winhttp.dll") { Write-OK "winhttp.dll verified." }
-            else { Write-Warn "winhttp.dll not found." }
-            if (Test-Path -LiteralPath "$gamePath\Winch.dll")   { Write-OK "Winch.dll verified." }
-            else { Write-Warn "Winch.dll not found." }
-            Write-OK "Winch v0.6.2 installed!"
+            Write-OK "Winch archive checked before changing game files."
         } catch {
-            Write-Host "FAILED to install Winch: $_" -ForegroundColor Red
+            Write-Host "FAILED to prepare Winch: $_" -ForegroundColor Red
             $failed += "Winch"
         }
     } else {
@@ -206,26 +206,47 @@ if (Test-Path $vrZip) {
     if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
-            if (-not (Test-Path $modDir)) { New-Item -ItemType Directory -Path $modDir -Force | Out-Null }
             # Layout-change-proof (this zip is pulled from releases/LATEST,
             # so the modder can change its structure any day): find the
-            # level that holds DredgeVR.dll and copy from there.
+            # level that holds DredgeVR.dll and verify it before copying.
             $vrPayload = Get-ExtractedPayloadRoot -ExtractDir $vrExtract -RelModFile "DredgeVR.dll" -Markers @("mod_meta.json")
-            Get-ChildItem -Path $vrPayload | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $modDir -Recurse -Force
+            foreach ($name in @('DredgeVR.dll','mod_meta.json')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $vrPayload $name) -PathType Leaf)) {
+                    throw "DredgeVR archive is missing $name"
+                }
             }
-            if (Test-Path -LiteralPath "$modDir\DredgeVR.dll")  { Write-OK "DredgeVR.dll verified." }
-            else { Write-Warn "DredgeVR.dll not found." }
-            if (Test-Path -LiteralPath "$modDir\mod_meta.json") { Write-OK "mod_meta.json verified." }
-            else { Write-Warn "mod_meta.json not found." }
-            Write-OK "DredgeVR installed!"
+            if (-not (Test-Path -LiteralPath (Join-Path $vrPayload 'CopyToGame') -PathType Container)) {
+                throw "DredgeVR archive is missing CopyToGame"
+            }
+            Write-OK "DredgeVR archive checked before changing game files."
         } catch {
-            Write-Host "FAILED to install DredgeVR: $_" -ForegroundColor Red
+            Write-Host "FAILED to prepare DredgeVR: $_" -ForegroundColor Red
             $failed += "DredgeVR"
         }
     } else {
         $failed += "DredgeVR"
     }
+}
+
+if ($failed.Count -gt 0 -or -not $winchRelease -or -not $vrPayload) {
+    Write-Fail "Required Winch and DredgeVR payloads were not both prepared. No game files were changed."
+    Pause-User "Press Enter to exit; repair the download and retry."
+    exit 1
+}
+
+try {
+    Get-ChildItem -LiteralPath $winchRelease | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
+    }
+    if (-not (Test-Path -LiteralPath $modDir)) { New-Item -ItemType Directory -Path $modDir -Force | Out-Null }
+    Get-ChildItem -LiteralPath $vrPayload | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination $modDir -Recurse -Force -ErrorAction Stop
+    }
+    Write-OK "Winch and DredgeVR copied."
+} catch {
+    Write-Fail "Failed while copying Winch or DredgeVR: $_"
+    Pause-User "Press Enter to exit; no successful install was recorded."
+    exit 1
 }
 
 # --- Write mod_list.json ---
@@ -271,8 +292,15 @@ foreach ($name in $checks.Keys) {
     else { Write-Warn "Not found: $name" }
 }
 
+$missingRequired = @($checks.Keys | Where-Object { -not (Test-Path -LiteralPath $checks[$_]) })
+if ($failed.Count -gt 0 -or $missingRequired.Count -gt 0) {
+    Write-Fail "Installation is incomplete. Missing or failed: $((@($failed) + @($missingRequired)) -join ', ')"
+    Pause-User "Press Enter to exit; no successful install was recorded."
+    exit 1
+}
+
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("DredgeVR" -notin $failed) {
+if ($failed.Count -eq 0 -and $missingRequired.Count -eq 0) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     if (-not $DREDGEVR_VERSION -and (Test-Path -LiteralPath (Join-Path $modDir 'mod_meta.json') -PathType Leaf)) {
         try {

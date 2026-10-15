@@ -42,7 +42,7 @@ $REPO_API_LATEST   = "https://api.github.com/repos/Alex-LeTux/perfect_dark_VR/re
 $RELEASES_LATEST   = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/latest"
 $INFO_URL          = "https://github.com/Alex-LeTux/perfect_dark_VR"
 # Last-known-good PCVR asset, used only if the GitHub API cannot be reached.
-$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v1.9.3-beta/Perfect_Dark_PCVR_v.1.9.3-beta.zip"
+$KNOWN_FALLBACK_ZIP = "https://github.com/Alex-LeTux/perfect_dark_VR/releases/download/v2.1/Perfect_Dark_PCVR_NTSC_v2.1.zip"
 $GAME_FOLDER       = "Perfect Dark VR"
 $GAME_EXE          = "pd.x86_64.exe"
 $ROM_NAME          = "pd.ntsc-final.z64"
@@ -55,8 +55,7 @@ function Get-LatestPcvrZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        $asset = $rel.assets | Where-Object { $_.name -match '(?i)pcvr.*\.zip$' } | Select-Object -First 1
-        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1 }
+        $asset = $rel.assets | Where-Object { $_.name -match '(?i)^Perfect_Dark_PCVR(?:[-_]NTSC)?[_-]v\.?[0-9].*\.zip$' } | Select-Object -First 1
         if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
     } catch { }
     return $null
@@ -74,7 +73,7 @@ function Get-PerfectDarkReleaseTagFromSource {
         return [Uri]::UnescapeDataString($matches[1])
     }
     $leaf = try { [IO.Path]::GetFileName(('' + $Source).TrimEnd('\','/')) } catch { '' }
-    if ($leaf -match '(?i)^Perfect_Dark_PCVR[_-]+v[._-]?([0-9][0-9A-Za-z._-]*?)(?:\.zip)?$') {
+    if ($leaf -match '(?i)^Perfect_Dark_PCVR(?:[-_]NTSC)?[_-]+v[._-]?([0-9][0-9A-Za-z._-]*?)(?:\.zip)?$') {
         $value = $matches[1].TrimEnd('.','-','_')
         if ($value) { return 'v' + $value }
     }
@@ -171,28 +170,39 @@ $zipDest = Join-Path $tmp "PerfectDark_PCVR_latest.zip"
 $urls = New-Object System.Collections.Generic.List[string]
 $downloadInfo = @{}
 Write-Info "Resolving the newest PCVR release via the GitHub API..."
-$apiUrl = Get-LatestPcvrZipUrl
+$testArchive = if ($env:PCVR_HUB_TEST_MODE -eq '1') { ('' + $env:PCVR_PERFECT_DARK_TEST_ARCHIVE).Trim() } else { '' }
+$apiUrl = if ($testArchive) { [IO.Path]::GetFullPath($testArchive) } else { Get-LatestPcvrZipUrl }
 if ($apiUrl) {
     Write-OK "Latest PCVR asset: $apiUrl"
     [void]$urls.Add($apiUrl)
 } else {
     Write-Warn "GitHub API not reachable (rate limit / offline). Using last-known URL."
 }
-if ([string]$apiUrl -ne [string]$KNOWN_FALLBACK_ZIP) { [void]$urls.Add($KNOWN_FALLBACK_ZIP) }
+if (-not $apiUrl) { [void]$urls.Add($KNOWN_FALLBACK_ZIP) }
+$selectedReleaseTag = Get-PerfectDarkReleaseTagFromSource -Source ([string]$urls[0])
+if (-not $selectedReleaseTag) { throw 'The selected PCVR asset has no trackable release version.' }
+Write-Info "Selected NTSC PCVR release: $selectedReleaseTag"
 
+if ($testArchive) {
+    if (-not (Test-Path -LiteralPath $testArchive -PathType Leaf)) { throw 'The isolated Perfect Dark test archive is missing.' }
+    Copy-Item -LiteralPath $testArchive -Destination $zipDest -Force -ErrorAction Stop
+    $downloadInfo.Url = $testArchive
+} else {
 Invoke-SafeDownload -Urls $urls -Destination $zipDest `
     -Label "Perfect Dark VR (PCVR build)" `
     -ManualUrl $RELEASES_LATEST `
-    -Instructions "Open the releases page, download the newest 'Perfect_Dark_PCVR_*.zip' (NOT the .apk), save it as '$zipDest', then choose Retry." `
+    -Instructions "Open the releases page and download the NTSC PCVR ZIP for $selectedReleaseTag (NOT PAL, JPN or .apk). Place it in the registered Downloads folder or drag it onto this window, then confirm the version." `
     -DownloadInfo $downloadInfo `
+    -ExpectedReleaseTag $selectedReleaseTag `
     -SkipMessage "" | Out-Null
+}
 
 while (-not (Test-Path $zipDest)) {
     Write-Fail "The Perfect Dark VR download is not present at: $zipDest"
     $fb = Invoke-InstallerFallback -Action "download Perfect Dark VR" `
         -Subject "the latest PCVR release" `
         -Url $RELEASES_LATEST `
-        -Instructions "Download the newest 'Perfect_Dark_PCVR_*.zip' (NOT the .apk) from the releases page, save it as '$zipDest', then choose Retry. You can also paste the full path to an already-downloaded ZIP." `
+        -Instructions "Download the NTSC PCVR ZIP for $selectedReleaseTag (not PAL, JPN or .apk), then drag the file here or paste its full path and confirm the version." `
         -AllowSkip $false
     if ([string]$fb -eq "quit") {
         try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
@@ -221,7 +231,7 @@ while (-not $extractOk) {
         $fb = Invoke-InstallerFallback -Action "extract the Perfect Dark VR ZIP" `
             -Subject "the downloaded PCVR ZIP" `
             -Url $RELEASES_LATEST `
-            -Instructions "The ZIP may be incomplete. Re-download the newest 'Perfect_Dark_PCVR_*.zip', save it as '$zipDest', then choose Retry. Or paste the path to a fresh ZIP." `
+            -Instructions "The ZIP may be incomplete. Re-download the NTSC PCVR ZIP for $selectedReleaseTag, then drag it here or paste the path to the fresh ZIP." `
             -AllowSkip $false
         if ([string]$fb -eq "quit") {
             try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
@@ -242,7 +252,7 @@ while (-not $exeItem) {
     $fb = Invoke-InstallerFallback -Action "find $GAME_EXE in the download" `
         -Subject "the Perfect Dark VR download" `
         -Url $RELEASES_LATEST `
-        -Instructions "The ZIP did not contain $GAME_EXE - it may be the wrong file (e.g. the .apk). Grab the newest 'Perfect_Dark_PCVR_*.zip' from the releases page, save it as '$zipDest', then choose Retry." `
+        -Instructions "The ZIP did not contain $GAME_EXE. Download the NTSC PCVR ZIP for $selectedReleaseTag, not PAL, JPN or .apk; then drag it here or paste its path." `
         -AllowSkip $false
     if ([string]$fb -eq "quit") {
         try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
@@ -261,6 +271,14 @@ while (-not $exeItem) {
     $exeItem = Get-ChildItem -Path $unpack -Filter $GAME_EXE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
+$payloadTag = Get-PerfectDarkReleaseTagFromSource -Source $payloadDir
+if (-not $payloadTag -or $payloadTag -ne $selectedReleaseTag) {
+    throw "Perfect Dark package version $payloadTag does not match selected release $selectedReleaseTag. No game files were changed."
+}
+$payloadLeaf = Split-Path -Leaf $payloadDir
+if ($payloadLeaf -notmatch '(?i)^Perfect_Dark_PCVR(?:[-_]NTSC)?[_-]v') {
+    throw 'This is not the NTSC PCVR package. No game files were changed.'
+}
 $installedReleaseTag = Get-PerfectDarkReleaseTagFromSource -Source ('' + $downloadInfo.Url)
 if (-not $installedReleaseTag) { $installedReleaseTag = Get-PerfectDarkReleaseTagFromSource -Source $payloadDir }
 if (-not $installedReleaseTag) {
@@ -400,7 +418,7 @@ while (-not $romPlaced) {
 $exePath = Join-Path $gameRoot $GAME_EXE
 if (Test-Path $exePath) {
     try {
-        $desktop = [Environment]::GetFolderPath("Desktop")
+        $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_PERFECT_DARK_TEST_DESKTOP) { $env:PCVR_PERFECT_DARK_TEST_DESKTOP } else { [Environment]::GetFolderPath("Desktop") }
         $lnkPath = Join-Path $desktop "Perfect Dark VR.lnk"
         $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $exePath -WorkingDir $gameRoot -IconPath $exePath
         Write-OK "Desktop shortcut created: Perfect Dark VR"

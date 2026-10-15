@@ -21,6 +21,15 @@ $GAME_EXE = "left4dead2.exe"
 $GITHUB_API = "https://api.github.com/repos/keyou91/l4d2vr/releases/latest"
 $GITHUB_RELEASES_URL = "https://github.com/keyou91/l4d2vr/releases"
 $L4D2VR_ASSET_NAME = "L4D2VR.zip"
+$l4d2FixtureMode = $env:PCVR_HUB_TEST_MODE -eq '1' -and [bool]$env:PCVR_L4D2_TEST_ROOT
+if ($l4d2FixtureMode) {
+ $l4d2FixtureRoot = [IO.Path]::GetFullPath($env:PCVR_L4D2_TEST_ROOT)
+ $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
+ if (-not $l4d2FixtureRoot.StartsWith($tempRoot,[StringComparison]::OrdinalIgnoreCase) -or
+     -not (Test-Path -LiteralPath (Join-Path $l4d2FixtureRoot 'l4d2-fixture.txt') -PathType Leaf)) {
+  throw 'L4D2 test fixture must stay in an isolated temporary folder.'
+ }
+}
 
 $LAUNCH_PARAMS = "-heapsize 524288 -processheap -high -novid +crosshair 0 -w 1280 -h 720 +mat_queue_mode 0 +mat_vsync 0 +mat_antialias 0 +mat_grain_scale_override 0"
 
@@ -28,7 +37,7 @@ $LAUNCH_PARAMS = "-heapsize 524288 -processheap -high -novid +crosshair 0 -w 128
 # Helpers
 # -------------------------------------------------------
 function Write-Header {
- Clear-Host
+ try { Clear-Host } catch { }
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Left 4 Dead 2 - VR Mod Installer" -ForegroundColor Cyan
  Write-Host " L4D2VR by keyou91" -ForegroundColor Gray
@@ -48,9 +57,43 @@ function Write-Warn { param($text) Write-Host " [!!] $text" -ForegroundColor Yel
 function Write-Fail { param($text) Write-Host " [XX] $text" -ForegroundColor Red }
 function Write-Info { param($text) Write-Host " [..] $text" -ForegroundColor Gray }
 
+function Test-L4D2VRArchive([string]$Path) {
+ if (-not $Path -or -not (Test-DownloadedPayload -Path $Path -IntendedPath 'L4D2VR.zip')) { return $false }
+ try {
+  Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction Stop
+  $archive = [IO.Compression.ZipFile]::OpenRead($Path)
+  try {
+   $found = $false
+   foreach ($entry in $archive.Entries) {
+    $name = $entry.FullName.Replace('/', '\')
+    if ($name.StartsWith('\') -or $name -match '(^|\\)\.\.(\\|$)|^[A-Za-z]:') { return $false }
+    if ($name -match '(^|\\)openvr_api\.dll$') { $found = $true }
+   }
+   return $found
+  } finally { $archive.Dispose() }
+ } catch { return $false }
+}
+
+function Find-L4D2VRManualArchive([string]$Destination) {
+ $folder = Get-PCVRDownloadsFolder
+ if (-not $folder -or -not (Test-Path -LiteralPath $folder -PathType Container)) { return $false }
+ foreach ($candidate in @(Get-ChildItem -LiteralPath $folder -Filter 'L4D2VR*.zip' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending)) {
+  if (-not (Test-L4D2VRArchive $candidate.FullName)) { continue }
+  Write-Host "  Found in your registered Downloads folder: $($candidate.FullName)" -ForegroundColor Cyan
+  $choice = ([string](Read-Host '  Use this archive? [Y/N]')).Trim()
+  if ($choice -notin @('Y','y')) { continue }
+  Copy-Item -LiteralPath $candidate.FullName -Destination $Destination -Force -ErrorAction Stop
+  return [bool](Test-L4D2VRArchive $Destination)
+ }
+ return $false
+}
+
+if ($env:PCVR_L4D2_LIBRARY_ONLY -eq '1') { return }
+
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($l4d2FixtureMode) { return (Join-Path $l4d2FixtureRoot 'Steam') }
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -233,118 +276,79 @@ if ($updateOnly) {
  Write-Step 4 $totalSteps "Installing L4D2VR (latest release)"
 }
 
-# Resolve the latest release asset URL via GitHub API. The author sometimes
-# replaces the ZIP under an existing tag without bumping the version, so
-# pinning a static URL would miss updates. The API always points at the
-# currently-uploaded asset under the latest release tag.
-$l4d2vrUrl = $null
-$tagName = $null
-$assetStamp = $null
-Write-Host " Querying GitHub for latest release ... " -NoNewline -ForegroundColor White
-try {
- $apiResp = Invoke-WebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop `
- -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
- $release = $apiResp.Content | ConvertFrom-Json
- $tagName = $release.tag_name
- foreach ($asset in $release.assets) {
- if ($asset.name -eq $L4D2VR_ASSET_NAME) {
- $l4d2vrUrl = $asset.browser_download_url
- $assetStamp = [string]$asset.updated_at
- break
- }
- }
- Write-Host "OK" -ForegroundColor Green
- if ($tagName) { Write-Info "Latest release: $tagName" }
- if (-not $l4d2vrUrl) {
- Write-Fail "Could not find $L4D2VR_ASSET_NAME in the latest release assets."
- Write-Info "Browse releases manually:"
- Write-Info " $GITHUB_RELEASES_URL"
- # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
- $__fb = Invoke-InstallerFallback -Action "mod download" `
- -Url "https://github.com/keyou91/l4d2vr/releases" `
- -Instructions "Open https://github.com/keyou91/l4d2vr/releases in the browser that just opened, download the latest ZIP, place it at '$zipPath' (the installer's temp file), then choose Retry." `
- -SkipMessage "Skipped - the VR mod files were NOT installed." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-check is not possible here without knowing local state.
- # If the user fixed the issue, the next pass through the
- # installer will succeed. Exit cleanly so they can re-run.
- Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
- }
-} catch {
- Write-Host "FAILED" -ForegroundColor Red
- Write-Warn "Could not reach GitHub API: $_"
- Write-Info "Check your internet connection, or download manually from:"
- Write-Info " $GITHUB_RELEASES_URL"
- $__fb = Invoke-InstallerFallback -Action "mod download" `
- -Url "https://github.com/keyou91/l4d2vr/releases" `
- -Instructions "Open https://github.com/keyou91/l4d2vr/releases in the browser, download the latest L4D2VR ZIP and place it at '$zipPath', then choose Retry." `
- -SkipMessage "Skipped - the VR mod files were NOT installed." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-check is not possible here without knowing local state.
- # If the user fixed the issue, the next pass through the
- # installer will succeed. Exit cleanly so they can re-run.
- Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
-}
-
+# Resolve release metadata when the API is available. GitHub's latest asset
+# URL remains usable when its unauthenticated API limit has been reached.
 $tempDir = Join-Path $env:TEMP "L4D2VRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
-$vrZip = Join-Path $tempDir "L4D2VR.zip"
-$vrExtract = Join-Path $tempDir "L4D2VR"
-
-Write-Host " Downloading L4D2VR ... " -NoNewline -ForegroundColor White
+$vrZip = Join-Path $tempDir 'L4D2VR.zip'
+$vrExtract = Join-Path $tempDir 'L4D2VR'
+$tagName = $null
+$assetStamp = $null
+$verifiedAssetStamp = $null
+$l4d2vrUrl = $null
+Write-Info 'Checking the current GitHub release; this can take a few seconds.'
 try {
- Invoke-WebRequest -Uri $l4d2vrUrl -OutFile $vrZip -UseBasicParsing -ErrorAction Stop
- Write-Host "OK" -ForegroundColor Green
-
- Write-Host " Extracting ... " -NoNewline -ForegroundColor White
- Expand-Archive -Path $vrZip -DestinationPath $vrExtract -Force
-
- # Copy all files directly into game root (no subfolder).
- # Payload-verified: releases/LATEST can change its layout any day.
- $vrPayload = Get-ExtractedPayloadRoot -ExtractDir $vrExtract -RelModFile "openvr_api.dll"
- Get-ChildItem -Path $vrPayload | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+ if ($l4d2FixtureMode) { throw 'API rate limit exceeded (isolated fixture)' }
+ $apiResp = Invoke-WebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop -TimeoutSec 15 `
+  -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' }
+ $release = $apiResp.Content | ConvertFrom-Json
+ foreach ($asset in @($release.assets)) {
+  if ($asset.name -eq $L4D2VR_ASSET_NAME) {
+   $l4d2vrUrl = [string]$asset.browser_download_url
+   $tagName = [string]$release.tag_name
+   $assetStamp = [string]$asset.updated_at
+   break
+  }
  }
- $null = Assert-PayloadDelivered -ExtractDir $vrExtract -TargetDir $gamePath -RelModFile "openvr_api.dll" -Label "L4D2VR"
- Write-Host "OK" -ForegroundColor Green
- if ($tagName) {
- Write-OK "L4D2VR $tagName downloaded and extracted!"
- } else {
- Write-OK "L4D2VR downloaded and extracted!"
- }
+ if (-not $l4d2vrUrl) { Write-Warn 'The API release has no L4D2VR.zip asset; trying the direct latest-download URL.' }
 } catch {
- Write-Host "FAILED" -ForegroundColor Red
- Write-Fail "Download error: $_"
- Write-Info "You can download manually from:"
- Write-Info " $GITHUB_RELEASES_URL"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$vrZip' with 7-Zip or Windows Explorer, and extract its contents into '$vrExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$vrZip" -Parent) `
- -DestFolder "$vrExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+ Write-Warn "The GitHub API is unavailable ($($_.Exception.Message)). Trying the direct latest-download URL."
 }
 
-try { Remove-Item $tempDir -Recurse -Force } catch {}
+$latestAssetUrl = 'https://github.com/keyou91/l4d2vr/releases/latest/download/L4D2VR.zip'
+$downloaded = $false
+try {
+ foreach ($url in @($l4d2vrUrl,$latestAssetUrl) | Where-Object { $_ } | Select-Object -Unique) {
+  Write-Info 'Downloading L4D2VR; this may take several minutes.'
+  try {
+   if ($l4d2FixtureMode) { throw 'Direct asset unavailable (isolated fixture)' }
+   Invoke-WebRequest -Uri $url -OutFile $vrZip -UseBasicParsing -ErrorAction Stop -TimeoutSec 120
+   if (-not (Test-L4D2VRArchive $vrZip)) { throw 'The response is not a usable L4D2VR ZIP.' }
+   $downloaded = $true
+   if ($l4d2vrUrl -and $url -eq $l4d2vrUrl -and $assetStamp) { $verifiedAssetStamp = $assetStamp }
+   Write-OK 'Downloaded the L4D2VR ZIP.'
+   break
+  } catch { Write-Warn "Direct download failed: $($_.Exception.Message)" }
+ }
+ if (-not $downloaded) {
+  $registeredDownloads = Get-PCVRDownloadsFolder
+  Write-Warn 'Automatic download did not complete. The installer can search your registered Downloads folder or take a dropped file.'
+  if ($registeredDownloads) { Write-Info "Registered Downloads folder: $registeredDownloads" }
+  $retryCheck = {
+   if (Test-L4D2VRArchive $vrZip) { return $true }
+   return (Find-L4D2VRManualArchive -Destination $vrZip)
+  }
+  $fallbackPage = if ($l4d2FixtureMode) { '' } else { $GITHUB_RELEASES_URL }
+  $fallback = Invoke-InstallerFallback -Action 'mod download' -Url $fallbackPage `
+   -DestFile $vrZip -FileValidator { param($candidate) Test-L4D2VRArchive $candidate } `
+   -RetryCheck $retryCheck -AllowSkip $false
+  if ($fallback -ne 'retry' -or -not (Test-L4D2VRArchive $vrZip)) {
+   throw 'No usable L4D2VR ZIP was selected.'
+  }
+ }
+
+ Write-Info 'Extracting and copying the mod; this may take several minutes.'
+ Expand-Archive -LiteralPath $vrZip -DestinationPath $vrExtract -Force -ErrorAction Stop
+ $vrPayload = Get-ExtractedPayloadRoot -ExtractDir $vrExtract -RelModFile 'openvr_api.dll'
+ Get-ChildItem -LiteralPath $vrPayload | ForEach-Object {
+  Copy-Item -LiteralPath $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
+ }
+ $null = Assert-PayloadDelivered -ExtractDir $vrExtract -TargetDir $gamePath -RelModFile 'openvr_api.dll' -Label 'L4D2VR'
+ if ($tagName) { Write-OK "L4D2VR $tagName downloaded and extracted!" }
+ else { Write-OK 'L4D2VR downloaded and extracted!' }
+} finally {
+ if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
+}
 
 # -------------------------------------------------------
 # VR Config Tool
@@ -380,7 +384,17 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $game
 # Rolling-release source of truth: this repo can replace L4D2VR.zip under
 # the same tag, so the Hub compares the asset's updated_at timestamp rather
 # than tag_name. Record that exact timestamp beside the installed payload.
-if ($assetStamp) { Save-InstalledStamp -GameDir $gamePath -Version $assetStamp -HubDir $PSScriptRoot }
+if ($verifiedAssetStamp) {
+ Save-InstalledStamp -GameDir $gamePath -Version $verifiedAssetStamp -HubDir $PSScriptRoot
+} else {
+ # A direct latest redirect or user-selected ZIP has no proof of the API
+ # asset's updated_at value. Keep the working mod, but do not claim that
+ # the current online build was installed or retain an older false receipt.
+ foreach ($receipt in @((Join-Path $gamePath '.pcvrhub_version'),(Join-Path $PSScriptRoot '.installed_version'))) {
+  Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+ }
+ Write-Warn 'The mod files are installed, but this download has no verified release timestamp. The Hub cannot confirm the update version yet.'
+}
 
 # -------------------------------------------------------
 # DONE

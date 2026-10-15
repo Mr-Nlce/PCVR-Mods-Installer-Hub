@@ -1,51 +1,57 @@
 # Big Walk VR
 
-Full multiplayer-compatible SteamVR support for **Big Walk** by House
+Full multiplayer-compatible SteamVR support for Big Walk by House
 House, with 6DOF motion controls, grabbing and throwing. By CircuitLord.
 
+## About the Game
+
+Big Walk is a cooperative exploration game. The VR mod lets VR and flat players
+share a session while the companion app manages the mod and its loader.
+
 ## What it installs
-- **The Big Walk VR app** (`BigWalkVRInstaller.exe`) into your Big Walk
+- The Big Walk VR app (`BigWalkVRInstaller.exe`) into your Big Walk
   folder
 
-This entry works differently from the rest of the Hub: the mod is not a
-downloadable archive. CircuitLord ships a small companion app that finds
-Big Walk, sets up **BepInEx**, downloads the mod plus any optional
+CircuitLord ships a small companion app that finds
+Big Walk, sets up BepInEx, downloads the mod plus any optional
 add-ons, keeps all of it up to date, and launches the game in VR or
-flat. So the Hub installs that app and hands over.
+flat. The Hub installs that app and hands over. The reviewed stable manifest
+currently lists companion app 1.2.9 and Big Walk VR package 1.1.4;
+the companion checks newer publisher versions itself.
 
-The Hub verifies the download against the SHA-256 in the project's own
-`manifest-v2.json` before it writes anything into your game folder.
+The Hub checks that the download is a usable Windows EXE. A matching SHA-256
+from the publisher's live `manifest-v3.json` is shown as extra information.
 
 ## Requirements
 - Big Walk on Steam
 - SteamVR
 
 ## How to use
-Click **Install Mod** on the game tile or detail page. The installer puts
+Click [[Install Mod]] on the game tile or detail page. The installer puts
 the app into your game folder and then opens it for you. Three presses in
 the app:
 
-1. **Find Big Walk** - usually already filled in. If not, press
-   **Change** and pick the folder.
-2. **Set up BepInEx** - press **Install**. If an old MelonLoader setup is
+1. Find Big Walk - usually already filled in. If not, press
+   [[Change]] and pick the folder.
+2. Set up BepInEx - press [[Install]]. If an old MelonLoader setup is
    present, the app offers to remove it first and migrates the Big Walk VR
    settings it recognises.
-3. **Big Walk VR** - press **Install**, or **Update** when a newer package is
-   offered. Leave **Beta updates** off unless you deliberately want test builds.
+3. Big Walk VR - press [[Install]], or [[Update]] when a newer package is
+   offered. Leave Beta updates off unless you deliberately want test builds.
 
 The Launch buttons stay greyed out until 1-3 are done. Back in the
 installer, press Enter and it checks whether the mod really arrived.
 
-From then on, **Start in VR** in the Hub and the *Big Walk VR* desktop
-shortcut both open the app - press **Launch in VR** there, with SteamVR
+From then on, [[Start in VR]] in the Hub and the Big Walk VR desktop
+shortcut both open the app - press [[Launch in VR]] there, with SteamVR
 already running.
 
-**The first start takes longer than usual** while the mod is prepared.
+The first start takes longer than usual while the mod is prepared.
 Give it time, it is not stuck.
 
 ## Controls
 Motion controllers, with a pointer for the menus. The mod ships its own
-SteamVR binding sets for **Index Controllers** and **Oculus Touch**
+SteamVR binding sets for Index Controllers and Oculus Touch
 (`bindings_knuckles.json`, `bindings_oculus_touch.json`), so those two are
 mapped out of the box - anything else falls back to SteamVR's own
 remapping under Controller Bindings.
@@ -54,7 +60,7 @@ Objects are grabbed and thrown with the controllers rather than a button
 prompt, so reach out and take hold of things.
 
 ## Flat and VR together
-Launching Big Walk from Steam, or pressing **Launch in Non-VR**, starts
+Launching Big Walk from Steam, or pressing [[Launch in Non-VR]], starts
 the game flat with the mod still installed. Flat and VR players can play
 together. The host and the other players need the mod installed to see your
 VR hands; friends who want to stay in flat mode can install it and still launch
@@ -66,18 +72,18 @@ for this entry.
 
 ## Removing it again
 
-**Plan A:** use **Open launcher uninstall** beside the uninstall guide in
-the Hub, then choose **Uninstall** on the **Big Walk VR** entry. The app
+Plan A: use [[Open launcher uninstall]] beside the uninstall guide in
+the Hub, then choose [[Uninstall]] on the Big Walk VR entry. The app
 removes exactly the files recorded for that package.
 
-**Plan B:** if the launcher cannot remove it, use the install records under
+Plan B: if the launcher cannot remove it, use the install records under
 `UserData\BigWalkVRInstaller` to identify its files. Remove only recorded
 Big Walk VR files. Do not delete the complete shared `BepInEx` folder while
-another Big Walk add-on uses it. **Restore vanilla** in the app is the separate
+another Big Walk add-on uses it. Restore vanilla in the app is the separate
 action that removes every managed mod and the mod loader.
 
 ## If something goes wrong
-The app's **Logs** tab has its own history, and **Mod logs** opens
+The app's Logs tab has its own history, and Mod logs opens
 `BepInEx\LogOutput.log` in your game folder - that is where the mod
 itself reports errors.
 
@@ -86,4 +92,4 @@ endorsed by House House.
 
 Project page:
 
-https://github.com/CircuitLord/BigWalkVRInstaller
+https://github.com/CircuitLord/CircuitLordVRModInstaller

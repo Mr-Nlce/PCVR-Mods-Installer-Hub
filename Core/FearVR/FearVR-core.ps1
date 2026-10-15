@@ -487,7 +487,7 @@ Write-OK "Mod folder: $INSTALL_DIR"
 function Find-HDUninstaller {
     $c = Join-Path $INSTALL_DIR $HD_UNINSTALLER_NAME
     if (Test-Path -LiteralPath $c) { return [string]$c }
-    $dl = Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"
+    $dl = Get-PCVRDownloadsFolder
     foreach ($dir in @($dl, ([Environment]::GetFolderPath("Desktop")))) {
         if (-not $dir -or -not (Test-Path -LiteralPath $dir)) { continue }
         try {
@@ -1058,6 +1058,7 @@ New-Item -ItemType Directory -Path $work -Force | Out-Null
 $zipPath = Join-Path $work "fearvr-release.zip"
 $relTag  = $null
 $gotZip  = $false
+$downloadInfo = @{}
 
 try {
     Write-Info "Querying GitHub for the newest release (pre-releases included)..."
@@ -1071,43 +1072,49 @@ try {
             Write-Info "Release $relTag - downloading $($asset.name)"
             $ok = Invoke-SafeDownload -Urls @($asset.browser_download_url) -Destination $zipPath `
                     -Label "F.E.A.R. VR $relTag" -ManualUrl $RELEASES_URL `
-                    -Instructions "Download the .zip asset from the newest release, then drag it in."
-            if ($ok -and (Test-Path $zipPath)) { $gotZip = $true }
+                    -Instructions "Download the .zip asset from the newest release, then drag it in." `
+                    -AllowSkip $false -DownloadInfo $downloadInfo
+            if ($ok -in @($true,'retry') -and (Test-Path -LiteralPath $zipPath -PathType Leaf)) { $gotZip = $true }
         } else { Write-Warn "The newest release has no .zip asset." }
     }
 } catch { Write-Warn "Could not reach the GitHub API: $($_.Exception.Message)" }
 
 if (-not $gotZip) {
-    Write-Host ""
-    Write-Host "  Falling back to a local file." -ForegroundColor Yellow
-    $dl = Join-Path $env:USERPROFILE "Downloads"
-    $hit = $null
-    if (Test-Path -LiteralPath $dl) {
-        $hit = Get-ChildItem -LiteralPath $dl -Filter "fearvr*.zip" -File -EA SilentlyContinue |
-               Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        # The author renames the archive between builds, so fall back to a
-        # looser match before giving up and asking for a drag-and-drop.
-        if (-not $hit) {
-            $hit = Get-ChildItem -LiteralPath $dl -Filter "*.zip" -File -EA SilentlyContinue |
-                   Where-Object { $_.Name -match '(?i)f\.?e\.?a\.?r\.?.*vr|vr.*f\.?e\.?a\.?r' } |
-                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    Write-Warn 'The live release could not be downloaded. Select the publisher ZIP yourself.'
+    $manualInfo = @{}
+    $manualResult = Invoke-InstallerFallback -Action 'F.E.A.R. VR release download' -Subject 'F.E.A.R. VR release' `
+        -Url $RELEASES_URL -DestFile $zipPath -AllowSkip $false -RecoveryInfo $manualInfo `
+        -FileValidator { param($candidate) Test-DownloadedPayload -Path $candidate -IntendedPath $zipPath } `
+        -RetryCheck { Test-DownloadedPayload -Path $zipPath }
+    $gotZip = ([string]$manualResult -eq 'retry' -and (Test-Path -LiteralPath $zipPath -PathType Leaf))
+    if ($manualInfo.SourcePath) { $downloadInfo.SourcePath = $manualInfo.SourcePath }
+}
+if (-not $gotZip) { throw 'No F.E.A.R. VR publisher archive was selected; no game files were changed.' }
+
+# Current publisher packages carry their own release name. A manually
+# selected archive cannot inherit the online tag without this evidence.
+$payloadTag = $null
+try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    $releaseZip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        $manifestEntry = @($releaseZip.Entries | Where-Object { $_.FullName -match '(^|[\\/])INSTALL-MANIFEST\.json$' } | Select-Object -First 1)
+        if ($manifestEntry.Count) {
+            $reader = New-Object IO.StreamReader($manifestEntry[0].Open())
+            try {
+                $manifest = $reader.ReadToEnd() | ConvertFrom-Json
+                if ([string]$manifest.releaseName -match '(?i)^fear-vr-(.+)$') { $payloadTag = $matches[1] }
+            } finally { $reader.Dispose() }
         }
-    }
-    if ($hit) {
-        Write-OK "Found in Downloads: $($hit.FullName)"
-        $keep = (Read-Host "  Use this file? Press Enter to accept, or type N to pick another").Trim()
-        if ($keep -notin @("n","N")) { Copy-Item -LiteralPath $hit.FullName -Destination $zipPath -Force; $gotZip = $true }
-    }
-    while (-not $gotZip) {
-        Write-Host "  Open the releases page, download the .zip, then drag it here" -ForegroundColor Yellow
-        Write-Host "  (or paste its full path). Enter on an empty line opens the page." -ForegroundColor White
-        $r = (Read-Host "  ZIP path").Trim().Trim('"')
-        if (-not $r) { try { Start-Process $RELEASES_URL } catch {}; continue }
-        if (-not (Test-Path $r)) { Write-Fail "File not found: $r"; continue }
-        if ($r -notmatch '\.zip$') { Write-Fail "Not a ZIP: $r"; continue }
-        Copy-Item -LiteralPath $r -Destination $zipPath -Force
-        $gotZip = $true
-    }
+    } finally { $releaseZip.Dispose() }
+} catch { throw "The selected F.E.A.R. VR archive is unreadable: $_" }
+if ($payloadTag -and $relTag -and $payloadTag -ne $relTag) {
+    throw "The selected F.E.A.R. VR archive identifies as $payloadTag, but the online release is $relTag. No game files were changed."
+}
+if (-not $downloadInfo.Url -or ($asset -and [string]$downloadInfo.Url -ne [string]$asset.browser_download_url)) {
+    if (-not $payloadTag) { throw 'The manually selected F.E.A.R. VR archive has no publisher version evidence. No game files were changed.' }
+    $relTag = $payloadTag
+    Write-Warn "Manual publisher archive selected for release $relTag."
 }
 
 # Unpack flat to the install dir. Release files are overwritten, while all

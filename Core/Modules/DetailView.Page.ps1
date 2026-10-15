@@ -460,6 +460,9 @@ function global:Show-DiscoverDetail {
         # decode VP8/VP9 anyway. The "Open in Steam" button below
         # gives the user a path to the trailer on Steam itself.
     }
+    if (Get-Command Add-DetailHeroGlass -ErrorAction SilentlyContinue) {
+        try { Add-DetailHeroGlass -Hero $hero -Game $Game -AccentHex $accentHex } catch { }
+    }
     $stack.Children.Add($hero) | Out-Null
 
     # Compute the controls label - shown as a pill next to the
@@ -1103,6 +1106,7 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "Mount & Blade II: Bannerlord VR" = "Mount & Blade II: Bannerlord is a medieval sandbox action RPG set in Calradia. Build a clan, gather companions, command armies and take part in large battles while shaping the fate of its kingdoms."
         "Black Mesa Source VR" = "Black Mesa Source VR is a fan-made reimagining of the original Half-Life, rebuilt as a Half-Life 2: Episode Two mod and now playable in VR."
         "SiN Episodes: Emergence" = "SiN Episodes: Emergence is a story-driven first-person shooter set in Freeport. As HardCorps commander John Blade, battle Elexis Sinclaire's forces through city streets, laboratories and industrial complexes using fast gunplay, interactive environments and vehicles."
         "Silent Hill 3 VR" = "Silent Hill 3 follows Heather Mason as an ordinary trip through a shopping mall turns into a nightmare tied to the cult and events of Silent Hill. Explore oppressive environments, solve puzzles and fight grotesque creatures while uncovering why Heather is being drawn into the town's history."
@@ -1139,7 +1143,15 @@ function global:Show-DiscoverDetail {
         "UEVR Deluxe"          = "UEVR (Universal Unreal Engine VR Mod) is a groundbreaking, free, open-source tool developed by praydog that allows users to play almost any Unreal Engine 4 or 5 flatscreen game in virtual reality. It works by injecting VR functionality directly into the game engine, transforming games that were not originally designed for VR into immersive experiences."
         "UUVR / Rai Pal"       = "UUVR (Universal Unity VR) is an experimental open-source modification by developer Raicuparta that transforms flat PC games developed with the Unity engine into VR games. The easiest way to use it is through Rai Pal, Raicuparta's manager for universal game mods, which auto-detects your installed and owned games, identifies their engine, and installs, runs, and updates the correct version of UUVR for you."
         "Dolphin VR + ReduX"   = "Dolphin VR is an older, specialized modification of the popular Dolphin Emulator that allows users to play Nintendo GameCube and Wii games in Virtual Reality. Dolphin VR ReduX (also frequently referred to as Dolphin XR) is a major, modern revival of that project, using the modern Dolphin core and up-to-date VR runtime standards."
+        "RPCS3 VR"             = "RPCS3 VR is an experimental OpenXR fork of the PlayStation 3 emulator. Selected games render in stereoscopic 3D with headset tracking; each needs a compatible VR profile. Bring your own legally dumped games and install official PS3 firmware."
+        "A Kingdom for Keflings VR" = "Play as a giant and help the tiny Keflings build a kingdom, unlocking blueprints and new buildings as the village grows. The VR port presents the world as a living tabletop model with controller or gamepad input. The licensed PC game is required."
         "Sonic P-06 VR"        = "Sonic P-06 (Project '06) is an unofficial, fan-made remake of the notoriously buggy Sonic the Hedgehog (2006), rebuilt in the Unity engine by programmer Ian `"ChaosX`" Moris to create a polished, high-quality experience. It fixes broken physics, improves graphics with upscaled textures, and enhances controls for all playable characters."
+        "Little Witch Nobeta VR" = "Little Witch Nobeta is a 3D action shooter and Souls-like game. Play as a young witch with no memory of her past as she explores an ancient castle. Combat combines precise dodging and stamina management with ranged elemental magic and charged spells."
+        "No One Lives Forever VR" = "The Operative: No One Lives Forever is a 1960s spy shooter starring Cate Archer. Sneak through international missions, use gadgets and dialogue, and fight the criminal organization H.A.R.M. Two independent OpenXR ports offer motion-controlled PC VR for an original copy of the game."
+        "Super Mario 3D World VR" = "Super Mario 3D World is a cooperative 3D platform adventure through compact, colorful courses full of power-ups, stars and stamps. This experimental OpenXR layer brings the legally owned Wii U game into stereo diorama and first-person views through Cemu."
+        "Star Fox Enhanced PCVR" = "Star Fox is Nintendo's polygonal SNES space shooter. This independent native alpha port adds experimental OpenXR headset tracking and a PCVR build. Bring your own supported retail Star Fox or Starwing ROM; no game data is included."
+        "Gran Turismo 2 PCVR" = "Gran Turismo 2 combines arcade races with a full simulation career, hundreds of cars, licence challenges and tuning. This native PCVR port prepares Arcade and Simulation from original PlayStation discs that you own; no game data is included."
+        "Mario Kart Wii VR" = "Mario Kart Wii blends Grand Prix, Time Trials, kart and bike racing, drifting and items. WiiCompiled OpenXR VR builds a native Windows version from a clean PAL game disc that you own, then adds headset tracked racing and optional hand steering."
         "Anomaly VR"           = "Welcome to the most complete and immersive S.T.A.L.K.E.R. experience yet. S.T.A.L.K.E.R. Anomaly is a free, stand-alone mod built on the 64-bit X-Ray engine, reinvigorated and enhanced to deliver the definitive survival sandbox in the Chornobyl Exclusion Zone."
         "Iron Lung VR"         = "Iron Lung is a short dread-driven submarine horror game from the developer of DUSK, The Moon Sliver, and Squirrel Stapler. The VR recreation was created by Jack Randolph."
         "Vivecraft"            = "Vivecraft is the premier open-source mod that transforms Minecraft: Java Edition into a fully immersive Virtual Reality experience. It supports major VR headsets and provides room-scale movement, motion-controlled interactions, and full multiplayer compatibility with non-VR players."
@@ -1149,10 +1161,11 @@ function global:Show-DiscoverDetail {
         "Breath of the Wild VR" = "Experience Hyrule like never before! BetterVR transforms The Legend of Zelda: Breath of the Wild into a full 6DOF PCVR adventure. Explore vast landscapes, climb towering mountains, and face powerful enemies with a whole new sense of scale and immersion."
         "Escape from Tarkov VR" = "SPT VR brings the harsh extraction shooter experience of Tarkov into immersive PCVR. Raid alone against AI PMCs and Scavs, manage your gear, loot dangerous locations, and survive tense firefights where every mistake can cost you everything. Build your stash, upgrade your setup, and make it back alive before the raid turns against you."
         "Tribes 2 VR"          = "Tribes 2 is a classic fast-paced sci-fi team shooter famed for its massive open maps and iconic jetpack-assisted skiing mechanics."
+        "Unreal Revived"       = "Unreal Gold is a classic first-person shooter bundle that combines the original 1998 Unreal campaign with its Return to Na Pali expansion pack. Powered by the groundbreaking Unreal Engine 1, it delivers atmosphere-rich sci-fi exploration, iconic weaponry, and fast-paced arena action as players fight to survive on the hostile alien world of Na Pali."
         "GoldenEye 007 VR"     = "Experience the iconic 1997 stealth-action classic re-imagined for modern virtual reality, placing you directly inside the shoes of MI6's top agent."
         "Painkiller: Overdose VR" = "Painkiller: Overdose is a fast-paced, dark retro shooter released in 2007 that serves as both a prequel and a sequel to the original game. Armed with brutal new weapons and powers, the game delivers relentless arcade-style carnage through massive waves of enemies across bizarre, gothic environments."
     }
-    $toolInfoTitles = @("UEVR Deluxe", "UUVR / Rai Pal", "Dolphin VR + ReduX")
+    $toolInfoTitles = @("UEVR Deluxe", "UUVR / Rai Pal", "Dolphin VR + ReduX", "RPCS3 VR")
     $steamDescPending = $false
     if ($customDescriptions.ContainsKey($Game.Title)) {
         $steamDesc = $customDescriptions[$Game.Title]
@@ -2107,13 +2120,23 @@ function global:Show-DiscoverDetail {
     # Quip field. Either way it renders as one accent left-bar box with
     # italic semibold accent text and no heading, as the closing line.
     $quipText = $null
-    if ($Game.Quip) {
+    if ($Game.ModAQuip -and $Game.ModBQuip) {
+        $aReady=[bool]($state -and $state.ModAPresent)
+        $bReady=[bool]($state -and $state.ModBPresent)
+        if ($aReady -and $bReady) { $quipText="W40KRT_VR: $($Game.ModAQuip)`nRTVR: $($Game.ModBQuip)" }
+        elseif ($bReady) { $quipText=$Game.ModBQuip }
+        else { $quipText=$Game.ModAQuip }
+    } elseif ($Game.Quip) {
         # A per-game catalog Quip always wins - this lets games that
         # share a README (REFramework family, Luke Ross titles) each
         # carry their own game-specific quip instead of the shared one.
         $quipText = $Game.Quip
     } elseif ($hasReadme -and $sections.Contains("_quip") -and $sections["_quip"]) {
         $quipText = $sections["_quip"]
+    }
+    if ($Game.QuipLast -and $deferredUninstallBox) {
+        $stack.Children.Add($deferredUninstallBox) | Out-Null
+        $deferredUninstallBox = $null
     }
     if ($quipText) {
         $cqBox = New-Object System.Windows.Controls.Border
@@ -2694,6 +2717,12 @@ function global:Show-DiscoverDetail {
                 $gameForBtn.Url
             }
             if ($getUrl) {
+                if ($gameForBtn.Title -eq 'Resident Evil 4R VR') {
+                    if (Invoke-HubExternalInstallerLink -Game $gameForBtn -Url $getUrl) {
+                        Invoke-PostInstallRefreshSafely -GameId ('' + $gameForBtn.Id) -Title $gameForBtn.Title
+                    }
+                    return
+                }
                 # Steam-type games (the Half-Life family is the only
                 # case here, since they ship the VR mod via the
                 # regular Steam store page): set the same single-
@@ -2786,7 +2815,8 @@ function global:Show-DiscoverDetail {
             $useCombinedInstaller = [bool]$Game.CombinedModInstaller
             foreach ($definition in $alternativeDefinitions) {
                 if ($definition.Present) {
-                    $play = New-TwoModsButton -Game $Game -Mode ([string]$definition.Mode) -Label ("Play " + [string]$definition.Name) -AccentHex $accentHex -Installed:$true
+                    $playLabel = if (($Game.RogueTraderDualLaunch -or $Game.MaxPayne2DualLaunch) -and $definition.ButtonLabel) { "Play " + [string]$definition.ButtonLabel } else { "Play " + [string]$definition.Name }
+                    $play = New-TwoModsButton -Game $Game -Mode ([string]$definition.Mode) -Label $playLabel -AccentHex $accentHex -Installed:$true
                     $play.Margin = [System.Windows.Thickness]::new(0,0,10,0)
                     $btnRow.Children.Add($play) | Out-Null
                     Add-StandardHover -Border $play
@@ -3078,6 +3108,12 @@ function global:Show-DiscoverDetail {
                 }
             } catch { }
         }
+        if ($baseInstalled -and $Game.Title -eq 'Star Wars Episode I Racer') {
+            # A user track may already use the old probe path. Only the Hub
+            # ownership manifest plus the actual track payload proves this add-on.
+            $addonInstalled = [bool]((Test-Path -LiteralPath (Join-Path $baseDir '.pcvrhub-starwars-racer-tracks.tsv') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $baseDir 'assets\custom_tracks\bigblue\out_modelblock.bin') -PathType Leaf))
+        }
 
         $addonBtn = New-Object System.Windows.Controls.Border
         $addonBtn.CornerRadius = [System.Windows.CornerRadius]::new(7)
@@ -3147,6 +3183,14 @@ function global:Show-DiscoverDetail {
                         # contents are removed before packaging.
                         $addonLogsDir = Get-HubRuntimeLogsRoot
                         $addonArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$($global:RunInstallerPath)`" -Title `"$($Game.Title)`" -Kind Direct -BatPath `"$batPath`" -LogsDir `"$addonLogsDir`""
+                        if ($Game.Title -eq 'Star Wars Episode I Racer') {
+                            $addonStateDir = Split-Path -Parent $batPath
+                            $runtimeRoot = Get-HubRuntimeRoot
+                            if (-not $runtimeRoot) { throw 'The Hub runtime state folder is unavailable for the community tracks.' }
+                            $addonStatusDir = Join-Path $runtimeRoot 'InstallerTransactions'
+                            if (-not (Test-Path -LiteralPath $addonStatusDir -PathType Container)) { [void][IO.Directory]::CreateDirectory($addonStatusDir) }
+                            $addonArgs += " -StatusPath `"$(Join-Path $addonStatusDir 'racer-tracks.json')`" -VersionPath `"$(Join-Path $addonStateDir '.installed_version')`" -InstallPath `"$(Join-Path $addonStateDir '.installed_path')`" -RequireVersionEvidence"
+                        }
                         $proc = Start-Process "powershell.exe" -ArgumentList $addonArgs -PassThru
                         # Poll for installer exit and re-render the detail
                         # page so the addon button flips to "installed"
@@ -3199,10 +3243,11 @@ function global:Show-DiscoverDetail {
         $wjBtn.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
         $wjStack = New-Object System.Windows.Controls.StackPanel
         $wjStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
-        $wjIcon = New-ActionIcon -Kind "download" -ColorHex "#FFFFFF" -Size 14
+        $wjStartApp = if ($Game.ExternalVrStartApp) { Get-ExternalVrStartApp -Game $Game } else { $null }
+        $wjIcon = New-ActionIcon -Kind $(if ($wjStartApp) { 'play' } else { 'download' }) -ColorHex "#FFFFFF" -Size 14
         [void]$wjStack.Children.Add($wjIcon)
         $wjTxt = New-Object System.Windows.Controls.TextBlock
-        $wjTxt.Text = "Get Wabbajack"
+        $wjTxt.Text = if ($wjStartApp) { 'Start in VR' } else { 'Get Wabbajack' }
         $wjTxt.FontSize = 14
         $wjTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
         $wjTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -3213,11 +3258,23 @@ function global:Show-DiscoverDetail {
         $wjBtn.Child = $wjStack
         Add-ButtonGloss -Border $wjBtn -Intensity 0.10
         $wjUrlCap = $Game.WabbajackUrl
+        $wjGameCap = $Game
         $wjBtn.Add_MouseLeftButtonUp({
-            try { Start-Process $wjUrlCap } catch { }
+            if (Get-ExternalVrStartApp -Game $wjGameCap) {
+                Start-GameInVR -Game $wjGameCap
+            } else {
+                try { Start-Process $wjUrlCap } catch { }
+            }
         }.GetNewClosure())
         Add-StandardHover -Border $wjBtn
         $btnRow.Children.Add($wjBtn) | Out-Null
+    }
+
+    if ($Game.ExternalVrStartApp) {
+        $btnRow.Children.Add((New-ExternalVrStartAppButton -Game $Game -AccentHex $accentHex)) | Out-Null
+        if (Get-ExternalVrStartApp -Game $Game) {
+            $btnRow.Children.Add((New-ExternalVrStartAppButton -Game $Game -AccentHex $accentHex -Clear)) | Out-Null
+        }
     }
 
     if ($Game.ModButtons) {
@@ -3547,44 +3604,10 @@ function global:Build-DiscoverTiles {
     $allGames += $ownGamesGP
     $allGames += $externalGames
 
-    # Reorder by play history: surface the 5 most-recent launches
-    # at the top of the Discover page so the user lands on what
-    # they actually play. Read once at build time - DiscoverTilesBuilt
-    # caches the result for the session. Next Hub start picks up
-    # any new launches.
-    try {
-        $history = Get-HubSetting -Key "playHistory" -Default @()
-        if ($history -and $history.Count -gt 0) {
-            $recentTitles = @()
-            $cnt = 0
-            foreach ($title in $history) {
-                if ($cnt -ge 5) { break }
-                if ($recentTitles -notcontains $title) {
-                    $recentTitles += $title
-                    $cnt++
-                }
-            }
-            if ($recentTitles.Count -gt 0) {
-                # Build lookup of catalog by title.
-                $byTitle = @{}
-                foreach ($g in $allGames) {
-                    if ($g.Title) { $byTitle[$g.Title] = $g }
-                }
-                # Front: recent games (in history order, most recent first).
-                # Back: everything else in original catalog order.
-                $front = @()
-                foreach ($t in $recentTitles) {
-                    if ($byTitle.ContainsKey($t)) { $front += $byTitle[$t] }
-                }
-                $frontTitles = @($front | ForEach-Object { $_.Title })
-                $back = @()
-                foreach ($g in $allGames) {
-                    if ($frontTitles -notcontains $g.Title) { $back += $g }
-                }
-                $allGames = @($front + $back)
-            }
-        }
-    } catch { }
+    $recent = @(Get-LibraryRecentGames -Games $allGames)
+    $global:LibraryRecentGameIds = @($recent | ForEach-Object { [string]$_.Id })
+    Set-LibraryRecentLabel -Count $recent.Count
+    $allGames = @(Get-LibraryGamesInOrder -Games $allGames -Mode $global:CatalogSortMode -RecentGames $recent)
 
     # Building 276 portrait controls, including cached bitmap decoding, used
     # to happen in one synchronous loop on the first Library click. Keep the

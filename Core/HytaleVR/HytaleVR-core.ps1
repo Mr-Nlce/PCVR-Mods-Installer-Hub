@@ -64,7 +64,6 @@ function Get-LatestWinZipUrl {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
         $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -match '(?i)windows.*x64.*\.zip$' } | Select-Object -First 1
-        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1 }
         if ($asset -and $asset.browser_download_url) {
             # Remember the tag so the version marker below is written
             # deterministically (previously we relied on the Hub scan
@@ -95,8 +94,10 @@ Pause-User "Press Enter to begin the installation or update..." | Out-Null
 # ---- 0. sanity check: is Hytale itself installed? ------------
 # Non-blocking: the injector installs fine without the game; we just
 # tell the user what is missing so first launch is not a mystery.
-$hytaleClient = Join-Path ([Environment]::GetFolderPath("ApplicationData")) $HYTALE_CLIENT_REL
-if (Test-Path -LiteralPath $hytaleClient) {
+$appDataRoot = [Environment]::GetFolderPath('ApplicationData')
+if (-not $appDataRoot) { $appDataRoot = $env:APPDATA }
+$hytaleClient = if ($appDataRoot) { Join-Path $appDataRoot $HYTALE_CLIENT_REL } else { '' }
+if ($hytaleClient -and (Test-Path -LiteralPath $hytaleClient)) {
     Write-OK "Hytale found: $hytaleClient"
 } else {
     Write-Warn "Hytale was not found at the default launcher location:"
@@ -158,7 +159,7 @@ $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $DASH_EXE
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
-$null = Show-UpdateNoticeIfInstalled -TargetDir $installRoot -RelModFile $DASH_EXE -Label "Hytale VR"
+$null = Show-UpdateNoticeIfInstalled -TargetDir $gameRoot -RelModFile $DASH_EXE -Label "Hytale VR"
 Write-Step 2 4 "Downloading Hytale VR (latest windows-x64 release)"
 
 $tmp = Join-Path $installRoot "_hytalevr_extract_tmp"
@@ -174,7 +175,7 @@ $zipDest = Join-Path $tmp "HytaleVR_latest.zip"
 
 $urls = New-Object System.Collections.Generic.List[string]
 Write-Info "Resolving the newest release via the GitHub API..."
-$apiUrl = Get-LatestWinZipUrl
+$apiUrl = if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HYTALE_TEST_ZIP) { $null } else { Get-LatestWinZipUrl }
 if ($apiUrl) {
     Write-OK "Latest windows-x64 asset: $apiUrl"
     [void]$urls.Add($apiUrl)
@@ -183,11 +184,23 @@ if ($apiUrl) {
 }
 if ([string]$apiUrl -ne [string]$KNOWN_FALLBACK_ZIP) { [void]$urls.Add($KNOWN_FALLBACK_ZIP) }
 
-Invoke-SafeDownload -Urls $urls -Destination $zipDest `
-    -Label "Hytale VR (windows-x64 build)" `
-    -ManualUrl $RELEASES_LATEST `
-    -Instructions "Open the releases page, download the newest 'HytaleVRInjector-mod-*-windows-x64.zip', save it as '$zipDest', then choose Retry." `
-    -SkipMessage "" | Out-Null
+if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HYTALE_TEST_ZIP) {
+    Copy-Item -LiteralPath $env:PCVR_HYTALE_TEST_ZIP -Destination $zipDest -ErrorAction Stop
+    if ([IO.Path]::GetFileName($env:PCVR_HYTALE_TEST_ZIP) -match 'v([0-9]+(?:\.[0-9]+)+)-windows-x64\.zip$') {
+        $script:LatestTag = 'v' + $Matches[1]
+    }
+} else {
+    $downloadInfo = @{}
+    Invoke-SafeDownload -Urls $urls -Destination $zipDest -DownloadInfo $downloadInfo -AllowSkip $false `
+        -Label "Hytale VR (windows-x64 build)" `
+        -ManualUrl $RELEASES_LATEST `
+        -Instructions "Open the releases page, download the newest 'HytaleVRInjector-mod-*-windows-x64.zip', save it as '$zipDest', then choose Retry." `
+        -SkipMessage "" | Out-Null
+    $script:LatestTag = $null
+    if ($downloadInfo.Url -match '/releases/download/(v[0-9]+(?:\.[0-9]+)+)/') {
+        $script:LatestTag = $Matches[1]
+    }
+}
 
 while (-not (Test-Path $zipDest)) {
     Write-Fail "The Hytale VR download is not present at: $zipDest"
@@ -203,9 +216,17 @@ while (-not (Test-Path $zipDest)) {
     }
     Write-Host "  If you already have the ZIP, paste its full path (or Enter to recheck '$zipDest')." -ForegroundColor White
     $alt = (Read-Host "  ZIP path").Trim().Trim('"')
-    if ($alt -and (Test-Path -LiteralPath $alt) -and ($alt -match '\.zip$')) { $zipDest = [string]$alt }
+    if ($alt -and (Test-Path -LiteralPath $alt) -and ($alt -match '\.zip$')) {
+        $zipDest = [string]$alt
+        $script:LatestTag = $null
+    }
 }
 Write-OK "Hytale VR archive ready: $zipDest"
+$archiveSafety = Test-ZipArchiveEntrySafety -ArchivePath $zipDest -DestinationFolder $tmp
+if (-not $archiveSafety.Inspectable -or -not $archiveSafety.Safe) {
+    Write-Fail "The ZIP is unreadable or contains an unsafe path: $($archiveSafety.Entry)"
+    throw 'The Hytale VR ZIP failed archive safety validation.'
+}
 
 # ---- 3. extract + place into the mod folder ------------------
 Write-Step 3 4 "Installing Hytale VR"
@@ -262,6 +283,12 @@ while (-not $exeItem) {
     $exeItem = Get-ChildItem -Path $unpack -Filter $DASH_EXE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
 $payloadDir = Split-Path -Parent $exeItem.FullName
+$sourceOpenVR = Join-Path $payloadDir 'openvr_api.dll'
+$sourceHook = @(Get-ChildItem -LiteralPath $payloadDir -Filter 'hytale_vr_camera_hook*.dll' -File -ErrorAction SilentlyContinue)
+if (-not (Test-Path -LiteralPath $sourceOpenVR -PathType Leaf) -or $sourceHook.Count -eq 0) {
+    Write-Fail 'The ZIP is missing the OpenVR runtime or camera hook; no files were installed.'
+    throw 'The Hytale VR ZIP is incomplete.'
+}
 $placedFiles = @(Get-ChildItem -LiteralPath $payloadDir -Recurse -File -ErrorAction SilentlyContinue | ForEach-Object {
     $rel = $_.FullName.Substring($payloadDir.Length).TrimStart('\')
     Join-Path $gameRoot $rel
@@ -301,6 +328,12 @@ if (-not $avFilesOk) {
     Write-Fail "Hytale VR could not be restored after the antivirus check."
     Pause-User "Press Enter to exit, then run the installer again." | Out-Null
     exit 1
+}
+if (-not (Test-Path -LiteralPath (Join-Path $gameRoot $DASH_EXE) -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gameRoot 'openvr_api.dll') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gameRoot $sourceHook[0].Name) -PathType Leaf)) {
+    Write-Fail 'The installed dashboard, OpenVR runtime or camera hook is missing.'
+    throw 'Required installed Hytale VR files are missing.'
 }
 
 Write-OK "Mod installed at: $gameRoot"
@@ -350,9 +383,8 @@ try {
     Set-Content -Path $batPath -Value $batLines -Encoding ASCII -ErrorAction Stop
     Write-OK "Combo launcher written: $batPath"
 } catch {
-    Write-Warn "Could not write the combo launcher: $_"
-    Write-Host "  You can start the game via the Hytale Launcher and run" -ForegroundColor Gray
-    Write-Host "  $DASH_EXE from $gameRoot yourself." -ForegroundColor Gray
+    Write-Fail "Could not write the required combo launcher: $_"
+    throw
 }
 
 # Ship the icon next to the bat so the shortcut gets proper art.
@@ -366,7 +398,9 @@ if (Test-Path $icoSrc) {
 
 if (Test-Path $batPath) {
     try {
-        $desktop = [Environment]::GetFolderPath("Desktop")
+        $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HYTALE_TEST_DESKTOP) {
+            $env:PCVR_HYTALE_TEST_DESKTOP
+        } else { [Environment]::GetFolderPath("Desktop") }
         $lnkPath = Join-Path $desktop "Hytale VR.lnk"
         if ($shortcutIcon) {
             $sc = New-DesktopShortcut -LnkPath $lnkPath -TargetPath $batPath -WorkingDir $gameRoot -IconPath $shortcutIcon
@@ -397,7 +431,7 @@ try {
     if ($verTag) {
         try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
         # Also next to the GAME, so a new Hub build does not lose it.
-        try { Save-InstalledStamp -GameDir $installRoot -Version $verTag -HubDir $SCRIPT_DIR } catch {}
+        try { Save-InstalledStamp -GameDir $gameRoot -Version $verTag -HubDir $SCRIPT_DIR } catch {}
     } else {
         try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
     }

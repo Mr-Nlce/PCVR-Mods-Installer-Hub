@@ -56,8 +56,10 @@ function Find-MCCRoot {
         if (Test-MCCRoot $candidate) { return $candidate }
     }
     foreach ($drive in @('C:','D:','E:','F:')) {
+        $driveRoot = "$drive\"
+        if (-not (Test-Path -LiteralPath $driveRoot -PathType Container)) { continue }
         foreach ($relative in @('XboxGames\Halo- The Master Chief Collection\Content','XboxGames\Halo The Master Chief Collection\Content')) {
-            $candidate = Join-Path $drive $relative
+            $candidate = Join-Path $driveRoot $relative
             if (Test-MCCRoot $candidate) { return $candidate }
         }
     }

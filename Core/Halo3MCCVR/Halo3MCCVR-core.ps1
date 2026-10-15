@@ -64,8 +64,10 @@ function Find-MCCRoot {
         if (Test-MCCRoot $recorded) { return $recorded }
     } catch {}
     foreach ($drive in @('C:','D:','E:','F:')) {
+        $driveRoot = "$drive\"
+        if (-not (Test-Path -LiteralPath $driveRoot -PathType Container)) { continue }
         foreach ($relative in @('XboxGames\Halo- The Master Chief Collection\Content','XboxGames\Halo The Master Chief Collection\Content')) {
-            $candidate = Join-Path $drive $relative
+            $candidate = Join-Path $driveRoot $relative
             if (Test-MCCRoot $candidate) { return $candidate }
         }
     }
@@ -114,44 +116,33 @@ function Get-ArchiveInputFolders {
 }
 
 function Get-LatestContinuationRelease {
-    try {
-        $releases = @(Invoke-RestMethod -Uri "https://api.github.com/repos/$CONTINUATION_REPO/releases?per_page=20" -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25 -ErrorAction Stop)
-        foreach ($release in $releases) {
-            if ($release.draft) { continue }
-            $asset = @($release.assets | Where-Object {
-                $_.name -match '(?i)^Halo(?:MCCVR|-MCC-VR).*\.zip$' -and $_.name -notmatch '(?i)source|symbols|debug'
-            } | Select-Object -First 1)[0]
-            if (-not $asset) { continue }
-            return [pscustomobject]@{
-                Family='Community'; Channel=$(if ($release.prerelease) {'prerelease'} else {'stable'})
-                Tag=[string]$release.tag_name; Name=[string]$asset.name
-                Url=[string]$asset.browser_download_url; Page=$CONTINUATION_PAGE
-                Folder='Halo_MCC_VR_community'; Marker='.pcvrhub-halomccvr-community'
-                Manifest='.pcvrhub-halomccvr-community-install.tsv'; Shortcut='Halo MCC VR'
-            }
-        }
-    } catch { Write-Warn 'The continuation release lookup failed; using the last known playable release URL.' }
+    # The publisher currently exposes only the 0.5.1 playable runtime.
+    # Keep this title pinned until another package passes review.
     return $CONTINUATION_PIN
 }
 
+function Confirm-MCCReplacement([string]$Root,[object]$Release) {
+    if(-not(Test-MCCVRBuild -Root $Root -Folder ([string]$Release.Folder))){return $true}
+    $marker=Join-Path (Join-Path $Root ([string]$Release.Folder)) ([string]$Release.Marker)
+    $installed=if(Test-Path -LiteralPath $marker -PathType Leaf){([IO.File]::ReadAllText($marker)).Trim()}else{''}
+    if($installed -eq [string]$Release.Tag){return $true}
+    Write-Host ''
+    Write-Warn "The installed Halo MCC VR build is $($(if($installed){$installed}else{'unverified'}))."
+    Write-Warn 'The older public 0.5.1 release will replace its runtime files.'
+    Write-Host ' Your personal halomccvr.cfg remains in place.' -ForegroundColor White
+    return (Read-YesNo 'Replace the installed Halo MCC VR files with 0.5.1?')
+}
+
 function Get-ReleaseArchive([object]$Release,[string]$Destination) {
-    $findArgs = @{
-        Patterns=@([string]$Release.Name)
-        ExtraFolders=(Get-ArchiveInputFolders); Label=("Halo MCC VR " + [string]$Release.Tag)
-    }
-    $found = Find-PredownloadedFile @findArgs
-    if ($found) {
-        Copy-Item -LiteralPath $found -Destination $Destination -Force
-    } else {
-        $downloadArgs = @{
+    $downloadArgs = @{
             Urls=@([string]$Release.Url); Destination=$Destination
             Label=("Halo MCC VR " + [string]$Release.Tag)
             ManualUrl=[string]$Release.Page
-            Instructions="Download the playable build ZIP named '$($Release.Name)', then choose Retry. Do not select a source ZIP."
+            Instructions="Download the runtime Installer ZIP named '$($Release.Name)', then choose Retry. Do not select a source ZIP."
+            ExpectedReleaseTag=[string]$Release.Tag
         }
-        $null = Invoke-SafeDownload @downloadArgs
-        if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) { return $null }
-    }
+    $null = Invoke-SafeDownload @downloadArgs
+    if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) { return $null }
     return $Destination
 }
 
@@ -168,7 +159,7 @@ function Get-PayloadRoot([string]$ExtractRoot) {
 
     # Release notes, manifests and supplementary document names change often.
     # They are useful evidence but are not runtime requirements. The matching
-    # DLL, launcher and config are required to run a playable MCCVR package;
+    # DLL, launcher and config are required to use the MCCVR runtime package;
     # source/diagnostic assets are already excluded
     # by Get-LatestContinuationRelease before download.
     return $root
@@ -302,8 +293,9 @@ function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,
 $work = $null
 try {
     Write-Header
-    Write-Host ' Installs the maintained all-campaign Halo MCC VR build.' -ForegroundColor White
+    Write-Host ' Installs the available Halo MCC VR 0.5.1 alpha.' -ForegroundColor White
     Write-Host ' Existing personal configuration is retained during updates.' -ForegroundColor White
+    Write-Warn 'Previously offered 0.6.0 is no longer available from the publisher.'
     Write-Host ''
     Write-Warn 'Always launch without anti-cheat. Never use the mod in matchmaking.'
     Write-Info 'Start MCC flat once first and finish the Microsoft account sign-in.'
@@ -327,7 +319,7 @@ try {
     }
 
     $release = Get-LatestContinuationRelease
-    Write-Step 1 4 'Getting the latest release'
+    Write-Step 1 4 'Getting the reviewed release'
     $work = Join-Path $env:TEMP ('pcvr_halomccvr_' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     $archive = Get-ReleaseArchive -Release $release -Destination (Join-Path $work ([string]$release.Name))
@@ -347,6 +339,10 @@ try {
     if (-not $mccPath) { throw 'Setup was cancelled before the game was changed.' }
     if (@(Get-Process -Name 'MCC-Win64-Shipping','MCCWinStore-Win64-Shipping' -ErrorAction SilentlyContinue).Count) { throw 'MCC is running. Close it completely and run setup again.' }
     Write-OK "Found: $mccPath"
+    if(-not(Confirm-MCCReplacement -Root $mccPath -Release $release)){
+        Write-Info 'Existing VR files were not changed.'
+        return
+    }
 
     Write-Step 4 4 'Installing Halo MCC VR safely'
     $installedDir = Install-Payload -PayloadRoot $payload -MccRoot $mccPath -Release $release -WorkRoot $work

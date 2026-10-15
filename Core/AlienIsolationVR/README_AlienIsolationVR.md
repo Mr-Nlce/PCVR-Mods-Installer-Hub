@@ -7,26 +7,28 @@ motion controls and major graphical and quality-of-life improvements.
 
 ## What it installs
 
-- **MotherVR v0.8.1** - base VR mod by Nibre
-- **GRAND (latest)** - extended VR mod by JayP (from alienisolationvr.com)
-- **Windows 11 registry fix** - auto-detected and applied silently if on Win11
+- MotherVR v0.8.1 - base VR mod by Nibre
+- GRAND (latest) - extended VR mod by JayP (from alienisolationvr.com)
+- Windows 11 registry fix - auto-detected and applied silently if on Win11
 
 GRAND now only needs a single DLL added to the game folder; shader patching
 happens on-the-fly while loading into the game.
 
-## What's new in GRAND v0.6.0
+## What's new in GRAND v0.6.2
 
-- Added room-scale support (physical crouching is not yet supported).
-- Removed the deprecated `[Debug] CameraAim` and `OriginalInteractions`
-  options from `grand.ini`.
-- The pause menu is now transparent instead of black, so you can see the
-  game world while paused.
+- Corrected aimed weapons at steep angles, forearm rotation, motion controls
+  after the M18 cutscene and modern controller labels.
+- Reduced the activation distance for terminals and rewire stations.
+- Added terminal font size and item highlight options in `grand.ini`.
+- Hold the left controller near the headset and press Y to toggle the HUD.
+- Physical IED throwing from v0.6.1 remains available: hold and release the
+  right grip to throw. Existing saved settings remain yours.
 
 ## Requirements
 
-- **Steam version** of Alien: Isolation (Epic and GOG are NOT supported)
+- Steam version of Alien: Isolation (Epic and GOG are NOT supported)
 - A headset compatible with SteamVR or Meta/Oculus Link
-- A working **MotherVR v0.8.1** installation (handled by this installer)
+- A working MotherVR v0.8.1 installation (handled by this installer)
 - Windows 10 or 11
 
 This is a test build - expect some immersion and possibly game-breaking
@@ -51,7 +53,7 @@ bugs still.
 
 ## First launch
 
-1. Fully load SteamVR Home **before** starting the game, or it may crash
+1. Fully load SteamVR Home before starting the game, or it may crash
    on startup
 2. Launch Alien: Isolation; confirm the MotherVR message
 3. In the main menu: Options -> MotherVR -> VR Runtime, choose Oculus or
@@ -62,9 +64,9 @@ bugs still.
 
 ![Controls](AlienIsolation_controls.jpg)
 
-- **Recenter:** [[Left Grip]] + [[Right Grip]] (still occasionally needed after
+- Recenter: [[Left Grip]] + [[Right Grip]] (still occasionally needed after
   certain animations)
-- **Flashlight:** hold the right controller near your headset and press
+- Flashlight: hold the right controller near your headset and press
   Interact [[A]], or just press [[RS]]
 - [[D-pad]] (minigames / terminal keypads): hold [[Left Grip]] + use [[Left Stick]]
 - Controls are not configurable - the fixed MotherVR control set is used
@@ -83,7 +85,7 @@ bugs still.
 
 ## Known issues
 
-- **Disable SteamVR Theatre Mode** (VR Settings -> Dashboard -> turn off
+- Disable SteamVR Theatre Mode (VR Settings -> Dashboard -> turn off
   "Present Non-VR Applications on Theater Screen Upon Launch")
 - Steam Link + Quest: hands may have the wrong offsets
 - Aimed weapons can fail to fire at certain low/high angles

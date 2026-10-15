@@ -21,15 +21,38 @@ $script:DiscordServerSpec = [ordered]@{
         Name      = 'FarmerTrueVR'
         InviteUrl = 'https://discord.gg/G8zZBTGuhP'
     }
+    TeamBeef = @{
+        Name      = 'Team Beef'
+        InviteUrl = 'https://discord.gg/fA6m8SMZPA'
+    }
 }
 
 $script:DiscordChannelSpec = @(
+    @{ Ids=@('xiii-remake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554140030098743428'; Label='XIII VR' }
+    @{ Ids=@('descent-vr','descent-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556397364682428587'; Label='Descent 1 and 2 VR' }
+    @{ Ids=@('aliens-versus-predator-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1541458597974909009'; Label='Aliens versus Predator VR' }
+    @{ Ids=@('doom-eternal-motion-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554248586126954527'; Label='EternalVR by ArcadaLabs' }
+    @{ Ids=@('doom-eternal-motion-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1553733287971782706'; Label='KHARVOX ARGENT by CactusVR' }
+    @{ Ids=@('flower-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554952430649610301'; Label='Flower VR' }
+    @{ Ids=@('gran-turismo-2-pcvr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1551366958337761440'; Label='Gran Turismo 2 PCVR' }
+    @{ Ids=@('high-entropy-challenges-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554859840809992192'; Label='High Entropy VR' }
+    @{ Ids=@('mario-kart-wii-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1550612323436331028'; Label='Mario Kart Wii VR' }
+    @{ Ids=@('miside-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556406798725025872'; Label='MiSide VR' }
+    @{ Ids=@('no-one-lives-forever-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1553111098515783680'; Label='No One Lives Forever by Game Or Die' }
+    @{ Ids=@('soma-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542477786160169030'; Label='SOMA VR' }
+    @{ Ids=@('super-mario-3d-world-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1552405930224648282'; Label='Super Mario 3D World VR' }
+    @{ Ids=@('blade-of-darkness-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1551359846123704480'; Label='Blade of Darkness VR' }
+    @{ Ids=@('star-fox-enhanced-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554954058379563118'; Label='Star Fox Enhanced' }
+    @{ Ids=@('a-kingdom-for-keflings-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1553537520774553690'; Label='A Kingdom for Keflings VR' }
+    @{ Ids=@('rpcs3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1552796995285155930'; Label='RPCS3 VR' }
+    @{ Ids=@('x4-foundations-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554079974107910225'; Label='X4 Foundations VR' }
     # Flat2VR discussion/support channels supplied for individual games.
     @{ Ids=@('muck-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1499941272771760239'; Label='Muck VR' }
     @{ Ids=@('silent-hill-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1539124350962114630'; Label='Silent Hill 3 VR' }
     @{ Ids=@('red-faction-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1539647804962771094'; Label='Red Faction VR' }
     @{ Ids=@('thehunter-call-of-the-wild-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1538534721414365274'; Label='theHunter VR' }
     @{ Ids=@('outlast-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1537851737728221284'; Label='Outlast VR' }
+    @{ Ids=@('outlast-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1537851737728221284'; Label='Outlast 2 VR' }
     @{ Ids=@('outward-de-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1107289188350574702'; Label='Outward VR' }
     @{ Ids=@('warhammer-40k-rogue-trader-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1526432666285510676'; Label='Rogue Trader VR' }
     @{ Ids=@('pokemon-gen-1-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535704850090823690'; Label='Pokemon Dramatic Shape VR' }
@@ -59,13 +82,16 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('tormented-souls-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1115608718835462245'; Label='Tormented Souls VR' }
     @{ Ids=@('singularity-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535658310316068955'; Label='Singularity VR' }
     @{ Ids=@('diddy-kong-racing-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1539586547421151362'; Label='Diddy Kong Racing VR' }
-    @{ Ids=@('penumbra-overture-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1540774759619629056'; Label='Penumbra Overture VR' }
+    @{ Ids=@('penumbra-overture-vr','penumbra-black-plague-vr','penumbra-requiem-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1540774759619629056'; Label='Penumbra VR Framework' }
     @{ Ids=@('gta-iv-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1531522874987515955'; Label='GTA IV VR' }
     @{ Ids=@('grand-theft-auto-v-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1545350924237668453'; Label='GTA V VR by DeployAbi' }
     @{ Ids=@('super-mario-64-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1527975455079010398'; Label='Super Mario 64 Coop VR' }
     @{ Ids=@('banjo-kazooie-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1533114243912564877'; Label='Banjo-Kazooie VR' }
+    @{ Ids=@('bannerlord-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1550654814617075823'; Label='BannerlordVR' }
     @{ Ids=@('garry-s-mod-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1255838995452002356'; Label="Garry's Mod VR" }
     @{ Ids=@('elden-ring-motion-controls'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542483352068558888'; Label='Ilyamez' }
+    @{ Ids=@('spiderman-remastered-spidy-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1557408964612849695'; Label='Spidy VR by IlyaMez' }
+    @{ Ids=@('red-dead-redemption-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1557309171555369020'; Label='RDRVR by Disonomouss' }
     @{ Ids=@('ultrakill-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1107290046664560832'; Label='ULTRAKILL VR' }
     @{ Ids=@('quake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1543001517962043562'; Label='Team Beef port' }
     @{ Ids=@('virtua-cop-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1540815394850476232'; Label='Virtua Cop 2 VR' }
@@ -302,21 +328,21 @@ function global:Get-GameDiscordSectionText {
 
         if ($lines.Count -gt 0) { $lines.Add('') }
         if ($serverKey -eq 'FarmerTrueVR') {
-            $lines.Add('Joining the **FarmerTrueVR Discord** is required.')
+            $lines.Add('Joining the FarmerTrueVR Discord is required.')
             $lines.Add("Join the server: $inviteUrl")
             $lines.Add('You can find the VR mod channel here:')
         } elseif (@($serverLinks | Where-Object RequiresJoin).Count -gt 0) {
-            $lines.Add("Join the **$serverName Discord**: $inviteUrl")
-            $lines.Add('In Discord, use **Join Channels** (or the server toggle) to unlock this area:')
+            $lines.Add("Join the $serverName Discord: $inviteUrl")
+            $lines.Add('In Discord, use Join Channels (or the server toggle) to unlock this area:')
         } else {
-            $lines.Add('**Discord discussion and support channel**')
+            $lines.Add('Discord discussion and support channel')
             $lines.Add("Join the $serverName Discord: $inviteUrl")
         }
 
         foreach ($link in $serverLinks) {
             $label = [string]$link.Label
             if (-not $label) { $label = [string]$Game.Title }
-            $lines.Add("- **$label**: $([string]$link.Url)")
+            $lines.Add("- ${label}: $([string]$link.Url)")
         }
     }
     return ($lines -join "`n")

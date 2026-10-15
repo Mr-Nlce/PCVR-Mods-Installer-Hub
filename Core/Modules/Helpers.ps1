@@ -1281,8 +1281,10 @@ function global:Get-AlternativeModDefinitions {
             LaunchAlt         = Get-AlternativeModValue $Game "${prefix}LaunchAlt"
             ProbeFile         = Get-AlternativeModValue $Game "${prefix}ProbeFile"
             ProbeAbs          = Get-AlternativeModValue $Game "${prefix}ProbeAbs"
+            RequiredAbs       = Get-AlternativeModValue $Game "${prefix}RequiredAbs"
             ProbeScope        = Get-AlternativeModValue $Game "${prefix}ProbeScope"
             RequiredFile      = Get-AlternativeModValue $Game "${prefix}RequiredFile"
+            RequiredGroups    = Get-AlternativeModValue $Game "${prefix}RequiredFileGroups"
             RootLaunch        = [bool](Get-AlternativeModValue $Game "${prefix}RootLaunch")
             InstalledPathFile = Get-AlternativeModValue $Game "${prefix}InstalledPathFile"
             InstallerChoice   = Get-AlternativeModValue $Game "${prefix}InstallerChoice"
@@ -2184,6 +2186,9 @@ function global:Get-PowerTier {
         # A 2016 DX11 campaign rendered in alternate-frame stereo through
         # Northstar. The 75% default is intended for a broad range of GPUs.
         "Titanfall 2 VR"                          = "STRONG"
+        # X4 is a heavy space simulation; the VR mod renders alternate eyes
+        # and its author tested high-resolution 90 Hz on an RTX 3090.
+        "X4: Foundations VR"                      = "HIGH"
         # The 2008 Forever engine is lightweight; TMFOXR adds native stereo
         # without replacing its renderer. BASIC leaves practical VR overhead.
         "TrackMania Nations Forever"              = "BASIC"
@@ -2197,6 +2202,17 @@ function global:Get-PowerTier {
 
         # ---- BASIC ----
         "Alba VR"                      = "BASIC"
+        "Flower VR"                    = "BASIC"
+        "High Entropy: Challenges VR"  = "BASIC"
+        "Aliens versus Predator VR"    = "BASIC"
+        "MiSide VR"                   = "BASIC"
+        "No One Lives Forever VR"     = "BASIC"
+        "Super Mario 3D World VR"      = "STRONG"
+        "Star Fox Enhanced PCVR"       = "BASIC"
+        "Mario Kart Wii VR"            = "BASIC"
+        "SOMA VR"                       = "SOLID"
+        "Gran Turismo 2 PCVR"           = "BASIC"
+        "Blade of Darkness VR"         = "BASIC"
         "No One Lives Forever 2 VR"    = "BASIC"
         "Richard Burns Rally VR"       = "BASIC"
         "Rebel Galaxy VR"              = "BASIC"
@@ -2228,6 +2244,16 @@ function global:Get-PowerTier {
         "Super Mario 64 VR"            = "BASIC"
         "Star Fox 64 VR"               = "BASIC"
         "Banjo-Kazooie VR"             = "BASIC"
+        # Classic game rendering with stereo/OpenXR overhead; an estimated
+        # entry-level PC VR tier until measured on real hardware.
+        "Gothic II VR"                = "BASIC"
+        "Turok VR"                    = "BASIC"
+        # PS3 emulation plus two Vulkan views is demanding; individual
+        # profiles and resolution settings can vary substantially.
+        "RPCS3 VR"                    = "STRONG"
+        "A Kingdom for Keflings VR"    = "BASIC"
+        "Unreal Revived"              = "BASIC"
+        "Mount & Blade II: Bannerlord VR" = "STRONG"
         "Diddy Kong Racing VR"         = "BASIC"
         "AWAY VR"                      = "SOLID"
         # Unity HDRP open world, and the mod draws TWO FULL RENDER PASSES
@@ -2335,6 +2361,8 @@ function global:Get-PowerTier {
         "Portal 2: Community Edition VR" = "SOLID"
         "Freespace 2 VR" = "SOLID"
         "Dark Souls II VR" = "SOLID"
+        "Descent VR" = "BASIC"
+        "Descent 2 VR" = "BASIC"
         "Star Wars: X-Wing VR"         = "SOLID"
         "7 Days to Die VR"             = "SOLID"
         "Alien: Isolation VR"          = "SOLID"
@@ -2394,6 +2422,7 @@ function global:Get-PowerTier {
         # Virtual Desktop "for performance". Hence SOLID, not BASIC.
         "Legend of Zelda: Twilight Princess" = "SOLID"
         "Outlast VR"            = "BASIC"
+        "Outlast 2 VR"          = "SOLID"
         # A large open world, rendered twice in stereo. The author offers
         # DLSS to buy frames back - that says enough.
         # A 2018 Unity CRPG, mostly top-down - undemanding. The author
@@ -2414,6 +2443,7 @@ function global:Get-PowerTier {
         # RTX 4080-class hardware, so STRONG is the honest starting tier.
         "SnowRunner VR"               = "STRONG"
         "Ring Racers VR"        = "BASIC"
+        "Little Witch Nobeta VR" = "BASIC"
         "Star Racer VR"                = "SOLID"
         "Star Trucker VR"              = "SOLID"
         "Techtonica VR"                = "SOLID"
@@ -2493,6 +2523,7 @@ function global:Get-PowerTier {
         "Cyberpunk 2077"              = "HIGH"
         "Skyrim VR" = "HIGH"
         "Doom Eternal VR" = "HIGH"
+        "DOOM Eternal VR - Motion" = "HIGH"
         "Atomic Heart VR"             = "HIGH"
         "Days Gone VR"                = "HIGH"
         "Death Stranding VR"          = "HIGH"
@@ -3382,6 +3413,11 @@ function global:Set-SafeBannerImage {
             }.GetNewClosure())
             $bmp.EndInit()
             $imgRef.Source = $bmp
+            # OnLoad file/cache images can decode synchronously without a
+            # DownloadCompleted event. Hide the fallback in that case too.
+            if ($titleRef -and -not $bmp.IsDownloading -and $bmp.PixelWidth -gt 0) {
+                $titleRef.Visibility = [System.Windows.Visibility]::Collapsed
+            }
             # Banner colour is curated per-game (Set-BannerForGame /
             # BannerColors.ps1); the bitmap is no longer sampled for colour.
         } catch {
@@ -3618,6 +3654,10 @@ function global:Get-BannerColorForGame {
         $key = 'steam:' + [string]$Game.SteamId
     }
     if ($key -and $global:BannerColorMap.ContainsKey($key)) { return $global:BannerColorMap[$key] }
+    # Some entries deliberately share one Steam app (Mass Effect Legendary
+    # Edition). Their per-game title keys keep the banner colours separate.
+    $title = [string]$Game.Title
+    if ($title -and $global:BannerColorMap.ContainsKey($title)) { return $global:BannerColorMap[$title] }
     return $null
 }
 
@@ -3666,16 +3706,30 @@ function global:Test-StagedModStillValid {
 function global:Resolve-VrInstallRoot {
     param([string]$Root)
     if (-not $Root) { return $null }
+    # Isolated Hub labs must not probe real profile folders. Their catalog
+    # fixtures use explicit absolute roots inside the disposable lab instead.
+    if ($global:HubFileSystemLabRoot -and $Root -match '^(?i:LOCALAPPDATA|APPDATA|PROGRAMDATA|USERPROFILE):') { return $null }
+    $base = $null
+    $tail = $null
     if ($Root -like "LOCALAPPDATA:*") {
-        return (Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($Root.Substring("LOCALAPPDATA:".Length)))
+        $base = [Environment]::GetFolderPath("LocalApplicationData")
+        $tail = $Root.Substring("LOCALAPPDATA:".Length)
     } elseif ($Root -like "APPDATA:*") {
-        return (Join-Path ([Environment]::GetFolderPath("ApplicationData")) ($Root.Substring("APPDATA:".Length)))
+        $base = [Environment]::GetFolderPath("ApplicationData")
+        $tail = $Root.Substring("APPDATA:".Length)
     } elseif ($Root -like "PROGRAMDATA:*") {
-        return (Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($Root.Substring("PROGRAMDATA:".Length)))
+        $base = [Environment]::GetFolderPath("CommonApplicationData")
+        $tail = $Root.Substring("PROGRAMDATA:".Length)
     } elseif ($Root -like "USERPROFILE:*") {
-        return (Join-Path ([Environment]::GetFolderPath("UserProfile")) ($Root.Substring("USERPROFILE:".Length)))
+        # GetFolderPath(UserProfile) is empty on Windows PowerShell 5.1.
+        $base = [Environment]::GetFolderPath("UserProfile")
+        if (-not $base) { $base = $env:USERPROFILE }
+        $tail = $Root.Substring("USERPROFILE:".Length)
     }
-    return $Root
+    if ($null -eq $tail) { return $Root }
+    if ([string]::IsNullOrWhiteSpace($base)) { return $null }
+    if (-not $tail) { return $base }
+    return (Join-Path $base $tail)
 }
 
 # Optional evidence used by mod loaders whose publisher package keeps the
@@ -3684,10 +3738,37 @@ function global:Resolve-VrInstallRoot {
 function global:Test-VrInstallEvidenceContract {
     param($Game, [string]$Root)
     if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container -ErrorAction SilentlyContinue)) { return $false }
+    if ($Game.VrDisableMarker) {
+        try {
+            if (Test-Path -LiteralPath (Join-Path $Root ([string]$Game.VrDisableMarker)) -PathType Leaf -ErrorAction SilentlyContinue) { return $false }
+        } catch { return $false }
+    }
     foreach ($evidence in @($Game.VrInstallEvidence)) {
         if (-not $evidence) { continue }
         try {
             if (-not (Test-Path -LiteralPath (Join-Path $Root ([string]$evidence)) -PathType Leaf -ErrorAction SilentlyContinue)) { return $false }
+        } catch { return $false }
+    }
+    if($Game.VrInstallLocalAppDataEvidence){
+        $localRoot=$env:LOCALAPPDATA
+        if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA){$localRoot=$env:PCVR_HUB_TEST_LOCALAPPDATA}
+        if($global:HubFileSystemLabRoot -and -not($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA)){return $false}
+        if(-not $localRoot){return $false}
+        foreach($relative in @($Game.VrInstallLocalAppDataEvidence)){
+            if(-not $relative -or [IO.Path]::IsPathRooted([string]$relative) -or [string]$relative -match '(^|[\/])\.\.([\/]|$)'){return $false}
+            try{if(-not(Test-Path -LiteralPath (Join-Path $localRoot ([string]$relative)) -PathType Leaf -ErrorAction SilentlyContinue)){return $false}}catch{return $false}
+        }
+    }
+    # PyInstaller settings apps need their adjacent Python runtime. The DLL
+    # version may change with a publisher update, so prove the filename shape
+    # inside the configured directory instead of pinning python310.dll.
+    if ($Game.VrInstallPythonRuntimeDir) {
+        try {
+            $runtimeDir = Join-Path $Root ([string]$Game.VrInstallPythonRuntimeDir)
+            if (-not (Test-Path -LiteralPath $runtimeDir -PathType Container -ErrorAction SilentlyContinue)) { return $false }
+            $pythonDll = @(Get-ChildItem -LiteralPath $runtimeDir -Filter 'python*.dll' -File -ErrorAction SilentlyContinue |
+                           Where-Object { $_.Name -match '^python[0-9]+\.dll$' } | Select-Object -First 1)
+            if ($pythonDll.Count -eq 0) { return $false }
         } catch { return $false }
     }
     # Some installers expose two structurally different routes under one tile.
@@ -3797,14 +3878,23 @@ function global:Test-OnlineVersionIsNewer {
 
     # 3. Date stamps (2026-08-20 or 20260820) compare as dates, never as
     #    version numbers - "2026" alone would otherwise look equal.
-    $reDate = '^(\d{4})-?(\d{2})-?(\d{2})'
+    # Publishers also prefix dates (experimental-2026-10-02) and may issue
+    # a same-day patch (experimental-2026-10-02.1). Comparing only the first
+    # numeric component would miss that patch and can misread the day as a
+    # suffix rank. Keep the complete date and its patch together.
+    $reDate = '(?<!\d)(\d{4})[-.]?(\d{2})[-.]?(\d{2})(?:\.(\d+))?(?!\d)'
     $ma = [regex]::Match($an, $reDate)
     $mb = [regex]::Match($bn, $reDate)
     if ($ma.Success -and $mb.Success) {
         $da = [int]("$($ma.Groups[1].Value)$($ma.Groups[2].Value)$($ma.Groups[3].Value)")
         $db = [int]("$($mb.Groups[1].Value)$($mb.Groups[2].Value)$($mb.Groups[3].Value)")
         if ($db -ne $da) { return ($db -gt $da) }
-        # Same date - fall through to the suffix rank below.
+        $patchA = if ($ma.Groups[4].Success) { [int]$ma.Groups[4].Value } else { 0 }
+        $patchB = if ($mb.Groups[4].Success) { [int]$mb.Groups[4].Value } else { 0 }
+        if ($patchB -ne $patchA) { return ($patchB -gt $patchA) }
+        $an = $an.Remove($ma.Index, $ma.Length)
+        $bn = $bn.Remove($mb.Index, $mb.Length)
+        # Same date and patch - retain any remaining prerelease rank.
     } else {
         # 4. Numeric parts, component by component. Missing components
         #    count as 0, so "1.4" and "1.4.0" are equal.

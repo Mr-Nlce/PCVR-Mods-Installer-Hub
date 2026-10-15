@@ -29,6 +29,7 @@
 # Find-SteamGameFolder). These replace hard "exit 1" aborts with
 # manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+$ErrorActionPreference = 'Stop'
 
 $Host.UI.RawUI.WindowTitle = "Outbound VR Installer"
 
@@ -85,6 +86,20 @@ function Read-OutboundManifest([string]$Path) {
   if ($p.Count -eq 4 -and $p[1]) { $map[$p[1]] = @{ Action=$p[0]; RelativePath=$p[1]; InstalledSha256=$p[2]; BackupRelativePath=$p[3] } }
  }
  return $map
+}
+
+function Restore-OutboundSnapshot([object[]]$Items) {
+ $failed = $false
+ foreach ($item in $Items) {
+  try {
+   if (Test-Path -LiteralPath $item.Target) { Remove-Item -LiteralPath $item.Target -Recurse -Force -ErrorAction Stop }
+   if ($item.Existed) {
+    [void](New-Item -ItemType Directory -Path (Split-Path -Parent $item.Target) -Force)
+    Copy-Item -LiteralPath $item.Saved -Destination $item.Target -Recurse -Force -ErrorAction Stop
+   }
+  } catch { $failed = $true; Write-Fail "Rollback failed for $($item.Target): $_" }
+ }
+ return (-not $failed)
 }
 
 function Get-SteamPath {
@@ -263,7 +278,8 @@ try {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ # A missing extraction is not a completed installation.
+ exit 1
 }
 
 # The ZIP layout is Outbound_VR-<ver>/GameFiles/<payload>. We must copy
@@ -274,14 +290,53 @@ try {
 $srcRoot = $tempExtract
 $gameFilesDir = Get-ChildItem -LiteralPath $tempExtract -Directory -Recurse -Filter "GameFiles" -ErrorAction SilentlyContinue |
                 Select-Object -First 1
-if ($gameFilesDir) {
- $srcRoot = $gameFilesDir.FullName
-} else {
- # No GameFiles folder - unwrap a lone non-BepInEx wrapper folder.
- $rootEntries = Get-ChildItem -LiteralPath $tempExtract
- if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer -and $rootEntries[0].Name -ne "BepInEx") {
- $srcRoot = $rootEntries[0].FullName
+if ($gameFilesDir) { $srcRoot = $gameFilesDir.FullName }
+
+# The live archive may change names, but these files are the current route's
+# functional payload. Validate the selected package before touching the game.
+$required = @('dxgi.dll', 'Outbound_Data\Plugins\x86_64\openxr_loader.dll', 'Outbound_Data\Plugins\x86_64\UnityOpenXR.dll')
+$sourceFiles = @(Get-ChildItem -LiteralPath $srcRoot -Recurse -File -ErrorAction Stop)
+$sourceRelative = @($sourceFiles | ForEach-Object { $_.FullName.Substring($srcRoot.Length).TrimStart('\','/') })
+$missing = @($required | Where-Object { $sourceRelative -notcontains $_ })
+if ($missing.Count -gt 0 -or -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) {
+ Write-Fail "Selected archive or game folder is incomplete: $($missing -join ', ')"
+ Write-Host " Check that the Nexus ZIP contains GameFiles and that Outbound.exe is in the selected game folder." -ForegroundColor Yellow
+ Pause-User "Press Enter to exit without changing the game..."
+ exit 1
+}
+foreach ($rel in $sourceRelative) {
+ $destination = [IO.Path]::GetFullPath([IO.Path]::Combine($gamePath, $rel))
+ $gamePrefix = [IO.Path]::GetFullPath($gamePath).TrimEnd('\') + '\'
+ if (-not $destination.StartsWith($gamePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+  Write-Fail "Unsafe archive path: $rel"
+  Pause-User "Press Enter to exit without changing the game..."
+  exit 1
  }
+}
+
+# Keep an exact local snapshot of every path this run may alter. An update
+# failure must leave the previous mod and its uninstall ownership intact.
+$rollbackRoot = Join-Path $tempExtract '.pcvrhub-rollback'
+$snapshot = New-Object System.Collections.Generic.List[object]
+$touched = @($sourceRelative) + @(
+ 'BepInEx\plugins\OutboundVR', 'BepInEx\plugins\OutboundVR.dll',
+ $INSTALL_MANIFEST, $BACKUP_DIR
+) | Select-Object -Unique
+try {
+ foreach ($rel in $touched) {
+  $target = Join-Path $gamePath $rel
+  $saved = Join-Path $rollbackRoot $rel
+  $exists = Test-Path -LiteralPath $target
+  if ($exists) {
+   [void](New-Item -ItemType Directory -Path (Split-Path -Parent $saved) -Force)
+   Copy-Item -LiteralPath $target -Destination $saved -Recurse -Force -ErrorAction Stop
+  }
+  $snapshot.Add([pscustomobject]@{Target=$target;Saved=$saved;Existed=$exists}) | Out-Null
+ }
+} catch {
+ Write-Fail "Could not prepare a safe update: $_"
+ Pause-User "Press Enter to exit without changing the game..."
+ exit 1
 }
 
 Write-Host " Copying mod files into: $gamePath" -ForegroundColor Gray
@@ -305,7 +360,7 @@ try {
  $backupRoot = Join-Path $gamePath $BACKUP_DIR
  $oldRows = Read-OutboundManifest $manifestPath
  $newRows = New-Object System.Collections.Generic.List[object]
- foreach ($src in @(Get-ChildItem -LiteralPath $srcRoot -Recurse -File -ErrorAction Stop)) {
+ foreach ($src in $sourceFiles) {
   $rel = $src.FullName.Substring($srcRoot.Length).TrimStart('\','/')
   $dest = [IO.Path]::Combine($gamePath, $rel)
   $destParent = Split-Path -Parent $dest
@@ -324,42 +379,65 @@ try {
   Copy-Item -LiteralPath $src.FullName -Destination $dest -Force -ErrorAction Stop
   $newRows.Add([pscustomobject]@{ Action=$action; RelativePath=$rel; InstalledSha256=(Get-OutboundSha256 $dest); BackupRelativePath=$backupRel }) | Out-Null
  }
+ # Keep ownership of files from the previous release even when the new
+ # publisher package omits them, so Uninstall now can still clean them.
+ foreach ($rel in $oldRows.Keys) {
+  if ($sourceRelative -notcontains $rel) { $newRows.Add([pscustomobject]$oldRows[$rel]) | Out-Null }
+ }
+ foreach ($rel in $required) {
+  $installed = Join-Path $gamePath $rel
+  $source = Join-Path $srcRoot $rel
+  if (-not (Test-Path -LiteralPath $installed -PathType Leaf) -or
+      (Get-OutboundSha256 $installed) -ne (Get-OutboundSha256 $source)) {
+   throw "Required mod file did not survive copy: $rel"
+  }
+ }
  $manifestLines = @("Action`tRelativePath`tInstalledSha256`tBackupRelativePath")
  foreach ($row in $newRows) { $manifestLines += ("{0}`t{1}`t{2}`t{3}" -f $row.Action,$row.RelativePath,$row.InstalledSha256,$row.BackupRelativePath) }
- Set-Content -LiteralPath $manifestPath -Value $manifestLines -Encoding UTF8 -Force
+ $manifestPending = Join-Path $tempExtract 'outbound-manifest-pending.tsv'
+ Set-Content -LiteralPath $manifestPending -Value $manifestLines -Encoding UTF8 -Force
+ Copy-Item -LiteralPath $manifestPending -Destination $manifestPath -Force -ErrorAction Stop
  Write-OK "Mod files installed into the game folder."
  Write-Info "Safe uninstall record written: $INSTALL_MANIFEST"
 } catch {
  Write-Fail "Copy failed: $_"
+ if (-not (Restore-OutboundSnapshot -Items $snapshot.ToArray())) { Write-Warn 'Some files could not be restored. Inspect the game folder before retrying.' }
  $__fb = Invoke-InstallerFallback -Action "file copy into game folder" `
- -Instructions "Manually copy the extracted mod files from '$srcRoot' into '$gamePath' (the Outbound game folder), merging when asked. Watch for UAC permission prompts. Then choose Skip to continue." `
- -SkipMessage "Skipped - mod files were NOT copied; install is incomplete." `
+ -Instructions "The previous files were restored where possible. Check write permissions for '$gamePath', then choose Retry to run setup again." `
+ -SkipMessage "Cancelled - mod files were NOT installed." `
  -SourceFolder "$srcRoot" `
  -DestFolder "$gamePath" `
- -AllowSkip $true
+ -AllowSkip $false
  if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  if ([string]$__fb -eq "retry") {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ # A skipped or failed copy is not a completed installation.
+ exit 1
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Sanity check for the 2.x standalone layout. BepInEx is neither a
 # requirement nor evidence of a working OutboundVR install any more.
 $modDll     = Join-Path $gamePath "dxgi.dll"
 $openxrDll = Join-Path $gamePath "Outbound_Data\Plugins\x86_64\openxr_loader.dll"
 $unityXrDll = Join-Path $gamePath "Outbound_Data\Plugins\x86_64\UnityOpenXR.dll"
-if (-not (Test-Path -LiteralPath $modDll)) {
- Write-Warn "dxgi.dll is missing from the game root - OutboundVR 2.x cannot load."
-} elseif (-not (Test-Path -LiteralPath $openxrDll) -or -not (Test-Path -LiteralPath $unityXrDll)) {
- Write-Warn "The VR mod is present, but its required Unity OpenXR files are incomplete."
-} else {
- Write-OK "OutboundVR 2.x and both required Unity OpenXR files are present."
- Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
+Start-Sleep -Milliseconds 500
+$missingAfterCopy = @($required | Where-Object {
+ $installed = Join-Path $gamePath $_
+ $source = Join-Path $srcRoot $_
+ (-not (Test-Path -LiteralPath $installed -PathType Leaf)) -or
+ ((Get-OutboundSha256 $installed) -ne (Get-OutboundSha256 $source))
+})
+if ($missingAfterCopy.Count -gt 0) {
+ Write-Fail "Required mod files are missing or changed after copy: $($missingAfterCopy -join ', ')"
+ if (-not (Restore-OutboundSnapshot -Items $snapshot.ToArray())) { Write-Warn 'Some files could not be restored. Inspect the game folder before retrying.' }
+ Pause-User "Press Enter to exit without marking installation complete..."
+ exit 1
 }
+Write-OK "OutboundVR 2.x and both required Unity OpenXR files are present."
+Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
+try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready

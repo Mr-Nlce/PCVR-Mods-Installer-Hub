@@ -124,13 +124,8 @@ function Test-WritableRoot {
 # Resolve the user's Downloads folder (honours a relocated Downloads via
 # the Known Folders registry value, else falls back to %USERPROFILE%\Downloads).
 function Get-DownloadsFolder {
-    try {
-        $key = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders"
-        $val = (Get-ItemProperty -Path $key -Name "{374DE290-123F-4565-9164-39C4925E467B}" -ErrorAction Stop)."{374DE290-123F-4565-9164-39C4925E467B}"
-        if ($val) { $val = [Environment]::ExpandEnvironmentVariables($val); if (Test-Path $val) { return $val } }
-    } catch {}
-    $fallback = Join-Path $env:USERPROFILE "Downloads"
-    if (Test-Path $fallback) { return $fallback }
+    $registered = Get-PCVRDownloadsFolder
+    if ($registered -and (Test-Path -LiteralPath $registered -PathType Container)) { return $registered }
     return $null
 }
 # Given a Quake II root folder, return the baseq2 folder that holds
@@ -360,8 +355,6 @@ $installRoot = Join-Path $installParent $GAME_FOLDER
 if (Test-Path $installRoot) {
     Write-Info "Existing installation found. Quake 2 VR files will be merged; additional files are preserved."
 }
-New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-
 $exResult = Expand-ArchiveOrFallback -ArchivePath $modArchive -DestinationFolder $modExtract `
                 -Label "Quake 2 VR" `
                 -SkipMessage "Skipped - Quake 2 VR archive was NOT extracted; install is incomplete."
@@ -379,16 +372,30 @@ if (-not (Test-Path (Join-Path $payload $GAME_EXE))) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $payload = Split-Path $hit.FullName -Parent }
 }
+foreach ($required in @($GAME_EXE,'SDL2.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $payload $required) -PathType Leaf)) {
+        Write-Fail "The archive is missing $required. No Quake 2 VR files were installed."
+        Pause-User 'Press Enter to exit...'; exit 1
+    }
+}
+if (-not (Test-Path -LiteralPath (Join-Path $sourceBaseq2 $BASE_PAK) -PathType Leaf)) {
+    Write-Fail "The original $BASE_PAK is missing. No Quake 2 VR files were installed."
+    Pause-User 'Press Enter to exit...'; exit 1
+}
+New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
 Write-Host "  Copying Quake 2 VR files ... " -NoNewline -ForegroundColor White
 try {
     Install-OwnedModPayload -SourceRoot $payload -GameRoot $installRoot -Identity 'q2vrlegacy' -AdoptIdenticalExisting | Out-Null
+    foreach ($required in @($GAME_EXE,'SDL2.dll')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $installRoot $required) -PathType Leaf)) { throw "Installed $required is missing." }
+    }
     Write-Host "OK" -ForegroundColor Green
 } catch {
     Write-Host "FAILED" -ForegroundColor Red
     Write-Fail "Copy failed: $($_.Exception.Message)"
-    Write-Host "  Copy the contents of '$payload' into '$installRoot' manually." -ForegroundColor Yellow
-    Pause-User "Press Enter when done (or to exit)..."
+    Write-Host "  Review '$payload' and '$installRoot', then run setup again." -ForegroundColor Yellow
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
 # Ensure baseq2 exists, then copy the base-game pak0.pak (required)

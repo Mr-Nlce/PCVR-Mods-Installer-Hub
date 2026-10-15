@@ -287,7 +287,7 @@ $attempt = 0
 while (-not $modZip) {
     $attempt++
     $candidates = @(
-        (Join-Path $env:USERPROFILE "Downloads\$MOD_ZIP_NAME"),
+        (Join-Path (Get-PCVRDownloadsFolder) $MOD_ZIP_NAME),
         (Join-Path $env:USERPROFILE "Desktop\$MOD_ZIP_NAME"),
         (Join-Path (Get-Location).Path $MOD_ZIP_NAME)
     )

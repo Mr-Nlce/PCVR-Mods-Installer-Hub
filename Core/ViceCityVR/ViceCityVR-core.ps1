@@ -24,7 +24,8 @@
 # settings and weapon calibration survive an update.
 # ============================================================
 
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $Host.UI.RawUI.WindowTitle = "GTA Vice City VR Installer"
 
@@ -68,6 +69,13 @@ function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
 function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Get-ViceCityFileHash {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    $stream=[IO.File]::OpenRead($Path)
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+    finally { $sha.Dispose(); $stream.Dispose() }
+}
 
 # Does this folder hold a real Vice City install? The mod needs the
 # original game data, and gta-vc.exe is the reliable marker for it.
@@ -122,6 +130,9 @@ function Copy-HDModelsTree {
     return @{ Copied=$copied; BackedUp=$backedUp; Verified=$sourceFiles.Count }
 }
 
+while ($true) {
+try {
+$tmp = $null
 Write-Header
 
 Write-Host "  Vice City VR turns the original 2003 Grand Theft Auto: Vice" -ForegroundColor White
@@ -172,7 +183,7 @@ while (-not (Test-ViceCityRoot $gamePath)) {
     Write-Host "  one containing $GAME_EXE), then press Enter." -ForegroundColor White
     Write-Host "  Or press Enter on an empty line to exit." -ForegroundColor Gray
     $raw = (Read-Host "  Game folder").Trim().Trim('"')
-    if (-not $raw) { Write-Fail "No game folder - cannot continue."; Pause-User "Press Enter to exit."; exit 1 }
+    if (-not $raw) { throw 'No game folder was selected.' }
     if (Test-ViceCityRoot $raw) { $gamePath = $raw }
     else { Write-Fail "That folder does not contain $GAME_EXE." }
 }
@@ -249,24 +260,22 @@ $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("ViceCityVR_" + [System.Guid
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $zipPath = Join-Path $tmp "ViceCityVR.zip"
 
-$dl = Invoke-DownloadOrFallback -Url $zipUrl -Destination $zipPath `
+$downloadInfo = @{}
+$dl = Invoke-SafeDownload -Urls @($zipUrl) -Destination $zipPath `
         -Label "Vice City VR ($relTag)" `
         -ManualUrl $RELEASES_PAGE `
         -Instructions "Download the Vice-City-VR-*.zip asset from the latest release, save it as '$zipPath', then choose Retry." `
-        -SkipMessage "Skipped - the mod was not downloaded, so nothing can be installed."
-if ([string]$dl -eq "quit") { try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit."; exit 1 }
-if (-not ($dl -is [bool] -and $dl)) {
-    # Last resort before giving up: a manual download sitting in Downloads.
-    $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "*Vice*City*VR*.zip" -ErrorAction SilentlyContinue |
-                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($manualZip) {
-        Write-OK "Found a manual download: $($manualZip.Name)"
-        $zipPath = $manualZip.FullName
-    } else {
-        Write-Fail "No mod archive available - cannot continue."
-        try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit."; exit 1
-    }
+        -SkipMessage "Skipped - the mod was not downloaded, so nothing can be installed." `
+        -AllowSkip $false -DownloadInfo $downloadInfo
+if ([string]$dl -eq "quit") { throw 'Vice City VR download was cancelled.' }
+if (-not (($dl -is [bool] -and $dl) -or ([string]$dl -eq 'retry' -and (Test-Path -LiteralPath $zipPath -PathType Leaf)))) {
+    Write-Fail "No mod archive available - cannot continue."
+    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
+    throw 'No Vice City VR archive is available.'
+}
+if (-not $downloadInfo.Url -or $downloadInfo.Url -ne $zipUrl) {
+    $relTag = $null
+    Write-Warn 'A manually supplied archive has no verified release version. Installation can continue, but no update version will be recorded.'
 }
 Write-OK "Archive ready."
 
@@ -288,35 +297,159 @@ if ($vcProc) {
 # game folder and verify reVC.exe actually arrived. The merge is
 # per-file, so models\vrhands lands INSIDE the existing models folder
 # without touching gta3.img or any other original game data.
+$archiveSafety = Test-ZipArchiveEntrySafety -ArchivePath $zipPath -DestinationFolder $gamePath
+if (-not $archiveSafety.Inspectable -or -not $archiveSafety.Safe -or $archiveSafety.EntryCount -eq 0) {
+    Write-Fail 'The selected Vice City archive is not a readable, safe ZIP. No game files were copied.'
+    throw 'The selected Vice City VR archive is unreadable or unsafe.'
+}
+$requiredNames = @('reVC.exe','openxr_loader.dll','OpenAL32.dll','libmpg123-0.dll',
+                   'SETUP_RUNTIME.bat','tools/dlss/install-dlss5.ps1',
+                   'tools/dlss/installer-common.ps1','tools/dlss/packages.json')
+$requiredPublisherHashes = @{}
+$payloadTag = $null
+$sourceZip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $files = @($sourceZip.Entries | Where-Object { $_.Name })
+    foreach ($exeEntry in @($files | Where-Object { $_.Name -ieq 'reVC.exe' })) {
+        $prefix = $exeEntry.FullName.Substring(0, $exeEntry.FullName.Length - $exeEntry.Name.Length)
+        $group = @{}
+        foreach ($name in $requiredNames) {
+            $entry = @($files | Where-Object {
+                $_.FullName.Replace('\','/') -ieq ($prefix.Replace('\','/') + $name.Replace('\','/'))
+            } | Select-Object -First 1)
+            if ($entry.Count -eq 0) { break }
+            $group[$name] = $entry[0]
+        }
+        if ($group.Count -ne $requiredNames.Count) { continue }
+        $buildInfo = @($files | Where-Object {
+            $_.FullName.Replace('\','/') -ieq ($prefix.Replace('\','/') + 'BUILD_INFO.txt')
+        } | Select-Object -First 1)
+        if ($buildInfo.Count) {
+            $reader = New-Object IO.StreamReader($buildInfo[0].Open())
+            try {
+                $buildText = $reader.ReadToEnd()
+                if ($buildText -match '(?im)^Vice City VR\s+(v\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?)\s*$') {
+                    $payloadTag = $matches[1]
+                }
+            } finally { $reader.Dispose() }
+        }
+        foreach ($name in $requiredNames) {
+            $entry = $group[$name]
+            if ($entry.Length -le 0) { throw "The publisher payload contains an empty $name." }
+            $stream = $entry.Open()
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { $requiredPublisherHashes[$name] = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+            finally { $sha.Dispose(); $stream.Dispose() }
+        }
+        break
+    }
+} catch {
+    Write-Fail "The Vice City archive could not be checked: $_"
+    throw "The Vice City VR archive could not be checked: $_"
+} finally { $sourceZip.Dispose() }
+if ($requiredPublisherHashes.Count -ne $requiredNames.Count) {
+    Write-Fail 'The selected archive lacks a complete reVC/OpenXR/audio runtime in one payload folder. No game files were copied.'
+    throw 'The selected Vice City VR archive lacks a complete runtime payload.'
+}
+if ($payloadTag -and $relTag -and $payloadTag -ne $relTag) {
+    throw "The downloaded Vice City VR payload identifies as $payloadTag, but the selected release is $relTag. No game files were changed."
+}
+if (-not $relTag) {
+    if (-not $payloadTag) {
+        throw 'The manually supplied Vice City VR archive has no readable publisher version. No game files were changed.'
+    }
+    $relTag = $payloadTag
+    Write-OK "Publisher archive version: $relTag"
+}
 $exRes = Expand-ArchiveToTarget -ArchivePath $zipPath -TargetDir $gamePath `
             -RelModFile $MOD_EXE -Markers @("reVC.exe","openxr_loader.dll") `
             -Label "Vice City VR" `
             -SkipMessage "Skipped - the archive was not unpacked, so the mod is not installed."
-if ([string]$exRes -eq "quit") { try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit."; exit 1 }
-
-if (-not (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, $MOD_EXE)))) {
-    Write-Fail "$MOD_EXE is missing after extraction - the package layout may have changed."
-    Write-Info "Get it manually from:"
-    Write-Info "  $RELEASES_PAGE"
+if ([string]$exRes -notin @('ok','manual')) {
+    Write-Fail 'The selected archive was not installed. The previous runtime remains unconfirmed.'
     try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit."; exit 1
+    throw 'The selected Vice City VR archive was not installed.'
 }
-# A scanner usually sweeps a moment AFTER the write. This runs while the
-# temp folder still holds the archive, so recovery can unpack it again -
-# inside the game folder, which the exclusion covers.
+$requiredInstalled = @($requiredNames | ForEach-Object { [IO.Path]::Combine($gamePath, $_) })
+foreach ($name in $requiredNames) {
+    $installed = [IO.Path]::Combine($gamePath, $name)
+    $installedHash = ''
+    if (Test-Path -LiteralPath $installed -PathType Leaf) {
+        $stream = [IO.File]::OpenRead($installed)
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $installedHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+        finally { $sha.Dispose(); $stream.Dispose() }
+    }
+    if ($installedHash -ne $requiredPublisherHashes[$name]) {
+        Write-Fail "$name is missing or differs from the selected release after copying."
+        throw "$name is missing or differs from the selected release after copying."
+    }
+}
+# A scanner may sweep after the write. Observe every required runtime file.
 $avFilesOk = Confirm-PlacedFilesSurvive `
-    -Paths @([System.IO.Path]::Combine($gamePath, $MOD_EXE)) `
+    -Paths $requiredInstalled `
     -GameDir $gamePath `
     -ArchivePath $zipPath
 if (-not $avFilesOk) {
     try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
     Write-Fail "Vice City VR could not be restored after the antivirus check."
-    Pause-User "Press Enter to exit, then run the installer again."
-    exit 1
+    throw 'Required Vice City VR files did not survive the post-copy check.'
+}
+foreach ($name in $requiredNames) {
+    $installed = [IO.Path]::Combine($gamePath, $name)
+    if (-not (Test-Path -LiteralPath $installed -PathType Leaf) -or
+        (Get-ViceCityFileHash -Path $installed) -ne $requiredPublisherHashes[$name]) {
+        Write-Fail "$name is missing or differs from the selected release after the survival check."
+        throw "$name is missing or differs from the selected release after the survival check."
+    }
 }
 
-Write-OK "Mod files in place ($MOD_EXE next to $GAME_EXE)."
+Write-OK "The publisher's reVC, OpenXR, audio and runtime setup files are in place."
 Write-Info "$GAME_EXE was not touched - the flat game still works."
+
+# The publisher's player README requires BASE runtime setup on first install.
+# It obtains five Streamline/DLSS files from the disclosed external sources.
+# A cancelled publisher setup can return exit 0, so file proof is mandatory.
+$baseRuntimeFiles = @('sl.interposer.dll','sl.common.dll','sl.dlss.dll','sl.pcl.dll','nvngx_dlss.dll')
+$runtimeSetup = [IO.Path]::Combine($gamePath, 'SETUP_RUNTIME.bat')
+$runtimeAttempts = 0
+while ($true) {
+    $missingRuntime = @($baseRuntimeFiles | Where-Object {
+        -not (Test-Path -LiteralPath ([IO.Path]::Combine($gamePath, $_)) -PathType Leaf)
+    })
+    if ($missingRuntime.Count -eq 0) { break }
+    Write-Host ''
+    Write-Warn 'The publisher requires BASE runtime setup before the VR game can start.'
+    Write-Host '  It downloads the required Streamline/DLSS files from the sources' -ForegroundColor White
+    Write-Host '  shown by the publisher tool. Review them there, choose Install,' -ForegroundColor White
+    Write-Host '  type INSTALL to consent, and wait for INSTALLED.' -ForegroundColor White
+    Write-Host ('  Missing now: ' + ($missingRuntime -join ', ')) -ForegroundColor Yellow
+    Write-Host '  [Enter] Run SETUP_RUNTIME.bat in this window' -ForegroundColor Cyan
+    Write-Host '  [Q] Leave setup without a success receipt' -ForegroundColor Gray
+    $runtimeChoice = (Read-Host '  Choice').Trim()
+    if ($runtimeChoice -match '^(?i)q$') { throw 'Required publisher runtime setup was cancelled.' }
+    if ($runtimeChoice) { Write-Warn 'Press Enter to run setup, or Q to leave.'; continue }
+    try {
+        $runtimeProcess = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',('"' + $runtimeSetup + '"')) `
+            -WorkingDirectory $gamePath -NoNewWindow -Wait -PassThru -ErrorAction Stop
+        $runtimeExit = if ($runtimeProcess) { [int]$runtimeProcess.ExitCode } else { -1 }
+    } catch {
+        $runtimeExit = -1
+        Write-Warn "The publisher setup could not start: $_"
+    }
+    if ($runtimeExit -ne 0) { Write-Warn "Publisher runtime setup exited with code $runtimeExit." }
+    $missingRuntime = @($baseRuntimeFiles | Where-Object {
+        -not (Test-Path -LiteralPath ([IO.Path]::Combine($gamePath, $_)) -PathType Leaf)
+    })
+    if ($runtimeExit -eq 0 -and $missingRuntime.Count -eq 0) { break }
+    Write-Fail 'The required runtime is still incomplete. Review the publisher output above, then retry or leave.'
+    $runtimeAttempts++
+    if ([Console]::IsInputRedirected -and $runtimeAttempts -ge 3) {
+        Write-Fail 'No successful publisher setup was confirmed before redirected input ended.'
+        throw 'Publisher runtime setup did not complete before redirected input ended.'
+    }
+}
+Write-OK 'Required BASE runtime files are present.'
 
 # Hub markers: install path, EXACT release tag for the update badge, and
 # .launch_exe so "Start in VR" opens reVC.exe rather than the flat game
@@ -372,7 +505,13 @@ if ($hdChoice -notmatch '^(?i)n(?:o)?$') {
     # The shared scan ignores .crdownload/.part files and asks before using
     # a match, so a partial or wrongly guessed download is never selected.
     $hdZip = Find-PredownloadedFile -Patterns $hdPatterns -Label "the GTA Vice City HD Models Pack" -PageAlreadyOpen
+    $hdAttempts = 0
     while (-not ($hdZip -and (Test-Path -LiteralPath $hdZip))) {
+        $hdAttempts++
+        if ([Console]::IsInputRedirected -and $hdAttempts -ge 3) {
+            Write-Warn 'No completed HD Models ZIP was supplied before input closed; skipping the optional pack.'
+            break
+        }
         Write-Host ""
         Write-Warn "The finished ZIP was not found in Downloads or was not selected."
         Write-Host "  Drag and drop '$HD_MODELS_ARCHIVE' onto this window," -ForegroundColor White
@@ -490,3 +629,13 @@ Write-Host ""
 Write-Host "  Welcome to the 1980s - the neon, the pastels, the whole coast." -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Press Enter to exit."
+break
+} catch {
+    $message = "Vice City VR setup did not complete: $($_.Exception.Message)"
+    Write-Fail $message
+    if ($tmp -and (Test-Path -LiteralPath $tmp -PathType Container)) {
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction Stop } catch { Write-Warn "Temporary files remain at $tmp" }
+    }
+    [void](Invoke-PCVRUniversalRecovery -FailureMessage $message -InstallerFolder $PSScriptRoot)
+}
+}

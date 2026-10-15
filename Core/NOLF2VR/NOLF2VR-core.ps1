@@ -80,10 +80,18 @@ function Find-WinRar {
 function Extract-Rar {
     param([string]$Rar, [string]$DestDir, $SevenZip, $WinRar)
     try {
-        if ($SevenZip) { & $SevenZip x "$Rar" "-o$DestDir" -y | Out-Null; return $true }
-        if ($WinRar)   { & $WinRar x -y "$Rar" "$DestDir\" | Out-Null; return $true }
+        if ($SevenZip) { & $SevenZip x "$Rar" "-o$DestDir" -y | Out-Null; return ($LASTEXITCODE -eq 0) }
+        if ($WinRar)   { & $WinRar x -y "$Rar" "$DestDir\" | Out-Null; return ($LASTEXITCODE -eq 0) }
     } catch { Write-Warn "Extraction failed: $_" }
     return $false
+}
+
+function Test-Nolf2VRPayload {
+    param([string]$Folder)
+    foreach ($required in @($MOD_MARKER, 'VR.rez', $LAUNCH_EXE)) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Folder $required) -PathType Leaf)) { return $false }
+    }
+    return $true
 }
 
 # Is the Oculus PC runtime present? Revive (embedded in this mod) needs
@@ -302,20 +310,18 @@ Write-OK "Mod archive ready."
 # ---- STEP 6: install the mod into the game folder ----
 Write-Step 6 8 "Installing the mod into $gameDir"
 
-# Safety: back up the files the mod will overwrite (saves are untouched,
-# but the stock Player profile options get reset). Best-effort, never aborts.
+# Back up each existing original before the first overwrite.
 $backupDir = Join-Path $gameDir "_backup_pre_REAL"
-try {
-    if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Force -Path $backupDir | Out-Null }
-    foreach ($it in $BACKUP_ITEMS) {
-        $srcIt = Join-Path $gameDir $it
-        $dstIt = Join-Path $backupDir $it
-        if ((Test-Path $srcIt) -and -not (Test-Path $dstIt)) {
-            try { Copy-Item $srcIt $dstIt -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        }
+if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Force -Path $backupDir -ErrorAction Stop | Out-Null }
+foreach ($it in $BACKUP_ITEMS) {
+    $srcIt = Join-Path $gameDir $it
+    $dstIt = Join-Path $backupDir $it
+    if ((Test-Path $srcIt) -and -not (Test-Path $dstIt)) {
+        Copy-Item -LiteralPath $srcIt -Destination $dstIt -Recurse -Force -ErrorAction Stop
+        if (-not (Test-Path -LiteralPath $dstIt)) { throw "The original $it could not be backed up. No mod files were copied." }
     }
-    Write-Info "Backed up original files to: $backupDir"
-} catch {}
+}
+Write-Info "Original files backed up to: $backupDir"
 
 $installedOk = $false
 if (-not $manualExtract -and ($sevenZip -or $winRar)) {
@@ -329,6 +335,11 @@ if (-not $manualExtract -and ($sevenZip -or $winRar)) {
         $keyHit = Get-ChildItem -Path $xtemp -Filter $MOD_MARKER -Recurse -ErrorAction SilentlyContinue | Sort-Object { $_.FullName.Length } | Select-Object -First 1
         if ($keyHit) {
             $modRoot = Split-Path -Parent $keyHit.FullName
+            foreach ($required in @($MOD_MARKER, 'VR.rez', $LAUNCH_EXE)) {
+                if (-not (Test-Path -LiteralPath (Join-Path $modRoot $required) -PathType Leaf)) {
+                    throw "The mod archive is incomplete: $required is missing. No files were copied."
+                }
+            }
             $copied = 0
             foreach ($item in (Get-ChildItem -Path $modRoot -Recurse -Force -ErrorAction SilentlyContinue)) {
                 $rel = $item.FullName.Substring($modRoot.Length).TrimStart('\','/')
@@ -343,10 +354,18 @@ if (-not $manualExtract -and ($sevenZip -or $winRar)) {
                         Copy-Item -Path $item.FullName -Destination $dest -Force
                         $copied++
                     }
-                } catch { Write-Warn "Could not copy $rel" }
+                } catch { throw "Could not copy $rel. The VR setup is incomplete: $_" }
             }
             Write-Host "  Copied $copied mod files into the game folder." -ForegroundColor Gray
-            if (Test-Path (Join-Path $gameDir $MOD_MARKER)) { $installedOk = $true }
+            $installedOk = Test-Nolf2VRPayload -Folder $gameDir
+            if ($installedOk) {
+                foreach ($required in @($MOD_MARKER, 'VR.rez', $LAUNCH_EXE)) {
+                    if ((Get-FileHash -LiteralPath (Join-Path $modRoot $required) -Algorithm SHA256).Hash -ne
+                        (Get-FileHash -LiteralPath (Join-Path $gameDir $required) -Algorithm SHA256).Hash) {
+                        throw "The installed $required does not match the selected mod archive. No installation was recorded."
+                    }
+                }
+            }
         } else {
             Write-Warn "Could not find $MOD_MARKER inside the archive."
         }
@@ -363,15 +382,12 @@ if (-not $installedOk) {
     try { Start-Process (Split-Path -Parent $rar) } catch {}
     try { Start-Process $gameDir } catch {}
     Pause-User "Press Enter once you have extracted the mod into the game folder..."
-    if (Test-Path (Join-Path $gameDir $MOD_MARKER)) { $installedOk = $true }
+    $installedOk = Test-Nolf2VRPayload -Folder $gameDir
 }
-if ($installedOk) {
-    Write-OK "Mod installed - $MOD_MARKER is in place."
-    if (Test-Path -LiteralPath "$gameDir\VR.rez") { Write-OK "VR content in place - VR.rez." }
-    else { Write-Warn "VR.rez is missing - make sure the WHOLE .rar was extracted." }
-} else {
-    Write-Warn "$MOD_MARKER not found in $gameDir - the mod may not be installed correctly."
+if (-not $installedOk) {
+    throw "The VR mod is incomplete. $MOD_MARKER, VR.rez and $LAUNCH_EXE must all be present before setup can finish."
 }
+Write-OK "Mod installed - required VR files are in place."
 
 # ---- STEP 7: headset / VR runtime (Revive is embedded in the mod) ----
 Write-Step 7 8 "Headset & VR runtime"
@@ -407,7 +423,6 @@ if ($headset -eq "1") {
 # ---- STEP 8: shortcut + records ----
 Write-Step 8 8 "Finishing setup"
 $launchPath = Join-Path $gameDir $LAUNCH_EXE
-if (-not (Test-Path $launchPath)) { $launchPath = Join-Path $gameDir $GAME_EXE }  # fall back to the stock launcher
 try {
     $desktop = [Environment]::GetFolderPath("Desktop")
     $lnk = Join-Path $desktop "No One Lives Forever 2 VR.lnk"

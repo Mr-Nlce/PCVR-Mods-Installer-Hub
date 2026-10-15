@@ -137,7 +137,7 @@ function global:New-GameCardFrosted {
     # the second line. Glue "Outcast VR" together with a non-breaking
     # space so the break falls earlier ("...Jedi / Outcast VR"), matching
     # how the Academy tile reads. Scoped to this one title.
-    $titleDisplay = $game.Title
+    $titleDisplay = if ($game.TileTitle) { [string]$game.TileTitle } else { [string]$game.Title }
     if ($titleDisplay -eq "Jedi Knight: Jedi Outcast VR") {
         $nbsp = [char]0x00A0
         $titleDisplay = "Jedi Knight: Jedi Outcast" + $nbsp + "VR"
@@ -826,7 +826,7 @@ function global:New-GameCardFrosted {
     $reloadPill.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
     $reloadPill.Cursor         = [System.Windows.Input.Cursors]::Hand
     $reloadPill.Visibility     = [System.Windows.Visibility]::Collapsed
-    $reloadPill.Margin         = [System.Windows.Thickness]::new(0, [int](-6*$sc), 0, [int](-6*$sc))
+    $reloadPill.Margin         = [System.Windows.Thickness]::new(0)
     $reloadGlyph = New-Object System.Windows.Controls.TextBlock
     $reloadGlyph.Text = [char]0x21BB
     $reloadGlyph.FontSize = [int](13*$sc)
@@ -838,7 +838,8 @@ function global:New-GameCardFrosted {
     # Easy External Installer cards never own an install transaction. Keep the
     # object available to the shared state code, but never put its Reinstall
     # affordance into the visual tree.
-    if (-not $isExternal) { $btnInner.Children.Add($reloadPill) | Out-Null }
+    # The glowing border rasterizes its children. Add the pill to the shell
+    # below so its small arrow and divider remain sharp on hover.
 
     # Hover feedback for the reinstall arrow itself. The pill has no
     # hover of its own otherwise - covers every button type (VR Ready,
@@ -986,6 +987,7 @@ function global:New-GameCardFrosted {
         $btnShell.Children.Add($btnTextLayer) | Out-Null
     }
     if ($dualSplit) { $btnShell.Children.Add($dualSplit) | Out-Null }
+    if (-not $isExternal) { $btnShell.Children.Add($reloadPill) | Out-Null }
     $grid.Children.Add($btnShell) | Out-Null
     # Store btnText, reload pill, accent cap on card for later access by Check Installed
     if ($card.Resources.Contains("btnText")) { $card.Resources.Remove("btnText") }
@@ -1991,6 +1993,12 @@ function global:New-GameCardFrosted {
                 Start-GameInVR -Game $gameCapture
                 return
             }
+            if ($gameCapture.Title -eq 'Resident Evil 4R VR' -and $downloadCapture) {
+                if (Invoke-HubExternalInstallerLink -Game $gameCapture -Url $downloadCapture) {
+                    Invoke-PostInstallRefreshSafely -GameId ('' + $gameCapture.Id) -Title $gameCapture.Title
+                }
+                return
+            }
             # Wabbajack-based entries: clicking just opens the
             # Wabbajack site. No download is triggered by us and
             # no Downloads folder needs opening - Wabbajack handles
@@ -2024,7 +2032,8 @@ function global:New-GameCardFrosted {
                 # XWVM) - have no DownloadUrl, so nothing lands in Downloads
                 # and the explorer window would only clutter the desktop.
                 if ($downloadCapture -and -not $isDiscordOnly -and -not $isVivecraft -and -not $isSteamProtocol) {
-                    $downloadsPath = [Environment]::GetFolderPath("UserProfile") + "\Downloads"
+                    if (-not (Get-Command Get-PCVRDownloadsFolder -ErrorAction SilentlyContinue)) { . (Join-Path $PSScriptRoot 'KnownFolders.ps1') }
+                    $downloadsPath = Get-PCVRDownloadsFolder
                     try { Start-Process explorer.exe "`"$downloadsPath`"" } catch {}
                     Start-Sleep -Milliseconds 400
                 }

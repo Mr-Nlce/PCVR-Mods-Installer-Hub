@@ -26,6 +26,10 @@ The Hub installs one shared portable engine at `C:\Games\RazeXR PCVR`, copies co
 
 The current publisher build can show yellow `deprecated checktype` script warnings while starting. They come from its bundled Raze game scripts and are non-fatal when the game continues to load.
 
+## Current RazeXR v1.1 update
+
+The weapon wheel, gun-aligned crosshair, steadier turning and correctly shaped menus are in the current shared PCVR engine. Hold the gun-hand stick click to open the wheel, reach toward a weapon and release; time slows while choosing. Crouch is [[X]]. The wheel can be disabled in VR Options to restore stick-click crouch. Version 1.1 also keeps drawing to the headset after desktop focus changes and can start flat when no headset is connected. Valve Index and Pimax changes were reported without publisher hardware testing.
+
 ## Controls
 
 | Button | Action |
@@ -34,7 +38,8 @@ The current publisher build can show yellow `deprecated checktype` script warnin
 | [[Off-hand Trigger]] | Alternate fire |
 | [[A]] | Jump |
 | [[B]] | Open / use |
-| [[X]] or [[Right Stick Click]] | Crouch |
+| [[X]] | Crouch |
+| [[Gun-hand Stick Click Hold]] | Open weapon wheel; reach toward a weapon and release to select |
 | [[Y]] | Toggle map |
 | [[Left Stick Click]] | Alternate weapon in a shared slot |
 | [[Right Stick Up / Down]] | Next / previous weapon |

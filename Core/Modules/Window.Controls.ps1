@@ -47,8 +47,7 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
 # Active tile style, loaded before the card-build loop so New-GameCard
 # dispatches to the right renderer on the first pass. 'frosted' is the
 # default redesign; 'classic' is the original flat tiles. Flipped (and
-# persisted) by the Switch Hub Style menu item + the header VR-glasses
-# click, which then rebuild the cards.
+# persisted) by the Switch Hub Style menu item, which rebuilds the cards.
 $global:hubStyle = [string](Get-HubSetting -Key "hubStyle" -Default "frosted")
 if ($global:hubStyle -ne "classic") { $global:hubStyle = "frosted" }
 
@@ -819,31 +818,45 @@ function global:Build-RecentlyPlayed {
 
         $tileGrid = New-Object System.Windows.Controls.Grid
 
-        # Portrait artwork - use Steam library_600x900 if SteamId
-        # is set, custom Asset image otherwise. Fallback to dark
-        # background if neither resolves.
-        # IMPORTANT: load asynchronously (no OnLoad cache option) so
-        # 5x Steam-CDN HTTPS downloads do not block Hub startup. The
-        # tile shows its dark background immediately and the portrait
-        # fades in when WPF finishes streaming it. CacheOption.OnLoad
-        # would force a synchronous download on the UI thread and
-        # roughly double startup time when the Recently Played row
-        # is visible.
+        # Keep a visible text fallback even when all cold-start image requests
+        # fail. The delayed image loader hides it only after a real decode.
+        $recentFallback = New-Object System.Windows.Controls.TextBlock
+        $recentFallback.Text = $g.Title
+        $recentFallback.TextWrapping = [System.Windows.TextWrapping]::Wrap
+        $recentFallback.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
+        $recentFallback.TextAlignment = [System.Windows.TextAlignment]::Center
+        $recentFallback.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $recentFallback.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $recentFallback.Margin = [System.Windows.Thickness]::new(8)
+        $recentFallback.Foreground = [System.Windows.Media.Brushes]::White
+        $recentFallback.FontSize = [Math]::Max(12, [int](12 * $sc))
+
+        # Use the same asynchronous fallback/retry loader as the other Hub
+        # artwork. A failed first Steam CDN request must not leave this tile
+        # dark for the rest of the session (the row rebuild guard above can
+        # otherwise keep that failed image indefinitely).
         $portraitUrl = Get-GameImageUrl -Game $g -Kind "portrait"
         if ($portraitUrl) {
             try {
                 $img = New-Object System.Windows.Controls.Image
                 $img.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                $bmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                $bmp.BeginInit()
-                $bmp.UriSource = ([System.Uri]$portraitUrl)
-                $bmp.CreateOptions = [System.Windows.Media.Imaging.BitmapCreateOptions]::IgnoreImageCache
-                # No CacheOption -> default streams asynchronously.
-                $bmp.EndInit()
-                $img.Source = $bmp
                 $tileGrid.Children.Add($img) | Out-Null
+                $tileGrid.Children.Add($recentFallback) | Out-Null
+                $imageUrls = @()
+                if ($g.SteamId) {
+                    $cachedPortrait = Get-CachedImageUri -SteamId $g.SteamId -Kind 'portrait'
+                    if ($cachedPortrait) { $imageUrls += $cachedPortrait }
+                }
+                $imageUrls += $portraitUrl
+                if ($g.SteamId) {
+                    $imageUrls += (Get-SteamPortraitUrlFastly $g.SteamId)
+                    $imageUrls += (Get-SteamHeaderUrl $g.SteamId)
+                    $imageUrls += (Get-SteamHeaderUrlFastly $g.SteamId)
+                }
+                Set-SafeBannerImage -ImageEl $img -Urls $imageUrls -TitleEl $recentFallback
             } catch { }
         }
+        if (-not $recentFallback.Parent) { $tileGrid.Children.Add($recentFallback) | Out-Null }
 
         # Bottom gradient overlay for title legibility.
         $titleBg = New-Object System.Windows.Shapes.Rectangle
@@ -1259,11 +1272,11 @@ if ($global:miShortcut) {
     Update-HubShortcutMenuItem
 }
 
-# Clicking the header VR-glasses glyph also flips the tile style
-# (tooltip "Switch style" set in XAML). Same action as the menu item.
+# The header VR-glasses glyph cycles the effect on the current page.
+# Tile appearance remains available through Switch Hub Style in Help.
 if ($headerVrIcon) {
     $headerVrIcon.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
-        if (Get-Command Switch-HubStyle -ErrorAction SilentlyContinue) { Switch-HubStyle }
+        if (Get-Command Switch-HeaderFxStyle -ErrorAction SilentlyContinue) { Switch-HeaderFxStyle }
     })
 }

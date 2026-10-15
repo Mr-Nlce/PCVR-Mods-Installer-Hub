@@ -8,8 +8,8 @@
 # 2. Extract mod files in place
 #
 # GitHub-distributed (public release URL), so the installer
-# fetches the ZIP itself via Invoke-WebRequest. No drag-drop,
-# no Discord, no manual download.
+# fetches the ZIP itself via Invoke-WebRequest. A failed download
+# offers retry or a manually downloaded ZIP.
 #
 # This is a motion-controls mod with full body-lean gameplay:
 # - Lean left/right in real life to steer
@@ -31,17 +31,17 @@
 # -------------------------------------------------------
 
 
-# Load installer-safety helpers (Invoke-SafeDownload,
-# Invoke-InstallerFallback, Get-GameFolderInteractive).
-# These replace hard "exit 1" aborts with manual fallback prompts.
+# Shared archive, recovery and transaction helpers.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "Driftwood_VR"
-$MOD_VERSION = "v1.0 (bHaptics)"
+$MOD_VERSION = "1.0"
 $MOD_AUTHOR = "Astienth"
 
 $GAME_APPID = "2223700"
 $GAME_NAME = "Driftwood"
+$GAME_EXE = "Driftwood.exe"
 
 # GitHub URLs - direct, no login required.
 # Note: ZIP filename has the "Drifwood" typo (one 'f') and the
@@ -154,6 +154,7 @@ Write-Host ""
 Write-Host " Source repo (info, README, support):" -ForegroundColor Gray
 Write-Host " $GITHUB_REPO_URL" -ForegroundColor DarkGray
 Write-Host ""
+Show-AntivirusNotice -Compact
 Pause-User "Press Enter to start the install..."
 
 # -------------------------------------------------------
@@ -163,61 +164,74 @@ Write-Step 1 2 "Locating Driftwood + downloading mod"
 
 $gamePath = Find-DriftwoodGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2223700" -SteamFolderNames @("Driftwood") }
+if ($gamePath -and ((-not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) -or
+    (-not (Test-Path -LiteralPath (Join-Path $gamePath 'Driftwood_Data\globalgamemanagers') -PathType Leaf)))) {
+ Write-Warn "Found a folder without the Driftwood executable and Unity game data: $gamePath"
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Driftwood at: $gamePath"
 } else {
  Write-Warn "Could not auto-locate Driftwood in any Steam library."
  Write-Host " Please paste the path to your Driftwood folder" -ForegroundColor White
- Write-Host " (the folder that contains 'Driftwood.exe')." -ForegroundColor White
+ Write-Host " (the folder containing Driftwood.exe and Driftwood_Data)." -ForegroundColor White
  Write-Host ""
  while (-not $gamePath) {
- $r = (Read-Host " Driftwood folder").Trim().Trim('"')
+ $answer = Read-Host " Driftwood folder or Q to quit"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if ((Test-Path -LiteralPath (Join-Path $r $GAME_EXE) -PathType Leaf) -and
+     (Test-Path -LiteralPath (Join-Path $r 'Driftwood_Data\globalgamemanagers') -PathType Leaf)) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "Complete Driftwood game files not found in: $r"
  }
  }
 }
 
-# Download the mod ZIP from GitHub directly.
+# Download from GitHub. A failed transfer or wrong archive stays recoverable.
 $modZip = Join-Path $env:TEMP "DriftwoodVR_$([System.IO.Path]::GetRandomFileName()).zip"
-Write-Host ""
-Write-Host " Downloading mod ZIP from GitHub..." -ForegroundColor Gray
-Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
-try {
- # Force TLS 1.2 - older PowerShell defaults to SSL3/TLS1.0 which
- # GitHub Releases rejects. UseBasicParsing avoids the IE engine
- # initialisation pop-up on machines where IE has never been opened.
- [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- Invoke-WebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
- Write-OK "Downloaded to: $modZip"
-} catch {
- Write-Fail "Download failed: $_"
- Write-Host ""
- Write-Host " Possible causes: no internet, GitHub down, firewall blocking." -ForegroundColor Yellow
- Write-Host " You can grab the ZIP manually from:" -ForegroundColor Yellow
- Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
- $__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$gamePath' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
+$anchors = @('(?i)(?:^|\\)winhttp\.dll$',
+             '(?i)(?:^|\\)BepInEx\\plugins\\Driftwood_VR\.dll$',
+             '(?i)(?:^|\\)BepInEx\\core\\BepInEx\.Preloader\.dll$',
+             '(?i)(?:^|\\)BepInEx\\config\\UnityVR_Bepinex\.cfg$')
+$archiveReady = $false
+while (-not $archiveReady) {
+ if (-not (Test-Path -LiteralPath $modZip -PathType Leaf)) {
+  Write-Host " Downloading mod ZIP from GitHub..." -ForegroundColor Gray
+  Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
+  try {
+   [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+   Invoke-WebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -TimeoutSec 180 -ErrorAction Stop
+  } catch { Write-Fail "Download failed: $_" }
  }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
+ if ((Test-DownloadedPayload -Path $modZip -IntendedPath 'Drifwood_VRMod_bHaptics.zip') -and
+     (Test-ZipPayloadAnchors -Path $modZip -AnchorPatterns $anchors -MinimumMatches $anchors.Count)) {
+  $archiveReady = $true
+  Write-OK 'Readable Driftwood VR runtime found.'
+  break
  }
+ if (Test-Path -LiteralPath $modZip -PathType Leaf) {
+  Write-Fail 'The downloaded ZIP is unreadable, unsafe, or missing the Driftwood VR runtime.'
+  Remove-Item -LiteralPath $modZip -Force -ErrorAction SilentlyContinue
  }
- # User chose Skip - continue at own risk
+ Write-Host " [R] Retry GitHub  [P] Use a downloaded ZIP  [Q] Quit" -ForegroundColor Yellow
+ $answer = Read-Host ' Recovery choice'
+ if ($null -eq $answer -or $answer.Trim() -ieq 'Q') { exit 1 }
+ if ($answer.Trim() -ieq 'P') {
+  $pathAnswer = Read-Host ' Complete ZIP path or Q'
+  if ($null -eq $pathAnswer -or $pathAnswer.Trim() -ieq 'Q') { exit 1 }
+  $manual = $pathAnswer.Trim().Trim('"')
+  if (-not (Test-Path -LiteralPath $manual -PathType Leaf) -or $manual -notmatch '(?i)\.zip$') {
+   Write-Fail 'Choose an existing ZIP file.'
+   continue
+  }
+  try { Copy-Item -LiteralPath $manual -Destination $modZip -Force -ErrorAction Stop }
+  catch { Write-Fail "Cannot use that ZIP: $_" }
+ } elseif ($answer.Trim() -ine 'R') { Write-Fail 'Choose R, P or Q.' }
 }
 
 # -------------------------------------------------------
@@ -227,83 +241,65 @@ Write-Step 2 2 "Installing mod files"
 
 $tempExtract = Join-Path $env:TEMP "DriftwoodVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
-
-try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
+$extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract -Label 'Driftwood VR' -AllowSkip $false
+if ([string]$extractResult -notin @('ok','manual','retry')) {
+ Write-Fail 'The VR archive was not extracted. The game was not changed.'
+ Pause-User 'Press Enter to exit...'
  exit 1
- }
- # User chose Skip - continue at own risk
 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
 $srcRoot = $tempExtract
 if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
- if ($rootEntries[0].Name -ne "BepInEx") {
- $srcRoot = $rootEntries[0].FullName
- }
+ if ($rootEntries[0].Name -ne "BepInEx") { $srcRoot = $rootEntries[0].FullName }
 }
+
+$requiredModFiles = @('winhttp.dll', 'doorstop_config.ini',
+ 'BepInEx\core\BepInEx.Preloader.dll', 'BepInEx\core\BepInEx.dll',
+ 'BepInEx\plugins\Driftwood_VR.dll', 'BepInEx\plugins\Bhaptics.Tact.dll',
+ 'BepInEx\config\UnityVR_Bepinex.cfg', 'Driftwood_Data\Assets\hands',
+ 'Driftwood_Data\Managed\SteamVR.dll')
+try { $payloadHashes = Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
+catch { Write-Fail "The extracted VR package is incomplete: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+$contract = New-PCVRInstallerContract -Id 'driftwood-vr' -GameName 'Driftwood VR' -Acquisition GitHub -ReleasePageUrl "$GITHUB_REPO_URL/releases" -AntivirusNotice -RequiredInstalledFileGroups (@($GAME_EXE, 'Driftwood_Data\globalgamemanagers', 'winhttp.dll|winhttp_bak.dll') + @($requiredModFiles | Where-Object { $_ -ne 'winhttp.dll' }))
+$keepConfigs = @('BepInEx\config\BepInEx.cfg', 'BepInEx\config\UnityVR_Bepinex.cfg')
+$activeProxy = Join-Path $gamePath 'winhttp.dll'
+$parkedProxy = Join-Path $gamePath 'winhttp_bak.dll'
+$wasFlat = (Test-Path -LiteralPath $parkedProxy -PathType Leaf) -and -not (Test-Path -LiteralPath $activeProxy -PathType Leaf)
+$oldParkedBytes = if ($wasFlat) { [IO.File]::ReadAllBytes($parkedProxy) } else { $null }
+$preservedConfigs = @($keepConfigs | Where-Object { Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf })
+$installed = $false
+while (-not $installed) {
+ $copyTransaction = $null
+ try {
+  $copyTransaction = Install-PCVRDropInCopy -SourceRoot $srcRoot -GameRoot $gamePath -SourceHashes $payloadHashes -KeepExistingFiles $keepConfigs
+  Assert-PCVRDropInCopiedFiles -GameRoot $gamePath -SourceHashes $payloadHashes -PreservedExistingFiles $preservedConfigs
+  if ($wasFlat) {
+   Copy-Item -LiteralPath $activeProxy -Destination $parkedProxy -Force -ErrorAction Stop
+   Remove-Item -LiteralPath $activeProxy -Force -ErrorAction Stop
+  }
+  [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $MOD_VERSION -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+  $installed = $true
+ } catch {
+  $failure = $_
+  if ($copyTransaction) {
+   try { Undo-PCVRDropInCopy -Transaction $copyTransaction }
+   catch { throw "Driftwood install failed and rollback failed: $failure; $_" }
+  }
+  if ($wasFlat) { [IO.File]::WriteAllBytes($parkedProxy,[byte[]]$oldParkedBytes) }
+  Write-Fail "Installation failed; previous files were restored: $failure"
+  Write-Host ' Correct the file or permission problem, then choose [R] to retry.' -ForegroundColor Yellow
+  $retry = Read-Host ' [R] Retry / [Q] Quit'
+  if ($null -eq $retry -or $retry.Trim() -notmatch '^(?i:r)$') { exit 1 }
  }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
 }
-
-# Clean up both temp artefacts.
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-try { Remove-Item $modZip -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\Driftwood_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but Driftwood_VR.dll is missing."
-} else {
- Write-OK "BepInEx + Driftwood_VR.dll present."
-}
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
+try { Complete-PCVRDropInCopy -Transaction $copyTransaction }
+catch { Write-Warn "Temporary rollback snapshot could not be removed: $_" }
+Write-OK 'VR runtime and version verified; existing configuration kept.'
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+try { Remove-Item -LiteralPath $modZip -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # Done

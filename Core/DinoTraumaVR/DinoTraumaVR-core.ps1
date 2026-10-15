@@ -30,6 +30,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "DinoTrauma_VR"
 $MOD_VERSION = "v1.0.0"
@@ -37,6 +38,7 @@ $MOD_AUTHOR = "Astienth"
 
 $GAME_APPID = "2149420"
 $GAME_NAME = "Dino Trauma"
+$GAME_EXE = "Dino Trauma.exe"
 
 # Discord URLs the installer hands the user, in the order they
 # appear in the welcome flow. Same FarmerTrueVR server as the
@@ -201,23 +203,28 @@ if (-not $skipJoin) {
 Write-Step 1 5 "Locate the downloaded ZIP"
 Write-Host " Once DinoTrauma_VR.zip is on your disk, drop it here." -ForegroundColor Gray
 Write-Host ""
+Pause-User "Press Enter after the Discord ZIP download is complete..."
 
 $modZip = $null
 while (-not $modZip) {
- Write-Host " Drag-and-drop the downloaded ZIP into this window," -ForegroundColor Yellow
- Write-Host " or paste/type its full path, then press Enter:" -ForegroundColor White
- $r = (Read-Host " ZIP path").Trim().Trim('"')
+ Write-Host " Drag-and-drop the downloaded ZIP, type its path, or Q to quit:" -ForegroundColor Yellow
+ $answer = Read-Host " ZIP path or Q"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
- if ($r -match '\.zip$|\.7z$|\.rar$') {
+ if (-not (Test-Path -LiteralPath $r -PathType Leaf)) { Write-Fail "File not found: $r"; continue }
+ if ($r -notmatch '(?i)\.zip$') { Write-Fail 'Choose the complete DinoTrauma_VR ZIP from the Discord post.'; continue }
+ $anchors = @('(?i)(?:^|\\)winhttp\.dll$', '(?i)(?:^|\\)BepInEx\\plugins\\DinoTrauma_VR\.dll$',
+              '(?i)(?:^|\\)BepInEx\\core\\BepInEx\.Preloader\.dll$',
+              '(?i)(?:^|\\)BepInEx\\config\\UnityVR_Bepinex\.cfg$',
+              '(?i)(?:^|\\)Dino Trauma_Data\\Plugins\\x86_64\\openvr_api\.dll$')
+ if (-not (Test-ZipPayloadAnchors -Path $r -AnchorPatterns $anchors -MinimumMatches $anchors.Count)) {
+  Write-Fail 'The ZIP is unreadable, unsafe, or missing the Dino Trauma VR runtime. Select another ZIP or Q.'
+  continue
+ }
  $modZip = $r
- Write-OK "Archive located: $modZip"
- } else {
- Write-Fail "Path is not a ZIP/7z/RAR archive: $r"
- }
- } else {
- Write-Fail "File not found: $r"
- }
+ Write-OK "VR archive located and checked: $modZip"
 }
 
 # -------------------------------------------------------
@@ -227,21 +234,28 @@ Write-Step 2 5 "Locating Dino Trauma"
 
 $gamePath = Find-DinoTraumaGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2149420" -SteamFolderNames @("Dino Trauma") }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) {
+ Write-Warn "Found a folder without ${GAME_EXE}: $gamePath"
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Dino Trauma at: $gamePath"
 } else {
  Write-Warn "Could not auto-locate Dino Trauma in any Steam library."
  Write-Host " Please paste the path to your Dino Trauma folder" -ForegroundColor White
- Write-Host " (the folder that contains 'Dino Trauma_Data')." -ForegroundColor White
+ Write-Host " (the folder that contains 'Dino Trauma.exe')." -ForegroundColor White
  Write-Host ""
  while (-not $gamePath) {
- $r = (Read-Host " Dino Trauma folder").Trim().Trim('"')
+ $answer = Read-Host " Dino Trauma folder or Q to quit"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-Path -LiteralPath (Join-Path $r $GAME_EXE) -PathType Leaf) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "$GAME_EXE not found in: $r"
  }
  }
 }
@@ -254,26 +268,12 @@ Write-Step 3 5 "Installing mod files"
 $tempExtract = Join-Path $env:TEMP "DinoTraumaVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
 
-try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
+$extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract `
+ -Label 'Dino Trauma VR' -AllowSkip $false
+if ([string]$extractResult -notin @('ok','manual','retry')) {
+ Write-Fail 'The VR archive was not extracted. The game was not changed.'
+ Pause-User 'Press Enter to exit...'
  exit 1
- }
- # User chose Skip - continue at own risk
 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
@@ -284,42 +284,53 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredModFiles = @('winhttp.dll', 'BepInEx\core\BepInEx.Preloader.dll',
+ 'BepInEx\plugins\DinoTrauma_VR.dll', 'BepInEx\config\UnityVR_Bepinex.cfg',
+ 'Dino Trauma_Data\Plugins\x86_64\openvr_api.dll')
+try { $payloadHashes = Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
+catch { Write-Fail "The extracted VR package is incomplete: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
+
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+$contract = New-PCVRInstallerContract -Id 'dino-trauma-vr' -GameName 'Dino Trauma VR' -Acquisition Discord `
+ -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL `
+ -RequiredInstalledFileGroups (@($GAME_EXE, 'winhttp.dll|winhttp_bak.dll') + @($requiredModFiles | Where-Object { $_ -ne 'winhttp.dll' }))
+$keepConfigs = @('BepInEx\config\BepInEx.cfg', 'BepInEx\config\UnityVR_Bepinex.cfg')
+$activeProxy = Join-Path $gamePath 'winhttp.dll'
+$parkedProxy = Join-Path $gamePath 'winhttp_bak.dll'
+$wasFlat = (Test-Path -LiteralPath $parkedProxy -PathType Leaf) -and -not (Test-Path -LiteralPath $activeProxy -PathType Leaf)
+$oldParkedBytes = if ($wasFlat) { [IO.File]::ReadAllBytes($parkedProxy) } else { $null }
+$preservedConfigs = @($keepConfigs | Where-Object { Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf })
+$installed = $false
+while (-not $installed) {
+ $copyTransaction = $null
+ try {
+  $copyTransaction = Install-PCVRDropInCopy -SourceRoot $srcRoot -GameRoot $gamePath `
+   -SourceHashes $payloadHashes -KeepExistingFiles $keepConfigs
+  Assert-PCVRDropInCopiedFiles -GameRoot $gamePath -SourceHashes $payloadHashes -PreservedExistingFiles $preservedConfigs
+  if ($wasFlat) {
+   Copy-Item -LiteralPath $activeProxy -Destination $parkedProxy -Force -ErrorAction Stop
+   Remove-Item -LiteralPath $activeProxy -Force -ErrorAction Stop
+  }
+  [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $MOD_VERSION `
+   -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+  $installed = $true
+ } catch {
+  $failure = $_
+  if ($copyTransaction) {
+   try { Undo-PCVRDropInCopy -Transaction $copyTransaction }
+   catch { throw "Dino Trauma install failed and rollback failed: $failure; $_" }
+  }
+  if ($wasFlat) { [IO.File]::WriteAllBytes($parkedProxy,[byte[]]$oldParkedBytes) }
+  Write-Fail "Installation failed; previous files were restored: $failure"
+  Write-Host ' Correct the file or permission problem, then choose [R] to retry.' -ForegroundColor Yellow
+  $retry = Read-Host ' [R] Retry / [Q] Quit'
+  if ($null -eq $retry -or $retry.Trim() -notmatch '^(?i:r)$') { exit 1 }
  }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\DinoTrauma_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but DinoTrauma_VR.dll is missing."
-} else {
- Write-OK "BepInEx + DinoTrauma_VR.dll present."
-}
+try { Complete-PCVRDropInCopy -Transaction $copyTransaction }
+catch { Write-Warn "Temporary rollback snapshot could not be removed: $_" }
+Write-OK 'VR runtime and version verified; existing configuration kept.'
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # STEP 5: ViGEmBus driver (REQUIRED for VR controllers)
@@ -488,19 +499,12 @@ if ($lhChoice -in @("y","Y")) {
  }
  }
 } else {
- Write-Info "Standard right-handed mode kept. The left-handed config is bundled in:"
+ Write-Info "The current handedness config was kept. For a fresh install, this is right-handed."
+ Write-Info "The left-handed config is bundled in:"
  Write-Host " $PSScriptRoot\UnityVR_Bepinex_LeftHanded.cfg" -ForegroundColor DarkGray
  Write-Host " Copy it over BepInEx\config\UnityVR_Bepinex.cfg later if you" -ForegroundColor Gray
  Write-Host " change your mind." -ForegroundColor Gray
 }
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
 
 # -------------------------------------------------------
 # Done

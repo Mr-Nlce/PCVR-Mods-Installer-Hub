@@ -6,16 +6,20 @@
 **Source:** https://github.com/DSprtn/GTFO_VR_Plugin
 **Distribution:** flat2VRmods Discord (beta-build channel)
 
+## About the Game
+
+GTFO is a cooperative horror shooter built around coordinated expeditions, stealth, equipment planning and survival under pressure. This mod adds roomscale VR and motion-controller interaction to those expeditions.
+
 ## What this installer does
 
 1. Walks you through joining the flat2VRmods Discord, opting into beta access, and downloading `GTFO_VR_Release_1_4_0.zip` from the mod channel.
 2. Asks you to drag the downloaded ZIP into the installer window.
 3. Auto-locates your `steamapps\common\GTFO` folder.
-4. Downloads **BepInEx 6.0.0b670 (IL2CPP x64)** from `builds.bepinex.dev` and extracts it into the GTFO folder. The VR mod ZIP does **not** ship BepInEx itself — only the plugin files — so this step is mandatory.
-5. Extracts the user-supplied mod ZIP on top of the BepInEx install.
-6. Records the install path so the Hub marks the game as **VR Ready**.
+4. Downloads **BepInEx 6.0.0b670 (IL2CPP x64)** from `builds.bepinex.dev`. The VR mod ZIP does not include the loader, so this step is mandatory.
+5. Checks both archives and copies their files together. If copying or verification fails, the installer restores the files it replaced.
+6. Records the path and version only after the loader, plugin and bindings are present.
 
-## Discord workflow (3 channel steps)
+## Discord workflow (4 steps)
 
 The walkthrough opens these in order:
 
@@ -36,7 +40,7 @@ The game is very VRAM-hungry in VR. Before you load a map:
 
 - Lower texture resolution, fog resolution, fog diffusion quality.
 - Disable SSAO, bloom, subsurface scattering, depth of field, motion blur, anti-aliasing.
-- Consider VRPerformanceToolKit (a GTFO-specific version ships with the mod).
+- Consult the publisher's VRPerformanceKit guidance if you need upscaling; the archived beta ZIP does not include its files.
 - If you crash mid-map, lower textures further — that's the typical cause.
 
 ## Controls
@@ -62,9 +66,9 @@ GTFO\BepInEx\config\com.Spartan.GTFO_VR_Plugin.cfg
 
 ## Deactivating the mod
 
-Rename `winhttp.dll` in the GTFO folder to `winhttp_bak.dll`. GTFO will then launch in flat mode again. Rename back to re-enable VR.
+Rename `winhttp.dll` in the GTFO folder to `winhttp_bak.dll`. GTFO will then launch in flat mode again; this also disables other BepInEx mods using that loader. Rename it back to re-enable them.
 
-To uninstall completely, delete the `BepInEx` folder and `winhttp.dll` from the GTFO folder.
+Do not delete the whole `BepInEx` folder if another mod uses it. This Hub route does not yet have an ownership-safe **Uninstall now** action; back up your settings and inspect the installed files before removing the VR mod manually.
 
 ## Multiplayer
 

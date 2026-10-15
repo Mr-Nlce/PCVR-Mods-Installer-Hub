@@ -56,6 +56,16 @@ $PAYLOAD_MARKER = "doorstop_config.ini"
 # Proof that the install really arrived (must not exist beforehand
 # on a fresh install, and must change on an update).
 $PROOF_FILE     = "BepInEx\plugins\MFNVR.dll"
+$REQUIRED_FILES = @(
+    'doorstop_config.ini',
+    'winhttp.dll',
+    'openxr_loader.dll',
+    'BepInEx\core\BepInEx.dll',
+    'BepInEx\plugins\MFNVR.dll',
+    'BepInEx\plugins\MFNVRConfig.dll',
+    'BepInEx\plugins\MFNVRRenderBridge.dll',
+    'My Friendly Neighborhood_Data\Plugins\MFNOpenXR.dll'
+)
 
 # The author's own hand calibration ships in the archive. On a
 # repeat run these must not overwrite what the user tuned.
@@ -254,6 +264,16 @@ try {
     return
 }
 
+$payloadMarker = Get-ChildItem -LiteralPath $exDir -Recurse -File -Filter $PAYLOAD_MARKER -ErrorAction SilentlyContinue | Select-Object -First 1
+$payloadRoot = if ($payloadMarker) { Split-Path $payloadMarker.FullName -Parent } else { $null }
+$missingInArchive = @($REQUIRED_FILES | Where-Object { -not $payloadRoot -or -not (Test-Path -LiteralPath (Join-Path $payloadRoot $_) -PathType Leaf) })
+if ($missingInArchive.Count -gt 0) {
+    foreach ($rel in $missingInArchive) { Write-Fail "Required mod file missing from the archive: $rel" }
+    Write-Fail 'This archive cannot be installed. The game folder was not changed.'
+    try { Remove-Item -LiteralPath $dlDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    exit 1
+}
+
 # Keep the user's own tuning. The archive carries the author's hand
 # calibration; on a repeat run those files stay as the user left them.
 if ($hadMod) {
@@ -298,6 +318,12 @@ if (-not $installed) {
     Write-Fail "$PROOF_FILE did not change - the install did not take."
     Pause-User "Press Enter to exit."
     return
+}
+$missingAfterCopy = @($REQUIRED_FILES | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameRoot $_) -PathType Leaf) })
+if ($missingAfterCopy.Count -gt 0) {
+    foreach ($rel in $missingAfterCopy) { Write-Fail "Required mod file missing after copy: $rel" }
+    Write-Fail 'Installation is incomplete. No VR Ready version was recorded.'
+    exit 1
 }
 Write-OK "MFNVR is in place."
 

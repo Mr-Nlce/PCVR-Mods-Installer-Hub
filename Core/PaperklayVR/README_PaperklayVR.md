@@ -9,6 +9,8 @@ A cute 3D platformer made by a single developer, inspired by Banjo-Kazooie and o
 
 A community VR mod for the Banjo-inspired 3D platformer, distributed by Astienth via the FarmerTrueVR Discord server. **Discord login is required** to access the download. Ships with OpenVR by default; OpenXR is supported via a config edit.
 
+A player reported that the Steam demo does not work with this mod. The Hub therefore locates only a full-game folder and rejects a selected folder named Demo.
+
 If you'd rather not use the in-Hub installer, the manual instructions live in the original mod post in the FarmerTrueVR Discord:
 - https://discord.com/channels/1001138422972432597/1380447945215836261/1380447945215836261
 
@@ -32,34 +34,30 @@ You can play this game with **VR controllers** (recommended), a **gamepad**, or 
 
 For VR controllers you **must install ViGEmBus** so the mod can map your VR input to a virtual Xbox pad. The Hub installer can do this for you in step 6.
 
-### VR controller mapping
+### VR controller mapping and gestures
 
-VR controllers are mapped as a virtual Xbox controller:
-- [[A]], [[B]], [[X]], [[Y]] → same buttons
-- [[Left Grip]] → LB, [[Right Grip]] → RB
-- [[Left Trigger]] → LT, [[Right Trigger]] → RT
+VR controllers act as a virtual Xbox controller. The mod adds these gestures:
 
-### VR motion gestures
-
-The mod adds proper VR gestures on top of the gamepad mapping:
-
-- [[Both Hands Above Head]] while airborne → activate the **glider**
-- [[Punch Forward]] → trigger the **attack**
-- [[Quick Downward Swing]] while in the air → trigger the **stomp** attack
+| Button | Action |
+|---|---|
+| [[A]], [[B]], [[X]], [[Y]] | Corresponding Xbox buttons |
+| [[Left Grip]], [[Right Grip]] | LB, RB |
+| [[Left Trigger]], [[Right Trigger]] | LT, RT |
+| [[Both Hands Above Head]] | Glide while airborne |
+| [[Punch Forward]] | Attack |
+| [[Quick Downward Swing]] | Stomp while airborne |
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter view |
+| [[Left Stick]] near the left side of your head | Hotkey gesture: stick becomes D-Pad |
+| [[Left Stick Click]] during hotkey gesture | Back / View |
+| [[Right Stick Click]] during hotkey gesture | Start / Menu |
 
 You can disable gestures entirely (config below) if you'd rather play with just buttons.
-
-### Recentering
-
-Click [[Left Stick Click]] + [[Right Stick Click]] to recenter the view at any time.
 
 ### Hotkey gesture
 
 Hold your **left controller close to the left side of your head**. The controller vibrates while the hotkey is active, and the stick layout shifts:
 
-- [[Left Stick]] → D-Pad
-- [[Left Stick]] click → Back / View button
-- [[Right Stick]] click → Start / Menu button
+The table above lists the changed stick controls while this gesture is active.
 
 ## Configuration
 

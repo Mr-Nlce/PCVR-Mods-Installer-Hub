@@ -3,6 +3,11 @@
 VR support for the cozy island wildlife adventure. Play the whole game
 from start to finish as a seated VR experience.
 
+## About the Game
+
+Explore a Mediterranean island, photograph its wildlife, and help protect
+its habitats. AlbaVR presents the full adventure as a seated VR experience.
+
 ## Features
 
 - Play the game from start to finish as a stationary VR experience
@@ -14,11 +19,15 @@ from start to finish as a seated VR experience.
 ## How to use
 
 Click **Install Mod** on the game tile or detail page and follow the
-prompts. The installer downloads BepInEx and the VR mod, places them in
-the game folder, and (on Steam) turns off Desktop Game Theatre for you.
+prompts. The installer downloads BepInEx and the VR mod, checks their
+required files, and places them in the game folder. On Steam, turn off
+**Use Desktop Game Theatre while SteamVR is active** in the game's properties.
 
-After installing, launch the game in VR - **Start in VR** in the Hub or the desktop shortcut. The VR mode setting is
-remembered, so later you can just launch the game normally. Use your VR
+After installing, use **Start in VR** in the Hub or the **Alba VR** desktop
+shortcut. Both use the selected SteamVR or Oculus mode and restore it even
+if you used the publisher's **Play without VR.bat** in between. Running
+`Alba.exe` directly uses whichever mode was last written to `VRMODE.txt`.
+Use your VR
 software's recenter function once in-game, then the in-game recenter key
 (Home by default) to realign the view to your head when needed.
 
@@ -35,16 +44,18 @@ gamepad is strongly recommended.
 ## Requirements
 
 - Alba: A Wildlife Adventure owned on Steam or Epic
-- SteamVR installed
+- SteamVR or an Oculus PC runtime, matching your installer choice
 
 ## Hotkeys
 
 Default hotkeys (changeable in `AlbaVR.ini`, which appears in the game
 folder after the first launch):
 
-- **Home** - recenter VR position
-- **Insert** - toggle full first-person view
-- **H** - toggle HUD
+| Button | Action |
+| --- | --- |
+| [[Home]] | Recenter VR position |
+| [[Insert]] | Toggle full first-person view |
+| [[H]] | Toggle HUD |
 
 ## Full first-person view
 

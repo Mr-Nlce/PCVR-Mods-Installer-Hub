@@ -60,6 +60,168 @@ $REPO        = "vaas993/theHunterCotW-VR"
 $RELEASES    = "https://github.com/$REPO/releases"
 $SETTINGS_EXE = "theHunterCotW VR Settings.exe"
 $SETTINGS_REL = "VR Settings\$SETTINGS_EXE"
+$DEPOT_BUILD = '23311888'
+$DEPOT_ID = '518791'
+$DEPOT_MANIFEST = '6760390524926456616'
+$DEPOT_COMMAND = "download_depot $APP_ID $DEPOT_ID $DEPOT_MANIFEST"
+$DEPOT_PATH = 'C:\Games\theHunterCotW VR 9.2'
+$DEPOT_MARKER = '.pcvrhub_hunter_depot_23311888'
+$DEPOT_MOD_VERSION = 'v1.3.1'
+$DEPOT_MOD_URL = 'https://github.com/vaas993/theHunterCotW-VR/releases/download/v1.3.1/theHunterCotW-VR-v1.3.1.zip'
+$CURRENT_FALLBACK_VERSION = 'v1.4.1'
+$CURRENT_FALLBACK_URL = 'https://github.com/vaas993/theHunterCotW-VR/releases/download/v1.4.1/theHunterCotW-VR-v1.4.1.zip'
+
+function Get-HunterCurrentCompatibility {
+    param([string]$GameRoot)
+    if (-not $GameRoot -or -not (Test-Path -LiteralPath (Join-Path $GameRoot $GAME_EXE) -PathType Leaf)) { return 'not found' }
+    try {
+        $common = Split-Path $GameRoot -Parent
+        if ((Split-Path $common -Leaf) -ne 'common') { return 'unknown build' }
+        $steamapps = Split-Path $common -Parent
+        if ((Split-Path $steamapps -Leaf) -ne 'steamapps') { return 'unknown build' }
+        $manifestPath = Join-Path $steamapps "appmanifest_$APP_ID.acf"
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop
+        $build = [regex]::Match($manifest,'(?i)"buildid"\s*"([0-9]+)"').Groups[1].Value
+        $depot = [regex]::Match($manifest,'(?is)"518791"\s*\{[^{}]*"manifest"\s*"([0-9]+)"').Groups[1].Value
+        if ($build -eq $DEPOT_BUILD -and $depot -eq $DEPOT_MANIFEST) { return '9.2 supported' }
+        if ($build -eq '25131233' -or $depot -eq '6922288050906191955') { return '9.3 supported by v1.4.1' }
+        if ($build) { return "build $build not confirmed by publisher" }
+    } catch {}
+    return 'unknown build'
+}
+
+function Test-HunterDepotBase {
+    param([string]$Root)
+    if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container)) { return $false }
+    foreach ($relative in @($GAME_EXE,'steam_api64.dll','versions.518791.txt','archives_win64\game0.arc')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Root $relative) -PathType Leaf)) { return $false }
+    }
+    return $true
+}
+
+function Test-HunterCompletedDepot {
+    param([string]$Root)
+    if (-not (Test-HunterDepotBase $Root)) { return $false }
+    $marker = Join-Path $Root $DEPOT_MARKER
+    $appid = Join-Path $Root 'steam_appid.txt'
+    $version = Join-Path $Root '.pcvrhub_version'
+    if (-not (Test-Path -LiteralPath $marker -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $appid -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $version -PathType Leaf)) { return $false }
+    $expected = "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD`nMod=$DEPOT_MOD_VERSION"
+    try {
+        if ((Get-Content -LiteralPath $marker -Raw).Trim() -ne $expected -or
+            (Get-Content -LiteralPath $appid -Raw).Trim() -ne $APP_ID -or
+            (Get-Content -LiteralPath $version -Raw).Trim() -ne $DEPOT_MOD_VERSION) { return $false }
+        foreach ($relative in @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL,
+            'VR Settings\_internal\base_library.zip','VR Settings\_internal\libcrypto-1_1.dll',
+            'VR Settings\_internal\ucrtbase.dll','VR Settings\_internal\VCRUNTIME140.dll')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $Root $relative) -PathType Leaf)) { return $false }
+        }
+        $python = @(Get-ChildItem -LiteralPath (Join-Path $Root 'VR Settings\_internal') -File -Filter 'python*.dll' -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^python[0-9]+\.dll$' } | Select-Object -First 1)
+        return ($python.Count -gt 0)
+    } catch { return $false }
+}
+
+function Get-HunterDepotTarget {
+    $candidates = @()
+    $receipt = Join-Path $PSScriptRoot '.installed_path_depot'
+    try { if (Test-Path -LiteralPath $receipt -PathType Leaf) { $candidates += (Get-Content -LiteralPath $receipt -Raw).Trim() } } catch {}
+    try {
+        $saved = Get-HubLocatedGameFolder -GameId 'thehunter-call-of-the-wild-vr' -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_depot')
+        if ($saved) { $candidates += $saved }
+    } catch {}
+    $candidates += $DEPOT_PATH
+    foreach ($candidate in @($candidates | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-HunterCompletedDepot $candidate) { return $candidate }
+    }
+    return $null
+}
+
+function Get-HunterDepotSource {
+    while ($true) {
+        Write-Host ''
+        Write-Host "  Steam will download game update 9.2, build $DEPOT_BUILD." -ForegroundColor White
+        Write-Host "  This is a large game download. Keep the normal Steam game intact." -ForegroundColor Yellow
+        Write-Host "  Exact command: $DEPOT_COMMAND" -ForegroundColor Cyan
+        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy the command and open Steam Console...')
+        try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
+        try { Start-Process 'steam://open/console' -ErrorAction Stop }
+        catch { try { Start-Process 'steam://nav/console' -ErrorAction Stop } catch { Write-Warn 'Open Steam Console manually from the Steam View menu.' } }
+        Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
+        Write-Host '  Paste the command into Steam Console and wait for Depot download complete.' -ForegroundColor White
+        [void](Wait-PCVRExplicitEnter -Message 'After that exact depot finishes, press Enter to find its files...')
+        $found = Find-SteamDepotPath -AppId $APP_ID -DepotId $DEPOT_ID -GameExe $GAME_EXE
+        if ($found -and (Test-HunterDepotBase $found)) { return $found }
+        Write-Warn 'A complete depot folder was not found yet.'
+        while ($true) {
+            $answer = ([string](Read-Host '  [R]etry Steam, [M]anual depot folder, [C]ancel')).Trim().ToUpperInvariant()
+            if ($answer -eq 'C') { return $null }
+            if ($answer -eq 'R') { break }
+            if ($answer -eq 'M') {
+                $manual = ([string](Read-Host '  Full path to depot_518791')).Trim().Trim('"')
+                if ($manual -and (Split-Path $manual -Leaf) -eq 'depot_518791' -and (Test-HunterDepotBase $manual)) { return $manual }
+                Write-Warn 'That is not a complete depot_518791 folder.'
+            }
+        }
+    }
+}
+
+function Initialize-HunterDepotGame {
+    $completed = Get-HunterDepotTarget
+    if ($completed) { Write-OK "Existing pinned 9.2 depot: $completed"; return $completed }
+    $stageName = '.pcvrhub_hunter_depot_staging_23311888'
+    $stageText = "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD"
+    while ($true) {
+        Write-Host ''
+        Write-Host "  Separate depot destination: $DEPOT_PATH" -ForegroundColor White
+        $typed = ([string](Read-Host '  Enter for default, or enter another full folder path')).Trim().Trim('"')
+        $target = if ($typed) { $typed } else { $DEPOT_PATH }
+        if (-not [IO.Path]::IsPathRooted($target) -or $target -match '(?i)[\\/]steamapps[\\/]common[\\/]') {
+            Write-Warn 'Choose a full path outside the normal Steam game folder.'; continue
+        }
+        $target = [IO.Path]::GetFullPath($target).TrimEnd([char[]]'\/')
+        if (-not (Test-InstallerTargetWritable -TargetPath $target)) {
+            Write-Warn 'That destination is not writable. Choose another folder.'; continue
+        }
+        if (Test-Path -LiteralPath $target -PathType Container) {
+            $stage = Join-Path $target $stageName
+            $ownedStage = $false
+            try { $ownedStage = ((Get-Content -LiteralPath $stage -Raw -ErrorAction Stop).Trim() -eq $stageText) } catch {}
+            if (-not $ownedStage -and @(Get-ChildItem -LiteralPath $target -Force -ErrorAction SilentlyContinue | Select-Object -First 1).Count -gt 0) {
+                Write-Warn 'That folder already has unrelated contents. Choose an empty folder.'; continue
+            }
+            if ($ownedStage -and (Test-HunterDepotBase $target)) {
+                Write-OK "Resuming the pinned depot at $target"
+                return $target
+            }
+        }
+        $source = Get-HunterDepotSource
+        if (-not $source) { return $null }
+        $source = [IO.Path]::GetFullPath($source).TrimEnd([char[]]'\/')
+        if ((Split-Path $source -Leaf) -ne "depot_$DEPOT_ID" -or -not (Test-HunterDepotBase $source)) {
+            Write-Fail 'Steam did not supply a complete matching depot folder.'; return $null
+        }
+        if ($source.Equals($target,[StringComparison]::OrdinalIgnoreCase) -or
+            $target.StartsWith(($source+'\'),[StringComparison]::OrdinalIgnoreCase) -or
+            $source.StartsWith(($target+'\'),[StringComparison]::OrdinalIgnoreCase)) {
+            Write-Fail 'The depot source and destination must be separate folders.'; return $null
+        }
+        if (-not (Test-Path -LiteralPath $target -PathType Container) -and
+            [IO.Path]::GetPathRoot($source).Equals([IO.Path]::GetPathRoot($target),[StringComparison]::OrdinalIgnoreCase)) {
+            Move-Item -LiteralPath $source -Destination $target -ErrorAction Stop
+        } else {
+            if (-not (Test-Path -LiteralPath $target -PathType Container)) { [void][IO.Directory]::CreateDirectory($target) }
+            [IO.File]::WriteAllText((Join-Path $target $stageName),$stageText,(New-Object Text.UTF8Encoding $false))
+            [void](Copy-DirectoryTreeVerified -Source $source -Destination $target)
+        }
+        if (-not (Test-HunterDepotBase $target)) { throw 'The 9.2 depot copy is incomplete; rerun setup to resume.' }
+        [IO.File]::WriteAllText((Join-Path $target $stageName),$stageText,(New-Object Text.UTF8Encoding $false))
+        Write-OK "Pinned game build copied to $target"
+        return $target
+    }
+}
 
 function Install-TheHunterPayload {
     param(
@@ -92,6 +254,46 @@ function Install-TheHunterPayload {
             Copy-DirectoryTreeVerified -Source $source -Destination (Join-Path $DestinationRoot $name)
         }
     }
+
+    # Pre-v1.3 installs may leave a second copy of the settings EXE in the
+    # game root. That copy looks valid but has no adjacent _internal runtime;
+    # a saved launch override can keep starting it after the new install.
+    # Remove it only when it is byte-identical to the complete nested copy.
+    $oldLauncher = Join-Path $DestinationRoot $SETTINGS_EXE
+    $newLauncher = Join-Path $DestinationRoot $SETTINGS_REL
+    $oldRuntime = @(Get-ChildItem -LiteralPath (Join-Path $DestinationRoot '_internal') -Filter 'python*.dll' -File -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^python[0-9]+\.dll$' } | Select-Object -First 1)
+    if ((Test-Path -LiteralPath $oldLauncher -PathType Leaf) -and
+        (Test-Path -LiteralPath $newLauncher -PathType Leaf) -and $oldRuntime.Count -eq 0) {
+        $oldHash = (Get-FileHash -LiteralPath $oldLauncher -Algorithm SHA256 -ErrorAction Stop).Hash
+        $newHash = (Get-FileHash -LiteralPath $newLauncher -Algorithm SHA256 -ErrorAction Stop).Hash
+        if ($oldHash -eq $newHash) { Remove-Item -LiteralPath $oldLauncher -Force -ErrorAction Stop }
+    }
+}
+
+function Get-HunterSettingsTreeProblems {
+    param([string]$SourceRoot,[string]$DestinationRoot)
+    $sourceSettings = Join-Path $SourceRoot 'VR Settings'
+    $destinationSettings = Join-Path $DestinationRoot 'VR Settings'
+    if (-not (Test-Path -LiteralPath $sourceSettings -PathType Container)) { return @('VR Settings source folder') }
+    $problems = New-Object System.Collections.Generic.List[string]
+    foreach ($file in @(Get-ChildItem -LiteralPath $sourceSettings -File -Recurse -ErrorAction Stop)) {
+        $relative = $file.FullName.Substring($sourceSettings.Length).TrimStart([char[]]'\/')
+        $destination = Join-Path $destinationSettings $relative
+        if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+            $problems.Add($relative)
+            continue
+        }
+        try {
+            $placed = Get-Item -LiteralPath $destination -ErrorAction Stop
+            if ($placed.Length -ne $file.Length -or
+                (Get-FileHash -LiteralPath $destination -Algorithm SHA256 -ErrorAction Stop).Hash -ne
+                (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256 -ErrorAction Stop).Hash) {
+                $problems.Add($relative)
+            }
+        } catch { $problems.Add($relative) }
+    }
+    return @($problems)
 }
 
 # The same script performs only the protected copy when Windows starts it
@@ -118,26 +320,43 @@ Write-Host "  Real stereo VR: the world is drawn once per eye from the" -Foregro
 Write-Host "  game's own camera. Your head turns the view, you can lean" -ForegroundColor White
 Write-Host "  and step around inside it, and the weapon has depth." -ForegroundColor White
 Write-Host ""
-Write-Host "  We start by opening the game flat, so you can set its own" -ForegroundColor White
-Write-Host "  video options before installing the VR mod." -ForegroundColor White
+Write-Host "  Choose the normal Steam build or a separate pinned 9.2 depot." -ForegroundColor White
 Write-Host ""
-Write-Host "  One thing to know before that:" -ForegroundColor White
-Write-Host "   - " -NoNewline -ForegroundColor White
-Write-Host " BUILT FOR GAME UPDATE 9.2 (PERU HUNTING RESERVE) " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host "     The mod checks the game by fingerprint and refuses to" -ForegroundColor White
-Write-Host "     guess. On a newer game build it simply does nothing -" -ForegroundColor White
-Write-Host "     that is by design, not a fault." -ForegroundColor White
+Write-Host "  Publisher v1.4.1 supports the September 2026 game update." -ForegroundColor White
+Write-Host "  The depot stays on game 9.2 and VR mod v1.3.1." -ForegroundColor White
+Write-Host "  Unconfirmed future game builds may still need a new mod." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  Single player only - do not use it in multiplayer sessions." -ForegroundColor Gray
 Write-Host "  No RTX card? You lose nothing: the mod brings its own" -ForegroundColor Gray
 Write-Host "  per-eye smoothing for every other card. DLSS is optional." -ForegroundColor Gray
 Write-Host ""
 Show-AntivirusNotice
-Pause-User "Press Enter to start..." | Out-Null
 
-# ---- 1. Locate the game ---------------------------------------
-Write-Step 1 5 "Locating $GAME_NAME"
-$gameDir = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @("theHunterCotW") -ProbeExe $GAME_EXE
+$currentProbe = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('theHunterCotW') -ProbeExe $GAME_EXE -HubGameId 'thehunter-call-of-the-wild-vr'
+$currentStatus = Get-HunterCurrentCompatibility -GameRoot $currentProbe
+Write-Host "  [1] Current Steam game ($currentStatus)" -ForegroundColor Yellow
+Write-Host '      Installs the newest publisher mod into the normal Steam copy.' -ForegroundColor Gray
+Write-Host '      Publisher v1.4.1 supports the September 2026 game update.' -ForegroundColor Gray
+Write-Host ''
+Write-Host "  [2] Separate pinned game depot 9.2 (build $DEPOT_BUILD)" -ForegroundColor Green
+Write-Host '      Steam downloads the pinned 9.2 game; this route keeps the' -ForegroundColor Gray
+Write-Host '      publisher VR mod pinned to v1.3.1. The normal copy stays put.' -ForegroundColor Gray
+Write-Host ''
+$mode = ''
+while ($mode -notin @('1','2','C')) {
+    $mode = ([string](Read-Host '  Choose [1] Current, [2] Depot, [C] Cancel')).Trim().ToUpperInvariant()
+}
+if ($mode -eq 'C') { Write-Info 'Setup cancelled before making changes.'; exit 0 }
+$installMode = if ($mode -eq '2') { 'Depot' } else { 'Current' }
+
+# ---- 1. Locate or prepare the selected game route ------------
+Write-Step 1 5 $(if ($installMode -eq 'Depot') { 'Preparing the pinned 9.2 Steam depot' } else { "Locating $GAME_NAME" })
+if ($installMode -eq 'Depot') {
+    $gameDir = Initialize-HunterDepotGame
+    if (-not $gameDir) { Write-Fail 'The depot was not completed.'; Pause-User 'Press Enter to exit.'; exit 1 }
+} else {
+    $gameDir = $currentProbe
+}
 if (-not $gameDir) {
     Write-Warn "Could not find the game automatically."
     Write-Host "  Point me at the folder that holds $GAME_EXE, for example:" -ForegroundColor White
@@ -179,6 +398,7 @@ Write-Host ""
 Write-Host "  Then CLOSE the game and come back here." -ForegroundColor White
 Write-Host ""
 if (Read-YesNo "  Open the game now?") {
+    Pause-User 'Press Enter to open the selected game in flat mode...' | Out-Null
     try { Start-Process -FilePath (Join-Path $gameDir $GAME_EXE) -WorkingDirectory $gameDir }
     catch { Write-Warn "Could not start it - open it from Steam instead." }
     Pause-User "Press Enter when the game is CLOSED again..." | Out-Null
@@ -192,27 +412,33 @@ $tmp = Join-Path $env:TEMP ("cotwvr_" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $zip = Join-Path $tmp "theHunterCotW-VR.zip"
 
-$url = $null; $tag = "latest"
-try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
-               -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
-    if (Test-IsPayloadRelease -Release $rel) {
-        # The release also carries a much smaller Source archive. Select only
-        # the publisher's runtime package; never install a source bundle.
-        $pick = $rel.assets | Where-Object {
-            $_.name -match '(?i)^theHunterCotW-VR-v[^/]+\.zip$' -and
-            $_.name -notmatch '(?i)source'
-        } | Select-Object -First 1
-        if ($pick -and $pick.browser_download_url) {
-            $url = [string]$pick.browser_download_url
-            $tag = [string]$rel.tag_name
+$url = $null; $tag = 'latest'
+if ($installMode -eq 'Depot') {
+    $url = $DEPOT_MOD_URL
+    $tag = $DEPOT_MOD_VERSION
+    Write-Info "Depot mod pinned to $tag; no live release resolver is used."
+} else {
+    try {
+        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+                   -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
+        if (Test-IsPayloadRelease -Release $rel) {
+            # The release also carries a much smaller Source archive. Select only
+            # the publisher's runtime package; never install a source bundle.
+            $pick = $rel.assets | Where-Object {
+                $_.name -match '(?i)^theHunterCotW-VR-v[^/]+\.zip$' -and
+                $_.name -notmatch '(?i)source'
+            } | Select-Object -First 1
+            if ($pick -and $pick.browser_download_url) {
+                $url = [string]$pick.browser_download_url
+                $tag = [string]$rel.tag_name
+            }
         }
+        if ($url) { Write-OK "Release: $tag" }
+    } catch { Write-Warn "GitHub could not be reached - trying the direct link." }
+    if (-not $url) {
+        $url = $CURRENT_FALLBACK_URL
+        $tag = $CURRENT_FALLBACK_VERSION
     }
-    if ($url) { Write-OK "Release: $tag" }
-} catch { Write-Warn "GitHub could not be reached - trying the direct link." }
-if (-not $url) {
-    $url = "https://github.com/vaas993/theHunterCotW-VR/releases/download/v1.3.1/theHunterCotW-VR-v1.3.1.zip"
-    $tag = 'v1.3.1'
 }
 
 Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "$MOD_NAME $tag" `
@@ -253,8 +479,11 @@ if (-not $payloadRoot) {
 }
 $settingsInternal = Join-Path $payloadRoot 'VR Settings\_internal'
 $pythonRuntime = Get-ChildItem -LiteralPath $settingsInternal -Filter 'python*.dll' -File -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -match '^python[0-9]+\.dll$' } |
                  Select-Object -First 1
-$sourceRequired = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL)
+$settingsSupport = @('VR Settings\_internal\base_library.zip','VR Settings\_internal\libcrypto-1_1.dll',
+                     'VR Settings\_internal\ucrtbase.dll','VR Settings\_internal\VCRUNTIME140.dll')
+$sourceRequired = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL) + $settingsSupport
 $sourceMissing = @($sourceRequired | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payloadRoot $_) -PathType Leaf) })
 if (-not $pythonRuntime) { $sourceMissing += 'VR Settings\_internal\python*.dll' }
 if ($sourceMissing.Count -gt 0) {
@@ -287,7 +516,7 @@ if ($copyFailed) {
 # The settings executable is not standalone. Its adjacent Python runtime is a
 # load-bearing part of the v1.3.1 layout and is verified at the destination.
 $pythonRelative = $pythonRuntime.FullName.Substring($payloadRoot.Length).TrimStart('\')
-$core = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL,$pythonRelative)
+$core = @('cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL,$pythonRelative) + $settingsSupport
 $missing = @($core | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameDir $_)) })
 
 # BEFORE THE TEMP FOLDER GOES. A scanner usually sweeps a moment after
@@ -306,6 +535,39 @@ if ($missing.Count -eq 0) {
     }
 }
 
+# A valid Python DLL alone cannot prove that the bundled settings app can
+# load. Compare the entire live publisher settings tree before committing a
+# receipt; retry the staged source in this window if a file was lost.
+$treeProblems = @(Get-HunterSettingsTreeProblems -SourceRoot $payloadRoot -DestinationRoot $gameDir)
+while ($missing.Count -gt 0 -or $treeProblems.Count -gt 0) {
+    Write-Fail 'The settings runtime is incomplete in the game folder.'
+    foreach ($problem in @($missing + $treeProblems | Select-Object -Unique -First 12)) {
+        Write-Host "   $problem" -ForegroundColor Yellow
+    }
+    if (($missing.Count + $treeProblems.Count) -gt 12) { Write-Host '   ...more files are missing or differ.' -ForegroundColor Yellow }
+    Write-Host '  This can be a copy, path, rights or external-removal problem.' -ForegroundColor White
+    $repair = ([string](Read-Host '  [R]etry copy, [O]pen game folder, [C]ancel')).Trim().ToUpperInvariant()
+    if ($repair -eq 'O') { try { Start-Process explorer.exe -ArgumentList @($gameDir) } catch {}; continue }
+    if ($repair -eq 'C') {
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        exit 1
+    }
+    if ($repair -ne 'R') { continue }
+    try { Install-TheHunterPayload -SourceRoot $payloadRoot -DestinationRoot $gameDir }
+    catch {
+        Write-Warn ('Direct copy failed: ' + $_.Exception.Message)
+        try {
+            $retryProcess = Start-Process powershell.exe -ArgumentList @(
+                '-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$PSCommandPath`"",
+                '-ElevatedCopy','-CopySource',"`"$payloadRoot`"",'-CopyDestination',"`"$gameDir`""
+            ) -Verb RunAs -WindowStyle Hidden -Wait -PassThru -ErrorAction Stop
+            if ($retryProcess.ExitCode -ne 0) { Write-Warn 'Elevated retry failed or was declined.' }
+        } catch { Write-Warn ('Elevated retry failed: ' + $_.Exception.Message) }
+    }
+    $missing = @($core | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameDir $_) -PathType Leaf) })
+    $treeProblems = @(Get-HunterSettingsTreeProblems -SourceRoot $payloadRoot -DestinationRoot $gameDir)
+}
+
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 if ($missing.Count -gt 0) {
@@ -319,17 +581,42 @@ if ($missing.Count -gt 0) {
 Write-OK "Files are in place."
 if ($preservedIni) { Write-Info "Your existing cotwvr.ini settings were preserved." }
 
-# Marker for the Hub - into the INSTALLER folder, not the game.
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
-if (Test-IsTrackableInstalledVersion -Version $tag) {
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
+# Commit each route only after its own game, mod and settings-runtime proof.
+# The depot marker is tied to the fixed Steam manifest and mod release; the
+# current route remains independent and may follow later publisher releases.
+try {
+    if ($installMode -eq 'Depot') {
+        if (-not (Test-HunterDepotBase $gameDir) -or $tag -ne $DEPOT_MOD_VERSION) {
+            throw 'The pinned depot game or mod version is incomplete.'
+        }
+        [IO.File]::WriteAllText((Join-Path $gameDir 'steam_appid.txt'),$APP_ID,[Text.Encoding]::ASCII)
+        $depotText = "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD`nMod=$DEPOT_MOD_VERSION"
+        [IO.File]::WriteAllText((Join-Path $gameDir $DEPOT_MARKER),$depotText,(New-Object Text.UTF8Encoding $false))
+    }
+    $required = @($GAME_EXE,'cotwvr.dll','XINPUT9_1_0.dll','openxr_loader.dll',$SETTINGS_REL,$pythonRelative) + $settingsSupport
+    if ($installMode -eq 'Depot') { $required += @('steam_appid.txt',$DEPOT_MARKER,'archives_win64\game0.arc','versions.518791.txt') }
+    $contract = New-PCVRInstallerContract -Id 'thehunter-call-of-the-wild-vr' `
+        -GameName 'theHunter: Call of the Wild VR' `
+        -Acquisition $(if ($installMode -eq 'Depot') { 'SteamDepot' } else { 'GitHub' }) `
+        -Routes @($installMode) -RequiredInstalledFileGroups $required `
+        -ReleasePageUrl $RELEASES -AntivirusNotice `
+        -PinnedDepot:($installMode -eq 'Depot')
+    $pathReceipt = Join-Path $PSScriptRoot $(if ($installMode -eq 'Depot') { '.installed_path_depot' } else { '.installed_path' })
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gameDir -Version $tag `
+        -InstalledPathReceiptPaths @($pathReceipt) -Route $installMode)
+    $versionReceipt = Join-Path $PSScriptRoot $(if ($installMode -eq 'Depot') { '.installed_version_depot' } else { '.installed_version' })
+    try { Set-Content -LiteralPath $versionReceipt -Value $tag -Encoding UTF8 -Force } catch {}
+    [void](Save-HubRememberedGameFolder -GameId 'thehunter-call-of-the-wild-vr' `
+        -Title 'theHunter: Call of the Wild VR' -GameDir $gameDir -ProbeFiles @($GAME_EXE) `
+        -StateName $(if ($installMode -eq 'Depot') { 'installed_path_depot' } else { 'installed_path' }))
+    if ($installMode -eq 'Depot') {
+        Remove-Item -LiteralPath (Join-Path $gameDir '.pcvrhub_hunter_depot_staging_23311888') -Force -ErrorAction SilentlyContinue
+    }
+} catch {
+    Write-Fail "The selected route was not committed: $($_.Exception.Message)"
+    Pause-User 'Press Enter to exit; rerun setup to recover.'
+    exit 1
 }
-# ALSO write the durable stamp next to the GAME (2026-08-20).
-# The line above lands inside the Hub folder and is gone as
-# soon as a new Hub build is dropped in; the scan then finds
-# no marker and seeds the CURRENT online tag, swallowing a
-# pending update. The game-side stamp survives that.
-Save-InstalledStamp -GameDir $gameDir -Version $tag
 
 # ---- 5. The mod's settings program ----------------------------
 Write-Step 5 5 "Setting it up"

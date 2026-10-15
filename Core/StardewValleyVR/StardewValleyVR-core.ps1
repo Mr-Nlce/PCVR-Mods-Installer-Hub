@@ -99,7 +99,7 @@ function Get-NexusZip {
     Pause-User "Press Enter to open the download page..." | Out-Null
     try { Start-Process $Url } catch { Write-Warn "Open manually: $Url" }
 
-    $dl = Join-Path $env:USERPROFILE "Downloads"
+    $dl = Get-PCVRDownloadsFolder
     while ($true) {
         $hit = $null
         if (Test-Path -LiteralPath $dl) {
@@ -250,6 +250,11 @@ if (Test-Path -LiteralPath $smapiExe) {
 if (-not (Test-Path -LiteralPath $modsDir)) {
     try { New-Item -ItemType Directory -Path $modsDir -Force | Out-Null } catch {}
 }
+if (-not (Test-Path -LiteralPath $smapiExe)) {
+    Write-Fail "SMAPI is required before the VR mod can be installed. No VR files were copied."
+    Pause-User "Press Enter to exit..." | Out-Null
+    exit 1
+}
 
 # -------------------------------------------------------
 # STEP 3: Generic Mod Config Menu
@@ -266,6 +271,11 @@ if (Test-Path -LiteralPath (Join-Path $modsDir "GenericModConfigMenu")) {
             Write-Warn "Generic Mod Config Menu was not installed - the mod's settings menu won't open."
         }
     }
+}
+if (-not (Test-Path -LiteralPath (Join-Path $modsDir 'GenericModConfigMenu'))) {
+    Write-Fail "Generic Mod Config Menu is required. No VR files were copied."
+    Pause-User "Press Enter to exit..." | Out-Null
+    exit 1
 }
 
 # -------------------------------------------------------

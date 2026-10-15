@@ -9,10 +9,32 @@ empty on purpose.
 own camera, once per eye - real depth, your head turns the view, you can lean and
 step around inside it, and your weapon has depth.
 
+## Choose Current or Depot first
+
+The installer's first choice is **Current** or the separate **9.2 depot**.
+Current changes only the normal Steam installation and follows new publisher
+releases. The menu reads Steam's local build and depot manifest. Publisher
+v1.4.1 supports the September 2026 game update (9.3); the author tested it
+in a headset with a Quest 3 and RTX 5090. The 9.2 build also remains available.
+For a future unconfirmed game build, the separate 9.2 depot is the fallback.
+
+Depot downloads Steam App `518790`, main-game depot `518791`, manifest
+`6760390524926456616` (June 16, 2026, build `23311888`) with the Steam Console.
+It keeps the game separate under `C:\Games\theHunterCotW VR 9.2` by default,
+writes `steam_appid.txt` with `518790`, and installs the pinned publisher mod
+**v1.3.1**. This is a large game download; leave enough disk space. The
+normal Steam copy remains in its library. If a complete pinned depot is already
+present, setup reuses it. If Steam cannot find the depot folder, the installer
+offers retry, a manual `depot_518791` folder, or cancellation.
+
+Use **Start 9.2 Depot** in the Hub to open that copy's settings launcher. When
+both routes have the VR mod, the Hub shows separate Current and Depot launch
+actions. Steam updates to the normal game do not update the pinned depot.
+
 ## The game comes first, flat
 
-The Hub's installer opens the game **before** it installs anything so you can set
-the video options the mod expects:
+After the route choice, the Hub's installer can open that selected game copy
+**before installing the VR mod** so you can set the video options it expects:
 
 | Setting | Value |
 |---|---|
@@ -28,18 +50,20 @@ Then close the game and let the installer carry on.
 
 ## Built for one game build
 
-The mod targets **game update 9.2 (Peru Hunting Reserve)** and identifies the
-game **by fingerprint**. On a newer build it refuses to guess and simply does
-nothing at all - no error, no VR. That is the author's design decision, not a
-fault, and it is the most common "nothing happens" report.
+The pinned depot mod v1.3.1 targets **game update 9.2 (Peru Hunting Reserve)**.
+Current v1.4.1 adds support for the September 2026 game update. Both builds
+identify supported game versions rather than guessing; a later unsupported
+build may start flat until the publisher updates the mod.
 
-**Steam only.** Other storefronts are not supported.
+**The Hub's Current and Depot routes are Steam only.** The publisher describes
+the v1.4.1 settings fix as working across Steam and Epic installations, but
+the Hub does not currently install or track an Epic route.
 
 **Single player only** - do not use it in multiplayer sessions.
 
 ## You do not need an RTX card
 
-The current v1.3.1 launcher offers DLSS Quality, Balanced, Performance, Ultra
+The settings launcher offers DLSS Quality, Balanced, Performance, Ultra
 Performance, DLAA and Custom source sizes. Supported source-size changes can be
 applied live; headset/output resolution still requires a restart.
 
@@ -57,6 +81,12 @@ Copying the files is only half of it: the mod brings **its own settings program*
 at `VR Settings\theHunterCotW VR Settings.exe`. Its complete adjacent
 `VR Settings\_internal` runtime must remain in place. **Start in VR in the Hub
 opens that program** so you can change options.
+
+If Windows reports that `_internal\python310.dll` cannot be loaded from the
+game's main folder, an older root-level copy of the settings program was
+started. Use **Start in VR** in the Hub, or open the EXE inside `VR Settings`;
+keep its `_internal` folder beside it. If the nested runtime is missing, run
+the Hub installer again.
 
 Inside, set these options:
 
@@ -118,8 +148,14 @@ gamepad plays better here than mouse and keyboard.
 
 Still black? Check `%LOCALAPPDATA%\theHunterCotWVR\cotwvr.log`.
 
-**Nothing starts at all** - the game has most likely been updated past this build.
-See the fingerprint note above.
+**Nothing starts at all** - check the menu's compatibility status and the
+installed mod version. Version v1.3.1 belongs to the pinned 9.2 route; install
+the current publisher release for the September 2026 game update. Future
+unconfirmed builds can use the 9.2 depot while awaiting a compatible release.
+
+**Removing the depot** - close the game, confirm that you selected the dedicated
+`theHunterCotW VR 9.2` folder, and remove that separate copy after saving any
+files you placed in it. Do not remove the normal Steam game or your saves.
 
 **You want the game back to normal** without removing anything - set *VR mod* to
 off in the settings program. Every file stays where it is.
@@ -134,8 +170,11 @@ Includes NVIDIA DLSS, the Khronos OpenXR loader and MinHook. theHunter: Call of
 the Wild is a trademark of Expansive Worlds / Avalanche Studios; this mod is
 unofficial and not affiliated with them.
 
-Current reviewed release: **v1.3.1**, published 2026-09-10 for game update 9.2.
-It removes exact Neural Rendering file-hash restrictions while retaining the
-author's runtime/API and GPU-safety checks.
+Current reviewed release: **v1.4.1**, published 2026-09-28. It follows the
+game's own opening of `settings.json` to apply resolution and FOV to the correct
+copy, with a 30-second fallback to the earlier method. The `settings_from_game_open`
+option in `cotwvr.ini` can revert to the v1.4.0 method. Version v1.4.0 added
+September 2026 game support, full-rate and AER fixes, and smooth stick turning
+in AER. The depot remains pinned to v1.3.1.
 
 >>> A bad shot in VR still counts. The elk knows.

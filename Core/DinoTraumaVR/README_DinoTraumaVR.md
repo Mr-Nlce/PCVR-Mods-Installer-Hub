@@ -1,13 +1,17 @@
 # Dino Trauma VR
 
-PSX-style boomer-shooter that wears Dino Crisis on its sleeve. Retro FPS, dinosaurs, guns, and a lot of blood. The VR mod attaches a weapon to your right hand and the flashlight + kick to your left, with full motion-controller support and bHaptics.
-
 **Mod**: DinoTrauma_VR v1.0.0 - by Astienth, distributed by Astienth via Discord  
 **Game**: Dino Trauma (Steam App 2149420)
 
-## About this mod
+## About the Game
+
+PSX-style boomer-shooter that wears Dino Crisis on its sleeve. Retro FPS, dinosaurs, guns, and a lot of blood.
+
+## About the VR mod
 
 A community VR mod for the retro PSX-style shooter, distributed by Astienth via the FarmerTrueVR Discord server. **Discord login is required** to access the download. Ships with OpenVR by default; OpenXR is supported via a config edit.
+
+The mod attaches a weapon to your right hand and the flashlight + kick to your left, with full motion-controller support and bHaptics.
 
 If you'd rather not use the in-Hub installer, the manual instructions live in the original mod post in the FarmerTrueVR Discord:
 - https://discord.com/channels/1001138422972432597/1362075882042167377/1362075882042167377
@@ -36,9 +40,17 @@ For VR controllers you **must install ViGEmBus**. The Hub installer can do this 
 ### VR controller mapping
 
 VR controllers are mapped as a virtual Xbox controller:
-- [[A]], [[B]], [[X]], [[Y]] → same buttons
-- [[Left Grip]] → LB, [[Right Grip]] → RB
-- [[Left Trigger]] → LT, [[Right Trigger]] → RT
+
+| Button | Action |
+| --- | --- |
+| [[A]], [[B]], [[X]], [[Y]] | Corresponding Xbox face buttons |
+| [[Left Grip]] | Xbox LB |
+| [[Right Grip]] | Xbox RB |
+| [[Left Trigger]] | Xbox LT |
+| [[Right Trigger]] | Xbox RT |
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter the VR view |
+| [[Right Stick Click]] + [[A]] | Reattach weapons, flashlight and kick |
+| [[Left Stick Forward]] while looking up or down | Climb ladders or swim; ladders may take several attempts |
 
 ### Hand attachments
 
@@ -50,19 +62,15 @@ If you opted into **left-handed mode** during install:
 - **Left hand**: weapons. Aim/interact with your left hand.
 - **Right hand**: flashlight + kick.
 
-### Game-specific hotkeys
-
-- [[Left Stick Click]] + [[Right Stick Click]]: recenter the VR view
-- [[Right Stick Click]] + [[A]]: force-reattach weapons / flashlight / kick (use this if anything detaches)
-- Look up/down + [[Left Stick Forward]]: climb ladders / swim. Ladders can be tricky and may need a few tries.
-
 ### Hotkey gesture
 
 Hold your **left controller close to the left side of your head**. The controller vibrates while the hotkey is active, and the stick layout shifts:
 
-- [[Left Stick]] → D-Pad
-- [[Left Stick]] click → Back / View button
-- [[Right Stick]] click → Start / Menu button
+| Button | Action |
+| --- | --- |
+| [[Left Stick]] | D-Pad |
+| [[Left Stick Click]] | Xbox Back / View |
+| [[Right Stick Click]] | Xbox Start / Menu |
 
 ## Left-handed mode
 
@@ -87,6 +95,17 @@ vrApi = OpenXR
 - The flashlight doesn't always attach to the left hand. Use **right stick click + A** to force-reattach.
 - The camera/player orientation can occasionally be very wrong. Recenter with **both stick clicks** to fix.
 - In-game menus with a scrollable list don't work in VR yet (Astienth is working on it).
+
+## Optional experimental head-aiming build
+
+Astienth posted a separate test `DinoTrauma_VR.dll` on 1 April 2026. It is **not** part of the main ZIP or the Hub's automatic installer. A player confirmed standing/head-facing movement and interaction, but reported flashlight drift. Keep a backup of your working `BepInEx\plugins\DinoTrauma_VR.dll` before trying it.
+
+1. Close the game. Download the test DLL from [Astienth's pinned Discord post](https://discord.com/channels/1001138422972432597/1362075882042167377/1488851446932705431) and replace only `BepInEx\plugins\DinoTrauma_VR.dll` in your game folder.
+2. Start the game, wait for the title screen, then quit. This creates `BepInEx\config\DinoTrauma_VR.cfg`.
+3. Set `headAiming = true` in that file. In `BepInEx\config\UnityVR_Bepinex.cfg`, Astienth suggests `VRUI scale = 1` as a starting value.
+4. Start the game again. If the flashlight detaches, try [[Right Stick Click]] + [[A]]. To return to the tested main route, restore the backed-up DLL and your previous config values.
+
+A later Hub reinstall or update may replace this manually added DLL.
 
 ## Discord
 

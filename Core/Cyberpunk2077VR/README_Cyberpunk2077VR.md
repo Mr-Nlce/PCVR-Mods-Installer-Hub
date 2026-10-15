@@ -11,7 +11,15 @@ Experimental community mod, not affiliated with CD PROJEKT RED. Keep backups of 
 
 https://github.com/dariulone/cyberpunk-vr-port
 
-## New in 0.1.6
+## New in 0.1.7
+
+- Native VR frame generation can use FidelityFX or NVIDIA optical flow, with an in-headset performance overlay and half-rate pacing. These are options, not a promise of stable performance on every system.
+- The VR port now owns its HUD panels and settings overlay. The overlay includes HUD, driving, bindings and frame-generation pages; HUDitor is no longer required or supplied.
+- New gameplay work includes roomscale/body alignment, swimming strokes, ladder grips, a tactical belt and camera support for surveillance, Basilisk and third-person scenes.
+- The first launch merges VR graphics, bindings, HUD and comfort settings once into `UserSettings.json`. It backs up the old file and preserves language, audio, difficulty, telemetry, cloud saves and gallery favourites. See the first-launch note below before running the game.
+- Updating from 0.1.6 removes the obsolete Loot UI and SettingsGuard scripts plus any old QuickBoot CET module. The Hub moves those paths into a game-local legacy backup rather than deleting them.
+
+### Earlier 0.1.6 changes
 
 - **Braindances are stereo**, including their colour grade, and the second eye now receives
   the scanner's green tint as well.
@@ -27,8 +35,7 @@ https://github.com/dariulone/cyberpunk-vr-port
 - Major render fixes cover missing indoor lights, the white second eye, the braindance ESC
   hang, invalid swapchain states and the too-small 32 mm stereo separation.
 
-> **HUDitor and Input Loader are optional in 0.1.6.** Install them together if you want the
-> supplied movable VR HUD and [[F11]] editor. The VR port itself runs without either one.
+The 0.1.7 release requires Input Loader for the scanner HUD editor and separately requests **More Occluders (Scripted v0.3)** from Nexus. Choose the optional Scripted file on that page, not the ArchiveXL v0.4 main file. The Hub requires both files before copying the VR port.
 
 ## What changed with 0.1.0
 - **No `dxgi.dll` any more.** The mod loads through the game's own mod loader, and uninstalling
@@ -69,6 +76,8 @@ Index, Vive, WMR).
 | [[Left Grip]] | Grab the magazine during a reload |
 | Left hand to your **left ear** + [[Left Grip]] | **Scanner - a toggle since 0.1.5:** squeeze to open, squeeze again to close, hand free in between |
 | [[Swinging a melee weapon]] | Native melee attack along the blade |
+| [[Left Stick Click]] + [[Right Stick Click]] hold 1 s | Toggle the VR overlay |
+| [[Left Stick Click]] + [[Left Grip]] hold 0.5 s | Activate iconic cyberware in gameplay |
 
 **Quickhacks (0.1.5):** the list moved off the face buttons onto the **left stick, pushed to
 the stop**, with [[X]] as a plain apply. It presses the arrow keys rather than the D-pad,
@@ -80,7 +89,7 @@ While the chord is held the right stick is taken out of the camera, so choosing 
 cannot snap-turn you. Let go without choosing and it sends the normal sprint press instead.
 
 ## The F10 overlay
-Four tabs, live, saved to `vrport.ini` - nothing here needs a restart.
+The overlay has controller-operated VR settings, HUD placement, driving, bindings and frame-generation pages. Personal settings are saved in `vrport.ini`; the publisher's first-launch graphics merge is a separate one-time action.
 
 - **General** - world scale, IPD scale, stereo separation, VR menu FOV and quad size, motion
   prediction, head offset
@@ -93,8 +102,7 @@ Four tabs, live, saved to `vrport.ini` - nothing here needs a restart.
   cutscene-suspend tier, IK calibration (reach scale, height, elbow swing and pole, wrist
   offset), diagnostics
 
-> **There is no HUD tab.** The port deleted its own HUD mod - it and HUDitor fought over the
-> same widgets. HUD placement is HUDitor's job now, on [[F11]].
+HUDitor is not required for 0.1.7. Use the port's native HUD placement controls. The scanner editor's [[Right Shift]] binding needs Input Loader.
 
 ## Recommended settings
 Cyberpunk is very demanding in VR.
@@ -140,8 +148,9 @@ The reviewed Codeware fallback is **1.20.4**. It adds fail-safe node and
 appearance checks and fixes crashes around native type imports; the installer
 still asks GitHub for the current release first.
 
-The reviewed ArchiveXL fallback is **1.27.3**. It fixes parsing of override tags in
-ArchiveXL configuration files; the installer still asks GitHub for the current release first.
+The current ArchiveXL release is 1.27.4, which addresses occasional dynamic
+material initialization crashes. The reviewed offline fallback is the older
+1.27.3. The installer asks GitHub for the current stable release first.
 
 The last four are fetched at their newest release: the installer reads the current tag from
 GitHub and falls back to a known-good build if GitHub cannot be reached.
@@ -153,19 +162,18 @@ GitHub and falls back to a known-good build if GitHub cannot be reached.
 | `red4ext\plugins\CyberpunkVR_Stereo\` | the plugin: OpenXR, stereo, overlay, the VR avatar and hands, weapon aim, sight shaders |
 | `bin\x64\openvr_api.dll` | for the SteamVR (OpenVR) runtime path |
 | `bin\x64\CyberpunkVR_*Grip*.ini` | captured hand poses - smoking, lighter, resting hands and the per-weapon two-handed support holds |
-| `bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_*\` | the CET side, including the 0.1.6 Braindance HUD, camera control, VRIK, weapons, reload and wrist HUD |
-| `r6\scripts\CyberpunkVRPort_*\` | the redscript side, including DeviceCam, ScannerHud and the 0.1.6 Loot UI module |
-| `r6\input\CyberpunkVRPort_ScannerHud.xml` | a port input definition; Input Loader is only needed with the optional HUDitor setup |
+| `bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_*\` | CET modules for camera control, VRIK, weapons, reload, HUD panels, driving, ladder and swimming actions |
+| `r6\scripts\CyberpunkVRPort_*\` | redscript side, including DeviceCam and ScannerHud; obsolete Loot UI and SettingsGuard scripts are parked on update |
+| `r6\input\CyberpunkVRPort_ScannerHud.xml` | scanner editor binding, merged by the required Input Loader |
 | `r6\tweaks\vrcigarette\` | TweakXL entries for the smoking props |
 | `archive\pc\mod\cyberpunkvrport.archive` / `vrport_mag.archive` | packed VR camera, body, held-prop, magazine and weapon assets |
 | `engine\config\platform\pc\` | CPU tweaks tuned for two views |
-| `r6\input\HUDitor.xml` | **REPLACES HUDitor's own** - a `.pre-vr` copy is kept |
-| `bin\x64\plugins\...\HUDitor\persistency.json` | **REPLACES your HUD layout** - a `.pre-vr` copy is kept |
+| `r6\scripts\MoreOccluders.reds` | separate required Nexus Scripted v0.3 file |
 | `UNINSTALL.bat` / `UNINSTALL.txt` | the port's own uninstaller, in the game folder |
 
-> **`UserSettings.json` is replaced once on the first VR launch.** Your previous file is saved
-> beside it as `UserSettings.pre-vr-<date>-<time>.json`; after that, changes made in the game's
-> own menus stick. To skip the replacement, create `bin\x64\vrport.ini` with
+> **`UserSettings.json` receives a one-time merge on the first VR launch.** Your previous file is saved
+> beside it as `UserSettings.pre-vr-<date>-<time>-<id>.json`; language, audio, difficulty, cloud saves and gallery favourites stay in place. Later changes in the game's
+> own menus stick. To skip the merge, create `bin\x64\vrport.ini` with
 > `first_launch=0` before the first VR start.
 
 ## Keys outside the controller
@@ -175,29 +183,29 @@ GitHub and falls back to a known-good build if GitHub cannot be reached.
 | [[F10]] or [[Insert]] | the VR menu / settings overlay |
 | [[F7]] | recentre |
 | [[F8]] | switch the VR menu between the full headset view and a small panel |
-| [[F11]] | HUDitor's editor, if you installed it |
+| [[Right Shift]] | scanner HUD editor binding through Input Loader |
 
 ## Driving
 
-| | |
+| Button | Action |
 |---|---|
 | [[Grip]], hand at the wheel or handlebars | grab it - that arm returns to the driving animation |
-| Tilt of the line through both controllers | steering. One hand: that controller against the wheel centre |
-| Hand on the **middle** of the wheel | horn - no grip needed, and a hand that is grabbing never honks |
-| Triggers | throttle / brake |
+| [[Left Controller]] + [[Right Controller]] tilt | steering. One hand: that controller against the wheel centre |
+| [[Hand]] on the **middle** of the wheel | horn - no grip needed, and a hand that is grabbing never honks |
+| [[Left Trigger]] / [[Right Trigger]] | throttle / brake |
 | [[Right Trigger]], weapon drawn | **fire.** The throttle latches at the speed it had |
-| Left stick fwd / back, weapon drawn | trim the latched throttle |
+| [[Left Stick]] forward / back, weapon drawn | trim the latched throttle |
 | [[X]] **held** | get out. B is never the exit in a car |
 
 ## Removing it
 For a temporary flat launch, use the **Flat / VR switch** on this page. It parks only
-`CyberpunkVR_Stereo.dll`; the author's own 0.1.6 notes confirm the CET and redscript modules
+`CyberpunkVR_Stereo.dll`; the port's CET and redscript modules
 stay idle without that native plugin. One click restores VR.
 
 For full removal, use **Uninstall Now** on this page. It starts the port's own
-**`UNINSTALL.bat`** from the game folder, which removes every path in the 0.1.6 package and
-then offers your Cyberpunk settings back. Your `.pre-vr` HUDitor copies stay where they are;
-rename them back if you want your old layout.
+**`UNINSTALL.bat`** from the game folder, which removes the publisher's current package files
+and offers your Cyberpunk settings back. The Hub's game-local legacy backup of superseded
+0.1.6 scripts and QuickBoot remains available for manual recovery.
 
 ## Repair - when you cannot tell what is stale
 
@@ -225,11 +233,9 @@ you do not know which piece is at fault.
 
 The installer is also the updater. Running it on an existing setup:
 
-- **skips what is already there** - the frameworks, HUDitor and the companion
-  mods are only offered when they are actually missing,
-- **re-applies the VR mod every time**, so its files win again. That is what
-  makes adding HUDitor to an existing install work: HUDitor overwrites the two
-  VR files, and the VR mod is laid back over the top in the same run,
+- **skips what is already there** - frameworks and companion mods are offered when missing;
+  Input Loader and More Occluders (Scripted v0.3) are required before the VR port,
+- **re-applies the VR mod every time** and parks the three obsolete 0.1.6 paths,
 - **checks for age where it can.** A framework that ships a DLL carries a file
   version, so those are compared against what is published and an older one is
   offered for update. **RED4ext and CET are recognised by their marker file
@@ -238,36 +244,25 @@ The installer is also the updater. Running it on an existing setup:
   version at all** - for those the installer can only see whether the file is
   there, which is exactly what **Repair** exists for.
 
-So if you want to add HUDitor, or the holsters, months after the first install:
-just run it again and answer the questions for the parts you want.
+To add a companion mod later, run the installer again and answer its prompts.
 
-## HUDitor - the one that must go in FIRST
+## Required Nexus files
 
-In VR a lot of the HUD sits outside your view. **HUDitor** is what moves it, and
-the VR mod ships a ready-made VR layout for it.
+The 0.1.7 port handles HUD placement itself. It needs two additional Nexus packages:
 
-> **The order is not a preference.** The VR mod ships its own
-> `r6\input\HUDitor.xml` and HUDitor's `persistency.json` and **replaces both**.
-> Install HUDitor afterwards and it writes its files back over them - the F11
-> editor binding is gone and the VR HUD layout with it.
+| Mod | File to choose | Installed proof |
+|---|---|---|
+| [Input Loader](https://www.nexusmods.com/cyberpunk2077/mods/4575?tab=files) | v0.2.3 or newer compatible package | `red4ext\plugins\input_loader\input_loader.dll` |
+| [More Occluders](https://www.nexusmods.com/cyberpunk2077/mods/33136?tab=files) | **Optional files → More Occluders (Scripted) v0.3** | `r6\scripts\MoreOccluders.reds` |
 
-The installer offers it **before** the VR mod, one page at a time - exactly like
-every other Nexus download in this Hub: the page opens, you download the file,
-and the installer either finds it in your **Downloads** folder or takes it when
-you **drag it onto the window**. It unpacks and copies it for you. Enter alone
-skips one.
+The Nexus page lists ArchiveXL v0.4 as its main file. That is a different download;
+the publisher specifically asks for the **Scripted v0.3** optional file. The installer
+opens each page after a reading prompt, searches Downloads and accepts a dropped archive.
+Skipping either required file stops the VR installation without recording success.
 
-What it needs, in order:
-
-| | why |
-|---|---|
-| **Input Loader** | merges the supplied `r6\input\*.xml` files for HUDitor's VR layout and [[F11]] editor binding |
-| **Mod Settings** | the settings panel HUDitor puts its key binding in |
-| **HUDitor** | the editor itself |
-
-The whole HUDitor chain is optional. The VR mod installs and runs without it - the unchanged
-flat-screen HUD is still composited into both eyes, but you cannot move it without adding this
-chain later.
+More Occluders (Scripted) declares RED4ext, redscript and Codeware as dependencies on Nexus;
+the Hub installs or checks those framework files before this step. If an older HUDitor is
+already present, its own files are left alone; the current port does not require it.
 
 ## Recommended companion mods
 These are the mods the Hub recommends alongside the port. Several of them need each other -
@@ -305,7 +300,7 @@ https://www.nexusmods.com/cyberpunk2077/mods/29190?tab=files
 All four are drop-in archives: their contents go into the Cyberpunk 2077 folder, the same one
 the VR mod uses.
 
-### VR UI Mods - offered only if you take HUDitor
+### Legacy VR UI Mods - only with an existing HUDitor installation
 
 HUDitor cannot reach every HUD element. **VR UI Mods** is a set of redscript
 files that moves the rest: the scanner and quickhack menu, the info popup, the
@@ -315,8 +310,8 @@ It is **not on Nexus** - it is a plain GitHub repository with no release, so the
 installer fetches the repository zip directly instead of sending you to a page.
 The scripts land in `r6\scripts`.
 
-It only appears when HUDitor is already installed, because on its own it would be
-moving five stragglers and nothing else.
+It only appears when HUDitor is already installed. The 0.1.7 port has its own
+HUD controls, so this old optional combination is not required for a new setup.
 
 ### They need each other, and the installer knows the order
 

@@ -97,6 +97,15 @@ function Get-SteamLibraries {
  return ($libs | Select-Object -Unique)
 }
 
+function Test-HorizonChaseSupportedGamePath {
+ param([string]$Path)
+ if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
+ # The Steam demo uses an older Unity build; the publisher says this VR
+ # package cannot run on it, even if it has HorizonChase_Data.
+ if ([IO.Path]::GetFileName($Path.TrimEnd('\','/')) -match '(?i)demo') { return $false }
+ return (Test-Path -LiteralPath (Join-Path $Path 'HorizonChase_Data') -PathType Container)
+}
+
 function Find-HorizonChaseTurboGamePath_Steam {
  $sp = Get-SteamPath
  if (-not $sp) { return $null }
@@ -105,10 +114,9 @@ function Find-HorizonChaseTurboGamePath_Steam {
  # but the Unity data folder is "HorizonChase_Data" (no
  # "Turbo", no space). Presence of HorizonChase_Data is
  # the strongest signal we found the right install.
- foreach ($folder in @("Horizon Chase Turbo", "HorizonChaseTurbo", "Horizon Chase Turbo Demo")) {
+ foreach ($folder in @("Horizon Chase Turbo", "HorizonChaseTurbo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\HorizonChase_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-HorizonChaseSupportedGamePath $candidate) { return $candidate }
  }
  }
  return $null
@@ -145,11 +153,7 @@ function Find-HorizonChaseTurboGamePath_Epic {
  }
  foreach ($c in $candidates) {
  if (-not $c) { continue }
- if (Test-Path -LiteralPath "$c\HorizonChase_Data") { return $c }
- }
- foreach ($c in $candidates) {
- if (-not $c) { continue }
- if (Test-Path $c) { return $c }
+ if (Test-HorizonChaseSupportedGamePath $c) { return $c }
  }
  return $null
 }
@@ -212,7 +216,9 @@ if (-not $skipJoin) {
  Write-Host "Click: Accept Invite" -ForegroundColor Yellow
  Write-Host "   (auto-opens: $DISCORD_INVITE_URL)" -ForegroundColor DarkGray
  Pause-User "Press Enter to open the invite in your browser..."
- try { Start-Process $DISCORD_INVITE_URL } catch { Write-Warn "Could not open browser. Visit the URL above manually." }
+ if ($env:PCVR_HUB_TEST_MODE -ne '1') {
+  try { Start-Process $DISCORD_INVITE_URL } catch { Write-Warn "Could not open browser. Visit the URL above manually." }
+ }
 
  Write-Host ""
  Write-Host " [Step 2/3] Rules channel - read the rules, then   " -ForegroundColor Cyan -NoNewline
@@ -220,7 +226,7 @@ if (-not $skipJoin) {
  Write-Host "   (this unlocks the rest of the server)" -ForegroundColor DarkGray
  Write-Host "   (auto-opens: $DISCORD_RULES_URL)" -ForegroundColor DarkGray
  Pause-User "Press Enter to open the rules channel..."
- try { Start-Process $DISCORD_RULES_URL } catch {}
+ if ($env:PCVR_HUB_TEST_MODE -ne '1') { try { Start-Process $DISCORD_RULES_URL } catch {} }
 }
 
 # Store-version pick. We ask now so we open the right download post
@@ -253,7 +259,7 @@ Write-Host ""
  Write-Host "   (auto-opens: $downloadUrl)" -ForegroundColor DarkGray
 Write-Host " Background info: $DISCORD_INFO_URL" -ForegroundColor DarkGray
 Pause-User "Press Enter to open the download post..."
-try { Start-Process $downloadUrl } catch {}
+if ($env:PCVR_HUB_TEST_MODE -ne '1') { try { Start-Process $downloadUrl } catch {} }
 
 # -------------------------------------------------------
 # STEP 2: Get the ZIP from the user
@@ -268,8 +274,8 @@ while (-not $modZip) {
  Write-Host " or paste/type its full path, then press Enter:" -ForegroundColor White
  $r = (Read-Host " ZIP path").Trim().Trim('"')
  if (-not $r) { continue }
- if (Test-Path $r) {
- if ($r -match '\.zip$|\.7z$|\.rar$') {
+ if (Test-Path -LiteralPath $r -PathType Leaf) {
+ if ($r -match '\.zip$') {
  $modZip = $r
  Write-OK "Archive located: $modZip"
  # Soft-warn if the filename obviously belongs to the
@@ -286,7 +292,7 @@ while (-not $modZip) {
  if ($cont -in @("n","N")) { $modZip = $null }
  }
  } else {
- Write-Fail "Path is not a ZIP/7z/RAR archive: $r"
+ Write-Fail "Choose the publisher ZIP archive: $r"
  }
  } else {
  Write-Fail "File not found: $r"
@@ -305,6 +311,10 @@ if ($isEpic) {
  $gamePath = Find-HorizonChaseTurboGamePath_Steam
 }
 
+if ($gamePath -and -not (Test-HorizonChaseSupportedGamePath $gamePath)) {
+ Write-Warn "The detected folder is not a supported full-game build; the Steam demo uses an older Unity version."
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Horizon Chase Turbo at: $gamePath"
 } else {
@@ -322,11 +332,11 @@ if ($gamePath) {
  while (-not $gamePath) {
  $r = (Read-Host " Game folder").Trim().Trim('"')
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-HorizonChaseSupportedGamePath $r) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "Choose the full game's folder with HorizonChase_Data. The Steam demo is not supported."
  }
  }
 }
@@ -338,6 +348,12 @@ Write-Step 3 3 "Installing mod files"
 
 $tempExtract = Join-Path $env:TEMP "HCTVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
+
+$archiveSafety = Test-ZipArchiveEntrySafety -ArchivePath $modZip -DestinationFolder $tempExtract
+if (-not $archiveSafety.Inspectable -or -not $archiveSafety.Safe) {
+ Write-Fail "The selected ZIP is unreadable or contains an unsafe path: $($archiveSafety.Entry)"
+ throw 'The selected ZIP failed archive safety validation.'
+}
 
 try {
  Write-Host " Extracting archive..." -ForegroundColor Gray
@@ -369,11 +385,22 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredFiles = @(
+ 'BepInEx\plugins\HorizonChaseTurboVR.dll',
+ 'BepInEx\core\BepInEx.dll',
+ 'BepInEx\patchers\UuvrPatcher.dll',
+ 'doorstop_config.ini',
+ 'winhttp.dll'
+)
+$missingSource = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $srcRoot $_) -PathType Leaf) })
+if ($missingSource.Count) {
+ Write-Fail "The selected ZIP is missing required mod files: $($missingSource -join ', ')"
+ throw 'The selected ZIP is incomplete.'
+}
+
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
- }
+ Copy-DirectoryTreeVerified -Source $srcRoot -Destination $gamePath
  Write-OK "Mod files installed."
 } catch {
  Write-Fail "Copy failed: $_"
@@ -398,18 +425,12 @@ try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } c
 # Sanity check - this mod uses Doorstop, so we look for both BepInEx
 # and doorstop_config.ini in the game root (different from the
 # winhttp.dll-based Astienth mods).
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\HorizonChaseTurboVR.dll"
-$doorstopFile = Join-Path $gamePath "doorstop_config.ini"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but HorizonChaseTurboVR.dll is missing."
-} elseif (-not (Test-Path $doorstopFile)) {
- Write-Warn "BepInEx + DLL present, but doorstop_config.ini is missing - the loader won't kick in."
-} else {
- Write-OK "BepInEx + HorizonChaseTurboVR.dll + doorstop_config.ini present."
+$missingDestination = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf) })
+if ($missingDestination.Count) {
+ Write-Fail "Installation is incomplete; required files are missing: $($missingDestination -join ', ')"
+ throw 'Required installed files are missing.'
 }
+Write-OK "BepInEx, VR plugin, Doorstop and patcher files present."
 
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready
@@ -417,7 +438,12 @@ if (-not (Test-Path $bepinexDir)) {
 try {
  $pathFile = Join-Path $PSScriptRoot ".installed_path"
  Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
+ Set-Content -Path (Join-Path $PSScriptRoot '.installed_version') -Value $MOD_VERSION -Encoding UTF8 -Force
+ Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
+} catch {
+ Write-Fail "Could not record the installation path: $_"
+ throw
+}
 
 # -------------------------------------------------------
 # Done

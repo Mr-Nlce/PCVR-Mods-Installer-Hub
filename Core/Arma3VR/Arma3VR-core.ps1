@@ -242,13 +242,18 @@ try {
 $tmp = Join-Path $env:TEMP ("a3vr_" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $zip = Join-Path $tmp "A3VR-Hybrid.zip"
-Invoke-SafeDownload -Urls @($dlUrl, $PINNED_URL) -Destination $zip -Label "$MOD_NAME $relTag" `
+$downloadInfo = @{}
+$downloadResult = Invoke-SafeDownload -Urls @($dlUrl, $PINNED_URL) -Destination $zip -Label "$MOD_NAME $relTag" `
+    -DownloadInfo $downloadInfo -AllowSkip $false `
     -ManualUrl $RELEASES_URL `
     -Instructions "Download the A3VR-Hybrid ZIP from the releases page, save it as '$zip', then choose Retry."
 if (-not (Test-Path -LiteralPath $zip)) {
     Write-Fail "No archive - nothing was changed."
     Pause-User "Press Enter to exit."
     exit 1
+}
+if ([string]$downloadInfo.Url -ne [string]$dlUrl) {
+    throw 'The downloaded Arma 3 VR archive has no verified release identity. No game files were changed.'
 }
 
 $ex = Join-Path $tmp "x"
@@ -266,6 +271,15 @@ if (-not $srcDir) {
     Write-Host "  $gamePath\$MOD_DIR_NAME\ exists." -ForegroundColor White
     try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
     Pause-User "Press Enter to exit."
+    exit 1
+}
+$requiredPayload = @('A3VRHybridCore_x64.dll','A3VRRuntime_v31.exe',
+    'addons\a3vr_hybrid.pbo','START_A3VR_LAUNCHER.cmd','a3vr-runtime.ini')
+$missingSource = @($requiredPayload | Where-Object { -not (Test-Path -LiteralPath (Join-Path $srcDir.FullName $_) -PathType Leaf) })
+if ($missingSource.Count) {
+    Write-Fail "The archive has $MOD_DIR_NAME but is missing: $($missingSource -join ', '). No game files were changed."
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User 'Press Enter to close without marking an install complete.'
     exit 1
 }
 
@@ -299,10 +313,25 @@ if (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROBE)) {
         Pause-User "Press Enter to exit, then run the installer again."
         exit 1
     }
+    $mismatch = @($requiredPayload | Where-Object {
+        $srcFile = Join-Path $srcDir.FullName $_
+        $dstFile = Join-Path $dest $_
+        -not (Test-Path -LiteralPath $dstFile -PathType Leaf) -or
+            (Get-FileHash -LiteralPath $srcFile -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $dstFile -Algorithm SHA256).Hash
+    })
+    if ($mismatch.Count) {
+        Write-Fail "Required VR files did not survive copying: $($mismatch -join ', '). No new version was recorded."
+        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        Pause-User 'Press Enter to close and repair the mod folder.'
+        exit 1
+    }
 } else {
     Write-Fail "$MOD_PROBE is not there - the install did not complete."
     Write-Host "  Extract the archive by hand so that this exists:" -ForegroundColor White
     Write-Host "     $gamePath\$MOD_PROBE" -ForegroundColor Yellow
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User 'Press Enter to close without marking an install complete.'
+    exit 1
 }
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 

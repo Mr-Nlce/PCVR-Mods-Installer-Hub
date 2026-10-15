@@ -317,7 +317,6 @@ while (-not (Test-Path $zipDest)) {
 Write-OK "PrimedGun archive ready: $zipDest"
 $installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source ('' + $downloadInfo.Url)
 if (-not $installedReleaseTag) { $installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source $zipDest }
-if (-not $installedReleaseTag) { $installedReleaseTag = Get-PrimedGunReleaseTagFromSource -Source $apiUrl }
 if (-not $installedReleaseTag) {
     Write-Fail "The exact PrimedGun release version could not be verified."
     Write-Host "  The files were not marked installed, so the Hub cannot hide a real update." -ForegroundColor Gray

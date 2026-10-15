@@ -181,38 +181,15 @@ $modZip = Join-Path $env:TEMP "PanzerDragoonRemakeVR_$([System.IO.Path]::GetRand
 Write-Host ""
 Write-Host " Downloading mod ZIP from GitHub..." -ForegroundColor Gray
 Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
-try {
- # Force TLS 1.2 - older PowerShell defaults to SSL3/TLS1.0 which
- # GitHub Releases rejects. UseBasicParsing avoids the IE engine
- # initialisation pop-up on machines where IE has never been opened.
- [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- Invoke-WebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
- Write-OK "Downloaded to: $modZip"
-} catch {
- Write-Fail "Download failed: $_"
- Write-Host ""
- Write-Host " Possible causes: no internet, GitHub down, firewall blocking." -ForegroundColor Yellow
- Write-Host " You can grab the ZIP manually from:" -ForegroundColor Yellow
- Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
- $__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$gamePath' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
+$download = Invoke-SafeDownload -Urls @($GITHUB_DOWNLOAD_URL) -Destination $modZip `
+ -Label "Panzer Dragoon Remake VR" -ManualUrl "$GITHUB_REPO_URL/releases/tag/1.0" -AllowSkip $false
+if ($download -ne $true -and [string]$download -notin @('success','retry','manual')) {
+ throw 'Panzer Dragoon Remake VR download was not completed.'
 }
+if (-not (Test-Path -LiteralPath $modZip -PathType Leaf)) {
+ throw 'Panzer Dragoon Remake VR download was not completed.'
+}
+Write-OK "Downloaded to: $modZip"
 
 # -------------------------------------------------------
 # STEP 2: Extract mod files into the game folder
@@ -252,7 +229,19 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredModFiles = @(
+ 'winhttp.dll',
+ 'BepInEx\core\BepInEx.dll',
+ 'BepInEx\plugins\PanzerDragoonRemakeVR.dll',
+ 'BepInEx\patchers\PDRReflectionFix.Patcher.dll'
+)
+foreach ($relative in $requiredModFiles) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $relative) -PathType Leaf)) {
+  throw "The publisher VR archive is incomplete: $relative is missing."
+ }
+}
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
+$copyFailed = $false
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
  Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
@@ -260,6 +249,7 @@ try {
  Write-OK "Mod files installed."
 } catch {
  Write-Fail "Copy failed: $_"
+ $copyFailed = $true
  $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
  -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
  -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
@@ -274,6 +264,19 @@ try {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+
+if ($copyFailed) { throw 'The VR files could not be copied completely.' }
+foreach ($relative in $requiredModFiles) {
+ $sourceFile = Join-Path $srcRoot $relative
+ $installedFile = Join-Path $gamePath $relative
+ if (-not (Test-Path -LiteralPath $installedFile -PathType Leaf)) {
+  throw "The VR installation is incomplete: $relative is missing."
+ }
+ if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne
+     (Get-FileHash -LiteralPath $installedFile -Algorithm SHA256).Hash) {
+  throw "The VR installation is incomplete: $relative differs from the archive."
+ }
 }
 
 # Clean up both temp artefacts.

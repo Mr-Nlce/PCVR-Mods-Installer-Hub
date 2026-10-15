@@ -102,7 +102,19 @@ function Copy-SinTree([string]$Source,[string]$Destination) {
     Get-ChildItem -LiteralPath $Source -Force | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $Destination -Recurse -Force }
 }
 
+$script:sinRestoreFlatAfterUpdate = $false
+$script:sinRestoreFlatGame = $null
 trap {
+    if ($script:sinRestoreFlatAfterUpdate -and $script:sinRestoreFlatGame) {
+        $activeProxy = Join-Path $script:sinRestoreFlatGame 'dinput8.dll'
+        $parkedProxy = Join-Path $script:sinRestoreFlatGame 'dinput8.dll.pcvrhub_off'
+        try {
+            if ((Test-Path -LiteralPath $activeProxy -PathType Leaf) -and
+                -not (Test-Path -LiteralPath $parkedProxy -PathType Leaf)) {
+                Rename-Item -LiteralPath $activeProxy -NewName 'dinput8.dll.pcvrhub_off' -ErrorAction Stop
+            }
+        } catch { Write-SinWarn 'Flat mode could not be restored automatically; inspect the two dinput8.dll paths before starting the game.' }
+    }
     Write-SinWarn ("Setup could not finish: " + $_.Exception.Message)
     Write-Host '  Nothing unverified is marked as installed. Run setup again to retry.' -ForegroundColor Gray
     Pause-Sin 'Press Enter to exit'
@@ -202,7 +214,12 @@ else { $hubLauncherBody += 'start "" "%~dp0sinvr_launcher.exe" --exe "%~dp0SinEp
 $liveProxy = Join-Path $game 'dinput8.dll'
 $parkedProxy = Join-Path $game 'dinput8.dll.pcvrhub_off'
 if ((Test-Path -LiteralPath $liveProxy) -and (Test-Path -LiteralPath $parkedProxy)) { throw 'Both active and parked dinput8.dll files exist. Remove the duplicate before updating.' }
-if ((-not (Test-Path -LiteralPath $liveProxy)) -and (Test-Path -LiteralPath $parkedProxy)) { Rename-Item -LiteralPath $parkedProxy -NewName 'dinput8.dll'; Write-SinOk 'Parked VR proxy restored before update.' }
+if ((-not (Test-Path -LiteralPath $liveProxy)) -and (Test-Path -LiteralPath $parkedProxy)) {
+    Rename-Item -LiteralPath $parkedProxy -NewName 'dinput8.dll' -ErrorAction Stop
+    $script:sinRestoreFlatGame = $game
+    $script:sinRestoreFlatAfterUpdate = $true
+    Write-SinOk 'Parked VR proxy restored temporarily for the update.'
+}
 Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity 'sinvr' | Out-Null
 $cfg = Join-Path $game 'sinvr.cfg'
 $cfgExisted = Test-Path -LiteralPath $cfg -PathType Leaf
@@ -260,6 +277,12 @@ $recoverSin = {
     Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity 'sinvr' | Out-Null
 }.GetNewClosure()
 if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -Recopy $recoverSin)) { throw 'One or more required SiN VR binaries did not survive the antivirus check.' }
+if ($script:sinRestoreFlatAfterUpdate) {
+    if (Test-Path -LiteralPath $parkedProxy -PathType Leaf) { throw 'The parked VR proxy reappeared during update. Flat mode was not changed.' }
+    Rename-Item -LiteralPath $liveProxy -NewName 'dinput8.dll.pcvrhub_off' -ErrorAction Stop
+    $script:sinRestoreFlatAfterUpdate = $false
+    Write-SinOk 'Your previous Flat mode was preserved.'
+}
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$game,(New-Object Text.UTF8Encoding($false)))
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version'),[string]$release.Tag,(New-Object Text.UTF8Encoding($false)))
 Save-InstalledStamp -GameDir $game -Version ([string]$release.Tag)

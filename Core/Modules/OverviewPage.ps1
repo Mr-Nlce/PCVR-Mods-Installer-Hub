@@ -77,26 +77,36 @@ function global:New-OverviewTile {
     # being clipped by the row's StackPanel/ScrollViewer. Without
     # this the glow only reads on the left and right sides.
     $tile.Margin = [System.Windows.Thickness]::new(0, 14, 10, 14)
-    $tile.CornerRadius = [System.Windows.CornerRadius]::new(5)
-    $tile.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161a")
-    # Border stays 1px in every state - only color changes - so the
-    # press glow doesn't shift the tile geometry.
-    $tile.BorderThickness = [System.Windows.Thickness]::new(1)
-    $tile.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+    # Only the empty frame receives the hover effect. Applying a WPF effect
+    # to the outer tile also rasterizes its image, title and small tags.
+    $tile.CornerRadius = [System.Windows.CornerRadius]::new(0)
+    $tile.Background = [System.Windows.Media.Brushes]::Transparent
+    $tile.BorderThickness = [System.Windows.Thickness]::new(0)
     $tile.Cursor = [System.Windows.Input.Cursors]::Hand
-    # ClipToBounds must stay false so the hover glow (drop-shadow
-    # effect) can render outside the tile rectangle. The image
-    # inside is already constrained by the parent grid + Stretch
-    # mode so visible content does not bleed out.
+    # Let the separate frame bloom outside the tile rectangle.
     $tile.ClipToBounds = $false
 
+    $root = New-Object System.Windows.Controls.Grid
+    $root.ClipToBounds = $false
+    $tile.Child = $root
+    $glowFrame = New-Object System.Windows.Controls.Border
+    $glowFrame.CornerRadius = [System.Windows.CornerRadius]::new(5)
+    $glowFrame.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161a")
+    $glowFrame.BorderThickness = [System.Windows.Thickness]::new(1)
+    $glowFrame.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+    $root.Children.Add($glowFrame) | Out-Null
+    $contentFrame = New-Object System.Windows.Controls.Border
+    $contentFrame.CornerRadius = [System.Windows.CornerRadius]::new(5)
+    $contentFrame.ClipToBounds = $true
+    $contentFrame.Margin = [System.Windows.Thickness]::new(1)
+    $root.Children.Add($contentFrame) | Out-Null
     $grid = New-Object System.Windows.Controls.Grid
-    # Inner grid clips so the image and gradient stay inside the
-    # tile's rounded rectangle. The outer Border keeps
-    # ClipToBounds = false so the hover drop-shadow can render
-    # outside the tile geometry.
     $grid.ClipToBounds = $true
-    $tile.Child = $grid
+    $contentFrame.Child = $grid
+    $tile.Resources.Add('glowFrame', $glowFrame)
+
+    $isFreeGame = $global:FREE_GAME_TITLES -and ($global:FREE_GAME_TITLES -contains $Game.Title)
+    $isWipGame = $global:WIP_GAME_TITLES -and ($global:WIP_GAME_TITLES -contains $Game.Title)
 
     $portraitUrl = Get-GameImageUrl -Game $Game -Kind "portrait"
     $headerUrl   = Get-GameImageUrl -Game $Game -Kind "header"
@@ -115,7 +125,7 @@ function global:New-OverviewTile {
         $grid.Children.Add($img) | Out-Null
 
         $gradRect = New-Object System.Windows.Shapes.Rectangle
-        $gradRect.Height = 65
+        $gradRect.Height = if ($isFreeGame -or $isWipGame) { 90 } else { 65 }
         $gradRect.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
         $gb = New-Object System.Windows.Media.LinearGradientBrush
         $gb.StartPoint = New-Object System.Windows.Point 0, 0
@@ -161,38 +171,56 @@ function global:New-OverviewTile {
         $grid.Children.Add($ctrlPill) | Out-Null
     }
 
-    # FREE pill bottom-right for free-to-play titles. Uses the exact
-    # same style as the FREE badge everywhere else (CardTile): mint
-    # green border, translucent green fill, bold green text. The title
-    # sits bottom-left, so this balances it on the same baseline.
-    if ($global:FREE_GAME_TITLES -and ($global:FREE_GAME_TITLES -contains $Game.Title)) {
-        $freePill = New-Object System.Windows.Controls.Border
-        $freePill.CornerRadius = [System.Windows.CornerRadius]::new(2)
-        $freePill.Padding = [System.Windows.Thickness]::new(5, 1, 5, 1)
-        $freePill.BorderThickness = [System.Windows.Thickness]::new(1)
-        $freePill.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(52, 211, 153))
-        $freePill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(20, 52, 211, 153))
-        $freePill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
-        $freePill.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
-        $freePill.Margin = [System.Windows.Thickness]::new(0, 0, 6, 7)
-        $freeTxt = New-Object System.Windows.Controls.TextBlock
-        $freeTxt.Text = "FREE"
-        $freeTxt.FontSize = 8
-        $freeTxt.FontWeight = [System.Windows.FontWeights]::Bold
-        $freeTxt.Foreground = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(52, 211, 153))
-        $freeTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
-        $freePill.Child = $freeTxt
-        $grid.Children.Add($freePill) | Out-Null
+    if ($Game.Gem) {
+        $overviewGem = New-GemMarker -Scale 1.2 -Preview
+        $overviewGem.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $overviewGem.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
+        $overviewGem.Margin = [System.Windows.Thickness]::new(0, 8, 8, 0)
+        [System.Windows.Controls.Panel]::SetZIndex($overviewGem, 4)
+        $grid.Children.Add($overviewGem) | Out-Null
+        $tile.Resources.Add('overviewGem', $overviewGem)
+    }
+
+    # Both badges use one bottom-right row, so FREE never suppresses WIP.
+    # Keep the title above that row; at the smallest Explore size a long
+    # wrapped title would otherwise collide with the badges.
+    if ($isFreeGame -or $isWipGame) {
+        $tagRow = New-Object System.Windows.Controls.StackPanel
+        $tagRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+        $tagRow.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $tagRow.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
+        $tagRow.Margin = [System.Windows.Thickness]::new(0, 0, 6, 7)
+        foreach ($tag in @(@{ Label='FREE'; Present=$isFreeGame; R=52; G=211; B=153 }, @{ Label='WIP'; Present=$isWipGame; R=248; G=113; B=113 })) {
+            if (-not $tag.Present) { continue }
+            $color = [System.Windows.Media.Color]::FromRgb($tag.R, $tag.G, $tag.B)
+            $pill = New-Object System.Windows.Controls.Border
+            $pill.CornerRadius = [System.Windows.CornerRadius]::new(2)
+            $pill.Padding = [System.Windows.Thickness]::new(5, 1, 5, 1)
+            $pill.BorderThickness = [System.Windows.Thickness]::new(1)
+            $pill.BorderBrush = New-Object System.Windows.Media.SolidColorBrush $color
+            $pill.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(20, $tag.R, $tag.G, $tag.B))
+            if ($tagRow.Children.Count) { $pill.Margin = [System.Windows.Thickness]::new(4, 0, 0, 0) }
+            $label = New-Object System.Windows.Controls.TextBlock
+            $label.Text = $tag.Label
+            $label.FontSize = 8
+            $label.FontWeight = [System.Windows.FontWeights]::Bold
+            $label.Foreground = New-Object System.Windows.Media.SolidColorBrush $color
+            $label.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI')
+            $pill.Child = $label
+            $tagRow.Children.Add($pill) | Out-Null
+        }
+        $grid.Children.Add($tagRow) | Out-Null
+        $tile.Resources.Add('statusBadges', $tagRow)
     }
 
     $titleTxt = New-Object System.Windows.Controls.TextBlock
-    $titleTxt.Text = $Game.Title
+    $titleTxt.Text = if ($Game.TileTitle) { [string]$Game.TileTitle } else { [string]$Game.Title }
     $titleTxt.FontSize = 11
     $titleTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $titleTxt.Foreground = [System.Windows.Media.Brushes]::White
     $titleTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $titleTxt.TextWrapping = [System.Windows.TextWrapping]::Wrap
-    $titleTxt.Margin = [System.Windows.Thickness]::new(8, 0, 8, 7)
+    $titleTxt.Margin = [System.Windows.Thickness]::new(8, 0, 8, $(if ($isFreeGame -or $isWipGame) { 27 } else { 7 }))
     $titleTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
     $grid.Children.Add($titleTxt) | Out-Null
 
@@ -240,6 +268,8 @@ function global:New-OverviewTile {
     $gameCapture = $Game
     $flashCap = $flash
     $glowCap = $glow
+    $frameCap = $glowFrame
+    $gemCap = if ($Game.Gem) { $overviewGem } else { $null }
 
     $tile.Add_MouseLeftButtonUp({
         # Defer one dispatcher tick at Background priority so the
@@ -253,56 +283,76 @@ function global:New-OverviewTile {
         )
     }.GetNewClosure())
 
-    # Press: tinted overlay flash at 10% opacity + glow stays lit.
+    # Press: tinted overlay flash at 10% opacity + frame glow stays lit.
     # Tag marks the tile as "pressed" so MouseLeave below doesn't
     # tear down the visual feedback while the page is loading.
-    # An auto-reset timer runs after 2.6s to clear ALL state
+    # An auto-reset timer runs after 1.2s to clear ALL state
     # (flash + scale + glow + border + tag) no matter what -
     # prevents stuck visuals when the user returns from the
     # detail page.
     $tile.Add_MouseLeftButtonDown({
         $flashCap.Opacity = 0.10
         $this.Tag = "pressed"
-        $this.Effect = $glowCap
+        $frameCap.Effect = $glowCap
         $glowCap.Opacity = 0.95
         $tileCap = $this
         $fcap = $flashCap
         $gcap = $glowCap
+        $frcap = $frameCap
+        $gmcap = $gemCap
         $resetT = New-Object System.Windows.Threading.DispatcherTimer
         $resetT.Interval = [TimeSpan]::FromMilliseconds(1200)
         $resetT.Add_Tick({
             $this.Stop()
             $fcap.Opacity = 0
             $gcap.Opacity = 0
-            $tileCap.Effect = $null
+            $frcap.Effect = $null
+            $frcap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+            if ($gmcap) {
+                $gmcap.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+                $gmcap.Opacity = 0.72
+            }
             $tileCap.Tag = $null
             $tileCap.RenderTransform = $null
-            $tileCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
         }.GetNewClosure())
         $resetT.Start()
     }.GetNewClosure())
 
     $tile.Add_MouseEnter({
-        # Hover: scale up, hide the static border, light up the glow.
+        # Hover: grow the tile while the frame alone glows. Keep the
+        # portrait, title and badges outside the effect's raster surface.
         $sc = New-Object System.Windows.Media.ScaleTransform 1.06, 1.06
         $this.RenderTransformOrigin = New-Object System.Windows.Point 0.5, 0.5
         $this.RenderTransform = $sc
-        $this.BorderBrush = [System.Windows.Media.Brushes]::Transparent
-        $this.Effect = $glowCap
+        $frameCap.BorderBrush = [System.Windows.Media.Brushes]::Transparent
+        $frameCap.Effect = $glowCap
         $glowCap.Opacity = 0.95
+        if ($gemCap) {
+            $sparkle = New-Object System.Windows.Media.Animation.DoubleAnimation
+            $sparkle.From = 0.55
+            $sparkle.To = 1.0
+            $sparkle.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(900))
+            $sparkle.AutoReverse = $true
+            $sparkle.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+            $gemCap.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $sparkle)
+        }
     }.GetNewClosure())
     $tile.Add_MouseLeave({
         # During "pressed" we keep ALL visuals (scale + flash +
         # glow) intact so the press reads as confirmed while the
-        # detail page is loading. The 2.6s auto-reset is the only
+        # detail page is loading. The 1.2s auto-reset is the only
         # path that clears glow during pressed - guarantees no
         # stuck glow when the user comes back.
         if ($this.Tag -eq "pressed") { return }
         $flashCap.Opacity = 0
-        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
+        $frameCap.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a2a32")
         $this.RenderTransform = $null
         $glowCap.Opacity = 0
-        $this.Effect = $null
+        $frameCap.Effect = $null
+        if ($gemCap) {
+            $gemCap.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null)
+            $gemCap.Opacity = 0.72
+        }
     }.GetNewClosure())
 
     return $tile
@@ -478,14 +528,14 @@ function global:Set-BannerForGame {
             "cartoon", "casual", "classic", "climbing", "collectathon",
             "combat", "comedy", "comic", "competitive", "coop", "co-op",
             "crafting", "cyberpunk", "dark fantasy", "downhill",
-            "driving", "exploration", "fan game", "fantasy", "farming",
+            "driving", "emulation", "exploration", "fan game", "fantasy", "farming",
             "fast paced", "fast-paced", "fighting", "first-person",
             "fishing", "fps", "graffiti", "hack and slash", "hacking",
             "horror", "hunting", "indie", "japanese", "jrpg",
             "lightsaber", "medieval", "metroidvania", "mining", "mmo",
             "mmorpg", "multiplayer", "music", "mystery", "narrative",
             "ocean", "open world", "physics", "platformer",
-            "post-apocalyptic", "prehistoric", "puzzle", "racing",
+            "post-apocalyptic", "prehistoric", "ps3-emulator", "puzzle", "racing",
             "rail shooter", "rally", "realistic", "retro", "rhythm",
             "roguelike", "roguelite", "rpg", "samurai", "sandbox",
             "sci-fi", "shooter", "simulation", "skating", "souls-like",
@@ -529,7 +579,9 @@ function global:Set-BannerForGame {
                 if ($gOverlap) { continue }
                 $seen[$tl] = $true
                 foreach ($gw in $gWords) { $usedGenreWords[$gw] = $true }
-                if ($acronymGenres -contains $tl) {
+                if ($tl -eq 'ps3-emulator') {
+                    $tags += 'PS3-Emulator'
+                } elseif ($acronymGenres -contains $tl) {
                     $tags += $tl.ToUpper()
                 } else {
                     $tags += [Globalization.CultureInfo]::CurrentCulture.TextInfo.ToTitleCase($tl)

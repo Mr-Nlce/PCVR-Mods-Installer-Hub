@@ -1,8 +1,31 @@
 param([string]$GameRoot='', [switch]$HubConfirmed, [switch]$NoPause)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
+. (Join-Path $PSScriptRoot 'DishonoredMigration.ps1')
 
 $manifestName='.pcvrhub-dishonored-install.tsv'
+function Test-DishonoredLegacyRecord([string]$Root) {
+    return [bool]($Root -and (Test-Path -LiteralPath (Join-PathLexical $Root $manifestName) -PathType Leaf))
+}
+function Test-DishonoredPublisherRecord([string]$Root) {
+    return [bool]($Root -and (Test-Path -LiteralPath (Join-PathLexical $Root 'Binaries\Win32\Dishonored.exe') -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-PathLexical $Root 'Binaries\Win32\dishonored_vr_install.json') -PathType Leaf))
+}
+if (-not $GameRoot) {
+    try { $GameRoot=([IO.File]::ReadAllText((Join-Path $PSScriptRoot '.installed_path'))).Trim().Trim('"') } catch {}
+}
+if (-not (Test-DishonoredPublisherRecord $GameRoot) -and -not (Test-DishonoredLegacyRecord $GameRoot)) {
+    try { $steamRoot=Find-SteamGameFolder -AppId '205100' -SteamFolderNames @('Dishonored') -ProbeExe 'Binaries\Win32\Dishonored.exe' } catch { $steamRoot=$null }
+    if (Test-DishonoredPublisherRecord $steamRoot) { $GameRoot=$steamRoot }
+}
+if (-not (Test-DishonoredPublisherRecord $GameRoot) -and -not (Test-DishonoredLegacyRecord $GameRoot)) {
+    try { $gogRoot=Find-SteamGameFolder -GogNames @('Dishonored') -ProbeExe 'Binaries\Win32\Dishonored.exe' -HubGameId 'dishonored-vr' } catch { $gogRoot=$null }
+    if (Test-DishonoredPublisherRecord $gogRoot) { $GameRoot=$gogRoot }
+}
+if ((Test-DishonoredPublisherRecord $GameRoot) -and -not (Test-Path -LiteralPath (Join-PathLexical $GameRoot $manifestName) -PathType Leaf)) {
+    & (Join-Path $PSScriptRoot 'DishonoredVR-core.ps1') -Manage
+    exit $LASTEXITCODE
+}
 function Finish-DishonoredRemoval([int]$Code) { if (-not $NoPause) { Write-Host ''; Read-Host 'Press Enter to exit' | Out-Null }; exit $Code }
 function Test-DishonoredOwnedRoot([string]$Root) {
     return [bool]($Root -and (Test-Path -LiteralPath (Join-PathLexical $Root 'Binaries\Win32\Dishonored.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-PathLexical $Root $manifestName) -PathType Leaf))
@@ -26,42 +49,17 @@ if (-not $HubConfirmed) {
     if ($confirm -cne 'REMOVE') { Write-Host 'Cancelled. Nothing changed.'; Finish-DishonoredRemoval 0 }
 }
 
-$manifest=Join-PathLexical $GameRoot $manifestName
-$remaining=New-Object Collections.Generic.List[string]
-$removed=0;$restored=0;$preserved=0
-foreach ($line in @(Get-Content -LiteralPath $manifest -ErrorAction Stop)) {
-    $parts=@($line -split "`t",3)
-    if ($parts.Count -lt 3 -or $parts[0] -notin @('restore','remove') -or -not (Test-DishonoredSafeRelative $parts[1]) -or $parts[2] -notmatch '^[A-Fa-f0-9]{64}$') {
-        $remaining.Add($line);$preserved++;continue
+try {
+    $result=Invoke-DishonoredLegacyMigration -GameRoot $GameRoot
+    Remove-Item -LiteralPath (Join-PathLexical $PSScriptRoot '.installed_version') -Force -ErrorAction SilentlyContinue
+    Write-Host "  [OK] Removed $($result.Removed) old mod file(s) and restored $($result.Restored) original game file(s)." -ForegroundColor Green
+    if ($result.BackupFolder) {
+        Write-Host "  [i] $($result.Preserved) changed old mod file(s) were saved in $($result.BackupFolder)." -ForegroundColor Yellow
     }
-    $mode=[string]$parts[0];$relative=[string]$parts[1];$installedSha=([string]$parts[2]).ToUpperInvariant()
-    $live=Join-PathLexical $GameRoot $relative
-    $target=$live
-    if ($relative -ieq 'Binaries\Win32\d3d9.dll' -and -not (Test-Path -LiteralPath $target -PathType Leaf)) {
-        $parked=Join-PathLexical $GameRoot 'Binaries\Win32\d3d9.dll.flat'
-        if (Test-Path -LiteralPath $parked -PathType Leaf) { $target=$parked }
-    }
-    $backup="$live.hubbak"
-    if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
-        if ($mode -eq 'restore' -and (Test-Path -LiteralPath $backup -PathType Leaf)) {
-            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $live));Copy-Item -LiteralPath $backup -Destination $live -Force -ErrorAction Stop;Remove-Item -LiteralPath $backup -Force -ErrorAction Stop;$restored++
-        }
-        continue
-    }
-    if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $installedSha) { $remaining.Add($line);$preserved++;continue }
-    if ($mode -eq 'restore') {
-        if (-not (Test-Path -LiteralPath $backup -PathType Leaf)) { $remaining.Add($line);$preserved++;continue }
-        if ($target -ne $live) { Remove-Item -LiteralPath $target -Force -ErrorAction Stop }
-        Copy-Item -LiteralPath $backup -Destination $live -Force -ErrorAction Stop;Remove-Item -LiteralPath $backup -Force -ErrorAction Stop;$restored++
-    } else { Remove-Item -LiteralPath $target -Force -ErrorAction Stop;$removed++ }
+    Write-Host '  Saves, settings and unrelated files remain in place.' -ForegroundColor Gray
+    Finish-DishonoredRemoval 0
+} catch {
+    Write-Host "  [X] Old mod removal did not complete: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host '  The ownership record remains for a safe retry.' -ForegroundColor Yellow
+    Finish-DishonoredRemoval 1
 }
-if ($remaining.Count) { Set-Content -LiteralPath $manifest -Value $remaining.ToArray() -Encoding UTF8 -Force }
-else {
-    Remove-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-PathLexical $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue
-    $receipt=Join-Path $PSScriptRoot '.installed_path';if(Test-Path -LiteralPath $receipt -PathType Leaf){try{if([IO.Path]::GetFullPath(([IO.File]::ReadAllText($receipt)).Trim().Trim('"')) -eq [IO.Path]::GetFullPath($GameRoot)){Remove-Item -LiteralPath $receipt -Force}}catch{}}
-}
-if ($preserved) { Write-Host "  [!!] $preserved legacy, changed or unverified file(s) were preserved for safety." -ForegroundColor Yellow }
-Write-Host "  [OK] Removed $removed, restored $restored, preserved $preserved." -ForegroundColor Green
-Write-Host '  Saves, DishonoredEngine.ini, settings and unrelated mods remain in place.' -ForegroundColor Gray
-Finish-DishonoredRemoval 0

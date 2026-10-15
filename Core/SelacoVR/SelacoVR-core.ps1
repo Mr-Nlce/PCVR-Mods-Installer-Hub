@@ -45,6 +45,7 @@ $REQUIRED_BRANCH = "v0.89-bf"         # the only game version SelacoVR 2.0 suppo
 $ENGINE_DIR_NAME = "SelacoVR"        # subfolder created inside the game folder
 $LAUNCH_BAT   = "SelacoVR.bat"       # default (vr_joy_mode 1)
 $INDEX_BAT    = "SelacoVR_ValveIndex.bat"
+$MOD_VERSION  = "2.0"
 
 # ---- helper: minimal Steam finder (same pattern as the shared lib) ----
 function Get-SteamPath {
@@ -218,7 +219,7 @@ if (-not $exeItem) {
 $extractedDir = Split-Path -Parent $exeItem.FullName
 # Merge all engine files into $engineRoot without deleting additional files.
 try {
-    $null = Merge-DirectoryTreeVerified -Source $extractedDir -Destination $engineRoot -Label "SelacoVR engine files"
+    $null = Merge-DirectoryTreeVerified -Source $extractedDir -Destination $engineRoot -Label "SelacoVR engine files" -KeepExistingRelativePaths @('autoexec.cfg')
     Remove-Item $tmpExtract -Recurse -Force -ErrorAction SilentlyContinue
 } catch {
     Write-Fail "Could not place the engine files: $_"
@@ -232,14 +233,32 @@ Write-OK "Engine installed at: $engineRoot"
 # ---- 4. copy ipk3 + drop the extra mods ---------------------
 Write-Step 5 6 "Linking the game data and adding mods"
 $engineIpk3 = Join-Path $engineRoot $IPK3_NAME
-try {
-    Copy-Item -Path $ipk3 -Destination $engineIpk3 -Force -ErrorAction Stop
-    Write-OK "Copied $IPK3_NAME into the engine folder."
-} catch {
-    Write-Fail "Could not copy $IPK3_NAME : $_"
-    Write-Host "  Manually copy '$ipk3'" -ForegroundColor Gray
-    Write-Host "  into '$engineRoot' before launching." -ForegroundColor Gray
-    Pause-User "Press Enter to continue anyway..." | Out-Null
+while ($true) {
+    try {
+        Copy-Item -LiteralPath $ipk3 -Destination $engineIpk3 -Force -ErrorAction Stop
+        if (-not (Test-Path -LiteralPath $engineIpk3 -PathType Leaf) -or
+            (Get-Item -LiteralPath $engineIpk3 -ErrorAction Stop).Length -le 0) {
+            throw "$IPK3_NAME is missing or empty after copying."
+        }
+        Write-OK "Copied $IPK3_NAME into the engine folder."
+        break
+    } catch {
+        Write-Fail "Could not copy $IPK3_NAME : $_"
+        Write-Host "  Restore $IPK3_NAME in the Selaco game folder before retrying." -ForegroundColor Gray
+        Write-Host "  [R] Retry the copy    [Q] Quit without marking the install complete" -ForegroundColor Yellow
+        while ($true) {
+            $copyChoice = ("" + (Read-Host "  Choice R or Q")).Trim().ToUpperInvariant()
+            if ($copyChoice -eq 'Q') {
+                Write-Fail "Setup stopped before completion; no success receipt was written."
+                Pause-User "Press Enter to exit..." | Out-Null
+                exit 1
+            }
+            if ($copyChoice -eq 'R') { break }
+            Write-Warn "Choose R to retry or Q to quit."
+        }
+        $retrySource = Join-Path $gameFolder $IPK3_NAME
+        if (Test-Path -LiteralPath $retrySource -PathType Leaf) { $ipk3 = $retrySource }
+    }
 }
 
 # Mods go in the engine's mods folder (auto-loaded by the engine).
@@ -283,9 +302,6 @@ try {
     Write-Host "  or open the console (~) and type: m8f_wm_ShowLaserSight 1" -ForegroundColor Gray
 }
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gameFolder -Encoding UTF8 -Force } catch {}
-
 # ---- 5. desktop shortcut ------------------------------------
 Write-Step 6 6 "Creating a desktop shortcut"
 $batPath = Join-Path $engineRoot $LAUNCH_BAT
@@ -302,6 +318,38 @@ if (-not (Test-Path $batPath)) {
         Write-Host "  You can launch the game manually with:" -ForegroundColor Gray
         Write-Host "    $batPath" -ForegroundColor Cyan
     }
+}
+
+# Confirm the actual runtime payload before writing either success marker.
+$requiredFiles = @(
+    (Join-Path $engineRoot 'Selaco.exe'),
+    (Join-Path $engineRoot $LAUNCH_BAT),
+    (Join-Path $engineRoot 'mods\selaco-vr.pk3'),
+    $engineIpk3
+)
+foreach ($requiredFile in $requiredFiles) {
+    if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf) -or
+        (Get-Item -LiteralPath $requiredFile -ErrorAction SilentlyContinue).Length -le 0) {
+        Write-Fail "Required installed file is missing or empty: $requiredFile"
+        Pause-User "Press Enter to exit without marking the install complete..." | Out-Null
+        exit 1
+    }
+}
+$pathReceipt = Join-Path $PSScriptRoot '.installed_path'
+$versionReceipt = Join-Path $gameFolder '.pcvrhub_version'
+$oldPathBytes = if (Test-Path -LiteralPath $pathReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($pathReceipt) } else { $null }
+$oldVersionBytes = if (Test-Path -LiteralPath $versionReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($versionReceipt) } else { $null }
+try {
+    Set-Content -LiteralPath $versionReceipt -Value $MOD_VERSION -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath $pathReceipt -Value $gameFolder -Encoding UTF8 -Force -ErrorAction Stop
+} catch {
+    if ($null -eq $oldPathBytes) { Remove-Item -LiteralPath $pathReceipt -Force -ErrorAction SilentlyContinue }
+    else { [IO.File]::WriteAllBytes($pathReceipt,$oldPathBytes) }
+    if ($null -eq $oldVersionBytes) { Remove-Item -LiteralPath $versionReceipt -Force -ErrorAction SilentlyContinue }
+    else { [IO.File]::WriteAllBytes($versionReceipt,$oldVersionBytes) }
+    Write-Fail "Could not record the completed installation: $_"
+    Pause-User "Press Enter to exit without marking the install complete..." | Out-Null
+    exit 1
 }
 
 Write-Host ""

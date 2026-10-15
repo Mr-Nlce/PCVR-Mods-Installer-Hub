@@ -4,7 +4,19 @@
 **Status:** beta / prerelease, automatically updated from GitHub  
 **Publisher-tested game:** PowerWash Simulator 2 on Steam (App 2968420)  
 **VR gameplay:** https://youtu.be/57vS_Zzclpk  
-**Mod page and support:** https://github.com/onetin84/Wet-Reality-XR-Mod
+**Mod page and support:** https://github.com/onetin84/Wet-Reality-XR-PWS2
+
+## Current and pinned depot
+
+Setup offers **[1] Current** for the normal game and newest prerelease mod, or
+**[2] Depot** for a separate Steam build **23737596** (App 2968420, depot
+2968422, manifest 2576393139753962022). This depot always installs Wet
+Reality XR **v1.107.0-beta**, MelonLoader **0.7.3 x64**, portable .NET
+**6.0.36** and Unity OpenXR **1.18.0** from fixed publisher URLs. It does not
+follow future Current mod releases. Setup can copy an installed Steam build
+only when its manifest and game files match; otherwise it guides an exact
+Steam Console depot download. The copies can coexist and receive separate Hub
+launch choices. The depot has its own `steam_appid.txt`.
 
 ## About the Game
 
@@ -23,7 +35,7 @@ The WindowsApps package name varies. Setup searches accessible matching package 
 
 ## What setup installs
 
-The Hub downloads the newest GitHub release, including prereleases, and installs its two Wet Reality assemblies. It also installs the publisher-pinned runtime chain required by the mod:
+For Current, the Hub downloads the newest GitHub release, including prereleases, and installs its two Wet Reality assemblies. The Depot route uses the fixed version above. Both routes install the runtime chain required by the mod:
 
 - MelonLoader x64 0.7.3 when no existing MelonLoader installation is present
 - portable .NET 6.0.36 inside the game folder
@@ -55,7 +67,7 @@ Use `WetRealityXR\Configurator.cmd` in the game folder for settings and the publ
 | [[Right A]] | Jump; confirm in menus |
 | [[Right B]] | Crouch |
 | [[Right Stick]] | Turn; up/down changes nozzle |
-| [[Right Stick Click]] | Switch nozzle category; hold to switch washer |
+| [[Right Stick Click]] | Open the equipment wheels; press again to accept and close. With `WasherWheel=false`, hold for the old washer-brand cycle |
 | [[Left Stick]] | Walk; push fully to sprint; navigate menus |
 | [[Left Trigger]] | Rotate nozzle/refill detergent, or interact while the hand touches an animated object |
 | [[Left Grip]] | Highlight dirt; previous tab in menus |
@@ -64,14 +76,46 @@ Use `WetRealityXR\Configurator.cmd` in the game folder for settings and the publ
 | [[Menu]] | Pause, back or close the current menu |
 | [[Left Stick Click]] | Switch extension |
 | [[F8]] | Start VR manually if automatic activation failed |
-| [[F2]] | Toggle motion-controlled washer mode; press twice if the left stick stops responding |
+| [[F2]] | Hand the washer between VR controllers and mouse/keyboard control |
 | [[Keypad 3]] | Recenter the washer and seated position |
 
 Body-zone gestures and object-carrying controls are shown in the included publisher quick guide. `F6` is a disabled development hotkey in this release and is not the configurator shortcut.
 
-## Current v1.86.0-beta update
+## Current v1.123.2-beta update
 
-The current build is a major comfort and navigation update. It adds target and
+The configurator adds **Vibration stops after** (0–15 seconds). The publisher
+recommends 1.5 seconds to save controller battery; the default **never** keeps
+the previous continuous vibration. Existing settings stay on update.
+This includes the v1.123.1-beta nozzle fixes below.
+
+The turbo nozzle spins again. Both jets of the double turbo and all three
+trident jets now clean where they visibly land; the second double-turbo jet
+also starts at the correct offset. The menu beam can select lower buttons in
+the headset, and vibration follows the strength of each nozzle category.
+[[F2]] now reliably hands the washer back to mouse and keyboard. The
+adaptable nozzle width controlled with the washer-hand [[Stick]] up/down while
+spraying has now been tested. Each new behavior can be disabled separately in
+the configurator with `TurboSpin`, `JetPerNozzle`, `MenuEyeFrustum` or
+`HapticByCategory`. Existing settings are retained on update.
+
+### Earlier v1.121.1-beta changes
+
+The game's equipment wheels now expose purchased washer tiers, nozzles and
+extensions. Hold [[Right Stick Click]] to open them. Aim the selection beam and
+press [[Right Trigger]] to choose; [[Grip]] steps between wheels. Press
+[[Right Stick Click]] again to accept and close. While a wheel is open, the
+trigger selects instead of spraying. Without beam aiming, [[Right Stick]]
+selects a segment, [[Left Stick]] left/right changes the washer tier and
+[[A]] accepts. Set `WasherWheel=false` in the configurator to restore the older
+hold-to-cycle behavior. Set `AdaptableWidthStick=false` if you prefer the
+earlier adaptable-nozzle behavior. Existing settings remain in place.
+
+The previous v1.114.0-beta update
+
+v1.114.0-beta fixes the billboard swing: point down at the occupied walkway
+and press [[X]] to pick it up, then point at the other side and press [[X]]
+again. [[Y]] continues through the job-complete prompt and other Escape-style
+menus. The earlier build was a major comfort and navigation update. It adds target and
 comfort teleport, snap turning, a comfort vignette, free-hand aiming, adjustable
 washer-stick position, corrected range measurement and more reliable stair and
 ramp paths. Hold and release [[Menu]] to toggle the UI; [[B]] closes Escape-style
@@ -79,6 +123,8 @@ popups. Ladder handling, pointer colors and target size are configurable. A
 one-eye ground-brightness difference is still cosmetic; disable fog or light
 scattering in the configurator if either effect is uncomfortable.
 
-## Remove the mod
+In v1.107.0-beta the grab pointer, menu pointer and teleport arc now stay at
+the tracked hand while walking. The earlier v1.105 update also fixes hand
+sliding on the washer grip. Existing settings remain in place on update.
 
-Use **Uninstall now** on the Hub detail page. It removes only unchanged Hub-owned files, restores pre-existing collisions and keeps the game, saves and `UserData\MelonPreferences.cfg`. If MelonLoader existed before this installation, it remains installed.
+>>> Every stubborn stain is now within arm's reach.

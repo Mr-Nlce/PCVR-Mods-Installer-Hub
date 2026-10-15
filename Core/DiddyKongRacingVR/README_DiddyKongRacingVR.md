@@ -71,7 +71,7 @@ Diddy Kong Racing is by **Rare**. The **Golden Balloon** PC port is by **akratch
 
 https://rayrodtv.com/
 
-https://github.com/RaYRoD-TV/DiddyKongRacing-VR
+The former per-game repository is unavailable (404). The publisher's live release source is https://github.com/RaYRoD-TV/MVRH
 
 https://github.com/akratch/goldenballoon
 

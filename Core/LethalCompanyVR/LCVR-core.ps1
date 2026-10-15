@@ -356,6 +356,30 @@ if (-not $useLegacy) {
  Pause-User "Press Enter once you have switched to the previous branch..."
 }
 
+if ($useLegacy) {
+ $requiredFiles = @(
+  'winhttp.dll',
+  'BepInEx\core\MonoDetour-MonoDetour\com.github.MonoDetour.dll',
+  'BepInEx\plugins\DaXcess-LethalCompanyVR\LCVR\LCVR.dll'
+ )
+} else {
+ $requiredFiles = @(
+  'winhttp.dll',
+  'BepInEx\core\BepInEx.dll',
+  'BepInEx\patchers\FixPluginTypesSerialization\FixPluginTypesSerialization.dll',
+  'BepInEx\plugins\LCVR\LCVR.dll',
+  'BepInEx\patchers\LCVR\LCVR.Preload.dll'
+ )
+}
+$missingFiles = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf) })
+if ($failed.Count -gt 0 -or $missingFiles.Count -gt 0) {
+ try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+ foreach ($name in $failed) { Write-Fail "Package not installed: $name" }
+ foreach ($name in $missingFiles) { Write-Fail "Required file missing: $name" }
+ Write-Fail 'Installation is incomplete. No VR Ready version will be recorded.'
+ exit 1
+}
+
 try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
 
 # Launch option

@@ -1,6 +1,6 @@
 # Final Fantasy XIV VR Installer
 
-Guided installer for FFXIV VR v0.0.75 by WesleyLuk90, installed via
+Guided installer for FFXIV VR v0.0.82 by WesleyLuk90, installed via
 XIVLauncher and Dalamud. A VR plugin for FFXIV implemented in C# using the
 Silk OpenXR bindings, based on the original xivr-Ex plugin.
 
@@ -26,7 +26,7 @@ Link, VDXR.
 ## Requirements
 
 - Windows 10/11
-- A licensed copy of **Final Fantasy XIV** (Steam or Square Enix)
+- A licensed copy of Final Fantasy XIV (Steam or Square Enix)
 - SteamVR installed
 
 ## IMPORTANT — Before running
@@ -39,17 +39,31 @@ Make sure you have:
 
 1. Log into FFXIV via XIVLauncher
 2. Open Plugin Installer: type `/xlplugins` in chat (copied to clipboard)
-3. In Settings (gear icon): enable **"Wait for plugins before the game is loaded"**
-4. Open the **Experimental** tab
+3. In Settings (gear icon): enable "Wait for plugins before the game is loaded"
+4. Open the Experimental tab
 5. Paste the repo URL into row 1 of the empty URL field (copied to clipboard)
-6. Check **Enabled**, click Save, then Refresh
-7. Find **FFXIV VR** in All Plugins → install the current release (reviewed at v0.0.75)
-8. Type `/vr` in chat to open VR settings — enable **"Start in VR automatically"**
+6. Check Enabled, click Save, then Refresh
+7. Find FFXIV VR in All Plugins → install the current release (reviewed at v0.0.82)
+8. Type `/vr` in chat to open VR settings — enable "Start in VR automatically"
 9. Restart FFXIV
 
-## New in v0.0.75
+## Current release v0.0.82
 
-The current plugin converts several configuration values to integer fields, repairs an
+v0.0.82 fixes mouse targeting. v0.0.79 fixed decals, ambient occlusion, fog and content locked to the head;
+it also clears the constant-buffer cache and validates line endings. The
+Hub's guided Dalamud repository route continues to fetch the current plugin.
+The Windows plugin ZIP is a review source, not an installer payload.
+
+v0.0.78 adds a single-pass renderer. The Hub's guided Dalamud repository route
+continues to fetch the current plugin; no standalone publisher ZIP is copied
+into the game folder by the Hub. The Windows plugin archive retains its
+native DLL and runtime libraries.
+
+v0.0.77 adds a Steam Frame headset profile. Its behavior on that hardware has
+not been verified in this Hub review. The preceding v0.0.76 plugin renders
+Dalamud UI before its textures are disposed, and
+updates shader compilation and logging. The preceding build converted
+several configuration values to integer fields, repaired an
 affected hook and updates its interface-manager integration. The release also adds a Linux
 build; the Hub's guided Windows/XIVLauncher route remains unchanged.
 
@@ -58,28 +72,28 @@ build; the Hub's guided Windows/XIVLauncher route remains unchanged.
 Press [[Home]] on your keyboard - that is the default binding and it is easy to
 miss, because nothing in VR points at it.
 
-There is a nicer way: in the game's own settings under **Character Configuration
-> Movement > General**, enable *"Switch to 1st person view when fully zoomed
-in."* Then zooming all the way in does the same job.
+There is a nicer way: in the game's own settings under Character Configuration
+> Movement > General, enable "Switch to 1st person view when fully zoomed
+in." Then zooming all the way in does the same job.
 
 ## Controls
 
-Configure bindings in the **Controls** tab of the VR settings window.
-**A regular controller connected to your PC is strongly recommended** over
+Configure bindings in the Controls tab of the VR settings window.
+A regular controller connected to your PC is strongly recommended over
 VR controllers — VR controllers don't have enough buttons and make the game
 hard to play. Switch FFXIV into controller mode under Character
 Configuration. Keyboard & mouse works but targeting is awkward (use tab
 targeting); VR controllers work but are the least comfortable option.
 
 Advanced binding options to stretch the limited buttons:
-- **Layers:** hold a button bound to a layer to activate a second set of
+- Layers: hold a button bound to a layer to activate a second set of
   bindings (e.g. hold [[Left Grip]] = Layer 2, then [[X]] = Select)
-- **Stick D-pad layer:** hold a bound button to make [[Left Stick]] or [[Right Stick]] act as a
+- Stick D-pad layer: hold a bound button to make [[Left Stick]] or [[Right Stick]] act as a
   D-pad
-- **Mouse:** bind `EnableLeftMouseHold` / `EnableRightMouseHold` to aim the
+- Mouse: bind `EnableLeftMouseHold` / `EnableRightMouseHold` to aim the
   mouse by pointing a controller (or move it with your head, under Other);
   bind Mouse1/2/3 for clicks
-- **Stick deadzones** are adjustable if your controllers drift
+- Stick deadzones are adjustable if your controllers drift
 
 ## Source
 

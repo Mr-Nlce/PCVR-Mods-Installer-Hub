@@ -89,7 +89,9 @@ function global:Save-DeusExSnapshot([string]$GameRoot,[string]$Stage,[string]$Sn
     foreach ($relative in @($REQUIRED_PAYLOAD + @('DXHRDC.exe','DeusExHRVR.ini','.pcvrhub_deusexhrvr_highcore','.pcvrhub_deusexhrvr_ownership.csv','.pcvrhub_deusexhrvr_ownership.csv.new','.pcvrhub_deusexhrvr_registry.json','.pcvrhub_version'))) { $paths.Add($relative) }
     $manifest=Join-Path $GameRoot '.pcvrhub_deusexhrvr_ownership.csv'
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-        try { foreach ($row in @(Import-Csv -LiteralPath $manifest)) { if ($row.RelativePath) { $paths.Add([string]$row.RelativePath) } } } catch {}
+        foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+            if ($row.RelativePath) { $paths.Add((Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath))) }
+        }
     }
     $records=@()
     foreach ($relative in @($paths | Select-Object -Unique)) {

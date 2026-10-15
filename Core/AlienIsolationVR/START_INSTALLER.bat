@@ -1,11 +1,33 @@
 @echo off
+setlocal
 title Alien: Isolation VR Mod Installer
 color 0B
-:: Request admin elevation
+
 net session >nul 2>&1
-if %errorLevel% == 0 (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0AlienIsolationVR-core.ps1"
-) else (
-    powershell.exe -Command "try { Start-Process cmd -ArgumentList '/c cd /d ""%~dp0"" && color 0B && powershell.exe -NoProfile -ExecutionPolicy Bypass -File AlienIsolationVR-core.ps1 && pause' -Verb RunAs -ErrorAction Stop } catch { Write-Host ''; Write-Host '============================================================' -ForegroundColor Yellow; Write-Host '  Administrator permission is required for this installer.' -ForegroundColor Yellow; Write-Host '  The Alien: Isolation VR mod needs to write files into a' -ForegroundColor White; Write-Host '  protected Steam directory, which Windows only allows with' -ForegroundColor White; Write-Host '  elevated rights.' -ForegroundColor White; Write-Host ''; Write-Host '  Close this window with Enter and launch the installer' -ForegroundColor White; Write-Host '  again from the Hub when you are ready to grant permission.' -ForegroundColor White; Write-Host '============================================================' -ForegroundColor Yellow; Write-Host ''; Read-Host '  Press Enter to close' }"
+if %errorlevel%==0 goto elevated
+
+echo ============================================================
+echo  Alien: Isolation VR needs administrator permission to write
+echo  to the game folder and apply its Windows 11 registry fix.
+echo  Windows will show a UAC prompt after you press Enter.
+echo ============================================================
+set "PCVR_ALIEN_CORE=%~dp0AlienIsolationVR-core.ps1"
+set "PCVR_ALIEN_CONFIRM="
+set /p "PCVR_ALIEN_CONFIRM=Press Enter to request administrator access: "
+if defined PCVR_ALIEN_CONFIRM (
+    echo Cancelled before requesting administrator access.
+    endlocal & exit /b 1
 )
-pause
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { $a=@('-NoProfile','-ExecutionPolicy','Bypass','-File',([char]34 + $env:PCVR_ALIEN_CORE + [char]34)); $p=Start-Process -FilePath 'powershell.exe' -ArgumentList $a -Verb RunAs -Wait -PassThru -ErrorAction Stop; if($null -eq $p){exit 1}; exit $p.ExitCode } catch { Write-Host 'Administrator permission was declined or the installer could not start.' -ForegroundColor Yellow; exit 1 }"
+set "PCVR_EXIT=%ERRORLEVEL%"
+endlocal & exit /b %PCVR_EXIT%
+
+:elevated
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0AlienIsolationVR-core.ps1"
+set "PCVR_EXIT=%ERRORLEVEL%"
+if not "%PCVR_EXIT%"=="0" (
+    echo.
+    echo Installer failed. Check the message above before closing this window.
+    pause
+)
+endlocal & exit /b %PCVR_EXIT%

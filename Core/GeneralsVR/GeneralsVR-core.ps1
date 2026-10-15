@@ -179,19 +179,42 @@ if ($route -eq "1") {
         }
     }
     if ($zip -and (Test-Path -LiteralPath $zip)) {
+        # Select the launcher from THIS archive. An older extracted package
+        # can still be in Downloads and must never satisfy a new attempt.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $publisherArchive = [IO.Compression.ZipFile]::OpenRead($zip)
+        try {
+            $archiveNames = @($publisherArchive.Entries | ForEach-Object { $_.FullName.Replace('/', '\') })
+            $publisherRoot = $null
+            foreach ($archiveName in $archiveNames) {
+                if ([IO.Path]::GetFileName($archiveName) -ine $START_CMD) { continue }
+                $candidateRoot = Split-Path $archiveName -Parent
+                $prefix = if ($candidateRoot) { $candidateRoot + '\' } else { '' }
+                if (($archiveNames -contains ($prefix + 'GeneralsVR.ps1')) -and
+                    ($archiveNames -contains ($prefix + 'Data\generalszhv.exe'))) {
+                    $publisherRoot = $candidateRoot
+                    break
+                }
+            }
+            if ($null -eq $publisherRoot) { throw 'The archive lacks its publisher script or VR build.' }
+        } finally { $publisherArchive.Dispose() }
         # A PERMANENT folder, NOT %TEMP%: the launcher keeps running
         # from here. A deleted folder underneath a running program is
         # exactly the fault the ZIP route used to have.
-        $ex = Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads\GeneralsVR-setup"
+        $ex = Join-Path (Get-PCVRDownloadsFolder) "GeneralsVR-setup"
         try { New-Item -ItemType Directory -Path $ex -Force -ErrorAction Stop | Out-Null }
         catch { $ex = Join-Path $tmp "x"; New-Item -ItemType Directory -Path $ex -Force | Out-Null }
-        [void](Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $MOD_NAME)
-        # START-GeneralsVR sits at the archive root - search the whole
-        # tree in case a wrapper folder gets in between.
-        $hit = Get-ChildItem -LiteralPath $ex -Recurse -File -Force -ErrorAction SilentlyContinue |
-               Where-Object { $_.Name -ieq $START_CMD } | Select-Object -First 1
-        if ($hit) { $runMe = $hit.FullName }
-        else { Write-Fail "No $START_CMD inside the archive." }
+        $extractResult = Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $MOD_NAME -AllowSkip $false
+        if ($extractResult -ne 'ok') { throw 'The GeneralsVR archive was not extracted completely.' }
+        $publisherFolder = if ($publisherRoot) { Join-Path $ex $publisherRoot } else { $ex }
+        if ((Test-Path -LiteralPath (Join-Path $publisherFolder $START_CMD) -PathType Leaf) -and
+            (Test-Path -LiteralPath (Join-Path $publisherFolder 'GeneralsVR.ps1') -PathType Leaf) -and
+            (Test-Path -LiteralPath (Join-Path $publisherFolder 'Data\generalszhv.exe') -PathType Leaf)) {
+            # START-GeneralsVR.cmd only delegates to this script, then runs
+            # PAUSE on failure. Execute the same publisher script directly so
+            # its real exit code survives the CMD wrapper.
+            $runMe = Join-Path $publisherFolder 'GeneralsVR.ps1'
+        } else { Write-Fail 'The extracted package lacks its publisher script or VR build.' }
     }
 }
 
@@ -213,21 +236,74 @@ Write-Host "  build and sets everything up in its own folder." -ForegroundColor 
 Show-Afterwards
 Pause-User "Press Enter to run it - UAC required..." | Out-Null
 try {
-    Start-Process -FilePath $runMe -WorkingDirectory (Split-Path $runMe -Parent) -Wait -ErrorAction Stop
-    Write-OK "Finished."
+    if ([IO.Path]::GetExtension($runMe) -ieq '.ps1') {
+        $publisherProcess = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',"`"$runMe`"") -WorkingDirectory (Split-Path $runMe -Parent) -Wait -PassThru -ErrorAction Stop
+    } else {
+        $publisherProcess = Start-Process -FilePath $runMe -WorkingDirectory (Split-Path $runMe -Parent) -Wait -PassThru -ErrorAction Stop
+    }
+    if ($null -eq $publisherProcess -or $null -eq $publisherProcess.ExitCode -or $publisherProcess.ExitCode -ne 0) {
+        throw "Publisher installer ended with exit code $($publisherProcess.ExitCode)."
+    }
+    Write-OK 'Publisher installer finished.'
 } catch {
-    Write-Warn "Could not start it: $($_.Exception.Message)"
-    Write-Host "  Run it yourself: $runMe" -ForegroundColor Yellow
+    Write-Fail "Publisher installer did not complete: $($_.Exception.Message)"
+    Write-Host "  Check its output, then run this installer again or use: $runMe" -ForegroundColor Yellow
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User 'Press Enter to exit without marking this attempt complete.' | Out-Null
+    exit 1
 }
 
-if (Test-Path -LiteralPath (Join-Path $INSTALL_DIR "Data\generalszhv.exe")) {
-    Write-OK "GeneralsVR is installed in $INSTALL_DIR"
-    # Marker for the Hub - into the INSTALLER folder, not the game.
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $INSTALL_DIR -Encoding UTF8 -Force } catch {}
-    if ($installedGeneralsVersion) { Save-InstalledStamp -GameDir $INSTALL_DIR -Version $installedGeneralsVersion -HubDir $PSScriptRoot }
-} else {
-    Write-Info "If you cancelled, run this installer again - nothing was left behind."
+foreach ($requiredFile in @('Data\generalszhv.exe','Data\d3d8.dll','Data\d3d9.dll','Data\GeneralsVR-xrhost.exe','GeneralsVR.ps1','generalsvr.json')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $INSTALL_DIR $requiredFile) -PathType Leaf)) {
+        Write-Fail "Publisher installation is incomplete: $requiredFile is missing."
+        Pause-User 'Press Enter to exit without marking this attempt complete.' | Out-Null
+        exit 1
+    }
 }
+try {
+    $publisherConfig = Get-Content -LiteralPath (Join-Path $INSTALL_DIR 'generalsvr.json') -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    if (-not $publisherConfig.installed) { throw 'Publisher config has no installed build.' }
+    if ([string]$publisherConfig.installed -ne 'local-zip') { $installedGeneralsVersion = [string]$publisherConfig.installed }
+    elseif ($route -eq '1') { throw 'Publisher setup did not record a release version.' }
+} catch {
+    Write-Fail "Publisher installation is incomplete: $($_.Exception.Message)"
+    Pause-User 'Press Enter to exit without marking this attempt complete.' | Out-Null
+    exit 1
+}
+if (-not (Test-IsTrackableInstalledVersion -Version $installedGeneralsVersion)) {
+    Write-Fail 'The installed publisher version could not be established.'
+    Pause-User 'Press Enter to exit without marking this attempt complete.' | Out-Null
+    exit 1
+}
+try {
+    $versionReceipt = Join-Path $INSTALL_DIR '.pcvrhub_version'
+    $pathReceipt = Join-Path $PSScriptRoot '.installed_path'
+    $previousVersion = if (Test-Path -LiteralPath $versionReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($versionReceipt) } else { $null }
+    $previousPath = if (Test-Path -LiteralPath $pathReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($pathReceipt) } else { $null }
+    Set-Content -LiteralPath $pathReceipt -Value $INSTALL_DIR -Encoding UTF8 -Force -ErrorAction Stop
+    Save-InstalledStamp -GameDir $INSTALL_DIR -Version $installedGeneralsVersion -HubDir $PSScriptRoot
+    if (-not (Test-Path -LiteralPath $versionReceipt -PathType Leaf) -or
+        ((Get-Content -LiteralPath $versionReceipt -Raw -ErrorAction Stop).Trim() -ne $installedGeneralsVersion)) {
+        throw 'The version receipt could not be written.'
+    }
+} catch {
+    # Keep the prior receipts when a new attempt cannot be committed.
+    foreach ($receipt in @(@($versionReceipt,$previousVersion),@($pathReceipt,$previousPath))) {
+        try {
+            if ($null -ne $receipt[1]) { [IO.File]::WriteAllBytes([string]$receipt[0],[byte[]]$receipt[1]) }
+            elseif (Test-Path -LiteralPath ([string]$receipt[0]) -PathType Leaf) { Remove-Item -LiteralPath ([string]$receipt[0]) -Force -ErrorAction Stop }
+        } catch { Write-Warn "A receipt could not be restored: $($receipt[0])" }
+    }
+    $statusPath = [string]$env:PCVR_HUB_INSTALL_STATUS_PATH
+    if ($statusPath -and [IO.Path]::GetFileName($statusPath) -like 'install_*.json' -and
+        (Split-Path -Leaf (Split-Path -Parent $statusPath)) -eq 'Transactions') {
+        try { Remove-Item -LiteralPath $statusPath -Force -ErrorAction SilentlyContinue } catch {}
+    }
+    Write-Fail "The Hub could not record this installation: $($_.Exception.Message)"
+    Pause-User 'Press Enter to exit without marking this attempt complete.' | Out-Null
+    exit 1
+}
+Write-OK "GeneralsVR is installed in $INSTALL_DIR"
 # Only clean up the temporary download directory. The EXTRACTED folder
 # stays - the launcher keeps working out of it.
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}

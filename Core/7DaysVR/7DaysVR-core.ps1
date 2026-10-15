@@ -14,7 +14,7 @@ $ErrorActionPreference = "Stop"
 $GAME_NAME = "7 Days To Die"
 $GAME_EXE = "7DaysToDie.exe"
 $NEXUS_URL = "https://www.nexusmods.com/7daystodie/mods/3011?tab=files"
-$DOWNLOAD_DIR = Join-Path $env:USERPROFILE "Downloads"
+$DOWNLOAD_DIR = Get-PCVRDownloadsFolder
 
 # Expected ZIP name pattern in Downloads folder
 $ZIP_PATTERN = "7DVR*.zip"
@@ -74,7 +74,7 @@ function Find-GamePath {
  param($libraries)
  foreach ($lib in $libraries) {
  $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf) { return $candidate }
  }
  return $null
 }
@@ -141,6 +141,7 @@ if (-not $steamPath) {
 $libraries = Get-SteamLibraries $steamPath
 $gamePath = Find-GamePath $libraries
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "251570" -SteamFolderNames @("7 Days To Die") }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) { $gamePath = $null }
 
 if (-not $gamePath) {
  Write-Warn "7 Days to Die not found in Steam libraries automatically."
@@ -148,8 +149,8 @@ if (-not $gamePath) {
  Write-Host " Example: C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" -ForegroundColor Gray
  while (-not $gamePath) {
  $rawInput = (Read-Host " Game path").Trim().Trim('"')
- if (Test-Path $rawInput) { $gamePath = $rawInput; Write-OK "Game path set: $gamePath" }
- else { Write-Fail "Path not found: $rawInput" }
+ if (Test-Path -LiteralPath (Join-Path $rawInput $GAME_EXE) -PathType Leaf) { $gamePath = $rawInput; Write-OK "Game path set: $gamePath" }
+ else { Write-Fail "7DaysToDie.exe not found in: $rawInput" }
  }
 } else {
  Write-OK "7 Days to Die found: $gamePath"
@@ -203,6 +204,7 @@ if ($existingZip) {
 }
 
 if (-not $existingZip) {
+ Pause-User "Press Enter to open the 7DaysVR Nexus files page..."
  Start-Process $NEXUS_URL
  Write-Host ""
  Write-Host " Nexus Mods is now open in your browser." -ForegroundColor Cyan
@@ -253,9 +255,18 @@ $installedModVersion = $null
 
 Write-Host " Extracting mod files ... " -NoNewline -ForegroundColor White
 try {
+ $archiveSafety = Test-ZipArchiveEntrySafety -ArchivePath $modZipPath -DestinationFolder $tempDir
+ if (-not $archiveSafety.Inspectable -or -not $archiveSafety.Safe -or $archiveSafety.EntryCount -eq 0) {
+  throw "The selected file is not a readable, safe 7DVR ZIP archive."
+ }
  Expand-Archive -Path $modZipPath -DestinationPath $tempDir -Force
  Write-Host "OK" -ForegroundColor Green
 
+ foreach ($requiredSource in @("winhttp.dll", "BepInEx\plugins\7DaysVR.dll", "Mods\7DVR\mod.xml")) {
+  if (-not (Test-Path -LiteralPath (Join-Path $tempDir $requiredSource) -PathType Leaf)) {
+   throw "The selected archive is missing $requiredSource. Nothing was copied to the game."
+  }
+ }
  $installedModVersion = Get-7DaysVrVersionFromExtractedFiles -ExtractedRoot $tempDir
  if (-not $installedModVersion) {
   throw "The selected archive does not expose an exact 7DaysVR version in Mods\7DVR\mod.xml or ModInfo.xml."
@@ -285,13 +296,21 @@ try {
 
 try { Remove-Item $tempDir -Recurse -Force } catch {}
 
+if ("7DaysVR" -in $failed) {
+ Write-Host "" 
+ Write-Fail "7DaysVR was not installed. EasyAntiCheat and video settings were not changed."
+ Write-Host " Check the archive and game folder, then retry the installer." -ForegroundColor Yellow
+ exit 1
+}
+
 # -------------------------------------------------------
 # STEP 4: Disable EasyAntiCheat
 # -------------------------------------------------------
 Write-Step 4 5 "Disabling EasyAntiCheat"
+$eacStatus = "Manual check needed"
 
 if ($updateMode) {
- Write-Info "Update mode - EasyAntiCheat was already disabled during your first install; skipping."
+ Write-Info "Update mode - verify that EasyAntiCheat is still disabled in the launcher."
 } else {
 Write-Host ""
 Write-Host " ============================================================" -ForegroundColor Yellow
@@ -313,6 +332,7 @@ if (Test-Path $launcherPath) {
  Pause-User "Press Enter to open the 7 Days Launcher..."
  Start-Process $launcherPath
  Pause-User "Press Enter once you have disabled EAC and closed the launcher..."
+ $eacStatus = "User confirmed EAC is off"
 } else {
  Write-Warn "7dLauncher.exe not found at: $launcherPath"
  Write-Info "You may need to disable EAC manually from the launcher in the game folder."
@@ -323,6 +343,7 @@ if (Test-Path $launcherPath) {
 # STEP 5: Apply VR-optimized video settings
 # -------------------------------------------------------
 Write-Step 5 5 "Applying VR Video Settings"
+$videoStatus = "Manual settings check needed"
 
 # 7 Days stores its settings in AppData
 $settingsPath = Join-Path $env:APPDATA "7DaysToDie\saves\GamePrefs.xml"
@@ -360,6 +381,7 @@ if (-not (Test-Path $settingsPath)) {
  if ($changed -gt 0) {
  Set-Content -Path $settingsPath -Value $prefs -Encoding UTF8
  Write-OK "Video settings patched ($changed settings updated)."
+ $videoStatus = "Wrote $changed matching setting(s); verify in game"
  } else {
  Write-Info "Could not match settings in GamePrefs.xml - may need manual setup."
  }
@@ -380,8 +402,8 @@ Write-Host "============================================================" -Foreg
 Write-Host " Installation Summary" -ForegroundColor White
 Write-Host ""
 if ("7DaysVR" -notin $failed) { Write-Host " [x] 7DaysVR mod" -ForegroundColor Green } else { Write-Host " [ ] 7DaysVR mod -- FAILED" -ForegroundColor Red }
-Write-Host " [x] EasyAntiCheat disabled" -ForegroundColor Green
-Write-Host " [x] VR video settings applied" -ForegroundColor Green
+Write-Host " [-] EasyAntiCheat: $eacStatus" -ForegroundColor Yellow
+Write-Host " [-] VR video settings: $videoStatus" -ForegroundColor Yellow
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""

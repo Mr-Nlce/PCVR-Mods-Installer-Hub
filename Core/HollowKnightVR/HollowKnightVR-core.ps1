@@ -355,6 +355,27 @@ Write-Step 4 4 "Installing mod files"
 $tempExtract = Join-Path $env:TEMP "HollowKnightVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
 
+# A ZIP that merely opens is not an installable Hollow Knight VR package.
+# Validate archive paths before extraction into any user-selected folder.
+try {
+ Add-Type -AssemblyName System.IO.Compression
+ Add-Type -AssemblyName System.IO.Compression.FileSystem
+ $zipReader = [IO.Compression.ZipFile]::OpenRead($modZip)
+ try {
+  foreach ($entry in $zipReader.Entries) {
+   $relative = $entry.FullName.Replace('/', '\')
+   $parts = @($relative.TrimEnd('\') -split '\\')
+   if ([IO.Path]::IsPathRooted($relative) -or $relative.Contains(':') -or
+       @($parts | Where-Object { $_ -eq '..' -or $_ -eq '' }).Count -gt 0) {
+    throw "Unsafe archive path: $relative"
+   }
+  }
+ } finally { $zipReader.Dispose() }
+} catch {
+ Write-Fail "Archive validation failed: $($_.Exception.Message)"
+ throw 'Setup did not complete; see the error above.'
+}
+
 try {
  Write-Host " Extracting archive..." -ForegroundColor Gray
  Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
@@ -372,7 +393,7 @@ try {
  # by exiting and forcing re-run (we don't know which archive
  # variable this catch belongs to without context).
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  # User chose Skip - continue at own risk
 }
@@ -385,10 +406,18 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredModFiles = @('BepInEx\plugins\HollowKnight_VR.dll','BepInEx\core\BepInEx.dll','winhttp.dll')
+foreach ($relative in $requiredModFiles) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $relative) -PathType Leaf)) {
+  Write-Fail "The downloaded ZIP is missing a required mod file: $relative"
+  throw 'Setup did not complete; see the error above.'
+ }
+}
+
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+ Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
  }
  Write-OK "Mod files installed."
 } catch {
@@ -404,23 +433,21 @@ try {
  # by exiting and forcing re-run (we don't know which archive
  # variable this catch belongs to without context).
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  # User chose Skip - continue at own risk
 }
 
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Sanity check.
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\HollowKnight_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but HollowKnight_VR.dll is missing."
-} else {
- Write-OK "BepInEx + HollowKnight_VR.dll present."
+# Verify the actual destination before writing the Hub receipt.
+foreach ($relative in $requiredModFiles) {
+ if (-not (Test-Path -LiteralPath (Join-Path $gamePath $relative) -PathType Leaf)) {
+  Write-Fail "A required mod file is missing after copy: $relative"
+  throw 'Setup did not complete; see the error above.'
+ }
 }
+Write-OK "BepInEx, HollowKnight_VR.dll and loader present."
 
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready

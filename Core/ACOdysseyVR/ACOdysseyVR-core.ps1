@@ -247,19 +247,24 @@ if (-not $dlUrl) {
 }
 
 $zipPath = Join-Path $env:TEMP ("ACOVR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-if (-not (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "AnvilEngine2VR ($variant)" `
+$downloadInfo = @{}
+$downloadResult = Invoke-SafeDownload -Urls @($dlUrl) -Destination $zipPath -Label "AnvilEngine2VR ($variant)" `
    -ManualUrl $GITHUB_RELEASES `
-   -Instructions "Download Odyssey-vr-$variant-...zip (NOT the -symbols one) from the Releases page, drop it into your Downloads folder and retry.")) {
- $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "Odyssey-vr-$variant*.zip" -ErrorAction SilentlyContinue |
-   Where-Object { $_.Name -notlike "*symbols*" } |
-   Sort-Object LastWriteTime -Descending | Select-Object -First 1
- if ($manualZip) {
-  Write-OK "Found a manual download: $($manualZip.Name)"
-  $zipPath = $manualZip.FullName
- } else {
-  Write-Fail "No AnvilEngine2VR bundle available - cannot continue."
+   -Instructions "Download Odyssey-vr-$variant-...zip (NOT the -symbols one) from the Releases page, then drag the downloaded file onto this window." `
+   -AllowSkip $false -DownloadInfo $downloadInfo
+if ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$dlUrl) {
+ # The resolved release tag belongs to the exact asset that arrived.
+} elseif ([string]$downloadResult -eq 'retry' -and $downloadInfo.SourcePath -and
+        ([IO.Path]::GetFileName([string]$downloadInfo.SourcePath) -match ('(?i)^Odyssey-vr-' + $variant + '-(v[0-9][A-Za-z0-9._-]*)\.zip$'))) {
+ $manualTag = $matches[1]
+ if ($manualTag -ne $relTag) {
+  Write-Fail "The selected archive is $manualTag, but this route requires $relTag. No game files were changed."
   Pause-User "Press Enter to exit."; exit 1
  }
+ Write-Warn "Manual publisher archive selected for release $relTag."
+} else {
+ Write-Fail 'The selected Odyssey archive has no verifiable release name. No game files were changed.'
+ Pause-User "Press Enter to exit."; exit 1
 }
 
 # -------------------------------------------------------
@@ -270,20 +275,62 @@ Write-Step 5 5 "Installing into the game folder"
 # The zips are flat: dxgi.dll (+ openvr_api.dll for OpenVR) at the
 # root, extracted straight into the game folder next to the exe.
 # DXGI hooking means the game loads the mod on its own - no launcher.
-# Payload-verified extract (pulled from releases/LATEST - layout can
-# change any day): temp-extract, resolve real payload root via the known
-# mod file, merge into game folder, verify dxgi.dll arrived.
+# Check the selected release before changing the game. OpenVR requires
+# both DLLs from the same payload root; a leftover DLL is not proof.
+$archiveSafety = Test-ZipArchiveEntrySafety -ArchivePath $zipPath -DestinationFolder $gamePath
+if (-not $archiveSafety.Inspectable -or -not $archiveSafety.Safe -or $archiveSafety.EntryCount -eq 0) {
+ Write-Fail "The selected Odyssey archive is not a readable, safe ZIP. No game files were copied."
+ Pause-User "Press Enter to exit."; exit 1
+}
+$requiredPublisherHashes = @{}
+$sourceZip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+ $files = @($sourceZip.Entries | Where-Object { $_.Name })
+ foreach ($hook in @($files | Where-Object { $_.Name -ieq 'dxgi.dll' })) {
+  $prefix = $hook.FullName.Substring(0, $hook.FullName.Length - $hook.Name.Length)
+  $runtime = @($files | Where-Object { $_.FullName -ieq ($prefix + 'openvr_api.dll') } | Select-Object -First 1)
+  if (-not $useXR -and $runtime.Count -eq 0) { continue }
+  $requiredEntries = @($hook)
+  if (-not $useXR) { $requiredEntries += $runtime[0] }
+  foreach ($entry in $requiredEntries) {
+   if ($entry.Length -le 0) { throw "Odyssey publisher payload contains an empty $($entry.Name)." }
+   $stream = $entry.Open()
+   $sha = [Security.Cryptography.SHA256]::Create()
+   try { $requiredPublisherHashes[$entry.Name] = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+   finally { $sha.Dispose(); $stream.Dispose() }
+  }
+  break
+ }
+} catch {
+ Write-Fail "The Odyssey archive could not be checked: $_"
+ Pause-User "Press Enter to exit."; exit 1
+} finally { $sourceZip.Dispose() }
+$requiredCount = if ($useXR) { 1 } else { 2 }
+if ($requiredPublisherHashes.Count -ne $requiredCount) {
+ $missing = if ($useXR) { 'dxgi.dll' } else { 'dxgi.dll and openvr_api.dll together' }
+ Write-Fail "The selected $variant archive is missing $missing. No game files were copied."
+ Pause-User "Press Enter to exit."; exit 1
+}
 $exRes = Expand-ArchiveToTarget -ArchivePath $zipPath -TargetDir $gamePath -RelModFile "dxgi.dll" -Label "AnvilEngine2VR"
 if (-not $exRes) {
  Write-Fail "Extraction failed."
  Pause-User "Press Enter to exit."; exit 1
 }
-if (Test-Path -LiteralPath ([System.IO.Path]::Combine($gamePath, "dxgi.dll"))) {
- Write-OK "Mod files in place (dxgi.dll in the game root)."
-} else {
- Write-Fail "dxgi.dll missing after extraction - the bundle layout may have changed."
- Pause-User "Press Enter to exit."; exit 1
+foreach ($requiredName in $requiredPublisherHashes.Keys) {
+ $installedFile = [System.IO.Path]::Combine($gamePath, $requiredName)
+ $installedHash = ''
+ if (Test-Path -LiteralPath $installedFile -PathType Leaf) {
+  $stream = [IO.File]::OpenRead($installedFile)
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { $installedHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+  finally { $sha.Dispose(); $stream.Dispose() }
+ }
+ if ($installedHash -ne $requiredPublisherHashes[$requiredName]) {
+  Write-Fail "$requiredName is missing or differs from the selected $variant release after copying."
+  Pause-User "Press Enter to exit."; exit 1
+ }
 }
+Write-OK "The $variant publisher files are in place and match the selected archive."
 # Switching OpenVR -> OpenXR leaves an old openvr_api.dll behind;
 # that is harmless (dxgi.dll decides the runtime), so it stays.
 if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $zipPath -Force } catch {} }

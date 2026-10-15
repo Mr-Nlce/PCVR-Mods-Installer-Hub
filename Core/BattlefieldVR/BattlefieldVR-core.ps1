@@ -202,7 +202,7 @@ foreach ($p in @(
     "C:\Games\Battlefield 1942",
     "D:\Games\Battlefield 1942",
     "C:\Battlefield 1942"
-)) { if (-not $gamePath -and (Test-Path -LiteralPath (Join-Path $p $GAME_EXE))) { $gamePath = $p; break } }
+)) { if (-not $gamePath -and (Test-LiteralPathSafe -Path (Join-PathLexical $p $GAME_EXE) -PathType Leaf)) { $gamePath = $p; break } }
 
 if (-not $gamePath) {
     Write-Info "No Battlefield 1942 folder found in the usual places."
@@ -413,8 +413,13 @@ if ($rel) { Write-Info "Newest release: $($rel.Tag)" }
 else      { Write-Info "GitHub not reachable - using the pinned $PINNED_VER build." }
 
 $setupPath = Join-Path $env:TEMP $setupName
-$ok = Invoke-DownloadOrFallback -Url $setupUrl -Destination $setupPath -Label "BFVR setup" -ManualUrl $RELEASES
-if (-not $ok -or -not (Test-Path -LiteralPath $setupPath)) {
+$downloadInfo = @{}
+$ok = Invoke-SafeDownload -Urls @($setupUrl) -Destination $setupPath -Label "BFVR setup" -ManualUrl $RELEASES `
+    -AllowSkip $false -DownloadInfo $downloadInfo
+if (-not (Test-Path -LiteralPath $setupPath) -or
+    -not (($ok -eq $true -and [string]$downloadInfo.Url -eq [string]$setupUrl) -or
+          ([string]$ok -eq 'retry' -and $downloadInfo.SourcePath -and
+           [IO.Path]::GetFileName([string]$downloadInfo.SourcePath) -eq $setupName))) {
     Write-Fail "The BFVR setup was not downloaded."
     Pause-User "Press Enter to exit..."; exit 1
 }
@@ -443,17 +448,46 @@ Write-Host "  antivirus tools are wary of that technique. Do not switch your" -F
 Write-Host "  antivirus off; allow this one file if you are asked." -ForegroundColor DarkGray
 Pause-User "Press Enter to launch the setup - UAC required..."
 
-try { Start-Process -FilePath $setupPath -Wait -ErrorAction Stop }
+$bfvrRequired = @(
+    'BFVR\BFVR.exe', 'BFVR\BFVRClient.dll', 'BFVR\BFVRD3D8To9.dll',
+    'BFVR\BFVRPresenter.exe', 'BFVR\runtime\openxr\win64\openxr_loader.dll'
+)
+$bfvrBefore = @{}
+foreach ($relative in $bfvrRequired) {
+    $candidate = Join-Path $gamePath $relative
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+        $bfvrBefore[$relative] = (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash
+    }
+}
+
+try {
+    $setupProcess = Start-Process -FilePath $setupPath -Wait -PassThru -ErrorAction Stop
+    if (-not $setupProcess -or $setupProcess.ExitCode -ne 0) {
+        throw "Publisher setup exited with code $($setupProcess.ExitCode)."
+    }
+}
 catch {
     Write-Fail "Could not start the setup: $($_.Exception.Message)"
-    Write-Host "  Run it by hand: $setupPath" -ForegroundColor Yellow
-    Pause-User "Press Enter once you have finished the setup..."
+    Write-Host "  Check the publisher setup and rerun this installer. No success was recorded." -ForegroundColor Yellow
+    Pause-User "Press Enter to close..."
+    exit 1
 }
 
 # ---- Verify by the RESULT ----
 $modFull = Join-Path $gamePath $MOD_MARK
 Write-Host ""
-if (Test-Path -LiteralPath $modFull) {
+$bfvrMissing = @($bfvrRequired | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf) })
+$bfvrChanged = @($bfvrRequired | Where-Object {
+    $candidate = Join-Path $gamePath $_
+    (Test-Path -LiteralPath $candidate -PathType Leaf) -and
+    (-not $bfvrBefore.ContainsKey($_) -or (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash -ne $bfvrBefore[$_])
+})
+$bfvrVersionTarget = if ($rel -and $rel.Tag) { $rel.Tag } else { $PINNED_VER }
+$previousVersionFile = Join-Path $PSScriptRoot '.installed_version'
+$bfvrAlreadySame = $bfvrBefore.Count -eq $bfvrRequired.Count -and
+    (Test-Path -LiteralPath $previousVersionFile -PathType Leaf) -and
+    ((Get-Content -LiteralPath $previousVersionFile -Raw).Trim() -eq $bfvrVersionTarget)
+if ($bfvrMissing.Count -eq 0 -and ($bfvrChanged.Count -gt 0 -or $bfvrAlreadySame)) {
     Write-OK "BFVR verified: $MOD_MARK"
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $modFull -Encoding UTF8 -Force } catch {}
@@ -468,10 +502,13 @@ if (Test-Path -LiteralPath $modFull) {
     # pending update. The game-side stamp survives that.
     Save-InstalledStamp -GameDir $gamePath -Version $bfvrInstalledVersion
 } else {
-    Write-Warn "BFVR\BFVR.exe is not there - the mod does not look installed."
+    if ($bfvrMissing.Count -gt 0) { Write-Warn "BFVR setup did not provide required files: $($bfvrMissing -join ', ')" }
+    else { Write-Warn 'BFVR setup made no change to the required runtime files; this run cannot prove an install or update.' }
     Write-Host "  Checked: $gamePath" -ForegroundColor Gray
     Write-Host "  If you cancelled the setup or pointed it somewhere else, run" -ForegroundColor White
     Write-Host "  this installer again." -ForegroundColor White
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
 }
 
 # ---- The rights switch, when the game lives under Program Files ----

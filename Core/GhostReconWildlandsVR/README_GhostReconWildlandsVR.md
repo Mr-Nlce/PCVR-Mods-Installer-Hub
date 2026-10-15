@@ -6,18 +6,17 @@ stereo, adds a true first-person camera and lets the weapon follow the right
 controller. The game itself is not modified; the hook is a recoverable
 `dxgi.dll` proxy beside `GRW.exe`.
 
-## Current release and the September 15, 2026 update
+## Current release and game compatibility
 
-GRW-XR v0.11.2-test1 delays VR initialization until the game produces real
-frames and adds a black-screen diagnostic path that can fall back to flat mode.
-The mod still uses engine addresses tied to exact Wildlands executables, so this
-test build is not proof that every later Ubisoft executable is supported.
+GRW-XR **v0.13.0** restores the tested side-by-side stereo configuration after the first upload of the same tag mistakenly contained an older configuration. Reinstall with the re-issued ZIP if you saw flicker, double vision or head jitter. Its publisher setup saves the previous `grwxr.cfg` as `grwxr.cfg.previous`. The author reports an in-headset outpost run with head-following upper body, physical lean and crouch, and weapon recoil that does not shake the view. The mod still uses engine addresses tied to exact Wildlands executables, so later Ubisoft updates need their own compatibility check. The Hub Current fallback is this reviewed v0.13.0 ZIP; the separate depot below remains pinned to v0.11.1.
+
+If the game opens to a black screen and closes, disable the Ubisoft Connect in-game overlay. The publisher has reproduced a first-frame freeze with it. Disable the Steam overlay as well when troubleshooting; the mod's `install.bat` warns about these settings without changing them.
 
 The installer therefore offers two independent routes:
 
 - **Current:** the normal Steam or Ubisoft Connect installation plus the newest
   GRW-XR prerelease. This remains the right choice after the author publishes a
-  release compatible with the September 15 game update.
+  release compatible with the September 15, 2026 game update.
 - **Build 24821571:** a separate Steam depot copy of the last verified game
   build plus pinned GRW-XR v0.11.1. The normal Steam folder is not overwritten.
   This route contains the English or German base campaign; paid DLC depots are
@@ -30,7 +29,7 @@ of downloads and about 77.3 GiB once assembled.
 
 ## Current capabilities and limits
 
-- Fullscreen head-tracked stereo with alternate-eye rendering and configurable
+- Fullscreen head-tracked side-by-side stereo with configurable
   field of view.
 - True first person follows standing, crouching and prone; the local head is
   hidden in the current build.

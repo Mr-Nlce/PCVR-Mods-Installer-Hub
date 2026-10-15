@@ -23,9 +23,17 @@ $GRAND_VERSION = ''
 function Get-GrandVersionFromText {
  param([string]$Text)
  if (-not $Text) { return '' }
- if ($Text -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { return ('v' + $matches[1]) }
- if ($Text -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { return ('v' + $matches[1]) }
- if ($Text -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { return ('v' + $matches[1]) }
+ if ($Text -match '(?i)Test Build\s+v?(\d+\.\d+\.\d+)') { return ('v' + $matches[1]) }
+ # The publisher README contains the entire version history. An earlier
+ # pattern matched a stray GRAND mention near v0.5.2 before the later v0.6.1
+ # entry, so a new install was permanently recorded as an older release.
+ $history=[regex]::Matches($Text,'(?im)^\s*-\s*v(\d+\.\d+\.\d+)\s*:')
+ if($history.Count){
+  $newest=$null
+  foreach($item in $history){$candidate=[version]$item.Groups[1].Value;if($null -eq $newest -or $candidate -gt $newest){$newest=$candidate}}
+  return ('v'+$newest.ToString())
+ }
+ if ($Text -match '(?im)\bGRAND[^\r\n<]{0,60}\bv?(\d+\.\d+\.\d+)') { return ('v' + $matches[1]) }
  return ''
 }
 
@@ -34,6 +42,16 @@ function Get-GrandPublishedVersion {
   $page = Invoke-WebRequest -Uri 'https://www.alienisolationvr.com/' -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop
   return (Get-GrandVersionFromText -Text ([string]$page.Content))
  } catch { return '' }
+}
+
+function Get-InstalledFileSha256 {
+ param([string]$Path)
+ $stream = [IO.File]::OpenRead($Path)
+ try {
+  $sha = [Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','') }
+  finally { $sha.Dispose() }
+ } finally { $stream.Dispose() }
 }
 
 function Write-Header {
@@ -139,46 +157,71 @@ $r = Invoke-DownloadOrFallback -Url $GRAND_URL -Destination $grandZip `
         -SkipMessage "Skipped - GRAND hands/QoL overhaul not installed (MotherVR alone will still work, just without hands)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "GRAND" }
+if ($failed.Count -gt 0) {
+ Write-Fail "Both advertised VR components are required. No installation was marked complete."
+ Pause-User "Press Enter to exit and retry the missing download..."
+ exit 1
+}
 
 # STEP 3: Install
 Write-Step 3 4 "Installing"
-
-# MotherVR releases may wrap their payload in one version-named root folder.
-if ("MotherVR" -notin $failed) {
- try {
- $mvrExtract = Join-Path $tmp "MotherVR"
- Expand-Archive -Path $mvrZip -DestinationPath $mvrExtract -Force
- # Unwrap a single release root folder when present.
- $root = Get-ChildItem -Path $mvrExtract -Directory | Select-Object -First 1
- $payload = if ($root) { $root.FullName } else { $mvrExtract }
- # Copy only DLL files into game root
- Get-ChildItem -Path $payload -File -Filter "*.dll" | ForEach-Object {
- Copy-Item $_.FullName (Join-Path $gamePath $_.Name) -Force
- Write-Info "Installed: $($_.Name)"
+$changed = New-Object 'System.Collections.Generic.List[object]'
+try {
+ # Verify both selected archives and their functional payloads before the
+ # first game file is changed. A prior install's DLL is not proof that the
+ # newly selected archive installed successfully.
+ $mvrExtract = Join-Path $tmp 'MotherVR'
+ $grandExtract = Join-Path $tmp 'GRAND'
+ foreach ($archive in @(@($mvrZip,$mvrExtract),@($grandZip,$grandExtract))) {
+  $safety = Test-ZipArchiveEntrySafety -ArchivePath $archive[0] -DestinationFolder $archive[1]
+  if (-not $safety.Inspectable -or -not $safety.Safe -or $safety.EntryCount -eq 0) { throw "Unsafe or unreadable VR archive: $($archive[0])" }
+  Expand-Archive -LiteralPath $archive[0] -DestinationPath $archive[1] -Force -ErrorAction Stop
  }
- if (Test-Path -LiteralPath "$gamePath\dxgi.dll") { Write-OK "MotherVR: dxgi.dll OK." }
- else { Write-Fail "dxgi.dll missing after install!"; $failed += "MotherVR" }
- } catch { Write-Fail "MotherVR error: $_"; $failed += "MotherVR" }
-}
-
-# GRAND: ZIP structure is flat - AIWin11Fix.reg, grand.ini, XINPUT1_3.dll, readme.txt
-# All files except readme go directly into the game folder
-if ("GRAND" -notin $failed) {
- try {
- $grandExtract = Join-Path $tmp "GRAND"
- Expand-Archive -Path $grandZip -DestinationPath $grandExtract -Force
- if (-not $GRAND_VERSION) {
-  $grandReadme = Get-ChildItem -LiteralPath $grandExtract -File -Filter 'readme*' -ErrorAction SilentlyContinue | Select-Object -First 1
-  if ($grandReadme) { $GRAND_VERSION = Get-GrandVersionFromText -Text (Get-Content -LiteralPath $grandReadme.FullName -Raw -ErrorAction SilentlyContinue) }
+ $motherHook = Get-ChildItem -LiteralPath $mvrExtract -Recurse -File -Filter 'dxgi.dll' -ErrorAction Stop | Select-Object -First 1
+ if (-not $motherHook) { throw 'MotherVR archive does not contain dxgi.dll.' }
+ $motherFiles = @(Get-ChildItem -LiteralPath $motherHook.DirectoryName -File -Filter '*.dll' -ErrorAction Stop)
+ $grandFiles = @(Get-ChildItem -LiteralPath $grandExtract -File -ErrorAction Stop | Where-Object { $_.Name -ine 'readme.txt' })
+ foreach ($required in @('XINPUT1_3.dll','grand.ini')) {
+  if (-not @($grandFiles | Where-Object { $_.Name -ieq $required }).Count) { throw "GRAND archive does not contain $required." }
  }
- # Copy every file (except readme.txt) directly into game folder
- Get-ChildItem -Path $grandExtract -File | Where-Object { $_.Name -ne "readme.txt" } | ForEach-Object {
- Copy-Item $_.FullName (Join-Path $gamePath $_.Name) -Force
- Write-Info "Installed: $($_.Name)"
+ $grandReadme = Get-ChildItem -LiteralPath $grandExtract -File -Filter 'readme*' -ErrorAction SilentlyContinue | Select-Object -First 1
+ if ($grandReadme) {
+  $archiveVersion = Get-GrandVersionFromText -Text (Get-Content -LiteralPath $grandReadme.FullName -Raw -ErrorAction Stop)
+  if ($archiveVersion) { $GRAND_VERSION = $archiveVersion }
  }
- if (Test-Path -LiteralPath "$gamePath\XINPUT1_3.dll") { Write-OK "GRAND: XINPUT1_3.dll OK." }
- else { Write-Fail "XINPUT1_3.dll missing after install!"; $failed += "GRAND" }
- } catch { Write-Fail "GRAND error: $_"; $failed += "GRAND" }
+ if (-not $GRAND_VERSION) { throw 'The selected GRAND package has no trackable version.' }
+ $assets = @($motherFiles) + @($grandFiles)
+ if (@($assets | Group-Object Name | Where-Object Count -gt 1).Count) { throw 'The selected VR packages contain conflicting destination filenames.' }
+ $index = 0
+ foreach ($asset in $assets) {
+  $dest = Join-Path $gamePath $asset.Name
+  $backup = Join-Path $tmp ("original-$index-$($asset.Name)")
+  $existed = Test-Path -LiteralPath $dest -PathType Leaf
+  if ($existed) { Copy-Item -LiteralPath $dest -Destination $backup -Force -ErrorAction Stop }
+  $changed.Add([pscustomobject]@{ Source=$asset.FullName; Destination=$dest; Backup=$backup; Existed=$existed }) | Out-Null
+  $index++
+ }
+ foreach ($item in $changed) {
+  Copy-Item -LiteralPath $item.Source -Destination $item.Destination -Force -ErrorAction Stop
+  if ((Get-InstalledFileSha256 -Path $item.Source) -ne
+      (Get-InstalledFileSha256 -Path $item.Destination)) {
+   throw "Installed file differs from the selected archive: $($item.Destination)"
+  }
+  Write-Info "Installed: $(Split-Path -Leaf $item.Destination)"
+ }
+ Write-OK 'MotherVR and GRAND publisher files verified in the game folder.'
+} catch {
+ Write-Fail "VR file installation failed: $_"
+ $rollbackFailed = $false
+ foreach ($item in $changed) {
+  try {
+   if ($item.Existed) { Copy-Item -LiteralPath $item.Backup -Destination $item.Destination -Force -ErrorAction Stop }
+   elseif (Test-Path -LiteralPath $item.Destination) { Remove-Item -LiteralPath $item.Destination -Force -ErrorAction Stop }
+  } catch { $rollbackFailed = $true; Write-Fail "Could not restore $($item.Destination): $_" }
+ }
+ if ($rollbackFailed) { Write-Warn 'Inspect the game folder before retrying; some original files could not be restored.' }
+ Pause-User 'Press Enter to exit without marking installation complete.'
+ exit 1
 }
 
 # STEP 4: Windows 11 registry fix (uses AIWin11Fix.reg already in game folder from GRAND)
@@ -195,14 +238,38 @@ if (-not $isWin11) {
  else { Write-Warn "regedit exit code: $($result.ExitCode)" }
  } else { Write-Fail "AIWin11Fix.reg not found (GRAND install may have failed)." }
 }
-
-try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
+if ($isWin11 -and -not $win11FixDone) {
+ Write-Fail 'The required Windows 11 registry step failed. No installation was marked complete.'
+ Pause-User 'Press Enter to exit and retry after checking the installer log.'
+ exit 1
+}
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("MotherVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
-if (("GRAND" -notin $failed) -and $GRAND_VERSION) {
- Save-InstalledStamp -GameDir $gamePath -Version $GRAND_VERSION -HubDir $PSScriptRoot
+Start-Sleep -Milliseconds 500
+$changedAfterCopy = @($changed | Where-Object {
+ -not (Test-Path -LiteralPath $_.Destination -PathType Leaf) -or
+ (Get-InstalledFileSha256 -Path $_.Source) -ne (Get-InstalledFileSha256 -Path $_.Destination)
+})
+if ($changedAfterCopy.Count -gt 0 -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'dxgi.dll') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'XINPUT1_3.dll') -PathType Leaf) -or
+    -not $GRAND_VERSION) {
+ Write-Fail 'A required VR file changed or disappeared after copy. No installation was marked complete.'
+ foreach ($item in $changed) {
+  try {
+   if ($item.Existed) { Copy-Item -LiteralPath $item.Backup -Destination $item.Destination -Force -ErrorAction Stop }
+   elseif (Test-Path -LiteralPath $item.Destination) { Remove-Item -LiteralPath $item.Destination -Force -ErrorAction Stop }
+  } catch { Write-Fail "Could not restore $($item.Destination): $_" }
+ }
+ Pause-User 'Press Enter to exit and retry setup.'
+ exit 1
 }
+$grandEvidence = Join-Path $gamePath '.pcvrhub_grand_version_evidence'
+$grandHash = Get-InstalledFileSha256 -Path (Join-Path $gamePath 'XINPUT1_3.dll')
+[IO.File]::WriteAllText($grandEvidence,($GRAND_VERSION+"`n"+$grandHash),[Text.UTF8Encoding]::new($false))
+Save-InstalledStamp -GameDir $gamePath -Version $GRAND_VERSION -HubDir $PSScriptRoot
+try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
 
 # Summary
 Clear-Host

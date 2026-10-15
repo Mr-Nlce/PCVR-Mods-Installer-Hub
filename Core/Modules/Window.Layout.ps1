@@ -21,7 +21,7 @@ $xaml = @"
         <!-- No bottom border here on purpose: the FilterBar below
              carries its own bottom divider, and stacking two
              hairlines makes the band feel boxed-in. -->
-        <Border x:Name="HeaderBorder" Grid.Row="0" Background="#0d0d0f" Padding="28,20,28,14" Panel.ZIndex="40">
+        <Border x:Name="HeaderBorder" Grid.Row="0" Padding="28,25,28,19" ClipToBounds="True" Panel.ZIndex="40" Background="#0f0f12">
             <Grid x:Name="HeaderGrid">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -33,32 +33,33 @@ $xaml = @"
                     <StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- VR Headset glyph -->
-                        <Canvas x:Name="HeaderVrIcon" Width="32" Height="17" Margin="0,2,10,0" VerticalAlignment="Center"
-                                Background="Transparent" Cursor="Hand" ToolTip="Switch style">
+                        <Canvas x:Name="HeaderVrIcon" Width="70" Height="40" Margin="0,0,15,0" VerticalAlignment="Center"
+                                Background="Transparent" Cursor="Hand" ToolTip="Switch header style">
                             <Canvas.Effect>
-                                <DropShadowEffect Color="#dd6600" BlurRadius="9" ShadowDepth="0" Opacity="0.6"/>
+                                <DropShadowEffect Color="#ff8a22" BlurRadius="18" ShadowDepth="0" Opacity="0.85"/>
                             </Canvas.Effect>
-                            <Path Stroke="#dd6600" StrokeThickness="1.5" Fill="Transparent"
-                                  Data="M5,3 H27 Q30,3 30,6 V11 Q30,14 27,14 H21 Q19,14 18,12.5 L17,11 Q16,10 15,11 L14,12.5 Q13,14 11,14 H5 Q2,14 2,11 V6 Q2,3 5,3 Z"/>
-                            <Ellipse Canvas.Left="7"  Canvas.Top="7" Width="3" Height="3" Fill="#dd6600"/>
-                            <Ellipse Canvas.Left="22" Canvas.Top="7" Width="3" Height="3" Fill="#dd6600"/>
+                            <Viewbox Width="70" Height="40">
+                                <Canvas Width="56" Height="32">
+                                    <Path Stroke="#ff8a22" StrokeThickness="2.4" Fill="#171019"
+                                          Data="M9,5 H47 Q52,5 52,10 V21 Q52,26 47,26 H37 Q34,26 32,23 L30,20 Q28,18 26,20 L24,23 Q22,26 19,26 H9 Q4,26 4,21 V10 Q4,5 9,5 Z"/>
+                                    <Ellipse Canvas.Left="13" Canvas.Top="14" Width="4.5" Height="4.5" Fill="#ff992a"/>
+                                    <Ellipse Canvas.Left="39" Canvas.Top="14" Width="4.5" Height="4.5" Fill="#ff992a"/>
+                                </Canvas>
+                            </Viewbox>
                         </Canvas>
-                        <Grid x:Name="HeaderTitleGrid" VerticalAlignment="Center">
-                            <!-- Glow layer: a hidden-color clone carrying only the
-                                 DropShadow. It is NOT the element that scales on hover,
-                                 so the glow stays crisp during the hover-grow. -->
-                            <TextBlock x:Name="HeaderHubTitleGlow" Text="PCVR Mods Installer Hub"
-                                       FontSize="22" FontWeight="Bold"
-                                       Foreground="#3a8add" FontFamily="Segoe UI"
-                                       IsHitTestVisible="False">
-                                <TextBlock.Effect>
-                                    <DropShadowEffect Color="#3a8add" BlurRadius="16"
-                                                      ShadowDepth="0" Opacity="0.45"/>
-                                </TextBlock.Effect>
+                        <Grid x:Name="HeaderTitleGrid" VerticalAlignment="Center" Height="48">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="33"/>
+                                <RowDefinition Height="15"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="HeaderHubTitle" Grid.Row="0" FontSize="28" FontWeight="Bold"
+                                       Foreground="White" FontFamily="Segoe UI" VerticalAlignment="Center">
+                                <Run Text="PCVR "/><Run Text="MODS" Foreground="#ff8a22"/>
                             </TextBlock>
-                            <TextBlock x:Name="HeaderHubTitle" Text="PCVR Mods Installer Hub"
-                                       FontSize="22" FontWeight="Bold"
-                                       Foreground="White" FontFamily="Segoe UI"/>
+                            <TextBlock x:Name="HeaderHubSubtitle" Grid.Row="1" Text="I N S T A L L E R  H U B" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="#c8d2e0" FontFamily="Segoe UI" VerticalAlignment="Top"/>
+                            <TextBlock x:Name="HeaderHubTitleCompact" Grid.RowSpan="2" Text="PCVR Hub" FontSize="27" FontWeight="Bold"
+                                       Foreground="White" FontFamily="Segoe UI" Visibility="Collapsed" VerticalAlignment="Center"/>
                         </Grid>
                         <Border x:Name="VersionBadge" Background="#1e1e2a" CornerRadius="4"
                                 Margin="10,4,0,0" Padding="6,2,6,2"
@@ -68,10 +69,6 @@ $xaml = @"
                                        FontFamily="Segoe UI"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock x:Name="HeaderTagline" Text="Install n!ce VR mods for your PC games"
-                               FontSize="11" FontWeight="Medium" Foreground="#555568"
-                               FontFamily="Segoe UI" Margin="42,2,0,0"
-                               HorizontalAlignment="Left"/>
                     <!-- Update Banner (hidden by default) -->
                     <!-- Background stays #1a2e1a: Show-UpdateBanner swaps it on
                          hover and would overwrite anything else. The banner is
@@ -124,7 +121,7 @@ $xaml = @"
                              solid Fill so they read clearly on
                              both the dark resting bg and the
                              brighter active bg. -->
-                        <Grid Width="14" Height="14"
+                        <Grid x:Name="DiscoverGlyphHost" Width="14" Height="14"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center">
                             <Grid.RowDefinitions>
@@ -263,14 +260,14 @@ $xaml = @"
         </Border>
 
         <!-- Filter Buttons -->
-        <!-- Solid #0d0d0f background with a hairline bottom border:
+        <!-- Plain background with a hairline bottom border:
              the FilterBar must read as a distinct strip below the
              header, otherwise content scrolling up under it looks
              like it dissolves into nothing. The TOP divider (above
              the bar, attached to the header) is removed instead -
              one separator is enough; with two the band feels boxed-in. -->
-        <Border Grid.Row="1" x:Name="FilterBar" Background="#0d0d0f" Padding="28,0,28,12"
-                BorderThickness="0,0,0,1" BorderBrush="#1a1a22">
+        <Border Grid.Row="1" x:Name="FilterBar" Padding="28,0,28,12"
+                BorderThickness="0,0,0,1" BorderBrush="#1a1a22" Background="#0f0f12">
             <DockPanel LastChildFill="False">
                 <StackPanel x:Name="ScaleStack" Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
                     <!-- S/M/L size switcher. Matches the new glass
@@ -1124,10 +1121,68 @@ $xaml = @"
                         </Grid>
                     </Border>
 
-                    <!-- Portrait tile grid - stays centered as before. -->
-                    <WrapPanel x:Name="DiscoverTilesPanel"
-                               Orientation="Horizontal"
-                               HorizontalAlignment="Center"/>
+                    <!-- The label occupies the narrow space to the left of
+                         the portrait grid only while recent games are shown. -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition x:Name="LibraryRecentColumn" Width="0"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border x:Name="LibraryRecentHost" Grid.Column="0"
+                                Width="112" Height="56" Margin="0,14,8,0"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                CornerRadius="11" Background="#0dffffff"
+                                BorderThickness="1" BorderBrush="#22ffffff"
+                                Padding="8,6" Cursor="Hand"
+                                Visibility="Collapsed" Panel.ZIndex="2">
+                            <Grid>
+                                <StackPanel x:Name="LibraryRecentLabel" Orientation="Horizontal"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Path Data="M 0,0 L 11,7 L 0,14 Z" Fill="#3fb6c8"
+                                          Width="11" Height="14" Stretch="Uniform"
+                                          Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="LibraryRecentWideTitle" Text="Recently Played"
+                                               Foreground="White" FontFamily="Segoe UI"
+                                               FontWeight="SemiBold" FontSize="12"
+                                               VerticalAlignment="Center" Visibility="Collapsed"/>
+                                    <StackPanel x:Name="LibraryRecentNarrowTitle"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="Recently" Foreground="White"
+                                                   FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"/>
+                                        <TextBlock Text="Played" Foreground="White"
+                                                   FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="11"/>
+                                    </StackPanel>
+                                    <Border Width="22" Height="22" CornerRadius="11"
+                                            Background="#21462b" BorderThickness="1"
+                                            BorderBrush="#44cc66" Margin="7,0,0,0"
+                                            VerticalAlignment="Center">
+                                        <TextBlock x:Name="LibraryRecentCount" Text="0"
+                                                   Foreground="#b9f5c7" FontFamily="Segoe UI"
+                                                   FontWeight="Bold" FontSize="11"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                </StackPanel>
+                                <StackPanel x:Name="LibraryRecentManage" VerticalAlignment="Center"
+                                            Visibility="Collapsed" Background="#1a1a22">
+                                    <Border x:Name="LibraryRecentClose" BorderBrush="#3a3a48"
+                                            BorderThickness="1" CornerRadius="3" Padding="6,2"
+                                            Margin="0,0,0,4" Cursor="Hand">
+                                        <TextBlock Text="Close" Foreground="#cccccc"
+                                                   FontFamily="Segoe UI" FontSize="10"/>
+                                    </Border>
+                                    <Border x:Name="LibraryRecentDisable" BorderBrush="#3a3a48"
+                                            BorderThickness="1" CornerRadius="3" Padding="5,2"
+                                            Cursor="Hand">
+                                        <TextBlock Text="Always disable" Foreground="#cccccc"
+                                                   FontFamily="Segoe UI" FontSize="9"/>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <WrapPanel x:Name="DiscoverTilesPanel" Grid.Column="1"
+                                   Orientation="Horizontal"
+                                   HorizontalAlignment="Center"/>
+                    </Grid>
                 </StackPanel>
             </ScrollViewer>
 
@@ -1271,7 +1326,7 @@ $xaml = @"
                                    VerticalAlignment="Center"/>
                     </Border>
                     <WrapPanel x:Name="OvGenreFilter" Margin="0,0,0,14"
-                               HorizontalAlignment="Left" MaxWidth="780"/>
+                               HorizontalAlignment="Left" MaxWidth="860"/>
 
                     <!-- Power-Filter mode toggle. Click the pill to
                          switch between Cumulative ("Your PC" - shows
@@ -1546,20 +1601,20 @@ function global:Update-HubHeaderResponsiveLayout {
     $narrow = ($width -lt 620)
 
     $title = $global:window.FindName('HeaderHubTitle')
-    $glow = $global:window.FindName('HeaderHubTitleGlow')
+    $subtitle = $global:window.FindName('HeaderHubSubtitle')
+    $compactTitle = $global:window.FindName('HeaderHubTitleCompact')
     $titleGrid = $global:window.FindName('HeaderTitleGrid')
     $vrIcon = $global:window.FindName('HeaderVrIcon')
     $version = $global:window.FindName('VersionBadge')
-    $tagline = $global:window.FindName('HeaderTagline')
     $order = $global:window.FindName('OrderPill')
     $prefix = $global:window.FindName('OrderPrefix')
     $searchColumn = $global:window.FindName('HeaderSearchColumn')
     $header = $global:window.FindName('HeaderBorder')
     $scanSlot = $global:window.FindName('TopScanSlot')
 
-    $caption = if ($compact) { 'PCVR Hub' } else { 'PCVR Mods Installer Hub' }
-    if ($title) { $title.Text = $caption }
-    if ($glow) { $glow.Text = $caption }
+    if ($title) { $title.Visibility = if ($compact) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible } }
+    if ($subtitle) { $subtitle.Visibility = if ($compact) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible } }
+    if ($compactTitle) { $compactTitle.Visibility = if ($compact) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
     if ($titleGrid) {
         $titleGrid.Visibility = if ($narrow) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
     }
@@ -1569,9 +1624,6 @@ function global:Update-HubHeaderResponsiveLayout {
     if ($version) {
         $version.Visibility = if ($compact) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
     }
-    if ($tagline) {
-        $tagline.Visibility = if ($compact) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
-    }
     if ($prefix) {
         $prefix.Visibility = if ($narrow) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
     }
@@ -1579,9 +1631,9 @@ function global:Update-HubHeaderResponsiveLayout {
     if ($searchColumn) { $searchColumn.Width = [System.Windows.GridLength]::new($(if ($narrow) { 115 } else { 165 })) }
     if ($header) {
         $header.Padding = if ($narrow) {
-            [System.Windows.Thickness]::new(14, 20, 14, 14)
+            [System.Windows.Thickness]::new(14, 25, 14, 19)
         } else {
-            [System.Windows.Thickness]::new(28, 20, 28, 14)
+            [System.Windows.Thickness]::new(28, 25, 28, 19)
         }
     }
     if ($scanSlot) {

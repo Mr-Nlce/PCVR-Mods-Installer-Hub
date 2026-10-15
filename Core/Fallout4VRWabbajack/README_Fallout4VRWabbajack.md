@@ -56,4 +56,8 @@ story and world.
 4. Click Begin and let Wabbajack download and build the modlist.
 5. When it finishes, launch the game through the Mod Organizer 2 instance that Wabbajack created in that mod-list installation directory.
 
+## Start through the Hub
+
+On this game page, choose **Locate VR mod start app** and select the launcher for your finished modlist, such as its Mod Organizer 2 app or a dedicated VR shortcut. Confirm the displayed path. The Hub then marks this game VR Ready and **Start in VR** opens that exact app. If the path changes, choose **Change VR start app**; **Clear VR start app** forgets only the link. The Hub cannot verify that a modlist is enabled inside the external launcher.
+
 >>> War never changes. The wasteland's just life-size now.

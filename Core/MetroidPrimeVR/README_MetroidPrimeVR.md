@@ -1,9 +1,11 @@
 # Metroid Prime VR (PrimedGun)
 
-PrimedGun is a **Dolphin XR Redux**-based build by **Nobbie** focused on a proper VR
-experience for **Metroid Prime** (GameCube): 6DOF arm-cannon tracking, visor head
+## About the Game
+
+PrimedGun is a Dolphin XR Redux-based build by Nobbie focused on a proper VR
+experience for Metroid Prime (GameCube): 6DOF arm-cannon tracking, visor head
 tracking with gesture input, full directional movement, improved gun-based targeting
-and grapple, and an in-headset settings menu. It runs **standalone** - you do not need
+and grapple, and an in-headset settings menu. It runs standalone - you do not need
 Dolphin installed, and it is not a hook or injector.
 
 > Metroid Prime is a critically acclaimed first-person action-adventure game developed
@@ -20,24 +22,31 @@ Dolphin installed, and it is not a hook or injector.
 - Easy cannon-texture swapping tool.
 - In-headset settings menu.
 
-## Current v1.1.6 update
+## Current Windows PCVR update: v1.1.7
 
 PrimedGun v1.1.6 adds a setup window, repairs movement and jumping, disables
 charged-shot recoil by default, adds mirror options and additional safeguards,
 improves Valve Index grip handling and lets a charging shot attract pickups.
 
+The publisher first released v1.1.7 for Quest only. The later
+v1.1.7-windows release now includes PrimedGun.v1.1.7.zip for PCVR.
+It caches texture and shader hashes, reduces CPU work through headset-aware
+culling, skips helmet rendering when disabled, adds in-headset shader-build
+progress, and makes skyboxes appear distant by default. The Hub tracks the
+Windows ZIP rather than the Quest APK. The offline fallback remains v1.1.6.
+
 ## Requirements
 
-- A **Metroid Prime - NTSC 1.0 (Revision 0)** GameCube disc image
-  (`.iso` / `.rvz` / `.gcm`). **NTSC 1.0 / rev 0 only - not rev 1 or rev 2.**
+- A Metroid Prime - NTSC 1.0 (Revision 0) GameCube disc image
+  (`.iso` / `.rvz` / `.gcm`). NTSC 1.0 / rev 0 only - not rev 1 or rev 2.
   You can verify the disc revision in Dolphin.
-- A PC VR headset with **SteamVR**. The Oculus/Meta runtime is **not recommended**.
-- PC power tier: **Strong** (roughly RTX 4070 / R5 7600 class).
+- A PC VR headset with SteamVR. The Oculus/Meta runtime is not recommended.
+- PC power tier: Strong (roughly RTX 4070 / R5 7600 class).
 
 No game ROM is downloaded or shipped. Only the PrimedGun application is fetched from
 the official GitHub releases.
 
-**Standalone:** PrimedGun is not a Dolphin hook/injector - it ships as its own program.
+Standalone: PrimedGun is not a Dolphin hook/injector - it ships as its own program.
 The Hub installs it into its own clean folder, separate from any Dolphin install (do
 not extract it on top of an existing Dolphin, that breaks things). To carry over a save
 from Dolphin, copy your Dolphin memory-card data into PrimedGun's `User` folder.
@@ -48,7 +57,7 @@ from Dolphin, copy your Dolphin memory-card data into PrimedGun's `User` folder.
 2. Accept `C:\Games\Metroid Prime VR` or pick your own folder.
 3. The installer downloads the latest PrimedGun release, enables Dolphin portable
    mode (`portable.txt`), creates a `ROM` subfolder and pre-points the game list at it.
-4. Drop your **Metroid Prime NTSC 1.0 (rev 0)** ISO into:
+4. Drop your Metroid Prime NTSC 1.0 (rev 0) ISO into:
    `C:\Games\Metroid Prime VR\ROM`
 
 ### Updates and reinstalls
@@ -63,39 +72,36 @@ backup automatically the next time the installer starts.
 ## How to play
 
 1. Put your ISO in the `ROM` folder (see above).
-2. Start **SteamVR** first.
-3. Launch with **Start in VR** in the Hub, or the **Metroid Prime VR** desktop shortcut (or `PrimedGun.exe`).
-4. Your ROM should already be listed - select it and press **Play**.
-   If it is not listed, click **Select Game...**, pick the ISO once, then press **Play**.
+2. Start SteamVR first.
+3. Launch with Start in VR in the Hub, or the Metroid Prime VR desktop shortcut (or `PrimedGun.exe`).
+4. Your ROM should already be listed - select it and press Play.
+   If it is not listed, click Select Game..., pick the ISO once, then press Play.
 
 ## VR controls
 
 ![Controller layout](ControllerLayout.jpg)
 
-Left controller:
-
-- [[Stick]] Move
-- [[Stick Click]] VR Settings
-- [[Y]] Start / Pause
-- [[X]] Morph Ball
-- [[Grip]] Map
-- [[Trigger]] Lock-on
-
-Right controller:
-
-- [[Stick]] Look / Jump
-- [[Stick Click]] Set Height
-- [[B]] Beam Select
-- [[A]] Select
-- [[Grip]] Missiles
-- [[Trigger]] Shoot
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move |
+| [[Left Stick Click]] | Open VR settings |
+| [[Y]] | Start / pause |
+| [[X]] | Morph Ball |
+| [[Left Grip]] | Map |
+| [[Left Trigger]] | Lock on |
+| [[Right Stick]] | Look / jump |
+| [[Right Stick Click]] | Set height |
+| [[B]] | Select beam |
+| [[A]] | Select |
+| [[Right Grip]] | Missiles |
+| [[Right Trigger]] | Shoot |
 
 Tip: place your off-hand near your head and use the control stick to change visors.
 
 ## Credits
 
-- Created by **Nobbie**.
-- Huge thanks to **iChris4** for Dolphin XR Redux development, and to the Dolphin team.
+- Created by Nobbie.
+- Huge thanks to iChris4 for Dolphin XR Redux development, and to the Dolphin team.
 - Thanks to the Metroid Prime modding community and the early testers.
 - Dolphin VR Discord: https://discord.gg/GdmffzCTrh
 
@@ -103,3 +109,5 @@ Tip: place your off-hand near your head and use the control stick to change viso
 
 - Info / source: https://github.com/Nobbie248/PrimedGun
 - Latest release: https://github.com/Nobbie248/PrimedGun/releases/latest
+
+>>> Scan the unknown, lock on, and let the arm cannon do the talking.

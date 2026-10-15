@@ -5,7 +5,7 @@
 
 $Host.UI.RawUI.WindowTitle = "Star Wars Episode I Racer PCVR Installer"
 $MOD_NAME = "Racer PCVR"
-$MOD_VERSION = "v1.4.1"
+$MOD_VERSION = "v1.5"
 $MOD_AUTHOR = "GameOrDie007"
 $GAME_EXE = "SWEP1RCR.EXE"
 $GAME_APPID = "808910"

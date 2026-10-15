@@ -34,8 +34,16 @@ Note: the game exe lives in `New Star GP\release\NSGP.exe`, so the mod (winhttp.
 
 Launch New Star GP normally via Steam - it starts in VR automatically. Keyboard or gamepad by default.
 
-- **Recenter**: click [[Left Stick]] + [[Right Stick]] together, press [[F1]], or HOLD the gamepad [[Start]] button. Look forward and keep your head **horizontal** while recentering (pitch is decoupled off for this mod).
-- **Hide / show UI**: [[F2]], HOLD the gamepad [[Back]]/[[Share]] button, or click [[Left Stick]] + press [[R1]]/[[RB]].
+| Button | Action |
+|---|---|
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter the VR view. |
+| [[F1]] | Recenter the VR view. |
+| [[Start]] (hold) | Recenter the VR view. |
+| [[F2]] | Hide or show the UI. |
+| [[Back]] / [[Share]] (hold) | Hide or show the UI. |
+| [[Left Stick Click]] + [[R1]] / [[RB]] | Hide or show the UI. |
+
+Look forward and keep your head horizontal when recentering; this mod decouples pitch.
 
 ### Using VR controllers as a gamepad (optional)
 
@@ -54,6 +62,7 @@ worldScale = 1.0    # default 1.0; increase = world smaller, decrease = world bi
 
 ## Known issues
 
+- On startup the headset may remain black until you press [[A]]. The mod author confirmed this behavior in the download thread. If the game loses focus as VR starts, return focus to its window; starting SteamVR first did not resolve that user's focus issue.
 - A few UI quirks - e.g. the "confirm to start a race" dialog box can appear under everything.
 - Quickly made mod; if you hit a game-breaking issue, let Astienth know on Discord.
 

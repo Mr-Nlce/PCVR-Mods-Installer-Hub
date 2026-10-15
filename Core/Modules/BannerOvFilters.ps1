@@ -1475,7 +1475,19 @@ function global:Open-DiscoverDetailFromList {
 }
 
 # Toggle handler
+$global:ViewSwitchQueued = $false
 $discoverBtn.Add_PreviewMouseLeftButtonDown({
+    if ($global:ViewSwitchQueued) { return }
+    $switchToken = Start-ViewSwitchIndicator
+    $global:ViewSwitchQueued = $true
+    try {
+    # As with Scan games, let WPF render the lit glyph before any synchronous
+    # tile building or status refresh blocks the UI dispatcher.
+    [void]$window.Dispatcher.BeginInvoke(
+        [System.Windows.Threading.DispatcherPriority]::Input,
+        [Action]{
+    $switchCompleted = $false
+    try {
     # A detail/overview sub-view lives INSIDE discoverHost, so the
     # toggle below only collapses the host and leaves the description
     # page (and its filter-pill selection) alive underneath - it stays
@@ -1490,15 +1502,15 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
         if (Get-Command Hide-DiscoverOverview -ErrorAction SilentlyContinue) { Hide-DiscoverOverview }
         return
     }
-    if ($discoverHost.Visibility -eq [System.Windows.Visibility]::Visible) {
+    if ($global:discoverHost.Visibility -eq [System.Windows.Visibility]::Visible) {
         if ($global:HoverMediaElement) {
             try { $global:HoverMediaElement.Stop()  } catch { }
             try { $global:HoverMediaElement.Close() } catch { }
             $global:HoverMediaElement.Source = $null
             $global:HoverMediaElement = $null
         }
-        $discoverHost.Visibility = [System.Windows.Visibility]::Collapsed
-        if ($listScroll) { $listScroll.Visibility = [System.Windows.Visibility]::Visible }
+        $global:discoverHost.Visibility = [System.Windows.Visibility]::Collapsed
+        if ($global:listScroll) { $global:listScroll.Visibility = [System.Windows.Visibility]::Visible }
         Update-FilterBarForMode
         Update-DiscoverBtnState
         if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
@@ -1516,8 +1528,8 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
             $global:discoverOverview.Visibility = [System.Windows.Visibility]::Collapsed
         }
         $global:discoverTiles.Visibility  = [System.Windows.Visibility]::Visible
-        $discoverHost.Visibility = [System.Windows.Visibility]::Visible
-        if ($listScroll) { $listScroll.Visibility = [System.Windows.Visibility]::Collapsed }
+        $global:discoverHost.Visibility = [System.Windows.Visibility]::Visible
+        if ($global:listScroll) { $global:listScroll.Visibility = [System.Windows.Visibility]::Collapsed }
         Update-FilterBarForMode
         Update-DiscoverBtnState
         if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
@@ -1526,5 +1538,16 @@ $discoverBtn.Add_PreviewMouseLeftButtonDown({
         if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
             Set-HubSetting -Key "startView" -Value "LIBRARY"
         }
+    }
+    $switchCompleted = $true
+    } finally {
+        Stop-ViewSwitchIndicator -Token $switchToken -Immediate:(-not $switchCompleted)
+        $global:ViewSwitchQueued = $false
+    }
+        }.GetNewClosure())
+    } catch {
+        $global:ViewSwitchQueued = $false
+        Stop-ViewSwitchIndicator -Token $switchToken -Immediate
+        throw
     }
 })

@@ -108,7 +108,7 @@ the game tile to Update when a new build lands. Rerun the installer
 and pick Update - your ROM choice, settings and mods folder are kept.
 
 ## Mod page
-https://github.com/RaYRoD-TV/MarioKart64-VR
+The former per-game repository is unavailable (404). The publisher's live release source is https://github.com/RaYRoD-TV/MVRH
 
 ## Credits
 Built on SpaghettiKart, the Mario Kart 64 PC port. Mario Kart 64 is

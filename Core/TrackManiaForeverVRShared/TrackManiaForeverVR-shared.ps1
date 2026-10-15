@@ -134,13 +134,8 @@ function Test-TMFOXRUnitedUVMEInstaller([string]$Path) {
 function Get-TMFOXRDownloadFolders {
     $folders = [Collections.Generic.List[string]]::new()
     $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    try {
-        $known = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -ErrorAction Stop
-        $redirected = [Environment]::ExpandEnvironmentVariables(('' + $known.'{374DE290-123F-4565-9164-39C4925E467B}'))
-        if ($redirected) { [void]$folders.Add($redirected) }
-    } catch {}
-    $profile = [Environment]::GetFolderPath('UserProfile')
-    if ($profile) { [void]$folders.Add((Join-Path $profile 'Downloads')) }
+    $registered = Get-PCVRDownloadsFolder
+    if ($registered) { [void]$folders.Add($registered) }
     if ($env:OneDrive) { [void]$folders.Add((Join-Path $env:OneDrive 'Downloads')) }
     return @($folders | Where-Object { $_ -and $seen.Add($_) -and (Test-Path -LiteralPath $_ -PathType Container -ErrorAction SilentlyContinue) })
 }

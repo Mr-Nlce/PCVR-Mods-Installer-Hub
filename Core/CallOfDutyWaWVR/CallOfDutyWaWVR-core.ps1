@@ -394,13 +394,31 @@ Write-Host ""
 Write-Host "  The setup is not code-signed, so Windows may show a" -ForegroundColor White
 Write-Host "  SmartScreen warning - choose More info, then Run anyway." -ForegroundColor White
 Pause-User "Press Enter to run the setup - UAC required..." | Out-Null
-try { Start-Process -FilePath $exe -Wait -Verb RunAs -ErrorAction Stop }
-catch { Write-Warn "The setup was declined or could not start: $($_.Exception.Message)" }
+$previousLauncherHash = if (Test-Path -LiteralPath $MOD_EXE -PathType Leaf) { (Get-FileHash -LiteralPath $MOD_EXE -Algorithm SHA256).Hash } else { '' }
+$previousVersionFile = Join-Path $PSScriptRoot '.installed_version'
+$alreadyCurrent = (Test-Path -LiteralPath $previousVersionFile -PathType Leaf) -and
+    ((Get-Content -LiteralPath $previousVersionFile -Raw).Trim() -eq $tag)
+try {
+    $setupProcess = Start-Process -FilePath $exe -Wait -Verb RunAs -PassThru -ErrorAction Stop
+    if (-not $setupProcess -or $setupProcess.ExitCode -ne 0) {
+        throw "Publisher setup exited with code $($setupProcess.ExitCode)."
+    }
+} catch {
+    Write-Fail "The setup did not complete: $($_.Exception.Message)"
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
+}
 try { if ($exe -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 
 if (-not (Test-Path -LiteralPath $MOD_EXE)) {
     Write-Fail "WorldWarVR.exe is not in $MOD_ROOT - the setup did not finish."
     Pause-User "Press Enter to exit."
+    exit 1
+}
+$newLauncherHash = (Get-FileHash -LiteralPath $MOD_EXE -Algorithm SHA256).Hash
+if ($previousLauncherHash -and $newLauncherHash -eq $previousLauncherHash -and -not $alreadyCurrent) {
+    Write-Fail 'The publisher setup did not change the existing launcher, so this update cannot be verified.'
+    Pause-User 'Press Enter to close without changing the recorded version.'
     exit 1
 }
 Write-OK "Installed: $MOD_ROOT"

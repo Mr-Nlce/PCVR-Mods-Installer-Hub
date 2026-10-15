@@ -122,17 +122,32 @@ if (-not (Test-Path -LiteralPath $tmpZip)) {
     Pause-User "Press Enter to exit..."; exit 1
 }
 
+# Verify the required script in the archive itself, before extracting into
+# the game. A leftover injector from an older install must not prove this ZIP.
+$archiveListing = Get-ArchiveTopLevel -ArchivePath $tmpZip
+$injectorEntry = @($archiveListing.Entries | Where-Object { $_ -match '(?i)(^|\\)xr_injector\\xr_injector\.gd$' })
+if (-not $archiveListing.Ok -or $injectorEntry.Count -eq 0) {
+    Write-Fail "This archive has no xr_injector\\xr_injector.gd. The game was not updated."
+    try { Remove-Item -LiteralPath $tmpZip -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+}
+
 # Payload-verified extract (releases/LATEST - layout can change any day).
 $r2 = Expand-ArchiveToTarget -ArchivePath $tmpZip -TargetDir $gameDir -RelModFile "xr_injector\xr_injector.gd" -Label "UGVR Injector" `
         -SkipMessage "Skipped - the mod files were NOT extracted."
 if ([string]$r2 -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
+if ([string]$r2 -notin @('ok','manual')) {
+    Write-Fail "The mod archive was not installed."
+    Pause-User "Press Enter to exit..."; exit 1
+}
 try { Remove-Item $tmpZip -Force -ErrorAction SilentlyContinue } catch {}
 
 if (Test-Path -LiteralPath (Join-Path $gameDir "xr_injector\xr_injector.gd")) {
     Write-OK "Mod files in place (xr_injector, XRConfigs, override.cfg)."
     Save-InstalledStamp -GameDir $gameDir -Version $MOD_VERSION -HubDir $PSScriptRoot
 } else {
-    Write-Warn "xr_injector folder not found after extraction - check $gameDir manually."
+    Write-Fail "xr_injector.gd is missing after extraction."
+    Pause-User "Press Enter to exit..."; exit 1
 }
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gameDir -Encoding UTF8 -Force } catch {}
 

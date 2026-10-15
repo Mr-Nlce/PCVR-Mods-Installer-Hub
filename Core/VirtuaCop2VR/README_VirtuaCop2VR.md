@@ -47,30 +47,13 @@ why it does not belong in the game folder.
 
 ## Playing
 
-**Use "Start in VR" on this page.** That runs a launcher the installer wrote,
-which does the whole sequence for you: it starts the game from the right folder,
-waits while you get into a level, then starts the VR half. You never have to find
-either executable yourself.
+**Use "Start in VR" on this page.** The Hub opens `VC2VR.exe`. The publisher's
+v1.0 beta launcher starts `PROJECT\PPJ2DD.EXE`, selects the VR renderer and
+sets windowed mode. The installer writes the full game path to `gameexe` in
+`VC2VR.ini`, because the VR application lives outside the game folder.
 
-> ## The one thing you have to know: press [[Alt]]
->
-> When the game starts it accepts **no keyboard and no mouse input at all** -
-> it just sits in the main menu and nothing you press does anything.
->
-> **Press [[Alt]].** That opens the pause screen, and only from there can you
-> change any setting. This is the game's own behaviour from 1997, not the mod.
->
-> **On a virtual screen** - Virtual Desktop and the like - press **[[Alt]] twice**
-> on the virtual keyboard.
-
-Once the pause screen is open **the mouse works** - click **Device**, then pick
-**`Direct 3D + 3D view`**. **That entry is the mod.** The choice is remembered,
-so this is a one-time step.
-
-After that you do nothing: **the VR half starts by itself 15 seconds later**, and
-you can pick your level from inside the headset. No going back and forth between
-the game and a console window. (Pressing a key in the launcher starts it right
-away instead of waiting.)
+If you still need the original game's pause screen, [[Alt]] opens it. The
+publisher launcher normally selects the renderer without this manual step.
 
 Put the headset on **facing your monitor** - that first head pose becomes the
 camera.
@@ -79,22 +62,25 @@ The installer also offers a **Desktop shortcut** that does exactly the same as
 "Start in VR" - one click, game and VR.
 
 ### If you would rather do it by hand
-The launcher lives at
-`%LOCALAPPDATA%\Programs\Virtua Cop 2 VR\Play Virtua Cop 2 VR.bat`, and the two
-programs it starts are:
+The Hub launcher lives at
+`%LOCALAPPDATA%\Programs\Virtua Cop 2 VR\Play Virtua Cop 2 VR.bat`.
+It opens the publisher's `VC2VR.exe`; that program starts the game:
 
 | | |
 |---|---|
-| the game | `PROJECT\PPJ2DD.EXE` inside your game folder - working directory **must** be `PROJECT` |
-| the VR half | `%LOCALAPPDATA%\Programs\Virtua Cop 2 VR\VC2VR.exe`, started **after** you are in a level |
+| Game | `PROJECT\PPJ2DD.EXE` inside your game folder, specified by `gameexe` in `VC2VR.ini` |
+| VR launcher | `%LOCALAPPDATA%\Programs\Virtua Cop 2 VR\VC2VR.exe` |
 
 ## Controls
-- [[Right Trigger]] / [[Left Trigger]] fire - the hand that fired last holds the gun
-- [[A]] / [[X]] reload (Start / Enter in menus)
-- [[B]] / [[Y]] back (Esc)
-- [[Right Stick Up]] flick to toggle zoom - flick again to drop it
-- [[Right Stick Click]] floating menu screen: auto / always / off
-- [[Right Grip]] / [[Left Grip]] recentre the view
+
+| Button | Action |
+|---|---|
+| [[Right Trigger]] / [[Left Trigger]] | Fire; the last hand to fire holds the gun |
+| [[A]] / [[X]] | Reload; Start / Enter in menus |
+| [[B]] / [[Y]] | Back / Escape |
+| [[Right Stick Up]] | Flick to toggle zoom; flick again to drop it |
+| [[Right Stick Click]] | Set floating menu screen to auto / always / off |
+| [[Right Grip]] / [[Left Grip]] | Recentre the view |
 
 With **akimbo** enabled, the second controller is player 2. Press its [[A]] or
 [[X]] to join. A second person can then play on the monitor while you use the
@@ -115,10 +101,10 @@ Both files are commented.
 ## If something is wrong
 | Symptom | Cause |
 |---|---|
-| Game dies with `not found ...BIN\MOTCMN.BIN` | It is not running from `PROJECT`, or the shortcut's *"Start in"* is wrong. **This is the game's own loader, not the mod.** |
-| VR input works but no picture (`--window` shows 0 triangles) | `Direct 3D + 3D view` is not the selected renderer. Pick it again in the selector. |
-| Headset says *"waiting for the game"* | Same cause, or `share=0` in `HGL_VIEW.ini`. |
-| The floating menu screen stays black | Run the game **windowed** - the capture cannot see an exclusive-fullscreen window. |
+| Game dies with `not found ...BIN\MOTCMN.BIN` | Check the `gameexe` path in `VC2VR.ini`; its `PROJECT` folder must sit directly below the game folder with `BIN`. |
+| VR input works but no picture (`--window` shows 0 triangles) | Check the renderer selected in the game and the `gameexe` path. |
+| Headset says *"waiting for the game"* | Check that the publisher launcher started the game and that `share=1` in `HGL_VIEW.ini`. |
+| The floating menu screen stays black | The capture cannot see an exclusive-fullscreen window. Check windowed mode. |
 
 `VC2VR.exe --window` renders to a flat window instead of the headset, which is
 the quickest way to tell a game-side problem from a VR-runtime one.

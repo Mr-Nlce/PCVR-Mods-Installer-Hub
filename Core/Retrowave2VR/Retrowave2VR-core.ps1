@@ -99,7 +99,7 @@ Pause-User "Press Enter once it is downloaded..." | Out-Null
 # opened and only accepted when it really carries Uuvr.dll - a file
 # called "Retrowave2_UUVR.zip" could be anything, and the author may
 # rename his upload at any time.
-$dl = Join-Path ([Environment]::GetFolderPath('UserProfile')) "Downloads"
+$dl = Get-PCVRDownloadsFolder
 $zip = $null
 foreach ($c in @(Get-ChildItem -Path $dl -Filter "*.zip" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)) {
     if (Test-ArchiveContains -ArchivePath $c.FullName -Entry "Uuvr.dll") { $zip = $c.FullName; break }

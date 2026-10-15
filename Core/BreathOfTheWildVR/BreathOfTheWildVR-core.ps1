@@ -319,12 +319,6 @@ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $inst
 # ------------------------------------------------------------
 Write-Step 4 4 "Manual setup - follow these exactly"
 
-# Open the install folder + start Cemu so you can add your game + keys.
-Write-Info "Opening the install folder and starting Cemu so you can add your game..."
-try { Start-Process explorer.exe -ArgumentList ('"' + $installRoot + '"') } catch {}
-Start-Sleep -Seconds 2
-try { if (Test-Path $cemuExe) { Start-Process -FilePath $cemuExe -WorkingDirectory $installRoot } } catch {}
-
 Write-Box -Heading "A. YOUR GAME (you provide this)" -Lines @(
     "1. Add your own BotW dump for the Wii U + your Wii U keys.",
     "   Put your keys.txt into the portable folder:",
@@ -335,6 +329,11 @@ Write-Box -Heading "A. YOUR GAME (you provide this)" -Lines @(
     "   Cemu menu -> File -> Install game title, update or DLC.",
     "   Update 1.5.0 and the DLC both work."
 )
+Pause-User "Press Enter to open the install folder and start Cemu..."
+Write-Info "Opening the install folder and starting Cemu so you can add your game..."
+try { Start-Process explorer.exe -ArgumentList ('"' + $installRoot + '"') } catch {}
+Start-Sleep -Seconds 2
+try { if (Test-Path $cemuExe) { Start-Process -FilePath $cemuExe -WorkingDirectory $installRoot } } catch {}
 Pause-User "Press Enter once BotW shows up in Cemu (updated)..."
 
 Write-Box -Heading "B. CEMU GENERAL SETTINGS" -Lines @(
@@ -399,7 +398,7 @@ for ($k = 1; $k -le 20; $k++) {
     Write-Host "  Please answer y or n." -ForegroundColor Yellow
 }
 if ($wantCemu -in @("y","yes")) {
-    $dlFolder = Join-Path $env:USERPROFILE "Downloads"
+    $dlFolder = Get-PCVRDownloadsFolder
     Write-Host ""
     Write-Host "  1. On the page that opens, take the " -NoNewline -ForegroundColor White
     Write-Host "cemu-bin-windows-x64" -NoNewline -ForegroundColor Cyan

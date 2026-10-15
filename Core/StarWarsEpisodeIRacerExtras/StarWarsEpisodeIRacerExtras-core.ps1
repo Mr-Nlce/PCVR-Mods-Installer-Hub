@@ -35,6 +35,8 @@ if ($LASTEXITCODE -ne 0) {
         -RetryCheck { Test-Path -LiteralPath $trackProbe -PathType Leaf } `
         -SourceFolder (Split-Path -Parent $tracksScript) -DestFolder $GameRoot -AllowSkip $false
     if ($recovery -eq 'quit') { exit 1 }
+    Write-Host '[X] Rerun setup after restoring the community package; no new add-on receipt was written.' -ForegroundColor Yellow
+    exit 1
 }
 
 $trackProbe = Join-Path $GameRoot "assets\custom_tracks\bigblue\out_modelblock.bin"
@@ -44,6 +46,24 @@ if (-not (Test-Path -LiteralPath $trackProbe -PathType Leaf)) {
         -RetryCheck { Test-Path -LiteralPath $trackProbe -PathType Leaf } `
         -DestFolder $GameRoot -AllowSkip $false
     if ($recovery -eq 'quit') { exit 1 }
+    Write-Host '[X] The track payload is still unverified. No new add-on receipt was written.' -ForegroundColor Yellow
+    exit 1
 }
-[IO.File]::WriteAllText((Join-Path $PSScriptRoot ".installed_path"), $GameRoot, (New-Object Text.UTF8Encoding($false)))
+$tracksVersionPath = Join-Path $PSScriptRoot '..\StarWarsEpisodeIRacerTracks\.installed_version'
+$tracksVersion = try { (Get-Content -LiteralPath $tracksVersionPath -Raw -ErrorAction Stop).Trim() } catch { '' }
+if (-not (Test-IsTrackableInstalledVersion -Version $tracksVersion)) {
+    throw 'The track installer did not record the downloaded release version. No add-on success was recorded.'
+}
+$pathReceipt = Join-Path $PSScriptRoot '.installed_path'
+$versionReceipt = Join-Path $PSScriptRoot '.installed_version'
+$oldPath = if (Test-Path -LiteralPath $pathReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($pathReceipt) } else { $null }
+$oldVersion = if (Test-Path -LiteralPath $versionReceipt -PathType Leaf) { [IO.File]::ReadAllBytes($versionReceipt) } else { $null }
+try {
+    [IO.File]::WriteAllText($versionReceipt,$tracksVersion,(New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($pathReceipt,$GameRoot,(New-Object Text.UTF8Encoding($false)))
+} catch {
+    if ($null -eq $oldPath) { Remove-Item -LiteralPath $pathReceipt -Force -ErrorAction SilentlyContinue } else { [IO.File]::WriteAllBytes($pathReceipt,$oldPath) }
+    if ($null -eq $oldVersion) { Remove-Item -LiteralPath $versionReceipt -Force -ErrorAction SilentlyContinue } else { [IO.File]::WriteAllBytes($versionReceipt,$oldVersion) }
+    throw
+}
 Pause-User "Press Enter to exit..." | Out-Null

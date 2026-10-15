@@ -139,13 +139,15 @@ Write-OK "Found: $gamePath"
 if (Get-Process -Name 'NuclearOption' -ErrorAction SilentlyContinue) { Write-Warn 'Close Nuclear Option before installing or updating NOVR.'; Stop-NOVRInstaller 1 }
 
 try {
-    Write-Step 2 4 'Checking BepInEx 5'; Ensure-BepInEx5 -GameRoot $gamePath; Write-OK 'Compatible BepInEx 5 loader is ready.'
-    Write-Step 3 4 'Downloading and checking NOVR'; $release=Get-NOVRRelease; $novrZip=Join-Path ([IO.Path]::GetTempPath()) ('NOVR_' + [Guid]::NewGuid().ToString('N') + '.zip')
-    $got=Invoke-SafeDownload -Urls @($release.Url,$NOVR_FALLBACK_URL) -Destination $novrZip -Label "NOVR $($release.Tag)" -ManualUrl 'https://github.com/InfernoSuperNova/novr/releases/latest' -Instructions 'Download the release asset named NOVR.zip and give that file to the installer.' -SkipMessage 'NOVR cannot be installed without its release archive.'
+    Write-Step 2 4 'Downloading and checking NOVR'; $release=Get-NOVRRelease; $novrZip=Join-Path ([IO.Path]::GetTempPath()) ('NOVR_' + [Guid]::NewGuid().ToString('N') + '.zip')
+    $downloadInfo=@{}
+    $got=Invoke-SafeDownload -Urls @($release.Url,$NOVR_FALLBACK_URL) -Destination $novrZip -Label "NOVR $($release.Tag)" -ManualUrl 'https://github.com/InfernoSuperNova/novr/releases/latest' -Instructions 'Download the release asset named NOVR.zip and give that file to the installer.' -SkipMessage 'NOVR cannot be installed without its release archive.' -DownloadInfo $downloadInfo -AllowSkip $false
     if (-not $got) { throw 'NOVR download was not completed.' }
+    if ([string]$downloadInfo.Url -ne [string]$release.Url) { throw 'The NOVR archive has no verified release identity; no game files were changed.' }
     Show-AdvisorySha -Path $novrZip -ExpectedSha ([string]$release.Sha256)
     if (-not (Test-NOVRArchive -ArchivePath $novrZip)) { throw 'NOVR.zip is unreadable or missing a required runtime file.' }
     Write-OK "Required NOVR $($release.Tag) files found."
+    Write-Step 3 4 'Checking BepInEx 5'; Ensure-BepInEx5 -GameRoot $gamePath; Write-OK 'Compatible BepInEx 5 loader is ready.'
     Write-Step 4 4 'Installing NOVR'; Install-NOVRPayload -ArchivePath $novrZip -GameRoot $gamePath -Version $release.Tag
     $required=@((Join-Path $gamePath 'BepInEx\plugins\NOVR\NOVR.dll'),(Join-Path $gamePath 'BepInEx\patchers\NOVR\NOVR.Patcher.dll')); $recopy={ Install-NOVRPayload -ArchivePath $novrZip -GameRoot $gamePath -Version $release.Tag }.GetNewClosure()
     if (-not (Confirm-PlacedFilesSurvive -Paths $required -GameDir $gamePath -Recopy $recopy)) { throw 'NOVR files did not survive the antivirus check.' }

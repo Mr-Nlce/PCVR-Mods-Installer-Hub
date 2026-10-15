@@ -86,16 +86,22 @@ function Install-BendyMod {
 
     # Permanent extraction target on the same drive as the game.
     if (-not $ModKeepDir) { $ModKeepDir = Join-Path $targetGamePath "BendyVRInstall" }
-    if (Test-Path $ModKeepDir) {
-        try { Remove-Item $ModKeepDir -Recurse -Force -ErrorAction Stop } catch {}
-    }
-    New-Item -ItemType Directory -Path $ModKeepDir -Force | Out-Null
 
     $dl = Invoke-DownloadOrFallback -Url $MOD_URL -Destination $rarPath `
             -Label "BendyVR v1.2.2" `
             -ManualUrl "$INFO_URL/releases" `
             -Instructions "Download the latest BendyVR release .rar from the GitHub page that just opened. Place it at '$rarPath' and choose Retry." `
             -SkipMessage "Skipped - the VR mod archive is missing; the mod will NOT be installed."
+
+    if (-not (Test-Path -LiteralPath $rarPath -PathType Leaf)) {
+        Write-Fail 'The VR mod archive is missing. The existing installation was left alone.'
+        try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        return $false
+    }
+    if (Test-Path -LiteralPath $ModKeepDir -PathType Container) {
+        try { Remove-Item -LiteralPath $ModKeepDir -Recurse -Force -ErrorAction Stop } catch { Write-Fail "Could not replace the previous mod folder: $_"; return $false }
+    }
+    New-Item -ItemType Directory -Path $ModKeepDir -Force | Out-Null
 
     # Extract the RAR with 7-Zip into the PERMANENT folder
     $sevenZip = Get-SevenZip
@@ -182,6 +188,19 @@ function Install-BendyMod {
 
     # Clean up ONLY the download temp - keep $ModKeepDir (the mod needs it).
     try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    $requiredModFiles = @(
+        (Join-Path $targetGamePath 'winhttp.dll'),
+        (Join-Path $targetGamePath 'doorstop_config.ini'),
+        (Join-Path $targetGamePath 'Bendy and the Ink Machine_Data\Plugins\openvr_api.dll'),
+        (Join-Path $ModKeepDir 'BendyVRInstall\Mod\BepInEx\core\BepInEx.Preloader.dll'),
+        (Join-Path $ModKeepDir 'BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll')
+    )
+    foreach ($requiredFile in $requiredModFiles) {
+        if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
+            Write-Fail "Required Bendy VR file missing: $requiredFile"
+            return $false
+        }
+    }
     return $true
 }
 
@@ -387,7 +406,11 @@ if (-not $script:PreFoundDepot) {
 
     # Install the mod
     Write-Step 3 4 "Installing the VR mod"
-    [void](Install-BendyMod -targetGamePath $gamePath -ModKeepDir (Join-Path $gamePath "BendyVRInstall"))
+    if (-not (Install-BendyMod -targetGamePath $gamePath -ModKeepDir (Join-Path $gamePath "BendyVRInstall"))) {
+        Write-Fail 'The depot game was copied, but the VR mod was not installed. No VR-ready path was recorded.'
+        Pause-User 'Press Enter to close.' | Out-Null
+        exit 1
+    }
 
     # steam_appid.txt
     Write-SteamAppId -gamePath $gamePath
@@ -486,7 +509,11 @@ if ($gamePath) {
 }
 
 Write-Step 2 3 "Installing the VR mod"
-[void](Install-BendyMod -targetGamePath $gamePath -ModKeepDir (Join-Path $gamePath "BendyVRInstall"))
+if (-not (Install-BendyMod -targetGamePath $gamePath -ModKeepDir (Join-Path $gamePath "BendyVRInstall"))) {
+    Write-Fail 'The VR mod was not installed. Your existing game remains available.'
+    Pause-User 'Press Enter to close.' | Out-Null
+    exit 1
+}
 
 Write-Step 3 3 "Final notes"
 Write-Host " BendyVR installation complete (current game version)." -ForegroundColor Green

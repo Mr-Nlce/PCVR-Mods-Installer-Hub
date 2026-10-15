@@ -290,6 +290,17 @@ $exeName = Get-GameExeName -Root $gameRoot
 
 $aHere = Test-ModAInstalled -Root $gameRoot
 $bHere = Test-ModBInstalled -Root $gameRoot
+$aLiveAtStart = Test-Path -LiteralPath (Join-Path $gameRoot "$PLUGINS_REL\$A_DLL") -PathType Leaf
+$bLiveAtStart = Test-Path -LiteralPath (Join-Path $gameRoot "$PLUGINS_REL\$B_DLL") -PathType Leaf
+if ($aLiveAtStart -and $bLiveAtStart) {
+    Write-Fail 'Both VR plugins are active. Choose one through the Hub Play button before updating.'
+    throw 'Setup did not complete; see the error above.'
+}
+$activeAtStart = if ($aLiveAtStart) { 'A' } elseif ($bLiveAtStart) { 'B' } else { '' }
+$loaderAtStart = Join-Path $gameRoot 'winhttp.dll'
+$parkedLoaderAtStart = Join-Path $gameRoot 'winhttp.dll.pcvrhub_off'
+$flatAtStart = (-not (Test-Path -LiteralPath $loaderAtStart -PathType Leaf)) -and
+               (Test-Path -LiteralPath $parkedLoaderAtStart -PathType Leaf)
 
 Write-Host ""
 Write-Host "  Which mod do you want to install?" -ForegroundColor White
@@ -382,6 +393,20 @@ Write-Step 4 4 "Installing $A_NAME"
 
 # R1 - read the archive before opening it.
 $top = Get-ArchiveTopLevel -ArchivePath $modZip
+if (-not $top.Ok -or -not @($top.Entries | Where-Object {
+    $_ -match '(^|\\)BepInEx\\plugins\\HollowKnightSilksong_VR\.dll$'
+}).Count) {
+    Write-Fail "The selected archive does not contain $A_DLL. The installed mod was left untouched."
+    throw 'Setup did not complete; see the error above.'
+}
+foreach ($entry in $top.Entries) {
+    $parts = @($entry.TrimEnd('\') -split '\\')
+    if ([IO.Path]::IsPathRooted($entry) -or $entry.Contains(':') -or
+        @($parts | Where-Object { $_ -eq '..' -or $_ -eq '' }).Count -gt 0) {
+        Write-Fail "The archive contains an unsafe path: $entry"
+        throw 'Setup did not complete; see the error above.'
+    }
+}
 if ($top.Ok) {
     if ($top.Roots -and $top.Roots.Count -eq 1 -and $top.Roots[0] -ne "BepInEx") {
         Write-Info "Archive wraps its files in '$($top.Roots[0])' - that will be resolved."
@@ -393,8 +418,6 @@ if ($top.Ok) {
 }
 
 $aTarget = Join-Path $gameRoot "$PLUGINS_REL\$A_DLL"
-# A parked copy would survive the merge and shadow the fresh file.
-try { if (Test-Path -LiteralPath "$aTarget.off") { Remove-Item -LiteralPath "$aTarget.off" -Force -ErrorAction SilentlyContinue } } catch {}
 
 # R2 - the payload root is RESOLVED, never guessed, and the anchor is
 # the mod's own DLL: whatever the ZIP wraps its files in, the folder
@@ -405,6 +428,10 @@ Write-Info "Extracting..."
 $st = Expand-ArchiveToTarget -ArchivePath $modZip -TargetDir $gameRoot `
         -RelModFile "$PLUGINS_REL\$A_DLL" -Markers @("winhttp.dll", "doorstop_config.ini", "BepInEx") `
         -Label "$A_NAME mod" -SkipMessage "Skipped - the mod files were NOT installed." -AllowSkip $true
+if ([string]$st -notin @('ok','manual')) {
+    Write-Fail "The archive was not installed. Existing mod files were left in place."
+    throw 'Setup did not complete; see the error above.'
+}
 
 # R3 - the proof is AT THE DESTINATION: the file is there. NOT "it
 # changed compared to before" - a second install of the same version
@@ -423,11 +450,14 @@ if (-not $installedOk) {
     Write-Host "  Afterwards $A_DLL must sit in:" -ForegroundColor White
     Write-Host "    $(Join-Path $gameRoot $PLUGINS_REL)" -ForegroundColor Yellow
     Pause-User "Press Enter to exit."
-    exit 1
+    throw 'Setup did not complete; see the error above.'
 }
 
-Set-ActivePlugin -Root $gameRoot -LiveDll $A_DLL -ParkDll $B_DLL
-Write-OK "$A_NAME is the active mod."
+# Keep the previous parked copy until the new payload is present.
+try { if (Test-Path -LiteralPath "$aTarget.off") { Remove-Item -LiteralPath "$aTarget.off" -Force -ErrorAction Stop } }
+catch { Write-Fail "Could not retire the previous parked copy: $($_.Exception.Message)"; exit 1 }
+
+Write-OK "$A_NAME files installed."
 
 }
 # =======================================================
@@ -468,7 +498,8 @@ Write-Step 4 4 "Installing $B_NAME"
 # Mod A brings its own; only fetch a copy when the folder has none.
 $bepCore = Join-Path $gameRoot "BepInEx\core\BepInEx.dll"
 $winhttp = Join-Path $gameRoot "winhttp.dll"
-if ((Test-Path -LiteralPath $bepCore) -and (Test-Path -LiteralPath $winhttp)) {
+if ((Test-Path -LiteralPath $bepCore) -and
+    ((Test-Path -LiteralPath $winhttp) -or (Test-Path -LiteralPath "$winhttp.pcvrhub_off"))) {
     Write-OK "BepInEx is already in the game folder - left as it is."
 } else {
     Write-Info "BepInEx is missing - fetching 5.4.23.5 (x64)."
@@ -504,7 +535,7 @@ if ((Test-Path -LiteralPath $bepCore) -and (Test-Path -LiteralPath $winhttp)) {
         Write-Host "    $gameRoot" -ForegroundColor Yellow
         Write-Host "  $BEPINEX_URL" -ForegroundColor DarkGray
         Pause-User "Press Enter to exit."
-        exit 1
+        throw 'Setup did not complete; see the error above.'
     }
 }
 
@@ -512,12 +543,23 @@ if ((Test-Path -LiteralPath $bepCore) -and (Test-Path -LiteralPath $winhttp)) {
 $plugDir = Join-Path $gameRoot $PLUGINS_REL
 if (-not (Test-Path -LiteralPath $plugDir)) { New-Item -ItemType Directory -Path $plugDir -Force | Out-Null }
 $bTarget = Join-Path $plugDir $B_DLL
-try { if (Test-Path -LiteralPath "$bTarget.off") { Remove-Item -LiteralPath "$bTarget.off" -Force -ErrorAction SilentlyContinue } } catch {}
 
 # R1 + R2. The Nexus archive holds the single DLL, so the marker IS the
 # mod file - resolved recursively in case a future upload wraps it.
 $mTop = Get-ArchiveTopLevel -ArchivePath $modZip
-if ($mTop.Ok) { Write-Info "Mod archive listed: $($mTop.Entries.Count) entries." }
+if (-not $mTop.Ok -or -not @($mTop.Entries | Where-Object { $_ -match '(^|\\)SilksongFlatToVR[^\\]*\.dll$' }).Count) {
+    Write-Fail "The selected Nexus archive contains no Silksong Flat to VR plugin."
+    throw 'Setup did not complete; see the error above.'
+}
+foreach ($entry in $mTop.Entries) {
+    $parts = @($entry.TrimEnd('\') -split '\\')
+    if ([IO.Path]::IsPathRooted($entry) -or $entry.Contains(':') -or
+        @($parts | Where-Object { $_ -eq '..' -or $_ -eq '' }).Count -gt 0) {
+        Write-Fail "The Nexus archive contains an unsafe path: $entry"
+        throw 'Setup did not complete; see the error above.'
+    }
+}
+Write-Info "Mod archive listed: $($mTop.Entries.Count) entries."
 $mTmp = Join-Path $env:TEMP ("SilkFlatVR_" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $mTmp -Force | Out-Null
 try {
@@ -534,7 +576,10 @@ if (-not $src) {
     try { $src = Get-ChildItem -LiteralPath $mTmp -Filter "SilksongFlatToVR*.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 } catch {}
 }
 if ($src) {
-    try { Copy-Item -LiteralPath $src.FullName -Destination $bTarget -Force } catch { Write-Fail "Copy failed: $($_.Exception.Message)" }
+    try {
+        $sourceHash = (Get-FileHash -LiteralPath $src.FullName -Algorithm SHA256).Hash
+        Copy-Item -LiteralPath $src.FullName -Destination $bTarget -Force -ErrorAction Stop
+    } catch { Write-Fail "Copy failed: $($_.Exception.Message)"; exit 1 }
 }
 try { Remove-Item -LiteralPath $mTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
@@ -544,14 +589,8 @@ try { Remove-Item -LiteralPath $mTmp -Recurse -Force -ErrorAction SilentlyContin
 # comparison took that for a failure and aborted with "did not
 # arrive", although the DLL was correctly in place.
 $bOk = $false
-if (Test-Path -LiteralPath $bTarget) {
-    if ($src) {
-        try { $bOk = ((Get-Item -LiteralPath $bTarget).Length -eq $src.Length) } catch { $bOk = $true }
-    } else {
-        # No source object (archive unreadable) but the file is at the
-        # destination - then it is from an earlier run and fine.
-        $bOk = $true
-    }
+if ($src -and (Test-Path -LiteralPath $bTarget)) {
+    try { $bOk = ((Get-FileHash -LiteralPath $bTarget -Algorithm SHA256).Hash -eq $sourceHash) } catch { $bOk = $false }
 }
 if (-not $bOk) {
     Write-Host ""
@@ -559,8 +598,10 @@ if (-not $bOk) {
     Write-Host "  Open the ZIP by hand and copy the DLL into:" -ForegroundColor White
     Write-Host "    $plugDir" -ForegroundColor Yellow
     Pause-User "Press Enter to exit."
-    exit 1
+    throw 'Setup did not complete; see the error above.'
 }
+try { if (Test-Path -LiteralPath "$bTarget.off") { Remove-Item -LiteralPath "$bTarget.off" -Force -ErrorAction Stop } }
+catch { Write-Fail "Could not retire the previous parked copy: $($_.Exception.Message)"; exit 1 }
 Write-OK "$B_DLL installed."
 
 # --- 3/3 openvr_api.dll -----------------------------------------
@@ -619,34 +660,55 @@ if ($ovrMissing.Count -gt 0) {
     Write-Host "  Without it the mod starts but stays disconnected from OpenVR." -ForegroundColor White
     Write-Host ""
     Pause-User "Press Enter once that is done..."
+    if (@($ovrTargets | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count -gt 0) {
+        Write-Fail "openvr_api.dll is still missing from a required target folder."
+        throw 'Setup did not complete; see the error above.'
+    }
 }
 
-Set-ActivePlugin -Root $gameRoot -LiveDll $B_DLL -ParkDll $A_DLL
-Write-OK "$B_NAME is the active mod."
+Write-OK "$B_NAME files installed."
 
 }
 
 # =======================================================
 # Shared tail
 # =======================================================
-# Installing either choice means the next launch is intentionally VR. If the
-# Hub's Flat / VR control had parked the shared Doorstop loader earlier, bring
-# that exact parked loader back. An archive merge may already have written a
-# fresh active copy; in that case the Hub-owned parked duplicate is obsolete
-# and must go, otherwise the detail-page toggle correctly refuses to guess
-# between two files on the next click.
+# Installing either choice preserves the previously active plugin. The Hub
+# Play choice is responsible for switching between installed mods.
+$activeChoice = if ($activeAtStart) { $activeAtStart } elseif ($doA) { 'A' } else { 'B' }
+if ($activeChoice -eq 'A') {
+    Set-ActivePlugin -Root $gameRoot -LiveDll $A_DLL -ParkDll $B_DLL
+} else {
+    Set-ActivePlugin -Root $gameRoot -LiveDll $B_DLL -ParkDll $A_DLL
+}
+
+# Preserve the Flat / VR state as well. The downloaded package may place a
+# fresh loader at the active name; keep it parked when Flat was selected.
 $activeLoader = Join-Path $gameRoot 'winhttp.dll'
 $parkedLoader = Join-Path $gameRoot 'winhttp.dll.pcvrhub_off'
 try {
-    if ((Test-Path -LiteralPath $activeLoader -PathType Leaf) -and (Test-Path -LiteralPath $parkedLoader -PathType Leaf)) {
+    if ($flatAtStart -and (Test-Path -LiteralPath $activeLoader -PathType Leaf)) {
+        Move-Item -LiteralPath $activeLoader -Destination $parkedLoader -Force -ErrorAction Stop
+        Write-OK 'Flat mode remains selected; the refreshed loader is parked.'
+    } elseif (-not $flatAtStart -and (Test-Path -LiteralPath $activeLoader -PathType Leaf) -and (Test-Path -LiteralPath $parkedLoader -PathType Leaf)) {
         Remove-Item -LiteralPath $parkedLoader -Force -ErrorAction Stop
         Write-OK 'Cleared the obsolete parked loader; VR is active.'
-    } elseif ((Test-Path -LiteralPath $parkedLoader -PathType Leaf) -and -not (Test-Path -LiteralPath $activeLoader)) {
+    } elseif (-not $flatAtStart -and (Test-Path -LiteralPath $parkedLoader -PathType Leaf) -and -not (Test-Path -LiteralPath $activeLoader)) {
         Rename-Item -LiteralPath $parkedLoader -NewName 'winhttp.dll' -Force -ErrorAction Stop
         Write-OK 'Reactivated the shared loader; VR is active.'
     }
 } catch {
-    Write-Warn 'Could not normalize the Flat / VR loader state. Use the switch on the game page before launching.'
+    Write-Fail 'Could not preserve the Flat / VR loader state. No success receipt was written.'
+    throw 'Setup did not complete; see the error above.'
+}
+$expectedLive = if ($activeChoice -eq 'A') { $A_DLL } else { $B_DLL }
+$expectedParked = if ($activeChoice -eq 'A') { $B_DLL } else { $A_DLL }
+if (-not (Test-Path -LiteralPath (Join-Path $gameRoot "$PLUGINS_REL\$expectedLive") -PathType Leaf) -or
+    (Test-Path -LiteralPath (Join-Path $gameRoot "$PLUGINS_REL\$expectedParked") -PathType Leaf) -or
+    ($flatAtStart -and ((Test-Path -LiteralPath $activeLoader -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $parkedLoader -PathType Leaf)))) {
+    Write-Fail 'The previous active mod or Flat / VR mode could not be preserved. No success receipt was written.'
+    throw 'Setup did not complete; see the error above.'
 }
 
 $bothNow = Update-SwitchLaunchers -Root $gameRoot -ExeName $exeName
@@ -671,8 +733,16 @@ if ($bothNow) {
     Write-Host "in the Hub, or from Steam." -ForegroundColor White
     Write-Host "  Run this installer again to add the other mod as well." -ForegroundColor Gray
 }
+if (($doA -and $activeChoice -eq 'B') -or (-not $doA -and $activeChoice -eq 'A')) {
+    $keptName = if ($activeChoice -eq 'A') { $A_NAME } else { $B_NAME }
+    Write-Host "  $keptName remains active. Use its Hub Play choice to switch." -ForegroundColor Yellow
+}
+if ($flatAtStart) {
+    Write-Host "  Flat mode remains selected. Use the Hub Flat / VR switch" -ForegroundColor Yellow
+    Write-Host "  before playing either mod in VR." -ForegroundColor Yellow
+}
 Write-Host ""
-if ($doA) {
+if ($activeChoice -eq 'A') {
     Write-Host "  Recenter: SteamVR recenter, or hold Up + QuickMap + Pause." -ForegroundColor White
     Write-Host "  Vignette on/off: hold Start." -ForegroundColor White
 } else {

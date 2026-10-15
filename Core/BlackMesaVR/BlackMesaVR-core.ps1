@@ -109,11 +109,8 @@ function Get-LatestRelease {
 }
 
 function Get-ReleaseArchive([string]$Destination,$Release) {
-    $found = Find-PredownloadedFile -Patterns @([string]$Release.Name) `
-        -ExtraFolders (Get-ArchiveInputFolders) -Label "Black Mesa VR $($Release.Tag)"
-    if ($found) { Copy-Item -LiteralPath $found -Destination $Destination -Force; return $Destination }
     if (-not (Invoke-SafeDownload -Urls @([string]$Release.Url) -Destination $Destination -Label "Black Mesa VR $($Release.Tag)" `
-        -ManualUrl $RELEASES_URL)) { return $null }
+        -ManualUrl $RELEASES_URL -ExpectedReleaseTag ([string]$Release.Tag))) { return $null }
     return $Destination
 }
 
@@ -296,7 +293,6 @@ try {
         $gamePath = (Get-Item -LiteralPath $picked).FullName
     }
     if (@(Get-Process -Name 'bms' -ErrorAction SilentlyContinue).Count) { throw 'Black Mesa is running. Close it completely and run setup again.' }
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$gamePath,(New-Object Text.UTF8Encoding($false)))
     Write-OK "Found: $gamePath"
 
     Write-Step 2 5 'Getting the current stable VR release'
@@ -360,6 +356,12 @@ try {
     }.GetNewClosure()
     if (-not (Confirm-PlacedFilesSurvive -Paths $watchPaths -GameDir $gamePath -Recopy $recoverBinaries)) { throw 'One or more required VR binaries did not survive the antivirus check.' }
     Save-InstalledStamp -GameDir $gamePath -Version ([string]$release.Tag) -HubDir $PSScriptRoot
+    $versionReceipt = Join-Path $gamePath '.pcvrhub_version'
+    if (-not (Test-Path -LiteralPath $versionReceipt -PathType Leaf) -or
+        ([IO.File]::ReadAllText($versionReceipt)).Trim() -ne [string]$release.Tag) {
+        throw 'The installed version receipt could not be verified.'
+    }
+    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$gamePath,(New-Object Text.UTF8Encoding($false)))
     if ($restoreFlat) { Disable-Loaders $gamePath; $restoreFlat = $false; Write-Info 'Your previous Flat mode was preserved.' }
     Write-OK "Black Mesa VR $($release.Tag) installed."
     if (Test-Path -LiteralPath (Join-Path $gamePath 'bshift\gameinfo.txt') -PathType Leaf) { Write-OK 'Black Mesa: Blue Shift detected; its start option is ready.' }

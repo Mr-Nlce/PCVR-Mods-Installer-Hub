@@ -7,6 +7,7 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 ## What it does
 - Resolves the newest release from GitHub, so the Hub can flag updates and re-running the installer updates in place.
 - Locates your Vice City install (Steam library, Rockstar/retail, GOG, with a manual drag & drop fallback), then merges `reVC.exe`, its runtime DLLs and `models\vrhands` into the game folder next to `gta-vc.exe`.
+- If the publisher's five BASE runtime files are missing, explains their download sources and runs the bundled `SETUP_RUNTIME.bat` only after you press Enter. The publisher tool asks for its own download consent; the Hub verifies the required files before marking installation complete.
 - Optionally installs the prebuilt **HD Models Pack** with a visible extraction percentage.
 - **`gta-vc.exe` is never replaced or modified** - the flat game keeps working exactly as before.
 
@@ -29,6 +30,7 @@ Automated installer for **Vice City VR** by #yevhen4817 - a native OpenXR VR ada
 - Your own **legal PC copy of Grand Theft Auto: Vice City (2003)**, including its original `anim`, `audio`, `data`, `models`, `movies` and `TEXT` folders. The mod ships no game data.
 - A PC VR headset with an **active OpenXR runtime**
 - **Microsoft Visual C++ 2015-2022 Redistributable (x64)** - the installer checks for it and links the official Microsoft download if it is missing
+- The publisher's **BASE Streamline/DLSS runtime**. The Hub opens its bundled setup if the five files are absent. This may download from NVIDIA and the publisher-disclosed community mirror; review the sources and consent prompt in that setup.
 
 > **Meta Quest 3 through Quest Link or Air Link is the modder's primary tested setup.** The mod uses OpenXR and does not need the legacy Oculus PC SDK. Other PC OpenXR headsets may work but have not had the same testing. **NVIDIA DLAA** additionally needs a compatible RTX GPU and a current driver; a non-DLAA anti-aliasing path is available on other hardware.
 
@@ -73,6 +75,10 @@ were fixed, so long sessions no longer creep upward.
 | `CinemaProjection=0` | the new SteamVR cutscene path misbehaves |
 | `StreamlineEnabled=0` | black frames from DLSS/Streamline (seen on some VDXR setups) - DLAA is off in that mode |
 | `LegacyGamepad=1` | you have a real wheel or pad that the mod now ignores by default. It ignores legacy DirectInput devices because phantom HID gear fed constant input under the VR sticks |
+
+## Required publisher runtime setup
+
+The first installation needs `SETUP_RUNTIME.bat` after the VR archive has been copied. The Hub opens it after a separate Enter prompt if `sl.interposer.dll`, `sl.common.dll`, `sl.dlss.dll`, `sl.pcl.dll` or `nvngx_dlss.dll` is missing. In the publisher window choose **Install**, review the sources, type `INSTALL`, and wait for `INSTALLED`. The BASE profile installs required loader and ordinary DLSS/DLAA files; optional Neural DLSS 5 models are separate. The publisher setup manages backups under `dlss5-backups`. An update skips this step when all five BASE files are already present. If setup is cancelled or fails, retry from the Hub installer; it will not write a successful VR version receipt while required files are missing.
 
 ## Optional HD Models Pack
 

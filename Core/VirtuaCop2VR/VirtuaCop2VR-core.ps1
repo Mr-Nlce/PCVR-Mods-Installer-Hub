@@ -49,10 +49,9 @@ $PROJECT    = "PROJECT"
 # The VR half lives on its own - it does not belong near the game.
 $VR_ROOT    = Join-Path $env:LOCALAPPDATA "Programs\Virtua Cop 2 VR"
 
-# Read from the real v0.9-beta archive (6 files, flat, 759,200 B,
-# sha256 c4060259...), not guessed.
+# The two roots follow the publisher's v1.0-beta package and launcher.
 $GAME_SIDE  = @("HGL_VIEW.DLL", "HGL_VIEW.ini")
-$VR_SIDE    = @("VC2VR.exe", "VC2VR.ini", "openxr_loader.dll")
+$VR_SIDE    = @("VC2VR.exe", "VC2VR.ini", "openxr_loader.dll", "gun.obj", "gun.mtl", "gun.bmp")
 
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
@@ -193,54 +192,40 @@ if (-not (Test-Path -LiteralPath "$gameRoot\BIN")) {
 # ---- 2. Fetch the mod -----------------------------------------
 Write-Step 2 4 "Downloading $MOD_NAME"
 
-$url = $null; $tag = ""; $assetName = ""; $assetSize = 0; $body = ""
-try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
-              -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
-    # !!! THE AUTHOR ALSO UPLOADS EVERY FILE SEPARATELY beside the
-    # package - HGL_VIEW.DLL, VC2VR.exe, the two .ini files and the
-    # OpenXR loader are all their own assets. We want the COMPLETE
-    # zip, so match VC2VR*.zip and never a loose file.
-    $a = @($rel.assets) | Where-Object { $_.name -match '(?i)^VC2VR.*\.zip$' } | Select-Object -First 1
-    if (-not $a) { $a = @($rel.assets) | Where-Object { $_.name -match '(?i)\.zip$' -and $_.name -notmatch '(?i)source' } | Select-Object -First 1 }
-    if ($a) {
-        $url = [string]$a.browser_download_url; $tag = [string]$rel.tag_name
-        $assetName = [string]$a.name; $assetSize = [long]$a.size; $body = [string]$rel.body
-    }
-} catch { Write-Warn "GitHub could not be reached - falling back to the releases page." }
-if ($url) { Write-OK "Release: $tag  ($assetName)" } else { $url = $RELEASES }
+$testArchive = if ($env:PCVR_HUB_TEST_MODE -eq '1') { ('' + $env:PCVR_VC2_TEST_ARCHIVE).Trim() } else { '' }
+if ($testArchive) {
+    if (-not (Test-Path -LiteralPath $testArchive -PathType Leaf)) { throw 'The isolated VC2VR test archive is missing.' }
+    $release = [pscustomobject]@{ Tag='v1.0-beta'; Url=[IO.Path]::GetFullPath($testArchive); AssetName='VC2VR-v1.0-beta_2.zip'; PageUrl=$RELEASES; Local=$true }
+} else {
+    $asset = Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $true `
+        -AssetPatterns @('(?i)^VC2VR[-_.].*\.zip$') -SkipReleasesWithoutMatchingAsset `
+        -FallbackUrl 'https://github.com/NeuralF/Rea-Virtua-Cop-2-VR/releases/download/v1.0-beta/VC2VR-v1.0-beta_2.zip' `
+        -FallbackTag 'v1.0-beta' -FallbackAssetName 'VC2VR-v1.0-beta_2.zip'
+    $release = [pscustomobject]@{ Tag=[string]$asset.Tag; Url=[string]$asset.Url; AssetName=[string]$asset.AssetName; PageUrl=[string]$asset.PageUrl; Local=$false; NeedsManual=([string]$asset.Url -eq [string]$asset.PageUrl) }
+}
+Write-OK "Release: $($release.Tag)  ($($release.AssetName))"
 
 $tmp = Join-Path $env:TEMP ("vc2vr_" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $zip = Join-Path $tmp "VC2VR.zip"
 
-$have = Find-PredownloadedFile -Patterns @("VC2VR-v*.zip", "VC2VR*.zip") -Label "the VC2VR package" `
-            -ExpectedName $assetName -ExpectedSize $assetSize
-if ($have -and (Test-Path -LiteralPath $have)) {
-    $zip = $have
-    Write-Info "Using the copy you already downloaded."
+if ($release.Local) {
+    Copy-Item -LiteralPath $release.Url -Destination $zip -Force -ErrorAction Stop
+} elseif ($release.NeedsManual) {
+    Write-Warn "The current publisher release needs a manually selected ZIP."
+    $got = Invoke-InstallerFallback -Action 'VC2VR download' -Url ([string]$release.PageUrl) `
+        -DestFile $zip -RetryCheck { Test-Path -LiteralPath $zip -PathType Leaf } -AllowSkip:$false
+    if ([string]$got -notin @('manual','retry')) { throw 'The VC2VR ZIP was not selected.' }
 } else {
-    Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "$MOD_NAME $tag" `
-        -ManualUrl $RELEASES `
-        -Instructions "Download VC2VR-v<version>.zip from the releases page (the COMPLETE zip, not the single files), save it as '$zip', then choose Retry."
+    $got = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $zip -Label "$MOD_NAME $($release.Tag)" `
+        -ManualUrl ([string]$release.PageUrl) -ExpectedReleaseTag ([string]$release.Tag) -AllowSkip $false
+    if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The VC2VR ZIP was not downloaded.' }
 }
 if (-not (Test-Path -LiteralPath $zip)) {
     Write-Fail "No package - your game folder was not touched."
     try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
     Pause-User "Press Enter to exit."
     exit 1
-}
-
-# The author publishes the package's sha256 in the release note.
-if ($body -and $assetName) {
-    $sum = Confirm-ReleaseChecksum -FilePath $zip -AssetName $assetName -ReleaseBody $body
-    if ([string]$sum -eq "mismatch") {
-        Write-Fail "The download does not match the checksum in the release note - stopping."
-        try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit."
-        exit 1
-    }
 }
 
 $unp = Join-Path $tmp "x"
@@ -299,6 +284,7 @@ foreach ($f in @(Get-ChildItem -LiteralPath $gameRoot -File -ErrorAction Silentl
 Write-OK "$copied game file(s) copied into $PROJECT."
 
 foreach ($f in $GAME_SIDE) {
+    if ($f -eq 'HGL_VIEW.ini' -and (Test-Path -LiteralPath "$projDir\$f" -PathType Leaf)) { continue }
     Copy-Item -LiteralPath "$modRoot\$f" -Destination "$projDir\$f" -Force
 }
 Write-OK "Mod renderer placed in $PROJECT."
@@ -313,56 +299,43 @@ if (-not (Test-Path -LiteralPath "$projDir\$GAME_EXE")) {
 Write-Step 4 4 "Placing the VR application"
 try { New-Item -ItemType Directory -Path $VR_ROOT -Force -ErrorAction Stop | Out-Null } catch {}
 foreach ($f in $VR_SIDE) {
+    if ($f -eq 'VC2VR.ini' -and (Test-Path -LiteralPath "$VR_ROOT\$f" -PathType Leaf)) { continue }
     Copy-Item -LiteralPath "$modRoot\$f" -Destination "$($VR_ROOT.TrimEnd('\'))\$f" -Force
+}
+$vrIniPath = Join-Path $VR_ROOT 'VC2VR.ini'
+$gameToLaunch = Join-Path $projDir $GAME_EXE
+if (Test-Path -LiteralPath $vrIniPath -PathType Leaf) {
+    $vrIni = [IO.File]::ReadAllText($vrIniPath)
+    if ($vrIni -match '(?im)^\s*gameexe\s*=') {
+        $vrIni = [regex]::Replace($vrIni, '(?im)^[^\S\r\n]*gameexe[^\S\r\n]*=.*$', [System.Text.RegularExpressions.MatchEvaluator]{ param($match) "gameexe = $gameToLaunch" })
+    } elseif ($vrIni -match '(?im)^\s*\[vr\]\s*$') {
+        $section = [regex]::Match($vrIni, '(?im)^\s*\[vr\][^\r\n]*')
+        $vrIni = $vrIni.Insert($section.Index + $section.Length, "`r`ngameexe = $gameToLaunch")
+    } else { throw 'The publisher VC2VR.ini has no [vr] section.' }
+    [IO.File]::WriteAllText($vrIniPath, $vrIni, [Text.UTF8Encoding]::new($false))
 }
 $vrOk = $true
 foreach ($f in $VR_SIDE) { if (-not (Test-Path -LiteralPath "$($VR_ROOT.TrimEnd('\'))\$f")) { $vrOk = $false } }
 if ($vrOk) {
     Write-OK "VR application: $VR_ROOT"
-    Save-InstalledStamp -GameDir @($VR_ROOT, $gameRoot) -Version $tag -HubDir $PSScriptRoot
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $VR_ROOT -Encoding UTF8 -Force } catch {}
-    # Remember the GAME folder separately, so a later run does not ask
-    # for the exe again. .installed_path cannot carry it - the scan needs
-    # that one pointing at the VR application.
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".game_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-
-    # ---- ONE LAUNCHER THAT DOES THE WHOLE DANCE -------------------
-    # Two executables, in order, from two different folders, and the
-    # game MUST run with PROJECT as its working directory. Nobody should
-    # have to remember that. This batch file is what "Start in VR" on the
-    # game's page runs, and what a desktop shortcut can point at.
+    # The publisher executable now launches and configures the game itself.
+    # The explicit gameexe path connects our separate VR and game folders.
     $launchBat = "$($VR_ROOT.TrimEnd('\'))\Play Virtua Cop 2 VR.bat"
     $bat = @"
 @echo off
 title Virtua Cop 2 VR
-color 0B
-echo.
-rem The Hub's own banner - magenta rules, same as every installer.
-powershell -NoProfile -Command "Write-Host ('  ' + '=' * 60) -ForegroundColor Magenta; Write-Host '   VIRTUA COP 2 VR' -ForegroundColor Cyan; Write-Host ('  ' + '=' * 60) -ForegroundColor Magenta"
-echo.
-echo   Start SteamVR / Virtual Desktop first.
-echo.
-echo   In the game:
-echo.
-rem Only these two lines are coloured. "color" would repaint the whole
-rem console, so one PowerShell call per line does it properly instead.
-powershell -NoProfile -Command "Write-Host '     1.  Press ALT      (twice on a virtual keyboard)' -ForegroundColor Yellow"
-powershell -NoProfile -Command "Write-Host '     2.  Click Device  ->  Direct 3D + 3D view   (use the mouse)' -ForegroundColor Yellow"
-echo.
-echo   VR then starts by itself. Pick your level in the headset.
-echo.
-pause
-cd /d "$projDir"
-start "" "$projDir\$GAME_EXE"
-timeout /t 15
 cd /d "$VR_ROOT"
 start "" "$VR_ROOT\VC2VR.exe"
-timeout /t 3 >nul
 "@
     try {
         Set-Content -LiteralPath $launchBat -Value $bat -Encoding ASCII -Force
         Write-OK "Launcher created: $launchBat"
     } catch { Write-Warn "Could not write the launcher: $($_.Exception.Message)" }
+    if (-not (Test-Path -LiteralPath $launchBat -PathType Leaf)) { throw 'The VC2VR launcher could not be created.' }
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_version') -Value ([string]$release.Tag) -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Value $VR_ROOT -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.game_path') -Value $gameRoot -Encoding UTF8 -Force -ErrorAction Stop
+    Save-InstalledStamp -GameDir @($VR_ROOT, $gameRoot) -Version ([string]$release.Tag) -HubDir $PSScriptRoot
 
     # ---- Icon + desktop shortcut ----------------------------------
     # A .bat has no icon of its own, so the shortcut needs a real .ico
@@ -401,6 +374,7 @@ timeout /t 3 >nul
     }
 } else {
     Write-Fail "The VR application did not arrive in $VR_ROOT."
+    throw 'Required VC2VR files are missing after installation.'
 }
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
@@ -413,28 +387,11 @@ Write-Host "  Press " -NoNewline -ForegroundColor White
 Write-Host "Start in VR" -NoNewline -ForegroundColor Cyan
 Write-Host " on this game's page in the Hub." -ForegroundColor White
 Write-Host ""
-Write-Host "  That runs the launcher this installer just wrote, and it does" -ForegroundColor Gray
-Write-Host "  the whole sequence for you - the game from the right folder," -ForegroundColor Gray
-Write-Host "  then the VR half once you are in a level. You never have to" -ForegroundColor Gray
-Write-Host "  find either program yourself." -ForegroundColor Gray
+Write-Host "  That opens VC2VR.exe. It launches the game from the PROJECT" -ForegroundColor Gray
+Write-Host "  folder and selects the VR renderer automatically." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  ONE THING ONLY YOU CAN DO, the first time: " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-Write-Host ""
-Write-Host "  When the game starts it takes NO keyboard and NO mouse input." -ForegroundColor White
-Write-Host "  It just sits in the main menu." -ForegroundColor White
-Write-Host ""
-Write-Host "  Press " -NoNewline -ForegroundColor White
-Write-Host "ALT" -NoNewline -ForegroundColor Black -BackgroundColor Yellow
-Write-Host " to reach the pause screen - only from there can" -ForegroundColor White
-Write-Host "  anything be set. On a virtual screen (Virtual Desktop and" -ForegroundColor White
-Write-Host "  the like) press ALT TWICE on the virtual keyboard." -ForegroundColor White
-Write-Host ""
-Write-Host "  The mouse works from there: click Device, then pick" -ForegroundColor White
-Write-Host "    Direct 3D + 3D view" -ForegroundColor Black -BackgroundColor Cyan
-Write-Host "  - THAT entry is the mod. It is remembered afterwards." -ForegroundColor White
-Write-Host ""
-Write-Host "  The VR half then starts BY ITSELF after 15 seconds, and you" -ForegroundColor Gray
-Write-Host "  can pick your level from inside the headset." -ForegroundColor Gray
+Write-Host "  If the headset waits for the game, check the gameexe path in" -ForegroundColor White
+Write-Host "  VC2VR.ini and the original game's BIN folder." -ForegroundColor White
 Write-Host ""
 Write-Host "  >>> Point. Shoot. Reload with a flick. Just like the cabinet." -ForegroundColor Magenta
 Write-Host ""

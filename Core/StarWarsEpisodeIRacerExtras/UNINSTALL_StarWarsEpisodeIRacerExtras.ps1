@@ -7,6 +7,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+function Get-RacerSha256([string]$Path) {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') }
+    finally { $stream.Dispose(); $sha.Dispose() }
+}
 if (-not $StateRoot) { $StateRoot = $PSScriptRoot }
 $mainState = Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerVR\.installed_path"
 
@@ -40,7 +46,7 @@ foreach ($set in $sets) {
         if (-not $relative -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') { $setKept++; continue }
         $target = Join-Path $GameRoot $relative
         if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { continue }
-        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne [string]$row.InstalledSha256) {
+        if ((Get-RacerSha256 $target) -ne [string]$row.InstalledSha256) {
             Write-Host "[KEEP] Changed since installation: $relative" -ForegroundColor Yellow
             $setKept++; continue
         }
@@ -64,7 +70,14 @@ foreach ($set in $sets) {
     } else { $kept += $setKept }
 }
 if ($handled -eq 0 -and $kept -eq 0) { Write-Host "No Hub-owned extras manifest was found; nothing was guessed or deleted." -ForegroundColor Gray }
-if ($kept -eq 0) { foreach ($marker in @(".installed_path",".installed_version")) { Remove-Item -LiteralPath (Join-Path $StateRoot $marker) -Force -ErrorAction SilentlyContinue } }
+if ($kept -eq 0) {
+    $tracksStateRoot = Join-Path $PSScriptRoot '..\StarWarsEpisodeIRacerTracks'
+    foreach ($stateFolder in @(@($StateRoot,$tracksStateRoot) | Select-Object -Unique)) {
+        foreach ($marker in @('.installed_path','.installed_version')) {
+            Remove-Item -LiteralPath (Join-Path $stateFolder $marker) -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
 Write-Host ""
 Write-Host "Racer track removal finished. Game, saves, PCVR port and unknown custom content were preserved." -ForegroundColor Magenta
 Finish 0

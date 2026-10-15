@@ -147,10 +147,15 @@ if ($latest) {
     Write-Warn "GitHub API not reachable - you will be pointed at the releases page."
 }
 
-Invoke-SafeDownload -Urls $urls -Destination $zipDest -Label "gtaiv-dxvk-vr" `
+$downloadInfo = @{}
+if (-not $latest) { throw 'The current GTA IV VR release could not be verified; no game files were changed.' }
+Invoke-SafeDownload -Urls $urls -Destination $zipDest -Label "gtaiv-dxvk-vr" -DownloadInfo $downloadInfo -AllowSkip $false `
     -ManualUrl $RELEASE_PAGE `
     -Instructions "Download the gtaiv-dxvk-vr .zip from the releases page, save it as '$zipDest', then choose Retry." `
     -SkipMessage "" | Out-Null
+if (-not $latest -or [string]$downloadInfo.Url -ne [string]$latest.Url) {
+    throw 'The GTA IV VR archive has no verified release identity; no game files were changed.'
+}
 
 while (-not (Test-Path -LiteralPath $zipDest)) {
     Write-Fail "The archive is not present at: $zipDest"
@@ -171,6 +176,8 @@ Write-Step 3 4 "Installing into $gtaDir"
 $exDir = Join-Path $tmp "x"
 try {
     New-Item -ItemType Directory -Path $exDir -Force -ErrorAction Stop | Out-Null
+    $zipSafety = Test-ZipArchiveEntrySafety -ArchivePath $zipDest -DestinationFolder $exDir
+    if (-not $zipSafety.Inspectable -or -not $zipSafety.Safe) { throw "The publisher ZIP is unreadable or contains an unsafe path: $($zipSafety.Entry)" }
     Expand-Archive -LiteralPath $zipDest -DestinationPath $exDir -Force -ErrorAction Stop
 } catch {
     Write-Fail "Unpacking failed: $($_.Exception.Message)"
@@ -199,6 +206,22 @@ if (-not $payload) {
     Pause-User "Press Enter to exit."; exit 1
 }
 
+# A stale ASI from an older install must never turn a partial download into
+# a new success/version receipt. Check the current publisher package before
+# the first copy, then verify every file this package actually ships.
+$requiredPayload = @('gtaiv_dxvk_vr.asi','d3d9.dll','dinput8.dll','openvr_api.dll','plugins\GTAIV.EFLC.FusionFix.asi')
+$missingPayload = @($requiredPayload | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payload $_) -PathType Leaf) })
+if ($missingPayload.Count) {
+    Write-Fail ('The current publisher ZIP is incomplete: ' + ($missingPayload -join ', '))
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User 'Press Enter to exit.' | Out-Null; exit 1
+}
+$payloadPrefix = [IO.Path]::GetFullPath($payload).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
+$payloadFiles = @(Get-ChildItem -LiteralPath $payload -File -Recurse -ErrorAction Stop | ForEach-Object {
+    if (-not $_.FullName.StartsWith($payloadPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Publisher file escaped its extracted folder.' }
+    $_.FullName.Substring($payloadPrefix.Length)
+})
+
 # Back up the stock files this pack replaces, once. The pack brings its
 # own .stock-302 / .bak copies of some of them, but a d3d9.dll from an
 # earlier mod install would otherwise be gone for good.
@@ -225,6 +248,14 @@ if ($copyFail) {
     try {
         Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop
     } catch { }
+}
+
+$missingInstalled = @($payloadFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gtaDir $_) -PathType Leaf) })
+if ($missingInstalled.Count) {
+    Write-Fail ('The publisher package did not copy completely: ' + ($missingInstalled -join ', '))
+    Write-Info 'Check the game folder, permissions and installer log; no success was recorded.'
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User 'Press Enter to exit.' | Out-Null; exit 1
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI))) {

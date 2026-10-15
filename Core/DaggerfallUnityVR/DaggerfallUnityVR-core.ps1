@@ -234,11 +234,15 @@ if (-not (Test-Path (Join-Path $dfuPayload $GAME_EXE))) {
     $hit = Get-ChildItem -Path $dfuExtract -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $dfuPayload = Split-Path $hit.FullName -Parent }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $dfuPayload $GAME_EXE) -PathType Leaf)) {
+    Write-Fail "The engine archive does not contain $GAME_EXE. No engine files were installed."
+    Pause-User "Press Enter to exit..."; exit 1
+}
 
 Write-Host "  Installing engine files ... " -NoNewline -ForegroundColor White
 $engineOk = $false
 try {
-    Get-ChildItem -Path $dfuPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force }
+    Get-ChildItem -Path $dfuPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force -ErrorAction Stop }
     Write-Host "OK" -ForegroundColor Green
     $engineOk = $true
 } catch {
@@ -248,10 +252,10 @@ try {
         -SkipMessage "Skipped - engine files were NOT copied; install is incomplete." `
         -SourceFolder "$dfuPayload" -DestFolder "$installRoot" -AllowSkip $true
     if ([string]$__fb -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}; Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$__fb -eq "retry") { try { Get-ChildItem -Path $dfuPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force }; $engineOk = $true } catch {} }
+    if ([string]$__fb -eq "retry") { try { Get-ChildItem -Path $dfuPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force -ErrorAction Stop }; $engineOk = $true } catch {} }
 }
-if (Test-Path (Join-Path $installRoot $GAME_EXE)) { Write-OK "Daggerfall Unity engine installed." }
-else { Write-Warn "$GAME_EXE not found at install root - check $installRoot." }
+if ($engineOk -and (Test-Path -LiteralPath (Join-Path $installRoot $GAME_EXE) -PathType Leaf)) { Write-OK "Daggerfall Unity engine installed." }
+else { Write-Fail "$GAME_EXE not found at install root. Setup cannot continue."; Pause-User "Press Enter to exit..."; exit 1 }
 
 # -------------------------------------------------------
 # STEP 4: First run + KeyBinds backup
@@ -329,11 +333,17 @@ if (-not (Test-Path -LiteralPath "$modPayload\winhttp.dll")) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter "winhttp.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $modPayload = Split-Path $hit.FullName -Parent }
 }
+foreach ($requiredModFile in @('winhttp.dll', 'doorstop_config.ini', $MOD_FILE)) {
+    if (-not (Test-Path -LiteralPath (Join-Path $modPayload $requiredModFile) -PathType Leaf)) {
+        Write-Fail "The VR archive is missing $requiredModFile. No VR files were installed."
+        Pause-User "Press Enter to exit..."; exit 1
+    }
+}
 
 Write-Host "  Adding VR mod files on top of the engine ... " -NoNewline -ForegroundColor White
 $modOk = $false
 try {
-    Get-ChildItem -Path $modPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force }
+    Get-ChildItem -Path $modPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force -ErrorAction Stop }
     Write-Host "OK" -ForegroundColor Green
     $modOk = $true
 } catch {
@@ -343,18 +353,19 @@ try {
         -SkipMessage "Skipped - VR mod files were NOT copied." `
         -SourceFolder "$modPayload" -DestFolder "$installRoot" -AllowSkip $true
     if ([string]$__fb -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}; Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$__fb -eq "retry") { try { Get-ChildItem -Path $modPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force }; $modOk = $true } catch {} }
+    if ([string]$__fb -eq "retry") { try { Get-ChildItem -Path $modPayload | ForEach-Object { Copy-Item -Path $_.FullName -Destination $installRoot -Recurse -Force -ErrorAction Stop }; $modOk = $true } catch {} }
 }
 
 $modDll = Join-Path $installRoot $MOD_FILE
-if (Test-Path $modDll) {
+if ($modOk -and (Test-Path -LiteralPath $modDll -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $installRoot 'winhttp.dll') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $installRoot 'doorstop_config.ini') -PathType Leaf)) {
     Write-OK "DFUVR.dll present - VR mod installed."
     try {
         $pathFile = Join-Path $PSScriptRoot ".installed_path"
         Set-Content -Path $pathFile -Value $installRoot -Encoding UTF8 -Force
     } catch {}
 } else {
-    Write-Warn "DFUVR.dll not found after install - check $installRoot\BepInEx\plugins."
+    Write-Fail "Required VR mod files are missing after copy. Setup cannot continue."
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
 # Cleanup temp.
@@ -365,9 +376,10 @@ try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch
 # -------------------------------------------------------
 Write-Step 6 6 "Display settings + desktop shortcut"
 
-Write-Host "  Opening Windows display settings..." -ForegroundColor Gray
+Write-Host "  Windows display settings can now be opened." -ForegroundColor Gray
 Write-Host "  Set ALL connected monitors to 1920x1080, or the in-game UI" -ForegroundColor Yellow
 Write-Host "  may not render at all." -ForegroundColor Yellow
+Pause-User "Press Enter to open Windows display settings..."
 try { Start-Process "ms-settings:display" } catch {}
 Pause-User "Press Enter once your monitors are set to 1920x1080..."
 

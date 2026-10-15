@@ -9,9 +9,9 @@ $ErrorActionPreference = 'Stop'
 
 $Host.UI.RawUI.WindowTitle = 'GoldenEye 007 VR Installer'
 $REPO = 'no6969el/GEVR'
-$FALLBACK_TAG = 'vr444.1'
-$FALLBACK_ASSET = 'GEVR-Beta-vr444.1-win64.zip'
-$FALLBACK_URL = 'https://github.com/no6969el/GEVR/releases/download/vr444.1/GEVR-Beta-vr444.1-win64.zip'
+$FALLBACK_TAG = 'vr456.9'
+$FALLBACK_ASSET = 'GEVR-Beta-vr456.9-win64.zip'
+$FALLBACK_URL = 'https://github.com/no6969el/GEVR/releases/download/vr456.9/GEVR-Beta-vr456.9-win64.zip'
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $DEFAULT_TARGET = 'C:\Games\GoldenEye 007 VR'
 $IDENTITY = 'goldeneye007vr'
@@ -59,6 +59,11 @@ function Test-GoldenEyeTargetWritable([string]$Path) {
 }
 
 function Select-GoldenEyeInstallFolder([scriptblock]$ReadInput=$null,[scriptblock]$WritableProbe=$null) {
+    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GEVR_TEST_TARGET) {
+        $isolated=[IO.Path]::GetFullPath([string]$env:PCVR_GEVR_TEST_TARGET).TrimEnd('\','/')
+        if (-not (Test-GoldenEyeTargetWritable $isolated)) { throw 'The isolated GoldenEye fixture folder is not writable.' }
+        return $isolated
+    }
     $suggested=Get-GoldenEyeRememberedTarget
     Write-Host "  Default: $suggested" -ForegroundColor White
     Write-Host '  Press Enter to use it, or type/paste another full folder path.' -ForegroundColor Gray
@@ -93,6 +98,21 @@ function Get-GoldenEyePayloadRoot([string]$ExtractRoot) {
 function Test-GoldenEyePayloadHasNoRom([string]$PayloadRoot) {
     return @(Get-ChildItem -LiteralPath $PayloadRoot -Recurse -File -ErrorAction Stop |
         Where-Object Extension -match '(?i)^\.(z64|v64|n64)$').Count -eq 0
+}
+
+function Assert-GoldenEyeReleaseVersion([string]$PayloadRoot,[string]$ReleaseTag,[string]$Target) {
+    $notes=Join-Path $PayloadRoot 'RELEASE-NOTES.txt'
+    if(-not(Test-Path -LiteralPath $notes -PathType Leaf)){throw 'The GEVR package has no publisher release notes. No files were changed.'}
+    $match=[regex]::Match((Get-Content -LiteralPath $notes -Raw -ErrorAction Stop),'(?im)^GEVR(?: Beta)? (vr[0-9]+(?:\.[0-9]+)+)\s*$')
+    $actual=if($match.Success){$match.Groups[1].Value}else{''}
+    if(-not $actual -or $actual -cne $ReleaseTag){throw "GEVR package version $actual does not match selected release $ReleaseTag. No files were changed."}
+    $receipt=Join-Path $Target '.pcvrhub_version'
+    if(Test-Path -LiteralPath $receipt -PathType Leaf){
+        $prior=(Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop).Trim()
+        if($prior -match '^vr([0-9]+(?:\.[0-9]+)+)$' -and [version]$Matches[1] -gt [version]$ReleaseTag.Substring(2)){
+            throw "GEVR $prior is already installed. The older $ReleaseTag package cannot replace it."
+        }
+    }
 }
 
 function New-GoldenEyeStage([string]$PayloadRoot,[string]$StageRoot,[string]$Version) {
@@ -150,12 +170,14 @@ function Save-GoldenEyeSnapshot([string]$GameRoot,[string]$Stage,[string]$Snapsh
     }
     $manifest=Join-Path $GameRoot ".pcvrhub_${IDENTITY}_ownership.csv"
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-        try { foreach ($row in @(Import-Csv -LiteralPath $manifest)) { if ($row.RelativePath) { $relatives.Add([string]$row.RelativePath) } } } catch {}
+        foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+            if ($row.RelativePath) { $relatives.Add((Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath))) }
+        }
     }
     foreach ($extra in @(".pcvrhub_${IDENTITY}_ownership.csv",".pcvrhub_${IDENTITY}_ownership.csv.new",'.pcvrhub_version')) { $relatives.Add($extra) }
     $records=@()
     foreach ($relative in @($relatives | Select-Object -Unique)) {
-        $source=Join-Path $GameRoot $relative; $exists=Test-Path -LiteralPath $source -PathType Leaf
+        $source=Join-OwnedRelativePath -Root $GameRoot -Relative $relative; $exists=Test-Path -LiteralPath $source -PathType Leaf
         $key=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($relative)).Replace('/','_')
         $records += [pscustomobject]@{Relative=$relative;Exists=$exists;Key=$key}
         if ($exists) { Copy-Item -LiteralPath $source -Destination (Join-Path $SnapshotRoot $key) -Force }
@@ -168,7 +190,7 @@ function Save-GoldenEyeSnapshot([string]$GameRoot,[string]$Stage,[string]$Snapsh
 
 function Restore-GoldenEyeSnapshot([string]$GameRoot,$Snapshot) {
     foreach ($record in @($Snapshot.Records)) {
-        $target=Join-Path $GameRoot ([string]$record.Relative)
+        $target=Join-OwnedRelativePath -Root $GameRoot -Relative ([string]$record.Relative)
         if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
         if ($record.Exists) {
             [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
@@ -230,20 +252,29 @@ function global:Invoke-GoldenEye007VRInstaller {
         Write-GoldenEyeOK 'Publisher VR boot retained with the runtime-rate compatibility safeguard.'
 
         Write-GoldenEyeStep 2 4 'Downloading and validating the newest stable PCVR release'
-        $release=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^GEVR-Beta-vr[0-9]+(?:\.[0-9]+)*-win64\.zip$') `
-            -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset
+        $isolatedArchive=if ($env:PCVR_HUB_TEST_MODE -eq '1') { (''+[string]$env:PCVR_GEVR_TEST_ARCHIVE).Trim() } else { '' }
+        if ($isolatedArchive) {
+            if (-not (Test-Path -LiteralPath $isolatedArchive -PathType Leaf)) { throw 'The selected isolated GEVR archive is missing.' }
+            $testTag=(''+$env:PCVR_GEVR_TEST_RELEASE_TAG).Trim()
+            $release=[pscustomobject]@{ Tag=$(if($testTag){$testTag}else{$FALLBACK_TAG}); AssetName=$FALLBACK_ASSET; Url=$isolatedArchive; PageUrl=$RELEASES_URL }
+        } else {
+            $release=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^GEVR-Beta-vr[0-9]+(?:\.[0-9]+)*-win64\.zip$') `
+                -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset
+        }
         $version=[string]$release.Tag
         if (-not (Test-IsTrackableInstalledVersion $version)) { throw 'The publisher release did not provide a trackable version tag.' }
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_goldeneye_'+[Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work ([string]$release.AssetName)
-        $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "GEVR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+        if ($isolatedArchive) { Copy-Item -LiteralPath $isolatedArchive -Destination $archive -Force -ErrorAction Stop; $got=$true }
+        else { $got=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "GEVR $version" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false }
         if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The official GEVR archive was not downloaded.' }
         $extract=Join-Path $work 'extract'
         $expanded=Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'official GEVR release' -AllowSkip $false -QuietProgress
         if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The GEVR archive could not be extracted.' }
         $payload=Get-GoldenEyePayloadRoot $extract
         if (-not $payload) { throw 'The release is missing the launcher, ROM starter, OpenXR runtime or another required publisher file.' }
+        Assert-GoldenEyeReleaseVersion -PayloadRoot $payload -ReleaseTag $version -Target $target
         $stage=Join-Path $work 'stage'
         $bootName=New-GoldenEyeStage -PayloadRoot $payload -StageRoot $stage -Version $version
         Write-GoldenEyeOK "Official $version runtime verified; no ROM is present in the package."
@@ -251,15 +282,19 @@ function global:Invoke-GoldenEye007VRInstaller {
         Write-GoldenEyeStep 3 4 'Installing the runtime recoverably'
         $snapshot=Save-GoldenEyeSnapshot -GameRoot $target -Stage $stage -SnapshotRoot (Join-Path $work 'snapshot')
         $changesStarted=$true
-        Install-GoldenEyeOwnedPayload -GameRoot $target -SourceRoot $stage -Version $version -InstalledPathReceipt (Join-Path $PSScriptRoot '.installed_path')
+        $receipt=if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GEVR_TEST_RECEIPT) { [string]$env:PCVR_GEVR_TEST_RECEIPT } else { Join-Path $PSScriptRoot '.installed_path' }
+        Install-GoldenEyeOwnedPayload -GameRoot $target -SourceRoot $stage -Version $version -InstalledPathReceipt $receipt
         Write-GoldenEyeOK "Runtime, $bootName, OpenXR loader and launcher verified."
 
         Write-GoldenEyeStep 4 4 'Creating the launch shortcut'
-        try {
-            [void](New-DesktopShortcut -ShortcutName 'GoldenEye 007 VR' -TargetPath (Join-Path $target $HUB_LAUNCHER) `
-                -WorkingDir $target -IconPath (Join-Path $target $ICON_NAME) -Description 'Launch GoldenEye 007 in OpenXR VR')
-            Write-GoldenEyeOK 'Desktop shortcut created.'
-        } catch { Write-GoldenEyeWarn 'The installation is complete, but its optional desktop shortcut could not be created.' }
+        if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GEVR_TEST_TARGET) { Write-GoldenEyeOK 'Isolated fixture: desktop shortcut omitted.' }
+        else {
+            try {
+                [void](New-DesktopShortcut -ShortcutName 'GoldenEye 007 VR' -TargetPath (Join-Path $target $HUB_LAUNCHER) `
+                    -WorkingDir $target -IconPath (Join-Path $target $ICON_NAME) -Description 'Launch GoldenEye 007 in OpenXR VR')
+                Write-GoldenEyeOK 'Desktop shortcut created.'
+            } catch { Write-GoldenEyeWarn 'The installation is complete, but its optional desktop shortcut could not be created.' }
+        }
         $changesStarted=$false
 
         Write-Host ''; Write-Host ('=' * 60) -ForegroundColor Magenta

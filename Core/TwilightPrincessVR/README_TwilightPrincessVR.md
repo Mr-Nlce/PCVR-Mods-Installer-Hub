@@ -1,6 +1,6 @@
 # The Legend of Zelda: Twilight Princess VR
 
-**Dusklight VR** by **JoeyAW** - a VR port of Twilight Princess built on the
+Dusklight VR by JoeyAW - a VR port of Twilight Princess built on the
 Dusklight decompilation. Not an emulator hack: the game runs natively, and it
 aims to stay as close to the original as it can while letting you stand inside
 it.
@@ -8,47 +8,45 @@ it.
 ## What you get
 
 - Full stereoscopic 3D with tracked controllers
-- **Physical sword swinging, shield bashing and aiming** - you aim with your
+- Physical sword swinging, shield bashing and aiming - you aim with your
   right hand
 - A flatscreen toggle for any part you would rather not play in the headset
 - Quest 2 / 3 bindings
 
 ## You supply the game
 
-**This port ships no game data whatsoever.** You need your own dump of the
-**GameCube** release - the Wii versions are not supported yet.
+This port ships no game data whatsoever. You need your own dump of the
+GameCube release - the Wii versions are not supported yet.
 
 Dolphin's wiki explains how to dump a disc you own. Afterwards, Dolphin or
 `nodtool` can convert the `.iso` into the much smaller `.rvz`.
 
-## About the download size
+## Current package and safe updating
 
-The release is **over 500 MB packed and roughly 2 GB unpacked**, and that is not
-a mistake on your end: the author ships his complete build folder, compiler
-leftovers and all. The parts that actually run the game are a fraction of it.
-Nothing is broken if the unpacking takes a few minutes.
+The 2.3.0 Windows PCVR archive is about 52 MB packed and holds a compact
+runtime instead of the huge development tree used through v2.1.0. It still
+contains no game dump. Choose the Windows PCVR ZIP rather than the Quest APK.
 
 The Hub's installer puts it wherever you choose - it is standalone and does not
 go into any existing game folder.
 
 Use a complete folder path. A bare drive such as `F:` is automatically treated
 as `F:\` because Windows otherwise interprets it as that drive's hidden current
-directory. After extraction, the installer checks the established build path,
-the install root, the live archive layout, the complete selected folder and any
-related extractor location. If none is usable, it performs one clean recovery
-extraction and normalizes the playable runtime back into the stable Hub layout.
-Publisher wrapper folders and a future `dusklight-*.exe` suffix therefore do not
-break detection, **Start in VR**, or the desktop shortcut.
+directory. Setup checks archive paths, extracts into a clean staging folder,
+verifies the publisher runtime, then moves an existing Hub build into a named
+backup folder before copying the new one. The backup may contain your own files;
+review it before deleting it. The Hub retains its established launch path, so
+Start in VR and the desktop shortcut reach the updated executable.
 
-If every automatic route is exhausted, Setup stays open. You can retry as often
-as needed or drag the extracted folder, `dusklight.exe`, or the release ZIP onto
-the shared recovery screen. A failure never ends in a close-only prompt.
+If download or extraction fails, use installer recovery to retry or supply the
+current publisher ZIP. An incomplete update restores the previous build; it
+does not claim the new version as installed.
 
 ## Optional: the ZTP HD texture pack
 
 Henriko Magnifico's pack redraws the game's textures in HD and works with
-Dusklight. The download page offers three alternatives: **1080p Mobile**,
-**1080p PC**, and **4K PC**. Choose and install one edition, not all three.
+Dusklight. The download page offers three alternatives: 1080p Mobile,
+1080p PC, and 4K PC. Choose and install one edition, not all three.
 
 The 4K PC edition is especially large - around 4 GB packed and several GB
 unpacked. The pack is purely cosmetic; the game runs fine without it.
@@ -60,80 +58,99 @@ are accepted when Windows can see them; if a mapped drive is hidden from the
 installer, paste its UNC path or copy the ZIP to Downloads:
 https://www.henrikomagnifico.com/zelda-twilight-princess-4k
 
-The textures do **not** go into your install folder. They belong here:
+The textures do not go into your install folder. They belong here:
 
     %APPDATA%\TwilitRealm\Dusklight\texture_replacements\HenrikosTP4K_...\
 
-Keep the pack's own **HenrikosTP4K...** folder intact directly below
+Keep the pack's own HenrikosTP4K... folder intact directly below
 `texture_replacements`. Do not move its texture or province folders one level
 up, because Dusklight expects the pack directory itself to remain there.
 
-And one switch is left to you: in the game, **Settings > Video > Use Texture
-Pack**. Without it the files sit there and do nothing.
+And one switch is left to you: in the game, Settings > Video > Use Texture
+Pack. Without it the files sit there and do nothing.
 
 ## Requirements
 
-- Windows, and a GPU that supports **D3D12**
-- **Quest 2 or 3** - other headsets are untested, controls especially
-- **Virtual Desktop with VDXR** is the author's recommendation for performance;
+- Windows, and a GPU that supports D3D12
+- Quest 2 or 3 - other headsets are untested, controls especially
+- Virtual Desktop with VDXR is the author's recommendation for performance;
   SteamVR and Meta Link also work
 
 ## Playing
 
-Start your VR software **first**, then launch Dusklight. A window opens on your
-desktop - press [[Enter]] there or click **Play** to start. **Nothing appears in
-the headset until you do**, so that empty view is expected.
+Start your VR software first, then launch Dusklight. A window opens on your
+desktop - press [[Enter]] there or click Play to start. Nothing appears in
+the headset until you do, so that empty view is expected.
 
-## Current v2.1.0 release
+## Current 2.3.0 release
 
-The current release adds snap turning, configurable snap increments and a
+This release adds directional audio and an optional third-person camera that
+rotates with Link. It fixes stopping jitter, delayed first-person turning,
+cutscene camera direction, sunlight movement and third-person camera rotation.
+The sun-glare dim setting can now be switched in the game. The publisher asks
+standalone users to back up their saves before updating.
+
+## Earlier v2.2.0 release
+
+Physical sword collision registers vertical and horizontal swings and stabs
+when the sword contacts enemies or grass. It is normally on by default; existing
+settings may require enabling it under Settings > VR. Some scripted bosses
+(including Argorok, Beast Ganon and Morpheel) and sword techniques still need
+the attack button: press [[B]] or temporarily turn physical sword swinging off.
+The publisher shrank the Windows runtime substantially and recommends replacing
+old build files. Saves normally survive the update, but you may need to select
+your own ROM again if its location changed.
+
+## Earlier v2.1.0 release
+
+This release added snap turning, configurable snap increments and a
 smooth-turn speed setting. It also fixes scent trails, fire spouts and other
 visual or progression blockers. Full 6DoF positional tracking, the optional
-Wolf-form camera, the separate **Show Link's Body** setting and the earlier
-Gale Boomerang crash fix remain included. The Windows package still places
-`dusklight.exe` below `windows-msvc-relwithdebinfo`; setup discovers that live
-layout and normalizes it to the Hub's stable launch location.
+Wolf-form camera, the separate Show Link's Body setting and the earlier
+Gale Boomerang crash fix remain included. The older Windows package placed
+`dusklight.exe` below `windows-msvc-relwithdebinfo`; the current publisher
+archive uses `tpvr-windows-x64` instead.
 
 ## Earlier v1.1.0 VR settings update
 
-**The Dusklight overlay now works in VR.** Hold [[Right Stick Click]] and
+The Dusklight overlay now works in VR. Hold [[Right Stick Click]] and
 [[Right Trigger]] together for a couple of seconds to open it - there is no other
 way in from inside the headset. The VR-specific settings live under
-**Settings > VR**.
+Settings > VR.
 
 That tab holds:
 
 | Setting | What it does |
 |---|---|
-| **VR desktop mirror** | mirror the view on your monitor |
-| **Third person** | see below - it also works on a plain gamepad |
-| **Hide body** | hides Link's model except hands and items; his model comes back for cutscenes. Off by default |
-| **Cutscenes first-person** | experimental. Cutscenes are **third person by default now**; this reverts that |
-| **Swap sword/shield hands** | sword in the right hand, shield in the left, like the Wii version - the motion controls swap with it |
-| **VR brightness compensation** | separate values for the normal path and for SteamVR |
+| VR desktop mirror | mirror the view on your monitor |
+| Third person | see below - it also works on a plain gamepad |
+| Hide body | hides Link's model except hands and items; his model comes back for cutscenes. Off by default |
+| Cutscenes first-person | experimental. Cutscenes are third person by default now; this reverts that |
+| Swap sword/shield hands | sword in the right hand, shield in the left, like the Wii version - the motion controls swap with it |
+| VR brightness compensation | separate values for the normal path and for SteamVR |
 
-**Third person is the big one if you have no VR controllers.** It makes the game
-playable with an ordinary gamepad and no 6DOF: aiming follows your **headset**
+Third person is the big one if you have no VR controllers. It makes the game
+playable with an ordinary gamepad and no 6DOF: aiming follows your headset
 direction instead of the right controller. With it on, the camera also faces Link
 while Z-targeting.
 
-**Also changed:** the reticle grows with distance, so far targets (the monkey, the
+Also changed: the reticle grows with distance, so far targets (the monkey, the
 beehive with the owl) stay visible. The headset view now snaps along when a
 cutscene cuts to a new angle, while smooth camera moves are left alone. Area
 transitions play in third person even with third person off, to avoid visual
 bugs. Smooth rotation on the right stick was added for ordinary controllers.
 
-**The gamma problem is properly fixed** - rather than correcting it every frame,
+The gamma problem is properly fixed - rather than correcting it every frame,
 Meta Link and VDXR now read the game's colour format directly.
 
 ## Known issues - all named by the author
 
-- **Cutscenes are broken in VR.** Link is sometimes loaded out of bounds, and you
+- Cutscenes are broken in VR. Link is sometimes loaded out of bounds, and you
   see past the edges of scenes that were never meant to be seen from anywhere but
   the fixed camera. Watch them in flatscreen.
-- **Wolf Link sections stay in third person.** He turns his whole body to look
+- Wolf Link sections stay in third person. He turns his whole body to look
   around, which throws the camera about. The author is open to ideas.
-- **After a loading screen the camera can sit too low or too high.** Stand still
+- After a loading screen the camera can sit too low or too high. Stand still
   without pressing anything for about three seconds - until the hearts and map
   appear - and it settles.
 - Some screenspace effects (water reflections and the like) still need turning
@@ -145,10 +162,10 @@ Discord: https://discord.gg/CxQJ9PjnjA
 
 ## Credits
 
-Port by **JoeyAW** - https://github.com/JoeyAW/dusklight-vr
+Port by JoeyAW - https://github.com/JoeyAW/dusklight-vr
 
-Built on the work of the **Dusklight** team, the **TP decompilation** team, the
-GC/Wii decompilation community, the **Aurora** developers, **Automata** and the
+Built on the work of the Dusklight team, the TP decompilation team, the
+GC/Wii decompilation community, the Aurora developers, Automata and the
 TP speedrunning community.
 
 The author is open about having written the code with AI assistance and explains

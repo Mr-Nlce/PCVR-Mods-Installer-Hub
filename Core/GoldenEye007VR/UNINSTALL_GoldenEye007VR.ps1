@@ -35,15 +35,15 @@ if (-not $HubConfirmed) {
 
 $result=Uninstall-OwnedModPayload -GameRoot $GameRoot -Identity 'goldeneye007vr'
 if (-not $result.Found) { throw 'The runtime ownership manifest disappeared before removal.' }
+Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue
+$receipt=if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GEVR_TEST_RECEIPT) { [string]$env:PCVR_GEVR_TEST_RECEIPT } else { Join-Path $PSScriptRoot '.installed_path' }
+if (Test-Path -LiteralPath $receipt -PathType Leaf) {
+    try {
+        $saved=([IO.File]::ReadAllText($receipt)).Trim()
+        if ([IO.Path]::GetFullPath($saved) -eq [IO.Path]::GetFullPath($GameRoot)) { Remove-Item -LiteralPath $receipt -Force }
+    } catch {}
+}
 if ([int]$result.Preserved -eq 0) {
-    Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue
-    $receipt=Join-Path $PSScriptRoot '.installed_path'
-    if (Test-Path -LiteralPath $receipt -PathType Leaf) {
-        try {
-            $saved=([IO.File]::ReadAllText($receipt)).Trim()
-            if ([IO.Path]::GetFullPath($saved) -eq [IO.Path]::GetFullPath($GameRoot)) { Remove-Item -LiteralPath $receipt -Force }
-        } catch {}
-    }
     try {
         $shortcut=Join-Path ([Environment]::GetFolderPath('Desktop')) 'GoldenEye 007 VR.lnk'
         if (Test-Path -LiteralPath $shortcut -PathType Leaf) {

@@ -2,6 +2,10 @@
 
 Automated installer for the DawnVR VR mod by TrevTV.
 
+## About the Game
+
+*Before the Storm* follows Chloe Price through a choice-driven story in Arcadia Bay, before the events of the first *Life is Strange*.
+
 ## What it installs
 - MelonLoader 0.5.7 (required — no other version is supported)
 - DawnVR v1.0.1 (Original or Remastered, your choice)
@@ -10,18 +14,19 @@ Automated installer for the DawnVR VR mod by TrevTV.
 
 1. Click **Install Mod** on the game tile or detail page
 2. Choose your game edition (Original or Remastered)
-3. The installer automatically handles the rest
+3. Let setup download and validate both packages, then follow its Steam launch-option prompts. A failed download or incomplete package leaves no new success receipt.
 
 ## Requirements
 - Windows 10/11
-- Steam with **Life is Strange: Before the Storm** (Original or Remastered) owned and installed
+- A purchased, installed **Life is Strange: Before the Storm** Original or Remastered edition. The publisher documents Steam setup; other store launch behaviour has not been verified.
 - SteamVR installed
 - Internet connection (for mod downloads)
 
 ## Important notes
 - **ONLY MelonLoader 0.5.7 is supported** — do not upgrade
-- First launch takes longer — MelonLoader configures itself on first run
+- First launch takes longer — MelonLoader configures itself and DawnVR's enabler extracts required files
 - Make sure **SteamVR is running** before launching the game
+- Disable Steam's **Use Desktop Game Theatre while SteamVR is active** option for the game
 - Add this to your Steam Launch Options (the installer guides you and copies
   it for you):
 
@@ -36,12 +41,15 @@ options — the game then loads normally.
 
 ![Controller layout](ControllerLayout.jpg)
 
-The image above shows the full button layout. The main ones:
-- **[[Left Stick]]:** Movement / UI navigation
-- **[[Left Stick]] press:** Select
-- **[[Right Stick]]:** Turning
-- **[[Right Stick]] press:** Start
-- **[[RB]]:** Sprint
+The publisher maps VR-controller buttons to Xbox One inputs; see the image for device-specific positions. The main controls are:
+
+| Button | Action |
+| --- | --- |
+| [[Left Stick]] | Movement / UI navigation |
+| [[Left Stick Click]] | Select |
+| [[Right Stick]] | Turning |
+| [[Right Stick Click]] | Start |
+| [[RB]] | Sprint |
 
 ## Configurable options
 
@@ -59,6 +67,8 @@ with any text editor). Highlights:
 
 Note: resolution and FPS cap come from SteamVR and ignore the in-game
 settings; other graphics options still affect visuals and performance.
+
+The publisher describes DawnVR as being in maintenance mode: bug fixes may still arrive, but new features are not actively developed.
 
 ## Troubleshooting
 If you see an **Initialization Error** on startup:

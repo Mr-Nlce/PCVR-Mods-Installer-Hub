@@ -1,8 +1,26 @@
 # Safe, game-side ownership manifests for small drop-in VR mods.
 # The manifest records only files copied by the selected mod package. Shared
 # loaders can be installed outside this helper and are therefore never removed.
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    $pcvrUtilityModule = Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1'
+    if (Test-Path -LiteralPath $pcvrUtilityModule -PathType Leaf) {
+        Import-Module $pcvrUtilityModule -Global -Force -ErrorAction Stop
+    }
+    Remove-Variable pcvrUtilityModule -ErrorAction SilentlyContinue
+}
+
+function global:Assert-PCVROwnedRelativePath {
+    param([Parameter(Mandatory=$true)][string]$Relative)
+    if ([string]::IsNullOrWhiteSpace($Relative) -or [IO.Path]::IsPathRooted($Relative) -or
+        $Relative -match '[:\x00-\x1F]' -or $Relative -match '(^|[\\/])\.{1,2}([\\/]|$)' -or
+        $Relative -match '^[\\/]' -or $Relative -match '[\\/]$') {
+        throw "Unsafe owned file path in manifest: $Relative"
+    }
+    return $Relative.Replace('/','\')
+}
 function global:Join-OwnedRelativePath {
     param([Parameter(Mandatory=$true)][string]$Root,[Parameter(Mandatory=$true)][string]$Relative)
+    $Relative=Assert-PCVROwnedRelativePath -Relative $Relative
     $value=$Root
     foreach($part in @($Relative -split '[\\/]' | Where-Object { $_ })) { $value=Join-Path $value $part }
     return $value
@@ -28,7 +46,11 @@ function global:Install-OwnedModPayload {
     $backupRoot = Join-Path $GameRoot ".pcvrhub_${Identity}_backup"
     $old = @{}
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-        try { foreach ($row in @(Import-Csv -LiteralPath $manifest)) { $old[[string]$row.RelativePath] = $row } } catch {}
+        foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+            $relative=Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath)
+            if($old.ContainsKey($relative)){throw "Duplicate owned file path in manifest: $relative"}
+            $old[$relative] = $row
+        }
     }
     $skip = @($SkipRelativePaths | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
     $include = @($IncludeRelativePrefixes | ForEach-Object { ([string]$_).Replace('/','\').Trim('\') })
@@ -149,7 +171,14 @@ function global:Uninstall-OwnedModPayload {
     if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) { return [pscustomobject]@{Removed=0;Restored=0;Preserved=0;Found=$false} }
     $remaining = New-Object System.Collections.Generic.List[object]
     $removed=0; $restored=0; $preserved=0
-    foreach ($row in @(Import-Csv -LiteralPath $manifest)) {
+    $manifestRows=@(Import-Csv -LiteralPath $manifest -ErrorAction Stop)
+    $seen=@{}
+    foreach($row in $manifestRows){
+        $relative=Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath)
+        if($seen.ContainsKey($relative)){throw "Duplicate owned file path in manifest: $relative"}
+        $seen[$relative]=$true
+    }
+    foreach ($row in $manifestRows) {
         $relative = [string]$row.RelativePath
         $target = Join-OwnedRelativePath $GameRoot $relative
         if (-not (Test-Path -LiteralPath $target -PathType Leaf) -and $ParkedAlternates.ContainsKey($relative)) {

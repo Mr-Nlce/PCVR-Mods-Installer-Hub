@@ -56,7 +56,7 @@ F-Zero X is by **Nintendo**. The **G-Diffuser** PC port is by **Zorkats**, built
 
 https://rayrodtv.com/
 
-https://github.com/RaYRoD-TV/FZeroX-VR
+The former per-game repository is unavailable (404). The publisher's live release source is https://github.com/RaYRoD-TV/MVRH
 
 https://github.com/Zorkats/G-Diffuser
 

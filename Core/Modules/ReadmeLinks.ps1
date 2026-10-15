@@ -219,16 +219,11 @@ function global:Update-ReadmeLinkSession {
 # Folder, and users do move it. The registry entry is the real answer;
 # the profile path is only the fallback when that read fails.
 function global:Get-ReadmeDownloadsRoot {
-    try {
-        $key = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders'
-        $raw = (Get-ItemProperty -Path $key -Name '{374DE290-123F-4565-9164-39C4925E467B}' -ErrorAction Stop).'{374DE290-123F-4565-9164-39C4925E467B}'
-        if ($raw) {
-            $expanded = [Environment]::ExpandEnvironmentVariables($raw)
-            if ($expanded -and (Test-Path -LiteralPath $expanded)) { return $expanded }
-        }
-    } catch {}
-    $fallback = Join-Path $env:USERPROFILE 'Downloads'
-    if (Test-Path -LiteralPath $fallback) { return $fallback }
+    if (-not (Get-Command Get-PCVRDownloadsFolder -ErrorAction SilentlyContinue)) {
+        . (Join-Path $PSScriptRoot 'KnownFolders.ps1')
+    }
+    $folder = Get-PCVRDownloadsFolder
+    if ($folder -and (Test-Path -LiteralPath $folder -PathType Container)) { return $folder }
     return $null
 }
 

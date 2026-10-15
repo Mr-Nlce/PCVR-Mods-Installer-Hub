@@ -35,6 +35,41 @@ $ErrorActionPreference = 'Continue'
 $recoveryModule = Join-Path (Split-Path -Parent $PSCommandPath) 'Modules\InstallerRecovery.ps1'
 if (-not (Test-Path -LiteralPath $recoveryModule -PathType Leaf)) { throw "Universal installer recovery module is missing: $recoveryModule" }
 . $recoveryModule
+
+# The wrapper is its own process. Redirect only this installer's scratch files
+# when the inherited TEMP drive is nearly full or unwritable. Installer cores,
+# native tools and .NET GetTempPath() then share the same writable session.
+$oldInstallerTemp = $env:TEMP
+$oldInstallerTmp = $env:TMP
+$installerTempSession = ''
+$installerTempNote = ''
+$primaryInstallerTemp = if ($env:TEMP) { $env:TEMP } else { [IO.Path]::GetTempPath() }
+$downloadsInstallerTemp = Get-PCVRDownloadsFolder
+$tempChoice = Select-PCVRInstallerTempBase -PrimaryPath $primaryInstallerTemp -DownloadsPath $downloadsInstallerTemp
+if ($tempChoice.NeedsFallback) {
+    while (-not $installerTempSession) {
+        if (-not $tempChoice.BasePath) {
+            Write-Host ''
+            Write-Host ('  ' + $tempChoice.Reason) -ForegroundColor Yellow
+            Write-Host '  The registered Downloads folder cannot provide a usable alternate drive.' -ForegroundColor Yellow
+            Write-Host '  Choose an existing folder on a drive with at least 512 MB free.' -ForegroundColor White
+            $manualTemp = ConvertTo-PCVRCanonicalUserPath (Read-Host '  Alternate temporary folder')
+            if (-not $manualTemp) { continue }
+            try {
+                $tempChoice = Select-PCVRInstallerTempBase -PrimaryPath $primaryInstallerTemp -DownloadsPath $manualTemp
+            } catch { Write-Host ('  That folder cannot be used: ' + $_.Exception.Message) -ForegroundColor Yellow }
+            if (-not $tempChoice.BasePath) { continue }
+        }
+        try { $installerTempSession = New-PCVRInstallerTempSession -BasePath $tempChoice.BasePath }
+        catch {
+            Write-Host ('  Cannot create temporary work folder: ' + $_.Exception.Message) -ForegroundColor Yellow
+            $tempChoice.BasePath = ''
+        }
+    }
+    $env:TEMP = $installerTempSession
+    $env:TMP = $installerTempSession
+    $installerTempNote = '  Temporary installer files use: ' + $installerTempSession
+}
 # Whether THIS wrapper process is already elevated. Set when the
 # RequiresAdmin path (Start-LoggedInstaller) relaunched us via RunAs - in
 # that case a self-elevating installer .bat can run its core in-process here
@@ -71,6 +106,12 @@ try {
     $rawUI.ForegroundColor = 'Cyan'
     Clear-Host
 } catch {}
+if ($installerTempNote) {
+    Write-Host ('  ' + $tempChoice.Reason) -ForegroundColor Yellow
+    Write-Host $installerTempNote -ForegroundColor Cyan
+    Write-Host '  The installer may need more free space for large downloads and extraction.' -ForegroundColor Gray
+    Write-Host ''
+}
 
 $wrapperDir = Split-Path -Parent $PSCommandPath  # Core
 if ([string]::IsNullOrWhiteSpace($LogsDir)) {
@@ -205,6 +246,7 @@ if (-not [string]::IsNullOrWhiteSpace($InstallerScript) -and (-not $coreScript -
 } elseif ($coreScript -and -not (Test-Path -LiteralPath $coreScript -PathType Leaf -ErrorAction SilentlyContinue)) {
     $bootstrapFailure = "The selected installer core is missing: $coreScript"
 }
+$entryReplacementMode = [bool]$bootstrapFailure
 
 # Snapshot the exact files the Hub reads before the installer runs.  A
 # successful core may write an authoritative downloaded tag; generic older
@@ -306,6 +348,26 @@ function Write-FreshInstallerSuccessResult {
             throw 'This version-tracked installer finished without an exact version receipt. The Hub did not mark the update complete.'
         }
         if ($successEvidence.Count -gt 0) {
+            # A governed core has already committed its payload, route and
+            # exact version as one transaction. The marker fallback below is
+            # for legacy installers only; replacing the governed receipt
+            # would discard the stronger installation proof.
+            if ($StatusPath -and (Test-Path -LiteralPath $StatusPath -PathType Leaf)) {
+                $governed = Get-Content -LiteralPath $StatusPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                if ($governed.contractId) {
+                    if ($governed.outcome -ne 'success' -or
+                        -not (@($governed.evidence) -contains 'payload') -or
+                        -not $governed.route -or
+                        -not $governed.installedPathWritten -or
+                        -not $governed.runId -or
+                        $governed.runId -ne $env:PCVR_HUB_INSTALL_RUN_ID -or
+                        -not $afterRoot -or
+                        [IO.Path]::GetFullPath([string]$governed.installedPath).TrimEnd('\','/') -ine [IO.Path]::GetFullPath($afterRoot).TrimEnd('\','/')) {
+                        throw 'The governed installer receipt does not match this completed run and installed route.'
+                    }
+                    return
+                }
+            }
             $okMk = $StatusPath
             if ([string]::IsNullOrWhiteSpace($okMk)) { $okMk = Join-Path (Split-Path $coreScript -Parent) ".update_ok" }
             $okParent = Split-Path -Parent $okMk
@@ -433,7 +495,7 @@ function Test-PCVRInstallerCaptureFailureSignal {
     if(-not $Result){return $false}
     foreach($line in @($Result.Capture)){
         $text=(''+$line).Trim()
-        if($text -match '^(\[X{1,2}\]|\[FAIL\]|\[ERROR\])(?:\s|$)'){return $true}
+        if($text -cmatch '^(\[X{1,2}\]|\[FAIL\]|\[ERROR\])(?:\s|$)'){return $true}
     }
     return $false
 }
@@ -482,6 +544,7 @@ try {
         # colors still work; the bat's nested powershell just isn't captured.
         & cmd.exe /c $BatPath
         if ($LASTEXITCODE -ne 0) { throw "Installer stopped with exit code $LASTEXITCODE." }
+        Write-FreshInstallerSuccessResult
     }
     break InstallerRun
 } catch {
@@ -495,11 +558,18 @@ try {
         try {
             $decision=Invoke-PCVRUniversalRecovery -FailureMessage $failureMessage -LogPath $log -InstallerFolder $installerFolder
             if($decision.Action -eq 'retry'){
-                $replacement=Resolve-PCVRRecoveryEntryPoint -Path $decision.RecoveryInput
+                # A payload or game path handed over after an ordinary failure
+                # belongs to the same installer. Only a missing entry point may
+                # be replaced with a different .ps1 or START_INSTALLER.bat.
+                $replacement=if($entryReplacementMode){Resolve-PCVRRecoveryEntryPoint -Path $decision.RecoveryInput}else{$null}
                 if($replacement){
                     $BatPath=$replacement.Path
                     $Kind=$replacement.Kind
                     $Ps1Path=''
+                    $InstallerScript=''
+                    $coreScript=if($replacement.Kind -eq 'Direct'){$replacement.Path}else{$null}
+                    $coreArgs=@{}
+                    $bootstrapFailure=''
                     Write-Host ('  Using replacement installer entry point: '+$BatPath) -ForegroundColor Cyan
                 }
                 Write-Host ''
@@ -507,6 +577,10 @@ try {
                 continue InstallerRun
             }
         }catch{
+            if($_.Exception.GetBaseException() -is [IO.EndOfStreamException]){
+                Write-Host '  Recovery input ended; no installation was marked complete.' -ForegroundColor Yellow
+                break InstallerRun
+            }
             Write-Host ('  The recovery screen itself encountered a problem: '+$_.Exception.Message) -ForegroundColor Yellow
             Write-Host '  It will be rebuilt now; the installer remains open.' -ForegroundColor DarkGray
         }
@@ -522,4 +596,10 @@ if ($null -eq $oldInstallStatusPath) { Remove-Item Env:PCVR_HUB_INSTALL_STATUS_P
 if ($null -eq $oldInstallRunId) { Remove-Item Env:PCVR_HUB_INSTALL_RUN_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_INSTALL_RUN_ID = $oldInstallRunId }
 if ($null -eq $oldHubGameId) { Remove-Item Env:PCVR_HUB_GAME_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_GAME_ID = $oldHubGameId }
 if ($null -eq $oldRecoveryInput) { Remove-Item Env:PCVR_HUB_RECOVERY_INPUT -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_RECOVERY_INPUT = $oldRecoveryInput }
+if ($installerTempSession -and $wrapperExitCode -eq 0) {
+    try { Remove-PCVRInstallerTempSession -Path $installerTempSession }
+    catch { Write-Host ('  Temporary work folder could not be removed: ' + $installerTempSession) -ForegroundColor Yellow }
+}
+if ($null -eq $oldInstallerTemp) { Remove-Item Env:TEMP -ErrorAction SilentlyContinue } else { $env:TEMP = $oldInstallerTemp }
+if ($null -eq $oldInstallerTmp) { Remove-Item Env:TMP -ErrorAction SilentlyContinue } else { $env:TMP = $oldInstallerTmp }
 if (-not $NoProcessExit) { exit $wrapperExitCode }

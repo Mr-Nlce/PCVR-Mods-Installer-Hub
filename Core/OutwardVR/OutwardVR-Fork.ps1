@@ -223,10 +223,10 @@ if (-not (Test-Path -LiteralPath $markerPath)) {
 }
 Write-OK "Mod files in place."
 
-[void](Confirm-PlacedFilesSurvive `
+if (-not (Confirm-PlacedFilesSurvive `
     -Paths @($markerPath, (Join-PathLexical $gameDir $MOD_PLUGIN)) `
     -GameDir $gameRoot `
-    -ArchivePath $zip)
+    -ArchivePath $zip)) { throw 'The Outward VR files did not survive verification. No installation was recorded.' }
 
 # ---- Launcher ------------------------------------------------
 # !!! ONE LAUNCHER PER MOD, AND ONLY WHILE THE MOD IS REALLY THERE.

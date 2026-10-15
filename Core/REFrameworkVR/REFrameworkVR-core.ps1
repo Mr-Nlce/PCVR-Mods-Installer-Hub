@@ -260,6 +260,22 @@ function Test-IsZip {
         finally { $fs.Close() }
     } catch { return $false }
 }
+function Get-REFrameworkArchiveRevision {
+    param([string]$ArchivePath)
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($ArchivePath)
+        try {
+            $entry = $archive.GetEntry('reframework_revision.txt')
+            if (-not $entry) { return '' }
+            $reader = New-Object System.IO.StreamReader ($entry.Open())
+            try { $revision = $reader.ReadToEnd().Trim() }
+            finally { $reader.Dispose() }
+            if ($revision -match '^[0-9a-fA-F]{40}$') { return $revision.ToLowerInvariant() }
+        } finally { $archive.Dispose() }
+    } catch {}
+    return ''
+}
 
 # -------------------------------------------------------
 # STEP 2: Get latest nightly URLs from GitHub API
@@ -338,9 +354,11 @@ if ($apiOk -and $refZipUrl -and $vrZipUrl) {
     $refLocal = Join-Path $tmpManual "REFramework.zip"
     $vrLocal  = Join-Path $tmpManual "VR.zip"
     if ((Test-Path $refLocal) -and (Test-Path $vrLocal)) {
+      $revision = Get-REFrameworkArchiveRevision -ArchivePath $refLocal
+      if (-not $revision) { throw 'The manually supplied REFramework.zip has no publisher revision. No version receipt can be written.' }
       $refZipUrl = $refLocal
       $vrZipUrl  = $vrLocal
-      $tagName   = "manual"
+      $tagName   = "manual-rev1-$revision"
       $refreshCache = $true
       Write-OK "Using manually-placed ZIPs from $tmpManual"
     } else {
@@ -348,9 +366,11 @@ if ($apiOk -and $refZipUrl -and $vrZipUrl) {
       exit 1
     }
   } else {
-    $refZipUrl = $null
-    $vrZipUrl  = $null
+    throw 'REFramework.zip and VR.zip were not provided. No VR files were installed.'
   }
+}
+if (-not $useCache -and (-not $refZipUrl -or -not $vrZipUrl)) {
+  throw 'The release does not provide both required REFramework and VR archives. No VR files were installed.'
 }
 
 # -------------------------------------------------------
@@ -361,17 +381,18 @@ Write-Step 3 3 "Installing"
 $tmp = Join-Path $env:TEMP "REFrameworkVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $failed = @()
+$packages = @()
 
 foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF; Verify="dinput8.dll"}, @{Name="VR.zip"; Url=$vrZipUrl; Cache=$REF_CACHE_VR; Verify="openxr_loader.dll"})) {
  # Pick the source zip: the saved copy, a manual local file, or a download.
  if ($useCache) {
    $dest = $dl.Cache
  } else {
-   if (-not $dl.Url) { continue }
+    if (-not $dl.Url) { $failed += $dl.Name; continue }
    $dest = Join-Path $tmp $dl.Name
    # If the URL is already a local file path (manual fallback), copy it.
-   if (Test-Path $dl.Url) {
-     Copy-Item -Path $dl.Url -Destination $dest -Force
+    if (Test-Path -LiteralPath $dl.Url -PathType Leaf) {
+      Copy-Item -LiteralPath $dl.Url -Destination $dest -Force
    } else {
      $r = Invoke-DownloadOrFallback -Url $dl.Url -Destination $dest `
             -Label "$($dl.Name) ($tagName)" `
@@ -381,8 +402,23 @@ foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF
      if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
      if (-not ($r -is [bool] -and $r)) { $failed += $dl.Name; continue }
    }
- }
 
+  }
+  if (-not (Test-ArchiveContains -ArchivePath $dest -Entry $dl.Verify)) {
+    Write-Warn "$($dl.Name) does not contain required $($dl.Verify)."
+    $failed += $dl.Name
+    continue
+ }
+  $packages += [pscustomobject]@{ Definition=$dl; Archive=$dest }
+}
+if ($failed.Count -gt 0 -or $packages.Count -ne 2) {
+  try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  throw "REFramework archives are incomplete: $($failed -join ', '). No game files or success marker were changed."
+}
+
+foreach ($package in $packages) {
+  $dl = $package.Definition
+  $dest = $package.Archive
  # Payload-verified extract: pulled from releases/LATEST, so the ZIP
  # layout can change any day - extract to temp, resolve the real payload
  # root, merge into the game folder, verify the key file arrived.
@@ -391,7 +427,7 @@ foreach ($dl in @(@{Name="REFramework.zip"; Url=$refZipUrl; Cache=$REF_CACHE_REF
           -Label "$($dl.Name) extraction" `
           -SkipMessage "Skipped - $($dl.Name) was not extracted into the game folder."
  if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
+  if (([string]$efb -eq "ok" -or [string]$efb -eq "manual") -and (Test-Path -LiteralPath (Join-Path $gamePath $dl.Verify) -PathType Leaf)) {
    Write-Info "Extracted $($dl.Name) -> game folder"
  } else {
    $failed += $dl.Name
@@ -413,6 +449,9 @@ if ($refreshCache -and $failed.Count -eq 0) {
 }
 
 try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
+if ($failed.Count -gt 0) {
+  throw "REFramework installation is incomplete: $($failed -join ', '). No version or success marker was written."
+}
 
 # -------------------------------------------------------
 # Pragmata AFW: install the plugin, or remove it on switch-back

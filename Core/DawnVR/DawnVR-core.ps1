@@ -95,6 +95,8 @@ Write-Header
 Write-Host " DawnVR by TrevTV adds VR support to Life is Strange: Before the" -ForegroundColor White
 Write-Host " Storm (Original or Remastered). Bundles MelonLoader 0.5.7" -ForegroundColor White
 Write-Host " (required - no other version works)." -ForegroundColor White
+Write-Host "  Unsigned VR files can trigger antivirus warnings. If required files" -ForegroundColor Gray
+Write-Host "  are missing, setup will stop and offer recovery without claiming why." -ForegroundColor Gray
 Write-Host ""
 Write-Step 1 4 "Choose Your Game Edition"
 
@@ -137,26 +139,13 @@ try {
 # --- End detection library attempt ---
 
 $steamPath = Get-SteamPath
-
-if (-not $steamPath) {
-    Write-Warn "Could not find Steam installation in registry."
-    Write-Host "  Please enter your Steam installation path manually:" -ForegroundColor White
-    Write-Host "  Example: C:\Program Files (x86)\Steam" -ForegroundColor Gray
-    while (-not $steamPath) {
-        $rawInput = (Read-Host "  Steam path").Trim().Trim('"')
-        if (Test-Path $rawInput) {
-            $steamPath = $rawInput
-            Write-OK "Steam path set: $steamPath"
-        } else {
-            Write-Fail "Path not found: $rawInput"
-        }
-    }
+if (-not $gamePath -and $steamPath) {
+    $libraries = Get-SteamLibraries $steamPath
+    $gamePath = Find-GamePath $libraries
 }
-
-$libraries = Get-SteamLibraries $steamPath
-$gamePath  = Find-GamePath $libraries
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "554620" -SteamFolderNames @("Life is Strange - Before the Storm") -GogNames @("Life is Strange Before the Storm") -EpicNames @("Life is Strange Before the Storm") }
 
+$userSelectedGamePath = $false
 if (-not $gamePath) {
     Write-Warn "Game not found in Steam libraries automatically."
     Write-Host "  Please enter the game installation folder path manually:" -ForegroundColor White
@@ -165,6 +154,7 @@ if (-not $gamePath) {
         $rawInput = (Read-Host "  Game path").Trim().Trim('"')
         if (Test-Path $rawInput) {
             $gamePath = $rawInput
+            $userSelectedGamePath = $true
             Write-OK "Game path set: $gamePath"
         } else {
             Write-Fail "Path not found: $rawInput"
@@ -174,119 +164,116 @@ if (-not $gamePath) {
     Write-OK "Game found: $gamePath"
 }
 
-$gameExe = Find-GameExe $gamePath
+$requiredExe = if ($edition -eq '1') { $GAME_EXE } else { $GAME_EXE_ALT }
+$gameExe = if (Test-Path -LiteralPath (Join-Path $gamePath $requiredExe) -PathType Leaf) { Join-Path $gamePath $requiredExe } else { $null }
 if ($gameExe) {
     Write-OK "Game executable: $(Split-Path $gameExe -Leaf)"
 } else {
-    Write-Warn "Could not find game executable automatically."
-    Write-Host "  Please enter the full path to the game's .exe file:" -ForegroundColor White
-    while (-not $gameExe) {
-        $rawInput = (Read-Host "  Game exe path").Trim().Trim('"')
-        if (Test-Path $rawInput) {
-            $gameExe = $rawInput
-            Write-OK "Game exe set: $gameExe"
-        } else {
-            Write-Fail "File not found: $rawInput"
-        }
-    }
+    Write-Fail "The selected $EDITION_LABEL edition requires $requiredExe in the game folder."
+    Pause-User "Press Enter to exit without changing the game."
+    exit 1
+}
+if (-not (Save-HubRememberedGameFolder -GameId 'life-is-strange-bts' -Title 'Life is Strange: BtS' `
+    -GameDir $gamePath -ProbeFiles @($requiredExe) -UserSelected:$userSelectedGamePath)) {
+    Write-Warn 'The game folder could not be saved for the next Hub session; setup can continue in this window.'
 }
 
 # -------------------------------------------------------
-# STEP 3: Install MelonLoader 0.5.7
+# STEP 3: Download and inspect both packages before game changes
 # -------------------------------------------------------
-Write-Step 3 4 "Installing MelonLoader 0.5.7"
+Write-Step 3 4 "Preparing MelonLoader and DawnVR"
+Write-Host "  MelonLoader 0.5.7 and the $EDITION_LABEL DawnVR package are both required." -ForegroundColor Yellow
+Pause-User "Press Enter to download both publisher packages..."
 
-Write-Host "  IMPORTANT: Only MelonLoader 0.5.7 is supported by DawnVR." -ForegroundColor Yellow
-Write-Host "  Other versions will NOT work." -ForegroundColor Yellow
-Write-Host ""
-
-$mlFolder   = Join-Path $gamePath "MelonLoader"
-$versionDll = Join-Path $gamePath "version.dll"
-if ((Test-Path $mlFolder) -and (Test-Path $versionDll)) {
-    Write-Warn "MelonLoader already exists - replacing with 0.5.7."
-}
-
-$tempDir = Join-Path $env:TEMP "DawnVRInstaller_$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $tempDir | Out-Null
-$failed = @()
-
-$mlZip     = Join-Path $tempDir "MelonLoader.zip"
-$mlExtract = Join-Path $tempDir "MelonLoader"
-$r = Invoke-DownloadOrFallback -Url $MELONLOADER_URL -Destination $mlZip `
-        -Label "MelonLoader v0.5.7" `
-        -ManualUrl "https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7" `
-        -Instructions "Download 'MelonLoader.x64.zip' from the GitHub releases page. Place it at '$mlZip' and choose Retry." `
-        -SkipMessage "Skipped - MelonLoader missing; DawnVR will NOT load (questionable result)."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($r -is [bool] -and $r)) { $failed += "MelonLoader" }
-
-if (Test-Path $mlZip) {
-    $efb = Expand-ArchiveOrFallback -ArchivePath $mlZip -DestinationFolder $mlExtract -Label "MelonLoader" `
-            -SkipMessage "Skipped - MelonLoader was NOT extracted; DawnVR will NOT load."
-    if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-        try {
-            $mlFolderSrc = Join-Path $mlExtract "MelonLoader"
-            if (Test-Path $mlFolderSrc) {
-                $null = Merge-DirectoryTreeVerified -Source $mlFolderSrc -Destination $mlFolder -Label "MelonLoader files"
-                Write-OK "MelonLoader folder merged."
-            }
-
-            foreach ($dll in @("version.dll", "dobby.dll")) {
-                $src = Join-Path $mlExtract $dll
-                if (Test-Path $src) {
-                    Copy-Item -Path $src -Destination $gamePath -Force
-                    Write-OK "$dll installed."
-                }
-            }
-            Write-OK "MelonLoader 0.5.7 installed successfully!"
-        } catch {
-            Write-Host "FAILED to install MelonLoader: $_" -ForegroundColor Red
-            $failed += "MelonLoader"
-        }
-    } else {
-        $failed += "MelonLoader"
-    }
-}
-
-# -------------------------------------------------------
-# STEP 4: Install DawnVR
-# -------------------------------------------------------
-Write-Step 4 4 "Installing DawnVR v1.0.1 ($EDITION_LABEL)"
-
-$vrZip     = Join-Path $tempDir "DawnVR.zip"
-$vrExtract = Join-Path $tempDir "DawnVR"
-$r = Invoke-DownloadOrFallback -Url $DAWNVR_URL -Destination $vrZip `
+$tempDir = Join-Path $env:TEMP ("DawnVRInstaller_" + [Guid]::NewGuid().ToString('N'))
+[void][IO.Directory]::CreateDirectory($tempDir)
+$mlZip = Join-Path $tempDir 'MelonLoader.zip'
+$vrZip = Join-Path $tempDir 'DawnVR.zip'
+$mlExtract = Join-Path $tempDir 'MelonLoaderExtract'
+$vrExtract = Join-Path $tempDir 'DawnVRExtract'
+$stage = Join-Path $tempDir 'Stage'
+try {
+    $mlDownload = Invoke-DownloadOrFallback -Url $MELONLOADER_URL -Destination $mlZip `
+        -Label 'MelonLoader v0.5.7' `
+        -ManualUrl 'https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7' `
+        -Instructions "Download MelonLoader.x64.zip, then choose Retry or hand the file to recovery." `
+        -SkipMessage 'MelonLoader is required; setup cannot complete without it.'
+    if (-not ($mlDownload -is [bool] -and $mlDownload)) { throw 'MelonLoader download was not completed.' }
+    $vrDownload = Invoke-DownloadOrFallback -Url $DAWNVR_URL -Destination $vrZip `
         -Label "DawnVR v1.0.1 ($EDITION_LABEL)" `
-        -ManualUrl "https://github.com/TrevTV/DawnVR/releases/tag/1.0.1" `
-        -Instructions "Download the correct DawnVR_1.0.1 zip ($EDITION_LABEL variant) from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
-        -SkipMessage "Skipped - DawnVR mod missing; install is incomplete (questionable result)."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($r -is [bool] -and $r)) { $failed += "DawnVR" }
+        -ManualUrl 'https://github.com/TrevTV/DawnVR/releases/tag/1.0.1' `
+        -Instructions "Download the $EDITION_LABEL DawnVR 1.0.1 ZIP, then choose Retry or hand the file to recovery." `
+        -SkipMessage 'DawnVR is required; setup cannot complete without it.'
+    if (-not ($vrDownload -is [bool] -and $vrDownload)) { throw 'DawnVR download was not completed.' }
 
-if (Test-Path $vrZip) {
-    $efb = Expand-ArchiveOrFallback -ArchivePath $vrZip -DestinationFolder $vrExtract -Label "DawnVR" `
-            -SkipMessage "Skipped - DawnVR was NOT extracted; install is incomplete."
-    if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-        try {
-            Get-ChildItem -Path $vrExtract | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
-            }
-            Write-OK "DawnVR v1.0.1 ($EDITION_LABEL) installed!"
-        } catch {
-            Write-Host "FAILED to install DawnVR: $_" -ForegroundColor Red
-            $failed += "DawnVR"
+    foreach ($pair in @(@($mlZip,$mlExtract,'MelonLoader'),@($vrZip,$vrExtract,'DawnVR'))) {
+        $safety = Test-ZipArchiveEntrySafety -ArchivePath $pair[0] -DestinationFolder $pair[1]
+        if (-not $safety.Inspectable -or -not $safety.Safe -or $safety.EntryCount -eq 0) {
+            throw "The selected $($pair[2]) archive is unreadable or unsafe."
         }
-    } else {
-        $failed += "DawnVR"
+        $unpacked = Expand-ArchiveOrFallback -ArchivePath $pair[0] -DestinationFolder $pair[1] -Label $pair[2] `
+            -SkipMessage "$($pair[2]) was not extracted."
+        if ([string]$unpacked -notin @('ok','manual')) { throw "$($pair[2]) extraction was not completed." }
     }
+
+    $mlRequired = @('version.dll','dobby.dll')
+    $vrRequired = @('Mods\DawnVRMod.dll','Plugins\DawnVREnabler.dll',
+        'Life is Strange - Before the Storm_Data\StreamingAssets\SteamVR\actions.json')
+    foreach ($relative in $mlRequired) {
+        if (-not (Test-Path -LiteralPath (Join-Path $mlExtract $relative) -PathType Leaf)) {
+            throw "The selected MelonLoader archive lacks $relative."
+        }
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $mlExtract 'MelonLoader') -PathType Container) -or
+        -not @(Get-ChildItem -LiteralPath (Join-Path $mlExtract 'MelonLoader') -Recurse -File).Count) {
+        throw 'The selected MelonLoader archive lacks the loader runtime folder.'
+    }
+    foreach ($relative in $vrRequired) {
+        if (-not (Test-Path -LiteralPath (Join-Path $vrExtract $relative) -PathType Leaf)) {
+            throw "The selected $EDITION_LABEL DawnVR archive lacks $relative."
+        }
+    }
+
+    [void][IO.Directory]::CreateDirectory($stage)
+    foreach ($sourceRoot in @($mlExtract,$vrExtract)) {
+        $prefix = [IO.Path]::GetFullPath($sourceRoot).TrimEnd([char[]]'\/')
+        foreach ($file in @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -ErrorAction Stop)) {
+            $relative = $file.FullName.Substring($prefix.Length + 1)
+            $destination = Join-Path $stage $relative
+            if (Test-Path -LiteralPath $destination -PathType Leaf) {
+                if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne
+                    (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) {
+                    throw "The two publisher packages disagree on $relative."
+                }
+                continue
+            }
+            $parent = Split-Path -Parent $destination
+            if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+            Copy-Item -LiteralPath $file.FullName -Destination $destination -ErrorAction Stop
+        }
+    }
+    $required = $mlRequired + $vrRequired
+    $hashes = Get-PCVRDropInSourceHashes -SourceRoot $stage -RequiredFiles $required
+
+    # STEP 4: one verified transaction for both publisher packages.
+    Write-Step 4 4 "Installing MelonLoader and DawnVR"
+    . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+    $contract = New-PCVRInstallerContract -Id 'dawn-vr' -GameName 'Life is Strange: Before the Storm' `
+        -Acquisition GitHub -ReleasePageUrl 'https://github.com/TrevTV/DawnVR/releases/tag/1.0.1' `
+        -RequiredInstalledFileGroups $required -AntivirusNotice
+    $keep = @($hashes.Keys | Where-Object { $_ -match '(?i)\.(cfg|ini)$' })
+    [void](Invoke-PCVRDropInInstall -SourceRoot $stage -GameRoot $gamePath -SourceHashes $hashes `
+        -KeepExistingFiles $keep -Contract $contract -Version 'v1.0.1' `
+        -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+    Write-OK "MelonLoader 0.5.7 and DawnVR v1.0.1 ($EDITION_LABEL) verified."
+} catch {
+    Write-Fail "Installation did not complete: $_"
+    Write-Info 'No new success or version receipt was written. Check the error above before retrying.'
+    Pause-User 'Press Enter to exit and use installer recovery.'
+    exit 1
+} finally {
+    if (Test-Path -LiteralPath $tempDir) { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue }
 }
-
-try { Remove-Item $tempDir -Recurse -Force } catch {}
-
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("DawnVR" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
 
 # -------------------------------------------------------
 # DONE
@@ -295,8 +282,8 @@ Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
-if ("MelonLoader" -notin $failed) { Write-Host "    [x] MelonLoader 0.5.7" -ForegroundColor Green    } else { Write-Host "    [ ] MelonLoader 0.5.7  -- FAILED, install manually" -ForegroundColor Red }
-if ("DawnVR"      -notin $failed) { Write-Host "    [x] DawnVR v1.0.1 ($EDITION_LABEL)" -ForegroundColor Green } else { Write-Host "    [ ] DawnVR v1.0.1      -- FAILED, install manually" -ForegroundColor Red }
+Write-Host "    [x] MelonLoader 0.5.7" -ForegroundColor Green
+Write-Host "    [x] DawnVR v1.0.1 ($EDITION_LABEL)" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 
 Write-Host ""

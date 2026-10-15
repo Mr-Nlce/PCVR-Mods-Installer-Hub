@@ -114,7 +114,7 @@ Pause-User "Press Enter to open the Nexus files page..." | Out-Null
 try { Start-Process $NEXUS_URL } catch { Write-Warn "Open manually: $NEXUS_URL" }
 Pause-User "Press Enter once the ZIP is downloaded..." | Out-Null
 
-$downloads = Join-Path ([Environment]::GetFolderPath('UserProfile')) "Downloads"
+$downloads = Get-PCVRDownloadsFolder
 $zip = $null
 foreach ($c in @(Get-ChildItem -LiteralPath $downloads -Filter "*.zip" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)) {
     if (Test-ArchiveContains -ArchivePath $c.FullName -Entry "eldenring_vr.dll") {

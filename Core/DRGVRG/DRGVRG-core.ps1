@@ -131,7 +131,7 @@ if (-not $gamePath) {
 
 $fsdDir = Join-Path $gamePath "FSD"
 if (Test-Path (Join-Path $gamePath $GAME_EXE)) { Write-Info "FSD.exe verified." }
-else { Write-Warn "FSD.exe not found in game folder." }
+else { Write-Fail "FSD.exe not found in game folder. Choose the actual game installation and retry."; Pause-User "Press Enter to exit..."; exit 1 }
 
 # -------------------------------------------------------
 # STEP 2: Backup Input.ini + Install Config.zip
@@ -232,8 +232,14 @@ if ($downloadOk) {
     Write-Host "  3. Extract it into: $fsdDir" -ForegroundColor White
     Write-Host "     (You should see a Config folder next to Binaries, Content, etc.)" -ForegroundColor Gray
     Write-Host ""
+    Pause-User "Press Enter to open the Config.zip download page..."
     Start-Process "https://drive.google.com/file/d/$CONFIG_ZIP_ID/view"
     Pause-User "Press Enter once you have extracted Config.zip into $fsdDir ..."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $fsdDir 'Config') -PathType Container) -or
+    @(Get-ChildItem -LiteralPath (Join-Path $fsdDir 'Config') -File -Recurse -ErrorAction SilentlyContinue).Count -eq 0) {
+    Write-Fail "The VR controller Config files were not found in FSD\Config. Setup cannot continue."
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
 # -------------------------------------------------------
@@ -336,8 +342,8 @@ Write-Host "============================================================" -Foreg
 Write-Host "  Setup Complete - Quick Reference" -ForegroundColor White
 Write-Host ""
 Write-Host "    Launch options set : -overridenohmd -dx11" -ForegroundColor Green
-Write-Host "    Config.zip         : installed to FSD\" -ForegroundColor Green
-Write-Host "    VRG mod            : subscribed via mod.io (install in-game)" -ForegroundColor Green
+Write-Host "    Config files       : verified in FSD\Config" -ForegroundColor Green
+Write-Host "    VRG mod            : user confirmed activation in-game" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "--- Basic VR Controls ---" -ForegroundColor Cyan

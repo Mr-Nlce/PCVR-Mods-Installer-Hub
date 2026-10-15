@@ -219,7 +219,6 @@ $relTag  = $null
 $rel = Get-NewestRelease
 $useSetup = $false
 if ($rel) {
-    $relTag = $rel.Tag
     if ($rel.Pre) { Write-Info "Newest release is a beta: $($rel.Tag)" } else { Write-Info "Newest release: $($rel.Tag)" }
 
     if ([string]$rel.Kind -eq "setup") {
@@ -247,12 +246,15 @@ if ($rel) {
         }
         if ($ans -in @("y","yes")) {
             $setupPath = Join-Path $work $rel.Name
-            Invoke-SafeDownload -Urls @($rel.Url) -Destination $setupPath -Label "$MOD_NAME $($rel.Tag) Setup" -ManualUrl $RELEASES_URL | Out-Null
+            $downloadInfo=@{}
+            $downloadResult=Invoke-SafeDownload -Urls @($rel.Url) -Destination $setupPath -Label "$MOD_NAME $($rel.Tag) Setup" -ManualUrl $RELEASES_URL -DownloadInfo $downloadInfo
             if (Test-Path -LiteralPath $setupPath) {
                 Write-Info "Starting the author's Setup - answer its prompts, then come back here."
                 try {
                     $sp = Start-Process -FilePath $setupPath -PassThru -Wait -ErrorAction Stop
                     Write-Info "Setup closed (exit code $($sp.ExitCode))."
+                    if($sp.ExitCode -ne 0){throw "Publisher Setup failed with exit code $($sp.ExitCode)."}
+                    if($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$rel.Url){$relTag=[string]$rel.Tag}
                     $useSetup = $true
                 } catch {
                     Write-Fail "Could not start it: $($_.Exception.Message)"
@@ -262,7 +264,9 @@ if ($rel) {
             Write-Info "Skipped. You can still drop a zip in by hand below."
         }
     } else {
-        Invoke-SafeDownload -Urls @($rel.Url) -Destination $zipPath -Label "$MOD_NAME $($rel.Tag)" -ManualUrl $RELEASES_URL | Out-Null
+        $downloadInfo=@{}
+        $downloadResult=Invoke-SafeDownload -Urls @($rel.Url) -Destination $zipPath -Label "$MOD_NAME $($rel.Tag)" -ManualUrl $RELEASES_URL -DownloadInfo $downloadInfo
+        if($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$rel.Url){$relTag=[string]$rel.Tag}
     }
 }
 if (-not $useSetup -and -not (Test-Path -LiteralPath $zipPath)) {
@@ -448,7 +452,7 @@ if ($d3dxHave) {
     # Downloads folder next - the user may already have fetched it, either
     # as a bare DLL or inside a ZIP.
     if (-not $gotD3dx) {
-        $dlDir = Join-Path $env:USERPROFILE "Downloads"
+        $dlDir = Get-PCVRDownloadsFolder
         foreach ($probe in @($dlDir, [Environment]::GetFolderPath('Desktop'))) {
             if ($gotD3dx -or -not $probe -or -not (Test-Path -LiteralPath $probe)) { continue }
             $bare = Get-ChildItem -LiteralPath $probe -Filter $D3DX_DEBUG_DLL -File -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -542,6 +546,12 @@ try {
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
 if ($relTag) { Save-InstalledStamp -GameDir $gamePath -Version $relTag -HubDir $SCRIPT_DIR }
+if (-not $relTag) {
+    Write-Warn 'The manually supplied package has no verified release version; this update cannot be marked complete.'
+    foreach($receipt in @((Join-Path $SCRIPT_DIR '.installed_version'),(Join-Path $gamePath '.pcvrhub_version'))){
+        Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+    }
+}
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $launchFull -Encoding UTF8 -Force } catch {}
 try { Remove-Item $work -Recurse -Force -EA SilentlyContinue } catch {}
 

@@ -15,10 +15,10 @@ $MOD_LAUNCHER   = 'F.E.A.R. VR.exe'
 $MOD_UNINSTALL  = 'FEAR-VR-Install\Uninstall F.E.A.R. VR.exe'
 $PUBLIC_MARKER  = '.pcvrhub_thefreemike_public'
 $SETUP_EXE      = 'F.E.A.R. VR Setup.exe'
-$PIN_VERSION    = 'v1.3.1'
-$PIN_NAME       = 'fear-vr-v1.3.1.zip'
-$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v1.3.1/fear-vr-v1.3.1.zip'
-$PIN_SHA        = '8F2B673E0E537EE83985547BB35A5879AA5B73CBC6689A5F5A00150809C3229C'
+$PIN_VERSION    = 'v1.7.7'
+$PIN_NAME       = 'fear-vr-v1.7.7.zip'
+$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v1.7.7/fear-vr-v1.7.7.zip'
+$PIN_SHA        = ''
 $QUIP           = 'Slow time. Check the shadows. Alma is already here.'
 
 function Write-OK   { param([string]$Text) Write-Host "  [OK] $Text" -ForegroundColor Green }
@@ -166,6 +166,33 @@ function Get-LatestStableRelease {
     return [pscustomobject]@{ Tag=$PIN_VERSION; Name=$PIN_NAME; Url=$PIN_URL; Sha256=$PIN_SHA }
 }
 
+function Assert-FearPublisherVersion([string]$Extracted,[string]$ReleaseTag) {
+    $manifestPath=Join-Path $Extracted 'setup-files\INSTALL-MANIFEST.json'
+    if(-not(Test-Path -LiteralPath $manifestPath -PathType Leaf)){
+        throw 'The F.E.A.R. VR package has no publisher version manifest. No game files were changed.'
+    }
+    $manifest=Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    $published=(''+$manifest.releaseName).Trim()
+    if($published -notmatch '^fear-vr-v\d+\.\d+\.\d+$' -or
+        -not [string]::Equals($published,('fear-vr-'+$ReleaseTag),[StringComparison]::OrdinalIgnoreCase)){
+        throw "The F.E.A.R. VR package version does not match the selected release ($ReleaseTag). No game files were changed."
+    }
+    return $ReleaseTag
+}
+
+function Assert-FearNoDowngrade([string]$GameDir,[string]$ReleaseTag) {
+    if(-not(Test-Path -LiteralPath (Join-Path $GameDir $PUBLIC_MARKER) -PathType Leaf)){return}
+    if($ReleaseTag -notmatch '^v(\d+\.\d+\.\d+)$'){throw 'The selected F.E.A.R. release has no comparable version.'}
+    $selected=[version]$Matches[1]
+    foreach($proof in @((Join-Path $GameDir '.pcvrhub_version_b'),(Join-Path $PSScriptRoot '.installed_version_gog'))){
+        if(-not(Test-Path -LiteralPath $proof -PathType Leaf)){continue}
+        $saved=([IO.File]::ReadAllText($proof)).Trim()
+        if($saved -match '^v?(\d+\.\d+\.\d+)$' -and [version]$Matches[1] -gt $selected){
+            throw "A newer F.E.A.R. VR version ($saved) is already installed. Retry the current release download; this fallback cannot downgrade it."
+        }
+    }
+}
+
 function Get-FearArchive([string]$Destination,$Release) {
     $found = Find-PredownloadedFile -Patterns @([string]$Release.Name) `
         -ExtraFolders (Get-ArchiveInputFolders) -Label "$MOD_NAME $($Release.Tag)"
@@ -284,6 +311,7 @@ try {
 
     Write-Step 2 4 'Getting the current stable GitHub release'
     $release = Get-LatestStableRelease
+    Assert-FearNoDowngrade -GameDir $gameDir -ReleaseTag ([string]$release.Tag)
     Write-Info "Stable release: $($release.Tag)"
     $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr_fear_gog_' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
@@ -300,6 +328,7 @@ try {
         -not (Test-Path -LiteralPath (Join-Path $extract 'setup-files') -PathType Container)) {
         throw 'The downloaded release cannot be opened because Setup or its setup-files folder is missing.'
     }
+    [void](Assert-FearPublisherVersion -Extracted $extract -ReleaseTag ([string]$release.Tag))
 
     if (Test-Path -LiteralPath (Join-Path $gameDir $MOD_MARKER) -PathType Leaf) {
         Write-Info 'An older or current thefreemike build is present. Choose Upgrade in Setup.'

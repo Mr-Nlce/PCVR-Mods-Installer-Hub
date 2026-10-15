@@ -15,9 +15,9 @@ $PINNED_GAME_VERSION = '1.1.8307.0'
 $PINNED_MOD_TAG = 'v1.0.1'
 $PINNED_MOD_NAME = 'GloomhavenVR-1.0.1.zip'
 $PINNED_MOD_URL = 'https://github.com/McFredward/GloomhavenVR/releases/download/v1.0.1/GloomhavenVR-1.0.1.zip'
-$CURRENT_FALLBACK_TAG = 'v1.0.7'
-$CURRENT_FALLBACK_NAME = 'GloomhavenVR-1.0.7.zip'
-$CURRENT_FALLBACK_URL = 'https://github.com/McFredward/GloomhavenVR/releases/download/v1.0.7/GloomhavenVR-1.0.7.zip'
+$CURRENT_FALLBACK_TAG = 'v1.1.0'
+$CURRENT_FALLBACK_NAME = 'GloomhavenVR-1.1.0.zip'
+$CURRENT_FALLBACK_URL = 'https://github.com/McFredward/GloomhavenVR/releases/download/v1.1.0/GloomhavenVR-1.1.0.zip'
 $BEPINEX_VERSION = '5.4.23.5'
 $BEPINEX_NAME = 'BepInEx_win_x64_5.4.23.5.zip'
 $BEPINEX_URL = 'https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.5/BepInEx_win_x64_5.4.23.5.zip'
@@ -195,6 +195,13 @@ function Test-GloomPinnedRoot([string]$Path) {
         (Test-Path -LiteralPath (Join-Path $Path $DEPOT_LAUNCHER) -PathType Leaf))
 }
 
+function Get-GloomSnapshotKey([string]$Relative) {
+    $relative=Assert-PCVROwnedRelativePath -Relative $Relative
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try { return [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($relative))).Replace('-','') }
+    finally { $sha.Dispose() }
+}
+
 function Get-GloomCurrentRoot {
     $path=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Gloomhaven') -ProbeExe $GAME_EXE `
         -GogNames @('Gloomhaven') -EpicNames @('Gloomhaven') -HubGameId 'gloomhaven-vr'
@@ -266,13 +273,16 @@ function Save-GloomSnapshot([string]$GameRoot,[string]$Stage,[string]$SnapshotRo
     foreach ($file in @(Get-ChildItem -LiteralPath $Stage -Recurse -File -ErrorAction Stop)) { $relatives.Add($file.FullName.Substring($base.Length+1).Replace('/','\')) }
     $manifest=Join-Path $GameRoot ".pcvrhub_${IDENTITY}_ownership.csv"
     if (Test-Path -LiteralPath $manifest -PathType Leaf) {
-        try { foreach ($row in @(Import-Csv -LiteralPath $manifest)) { if ($row.RelativePath) { $relatives.Add([string]$row.RelativePath) } } } catch {}
+        foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+            if ($row.RelativePath) { $relatives.Add((Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath))) }
+        }
     }
     foreach ($extra in @(".pcvrhub_${IDENTITY}_ownership.csv",".pcvrhub_${IDENTITY}_ownership.csv.new",'.pcvrhub_version','winhttp.dll.pcvrhub_off')) { $relatives.Add($extra) }
     $records=@()
     foreach ($relative in @($relatives | Select-Object -Unique)) {
+        $relative=Assert-PCVROwnedRelativePath -Relative $relative
         $source=Join-Path $GameRoot $relative; $exists=Test-Path -LiteralPath $source -PathType Leaf
-        $key=[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($relative)).Replace('/','_')
+        $key=Get-GloomSnapshotKey -Relative $relative
         $records += [pscustomobject]@{ Relative=$relative; Exists=$exists; Key=$key }
         if ($exists) { Copy-Item -LiteralPath $source -Destination (Join-Path $SnapshotRoot $key) -Force }
     }
@@ -282,6 +292,17 @@ function Save-GloomSnapshot([string]$GameRoot,[string]$Stage,[string]$SnapshotRo
 }
 
 function Restore-GloomSnapshot([string]$GameRoot,$Snapshot) {
+    foreach ($record in @($Snapshot.Records)) {
+        $relative=Assert-PCVROwnedRelativePath -Relative ([string]$record.Relative)
+        $key=Get-GloomSnapshotKey -Relative $relative
+        if ([string]$record.Key -cne $key) { throw 'The Gloomhaven rollback record has an invalid file key.' }
+        if ($record.Exists -and -not (Test-Path -LiteralPath (Join-Path $Snapshot.SnapshotRoot $key) -PathType Leaf)) {
+            throw "Gloomhaven rollback data is missing: $relative"
+        }
+    }
+    if ($Snapshot.BackupExists -and -not (Test-Path -LiteralPath (Join-Path $Snapshot.SnapshotRoot 'ownership-backup') -PathType Container)) {
+        throw 'The Gloomhaven ownership backup is missing.'
+    }
     foreach ($record in @($Snapshot.Records)) {
         $target=Join-Path $GameRoot ([string]$record.Relative)
         if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }

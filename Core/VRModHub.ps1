@@ -175,7 +175,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.7.6"
+$HUB_VERSION = "0.8.8.0"
 
 $updateInfoFile  = Get-HubUpdateInfoPath
 $script:updateInfo = $null
@@ -901,6 +901,9 @@ foreach ($mod in @(
     "BannerOvFilters.ps1",
     "Filter.ps1",
     "CatalogSort.ps1",
+    "HeaderFx.ps1",
+    "BannerGlass.ps1",
+    "CustomGames.ps1",
     "Startup.ps1"
 )) {
     . (Join-Path $modulesDir $mod)

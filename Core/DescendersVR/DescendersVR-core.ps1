@@ -137,7 +137,7 @@ if ($gamePath) {
 
 $gameExe = Join-Path $gamePath $GAME_EXE
 if (Test-Path $gameExe) { Write-OK "EXE verified: $GAME_EXE" }
-else { Write-Warn "$GAME_EXE not found - path may still be correct." }
+else { Write-Fail "$GAME_EXE not found. Choose the actual game folder and retry setup."; Pause-User "Press Enter to exit..."; exit 1 }
 
 $gameDataDir = Join-Path $gamePath "Descenders_Data"
 if (-not (Test-Path $gameDataDir)) {
@@ -157,6 +157,10 @@ if (-not (Test-Path $gameDataDir)) {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+if (-not (Test-Path -LiteralPath $gameDataDir -PathType Container)) {
+ Write-Fail "Descenders_Data is still missing; setup cannot continue."
+ Pause-User "Press Enter to exit..."; exit 1
 }
 
 # ------------------------------------------------------------
@@ -283,10 +287,27 @@ if (-not $inner) {
  # User chose Skip - continue at own risk
 }
 
+$verifyTargets = @(
+ "winhttp.dll",
+ "BepInEx\plugins\DescendersVRmod.dll",
+ "Descenders_Data\Plugins\OVRGamepad.dll",
+ "Descenders_Data\Plugins\openvr_api.dll"
+)
+if (-not $inner) {
+ Write-Fail "The VR archive has no installable payload."
+ Pause-User "Press Enter to exit..."; exit 1
+}
+foreach ($requiredFile in $verifyTargets) {
+ if (-not (Test-Path -LiteralPath (Join-Path $inner.FullName $requiredFile) -PathType Leaf)) {
+  Write-Fail "The VR archive is missing $requiredFile. No VR files were copied."
+  Pause-User "Press Enter to exit..."; exit 1
+ }
+}
+
 Write-Host " Copying VR mod files into game folder ... " -NoNewline -ForegroundColor White
 try {
  # Copy contents of the inner folder (BepInEx, Descenders_Data, doorstop_config.ini, winhttp.dll)
- Copy-Item -Path (Join-Path $inner.FullName "*") -Destination $gamePath -Recurse -Force
+ Copy-Item -Path (Join-Path $inner.FullName "*") -Destination $gamePath -Recurse -Force -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
@@ -309,12 +330,6 @@ try {
 }
 
 # Verify key files
-$verifyTargets = @(
- "winhttp.dll",
- "BepInEx\plugins\DescendersVRmod.dll",
- "Descenders_Data\Plugins\OVRGamepad.dll",
- "Descenders_Data\Plugins\openvr_api.dll"
-)
 $missing = @()
 foreach ($t in $verifyTargets) {
  $tp = Join-Path $gamePath $t
@@ -325,6 +340,8 @@ if ($missing.Count -eq 0) {
 } else {
  Write-Warn "Some files appear to be missing:"
  foreach ($m in $missing) { Write-Host " - $m" -ForegroundColor Yellow }
+ Write-Fail "Setup cannot record an incomplete VR mod."
+ Pause-User "Press Enter to exit..."; exit 1
 }
 
 # Write a small marker file so VR mode is identifiable later

@@ -101,7 +101,7 @@ $modZip = $null
 
 # Auto-detect in the Downloads folder (exact name first, then any
 # wolfsharp*.zip), newest match wins.
-$dl = Join-Path $env:USERPROFILE "Downloads"
+$dl = Get-PCVRDownloadsFolder
 if (Test-Path -LiteralPath $dl) {
     $exact = Join-Path $dl $EXPECTED_ZIP
     if (Test-Path -LiteralPath $exact) {

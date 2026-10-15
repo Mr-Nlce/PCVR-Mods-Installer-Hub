@@ -298,6 +298,18 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredModFiles = @(
+    'winhttp.dll',
+    'BepInEx\core\BepInEx.dll',
+    'BepInEx\plugins\MorosProtocol_VR.dll'
+)
+foreach ($relative in $requiredModFiles) {
+    $sourceFile = Join-Path $srcRoot $relative
+    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
+        throw "The selected VR archive is incomplete: $relative is missing."
+    }
+}
+$copyFailed = $false
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
@@ -306,6 +318,7 @@ try {
  Write-OK "Mod files installed."
 } catch {
  Write-Fail "Copy failed: $_"
+ $copyFailed = $true
  $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
  -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
  -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
@@ -322,6 +335,18 @@ try {
  # User chose Skip - continue at own risk
 }
 
+if ($copyFailed) { throw 'The VR files could not be copied completely.' }
+foreach ($relative in $requiredModFiles) {
+    $sourceFile = Join-Path $srcRoot $relative
+    $installedFile = Join-Path $gamePath $relative
+    if (-not (Test-Path -LiteralPath $installedFile -PathType Leaf)) {
+        throw "The VR installation is incomplete: $relative is missing."
+    }
+    if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $installedFile -Algorithm SHA256).Hash) {
+        throw "The VR installation is incomplete: $relative differs from the archive."
+    }
+}
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Sanity check that BepInEx + the mod DLL landed

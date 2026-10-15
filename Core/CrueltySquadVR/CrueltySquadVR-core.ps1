@@ -202,6 +202,11 @@ $dl = Invoke-DownloadOrFallback -Url $MODLOADER_URL -Destination $mlZip `
         -ManualUrl "$INFO_URL/releases" `
         -Instructions "Download 'crus-vr-modloader.zip' from the GitHub releases page that just opened. Place it at '$mlZip' and choose Retry." `
         -SkipMessage "Skipped - the modloader is required; the mod cannot be installed without it."
+if (-not (Test-Path -LiteralPath $mlZip -PathType Leaf)) {
+    Write-Fail 'The VR modloader archive is required.'
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
+}
 
 # Extract into the game folder so we get <GAME_DIR>\crus-vr-modloader\
 if (Test-Path $mlZip) {
@@ -246,19 +251,26 @@ Write-Host " choose Run / Keep." -ForegroundColor Yellow
 Write-Host ""
 Pause-User "Press Enter to run install_modloader.bat..."
 try {
-    Start-Process -FilePath $mlBat -WorkingDirectory $mlFolder -Wait
+    $modloaderProcess = Start-Process -FilePath $mlBat -WorkingDirectory $mlFolder -Wait -PassThru -ErrorAction Stop
+    if (-not $modloaderProcess -or $modloaderProcess.ExitCode -ne 0) {
+        throw "Modloader installer exited with code $($modloaderProcess.ExitCode)."
+    }
     Write-OK "Modloader installer finished."
 } catch {
-    Write-Warn "Could not launch install_modloader.bat: $_"
-    Write-Host " Open '$mlFolder' and run install_modloader.bat manually." -ForegroundColor Gray
-    Pause-User "Press Enter once it has finished..."
+    Write-Fail "Modloader installation did not complete: $_"
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
 }
 
 # Verify the loader copied its files next to the EXE
 $loaderOk = (Test-Path -LiteralPath "$gamePath\override.cfg") -and `
             (Test-Path -LiteralPath "$gamePath\openxr_loader.dll")
 if ($loaderOk) { Write-OK "Modloader files detected next to crueltysquad.exe." }
-else { Write-Warn "override.cfg / openxr_loader.dll not detected - the loader step may not have completed." }
+else {
+    Write-Fail 'override.cfg / openxr_loader.dll not detected; the loader step is incomplete.'
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
+}
 
 # -------------------------------------------------------
 # First launch to create the mods folder
@@ -319,10 +331,20 @@ foreach ($src in @($vrFiles, $xrTools)) {
     }
 }
 if (-not $copied) {
-    $fb = Invoke-InstallerFallback -Action "copy the VR mod folders" `
-        -Instructions "Copy 'cs-vr-mod-vr-files' and 'cs-vr-mod-xr-tools' from '$mlFolder' into '$MODS_DIR'. Then choose Skip to continue." `
-        -SkipMessage "Skipped - VR mod folders not copied; VR will not load until they are." `
-        -SourceFolder $mlFolder -DestFolder $MODS_DIR -AllowSkip $true
+    Write-Fail 'Both VR mod folders are required before this setup can finish.'
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
+}
+$requiredMods = @(
+    (Join-Path $MODS_DIR 'cs-vr-mod-vr-files\mod.json'),
+    (Join-Path $MODS_DIR 'cs-vr-mod-vr-files\mod.zip'),
+    (Join-Path $MODS_DIR 'cs-vr-mod-xr-tools\mod.json'),
+    (Join-Path $MODS_DIR 'cs-vr-mod-xr-tools\mod.zip')
+)
+if (@($requiredMods | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) }).Count -gt 0) {
+    Write-Fail 'The VR mod folders do not contain both complete Godot packages.'
+    Pause-User 'Press Enter to close without marking this setup complete.'
+    exit 1
 }
 
 # -------------------------------------------------------

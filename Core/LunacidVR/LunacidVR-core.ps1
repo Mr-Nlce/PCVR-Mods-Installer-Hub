@@ -370,6 +370,12 @@ if ($wrapper) {
 if (-not $srcRoot) { $srcRoot = $tempExtract }
 Write-Info "Payload root: $srcRoot"
 
+if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $MOD_REL_DLL) -PathType Leaf)) {
+    Write-Fail "The selected archive does not contain $MOD_REL_DLL. No mod files were copied."
+    try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    throw "The selected archive does not contain $MOD_REL_DLL. No mod files were copied."
+}
+
 Write-Host " Copying mod files into: $gamePath" -ForegroundColor Gray
 $backupCount = 0
 try {
@@ -398,9 +404,14 @@ try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction Silentl
 # Sanity check
 $modDll = Join-Path $gamePath $MOD_REL_DLL
 if (-not (Test-Path -LiteralPath (Join-Path $gamePath "winhttp.dll"))) {
-    Write-Warn "winhttp.dll is missing from the game folder - BepInEx will not start."
+    Write-Fail "winhttp.dll is missing from the game folder - BepInEx will not start."
+    throw "winhttp.dll is missing from the game folder - BepInEx will not start."
+} elseif (-not (Test-Path -LiteralPath $bepCore -PathType Leaf)) {
+    Write-Fail "BepInEx.dll is missing from the game folder - the mod loader will not start."
+    throw "BepInEx.dll is missing from the game folder - the mod loader will not start."
 } elseif (-not (Test-Path -LiteralPath $modDll)) {
-    Write-Warn "LUNACIDVR.dll did not land in BepInEx\plugins\LUNACID VR."
+    Write-Fail "LUNACIDVR.dll did not land in BepInEx\plugins\LUNACID VR."
+    throw "LUNACIDVR.dll did not land in BepInEx\plugins\LUNACID VR."
 } else {
     Write-OK "BepInEx + LUNACIDVR.dll present in the game folder."
 }
@@ -418,7 +429,7 @@ try {
     # soon as a new Hub build is dropped in; the scan then finds
     # no marker and seeds the CURRENT online tag, swallowing a
     # pending update. The game-side stamp survives that.
-    Save-InstalledStamp -GameDir @($gamePath, $destDir) -Version $MOD_VERSION
+    Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION
 } catch {}
 
 # -------------------------------------------------------

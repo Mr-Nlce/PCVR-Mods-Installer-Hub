@@ -7,6 +7,8 @@ $ErrorActionPreference = "Stop"
 
 # Load shared installer safety helpers
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
 
 $GAME_FOLDER  = "Outer Wilds"
 $GAME_EXE     = "OuterWilds.exe"
@@ -40,31 +42,34 @@ Write-Header
 Write-Host " NomaiVR by Raicuparta & artumino - the whole of Outer Wilds playable" -ForegroundColor White
 Write-Host " in VR with 6DOF tracking and motion controls." -ForegroundColor White
 Write-Host ""
+Write-Host " Unsigned mod files can trigger antivirus warnings. If a required file" -ForegroundColor Gray
+Write-Host " is missing, review the installer log and use its retry/manual recovery." -ForegroundColor Gray
+Write-Host ""
 Pause-User "Press Enter to start..."
 Write-Step 1 4 "Locating Outer Wilds"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
-$gamePath = $null
+$gamePath = Get-PCVRRememberedGameFolder -GameId 'outer-wilds-vr' -ProbeFiles @($GAME_EXE)
 try {
     $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
     if (Test-Path $__utilsPath) {
         . $__utilsPath
-        $gamePath = Try-FindSteamGame -Folder $GAME_FOLDER -Title "Outer Wilds"
+        if (-not $gamePath) { $gamePath = Try-FindSteamGame -Folder $GAME_FOLDER -Title "Outer Wilds" -ExeName $GAME_EXE }
     }
 } catch {}
 # --- End detection library attempt ---
 
 $steamPath = Get-SteamPath
-$gamePath  = $null
 
-if ($steamPath) {
+if (-not $gamePath -and $steamPath) {
     foreach ($lib in (Get-SteamLibraries $steamPath)) {
         $c = Join-Path $lib "steamapps\common\$GAME_FOLDER"
-        if (Test-Path $c) { $gamePath = $c; break }
+        if (Test-Path (Join-Path $c $GAME_EXE) -PathType Leaf) { $gamePath = $c; break }
     }
 }
 
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "753640" -SteamFolderNames @("Outer Wilds") -ProbeExe "OWML\OWML.Launcher.exe" -EpicNames @("Outer Wilds","OuterWilds") }
+if ($gamePath -and -not (Test-Path (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) { $gamePath=$null }
+if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "753640" -SteamFolderNames @("Outer Wilds") -ProbeExe $GAME_EXE -EpicNames @("Outer Wilds","OuterWilds") -HubGameId 'outer-wilds-vr' }
 if ($gamePath) {
     Write-OK "Outer Wilds found: $gamePath"
 } else {
@@ -80,10 +85,14 @@ if ($gamePath) {
     Write-Host "  Example: C:\Program Files (x86)\Steam\steamapps\common\Outer Wilds" -ForegroundColor Gray
     while (-not $gamePath) {
         $r = (Read-Host "  Path").Trim().Trim('"')
-        if (Test-Path $r) { $gamePath = $r; Write-OK "Path set: $gamePath" }
-        else { Write-Fail "Not found: $r" }
+        if (-not $r -or $r -match '^(?i:q|quit)$') { throw 'No verified Outer Wilds game folder was selected. Nothing was installed.' }
+        if ((Test-Path -LiteralPath $r -PathType Leaf) -and (Split-Path -Leaf $r) -ieq $GAME_EXE) { $r=Split-Path -Parent $r }
+        if (Test-Path (Join-Path $r $GAME_EXE) -PathType Leaf) { $gamePath = $r; Write-OK "Path set: $gamePath" }
+        else { Write-Fail "$GAME_EXE not found in: $r" }
     }
 }
+if (-not (Test-Path (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) { throw "The selected folder does not contain $GAME_EXE." }
+if (@(Get-Process -Name 'OuterWilds' -ErrorAction SilentlyContinue).Count) { throw 'Close Outer Wilds before installing or updating NomaiVR.' }
 
 # STEP 2: Download
 Write-Step 2 4 "Downloading OWML + NomaiVR"
@@ -111,63 +120,131 @@ $r = Invoke-DownloadOrFallback -Url $MOD_URL -Destination $modZip `
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { Pause-User "Install cannot continue without NomaiVR. Press Enter to exit..."; exit 1 }
 
-# STEP 3: Install OWML into its own subfolder inside the game directory
-Write-Step 3 4 "Installing OWML"
-
-# OWML lives in its own folder: <GameDir>\OWML\
-$owmlPath = Join-Path $gamePath "OWML"
-if (-not (Test-Path $owmlPath)) { New-Item -ItemType Directory -Path $owmlPath -Force | Out-Null }
-
-Write-Host "  Extracting OWML to $owmlPath ... " -NoNewline -ForegroundColor White
-$efb = Expand-ArchiveOrFallback -ArchivePath $owmlZip -DestinationFolder $owmlPath -Label "OWML" `
-        -SkipMessage "Skipped - OWML was not extracted; NomaiVR will NOT load."
-if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-    Write-Host "OK" -ForegroundColor Green
-    Write-OK "OWML installed to: $owmlPath"
-} else {
-    Pause-User "OWML extraction skipped. Install cannot continue. Press Enter to exit..."; exit 1
+# STEP 3: stage both archives away from the live game, then verify them.
+Write-Step 3 4 "Checking OWML and NomaiVR packages"
+$owmlStage = Join-Path $tempDir 'owml-stage'
+$nomaiStage = Join-Path $tempDir 'nomai-stage'
+foreach ($item in @(@($owmlZip,$owmlStage,'OWML'),@($modZip,$nomaiStage,'NomaiVR'))) {
+    $safe = Test-ZipArchiveEntrySafety -ArchivePath $item[0] -DestinationFolder $item[1]
+    if (-not $safe.Inspectable -or -not $safe.Safe) { throw "$($item[2]) ZIP is unreadable or has unsafe paths. The game was not changed." }
+    $result = Expand-ArchiveOrFallback -ArchivePath $item[0] -DestinationFolder $item[1] -Label $item[2] -AllowSkip $false
+    if ([string]$result -notin @('ok','manual','retry')) { throw "$($item[2]) extraction did not complete. The game was not changed." }
 }
+$owmlRequired = @('OWML.Launcher.exe','OWML.ModLoader.dll','OWML.DefaultConfig.json','0Harmony.dll')
+$nomaiRequired = @('manifest.json','NomaiVR.dll','patcher\NomaiVRPatcher.dll')
+foreach ($relative in $owmlRequired) {
+    $file=Join-Path $owmlStage $relative
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -le 0) { throw "OWML package lacks $relative. The game was not changed." }
+}
+foreach ($relative in $nomaiRequired) {
+    $file=Join-Path $nomaiStage $relative
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -le 0) { throw "NomaiVR package lacks $relative. The game was not changed." }
+}
+$publisherManifest=Get-Content -LiteralPath (Join-Path $nomaiStage 'manifest.json') -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+if ($publisherManifest.uniqueName -ne 'Raicuparta.NomaiVR' -or -not (Test-IsTrackableInstalledVersion -Version ([string]$publisherManifest.version))) {
+    throw 'NomaiVR manifest has the wrong mod identity or no usable version. The game was not changed.'
+}
+$modVersion=[string]$publisherManifest.version
+$owmlPath=Join-Path $gamePath 'OWML'
+$modTargetPath=Join-Path $owmlPath 'Mods\Raicuparta.NomaiVR'
+$legacyManifest=Join-Path $modTargetPath 'manifest.json'
+$ownedManifest=Join-Path $modTargetPath '.pcvrhub_nomaivr_ownership.csv'
+$legacyFolder=$null
+$legacyBackup=$null
+if ((Test-Path -LiteralPath $legacyManifest -PathType Leaf) -and -not (Test-Path -LiteralPath $ownedManifest -PathType Leaf)) {
+    $legacy=Get-Content -LiteralPath $legacyManifest -Raw | ConvertFrom-Json -ErrorAction Stop
+    if ($legacy.uniqueName -ne 'Raicuparta.NomaiVR') { throw 'An unrelated mod occupies the NomaiVR folder. No files were changed.' }
+    $legacyFolder=$modTargetPath
+    $legacyBackup=Join-Path (Split-Path -Parent $modTargetPath) ('.pcvrhub_NomaiVR_legacy_'+[guid]::NewGuid().ToString('N').Substring(0,8))
+    Write-Info "An earlier NomaiVR folder will be preserved at $legacyBackup before replacement."
+}
+$configFile=Join-Path $owmlPath 'OWML.Config.json'
+$configSource=if (Test-Path -LiteralPath $configFile -PathType Leaf) { $configFile } else { Join-Path $owmlStage 'OWML.DefaultConfig.json' }
+$cfg=Get-Content -LiteralPath $configSource -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+$cfg.gamePath=$gamePath.Replace('\','/')
+$cfg | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $owmlStage 'OWML.Config.json') -Encoding UTF8 -ErrorAction Stop
+$writableProbe=Join-Path $gamePath ('.pcvrhub_probe_'+[guid]::NewGuid().ToString('N'))
+try { [IO.File]::WriteAllText($writableProbe,'ok'); Remove-Item -LiteralPath $writableProbe -Force -ErrorAction Stop }
+catch { throw "The game folder is not writable: $gamePath" }
 
-# Write gamePath into OWML config so it knows where the game is
-$owmlConfig = Join-Path $owmlPath "OWML.Config.json"
-$defaultConfig = Join-Path $owmlPath "OWML.DefaultConfig.json"
-$configFile = if (Test-Path $owmlConfig) { $owmlConfig } else { $defaultConfig }
+# STEP 4: snapshot only files these two packages can change, including the
+# ownership records and prior receipts. This leaves other OWML mods and saves alone.
+Write-Step 4 4 "Installing verified files"
+$packages=@(
+    [pscustomobject]@{Stage=$owmlStage;Root=$owmlPath;Identity='outerwilds_owml'},
+    [pscustomobject]@{Stage=$nomaiStage;Root=$modTargetPath;Identity='nomaivr'}
+)
+$snapshot=Join-Path $tempDir 'rollback'
+New-Item -ItemType Directory -Path $snapshot -Force | Out-Null
+$tracked=New-Object System.Collections.Generic.List[object]
+$backupStates=New-Object System.Collections.Generic.List[object]
+foreach ($pkg in $packages) {
+    $pkgFiles=@(Get-ChildItem -LiteralPath $pkg.Stage -Recurse -File -ErrorAction Stop | ForEach-Object { Assert-PCVROwnedRelativePath -Relative ($_.FullName.Substring($pkg.Stage.Length+1)) })
+    $manifest=Join-Path $pkg.Root ('.pcvrhub_'+$pkg.Identity+'_ownership.csv')
+    $prior=@()
+    if (Test-Path -LiteralPath $manifest -PathType Leaf) { $prior=@(Import-Csv -LiteralPath $manifest -ErrorAction Stop | ForEach-Object { Assert-PCVROwnedRelativePath -Relative ([string]$_.RelativePath) }) }
+    foreach ($relative in @(($pkgFiles+$prior) | Select-Object -Unique)) { [void]$tracked.Add((Join-Path $pkg.Root $relative)) }
+    [void]$tracked.Add($manifest)
+    $backup=Join-Path $pkg.Root ('.pcvrhub_'+$pkg.Identity+'_backup')
+    $backupCopy=Join-Path $snapshot ($pkg.Identity+'_backup')
+    $hadBackup=Test-Path -LiteralPath $backup -PathType Container
+    if ($hadBackup) { Copy-Item -LiteralPath $backup -Destination $backupCopy -Recurse -Force -ErrorAction Stop }
+    [void]$backupStates.Add([pscustomobject]@{Live=$backup;Copy=$backupCopy;Existed=$hadBackup})
+}
+[void]$tracked.Add((Join-Path $gamePath '.pcvrhub_version'))
+[void]$tracked.Add((Join-Path $PSScriptRoot '.installed_path'))
+$fileStates=New-Object System.Collections.Generic.List[object]
+$i=0
+foreach ($live in @($tracked | Select-Object -Unique)) {
+    $copy=Join-Path $snapshot ("file-$i")
+    $existed=Test-Path -LiteralPath $live -PathType Leaf
+    if ($existed) { Copy-Item -LiteralPath $live -Destination $copy -Force -ErrorAction Stop }
+    [void]$fileStates.Add([pscustomobject]@{Live=$live;Copy=$copy;Existed=$existed})
+    $i++
+}
+$contract=New-PCVRInstallerContract -Id 'outer-wilds-vr' -GameName 'Outer Wilds' -Acquisition GitHub -AntivirusNotice `
+    -ReleasePageUrl 'https://github.com/Raicuparta/nomai-vr/releases' `
+    -RequiredInstalledFileGroups @('OuterWilds.exe','OWML\OWML.Launcher.exe','OWML\OWML.ModLoader.dll','OWML\0Harmony.dll',
+        'OWML\Mods\Raicuparta.NomaiVR\manifest.json','OWML\Mods\Raicuparta.NomaiVR\NomaiVR.dll',
+        'OWML\Mods\Raicuparta.NomaiVR\patcher\NomaiVRPatcher.dll',
+        'OWML\.pcvrhub_outerwilds_owml_ownership.csv','OWML\Mods\Raicuparta.NomaiVR\.pcvrhub_nomaivr_ownership.csv')
 try {
-    $cfg = Get-Content $configFile -Raw | ConvertFrom-Json
-    $cfg.gamePath = $gamePath -replace '\\', '/'
-    $cfg | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $owmlPath "OWML.Config.json") -Encoding UTF8
-    Write-OK "OWML config written with game path: $gamePath"
+    if ($legacyFolder) { Move-Item -LiteralPath $legacyFolder -Destination $legacyBackup -ErrorAction Stop }
+    [void](Install-OwnedModPayload -SourceRoot $owmlStage -GameRoot $owmlPath -Identity 'outerwilds_owml' `
+        -AdoptIdenticalExisting -ReplaceChangedOwnedRelativePaths @('OWML.Config.json'))
+    [void](Install-OwnedModPayload -SourceRoot $nomaiStage -GameRoot $modTargetPath -Identity 'nomaivr' -AdoptIdenticalExisting)
+    foreach ($pkg in $packages) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $pkg.Stage -Recurse -File -ErrorAction Stop)) {
+            $relative=$file.FullName.Substring($pkg.Stage.Length+1)
+            $target=Join-Path $pkg.Root $relative
+            if (-not (Test-Path -LiteralPath $target -PathType Leaf) -or
+                (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) {
+                throw "Copied file missing or changed: $relative"
+            }
+        }
+    }
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $modVersion `
+        -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+    Write-OK "OWML and NomaiVR $modVersion verified. Other OWML mods and saves are untouched."
 } catch {
-    Write-Warn "Could not auto-write OWML config: $_"
-    Write-Info "You may need to set the game path manually in OWML.Config.json"
+    $failure=$_
+    foreach ($state in $fileStates) {
+        if ($state.Existed) {
+            $parent=Split-Path -Parent $state.Live
+            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+            Copy-Item -LiteralPath $state.Copy -Destination $state.Live -Force -ErrorAction Stop
+        } elseif (Test-Path -LiteralPath $state.Live -PathType Leaf) { Remove-Item -LiteralPath $state.Live -Force -ErrorAction Stop }
+    }
+    foreach ($state in $backupStates) {
+        if (Test-Path -LiteralPath $state.Live -PathType Container) { Remove-Item -LiteralPath $state.Live -Recurse -Force -ErrorAction Stop }
+        if ($state.Existed) { Copy-Item -LiteralPath $state.Copy -Destination $state.Live -Recurse -Force -ErrorAction Stop }
+    }
+    if ($legacyFolder -and (Test-Path -LiteralPath $legacyBackup -PathType Container)) {
+        if (Test-Path -LiteralPath $legacyFolder -PathType Container) { Remove-Item -LiteralPath $legacyFolder -Recurse -Force -ErrorAction Stop }
+        Move-Item -LiteralPath $legacyBackup -Destination $legacyFolder -ErrorAction Stop
+    }
+    throw $failure
 }
-
-# Create Mods folder
-$modsPath = Join-Path $owmlPath "Mods"
-if (-not (Test-Path $modsPath)) { New-Item -ItemType Directory -Path $modsPath -Force | Out-Null }
-
-# STEP 4: Install NomaiVR
-Write-Step 4 4 "Installing NomaiVR"
-
-$modTargetPath = Join-Path $modsPath "Raicuparta.NomaiVR"
-if (-not (Test-Path $modTargetPath)) { New-Item -ItemType Directory -Path $modTargetPath -Force | Out-Null }
-
-Write-Host "  Extracting NomaiVR to OWML\Mods\Raicuparta.NomaiVR ... " -NoNewline -ForegroundColor White
-try {
-    Expand-Archive -Path $modZip -DestinationPath $modTargetPath -Force
-    Write-Host "OK" -ForegroundColor Green
-    Write-OK "NomaiVR installed."
-} catch {
-    Write-Host "FAILED" -ForegroundColor Red; Write-Host "    $_" -ForegroundColor Gray
-}
-
-# Verify
-$manifestCheck = Join-Path $modTargetPath "manifest.json"
-if (Test-Path $manifestCheck) { Write-OK "manifest.json verified." }
-else { Write-Warn "manifest.json not found - check $modTargetPath manually." }
-
-try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Create Desktop shortcut to OWML.Launcher.exe
 $owmlLauncher = Join-Path $owmlPath "OWML.Launcher.exe"
@@ -195,7 +272,8 @@ Write-Host "  shortcut 'Outer Wilds VR'" -ForegroundColor Green
 Write-Host "  or directly from:" -ForegroundColor White
 Write-Host "  $owmlLauncher" -ForegroundColor Gray
 Write-Host ""
-Write-Host "  Do NOT launch Outer Wilds from Steam directly!" -ForegroundColor Yellow
+Write-Host "  After an install or update, start with OWML.Launcher.exe once." -ForegroundColor Yellow
+Write-Host "  Later Steam/Epic starts may work if the store login is connected." -ForegroundColor Gray
 Write-Host ""
 Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan
 Write-Host ""
@@ -209,5 +287,4 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "  The Hatchling sets out. Twenty-two minutes is plenty of time." -ForegroundColor Magenta
 Write-Host ""
-try { Start-Process explorer.exe "`"$owmlPath`"" } catch {}
 Pause-User "Press Enter to exit."

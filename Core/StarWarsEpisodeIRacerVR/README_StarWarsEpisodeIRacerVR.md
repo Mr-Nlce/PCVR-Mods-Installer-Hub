@@ -2,10 +2,18 @@
 
 Racer PCVR adds stereoscopic rendering, head tracking and Quest motion controls to the original game.
 
-The current **v1.4.1** release fixes the end-of-race crash introduced in v1.4
-and improves runtime diagnostics. SteamVR 2.17 or newer is now the confirmed
+The current **v1.5** release smooths the fast cockpit nose pitch on rough tracks,
+fixes disappearing ground when looking down, and addresses black results screens,
+look-back and respawn camera behavior. SteamVR 2.17 or newer is the confirmed
 runtime; the Meta runtime does not work, so switch the active OpenXR runtime to
 SteamVR before launch.
+
+The publisher ZIP now includes `setup.bat` and `setup.ps1`. The Hub copies only
+the VR payload into the game and retains its own ownership and removal records.
+For an optional desktop check of your 32-bit OpenXR runtime, GPU selection and
+stale API layers, extract the official ZIP separately and run
+`powershell -ExecutionPolicy Bypass -File setup.ps1 -CheckOnly` in its folder.
+The mod writes `vr_report.txt` beside the game EXE when VR startup fails.
 
 ## Before launch
 
@@ -48,6 +56,8 @@ SteamVR before launch.
 - Analog motion-controller steering is experimental.
 - The port hides overhead place numbers because they do not render correctly in stereo.
 - If a race behaves strangely at high refresh rates, switch Virtual Desktop to 72 Hz.
+- **Bump smoothing** in [[F5]] defaults to off and can reduce abrupt cockpit jolts. At high values it may move your view into pod geometry. `dpi_unaware=0` in the `[vr]` settings restores the older display-scaling behavior if the v1.4 setting reduces headset resolution on your monitor setup.
+- Treat **World units per metre** as a comfort setting; the publisher has not calibrated a universally correct default.
 
 ## Links
 

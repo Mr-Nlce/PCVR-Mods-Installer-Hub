@@ -50,7 +50,7 @@ Change graphics-quality options only while you are in the main menu. Changing th
 
 ## Rendering and headset notes
 
-KHARVOX v1.1 keeps **SFS** as the default for NVIDIA and AMD GPUs. **AER** remains available as a fallback, while **Native Stereo has been removed**. Existing custom AER profiles are switched to SFS once after updating; AER can still be selected again afterward. Test SFS first. v1.1 fixes FSR handling in the launcher and includes smaller Vulkan performance fixes; the author also reduced the first-launch low-FPS problem, although the first run can still be heavier than later starts.
+KHARVOX v1.1.1 keeps **SFS** as the default for NVIDIA and AMD GPUs. **AER** remains available as a fallback, while **Native Stereo has been removed**. Existing custom AER profiles are switched to SFS once after updating; AER can still be selected again afterward. Test SFS first. v1.1.1 adds a Swap Jump/Crouch launcher option, disables a conflicting ReShade OpenXR API layer for this game, and reduces CPU locking and command-buffer overhead. Some systems may still have low FPS on the first game launch after booting Windows; the publisher does not claim a fix for that issue.
 
 SFS uses DOOM's own anti-aliasing, while AER uses SMAA. FSR can be combined with either renderer below 100% render scale; the author recommends starting around 80%. When SteamVR is active, change the resolution in SteamVR because the launcher's RenderScale control is disabled for that route. Virtual Desktop users should select VDXR; Index and PSVR2 users should use SteamVR/OpenXR.
 

@@ -1,11 +1,13 @@
 # Sonic P-06 VR
 
-Sonic P-06 (Project '06) is an unofficial, fan-made remake of the notoriously buggy Sonic the Hedgehog (2006), rebuilt in the Unity engine by programmer Ian "ChaosX" Moris to create a polished, high-quality experience. It fixes broken physics, improves graphics with upscaled textures, and enhances controls for all playable characters.
+## About the Game
+
+Sonic P-06 (Project '06) is an unofficial fan remake of Sonic the Hedgehog (2006), rebuilt in Unity by Ian "ChaosX" Moris. It improves physics, graphics and character controls.
 
 The VR mod by Astienth adds stereoscopic VR rendering on top, with an experimental first-person view option.
 
 **Mod**: Sonic_P-06_VR v1.0.0 - by Astienth, available on the FarmerTrueVR Discord server  
-**Game**: Project 06 by ChaosX - free fan-game, hosted on Google Drive (not on Steam)
+**Game**: Project 06 by ChaosX - free fan-game, hosted on Google Drive (not on Steam). Use the linked **Silver Release Patch v1.4**. In the [modder's thread](https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199), Astienth advises against Silver Patch v1.45 because its camera code changed.
 
 ## How this differs from other Astienth installers
 
@@ -32,7 +34,7 @@ Steps in order:
 
 5. **Mod ZIP drag-drop** - download the chosen variant from the Discord post and drop the file into the installer window. Filename is soft-checked against your variant pick.
 
-6. **Mod install + patch** - extract the mod files into the game folder, then run Astienth's `VRPatch\Apply Patch.bat` once (binary `data.unity3d` patch via xdelta3 / vcdiff). The patch script needs the working directory set to the `VRPatch` folder, so the installer launches it that way.
+6. **Mod install + patch** - extract the mod files into the game folder, then run Astienth's `VRPatch\Apply Patch.bat` once (binary `data.unity3d` patch via xdelta3 / vcdiff). The patch script needs the working directory set to the `VRPatch` folder, so the installer launches it that way. Applying this binary patch twice breaks the game; for a clean retry, restore an untouched v1.4 game copy first.
 
 ## Game download (Google Drive)
 
@@ -51,12 +53,16 @@ The installer opens the matching Discord post for the selected variant. For the 
 
 **Gamepad or keyboard only - no VR controller support.**
 
-- [[F1]] or double-press [[Start]] on gamepad - toggle first-person view on/off
-- [[F2]] or hold [[Start]] on gamepad - recenter view
+| Button | Action |
+|---|---|
+| [[F1]] or double-press [[Start]] | Toggle first-person view on/off |
+| [[F2]] or hold [[Start]] | Recenter view |
 
 ## Heads-up notes from Astienth
 
-- Some in-game graphics settings introduce bugs - try and error to find what works on your rig.
+- Set **Draw Distance** to **Very Far**. The modder reproduced missing or upside-down distant scenery when this setting was lower; one player's issue disappeared after raising it.
+- Silver Patch v1.45 changes the base game's camera code. Keep the supported v1.4 game copy for this VR mod instead of updating it.
+- Some other in-game graphics settings introduce bugs - change one at a time and retest.
 - Reflections render slightly differently per eye - consider turning reflections **OFF** in the graphics menu.
 - For performance, lower in-game settings first; if that's not enough, lower the SteamVR resolution. The headset resolution is set by SteamVR, not by the in-game resolution setting.
 - First-person view is experimental - tank movement, left stick rotates, forward = accelerate, backward also accelerates (a known bug, won't bother you in practice). **MOTION SICKNESS warning** for first-person mode.

@@ -34,14 +34,53 @@ function Write-Warn { param($m) Write-Host "  [!] $m"  -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host "  [X] $m"  -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host "  >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
+function Test-LauncherExecutable([string]$Path) {
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        try {
+            if ($stream.Length -lt 128) { return $false }
+            $reader = [IO.BinaryReader]::new($stream)
+            try {
+                if ($reader.ReadUInt16() -ne 0x5A4D) { return $false }
+                $stream.Position = 0x3C
+                $offset = [int64]$reader.ReadInt32()
+                if ($offset -lt 64 -or $offset -gt ($stream.Length - 4)) { return $false }
+                $stream.Position = $offset
+                return ($reader.ReadUInt32() -eq 0x00004550)
+            } finally { $reader.Dispose() }
+        } finally { $stream.Dispose() }
+    } catch { return $false }
+}
 function Get-ExeFromUser {
+    $downloadDir = Get-PCVRDownloadsFolder
+    $downloadCandidates = @()
+    if (Test-Path -LiteralPath $downloadDir -PathType Container) {
+        $downloadCandidates = @(Get-ChildItem -LiteralPath $downloadDir -Filter '*AoeVrLauncher*.exe' -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending | Select-Object -First 3)
+    }
+    if ($downloadCandidates.Count) {
+        Write-Info 'Launcher candidates found in Downloads (choose one explicitly):'
+        for ($i = 0; $i -lt $downloadCandidates.Count; $i++) {
+            Write-Host ("  [$($i + 1)] " + $downloadCandidates[$i].FullName) -ForegroundColor White
+        }
+    }
     while ($true) {
-        $r = (Read-Host "  Path").Trim().Trim('"')
+        $answer = Read-Host "  Launcher path, number or Q to quit"
+        if ($null -eq $answer) { return $null }
+        $r = $answer.Trim().Trim('"')
+        if ($r -ieq 'Q') { return $null }
+        if ($r -match '^[1-3]$' -and [int]$r -le $downloadCandidates.Count) {
+            $r = $downloadCandidates[[int]$r - 1].FullName
+        }
         if (-not $r) { continue }
-        if (-not (Test-Path $r)) { Write-Fail "Not found: $r"; continue }
-        if ($r -notmatch '\.exe$') { Write-Fail "That's not the .exe (you may have grabbed the archive)."; continue }
+        if (-not (Test-Path -LiteralPath $r -PathType Leaf)) { Write-Fail "Not found: $r"; continue }
+        if ($r -notmatch '\.exe$') { Write-Fail "That's not an .exe (you may have grabbed the archive)."; continue }
+        if (-not (Test-LauncherExecutable $r)) { Write-Fail 'The selected file is not a usable Windows executable. Choose the downloaded launcher or Q to quit.'; continue }
         if ([System.IO.Path]::GetFileName($r) -ne $LAUNCHER_EXE) {
-            Write-Warn "Expected $LAUNCHER_EXE - using $([System.IO.Path]::GetFileName($r)) anyway."
+            Write-Warn "The file is named $([System.IO.Path]::GetFileName($r)), not $LAUNCHER_EXE."
+            Write-Info 'A publisher rename is possible. Confirm this exact file before copying it as the launcher.'
+            $confirm = (Read-Host '  Use this executable anyway? [Y/N]').Trim().ToUpperInvariant()
+            if ($confirm -notin @('Y','YES')) { continue }
         }
         return $r
     }
@@ -134,7 +173,13 @@ if (Test-Path $gameDir) {
 
 # Re-run guard: launcher already here -> skip the download.
 $launcherDest = Join-Path $gameDir $LAUNCHER_EXE
-$skipDownload = (Test-Path $launcherDest)
+$skipDownload = (Test-Path -LiteralPath $launcherDest -PathType Leaf)
+if ($skipDownload -and -not (Test-LauncherExecutable $launcherDest)) {
+    Write-Fail "An existing $LAUNCHER_EXE is not a usable Windows executable."
+    Write-Do 'Move that file aside or replace it with the publisher launcher, then run setup again.'
+    Pause-User 'Press Enter to exit...'
+    exit 1
+}
 if ($skipDownload) { Write-OK "$LAUNCHER_EXE already here - skipping download." }
 
 # -------------------------------------------------------
@@ -156,8 +201,10 @@ if (-not $skipDownload) {
     try { Start-Process $DISCORD_POST_URL } catch { Write-Info "$DISCORD_POST_URL (must be a server member)" }
 
     Write-Host ""
-    Write-Do  "Once it's downloaded, drag $LAUNCHER_EXE in (or paste its path) and press Enter."
+    Write-Do  "Once it's downloaded, return here. Downloads will be searched; you can also drag the EXE in."
+    Pause-User 'Press Enter after the launcher download is complete...'
     $src = Get-ExeFromUser
+    if (-not $src) { Write-Fail 'Setup cancelled before the launcher was copied.'; Pause-User 'Press Enter to exit...'; exit 1 }
 
     # Create the folder now - only once we actually have the launcher.
     if (-not (Test-Path $gameDir)) {

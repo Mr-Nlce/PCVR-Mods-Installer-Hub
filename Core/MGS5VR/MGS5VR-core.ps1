@@ -14,11 +14,21 @@ $APP_ID = '287700'
 $GAME_EXE = 'mgsvtpp.exe'
 $REPO = 'nikamigaming-create/MGS5VR'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'experimental-2026-09-20'
-$FALLBACK_NAME = 'MGS5VR-experimental-2026-09-20.zip'
+$FALLBACK_TAG = 'experimental-2026-10-11'
+$FALLBACK_NAME = 'MGS5VR-experimental-2026-10-11.zip'
 $FALLBACK_URL = "https://github.com/$REPO/releases/download/$FALLBACK_TAG/$FALLBACK_NAME"
 $IDENTITY = 'mgs5vr'
 $QUIP = 'The battlefield changes when every movement is your own.'
+$MGS_IMPORTED_ASSETS = @(
+    'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
+    'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds',
+    'retail-assets\Assets\tpp\item\cct\Scenes\cct0_main1_def.fmdl',
+    'retail-assets\Assets\tpp\item\cct\Pictures\cct0_main1_def_c00_bsm.dds',
+    'retail-assets\Assets\tpp\item\rdi\Scenes\rdi0_main0_def.fmdl',
+    'retail-assets\Assets\tpp\item\rdi\Pictures\rdi0_main0_def_c00_bsm.dds',
+    'retail-assets\Assets\tpp\item\idr\Scenes\idr0_main0_def.fmdl',
+    'retail-assets\Assets\tpp\item\idr\Pictures\idr0_main0_def_c00_bsm.dds'
+)
 $MGS_MANAGED_PATHS = @(
     'dinput8.dll',
     'mgs5vr.ini',
@@ -26,19 +36,15 @@ $MGS_MANAGED_PATHS = @(
     'mgs5vr_controls.exe',
     'Edit-Controls.cmd',
     'tools\edit-controls.ps1',
-    'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
-    'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds',
     '.pcvrhub_mgs5vr_ownership.csv'
-)
+) + $MGS_IMPORTED_ASSETS
 $contract = New-PCVRInstallerContract -Id 'metal-gear-solid-v-the-phantom-pain-vr' `
     -GameName 'Metal Gear Solid V: The Phantom Pain VR' -Acquisition GitHub `
-    -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups @(
+    -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups (@(
         'dinput8.dll','mgs5vr.ini','mgs5vr-controls.ini','mgs5vr_controls.exe',
         'Edit-Controls.cmd','tools\edit-controls.ps1',
-        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
-        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds',
         '.pcvrhub_mgs5vr_ownership.csv'
-    )
+    ) + $MGS_IMPORTED_ASSETS)
 
 function Write-MGSStep([int]$Number,[int]$Total,[string]$Text) {
     Write-Host ''; Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan; Write-Host ''
@@ -116,10 +122,9 @@ function global:Invoke-MGS5VRInstaller {
     Write-Host '  Quest 3 + Touch is tested; other headsets are unverified.' -ForegroundColor Gray
     Write-Host '  Existing MGS5VR settings and any prior dinput8.dll are kept' -ForegroundColor Gray
     Write-Host '  recoverable. Other dinput8 proxy mods cannot run alongside it.' -ForegroundColor Gray
-    Write-Host '  FIRST START: finish the opening hospital prompts and character' -ForegroundColor Yellow
-    Write-Host '  creation flat before entering VR. If already in VR, press Enter' -ForegroundColor Yellow
-    Write-Host '  at the bed, then use the Meta dashboard to finish character' -ForegroundColor Yellow
-    Write-Host '  creation on the desktop monitor.' -ForegroundColor Yellow
+    Write-Host '  FIRST START: hospital and character creation display issues' -ForegroundColor Yellow
+    Write-Host '  remain open. At the bed, press Enter if the prompt appears as' -ForegroundColor Yellow
+    Write-Host '  a shadow; use the Meta dashboard for desktop-only menus.' -ForegroundColor Yellow
     Show-AntivirusNotice -Compact
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to proceed with setup...')
 
@@ -144,7 +149,7 @@ function global:Invoke-MGS5VRInstaller {
     [void][IO.Directory]::CreateDirectory($work)
     $archive = Join-Path $work 'MGS5VR-release.zip'
     $downloaded = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive `
-        -Label "MGS5VR $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+        -Label "MGS5VR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
     if (-not ($downloaded -eq $true -or [string]$downloaded -in @('retry','manual'))) { throw 'The MGS5VR release was not downloaded.' }
 
     Write-MGSStep 3 4 'Installing with recoverable file ownership'
@@ -172,10 +177,7 @@ function global:Invoke-MGS5VRInstaller {
     Write-MGSInfo 'Importing the binocular model and material from your owned game data...'
     & $importer $game (Join-Path $stage 'retail-assets')
     if ($LASTEXITCODE -ne 0) { throw 'The owned binocular asset import failed. Verify the game files in Steam and retry.' }
-    foreach ($relative in @(
-        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
-        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds'
-    )) {
+    foreach ($relative in $MGS_IMPORTED_ASSETS) {
         if (-not (Test-Path -LiteralPath (Join-Path $stage $relative) -PathType Leaf)) { throw "The importer did not create $relative." }
     }
     $snapshot = Save-MGSInstallSnapshot -GameRoot $game -SnapshotRoot (Join-Path $work 'rollback')
@@ -195,11 +197,8 @@ function global:Invoke-MGS5VRInstaller {
     } else {
         Write-MGSOK 'Existing mgs5vr-controls.ini bindings preserved.'
     }
-    $watch = @(
-        'dinput8.dll','mgs5vr_controls.exe','Edit-Controls.cmd','tools\edit-controls.ps1',
-        'retail-assets\Assets\tpp\item\tel\Scenes\tel0_main0_def.fmdl',
-        'retail-assets\Assets\tpp\item\tel\Pictures\tel0_main0_def_c00_bsm.dds'
-    ) | ForEach-Object { Join-Path $game $_ }
+    $watch = @('dinput8.dll','mgs5vr_controls.exe','Edit-Controls.cmd','tools\edit-controls.ps1') + $MGS_IMPORTED_ASSETS
+    $watch = @($watch | ForEach-Object { Join-Path $game $_ })
     $recopy = { [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity $IDENTITY -AdoptIdenticalExisting) }.GetNewClosure()
     if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -Recopy $recopy)) {
         throw 'The required MGS5VR files did not survive the antivirus recovery check.'

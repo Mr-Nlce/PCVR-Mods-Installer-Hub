@@ -481,7 +481,7 @@ if (Test-Path $LR_CACHE_ZIP) {
  $v = (Get-ItemProperty -Path $shKey -Name "{374DE290-123F-4565-9164-39C4925E467B}" -ErrorAction Stop)."{374DE290-123F-4565-9164-39C4925E467B}"
  if ($v) { $v = [Environment]::ExpandEnvironmentVariables($v); if (Test-Path $v) { $dlFolder = $v } }
  } catch {}
- if (-not $dlFolder) { $dlFolder = Join-Path $env:USERPROFILE "Downloads" }
+ if (-not $dlFolder) { $dlFolder = Get-PCVRDownloadsFolder }
  if (Test-Path $dlFolder) {
  $cand = Get-ChildItem -Path $dlFolder -Filter "*.zip" -ErrorAction SilentlyContinue |
  Where-Object { $_.Name -match '(?i)real|lrvr|luke' } |

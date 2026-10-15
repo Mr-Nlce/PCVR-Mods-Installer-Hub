@@ -111,15 +111,25 @@ if (-not $sourceData1) {
  }
 }
 
-if (-not $sourceData1) {
- Write-Warn "Hexen II not found automatically."
- Write-Host " Enter the path to your Hexen II data1 folder:" -ForegroundColor White
- Write-Host " Steam: C:\Program Files (x86)\Steam\steamapps\common\Hexen 2\data1" -ForegroundColor Gray
- Write-Host " GOG: C:\GOG Games\Hexen II\data1" -ForegroundColor Gray
- while (-not $sourceData1) {
- $r = (Read-Host " Path").Trim().Trim('"')
- if (Test-Path -LiteralPath "$r\pak0.pak") { $sourceData1 = $r; Write-Info "Path set: $sourceData1" }
- else { Write-Fail "pak0.pak not found at: $r" }
+# Both original-game archives are required. An incomplete copy cannot be
+# started as Hexen II and must not become a Hub install receipt.
+function Test-HexenGameData([string]$Folder) {
+ if (-not $Folder) { return $false }
+ foreach ($name in @('pak0.pak','pak1.pak')) {
+  $path = Join-Path $Folder $name
+  if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
+      (Get-Item -LiteralPath $path -ErrorAction SilentlyContinue).Length -le 0) { return $false }
+ }
+ return $true
+}
+while (-not (Test-HexenGameData $sourceData1)) {
+ Write-Fail "Hexen II needs both data1\pak0.pak and data1\pak1.pak."
+ Write-Host " Verify the full game files in Steam/GOG, or choose another data1 folder." -ForegroundColor Yellow
+ $choice = ('' + (Read-Host ' [R] Recheck this folder  [P] Enter a different path  [Q] Quit')).Trim().ToUpperInvariant()
+ if ($choice -eq 'Q' -or -not $choice) { exit 1 }
+ if ($choice -eq 'P') {
+  $provided = ('' + (Read-Host ' Path to Hexen II data1')).Trim().Trim('"')
+  if ($provided -and (Test-Path -LiteralPath $provided -PathType Container)) { $sourceData1 = $provided }
  }
 }
 
@@ -128,7 +138,7 @@ if (-not $sourceData1) {
 # -------------------------------------------------------
 Write-Step 2 4 "Downloading $MOD_NAME"
 
-$downloadsFolder = [System.IO.Path]::Combine($env:USERPROFILE, "Downloads")
+$downloadsFolder = Get-PCVRDownloadsFolder
 $zipPattern = "vhexen2-*-pc-alpha.zip"
 $modZip = $null
 
@@ -229,6 +239,17 @@ try {
 $modChildren = @(Get-ChildItem -Path $modExtract)
 $modPayload = if ($modChildren.Count -eq 1 -and $modChildren[0].PSIsContainer) { $modChildren[0].FullName } else { $modExtract }
 
+foreach ($relative in @($GAME_EXE,'SDL2.dll','data1\Hexen.rc','data1\pak5.pak','data1\progs.dat')) {
+ $payloadFile = Join-Path $modPayload $relative
+ if (-not (Test-Path -LiteralPath $payloadFile -PathType Leaf) -or
+     (Get-Item -LiteralPath $payloadFile -ErrorAction SilentlyContinue).Length -le 0) {
+  Write-Fail "The downloaded VHexen2 package is missing: $relative"
+  Write-Host " Download the full publisher ZIP and run setup again; no completion receipt was written." -ForegroundColor Yellow
+  Pause-User "Press Enter to exit..." | Out-Null
+  exit 1
+ }
+}
+
 Write-Host " Copying VHexen2 files ... " -NoNewline -ForegroundColor White
 try {
  Get-ChildItem -Path $modPayload | ForEach-Object {
@@ -257,8 +278,50 @@ foreach ($pak in @("pak0.pak","pak1.pak")) {
 
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ($failed.Count -eq 0) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {} }
+# An earlier installation may have left a path receipt. Do not refresh that
+# receipt or show a success screen until this run's complete payload survives.
+$requiredInstalled = @(
+ (Join-Path $installRoot $GAME_EXE),
+ (Join-Path $installRoot 'SDL2.dll'),
+ (Join-Path $installRoot 'data1\Hexen.rc'),
+ (Join-Path $installRoot 'data1\pak5.pak'),
+ (Join-Path $installRoot 'data1\progs.dat'),
+ (Join-Path $destData1 'pak0.pak'),
+ (Join-Path $destData1 'pak1.pak')
+)
+$missingInstalled = @($requiredInstalled | Where-Object {
+ -not (Test-Path -LiteralPath $_ -PathType Leaf) -or
+ (Get-Item -LiteralPath $_ -ErrorAction SilentlyContinue).Length -le 0
+})
+if ($failed.Count -gt 0 -or $missingInstalled.Count -gt 0) {
+ Write-Fail "VHexen2 installation is incomplete."
+ foreach ($item in $missingInstalled) { Write-Host " Missing: $item" -ForegroundColor Yellow }
+ Write-Host " Restore the missing source/game files and run setup again." -ForegroundColor Yellow
+ Pause-User "Press Enter to exit without marking this run complete..." | Out-Null
+ exit 1
+}
+ $receiptValues = @{
+  (Join-Path $PSScriptRoot '.installed_path') = $installRoot
+  (Join-Path $PSScriptRoot '.installed_version') = '0.1.5-pc-alpha'
+  (Join-Path $installRoot '.pcvrhub_version') = '0.1.5-pc-alpha'
+ }
+ $oldReceipts = @{}
+ foreach ($receipt in $receiptValues.Keys) {
+  $oldReceipts[$receipt] = if (Test-Path -LiteralPath $receipt -PathType Leaf) { [IO.File]::ReadAllBytes($receipt) } else { $null }
+ }
+try {
+ foreach ($receipt in $receiptValues.Keys) {
+  Set-Content -LiteralPath $receipt -Value $receiptValues[$receipt] -Encoding UTF8 -Force -ErrorAction Stop
+ }
+} catch {
+ foreach ($receipt in $receiptValues.Keys) {
+  if ($null -eq $oldReceipts[$receipt]) { Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue }
+  else { [IO.File]::WriteAllBytes($receipt,$oldReceipts[$receipt]) }
+ }
+ Write-Fail "The completed installation receipts could not be recorded: $_"
+ Pause-User "Press Enter to exit..." | Out-Null
+ exit 1
+}
 
 # -------------------------------------------------------
 # STEP 4: Summary + Desktop Shortcut

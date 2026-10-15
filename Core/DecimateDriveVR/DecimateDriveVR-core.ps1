@@ -19,6 +19,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "DecimateDrive_VR"
 $MOD_VERSION = "v1.0.0"
@@ -145,6 +146,7 @@ Write-Host " This mod supports OpenXR ONLY (no OpenVR). Make sure" -ForegroundCo
 Write-Host " SteamVR (or whatever OpenXR runtime you use) is set" -ForegroundColor White
 Write-Host " as the default OpenXR runtime in its settings." -ForegroundColor White
 Write-Host ""
+Show-AntivirusNotice -Compact
 
 if (-not $skipJoin) {
  Write-Host " HOW THIS WORKS: at each step press Enter - the installer opens the page for you." -ForegroundColor White
@@ -186,23 +188,29 @@ if (-not $skipJoin) {
 Write-Step 1 4 "Locate the downloaded ZIP"
 Write-Host " Once DecimateDrive_VR.zip is on your disk, drop it here." -ForegroundColor Gray
 Write-Host ""
+Pause-User "Press Enter after the Discord ZIP download is complete..."
 
 $modZip = $null
 while (-not $modZip) {
  Write-Host " Drag-and-drop the downloaded ZIP into this window," -ForegroundColor Yellow
  Write-Host " or paste/type its full path, then press Enter:" -ForegroundColor White
- $r = (Read-Host " ZIP path").Trim().Trim('"')
+ $answer = Read-Host " ZIP path or Q"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
- if ($r -match '\.zip$|\.7z$|\.rar$') {
+ if (-not (Test-Path -LiteralPath $r -PathType Leaf)) { Write-Fail "File not found: $r"; continue }
+ if ($r -notmatch '(?i)\.zip$') { Write-Fail 'Choose the complete Decimate Drive VR ZIP.'; continue }
+ $anchors = @('(?i)(?:^|\\)winhttp\.dll$',
+              '(?i)(?:^|\\)BepInEx\\plugins\\DecimateDrive_VR\.dll$',
+              '(?i)(?:^|\\)BepInEx\\core\\BepInEx\.Preloader\.Core\.dll$',
+              '(?i)(?:^|\\)BepInEx\\config\\UnityVR_Bepinex_IL2CPP\.cfg$')
+ if (-not (Test-ZipPayloadAnchors -Path $r -AnchorPatterns $anchors -MinimumMatches $anchors.Count)) {
+  Write-Fail 'The ZIP is unreadable, unsafe, or missing the VR runtime. Choose another ZIP or Q.'
+  continue
+ }
  $modZip = $r
- Write-OK "Archive located: $modZip"
- } else {
- Write-Fail "Path is not a ZIP/7z/RAR archive: $r"
- }
- } else {
- Write-Fail "File not found: $r"
- }
+ Write-OK "VR archive located and checked: $modZip"
 }
 
 # -------------------------------------------------------
@@ -212,55 +220,34 @@ Write-Step 2 4 "Locating Decimate Drive"
 
 $gamePath = Find-DecimateGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2427950" -SteamFolderNames @("Decimate Drive") }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath 'release\DecimateDrive.exe') -PathType Leaf)) {
+ Write-Warn "Found a folder without release\DecimateDrive.exe: $gamePath"
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Decimate Drive at: $gamePath"
 } else {
  Write-Warn "Could not auto-locate Decimate Drive in any Steam library."
  Write-Host " Please paste the path to your Decimate Drive folder" -ForegroundColor White
- Write-Host " (the folder that contains a 'release' subfolder)." -ForegroundColor White
+ Write-Host " (the folder containing release\DecimateDrive.exe)." -ForegroundColor White
  Write-Host ""
  while (-not $gamePath) {
- $r = (Read-Host " Decimate Drive folder").Trim().Trim('"')
+ $answer = Read-Host " Decimate Drive folder or Q to quit"
+ if ($null -eq $answer) { exit 1 }
+ $r = $answer.Trim().Trim('"')
+ if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-Path -LiteralPath (Join-Path $r 'release\DecimateDrive.exe') -PathType Leaf) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "release\DecimateDrive.exe not found in: $r"
  }
  }
 }
 
-# Now confirm the release\ subfolder exists. The mod doesn't
-# install at the Steam root - it installs alongside the actual
-# DecimateDrive.exe inside release\.
+# Install beside the actual game executable inside release\.
 $releasePath = Join-Path $gamePath $RELEASE_SUBFOLDER
-if (-not (Test-Path $releasePath)) {
- Write-Fail "release\ folder not found at:"
- Write-Host " $releasePath" -ForegroundColor DarkGray
- Write-Warn "Decimate Drive's executable lives inside a 'release' folder."
- Write-Warn "If your install layout is different, the game may have"
- Write-Warn "been updated and the script needs an adjustment."
- # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
- $__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$gamePath' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
-}
 Write-OK "release\ folder found at: $releasePath"
 
 # -------------------------------------------------------
@@ -271,26 +258,11 @@ Write-Step 3 4 "Installing mod files into release\"
 $tempExtract = Join-Path $env:TEMP "DecimateDriveVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
 
-try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
+$extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract -Label 'Decimate Drive VR' -AllowSkip $false
+if ([string]$extractResult -notin @('ok','manual','retry')) {
+ Write-Fail 'The VR archive was not extracted. The game was not changed.'
+ Pause-User 'Press Enter to exit...'
  exit 1
- }
- # User chose Skip - continue at own risk
 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
@@ -302,42 +274,58 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
 }
 
 Write-Host " Copying files into: $releasePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $releasePath -Recurse -Force
- }
- Write-OK "Mod files installed into the release\ folder."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "file copy into game folder" `
- -Instructions "Manually copy the extracted mod files from '$srcRoot' into '$releasePath' (the release\ folder of your Decimate Drive install). Watch for UAC permission prompts. Then choose Skip to continue with downstream steps." `
- -SkipMessage "Skipped - mod files were NOT copied; install is incomplete." `
- -SourceFolder "$srcRoot" `
- -DestFolder "$releasePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
-}
+$requiredModFiles = @('winhttp.dll', 'doorstop_config.ini',
+ 'BepInEx\core\BepInEx.Preloader.Core.dll', 'BepInEx\core\BepInEx.Unity.IL2CPP.dll',
+ 'BepInEx\plugins\DecimateDrive_VR.dll', 'BepInEx\plugins\OpenXR.dll',
+ 'BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg')
+$redistPath = Join-Path $srcRoot 'BepInEx\redist'
+$redistExe = @(Get-ChildItem -LiteralPath $redistPath -Filter 'ViGEmBus_*.exe' -File -ErrorAction SilentlyContinue | Select-Object -First 1)
+if ($redistExe.Count -eq 0) { Write-Fail 'The VR package is missing the ViGEmBus installer.'; Pause-User 'Press Enter to exit...'; exit 1 }
+$requiredModFiles += "BepInEx\redist\$($redistExe[0].Name)"
+try { $payloadHashes = Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
+catch { Write-Fail "The extracted VR package is incomplete: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-$bepinexDir = Join-Path $releasePath "BepInEx"
-$modDll = Join-Path $releasePath "BepInEx\plugins\DecimateDrive_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $releasePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but DecimateDrive_VR.dll is missing."
-} else {
- Write-OK "BepInEx + DecimateDrive_VR.dll present in release\."
+$installedGroups = @('release\DecimateDrive.exe', 'release\winhttp.dll|release\winhttp_bak.dll')
+$installedGroups += @($requiredModFiles | Where-Object { $_ -ne 'winhttp.dll' } | ForEach-Object { "release\$_" })
+$contract = New-PCVRInstallerContract -Id 'decimate-drive-vr' -GameName 'Decimate Drive VR' -Acquisition Discord `
+ -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL `
+ -AntivirusNotice -RequiredInstalledFileGroups $installedGroups
+$keepConfigs = @('BepInEx\config\BepInEx.cfg', 'BepInEx\config\DecimateDrive_VR.cfg', 'BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg')
+$activeProxy = Join-Path $releasePath 'winhttp.dll'
+$parkedProxy = Join-Path $releasePath 'winhttp_bak.dll'
+$wasFlat = (Test-Path -LiteralPath $parkedProxy -PathType Leaf) -and -not (Test-Path -LiteralPath $activeProxy -PathType Leaf)
+$oldParkedBytes = if ($wasFlat) { [IO.File]::ReadAllBytes($parkedProxy) } else { $null }
+$preservedConfigs = @($keepConfigs | Where-Object { Test-Path -LiteralPath (Join-Path $releasePath $_) -PathType Leaf })
+$installed = $false
+while (-not $installed) {
+ $copyTransaction = $null
+ try {
+  $copyTransaction = Install-PCVRDropInCopy -SourceRoot $srcRoot -GameRoot $releasePath -SourceHashes $payloadHashes -KeepExistingFiles $keepConfigs
+  Assert-PCVRDropInCopiedFiles -GameRoot $releasePath -SourceHashes $payloadHashes -PreservedExistingFiles $preservedConfigs
+  if ($wasFlat) {
+   Copy-Item -LiteralPath $activeProxy -Destination $parkedProxy -Force -ErrorAction Stop
+   Remove-Item -LiteralPath $activeProxy -Force -ErrorAction Stop
+  }
+  [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version $MOD_VERSION `
+   -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+  $installed = $true
+ } catch {
+  $failure = $_
+  if ($copyTransaction) {
+   try { Undo-PCVRDropInCopy -Transaction $copyTransaction }
+   catch { throw "Decimate Drive install failed and rollback failed: $failure; $_" }
+  }
+  if ($wasFlat) { [IO.File]::WriteAllBytes($parkedProxy,[byte[]]$oldParkedBytes) }
+  Write-Fail "Installation failed; previous files were restored: $failure"
+  Write-Host ' Correct the file or permission problem, then choose [R] to retry.' -ForegroundColor Yellow
+  $retry = Read-Host ' [R] Retry / [Q] Quit'
+  if ($null -eq $retry -or $retry.Trim() -notmatch '^(?i:r)$') { exit 1 }
+ }
 }
+try { Complete-PCVRDropInCopy -Transaction $copyTransaction }
+catch { Write-Warn "Temporary rollback snapshot could not be removed: $_" }
+Write-OK 'VR runtime and version verified; existing configuration kept.'
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # STEP 5: ViGEmBus driver (mandatory for VR controllers)
@@ -459,18 +447,6 @@ elseif ($vigemExe) {
  Write-Warn "ViGEmBus installer not found in $releasePath\BepInEx\redist"
  Write-Info "If VR controllers don't work in-game, look for ViGEmBus_*.exe inside the mod folder."
 }
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-# We record the Steam game root (NOT the release subfolder) to
-# stay consistent with how the rest of the Hub thinks about
-# install paths. The Hub's ModFile entry already includes
-# "release\" so the joined path resolves correctly.
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
 
 # -------------------------------------------------------
 # Done

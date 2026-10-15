@@ -2,7 +2,7 @@
 
 ## What this installer does
 
-This installs the current stable **Black Mesa VR** release by
+This installs the current stable Black Mesa VR release by
 Hochgeschwindigkeitsrennfahrer into the Steam version of Black Mesa. It adds
 true stereo rendering, OpenXR, roomscale and 6DOF motion controls. The setup
 backs up replaced files, keeps your VR configuration during updates and adds
@@ -11,7 +11,16 @@ the required `exec bmvr` line without replacing the rest of `autoexec.cfg`.
 The release auto-updates from the author's stable GitHub channel. The Hub does
 not contain or redistribute the VR mod archive.
 
-## Current multicore release
+## Current stable bugfixes release
+
+The October `bugfixes` package removes forced reprojection when the game runs
+above 90 FPS, fixes the Surface Tension air-support marker, and repairs
+paintball impacts with higher dynamic-lighting settings. It also includes the
+publisher's own uninstall scripts; use the Hub's Uninstall now action for a
+Hub-managed installation so the Hub can restore its recorded originals.
+
+The package does not yet include the teased weapon-model hands or manual
+reloading. The publisher still marks those as work in progress.
 
 The reviewed `multicore-2026-09-08` build introduces multicore rendering for
 better performance, adds lens flare and left-hand attack support, improves
@@ -20,12 +29,12 @@ default; if right-stick aiming is disabled, that stick recenters the view.
 
 ## Start Black Mesa
 
-Close the game during installation. Afterwards use **Start in VR** in the Hub,
-the Steam entry, or the **Black Mesa VR** desktop shortcut. All Hub launch
+Close the game during installation. Afterwards use Start in VR in the Hub,
+the Steam entry, or the Black Mesa VR desktop shortcut. All Hub launch
 routes use Steam and include the required `-oldgameui` option. The newer menu
 can appear upside-down and leave a black world after loading.
 
-If the game's Video menu still reports **Direct3D 9**, add `-enabledxvk` to
+If the game's Video menu still reports Direct3D 9, add `-enabledxvk` to
 Black Mesa's Steam launch options. It is a fallback, not required for everyone.
 
 ## Start Black Mesa: Blue Shift
@@ -33,17 +42,17 @@ Black Mesa's Steam launch options. It is a fallback, not required for everyone.
 The same VR installation supports Black Mesa: Blue Shift. Install Blue Shift
 from its [Steam Workshop page](https://steamcommunity.com/sharedfiles/filedetails/?id=2424633574)
 so its `bshift` folder sits inside the Black Mesa folder, then run this setup
-again. The detail page will show separate **Black Mesa** and **Blue Shift**
-start buttons, and setup adds a **Black Mesa Blue Shift VR** desktop shortcut.
+again. The detail page will show separate Black Mesa and Blue Shift
+start buttons, and setup adds a Black Mesa Blue Shift VR desktop shortcut.
 The Blue Shift route starts through Steam with `-game bshift`; Calhoun keeps
 bare hands and receives the blue weapon-wheel and wrist-HUD theme.
 
 ## OpenXR runtime
 
-- Quest with Virtual Desktop: select **VDXR** in Streamer Options. Selecting
+- Quest with Virtual Desktop: select VDXR in Streamer Options. Selecting
   SteamVR there inverts the world.
-- Quest with Meta Link: use the **Oculus OpenXR** runtime.
-- Steam Link and native SteamVR headsets: make **SteamVR** the active OpenXR
+- Quest with Meta Link: use the Oculus OpenXR runtime.
+- Steam Link and native SteamVR headsets: make SteamVR the active OpenXR
   runtime before launch.
 
 Use one OpenXR compositor. Leaving the Oculus runtime active while SteamVR is
@@ -79,10 +88,10 @@ manual reloading and a Long Jump Module HUD indicator are still planned.
 
 ## Flat / VR and removal
 
-Use the **VR / Flat** switch on this page for temporary flat play. It parks all
+Use the VR / Flat switch on this page for temporary flat play. It parks all
 three required VR loaders together and can restore them without reinstalling.
 
-**Uninstall now** removes only files recorded by this Hub setup, restores files
+Uninstall now removes only files recorded by this Hub setup, restores files
 that existed before installation, removes only the `exec bmvr` line it added,
 and preserves Black Mesa, Blue Shift, saves and user-edited settings.
 

@@ -128,7 +128,13 @@ function global:Get-UninstallGuideContext {
     if (-not $Game -or -not $global:gameStateMap) { return $null }
     if ($global:InstalledScanFailedGames -and $global:InstalledScanFailedGames.ContainsKey($Game.Title)) { return $null }
     $state = $global:gameStateMap[$Game.Title]
-    if (-not $state -or $state.State -notin @('ready', 'update')) { return $null }
+    if (-not $state) { return $null }
+    if ($state.State -notin @('ready', 'update')) {
+        if ($Game.Title -ne 'Dishonored VR' -or $state.State -ne 'installed' -or -not $state.GameDir -or
+            (-not (Test-Path -LiteralPath (Join-Path ([string]$state.GameDir) '.pcvrhub-dishonored-install.tsv') -PathType Leaf) -and
+             (-not (Test-Path -LiteralPath (Join-Path ([string]$state.GameDir) 'Binaries\Win32\dishonored_vr_install.json') -PathType Leaf) -or
+              -not (Test-Path -LiteralPath (Join-Path ([string]$state.GameDir) 'Binaries\Win32\disable_vr.txt') -PathType Leaf)))) { return $null }
+    }
     $gameDir = [string]$state.GameDir
     if (-not $gameDir -or -not (Test-Path -LiteralPath $gameDir -PathType Container)) { return $null }
     $roots = New-Object 'System.Collections.Generic.List[string]'

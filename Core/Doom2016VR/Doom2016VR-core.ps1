@@ -12,8 +12,8 @@ $Host.UI.RawUI.WindowTitle = 'DOOM (2016) VR Installer'
 $APP_ID = '379720'
 $REPO = 'CactusVRStudios/KHARVOX'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'v1.1.0'
-$FALLBACK_NAME = 'KHARVOX-v1.1.zip'
+$FALLBACK_TAG = 'v1.1.1'
+$FALLBACK_NAME = 'KHARVOX-v1.11.zip'
 $FALLBACK_URL = "https://github.com/$REPO/releases/download/$FALLBACK_TAG/$FALLBACK_NAME"
 $IDENTITY = 'kharvox'
 $QUIP = 'Rip and tear now means reaching out and doing it yourself.'
@@ -200,7 +200,7 @@ function global:Invoke-Doom2016VRInstaller {
         [void][IO.Directory]::CreateDirectory($work)
         $archive = Join-Path $work 'KHARVOX-release.zip'
         $downloaded = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive `
-            -Label "KHARVOX $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+            -Label "KHARVOX $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
         if (-not ($downloaded -eq $true -or [string]$downloaded -in @('retry','manual'))) {
             throw 'The KHARVOX release was not downloaded.'
         }

@@ -80,6 +80,17 @@ function Set-InstalledVersion { param($key,$ver,$gp)
  if(-not(Test-Path $d)){New-Item -ItemType Directory -Path $d|Out-Null}
  Set-Content (Join-Path $d $key) $ver -Encoding UTF8
 }
+function Get-PackageRequiredFiles { param($key)
+ if ($key -eq 'BepInEx-BepInExPack') { return @('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll') }
+ if ($key -eq 'DaXcess-CWVR') { return @('BepInEx\plugins\CWVR\CWVR.dll') }
+ throw "Unknown Content Warning package: $key"
+}
+function Test-PackageFiles { param($root,$key)
+ foreach ($relative in (Get-PackageRequiredFiles $key)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) { return $false }
+ }
+ return $true
+}
 function Get-TSPackageInfo { param($author,$name)
  # Thunderstore API - try direct, then web archive mirror. Multi-attempt
  # makes the API call resilient to transient errors without aborting.
@@ -127,16 +138,22 @@ function Expand-To { param($zip,$dir)
  New-Item -ItemType Directory -Path $dir -Force|Out-Null
  Expand-Archive -Path $zip -DestinationPath $dir -Force
 }
-function Install-Pkg { param($zip,$dest,$gamePath)
+function Install-Pkg { param($zip,$dest,$gamePath,$key)
  Expand-To $zip $dest
  $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
  $top=@(Get-ChildItem $dest|Where-Object{$_.Name -notin $skip})
  $payload=if($top.Count -eq 1 -and $top[0].PSIsContainer -and $top[0].Name -ne "BepInEx"){$top[0].FullName}else{$dest}
+ foreach ($relative in (Get-PackageRequiredFiles $key)) {
+  if (-not (Test-Path -LiteralPath (Join-Path $payload $relative) -PathType Leaf)) {
+   throw "$key archive is missing required file: $relative"
+  }
+ }
  Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{
   $target=Join-Path $gamePath $_.Name
   $keep=if($_.Name -ieq "BepInEx"){@("config")}else{@()}
   $null=Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) package files" -KeepExistingRelativePaths $keep
  }
+ if (-not (Test-PackageFiles -root $gamePath -key $key)) { throw "$key required files are missing after installation." }
 }
 
 # -------------------------------------------------------
@@ -229,7 +246,7 @@ if (-not $useLegacy) {
  }
 
  Write-Step 3 4 "Checking Thunderstore for latest versions"
- $packageInfos=@{}; $toInstall=@()
+ $packageInfos=@{}; $toInstall=@(); $failed=@()
  foreach ($pkg in $PACKAGES_CURRENT) {
  $key="$($pkg.Author)-$($pkg.Name)"
  $installed=Get-InstalledVersion -key $key -gp $gamePath
@@ -237,15 +254,18 @@ if (-not $useLegacy) {
  $info=Get-TSPackageInfo -author $pkg.Author -name $pkg.Name
  if ($info) {
  $packageInfos[$key]=$info
- if($installed -eq $info.Version){Write-Host "up to date ($($info.Version))" -ForegroundColor Green}
+ if($installed -eq $info.Version -and (Test-PackageFiles -root $gamePath -key $key)){Write-Host "up to date ($($info.Version))" -ForegroundColor Green}
  elseif($installed){Write-Host "update: $installed -> $($info.Version)" -ForegroundColor Yellow;$toInstall+=$pkg}
  else{Write-Host "not installed ($($info.Version))" -ForegroundColor Cyan;$toInstall+=$pkg}
  } else {
  Write-Host "could not check" -ForegroundColor Gray
- if(-not $installed){$toInstall+=$pkg}
+ $failed+=$pkg.FriendlyName
  }
  }
 
+ if ($failed.Count -gt 0) {
+  throw "Thunderstore could not confirm the required package versions: $($failed -join ', '). No game files were changed."
+ }
  if ($toInstall.Count -eq 0) {
  Write-Host ""; Write-Host " [OK] All packages are up to date!" -ForegroundColor Green; Write-Host ""
  # Do not exit here: the common finish block below still has to persist
@@ -256,19 +276,25 @@ if (-not $useLegacy) {
  Write-Step 4 4 "Installing"
  $tmp=Join-Path $env:TEMP "CWVRInstaller_$([System.IO.Path]::GetRandomFileName())"
  New-Item -ItemType Directory -Path $tmp|Out-Null
- $failed=@()
  foreach ($pkg in $toInstall) {
  $key="$($pkg.Author)-$($pkg.Name)"; $info=$packageInfos[$key]
  if(-not $info){$failed+=$pkg.FriendlyName;continue}
  if(-not(Get-Zip "$($pkg.FriendlyName) $($info.Version)" $info.DownloadUrl "$tmp\$key.zip")){$failed+=$pkg.FriendlyName;continue}
- Install-Pkg "$tmp\$key.zip" "$tmp\$key" $gamePath
+ Install-Pkg "$tmp\$key.zip" "$tmp\$key" $gamePath $key
  Set-InstalledVersion -key $key -ver $info.Version -gp $gamePath
  Write-Info "$($pkg.FriendlyName) $($info.Version) installed."
  }
  try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
 
-try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_APP -Encoding ASCII -NoNewline -Force } catch {}
-
+ if ($failed.Count -gt 0) { throw "Required packages could not be resolved or downloaded: $($failed -join ', ')" }
+ foreach ($pkg in $PACKAGES_CURRENT) {
+  $key="$($pkg.Author)-$($pkg.Name)"
+  $info=$packageInfos[$key]
+  if (-not $info -or (Get-InstalledVersion -key $key -gp $gamePath) -ne $info.Version -or
+      -not (Test-PackageFiles -root $gamePath -key $key)) {
+   throw "Required package is incomplete: $key"
+  }
+ }
  $cwvrVersion=Get-InstalledVersion -key "DaXcess-CWVR" -gp $gamePath
 
 } else {
@@ -281,14 +307,20 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  Write-Host " CWVR 1.2.0 requires a specific older version of Content Warning." -ForegroundColor White
  Write-Host " We download it as a separate copy - your retail install stays untouched." -ForegroundColor White
  Write-Host ""
- try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
-
+# Steam keeps a finished depot in steamapps\content. Probe it before
+# displaying download instructions or changing the clipboard.
+$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
+if ($script:PreFoundDepot) {
+ Write-Info "The depot is already downloaded: $script:PreFoundDepot"
+ Write-Info "Skipping the download - nothing to fetch again."
+}
+if (-not $script:PreFoundDepot) {
  Write-Host ""
  Write-Host " ============================================================" -ForegroundColor Yellow
  Write-Host " ACTION REQUIRED - Paste into Steam Console" -ForegroundColor Yellow
  Write-Host " ============================================================" -ForegroundColor Yellow
  Write-Host ""
- Write-Host " [OK] Depot command copied to clipboard." -ForegroundColor Yellow
+ Write-Host " The depot command will be copied after you press Enter." -ForegroundColor Yellow
  Write-Host ""
  Write-Host " Press Enter to open the Steam Console..." -ForegroundColor Yellow
  Write-Host " Then click the input field, paste (Ctrl+V) and hit Enter." -ForegroundColor Yellow
@@ -298,30 +330,20 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
  Write-Host " (i) Virtual Desktop users: the Steam Console may not open" -ForegroundColor DarkGray
  Write-Host "     automatically from inside a VD streaming session. If it" -ForegroundColor DarkGray
  Write-Host "     doesn't, open it manually: Steam menu bar - View - Console," -ForegroundColor DarkGray
- Write-Host "     then paste-and-Enter. Alternatively, choose [3] in the" -ForegroundColor DarkGray
- Write-Host "     next menu to use the DepotDownloader fallback." -ForegroundColor DarkGray
+ Write-Host "     then paste-and-Enter. The manual depot-folder option" -ForegroundColor DarkGray
+ Write-Host "     remains available if automatic detection fails." -ForegroundColor DarkGray
  Write-Host ""
  }
-# !!! LOOK BEFORE ASKING. Steam keeps a finished depot in
-# steamapps\content, so a second run - or a run after a crash - already
-# has the files. Prompting first and probing only afterwards sends the
-# user to fetch gigabytes that are already on disk. Find-SteamDepotPath
-# is cheap and touches nothing.
-$script:PreFoundDepot = Find-SteamDepotPath -AppId $DEPOT_APPID -DepotId $DEPOT_DEPOTID -GameExe $GAME_EXE
-if ($script:PreFoundDepot) {
-    Write-OK "The depot is already downloaded: $script:PreFoundDepot"
-    Write-Info "Skipping the download - nothing to fetch again."
-}
-if (-not $script:PreFoundDepot) {
 
  Pause-User "Press Enter to open the Steam Console..."
+ try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
  # Both protocol addresses: depending on the Steam build only one works.
  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
  }
  Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
-}
  Pause-User "Press Enter once the Steam depot download is complete..."
+}
 
  # Locate depot
  $steamPath = Get-SteamPath
@@ -374,21 +396,21 @@ if (-not $script:PreFoundDepot) {
  $failed=@()
 
  if(Get-Zip "BepInEx 5.4.2304" $LEGACY_URLS.BepInEx "$tmp\bep.zip"){
- Install-Pkg "$tmp\bep.zip" "$tmp\bep" $gamePath
- if(Test-Path(Join-Path $gamePath "winhttp.dll")){Write-Info "BepInEx OK."}else{$failed+="BepInEx"}
+ Install-Pkg "$tmp\bep.zip" "$tmp\bep" $gamePath 'BepInEx-BepInExPack'
+ if(Test-PackageFiles -root $gamePath -key 'BepInEx-BepInExPack'){Write-Info "BepInEx OK."}else{$failed+="BepInEx"}
  }else{$failed+="BepInEx"}
 
  if(Get-Zip "CWVR 1.2.0" $LEGACY_URLS.CWVR "$tmp\cwvr.zip"){
- Install-Pkg "$tmp\cwvr.zip" "$tmp\cwvr" $gamePath
- if(Test-Path(Join-Path $gamePath "BepInEx\plugins\CWVR\CWVR.dll")){Write-Info "CWVR OK."}else{$failed+="CWVR"}
+ Install-Pkg "$tmp\cwvr.zip" "$tmp\cwvr" $gamePath 'DaXcess-CWVR'
+ if(Test-PackageFiles -root $gamePath -key 'DaXcess-CWVR'){Write-Info "CWVR OK."}else{$failed+="CWVR"}
  }else{$failed+="CWVR"}
 
  try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
 
-try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_APP -Encoding ASCII -NoNewline -Force } catch {}
-
- # Write .installed_path for Hub detection
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
+ if ($failed.Count -gt 0 -or -not (Test-PackageFiles -root $gamePath -key 'BepInEx-BepInExPack') -or
+     -not (Test-PackageFiles -root $gamePath -key 'DaXcess-CWVR')) {
+  throw "Pinned Content Warning VR packages are incomplete: $($failed -join ', ')"
+ }
 
  $cwvrVersion = $LEGACY_CWVR_VERSION
 }
@@ -397,7 +419,13 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value $STEAM_AP
 # common to current and pinned-depot mode: using Thunderstore's current live
 # value for a legacy install would record a build that was never installed.
 $cwvrProof = Join-Path $gamePath "BepInEx\plugins\CWVR\CWVR.dll"
-if ($cwvrVersion -and (Test-Path -LiteralPath $cwvrProof)) {
+if ($cwvrVersion -and (Test-Path -LiteralPath $cwvrProof) -and
+    (Test-PackageFiles -root $gamePath -key 'BepInEx-BepInExPack') -and
+    (Test-PackageFiles -root $gamePath -key 'DaXcess-CWVR')) {
+ Set-Content -Path (Join-Path $gamePath 'steam_appid.txt') -Value $STEAM_APP -Encoding ASCII -NoNewline -Force -ErrorAction Stop
+ if ((Get-Content -LiteralPath (Join-Path $gamePath 'steam_appid.txt') -Raw).Trim() -ne $STEAM_APP) {
+  throw 'Content Warning Steam App ID file could not be verified.'
+ }
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $cwvrVersion -Encoding UTF8 -Force } catch {}
  Save-InstalledStamp -GameDir $gamePath -Version $cwvrVersion
@@ -432,7 +460,7 @@ Write-Host ""
 # Desktop shortcut
 if (Test-Path -LiteralPath "$gamePath\Content Warning.exe") {
  try {
- $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Content Warning VR.lnk" -TargetPath Join-Path $gamePath "Content Warning.exe" -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath 'Content Warning.exe'),0"
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Content Warning VR.lnk" -TargetPath (Join-Path $gamePath "Content Warning.exe") -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath 'Content Warning.exe'),0"
  Write-Info "Desktop shortcut 'Content Warning VR' created."
  } catch { Write-Warn "Could not create shortcut: $_" }
 }

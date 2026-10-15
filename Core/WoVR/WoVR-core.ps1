@@ -87,7 +87,7 @@ function Find-WoWFolder {
         "E:\Games\World of Warcraft"
     )
     foreach ($c in $candidates) {
-        if (Test-Path (Join-Path $c $GAME_EXE)) { return $c }
+        if (Test-LiteralPathSafe -Path (Join-PathLexical $c $GAME_EXE) -PathType Leaf) { return $c }
     }
     return $null
 }

@@ -58,6 +58,9 @@ $GZVR_RELEASES     = "https://github.com/hh79/gzdoomvr/releases"
 $GZVR_KNOWN_ZIP    = "https://github.com/hh79/gzdoomvr/releases/download/gvr4.13.2.2/gzdoomvr-4-13-2-2.zip"
 # ModDB standalone (manual download - 665 MB, freeware).
 $ASHES_MODDB       = "https://www.moddb.com/mods/ashes-2063/downloads/ashes-stand-alone-version-101"
+$WEAPONS_RELEASES  = "https://github.com/TefMeister/ashes-2063-weapons/releases"
+$WEAPONS_API       = "https://api.github.com/repos/TefMeister/ashes-2063-weapons/releases"
+$WEAPONS_KNOWN_ZIP = "https://github.com/TefMeister/ashes-2063-weapons/releases/download/v0.1.1/Ashes2063-3DWeapons-VR-v0.1.1.zip"
 
 # Resolve the newest gzdoomvr*.zip asset via the GitHub API. Returns a
 # browser_download_url or $null (rate limit / offline / shape change),
@@ -73,6 +76,133 @@ function Get-LatestGzdoomvrZipUrl {
         }
     } catch { }
     return $null
+}
+
+function Get-LatestAshesWeaponsZipUrl {
+    try {
+        $rels = Invoke-RestMethod -Uri $WEAPONS_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        foreach ($rel in @($rels)) {
+            if ($rel.draft -or $rel.prerelease) { continue }
+            $asset = @($rel.assets | Where-Object { $_.name -match '(?i)^Ashes2063-3DWeapons-VR-v[^/\\]+\.zip$' }) | Select-Object -First 1
+            if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
+        }
+    } catch { }
+    return $null
+}
+
+# The publisher package has its own engine, settings and launcher. It is
+# installed beside, rather than into, the existing gzdoomvr or Resources.
+function Install-AshesWeaponsAddon {
+    param([Parameter(Mandatory=$true)][string]$GameRoot)
+    $requiredGame = @(
+        'Resources\freedoom-0.12.1\freedoom2.wad',
+        'Resources\AshesSAMenu.pk3',
+        'Resources\lightmodepatch.pk3',
+        'Resources\Ashes2063Enriched2_23.pk3',
+        'Resources\Ashes2063EnrichedFDPatch.pk3'
+    )
+    foreach ($relative in $requiredGame) {
+        if (-not (Test-Path -LiteralPath (Join-Path $GameRoot $relative) -PathType Leaf)) {
+            Write-Warn "3D weapons need Ashes Standalone 1.51: missing $relative"
+            return $false
+        }
+    }
+    Write-Host "  The 3D weapons pack uses a separate VR engine and launcher." -ForegroundColor White
+    Write-Host "  Your original Ashes VR launchers and settings stay available." -ForegroundColor Gray
+    Write-Host "  This download and extraction can take some time." -ForegroundColor Gray
+    Pause-User "Press Enter to download the 3D weapons pack..."
+
+    $stage = Join-Path $env:TEMP ('pcvr-ashes-weapons-' + [Guid]::NewGuid().ToString('N'))
+    $zip = Join-Path $stage 'Ashes-3D-Weapons.zip'
+    $unpack = Join-Path $stage 'unpack'
+    try {
+        New-Item -ItemType Directory -Path $stage -Force -ErrorAction Stop | Out-Null
+        $urls = New-Object System.Collections.Generic.List[string]
+        $latest = Get-LatestAshesWeaponsZipUrl
+        if ($latest) { [void]$urls.Add($latest) }
+        if (-not $latest -or $latest -ne $WEAPONS_KNOWN_ZIP) { [void]$urls.Add($WEAPONS_KNOWN_ZIP) }
+        $download = Invoke-SafeDownload -Urls $urls.ToArray() -Destination $zip `
+            -Label 'Ashes 2063 3D Weapons for VR' -ManualUrl $WEAPONS_RELEASES `
+            -Instructions 'Download the newest Ashes2063-3DWeapons-VR-v*.zip, then drag it onto this window and retry.' `
+            -SkipMessage '3D weapons skipped; the existing Ashes VR setup stays available.'
+        if ([string]$download -eq 'skip' -or [string]$download -eq 'quit' -or -not (Test-Path -LiteralPath $zip -PathType Leaf)) { return $false }
+        Write-Info 'Extracting the 3D weapons pack (this may take some time)...'
+        $extracted = Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $unpack -Label 'Ashes 3D weapons' `
+            -SkipMessage '3D weapons skipped; the existing Ashes VR setup stays available.'
+        if ($extracted -eq 'skip' -or $extracted -eq 'quit') { return $false }
+        $requiredAddon = @(
+            '3DWeapons\engine\gzdoomvr.exe',
+            '3DWeapons\engine\WeaponsForVR.pk3',
+            '3DWeapons\pk3\1_revolver.pk3',
+            '3DWeapons\pk3\2_pistol.pk3',
+            '3DWeapons\pk3\3_shotgun.pk3',
+            '3DWeapons\pk3\4_lantern.pk3',
+            '3DWeapons\set-settings.ps1',
+            '3DWeapons\README.txt',
+            'Play Ashes 2063 VR - 3D Weapons.bat'
+        )
+        foreach ($relative in $requiredAddon) {
+            if (-not (Test-Path -LiteralPath (Join-Path $unpack $relative) -PathType Leaf)) {
+                throw "The publisher archive is missing $relative. No add-on files were copied."
+            }
+        }
+        $files = @(Get-ChildItem -LiteralPath $unpack -File -Recurse -ErrorAction Stop)
+        $backupRoot = Join-Path $GameRoot ('.pcvrhub-3dweapons-backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6))
+        $written = New-Object System.Collections.Generic.List[string]
+        $backedUp = New-Object System.Collections.Generic.List[string]
+        try {
+            Write-Info 'Copying and verifying the 3D weapons files (this may take some time)...'
+            foreach ($file in $files) {
+                $relative = $file.FullName.Substring($unpack.Length).TrimStart('\')
+                # Keep the user's own settings on update. The archive normally has none.
+                if ($relative -ieq '3DWeapons\settings.ini' -and (Test-Path -LiteralPath (Join-Path $GameRoot $relative))) { continue }
+                $dest = Join-Path $GameRoot $relative
+                if (Test-Path -LiteralPath $dest -PathType Container) { throw "File destination is a folder: $relative" }
+                if (Test-Path -LiteralPath $dest -PathType Leaf) {
+                    $save = Join-Path $backupRoot $relative
+                    New-Item -ItemType Directory -Path (Split-Path $save -Parent) -Force -ErrorAction Stop | Out-Null
+                    Copy-Item -LiteralPath $dest -Destination $save -Force -ErrorAction Stop
+                    [void]$backedUp.Add($relative)
+                }
+                New-Item -ItemType Directory -Path (Split-Path $dest -Parent) -Force -ErrorAction Stop | Out-Null
+                [void]$written.Add($relative)
+                Copy-Item -LiteralPath $file.FullName -Destination $dest -Force -ErrorAction Stop
+                if ((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash) {
+                    throw "Copy verification failed: $relative"
+                }
+            }
+        } catch {
+            for ($i = $written.Count - 1; $i -ge 0; $i--) {
+                $relative = $written[$i]
+                $dest = Join-Path $GameRoot $relative
+                if ($backedUp.Contains($relative)) { Copy-Item -LiteralPath (Join-Path $backupRoot $relative) -Destination $dest -Force -ErrorAction Stop }
+                else { Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue }
+            }
+            throw
+        }
+        $gamePrefix = [IO.Path]::GetFullPath($GameRoot).TrimEnd('\') + '\'
+        if ($backedUp.Count -eq 0 -and [IO.Path]::GetFullPath($backupRoot).StartsWith($gamePrefix,[StringComparison]::OrdinalIgnoreCase) -and
+            (Test-Path -LiteralPath $backupRoot)) { Remove-Item -LiteralPath $backupRoot -Recurse -Force -ErrorAction SilentlyContinue }
+        try {
+            $weaponBat = Join-Path $GameRoot 'Play Ashes 2063 VR - 3D Weapons.bat'
+            $iconPath = Join-Path $GameRoot 'Ashes2063_3DWeapons.ico'
+            if (-not (Test-Path -LiteralPath $iconPath)) {
+                Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Ashes2063_VR.ico') -Destination $iconPath -ErrorAction Stop
+            }
+            New-DesktopShortcut -ShortcutName 'Ashes 2063 VR - 3D Weapons' -TargetPath $weaponBat `
+                -WorkingDir $GameRoot -IconPath $iconPath -Description 'Ashes 2063 VR with 3D hand weapons'
+        } catch { Write-Warn "The 3D weapons files are installed, but the desktop shortcut could not be made: $($_.Exception.Message)" }
+        Write-OK '3D weapons installed with their own launcher; existing VR launchers were not switched.'
+        return $true
+    } catch {
+        Write-Warn "3D weapons could not be installed: $($_.Exception.Message)"
+        return $false
+    } finally {
+        $tempPrefix = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+        if ([IO.Path]::GetFullPath($stage).StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase) -and
+            (Split-Path $stage -Leaf) -match '^pcvr-ashes-weapons-[0-9a-f]{32}$' -and
+            (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+    }
 }
 
 function Test-WritableRoot {
@@ -122,18 +252,49 @@ function Install-Ashes3DAddon {
 
     $adTmp = Join-Path $env:TEMP ("Ashes3D_" + [System.Guid]::NewGuid().ToString("N"))
     try {
+        $safeZip = Test-ZipArchiveEntrySafety -ArchivePath $addonZip -DestinationFolder $adTmp
+        if (-not $safeZip.Inspectable -or -not $safeZip.Safe) { throw 'The 3D world-items archive is unreadable or contains an unsafe path.' }
         New-Item -ItemType Directory -Path $adTmp -Force -ErrorAction Stop | Out-Null
+        Write-Info 'Extracting the 3D world items (this may take some time)...'
         Expand-Archive -LiteralPath $addonZip -DestinationPath $adTmp -Force -ErrorAction Stop
         $resDest = Join-Path $GameRoot "Resources"
         if (-not (Test-Path -LiteralPath $resDest)) { New-Item -ItemType Directory -Path $resDest -Force -ErrorAction SilentlyContinue | Out-Null }
         $pk2063 = Get-ChildItem -LiteralPath $adTmp -Filter "Ashes2063-3D.pk3" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         $pkGlow = Get-ChildItem -LiteralPath $adTmp -Filter "AshesAfterglow-3D.pk3" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if (-not $pk2063 -and -not $pkGlow) {
-            Write-Warn "Could not find the 3D .pk3 files inside the ZIP - skipping addon."
+        if (-not $pk2063 -or -not $pkGlow) {
+            Write-Warn "Both 3D world-item .pk3 files are required - skipping addon."
             return $false
         }
-        if ($pk2063) { Copy-Item -LiteralPath $pk2063.FullName -Destination (Join-Path $resDest "Ashes2063-3D.pk3") -Force -ErrorAction Stop }
-        if ($pkGlow) { Copy-Item -LiteralPath $pkGlow.FullName -Destination (Join-Path $resDest "AshesAfterglow-3D.pk3") -Force -ErrorAction Stop }
+        $models = @(
+            @{ Source=$pk2063.FullName; Name='Ashes2063-3D.pk3' },
+            @{ Source=$pkGlow.FullName; Name='AshesAfterglow-3D.pk3' }
+        )
+        $backupRoot = Join-Path $GameRoot ('.pcvrhub-3dworld-backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6))
+        $written = New-Object System.Collections.Generic.List[string]
+        $backedUp = New-Object System.Collections.Generic.List[string]
+        try {
+            foreach ($model in $models) {
+                $dest = Join-Path $resDest $model.Name
+                if (Test-Path -LiteralPath $dest -PathType Leaf) {
+                    New-Item -ItemType Directory -Path $backupRoot -Force -ErrorAction Stop | Out-Null
+                    Copy-Item -LiteralPath $dest -Destination (Join-Path $backupRoot $model.Name) -Force -ErrorAction Stop
+                    [void]$backedUp.Add($model.Name)
+                }
+                [void]$written.Add($model.Name)
+                Copy-Item -LiteralPath $model.Source -Destination $dest -Force -ErrorAction Stop
+                if ((Get-FileHash -LiteralPath $model.Source -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash) {
+                    throw "Could not verify the copied 3D world item $($model.Name)."
+                }
+            }
+        } catch {
+            for ($i = $written.Count - 1; $i -ge 0; $i--) {
+                $name = $written[$i]
+                $dest = Join-Path $resDest $name
+                if ($backedUp.Contains($name)) { Copy-Item -LiteralPath (Join-Path $backupRoot $name) -Destination $dest -Force -ErrorAction Stop }
+                else { Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue }
+            }
+            throw
+        }
         Write-OK "3D models addon installed (loads on top of Ashes 2063 and Afterglow)."
         try { Set-Content -Path (Join-Path $ScriptDir ".addon3d_installed") -Value "1" -Encoding ASCII -Force } catch {}
         return $true
@@ -143,7 +304,10 @@ function Install-Ashes3DAddon {
         Write-Host "  re-running this installer." -ForegroundColor Yellow
         return $false
     } finally {
-        try { Remove-Item -LiteralPath $adTmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+        $tempPrefix = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+        if ([IO.Path]::GetFullPath($adTmp).StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase) -and
+            (Split-Path $adTmp -Leaf) -match '^Ashes3D_[0-9a-f]{32}$' -and
+            (Test-Path -LiteralPath $adTmp)) { Remove-Item -LiteralPath $adTmp -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -229,30 +393,38 @@ if ($existingRoot) {
     Write-Host "    $existingRoot" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  What would you like to do?" -ForegroundColor White
-    Write-Host "    [1] Add the 3D ammo + props mod only (no big re-download)" -ForegroundColor Yellow
-    Write-Host "    [2] Reinstall everything from scratch" -ForegroundColor Yellow
+    Write-Host "    [1] Add 3D world items (ammo + props) only" -ForegroundColor Yellow
+    Write-Host "    [2] Add 3D hand weapons only" -ForegroundColor Yellow
+    Write-Host "    [3] Add both 3D options" -ForegroundColor Yellow
+    Write-Host "    [4] Reinstall the base VR setup" -ForegroundColor Yellow
     Write-Host ""
-    $modeChoice = (Read-Host "  Choose 1 or 2").Trim()
-    if ($modeChoice -eq "1") {
+    $modeChoice = (Read-Host "  Choose 1, 2, 3 or 4").Trim()
+    if ($modeChoice -in @('1','2','3')) {
         Pause-User "Press Enter to start..."
-        Write-Step 1 1 "Adding the 3D models addon"
-        $gzName = Get-AshesGzExeName -GameRoot $existingRoot
-        if (-not $gzName) {
-            Write-Fail "Could not find the gzdoomvr executable under $existingRoot\gzdoomvr."
-            Write-Host "  The install looks incomplete - run a full reinstall instead." -ForegroundColor Yellow
-            Pause-User "Press Enter to close..."
-            return
+        $okWorld = $false
+        $okWeapons = $false
+        if ($modeChoice -in @('1','3')) {
+            Write-Step 1 2 "Adding 3D world items"
+            $gzName = Get-AshesGzExeName -GameRoot $existingRoot
+            if (-not $gzName) { Write-Warn 'The original gzdoomvr engine is missing; world items need the base VR setup.' }
+            else {
+                $okWorld = Install-Ashes3DAddon -GameRoot $existingRoot -ScriptDir $SCRIPT_DIR
+                if ($okWorld) {
+                    try {
+                        Write-AshesLaunchers -GameRoot $existingRoot -ExeName $gzName -Has3D $true
+                        Write-OK 'Original launchers updated for 3D world items.'
+                    } catch { Write-Warn "Could not update the original launchers: $($_.Exception.Message)" }
+                }
+            }
         }
-        $ok3d = Install-Ashes3DAddon -GameRoot $existingRoot -ScriptDir $SCRIPT_DIR
-        if ($ok3d) {
-            # Rewrite the launchers so the 3D pk3s are loaded.
-            try {
-                Write-AshesLaunchers -GameRoot $existingRoot -ExeName $gzName -Has3D $true
-                Write-OK "Launchers updated - the 3D pack now loads for Ashes 2063 and Afterglow."
-            } catch { Write-Warn "Could not update the launchers: $($_.Exception.Message)" }
+        if ($modeChoice -in @('2','3')) {
+            Write-Step 2 2 "Adding 3D hand weapons"
+            $okWeapons = Install-AshesWeaponsAddon -GameRoot $existingRoot
+        }
+        if ($okWorld -or $okWeapons) {
             Write-Host ""
-            Write-Host "  Done. Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or your existing" -ForegroundColor White
-Write-Host "  desktop shortcuts as usual." -ForegroundColor White
+            Write-Host '  Done. Hub Start in VR keeps the original Ashes route.' -ForegroundColor White
+            if ($okWeapons) { Write-Host '  For hand weapons, run Play Ashes 2063 VR - 3D Weapons.bat.' -ForegroundColor White }
             Write-Host ""
             Write-Host "  Tune in to Spire Radio, scavenger - now in glorious 3D." -ForegroundColor Magenta
         } else {
@@ -263,7 +435,7 @@ Write-Host "  desktop shortcuts as usual." -ForegroundColor White
         Pause-User "Press Enter to close..."
         return
     }
-    # Choice 2 (or anything else) falls through to a normal full install.
+    # Choice 4 (or anything else) falls through to a normal full install.
     Write-Info "Continuing with a full reinstall."
     Write-Host ""
 }
@@ -497,14 +669,23 @@ try {
 }
 Write-OK "VR engine ready: gzdoomvr\$gzExeName"
 
-# ---- 5. optional: 3D models addon (ModDB) -------------------
-Write-Step 5 6 "Optional: 3D models addon"
-$has3D = $false
-$addon3DChoice = Read-Host "  Install the optional 3D models addon now? (Y/N)"
-if ($addon3DChoice -match '^(y|yes|j|ja)$') {
-    $has3D = (Install-Ashes3DAddon -GameRoot $gameRoot -ScriptDir $SCRIPT_DIR)
-} else {
-    Write-Info "Skipping the 3D models addon. You can re-run this installer to add it later."
+# ---- 5. optional: independent 3D routes ---------------------
+Write-Step 5 6 "Optional 3D content"
+Write-Host '  [1] 3D world items: ammo, props and pickups (ModDB)' -ForegroundColor Cyan
+Write-Host '  [2] 3D hand weapons: revolver, pistol, shotgun, lantern (GitHub)' -ForegroundColor Cyan
+Write-Host '  [3] Both options, each with its own launch route' -ForegroundColor Cyan
+Write-Host '  [N] Skip optional 3D content' -ForegroundColor Cyan
+$addon3DChoice = (Read-Host '  Choose 1, 2, 3 or N').Trim().ToLower()
+$has3D = (Test-Path -LiteralPath (Join-Path $gameRoot 'Resources\Ashes2063-3D.pk3') -PathType Leaf) -and
+         (Test-Path -LiteralPath (Join-Path $gameRoot 'Resources\AshesAfterglow-3D.pk3') -PathType Leaf)
+if ($addon3DChoice -in @('1','3')) {
+    $has3D = (Install-Ashes3DAddon -GameRoot $gameRoot -ScriptDir $SCRIPT_DIR) -or $has3D
+}
+if ($addon3DChoice -in @('2','3')) {
+    $null = Install-AshesWeaponsAddon -GameRoot $gameRoot
+}
+if ($addon3DChoice -notin @('1','2','3')) {
+    Write-Info 'Skipping optional 3D downloads. Existing add-ons stay available.'
 }
 
 # ---- 6. write VR launchers + desktop shortcuts --------------
@@ -555,6 +736,9 @@ Write-Host "  avoid it potentially starting sometimes out of focus." -Foreground
 Write-Host "  Aiming uses your tracked hand + the built-in laser sight." -ForegroundColor Gray
 Write-Host "  VR settings (comfort, snap-turn, weapon angle) are in Options -> VR." -ForegroundColor Gray
 Write-Host "  Controller bindings: SteamVR -> per-game bindings for gzdoomvr." -ForegroundColor Gray
+if (Test-Path -LiteralPath (Join-Path $gameRoot 'Play Ashes 2063 VR - 3D Weapons.bat') -PathType Leaf) {
+    Write-Host '  3D hand weapons: use Play Ashes 2063 VR - 3D Weapons.bat.' -ForegroundColor Gray
+}
 Write-Host ""
 Write-Host "  Tune in to Spire Radio, scavenger - the wasteland is hungry tonight." -ForegroundColor Magenta
 Write-Host ""

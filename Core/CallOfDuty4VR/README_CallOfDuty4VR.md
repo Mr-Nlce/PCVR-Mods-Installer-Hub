@@ -96,6 +96,11 @@ restart the game after editing the file by hand.
 `Launch-KisakCOD-VR-Diagnostics.bat` starts the same game with developer messages restored - useful when writing a bug report.
 
 ## Recent beta changes
+- beta.19 refines rifle-scope lens alignment and keeps the reticle aligned
+  while the rifle and eye move. Shoulder ADS now requires a deliberate stable
+  pose, with engage/release hysteresis; sprint takes priority and ADS must
+  re-arm after lowering the rifle. The publisher reports focused Quest 3/VDXR
+  checks for these changes; other headsets and missions remain unverified here.
 - **The legacy flat crosshair is gone in VR**, even on an older profile that kept
   `cg_drawCrosshair 1`. Mission Select artwork and text now use the same eye-local
   geometry, and the Quit dialogs are centred in both eyes.

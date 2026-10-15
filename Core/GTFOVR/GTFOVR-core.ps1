@@ -24,7 +24,7 @@
 # Load installer-safety helpers (Invoke-SafeDownload,
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "GTFO_VR"
 $MOD_VERSION = "1.4.0 beta"
@@ -43,6 +43,16 @@ $DISCORD_INVITE_URL = "https://discord.gg/uAeQkYBM4n"
 $DISCORD_JOIN_URL = "https://discord.com/channels/747967102895390741/978019455449858149"
 $DISCORD_BETA_OPTIN_URL = "https://discord.com/channels/747967102895390741/832354057103343626/833777903308242944"
 $DISCORD_DOWNLOAD_URL = "https://discord.com/channels/747967102895390741/833777990486720512/1218902177574031361"
+$REQUIRED_GTFO_VR_FILES = @(
+ 'GTFO.exe', 'GTFO_Data\globalgamemanagers', 'winhttp.dll', 'doorstop_config.ini',
+ 'BepInEx\core\BepInEx.Unity.IL2CPP.dll', 'BepInEx\plugins\GTFO_VR.dll',
+ 'BepInEx\plugins\SteamVR_Standalone_IL2CPP.dll',
+ 'GTFO_Data\Plugins\openvr_api.dll',
+ 'GTFO_Data\StreamingAssets\SteamVR_Standalone\actions.json'
+)
+$GTFO_CONTRACT = New-PCVRInstallerContract -Id 'gtfo-vr' -GameName 'GTFO VR' -Acquisition Discord `
+ -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL `
+ -AntivirusNotice -RequiredInstalledFileGroups $REQUIRED_GTFO_VR_FILES
 
 # -------------------------------------------------------
 # Helpers
@@ -263,46 +273,34 @@ $dlResult = Invoke-SafeDownload -Urls $bepSources -Destination $bepZip `
     -Label "BepInEx 6.0.0-be.670 (IL2CPP win-x64)" `
     -ManualUrl "https://builds.bepinex.dev/projects/bepinex_be" `
     -Instructions "GTFOVR needs BepInEx 6 IL2CPP bleeding-edge build 670 specifically (NOT BepInEx 5, and NOT a newer build - the mod is pinned to 670). Open the builds page in your browser, scroll to build 670, download 'BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.670' .zip, and place it at '$bepZip'. Then choose Retry." `
-    -SkipMessage "Skipped - the VR mod loader is missing; GTFO will launch normally but the VR mod will not load (questionable result)."
+    -SkipMessage "BepInEx is required; setup cannot complete without it." -AllowSkip $false
 if ([string]$dlResult -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if ([string]$dlResult -eq "skip") {
-    Write-Warn "Continuing without BepInEx - the VR mod will not function."
+    Write-Fail 'BepInEx is required. Nothing was marked complete.'
+    Pause-User 'Press Enter to exit...'; exit 1
 } elseif ([string]$dlResult -eq "retry") {
     if (-not (Test-Path $bepZip)) { Pause-User "Still no BepInEx zip at $bepZip. Press Enter to exit..."; exit 1 }
 }
 
-if ((Test-Path $bepZip) -and ((Get-Item $bepZip).Length -gt 1000)) {
+if (Test-Path -LiteralPath $bepZip -PathType Leaf) {
     Write-OK "BepInEx downloaded: $((Get-Item $bepZip).Length) bytes"
-
+    $bepExtract = Join-Path $tempBep 'extracted'
     try {
-        Write-Host " Extracting BepInEx into: $gamePath" -ForegroundColor Gray
-        Expand-Archive -Path $bepZip -DestinationPath $gamePath -Force
-        Write-OK "BepInEx 6.0.0b670 installed."
-    } catch {
-        Write-Fail "BepInEx extract failed: $_"
-        try { Remove-Item $tempBep -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        $__fb = Invoke-InstallerFallback -Action "BepInEx archive extraction" `
-            -Instructions "Open '$bepZip' with 7-Zip or Windows Explorer, and extract its contents into '$gamePath' (the GTFO install folder). Then choose Retry." `
-            -SkipMessage "Skipped - BepInEx was NOT extracted; the VR mod cannot load (questionable result)." `
-            -SourceFolder (Split-Path "$bepZip" -Parent) `
-            -DestFolder "$gamePath" `
-            -AllowSkip $true
-        if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-        if ([string]$__fb -eq "retry") {
-            # Re-check: user should have extracted BepInEx into game folder
-            if (Test-Path -LiteralPath "$gamePath\winhttp.dll") {
-                Write-OK "BepInEx detected in game folder (winhttp.dll) - continuing."
-            } else {
-                Pause-User "BepInEx still not detected in $gamePath. Press Enter to exit..."
-                exit 1
-            }
+        $bepResult = Expand-ArchiveOrFallback -ArchivePath $bepZip -DestinationFolder $bepExtract `
+            -Label 'BepInEx 6 IL2CPP' -AllowSkip $false
+        if ([string]$bepResult -notin @('ok','manual','retry')) { throw 'BepInEx extraction did not complete.' }
+        foreach ($relative in @('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.Unity.IL2CPP.dll')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $bepExtract $relative) -PathType Leaf)) { throw "BepInEx is missing $relative." }
         }
-        # User chose Skip - continue at own risk
+        Write-OK 'BepInEx staged and checked before changing GTFO.'
+    } catch {
+        Write-Fail "BepInEx staging failed: $_"
+        Pause-User 'Press Enter to exit without changing GTFO.'; exit 1
     }
 } else {
-    Write-Warn "No BepInEx zip available - the VR mod will not load without it."
+    Write-Fail 'No usable BepInEx archive was found. Nothing was marked complete.'
+    Pause-User 'Press Enter to exit...'; exit 1
 }
-try { Remove-Item $tempBep -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # STEP 5: Extract the user-supplied mod ZIP on top
@@ -314,24 +312,12 @@ New-Item -ItemType Directory -Path $tempExtract | Out-Null
 
 try {
  Write-Host " Extracting mod archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
+ $modResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract `
+  -Label 'GTFO VR mod archive' -AllowSkip $false
+ if ([string]$modResult -notin @('ok','manual','retry')) { throw 'The GTFO VR mod archive was not extracted.' }
 } catch {
  Write-Fail "Mod extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+ Pause-User 'Press Enter to exit without changing GTFO.'; exit 1
 }
 
 # The ZIP typically extracts as BepInEx/ + GTFO_Data/ + a couple of
@@ -347,67 +333,25 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
-Write-Host " Copying mod files into: $gamePath" -ForegroundColor Gray
+Write-Step 5 5 'Verifying and installing both packages'
+$stage = Join-Path $tempBep 'merged'
+$requiredPayloadFiles = @($REQUIRED_GTFO_VR_FILES | Where-Object { $_ -notin @('GTFO.exe','GTFO_Data\globalgamemanagers') })
 try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
- }
- Write-OK "Mod files installed."
+ [void](Merge-DirectoryTreeVerified -Source $bepExtract -Destination $stage -Label 'BepInEx stage')
+ [void](Merge-DirectoryTreeVerified -Source $srcRoot -Destination $stage -Label 'GTFO VR mod stage')
+ $sourceHashes = Get-PCVRDropInSourceHashes -SourceRoot $stage -RequiredFiles $requiredPayloadFiles
+ [void](Invoke-PCVRDropInInstall -SourceRoot $stage -GameRoot $gamePath -SourceHashes $sourceHashes `
+  -KeepExistingFiles @('BepInEx\config\BepInEx.cfg','BepInEx\config\com.Spartan.GTFO_VR_Plugin.cfg') `
+  -Contract $GTFO_CONTRACT -Version '1.4.0' `
+  -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+ Write-OK 'BepInEx, GTFO VR, bindings and version receipt verified.'
 } catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+ Write-Fail "GTFO VR setup did not complete: $($_.Exception.Message)"
+ Write-Host '  Game files were restored if copying had begun; use recovery to retry.' -ForegroundColor Yellow
+ Pause-User 'Press Enter to exit without marking this attempt complete.'; exit 1
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-Write-Step 5 5 "Verifying install"
-$bepinexCore = Join-Path $gamePath "BepInEx\core"
-$modDll = Join-Path $gamePath "BepInEx\plugins\GTFO_VR.dll"
-$winhttp = Join-Path $gamePath "winhttp.dll"
-$vrDataDir = Join-Path $gamePath "GTFO_Data\StreamingAssets\SteamVR_Standalone"
-
-if (-not (Test-Path $bepinexCore)) {
- Write-Warn "BepInEx\core folder not found - install may be incomplete."
-} else {
- Write-OK "BepInEx core present."
-}
-if (-not (Test-Path $winhttp)) {
- Write-Warn "winhttp.dll not found at game root - BepInEx 6 needs this."
-} else {
- Write-OK "winhttp.dll present at game root."
-}
-if (-not (Test-Path $modDll)) {
- Write-Warn "GTFO_VR.dll not found in BepInEx\plugins - mod ZIP may be wrong build."
-} else {
- Write-OK "GTFO_VR.dll present."
-}
-if (-not (Test-Path $vrDataDir)) {
- Write-Warn "SteamVR_Standalone folder not found - controller bindings may not load."
-} else {
- Write-OK "SteamVR_Standalone bindings present."
-}
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+try { Remove-Item -LiteralPath $tempBep -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # Done

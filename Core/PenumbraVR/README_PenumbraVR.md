@@ -1,94 +1,39 @@
-# Penumbra: Overture VR
+## About the Game
 
-## Two mods, one page
+Penumbra: Overture is Frictional Games' first-person survival horror adventure. This Hub tile recommends rubocopter's current Penumbra VR Framework in the original Windows PC game folder. The older simply-jos mod remains an optional, independent game copy.
 
-There are two Penumbra VR mods, and the installer offers both.
-
-| | **simply-jos / newyork167** | **rubocopter (rework)** |
+| Choice | Game folder | Source |
 |---|---|---|
-| State | the long-standing one | **first stable release** |
-| Hands | head and hand tracking | **roomscale collision hands and per-finger animation** |
-| Installs into | a **copy** of the game under `C:\Games` | your **Steam** copy |
-| Your Steam files | untouched | replaced, with backups |
-| Undo | delete the copied folder | the author's **Restore** mode |
+| Penumbra VR Framework | Original installed game folder | [Publisher releases](https://github.com/rubocopter/penumbra_vr_framework/releases) |
+| Simply-jos (classic) | Separate copy under `C:\Games` or another selected drive | [Original VR release](https://github.com/newyork167/penumbra_vr/releases) |
 
-**They do not collide.** Both ship a file called `Penumbra_vr.exe`, but never in
-the same folder - the old mod works on its own copy of the game, the rework
-merges into the Steam installation. You can have both, and which one you play is
-simply which copy you launch. Nothing has to be switched off.
+The two copies do not share VR files. The Hub's route picker starts the selected copy.
 
-### The rework, in short
-The stable rework adds collision-constrained roomscale hands, physical props and
-mechanisms, assisted inventory pickup, seated/standing and left/right-hand modes.
-It also bundles binaural audio and an **optional Enhanced visuals** mode with
-refined lighting and a reviewed texture selection. Enhanced visuals are off by
-default and switch live under **Options -> VR Settings -> Display**.
+## Requirements and installation
 
-Per-finger hand animation from the SteamVR skeletal input: on **PS VR2 Sense**,
-**Valve Index** and **Touch** controllers every finger follows its own measured
-curl. Devices without skeletal input get a synthesized closing sequence - pinky
-and ring first, middle follows, index tied to the trigger. All weights run
-through a ~70 ms smoother with a soft deadzone, so hands rest fully open and
-joints move with a little inertia rather than snapping.
+Both routes need the original Windows PC game and SteamVR. The recommended Framework route checks the current publisher Setup, including prereleases, and shows an available update for an installed Framework version. The simply-jos route copies the game and installs its historic VR mod there; that release no longer receives updates. Publisher Setup selects every detected Overture, Black Plague and Requiem game by default; review its checkboxes before Install. The Hub scans each component separately afterward.
 
-**Only PS VR2 Sense is hardware-validated.** Everything else is expected to work
-but has not been confirmed on real hardware.
+If the old Hub-installed Overture Framework v0.x is present, its managed file set differs from the current Setup. Choose the Framework route on this Overture tile. Before opening Setup, the Hub checks every old managed file and original backup against the old publisher deployment record, saves a recovery copy, and runs that publisher's restore script. Then the current publisher Setup opens for a fresh install. If an old file or backup was changed or is missing, the Hub leaves the game untouched and reports which file needs attention. The separate simply-jos game copy is not part of this migration.
 
-Two limits come from the source model rather than the mod: ring and middle share
-one fused mesh tube, so their tips cannot spread apart, and the thumb chain is
-too short to reach the palm - it stays at its bind pose during grips. Vive wands
-and the WMR fallback have no per-finger input at all and get the synthesized
-sequence only.
+**Uninstall now** opens publisher maintenance for the Framework route. To remove the separate simply-jos game copy, first verify that it is the dedicated VR copy outside the original Steam/GOG game folder, then remove only that copy and its shortcut. Preserve any saves, profiles or files you added before removing the copy.
 
-The rework backs up every file it replaces under `.penumbravr\backup` in the game
-folder and can put them all back with the author's **Restore** mode. Its installer
-can also omit or remove only the texture selection with **Skip texture pack**.
+[Watch Overture VR gameplay](https://www.youtube.com/watch?v=FCbwW119lAw) · [Second gameplay video](https://youtu.be/dc90jlH-tp0?t=16) · [Flat2VR modding discussion](https://discord.com/channels/747967102895390741/1540774759619629056)
 
+## Controls
 
-Adds head and hand tracking to **Penumbra: Overture**, the classic survival-horror game by Frictional Games. Built in the HTC Vive era; works with modern motion controllers through SteamVR bindings.
+The simply-jos release uses the original HTC Vive layout; other controllers may need SteamVR bindings. The Framework uses the publisher's tracked-controller bindings.
 
-## Requirements
-- **Penumbra: Overture** on Steam (AppID 22180), owned + installed
-- SteamVR
-- Motion controllers
-
-## What the installer does
-1. Locates your Penumbra: Overture install in Steam (`steamapps\common\Penumbra Overture`).
-2. Copies the game out to `C:\Games\Penumbra Overture VR` (the old HPL1 engine can fail under Program Files due to UAC). Your Steam copy stays untouched.
-3. Downloads the VR mod and adds its files into the copy's `redist\` folder, and writes `steam_appid.txt` (22180).
-4. Creates a desktop shortcut **Penumbra Overture VR** that uses the original game's icon but launches the VR executable.
-
-## How to launch
-Start **SteamVR** first, then either:
-- Use the Hub's **Start in VR** button (runs `redist\Penumbra_vr.exe`), or
-- Use the desktop shortcut **Penumbra Overture VR**.
-
-> Tip: in-game, open **Options -> VR Settings** and disable the monitor mirror for better performance.
-
-## Controls (HTC Vive layout)
-
-### Right Controller
 | Button | Action |
 |---|---|
-| [[Trigger]] | Interact / equip pointed-at item |
-| [[Grip]] | Open inventory |
-| [[Trackpad]] | Sprint (press) / drag items to combine (press) |
-| [[Menu]] | Examine the object you are looking at |
+| [[Right Trigger]] | Interact or equip the pointed-at item |
+| [[Right Grip]] | Open inventory |
+| [[Right Trackpad]] | Sprint when pressed; press to combine items |
+| [[Right Menu]] | Examine the object you are looking at |
+| [[Left Trackpad]] | Move |
+| [[Left Grip]] | Quick-equip glowstick or flashlight |
 
-### Left Controller
-| Button | Action |
-|---|---|
-| [[Trackpad]] | Move |
-| [[Grip]] | Quick-equip glowstick / flashlight |
+## Publisher and support
 
-> Built for the HTC Vive; on other headsets remap as needed in **SteamVR -> Controller Bindings**.
-
-## Install location
-Installs to `C:\Games\Penumbra Overture VR` (first writable drive: C:/D:/E:).
-
-## Credits
-- VR mod by simply-jos, fork/release by newyork167 — https://github.com/newyork167/penumbra_vr
-- Original game by Frictional Games
-- Source: https://github.com/simply-jos/penumbra_overture_vr
+[Penumbra VR Framework](https://github.com/rubocopter/penumbra_vr_framework) by rubocopter. Original Overture VR mod by simply-jos, with the [newyork167 release](https://github.com/newyork167/penumbra_vr).
 
 >>> No weapons. No backup. Just you, the cold, and whatever is breathing down there.

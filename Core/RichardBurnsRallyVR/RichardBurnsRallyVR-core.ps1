@@ -6,6 +6,7 @@
 # Invoke-InstallerFallback, Expand-ArchiveOrFallback). These replace
 # hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Richard Burns Rally VR Installer"
 $ErrorActionPreference = "Stop"
@@ -19,7 +20,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Richard Burns Rally - RBRvr Installer" -ForegroundColor Cyan
-    Write-Host " OpenVR / OpenXR mod by Kegetys" -ForegroundColor Gray
+    Write-Host " OpenVR mod by Kegetys" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -97,24 +98,89 @@ $r = Invoke-DownloadOrFallback -Url $MOD_URL -Destination $modZip `
         -SkipMessage "Skipped - the RBRvr mod was not downloaded; the install is incomplete."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 
-# ---- STEP 3: extract into the game folder ----
+# ---- STEP 3: stage and verify the complete publisher package ----
 Write-Step 3 4 "Installing the mod files"
-if (Test-Path $modZip) {
-    $r = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $rbrDir -Label "RBRvr mod" `
-            -SkipMessage "Skipped - the mod files were NOT extracted into the game folder."
-    if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$r -eq "ok" -or [string]$r -eq "manual") { Write-OK "Mod files copied into the game folder." }
-} else {
-    Write-Warn "Mod archive not present - skipping extraction."
+$stage = Join-Path $tempDir 'stage'
+$r = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $stage -Label "RBRvr mod" `
+        -AllowSkip $false -SkipMessage "The RBRvr files were not extracted; nothing was installed."
+if ([string]$r -notin @('ok','manual','retry')) { throw 'The RBRvr archive was not extracted.' }
+$required = @('d3d9.dll','d3dx11_43.dll','D3DX9_43.dll','openvr_api.dll','Plugins\RBRvrConfig.dll','rbrvr.cfg')
+foreach ($relative in $required) {
+    $file = Join-Path $stage $relative
+    if (-not (Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -le 0) {
+        throw "RBRvr archive is incomplete: $relative is missing. The existing install was not changed."
+    }
 }
+$stagedFiles = @(Get-ChildItem -LiteralPath $stage -Recurse -File -ErrorAction Stop)
+$stagedPaths = @($stagedFiles | ForEach-Object {
+    Assert-PCVROwnedRelativePath -Relative ($_.FullName.Substring($stage.Length + 1))
+})
+if (@(Get-Process -Name 'RichardBurnsRally_SSE' -ErrorAction SilentlyContinue).Count) { throw 'Close Richard Burns Rally before installing or updating its VR files.' }
+$writableProbe = Join-Path $rbrDir ('.pcvrhub_probe_' + [Guid]::NewGuid().ToString('N'))
+try { [IO.File]::WriteAllText($writableProbe,'ok'); Remove-Item -LiteralPath $writableProbe -Force -ErrorAction Stop }
+catch { throw "The game folder is not writable: $rbrDir" }
 
-# Verify the VR-specific plugin landed.
-$probe = Join-Path $rbrDir "Plugins\RBRvrConfig.dll"
-if (Test-Path -LiteralPath $probe -PathType Leaf) {
-    Write-OK "RBRvr plugin verified."
+# Snapshot the exact files that this fixed seven-file package may change.
+# Updates can then restore the prior mod, game proxy and receipts if copying fails.
+$manifest = Join-Path $rbrDir '.pcvrhub_rbrvr_ownership.csv'
+$backupRoot = Join-Path $rbrDir '.pcvrhub_rbrvr_backup'
+$priorOwned = @()
+if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+    foreach ($row in @(Import-Csv -LiteralPath $manifest -ErrorAction Stop)) {
+        $priorOwned += Assert-PCVROwnedRelativePath -Relative ([string]$row.RelativePath)
+    }
+}
+$snapshot = Join-Path $tempDir 'rollback'
+New-Item -ItemType Directory -Path $snapshot -Force | Out-Null
+$tracked = @(($stagedPaths + $priorOwned | Select-Object -Unique) | ForEach-Object { [pscustomobject]@{ Live=(Join-Path $rbrDir $_); Copy=(Join-Path (Join-Path $snapshot 'files') $_) } })
+$tracked += @(
+    [pscustomobject]@{ Live=$manifest; Copy=(Join-Path $snapshot 'ownership.csv') },
+    [pscustomobject]@{ Live=(Join-Path $rbrDir '.pcvrhub_version'); Copy=(Join-Path $snapshot 'version') },
+    [pscustomobject]@{ Live=(Join-Path $PSScriptRoot '.installed_path'); Copy=(Join-Path $snapshot 'installed_path') }
+)
+foreach ($item in $tracked) {
+    $item | Add-Member -NotePropertyName Existed -NotePropertyValue (Test-Path -LiteralPath $item.Live -PathType Leaf)
+    if ($item.Existed) {
+        $parent = Split-Path -Parent $item.Copy
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+        Copy-Item -LiteralPath $item.Live -Destination $item.Copy -Force -ErrorAction Stop
+    }
+}
+$backupExisted = Test-Path -LiteralPath $backupRoot -PathType Container
+if ($backupExisted) { Copy-Item -LiteralPath $backupRoot -Destination (Join-Path $snapshot 'backup') -Recurse -Force -ErrorAction Stop }
+try {
+    [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $rbrDir -Identity 'rbrvr' `
+        -KeepExistingRelativePaths @('rbrvr.cfg') -AdoptIdenticalExisting)
+    foreach ($relative in $required) {
+        $target = Join-Path $rbrDir $relative
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Required RBRvr file missing after copy: $relative" }
+    }
+    foreach ($relative in $stagedPaths) {
+        $target = Join-Path $rbrDir $relative
+        if ($relative -ne 'rbrvr.cfg' -and
+            (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath (Join-Path $stage $relative) -Algorithm SHA256).Hash) {
+            throw "RBRvr file differs after copy: $relative"
+        }
+    }
     Save-InstalledStamp -GameDir $rbrDir -Version $MOD_VERSION -HubDir $PSScriptRoot
-} else {
-    throw "RBRvrConfig.dll is missing after extraction; no successful installation will be recorded."
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Value $rbrDir -Encoding UTF8 -Force -ErrorAction Stop
+    Write-OK 'Complete RBRvr package verified; original game files and edited configuration are protected.'
+} catch {
+    $installationError = $_
+    foreach ($item in $tracked) {
+        try {
+            if ($item.Existed) {
+                $parent = Split-Path -Parent $item.Live
+                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+                Copy-Item -LiteralPath $item.Copy -Destination $item.Live -Force -ErrorAction Stop
+            } elseif (Test-Path -LiteralPath $item.Live -PathType Leaf) {
+                Remove-Item -LiteralPath $item.Live -Force -ErrorAction Stop
+            }
+        } catch { throw "RBRvr install failed and rollback could not restore $($item.Live): $($_.Exception.Message)" }
+    }
+    if (Test-Path -LiteralPath $backupRoot -PathType Container) { Remove-Item -LiteralPath $backupRoot -Recurse -Force -ErrorAction Stop }
+    if ($backupExisted) { Copy-Item -LiteralPath (Join-Path $snapshot 'backup') -Destination $backupRoot -Recurse -Force -ErrorAction Stop }
+    throw $installationError
 }
 
 # ---- STEP 4: desktop shortcut ----
@@ -127,9 +193,6 @@ try {
 } catch {
     Write-Warn "Could not create the desktop shortcut. You can start the game from $rbrExe."
 }
-
-# Record the install path for the Hub's VR-Ready detection.
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $rbrDir -Encoding UTF8 -Force } catch {}
 
 # ---- Activation instructions (must stay visible) ----
 Write-Host ""

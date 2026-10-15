@@ -1,20 +1,25 @@
 # Current GTA V Legacy VR setup by DeployAbi.
-# The executable is acquired from its authenticated Discord post and
+# The executable is acquired from the publisher's GitHub release and
 # is never bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 
 $Host.UI.RawUI.WindowTitle = 'Grand Theft Auto V VR Installer'
 $APP_ID = '271590'
 $GAME_EXE = 'GTA5.exe'
 $PACKAGE_NAME = 'GTAVR-Setup-and-Play.exe'
-$REVIEWED_RELEASE = 'discord-2026-09-09-1547246592376053770'
-$RELEASE_PROOF = '.pcvrhub_release_deployabi_20260909_1547246592376053770'
-$DISCORD_INVITE = 'https://discord.gg/uAeQkYBM4n'
+$REPO = 'DeployAbi/GTAVR'
+$RELEASES = "https://github.com/$REPO/releases"
+$FALLBACK_TAG = 'v0.11.19-ffb-test'
+$FALLBACK_URL = "$RELEASES/download/$FALLBACK_TAG/$PACKAGE_NAME"
+$VERSION_PROOF = '.pcvrhub_deployabi_version'
 $INFO_POST = 'https://discord.com/channels/747967102895390741/1545350924237668453'
-$DOWNLOAD_POST = 'https://discord.com/channels/747967102895390741/1545350924237668453/1547246592376053770'
 $QUIP = 'Pull off the heist, outrun the stars, and own the streets of Los Santos.'
+$CONTRACT = New-PCVRInstallerContract -Id 'gta-v-vr' -GameName 'GTAVR by DeployAbi' -Acquisition GitHub `
+    -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups @(
+        'GTA5.exe','gtavr_install_manifest.txt','version.dll','OVRInject.dll','GTAVRBridge.asi',
+        'VRLaunch\DeployAbi\GTAVR-Setup-and-Play.exe')
 
 function Write-Header {
     Clear-Host
@@ -45,6 +50,18 @@ function Test-GtaRoot {
     } catch { return $false }
 }
 
+function Assert-GtaTestFixture([string]$Path) {
+    if ($env:PCVR_HUB_TEST_MODE -ne '1') { throw 'Fixture access is allowed only in test mode.' }
+    $full = [IO.Path]::GetFullPath($Path)
+    $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $parent = Split-Path -Parent $full
+    if (-not $full.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or
+        -not (Test-Path -LiteralPath (Join-Path $parent 'gtavr-fixture.txt') -PathType Leaf)) {
+        throw 'GTAVR test paths must stay below an isolated temporary fixture.'
+    }
+    return $full
+}
+
 function Get-ArchiveInputFolders {
     try {
         $workspace = Split-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) -Parent
@@ -57,10 +74,36 @@ function Get-ArchiveInputFolders {
 }
 
 function Test-DeployAbiPackage([string]$Path) {
-    return (Test-DownloadedPayload -Path $Path -IntendedPath $PACKAGE_NAME)
+    if (-not (Test-DownloadedPayload -Path $Path -IntendedPath $PACKAGE_NAME)) { return $false }
+    $stream = $null
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        if ($stream.Length -lt 512) { return $false }
+        $reader = New-Object IO.BinaryReader($stream)
+        $stream.Position = 0x3c
+        $peOffset = $reader.ReadInt32()
+        if ($peOffset -lt 0x40 -or $peOffset -gt ($stream.Length - 4)) { return $false }
+        $stream.Position = $peOffset
+        return ($reader.ReadUInt32() -eq 0x00004550)
+    } catch { return $false } finally { if ($stream) { $stream.Dispose() } }
+}
+function Get-DeployAbiFileTag([string]$Path) {
+    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GTAV_TEST_TAG) {
+        if (-not (Test-IsTrackableInstalledVersion $env:PCVR_GTAV_TEST_TAG)) { throw 'The isolated test version is not trackable.' }
+        return $env:PCVR_GTAV_TEST_TAG
+    }
+    $version = (Get-Item -LiteralPath $Path -ErrorAction Stop).VersionInfo.ProductVersion
+    $tag = 'v' + ((''+$version).TrimStart('v','V'))
+    if (-not (Test-IsTrackableInstalledVersion $tag)) { throw 'The fallback EXE does not expose a trackable publisher version.' }
+    return $tag
 }
 
 function Find-GtaRoot {
+    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GTAV_TEST_GAME) {
+        $testGame = Assert-GtaTestFixture $env:PCVR_GTAV_TEST_GAME
+        if (-not (Test-GtaRoot $testGame)) { throw 'The isolated GTA fixture lacks base-game evidence.' }
+        return $testGame
+    }
     $found = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Grand Theft Auto V') `
         -EpicNames @('GTAV','Grand Theft Auto V') -ProbeExe $GAME_EXE
     if (Test-GtaRoot $found) { return $found }
@@ -78,49 +121,32 @@ function Find-GtaRoot {
     return $null
 }
 
-function Get-ReviewedLauncher([string]$Destination) {
-    $found = Find-PredownloadedFile -Patterns @($PACKAGE_NAME) `
-        -ExtraFolders (Get-ArchiveInputFolders) `
-        -Label 'GTAVR Setup and Play by DeployAbi'
-    if ($found -and (Test-DeployAbiPackage $found)) {
-        Copy-Item -LiteralPath $found -Destination $Destination -Force -ErrorAction Stop
+function Get-ReviewedLauncher([string]$Destination,[string]$SelectedFile='') {
+    $script:DeployAbiInstalledTag = ''
+    if ($SelectedFile) {
+        $selected = ConvertTo-PCVRCanonicalUserPath $SelectedFile
+        if (-not (Test-DeployAbiPackage $selected)) { throw 'The selected file is not a usable Windows Setup EXE.' }
+        Copy-Item -LiteralPath $selected -Destination $Destination -Force -ErrorAction Stop
+        if (-not (Test-DeployAbiPackage $Destination)) { throw 'The selected publisher Setup could not be staged.' }
+        $script:DeployAbiInstalledTag = Get-DeployAbiFileTag $Destination
         return $Destination
     }
-
-    Write-Host ' The current mod is attached to an authenticated Flat2VR Discord post.' -ForegroundColor White
-    Write-Host ' At each step, press Enter; the installer opens the exact page.' -ForegroundColor Gray
-    Write-Host ''
-    Write-Host ' [1/3] Join the Flat2VR Modding Discord.' -ForegroundColor Cyan
-    Write-Host "       $DISCORD_INVITE" -ForegroundColor DarkGray
-    Pause-User 'Press Enter to open the server invite...'
-    try { Start-Process $DISCORD_INVITE } catch { Write-Warn "Open manually: $DISCORD_INVITE" }
-    Write-Host ''
-    Write-Host ' [2/3] Open the game thread and read the current notes.' -ForegroundColor Cyan
-    Write-Host "       $INFO_POST" -ForegroundColor DarkGray
-    Pause-User 'Press Enter to open the GTA V VR information thread...'
-    try { Start-Process $INFO_POST } catch { Write-Warn "Open manually: $INFO_POST" }
-    Write-Host ''
-    Write-Host ' [3/3] Download GTAVR-Setup-and-Play.exe from the exact post.' -ForegroundColor Cyan
-    Write-Host "       $DOWNLOAD_POST" -ForegroundColor DarkGray
-    Pause-User 'Press Enter to open the official download post...'
-    try { Start-Process $DOWNLOAD_POST } catch { Write-Warn "Open manually: $DOWNLOAD_POST" }
-    Pause-User 'Wait for the download to finish, then press Enter so the Hub can find it...'
-
-    $found = Find-PredownloadedFile -Patterns @($PACKAGE_NAME) `
-        -ExtraFolders (Get-ArchiveInputFolders) `
-        -Label 'GTAVR Setup and Play by DeployAbi'
-    if ($found -and (Test-DeployAbiPackage $found)) {
-        Copy-Item -LiteralPath $found -Destination $Destination -Force -ErrorAction Stop
+    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GTAV_TEST_DOWNLOAD_SOURCE) {
+        if ($env:PCVR_GTAV_TEST_DOWNLOAD_SOURCE -eq 'FAIL') { return $null }
+        $testSource = Assert-GtaTestFixture $env:PCVR_GTAV_TEST_DOWNLOAD_SOURCE
+        return (Get-ReviewedLauncher -Destination $Destination -SelectedFile $testSource)
+    }
+    $release = Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^GTAVR-Setup-and-Play\.exe$') `
+        -IncludePrerelease $true -SkipReleasesWithoutMatchingAsset -FallbackUrl $FALLBACK_URL `
+        -FallbackTag $FALLBACK_TAG -FallbackAssetName $PACKAGE_NAME
+    if (-not (Test-IsTrackableInstalledVersion ([string]$release.Tag))) { throw 'GitHub did not provide a trackable release.' }
+    $download = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $Destination -Label "GTAVR $($release.Tag)" `
+        -ManualUrl $RELEASES -AllowSkip $true
+    if ($download -eq $true -or [string]$download -in @('retry','manual')) {
+        if (-not (Test-DeployAbiPackage $Destination)) { throw 'The GitHub download is not a usable Windows Setup EXE.' }
+        $script:DeployAbiInstalledTag = [string]$release.Tag
         return $Destination
     }
-
-    $validator = { param([string]$Candidate) Test-DeployAbiPackage $Candidate }.GetNewClosure()
-    $retry = { Test-DeployAbiPackage $Destination }.GetNewClosure()
-    $result = Invoke-InstallerFallback -Action 'GTAVR Discord download' -Subject $PACKAGE_NAME `
-        -Url $DOWNLOAD_POST -DestFile $Destination -FileValidator $validator -RetryCheck $retry `
-        -Instructions 'Download GTAVR-Setup-and-Play.exe from the linked Discord post, then drag that EXE into this window.' `
-        -SkipMessage 'The current-build launcher is required.' -AllowSkip $false
-    if ([string]$result -eq 'retry' -and (Test-DeployAbiPackage $Destination)) { return $Destination }
     return $null
 }
 
@@ -152,19 +178,6 @@ function Install-HubLaunchFiles([string]$GameRoot,[string]$ReviewedExe) {
     return [pscustomobject]@{ Launcher=$launcher; Batch=$currentBat; Switch=$switchDest }
 }
 
-function Park-LegacyHooks([string]$GameRoot) {
-    foreach ($name in @('RealVR.asi','GTAVR.asi')) {
-        $active = Join-Path $GameRoot $name
-        $parked = "$active.off"
-        if (Test-Path -LiteralPath $active -PathType Leaf) {
-            Move-Item -LiteralPath $active -Destination $parked -Force -ErrorAction Stop
-            Write-Info "Parked the inactive legacy hook: $name"
-        }
-    }
-    $disabled = Join-Path $GameRoot 'gtavr.disabled'
-    if (Test-Path -LiteralPath $disabled -PathType Leaf) { Remove-Item -LiteralPath $disabled -Force -ErrorAction Stop }
-}
-
 Write-Header
 Write-Host ' This is the recommended setup for the current GTA V Legacy build.' -ForegroundColor White
 Write-Host ' It supports 6DOF head tracking, motion controllers, Virtual Desktop' -ForegroundColor White
@@ -172,12 +185,20 @@ Write-Host ' and a configurable in-headset overlay.' -ForegroundColor White
 Write-Host ''
 Write-Host ' IMPORTANT:' -ForegroundColor Yellow
 Write-Host '  - GTA V Legacy Story Mode only; never use the mod in GTA Online.' -ForegroundColor Yellow
+Write-Host '  - In Rockstar Games Launcher > Settings > General, set BattlEye OFF' -ForegroundColor Yellow
+Write-Host '    before Story Mode modding. You do not need to install BattlEye.' -ForegroundColor Yellow
+Write-Host '  - On a first install, start unmodded Story Mode once without VR,' -ForegroundColor White
+Write-Host '    reach the world, then close GTA before installing the mod.' -ForegroundColor White
 Write-Host '  - The author launcher is unsigned. Antivirus software may flag it.' -ForegroundColor Yellow
-Write-Host '  - Run it as your normal Windows user, NOT as administrator.' -ForegroundColor Yellow
+Write-Host '  - Publisher Setup needs administrator approval (UAC) to write' -ForegroundColor Yellow
+Write-Host '    protected game folders. Windows will ask before it opens.' -ForegroundColor Yellow
 Write-Host '  - The author app stores its own settings and logs in' -ForegroundColor Gray
 Write-Host '    %LOCALAPPDATA%\GTAVR. The portable Hub itself remains unchanged.' -ForegroundColor Gray
 Show-AntivirusNotice
 Pause-User 'Press Enter to continue...'
+$battleEyeAnswer = ('' + (Read-Host 'Confirm BattlEye is OFF in Rockstar Games Launcher: type OFF (or Q to quit)')).Trim().ToUpperInvariant()
+if ($battleEyeAnswer -eq 'Q') { return }
+if ($battleEyeAnswer -ne 'OFF') { throw 'BattlEye must be OFF in Rockstar Games Launcher before installing GTAVR for Story Mode.' }
 
 Write-Step 1 5 'Locating GTA V Legacy'
 $gtaDir = Find-GtaRoot
@@ -191,23 +212,53 @@ Write-Host ' The author launcher performs the authoritative build check and refu
 Write-Host ' to activate on an unsupported executable.' -ForegroundColor Gray
 if (Get-Process -Name 'GTA5','GTA5_BE' -ErrorAction SilentlyContinue) { throw 'Close GTA V before installing or switching VR mods.' }
 
-Write-Step 2 5 'Getting the Discord release'
+Write-Step 2 5 'Getting the GitHub release'
 $workRoot = Join-Path ([IO.Path]::GetTempPath()) ('PCVRHub_GTAVR_' + [Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($workRoot)
 try {
-    $reviewed = Get-ReviewedLauncher -Destination (Join-Path $workRoot $PACKAGE_NAME)
+    $reviewed = $null
+    $handover = Get-PCVRRecoveryInput -PathType Leaf
+    if ($handover) { [void](Set-PCVRRecoveryInput '') }
+    while (-not $reviewed) {
+        Write-Host '  [Enter] Download the latest official GitHub prerelease' -ForegroundColor White
+        Write-Host '  [L] Choose an already downloaded publisher Setup EXE' -ForegroundColor White
+        Write-Host '  [O] Open the official GitHub releases page' -ForegroundColor White
+        Write-Host '  [Q] Cancel setup' -ForegroundColor White
+        $choice = if ($handover) { 'L' } else { ('' + (Read-Host 'Choose Enter, L, O or Q')).Trim().ToUpperInvariant() }
+        switch ($choice) {
+            '' {
+                Write-Info 'Checking the official GitHub release; this may take a little time.'
+                try { $reviewed = Get-ReviewedLauncher -Destination (Join-Path $workRoot $PACKAGE_NAME) }
+                catch { Write-Warn ('GitHub did not provide a usable Setup: ' + $_.Exception.Message) }
+            }
+            'L' {
+                $path = if ($handover) { $handover } else { Read-Host 'Drag the downloaded EXE here or paste its full path (Q to cancel)' }
+                $handover = $null
+                if ((''+$path).Trim().ToUpperInvariant() -eq 'Q') { throw 'GTAVR Setup was cancelled before any game files were changed.' }
+                try { $reviewed = Get-ReviewedLauncher -Destination (Join-Path $workRoot $PACKAGE_NAME) -SelectedFile $path }
+                catch { Write-Warn ('Selected file was not accepted: ' + $_.Exception.Message) }
+            }
+            'O' {
+                [void](Open-PCVRPageAfterEnter -Message 'Press Enter to open the official GTAVR GitHub releases page...' -Url $RELEASES)
+            }
+            'Q' { throw 'GTAVR Setup was cancelled before any game files were changed.' }
+            default { Write-Warn 'Choose Enter, L, O or Q.' }
+        }
+    }
     if (-not $reviewed -or -not (Test-DeployAbiPackage $reviewed)) { throw 'A usable GTAVR launcher was not supplied.' }
-    Write-OK 'The Discord launcher is ready.'
+    Write-OK "Publisher launcher $script:DeployAbiInstalledTag is ready."
+    if ($script:DeployAbiInstalledTag -eq 'v0.11.19-ffb-test' -and $gameVersion -ne '1.0.3889.0') {
+        Write-Warn 'This test release documents GTA V Legacy 1.0.3889.0. Your game build may not be supported; check the release notes.'
+    }
 
-    Write-Step 3 5 'Preparing safe Hub launch and switching'
-    $launch = Install-HubLaunchFiles -GameRoot $gtaDir -ReviewedExe $reviewed
+    Write-Step 3 5 'Checking installed VR setups'
     $legacyPresent = (Test-Path -LiteralPath (Join-Path $gtaDir 'RealVR.asi') -PathType Leaf) -or `
                      (Test-Path -LiteralPath (Join-Path $gtaDir 'RealVR.asi.off') -PathType Leaf)
     if ($legacyPresent) {
         Write-OK 'Existing R.E.A.L. setup detected and preserved for switching.'
         Write-Info 'Its active hooks are parked only while DeployAbi is selected.'
     }
-    Park-LegacyHooks -GameRoot $gtaDir
+    Write-Info 'Installation leaves the active VR mode unchanged; Hub Play handles switching.'
 
     Write-Step 4 5 'Running GTAVR Setup and Play'
     Write-Host ' In the author window:' -ForegroundColor White
@@ -215,14 +266,24 @@ try {
     Write-Host '  2. Click Install / Update Everything.' -ForegroundColor Gray
     Write-Host '  3. Use Verify if offered, then close the author window to return.' -ForegroundColor Gray
     Write-Host '  4. Play later through the Hub button; it reopens this same launcher.' -ForegroundColor Gray
+    Write-Host '  Windows may request administrator approval (UAC) for publisher Setup.' -ForegroundColor Yellow
     Write-Host ''
+    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to open publisher Setup...')
     $oldInstallDir = $env:GTAV_INSTALL_DIR
     $oldExePath = $env:GTAV_EXE_PATH
     try {
         $env:GTAV_INSTALL_DIR = $gtaDir
         $env:GTAV_EXE_PATH = $gtaExe
-        $proc = Start-Process -FilePath $launch.Launcher -WorkingDirectory (Split-Path -Parent $launch.Launcher) -PassThru -ErrorAction Stop
-        $proc.WaitForExit()
+        if ($env:PCVR_HUB_TEST_MODE -eq '1') {
+            [void](Assert-GtaTestFixture $gtaDir)
+            if ($env:PCVR_GTAV_TEST_PUBLISHER_FAIL -eq '1') { throw 'Isolated publisher Setup failure.' }
+            foreach ($name in @('gtavr_install_manifest.txt','version.dll','OVRInject.dll','GTAVRBridge.asi')) {
+                [IO.File]::WriteAllText((Join-Path $gtaDir $name),'isolated publisher fixture')
+            }
+        } else {
+            $proc = Start-Process -FilePath $reviewed -WorkingDirectory (Split-Path -Parent $reviewed) -Verb RunAs -PassThru -ErrorAction Stop
+            $proc.WaitForExit()
+        }
     } finally {
         if ($null -eq $oldInstallDir) { Remove-Item Env:GTAV_INSTALL_DIR -ErrorAction SilentlyContinue } else { $env:GTAV_INSTALL_DIR = $oldInstallDir }
         if ($null -eq $oldExePath) { Remove-Item Env:GTAV_EXE_PATH -ErrorAction SilentlyContinue } else { $env:GTAV_EXE_PATH = $oldExePath }
@@ -235,15 +296,16 @@ try {
         throw ('The author setup was closed before a complete GTAVR install was verified. Missing: ' + ($missing -join ', ') + '. Re-run this option and click Install / Update Everything.')
     }
     if (-not (Confirm-PlacedFilesSurvive -Paths @($required | ForEach-Object { Join-Path $gtaDir $_ }) -GameDir $gtaDir)) {
-        throw 'One or more GTAVR files disappeared after installation. Check antivirus history, then retry.'
+        throw 'Required GTAVR files are missing after installation. Check the log, target path, permissions and protection history, then retry.'
     }
-    Set-Content -LiteralPath (Join-Path $gtaDir $RELEASE_PROOF) -Value $REVIEWED_RELEASE -Encoding ASCII -Force
-    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Value $gtaDir -Encoding UTF8 -Force
-    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.deployabi_path') -Value $gtaDir -Encoding UTF8 -Force
+    $launch = Install-HubLaunchFiles -GameRoot $gtaDir -ReviewedExe $reviewed
     Set-Content -LiteralPath (Join-Path $PSScriptRoot '.launch_exe') -Value $launch.Batch -Encoding UTF8 -Force
+    [void](Complete-PCVRInstallTransaction -Contract $CONTRACT -GameDir $gtaDir -Version $script:DeployAbiInstalledTag `
+        -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path'),(Join-Path $PSScriptRoot '.deployabi_path')) `
+        -AdditionalVersionReceiptPaths @((Join-Path $gtaDir $VERSION_PROOF)) -VersionSlot Secondary -Route Current)
 
     $desktop = [Environment]::GetFolderPath('Desktop')
-    if ($desktop) {
+    if ($desktop -and $env:PCVR_HUB_TEST_MODE -ne '1') {
         try {
             $icon = if (Test-Path -LiteralPath $gtaExe -PathType Leaf) { $gtaExe } else { $launch.Launcher }
             [void](New-DesktopShortcut -LnkPath (Join-Path $desktop 'Grand Theft Auto V VR - DeployAbi.lnk') `
@@ -257,6 +319,9 @@ try {
     Write-Host '  Use Play GTAVR Motion on this game page. The Hub parks R.E.A.L.,' -ForegroundColor White
     Write-Host '  enables DeployAbi, and opens GTAVR Setup and Play.' -ForegroundColor White
     Write-Host '  Click Play Story Mode there. Press Delete in VR for its overlay.' -ForegroundColor White
+    Write-Host '  A flat theater view may remain for about one minute after the' -ForegroundColor White
+    Write-Host '  Story Mode world loads before VR engages. If it stays, see the' -ForegroundColor White
+    Write-Host '  README and %LOCALAPPDATA%\GTAVR\launcher.log.' -ForegroundColor White
     Write-Host ''
     Write-Host " $QUIP" -ForegroundColor Magenta
     Write-Host ''

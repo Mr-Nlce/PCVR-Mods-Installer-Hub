@@ -5,7 +5,7 @@ $versionLabel     = $window.FindName("VersionLabel")
 $versionBadge     = $window.FindName("VersionBadge")
 $headerVrIcon     = $window.FindName("HeaderVrIcon")
 $headerHubTitle   = $window.FindName("HeaderHubTitle")
-$headerTagline    = $window.FindName("HeaderTagline")
+$headerHubTitleCompact = $window.FindName("HeaderHubTitleCompact")
 
 # Apply the subtle white -> light-grey vertical gradient (matching the
 # card tiles and detail-page title) to the header logo text and the
@@ -25,6 +25,7 @@ function global:Set-TitleGradient {
     } catch { }
 }
 Set-TitleGradient $headerHubTitle
+Set-TitleGradient $headerHubTitleCompact
 Set-TitleGradient ($window.FindName("ListBannerTitle"))
 Set-TitleGradient ($window.FindName("LibBannerTitle"))
 Set-TitleGradient ($window.FindName("OvBannerTitle"))
@@ -66,7 +67,7 @@ function global:Add-BannerStarfield {
         for ($k = 0; $k -lt $starCount; $k++) {
             $x  = $rand.NextDouble() * $fieldW
             $y  = $rand.NextDouble() * $BannerH
-            $sz = 1.2 + ($rand.NextDouble() * 1.6)
+            $sz = 3.0 * (1.2 + ($rand.NextDouble() * 1.6))
             $op = 0.30 + ($rand.NextDouble() * 0.60)
             foreach ($copy in 0, 1) {
                 $e = New-Object System.Windows.Shapes.Ellipse
@@ -133,7 +134,9 @@ function global:Add-BannerOrbs {
             $orb.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $orb.RenderTransform = $tt
-            $dur = 6.0 + ($rand.NextDouble() * 5.0)
+            $dur = if (@('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName) {
+                5.0 + ($rand.NextDouble() * 4.0)
+            } else { 6.0 + ($rand.NextDouble() * 5.0) }
             # Gentle drift (small amplitude so orbs stay in view, don't wander out).
             $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
             $ax.From = -(14 + $rand.NextDouble() * 12); $ax.To = (14 + $rand.NextDouble() * 14)
@@ -523,9 +526,9 @@ function global:Add-BannerParallax {
         $period = 1400.0
         $rand = New-Object System.Random
         $layers = @(
-            @{ n = 70; sz = 0.9; op = 0.45; dur = 60.0 },
-            @{ n = 55; sz = 1.4; op = 0.70; dur = 38.0 },
-            @{ n = 36; sz = 2.1; op = 1.00; dur = 24.0 }
+            @{ n = 70; sz = 2.7; op = 0.45; dur = 60.0 },
+            @{ n = 55; sz = 4.2; op = 0.70; dur = 38.0 },
+            @{ n = 36; sz = 6.3; op = 1.00; dur = 24.0 }
         )
         foreach ($L in $layers) {
             $layer = New-Object System.Windows.Controls.Canvas
@@ -742,7 +745,7 @@ function global:Add-BannerMotes {
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 42; $i++) {
             $d = New-Object System.Windows.Shapes.Ellipse
-            $s = 0.8 + $rand.NextDouble() * 1.6
+            $s = 3.0 * (0.8 + $rand.NextDouble() * 1.6)
             $d.Width = $s; $d.Height = $s; $d.Fill = $moteBrush
             $tt = New-Object System.Windows.Media.TranslateTransform
             $d.RenderTransform = $tt
@@ -987,7 +990,9 @@ function global:Add-BannerBlobs {
             $blob.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $blob.RenderTransform = $tt
-            $dur = 12.0 + $rand.NextDouble() * 6.0
+            $dur = if (@('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName) {
+                9.0 + $rand.NextDouble() * 4.0
+            } else { 12.0 + $rand.NextDouble() * 6.0 }
             $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
             $ax.From = -(40 + $rand.NextDouble() * 40); $ax.To = (40 + $rand.NextDouble() * 50)
             $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($dur)); $ax.AutoReverse = $true
@@ -1145,7 +1150,9 @@ function global:Add-BannerBokeh {
             $e.CacheMode = New-Object System.Windows.Media.BitmapCache
             $tt = New-Object System.Windows.Media.TranslateTransform
             $e.RenderTransform = $tt
-            $durx = 9 + $rand.NextDouble() * 10
+            $durx = if (@('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName) {
+                7.0 + $rand.NextDouble() * 7.0
+            } else { 9.0 + $rand.NextDouble() * 10.0 }
             $ax = New-Object System.Windows.Media.Animation.DoubleAnimation
             $ax.From = -(10 + $rand.NextDouble() * 14); $ax.To = (10 + $rand.NextDouble() * 14)
             $ax.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromSeconds($durx)); $ax.AutoReverse = $true
@@ -2235,6 +2242,25 @@ function global:Set-BannerEffect {
         }
     }
     Add-BannerEffect -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -Effect $Effect
+    if (@('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName) {
+        if (($Effect -match '^(bokeh|blob|orbs)' -or $Effect -in @('stars', 'parallax', 'motes')) -and $g) {
+            # A later effect swap normally inserts at index 1. Glass's nearly
+            # opaque base may already occupy index 2, hiding the effect.
+            # Keep coloured balls and fine particles above the base, below art.
+            $fxLayer = @($g.Children | Where-Object { $_.Tag -eq 'BannerFx' }) | Select-Object -First 1
+            $baseLayer = @($g.Children | Where-Object { $_.Tag -eq 'BannerGlass' }) | Select-Object -First 1
+            if ($fxLayer -and $baseLayer) {
+                $g.Children.Remove($fxLayer)
+                $baseIndex = $g.Children.IndexOf($baseLayer)
+                $g.Children.Insert($baseIndex + 1, $fxLayer)
+            }
+        }
+        if (-not $global:BannerFxByBanner) { $global:BannerFxByBanner = @{} }
+        $global:BannerFxByBanner[$BannerName] = $Effect
+        if (Get-Command Update-BannerGlassFade -ErrorAction SilentlyContinue) {
+            Update-BannerGlassFade -BannerName $BannerName
+        }
+    }
 }
 
 # Re-roll the per-banner effects (used on Explore shuffle). Picks are random,
@@ -2559,8 +2585,8 @@ Add-BannerDotPulse "OvBannerCtrlDot"
 
 if ($versionLabel) { $versionLabel.Text = "v$HUB_VERSION" }
 
-# Header hover-grow: version badge, VR headset glyph, and the
-# "Install n!ce VR mods..." tagline all subtly scale up on hover,
+# Header hover-grow: version badge, VR headset glyph, and the title
+# subtly scale up on hover,
 # matching the motion language used by the list banner and tag
 # chips. Pure visual flourish - no click action attached.
 function global:Add-HeaderHoverGrow {
@@ -2580,7 +2606,7 @@ function global:Add-HeaderHoverGrow {
 Add-HeaderHoverGrow -Element $versionBadge   -Scale 1.10
 Add-HeaderHoverGrow -Element $headerVrIcon   -Scale 1.15
 Add-HeaderHoverGrow -Element $headerHubTitle -Scale 1.04
-Add-HeaderHoverGrow -Element $headerTagline  -Scale 1.04
+Add-HeaderHoverGrow -Element $headerHubTitleCompact -Scale 1.04
 
 # Populate and reveal the "Update X available" banner. Factored into a
 # global function (instead of an inline block that ran once at load time)

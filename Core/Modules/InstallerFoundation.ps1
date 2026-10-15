@@ -116,7 +116,7 @@ function global:Find-PCVRDownloadedCandidate {
         [string[]]$Folders = @()
     )
     if (-not $Folders -or $Folders.Count -eq 0) {
-        $Folders = @([IO.Path]::Combine([Environment]::GetFolderPath('UserProfile'),'Downloads'))
+        $Folders = @((Get-PCVRDownloadsFolder))
     }
     $recoveryFile = Get-PCVRRecoveryInput -PathType Leaf
     if ($recoveryFile) {

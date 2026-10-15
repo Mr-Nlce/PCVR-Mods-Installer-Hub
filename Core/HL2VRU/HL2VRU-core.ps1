@@ -138,7 +138,7 @@ if (-not $steamRoot -or -not (Test-Path $steamRoot)) {
  Write-OK "Steam detected at: $steamNow"
  } else {
  Pause-User "Still cannot find Steam. Install it then re-run. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -200,7 +200,7 @@ if (-not $hl2vrPath) {
  Write-OK "Found HL2VR install: $hl2vrPath"
  } else {
  Pause-User "Still no HL2VR install detected. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -224,7 +224,7 @@ if (-not (Test-Path $hl2vrExe)) {
  Write-OK "hl2vr.exe found."
  } else {
  Pause-User "Still no hl2vr.exe. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -277,7 +277,7 @@ if ($sevenZipExe) {
  Write-OK "7-Zip detected at: $sevenZipNow"
  } else {
  Pause-User "Still no 7-Zip detected. Install it then re-run. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -304,7 +304,7 @@ if ($sevenZipExe) {
  Write-OK "7-Zip detected at: $sevenZipNow"
  } else {
  Pause-User "Still no 7-Zip detected. Install it then re-run. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -333,7 +333,7 @@ if ($sevenZipExe) {
  Write-OK "7-Zip detected at: $sevenZipNow"
  } else {
  Pause-User "Still no 7-Zip detected. Install it then re-run. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -377,7 +377,7 @@ try {
  Write-OK "7-Zip detected at: $sevenZipNow"
  } else {
  Pause-User "Still no 7-Zip detected. Install it then re-run. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  }
  # User chose Skip - continue at own risk
@@ -395,12 +395,44 @@ if (-not (Test-Path $archivePath)) {
  # If the user fixed the issue, the next pass through the
  # installer will succeed. Exit cleanly so they can re-run.
  Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
- exit 1
+ throw 'Setup did not complete; see the error above.'
  }
  # User chose Skip - continue at own risk
 }
 $sz = (Get-Item $archivePath).Length
 Write-OK "Downloaded $ARCHIVE_NAME ($([math]::Round($sz/1MB,1)) MB)"
+
+# Inspect the live archive before allowing 7-Zip to touch the game folder.
+# A readable but unrelated archive is not proof that the add-on was installed.
+$archiveListing = @(& $sevenZipExe l -slt $archivePath 2>&1)
+if ($LASTEXITCODE -ne 0) {
+ Write-Fail "The downloaded 7z archive could not be read."
+ throw 'Setup did not complete; see the error above.'
+}
+$listingBody = ($archiveListing -join "`n") -split '----------', 2
+if ($listingBody.Count -lt 2) {
+ Write-Fail "The downloaded 7z archive has no readable file list."
+ throw 'Setup did not complete; see the error above.'
+}
+$archiveFiles = @()
+foreach ($line in ($listingBody[1] -split "`r?`n")) {
+ if ($line -notmatch '^Path = (.+)$') { continue }
+ $relative = $Matches[1].Replace('/', '\')
+ $parts = @($relative -split '\\')
+ if ([IO.Path]::IsPathRooted($relative) -or $relative.Contains(':') -or
+     @($parts | Where-Object { $_ -eq '..' -or $_ -eq '' }).Count -gt 0) {
+  Write-Fail "The archive contains an unsafe path: $relative"
+  throw 'Setup did not complete; see the error above.'
+ }
+ if ($relative -match '\\[^\\]+\.[^\\]+$') { $archiveFiles += $relative }
+}
+$modFiles = @($archiveFiles | Where-Object {
+ $_ -match '^(hlvr|episodicvr|bin)\\.+\.(dll|vpk|pak|asi)$'
+})
+if ($modFiles.Count -eq 0) {
+ Write-Fail "The archive contains no Unleashed files for the HL2VR game folders."
+ throw 'Setup did not complete; see the error above.'
+}
 
 # -------------------------------------------------------
 # Step 4: Extract on top of HL2VR folder
@@ -421,43 +453,17 @@ try {
  $p = Start-Process -FilePath $sevenZipExe -ArgumentList $extractArgs -Wait -PassThru -WindowStyle Hidden
  if ($p.ExitCode -ne 0) {
  Write-Fail "7-Zip extraction failed with exit code $($p.ExitCode)."
- # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$sevenZip' with 7-Zip or Windows Explorer, and extract its contents into your game install folder. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+ throw 'Setup did not complete; see the error above.'
  }
 } catch {
  Write-Fail "Extraction error: $($_.Exception.Message)"
- $__fb = Invoke-InstallerFallback -Action "7-Zip detection" `
- -Url "https://www.7-zip.org" `
- -Instructions "Install 7-Zip from https://www.7-zip.org and re-run this installer, OR extract the .7z manually using any 7z-capable tool." `
- -SkipMessage "Skipped - cannot extract .7z archives; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-check 7-Zip availability
- $sevenZipNow = $null
- foreach ($c in @("C:\Program Files\7-Zip\7z.exe", "C:\Program Files (x86)\7-Zip\7z.exe", "$env:LOCALAPPDATA\Programs\7-Zip\7z.exe")) {
- if (Test-Path $c) { $sevenZipNow = $c; break }
+ throw 'Setup did not complete; see the error above.'
+}
+foreach ($relative in $modFiles) {
+ if (-not (Test-Path -LiteralPath (Join-Path $hl2vrPath $relative) -PathType Leaf)) {
+  Write-Fail "A required archive file is missing after extraction: $relative"
+  throw 'Setup did not complete; see the error above.'
  }
- if ($sevenZipNow) {
- Write-OK "7-Zip detected at: $sevenZipNow"
- } else {
- Pause-User "Still no 7-Zip detected. Install it then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
 }
 Write-OK "Extraction complete."
 

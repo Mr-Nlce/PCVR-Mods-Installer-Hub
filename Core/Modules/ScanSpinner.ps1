@@ -49,6 +49,8 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Windows.Interop;
+using System.Runtime.InteropServices;
 
 public class PcvrVisualHost : FrameworkElement
 {
@@ -210,6 +212,167 @@ public class PcvrScanSpinner
         _target = null;
     }
 }
+
+// The library switch shares the scan spinner's independent WPF render host.
+// A DispatcherTimer on this STA thread fills the four glyph squares in order
+// even while PowerShell is synchronously building the next view.
+public class PcvrViewSwitchIndicator
+{
+    private HostVisual _host;
+    private Thread _thread;
+    private Dispatcher _dispatcher;
+    private VisualTarget _target;
+    private PcvrVisualHost _element;
+    private DispatcherTimer _timer;
+    private DispatcherTimer _watchdog;
+    private Rectangle[] _squares;
+    private Rectangle[] _popupSquares;
+    private Window _popup;
+    private volatile int _phase;
+    private volatile bool _ready;
+    private volatile bool _popupVisible;
+
+    public FrameworkElement Element { get { return _element; } }
+    public int Phase { get { return _phase; } }
+    public bool Ready { get { return _ready; } }
+    public bool PopupVisible { get { return _popupVisible; } }
+
+    [DllImport("user32.dll", EntryPoint="GetWindowLongW")]
+    private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll", EntryPoint="SetWindowLongW")]
+    private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+
+    public static PcvrViewSwitchIndicator Create(double left, double top)
+    {
+        PcvrViewSwitchIndicator s = new PcvrViewSwitchIndicator();
+        s._host = new HostVisual();
+        s._element = new PcvrVisualHost(s._host);
+        ManualResetEvent ready = new ManualResetEvent(false);
+        s._thread = new Thread(delegate()
+        {
+            try
+            {
+                s._dispatcher = Dispatcher.CurrentDispatcher;
+                s._target = new VisualTarget(s._host);
+                s._target.RootVisual = s.Build();
+                s._popup = new Window();
+                s._popup.WindowStyle = WindowStyle.None;
+                s._popup.ResizeMode = ResizeMode.NoResize;
+                s._popup.AllowsTransparency = true;
+                s._popup.Background = Brushes.Transparent;
+                s._popup.ShowInTaskbar = false;
+                s._popup.ShowActivated = false;
+                s._popup.Topmost = true;
+                s._popup.Width = 14;
+                s._popup.Height = 14;
+                s._popup.Left = left;
+                s._popup.Top = top;
+                s._popup.Content = s.BuildPopup();
+                s._popup.SourceInitialized += delegate {
+                    IntPtr hwnd = new WindowInteropHelper(s._popup).Handle;
+                    const int GWL_EXSTYLE = -20;
+                    const int WS_EX_TRANSPARENT = 0x20;
+                    const int WS_EX_TOOLWINDOW = 0x80;
+                    const int WS_EX_NOACTIVATE = 0x08000000;
+                    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) |
+                        WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+                };
+                s._popup.Show();
+                s._popupVisible = s._popup.IsVisible;
+                s.Paint(1);
+                s._timer = new DispatcherTimer(DispatcherPriority.Render, s._dispatcher);
+                s._timer.Interval = TimeSpan.FromMilliseconds(300);
+                s._timer.Tick += delegate { s.Paint(s._phase >= 4 ? 1 : s._phase + 1); };
+                s._timer.Start();
+                s._watchdog = new DispatcherTimer(DispatcherPriority.Background, s._dispatcher);
+                s._watchdog.Interval = TimeSpan.FromSeconds(15);
+                s._watchdog.Tick += delegate {
+                    s._watchdog.Stop();
+                    s._timer.Stop();
+                    try { s._popup.Close(); } catch { }
+                    s._popupVisible = false;
+                    s._dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);
+                };
+                s._watchdog.Start();
+                s._ready = true;
+            }
+            catch { }
+            finally { ready.Set(); }
+            if (s._ready) { try { Dispatcher.Run(); } catch { } }
+        });
+        s._thread.SetApartmentState(ApartmentState.STA);
+        s._thread.IsBackground = true;
+        s._thread.Start();
+        ready.WaitOne(400);
+        return s;
+    }
+
+    private Visual Build()
+    {
+        Canvas root = new Canvas();
+        root.Width = 14;
+        root.Height = 14;
+        _squares = new Rectangle[4];
+        for (int i = 0; i < 4; i++)
+        {
+            Rectangle square = new Rectangle();
+            square.Width = 5.5;
+            square.Height = 5.5;
+            square.RadiusX = 1;
+            square.RadiusY = 1;
+            Canvas.SetLeft(square, (i % 2) * 8.5);
+            Canvas.SetTop(square, (i / 2) * 8.5);
+            root.Children.Add(square);
+            _squares[i] = square;
+        }
+        root.Measure(new Size(14, 14));
+        root.Arrange(new Rect(0, 0, 14, 14));
+        return root;
+    }
+
+    private Visual BuildPopup()
+    {
+        Canvas root = new Canvas();
+        root.Width = 14;
+        root.Height = 14;
+        _popupSquares = new Rectangle[4];
+        for (int i = 0; i < 4; i++)
+        {
+            Rectangle square = new Rectangle();
+            square.Width = 5.5;
+            square.Height = 5.5;
+            square.RadiusX = 1;
+            square.RadiusY = 1;
+            Canvas.SetLeft(square, (i % 2) * 8.5);
+            Canvas.SetTop(square, (i / 2) * 8.5);
+            root.Children.Add(square);
+            _popupSquares[i] = square;
+        }
+        return root;
+    }
+
+    private void Paint(int phase)
+    {
+        string[] colors = { "#6BF49B", "#3A8ADD", "#3A8ADD", "#6BF49B" };
+        for (int i = 0; i < 4; i++)
+        {
+            Brush fill = (Brush)new BrushConverter().ConvertFromString(i < phase ? colors[i] : "#AAAAAA");
+            _squares[i].Fill = fill;
+            _popupSquares[i].Fill = fill;
+        }
+        _phase = phase;
+    }
+
+    public void Stop()
+    {
+        try { if (_popup != null && _dispatcher != null) { _dispatcher.Invoke(new Action(delegate { _popup.Close(); _popupVisible = false; })); } } catch { }
+        try { if (_dispatcher != null) { _dispatcher.InvokeShutdown(); } } catch { }
+        try { if (_thread != null && _thread.IsAlive) { _thread.Join(500); } } catch { }
+        _dispatcher = null;
+        _thread = null;
+        _target = null;
+    }
+}
 '@
       }
       $global:ScanSpinnerReady = $true
@@ -294,4 +457,72 @@ function global:Stop-ScanSpinner {
     $global:ScanSpinnerActive = $null
     try { if ($s.Host -and $s.Element) { $s.Host.Children.Remove($s.Element) } } catch {}
     try { if ($s.Spinner) { $s.Spinner.Stop() } } catch {}
+}
+
+$global:ViewSwitchIndicatorActive = $null
+
+function global:Start-ViewSwitchIndicator {
+    if (-not $global:ScanSpinnerReady) { return $null }
+    # Each click owns its own host. A late finally from an earlier click may
+    # only remove that earlier host, never the newer switch's animation.
+    Stop-ViewSwitchIndicator -Immediate
+    try {
+        $hostGrid = $window.FindName('DiscoverGlyphHost')
+        if (-not $hostGrid) { return $null }
+        $screenPoint = $hostGrid.PointToScreen([System.Windows.Point]::new(0, 0))
+        $source = [System.Windows.PresentationSource]::FromVisual($hostGrid)
+        if ($source -and $source.CompositionTarget) { $screenPoint = $source.CompositionTarget.TransformFromDevice.Transform($screenPoint) }
+        $indicator = [PcvrViewSwitchIndicator]::Create($screenPoint.X, $screenPoint.Y)
+        if (-not $indicator -or -not $indicator.Ready) {
+            if ($indicator) { $indicator.Stop() }
+            return $null
+        }
+        $element = $indicator.Element
+        $element.Width = 14
+        $element.Height = 14
+        $element.IsHitTestVisible = $false
+        [System.Windows.Controls.Grid]::SetRowSpan($element, 3)
+        [System.Windows.Controls.Grid]::SetColumnSpan($element, 3)
+        [void]$hostGrid.Children.Add($element)
+        $token = [Guid]::NewGuid().ToString('N')
+        $global:ViewSwitchIndicatorActive = @{ Token = $token; Indicator = $indicator; Element = $element; Host = $hostGrid; StartedAtUtc = [DateTime]::UtcNow; StopTimer = $null }
+        # Commit the hosted visual before synchronous tile/status work begins.
+        $hostGrid.UpdateLayout()
+        foreach ($priority in @('Render', 'Background')) {
+            $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::$priority)
+        }
+        return $token
+    } catch {
+        Stop-ViewSwitchIndicator -Immediate
+        return $null
+    }
+}
+
+function global:Stop-ViewSwitchIndicator {
+    param([string]$Token, [switch]$Immediate)
+    $active = $global:ViewSwitchIndicatorActive
+    if (-not $active -or ($Token -and $Token -cne $active.Token)) { return }
+    if (-not $Immediate) {
+        # Four 300 ms steps must remain visible even when cached views switch
+        # immediately. The UI dispatcher owns the one-shot cleanup timer.
+        $remainingMs = 1150 - ([DateTime]::UtcNow - $active.StartedAtUtc).TotalMilliseconds
+        if ($remainingMs -gt 0 -and -not $active.StopTimer) {
+            try {
+                $timer = [System.Windows.Threading.DispatcherTimer]::new([System.Windows.Threading.DispatcherPriority]::Background, $window.Dispatcher)
+                $timer.Interval = [TimeSpan]::FromMilliseconds($remainingMs)
+                $timerToken = $active.Token
+                $timer.Add_Tick({
+                    $timer.Stop()
+                    Stop-ViewSwitchIndicator -Token $timerToken -Immediate
+                }.GetNewClosure())
+                $active.StopTimer = $timer
+                $timer.Start()
+                return
+            } catch { }
+        } elseif ($active.StopTimer) { return }
+    }
+    $global:ViewSwitchIndicatorActive = $null
+    try { if ($active.StopTimer) { $active.StopTimer.Stop() } } catch { }
+    try { [void]$active.Host.Children.Remove($active.Element) } catch { }
+    try { $active.Indicator.Stop() } catch { }
 }

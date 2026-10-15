@@ -9,8 +9,9 @@ This is an **external** setup: the Hub does not install anything for it.
 The button on this page opens the Knossos.NET project so you can grab the
 latest release and set it up yourself.
 
-The current Knossos.NET **v1.3.11** improves proxy fallback, makes library and
-quick-start setup clearer, and reports disk-space problems more usefully.
+The current Knossos.NET **v1.3.12** fixes save-command guards, first-close
+handling, tray double-click and longer conversion button labels. The v1.3.11
+changes improved proxy fallback, library setup and disk-space messages.
 
 ## Requirements
 

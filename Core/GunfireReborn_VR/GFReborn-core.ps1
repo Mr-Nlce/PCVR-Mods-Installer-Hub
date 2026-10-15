@@ -175,6 +175,33 @@ if (-not $depotPath) {
 }
 
 # -------------------------------------------------------
+# Before moving the Steam depot, download and verify the VR payload. A wrong
+# archive must leave the original depot where Steam put it.
+$tempDir = Join-Path $env:TEMP "GunfireVRInstaller_$([System.IO.Path]::GetRandomFileName())"
+New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+$vrZip = Join-Path $tempDir 'VRMod.zip'
+$vrExtract = Join-Path $tempDir 'VRMod'
+$vrDownload = Invoke-DownloadOrFallback -Url $VRMOD_URL -Destination $vrZip `
+        -Label "Gunfire Reborn VR mod v1.0.9.1" `
+        -ManualUrl "https://github.com/Astienth/gunfire-reborn-bhaptics/releases/tag/1.0.0" `
+        -Instructions "Download 'GunfireRebornVR.V1.0.9.1.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
+        -SkipMessage "Skipped - the VR mod was not downloaded."
+if (-not (Test-Path -LiteralPath $vrZip -PathType Leaf)) {
+    Write-Fail "The VR archive is unavailable; the depot was not moved."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+$vrExtractResult = Expand-ArchiveOrFallback -ArchivePath $vrZip -DestinationFolder $vrExtract -Label "VRMod" -AllowSkip $false
+if ([string]$vrExtractResult -notin @('ok','manual')) {
+    Write-Fail "The VR archive could not be extracted; the depot was not moved."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+foreach ($relative in @('winhttp.dll','BepInEx\plugins\PureDark.VRMod\VRMod.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $vrExtract $relative) -PathType Leaf)) {
+        Write-Fail "The VR archive is missing $relative; the depot was not moved."
+        Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+    }
+}
+
 # STEP 2: Move depot to stable folder
 # -------------------------------------------------------
 # The depot lives in steamapps\content\app_<id>\depot_<id> which
@@ -232,42 +259,21 @@ $gamePath = $targetPath
 # -------------------------------------------------------
 Write-Step 3 4 "Installing Mods"
 
-$tempDir = Join-Path $env:TEMP "GunfireVRInstaller_$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $tempDir | Out-Null
 $ignore = @("manifest.json","README.md","icon.png","CHANGELOG.md","changelog.txt")
 $failed = @()
 
 # --- VR Mod ---
-$vrZip     = Join-Path $tempDir "VRMod.zip"
-$vrExtract = Join-Path $tempDir "VRMod"
-$r = Invoke-DownloadOrFallback -Url $VRMOD_URL -Destination $vrZip `
-        -Label "Gunfire Reborn VR mod v1.0.9.1" `
-        -ManualUrl "https://github.com/Astienth/gunfire-reborn-bhaptics/releases/tag/1.0.0" `
-        -Instructions "Download 'GunfireRebornVR.V1.0.9.1.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
-        -SkipMessage "Skipped - VR mod missing; install is incomplete (questionable result)."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($r -is [bool] -and $r)) { $failed += "VRMod" }
-
-if (Test-Path $vrZip) {
-    $efb = Expand-ArchiveOrFallback -ArchivePath $vrZip -DestinationFolder $vrExtract -Label "VRMod" `
-            -SkipMessage "Skipped - VRMod was not extracted; install is incomplete."
-    if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-        try {
-            Get-ChildItem -Path $vrExtract | Where-Object { $_.Name -notin $ignore } | ForEach-Object {
-                $target = Join-Path $gamePath $_.Name
-                $keep = if ($_.Name -ieq "BepInEx") { @("config") } else { @() }
-                $null = Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) VRMod files" `
-                    -KeepExistingRelativePaths $keep
-            }
-            Write-OK "VRMod installed!"
-        } catch {
-            Write-Host "FAILED to copy VRMod files: $_" -ForegroundColor Red
-            $failed += "VRMod"
-        }
-    } else {
-        $failed += "VRMod"
+try {
+    Get-ChildItem -Path $vrExtract | Where-Object { $_.Name -notin $ignore } | ForEach-Object {
+        $target = Join-Path $gamePath $_.Name
+        $keep = if ($_.Name -ieq "BepInEx") { @("config") } else { @() }
+        $null = Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) VRMod files" `
+            -KeepExistingRelativePaths $keep
     }
+    Write-OK "VRMod installed!"
+} catch {
+    Write-Host "FAILED to copy VRMod files: $_" -ForegroundColor Red
+    $failed += "VRMod"
 }
 
 # --- bHaptics Mod ---
@@ -302,6 +308,12 @@ if (Test-Path $bhZip) {
     }
 }
 
+if ('VRMod' -in $failed -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'winhttp.dll') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'BepInEx\plugins\PureDark.VRMod\VRMod.dll') -PathType Leaf)) {
+    Write-Fail "The required VR runtime is incomplete; no success receipt was written."
+    Pause-User "Press Enter to exit..."; exit 1
+}
 try { Remove-Item $tempDir -Recurse -Force } catch {}
 
 # Drop a steam_appid.txt so the VR build can talk to Steam

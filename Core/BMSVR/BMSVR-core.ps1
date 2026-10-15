@@ -206,16 +206,11 @@ Write-Host ""
  -AllowSkip $false
  if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
+  $hl2vrPath = Find-SteamGameFolder -folderName 'Half-Life 2 VR' -libraries $libraries
+  if (-not $hl2vrPath -or -not (Test-Path -LiteralPath (Join-Path $hl2vrPath 'ep2vr.exe') -PathType Leaf)) {
+   Pause-User 'Episode Two VR is still missing. Press Enter to exit after Steam finishes installing it.'
+   exit 1
+  }
  }
  # User chose Skip - continue at own risk
 }
@@ -417,12 +412,12 @@ $__fb = Invoke-InstallerFallback -Action "install folder creation" `
  -AllowSkip $false
 if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if ([string]$__fb -eq "retry") {
- # Retry folder create
+ # Retry the parent folder that actually failed.
  try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
+ if (-not (Test-Path -LiteralPath $installParent)) {
+ New-Item -ItemType Directory -Path $installParent -Force -ErrorAction Stop | Out-Null
  }
- Write-OK "Folder ready: $gameDir"
+ Write-OK "Folder ready: $installParent"
  } catch {
  Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
  exit 1
@@ -437,28 +432,9 @@ if ((Test-Path $installRoot) -and (Get-ChildItem $installRoot -ErrorAction Silen
  Write-Warn "Folder exists and is not empty: $installRoot"
  $ow = (Read-Host " Overwrite? Type YES to continue").Trim()
  if ($ow -ne "YES") {
- Write-Fail "Aborted by user."
- Write-Host ""
-Write-Host "Prepare for unforeseen consequences." -ForegroundColor Green
-Write-Host ""
-$__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$gameDir' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
-if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
- }
-# User chose Skip - continue at own risk
+ Write-Info 'Cancelled without changing the existing folder.'
+ Pause-User 'Press Enter to exit.'
+ exit 0
  }
 }
 
@@ -511,30 +487,19 @@ $moExe = Get-ChildItem -Path $installRoot -Filter "ModOrganizer.exe" -Recurse -F
 if (-not $moExe) {
  Write-Fail "ModOrganizer.exe not found after extraction."
  Write-Fail "Archive structure may be unexpected. Check: $installRoot"
- Write-Host ""
-Write-Host "Prepare for unforeseen consequences." -ForegroundColor Green
-Write-Host ""
-$__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Create or pick a writable BMSVR install root - pick a path NOT inside Users\\ or Program Files (e.g. C:\\Games\\BMSVR). MO2 needs raw write access. Choose Retry once the path is available." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
-if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
+ Pause-User 'Press Enter to close without marking this setup complete.'
  exit 1
- }
- }
-# User chose Skip - continue at own risk
 }
 $mo2Root = $moExe.DirectoryName
 Write-OK "MO2 root: $mo2Root"
+
+$requiredMO2 = @('ModOrganizer.exe','ModOrganizer.ini','mods\BMS\gameinfo.txt.skip','profiles\Black Mesa Source VR\modlist.txt')
+$missingMO2 = @($requiredMO2 | Where-Object { -not (Test-Path -LiteralPath (Join-Path $mo2Root $_) -PathType Leaf) })
+if ($missingMO2.Count -gt 0) {
+ Write-Fail "The selected archive did not install the Black Mesa Source VR profile: $($missingMO2 -join ', ')"
+ Pause-User 'Press Enter to close without marking this setup complete.'
+ exit 1
+}
 
 # Verify expected sub-structure
 $modsDir = Join-Path $mo2Root "mods"

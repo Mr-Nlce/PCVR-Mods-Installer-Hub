@@ -5,8 +5,8 @@
 $script:RazeSharedRoot = $PSScriptRoot
 $script:RazeRepo = 'GameOrDie007/RazeXR-PCVR'
 $script:RazeReleasesUrl = 'https://github.com/GameOrDie007/RazeXR-PCVR/releases'
-$script:RazeFallbackTag = 'v1.0'
-$script:RazeFallbackUrl = 'https://github.com/GameOrDie007/RazeXR-PCVR/releases/download/v1.0/RazeXR-PCVR.zip'
+$script:RazeFallbackTag = 'v1.1'
+$script:RazeFallbackUrl = 'https://github.com/GameOrDie007/RazeXR-PCVR/releases/download/v1.1/RazeXR-PCVR-1.1.zip'
 $script:RazeDefaultRoot = 'C:\Games\RazeXR PCVR'
 $script:RazeCoreRoot = Split-Path -Parent $script:RazeSharedRoot
 if (-not (Get-Command Install-OwnedModPayload -ErrorAction SilentlyContinue)) {
@@ -477,8 +477,8 @@ function Install-RazeXRGame([string]$Family) {
 
         Write-RazeStep 2 5 'Getting the current stable GitHub release'
         $release = Resolve-GitHubReleaseAsset -Repo $script:RazeRepo `
-            -AssetPatterns @('(?i)^RazeXR-PCVR\.zip$') `
-            -FallbackUrl $script:RazeFallbackUrl -FallbackTag $script:RazeFallbackTag -FallbackAssetName 'RazeXR-PCVR.zip'
+            -AssetPatterns @('(?i)^RazeXR-PCVR(?:[-_.]v?[0-9][0-9A-Za-z._-]*)?\.zip$') `
+            -FallbackUrl $script:RazeFallbackUrl -FallbackTag $script:RazeFallbackTag -FallbackAssetName 'RazeXR-PCVR-1.1.zip'
         Write-RazeInfo "Stable release: $($release.Tag)"
         $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr_razexr_' + [Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)

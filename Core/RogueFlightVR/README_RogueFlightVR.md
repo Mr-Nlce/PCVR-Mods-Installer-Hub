@@ -9,6 +9,8 @@ A breathtaking arcade space-combat game inspired by prestige anime - bullet-hell
 
 A community VR mod for the gamepad-driven anime space shooter, distributed by Astienth via the FarmerTrueVR Discord server. **Discord login is required** to access the download. Supports OpenXR only - no OpenVR.
 
+The author expects the separate Steam demo build to be incompatible. The Hub does not offer it as an install location. Use the full game for this VR package.
+
 If you'd rather not use the in-Hub installer, the manual instructions live in the original mod post in the FarmerTrueVR Discord:
 - https://discord.com/channels/1001138422972432597/1443945389454528634/1443945389454528634
 
@@ -36,14 +38,15 @@ Hold your **left controller close to your head**. When it vibrates, the hotkey i
 
 ![Controller Layout](ControllerLayout.jpg)
 
-- [[Left Stick]] → D-Pad while hotkey active
-- [[Left Stick Click]] → Back / View button while hotkey active
-- [[Right Stick Click]] → Start / Menu button while hotkey active
-- [[Left Trigger]], [[Right Trigger]], [[A]], [[B]], [[X]], [[Y]], [[Left Stick]] and [[Right Stick]] otherwise map directly to their gamepad equivalents.
+| Button | Action |
+|---|---|
+| [[Left Stick]] during hotkey gesture | D-Pad |
+| [[Left Stick Click]] during hotkey gesture | Back / View |
+| [[Right Stick Click]] during hotkey gesture | Start / Menu |
+| [[Left Trigger]], [[Right Trigger]], [[A]], [[B]], [[X]], [[Y]], [[Left Stick]], [[Right Stick]] | Corresponding Xbox input otherwise |
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter view after a scene load |
 
-### Recentering
-
-Click [[Left Stick Click]] + [[Right Stick Click]] to recenter the view at any time. Recentering may be required after loading scenes.
+Recentering may be required after loading scenes.
 
 ## bHaptics support (Vest only)
 

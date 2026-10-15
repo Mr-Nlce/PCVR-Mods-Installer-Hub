@@ -248,6 +248,27 @@ Write-Host " Set 'Present Non-VR Applications on Theater Screen Upon Launch' -> 
 Write-Host ""
 Pause-User "Press Enter to confirm you are aware of this setting..."
 
+# XIVLauncher by itself is not the VR mod. Dalamud stores plugins outside
+# the game and launcher folders, so verify the actual plugin before writing
+# either the Hub path receipt or the game-side recovery marker.
+$pluginDll = $null
+foreach ($pluginRoot in @(
+    (Join-Path $env:APPDATA 'XIVLauncher\installedPlugins'),
+    (Join-Path $env:LOCALAPPDATA 'XIVLauncher\installedPlugins')
+)) {
+    if (-not (Test-Path -LiteralPath $pluginRoot -PathType Container)) { continue }
+    $pluginDll = Get-ChildItem -LiteralPath $pluginRoot -Filter 'FfxivVR.dll' -File -Recurse -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($pluginDll) { break }
+}
+if (-not $pluginDll) {
+    Write-Fail "FfxivVR.dll was not found in Dalamud's installedPlugins folder."
+    Write-Host "  Finish the plugin installation in /xlplugins, then run this setup again." -ForegroundColor Yellow
+    Pause-User "Press Enter to exit; VR Ready was not recorded."
+    exit 1
+}
+Write-OK "Dalamud VR plugin verified: $($pluginDll.FullName)"
+
 # Write a small marker file in the FFXIV game root so the Hub
 # can recognize this install as VR Ready on subsequent scans.
 # Without it the Hub only sees the game installed (no DLL to

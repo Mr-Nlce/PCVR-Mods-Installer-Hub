@@ -212,29 +212,20 @@ $zipPath = Join-Path $tempDir "modules.zip"
 $extractDir = Join-Path $tempDir "extract"
 
 Write-Host " Downloading modules ... " -NoNewline -ForegroundColor White
+$downloadInfo = @{}
+$modulesVersionVerified = $false
 try {
- Invoke-SafeDownload -Urls @($downloadUrl, $MODULES_FALLBACK_URL) -Destination $zipPath -Label "GMod VR modules" -ManualUrl "https://github.com/Abyss-c0re/vrmod-module-master/releases" -Instructions "Download 'modules.zip' from the releases page, save it as '$zipPath', then choose Retry." -SkipMessage "" | Out-Null
+ $downloadResult = Invoke-SafeDownload -Urls @($downloadUrl) -Destination $zipPath -Label "GMod VR modules" -ManualUrl "https://github.com/Abyss-c0re/vrmod-module-master/releases" -Instructions "Download 'modules.zip' from the releases page, then drag it onto this window." -SkipMessage "" -AllowSkip $false -DownloadInfo $downloadInfo
  if (-not (Test-Path -LiteralPath $zipPath)) { throw "modules.zip was not downloaded" }
+ $modulesVersionVerified = ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$downloadUrl)
+ if (-not $modulesVersionVerified) { Write-Warn 'Manual modules.zip has no verifiable release tag. Its files can be installed, but no update version will be recorded.' }
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Fail "Download error: $_"
- $__fb = Invoke-InstallerFallback -Action ".NET runtime download" `
- -Url "https://dotnet.microsoft.com/download/dotnet/7.0" `
- -Instructions "Install .NET 7 Desktop Runtime manually from https://dotnet.microsoft.com/download/dotnet/7.0 (x64 build)." `
- -SkipMessage "Skipped - the tool that needs .NET will not run; you can install .NET later and re-run." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-detect .NET 7 Desktop Runtime
- if (Test-DotNet7Desktop) {
- Write-OK ".NET 7 Desktop Runtime detected."
- } else {
- Pause-User "Still no .NET 7. Install it then re-run. Press Enter to exit..."
+ Write-Fail 'No module package was installed. Use installer recovery to retry or provide the publisher archive.'
+ Pause-User 'Press Enter to exit...'
  exit 1
- }
- }
- # User chose Skip - continue at own risk
 }
 
 Write-Host " Extracting ... " -NoNewline -ForegroundColor White
@@ -284,6 +275,16 @@ if (-not $payloadRoot) {
  }
  # User chose Skip - continue at own risk
 }
+if (-not $payloadRoot) {
+ Write-Fail "No installable GarrysMod module payload was found."
+ Pause-User "Press Enter to exit..."; exit 1
+}
+foreach ($requiredModule in @('garrysmod\lua\bin\gmcl_vrmod_win64.dll','bin\win64\openvr_api.dll','bin\openvr_api.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $payloadRoot.FullName $requiredModule) -PathType Leaf)) {
+  Write-Fail "The module archive is missing $requiredModule. No modules were copied."
+  Pause-User "Press Enter to exit..."; exit 1
+ }
+}
 
 Write-Host " Copying module files into game folder ... " -NoNewline -ForegroundColor White
 try {
@@ -299,9 +300,6 @@ try {
  -Instructions "Open '$extractDir' (the extracted GMod VR modules) and merge its contents into '$gamePath' (your Garry's Mod install). Watch for UAC permission prompts. Then choose Skip to continue." `
  -SkipMessage "Skipped - VR modules were NOT copied; GMod will launch normally but VR will not load." `
  -DestFolder "$gamePath" `
- -AllowSkip $true
- -Instructions "Read the messages above for what failed. Try to address it manually then choose Retry, or Skip to continue without it." `
- -SkipMessage "Skipped - some functionality may not work." `
  -AllowSkip $true
  if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  if ([string]$__fb -eq "retry") {
@@ -348,7 +346,7 @@ if ($missing.Count -eq 0) {
     $missing2 = @()
     foreach ($n in $MOD_MUST_HAVE) { if (-not (Test-Path -LiteralPath (Join-Path $gamePath $n))) { $missing2 += $n } }
     if ($missing2.Count -eq 0) { Write-OK "Now verified ($($MOD_MUST_HAVE.Count) checks)." }
-    else { Write-Warn "Still missing: $($missing2 -join ', ') - VR will not load in GMod." }
+    else { Write-Fail "Still missing: $($missing2 -join ', ') - no success can be recorded."; Pause-User "Press Enter to exit..."; exit 1 }
 }
 
 try { Remove-Item $tempDir -Recurse -Force } catch {}
@@ -383,15 +381,17 @@ bind "F2" "vrmod"
 
 $wasExisting = Test-Path $autoexecPath
 if ($wasExisting) {
- $backupPath = "$autoexecPath.bak"
+ $backupPath = "$autoexecPath.bak_$([guid]::NewGuid().ToString('N'))"
  try {
  Copy-Item -Path $autoexecPath -Destination $backupPath -Force
- Write-Info "Existing autoexec.cfg backed up to autoexec.cfg.bak"
+ Write-Info "Existing autoexec.cfg backed up to: $backupPath"
  } catch {}
 }
+$wroteAutoexec = $false
 try {
  $utf8NoBom = New-Object System.Text.UTF8Encoding $false
  [System.IO.File]::WriteAllText($autoexecPath, $autoexecContent, $utf8NoBom)
+ $wroteAutoexec = $true
  Write-OK "autoexec.cfg written: $autoexecPath"
 } catch {
  Write-Fail "Could not write autoexec.cfg: $_"
@@ -410,6 +410,10 @@ try {
  exit 1
  }
  # User chose Skip - continue at own risk
+}
+if (-not $wroteAutoexec) {
+ Write-Fail "autoexec.cfg was not written. Setup cannot mark VR ready."
+ Pause-User "Press Enter to exit..."; exit 1
 }
 
 # -------------------------------------------------------
@@ -472,9 +476,19 @@ Show-PCVRClipboardManualFallback -Text $launchOptions
 Pause-User "Press Enter once you have pasted the launch options and closed Properties..."
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
+foreach ($requiredModule in $MOD_MUST_HAVE) {
+ if (-not (Test-Path -LiteralPath (Join-Path $gamePath $requiredModule) -PathType Leaf)) {
+  Write-Fail "Required VR module disappeared before completion: $requiredModule"
+  Pause-User "Press Enter to exit..."; exit 1
+ }
+}
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-if (Test-Path -LiteralPath (Join-Path $gamePath 'garrysmod\lua\bin\gmcl_vrmod_win64.dll') -PathType Leaf) {
+if ($modulesVersionVerified -and (Test-Path -LiteralPath (Join-Path $gamePath 'garrysmod\lua\bin\gmcl_vrmod_win64.dll') -PathType Leaf)) {
  Save-InstalledStamp -GameDir $gamePath -Version $modulesVersion -HubDir $PSScriptRoot
+} elseif (-not $modulesVersionVerified) {
+ foreach ($receipt in @((Join-Path $gamePath '.pcvrhub_version'),(Join-Path $PSScriptRoot '.installed_version'))) {
+  Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
+ }
 }
 
 # -------------------------------------------------------

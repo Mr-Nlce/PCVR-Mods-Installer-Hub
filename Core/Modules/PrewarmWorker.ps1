@@ -130,35 +130,136 @@ function Get-WebVersionBackground {
     return $null
 }
 
+function Select-BackgroundAssetTag {
+    param($Releases,[bool]$IncludePrerelease,[string[]]$Patterns,[string]$VersionPattern)
+    foreach($release in @($Releases)){
+        if($release.draft -or (-not $IncludePrerelease -and $release.prerelease)){continue}
+        $matches=@($release.assets | Where-Object {
+            $name=[string]$_.name
+            if(-not $name){return $false}
+            foreach($pattern in $Patterns){if($name -match $pattern){return $true}}
+            return $false
+        })
+        if($matches.Count -ne 1){continue}
+        if($VersionPattern){
+            $m=[regex]::Match([string]$matches[0].name,$VersionPattern)
+            if($m.Success -and $m.Groups.Count -gt 1 -and $m.Groups[1].Value -match '\d'){return [string]$m.Groups[1].Value}
+            continue
+        }
+        return [string]$release.tag_name
+    }
+    return $null
+}
+
 try {
     if (-not (Test-Path -LiteralPath $pendingFile)) { return }
     $items = @()
     try { $items = @(Get-Content -LiteralPath $pendingFile -Raw | ConvertFrom-Json) } catch { $items = @() }
+    # Windows PowerShell 5.1 wraps a JSON array as one Object[] pipeline item.
+    if ($items.Count -eq 1 -and $items[0] -is [array]) { $items = $items[0] }
 
-    foreach ($it in $items) {
-        try {
-            $now = [DateTime]::UtcNow
-            if ([string]$it.K -eq "gh") {
-                $pre = [bool]$it.P
-                $tag = Get-GithubTagBackground -Repo ([string]$it.A) -IncludePrerelease:$pre
-                if ($tag) {
-                    $cacheKey = if ($pre) { ([string]$it.A) + "#pre" } else { [string]$it.A }
-                    Merge-CacheEntry -File $ghCacheFile -Key $cacheKey -Entry @{ tag = $tag; checked = $now.ToString("o") }
-                }
-            } elseif ([string]$it.K -eq 'ghcommit') {
-                $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
-                $commitVersion = Get-GithubCommitBackground -Repo ([string]$it.A) -Branch $branch
-                if ($commitVersion) {
-                    Merge-CacheEntry -File $ghCacheFile -Key (([string]$it.A) + '#commit:' + $branch) -Entry @{ tag=$commitVersion; checked=$now.ToString('o') }
-                }
-            } else {
-                $ver = Get-WebVersionBackground -Url ([string]$it.A)
-                if ($ver) {
-                    Merge-CacheEntry -File $webCacheFile -Key ([string]$it.A) -Entry @{ ver = $ver; checked = $now.ToString("o") }
+    # The former serial worker could spend 15 seconds on EACH of 190+ sources.
+    # An installed game late in that queue could consequently have no version
+    # cache for days. Limit network work to eight concurrent requests and five
+    # seconds per request; only this hidden worker waits for them.
+    Add-Type -AssemblyName System.Net.Http
+    $handler = [Net.Http.HttpClientHandler]::new()
+    $handler.AllowAutoRedirect = $true
+    $handler.AutomaticDecompression = [Net.DecompressionMethods]::GZip -bor [Net.DecompressionMethods]::Deflate
+    $client = [Net.Http.HttpClient]::new($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds(5)
+    $client.DefaultRequestHeaders.UserAgent.ParseAdd('PCVR-Mods-Hub/1.0')
+    $fixture = $null
+    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_PREWARM_FIXTURE_RESPONSES -and
+        (Test-Path -LiteralPath $env:PCVR_PREWARM_FIXTURE_RESPONSES -PathType Leaf)) {
+        $fixture = Get-Content -LiteralPath $env:PCVR_PREWARM_FIXTURE_RESPONSES -Raw | ConvertFrom-Json
+    }
+    try {
+        for ($offset = 0; $offset -lt $items.Count; $offset += 8) {
+            $batch = @()
+            foreach ($it in @($items | Select-Object -Skip $offset -First 8)) {
+                try {
+                    $kind = [string]$it.K
+                    $repo = [string]$it.A
+                    $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+                    $uri = if ($kind -eq 'gh') {
+                        if($patterns.Count -gt 0){"https://api.github.com/repos/$repo/releases?per_page=20"}
+                        elseif ([bool]$it.P) { "https://github.com/$repo/releases.atom" }
+                        else { "https://github.com/$repo/releases/latest" }
+                    } elseif ($kind -eq 'ghcommit') {
+                        $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
+                        'https://api.github.com/repos/' + $repo + '/commits/' + [Uri]::EscapeDataString($branch)
+                    } else { $repo }
+                    $method = if ($kind -eq 'gh' -and -not [bool]$it.P -and $patterns.Count -eq 0) { [Net.Http.HttpMethod]::Head } else { [Net.Http.HttpMethod]::Get }
+                    $request = [Net.Http.HttpRequestMessage]::new($method,[Uri]$uri)
+                    if ($fixture) {
+                        $mock = $fixture.PSObject.Properties[$uri].Value
+                        if (-not $mock) { throw "No prewarm fixture response for $uri" }
+                        $response = [Net.Http.HttpResponseMessage]::new([Net.HttpStatusCode][int]$mock.Status)
+                        $response.RequestMessage = [Net.Http.HttpRequestMessage]::new($method,[Uri][string]$mock.FinalUri)
+                        $response.Content = [Net.Http.StringContent]::new([string]$mock.Body)
+                        $task = [Threading.Tasks.Task[Net.Http.HttpResponseMessage]]::FromResult($response)
+                    } else {
+                        $task = $client.SendAsync($request,[Net.Http.HttpCompletionOption]::ResponseHeadersRead)
+                    }
+                    $batch += [pscustomobject]@{ Item=$it; Request=$request; Task=$task }
+                } catch { if ($env:PCVR_HUB_TEST_MODE -eq '1') { Write-Host "[PrewarmTest] request uri '$uri': $($_.Exception.Message)" } }
+            }
+            foreach ($work in $batch) {
+                $response = $null
+                try {
+                    $response = $work.Task.GetAwaiter().GetResult()
+                    if (-not $response.IsSuccessStatusCode) { continue }
+                    $it = $work.Item; $kind = [string]$it.K; $key = [string]$it.A
+                    $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
+                    $tag = $null
+                    if($kind -eq 'gh' -and $patterns.Count -gt 0){
+                        $releases=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+                        $tag=Select-BackgroundAssetTag -Releases $releases -IncludePrerelease ([bool]$it.P) -Patterns $patterns -VersionPattern ([string]$it.V)
+                        if([bool]$it.P){$key+='#pre'}
+                        $key+='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($patterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')
+                        if([string]$it.V){$key+='#asset-version='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$it.V)).TrimEnd('=').Replace('/','_').Replace('+','-')}
+                    } elseif ($kind -eq 'gh' -and -not [bool]$it.P) {
+                        $final = [string]$response.RequestMessage.RequestUri.AbsoluteUri
+                        if ($final -match '/releases/tag/([^/?#]+)') { $tag = [Uri]::UnescapeDataString($matches[1]).Trim() }
+                    } elseif ($kind -eq 'gh') {
+                        $atom = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        foreach ($match in [regex]::Matches($atom,'Repository/[0-9]+/([^<]+)')) {
+                            $candidate = [Net.WebUtility]::HtmlDecode($match.Groups[1].Value).Trim()
+                            if ($candidate -and $candidate -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') { $tag = $candidate; break }
+                        }
+                        $key += '#pre'
+                    } elseif ($kind -eq 'ghcommit') {
+                        $data = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+                        $dateText = [string]$data.commit.committer.date
+                        if (-not $dateText) { $dateText = [string]$data.commit.author.date }
+                        if ($dateText) { $tag = ([DateTime]::Parse($dateText,$null,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()).ToString('yyyy.MM.dd.HHmmss') }
+                        $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
+                        $key += '#commit:' + $branch
+                    } else {
+                        $html = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        if     ($html -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $tag = 'v' + $matches[1] }
+                        elseif ($html -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { $tag = 'v' + $matches[1] }
+                        elseif ($html -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { $tag = 'v' + $matches[1] }
+                    }
+                    if ($tag -and ($kind -ne 'gh' -or $tag -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic')) {
+                        $field = if ($kind -eq 'web') { 'ver' } else { 'tag' }
+                        $entry = @{ checked = [DateTime]::UtcNow.ToString('o') }
+                        $entry[$field] = $tag
+                        $file = if ($kind -eq 'web') { $webCacheFile } else { $ghCacheFile }
+                        Merge-CacheEntry -File $file -Key $key -Entry $entry
+                    }
+                } catch {
+                    # A failed source keeps its previous cache entry; other
+                    # requests in this batch still finish and are recorded.
+                    if ($env:PCVR_HUB_TEST_MODE -eq '1') { Write-Host "[PrewarmTest] result: $($_.Exception.Message)" }
+                } finally {
+                    if ($response) { $response.Dispose() }
+                    $work.Request.Dispose()
                 }
             }
-        } catch {}
-    }
+        }
+    } finally { $client.Dispose(); $handler.Dispose() }
 } finally {
     try { Remove-Item -LiteralPath $pendingFile -Force -EA SilentlyContinue } catch {}
     try { Remove-Item -LiteralPath $lockFile -Force -EA SilentlyContinue } catch {}

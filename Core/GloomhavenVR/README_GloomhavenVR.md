@@ -15,7 +15,10 @@ control board and VR multiplayer support.
 The mod is tested against Gloomhaven 1.1.8307.0. All VR players in one session
 must use the same GloomhavenVR build; flat-screen players can still join them.
 
-Current v1.0.7 adds campaign city events to the 3D map, keeps character and
+Current v1.1.0 adds immersive merchant, enchantress and priestess interactions
+to the 3D campaign map, including mixed VR/flat multiplayer. The earlier
+v1.0.8 release refined rewards, dialogue and laser interaction. v1.0.7 added
+campaign city events to the 3D map, keeps character and
 quest windows when moving between 2D and 3D maps, improves map button hints
 and multiplayer mirroring, and lets short [[B]] / [[Y]] taps rotate area effects.
 The legacy stick rotation remains optional. Updating over an older build is

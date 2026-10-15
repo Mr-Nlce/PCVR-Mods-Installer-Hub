@@ -34,12 +34,20 @@ the Hub. The publisher archive was inspected and contains no ROM.
 
 ## Installation and updates
 
-The installer's first choice selects one of two independent routes. Press
-[[Enter]] on option 1 for the recommended current application, or choose
-option 2 to install the classic legacy route again:
+**Publisher source unavailable (checked 26 September 2026):** the official
+repository and its v3.0.1 Windows download currently return 404. The Hub can
+still accept an original Windows ZIP that you already downloaded through its
+manual-file recovery; it cannot fetch this route while the publisher link is
+offline. Do not use an unverified reupload. The publisher's last saved README
+allows personal use and modification of its own VR components but expressly
+forbids redistributing or forking them. The Hub does not bundle this package.
 
-1. **Dramatic Shape VR 3.x** — the current standalone OpenXR application and
-   default choice.
+The installer's first choice selects one of two independent routes. Press
+[[Enter]] on option 1 for the standalone application, or choose option 2 for
+the classic legacy route:
+
+1. **Dramatic Shape VR 3.x** — the standalone OpenXR application and default
+   choice; its GitHub source is currently offline / not public.
 2. **Legacy Gen1Recomp VR** — pinned Gen1Recomp v0.2.56 plus either the full
    Dramatic Shape v1.8.5 profile or the leaner Dramaless Shape v1.6.4 profile.
 
@@ -54,8 +62,13 @@ The default install folder is `C:\Games\Pokemon Dramatic Shape VR`; the
 installer lets you choose another complete folder. Keep the application out of
 `Program Files`, because its built-in updater needs a writable folder.
 
-The Hub downloads the newest stable Windows ZIP from the official GitHub
-releases and checks the functional runtime after extraction. The installed
+The installer checks GitHub for the newest stable Windows ZIP. While that
+repository is offline, it guides you to join [Flat2VR Modding](https://discord.gg/flat2vr),
+then opens the [Dramatic Shape download post](https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386).
+Download the **second attachment**, `DramaticShapeVR-3.0.1-windows.zip`.
+After you confirm the download with [[Enter]], the installer searches Downloads;
+you can also drag the ZIP onto its window. The ZIP is checked for safe paths
+and the required runtime files before installation. The installed
 application also has its own **UPDATES** control in the launcher. Its updater
 stages the complete official Windows package, restarts the executable and
 writes the installed version into `VERSION`; the Hub reads that same proof so
@@ -187,7 +200,8 @@ only if you also want to erase your progress and local imports. Old
 ## Official sources
 
 - Project and documentation: https://github.com/prismaticShape/DramaticShapeVR
-- Releases: https://github.com/prismaticShape/DramaticShapeVR/releases
+- Releases when GitHub is available: https://github.com/prismaticShape/DramaticShapeVR/releases
+- Current manual Windows download post: https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386
 
 The Windows archive carries the Khronos OpenXR loader and its license, the
 LÖVE runtime libraries, and the publisher's offline voice components and

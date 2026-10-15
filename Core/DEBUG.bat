@@ -227,8 +227,42 @@ echo   [212] Mirror's Edge VR
 echo   [213] Thief (2014) VR
 echo   [214] Oblivion (2006)
 echo   [215] Kingdom Come: Deliverance VR
+echo   [216] Mount ^& Blade II: Bannerlord VR
+echo   [217] Turok VR
+echo   [218] Gothic II VR
+echo   [219] Outlast 2 VR
+echo   [220] Unreal Revived
+echo   [221] Little Witch Nobeta VR
+echo   [222] X4: Foundations VR
+echo   [223] Flower VR
+echo   [224] Blade of Darkness VR
+echo   [225] High Entropy: Challenges VR
+echo   [226] Aliens versus Predator VR
+echo   [227] MiSide VR
+echo   [228] DOOM Eternal VR - Motion
+echo   [229] No One Lives Forever VR
+echo   [230] Super Mario 3D World VR
+echo   [231] Star Fox Enhanced PCVR
+echo   [232] SOMA VR
+echo   [233] Gran Turismo 2 PCVR
+echo   [234] Mario Kart Wii VR
+echo   [235] A Kingdom for Keflings VR
+echo   [236] PowerWash Simulator VR
+echo   [237] Judgment VR
+echo   [238] Diablo II: Resurrected VR
+echo   [239] Dark Souls II: Scholar VR
+echo   [240] The House of the Dead 2 (Original) VR
+echo   [241] Descent VR
+echo   [242] Descent 2 VR
+echo   [243] Spider-Man Remastered - Spidy VR
+echo   [244] Red Dead Redemption VR
+echo   [245] Arx Fatalis VR
+echo   [246] XIII Remake VR
+echo   [247] Return to Castle Wolfenstein VR
+echo   [248] Penumbra: Black Plague VR
+echo   [249] Penumbra: Requiem VR
 echo.
-set /p choice="Enter number (1-215): "
+set /p choice="Enter number (1-249): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -351,7 +385,7 @@ if "%choice%"=="119" (set SCRIPT=%~dp0StarFox64VR\StarFox64VR-core.ps1)
 if "%choice%"=="120" (set SCRIPT=%~dp0HytaleVR\HytaleVR-core.ps1)
 if "%choice%"=="121" (set SCRIPT=%~dp0ForzaHorizon5VR\ForzaHorizon5VR-core.ps1)
 if "%choice%"=="122" (set SCRIPT=%~dp0IdolsOfAshVR\IdolsOfAshVR-core.ps1)
-if "%choice%"=="123" (set SCRIPT=%~dp0RogueTraderVR\RogueTraderVR-core.ps1)
+if "%choice%"=="123" (set SCRIPT=%~dp0RogueTraderVR\RogueTraderVR-router.ps1)
 if "%choice%"=="124" (set SCRIPT=%~dp0SonicRoboBlast2VR\SonicRoboBlast2VR-core.ps1)
 if "%choice%"=="125" (set SCRIPT=%~dp0MarioKart64VR\MarioKart64VR-core.ps1)
 if "%choice%"=="126" (set SCRIPT=%~dp0ACValhallaVR\ACValhallaVR-core.ps1)
@@ -444,6 +478,40 @@ if "%choice%"=="212" (set SCRIPT=%~dp0MirrorsEdgeVR\MirrorsEdgeVR-core.ps1)
 if "%choice%"=="213" (set SCRIPT=%~dp0Thief2014VR\Thief2014VR-core.ps1)
 if "%choice%"=="214" (set SCRIPT=%~dp0Oblivion2006VR\Oblivion2006VR-core.ps1)
 if "%choice%"=="215" (set SCRIPT=%~dp0KCD1VR\KCD1VR-core.ps1)
+if "%choice%"=="216" (set SCRIPT=%~dp0BannerlordVR\BannerlordVR-core.ps1)
+if "%choice%"=="217" (set SCRIPT=%~dp0TurokVR\TurokVR-core.ps1)
+if "%choice%"=="218" (set SCRIPT=%~dp0GothicIIVR\GothicIIVR-core.ps1)
+if "%choice%"=="219" (set SCRIPT=%~dp0Outlast2VR\Outlast2VR-core.ps1)
+if "%choice%"=="220" (set SCRIPT=%~dp0UnrealRevivedVR\UnrealRevivedVR-core.ps1)
+if "%choice%"=="221" (set SCRIPT=%~dp0LittleWitchNobetaVR\LittleWitchNobetaVR-core.ps1)
+if "%choice%"=="222" (set SCRIPT=%~dp0X4VR\X4VR-core.ps1)
+if "%choice%"=="223" (set SCRIPT=%~dp0FlowerVR\FlowerVR-core.ps1)
+if "%choice%"=="224" (set SCRIPT=%~dp0BladeOfDarknessVR\BladeOfDarknessVR-core.ps1)
+if "%choice%"=="225" (set SCRIPT=%~dp0HighEntropyVR\HighEntropyVR-core.ps1)
+if "%choice%"=="226" (set SCRIPT=%~dp0AliensPredatorVR\AliensPredatorVR-core.ps1)
+if "%choice%"=="227" (set SCRIPT=%~dp0MiSideVR\MiSideVR-core.ps1)
+if "%choice%"=="228" (set SCRIPT=%~dp0DoomEternalMotion\DoomEternalMotion-core.ps1)
+if "%choice%"=="229" (set SCRIPT=%~dp0NOLF1VR\NOLF1VR-core.ps1)
+if "%choice%"=="230" (set SCRIPT=%~dp0SuperMario3DWorldVR\SuperMario3DWorldVR-core.ps1)
+if "%choice%"=="231" (set SCRIPT=%~dp0StarFoxEnhancedVR\StarFoxEnhancedVR-core.ps1)
+if "%choice%"=="232" (set SCRIPT=%~dp0SomaVR\SomaVR-core.ps1)
+if "%choice%"=="233" (set SCRIPT=%~dp0GT2PCVR\GT2PCVR-core.ps1)
+if "%choice%"=="234" (set SCRIPT=%~dp0WiiCompiledVR\WiiCompiledVR-core.ps1)
+if "%choice%"=="235" (set SCRIPT=%~dp0AKingdomForKeflingsVR\AKingdomForKeflingsVR-core.ps1)
+if "%choice%"=="236" (set SCRIPT=%~dp0PowerWashSimulator1VR\PowerWashSimulator1VR-core.ps1)
+if "%choice%"=="237" (set SCRIPT=%~dp0JudgmentVR\JudgmentVR-core.ps1)
+if "%choice%"=="238" (set SCRIPT=%~dp0Diablo2ResurrectedVR\Diablo2ResurrectedVR-core.ps1)
+if "%choice%"=="239" (set SCRIPT=%~dp0DS2VR\DS2VR-core.ps1)
+if "%choice%"=="240" (set SCRIPT=%~dp0HotD2VR\HotD2VR-core.ps1)
+if "%choice%"=="241" (set SCRIPT=%~dp0DescentVR\DescentVR-core.ps1)
+if "%choice%"=="242" (set SCRIPT=%~dp0Descent2VR\Descent2VR-core.ps1)
+if "%choice%"=="243" (set SCRIPT=%~dp0SpidyVR\SpidyVR-core.ps1)
+if "%choice%"=="244" (set SCRIPT=%~dp0RDRVR\RDRVR-core.ps1)
+if "%choice%"=="245" (set SCRIPT=%~dp0ArxFatalisVR\ArxFatalisVR-core.ps1)
+if "%choice%"=="246" (set SCRIPT=%~dp0XIIIVR\XIIIVR-core.ps1)
+if "%choice%"=="247" (set SCRIPT=%~dp0RealRTCWXR\RealRTCWXR-core.ps1)
+if "%choice%"=="248" (set SCRIPT=%~dp0PenumbraBlackPlagueVR\PenumbraBlackPlagueVR-core.ps1)
+if "%choice%"=="249" (set SCRIPT=%~dp0PenumbraRequiemVR\PenumbraRequiemVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

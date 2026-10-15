@@ -99,7 +99,7 @@ Chase Camera, then pause and unpause five times. When it reports that the
 profile was updated, restart the game. The next run should report
 `generated profile active`.
 
-CheekyRender alpha 3.3 adds an in-launcher setup overlay for this first-run and
+CheekyRender alpha 3.5 fixes the Vehicle LOD fix after the latest FH6 update. It keeps the in-launcher setup overlay added in 3.3 for first-run and
 post-update profile generation, so the required camera sequence stays visible
 while the profile is being prepared.
 

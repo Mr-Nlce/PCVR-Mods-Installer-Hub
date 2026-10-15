@@ -284,7 +284,7 @@ function global:New-DiscoverTile {
     }
 
     $titleTxt = New-Object System.Windows.Controls.TextBlock
-    $titleTxt.Text = $Game.Title
+    $titleTxt.Text = if ($Game.TileTitle) { [string]$Game.TileTitle } else { [string]$Game.Title }
     $titleTxt.FontSize = 14
     $titleTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
     $titleTxt.Foreground = [System.Windows.Media.Brushes]::White
@@ -355,7 +355,7 @@ function global:New-DiscoverTile {
     # title stay bottom-left. Reuse the shared faceted marker so its shape,
     # accessible name and tooltip cannot drift between the two views.
     if ($Game.Gem) {
-        $libraryGem = New-GemMarker -Scale 1.0 -Preview
+        $libraryGem = New-GemMarker -Scale 1.2 -Preview
         $libraryGem.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
         $libraryGem.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
         $libraryGem.Margin = [System.Windows.Thickness]::new(0, 0, 10, 10)

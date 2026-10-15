@@ -171,6 +171,11 @@ if (-not (Test-Path (Join-Path $payload $GAME_EXE))) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $payload = Split-Path $hit.FullName -Parent }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $payload $GAME_EXE))) {
+    Write-Fail "The archive does not contain $GAME_EXE. The install folder was not changed."
+    try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+}
 
 Write-Host "  Copying Receiver VR files ... " -NoNewline -ForegroundColor White
 $copyOk = $false
@@ -207,8 +212,9 @@ if (Test-Path $gameExePath) {
         Set-Content -Path $pathFile -Value $installRoot -Encoding UTF8 -Force
     } catch {}
 } else {
-    Write-Warn "Receiver.exe not found at the install root after copy."
-    Write-Host "  Check $installRoot for a subfolder and move its contents up." -ForegroundColor Yellow
+    Write-Fail "Receiver.exe not found at the install root after copy."
+    try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to exit..."; exit 1
 }
 
 # Cleanup temp.

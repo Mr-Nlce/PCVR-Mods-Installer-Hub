@@ -1,65 +1,92 @@
 # Titanfall 2 VR
 
-**WIP — alpha, single-player campaign only.** titanfall2vr is a Northstar client plugin that adds OpenXR alternate-frame stereo, 6DoF head tracking and motion-controller weapon aim without modifying the base game's files.
+CircuitLord's maintained VR conversion brings the single-player campaign
+into OpenXR with stereoscopic rendering, tracked hand aiming, full-body IK,
+manual reloads and Titan controls. The project uses its own companion app for
+installation, updates, removal and VR launch.
+
+The reviewed publisher manifest currently lists companion app 1.2.9 and
+Titanfall 2 VR package 1.0.16. Version 1.2.9 warns if Steam, EA App or the
+companion runs as administrator, makes launch-time mod updates optional and
+shows details for download-list errors. The companion app remains responsible for
+downloading and updating the actual profile; the Hub verifies its result.
 
 ## About the Game
 
-Titanfall 2 is Respawn Entertainment's fast first-person campaign built around wall-running pilots and full-scale Titans. The Steam and EA App game builds are supported. The VR stack starts automatically when the campaign launches through Northstar.
+Titanfall 2 combines fast pilot movement, wall-running and large Titan battles
+in Respawn Entertainment's story campaign. The VR profile is separate from the
+normal game, which remains available in flat mode.
 
-Set the intended OpenXR runtime before launch. Quest 3 and Play For Dream MR were tested through Virtual Desktop/VDXR; other headsets and runtimes are untested rather than blocked. Steam users should disable the Steam Overlay because it injects into the same DirectX presentation path.
+## Requirements
 
-## First launch
+- A legitimate Titanfall 2 installation through Steam, EA App or Xbox PC.
+- EA App installed and signed in; the Steam edition still uses EA App.
+- A connected headset and a working OpenXR runtime. Start your preferred VR
+  runtime before pressing Launch in VR in the companion app.
+- Sufficient writable space in the game folder for Northstar, the TF2VR
+  profile and game-derived assets. The publisher app builds these assets from
+  your own installed game during its first installation.
 
-EA App or Origin may need to update on the first launch. That update can consume the launch attempt; let it finish, then use **Start in VR** again to open Northstar and the campaign.
+## Install and start
 
-At the very beginning, Titanfall 2 asks you to look at lights for its basic controls tutorial. The VR view can remain frozen there like a cutscene, but the prompt can be completed on the flat monitor with the mouse while VR is running. Alternatively, play the opening and first tutorial course in flat once before starting the campaign in VR.
+1. Use Install Mod in the Hub. The Hub downloads CircuitLord's current
+   `CircuitLordVRModInstaller.exe`, puts it beside `Titanfall2.exe`, and opens it.
+2. Select Titanfall 2 in the companion app. Check the detected Steam, EA or
+   Xbox game path. If EA App is missing, start the game normally once to install
+   it and sign in, then refresh the companion app.
+3. Press Install or Update in the Titanfall 2 section. The app installs
+   Northstar and the mod into a separate `TF2VR` profile. First installation
+   builds local assets and can take longer than an update.
+4. After the app says Installed, return to the Hub installer and press
+   Enter. The Hub checks the publisher's install record and required VR
+   files before recording VR Ready.
+5. Start in VR in the Hub opens the companion app. With your OpenXR runtime
+   ready, use Launch in VR there to start the campaign.
 
-## Controls
+Launching Titanfall 2 normally remains flat and does not load this VR profile.
+The old TinyBlkDog Hub alpha is retired only after the new profile is complete;
+its personal INI and separate Northstar copy remain for review.
 
-The VR controllers are presented to Titanfall 2 as an Xbox pad, so the game's normal controller bindings still apply. Head tracking aims the view and the right hand aims the weapon.
+## Controls and campaign saves
 
-| Button | Action |
-|---|---|
-| [[Right Trigger]] | Fire |
-| [[Left Trigger]] | Aim down sights |
-| [[A]] | Jump |
-| [[B]] | Crouch |
-| [[X Tap]] | Reload |
-| [[X Hold]] | Use / select |
-| [[Y Tap]] | Change weapon on release |
-| [[Y Hold]] | Show the next objective / View |
-| [[Left Grip]] | Tactical ability / cloak |
-| [[Right Grip]] | Ordnance / grenade |
-| [[Menu]] | Pause |
-| [[Left Stick]] | Move |
-| [[Left Stick Click]] | Sprint |
-| [[Right Stick Left / Right]] | Turn |
-| [[Right Stick Up / Down]] | Answer two-option prompts with D-pad up/down |
-| [[Right Stick Click]] | Melee |
-| [[Both Stick Clicks]] | Open or close the in-headset settings panel |
+The conversion provides tracked hand aiming, manual reloads, full-body IK and
+Titan interaction. The new publisher did not publish a complete controller
+button table, so the old alpha's button map should not be treated as the new
+mod's bindings. Use the in-game prompts and the companion app's help for your
+current controller profile.
 
-In the settings panel, either stick selects and adjusts rows, A activates, B goes back, the grips change category and both stick clicks close it. For a full D-pad, touch either controller's thumbrest or raise the left controller beside your head; the left stick then sends D-pad directions and X sends View.
-
-## Picture and calibration
-
-The mod deliberately starts at 75% render resolution because it cannot measure the GPU. Open the settings panel with both stick clicks and raise **Resolution** toward 100% while frame rate remains stable. Lower **World scale** if hands and weapons feel oversized. Grip forward/right/up can be adjusted live while holding the gun.
-
-The first launch with previously unseen headset geometry can look badly magnified for about a minute while calibration is written. The installer can add the publisher's optional Quest 3 + VDXR cache; it is ignored unless the headset and requested resolution match exactly.
-
-## Current v0.1.1 changes
-
-Version 0.1.1 adds field-of-view controls and world scale, turns unsafe automatic FOV derivation off by default, removes roughly a third of redundant render pixels on the measured Quest 3 route and reports settings/cache write failures instead of silently losing them.
-
-## Known alpha limits
-
-The game can occasionally freeze and require Task Manager; progress since the last checkpoint may be lost. Cutscenes are head-locked and can cause discomfort, loading overlays can shrink or follow the hand, and the near-square headset main menu is cropped at the sides. If a view loads fully zoomed, open the settings panel and turn **Field of view: auto** off.
-
-Do not load this plugin on official multiplayer servers. It is intended only for Northstar-launched single-player campaign use. Logs are stored in `%LOCALAPPDATA%\titanfall2vr\titanfall2vr.log`.
+The current companion app's Campaign saves button checks
+`%LOCALAPPDATA%\Respawn\Titanfall2_VR`, separate from the ordinary campaign.
+Its code and validation test use this path, although the publisher README still
+mentions `Documents\Respawn\Titanfall2_VR`. During installation you can copy
+existing campaign progress or start fresh; use that button to inspect or copy
+progress later.
 
 ## Updates and removal
 
-The Hub follows the newest GitHub release, including prereleases. If Northstar is missing, setup installs its current stable release; an existing functional Northstar installation is preserved. The personal `titanfall2vr.ini` is never overwritten. **Uninstall now** removes only the unchanged VR plugin and optional Hub-owned cache while leaving Northstar, settings, saves and unrelated plugins.
+The companion app checks its own version and the current Titanfall 2 VR package.
+Open it from Start in VR and use Update when offered. The Hub checks
+the installed TF2VR files and the publisher's version record; merely having
+the companion EXE in the game folder is not VR Ready.
 
-- [titanfall2vr project](https://github.com/TinyBlkDog/titanfall2vr)
-- [GitHub releases](https://github.com/TinyBlkDog/titanfall2vr/releases)
-- [Northstar](https://github.com/R2Northstar/Northstar/releases)
+Use Open launcher uninstall beside the Hub's uninstall guide, select
+Titanfall 2 and press Uninstall in the publisher app. That action removes
+the files listed in `.circuitlord-vr-mods\Titanfall2VR.json`. The normal game
+and its campaign saves remain. If an old Hub alpha contained modified files,
+the migration preserves them instead of deleting them by guesswork.
+
+## If something goes wrong
+
+- If EA App sign-in or first launch interrupts VR launch, finish it on the
+  desktop and use the companion app's Launch in VR again.
+- If the Hub still says Game installed, finish Install/Update in the
+  companion app, return to the Hub installer for verification, then scan again.
+- If Steam's or another overlay interferes with VR rendering, close that
+  overlay before retrying. Consult the companion app's logs for exact failures.
+- Do not load the old alpha and the new TF2VR profile together. The Hub's
+  migration removes only the old unchanged Hub-owned plugin once the new
+  installation is verified.
+
+[CircuitLord's project and releases](https://github.com/CircuitLord/CircuitLordVRModInstaller)
+
+Protocol 3: protect the pilot, then request a Titan.

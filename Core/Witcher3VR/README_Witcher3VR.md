@@ -1,16 +1,16 @@
 # The Witcher 3 VR Installer
 
 ## About this mod
-**Witcher3VR** by tig3rmast3r brings native stereo VR to the **DirectX 12** build of The Witcher 3: Wild Hunt. Same-tick geometry stereo, 6DoF head look synchronised with OpenXR, crossbow aiming that follows the headset, adjustable HUD and menus, Mono/AER/Stereo render routes and an experimental first-person exploration view are included.
+Witcher3VR by tig3rmast3r brings native stereo VR to the DirectX 12 build of The Witcher 3: Wild Hunt. Same-tick geometry stereo, 6DoF head look synchronised with OpenXR, crossbow aiming that follows the headset, adjustable HUD and menus, Mono/AER/Stereo render routes and an experimental first-person exploration view are included.
 
-This is a work in progress and under active development. The **Alpha** label refers to validation, not to the state of the game: it has been tested on a limited number of headset and OpenXR combinations, and on that tested hardware the author describes the core game as fully playable.
+This is a work in progress and under active development. The Alpha label refers to validation, not to the state of the game: it has been tested on a limited number of headset and OpenXR combinations, and on that tested hardware the author describes the core game as fully playable.
 
 https://github.com/tig3rmast3r/witcher3-vr
 
 ## Controls
-You play with a **gamepad or mouse and keyboard**. VR motion controllers are not supported and the author states they are not planned. The headset handles looking around and crossbow aiming; everything else stays on the pad.
+You play with a gamepad or mouse and keyboard. VR motion controllers are not supported and the author states they are not planned. The headset handles looking around and crossbow aiming; everything else stays on the pad.
 
-The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 30-degree snap turning and headset-directed movement - it only applies while the experimental first-person view is active, and it is off by default.
+The launcher has an optional Gamepad Snap Turn + Head Follow mode that adds 30-degree snap turning and headset-directed movement - it only applies while the experimental first-person view is active, and it is off by default.
 
 ## Hotkeys
 - [[F2]] Temporarily switch asymmetric projection to the older symmetric path for diagnosis
@@ -23,14 +23,26 @@ The launcher has an optional **Gamepad Snap Turn + Head Follow** mode that adds 
 After a loading-screen video ends, the view recentres by itself two seconds
 later, along the same path as [[F9]].
 
-## Current release changes (0.9.7 alpha 2)
+## Current release changes (0.9.8v2)
 
-The current package integrates **OptiScaler DLSS 5 v2** directly; it is no longer a
-separate installer choice. ReShade and RenoDX are integrated as well, and the update fixes
-the SteamVR/ReShade crash that affected the first 0.9.7 alpha package.
+The main package includes the custom OptiScaler, ReShade, OFXR and launcher.
+The optional DLSS 5 Neural Rendering feature needs NVIDIA's `nvngx_dlssnr.dll`
+supplied separately in `bin\x64_dx12\witcher3vr-dlss5-reference`; it remains
+NVIDIA-only and may crash intermittently. The included OptiScaler is the only
+supported DLSS 5 integration. Launcher-managed ReShade DLSS 5 add-ons were
+removed. Select Nvidia (new) for the experimental OFXR 0.3.0 route or
+Nvidia for the older route. FSR 3.1 Frame Generation requires OptiScaler
+and a DLSS/DLAA rendering mode.
+
+v0.9.8 improves Stereo and AER+AFW HUD stability, subtitles and Cinema menus,
+F9/F10 shortcuts, SteamVR FSR presentation and launcher preservation of
+OptiScaler settings. The previous 0.9.7 release fixed a SteamVR/ReShade crash.
+The v0.9.8v2 hotfix restores missing subtitles and dialogue text in Full VR
+cutscenes. The Hub's prerelease resolver selects the V1581 Main ZIP and
+excludes its optional RenderDoc add-on; the offline fallback remains V1580.
 
 Presentation and headset output received another pass, including fixes for OpenXR frame
-generation, the HUD and alternate-eye rendering. **Alt. Resize was removed**; use the
+generation, the HUD and alternate-eye rendering. Alt. Resize was removed; use the
 launcher's current presentation controls instead. Ray tracing remains unsupported and
 should stay off.
 
@@ -39,9 +51,9 @@ frame rate but may introduce artifacts, so compare it against the native route o
 runtime and GPU.
 
 ## What you need first
-- The Witcher 3: Wild Hunt **Next-Gen**, at **Patch 4.04** or newer. Older versions and rollback branches are not supported.
-- The game started as **DirectX 12** - the mod only exists in the `x64_dx12` branch.
-- **The game started once, as DirectX 12, before you touch the VR launcher.** That first start is what creates your DirectX 12 profile, `Documents\The Witcher 3\dx12user.settings`. The launcher edits that file; it never creates it.
+- The Witcher 3: Wild Hunt Next-Gen, at Patch 4.04 or newer. Older versions and rollback branches are not supported.
+- The game started as DirectX 12 - the mod only exists in the `x64_dx12` branch.
+- The game started once, as DirectX 12, before you touch the VR launcher. That first start is what creates your DirectX 12 profile, `Documents\The Witcher 3\dx12user.settings`. The launcher edits that file; it never creates it.
 - A working OpenXR runtime.
 - An NVIDIA RTX card if you want DLSS or DLAA.
 
@@ -49,10 +61,10 @@ Headsets with canted displays are supported natively. For Pimax, the author reco
 SteamVR OpenXR and the current presentation-size controls.
 
 ## How the installer works
-The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, then downloads the plain main-package ZIP from the newest prerelease. Source archives and unrelated assets are excluded from that selection. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods`, `dlc` and `Witcher3VR` where the game expects them. OptiScaler, ReShade and RenoDX are already part of the current package.
+The Hub finds your game folder across Steam, Steam GOTY, GOG and Epic by probing for `bin\x64_dx12\witcher3.exe`, then downloads the main-package ZIP from the newest release, including prereleases. Source archives and the separate RenderDoc add-on are excluded. The package mirrors the game's own layout, so the files land in `bin\x64_dx12`, `mods`, `dlc` and `Witcher3VR` where the game expects them. OptiScaler and ReShade are included.
 
 ## Launching
-Launch with **Start in VR** in the Hub, or from the **The Witcher 3 VR** desktop shortcut. Both open the mod's own launcher, where you choose the rendering mode and resolution and then start the game from there. The launcher exists because each mode needs different hooks, and some have to be active before the game starts.
+Launch with Start in VR in the Hub, or from the The Witcher 3 VR desktop shortcut. Both open the mod's own launcher, where you choose the rendering mode and resolution and then start the game from there. The launcher exists because each mode needs different hooks, and some have to be active before the game starts.
 
 ## Start the game once first
 The VR launcher works on the game's own DirectX 12 profile:
@@ -62,22 +74,22 @@ The VR launcher works on the game's own DirectX 12 profile:
 Here `Documents` means your Windows Documents location, including a redirected
 OneDrive location if configured; it is not a subfolder of the game.
 
-**The game writes that file, the mod does not.** On a fresh install it does not exist yet, and neither does it exist if you have only ever played the DirectX 11 version - DX11 and DX12 keep separate profiles (`user.settings` and `dx12user.settings`).
+The game writes that file, the mod does not. On a fresh install it does not exist yet, and neither does it exist if you have only ever played the DirectX 11 version - DX11 and DX12 keep separate profiles (`user.settings` and `dx12user.settings`).
 
-So: start The Witcher 3 the normal way, choose **DirectX 12**, wait until the main menu is up, then quit. After that the launcher has something to read.
+So: start The Witcher 3 the normal way, choose DirectX 12, wait until the main menu is up, then quit. After that the launcher has something to read.
 
-Until it exists, every button in the VR launcher - **Configure Settings for VR**, **Restore Defaults**, **Save & Launch** - ends with:
+Until it exists, every button in the VR launcher - Configure Settings for VR, Restore Defaults, Save & Launch - ends with:
 
 `Could not open: C:\Users\<You>\Documents\The Witcher 3\dx12user.settings`
 
 That message means the profile is missing. It does not mean the mod installed wrong.
 
 ## Required game settings
-The launcher's **Configure Settings for VR** button applies the settings the mod was developed against and backs up your profile first; **Restore Original Settings** puts it back. By hand:
+The launcher's Configure Settings for VR button applies the settings the mod was developed against and backs up your profile first; Restore Original Settings puts it back. By hand:
 
 | Setting | Value |
 |---|---|
-| Ray tracing | **Off. It was removed from the current release** |
+| Ray tracing | Off. It was removed from the current release |
 | Screen Space Reflections | Off or Low |
 | Motion blur | Off |
 | VSync | Off |
@@ -85,12 +97,12 @@ The launcher's **Configure Settings for VR** button applies the settings the mod
 | NVIDIA Reflex | Off |
 | Windows HDR | Off (Windows setting, not in the game) |
 
-**Windows HDR must be off.** With it enabled the headset shows a black screen. The game has no HDR toggle of its own, so switch it off under Windows Settings > System > Display > HDR.
+Windows HDR must be off. With it enabled the headset shows a black screen. The game has no HDR toggle of its own, so switch it off under Windows Settings > System > Display > HDR.
 
 Resolution and anti-aliasing are controlled by the launcher, not the game menu. Texture quality also drives LOD distance: Medium suits No AA and FXAA, Medium or High suits TAAU and DLSS.
 
 ## If the game language changed
-The launcher's **Configure Settings for VR** rewrites your whole DirectX 12 profile, and the language entries live in that same file - so the game can come back up in a language you never picked. It is fixed in the file itself, no reinstall needed.
+The launcher's Configure Settings for VR rewrites your whole DirectX 12 profile, and the language entries live in that same file - so the game can come back up in a language you never picked. It is fixed in the file itself, no reinstall needed.
 
 Close the game, open
 
@@ -111,17 +123,17 @@ The codes are two letters: `EN` English, `DE` German, `FR` French, `IT` Italian,
 Since the next-gen update this is the DirectX 12 profile; the DirectX 11 build reads the same section in `user.settings` instead.
 
 ## Known limitations
-- **High Screen Space Reflections** and the **far/distant camera modes** are not implemented. SSR must be Low or Off.
-- **Ray tracing is currently removed** because it does not work correctly with asymmetric projection.
+- High Screen Space Reflections and the far/distant camera modes are not implemented. SSR must be Low or Off.
+- Ray tracing is currently removed because it does not work correctly with asymmetric projection.
 - Native canted displays ARE supported - each OpenXR eye pose is used directly, so no parallel-projection workaround is needed.
 - Loading screens are not yet presented correctly in VR - they may change size, appear blank or show duplicated images.
 - Some shadows can flicker in stereo.
-- Third-party mods **and ASI loaders** are unsupported at this stage. Before reporting a bug to the author, reproduce it with all other mods disabled.
+- Third-party mods and ASI loaders are unsupported at this stage. Before reporting a bug to the author, reproduce it with all other mods disabled.
 - The first-person view is meant for exploration. Third person is the recommended view for combat, and the launcher can switch back automatically when a fight starts.
 - Do not open feature requests for motion controllers. The author has stated they are not part of the development plan.
 
 ## Reporting a bug to the author
-The launcher has a **Diagnostic Logging** option. Turn it on, reproduce the problem, close the game normally, and attach the generated `witcher3vr.log` together with your `witcher3vr.ini`, headset model, OpenXR runtime, GPU and the rendering mode you used.
+The launcher has a Diagnostic Logging option. Turn it on, reproduce the problem, close the game normally, and attach the generated `witcher3vr.log` together with your `witcher3vr.ini`, headset model, OpenXR runtime, GPU and the rendering mode you used.
 
 https://github.com/tig3rmast3r/witcher3-vr/issues
 
@@ -131,5 +143,5 @@ The mod is free. Donations are optional and never unlock exclusive builds, featu
 https://ko-fi.com/tig3rmast3r
 
 ## Credits
-- **Witcher3VR** by tig3rmast3r - https://github.com/tig3rmast3r/witcher3-vr
+- Witcher3VR by tig3rmast3r - https://github.com/tig3rmast3r/witcher3-vr
 - The DX12 and VR architecture was informed by praydog's REFramework and UEVR; the resolution-override approach is adapted from emoose's DLSSTweaks.

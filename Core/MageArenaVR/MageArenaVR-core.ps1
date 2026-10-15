@@ -241,7 +241,14 @@ foreach ($pkg in $PACKAGES) {
  }
 
  $have = Get-InstalledVersion -packageName $name -gamePath $gamePath
- if ($have -and $have -eq $ver) {
+ $packageFilesPresent = if ($name -eq 'BepInExPack') {
+  (Test-Path -LiteralPath (Join-Path $gamePath 'winhttp.dll') -PathType Leaf) -and
+  (Test-Path -LiteralPath (Join-Path $gamePath 'BepInEx\core\BepInEx.dll') -PathType Leaf)
+ } else {
+  (Test-Path -LiteralPath (Join-Path $gamePath 'BepInEx\plugins\MageArenaVR\MageArenaVR.dll') -PathType Leaf) -and
+  (Test-Path -LiteralPath (Join-Path $gamePath 'BepInEx\patchers\MageArenaVR\MageArenaVR.Preload.dll') -PathType Leaf)
+ }
+ if ($have -and $have -eq $ver -and $packageFilesPresent) {
   Write-OK "$($pkg.FriendlyName) $ver already installed."
   continue
  }
@@ -274,8 +281,10 @@ Write-Step 3 3 "Verifying"
 $modDll  = Join-Path $gamePath "BepInEx\plugins\MageArenaVR\MageArenaVR.dll"
 $preload = Join-Path $gamePath "BepInEx\patchers\MageArenaVR\MageArenaVR.Preload.dll"
 $winhttp = Join-Path $gamePath "winhttp.dll"
+$bepCore = Join-Path $gamePath "BepInEx\core\BepInEx.dll"
 
 if (Test-Path -LiteralPath $winhttp) { Write-OK "BepInEx present." } else { Write-Fail "BepInEx missing (winhttp.dll)."; $failed += "BepInEx" }
+if (-not (Test-Path -LiteralPath $bepCore -PathType Leaf)) { Write-Fail "BepInEx core missing (BepInEx.dll)."; $failed += "BepInEx core" }
 if (Test-Path -LiteralPath $modDll)  { Write-OK "MA VR plugin present." } else { Write-Fail "MA VR plugin missing."; $failed += "MA VR plugin" }
 if (Test-Path -LiteralPath $preload) { Write-OK "MA VR preloader present." } else { Write-Fail "MA VR preloader missing."; $failed += "MA VR preloader" }
 

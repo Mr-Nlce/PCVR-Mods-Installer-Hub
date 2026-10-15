@@ -25,6 +25,8 @@ $global:DiscoverTilesBuilt = $false
 $global:DiscoverTilesBuilding = $false
 $global:DiscoverTileBuildQueue = $null
 $global:DiscoverTileBuildPasses = 0
+$global:LibraryRecentClosed = $false
+$global:LibraryRecentGameIds = @()
 
 # ---------------------------------------------------------------
 # DRAG TO SCROLL - middle mouse button, and finger on a touchscreen

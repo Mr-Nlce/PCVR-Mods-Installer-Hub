@@ -217,6 +217,10 @@ function Install-Engine {
                          Select-Object -First 1
             if ($rootChild) { $payload = $rootChild.FullName }
         }
+        if (-not (Test-Path -LiteralPath (Join-Path $payload 'gzdoomvr.exe') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath (Join-Path $payload 'openvr_api.dll') -PathType Leaf)) {
+            throw 'The selected engine archive does not contain gzdoomvr.exe and openvr_api.dll together.'
+        }
         Get-ChildItem -Path $payload | ForEach-Object {
             Copy-Item -Path $_.FullName -Destination $InstallRoot -Recurse -Force
         }
@@ -315,16 +319,21 @@ function Install-QuestZDoomGame {
         Write-Host "  Enter the full path to your $WadName file:" -ForegroundColor White
         Write-Host "  Steam:   ...steamapps\common\<game>\base\$WadName" -ForegroundColor Gray
         Write-Host "  GOG:     ...GOG Games\<game>\$WadName" -ForegroundColor Gray
-        Write-Host "  Or skip if you don't have the WAD - the engine will" -ForegroundColor Gray
-        Write-Host "  install but the game won't be playable until you" -ForegroundColor Gray
-        Write-Host "  drop a $WadName into the wads\ folder yourself." -ForegroundColor Gray
+        Write-Host "  This game needs your original $WadName before setup can finish." -ForegroundColor Gray
         Write-Host ""
-        $r = (Read-Host "  Path (or empty to skip)").Trim().Trim('"')
-        if ($r -and (Test-Path $r)) { $sourceWad = $r; Write-Info "Path set: $sourceWad" }
+        $r = (Read-Host "  Path (or empty to cancel)").Trim().Trim('"')
+        if ($r -and (Test-Path -LiteralPath $r -PathType Leaf)) { $sourceWad = $r; Write-Info "Path set: $sourceWad" }
+    }
+    if (-not $sourceWad) {
+        Write-Fail "$WadName is required. Nothing was marked installed."
+        Pause-User "Press Enter to exit..."
+        exit 1
     }
     if ($sourceWad) {
         $sourceRoot = if ($gameFolder -and (Find-WadInGameFolder -GameFolder $gameFolder -WadName $WadName)) { $gameFolder } else { Split-Path -Parent $sourceWad }
-        [void](Save-HubRememberedGameFolder -GameId ('' + $env:PCVR_HUB_GAME_ID) -Title $GameTitle -GameDir $sourceRoot -StateName 'source_game_path')
+        if ($env:PCVR_HUB_GAME_ID) {
+            [void](Save-HubRememberedGameFolder -GameId $env:PCVR_HUB_GAME_ID -Title $GameTitle -GameDir $sourceRoot -StateName 'source_game_path')
+        }
     }
 
     # ---- STEP 2: Engine ----
@@ -349,6 +358,11 @@ function Install-QuestZDoomGame {
     }
     if ($engineNeedsInstall) {
         Install-Engine -InstallRoot $installRoot
+        if (-not (Test-EngineInstalled -InstallRoot $installRoot)) {
+            Write-Fail 'The engine is incomplete. Nothing was marked installed.'
+            Pause-User "Press Enter to exit..."
+            exit 1
+        }
         $installedEngineVersion = [string]$QZD_ENGINE_TAG
     } else {
         Write-Info "Engine $installedEngineVersion already present at $installRoot - reusing."
@@ -369,10 +383,14 @@ function Install-QuestZDoomGame {
         } catch {
             Write-Host "FAILED" -ForegroundColor Red
             Write-Fail "Copy failed: $_"
+            Pause-User "Press Enter to exit..."
+            exit 1
         }
-    } else {
-        Write-Warn "$WadName was not located - skipping copy."
-        Write-Host "  Drop the file into: $wadsDir" -ForegroundColor Yellow
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $wadsDir $WadName) -PathType Leaf)) {
+        Write-Fail "$WadName is missing after copy. Nothing was marked installed."
+        Pause-User "Press Enter to exit..."
+        exit 1
     }
 
     # ---- STEP 4: Launcher ----

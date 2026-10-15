@@ -808,6 +808,32 @@ function Get-HubGameStateId {
     return 'title-' + ((($title -replace '[^a-z0-9._-]', '-') -replace '-+', '-').Trim('-'))
 }
 
+# A user-confirmed modlist launcher is a separate, typed route. It never
+# substitutes for installed_path (base game) or a publisher VR file receipt.
+function global:Test-ExternalVrStartAppPath {
+    param($Game, [string]$Path)
+    if (-not $Game -or -not $Game.ExternalVrStartApp -or -not $Path) { return $false }
+    if (-not [IO.Path]::IsPathRooted($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    if ([IO.Path]::GetExtension($Path).ToLowerInvariant() -notin @('.exe','.bat','.cmd','.lnk')) { return $false }
+    $name = [IO.Path]::GetFileName($Path)
+    if ($name -in @('SkyrimVR.exe','Fallout4VR.exe')) { return $false }
+    if ($Game.GameExe -and $name -ieq [IO.Path]::GetFileName([string]$Game.GameExe)) { return $false }
+    return $true
+}
+
+function global:Get-ExternalVrStartApp {
+    param($Game)
+    if (-not $Game -or -not $Game.ExternalVrStartApp) { return $null }
+    $path = Read-PersistentGameStateValue -Game $Game -Name 'external_vr_start_app'
+    if (Test-ExternalVrStartAppPath -Game $Game -Path $path) { return [IO.Path]::GetFullPath($path) }
+    return $null
+}
+
+function global:Test-ExternalVrReady {
+    param($Game, [bool]$BaseInstalled)
+    return [bool]($BaseInstalled -and (Get-ExternalVrStartApp -Game $Game))
+}
+
 function Get-LegacyPersistentGameStatePath {
     param($Game, [string]$Name)
     if (-not $Game -or -not $Game.Title -or -not $Name) { return $null }
@@ -941,6 +967,43 @@ function Write-PersistentGameStateValue {
             [void](Save-HubStateData -Data $data -Generation ($envelope.Generation + 1))
         } | Out-Null
     } catch {}
+}
+
+function Get-HubExternalInstallerAcknowledgementIdentity {
+    param($Game)
+    if (-not $Game -or ('' + $Game.Title) -ne 'Resident Evil 4R VR') { return $null }
+    $label = ('' + $Game.Mod).Trim()
+    $url = ('' + $Game.DownloadUrl).Trim()
+    if ($label -notmatch '^RE4VR\s+[0-9]+(?:\.[0-9]+)+' -or $url -notmatch '^https://(?:www\.)?biohazardvr\.com/downloads/') { return $null }
+    return ($label + '|' + $url)
+}
+
+function Test-HubExternalInstallerAcknowledged {
+    param($Game)
+    $identity = Get-HubExternalInstallerAcknowledgementIdentity -Game $Game
+    if (-not $identity) { return $false }
+    $recorded = Read-PersistentGameStateValue -Game $Game -Name 'external_installer_opened_identity'
+    return [bool]($recorded -and $recorded -ceq $identity)
+}
+
+function Test-HubExternalInstallerUpdateAcknowledged {
+    param($Game, [string]$Evidence)
+    if ($Evidence -notlike 'reviewed manual build *') { return $false }
+    return (Test-HubExternalInstallerAcknowledged -Game $Game)
+}
+
+function Invoke-HubExternalInstallerLink {
+    param($Game, [string]$Url, [scriptblock]$OpenUrl = $null)
+    $identity = Get-HubExternalInstallerAcknowledgementIdentity -Game $Game
+    if (-not $identity -or -not $Url -or $Url -cne ('' + $Game.DownloadUrl).Trim()) { return $false }
+    try {
+        if ($OpenUrl) { & $OpenUrl $Url | Out-Null }
+        else { Start-Process $Url -ErrorAction Stop | Out-Null }
+    } catch { return $false }
+    # This records only a successful link open. The author installer is external,
+    # so this value never proves that its download or installation completed.
+    Write-PersistentGameStateValue -Game $Game -Name 'external_installer_opened_identity' -Value $identity
+    return (Test-HubExternalInstallerAcknowledged -Game $Game)
 }
 
 function Reset-PersistentGameStateValue {
@@ -1096,6 +1159,9 @@ function Read-HubInstallManifestVersion {
         $slot = if ($Second) { 'secondary' } else { 'primary' }
         $id = Get-HubModStateId -Game $Game -Second:$Second
         $match = $doc.data.mods.PSObject.Properties[$id]
+        # Older two-mod catalogs could persist a publisher key under the
+        # opposite slot. The explicit slot wins over that stale key.
+        if ($match -and (('' + $match.Value.slot) -cne $slot)) { $match = $null }
         if (-not $match) {
             foreach ($prop in @($doc.data.mods.PSObject.Properties)) {
                 if (('' + $prop.Value.slot) -eq $slot) { $match = $prop; break }
@@ -1126,7 +1192,14 @@ function Write-HubInstallManifestVersion {
                 }
                 $oldMods = ConvertTo-HubOrderedValue $old.data.mods
                 foreach ($key in @($oldMods.Keys)) {
-                    if (('' + $oldMods[$key].slot) -ne $slot) { $mods[$key] = $oldMods[$key] }
+                    $otherSlot = '' + $oldMods[$key].slot
+                    if ($otherSlot -eq $slot) { continue }
+                    $normalizedKey = switch ($otherSlot) {
+                        'primary' { Get-HubModStateId -Game $Game }
+                        'secondary' { Get-HubModStateId -Game $Game -Second }
+                        default { $key }
+                    }
+                    $mods[$normalizedKey] = $oldMods[$key]
                 }
             }
         }

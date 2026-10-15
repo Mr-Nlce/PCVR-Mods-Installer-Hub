@@ -8,6 +8,10 @@
 # console window is still a user-controlled Windows action, but the Hub never
 # recommends abandoning an unresolved installer failure.
 
+if (-not (Get-Command Get-PCVRDownloadsFolder -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'KnownFolders.ps1')
+}
+
 function global:ConvertTo-PCVRCanonicalUserInput {
     param([AllowNull()][string]$Value)
     if ($null -eq $Value) { return $Value }
@@ -89,6 +93,7 @@ function global:Enable-PCVRReadHostPathGuard {
         }else{
             Microsoft.PowerShell.Utility\Read-Host
         }
+        if ($null -eq $answer) { return $null }
         return (ConvertTo-PCVRCanonicalUserInput (''+$answer))
     }
     Set-Item -LiteralPath Function:\global:Read-Host -Value $body -Force
@@ -106,7 +111,7 @@ function global:Invoke-PCVRUniversalRecovery {
         [scriptblock]$OpenPath=$null
     )
     if(-not $DownloadsFolder){
-        $DownloadsFolder=[IO.Path]::Combine([Environment]::GetFolderPath('UserProfile'),'Downloads')
+        $DownloadsFolder=Get-PCVRDownloadsFolder
     }
     $read={param([string]$Prompt) if($ReadInput){& $ReadInput $Prompt}else{Read-Host $Prompt}}.GetNewClosure()
     $openFolder={
@@ -115,7 +120,9 @@ function global:Invoke-PCVRUniversalRecovery {
         else{Start-Process explorer.exe -ArgumentList ('"'+$Path+'"') -ErrorAction Stop|Out-Null}
     }.GetNewClosure()
 
-    while($true){
+    # Render the recovery page once per failed attempt. Reprinting it for an
+    # empty Enter, a log/folder action, or a bad path filled the console with
+    # identical pages while the installer was still waiting for input.
         Write-Host ''
         Write-Host '============================================================' -ForegroundColor Yellow
         Write-Host '  INSTALLER RECOVERY - nothing was marked complete' -ForegroundColor Yellow
@@ -135,7 +142,12 @@ function global:Invoke-PCVRUniversalRecovery {
         Write-Host '  executable or archive path here. It is handed to the next retry.' -ForegroundColor White
         Write-Host '  If any recovery action fails, this screen stays open.' -ForegroundColor DarkGray
         Write-Host ''
-        $raw=(''+(& $read '  Recovery choice or path')).Trim()
+    while($true){
+        $answer=& $read '  Recovery choice or path'
+        if($null -eq $answer -or (-not $ReadInput -and [Console]::IsInputRedirected -and (''+$answer).Length -eq 0)){
+            throw [IO.EndOfStreamException]::new('Recovery needs interactive console input; no input was available.')
+        }
+        $raw=(''+$answer).Trim()
         $choice=$raw.ToUpperInvariant()
         try{
             if($choice -eq 'R'){
@@ -146,6 +158,7 @@ function global:Invoke-PCVRUniversalRecovery {
                     [void][IO.Directory]::CreateDirectory($DownloadsFolder)
                 }
                 & $openFolder $DownloadsFolder
+                Write-Host '  Downloads opened. Paste a file or folder path here when ready.' -ForegroundColor Cyan
                 continue
             }
             if($choice -eq 'L'){
@@ -153,6 +166,7 @@ function global:Invoke-PCVRUniversalRecovery {
                     throw 'The installer log does not exist yet. Retry or provide a manual path.'
                 }
                 if($OpenLog){& $OpenLog $LogPath|Out-Null}else{Start-Process notepad.exe -ArgumentList ('"'+$LogPath+'"') -ErrorAction Stop|Out-Null}
+                Write-Host '  Log opened. Enter R to retry or provide a path.' -ForegroundColor Cyan
                 continue
             }
             if($choice -eq 'F'){
@@ -160,6 +174,7 @@ function global:Invoke-PCVRUniversalRecovery {
                     throw 'The installer folder is unavailable.'
                 }
                 & $openFolder $InstallerFolder
+                Write-Host '  Installer folder opened. Enter R to retry or provide a path.' -ForegroundColor Cyan
                 continue
             }
             if($choice -eq 'C'){
@@ -175,7 +190,8 @@ function global:Invoke-PCVRUniversalRecovery {
                     return [pscustomobject]@{Action='retry';RecoveryInput=$resolved;Source='manual'}
                 }
             }
-            Write-Host '  That is not an available recovery action or existing path.' -ForegroundColor Yellow
+            if($raw){Write-Host '  That is not an available recovery action or existing path.' -ForegroundColor Yellow}
+            else{Write-Host '  Enter R to retry, or paste an existing file or folder path.' -ForegroundColor Yellow}
         }catch{
             Write-Host ('  Recovery action failed: '+$_.Exception.Message) -ForegroundColor Yellow
             Write-Host '  Nothing closed. Choose another action or provide a path.' -ForegroundColor DarkGray

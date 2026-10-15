@@ -153,7 +153,7 @@ function Get-Tribes2Archive {
     }
     $validator = ${function:Test-Tribes2Archive}.GetNewClosure()
     $findCandidate = {
-        $downloads = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads'
+        $downloads = Get-PCVRDownloadsFolder
         foreach ($candidate in @(Get-ChildItem -LiteralPath $downloads -Filter 'Tribes2VR*.zip' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending)) {
             if (& $validator $candidate.FullName) { return $candidate.FullName }
         }

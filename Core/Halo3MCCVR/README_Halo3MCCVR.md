@@ -1,29 +1,36 @@
 # Halo Master Chief Collection VR
 
-**Halo MCC VR** by **moistman42069** adds true stereo rendering, 6DOF motion
+Halo MCC VR by moistman42069 adds true stereo rendering, 6DOF motion
 controls and VR-first weapon interaction to all of Halo: The Master Chief
-Collection. The Hub downloads the current playable release automatically,
+Collection. New Hub installations use the publicly available Alpha 0.5.1,
 rejects source and diagnostic ZIPs, and validates the runtime files without
 depending on changeable release-note filenames. Always launch without
 anti-cheat and never use the mod in matchmaking.
 
+The previously offered 0.6.0 is no longer available from the publisher. Existing 0.6.0 installations are not automatically downgraded; the installer asks before replacing one with 0.5.1.
+
+Alpha 0.7.0 is held back in the Hub. The publisher reports that its
+launcher is broken for Halo 3 and Halo 4, with a Halo 3 startup freeze and a
+fatal Halo 4 crash. Its manual installation is also not guaranteed to work.
+The Hub suppresses the 0.7.0 update badge while this hold is active.
+
 ## Supported campaigns
 
-The maintained build supports every MCC campaign: **Halo: Combat Evolved
-Anniversary** in Original and Anniversary graphics, **Halo 2: Anniversary** in
-Classic and Anniversary graphics, **Halo 3**, **Halo 3: ODST**, **Halo: Reach**
-and **Halo 4**.
+The maintained build supports every MCC campaign: Halo: Combat Evolved
+Anniversary in Original and Anniversary graphics, Halo 2: Anniversary in
+Classic and Anniversary graphics, Halo 3, Halo 3: ODST, Halo: Reach
+and Halo 4.
 
 It includes hand and weapon world contact, swing-triggered melee, Reach aiming,
 left-handed controls and dual-weapon refinements. Features identified as WIP by
 the current release still require headset testing and may behave differently
 between campaigns.
 
-The current **0.5.1 alpha** adds experimental Combat Evolved multiplayer tracking
+The available 0.5.1 experimental alpha adds experimental Combat Evolved multiplayer tracking
 and grenade aiming while retaining the 0.5.0 all-campaign feature set. It expands vehicle cameras across the supported titles,
 adds zoom, manual reload and dual-wield improvements, and corrects roomscale and
 hand/body placement. These remain experimental cross-campaign systems rather
-than a promise that every weapon, vehicle and mission has been validated.
+than a promise that every weapon, vehicle and mission has been validated. The publisher reports incomplete co-op and headset testing for this release.
 
 ## Before the first VR launch
 
@@ -38,7 +45,7 @@ than a promise that every weapon, vehicle and mission has been validated.
 
 ## Start in VR
 
-Use **Start in VR** in the Hub or the **Halo MCC VR** desktop shortcut. Both
+Use Start in VR in the Hub or the Halo MCC VR desktop shortcut. Both
 start the mod launcher directly and select the anti-cheat-disabled route. The
 normal Steam or Xbox-app launch remains flat.
 
@@ -59,10 +66,10 @@ loading screen; wait for it to continue.
 | [[Left Hand at Head]] + [[Left Stick Click]] | Switch Original / Anniversary graphics during gameplay |
 | [[Left Grip]] | Support a two-handed weapon when enabled |
 
-Enable experimental world contact under **F1 > Body & Hands > World
-collision**, then enable **Physical melee** below it if wanted. Adjust picture
-resolution under **F1 > Picture** and restart MCC to apply it. First-person
-vehicle seats can need a one-time position adjustment under **F1 > Vehicles**
+Enable experimental world contact under F1 > Body & Hands > World
+collision, then enable Physical melee below it if wanted. Adjust picture
+resolution under F1 > Picture and restart MCC to apply it. First-person
+vehicle seats can need a one-time position adjustment under F1 > Vehicles
 while sitting in each seat.
 
 ## Current limitations
@@ -85,7 +92,7 @@ Fresh installations receive the publisher's `halomccvr.cfg`. Updates preserve
 the existing file exactly, as required by the publisher, so tuned resolution,
 comfort, alignment and vehicle settings remain in place.
 
-Use **Uninstall Now** on the detail page. It removes only unchanged files
+Use Uninstall Now on the detail page. It removes only unchanged files
 recorded in the Hub ownership manifest. Personal settings, logs, changed files,
 config backups, MCC, installed campaigns and saves remain untouched. Never
 delete the MCC game folder.
@@ -95,6 +102,6 @@ trust its source rather than disabling antivirus protection globally.
 
 ## Credits and mod pages
 
-- Maintained MCCVR build: **moistman42069**
+- Maintained MCCVR build: moistman42069
 - [MCCVR project and issue tracker](https://github.com/moistman42069/MCCVR-Halo-Build)
 - [MCCVR releases](https://github.com/moistman42069/MCCVR-Halo-Build/releases)

@@ -197,7 +197,7 @@ function Get-ElderbornArchive {
     # callable there; a bare Test-ElderbornArchive command name does not.
     $validator = ${function:Test-ElderbornArchive}.GetNewClosure()
     $findCandidate = {
-        $downloads = Join-Path ([Environment]::GetFolderPath('UserProfile')) 'Downloads'
+        $downloads = Get-PCVRDownloadsFolder
         foreach ($candidate in @(Get-ChildItem -LiteralPath $downloads -Filter '*.zip' -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTimeUtc -Descending)) {
             if (& $validator $candidate.FullName) { return $candidate.FullName }
         }

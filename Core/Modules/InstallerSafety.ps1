@@ -9,6 +9,22 @@
 #  rest of the hub.
 # -------------------------------------------------------
 
+if (-not (Get-Command Get-PCVRDownloadsFolder -ErrorAction SilentlyContinue)) {
+    . (Join-Path $PSScriptRoot 'KnownFolders.ps1')
+}
+
+# Some launcher environments prepend a foreign PowerShell module directory to
+# PSModulePath. In Windows PowerShell 5 it can shadow the inbox Utility module
+# while omitting Get-FileHash, which breaks filewise verification mid-install.
+# Resolve that host command from the current PowerShell installation once.
+if (-not (Get-Command Get-FileHash -ErrorAction SilentlyContinue)) {
+    $pcvrUtilityModule = Join-Path $PSHOME 'Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1'
+    if (Test-Path -LiteralPath $pcvrUtilityModule -PathType Leaf) {
+        Import-Module $pcvrUtilityModule -Global -Force -ErrorAction Stop
+    }
+    Remove-Variable pcvrUtilityModule -ErrorAction SilentlyContinue
+}
+
 # Clipboard writes used to run directly in the installer's normal STA
 # powershell.exe process. The Hub now contains installers in a child runspace,
 # so keep one shared implementation that both writes the real Windows
@@ -140,8 +156,12 @@ function global:Invoke-InstallerFallback {
         # trying to do (e.g. "the PeakVersionBypass ZIP", "BepInEx").
         # Used to generate a clear "What happened?" line. Falls back
         # to $Action when not given so old call sites keep working.
-        [string]$Subject       = ""
+        [string]$Subject       = "",
+        # The caller may record the exact manually selected source file.
+        # A file merely copied into the staging folder has no such identity.
+        [hashtable]$RecoveryInfo
     )
+    if ($null -ne $RecoveryInfo) { $RecoveryInfo.Clear() }
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Yellow
     Write-Host "  Manual step needed: $Action" -ForegroundColor Yellow
@@ -291,6 +311,11 @@ function global:Invoke-InstallerFallback {
             Write-Host "  Trying the file handed over by the universal recovery screen." -ForegroundColor DarkGray
         } else {
             $raw = ("" + (Read-Host $__prompt)).Trim()
+            # A redirected installer run can exhaust stdin after an extraction
+            # failure. Do not redraw this recovery menu indefinitely at EOF.
+            if (-not $raw -and [Console]::IsInputRedirected -and [Console]::In.Peek() -lt 0) {
+                throw [IO.EndOfStreamException]::new('Recovery needs interactive console input; no input was available.')
+            }
         }
         if ($DestFile -and $raw) {
             $cand = $raw.Trim('"').Trim("'")
@@ -309,9 +334,21 @@ function global:Invoke-InstallerFallback {
                     $manualStage = $null
                     Write-Host "  [OK] Got it - using that file." -ForegroundColor Green
                     if ($RetryCheck) {
-                        try { if (& $RetryCheck) { return "retry" } } catch {}
+                        try {
+                            if (& $RetryCheck) {
+                                if ($null -ne $RecoveryInfo) {
+                                    $RecoveryInfo.SourceKind = 'manual selection'
+                                    $RecoveryInfo.SourcePath = [IO.Path]::GetFullPath($cand)
+                                }
+                                return "retry"
+                            }
+                        } catch {}
                         Write-Host "  [!!] That file did not pass the check - try another." -ForegroundColor Yellow
                         continue
+                    }
+                    if ($null -ne $RecoveryInfo) {
+                        $RecoveryInfo.SourceKind = 'manual selection'
+                        $RecoveryInfo.SourcePath = [IO.Path]::GetFullPath($cand)
                     }
                     return "retry"
                 } catch {
@@ -565,6 +602,7 @@ function global:Invoke-SafeDownload {
         [string]$SkipMessage  = "",
         [bool]$AllowSkip = $true,
         [hashtable]$DownloadInfo,
+        [string]$ExpectedReleaseTag = "",
         [string]$ExpectedSha256 = "",
         [Int64]$ExpectedBytes = 0,
         [scriptblock]$Validator = $null,
@@ -574,9 +612,20 @@ function global:Invoke-SafeDownload {
         [string[]]$VerifiedFallbackUrls = @(),
         # New installers can provide their own compact progress line without
         # changing the long-standing output of existing installers.
-        [switch]$QuietProgress
+        [switch]$QuietProgress,
+        # The caller has already resolved one exact release asset. Do not
+        # silently substitute an asset from another release if it fails.
+        [switch]$DisableGitHubAssetReresolution
     )
     if ($null -ne $DownloadInfo) { $DownloadInfo.Clear() }
+    if (-not $ExpectedReleaseTag) {
+        $urlTags = @($Urls | ForEach-Object {
+            if ([string]$_ -match '^https?://github\.com/[^/]+/[^/]+/releases/download/([^/?#]+)/') {
+                [uri]::UnescapeDataString($matches[1])
+            }
+        } | Where-Object { $_ -and $_ -notin @('latest','download') } | Select-Object -Unique)
+        if ($urlTags.Count -gt 0) { $ExpectedReleaseTag = [string]$urlTags[0] }
+    }
     $normalizedSha = ('' + $ExpectedSha256).Trim()
     if ($normalizedSha -match '^(?i)sha256:([0-9a-f]{64})$') { $normalizedSha = $matches[1] }
     if ($normalizedSha -and $normalizedSha -notmatch '^(?i)[0-9a-f]{64}$') {
@@ -613,8 +662,17 @@ function global:Invoke-SafeDownload {
     # Mutable latest/branch URLs and ordinary pages are never archived here.
     $sources = New-Object System.Collections.Generic.List[object]
     $seen = @{}
+    $requestedReleaseKey = ''
     foreach ($u in $Urls) {
         if (-not $u -or $seen.ContainsKey($u)) { continue }
+        if ($u -match '^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/') {
+            $candidateReleaseKey = ($matches[1] + '/' + $matches[2] + '/' + $matches[3]).ToLowerInvariant()
+            if (-not $requestedReleaseKey) { $requestedReleaseKey = $candidateReleaseKey }
+            elseif ($candidateReleaseKey -ne $requestedReleaseKey -and -not $normalizedSha) {
+                Write-Host '  [!!] A different GitHub release was not used as an automatic fallback.' -ForegroundColor Yellow
+                continue
+            }
+        }
         $seen[$u] = $true
         [void]$sources.Add([pscustomobject]@{ Url=[string]$u; Kind='upstream' })
         if ($normalizedSha -and $u -match '^https?://github\.com/[^/]+/[^/]+/releases/download/(?!latest(?:/|$))[^/]+/[^?#]+(?:\?.*)?$') {
@@ -673,18 +731,16 @@ function global:Invoke-SafeDownload {
             if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
         }
     }
-    # Last-resort auto-fallback for pinned GitHub release assets: only when
-    # EVERY direct source above failed (including the Web Archive mirror),
-    # ask the GitHub API for the repo's releases and resolve a matching
-    # asset live. Rescues the common case of a re-tagged/renamed release
-    # where the pinned URL 404s but the mod is still right there. Matching
-    # is deliberately conservative:
+    # A cross-release GitHub lookup is allowed only when the caller supplied
+    # an expected SHA-256: the replacement must then be the same bytes.
+    # Without that proof, a similarly named asset from another release could
+    # be installed while the caller records the originally requested tag.
+    # When identity is proved, matching remains conservative:
     #   1. exact same file name in any release (newest first)
     #   2. name with the same leading word AND same extension
     #   3. a release's SINGLE asset with that extension (unambiguous)
-    # Anything ambiguous is skipped - then the interactive fallback below
-    # takes over exactly as before. Strictly additive: on any API error we
-    # fall through unchanged.
+    # Anything ambiguous or unproved goes to manual recovery below.
+    if ($normalizedSha -and -not $DisableGitHubAssetReresolution) {
     foreach ($u in $Urls) {
         if ($u -notmatch '^https?://github\.com/([^/]+)/([^/]+)/releases/download/[^/]+/(.+)$') { continue }
         $ghOwner = $matches[1]; $ghRepo = $matches[2]
@@ -752,6 +808,7 @@ function global:Invoke-SafeDownload {
         }
         break   # only the first GitHub URL needs resolving
     }
+    }
 
     # All sources failed - hand off to interactive fallback.
     # Derive the destination FOLDER from the file path so the
@@ -761,6 +818,7 @@ function global:Invoke-SafeDownload {
     try { $destFolderForFallback = Split-Path $Destination -Parent } catch { }
     $manualValidator = { param([string]$Candidate) & $validateCandidate $Candidate }.GetNewClosure()
     $manualRetry = { & $validateCandidate $destinationFull }.GetNewClosure()
+    $manualInfo = @{}
     $r = Invoke-InstallerFallback `
             -Action "$Label download" `
             -Subject $Label `
@@ -771,7 +829,33 @@ function global:Invoke-SafeDownload {
             -DestFolder $destFolderForFallback `
             -DestFile $Destination `
             -FileValidator $manualValidator `
-            -RetryCheck $manualRetry
+            -RetryCheck $manualRetry `
+            -RecoveryInfo $manualInfo
+    if ([string]$r -eq 'retry' -and $ExpectedReleaseTag) {
+        $manualPath = ('' + $manualInfo.SourcePath).Trim()
+        $manualLeaf = if ($manualPath) { [IO.Path]::GetFileName($manualPath) } else { '' }
+        $expectedNumber = [regex]::Match($ExpectedReleaseTag,'(?i)\d+(?:\.\d+){1,3}(?:[-_.]?(?:alpha|beta|rc|pre)[-_.]?\d+)?').Value
+        $namedNumber = [regex]::Match($manualLeaf,'(?i)(?<![a-z0-9])v?\d+(?:\.\d+){1,3}(?:[-_.]?(?:alpha|beta|rc|pre)[-_.]?\d+)?').Value.TrimStart('v','V')
+        if ($expectedNumber -and $namedNumber -and $namedNumber -ne $expectedNumber) {
+            Remove-Item -LiteralPath $destinationFull -Force -ErrorAction SilentlyContinue
+            throw "The manual file names version $namedNumber, but the selected release is $ExpectedReleaseTag. No game files were changed. Retry the official release download."
+        }
+        Write-Host "  Official download was unavailable. Selected release: $ExpectedReleaseTag" -ForegroundColor Yellow
+        if ($manualLeaf) { Write-Host "  Manual file: $manualLeaf" -ForegroundColor White }
+        Write-Host '  The Hub cannot independently prove the version of this manual file.' -ForegroundColor Yellow
+        $typed = (Read-Host "Type the exact release tag $ExpectedReleaseTag to confirm this file").Trim()
+        if ($typed -cne $ExpectedReleaseTag) {
+            Remove-Item -LiteralPath $destinationFull -Force -ErrorAction SilentlyContinue
+            throw 'Manual package version was not confirmed. No game files were changed.'
+        }
+        Write-Host "  [OK] Manual file explicitly confirmed as $ExpectedReleaseTag." -ForegroundColor Green
+    }
+    if ($null -ne $DownloadInfo -and [string]$r -eq 'retry') {
+        $DownloadInfo.SourceKind = if ($manualInfo.SourceKind) { [string]$manualInfo.SourceKind } else { 'manual staged file' }
+        if ($manualInfo.SourcePath) { $DownloadInfo.SourcePath = [string]$manualInfo.SourcePath }
+        $DownloadInfo.Bytes = (Get-Item -LiteralPath $destinationFull).Length
+        $DownloadInfo.Sha256 = (Get-FileHash -LiteralPath $destinationFull -Algorithm SHA256).Hash
+    }
     return $r
 }
 
@@ -1902,8 +1986,12 @@ function global:Save-HubRememberedGameFolder {
 
     $stateModule = Join-PathLexical $script:PCVRHubInstallerSafetyModuleRoot 'HubState.ps1'
     if (-not (Test-LiteralPathSafe -Path $stateModule -PathType Leaf)) { return $false }
-    try {
-        return [bool](& {
+    # Each attempt uses a fresh state-module scope. A brief file lock during
+    # the canonical write/read can otherwise make a valid Locate assignment
+    # look forgotten under concurrent installer and scan activity.
+    for ($attempt=1; $attempt -le 3; $attempt++) {
+      try {
+        $confirmed = [bool](& {
             param([string]$ModulePath,[string]$StableId,[string]$GameTitle,[string]$PathValue,[string]$ValueName,[bool]$Located)
             . $ModulePath
             $game = [pscustomobject]@{ Id=$StableId; Title=$GameTitle }
@@ -1919,7 +2007,11 @@ function global:Save-HubRememberedGameFolder {
             }
             return $true
         } $stateModule $id $Title $full $StateName ([bool]$UserSelected))
-    } catch { return $false }
+        if ($confirmed) { return $true }
+      } catch {}
+      if ($attempt -lt 3) { Start-Sleep -Milliseconds (20 * $attempt) }
+    }
+    return $false
 }
 
 function global:Find-SteamGameFolder {
@@ -2348,14 +2440,18 @@ function global:Resolve-DepotPath {
         Write-Host ""
         Write-Host "    [1] Open Steam Console and re-run the depot download" -ForegroundColor Yellow
         Write-Host "    [2] Enter the depot folder path manually" -ForegroundColor Yellow
+        Write-Host "    [Q] Quit depot setup" -ForegroundColor Yellow
         if ($ddAvailable) {
             Write-Host "    [3] Use the DepotDownloader fallback (logs into Steam)" -ForegroundColor Yellow
         }
         Write-Host ""
         Write-Host "  Press Enter to refresh the checks and show this menu again." -ForegroundColor DarkGray
 
-        $choice = ("" + (Read-Host "  Your choice")).Trim()
+        $choiceInput = Read-Host "  Your choice"
+        if ($null -eq $choiceInput) { throw 'Depot input stream ended before a folder was selected.' }
+        $choice = ([string]$choiceInput).Trim()
         if (-not $choice) { continue }
+        if ($choice -ieq 'Q') { throw 'Depot setup cancelled before a folder was selected.' }
 
         if ($choice -eq "1") {
             $clipOk = $false
@@ -2387,7 +2483,9 @@ function global:Resolve-DepotPath {
 
             Write-Host "  When the download is COMPLETE, press Enter." -ForegroundColor White
             Write-Host "  If there was a PROBLEM (download did not finish), type I and press Enter." -ForegroundColor White
-            $done = ("" + (Read-Host "  [Enter] = done   /   [I] = problem")).Trim()
+            $doneInput = Read-Host "  [Enter] = done   /   [I] = problem"
+            if ($null -eq $doneInput) { throw 'Depot input stream ended before a folder was selected.' }
+            $done = ([string]$doneInput).Trim()
             if ($done -eq "i" -or $done -eq "I") {
                 $consoleFailCount++
                 Write-Host "  [!!] Steam Console attempt marked as failed ($consoleFailCount)." -ForegroundColor Yellow
@@ -2403,7 +2501,9 @@ function global:Resolve-DepotPath {
                 Write-Host "  Paste the full depot folder path (the absolute folder" -ForegroundColor White
                 Write-Host "  Steam printed when the download completed)." -ForegroundColor White
                 Write-Host "  Press Enter on its own to go back to the menu." -ForegroundColor DarkGray
-                $raw = ("" + (Read-Host "  Depot path")).Trim().Trim('"')
+                $rawInput = Read-Host "  Depot path"
+                if ($null -eq $rawInput) { throw 'Depot input stream ended before a folder was selected.' }
+                $raw = ([string]$rawInput).Trim().Trim('"')
                 if (-not $raw) { break }
                 if (-not (Test-LiteralPathSafe -Path $raw -PathType Container)) {
                     Write-Host "  [XX] Path not found: $raw" -ForegroundColor Red
@@ -2413,7 +2513,9 @@ function global:Resolve-DepotPath {
                     $probe = Join-PathLexical $raw $GameExe
                     if (-not (Test-LiteralPathSafe -Path $probe -PathType Leaf)) {
                         Write-Host "  [!!] Path exists but '$GameExe' is not inside it." -ForegroundColor Yellow
-                        $ok = ("" + (Read-Host "  Accept anyway? [Y/N]")).Trim().ToLower()
+                        $okInput = Read-Host "  Accept anyway? [Y/N]"
+                        if ($null -eq $okInput) { throw 'Depot input stream ended before a folder was selected.' }
+                        $ok = ([string]$okInput).Trim().ToLower()
                         if ($ok -ne "y") { continue }
                     }
                 }
@@ -3182,9 +3284,9 @@ function global:Install-MultiverseVRHub {
     } catch { }
 
     $dest = Join-Path $dir $exeName
-    Invoke-SafeDownload -Urls @($url, $pinned) -Destination $dest -Label "Multiverse VR Hub $tag" `
+    [void](Invoke-SafeDownload -Urls @($url, $pinned) -Destination $dest -Label "Multiverse VR Hub $tag" `
         -ManualUrl "https://github.com/$repo/releases/latest" `
-        -Instructions "Download $exeName from the releases page and save it as '$dest', then choose Retry."
+        -Instructions "Download $exeName from the releases page and save it as '$dest', then choose Retry.")
 
     if (Test-Path -LiteralPath $dest) {
         # RECOMPUTE THE CHECKSUM. The author publishes it with every
@@ -3601,7 +3703,7 @@ function global:Find-PredownloadedFile {
     if ($ExpectedName) { $Patterns = @($ExpectedName) }
     $folders = New-Object System.Collections.ArrayList
     foreach ($f in @(
-        (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"),
+        (Get-PCVRDownloadsFolder),
         ([Environment]::GetFolderPath("Desktop"))
     ) + $ExtraFolders) {
         if ($f -and (Test-Path -LiteralPath $f)) { [void]$folders.Add([string]$f) }
@@ -4187,9 +4289,13 @@ function global:Confirm-PlacedFilesSurvive {
         if ($microsoftDefenderActive) { Write-Host '  [O] Open Windows Defender exclusions' -ForegroundColor Gray }
         Write-Host '  [F] Open the game folder' -ForegroundColor Gray
         Write-Host '  [R] Retry file placement now' -ForegroundColor Green
-        $prompt = if ($microsoftDefenderActive) { 'O, F or R' } else { 'F or R' }
+        Write-Host '  [Q] Cancel setup and restore the previous files' -ForegroundColor Gray
+        $prompt = if ($microsoftDefenderActive) { 'O, F, R or Q' } else { 'F, R or Q' }
         $raw = if ($ReadInput) { & $ReadInput $prompt } else { Read-Host '  Your choice' }
+        if ($null -eq $raw) { return $false }
         $choice = ('' + $raw).Trim().ToUpperInvariant()
+
+        if ($choice -eq 'Q') { return $false }
 
         if ($choice -eq 'O' -and $microsoftDefenderActive) {
             if ($OpenExclusions) { & $OpenExclusions | Out-Null }
@@ -4350,4 +4456,138 @@ function global:Import-LegacyInstall {
         try { Copy-Item -LiteralPath $loose -Destination $inStore -Force -ErrorAction Stop; $taken += $f } catch {}
     }
     return $taken
+}
+
+# Shared preflight and post-copy proof for the small Discord BepInEx ZIPs.
+# A readable but unrelated ZIP must never produce a path/version receipt.
+function global:Assert-PCVRDropInPreflight {
+    param([string]$GameRoot,[string]$GameExe,[string]$GameDataFolder,[string]$ArchivePath)
+    if (-not (Test-Path -LiteralPath (Join-Path $GameRoot $GameExe) -PathType Leaf) -or
+        -not (Test-Path -LiteralPath (Join-Path $GameRoot $GameDataFolder) -PathType Container)) {
+        throw "The selected folder lacks $GameExe or $GameDataFolder; the base game is not proven."
+    }
+    if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) { throw 'The selected mod archive is missing.' }
+    $safe = Test-ZipArchiveEntrySafety -ArchivePath $ArchivePath -DestinationFolder ([IO.Path]::GetTempPath())
+    if (-not $safe.Inspectable -or -not $safe.Safe) { throw 'The selected mod ZIP is unreadable or contains unsafe paths.' }
+}
+
+function global:Get-PCVRDropInSourceHashes {
+    param([string]$SourceRoot,[string[]]$RequiredFiles)
+    foreach ($relative in $RequiredFiles) {
+        if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot $relative) -PathType Leaf)) {
+            throw "The selected mod archive is missing $relative; nothing was copied."
+        }
+    }
+    $root = [IO.Path]::GetFullPath($SourceRoot).TrimEnd([char[]]'\/')
+    $hashes = @{}
+    foreach ($file in @(Get-ChildItem -LiteralPath $SourceRoot -Recurse -File -ErrorAction Stop)) {
+        $relative = $file.FullName.Substring($root.Length + 1)
+        $stream = [IO.File]::OpenRead($file.FullName)
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $hashes[$relative] = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+        finally { $sha.Dispose(); $stream.Dispose() }
+    }
+    if ($hashes.Count -eq 0) { throw 'The selected mod archive contains no installable files.' }
+    return $hashes
+}
+
+function global:Assert-PCVRDropInCopiedFiles {
+    param([string]$GameRoot,[hashtable]$SourceHashes,[string[]]$PreservedExistingFiles=@())
+    foreach ($relative in $SourceHashes.Keys) {
+        if ($PreservedExistingFiles -contains $relative) { continue }
+        $target = Join-Path $GameRoot $relative
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "Installed mod file is missing: $relative" }
+        $stream = [IO.File]::OpenRead($target)
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try { $actual = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+        finally { $sha.Dispose(); $stream.Dispose() }
+        if ($actual -ne $SourceHashes[$relative]) { throw "Installed mod file differs from the selected archive: $relative" }
+    }
+}
+
+function global:Undo-PCVRDropInCopy {
+    param($Transaction)
+    if (-not $Transaction) { return }
+    foreach ($row in @($Transaction.Rows | Sort-Object Index -Descending)) {
+        $target = Join-Path $Transaction.GameRoot $row.Relative
+        if ($row.HadOriginal) {
+            $backup = Join-Path $Transaction.BackupRoot $row.BackupName
+            if (-not (Test-Path -LiteralPath $backup -PathType Leaf)) { throw "Rollback backup is missing: $($row.Relative)" }
+            $parent = Split-Path -Parent $target
+            if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+            Copy-Item -LiteralPath $backup -Destination $target -Force -ErrorAction Stop
+        } elseif (Test-Path -LiteralPath $target -PathType Leaf) {
+            Remove-Item -LiteralPath $target -Force -ErrorAction Stop
+        }
+    }
+    if (Test-Path -LiteralPath $Transaction.BackupRoot) { Remove-Item -LiteralPath $Transaction.BackupRoot -Recurse -Force -ErrorAction Stop }
+}
+
+function global:Install-PCVRDropInCopy {
+    param([string]$SourceRoot,[string]$GameRoot,[hashtable]$SourceHashes,[string[]]$KeepExistingFiles=@())
+    $backupRoot = Join-Path ([IO.Path]::GetTempPath()) ('pcvr-dropin-undo-'+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($backupRoot)
+    $rows = New-Object System.Collections.Generic.List[object]
+    $index=0
+    try {
+        # Complete the undo snapshot before the first game-file write.
+        foreach ($relative in @($SourceHashes.Keys | Sort-Object)) {
+            $target = Join-Path $GameRoot $relative
+            if ((Test-Path -LiteralPath $target -PathType Leaf) -and ($KeepExistingFiles -contains $relative)) { continue }
+            if (Test-Path -LiteralPath $target -PathType Container) { throw "A directory occupies a mod file path: $relative" }
+            $hadOriginal = Test-Path -LiteralPath $target -PathType Leaf
+            $backupName = if ($hadOriginal) { "$index.bin" } else { '' }
+            if ($hadOriginal) {
+                $backup = Join-Path $backupRoot $backupName
+                Copy-Item -LiteralPath $target -Destination $backup -Force -ErrorAction Stop
+            }
+            $rows.Add([pscustomobject]@{Index=$index;Relative=$relative;HadOriginal=$hadOriginal;BackupName=$backupName})
+            $index++
+        }
+        $transaction=[pscustomobject]@{GameRoot=$GameRoot;BackupRoot=$backupRoot;Rows=$rows.ToArray()}
+        foreach ($row in $rows) {
+            $source = Join-Path $SourceRoot $row.Relative
+            $target = Join-Path $GameRoot $row.Relative
+            $parent = Split-Path -Parent $target
+            if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
+            Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop
+        }
+        return $transaction
+    } catch {
+        $failure=$_
+        try {
+            if ($rows.Count) { Undo-PCVRDropInCopy -Transaction ([pscustomobject]@{GameRoot=$GameRoot;BackupRoot=$backupRoot;Rows=$rows.ToArray()}) }
+            elseif (Test-Path -LiteralPath $backupRoot) { Remove-Item -LiteralPath $backupRoot -Recurse -Force -ErrorAction SilentlyContinue }
+        } catch { throw "Drop-in copy failed and rollback failed: $failure; $_" }
+        throw $failure
+    }
+}
+
+function global:Complete-PCVRDropInCopy {
+    param($Transaction)
+    if ($Transaction -and (Test-Path -LiteralPath $Transaction.BackupRoot)) {
+        Remove-Item -LiteralPath $Transaction.BackupRoot -Recurse -Force -ErrorAction Stop
+    }
+}
+
+function global:Invoke-PCVRDropInInstall {
+    param([string]$SourceRoot,[string]$GameRoot,[hashtable]$SourceHashes,
+          [string[]]$KeepExistingFiles=@(),$Contract,[string]$Version,
+          [string[]]$InstalledPathReceiptPaths)
+    $preserved = @($KeepExistingFiles | Where-Object { Test-Path -LiteralPath (Join-Path $GameRoot $_) -PathType Leaf })
+    $transaction = Install-PCVRDropInCopy -SourceRoot $SourceRoot -GameRoot $GameRoot `
+        -SourceHashes $SourceHashes -KeepExistingFiles $KeepExistingFiles
+    try {
+        Assert-PCVRDropInCopiedFiles -GameRoot $GameRoot -SourceHashes $SourceHashes -PreservedExistingFiles $preserved
+        [void](Complete-PCVRInstallTransaction -Contract $Contract -GameDir $GameRoot -Version $Version `
+            -InstalledPathReceiptPaths $InstalledPathReceiptPaths)
+    } catch {
+        $failure=$_
+        try { Undo-PCVRDropInCopy -Transaction $transaction }
+        catch { throw "Drop-in install failed and rollback failed: $failure; $_" }
+        throw $failure
+    }
+    try { Complete-PCVRDropInCopy -Transaction $transaction }
+    catch { Write-Warning "The install succeeded, but its temporary rollback snapshot could not be removed: $_" }
+    return $true
 }

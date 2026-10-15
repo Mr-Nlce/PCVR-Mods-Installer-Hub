@@ -56,7 +56,7 @@ foreach ($cand in @(
     "C:\Games\$GAME_FOLDER", "D:\Games\$GAME_FOLDER", "E:\Games\$GAME_FOLDER",
     (Join-Path $env:USERPROFILE "Games\$GAME_FOLDER")
 )) {
-    if ($cand -and (Test-Path -LiteralPath (Join-Path $cand $MOD_EXE_REL))) { $installRoot = $cand; break }
+    if ($cand -and (Test-LiteralPathSafe -Path (Join-PathLexical $cand $MOD_EXE_REL) -PathType Leaf)) { $installRoot = $cand; break }
 }
 if (-not $installRoot) {
     Write-Warn "Could not find the install automatically."

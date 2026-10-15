@@ -56,8 +56,8 @@ $GITHUB_RELEASES   = "https://github.com/$GITHUB_REPO/releases"
 # prerelease live (the repo has ONLY prereleases, so /releases/latest
 # goes nowhere). Keep the fallback on the last structurally inspected
 # main package - never guess a build number from the tag.
-$PINNED_TAG        = "v0.9.7-alpha.2"
-$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.7-alpha.2/Witcher3VR-v0.9.7-V1535.zip"
+$PINNED_TAG        = "v0.9.8"
+$PINNED_URL        = "https://github.com/$GITHUB_REPO/releases/download/v0.9.8/Witcher3VR-v0.9.8-V1580-Main.zip"
 
 # -------------------------------------------------------
 # Helpers
@@ -182,10 +182,10 @@ try {
     $rel  = @($resp) | Select-Object -First 1
     if ($rel) {
         $relTag = [string]$rel.tag_name
-        # Select the plain V<build>.zip explicitly. OptiScaler is integrated
-        # in v0.9.7 and later, so no second add-on package is needed.
+        # Select only the main game package. The publisher added -Main in
+        # v0.9.8; the separate RenderDoc add-on is not an install payload.
         $asset = $rel.assets | Where-Object {
-            $_.name -match '^Witcher3VR-v.+-V\d+\.zip$'
+            $_.name -match '^Witcher3VR-v.+-V\d+(?:-Main)?\.zip$'
         } | Select-Object -First 1
         if ($asset) { $dlUrl = [string]$asset.browser_download_url }
     }
@@ -200,19 +200,24 @@ if (-not $dlUrl) {
 }
 
 $zipPath = Join-Path $env:TEMP ("W3VR_" + [System.IO.Path]::GetRandomFileName() + ".zip")
-if (-not (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "Witcher3VR" `
+$downloadInfo = @{}
+$downloadResult = Invoke-SafeDownload -Urls @($dlUrl) -Destination $zipPath -Label "Witcher3VR" `
         -ManualUrl $GITHUB_RELEASES `
-        -Instructions "Download the Witcher3VR-...zip (NOT the -SHA256.txt) from the Releases page, drop it into your Downloads folder and retry.")) {
-    $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "Witcher3VR*.zip" -ErrorAction SilentlyContinue |
-                 Where-Object { $_.Name -match '^Witcher3VR-v.+-V\d+\.zip$' } |
-                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if ($manualZip) {
-        Write-OK "Found a manual download: $($manualZip.Name)"
-        $zipPath = $manualZip.FullName
-    } else {
-        Write-Fail "No Witcher3VR package available - cannot continue."
+        -Instructions "Download the Witcher3VR-...zip (NOT the -SHA256.txt) from the Releases page, then drag it onto this window." `
+        -AllowSkip $false -DownloadInfo $downloadInfo
+if ($downloadResult -eq $true -and [string]$downloadInfo.Url -eq [string]$dlUrl) {
+    # The resolved release tag belongs to the exact asset that arrived.
+} elseif ([string]$downloadResult -eq 'retry' -and $downloadInfo.SourcePath -and
+        ([IO.Path]::GetFileName([string]$downloadInfo.SourcePath) -match '(?i)^Witcher3VR-(v.+)-V\d+(?:-Main)?\.zip$')) {
+    $manualTag = $matches[1]
+    if ($manualTag -ne $relTag) {
+        Write-Fail "The selected archive is $manualTag, but this route requires $relTag. No game files were changed."
         Pause-User "Press Enter to exit." | Out-Null; exit 1
     }
+    Write-Warn "Manual publisher archive selected for release $relTag."
+} else {
+    Write-Fail "The selected Witcher3VR archive has no verifiable release name. No game files were changed."
+    Pause-User "Press Enter to exit." | Out-Null; exit 1
 }
 
 # -------------------------------------------------------

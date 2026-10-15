@@ -227,10 +227,10 @@ if ($updateOnly) {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Warn "Could not reach GitHub API: $_"
  Write-Info "Download manually from: $KVR_RELEASES_URL"
- $__fb = Invoke-InstallerFallback -Action "ckan.exe download" `
- -Url "https://github.com/KSP-CKAN/CKAN/releases" `
- -Instructions "Open https://github.com/KSP-CKAN/CKAN/releases (the browser was opened), download ckan.exe and place it at '$ckanExe', then choose Retry." `
- -SkipMessage "Skipped - mod manager unavailable; KerbalVR install will proceed without CKAN." `
+ $__fb = Invoke-InstallerFallback -Action "KerbalVR download" `
+ -Url $KVR_RELEASES_URL `
+ -Instructions "Open $KVR_RELEASES_URL, download the current Kerbal-VR ZIP, then choose Retry." `
+ -SkipMessage "Skipped - KerbalVR was not downloaded." `
  -AllowSkip $true
  if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  if ([string]$__fb -eq "retry") {
@@ -240,7 +240,8 @@ if ($updateOnly) {
  Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not downloaded; the update cannot complete."
+ exit 1
  }
  if (-not $kvrUrl) {
  Write-Fail "Could not find the Kerbal-VR zip in the latest release."
@@ -259,7 +260,8 @@ if ($updateOnly) {
  Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not downloaded; the update cannot complete."
+ exit 1
  }
 
  $tempDir = Join-Path $env:TEMP "KSPVRInstaller_$([System.IO.Path]::GetRandomFileName())"
@@ -292,17 +294,35 @@ if ($updateOnly) {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not extracted; the update cannot complete."
+ exit 1
  }
 
  Write-Step 3 $totalSteps "Refreshing KerbalVR mod files"
+
+ $kvrPayloadRoot = Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")
+ $kvrPlugin = Join-Path $kvrPayloadRoot 'GameData\KerbalVR\Plugins\KerbalVR.dll'
+ if (-not (Test-Path -LiteralPath $kvrPlugin -PathType Leaf)) {
+  Write-Fail "KerbalVR.dll is missing from the downloaded release. No update was applied."
+  try { Remove-Item $tempDir -Recurse -Force } catch {}
+  throw "KerbalVR.dll is missing from the downloaded release. No update was applied."
+ }
+ $kvrPluginHash = (Get-FileHash -LiteralPath $kvrPlugin -Algorithm SHA256).Hash
+ $kvrVersionFile = Join-Path $kvrPayloadRoot 'GameData\KerbalVR\KerbalVR.version'
+ $packageVersion = $null
+ try { $packageVersion = [string]((Get-Content -LiteralPath $kvrVersionFile -Raw -ErrorAction Stop | ConvertFrom-Json).VERSION) } catch {}
+ if (-not $kvrTag -or $packageVersion -ne ($kvrTag -replace '^[vV]', '')) {
+  Write-Fail "The package version does not match the selected GitHub release. No update was applied."
+  try { Remove-Item $tempDir -Recurse -Force } catch {}
+  throw "The package version does not match the selected GitHub release. No update was applied."
+ }
 
  # Merge GameData and KSP_x64_Data from the extracted release
  # into the KSP root. Copy-Item with -Recurse -Force merges
  # over the existing folders just like a manual drag-and-drop.
  $mergedAny = $false
  foreach ($folder in @("GameData", "KSP_x64_Data")) {
- $src = Join-Path (Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")) $folder
+ $src = Join-Path $kvrPayloadRoot $folder
  if (Test-Path $src) {
  Write-Host " Merging $folder ... " -NoNewline -ForegroundColor White
  Copy-Item -Path $src -Destination $gamePath -Recurse -Force
@@ -311,8 +331,15 @@ if ($updateOnly) {
  }
  }
  if (-not $mergedAny) {
- Write-Warn "Neither GameData nor KSP_x64_Data found in the release zip."
- Write-Info "The release layout may have changed - check $KVR_WIKI_URL"
+ Write-Fail "No KerbalVR files were found in the downloaded release."
+ throw "No KerbalVR files were found in the downloaded release."
+ }
+
+ $installedKvrPlugin = Join-Path $gamePath 'GameData\KerbalVR\Plugins\KerbalVR.dll'
+ if (-not (Test-Path -LiteralPath $installedKvrPlugin -PathType Leaf) -or
+     (Get-FileHash -LiteralPath $installedKvrPlugin -Algorithm SHA256).Hash -ne $kvrPluginHash) {
+  Write-Fail "KerbalVR.dll is missing after the update. The new version was not recorded."
+  throw "KerbalVR.dll is missing after the update. The new version was not recorded."
  }
 
  # Delete the stale MiniAVC.dll the wiki warns about.
@@ -444,7 +471,8 @@ try {
  Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not downloaded; installation cannot complete."
+ exit 1
 }
 if (-not $kvrUrl) {
  Write-Fail "Could not find the Kerbal-VR zip in the latest release."
@@ -463,7 +491,8 @@ if (-not $kvrUrl) {
  Pause-User "Please re-run the installer once the issue is resolved. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not downloaded; installation cannot complete."
+ exit 1
 }
 
 # Persistent work dir for this whole run (CKAN tool + extracted mod).
@@ -497,7 +526,25 @@ try {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "KerbalVR was not extracted; installation cannot complete."
+ exit 1
+}
+
+$kvrPayloadRoot = Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")
+$kvrPlugin = Join-Path $kvrPayloadRoot 'GameData\KerbalVR\Plugins\KerbalVR.dll'
+if (-not (Test-Path -LiteralPath $kvrPlugin -PathType Leaf)) {
+ Write-Fail "KerbalVR.dll is missing from the downloaded release. No installation was applied."
+ try { Remove-Item $tempDir -Recurse -Force } catch {}
+ throw "KerbalVR.dll is missing from the downloaded release. No installation was applied."
+}
+$kvrPluginHash = (Get-FileHash -LiteralPath $kvrPlugin -Algorithm SHA256).Hash
+$kvrVersionFile = Join-Path $kvrPayloadRoot 'GameData\KerbalVR\KerbalVR.version'
+$packageVersion = $null
+try { $packageVersion = [string]((Get-Content -LiteralPath $kvrVersionFile -Raw -ErrorAction Stop | ConvertFrom-Json).VERSION) } catch {}
+if (-not $kvrTag -or $packageVersion -ne ($kvrTag -replace '^[vV]', '')) {
+ Write-Fail "The package version does not match the selected GitHub release. No installation was applied."
+ try { Remove-Item $tempDir -Recurse -Force } catch {}
+ throw "The package version does not match the selected GitHub release. No installation was applied."
 }
 
 # Locate the bundled .ckan dependency file inside the extracted mod.
@@ -793,7 +840,7 @@ Write-Step 8 $totalSteps "Installing KerbalVR Mod Files"
 # the KSP root, exactly as the wiki's Step 4 describes.
 $mergedAny = $false
 foreach ($folder in @("GameData", "KSP_x64_Data")) {
- $src = Join-Path (Get-ExtractedPayloadRoot -ExtractDir $kvrExtract -Markers @("GameData","KSP_x64_Data")) $folder
+ $src = Join-Path $kvrPayloadRoot $folder
  if (Test-Path $src) {
  Write-Host " Merging $folder into the KSP root ... " -NoNewline -ForegroundColor White
  Copy-Item -Path $src -Destination $gamePath -Recurse -Force
@@ -802,8 +849,15 @@ foreach ($folder in @("GameData", "KSP_x64_Data")) {
  }
 }
 if (-not $mergedAny) {
- Write-Warn "Neither GameData nor KSP_x64_Data found in the release zip."
- Write-Info "Check the release layout against the wiki: $KVR_WIKI_URL"
+ Write-Fail "No KerbalVR files were found in the downloaded release."
+ throw "No KerbalVR files were found in the downloaded release."
+}
+
+$installedKvrPlugin = Join-Path $gamePath 'GameData\KerbalVR\Plugins\KerbalVR.dll'
+if (-not (Test-Path -LiteralPath $installedKvrPlugin -PathType Leaf) -or
+    (Get-FileHash -LiteralPath $installedKvrPlugin -Algorithm SHA256).Hash -ne $kvrPluginHash) {
+ Write-Fail "KerbalVR.dll is missing or differs after installation. The new version was not recorded."
+ throw "KerbalVR.dll is missing or differs after installation. The new version was not recorded."
 }
 
 # The release bundles a JSI folder that merges with RasterPropMonitor's.

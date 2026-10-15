@@ -176,6 +176,21 @@ if (-not (Invoke-SafeDownload -Urls @($MOD_URL) -Destination $modArchive -Label 
     }
 }
 
+# A readable ZIP alone is not proof of this port. Check the live archive's
+# functional payload before creating or changing the installation folder.
+$requiredArchiveFiles = @(
+    '(?i)(?:^|\\)q3vr\.exe$',
+    '(?i)(?:^|\\)baseq3\\pakQ3VR\.pk3$',
+    '(?i)(?:^|\\)openxr_loader\.dll$'
+)
+if (-not (Test-ZipPayloadAnchors -Path $modArchive -AnchorPatterns $requiredArchiveFiles -MinimumMatches $requiredArchiveFiles.Count)) {
+    Write-Fail 'The selected archive does not contain the Quake 3 VR executable, VR PAK and OpenXR loader.'
+    Write-Info 'Download the complete Windows portable ZIP from the publisher release.'
+    Pause-User 'Press Enter to exit without changing the installation...'
+    try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    exit 1
+}
+
 # -------------------------------------------------------
 # STEP 3: Extract + install + copy base PAKs
 # -------------------------------------------------------
@@ -209,8 +224,6 @@ $installRoot = if ($rememberedInstallRoot) { $rememberedInstallRoot } else { Joi
 if (Test-Path $installRoot) {
     Write-Info "Existing installation found. Quake 3 VR files will be merged; additional files are preserved."
 }
-New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
-
 # Extract (the release is a .zip; Expand-ArchiveOrFallback handles it
 # via 7z.exe if present, else PowerShell's Expand-Archive, with an
 # interactive manual fallback).
@@ -234,6 +247,16 @@ if (-not (Test-Path (Join-Path $payload $GAME_EXE))) {
     $hit = Get-ChildItem -Path $modExtract -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($hit) { $payload = Split-Path $hit.FullName -Parent }
 }
+
+$requiredPayloadFiles = @($GAME_EXE, 'openxr_loader.dll', 'baseq3\pakQ3VR.pk3')
+$missingPayloadFiles = @($requiredPayloadFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payload $_) -PathType Leaf) })
+if ($missingPayloadFiles.Count) {
+    Write-Fail "Extracted Quake 3 VR files are incomplete: $($missingPayloadFiles -join ', ')"
+    Pause-User 'Press Enter to exit without changing the installation...'
+    try { Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    exit 1
+}
+New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
 Write-Host "  Copying Quake 3 VR files ... " -NoNewline -ForegroundColor White
 try {
@@ -295,8 +318,16 @@ if ($copiedOptional -gt 0) { Write-Info "Copied $copiedOptional additional pak f
 
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ($failed.Count -eq 0) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {} }
+# Record an install path only after both the original PAK and the VR payload
+# are present. A successful copy attempt by itself is not completion proof.
+$requiredInstalledFiles = @('q3vr.exe', 'openxr_loader.dll', 'baseq3\pakQ3VR.pk3', 'baseq3\pak0.pk3')
+$missingInstalledFiles = @($requiredInstalledFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $installRoot $_) -PathType Leaf) })
+if ($failed.Count -gt 0 -or $missingInstalledFiles.Count -gt 0) {
+    Write-Fail "Quake 3 VR is incomplete. Missing files: $($missingInstalledFiles -join ', ')"
+    Pause-User 'Press Enter to exit without marking setup complete...'
+    exit 1
+}
+try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
 
 # -------------------------------------------------------
 # STEP 4: Summary + desktop shortcut + first-launch notes

@@ -264,6 +264,13 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  $srcRoot = $rootEntries[0].FullName
  }
 }
+foreach ($requiredFile in @('BepInEx\plugins\Unmourned_VR.dll', 'winhttp.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $requiredFile) -PathType Leaf)) {
+  Write-Fail "The mod archive is missing $requiredFile. Existing game files were not changed."
+  try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+ }
+}
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
@@ -295,9 +302,11 @@ try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } c
 $bepinexDir = Join-Path $gamePath "BepInEx"
 $modDll = Join-Path $gamePath "BepInEx\plugins\Unmourned_VR.dll"
 if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
+ Write-Fail "BepInEx folder not found after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but Unmourned_VR.dll is missing."
+ Write-Fail "Unmourned_VR.dll is missing after copy."
+ Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
 } else {
  Write-OK "BepInEx + Unmourned_VR.dll present."
 }

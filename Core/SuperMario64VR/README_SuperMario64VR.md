@@ -3,7 +3,7 @@
 Super Mario 64 in immersive VR, built on the **sm64coopdx** PC port. With a headset on, the game renders in VR and you can lean around and look into the world. With no headset it just runs as the normal flat game - same exe, it works out which one you want on its own.
 
 **Mod**: sm64coopdx VR - by RaYRoD (VR work), on sm64coopdx by the Coop Deluxe Team
-**Source**: https://github.com/RaYRoD-TV/sm64coopdx-vr
+**Current publisher source**: https://github.com/RaYRoD-TV/MVRH (the former per-game repository is unavailable)
 
 ## How this is installed
 

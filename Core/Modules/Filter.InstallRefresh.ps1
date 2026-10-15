@@ -80,13 +80,13 @@ function global:Resolve-PostInstallRefreshTarget {
 # run synchronously for tests/fallbacks or inside the private post-install
 # runspace. It never touches a card, tile or other Dispatcher-owned object.
 function global:Get-PostInstallDetectionSnapshot {
-    param($Game,[string]$Title,$PreviousState=$null)
+    param($Game,[string]$Title,$PreviousState=$null,[object[]]$RelatedGames=@(),[bool]$SharedInstallerSuccess=$false)
     $result=[ordered]@{
         Action='None'; Title=$Title; Game=$Game; StateEntry=$null; RecordedPath=''
         ConfirmedInstallerSuccess=$false
     }
     if (-not $Game) { return [pscustomobject]$result }
-    $confirmedInstallerSuccess=$false
+    $confirmedInstallerSuccess=$SharedInstallerSuccess
 
     # Consume the process-bound transaction and perform all receipt migration
     # on this worker too. Those calls can touch several recovery files and were
@@ -99,18 +99,29 @@ function global:Get-PostInstallDetectionSnapshot {
         if ($confirmedSuccess) { $confirmedInstallerSuccess=$true }
         $primaryWritten=[bool]($confirmedSuccess -and $status.versionWritten)
         $secondaryWritten=[bool]($confirmedSuccess -and $status.versionBWritten)
+        # This title keeps the pinned 9.2 game and the Current Steam game in
+        # separate roots. A Depot completion must not replace Current receipts.
+        $hunterDepotReceipt=[bool]($Game.DepotPinnedReceipt -and ([string]$status.route -eq 'Depot'))
         if ($confirmedSuccess -and $status.installedPath -and (Test-Path -LiteralPath ([string]$status.installedPath) -PathType Container)) {
-            Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value ([string]$status.installedPath)
+            $pathKey=if ($hunterDepotReceipt) { 'installed_path_depot' } else { 'installed_path' }
+            Write-PersistentGameStateValue -Game $Game -Name $pathKey -Value ([string]$status.installedPath)
         }
         $pendDir=$null
-        try { $pendDir=Read-InstalledPath -Game $Game } catch {}
+        if ($hunterDepotReceipt) { $pendDir=[string]$status.installedPath }
+        else { try { $pendDir=Read-InstalledPath -Game $Game } catch {} }
         try { [void](Read-LaunchOverride -Game $Game) } catch {}
         if (-not $pendDir -and $PreviousState -and $PreviousState.GameDir) { $pendDir=[string]$PreviousState.GameDir }
         if ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten)) {
             if ($primaryWritten) {
                 $exact=('' + $status.versionValue).Trim()
-                if (-not (Test-IsTrackableInstalledVersion -Version $exact)) { $exact=Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game) }
-                if ($exact) { Write-InstalledVersion -Game $Game -Version $exact -GameDir $pendDir }
+                if ($hunterDepotReceipt) {
+                    if (Test-IsTrackableInstalledVersion -Version $exact) {
+                        Write-PersistentGameStateValue -Game $Game -Name 'installed_version_depot' -Value $exact
+                    }
+                } else {
+                    if (-not (Test-IsTrackableInstalledVersion -Version $exact)) { $exact=Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game) }
+                    if ($exact) { Write-InstalledVersion -Game $Game -Version $exact -GameDir $pendDir }
+                }
             }
             if ($secondaryWritten) {
                 $exactB=('' + $status.versionBValue).Trim()
@@ -124,6 +135,11 @@ function global:Get-PostInstallDetectionSnapshot {
     }
 
     $recordedPath=Read-InstalledPath -Game $Game
+    # A Wabbajack launcher is not an installer receipt. Reuse the base-game
+    # folder proven by the preceding scan for this one game's repaint.
+    if ($Game.ExternalVrStartApp -and -not $recordedPath -and $PreviousState -and $PreviousState.GameDir) {
+        $recordedPath=[string]$PreviousState.GameDir
+    }
     $modPresent=$true
     $postTwoProbe=$null
     if ($Game.TwoMods) {
@@ -156,7 +172,12 @@ function global:Get-PostInstallDetectionSnapshot {
             if ($postDualRoot) { $recordedPath=$postDualRoot }
         }
     }
-    if ($modPresent -and $recordedPath -and -not (Test-VrInstallEvidenceContract -Game $Game -Root $recordedPath)) { $modPresent=$false }
+    # Max Payne 2's two publisher loaders share filenames. The inactive
+    # betotron files are intentionally parked; its old generic evidence list
+    # cannot veto a complete evilSheep slot after installation. The shared
+    # two-mod probe above validates the active and parked files by receipt/hash.
+    if ($modPresent -and $recordedPath -and -not $Game.ExternalVrStartApp -and -not $Game.MaxPayne2DualLaunch -and
+        -not (Test-VrInstallEvidenceContract -Game $Game -Root $recordedPath)) { $modPresent=$false }
     $baseGamePresent=$true
     # Get-DualModePresence already validated the base-game proof belonging to
     # the exact selected route. Reapplying the primary route's GameExe here
@@ -164,14 +185,33 @@ function global:Get-PostInstallDetectionSnapshot {
     # because the successor uses a different filename (DramaticShapeVR.exe).
     if ($postDualProbe -and $postDualProbe.AnyPresent) { $baseGamePresent=$true }
     elseif ($recordedPath) { $baseGamePresent=Test-BaseGameInstallProof -Game $Game -Root $recordedPath }
-    if (-not $baseGamePresent -and $Game.VrInstallRoot) {
+    if ($Game.ExternalVrStartApp) {
+        $modPresent=Test-ExternalVrReady -Game $Game -BaseInstalled ([bool]($recordedPath -and $baseGamePresent))
+    }
+    if ($Game.TwoModsSeparateBaseGame) {
+        # A publisher launcher is in its own folder. It never proves that the
+        # licensed retail executable still exists, including immediately
+        # after a successful Hub installer transaction.
+        $separateBase = Get-RememberedStagedBaseGameRoot -Game $Game
+        $baseGamePresent = [bool]($separateBase -and
+            (Test-BaseGameInstallProof -Game $Game -Root ([string]$separateBase)))
+    } elseif (-not $baseGamePresent -and $Game.VrInstallRoot) {
         $previousBaseRoot=if ($PreviousState -and $PreviousState.GameDir) { [string]$PreviousState.GameDir } else { '' }
         if ($previousBaseRoot -and (Test-BaseGameInstallProof -Game $Game -Root $previousBaseRoot)) { $baseGamePresent=$true }
         elseif ($confirmedInstallerSuccess) { $baseGamePresent=$true }
     }
 
     if ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and $baseGamePresent -and $modPresent) {
-        $stateEntry=@{ Tag='vrinstalled'; Accent=$(if ($Game.Accent) { $Game.Accent } else { '#666677' }); State='ready'; BtnText='VR Ready'; GameDir=$recordedPath }
+        # RazeXR's one portable engine can update seven independent launchers.
+        # A related game receives the shared version only after its own data,
+        # launcher and complete runtime evidence have passed above.
+        if ($SharedInstallerSuccess -and $Game.GithubRepo -eq 'GameOrDie007/RazeXR-PCVR') {
+            $sharedVersion=Read-VersionStampFile -Path (Get-GameStampPath -GameDir $recordedPath)
+            if (Test-IsTrackableInstalledVersion -Version $sharedVersion) {
+                Write-InstalledVersion -Game $Game -Version $sharedVersion -GameDir $recordedPath
+            }
+        }
+        $stateEntry=@{ Tag='vrinstalled'; Accent=$(if ($Game.Accent) { $Game.Accent } else { '#666677' }); State='ready'; BtnText=$(if ($Game.ExternalVrStartApp) { 'Start in VR' } else { 'VR Ready' }); GameDir=$(if ($Game.TwoModsSeparateBaseGame) { $separateBase } else { $recordedPath }) }
         if ($Game.DualMode) {
             $dm=if ($postDualProbe) { $postDualProbe } else { Get-DualModePresence -Game $Game }
             $stateEntry.CurrentPresent=[bool]$dm.CurrentPresent; $stateEntry.DepotPresent=[bool]$dm.DepotPresent
@@ -198,10 +238,14 @@ function global:Get-PostInstallDetectionSnapshot {
             }
         }
         $stateEntry=Resolve-PostInstallRefreshState -PreviousState $PreviousState -CandidateState $stateEntry -ConfirmedInstallerSuccess $confirmedInstallerSuccess
-        $postVer=Read-InstalledVersion -Game $Game -GameDir $recordedPath
-        if (-not $postVer -and -not $Game.NoVersionSeed) {
-            $postVer=Get-PostInstallLocalTrackedVersion -Game $Game -GameDir $recordedPath
-            if ($postVer) { Write-InstalledVersion -Game $Game -Version $postVer -GameDir $recordedPath }
+        $preferredHunterDepot=[bool]($Game.DepotPinnedReceipt -and $postDualProbe -and
+            $postDualProbe.DepotPresent -and -not $postDualProbe.CurrentPresent)
+        if (-not $preferredHunterDepot) {
+            $postVer=Read-InstalledVersion -Game $Game -GameDir $recordedPath
+            if (-not $postVer -and -not $Game.NoVersionSeed) {
+                $postVer=Get-PostInstallLocalTrackedVersion -Game $Game -GameDir $recordedPath
+                if ($postVer) { Write-InstalledVersion -Game $Game -Version $postVer -GameDir $recordedPath }
+            }
         }
         $result.Action='Set'; $result.StateEntry=$stateEntry
     } elseif ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and $baseGamePresent) {
@@ -213,16 +257,26 @@ function global:Get-PostInstallDetectionSnapshot {
     }
     $result.RecordedPath='' + $recordedPath
     $result.ConfirmedInstallerSuccess=$confirmedInstallerSuccess
+    if ($confirmedInstallerSuccess -and $Game.GithubRepo -eq 'GameOrDie007/RazeXR-PCVR' -and @($RelatedGames).Count -gt 0) {
+        $result.RelatedSnapshots=@(foreach ($related in $RelatedGames) {
+            Get-PostInstallDetectionSnapshot -Game $related.Game -Title ([string]$related.Title) `
+                -PreviousState $related.PreviousState -SharedInstallerSuccess $true
+        })
+    }
     return [pscustomobject]$result
 }
 
 function global:Apply-PostInstallDetectionSnapshot {
     param($Snapshot)
     if (-not $Snapshot) { return }
-    $title=[string]$Snapshot.Title
-    if ($Snapshot.Action -eq 'Set') { $global:gameStateMap[$title]=$Snapshot.StateEntry }
-    elseif ($Snapshot.Action -eq 'Remove' -and $global:gameStateMap.ContainsKey($title)) { $global:gameStateMap.Remove($title) | Out-Null }
-    if ($Snapshot.Action -in @('Set','Remove')) {
+    $changed=$false
+    foreach ($entry in @($Snapshot) + @($Snapshot.RelatedSnapshots)) {
+        if (-not $entry) { continue }
+        $title=[string]$entry.Title
+        if ($entry.Action -eq 'Set') { $global:gameStateMap[$title]=$entry.StateEntry; $changed=$true }
+        elseif ($entry.Action -eq 'Remove' -and $global:gameStateMap.ContainsKey($title)) { $global:gameStateMap.Remove($title) | Out-Null; $changed=$true }
+    }
+    if ($changed) {
         try { Rebuild-Lookups } catch {}
         try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch {}
     }
@@ -248,8 +302,20 @@ function global:Invoke-PostInstallRefresh {
     if (-not $target.Game) { return }
     $previousState=$null
     try { $previousState=$global:gameStateMap[$target.Title] } catch {}
-    $snapshot=Get-PostInstallDetectionSnapshot -Game $target.Game -Title $target.Title -PreviousState $previousState
+    $related=Get-RelatedRazePostInstallGames -Game $target.Game
+    $snapshot=Get-PostInstallDetectionSnapshot -Game $target.Game -Title $target.Title -PreviousState $previousState -RelatedGames $related
     Apply-PostInstallDetectionSnapshot -Snapshot $snapshot
+}
+
+function global:Get-RelatedRazePostInstallGames {
+    param($Game)
+    if (-not $Game -or $Game.GithubRepo -ne 'GameOrDie007/RazeXR-PCVR') { return @() }
+    return @(foreach ($candidate in @($ownGames + $ownGamesGP)) {
+        if ($candidate.GithubRepo -ne 'GameOrDie007/RazeXR-PCVR' -or $candidate.Id -eq $Game.Id) { continue }
+        $prior=$null
+        try { $prior=$global:gameStateMap[[string]$candidate.Title] } catch {}
+        [pscustomobject]@{ Game=$candidate; Title=[string]$candidate.Title; PreviousState=$prior }
+    })
 }
 
 # Timer callbacks used to swallow every post-install refresh exception. That
@@ -444,6 +510,9 @@ function global:Start-PostInstallDetectionAsync {
         $runspace.Open()
         $powerShell=[PowerShell]::Create(); $powerShell.Runspace=$runspace
         [void]$powerShell.AddCommand($workerCommand).AddParameter('Game',$target.Game).AddParameter('Title',$target.Title).AddParameter('PreviousState',$previousState)
+        if (-not $DetectionScript) {
+            [void]$powerShell.AddParameter('RelatedGames',(Get-RelatedRazePostInstallGames -Game $target.Game))
+        }
         $async=$powerShell.BeginInvoke()
         if (-not $script:PostInstallDetectionWorkers) { $script:PostInstallDetectionWorkers=@{} }
         $workerRegistry=$script:PostInstallDetectionWorkers

@@ -1,124 +1,56 @@
 # Shenmue I & II VR
 
-Stereoscopic VR with a first-person view for the **Steam release** of Shenmue I
-and Shenmue II. By **Tensai37**, hosted on Codeberg.
+ShenmueVR 2.0 by Tensai37 adds stereoscopic VR, tracked hands, physical turning and gesture controlled fighting to the Steam edition of Shenmue I & II. The [publisher releases](https://github.com/Tensai30/ShenmueVR-Downloads/releases) now live on GitHub.
 
-> **A controller is required.** Since v1.3 your VR controllers work too - but as
-> a plain gamepad. There are no motion-tracked controls and nothing is held in
-> your hands.
+## About the Game
 
-## Frame interpolation is required - read this first
+Shenmue I & II follow Ryo Hazuki through two story driven adventures. The mod lets you explore both games in first person and use their normal gamepad actions alongside the new tracked controls.
 
-Shenmue II is hard-capped at **30 FPS**, and so is Shenmue I outside normal
-first-person play. A faster PC does not lift that cap, so the mod needs frame
-interpolation to feel right. Turn on whichever your setup offers, **before** you
-play:
+## Before you install
 
-| Setup | Turn on |
-|---|---|
-| Quest over Link or Air Link | Asynchronous Spacewarp (ASW) |
-| Quest / Pico / Play For Dream over Virtual Desktop | Synchronous Spacewarp (SSW) |
-| SteamVR headsets, including PS VR2 | Motion Smoothing |
+- Use the Steam v1.07 game executables. The publisher Setup rejects unknown executables, missing stock files and modified stock archives. Restore original files with Steam's Verify integrity function if Setup rejects them.
+- Close both games, the Shenmue launcher and any controller bridge before starting Setup.
+- Back up your game folder yourself if you want to keep other mods or their settings. ShenmueVR 2.0 removes other mods from each selected `sm1` or `sm2` folder and creates no automatic backup. An unselected game and saves outside the game folder remain untouched by the publisher Setup.
+- Have an active OpenXR headset runtime. The mod includes the OpenComposite adapter named `openvr_api.dll`; that filename does not mean you should select OpenVR.
 
-Without it the picture judders, and the game can crash.
+## Install and update
 
-## Requirements
-- **Shenmue I & II on Steam, version 1.07.** The setup checks your executable and
-  refuses versions it does not recognise - it never patches something unknown.
-- A PC VR headset and an active runtime or streaming connection
-- A game controller
+1. Select [[Install]] in the Hub. It locates the Steam game folder containing `SteamLauncher.exe`, `sm1` and `sm2`.
+2. The Hub resolves the latest stable ShenmueVR Setup from the [GitHub releases](https://github.com/Tensai30/ShenmueVR-Downloads/releases), including its Setup EXE. If the live lookup is unavailable, its reviewed v2.0 Setup is the fallback.
+3. Before the publisher Setup opens, the Hub shows the folder and asks you to confirm that you have backed up what you want to keep. Select the Shenmue I and/or Shenmue II components you own in Setup. Windows may request administrator approval.
+4. Setup applies the supported executable patches, removes other mods from selected game folders, installs its OpenXR files and settings, and installs its bundled gamepad driver when needed. Restart Windows if Setup asks.
+5. The Hub checks for `ShenmueVR.ini`, the OpenXR adapter, hand DLL and input actions in a selected game folder before recording the installed version. An older INI alone cannot count as a 2.0 install.
 
-## What the installer does
-The mod ships as its own **setup program**, not as a zip. The Hub fetches the
-newest release from Codeberg, finds your game folder, puts that path on your
-clipboard and starts the setup for you. You answer three questions in it: the
-game folder, which of the two games to patch, and - new in v1.3 - **OpenVR or
-OpenXR**. Pick OpenXR: the framerate boost for Shenmue I exists only on that
-path.
+Setup 2.0 does not have OpenVR/OpenXR or motion-control selection pages. OpenXR and motion controls are enabled automatically. Virtual Desktop's gamepad-emulation option is not required for the included controller bridge.
 
-> **About the folder name.** The author's instructions say to pick your
-> `SMLaunch` folder. There is no such folder - the real one holds
-> `SteamLauncher.exe` with `sm1\` and `sm2\` beside it. The Hub shows you the
-> correct path, so just paste it.
+## What changed in 2.0
 
-Afterwards the Hub checks the result: it looks for `ShenmueVR.ini` in `sm1\` and
-`sm2\` and tells you which game actually got the mod.
+The [v2.0 release](https://github.com/Tensai30/ShenmueVR-Downloads/releases/tag/v2.0) lists boosted frame rate in all scenarios, hands, fighting gestures and physical turning. The publisher's included README says its own interpolation can present up to 120 FPS while preserving the games' required timing. Start with external ASW, SSW and Motion Smoothing disabled; actual performance depends on your PC and headset settings.
 
-## What lands in the game folder
-Ten files, and nothing is removed:
+Both games include first-person play and tracked hands. Fighting gestures activate during combat. Cutscenes retain the games' own camera behavior.
 
-- `sm1\XINPUT1_3.dll` and `sm2\XINPUT1_3.dll` - the loader, a different build per game
-- `sm1\openvr_api.dll` and `sm2\openvr_api.dll`
-- `sm1\ShenmueVR.ini` and `sm2\ShenmueVR.ini` - the mod's settings
-- `sm1\.ShenmueVR-installer-backup\` and the same under `sm2\` - the setup's own
-  backup of your untouched game executable. **Leave those alone**, they are the
-  way back.
+## Launch and controls
 
-The game executables themselves are patched in place. Their size does not change.
+1. Connect your headset and start its OpenXR runtime.
+2. Start Shenmue I or II normally.
+3. If input does not respond, click the desktop game window once to give it focus.
+4. Use tracked hands and normal controller buttons. The publisher has not documented an exact button and gesture map for 2.0, so the earlier v1.3 left-trigger mapping is not presented here as current.
 
-## How to launch - the order matters
-1. Connect the headset to the desktop.
-2. Start Link, Air Link, Virtual Desktop or SteamVR.
-3. Turn frame interpolation on.
-4. Launch Shenmue I or II as usual.
-5. Once it is in VR, **click the game window on the desktop once** so it has input
-   focus - otherwise the controller does nothing.
-6. Put the headset back on and play.
+## Installed files and removal
 
-If the controller stops responding, click the game window again.
+The 2.0 Setup contains separate payloads for `sm1` and `sm2`, including `ShenmueVR.ini`, `XINPUT1_3.dll`, an OpenXR adapter named `openvr_api.dll`, hand DLLs and bindings. It also includes the controller bridge and a signed gamepad bus driver. The selected game executables are patched by the publisher Setup.
 
-## Controls
-Hold [[Left Trigger]] to bring the game's own camera back, so the zoom and
-search functions work. Release it and you are in first person again. If the
-native camera is already active, the trigger does not force a change.
+Use the publisher's Shenmue I & II VR Mod uninstaller in Windows Installed apps. It removes its unchanged mod files and reverses supported executable patches. It cannot restore other mods or settings that Setup removed; restore your own game-folder backup for those. The shared gamepad driver remains installed so other apps using it continue to work. Do not treat backup folders left by older installers as a 2.0 recovery copy.
 
-## What v1.3 changed
-- **OpenXR support.** The setup now asks for OpenVR or OpenXR.
-- **An adaptive framerate boost for Shenmue I** - and it exists **only on the
-  OpenXR path**. Pick OpenVR out of habit and you lose the boost without any
-  warning - nothing on screen tells you.
-- **VR controllers work** - but as a plain gamepad. There are no motion-tracked
-  controls, and nothing is held in your hands.
+## Troubleshooting
 
-**The boost does not replace frame interpolation.** It runs during normal
-first-person play only; cutscenes and third-person sequences stay at 30 FPS,
-and Shenmue II stays at 30 throughout. Leave the smoothing on.
-
-v1.3 installs straight over an earlier version - no need to uninstall first.
-
-## What v1.1 changed
-- Corrected the first-person player height in Shenmue I
-- The left-trigger camera behaviour above, in both games
-- v1.1 installs straight over v1.0 - no need to uninstall first, and it replaces
-  the old `ShenmueVR.ini` files with the settings v1.1 needs
-
-## Known limitations
-- **Seated play only.** You can look around freely, but turning your body or
-  chair is not supported yet.
-- A controller is required - a gamepad, or VR controllers acting as one.
-  Motion-tracked controls do not exist in this mod.
-- Shenmue II stays capped at 30 FPS; Shenmue I only lifts above it during
-  normal first-person play, on OpenXR
-- The headset and its runtime must be active **before** launching
-- The desktop window has to be clicked once after the game enters VR
-- Parts of the picture are cut off in the corners at times
-
-## Windows warnings
-SmartScreen may show "Unknown publisher" and Defender may flag the setup. It is
-an unsigned fan tool; the author has reported the false positive to Microsoft.
-
-## Credits and legal
-Mod by **Tensai37** - https://codeberg.org/Tensai37/Shenmue_1_and_2_VR_mod
-
-An unofficial fan project, not affiliated with or endorsed by SEGA. You need to
-own the Steam version of Shenmue I & II.
+- If Setup rejects the game, check Steam v1.07 and use Steam's Verify integrity function to restore stock files before trying again. Keep your own backup of custom files first.
+- If the mod does not appear in the Hub after Setup, check whether `sm1\ShenmueVR.ini` or `sm2\ShenmueVR.ini` exists for the component you selected. A cancelled or rejected Setup is not marked complete.
+- If Windows asks for a restart after installing the controller driver, restart before playing.
+- If the game starts without headset output, make sure the OpenXR runtime is active before launch.
 
 ## Support Tensai37
 
-Reverse-engineering both games, building a stable first-person view and writing
-an installer that patches your own game files safely took a lot of work. If you
-want to show some support:
-- https://ko-fi.com/tensai37
-- https://www.patreon.com/cw/Tensai37/membership
+Supporting the author is optional: [Ko-fi](https://ko-fi.com/tensai37) or [Patreon](https://www.patreon.com/cw/Tensai37/membership).
 
->>> The sailors are a lie. The forklift is real.
+The sailors are a lie. The forklift is real.

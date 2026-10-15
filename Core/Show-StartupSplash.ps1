@@ -82,11 +82,15 @@ function Get-SplashProgressFraction {
 }
 
 # Manually audited real-game count shown in the {N} hints.
-# Fixed baseline: 282 games as of 2026-09-21. Never derive this value from
+# Fixed baseline: 315 distinct games as of 2026-10-13. RealRTCW XR adds
+# Return to Castle Wolfenstein after Arx Fatalis and XIII Remake; Penumbra Black Plague and Requiem add two more. Dark Souls II and Spider-Man Remastered already had
+# Luke Ross entries, so they are not counted twice. Pokemon Gen 1, Gen 2 and
+# Pinball count as three distinct games within one Dramatic Shape tile.
+# Never derive this value from
 # catalog tiles, mods, installer routes, depots, legacy entries or tools.
 # Increment it by exactly one only when a genuinely new game that has never
 # appeared anywhere in the Hub is added and individually confirmed as new.
-$tileCount = 282
+$tileCount = 315
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -132,7 +136,12 @@ $hints = @(
     "Report a problem can collect the newest log. No archaeological digging required.",
     "Suggest a VR mod opens a short form, because apparently {N} games are not enough.",
     "Desktop Shortcut in Help can create or remove the Hub shortcut at any time.",
-    "Click the Hub icon, or use Help, to switch between frosted and classic cards.",
+    "Click the Hub glasses to switch the header effect on this page.",
+    "Help & feedback lets you change header style and speed; both choices survive a restart.",
+    "Each Hub page can keep its own header style. Help & feedback also controls the animation speed.",
+    "Switch Hub Style in Help & feedback still changes frosted and classic cards.",
+    "Featured banners now have Glass, Glass + frost, Hero and Classic styles in Help & feedback.",
+    "Glass keeps the featured game's artwork visible; detail pages blend its edges into the header.",
     "S, M and L change shelf density. They do not negotiate with your GPU.",
     "Card size, style, hidden modders and startup scan choices are remembered.",
     "On supported pages, VR / Flat parks the loader without deleting the mod.",

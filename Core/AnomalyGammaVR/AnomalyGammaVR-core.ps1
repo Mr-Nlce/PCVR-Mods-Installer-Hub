@@ -1,34 +1,44 @@
 # ============================================================
-# S.T.A.L.K.E.R. GAMMA VR v0.3.4 (Anomaly Gamma)
+# S.T.A.L.K.E.R. GAMMA VR v0.3.5 (Anomaly Gamma)
 # ============================================================
 # The current official package is supplied through the Anomaly VR Discord.
-# A small update is valid only for a proven v0.3.3 installation. Every other
-# state uses the complete v0.3.4 package. The implementation is deliberately
+# A small update is valid only for a proven v0.3.4 installation. Every other
+# state uses the complete v0.3.5 package. The implementation is deliberately
 # library-testable; set PCVR_ANOMALYGAMMA_LIBRARY_ONLY=1 before dot-sourcing.
 # ============================================================
 
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 
-$script:GammaCurrentVersion = '0.3.4'
+$script:GammaCurrentVersion = '0.3.5'
 $script:GammaFolderName = 'Gamma VR'
+$script:GammaPreferredFolderName = 'GammaVR'
 $script:GammaLaunchFile = 'GAMMA VR.bat'
 $script:GammaInviteUrl = 'https://discord.gg/kGhd7GvJ5F'
-$script:GammaDownloadPostUrl = 'https://discord.com/channels/1495664880311734313/1511657141990199356/1548102620571373668'
+$script:GammaDownloadPostUrl = 'https://discord.com/channels/1495664880311734313/1511657141990199356/1552472577023156304'
 $script:QBitTorrentUrl = 'https://www.qbittorrent.org/download'
+$script:GammaUpdatePayloadGroups = @(
+    'GAMMA VR.bat',
+    'profiles\GAMMA VR v0.3.5 - AOEVR v0.5.0\modlist.txt',
+    'profiles\GAMMA VR v0.3.5 - AOEVR v0.5.0 - NITROYUASH\modlist.txt',
+    'mods\Wearable Devices Armor Swap Crash Guard v1.1 by HEKPOTEXHAPb\meta.ini',
+    'mods\Wearable Devices PDA Messages v7.4.4 - VR Version realzelda414\meta.ini',
+    'mods\WearableDevices 0.8.10 by Sulik, Jeremussy, Wiarubane\meta.ini',
+    'mods\WearableDevices 0.8.10 VR fixes v5 by NITROYUASH, Marsy\meta.ini',
+    'mods\GAMMA VR Inventory Actions and Fixes v2.3 - NITROYUASH\gamedata\scripts\vr_2d_actions.script',
+    'mods\VR More Actions v9 - NITROYUASH\gamedata\scripts\vr_anomaly_new_inputs.script',
+    'mods\Z.H.O.P.A. v2.3\meta.ini'
+)
+$script:GammaBasePayloadGroups = @('ModOrganizer.exe','STALKERVR_GAMMA\bin\AnomalyDX11.exe')
 $script:GammaContract = New-PCVRInstallerContract -Id 'anomaly-gamma' -GameName 'Anomaly GAMMA VR' `
-    -Acquisition Discord -Routes @('CurrentFull','UpdateFrom0.3.3') `
-    -DiscordInviteUrl $script:GammaInviteUrl -DiscordDownloadUrl $script:GammaDownloadPostUrl `
-    -RequiredInstalledFileGroups @(
-        'GAMMA VR.bat',
-        'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0\modlist.txt|profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0 - NITROYUASH\modlist.txt',
-        'mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini'
-    )
+    -Acquisition Discord -Routes @('CurrentFull','UpdateFrom0.3.4') `
+    -DiscordInviteUrl $script:GammaInviteUrl -DiscordDownloadUrl $script:GammaDownloadPostUrl -AntivirusNotice `
+    -RequiredInstalledFileGroups @($script:GammaUpdatePayloadGroups + $script:GammaBasePayloadGroups + @('mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini'))
 
 function Write-GammaHeader {
     Clear-Host
     Write-Host '============================================================' -ForegroundColor Magenta
     Write-Host '  S.T.A.L.K.E.R. GAMMA VR Installer' -ForegroundColor Cyan
-    Write-Host '  Current package v0.3.4 - manual reloading and grenades' -ForegroundColor Gray
+    Write-Host '  Current package v0.3.5 - Wearable Devices PDA gestures' -ForegroundColor Gray
     Write-Host '============================================================' -ForegroundColor Magenta
 }
 
@@ -58,6 +68,7 @@ function Get-GammaInstalledVersion([string]$InstallPath) {
         $versions = @(Get-ChildItem -LiteralPath $profiles -Directory -ErrorAction SilentlyContinue | ForEach-Object {
             if ($_.Name -match '(?i)GAMMA VR v(0\.3\.[0-9]+[a-z]?)') { $matches[1] }
         })
+        if ($versions -contains '0.3.5') { return '0.3.5' }
         if ($versions -contains '0.3.4') { return '0.3.4' }
         if ($versions -contains '0.3.3') { return '0.3.3' }
         if ($versions.Count -gt 0) { return [string]$versions[0] }
@@ -78,7 +89,10 @@ function Get-GammaKnownInstallPath {
             if ($recorded) { [void]$candidates.Add($recorded) }
         } catch {}
     }
-    foreach ($root in @('C:\Games','D:\Games','E:\Games')) { [void]$candidates.Add([IO.Path]::Combine($root,$script:GammaFolderName)) }
+    foreach ($root in @('C:\Games','D:\Games','E:\Games')) {
+        [void]$candidates.Add([IO.Path]::Combine($root,$script:GammaPreferredFolderName))
+        [void]$candidates.Add([IO.Path]::Combine($root,$script:GammaFolderName))
+    }
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
         if (Test-Path -LiteralPath ([IO.Path]::Combine($candidate,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue) {
             return [IO.Path]::GetFullPath($candidate)
@@ -90,12 +104,13 @@ function Get-GammaKnownInstallPath {
 function Resolve-GammaInstallPath([string]$InputPath,[string]$DefaultPath) {
     $value = ('' + $InputPath).Trim().Trim('"').Trim("'")
     if (-not $value) { $value = $DefaultPath }
-    if (-not $value) { $value = 'C:\Games\Gamma VR' }
+    if (-not $value) { $value = 'C:\Games\GammaVR' }
     $full = [IO.Path]::GetFullPath($value)
-    if ((Split-Path $full -Leaf) -ieq $script:GammaFolderName -or (Test-Path -LiteralPath ([IO.Path]::Combine($full,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue)) {
+    if ((Split-Path $full -Leaf) -in @($script:GammaFolderName,$script:GammaPreferredFolderName,'GAMMA_VR') -or
+        (Test-Path -LiteralPath ([IO.Path]::Combine($full,$script:GammaLaunchFile)) -PathType Leaf -ErrorAction SilentlyContinue)) {
         return $full.TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
     }
-    return ([IO.Path]::Combine($full,$script:GammaFolderName)).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
+    return ([IO.Path]::Combine($full,$script:GammaPreferredFolderName)).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
 }
 
 function Test-GammaWritableParent([string]$InstallPath) {
@@ -109,10 +124,27 @@ function Test-GammaWritableParent([string]$InstallPath) {
     } catch { return $false }
 }
 
+function Test-GammaUpdateBase([string]$InstallPath) {
+    if ((Get-GammaInstalledVersion -InstallPath $InstallPath) -ne '0.3.4') { return $false }
+    foreach ($relative in @('GAMMA VR.bat','ModOrganizer.exe','STALKERVR_GAMMA\bin\AnomalyDX11.exe',
+                            'mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $InstallPath $relative) -PathType Leaf)) { return $false }
+    }
+    foreach ($profile in @('GAMMA VR v0.3.4 - AOEVR v0.5.0','GAMMA VR v0.3.4 - AOEVR v0.5.0 - NITROYUASH')) {
+        if (Test-Path -LiteralPath (Join-Path $InstallPath "profiles\$profile\modlist.txt") -PathType Leaf) { return $true }
+    }
+    return $false
+}
+
+function Get-GammaPayloadGroups([ValidateSet('CurrentFull','UpdateFrom0.3.4')][string]$Route) {
+    if ($Route -eq 'CurrentFull') { return @($script:GammaUpdatePayloadGroups + $script:GammaBasePayloadGroups + @('mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini')) }
+    return @($script:GammaUpdatePayloadGroups)
+}
+
 function global:Test-GammaArchive {
     param(
         [Parameter(Mandatory=$true)][string]$ArchivePath,
-        [Parameter(Mandatory=$true)][ValidateSet('CurrentFull','UpdateFrom0.3.3')][string]$Route,
+        [Parameter(Mandatory=$true)][ValidateSet('CurrentFull','UpdateFrom0.3.4')][string]$Route,
         [Parameter(Mandatory=$true)][string]$SevenZip,
         [switch]$Quiet
     )
@@ -122,10 +154,10 @@ function global:Test-GammaArchive {
         if (-not $Quiet) { Write-GammaWarn 'The file is not a completed, readable archive yet. If it is downloading through a torrent, let it finish first.' }
         return $false
     }
-    $entries = @($layout.Entries | ForEach-Object { ('' + $_).Replace('/','\').TrimStart('.\') })
+    $entries = @($layout.Entries | ForEach-Object { ('' + $_).Replace('/','\') })
     foreach ($entry in $entries) {
         $parts = @($entry -split '\\' | Where-Object { $_ })
-        if ([IO.Path]::IsPathRooted($entry) -or $entry -match '^[A-Za-z]:' -or $parts -contains '..') {
+        if ([IO.Path]::IsPathRooted($entry) -or $entry -match ':' -or $parts -contains '..') {
             if (-not $Quiet) { Write-GammaWarn "Unsafe archive path rejected: $entry" }
             return $false
         }
@@ -135,16 +167,11 @@ function global:Test-GammaArchive {
         $needle = $Suffix.Replace('/','\')
         return @($entries | Where-Object { $_ -ieq $needle -or $_.EndsWith(('\' + $needle),[StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
     }
-    $functional = (& $has 'GAMMA VR.bat') -and
-                  ((& $has 'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0\modlist.txt') -or (& $has 'profiles\GAMMA VR v0.3.4 - AOEVR v0.5.0 - NITROYUASH\modlist.txt')) -and
-                  (& $has 'mods\GAMMA VR Manual Reload Project v5 by killua._.107\meta.ini')
-    if (-not $functional) {
-        if (-not $Quiet) { Write-GammaWarn 'This archive does not contain the files needed for the official GAMMA VR v0.3.4 setup.' }
-        return $false
-    }
-    if ($Route -eq 'CurrentFull' -and -not (& $has 'ModOrganizer.exe')) {
-        if (-not $Quiet) { Write-GammaWarn 'This is the small v0.3.3 update, not the complete standalone v0.3.4 package.' }
-        return $false
+    foreach ($group in @(Get-GammaPayloadGroups -Route $Route)) {
+        if (-not (& $has $group)) {
+            if (-not $Quiet) { Write-GammaWarn "The $Route archive is missing a required v0.3.5 payload file: $group" }
+            return $false
+        }
     }
     return $true
 }
@@ -162,6 +189,27 @@ function Assert-GammaPathInside([string]$Path,[string]$Root,[switch]$AllowRoot) 
     throw "Path escapes its transaction root: $Path"
 }
 
+function Get-GammaNativePath([string]$Path) {
+    $full = [IO.Path]::GetFullPath($Path)
+    if ($full.StartsWith('\\?\')) { return $full }
+    if ($full.StartsWith('\\')) { return '\\?\UNC\' + $full.Substring(2) }
+    return '\\?\' + $full
+}
+
+function Copy-GammaFile([string]$Source,[string]$Destination) {
+    $parent = Split-Path -Parent $Destination
+    [void][IO.Directory]::CreateDirectory((Get-GammaNativePath $parent))
+    [IO.File]::Copy((Get-GammaNativePath $Source),(Get-GammaNativePath $Destination),$true)
+}
+
+function Test-GammaFile([string]$Path) {
+    return [IO.File]::Exists((Get-GammaNativePath $Path))
+}
+
+function Remove-GammaFile([string]$Path) {
+    [IO.File]::Delete((Get-GammaNativePath $Path))
+}
+
 function Install-GammaFullPayload {
     param([Parameter(Mandatory=$true)][string]$PayloadRoot,[Parameter(Mandatory=$true)][string]$InstallPath)
     $gamesRoot = Split-Path -Parent $InstallPath
@@ -171,7 +219,7 @@ function Install-GammaFullPayload {
     if (Test-Path -LiteralPath $InstallPath -PathType Container) {
         $backupBase = Join-Path $gamesRoot '.pcvrhub-backups\Anomaly Gamma'
         [void][IO.Directory]::CreateDirectory($backupBase)
-        $backupPath = Join-Path $backupBase ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8) + '-before-v0.3.4')
+        $backupPath = Join-Path $backupBase ((Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,8) + '-before-v0.3.5')
         Move-Item -LiteralPath $InstallPath -Destination $backupPath -ErrorAction Stop
     }
     try {
@@ -188,8 +236,8 @@ function Install-GammaFullPayload {
 
 function Install-GammaUpdatePayload {
     param([Parameter(Mandatory=$true)][string]$PayloadRoot,[Parameter(Mandatory=$true)][string]$InstallPath)
-    if (-not (Test-Path -LiteralPath (Join-Path $InstallPath $script:GammaLaunchFile) -PathType Leaf)) { throw 'The v0.3.3 base installation is missing.' }
-    $backupRoot = Join-Path $InstallPath ('.pcvrhub_gamma_backups\v0.3.3-before-v0.3.4-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+    if (-not (Test-GammaUpdateBase -InstallPath $InstallPath)) { throw 'A complete v0.3.4 base installation is required for this small update.' }
+    $backupRoot = Join-Path $InstallPath ('.pcvrhub_gamma_backups\v0.3.4-before-v0.3.5-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
     [void][IO.Directory]::CreateDirectory($backupRoot)
     $records = New-Object System.Collections.Generic.List[object]
     try {
@@ -197,29 +245,33 @@ function Install-GammaUpdatePayload {
             $relative = $source.FullName.Substring($PayloadRoot.Length).TrimStart('\','/')
             $target = Join-Path $InstallPath $relative
             [void](Assert-GammaPathInside -Path $target -Root $InstallPath)
-            $hadOriginal = Test-Path -LiteralPath $target -PathType Leaf
+            $hadOriginal = Test-GammaFile $target
             if ($hadOriginal) {
                 $backupFile = Join-Path $backupRoot $relative
-                $backupParent = Split-Path -Parent $backupFile
-                if (-not (Test-Path -LiteralPath $backupParent -PathType Container)) { [void][IO.Directory]::CreateDirectory($backupParent) }
-                Copy-Item -LiteralPath $target -Destination $backupFile -Force -ErrorAction Stop
+                Copy-GammaFile -Source $target -Destination $backupFile
             }
             [void]$records.Add([pscustomobject]@{ Path=$relative; HadOriginal=[bool]$hadOriginal })
-            $targetParent = Split-Path -Parent $target
-            if (-not (Test-Path -LiteralPath $targetParent -PathType Container)) { [void][IO.Directory]::CreateDirectory($targetParent) }
-            Copy-Item -LiteralPath $source.FullName -Destination $target -Force -ErrorAction Stop
+            Copy-GammaFile -Source $source.FullName -Destination $target
         }
         $manifestPath = Join-Path $backupRoot 'ownership-manifest.json'
         Write-PCVRAtomicText -Path $manifestPath -Value ($records.ToArray() | ConvertTo-Json -Depth 3)
+        $nativePath = {
+            param([string]$Path)
+            $full = [IO.Path]::GetFullPath($Path)
+            if ($full.StartsWith('\\?\')) { return $full }
+            if ($full.StartsWith('\\')) { return '\\?\UNC\' + $full.Substring(2) }
+            return '\\?\' + $full
+        }.GetNewClosure()
         $rollback = {
             foreach ($record in $records.ToArray()) {
                 $target = Join-Path $InstallPath ([string]$record.Path)
                 $backupFile = Join-Path $backupRoot ([string]$record.Path)
-                if ([bool]$record.HadOriginal -and (Test-Path -LiteralPath $backupFile -PathType Leaf)) {
-                    $parent = Split-Path -Parent $target
-                    if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
-                    Copy-Item -LiteralPath $backupFile -Destination $target -Force -ErrorAction SilentlyContinue
-                } elseif (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
+                $nativeTarget = & $nativePath $target
+                $nativeBackup = & $nativePath $backupFile
+                if ([bool]$record.HadOriginal -and [IO.File]::Exists($nativeBackup)) {
+                    [void][IO.Directory]::CreateDirectory((& $nativePath (Split-Path -Parent $target)))
+                    [IO.File]::Copy($nativeBackup,$nativeTarget,$true)
+                } elseif ([IO.File]::Exists($nativeTarget)) { [IO.File]::Delete($nativeTarget) }
             }
         }.GetNewClosure()
         return [pscustomobject]@{ BackupPath=$backupRoot; Rollback=$rollback; FileCount=$records.Count }
@@ -227,8 +279,8 @@ function Install-GammaUpdatePayload {
         foreach ($record in $records.ToArray()) {
             $target = Join-Path $InstallPath ([string]$record.Path)
             $backupFile = Join-Path $backupRoot ([string]$record.Path)
-            if ([bool]$record.HadOriginal -and (Test-Path -LiteralPath $backupFile -PathType Leaf)) { Copy-Item -LiteralPath $backupFile -Destination $target -Force -ErrorAction SilentlyContinue }
-            elseif (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction SilentlyContinue }
+            if ([bool]$record.HadOriginal -and (Test-GammaFile $backupFile)) { Copy-GammaFile -Source $backupFile -Destination $target }
+            elseif (Test-GammaFile $target) { Remove-GammaFile $target }
         }
         throw
     }
@@ -237,7 +289,8 @@ function Install-GammaUpdatePayload {
 function Move-GammaShaderCachesToBackup {
     param([Parameter(Mandatory=$true)][string]$InstallPath,[Parameter(Mandatory=$true)][string]$BackupRoot)
     $moves = New-Object System.Collections.Generic.List[object]
-    foreach ($cache in @(Get-ChildItem -LiteralPath $InstallPath -Directory -Recurse -Depth 3 -Filter 'shaders_cache' -ErrorAction SilentlyContinue | Where-Object { $_.Parent.Name -ieq 'appdata' })) {
+    $shaderCache = Join-Path $InstallPath 'STALKERVR_GAMMA\appdata\shaders_cache'
+    foreach ($cache in @(Get-Item -LiteralPath $shaderCache -ErrorAction SilentlyContinue | Where-Object { $_.PSIsContainer })) {
         [void](Assert-GammaPathInside -Path $cache.FullName -Root $InstallPath)
         $destinationRoot = Join-Path $BackupRoot 'removed-shader-cache'
         [void][IO.Directory]::CreateDirectory($destinationRoot)
@@ -260,19 +313,22 @@ function Set-GammaEnglishLanguage([string]$InstallPath) {
 
 if ($env:PCVR_ANOMALYGAMMA_LIBRARY_ONLY -eq '1') { return }
 
+$installCommitted = $false
+$exitCode = 0
 try {
     Write-GammaHeader
-    Write-Host '  GAMMA VR v0.3.4 adds physical reloading for every weapon,' -ForegroundColor White
-    Write-Host '  physical grenades, a left-hand wearable HUD and major performance fixes.' -ForegroundColor White
+    Write-Host '  GAMMA VR v0.3.5 moves PDA messages to the Promin wrist display' -ForegroundColor White
+    Write-Host '  and adds touch and Up/Down gestures for its screens and messages.' -ForegroundColor White
     Write-Host '  The complete standalone package needs at least 110 GB free.' -ForegroundColor Yellow
     Write-Host '  It may currently be offered as a torrent. qBittorrent is the recommended' -ForegroundColor Gray
     Write-Host '  free, open-source, ad-free client: https://www.qbittorrent.org/download' -ForegroundColor Gray
-    Write-Host '  An exact v0.3.3 install can use the much smaller update archive.' -ForegroundColor Gray
+    Write-Host '  Only a complete v0.3.4 install can use the small v0.3.5 update.' -ForegroundColor Gray
+    Show-AntivirusNotice -Compact
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to start setup.')
 
     Write-GammaStep 1 5 'Choosing and checking the install folder'
     $knownPath = Get-GammaKnownInstallPath
-    $defaultPath = if ($knownPath) { $knownPath } else { 'C:\Games\Gamma VR' }
+    $defaultPath = if ($knownPath) { $knownPath } else { 'C:\Games\GammaVR' }
     Write-Host "  Press Enter for: $defaultPath" -ForegroundColor White
     Write-Host '  Or enter the existing Gamma VR folder / a Games root without spaces.' -ForegroundColor Gray
     $enteredPath = Read-Host '  Install path'
@@ -284,21 +340,21 @@ try {
     else { Write-GammaInfo "The complete package will be installed at $installPath" }
 
     $route = 'CurrentFull'
-    if ($installedVersion -eq '0.3.3') {
+    if ($installedVersion -eq '0.3.4' -and (Test-GammaUpdateBase -InstallPath $installPath)) {
         Write-Host ''
-        Write-Host '  [1] Update v0.3.3 to v0.3.4 (recommended)' -ForegroundColor Green
-        Write-Host '  [2] Replace it with the complete v0.3.4 package' -ForegroundColor Gray
+        Write-Host '  [1] Update v0.3.4 to v0.3.5 (recommended)' -ForegroundColor Green
+        Write-Host '  [2] Replace it with the complete v0.3.5 package' -ForegroundColor Gray
         $choice = (Read-Host '  Press Enter for 1, or type 2').Trim()
-        if (-not $choice -or $choice -eq '1') { $route = 'UpdateFrom0.3.3' }
+        if (-not $choice -or $choice -eq '1') { $route = 'UpdateFrom0.3.4' }
         elseif ($choice -ne '2') { throw 'Setup stopped because no valid route was selected.' }
     } elseif ($hasInstall) {
-        Write-GammaWarn $(if ($installedVersion -eq '0.3.4') { 'v0.3.4 is already installed; this run will repair it from the complete package.' } else { "Only v0.3.3 can use the small update. The detected '$installedVersion' build needs the complete package." })
+        Write-GammaWarn $(if ($installedVersion -eq '0.3.5') { 'v0.3.5 is already recorded; a repair needs the complete package.' } else { "Only a complete v0.3.4 base can use the small update. The detected '$installedVersion' installation needs the complete package." })
     }
 
     if ($route -eq 'CurrentFull') {
         Write-Host ''
         Write-Host '  Download from the official Discord post. If it offers only a .torrent,' -ForegroundColor White
-        Write-Host '  use qBittorrent to finish STALKER GAMMA VR v0.3.4.7z first.' -ForegroundColor Gray
+        Write-Host '  use qBittorrent to finish STALKER GAMMA VR v0.3.5.7z first.' -ForegroundColor Gray
         $qbitChoice = (Read-Host '  Press Enter to continue, or type Q to open the official qBittorrent page').Trim()
         if ($qbitChoice -match '^(?i)q$') {
             Start-Process $script:QBitTorrentUrl -ErrorAction Stop | Out-Null
@@ -306,39 +362,50 @@ try {
         } elseif ($qbitChoice) { throw 'Setup stopped because no valid choice was selected.' }
     }
 
-    Write-GammaStep 2 5 'Getting the official GAMMA VR v0.3.4 package'
+    Write-GammaStep 2 5 'Getting the official GAMMA VR v0.3.5 package'
     $sevenZip = Get-SevenZip -Required
     if (-not $sevenZip) { throw '7-Zip is required to read and extract the GAMMA VR package.' }
-    $patterns = if ($route -eq 'UpdateFrom0.3.3') { @('*UPDATE*0.3.3*0.3.4*.7z','*UPDATE*v0.3.3*v0.3.4*.7z') } else { @('STALKER GAMMA VR v0.3.4.7z','*STALKER*GAMMA*VR*v0.3.4*.7z') }
+    $patterns = if ($route -eq 'UpdateFrom0.3.4') { @('UPDATE FROM v0.3.4 to v0.3.5.7z','*UPDATE*0.3.4*0.3.5*.7z') } else { @('STALKER GAMMA VR v0.3.5.7z','*STALKER*GAMMA*VR*v0.3.5*.7z') }
     $routeForValidator = $route
     $sevenZipForValidator = $sevenZip
     $validator = { param($path) Test-GammaArchive -ArchivePath $path -Route $routeForValidator -SevenZip $sevenZipForValidator }.GetNewClosure()
-    $archive = Invoke-PCVRDiscordDownloadFlow -Label 'GAMMA VR v0.3.4' -InviteUrl $script:GammaInviteUrl `
+    $archive = Invoke-PCVRDiscordDownloadFlow -Label 'GAMMA VR v0.3.5' -InviteUrl $script:GammaInviteUrl `
         -DownloadPostUrl $script:GammaDownloadPostUrl -FilePatterns $patterns `
         -SourceDescription 'provided through the official Anomaly VR Discord post' -ValidateCandidate $validator
     if (-not $archive) { throw 'Setup was cancelled before a usable archive was supplied.' }
+    while ($true) {
+        Write-Host "  Selected: $archive" -ForegroundColor White
+        $selection = ([string](Read-Host '  Use this file? [Y]es, [P]aste another file path, [C]ancel')).Trim().ToUpperInvariant()
+        if ($selection -eq 'Y') { break }
+        if ($selection -eq 'C') { throw 'Setup was cancelled before installation.' }
+        if ($selection -eq 'P') {
+            $manual = ([string](Read-Host '  Full path to the downloaded 7z file')).Trim().Trim('"')
+            if ($manual -and (Test-GammaArchive -ArchivePath $manual -Route $route -SevenZip $sevenZip)) { $archive = [IO.Path]::GetFullPath($manual); continue }
+            Write-GammaWarn 'That file is not a readable package for the selected route.'
+        }
+    }
     Write-GammaOk "Readable $route package selected: $(Split-Path $archive -Leaf)"
 
     Write-GammaStep 3 5 'Staging and verifying the package before installation'
     $gamesRoot = Split-Path -Parent $installPath
     $stageRoot = Join-Path $gamesRoot ('.pcvr-gamma-stage-' + [Guid]::NewGuid().ToString('N'))
     [void][IO.Directory]::CreateDirectory($stageRoot)
-    if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $archive -Dest $stageRoot -Label 'GAMMA VR v0.3.4')) { throw '7-Zip could not extract the selected archive.' }
+    if (-not (Expand-7zWithProgress -SevenZip $sevenZip -Archive $archive -Dest $stageRoot -Label 'GAMMA VR v0.3.5')) { throw '7-Zip could not extract the selected archive.' }
     $payloadRoot = Get-GammaPayloadRoot -ExtractRoot $stageRoot
     if (-not (Test-GammaArchive -ArchivePath $archive -Route $route -SevenZip $sevenZip -Quiet)) { throw 'The staged package no longer matches the selected installation route.' }
-    foreach ($group in @($script:GammaContract.RequiredInstalledFileGroups)) {
+    foreach ($group in @(Get-GammaPayloadGroups -Route $route)) {
         $found = $false
         foreach ($relative in @(($group -split '\|') | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
             if (Test-Path -LiteralPath (Join-Path $payloadRoot $relative) -PathType Leaf) { $found = $true; break }
         }
         if (-not $found) { throw "The staged package is incomplete: $group" }
     }
-    Write-GammaOk 'The staged v0.3.4 payload and safe archive paths were verified.'
+    Write-GammaOk 'The staged v0.3.5 payload and safe archive paths were verified.'
 
-    Write-GammaStep 4 5 $(if ($route -eq 'UpdateFrom0.3.3') { 'Applying the recoverable v0.3.3 to v0.3.4 update' } else { 'Installing the complete recoverable v0.3.4 package' })
-    $installResult = if ($route -eq 'UpdateFrom0.3.3') { Install-GammaUpdatePayload -PayloadRoot $payloadRoot -InstallPath $installPath } else { Install-GammaFullPayload -PayloadRoot $payloadRoot -InstallPath $installPath }
+    Write-GammaStep 4 5 $(if ($route -eq 'UpdateFrom0.3.4') { 'Applying the recoverable v0.3.4 to v0.3.5 update' } else { 'Installing the complete recoverable v0.3.5 package' })
+    $installResult = if ($route -eq 'UpdateFrom0.3.4') { Install-GammaUpdatePayload -PayloadRoot $payloadRoot -InstallPath $installPath } else { Install-GammaFullPayload -PayloadRoot $payloadRoot -InstallPath $installPath }
     try {
-        if ($route -eq 'UpdateFrom0.3.3') {
+        if ($route -eq 'UpdateFrom0.3.4') {
             $cacheMoves = @(Move-GammaShaderCachesToBackup -InstallPath $installPath -BackupRoot $installResult.BackupPath)
             if ($cacheMoves.Count -gt 0) {
                 $payloadRollback = $installResult.Rollback
@@ -359,6 +426,7 @@ try {
         [void](Complete-PCVRInstallTransaction -Contract $script:GammaContract -GameDir $installPath -Version $script:GammaCurrentVersion `
             -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) `
             -AdditionalVersionReceiptPaths @((Join-Path $installPath 'gamma_vr_version.txt')) -Route $route)
+        $installCommitted = $true
     } catch {
         if ($installResult -and $installResult.Rollback) { & $installResult.Rollback }
         throw
@@ -380,25 +448,39 @@ try {
 
     if (Test-Path -LiteralPath $stageRoot -PathType Container) { Remove-Item -LiteralPath $stageRoot -Recurse -Force -ErrorAction SilentlyContinue }
 
-    Write-GammaStep 5 5 'First launch after v0.3.4'
+    Write-GammaStep 5 5 'First launch after v0.3.5'
     Write-Host '  The official instructions require GAMMA VR.bat to run at least once.' -ForegroundColor White
+    Write-Host '  It regenerates ModOrganizer.ini for the v0.3.5 profile.' -ForegroundColor White
     Write-Host '  A black headset for 10-15 seconds during startup/loading is normal.' -ForegroundColor Gray
-    $launchChoice = (Read-Host '  Type L to launch now, or press Enter to finish without launching').Trim()
-    if ($launchChoice -match '^(?i)l$') {
+    do {
+        $launchChoice = (Read-Host '  Press Enter to launch now, or type C to run it yourself later').Trim()
+        if ($launchChoice -and $launchChoice -ine 'C') {
+            Write-GammaWarn 'Choose Enter to launch or C to run it later.'
+        }
+    } while ($launchChoice -and $launchChoice -ine 'C')
+    if (-not $launchChoice) {
         Start-Process -FilePath (Join-Path $installPath $script:GammaLaunchFile) -WorkingDirectory $installPath -ErrorAction Stop | Out-Null
         Write-GammaOk 'GAMMA VR.bat started.'
-    } elseif ($launchChoice) { Write-GammaWarn 'Unknown choice; the game was not launched.' }
+    } else {
+        Write-GammaWarn 'GAMMA VR.bat was not started by setup. Run it once before playing.'
+    }
 
     Write-Host ''
     Write-Host '============================================================' -ForegroundColor Magenta
-    Write-Host '  GAMMA VR v0.3.4 is installed and recorded.' -ForegroundColor Green
-    Write-Host '  Manual reloading, grenades and the performance update are ready.' -ForegroundColor Gray
+    Write-Host '  GAMMA VR v0.3.5 files are installed and recorded.' -ForegroundColor Green
+    Write-Host '  Promin messages and gestures are included; first run is required.' -ForegroundColor Gray
     Write-Host '============================================================' -ForegroundColor Magenta
 } catch {
+    $exitCode = 1
     Write-Host ''
     Write-GammaWarn ("Setup stopped safely: " + $_.Exception.Message)
-    Write-Host '  No successful v0.3.4 receipt was written for an incomplete install.' -ForegroundColor Gray
+    if ($installCommitted) {
+        Write-Host '  The v0.3.5 files were recorded. Run GAMMA VR.bat manually to finish its required first launch.' -ForegroundColor Gray
+    } else {
+        Write-Host '  No successful v0.3.5 receipt was written for an incomplete install.' -ForegroundColor Gray
+    }
 } finally {
     Write-Host ''
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close the installer.')
 }
+if ($exitCode -ne 0) { exit $exitCode }

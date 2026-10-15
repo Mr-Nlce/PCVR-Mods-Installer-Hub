@@ -118,24 +118,15 @@ function Find-MirageFeathersGamePath {
  if ($IsDemo) {
  $folders = @("Mirage Feathers Demo", "MirageFeathersDemo", "Mirage Feathers")
  $dataMark = "Mirage Feathers Demo_Data"
- $altData = "Mirage Feathers_Data"
  } else {
  $folders = @("Mirage Feathers", "MirageFeathers")
  $dataMark = "Mirage Feathers_Data"
- $altData = $null
  }
 
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  foreach ($folder in $folders) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
  if (Test-Path (Join-Path $candidate $dataMark)) { return $candidate }
- if ($altData -and (Test-Path (Join-Path $candidate $altData))) { return $candidate }
- }
- # Last-resort: any folder under common\ that still has a
- # matching _Data subfolder, even if it's named oddly.
- foreach ($folder in $folders) {
- $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path $candidate) { return $candidate }
  }
  }
  return $null
@@ -295,6 +286,11 @@ Write-Step 2 3 "Locating Mirage Feathers ($editionLabel)"
 
 $gamePath = Find-MirageFeathersGamePath -IsDemo:$isDemo
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2719060" -SteamFolderNames @("Mirage Feathers") }
+$expectedGameData = if ($isDemo) { 'Mirage Feathers Demo_Data' } else { 'Mirage Feathers_Data' }
+if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $expectedGameData) -PathType Container)) {
+ Write-Warn "The detected folder is not the selected $editionLabel edition."
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found Mirage Feathers at: $gamePath"
 } else {
@@ -309,11 +305,11 @@ if ($gamePath) {
  while (-not $gamePath) {
  $r = (Read-Host " Mirage Feathers folder").Trim().Trim('"')
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-Path -LiteralPath (Join-Path $r $expectedGameData) -PathType Container) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "The $editionLabel game data folder was not found in: $r"
  }
  }
 }
@@ -345,7 +341,8 @@ try {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "The mod archive was not extracted. No installation was recorded."
+  throw "The mod archive was not extracted. No installation was recorded."
 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
@@ -354,6 +351,14 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  if ($rootEntries[0].Name -ne "BepInEx") {
  $srcRoot = $rootEntries[0].FullName
  }
+}
+
+$requiredFiles = @('winhttp.dll', 'doorstop_config.ini', 'BepInEx\core\BepInEx.dll', 'BepInEx\plugins\MirageFeathers_VR.dll')
+$missingSource = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $srcRoot $_) -PathType Leaf) })
+if ($missingSource.Count -gt 0) {
+ Write-Fail ("The selected archive lacks required mod files: " + ($missingSource -join ', '))
+ try { Remove-Item -LiteralPath $tempExtract -Recurse -Force } catch {}
+ throw ("The selected archive lacks required mod files: " + ($missingSource -join ', '))
 }
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
@@ -377,21 +382,18 @@ try {
  Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
  exit 1
  }
- # User chose Skip - continue at own risk
+ Write-Fail "The mod files were not copied. No installation was recorded."
+  throw "The mod files were not copied. No installation was recorded."
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\MirageFeathers_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but MirageFeathers_VR.dll is missing."
-} else {
- Write-OK "BepInEx + MirageFeathers_VR.dll present."
+$missingInstalled = @($requiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf) })
+if ($missingInstalled.Count -gt 0) {
+ Write-Fail ("Required files are missing after copy: " + ($missingInstalled -join ', '))
+ throw ("Required files are missing after copy: " + ($missingInstalled -join ', '))
 }
+Write-OK "BepInEx and MirageFeathers_VR.dll are present."
+try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready

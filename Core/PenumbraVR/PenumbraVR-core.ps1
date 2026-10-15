@@ -30,26 +30,7 @@ $GAME_FOLDER   = "Penumbra Overture VR"
 $DEFAULT_ROOTS = @("C:\Games", "D:\Games", "E:\Games")
 $INFO_URL    = "https://github.com/newyork167/penumbra_vr"
 
-# ---- The SECOND mod, added 2026-08-20 -------------------------
-# rubocopter's rework. Same game, different approach - and, most
-# importantly, A DIFFERENT PLACE ON DISK:
-#   original : the whole game is COPIED to C:\Games\Penumbra
-#              Overture VR and the mod goes in that copy's redist\
-#   rework   : merges into the STEAM installation's redist\ and
-#              backs up every file it replaces
-# So the two do NOT overwrite each other, even though both ship a
-# file called Penumbra_vr.exe. Nothing has to be parked; which one
-# you play is simply which copy you launch.
-#
-# The list is queried so both stable releases and a newer prerelease can
-# be offered; the rework reached its first stable release with v0.1.0.
-$RW_NAME    = "Penumbra VR rework"
-$RW_AUTHOR  = "rubocopter"
-$RW_REPO    = "rubocopter/penumbra_vr_rework"
-$RW_RELEASES = "https://github.com/$RW_REPO/releases"
-# Required files are common to the author's reversible release packages.
-$RW_SETUP   = "Install-PenumbraVR.bat"
-$RW_MUST_HAVE = @("Penumbra_vr.exe", "openvr_api.dll", $RW_SETUP, "SHA256SUMS.txt")
+# The current Framework publisher Setup is the recommended menu option [1].
 $DL_URLS     = @(
     "https://github.com/newyork167/penumbra_vr/releases/download/untagged-aceffe2e650abce1e795/penumbra_vr_v01.zip"
 )
@@ -132,14 +113,13 @@ Write-Header
 Write-Host "  About this mod:" -ForegroundColor White
 Write-Host "  - Penumbra: Overture VR adds head + hand tracking to the" -ForegroundColor Gray
 Write-Host "    classic Frictional Games survival-horror game." -ForegroundColor Gray
-Write-Host "  - REQUIRES Penumbra: Overture on Steam (owned + installed)." -ForegroundColor Gray
+Write-Host "  - Requires the original installed Penumbra: Overture game." -ForegroundColor Gray
 Write-Host "  - Motion controls (built for the HTC Vive era; works with" -ForegroundColor Gray
 Write-Host "    modern controllers via SteamVR bindings)." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  How this installs:" -ForegroundColor White
-Write-Host "  - The game's old engine can fail under Program Files (UAC)." -ForegroundColor Gray
-Write-Host "  - So we COPY the game to C:\Games\$GAME_FOLDER and add the" -ForegroundColor Gray
-Write-Host "    VR mod there. Your Steam copy stays untouched." -ForegroundColor Gray
+Write-Host "  Choose the installation route below:" -ForegroundColor Green
+Write-Host "  - Penumbra VR Framework uses your original game folder." -ForegroundColor Gray
+Write-Host "  - The historic mod uses a separate game copy." -ForegroundColor Gray
 Write-Host ""
 Write-Host ""
 
@@ -150,24 +130,16 @@ Write-Host "  ------------------------------------------------------------" -For
 Write-Host "   Two Penumbra VR mods exist. Which one?" -ForegroundColor Cyan
 Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "   [1] $MOD_NAME by $MOD_AUTHOR" -ForegroundColor White
-Write-Host "       The long-standing one, built in the HTC Vive era." -ForegroundColor Gray
-Write-Host "       Head and hand tracking, modern controllers through" -ForegroundColor Gray
-Write-Host "       SteamVR bindings. Installs into a COPY of the game" -ForegroundColor Gray
-Write-Host "       under C:\Games - your Steam copy stays untouched." -ForegroundColor Gray
+Write-Host "   [1] Penumbra VR Framework by rubocopter (recommended)" -ForegroundColor Green
+Write-Host "       Current publisher Setup for Overture, Black Plague" -ForegroundColor Gray
+Write-Host "       and Requiem. Uses your installed original game." -ForegroundColor Gray
+Write-Host "       Publisher Setup selects detected games by default." -ForegroundColor Gray
+Write-Host "       Updates are checked, including prereleases." -ForegroundColor Gray
+Write-Host "       Old Overture VR files are safely restored before Setup." -ForegroundColor Gray
 Write-Host ""
-Write-Host "   [2] $RW_NAME by $RW_AUTHOR" -ForegroundColor White
-Write-Host "       " -NoNewline
-Write-Host " FIRST STABLE RELEASE " -ForegroundColor Black -BackgroundColor Green
-Write-Host "       Roomscale hands, physical props and per-finger animation." -ForegroundColor Gray
-Write-Host "       Optional enhanced lighting and reviewed textures can be" -ForegroundColor Gray
-Write-Host "       switched live under Options > VR Settings > Display." -ForegroundColor Gray
-Write-Host "       On PS VR2" -ForegroundColor Gray
-Write-Host "       Sense, Index and Touch every finger follows its own" -ForegroundColor Gray
-Write-Host "       measured curl. Other devices get a synthesized closing" -ForegroundColor Gray
-Write-Host "       sequence. Only PS VR2 Sense is hardware-validated." -ForegroundColor Gray
-Write-Host "       Merges into your STEAM copy and backs up what it" -ForegroundColor Gray
-Write-Host "       replaces, so it can put everything back." -ForegroundColor Gray
+Write-Host "   [2] $MOD_NAME by $MOD_AUTHOR (classic)" -ForegroundColor White
+Write-Host "       HTC Vive-era mod in a separate COPY of the game." -ForegroundColor Gray
+Write-Host "       This old release receives no updates." -ForegroundColor Gray
 Write-Host ""
 Write-Host "   They land in different folders, so having both is fine." -ForegroundColor DarkGray
 Write-Host ""
@@ -183,9 +155,10 @@ if ($modChoice -notin @("1","2")) {
     exit 1
 }
 
-if ($modChoice -eq "2") {
-    . (Join-Path $PSScriptRoot "PenumbraVR-rework.ps1")
-    exit 0
+if ($modChoice -eq "1") {
+    Write-Host "  Opening the current Framework installer in this window..." -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot '..\PenumbraFrameworkVR\PenumbraFrameworkVR-core.ps1') -Game Overture -Mode Install
+    return
 }
 
 Pause-User "Press Enter to begin..."

@@ -73,6 +73,10 @@ vrApi = OpenXR
 
 (Default is `OpenVR`. Both runtimes are supported.)
 
+## Troubleshooting
+
+If the game shows an error or closes after a game update, first confirm that the mod ZIP matches your **Demo** or **Full game** edition. Astienth also asks you to place the extracted files beside the game EXE and its matching `_Data` folder. These checks were repeated in the [December 2025 publisher discussion](https://discord.com/channels/1001138422972432597/1325853693530079232); they do not establish that every later game build is compatible.
+
 ## Discord
 
 - Server invite: https://discord.gg/G8zZBTGuhP

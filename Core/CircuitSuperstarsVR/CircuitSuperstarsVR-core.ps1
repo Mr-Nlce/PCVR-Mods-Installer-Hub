@@ -36,6 +36,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "CircuitSuperstars_VRMod"
 $MOD_VERSION = "v1.0.0"
@@ -149,6 +150,7 @@ Write-Host ""
 Write-Host " Source repo (info, README, support):" -ForegroundColor Gray
 Write-Host " $GITHUB_REPO_URL" -ForegroundColor DarkGray
 Write-Host ""
+Show-AntivirusNotice -Compact
 Pause-User "Press Enter to start the install..."
 
 # -------------------------------------------------------
@@ -177,6 +179,12 @@ if ($gamePath) {
  }
 }
 
+if (-not (Test-Path -LiteralPath (Join-Path $gamePath 'circuit-superstars.exe') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'circuit-superstars_Data') -PathType Container)) {
+ Write-Fail "The selected folder does not contain the base game EXE and data folder."
+ Pause-User "Press Enter to exit..."; exit 1
+}
+
 # Download the mod ZIP from GitHub directly.
 $modZip = Join-Path $env:TEMP "CircuitSuperstarsVR_$([System.IO.Path]::GetRandomFileName()).zip"
 Write-Host ""
@@ -195,25 +203,13 @@ try {
  Write-Host " Possible causes: no internet, GitHub down, firewall blocking." -ForegroundColor Yellow
  Write-Host " You can grab the ZIP manually from:" -ForegroundColor Yellow
  Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
- $__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$gamePath' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
+ $__fb = Invoke-InstallerFallback -Action "mod download" `
+  -Instructions "Download the ZIP from the release page and drop it here, then choose Retry." `
+  -Url ($GITHUB_DOWNLOAD_URL -replace '/releases/download/.*$','/releases') -DestFile $modZip -RetryCheck { Test-Path -LiteralPath $modZip -PathType Leaf } -AllowSkip $false
+ if ([string]$__fb -ne 'retry') { exit 1 }
 }
+try { Assert-PCVRDropInPreflight -GameRoot $gamePath -GameExe 'circuit-superstars.exe' -GameDataFolder 'circuit-superstars_Data' -ArchivePath $modZip }
+catch { Write-Fail $_; Pause-User 'Press Enter to exit...'; exit 1 }
 
 # -------------------------------------------------------
 # STEP 2: Extract mod files into the game folder
@@ -224,26 +220,10 @@ $tempExtract = Join-Path $env:TEMP "CircuitSuperstarsVR_$([System.IO.Path]::GetR
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
 
 try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
+ if ((Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $tempExtract -Label $MOD_NAME -AllowSkip $false) -notin @('ok','manual')) {
+  throw 'The mod archive was not extracted.'
  }
- # User chose Skip - continue at own risk
-}
+} catch { Write-Fail "Extract failed: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
 $rootEntries = Get-ChildItem -Path $tempExtract
 $srcRoot = $tempExtract
@@ -255,50 +235,19 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
- }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
-}
+ $required=@('winhttp.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\CircuitSuperstars_VR.dll')
+ $hashes=Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $required
+ $contract=New-PCVRInstallerContract -Id 'circuit-superstars-vr' -GameName $GAME_NAME -Acquisition GitHub `
+  -ReleasePageUrl $GITHUB_REPO_URL -AntivirusNotice -RequiredInstalledFileGroups $required
+ [void](Invoke-PCVRDropInInstall -SourceRoot $srcRoot -GameRoot $gamePath -SourceHashes $hashes `
+  -KeepExistingFiles @('BepInEx\config\BepInEx.cfg','BepInEx\config\UnityVR_Bepinex.cfg','BepInEx\config\CircuitSuperstars_VR.cfg') `
+  -Contract $contract -Version $MOD_VERSION -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+ Write-OK "Mod files installed and verified."
+} catch { Write-Fail "Installation failed; previous files were restored: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
 # Clean up both temp artefacts.
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 try { Remove-Item $modZip -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\CircuitSuperstars_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but CircuitSuperstars_VR.dll is missing."
-} else {
- Write-OK "BepInEx + CircuitSuperstars_VR.dll present."
-}
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
 
 # -------------------------------------------------------
 # Done

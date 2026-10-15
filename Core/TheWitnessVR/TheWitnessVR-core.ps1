@@ -97,22 +97,10 @@ function Test-RecognizedArchive([string]$Path) {
 function Get-WitnessDownloadFolders {
     $folders = New-Object System.Collections.Generic.List[string]
 
-    # Honour a redirected Windows Downloads known folder first. This covers
-    # OneDrive/profile redirection without guessing a fixed location.
-    try {
-        $shellFolders = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -ErrorAction Stop
-        $redirected = '' + $shellFolders.'{374DE290-123F-4565-9164-39C4925E467B}'
-        if ($redirected) {
-            $redirected = [Environment]::ExpandEnvironmentVariables($redirected)
-            if (Test-Path -LiteralPath $redirected -PathType Container) { $folders.Add($redirected) }
-        }
-    } catch {}
-
-    $profile = [Environment]::GetFolderPath('UserProfile')
-    if ($profile) {
-        $standard = Join-Path $profile 'Downloads'
-        if ((Test-Path -LiteralPath $standard -PathType Container) -and -not $folders.Contains($standard)) { $folders.Add($standard) }
-    }
+    # Use Explorer's registered Downloads Known Folder. A stale profile copy
+    # must not shadow a browser download on a relocated drive.
+    $registered = Get-PCVRDownloadsFolder
+    if ($registered -and (Test-Path -LiteralPath $registered -PathType Container)) { $folders.Add($registered) }
     if ($env:OneDrive) {
         $oneDriveDownloads = Join-Path $env:OneDrive 'Downloads'
         if ((Test-Path -LiteralPath $oneDriveDownloads -PathType Container) -and -not $folders.Contains($oneDriveDownloads)) { $folders.Add($oneDriveDownloads) }

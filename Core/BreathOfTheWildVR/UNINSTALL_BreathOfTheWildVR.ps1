@@ -52,8 +52,8 @@ foreach ($cand in @(
     (Join-Path ([Environment]::GetFolderPath("MyDocuments")) "Games\Breath of the Wild VR"),
     (Join-Path $env:USERPROFILE "Games\Breath of the Wild VR")
 )) {
-    if ($cand -and (Test-Path -LiteralPath (Join-Path $cand "Cemu.exe"))) { $installRoot = $cand; break }
-    if ($cand -and (Test-Path -LiteralPath (Join-Path $cand $LAUNCHER)))  { $installRoot = $cand; break }
+    if ($cand -and (Test-LiteralPathSafe -Path (Join-PathLexical $cand 'Cemu.exe') -PathType Leaf)) { $installRoot = $cand; break }
+    if ($cand -and (Test-LiteralPathSafe -Path (Join-PathLexical $cand $LAUNCHER) -PathType Leaf)) { $installRoot = $cand; break }
 }
 if (-not $installRoot) {
     Write-Warn "Could not find the setup automatically."

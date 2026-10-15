@@ -6,16 +6,28 @@ $ErrorActionPreference='Stop'
 $Host.UI.RawUI.WindowTitle='PowerWash Simulator 2 VR Installer'
 $APP_ID='2968420'
 $GAME_EXE='PowerWash Simulator 2.exe'
-$REPO='onetin84/Wet-Reality-XR-Mod'
+$REPO='onetin84/Wet-Reality-XR-PWS2'
 $RELEASES_URL="https://github.com/$REPO/releases"
-$FALLBACK_TAG='v1.86.0-beta'
-$FALLBACK_ASSET='WetReality-XRMod-1.86.0-beta.zip'
-$FALLBACK_URL='https://github.com/onetin84/Wet-Reality-XR-Mod/releases/download/v1.86.0-beta/WetReality-XRMod-1.86.0-beta.zip'
+$FALLBACK_TAG='v1.123.2-beta'
+$FALLBACK_ASSET='WetReality-XRMod-1.123.2-beta.zip'
+$FALLBACK_URL='https://github.com/onetin84/Wet-Reality-XR-PWS2/releases/download/v1.123.2-beta/WetReality-XRMod-1.123.2-beta.zip'
 $MELON_URL='https://github.com/LavaGang/MelonLoader/releases/download/v0.7.3/MelonLoader.x64.zip'
 $DOTNET_URL='https://builds.dotnet.microsoft.com/dotnet/Runtime/6.0.36/dotnet-runtime-6.0.36-win-x64.zip'
 $OPENXR_URL='https://download.packages.unity.com/com.unity.xr.openxr/-/com.unity.xr.openxr-1.18.0.tgz'
 $IDENTITY='wetrealityxr'
 $QUIP='Every stubborn stain is now within arm''s reach.'
+$DEPOT_ID='2968422'
+$DEPOT_MANIFEST='2576393139753962022'
+$DEPOT_BUILD='23737596'
+$DEPOT_ROOT='C:\Games\PowerWash Simulator 2 VR 23737596'
+$DEPOT_MARKER='.pcvrhub_powerwash2_depot_23737596'
+$DEPOT_MOD_TAG='v1.107.0-beta'
+$DEPOT_MOD_ASSET='WetReality-XRMod-1.107.0-beta.zip'
+$DEPOT_MOD_URL='https://github.com/onetin84/Wet-Reality-XR-Mod/releases/download/v1.107.0-beta/WetReality-XRMod-1.107.0-beta.zip'
+$DEPOT_GAME_HASHES=@{
+    'PowerWash Simulator 2.exe'='CC6D675656DDBC535F5115BA7DF000978A73D65CBF38AD4DB38800D7FCB2F977'
+    'GameAssembly.dll'='E7C3338BCB7EBE55C706FB1B2CE66FC686AE3B535563918689C31C3AA80FAF74'
+}
 $required=@(
     'Mods\WetReality.Pose.dll','Mods\WetReality.XRBoot.dll','MelonLoader\net6\MelonLoader.dll','version.dll',
     'dotnet\host\fxr\6.0.36\hostfxr.dll','PowerWash Simulator 2_Data\Plugins\x86_64\openxr_loader.dll',
@@ -24,6 +36,9 @@ $required=@(
 )
 $contract=New-PCVRInstallerContract -Id 'powerwash-simulator-2-vr' -GameName 'PowerWash Simulator 2 VR' -Acquisition GitHub `
     -AntivirusNotice -ReleasePageUrl $RELEASES_URL -RequiredInstalledFileGroups $required
+$depotContract=New-PCVRInstallerContract -Id 'powerwash-simulator-2-vr' -GameName 'PowerWash Simulator 2 VR' -Acquisition SteamDepot `
+    -PinnedDepot -AntivirusNotice -Routes @("Depot-$DEPOT_BUILD") -ReleasePageUrl "$RELEASES_URL/tag/$DEPOT_MOD_TAG" `
+    -RequiredInstalledFileGroups @($required + @($DEPOT_MARKER,'steam_appid.txt'))
 
 function Write-WRStep([int]$Number,[int]$Total,[string]$Text){Write-Host '';Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan;Write-Host ''}
 function Write-WROK([string]$Text){Write-Host "  [OK] $Text" -ForegroundColor Green}
@@ -58,9 +73,66 @@ function Get-WRGameRoot {
     if(Test-WRGameRoot $windowsAppsRoot){return $windowsAppsRoot}
     $picked=Get-GameFolderInteractive -GameName 'PowerWash Simulator 2' -ProbeFile $GAME_EXE -ManualUrl $RELEASES_URL
     if($picked -in @('quit','skip',$null) -or -not(Test-WRGameRoot $picked)){return $null}
+    [void](Save-HubRememberedGameFolder -GameId 'powerwash-simulator-2-vr' -Title 'PowerWash Simulator 2 VR' -GameDir $picked -ProbeFiles @($GAME_EXE,'GameAssembly.dll') -UserSelected)
     return (Get-Item -LiteralPath $picked).FullName
 }
-function Get-WRRelease {
+function Test-WRPinnedGameFiles([string]$Path){
+    if(-not(Test-WRGameRoot $Path)){return $false}
+    foreach($pair in $DEPOT_GAME_HASHES.GetEnumerator()){
+        $file=Join-Path $Path ([string]$pair.Key)
+        if(-not(Test-Path -LiteralPath $file -PathType Leaf)){return $false}
+        try{if((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne [string]$pair.Value){return $false}}catch{return $false}
+    }
+    return $true
+}
+function Test-WRSteamPinnedManifest([string]$Path){
+    if(-not(Test-WRPinnedGameFiles $Path)){return $false}
+    try{
+        $common=Split-Path -Parent ([IO.Path]::GetFullPath($Path))
+        if((Split-Path -Leaf $common) -ine 'common'){return $false}
+        $manifest=Join-Path (Split-Path -Parent $common) "appmanifest_$APP_ID.acf"
+        $text=[IO.File]::ReadAllText($manifest)
+        return [bool]($text -match ('(?i)"buildid"\s*"'+$DEPOT_BUILD+'"') -and
+            $text -match ('(?is)"'+$DEPOT_ID+'"\s*\{[^{}]*"manifest"\s*"'+$DEPOT_MANIFEST+'"'))
+    }catch{return $false}
+}
+function Get-WRDepotMarkerText {return "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD`nMod=$DEPOT_MOD_TAG"}
+function Get-WRDepotRoot {
+    if(Test-WRPinnedGameFiles $DEPOT_ROOT){Write-WROK "Found pinned build $DEPOT_BUILD at $DEPOT_ROOT";return $DEPOT_ROOT}
+    if((Test-Path -LiteralPath $DEPOT_ROOT) -and @(Get-ChildItem -LiteralPath $DEPOT_ROOT -Force -ErrorAction SilentlyContinue).Count){throw "$DEPOT_ROOT contains files but is not pinned build $DEPOT_BUILD. Choose another location or move it aside before retrying."}
+    $steamGame=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('PowerWash Simulator 2') -ProbeExe $GAME_EXE
+    if(Test-WRSteamPinnedManifest $steamGame){
+        Write-Host "  [C] Copy the installed Steam build $DEPOT_BUILD to its separate VR folder" -ForegroundColor Cyan
+        Write-Host '  [D] Download the pinned depot through Steam Console' -ForegroundColor Cyan
+        Write-Host '  [Q] Cancel' -ForegroundColor Gray
+        do{$choice=([string](Read-Host '  Choose C, D or Q')).Trim().ToUpperInvariant()}while($choice -notin @('C','D','Q'))
+        if($choice -eq 'Q'){throw 'Depot setup cancelled before copying game files.'}
+        if($choice -eq 'C'){
+            [void](Wait-PCVRExplicitEnter -Message "Press Enter to copy the verified build to $DEPOT_ROOT...")
+            [void](Copy-DirectoryTreeVerified -Source $steamGame -Destination $DEPOT_ROOT)
+            if(-not(Test-WRPinnedGameFiles $DEPOT_ROOT)){throw 'The copied PowerWash build does not match the pinned game files.'}
+            return $DEPOT_ROOT
+        }
+    }
+    $command="download_depot $APP_ID $DEPOT_ID $DEPOT_MANIFEST"
+    Write-Host "  Download the exact Windows depot: $command" -ForegroundColor White
+    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy the command and open Steam Console...')
+    try{Set-Clipboard -Value $command -DeferManualFallback}catch{}
+    Start-Process 'steam://open/console' -ErrorAction Stop | Out-Null
+    Show-PCVRClipboardManualFallback -Text $command
+    [void](Wait-PCVRExplicitEnter -Message 'When Steam reports the depot download complete, press Enter to locate it...')
+    $steamRoot=Get-SteamPath
+    $source=Find-SteamDepotPath -AppId $APP_ID -DepotId $DEPOT_ID -GameExe $GAME_EXE -AdditionalSteamRoots @($steamRoot)
+    if(-not $source){$source=Resolve-DepotPath -GameName "PowerWash Simulator 2 build $DEPOT_BUILD" -DepotCommand $command -GameExe $GAME_EXE `
+        -ProbePaths @(Get-SteamDepotProbePaths -AppId $APP_ID -DepotId $DEPOT_ID -AdditionalSteamRoots @($steamRoot)) `
+        -AppId $APP_ID -DepotId $DEPOT_ID -Manifest $DEPOT_MANIFEST}
+    if(-not(Test-WRPinnedGameFiles $source)){throw 'The Steam depot content does not match the pinned PowerWash build.'}
+    [void](Copy-DirectoryTreeVerified -Source $source -Destination $DEPOT_ROOT)
+    if(-not(Test-WRPinnedGameFiles $DEPOT_ROOT)){throw 'The assembled PowerWash depot failed its pinned file proof.'}
+    return $DEPOT_ROOT
+}
+function Get-WRRelease([ValidateSet('Current','Depot')][string]$InstallMode='Current') {
+    if($InstallMode -eq 'Depot'){return [pscustomobject]@{Tag=$DEPOT_MOD_TAG;Url=$DEPOT_MOD_URL;Name=$DEPOT_MOD_ASSET;PageUrl="$RELEASES_URL/tag/$DEPOT_MOD_TAG"}}
     $r=Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $true -AssetPatterns @('(?i)^WetReality-XRMod-.*\.zip$') `
         -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset
     return [pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Name=[string]$r.AssetName;PageUrl=[string]$r.PageUrl}
@@ -95,7 +167,7 @@ function Set-WRConfigValue([Collections.Generic.List[string]]$Lines,[string]$Sec
 }
 
 function New-WRInstallStage {
-    param([string]$PublisherRoot,[string]$MelonArchive,[string]$DotnetArchive,[string]$OpenXrArchive,[string]$GameRoot,[string]$Stage,[string]$Scratch)
+    param([string]$PublisherRoot,[string]$MelonArchive,[string]$DotnetArchive,[string]$OpenXrArchive,[string]$GameRoot,[string]$Stage,[string]$Scratch,[switch]$Depot)
     if(-not(Test-WRPublisherPayload $PublisherRoot)){throw 'The release lacks its mod assemblies or configurator.'}
     [void][IO.Directory]::CreateDirectory($Stage)
     [void][IO.Directory]::CreateDirectory((Join-Path $Stage 'Mods'))
@@ -107,11 +179,22 @@ function New-WRInstallStage {
 
     $melonExtract=Join-Path $Scratch 'melonloader';Expand-Archive -LiteralPath $MelonArchive -DestinationPath $melonExtract -Force
     if(-not(Test-Path -LiteralPath (Join-Path $melonExtract 'MelonLoader\net6\MelonLoader.dll') -PathType Leaf) -or -not(Test-Path -LiteralPath (Join-Path $melonExtract 'version.dll') -PathType Leaf)){throw 'The MelonLoader archive lacks its functional files.'}
-    if(-not(Test-Path -LiteralPath (Join-Path $GameRoot 'MelonLoader') -PathType Container)){
-        Copy-Item -Path (Join-Path $melonExtract '*') -Destination $Stage -Recurse -Force
+    $ownedMelon=$false;$ownedVersionDll=$false
+    $ownership=Join-Path $GameRoot ".pcvrhub_${IDENTITY}_ownership.csv"
+    if(Test-Path -LiteralPath $ownership -PathType Leaf){
+        foreach($row in @(Import-Csv -LiteralPath $ownership -ErrorAction Stop)){
+            $relative=([string]$row.RelativePath).Replace('/','\')
+            if($relative -match '^(?i:MelonLoader\\)'){$ownedMelon=$true}
+            if($relative -ieq 'version.dll'){$ownedVersionDll=$true}
+        }
+    }
+    $existingMelon=Test-Path -LiteralPath (Join-Path $GameRoot 'MelonLoader') -PathType Container
+    if($Depot -or -not $existingMelon -or $ownedMelon){
+        Copy-Item -LiteralPath (Join-Path $melonExtract 'MelonLoader') -Destination $Stage -Recurse -Force
     } elseif(-not(Test-Path -LiteralPath (Join-Path $GameRoot 'MelonLoader\net6\MelonLoader.dll') -PathType Leaf)){
         throw 'An incomplete existing MelonLoader folder was found. Repair or remove it before retrying.'
-    } elseif(-not(Test-Path -LiteralPath (Join-Path $GameRoot 'version.dll') -PathType Leaf)){
+    }
+    if($Depot -or -not(Test-Path -LiteralPath (Join-Path $GameRoot 'version.dll') -PathType Leaf) -or $ownedVersionDll){
         Copy-Item -LiteralPath (Join-Path $melonExtract 'version.dll') -Destination (Join-Path $Stage 'version.dll') -Force
     }
     $dotnet=Join-Path $Stage 'dotnet';[void][IO.Directory]::CreateDirectory($dotnet);Expand-Archive -LiteralPath $DotnetArchive -DestinationPath $dotnet -Force
@@ -121,11 +204,11 @@ function New-WRInstallStage {
     $tar=Join-Path $env:SystemRoot 'System32\tar.exe';if(-not(Test-Path -LiteralPath $tar -PathType Leaf)){throw 'Windows tar.exe is required to unpack Unity OpenXR.'}
     [void](Invoke-WRNative -FilePath $tar -Arguments (@('-xzf',$OpenXrArchive,'-C',$openRoot)+$members))
     $maps=@(
-        @('package\RuntimeLoaders\windows\x64\openxr_loader.dll','PowerWash Simulator 2_Data\Plugins\x86_64\openxr_loader.dll',2373632),
-        @('package\Runtime\windows\x64\UnityOpenXR.dll','PowerWash Simulator 2_Data\Plugins\x86_64\UnityOpenXR.dll',919040),
-        @('package\Runtime\UnitySubsystemsManifest.json','PowerWash Simulator 2_Data\UnitySubsystems\UnityOpenXR\UnitySubsystemsManifest.json',250)
+        @('package\RuntimeLoaders\windows\x64\openxr_loader.dll','PowerWash Simulator 2_Data\Plugins\x86_64\openxr_loader.dll'),
+        @('package\Runtime\windows\x64\UnityOpenXR.dll','PowerWash Simulator 2_Data\Plugins\x86_64\UnityOpenXR.dll'),
+        @('package\Runtime\UnitySubsystemsManifest.json','PowerWash Simulator 2_Data\UnitySubsystems\UnityOpenXR\UnitySubsystemsManifest.json')
     )
-    foreach($map in $maps){$src=Join-Path $openRoot $map[0];if(-not(Test-Path -LiteralPath $src -PathType Leaf) -or (Get-Item -LiteralPath $src).Length -ne [int64]$map[2]){throw "Unity OpenXR functional file is missing or invalid: $($map[0])"};$dst=Join-Path $Stage $map[1];[void][IO.Directory]::CreateDirectory((Split-Path -Parent $dst));Copy-Item -LiteralPath $src -Destination $dst -Force}
+    foreach($map in $maps){$src=Join-Path $openRoot $map[0];if(-not(Test-Path -LiteralPath $src -PathType Leaf) -or (Get-Item -LiteralPath $src).Length -le 0){throw "Unity OpenXR functional file is missing or empty: $($map[0])"};$dst=Join-Path $Stage $map[1];[void][IO.Directory]::CreateDirectory((Split-Path -Parent $dst));Copy-Item -LiteralPath $src -Destination $dst -Force}
 
     foreach($proof in @('Mods\WetReality.Pose.dll','Mods\WetReality.XRBoot.dll','dotnet\dotnet.exe','dotnet\host\fxr\6.0.36\hostfxr.dll','dotnet\shared\Microsoft.NETCore.App\6.0.36\System.Private.CoreLib.dll')){if(-not(Test-Path -LiteralPath (Join-Path $Stage $proof) -PathType Leaf)){throw "Install stage is missing $proof"}}
     $cfgSource=Join-Path $GameRoot 'UserData\Loader.cfg';$lines=[Collections.Generic.List[string]]::new()
@@ -133,6 +216,10 @@ function New-WRInstallStage {
     Set-WRConfigValue -Lines $lines -Section 'loader' -Key 'hostfxr_path_override' -Value ('"'+(Join-Path $GameRoot 'dotnet\host\fxr\6.0.36\hostfxr.dll').Replace('\','\\')+'"')
     Set-WRConfigValue -Lines $lines -Section 'console' -Key 'hide_console' -Value 'true'
     $cfgStage=Join-Path $Stage 'UserData\Loader.cfg';[void][IO.Directory]::CreateDirectory((Split-Path -Parent $cfgStage));[IO.File]::WriteAllLines($cfgStage,$lines,(New-Object Text.UTF8Encoding $false))
+    if($Depot){
+        [IO.File]::WriteAllText((Join-Path $Stage 'steam_appid.txt'),$APP_ID,[Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText((Join-Path $Stage $DEPOT_MARKER),(Get-WRDepotMarkerText),(New-Object Text.UTF8Encoding $false))
+    }
     return $Stage
 }
 
@@ -149,14 +236,15 @@ function Restore-WRSnapshot([string]$GameRoot,$Snapshot){
     foreach($record in @($Snapshot.Records)){$target=Join-Path $GameRoot ([string]$record.Relative);if(Test-Path -LiteralPath $target -PathType Leaf){Remove-Item -LiteralPath $target -Force};if($record.Exists){[void][IO.Directory]::CreateDirectory((Split-Path -Parent $target));Copy-Item -LiteralPath (Join-Path (Join-Path $Snapshot.SnapshotRoot 'files') ([string]$record.Relative)) -Destination $target -Force}}
     $backup=Join-Path $GameRoot ".pcvrhub_${IDENTITY}_backup";if(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Recurse -Force};if($Snapshot.BackupExists){Copy-Item -LiteralPath (Join-Path $Snapshot.SnapshotRoot 'ownership-backup') -Destination $backup -Recurse -Force}
 }
-function Install-WROwnedPayload([string]$GameRoot,[string]$Stage,[string]$Version,[string]$Receipt){
+function Install-WROwnedPayload([string]$GameRoot,[string]$Stage,[string]$Version,[string]$Receipt,[string]$Route='Current'){
     if(-not(Test-WRGameRoot $GameRoot)){throw 'The selected folder is not PowerWash Simulator 2.'}
     [void](Install-OwnedModPayload -SourceRoot $Stage -GameRoot $GameRoot -Identity $IDENTITY -AdoptIdenticalExisting -ProgressLabel 'Installing Wet Reality XR runtime')
     Write-WRInfo 'Copy complete. Verifying the installed runtime files now...'
     foreach($proof in $required){if(-not(Test-Path -LiteralPath (Join-Path $GameRoot $proof) -PathType Leaf)){throw "Installed payload proof is missing: $proof"}}
     Write-WRInfo 'Files verified. Running the short post-copy survival check...'
     $watch=@($required|ForEach-Object{Join-Path $GameRoot $_});if(-not(Confirm-PlacedFilesSurvive -Paths $watch -GameDir $GameRoot -NoClear)){throw 'Required Wet Reality XR files are missing after installation.'}
-    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $GameRoot -Version $Version -InstalledPathReceiptPaths @($Receipt) -Route 'Current')
+    $selectedContract=if($Route -eq 'Current'){$contract}else{$depotContract}
+    [void](Complete-PCVRInstallTransaction -Contract $selectedContract -GameDir $GameRoot -Version $Version -InstalledPathReceiptPaths @($Receipt) -Route $Route)
 }
 
 function global:Invoke-PowerWashSimulator2VRInstaller {
@@ -168,19 +256,27 @@ function global:Invoke-PowerWashSimulator2VRInstaller {
         Write-Host '  those builds remain publisher-unverified. The first game is unsupported.' -ForegroundColor Yellow
         Write-Host '  Setup adds MelonLoader, portable .NET 6 and Unity OpenXR' -ForegroundColor White
         Write-Host '  through a recoverable ownership transaction.' -ForegroundColor White;Write-Host ''
+        Write-Host '  [1] Current game and newest prerelease mod' -ForegroundColor Cyan
+        Write-Host "  [2] Independent Steam depot build $DEPOT_BUILD and pinned mod $DEPOT_MOD_TAG" -ForegroundColor Cyan
+        Write-Host '      The depot copy will not replace your normal Steam installation.' -ForegroundColor Gray
         Write-Host '  Antivirus software may inspect runtime DLLs. Setup verifies' -ForegroundColor Yellow
         Write-Host '  required files after copying and reports missing files without' -ForegroundColor Yellow
         Write-Host '  assuming the cause.' -ForegroundColor Yellow;Show-AntivirusNotice -Compact
         [void](Wait-PCVRExplicitEnter -Message 'After reading this information, press Enter to proceed...')
+        do{$modeChoice=([string](Read-Host '  Choose 1 or 2 [1]')).Trim()}while($modeChoice -notin @('','1','2'))
+        $mode=if($modeChoice -eq '2'){'Depot'}else{'Current'}
+        $route=if($mode -eq 'Depot'){"Depot-$DEPOT_BUILD"}else{'Current'}
 
         Write-WRStep 1 5 'Locating PowerWash Simulator 2'
-        $game=Get-WRGameRoot;if(-not $game){throw 'Setup cancelled before any game file was changed.'}
+        $game=if($mode -eq 'Depot'){Get-WRDepotRoot}else{Get-WRGameRoot};if(-not $game){throw 'Setup cancelled before any game file was changed.'}
         if(Get-Process -Name 'PowerWash Simulator 2' -ErrorAction SilentlyContinue){throw 'PowerWash Simulator 2 is running. Close it completely and retry.'}
         if(-not(Test-InstallerTargetWritable -TargetPath $game)){throw 'The game folder is not writable. Run setup as administrator, then retry.'}
         Write-WROK "Found: $game"
 
         Write-WRStep 2 5 'Getting Wet Reality and its publisher-pinned runtimes'
-        $release=Get-WRRelease;if(-not(Test-IsTrackableInstalledVersion $release.Tag)){throw 'GitHub did not provide a trackable prerelease version.'}
+        Write-WRInfo 'Setup checks the selected GitHub release and downloads the mod and required runtimes.'
+        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check and download Wet Reality XR...')
+        $release=Get-WRRelease -InstallMode $mode;if(-not(Test-IsTrackableInstalledVersion $release.Tag)){throw 'GitHub did not provide a trackable prerelease version.'}
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_wetreality_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
         $downloads=@(
             @('WetReality.zip',$release.Url,"Wet Reality $($release.Tag)",$release.PageUrl),
@@ -188,10 +284,20 @@ function global:Invoke-PowerWashSimulator2VRInstaller {
             @('dotnet.zip',$DOTNET_URL,'portable .NET 6.0.36','https://dotnet.microsoft.com/download/dotnet/6.0'),
             @('openxr.tgz',$OPENXR_URL,'Unity OpenXR 1.18.0','https://docs.unity3d.com/Packages/com.unity.xr.openxr@1.18/manual/index.html')
         )
-        foreach($item in $downloads){$dest=Join-Path $work $item[0];$ok=Invoke-SafeDownload -Urls @($item[1]) -Destination $dest -Label $item[2] -ManualUrl $item[3] -AllowSkip $false;if(-not($ok -eq $true -or [string]$ok -in @('retry','manual'))){throw "$($item[2]) was not downloaded."}}
+        $modDownloadVerified=$false
+        foreach($item in $downloads){
+            $dest=Join-Path $work $item[0];$downloadInfo=@{}
+            $ok=Invoke-SafeDownload -Urls @($item[1]) -Destination $dest -Label $item[2] -ManualUrl $item[3] -AllowSkip $false -DownloadInfo $downloadInfo
+            if(-not($ok -eq $true -or [string]$ok -in @('retry','manual'))){throw "$($item[2]) was not downloaded."}
+            if($item[0] -eq 'WetReality.zip'){$modDownloadVerified=($ok -eq $true -and [string]$downloadInfo.Url -eq [string]$release.Url)}
+        }
         $extract=Join-Path $work 'publisher';if([string](Expand-ArchiveOrFallback -ArchivePath (Join-Path $work 'WetReality.zip') -DestinationFolder $extract -Label 'Wet Reality release' -AllowSkip $false -QuietProgress) -notin @('ok','manual','retry')){throw 'The Wet Reality release could not be extracted.'}
         $payload=Get-ExtractedPayloadRoot -ExtractDir $extract -RelModFile 'mod\WetReality.Pose.dll'
-        $stage=New-WRInstallStage -PublisherRoot $payload -MelonArchive (Join-Path $work 'MelonLoader.zip') -DotnetArchive (Join-Path $work 'dotnet.zip') -OpenXrArchive (Join-Path $work 'openxr.tgz') -GameRoot $game -Stage (Join-Path $work 'stage') -Scratch $work
+        $payloadVersion=[string][Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $payload 'mod\WetReality.Pose.dll')).FileVersion
+        $releaseNumeric=[regex]::Match([string]$release.Tag,'\d+(?:\.\d+){1,3}').Value
+        if(-not $payloadVersion -or $payloadVersion -ne $releaseNumeric){throw "Wet Reality package version $payloadVersion does not match selected $mode release $($release.Tag). No game files were changed."}
+        $receiptVersion=if($modDownloadVerified){[string]$release.Tag}else{'v'+$payloadVersion}
+        $stage=New-WRInstallStage -PublisherRoot $payload -MelonArchive (Join-Path $work 'MelonLoader.zip') -DotnetArchive (Join-Path $work 'dotnet.zip') -OpenXrArchive (Join-Path $work 'openxr.tgz') -GameRoot $game -Stage (Join-Path $work 'stage') -Scratch $work -Depot:($mode -eq 'Depot')
         Write-WROK "Wet Reality $($release.Tag) and complete runtime stage verified."
 
         Write-WRStep 3 5 'Preparing a recoverable game-folder transaction'
@@ -201,7 +307,8 @@ function global:Invoke-PowerWashSimulator2VRInstaller {
         Write-WRStep 4 5 'Installing and checking Wet Reality XR'
         Write-WRInfo 'This can take a few minutes while the portable runtime is copied.'
         Write-WRInfo 'The live file counter below means setup is still actively working.'
-        Install-WROwnedPayload -GameRoot $game -Stage $stage -Version $release.Tag -Receipt (Join-Path $PSScriptRoot '.installed_path');$changesStarted=$false
+        $receipt=Join-Path $PSScriptRoot $(if($mode -eq 'Depot'){'.installed_path_depot'}else{'.installed_path'})
+        Install-WROwnedPayload -GameRoot $game -Stage $stage -Version $receiptVersion -Receipt $receipt -Route $route;$changesStarted=$false
         Write-WROK 'Motion-control mod and runtime files survived the post-copy check.'
 
         Write-WRStep 5 5 'Finishing setup'

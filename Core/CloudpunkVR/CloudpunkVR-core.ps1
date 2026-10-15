@@ -9,6 +9,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Cloudpunk VR Installer"
 $ErrorActionPreference = "Stop"
@@ -18,6 +19,7 @@ $GAME_EXE = "Cloudpunk.exe"
 $STEAM_APP = "746850"
 $MOD_URL = "https://github.com/Astienth/Cloudpunk-VR/releases/download/1.0.0/Cloudpunk_VR.zip"
 $MOD_NAME = "Cloudpunk VR v1.0.0"
+$MOD_VERSION = 'v1.0.0'
 $INFO_URL = "https://github.com/Astienth/Cloudpunk-VR/releases"
 
 function Write-Header {
@@ -53,6 +55,7 @@ Write-Header
 Write-Host " Cloudpunk VR by Astienth - gamepad-based VR support for Cloudpunk." -ForegroundColor White
 Write-Host " Requires the base game owned on Steam." -ForegroundColor White
 Write-Host ""
+Show-AntivirusNotice -Compact
 Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Cloudpunk"
 
@@ -73,6 +76,11 @@ if (-not $gamePath) {
  if(Test-Path(Join-Path $r $GAME_EXE)){$gamePath=$r;Write-Info "Path set: $gamePath"}else{Write-Fail "Not found: $r"}
  }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'Cloudpunk_Data') -PathType Container)) {
+ Write-Fail 'The selected folder lacks the base game EXE or data folder.'
+ Pause-User 'Press Enter to exit...'; exit 1
+}
 
 # -------------------------------------------------------
 # STEP 2: Download mod
@@ -90,25 +98,13 @@ try {
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
  Write-Fail "Download failed: $_"
- $__fb = Invoke-InstallerFallback -Action "install folder creation" `
- -Instructions "Manually create '$tmp' (right-click in Explorer -> New folder), or close all programs locking that path. Make sure you have write permission. Then choose Retry." `
- -SkipMessage "Skipped - no install folder; the rest of this installer will fail." `
- -AllowSkip $false
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Retry folder create
- try {
- if (-not (Test-Path $gameDir)) {
- New-Item -ItemType Directory -Path $gameDir -Force -ErrorAction Stop | Out-Null
- }
- Write-OK "Folder ready: $gameDir"
- } catch {
- Pause-User "Still cannot create folder. Choose a different path then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
+ $__fb = Invoke-InstallerFallback -Action 'mod download' -Url $INFO_URL -DestFile $modZip `
+  -Instructions 'Download the mod ZIP from the release page and drop it here, then choose Retry.' `
+  -RetryCheck { Test-Path -LiteralPath $modZip -PathType Leaf } -AllowSkip $false
+ if ([string]$__fb -ne 'retry') { exit 1 }
 }
+try { Assert-PCVRDropInPreflight -GameRoot $gamePath -GameExe $GAME_EXE -GameDataFolder 'Cloudpunk_Data' -ArchivePath $modZip }
+catch { Write-Fail $_; Pause-User 'Press Enter to exit...'; exit 1 }
 
 # -------------------------------------------------------
 # STEP 3: Install
@@ -116,38 +112,31 @@ try {
 Write-Step 3 3 "Installing"
 
 Write-Host " Extracting ... " -NoNewline -ForegroundColor White
+$extract=Join-Path $tmp 'extract'
 try {
- Expand-Archive -Path $modZip -DestinationPath $gamePath -Force
- Write-Host "OK" -ForegroundColor Green
+ if ((Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $extract -Label $MOD_NAME -AllowSkip $false) -notin @('ok','manual')) { throw 'Extraction was not completed.' }
+ $required=@('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.Unity.IL2CPP.dll','BepInEx\plugins\CloudpunkVR.dll')
+ $hashes=Get-PCVRDropInSourceHashes -SourceRoot $extract -RequiredFiles $required
+ $contract=New-PCVRInstallerContract -Id 'cloudpunk-vr' -GameName $GAME_NAME -Acquisition GitHub `
+  -ReleasePageUrl $INFO_URL -AntivirusNotice -RequiredInstalledFileGroups $required
+ [void](Invoke-PCVRDropInInstall -SourceRoot $extract -GameRoot $gamePath -SourceHashes $hashes `
+  -KeepExistingFiles @('BepInEx\config\BepInEx.cfg','BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg','BepInEx\config\CloudpunkVR.cfg') `
+  -Contract $contract -Version $MOD_VERSION -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+ Write-Host "OK - files verified" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
- Write-Fail "Extraction failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+ Write-Fail "Installation failed; previous files were restored: $_"
+ Pause-User 'Press Enter to exit...'; exit 1
 }
 
 try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
 
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-
 # Desktop shortcut
+$shortcutCreated=$false
 try {
- $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Cloudpunk VR.lnk" -TargetPath Join-Path $gamePath $GAME_EXE -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath $GAME_EXE),0"
- Write-Info "Desktop shortcut 'Cloudpunk VR' created."
+ $sc = New-DesktopShortcut -LnkPath "$env:USERPROFILE\Desktop\Cloudpunk VR.lnk" -TargetPath (Join-Path $gamePath $GAME_EXE) -WorkingDir $gamePath -IconPath "$(Join-Path $gamePath $GAME_EXE),0"
+ $shortcutCreated=[bool]$sc
+ if($shortcutCreated){Write-Info "Desktop shortcut 'Cloudpunk VR' created."}
 } catch {}
 
 Write-Host ""
@@ -157,7 +146,8 @@ Write-Host "============================================================" -Foreg
 $dllOk = Test-Path -LiteralPath "$gamePath\BepInEx\plugins\CloudpunkVR.dll"
 if ($dllOk) { Write-Host " [x] BepInEx\plugins\CloudpunkVR.dll" -ForegroundColor Green }
 else { Write-Host " [ ] CloudpunkVR.dll -- MISSING" -ForegroundColor Red }
-Write-Host " [x] Desktop shortcut 'Cloudpunk VR' created." -ForegroundColor Green
+if($shortcutCreated){Write-Host " [x] Desktop shortcut 'Cloudpunk VR' created." -ForegroundColor Green}
+else{Write-Host " [ ] Desktop shortcut was not created; use Start in VR in the Hub." -ForegroundColor Yellow}
 Write-Host ""
 Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or that desktop shortcut." -ForegroundColor White
 Write-Host ""

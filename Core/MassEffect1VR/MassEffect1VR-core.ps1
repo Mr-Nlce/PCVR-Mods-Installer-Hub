@@ -36,6 +36,32 @@ $ME1_EXE       = "MassEffect1.exe"
 $LAUNCHER_SUB  = "Game\Launcher\MassEffectLauncher.exe"
 $MOD_FILES     = @("MELE-VR.bat", "dxgi.dll", "openxr_loader.dll", "MELEVR.ini")
 
+function New-MELEFileBackup {
+ param([string]$Directory,[string[]]$Files)
+ $backup = Join-Path $env:TEMP ('MELE-VR-backup-' + [guid]::NewGuid().ToString('N'))
+ New-Item -ItemType Directory -Path $backup -ErrorAction Stop | Out-Null
+ foreach ($file in $Files) {
+  $old = Join-Path $Directory $file
+  if (Test-Path -LiteralPath $old -PathType Leaf) {
+   Copy-Item -LiteralPath $old -Destination (Join-Path $backup $file) -Force -ErrorAction Stop
+  }
+ }
+ return $backup
+}
+function Restore-MELEFileBackup {
+ param([string]$Directory,[string[]]$Files,[string]$Backup)
+ foreach ($file in $Files) {
+  $old = Join-Path $Backup $file
+  $target = Join-Path $Directory $file
+  if (Test-Path -LiteralPath $old -PathType Leaf) {
+   Copy-Item -LiteralPath $old -Destination $target -Force -ErrorAction Stop
+  } elseif (Test-Path -LiteralPath $target -PathType Leaf) {
+   Remove-Item -LiteralPath $target -Force -ErrorAction Stop
+  }
+ }
+ Remove-Item -LiteralPath $Backup -Recurse -Force -ErrorAction Stop
+}
+
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
@@ -122,7 +148,7 @@ Write-Info "Mod target: $win64"
 Write-Step 2 5 "Getting MELE-VR (Patreon)"
 
 $zip = $null
-$dl = Join-Path $env:USERPROFILE "Downloads"
+$dl = Get-PCVRDownloadsFolder
 # !!! THE NAME IS NOT PROOF, THE CONTENT IS (2026-08-20). All three
 # Mass Effect games now ship in ONE MELE-VR.zip, and older
 # per-game downloads may still sit in the same Downloads folder.
@@ -209,6 +235,12 @@ if (-not $srcDir) {
  Write-Fail "MELE-VR.bat is not in the download - neither loose nor in an inner archive."
  Pause-User "Press Enter to exit."; exit 1
 }
+$missingSource = @($MOD_FILES | Where-Object { -not (Test-Path -LiteralPath (Join-Path $srcDir $_) -PathType Leaf) })
+if ($missingSource.Count -gt 0) {
+ Write-Fail ("The publisher package is missing: " + ($missingSource -join ', '))
+ Pause-User "Press Enter to exit."; exit 1
+}
+$fileBackup = New-MELEFileBackup -Directory $win64 -Files $MOD_FILES
 $missing = @()
 foreach ($f in $MOD_FILES) {
  $src = Join-Path $srcDir $f
@@ -226,12 +258,22 @@ foreach ($f in $MOD_FILES) {
   }
  } else { $missing += $f }
 }
+foreach ($file in $MOD_FILES) {
+ $target = Join-Path $win64 $file
+ if (-not (Test-Path -LiteralPath $target -PathType Leaf) -or
+     (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne
+     (Get-FileHash -LiteralPath (Join-Path $srcDir $file) -Algorithm SHA256).Hash) {
+  $missing += $file
+ }
+}
+$missing = @($missing | Select-Object -Unique)
 if ($missing.Count -gt 0) {
  Write-Fail ("Could not place: " + ($missing -join ", "))
+ try { Restore-MELEFileBackup -Directory $win64 -Files $MOD_FILES -Backup $fileBackup }
+ catch { Write-Fail "Restoring the previous files failed: $_" }
  Pause-User "Press Enter to exit."; exit 1
 }
 Write-OK "All four mod files are in place."
-try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch {}
 
 # -------------------------------------------------------
 # STEP 4: Run the mod's own setup (VR mode + quality)
@@ -250,13 +292,20 @@ Write-Host " If Windows asks for Administrator permission, click Yes -" -Foregro
 Write-Host " that is the mod writing into a protected game folder." -ForegroundColor Gray
 Pause-User "Press Enter to start the MELE-VR setup..."
 try {
- Start-Process -FilePath (Join-Path $win64 "MELE-VR.bat") -WorkingDirectory $win64 -Wait
+ $setupProcess = Start-Process -FilePath (Join-Path $win64 "MELE-VR.bat") -WorkingDirectory $win64 -Wait -PassThru -ErrorAction Stop
+ if ($setupProcess.ExitCode -ne 0) { throw "Publisher setup exited with code $($setupProcess.ExitCode)." }
+ $setupIni = Join-Path $win64 "MELEVR.ini"
+ $setupSettings = if (Test-Path -LiteralPath $setupIni -PathType Leaf) { Get-Content -LiteralPath $setupIni -Raw } else { '' }
+ if ($setupSettings -notmatch '(?m)^expectedResX\s*=\s*[1-9][0-9]*\s*$') { throw "Publisher setup did not confirm VR configuration in MELEVR.ini." }
  Write-OK "Mod setup finished."
 } catch {
- Write-Warn "Could not run the setup automatically: $_"
- Write-Warn "Open $win64 and double-click MELE-VR.bat yourself, then return here."
- Pause-User "Press Enter once the MELE-VR setup is done..."
+ Write-Fail "Mod setup did not complete: $_"
+ try { Restore-MELEFileBackup -Directory $win64 -Files $MOD_FILES -Backup $fileBackup }
+ catch { Write-Fail "Restoring the previous files failed: $_" }
+ Pause-User "Press Enter to exit."; exit 1
 }
+try { Remove-Item -LiteralPath $fileBackup -Recurse -Force -ErrorAction Stop }
+catch { Write-Warn "Temporary backup cleanup failed: $_" }
 
 # Hub markers: MELE root for the tile scan + how "Start in VR" launches.
 # LAUNCH ROUTE (deliberate):
@@ -344,8 +393,15 @@ if ($others.Count -gt 0 -and $srcDir) {
             $oSrc = Expand-NestedArchive -Root $tmp -Marker $o.Bat -Label $o.Name
             if (-not $oSrc) { Write-Warn "$($o.Bat) is not in this download - skipping $($o.Name)."; continue }
             $oDir = [System.IO.Path]::Combine($gamePath, $o.Sub)
+            $oFiles = @($o.Bat, "dxgi.dll", "openxr_loader.dll", $o.Ini)
+            $oMissingSource = @($oFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $oSrc $_) -PathType Leaf) })
+            if ($oMissingSource.Count -gt 0) {
+                Write-Warn ("Package for $($o.Name) is missing: " + ($oMissingSource -join ', '))
+                continue
+            }
+            $oBackup = New-MELEFileBackup -Directory $oDir -Files $oFiles
             $oOk = $true
-            foreach ($f in @($o.Bat, "dxgi.dll", "openxr_loader.dll", $o.Ini)) {
+            foreach ($f in $oFiles) {
                 $src = Join-Path $oSrc $f
                 if (-not (Test-Path -LiteralPath $src)) { Write-Warn "Missing in the package: $f"; $oOk = $false; continue }
                 try { Copy-Item -LiteralPath $src -Destination (Join-Path $oDir $f) -Force -ErrorAction Stop }
@@ -355,17 +411,45 @@ if ($others.Count -gt 0 -and $srcDir) {
                     if (-not (Test-Path -LiteralPath (Join-Path $oDir $f))) { Write-Warn "Could not place $f"; $oOk = $false }
                 }
             }
-            if (-not $oOk) { Write-Warn "$($o.Name) was not completed."; continue }
+            foreach ($f in $oFiles) {
+                $oTarget = Join-Path $oDir $f
+                if (-not (Test-Path -LiteralPath $oTarget -PathType Leaf) -or
+                    (Get-FileHash -LiteralPath $oTarget -Algorithm SHA256).Hash -ne
+                    (Get-FileHash -LiteralPath (Join-Path $oSrc $f) -Algorithm SHA256).Hash) { $oOk = $false }
+            }
+            if (-not $oOk) {
+                try { Restore-MELEFileBackup -Directory $oDir -Files $oFiles -Backup $oBackup }
+                catch { Write-Warn "Restoring previous $($o.Name) files failed: $_" }
+                Write-Warn "$($o.Name) was not completed."
+                continue
+            }
             Write-OK "Files placed for $($o.Name)."
             Write-Host "  Its setup opens now - answer VR mode and quality." -ForegroundColor White
             Pause-User "Press Enter to start the $($o.Name) setup..." | Out-Null
-            try { Start-Process -FilePath (Join-Path $oDir $o.Bat) -WorkingDirectory $oDir -Wait -ErrorAction Stop }
-            catch { Write-Warn "Could not start it: $($_.Exception.Message)" }
-            if (Test-Path -LiteralPath (Join-Path $oDir "dxgi.dll")) { Write-OK "$($o.Name) is set up." }
+            try {
+                $otherProcess = Start-Process -FilePath (Join-Path $oDir $o.Bat) -WorkingDirectory $oDir -Wait -PassThru -ErrorAction Stop
+                if ($otherProcess.ExitCode -ne 0) { throw "Publisher setup exited with code $($otherProcess.ExitCode)." }
+                $otherIni = Join-Path $oDir $o.Ini
+                $otherSettings = if (Test-Path -LiteralPath $otherIni -PathType Leaf) { Get-Content -LiteralPath $otherIni -Raw } else { '' }
+                $otherConfigured = if ($o.Key -eq 'ME1') {
+                    $otherSettings -match '(?m)^expectedResX\s*=\s*[1-9][0-9]*\s*$'
+                } else {
+                    $otherSettings -match '(?m)^InstallerRun=1\s*$'
+                }
+                if (-not $otherConfigured) { throw "Publisher setup did not confirm VR configuration." }
+                Write-OK "$($o.Name) is set up."
+                try { Remove-Item -LiteralPath $oBackup -Recurse -Force -ErrorAction Stop }
+                catch { Write-Warn "Temporary backup cleanup failed: $_" }
+            } catch {
+                Write-Warn "$($o.Name) setup did not complete: $($_.Exception.Message)"
+                try { Restore-MELEFileBackup -Directory $oDir -Files $oFiles -Backup $oBackup }
+                catch { Write-Warn "Restoring previous $($o.Name) files failed: $_" }
+            }
         }
     }
 }
 
+try { Remove-Item -LiteralPath $tmp -Recurse -Force } catch {}
 Pause-User "Press Enter to finish..."
 
 # -------------------------------------------------------

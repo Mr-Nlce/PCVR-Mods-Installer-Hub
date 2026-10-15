@@ -188,6 +188,32 @@ if (-not (Test-Path $depotExe)) {
 }
 
 # -------------------------------------------------------
+# Verify the complete pinned mod before moving the downloaded Steam depot.
+$tempDir = Join-Path $env:TEMP "MetalHellsingerVRInstaller_$([System.IO.Path]::GetRandomFileName())"
+New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+$modZip = Join-Path $tempDir 'HellsingerVR.zip'
+$modExtract = Join-Path $tempDir 'HellsingerVR'
+$downloadResult = Invoke-SafeDownload -Urls @($MOD_URL) -Destination $modZip -Label $MOD_NAME `
+    -ManualUrl "$GITHUB_URL/releases" -Instructions "Download Hellsinger_0.9.0.zip and give that file to the installer." `
+    -AllowSkip $false
+if (-not (Test-Path -LiteralPath $modZip -PathType Leaf)) {
+    Write-Fail "The mod archive is unavailable; the depot was not moved."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+$extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $modExtract -Label $MOD_NAME -AllowSkip $false
+if ([string]$extractResult -notin @('ok','manual')) {
+    Write-Fail "The mod archive could not be extracted; the depot was not moved."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+$modChildren = @(Get-ChildItem -LiteralPath $modExtract)
+$modPayload = if ($modChildren.Count -eq 1 -and $modChildren[0].PSIsContainer) { $modChildren[0].FullName } else { $modExtract }
+foreach ($relative in @('winhttp.dll', 'BepInEx\plugins\HellsingerVR.dll')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $modPayload $relative) -PathType Leaf)) {
+        Write-Fail "The mod archive is missing $relative; the depot was not moved."
+        Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+    }
+}
+
 # STEP 2: Move & rename the depot folder
 # -------------------------------------------------------
 Write-Step 2 4 "Moving the game to a stable folder"
@@ -250,56 +276,19 @@ $gameExePath = Join-Path $gamePath $GAME_EXE
 # -------------------------------------------------------
 Write-Step 3 4 "Installing $MOD_NAME"
 
-$tempDir = Join-Path $env:TEMP "MetalHellsingerVRInstaller_$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
-$modZip     = Join-Path $tempDir "HellsingerVR.zip"
-$modExtract = Join-Path $tempDir "HellsingerVR"
-
-$modDone = $false
-while (-not $modDone) {
-    $downloadResult = Invoke-SafeDownload -Urls @($MOD_URL) -Destination $modZip -Label $MOD_NAME `
-        -ManualUrl "$GITHUB_URL/releases" -Instructions "Download Hellsinger_0.9.0.zip and give that file to the installer." `
-        -AllowSkip $false -ExpectedSha256 $MOD_SHA256 -ExpectedBytes $MOD_SIZE
-    if ([string]$downloadResult -eq 'quit') { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-    $dlOk = Test-DownloadedPayload -Path $modZip -IntendedPath $modZip -ExpectedSha256 $MOD_SHA256 -ExpectedBytes $MOD_SIZE
-    if (-not $dlOk) { continue }
-
-    if (Test-Path $modExtract) { Remove-Item $modExtract -Recurse -Force -ErrorAction SilentlyContinue }
-    $extractResult = Expand-ArchiveOrFallback -ArchivePath $modZip -DestinationFolder $modExtract -Label $MOD_NAME -AllowSkip $false
-    if ([string]$extractResult -eq 'quit') { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-    if ([string]$extractResult -notin @('ok','manual')) { continue }
-
-    # The mod ZIP extracts flat (winhttp.dll, openvr_api.dll, BepInEx\,
-    # dotnet\, Metal_Data\ at the root). A defensive single-folder
-    # unwrap handles a wrapped archive too.
-    $modChildren = @(Get-ChildItem -Path $modExtract)
-    if ($modChildren.Count -eq 1 -and $modChildren[0].PSIsContainer) {
-        $modPayload = $modChildren[0].FullName
-        Write-Info "ZIP root folder detected: '$($modChildren[0].Name)' - unwrapping."
-    } else {
-        $modPayload = $modExtract
-    }
-
-    try {
-        $null = Merge-DirectoryTreeVerified -Source $modPayload -Destination $gamePath -Label "HellsingerVR mod files" `
-            -KeepExistingRelativePaths @("BepInEx\config")
-    } catch {
-        Write-Fail "Could not copy mod files into the game folder: $_"
-        $__fb = Invoke-InstallerFallback -Action "copy the mod files into the game folder" `
-            -Instructions "Copy everything inside '$modPayload' into '$gamePath' (merge folders), then choose Retry, or Skip to finish manually." `
-            -SourceFolder "$modPayload" -DestFolder "$gamePath" -AllowSkip $true
-        if ([string]$__fb -eq "quit") { try { Remove-Item $tempDir -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-        if ([string]$__fb -eq "skip") { $modDone = $true; continue }
-        continue
-    }
-
-    if (Test-Path (Join-Path $gamePath $MOD_PROBE)) {
-        Write-OK "HellsingerVR.dll verified."
-    } else {
-        Write-Warn "HellsingerVR.dll not found at the expected path - check the install."
-    }
-    $modDone = $true
+try {
+    $null = Merge-DirectoryTreeVerified -Source $modPayload -Destination $gamePath -Label "HellsingerVR mod files" `
+        -KeepExistingRelativePaths @("BepInEx\config")
+} catch {
+    Write-Fail "Could not copy mod files into the game folder: $_"
+    Pause-User "Press Enter to exit..."; exit 1
 }
+if (-not (Test-Path -LiteralPath (Join-Path $gamePath $MOD_PROBE) -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $gamePath 'winhttp.dll') -PathType Leaf)) {
+    Write-Fail "Required HellsingerVR files are missing after copy. No success receipt was written."
+    Pause-User "Press Enter to exit..."; exit 1
+}
+Write-OK "HellsingerVR.dll and loader verified."
 
 # steam_appid.txt so the depot build launches without Steam prompting
 try {

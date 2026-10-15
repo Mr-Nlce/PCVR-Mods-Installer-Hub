@@ -8,11 +8,11 @@ $ErrorActionPreference='Stop'
 
 $Host.UI.RawUI.WindowTitle='EARTH DEFENSE FORCE 6 VR Installer'
 $APP_ID='2291060'; $GAME_EXE='EDF6.exe'; $REPO='momotori01/EARTH-DEFENSE-FORCE-6-VR-MOD'
-$RELEASES="https://github.com/$REPO/releases"; $FALLBACK_TAG='EDF6VR-1.7.4'; $FALLBACK_NAME='EDF6VR-1.7.4.zip'
-$FALLBACK_URL='https://github.com/momotori01/EARTH-DEFENSE-FORCE-6-VR-MOD/releases/download/EDF6VR-1.7.4/EDF6VR-1.7.4.zip'; $IDENTITY='edf6vr'
+$RELEASES="https://github.com/$REPO/releases"; $FALLBACK_TAG='EDF6VR-3.2.9'; $FALLBACK_NAME='EDF6VR-3.2.9.zip'
+$FALLBACK_URL='https://github.com/momotori01/EARTH-DEFENSE-FORCE-6-VR-MOD/releases/download/EDF6VR-3.2.9/EDF6VR-3.2.9.zip'; $IDENTITY='edf6vr'
 $QUIP='EDF deploys in stereo, and this time both hands answer the call.'
 $contract=New-PCVRInstallerContract -Id 'earth-defense-force-6-vr' -GameName 'EARTH DEFENSE FORCE 6 VR' -Acquisition GitHub -AntivirusNotice `
-    -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups @('Mods\Plugins\EDF6VR.dll|Mods\Plugins\EDF6VR.dll.disabled','EDF6VR\Switch-VR.ps1','winmm.dll','.pcvrhub_edf6vr_ownership.csv')
+    -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups @('Mods\Plugins\EDF6VR.dll|Mods\Plugins\EDF6VR.dll.disabled','EDF6 VR setting.exe','winmm.dll','.pcvrhub_edf6vr_ownership.csv')
 
 function Write-EDFStep([int]$Number,[int]$Total,[string]$Text){Write-Host '';Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan;Write-Host ''}
 function Write-EDFOK([string]$Text){Write-Host "  [OK] $Text" -ForegroundColor Green}
@@ -25,7 +25,7 @@ function Find-EDF6Payload([string]$ExtractRoot){
 }
 function Save-EDF6Snapshot([string]$GameRoot,[string]$SnapshotRoot){
     [void][IO.Directory]::CreateDirectory($SnapshotRoot);$records=@()
-    foreach($relative in @('README_ClearLoot.txt','README_EDF6VR.txt','VR_Play.bat','HD_Texture_2x.bat','Set_Resolution.bat','EDF6VR','Mods\HDTexture','Mods\Plugins\EDF6ClearLoot.dll','Mods\Plugins\EDF6VR.dll','Mods\Plugins\EDF6VR.dll.disabled','winmm.dll','ModLoader.ini','.pcvrhub_edf6vr_ownership.csv','.pcvrhub_edf6vr_backup','.pcvrhub_edf6vr_loader_ownership.csv','.pcvrhub_edf6vr_loader_backup','.pcvrhub_version')){
+    foreach($relative in @('README_ClearLoot.txt','README_EDF6VR.txt','VR_Play.bat','HD_Texture_2x.bat','Set_Resolution.bat','EDF6 VR setting.exe','Update_EDF6VR.bat','EDF6VR','Mods\HDTexture','Mods\Plugins\EDF6ClearLoot.dll','Mods\Plugins\EDF6VR.dll','Mods\Plugins\EDF6VR.dll.disabled','winmm.dll','ModLoader.ini','.pcvrhub_edf6vr_ownership.csv','.pcvrhub_edf6vr_backup','.pcvrhub_edf6vr_loader_ownership.csv','.pcvrhub_edf6vr_loader_backup','.pcvrhub_version')){
         $source=Join-Path $GameRoot $relative;$exists=Test-Path -LiteralPath $source;$records+=[pscustomobject]@{Relative=$relative;Exists=$exists}
         if($exists){$copy=Join-Path $SnapshotRoot ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($relative)).Replace('/','_'));Copy-Item -LiteralPath $source -Destination $copy -Recurse -Force}
     };return $records
@@ -34,17 +34,11 @@ function Restore-EDF6Snapshot([string]$GameRoot,[string]$SnapshotRoot,$Records){
     if(-not(Test-EDF6Root $GameRoot)){throw 'Rollback target is no longer a verified EDF6 folder.'}
     foreach($record in @($Records)){$target=Join-Path $GameRoot ([string]$record.Relative);if(Test-Path -LiteralPath $target){Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue};if($record.Exists){$copy=Join-Path $SnapshotRoot ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$record.Relative)).Replace('/','_'));$parent=Split-Path -Parent $target;if(-not(Test-Path $parent)){[void][IO.Directory]::CreateDirectory($parent)};Copy-Item -LiteralPath $copy -Destination $target -Recurse -Force}}
 }
-function Set-EDF6Mode([string]$GameRoot,[ValidateSet('VR','Flat')][string]$Mode){
-    $switch=Join-Path $GameRoot 'EDF6VR\Switch-VR.ps1';if(-not(Test-Path -LiteralPath $switch -PathType Leaf)){throw 'EDF6VR mode switch is missing.'}
-    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $switch -Mode $Mode
-    if($LASTEXITCODE -ne 0){throw "EDF6VR could not save $Mode mode."}
-}
-
 function Get-EDF6RequiredRuntimePaths([string]$GameRoot,[bool]$FlatMode) {
     $modeFile = if ($FlatMode) { 'Mods\Plugins\EDF6VR.dll.disabled' } else { 'Mods\Plugins\EDF6VR.dll' }
     return [string[]]@(
         (Join-Path $GameRoot $modeFile)
-        (Join-Path $GameRoot 'EDF6VR\Switch-VR.ps1')
+        (Join-Path $GameRoot 'EDF6 VR setting.exe')
         (Join-Path $GameRoot 'winmm.dll')
     )
 }
@@ -52,12 +46,12 @@ function Get-EDF6RequiredRuntimePaths([string]$GameRoot,[bool]$FlatMode) {
 function global:Restore-EDF6FilesInsideGame([string]$ArchivePath,[string]$GameRoot,[bool]$FlatMode) {
     $enabled = Join-Path $GameRoot 'Mods\Plugins\EDF6VR.dll'
     $disabled = $enabled + '.disabled'
-    $switch = Join-Path $GameRoot 'EDF6VR\Switch-VR.ps1'
+    $settings = Join-Path $GameRoot 'EDF6 VR setting.exe'
     $loader = Join-Path $GameRoot 'winmm.dll'
     # The publisher archive contains EDF6VR.dll only. In preserved Flat mode
     # restore that source name on excluded ground, then park it again before
     # the survival check evaluates the original .disabled watch path.
-    [void](Restore-FromArchiveInGameFolder -ArchivePath $ArchivePath -GameDir $GameRoot -Paths @($enabled,$switch,$loader))
+    [void](Restore-FromArchiveInGameFolder -ArchivePath $ArchivePath -GameDir $GameRoot -Paths @($enabled,$settings,$loader))
     if ($FlatMode -and (Test-Path -LiteralPath $enabled -PathType Leaf)) {
         if (Test-Path -LiteralPath $disabled -PathType Leaf) {
             Remove-Item -LiteralPath $enabled -Force -ErrorAction Stop
@@ -67,7 +61,7 @@ function global:Restore-EDF6FilesInsideGame([string]$ArchivePath,[string]$GameRo
     }
     $modeFile = if ($FlatMode) { $disabled } else { $enabled }
     return [bool]((Test-Path -LiteralPath $modeFile -PathType Leaf) -and
-        (Test-Path -LiteralPath $switch -PathType Leaf) -and
+        (Test-Path -LiteralPath $settings -PathType Leaf) -and
         (Test-Path -LiteralPath $loader -PathType Leaf))
 }
 
@@ -102,23 +96,66 @@ function global:Invoke-EDF6VRInstaller{
         if(-not($got -eq $true -or [string]$got -in @('retry','manual'))){throw 'The EDF6VR release was not downloaded.'}
         $extract=Join-Path $work 'release';$x=Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'EDF6VR release' -AllowSkip $false
         if([string]$x -notin @('ok','manual','retry')){throw 'The EDF6VR archive could not be extracted.'};$payload=Find-EDF6Payload $extract
-        if(-not $payload -or -not(Test-Path -LiteralPath (Join-Path $payload 'EDF6VR\Switch-VR.ps1') -PathType Leaf) -or -not(Test-Path -LiteralPath (Join-Path $payload 'winmm.dll') -PathType Leaf)){throw 'The current release has no usable EDF6VR runtime payload.'}
+        if(-not $payload -or -not(Test-Path -LiteralPath (Join-Path $payload 'EDF6 VR setting.exe') -PathType Leaf) -or -not(Test-Path -LiteralPath (Join-Path $payload 'winmm.dll') -PathType Leaf)){throw 'The current release has no usable EDF6VR runtime payload.'}
+          $publisherManifest=Join-Path $payload 'EDF6VR\PACKAGE_MANIFEST.json'
+          if(-not(Test-Path -LiteralPath $publisherManifest -PathType Leaf)){throw 'EDF6VR package has no version manifest. No game files were changed.'}
+          $publisherVersion=[string]((Get-Content -LiteralPath $publisherManifest -Raw -ErrorAction Stop | ConvertFrom-Json).version)
+          $selectedVersion=[regex]::Match([string]$release.Tag,'\d+(?:\.\d+){1,3}').Value
+          if(-not $publisherVersion -or $publisherVersion -ne $selectedVersion){throw "EDF6VR package version $publisherVersion does not match selected release $($release.Tag). No game files were changed."}
 
         Write-EDFStep 3 4 'Installing recoverably next to EDF6.exe'
         Write-Host '  VR mod files are now extracted and copied into the game folder.' -ForegroundColor White
         Write-Host '  Windows may request PowerShell permission for a protected Steam folder.' -ForegroundColor Yellow
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to install the reviewed runtime files...')
+        $publisherLoader=Join-Path $payload 'winmm.dll';$gameLoader=Join-Path $game 'winmm.dll'
+        $publisherLoaderHash=(Get-FileHash -LiteralPath $publisherLoader -Algorithm SHA256 -ErrorAction Stop).Hash
+        $existingLoaderHash=if(Test-Path -LiteralPath $gameLoader -PathType Leaf){(Get-FileHash -LiteralPath $gameLoader -Algorithm SHA256 -ErrorAction Stop).Hash}else{''}
+        $loaderManifest=Join-Path $game '.pcvrhub_edf6vr_loader_ownership.csv';$ownedLoader=$false
+        if(Test-Path -LiteralPath $loaderManifest -PathType Leaf){
+            $loaderRow=@(Import-Csv -LiteralPath $loaderManifest -ErrorAction Stop | Where-Object {$_.RelativePath -ieq 'winmm.dll'})|Select-Object -First 1
+            if($loaderRow){
+                if($existingLoaderHash -and $existingLoaderHash -ne [string]$loaderRow.InstalledSha256){throw 'The previously Hub-owned winmm.dll changed after installation. Restore or move it aside before retrying; the Hub will not overwrite it.'}
+                $ownedLoader=[bool]$existingLoaderHash
+            }
+        }
+        if($existingLoaderHash -and $existingLoaderHash -ne $publisherLoaderHash -and -not $ownedLoader){
+            Write-EDFWarn 'An existing shared winmm.dll differs from the publisher loader required by this EDF6VR release.'
+            Write-Host '  Updating it may affect other EDF6 mods. The previous file will be backed up in the game folder.' -ForegroundColor White
+            Write-Host '  [U] Back up and update this shared loader' -ForegroundColor Cyan
+            Write-Host '  [C] Cancel without changing the game' -ForegroundColor Cyan
+            $choice=(''+(Read-Host 'Choose U or C')).Trim()
+            if($choice -ine 'U'){throw 'Setup cancelled before the shared loader was changed.'}
+        }
         $wasFlat=(-not(Test-Path -LiteralPath (Join-Path $game 'Mods\Plugins\EDF6VR.dll') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $game 'Mods\Plugins\EDF6VR.dll.disabled') -PathType Leaf))
+        if($wasFlat){
+            $modManifest=Join-Path $game '.pcvrhub_edf6vr_ownership.csv'
+            $oldModRow=if(Test-Path -LiteralPath $modManifest -PathType Leaf){@(Import-Csv -LiteralPath $modManifest -ErrorAction Stop | Where-Object {$_.RelativePath -ieq 'Mods\Plugins\EDF6VR.dll'} | Select-Object -First 1)[0]}else{$null}
+            $disabledPath=Join-Path $game 'Mods\Plugins\EDF6VR.dll.disabled'
+            if(-not $oldModRow -or -not $oldModRow.InstalledSha256 -or
+                (Get-FileHash -LiteralPath $disabledPath -Algorithm SHA256 -ErrorAction Stop).Hash -ne [string]$oldModRow.InstalledSha256){
+                throw 'The parked Flat-mode VR DLL is not the unchanged Hub-owned file. No update was made; keep this file and review it before retrying.'
+            }
+        }
         $snapshot=Join-Path $work 'rollback';$records=Save-EDF6Snapshot -GameRoot $game -SnapshotRoot $snapshot;$changesStarted=$true
         $loaderStage=Join-Path $work 'loader-stage';[void][IO.Directory]::CreateDirectory($loaderStage);$loaderFiles=0
-        foreach($relative in @('winmm.dll','ModLoader.ini')){
-            $source=Join-Path $payload $relative;$target=Join-Path $game $relative
-            if(-not(Test-Path -LiteralPath $target -PathType Leaf) -and (Test-Path -LiteralPath $source -PathType Leaf)){Copy-Item -LiteralPath $source -Destination $target -Force;$loaderFiles++}
+        if(-not $existingLoaderHash -or $existingLoaderHash -ne $publisherLoaderHash -or $ownedLoader){Copy-Item -LiteralPath $publisherLoader -Destination (Join-Path $loaderStage 'winmm.dll') -Force -ErrorAction Stop;$loaderFiles++}
+        $sourceLoaderIni=Join-Path $payload 'ModLoader.ini';$gameLoaderIni=Join-Path $game 'ModLoader.ini'
+        if((Test-Path -LiteralPath $sourceLoaderIni -PathType Leaf) -and -not(Test-Path -LiteralPath $gameLoaderIni -PathType Leaf)){Copy-Item -LiteralPath $sourceLoaderIni -Destination (Join-Path $loaderStage 'ModLoader.ini') -Force -ErrorAction Stop;$loaderFiles++}
+        elseif((Test-Path -LiteralPath $gameLoaderIni -PathType Leaf) -and (Test-Path -LiteralPath $loaderManifest -PathType Leaf)){
+            $ownedIniRow=@(Import-Csv -LiteralPath $loaderManifest -ErrorAction Stop | Where-Object {$_.RelativePath -ieq 'ModLoader.ini'})|Select-Object -First 1
+            if($ownedIniRow){Copy-Item -LiteralPath $gameLoaderIni -Destination (Join-Path $loaderStage 'ModLoader.ini') -Force -ErrorAction Stop;$loaderFiles++}
         }
-        if($loaderFiles -gt 0){[void](Install-OwnedModPayload -SourceRoot $loaderStage -GameRoot $game -Identity 'edf6vr_loader');Write-EDFOK 'Missing shared EDFModLoader files installed.'}else{Write-EDFOK 'Existing shared EDFModLoader preserved.'}
+        if($loaderFiles -gt 0){[void](Install-OwnedModPayload -SourceRoot $loaderStage -GameRoot $game -Identity 'edf6vr_loader' -AdoptIdenticalExisting -KeepExistingRelativePaths @('ModLoader.ini'));Write-EDFOK 'Publisher EDFModLoader installed or updated with ownership backup.'}else{Write-EDFOK 'Existing byte-identical shared EDFModLoader preserved.'}
         [void](Install-OwnedModPayload -SourceRoot $payload -GameRoot $game -Identity $IDENTITY -SkipRelativePaths @('winmm.dll','ModLoader.ini','Mods\Plugins\EDF6VR.ini','Mods\Plugins\EDF6ClearLoot.ini') -AdoptIdenticalExisting)
-        foreach($relative in @('Mods\Plugins\EDF6VR.ini','Mods\Plugins\EDF6ClearLoot.ini')){ $target=Join-Path $game $relative;if(-not(Test-Path -LiteralPath $target -PathType Leaf)){Copy-Item -LiteralPath (Join-Path $payload $relative) -Destination $target -Force;Write-EDFOK "Default $relative created."}else{Write-EDFOK "Existing $relative preserved."} }
-        if($wasFlat){$enabled=Join-Path $game 'Mods\Plugins\EDF6VR.dll';$disabled=$enabled+'.disabled';if(Test-Path -LiteralPath $disabled){Remove-Item -LiteralPath $disabled -Force};Move-Item -LiteralPath $enabled -Destination $disabled -Force;Write-EDFOK 'Previous Flat mode preserved.'}else{Set-EDF6Mode -GameRoot $game -Mode VR;Write-EDFOK 'VR mode enabled.'}
+        foreach($relative in @('Mods\Plugins\EDF6VR.ini','Mods\Plugins\EDF6ClearLoot.ini')){
+            $target=Join-Path $game $relative
+            if(Test-Path -LiteralPath $target -PathType Leaf){Write-EDFOK "Existing $relative preserved.";continue}
+            $source=Join-Path $payload $relative
+            if(Test-Path -LiteralPath $source -PathType Leaf){Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop;Write-EDFOK "Default $relative created."}
+            elseif($relative -eq 'Mods\Plugins\EDF6VR.ini'){Write-EDFInfo 'EDF6VR.ini will be created by the mod on first game start; publisher defaults remain under EDF6VR.'}
+            else{throw "The publisher package is missing its required default: $relative"}
+        }
+        if($wasFlat){$enabled=Join-Path $game 'Mods\Plugins\EDF6VR.dll';$disabled=$enabled+'.disabled';if(Test-Path -LiteralPath $disabled){Remove-Item -LiteralPath $disabled -Force};Move-Item -LiteralPath $enabled -Destination $disabled -Force;Write-EDFOK 'Previous Flat mode preserved.'}else{Write-EDFOK 'VR mode enabled by the publisher package.'}
         # Keep this explicitly typed and array-wrapped. When only one mode DLL
         # exists, an unwrapped pipeline becomes a scalar string; using += then
         # concatenates the next absolute paths into one impossible filename.
@@ -138,7 +175,7 @@ function global:Invoke-EDF6VRInstaller{
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version ([string]$release.Tag) -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -Route Current);$changesStarted=$false
         Write-EDFOK "EDF6VR $($release.Tag) is installed and tracked."
         Write-Host '  Connect the selected OpenXR runtime, then use Start in VR from the Hub.' -ForegroundColor White
-        Write-Host '  Use VR_Play.bat or the Hub Flat / VR switch to change persistent mode.' -ForegroundColor Gray
+        Write-Host '  Use EDF6 VR setting.exe or the Hub Flat / VR switch to change mode.' -ForegroundColor Gray
         Write-Host '  The tutorial may need a normal gamepad with F11 used as a session toggle.' -ForegroundColor Gray
         Write-Host '';Write-Host ('='*60) -ForegroundColor Magenta;Write-Host '  Setup complete.' -ForegroundColor Green;Write-Host ('='*60) -ForegroundColor Magenta;Write-Host '';Write-Host "  $QUIP" -ForegroundColor Magenta;Write-Host ''
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')

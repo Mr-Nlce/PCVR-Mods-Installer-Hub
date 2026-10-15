@@ -92,7 +92,6 @@ function Install-SnowRunnerPinnedDepot {
     Write-SnowStep 1 4 "Preparing the last confirmed game version $depotGameVersion"
     $existing = Get-ExistingSnowRunnerDepot
     if ($existing) {
-        Write-SnowRunnerDepotAppId -GameRoot $existing
         Write-SnowOk "Using the existing confirmed copy: $existing"
         return $existing
     }
@@ -144,8 +143,24 @@ function Install-SnowRunnerPinnedDepot {
 
     # SnowRunner.exe is nested. Steamworks therefore needs the ID beside that
     # executable, not merely at the depot root.
-    Write-SnowRunnerDepotAppId -GameRoot $targetPath
     return $targetPath
+}
+
+function Test-SnowRunnerDllPayload {
+    param([string]$Path)
+    try {
+        $stream = [IO.File]::OpenRead($Path)
+        try {
+            if ($stream.Length -lt 68) { return $false }
+            $reader = New-Object IO.BinaryReader($stream)
+            if ($reader.ReadUInt16() -ne 0x5A4D) { return $false }
+            $stream.Position = 60
+            $peOffset = $reader.ReadInt32()
+            if ($peOffset -lt 64 -or $peOffset -gt ($stream.Length - 24)) { return $false }
+            $stream.Position = $peOffset
+            return ($reader.ReadUInt32() -eq 0x00004550 -and $reader.ReadUInt16() -eq 0x8664)
+        } finally { $stream.Dispose() }
+    } catch { return $false }
 }
 
 function Get-SnowRunnerRelease {
@@ -228,6 +243,7 @@ New-Item -ItemType Directory -Path $temp -Force | Out-Null
 $download = Join-Path $temp 'dxgi.dll'
 $got = Invoke-SafeDownload -Urls @($release.Url) -Destination $download -Label "SnowRunner VR $($release.Tag)" -ManualUrl "https://github.com/$repo/releases" -AllowSkip $false
 if (-not $got -or $got -in @('quit','skip')) { throw 'The official SnowRunner VR DLL was not obtained.' }
+if (-not (Test-SnowRunnerDllPayload -Path $download)) { throw 'The downloaded file is not a usable 64-bit Windows DLL. No VR files were installed.' }
 Write-SnowOk "Official stable release $($release.Tag) downloaded."
 
 Write-SnowStep 3 4 'Installing with exact-file recovery'
@@ -261,6 +277,7 @@ $watch = @((Join-Path $bin 'dxgi.dll'),(Join-Path $bin '.pcvrhub-snowrunner-vr')
 foreach ($required in $watch) { if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Installed-file verification failed: $(Split-Path -Leaf $required)" } }
 $recoverSnow = { Install-OwnedModPayload -SourceRoot $stage -GameRoot $bin -Identity 'snowrunnervr' -AdoptIdenticalExisting | Out-Null }.GetNewClosure()
 if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $bin -Recopy $recoverSnow)) { throw 'The required SnowRunner VR files did not survive the antivirus check.' }
+if ($installMode -eq '2') { Write-SnowRunnerDepotAppId -GameRoot $game }
 if ($restoreFlat) {
     Rename-Item -LiteralPath $live -NewName 'dxgi.dll.pcvrhub_off'
     Write-SnowOk 'The previous flat state was preserved after updating.'

@@ -22,6 +22,7 @@
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot 'RogueTraderVR-Mode.ps1')
 
 $Host.UI.RawUI.WindowTitle = "Warhammer 40K: Rogue Trader VR Mod Installer"
 $ErrorActionPreference = "Stop"
@@ -29,7 +30,7 @@ $ErrorActionPreference = "Stop"
 $GAME_STEAM_FOLDER = "Warhammer 40,000 Rogue Trader"
 $GAME_EXE  = "WH40KRT.exe"
 $STEAM_APPID = "2186680"
-$DOWNLOAD_DIR = Join-Path $env:USERPROFILE "Downloads"
+$DOWNLOAD_DIR = Get-PCVRDownloadsFolder
 
 # Owlcat's built-in Unity Mod Manager folder (the ONLY place the
 # game loads mods from). Note: folder name has NO comma.
@@ -256,7 +257,7 @@ Write-Header
 Write-Host " RTVR by SolemnScribe - true stereo-3D VR for Owlcat's Warhammer 40K" -ForegroundColor White
 Write-Host " cRPG Rogue Trader. Seated play with keyboard & mouse or gamepad." -ForegroundColor White
 Write-Host ""
-Pause-User "Press Enter to start..."
+if ($env:PCVR_ROGUE_CHOICE_CONFIRMED -ne '1') { Pause-User "Press Enter to start..." }
 Write-Step 1 7 "Locating Warhammer 40,000: Rogue Trader"
 
 Write-Info "The game itself can live anywhere (Steam, GOG, Epic, Xbox)."
@@ -300,9 +301,7 @@ if (-not $gamePath) {
 if ($gamePath) {
  Write-OK "Game found: $gamePath"
 } else {
- Write-Warn "Game folder not found automatically (Steam/GOG/Epic/Xbox defaults)."
- Write-Host " That is fine - the mods do not install there. If the game IS" -ForegroundColor Gray
- Write-Host " installed and has been run once, everything will still work." -ForegroundColor Gray
+ throw 'The base game WH40KRT.exe was not found. Locate a complete Steam, GOG, Epic or Xbox install before setting up RTVR.'
 }
 
 # -------------------------------------------------------
@@ -440,8 +439,9 @@ Pause-User "Press Enter to confirm you will rebind these on first launch..."
 
 # Record install path + version for the Hub's VR-Ready refresh.
 # The recorded path is the UMM folder (where RTVR\RTVR.dll lives).
-if ("RTVR" -notin $failed) {
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $UMM_DIR -Encoding UTF8 -Force } catch {}
+if (@($failed | Where-Object { $_ -in @('WASD Movement','Toy Box','RTVR') }).Count -eq 0) {
+ Set-RogueTraderModMode -Mode RTVR -ProfileRoot $UMM_DIR
+ try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  # Version: parse from the Nexus zip name (RTVR_518_0_6_151_...),
  # falling back to the pinned release this installer shipped for.
  # Parse the version from the zip we actually installed (works for
@@ -474,6 +474,10 @@ if ("RTVR" -notin $failed) { Write-Host " [x] RTVR" -ForegroundColor Green } els
 if (Test-Path -LiteralPath "$UMM_DIR\ServoSkullCameraControls\Info.json") { Write-Host " [x] Servo-Skull Camera Controls (optional)" -ForegroundColor Green } else { Write-Host " [-] Servo-Skull Camera Controls (optional, skipped)" -ForegroundColor Gray }
 Write-Host "============================================================" -ForegroundColor Magenta
 
+if (@($failed | Where-Object { $_ -in @('WASD Movement','Toy Box','RTVR') }).Count -gt 0) {
+ throw ('Required RTVR components are missing: ' + (($failed | Where-Object { $_ -in @('WASD Movement','Toy Box','RTVR') }) -join ', ') + '. Retry the failed download or provide its ZIP manually.')
+}
+
 Write-Host ""
 Write-Host "--- How to play ---" -ForegroundColor Cyan
 Write-Host ""
@@ -496,6 +500,6 @@ Write-Host ""
 Write-Host " RTVR's render scale ships at 0.75 - raise it toward 1.0 if your" -ForegroundColor Gray
 Write-Host " GPU has headroom. Ctrl+Alt+C recenters the view any time." -ForegroundColor Gray
 Write-Host ""
-Write-Host " The Emperor protects. The Warp... does not." -ForegroundColor Magenta
+Write-Host " Command your dynasty in true stereo 3D, Lord Captain." -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Press Enter to exit."

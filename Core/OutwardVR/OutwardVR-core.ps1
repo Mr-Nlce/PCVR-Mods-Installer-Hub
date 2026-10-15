@@ -159,6 +159,7 @@ if ($owPick -eq "1") {
         exit 1
     }
     & $fork
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     exit 0
 }
 
@@ -502,6 +503,12 @@ if ($wrapper) {
  Write-Info "No wrapper folder found - using zip root."
 }
 
+foreach ($required in @('winhttp.dll', 'BepInEx\core\BepInEx.dll', 'BepInEx\plugins\OutwardVR.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $required) -PathType Leaf)) {
+  throw "The OutwardVR archive is incomplete: $required is missing. No mod files were copied."
+ }
+}
+
 Write-Host " Copying mod files into $GAME_SUBDIR ..." -NoNewline -ForegroundColor White
 try {
  Get-ChildItem -Path $sourceRoot -Force | ForEach-Object {
@@ -529,11 +536,12 @@ try {
 }
 
 $bepinexPath = Join-Path $defedPath "BepInEx"
-if (Test-Path $bepinexPath) {
- Write-OK "BepInEx structure confirmed at: $bepinexPath"
-} else {
- Write-Warn "BepInEx folder not visible at expected location."
+foreach ($required in @('winhttp.dll', 'BepInEx\core\BepInEx.dll', 'BepInEx\plugins\OutwardVR.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $defedPath $required) -PathType Leaf)) {
+  throw "Outward VR setup is incomplete: $required is missing in the game folder. No installation was recorded."
+ }
 }
+Write-OK "BepInEx structure confirmed at: $bepinexPath"
 
 # Merge the completed staging payload into the final installation. Existing
 # files with the same name are updated, while extra files (saves, settings,
@@ -582,11 +590,12 @@ try {
  $steamAppIdFile = Join-Path $defedPath "steam_appid.txt"
  Set-Content -Path $steamAppIdFile -Value $DD_APPID -Encoding ASCII -NoNewline -Force
  Write-OK "steam_appid.txt created (prevents Steam re-install prompt)."
-} catch {
- Write-Warn "Could not create steam_appid.txt: $_"
- Write-Host " If Steam prompts you to reinstall Outward Definitive Edition, manually create" -ForegroundColor Gray
- Write-Host " a file called 'steam_appid.txt' next to the game EXE," -ForegroundColor Gray
- Write-Host " containing just the number: $DD_APPID" -ForegroundColor Gray
+} catch { throw "Could not create required steam_appid.txt: $_" }
+
+foreach ($required in @($GAME_EXE, 'steam_appid.txt', 'winhttp.dll', 'BepInEx\core\BepInEx.dll', 'BepInEx\plugins\OutwardVR.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $defedPath $required) -PathType Leaf)) {
+  throw "Outward VR setup is incomplete after the depot merge: $required is missing. No installation was recorded."
+ }
 }
 
 # Record the install path for the Hub. Outward is installed in a user-

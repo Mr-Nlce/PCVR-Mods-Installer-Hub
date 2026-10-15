@@ -257,6 +257,10 @@ if ($gamePath) {
  }
  }
 }
+if (-not (Test-Path -LiteralPath (Join-Path $gamePath 'Lunistice.exe'))) {
+ Write-Fail "Lunistice.exe is missing from the selected game folder. No mod files were copied."
+ Pause-User "Press Enter to exit..."; exit 1
+}
 
 # -------------------------------------------------------
 # STEP 4: Extract mod files into the game folder
@@ -298,6 +302,14 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+foreach ($relative in @('winhttp.dll', 'BepInEx\plugins\Lunistice_VR.dll')) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $relative))) {
+  Write-Fail "The archive is missing $relative. No mod files were copied."
+  try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+ }
+}
+
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
@@ -328,11 +340,14 @@ try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } c
 $bepinexDir = Join-Path $gamePath "BepInEx"
 $modDll = Join-Path $gamePath "BepInEx\plugins\Lunistice_VR.dll"
 if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
- Write-Warn "ZIP contents might have a layout we don't recognise."
+ Write-Fail "BepInEx folder not found after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but Lunistice_VR.dll is missing."
- Write-Warn "Check BepInEx\plugins\ inside your game folder."
+ Write-Fail "Lunistice_VR.dll is missing after copy."
+ Pause-User "Press Enter to exit..."; exit 1
+} elseif (-not (Test-Path -LiteralPath (Join-Path $gamePath 'winhttp.dll'))) {
+ Write-Fail "winhttp.dll is missing after copy."
+ Pause-User "Press Enter to exit..."; exit 1
 } else {
  Write-OK "BepInEx + Lunistice_VR.dll present."
 }

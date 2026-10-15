@@ -12,6 +12,8 @@ This route modifies the normal, updating Steam installation. The Hub follows the
 
 The author manager validates the exact supported game executable and owns its managed files, checksums, backups, repair and removal. If a future Scrap Mechanic update is not yet supported, the manager refuses the mismatched build instead of forcing files into it.
 
+The reviewed Current release is **Native VR 1.4.10** for Scrap Mechanic **1.0.6.889** (Steam build **25442087**). It refreshes the game-data cache after the retail update and improves VR hand and tool lighting. Close the game before updating; the first launch may rebuild cached data. The separate 1.0.5 depot below remains pinned to Native VR 1.4.8.
+
 ### Installing and starting Current
 
 1. Close Scrap Mechanic and choose **Current game version**.

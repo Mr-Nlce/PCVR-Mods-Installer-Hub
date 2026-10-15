@@ -132,30 +132,39 @@ try {
 
 $tempExtract = Join-Path $env:TEMP "PainkillerVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempExtract | Out-Null
-$modZip = $null
-
+$zipPath = Join-Path $tempExtract "painkiller-vr-mod.zip"
+$downloadInfo = @{}
 if ($dlUrl) {
- $zipPath = Join-Path $tempExtract "painkiller-vr-mod.zip"
- if (Invoke-DownloadOrFallback -Url $dlUrl -Destination $zipPath -Label "Painkiller VR mod ($relTag)" `
+ $downloadResult = Invoke-SafeDownload -Urls @($dlUrl) -Destination $zipPath -Label "Painkiller VR mod ($relTag)" `
     -ManualUrl $GITHUB_RELEASES `
-    -Instructions "Download the mod ZIP from the Releases page, then drop it into your Downloads folder and retry.") {
- $modZip = $zipPath
+    -Instructions "Download the mod ZIP from the Releases page, then drag it onto this window." `
+    -AllowSkip $false -DownloadInfo $downloadInfo
+} else {
+ Write-Warn 'The live release could not be resolved. Select a publisher ZIP manually; its version will be read from the selected name.'
+ $manualInfo = @{}
+ $downloadResult = Invoke-InstallerFallback -Action 'Painkiller VR mod download' -Subject 'Painkiller VR mod' `
+    -Url $GITHUB_RELEASES -DestFile $zipPath -AllowSkip $false -RecoveryInfo $manualInfo `
+    -FileValidator { param($candidate) Test-DownloadedPayload -Path $candidate -IntendedPath $zipPath } `
+    -RetryCheck { Test-DownloadedPayload -Path $zipPath }
+ if ($manualInfo.SourcePath) { $downloadInfo.SourcePath = $manualInfo.SourcePath }
+}
+if ($downloadResult -eq $true -and $dlUrl -and [string]$downloadInfo.Url -eq [string]$dlUrl) {
+ # The resolved release tag belongs to the exact asset that arrived.
+} elseif ([string]$downloadResult -eq 'retry' -and $downloadInfo.SourcePath -and
+        ([IO.Path]::GetFileName([string]$downloadInfo.SourcePath) -match '(?i)^painkiller-vr-mod[_-]v?(\d+(?:\.\d+)+(?:[-._][A-Za-z0-9.]+)?)\.zip$')) {
+ $manualTag = 'v' + $matches[1]
+ if ($relTag -and $manualTag -ne $relTag) {
+  Write-Fail "The selected archive is $manualTag, but this route requires $relTag. No game files were changed."
+  Pause-User "Press Enter to exit."; exit 1
  }
-}
-# Fallback: a copy the user downloaded by hand
-if (-not $modZip) {
- $manualZip = Get-ChildItem -Path (Join-Path $env:USERPROFILE "Downloads") -Filter "*painkiller*vr*.zip" -ErrorAction SilentlyContinue |
-   Sort-Object LastWriteTime -Descending | Select-Object -First 1
- if ($manualZip) { Write-OK "Found a manual download: $($manualZip.Name)"; $modZip = $manualZip.FullName }
-}
-if (-not $modZip) {
- Write-Fail "No Painkiller VR mod ZIP available - cannot continue."
+ $relTag = $manualTag
+ Write-Warn "Manual publisher archive selected for release $relTag."
+} else {
+ Write-Fail 'The selected Painkiller VR archive has no verifiable release name. No game files were changed.'
  try { Remove-Item $tempExtract -Recurse -Force -EA SilentlyContinue } catch {}
  Pause-User "Press Enter to exit."; exit 1
 }
-# Always point antivirus recovery at the archive that was actually chosen,
-# including a manual Downloads fallback.
-$zipPath = $modZip
+$modZip = $zipPath
 
 # -------------------------------------------------------
 # STEP 2: unpack + find the Bin payload
@@ -176,6 +185,13 @@ if (-not $srcExe) {
  Pause-User "Press Enter to exit."; exit 1
 }
 $srcBin = Split-Path -Parent $srcExe.FullName
+foreach ($requiredFile in $MOD_BIN_FILES) {
+ if (-not (Test-Path -LiteralPath (Join-Path $srcBin $requiredFile) -PathType Leaf)) {
+  Write-Fail "The VR archive is missing $requiredFile. Original game files were not changed."
+  try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+  Pause-User "Press Enter to choose a complete archive on the next run..."; exit 1
+ }
+}
 Write-OK "Mod files ready."
 
 # -------------------------------------------------------
@@ -259,24 +275,6 @@ try {
 if (Test-Path -LiteralPath (Join-Path $gameBin "openxr_loader.dll")) { Write-OK "openxr_loader.dll present in Bin." }
 else { Write-Warn "openxr_loader.dll missing from Bin - the mod may not load." }
 
-# Record markers for the Hub (VR Ready + update badge + launch route).
-# .launch_exe points "Start in VR" at the modded Bin\PainKiller.exe
-# directly, for EVERY store. The game has a Steam AppId, but launching
-# via steam://rungameid fails on a GOG copy ("no licenses"), and the
-# mod replaces PainKiller.exe in-place on both stores, so the direct
-# exe is the correct launch route wherever it's installed.
-try {
- Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
- if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
- # ALSO write the durable stamp next to the GAME (2026-08-20).
- # The line above lands inside the Hub folder and is gone as
- # soon as a new Hub build is dropped in; the scan then finds
- # no marker and seeds the CURRENT online tag, swallowing a
- # pending update. The game-side stamp survives that.
- Save-InstalledStamp -GameDir $gamePath -Version $relTag
- Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value ([System.IO.Path]::Combine($gamePath, "Bin", "PainKiller.exe")) -Encoding UTF8 -Force
-} catch {}
-
 # The scanner usually sweeps a moment AFTER the write, so the files can
 # be gone right here. This must run BEFORE the temp folder below is
 # removed - the recovery needs that archive.
@@ -290,6 +288,14 @@ if (-not $avFilesOk) {
     Pause-User "Press Enter to exit, then run the installer again."
     exit 1
 }
+
+# Commit the Hub state only after every required file survived the copy.
+try {
+ Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
+ if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
+ Save-InstalledStamp -GameDir $gamePath -Version $relTag
+ Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value ([System.IO.Path]::Combine($gamePath, "Bin", "PainKiller.exe")) -Encoding UTF8 -Force
+} catch {}
 
 try { Remove-Item $tempExtract -Recurse -Force -EA SilentlyContinue } catch {}
 

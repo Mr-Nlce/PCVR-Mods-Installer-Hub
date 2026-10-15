@@ -90,6 +90,12 @@ SteamVR Theatre Mode must be **OFF**: SteamVR → Settings → Dashboard → "Pr
 ### Mission packs (optional)
 The Enhanced release already includes both official mission packs. To play them in Quake VR, copy `PAK0.PAK` from the `hipnotic` folder (rename to `PAK2.PAK`) and/or from `rogue` (rename to `PAK3.PAK`) into the `Id1` folder, then use "Change Map" under Quake VR Settings.
 
+### Optional HQ texture pack (manual)
+
+Vittorio Romeo published a separate [HQ texture package](https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03) on 3 October 2026. It is **not** a new Quake VR executable or a required mod update. The Hub still installs Quake VR v0.0.8.1; this optional download is about 615 MB.
+
+Close Quake VR and back up any texture pack you already use. Extract the package into the **standalone Quake VR folder** that contains `Id1`, keeping its `id1\textures`, `hipnotic\textures`, `rogue\textures` and `quakevr\textures_quetoo` paths. The base-game and mission-pack texture folders may be used only for content you own. If you already use relit maps, rerun the publisher's relighting step after changing textures. To revert, remove only the newly added texture folders, restoring any pack you backed up. Do not use this large optional asset as the VR-mod update download.
+
 ### Credits
 - **Quake VR** by Vittorio Romeo — built on QuakeSpasm / Quakespasm-Spiked and prior OpenVR ports (Fishbiter, Zackin5, Phoboslab)
 - Hand models with finger tracking by CrazyHairGuy

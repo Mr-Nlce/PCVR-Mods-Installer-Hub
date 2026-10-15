@@ -26,6 +26,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "Sclerosis (Amnesia VR Remake)"
 $MOD_VERSION = "v1.8.16"
@@ -131,6 +132,83 @@ function Expand-ZipWithProgress {
     }
 }
 
+function Install-AmnesiaBaseArchive {
+    param([string]$ArchivePath,[string]$GameRoot,[string]$ScriptDir)
+    $stage = Join-Path $env:TEMP ('pcvr-amnesia-' + [guid]::NewGuid().ToString('N'))
+    $payload = Join-Path $stage 'payload'
+    $backupRoot = Join-Path $GameRoot ('.pcvrhub-amnesia-backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,6))
+    $written = New-Object System.Collections.Generic.List[string]
+    $backedUp = New-Object System.Collections.Generic.List[string]
+    try {
+        $check = Test-ZipArchiveEntrySafety -ArchivePath $ArchivePath -DestinationFolder $payload
+        if (-not $check.Inspectable -or -not $check.Safe) { throw "The selected ZIP is unreadable or has an unsafe path: $($check.Entry)" }
+        New-Item -ItemType Directory -Path $payload -Force -ErrorAction Stop | Out-Null
+        Write-Info 'Extracting Sclerosis into a safe temporary folder. This can take several minutes.'
+        [void](Expand-ZipWithProgress -ZipPath $ArchivePath -Dest $payload -Label 'Sclerosis')
+        $required = @('Sclerosis.exe','GameAssembly.dll','UnityPlayer.dll','Sclerosis_Data\data.unity3d',
+            'Sclerosis_Data\Plugins\x86_64\UnityOpenXR.dll')
+        foreach ($relative in $required) {
+            if (-not (Test-Path -LiteralPath (Join-Path $payload $relative) -PathType Leaf)) {
+                throw "The archive is missing $relative. No game files were changed."
+            }
+        }
+        if (Test-Path -LiteralPath (Join-Path $payload 'Amnesia.exe') -PathType Leaf) {
+            throw 'The archive contains the original game executable. No game files were changed.'
+        }
+        $files = @(Get-ChildItem -LiteralPath $payload -Recurse -File -ErrorAction Stop)
+        Write-Info 'Copying and verifying Sclerosis files. This can take several minutes.'
+        try {
+            foreach ($file in $files) {
+                $relative = $file.FullName.Substring($payload.Length).TrimStart('\')
+                $dest = Join-Path $GameRoot $relative
+                if ($relative -like 'Sclerosis_custom_translation\*' -and (Test-Path -LiteralPath $dest -PathType Leaf)) { continue }
+                if (Test-Path -LiteralPath $dest -PathType Container) { throw "A folder blocks the file: $relative" }
+                $sourceHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
+                if (Test-Path -LiteralPath $dest -PathType Leaf) {
+                    if ((Get-Item -LiteralPath $dest).Length -eq $file.Length -and
+                        (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash -eq $sourceHash) { continue }
+                    $save = Join-Path $backupRoot $relative
+                    New-Item -ItemType Directory -Path (Split-Path $save -Parent) -Force -ErrorAction Stop | Out-Null
+                    Copy-Item -LiteralPath $dest -Destination $save -Force -ErrorAction Stop
+                    [void]$backedUp.Add($relative)
+                }
+                New-Item -ItemType Directory -Path (Split-Path $dest -Parent) -Force -ErrorAction Stop | Out-Null
+                [void]$written.Add($relative)
+                Copy-Item -LiteralPath $file.FullName -Destination $dest -Force -ErrorAction Stop
+                if ($sourceHash -ne (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash) {
+                    throw "Copy verification failed: $relative"
+                }
+            }
+            $contract = New-PCVRInstallerContract -Id 'sclerosis' -GameName 'Amnesia VR' -Acquisition External `
+                -Routes @('Current') -RequiredInstalledFileGroups $required
+            [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $GameRoot -Version $MOD_VERSION `
+                -InstalledPathReceiptPaths @((Join-Path $ScriptDir '.installed_path')))
+        } catch {
+            $failure = $_
+            $rollbackErrors = New-Object System.Collections.Generic.List[string]
+            for ($i = $written.Count - 1; $i -ge 0; $i--) {
+                $relative = $written[$i]
+                $dest = Join-Path $GameRoot $relative
+                try {
+                    if ($backedUp.Contains($relative)) { Copy-Item -LiteralPath (Join-Path $backupRoot $relative) -Destination $dest -Force -ErrorAction Stop }
+                    elseif (Test-Path -LiteralPath $dest -PathType Leaf) { Remove-Item -LiteralPath $dest -Force -ErrorAction Stop }
+                } catch { [void]$rollbackErrors.Add("$relative`: $($_.Exception.Message)") }
+            }
+            if ($rollbackErrors.Count) { throw "Sclerosis install failed: $failure. Rollback incomplete: $($rollbackErrors -join '; ')" }
+            throw $failure
+        }
+        if ($backedUp.Count -gt 0) { Write-Info "Previous files were saved in $backupRoot" }
+        Write-OK 'Sclerosis files and installed version verified.'
+        return $true
+    } finally {
+        $tempPrefix = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+        if ([IO.Path]::GetFullPath($stage).StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase) -and
+            (Split-Path $stage -Leaf) -match '^pcvr-amnesia-[0-9a-f]{32}$' -and (Test-Path -LiteralPath $stage)) {
+            Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # Download + install the optional HD texture pack into <SclDataDir>. Shared
 # by the full install (step 4) and the "HD only" retrofit path. Returns
 # $true when the HD data.unity3d was placed.
@@ -167,27 +245,44 @@ function Install-AmnesiaHDTextures {
 
     $hdTmp = Join-Path $env:TEMP ("SclerosisHD_" + [System.Guid]::NewGuid().ToString("N"))
     try {
-        New-Item -ItemType Directory -Path $hdTmp -Force -ErrorAction Stop | Out-Null
-        $hdExtracted = $false
-        try { $hdExtracted = Expand-ZipWithProgress -ZipPath $hdZip -Dest $hdTmp -Label "HD textures" } catch { $hdExtracted = $false }
-        if (-not $hdExtracted) {
-            Write-Info "Falling back to standard extraction (no progress shown)..."
-            Expand-Archive -LiteralPath $hdZip -DestinationPath $hdTmp -Force -ErrorAction Stop
+        $hdSafety = Test-ZipArchiveEntrySafety -ArchivePath $hdZip -DestinationFolder $hdTmp
+        if (-not $hdSafety.Inspectable -or -not $hdSafety.Safe) {
+            Write-Warn "HD ZIP is unreadable or has an unsafe path: $($hdSafety.Entry)"
+            return $false
         }
+        New-Item -ItemType Directory -Path $hdTmp -Force -ErrorAction Stop | Out-Null
+        Write-Info 'Extracting HD textures safely. This can take several minutes.'
+        [void](Expand-ZipWithProgress -ZipPath $hdZip -Dest $hdTmp -Label 'HD textures')
         $hdData = Get-ChildItem -LiteralPath $hdTmp -Filter $HD_INNER_FILE -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if (-not $hdData) {
             Write-Warn "Could not find $HD_INNER_FILE inside the ZIP - skipping HD pack."
             return $false
         }
         $targetData = Join-Path $SclDataDir $HD_INNER_FILE
+        $backup = $null
         if (Test-Path -LiteralPath $targetData) {
-            $backup = Join-Path $SclDataDir "data.unity3d.original.backup"
-            if (-not (Test-Path -LiteralPath $backup)) {
-                try { Copy-Item -LiteralPath $targetData -Destination $backup -Force -ErrorAction Stop; Write-OK "Backed up original textures (data.unity3d.original.backup)." } catch { Write-Warn "Could not back up the original data.unity3d - continuing." }
+            $backup = Join-Path $SclDataDir ('.pcvrhub-hd-backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0,6) + '.unity3d')
+            Copy-Item -LiteralPath $targetData -Destination $backup -Force -ErrorAction Stop
+            if ((Get-FileHash -LiteralPath $targetData -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $backup -Algorithm SHA256).Hash) {
+                Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+                throw 'The original HD texture file could not be backed up intact.'
             }
+            Write-OK "Backed up the previous textures: $backup"
         }
-        Write-Info "Copying the 3 GB texture file into place (this can take a minute)..."
-        Copy-Item -LiteralPath $hdData.FullName -Destination $targetData -Force -ErrorAction Stop
+        Write-Info 'Copying and verifying the HD textures. This can take several minutes.'
+        try {
+            Copy-Item -LiteralPath $hdData.FullName -Destination $targetData -Force -ErrorAction Stop
+            if ((Get-FileHash -LiteralPath $hdData.FullName -Algorithm SHA256).Hash -ne (Get-FileHash -LiteralPath $targetData -Algorithm SHA256).Hash) {
+                throw 'HD texture copy verification failed.'
+            }
+        } catch {
+            if ($backup -and (Test-Path -LiteralPath $backup -PathType Leaf)) {
+                Copy-Item -LiteralPath $backup -Destination $targetData -Force -ErrorAction Stop
+            } elseif (Test-Path -LiteralPath $targetData -PathType Leaf) {
+                Remove-Item -LiteralPath $targetData -Force -ErrorAction Stop
+            }
+            throw
+        }
         Write-OK "HD textures installed (data.unity3d replaced in Sclerosis_Data)."
         Write-Host ""
         Write-Host "  IMPORTANT: In-game, set Texture Quality to ULTRA to see the" -ForegroundColor Yellow
@@ -375,36 +470,12 @@ Write-Host " $gamePath" -ForegroundColor DarkGray
 Write-Host ""
 
 try {
- # ~916 MB archive: show a live progress line so it never looks frozen.
- $baseExtracted = $false
- try { $baseExtracted = Expand-ZipWithProgress -ZipPath $modZip -Dest $gamePath -Label "mod files" } catch { $baseExtracted = $false }
- if (-not $baseExtracted) {
- Write-Info "Falling back to standard extraction (no progress shown)..."
- Expand-Archive -LiteralPath $modZip -DestinationPath $gamePath -Force -ErrorAction Stop
- }
- Write-OK "Files extracted."
+ [void](Install-AmnesiaBaseArchive -ArchivePath $modZip -GameRoot $gamePath -ScriptDir $PSScriptRoot)
 } catch {
- Write-Fail "Extraction failed: $_"
- Write-Host ""
- Write-Host " Manual fallback: open the ZIP and copy every file/folder" -ForegroundColor Yellow
- Write-Host " inside it to:" -ForegroundColor Yellow
- Write-Host " $gamePath" -ForegroundColor DarkGray
- # Hard abort replaced by safe fallback - user can fix and retry, or quit cleanly
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
+ Write-Fail "Sclerosis setup did not complete: $($_.Exception.Message)"
+ Write-Host '  The previous files were restored where possible. Choose another ZIP and rerun setup.' -ForegroundColor Yellow
+ Pause-User 'Press Enter to close without marking this install complete...'
  exit 1
- }
- # User chose Skip - continue at own risk
 }
 
 # Verify Sclerosis.exe arrived
@@ -418,9 +489,6 @@ if (Test-Path $sclerosisExe) {
 }
 
 # -------------------------------------------------------
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-
 # -------------------------------------------------------
 # STEP 4: Optional HD texture pack (Nexus, 4x AI upscale)
 # -------------------------------------------------------

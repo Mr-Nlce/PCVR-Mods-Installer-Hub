@@ -94,6 +94,14 @@ function Get-SteamLibraries {
  return ($libs | Select-Object -Unique)
 }
 
+function Test-PaperklaySupportedGamePath {
+ param([string]$Path)
+ if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
+ # The Discord thread reports that this VR mod does not work with the demo.
+ if ([IO.Path]::GetFileName($Path.TrimEnd('\','/')) -match '(?i)demo') { return $false }
+ return (Test-Path -LiteralPath (Join-Path $Path 'PaperKlay_Data') -PathType Container)
+}
+
 function Find-PaperklayGamePath {
  $sp = Get-SteamPath
  if (-not $sp) { return $null }
@@ -102,10 +110,9 @@ function Find-PaperklayGamePath {
  # Steam installdir conventionally mirrors that. Note the
  # mod DLL itself is "Paperklay_VR.dll" with lowercase 'k'
  # but the game folder uses capital K. Try variants.
- foreach ($folder in @("PaperKlay", "Paperklay", "PaperKlay Demo")) {
+ foreach ($folder in @("PaperKlay", "Paperklay")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\PaperKlay_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-PaperklaySupportedGamePath $candidate) { return $candidate }
  }
  }
  return $null
@@ -144,6 +151,9 @@ Write-Host ""
 # Important pre-install warnings
 Write-Host " IMPORTANT BEFORE INSTALLING:" -ForegroundColor Yellow
 Write-Host " ----------------------------" -ForegroundColor Yellow
+Write-Host " The Steam demo was reported incompatible with this mod." -ForegroundColor White
+Write-Host " Use the full game before downloading the VR ZIP." -ForegroundColor White
+Write-Host ""
 Write-Host " This mod uses OpenVR by default. OpenXR is supported" -ForegroundColor White
 Write-Host " via a config edit if you prefer." -ForegroundColor White
 Write-Host ""
@@ -222,6 +232,10 @@ Write-Step 2 4 "Locating PaperKlay"
 
 $gamePath = Find-PaperklayGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "1350720" -SteamFolderNames @("PaperKlay") }
+if ($gamePath -and -not (Test-PaperklaySupportedGamePath $gamePath)) {
+ Write-Warn "Detected folder is not a supported full-game build; the Steam demo is not offered."
+ $gamePath = $null
+}
 if ($gamePath) {
  Write-OK "Found PaperKlay at: $gamePath"
 } else {
@@ -232,11 +246,11 @@ if ($gamePath) {
  while (-not $gamePath) {
  $r = (Read-Host " PaperKlay folder").Trim().Trim('"')
  if (-not $r) { continue }
- if (Test-Path $r) {
+ if (Test-PaperklaySupportedGamePath $r) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "Folder not found: $r"
+ Write-Fail "Choose the full game's folder with PaperKlay_Data. The Steam demo is not supported."
  }
  }
 }
@@ -279,6 +293,18 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredModFiles = @(
+    'winhttp.dll',
+    'BepInEx\core\BepInEx.dll',
+    'BepInEx\plugins\Paperklay_VR.dll'
+)
+foreach ($relative in $requiredModFiles) {
+    $sourceFile = Join-Path $srcRoot $relative
+    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
+        throw "The selected VR archive is incomplete: $relative is missing."
+    }
+}
+$copyFailed = $false
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
@@ -287,6 +313,7 @@ try {
  Write-OK "Mod files installed."
 } catch {
  Write-Fail "Copy failed: $_"
+ $copyFailed = $true
  $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
  -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
  -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
@@ -303,6 +330,18 @@ try {
  # User chose Skip - continue at own risk
 }
 
+if ($copyFailed) { throw 'The VR files could not be copied completely.' }
+foreach ($relative in $requiredModFiles) {
+    $sourceFile = Join-Path $srcRoot $relative
+    $installedFile = Join-Path $gamePath $relative
+    if (-not (Test-Path -LiteralPath $installedFile -PathType Leaf)) {
+        throw "The VR installation is incomplete: $relative is missing."
+    }
+    if ((Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne
+        (Get-FileHash -LiteralPath $installedFile -Algorithm SHA256).Hash) {
+        throw "The VR installation is incomplete: $relative differs from the archive."
+    }
+}
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # Sanity check

@@ -122,9 +122,15 @@ function global:Restore-DeusExSnapshot {
     param([Parameter(Mandatory=$true)][string]$GameRoot,[Parameter(Mandatory=$true)][string]$SnapshotRoot,[ValidateSet('Windows','Fixture')][string]$RegistryBackend='Windows',[string]$FixtureRegistryPath='')
     $recordsPath=Join-Path $SnapshotRoot 'records.csv'
     if (-not (Test-Path -LiteralPath $recordsPath -PathType Leaf)) { throw 'The Deus Ex rollback record is missing.' }
-    foreach ($record in @(Import-Csv -LiteralPath $recordsPath)) {
-        $relative=[string]$record.Relative
-        if (-not $relative -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') { throw 'The Deus Ex rollback record contains an unsafe path.' }
+    $records=@(Import-Csv -LiteralPath $recordsPath -ErrorAction Stop)
+    foreach ($record in $records) {
+        $relative=Assert-PCVROwnedRelativePath -Relative ([string]$record.Relative)
+        if ([string]$record.Existed -eq 'True' -and -not (Test-Path -LiteralPath (Join-Path (Join-Path $SnapshotRoot 'files') $relative) -PathType Leaf)) {
+            throw "Rollback data is missing: $relative"
+        }
+    }
+    foreach ($record in $records) {
+        $relative=Assert-PCVROwnedRelativePath -Relative ([string]$record.Relative)
         $target=Join-Path $GameRoot $relative
         if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction Stop }
         if ([string]$record.Existed -eq 'True') {

@@ -243,7 +243,8 @@ function Get-BrowserFile {
 }
 
 # ---- STEP 3: ScriptHookV (must match the game build) ----
-if ($updateOnly -and (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll")) {
+if ($updateOnly -and (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll" -PathType Leaf) -and
+    (Test-Path -LiteralPath "$gtaDir\dinput8.dll" -PathType Leaf)) {
     Write-Step 3 6 "ScriptHookV"
     Write-OK "ScriptHookV already installed - skipping (update mode)."
 } else {
@@ -270,20 +271,37 @@ if ($shZip -and (Test-IsZipFile $shZip)) {
     $shtemp = Join-Path $env:TEMP ("gtavr_sh_" + [System.IO.Path]::GetRandomFileName())
     try {
         Expand-Archive -Path $shZip -DestinationPath $shtemp -Force
+        foreach ($required in @('ScriptHookV.dll','dinput8.dll')) {
+            if (-not (Get-ChildItem -Path $shtemp -Filter $required -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+                throw "The ScriptHookV archive is missing $required."
+            }
+        }
         foreach ($f in @("ScriptHookV.dll", "dinput8.dll")) {
             $hit = Get-ChildItem -Path $shtemp -Filter $f -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($hit) { try { Copy-Item $hit.FullName -Destination (Join-Path $gtaDir $f) -Force } catch {} }
+            if ($hit) { Copy-Item -LiteralPath $hit.FullName -Destination (Join-Path $gtaDir $f) -Force -ErrorAction Stop }
         }
-    } catch { Write-Warn "ScriptHookV extraction failed: $_" }
+    } catch { Write-Fail "ScriptHookV extraction failed: $_"; exit 1 }
     try { Remove-Item $shtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
-if (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll") {
+if ((Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll" -PathType Leaf) -and
+    (Test-Path -LiteralPath "$gtaDir\dinput8.dll" -PathType Leaf)) {
     Write-OK "ScriptHookV in place (ScriptHookV.dll + dinput8.dll)."
 } else {
     Write-Warn "ScriptHookV not installed - put ScriptHookV.dll + dinput8.dll next to $GAME_EXE manually."
     try { Start-Process $gtaDir } catch {}
     Pause-User "Press Enter once ScriptHookV.dll + dinput8.dll are in the game folder (or to skip)..."
+    if (-not (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll" -PathType Leaf) -or
+        -not (Test-Path -LiteralPath "$gtaDir\dinput8.dll" -PathType Leaf)) {
+        Write-Fail "ScriptHookV and dinput8.dll are required for this route."
+        throw 'Setup did not complete; see the error above.'
+    }
 }
+}
+
+if (-not (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll" -PathType Leaf) -or
+    -not (Test-Path -LiteralPath "$gtaDir\dinput8.dll" -PathType Leaf)) {
+    Write-Fail "ScriptHookV and dinput8.dll are required before the VR route can be completed."
+    throw 'Setup did not complete; see the error above.'
 }
 
 # ---- STEP 4: download + install the VRV patcher (R.E.A.L. on current build) ----
@@ -372,6 +390,12 @@ if (-not $manualExtract) {
         $keyHit = Get-ChildItem -Path $xtemp -Filter $KEY_FILE -Recurse -ErrorAction SilentlyContinue | Sort-Object { $_.FullName.Length } | Select-Object -First 1
         if ($keyHit) {
             $modRoot = Split-Path -Parent $keyHit.FullName
+            $requiredPatcherFiles = @('RealVR.ini','RealVR.asi','PlayGTAV.bat')
+            foreach ($required in $requiredPatcherFiles) {
+                if (-not (Test-Path -LiteralPath (Join-Path $modRoot $required) -PathType Leaf)) {
+                    throw "The selected patcher archive is missing $required."
+                }
+            }
             $copied = 0
             foreach ($item in (Get-ChildItem -Path $modRoot -Recurse -Force -ErrorAction SilentlyContinue)) {
                 $rel  = $item.FullName.Substring($modRoot.Length).TrimStart('\','/')
@@ -383,28 +407,31 @@ if (-not $manualExtract) {
                     } else {
                         $destDir = Split-Path -Parent $dest
                         if (-not (Test-Path $destDir)) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
-                        Copy-Item -Path $item.FullName -Destination $dest -Force
+                        Copy-Item -LiteralPath $item.FullName -Destination $dest -Force -ErrorAction Stop
                         $copied++
                     }
-                } catch { Write-Warn "Could not copy $rel" }
+                } catch { throw "Could not copy $rel`: $($_.Exception.Message)" }
             }
             Write-Host "  Copied $copied patcher files into the game folder." -ForegroundColor Gray
-            if (Test-Path (Join-Path $gtaDir $KEY_FILE)) { $installedOk = $true }
+            $installedOk = $true
+            foreach ($required in $requiredPatcherFiles) {
+                $sourceFile = Join-Path $modRoot $required
+                $targetFile = Join-Path $gtaDir $required
+                if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf) -or
+                    (Get-FileHash -LiteralPath $sourceFile -Algorithm SHA256).Hash -ne
+                    (Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash) {
+                    $installedOk = $false
+                    break
+                }
+            }
         }
-    } catch { Write-Warn "7-Zip extraction failed: $_" }
+    } catch { Write-Warn "Patcher extraction or copy failed: $_" }
     try { Remove-Item $xtemp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 }
 if (-not $installedOk) {
-    Write-Host "  Please extract the contents of:" -ForegroundColor White
-    Write-Host "    $rar" -ForegroundColor Gray
-    Write-Host "  directly into your GTA V folder:" -ForegroundColor White
-    Write-Host "    $gtaDir" -ForegroundColor Gray
-    Write-Host "  (so that RealVR.ini, RealVR.asi and PlayGTAV.bat end up" -ForegroundColor White
-    Write-Host "  next to $GAME_EXE)." -ForegroundColor White
-    try { Start-Process (Split-Path -Parent $rar) } catch {}
-    try { Start-Process $gtaDir } catch {}
-    Pause-User "Press Enter once you have extracted the patcher into the game folder..."
-    if (Test-Path (Join-Path $gtaDir $KEY_FILE)) { $installedOk = $true }
+    Write-Fail "The patcher archive did not supply a complete verified payload."
+    Write-Info "Download a complete publisher ZIP and run this installer again."
+    throw 'Setup did not complete; see the error above.'
 }
 if ($installedOk) {
     Write-OK "Patcher installed - RealVR.ini is in place."
@@ -419,12 +446,13 @@ if ($installedOk) {
     if (-not $avFilesOk) {
         Write-Fail "The GTA V VR patcher could not be restored after the antivirus check."
         Pause-User "Press Enter to exit, then run the installer again."
-        exit 1
+        throw 'Setup did not complete; see the error above.'
     }
     if (Test-Path -LiteralPath "$gtaDir\RealVR.asi") {
         Write-OK "VR plugin in place - RealVR.asi."
     } else {
-        Write-Warn "RealVR.asi is missing - make sure the WHOLE patcher zip was extracted."
+        Write-Fail "RealVR.asi disappeared before setup could finish."
+        throw 'Setup did not complete; see the error above.'
     }
 } else {
     Write-Warn "RealVR.ini not found in $gtaDir - the patcher may not be installed correctly."

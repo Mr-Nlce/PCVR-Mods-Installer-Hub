@@ -32,6 +32,7 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "AnotherCrabsTreasureVRMOD"
 $MOD_VERSION = "v1.0.0"
@@ -248,6 +249,8 @@ if ($gamePath) {
  }
  }
 }
+try { Assert-PCVRDropInPreflight -GameRoot $gamePath -GameExe 'AnotherCrabsTreasure.exe' -GameDataFolder 'AnotherCrabsTreasure_Data' -ArchivePath $modZip }
+catch { Write-Fail $_; Pause-User 'Press Enter to exit...'; exit 1 }
 
 # -------------------------------------------------------
 # STEP 4: Extract mod files into the game folder
@@ -286,53 +289,29 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  $srcRoot = $rootEntries[0].FullName
  }
 }
+$requiredModFiles=@('winhttp.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\UnityVR_AnotherCrabTreasure.dll','AnotherCrabsTreasure_Data\Plugins\x86_64\openvr_api.dll')
+try { $payloadHashes=Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
+catch { Write-Fail $_; Pause-User 'Press Enter to exit...'; exit 1 }
 
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+$contract=New-PCVRInstallerContract -Id 'another-crabs-treasure-vr' -GameName "Another Crab's Treasure VR" -Acquisition Discord `
+ -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL -RequiredInstalledFileGroups $requiredModFiles
+$keepConfigs=@('BepInEx\config\BepInEx.cfg','BepInEx\config\UnityVR_Bepinex.cfg')
+$installed=$false
+while (-not $installed) {
+ try {
+  [void](Invoke-PCVRDropInInstall -SourceRoot $srcRoot -GameRoot $gamePath -SourceHashes $payloadHashes `
+   -KeepExistingFiles $keepConfigs -Contract $contract -Version $MOD_VERSION `
+   -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')))
+  $installed=$true
+ } catch {
+  Write-Fail "Installation failed; previous files were restored: $_"
+  Write-Host ' Correct the file or permission problem, then choose [R] to retry.' -ForegroundColor Yellow
+  if ((Read-Host ' [R] Retry / [Q] Quit').Trim() -notmatch '^(?i:r)$') { exit 1 }
  }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
 }
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check - DLL is named UnityVR_AnotherCrabTreasure.dll
-# (singular "Crab" in the DLL despite the game title using
-# "Crab's").
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\UnityVR_AnotherCrabTreasure.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but UnityVR_AnotherCrabTreasure.dll is missing."
-} else {
- Write-OK "BepInEx + UnityVR_AnotherCrabTreasure.dll present."
-}
-
-# -------------------------------------------------------
-# Record install path so the Hub can mark VR Ready
-# -------------------------------------------------------
-try {
- $pathFile = Join-Path $PSScriptRoot ".installed_path"
- Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-} catch {}
+try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+Write-OK 'VR runtime verified; existing configuration kept.'
 
 # -------------------------------------------------------
 # Done

@@ -216,7 +216,7 @@ function Get-DlssSwapperUrl {
 function Find-RonModDownload {
     $folders = @()
     foreach ($f in @(
-        (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"),
+        (Get-PCVRDownloadsFolder),
         ([Environment]::GetFolderPath("Desktop"))
     )) { if ($f -and (Test-Path -LiteralPath $f)) { $folders += $f } }
     if ($folders.Count -eq 0) { return $null }

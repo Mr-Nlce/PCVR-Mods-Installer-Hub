@@ -7,14 +7,9 @@
 #  OWN game dump next to it. So we download the release, unpack it
 #  to a location of their choice and create a shortcut.
 #
-#  TWO THINGS THAT MAKE THIS ENTRY SPECIAL:
-#  1. THE ARCHIVE IS HUGE - over 500 MB packed, around 2 GB
-#     unpacked. The author ships his COMPLETE build folder (_deps,
-#     CMakeFiles, .pdb, .lib, .obj). Playing needs maybe 90 MB of
-#     that. We say so beforehand, so nobody thinks something went
-#     wrong.
-#  2. THE EXE SITS IN A SUBFOLDER windows-msvc-relwithdebinfo, not
-#     at the archive root.
+#  Current publisher ZIPs use a compact runtime folder. Older Hub installs
+#  used windows-msvc-relwithdebinfo. Keep that Hub launch contract, but park
+#  the complete old folder before installing the new runtime into it.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -47,6 +42,32 @@ function Read-YesNo {
         if ($a -eq "Y" -or $a -eq "YES") { return $true }
         if ($a -eq "N" -or $a -eq "NO")  { return $false }
         Write-Warn "Please type Y or N."
+    }
+}
+
+function Get-TwilightInstalledTexturePacks {
+    param([string]$TextureDir)
+    if (-not (Test-Path -LiteralPath $TextureDir -PathType Container)) { return @() }
+    $installed = @()
+    foreach ($folder in @(Get-ChildItem -LiteralPath $TextureDir -Directory -Filter 'HenrikosTP4K*' -ErrorAction SilentlyContinue)) {
+        if (Get-ChildItem -LiteralPath $folder.FullName -Recurse -File -Filter '*.dds' -ErrorAction SilentlyContinue | Select-Object -First 1) {
+            $installed += $folder
+        }
+    }
+    return $installed
+}
+
+function Read-TwilightTexturePackChoice {
+    param([string]$TextureDir)
+    $installed = @(Get-TwilightInstalledTexturePacks -TextureDir $TextureDir)
+    if ($installed.Count -eq 0) { return (Read-YesNo '  Set up one ZTP texture-pack version as well?') }
+    Write-Host '  ZTP texture pack already installed:' -ForegroundColor Green
+    foreach ($folder in $installed) { Write-Host "    $($folder.Name)" -ForegroundColor Gray }
+    while ($true) {
+        $answer = (Read-Host '  Download and set up a ZTP texture pack again? [y/N]').Trim()
+        if (-not $answer -or $answer -match '^(?i:n|no)$') { return $false }
+        if ($answer -match '^(?i:y|yes)$') { return $true }
+        Write-Warn 'Please type Y or N.'
     }
 }
 
@@ -88,15 +109,10 @@ function Get-TwilightTextureDownloadFolders {
     $folders = New-Object System.Collections.Generic.List[string]
     $seen = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
 
-    # Honour a redirected Downloads known folder, then the ordinary profile
-    # and OneDrive locations. Pasted M:\ and UNC paths are accepted separately.
-    try {
-        $shellFolders = Get-ItemProperty -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders' -ErrorAction Stop
-        $redirected = '' + $shellFolders.'{374DE290-123F-4565-9164-39C4925E467B}'
-        if ($redirected) { $redirected = [Environment]::ExpandEnvironmentVariables($redirected); [void]$folders.Add($redirected) }
-    } catch {}
-    $profile = [Environment]::GetFolderPath('UserProfile')
-    if ($profile) { [void]$folders.Add((Join-Path $profile 'Downloads')) }
+    # The Windows Known Folder is authoritative even when it was moved.
+    # Pasted M:\ and UNC paths are accepted separately.
+    $registered = Get-PCVRDownloadsFolder
+    if ($registered) { [void]$folders.Add($registered) }
     if ($env:OneDrive) { [void]$folders.Add((Join-Path $env:OneDrive 'Downloads')) }
     foreach ($extra in @($ExtraFolders)) { if ($extra) { [void]$folders.Add([string]$extra) } }
 
@@ -362,6 +378,54 @@ function Copy-TwilightRuntimeToCanonical {
            Select-Object -First 1
 }
 
+function Assert-TwilightSafeArchive {
+    param([Parameter(Mandatory=$true)][string]$ArchivePath)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+    $archive = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
+    try {
+        foreach ($entry in $archive.Entries) {
+            $path = $entry.FullName.Replace('\','/')
+            $parts = @($path.Split('/') | Where-Object { $_ })
+            $unixKind = (($entry.ExternalAttributes -shr 16) -band 0xF000)
+            if (-not $path -or $path.StartsWith('/') -or $path -match '^[A-Za-z]:' -or
+                $parts -contains '..' -or $parts -contains '.' -or $path.Contains(':') -or
+                $unixKind -eq 0xA000 -or ($entry.ExternalAttributes -band [int][IO.FileAttributes]::ReparsePoint)) {
+                throw "The publisher archive has an unsafe path: $path"
+            }
+        }
+    } finally { $archive.Dispose() }
+}
+
+function Assert-TwilightRuntimeFiles {
+    param([Parameter(Mandatory=$true)][string]$Root)
+    $exe = Join-Path $Root 'dusklight.exe'
+    if (-not (Test-TwilightExecutable $exe)) { throw "The staged Dusklight executable is missing or invalid: $exe" }
+    foreach ($name in @('openxr_loader.dll','SDL3.dll','nod.dll','jsoncpp.dll')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf)) {
+            throw "The staged publisher runtime is missing $name."
+        }
+    }
+}
+
+function Assert-TwilightCopiedPayload {
+    param([Parameter(Mandatory=$true)][string]$SourceRoot,[Parameter(Mandatory=$true)][string]$TargetRoot)
+    $prefix = [IO.Path]::GetFullPath($SourceRoot).TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar
+    $files = @(Get-ChildItem -LiteralPath $SourceRoot -Recurse -File -Force -ErrorAction Stop)
+    if ($files.Count -lt 5) { throw 'The staged publisher runtime has too few files.' }
+    foreach ($source in $files) {
+        $relative = $source.FullName.Substring($prefix.Length)
+        $target = Join-Path $TargetRoot $relative
+        if (-not (Test-Path -LiteralPath $target -PathType Leaf)) { throw "The copied runtime is missing $relative." }
+        $actual = Get-Item -LiteralPath $target -Force -ErrorAction Stop
+        if ($actual.Length -ne $source.Length -or
+            (Get-FileHash -LiteralPath $source.FullName -Algorithm SHA256).Hash -ne
+            (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash) {
+            throw "The copied runtime differs from the publisher payload: $relative"
+        }
+    }
+    Assert-TwilightRuntimeFiles -Root $TargetRoot
+}
+
 # Fallback 5 is deliberately last because the archive is large. It decouples
 # extraction from the chosen folder, discovers the payload in a clean tree,
 # and then normalizes it into the stable Hub layout.
@@ -441,7 +505,7 @@ $MOD_NAME    = "Dusklight VR"
 $MOD_AUTHOR  = "JoeyAW"
 $REPO        = "JoeyAW/TPVR"
 $RELEASES    = "https://github.com/$REPO/releases"
-$ASSET       = "TPVR-Windows-x64.zip"
+$ASSET       = "tpvr-windows-x64.zip"
 $BUILD_SUB   = "windows-msvc-relwithdebinfo"
 $GAME_EXE    = "dusklight.exe"
 $DEFAULT_DIR = "C:\Games\Twilight Princess VR"
@@ -483,7 +547,8 @@ Write-Host "  game folder. Pick a place with room to spare." -ForegroundColor Wh
 Write-Host ""
 Write-Host "    Default: $DEFAULT_DIR" -ForegroundColor Cyan
 Write-Host ""
-$requestedDir = Get-PCVRRememberedGameFolder -ProbeFiles @('windows-msvc-relwithdebinfo\dusklight.exe')
+$isTwilightFixture = $env:PCVR_HUB_TEST_MODE -eq '1' -and -not [string]::IsNullOrWhiteSpace($env:PCVR_TWILIGHT_TEST_GAME_ROOT)
+$requestedDir = if ($isTwilightFixture) { $env:PCVR_TWILIGHT_TEST_GAME_ROOT } else { Get-PCVRRememberedGameFolder -ProbeFiles @('windows-msvc-relwithdebinfo\dusklight.exe') }
 $recoveryInstallRoot = Get-PCVRRecoveryInput -PathType Container
 if ($recoveryInstallRoot) {
     $requestedDir = $recoveryInstallRoot
@@ -506,21 +571,20 @@ Write-OK "Install folder: $dir"
 # ---- 2. Download ----------------------------------------------
 Write-Step 2 5 "Downloading $MOD_NAME"
 Write-Host ""
-Write-Host "  HEADS UP - THIS IS A BIG ONE. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "  CURRENT PACKAGE IS COMPACT. " -NoNewline -ForegroundColor Black -BackgroundColor Yellow
 Write-Host ""
-Write-Host "  Over 500 MB to download and around 2 GB once unpacked. That" -ForegroundColor White
-Write-Host "  is not a mistake: the author ships his whole build folder," -ForegroundColor White
-Write-Host "  compiler leftovers and all. The game itself is a fraction of" -ForegroundColor White
-Write-Host "  it. Nothing is wrong if it takes a while." -ForegroundColor White
+Write-Host "  The current Windows release is about 52 MB. Setup first checks" -ForegroundColor White
+Write-Host "  a clean staged copy. An older Hub runtime is kept in a named" -ForegroundColor White
+Write-Host "  backup folder until you choose to remove it yourself." -ForegroundColor White
 Write-Host ""
 
 $tmp = Join-Path $env:TEMP ("dusklight_" + [System.IO.Path]::GetRandomFileName())
 New-Item -ItemType Directory -Path $tmp -Force | Out-Null
 $zip = Join-Path $tmp $ASSET
 
-$url = "https://github.com/$REPO/releases/latest/download/$ASSET"
-$tag = "latest"
-try {
+$tag = "2.3.0"
+$url = "https://github.com/$REPO/releases/download/$tag/$ASSET"
+if (-not $isTwilightFixture) { try {
     $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     if (Test-IsPayloadRelease -Release $rel) {
@@ -531,17 +595,25 @@ try {
         }
     }
     Write-OK "Release: $tag"
-} catch { Write-Warn "GitHub could not be reached - trying the direct link." }
+} catch { Write-Warn "GitHub could not be reached - trying the direct link." } }
 
 # An existing file on disk first - at this size a real time saver
 # when the user already downloaded it.
-$have = Find-PredownloadedFile -Patterns @("TPVR-Windows*.zip", "Dusklight-VR-Windows*.zip", "*Dusklight*VR*.zip") -Label "the Dusklight VR release"
-if ($have -and (Test-Path -LiteralPath $have)) {
-    $zip = $have
+$manualArchive = if ($isTwilightFixture -and $env:PCVR_TWILIGHT_TEST_ARCHIVE) { $env:PCVR_TWILIGHT_TEST_ARCHIVE } else { Get-PCVRRecoveryInput -PathType Leaf }
+if ($manualArchive -and [IO.Path]::GetExtension($manualArchive) -ieq '.zip') {
+    if (-not $isTwilightFixture) {
+        $manualVersion = [regex]::Match([IO.Path]::GetFileName($manualArchive),'(?i)tpvr-windows-x64-(v\d+(?:\.\d+){1,3})\.zip$').Groups[1].Value
+        if ($manualVersion -and $manualVersion -ne $tag) { throw "The supplied TPVR archive is $manualVersion, not selected release $tag. No runtime files were changed." }
+        Write-Host "  Official release selected: $tag" -ForegroundColor Yellow
+        $confirmed = ([string](Read-Host "Type the exact release tag $tag to confirm the manual ZIP")).Trim()
+        if ($confirmed -cne $tag) { throw 'The manual TPVR archive version was not confirmed. No runtime files were changed.' }
+    }
+    $zip = $manualArchive
+    Write-Info "Using the ZIP explicitly supplied through installer recovery: $zip"
 } else {
     Invoke-SafeDownload -Urls @($url) -Destination $zip -Label "$MOD_NAME $tag" `
         -ManualUrl $RELEASES `
-        -Instructions "Download $ASSET from the releases page, save it as '$zip', then choose Retry."
+        -Instructions "Download the current Windows PCVR ZIP from the releases page, then hand it to the recovery screen."
 }
 if (-not (Test-Path -LiteralPath $zip)) {
     try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
@@ -550,60 +622,90 @@ if (-not (Test-Path -LiteralPath $zip)) {
 
 # ---- 3. Entpacken ---------------------------------------------
 Write-Step 3 5 "Unpacking"
-Write-Host "  This takes a few minutes - it is a lot of small files." -ForegroundColor Gray
-$extractResult = Expand-TwilightArchive -Archive $zip -Destination $dir -Label $MOD_NAME
-$runtime = $null
-if ([string]$extractResult -eq 'ok') {
-    $runtime = Find-TwilightRuntime -InstallRoot $dir -ArchivePath $zip -RawInstallInput $requestedDir
-} else {
-    Write-Warn 'The first extraction did not produce a verified result.'
+$stage = Join-Path $dir ('.pcvrhub_tpvr_stage_' + [Guid]::NewGuid().ToString('N'))
+$canonicalRoot = Join-Path $dir $BUILD_SUB
+$backupRoot = ''
+$targetTouched = $false
+$exe = $null
+$receiptPaths = @(
+    (Join-Path $(if ($isTwilightFixture) { $dir } else { $PSScriptRoot }) '.installed_path'),
+    (Join-Path $(if ($isTwilightFixture) { $dir } else { $PSScriptRoot }) '.launch_exe'),
+    (Join-Path $(if ($isTwilightFixture) { $dir } else { $PSScriptRoot }) '.installed_version'),
+    (Join-Path $dir '.pcvrhub_version')
+)
+$receiptsBefore = @{}
+foreach ($receiptPath in $receiptPaths) {
+    $receiptsBefore[$receiptPath] = if (Test-Path -LiteralPath $receiptPath -PathType Leaf) { [IO.File]::ReadAllBytes($receiptPath) } else { $null }
 }
-
-if ($runtime) {
-    Write-Info "Runtime discovery: $($runtime.Method)"
-    $canonicalRoot = Join-Path $dir $BUILD_SUB
-    if ([IO.Path]::GetFullPath($runtime.RuntimeRoot).TrimEnd('\') -ine [IO.Path]::GetFullPath($canonicalRoot).TrimEnd('\')) {
-        Write-Warn 'The publisher layout changed; normalizing it for stable Hub detection.'
-        try {
-            $canonicalExe = Copy-TwilightRuntimeToCanonical -SourceRoot $runtime.RuntimeRoot -InstallRoot $dir
-            if ($canonicalExe) { $runtime = [pscustomobject]@{ Exe=$canonicalExe.FullName; RuntimeRoot=$canonicalExe.DirectoryName; Method=($runtime.Method + '-normalized') } }
-        } catch { $runtime = $null; Write-Warn "Layout normalization failed: $($_.Exception.Message)" }
+try {
+    Assert-TwilightSafeArchive -ArchivePath $zip
+    [void][IO.Directory]::CreateDirectory($stage)
+    $extractResult = Expand-TwilightArchive -Archive $zip -Destination $stage -Label $MOD_NAME
+    $runtime = $null
+    if ([string]$extractResult -eq 'ok') { $runtime = Find-TwilightRuntime -InstallRoot $stage -ArchivePath $zip }
+    if (-not $runtime) {
+        Write-Warn 'The first extraction was incomplete; trying a clean staged extraction.'
+        $runtime = Invoke-TwilightRecoveryExtraction -ArchivePath $zip -InstallRoot $stage
     }
-}
+    if (-not $runtime) { throw 'No complete runtime was found in the publisher archive. Use installer recovery to retry or hand over a current release ZIP.' }
+    Assert-TwilightRuntimeFiles -Root $runtime.RuntimeRoot
+    Write-OK 'The complete publisher runtime was verified before changing the installed build.'
 
-if (-not $runtime -or -not (Test-TwilightExecutable $runtime.Exe)) {
-    Write-Warn 'The first extraction tree could not be verified.'
-    Write-Host '  Fallback 5 will now re-extract into a clean staging folder.' -ForegroundColor Gray
-    Write-Host '  This is active recovery, not a frozen installer; the large archive' -ForegroundColor Gray
-    Write-Host '  can take several more minutes to unpack a second time.' -ForegroundColor Gray
-    $runtime = Invoke-TwilightRecoveryExtraction -ArchivePath $zip -InstallRoot $dir
-}
+    if (Test-Path -LiteralPath $canonicalRoot) {
+        $old = Get-Item -LiteralPath $canonicalRoot -Force -ErrorAction Stop
+        if (-not $old.PSIsContainer -or ($old.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            throw 'The existing runtime path is not an ordinary folder; it was left unchanged.'
+        }
+        $backupRoot = Join-Path $dir ('.pcvrhub_tpvr_backup_' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '_' + [Guid]::NewGuid().ToString('N').Substring(0,8))
+        Move-Item -LiteralPath $canonicalRoot -Destination $backupRoot -ErrorAction Stop
+        Write-Info "Previous build preserved: $backupRoot"
+    }
+    $targetTouched = $true
+    $copied = Copy-TwilightRuntimeToCanonical -SourceRoot $runtime.RuntimeRoot -InstallRoot $dir
+    if (-not $copied) { throw 'The staged runtime could not be installed into the Hub launch folder.' }
+    Assert-TwilightCopiedPayload -SourceRoot $runtime.RuntimeRoot -TargetRoot $canonicalRoot
+    $exe = Get-Item -LiteralPath $copied.FullName -Force -ErrorAction Stop
+    Write-OK "Ready: $($exe.FullName)"
 
-if (-not $runtime -or -not (Test-TwilightExecutable $runtime.Exe)) {
-    Write-Warn 'All automatic routes were exhausted. Manual recovery remains available.'
-    Write-Host '  You may supply the extracted folder, dusklight.exe, or the release ZIP.' -ForegroundColor Yellow
-    $runtime = Resolve-TwilightRuntimeInteractively -InstallRoot $dir -ArchivePath $zip -RawInstallInput $requestedDir
+    $avFilesOk = Confirm-PlacedFilesSurvive -Paths @($exe.FullName) -GameDir $dir -ArchivePath $zip
+    if (-not $avFilesOk) { throw 'The new runtime did not survive the post-copy check.' }
+    if (-not (Test-IsTrackableInstalledVersion -Version $tag)) { throw 'The installed publisher version could not be established.' }
+    Set-Content -LiteralPath $receiptPaths[0] -Value $dir -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath $receiptPaths[1] -Value $exe.FullName -Encoding UTF8 -Force -ErrorAction Stop
+    Set-Content -LiteralPath $receiptPaths[2] -Value $tag -Encoding UTF8 -Force -ErrorAction Stop
+    Save-InstalledStamp -GameDir $dir -Version $tag
+    $writtenVersion = (Get-Content -LiteralPath (Join-Path $dir '.pcvrhub_version') -Raw -ErrorAction Stop).Trim()
+    if ($writtenVersion -ne $tag) { throw 'The new release version receipt was not written to the installed folder.' }
+} catch {
+    $problem = $_.Exception.Message
+    $rollbackError = ''
+    if ($targetTouched -and (Test-Path -LiteralPath $canonicalRoot)) {
+        try { Remove-Item -LiteralPath $canonicalRoot -Recurse -Force -ErrorAction Stop } catch { $rollbackError = $_.Exception.Message }
+    }
+    if ($backupRoot -and (Test-Path -LiteralPath $backupRoot)) {
+        try { Move-Item -LiteralPath $backupRoot -Destination $canonicalRoot -ErrorAction Stop } catch { $rollbackError = $_.Exception.Message }
+    }
+    foreach ($receiptPath in $receiptPaths) {
+        try {
+            if ($null -eq $receiptsBefore[$receiptPath]) {
+                if (Test-Path -LiteralPath $receiptPath) { Remove-Item -LiteralPath $receiptPath -Force -ErrorAction Stop }
+            } else {
+                [IO.File]::WriteAllBytes($receiptPath,[byte[]]$receiptsBefore[$receiptPath])
+            }
+        } catch { $rollbackError = $_.Exception.Message }
+    }
+    if ($rollbackError) { throw "Twilight setup failed: $problem. The previous runtime could not be fully restored: $rollbackError. Backup: $backupRoot" }
+    throw "Twilight setup failed; the previous runtime was restored: $problem"
+} finally {
+    if (Test-Path -LiteralPath $stage) { try { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction Stop } catch { Write-Warn "Staging cleanup failed: $stage" } }
+    if ($zip -like "$tmp*" -and (Test-Path -LiteralPath $tmp)) { try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction Stop } catch {} }
 }
-$exe = Get-Item -LiteralPath $runtime.Exe -Force
-Write-OK "Ready: $($exe.FullName)"
-
-# THE FOLDER TO EXCLUDE IS WHERE THE MOD LIVES - this one installs into
-# its own folder, not into a game directory. The archive is still there,
-# so recovery can unpack it again on excluded ground.
-$avFilesOk = Confirm-PlacedFilesSurvive `
-    -Paths @($exe.FullName) `
-    -GameDir $dir `
-    -ArchivePath $zip
-if (-not $avFilesOk) {
-    try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
-    throw 'Twilight Princess VR could not be restored after the post-copy survival check. Retry or supply the archive/runtime folder on the recovery screen.'
-}
-try { if ($zip -like "$tmp*") { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } } catch {}
 
 # ---- 4. Shortcut and marker -----------------------------------
 Write-Step 4 5 "Finishing up"
 $exeDir = Split-Path $exe.FullName -Parent
 try {
+    if ($isTwilightFixture) { throw 'Desktop shortcut intentionally omitted in the isolated installer fixture.' }
     $ws = New-Object -ComObject WScript.Shell
     $lnk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath("Desktop")) "Twilight Princess VR.lnk"))
     $lnk.TargetPath = $exe.FullName
@@ -611,14 +713,6 @@ try {
     $lnk.Save()
     Write-OK "Desktop shortcut created."
 } catch { Write-Warn "Could not create the desktop shortcut." }
-
-# Marker for the Hub - into the INSTALLER folder.
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_path") -Value $dir -Encoding UTF8 -Force } catch {}
-try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".launch_exe")     -Value $exe.FullName -Encoding UTF8 -Force } catch {}
-if (Test-IsTrackableInstalledVersion -Version $tag) {
-    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $tag -Encoding UTF8 -Force } catch {}
-    Save-InstalledStamp -GameDir $dir -Version $tag
-}
 
 # ---- 5. ZTP HD texture pack (optional) ------------------------
 # By Henriko Magnifico. Hosted behind the author's download page,
@@ -634,7 +728,7 @@ Write-Host "  The 4K PC edition is about 4 GB packed and several GB unpacked." -
 Write-Host ""
 Write-Host "  Purely cosmetic; the game runs fine without it." -ForegroundColor Gray
 Write-Host ""
-if (Read-YesNo "  Set up one ZTP texture-pack version as well?") {
+if (Read-TwilightTexturePackChoice -TextureDir $TEX_DIR) {
     $texZip = $null
     $textureSkipRequested = $false
     $existingTextureDownloads = @(Get-TwilightTextureArchiveCandidates)

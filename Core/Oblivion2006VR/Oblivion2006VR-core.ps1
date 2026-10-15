@@ -33,7 +33,7 @@ function Get-OpenVR32 {
 function Get-MenuQueArchive([string]$work){
     if(Test-Path (Join-Path $script:OBGame 'Data\OBSE\Plugins\MenuQue.dll')){return $null}
     Write-Host '  MenuQue v16b is required for OBVR onboarding and native menus.' -ForegroundColor Yellow;[void](Wait-PCVRExplicitEnter -Message 'Press Enter to open the official Nexus Files page...');Start-Process $MENU_URL;[void](Wait-PCVRExplicitEnter -Message 'After downloading MenuQue v16b, press Enter to search Downloads...')
-    $downloads=[Environment]::GetFolderPath('UserProfile')+'\Downloads';$candidate=Get-ChildItem $downloads -File -ErrorAction SilentlyContinue|Where-Object{$_.Name -match '(?i)menuque.*(zip|7z|rar)$'}|Sort-Object LastWriteTime -Descending|Select-Object -First 1
+    $downloads=(Get-PCVRDownloadsFolder);$candidate=Get-ChildItem $downloads -File -ErrorAction SilentlyContinue|Where-Object{$_.Name -match '(?i)menuque.*(zip|7z|rar)$'}|Sort-Object LastWriteTime -Descending|Select-Object -First 1
     while(-not $candidate){Write-Host '  MenuQue was not found. Drag/drop its archive, reopen Nexus, or search again.' -ForegroundColor Yellow;Write-Host '  [D] Drag/drop path   [N] Open Nexus   [R] Search Downloads' -ForegroundColor White;$c=([string](Read-Host 'Choice')).Trim().ToUpperInvariant();if($c -eq 'N'){Start-Process $MENU_URL;continue};if($c -eq 'D'){$p=([string](Read-Host 'Archive')).Trim().Trim('"');if(Test-Path $p -PathType Leaf){$candidate=Get-Item $p}}elseif($c -eq 'R'){$candidate=Get-ChildItem $downloads -File -ErrorAction SilentlyContinue|Where-Object{$_.Name -match '(?i)menuque.*(zip|7z|rar)$'}|Sort-Object LastWriteTime -Descending|Select-Object -First 1}}
     return $candidate.FullName
 }

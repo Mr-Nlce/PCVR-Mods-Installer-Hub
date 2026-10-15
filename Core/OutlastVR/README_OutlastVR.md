@@ -1,65 +1,89 @@
 # Outlast VR
 
+## About the Game
+
+Outlast (2013) is a first-person survival horror game. This page offers a
+gamepad VR mod by Halcyon and a motion-control VR mod by T-Diamond. The Hub
+keeps their overlapping runtime files in separate stores and switches them
+when you choose the corresponding Play action.
+
 ## Two mods, one page
 
 There are two Outlast VR mods with different controls. The
 installer offers either, or both.
 
-| | **Halcyon** | **Hammerthis** |
+| | **Halcyon** | **Insanity Engine VR** |
 |---|---|---|
 | **Controls** | **gamepad only** | **tracked VR controllers + VR hands** |
-| State | gamepad-focused option | **v1.0 drop-in** |
-| Camcorder | raised with a button | reach out, grab it, raise it yourself |
-| Night vision | button | R3 while holding the camcorder |
-| Movement | gamepad sticks | left stick; click it while moving to sprint |
+| State | gamepad-focused option | **early beta, prerelease updates** |
+| Camcorder | raised with a button | held and aimed with your hand |
+| Night vision | button | use the camcorder; v0.1.1 fixes its grip behavior |
+| Movement | gamepad sticks | room-scale 6DoF and motion controllers |
 | How it works | a `d3d9.dll` next to the game exe | a different `d3d9.dll` in the same folder |
-| Active files | four files | loaders, config and the body texture |
+| Active files | four files | six runtime and setup files |
 | Where to get it | Patreon | GitHub, free |
 
 **This is why the tile shows both a gamepad and a controller icon.** Which one
 you actually play with depends on the mod you install - the entry is not
 gamepad-only any more, and it is not motion-controls-only either.
 
-### Hammerthis controls in detail
-- [[Left Stick]] move
-- [[Left Stick Click]] while moving: sprint
-- [[Right Stick]] horizontal only - turning. Vertical is suppressed, because
-  pitch follows your head.
-- [[A]] / [[B]] / [[X]] / [[Y]] and the triggers behave like Outlast's normal
-  gamepad buttons
-- **Grab the camcorder** with your hand and raise it to your face
-- [[R3]] while the camcorder is up: Outlast's own night vision
+### Insanity Engine VR controls
 
-Motion interactions with doors and pickups are in, but experimental.
+| Button | Action |
+|---|---|
+| [[Right Grip]] | Hold and aim the camcorder. |
+| [[X]] | Pick up the nearest item within 1.5 m. |
+| [[F10]] | Open the mod settings menu on the monitor. |
+| [[G]] | Recenter the view. |
+
+Some story prompts appear only while crouched. Door interactions and physical
+holsters are still being developed. The current README notes that the
+camcorder/night-vision path is a work in progress even after the v0.1.1 fix.
 
 **Close Outlast before switching.** Both mods now use `d3d9.dll`,
 `openxr_loader.dll` and `outlastvr.ini` in `Binaries\Win64`. The installer
-keeps separate copies under `_vrmods\halcyon` and `_vrmods\hammerthis`.
-Launchers in `_vrmods\VRLaunch` save the active config, verify and copy the
-chosen mod, then start the game. A failed switch restores the previous files
-and does not start Outlast. With both installed, the Hub shows both Play buttons.
+keeps separate copies under `_vrmods\halcyon` and `_vrmods\insanity`.
+Use **Start in VR** for the chosen mod in the Hub. It saves the active config,
+verifies and copies the chosen mod, then starts the game. A failed switch
+restores the previous files and does not start Outlast. Each mod also keeps a
+separate copy of Outlast's four Documents INIs under its own `GameConfig`
+folder. Switching restores the
+chosen profile; Insanity's door calibration and mod INI are kept as well. With
+both installed, the Hub shows both Play buttons.
 
-### Hammerthis, in short
-Version 1.0 needs no injector or author-provided launcher. A Hammerthis-only
-installation is activated immediately. Use the Hub or
-`_vrmods\VRLaunch\Outlast VR (Hammerthis).bat` to play.
-Its extra files are `openxr_loader_real.dll` and
-`assets\miles\body_albedo.tga` below `Binaries\Win64`.
+### Insanity Engine VR installation and updates
 
-If upgrading from the old injector release, its files are retained in the
-Hammerthis folder. `RESTORE_OUTLAST_SETTINGS.bat` belongs to that old release
-and can undo its graphics changes; it is not required by the new drop-in mod.
+The installer resolves the newest installable GitHub release, including
+prereleases; it excludes the `-source.zip` attachment. It copies the six
+required files to its parked store and activates them under `Binaries\Win64`.
+The publisher's `Outlast-VR.bat` then asks for your headset refresh rate and
+backs up the game's Documents configuration. Run Outlast normally once before
+installing. Do not turn off Depth of Field: the mod needs it for night vision.
+Start your OpenXR runtime first, then use **Start in VR** in the Hub. Steam
+installs use Steam's game launch route; other stores have not been publisher
+tested. The mod needs a Vulkan-capable GPU.
 
-Expect rough edges: props and documents can vanish at some angles
-because Outlast's UE3 visibility system was built for a flat screen, shadows
-can shift with head movement, and the framerate can drop.
+If you installed Hammerthis through an older Hub, choosing Insanity Engine VR
+replaces that motion-control route. After the new setup succeeds, the Hub
+removes its known old binaries and old launcher. It keeps the old personal
+`outlastvr.ini` and any unrecognized files under `_vrmods\Hammerthis`, so you
+can retrieve them. The new mod uses its own INI format; do not reuse the old
+one blindly. Halcyon's parked files remain available.
+
+The official mod is still a beta. The publisher reports that headset hand
+tracking may need adjustment in the [[F10]] menu. Current known issues include
+a slightly visible night-vision light, an off-centre HUD dot, no VR pickup
+prompts, and body-relative left/right aiming. Steam with Meta Quest via Quest
+Link or Virtual Desktop is tested; GOG, Epic and SteamVR headsets are not.
+
+[Insanity Engine VR releases](https://github.com/TdiamondOf/InsanityEngineVR/releases)
 
 ---
 
 ## The Halcyon mod
 
 **Everything from here on describes Halcyon's mod only** - the download, the
-installation, the in-game settings and the known issues. Hammerthis' mod is
+installation, the in-game settings and the known issues. Insanity Engine VR is
 covered above and installs entirely through the Hub.
 
 Stereoscopic VR with full head tracking for **Outlast**, by **Halcyon**. Cutscenes
@@ -165,14 +189,20 @@ By hand: https://aka.ms/dotnet/6.0/windowsdesktop-runtime-win-x64.exe
 
 ## Uninstalling
 
-Run `Outlast-VR.bat` again from `Binaries\Win64` and choose **[2] Uninstall**.
-That is the author's own route and it restores the game config. By hand, delete
-`d3d9.dll`, `openxr_loader.dll`, `outlastvr.ini` and `Outlast-VR.bat` from that
-folder - no base game file is touched.
+For Insanity Engine VR, use **Uninstall now** on this page. The Hub activates
+that mod, opens its publisher setup after you press Enter, and asks you to
+choose **[2] Uninstall**. The publisher restores the original Documents game
+settings and removes its game-folder files. The Hub then removes its parked
+runtime and reactivates Halcyon if installed. Personal settings remain saved.
+
+To remove Halcyon, activate it and run its `Outlast-VR.bat` from
+`Binaries\Win64`, then choose **[2] Uninstall**.
 
 ## Credits
 
 Mod by **Halcyon** - https://www.patreon.com/dhalcyon
+
+Insanity Engine VR by **T-Diamond** - https://github.com/TdiamondOf/InsanityEngineVR
 
 An unofficial fan project, not affiliated with Red Barrels.
 
