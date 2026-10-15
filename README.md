@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (310)</summary>
+<summary>Show all currently listed titles (315)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -31,6 +31,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Apollo Justice: Ace Attorney Trilogy
 * ARMA 3 [EARLY WIP]
 * Art of Rally VR
+* Arx Fatalis VR (motion controls)
 * Ashes 2063 VR (motion controls)
 * Assassin's Creed Mirage
 * Assassin's Creed Odyssey
@@ -208,7 +209,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Paranoia Place VR (motion controls)
 * Pathfinder: Kingmaker (motion controls)
 * Peak VR (motion controls)
+* Penumbra: Black Plague VR (motion controls)
 * Penumbra: Overture VR (motion controls)
+* Penumbra: Requiem VR (motion controls)
 * Perfect Dark VR (motion controls)
 * Pokemon Crystal
 * Pokemon Gen 1 Recomp Voxel
@@ -240,6 +243,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Resident Evil 4R (motion controls)
 * Resident Evil 7 (motion controls)
 * Retrowave 2
+* Return to Castle Wolfenstein VR (motion controls)
 * Richard Burns Rally (motion controls)
 * Risk of Rain 2 (motion controls)
 * Road Redemption VR (motion controls)
@@ -331,6 +335,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * World of Warcraft VR (motion controls)
 * World War II GI VR (motion controls)
 * X4: Foundations
+* XIII Remake VR (motion controls)
 * Yooka-Laylee VR
 * (Dolphin VR + Redux)
 * (Skyrim VR + Fallout 4 VR Wabbajack modlists)
