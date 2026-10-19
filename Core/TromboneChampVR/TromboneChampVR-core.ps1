@@ -91,6 +91,7 @@ Write-Header
 Write-Host "  Pins Trombone Champ to a known-good Steam depot in its own" -ForegroundColor White
 Write-Host "  folder, then adds the BaboonVR mod. Your normal install is" -ForegroundColor White
 Write-Host "  left untouched." -ForegroundColor White
+Write-Host "  Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  You'll need:" -ForegroundColor White
 Write-Host "    - Trombone Champ owned on Steam (App $DEPOT_APPID)" -ForegroundColor Gray
@@ -136,10 +137,7 @@ if ($script:PreFoundDepot) {
 if (-not $script:PreFoundDepot) {
 
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
-# Both protocol addresses: depending on the Steam build only one works.
-foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-}
+[void](Open-PCVRSteamConsole)
 Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 
@@ -199,19 +197,13 @@ if (-not (Test-Path $depotExe)) {
 $parentOfDepot = Get-PathParentLexical $depotPath  # ...\app_1059990
 
 Write-Host ""
-Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 $targetPath = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
 if ($targetPath) {
     Write-OK "Using the remembered Trombone Champ VR folder: $targetPath"
 } else {
-    $userInput = (Read-Marked "Press Enter for default, or type a full path").Trim().Trim('"')
-    if (-not $userInput) {
-        $targetPath = $DEFAULT_PATH
-    } else {
-        $targetPath = $userInput
-    }
+    $targetPath = Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH
 }
 
 $targetParent = Get-PathParentLexical $targetPath

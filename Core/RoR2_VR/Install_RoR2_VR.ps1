@@ -517,6 +517,7 @@ if (-not $currentInfo) {
 Write-Host ""
 Write-Host "  [2] Last confirmed working version - recommended fallback" -ForegroundColor White
 Write-Host "      [game $CONFIRMED_GAME_VERSION / build $CONFIRMED_GAME_BUILD / Resurrected VRMod $CONFIRMED_MOD_VERSION]" -ForegroundColor Gray
+Write-Host "      Default game folder: $CONFIRMED_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 if (Test-Path -LiteralPath (Join-Path $CONFIRMED_DEFAULT_PATH $GAME_EXE) -PathType Leaf) {
     Write-Host "      [installed at $CONFIRMED_DEFAULT_PATH]" -ForegroundColor Green
 } else {
@@ -524,6 +525,7 @@ if (Test-Path -LiteralPath (Join-Path $CONFIRMED_DEFAULT_PATH $GAME_EXE) -PathTy
 }
 Write-Host ""
 Write-Host "  [3] Original legacy depot - VRMod 2.9.2 by DrBibop" -ForegroundColor White
+Write-Host "      Default game folder: $LEGACY_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 if (Test-Path -LiteralPath (Join-Path $LEGACY_DEFAULT_PATH $GAME_EXE) -PathType Leaf) {
     Write-Host "      [installed at $LEGACY_DEFAULT_PATH]" -ForegroundColor Green
 } else {
@@ -617,12 +619,9 @@ if (Get-Process -Name 'VirtualDesktop.Streamer','VirtualDesktop.Server' -ErrorAc
     Write-Host ""
 }
 Pause-User "Press Enter to open the Steam Console..."
-# Both protocol addresses: depending on the Steam build only one works.
-foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-}
+[void](Open-PCVRSteamConsole)
 Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
-Write-OK "Steam Console opening..."
+Write-OK "Steam Console confirmed visible."
 
 Write-Host ""
 Pause-User "Press Enter once the Steam depot download is complete..."
@@ -674,16 +673,10 @@ if (-not $depotPath) {
 # retail RoR2 install.
 Write-Step 3 4 "Moving game to stable folder"
 
-Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
-if (-not $userInput) {
-    $targetPath = $DEFAULT_PATH
-} else {
-    $targetPath = $userInput
-}
+$targetPath = Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH
 
 $targetParent = Get-PathParentLexical $targetPath
 if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

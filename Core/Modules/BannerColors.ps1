@@ -14,9 +14,17 @@
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
+    "steam:108710" = "#8aa6b7"  # Alan Wake: cool mist-blue forest cover; warm tile accent represents the flashlight
+    "steam:50300" = "#d7aa70"  # Spec Ops: The Line, sand and warm light against dark cover art
+    "steam:960990" = "#856ed4"  # Beyond: Two Souls, cool violet supernatural palette
+    "steam:22370" = "#a7bc51"   # Fallout 3, wasteland green
+    "steam:22380" = "#d39b51"   # Fallout: New Vegas, Mojave amber
+    "steam:232090" = "#d95438"  # Killing Floor 2, warm red-orange from its action artwork
     "steam:1700" = "#b98748"  # Arx Fatalis, torchlit brown and gold
     "steam:1154790" = "#d0ad5c"  # XIII Remake, comic-cover gold
     "steam:9010" = "#bb823e"  # RTCW, warm torchlight against the dark castle artwork
+    "steam:1167630" = "#ef9e42"  # Teardown, warm demolition orange against its dark voxel scene
+    "steam:108600" = "#b64b43"  # Project Zomboid, blood-red lettering and dark survival art
     "steam:22120" = "#7c7464"  # Penumbra: Black Plague, muted stone and lantern light
     "steam:22140" = "#9a8357"  # Penumbra: Requiem, warm puzzle-chamber light
     "steam:2668510" = "#b6522c"  # Red Dead Redemption, warm frontier red/orange header palette
@@ -178,6 +186,7 @@ $global:BannerColorMap = @{
     "steam:1462040" = "#938bd3"  # FF VII Remake VR
     "steam:39210" = "#1b1e1c"  # Final Fantasy XIV VR
     "steam:383870" = "#ffad01"  # Firewatch VR
+    "steam:668980" = "#e3993b"  # Forsaken VR
     "name:ForzaHorizon6" = "#c0306a"  # Forza Horizon 6 VR
     "steam:273620" = "#de4030"  # Freespace 2 VR
     "steam:4000" = "#007ffb"  # Garry's Mod VR
@@ -291,6 +300,7 @@ $global:BannerColorMap = @{
     "steam:1703340" = "#fce45d"  # Stanley Parable VR
     "steam:2626120" = "#d3c01d"  # Star Racer VR
     "steam:966330" = "#79a65a"  # Flower: grassy landscape and bright petals
+    "steam:638230" = "#d6a465"  # Journey: amber desert and warm light
     "steam:1710170" = "#b9442e"  # Blade of Darkness: red embers against the dark steel key art
     "steam:2842040" = "#da9063"  # Star Wars Outlaws VR
     "steam:354430" = "#d4965c"  # Star Wars: X-Wing VR

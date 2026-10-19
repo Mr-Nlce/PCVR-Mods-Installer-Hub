@@ -26,6 +26,12 @@ game folder. This is an early alpha tested by the author only on Quest 3 with St
 
 [Hotbite on Nexus](https://www.nexusmods.com/eldenring/mods/10659?tab=description)
 
+**Download status (18 October 2026):** The author has hidden the Hotbite Nexus
+page because the mod is unsupported or has unresolved issues. Existing Hub
+installations remain available. A new Hotbite installation needs an official
+ZIP you downloaded earlier; the Hub cannot obtain a new copy from that page.
+If you do not already have one, select the separate Ilya ERVR route.
+
 ## Start Hotbite
 
 1. Start SteamVR.

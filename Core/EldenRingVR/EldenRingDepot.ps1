@@ -104,6 +104,7 @@ function global:Install-EldenRingDepotCopy {
         }
         $TargetPath = Join-PathLexical $alt (Get-PathLeafLexical $TargetPath)
         $parent = $alt
+        [void](Save-PCVRLastCustomDepotParent -TargetPath $TargetPath)
         try { $targetFull = [System.IO.Path]::GetFullPath($TargetPath).TrimEnd([char[]]"\/") }
         catch { Write-Fail "The target path is invalid: $($_.Exception.Message)"; return $null }
         Write-OK "Using: $TargetPath"
@@ -177,9 +178,7 @@ function global:Install-EldenRingDepotCopy {
         Write-Host "    $cmd" -ForegroundColor Cyan
         Write-Host ""
         Pause-User "Press Enter to open the Steam Console..." | Out-Null
-        foreach ($u in @("steam://open/console", "steam://nav/console")) {
-            try { Start-Process $u; Start-Sleep -Milliseconds 900 } catch {}
-        }
+        [void](Open-PCVRSteamConsole)
         Show-PCVRClipboardManualFallback -Text $cmd
         Write-Host "  Paste the command, press Enter, and wait for Steam to say" -ForegroundColor White
         Write-Host "  'Depot download complete'." -ForegroundColor White
@@ -351,6 +350,11 @@ function global:Select-EldenRingInstallCombination {
         [string]$DepotPath = $script:EldenRingDepotDefault,
         [string]$PreferredMod = ""
     )
+    $previousParent=Get-PCVRLastCustomDepotParent
+    if ($previousParent -and -not (Test-EldenRingRoot $DepotPath)) {
+        $previous=Join-Path $previousParent ([IO.Path]::GetFileName($DepotPath))
+        if (Test-EldenRingRoot $previous) { $DepotPath=$previous }
+    }
     while ($true) {
         $rows = @(Get-EldenRingInstallerMatrix -CurrentGameDir $CurrentGameDir -DepotPath $DepotPath)
         Write-Host ""
@@ -380,6 +384,9 @@ function global:Select-EldenRingInstallCombination {
             Write-Warn 'The current Steam build was not found. Choose a Depot option or install Elden Ring through Steam.'
             continue
         }
+        if ($resolved.Selection.Route -eq 'Depot' -and -not $resolved.Selection.GamePresent) {
+            $resolved.Selection.GameDir=Select-PCVRDepotInstallPath -DefaultPath $DepotPath
+        }
         return $resolved.Selection
     }
 }
@@ -402,7 +409,8 @@ function global:Select-EldenRingBuildTarget {
     }
     Write-Host ""
     Write-Host "   [2] Depot $script:EldenRingBuildLabel - RECOMMENDED" -ForegroundColor Green
-    Write-Host "       Builds a separate copy at $DepotPath." -ForegroundColor Gray
+    Write-Host "       Default game folder: $DepotPath (or choose another)." -ForegroundColor Gray
+    Write-Host '       Builds a separate copy there.' -ForegroundColor Gray
     Write-Host "       Steam's current install remains untouched." -ForegroundColor Gray
     if (Test-EldenRingRoot $DepotPath) { Write-Host "       [already installed]" -ForegroundColor Green }
     Write-Host ""
@@ -416,6 +424,9 @@ function global:Select-EldenRingBuildTarget {
     if ($pick -notin @("1","2")) { return $null }
     if ($pick -eq "1") {
         return @{ GameDir=$CurrentGameDir; Mode="Current"; Label="current Steam version" }
+    }
+    if (-not (Test-EldenRingRoot $DepotPath)) {
+        $DepotPath=Select-PCVRDepotInstallPath -DefaultPath $DepotPath
     }
     # !!! ONE SAVE FILE FOR BOTH BUILDS. Elden Ring keeps its save in
     # %APPDATA%\EldenRing\<steamid>\ER0000.sl2 - not in the game folder -

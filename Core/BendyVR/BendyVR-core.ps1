@@ -246,8 +246,9 @@ try {
 
 Write-Host "  [1] RECOMMENDED - Depot version" -ForegroundColor Green
 if ($depotInstalledStatus) { Write-Host "     $depotInstalledStatus" -ForegroundColor $depotInstalledColor }
+Write-Host "      Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host "      Downloads the mod-compatible build via Steam Console" -ForegroundColor Gray
-Write-Host "      into C:\Games\Bendy VR, then installs the mod. Your" -ForegroundColor Gray
+Write-Host "      into that folder, then installs the mod. Your" -ForegroundColor Gray
 Write-Host "      retail Steam copy stays untouched." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  [2] Current game version" -ForegroundColor Yellow
@@ -325,13 +326,10 @@ if ($script:PreFoundDepot) {
 if (-not $script:PreFoundDepot) {
 
     Pause-User "Press Enter to open the Steam Console..."
-    # Both protocol addresses: depending on the Steam build only one works.
-    foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-        try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-    }
+    [void](Open-PCVRSteamConsole)
     Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
-    Write-OK "Steam Console opening..."
+    if (-not $script:PreFoundDepot) { Write-OK "Steam Console confirmed visible." }
     Write-Host ""
     Pause-User "Press Enter once the Steam depot download is complete..."
 
@@ -363,12 +361,10 @@ if (-not $script:PreFoundDepot) {
     # Move + rename
     Write-Step 2 4 "Moving game to stable folder"
     $parentOfDepot = Get-PathParentLexical $depotPath
-    Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
     Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
     Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
     Write-Host ""
-    $userInput = (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"')
-    if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }
+    $targetPath = Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH
 
     $targetParent = Get-PathParentLexical $targetPath
     if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

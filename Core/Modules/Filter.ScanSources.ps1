@@ -35,6 +35,8 @@ function global:Rebuild-Lookups {
             if (-not $g.Title) { continue }
             $state = $global:gameStateMap[$g.Title]
             if (-not $state) { continue }
+            $becameReady = $state.Tag -eq 'vrinstalled' -and [string]$card.Tag -eq 'vrupdate'
+            if ($becameReady) { Reset-CardUpdateHoverForReady -Card $card }
             $card.Tag = $state.Tag
             $accH = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
             if (-not $accH) { $accH = "#666677" }
@@ -164,6 +166,13 @@ function global:Rebuild-Lookups {
             if ($card.Resources.Contains("baseBdBrush")) { $card.Resources.Remove("baseBdBrush") }
             $card.Resources.Add("baseBgBrush", $card.Background)
             $card.Resources.Add("baseBdBrush", $card.BorderBrush)
+            if ($becameReady -and $card.IsMouseOver -and $btnBrd) {
+                # An installer may finish while the pointer remains on its tile.
+                # Recreate the ready hover without requiring the user to move it.
+                $hover = New-Object System.Windows.Input.MouseEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0)
+                $hover.RoutedEvent = [System.Windows.Input.Mouse]::MouseEnterEvent
+                $btnBrd.RaiseEvent($hover)
+            }
         }
     }
 }

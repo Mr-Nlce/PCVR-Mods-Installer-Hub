@@ -2,17 +2,147 @@
 
 <!-- hub:keep-order -->
 
-**Two VR builds exist for Quake**, and the installer asks which one you want. They are
-separate projects by separate authors, each in its own folder, so both can be installed.
+## About the Game
+
+**Quake** is id Software's first-person shooter. The Hub offers three separate PCVR
+mods for your own copy of Quake. The shared installer asks which one you want.
+They live in separate folders, so an old installation need not be replaced.
 
 | | |
 |---|---|
-| **1. Quake VR** by Vittorio Romeo | its own VR design - physical weapon handling, reworked feel |
-| **2. Quake PCVR** by GameOrDie007 | Team Beef's QuakeQuest brought to PC, plays like the Quest version |
+| **1. Unleashed** by Vittorio Romeo — recommended | Ironwail, OpenXR, motion controls, VR hub and campaigns |
+| **2. Quake PCVR** by GameOrDie007 | Team Beef's QuakeQuest brought to PC |
+| **3. Original Quake VR** by Vittorio Romeo | legacy QuakeSpasm build using SteamVR/OpenVR |
 
 ---
 
-## Mod 1 — Quake VR — by Vittorio Romeo
+## Mod 1 — Quake VR: Unleashed
+
+The current [publisher release](https://github.com/vittorioromeo/quakevr/releases)
+provides the native **QuakeVR-Setup.exe**. The Hub checks that release, then opens
+the publisher Setup after an Enter prompt. Setup finds your original full Quake
+installation (Steam, GOG or Epic), lets you select another game folder and an
+independent VR destination, and offers optional HD textures and map relighting.
+It does not edit the original Quake folder. Its default VR destination is
+`%LOCALAPPDATA%\Programs\QuakeVR`.
+
+Unleashed uses **OpenXR**, Windows 10/11 x64, an OpenGL 4.3 GPU and Visual C++
+runtime 14.44 or newer. The publisher tested mainly Quest 3 through Virtual
+Desktop; other headset behaviour needs testing. The unsigned Setup may show
+SmartScreen. Its optional VC++ installer can request Windows administrator approval.
+
+After Setup finishes, choose **Start in VR** in the Hub. The Hub checks the
+installed `ironwail.exe`, VR data, publisher manifest, version and the original
+Quake data. It starts with the publisher's two base directories and `-game quakevr`
+in the VR install folder. A bare `ironwail.exe` or the ZIP's `QuakeVR.bat` lacks
+the external game-data path for this separate-folder install.
+
+Unleashed has its own settings, saves, screenshots, notes and downloaded maps.
+**Legacy Quake VR saves/settings are not compatible and are not migrated.**
+Use the game's VR Settings for comfort, weapon and display settings; calibration
+runs on first VR start. The in-game update notice points to a newer publisher
+release but does not install it automatically.
+
+### Unleashed controls
+
+These are the publisher package's default bindings. They can be rebound under
+Options > Key Setup.
+
+| Button | Action |
+|---|---|
+| [[Right Trigger]] | Fire main weapon |
+| [[Left Trigger]] | Off-hand attack |
+| [[Right Shoulder]] | Grab with main hand |
+| [[Left Shoulder]] | Grab with off hand |
+| [[A]] | Jump |
+| [[B]] | Next weapon |
+| [[Y]] | Change weapon |
+| [[X]] | Reload off hand |
+| [[Right Stick Click]] | Reload main hand |
+| [[Left Stick Click]] | Speed |
+
+### Unleashed removal
+
+**Uninstall now** runs the publisher's own remover for this installation.
+It removes its program files and shortcuts while keeping personal settings,
+saves, screenshots, notes and backups. The other two Quake VR installations and
+the original game are untouched.
+
+---
+
+## Mod 2 — Quake PCVR — by GameOrDie007
+
+Team Beef's **QuakeQuest** - the standalone VR Quake for Quest headsets - ported to PCVR
+over OpenXR. This is Simon Brown's VR work brought across from the exact DarkPlaces commit
+his Android build forked, with nothing changed except what PC requires. If you have played
+QuakeQuest on a Quest, this plays identically, at whatever resolution your PC can drive.
+
+### Current v1.1 update
+
+Release v1.1 adds in-world menus and the classic attract-mode demo sequence to
+the PCVR port. The installer follows this stable GitHub release and keeps the
+standalone game's settings, saves and copied PAK data during updates.
+
+### What it does
+
+Everything QuakeQuest does: stereo, head tracking, room scale, the weapon in hand, the
+weapon wheel, haptics, the big-screen menus, snap and smooth turning.
+
+**All six games reachable in the headset from Single Player** - Quake, Scourge of Armagon,
+Dissolution of Eternity, Dimension of the Past, Dimension of the Machine and Dawn of the
+Machine - without going back to the desktop.
+
+A **PC Options page** adds supersampling, anti-aliasing, particle style (the red blood
+switch), the door Z-fighting fix, HUD height and what the desktop window does. Every option
+defaults to Team Beef's own value, so an untouched install behaves exactly as their game.
+
+The **desktop mirror** is borderless full screen by default, Alt+Enter for a window,
+resizable, and cropped to the shape of your monitor rather than squashed into it.
+
+### What the installer does
+
+It puts the build in a folder of its own - by default `C:\Games\Quake PCVR` - and never
+writes into your Quake install. Config, saves and screenshots all live inside that folder,
+so backing it up backs up everything.
+
+The Hub then finds your owned Steam or GOG copy automatically and copies `pak0.pak`,
+`pak1.pak`, every expansion it finds and the re-release soundtrack into the PCVR folder.
+Nothing is downloaded and nothing leaves your machine. If automatic detection fails, it
+asks once for the Quake folder and verifies both base PAKs before reporting success.
+
+**Python 3 and Pillow are not required to play.** When they are already installed, the Hub
+also runs the author's optional generators for decorated menu artwork and episode message
+text. Without them the game is fully playable and uses plain-text menus.
+
+### Before you launch
+
+**Start Virtual Desktop and connect it first**, so VDXR is the running OpenXR runtime. The
+author developed and confirmed this on a Quest 3 over Virtual Desktop at 3993x4243 per eye,
+72 Hz. SteamVR and the Oculus runtime expose OpenXR too and should work, but he has not
+tested them.
+
+Then use **Start in VR** on the Quake page and choose the Team Beef port.
+Use **Open in Steam** when you want the original flat Quake.
+
+### Your own game data
+
+**None is included and none ever will be.** The 2021 re-release on Steam or GOG is the
+easiest source - it has Quake, both mission packs and the additional official episodes, and
+the Hub finds and adds them for you.
+
+### Known issues
+
+- **The in-game Mods browser drops out of VR.** Changing gamedir ends in `vid_restart`,
+  which destroys the GL context the OpenXR swapchain images belong to. Use the Single Player
+  game list instead - it relaunches the process, which is why it works.
+- **Sixteen messages in the MachineGames episodes** show a readable placeholder instead of
+  their real wording; that text exists only inside the re-release's own engine. Everything
+  else, including every ending, is real.
+- **Black blood is Team Beef's own behaviour**, not a porting defect - the author verified
+  it three ways, including against their standalone on a Quest. PC Options has a switch that
+  turns blood back to classic red.
+
+## Mod 3 — Original Quake VR — by Vittorio Romeo
 
 Automated installer for **Quake VR** by Vittorio Romeo — a QuakeSpasm-based VR port of **Quake (Enhanced)** with full motion controls, room-scale movement, and SteamVR/OpenVR support.
 
@@ -109,91 +239,20 @@ https://github.com/vittorioromeo/quakevr
 
 ---
 
-## Mod 2 — Quake PCVR — by GameOrDie007
-
-Team Beef's **QuakeQuest** - the standalone VR Quake for Quest headsets - ported to PCVR
-over OpenXR. This is Simon Brown's VR work brought across from the exact DarkPlaces commit
-his Android build forked, with nothing changed except what PC requires. If you have played
-QuakeQuest on a Quest, this plays identically, at whatever resolution your PC can drive.
-
-### Current v1.1 update
-
-Release v1.1 adds in-world menus and the classic attract-mode demo sequence to
-the PCVR port. The installer follows this stable GitHub release and keeps the
-standalone game's settings, saves and copied PAK data during updates.
-
-### What it does
-
-Everything QuakeQuest does: stereo, head tracking, room scale, the weapon in hand, the
-weapon wheel, haptics, the big-screen menus, snap and smooth turning.
-
-**All six games reachable in the headset from Single Player** - Quake, Scourge of Armagon,
-Dissolution of Eternity, Dimension of the Past, Dimension of the Machine and Dawn of the
-Machine - without going back to the desktop.
-
-A **PC Options page** adds supersampling, anti-aliasing, particle style (the red blood
-switch), the door Z-fighting fix, HUD height and what the desktop window does. Every option
-defaults to Team Beef's own value, so an untouched install behaves exactly as their game.
-
-The **desktop mirror** is borderless full screen by default, Alt+Enter for a window,
-resizable, and cropped to the shape of your monitor rather than squashed into it.
-
-### What the installer does
-
-It puts the build in a folder of its own - by default `C:\Games\Quake PCVR` - and never
-writes into your Quake install. Config, saves and screenshots all live inside that folder,
-so backing it up backs up everything.
-
-The Hub then finds your owned Steam or GOG copy automatically and copies `pak0.pak`,
-`pak1.pak`, every expansion it finds and the re-release soundtrack into the PCVR folder.
-Nothing is downloaded and nothing leaves your machine. If automatic detection fails, it
-asks once for the Quake folder and verifies both base PAKs before reporting success.
-
-**Python 3 and Pillow are not required to play.** When they are already installed, the Hub
-also runs the author's optional generators for decorated menu artwork and episode message
-text. Without them the game is fully playable and uses plain-text menus.
-
-### Before you launch
-
-**Start Virtual Desktop and connect it first**, so VDXR is the running OpenXR runtime. The
-author developed and confirmed this on a Quest 3 over Virtual Desktop at 3993x4243 per eye,
-72 Hz. SteamVR and the Oculus runtime expose OpenXR too and should work, but he has not
-tested them.
-
-Then use **Start in VR** on the Quake page and choose the Team Beef port.
-Use **Open in Steam** when you want the original flat Quake.
-
-### Your own game data
-
-**None is included and none ever will be.** The 2021 re-release on Steam or GOG is the
-easiest source - it has Quake, both mission packs and the additional official episodes, and
-the Hub finds and adds them for you.
-
-### Known issues
-
-- **The in-game Mods browser drops out of VR.** Changing gamedir ends in `vid_restart`,
-  which destroys the GL context the OpenXR swapchain images belong to. Use the Single Player
-  game list instead - it relaunches the process, which is why it works.
-- **Sixteen messages in the MachineGames episodes** show a readable placeholder instead of
-  their real wording; that text exists only inside the re-release's own engine. Everything
-  else, including every ending, is real.
-- **Black blood is Team Beef's own behaviour**, not a porting defect - the author verified
-  it three ways, including against their standalone on a Quest. PC Options has a switch that
-  turns blood back to classic red.
-
 ### Flat play and removal
 
-Both Quake VR choices are self-contained and never install a loader into the
+All three Quake VR choices are self-contained and never install a loader into the
 retail Quake folder. Consequently no game-folder Flat/VR toggle is necessary:
 **Start in VR** launches the selected standalone build and **Open in Steam**
 launches original flat Quake.
 
-**Uninstall now** lists the Vittorio Romeo and Team Beef builds separately.
-Only the selected build's audited runtime files and Hub markers are removed.
-Copied licensed PAKs, saves, settings, screenshots, music, custom maps and
-unknown files remain in the standalone folder.
+**Uninstall now** lists Unleashed, Team Beef and original Vittorio separately.
+Only the selected installation is removed. The legacy removers preserve copied
+licensed PAKs, saves, settings, screenshots, music, custom maps and unknown files.
 
 ### Credits
 
 **Team Beef / Simon Brown** for all of the VR work. **LordHavoc and the Xonotic project**
 for DarkPlaces. **id Software** for Quake. GPL v2, the same as both.
+
+Step through the portal; the slipgate is open.

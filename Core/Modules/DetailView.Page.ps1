@@ -2628,7 +2628,7 @@ function global:Show-DiscoverDetail {
         $reinstallBtn.Add_MouseLeftButtonUp({
             if (-not $reinstallGameRef) { return }
             if ($reinstallStartsGame) {
-                Start-GameInVR -Game $reinstallGameRef
+                Start-GameInVR -Game $reinstallGameRef -IndicatorTarget $this
                 return
             }
             if (-not $reinstallGameRef.Bat) {
@@ -2686,17 +2686,17 @@ function global:Show-DiscoverDetail {
             $stForBtn = $global:gameStateMap[$gameForBtn.Title]
         }
         if ($stForBtn -and $stForBtn.DualMode -and ($isReady -or $detailUsesSeparateUpdate)) {
-            Start-GameInVR -Game $gameForBtn -Mode "Current"
+            Start-GameInVR -Game $gameForBtn -Mode "Current" -IndicatorTarget $this
             return
         }
         if ($stForBtn -and $stForBtn.DepotPresent -and -not $stForBtn.CurrentPresent -and ($isReady -or $detailUsesSeparateUpdate)) {
-            Start-GameInVR -Game $gameForBtn -Mode "Depot"
+            Start-GameInVR -Game $gameForBtn -Mode "Depot" -IndicatorTarget $this
             return
         }
         # Ready and multi-launch update states play here. A normal single-mod
         # update deliberately falls through to the installer below.
         if ($isReady -or $detailUsesSeparateUpdate) {
-            Start-GameInVR -Game $gameForBtn
+            Start-GameInVR -Game $gameForBtn -IndicatorTarget $this
             return
         }
         # Non-ready state falls through to the install/get action below.

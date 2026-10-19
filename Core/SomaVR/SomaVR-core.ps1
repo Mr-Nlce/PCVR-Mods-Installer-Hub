@@ -76,9 +76,9 @@ function Get-SomaRelease {
         return [pscustomobject]@{ Url=$fixture; Tag=$tag; PageUrl=$script:SomaPage; Local=$true }
     }
     $asset = Resolve-GitHubReleaseAsset -Repo $script:SomaRepo -IncludePrerelease $false `
-        -AssetPatterns @('(?i)^SOMA-VR-[0-9].*-Installer\.zip$') `
-        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.07.1/SOMA-VR-1.07-S26GH-Installer.zip' `
-        -FallbackTag 'v1.07.1' -FallbackAssetName 'SOMA-VR-1.07-S26GH-Installer.zip' -SkipReleasesWithoutMatchingAsset
+        -AssetPatterns @('(?i)^SOMA-VR-[0-9].*-Setup\.exe$','(?i)^SOMA-VR-[0-9].*-Installer\.zip$') `
+        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.08.1/SOMA-VR-1.0.8-S26HQ-Setup.exe' `
+        -FallbackTag 'v1.08.1' -FallbackAssetName 'SOMA-VR-1.0.8-S26HQ-Setup.exe' -SkipReleasesWithoutMatchingAsset
     return [pscustomobject]@{ Url=[string]$asset.Url; Tag=[string]$asset.Tag; PageUrl=[string]$asset.PageUrl; Local=$false }
 }
 function Get-SomaSetup([string]$Extracted) {
@@ -88,6 +88,14 @@ function Get-SomaSetup([string]$Extracted) {
     try { if ($file.Length -lt 1024 -or $file.ReadByte() -ne 77 -or $file.ReadByte() -ne 90) { throw 'The Setup is not a usable Windows EXE.' } }
     finally { $file.Dispose() }
     return $items[0].FullName
+}
+function Assert-SomaSetupExe([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'The publisher Setup EXE is missing.' }
+    if ([IO.Path]::GetFileName($Path) -notmatch '(?i)^SOMA-VR-[0-9].*-Setup\.exe$') { throw 'The selected file is not a SOMA VR publisher Setup EXE.' }
+    $file = [IO.File]::OpenRead($Path)
+    try { if ($file.Length -lt 1024 -or $file.ReadByte() -ne 77 -or $file.ReadByte() -ne 90) { throw 'The Setup is not a usable Windows EXE.' } }
+    finally { $file.Dispose() }
+    return $Path
 }
 function Assert-SomaNoDowngrade([string]$Root,[string]$Tag) {
     $receipt = Join-Path $Root '.pcvrhub_version'
@@ -129,18 +137,23 @@ function Invoke-SomaInstaller {
         Assert-SomaNoDowngrade -Root $root -Tag ([string]$release.Tag)
         $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr-soma-' + [Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work)
-        $zip = Join-Path $work 'publisher.zip'
+        $isExe = [IO.Path]::GetExtension(([string]$release.Url -split '[?]',2)[0]) -ieq '.exe'
+        $publisherName = if ($isExe) { [IO.Path]::GetFileName(([string]$release.Url -split '[?]',2)[0]) } else { 'publisher.zip' }
+        $publisher = Join-Path $work $publisherName
         Write-Host "  Selected: $($release.Tag)" -ForegroundColor Cyan
-        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to download the publisher archive...')
-        if ($release.Local) { Copy-Item -LiteralPath $release.Url -Destination $zip -Force -ErrorAction Stop }
+        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to download the publisher Setup...')
+        if ($release.Local) { Copy-Item -LiteralPath $release.Url -Destination $publisher -Force -ErrorAction Stop }
         else {
-            $ok = Invoke-SafeDownload -Urls @($release.Url) -Destination $zip -Label "SOMA VR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl $release.PageUrl -AllowSkip:$false
+            $ok = Invoke-SafeDownload -Urls @($release.Url) -Destination $publisher -Label "SOMA VR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl $release.PageUrl -AllowSkip:$false
             if (-not $ok) { throw 'The SOMA VR release could not be downloaded.' }
         }
-        $extract = Join-Path $work 'release'
-        $result = Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $extract -Label 'SOMA VR publisher archive' -AllowSkip:$false -QuietProgress
-        if ([string]$result -notin @('ok','manual','retry')) { throw 'The SOMA VR archive could not be extracted.' }
-        $setup = Get-SomaSetup $extract
+        if ($isExe) { $setup = Assert-SomaSetupExe $publisher }
+        else {
+            $extract = Join-Path $work 'release'
+            $result = Expand-ArchiveOrFallback -ArchivePath $publisher -DestinationFolder $extract -Label 'SOMA VR publisher archive' -AllowSkip:$false -QuietProgress
+            if ([string]$result -notin @('ok','manual','retry')) { throw 'The SOMA VR archive could not be extracted.' }
+            $setup = Get-SomaSetup $extract
+        }
         $before = Get-SomaRuntimeFingerprint $root
         Write-Host ''
         Write-Host '  In publisher Setup, confirm the game and settings paths.' -ForegroundColor White

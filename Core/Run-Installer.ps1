@@ -89,7 +89,9 @@ $oldInstallStatusPath = $env:PCVR_HUB_INSTALL_STATUS_PATH
 $oldInstallRunId = $env:PCVR_HUB_INSTALL_RUN_ID
 $oldHubGameId = $env:PCVR_HUB_GAME_ID
 $oldRecoveryInput = $env:PCVR_HUB_RECOVERY_INPUT
+$oldRecoveryPage = $env:PCVR_HUB_RECOVERY_PAGE
 Remove-Item Env:PCVR_HUB_RECOVERY_INPUT -ErrorAction SilentlyContinue
+Remove-Item Env:PCVR_HUB_RECOVERY_PAGE -ErrorAction SilentlyContinue
 if (-not [string]::IsNullOrWhiteSpace($GameId)) { $env:PCVR_HUB_GAME_ID = $GameId }
 if (-not [string]::IsNullOrWhiteSpace($StatusPath)) {
     $env:PCVR_HUB_INSTALL_STATUS_PATH = $StatusPath
@@ -556,7 +558,7 @@ try {
     $installerFolder = if ($coreScript) { Split-Path -Parent $coreScript } elseif ($BatPath) { Split-Path -Parent $BatPath } else { $wrapperDir }
     while ($true) {
         try {
-            $decision=Invoke-PCVRUniversalRecovery -FailureMessage $failureMessage -LogPath $log -InstallerFolder $installerFolder
+            $decision=Invoke-PCVRUniversalRecovery -FailureMessage $failureMessage -LogPath $log -InstallerFolder $installerFolder -RecoveryPageUrl ([string]$env:PCVR_HUB_RECOVERY_PAGE)
             if($decision.Action -eq 'retry'){
                 # A payload or game path handed over after an ordinary failure
                 # belongs to the same installer. Only a missing entry point may
@@ -596,6 +598,7 @@ if ($null -eq $oldInstallStatusPath) { Remove-Item Env:PCVR_HUB_INSTALL_STATUS_P
 if ($null -eq $oldInstallRunId) { Remove-Item Env:PCVR_HUB_INSTALL_RUN_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_INSTALL_RUN_ID = $oldInstallRunId }
 if ($null -eq $oldHubGameId) { Remove-Item Env:PCVR_HUB_GAME_ID -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_GAME_ID = $oldHubGameId }
 if ($null -eq $oldRecoveryInput) { Remove-Item Env:PCVR_HUB_RECOVERY_INPUT -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_RECOVERY_INPUT = $oldRecoveryInput }
+if ($null -eq $oldRecoveryPage) { Remove-Item Env:PCVR_HUB_RECOVERY_PAGE -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_RECOVERY_PAGE = $oldRecoveryPage }
 if ($installerTempSession -and $wrapperExitCode -eq 0) {
     try { Remove-PCVRInstallerTempSession -Path $installerTempSession }
     catch { Write-Host ('  Temporary work folder could not be removed: ' + $installerTempSession) -ForegroundColor Yellow }

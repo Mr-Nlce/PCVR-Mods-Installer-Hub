@@ -230,9 +230,7 @@ function Install-DarktidePinnedDepot {
 
     Write-Host '  This route downloads all three Windows depots (about 96.4 GiB)' -ForegroundColor White
     Write-Host "  and keeps them separate from your normal Steam installation." -ForegroundColor White
-    Write-Host "  Default destination: $DARKTIDE_DEPOT_DEFAULT_PATH" -ForegroundColor Gray
-    $entered=([string](Read-Host 'Press Enter for the default, or type a different full path')).Trim().Trim('"')
-    $target=if ($entered) { $entered } else { $DARKTIDE_DEPOT_DEFAULT_PATH }
+    $target=Select-PCVRDepotInstallPath -DefaultPath $DARKTIDE_DEPOT_DEFAULT_PATH
     if (-not (Test-InstallerTargetWritable -TargetPath $target)) { throw "The depot target is not writable: $target" }
     $normal=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Warhammer 40,000 DARKTIDE') -ProbeExe $GAME_EXE
     if ($normal -and ([IO.Path]::GetFullPath($target) -ieq [IO.Path]::GetFullPath($normal))) {
@@ -258,9 +256,7 @@ function Install-DarktidePinnedDepot {
             Write-Host "  $command" -ForegroundColor DarkGray
             [void](Wait-PCVRExplicitEnter -Message "Press Enter to copy this command and open Steam Console...")
             try { Set-Clipboard -Value $command -DeferManualFallback } catch {}
-            foreach ($uri in @('steam://open/console','steam://nav/console')) {
-                try { Start-Process $uri; Start-Sleep -Milliseconds 700 } catch {}
-            }
+            [void](Open-PCVRSteamConsole)
             Show-PCVRClipboardManualFallback -Text $command
             Write-Host '  Paste with Ctrl+V in Steam Console and wait for the download' -ForegroundColor White
             Write-Host "  of depot_$($row.DepotId) to complete." -ForegroundColor White
@@ -422,7 +418,8 @@ function global:Invoke-DarktideVRInstaller {
         Write-Host '  [1] Current game and newest DarktideVR prerelease' -ForegroundColor Cyan
         Write-Host '      Uses the normal Steam/Xbox installation and auto-updates the VR mod.' -ForegroundColor Gray
         Write-Host "  [2] Confirmed Steam build $DARKTIDE_DEPOT_BUILD with pinned VR stack" -ForegroundColor Cyan
-        Write-Host "      Separate $DARKTIDE_DEPOT_DEFAULT_PATH copy; normal Steam files stay untouched." -ForegroundColor Gray
+        Write-Host "      Default game folder: $DARKTIDE_DEPOT_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
+        Write-Host '      Normal Steam files stay untouched.' -ForegroundColor Gray
         Write-Host '      Darktide is online: a future Fatshark backend may reject an old client.' -ForegroundColor Yellow
         Write-Host '  [Q] Quit' -ForegroundColor Gray
         Write-Host ''

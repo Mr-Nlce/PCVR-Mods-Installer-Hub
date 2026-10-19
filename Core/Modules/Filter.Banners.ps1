@@ -226,9 +226,14 @@ if ($listBannerShowBtn) {
 }
 if ($listBannerExploreBtn) {
     $listBannerExploreBtn.Add_MouseLeftButtonUp({
+        param($s, $e)
         # Do NOT reset styles here - the press-glow set by
         # MouseLeftButtonDown must persist during the 1200ms defer.
-        Invoke-DeferredAction -DelayMs 1200 -Action { Show-DiscoverOverview -Origin "LIST" }
+        $indicatorToken = Start-HubActionIndicator -Target $s
+        Invoke-DeferredAction -DelayMs 1200 -Action {
+            try { Show-DiscoverOverview -Origin "LIST" }
+            finally { Stop-HubActionIndicator -Token $indicatorToken }
+        }.GetNewClosure()
     })
     $listBannerExploreBtn.Add_MouseEnter({ Start-BannerButtonSweep $this })
     $listBannerExploreBtn.Add_MouseLeave({
@@ -308,8 +313,13 @@ if ($libBannerShowBtn) {
 }
 if ($libBannerExploreBtn) {
     $libBannerExploreBtn.Add_MouseLeftButtonUp({
+        param($s, $e)
         # Do NOT reset styles - press-glow must persist during defer.
-        Invoke-DeferredAction -DelayMs 1200 -Action { Show-DiscoverOverview -Origin "TILES" }
+        $indicatorToken = Start-HubActionIndicator -Target $s
+        Invoke-DeferredAction -DelayMs 1200 -Action {
+            try { Show-DiscoverOverview -Origin "TILES" }
+            finally { Stop-HubActionIndicator -Token $indicatorToken }
+        }.GetNewClosure()
     })
     $libBannerExploreBtn.Add_MouseEnter({ Start-BannerButtonSweep $this })
     $libBannerExploreBtn.Add_MouseLeave({

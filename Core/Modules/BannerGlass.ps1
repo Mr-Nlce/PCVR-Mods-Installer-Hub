@@ -41,9 +41,21 @@
 #     - corner radius 10 like the game page hero
 #     - glass edges/sheen/sweep and glass pills as in frost, no panel
 #
-#   Chosen in Help & feedback -> "Banner style" (Glass -> Glass + frost
-#   -> Hero -> Classic), kept in the Hub settings as bannerGlassStyle.
-#   Default: glass.
+#   "Glow" (featured banners only; default for featured/explore banners):
+#     - the moving art haze, blurred harder and darkened (moody ground)
+#     - a bloom: a blurred, enlarged copy of the art right behind the art,
+#       so the picture seems to radiate its own light to the left;
+#       it breathes slowly
+#     - the art's left edge melts into the bloom (opacity mask)
+#     - particle banner effects (stars, sparks, snow, bubbles, ...) are
+#       lifted ABOVE the art and fade (still under the title/buttons) and
+#       get a neon glow in the game colour; flat effects (flow, blobs,
+#       bokeh, waves, ...) stay pale and below the art
+#     - corner radius 10, glass edges/sheen/sweep, glass pills
+#
+#   Chosen in Help & feedback -> "Banner style" (Glass -> Glow ->
+#   Glass + frost -> Hero -> Classic), kept in the Hub settings as
+#   bannerGlassStyle. Default: glow.
 #
 # Hooks Set-BannerForGame and the detail-page hero. To switch it off,
 # set $global:HubBannerGlass = $false below.
@@ -112,10 +124,27 @@ $global:BannerGlassConfig = @{
     DetailAmbientOpacity = 0.92  # haze of the header art behind the hero
     DetailWideThreshold  = 1040  # same value as $heroThreshold in DetailView.Page.ps1
     DetailMaskFrac       = 0.08  # wide layout: image edges melt into the haze over this share
+    # ---- "Glow" (featured banners) ----
+    GlowHazeBlur       = 40    # background haze, blurred harder than glass
+    GlowHazeScrim      = 0.62  # darkens the haze to a moody ground
+    GlowBloomScale     = 1.40  # bloom = art copy, enlarged around its centre
+    GlowBloomBlur      = 34
+    GlowBloomMin       = 0.72  # bloom breathes between these opacities
+    GlowBloomMax       = 0.95
+    GlowBloomSeconds   = 6.0   # one breath (in or out)
+    GlowMaskEnd        = 0.18  # art fully visible from this share of its width
+    GlowFadeOpacity    = 0.55  # left dark fade
+    GlowCornerRadius   = 10
+    NeonEnabled        = $true # neon glow on particle effects (GPU only)
+    NeonBlur           = 9
+    NeonOpacity        = 0.95
 }
+# Particle effects (by name prefix) that the glow style lifts above the
+# art and gives a neon glow. Everything else counts as flat and stays.
+$global:BannerGlassParticleFx = '^(stars|starfield|parallax|motes|meteors|spark|embers|twinkle|rain|bloodrain|snow|bloodsnow|bubbles|pinkbubbles|comet|matrix|hyper|speed|network|circuit|hex|sonar|synth|shards|vortex)'
 
 $global:BannerGlassBanners = @('ListBanner', 'LibBanner', 'OvBanner')
-$global:BannerGlassStyleLabels = @{ glass = 'Glass'; frost = 'Glass + frost'; hero = 'Hero'; classic = 'Classic' }
+$global:BannerGlassStyleLabels = @{ glow = 'Glow'; glass = 'Glass'; frost = 'Glass + frost'; hero = 'Hero'; classic = 'Classic' }
 $global:BannerGlassButtons = @('ListBannerShowBtn', 'ListBannerExploreBtn', 'LibBannerShowBtn', 'LibBannerExploreBtn', 'OvBannerShowBtn', 'OvBannerShuffleBtn')
 
 # ------------------------------------------------------------
@@ -198,13 +227,16 @@ function global:Resolve-BannerGlassStyle {
     if ($s -eq 'classic') { return 'classic' }
     if ($s -eq 'frost')   { return 'frost' }
     if ($s -eq 'hero')    { return 'hero' }
-    return 'glass'
+    if ($s -eq 'glow')    { return 'glow' }
+    if ($s -eq 'glass')   { return 'glass' }
+    return 'glow'
 }
 
 function global:Get-BannerGlassNextStyle {
     param([string]$Current)
     switch (Resolve-BannerGlassStyle $Current) {
-        'glass' { return 'frost' }
+        'glass' { return 'glow' }
+        'glow'  { return 'frost' }
         'frost' { return 'hero' }
         'hero'  { return 'classic' }
     }
@@ -605,6 +637,8 @@ function global:Stop-BannerGlassLayer {
     param($Layer)
     try {
         foreach ($sub in @($Layer.Children)) {
+            # Glow bloom breathes via an Opacity animation.
+            if ($sub -is [System.Windows.UIElement]) { $sub.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $null) }
             if ($sub.RenderTransform -is [System.Windows.Media.TranslateTransform]) {
                 $sub.RenderTransform.BeginAnimation([System.Windows.Media.TranslateTransform]::XProperty, $null)
                 $sub.RenderTransform.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $null)
@@ -643,10 +677,123 @@ function global:Update-BannerGlassFade {
     $style = $global:BannerGlassStyle
     $effect = if ($global:BannerFxByBanner) { [string]$global:BannerFxByBanner[$BannerName] } else { '' }
     $fade.Opacity = if ($style -eq 'frost') { $cfg.FrostFadeOpacity }
+                    elseif ($style -eq 'glow') { $cfg.GlowFadeOpacity }
                     elseif ($style -eq 'hero') { $cfg.HeroFadeOpacity }
                     elseif ($style -eq 'glass' -and $effect -match '^(bokeh|blob|orbs)') { $cfg.ColorBallFadeOpacity }
                     elseif ($style -eq 'glass') { $cfg.GlassFadeOpacity }
                     else { 1.0 }
+    try { Update-BannerGlassFxPlacement -BannerName $BannerName } catch { }
+}
+
+# Is this banner effect a particle effect (lifted + neon in the glow style)?
+function global:Test-BannerGlassParticleFx {
+    param([string]$Effect)
+    if (-not $Effect) { return $true }   # unknown/default effect = starfield
+    return ($Effect.ToLower() -match $global:BannerGlassParticleFx)
+}
+
+# Glow style: particle effect layers go right above the left fade (above
+# the art, below the glass top layer and the title) and get a neon glow in
+# the game colour. Other styles: layers this file moved go back to index 1
+# (where Add-BannerEffect inserts them) and lose the glow. Called from
+# Update-BannerGlassFade, which runs after every Set-BannerGlass and after
+# every Set-BannerEffect.
+function global:Update-BannerGlassFxPlacement {
+    param([string]$BannerName)
+    if (-not $global:window -or -not $BannerName) { return }
+    if ($global:BannerGlassBanners -notcontains $BannerName) { return }
+    $banner = $global:window.FindName($BannerName)
+    if (-not $banner -or ($banner.Child -isnot [System.Windows.Controls.Grid])) { return }
+    $g = $banner.Child
+    $cfg = $global:BannerGlassConfig
+    if (-not $global:BannerGlassNeonGlows) { $global:BannerGlassNeonGlows = New-Object System.Collections.ArrayList }
+    $fxLayers = @($g.Children | Where-Object { $_.Tag -eq 'BannerFx' })
+    if ($fxLayers.Count -eq 0) { return }
+    $effect = if ($global:BannerFxByBanner) { [string]$global:BannerFxByBanner[$BannerName] } else { '' }
+    $fade = $global:window.FindName($BannerName + 'Fade')
+    if ($global:BannerGlassStyle -eq 'glow' -and (Test-BannerGlassParticleFx $effect) -and $fade) {
+        foreach ($fx in $fxLayers) { $g.Children.Remove($fx) }
+        $at = $g.Children.IndexOf($fade) + 1
+        foreach ($fx in $fxLayers) {
+            $g.Children.Insert($at, $fx); $at++
+            if ($cfg.NeonEnabled -and (Test-BannerGlassGpu) -and -not $fx.Effect) {
+                $hex = if ($global:BannerGlassAccentByBanner) { [string]$global:BannerGlassAccentByBanner[$BannerName] } else { '' }
+                if (-not $hex) { $hex = '#ffcf8c' }
+                $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+                $glow.ShadowDepth = 0
+                $glow.BlurRadius = $cfg.NeonBlur
+                $glow.Opacity = $cfg.NeonOpacity
+                $glow.Color = New-BannerGlassColor $hex 1.0
+                [void]$global:BannerGlassNeonGlows.Add($glow)
+                $fx.Effect = $glow
+            }
+        }
+    } else {
+        foreach ($fx in $fxLayers) {
+            if ($fx.Effect -and $global:BannerGlassNeonGlows.Contains($fx.Effect)) {
+                [void]$global:BannerGlassNeonGlows.Remove($fx.Effect)
+                $fx.Effect = $null
+            }
+            # Glass's nearly opaque base must remain below the coloured balls.
+            # Set-BannerEffect lifts them when swapped; preserve that order here
+            # instead of undoing it during the subsequent fade update.
+            if ($global:BannerGlassStyle -eq 'glass' -and $effect -match '^(bokeh|blob|orbs)') {
+                $base = @($g.Children | Where-Object { $_.Tag -eq 'BannerGlass' }) | Select-Object -First 1
+                if ($base -and $g.Children.IndexOf($fx) -le $g.Children.IndexOf($base)) {
+                    $g.Children.Remove($fx)
+                    $g.Children.Insert($g.Children.IndexOf($base) + 1, $fx)
+                }
+            } elseif ($fade -and $g.Children.IndexOf($fx) -gt $g.Children.IndexOf($fade)) {
+                # Restore the original order on the other styles, including
+                # software rendering where Glow had no DropShadowEffect.
+                $g.Children.Remove($fx)
+                $g.Children.Insert([Math]::Min(1, $g.Children.Count), $fx)
+            }
+        }
+    }
+}
+
+# DropShadow on an animated layer is cheap on the GPU, expensive in
+# software rendering - only use the neon glow on render tier 2.
+function global:Test-BannerGlassGpu {
+    try { return (([System.Windows.Media.RenderCapability]::Tier -shr 16) -ge 2) } catch { return $false }
+}
+
+# Glow style: blurred, enlarged copy of the art right behind the art.
+# Bound to the banner image, so it follows every CDN fallback.
+function global:New-BannerGlassBloom {
+    param($ImageElement)
+    $cfg = $global:BannerGlassConfig
+    if (-not $ImageElement) { return $null }
+    $layer = New-BannerGlassLayer
+    $layer.ClipToBounds = $true
+    $img = New-Object System.Windows.Controls.Image
+    $img.IsHitTestVisible = $false
+    $binding = New-Object System.Windows.Data.Binding('Source')
+    $binding.Source = $ImageElement
+    $binding.Mode = [System.Windows.Data.BindingMode]::OneWay
+    [void][System.Windows.Data.BindingOperations]::SetBinding($img, [System.Windows.Controls.Image]::SourceProperty, $binding)
+    $img.Stretch = [System.Windows.Media.Stretch]::Uniform
+    $img.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $img.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $img.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+    $img.RenderTransform = New-Object System.Windows.Media.ScaleTransform ([double]$cfg.GlowBloomScale), ([double]$cfg.GlowBloomScale)
+    [System.Windows.Media.RenderOptions]::SetBitmapScalingMode($img, [System.Windows.Media.BitmapScalingMode]::Linear)
+    $bl = New-Object System.Windows.Media.Effects.BlurEffect
+    $bl.Radius = $cfg.GlowBloomBlur
+    $img.Effect = $bl
+    $img.CacheMode = New-Object System.Windows.Media.BitmapCache
+    $img.Opacity = $cfg.GlowBloomMax
+    $br = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $br.From = $cfg.GlowBloomMax
+    $br.To = $cfg.GlowBloomMin
+    $br.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds($cfg.GlowBloomSeconds))
+    $br.AutoReverse = $true
+    $br.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+    $br.EasingFunction = New-Object System.Windows.Media.Animation.SineEase
+    $img.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $br)
+    [void]$layer.Children.Add($img)
+    return $layer
 }
 
 function global:Set-BannerGlass {
@@ -657,6 +804,7 @@ function global:Set-BannerGlass {
         $style = $global:BannerGlassStyle
         $isFrost = ($style -eq 'frost')
         $isHero  = ($style -eq 'hero')
+        $isGlow  = ($style -eq 'glow')
         $hasAmb  = ($style -ne 'classic')
         # Per-style settings on existing banner elements. Only Opacity /
         # OpacityMask / CornerRadius are touched - properties nothing else
@@ -674,15 +822,16 @@ function global:Set-BannerGlass {
         # game without any art keeps its colour background.)
         if ($bgEl) { $bgEl.Opacity = 1.0 }
         if ($banner -is [System.Windows.Controls.Border]) {
-            $banner.CornerRadius = [System.Windows.CornerRadius]::new($(if ($isHero) { $cfg.HeroCornerRadius } else { 8 }))
+            $banner.CornerRadius = [System.Windows.CornerRadius]::new($(if ($isHero) { $cfg.HeroCornerRadius } elseif ($isGlow) { $cfg.GlowCornerRadius } else { 8 }))
         }
         if ($imgEl) {
-            if ($isHero) {
+            if ($isHero -or $isGlow) {
+                $maskEnd = if ($isGlow) { $cfg.GlowMaskEnd } else { $cfg.HeroMaskEnd }
                 $mask = New-Object System.Windows.Media.LinearGradientBrush
                 $mask.StartPoint = [System.Windows.Point]::new(0, 0.5)
                 $mask.EndPoint   = [System.Windows.Point]::new(1, 0.5)
                 [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(0, 0, 0, 0), 0.0))
-                [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 0, 0, 0), $cfg.HeroMaskEnd))
+                [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 0, 0, 0), $maskEnd))
                 [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb(255, 0, 0, 0), 1.0))
                 $mask.Freeze()
                 $imgEl.OpacityMask = $mask
@@ -695,6 +844,8 @@ function global:Set-BannerGlass {
         if (-not $banner -or ($banner.Child -isnot [System.Windows.Controls.Grid])) { return }
         $g = $banner.Child
         $accent = ConvertTo-BannerGlassAccent -Hex (Resolve-BannerGlassBaseHex -Game $Game) -MinValue $cfg.AccentMinValue -MaxSat $cfg.AccentMaxSat
+        if (-not $global:BannerGlassAccentByBanner) { $global:BannerGlassAccentByBanner = @{} }
+        $global:BannerGlassAccentByBanner[$BannerName] = $accent
 
         # Base layer right above the background rectangle.
         $bg = $global:window.FindName($BannerName + 'Bg')
@@ -707,7 +858,17 @@ function global:Set-BannerGlass {
                 $ambOp = $(if ($isHero) { $cfg.HeroAmbientOpacity } else { $cfg.AmbientOpacity })
                 $amb = New-BannerGlassAmbient -Game $Game -Opacity $ambOp -ImageSource $(if ($imgEl) { $imgEl.Source } else { $null }) -ImageElement $imgEl
                 if ($amb) {
-                    if ($style -eq 'glass') {
+                    if ($isGlow) {
+                        # Moody ground: harder blur, darker veil. The bloom
+                        # goes right above it (index 1), still below the art.
+                        $amb.Children[0].Opacity = 1.0
+                        $amb.Children[0].Effect.Radius = $cfg.GlowHazeBlur
+                        $amb.Children[1].Fill = New-Object System.Windows.Media.SolidColorBrush (New-BannerGlassColor '#0a0a0c' $cfg.GlowHazeScrim)
+                        $g.Children.Insert(0, $amb)
+                        if ($bgEl) { $bgEl.Opacity = 0.0 }
+                        $bloom = New-BannerGlassBloom -ImageElement $imgEl
+                        if ($bloom) { $g.Children.Insert(1, $bloom) }
+                    } elseif ($style -eq 'glass') {
                         # Keep the original opaque milk-glass base. A very soft
                         # colour echo travels above it, below the banner FX.
                         $amb.Children[0].Opacity = $cfg.GlassAmbientOpacity
@@ -727,7 +888,7 @@ function global:Set-BannerGlass {
         $fade = $global:window.FindName($BannerName + 'Fade')
         $fadeIdx = if ($fade) { $g.Children.IndexOf($fade) } else { -1 }
         $topIdx = if ($fadeIdx -ge 0) { $fadeIdx + 1 } else { $g.Children.Count }
-        $rimR = $(if ($isHero) { $cfg.HeroCornerRadius - 1 } else { 7 })
+        $rimR = $(if ($isHero) { $cfg.HeroCornerRadius - 1 } elseif ($isGlow) { $cfg.GlowCornerRadius - 1 } else { 7 })
         $g.Children.Insert($topIdx, (New-BannerGlassTop -Accent $accent -BannerName $BannerName -Frost:$isFrost -RimRadius $rimR -ImageElement $imgEl))
     } catch {
         try { Remove-BannerGlass -BannerName $BannerName } catch { }
@@ -767,7 +928,7 @@ function global:Set-BannerGlassPill {
     if (-not $Btn) { return }
     $hex = $global:BannerGlassPillColor[[string]$Btn.Name]
     if (-not $hex) { return }
-    if ($global:BannerGlassStyle -ne 'frost' -and $global:BannerGlassStyle -ne 'hero') {
+    if ($global:BannerGlassStyle -notin @('frost', 'hero', 'glow')) {
         if ($Btn.Effect -and $Btn.Effect.GetType().Name -eq 'DropShadowEffect' -and $global:BannerGlassPillGlows.Contains($Btn.Effect)) { $Btn.Effect = $null }
         return
     }
@@ -799,8 +960,8 @@ function global:Initialize-BannerGlassPills {
                 $c = $b.BorderBrush.Color
                 $global:BannerGlassPillColor[$n] = ('#{0:x2}{1:x2}{2:x2}' -f $c.R, $c.G, $c.B)
             }
-            $b.Add_MouseEnter({ try { if ($global:BannerGlassStyle -eq 'frost' -or $global:BannerGlassStyle -eq 'hero') { Set-BannerGlassPill -Btn $this -Hover } } catch { } })
-            $b.Add_MouseLeave({ try { if ($global:BannerGlassStyle -eq 'frost' -or $global:BannerGlassStyle -eq 'hero') { Set-BannerGlassPill -Btn $this } } catch { } })
+            $b.Add_MouseEnter({ try { if ($global:BannerGlassStyle -in @('frost', 'hero', 'glow')) { Set-BannerGlassPill -Btn $this -Hover } } catch { } })
+            $b.Add_MouseLeave({ try { if ($global:BannerGlassStyle -in @('frost', 'hero', 'glow')) { Set-BannerGlassPill -Btn $this } } catch { } })
         } catch { }
     }
 }
@@ -811,7 +972,7 @@ function global:Update-BannerGlassPills {
         $b = $global:window.FindName($n)
         if (-not $b -or -not $global:BannerGlassPillColor[$n]) { continue }
         try {
-            if ($global:BannerGlassStyle -eq 'frost' -or $global:BannerGlassStyle -eq 'hero') {
+            if ($global:BannerGlassStyle -in @('frost', 'hero', 'glow')) {
                 Set-BannerGlassPill -Btn $b
             } else {
                 $b.Background = [System.Windows.Media.Brushes]::Transparent
@@ -1000,10 +1161,11 @@ function global:Add-BannerGlassMenuItem {
     $mi = New-BannerGlassMenuItem
     $mi.Item.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
+        $indicatorToken = Start-HubActionIndicator -Target $s
         try {
             Set-BannerGlassStyle -Style (Get-BannerGlassNextStyle -Current $global:BannerGlassStyle) -Save
             Update-BannerGlassMenuItem
-        } catch { }
+        } catch { } finally { Stop-HubActionIndicator -Token $indicatorToken }
     })
     $panel.Children.Insert($at, $mi.Item)
     $global:BannerGlassMenuSub = $mi.Sub

@@ -59,8 +59,23 @@ function Get-RTCWRelease([string]$Bundle){
         return [pscustomobject]@{Version=$Matches[1];Tag=$Matches[1];Name=$name;Url=$env:PCVR_RTCW_TEST_SETUP;Local=$true}
     }
     $r=Resolve-GitHubReleaseAsset -Repo $script:RTCWRepo -IncludePrerelease $true -AssetPatterns @($pattern) -SkipReleasesWithoutMatchingAsset
-    if(-not $r.Resolved -or [string]$r.AssetName -notmatch $pattern){throw "No current $Bundle publisher Setup was found on GitHub."}
-    return [pscustomobject]@{Version=$Matches[1];Tag=[string]$r.Tag;Name=[string]$r.AssetName;Url=[string]$r.Url;Local=$false}
+    if(-not $r.Resolved -or [string]$r.AssetName -notmatch $pattern){
+        Write-Host "  [!!] The current $Bundle release could not be checked on GitHub." -ForegroundColor Yellow
+        if($r.ReleaseFound){
+            Write-Host '  GitHub returned a release with a different asset layout. Choose its Setup on the release page.' -ForegroundColor Yellow
+            return [pscustomobject]@{Version='';Tag='';Name="RealRTCWXR-$Bundle-Setup.exe";Url='';Local=$false;Manual=$true}
+        }
+        Write-Host '  The last reviewed publisher version is 0.8.7 (10 October 2026).' -ForegroundColor Yellow
+        Write-Host '  A newer release may exist. You can use 0.8.7 or choose a current file from the release page.' -ForegroundColor White
+        $choice=(Read-Host '  Download the reviewed 0.8.7 Setup? Y/N').Trim()
+        if($choice -match '^(?i)y(?:es)?$'){
+            $name="RealRTCWXR-0.8.7-Release-$Bundle-Setup.exe"
+            return [pscustomobject]@{Version='0.8.7';Tag='0.8.7';Name=$name;
+                Url="https://github.com/$script:RTCWRepo/releases/download/0.8.7/$name";Local=$false;Manual=$false}
+        }
+        return [pscustomobject]@{Version='';Tag='';Name="RealRTCWXR-$Bundle-Setup.exe";Url='';Local=$false;Manual=$true}
+    }
+    return [pscustomobject]@{Version=$Matches[1];Tag=[string]$r.Tag;Name=[string]$r.AssetName;Url=[string]$r.Url;Local=$false;Manual=$false}
 }
 function Test-RTCWInstalled([string]$Root){
     if(-not $Root -or -not(Test-Path -LiteralPath $Root -PathType Container)){return $false}
@@ -118,7 +133,17 @@ function Invoke-RTCWInstaller {
         $work=New-PCVRInstallerTempSession -BasePath $tempChoice.BasePath
         $setup=Join-Path $work $release.Name
         if($release.Local){$setup=$release.Url}
-        else {
+        elseif($release.Manual){
+            $info=@{}
+            [void](Invoke-SafeDownload -Urls @() -Destination $setup -Label "RealRTCW XR $bundle Setup" `
+                -ManualUrl $script:RTCWPage -AllowSkip $false -DownloadInfo $info)
+            $leaf=[IO.Path]::GetFileName([string]$info.SourcePath)
+            $pattern='(?i)^RealRTCWXR-(\d+(?:\.\d+){2})-(?:Release-)?'+[regex]::Escape($bundle)+'-Setup\.exe$'
+            if($leaf -notmatch $pattern){throw "Choose the official $bundle publisher Setup EXE; the selected file was not installed."}
+            $release.Version=$Matches[1];$release.Tag=$Matches[1];$release.Name=$leaf
+            Write-Host "  Selected publisher version: $($release.Version) ($bundle)." -ForegroundColor Yellow
+            if((Read-Host '  Use this version? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){throw 'Publisher version was not confirmed; no game files were changed.'}
+        } else {
             $r=Invoke-SafeDownload -Urls @($release.Url) -Destination $setup -Label "RealRTCW XR $($release.Version) $bundle Setup" `
                 -ExpectedReleaseTag $release.Tag -ManualUrl $script:RTCWPage -AllowSkip $false
             if($r -ne $true -and [string]$r -notin @('manual','retry')){throw 'Publisher Setup download did not complete.'}

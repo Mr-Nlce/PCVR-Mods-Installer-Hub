@@ -1232,8 +1232,13 @@ if ($miStyle) {
     $miStyle.Add_MouseEnter($menuItemEnter); $miStyle.Add_MouseLeave($menuItemLeave)
     $miStyle.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
-        Close-HubMenu
-        if (Get-Command Switch-HubStyle -ErrorAction SilentlyContinue) { Switch-HubStyle }
+        $indicatorToken = Start-HubActionIndicator -Target $s
+        try {
+            if (Get-Command Switch-HubStyle -ErrorAction SilentlyContinue) { Switch-HubStyle }
+        } finally {
+            Stop-HubActionIndicator -Token $indicatorToken
+            Close-HubMenu
+        }
     })
 }
 
@@ -1277,6 +1282,9 @@ if ($global:miShortcut) {
 if ($headerVrIcon) {
     $headerVrIcon.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
-        if (Get-Command Switch-HeaderFxStyle -ErrorAction SilentlyContinue) { Switch-HeaderFxStyle }
+        $indicatorToken = Start-HubActionIndicator -Target $s
+        try {
+            if (Get-Command Switch-HeaderFxStyle -ErrorAction SilentlyContinue) { Switch-HeaderFxStyle }
+        } finally { Stop-HubActionIndicator -Token $indicatorToken }
     })
 }

@@ -106,9 +106,11 @@ function global:Invoke-PCVRUniversalRecovery {
         [string]$LogPath='',
         [string]$InstallerFolder='',
         [string]$DownloadsFolder='',
+        [string]$RecoveryPageUrl='',
         [scriptblock]$ReadInput=$null,
         [scriptblock]$OpenLog=$null,
-        [scriptblock]$OpenPath=$null
+        [scriptblock]$OpenPath=$null,
+        [scriptblock]$OpenPage=$null
     )
     if(-not $DownloadsFolder){
         $DownloadsFolder=Get-PCVRDownloadsFolder
@@ -133,6 +135,9 @@ function global:Invoke-PCVRUniversalRecovery {
         if($current){Write-Host ('  Manual handover ready: '+$current) -ForegroundColor Cyan}
         Write-Host ''
         Write-Host '  [R] Retry the complete installer in this window' -ForegroundColor Cyan
+        if($RecoveryPageUrl -match '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases(?:/.*)?$'){
+            Write-Host '  [O] Open the current publisher release page' -ForegroundColor Cyan
+        }
         Write-Host '  [D] Open Downloads, then drag a file or folder onto this window' -ForegroundColor Cyan
         Write-Host '  [L] Open the installer log' -ForegroundColor Cyan
         Write-Host '  [F] Open the installer folder' -ForegroundColor Cyan
@@ -152,6 +157,12 @@ function global:Invoke-PCVRUniversalRecovery {
         try{
             if($choice -eq 'R'){
                 return [pscustomobject]@{Action='retry';RecoveryInput=(Get-PCVRRecoveryInput);Source='retry'}
+            }
+            if($choice -eq 'O' -and $RecoveryPageUrl -match '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases(?:/.*)?$'){
+                if($OpenPage){& $OpenPage $RecoveryPageUrl|Out-Null}
+                else{Start-Process $RecoveryPageUrl -ErrorAction Stop|Out-Null}
+                Write-Host '  Download the publisher file, then drag it here or paste its full path.' -ForegroundColor Cyan
+                continue
             }
             if($choice -eq 'D'){
                 if(-not(Test-Path -LiteralPath $DownloadsFolder -PathType Container -ErrorAction SilentlyContinue)){

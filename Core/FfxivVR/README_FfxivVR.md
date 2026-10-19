@@ -1,6 +1,6 @@
 # Final Fantasy XIV VR Installer
 
-Guided installer for FFXIV VR v0.0.82 by WesleyLuk90, installed via
+Guided installer for FFXIV VR v0.0.83 by WesleyLuk90, installed via
 XIVLauncher and Dalamud. A VR plugin for FFXIV implemented in C# using the
 Silk OpenXR bindings, based on the original xivr-Ex plugin.
 
@@ -43,13 +43,13 @@ Make sure you have:
 4. Open the Experimental tab
 5. Paste the repo URL into row 1 of the empty URL field (copied to clipboard)
 6. Check Enabled, click Save, then Refresh
-7. Find FFXIV VR in All Plugins → install the current release (reviewed at v0.0.82)
+7. Find FFXIV VR in All Plugins → install the current release (reviewed at v0.0.83)
 8. Type `/vr` in chat to open VR settings — enable "Start in VR automatically"
 9. Restart FFXIV
 
-## Current release v0.0.82
+## Current release v0.0.83
 
-v0.0.82 fixes mouse targeting. v0.0.79 fixed decals, ambient occlusion, fog and content locked to the head;
+v0.0.83 adds `/vr restart` and fixes an HBAO deadlock. v0.0.82 fixes mouse targeting. v0.0.79 fixed decals, ambient occlusion, fog and content locked to the head;
 it also clears the constant-buffer cache and validates line endings. The
 Hub's guided Dalamud repository route continues to fetch the current plugin.
 The Windows plugin ZIP is a review source, not an installer payload.

@@ -261,8 +261,18 @@ echo   [246] XIII Remake VR
 echo   [247] Return to Castle Wolfenstein VR
 echo   [248] Penumbra: Black Plague VR
 echo   [249] Penumbra: Requiem VR
+echo   [250] Killing Floor 2 VR
+echo   [251] Forsaken VR
+echo   [252] Beyond: Two Souls VR
+echo   [253] Fallout 3 VR
+echo   [254] Fallout: New Vegas VR
+echo   [255] Teardown VR
+echo   [256] Journey VR
+echo   [257] Project Zomboid VR
+echo   [258] Spec Ops: The Line VR
+echo   [259] Alan Wake VR
 echo.
-set /p choice="Enter number (1-249): "
+set /p choice="Enter number (1-259): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -512,6 +522,16 @@ if "%choice%"=="246" (set SCRIPT=%~dp0XIIIVR\XIIIVR-core.ps1)
 if "%choice%"=="247" (set SCRIPT=%~dp0RealRTCWXR\RealRTCWXR-core.ps1)
 if "%choice%"=="248" (set SCRIPT=%~dp0PenumbraBlackPlagueVR\PenumbraBlackPlagueVR-core.ps1)
 if "%choice%"=="249" (set SCRIPT=%~dp0PenumbraRequiemVR\PenumbraRequiemVR-core.ps1)
+if "%choice%"=="250" (set SCRIPT=%~dp0KillingFloor2VR\KillingFloor2VR-core.ps1)
+if "%choice%"=="251" (set SCRIPT=%~dp0ForsakenVR\ForsakenVR-core.ps1)
+if "%choice%"=="252" (set SCRIPT=%~dp0BeyondTwoSoulsVR\BeyondTwoSoulsVR-core.ps1)
+if "%choice%"=="253" (set SCRIPT=%~dp0Fallout3VR\Fallout3VR-core.ps1)
+if "%choice%"=="254" (set SCRIPT=%~dp0FNVVR\FNVVR-core.ps1)
+if "%choice%"=="255" (set SCRIPT=%~dp0TeardownVR\TeardownVR-core.ps1)
+if "%choice%"=="256" (set SCRIPT=%~dp0JourneyVR\JourneyVR-core.ps1)
+if "%choice%"=="257" (set SCRIPT=%~dp0ProjectZomboidVR\ProjectZomboidVR-core.ps1)
+if "%choice%"=="258" (set SCRIPT=%~dp0SpecOpsTheLineVR\SpecOpsTheLineVR-core.ps1)
+if "%choice%"=="259" (set SCRIPT=%~dp0AlanWakeVR\AlanWakeVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

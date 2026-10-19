@@ -224,6 +224,7 @@ public class PcvrViewSwitchIndicator
     private VisualTarget _target;
     private PcvrVisualHost _element;
     private DispatcherTimer _timer;
+    private DispatcherTimer _revealTimer;
     private DispatcherTimer _watchdog;
     private Rectangle[] _squares;
     private Rectangle[] _popupSquares;
@@ -237,12 +238,18 @@ public class PcvrViewSwitchIndicator
     public bool Ready { get { return _ready; } }
     public bool PopupVisible { get { return _popupVisible; } }
 
+
     [DllImport("user32.dll", EntryPoint="GetWindowLongW")]
     private static extern int GetWindowLong(IntPtr hwnd, int index);
     [DllImport("user32.dll", EntryPoint="SetWindowLongW")]
     private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
 
     public static PcvrViewSwitchIndicator Create(double left, double top)
+    {
+        return CreateDelayed(left, top, 0);
+    }
+
+    public static PcvrViewSwitchIndicator CreateDelayed(double left, double top, int delayMs)
     {
         PcvrViewSwitchIndicator s = new PcvrViewSwitchIndicator();
         s._host = new HostVisual();
@@ -277,15 +284,29 @@ public class PcvrViewSwitchIndicator
                     SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) |
                         WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
                 };
-                s._popup.Show();
-                s._popupVisible = s._popup.IsVisible;
+                if (delayMs <= 0)
+                {
+                    s._popup.Show();
+                    s._popupVisible = s._popup.IsVisible;
+                }
+                else
+                {
+                    s._revealTimer = new DispatcherTimer(DispatcherPriority.Render, s._dispatcher);
+                    s._revealTimer.Interval = TimeSpan.FromMilliseconds(delayMs);
+                    s._revealTimer.Tick += delegate {
+                        s._revealTimer.Stop();
+                        s._popup.Show();
+                        s._popupVisible = s._popup.IsVisible;
+                    };
+                    s._revealTimer.Start();
+                }
                 s.Paint(1);
                 s._timer = new DispatcherTimer(DispatcherPriority.Render, s._dispatcher);
                 s._timer.Interval = TimeSpan.FromMilliseconds(300);
                 s._timer.Tick += delegate { s.Paint(s._phase >= 4 ? 1 : s._phase + 1); };
                 s._timer.Start();
                 s._watchdog = new DispatcherTimer(DispatcherPriority.Background, s._dispatcher);
-                s._watchdog.Interval = TimeSpan.FromSeconds(15);
+                s._watchdog.Interval = delayMs > 0 ? TimeSpan.FromSeconds(90) : TimeSpan.FromSeconds(15);
                 s._watchdog.Tick += delegate {
                     s._watchdog.Stop();
                     s._timer.Stop();
@@ -365,12 +386,164 @@ public class PcvrViewSwitchIndicator
 
     public void Stop()
     {
+        try { if (_revealTimer != null && _dispatcher != null) { _dispatcher.Invoke(new Action(delegate { _revealTimer.Stop(); })); } } catch { }
         try { if (_popup != null && _dispatcher != null) { _dispatcher.Invoke(new Action(delegate { _popup.Close(); _popupVisible = false; })); } } catch { }
         try { if (_dispatcher != null) { _dispatcher.InvokeShutdown(); } } catch { }
         try { if (_thread != null && _thread.IsAlive) { _thread.Join(500); } } catch { }
         _dispatcher = null;
         _thread = null;
         _target = null;
+    }
+}
+
+// A full-row version of the Scan button light for menu actions. Its own STA
+// dispatcher keeps the border moving even while the Hub rebuilds on its UI
+// thread. The transparent popup does not intercept menu clicks.
+public class PcvrMenuActionGlow
+{
+    private double _width;
+    private double _height;
+    private double _left;
+    private double _top;
+    private Thread _thread;
+    private Dispatcher _dispatcher;
+    private DispatcherTimer _revealTimer;
+    private Window _popup;
+    private Path _brightPath;
+    private volatile bool _ready;
+    private volatile bool _popupVisible;
+
+    public bool Ready { get { return _ready; } }
+    public bool PopupVisible { get { return _popupVisible; } }
+    public double PopupWidth { get { return _width; } }
+    public double PopupHeight { get { return _height; } }
+    public double PopupLeft { get { return _left; } }
+    public double PopupTop { get { return _top; } }
+    public double GlowOffset {
+        get {
+            if (_dispatcher == null || _brightPath == null) return 0;
+            try { return (double)_dispatcher.Invoke(new Func<double>(delegate { return _brightPath.StrokeDashOffset; })); }
+            catch { return 0; }
+        }
+    }
+
+    [DllImport("user32.dll", EntryPoint="GetWindowLongW")]
+    private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [DllImport("user32.dll", EntryPoint="SetWindowLongW")]
+    private static extern int SetWindowLong(IntPtr hwnd, int index, int value);
+
+    public static PcvrMenuActionGlow CreateDelayed(double left, double top,
+                                                    double width, double height, int delayMs)
+    {
+        PcvrMenuActionGlow s = new PcvrMenuActionGlow();
+        s._width = Math.Max(24, width);
+        s._height = Math.Max(20, height);
+        s._left = left;
+        s._top = top;
+        ManualResetEvent ready = new ManualResetEvent(false);
+        s._thread = new Thread(delegate()
+        {
+            try
+            {
+                s._dispatcher = Dispatcher.CurrentDispatcher;
+                s._popup = new Window();
+                s._popup.WindowStyle = WindowStyle.None;
+                s._popup.ResizeMode = ResizeMode.NoResize;
+                s._popup.AllowsTransparency = true;
+                s._popup.Background = Brushes.Transparent;
+                s._popup.ShowInTaskbar = false;
+                s._popup.ShowActivated = false;
+                s._popup.Topmost = true;
+                s._popup.Width = s._width;
+                s._popup.Height = s._height;
+                s._popup.Left = left;
+                s._popup.Top = top;
+                s._popup.Content = s.Build(s._popup.Width, s._popup.Height);
+                s._popup.SourceInitialized += delegate {
+                    IntPtr hwnd = new WindowInteropHelper(s._popup).Handle;
+                    const int GWL_EXSTYLE = -20;
+                    const int WS_EX_TRANSPARENT = 0x20;
+                    const int WS_EX_TOOLWINDOW = 0x80;
+                    const int WS_EX_NOACTIVATE = 0x08000000;
+                    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) |
+                        WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
+                };
+                s._revealTimer = new DispatcherTimer(DispatcherPriority.Render, s._dispatcher);
+                s._revealTimer.Interval = TimeSpan.FromMilliseconds(delayMs);
+                s._revealTimer.Tick += delegate {
+                    s._revealTimer.Stop();
+                    try { s._popup.Show(); s._popupVisible = s._popup.IsVisible; } catch { }
+                };
+                s._revealTimer.Start();
+                s._ready = true;
+            }
+            catch { }
+            finally { ready.Set(); }
+            if (s._ready) { try { Dispatcher.Run(); } catch { } }
+        });
+        s._thread.SetApartmentState(ApartmentState.STA);
+        s._thread.IsBackground = true;
+        s._thread.Start();
+        ready.WaitOne(400);
+        return s;
+    }
+
+    private Path Stroke(Rect rect, double thickness, double opacity, double segment,
+                        double halfPerimeter, double seconds, Effect effect)
+    {
+        Path p = new Path();
+        p.Data = new RectangleGeometry(rect, 7, 7);
+        SolidColorBrush brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6BF49B"));
+        brush.Opacity = opacity;
+        p.Stroke = brush;
+        p.StrokeThickness = thickness;
+        p.StrokeStartLineCap = PenLineCap.Round;
+        p.StrokeEndLineCap = PenLineCap.Round;
+        p.StrokeDashCap = PenLineCap.Round;
+        p.Effect = effect;
+        if (segment > 0)
+        {
+            p.StrokeDashArray = new DoubleCollection { segment / thickness,
+                Math.Max(0.01, (halfPerimeter - segment) / thickness) };
+            DoubleAnimation move = new DoubleAnimation();
+            move.From = 0;
+            move.To = -(halfPerimeter / thickness);
+            move.Duration = new Duration(TimeSpan.FromSeconds(seconds));
+            move.RepeatBehavior = RepeatBehavior.Forever;
+            p.BeginAnimation(Shape.StrokeDashOffsetProperty, move);
+        }
+        return p;
+    }
+
+    private Canvas Build(double width, double height)
+    {
+        Canvas root = new Canvas();
+        root.Width = width;
+        root.Height = height;
+        Rect rect = new Rect(2, 2, Math.Max(1, width - 4), Math.Max(1, height - 4));
+        double halfPerimeter = (2 * (rect.Width + rect.Height) - 56 + 14 * Math.PI) / 2;
+        double segment = halfPerimeter * 0.30;
+        root.Children.Add(Stroke(rect, 1.3, 0.48, 0, halfPerimeter, 0, null));
+        root.Children.Add(Stroke(rect, 5.4, 0.50, segment, halfPerimeter, 2.2,
+            new BlurEffect { Radius = 8, KernelType = KernelType.Gaussian }));
+        _brightPath = Stroke(rect, 2.0, 0.98, segment, halfPerimeter, 2.2,
+            new BlurEffect { Radius = 1.5, KernelType = KernelType.Gaussian });
+        root.Children.Add(_brightPath);
+        return root;
+    }
+
+    public void Stop()
+    {
+        try {
+            if (_dispatcher != null) _dispatcher.Invoke(new Action(delegate {
+                if (_revealTimer != null) _revealTimer.Stop();
+                if (_popup != null) { _popup.Close(); _popupVisible = false; }
+            }));
+        } catch { }
+        try { if (_dispatcher != null) _dispatcher.InvokeShutdown(); } catch { }
+        try { if (_thread != null && _thread.IsAlive) _thread.Join(500); } catch { }
+        _dispatcher = null;
+        _thread = null;
     }
 }
 '@
@@ -524,5 +697,60 @@ function global:Stop-ViewSwitchIndicator {
     $global:ViewSwitchIndicatorActive = $null
     try { if ($active.StopTimer) { $active.StopTimer.Stop() } } catch { }
     try { [void]$active.Host.Children.Remove($active.Element) } catch { }
+    try { $active.Indicator.Stop() } catch { }
+}
+
+# A full-row Scan-style glow for slow menu work. It appears after half a second,
+# and its render thread keeps it moving while the Hub dispatcher is blocked.
+$global:HubActionIndicatorActive = $null
+function global:Start-HubActionIndicator {
+    param([System.Windows.FrameworkElement]$Target,[int]$DelayMilliseconds=500,
+        [double]$BottomExtension=0,[double]$RightInset=0,[switch]$FitTargetEdges)
+    if (-not $global:ScanSpinnerReady -or -not $Target -or -not $Target.IsVisible) { return $null }
+    Stop-HubActionIndicator
+    try {
+        $targetWidth = [double]$Target.ActualWidth
+        $targetHeight = [double]$Target.ActualHeight
+        if ($targetWidth -lt 24 -or $targetHeight -lt 20) { return $null }
+        # Card sizes use LayoutTransform. ActualWidth/ActualHeight remain in
+        # unscaled card coordinates, but PointToScreen is scaled. Measure the
+        # screen-space corners of the actual clickable button.
+        $point = $Target.PointToScreen([System.Windows.Point]::new(0, 0))
+        $farPoint = $Target.PointToScreen([System.Windows.Point]::new(
+            [Math]::Max(0, $targetWidth - [Math]::Max(0, $RightInset)), $targetHeight))
+        $source = [System.Windows.PresentationSource]::FromVisual($Target)
+        if ($source -and $source.CompositionTarget) {
+            $point = $source.CompositionTarget.TransformFromDevice.Transform($point)
+            $farPoint = $source.CompositionTarget.TransformFromDevice.Transform($farPoint)
+        }
+        $width = [double]($farPoint.X - $point.X)
+        $indicatorHeight = [double]($farPoint.Y - $point.Y) + [Math]::Max(0, $BottomExtension)
+        if ($width -lt 24 -or $indicatorHeight -lt 20) { return $null }
+        if ($FitTargetEdges) {
+            # The glow path is inset 2px within its transparent popup. Place
+            # that path on all four real button edges, not inside the button.
+            $point = [System.Windows.Point]::new($point.X - 2, $point.Y - 2)
+            $width += 4
+            $indicatorHeight += 4
+        }
+        $indicator = [PcvrMenuActionGlow]::CreateDelayed($point.X, $point.Y, $width, $indicatorHeight, ([Math]::Max(0,$DelayMilliseconds)))
+        if (-not $indicator -or -not $indicator.Ready) {
+            if ($indicator) { $indicator.Stop() }
+            return $null
+        }
+        $token = [Guid]::NewGuid().ToString('N')
+        $global:HubActionIndicatorActive = @{ Token = $token; Indicator = $indicator }
+        return $token
+    } catch {
+        Stop-HubActionIndicator
+        return $null
+    }
+}
+
+function global:Stop-HubActionIndicator {
+    param([string]$Token)
+    $active = $global:HubActionIndicatorActive
+    if (-not $active -or ($Token -and $Token -cne $active.Token)) { return }
+    $global:HubActionIndicatorActive = $null
     try { $active.Indicator.Stop() } catch { }
 }

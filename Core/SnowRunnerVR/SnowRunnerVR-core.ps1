@@ -110,9 +110,7 @@ function Install-SnowRunnerPinnedDepot {
         Write-Host "  $depotCommand" -ForegroundColor DarkGray
         try { Set-Clipboard -Value $depotCommand -DeferManualFallback } catch {}
         Pause-Snow 'Press Enter to open the Steam Console...'
-        foreach ($uri in @('steam://open/console','steam://nav/console')) {
-            try { Start-Process $uri; Start-Sleep -Milliseconds 900 } catch {}
-        }
+        [void](Open-PCVRSteamConsole)
         Show-PCVRClipboardManualFallback -Text $depotCommand
         Write-Host '  Paste the command with Ctrl+V, press Enter, and wait for:' -ForegroundColor White
         Write-Host "  Depot download complete ...\depot_$depotId" -ForegroundColor Black -BackgroundColor Yellow
@@ -127,9 +125,7 @@ function Install-SnowRunnerPinnedDepot {
         throw "The complete SnowRunner $depotGameVersion depot was not verified. Nothing was moved."
     }
 
-    Write-Host "  Default install location: $depotDefaultPath" -ForegroundColor Gray
-    $entered = ([string](Read-Host 'Press Enter for the default, or type a different full path')).Trim().Trim('"')
-    $targetPath = if ($entered) { $entered } else { $depotDefaultPath }
+    $targetPath = Select-PCVRDepotInstallPath -DefaultPath $depotDefaultPath
     if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) { throw "The depot target is not writable: $targetPath" }
     $normalSteamGame = Find-SteamGameFolder -AppId $appId -SteamFolderNames @('SnowRunner','Codename - SR') -ProbeExe 'Sources\Bin\SnowRunner.exe'
     if ($normalSteamGame -and ([IO.Path]::GetFullPath($targetPath) -ieq [IO.Path]::GetFullPath($normalSteamGame))) {
@@ -199,7 +195,8 @@ Write-Host ''
 Write-Host '  [1] Current Steam version' -ForegroundColor Cyan
 Write-Host '      Uses your normal game and follows the current stable VR release.' -ForegroundColor Gray
 Write-Host "  [2] Last confirmed working version - $depotGameVersion (recommended fallback)" -ForegroundColor Cyan
-Write-Host "      Downloads Steam build $depotBuild into $depotDefaultPath." -ForegroundColor Gray
+Write-Host "      Downloads Steam build $depotBuild." -ForegroundColor Gray
+Write-Host "      Default game folder: $depotDefaultPath (or choose another)." -ForegroundColor Gray
 Write-Host '      Your normal Steam installation remains untouched.' -ForegroundColor Gray
 Write-Host '  [Q] Quit' -ForegroundColor Gray
 Write-Host ''

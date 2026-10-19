@@ -11,7 +11,7 @@
 
 param(
     [Alias('InstallerChoice')]
-    [ValidateSet('','romeo','pcvr')]
+    [ValidateSet('','unleashed','romeo','pcvr')]
     [string]$Mod = ''
 )
 
@@ -98,34 +98,41 @@ Write-Header
 # standalone Quest build - across to PCVR. Different engines, different
 # feel, different folders. Both can be installed at once.
 Write-Host ""
-Write-Host "  Two Quake VR builds exist:" -ForegroundColor White
+Write-Host "  Choose one of three separate Quake VR mods:" -ForegroundColor White
 Write-Host ""
-Write-Host "   [1] Quake VR by Vittorio Romeo" -ForegroundColor Cyan
-Write-Host "       Its own VR design - physical weapon handling, hand" -ForegroundColor Gray
-Write-Host "       interactions, a heavily reworked feel." -ForegroundColor Gray
+Write-Host "   [1] Unleashed by Vittorio Romeo - recommended" -ForegroundColor Green
+Write-Host "       Ironwail engine, OpenXR, motion controls and new VR features." -ForegroundColor Gray
 Write-Host ""
 Write-Host "   [2] Quake PCVR by GameOrDie007" -ForegroundColor Cyan
 Write-Host "       Team Beef's QuakeQuest brought to PC. Plays exactly like" -ForegroundColor Gray
 Write-Host "       the Quest version, at PC resolution. All six games from" -ForegroundColor Gray
 Write-Host "       Single Player, both mission packs and all four episodes." -ForegroundColor Gray
 Write-Host ""
-Write-Host "  Each lives in its own folder, so both can be installed." -ForegroundColor DarkGray
+Write-Host "   [3] Original Quake VR by Vittorio Romeo (legacy)" -ForegroundColor Cyan
+Write-Host "       QuakeSpasm, SteamVR/OpenVR; existing installs remain available." -ForegroundColor Gray
+Write-Host ""
+Write-Host "  Each uses a separate folder. Old saves do not transfer to Unleashed." -ForegroundColor Yellow
 Write-Host ""
 $quakePick = switch ($Mod) {
-    'romeo' { '1' }
+    'unleashed' { '1' }
+    'romeo' { '3' }
     'pcvr'  { '2' }
     default { '' }
 }
 if ($quakePick) {
-    $selectedByHub = if ($quakePick -eq '1') { 'Vittorio Romeo' } else { 'Team Beef port' }
+    $selectedByHub = switch ($quakePick) {'1' {'Unleashed'} '2' {'Team Beef port'} '3' {'Original Quake VR'}}
     Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
     Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
 } else {
     for ($k = 1; $k -le 20; $k++) {
-        $quakePick = ("" + (Read-Host "  Enter 1 or 2")).Trim()
-        if ($quakePick -in @("1","2")) { break }
-        Write-Host "  Please answer 1 or 2." -ForegroundColor Yellow
+        $quakePick = ("" + (Read-Host "  Enter 1, 2 or 3")).Trim()
+        if ($quakePick -in @("1","2","3")) { break }
+        Write-Host "  Please answer 1, 2 or 3." -ForegroundColor Yellow
     }
+}
+if ($quakePick -eq "1") {
+    & (Join-Path $PSScriptRoot 'QuakeVR-Unleashed.ps1')
+    exit 0
 }
 if ($quakePick -eq "2") {
     $pcvr = Join-Path $PSScriptRoot "QuakeVR-PCVR.ps1"

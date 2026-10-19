@@ -113,7 +113,8 @@ function Install-UmmMod {
   [string]$ZipPattern,
   [string]$TargetSubfolder = "",
   [string]$VerifyFile,
-  [string]$Purpose = ""
+  [string]$Purpose = "",
+  [string]$AllowedVersionPattern = ""
  )
 
  Write-Host " $Label" -ForegroundColor White
@@ -193,6 +194,16 @@ function Install-UmmMod {
   Write-Host " Extracting ... " -NoNewline -ForegroundColor White
   Expand-Archive -LiteralPath $zip.FullName -DestinationPath $tempDir -Force
   Write-Host "OK" -ForegroundColor Green
+
+  if ($AllowedVersionPattern) {
+   $metadata = Get-ChildItem -LiteralPath $tempDir -Filter 'Info.json' -File -Recurse -ErrorAction Stop | Select-Object -First 1
+   if (-not $metadata) { throw "$Label archive has no Info.json; no files were copied." }
+   $packageInfo = Get-Content -LiteralPath $metadata.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+   $packageVersion = [string]$packageInfo.Version
+   if ($packageVersion -notmatch $AllowedVersionPattern) {
+    throw "$Label $packageVersion is not the reviewed stable 1.7.34 dependency. Choose the stable ToyBox main file on Nexus; the 2.0 Beta is not used. No files were copied."
+   }
+  }
 
   # Where do the mod files live inside the zip? Two layouts exist:
   #  a) files at the zip ROOT (Info.json directly)  -> needs $TargetSubfolder
@@ -375,7 +386,7 @@ if ($updateMode -and $toyPresent) {
 } else {
  if (-not (Install-UmmMod -Label "Toy Box (cheats/tweaks toolbox; RTVR builds on it)" `
    -NexusUrl $NEXUS_TOYBOX -ZipPattern "ToyBox*.zip" `
-  -Purpose "REQUIRED by RTVR. Use the stable ToyBox 1.7.34 main file, not the unverified 2.0 Beta." `
+  -Purpose "REQUIRED by RTVR. Use the stable ToyBox 1.7.34 main file, not the unverified 2.0 Beta." -AllowedVersionPattern '^1\.7\.34$' `
    -TargetSubfolder "0ToyBox0" -VerifyFile "0ToyBox0\ToyBox.dll")) {
   $failed += "Toy Box"
  }

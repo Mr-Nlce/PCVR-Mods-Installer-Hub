@@ -927,10 +927,11 @@ function global:Add-HeaderFxMenuItems {
     $style = New-HeaderFxMenuItem -Name 'MiHeaderFxStyle' -DotHex '#ff8a22' -Title 'Header style'
     $style.Item.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
+        $indicatorToken = Start-HubActionIndicator -Target $s
         try {
             Switch-HeaderFxStyle
             Update-HeaderFxMenuItems
-        } catch { }
+        } catch { } finally { Stop-HubActionIndicator -Token $indicatorToken }
     })
     $speed = New-HeaderFxMenuItem -Name 'MiHeaderFxSpeed' -DotHex '#36e0e0' -Title 'Header speed'
     $speed.Item.Add_MouseLeftButtonUp({ param($s, $e)

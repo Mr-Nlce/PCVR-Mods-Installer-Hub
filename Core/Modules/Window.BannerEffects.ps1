@@ -1091,6 +1091,7 @@ function global:Add-BannerTwinkle {
 function global:Add-BannerRain {
     param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
     try {
+        $featured = @('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
         $canvas = New-Object System.Windows.Controls.Canvas
@@ -1101,10 +1102,11 @@ function global:Add-BannerRain {
         $col = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(150, 195, 225)); $col.Freeze()
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 70; $i++) {
-            $len = 8 + $rand.NextDouble() * 12
+            $len = if ($featured) { 12 + $rand.NextDouble() * 16 } else { 8 + $rand.NextDouble() * 12 }
             $drop = New-Object System.Windows.Shapes.Rectangle
-            $drop.Width = 1; $drop.Height = $len; $drop.RadiusX = 0.5; $drop.RadiusY = 0.5
-            $drop.Fill = $col; $drop.Opacity = 0.1 + $rand.NextDouble() * 0.25
+            $drop.Width = $(if ($featured) { 1.8 } else { 1 }); $drop.Height = $len
+            $drop.RadiusX = $drop.Width / 2; $drop.RadiusY = $drop.Width / 2
+            $drop.Fill = $col; $drop.Opacity = $(if ($featured) { 0.16 + $rand.NextDouble() * 0.32 } else { 0.1 + $rand.NextDouble() * 0.25 })
             $tt = New-Object System.Windows.Media.TranslateTransform
             $drop.RenderTransform = $tt
             [System.Windows.Controls.Canvas]::SetTop($drop, -$len)
@@ -1477,14 +1479,19 @@ function global:Add-BannerVortex {
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
         $dotBrush = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(120, 210, 255)); $dotBrush.Freeze()
+        # Keep detail-page header particles unchanged. The three rotating
+        # galaxies in featured/explore banners need larger, brighter points
+        # to remain visible through the frosted banner glass.
+        $isFeatureBanner = $BannerName -in @('ListBanner', 'LibBanner', 'OvBanner')
         $n = 90; $maxR = $BannerH * 0.42
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt $n; $i++) {
             $theta = $i * 0.5
             $radd = ($i / ($n - 1.0)) * $maxR
-            $sz = 0.8 + $rand.NextDouble() * 1.4
+            $sz = if ($isFeatureBanner) { 2.4 + $rand.NextDouble() * 1.8 } else { 0.8 + $rand.NextDouble() * 1.4 }
             $dot = New-Object System.Windows.Shapes.Ellipse
-            $dot.Width = $sz; $dot.Height = $sz; $dot.Fill = $dotBrush; $dot.Opacity = 0.15 + $rand.NextDouble() * 0.4
+            $dot.Width = $sz; $dot.Height = $sz; $dot.Fill = $dotBrush
+            $dot.Opacity = if ($isFeatureBanner) { 0.52 + $rand.NextDouble() * 0.32 } else { 0.15 + $rand.NextDouble() * 0.4 }
             [void]$canvas.Children.Add($dot)
             [void]$info.Add([pscustomobject]@{ el = $dot; th = $theta; rad = $radd; sz = $sz })
         }
@@ -1505,6 +1512,10 @@ function global:Add-BannerVortex {
         $canvas.Add_SizeChanged($reflow); & $reflow
         $canvas.Tag = "BannerFx"
         $idx = [Math]::Min(1, $grid.Children.Count); $grid.Children.Insert($idx, $canvas)
+        if ($isFeatureBanner -and [Math]::Abs($CenterFrac - 0.5) -lt 0.001) {
+            Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.28 -Scale 0.58
+            Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.73 -Scale 0.58
+        }
     } catch { }
 }
 
@@ -1895,6 +1906,7 @@ function global:Add-BannerComet {
 function global:Add-BannerSpark {
     param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
     try {
+        $featured = @('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
         $canvas = New-Object System.Windows.Controls.Canvas
@@ -1910,7 +1922,7 @@ function global:Add-BannerSpark {
             $emitY = if ($isBottom) { $BannerH * 0.90 } else { $BannerH * 0.10 }
             for ($s = 0; $s -lt $perEmit; $s++) {
                 $sp = New-Object System.Windows.Shapes.Ellipse
-                $sp.Width = 2.2; $sp.Height = 2.2
+                $sp.Width = $(if ($featured) { 3.3 } else { 2.2 }); $sp.Height = $sp.Width
                 $warm = if ($rand.NextDouble() -lt 0.5) { [System.Windows.Media.Color]::FromRgb(255, 200, 120) } else { [System.Windows.Media.Color]::FromRgb(255, 150, 80) }
                 $sp.Fill = [System.Windows.Media.SolidColorBrush]::new($warm)
                 $tt = New-Object System.Windows.Media.TranslateTransform
@@ -2243,16 +2255,19 @@ function global:Set-BannerEffect {
     }
     Add-BannerEffect -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -Effect $Effect
     if (@('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName) {
-        if (($Effect -match '^(bokeh|blob|orbs)' -or $Effect -in @('stars', 'parallax', 'motes')) -and $g) {
+        if (($Effect -match '^(bokeh|blob|orbs|vortex)' -or $Effect -in @('stars', 'parallax', 'motes')) -and $g) {
             # A later effect swap normally inserts at index 1. Glass's nearly
             # opaque base may already occupy index 2, hiding the effect.
             # Keep coloured balls and fine particles above the base, below art.
-            $fxLayer = @($g.Children | Where-Object { $_.Tag -eq 'BannerFx' }) | Select-Object -First 1
+            $fxLayers = @($g.Children | Where-Object { $_.Tag -eq 'BannerFx' })
             $baseLayer = @($g.Children | Where-Object { $_.Tag -eq 'BannerGlass' }) | Select-Object -First 1
-            if ($fxLayer -and $baseLayer) {
-                $g.Children.Remove($fxLayer)
+            if ($fxLayers.Count -gt 0 -and $baseLayer) {
+                foreach ($fxLayer in $fxLayers) { $g.Children.Remove($fxLayer) }
                 $baseIndex = $g.Children.IndexOf($baseLayer)
-                $g.Children.Insert($baseIndex + 1, $fxLayer)
+                foreach ($fxLayer in $fxLayers) {
+                    $baseIndex++
+                    $g.Children.Insert($baseIndex, $fxLayer)
+                }
             }
         }
         if (-not $global:BannerFxByBanner) { $global:BannerFxByBanner = @{} }
@@ -2272,9 +2287,9 @@ function global:Reshuffle-BannerEffects {
             foreach ($t in $global:BannerTimers) { try { $t.Stop() } catch { } }
             $global:BannerTimers.Clear()
         }
-        Set-BannerEffect -BannerName "OvBanner"   -BannerH 200 -ColorHex "#FFFFFF" -Effect (Get-BannerFxFor -Game $global:OvBannerGame)
-        Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame)
-        Set-BannerEffect -BannerName "LibBanner"  -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame)
+        Set-BannerEffect -BannerName "OvBanner"   -BannerH 200 -ColorHex "#FFFFFF" -Effect (Get-BannerFxFor -Game $global:OvBannerGame -Featured)
+        Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame -Featured)
+        Set-BannerEffect -BannerName "LibBanner"  -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame -Featured)
     } catch { }
 }
 
@@ -2303,14 +2318,14 @@ function global:Invoke-ListLibBannerRotation {
         try {
             Set-ListBanner
             Stop-BannerNetTimer "ListBanner"
-            Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame)
+            Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame -Featured)
         } catch { }
     }
     if (-not $libDisabled -and (Get-Command Set-LibBanner -ErrorAction SilentlyContinue)) {
         try {
             Set-LibBanner
             Stop-BannerNetTimer "LibBanner"
-            Set-BannerEffect -BannerName "LibBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame)
+            Set-BannerEffect -BannerName "LibBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame -Featured)
         } catch { }
     }
 }
@@ -2490,7 +2505,11 @@ function global:Test-PinkBubbleGame {
 # the game reads as futuristic; a null game falls back to the general
 # pool (no synth).
 function global:Get-BannerFxFor {
-    param($Game)
+    param($Game, [switch]$Featured)
+    if ($Featured -and (Get-Command Select-BannerFxExtra -ErrorAction SilentlyContinue)) {
+        $extra = Select-BannerFxExtra -Game $Game -Roll (Get-Random -Minimum 0.0 -Maximum 1.0) -Pick (Get-Random -Minimum 0.0 -Maximum 1.0)
+        if ($extra) { return $extra }
+    }
     $pool = @($global:BannerFxPool)
     if (Test-FuturisticGame -Game $Game) { $pool += "synth" }
     if (Test-ColorfulGame    -Game $Game) { $pool += "flow" }
@@ -2527,9 +2546,9 @@ function global:Get-BannerFxFor {
     return ($pool | Get-Random)
 }
 
-Set-BannerEffect -BannerName "OvBanner"   -BannerH 200 -ColorHex "#FFFFFF" -Effect (Get-BannerFxFor -Game $global:OvBannerGame)
-Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame)
-Set-BannerEffect -BannerName "LibBanner"  -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame)
+Set-BannerEffect -BannerName "OvBanner"   -BannerH 200 -ColorHex "#FFFFFF" -Effect (Get-BannerFxFor -Game $global:OvBannerGame -Featured)
+Set-BannerEffect -BannerName "ListBanner" -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:ListBannerGame -Featured)
+Set-BannerEffect -BannerName "LibBanner"  -BannerH 140 -ColorHex "#ffcf8c" -Effect (Get-BannerFxFor -Game $global:LibBannerGame -Featured)
 
 function global:Add-BannerDotPulse {
     # Give the control-type dot before "featured mod" a slow, subtle pulse with

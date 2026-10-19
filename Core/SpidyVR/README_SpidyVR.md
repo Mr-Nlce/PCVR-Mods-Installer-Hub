@@ -6,7 +6,7 @@ Marvel's Spider-Man Remastered follows Peter Parker through an open-world New Yo
 
 ## Requirements and setup
 
-The reviewed Windows package is Spidy v0.3.6. Its launcher adds an Auto
+The reviewed Windows package is Spidy v0.3.8. Its launcher retains the Auto
 aspect-ratio choice for VR and identifies a R.E.A.L. VR mod already present in
 the game folder. The release also includes experimental Linux files; the Hub
 continues to install only the Windows package for its supported Steam route.

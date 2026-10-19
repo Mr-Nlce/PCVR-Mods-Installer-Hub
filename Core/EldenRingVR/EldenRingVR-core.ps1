@@ -109,10 +109,12 @@ Write-Host "  the mod; the pinned 1.16.2 depot is the recommended target." -Fore
 Write-Host ""
 Show-AntivirusNotice
 
-Write-Step 1 3 "Getting Hotbite from Nexus"
-Pause-User "Press Enter to open the Nexus files page..." | Out-Null
-try { Start-Process $NEXUS_URL } catch { Write-Warn "Open manually: $NEXUS_URL" }
-Pause-User "Press Enter once the ZIP is downloaded..." | Out-Null
+Write-Step 1 3 "Checking for an existing Hotbite archive"
+Write-Warn "The author hid the Hotbite Nexus download on 7 October 2026."
+Write-Host "  A new download is currently unavailable from its official page." -ForegroundColor White
+Write-Host "  If you already have the official Hotbite ZIP, this setup can use it." -ForegroundColor White
+Write-Host "  Otherwise choose the separate Ilya ERVR route from the Hub." -ForegroundColor White
+Pause-User "Press Enter to check Downloads for an existing Hotbite ZIP..." | Out-Null
 
 $downloads = Get-PCVRDownloadsFolder
 $zip = $null

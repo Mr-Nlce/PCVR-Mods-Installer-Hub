@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet('romeo','pcvr')]
+    [ValidateSet('romeo','pcvr','unleashed')]
     [string]$Mod,
     [string]$InstallRoot = '',
     [string]$StateRoot = '',
@@ -19,18 +19,27 @@ function Stop-Here  { param([int]$Code=0); if (-not $NoPause) { Write-Host ''; R
 function Test-QuakeVrRoot([string]$Path, [string]$Kind) {
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
     if ($Kind -eq 'romeo') { return (Test-Path -LiteralPath (Join-Path $Path 'quakevr.exe') -PathType Leaf) }
+    if ($Kind -eq 'unleashed') {
+        if (-not (Test-Path -LiteralPath (Join-Path $Path 'ironwail.exe') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath (Join-Path $Path 'setup\QuakeVR-Setup.exe') -PathType Leaf)) { return $false }
+        try { return ((Get-Content -LiteralPath (Join-Path $Path 'install.json') -Raw | ConvertFrom-Json).product -ceq 'Quake VR: Unleashed') } catch { return $false }
+    }
     return (Test-Path -LiteralPath (Join-Path $Path '.pcvrhub_ready') -PathType Leaf) -or
            (Test-Path -LiteralPath (Join-Path $Path 'darkplaces-sdl.exe') -PathType Leaf)
 }
 
 function Resolve-QuakeVrRoot([string]$Preferred, [string]$Kind, [string]$MarkerRoot) {
     if (Test-QuakeVrRoot $Preferred $Kind) { return [IO.Path]::GetFullPath($Preferred) }
-    $markerName = if ($Kind -eq 'romeo') { '.installed_path_romeo' } else { '.installed_path_pcvr' }
+    $markerName = switch ($Kind) { 'romeo' { '.installed_path_romeo' } 'pcvr' { '.installed_path_pcvr' } 'unleashed' { '.installed_path_unleashed' } }
     try {
         $record = (Get-Content -LiteralPath (Join-Path $MarkerRoot $markerName) -Raw -ErrorAction Stop).Trim()
         if (Test-QuakeVrRoot $record $Kind) { return [IO.Path]::GetFullPath($record) }
     } catch {}
-    $folders = if ($Kind -eq 'romeo') { @('Quake VR') } else { @('Quake PCVR') }
+    if ($Kind -eq 'unleashed') {
+        $local=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\QuakeVR'
+        if (Test-QuakeVrRoot $local $Kind) { return $local }
+    }
+    $folders = if ($Kind -eq 'romeo') { @('Quake VR') } elseif ($Kind -eq 'pcvr') { @('Quake PCVR') } else { @() }
     foreach ($drive in @('C','D','E')) {
         foreach ($folder in $folders) {
             $candidate = "${drive}:\Games\$folder"
@@ -74,8 +83,8 @@ function Remove-ShortcutWhenOwned([string]$Name, [string]$OwnedTarget) {
 
 $InstallRoot = Resolve-QuakeVrRoot -Preferred $InstallRoot -Kind $Mod -MarkerRoot $StateRoot
 if (-not $InstallRoot) { Write-Warn "The $Mod Quake VR installation was not found. Nothing was changed."; Stop-Here 1 }
-$displayName = if ($Mod -eq 'romeo') { 'Vittorio Romeo' } else { 'Team Beef port' }
-$processName = if ($Mod -eq 'romeo') { 'quakevr' } else { 'darkplaces-sdl' }
+$displayName = switch ($Mod) { 'romeo' { 'Vittorio Romeo' } 'pcvr' { 'Team Beef port' } 'unleashed' { 'Unleashed' } }
+$processName = switch ($Mod) { 'romeo' { 'quakevr' } 'pcvr' { 'darkplaces-sdl' } 'unleashed' { 'ironwail' } }
 if (Get-Process -Name $processName -ErrorAction SilentlyContinue) { Write-Warn "Close $displayName before uninstalling."; Stop-Here 1 }
 if (-not $HubConfirmed) {
     $answer = (Read-Host "  Type yes to remove $displayName only").Trim()
@@ -87,6 +96,26 @@ Write-Host '============================================================' -Foreg
 Write-Host " Quake VR - remove $displayName" -ForegroundColor Cyan
 Write-Host '============================================================' -ForegroundColor Magenta
 Write-Host "  Standalone folder: $InstallRoot" -ForegroundColor Gray
+
+if ($Mod -eq 'unleashed') {
+    $publisher=Join-Path $InstallRoot 'setup\QuakeVR-Setup.exe'
+    if (-not (Test-QuakeVrRoot $InstallRoot 'unleashed')) { Write-Warn 'The publisher installation is incomplete. Nothing was changed.'; Stop-Here 1 }
+    Write-Info 'Publisher Setup removes only its owned files and preserves personal files.'
+    $process=Start-Process -FilePath $publisher -ArgumentList ('--uninstall --quiet --target "'+$InstallRoot+'"') -Wait -PassThru -ErrorAction Stop
+    if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0 -or
+        (Test-Path -LiteralPath (Join-Path $InstallRoot 'ironwail.exe') -PathType Leaf)) {
+        Write-Warn 'Publisher removal did not complete; the Hub kept its installation record.'
+        Stop-Here 1
+    }
+    foreach ($name in @('.installed_path_unleashed','.installed_version_c')) {
+        $marker=Join-Path $StateRoot $name
+        if (Test-Path -LiteralPath $marker -PathType Leaf) { Remove-Item -LiteralPath $marker -Force }
+    }
+    $versionMarker=Join-Path $InstallRoot '.pcvrhub_version_c'
+    if (Test-Path -LiteralPath $versionMarker -PathType Leaf) { Remove-Item -LiteralPath $versionMarker -Force }
+    Write-OK 'Unleashed was removed. Original Quake and personal files remain.'
+    Stop-Here 0
+}
 
 if ($Mod -eq 'romeo') {
     # Exact v0.0.8.1 compiled Windows payload. Id1\config.cfg is deliberately

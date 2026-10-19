@@ -448,9 +448,7 @@ function Install-AndreyDepotBuild {
         Write-Host "  The exact command is in your clipboard. Paste it with Ctrl+V" -ForegroundColor White
         Write-Host "  into Steam Console, press Enter, and wait for completion." -ForegroundColor White
         Write-Host ""
-        foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-            try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-        }
+        [void](Open-PCVRSteamConsole)
         Show-PCVRClipboardManualFallback -Text $ANDREY_DEPOT_COMMAND
         Pause-User "Press Enter once this exact depot download is complete..." | Out-Null
 
@@ -469,9 +467,7 @@ function Install-AndreyDepotBuild {
     Write-OK "Downloaded depot found: $depotPath"
 
     Write-Host ""
-    Write-Host "  Default install location: $ANDREY_DEFAULT_PATH" -ForegroundColor Gray
-    $userInput = ("" + (Read-Host "  Press Enter to use default, or type a different full path")).Trim().Trim('"')
-    if ($userInput) { $targetPath = $userInput }
+    $targetPath = Select-PCVRDepotInstallPath -DefaultPath $ANDREY_DEFAULT_PATH
     if ($targetPath -match '(?i)steamapps[\\/]+common[\\/]+PEAK[\\/]*$') {
         Write-Fail "The pinned build cannot replace the normal Steam copy."
         return $null
@@ -602,12 +598,14 @@ Write-Host "  - PeakVR by Andrey04o" -ForegroundColor Gray
 Write-Host "       LAST-CONFIRMED FALLBACK" -ForegroundColor Yellow
 if ($andreyDepotPath) { Write-Host "       Already installed at $andreyDepotPath" -ForegroundColor Green }
 else                    { Write-Host "       Separate pinned build with version-check bypass." -ForegroundColor Gray }
+Write-Host "       Default game folder: $ANDREY_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host ""
 $legacyDepotHere = Test-Path -LiteralPath (Join-Path $DEFAULT_PATH $GAME_EXE)
 Write-Host "  [3] Older PEAK 1.44.a depot" -NoNewline -ForegroundColor White
 Write-Host "  - PEAK_VR by AstienVR" -ForegroundColor Gray
 if ($legacyDepotHere) { Write-Host "       Already installed at $DEFAULT_PATH" -ForegroundColor Green }
 else                  { Write-Host "       Downloads the legacy pinned build into its own folder." -ForegroundColor Gray }
+Write-Host "       Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host ""
 $peakMode = Read-Choice -Prompt "Your choice (1, 2 or 3)" -Valid @("1","2","3") -Default $null
 if (-not $peakMode) {
@@ -1292,13 +1290,10 @@ if ($script:PreFoundDepot) {
 if (-not $script:PreFoundDepot) {
 
 Pause-User "Press Enter to open the Steam Console..."
-# Both protocol addresses: depending on the Steam build only one works.
-foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-}
+[void](Open-PCVRSteamConsole)
 Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
-Write-OK "Steam Console opening..."
+Write-OK "Steam Console confirmed visible."
 
 Write-Host ""
 Pause-User "Press Enter once the Steam depot download is complete..."
@@ -1362,16 +1357,10 @@ if (-not (Test-Path $depotExe)) {
 $parentOfDepot = Get-PathParentLexical $depotPath  # ...\app_3527290
 
 Write-Host ""
-Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
-$userInput = ("" + (Read-Host "  Press Enter to use default, or type a different full path")).Trim().Trim('"')
-if (-not $userInput) {
-    $targetPath = $DEFAULT_PATH
-} else {
-    $targetPath = $userInput
-}
+$targetPath = Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH
 
 $targetParent = Get-PathParentLexical $targetPath
 if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

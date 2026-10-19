@@ -69,10 +69,22 @@ function Get-XIIIRelease {
     $r=Resolve-GitHubReleaseAsset -Repo $script:XIIIRepo -IncludePrerelease $true `
         -AssetPatterns @('(?i)^XIII-VR-\d+(?:\.\d+){2}\.zip$') -SkipReleasesWithoutMatchingAsset
     if(-not $r.Resolved -or [string]$r.AssetName -notmatch '(?i)^XIII-VR-(\d+(?:\.\d+){2})\.zip$'){
-        throw 'The current XIII VR release could not be resolved. Use Retry or hand over its official ZIP.'
+        Write-Host '  [!!] The current XIII VR release could not be checked on GitHub.' -ForegroundColor Yellow
+        if($r.ReleaseFound){
+            Write-Host '  GitHub returned a release with a different asset layout. Choose its ZIP on the release page.' -ForegroundColor Yellow
+            return [pscustomobject]@{Version='';Tag='';Url='';Local=$false;Manual=$true}
+        }
+        Write-Host '  The last reviewed publisher version is 0.1.256 (10 October 2026).' -ForegroundColor Yellow
+        Write-Host '  A newer release may exist. You can use 0.1.256 or choose a current ZIP from the release page.' -ForegroundColor White
+        $choice=(Read-Host '  Download the reviewed 0.1.256 ZIP? Y/N').Trim()
+        if($choice -match '^(?i)y(?:es)?$'){
+            return [pscustomobject]@{Version='0.1.256';Tag='v0.1.256';
+                Url='https://github.com/CastleTroy28/XIII-VR/releases/download/v0.1.256/XIII-VR-0.1.256.zip';Local=$false;Manual=$false}
+        }
+        return [pscustomobject]@{Version='';Tag='';Url='';Local=$false;Manual=$true}
     }
     if(-not(Test-IsTrackableInstalledVersion $Matches[1])){throw 'The XIII VR release has no trackable version.'}
-    return [pscustomobject]@{Version=$Matches[1];Tag=[string]$r.Tag;Url=[string]$r.Url;Local=$false}
+    return [pscustomobject]@{Version=$Matches[1];Tag=[string]$r.Tag;Url=[string]$r.Url;Local=$false;Manual=$false}
 }
 function Get-XIIIPayload([string]$Archive,[string]$Work){
     $stage=Join-Path $Work 'publisher'
@@ -158,7 +170,20 @@ function Invoke-XIIIInstaller {
         [void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'XIIIVR.zip'
         if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive}
-        else {
+        elseif($release.Manual){
+            $info=@{}
+            [void](Invoke-SafeDownload -Urls @() -Destination $archive -Label 'XIII VR publisher ZIP' `
+                -ManualUrl $script:XIIIPage -AllowSkip $false -DownloadInfo $info)
+            $leaf=[IO.Path]::GetFileName([string]$info.SourcePath)
+            if($leaf -notmatch '(?i)^XIII-VR-(\d+(?:\.\d+){2})\.zip$'){
+                throw 'Choose the official versioned XIII VR ZIP; the selected file was not installed.'
+            }
+            $release.Version=$Matches[1];$release.Tag='v'+$Matches[1]
+            Write-Host "  Selected publisher version: $($release.Version)." -ForegroundColor Yellow
+            if((Read-Host '  Use this version? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){
+                throw 'Publisher version was not confirmed; no game files were changed.'
+            }
+        } else {
             $download=Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "XIII VR $($release.Tag)" `
                 -ExpectedReleaseTag $release.Tag -ManualUrl $script:XIIIPage -AllowSkip $false
             if($download -ne $true -and [string]$download -notin @('retry','manual')){throw 'XIII VR download did not complete.'}

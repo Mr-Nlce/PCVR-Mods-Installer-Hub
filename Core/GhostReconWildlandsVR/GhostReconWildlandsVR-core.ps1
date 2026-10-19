@@ -267,9 +267,7 @@ function Install-GRWPinnedDepot {
     Write-Host '  This creates a separate base-campaign copy of the last' -ForegroundColor White
     Write-Host '  build confirmed for GRW-XR v0.11.1. Paid DLC depots are not included.' -ForegroundColor White
     Write-Host '  Download route: about 62.3 GiB; installed size: about 77.3 GiB.' -ForegroundColor Gray
-    Write-Host "  Default destination: $DEPOT_DEFAULT_PATH" -ForegroundColor Gray
-    $entered=([string](Read-Host 'Press Enter for the default, or type a different full path')).Trim().Trim('"')
-    $target=if ($entered) { $entered } else { $DEPOT_DEFAULT_PATH }
+    $target=Select-PCVRDepotInstallPath -DefaultPath $DEPOT_DEFAULT_PATH
     if (-not (Test-InstallerTargetWritable -TargetPath $target)) { throw "The depot target is not writable: $target" }
     $normal=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Wildlands',"Tom Clancy's Ghost Recon Wildlands") -ProbeExe $GAME_EXE
     if ($normal -and ([IO.Path]::GetFullPath($target) -ieq [IO.Path]::GetFullPath($normal))) {
@@ -320,7 +318,7 @@ function Install-GRWPinnedDepot {
             Write-Host "  $command" -ForegroundColor DarkGray
             [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy this command and open Steam Console...')
             try { Set-Clipboard -Value $command -DeferManualFallback } catch {}
-            foreach ($uri in @('steam://open/console','steam://nav/console')) { try { Start-Process $uri; Start-Sleep -Milliseconds 700 } catch {} }
+            [void](Open-PCVRSteamConsole)
             Show-PCVRClipboardManualFallback -Text $command
             Write-Host '  Paste with Ctrl+V in Steam Console and wait for the depot download.' -ForegroundColor White
             [void](Wait-PCVRExplicitEnter -Message 'Press Enter here only after that exact depot has finished...')
@@ -441,7 +439,8 @@ function global:Invoke-GhostReconWildlandsVRInstaller {
         Write-Host '      Uses the normal Steam/Ubisoft installation.' -ForegroundColor Gray
         Write-Host '      The September 15 game update is not supported by v0.11.1.' -ForegroundColor Yellow
         Write-Host "  [2] Confirmed Steam build $PINNED_BUILD with GRW-XR $PINNED_MOD_TAG" -ForegroundColor Cyan
-        Write-Host "      Separate $DEPOT_DEFAULT_PATH copy; normal Steam files stay untouched." -ForegroundColor Gray
+        Write-Host "      Default game folder: $DEPOT_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
+        Write-Host '      Normal Steam files stay untouched.' -ForegroundColor Gray
         Write-Host '      English or German base campaign; paid DLC depots are not included.' -ForegroundColor Gray
         Write-Host '  [Q] Quit' -ForegroundColor Gray
         Write-Host ''

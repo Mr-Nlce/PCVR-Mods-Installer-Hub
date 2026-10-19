@@ -8,13 +8,20 @@ Run the unmodded game once, let it reach the main menu, then quit. The Hub insta
 
 SteamVR and a Vulkan-capable GPU are required. The mod uses OpenVR and was tested on Vive Cosmos and HP Reverb G2; other SteamVR-compatible headsets should work.
 
-The current **SiN VR 1.0.2** release requires the Steam game to use its **`loose` beta
+The current **SiN VR 1.0.3** release requires the Steam game to use its **`loose` beta
 branch**. Steam otherwise ignores the loose content that supplies the VR body and the
 character's arms can stretch across the view. The Hub checks this before copying files and,
 when necessary, opens Steam Properties only after an Enter confirmation so you can select
 **Betas > loose** and wait for Steam to finish the update.
 
-## New in 1.0.2
+## New in 1.0.3
+
+- Adds haptic feedback for gunfire, hits, damage and reloads.
+- Adds a comfort vignette option. Set `comfort_vignette = 1` in `sinvr.cfg` if smooth movement is uncomfortable.
+- Fixes a car interaction that could eject the player and soft-lock the drive. The main menu now renders faster and no longer shows an eye-to-eye scene strip.
+- If GitHub cannot be checked, setup opens the official release page after Enter and offers a versioned ZIP from Downloads with explicit confirmation. An older remembered URL is never selected silently.
+
+The 1.0.2 fixes remain included:
 
 - Fixes a graphics-driver crash caused by the eye images moving while SteamVR
   copied them.
@@ -62,7 +69,7 @@ Shots leave the tracked muzzle rather than your face. A downward weapon-hand swi
 ## Current limitations
 
 - The current upstream build has a reported start/new-game crash on some systems. If **New Game** stops the music or leaves you at the menu, test **New Game** once with the mod disabled through **Flat / VR**. If flat mode works, the failure is in the current VR path; if flat mode also fails, repair or replace the base-game copy first. The game's age or a non-Steam executable alone does not prove which side failed.
-- Save before entering either car. The current build can eject the player and soft-lock those two sequences.
+- Save before scripted vehicle sequences. Version 1.0.3 fixes the known immediate ejection bug; real-game confirmation is still pending.
 - SiN has no separate hand model, so its viewmodel arms are hidden and the tracked weapon floats.
 - Windows 11 Smart App Control can block unsigned binaries without an allow-once exception. Ordinary antivirus exclusions do not override Smart App Control.
 - Opening all engine portals can prevent eye-to-eye geometry disagreement but costs substantial performance; sample-rate shading is also expensive. The Hub leaves both off initially. If the mod records a DXVK `VK_ERROR_DEVICE_LOST` render stall, reinstalling backs up `sinvr.cfg` under `.pcvrhub_sinvr_user_backup` and reapplies the conservative values instead of overwriting the only copy of your settings.

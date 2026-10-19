@@ -412,8 +412,13 @@ foreach ($mode in $orderChoiceMap.Keys) {
     $choice.Add_PreviewMouseLeftButtonUp({
         param($s, $e)
         $e.Handled = $true
-        Set-CatalogSortMode -Mode $modeCapture -Persist
-        Close-CatalogOrderMenu
+        $indicatorToken = Start-HubActionIndicator -Target $s
+        try {
+            Set-CatalogSortMode -Mode $modeCapture -Persist
+        } finally {
+            Stop-HubActionIndicator -Token $indicatorToken
+            Close-CatalogOrderMenu
+        }
     }.GetNewClosure())
 }
 

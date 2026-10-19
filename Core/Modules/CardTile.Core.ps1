@@ -64,6 +64,42 @@ function global:Get-CardUpdateActionLayout {
     }
 }
 
+# A card can be repainted while the pointer is still over it after an
+# installer exits. The update hover temporarily turns the right pill into
+# Play; that transient visual must never survive the move to VR Ready.
+function global:Reset-CardUpdateHoverForReady {
+    param($Card)
+    if (-not $Card -or [string]$Card.Tag -ne 'vrupdate') { return }
+    $button = $Card.Resources.Item('btnBorder')
+    $pill = $Card.Resources.Item('reloadPill')
+    $glyph = $Card.Resources.Item('reloadGlyph')
+    foreach ($key in @('vrupdMorphed','readyOrigText')) {
+        if ($Card.Resources.Contains($key)) { $Card.Resources.Remove($key) | Out-Null }
+    }
+    if ($button) {
+        foreach ($key in @('preHoverBrush','preHoverBdBrush','preHoverBdThick',
+            'preHoverTxtFg','preHoverTxtText','preHoverPillBg','preHoverPillBd',
+            'preHoverPillGlyphFg','preHoverPillGlyphTx')) {
+            if ($button.Resources.Contains($key)) { $button.Resources.Remove($key) | Out-Null }
+        }
+    }
+    if ($pill) {
+        $pill.Background = [System.Windows.Media.Brushes]::Transparent
+        $pill.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#3d6e4a')
+        $pill.ToolTip = 'Reinstall Mod'
+        $pill.Visibility = if ($Card.IsMouseOver) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+    }
+    if ($glyph) {
+        $glyph.Text = [char]0x21BB
+        $glyph.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#88dd99')
+        $glyph.Opacity = 0.75
+    }
+    $split = $Card.Resources.Item('dualSplit')
+    if ($split) { $split.Visibility = [System.Windows.Visibility]::Collapsed }
+    $label = $Card.Resources.Item('btnText')
+    if ($label) { $label.Visibility = [System.Windows.Visibility]::Visible }
+}
+
 function global:Update-AlternativeModSplit {
     param($Card)
     if (-not $Card) { return }
@@ -201,6 +237,7 @@ $global:WIP_GAME_TITLES = @(
     "C&C Generals: Zero Hour",
     "Borderlands GOTY Enhanced",
     "Elden Ring VR",
+    "Fallout 3 VR",
     "Ghost Recon Wildlands VR",
     "Stardew Valley VR",
     "GTA IV VR",

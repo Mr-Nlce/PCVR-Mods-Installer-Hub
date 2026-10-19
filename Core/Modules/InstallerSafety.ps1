@@ -101,6 +101,238 @@ function global:Show-PCVRClipboardManualFallback {
     Write-Host ''
 }
 
+# A protocol handler returning without error does not prove that Steam displayed
+# its Console tab. In particular, Steam may be running only in the tray. Depot
+# installers must wait for an explicit visible-console confirmation before they
+# tell the user to paste a download_depot command.
+function global:Get-PCVRSteamExecutable {
+    foreach ($process in @(Get-Process -Name steam -ErrorAction SilentlyContinue)) {
+        try {
+            if ($process.Path -and (Test-Path -LiteralPath $process.Path -PathType Leaf)) { return $process.Path }
+        } catch { }
+    }
+    foreach ($key in @('HKCU:\Software\Valve\Steam', 'HKLM:\SOFTWARE\WOW6432Node\Valve\Steam', 'HKLM:\SOFTWARE\Valve\Steam')) {
+        try {
+            $entry = Get-ItemProperty -Path $key -ErrorAction Stop
+            foreach ($value in @($entry.SteamExe, $entry.InstallPath, $entry.SteamPath)) {
+                if (-not $value) { continue }
+                $candidate = if ([IO.Path]::GetExtension([string]$value) -ieq '.exe') { [string]$value } else { [IO.Path]::Combine([string]$value, 'steam.exe') }
+                if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+            }
+        } catch { }
+    }
+    foreach ($candidate in @("${env:ProgramFiles(x86)}\Steam\steam.exe", "$env:ProgramFiles\Steam\steam.exe")) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) { return $candidate }
+    }
+    return $null
+}
+
+function global:Show-PCVRSteamClient {
+    try {
+        if (-not ('PCVRSteamWindow' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+public static class PCVRSteamWindow {
+    private delegate bool EnumCallback(IntPtr window, IntPtr data);
+    [DllImport("user32.dll")] private static extern bool EnumWindows(EnumCallback callback, IntPtr data);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+    [DllImport("user32.dll", CharSet=CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, StringBuilder text, int length);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
+    [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr window, int command);
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr window);
+    public static bool Activate(int[] processIds) {
+        var ids = new HashSet<int>(processIds);
+        IntPtr best = IntPtr.Zero;
+        int bestScore = 0;
+        EnumWindows((window, data) => {
+            uint processId;
+            GetWindowThreadProcessId(window, out processId);
+            if (!ids.Contains((int)processId)) return true;
+            var title = new StringBuilder(256);
+            GetWindowText(window, title, title.Capacity);
+            if (title.Length == 0) return true;
+            int score = IsWindowVisible(window) ? 2 : 1;
+            if (title.ToString().IndexOf("Steam", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                title.ToString().IndexOf("Console", StringComparison.OrdinalIgnoreCase) >= 0) score += 4;
+            if (score > bestScore) { best = window; bestScore = score; }
+            return true;
+        }, IntPtr.Zero);
+        if (best == IntPtr.Zero) return false;
+        ShowWindow(best, 5);
+        ShowWindow(best, 9);
+        SetForegroundWindow(best);
+        return IsWindowVisible(best);
+    }
+}
+'@ -ErrorAction Stop
+        }
+        $steamPids = @(Get-Process -Name steam,steamwebhelper -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
+        if ($steamPids.Count -and [PCVRSteamWindow]::Activate([int[]]$steamPids)) { return $true }
+        $shell = New-Object -ComObject WScript.Shell -ErrorAction Stop
+        return [bool]$shell.AppActivate('Steam')
+    } catch { }
+    return $false
+}
+
+function global:Open-PCVRSteamConsole {
+    [CmdletBinding()]
+    param([string]$SteamExecutable = (Get-PCVRSteamExecutable))
+
+    $methods = @(
+        [pscustomobject]@{ Name = 'Steam Console link'; File = 'steam://open/console'; Arguments = @() },
+        [pscustomobject]@{ Name = 'alternate Steam Console link'; File = 'steam://nav/console'; Arguments = @() },
+        # Run-Installer hosts cores in a child runspace. Explorer brokers this
+        # protocol request through the interactive desktop shell as a separate
+        # route when a direct Start-Process returns without showing Steam.
+        [pscustomobject]@{ Name = 'Windows desktop Steam Console link'; File = 'explorer.exe'; Arguments = @('steam://open/console') }
+    )
+    if ($SteamExecutable -and (Test-Path -LiteralPath $SteamExecutable -PathType Leaf)) {
+        $methods += [pscustomobject]@{ Name = 'Steam client with -console'; File = $SteamExecutable; Arguments = @('-console') }
+    }
+
+    while ($true) {
+        for ($round = 0; $round -lt 3; $round++) {
+            foreach ($method in $methods) {
+                Write-Host "  Opening $($method.Name)..." -ForegroundColor Cyan
+                try {
+                    if ($method.Arguments.Count) {
+                        Start-Process -FilePath $method.File -ArgumentList $method.Arguments -ErrorAction Stop | Out-Null
+                    } else {
+                        Start-Process -FilePath $method.File -ErrorAction Stop | Out-Null
+                    }
+                } catch {
+                    Write-Host "  [!!] This opening method failed: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+                Start-Sleep -Milliseconds (900 + ($round * 600))
+                if (Show-PCVRSteamClient) {
+                    # Steam has a visible window. Re-send the navigation to make
+                    # sure that a prior client startup did not swallow it.
+                    try { Start-Process -FilePath 'steam://nav/console' -ErrorAction Stop | Out-Null } catch { }
+                    Start-Sleep -Milliseconds 700
+                    [void](Show-PCVRSteamClient)
+                    break
+                }
+            }
+            if (Show-PCVRSteamClient) { break }
+        }
+
+        Write-Host ''
+        Write-Host '  Did the Steam desktop client show its Console tab?' -ForegroundColor White
+        Write-Host '  If Steam is stuck, a restart can close active games and pause downloads.' -ForegroundColor Yellow
+        $answer = Read-Host '  [Y] Yes  [R] Try opening again  [S] Restart Steam  [Q] Quit depot setup'
+        if ($null -eq $answer) { throw 'Steam Console confirmation input ended.' }
+        switch (([string]$answer).Trim().ToUpperInvariant()) {
+            'Y' { return $true }
+            'S' {
+                if (-not $SteamExecutable -or -not (Test-Path -LiteralPath $SteamExecutable -PathType Leaf)) {
+                    Write-Host '  Steam.exe was not found. Use R to retry or open Steam manually.' -ForegroundColor Yellow
+                    break
+                }
+                try {
+                    Start-Process -FilePath $SteamExecutable -ArgumentList '-shutdown' -ErrorAction Stop | Out-Null
+                    for ($wait = 0; $wait -lt 10; $wait++) {
+                        if (-not @(Get-Process -Name steam -ErrorAction SilentlyContinue).Count) { break }
+                        Start-Sleep -Seconds 1
+                    }
+                    $stillRunning = @(Get-Process -Name steam -ErrorAction SilentlyContinue)
+                    if ($stillRunning.Count) {
+                        Write-Host '  Steam did not exit normally. Close it from its tray menu,' -ForegroundColor Yellow
+                        Write-Host '  then choose R to try again. No process was forced closed.' -ForegroundColor Yellow
+                        break
+                    }
+                    Start-Process -FilePath $SteamExecutable -ArgumentList '-console' -ErrorAction Stop | Out-Null
+                    Start-Sleep -Seconds 3
+                    [void](Show-PCVRSteamClient)
+                } catch {
+                    Write-Host "  [!!] Steam restart did not complete: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+            'Q' { throw 'Steam Console was not confirmed; depot setup was cancelled.' }
+        }
+    }
+}
+
+# A custom destination is a preference for future *separate* depot copies,
+# never proof that another game's depot or VR mod is installed. Keep only the
+# parent directory so every game still gets its own named child directory.
+function global:Get-PCVRLastCustomDepotParent {
+    $module = Join-Path $script:PCVRHubInstallerSafetyModuleRoot 'HubState.ps1'
+    if (-not (Test-Path -LiteralPath $module -PathType Leaf)) { return $null }
+    try {
+        $parent = & {
+            param($path)
+            . $path
+            Read-PersistentHubSetting -Key 'lastCustomDepotInstallParent' -Default ''
+        } $module
+        $parent = ('' + $parent).Trim()
+        if ($parent -and [IO.Path]::IsPathRooted($parent) -and (Test-Path -LiteralPath $parent -PathType Container)) {
+            return [IO.Path]::GetFullPath($parent).TrimEnd([char[]]'\/')
+        }
+    } catch { }
+    return $null
+}
+
+function global:Save-PCVRLastCustomDepotParent {
+    param([Parameter(Mandatory=$true)][string]$TargetPath)
+    if (-not [IO.Path]::IsPathRooted($TargetPath)) { return $false }
+    $parent = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($TargetPath).TrimEnd([char[]]'\/'))
+    if (-not $parent -or -not (Test-Path -LiteralPath $parent -PathType Container)) { return $false }
+    $module = Join-Path $script:PCVRHubInstallerSafetyModuleRoot 'HubState.ps1'
+    if (-not (Test-Path -LiteralPath $module -PathType Leaf)) { return $false }
+    try {
+        return [bool](& {
+            param($path,$value)
+            . $path
+            Write-PersistentHubSetting -Key 'lastCustomDepotInstallParent' -Value $value
+            return (('' + (Read-PersistentHubSetting -Key 'lastCustomDepotInstallParent' -Default '')) -ieq $value)
+        } $module $parent)
+    } catch { return $false }
+}
+
+function global:Select-PCVRDepotInstallPath {
+    param([Parameter(Mandatory=$true)][string]$DefaultPath)
+    if (-not [IO.Path]::IsPathRooted($DefaultPath)) { throw 'Depot default destination must be a full path.' }
+    $default = [IO.Path]::GetFullPath($DefaultPath).TrimEnd([char[]]'\/')
+    $lastParent = Get-PCVRLastCustomDepotParent
+    $last = if ($lastParent) { Join-Path $lastParent ([IO.Path]::GetFileName($default)) } else { $null }
+    if ($last -ieq $default) { $last = $null }
+    while ($true) {
+        Write-Host "  Default folder for this game: $default" -ForegroundColor Gray
+        if ($last) { Write-Host "  [2] Install this game in your previous depot location: $last" -ForegroundColor Cyan }
+        Write-Host "  For another location, enter the full folder path for THIS game, including its game folder." -ForegroundColor Gray
+        Write-Host "  The Hub remembers only the parent folder for future depot setups." -ForegroundColor Gray
+        $prompt = if ($last) { 'Press Enter for default, 2 for previous location, or enter this game folder path' }
+                  else { 'Press Enter for default, or enter this game folder path' }
+        $inputPath = Read-Host $prompt
+        if ($null -eq $inputPath) { throw 'Depot destination input ended.' }
+        $choice = ('' + $inputPath).Trim().Trim('"')
+        $target = if (-not $choice) { $default } elseif ($last -and $choice -eq '2') { $last } else { $choice }
+        if (-not [IO.Path]::IsPathRooted($target)) {
+            Write-Host '  Choose a full folder path.' -ForegroundColor Yellow
+            continue
+        }
+        try { $target = [IO.Path]::GetFullPath($target).TrimEnd([char[]]'\/') }
+        catch { Write-Host '  That folder path is not valid.' -ForegroundColor Yellow; continue }
+        if ($target -match '(?i)[\\/]steamapps[\\/]common[\\/]') {
+            Write-Host '  Choose a separate folder outside the normal Steam game directory.' -ForegroundColor Yellow
+            continue
+        }
+        if (-not (Test-InstallerTargetWritable -TargetPath $target)) {
+            Write-Host '  That destination is not writable. Choose another folder.' -ForegroundColor Yellow
+            continue
+        }
+        if ($choice -and $target -ine $default -and $target -ine $last) {
+            if (-not (Save-PCVRLastCustomDepotParent -TargetPath $target)) {
+                Write-Host '  This folder can be used, but it could not be saved for future depot setups.' -ForegroundColor Yellow
+            }
+        }
+        return $target
+    }
+}
+
 # Retain the defining module folder even when this file is dot-sourced by an
 # installer.  The value is used only to load the WPF-free durable-state reader
 # below; it never changes the installer's current directory.
@@ -2458,7 +2690,7 @@ function global:Resolve-DepotPath {
             try { Set-Clipboard -Value $DepotCommand -DeferManualFallback -ErrorAction Stop; $clipOk = $true } catch {}
 
             Write-Host ""
-            Write-Host "  Steam Console will open in your browser." -ForegroundColor White
+            Write-Host "  The Steam desktop client's Console tab will open." -ForegroundColor White
             if ($clipOk) {
                 Write-Host "  The download command has been copied to your clipboard:" -ForegroundColor Gray
             } else {
@@ -2469,16 +2701,15 @@ function global:Resolve-DepotPath {
             Write-Host "  If Steam Console doesn't open automatically:" -ForegroundColor Gray
             Write-Host "    1. Make sure the Steam client is running and you're logged in." -ForegroundColor Gray
             Write-Host "    2. Open one of these in any browser:  steam://open/console" -ForegroundColor Gray
-            Write-Host "       or  steam://nav/console  - only one works per Steam version." -ForegroundColor Gray
+            Write-Host "       or  steam://nav/console." -ForegroundColor Gray
             Write-Host "       (or paste it into the Run dialog: Win+R, paste, Enter)" -ForegroundColor Gray
             Write-Host "    3. Click into the Steam Console input field." -ForegroundColor Gray
             Write-Host "    4. Paste with Ctrl+V and press Enter." -ForegroundColor Gray
             Write-Host "    5. Wait for 'Depot download complete' before continuing." -ForegroundColor Gray
             Write-Host ""
-            # Both protocol addresses: depending on the Steam build only one works.
-            foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-                try { Start-Process $cu -ErrorAction SilentlyContinue | Out-Null; Start-Sleep -Milliseconds 900 } catch {}
-            }
+            Write-Host '  Press Enter to try opening Steam Console.' -ForegroundColor Yellow
+            [void](Read-Host)
+            [void](Open-PCVRSteamConsole)
             Show-PCVRClipboardManualFallback -Text $DepotCommand
 
             Write-Host "  When the download is COMPLETE, press Enter." -ForegroundColor White

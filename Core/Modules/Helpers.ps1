@@ -1369,7 +1369,21 @@ function global:Get-UpdateActionLabel {
 
 function global:Get-AlternativeModTilePair {
     param($Game, $State)
-    return @(Get-AlternativeModDefinitions -Game $Game -State $State | Where-Object Present | Select-Object -First 2)
+    $present = @(Get-AlternativeModDefinitions -Game $Game -State $State | Where-Object Present)
+    $order = @($Game.AlternativeTileOrder | Where-Object { $_ })
+    if ($order.Count -eq 0) { return @($present | Select-Object -First 2) }
+    $ordered = New-Object 'System.Collections.Generic.List[object]'
+    foreach ($mode in $order) {
+        foreach ($definition in $present) {
+            if ($definition.Mode -eq [string]$mode -and -not @($ordered | Where-Object Mode -eq $definition.Mode).Count) {
+                [void]$ordered.Add($definition)
+            }
+        }
+    }
+    foreach ($definition in $present) {
+        if (-not @($ordered | Where-Object Mode -eq $definition.Mode).Count) { [void]$ordered.Add($definition) }
+    }
+    return @($ordered.ToArray() | Select-Object -First 2)
 }
 
 function global:Get-RouteModMatrixDefinitions {
@@ -3826,6 +3840,10 @@ function global:Test-VrInstallEvidenceContract {
             if ($allPresent) { $matchedDirectory = $true; break }
         }
         if (-not $matchedDirectory) { return $false }
+    }
+    if ($Game.Id -eq 'project-zomboid-vr') {
+        . (Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1')
+        if (-not (Get-PZVRExternalEvidence -GameRoot $Root)) { return $false }
     }
     return $true
 }

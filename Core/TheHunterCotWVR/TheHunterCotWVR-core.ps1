@@ -147,8 +147,7 @@ function Get-HunterDepotSource {
         Write-Host "  Exact command: $DEPOT_COMMAND" -ForegroundColor Cyan
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy the command and open Steam Console...')
         try { Set-Clipboard -Value $DEPOT_COMMAND -DeferManualFallback } catch {}
-        try { Start-Process 'steam://open/console' -ErrorAction Stop }
-        catch { try { Start-Process 'steam://nav/console' -ErrorAction Stop } catch { Write-Warn 'Open Steam Console manually from the Steam View menu.' } }
+        [void](Open-PCVRSteamConsole)
         Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
         Write-Host '  Paste the command into Steam Console and wait for Depot download complete.' -ForegroundColor White
         [void](Wait-PCVRExplicitEnter -Message 'After that exact depot finishes, press Enter to find its files...')
@@ -175,9 +174,7 @@ function Initialize-HunterDepotGame {
     $stageText = "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD"
     while ($true) {
         Write-Host ''
-        Write-Host "  Separate depot destination: $DEPOT_PATH" -ForegroundColor White
-        $typed = ([string](Read-Host '  Enter for default, or enter another full folder path')).Trim().Trim('"')
-        $target = if ($typed) { $typed } else { $DEPOT_PATH }
+        $target = Select-PCVRDepotInstallPath -DefaultPath $DEPOT_PATH
         if (-not [IO.Path]::IsPathRooted($target) -or $target -match '(?i)[\\/]steamapps[\\/]common[\\/]') {
             Write-Warn 'Choose a full path outside the normal Steam game folder.'; continue
         }
@@ -339,6 +336,7 @@ Write-Host '      Installs the newest publisher mod into the normal Steam copy.'
 Write-Host '      Publisher v1.4.1 supports the September 2026 game update.' -ForegroundColor Gray
 Write-Host ''
 Write-Host "  [2] Separate pinned game depot 9.2 (build $DEPOT_BUILD)" -ForegroundColor Green
+Write-Host "      Default game folder: $DEPOT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host '      Steam downloads the pinned 9.2 game; this route keeps the' -ForegroundColor Gray
 Write-Host '      publisher VR mod pinned to v1.3.1. The normal copy stays put.' -ForegroundColor Gray
 Write-Host ''

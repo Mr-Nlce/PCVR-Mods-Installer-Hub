@@ -17,7 +17,7 @@ installer offers either, or both.
 | **Controls** | **gamepad only** | **tracked VR controllers + VR hands** |
 | State | gamepad-focused option | **early beta, prerelease updates** |
 | Camcorder | raised with a button | held and aimed with your hand |
-| Night vision | button | use the camcorder; v0.1.1 fixes its grip behavior |
+| Night vision | button | view it on the hand-held camcorder screen; an option restores the full-screen view |
 | Movement | gamepad sticks | room-scale 6DoF and motion controllers |
 | How it works | a `d3d9.dll` next to the game exe | a different `d3d9.dll` in the same folder |
 | Active files | four files | six runtime and setup files |
@@ -37,8 +37,12 @@ gamepad-only any more, and it is not motion-controls-only either.
 | [[G]] | Recenter the view. |
 
 Some story prompts appear only while crouched. Door interactions and physical
-holsters are still being developed. The current README notes that the
-camcorder/night-vision path is a work in progress even after the v0.1.1 fix.
+holsters are still being developed. In v0.2.0-beta, nearby keyboards, levers,
+valves, pumps and buttons respond to [[X]]; movement follows your head, and
+your body turns with you. The camcorder can use its own night-vision screen or
+the optional full-screen view. The release defaults to snap turning and
+motion-tracked arms. Controller recenter is unreliable; use [[G]] on the
+keyboard. The night-vision light and HUD dot still have known visual issues.
 
 **Close Outlast before switching.** Both mods now use `d3d9.dll`,
 `openxr_loader.dll` and `outlastvr.ini` in `Binaries\Win64`. The installer
@@ -72,8 +76,8 @@ one blindly. Halcyon's parked files remain available.
 
 The official mod is still a beta. The publisher reports that headset hand
 tracking may need adjustment in the [[F10]] menu. Current known issues include
-a slightly visible night-vision light, an off-centre HUD dot, no VR pickup
-prompts, and body-relative left/right aiming. Steam with Meta Quest via Quest
+a slightly visible night-vision light, an off-centre HUD dot, and no VR pickup
+prompts. Steam with Meta Quest via Quest
 Link or Virtual Desktop is tested; GOG, Epic and SteamVR headsets are not.
 
 [Insanity Engine VR releases](https://github.com/TdiamondOf/InsanityEngineVR/releases)

@@ -90,6 +90,7 @@ function global:Add-CustomGamesMenuItem {
     $b.Add_MouseLeave({ $this.Background = [System.Windows.Media.Brushes]::Transparent })
     $b.Add_MouseLeftButtonUp({ param($s, $e)
         $e.Handled = $true
+        $indicatorToken = Start-HubActionIndicator -Target $s
         try {
             $on = -not (Test-CustomGamesEnabled)
             Set-HubSetting -Key 'customGamesEnabled' -Value $on
@@ -98,7 +99,7 @@ function global:Add-CustomGamesMenuItem {
             Update-CustomGamesMenuItem
         } catch {
             try { Write-HubActionFailure -Action 'Turn My Games on or off' -ErrorRecord $_ } catch { }
-        }
+        } finally { Stop-HubActionIndicator -Token $indicatorToken }
     })
     $panel.Children.Insert($panel.Children.IndexOf($anchor) + 1, $b)
     $global:CustomGamesMenuSub = $t2

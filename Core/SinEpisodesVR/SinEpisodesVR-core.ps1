@@ -1,3 +1,4 @@
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -5,8 +6,8 @@ $ErrorActionPreference = 'Stop'
 $Host.UI.RawUI.WindowTitle = 'SiN Episodes: Emergence VR Installer'
 $repo = 'RototRobot/Sin-Episodes-VR-Port'
 $appId = '1300'
-$pinnedTag = '1.0.2'
-$pinnedUrl = 'https://github.com/RototRobot/Sin-Episodes-VR-Port/releases/download/1.0.2/SiN-VR-v1.0.2.zip'
+$releasePage = "https://github.com/$repo/releases"
+$env:PCVR_HUB_RECOVERY_PAGE = $releasePage
 
 function Write-SinHeader {
     Clear-Host
@@ -87,13 +88,47 @@ function Test-SinOversizeFailureEvidence {
 }
 function Get-SinRelease {
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop
+        $release = if($env:PCVR_SIN_TEST_RELEASE_JSON){Get-Content -LiteralPath $env:PCVR_SIN_TEST_RELEASE_JSON -Raw | ConvertFrom-Json}else{Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop}
         $asset = @($release.assets | Where-Object { $_.name -match '(?i)^SiN-VR-.+\.zip$' } | Select-Object -First 1)[0]
         if (-not $asset -or -not $asset.browser_download_url) { throw 'The latest release has no SiN VR ZIP asset.' }
-        return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url; Name=[string]$asset.name }
+        return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url; Name=[string]$asset.name; Manual=$false }
     } catch {
-        Write-SinWarn "GitHub did not answer; using the last known $pinnedTag release URL."
-        return [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl; Name='SiN-VR-v1.0.2.zip' }
+        Write-SinWarn 'The current SiN VR release could not be checked on GitHub.'
+        Write-Host '  Use the current official ZIP from the release page. Its version is shown before copying.' -ForegroundColor White
+        return [pscustomobject]@{ Tag=''; Url=''; Name=''; Manual=$true }
+    }
+}
+function Get-SinManualArchive([string]$Destination) {
+    $declined='';$opened=$false
+    while($true){
+        $folders=if($env:PCVR_SIN_TEST_DOWNLOADS){@($env:PCVR_SIN_TEST_DOWNLOADS)}else{@()}
+        $file=Find-PCVRDownloadedCandidate -Patterns @('SiN-VR-v*.zip') -Folders $folders
+        if($file -and $file -ne $declined -and (Test-DownloadedPayload -Path $file -IntendedPath $Destination)){
+            $leaf=[IO.Path]::GetFileName($file)
+            if($leaf -match '(?i)^SiN-VR-v(\d+(?:\.\d+)+)\.zip$'){
+                $tag=$Matches[1]
+                Write-Host "  Found in Downloads: $file" -ForegroundColor Cyan
+                Write-SinWarn "GitHub could not confirm the newest release. This ZIP is $tag; a newer one may exist."
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){
+                    Copy-Item -LiteralPath $file -Destination $Destination -Force
+                    return [pscustomobject]@{Tag=$tag;Name=$leaf;Url=$file;Manual=$false}
+                }
+                $declined=$file
+            }
+        }
+        if(-not $opened){Write-Host '  Download the current SiN-VR ZIP from the official release page.' -ForegroundColor White;[void](Open-PCVRPageAfterEnter -Url $releasePage -Message 'Press Enter to open the SiN VR releases page...');$opened=$true}
+        [void](Wait-PCVRExplicitEnter -Message 'After the download finishes, press Enter to check Downloads...')
+        $file=Find-PCVRDownloadedCandidate -Patterns @('SiN-VR-v*.zip') -Folders $folders
+        if($file -and $file -ne $declined){continue}
+        $raw=(Read-Host '  Drag the ZIP here, or press Enter to reopen the page').Trim().Trim('"').Trim("'")
+        if($raw -and (Test-Path -LiteralPath $raw -PathType Leaf)){
+            $leaf=[IO.Path]::GetFileName($raw)
+            if($leaf -match '(?i)^SiN-VR-v(\d+(?:\.\d+)+)\.zip$' -and (Test-DownloadedPayload -Path $raw -IntendedPath $Destination)){
+                $tag=$Matches[1];Write-Host "  Selected: $raw" -ForegroundColor Cyan
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $raw -Destination $Destination -Force;return [pscustomobject]@{Tag=$tag;Name=$leaf;Url=$raw;Manual=$false}}
+                $declined=$raw
+            }else{Write-SinWarn 'Choose an official versioned SiN-VR ZIP.'}
+        }else{Start-Process $releasePage -ErrorAction Stop|Out-Null}
     }
 }
 function Copy-SinTree([string]$Source,[string]$Destination) {
@@ -145,7 +180,7 @@ $isSteamInstall = Test-SinSamePath -Left $game -Right $steamGame
 if ($isSteamInstall) {
     Write-SinOk 'Steam-managed game installation detected.'
     if (-not (Test-SinLooseBranch -GameRoot $game)) {
-        Write-SinWarn 'SiN VR 1.0.2 requires Steam Beta branch: loose'
+        Write-SinWarn 'SiN VR requires Steam Beta branch: loose'
         Write-Host '  The normal packed branch ignores the loose VR content and can' -ForegroundColor White
         Write-Host '  leave the motion-controlled arms stretched from your face.' -ForegroundColor White
         Write-Host '  In Properties > Betas, select loose and let Steam finish updating.' -ForegroundColor White
@@ -183,11 +218,22 @@ while ($reloadChoice -notin @('1','2')) { $reloadChoice = (Read-Host '  Choice (
 
 Write-SinStep 3 5 'Downloading the current official release'
 $release = Get-SinRelease
+$handover=Get-PCVRRecoveryInput -PathType Leaf
+if($handover){
+    $leaf=[IO.Path]::GetFileName($handover)
+    if($leaf -notmatch '(?i)^SiN-VR-v(\d+(?:\.\d+)+)\.zip$'){throw 'Choose an official versioned SiN-VR ZIP.'}
+    $version=$Matches[1]
+    if(-not $release.Manual -and $version -ne [string]$release.Tag){throw "The selected ZIP is $version; GitHub reports $($release.Tag). Download that version instead."}
+    Write-Host "  Selected publisher ZIP: $handover ($version)" -ForegroundColor Cyan
+    if($release.Manual -and (Read-Host '  GitHub version unavailable. Use this ZIP? Y/N').Trim() -notmatch '^(?i:y|yes)$'){throw 'Publisher version was not confirmed.'}
+    $release=[pscustomobject]@{Tag=$version;Url=$handover;Local=$true;Manual=$false}
+}
 $temp = Join-Path ([IO.Path]::GetTempPath()) ('SinVR_' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp -Force | Out-Null
-$archive = Join-Path $temp $release.Name
-$downloaded = Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "SiN VR $($release.Tag)" -ManualUrl "https://github.com/$repo/releases" -AllowSkip $false
-if (-not $downloaded) { throw 'The official SiN VR archive was not obtained.' }
+$archive = Join-Path $temp 'SinVR.zip'
+if($release.Manual){$release=Get-SinManualArchive -Destination $archive}
+elseif($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force -ErrorAction Stop}
+else{$downloaded = Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "SiN VR $($release.Tag)" -ManualUrl $releasePage -AllowSkip $false;if (-not $downloaded) { throw 'The official SiN VR archive was not obtained.' }}
 Write-SinOk "Official release $($release.Tag) ready."
 
 Write-SinStep 4 5 'Installing with exact-file recovery'
@@ -196,6 +242,8 @@ $result = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $ext
 if ($result -notin @('ok','manual')) { throw 'Archive extraction was not completed.' }
 $main = Get-ChildItem -LiteralPath $extract -Directory -Recurse -ErrorAction SilentlyContinue | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'sinvr.dll') } | Select-Object -First 1 -ExpandProperty FullName
 if (-not $main) { throw 'The documented SiN VR main payload was not found.' }
+$packageRoot=Split-Path -Parent $main
+if((Split-Path -Leaf $packageRoot) -cne ('SiN-VR-v'+$release.Tag)){throw 'The SiN VR archive version differs from the selected release. No game files were changed.'}
 $stage = Join-Path $temp 'stage'
 Copy-SinTree -Source $main -Destination $stage
 if ($guiChoice -eq '1') {
@@ -338,8 +386,8 @@ else { Write-Host '  Start SteamVR, then use Start in VR or the desktop shortcut
 Write-Host '  If New Game returns to a silent menu, test New Game once in flat mode.' -ForegroundColor Yellow
 Write-Host '  Flat works: the current VR build is crashing. Flat also fails: repair' -ForegroundColor Gray
 Write-Host '  or replace the base-game copy before troubleshooting the VR mod.' -ForegroundColor Gray
-Write-Host '  Make a save before entering either car; the current build can eject' -ForegroundColor Gray
-Write-Host '  Blade and soft-lock those two sequences.' -ForegroundColor Gray
+Write-Host '  Save before scripted vehicle sequences. The publisher reports' -ForegroundColor Gray
+Write-Host '  a fix for the immediate car ejection; in-game confirmation is pending.' -ForegroundColor Gray
 Write-Host ''
 Write-Host '  Blade is back - Freeport never learned to stay quiet.' -ForegroundColor Magenta
 Write-Host ''

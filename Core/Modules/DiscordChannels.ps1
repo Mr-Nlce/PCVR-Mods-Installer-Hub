@@ -28,6 +28,11 @@ $script:DiscordServerSpec = [ordered]@{
 }
 
 $script:DiscordChannelSpec = @(
+    @{ Ids=@('alan-wake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561105393508294797'; Label='Alan Wake VR' }
+    @{ Ids=@('beyond-two-souls-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1559649298579456132'; Label='Beyond: Two Souls VR' }
+    @{ Ids=@('fallout-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556723560389677126'; Label='Fallout 3 VR' }
+    @{ Ids=@('fallout-new-vegas-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1558480358427721798'; Label='Fallout: New Vegas VR' }
+    @{ Ids=@('killing-floor-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556770175335010444'; Label='Killing Floor 2 VR' }
     @{ Ids=@('xiii-remake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554140030098743428'; Label='XIII VR' }
     @{ Ids=@('descent-vr','descent-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556397364682428587'; Label='Descent 1 and 2 VR' }
     @{ Ids=@('aliens-versus-predator-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1541458597974909009'; Label='Aliens versus Predator VR' }
@@ -40,6 +45,7 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('miside-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556406798725025872'; Label='MiSide VR' }
     @{ Ids=@('no-one-lives-forever-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1553111098515783680'; Label='No One Lives Forever by Game Or Die' }
     @{ Ids=@('soma-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542477786160169030'; Label='SOMA VR' }
+    @{ Ids=@('spec-ops-the-line-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1560952647517732976'; Label='Spec Ops: The Line VR' }
     @{ Ids=@('super-mario-3d-world-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1552405930224648282'; Label='Super Mario 3D World VR' }
     @{ Ids=@('blade-of-darkness-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1551359846123704480'; Label='Blade of Darkness VR' }
     @{ Ids=@('star-fox-enhanced-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554954058379563118'; Label='Star Fox Enhanced' }
@@ -94,6 +100,7 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('red-dead-redemption-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1557309171555369020'; Label='RDRVR by Disonomouss' }
     @{ Ids=@('ultrakill-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1107290046664560832'; Label='ULTRAKILL VR' }
     @{ Ids=@('quake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1543001517962043562'; Label='Team Beef port' }
+    @{ Ids=@('quake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1555745264126656733'; Label='Unleashed' }
     @{ Ids=@('virtua-cop-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1540815394850476232'; Label='Virtua Cop 2 VR' }
     @{ Ids=@('battlefield-1942-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1536768360707268628'; Label='Battlefield 1942 VR' }
     @{ Ids=@('rebel-galaxy-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1532145111486435500'; Label='Rebel Galaxy VR' }

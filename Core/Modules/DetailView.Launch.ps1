@@ -257,6 +257,92 @@ function global:Get-HotD2VrLaunchTarget {
     return $null
 }
 
+# The publisher keeps Unleashed outside Quake. Its own shortcut specifies
+# both base directories; launching ironwail.exe without them can open flat
+# Quake or miss the licensed game data.
+function global:Get-QuakeUnleashedLaunchTarget {
+    param($Game, $State=$null)
+    if (-not $Game -or $Game.Title -ne 'Quake VR') { return $null }
+    $roots=@()
+    if ($State -and $State.ModCRoot) { $roots+=@([string]$State.ModCRoot) }
+    try {
+        $receipt=Join-Path $script:scriptDir 'QuakeVR\.installed_path_unleashed'
+        if (Test-Path -LiteralPath $receipt -PathType Leaf) {
+            $roots+=@((Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop).Trim())
+        }
+    } catch {}
+    try {
+        $desktop=[Environment]::GetFolderPath('Desktop')
+        if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_QUAKEU_TEST_DESKTOP) {
+            $desktop=[string]$env:PCVR_QUAKEU_TEST_DESKTOP
+        }
+        $link=Join-Path $desktop 'Quake VR Unleashed.lnk'
+        if (Test-Path -LiteralPath $link -PathType Leaf) {
+            $shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($link)
+            if ([IO.Path]::GetFileName([string]$shortcut.TargetPath) -ieq 'ironwail.exe') {
+                $roots+=@(Split-Path -Parent ([string]$shortcut.TargetPath))
+            }
+        }
+    } catch {}
+    $roots+=@((Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\QuakeVR'))
+    foreach ($candidate in @($roots | Where-Object { $_ } | Select-Object -Unique)) {
+        try {
+            $root=[IO.Path]::GetFullPath([string]$candidate).TrimEnd([char[]]'\/')
+            foreach ($relative in @('ironwail.exe','ironwail.pak','openxr_loader.dll','quakevr\progs.dat','install.json','setup\QuakeVR-Setup.exe')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)) { throw 'Incomplete runtime' }
+            }
+            $manifest=Get-Content -LiteralPath (Join-Path $root 'install.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+            if ($manifest.product -cne 'Quake VR: Unleashed' -or [string]$manifest.version -notmatch '^1\.\d+\.\d+') { continue }
+            $versionFile=Join-Path $root '.pcvrhub_version_c'
+            if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+                $version=(Get-Content -LiteralPath $versionFile -Raw -ErrorAction Stop).Trim()
+                if ([string]$manifest.version -notmatch ('^'+[regex]::Escape($version)+'\b')) { continue }
+            }
+            $base=[IO.Path]::GetFullPath([string]$manifest.quakeDir).TrimEnd([char[]]'\/')
+            $original=((Test-Path -LiteralPath (Join-Path $base 'id1\PAK0.PAK') -PathType Leaf) -and
+                       (Test-Path -LiteralPath (Join-Path $base 'id1\PAK1.PAK') -PathType Leaf))
+            $rerelease=(Test-Path -LiteralPath (Join-Path $base 'rerelease\id1\PAK0.PAK') -PathType Leaf)
+            if (-not ($original -or $rerelease)) { continue }
+            $args='-basedir "'+$base+'" -basedir "'+$root+'" -game quakevr'
+            return [pscustomobject]@{FilePath=(Join-Path $root 'ironwail.exe');Arguments=$args;WorkingDirectory=$root}
+        } catch {}
+    }
+    return $null
+}
+
+function global:Get-HubVrLaunchIndicatorTarget {
+    param([System.Windows.DependencyObject]$Hit)
+    try {
+        $node = if ($Hit) { $Hit } else { [System.Windows.Input.Mouse]::DirectlyOver }
+        $candidate = $null
+        for ($depth=0; $node -and $depth -lt 12; $depth++) {
+            if ($node -is [System.Windows.FrameworkElement] -and
+                $node.Resources.Contains('gameData') -and $node.Resources.Contains('btnBorder')) {
+                return $node.Resources.Item('btnBorder')
+            }
+            if ($node -is [System.Windows.FrameworkElement] -and $node.IsVisible -and
+                $node.ActualWidth -ge 24 -and $node.ActualWidth -le 420 -and
+                $node.ActualHeight -ge 20 -and $node.ActualHeight -le 75 -and
+                ($node -is [System.Windows.Controls.Border] -or $node -is [System.Windows.Controls.Button])) {
+                if ($node.Resources.Contains('launchMode')) { return $node }
+                if ($node.Resources.Contains('ownerCard')) {
+                    $owner = $node.Resources.Item('ownerCard')
+                    if ($owner -and $owner.Resources.Contains('reloadPill') -and
+                        [object]::ReferenceEquals($node, $owner.Resources.Item('reloadPill'))) { return $node }
+                    if ($owner -and $owner.Resources.Contains('btnBorder')) {
+                        return $owner.Resources.Item('btnBorder')
+                    }
+                }
+                if ($node -is [System.Windows.Controls.Button]) { return $node }
+                if (-not $candidate -or $node.ActualWidth -gt $candidate.ActualWidth) { $candidate = $node }
+            }
+            $node = [System.Windows.Media.VisualTreeHelper]::GetParent($node)
+        }
+        return $candidate
+    } catch { }
+    return $null
+}
+
 function global:Start-GameInVR {
     param(
         $Game,
@@ -265,8 +351,31 @@ function global:Start-GameInVR {
         # Steam protocol; "Depot" launches the pinned legacy install
         # directly from C:\Games\<Name> VR\ with DepotLaunchArgs.
         # Unset = use normal priority-chain detection (default).
-        [string]$Mode = $null
+        [string]$Mode = $null,
+        $IndicatorTarget = $null
     )
+
+    $launchIndicatorToken = $null
+    $launchIndicatorStarted = [datetime]::UtcNow
+    try {
+        $launchIndicatorTarget = if ($IndicatorTarget) { $IndicatorTarget } else { Get-HubVrLaunchIndicatorTarget }
+        if ($launchIndicatorTarget) {
+            $rightInset = 0.0
+            if ($launchIndicatorTarget.Resources.Contains('ownerCard')) {
+                $owner = $launchIndicatorTarget.Resources.Item('ownerCard')
+                if ($owner -and $owner.Resources.Contains('btnBorder') -and
+                    [object]::ReferenceEquals($launchIndicatorTarget, $owner.Resources.Item('btnBorder')) -and
+                    $owner.Resources.Contains('reloadPill')) {
+                    $pill = $owner.Resources.Item('reloadPill')
+                    if ($pill -and $pill.Visibility -eq [System.Windows.Visibility]::Visible) {
+                        $rightInset = [double]$pill.ActualWidth
+                    }
+                }
+            }
+            $launchIndicatorToken = Start-HubActionIndicator -Target $launchIndicatorTarget -DelayMilliseconds 0 -RightInset $rightInset -FitTargetEdges
+        }
+    } catch { }
+    try {
 
     # Track this launch in the play history FIRST, before any launch path
     # returns. Most-recent-first ringbuffer (max 8). A game permanently
@@ -313,6 +422,20 @@ function global:Start-GameInVR {
         } catch {
             Write-HubActionFailure -Action 'Start The House of the Dead 2 in VR' -ErrorRecord $_
         }
+        return
+    }
+
+    if ($Game.Title -eq 'Quake VR' -and ($Mode -eq 'ModC' -or
+        (-not $Mode -and $global:gameStateMap[$Game.Title].ModCPresent))) {
+        $target=Get-QuakeUnleashedLaunchTarget -Game $Game -State $global:gameStateMap[$Game.Title]
+        if (-not $target) {
+            Write-HubActionFailure -Action 'Start Quake VR Unleashed in VR' -Message 'The Unleashed installation or its original Quake data is incomplete. Run the installer or scan games again.'
+            return
+        }
+        try {
+            Start-GameProcess -FilePath $target.FilePath -Arguments $target.Arguments -WorkingDirectory $target.WorkingDirectory -Game $Game
+            try { if ($global:window) { $global:window.WindowState=[System.Windows.WindowState]::Minimized } } catch {}
+        } catch { Write-HubActionFailure -Action 'Start Quake VR Unleashed in VR' -ErrorRecord $_ }
         return
     }
 
@@ -702,8 +825,26 @@ function global:Start-GameInVR {
         try { $steamBootstrapRoot = Read-InstalledPath -Game $Game } catch {}
     }
     if (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $steamBootstrapRoot) {
+        if ($Game.Id -in @('teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr') -and
+            -not (Test-HubDirectVrLaunchEvidence -Game $Game -Root $steamBootstrapRoot)) {
+            Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message ("The Steam game folder has no complete " + $Game.Title + " installation. Run the installer or scan games again.")
+            return
+        }
         try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch {}
         try { Start-Process ("steam://rungameid/" + [string]$Game.SteamId) } catch {}
+        return
+    }
+
+    if ($Game.Id -eq 'journey-vr' -and $steamBootstrapRoot -match '(?i)\\Epic Games\\Journey(?:\\|$)') {
+        if (-not (Test-HubDirectVrLaunchEvidence -Game $Game -Root $steamBootstrapRoot)) {
+            Write-HubActionFailure -Action 'Start Journey VR in VR' -Message 'The selected Epic folder has no complete Journey VR installation. Run the installer or scan games again.'
+            return
+        }
+        $epicLaunch = Join-Path $steamBootstrapRoot 'Journey.exe'
+        try {
+            if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized }
+            Start-GameProcess -FilePath $epicLaunch -WorkingDirectory $steamBootstrapRoot -Game $Game
+        } catch { Write-HubActionFailure -Action 'Start Journey VR in VR' -Message $_.Exception.Message }
         return
     }
 
@@ -960,7 +1101,7 @@ function global:Start-GameInVR {
             # the desktop shortcut, sharing that folder, breaks too.
             $isDepotInstall = [bool]$Game.DepotInstall
             $isOutsideSteamCommon = ($gameDir -notmatch '\\steamapps\\common\\')
-            if ($Game.SteamId -and $Game.Title -ne "Scrap Mechanic VR" -and -not $Game.SeparateLauncherBaseGame -and ($isDepotInstall -or $isOutsideSteamCommon)) {
+            if ($Game.SteamId -and $Game.Title -ne "Scrap Mechanic VR" -and -not $Game.SeparateLauncherBaseGame -and ($isDepotInstall -or $isOutsideSteamCommon) -and -not $Game.NoSteamAppIdSidecar) {
                 $appidFile = Join-Path $gameDir "steam_appid.txt"
                 if (-not (Test-Path $appidFile)) {
                     try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
@@ -1153,4 +1294,23 @@ function global:Start-GameInVR {
         }
     }
     Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'No verified game or VR launcher is configured for this entry.'
+    } finally {
+        if ($launchIndicatorToken) {
+            $minimized = $false
+            try { $minimized = ($global:window -and $global:window.WindowState -eq [System.Windows.WindowState]::Minimized) } catch { }
+            $remaining = 850 - [int]([datetime]::UtcNow - $launchIndicatorStarted).TotalMilliseconds
+            if ($minimized -or $remaining -le 0) {
+                Stop-HubActionIndicator -Token $launchIndicatorToken
+            } else {
+                $stopTimer = New-Object System.Windows.Threading.DispatcherTimer
+                $stopTimer.Interval = [TimeSpan]::FromMilliseconds($remaining)
+                $stopTimer.Tag = $launchIndicatorToken
+                $stopTimer.Add_Tick({
+                    $this.Stop()
+                    Stop-HubActionIndicator -Token ([string]$this.Tag)
+                })
+                $stopTimer.Start()
+            }
+        }
+    }
 }

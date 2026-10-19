@@ -381,10 +381,14 @@ $window.Add_ContentRendered({
         [action]{
             Write-HubTiming "before startup scan (post-paint)"
             if (-not ($global:ScanInProgress -or $global:ScanQueued)) {
-                $global:HubScanOnlineDown = $false
-                $global:HubThunderstoreOnlineDown = $false
+                # The startup scan uses cached release information so a slow
+                # GitHub or Thunderstore request cannot stall the visible Hub.
+                $global:HubStartupScanCacheOnly = $true
+                $global:HubScanOnlineDown = $true
+                $global:HubThunderstoreOnlineDown = $true
                 try { Invoke-CheckInstalledScan }
                 catch { Fail-InstalledScan -ErrorRecord $_ -Quiet }
+                finally { $global:HubStartupScanCacheOnly = $false }
                 try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch { }
             }
             Write-HubTiming "after startup scan (post-paint)"
@@ -704,8 +708,12 @@ $window.ShowDialog() | Out-Null
 # dispatcher can append a content-free `TerminatingError(): System error.` to
 # an otherwise clean log. This is lifecycle cleanup, not error filtering:
 # every exception that occurred while the Hub was running remains recorded.
-if ($script:HubTranscriptStarted) {
+if ($global:HubLogRotation.Timer) { try { $global:HubLogRotation.Timer.Stop() } catch {} }
+if ($global:HubLogRotation.Active) {
     try { Stop-Transcript -ErrorAction SilentlyContinue | Out-Null } catch {}
-    $script:HubTranscriptStarted = $false
-    try { Compress-HubSessionLog -Path $hubLog } catch {}
+    $global:HubLogRotation.Active = $false
+    try {
+        Compress-HubSessionLog -Path $global:HubLogRotation.Path
+        Limit-HubLogStorage -Directory $global:HubLogRotation.Directory
+    } catch {}
 }

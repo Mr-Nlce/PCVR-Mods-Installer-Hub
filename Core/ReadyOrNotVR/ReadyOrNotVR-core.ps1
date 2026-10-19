@@ -337,8 +337,8 @@ Write-Host "      Keeps everything in one install. The mod is switched on" -Fore
 Write-Host "      and off through Steam's launch options." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  [2] A separate build from a pinned Steam depot." -ForegroundColor White
-Write-Host "      Lands in $DEPOT_DEFAULT_PATH or a folder of your" -ForegroundColor Gray
-Write-Host "      choice, with its own desktop shortcut. Leaves your Steam" -ForegroundColor Gray
+Write-Host "      Default game folder: $DEPOT_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
+Write-Host "      Includes its own desktop shortcut. Leaves your Steam" -ForegroundColor Gray
 Write-Host "      copy untouched, and cannot be changed by a game patch -" -ForegroundColor Gray
 Write-Host "      the version is pinned." -ForegroundColor Gray
 Write-Host ""
@@ -404,11 +404,7 @@ if ($isDepot) {
         Start-Sleep -Seconds 3
     }
 
-    # Two protocol addresses, because depending on the client version
-    # only one works: open/console is the older, nav/console the newer.
-    foreach ($u in @("steam://open/console", "steam://nav/console")) {
-        try { Start-Process $u; Start-Sleep -Milliseconds 900 } catch {}
-    }
+    [void](Open-PCVRSteamConsole)
     Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 
     Write-Host ""
@@ -471,12 +467,10 @@ if ($isDepot) {
     # Do not reword this - it is the one sentence people see across all of
     # them, and the extra reason here (a later depot download would land on
     # top of the old one) is in the comment above, not in the prompt.
-    Write-Host "  Default install location: $DEPOT_DEFAULT_PATH" -ForegroundColor Gray
     Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
     Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
     Write-Host ""
-    $answer = (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"')
-    $targetPath = if ($answer) { $answer } else { $DEPOT_DEFAULT_PATH }
+    $targetPath = Select-PCVRDepotInstallPath -DefaultPath $DEPOT_DEFAULT_PATH
     $targetParent = Get-PathParentLexical $targetPath
     if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {
         Write-Fail "The target folder is not writable: $targetParent"

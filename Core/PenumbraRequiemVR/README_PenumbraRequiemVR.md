@@ -12,6 +12,8 @@ Penumbra: Requiem is the puzzle-focused expansion to Penumbra: Black Plague. Pen
 
 The Hub downloads the latest official [Penumbra VR Framework release](https://github.com/rubocopter/penumbra_vr_framework/releases), including prereleases. Publisher Setup selects all detected Penumbra games by default. Check that Black Plague and Requiem are selected before Install; the Hub scans each component separately afterward. Setup also provides verification, repair and removal. Requiem shares Black Plague's installation root and backup transaction.
 
+The reviewed v1.0.8 Setup repairs Black Plague interactions shared with this expansion. Keep both components selected when updating Requiem.
+
 If Overture was installed with the older Hub-pinned Framework v0.x, update it from the **Penumbra: Overture VR** game tile before running this Setup. Do not use publisher Repair on that old Overture deployment; its managed file set differs from the current Framework.
 
 [Watch Requiem VR gameplay](https://www.youtube.com/watch?v=FB6xXrBn-8E) · [Flat2VR modding discussion](https://discord.com/channels/747967102895390741/1540774759619629056)

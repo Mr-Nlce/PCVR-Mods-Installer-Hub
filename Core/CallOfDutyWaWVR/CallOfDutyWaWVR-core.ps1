@@ -274,11 +274,7 @@ if ($edition -eq "cut") {
         }
         if (-not $script:PreFoundDepot) {
         Pause-User "Press Enter to open the Steam Console..."
-        # Both protocol addresses: depending on the Steam build only
-        # one works.
-        foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-            try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-        }
+        [void](Open-PCVRSteamConsole)
         Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
         Write-Host ""
         Pause-User "Press Enter once the depot download has finished..."

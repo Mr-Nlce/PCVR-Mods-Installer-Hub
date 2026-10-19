@@ -11,7 +11,7 @@ Automated installer for 7DaysVR.
 
 ## Requirements
 - Windows 10/11
-- Steam with **7 Days to Die 3.1** installed (current mod build: 4.1.0.227)
+- Steam with **7 Days to Die 3.3.0 or newer** for the current 7DVR **4.2.0.235** main file. The older 7DVR 4.1.0.227 file on Nexus supports game versions 3.0-3.2. Check the game version in its main menu and select the matching file; the installer asks for confirmation before copying 4.2.
 - An active **OpenXR runtime** for your headset
 - A Nexus Mods account (free) to download the mod
 
@@ -22,7 +22,7 @@ https://www.nexusmods.com/7daystodie/mods/3011
 - **EAC must be disabled** — you can only join servers with EAC also off
 - **7 Days must be the active foreground window** while playing
 - **Virtual Desktop:** select **VDXR** as the runtime and do **not** launch
-  SteamVR. Version 4.1 moved 7DVR from SteamVR/OpenVR to OpenXR.
+  SteamVR. 7DVR 4.1 and later use OpenXR.
 - Other headsets: make the OpenXR runtime belonging to your headset software
   active. Index and Vive users can use SteamVR as their OpenXR runtime.
 - World loading screen is very jittery — this is normal (CPU at 100%)
@@ -36,21 +36,22 @@ https://www.nexusmods.com/7daystodie/mods/3011
 Default VR controls. Locomotion, grip and comfort options live in the
 in-game VR options under **Options -> Controls -> VR**.
 
-**Left controller:**
-- **[[Left Stick]]:** Move; press = Run
-- **[[Left Trigger]]:** Next slot / zoom in
-- **[[Left Grip]]:** Previous slot / zoom out
-- **[[X]]:** Inventory
-- **[[Y]]:** Menu
-
-**Right controller:**
-- **[[Right Stick]]:** Left/Right = Turn (smooth or snap); Up = Map;
-  Down = Toggle Crouch; press = Reload / Take all
-- **[[Right Trigger]]:** Primary (fire / use / left-click and drag in menus)
-- **[[Right Grip]]:** melee weapons = hold for power attack or repair/upgrade;
-  other items = Secondary (aim down sights / right-click)
-- **[[A]]:** Jump / full click in UI
-- **[[B]]:** Interact / exit vehicle
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move; press to run. |
+| [[Left Trigger]] | Next slot or zoom in. |
+| [[Left Grip]] | Previous slot or zoom out. |
+| [[X]] | Open inventory; hold for the Tab radial menu. |
+| [[Y]] | Open menu. |
+| [[Right Stick]] | Left/right: turn; up: map; down: crouch; press: reload or take all. Hold its click for the R radial menu. |
+| [[Right Trigger]] | Fire, use, or drag in menus. |
+| [[Right Grip]] | Melee power attack or repair/upgrade; other items: secondary action or aim down sights. |
+| [[A]] | Jump or full click in menus. |
+| [[B]] | Interact or exit a vehicle; hold for the E radial menu. |
+| [[Right Grip]] + [[Right Stick Click]] | Toggle flashlight. |
+| [[Left Grip]] + [[A]] | Transfer an item between containers. |
+| [[Left Grip]] + [[Right Grip]] + [[A]] | Auto-stack into an open container. |
+| [[Left Grip]] + [[Left Stick Click]] | Honk while in a vehicle. |
 
 ## Physical swings & power attacks
 - Physical swings with motion controllers work for melee weapons & tools.

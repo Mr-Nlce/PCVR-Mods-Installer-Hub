@@ -87,6 +87,7 @@ Write-Host "  experience, consider the official release instead:" -ForegroundCol
 Write-Host "   -> $OFFICIAL_VR_URL" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "  You need to own Metal: Hellsinger on Steam for the depot download." -ForegroundColor Gray
+Write-Host "  Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Pause-User "Press Enter to continue with the community-mod install..." | Out-Null
 
 # -------------------------------------------------------
@@ -128,18 +129,14 @@ if ($script:PreFoundDepot) {
 if (-not $script:PreFoundDepot) {
 
 Pause-User "Press Enter to open the Steam Console..." | Out-Null
-# Both protocol addresses: depending on the Steam build only one works.
-$conOk = $false
-foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-    try { Start-Process $cu; $conOk = $true; Start-Sleep -Milliseconds 900 } catch {}
-}
+$conOk = [bool](Open-PCVRSteamConsole)
 Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
 if (-not $conOk) {
     Write-Warn "Could not open the Steam Console automatically."
     Write-Host "  Open Steam, then: View - Console, and paste the command above." -ForegroundColor Gray
 }
-Write-Info "Steam Console opening..."
+Write-Info "Steam Console confirmed visible."
 Write-Host ""
 Pause-User "Press Enter once the depot download is COMPLETE..." | Out-Null
 
@@ -219,14 +216,13 @@ foreach ($relative in @('winhttp.dll', 'BepInEx\plugins\HellsingerVR.dll')) {
 Write-Step 2 4 "Moving the game to a stable folder"
 $parentOfDepot = Get-PathParentLexical $depotPath
 
-Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
 $rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @('BepInEx\plugins\HellsingerVR.dll')
-$userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"') }
+$userInput = if ($rememberedTarget) { $rememberedTarget } else { Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH }
 if ($rememberedTarget) { Write-OK "Using remembered install location: $rememberedTarget" }
-$targetPath = if (-not $userInput) { $DEFAULT_PATH } else { $userInput }
+$targetPath = $userInput
 
 $targetParent = Get-PathParentLexical $targetPath
 if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

@@ -220,7 +220,20 @@ function Get-GloomCurrentRoot {
 }
 
 function Install-GloomPinnedDepot {
+    $receipt=Join-Path $PSScriptRoot '.installed_path_depot'
+    $recorded=@()
+    try { if (Test-Path -LiteralPath $receipt -PathType Leaf) { $recorded += (Get-Content -LiteralPath $receipt -Raw).Trim() } } catch { }
+    try { $recorded += Get-PCVRRememberedGameFolder -GameId 'gloomhaven-vr' -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_depot') } catch { }
+    foreach ($candidate in @($recorded | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-GloomPinnedRoot $candidate) { Write-GloomOK "Found complete pinned route: $candidate"; return $candidate }
+    }
     if (Test-GloomPinnedRoot $DEPOT_DEFAULT_PATH) { Write-GloomOK "Found complete pinned route: $DEPOT_DEFAULT_PATH"; return $DEPOT_DEFAULT_PATH }
+    $previousParent=Get-PCVRLastCustomDepotParent
+    if ($previousParent) {
+        $previous=Join-Path $previousParent ([IO.Path]::GetFileName($DEPOT_DEFAULT_PATH))
+        if (Test-GloomPinnedRoot $previous) { Write-GloomOK "Found complete pinned route: $previous"; return $previous }
+    }
+    $DEPOT_DEFAULT_PATH=Select-PCVRDepotInstallPath -DefaultPath $DEPOT_DEFAULT_PATH
     if ((Test-Path -LiteralPath $DEPOT_DEFAULT_PATH) -and @(Get-ChildItem -LiteralPath $DEPOT_DEFAULT_PATH -Force -ErrorAction SilentlyContinue).Count) {
         throw "$DEPOT_DEFAULT_PATH already exists but is not the complete Hub-managed build $PINNED_BUILD. Rename or remove that folder before retrying."
     }
@@ -248,7 +261,7 @@ function Install-GloomPinnedDepot {
     Write-Host ''; Write-Host "  $command" -ForegroundColor DarkGray
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy the exact command and open Steam Console...')
     try { Set-Clipboard -Value $command -DeferManualFallback } catch {}
-    foreach ($uri in @('steam://open/console','steam://nav/console')) { try { Start-Process $uri; Start-Sleep -Milliseconds 700 } catch {} }
+    [void](Open-PCVRSteamConsole)
     Show-PCVRClipboardManualFallback -Text $command
     Write-Host '  Paste with Ctrl+V in Steam Console and wait for the download to finish.' -ForegroundColor White
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter here only after the exact depot has finished...')
@@ -332,7 +345,8 @@ function global:Invoke-GloomhavenVRInstaller {
         Write-Host '  [1] Current game with the newest stable GloomhavenVR release' -ForegroundColor Cyan
         Write-Host '      Steam, Epic and GOG are supported. This route auto-updates.' -ForegroundColor Gray
         Write-Host "  [2] Steam build $PINNED_BUILD with GloomhavenVR $PINNED_MOD_TAG" -ForegroundColor Cyan
-        Write-Host "      Separate $DEPOT_DEFAULT_PATH copy for solo compatibility." -ForegroundColor Gray
+        Write-Host "      Default game folder: $DEPOT_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
+        Write-Host '      Separate copy for solo compatibility.' -ForegroundColor Gray
         Write-Host '      The normal Steam installation remains untouched.' -ForegroundColor Gray
         Write-Host '  [Q] Quit' -ForegroundColor Gray
         Write-Host ''

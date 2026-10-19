@@ -8,8 +8,7 @@ $DEPOT_ROOT='C:\Games\White Knuckle VR 25612096';$DEPOT_MARKER='.pcvrhub_whitekn
 $GAME_EXE='White Knuckle.exe';$REPO='kyanite-rock/White_Knuckle_VR';$RELEASES="https://github.com/$REPO/releases"
 $PINNED_MOD='v1.2.0';$PINNED_ASSET='WhiteKnuckleVR_v1.2.0.zip'
 $PINNED_URL='https://github.com/kyanite-rock/White_Knuckle_VR/releases/download/v1.2.0/WhiteKnuckleVR_v1.2.0.zip'
-$CURRENT_FALLBACK_MOD='v1.2.0';$CURRENT_FALLBACK_ASSET='WhiteKnuckleVR_v1.2.0.zip'
-$CURRENT_FALLBACK_URL='https://github.com/kyanite-rock/White_Knuckle_VR/releases/download/v1.2.0/WhiteKnuckleVR_v1.2.0.zip'
+$env:PCVR_HUB_RECOVERY_PAGE=$RELEASES
 $BEPINEX_URL='https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.2/BepInEx_win_x64_5.4.23.2.zip'
 $IDENTITY='whiteknucklevr';$LEGACY_MOD='BepInEx\plugins\WhiteKnuckleVRMod.dll'
 $MOD_FILES=@('BepInEx\plugins\WhiteKnuckleVRMod\WhiteKnuckleVRMod.dll',
@@ -72,7 +71,19 @@ function Get-WKCurrentRoot{
     return (Get-Item -LiteralPath $path).FullName
 }
 function Get-WKDepotRoot{
+    $receipt=Join-Path $PSScriptRoot '.installed_path_depot';$recorded=@()
+    try{if(Test-Path -LiteralPath $receipt -PathType Leaf){$recorded+=(Get-Content -LiteralPath $receipt -Raw).Trim()}}catch{}
+    try{$recorded+=Get-PCVRRememberedGameFolder -GameId 'white-knuckle-vr' -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_depot')}catch{}
+    foreach($candidate in @($recorded|Where-Object{$_}|Select-Object -Unique)){
+        if(Test-WKPinnedGame $candidate){Write-Host "  Found pinned game build at $candidate" -ForegroundColor Green;return $candidate}
+    }
     if(Test-WKPinnedGame $DEPOT_ROOT){Write-Host "  Found pinned game build at $DEPOT_ROOT" -ForegroundColor Green;return $DEPOT_ROOT}
+    $previousParent=Get-PCVRLastCustomDepotParent
+    if($previousParent){
+        $previous=Join-Path $previousParent ([IO.Path]::GetFileName($DEPOT_ROOT))
+        if(Test-WKPinnedGame $previous){Write-Host "  Found pinned game build at $previous" -ForegroundColor Green;return $previous}
+    }
+    $DEPOT_ROOT=Select-PCVRDepotInstallPath -DefaultPath $DEPOT_ROOT
     if((Test-Path -LiteralPath $DEPOT_ROOT) -and @(Get-ChildItem -LiteralPath $DEPOT_ROOT -Force -ErrorAction SilentlyContinue).Count){throw "$DEPOT_ROOT exists but does not match the pinned build. Move it aside before retrying."}
     $steamGame=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('White Knuckle') -ProbeExe $GAME_EXE
     if(Test-WKSteamPinnedManifest $steamGame){
@@ -92,7 +103,7 @@ function Get-WKDepotRoot{
     Write-Host "  Exact Steam command: $command" -ForegroundColor White
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy this command and open Steam Console...')
     try{Set-Clipboard -Value $command -DeferManualFallback}catch{}
-    Start-Process 'steam://open/console' -ErrorAction Stop | Out-Null
+    [void](Open-PCVRSteamConsole)
     Show-PCVRClipboardManualFallback -Text $command
     [void](Wait-PCVRExplicitEnter -Message 'When Steam reports the depot download complete, press Enter to locate it...')
     $steamRoot=Get-SteamPath
@@ -107,9 +118,43 @@ function Get-WKDepotRoot{
 }
 function Get-WKRelease([ValidateSet('Current','Depot')][string]$Mode='Current'){
     if($Mode -eq 'Depot'){return [pscustomobject]@{Tag=$PINNED_MOD;Url=$PINNED_URL;Name=$PINNED_ASSET;PageUrl="$RELEASES/tag/$PINNED_MOD"}}
-    $r=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^WhiteKnuckleVR_v[0-9].*\.zip$') `
-        -FallbackUrl $CURRENT_FALLBACK_URL -FallbackTag $CURRENT_FALLBACK_MOD -FallbackAssetName $CURRENT_FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset
-    return [pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Name=[string]$r.AssetName;PageUrl=[string]$r.PageUrl}
+    $args=@{Repo=$REPO;AssetPatterns=@('(?i)^WhiteKnuckleVR_v[0-9].*\.zip$');SkipReleasesWithoutMatchingAsset=$true}
+    if($env:PCVR_WK_TEST_RELEASE_JSON){$args.ReleaseData=Get-Content -LiteralPath $env:PCVR_WK_TEST_RELEASE_JSON -Raw|ConvertFrom-Json}
+    $r=Resolve-GitHubReleaseAsset @args
+    if(-not $r.Resolved -or -not(Test-IsTrackableInstalledVersion ([string]$r.Tag))){
+        Write-Host '  [!!] The current White Knuckle VR release could not be checked on GitHub.' -ForegroundColor Yellow
+        return [pscustomobject]@{Tag='';Url='';Name='';PageUrl=$RELEASES;Manual=$true}
+    }
+    return [pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Name=[string]$r.AssetName;PageUrl=[string]$r.PageUrl;Manual=$false}
+}
+function Get-WKManualArchive([string]$Destination){
+    $declined='';$opened=$false
+    while($true){
+        $folders=if($env:PCVR_WK_TEST_DOWNLOADS){@($env:PCVR_WK_TEST_DOWNLOADS)}else{@()}
+        $file=Find-PCVRDownloadedCandidate -Patterns @('WhiteKnuckleVR_v*.zip') -Folders $folders
+        if($file -and $file -ne $declined -and (Test-DownloadedPayload -Path $file -IntendedPath $Destination)){
+            $leaf=[IO.Path]::GetFileName($file)
+            if($leaf -match '(?i)^WhiteKnuckleVR_(v\d+(?:\.\d+)+)\.zip$'){
+                $tag=$Matches[1];Write-Host "  Found in Downloads: $file" -ForegroundColor Cyan
+                Write-Host "  GitHub could not confirm the newest release. This ZIP is $tag; a newer one may exist." -ForegroundColor Yellow
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $file -Destination $Destination -Force;return [pscustomobject]@{Tag=$tag;Name=$leaf;Url=$file;PageUrl=$RELEASES}}
+                $declined=$file
+            }
+        }
+        if(-not $opened){Write-Host '  Download the current WhiteKnuckleVR ZIP from the official release page.' -ForegroundColor White;[void](Open-PCVRPageAfterEnter -Url $RELEASES -Message 'Press Enter to open the White Knuckle VR releases page...');$opened=$true}
+        [void](Wait-PCVRExplicitEnter -Message 'After the download finishes, press Enter to check Downloads...')
+        $file=Find-PCVRDownloadedCandidate -Patterns @('WhiteKnuckleVR_v*.zip') -Folders $folders
+        if($file -and $file -ne $declined){continue}
+        $raw=(Read-Host '  Drag the ZIP here, or press Enter to reopen the page').Trim().Trim('"').Trim("'")
+        if($raw -and (Test-Path -LiteralPath $raw -PathType Leaf)){
+            $leaf=[IO.Path]::GetFileName($raw)
+            if($leaf -match '(?i)^WhiteKnuckleVR_(v\d+(?:\.\d+)+)\.zip$' -and (Test-DownloadedPayload -Path $raw -IntendedPath $Destination)){
+                $tag=$Matches[1];Write-Host "  Selected: $raw" -ForegroundColor Cyan
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $raw -Destination $Destination -Force;return [pscustomobject]@{Tag=$tag;Name=$leaf;Url=$raw;PageUrl=$RELEASES}}
+                $declined=$raw
+            }else{Write-Host '  Choose an official versioned WhiteKnuckleVR ZIP.' -ForegroundColor Yellow}
+        }else{Start-Process $RELEASES -ErrorAction Stop|Out-Null}
+    }
 }
 function New-WKStage([string]$ModArchive,[string]$LoaderArchive,[string]$GameRoot,[string]$Stage,[switch]$Depot){
     if([string](Expand-ArchiveOrFallback -ArchivePath $ModArchive -DestinationFolder $Stage -Label 'White Knuckle VR mod' -AllowSkip $false -QuietProgress) -notin @('ok','manual','retry')){throw 'The White Knuckle release could not be extracted.'}
@@ -145,6 +190,7 @@ function global:Invoke-WhiteKnuckleVRInstaller{
         Clear-Host;Write-Host ('='*60) -ForegroundColor Magenta;Write-Host '  White Knuckle VR - Installer' -ForegroundColor Cyan;Write-Host ('='*60) -ForegroundColor Magenta
         Write-Host '  [1] Current Steam build + newest stable WhiteKnuckleVR release' -ForegroundColor Cyan
         Write-Host "  [2] Independent build $DEPOT_BUILD + pinned WhiteKnuckleVR $PINNED_MOD" -ForegroundColor Cyan
+        Write-Host "      Default game folder: $DEPOT_ROOT (or choose another)." -ForegroundColor Gray
         Write-Host '      The normal Steam installation stays separate.' -ForegroundColor Gray
         Write-Host '  BepInEx 5 x64 is required. The first mod launch is flat; the' -ForegroundColor Yellow
         Write-Host '  second launch uses VR. The game must be closed during setup.' -ForegroundColor Yellow
@@ -163,11 +209,22 @@ function global:Invoke-WhiteKnuckleVRInstaller{
         Write-Host '  BepInEx 5 x64 is downloaded only when the correct loader is missing.' -ForegroundColor Gray
         Write-Host '  Download and extraction may take a few minutes.' -ForegroundColor Gray
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check and download White Knuckle VR...')
-        $release=Get-WKRelease -Mode $mode;if(-not(Test-IsTrackableInstalledVersion $release.Tag)){throw 'No trackable VR mod release version was resolved.'}
+        $release=Get-WKRelease -Mode $mode
+        $handover=if($mode -eq 'Current'){Get-PCVRRecoveryInput -PathType Leaf}else{$null}
+        if($handover){
+            $leaf=[IO.Path]::GetFileName($handover)
+            if($leaf -notmatch '(?i)^WhiteKnuckleVR_(v\d+(?:\.\d+)+)\.zip$'){throw 'Choose an official versioned WhiteKnuckleVR ZIP.'}
+            $version=$Matches[1]
+            if(-not $release.Manual -and $version -ine [string]$release.Tag){throw "The selected ZIP is $version; GitHub reports $($release.Tag). Download that version instead."}
+            Write-Host "  Selected publisher ZIP: $handover ($version)" -ForegroundColor Cyan
+            if($release.Manual -and (Read-Host '  GitHub version unavailable. Use this ZIP? Y/N').Trim() -notmatch '^(?i:y|yes)$'){throw 'Publisher version was not confirmed.'}
+            $release=[pscustomobject]@{Tag=$version;Url=$handover;PageUrl=$RELEASES;Local=$true;Manual=$false}
+        }
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_wk_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
         $modArchive=Join-Path $work 'WhiteKnuckleVR.zip'
-        $modDownload=Invoke-SafeDownload -Urls @($release.Url) -Destination $modArchive -Label "WhiteKnuckleVR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl $release.PageUrl -AllowSkip $false
-        if($modDownload -ne $true -and [string]$modDownload -notin @('retry','manual')){throw 'The White Knuckle VR release was not downloaded.'}
+        if($release.Manual){$release=Get-WKManualArchive -Destination $modArchive}
+        elseif($release.Local){Copy-Item -LiteralPath $release.Url -Destination $modArchive -Force -ErrorAction Stop}
+        else{$modDownload=Invoke-SafeDownload -Urls @($release.Url) -Destination $modArchive -Label "WhiteKnuckleVR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl $release.PageUrl -AllowSkip $false;if($modDownload -ne $true -and [string]$modDownload -notin @('retry','manual')){throw 'The White Knuckle VR release was not downloaded.'}}
         $loaderArchive=$null
         if(-not(Test-WKFiles -Path $game -Files $LOADER_FILES) -or ($mode -eq 'Depot' -and -not(Test-WKPinnedLoader $game)) -or (Test-WKOwnedLoader $game)){
             $loaderArchive=Join-Path $work 'BepInEx5x64.zip'
@@ -175,6 +232,8 @@ function global:Invoke-WhiteKnuckleVRInstaller{
             if($loaderDownload -ne $true -and [string]$loaderDownload -notin @('retry','manual')){throw 'The x64 BepInEx loader was not downloaded.'}
         }
         $stage=New-WKStage -ModArchive $modArchive -LoaderArchive $loaderArchive -GameRoot $game -Stage (Join-Path $work 'stage') -Depot:($mode -eq 'Depot')
+        $packageVersionFile=Join-Path $stage 'WhiteKnuckleVR\version.txt'
+        if(-not(Test-Path -LiteralPath $packageVersionFile -PathType Leaf) -or (Get-Content -LiteralPath $packageVersionFile -Raw).Trim() -ne $release.Tag.TrimStart('v')){throw 'The White Knuckle ZIP version differs from the selected release. No game files were changed.'}
         Write-WKStep 3 'Backing up files that may be replaced'
         $snapshot=Save-WKSnapshot -GameRoot $game -Stage $stage -SnapshotRoot (Join-Path $work 'rollback');$changesStarted=$true
         Write-WKStep 4 'Installing and checking VR files'

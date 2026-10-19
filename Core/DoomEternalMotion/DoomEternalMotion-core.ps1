@@ -7,8 +7,8 @@ $script:GameId='doom-eternal-motion-vr'
 $script:GameTitle='DOOM Eternal VR - Motion'
 $script:Quip='Rip and tear. The chainsaw finally has a reach of its own.'
 $script:Slots=@{
-    argent=@{Name='KHARVOX: ARGENT';Repo='CactusVRStudios/KHARVOX-ARGENT';Pattern='(?i)^ARGENT-[0-9].*\.zip$';Fallback='https://github.com/CactusVRStudios/KHARVOX-ARGENT/releases/download/v1.01a/ARGENT-1.01a.zip';Tag='v1.01a';File='ARGENT-1.01a.zip';Folder='ARGENT';Launcher='ArgentLauncher.exe';Identity='doomargent';Receipt='.installed_path_a';State='mod_a_path';VersionSlot='Primary';Required=@('ArgentLauncher.exe','ArgentLayer.dll','ArgentLayer.json','openxr_loader.dll','build-info.json')}
-    eternal=@{Name='EternalVR';Repo='ArcadaLabs-Jason/EternalVR';Pattern='(?i)^EternalVR-alpha-[0-9].*\.zip$';Fallback='https://github.com/ArcadaLabs-Jason/EternalVR/releases/download/v0.1.50/EternalVR-alpha-0.1.50-2ac77a1.zip';Tag='v0.1.50';File='EternalVR-alpha-0.1.50-2ac77a1.zip';Folder='EternalVR';Launcher='EternalVR.Launcher.exe';Identity='doometernalvr';Receipt='.installed_path_b';State='mod_b_path';VersionSlot='Secondary';Required=@('EternalVR.Launcher.exe','EternalVR.Launcher.Core.dll','BUILD-INFO.txt','layer\EternalVR.dll','layer\openxr_loader.dll','layer\VK_LAYER_ETERNALVR.json')}
+    argent=@{Name='KHARVOX: ARGENT';Repo='CactusVRStudios/KHARVOX-ARGENT';Pattern='(?i)^ARGENT-[0-9].*\.zip$';Tag='v1.01a';Folder='ARGENT';Launcher='ArgentLauncher.exe';Identity='doomargent';Receipt='.installed_path_a';State='mod_a_path';VersionSlot='Primary';Required=@('ArgentLauncher.exe','ArgentLayer.dll','ArgentLayer.json','openxr_loader.dll','build-info.json')}
+    eternal=@{Name='EternalVR';Repo='ArcadaLabs-Jason/EternalVR';Pattern='(?i)^EternalVR-alpha-[0-9].*\.zip$';Tag='v0.1.62';Folder='EternalVR';Launcher='EternalVR.Launcher.exe';Identity='doometernalvr';Receipt='.installed_path_b';State='mod_b_path';VersionSlot='Secondary';Required=@('EternalVR.Launcher.exe','EternalVR.Launcher.Core.dll','BUILD-INFO.txt','layer\EternalVR.dll','layer\openxr_loader.dll','layer\VK_LAYER_ETERNALVR.json')}
 }
 
 function Test-DoomEternalGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'DOOMEternalx64vk.exe') -PathType Leaf))}
@@ -48,8 +48,46 @@ function Get-DoomSlotTarget([hashtable]$Slot){
 function Get-DoomRelease([string]$Key,[hashtable]$Slot){
     $local=if($Key -eq 'argent'){(''+$env:PCVR_DOOMETERNAL_TEST_ARGENT_ARCHIVE).Trim()}else{(''+$env:PCVR_DOOMETERNAL_TEST_ETERNAL_ARCHIVE).Trim()}
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $local){$testTag=(''+$env:PCVR_DOOMETERNAL_TEST_EXPECTED_TAG).Trim();return [pscustomobject]@{Tag=$(if($testTag){$testTag}else{[string]$Slot.Tag});Url=$local;PageUrl=('https://github.com/'+$Slot.Repo+'/releases');Local=$true}}
-    $release=Resolve-GitHubReleaseAsset -Repo ([string]$Slot.Repo) -IncludePrerelease:($Key -eq 'eternal') -AssetPatterns @([string]$Slot.Pattern) -FallbackUrl ([string]$Slot.Fallback) -FallbackTag ([string]$Slot.Tag) -FallbackAssetName ([string]$Slot.File) -SkipReleasesWithoutMatchingAsset
-    return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url;PageUrl=[string]$release.PageUrl;Local=$false}
+    $args=@{Repo=[string]$Slot.Repo;IncludePrerelease=($Key -eq 'eternal');AssetPatterns=@([string]$Slot.Pattern);SkipReleasesWithoutMatchingAsset=$true}
+    if($env:PCVR_DOOMETERNAL_TEST_RELEASE_JSON){$args.ReleaseData=Get-Content -LiteralPath $env:PCVR_DOOMETERNAL_TEST_RELEASE_JSON -Raw|ConvertFrom-Json}
+    $release=Resolve-GitHubReleaseAsset @args
+    if(-not $release.Resolved -or -not(Test-IsTrackableInstalledVersion ([string]$release.Tag))){
+        Write-Host "  [!!] The current $($Slot.Name) release could not be checked on GitHub." -ForegroundColor Yellow
+        return [pscustomobject]@{Tag='';Url='';PageUrl=('https://github.com/'+$Slot.Repo+'/releases');Local=$false;Manual=$true}
+    }
+    return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url;PageUrl=[string]$release.PageUrl;Local=$false;Manual=$false}
+}
+function Get-DoomManualArchive([string]$Key,[hashtable]$Slot,[string]$Destination){
+    $page='https://github.com/'+$Slot.Repo+'/releases';$pattern=if($Key -eq 'eternal'){'EternalVR-alpha-*.zip'}else{'ARGENT-*.zip'}
+    $declined='';$opened=$false
+    while($true){
+        $folders=if($env:PCVR_DOOMETERNAL_TEST_DOWNLOADS){@($env:PCVR_DOOMETERNAL_TEST_DOWNLOADS)}else{@()}
+        $file=Find-PCVRDownloadedCandidate -Patterns @($pattern) -Folders $folders
+        if($file -and $file -ne $declined -and (Test-DownloadedPayload -Path $file -IntendedPath $Destination)){
+            $leaf=[IO.Path]::GetFileName($file)
+            $match=if($Key -eq 'eternal'){[regex]::Match($leaf,'(?i)^EternalVR-alpha-(\d+(?:\.\d+)+)-[a-f0-9]+\.zip$')}else{[regex]::Match($leaf,'(?i)^ARGENT-(\d+(?:\.\d+)*[a-z]?)\.zip$')}
+            if($match.Success){
+                $tag='v'+$match.Groups[1].Value;Write-Host "  Found in Downloads: $file" -ForegroundColor Cyan
+                Write-Host "  GitHub could not confirm the newest release. This ZIP is $tag; a newer one may exist." -ForegroundColor Yellow
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $file -Destination $Destination -Force;return [pscustomobject]@{Tag=$tag;Url=$file;PageUrl=$page;Local=$true}}
+                $declined=$file
+            }
+        }
+        if(-not $opened){Write-Host "  Download the current $($Slot.Name) ZIP from the official release page." -ForegroundColor White;[void](Open-PCVRPageAfterEnter -Url $page -Message 'Press Enter to open the publisher releases page...');$opened=$true}
+        [void](Wait-PCVRExplicitEnter -Message 'After the download finishes, press Enter to check Downloads...')
+        $file=Find-PCVRDownloadedCandidate -Patterns @($pattern) -Folders $folders
+        if($file -and $file -ne $declined){continue}
+        $raw=(Read-Host '  Drag the ZIP here, or press Enter to reopen the page').Trim().Trim('"').Trim("'")
+        if($raw -and (Test-Path -LiteralPath $raw -PathType Leaf)){
+            $leaf=[IO.Path]::GetFileName($raw)
+            $match=if($Key -eq 'eternal'){[regex]::Match($leaf,'(?i)^EternalVR-alpha-(\d+(?:\.\d+)+)-[a-f0-9]+\.zip$')}else{[regex]::Match($leaf,'(?i)^ARGENT-(\d+(?:\.\d+)*[a-z]?)\.zip$')}
+            if($match.Success -and (Test-DownloadedPayload -Path $raw -IntendedPath $Destination)){
+                $tag='v'+$match.Groups[1].Value;Write-Host "  Selected: $raw" -ForegroundColor Cyan
+                if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $raw -Destination $Destination -Force;return [pscustomobject]@{Tag=$tag;Url=$raw;PageUrl=$page;Local=$true}}
+                $declined=$raw
+            }else{Write-Host '  Choose the official versioned publisher ZIP.' -ForegroundColor Yellow}
+        }else{Start-Process $page -ErrorAction Stop|Out-Null}
+    }
 }
 function Get-DoomPayload([string]$Archive,[string]$Work,[hashtable]$Slot){
     $extract=Join-Path $Work 'release'
@@ -117,9 +155,22 @@ function Invoke-DoomEternalMotionInstaller {
         $target=Get-DoomSlotTarget -Slot $slot
         Write-Host "  [..] Separate $($slot.Name) folder: $target" -ForegroundColor Gray
         $release=Get-DoomRelease -Key $Mod -Slot $slot
+        $handover=Get-PCVRRecoveryInput -PathType Leaf
+        if($handover){
+            $leaf=[IO.Path]::GetFileName($handover)
+            $match=if($Mod -eq 'eternal'){[regex]::Match($leaf,'(?i)^EternalVR-alpha-(\d+(?:\.\d+)+)-[a-f0-9]+\.zip$')}else{[regex]::Match($leaf,'(?i)^ARGENT-(\d+(?:\.\d+)*[a-z]?)\.zip$')}
+            if(-not $match.Success){throw "Choose the official versioned $($slot.Name) ZIP."}
+            $version='v'+$match.Groups[1].Value
+            if(-not $release.Manual -and $version -ine [string]$release.Tag){throw "The selected ZIP is $version; GitHub reports $($release.Tag). Download that version instead."}
+            Write-Host "  Selected publisher ZIP: $handover ($version)" -ForegroundColor Cyan
+            if($release.Manual -and (Read-Host '  GitHub version unavailable. Use this ZIP? Y/N').Trim() -notmatch '^(?i:y|yes)$'){throw 'Publisher version was not confirmed.'}
+            $release=[pscustomobject]@{Tag=$version;Url=$handover;Local=$true;Manual=$false}
+        }
+        $env:PCVR_HUB_RECOVERY_PAGE='https://github.com/'+$slot.Repo+'/releases'
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_doom_motion_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'publisher.zip'
-        if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force -ErrorAction Stop}
+        if($release.Manual){$release=Get-DoomManualArchive -Key $Mod -Slot $slot -Destination $archive}
+        elseif($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force -ErrorAction Stop}
         else{
             $download=Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive -Label "$($slot.Name) $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
             if(-not($download -eq $true -or [string]$download -in @('retry','manual'))){throw 'The selected publisher release was not downloaded.'}

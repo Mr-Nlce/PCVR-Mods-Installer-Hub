@@ -34,11 +34,12 @@ debuffs keep working out of the box, and why no game file is replaced.
    run writes the mod's three config files. Close the game.
 2. Start your VR runtime, then launch again. Now it comes up in VR.
 
-## Current and pinned depot v1.2.0
+## Current v1.2.1 and pinned depot v1.2.0
 
-The v1.2.0 release brings the VR mod up to date with White Knuckle Beta 0.61e.
+Current v1.2.1 fixes the VR settings menu offset and physical climbing orientation. The v1.2.0 release brought the VR mod up to date with White Knuckle Beta 0.61e.
 The independent depot freezes this game build, v1.2.0 and BepInEx 5.4.23.2;
 future Current updates do not change any pinned depot component.
+If the current release cannot be checked online, setup offers the official release page and a versioned ZIP from Downloads for confirmation. It does not silently install the depot's older mod into Current.
 
 The following v1.1.4 changes remain part of the current release:
 

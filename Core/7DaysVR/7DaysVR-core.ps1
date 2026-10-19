@@ -105,6 +105,16 @@ function Get-7DaysVrVersionFromExtractedFiles {
  return $null
 }
 
+function Get-7DaysVrRequiredGameVersion {
+ param([Parameter(Mandatory=$true)][string]$ExtractedRoot)
+ $metadataPath = Join-Path $ExtractedRoot 'Mods\7DVR\mod.xml'
+ if (-not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) { return $null }
+ $metadata = Get-Content -LiteralPath $metadataPath -Raw -ErrorAction Stop
+ $match = [regex]::Match($metadata, '<game_version>\s*([^<]+?)\s*</game_version>', [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+ if ($match.Success -and $match.Groups[1].Value.Trim() -match '^\d+\.\d+') { return $match.Groups[1].Value.Trim() }
+ return $null
+}
+
 # -------------------------------------------------------
 # STEP 1: Locate 7 Days to Die
 # -------------------------------------------------------
@@ -272,6 +282,29 @@ try {
   throw "The selected archive does not expose an exact 7DaysVR version in Mods\7DVR\mod.xml or ModInfo.xml."
  }
 
+ # The current Nexus main file requires a newer base-game branch than the
+ # previous 4.1 file. Check the archive's own game-version declaration before
+ # copying any files, so an older Steam branch is not silently upgraded to an
+ # incompatible VR build.
+ $selectedVersion = $null
+ if (-not [version]::TryParse($installedModVersion, [ref]$selectedVersion)) {
+  throw "The selected archive has an unreadable 7DVR version. Nothing was copied to the game."
+ }
+ if ($selectedVersion -ge [version]'4.2.0.235') {
+  $requiredGameVersion = Get-7DaysVrRequiredGameVersion -ExtractedRoot $tempDir
+  if (-not $requiredGameVersion) {
+   throw "This new 7DVR archive does not state its required game version. Check the Nexus file page before retrying; nothing was copied."
+  }
+  Write-Host ''
+  Write-Host " This 7DVR $installedModVersion ZIP requires 7 Days to Die $requiredGameVersion or newer." -ForegroundColor Yellow
+  Write-Host ' Check your game version in its main menu before continuing.' -ForegroundColor White
+  Write-Host ' For game versions 3.0-3.2, use the older 7DVR 4.1.0.227 file on Nexus.' -ForegroundColor White
+  $compatible = (Read-Host " Is your game version $requiredGameVersion or newer? Y/N").Trim()
+  if ($compatible -notmatch '^(?i:y|yes|j|ja)$') {
+   throw "Game version was not confirmed for 7DVR $installedModVersion. Nothing was copied. Download the matching older file from the Nexus page and retry."
+  }
+ }
+
  # Merge all contents into game folder
  Get-ChildItem -Path $tempDir | ForEach-Object {
  Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
@@ -409,7 +442,7 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 Write-Host "--- OpenXR Runtime ---" -ForegroundColor Cyan
 Write-Host ""
-Write-Host " 7DVR 4.1 uses OpenXR - it no longer relies on SteamVR/OpenVR." -ForegroundColor White
+Write-Host " 7DVR $installedModVersion uses OpenXR - it no longer relies on SteamVR/OpenVR." -ForegroundColor White
 Write-Host " Virtual Desktop: select VDXR and do NOT launch SteamVR." -ForegroundColor Yellow
 Write-Host " Other headsets: set the matching OpenXR runtime active." -ForegroundColor Gray
 Write-Host " Index / Vive can use SteamVR as their OpenXR runtime." -ForegroundColor Gray
@@ -423,8 +456,12 @@ Write-Host ""
 Write-Host " - 7 Days must be the ACTIVE, FOREGROUND window while playing." -ForegroundColor Yellow
 Write-Host " If another window has focus, controller input may not work." -ForegroundColor Gray
 Write-Host ""
-Write-Host " - This build supports 7 Days to Die through version 3.1." -ForegroundColor White
-Write-Host " Use the matching older Nexus file for an older game build." -ForegroundColor Gray
+if ($selectedVersion -ge [version]'4.2.0.235') {
+ Write-Host " - This build requires 7 Days to Die $requiredGameVersion or newer." -ForegroundColor White
+} else {
+ Write-Host " - Older 7DVR files support older 7 Days to Die game branches." -ForegroundColor White
+}
+Write-Host " Use the matching Nexus file for your game version." -ForegroundColor Gray
 Write-Host ""
 Write-Host " - VR options are in-game under Options -> Controls -> VR (far right)." -ForegroundColor White
 Write-Host ""

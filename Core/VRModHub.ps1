@@ -59,11 +59,51 @@ function global:ConvertTo-HubPrivacySafeText {
     return $safeText
 }
 
+function global:Test-HubRawTranscriptHeader {
+    param([string]$Path)
+    if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    try {
+        # Bound both bytes and lines: ReadLine() could allocate a damaged
+        # multi-gigabyte first line before discovering there is no header.
+        $stream = [IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+        try {
+            $buffer = New-Object byte[] 8192
+            $count = $stream.Read($buffer,0,$buffer.Length)
+        } finally { $stream.Dispose() }
+        if ($count -eq 0) { return $false }
+        $prefix = [Text.Encoding]::UTF8.GetString($buffer,0,$count)
+        foreach ($line in @($prefix -split "`r?`n" | Select-Object -First 10)) {
+            if ($line.Trim() -match '^\*{10,}$') { return $true }
+        }
+    } catch {}
+    return $false
+}
+
 function global:Compress-HubSessionLog {
     param([string]$Path)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return }
+    # A completed log has no transcript delimiter. Do not read or rewrite it
+    # again on later starts; this also makes UTF-8 cleanup strictly one-time.
+    if (-not (Test-HubRawTranscriptHeader -Path $Path)) { return }
     try {
-        $rawLines = @(Get-Content -LiteralPath $Path -ErrorAction Stop)
+        $logInfo = Get-Item -LiteralPath $Path -ErrorAction Stop
+        # A damaged transcript can contain a multi-gigabyte line. Never load
+        # one into PowerShell: retain the time and size, then reclaim the log.
+        if ($logInfo.Length -gt 8MB) {
+            [IO.File]::WriteAllLines($Path,[string[]]@(
+                '=== PCVR Mods Installer Hub - Session Log ===',
+                ('Started:    ' + $logInfo.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')),
+                ('PowerShell: ' + $PSVersionTable.PSVersion + ' (' + $PSVersionTable.PSEdition + ')'),
+                '=============================================',
+                '',
+                ('[Log limit] An oversized session log (' + $logInfo.Length + ' bytes) was compacted without reading its contents.'),
+                '[Log limit] Check newer session logs for current diagnostics.'
+            ),(New-Object Text.UTF8Encoding($false)))
+            return
+        }
+        # Windows PowerShell 5.1 otherwise reads BOM-less UTF-8 as the system
+        # ANSI code page. Each later compaction then multiplies mojibake.
+        $rawLines = @(Get-Content -LiteralPath $Path -Encoding UTF8 -ErrorAction Stop)
         $started = ''
         $psVersion = ''
         foreach ($line in $rawLines) {
@@ -77,14 +117,20 @@ function global:Compress-HubSessionLog {
         $payload = New-Object 'System.Collections.Generic.List[string]'
         $seenUpdateEvidence = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
         $lastBlank = $false
+        $insideTranscriptHeader = $false
         foreach ($rawLine in $rawLines) {
             $line = [string]$rawLine
+            if ($line.Trim() -match '^\*{10,}$') {
+                $insideTranscriptHeader = -not $insideTranscriptHeader
+                continue
+            }
+            if ($insideTranscriptHeader) { continue }
             if ($line -match '^=== PCVR Mods Installer Hub - Session Log ===$' -or
                 $line -match '^Started:\s*' -or $line -match '^Hub Core:\s*' -or
                 $line -match '^Windows:\s*' -or $line -match '^PowerShell:\s*' -or
                 $line -match '^=+$' -or $line -match '^\*+$' -or
-                $line -match '(?i)^(n?Start der Windows PowerShell-Aufzeichnung|Ende der Windows PowerShell-Aufzeichnung|Windows PowerShell transcript (start|end))$' -or
-                $line -match '(?i)^(Startzeit|Endzeit|Start time|End time|Benutzername|Username|RunAs-Benutzer|RunAs User|Konfigurationsname|Configuration Name|Computer|Machine|Hostanwendung|Host Application|Prozess-ID|Process ID|PSVersion|PSEdition|PSCompatibleVersions|BuildVersion|CLRVersion|WSManStackVersion|PSRemotingProtocolVersion|SerializationVersion):') {
+                $line -match '(?i)^(n?Start der Windows PowerShell-Aufzeichnung|Ende der Windows PowerShell-Aufzeichnung|Windows PowerShell transcript (start|end)|Inicio de la transcripci.n de Windows PowerShell|Fin de la transcripci.n de Windows PowerShell)$' -or
+                $line -match '(?i)^(Startzeit|Endzeit|Start time|End time|Benutzername|Username|RunAs-Benutzer|RunAs User|Konfigurationsname|Configuration Name|Computer|Machine|Hostanwendung|Host Application|Prozess-ID|Process ID|Hora de inicio|Hora de fin|Nombre de usuario|Usuario RunAs|Nombre de la configuraci.n|M.quina|Aplicaci.n host|Id\. de proceso|PSVersion|PSEdition|PSCompatibleVersions|BuildVersion|CLRVersion|WSManStackVersion|PSRemotingProtocolVersion|SerializationVersion):') {
                 continue
             }
             $line = ConvertTo-HubPrivacySafeText $line
@@ -115,19 +161,54 @@ function global:Compress-HubSessionLog {
     } catch {}
 }
 
-$script:HubTranscriptStarted = $false
+function global:Limit-HubLogStorage {
+    param([string]$Directory,[string]$ActivePath = '')
+    if (-not $Directory -or -not (Test-Path -LiteralPath $Directory -PathType Container)) { return }
+    $total = [long]0
+    foreach ($file in @(Get-ChildItem -LiteralPath $Directory -Filter '*.log' -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending)) {
+        if ($ActivePath -and $file.FullName -ieq $ActivePath) { $total += [long]$file.Length; continue }
+        if ($total + [long]$file.Length -gt 100MB) {
+            Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue
+        } else { $total += [long]$file.Length }
+    }
+}
+
+function global:Update-HubLogRotation {
+    $rotation = $global:HubLogRotation
+    if (-not $rotation -or -not $rotation.Active -or -not $rotation.Path) { return $false }
+    if ((Get-Item -LiteralPath $rotation.Path -ErrorAction Stop).Length -lt [long]$rotation.LimitBytes) { return $false }
+    Stop-Transcript -ErrorAction Stop | Out-Null
+    $rotation.Active = $false
+    Compress-HubSessionLog -Path $rotation.Path
+    Limit-HubLogStorage -Directory $rotation.Directory
+    $nextLog = Join-Path $rotation.Directory ("Hub-{0}.log" -f (Get-Date -Format 'yyyy-MM-dd_HH-mm-ss-fff'))
+    [IO.File]::WriteAllLines($nextLog,[string[]]@(
+        '=== PCVR Mods Installer Hub - Session Log ===',
+        ('Started:    ' + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss')),
+        '=============================================',
+        '[Log limit] Previous session segment reached its size limit; logging continues here.'
+    ),(New-Object Text.UTF8Encoding($false)))
+    Start-Transcript -Path $nextLog -Append -ErrorAction Stop | Out-Null
+    $rotation.Path = $nextLog
+    $rotation.Active = $true
+    return $true
+}
+
+$global:HubLogRotation = @{ Active = $false; Path = ''; Directory = ''; Timer = $null; LimitBytes = [long](100MB) }
 try {
     $logsDir = Get-HubRuntimeLogsRoot
     if (-not (Test-Path $logsDir)) { New-Item -ItemType Directory -Path $logsDir -Force | Out-Null }
-    foreach ($oldHubLog in @(Get-ChildItem $logsDir -Filter 'Hub-*.log' -File -ErrorAction SilentlyContinue)) {
-        Compress-HubSessionLog -Path $oldHubLog.FullName
-    }
     # -File: without it a DIRECTORY called something.log would come back
     # from the filter and get handed to Remove-Item. Cheap guard, and the
     # rule everywhere now is that a delete only ever sees a file.
     Get-ChildItem $logsDir -Filter *.log -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending | Select-Object -Skip 30 |
         Remove-Item -Force -ErrorAction SilentlyContinue
+    foreach ($oldHubLog in @(Get-ChildItem $logsDir -Filter 'Hub-*.log' -File -ErrorAction SilentlyContinue)) {
+        Compress-HubSessionLog -Path $oldHubLog.FullName
+    }
+    Limit-HubLogStorage -Directory $logsDir
     $hubLog = Join-Path $logsDir ("Hub-{0}.log" -f (Get-Date -Format "yyyy-MM-dd_HH-mm-ss"))
     @(
         '=== PCVR Mods Installer Hub - Session Log ===',
@@ -137,8 +218,24 @@ try {
         '============================================='
     ) | Out-File -LiteralPath $hubLog -Encoding utf8
     Start-Transcript -Path $hubLog -Append -ErrorAction Stop | Out-Null
-    $script:HubTranscriptStarted = $true
+    $global:HubLogRotation.Active = $true
+    $global:HubLogRotation.Path = $hubLog
+    $global:HubLogRotation.Directory = $logsDir
 } catch {}
+
+# Keep an active transcript bounded as well. Rotation runs on the Hub UI
+# dispatcher, in the same runspace that owns Start-Transcript.
+$global:HubLogRotation.Timer = $null
+if ($global:HubLogRotation.Active) {
+    $global:HubLogRotation.Timer = New-Object System.Windows.Threading.DispatcherTimer
+    $global:HubLogRotation.Timer.Interval = [TimeSpan]::FromSeconds(2)
+    $global:HubLogRotation.Timer.Add_Tick({
+        try {
+            [void](Update-HubLogRotation)
+        } catch {}
+    })
+    $global:HubLogRotation.Timer.Start()
+}
 
 # -------------------------------------------------------
 # Startup timing (diagnostic, opt-in).
@@ -175,7 +272,7 @@ Write-HubTiming "boot: after assembly load + scriptDir"
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.8.0"
+$HUB_VERSION = "0.8.8.1"
 
 $updateInfoFile  = Get-HubUpdateInfoPath
 $script:updateInfo = $null
@@ -903,6 +1000,7 @@ foreach ($mod in @(
     "CatalogSort.ps1",
     "HeaderFx.ps1",
     "BannerGlass.ps1",
+    "BannerFxExtra.ps1",
     "CustomGames.ps1",
     "Startup.ps1"
 )) {

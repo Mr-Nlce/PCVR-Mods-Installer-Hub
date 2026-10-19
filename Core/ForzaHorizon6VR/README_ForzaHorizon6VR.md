@@ -49,7 +49,7 @@ and retail game are handled independently.
 
 ## Option 2 - lufz / VRMod
 
-The current **v1.4.2** package includes the latest head-movement hotfix.
+The reviewed **v1.4.3** package follows the v1.4.2 head-movement hotfix with further visual and head-view fixes. The Hub resolves the current publisher release; actual headset behavior on this build still needs a game test.
 
 ### Setup and launch
 

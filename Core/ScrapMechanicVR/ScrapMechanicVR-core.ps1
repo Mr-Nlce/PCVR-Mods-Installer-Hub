@@ -544,10 +544,12 @@ Write-Host "      Status: $currentStatus" -ForegroundColor $(if ($currentStatus 
 Write-Host ""
 Write-Host "  [2] Last confirmed working version - recommended fallback" -ForegroundColor Cyan
 Write-Host "      Scrap Mechanic $CONFIRMED_GAME_VERSION / build $CONFIRMED_GAME_BUILD / Native VR $CONFIRMED_MOD_VERSION." -ForegroundColor Gray
+Write-Host "      Default game folder: $CONFIRMED_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host "      Status: $confirmedStatus" -ForegroundColor $(if ($confirmedStatus -like 'installed*') { 'Green' } else { 'Gray' })
 Write-Host ""
 Write-Host "  [3] Original legacy depot" -ForegroundColor Cyan
 Write-Host "      Pre-1.0 build $LEGACY_SUPPORTED_BUILD with Native VR $LEGACY_MOD_VERSION." -ForegroundColor Gray
+Write-Host "      Default game folder: $LEGACY_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host "      Status: $legacyStatus" -ForegroundColor $(if ($legacyStatus -like 'installed*') { 'Green' } else { 'Gray' })
 Write-Host ""
 Write-Host "  [Q] Cancel" -ForegroundColor DarkGray
@@ -637,11 +639,7 @@ if ($script:PreFoundDepot) {
 
   if ($step -eq 1) { Pause-User "Press Enter to open the Steam Console..." }
   else            { Pause-User "Press Enter to bring the Steam Console back to the front..." }
-  # Both protocol addresses: depending on the Steam version only one
-  # works.
-  foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-      try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-  }
+  [void](Open-PCVRSteamConsole)
   Show-PCVRClipboardManualFallback -Text $d.Command
   Write-OK "Steam Console in front."
   Write-Host ""
@@ -709,15 +707,14 @@ if ($script:PreFoundDepot) {
  # Move to stable folder
  Write-Step 2 4 "Moving game to stable folder"
  $parentOfDepot = Get-PathParentLexical $depotPath
- Write-Host " Default install location: $DEFAULT_PATH" -ForegroundColor Gray
  Write-Host " (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
  Write-Host "  library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
  Write-Host ""
  $routeStateName = if ($routeKind -eq 'Confirmed') { 'installed_path_depot' } else { 'installed_path_legacy_depot' }
  $rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE) -StateNames @($routeStateName)
- $userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host " Press Enter to use default, or type a different full path").Trim().Trim('"') }
+ $userInput = if ($rememberedTarget) { $rememberedTarget } else { Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH }
  if ($rememberedTarget) { Write-OK "Using remembered $routeKind depot location: $rememberedTarget" }
- if (-not $userInput) { $targetPath = $DEFAULT_PATH } else { $targetPath = $userInput }
+ $targetPath = $userInput
 
  $targetParent = Get-PathParentLexical $targetPath
  if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

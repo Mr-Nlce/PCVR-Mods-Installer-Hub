@@ -22,12 +22,12 @@ SOMA is Frictional Games' underwater science-fiction horror story. Explore the r
 
 Publisher Setup preserves existing `hpl3vr_vr_settings.ini` and hand calibration. Keep your own backup of the game folder before a major update. The Hub does not copy or delete the publisher's mod files itself.
 
-The reviewed **v1.07.1** release fixes progression problems when the optional 120 FPS setting is enabled. v1.0.6 added VR Hints, contextual control prompts and manual
+The reviewed **v1.08.1** release is a direct publisher Setup EXE. It fixes the desktop mirror, disappearing menu cursor and the launcher's own update check. The Hub accepts this EXE as well as older publisher Installer ZIPs; it does not treat an older ZIP as the current release. v1.07.1 fixed progression problems when the optional 120 FPS setting is enabled. v1.0.6 added VR Hints, contextual control prompts and manual
 power-pump interaction. It improves CPU headroom and key-item pickup. v1.0.5
 added GOG and Epic support, finger-tracking improvements and graphics options,
 including NVIDIA eye-tracked foveated rendering. v1.04.1 fixed MSAA black screens
 and one-eye save menus. The Hub resolves the current stable publisher installer
-ZIP; publisher Setup still owns the game-file changes.
+package; publisher Setup still owns the game-file changes.
 
 ## In VR
 

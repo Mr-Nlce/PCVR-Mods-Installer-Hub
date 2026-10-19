@@ -81,6 +81,7 @@ function Get-SteamLibraries {
 Write-Header
 Write-Host " GunfireRebornVR by Astienth (based on PureDark's port) - full VR with" -ForegroundColor White
 Write-Host " motion controls for the roguelite FPS Gunfire Reborn." -ForegroundColor White
+Write-Host " Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
 Write-Host ""
 Pause-User "Press Enter to start..."
 Write-Step 1 4 "Steam Depot Download"
@@ -128,13 +129,10 @@ if ($script:PreFoundDepot) {
 if (-not $script:PreFoundDepot) {
 
 Pause-User "Press Enter to open the Steam Console..."
-# Both protocol addresses: depending on the Steam build only one works.
-foreach ($cu in @("steam://open/console", "steam://nav/console")) {
-    try { Start-Process $cu; Start-Sleep -Milliseconds 900 } catch {}
-}
+[void](Open-PCVRSteamConsole)
 Show-PCVRClipboardManualFallback -Text $DEPOT_COMMAND
 }
-Write-OK "Steam Console opening..."
+Write-OK "Steam Console confirmed visible."
 
 Write-Host ""
 Pause-User "Press Enter once the Steam depot download is complete..."
@@ -211,18 +209,13 @@ foreach ($relative in @('winhttp.dll','BepInEx\plugins\PureDark.VRMod\VRMod.dll'
 # retail Gunfire Reborn (which we leave entirely alone).
 Write-Step 2 4 "Moving game to stable folder"
 
-Write-Host "  Default install location: $DEFAULT_PATH" -ForegroundColor Gray
 Write-Host "  (Recommended. C:\games\ keeps the install off the Steam" -ForegroundColor DarkGray
 Write-Host "   library and away from any 'Program Files' UAC weirdness.)" -ForegroundColor DarkGray
 Write-Host ""
 $rememberedTarget = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
-$userInput = if ($rememberedTarget) { $rememberedTarget } else { (Read-Host "  Press Enter to use default, or type a different full path").Trim().Trim('"') }
+$userInput = if ($rememberedTarget) { $rememberedTarget } else { Select-PCVRDepotInstallPath -DefaultPath $DEFAULT_PATH }
 if ($rememberedTarget) { Write-OK "Using remembered install location: $rememberedTarget" }
-if (-not $userInput) {
-    $targetPath = $DEFAULT_PATH
-} else {
-    $targetPath = $userInput
-}
+$targetPath = $userInput
 
 $targetParent = Get-PathParentLexical $targetPath
 if (-not (Test-InstallerTargetWritable -TargetPath $targetPath)) {

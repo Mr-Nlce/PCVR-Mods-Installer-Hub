@@ -341,8 +341,8 @@ function global:Invoke-CheckInstalledScan {
     # this explicit test flag. Preserve the ordinary production behaviour,
     # while preventing a deliberately blocked socket from polluting the smoke
     # transcript and masking real Hub exceptions.
-    $global:HubScanOnlineDown = [bool]$global:HubDisableScanNetwork
-    $global:HubThunderstoreOnlineDown = [bool]$global:HubDisableScanNetwork
+    $global:HubScanOnlineDown = ([bool]$global:HubDisableScanNetwork -or [bool]$global:HubStartupScanCacheOnly)
+    $global:HubThunderstoreOnlineDown = ([bool]$global:HubDisableScanNetwork -or [bool]$global:HubStartupScanCacheOnly)
     $scanOnlineWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     # ---- Hand stale/missing sources to the background worker ----
@@ -1935,6 +1935,7 @@ function global:Invoke-CheckInstalledScan {
                 $card.Background  = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.10 -MidAlpha 0.02
                 $card.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1d2e22")
                 $card.Effect = $null
+                Reset-CardUpdateHoverForReady -Card $card
                 $card.Tag = "vrinstalled"
                 $reloadForReady = $card.Resources.Item("reloadPill")
                 if ($reloadForReady) { $reloadForReady.ToolTip = 'Reinstall Mod' }

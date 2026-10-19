@@ -98,7 +98,19 @@ function Test-WRSteamPinnedManifest([string]$Path){
 }
 function Get-WRDepotMarkerText {return "AppId=$APP_ID`nDepotId=$DEPOT_ID`nManifest=$DEPOT_MANIFEST`nBuildId=$DEPOT_BUILD`nMod=$DEPOT_MOD_TAG"}
 function Get-WRDepotRoot {
+    $receipt=Join-Path $PSScriptRoot '.installed_path_depot';$recorded=@()
+    try{if(Test-Path -LiteralPath $receipt -PathType Leaf){$recorded+=(Get-Content -LiteralPath $receipt -Raw).Trim()}}catch{}
+    try{$recorded+=Get-PCVRRememberedGameFolder -GameId 'powerwash-simulator-2-vr' -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_depot')}catch{}
+    foreach($candidate in @($recorded|Where-Object{$_}|Select-Object -Unique)){
+        if(Test-WRPinnedGameFiles $candidate){Write-WROK "Found pinned build $DEPOT_BUILD at $candidate";return $candidate}
+    }
     if(Test-WRPinnedGameFiles $DEPOT_ROOT){Write-WROK "Found pinned build $DEPOT_BUILD at $DEPOT_ROOT";return $DEPOT_ROOT}
+    $previousParent=Get-PCVRLastCustomDepotParent
+    if($previousParent){
+        $previous=Join-Path $previousParent ([IO.Path]::GetFileName($DEPOT_ROOT))
+        if(Test-WRPinnedGameFiles $previous){Write-WROK "Found pinned build $DEPOT_BUILD at $previous";return $previous}
+    }
+    $DEPOT_ROOT=Select-PCVRDepotInstallPath -DefaultPath $DEPOT_ROOT
     if((Test-Path -LiteralPath $DEPOT_ROOT) -and @(Get-ChildItem -LiteralPath $DEPOT_ROOT -Force -ErrorAction SilentlyContinue).Count){throw "$DEPOT_ROOT contains files but is not pinned build $DEPOT_BUILD. Choose another location or move it aside before retrying."}
     $steamGame=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('PowerWash Simulator 2') -ProbeExe $GAME_EXE
     if(Test-WRSteamPinnedManifest $steamGame){
@@ -118,7 +130,7 @@ function Get-WRDepotRoot {
     Write-Host "  Download the exact Windows depot: $command" -ForegroundColor White
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to copy the command and open Steam Console...')
     try{Set-Clipboard -Value $command -DeferManualFallback}catch{}
-    Start-Process 'steam://open/console' -ErrorAction Stop | Out-Null
+    [void](Open-PCVRSteamConsole)
     Show-PCVRClipboardManualFallback -Text $command
     [void](Wait-PCVRExplicitEnter -Message 'When Steam reports the depot download complete, press Enter to locate it...')
     $steamRoot=Get-SteamPath
@@ -258,6 +270,7 @@ function global:Invoke-PowerWashSimulator2VRInstaller {
         Write-Host '  through a recoverable ownership transaction.' -ForegroundColor White;Write-Host ''
         Write-Host '  [1] Current game and newest prerelease mod' -ForegroundColor Cyan
         Write-Host "  [2] Independent Steam depot build $DEPOT_BUILD and pinned mod $DEPOT_MOD_TAG" -ForegroundColor Cyan
+        Write-Host "      Default game folder: $DEPOT_ROOT (or choose another)." -ForegroundColor Gray
         Write-Host '      The depot copy will not replace your normal Steam installation.' -ForegroundColor Gray
         Write-Host '  Antivirus software may inspect runtime DLLs. Setup verifies' -ForegroundColor Yellow
         Write-Host '  required files after copying and reports missing files without' -ForegroundColor Yellow

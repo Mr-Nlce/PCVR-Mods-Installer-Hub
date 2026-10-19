@@ -9,7 +9,9 @@
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$HubScript
+    [string]$HubScript,
+    [ValidateRange(1, 300)]
+    [int]$StartupTimeoutSeconds = 45
 )
 
 # The banner rules, progress circles and star use non-ASCII glyphs
@@ -45,8 +47,9 @@ try {
     exit 1
 }
 
-# Estimated load time from the last run. Fifteen seconds is the product's hard
-# startup ceiling, not a pacing target. A stale/abnormally slow run must never
+# Estimated load time from the last run. Fifteen seconds caps only the progress
+# pacing; StartupTimeoutSeconds triggers one internal restart if the window
+# has still not become ready. A slow run must never
 # make the next progress bar crawl for 20-25 seconds and then disappear at the
 # halfway point. Normal history within the supported window still self-tunes.
 $est = 12.0
@@ -82,15 +85,19 @@ function Get-SplashProgressFraction {
 }
 
 # Manually audited real-game count shown in the {N} hints.
-# Fixed baseline: 315 distinct games as of 2026-10-13. RealRTCW XR adds
-# Return to Castle Wolfenstein after Arx Fatalis and XIII Remake; Penumbra Black Plague and Requiem add two more. Dark Souls II and Spider-Man Remastered already had
-# Luke Ross entries, so they are not counted twice. Pokemon Gen 1, Gen 2 and
-# Pinball count as three distinct games within one Dramatic Shape tile.
+# Fixed baseline: 325 distinct games as of 2026-10-17. Alan Wake VR adds one
+# distinct original game after the prior 324-game baseline. Spec Ops: The Line VR
+# adds one distinct Steam game after the prior 323-game baseline. Project
+# Zomboid VR added one after the prior 322-game baseline. Teardown and Journey
+# each added one distinct Steam game after the prior 320-game baseline. Beyond: Two Souls,
+# Fallout 3 and Fallout: New Vegas each add one distinct game to the prior 317.
+# Dark Souls II and Spider-Man Remastered already had Luke Ross entries, so
+# they are not counted twice. Pokemon Gen 1, Gen 2 and Pinball count as three.
 # Never derive this value from
 # catalog tiles, mods, installer routes, depots, legacy entries or tools.
 # Increment it by exactly one only when a genuinely new game that has never
 # appeared anywhere in the Hub is added and individually confirmed as new.
-$tileCount = 315
+$tileCount = 325
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
@@ -343,6 +350,8 @@ $spin      = '|/-\'
 $start     = Get-Date
 $readySeen = $false
 $hubFailed = $false
+$hubRestarted = $false
+$slowNoticeShown = $false
 $tick      = 0
 
 # --- Sparse twinkling star field --------------------------------------
@@ -428,6 +437,54 @@ while ($true) {
         # exit happened almost together; otherwise report a real failed start.
         Start-Sleep -Milliseconds 100
         if (Test-Path $readyFlag) { $readySeen = $true } else { $hubFailed = $true }
+    }
+
+    if (-not $readySeen -and -not $hubFailed -and -not $hubRestarted -and $elapsed -ge $StartupTimeoutSeconds) {
+        # Recheck the signal at the boundary. If the first child really is
+        # ready, never kill it merely because the splash saw a slow frame.
+        if (Test-Path $readyFlag) {
+            $readySeen = $true
+        } else {
+            $hubRestarted = $true
+            Write-Host ""
+            Write-Host "Restarting Hub startup after a long wait..." -ForegroundColor Yellow
+            # Preserve the first process's last completed startup phase before
+            # the second attempt replaces the rolling diagnostic file.
+            try {
+                $phaseLog = Join-Path $tempRoot 'PCVRHub_startup-current.log'
+                if (Test-Path -LiteralPath $phaseLog -PathType Leaf) {
+                    Copy-Item -LiteralPath $phaseLog -Destination (Join-Path $tempRoot 'PCVRHub_startup-restarted.log') -Force -ErrorAction Stop
+                }
+            } catch { }
+            $oldHubProcess = $hubProcess
+            try {
+                Stop-Process -Id $oldHubProcess.Id -Force -ErrorAction Stop
+                [void]$oldHubProcess.WaitForExit(5000)
+            } catch { }
+            if ($oldHubProcess.HasExited) {
+                # The stale first attempt cannot be allowed to hand its
+                # ready flag to the replacement process.
+                Remove-Item $readyFlag -Force -ErrorAction SilentlyContinue
+                try {
+                    $hubProcess = Start-Process -FilePath $powerShellExe -ArgumentList $hubArguments -WorkingDirectory (Split-Path -Parent $HubScript) -WindowStyle Minimized -PassThru -ErrorAction Stop
+                    $start = Get-Date
+                    $elapsed = 0
+                    $est = 12.0
+                    $tick = 0
+                } catch {
+                    Write-Host ("Hub restart could not start: {0}" -f $_.Exception.Message) -ForegroundColor Red
+                    $hubFailed = $true
+                }
+            } else {
+                # Do not open a second Hub if the first cannot be stopped.
+                Write-Host "The first Hub is still loading; waiting for its window." -ForegroundColor Yellow
+            }
+        }
+    }
+    if ($hubRestarted -and -not $readySeen -and -not $hubFailed -and -not $slowNoticeShown -and $elapsed -ge $StartupTimeoutSeconds) {
+        $slowNoticeShown = $true
+        Write-Host ""
+        Write-Host "The Hub is taking longer than usual. Waiting for its window." -ForegroundColor Yellow
     }
 
     $frac = Get-SplashProgressFraction -ElapsedSeconds $elapsed -EstimateSeconds $est -Ready $readySeen
