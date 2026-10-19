@@ -19,10 +19,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (315)</summary>
+<summary>Show all currently listed titles (325)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
+* Alan Wake
 * Alba VR
 * Alien: Isolation VR (motion controls)
 * Aliens versus Predator Classic (2000) (motion controls)
@@ -43,6 +44,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Banjo Kazooie (N64 ROM)
 * Battlefield 1942 VR (motion controls)
 * Bendy VR (motion controls)
+* Beyond: Two Souls (motion controls)
 * Big Walk VR (motion controls)
 * Bioshock Infinite (motion controls)
 * Bioshock Remastered (motion controls)
@@ -97,6 +99,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
 * ELDERBORN VR (motion controls)
 * Escape from Tarkov - Single Player Tarkov SPT (motion controls)
+* Fallout 3 [WIP] (motion controls)
+* Fallout: New Vegas (motion controls)
 * Far Cry 4
 * Far Cry 5
 * Far Cry 6
@@ -110,6 +114,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Final Fantasy XIV VR (motion controls)
 * Firewatch VR (motion controls)
 * Flower (motion controls)
+* Forsaken (motion controls)
 * Forza Horizon 5
 * Forza Horizon 6
 * Freespace 2
@@ -156,8 +161,10 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Iron Lung VR (motion controls)
 * Jedi Knight: Jedi Academy VR (motion controls)
 * Jedi Knight: Jedi Outcast VR (motion controls)
+* Journey (motion controls)
 * Judgment (motion controls)
 * Kerbal Space Program VR (motion controls)
+* Killing Floor 2 (motion controls)
 * Kingdom Come: Deliverance [WIP]
 * Kingdom Come: Deliverance II
 * Kunitsu-Gami: Path of the Goddess
@@ -223,6 +230,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * PowerWash Simulator 2 VR [WIP] (motion controls)
 * Pragmata
 * Prey (2006) VR (motion controls)
+* Project Zomboid (motion controls)
 * Quake VR (motion controls)
 * Quake 2 VR + Quake II (Team Beef port) VR (motion controls)
 * Quake 3 Arena VR (motion controls)
@@ -267,6 +275,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Sons Of The Forest [WIP] (motion controls)
 * Sonic P-06 VR
 * Sonic Robo Blast 2 VR
+* Spec Ops: The Line (motion controls)
 * Spiderman 2
 * Spiderman Miles Morales
 * Spiderman Remastered
@@ -292,6 +301,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Super Mario 64 Coop VR
 * (Super) Mario Kart 64 VR
 * Sunrise GP VR
+* Teardown (motion controls)
 * Techtonica (motion controls)
 * The Dark Mod VR
 * The Elder Scrolls IV: Oblivion [WIP]
