@@ -19,7 +19,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## Supported games
 
 <details>
-<summary>Show all currently listed titles (325)</summary>
+<summary>Show all currently listed titles (331)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -54,8 +54,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Blade of Darkness
 * Bomb Rush Cyberfunk (motion controls)
 * Borderlands GOTY Enhanced VR [WIP] (motion controls)
+* Brütal Legend (motion controls)
+* Call of Duty (2003) (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
 * Call of Duty: World at War (motion controls)
+* Call of Juarez (motion controls)
 * Circuit Superstars VR
 * Cloudpunk
 * Cloudpunk: City of Ghosts
@@ -93,6 +96,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Dredge VR (motion controls)
 * Driftwood VR (motion controls)
 * Duke Nukem 3D VR (motion controls)
+* Dungeon Keeper 2 (motion controls)
 * Dusk HD (DLC) VR (motion controls)
 * EARTH DEFENSE FORCE 6 VR [WIP] (motion controls)
 * Echo Generation 2
@@ -185,6 +189,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
 * Mirror’s Edge [WIP] (motion controls)
+* Mirror’s Edge Catalyst
 * MiSide (motion controls)
 * Monster Hunter Rise
 * Monster Hunter Stories 3
@@ -257,6 +262,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Road Redemption VR (motion controls)
 * Road to Vostok VR (motion controls)
 * Rogue Flight
+* Rustler VR (motion controls)
 * Saints Row: The Third VR (motion controls)
 * Sayonara Wild Hearts
 * Scrap Mechanic VR (motion controls)
