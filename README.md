@@ -1,6 +1,8 @@
 # PCVR Mods Installer Hub
 
-<img width="1001" height="936" alt="hub-1 (3)" src="https://github.com/user-attachments/assets/5bbdac4a-a3c9-49f9-b319-ffc949164633" />
+<img width="1001" height="936" alt="Hub-main" src="https://github.com/user-attachments/assets/c61034f2-ff81-47be-9b71-118e11f03222" />
+
+
 
 
 
@@ -414,7 +416,8 @@ Shaak4 VR (Spanish video)</b>
 - Adjustable game tile sizes
 - **Library view with Steam-style vertical cover art**
 
-<img width="1049" height="1020" alt="hub-library" src="https://github.com/user-attachments/assets/b4b5c10a-b7cd-4f73-8fb8-6ef2df758b19" />
+<img width="1218" height="988" alt="portrait-view" src="https://github.com/user-attachments/assets/3f96e7c1-e834-4212-bc13-df10f5c30f5f" />
+
 
 - Adjustable library cover sizes
 - Detailed game pages with requirements, recommendations and game-specific information
@@ -423,7 +426,9 @@ Shaak4 VR (Spanish video)</b>
 
 - **Explore page** to discover VR mods based on genre and recommended PC performance
 
-<img width="1025" height="968" alt="hub-explore" src="https://github.com/user-attachments/assets/8c743199-7b00-46ae-8679-dd56040b85c8" />
+<img width="990" height="954" alt="Explore-area" src="https://github.com/user-attachments/assets/e602cead-3a80-4a9d-99a2-aa8fc856233d" />
+
+
 
 - Compares your GPU with the recommended hardware for each game
 - Compatibility markers indicating:
@@ -515,7 +520,8 @@ If you encounter any issues or inaccuracies, feedback is always appreciated.
 
 ---
 
-<img width="1057" height="1020" alt="hub-description" src="https://github.com/user-attachments/assets/c6ae57ae-7cff-44a8-8b4b-8e56cdb387f6" />
+<img width="930" height="1029" alt="game-detail" src="https://github.com/user-attachments/assets/46c1eb09-3571-4e34-a249-e4dfc05ce769" />
+
 
 
 
