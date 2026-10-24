@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for testing! The Hub is community driven - your result decides whether this installer moves to its regular section.
-        **After the install, the installer log is on your Desktop:** `<game-title>-test-result.txt` - please add it in the "Installer log" field right below.
+        **After the install, the report is saved in the Hub folder `Core\Logs\Untested`:** `<game-title>-test-result.txt`. Choose **Provide feedback** in the Hub to open this form and the folder with the matching report selected. Add that TXT in the "Installer log" field below.
 
   - type: input
     id: hub-version
@@ -23,10 +23,10 @@ body:
     attributes:
       label: Installer log (test result file)
       description: |
-        **IMPORTANT: after the install this file is on your Desktop:** `<game-title>-test-result.txt` (e.g. `dishonored-2-vr-test-result.txt`).
+        **IMPORTANT: the report is in the Hub folder `Core\Logs\Untested`:** `<game-title>-test-result.txt` (for example `grid-2019-vr-test-result.txt`). Repeated attempts create numbered reports.
         Drag the file into this box, or open it and paste its full content here.
-        It contains the installer log and the file lists - no user name or personal paths.
-      placeholder: Drop the file from your Desktop here, or paste its content
+        It contains the installer log and the before/after file lists. Standard profile and device details are redacted; review it for private information before sharing. Nothing is uploaded automatically.
+      placeholder: Drop the selected TXT from Core\Logs\Untested here, or paste its content
     validations:
       required: true
 
