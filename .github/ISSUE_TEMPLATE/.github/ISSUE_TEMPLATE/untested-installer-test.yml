@@ -1,0 +1,129 @@
+name: Untested installer - test result
+description: Report how an untested installer (release candidate) worked on your copy of the game.
+title: "[Test] <game title>"
+labels: ["untested-installer", "test-result"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! The Hub is community driven - your result decides whether this installer moves to its regular section.
+        **After the install, the installer log is on your Desktop:** `<game-title>-test-result.txt` - please add it in the "Installer log" field right below.
+
+  - type: input
+    id: hub-version
+    attributes:
+      label: Hub version
+      description: Shown at the top of the test-result file.
+      placeholder: e.g. 0.8.8.3
+    validations:
+      required: false
+
+  - type: textarea
+    id: report-file
+    attributes:
+      label: Installer log (test result file)
+      description: |
+        **IMPORTANT: after the install this file is on your Desktop:** `<game-title>-test-result.txt` (e.g. `dishonored-2-vr-test-result.txt`).
+        Drag the file into this box, or open it and paste its full content here.
+        It contains the installer log and the file lists - no user name or personal paths.
+      placeholder: Drop the file from your Desktop here, or paste its content
+    validations:
+      required: true
+
+  - type: dropdown
+    id: vanilla
+    attributes:
+      label: Was the game unmodded (vanilla) before the install?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: detected
+    attributes:
+      label: Did the Hub detect the game installation correctly?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mod-works
+    attributes:
+      label: Does the VR mod work after the install?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: start-in-vr
+    attributes:
+      label: Does "Start in VR" in the Hub start the game in VR (or open a launcher that offers it)?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: uninstall
+    attributes:
+      label: (Optional) Does the Uninstall button (bottom of the game detail page) work correctly?
+      options:
+        - "Yes"
+        - "No"
+        - "Not tested"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: rating
+    attributes:
+      label: In its current state the VR mod feels...
+      options:
+        - "WIP"
+        - "Good to use"
+        - "Close to perfect"
+    validations:
+      required: true
+
+  - type: textarea
+    id: install-notes
+    attributes:
+      label: Anything unusual during the install?
+      placeholder: Errors, warnings, steps that were unclear...
+    validations:
+      required: false
+
+  - type: textarea
+    id: vr-notes
+    attributes:
+      label: Anything unusual while testing the VR mod?
+      placeholder: Crashes, tracking, controls, performance, headset / connection used...
+    validations:
+      required: false
+
+  - type: textarea
+    id: other-notes
+    attributes:
+      label: Other notes
+    validations:
+      required: false
+
+  - type: input
+    id: gameplay-video
+    attributes:
+      label: (Optional) Do you have a nice YouTube VR gameplay video link?
+      description: Your own recording or a good video you found - it may be shown on the game's page in the Hub.
+      placeholder: https://www.youtube.com/watch?v=...
+    validations:
+      required: false
