@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please attach your log. The Hub's "Report a problem" button opens the log's folder for you - drag the file into the Log box below.
+        Please attach your log. The Hub's "Report a problem" button opens the log's folder for you -> drag the file into the Log box below.
   - type: input
     id: hubver
     attributes:
