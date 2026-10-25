@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (331)</summary>
+<summary>Show all currently listed titles (338)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -58,6 +58,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Brütal Legend (motion controls)
 * Call of Duty (2003) (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
+* Call of Duty: Modern Warfare 2 Campaign Remastered (motion controls)
 * Call of Duty: World at War (motion controls)
 * Call of Juarez (motion controls)
 * Circuit Superstars VR
@@ -86,7 +87,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Diddy Kong Racing
 * Dinkum
 * Dino Trauma VR (motion controls)
-* Dishonored VR [WIP] (motion controls)
+* Dishonored VR (motion controls)
+* Dishonored 2 VR (motion controls)
 * Doom (+ 3D weapons) (motion controls)
 * Doom 2 (+ 3D weapons) (motion controls)
 * Doom 3 BFG VR (motion controls)
@@ -103,9 +105,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Echo Generation 2
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
 * ELDERBORN VR (motion controls)
+* Enshrouded VR (motion controls)
 * Escape from Tarkov - Single Player Tarkov SPT (motion controls)
 * Fallout 3 [WIP] (motion controls)
 * Fallout: New Vegas (motion controls)
+* Far Cry 2 (motion controls)
 * Far Cry 4
 * Far Cry 5
 * Far Cry 6
@@ -148,6 +152,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * High Entropy: Challenges (motion controls)
 * Hexen 2 VR (motion controls)
 * High on Life
+* Hitman: Blood Money (motion controls)
 * HL2 VR Ep. One (+ Unleashed mod) (motion controls) 
 * HL2 VR Ep. Two (+ Unleashed mod) (motion controls)
 * Hogwarts Legacy
@@ -340,6 +345,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Unmourned VR (motion controls)
 * Unreal Revived VR (motion controls)
 * Valheim VR (motion controls)
+* Vampire Hunters (motion controls)
 * Vivecraft VR (motion controls)
 * Virtua Cop 2 VR (motion controls)
 * Warhammer 40K: Darktide VR (motion controls)
