@@ -214,7 +214,7 @@ New-Item -ItemType Directory -Path $tempDir | Out-Null
 $modZip = Join-Path $tempDir $MOD_ZIPNAME
 Write-Host " Downloading $MOD_ZIPNAME ... " -NoNewline -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red

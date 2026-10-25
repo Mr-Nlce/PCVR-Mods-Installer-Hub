@@ -5,7 +5,7 @@ $Host.UI.RawUI.WindowTitle = 'Alan Wake VR Installer'
 $script:AwId = 'alan-wake-vr'
 $script:AwRepo = 'fholger/alanwake_vr'
 $script:AwPage = 'https://github.com/fholger/alanwake_vr/releases'
-$script:AwDownloadPage = 'https://alanwake.vrmods.eu/'
+$script:AwDownloadPage = $script:AwPage
 $script:AwFiles = @('AlanWake.exe','d3d9.dll','Uninstall_AlanWakeVR.exe','AWVR_README.md','AWVR_ThirdParty.txt','awvr_laa_patcher.exe')
 $script:AwManifestName = '.pcvrhub_alanwakevr_ownership.json'
 $script:AwBackupName = '.pcvrhub_alanwakevr_backup'
@@ -80,12 +80,6 @@ function Get-AwRelease {
     } catch { $asset = [pscustomobject]@{Resolved=$false;ReleaseFound=$false} }
     if (-not $asset.Resolved -or -not (Test-IsTrackableInstalledVersion ([string]$asset.Tag))) {
         Write-Host '  [!!] The current Alan Wake VR release could not be checked on GitHub.' -ForegroundColor Yellow
-        if (-not $asset.ReleaseFound) {
-            Write-Host '  The publisher website currently lists v1.0.0. A newer release may exist.' -ForegroundColor Yellow
-            if ((Read-Host '  Download the reviewed v1.0.0 Setup? Y/N').Trim() -match '^(?i:y|yes)$') {
-                return [pscustomobject]@{Tag='v1.0.0';Url='https://github.com/fholger/alanwake_vr/releases/download/v1.0.0/alanwake-vr-1.0.0.exe';Name='alanwake-vr-1.0.0.exe';Page=$script:AwPage;Manual=$false}
-            }
-        }
         Write-Host '  Open the official release page and select its publisher Setup EXE.' -ForegroundColor White
         return [pscustomobject]@{Tag='';Url='';Name='alanwake-vr-setup.exe';Page=$script:AwDownloadPage;Manual=$true}
     }

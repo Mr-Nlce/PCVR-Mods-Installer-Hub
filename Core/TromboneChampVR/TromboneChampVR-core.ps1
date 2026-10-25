@@ -349,6 +349,14 @@ if ($modZip -and (Test-Path $modZip)) {
             Write-Host "  folder and 'Mod\CopyToGame\*' into the game root by hand." -ForegroundColor Gray
             Pause-User "Press Enter once you've copied the files (or to continue)..." | Out-Null
         } else {
+            foreach ($requiredSource in @($MOD_PROBE, 'BepInEx\core\BepInEx.dll', 'CopyToGame\winhttp.dll')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $modSrc $requiredSource) -PathType Leaf)) {
+                    Write-Fail "The selected ZIP lacks $requiredSource."
+                    Write-Info "Use the complete publisher BaboonVR ZIP on retry."
+                    Pause-User "Press Enter for installer recovery..." | Out-Null
+                    exit 1
+                }
+            }
             $copied = $true
             # winhttp.dll + doorstop_config.ini -> game root
             try {
@@ -395,6 +403,15 @@ if ($modZip -and (Test-Path $modZip)) {
     Write-Host "  add the VR mod." -ForegroundColor Gray
 }
 
+# A flat game copy or an unrelated ZIP must never become a successful VR
+# receipt. Check the actual loader and plugin before the Hub wrapper returns.
+foreach ($requiredInstalled in @($GAME_EXE, $MOD_PROBE, 'BepInEx\core\BepInEx.dll', 'winhttp.dll', 'steam_appid.txt')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $gamePath $requiredInstalled) -PathType Leaf)) {
+        Write-Fail "VR setup is incomplete: $requiredInstalled is missing."
+        Pause-User "Press Enter for installer recovery..." | Out-Null
+        exit 1
+    }
+}
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 $stableId = ('' + $env:PCVR_HUB_GAME_ID).Trim()

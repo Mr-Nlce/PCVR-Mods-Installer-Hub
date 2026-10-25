@@ -243,7 +243,7 @@ if ($svrNeed.Count -eq 0) {
         $dst = "$svrDir\$f"
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-            Invoke-WebRequest -Uri $url -OutFile $dst -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
+            Invoke-PCVRWebRequest -Uri $url -OutFile $dst -UseBasicParsing -TimeoutSec 25 -ErrorAction Stop
             # Verify what landed: non-empty AND valid JSON. An error page
             # from a proxy would otherwise be written as a binding file.
             $len = (Get-Item -LiteralPath $dst).Length

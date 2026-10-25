@@ -288,12 +288,15 @@ function global:Set-CustomGamePlayed {
     return $hit
 }
 
-# Most recently played first, never-played after that, by title.
+# Favorites first; within both groups keep the familiar recent-play order.
 function global:Get-CustomGamesSorted {
     param([object[]]$Games)
     $played = @($Games | Where-Object { $_.lastPlayed } | Sort-Object -Property @{ Expression = { $_.lastPlayed }; Descending = $true }, @{ Expression = { $_.title } })
     $rest = @($Games | Where-Object { -not $_.lastPlayed } | Sort-Object -Property title)
-    return @($played + $rest)
+    $ordered = @($played + $rest)
+    $favoriteIds = @($global:FavoriteGameIds)
+    return @(@($ordered | Where-Object { $favoriteIds -contains [string]$_.id }) +
+             @($ordered | Where-Object { $favoriteIds -notcontains [string]$_.id }))
 }
 
 # ---------------------------------------------------------------
@@ -590,7 +593,7 @@ function global:Get-CustomGameAccent {
 # ---------------------------------------------------------------
 if ($global:window -and -not $global:CustomGamesSkipUi) {
     try {
-        . (Join-Path $PSScriptRoot 'CustomGames.UI.ps1')
+        if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot 'CustomGames.UI.ps1')) } else { . (Join-Path $PSScriptRoot 'CustomGames.UI.ps1') }
     } catch {
         try { Write-HubTiming ("customgames: UI disabled after error: {0}" -f $_.Exception.Message) } catch { }
     }

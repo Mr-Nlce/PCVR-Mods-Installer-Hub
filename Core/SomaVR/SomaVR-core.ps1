@@ -77,8 +77,8 @@ function Get-SomaRelease {
     }
     $asset = Resolve-GitHubReleaseAsset -Repo $script:SomaRepo -IncludePrerelease $false `
         -AssetPatterns @('(?i)^SOMA-VR-[0-9].*-Setup\.exe$','(?i)^SOMA-VR-[0-9].*-Installer\.zip$') `
-        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.08.1/SOMA-VR-1.0.8-S26HQ-Setup.exe' `
-        -FallbackTag 'v1.08.1' -FallbackAssetName 'SOMA-VR-1.0.8-S26HQ-Setup.exe' -SkipReleasesWithoutMatchingAsset
+        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.0.9/SOMA-VR-1.0.9-S26IW-Setup.exe' `
+        -FallbackTag 'v1.0.9' -FallbackAssetName 'SOMA-VR-1.0.9-S26IW-Setup.exe' -SkipReleasesWithoutMatchingAsset
     return [pscustomobject]@{ Url=[string]$asset.Url; Tag=[string]$asset.Tag; PageUrl=[string]$asset.PageUrl; Local=$false }
 }
 function Get-SomaSetup([string]$Extracted) {
@@ -101,7 +101,11 @@ function Assert-SomaNoDowngrade([string]$Root,[string]$Tag) {
     $receipt = Join-Path $Root '.pcvrhub_version'
     if (-not (Test-SomaInstalled $Root) -or -not (Test-Path -LiteralPath $receipt -PathType Leaf)) { return }
     $saved = ([IO.File]::ReadAllText($receipt)).Trim()
-    if ($saved -eq 'v1.04.1') { $saved = 'v1.0.4.1' }
+    # The publisher used compressed minor numbers for these historical tags.
+    # Normalize both operands only for comparison; retain exact receipts.
+    $historical=@{'v1.04.1'='v1.0.4.1';'v1.07.1'='v1.0.7.1';'v1.08.1'='v1.0.8.1'}
+    if ($historical.ContainsKey($saved)) { $saved = $historical[$saved] }
+    if ($historical.ContainsKey($Tag)) { $Tag = $historical[$Tag] }
     if ($saved -match '^v(\d+(?:\.\d+){2,3})$' -and $Tag -match '^v(\d+(?:\.\d+){2,3})$') {
         $installed = [version]$saved.Substring(1)
         $selected = [version]$Tag.Substring(1)

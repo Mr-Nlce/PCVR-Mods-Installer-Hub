@@ -230,10 +230,14 @@ function Get-BrowserFile {
         $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Dest))
         if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
         $stage = Join-Path $parent ('.pcvr-browser-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($Dest))
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
-        if ($Referer) { $wc.Headers.Add("Referer", $Referer) }
-        $wc.DownloadFile($Url, $stage)
+        if ($Url -match '^https?://github\.com/') {
+            Invoke-PCVRWebRequest -Uri $Url -OutFile $stage -UseBasicParsing -ErrorAction Stop
+        } else {
+            $wc = New-Object System.Net.WebClient
+            $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+            if ($Referer) { $wc.Headers.Add("Referer", $Referer) }
+            $wc.DownloadFile($Url, $stage)
+        }
         if (-not (Test-DownloadedPayload -Path $stage -IntendedPath $Dest)) { return $false }
         Move-Item -LiteralPath $stage -Destination $Dest -Force
         $stage = $null

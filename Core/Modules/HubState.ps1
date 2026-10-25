@@ -54,6 +54,16 @@ function Get-HubPortableStateRoot {
     if ($global:HubPortableStateRootOverride) { return [string]$global:HubPortableStateRootOverride }
     $core = if ($global:scriptDir) { [string]$global:scriptDir } elseif ($script:scriptDir) { [string]$script:scriptDir } else { $null }
     if (-not $core) { return $null }
+    if ($env:PCVR_HUB_TEST_MODE -eq '1') {
+        # Fixture Core folders under TEMP retain their normal portable route.
+        # Any other Core (including the source Hub) is redirected to isolated
+        # test state even when this helper was copied into another runspace.
+        $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
+        if (-not [IO.Path]::GetFullPath($core).StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) {
+            if (-not $env:PCVR_HUB_TEST_LOCALAPPDATA) { return $null }
+            return [IO.Path]::Combine([IO.Path]::GetFullPath($env:PCVR_HUB_TEST_LOCALAPPDATA), '_Portable')
+        }
+    }
     try { return [IO.Path]::Combine($core, 'UserData') } catch { return $null }
 }
 
@@ -186,6 +196,25 @@ function Get-HubUpdateInfoPath {
         }
     } catch { return $null }
     return $target
+}
+
+function Test-HubUpdateInfoIsNewer {
+    param($Info, [string]$CurrentVersion)
+    if (-not $Info -or -not $Info.LatestVersion -or -not $CurrentVersion) { return $false }
+    try {
+        $versions = @([string]$Info.LatestVersion, $CurrentVersion)
+        $parsed = @()
+        foreach ($value in $versions) {
+            $parts = $value.Trim().TrimStart('v', 'V').Split('.')
+            if ($parts.Count -lt 2 -or $parts.Count -gt 4) { return $false }
+            foreach ($part in $parts) {
+                if ($part -notmatch '^\d+$') { return $false }
+            }
+            while ($parts.Count -lt 4) { $parts += '0' }
+            $parsed += [Version]::Parse(($parts -join '.'))
+        }
+        return ($parsed[0].CompareTo($parsed[1]) -gt 0)
+    } catch { return $false }
 }
 
 function ConvertTo-HubOrderedValue {
@@ -401,7 +430,7 @@ function Read-HubStateEnvelopeFile {
     param([string]$Path)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
     try {
-        $parsed = (Get-Content -LiteralPath $Path -Raw -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
+        $parsed = (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
         if ([int]$parsed.schemaVersion -ne 2 -or $null -eq $parsed.data -or -not $parsed.checksum) { return $null }
         $rawData = $parsed.data
         $data = ConvertTo-HubOrderedValue $rawData
@@ -652,12 +681,32 @@ function Get-HubStateEnvelope {
     return $envelope
 }
 
+function Get-HubStateMutexName {
+    # The released Hub always shares one LocalAppData document and keeps its
+    # historical cross-process mutex. Each release-gate suite has a separate
+    # test state root; sharing that production mutex made unrelated parallel
+    # fixtures block one another and occasionally time out after ten seconds.
+    $name = 'Local\PCVRModsInstallerHub_State_v2'
+    $testRoot = if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA) {
+        [string]$env:PCVR_HUB_TEST_LOCALAPPDATA
+    } elseif ($global:HubStateRootOverride) {
+        [string]$global:HubStateRootOverride
+    } else { '' }
+    if (-not $testRoot) { return $name }
+    $normalized = [IO.Path]::GetFullPath($testRoot).TrimEnd([char[]]'\/').ToUpperInvariant()
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $digest = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($normalized))
+        return ($name + '_Test_' + [BitConverter]::ToString($digest).Replace('-','').Substring(0,16))
+    } finally { $sha.Dispose() }
+}
+
 function Invoke-HubStateLock {
     param([scriptblock]$Action)
     $mutex = $null
     $held = $false
     try {
-        $mutex = New-Object System.Threading.Mutex -ArgumentList $false, 'Local\PCVRModsInstallerHub_State_v2'
+        $mutex = New-Object System.Threading.Mutex -ArgumentList $false, (Get-HubStateMutexName)
         try { $held = $mutex.WaitOne(10000) } catch [Threading.AbandonedMutexException] { $held = $true }
         if (-not $held) { throw 'The Hub state is busy.' }
         return (& $Action)
@@ -1074,6 +1123,150 @@ function Write-PersistentHubSetting {
             [void](Save-HubStateData -Data $data -Generation ($envelope.Generation + 1))
         } | Out-Null
     } catch {}
+}
+
+# Window geometry and pending header choices use one checksummed replacement.
+# Resizing and moving must not write state on the WPF thread: a state lock or
+# slow disk would freeze the window while it is being dragged. A closing Hub
+# holds a small cross-process barrier until its post-window commit finishes;
+# a newly started Hub waits for that commit before restoring geometry.
+function Write-PersistentHubSettings {
+    param([System.Collections.IDictionary]$Values)
+    if (-not $Values -or $Values.Count -eq 0) { return }
+    Invoke-HubStateLock {
+        $envelope = Get-HubStateEnvelope -Fresh
+        $data = ConvertTo-HubOrderedValue $envelope.Data
+        if (-not $data.Contains('settings') -or $null -eq $data.settings) { $data.settings = [ordered]@{} }
+        $changed = $false
+        foreach ($key in @($Values.Keys)) {
+            if (-not $key) { continue }
+            $value = $Values[$key]
+            if ($data.settings.Contains([string]$key) -and
+                (Test-HubStateValueEqual -Left $data.settings[[string]$key] -Right $value)) { continue }
+            $data.settings[[string]$key] = $value
+            $changed = $true
+        }
+        if ($changed) { [void](Save-HubStateData -Data $data -Generation ($envelope.Generation + 1)) }
+    } | Out-Null
+}
+
+function Test-HubCloseFiniteNumber {
+    param($Value)
+    if ($null -eq $Value) { return $false }
+    try {
+        $number = [double]$Value
+        return -not ([double]::IsNaN($number) -or [double]::IsInfinity($number))
+    } catch { return $false }
+}
+
+function Get-HubWindowGeometrySettings {
+    param($Window, [bool]$LastMaximized = $false)
+    $rect = $Window.RestoreBounds
+    $width = $rect.Width; $height = $rect.Height
+    $left = $rect.X; $top = $rect.Y
+    if (-not (Test-HubCloseFiniteNumber $width) -or $width -le 0) { $width = $Window.ActualWidth }
+    if (-not (Test-HubCloseFiniteNumber $height) -or $height -le 0) { $height = $Window.ActualHeight }
+    if (-not (Test-HubCloseFiniteNumber $left)) { $left = $Window.Left }
+    if (-not (Test-HubCloseFiniteNumber $top)) { $top = $Window.Top }
+    $maximized = if ($Window.WindowState -eq [System.Windows.WindowState]::Minimized) {
+        $LastMaximized
+    } else {
+        $Window.WindowState -eq [System.Windows.WindowState]::Maximized
+    }
+    $settings = @{ winMaximized = [string][bool]$maximized }
+    if ((Test-HubCloseFiniteNumber $width) -and $width -gt 0) { $settings['winWidth'] = [int]$width }
+    if ((Test-HubCloseFiniteNumber $height) -and $height -gt 0) { $settings['winHeight'] = [int]$height }
+    if (Test-HubCloseFiniteNumber $left) { $settings['winLeft'] = [int]$left }
+    if (Test-HubCloseFiniteNumber $top) { $settings['winTop'] = [int]$top }
+    return $settings
+}
+
+function Get-HubWindowCloseMutexName {
+    return ((Get-HubStateMutexName) + '_WindowClose')
+}
+
+function Start-HubWindowCloseBarrier {
+    $mutex = New-Object System.Threading.Mutex -ArgumentList $false, (Get-HubWindowCloseMutexName)
+    $held = $false
+    try {
+        try { $held = $mutex.WaitOne(10000) } catch [Threading.AbandonedMutexException] { $held = $true }
+        if (-not $held) { throw 'The previous Hub window close is still saving settings.' }
+        $global:HubWindowCloseMutex = $mutex
+    } finally {
+        if (-not $held) { $mutex.Dispose() }
+    }
+}
+
+function Wait-HubWindowClosePersistence {
+    $mutex = $null
+    $held = $false
+    try {
+        try { $mutex = [Threading.Mutex]::OpenExisting((Get-HubWindowCloseMutexName)) }
+        catch [Threading.WaitHandleCannotBeOpenedException] { return }
+        try { $held = $mutex.WaitOne(10000) } catch [Threading.AbandonedMutexException] { $held = $true }
+        if (-not $held) { throw 'The previous Hub window close did not finish saving settings.' }
+        # This process may have read the old envelope during its own startup.
+        # The close commit has finished, so force the geometry read below to
+        # see the newly written state even if file metadata happens to match.
+        $script:HubStateEnvelopeCache = $null
+        $script:HubStateEnvelopeCachePath = $null
+    } finally {
+        if ($held -and $mutex) { try { $mutex.ReleaseMutex() } catch {} }
+        if ($mutex) { $mutex.Dispose() }
+    }
+}
+
+function Register-HubWindowClosePersistence {
+    param($Window, [scriptblock]$AdditionalSettingsProvider)
+    if (-not $Window) { return }
+    $global:HubWindowClosingSettings = $null
+    $global:HubWindowClosingAdditionalSettings = $null
+    $context = [pscustomobject]@{
+        LastMaximized = ($Window.WindowState -eq [System.Windows.WindowState]::Maximized)
+    }
+    $Window.Add_StateChanged({
+        if ($Window.WindowState -ne [System.Windows.WindowState]::Minimized) {
+            $context.LastMaximized = ($Window.WindowState -eq [System.Windows.WindowState]::Maximized)
+        }
+    }.GetNewClosure())
+    $Window.Add_Closing({
+        param($sender, $eventArgs)
+        if ($eventArgs.Cancel) { return }
+        try {
+            $global:HubWindowClosingSettings = Get-HubWindowGeometrySettings -Window $Window -LastMaximized $context.LastMaximized
+            $global:HubWindowClosingAdditionalSettings = if ($AdditionalSettingsProvider) { & $AdditionalSettingsProvider } else { $null }
+            Start-HubWindowCloseBarrier
+        } catch {
+            # Keep the prior durable close path if the synchronization handle
+            # cannot be created. Losing geometry would be worse than one slow close.
+            try { Complete-HubWindowClosePersistence } catch { }
+        }
+    }.GetNewClosure())
+}
+
+function Complete-HubWindowClosePersistence {
+    param([System.Collections.IDictionary]$AdditionalSettings)
+    if (-not $PSBoundParameters.ContainsKey('AdditionalSettings')) {
+        $AdditionalSettings = $global:HubWindowClosingAdditionalSettings
+    }
+    $settings = @{}
+    if ($global:HubWindowClosingSettings) {
+        foreach ($key in @($global:HubWindowClosingSettings.Keys)) { $settings[$key] = $global:HubWindowClosingSettings[$key] }
+    }
+    if ($AdditionalSettings) {
+        foreach ($key in @($AdditionalSettings.Keys)) { $settings[$key] = $AdditionalSettings[$key] }
+    }
+    try {
+        Write-PersistentHubSettings -Values $settings
+        $global:HubWindowClosingSettings = $null
+        $global:HubWindowClosingAdditionalSettings = $null
+    } finally {
+        if ($global:HubWindowCloseMutex) {
+            try { $global:HubWindowCloseMutex.ReleaseMutex() } catch { }
+            $global:HubWindowCloseMutex.Dispose()
+            $global:HubWindowCloseMutex = $null
+        }
+    }
 }
 
 # Recently Played uses titles for display order but permanent per-game ignores

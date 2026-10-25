@@ -14,6 +14,10 @@ You need the original PC game with `FalloutNV.exe` and `Data/FalloutNV.esm`, Ste
 
 ## Controls
 
+Version 0.8.0 adds physical grenades, thrown weapons, heavy-weapon reloads and Touch finger sensing. The Hub replaces the publisher's action/binding files while preserving your VR options. After an update from 0.7.0, reload SteamVR's default bindings once; custom bindings need the two new hand-skeleton actions.
+
+Arm grenades with your left hand, then throw with your right. Mines can be dropped while still; throwing knives, spears and axes need no arming. Heavy weapon ammunition boxes, cells and canisters reload like magazines; open the minigun box lock first. Push a new missile or mini-nuke into an empty launcher tube. Flamers and incinerators still reload with [[X]].
+
 | Button | Action |
 |---|---|
 | [[Left Stick]] | Move. |
@@ -26,12 +30,15 @@ You need the original PC game with `FalloutNV.exe` and `Data/FalloutNV.esm`, Ste
 | [[Left Trigger]] near a magazine, round or moving part | Grab it for manual reload. Take fresh ammunition from behind the left shoulder. |
 | [[B]] or [[Esc]] | Close the new in-VR console terminal. |
 | [[Right Stick]] in the console | Scroll terminal output. |
+| [[Left Grip]] / [[Left Trigger]] near a grenade pin | Grab and pull the pin. |
+| [[Left Trigger]] | Strike the lighter for a fuse; press near a grenade switch or mine light to arm it. |
+| [[Right Trigger]] | Hold, swing and release to throw an armed grenade or thrown weapon; press to release a mine. |
 
 Turn the back of your right hand toward your eyes to view health, compass, action points and ammunition. Melee hits follow the weapon's physical swing. The game's **Settings > VR** page stores choices in `fnvvr/vr_options.ini`; its Pip-Boy size option can enlarge the display. In v0.7.0, manual reload is on by default for supported weapons. Pull out the spent magazine or cell, take a new one from behind the left shoulder and insert it; rack an empty chamber when needed. Shotguns, lever guns and revolvers use their own physical reload actions. The new **Console** button in Settings opens an in-VR terminal with a laser-operated keyboard.
 
 ## Limits and troubleshooting
 
-Manual reload for heavy weapons and launchers, unarmed combat, scopes, finger tracking and some HUD elements remain unfinished. v0.7.0 swaps the old [[Left Trigger]] and [[Left Grip]] binding roles and adds a magazine action. The Hub installs the new `fnvvr/actions.json` and Touch bindings while preserving your personal `fnvvr/vr_options.ini`; update any custom SteamVR bindings yourself. If VR does not start, confirm SteamVR, headset connection, a Vulkan GPU, that the 32-bit `openvr_api.dll` is beside `FalloutNV.exe`, and that `dxvk.conf` selects `d3d9.vrBackend = openvr`. The runtime writes `FalloutNV_d3d9.log` next to the game EXE. The publisher asks for about a minute of reproduction before collecting that log. Real Windows gameplay and headset output remain unverified by the Hub's isolated installer tests.
+Unarmed combat, scopes, V.A.T.S. fixes and some HUD elements remain unfinished. v0.7.0 swaps the old [[Left Trigger]] and [[Left Grip]] binding roles and adds a magazine action. The Hub installs the new `fnvvr/actions.json` and Touch bindings while preserving your personal `fnvvr/vr_options.ini`; update any custom SteamVR bindings yourself. If VR does not start, confirm SteamVR, headset connection, a Vulkan GPU, that the 32-bit `openvr_api.dll` is beside `FalloutNV.exe`, and that `dxvk.conf` selects `d3d9.vrBackend = openvr`. The runtime writes `FalloutNV_d3d9.log` next to the game EXE. The publisher asks for about a minute of reproduction before collecting that log. Real Windows gameplay and headset output remain unverified by the Hub's isolated installer tests.
 
 ## Updates and removal
 

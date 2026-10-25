@@ -399,6 +399,26 @@ function global:Add-ReadmePathSpans {
     }
 }
 
+function global:Set-ReadmeClipboardText {
+    param([string]$Text)
+    [System.Windows.Clipboard]::SetText($Text)
+}
+
+function global:Enable-ReadmeLinkCopy {
+    param($Link,[string]$Address)
+    if(-not $Link -or -not $Address){return}
+    $Link.Resources['ReadmeCopyAddress']=$Address
+    $Link.ToolTip="Right-click to copy.`n"+([string]$Link.ToolTip)
+    $Link.Add_PreviewMouseRightButtonUp({
+        param($sender,$eventArgs)
+        $eventArgs.Handled=$true
+        try {
+            Set-ReadmeClipboardText -Text ([string]$sender.Resources['ReadmeCopyAddress'])
+            $sender.ToolTip='Copied to clipboard.'
+        } catch {$sender.ToolTip='Clipboard is busy. Right-click to try again.'}
+    })
+}
+
 function global:New-ReadmeWebLink {
     param([string]$Text, [string]$Address)
     $link = New-Object System.Windows.Documents.Hyperlink
@@ -418,6 +438,7 @@ function global:New-ReadmeWebLink {
     }.GetNewClosure())
     $link.Add_MouseEnter({ $this.TextDecorations = [System.Windows.TextDecorations]::Underline })
     $link.Add_MouseLeave({ $this.TextDecorations = $null })
+    Enable-ReadmeLinkCopy -Link $link -Address $Address
     return $link
 }
 

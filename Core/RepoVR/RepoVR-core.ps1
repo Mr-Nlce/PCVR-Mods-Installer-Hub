@@ -101,7 +101,7 @@ function Get-Zip { param($name,$url,$dest)
  foreach ($u in $sources) {
    Write-Host " Downloading $name from $u ... " -NoNewline -ForegroundColor White
    try {
-     Invoke-WebRequest -Uri $u -OutFile $dest -UseBasicParsing -EA Stop
+     Invoke-PCVRWebRequest -Uri $u -OutFile $dest -UseBasicParsing -EA Stop
      Write-Host "OK" -ForegroundColor Green
      return $true
    } catch {
@@ -118,16 +118,58 @@ function Get-Zip { param($name,$url,$dest)
  if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  return ((Test-Path $dest) -and ((Get-Item $dest).Length -gt 0))
 }
-function Install-Pkg { param($zip,$dest,$gamePath)
- Expand-Archive -Path $zip -DestinationPath $dest -Force
+function Get-PkgRequiredFiles { param([string]$packageName)
+ switch -Wildcard ($packageName) {
+  '*BepInExPack*' { return @('winhttp.dll','BepInEx\core\BepInEx.Preloader.dll') }
+  '*FixPluginTypesSerialization*' { return @('BepInEx\patchers\FixPluginTypesSerialization\FixPluginTypesSerialization.dll') }
+  '*RepoXR*' { return @('BepInEx\patchers\RepoXR\RepoXR.Preload.dll','BepInEx\plugins\RepoXR\RepoXR.dll') }
+  default { throw "Unknown Thunderstore package: $packageName" }
+ }
+}
+function Get-PkgPayload { param($dest)
  $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
  $top=@(Get-ChildItem $dest|Where-Object{$_.Name -notin $skip})
  $payload=if($top.Count -eq 1 -and $top[0].PSIsContainer -and $top[0].Name -ne "BepInEx"){$top[0].FullName}else{$dest}
+ return $payload
+}
+function Test-PkgFiles { param($root,$packageName)
+ foreach($relative in @(Get-PkgRequiredFiles $packageName)) {
+  if(-not(Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){return $false}
+ }
+ return $true
+}
+function Stage-Pkg { param($zip,$dest,$packageName)
+ while($true) {
+  try {
+   if(Test-Path -LiteralPath $dest){Remove-Item -LiteralPath $dest -Recurse -Force}
+   $zipSafety=Test-ZipArchiveEntrySafety -ArchivePath $zip -DestinationFolder $dest
+   if($zipSafety.Inspectable -and -not $zipSafety.Safe){throw "Unsafe archive entry: $($zipSafety.Entry)"}
+   Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force -ErrorAction Stop
+   $payload=Get-PkgPayload $dest
+   if(-not(Test-PkgFiles $payload $packageName)){
+    throw "The selected $packageName ZIP lacks required runtime files. No package files were copied."
+   }
+   return
+  } catch {
+   Write-Fail "Package check failed: $($_.Exception.Message)"
+   $null=Invoke-InstallerFallback -Action "$packageName package" `
+    -Url 'https://thunderstore.io/c/repo/' `
+    -Instructions "Download the complete $packageName package and drag its ZIP here." `
+    -DestFile $zip -AllowSkip $false
+  }
+ }
+}
+function Install-Pkg { param($zip,$dest,$gamePath,$packageName)
+ if(-not(Test-Path -LiteralPath $dest)){Stage-Pkg $zip $dest $packageName}
+ $payload=Get-PkgPayload $dest
+ if(-not(Test-PkgFiles $payload $packageName)){throw "Staged $packageName files changed before copy."}
+ $skip=@("manifest.json","icon.png","README.md","CHANGELOG.md","LICENSE")
  Get-ChildItem $payload|Where-Object{$_.Name -notin $skip}|ForEach-Object{
   $target=Join-Path $gamePath $_.Name
   $keep=if($_.Name -ieq "BepInEx"){@("config")}else{@()}
   $null=Merge-PathItemVerified -Source $_.FullName -Destination $target -Label "$($_.Name) package files" -KeepExistingRelativePaths $keep
  }
+ if(-not(Test-PkgFiles $gamePath $packageName)){throw "$packageName required files are missing after copy."}
 }
 
 # -------------------------------------------------------
@@ -228,7 +270,7 @@ if (-not $useLegacy) {
  $info=Get-TSPackageInfo -author $pkg.Author -name $pkg.Name
  if ($info) {
  $packageInfos[$key]=$info
- if($installed -eq $info.Version){Write-Host "up to date ($($info.Version))" -ForegroundColor Green}
+ if($installed -eq $info.Version -and (Test-PkgFiles $gamePath $key)){Write-Host "up to date ($($info.Version))" -ForegroundColor Green}
  elseif($installed){Write-Host "update: $installed -> $($info.Version)" -ForegroundColor Yellow;$toInstall+=$pkg}
  else{Write-Host "not installed ($($info.Version))" -ForegroundColor Cyan;$toInstall+=$pkg}
  } else {
@@ -247,18 +289,27 @@ if (-not $useLegacy) {
  Write-Step 4 4 "Installing"
  $tmp=Join-Path $env:TEMP "RepoVRInstaller_$([System.IO.Path]::GetRandomFileName())"
  New-Item -ItemType Directory -Path $tmp|Out-Null
- $failed=@()
+ $failed=@();$staged=@()
  foreach ($pkg in $toInstall) {
  $key="$($pkg.Author)-$($pkg.Name)"; $info=$packageInfos[$key]
  if(-not $info){$failed+=$pkg.FriendlyName;continue}
  $zipDest="$tmp\$key.zip"
  if(-not(Get-Zip "$($pkg.FriendlyName) $($info.Version)" $info.DownloadUrl $zipDest)){$failed+=$pkg.FriendlyName;continue}
- Install-Pkg $zipDest "$tmp\$key" $gamePath
- Set-InstalledVersion -packageName $key -version $info.Version -gamePath $gamePath
- Write-Info "$($pkg.FriendlyName) $($info.Version) installed."
+ Stage-Pkg $zipDest "$tmp\$key" $key
+ $staged+=@{Package=$pkg;Key=$key;Info=$info;Zip=$zipDest;Folder="$tmp\$key"}
+ }
+ if($failed.Count -eq 0) {
+  foreach($entry in $staged) {
+   Install-Pkg $entry.Zip $entry.Folder $gamePath $entry.Key
+   Write-Info "$($entry.Package.FriendlyName) $($entry.Info.Version) installed and verified."
+  }
+  foreach($pkg in $PACKAGES_CURRENT){
+   $key="$($pkg.Author)-$($pkg.Name)"
+   if(-not(Test-PkgFiles $gamePath $key)){throw "Complete package check failed for $($pkg.FriendlyName); version markers were not changed."}
+  }
+  foreach($entry in $staged){Set-InstalledVersion -packageName $entry.Key -version $entry.Info.Version -gamePath $gamePath}
  }
  try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  $repoXRVersion = Get-InstalledVersion -packageName "DaXcess-RepoXR" -gamePath $gamePath
 
 } else {
@@ -354,22 +405,21 @@ if (-not $script:PreFoundDepot) {
  $failed=@()
 
  if(Get-Zip "BepInEx 5.4.2304" $LEGACY_URLS.BepInEx "$tmp\bep.zip"){
- Install-Pkg "$tmp\bep.zip" "$tmp\bep" $gamePath
+ Install-Pkg "$tmp\bep.zip" "$tmp\bep" $gamePath 'BepInEx-BepInExPack'
  if(Test-Path(Join-Path $gamePath "winhttp.dll")){Write-Info "BepInEx OK."}else{$failed+="BepInEx"}
  }else{$failed+="BepInEx"}
 
  if(Get-Zip "FixPluginTypesSerialization 1.1.0" $LEGACY_URLS.FPTS "$tmp\fpts.zip"){
- Install-Pkg "$tmp\fpts.zip" "$tmp\fpts" $gamePath
- Write-Info "FixPluginTypesSerialization OK."
+ Install-Pkg "$tmp\fpts.zip" "$tmp\fpts" $gamePath 'DaXcess-FixPluginTypesSerialization'
+ if(Test-PkgFiles $gamePath 'DaXcess-FixPluginTypesSerialization'){Write-Info "FixPluginTypesSerialization OK."}else{$failed+="FixPluginTypesSerialization"}
  }else{$failed+="FixPluginTypesSerialization"}
 
  if(Get-Zip "RepoXR 1.1.2" $LEGACY_URLS.RepoXR "$tmp\repo.zip"){
- Install-Pkg "$tmp\repo.zip" "$tmp\repo" $gamePath
+ Install-Pkg "$tmp\repo.zip" "$tmp\repo" $gamePath 'DaXcess-RepoXR'
  if(Test-Path(Join-Path $gamePath "BepInEx\plugins\RepoXR\RepoXR.dll")){Write-Info "RepoXR OK."}else{$failed+="RepoXR"}
  }else{$failed+="RepoXR"}
 
  try{Remove-Item $tmp -Recurse -Force -EA SilentlyContinue}catch{}
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  $repoXRVersion = $LEGACY_REPOXR_VERSION
 
  # Desktop shortcut for Mode 2 - same pattern as other DepotInstall
@@ -415,7 +465,11 @@ if (-not $useLegacy -and $repoXRVersion) {
 }
 
 $repoProof = Join-Path $gamePath "BepInEx\plugins\RepoXR\RepoXR.dll"
-if ($repoXRVersion -and (Test-Path -LiteralPath $repoProof)) {
+$repoComplete = ($repoXRVersion -and $failed.Count -eq 0 -and
+    (Test-PkgFiles $gamePath 'BepInEx-BepInExPack') -and
+    (Test-PkgFiles $gamePath 'DaXcess-FixPluginTypesSerialization') -and
+    (Test-PkgFiles $gamePath 'DaXcess-RepoXR'))
+if ($repoComplete) {
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $repoXRVersion -Encoding UTF8 -Force } catch {}
  Save-InstalledStamp -GameDir $gamePath -Version $repoXRVersion
@@ -429,20 +483,24 @@ Write-Host "============================================================" -Foreg
 Write-Host ""
 if ($useLegacy) {
  foreach ($m in @("BepInEx","FixPluginTypesSerialization","RepoXR")) {
- if($m -notin $failed){Write-Host " [x] $m" -ForegroundColor Green}
+ if($m -notin $failed -and (Test-PkgFiles $gamePath $(switch($m){'BepInEx'{'BepInEx-BepInExPack'} 'FixPluginTypesSerialization'{'DaXcess-FixPluginTypesSerialization'} 'RepoXR'{'DaXcess-RepoXR'}}))){Write-Host " [x] $m" -ForegroundColor Green}
  else{Write-Host " [ ] $m -- FAILED" -ForegroundColor Red}
  }
 } else {
  foreach ($pkg in $PACKAGES_CURRENT) {
  $key="$($pkg.Author)-$($pkg.Name)"
  $v=Get-InstalledVersion -packageName $key -gamePath $gamePath
- if($v){Write-Host " [x] $($pkg.FriendlyName) $v" -ForegroundColor Green}
+ if($v -and $pkg.FriendlyName -notin $failed -and (Test-PkgFiles $gamePath $key)){Write-Host " [x] $($pkg.FriendlyName) $v" -ForegroundColor Green}
  else{Write-Host " [ ] $($pkg.FriendlyName) -- FAILED" -ForegroundColor Red}
  }
 }
 Write-Host ""
-Write-Host " Start SteamVR before launching R.E.P.O." -ForegroundColor White
-Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam normally." -ForegroundColor White
+if ($repoComplete) {
+ Write-Host " Start SteamVR before launching R.E.P.O." -ForegroundColor White
+ Write-Host " Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or via Steam normally." -ForegroundColor White
+} else {
+ Write-Fail "Installation incomplete. A VR Ready receipt was not written."
+}
 Write-Host ""
 Write-Host " Issues: https://github.com/DaXcess/RepoXR" -ForegroundColor Gray
 Write-Host ""

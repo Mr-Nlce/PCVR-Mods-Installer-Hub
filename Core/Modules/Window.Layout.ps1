@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Build XAML window
 # -------------------------------------------------------
 $xaml = @"
@@ -976,6 +976,62 @@ $xaml = @"
                 <WrapPanel x:Name="ExternalGameList" Margin="0,22,0,0"
                            HorizontalAlignment="Center"/>
 
+                <!-- Finished Hub installers awaiting a real game / headset test. -->
+                <Border x:Name="UntestedInstallerSection" Margin="0,120,0,12" CornerRadius="7"
+                        BorderBrush="#455b6570" BorderThickness="1" Background="#38000000"
+                        HorizontalAlignment="Stretch">
+                    <StackPanel>
+                        <Border x:Name="UntestedInstallerSafetyStripe" Height="8" CornerRadius="6,6,0,0">
+                            <Border.Background>
+                                <DrawingBrush TileMode="Tile" Viewport="0,0,24,8" ViewportUnits="Absolute"
+                                              Viewbox="0,0,24,8" ViewboxUnits="Absolute" Stretch="None">
+                                    <DrawingBrush.Drawing>
+                                        <DrawingGroup>
+                                            <GeometryDrawing Brush="#181816" Geometry="M0,0 L24,0 L24,8 L0,8 Z"/>
+                                            <GeometryDrawing Brush="#f3c741" Geometry="M-8,8 L0,0 L12,0 L4,8 Z M16,8 L24,0 L36,0 L28,8 Z"/>
+                                        </DrawingGroup>
+                                    </DrawingBrush.Drawing>
+                                </DrawingBrush>
+                            </Border.Background>
+                        </Border>
+                        <Border x:Name="UntestedInstallerHeader" Background="Transparent">
+                        <Grid Margin="16,12,16,15">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <WrapPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="UntestedInstallerIcon" Text="&#xE90F;" Margin="0,0,9,0" FontSize="19" FontFamily="Segoe MDL2 Assets" Foreground="#f3c741" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="UntestedInstallerTitle" Text="Untested VR Mod Installers"
+                                               Foreground="#f3c741" FontWeight="Bold" FontSize="18" FontFamily="Segoe UI"/>
+                                    <TextBlock x:Name="UntestedInstallerKind" Margin="24,0,0,0"
+                                               Foreground="#78d69a" FontSize="14" FontWeight="SemiBold" FontFamily="Segoe UI" VerticalAlignment="Center"><Run Text="Help bring the next VR mods to the Hub"/><Run Text=" &#x2665;" FontFamily="Segoe UI Symbol"/></TextBlock>
+                                    <StackPanel x:Name="UntestedInstallerCloseOverlay" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center" Visibility="Collapsed">
+                                        <Border x:Name="UntestedInstallerCloseBtn" Background="#1a1a22" CornerRadius="3" BorderThickness="1" BorderBrush="#3a3a48" Padding="9,4" Margin="0,0,6,0" Cursor="Hand">
+                                            <TextBlock Text="Close" Foreground="#cccccc" FontSize="10" FontWeight="SemiBold" FontFamily="Segoe UI"/>
+                                        </Border>
+                                        <Border x:Name="UntestedInstallerDisableBtn" Background="#1a1a22" CornerRadius="3" BorderThickness="1" BorderBrush="#3a3a48" Padding="9,4" Cursor="Hand">
+                                            <TextBlock Text="Always disable" Foreground="#cccccc" FontSize="10" FontWeight="SemiBold" FontFamily="Segoe UI"/>
+                                        </Border>
+                                    </StackPanel>
+                                </WrapPanel>
+                                <TextBlock x:Name="UntestedInstallerDescription" Margin="0,7,12,0" MaxWidth="730" HorizontalAlignment="Left"
+                                           Text="The Hub is community driven. These installers are finished release candidates, but have not yet been confirmed on a real copy of the game. Own one? Install it, play a few minutes in VR, choose Provide feedback to open the GitHub form and the Hub report folder (Core\Logs\Untested). Drag your game-title-test-result.txt into the Installer log field. Once confirmed, the game moves to the regular section. (Click text to un/hide untested titles)"
+                                           Foreground="#d6d0c6" FontSize="13" FontWeight="SemiBold" FontFamily="Segoe UI" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="UntestedInstallerEmpty" Margin="0,8,0,0" Text="No installers are awaiting a tester right now."
+                                           Foreground="#a4adb7" FontSize="11" FontFamily="Segoe UI"/>
+                            </StackPanel>
+                            <StackPanel x:Name="UntestedInstallerCounter" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock x:Name="UntestedInstallerCount" Text="0" HorizontalAlignment="Center"
+                                           Foreground="#78d69a" FontWeight="Bold" FontSize="18" FontFamily="Segoe UI"/>
+                                <TextBlock Text="waiting for testers" Foreground="#a4adb7" FontSize="9" FontFamily="Segoe UI"/>
+                            </StackPanel>
+                        </Grid>
+                        </Border>
+                        <AdornerDecorator>
+                            <WrapPanel x:Name="UntestedGameList" Margin="16,24,16,16" HorizontalAlignment="Center"/>
+                        </AdornerDecorator>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
             </Border>
         </ScrollViewer>
@@ -1121,21 +1177,24 @@ $xaml = @"
                         </Grid>
                     </Border>
 
-                    <!-- The label occupies the narrow space to the left of
-                         the portrait grid only while recent games are shown. -->
+                    <!-- Recent history has its own row. It must never take
+                         horizontal space away from the centered portraits. -->
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition x:Name="LibraryRecentColumn" Width="0"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Border x:Name="LibraryRecentHost" Grid.Column="0"
-                                Width="112" Height="56" Margin="0,14,8,0"
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel x:Name="LibraryRecentHeaderRow" Grid.Row="0"
+                                    Orientation="Horizontal" HorizontalAlignment="Left"
+                                    Margin="0,8,0,10"
+                                    Visibility="Collapsed">
+                        <Border x:Name="LibraryRecentHost"
+                                Width="112" Height="56" Margin="0,0,8,0"
                                 HorizontalAlignment="Left" VerticalAlignment="Top"
                                 CornerRadius="11" Background="#0dffffff"
                                 BorderThickness="1" BorderBrush="#22ffffff"
                                 Padding="8,6" Cursor="Hand"
                                 Visibility="Collapsed" Panel.ZIndex="2">
-                            <Grid>
                                 <StackPanel x:Name="LibraryRecentLabel" Orientation="Horizontal"
                                             HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Path Data="M 0,0 L 11,7 L 0,14 Z" Fill="#3fb6c8"
@@ -1162,24 +1221,24 @@ $xaml = @"
                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
                                 </StackPanel>
-                                <StackPanel x:Name="LibraryRecentManage" VerticalAlignment="Center"
-                                            Visibility="Collapsed" Background="#1a1a22">
+                        </Border>
+                                <StackPanel x:Name="LibraryRecentManage" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Visibility="Collapsed">
                                     <Border x:Name="LibraryRecentClose" BorderBrush="#3a3a48"
-                                            BorderThickness="1" CornerRadius="3" Padding="6,2"
-                                            Margin="0,0,0,4" Cursor="Hand">
+                                            BorderThickness="1" CornerRadius="3" Padding="9,5"
+                                            Background="#1a1a22" Margin="0,0,6,0" Cursor="Hand">
                                         <TextBlock Text="Close" Foreground="#cccccc"
                                                    FontFamily="Segoe UI" FontSize="10"/>
                                     </Border>
                                     <Border x:Name="LibraryRecentDisable" BorderBrush="#3a3a48"
-                                            BorderThickness="1" CornerRadius="3" Padding="5,2"
-                                            Cursor="Hand">
+                                            BorderThickness="1" CornerRadius="3" Padding="9,5"
+                                            Background="#1a1a22" Cursor="Hand">
                                         <TextBlock Text="Always disable" Foreground="#cccccc"
-                                                   FontFamily="Segoe UI" FontSize="9"/>
+                                                   FontFamily="Segoe UI" FontSize="10"/>
                                     </Border>
                                 </StackPanel>
-                            </Grid>
-                        </Border>
-                        <WrapPanel x:Name="DiscoverTilesPanel" Grid.Column="1"
+                        </StackPanel>
+                        <WrapPanel x:Name="DiscoverTilesPanel" Grid.Row="1"
                                    Orientation="Horizontal"
                                    HorizontalAlignment="Center"/>
                     </Grid>
@@ -1422,6 +1481,18 @@ $xaml = @"
                                      Fill="#3a8add" Margin="10,0,3,0" VerticalAlignment="Center" Visibility="Collapsed"/>
                         </Grid>
                     </Border>
+                    <Border x:Name="OrderChoiceFavorites" Background="Transparent"
+                            CornerRadius="7" Padding="8,8" Cursor="Hand">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Favorites first" FontSize="13" Foreground="#ffd4e0" FontFamily="Segoe UI"/>
+                                <TextBlock Text="Saved games, installed or not" FontSize="11" Foreground="#8f7482" FontFamily="Segoe UI" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Ellipse x:Name="OrderDotFavorites" Grid.Column="1" Width="8" Height="8"
+                                     Fill="#ff5b91" Margin="10,0,3,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
                     <!-- Gem is a quality facet rather than a fourth sort mode.
                          It lives in this menu because it is an optional view,
                          while the fixed header row stays compact. -->
@@ -1661,6 +1732,10 @@ $window.Add_SourceInitialized({
     # Manual placement here correctly overrides the XAML's
     # WindowStartupLocation=CenterScreen.
     if (-not (Get-Command Get-HubSetting -ErrorAction SilentlyContinue)) { return }
+    # A previous Hub may have closed its window while its full-state commit
+    # is still finishing. Wait only for that narrow handoff. A damaged prior
+    # save must not prevent restoration from the last valid state.
+    try { Wait-HubWindowClosePersistence } catch { }
     try {
         $savedMaximized = [string](Get-HubSetting -Key "winMaximized" -Default "")
         $rawW = Get-HubSetting -Key "winWidth"  -Default $null

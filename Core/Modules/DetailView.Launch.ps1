@@ -1,4 +1,4 @@
-# Return the dedicated Hub launcher when a legacy Locate Game value is a
+﻿# Return the dedicated Hub launcher when a legacy Locate Game value is a
 # known obsolete executable in the same recorded folder. Exact path equality
 # keeps genuine custom-store overrides intact.
 function global:Get-ReplacementForObsoleteBaseLaunchOverride {
@@ -90,6 +90,7 @@ function global:Get-HubLaunchScriptInvocation {
             -not(Test-Path -LiteralPath $launchRoot -PathType Container) -or
             -not(Test-Path -LiteralPath $runtimeRoot -PathType Container)) { return $null }
         $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -GameDirectory `"$launchRoot`" -RuntimeRoot `"$runtimeRoot`""
+        if($Game.HubLaunchWindowStyle -eq 'Hidden'){$arguments='-WindowStyle Hidden '+$arguments}
         [pscustomobject]@{FilePath='powershell.exe';Arguments=$arguments;WorkingDirectory=$launchRoot;ScriptPath=$scriptPath;RuntimeRoot=$runtimeRoot}
     } catch { return $null }
 }
@@ -825,7 +826,7 @@ function global:Start-GameInVR {
         try { $steamBootstrapRoot = Read-InstalledPath -Game $Game } catch {}
     }
     if (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $steamBootstrapRoot) {
-        if ($Game.Id -in @('teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr') -and
+        if ($Game.Id -in @('grid-2019-vr','grid-legends-vr','dirt-4-vr','teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr','forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr') -and
             -not (Test-HubDirectVrLaunchEvidence -Game $Game -Root $steamBootstrapRoot)) {
             Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message ("The Steam game folder has no complete " + $Game.Title + " installation. Run the installer or scan games again.")
             return

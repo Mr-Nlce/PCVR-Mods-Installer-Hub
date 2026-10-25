@@ -561,6 +561,12 @@ function global:Test-GamePassesFilter {
     param($GameData, [string]$Query)
     try {
         if (-not $GameData) { return $true }
+        $Query=([string]$Query).Trim().ToLowerInvariant()
+        # Release candidates live in their own testing section. A title,
+        # author, tag or keyword search must never mix them into its results.
+        if ($GameData.UntestedInstaller -and $Query) { return $false }
+        $romSearch=($Query -eq 'rom' -or $Query -eq '+rom')
+        $requiresRom=[bool]$GameData.RequiresRom
         $title    = if ($GameData.Title) { "$($GameData.Title)".ToLower() } else { "" }
         $mod      = if ($GameData.Mod)   { "$($GameData.Mod)".ToLower() }   else { "" }
         $pill     = if ($GameData.Pill)  { "$($GameData.Pill)".ToLower() }  else { "" }
@@ -606,6 +612,12 @@ function global:Test-GamePassesFilter {
             $keepQuery = ($wanted -join " ").Trim()
         }
 
+        # ROM is a curated requirement, not an author/title substring.
+        # -ROM also combines with ordinary searches such as "zelda -ROM".
+        if (($excludeTerms -contains 'rom') -and $requiresRom) { return $false }
+        $excludeTerms=@($excludeTerms|Where-Object{$_ -ne 'rom'})
+        if ($global:HideRomGames -and $requiresRom -and -not $romSearch -and ($unhideTerms -notcontains 'rom')) { return $false }
+
         # The exclusion is matched against the MODDER and the GENRE TAGS,
         # deliberately NOT against the title - otherwise "-real" would kill
         # every game with "real" in its name. Mod and Pill are included
@@ -642,6 +654,11 @@ function global:Test-GamePassesFilter {
         if ($Query -eq "wip"  -and ($global:WIP_GAME_TITLES  -contains $GameData.Title)) { $textMatch = $true }
         if (($Query -eq "gem" -or $Query -eq "gems") -and [bool]$GameData.Gem) { $textMatch = $true }
         if ($Query -eq "new") { $textMatch = ($global:NEW_GAME_TITLES -contains $GameData.Title) }
+        if ($Query -eq 'favorites' -or $Query -eq 'favorite') {
+            $textMatch = $false
+            try { $textMatch = [bool](Test-GameFavorite -Game $GameData) } catch { }
+        }
+        if ($romSearch) { $textMatch = $requiresRom }
         # "roomscale" / "room-scale" / "room scale" lists every title whose
         # VR mod supports room-scale play (Roomscale flag in the catalog).
         if (($Query -eq "roomscale" -or $Query -eq "room-scale" -or $Query -eq "room scale") -and $GameData.Roomscale) { $textMatch = $true }
@@ -688,6 +705,14 @@ function global:Test-GamePassesFilter {
 function global:Apply-Filter {
     $query = ""
     try { if ($searchBox) { $query = $searchBox.Text.Trim().ToLower() } } catch { $query = "" }
+    if ($global:window -and (Get-Command Update-UntestedInstallerSectionVisibility -ErrorAction SilentlyContinue)) {
+        Update-UntestedInstallerSectionVisibility -Window $global:window -Query $query
+    } elseif ($global:window) {
+        $candidateSection=$global:window.FindName('UntestedInstallerSection')
+        if ($candidateSection) {
+            $candidateSection.Visibility = if ($query) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
+        }
+    }
     $view = if (Get-Command Get-CurrentView -ErrorAction SilentlyContinue) { Get-CurrentView } else { "List" }
     # Filter the List cards ALWAYS - not only when List is the tracked view.
     # Both the List and the Library hold the SAME games; gating this on the
@@ -737,6 +762,8 @@ function global:Apply-Filter {
     if ($view -eq "Explore" -and $global:OverviewBuilt -and (Get-Command Apply-OvFilters -ErrorAction SilentlyContinue)) {
         try { Apply-OvFilters } catch {}
     }
+    # Cards that became visible through the new filter are built next.
+    if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
 }
 
 $filterAll.Add_PreviewMouseLeftButtonDown({ Set-FilterStyle "ALL"; Apply-Filter })

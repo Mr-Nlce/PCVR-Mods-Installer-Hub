@@ -93,7 +93,7 @@ $modZip = Join-Path $tmp "CloudpunkCOGVR.zip"
 
 Write-Host " Downloading ... " -NoNewline -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -EA Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -EA Stop
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red

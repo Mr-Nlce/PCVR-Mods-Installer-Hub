@@ -229,10 +229,17 @@ if ($listBannerExploreBtn) {
         param($s, $e)
         # Do NOT reset styles here - the press-glow set by
         # MouseLeftButtonDown must persist during the 1200ms defer.
-        $indicatorToken = Start-HubActionIndicator -Target $s
+        $indicatorToken = Start-HubActionIndicator -Target $s -FitTargetEdges
+        $global:BannerExploreIndicatorToken = $indicatorToken
         Invoke-DeferredAction -DelayMs 1200 -Action {
             try { Show-DiscoverOverview -Origin "LIST" }
-            finally { Stop-HubActionIndicator -Token $indicatorToken }
+            finally {
+                Stop-HubActionIndicator -Token $indicatorToken
+                if ($global:BannerExploreIndicatorToken -ceq $indicatorToken) {
+                    $global:BannerExploreIndicatorToken = $null
+                    Set-BannerHoverGrow -BannerBorder $global:ListBannerBorder -State 'none'
+                }
+            }
         }.GetNewClosure()
     })
     $listBannerExploreBtn.Add_MouseEnter({ Start-BannerButtonSweep $this })
@@ -281,7 +288,9 @@ function global:Set-BannerHoverGrow {
 # Hover on outer Border (jitter-free), click on Image/Title only.
 if ($global:ListBannerBorder) {
     $global:ListBannerBorder.Add_MouseEnter({ Set-BannerHoverGrow -BannerBorder $global:ListBannerBorder -State "hover" })
-    $global:ListBannerBorder.Add_MouseLeave({ Set-BannerHoverGrow -BannerBorder $global:ListBannerBorder -State "none" })
+    $global:ListBannerBorder.Add_MouseLeave({
+        if (-not $global:BannerExploreIndicatorToken) { Set-BannerHoverGrow -BannerBorder $global:ListBannerBorder -State "none" }
+    })
 }
 if ($listBannerImage) {
     $listBannerImage.Cursor = [System.Windows.Input.Cursors]::Hand
@@ -315,10 +324,17 @@ if ($libBannerExploreBtn) {
     $libBannerExploreBtn.Add_MouseLeftButtonUp({
         param($s, $e)
         # Do NOT reset styles - press-glow must persist during defer.
-        $indicatorToken = Start-HubActionIndicator -Target $s
+        $indicatorToken = Start-HubActionIndicator -Target $s -FitTargetEdges
+        $global:BannerExploreIndicatorToken = $indicatorToken
         Invoke-DeferredAction -DelayMs 1200 -Action {
             try { Show-DiscoverOverview -Origin "TILES" }
-            finally { Stop-HubActionIndicator -Token $indicatorToken }
+            finally {
+                Stop-HubActionIndicator -Token $indicatorToken
+                if ($global:BannerExploreIndicatorToken -ceq $indicatorToken) {
+                    $global:BannerExploreIndicatorToken = $null
+                    Set-BannerHoverGrow -BannerBorder $global:LibBannerBorder -State 'none'
+                }
+            }
         }.GetNewClosure()
     })
     $libBannerExploreBtn.Add_MouseEnter({ Start-BannerButtonSweep $this })
@@ -331,7 +347,9 @@ if ($libBannerExploreBtn) {
 $global:LibBannerBorder = $window.FindName("LibBanner")
 if ($global:LibBannerBorder) {
     $global:LibBannerBorder.Add_MouseEnter({ Set-BannerHoverGrow -BannerBorder $global:LibBannerBorder -State "hover" })
-    $global:LibBannerBorder.Add_MouseLeave({ Set-BannerHoverGrow -BannerBorder $global:LibBannerBorder -State "none" })
+    $global:LibBannerBorder.Add_MouseLeave({
+        if (-not $global:BannerExploreIndicatorToken) { Set-BannerHoverGrow -BannerBorder $global:LibBannerBorder -State "none" }
+    })
 }
 if ($libBannerImage) {
     $libBannerImage.Cursor = [System.Windows.Input.Cursors]::Hand

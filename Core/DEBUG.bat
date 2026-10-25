@@ -271,8 +271,27 @@ echo   [256] Journey VR
 echo   [257] Project Zomboid VR
 echo   [258] Spec Ops: The Line VR
 echo   [259] Alan Wake VR
+echo   [260] Rustler VR
+echo   [261] Brutal Legend VR
+echo   [262] Call of Juarez VR
+echo   [263] Mirror's Edge Catalyst VR
+echo   [264] Dungeon Keeper 2 VR
+echo   [265] Call of Duty (2003) VR
+echo   [266] Modern Warfare 2 Campaign Remastered VR
+echo   [267] Enshrouded VR
+echo   [268] Bloodlines VR
+echo   [269] Vampire Hunters VR
+echo   [270] Hitman Blood Money VR
+echo   [271] Far Cry 2 VR
+echo   [272] Dishonored 2 VR
+echo   [273] Forza Horizon 4 VR - GrayHorizon
+echo   [274] Forza Horizon 5 VR - GrayHorizon
+echo   [275] Forza Horizon 6 VR - GrayHorizon
+echo   [276] GRID (2019) VR
+echo   [277] GRID Legends VR
+echo   [278] DiRT 4 VR
 echo.
-set /p choice="Enter number (1-259): "
+set /p choice="Enter number (1-271): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -532,6 +551,25 @@ if "%choice%"=="256" (set SCRIPT=%~dp0JourneyVR\JourneyVR-core.ps1)
 if "%choice%"=="257" (set SCRIPT=%~dp0ProjectZomboidVR\ProjectZomboidVR-core.ps1)
 if "%choice%"=="258" (set SCRIPT=%~dp0SpecOpsTheLineVR\SpecOpsTheLineVR-core.ps1)
 if "%choice%"=="259" (set SCRIPT=%~dp0AlanWakeVR\AlanWakeVR-core.ps1)
+if "%choice%"=="260" (set SCRIPT=%~dp0RustlerVR\RustlerVR-core.ps1)
+if "%choice%"=="261" (set SCRIPT=%~dp0BrutalLegendVR\BrutalLegendVR-core.ps1)
+if "%choice%"=="262" (set SCRIPT=%~dp0CallOfJuarezVR\CallOfJuarezVR-core.ps1)
+if "%choice%"=="263" (set SCRIPT=%~dp0MirrorsEdgeCatalystVR\MirrorsEdgeCatalystVR-core.ps1)
+if "%choice%"=="264" (set SCRIPT=%~dp0DungeonKeeper2VR\DungeonKeeper2VR-core.ps1)
+if "%choice%"=="265" (set SCRIPT=%~dp0CallOfDuty2003VR\CallOfDuty2003VR-core.ps1)
+if "%choice%"=="266" (set SCRIPT=%~dp0MW2CampaignRemasteredVR\MW2CampaignRemasteredVR-core.ps1)
+if "%choice%"=="267" (set SCRIPT=%~dp0EnshroudedVR\EnshroudedVR-core.ps1)
+if "%choice%"=="268" (set SCRIPT=%~dp0VTMBVR\VTMBVR-core.ps1)
+if "%choice%"=="269" (set SCRIPT=%~dp0VampireHuntersVR\VampireHuntersVR-core.ps1)
+if "%choice%"=="270" (set SCRIPT=%~dp0HitmanBloodMoneyVR\HitmanBloodMoneyVR-core.ps1)
+if "%choice%"=="271" (set SCRIPT=%~dp0FarCry2VR\FarCry2VR-core.ps1)
+if "%choice%"=="272" (set SCRIPT=%~dp0Dishonored2VR\Dishonored2VR-core.ps1)
+if "%choice%"=="273" (set SCRIPT=%~dp0GrayHorizonFH4\GrayHorizonFH4-core.ps1)
+if "%choice%"=="274" (set SCRIPT=%~dp0GrayHorizonFH5\GrayHorizonFH5-core.ps1)
+if "%choice%"=="275" (set SCRIPT=%~dp0GrayHorizonFH6\GrayHorizonFH6-core.ps1)
+if "%choice%"=="276" (set SCRIPT=%~dp0Grid2019VR\Grid2019VR-core.ps1)
+if "%choice%"=="277" (set SCRIPT=%~dp0GridLegendsVR\GridLegendsVR-core.ps1)
+if "%choice%"=="278" (set SCRIPT=%~dp0Dirt4VR\Dirt4VR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt

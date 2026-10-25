@@ -2,7 +2,7 @@
 
 **REFramework** by **praydog**, with the **RE4VR** motion-control add-on by **Talemann** - turns **Resident Evil 4 (Remake)** into a cinematic, action-heavy VR horror experience. The village ambush, castle siege, and Regenerator encounters are especially intense in VR.
 
-> This is an **external** mod. **Get Installer** starts the download of the author's own **RE4VR 2.1.5** setup (about 98 MB) straight from his site - he asks people to take it from there and nowhere else. The Hub records that the link was opened, not that the external setup completed.
+> This is an **external** mod. **Get Installer** starts the download of the author's own **RE4VR 2.1.6** setup (about 98 MB) straight from his site - he asks people to take it from there and nowhere else. The Hub records that the link was opened, not that the external setup completed.
 
 ## What you get
 - Full VR conversion with head tracking and first-person gameplay enhancements

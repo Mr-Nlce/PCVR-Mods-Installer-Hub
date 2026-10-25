@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Scale factor (S=1.0, M=1.5, L=2.0)
 # -------------------------------------------------------
 $global:SCALE = 1.0
@@ -1496,6 +1496,24 @@ function global:Read-GameReadme {
     if ($buffer.Count -gt 0) {
         $sections[$current] = ($buffer -join "`n").Trim()
     }
+    # A plain final README paragraph used to remain inside its donation/link
+    # box while the catalog rendered the same quip again as the page footer.
+    # Remove only complete, known quip lines; prose, links and code stay intact.
+    $knownQuips=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach($quip in @($Game.Quip,$Game.ModAQuip,$Game.ModBQuip,$sections['_quip'])){
+        if($quip){[void]$knownQuips.Add((([string]$quip).Trim().Trim([char[]]' *_') -replace '\s+',' '))}
+    }
+    foreach($key in @($sections.get_Keys())){
+        if(([string]$key).StartsWith('_')){continue}
+        $kept=[Collections.Generic.List[string]]::new();$inCode=$false
+        foreach($bodyLine in ([string]$sections[$key] -split '\r?\n')){
+            if($bodyLine -match '^\s*```'){$inCode=-not $inCode;$kept.Add($bodyLine);continue}
+            $lineKey=$bodyLine.Trim().Trim([char[]]' *_') -replace '\s+',' '
+            if(-not $inCode -and $knownQuips.Contains($lineKey)){continue}
+            $kept.Add($bodyLine)
+        }
+        $sections[$key]=($kept -join "`n").Trim()
+    }
     return $sections
 }
 
@@ -2180,6 +2198,34 @@ function global:Get-PowerTier {
     # Tier per game title. Suffix -P = preliminary, gets a range.
     # Source: Martin's compiled tier list. Edit here when revising.
     $tierMap = @{
+        'GRID (2019) VR' = 'STRONG-P'
+        'GRID Legends VR' = 'HIGH-P'
+        'DiRT 4 VR' = 'STRONG-P'
+        "Forza Horizon 4 VR - GrayHorizon" = "HIGH"
+        "Forza Horizon 5 VR - GrayHorizon" = "HIGH"
+        "Forza Horizon 6 VR - GrayHorizon" = "EXTREME"
+        # Explicit estimates for the recently added publisher routes.
+        "Arx Fatalis VR" = "BASIC"
+        "Beyond: Two Souls VR" = "STRONG"
+        "Fallout 3 VR" = "SOLID"
+        "Fallout: New Vegas VR" = "SOLID"
+        "Spec Ops: The Line VR" = "SOLID"
+        "Journey VR" = "SOLID"
+        "Penumbra: Black Plague VR" = "BASIC"
+        "Penumbra: Requiem VR" = "BASIC"
+        "Project Zomboid VR" = "SOLID"
+        "Teardown VR" = "STRONG"
+        "XIII Remake VR" = "SOLID"
+        "Return to Castle Wolfenstein VR" = "BASIC"
+        "Killing Floor 2 VR" = "STRONG"
+        "Br$([char]0xFC)tal Legend VR" = "SOLID"
+        "Forsaken VR" = "BASIC"
+        "Rustler VR" = "SOLID"
+        "Alan Wake VR" = "SOLID"
+        "Call of Juarez VR" = "BASIC"
+        "Call of Duty (2003) VR" = "SOLID"
+        "Mirror's Edge Catalyst VR" = "HIGH"
+        "Dungeon Keeper 2 VR" = "BASIC"
         # ---- LOW ----
         "Dredge VR"                               = "LOW"
         "Hexen II VR"                             = "LOW"
@@ -2390,6 +2436,7 @@ function global:Get-PowerTier {
         "Dino Trauma VR"               = "SOLID"
         "Driftwood VR"                 = "SOLID"
         "Far Cry VR"                   = "SOLID"
+        "Far Cry 2 VR"                 = "SOLID"
         "Half-Life 2 VR"               = "SOLID"
         "HL2 VR Ep. One"               = "SOLID"
         "HL2 VR Ep. Two"               = "SOLID"
@@ -2743,6 +2790,7 @@ function global:Get-SimilarGames {
 
     $scored = @()
     foreach ($g in $allGames) {
+        if ($g.UntestedInstaller) { continue }
         if ($g.Title -eq $Game.Title) { continue }
         $score = 0
 
@@ -3574,6 +3622,7 @@ function global:Start-LoggedInstaller {
     $statusPath = Get-UpdateOkMarkerPath -Game $Game
     $versionPath = Get-InstalledVersionPath -Game $Game
     $versionPathB = Get-InstalledVersionPathB -Game $Game
+    $versionPathC = if ($Game.ModCName -and $versionPath) { $versionPath + '_c' } else { '' }
     $installPath = Get-InstalledPathFile -Game $Game
     # Every launch route starts with a clean completion flag.  Otherwise a
     # stale .update_ok from a previous run makes a cancelled reinstall look
@@ -3592,7 +3641,7 @@ function global:Start-LoggedInstaller {
         "-NoProfile -ExecutionPolicy Bypass -File `"$wrapper`" " +
         "-Title `"$title`" -Kind $kind -BatPath `"$BatPath`" -Ps1Path `"$ps1`" " +
         "-GameTitle `"$title`" -GameFolder `"$folder`" -GameExe `"$exe`" -GameId `"$gameId`" -LogsDir `"$logsDir`" " +
-        "-StatusPath `"$statusPath`" -VersionPath `"$versionPath`" -VersionPathB `"$versionPathB`" -InstallPath `"$installPath`""
+        "-StatusPath `"$statusPath`" -VersionPath `"$versionPath`" -VersionPathB `"$versionPathB`" -VersionPathC `"$versionPathC`" -InstallPath `"$installPath`""
     $hasLiveVersionSource = [bool]($Game.GithubRepo -or $Game.GithubRepoB -or $Game.GitHubNightly -or $Game.GithubCommitRepo -or
         $Game.CodebergRepo -or ($Game.ThunderstoreAuthor -and $Game.ThunderstorePackage) -or $Game.WebVersionUrl -or
         (('' + $Game.Mod) -match '(?i)auto-update'))
@@ -3870,7 +3919,8 @@ function global:Test-VrInstallEvidenceContract {
 #  never see the change.
 # ---------------------------------------------------------------
 function global:Test-OnlineVersionIsNewer {
-    param([string]$Installed, [string]$Online)
+    param([string]$Installed, [string]$Online,
+        [string[]]$SupersededInstalledVersions=@(), [string]$ResetMinimumVersion='')
 
     # SIX CHECKS, in order, and each one can settle it (2026-08-20).
     # Rebuilt because the tile kept nagging: the old version treated ANY
@@ -3893,6 +3943,24 @@ function global:Test-OnlineVersionIsNewer {
     # 2. Identical after normalising - nothing to do. This is the check
     #    that has to survive: it is what makes an install clear a badge.
     if ($an -eq $bn) { return $false }
+
+    # A publisher may explicitly replace an early, incorrectly numbered
+    # release with a lower number. Only catalogued old versions opt in;
+    # ordinary games, equal versions and releases below the reset floor
+    # keep the normal ordering. Never rewrite the actual installed receipt.
+    if ($ResetMinimumVersion -and $bn -match '^\d+(\.\d+)+$') {
+        $resetFloor = $ResetMinimumVersion.Trim() -replace '^[vV]', ''
+        $superseded = @($SupersededInstalledVersions | ForEach-Object {
+            ([string]$_).Trim().ToLowerInvariant() -replace '^v', ''
+        })
+        # A last-known tag from before the publisher reset must not become
+        # an apparent upgrade after installing its lower-numbered replacement.
+        if ($bn -in $superseded) { return $false }
+        if ($an -in $superseded -and $resetFloor -match '^\d+(\.\d+)+$') {
+            if ($bn -eq $resetFloor -or
+                (Test-OnlineVersionIsNewer -Installed $resetFloor -Online $bn)) { return $true }
+        }
+    }
 
     # 3. Date stamps (2026-08-20 or 20260820) compare as dates, never as
     #    version numbers - "2026" alone would otherwise look equal.

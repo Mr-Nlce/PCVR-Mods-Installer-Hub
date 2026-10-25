@@ -289,8 +289,20 @@ $window.Add_Activated({
             }
         }
 
+        $pzPendingUpdate = $null
+        if (-not $vrInstalled -and $game.Id -eq 'project-zomboid-vr' -and $gameDir) {
+            . (Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1')
+            $pzPendingUpdate = Get-PZVRPendingWorkshopUpdate -GameRoot $gameDir
+        }
+
         $accentHex = if ($game.Accent) { $game.Accent } else { "#666677" }
-        if ($vrInstalled) {
+        if ($pzPendingUpdate) {
+            $global:gameStateMap[$title] = @{
+                Tag = 'vrupdate'; Accent = $accentHex; State = 'update'
+                BtnText = 'Update Mod'; GameDir = $gameDir
+                UpdateEvidence = [string]$pzPendingUpdate.Evidence
+            }
+        } elseif ($vrInstalled) {
             $global:gameStateMap[$title] = @{
                 Tag = "vrinstalled"; Accent = $accentHex; State = "ready"
                 BtnText = "VR Ready"; GameDir = $gameDir
@@ -523,56 +535,32 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
 # doing so made an optional library refresh part of application startup.
 Write-HubTiming ("checkOnStartup resolved to: {0}" -f (Get-CheckOnStartupFlag))
 
-# Permanently hidden modders (settings key "hiddenModders") only took effect
+# Permanently hidden modders and ROM-required games only took effect
 # once the user typed something: the library is built with every tile visible
 # and Apply-Filter never ran at startup. Run it once here - and ONLY when the
 # list is non-empty, so a normal start does exactly what it always did.
 try {
-    if ($global:HiddenModders -and $global:HiddenModders.Count -gt 0) {
-        Write-HubTiming ("applying hiddenModders ({0})" -f $global:HiddenModders.Count)
+    if (($global:HiddenModders -and $global:HiddenModders.Count -gt 0) -or $global:HideRomGames) {
+        Write-HubTiming ("applying saved search exclusions (modders={0}, ROM={1})" -f @($global:HiddenModders).Count,[bool]$global:HideRomGames)
         if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
     }
 } catch { }
 
+# Lazy cards (test build): register the list and Library scroll hosts and
+# the first-frame pass that builds the visible cards before the first render.
+try {
+    if (Get-Command Register-LazyCardHosts -ErrorAction SilentlyContinue) { Register-LazyCardHosts }
+    Write-HubTiming ("lazy cards: {0}" -f $(if ($global:HubLazyCards) { 'on' } else { 'off (PCVR_HUB_LAZY_CARDS=0)' }))
+} catch { }
+
 Write-HubTiming "before ShowDialog (window goes interactive next)"
 
-# Persist window geometry on close. RestoreBounds gives the
-# un-maximized rectangle even when the window is currently
-# maximized - so the next start restores BOTH the user's
-# preferred size/position AND the maximized state.
-$window.Add_Closing({
-    if (-not (Get-Command Set-HubSetting -ErrorAction SilentlyContinue)) { return }
-    try {
-        # PS 5.1 / .NET Framework 4.x lacks [double]::IsFinite -
-        # use IsNaN + IsInfinity (present everywhere) for the
-        # finite check on RestoreBounds values.
-        function _isFiniteNum($v) {
-            if ($null -eq $v) { return $false }
-            try {
-                $d = [double]$v
-                return -not ([double]::IsNaN($d) -or [double]::IsInfinity($d))
-            } catch { return $false }
-        }
-
-        $isMax = ($window.WindowState -eq [System.Windows.WindowState]::Maximized)
-        # RestoreBounds gives the un-maximized rect even when the
-        # window is currently maximized - so the next start
-        # restores BOTH preferred size/position AND maximized state.
-        $rect  = $window.RestoreBounds
-        $w = $rect.Width;  $h = $rect.Height
-        $l = $rect.X;      $t = $rect.Y
-        if (-not (_isFiniteNum $w) -or $w -le 0) { $w = $window.ActualWidth }
-        if (-not (_isFiniteNum $h) -or $h -le 0) { $h = $window.ActualHeight }
-        if (-not (_isFiniteNum $l)) { $l = $window.Left }
-        if (-not (_isFiniteNum $t)) { $t = $window.Top  }
-
-        Set-HubSetting -Key "winMaximized" -Value ([string]$isMax)
-        if ($w -gt 0) { Set-HubSetting -Key "winWidth"  -Value ([int]$w) }
-        if ($h -gt 0) { Set-HubSetting -Key "winHeight" -Value ([int]$h) }
-        if (_isFiniteNum $l) { Set-HubSetting -Key "winLeft" -Value ([int]$l) }
-        if (_isFiniteNum $t) { Set-HubSetting -Key "winTop"  -Value ([int]$t) }
-    } catch { }
-})
+# Capture final geometry on close. Window dragging never writes state; the
+# header choice joins the post-window transaction before a new Hub reads it.
+Register-HubWindowClosePersistence -Window $window -AdditionalSettingsProvider {
+    if ($global:HeaderFxSaveTimer) { $global:HeaderFxSaveTimer.Stop() }
+    return $global:HeaderFxPendingSettings
+}
 
 # ---------------------------------------------------------------
 # Live update-banner reveal. The update check runs DETACHED in the
@@ -602,7 +590,7 @@ $window.Add_ContentRendered({
                 # exists (it deletes a stale one when up to date), so its
                 # presence alone means an update is available.
                 $info = Get-Content $markerFile -Raw -ErrorAction Stop | ConvertFrom-Json
-                if ($info -and $info.LatestVersion -and (Get-Command Show-UpdateBanner -ErrorAction SilentlyContinue)) {
+                if ((Test-HubUpdateInfoIsNewer -Info $info -CurrentVersion $global:HubCurrentVersion) -and (Get-Command Show-UpdateBanner -ErrorAction SilentlyContinue)) {
                     Show-UpdateBanner -Info $info
                     $global:UpdateProbeTimer.Stop()
                     return
@@ -635,34 +623,35 @@ $global:BannerRotateTimer.Add_Tick({
 $global:BannerRotateTimer.Start()
 
 # ---------------------------------------------------------------
-# Warm the Explore/Discover overview in the background once the Hub
-# is open and idle. Building the genre rows the first time costs a
-# few seconds (many tiles + Add_ handlers), so doing it lazily on the
-# first Explore click makes that click stall. Instead we kick off
-# Start-OverviewPrewarm at Background priority right after the window
-# is interactive; it builds the rows incrementally (one tile per
-# dispatcher cycle) so the banner animations keep rendering between
-# steps (no multi-second freeze, no per-row stutter), and the first
-# Explore switch is instant. Idempotent + safe:
-# if the user opens Explore before the prewarm finishes,
-# Build-DiscoverOverview takes over synchronously and the remaining
-# prewarm steps bail via the $global:OverviewBuilt guard - no double
-# build, no duplicate rows. Background priority yields to input/render,
-# so it never delays window open. Building into the still-collapsed
-# overview subtree does not change what is on screen.
+# Building the hidden Explore overview immediately after first paint caused
+# repeated 100-400 ms dispatcher gaps during the first 20 seconds. Wait for
+# that visible settling period and a short period without user input, then
+# let Start-OverviewPrewarm build its tiles at a paced idle cadence. Opening
+# Explore sooner still uses its established on-demand builder.
 # ---------------------------------------------------------------
 $window.Add_ContentRendered({
-    if ($global:OverviewBuilt) { return }
-    $window.Dispatcher.BeginInvoke(
-        [System.Windows.Threading.DispatcherPriority]::Background,
-        [action]{
-            try {
-                if (-not $global:OverviewBuilt -and (Get-Command Start-OverviewPrewarm -ErrorAction SilentlyContinue)) {
-                    Start-OverviewPrewarm
-                }
-            } catch { }
+    if ($global:OverviewBuilt -or $global:StartupOverviewWarmTimer) { return }
+    $global:StartupOverviewVisibleAt = [DateTime]::UtcNow
+    $global:StartupOverviewLastInputAt = $global:StartupOverviewVisibleAt
+    $window.Add_PreviewMouseMove({ $global:StartupOverviewLastInputAt = [DateTime]::UtcNow })
+    $window.Add_PreviewKeyDown({ $global:StartupOverviewLastInputAt = [DateTime]::UtcNow })
+    $window.Add_PreviewMouseDown({ $global:StartupOverviewLastInputAt = [DateTime]::UtcNow })
+    $global:StartupOverviewWarmTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $global:StartupOverviewWarmTimer.Interval = [TimeSpan]::FromSeconds(1)
+    $global:StartupOverviewWarmTimer.Add_Tick({
+        if ($global:OverviewBuilt -or -not $window.IsVisible) {
+            $global:StartupOverviewWarmTimer.Stop()
+            return
         }
-    ) | Out-Null
+        $now = [DateTime]::UtcNow
+        if (($now - $global:StartupOverviewVisibleAt).TotalSeconds -lt 20 -or
+            ($now - $global:StartupOverviewLastInputAt).TotalSeconds -lt 2) { return }
+        $global:StartupOverviewWarmTimer.Stop()
+        try {
+            if (Get-Command Start-OverviewPrewarm -ErrorAction SilentlyContinue) { Start-OverviewPrewarm }
+        } catch { }
+    })
+    $global:StartupOverviewWarmTimer.Start()
 })
 
 # ------------------------------------------------------------
@@ -702,6 +691,11 @@ try {
 } catch {}
 
 $window.ShowDialog() | Out-Null
+
+try { Complete-FavoriteSave } catch { }
+try { Complete-HubWindowClosePersistence } catch {
+    try { Write-HubTiming ("window settings save failed: {0}" -f $_.Exception.Message) } catch { }
+}
 
 # End the transcript while the WPF host is still in a normal script frame.
 # Letting PowerShell tear an active transcript down together with the closed

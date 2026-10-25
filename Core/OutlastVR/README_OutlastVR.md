@@ -3,29 +3,68 @@
 ## About the Game
 
 Outlast (2013) is a first-person survival horror game. This page offers a
-gamepad VR mod by Halcyon and a motion-control VR mod by T-Diamond. The Hub
+gamepad VR mod by Halcyon and motion-control mods by T-Diamond and StrikeZoneVR. The Hub
 keeps their overlapping runtime files in separate stores and switches them
 when you choose the corresponding Play action.
 
-## Two mods, one page
+## Three mods, one page
 
-There are two Outlast VR mods with different controls. The
-installer offers either, or both.
+The installer offers Halcyon, Insanity Engine VR, StrikeZoneVR or a combined setup.
+All three can be installed side by side. The tile shows at most two Play routes;
+the third remains on this detail page. The Hub switches the overlapping files
+only when you choose a specific **Start in VR** action.
 
-| | **Halcyon** | **Insanity Engine VR** |
-|---|---|---|
-| **Controls** | **gamepad only** | **tracked VR controllers + VR hands** |
-| State | gamepad-focused option | **early beta, prerelease updates** |
-| Camcorder | raised with a button | held and aimed with your hand |
-| Night vision | button | view it on the hand-held camcorder screen; an option restores the full-screen view |
-| Movement | gamepad sticks | room-scale 6DoF and motion controllers |
-| How it works | a `d3d9.dll` next to the game exe | a different `d3d9.dll` in the same folder |
-| Active files | four files | six runtime and setup files |
-| Where to get it | Patreon | GitHub, free |
+| | **Halcyon** | **Insanity Engine VR** | **StrikeZoneVR** |
+|---|---|---|---|
+| Controls | Gamepad | Tracked controllers and hands | Tracked controllers and hands |
+| State | Gamepad route | Early beta | Beta 1.1, prerelease updates |
+| Camcorder | Raised with a button | Held and aimed by hand | Taken from the hip and raised to your eye |
+| Game support | Steam, GOG, Epic | Steam, GOG, Epic | **Steam only**, per publisher |
+| Download | Patreon | GitHub | GitHub |
 
-**This is why the tile shows both a gamepad and a controller icon.** Which one
-you actually play with depends on the mod you install - the entry is not
-gamepad-only any more, and it is not motion-controls-only either.
+The tile shows both a gamepad and a controller icon because the installed
+route determines the controls.
+
+### StrikeZoneVR beta: install, start and controls
+
+The [official prerelease](https://github.com/StrikeZoneVR-hub/OutlastVR/releases)
+contains `Outlast1VR.exe`, `d3d9.dll`, `openxr_loader.dll`, `outlastvr.ini` and
+`strikezone_logo.jpg`. The Hub parks these files in `_vrmods\StrikeZone` and
+keeps Halcyon and Insanity separate. Run Steam Outlast once in flat mode before
+installing so it creates its Documents settings. The Hub checks the latest
+installable beta ZIP, including prereleases. No other store is publisher-tested
+for this mod.
+
+Use **Start in VR** for StrikeZoneVR in the Hub. This selects its profile and
+opens the publisher's `Binaries\Win64\Outlast1VR.exe`. In that launcher choose
+**PLAY IN VR**. Run it again after a Steam update or game-file verification;
+the publisher says Steam can reset the game's settings. Start your OpenXR
+runtime before launching. Beta 1.1 supports SteamVR, Virtual Desktop and Quest
+Link / Air Link; the publisher tested Quest 3. Other headsets remain untested.
+
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Walk. |
+| [[Right Stick]] | Smooth or snap turn; move it vertically to zoom while filming. |
+| [[Left Stick Click]] | Sprint. |
+| [[Right Stick Click]] | Toggle night vision. |
+| [[X]] | Use, open or pick up. |
+| [[A]] | Jump, climb or vault. |
+| [[Y]] | Reload the camcorder battery. |
+| [[B]] | Crouch. |
+| [[Left Trigger]] / [[Right Trigger]] | Lean left / right or look back. |
+| [[Right Grip]] at your hip | Take the camcorder; grip a door handle or ledge. |
+| [[Left Grip]] + [[Menu]] | Open VR settings. |
+| [[Left Grip]] + [[X]] / [[Y]] / [[B]] | Notes / documents / notebook. |
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter. |
+| [[Menu]] | Pause. |
+
+![StrikeZoneVR Outlast controller controls](Outlast_StrikeZone_controls.jpg)
+
+The launcher also shows a visual [controller guide](https://github.com/StrikeZoneVR-hub/OutlastVR#controls).
+Its **VR SETTINGS** include world size, head bob, turning, comfort and film
+grain. This is a beta: scripted scenes may briefly bend Miles's arm. Report
+issues with `%LOCALAPPDATA%\OutlastVR\OutlastVR_Log.txt`.
 
 ### Insanity Engine VR controls
 
@@ -44,16 +83,16 @@ the optional full-screen view. The release defaults to snap turning and
 motion-tracked arms. Controller recenter is unreliable; use [[G]] on the
 keyboard. The night-vision light and HUD dot still have known visual issues.
 
-**Close Outlast before switching.** Both mods now use `d3d9.dll`,
+**Close Outlast and Outlast1VR.exe before switching.** All three mods use `d3d9.dll`,
 `openxr_loader.dll` and `outlastvr.ini` in `Binaries\Win64`. The installer
-keeps separate copies under `_vrmods\halcyon` and `_vrmods\insanity`.
+keeps separate copies under `_vrmods\halcyon`, `_vrmods\insanity` and `_vrmods\StrikeZone`.
 Use **Start in VR** for the chosen mod in the Hub. It saves the active config,
 verifies and copies the chosen mod, then starts the game. A failed switch
 restores the previous files and does not start Outlast. Each mod also keeps a
 separate copy of Outlast's four Documents INIs under its own `GameConfig`
 folder. Switching restores the
 chosen profile; Insanity's door calibration and mod INI are kept as well. With
-both installed, the Hub shows both Play buttons.
+multiple routes installed, the Hub offers the appropriate Play buttons.
 
 ### Insanity Engine VR installation and updates
 
@@ -191,22 +230,21 @@ the tool again.
 
 By hand: https://aka.ms/dotnet/6.0/windowsdesktop-runtime-win-x64.exe
 
-## Uninstalling
+## Discord discussion & support
 
-For Insanity Engine VR, use **Uninstall now** on this page. The Hub activates
-that mod, opens its publisher setup after you press Enter, and asks you to
-choose **[2] Uninstall**. The publisher restores the original Documents game
-settings and removes its game-folder files. The Hub then removes its parked
-runtime and reactivates Halcyon if installed. Personal settings remain saved.
+[Flat2VR Outlast VR discussion](https://discord.com/channels/747967102895390741/1537851737728221284)
 
-To remove Halcyon, activate it and run its `Outlast-VR.bat` from
-`Binaries\Win64`, then choose **[2] Uninstall**.
+## Support the modder
+
+[Support StrikeZoneVR on Ko-fi](https://ko-fi.com/strikezonevr)
 
 ## Credits
 
 Mod by **Halcyon** - https://www.patreon.com/dhalcyon
 
 Insanity Engine VR by **T-Diamond** - https://github.com/TdiamondOf/InsanityEngineVR
+
+StrikeZoneVR beta by **StrikeZoneVR** - https://github.com/StrikeZoneVR-hub/OutlastVR
 
 An unofficial fan project, not affiliated with Red Barrels.
 

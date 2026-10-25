@@ -1,6 +1,8 @@
-# Unmourned VR Installer
+﻿# Unmourned VR Installer
 
-Automated installer for Unmourned_VR v1.0.0 by Astienth - VR conversion of Unmourned, a story-driven horror game heavily inspired by Visage.
+## About the Game
+
+Legacy installer for Unmourned_VR v1.0.0 by Astienth. The author withdrew the mod download and recommends the game's official VR edition. This entry retains existing mod installations and can reinstall a mod ZIP you already saved; it does not install the separate official VR edition.
 
 This is a full motion-controller VR mod with bHaptics vest support.
 
@@ -12,7 +14,7 @@ This is a full motion-controller VR mod with bHaptics vest support.
 ## Requirements
 - Unmourned owned on Steam (App ID 3528970)
 - **OpenXR runtime** - this mod is OpenXR ONLY. Set SteamVR (or whatever OpenXR runtime you use) as the default OpenXR runtime in its settings.
-- Discord account - the mod is distributed through Astienth's posts on the FarmerTrueVR Discord server
+- Your own previously downloaded `UnmournedVR.zip`; the former Discord post no longer provides it.
 
 ## Critical first-launch steps - read BEFORE installing
 1. **Launch the game once in flat mode first** and pick your language. The mod can't show the language picker properly in VR.
@@ -22,8 +24,8 @@ This is a full motion-controller VR mod with bHaptics vest support.
 
 ## How to use the installer
 1. Click **Install Mod** on the game tile or detail page.
-2. The installer opens the Discord invite, rules channel, and download post in your browser one at a time.
-3. Join the server, click the AK-47 emoji under the rules post to confirm, then download `UnmournedVR.zip`.
+2. Read the withdrawn-download notice and press [[Enter]].
+3. Select your saved `UnmournedVR.zip`, or enter Q to close without changing the game.
 4. Drag the downloaded ZIP into the installer window.
 5. The installer auto-locates Unmourned, copies the mod files in, and offers to run the ViGEmBus installer if you don't have it yet.
 
@@ -34,24 +36,16 @@ This is a full motion-controller VR mod with bHaptics vest support.
 
 ## Controls
 
-VR controllers are mapped as an Xbox gamepad. Standard buttons (face buttons, triggers, sticks) work as expected.
+| Button | Action |
+|---|---|
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter the view, including the inverted intro. |
+| [[Left Stick]] | With the left controller beside your head, D-pad menu input. |
+| [[Left Stick Click]] | With the left controller beside your head, Back / View. |
+| [[Right Stick Click]] | With the left controller beside your head, Start / Menu. |
 
-### Hotkey gesture (important!)
-Hold your **left controller close to the left side of your head**. The controller vibrates while the hotkey is active. While the hotkey is held:
-- **[[Left Stick]]** becomes the **D-Pad**
-- **[[Left Stick]] click** becomes the **Back / View** button
-- **[[Right Stick]] click** becomes the **Start / Menu** button
-
-Use this to navigate menus.
-
-### Recenter
-**Click both joysticks at the same time** to recenter the view at any moment.
-
-### Layout reference
+The hotkey gesture vibrates the controller while active. The remaining bindings follow the game's Xbox-style mapping.
 
 ![Controller layout](ControllerLayout.jpg)
-
-The same image is also pinned in the Discord post: <https://discord.com/channels/1001138422972432597/1462781954570059990/1462782122740682894>
 
 ## Configuration
 

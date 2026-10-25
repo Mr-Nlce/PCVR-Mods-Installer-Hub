@@ -1,10 +1,11 @@
-# Wire up version label and update banner
+﻿# Wire up version label and update banner
 $updateBanner     = $window.FindName("UpdateBanner")
 $updateBannerText = $window.FindName("UpdateBannerText")
 $versionLabel     = $window.FindName("VersionLabel")
 $versionBadge     = $window.FindName("VersionBadge")
 $headerVrIcon     = $window.FindName("HeaderVrIcon")
 $headerHubTitle   = $window.FindName("HeaderHubTitle")
+$headerHubSubtitle = $window.FindName("HeaderHubSubtitle")
 $headerHubTitleCompact = $window.FindName("HeaderHubTitleCompact")
 
 # Apply the subtle white -> light-grey vertical gradient (matching the
@@ -1089,7 +1090,7 @@ function global:Add-BannerTwinkle {
 }
 
 function global:Add-BannerRain {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$TintHex = '')
     try {
         $featured = @('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
@@ -1099,7 +1100,7 @@ function global:Add-BannerRain {
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
-        $col = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(150, 195, 225)); $col.Freeze()
+        $rainCol = if ($TintHex) { [System.Windows.Media.ColorConverter]::ConvertFromString($TintHex) } else { [System.Windows.Media.Color]::FromRgb(150, 195, 225) }; $col = [System.Windows.Media.SolidColorBrush]::new($rainCol); $col.Freeze()
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 70; $i++) {
             $len = if ($featured) { 12 + $rand.NextDouble() * 16 } else { 8 + $rand.NextDouble() * 12 }
@@ -1520,7 +1521,7 @@ function global:Add-BannerVortex {
 }
 
 function global:Add-BannerSnow {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$TintHex = '')
     try {
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
@@ -1529,7 +1530,7 @@ function global:Add-BannerSnow {
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
-        $flake = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(225, 240, 250)); $flake.Freeze()
+        $flakeCol = if ($TintHex) { [System.Windows.Media.ColorConverter]::ConvertFromString($TintHex) } else { [System.Windows.Media.Color]::FromRgb(225, 240, 250) }; $flake = [System.Windows.Media.SolidColorBrush]::new($flakeCol); $flake.Freeze()
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 50; $i++) {
             $d = 2 + $rand.NextDouble() * 3
@@ -1904,7 +1905,7 @@ function global:Add-BannerComet {
 }
 
 function global:Add-BannerSpark {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$TintHex = '')
     try {
         $featured = @('ListBanner', 'LibBanner', 'OvBanner') -contains $BannerName
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
@@ -1915,6 +1916,11 @@ function global:Add-BannerSpark {
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
         $nEmit = 10; $perEmit = 7
+        $tintDeep = $null; $tintLight = $null
+        if ($TintHex) {
+            $tintDeep = [System.Windows.Media.ColorConverter]::ConvertFromString($TintHex)
+            $tintLight = [System.Windows.Media.Color]::FromRgb([byte][Math]::Round($tintDeep.R+(255-$tintDeep.R)*0.35), [byte][Math]::Round($tintDeep.G+(255-$tintDeep.G)*0.35), [byte][Math]::Round($tintDeep.B+(255-$tintDeep.B)*0.35))
+        }
         $info = New-Object System.Collections.ArrayList
         for ($e = 0; $e -lt $nEmit; $e++) {
             $fx = ($e + 0.5) / $nEmit
@@ -1923,7 +1929,7 @@ function global:Add-BannerSpark {
             for ($s = 0; $s -lt $perEmit; $s++) {
                 $sp = New-Object System.Windows.Shapes.Ellipse
                 $sp.Width = $(if ($featured) { 3.3 } else { 2.2 }); $sp.Height = $sp.Width
-                $warm = if ($rand.NextDouble() -lt 0.5) { [System.Windows.Media.Color]::FromRgb(255, 200, 120) } else { [System.Windows.Media.Color]::FromRgb(255, 150, 80) }
+                $warmPick=$rand.NextDouble(); $warm = if ($tintDeep) { if ($warmPick -lt 0.5) { $tintLight } else { $tintDeep } } elseif ($warmPick -lt 0.5) { [System.Windows.Media.Color]::FromRgb(255, 200, 120) } else { [System.Windows.Media.Color]::FromRgb(255, 150, 80) }
                 $sp.Fill = [System.Windows.Media.SolidColorBrush]::new($warm)
                 $tt = New-Object System.Windows.Media.TranslateTransform
                 $sp.RenderTransform = $tt
@@ -2074,7 +2080,7 @@ function global:Add-BannerSilk {
 }
 
 function global:Add-BannerBubbles {
-    param([string]$BannerName, [double]$BannerH, [string]$ColorHex)
+    param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$TintHex = '')
     try {
         $banner = $global:window.FindName($BannerName); if (-not $banner -or -not $banner.Child) { return }
         $grid = $banner.Child; if ($grid -isnot [System.Windows.Controls.Grid]) { return }
@@ -2083,8 +2089,8 @@ function global:Add-BannerBubbles {
         $canvas.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $canvas.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
         $rand = New-Object System.Random
-        $ringBr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(150, 225, 235)); $ringBr.Freeze()
-        $hlBr = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromRgb(220, 250, 255)); $hlBr.Freeze()
+        $ringCol = if ($TintHex) { [System.Windows.Media.ColorConverter]::ConvertFromString($TintHex) } else { [System.Windows.Media.Color]::FromRgb(150, 225, 235) }; $ringBr = [System.Windows.Media.SolidColorBrush]::new($ringCol); $ringBr.Freeze()
+        $hlCol = if ($TintHex) { [System.Windows.Media.Color]::FromRgb([byte][Math]::Round($ringCol.R+(255-$ringCol.R)*0.6), [byte][Math]::Round($ringCol.G+(255-$ringCol.G)*0.6), [byte][Math]::Round($ringCol.B+(255-$ringCol.B)*0.6)) } else { [System.Windows.Media.Color]::FromRgb(220, 250, 255) }; $hlBr = [System.Windows.Media.SolidColorBrush]::new($hlCol); $hlBr.Freeze()
         $info = New-Object System.Collections.ArrayList
         for ($i = 0; $i -lt 42; $i++) {
             $rr = 4 + $rand.NextDouble() * 8; $d = $rr * 2
@@ -2129,6 +2135,7 @@ function global:Add-BannerBubbles {
 function global:Add-BannerEffect {
     param([string]$BannerName, [double]$BannerH, [string]$ColorHex, [string]$Effect)
     switch ($Effect) {
+        'none' { return }
         "parallax" { Add-BannerParallax  -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "nebula"    { Add-BannerNebula    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "meteors"   { Add-BannerMeteors   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -2179,52 +2186,50 @@ function global:Add-BannerEffect {
         "field"     { Add-BannerField     -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "silk"      { Add-BannerSilk      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "bubbles"   { Add-BannerBubbles   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
-        # ---- Colour variants (2026-08-16) --------------------------
-        # The same animation, only the colour is pinned instead of
-        # following the banner accent. Five per effect.
-        "sparkgold"     { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffc247" }
-        "sparkice"      { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd8ff" }
-        "sparkviolet"   { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#c07bff" }
-        "sparkblood"    { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff3b30" }
-        "sparkmint"     { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex "#4fe0a8" }
-        "bubblesdeep"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#2f8fd8" }
-        "bubblestoxic"  { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#8aff3a" }
-        "bubblesgold"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffcf5c" }
-        "bubblesviolet" { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#b06bff" }
-        "bubblesmono"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#cfd8e3" }
-        "meteorsember"  { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff7a1a" }
-        "meteorsice"    { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#8fe4ff" }
-        "meteorstoxic"  { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#9bff5a" }
-        "meteorsrose"   { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff5f8a" }
-        "meteorsgold"   { Add-BannerMeteors -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffd36e" }
-        "hexcyan"       { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#8fd3e2" }
-        "hexmagenta"    { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#dda2bf" }
-        "hexlime"       { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#bcd8a0" }
-        "hexamber"      { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#e0c599" }
-        "hexsteel"      { Add-BannerHex -BannerName $BannerName -BannerH $BannerH -ColorHex "#b9c4cf" }
-        "fieldcyan"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#39d8ff" }
-        "fieldrose"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff6fa8" }
-        "fieldgold"     { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffc95c" }
-        "fieldtoxic"    { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#93ff4d" }
-        "fieldsteel"    { Add-BannerField -BannerName $BannerName -BannerH $BannerH -ColorHex "#a8bccd" }
-        "vortexgold"    { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#ffcb57" }
-        "vortexice"     { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" }
-        "vortexrose"    { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff6fa8" }
-        "vortextoxic"   { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#8dff5c" }
-        "vortexviolet"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#b478ff" }
+        # ---- Retained game-bound tinted variants -----------------
+        # Explicit TintHex changes the actual particle brushes, rather than
+        # passing an unused accent to the renderer.
+        
+        
+        
+        "sparkblood"    { Add-BannerSpark -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -TintHex "#ff3b30" }
+        
+        "bubblesdeep"   { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -TintHex "#2f8fd8" }
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         # Two galaxies instead of one - the same function twice, offset
         # and a little smaller so they fit side by side.
         "vortextwin"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.36 -Scale 0.72
                         Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -CenterFrac 0.64 -Scale 0.72 }
-        "vortextwinice"  { Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" -CenterFrac 0.36 -Scale 0.72
-                           Add-BannerVortex -BannerName $BannerName -BannerH $BannerH -ColorHex "#7fd0ff" -CenterFrac 0.64 -Scale 0.72 }
+        
         # Theme-fitting recolours of existing effects. Same animation code,
         # only the colour is pinned instead of following the banner accent.
-        # These names are deliberately NOT in $global:BannerFxPool - they are
-        # added as candidates per game by Get-BannerFxFor, like "synth"/"flow".
-        "bloodrain"   { Add-BannerRain    -BannerName $BannerName -BannerH $BannerH -ColorHex "#c81028" }
-        "bloodsnow"   { Add-BannerSnow    -BannerName $BannerName -BannerH $BannerH -ColorHex "#d42a2a" }
-        "pinkbubbles" { Add-BannerBubbles -BannerName $BannerName -BannerH $BannerH -ColorHex "#ff8fd0" }
+        # These names are selected only through exact game assignments.
+        "bloodrain"   { Add-BannerRain    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -TintHex "#c81028" }
+        "bloodsnow"   { Add-BannerSnow    -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex -TintHex "#d42a2a" }
+        
         "orbs"    { Add-BannerOrbs      -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "synth"   { Add-BannerSynthGrid -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
         "circuit" { Add-BannerCircuit   -BannerName $BannerName -BannerH $BannerH -ColorHex $ColorHex }
@@ -2330,11 +2335,54 @@ function global:Invoke-ListLibBannerRotation {
     }
 }
 
-# General banner-effect pool. The neon synth-grid road is deliberately
-# NOT in here: it is the one theme-specific effect, so it only appears
-# for futuristic / techy games via Get-BannerFxFor (below). Every other
-# effect is fair game for any banner.
-$global:BannerFxPool = @("stars","parallax","orbs","circuit","network","hex","embers","nebula","meteors","sonar","motes","equalizer","speed","plasma","blobsunset","blobcandy","blobocean","blobember","blobtoxic","blobice","blobviolet","blobmidnight","blobamber","blobrose","blobforest","stripes","twinkle","rain","bokeh","bokehsunset","bokehcandy","bokehember","bokehtoxic","bokehviolet","bokehmidnight","bokehgold","bokehmint","bokehcoral","shards","waves","rays","lava","topo","vortex","snow","breathe","matrix","hyper","tunnel","kaleido","comet","spark","field","silk","bubbles","sparkgold","sparkice","sparkviolet","sparkblood","sparkmint","bubblesdeep","bubblestoxic","bubblesgold","bubblesviolet","bubblesmono","meteorsember","meteorsice","meteorstoxic","meteorsrose","meteorsgold","hexcyan","hexmagenta","hexlime","hexamber","hexsteel","fieldcyan","fieldrose","fieldgold","fieldtoxic","fieldsteel","vortexgold","vortexice","vortexrose","vortextoxic","vortexviolet","vortextwin")
+# Renderer inventory, never an unassigned random pool.
+$global:BannerFxPool = @('stars','parallax','motes','twinkle','shards','waves','topo','kaleido','silk','hex','sonar','equalizer','rain','snow','matrix','spark','bubbles','synth','circuit','network','embers','sparkblood','bubblesdeep','bloodrain','bloodsnow')
+
+$global:BannerFxFeaturedGames = [ordered]@{
+    'stars' = @('Outer Wilds VR','Starfield VR','Kerbal Space Program','Star Trucker VR','Rebel Galaxy VR','X4: Foundations VR','Freespace 2 VR','Star Wars: X-Wing VR','Mass Effect 1 LE VR','Mass Effect 2 LE VR','Mass Effect 3 LE VR','Halo CE VR','Halo Master Chief Collection VR','Metroid Prime VR','Journey VR','Firewatch VR','Stardew Valley VR','Star Wars Outlaws VR')
+    'parallax' = @('Star Fox 64 VR','Star Fox Enhanced PCVR','Star Wars: X-Wing VR','Freespace 2 VR','Rebel Galaxy VR','X4: Foundations VR','Star Trucker VR','Descent VR','Descent 2 VR','Forsaken VR','Panzer Dragoon Remake','Rogue Flight VR','Star Wars Outlaws VR','Kerbal Space Program','Outer Wilds VR','Starfield VR')
+    'motes' = @('Amnesia VR','Penumbra: Overture VR','Penumbra: Black Plague VR','Penumbra: Requiem VR','SOMA VR','Alien: Isolation VR','The Dark Mod VR','Thief (2014) VR','Arx Fatalis VR','Tomb Raider 1 VR','Indiana Jones: Great Circle VR','Uncharted: Legacy of Thieves VR','Hollow Knight VR','Hollow Knight Silksong','Lunacid VR','Silent Hill VR','Silent Hill 3 VR','Outlast VR','Outlast 2 VR','Dishonored VR','Dishonored 2 VR','Anomaly VR','Anomaly GAMMA','The Witness','Journey VR')
+    'twinkle' = @('Portal 2 VR','Portal 2: Community Edition VR','The Witness','Techtonica VR','Metroid Prime VR','Mega Man Star Force Legacy VR','Pragmata VR','Stray VR','Death Stranding VR','Subnautica VR','Subnautica: Below Zero','Halo CE VR','Neon White VR','Tinykin VR')
+    'shards' = @('Final Fantasy XIV VR','FF VII Remake VR','FF VII Rebirth VR','Hollow Knight VR','Hollow Knight Silksong','Deep Rock Galactic VR','Metroid Prime VR','Avatar: Frontiers of Pandora VR','Hogwarts Legacy VR','Mage Arena VR','Little Witch Nobeta VR','Mirage Feathers VR','AWAY VR','Ratchet & Clank VR','Subnautica VR','Kunitsu-Gami: Path of the Goddess VR','Hytale VR')
+    'waves' = @('Dredge VR','Raft VR','How to Fish XR','Another Crab''s Treasure','Assassin''s Creed Odyssey VR','Driftwood VR','Outbound VR','Alba VR','Journey VR','Flower VR','Iron Lung VR','Sayonara Wild Hearts','Trombone Champ VR')
+    'topo' = @('Subnautica VR','Subnautica: Below Zero','Raft VR','Dredge VR','Another Crab''s Treasure','SOMA VR','BioShock Remastered','BioShock 2 Remastered','Alba VR','Driftwood VR','Outbound VR','Assassin''s Creed Odyssey VR','Avatar: Frontiers of Pandora VR','How to Fish XR','SnowRunner VR')
+    'kaleido' = @('Sayonara Wild Hearts','Journey VR','Retrowave 2 VR','GTA Vice City VR','Horizon Chase Turbo','Art of Rally VR','Forza Horizon 5 VR','Firewatch VR','Far Cry New Dawn VR','Far Cry 6 VR','Red Dead Redemption VR','Assassin''s Creed Mirage VR','Slime Rancher VR','Kunitsu-Gami: Path of the Goddess VR','Borderlands GOTY Enhanced')
+    'silk' = @('Avatar: Frontiers of Pandora VR','High on Life VR','Ghostwire: Tokyo VR','Cloudpunk VR','Cloudpunk: City of Ghosts VR','Neon White VR','Bomb Rush Cyberfunk','Stray VR','Lunistice VR','Mirage Feathers VR','Ratchet & Clank VR','Mass Effect 1 LE VR','Mass Effect 2 LE VR','Mass Effect 3 LE VR','Outer Wilds VR','Sayonara Wild Hearts')
+    'hex' = @('Halo CE VR','Halo Master Chief Collection VR','Crysis VR','Mass Effect 1 LE VR','Mass Effect 2 LE VR','Mass Effect 3 LE VR','Deus Ex: Human Revolution - DC','Titanfall 2 VR','Atomic Heart VR','Metroid Prime VR','Pragmata VR','Starfield VR','Half-Life 2 VR','Black Mesa VR','Fallout 3 VR','Fallout 4 VR','Fallout: New Vegas VR')
+    'sonar' = @('Alien: Isolation VR','Aliens versus Predator VR','GTFO VR','Iron Lung VR','Subnautica VR','Subnautica: Below Zero','SOMA VR','Nuclear Option VR','Arma 3 VR','Metal Gear Solid V: The Phantom Pain VR','Ghost Recon Wildlands VR','Lethal Company VR')
+    'equalizer' = @('Trombone Champ VR','Metal: Hellsinger VR','Brütal Legend VR','Sayonara Wild Hearts','Bomb Rush Cyberfunk','Retrowave 2 VR','GTA Vice City VR','Neon White VR')
+    'rain' = @('Cyberpunk 2077','Cloudpunk VR','Cloudpunk: City of Ghosts VR','Max Payne 2 VR','Alan Wake VR','Beyond: Two Souls VR','Watch Dogs VR','Watch Dogs Legion VR','GTA IV VR','Ghostwire: Tokyo VR','Judgment VR','Vampire: The Masquerade - Bloodlines VR','Resident Evil 2R VR','Resident Evil 7 VR','Outlast VR','Days Gone VR','Death Stranding VR','Stray VR','Dredge VR','Deus Ex: Human Revolution - DC','Silent Hill 3 VR','F.E.A.R. VR')
+    'snow' = @('Skyrim VR','SnowRunner VR','Subnautica: Below Zero','Far Cry 4 VR','Witcher 3 VR','Valheim VR','RE Village VR','TLOU Part I VR','TLOU Part II VR','Days Gone VR','Dark Souls III VR','Assassin''s Creed Valhalla VR','Ghost of Tsushima VR','Hogwarts Legacy VR','Death Stranding VR','Monster Hunter Rise VR','Monster Hunter Wilds','Daggerfall VR','Kingdom Come: Deliverance II VR','Call of Duty: Modern Warfare 2 Campaign Remastered VR')
+    'matrix' = @('Cyberpunk 2077','Watch Dogs VR','Watch Dogs 2 VR','Watch Dogs Legion VR','Deus Ex: Human Revolution - DC','Cloudpunk VR','Cloudpunk: City of Ghosts VR','Cruelty Squad VR','MiSide VR')
+    'spark' = @('Shipbreaker VR','Teardown VR','Red Faction VR','Techtonica VR','Scrap Mechanic VR','Fallout 4 VR','Atomic Heart VR','EARTH DEFENSE FORCE 6 VR','Titanfall 2 VR','Warhammer 40K: Darktide VR','Deep Rock Galactic VR','Road Redemption VR','Borderlands GOTY Enhanced')
+    'bubbles' = @('Subnautica VR','Subnautica: Below Zero','Raft VR','SOMA VR','Iron Lung VR','BioShock Remastered','BioShock 2 Remastered','Another Crab''s Treasure','Dredge VR','How to Fish XR')
+    'synth' = @('Retrowave 2 VR','F-Zero X VR','Star Racer VR','Neon White VR','Bomb Rush Cyberfunk','Cyberpunk 2077','Cloudpunk VR','Cloudpunk: City of Ghosts VR','TrackMania Nations Forever','TrackMania United Forever','Sayonara Wild Hearts','Horizon Chase Turbo','Rogue Flight VR','Descent VR','Descent 2 VR','Forsaken VR','High on Life VR','Ring Racers VR','GTA Vice City VR')
+    'circuit' = @('Techtonica VR','Cyberpunk 2077','Deus Ex: Human Revolution - DC','Portal 2 VR','Portal 2: Community Edition VR','Watch Dogs 2 VR','Atomic Heart VR','Shipbreaker VR','Star Trucker VR','Pragmata VR','Mass Effect 1 LE VR','Mass Effect 2 LE VR','Mass Effect 3 LE VR','Scrap Mechanic VR','Halo CE VR','Halo Master Chief Collection VR','Titanfall 2 VR','Metroid Prime VR','Ratchet & Clank VR','Mega Man Star Force Legacy VR')
+    'network' = @('Watch Dogs VR','Watch Dogs 2 VR','Watch Dogs Legion VR','Cyberpunk 2077','Deus Ex: Human Revolution - DC','X4: Foundations VR','Mass Effect 1 LE VR','Mass Effect 2 LE VR','Mass Effect 3 LE VR','Starfield VR','Kerbal Space Program','Death Stranding VR','Techtonica VR')
+    'embers' = @('DOOM (2016) VR','Doom Eternal VR','DOOM Eternal VR - Motion','Dark Souls Remastered','Dark Souls II VR','Dark Souls II: Scholar','Dark Souls III VR','Elden Ring','Elden Ring VR','Diablo II: Resurrected','Brütal Legend VR','Metal: Hellsinger VR','Blade of Darkness VR','Painkiller Black Edition','Painkiller: Overdose VR','Dragon''s Dogma 2 VR','Witcher 3 VR','Skyrim VR','Far Cry Primal VR','Warhammer 40K: Darktide VR','Call of Duty: World at War VR','Dungeon Keeper 2 VR','Mount & Blade II: Bannerlord VR','Gothic II VR','Onimusha 2 VR','Ghost of Tsushima VR','Devil May Cry 5 VR','Valheim VR','Enshrouded VR','Hexen II VR','Kunitsu-Gami: Path of the Goddess VR','ELDERBORN VR')
+    'sparkblood' = @('Doom VR','Doom 2 VR','Doom 3 BFG VR','DOOM (2016) VR','Doom Eternal VR','DOOM Eternal VR - Motion','Quake VR','Quake 2 VR','Quake 3 VR','Heretic VR','Hexen VR','Hexen II VR','Blood VR','Painkiller Black Edition','Painkiller: Overdose VR','Dusk HD (DLC) VR','ULTRAKILL VR','Shadow Warrior VR','Killing Floor 2 VR','Total Chaos VR','Ashes 2063 VR','Selaco VR','Dino Trauma VR','Turok VR','Metal: Hellsinger VR','Strife VR','Wolfenstein 3D VR')
+    'bubblesdeep' = @('Subnautica VR','Subnautica: Below Zero','SOMA VR','Iron Lung VR','BioShock Remastered','BioShock 2 Remastered')
+    'bloodrain' = @('Doom VR','Doom 2 VR','Doom 3 BFG VR','DOOM (2016) VR','Doom Eternal VR','DOOM Eternal VR - Motion','Quake VR','Quake 2 VR','Quake 3 VR','Heretic VR','Hexen VR','Hexen II VR','Blood VR','Painkiller Black Edition','Painkiller: Overdose VR','Dusk HD (DLC) VR','ULTRAKILL VR','Shadow Warrior VR','Killing Floor 2 VR','Total Chaos VR','Ashes 2063 VR','Selaco VR','Dino Trauma VR','Turok VR','Metal: Hellsinger VR','Strife VR','Wolfenstein 3D VR')
+    'bloodsnow' = @('Doom VR','Doom 2 VR','Doom 3 BFG VR','DOOM (2016) VR','Doom Eternal VR','DOOM Eternal VR - Motion','Quake VR','Quake 2 VR','Quake 3 VR','Heretic VR','Hexen VR','Hexen II VR','Blood VR','Painkiller Black Edition','Painkiller: Overdose VR','Dusk HD (DLC) VR','ULTRAKILL VR','Shadow Warrior VR','Killing Floor 2 VR','Total Chaos VR','Ashes 2063 VR','Selaco VR','Dino Trauma VR','Turok VR','Metal: Hellsinger VR','Strife VR','Wolfenstein 3D VR')
+}
+
+# Native legacy themes are selected only for their exact assigned titles.
+# Round 1-5 effects join the same mapped-only candidates. No generic fallback.
+$global:BannerFxFeaturedGameCopies = 3
+function global:Get-GameBannerFxCandidates {
+    param($Game)
+    if (-not $Game -or -not $Game.Title) { return @() }
+    $pool = [System.Collections.Generic.List[string]]::new()
+    foreach ($fx in $global:BannerFxFeaturedGames.Keys) {
+        if (@($global:BannerFxFeaturedGames[$fx]) -contains [string]$Game.Title) {
+            for ($i=0; $i -lt $global:BannerFxFeaturedGameCopies; $i++) { $pool.Add([string]$fx) }
+        }
+    }
+    if (Get-Command Get-BannerFxExtraFor -ErrorAction SilentlyContinue) {
+        foreach ($fx in @(Get-BannerFxExtraFor -Game $Game)) { $pool.Add([string]$fx) }
+    }
+    return $pool.ToArray()
+}
 
 # Titles eligible for the synth-grid even if their tags carry no
 # futuristic marker (explicit opt-in).
@@ -2485,65 +2533,13 @@ function global:Test-AquaticGame {
     return $false
 }
 
-# Games whose look calls for candy-pink bubbles instead of the accent-
-# coloured ones. Title-only on purpose: this is a per-game art call, not
-# something a tag can decide.
-$global:PinkBubbleBannerTitles = @(
-    "Slime Rancher VR"
-)
-
-# True when a game should get the pink bubble variant as a candidate.
-function global:Test-PinkBubbleGame {
-    param($Game)
-    if (-not $Game) { return $false }
-    if ($Game.Title -and ($global:PinkBubbleBannerTitles -contains $Game.Title)) { return $true }
-    return $false
-}
-
-# Pick one banner effect for a banner showing $Game. The synth-grid is
-# only added as a candidate (so it CAN come up, never guaranteed) when
-# the game reads as futuristic; a null game falls back to the general
-# pool (no synth).
 function global:Get-BannerFxFor {
     param($Game, [switch]$Featured)
-    if ($Featured -and (Get-Command Select-BannerFxExtra -ErrorAction SilentlyContinue)) {
-        $extra = Select-BannerFxExtra -Game $Game -Roll (Get-Random -Minimum 0.0 -Maximum 1.0) -Pick (Get-Random -Minimum 0.0 -Maximum 1.0)
-        if ($extra) { return $extra }
-    }
-    $pool = @($global:BannerFxPool)
-    if (Test-FuturisticGame -Game $Game) { $pool += "synth" }
-    if (Test-ColorfulGame    -Game $Game) { $pool += "flow" }
-    # Theme-fitting extras. Added as several copies so they come up
-    # clearly more often than a 1-in-56 pool entry, while the normal
-    # rotation still wins roughly 9 times out of 10 - "especially
-    # fitting when it happens", not "this game's effect".
-    if (Test-GoreGame -Game $Game) {
-        $pool += @("bloodrain","bloodrain","bloodrain","bloodsnow","bloodsnow","bloodsnow")
-    }
-    if (Test-AquaticGame -Game $Game) {
-        # bubbles is already in the pool once; these extra copies are what
-        # make it the one you notice on an underwater banner.
-        $pool += @("bubbles","bubbles","bubbles","bubbles","bubbles")
-    }
-    if (Test-PinkBubbleGame -Game $Game) {
-        $pool += @("pinkbubbles","pinkbubbles","pinkbubbles","pinkbubbles")
-    }
-    # Genre-flavoured colour variants (2026-08-16). The same restraint as
-    # above: a few extra copies so they stand out on matching games - not
-    # a permanent effect.
-    if (Test-FuturisticGame -Game $Game) {
-        # Neon on hexagons and a dot grid - cyberpunk, sci-fi.
-        $pool += @("hexcyan","hexcyan","hexmagenta","hexmagenta","fieldcyan","vortextwinice")
-    }
-    if (Test-AquaticGame -Game $Game) {
-        # Deep blue and colourless grey read as water.
-        $pool += @("bubblesdeep","bubblesdeep","bubblesmono")
-    }
-    if (Test-GoreGame -Game $Game) {
-        # Red sparks instead of rain - same mood, different motion.
-        $pool += @("sparkblood","sparkblood","meteorsember")
-    }
-    return ($pool | Get-Random)
+    # Featured/explore and detail side bands have the same strict contract.
+    # HeaderFx owns the separate detail-page glowing orbs and is independent.
+    $pool = @(Get-GameBannerFxCandidates -Game $Game)
+    if ($pool.Count -eq 0) { return 'none' }
+    return (Get-Random -InputObject $pool)
 }
 
 Set-BannerEffect -BannerName "OvBanner"   -BannerH 200 -ColorHex "#FFFFFF" -Effect (Get-BannerFxFor -Game $global:OvBannerGame -Featured)
@@ -2625,6 +2621,7 @@ function global:Add-HeaderHoverGrow {
 Add-HeaderHoverGrow -Element $versionBadge   -Scale 1.10
 Add-HeaderHoverGrow -Element $headerVrIcon   -Scale 1.15
 Add-HeaderHoverGrow -Element $headerHubTitle -Scale 1.04
+Add-HeaderHoverGrow -Element $headerHubSubtitle -Scale 1.10
 Add-HeaderHoverGrow -Element $headerHubTitleCompact -Scale 1.04
 
 # Populate and reveal the "Update X available" banner. Factored into a
@@ -2639,7 +2636,7 @@ Add-HeaderHoverGrow -Element $headerHubTitleCompact -Scale 1.04
 $global:UpdateBannerWired = $false
 function global:Show-UpdateBanner {
     param($Info)
-    if (-not $Info -or -not $Info.LatestVersion) { return }
+    if (-not (Test-HubUpdateInfoIsNewer -Info $Info -CurrentVersion $global:HubCurrentVersion)) { return }
     $banner     = $global:window.FindName("UpdateBanner")
     $bannerText = $global:window.FindName("UpdateBannerText")
     if (-not $banner -or -not $bannerText) { return }
@@ -2656,10 +2653,25 @@ function global:Show-UpdateBanner {
             if ($b) { $b.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1a2e1a") }
         })
         $banner.Add_PreviewMouseLeftButtonDown({
+            $marker = Get-HubUpdateInfoPath
+            $freshInfo = $null
+            try {
+                if ($marker -and (Test-Path -LiteralPath $marker -PathType Leaf)) {
+                    $freshInfo = Get-Content -LiteralPath $marker -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                }
+            } catch {}
+            if (-not (Test-HubUpdateInfoIsNewer -Info $freshInfo -CurrentVersion $global:HubCurrentVersion)) {
+                $global:window.FindName("UpdateBanner").Visibility = [System.Windows.Visibility]::Collapsed
+                return
+            }
             $updaterPath = Join-Path $global:scriptDir "Update-Hub.ps1"
-            Start-Process "powershell.exe" -ArgumentList `
-                "-NoProfile -ExecutionPolicy Bypass -File `"$updaterPath`""
-            $global:window.Close()
+            try {
+                Start-Process "powershell.exe" -ArgumentList `
+                    "-NoProfile -ExecutionPolicy Bypass -File `"$updaterPath`"" -ErrorAction Stop
+                $global:window.Close()
+            } catch {
+                [System.Windows.MessageBox]::Show("Could not start the Hub updater: $($_.Exception.Message)", "Update Error") | Out-Null
+            }
         })
     }
 }

@@ -2,6 +2,130 @@
 #  PCVR Mods Installer Hub
 # ============================================================
 
+# ------------------------------------------------------------
+# PARALLEL PARSE PREFETCH (test build)
+# ------------------------------------------------------------
+# PowerShell has to parse ~3.7 MB of module code on every start before a
+# single line of it runs, and it does so one file after another on the UI
+# thread. Parsing is pure CPU work and thread-safe, so the module files
+# are handed to a small runspace pool right here - before the WPF
+# assemblies load - and parsed in parallel on the other CPU cores. Each
+# module is still dot-sourced in exactly the same order as before; it is
+# only handed over as an already-parsed script block (Get-HubModuleScript).
+#
+# Any doubt falls back to the plain file path: a file that is not in the
+# list, a parse error, a failed self-test or PCVR_HUB_PARALLEL_PARSE=0.
+$global:HubParsePrefetch = $null
+$global:HubParseWaitMs = 0
+$global:HubParseHits = 0
+$global:HubParseMisses = 0
+# Only worth it with spare cores: on a 2-core machine the UI thread would
+# mostly wait for a single worker.
+if ([string]$env:PCVR_HUB_PARALLEL_PARSE -ne '0' -and [Environment]::ProcessorCount -ge 4) {
+    try {
+        $__coreDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+        $__modDir  = Join-Path $__coreDir 'Modules'
+        # Self-test: a script block created from a parsed file must report
+        # that file's folder as $PSScriptRoot, as a dot-sourced file does.
+        $__probeOk = $false
+        try {
+            $__probeAst = [System.Management.Automation.Language.Parser]::ParseInput('$PSScriptRoot', (Join-Path $__modDir 'probe.ps1'), [ref]$null, [ref]$null)
+            $__probeRoot = & { . $__probeAst.GetScriptBlock() }
+            $__probeOk = ([string]$__probeRoot -eq $__modDir)
+        } catch {
+            # Older engines without the ParseInput(fileName) overload: the
+            # script block must at least carry its file, which is what
+            # $PSScriptRoot is derived from.
+            $__probeFile = Join-Path $__modDir 'CardTile.ps1'
+            $__probeSb = ([System.Management.Automation.Language.Parser]::ParseFile($__probeFile, [ref]$null, [ref]$null)).GetScriptBlock()
+            $__probeOk = ([string]$__probeSb.File -eq $__probeFile)
+        }
+        if (-not $__probeOk) { throw "PSScriptRoot self-test failed" }
+
+        # Load order. Files missing here simply load the classic way.
+        $__parseList = @(
+            'Catalog.ps1','CatalogIndex.ps1','DiscordChannels.ps1','BannerColors.ps1','Helpers.ps1','Favorites.ps1',
+            'CardTile.ps1','CardTile.Core.ps1','CardTile.Lazy.ps1','CardTile.Frosted.ps1',
+            'Window.ps1','Window.Layout.ps1','Window.BannerEffects.ps1','Window.Controls.ps1',
+            'ScanSpinner.ps1','DiscoverInit.ps1','UninstallGuide.ps1','ReadmeLinks.ps1','EldenRingSaveUI.ps1',
+            '..\EldenRingVR\EldenRingSaveManager.ps1','..\EldenRingVR\EldenRingSettings.ps1',
+            'DetailView.ps1','DetailView.Tiles.ps1','DetailView.Power.ps1','DetailView.Actions.ps1',
+            'DetailView.Content.ps1','DetailView.Launch.ps1','DetailView.Page.ps1',
+            'OverviewPage.ps1','BannerOvFilters.ps1',
+            'Filter.ps1','Filter.Banners.ps1','Filter.Controls.ps1','Filter.Search.ps1',
+            'Filter.ScanSources.ps1','Filter.Scan.ps1','Filter.InstallRefresh.ps1',
+            'CatalogSort.ps1','HeaderFx.ps1','BannerGlass.ps1','BannerFxExtra.ps1',
+            'CustomGames.ps1','CustomGames.UI.ps1','Startup.ps1'
+        )
+        $__threads = [Math]::Max(1, [Math]::Min(6, [Environment]::ProcessorCount - 1))
+        # An empty session state: the parse workers need no cmdlets, so the
+        # runspaces open in milliseconds instead of loading modules.
+        $__iss = [System.Management.Automation.Runspaces.InitialSessionState]::Create()
+        $__iss.LanguageMode = [System.Management.Automation.PSLanguageMode]::FullLanguage
+        $__pool = [System.Management.Automation.Runspaces.RunspaceFactory]::CreateRunspacePool(1, $__threads, $__iss, $Host)
+        $__pool.Open()
+        $__jobs = New-Object 'System.Collections.Generic.Dictionary[string,object]' ([StringComparer]::OrdinalIgnoreCase)
+        foreach ($__name in $__parseList) {
+            $__path = [System.IO.Path]::GetFullPath((Join-Path $__modDir $__name))
+            if (-not [System.IO.File]::Exists($__path)) { continue }
+            $__ps = [PowerShell]::Create()
+            $__ps.RunspacePool = $__pool
+            [void]$__ps.AddScript('param($p) $t = $null; $e = $null; $a = [System.Management.Automation.Language.Parser]::ParseFile($p, [ref]$t, [ref]$e); if ($e.Count -eq 0) { $a }').AddArgument($__path)
+            $__jobs[$__path] = [pscustomobject]@{ PS = $__ps; Handle = $__ps.BeginInvoke() }
+        }
+        $global:HubParsePrefetch = [pscustomobject]@{ Pool = $__pool; Jobs = $__jobs; Threads = $__threads }
+    } catch {
+        $global:HubParsePrefetchError = $_.Exception.Message
+        $global:HubParsePrefetch = $null
+    }
+    Remove-Variable __coreDir, __modDir, __probeOk, __probeAst, __probeRoot, __probeFile, __probeSb, __parseList, __threads, __iss, __pool, __jobs, __name, __path, __ps -ErrorAction SilentlyContinue
+}
+
+# Returns the prefetched, already-parsed script block for a module file,
+# or the path itself (dot-sourcing either is equivalent). Every caller
+# dot-sources the result: . (Get-HubModuleScript $path)
+function global:Get-HubModuleScript {
+    param([string]$Path)
+    $pf = $global:HubParsePrefetch
+    if (-not $pf) { return $Path }
+    $full = $Path
+    try { $full = [System.IO.Path]::GetFullPath($Path) } catch { return $Path }
+    $job = $null
+    if (-not $pf.Jobs.TryGetValue($full, [ref]$job)) { $global:HubParseMisses++; return $Path }
+    [void]$pf.Jobs.Remove($full)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    $ast = $null
+    try {
+        $res = $job.PS.EndInvoke($job.Handle)
+        if ($res -and $res.Count -gt 0) {
+            $ast = $res[0]
+            if ($ast -is [psobject]) { $ast = $ast.psobject.BaseObject }
+        }
+    } catch { $ast = $null }
+    finally { try { $job.PS.Dispose() } catch { } }
+    $sw.Stop()
+    $global:HubParseWaitMs += $sw.ElapsedMilliseconds
+    if ($ast -is [System.Management.Automation.Language.ScriptBlockAst]) {
+        $global:HubParseHits++
+        return $ast.GetScriptBlock()
+    }
+    $global:HubParseMisses++
+    return $Path
+}
+
+# Frees the parse workers once every startup module is loaded.
+function global:Close-HubParsePrefetch {
+    $pf = $global:HubParsePrefetch
+    if (-not $pf) { return }
+    $global:HubParsePrefetch = $null
+    foreach ($j in @($pf.Jobs.Values)) { try { $j.PS.Stop(); $j.PS.Dispose() } catch { } }
+    try { $pf.Pool.Close(); $pf.Pool.Dispose() } catch { }
+    try {
+        Write-HubTiming ("parse prefetch: {0} modules pre-parsed on {1} threads, {2} classic, waited {3} ms in total" -f `
+            $global:HubParseHits, $pf.Threads, $global:HubParseMisses, $global:HubParseWaitMs)
+    } catch { }
+}
+
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName PresentationCore
 Add-Type -AssemblyName WindowsBase
@@ -251,7 +375,11 @@ try {
     $timingFlag = Join-Path $rootDir ".timing"
     if ((Test-Path $timingFlag) -or $env:PCVR_HUB_STARTUP_TIMING -eq '1') {
         $global:HubTiming.Enabled = $true
+        # Count from the PROCESS start (test build): the log then also covers
+        # powershell.exe start-up, the WPF assembly load and HubState.ps1,
+        # which used to happen before the old zero point.
         $global:HubTiming.Start = [DateTime]::UtcNow
+        try { $global:HubTiming.Start = [System.Diagnostics.Process]::GetCurrentProcess().StartTime.ToUniversalTime() } catch { }
         $global:HubTiming.Log = Join-Path $env:TEMP "PCVRHub_startup.log"
         $banner = "===== PCVR Hub startup $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') v$HUB_VERSION ====="
         Add-Content -Path $global:HubTiming.Log -Value "" -ErrorAction SilentlyContinue
@@ -268,16 +396,25 @@ function global:Write-HubTiming {
     } catch { }
 }
 Write-HubTiming "boot: after assembly load + scriptDir"
+if ($global:HubParsePrefetch) { Write-HubTiming ("parse prefetch: running on {0} threads" -f $global:HubParsePrefetch.Threads) }
+elseif ($global:HubParsePrefetchError) { Write-HubTiming ("parse prefetch: disabled ({0})" -f $global:HubParsePrefetchError) }
+else { Write-HubTiming "parse prefetch: off (PCVR_HUB_PARALLEL_PARSE=0 or fewer than 4 CPUs)" }
 
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.8.1"
+$HUB_VERSION = "0.8.8.3"
+$global:HubCurrentVersion = $HUB_VERSION
 
 $updateInfoFile  = Get-HubUpdateInfoPath
 $script:updateInfo = $null
-if (Test-Path $updateInfoFile) {
-    try { $script:updateInfo = Get-Content $updateInfoFile -Raw | ConvertFrom-Json } catch {}
+if ($updateInfoFile -and (Test-Path $updateInfoFile)) {
+    try {
+        $candidate = Get-Content $updateInfoFile -Raw | ConvertFrom-Json
+        if (Test-HubUpdateInfoIsNewer -Info $candidate -CurrentVersion $HUB_VERSION) {
+            $script:updateInfo = $candidate
+        }
+    } catch {}
 }
 
 # -------------------------------------------------------
@@ -309,7 +446,7 @@ function Test-IsTrackableInstalledVersion {
     # Reject release/package objects instead of stringifying them into state.
     if ($Version -isnot [string] -and $Version -isnot [ValueType] -and $Version -isnot [version]) { return $false }
     $versionText = ([string]$Version).Trim()
-    if ([string]::IsNullOrWhiteSpace($versionText)) { return $false }
+    if ([string]::IsNullOrWhiteSpace($versionText) -or $versionText.Length -gt 128 -or $versionText -match '[\r\n{}]') { return $false }
     return ($versionText -match '\d')
 }
 
@@ -748,7 +885,16 @@ function Read-InstalledVersionProof {
 function Read-InstalledVersion {
     param($Game, [string]$GameDir)
     $pending = Import-PendingInstallerVersion -Game $Game -GameDir $GameDir
-    if (Test-IsTrackableInstalledVersion -Version $pending) { return ([string]$pending) }
+    if (Test-IsTrackableInstalledVersion -Version $pending) {
+        # A publisher launcher may have updated again after this Hub receipt.
+        $proof = Read-InstalledVersionProof -Game $Game -GameDir $GameDir
+        if ($proof -and (Get-Command Test-OnlineVersionIsNewer -ErrorAction SilentlyContinue) -and
+            (Test-OnlineVersionIsNewer -Installed ([string]$pending) -Online ([string]$proof))) {
+            Write-InstalledVersion -Game $Game -Version $proof -GameDir $GameDir
+            return ([string]$proof)
+        }
+        return ([string]$pending)
+    }
     $vKeep = Read-PersistentGameStateValue -Game $Game -Name 'installed_version'
     if (Test-IsTrackableInstalledVersion -Version $vKeep) {
         $proof = Read-InstalledVersionProof -Game $Game -GameDir $GameDir
@@ -986,6 +1132,7 @@ foreach ($mod in @(
     "Catalog.ps1",
     "BannerColors.ps1",
     "Helpers.ps1",
+    "Favorites.ps1",
     "CardTile.ps1",
     "Window.ps1",
     "ScanSpinner.ps1",
@@ -1004,6 +1151,9 @@ foreach ($mod in @(
     "CustomGames.ps1",
     "Startup.ps1"
 )) {
-    . (Join-Path $modulesDir $mod)
+    $__modScript = Get-HubModuleScript (Join-Path $modulesDir $mod)
+    # Startup.ps1 ends in ShowDialog: release the parse workers first.
+    if ($mod -eq "Startup.ps1") { Close-HubParsePrefetch }
+    . $__modScript
     Write-HubTiming ("module loaded: {0}" -f $mod)
 }

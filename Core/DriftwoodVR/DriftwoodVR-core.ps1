@@ -205,7 +205,7 @@ while (-not $archiveReady) {
   Write-Host " $GITHUB_DOWNLOAD_URL" -ForegroundColor DarkGray
   try {
    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-   Invoke-WebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -TimeoutSec 180 -ErrorAction Stop
+   Invoke-PCVRWebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -TimeoutSec 180 -ErrorAction Stop
   } catch { Write-Fail "Download failed: $_" }
  }
  if ((Test-DownloadedPayload -Path $modZip -IntendedPath 'Drifwood_VRMod_bHaptics.zip') -and

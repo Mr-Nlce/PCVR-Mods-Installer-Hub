@@ -4,7 +4,7 @@
 #
 # Walks the user through:
 # 1. Opens itch.io download page in browser
-# 2. User downloads Sclerosis_VR_v1.8.16.zip manually
+# 2. User downloads Sclerosis_v1.10.7.zip manually
 # 3. Drag-and-drop ZIP into this window
 # 4. Auto-locate Amnesia: The Dark Descent install folder
 # 5. Extract mod files in place next to Amnesia.exe
@@ -16,9 +16,8 @@
 # The mod ships its own engine (Unity) - Sclerosis.exe
 # is the new launch target, NOT the original Amnesia.exe.
 #
-# Development status: the mod author halted development
-# in 2024. v1.8.16 is the final shipping version.
-# No auto-updater - we pin the version.
+# The reviewed release is v1.10.7. The manual publisher filename supplies
+# the selected version; a renamed ZIP needs explicit version confirmation.
 # -------------------------------------------------------
 
 
@@ -29,7 +28,7 @@
 . (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "Sclerosis (Amnesia VR Remake)"
-$MOD_VERSION = "v1.8.16"
+$MOD_VERSION = "v1.10.7"
 $MOD_AUTHOR = "CreaTeam"
 
 $GAME_APPID = "57300"
@@ -38,7 +37,7 @@ $GAME_NAME = "Amnesia The Dark Descent"
 # itch.io mod page - user downloads the ZIP from here.
 # Direct download URL not extractable (itch token-protected).
 $ITCH_PAGE_URL = "https://createam.itch.io/sclerosis-an-amnesia-vr-remake"
-$EXPECTED_ZIP = "Sclerosis_VR_v1.8.16.zip"
+$EXPECTED_ZIP = "Sclerosis_v1.10.7.zip"
 
 # Optional HD texture pack (Nexus). 4x AI-upscaled textures - a single
 # data.unity3d that REPLACES the one in Sclerosis_Data. Downloaded by the
@@ -70,7 +69,19 @@ function Write-OK { param($m) Write-Host " [OK] $m" -ForegroundColor Green }
 function Write-Info { param($m) Write-Host " [i] $m" -ForegroundColor Cyan }
 function Write-Warn { param($m) Write-Host " [!] $m" -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") [void](Wait-PCVRExplicitEnter -Message $text) }
+
+function Get-AmnesiaArchiveVersion([string]$Path) {
+    $match=[regex]::Match([IO.Path]::GetFileName($Path),'(?i)^Sclerosis(?:_VR)?_v?(?<version>\d+(?:\.\d+){1,3}(?:-[A-Za-z0-9.-]+)?)\.zip$')
+    if($match.Success){return 'v'+$match.Groups['version'].Value}
+    return ''
+}
+
+function Test-AmnesiaLegacyHD([string]$SclDataDir) {
+    $receipt=Join-Path (Split-Path -Parent $SclDataDir) '.pcvrhub_version'
+    if(-not(Test-Path -LiteralPath $receipt -PathType Leaf)){return $false}
+    return (([IO.File]::ReadAllText($receipt)).Trim() -match '^v?1\.8\.16$')
+}
 
 # Extract a .zip with a live progress line (entry count + MB written), so a
 # big archive (the ~3 GB HD pack) never looks frozen behind a static bar.
@@ -214,6 +225,11 @@ function Install-AmnesiaBaseArchive {
 # $true when the HD data.unity3d was placed.
 function Install-AmnesiaHDTextures {
     param([string]$SclDataDir, [string]$ScriptDir)
+    if(-not(Test-AmnesiaLegacyHD $SclDataDir)){
+        Write-Warn 'The legacy HD texture pack is not verified for Sclerosis v1.10.7 or other newer versions.'
+        Write-Info 'Keeping the publisher textures. The HD-only route requires a confirmed v1.8.16 installation.'
+        return $false
+    }
     if (-not (Test-Path -LiteralPath $SclDataDir)) {
         Write-Warn "Sclerosis_Data folder not found ($SclDataDir)."
         Write-Host "  The base mod may not be installed correctly - skipping HD pack." -ForegroundColor Yellow
@@ -385,7 +401,8 @@ if ($existingGamePath) {
         $ok = Install-AmnesiaHDTextures -SclDataDir $sclData -ScriptDir $PSScriptRoot
         if ($ok) {
             Write-Host ""
-            Write-Host "  Done. Launch Amnesia VR from your existing shortcut as usual." -ForegroundColor White
+            Write-Host "  1. Use Start in VR in the Hub." -ForegroundColor White
+            Write-Host "  2. Or use your Amnesia VR desktop shortcut." -ForegroundColor White
             Write-Host ""
             Write-Host "  Tinderboxes lit. Mind still slipping. Welcome to the dark." -ForegroundColor Magenta
         } else {
@@ -400,7 +417,7 @@ if ($existingGamePath) {
     Write-Host ""
 }
 Write-Host "  The free mod downloads from itch.io - the page opens next; grab" -ForegroundColor White
-Write-Host "  $EXPECTED_ZIP (~916 MB), then drag it onto this window." -ForegroundColor White
+Write-Host "  $EXPECTED_ZIP (~947 MB), then drag it onto this window." -ForegroundColor White
 Write-Host ""
 Pause-User "Press Enter to open the itch.io page in your browser..."
 try { Start-Process $ITCH_PAGE_URL } catch {
@@ -429,6 +446,20 @@ while (-not $modZip) {
  Write-Fail "File not found: $r"
  }
 }
+
+$selectedVersion=Get-AmnesiaArchiveVersion $modZip
+while(-not $selectedVersion){
+    Write-Warn 'This renamed ZIP does not state its version. Check the official download page.'
+    $declared=(''+(Read-Host '  Enter the Sclerosis version printed on that page (for example 1.10.7), or Q to cancel')).Trim()
+    if(-not $declared -or $declared -match '^(?i)q$'){
+        Write-Info 'No version confirmed. No game files were changed.'
+        Pause-User 'Press Enter to close...'
+        return
+    }
+    if($declared -match '^v?\d+(?:\.\d+){1,3}(?:-[A-Za-z0-9.-]+)?$'){$selectedVersion='v'+$declared.TrimStart('v','V')}
+}
+$MOD_VERSION=$selectedVersion
+Write-OK "Selected Sclerosis version: $MOD_VERSION"
 
 # -------------------------------------------------------
 # STEP 2: Locate the Amnesia install
@@ -493,12 +524,16 @@ if (Test-Path $sclerosisExe) {
 # STEP 4: Optional HD texture pack (Nexus, 4x AI upscale)
 # -------------------------------------------------------
 Write-Step 4 5 "Optional: HD texture pack"
-$hdChoice = Read-Host " Install the optional HD texture pack now? (Y/N)"
-if ($hdChoice -match '^(y|yes|j|ja)$') {
-    $sclDataDir = Join-Path $gamePath "Sclerosis_Data"
-    Install-AmnesiaHDTextures -SclDataDir $sclDataDir -ScriptDir $PSScriptRoot | Out-Null
+$sclDataDir = Join-Path $gamePath "Sclerosis_Data"
+if(-not(Test-AmnesiaLegacyHD $sclDataDir)){
+    Write-Info "The legacy HD texture pack is not verified for Sclerosis $MOD_VERSION; keeping publisher textures."
 } else {
-    Write-Info "Skipping the HD texture pack. You can re-run this installer to add it later."
+    $hdChoice = Read-Host " Install the optional HD texture pack now? (Y/N)"
+    if ($hdChoice -match '^(y|yes|j|ja)$') {
+        Install-AmnesiaHDTextures -SclDataDir $sclDataDir -ScriptDir $PSScriptRoot | Out-Null
+    } else {
+        Write-Info "Skipping the HD texture pack. You can re-run this installer to add it later."
+    }
 }
 
 # STEP 5: Desktop shortcut
@@ -525,8 +560,8 @@ Write-Host "============================================================" -Foreg
 Write-Host " Installation complete." -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
-Write-Host " Launch via the Hub: Start in VR -> runs Sclerosis.exe" -ForegroundColor White
-Write-Host " Desktop shortcut: 'Amnesia VR' -> Sclerosis.exe" -ForegroundColor White
+Write-Host " 1. Use Start in VR in the Hub." -ForegroundColor White
+Write-Host " 2. Or use the Amnesia VR desktop shortcut." -ForegroundColor White
 Write-Host ""
 Write-Host " Tinderboxes lit. Mind still slipping. Welcome to the dark." -ForegroundColor Magenta
 Write-Host ""

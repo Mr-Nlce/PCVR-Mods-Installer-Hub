@@ -1,4 +1,4 @@
-# EARTH DEFENSE FORCE 6 VR
+﻿# EARTH DEFENSE FORCE 6 VR
 
 WIP. EDF6VR adds native stereo rendering, roomscale 6DoF tracking, one- and two-hand weapon aiming, all four soldier classes and vehicles. Ranger can draw the second primary weapon from the left-temple holster and aim and fire both guns independently. Recent packages also add automatic headset-FOV fitting, resolution control and an optional locally generated HD-texture pack.
 
@@ -41,13 +41,9 @@ Bring the support hand near the weapon's front support point for two-hand aim. F
 
 To adjust the weapon, hold the left controller beside a temple and hold left-stick down for three seconds. Sticks, triggers and grips then move and rotate the weapon; Right A saves and Left X cancels. Left-temple plus left-stick up for three seconds resets tracked view height.
 
-## Current installable package: 3.2.9
+## Current installable package: 3.2.11
 
-Version 3.2.9 fixes the Fencer gatling feed belt on the back and still includes
-EDF6MultiSlot 1.6.9. Version 3.1.12 improved frame rate by about 10% according to the publisher and
-includes EDF6MultiSlot 1.6.9. The installer follows current releases, including
-prereleases, and verifies the package manifest before changing game files. If
-GitHub is unavailable, its reviewed direct fallback is 3.2.9.
+Version 3.2.11 corrects Fencer aiming and Wing Diver trails, and includes EDF6MultiSlot 1.6.10. With the left controller beside your temple, press [[Left Stick Click]] to open the game menu (Start). The installer follows current releases, including prereleases. Its separately labelled reviewed direct fallback remains 3.2.9 if the live release cannot be resolved; that fallback is not presented as the latest version.
 
 The 1.2 and 1.3 series substantially improves the original package: spatial audio tearing is largely fixed, the held weapon remains visible while rolling, laser sights follow the gun again and rendering is reported as roughly 20–30% faster. The rendered field of view now fits the headset automatically from the previous launch; restart once after changing headsets if a black edge appears.
 

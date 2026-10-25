@@ -1,6 +1,12 @@
 param([string]$GameRoot='', [switch]$HubConfirmed, [switch]$NoPause)
 $ErrorActionPreference='Stop'
 function Finish-RTCW([int]$Code){if(-not $NoPause){Write-Host '';Read-Host 'Press Enter to exit'|Out-Null};exit $Code}
+function Get-RTCWFileSha256([string]$Path){
+    $stream=[IO.File]::OpenRead($Path)
+    $sha=[Security.Cryptography.SHA256]::Create()
+    try{return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')}
+    finally{$sha.Dispose();$stream.Dispose()}
+}
 $receipt=if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_RTCW_TEST_RECEIPT){$env:PCVR_RTCW_TEST_RECEIPT}else{Join-Path $PSScriptRoot '.installed_path'}
 if(-not $GameRoot -and (Test-Path -LiteralPath $receipt -PathType Leaf)){$GameRoot=([IO.File]::ReadAllText($receipt)).Trim()}
 if(-not $GameRoot -or -not(Test-Path -LiteralPath (Join-Path $GameRoot '.pcvrhub_rtcwxr_ownership.csv') -PathType Leaf)){
@@ -17,7 +23,7 @@ foreach($row in @(Import-Csv -LiteralPath $manifest)){
     $path=[IO.Path]::GetFullPath((Join-Path $root $rel))
     if(-not $path.StartsWith($root.TrimEnd([char[]]'\\/')+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){throw 'Ownership manifest leaves the VR folder.'}
     if(-not(Test-Path -LiteralPath $path -PathType Leaf)){continue}
-    if((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne [string]$row.Sha256){$preserved++;continue}
+    if((Get-RTCWFileSha256 $path) -ne [string]$row.Sha256){$preserved++;continue}
     Remove-Item -LiteralPath $path -Force;$removed++
 }
 if($preserved -eq 0){

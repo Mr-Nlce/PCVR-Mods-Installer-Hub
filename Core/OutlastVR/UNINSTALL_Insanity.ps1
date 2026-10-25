@@ -13,7 +13,7 @@ try {
     }
     if (-not $GameRoot) { throw 'Outlast was not found. Locate the game in the Hub, then retry removal.' }
     $layout = Get-OutlastLayout $GameRoot
-    if (Get-Process -Name OLGame -ErrorAction SilentlyContinue) { throw 'Close Outlast before removing the VR mod.' }
+    if (Get-Process -Name OLGame,Outlast1VR -ErrorAction SilentlyContinue) { throw 'Close Outlast and its VR launcher before removing the VR mod.' }
     if (-not (Test-OutlastStore $GameRoot 'Insanity')) { throw 'No complete Hub-managed Insanity Engine VR installation was found.' }
 
     $previous = Get-OutlastActiveMod $GameRoot
@@ -42,15 +42,19 @@ try {
     $state = Join-Path $layout.Stores '.active_mod.json'
     if (Test-Path -LiteralPath $state -PathType Leaf) { Remove-Item -LiteralPath $state -Force -ErrorAction Stop }
     Write-OutlastLaunchers -GameRoot $GameRoot -RuntimePath (Join-Path $PSScriptRoot 'OutlastVR-Switch.ps1')
-    if ($hadHalcyon) { Switch-OutlastMod -GameRoot $GameRoot -Name 'Halcyon' }
+    if ($previous -eq 'StrikeZone' -and (Test-OutlastStore $GameRoot 'StrikeZone')) {
+        Switch-OutlastMod -GameRoot $GameRoot -Name 'StrikeZone'
+    } elseif ($hadHalcyon) { Switch-OutlastMod -GameRoot $GameRoot -Name 'Halcyon' }
     foreach ($marker in @((Join-Path $PSScriptRoot '.installed_version_b'), (Join-Path $GameRoot '.pcvrhub_version_b'))) {
         if (Test-Path -LiteralPath $marker -PathType Leaf) { Remove-Item -LiteralPath $marker -Force -ErrorAction Stop }
     }
-    Write-Host '[OK] Insanity Engine VR removed; personal settings and any Halcyon installation remain.' -ForegroundColor Green
+    Write-Host '[OK] Insanity Engine VR removed; the other installed Outlast VR routes remain.' -ForegroundColor Green
 } catch {
     Write-Host "[X] Insanity Engine VR was not fully removed: $_" -ForegroundColor Red
     try {
-        if ($previous -eq 'Halcyon' -and $hadHalcyon) { Switch-OutlastMod -GameRoot $GameRoot -Name 'Halcyon' }
+        if ($previous -in @('Halcyon','StrikeZone') -and (Test-OutlastStore $GameRoot $previous)) {
+            Switch-OutlastMod -GameRoot $GameRoot -Name $previous
+        }
     } catch { Write-Host "[!] Reopen the Halcyon launcher to restore it: $_" -ForegroundColor Yellow }
     exit 1
 }

@@ -23,6 +23,7 @@ param(
     [string]$StatusPath = "",
     [string]$VersionPath = "",
     [string]$VersionPathB = "",
+    [string]$VersionPathC = "",
     [string]$InstallPath = "",
     [string]$InstallerChoice = "",
     [string]$ExpectedInstalledVersion = "",
@@ -296,10 +297,12 @@ if (-not [string]::IsNullOrWhiteSpace($StatusPath) -and (Test-Path -LiteralPath 
 
 $beforeVersion  = Get-MarkerSnapshot -Path $VersionPath
 $beforeVersionB = Get-MarkerSnapshot -Path $VersionPathB
+$beforeVersionC = Get-MarkerSnapshot -Path $VersionPathC
 $beforeInstallPath = Get-MarkerSnapshot -Path $InstallPath
 $beforeRoot = Get-RecordedInstallRoot -Path $InstallPath
 $beforeGameVersion  = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $beforeRoot '.pcvrhub_version' } else { '' })
 $beforeGameVersionB = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $beforeRoot '.pcvrhub_version_b' } else { '' })
+$beforeGameVersionC = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $beforeRoot '.pcvrhub_version_c' } else { '' })
 
 # Finalize a successful installer from fresh evidence only. This is a function
 # because many older installer cores end with `exit 0`. PowerShell executes a
@@ -312,10 +315,12 @@ function Write-FreshInstallerSuccessResult {
     try {
         $afterVersion  = Get-MarkerSnapshot -Path $VersionPath
         $afterVersionB = Get-MarkerSnapshot -Path $VersionPathB
+        $afterVersionC = Get-MarkerSnapshot -Path $VersionPathC
         $afterInstallPath = Get-MarkerSnapshot -Path $InstallPath
         $afterRoot = Get-RecordedInstallRoot -Path $InstallPath
         $afterGameVersion  = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version' } else { '' })
         $afterGameVersionB = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version_b' } else { '' })
+        $afterGameVersionC = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version_c' } else { '' })
         # A path becoming known is not version evidence. The resulting marker
         # must actually exist and differ from the pre-run snapshot; otherwise a
         # newly written install path could make an absent game-folder marker
@@ -324,13 +329,15 @@ function Write-FreshInstallerSuccessResult {
                           ($afterGameVersion.Exists -and (Test-MarkerChanged -Before $beforeGameVersion -After $afterGameVersion))
         $secondaryWritten = ($afterVersionB.Exists -and (Test-MarkerChanged -Before $beforeVersionB -After $afterVersionB)) -or
                             ($afterGameVersionB.Exists -and (Test-MarkerChanged -Before $beforeGameVersionB -After $afterGameVersionB))
+        $thirdWritten = ($afterVersionC.Exists -and (Test-MarkerChanged -Before $beforeVersionC -After $afterVersionC)) -or
+                        ($afterGameVersionC.Exists -and (Test-MarkerChanged -Before $beforeGameVersionC -After $afterGameVersionC))
         # A normal return is NOT proof of success. Several older cores display
         # [X] and use `return` after a handled failure. Only a freshly written
         # marker is authoritative enough to clear an Update badge.
         $installPathWritten = $afterInstallPath.Exists -and
                               (Test-MarkerChanged -Before $beforeInstallPath -After $afterInstallPath) -and [bool]$afterRoot
         $pinnedVersionReceipt = $false
-        if (-not ($primaryWritten -or $secondaryWritten) -and $installPathWritten -and
+        if (-not ($primaryWritten -or $secondaryWritten -or $thirdWritten) -and $installPathWritten -and
             -not [string]::IsNullOrWhiteSpace($ExpectedInstalledVersion) -and
             $ExpectedInstalledVersion -match '\d') {
             # Fixed/manual packages have no live publisher identity. Their
@@ -344,9 +351,10 @@ function Write-FreshInstallerSuccessResult {
         $successEvidence = @()
         if ($primaryWritten)     { $successEvidence += $(if ($pinnedVersionReceipt) { 'catalog_pinned_version' } else { 'version' }) }
         if ($secondaryWritten)   { $successEvidence += 'version_b' }
+        if ($thirdWritten)       { $successEvidence += 'version_c' }
         if ($installPathWritten) { $successEvidence += 'installed_path' }
 
-        if ($RequireVersionEvidence -and -not ($primaryWritten -or $secondaryWritten)) {
+        if ($RequireVersionEvidence -and -not ($primaryWritten -or $secondaryWritten -or $thirdWritten)) {
             throw 'This version-tracked installer finished without an exact version receipt. The Hub did not mark the update complete.'
         }
         if ($successEvidence.Count -gt 0) {
@@ -380,6 +388,7 @@ function Write-FreshInstallerSuccessResult {
                 evidence = @($successEvidence)
                 versionWritten = [bool]$primaryWritten
                 versionBWritten = [bool]$secondaryWritten
+                versionCWritten = [bool]$thirdWritten
                 installedPathWritten = [bool]$installPathWritten
                 installedPath = [string]$afterRoot
                 versionValue = if ($primaryWritten) {
@@ -391,6 +400,11 @@ function Write-FreshInstallerSuccessResult {
                 versionBValue = if ($secondaryWritten) {
                     if ((Test-MarkerChanged -Before $beforeVersionB -After $afterVersionB) -and $afterVersionB.Value) { [string]$afterVersionB.Value }
                     elseif ($afterGameVersionB.Value) { [string]$afterGameVersionB.Value }
+                    else { '' }
+                } else { '' }
+                versionCValue = if ($thirdWritten) {
+                    if ((Test-MarkerChanged -Before $beforeVersionC -After $afterVersionC) -and $afterVersionC.Value) { ([string]$afterVersionC.Value).Trim() }
+                    elseif ($afterGameVersionC.Value) { ([string]$afterGameVersionC.Value).Trim() }
                     else { '' }
                 } else { '' }
             }
@@ -430,6 +444,7 @@ function Invoke-InstallerCoreRunspace {
                 if ($LiveTranscriptPath) {
                     Start-Transcript -LiteralPath $LiveTranscriptPath -Append -ErrorAction Stop | Out-Null
                     $liveTranscript = $true
+                    $global:PCVRInstallerLiveLogPath = $LiveTranscriptPath
                 }
                 & $InstallerPath @InstallerArguments
             } finally {

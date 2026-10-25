@@ -52,6 +52,7 @@ function global:Get-GamePowerBucket {
 
 function global:Test-OverviewGameInGenre {
     param($Game, $Genre)
+    if ($Game.UntestedInstaller) { return $false }
     if (-not $Game.Tags) { return $false }
     if ($Genre.Match.Count -eq 0) { return $true }
     foreach ($tag in $Game.Tags) {
@@ -64,12 +65,13 @@ function global:Test-OverviewGameInGenre {
 }
 
 function global:New-OverviewTile {
-    param($Game)
+    param($Game, $Into = $null)
     $sizeKey = if ($global:ExploreSize) { $global:ExploreSize } else { "M" }
     $dim = $global:OverviewTileSizes[$sizeKey]
     if (-not $dim) { $dim = $global:OverviewTileSizes["M"] }
 
-    $tile = New-Object System.Windows.Controls.Border
+    # -Into: build into an existing lazy placeholder (see CardTile.Lazy.ps1).
+    $tile = if ($Into) { $Into } else { New-Object System.Windows.Controls.Border }
     $tile.Width  = $dim.W
     $tile.Height = $dim.H
     # Vertical margin big enough that the hover glow (drop-shadow,
@@ -236,7 +238,8 @@ function global:New-OverviewTile {
     $flash.RadiusY = 5
     $grid.Children.Add($flash) | Out-Null
 
-    $tile.Resources.Add("game", $Game)
+    # Indexer, not Add: a lazy placeholder already carries "game".
+    $tile.Resources["game"] = $Game
     $tile.Resources.Add("flash", $flash)
 
     # Glow: an outer drop-shadow tinted to the game's accent
@@ -380,6 +383,7 @@ function global:Get-FeaturedRandomGame {
     $motionPool  = @()
     $gamepadPool = @()
     foreach ($g in $pool) {
+        if ($g.UntestedInstaller) { continue }
         $skip = $false
         foreach ($bad in $blockTitles) {
             if ($g.Title -eq $bad) { $skip = $true; break }
@@ -417,7 +421,7 @@ function global:Get-FeaturedRandomGame {
         return $gamepadPool[(Get-Random -Minimum 0 -Maximum $gamepadPool.Count)]
     }
     # Fallback: whichever pool has games
-    $either = if ($motionPool.Count -gt 0) { $motionPool } else { $gamepadPool }
+    $either = @(if ($motionPool.Count -gt 0) { $motionPool } else { $gamepadPool })
     if ($either.Count -eq 0) { return $null }
     return $either[(Get-Random -Minimum 0 -Maximum $either.Count)]
 }
@@ -455,6 +459,7 @@ function global:Get-FeaturedRandomGameForGenre {
 
     $matchedPool = @()
     foreach ($g in $pool) {
+        if ($g.UntestedInstaller) { continue }
         $skip = $false
         foreach ($bad in $blockTitles) {
             if ($g.Title -eq $bad) { $skip = $true; break }
@@ -915,7 +920,7 @@ function global:Set-OvBannerForActiveGenre {
     if ($genreKey -eq "FREE" -or $genreKey -eq "NEW") {
         $pool = @(); $pool += $ownGames; $pool += $ownGamesGP; $pool += $externalGames
         $specialTitles = if ($genreKey -eq 'FREE') { $global:FREE_GAME_TITLES } else { $global:NEW_GAME_TITLES }
-        $specialPool = @($pool | Where-Object { $_.Title -and ($specialTitles -contains $_.Title) })
+        $specialPool = @($pool | Where-Object { -not $_.UntestedInstaller -and $_.Title -and ($specialTitles -contains $_.Title) })
         if ($specialPool.Count -eq 0) { return }
         $cur = if ($global:OvBannerGame) { $global:OvBannerGame.Title } else { $null }
         if ($cur -and $specialPool.Count -gt 1) { $specialPool = @($specialPool | Where-Object { $_.Title -ne $cur }) }

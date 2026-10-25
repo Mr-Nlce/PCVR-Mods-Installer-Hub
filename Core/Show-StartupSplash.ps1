@@ -1,4 +1,4 @@
-# Startup splash shown in the launcher console while the Hub loads
+﻿# Startup splash shown in the launcher console while the Hub loads
 # concurrently. Prints a magenta banner (same rule line as the installer
 # headers) plus a progress bar that fills toward the last recorded load
 # time, then snaps to 100% the moment the Hub signals its window is up.
@@ -85,7 +85,15 @@ function Get-SplashProgressFraction {
 }
 
 # Manually audited real-game count shown in the {N} hints.
-# Fixed baseline: 325 distinct games as of 2026-10-17. Alan Wake VR adds one
+# Fixed baseline: 342 distinct games as of 2026-10-25. GRID (2019), GRID Legends and DiRT 4 each add one separately checked new title. Forza Horizon 4 adds
+# one game; the GrayHorizon alternatives for FH5/FH6 add no distinct games.
+# Dishonored 2 adds one
+# distinct game after the 337-game baseline. Far Cry 2 adds one game
+# after the prior 336-game baseline. Enshrouded, Vampire:
+# The Masquerade - Bloodlines, Vampire Hunters and Hitman: Blood Money add
+# four distinct games after the prior 332-game baseline. Modern Warfare 2 Campaign Remastered adds
+# one distinct game after the prior 330-game baseline. Rustler and Brutal Legend
+# each add one distinct game after the prior 325-game baseline. Alan Wake VR adds one
 # distinct original game after the prior 324-game baseline. Spec Ops: The Line VR
 # adds one distinct Steam game after the prior 323-game baseline. Project
 # Zomboid VR added one after the prior 322-game baseline. Teardown and Journey
@@ -97,7 +105,7 @@ function Get-SplashProgressFraction {
 # catalog tiles, mods, installer routes, depots, legacy entries or tools.
 # Increment it by exactly one only when a genuinely new game that has never
 # appeared anywhere in the Hub is added and individually confirmed as new.
-$tileCount = 325
+$tileCount = 342
 
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only

@@ -771,9 +771,18 @@ function global:New-OvGenreRow {
     # while its tiles stream in.
     if (-not $Deferred) {
         foreach ($g in $Games) {
-            $tile = New-OverviewTile -Game $g
+            # Lazy cards (test build): a placeholder; built when scrolled into view.
+            $tile = if ($global:HubLazyCards -and (Get-Command New-LazyOverviewTile -ErrorAction SilentlyContinue)) {
+                New-LazyOverviewTile -Game $g
+            } else {
+                New-OverviewTile -Game $g
+            }
             $tilesPanel.Children.Add($tile) | Out-Null
         }
+    }
+    # Horizontal scrolling inside a row brings unbuilt tiles into view.
+    if ($global:HubLazyCards) {
+        $scroll.Add_ScrollChanged({ if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize } })
     }
     # Track whether the duplicate-copy has been added. We only add
     # it once we know the row actually overflows the viewport - if
@@ -1008,6 +1017,7 @@ function global:Build-OvGenreRows {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
     $global:OvAllGames = $allGames
 
     foreach ($genre in $global:OverviewGenres) {
@@ -1137,6 +1147,8 @@ function global:Apply-OvFilters {
             $leftHost.Visibility = [System.Windows.Visibility]::Collapsed
         }
     }
+    # Rows/tiles shown by the new filter are built next (lazy cards).
+    if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
 }
 
 $global:OverviewBuilt = $false
@@ -1173,15 +1185,13 @@ function global:Build-DiscoverOverview {
     $global:OverviewBuilt = $true
 }
 
-# Background prewarm: build the Explore rows incrementally so the UI
-# thread keeps rendering banner animations while it works. Kicked off at
-# Background priority shortly after the window is interactive (see
-# Startup.ps1). The unit of work is deliberately tiny - one empty row
-# shell or ONE tile per dispatcher cycle - because a whole row at once
-# (~10-20 tiles, each with many Add_ handlers) blocked the thread long
-# enough to stutter the animation. See Invoke-OverviewPrewarmStep.
+# Background prewarm: one empty row or one tile per paced idle tick. The
+# timer leaves room for frames and pauses while the user moves or types.
 function global:Start-OverviewPrewarm {
     if ($global:OverviewBuilt -or $global:OvPrewarmActive) { return }
+    # Lazy cards (test build): Explore is built from placeholders in a few
+    # hundred ms on first open, so no background prewarm is needed at all.
+    if ($global:HubLazyCards) { return }
     Build-OverviewChrome
     $panel = $window.FindName("OvGenreRows")
     if (-not $panel) { return }
@@ -1191,25 +1201,32 @@ function global:Start-OverviewPrewarm {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
     $global:OvAllGames = $allGames
-    # Precompute the genre -> games plan once (cheap: tag/substring tests,
-    # no WPF elements). Only genres with at least one game get a row.
-    $plan = New-Object System.Collections.Generic.List[object]
-    foreach ($genre in $global:OverviewGenres) {
-        $genreGames = @()
-        foreach ($g in $allGames) {
-            if (Test-OverviewGameInGenre -Game $g -Genre $genre) { $genreGames += $g }
-        }
-        if ($genreGames.Count -gt 0) {
-            $plan.Add([pscustomobject]@{ Genre = $genre; Games = $genreGames }) | Out-Null
-        }
-    }
-    $global:OvPrewarmPlan     = $plan
+    # The old all-genres plan blocked the dispatcher for hundreds of ms.
+    # Prepare one genre per paced tick before creating its tiles.
+    $global:OvPrewarmAllGames = $allGames
+    $global:OvPrewarmPlan     = New-Object System.Collections.Generic.List[object]
+    $global:OvPrewarmPlanGenreIndex = 0
+    $global:OvPrewarmPlanning = $true
     $global:OvPrewarmGi       = 0       # index into $plan (current genre row)
     $global:OvPrewarmTi       = 0       # index into current row's Games (next tile)
     $global:OvPrewarmCurPanel = $null   # current row's tilesPanel
     $global:OvPrewarmActive   = $true
-    Invoke-OverviewPrewarmStep
+    if ($global:OvPrewarmTimer) { try { $global:OvPrewarmTimer.Stop() } catch { } }
+    $global:OvPrewarmTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $global:OvPrewarmTimer.Interval = [TimeSpan]::FromMilliseconds(125)
+    $global:OvPrewarmTimer.Add_Tick({
+        if ($global:OverviewBuilt -or -not $global:window -or -not $global:window.IsVisible) {
+            $global:OvPrewarmTimer.Stop()
+            $global:OvPrewarmActive = $false
+            return
+        }
+        if ($global:StartupOverviewLastInputAt -and
+            (([DateTime]::UtcNow - $global:StartupOverviewLastInputAt).TotalSeconds -lt 2)) { return }
+        Invoke-OverviewPrewarmStep
+    })
+    $global:OvPrewarmTimer.Start()
 }
 
 # One prewarm step does the SMALLEST unit of work possible - build a
@@ -1221,11 +1238,28 @@ function global:Start-OverviewPrewarm {
 # builds everything synchronously and these steps bail via OverviewBuilt.
 function global:Invoke-OverviewPrewarmStep {
     if ($global:OverviewBuilt) { $global:OvPrewarmActive = $false; return }
+    if ($global:OvPrewarmPlanning) {
+        if ($global:OvPrewarmPlanGenreIndex -lt $global:OverviewGenres.Count) {
+            $genre = $global:OverviewGenres[$global:OvPrewarmPlanGenreIndex]
+            $genreGames = @()
+            foreach ($g in $global:OvPrewarmAllGames) {
+                if (Test-OverviewGameInGenre -Game $g -Genre $genre) { $genreGames += $g }
+            }
+            if ($genreGames.Count -gt 0) {
+                $global:OvPrewarmPlan.Add([pscustomobject]@{ Genre = $genre; Games = $genreGames }) | Out-Null
+            }
+            $global:OvPrewarmPlanGenreIndex++
+            return
+        }
+        $global:OvPrewarmPlanning = $false
+        $global:OvPrewarmAllGames = $null
+    }
     $plan = $global:OvPrewarmPlan
     if (-not $plan -or $global:OvPrewarmGi -ge $plan.Count) {
         $global:OverviewBuilt = $true
         $global:OvPrewarmActive = $false
         $global:OvPrewarmCurPanel = $null
+        if ($global:OvPrewarmTimer) { $global:OvPrewarmTimer.Stop() }
         if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) {
             try { Apply-CatalogSort -Scope Explore -SkipFilter } catch { }
         }
@@ -1263,12 +1297,6 @@ function global:Invoke-OverviewPrewarmStep {
         # On any error skip to the next genre so the prewarm can't wedge.
         $global:OvPrewarmGi++
         $global:OvPrewarmCurPanel = $null
-    }
-    if ($global:window) {
-        $global:window.Dispatcher.BeginInvoke(
-            [System.Windows.Threading.DispatcherPriority]::Background,
-            [action]{ Invoke-OverviewPrewarmStep }
-        ) | Out-Null
     }
 }
 

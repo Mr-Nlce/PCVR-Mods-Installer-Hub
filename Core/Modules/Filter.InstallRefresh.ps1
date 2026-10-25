@@ -99,6 +99,7 @@ function global:Get-PostInstallDetectionSnapshot {
         if ($confirmedSuccess) { $confirmedInstallerSuccess=$true }
         $primaryWritten=[bool]($confirmedSuccess -and $status.versionWritten)
         $secondaryWritten=[bool]($confirmedSuccess -and $status.versionBWritten)
+        $thirdWritten=[bool]($confirmedSuccess -and $status.versionCWritten)
         # This title keeps the pinned 9.2 game and the Current Steam game in
         # separate roots. A Depot completion must not replace Current receipts.
         $hunterDepotReceipt=[bool]($Game.DepotPinnedReceipt -and ([string]$status.route -eq 'Depot'))
@@ -111,7 +112,7 @@ function global:Get-PostInstallDetectionSnapshot {
         else { try { $pendDir=Read-InstalledPath -Game $Game } catch {} }
         try { [void](Read-LaunchOverride -Game $Game) } catch {}
         if (-not $pendDir -and $PreviousState -and $PreviousState.GameDir) { $pendDir=[string]$PreviousState.GameDir }
-        if ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten)) {
+        if ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten -or $thirdWritten)) {
             if ($primaryWritten) {
                 $exact=('' + $status.versionValue).Trim()
                 if ($hunterDepotReceipt) {
@@ -178,6 +179,12 @@ function global:Get-PostInstallDetectionSnapshot {
     # two-mod probe above validates the active and parked files by receipt/hash.
     if ($modPresent -and $recordedPath -and -not $Game.ExternalVrStartApp -and -not $Game.MaxPayne2DualLaunch -and
         -not (Test-VrInstallEvidenceContract -Game $Game -Root $recordedPath)) { $modPresent=$false }
+    $pzPendingUpdate=$null
+    if (-not $modPresent -and $Game.Id -eq 'project-zomboid-vr' -and $recordedPath) {
+        . (Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1')
+        $pzPendingUpdate=Get-PZVRPendingWorkshopUpdate -GameRoot $recordedPath
+        if ($pzPendingUpdate) { $modPresent=$true }
+    }
     $baseGamePresent=$true
     # Get-DualModePresence already validated the base-game proof belonging to
     # the exact selected route. Reapplying the primary route's GameExe here
@@ -236,6 +243,11 @@ function global:Get-PostInstallDetectionSnapshot {
                 $stateEntry.UpdateEvidence=(($names -join ', ') + ' is missing its required current-release proof file')
                 $stateEntry.BtnText=Get-UpdateActionLabel -Game $Game -State $stateEntry -Fallback 'Update Mod'
             }
+        }
+        if ($pzPendingUpdate) {
+            $stateEntry.Tag='vrupdate'; $stateEntry.State='update'
+            $stateEntry.BtnText='Update Mod'
+            $stateEntry.UpdateEvidence=[string]$pzPendingUpdate.Evidence
         }
         $stateEntry=Resolve-PostInstallRefreshState -PreviousState $PreviousState -CandidateState $stateEntry -ConfirmedInstallerSuccess $confirmedInstallerSuccess
         $preferredHunterDepot=[bool]($Game.DepotPinnedReceipt -and $postDualProbe -and

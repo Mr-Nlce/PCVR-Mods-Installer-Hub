@@ -6,10 +6,12 @@ Star Fox is Nintendo's space combat game for the Super Nintendo Entertainment Sy
 
 ## Install and start
 
-The reviewed Windows PCVR release is **v0.0.8.7**. It retains the independent
+The reviewed Windows PCVR release is **v0.0.8.8.1**. It retains the independent
 scene effect controls, stereo and startup fixes from v0.0.8.6 and adds an
 optional experimental MODERN renderer. The asset builder and player must come from the same release;
 the Hub selects the PCVR package rather than the separate builder-only ZIP.
+
+Use the Hub installer for PCVR updates. The publisher's in-game updater does not yet update the PCVR package automatically. Keep the builder and player together from the same release and rebuild the local asset bundle when updating.
 
 The Hub downloads only the [publisher's Windows PCVR ZIP](https://github.com/kandowontu2/starfox-enhanced/releases). It contains the matching `starfox_pcvr.exe`, `starfox_asset_builder.exe`, `BUILD-ASSETS.bat` and `LAUNCH-PCVR.bat`. The installer asks for a writable standalone destination and your own ROM, then runs the matching builder to create `Starfox-Assets.BIN` beside the player. A new release rebuilds that bundle; do not carry an older BIN into a newer build. The ROM stays at the path you selected and is never copied into the delivery ZIP.
 

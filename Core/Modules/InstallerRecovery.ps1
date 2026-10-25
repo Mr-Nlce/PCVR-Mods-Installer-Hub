@@ -99,6 +99,63 @@ function global:Enable-PCVRReadHostPathGuard {
     Set-Item -LiteralPath Function:\global:Read-Host -Value $body -Force
 }
 
+function global:Get-PCVRRecoveryCatalogInfo {
+    param([string]$GameId,[string]$CoreRoot)
+    if (-not $GameId -or -not $CoreRoot) { return $null }
+    $catalogPath=Join-Path $CoreRoot 'Modules\Catalog.ps1'
+    if(-not(Test-Path -LiteralPath $catalogPath -PathType Leaf)){return $null}
+    try {
+        $game=& {
+            param($Path,$Id)
+            . $Path
+            @(@($ownGames)+@($ownGamesGP)+@($externalGames)) |
+                Where-Object { $_.Id -eq $Id } | Select-Object -First 1
+        } $catalogPath $GameId
+        if(-not $game -or $game.GithubRepoB){return $null}
+        $repo=(''+$game.GithubRepo).Trim()
+        if($repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'){return $null}
+        return [pscustomobject]@{PageUrl=('https://github.com/'+$repo+'/releases');AssetPatterns=@($game.GithubReleaseAssetPatterns|Where-Object{$_})}
+    } catch { return $null }
+}
+
+function global:Get-PCVRRecoveryCatalogPage {
+    param([string]$GameId,[string]$CoreRoot)
+    $info=Get-PCVRRecoveryCatalogInfo -GameId $GameId -CoreRoot $CoreRoot
+    if($info){return $info.PageUrl}
+    return ''
+}
+
+function global:Get-PCVRRecoverySuggestion {
+    param([string]$GameId,[string]$FailureMessage)
+    $message=''+$FailureMessage
+    switch($GameId){
+        'borderlands-goty-enhanced' {
+            if($message -match 'Required game configuration is missing\.'){
+                return [pscustomobject]@{Label='Start Borderlands GOTY Enhanced flat to create its configuration';Url='steam://rungameid/729040';After='Reach the main menu, close the game, then press Enter to retry setup.'}
+            }
+        }
+        'warhammer-40k-rogue-trader-vr' {
+            if($message -match 'Start Rogue Trader once and close it to create the Owlcat mod profile\.'){
+                return [pscustomobject]@{Label='Start Rogue Trader flat to create its Owlcat mod profile';Url='steam://rungameid/2186680';After='Reach the main menu, close the game, then press Enter to retry setup.'}
+            }
+        }
+    }
+    if($message -match '^Steam was not found\. Run Steam once, then start this installer again\.'){
+        return [pscustomobject]@{Label='Open the official Steam page to install or start Steam';Url='https://store.steampowered.com/about/';After='Install Steam or start the installed client once, then press Enter to retry setup.'}
+    }
+    return $null
+}
+
+function global:Get-PCVRRecoveryMatchingDownloads {
+    param([string]$DownloadsFolder,[string[]]$AssetPatterns)
+    if(-not $DownloadsFolder -or -not(Test-Path -LiteralPath $DownloadsFolder -PathType Container)){return @()}
+    if(-not $AssetPatterns -or $AssetPatterns.Count -eq 0){return @()}
+    return @(Get-ChildItem -LiteralPath $DownloadsFolder -File -ErrorAction SilentlyContinue |
+        Where-Object { $file=$_; $file.Length -gt 0 -and $file.Name -notmatch '(?i)\.(crdownload|part|tmp|opdownload)$' -and
+            @($AssetPatterns|Where-Object{$_ -and $file.Name -match $_}).Count -gt 0 } |
+        Sort-Object LastWriteTimeUtc -Descending)
+}
+
 function global:Invoke-PCVRUniversalRecovery {
     [CmdletBinding()]
     param(
@@ -107,20 +164,30 @@ function global:Invoke-PCVRUniversalRecovery {
         [string]$InstallerFolder='',
         [string]$DownloadsFolder='',
         [string]$RecoveryPageUrl='',
+        [string]$GameId='',
         [scriptblock]$ReadInput=$null,
         [scriptblock]$OpenLog=$null,
         [scriptblock]$OpenPath=$null,
-        [scriptblock]$OpenPage=$null
+        [scriptblock]$OpenPage=$null,
+        [scriptblock]$LaunchGame=$null
     )
     if(-not $DownloadsFolder){
         $DownloadsFolder=Get-PCVRDownloadsFolder
     }
+    if(-not $GameId){$GameId=(''+$env:PCVR_HUB_GAME_ID).Trim()}
+    $catalogInfo=if($GameId){Get-PCVRRecoveryCatalogInfo -GameId $GameId -CoreRoot (Split-Path -Parent $PSScriptRoot)}else{$null}
+    if(-not $RecoveryPageUrl -and $catalogInfo){$RecoveryPageUrl=$catalogInfo.PageUrl}
+    $assetPatterns=@()
+    if($catalogInfo -and $RecoveryPageUrl.StartsWith($catalogInfo.PageUrl,[StringComparison]::OrdinalIgnoreCase)){$assetPatterns=@($catalogInfo.AssetPatterns)}
     $read={param([string]$Prompt) if($ReadInput){& $ReadInput $Prompt}else{Read-Host $Prompt}}.GetNewClosure()
     $openFolder={
         param([string]$Path)
         if($OpenPath){& $OpenPath $Path|Out-Null}
         else{Start-Process explorer.exe -ArgumentList ('"'+$Path+'"') -ErrorAction Stop|Out-Null}
     }.GetNewClosure()
+    $pageAvailable=[bool]($RecoveryPageUrl -match '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases(?:/.*)?$')
+    $downloadFailure=[bool]($FailureMessage -match '(?i)(?:could not be (?:resolved|downloaded|checked|verified|acquired)|download (?:failed|was not completed|did not complete)|(?:was|were) not downloaded|GitHub (?:unavailable|could not be reached)|current .*release .*not (?:found|resolved|verified|available)|No (?:current|usable|official) .* (?:release|publisher Setup) .* (?:found|available)|HTTP (?:403|404|429|5\d\d))')
+    $suggestion=Get-PCVRRecoverySuggestion -GameId $GameId -FailureMessage $FailureMessage
 
     # Render the recovery page once per failed attempt. Reprinting it for an
     # empty Enter, a log/folder action, or a bad path filled the console with
@@ -134,8 +201,10 @@ function global:Invoke-PCVRUniversalRecovery {
         $current=Get-PCVRRecoveryInput
         if($current){Write-Host ('  Manual handover ready: '+$current) -ForegroundColor Cyan}
         Write-Host ''
+        if($suggestion){Write-Host ('  [1] '+$suggestion.Label) -ForegroundColor Green}
+        elseif($downloadFailure -and $pageAvailable){Write-Host '  [1] Open the official release page, then check Downloads' -ForegroundColor Green}
         Write-Host '  [R] Retry the complete installer in this window' -ForegroundColor Cyan
-        if($RecoveryPageUrl -match '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases(?:/.*)?$'){
+        if($pageAvailable){
             Write-Host '  [O] Open the current publisher release page' -ForegroundColor Cyan
         }
         Write-Host '  [D] Open Downloads, then drag a file or folder onto this window' -ForegroundColor Cyan
@@ -158,10 +227,51 @@ function global:Invoke-PCVRUniversalRecovery {
             if($choice -eq 'R'){
                 return [pscustomobject]@{Action='retry';RecoveryInput=(Get-PCVRRecoveryInput);Source='retry'}
             }
-            if($choice -eq 'O' -and $RecoveryPageUrl -match '^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases(?:/.*)?$'){
+            if($choice -eq '1' -and $suggestion){
+                Write-Host ('  '+$suggestion.After) -ForegroundColor White
+                if($LaunchGame){& $LaunchGame $suggestion.Url|Out-Null}
+                else{Start-Process $suggestion.Url -ErrorAction Stop|Out-Null}
+                if(-not $ReadInput){try{$Host.UI.RawUI.FlushInputBuffer()}catch{}}
+                while($true){
+                    $after=& $read '  When the step is complete, press Enter to retry setup'
+                    if($null -eq $after){throw [IO.EndOfStreamException]::new('Recovery needs interactive console input.')}
+                    if((''+$after).Length -eq 0){break}
+                    Write-Host '  Complete the step, then press Enter without typing anything.' -ForegroundColor Yellow
+                }
+                return [pscustomobject]@{Action='retry';RecoveryInput=(Get-PCVRRecoveryInput);Source='first-run'}
+            }
+            if($choice -eq 'O' -and $pageAvailable){
                 if($OpenPage){& $OpenPage $RecoveryPageUrl|Out-Null}
                 else{Start-Process $RecoveryPageUrl -ErrorAction Stop|Out-Null}
                 Write-Host '  Download the publisher file, then drag it here or paste its full path.' -ForegroundColor Cyan
+                continue
+            }
+            if($choice -eq '1' -and $downloadFailure -and $pageAvailable){
+                if($OpenPage){& $OpenPage $RecoveryPageUrl|Out-Null}
+                else{Start-Process $RecoveryPageUrl -ErrorAction Stop|Out-Null}
+                Write-Host '  Download the current publisher file on that page.' -ForegroundColor Cyan
+                if(-not $ReadInput){try{$Host.UI.RawUI.FlushInputBuffer()}catch{}}
+                $ready=& $read '  When the download is finished, press Enter to check Downloads'
+                if($null -eq $ready){throw [IO.EndOfStreamException]::new('Recovery needs interactive console input.')}
+                if((''+$ready).Length -ne 0){
+                    Write-Host '  Press Enter without typing anything to check Downloads.' -ForegroundColor Yellow
+                    continue
+                }
+                $choices=@(Get-PCVRRecoveryMatchingDownloads -DownloadsFolder $DownloadsFolder -AssetPatterns $assetPatterns)
+                if($choices.Count -ne 1){
+                    if($choices.Count -gt 1){Write-Host '  Several matching files are in Downloads. Drag/paste the current publisher file path here.' -ForegroundColor Yellow}
+                    else{Write-Host '  No unambiguous matching file found in Downloads. Drag/paste the publisher file path here.' -ForegroundColor Yellow}
+                    Write-Host '  Use O to open the release page again if needed.' -ForegroundColor Cyan
+                    continue
+                }
+                $selected=$choices[0].FullName
+                Write-Host ('  Found: '+$selected) -ForegroundColor Cyan
+                $confirm=& $read '  Use this file for the next installer attempt? Y/N'
+                if((''+$confirm).Trim() -match '^(?i:y|yes)$'){
+                    $resolved=Set-PCVRRecoveryInput $selected
+                    return [pscustomobject]@{Action='retry';RecoveryInput=$resolved;Source='download'}
+                }
+                Write-Host '  File not selected. Use O to reopen the page or drag/paste a path.' -ForegroundColor Yellow
                 continue
             }
             if($choice -eq 'D'){
@@ -204,6 +314,7 @@ function global:Invoke-PCVRUniversalRecovery {
             if($raw){Write-Host '  That is not an available recovery action or existing path.' -ForegroundColor Yellow}
             else{Write-Host '  Enter R to retry, or paste an existing file or folder path.' -ForegroundColor Yellow}
         }catch{
+            if($_.Exception.GetBaseException() -is [IO.EndOfStreamException]){throw}
             Write-Host ('  Recovery action failed: '+$_.Exception.Message) -ForegroundColor Yellow
             Write-Host '  Nothing closed. Choose another action or provide a path.' -ForegroundColor DarkGray
         }

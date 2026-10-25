@@ -12,6 +12,8 @@ The reviewed **v1.1 PCVR** package adds no cockpit, modern cockpit, classic cock
 
 ## Start and modes
 
+The current v1.2.1 PCVR package fixes a crash around the Descent 2 Guide-Bot and the same underlying issue in Descent 1. The in-headset book is now called Game Tome. It retains world size, head steering, motion flying and the FPV stick layout from v1.2; pilots, saves, settings and notes carry over.
+
 Start Virtual Desktop or SteamVR, put on your headset and use [[Start in VR]] or the publisher's Descent VR desktop shortcut. The VR launcher is Descent VR.cmd in your VR folder. Descent (flat).cmd launches the original flat view from the same folder. The first launch asks you to choose Modern (hand aiming, smooth textures and colored lighting) or Classic (weapons follow the ship, as in the original). Change it later under pause menu > VR Options. The publisher also offers left handed mode, photo mode, monitor view and, when both games were installed together through its own Setup, Switch Game. Press [[Alt]] + [[Enter]] for a monitor window.
 
 ## Controls

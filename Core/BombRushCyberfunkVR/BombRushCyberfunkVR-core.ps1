@@ -190,7 +190,7 @@ try {
  # GitHub Releases rejects. UseBasicParsing avoids the IE engine
  # initialisation pop-up on machines where IE has never been opened.
  [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- Invoke-WebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $GITHUB_DOWNLOAD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Write-OK "Downloaded to: $modZip"
 } catch {
  Write-Fail "Download failed: $_"

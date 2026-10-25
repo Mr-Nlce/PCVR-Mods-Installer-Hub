@@ -1,4 +1,4 @@
-# Gloomhaven VR
+﻿# Gloomhaven VR
 
 GloomhavenVR by McFredward turns the digital adaptation into a room-scale
 tabletop game. You stand at the board, pick up ability cards and miniatures
@@ -15,7 +15,15 @@ control board and VR multiplayer support.
 The mod is tested against Gloomhaven 1.1.8307.0. All VR players in one session
 must use the same GloomhavenVR build; flat-screen players can still join them.
 
-Current v1.1.0 adds immersive merchant, enchantress and priestess interactions
+Current v1.2.1 lets you dismiss summons and end active card effects by placing their card in the highlighted area below the board, then confirming Dismiss or End effect. Shared windows and quest proposals stay synchronized across players using different zoom levels. Update the complete package, including VR assets; every VR player in the group must use the same version. Flat players can still join.
+
+Version v1.2.0 adds optional native Steam Link passthrough on Steam Frame with
+a separate companion, plus stereoscopic intro and character videos. It also
+improves card selection, hover feedback and pickup hints. The companion's PC
+route requires an NVIDIA GPU; see the publisher's release before enabling it.
+All VR players in a multiplayer session need the same mod version.
+
+The earlier v1.1.0 release adds immersive merchant, enchantress and priestess interactions
 to the 3D campaign map, including mixed VR/flat multiplayer. The earlier
 v1.0.8 release refined rewards, dialogue and laser interaction. v1.0.7 added
 campaign city events to the 3D map, keeps character and
@@ -131,6 +139,10 @@ configuration, unrelated BepInEx mods and the base game are preserved.
 Removing the mod from Build 20286313 leaves its large game-data copy in place
 so it can be reused. Delete that dedicated folder manually only if the
 historical game copy is no longer wanted.
+
+## Support McFredward
+
+[Buy the modder a coffee](https://buymeacoffee.com/mcfredward)
 
 ## Links and credits
 

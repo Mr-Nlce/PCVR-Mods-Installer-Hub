@@ -10,6 +10,8 @@
 # ------------------------------------------------------------
 
 $script:PCVRInstallerFoundationRoot = $PSScriptRoot
+. (Join-Path $PSScriptRoot 'InstallerTestReport.ps1')
+
 if (-not (Get-Command Invoke-PCVRUniversalRecovery -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'InstallerRecovery.ps1')
 }

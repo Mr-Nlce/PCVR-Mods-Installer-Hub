@@ -6,8 +6,8 @@
 #   * menu item "My Games (Beta)" after "Desktop Shortcut" (on/off)
 #   * a "My Games" section in the Library view (below the featured
 #     banner) and in the List view (below Recently Played)
-#   * tiles: click = launch, right-click = Edit / Picture / Folder /
-#     Remove, last tiles = "+ Add game" and "Import from Steam"
+#   * tiles: click = launch, right-click = Favorite / Edit / Picture /
+#     Folder / Remove, last tiles = "+ Add game" and "Import from Steam"
 #   * add/edit dialog and Steam import dialog
 # With the setting off, only the menu item exists.
 # ---------------------------------------------------------------
@@ -287,6 +287,10 @@ function global:Test-CustomGameMatchesSearch {
     $title = [string]$Game.title
     foreach ($word in ($Query.Trim() -split '\s+')) {
         if (-not $word) { continue }
+        if ($word -in @('favorites', 'favorite')) {
+            if (-not (Test-GameFavorite -Game $Game)) { return $false }
+            continue
+        }
         if ($word.StartsWith('-') -and $word.Length -gt 1) {
             if ($title.IndexOf($word.Substring(1), [StringComparison]::OrdinalIgnoreCase) -ge 0) { return $false }
         } elseif ($title.IndexOf($word, [StringComparison]::OrdinalIgnoreCase) -lt 0) {
@@ -488,6 +492,21 @@ function global:New-CustomGameTile {
     $overlay.Child = $play
     [void]$grid.Children.Add($overlay)
 
+    # Keep the same favorite marker visible in both My Games layouts.
+    $favoriteHeart = [System.Windows.Controls.TextBlock]::new()
+    $favoriteHeart.Text = [string][char]0x2665
+    $favoriteHeart.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
+    $favoriteHeart.FontSize = [Math]::Max(17, [int]($W / 9))
+    $favoriteHeart.Foreground = New-CgBrush '#ff5b91'
+    $favoriteHeart.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $favoriteHeart.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
+    $favoriteHeart.Margin = [System.Windows.Thickness]::new(0, 0, 9, 7)
+    $favoriteHeart.IsHitTestVisible = $false
+    $favoriteHeart.Visibility = if (Test-GameFavorite -Game $Game) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+    [System.Windows.Controls.Panel]::SetZIndex($favoriteHeart, 15)
+    [void]$grid.Children.Add($favoriteHeart)
+    $tile.Resources['customFavoriteHeart'] = $favoriteHeart
+
     if ($missing) { $grid.Opacity = 0.55 }
     $tile.Child = $grid
 
@@ -514,6 +533,17 @@ function global:New-CustomGameContextMenu {
         [void]$menu.Items.Add($mi)
     }
     & $add 'Play' ({ Invoke-CustomGameLaunch -Id $id }.GetNewClosure())
+    $favoriteItem = [System.Windows.Controls.MenuItem]::new()
+    $favoriteItem.Header = ([string][char]0x2665 + ' Favorite')
+    $favoriteItem.Tag = 'favorite-toggle'
+    $favoriteItem.IsCheckable = $true
+    $favoriteItem.IsChecked = [bool](Test-GameFavorite -Game $Game)
+    $favoriteGame = $Game
+    $favoriteItem.Add_Click({
+        param($sender, $eventArgs)
+        Set-CustomGameFavorite -Game $favoriteGame -Favorite ([bool]$sender.IsChecked)
+    }.GetNewClosure())
+    [void]$menu.Items.Add($favoriteItem)
     & $add 'Edit...' ({ Show-CustomGameEditor -Game (Get-CustomGame -Id $id) }.GetNewClosure())
     & $add 'Change picture...' ({ Set-CustomGamePictureInteractive -Id $id }.GetNewClosure())
     [void]$menu.Items.Add((New-Object System.Windows.Controls.Separator))
@@ -528,10 +558,61 @@ function global:New-CustomGameContextMenu {
         if (-not $g) { return }
         $r = Show-CustomGamesMessage -Text ("Remove ""{0}"" from My Games?`n`nOnly the Hub entry and its picture are removed. The game itself stays installed." -f $g.title) -Buttons ([System.Windows.MessageBoxButton]::YesNo) -Icon ([System.Windows.MessageBoxImage]::Question)
         if ($r -ne [System.Windows.MessageBoxResult]::Yes) { return }
-        try { [void](Remove-CustomGame -Id $id); Write-CustomGamesTrace ("removed {0}" -f $id) } catch { Write-HubActionFailure -Action 'Remove game from My Games' -ErrorRecord $_ }
+        try {
+            if (Remove-CustomGame -Id $id) {
+                if (Test-GameFavorite -Game $g) { [void](Set-GameFavorite -Game $g -Favorite $false) }
+                Write-CustomGamesTrace ("removed {0}" -f $id)
+            }
+        } catch { Write-HubActionFailure -Action 'Remove game from My Games' -ErrorRecord $_ }
         Update-CustomGamesSections
     }.GetNewClosure())
     return $menu
+}
+
+function global:Set-CustomGameFavorite {
+    param($Game, [bool]$Favorite)
+    if (-not $Game -or -not $Game.id) { return }
+    try {
+        [void](Set-GameFavorite -Game $Game -Favorite $Favorite)
+        Sync-CustomGameFavoriteTiles -GameId ([string]$Game.id)
+    } catch {
+        Write-HubActionFailure -Action ("Mark {0} as favorite" -f $Game.title) -ErrorRecord $_
+    }
+}
+
+function global:Sync-CustomGameFavoriteTiles {
+    param([string]$GameId)
+    if (-not $global:CustomGamesSections) { return }
+    foreach ($sec in @($global:CustomGamesSections.Values)) {
+        if (-not $sec -or -not $sec.Panel) { continue }
+        $tiles = @{}
+        $games = @()
+        foreach ($child in @($sec.Panel.Children)) {
+            $game = $child.Tag
+            if (-not $game -or $game -is [string]) { continue }
+            $key = [string]$game.id
+            $tiles[$key] = $child
+            $games += $game
+            if ($key -ne $GameId) { continue }
+            $marked = [bool](Test-GameFavorite -Game $game)
+            $heart = $child.Resources.Item('customFavoriteHeart')
+            if ($heart) { $heart.Visibility = if ($marked) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
+            foreach ($item in @($child.ContextMenu.Items)) {
+                if ($item -is [System.Windows.Controls.MenuItem] -and $item.Tag -eq 'favorite-toggle') { $item.IsChecked = $marked }
+            }
+        }
+        $index = 0
+        foreach ($game in @(Get-CustomGamesSorted -Games $games)) {
+            $tile = $tiles[[string]$game.id]
+            $old = $sec.Panel.Children.IndexOf($tile)
+            if ($old -ne $index) {
+                [void]$sec.Panel.Children.Remove($tile)
+                $sec.Panel.Children.Insert($index, $tile)
+            }
+            $index++
+        }
+    }
+    Update-CustomGamesSearch
 }
 
 # ---------------------------------------------------------------

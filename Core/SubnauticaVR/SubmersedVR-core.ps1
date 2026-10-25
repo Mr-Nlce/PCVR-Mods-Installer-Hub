@@ -28,7 +28,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host "   Subnautica - SubmersedVR Installer" -ForegroundColor Cyan
-    Write-Host "   BepInEx for Subnautica  +  SubmersedVR 0.2.0" -ForegroundColor Gray
+    Write-Host "   BepInEx for Subnautica  +  SubmersedVR $SVRVR_VERSION" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -176,7 +176,7 @@ if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 
 $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "BepInEx\plugins\SubmersedVR.dll" -Label "SubmersedVR"
-Write-Step 3 4 "Installing BepInEx + SubmersedVR 0.2.0"
+Write-Step 3 4 "Installing BepInEx + SubmersedVR $SVRVR_VERSION"
 
 $tempDir = Join-Path $env:TEMP "SubmersedVRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
@@ -202,13 +202,17 @@ if (Test-Path $bepZip) {
             # Payload-verified (BepInEx pack is pulled from releases/LATEST,
             # so its layout can change any day).
             $bepPayload = Get-ExtractedPayloadRoot -ExtractDir $bepExtract -RelModFile "winhttp.dll" -Markers @("BepInEx")
+            if (-not (Test-Path -LiteralPath (Join-Path $bepPayload 'BepInEx\core\BepInEx.dll') -PathType Leaf)) {
+                throw 'BepInEx.dll is missing from the publisher package.'
+            }
             Get-ChildItem -Path $bepPayload | ForEach-Object {
                 Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
             }
-            if (Test-Path -LiteralPath "$gamePath\winhttp.dll")    { Write-OK "winhttp.dll verified." }
-            else { Write-Warn "winhttp.dll not found." }
-            if (Test-Path -LiteralPath "$gamePath\BepInEx\core")   { Write-OK "BepInEx\core verified." }
-            else { Write-Warn "BepInEx\core not found." }
+            if (-not (Test-Path -LiteralPath "$gamePath\winhttp.dll" -PathType Leaf) -or
+                -not (Test-Path -LiteralPath "$gamePath\BepInEx\core\BepInEx.dll" -PathType Leaf)) {
+                throw 'Required BepInEx runtime files are missing after copying.'
+            }
+            Write-OK "winhttp.dll and BepInEx.dll verified."
             Write-OK "BepInEx for Subnautica installed!"
         } catch {
             Write-Host "FAILED to install BepInEx: $_" -ForegroundColor Red
@@ -223,9 +227,9 @@ if (Test-Path $bepZip) {
 $svrZip     = Join-Path $tempDir "SubmersedVR.zip"
 $svrExtract = Join-Path $tempDir "SubmersedVR"
 $r = Invoke-DownloadOrFallback -Url $SVRVR_URL -Destination $svrZip `
-        -Label "SubmersedVR v0.2.0" `
-        -ManualUrl "https://github.com/Okabintaro/SubmersedVR/releases/tag/0.2.0" `
-        -Instructions "Download 'SubmersedVR_0.2.0.zip' from the GitHub releases page. Place it at '$svrZip' and choose Retry." `
+        -Label "SubmersedVR $SVRVR_VERSION" `
+        -ManualUrl "https://github.com/Okabintaro/SubmersedVR/releases" `
+        -Instructions "Download the current SubmersedVR ZIP from the GitHub releases page. Place it at '$svrZip' and choose Retry." `
         -SkipMessage "Skipped - SubmersedVR mod missing; install is incomplete (questionable result)."
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "SubmersedVR" }
@@ -236,9 +240,6 @@ if (Test-Path $svrZip) {
     if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
     if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
         try {
-            Get-ChildItem -Path $svrExtract | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
-            }
             $checks = @(
                 "BepInEx\plugins\SubmersedVR.dll",
                 "Subnautica_Data\Managed\SteamVR.dll",
@@ -246,16 +247,25 @@ if (Test-Path $svrZip) {
                 "Subnautica_Data\StreamingAssets\SteamVR\bindings_oculus_touch.json",
                 "Subnautica_Data\StreamingAssets\amplify_resources"
             )
+            foreach ($check in $checks) {
+                if (-not (Test-Path -LiteralPath (Join-Path $svrExtract $check) -PathType Leaf)) {
+                    throw "Publisher ZIP is missing required file: $check"
+                }
+            }
+            Get-ChildItem -Path $svrExtract | ForEach-Object {
+                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+            }
             $allVerified = $true
             foreach ($check in $checks) {
                 $fullPath = Join-Path $gamePath $check
                 if (Test-Path $fullPath) { Write-OK $check }
                 else { Write-Warn "Missing: $check"; $allVerified = $false }
             }
-            if ($allVerified) { Write-OK "SubmersedVR 0.2.0 fully installed!" }
+            if ($allVerified) { Write-OK "SubmersedVR $SVRVR_VERSION fully installed!" }
             else {
                 Write-Warn "Some files are missing. Controllers may not function correctly."
                 Write-Warn "Do NOT use mod managers like Vortex - they can skip required files."
+                $failed += 'SubmersedVR'
             }
         } catch {
             Write-Host "FAILED to install SubmersedVR: $_" -ForegroundColor Red
@@ -308,7 +318,7 @@ if ($answer -match "^[yYjJ]") {
 }
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("SubmersedVR" -notin $failed) {
+if ("BepInEx" -notin $failed -and "SubmersedVR" -notin $failed) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     Save-InstalledStamp -GameDir $gamePath -Version $SVRVR_VERSION -HubDir $PSScriptRoot
 }
@@ -321,8 +331,13 @@ Write-Host "============================================================" -Foreg
 Write-Host "  Installation Summary" -ForegroundColor White
 Write-Host ""
 if ("BepInEx"     -notin $failed) { Write-Host "    [x] BepInEx for Subnautica" -ForegroundColor Green } else { Write-Host "    [ ] BepInEx         -- FAILED" -ForegroundColor Red }
-if ("SubmersedVR" -notin $failed) { Write-Host "    [x] SubmersedVR 0.2.0" -ForegroundColor Green      } else { Write-Host "    [ ] SubmersedVR 0.2.0 -- FAILED" -ForegroundColor Red }
+if ("SubmersedVR" -notin $failed) { Write-Host "    [x] SubmersedVR $SVRVR_VERSION" -ForegroundColor Green      } else { Write-Host "    [ ] SubmersedVR $SVRVR_VERSION -- FAILED" -ForegroundColor Red }
 Write-Host "============================================================" -ForegroundColor Magenta
+if ($failed.Count -gt 0) {
+    Write-Fail 'Required files are missing. The Hub did not mark this VR installation complete.'
+    Pause-User 'Press Enter to return to installer recovery.'
+    exit 1
+}
 
 Write-Host ""
 Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan

@@ -1,10 +1,13 @@
+Write-HubTiming "Controls: parsed, start"
 $ownList     = $window.FindName("OwnGameList")
 $ownListGP   = $window.FindName("OwnGameListGP")
 $extList     = $window.FindName("ExternalGameList")
+$untestedList = $window.FindName("UntestedGameList")
 
 $headerMC  = $window.FindName("HeaderMC")
 $headerGP  = $window.FindName("HeaderGP")
 $headerExt = $window.FindName("HeaderExt")
+$untestedHeader = $window.FindName("UntestedInstallerHeader")
 $dividerMC = $window.FindName("DividerMC")
 $dividerGP = $window.FindName("DividerGP")
 
@@ -14,6 +17,9 @@ $dividerGP = $window.FindName("DividerGP")
 Add-HeaderHoverGrow -Element $headerMC  -Scale 1.025
 Add-HeaderHoverGrow -Element $headerGP  -Scale 1.025
 Add-HeaderHoverGrow -Element $headerExt -Scale 1.025
+foreach ($hoverName in @('UntestedInstallerTitle','UntestedInstallerKind','UntestedInstallerCounter')) {
+    Add-HeaderHoverGrow -Element ($window.FindName($hoverName)) -Scale 1.015
+}
 
 $headerMC.Add_PreviewMouseLeftButtonDown({
     $ownList.Visibility = if ($ownList.Visibility -eq [System.Windows.Visibility]::Visible) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
@@ -26,7 +32,30 @@ $headerGP.Add_PreviewMouseLeftButtonDown({
 $headerExt.Add_PreviewMouseLeftButtonDown({
     $extList.Visibility = if ($extList.Visibility -eq [System.Windows.Visibility]::Visible) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
 }.GetNewClosure())
+. (Join-Path $PSScriptRoot 'UntestedInstallers.UI.ps1')
+Initialize-UntestedInstallerSection -Window $window
 
+function global:Get-UntestedInstallerGames {
+    return @(@($ownGames) + @($ownGamesGP) | Where-Object { [bool]$_.UntestedInstaller })
+}
+function global:Get-PrimaryInstallerGames {
+    param([object[]]$Games)
+    return @($Games | Where-Object { -not [bool]$_.UntestedInstaller })
+}
+function global:Add-HubGameCardToPanel {
+    param($Panel, $Game, [bool]$External, $HostWindow)
+    try {
+        $card = New-GameCard $Game $External $HostWindow
+        if ($Game.UntestedInstaller) { Initialize-UntestedFeedbackCard -Card $card -Game $Game }
+        [void]$Panel.Children.Add($card)
+    }
+    catch {
+        try { Write-Host "  [card-build] skipped '$($Game.Title)': $_" -ForegroundColor DarkYellow } catch {}
+        [void]$Panel.Children.Add((New-GameCardFailurePlaceholder -Game $Game))
+    }
+}
+
+Write-HubTiming "Controls: header hovers wired"
 # Load the saved scale BEFORE the initial card-build so cards
 # are constructed at the right size on the first pass. Previously
 # the cards were built with default SCALE=1.0 here, then Apply-Scale
@@ -44,6 +73,7 @@ if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
     } catch { }
 }
 
+Write-HubTiming "Controls: scale setting read"
 # Active tile style, loaded before the card-build loop so New-GameCard
 # dispatches to the right renderer on the first pass. 'frosted' is the
 # default redesign; 'classic' is the original flat tiles. Flipped (and
@@ -57,36 +87,32 @@ if ($global:hubStyle -ne "classic") { $global:hubStyle = "frosted" }
 # association of any card that follows it.
 function global:New-GameCardFailurePlaceholder {
     param($Game)
-    $placeholder = New-Object System.Windows.Controls.Border
+    $placeholder = [System.Windows.Controls.Border]::new()
     if ($Game) { $placeholder.Resources.Add('gameData', $Game) }
     $placeholder.Resources.Add('cardBuildFailed', $true)
     return $placeholder
 }
 
 Write-HubTiming "Controls before Motion cards"
-foreach ($game in $ownGames) {
-    try   { $ownList.Children.Add((New-GameCard $game $false $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-}
+foreach ($game in Get-PrimaryInstallerGames -Games $ownGames) { Add-HubGameCardToPanel -Panel $ownList -Game $game -External $false -HostWindow $window }
 Write-HubTiming "Controls after Motion cards"
-foreach ($game in $ownGamesGP) {
-    try   { $ownListGP.Children.Add((New-GameCard $game $false $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $ownListGP.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-}
+foreach ($game in Get-PrimaryInstallerGames -Games $ownGamesGP) { Add-HubGameCardToPanel -Panel $ownListGP -Game $game -External $false -HostWindow $window }
 Write-HubTiming "Controls after Gamepad cards"
-foreach ($game in $externalGames) {
-    try   { $extList.Children.Add((New-GameCard $game $true  $window)) | Out-Null }
-    catch { try { Write-Host "  [card-build] skipped '$($game.Title)': $_" -ForegroundColor DarkYellow } catch {}; $extList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-}
+foreach ($game in $externalGames) { Add-HubGameCardToPanel -Panel $extList -Game $game -External $true -HostWindow $window }
 Write-HubTiming "Controls after External cards"
+foreach ($game in Get-UntestedInstallerGames) { Add-HubGameCardToPanel -Panel $untestedList -Game $game -External $false -HostWindow $window }
+Write-HubTiming "Controls after Untested cards"
 
 # Section-header mod counts (Custom Installers split by control type + External).
 try {
-    $hmcSub = $window.FindName("HeaderMCSub"); if ($hmcSub) { $hmcSub.Text = "$(@($ownGames).Count) mods" }
-    $global:HubGPCount   = @($ownGamesGP).Count
-    $global:HubVRGPCount = @($ownGamesGP | Where-Object { $_.Controls -eq "VRGP" }).Count
-    $hgpSub = $window.FindName("HeaderGPSub"); if ($hgpSub) { $hgpSub.Text = "$(@($ownGamesGP).Count) mods" }
+    $hmcSub = $window.FindName("HeaderMCSub"); if ($hmcSub) { $hmcSub.Text = "$(@(Get-PrimaryInstallerGames -Games $ownGames).Count) mods" }
+    $global:HubGPCount   = @(Get-PrimaryInstallerGames -Games $ownGamesGP).Count
+    $global:HubVRGPCount = @(Get-PrimaryInstallerGames -Games $ownGamesGP | Where-Object { $_.Controls -eq "VRGP" }).Count
+    $hgpSub = $window.FindName("HeaderGPSub"); if ($hgpSub) { $hgpSub.Text = "$(@(Get-PrimaryInstallerGames -Games $ownGamesGP).Count) mods" }
     $hexSub = $window.FindName("HeaderExtSub"); if ($hexSub) { $hexSub.Text = "$(@($externalGames).Count) mods" }
+    $waitingCount = @(Get-UntestedInstallerGames).Count
+    $untestedCount = $window.FindName('UntestedInstallerCount'); if ($untestedCount) { $untestedCount.Text = [string]$waitingCount }
+    $emptyNotice = $window.FindName('UntestedInstallerEmpty'); if ($emptyNotice) { $emptyNotice.Visibility = if ($waitingCount -eq 0) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
 } catch {}
 
 # Scale S / M / L buttons
@@ -143,7 +169,7 @@ function global:Apply-CardScale {
         2.0     { 1.3 }
         default { 1.0 }
     }
-    foreach ($panel in @($ownList, $ownListGP, $extList)) {
+    foreach ($panel in @($ownList, $ownListGP, $extList, $untestedList)) {
         if (-not $panel) { continue }
         foreach ($card in $panel.Children) {
             if (-not $card) { continue }
@@ -154,6 +180,7 @@ function global:Apply-CardScale {
             }
         }
     }
+    if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
 }
 
 # ------------------------------------------------------------
@@ -170,23 +197,16 @@ function global:Switch-HubStyle {
     if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
         Set-HubSetting -Key "hubStyle" -Value $global:hubStyle
     }
-    foreach ($p in @($ownList, $ownListGP, $extList)) { if ($p) { $p.Children.Clear() } }
-    foreach ($game in $ownGames) {
-        try   { $ownList.Children.Add((New-GameCard $game $false $global:window)) | Out-Null }
-        catch { $ownList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-    }
-    foreach ($game in $ownGamesGP) {
-        try   { $ownListGP.Children.Add((New-GameCard $game $false $global:window)) | Out-Null }
-        catch { $ownListGP.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-    }
-    foreach ($game in $externalGames) {
-        try   { $extList.Children.Add((New-GameCard $game $true $global:window)) | Out-Null }
-        catch { $extList.Children.Add((New-GameCardFailurePlaceholder -Game $game)) | Out-Null }
-    }
+    foreach ($p in @($ownList, $ownListGP, $extList, $untestedList)) { if ($p) { $p.Children.Clear() } }
+    foreach ($game in Get-PrimaryInstallerGames -Games $ownGames) { Add-HubGameCardToPanel -Panel $ownList -Game $game -External $false -HostWindow $global:window }
+    foreach ($game in Get-PrimaryInstallerGames -Games $ownGamesGP) { Add-HubGameCardToPanel -Panel $ownListGP -Game $game -External $false -HostWindow $global:window }
+    foreach ($game in $externalGames) { Add-HubGameCardToPanel -Panel $extList -Game $game -External $true -HostWindow $global:window }
+    foreach ($game in Get-UntestedInstallerGames) { Add-HubGameCardToPanel -Panel $untestedList -Game $game -External $false -HostWindow $global:window }
     if (Get-Command Apply-CardScale     -ErrorAction SilentlyContinue) { Apply-CardScale }
     if (Get-Command Rebuild-Lookups     -ErrorAction SilentlyContinue) { Rebuild-Lookups }
     if (Get-Command Apply-CatalogSort   -ErrorAction SilentlyContinue) { Apply-CatalogSort -Scope List -SkipFilter }
     if (Get-Command Build-RecentlyPlayed -ErrorAction SilentlyContinue) { Build-RecentlyPlayed }
+    if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
 }
 
 # Scale the list-view featured banner (ListBanner) to the list S/M/L
@@ -247,6 +267,9 @@ function global:Set-HeaderFontScale { param($sc)
         foreach ($n in @("HeaderMCTitle","HeaderGPTitle","HeaderExtTitle","RecentlyPlayedTitle","HeaderMCKind","HeaderGPKind")) {
             $t = $global:window.FindName($n); if ($t) { $t.FontSize = $hdr.Title }
         }
+        $t = $global:window.FindName('UntestedInstallerTitle'); if ($t) { $t.FontSize = $hdr.Title + 4 }
+        $t = $global:window.FindName('UntestedInstallerKind'); if ($t) { $t.FontSize = $hdr.Sub + 3 }
+        $t = $global:window.FindName('UntestedInstallerDescription'); if ($t) { $t.FontSize = $hdr.Sub + 2 }
         foreach ($n in @("HeaderMCSub","HeaderGPSub","HeaderExtSub","RecentlyPlayedSub")) {
             $t = $global:window.FindName($n); if ($t) { $t.FontSize = $hdr.Sub }
         }
@@ -341,6 +364,7 @@ function global:Apply-LibrarySize { param($sizeKey)
             $tile.Width  = $dim.W
             $tile.Height = $dim.H
         }
+        if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
     }
     # The library featured banner (LibBanner) is XAML with fixed sizes
     # and was the only one of the three banners not tracking S/M/L.
@@ -405,6 +429,7 @@ function global:Apply-ExploreSize { param($sizeKey)
                 }
             }
         }
+        if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
     }
     if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
         Set-HubSetting -Key "sizeExplore" -Value $sizeKey
@@ -600,14 +625,19 @@ function global:On-ScaleClick { param($listScale, $discoverSize, $activeBtn)
     # glow, then defer the heavy work by one dispatcher cycle at
     # Background priority - the glow paints immediately, the rebuild
     # runs right after.
+    $scaleIndicatorToken = Start-HubActionIndicator -Target $activeBtn -DelayMilliseconds 0 -FitTargetEdges -Compact
     Set-ScaleActive $activeBtn
     $view = Get-CurrentView
     $doResize = {
-        switch ($view) {
-            "Detail"  { Apply-DetailSize  $discoverSize }
-            "Explore" { Apply-ExploreSize $discoverSize }
-            "Library" { Apply-LibrarySize $discoverSize }
-            default   { Apply-Scale $listScale $activeBtn }
+        try {
+            switch ($view) {
+                "Detail"  { Apply-DetailSize  $discoverSize }
+                "Explore" { Apply-ExploreSize $discoverSize }
+                "Library" { Apply-LibrarySize $discoverSize }
+                default   { Apply-Scale $listScale $activeBtn }
+            }
+        } finally {
+            Stop-HubActionIndicator -Token $scaleIndicatorToken
         }
     }.GetNewClosure()
     if ($global:window) {
@@ -805,7 +835,7 @@ function global:Build-RecentlyPlayed {
     $tileH = [int]($baseH * $rpFactor)
 
     foreach ($g in $candidates) {
-        $tile = New-Object System.Windows.Controls.Border
+        $tile = [System.Windows.Controls.Border]::new()
         $tile.Width  = $tileW
         $tile.Height = $tileH
         $tile.CornerRadius = [System.Windows.CornerRadius]::new(4)
@@ -816,11 +846,11 @@ function global:Build-RecentlyPlayed {
         $tile.Cursor = [System.Windows.Input.Cursors]::Hand
         $tile.ClipToBounds = $true
 
-        $tileGrid = New-Object System.Windows.Controls.Grid
+        $tileGrid = [System.Windows.Controls.Grid]::new()
 
         # Keep a visible text fallback even when all cold-start image requests
         # fail. The delayed image loader hides it only after a real decode.
-        $recentFallback = New-Object System.Windows.Controls.TextBlock
+        $recentFallback = [System.Windows.Controls.TextBlock]::new()
         $recentFallback.Text = $g.Title
         $recentFallback.TextWrapping = [System.Windows.TextWrapping]::Wrap
         $recentFallback.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
@@ -838,10 +868,10 @@ function global:Build-RecentlyPlayed {
         $portraitUrl = Get-GameImageUrl -Game $g -Kind "portrait"
         if ($portraitUrl) {
             try {
-                $img = New-Object System.Windows.Controls.Image
+                $img = [System.Windows.Controls.Image]::new()
                 $img.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                $tileGrid.Children.Add($img) | Out-Null
-                $tileGrid.Children.Add($recentFallback) | Out-Null
+                [void]$tileGrid.Children.Add($img)
+                [void]$tileGrid.Children.Add($recentFallback)
                 $imageUrls = @()
                 if ($g.SteamId) {
                     $cachedPortrait = Get-CachedImageUri -SteamId $g.SteamId -Kind 'portrait'
@@ -859,17 +889,17 @@ function global:Build-RecentlyPlayed {
         if (-not $recentFallback.Parent) { $tileGrid.Children.Add($recentFallback) | Out-Null }
 
         # Bottom gradient overlay for title legibility.
-        $titleBg = New-Object System.Windows.Shapes.Rectangle
+        $titleBg = [System.Windows.Shapes.Rectangle]::new()
         $titleBg.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
         $titleBg.Height = 36
-        $gradStops = New-Object System.Windows.Media.GradientStopCollection
-        $gradStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(0,0,0,0), 0))) | Out-Null
-        $gradStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(220,0,0,0), 1))) | Out-Null
+        $gradStops = [System.Windows.Media.GradientStopCollection]::new()
+        [void]$gradStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(0,0,0,0), 0)))
+        [void]$gradStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(220,0,0,0), 1)))
         $titleBg.Fill = New-Object System.Windows.Media.LinearGradientBrush $gradStops, ([System.Windows.Point]::new(0,0)), ([System.Windows.Point]::new(0,1))
-        $tileGrid.Children.Add($titleBg) | Out-Null
+        [void]$tileGrid.Children.Add($titleBg)
 
         # Title text (truncated with ellipsis if too long).
-        $titleTxt = New-Object System.Windows.Controls.TextBlock
+        $titleTxt = [System.Windows.Controls.TextBlock]::new()
         $titleTxt.Text = $g.Title
         $titleTxt.FontSize = [Math]::Max(9, [int](9 * $sc))
         $titleTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -880,13 +910,13 @@ function global:Build-RecentlyPlayed {
         $titleTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $titleTxt.TextAlignment = [System.Windows.TextAlignment]::Center
         $titleTxt.Margin = [System.Windows.Thickness]::new(4, 0, 4, 6)
-        $tileGrid.Children.Add($titleTxt) | Out-Null
+        [void]$tileGrid.Children.Add($titleTxt)
 
         # Per-tile privacy controls. They remain completely absent from normal
         # interaction until the pointer rests on this Recently Played tile for
         # seven seconds. Close removes this one history entry; Always disable
         # also stores the stable game ID so later launches do not re-add it.
-        $tileManageOverlay = New-Object System.Windows.Controls.StackPanel
+        $tileManageOverlay = [System.Windows.Controls.StackPanel]::new()
         $tileManageOverlay.Orientation = [System.Windows.Controls.Orientation]::Vertical
         $tileManageOverlay.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
         $tileManageOverlay.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
@@ -895,7 +925,7 @@ function global:Build-RecentlyPlayed {
         $tileManageOverlay.Tag = 'RecentlyPlayedManagementOverlay'
         [System.Windows.Controls.Panel]::SetZIndex($tileManageOverlay, 25)
 
-        $tileCloseBtn = New-Object System.Windows.Controls.Border
+        $tileCloseBtn = [System.Windows.Controls.Border]::new()
         $tileCloseBtn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ee1a1a22")
         $tileCloseBtn.CornerRadius = [System.Windows.CornerRadius]::new(3)
         $tileCloseBtn.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -905,16 +935,16 @@ function global:Build-RecentlyPlayed {
         $tileCloseBtn.Cursor = [System.Windows.Input.Cursors]::Hand
         $tileCloseBtn.Tag = 'RecentlyPlayedClose'
         $tileCloseBtn.ToolTip = "Remove this game from Recently Played. It returns after the next launch."
-        $tileCloseText = New-Object System.Windows.Controls.TextBlock
+        $tileCloseText = [System.Windows.Controls.TextBlock]::new()
         $tileCloseText.Text = "Close"
         $tileCloseText.FontSize = [Math]::Max(8, [int](8 * $rpFactor))
         $tileCloseText.FontWeight = [System.Windows.FontWeights]::SemiBold
         $tileCloseText.Foreground = [System.Windows.Media.Brushes]::White
         $tileCloseText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $tileCloseBtn.Child = $tileCloseText
-        $tileManageOverlay.Children.Add($tileCloseBtn) | Out-Null
+        [void]$tileManageOverlay.Children.Add($tileCloseBtn)
 
-        $tileIgnoreBtn = New-Object System.Windows.Controls.Border
+        $tileIgnoreBtn = [System.Windows.Controls.Border]::new()
         $tileIgnoreBtn.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ee1a1a22")
         $tileIgnoreBtn.CornerRadius = [System.Windows.CornerRadius]::new(3)
         $tileIgnoreBtn.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -923,15 +953,15 @@ function global:Build-RecentlyPlayed {
         $tileIgnoreBtn.Cursor = [System.Windows.Input.Cursors]::Hand
         $tileIgnoreBtn.Tag = 'RecentlyPlayedAlwaysDisable'
         $tileIgnoreBtn.ToolTip = "Always hide this game from Recently Played."
-        $tileIgnoreText = New-Object System.Windows.Controls.TextBlock
+        $tileIgnoreText = [System.Windows.Controls.TextBlock]::new()
         $tileIgnoreText.Text = "Always disable"
         $tileIgnoreText.FontSize = [Math]::Max(8, [int](8 * $rpFactor))
         $tileIgnoreText.FontWeight = [System.Windows.FontWeights]::SemiBold
         $tileIgnoreText.Foreground = [System.Windows.Media.Brushes]::White
         $tileIgnoreText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $tileIgnoreBtn.Child = $tileIgnoreText
-        $tileManageOverlay.Children.Add($tileIgnoreBtn) | Out-Null
-        $tileGrid.Children.Add($tileManageOverlay) | Out-Null
+        [void]$tileManageOverlay.Children.Add($tileIgnoreBtn)
+        [void]$tileGrid.Children.Add($tileManageOverlay)
 
         $tile.Child = $tileGrid
 
@@ -939,7 +969,7 @@ function global:Build-RecentlyPlayed {
         # card hover idiom but in a more compact way). The management
         # controls appear only after a deliberate seven-second dwell.
         $accent = if ($g.Accent) { $g.Accent } else { "#666677" }
-        $tileDwellTimer = New-Object System.Windows.Threading.DispatcherTimer
+        $tileDwellTimer = [System.Windows.Threading.DispatcherTimer]::new()
         $tileDwellTimer.Interval = [TimeSpan]::FromSeconds(7)
         $tileForDwell = $tile
         $overlayForDwell = $tileManageOverlay
@@ -1004,7 +1034,7 @@ function global:Build-RecentlyPlayed {
             Start-GameInVR -Game $gameRef
         }.GetNewClosure())
 
-        $recentList.Children.Add($tile) | Out-Null
+        [void]$recentList.Children.Add($tile)
     }
 
     if ($recentSection) { $recentSection.Visibility = [System.Windows.Visibility]::Visible }
@@ -1033,9 +1063,9 @@ if ($recentSection -and $recentHeaderHost -and $recentCloseOverlay -and $recentC
     # the overlay.
 
     # 5-second show timer on hover, 800ms hide timer on leave.
-    $rpShowTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $rpShowTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $rpShowTimer.Interval = [TimeSpan]::FromSeconds(5)
-    $rpHideTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $rpHideTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $rpHideTimer.Interval = [TimeSpan]::FromMilliseconds(800)
 
     $rpShowTimer.Add_Tick({
@@ -1160,7 +1190,7 @@ $global:menuBtn.Add_PreviewMouseLeftButtonDown({ param($s, $e)
     $pulse = New-Object System.Windows.Media.SolidColorBrush (
         [System.Windows.Media.Color][System.Windows.Media.ColorConverter]::ConvertFromString("#16161a"))
     $this.Background = $pulse
-    $anim = New-Object System.Windows.Media.Animation.ColorAnimation
+    $anim = [System.Windows.Media.Animation.ColorAnimation]::new()
     $anim.From     = [System.Windows.Media.Color][System.Windows.Media.ColorConverter]::ConvertFromString("#3a3a52")
     $anim.To       = [System.Windows.Media.Color][System.Windows.Media.ColorConverter]::ConvertFromString("#16161a")
     $anim.Duration = New-Object System.Windows.Duration ([TimeSpan]::FromMilliseconds(220))

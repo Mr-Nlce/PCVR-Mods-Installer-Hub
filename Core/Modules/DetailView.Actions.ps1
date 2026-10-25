@@ -1632,7 +1632,9 @@ function global:New-UninstallGuideButton {
     param(
         $Game,
         [string]$AccentHex = "#cc6655",
-        [Parameter(Mandatory=$true)][System.Windows.Controls.StackPanel]$HostPanel
+        [Parameter(Mandatory=$true)][System.Windows.Controls.StackPanel]$HostPanel,
+        [string]$ReadmeNotes,
+        [string]$ImageBaseDir
     )
 
     $accent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
@@ -1779,6 +1781,7 @@ function global:New-UninstallGuideButton {
         $sourceUrlCapture = [string]$guideSourceUrl
         $sourceLink.ToolTip = $sourceUrlCapture
         $sourceLink.Add_Click({ try { Start-Process $sourceUrlCapture } catch {} }.GetNewClosure())
+        if(Get-Command Enable-ReadmeLinkCopy -ErrorAction SilentlyContinue){Enable-ReadmeLinkCopy -Link $sourceLink -Address $sourceUrlCapture}
         [void]$guideSource.Inlines.Add($sourceLink)
         [void]$tipStack.Children.Add($guideSource)
         if ($null -ne $global:DetailReadmeTextBlocks) { [void]$global:DetailReadmeTextBlocks.Add($guideSource) }
@@ -1824,6 +1827,12 @@ function global:New-UninstallGuideButton {
 
         $tipStack.Children.Add($row) | Out-Null
         $stepIdx++
+    }
+
+    if($ReadmeNotes){
+        $notesSession=New-ReadmeLinkSession -Game $Game -Texts @($ReadmeNotes) -BaseDir $ImageBaseDir -DeferLocalIndex
+        $notes=New-DetailSection -Heading 'Mod-specific removal notes' -Body $ReadmeNotes -Game $Game -AccentHex $AccentHex -ImageBaseDir $ImageBaseDir -LinkSession $notesSession
+        if($notes){[void]$tipStack.Children.Add($notes)}
     }
 
     # Footer removed - the steps stand on their own.

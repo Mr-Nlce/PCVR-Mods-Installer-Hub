@@ -1,3 +1,156 @@
+﻿# Paint one card from its recorded scan state. Shared by Rebuild-Lookups
+# (style switch, single-game refresh, post-install refresh) and by the lazy
+# card builder (CardTile.Lazy.ps1), which calls it the moment a placeholder
+# becomes a real card. A placeholder only takes the Tag: its visuals are
+# painted when it is built.
+function global:Restore-CardVisualState {
+    param($Card, $Game, $State)
+    $card = $Card; $g = $Game; $state = $State
+    if (-not $card -or -not $g -or -not $g.Title -or -not $state) { return }
+    if ($g.UntestedInstaller -and (Get-Command Update-UntestedFeedbackReminder -ErrorAction SilentlyContinue)) {
+        Update-UntestedFeedbackReminder -Card $card -Game $g -State $state
+    }
+    if ($card.Resources.Contains('cardLazy')) { $card.Tag = $state.Tag; return }
+    $becameReady = $state.Tag -eq 'vrinstalled' -and [string]$card.Tag -eq 'vrupdate'
+    if ($becameReady) { Reset-CardUpdateHoverForReady -Card $card }
+    $card.Tag = $state.Tag
+    $accH = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
+    if (-not $accH) { $accH = "#666677" }
+    $btnTxt = $card.Resources.Item("btnText")
+    $btnBrd = $card.Resources.Item("btnBorder")
+    $card.Effect = $null
+
+    switch ($state.State) {
+        "update" {
+            # Update state: unified blue (#2563eb), regardless of accent.
+            $UPDATE_BLUE = "#2563eb"
+            $card.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex $UPDATE_BLUE -TopAlpha 0.22 -MidAlpha 0.05
+            $aA = ConvertTo-MediaColor $UPDATE_BLUE; $aB = ConvertTo-MediaColor "#16161a"
+            $card.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(
+                [byte]([Math]::Round($aA.R*0.40 + $aB.R*0.60)),
+                [byte]([Math]::Round($aA.G*0.40 + $aB.G*0.60)),
+                [byte]([Math]::Round($aA.B*0.40 + $aB.B*0.60))
+            ))
+            $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $glow.Color = $aA; $glow.BlurRadius = 16; $glow.ShadowDepth = 0; $glow.Opacity = 0.55
+            $card.Effect = $glow
+            if ($btnTxt) {
+                $btnTxt.Text = "Update"
+                $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9ccf4")
+            }
+            if ($btnBrd) {
+                $btnBrd.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($UPDATE_BLUE)
+                $btnBrd.BorderThickness = [System.Windows.Thickness]::new(0)
+            }
+            # Cap matches the update theme: blue, visible.
+            $cap = $card.Resources.Item("accentCap")
+            if ($cap) {
+                $cap.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($UPDATE_BLUE)
+                $cap.Visibility = [System.Windows.Visibility]::Visible
+            }
+            # Refresh resources so hover tint matches the new
+            # state. Without these the rebuilt card would
+            # hover in its original accent color, not blue.
+            $card.Resources.Remove("baseBgBrush") | Out-Null
+            $card.Resources.Remove("baseBdBrush") | Out-Null
+            $card.Resources.Add("baseBgBrush", $card.Background)
+            $card.Resources.Add("baseBdBrush", $card.BorderBrush)
+            $card.Resources.Remove("baseAccent") | Out-Null
+            $card.Resources.Add("baseAccent", $UPDATE_BLUE)
+        }
+        "ready" {
+            $card.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.10 -MidAlpha 0.02
+            $card.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1d2e22")
+            if ($btnTxt) {
+                $btnTxt.Text = if ($g.ExternalVrStartApp -and $state.BtnText) { $state.BtnText } else { 'VR Ready' }
+                $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
+            }
+            $fblR = $card.Resources.Item("freeBtnLabel")
+            if ($fblR) { $fblR.Visibility = [System.Windows.Visibility]::Collapsed }
+            if ($btnBrd) {
+                $btnBrd.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
+                $btnBrd.BorderThickness = [System.Windows.Thickness]::new(1)
+                $btnBrd.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
+            }
+            # VR Ready is complete - no "action pending"
+            # signal; hide the cap. Without this, a card
+            # repainted via Rebuild-Lookups (single-game
+            # refresh, post-install refresh) would keep the
+            # cap from its previous default state and show
+            # an accent stripe alongside the green Ready
+            # outline.
+            $cap = $card.Resources.Item("accentCap")
+            if ($cap) { $cap.Visibility = [System.Windows.Visibility]::Collapsed }
+        }
+        default {
+            # "installed": game found, no VR mod yet - blue tint
+            if ($state.Tag -eq "installed") {
+                $conv3 = [System.Windows.Media.BrushConverter]::new()
+                $card.Background  = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.18 -MidAlpha 0.06
+                $card.BorderBrush = $conv3.ConvertFromString("#2a5c38")
+                $card.BorderThickness = [System.Windows.Thickness]::new(1)
+                if ($btnTxt) {
+                    if ($state.BtnText) { $btnTxt.Text = $state.BtnText }
+                    $btnTxt.Foreground = $conv3.ConvertFromString("#66dd88")
+                }
+                if ($btnBrd) {
+                    $btnBrd.Background      = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
+                    $btnBrd.BorderThickness = [System.Windows.Thickness]::new(1)
+                    $btnBrd.BorderBrush     = $conv3.ConvertFromString("#2a5c38")
+                }
+                # Cap in matching green to signal "action
+                # available: install the VR mod".
+                $cap = $card.Resources.Item("accentCap")
+                if ($cap) {
+                    $cap.Background = $conv3.ConvertFromString("#5cb344")
+                    $cap.Visibility = [System.Windows.Visibility]::Visible
+                }
+            } else {
+                if ($btnTxt -and $state.BtnText) { $btnTxt.Text = $state.BtnText }
+                # Free games: restore the accent glow + reveal the
+                # FREE label on the button (matches the scan's
+                # free-state painting so filter switches don't drop
+                # it).
+                if ($state.Tag -eq "free") {
+                    try {
+                        $glowAccP = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
+                        $card.Effect = $null
+                        $card.BorderBrush = New-Object System.Windows.Media.SolidColorBrush (Get-GlowColor $glowAccP)
+                        $card.BorderThickness = [System.Windows.Thickness]::new(1)
+                        $fblP = $card.Resources.Item("freeBtnLabel")
+                        if ($fblP) { $fblP.Visibility = [System.Windows.Visibility]::Visible }
+                    } catch {}
+                }
+            }
+        }
+    }
+    if (($g.TwoMods -or $g.DualMode) -and (Get-Command Update-AlternativeModSplit -ErrorAction SilentlyContinue)) {
+        Update-AlternativeModSplit -Card $card
+    }
+    if ($state.State -eq 'update') {
+        $reloadForUpdate = $card.Resources.Item('reloadPill')
+        if ($reloadForUpdate) {
+            $updateLayout = Get-CardUpdateActionLayout -State $state
+            $reloadForUpdate.ToolTip = if ($updateLayout.PillAction -eq 'Update') {
+                Get-UpdateActionLabel -Game $g -State $state -Fallback 'Update Mod'
+            } else { 'Start in VR' }
+        }
+    }
+    Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
+    # Refresh stored brushes so hover reflects current state
+    if ($card.Resources.Contains("baseBgBrush")) { $card.Resources.Remove("baseBgBrush") }
+    if ($card.Resources.Contains("baseBdBrush")) { $card.Resources.Remove("baseBdBrush") }
+    $card.Resources.Add("baseBgBrush", $card.Background)
+    $card.Resources.Add("baseBdBrush", $card.BorderBrush)
+    if ($becameReady -and $card.IsMouseOver -and $btnBrd) {
+        # An installer may finish while the pointer remains on its tile.
+        # Recreate the ready hover without requiring the user to move it.
+        $hover = New-Object System.Windows.Input.MouseEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0)
+        $hover.RoutedEvent = [System.Windows.Input.Mouse]::MouseEnterEvent
+        $btnBrd.RaiseEvent($hover)
+    }
+}
+
 # Build a card->game lookup - wrapped in function so Scale can rebuild it
 function global:Rebuild-Lookups {
     $global:allCards    = @()
@@ -5,6 +158,7 @@ function global:Rebuild-Lookups {
     foreach ($child in $ownList.Children)   { $global:allCards += $child }
     foreach ($child in $ownListGP.Children) { $global:allCards += $child }
     foreach ($child in $extList.Children)   { $global:allCards += $child }
+    foreach ($child in $untestedList.Children) { $global:allCards += $child }
     foreach ($g in $ownGames)               { $global:allGameData += $g }
     foreach ($g in $ownGamesGP)             { $global:allGameData += $g }
     foreach ($g in $externalGames)          { $global:allGameData += $g }
@@ -30,149 +184,12 @@ function global:Rebuild-Lookups {
     # cards) - we store the accent + state name and rebuild brushes
     # here using the same helpers that initial card creation uses.
     if ($global:gameStateMap -and $global:gameStateMap.Count -gt 0) {
-        foreach ($card in $global:cardGameMap.Keys) {
+        foreach ($card in @($global:cardGameMap.Keys)) {
             $g = $global:cardGameMap[$card]
-            if (-not $g.Title) { continue }
+            if (-not $g -or -not $g.Title) { continue }
             $state = $global:gameStateMap[$g.Title]
             if (-not $state) { continue }
-            $becameReady = $state.Tag -eq 'vrinstalled' -and [string]$card.Tag -eq 'vrupdate'
-            if ($becameReady) { Reset-CardUpdateHoverForReady -Card $card }
-            $card.Tag = $state.Tag
-            $accH = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
-            if (-not $accH) { $accH = "#666677" }
-            $btnTxt = $card.Resources.Item("btnText")
-            $btnBrd = $card.Resources.Item("btnBorder")
-            $card.Effect = $null
-
-            switch ($state.State) {
-                "update" {
-                    # Update state: unified blue (#2563eb), regardless of accent.
-                    $UPDATE_BLUE = "#2563eb"
-                    $card.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex $UPDATE_BLUE -TopAlpha 0.22 -MidAlpha 0.05
-                    $aA = ConvertTo-MediaColor $UPDATE_BLUE; $aB = ConvertTo-MediaColor "#16161a"
-                    $card.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromRgb(
-                        [byte]([Math]::Round($aA.R*0.40 + $aB.R*0.60)),
-                        [byte]([Math]::Round($aA.G*0.40 + $aB.G*0.60)),
-                        [byte]([Math]::Round($aA.B*0.40 + $aB.B*0.60))
-                    ))
-                    $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
-                    $glow.Color = $aA; $glow.BlurRadius = 16; $glow.ShadowDepth = 0; $glow.Opacity = 0.55
-                    $card.Effect = $glow
-                    if ($btnTxt) {
-                        $btnTxt.Text = "Update"
-                        $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9ccf4")
-                    }
-                    if ($btnBrd) {
-                        $btnBrd.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($UPDATE_BLUE)
-                        $btnBrd.BorderThickness = [System.Windows.Thickness]::new(0)
-                    }
-                    # Cap matches the update theme: blue, visible.
-                    $cap = $card.Resources.Item("accentCap")
-                    if ($cap) {
-                        $cap.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString($UPDATE_BLUE)
-                        $cap.Visibility = [System.Windows.Visibility]::Visible
-                    }
-                    # Refresh resources so hover tint matches the new
-                    # state. Without these the rebuilt card would
-                    # hover in its original accent color, not blue.
-                    $card.Resources.Remove("baseBgBrush") | Out-Null
-                    $card.Resources.Remove("baseBdBrush") | Out-Null
-                    $card.Resources.Add("baseBgBrush", $card.Background)
-                    $card.Resources.Add("baseBdBrush", $card.BorderBrush)
-                    $card.Resources.Remove("baseAccent") | Out-Null
-                    $card.Resources.Add("baseAccent", $UPDATE_BLUE)
-                }
-                "ready" {
-                    $card.Background = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.10 -MidAlpha 0.02
-                    $card.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1d2e22")
-                    if ($btnTxt) {
-                        $btnTxt.Text = if ($g.ExternalVrStartApp -and $state.BtnText) { $state.BtnText } else { 'VR Ready' }
-                        $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
-                    }
-                    $fblR = $card.Resources.Item("freeBtnLabel")
-                    if ($fblR) { $fblR.Visibility = [System.Windows.Visibility]::Collapsed }
-                    if ($btnBrd) {
-                        $btnBrd.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-                        $btnBrd.BorderThickness = [System.Windows.Thickness]::new(1)
-                        $btnBrd.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
-                    }
-                    # VR Ready is complete - no "action pending"
-                    # signal; hide the cap. Without this, a card
-                    # repainted via Rebuild-Lookups (single-game
-                    # refresh, post-install refresh) would keep the
-                    # cap from its previous default state and show
-                    # an accent stripe alongside the green Ready
-                    # outline.
-                    $cap = $card.Resources.Item("accentCap")
-                    if ($cap) { $cap.Visibility = [System.Windows.Visibility]::Collapsed }
-                }
-                default {
-                    # "installed": game found, no VR mod yet - blue tint
-                    if ($state.Tag -eq "installed") {
-                        $conv3 = [System.Windows.Media.BrushConverter]::new()
-                        $card.Background  = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.18 -MidAlpha 0.06
-                        $card.BorderBrush = $conv3.ConvertFromString("#2a5c38")
-                        $card.BorderThickness = [System.Windows.Thickness]::new(1)
-                        if ($btnTxt) {
-                            if ($state.BtnText) { $btnTxt.Text = $state.BtnText }
-                            $btnTxt.Foreground = $conv3.ConvertFromString("#66dd88")
-                        }
-                        if ($btnBrd) {
-                            $btnBrd.Background      = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-                            $btnBrd.BorderThickness = [System.Windows.Thickness]::new(1)
-                            $btnBrd.BorderBrush     = $conv3.ConvertFromString("#2a5c38")
-                        }
-                        # Cap in matching green to signal "action
-                        # available: install the VR mod".
-                        $cap = $card.Resources.Item("accentCap")
-                        if ($cap) {
-                            $cap.Background = $conv3.ConvertFromString("#5cb344")
-                            $cap.Visibility = [System.Windows.Visibility]::Visible
-                        }
-                    } else {
-                        if ($btnTxt -and $state.BtnText) { $btnTxt.Text = $state.BtnText }
-                        # Free games: restore the accent glow + reveal the
-                        # FREE label on the button (matches the scan's
-                        # free-state painting so filter switches don't drop
-                        # it).
-                        if ($state.Tag -eq "free") {
-                            try {
-                                $glowAccP = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
-                                $card.Effect = $null
-                                $card.BorderBrush = New-Object System.Windows.Media.SolidColorBrush (Get-GlowColor $glowAccP)
-                                $card.BorderThickness = [System.Windows.Thickness]::new(1)
-                                $fblP = $card.Resources.Item("freeBtnLabel")
-                                if ($fblP) { $fblP.Visibility = [System.Windows.Visibility]::Visible }
-                            } catch {}
-                        }
-                    }
-                }
-            }
-            if (($g.TwoMods -or $g.DualMode) -and (Get-Command Update-AlternativeModSplit -ErrorAction SilentlyContinue)) {
-                Update-AlternativeModSplit -Card $card
-            }
-            if ($state.State -eq 'update') {
-                $reloadForUpdate = $card.Resources.Item('reloadPill')
-                if ($reloadForUpdate) {
-                    $updateLayout = Get-CardUpdateActionLayout -State $state
-                    $reloadForUpdate.ToolTip = if ($updateLayout.PillAction -eq 'Update') {
-                        Get-UpdateActionLabel -Game $g -State $state -Fallback 'Update Mod'
-                    } else { 'Start in VR' }
-                }
-            }
-            Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
-            # Refresh stored brushes so hover reflects current state
-            if ($card.Resources.Contains("baseBgBrush")) { $card.Resources.Remove("baseBgBrush") }
-            if ($card.Resources.Contains("baseBdBrush")) { $card.Resources.Remove("baseBdBrush") }
-            $card.Resources.Add("baseBgBrush", $card.Background)
-            $card.Resources.Add("baseBdBrush", $card.BorderBrush)
-            if ($becameReady -and $card.IsMouseOver -and $btnBrd) {
-                # An installer may finish while the pointer remains on its tile.
-                # Recreate the ready hover without requiring the user to move it.
-                $hover = New-Object System.Windows.Input.MouseEventArgs([System.Windows.Input.Mouse]::PrimaryDevice, 0)
-                $hover.RoutedEvent = [System.Windows.Input.Mouse]::MouseEnterEvent
-                $btnBrd.RaiseEvent($hover)
-            }
+            Restore-CardVisualState -Card $card -Game $g -State $state
         }
     }
 }
@@ -1332,7 +1349,7 @@ function global:Get-GithubLatestTagCached {
     if ($null -eq $script:ghVerCache) {
         $script:ghVerCache = @{}
         $cacheRoot = Get-HubVersionCacheRoot
-        $script:ghVerCacheFile = if ($cacheRoot) { Join-Path $cacheRoot ".gh_version_cache" } else { $null }
+        $script:ghVerCacheFile = if ($cacheRoot) { Join-Path $cacheRoot '.gh_version_cache' } else { $null }
         if ($script:ghVerCacheFile -and (Test-Path -LiteralPath $script:ghVerCacheFile -PathType Leaf)) {
             try {
                 $raw = Get-Content -LiteralPath $script:ghVerCacheFile -Raw | ConvertFrom-Json
@@ -1347,13 +1364,6 @@ function global:Get-GithubLatestTagCached {
     if ($entry -and $entry.tag -and $entry.checked) {
         try {
             $age = ($now - [DateTime]::Parse($entry.checked, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours
-            # !!! A FRESH CACHE VALUE CAN BE A SOURCE TAG TOO !!!
-            # The filter further down only applies when the code really
-            # looks online. A value left behind by Prefetch-Versions.ps1
-            # (or by an older run) is returned RIGHT HERE - before that
-            # filter. So it is checked here as well, rather than trusting
-            # the write path: cache files from before this change already
-            # contain such tags.
             if ($entry.tag -match '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
                 Write-Host "[GithubCheck] ${Repo}: cached tag '$($entry.tag)' is a source release - discarding it"
                 $script:ghVerCache.Remove($cacheKey)
@@ -1362,151 +1372,59 @@ function global:Get-GithubLatestTagCached {
             }
         } catch {}
     }
-    # Respect the scan-wide circuit breaker: if an earlier online check in
-    # THIS scan already failed/timed out, do NOT touch the network again -
-    # fall straight back to the last known tag (or null). This is what stops
-    # an unreachable github.com (firewall/DNS) from stacking a per-repo
-    # connection timeout into a multi-minute UI-thread freeze on a first run
-    # with an empty cache: the first miss trips the breaker, the rest skip.
     if ($global:HubScanOnlineDown -or $global:HubVersionCacheOnly) {
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
     }
-    # Some publishers post release notes before they upload the installable
-    # binary. An opt-in asset contract tracks the newest release that really
-    # carries exactly one matching publisher asset. It has its own cache key,
-    # so a previous generic tag can never create a phantom Update badge.
     if ($assetPatterns.Count -gt 0) {
+        # The Hub badge and installer must identify the same publisher asset.
+        # Scans use the bounded transport mode so a slow/offline GitHub check
+        # cannot hold the UI for the full installer download time.
         try {
-            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=20" `
-                -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } `
-                -TimeoutSec 3 -ErrorAction Stop 2>$null
-            $tag = Select-GithubReleaseTagWithAsset -Releases $releases -IncludePrerelease ([bool]$IncludePrerelease) -RequiredAssetPatterns $assetPatterns -AssetVersionPattern $AssetVersionPattern
-            if ($tag) {
-                $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString('o') }
-                if ($script:ghVerCacheFile) { try {
-                    $obj = @{}
-                    foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }
-                    ($obj | ConvertTo-Json) | Set-Content -LiteralPath $script:ghVerCacheFile -Encoding UTF8 -Force
-                } catch {} }
-                return $tag
+            if (-not (Get-Command Resolve-GitHubReleaseAsset -ErrorAction SilentlyContinue)) {
+                . (Join-Path $PSScriptRoot 'GitHubTransport.ps1')
             }
-            Write-Host "[GithubCheck] ${Repo}: no release currently carries the required installable asset"
-            if ($entry -and $entry.tag) { return [string]$entry.tag }
-            return $null
-        } catch {
-            Write-Host "[GithubCheck] ${Repo}: asset-aware API check failed ($($_.Exception.Message)) - using cached tag if present"
-            if ($_.Exception.Message -notmatch 'rate limit|403|forbidden') { $global:HubScanOnlineDown = $true }
-            if ($entry -and $entry.tag) { return [string]$entry.tag }
-            return $null
-        }
-    }
-    $tag = $null
-    if ($IncludePrerelease) {
-        # Prerelease-aware path, WEBSITE FIRST: <repo>/releases.atom is served by
-        # github.com, not by the API, so it has NO 60/hour limit - and it lists
-        # prereleases, newest first. Each entry carries the tag in its <id> as
-        #   tag:github.com,2008:Repository/<repoId>/<tag>
-        # Verified against four repos in this Hub, including prerelease-only
-        # ones (witcher3-vr -> v0.9.0-alpha.1, fear-vr -> v1.0.0-beta.7) and
-        # normal ones (anvilengine2vr -> v2.0.0.Public, REFramework-nightly).
-        # The API stays as the fallback below.
-        # Deliberately NOT via Invoke-ScanWebGet: that helper trips the
-        # scan-wide online-down breaker on any failure, and a missing atom
-        # feed must not kill the rest of the scan - the API fallback right
-        # below still has a chance.
-        try {
-            $atomResp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases.atom" `
-                            -UseBasicParsing -TimeoutSec 3 `
-                            -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop
-            $atom = [string]$atomResp.Content
-            if ($atom) {
-                foreach ($m in [regex]::Matches($atom, 'Repository/[0-9]+/([^<]+)')) {
-                    $t = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value).Trim()
-                    if ($t -and $t -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
-                        $tag = $t
-                        break
-                    }
+            $resolved=Resolve-GitHubReleaseAsset -Repo $Repo -AssetPatterns $assetPatterns `
+                -IncludePrerelease ([bool]$IncludePrerelease) -SkipReleasesWithoutMatchingAsset -ScanFast
+            if ($resolved.Resolved) {
+                $tag=[string]$resolved.Tag
+                if ($AssetVersionPattern) {
+                    $assetMatch=[regex]::Match([string]$resolved.AssetName,$AssetVersionPattern)
+                    $tag=if($assetMatch.Success -and $assetMatch.Groups.Count -gt 1 -and
+                        $assetMatch.Groups[1].Value -match '\d') {[string]$assetMatch.Groups[1].Value}else{''}
                 }
-            }
-        } catch {
-            Write-Host "[GithubCheck] $Repo (prerelease) : atom feed failed ($($_.Exception.Message)) - trying the API"
-        }
-        if (-not $tag) {
-          try {
-            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=10" -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 2 -EA Stop 2>$null
-            foreach ($candidate in @($rel)) {
-                $candidateTag = [string]$candidate.tag_name
-                if (-not $candidate.draft -and $candidateTag -and $candidateTag -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') {
-                    $tag = $candidateTag.Trim()
-                    break
+                if ($tag) {
+                    $script:ghVerCache[$cacheKey] = @{ tag=$tag; checked=$now.ToString('o') }
+                    if ($script:ghVerCacheFile) { try {
+                        $obj=@{}
+                        foreach ($k in $script:ghVerCache.Keys) { $obj[$k]=$script:ghVerCache[$k] }
+                        ($obj | ConvertTo-Json) | Set-Content -LiteralPath $script:ghVerCacheFile -Encoding UTF8 -Force
+                    } catch {} }
+                    return $tag
                 }
+                Write-Host "[GithubCheck] ${Repo}: publisher asset does not provide the catalog version pattern"
+            } else {
+                Write-Host "[GithubCheck] ${Repo}: current installable asset not verified ($($resolved.Error))"
             }
         } catch {
-            Write-Host "[GithubCheck] $Repo (prerelease) : API check failed ($($_.Exception.Message)) - using cached tag if present"
-            # A 403 (rate limit) means the host is reachable - do NOT trip the
-            # scan-wide breaker. Only a genuine connection failure should.
-            if ($_.Exception.Message -notmatch "rate limit|403|forbidden") { $global:HubScanOnlineDown = $true }
-            if ($entry -and $entry.tag) { return [string]$entry.tag }
-            return $null
-          }
-        }
-        if ($tag) {
-            $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
-            if ($script:ghVerCacheFile) { try {
-                $obj = @{}
-                foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }
-                ($obj | ConvertTo-Json) | Set-Content -LiteralPath $script:ghVerCacheFile -Encoding UTF8 -Force
-            } catch {} }
-            return $tag
+            Write-Host "[GithubCheck] ${Repo}: release check failed ($($_.Exception.Message))"
         }
         if ($entry -and $entry.tag) { return [string]$entry.tag }
         return $null
     }
-    # Use the github.com /releases/latest REDIRECT (web, not the API). It 302s
-    # to /releases/tag/<tag>, so the tag is in the final URL - and the website
-    # is NOT bound by the 60/hour unauthenticated API limit that the api.github
-    # endpoint enforces. HEAD only, so no page body is downloaded. 2>$null keeps
-    # a rare transient error out of the Hub transcript.
+    # The first transport is not a verdict on GitHub availability. Try the
+    # independent website and REST routes before using the last known tag.
     $tag = $null
     try {
-        $resp = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -TimeoutSec 2 -Headers @{ "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } -EA Stop 2>$null
-        $final = ""
-        # Windows PowerShell 5.1 exposes the final URL as BaseResponse.ResponseUri;
-        # PowerShell 7 has no such property and uses RequestMessage.RequestUri
-        # instead. Reading only the 5.1 name made this fail silently on 7.
-        try { $final = [string]$resp.BaseResponse.ResponseUri.AbsoluteUri } catch {}
-        if (-not $final) { try { $final = [string]$resp.BaseResponse.RequestMessage.RequestUri.AbsoluteUri } catch {} }
-        if (-not $final -and $resp.Headers.Location) { $final = [string]$resp.Headers.Location }
-        if ($final -match '/releases/tag/([^/?#]+)') { $tag = [System.Uri]::UnescapeDataString($matches[1]).Trim() }
-        # !!! A SOURCE RELEASE IS NOT AN UPDATE !!!
-        # "broken" and "diagnostic" joined the list on 2026-08-20:
-        # pancreations published a prerelease tagged "broken_build" that
-        # sat ABOVE the real Alpha 0.3.3 in the list, carried a Halo 4
-        # diagnostic only, and is called broken by its own author. A tag
-        # like that must never raise an Update badge.
-        # RaYRoD-TV uploaded a release "hub-patch-2" to all of his VR
-        # ports that contains source only. On Banjo it is marked as a
-        # prerelease and drops out here anyway - on StarFox64-VR it is
-        # NOT, there it is the official "latest". The tile would have
-        # reported a nonexistent update.
-        # Such tags are discarded; the last known state then stays and
-        # the tile reports nothing.
-        if ($tag -and ($tag -match '(?i)source|hub-patch|sdk|symbols|broken|diagnostic')) {
-            Write-Host "[GithubCheck] ${Repo}: tag '$tag' looks like a source release - skipping it"
-            $tag = $null
+        if (-not (Get-Command Resolve-GitHubReleaseTag -ErrorAction SilentlyContinue)) {
+            . (Join-Path $PSScriptRoot 'GitHubTransport.ps1')
         }
+        $tag = Resolve-GitHubReleaseTag -Repo $Repo -IncludePrerelease:$IncludePrerelease -ScanFast
     } catch {
-        Write-Host "[GithubCheck] ${Repo}: web check failed ($($_.Exception.Message)) - using cached tag if present"
-        # A timeout / connection failure means github.com is unreachable or
-        # too slow. Trip the scan-wide breaker so the remaining repos this
-        # scan skip the network instead of each eating another timeout.
-        $global:HubScanOnlineDown = $true
-        if ($entry -and $entry.tag) { return [string]$entry.tag }
-        return $null
+        Write-Host "[GithubCheck] ${Repo}: release check failed ($($_.Exception.Message))"
     }
     if ($tag) {
-        $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString("o") }
+        $script:ghVerCache[$cacheKey] = @{ tag = $tag; checked = $now.ToString('o') }
         if ($script:ghVerCacheFile) { try {
             $obj = @{}
             foreach ($k in $script:ghVerCache.Keys) { $obj[$k] = $script:ghVerCache[$k] }

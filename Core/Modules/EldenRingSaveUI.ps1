@@ -4,11 +4,11 @@
 
 $script:EldenRingSaveUiManager = Join-Path (Split-Path -Parent $PSScriptRoot) "EldenRingVR\EldenRingSaveManager.ps1"
 if (-not (Get-Command Get-EldenRingSaveState -ErrorAction SilentlyContinue)) {
-    . $script:EldenRingSaveUiManager
+    if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript $script:EldenRingSaveUiManager) } else { . $script:EldenRingSaveUiManager }
 }
 $script:EldenRingSettingsHelper = Join-Path (Split-Path -Parent $PSScriptRoot) "EldenRingVR\EldenRingSettings.ps1"
 if (-not (Get-Command Set-EldenRingHotbite3D -ErrorAction SilentlyContinue)) {
-    . $script:EldenRingSettingsHelper
+    if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript $script:EldenRingSettingsHelper) } else { . $script:EldenRingSettingsHelper }
 }
 
 function global:Show-EldenRingSaveMessage {

@@ -13,18 +13,14 @@
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Cyberpunk 2077 VR Installer"
 $ErrorActionPreference = "Stop"
 
-$MOD_NAME     = "CyberpunkVRPort v0.1.7"
+$MOD_NAME     = "CyberpunkVRPort (current release)"
 $MOD_AUTHOR   = "dariulone"
 $INFO_URL     = "https://github.com/dariulone/cyberpunk-vr-port"
-$MOD_URL      = "https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.1.7/CyberpunkVRPort-0.1.7.zip"
-# Tag of the pinned fallback build above - recorded as the installed
-# version when the live GitHub lookup can't be reached. Must match the
-# release tag_name the Hub sees via /releases/latest (no leading "v").
-$MOD_PINNED_TAG = "0.1.7"
 $MOD_RELEASES = "https://github.com/dariulone/cyberpunk-vr-port/releases"
 # Frameworks needed for the motion-controlled hands + VR HUD. Pinned to
 # versions known to work with this mod build; only installed if missing.
@@ -224,7 +220,7 @@ function Install-NexusMod {
         $tmpZip = Join-Path $TempDir ("dl_" + [System.IO.Path]::GetRandomFileName() + ".zip")
         try {
             Write-Info "Downloading $($Mod.Name)..."
-            Invoke-WebRequest -Uri $Mod.DirectUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop
+            Invoke-PCVRWebRequest -Uri $Mod.DirectUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop
             if ((Test-Path -LiteralPath $tmpZip) -and ((Get-Item -LiteralPath $tmpZip).Length -gt 0)) {
                 $zip = $tmpZip
                 Write-OK "Downloaded."
@@ -491,26 +487,15 @@ function Copy-Tree {
     }
 }
 
-# Resolve the latest CyberpunkVRPort release straight from GitHub so each
-# install pulls the newest build (the mod updates often). Uses the same
-# endpoint the Hub's update check uses (/releases/latest) so the recorded
-# version and the Hub's "Update" detection always agree. Returns
-# @{ Url; Tag; Sha } or $null on any failure (rate limit, offline, no asset) -
-# the caller then falls back to the pinned known-good build.
+# Resolve the exact installable asset from the official release page first;
+# the REST API is a secondary route inside the shared resolver.
 function Resolve-LatestModUrl {
-    try {
-        try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-        $headers = @{ "User-Agent" = "PCVR-Mods-Hub"; "Accept" = "application/vnd.github+json" }
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/dariulone/cyberpunk-vr-port/releases/latest" -Headers $headers -TimeoutSec 20 -ErrorAction Stop
-        if (-not $rel) { return $null }
-        $asset = $rel.assets | Where-Object { $_.name -match '(?i)^CyberpunkVRPort.*\.zip$' } | Select-Object -First 1
-        if (-not $asset) { $asset = $rel.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1 }
-        if ($asset -and $asset.browser_download_url) {
-            $sha = ""
-            if ($asset.digest -and ([string]$asset.digest) -match '^(?i)sha256:([0-9a-f]{64})$') { $sha = $Matches[1].ToLower() }
-            return @{ Url = $asset.browser_download_url; Tag = $rel.tag_name; Sha = $sha }
-        }
-    } catch {}
+    $resolved = Resolve-GitHubReleaseAsset -Repo 'dariulone/cyberpunk-vr-port' `
+        -AssetPatterns @('(?i)^CyberpunkVRPort-\d+(?:\.\d+)+\.zip$')
+    $script:LatestReleaseError = [string]$resolved.Error
+    if ($resolved.Resolved -and $resolved.Url -and $resolved.Tag) {
+        return @{ Url = [string]$resolved.Url; Tag = [string]$resolved.Tag }
+    }
     return $null
 }
 
@@ -522,9 +507,11 @@ function Resolve-LatestModUrl {
 # -------------------------------------------------------
 Write-Host "  Checking latest CyberpunkVRPort version..." -ForegroundColor DarkGray
 $latest = Resolve-LatestModUrl
-$installedTag = $MOD_PINNED_TAG
-if ($latest -and $latest.Tag) { $installedTag = $latest.Tag }
-$MOD_NAME = "CyberpunkVRPort v$installedTag"
+$installedTag = if ($latest -and $latest.Tag) { [string]$latest.Tag } else { '' }
+if ($installedTag) {
+    $displayTag = if ($installedTag -match '^[vV]\d') { $installedTag } else { "v$installedTag" }
+    $MOD_NAME = "CyberpunkVRPort $displayTag"
+}
 
 # -------------------------------------------------------
 # STEP 1: Locate Cyberpunk 2077
@@ -618,6 +605,34 @@ function Install-Component {
             return $false
         }
     }
+    if ($Label -like 'CyberpunkVRPort *') {
+        $candidateTag = $ExpectedTag
+        if (-not $candidateTag) {
+            $sourceName = if ($downloadInfo.SourcePath) { [IO.Path]::GetFileName([string]$downloadInfo.SourcePath) } else { '' }
+            if ($sourceName -notmatch '(?i)^CyberpunkVRPort-(\d+(?:\.\d+)+)(?: \(\d+\))?\.zip$') {
+                Write-Fail 'The selected file does not identify a CyberpunkVRPort release. No game files were changed.'
+                return $false
+            }
+            $candidateTag = $matches[1]
+        }
+        $previousTag = ''
+        $previousStamp = Join-Path $gameRoot '.pcvrhub_version'
+        if (Test-Path -LiteralPath $previousStamp -PathType Leaf) {
+            try { $previousTag = (Get-Content -LiteralPath $previousStamp -TotalCount 1 -ErrorAction Stop).Trim() } catch {}
+        }
+        if ($previousTag) {
+            try {
+                if ([version]$candidateTag.TrimStart('v','V') -lt [version]$previousTag.TrimStart('v','V')) {
+                    Write-Fail "Selected version $candidateTag is older than installed $previousTag. No downgrade was made."
+                    return $false
+                }
+            } catch {
+                Write-Warn "Could not compare with installed version $previousTag; no files were changed."
+                return $false
+            }
+        }
+        $script:LastCyberpunkPortTag = $candidateTag
+    }
 
     $exDir = Join-Path $tempDir ("ex_" + [System.IO.Path]::GetRandomFileName())
     New-Item -ItemType Directory -Path $exDir -Force | Out-Null
@@ -689,41 +704,114 @@ function Get-InstalledFrameworkVersion {
     return $null
 }
 
+function Test-CyberpunkSteamInstall {
+    param([string]$GameRoot)
+    try {
+        $folder = Get-Item -LiteralPath $GameRoot -ErrorAction Stop
+        if ($folder.Parent.Name -ne 'common' -or $folder.Parent.Parent.Name -ne 'steamapps') { return $false }
+        $manifest = Join-Path $folder.Parent.Parent.FullName 'appmanifest_1091500.acf'
+        $text = Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop
+        $installDir = [regex]::Match($text, '"installdir"\s+"([^"]+)"').Groups[1].Value
+        return ($text -match '"appid"\s+"1091500"' -and $installDir -eq $folder.Name)
+    } catch { return $false }
+}
+
+function Test-CyberpunkSupportedVersion {
+    param([string]$Version, [string]$RequiredVersion = '2.31')
+    return (([regex]::Match($Version, '^\d+\.\d+')).Value -eq $RequiredVersion)
+}
+
+function Test-CyberpunkGameRunning {
+    return [bool](Get-Process -Name 'Cyberpunk2077' -ErrorAction SilentlyContinue)
+}
+
+function Open-Cyberpunk231Properties {
+    Write-Host ''
+    Write-Host '  SWITCH TO THE VR-SUPPORTED GAME VERSION' -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host '  1. In Steam Properties, click Game versions & betas (Spielversionen und Betas).' -ForegroundColor Yellow
+    Write-Host '  2. Scroll DOWN in the version list.' -ForegroundColor Yellow
+    Write-Host '  3. Select:  2_31_old - Patch 2.31  ' -ForegroundColor Black -BackgroundColor Yellow
+    Write-Host '  4. Wait until Steam has finished downloading the selected version.' -ForegroundColor Yellow
+    Write-Host '  Keep Cyberpunk 2077 closed. Return here when the download is complete.' -ForegroundColor White
+    try {
+        Open-PCVRPageAfterEnter -Message 'Press Enter to open Cyberpunk 2077 Steam Properties.' -Url 'steam://gameproperties/1091500'
+    } catch {
+        Write-Warn 'Steam Properties could not be opened. In Steam, right-click Cyberpunk 2077 > Properties.'
+    }
+    [void](Wait-PCVRExplicitEnter -Message 'After Steam finishes downloading Patch 2.31, press Enter to check the installed game version.')
+}
+
+function Confirm-CyberpunkGameVersion {
+    param([string]$GameRoot, [string]$RequiredVersion = '2.31')
+    $exe = Join-Path $GameRoot 'bin\x64\Cyberpunk2077.exe'
+    $version = Get-InstalledFrameworkVersion -Path $exe
+    if (-not $version) {
+        Write-Warn "Could not read the game's version - carrying on. This port needs $RequiredVersion."
+        return $true
+    }
+    if (Test-CyberpunkSupportedVersion -Version $version -RequiredVersion $RequiredVersion) {
+        Write-OK "Cyberpunk 2077 $version - the version this port is built for."
+        return $true
+    }
+    Write-Host ''
+    Write-Warn "YOUR GAME IS $version - THIS VR PORT REQUIRES $RequiredVersion."
+    Write-Host '  The VR mod may not start on another game version.' -ForegroundColor Yellow
+    $steam = Test-CyberpunkSteamInstall -GameRoot $GameRoot
+    if (-not $steam) {
+        Write-Host '  The Steam branch switch is available only for a confirmed Steam installation.' -ForegroundColor Gray
+        return ((('' + (Read-Host 'Install anyway (unsupported)? [y/N]')).Trim().ToLower()) -in @('y','yes'))
+    }
+    Write-Host '  [1] RECOMMENDED - Switch to version 2.31 supported by the VR mod' -ForegroundColor Green
+    Write-Host '  [2] Keep the installed game version and stop Setup' -ForegroundColor White
+    Write-Host '  [3] Install anyway on the unsupported game version' -ForegroundColor DarkGray
+    $choice = ''
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $choice = ('' + (Read-Host 'Choice [1/2/3, Enter = stop]')).Trim()
+        if ($choice -in @('','1','2','3')) { break }
+        Write-Warn 'Please choose 1, 2 or 3.'
+    }
+    if ($choice -eq '3') { return $true }
+    if ($choice -ne '1') { return $false }
+    $openProperties = $true
+    while ($true) {
+        if (Test-CyberpunkGameRunning) {
+            Write-Warn 'Close Cyberpunk 2077 before changing or checking its game version. No VR files were changed.'
+            $answer = ('' + (Read-Host 'After closing the game: [R] Retry, [Q] Stop')).Trim()
+            if ($answer -ieq 'r') { continue }
+            return $false
+        }
+        if ($openProperties) { Open-Cyberpunk231Properties }
+        # Read the EXE again, never the prior warning or the selected Steam label.
+        $version = Get-InstalledFrameworkVersion -Path $exe
+        if (Test-CyberpunkGameRunning) {
+            Write-Warn 'Cyberpunk 2077 is running. Close it before continuing Setup.'
+            $openProperties = $false
+            continue
+        }
+        if (Test-CyberpunkSupportedVersion -Version ('' + $version) -RequiredVersion $RequiredVersion) {
+            Write-OK "Cyberpunk 2077 $version confirmed. Continuing VR Setup."
+            return $true
+        }
+        $shown = if ($version) { $version } else { 'unreadable / Steam update not finished' }
+        Write-Warn "Patch $RequiredVersion is not installed yet. Detected: $shown. No VR files were changed."
+        Write-Host '  [R] Recheck after the download  [O] Open Steam Properties again  [Q] Stop' -ForegroundColor Yellow
+        $answer = ('' + (Read-Host 'Choice [R/O/Q, Enter = stop]')).Trim()
+        if ($answer -ieq 'o') { $openProperties = $true }
+        elseif ($answer -ieq 'r') { $openProperties = $false }
+        else { return $false }
+    }
+}
+
 # ---- Game version -------------------------------------------
 # THE PORT IS BUILT AGAINST ONE GAME BUILD. Its engine offsets are
 # addresses in a specific Cyberpunk2077.exe - on a different patch they
 # point at whatever now lives there, which does not announce itself. It
 # fails quietly, or crashes, and neither says why.
 $REQUIRED_GAME_VERSION = "2.31"
-$gameExePath = Join-Path $gameRoot $GAME_EXE_REL
-$gameVer = Get-InstalledFrameworkVersion -Path $gameExePath
-if ($gameVer) {
-    # Compare only major.minor - the build digits move with hotfixes that
-    # do not shift the offsets.
-    $short = ([regex]::Match($gameVer, '^\d+\.\d+')).Value
-    if ($short -eq $REQUIRED_GAME_VERSION) {
-        Write-OK "Cyberpunk 2077 $gameVer - the version this port is built for."
-    } else {
-        Write-Host ""
-        Write-Warn "YOUR GAME IS $gameVer - THIS PORT IS BUILT FOR $REQUIRED_GAME_VERSION."
-        Write-Host "    The port hooks the engine at fixed addresses. On another patch" -ForegroundColor White
-        Write-Host "    those addresses hold something else: expect it to do nothing, or" -ForegroundColor White
-        Write-Host "    to crash, with no message telling you why." -ForegroundColor White
-        Write-Host ""
-        $vAns = ""
-        for ($k = 1; $k -le 20; $k++) {
-            $vAns = ("" + (Read-Host "  Install anyway? [y/n]")).Trim().ToLower()
-            if ($vAns -in @("y","n","yes","no")) { break }
-            Write-Host "  Please answer y or n." -ForegroundColor Yellow
-        }
-        if ($vAns -notin @("y","yes")) {
-            Write-Info "Stopped - nothing was changed."
-            Pause-User "Press Enter to exit."
-            exit 0
-        }
-    }
-} else {
-    Write-Warn "Could not read the game's version - carrying on. This port needs $REQUIRED_GAME_VERSION."
+if (-not (Confirm-CyberpunkGameVersion -GameRoot $gameRoot -RequiredVersion $REQUIRED_GAME_VERSION)) {
+    Write-Info 'Stopped - no VR files were changed.'
+    Pause-User 'Press Enter to exit.'
+    exit 0
 }
 
 # The update notice belongs BEFORE the question, not after it: it is
@@ -959,7 +1047,7 @@ if ($missingRuntime.Count) {
 # -------------------------------------------------------
 $requiredNexus = @(Get-NexusChain -Names @("Input Loader", "More Occluders (Scripted)"))
 Write-Host ""
-Write-Host " Required Nexus components for CyberpunkVRPort 0.1.7" -ForegroundColor Cyan
+Write-Host " Required Nexus components for CyberpunkVRPort" -ForegroundColor Cyan
 Write-Host " Input Loader and More Occluders (Scripted v0.3) must be present" -ForegroundColor White
 Write-Host " before the VR mod is copied. Select the Scripted file on Nexus," -ForegroundColor White
 Write-Host " not its ArchiveXL v0.4 main file." -ForegroundColor Yellow
@@ -1023,30 +1111,17 @@ if ($latest -and $latest.Url) {
     Write-OK "Latest release: $installedTag"
     $modUrls += $latest.Url
 } else {
-    Write-Warn "Could not query GitHub (rate limit or offline) - using the known build $MOD_PINNED_TAG."
-    # !!! WITHOUT THIS THE ARRAY STAYS EMPTY and Invoke-SafeDownload's
-    # mandatory -Urls gets @() - a parameter binding error on PowerShell
-    # 5.1, so the fallback that this branch exists for is never reached.
-    $modUrls += $MOD_URL
-    $installedTag = $MOD_PINNED_TAG
+    Write-Warn "The current release could not be verified: $script:LatestReleaseError"
+    Write-Warn 'Use the official releases page and hand over its current CyberpunkVRPort ZIP. No older version is chosen automatically.'
+    $modUrls += $MOD_RELEASES
 }
-# !!! THE FALLBACK IS TRIED SEPARATELY, ON PURPOSE.
-# Handing both URLs to one call meant that when the LATEST download failed
-# and the pinned build installed instead, the run still recorded the
-# latest tag as installed - so the tile showed no update, for a build the
-# user does not actually have. Two calls, and the tag follows whichever
-# one really landed.
-$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the latest CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedTag $installedTag
-if (-not $modOk -and ($modUrls -notcontains $MOD_URL)) {
-    Write-Warn "The $installedTag download did not work - falling back to the known build $MOD_PINNED_TAG."
-    $modOk = Install-Component -Label "CyberpunkVRPort $MOD_PINNED_TAG" -Urls @($MOD_URL) -ManualUrl $MOD_RELEASES -ManualName "the CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedTag $MOD_PINNED_TAG
-    # The version recorded from here on is the one on disk, not the one
-    # we hoped for - otherwise the real update would never be offered.
-    if ($modOk) {
-        $installedTag = $MOD_PINNED_TAG
-        # The summary line reads this, so it has to move too.
-        $MOD_NAME     = "CyberpunkVRPort v$MOD_PINNED_TAG"
-    }
+# The manual route is limited to a named CyberpunkVRPort release and checks
+# the installed version before copying any mod file.
+$modOk = Install-Component -Label "CyberpunkVRPort $installedTag" -Urls $modUrls -ManualUrl $MOD_RELEASES -ManualName "the current CyberpunkVRPort .zip" -PayloadRelFile $MOD_MARKER -ExpectedTag $installedTag
+if ($modOk -and -not $installedTag) {
+    $installedTag = [string]$script:LastCyberpunkPortTag
+    $displayTag = if ($installedTag -match '^[vV]\d') { $installedTag } else { "v$installedTag" }
+    $MOD_NAME = "CyberpunkVRPort $displayTag"
 }
 
 # ROLLBACK: nothing was installed, so put the file back exactly as it was.
@@ -1114,6 +1189,13 @@ if ($modOk) {
         'r6\scripts\CyberpunkVRPort_SettingsGuard\vrport_settings_guard.reds',
         'bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_QuickBoot'
     )
+    if ([version]$installedTag.TrimStart('v','V') -ge [version]'0.1.8') {
+        $legacyPaths += @(
+            'archive\pc\mod\VRCigarette.archive.xl',
+            'archive\pc\mod\vrport_basketball.archive',
+            'archive\pc\mod\vrport_mag.archive'
+        )
+    }
     foreach ($relative in $legacyPaths) {
         $oldPath = Join-Path $gameRoot $relative
         if (-not (Test-Path -LiteralPath $oldPath)) { continue }
@@ -1158,12 +1240,15 @@ if ($modOk) {
     Save-InstalledStamp -GameDir $gameRoot -Version $installedTag -HubDir $PSScriptRoot
 } else {
     if (Test-Path (Join-Path $gameRoot $MOD_MARKER)) {
-        Write-Warn "Could not (re)install the VR mod, but a previous install is still present."
+        Write-Warn "The selected VR update was not installed. Your previous VR mod is still present."
     } else {
-        Write-Fail "The VR mod was not installed. Aborting."
-        try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..."; exit 1
+        Write-Fail "The VR mod was not installed."
     }
+    # A remaining old plugin must never turn a rejected download into a
+    # successful update receipt or reach the normal installation summary.
+    try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+    Pause-User "Press Enter to return to installer recovery..."
+    exit 1
 }
 
 # NOT CLEANED UP HERE. Step 3b downloads and unpacks into the very same

@@ -1,4 +1,4 @@
-# Mario Kart Wii VR
+﻿# Mario Kart Wii VR
 
 WiiCompiled OpenXR VR is a locally compiled PC version of Mario Kart Wii, guided by [WheelWizard VR](https://github.com/iChris4/WheelWizard_VR). You must supply your own clean, unmodified PAL `RMCP01` disc image. The Hub does not provide Nintendo ROMs, game files, keys or BIOS data.
 
@@ -14,6 +14,8 @@ Mario Kart Wii combines Grand Prix, Time Trials, multiplayer races, drifting, it
 - WheelWizard keeps VR under `%APPDATA%\CT-MKWII\RecompVR\Install` by default. A custom data location is supported. The Hub checks the VR product ID, build state, setup host and Base executable before recording a version. Building can take substantial time; leave WheelWizard open until it finishes.
 
 The normal WiiCompiled backend lives in a separate `Recomp` folder. Only one recompilation switch is active at a time. The VR and normal runtimes have separate graphics settings, caches and binaries, while the effective NAND, saves and Miis are shared. Retro Rewind keeps its separate XML directed saves and ghosts. WheelWizard's Uninstall action preserves user configuration and progress.
+
+WheelWizard VR 2.6.2 updates the launcher layout and mod browser. Its Camera tab groups seat position, character body/hands, hand steering and held-item settings; OpenXR VR contains race view and race intro. The paired WiiCompiled OpenXR VR release is 0.2.46. Existing game data, saves and the PAL-disc requirement remain unchanged.
 
 ## Play and controls
 

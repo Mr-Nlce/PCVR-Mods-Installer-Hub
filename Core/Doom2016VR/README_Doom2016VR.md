@@ -4,7 +4,7 @@ KHARVOX is a total VR conversion for DOOM (2016) with true stereoscopic renderin
 
 ## About the Game
 
-Fight through the UAC facility on Mars and descend into Hell in id Software's fast 2016 reboot. The mod requires a legally acquired Steam installation and its Vulkan game executable `DOOMx64vk.exe`.
+Fight through the UAC facility on Mars and descend into Hell in id Software's fast 2016 reboot. KHARVOX v1.4.0 supports legally acquired Steam and GOG copies with the Vulkan game executable `DOOMx64vk.exe`.
 
 ## Before installation
 
@@ -17,7 +17,7 @@ Fight through the UAC facility on Mars and descend into Hell in id Software's fa
 
 1. Start your headset software and make its OpenXR runtime active.
 2. Open `KharvoxLauncher.exe` through **Start in VR**, the desktop shortcut or the VR folder.
-3. Confirm the detected Steam folder containing `DOOMx64.exe` and `DOOMx64vk.exe`.
+3. Confirm the detected Steam or GOG folder containing `DOOMx64.exe` and `DOOMx64vk.exe`.
 4. Start with **SFS (Single Frame Stereo)**, the default and recommended rendering mode. Use **AER** only as a fallback.
 5. Launch the game from KHARVOX and keep the DOOM window focused.
 
@@ -50,7 +50,7 @@ Change graphics-quality options only while you are in the main menu. Changing th
 
 ## Rendering and headset notes
 
-KHARVOX v1.1.1 keeps **SFS** as the default for NVIDIA and AMD GPUs. **AER** remains available as a fallback, while **Native Stereo has been removed**. Existing custom AER profiles are switched to SFS once after updating; AER can still be selected again afterward. Test SFS first. v1.1.1 adds a Swap Jump/Crouch launcher option, disables a conflicting ReShade OpenXR API layer for this game, and reduces CPU locking and command-buffer overhead. Some systems may still have low FPS on the first game launch after booting Windows; the publisher does not claim a fix for that issue.
+KHARVOX v1.4.0 adds GOG compatibility. **SFS** remains the default for NVIDIA and AMD GPUs. **AER** remains available as a fallback, while **Native Stereo has been removed**. Existing custom AER profiles are switched to SFS once after updating; AER can still be selected again afterward. Test SFS first. Earlier updates added a Swap Jump/Crouch launcher option, disabled a conflicting ReShade OpenXR API layer, and reduced CPU locking and command-buffer overhead. Some systems may still have low FPS on the first game launch after booting Windows; the publisher has not claimed a fix for that issue.
 
 SFS uses DOOM's own anti-aliasing, while AER uses SMAA. FSR can be combined with either renderer below 100% render scale; the author recommends starting around 80%. When SteamVR is active, change the resolution in SteamVR because the launcher's RenderScale control is disabled for that route. Virtual Desktop users should select VDXR; Index and PSVR2 users should use SteamVR/OpenXR.
 
@@ -58,7 +58,7 @@ Version 1.0 introduced the major stereo-lighting, shadow, particle and HUD impro
 
 ## Updates and removal
 
-The Hub resolves the current regular GitHub release and selects only the KHARVOX ZIP asset. It does not reject future publisher builds because their historical size, filename or checksum changed. KHARVOX itself rewrites `KharvoxLayer.json` with the absolute location of its DLL; the installer recognizes that one publisher-generated file during an update without weakening protection for ordinary changed files. Use **Uninstall now** to remove unchanged Hub-owned KHARVOX files. Changed or unknown files and `%LocalAppData%\KHARVOX\settings.json` are preserved; the original Steam installation remains untouched.
+The Hub resolves the current regular GitHub release and selects only the KHARVOX ZIP asset. It does not reject future publisher builds because their historical size, filename or checksum changed. KHARVOX itself rewrites `KharvoxLayer.json` with the absolute location of its DLL; the installer recognizes that one publisher-generated file during an update without weakening protection for ordinary changed files. Use **Uninstall now** to remove unchanged Hub-owned KHARVOX files. Changed or unknown files and `%LocalAppData%\KHARVOX\settings.json` are preserved; the original game installation remains untouched.
 
 ## Credits and support
 

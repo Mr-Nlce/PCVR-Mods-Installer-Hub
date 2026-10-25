@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # HeaderFx.ps1 - animated background behind the
 # header (HeaderBorder + FilterBar)
 #
@@ -6,8 +6,7 @@
 #   and kept in the Hub settings (headerFxStyle_<page>):
 #     none   - the old flat header
 #     images - "game frieze": tilted catalog portraits drifting sideways
-#     bokeh  - large soft orbs. On a game detail page they take the
-#              game's cover colours; elsewhere they use Hub colours.
+#     bokeh  - detail-page-only soft orbs in the game's cover colours.
 #     glass  - detail-page alternative with the blurred game header
 #              behind the orbs.
 #   Pages: list (ListScroll), library (DiscoverHost tiles), explore
@@ -166,7 +165,7 @@ function global:Get-HeaderFxPalette {
 # ------------------------------------------------------------
 # Per-page style + speed (pure - testable without WPF)
 # ------------------------------------------------------------
-$global:HeaderFxStyleOrder  = @('none', 'images', 'bokeh')
+$global:HeaderFxStyleOrder  = @('none', 'images')
 $global:HeaderFxDetailStyleOrder = @('none', 'images', 'bokeh', 'glass')
 $global:HeaderFxStyleLabels = @{ none = 'Off'; images = 'Moving images'; bokeh = 'Glowing orbs'; glass = 'Glass colours' }
 $global:HeaderFxPageLabels  = @{ list = 'List view'; library = 'Library'; explore = 'Explore'; detail = 'Game page' }
@@ -781,7 +780,7 @@ function global:Switch-HeaderFxStyle {
 
 # A settings write checksums and replaces the state document. Coalesce rapid
 # clicks so the animation changes immediately and only the final choice is
-# persisted. Closing flushes any pending choice before the window goes away.
+# persisted. Closing flushes any pending choice together with window geometry.
 function global:Request-HeaderFxSettingSave {
     param([string]$Key, $Value)
     if (-not $global:HeaderFxPendingSettings) { $global:HeaderFxPendingSettings = @{} }
@@ -967,7 +966,7 @@ try {
         $global:HeaderFxSaveTimer = New-Object System.Windows.Threading.DispatcherTimer
         $global:HeaderFxSaveTimer.Interval = [TimeSpan]::FromMilliseconds(700)
         $global:HeaderFxSaveTimer.Add_Tick({ Save-HeaderFxPendingSettings })
-        $global:window.Add_Closing({ Save-HeaderFxPendingSettings })
+        # Pending choices join the same final geometry commit at close.
         # The catalog arrays live in VRModHub.ps1's script scope, which event
         # handlers cannot see later - keep a reference while it is in reach.
         $global:HeaderFxGames = @($ownGames) + @($ownGamesGP) + @($externalGames)

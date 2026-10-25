@@ -57,9 +57,10 @@ function Get-SpecExeFingerprint([string]$Path) {
 }
 function Get-SpecRelease {
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_SPECOPS_TEST_ARCHIVE){
-        return [pscustomobject]@{Tag='v0.9.5';Url=$env:PCVR_SPECOPS_TEST_ARCHIVE;Local=$true;Manual=$false;PageUrl=$script:SpecPage}
+        $testVersion=if($env:PCVR_SPECOPS_TEST_VERSION){$env:PCVR_SPECOPS_TEST_VERSION}else{'v0.9.5'}
+        return [pscustomobject]@{Tag=$testVersion;Url=$env:PCVR_SPECOPS_TEST_ARCHIVE;Local=$true;Manual=$false;PageUrl=$script:SpecPage}
     }
-    try{$r=Resolve-GitHubReleaseAsset -Repo $script:SpecRepo -IncludePrerelease $false -AssetPatterns @('(?i)^SpecOpsTheLineVR\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=[pscustomobject]@{Resolved=$false}}
+    try{$r=Resolve-GitHubReleaseAsset -Repo $script:SpecRepo -IncludePrerelease $false -AssetPatterns @('(?i)^(?:[0-9]+-)?SpecOpsTheLineVR(?:[-_]v?[0-9]+(?:\.[0-9]+)+(?:[-.][A-Za-z0-9.]+)?)?\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=[pscustomobject]@{Resolved=$false}}
     if($r.Resolved -and (Test-IsTrackableInstalledVersion ([string]$r.Tag))){return [pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Local=$false;Manual=$false;PageUrl=[string]$r.PageUrl}}
     Write-Host ' [!!] GitHub could not resolve the current complete SpecOpsTheLineVR ZIP.' -ForegroundColor Yellow
     return [pscustomobject]@{Tag='';Url='';Local=$false;Manual=$true;PageUrl=$script:SpecPage}
@@ -97,12 +98,13 @@ function Invoke-SpecInstaller {
         Write-Host ('='*60) -ForegroundColor Magenta
         Write-Host ' Spec Ops: The Line VR - Installer' -ForegroundColor Cyan
         Write-Host ('='*60) -ForegroundColor Magenta
-        Write-Host ' Steam version only. SteamVR and motion controllers are required.' -ForegroundColor White
+        Write-Host ' Steam version only. Connect your headset and motion controllers.' -ForegroundColor White
+        Write-Host ' The current mod supports VDXR / OpenXR as well as SteamVR.' -ForegroundColor White
         Write-Host ' The mod is a beta. The Steam game EXE must match its supported build.' -ForegroundColor Yellow
         Write-Host ' Steam launch options after install: -windowed ResX=2400 ResY=2500' -ForegroundColor Cyan
         Show-AntivirusNotice -Compact
         [void](Wait-PCVRExplicitEnter -Message 'After reading this, press Enter to locate Spec Ops: The Line...')
-        Write-Host ' [..] Checking saved and Steam game locations; this may take a few seconds.' -ForegroundColor Cyan
+        Write-Host ' Checking saved and Steam game locations; this may take a few seconds.' -ForegroundColor Cyan
         $root=Get-SpecGame;$runtime=Join-Path $root 'Binaries\Win32'
         if($env:PCVR_HUB_TEST_MODE -ne '1' -and (Get-Process -Name 'SpecOpsTheLine' -ErrorAction SilentlyContinue)){throw 'Close Spec Ops: The Line before setup.'}
         $fingerprint=Get-SpecExeFingerprint (Join-Path $runtime 'SpecOpsTheLine.exe')
@@ -110,7 +112,7 @@ function Invoke-SpecInstaller {
         if(-not(Test-InstallerTargetWritable -TargetPath $runtime)){throw 'The Steam game folder is not writable. Restart the Hub as administrator, then retry.'}
         Write-Host " [OK] Supported Steam game: $root" -ForegroundColor Green
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check and download the complete VR mod ZIP...')
-        Write-Host ' [..] Checking the current GitHub release; this may take a few seconds.' -ForegroundColor Cyan
+        Write-Host ' Checking the current GitHub release; this may take a few seconds.' -ForegroundColor Cyan
         $release=Get-SpecRelease
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_specops_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'SpecOpsTheLineVR.zip'
@@ -131,10 +133,10 @@ function Invoke-SpecInstaller {
         foreach($name in @('d3d9.dll','openvr_api.dll','specopsvr.ini')){Copy-Item -LiteralPath (Join-Path $source $name) -Destination (Join-Path $stage $name) -Force -ErrorAction Stop}
         $ini=Join-Path $stage 'specopsvr.ini'
         $config=[IO.File]::ReadAllText($ini)
-        if($config -notmatch '(?im)^\s*autoupdate\s+on\s*$'){throw 'The publisher configuration layout changed; review its update setting before installing.'}
-        $config=[regex]::Replace($config,'(?im)^\s*autoupdate\s+on\s*$','autoupdate off')
+        if($config -notmatch '(?im)^\s*autoupdate\s+(on|off)\s*$'){throw 'The publisher configuration layout changed; review its update setting before installing.'}
+        $config=[regex]::Replace($config,'(?im)^\s*autoupdate\s+(on|off)\s*$','autoupdate off')
         [IO.File]::WriteAllText($ini,$config,[Text.UTF8Encoding]::new($false))
-        Write-Host ' [..] Protecting existing VR files and installing the publisher runtime.' -ForegroundColor Cyan
+        Write-Host ' Protecting existing VR files and installing the publisher runtime.' -ForegroundColor Cyan
         $snapshot=Save-SpecSnapshot -Runtime $runtime -Folder (Join-Path $work 'rollback')
         $changed=$true
         [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $runtime -Identity 'specopsvr' -AdoptIdenticalExisting -KeepExistingRelativePaths @('specopsvr.ini'))
@@ -162,8 +164,8 @@ function Invoke-SpecInstaller {
         Show-PCVRClipboardManualFallback -Text $launchOptions
         [void](Wait-PCVRExplicitEnter -Message 'After pasting the launch options, press Enter to continue...')
         Write-Host ' This near-square desktop window improves clarity in the headset.' -ForegroundColor Gray
-        Write-Host ' 1. Start SteamVR, then use Start in VR in the Hub.' -ForegroundColor White
-        Write-Host ' Alternative: start Spec Ops: The Line from your Steam Library with SteamVR running.' -ForegroundColor White
+        Write-Host ' 1. Use Start in VR in the Hub with your headset connected.' -ForegroundColor White
+        Write-Host ' Alternative: start Spec Ops: The Line from your Steam Library with your VR runtime active.' -ForegroundColor White
         Write-Host ' The Hub-installed default disables the publisher self-updater so Hub updates and removal stay trackable. Existing custom INI files are preserved.' -ForegroundColor Gray
         Write-Host ''
         Write-Host ' The line is crossed one step at a time.' -ForegroundColor Magenta

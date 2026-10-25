@@ -30,6 +30,23 @@ function global:Set-HiddenModders {
 }
 $global:HiddenModders = Get-HiddenModders
 
+# ROM/ISO hiding shares the durable settings store with hidden modders, but
+# uses its own boolean so a similarly named author cannot be hidden by it.
+function global:Get-HideRomGames {
+    try { return [bool](Get-HubSetting -Key 'hideRomGames' -Default $false) } catch { return $false }
+}
+function global:Set-HideRomGames {
+    param([bool]$Hide)
+    $global:HideRomGames = $Hide
+    try { Set-HubSetting -Key 'hideRomGames' -Value $Hide } catch {}
+}
+function global:Get-RomSearchMode {
+    param([string]$Text)
+    if (([string]$Text).Trim() -match '^(?i:[+-]?rom)$') { return 'rom' }
+    return ''
+}
+$global:HideRomGames = Get-HideRomGames
+
 # The name behind a "-" or "+" only counts as a MODDER when the catalog
 # actually knows it - otherwise "-horror" would offer to hide a modder
 # called horror. Genres are excluded here on purpose.
@@ -152,7 +169,7 @@ function global:Get-SearchModderTerm {
 # Examples shown INSIDE the box, one after another, while it has focus and is
 # empty. Short on purpose - the pill is narrow, and anything longer gets cut
 # off mid-word.
-$script:SearchExamples = @("e.g. cyberpunk", "e.g. praydog", "e.g. roomscale", "e.g. free", "e.g. -horror", "e.g. -praydog")
+$script:SearchExamples = @("e.g. cyberpunk", "e.g. favorites", "e.g. praydog", "e.g. roomscale", "e.g. ROM", "e.g. -ROM", "e.g. free", "e.g. -horror", "e.g. -praydog")
 $script:SearchExampleIx = 0
 $script:SearchExampleTimer = New-Object System.Windows.Threading.DispatcherTimer
 $script:SearchExampleTimer.Interval = [TimeSpan]::FromMilliseconds(2600)
@@ -186,6 +203,17 @@ function global:Update-SearchHint {
         return
     }
     $txt = [string]$searchBox.Text
+
+    if ((Get-RomSearchMode $txt) -eq 'rom') {
+        $script:searchHintTarget = 'rom'
+        $script:searchHintMode = 'rom'
+        $searchHideChk.IsChecked = [bool]$global:HideRomGames
+        $searchHideChk.Content = 'Hide ROM games permanently'
+        $searchHint.Visibility = [System.Windows.Visibility]::Collapsed
+        $searchHidePanel.Visibility = [System.Windows.Visibility]::Visible
+        $searchHintHost.Visibility = [System.Windows.Visibility]::Visible
+        return
+    }
 
     $minusName = Get-SearchModderTerm -Text $txt -Prefix "-"
     $plusName  = Get-SearchModderTerm -Text $txt -Prefix "+"
@@ -236,6 +264,12 @@ if ($searchHideChk) {
     $searchHideChk.Add_Click({
         $name = $script:searchHintTarget
         if (-not $name) { return }
+        if ($script:searchHintMode -eq 'rom') {
+            Set-HideRomGames -Hide ([bool]$this.IsChecked)
+            Apply-Filter
+            Update-SearchHint
+            return
+        }
         $list = @($global:HiddenModders)
         if ($script:searchHintMode -eq "unhide") {
             # Ticking the box here MEANS "stop hiding".

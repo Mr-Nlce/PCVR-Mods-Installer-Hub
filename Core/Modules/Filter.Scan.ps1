@@ -463,6 +463,10 @@ function global:Invoke-CheckInstalledScan {
     $scanDetectionWatch = [System.Diagnostics.Stopwatch]::StartNew()
     foreach ($card in @($global:cardGameMap.Keys)) {
         $game = $global:cardGameMap[$card]
+        # Lazy cards (CardTile.Lazy.ps1): $scanRealCard is the element in the
+        # panel. A card that has not been built yet is painted through a
+        # throwaway proxy below; only its Tag is copied back in finally.
+        $scanRealCard = $card
         $scanGameWatch = [System.Diagnostics.Stopwatch]::StartNew()
         # THIS is what keeps the Hub alive during a scan. Every ~35 ms the
         # UI thread is handed back to WPF long enough to run layout, paint
@@ -980,6 +984,12 @@ function global:Invoke-CheckInstalledScan {
             if (-not (Test-StagedModStillValid -Game $game -StageRoot $stageRoot)) { $vrInstalled = $false }
         }
 
+        # Not built yet: detection above is complete and identical; the
+        # painting below goes into a proxy with the same sub-elements, so
+        # the recorded gameStateMap entry is exactly what a built card
+        # would produce. The real card is painted from it when it is built.
+        if ($card.Resources.Contains('cardLazy')) { $card = New-CardScanProxy -Card $scanRealCard -Game $game }
+
         # Retrieve stored btnText reference
         $btnTxt = $null
         $btnBrd = $null
@@ -1223,14 +1233,21 @@ function global:Invoke-CheckInstalledScan {
             if (-not $ffxivPluginFound) { $vrInstalled = $false }
         }
 
+        $pzPendingUpdate = $null
+        if (-not $vrInstalled -and $installed -and $game.Id -eq 'project-zomboid-vr' -and $gameDir) {
+            . (Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1')
+            $pzPendingUpdate = Get-PZVRPendingWorkshopUpdate -GameRoot $gameDir
+            if ($pzPendingUpdate) { $vrInstalled = $true }
+        }
+
         if ($isFreeGame -and -not $isFreeBaseGame -and -not $vrInstalled) { $installed = $false }
 
         if ($vrInstalled) {
             # For Thunderstore-based mods: query live version and deprecated status
-            $needsUpdate  = $false
+            $needsUpdate  = [bool]$pzPendingUpdate
             # An Update tile must always carry the positive evidence that
             # produced it. Presentation dates are never update evidence.
-            $updateEvidence = $null
+            $updateEvidence = if ($pzPendingUpdate) { [string]$pzPendingUpdate.Evidence } else { $null }
             # Optional exact alternative slot. This is set only when the
             # evidence itself identifies one and only one installed mod.
             $updateTargetSlot = $null
@@ -1486,7 +1503,7 @@ function global:Invoke-CheckInstalledScan {
                         $repoBPre = if ($null -ne $game.GithubRepoBPrerelease) { [bool]$game.GithubRepoBPrerelease } else { [bool]$game.GithubPrerelease }
                         foreach ($td in @(
                             @{ Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns) },
-                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
+                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; VersionRegex = $game.GithubRepoBVersionRegex; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
                         )) {
                             if ($td.Probe -and $td.Repo -and (Test-RelativePathMarker -Root $twoRootV -Values $td.Probe)) { $twoPairs += , $td }
                         }
@@ -1527,11 +1544,11 @@ function global:Invoke-CheckInstalledScan {
                             if ($have) { break }
                         }
                     }
-                    if (-not $have) {
+                    if (-not $have -and $tp.TargetSlot -ne 'C') {
                         $have = if ($tp.Slot -eq 'B') { Read-InstalledVersionB -Game $game -GameDir $versionRoot }
                                 else { Read-InstalledVersion -Game $game -GameDir $versionRoot }
                     }
-                    if ($have) {
+                    if ($have -and $tp.TargetSlot -ne 'C') {
                         if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $have -GameDir $versionRoot }
                         else { Write-InstalledVersion -Game $game -Version $have -GameDir $versionRoot }
                     }
@@ -1580,7 +1597,9 @@ function global:Invoke-CheckInstalledScan {
                     # ONLY when online is GENUINELY NEWER - an installed
                     # build that is AHEAD must not raise an update badge
                     # (see Test-OnlineVersionIsNewer).
-                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $ghVer) {
+                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $ghVer `
+                        -SupersededInstalledVersions @($game.GithubSupersededVersions) `
+                        -ResetMinimumVersion ([string]$game.GithubResetMinimumVersion)) {
                         $needsUpdate = $true
                         $updateEvidence = "GitHub release $ghVer is newer than installed $installedVer"
                     } elseif ($routeAwareCurrentUpdate) {
@@ -2075,7 +2094,9 @@ function global:Invoke-CheckInstalledScan {
                 }
             }
         }
-        Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
+        if ([object]::ReferenceEquals($card, $scanRealCard)) {
+            Sync-FrostedCardState -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd
+        }
             } catch {
             try {
                 $global:InstalledScanFailedGames[$game.Title] = $true
@@ -2084,6 +2105,10 @@ function global:Invoke-CheckInstalledScan {
                 Write-Host ("  [scan] detection failed for '" + $game.Title + "': " + $_.Exception.Message) -ForegroundColor Yellow
             } catch {}
         } finally {
+            if ($scanRealCard -and -not [object]::ReferenceEquals($card, $scanRealCard)) {
+                try { $scanRealCard.Tag = $card.Tag } catch { }
+                $card = $scanRealCard
+            }
             if ($scanGameWatch) {
                 $scanGameWatch.Stop()
                 if ($global:HubScanTrace -and $scanGameWatch.ElapsedMilliseconds -ge 50) {
@@ -2169,7 +2194,7 @@ function global:Invoke-CheckInstalledScan {
 
     # Force WPF to re-render all modified cards
     $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Render, [action]{
-        foreach ($list in @($ownList, $ownListGP, $extList)) {
+        foreach ($list in @($ownList, $ownListGP, $extList, $untestedList)) {
             $list.InvalidateVisual()
             $list.UpdateLayout()
         }
@@ -2191,6 +2216,11 @@ function global:Invoke-CheckInstalledScan {
             $state = $global:gameStateMap[$g.Title]
             if (-not $state) { continue }
             $card.Tag = $state.Tag
+            if ($g.UntestedInstaller -and (Get-Command Update-UntestedFeedbackReminder -ErrorAction SilentlyContinue)) {
+                Update-UntestedFeedbackReminder -Card $card -Game $g -State $state
+            }
+            # Placeholder: painted from gameStateMap when it is built.
+            if ($card.Resources.Contains('cardLazy')) { continue }
             $accH = if ($state.Accent) { $state.Accent } else { $card.Resources.Item("baseAccent") }
             if (-not $accH) { $accH = "#666677" }
             $btnTxt = $card.Resources.Item("btnText")

@@ -17,6 +17,8 @@ The original game, saves and graphics settings stay outside these packages.
 
 ## Option 1 - NALULUNA (recommended)
 
+The reviewed v0.13.0 package supports game builds v6.461.691.0 and v3.461.691.0 (Steam / Microsoft Store / Game Pass). It adds image adjustments after the AFR stability improvements and AFR Eye setting in v0.12.0. Game updates can require a matching new mod release.
+
 ### Setup and launch
 
 The installer opens the free ko-fi page. Set the amount to 0 (or add a tip),
@@ -30,15 +32,21 @@ https://ko-fi.com/s/03bdcc5fe9
 ### Settings and controls
 
 - Gamepad or wheel controls the car.
-- **[[Ctrl]] + [[Space]]** recenters the headset.
 - Start with lower graphics, V-Sync off, an unlimited frame rate, and motion
   blur / film grain off.
 - DIBR is the smoother starting point; AFR gives cleaner stereo but halves
   the effective frame rate.
-- DLSS Super Resolution is usable. Leave Frame Generation off so it does not
-  fight the mod's D3D12 injection path.
+- Follow this publisher's settings: DLSS, motion blur and Frame Generation off. Keep Sync FPS on and Reprojection set to Full. These settings belong to NALULUNA; the other two launchers have their own guidance.
+- Do not combine this mod with OpenXR Toolkit. On Microsoft Store / Game Pass, close Afterburner / RivaTuner overlays. The publisher recommends Meta Link. If SteamVR is required, enable Force Minimize Game in the launcher.
+- If AFR displays incorrectly, try AFR Eye. Brightness, Gamma and Saturation provide the new image adjustments.
 - If the map or speedometer is missing in the car, set **HUD Safe Frame
   Vertical** to 25 under **Settings > HUD & Gameplay**.
+
+| Button | Action |
+|---|---|
+| [[Tab]] | Cycle to the cockpit view used for VR. |
+| [[Ctrl]] + [[Space]] | Recenter the headset. |
+| [[Left Stick Click]] + [[Right Stick Click]] | Recenter the headset with the gamepad. |
 
 ### Switching or removal
 

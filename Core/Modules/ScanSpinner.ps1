@@ -401,6 +401,7 @@ public class PcvrViewSwitchIndicator
 // thread. The transparent popup does not intercept menu clicks.
 public class PcvrMenuActionGlow
 {
+    private bool _compact;
     private double _width;
     private double _height;
     private double _left;
@@ -414,6 +415,7 @@ public class PcvrMenuActionGlow
     private volatile bool _popupVisible;
 
     public bool Ready { get { return _ready; } }
+    public bool Compact { get { return _compact; } }
     public bool PopupVisible { get { return _popupVisible; } }
     public double PopupWidth { get { return _width; } }
     public double PopupHeight { get { return _height; } }
@@ -435,7 +437,14 @@ public class PcvrMenuActionGlow
     public static PcvrMenuActionGlow CreateDelayed(double left, double top,
                                                     double width, double height, int delayMs)
     {
+        return CreateDelayed(left, top, width, height, delayMs, false);
+    }
+
+    public static PcvrMenuActionGlow CreateDelayed(double left, double top,
+                                                    double width, double height, int delayMs, bool compact)
+    {
         PcvrMenuActionGlow s = new PcvrMenuActionGlow();
+        s._compact = compact;
         s._width = Math.Max(24, width);
         s._height = Math.Max(20, height);
         s._left = left;
@@ -492,7 +501,7 @@ public class PcvrMenuActionGlow
                         double halfPerimeter, double seconds, Effect effect)
     {
         Path p = new Path();
-        p.Data = new RectangleGeometry(rect, 7, 7);
+        p.Data = new RectangleGeometry(rect, _compact ? 5 : 7, _compact ? 5 : 7);
         SolidColorBrush brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#6BF49B"));
         brush.Opacity = opacity;
         p.Stroke = brush;
@@ -523,11 +532,11 @@ public class PcvrMenuActionGlow
         Rect rect = new Rect(2, 2, Math.Max(1, width - 4), Math.Max(1, height - 4));
         double halfPerimeter = (2 * (rect.Width + rect.Height) - 56 + 14 * Math.PI) / 2;
         double segment = halfPerimeter * 0.30;
-        root.Children.Add(Stroke(rect, 1.3, 0.48, 0, halfPerimeter, 0, null));
-        root.Children.Add(Stroke(rect, 5.4, 0.50, segment, halfPerimeter, 2.2,
-            new BlurEffect { Radius = 8, KernelType = KernelType.Gaussian }));
-        _brightPath = Stroke(rect, 2.0, 0.98, segment, halfPerimeter, 2.2,
-            new BlurEffect { Radius = 1.5, KernelType = KernelType.Gaussian });
+        root.Children.Add(Stroke(rect, _compact ? 0.8 : 1.3, 0.48, 0, halfPerimeter, 0, null));
+        root.Children.Add(Stroke(rect, _compact ? 2.2 : 5.4, _compact ? 0.38 : 0.50, segment, halfPerimeter, 2.2,
+            new BlurEffect { Radius = _compact ? 3 : 8, KernelType = KernelType.Gaussian }));
+        _brightPath = Stroke(rect, _compact ? 1.1 : 2.0, 0.98, segment, halfPerimeter, 2.2,
+            new BlurEffect { Radius = _compact ? 0.7 : 1.5, KernelType = KernelType.Gaussian });
         root.Children.Add(_brightPath);
         return root;
     }
@@ -705,7 +714,7 @@ function global:Stop-ViewSwitchIndicator {
 $global:HubActionIndicatorActive = $null
 function global:Start-HubActionIndicator {
     param([System.Windows.FrameworkElement]$Target,[int]$DelayMilliseconds=500,
-        [double]$BottomExtension=0,[double]$RightInset=0,[switch]$FitTargetEdges)
+        [double]$BottomExtension=0,[double]$RightInset=0,[switch]$FitTargetEdges,[switch]$Compact)
     if (-not $global:ScanSpinnerReady -or -not $Target -or -not $Target.IsVisible) { return $null }
     Stop-HubActionIndicator
     try {
@@ -733,7 +742,7 @@ function global:Start-HubActionIndicator {
             $width += 4
             $indicatorHeight += 4
         }
-        $indicator = [PcvrMenuActionGlow]::CreateDelayed($point.X, $point.Y, $width, $indicatorHeight, ([Math]::Max(0,$DelayMilliseconds)))
+        $indicator = [PcvrMenuActionGlow]::CreateDelayed($point.X, $point.Y, $width, $indicatorHeight, ([Math]::Max(0,$DelayMilliseconds)), [bool]$Compact)
         if (-not $indicator -or -not $indicator.Ready) {
             if ($indicator) { $indicator.Stop() }
             return $null

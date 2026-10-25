@@ -37,6 +37,6 @@ If the game starts flat, check that `d3d9.dll` exists beside `AlanWake.exe`, the
 - [Flat2VR community thread](https://discord.com/channels/747967102895390741/1561105393508294797)
 - [Patreon support for fholger](https://www.patreon.com/cw/fholger)
 - [Ko-fi support for fholger](https://ko-fi.com/fholger)
-- [Alan Wake gameplay (not VR footage)](https://youtu.be/0RpTykaCVNQ?t=2789)
+- [Alan Wake VR gameplay](https://www.youtube.com/watch?v=Lx8D8wnEiyE)
 
 The darkness has a new dimension.

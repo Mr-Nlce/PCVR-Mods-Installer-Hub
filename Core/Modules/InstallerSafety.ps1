@@ -771,56 +771,61 @@ function global:Test-ZipPayloadAnchors {
 # obvious when a source (e.g. GitHub) is simply slow rather than the
 # Hub. Returns $true on a non-empty file, else throws so the caller
 # can fall back to the proven Invoke-WebRequest path.
-function global:_Invoke-DownloadWithProgress {
-    param([string]$Url, [string]$Destination, [string]$Label)
-    try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
-    $resp = $null; $inStream = $null; $outStream = $null
+. (Join-Path $PSScriptRoot 'GitHubTransport.ps1')
+
+# Legacy installers still have direct Invoke-WebRequest download steps. Keep
+# their surrounding prompts and recovery unchanged, but give GitHub release
+# assets the same independent transports and exact-asset API retry as the
+# governed downloader. Other hosts keep Invoke-WebRequest's original behavior.
+function global:Invoke-PCVRWebRequest {
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)][string]$Uri,[string]$OutFile,
+        [switch]$UseBasicParsing,[int]$TimeoutSec,$WebSession,$Headers,
+        [string]$Method,$Body)
+    if (-not $OutFile -or $Uri -notmatch '^https?://(?:www\.)?(?:github\.com|api\.github\.com)/') {
+        return (Invoke-WebRequest @PSBoundParameters)
+    }
+    $target=[IO.Path]::GetFullPath($OutFile)
+    $parent=Split-Path -Parent $target
+    if (-not (Test-Path -LiteralPath $parent)) { [void][IO.Directory]::CreateDirectory($parent) }
+    $stage=Join-Path $parent ('.pcvr-legacy-' + [guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($target))
+    $validate={ param($path) Test-DownloadedPayload -Path $path -IntendedPath $target }.GetNewClosure()
+    $errors=New-Object System.Collections.Generic.List[string]
     try {
-        $req = [System.Net.HttpWebRequest]::Create($Url)
-        $req.UserAgent = "PCVR-Mods-Hub"
-        $req.AllowAutoRedirect = $true
-        $req.Timeout = 30000
-        $req.ReadWriteTimeout = 120000
-        $resp = $req.GetResponse()
-        $total = [int64]$resp.ContentLength
-        $totalMB = if ($total -gt 0) { [math]::Round($total / 1MB, 1) } else { 0 }
-        $inStream  = $resp.GetResponseStream()
-        $outStream = [System.IO.File]::Create($Destination)
-        $buffer = New-Object byte[] 131072   # 128 KB
-        $sofar  = [int64]0
-        $read   = 0
-        $startTick = [Environment]::TickCount
-        $lastTick  = 0
-        while (($read = $inStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
-            $outStream.Write($buffer, 0, $read)
-            $sofar += $read
-            $now = [Environment]::TickCount
-            if (($now - $lastTick) -ge 250) {
-                $lastTick = $now
-                $sofarMB = [math]::Round($sofar / 1MB, 1)
-                $elapsed = [math]::Max(1, ($now - $startTick)) / 1000.0
-                $rate    = [math]::Round(($sofar / 1MB) / $elapsed, 2)   # MB/s
-                if ($total -gt 0) {
-                    $pct = [int](($sofar * 100) / $total)
-                    if ($pct -lt 0) { $pct = 0 } elseif ($pct -gt 100) { $pct = 100 }
-                    Write-Progress -Id 1 -Activity "Downloading $Label" -Status "$sofarMB MB of $totalMB MB ($pct%) - $rate MB/s" -PercentComplete $pct
-                } else {
-                    Write-Progress -Id 1 -Activity "Downloading $Label" -Status "$sofarMB MB downloaded - $rate MB/s"
-                }
-            }
+        try {
+            $webArgs=@{}
+            foreach ($key in $PSBoundParameters.Keys) { $webArgs[$key]=$PSBoundParameters[$key] }
+            $webArgs.OutFile=$stage
+            Invoke-WebRequest @webArgs | Out-Null
+            if (-not (& $validate $stage)) { throw 'publisher URL returned an invalid file' }
+            Move-Item -LiteralPath $stage -Destination $target -Force
+            return
+        } catch { [void]$errors.Add('web: ' + $_.Exception.Message) }
+        try {
+            [void](Invoke-PCVRDownloadTransportChain -Url $Uri -Destination $stage -Label 'GitHub release asset' `
+                -GitHubApiAsset:($Uri -match '^https?://api\.github\.com/.*/releases/assets/') -Validator $validate)
+            Move-Item -LiteralPath $stage -Destination $target -Force
+            return
+        } catch { [void]$errors.Add('transports: ' + $_.Exception.Message) }
+        if ($Uri -match '^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/?#]+)/([^/?#]+)') {
+            $owner=$matches[1]; $repo=$matches[2]
+            $tag=[uri]::UnescapeDataString($matches[3]); $assetName=[uri]::UnescapeDataString($matches[4])
+            try {
+                $api="https://api.github.com/repos/$owner/$repo/releases/tags/$([uri]::EscapeDataString($tag))"
+                try { $release=Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 20 -ErrorAction Stop }
+                catch { $reply=Get-PCVRGitHubText -Uri $api; $release=ConvertFrom-Json -InputObject ([string]$reply.Content) -ErrorAction Stop }
+                if ([string]$release.tag_name -cne $tag) { throw 'GitHub returned a different release tag' }
+                $assets=@($release.assets | Where-Object { [string]$_.name -ceq $assetName -and $_.id })
+                if ($assets.Count -ne 1) { throw 'GitHub did not identify one exact asset' }
+                $assetUrl="https://api.github.com/repos/$owner/$repo/releases/assets/$($assets[0].id)"
+                [void](Invoke-PCVRDownloadTransportChain -Url $assetUrl -Destination $stage -Label 'GitHub release asset' -GitHubApiAsset -Validator $validate)
+                Move-Item -LiteralPath $stage -Destination $target -Force
+                return
+            } catch { [void]$errors.Add('exact asset API: ' + $_.Exception.Message) }
         }
-        Write-Progress -Id 1 -Activity "Downloading $Label" -Completed
-        try { $outStream.Close() } catch {}; $outStream = $null
-        try { $inStream.Close() }  catch {}; $inStream  = $null
-        try { $resp.Close() }      catch {}; $resp      = $null
-        return ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0))
-    } catch {
-        try { Write-Progress -Id 1 -Activity "Downloading $Label" -Completed } catch {}
-        throw
+        throw ('GitHub release download failed: ' + ($errors -join ' | '))
     } finally {
-        if ($outStream) { try { $outStream.Close() } catch {} }
-        if ($inStream)  { try { $inStream.Close() }  catch {} }
-        if ($resp)      { try { $resp.Close() }      catch {} }
+        if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -931,37 +936,57 @@ function global:Invoke-SafeDownload {
         if (-not $QuietProgress) { Write-Host "  [..] Downloading $Label" -ForegroundColor Gray }
         Write-Host "       From: $u [$($source.Kind)]" -ForegroundColor DarkGray
         try {
-            # Preferred: streaming copy with a live progress bar + rate.
-            if (_Invoke-DownloadWithProgress -Url $u -Destination $stage -Label $Label) {
-                if (& $commitCandidate $stage $u ([string]$source.Kind)) {
-                    $stage = $null
-                    Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
-                    return $true
-                }
+            $transport = Invoke-PCVRDownloadTransportChain -Url $u -Destination $stage -Label $Label -Validator $validateCandidate
+            if (& $commitCandidate $stage $u ([string]$source.Kind)) {
+                $stage = $null
+                Write-Host "  [OK] Downloaded $Label ($transport)" -ForegroundColor Green
+                return $true
             }
-            throw "empty, missing or rejected file"
+            throw 'downloaded file did not pass payload validation'
         } catch {
-            # Fall back to the proven silent Invoke-WebRequest for this
-            # same URL before moving on to the next source. (IWR's own
-            # progress is suppressed - it crawls in PS 5.1.)
-            try {
-                if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
-                $old = $ProgressPreference
-                try {
-                    $ProgressPreference = 'SilentlyContinue'
-                    Invoke-WebRequest -Uri $u -OutFile $stage -UseBasicParsing -ErrorAction Stop
-                } finally { $ProgressPreference = $old }
-                if (& $commitCandidate $stage $u ([string]$source.Kind)) {
-                    $stage = $null
-                    Write-Host "  [OK] Downloaded $Label" -ForegroundColor Green
-                    return $true
-                }
-            } catch {
-                Write-Host "  [!!] Source failed: $($_.Exception.Message)" -ForegroundColor Yellow
-            }
+            Write-Host "  [!!] Source failed: $($_.Exception.Message)" -ForegroundColor Yellow
         } finally {
             if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
         }
+    }
+    # GitHub's asset API is a second publisher binary endpoint. Resolve the
+    # exact requested tag and exact asset name; never switch releases merely
+    # because the ordinary download/CDN path failed. The API redirects its
+    # octet-stream response to the published release asset.
+    foreach ($originalUrl in $Urls) {
+        if ($originalUrl -notmatch '^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/?#]+)/([^/?#]+)') { continue }
+        $ghOwner=$matches[1]; $ghRepo=$matches[2]
+        $ghTag=[uri]::UnescapeDataString($matches[3]); $ghFile=[uri]::UnescapeDataString($matches[4])
+        try {
+            $tagUri="https://api.github.com/repos/$ghOwner/$ghRepo/releases/tags/$([uri]::EscapeDataString($ghTag))"
+            try {
+                $release=Invoke-RestMethod -Uri $tagUri -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; Accept='application/vnd.github+json' } -TimeoutSec 20 -ErrorAction Stop
+            } catch {
+                $jsonReply=Get-PCVRGitHubText -Uri $tagUri
+                $release=ConvertFrom-Json -InputObject ([string]$jsonReply.Content) -ErrorAction Stop
+            }
+            if ([string]$release.tag_name -cne $ghTag) { throw 'API returned a different release tag' }
+            $exactAssets=@($release.assets | Where-Object { [string]$_.name -ceq $ghFile -and $_.id })
+            if ($exactAssets.Count -ne 1) { throw 'API did not return exactly one matching release asset' }
+            $apiAssetUrl="https://api.github.com/repos/$ghOwner/$ghRepo/releases/assets/$($exactAssets[0].id)"
+            $stage=Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
+            try {
+                if (-not $QuietProgress) { Write-Host "  [..] Trying the same GitHub release through its asset API..." -ForegroundColor Gray }
+                $transport=Invoke-PCVRDownloadTransportChain -Url $apiAssetUrl -Destination $stage -Label $Label -GitHubApiAsset -Validator $validateCandidate
+                if (& $commitCandidate $stage $originalUrl 'GitHub API asset') {
+                    $stage=$null
+                    if ($null -ne $DownloadInfo) { $DownloadInfo.TransportUrl=$apiAssetUrl }
+                    Write-Host "  [OK] Downloaded $Label (GitHub asset API, $transport)" -ForegroundColor Green
+                    return $true
+                }
+                throw 'API asset did not pass payload validation'
+            } finally {
+                if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
+            }
+        } catch {
+            Write-Host "  [!!] Exact GitHub asset API route failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+        break
     }
     # A cross-release GitHub lookup is allowed only when the caller supplied
     # an expected SHA-256: the replacement must then be the same bytes.
@@ -1021,7 +1046,7 @@ function global:Invoke-SafeDownload {
                         $old = $ProgressPreference
                         try {
                             $ProgressPreference = 'SilentlyContinue'
-                            Invoke-WebRequest -Uri $au -OutFile $stage -UseBasicParsing -ErrorAction Stop
+                            Invoke-PCVRWebRequest -Uri $au -OutFile $stage -UseBasicParsing -ErrorAction Stop
                         } finally { $ProgressPreference = $old }
                         if (& $commitCandidate $stage $au 'GitHub API') {
                             $stage = $null
@@ -1733,7 +1758,7 @@ function global:Get-SevenZip {
             try {
                 $old = $ProgressPreference
                 $ProgressPreference = 'SilentlyContinue'
-                Invoke-WebRequest -Uri $src.Url -OutFile $tmpInst -UseBasicParsing -ErrorAction Stop
+                Invoke-PCVRWebRequest -Uri $src.Url -OutFile $tmpInst -UseBasicParsing -ErrorAction Stop
                 $ProgressPreference = $old
                 if ((Test-Path $tmpInst) -and ((Get-Item $tmpInst).Length -gt 100000)) {
                     $ok = $true
@@ -2856,7 +2881,7 @@ function global:Get-DepotDownloader {
     $tmpZip = Join-Path $cacheRoot "dd_download.zip"
     Write-Host "  Downloading DepotDownloader ($ddVersionLabel) ..." -ForegroundColor White
     try {
-        Invoke-WebRequest -Uri $ddUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop
+        Invoke-PCVRWebRequest -Uri $ddUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop
     } catch {
         Write-Host "  [!!] Latest DepotDownloader download failed: $_" -ForegroundColor Yellow
         # Retry once with the pinned version if we were trying latest.
@@ -2864,7 +2889,7 @@ function global:Get-DepotDownloader {
             $v = $global:DD_FALLBACK_VERSION
             $ddUrl = "https://github.com/SteamRE/DepotDownloader/releases/download/DepotDownloader_$v/$assetName"
             Write-Host "  Retrying with pinned DepotDownloader $v ..." -ForegroundColor White
-            try { Invoke-WebRequest -Uri $ddUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop }
+            try { Invoke-PCVRWebRequest -Uri $ddUrl -OutFile $tmpZip -UseBasicParsing -ErrorAction Stop }
             catch { Write-Fail "DepotDownloader could not be downloaded: $_"; return $null }
         } else {
             Write-Host "  [XX] DepotDownloader could not be downloaded: $_" -ForegroundColor Red
@@ -3294,7 +3319,7 @@ function global:Test-IsTrackableInstalledVersion {
     if ($null -eq $Version) { return $false }
     if ($Version -isnot [string] -and $Version -isnot [ValueType] -and $Version -isnot [version]) { return $false }
     $versionText = ([string]$Version).Trim()
-    if ([string]::IsNullOrWhiteSpace($versionText)) { return $false }
+    if ([string]::IsNullOrWhiteSpace($versionText) -or $versionText.Length -gt 128 -or $versionText -match '[\r\n{}]') { return $false }
     return ($versionText -match '\d')
 }
 
@@ -3565,121 +3590,6 @@ function global:Install-MultiverseVRHub {
     }
     Write-Warn "$exeName is not there - nothing was installed."
     return $null
-}
-
-# Resolve the installable asset from the newest eligible GitHub release.
-#
-# A pinned releases/download/<tag>/... URL is a safe offline fallback, but it
-# must not be the normal path for a catalog entry whose Update badge follows
-# GitHub: otherwise the card can advertise a newer tag while the installer
-# quietly puts the old file back.  This helper makes the release identity and
-# delivered asset one transaction.  AssetPatterns are tried in order, allowing
-# an exact product name first and a conservative format fallback last.
-#
-# ReleaseData exists for deterministic, network-free regression tests.  Normal
-# callers omit it and receive the current GitHub release list.
-function global:Resolve-GitHubReleaseAsset {
-    param(
-        [Parameter(Mandatory=$true)][string]$Repo,
-        [Parameter(Mandatory=$true)][string[]]$AssetPatterns,
-        [string]$FallbackUrl = "",
-        [string]$FallbackTag = "known fallback",
-        [string]$FallbackAssetName = "",
-        [bool]$IncludePrerelease = $false,
-        [switch]$SkipReleasesWithoutMatchingAsset,
-        $ReleaseData = $null
-    )
-
-    $page = "https://github.com/$Repo/releases"
-    $result = [ordered]@{
-        Repo = $Repo
-        Url = $FallbackUrl
-        Tag = $FallbackTag
-        AssetName = $FallbackAssetName
-        PageUrl = $page
-        Resolved = $false
-        ReleaseFound = $false
-        SkippedReleaseTags = @()
-        Error = ""
-    }
-    if ($Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
-        $result.Error = 'invalid GitHub repository name'
-        return [pscustomobject]$result
-    }
-
-    try {
-        $releases = $ReleaseData
-        if ($null -eq $releases) {
-            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=20" `
-                -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } `
-                -TimeoutSec 20 -ErrorAction Stop
-        }
-        $eligible = @($releases | Where-Object {
-            $_ -and -not [bool]$_.draft -and ($IncludePrerelease -or -not [bool]$_.prerelease)
-        } | Sort-Object -Property published_at -Descending)
-        $release = $null
-        $asset = $null
-        foreach ($candidate in $eligible) {
-            $candidateAsset = $null
-            foreach ($pattern in $AssetPatterns) {
-                if (-not $pattern) { continue }
-                $matches = @($candidate.assets | Where-Object { ([string]$_.name) -match $pattern })
-                if ($matches.Count -eq 1 -and $matches[0].browser_download_url) {
-                    $candidateAsset = $matches[0]
-                    break
-                }
-            }
-            if ($candidateAsset) {
-                $release = $candidate
-                $asset = $candidateAsset
-                break
-            }
-            if (-not $SkipReleasesWithoutMatchingAsset) {
-                $release = $candidate
-                break
-            }
-            if ($candidate.tag_name) { $result.SkippedReleaseTags += [string]$candidate.tag_name }
-        }
-        if (-not $release -and $eligible.Count -gt 0) { $release = $eligible[0] }
-        if (-not $release) {
-            $result.Error = 'no eligible GitHub release was returned'
-            return [pscustomobject]$result
-        }
-
-        $result.ReleaseFound = $true
-        if ($release.tag_name) { $result.Tag = [string]$release.tag_name }
-        if ($release.html_url) { $result.PageUrl = [string]$release.html_url }
-
-        if (-not $asset) {
-            foreach ($pattern in $AssetPatterns) {
-                if (-not $pattern) { continue }
-                $matches = @($release.assets | Where-Object { ([string]$_.name) -match $pattern })
-                if ($matches.Count -eq 1) { $asset = $matches[0]; break }
-            }
-        }
-        if (-not $asset -or -not $asset.browser_download_url) {
-            # Do not silently return the old fallback when GitHub positively
-            # told us a newer release exists but its packaging changed.  The
-            # release page is intentionally not a payload URL: shared download
-            # validation rejects its HTML and opens the normal manual/Retry
-            # recovery screen for the current release.
-            $result.Url = $result.PageUrl
-            $result.AssetName = "the installable asset for $($result.Tag)"
-            $result.Error = "release '$($result.Tag)' has no unambiguous matching asset"
-            return [pscustomobject]$result
-        }
-
-        $result.Url = [string]$asset.browser_download_url
-        $result.AssetName = [string]$asset.name
-        $result.Resolved = $true
-        return [pscustomobject]$result
-    } catch {
-        # Offline/API failure: retain the last reviewed direct URL supplied by
-        # the caller.  This is explicitly different from a successful API call
-        # whose current release changed shape (handled fail-closed above).
-        $result.Error = $_.Exception.Message
-        return [pscustomobject]$result
-    }
 }
 
 function global:Test-IsPayloadRelease {

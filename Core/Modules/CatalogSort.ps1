@@ -7,7 +7,7 @@
 # stable ids, curated order and dates; this module only presents them.
 # ===============================================================
 
-$script:CatalogSortModes = @('hub', 'release', 'added')
+$script:CatalogSortModes = @('hub', 'release', 'added', 'favorites')
 $savedCatalogSort = [string](Get-HubSetting -Key 'catalogSort' -Default 'hub')
 if ($script:CatalogSortModes -notcontains $savedCatalogSort) { $savedCatalogSort = 'hub' }
 $global:CatalogSortMode = $savedCatalogSort
@@ -17,6 +17,7 @@ function global:Get-CatalogSortLabel {
     switch ($Mode) {
         'release' { return 'Mod release' }
         'added'   { return 'Added to Hub' }
+        'favorites' { return 'Favorites first' }
         default   { return 'Alphabetical' }
     }
 }
@@ -47,7 +48,7 @@ function global:Get-CatalogSortDate {
 function global:Get-CatalogGamesInOrder {
     param(
         [object[]]$Games,
-        [ValidateSet('hub', 'release', 'added')]
+        [ValidateSet('hub', 'release', 'added', 'favorites')]
         [string]$Mode = $global:CatalogSortMode
     )
     $records = @()
@@ -61,9 +62,14 @@ function global:Get-CatalogGamesInOrder {
         $records += [pscustomobject]@{
             Game = $game
             Base = $catalogOrder
-            Date = if ($Mode -eq 'hub') { $null } else { Get-CatalogSortDate -Game $game -Mode $Mode }
+            Favorite = [bool](Test-GameFavorite -Game $game)
+            Date = if ($Mode -in @('hub','favorites')) { $null } else { Get-CatalogSortDate -Game $game -Mode $Mode }
         }
         $fallback++
+    }
+    if ($Mode -eq 'favorites') {
+        return @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true } |
+            ForEach-Object { $_.Game })
     }
     if ($Mode -eq 'hub') {
         return @($records | Sort-Object @{ Expression = { $_.Base }; Ascending = $true } |
@@ -123,6 +129,7 @@ function global:Get-LibraryRecentGames {
 function global:Get-LibraryGamesInOrder {
     param([object[]]$Games, [string]$Mode = $global:CatalogSortMode, [object[]]$RecentGames = @())
     $sorted = @(Get-CatalogGamesInOrder -Games $Games -Mode $Mode)
+    if ($Mode -eq 'favorites') { return $sorted }
     $seen = @{}
     $ordered = @()
     foreach ($game in @($RecentGames) + $sorted) {
@@ -135,8 +142,7 @@ function global:Get-LibraryGamesInOrder {
 function global:Update-LibraryRecentBadgeLayout {
     if (-not $global:window) { return }
     $labelHost = $global:window.FindName('LibraryRecentHost')
-    $column = $global:window.FindName('LibraryRecentColumn')
-    if (-not $labelHost -or -not $column -or
+    if (-not $labelHost -or
         $labelHost.Visibility -ne [System.Windows.Visibility]::Visible) { return }
     $wideTitle = $global:window.FindName('LibraryRecentWideTitle')
     $narrowTitle = $global:window.FindName('LibraryRecentNarrowTitle')
@@ -144,7 +150,6 @@ function global:Update-LibraryRecentBadgeLayout {
     $wide = ($windowWidth -ge 1200)
     $labelHost.Width = if ($wide) { 188 } else { 112 }
     $labelHost.Height = if ($wide) { 36 } else { 56 }
-    $column.Width = [System.Windows.GridLength]::new($(if ($wide) { 196 } else { 120 }))
     if ($wideTitle) {
         $wideTitle.Visibility = if ($wide) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
     }
@@ -157,15 +162,15 @@ function global:Set-LibraryRecentLabel {
     param([int]$Count)
     if (-not $global:window) { return }
     $labelHost = $global:window.FindName('LibraryRecentHost')
-    $column = $global:window.FindName('LibraryRecentColumn')
+    $headerRow = $global:window.FindName('LibraryRecentHeaderRow')
     $manage = $global:window.FindName('LibraryRecentManage')
-    if (-not $labelHost -or -not $column) { return }
+    if (-not $labelHost -or -not $headerRow) { return }
     $visible = ($Count -gt 0)
     $labelHost.Visibility = if ($visible) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+    $headerRow.Visibility = $labelHost.Visibility
     $countText = $global:window.FindName('LibraryRecentCount')
     if ($countText) { $countText.Text = [string][Math]::Min(5, [Math]::Max(0, $Count)) }
     if ($visible) { Update-LibraryRecentBadgeLayout }
-    else { $column.Width = [System.Windows.GridLength]::new(0) }
     if (-not $visible -and $manage) { $manage.Visibility = [System.Windows.Visibility]::Collapsed }
 }
 
@@ -181,7 +186,7 @@ function global:Refresh-LibraryRecentPlacement {
 function global:Set-CatalogPanelOrder {
     param(
         $Panel,
-        [ValidateSet('hub', 'release', 'added')]
+        [ValidateSet('hub', 'release', 'added', 'favorites')]
         [string]$Mode = $global:CatalogSortMode,
         [switch]$UseCatalogOrder,
         [string[]]$PinnedIds = @()
@@ -209,15 +214,18 @@ function global:Set-CatalogPanelOrder {
             Child = $child
             Game  = $game
             Base  = $base
+            Favorite = [bool](Test-GameFavorite -Game $game)
             Pin   = if ($pin -ge 0) { $pin } else { 1000000 }
-            Date  = if ($Mode -eq 'hub' -or -not $game) { $null } else {
+            Date  = if ($Mode -in @('hub','favorites') -or -not $game) { $null } else {
                 Get-CatalogSortDate -Game $game -Mode $Mode
             }
         }
         $position++
     }
 
-    if ($Mode -eq 'hub') {
+    if ($Mode -eq 'favorites') {
+        $ordered = @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true })
+    } elseif ($Mode -eq 'hub') {
         $ordered = @($records | Sort-Object @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true })
     } else {
         $panelOrder = @(
@@ -252,6 +260,7 @@ function global:Set-CatalogSortUi {
         hub     = $global:window.FindName('OrderDotHub')
         release = $global:window.FindName('OrderDotRelease')
         added   = $global:window.FindName('OrderDotAdded')
+        favorites = $global:window.FindName('OrderDotFavorites')
     }
     foreach ($mode in $dotMap.Keys) {
         if ($dotMap[$mode]) {
@@ -274,7 +283,7 @@ function global:Apply-CatalogSort {
     $mode = $global:CatalogSortMode
 
     if ($Scope -in @('All', 'List')) {
-        foreach ($name in @('OwnGameList', 'OwnGameListGP', 'ExternalGameList')) {
+        foreach ($name in @('OwnGameList', 'OwnGameListGP', 'ExternalGameList', 'UntestedGameList')) {
             Set-CatalogPanelOrder -Panel $global:window.FindName($name) -Mode $mode
         }
     }
@@ -317,11 +326,13 @@ function global:Apply-CatalogSort {
         # search and every filter survive a sort change.
         try { Apply-Filter } catch { }
     }
+    # A new order moves different (possibly unbuilt) cards into view.
+    if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
 }
 
 function global:Set-CatalogSortMode {
     param(
-        [ValidateSet('hub', 'release', 'added')]
+        [ValidateSet('hub', 'release', 'added', 'favorites')]
         [string]$Mode,
         [switch]$Persist
     )
@@ -400,6 +411,7 @@ $orderChoiceMap = @{
     hub     = $window.FindName('OrderChoiceHub')
     release = $window.FindName('OrderChoiceRelease')
     added   = $window.FindName('OrderChoiceAdded')
+    favorites = $window.FindName('OrderChoiceFavorites')
 }
 foreach ($mode in $orderChoiceMap.Keys) {
     $choice = $orderChoiceMap[$mode]
@@ -444,19 +456,20 @@ $window.Add_PreviewKeyDown({
 })
 
 $libraryRecentHost = $window.FindName('LibraryRecentHost')
+$libraryRecentHeaderRow = $window.FindName('LibraryRecentHeaderRow')
 $libraryRecentManage = $window.FindName('LibraryRecentManage')
 $libraryRecentClose = $window.FindName('LibraryRecentClose')
 $libraryRecentDisable = $window.FindName('LibraryRecentDisable')
-if ($libraryRecentHost -and $libraryRecentManage -and $libraryRecentClose -and $libraryRecentDisable) {
+if ($libraryRecentHost -and $libraryRecentHeaderRow -and $libraryRecentManage -and $libraryRecentClose -and $libraryRecentDisable) {
     $window.Add_SizeChanged({ Update-LibraryRecentBadgeLayout })
-    # Match the list-view header's deliberate five-second management hover.
+    # Keep management beside the heading, after the same deliberate dwell.
     $global:LibraryRecentShowTimer = New-Object System.Windows.Threading.DispatcherTimer
-    $global:LibraryRecentShowTimer.Interval = [TimeSpan]::FromSeconds(5)
+    $global:LibraryRecentShowTimer.Interval = [TimeSpan]::FromSeconds(7)
     $global:LibraryRecentHideTimer = New-Object System.Windows.Threading.DispatcherTimer
     $global:LibraryRecentHideTimer.Interval = [TimeSpan]::FromMilliseconds(800)
     $global:LibraryRecentShowTimer.Add_Tick({
         $global:LibraryRecentShowTimer.Stop()
-        if ($libraryRecentHost.IsMouseOver -and $libraryRecentHost.Visibility -eq [System.Windows.Visibility]::Visible) {
+        if ($libraryRecentHeaderRow.IsMouseOver -and $libraryRecentHost.Visibility -eq [System.Windows.Visibility]::Visible) {
             $libraryRecentManage.Visibility = [System.Windows.Visibility]::Visible
         }
     }.GetNewClosure())
@@ -464,14 +477,14 @@ if ($libraryRecentHost -and $libraryRecentManage -and $libraryRecentClose -and $
         $global:LibraryRecentHideTimer.Stop()
         $libraryRecentManage.Visibility = [System.Windows.Visibility]::Collapsed
     }.GetNewClosure())
-    $libraryRecentHost.Add_MouseEnter({
+    $libraryRecentHeaderRow.Add_MouseEnter({
         $global:LibraryRecentHideTimer.Stop()
         if ($libraryRecentManage.Visibility -ne [System.Windows.Visibility]::Visible) {
             $global:LibraryRecentShowTimer.Stop()
             $global:LibraryRecentShowTimer.Start()
         }
     }.GetNewClosure())
-    $libraryRecentHost.Add_MouseLeave({
+    $libraryRecentHeaderRow.Add_MouseLeave({
         $global:LibraryRecentShowTimer.Stop()
         if ($libraryRecentManage.Visibility -eq [System.Windows.Visibility]::Visible) {
             $global:LibraryRecentHideTimer.Stop()

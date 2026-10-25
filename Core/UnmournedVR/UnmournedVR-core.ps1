@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Unmourned VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -19,7 +19,7 @@
 # Load installer-safety helpers (Invoke-SafeDownload,
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
 
 $MOD_NAME = "Unmourned_VR"
 $MOD_VERSION = "v1.0.0"
@@ -61,7 +61,7 @@ function Write-OK { param($m) Write-Host " [OK] $m" -ForegroundColor Green }
 function Write-Info { param($m) Write-Host " [i] $m" -ForegroundColor Cyan }
 function Write-Warn { param($m) Write-Host " [!] $m" -ForegroundColor Yellow }
 function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") [void](Wait-PCVRExplicitEnter -Message $text) }
 
 function Get-SteamPath {
  foreach ($reg in @(
@@ -93,6 +93,14 @@ function Get-SteamLibraries {
 }
 
 function Find-UnmournedGamePath {
+ if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_UNMOURNED_TEST_GAME) {
+  $root=[IO.Path]::GetFullPath($env:PCVR_UNMOURNED_TEST_GAME)
+  $temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')+'\'
+  if (-not $root.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or
+      -not(Test-Path -LiteralPath (Join-Path $root 'unmourned-fixture.txt')) -or
+      -not(Test-Path -LiteralPath (Join-Path $root 'Unmourned.exe'))) { throw 'Invalid isolated Unmourned fixture.' }
+  return $root
+ }
  $sp = Get-SteamPath
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
@@ -106,75 +114,16 @@ function Find-UnmournedGamePath {
 # -------------------------------------------------------
 # STEP 1: Discord onboarding
 # -------------------------------------------------------
+# Source availability was confirmed in the publisher's edited Discord post.
 Write-Header
-
-Write-Host " Unmourned VR is distributed by Astienth via Discord." -ForegroundColor White
-Write-Host " Are you already a member of the FarmerTrueVR" -ForegroundColor White
-Write-Host " Discord server (with rules accepted)?" -ForegroundColor White
-Write-Host ""
-Write-Host " >>> [Y] Yes, skip straight to the download link" -ForegroundColor Yellow
-Write-Host " >>> [N] No, walk me through joining + accepting rules" -ForegroundColor Yellow
-Write-Host "     [S] Show a short walkthrough of what happens first" -ForegroundColor DarkGray
-Write-Host ""
-$alreadyMember = ""
-while ($alreadyMember -notin @("y","Y","n","N")) {
- $alreadyMember = (Read-Host " Your choice (Y/N/S)").Trim()
- if ($alreadyMember -in @("s","S")) {
-  Write-Host ""
-  Write-Host " Short walkthrough - what the installer does WITH you:" -ForegroundColor White
- Write-Host " 1. Join the FarmerTrueVR Discord server" -ForegroundColor Gray
- Write-Host " 2. Read the rules and click the AK-47 emoji to confirm" -ForegroundColor Gray
- Write-Host " 3. Download UnmournedVR.zip from the mod channel" -ForegroundColor Gray
- Write-Host " 4. Come back here and drag-drop the ZIP into this window" -ForegroundColor Gray
-  Write-Host ""
-  $alreadyMember = ""
- }
-}
-$skipJoin = ($alreadyMember -in @("y","Y"))
-Write-Host ""
-
-# Important pre-install warning - the user MUST launch the game
-# once in flat mode first to set the language.
-Write-Host " IMPORTANT FIRST-LAUNCH NOTE:" -ForegroundColor Yellow
-Write-Host " -----------------------------" -ForegroundColor Yellow
-Write-Host " Before installing this mod, launch Unmourned ONCE in" -ForegroundColor White
-Write-Host " flat mode and pick your language. The mod can't show" -ForegroundColor White
-Write-Host " the language picker properly in VR." -ForegroundColor White
-Write-Host ""
-
-if (-not $skipJoin) {
- Write-Host " HOW THIS WORKS: at each step press Enter - the installer opens the page for you." -ForegroundColor White
- Write-Host " Do ONLY the highlighted action on that page, then come back here and press Enter for the next step." -ForegroundColor White
- Write-Host ""
-
- Write-Host " [Step 1/3] Discord server invite   " -ForegroundColor Cyan -NoNewline
- Write-Host "Click: Accept Invite" -ForegroundColor Yellow
- Write-Host "   (auto-opens: $DISCORD_INVITE_URL)" -ForegroundColor DarkGray
- Pause-User "Press Enter to open the invite in your browser..."
- try { Start-Process $DISCORD_INVITE_URL } catch { Write-Warn "Could not open browser. Visit the URL above manually." }
-
- Write-Host ""
- Write-Host " [Step 2/3] Rules channel - read the rules, then   " -ForegroundColor Cyan -NoNewline
- Write-Host "Click: the AK-47 emoji under the rules post" -ForegroundColor Yellow
- Write-Host "   (this unlocks the rest of the server)" -ForegroundColor DarkGray
- Write-Host "   (auto-opens: $DISCORD_RULES_URL)" -ForegroundColor DarkGray
- Pause-User "Press Enter to open the rules channel..."
- try { Start-Process $DISCORD_RULES_URL } catch {}
-
- Write-Host ""
- Write-Host " [Step 3/3] Mod download post   " -ForegroundColor Cyan -NoNewline
- Write-Host "Download: the mod ZIP" -ForegroundColor Yellow
- Write-Host "   (auto-opens: $DISCORD_DOWNLOAD_URL)" -ForegroundColor DarkGray
- Write-Host " Background info: $DISCORD_INFO_URL" -ForegroundColor DarkGray
- Pause-User "Press Enter to open the download post..."
- try { Start-Process $DISCORD_DOWNLOAD_URL } catch {}
-} else {
- Write-Host " Great. Opening the mod download post directly." -ForegroundColor Gray
- Write-Host "   (auto-opens: $DISCORD_DOWNLOAD_URL)" -ForegroundColor DarkGray
- Write-Host " Background info: $DISCORD_INFO_URL" -ForegroundColor DarkGray
- Pause-User "Press Enter to open the download post..."
- try { Start-Process $DISCORD_DOWNLOAD_URL } catch {}
-}
+Write-Host '  [!!] The publisher has withdrawn the old Unmourned VR mod download.' -ForegroundColor Yellow
+Write-Host '  The game now has an official VR edition. This setup is only for' -ForegroundColor White
+Write-Host '  reinstalling an UnmournedVR.zip you already saved for the old flat game.' -ForegroundColor White
+Write-Host '  There is no current mod ZIP to download from the former Discord post.' -ForegroundColor White
+Write-Host '  Existing installations are left in place.' -ForegroundColor Gray
+Write-Host '  Before reinstalling, start the old flat game once and choose your language.' -ForegroundColor Cyan
+Show-AntivirusNotice -Compact
+[void](Wait-PCVRExplicitEnter -Message 'After reading this, press Enter to choose your saved mod archive...')
 
 # -------------------------------------------------------
 # STEP 2: Get the ZIP from the user
@@ -186,9 +135,10 @@ Write-Host ""
 $modZip = $null
 while (-not $modZip) {
  Write-Host " Drag-and-drop the downloaded ZIP into this window," -ForegroundColor Yellow
- Write-Host " or paste/type its full path, then press Enter:" -ForegroundColor White
+ Write-Host " or paste/type its full path, then press Enter (Q to close):" -ForegroundColor White
  $r = (Read-Host " ZIP path").Trim().Trim('"')
  if (-not $r) { continue }
+ if ($r -eq "Q") { exit 1 }
  if (Test-Path $r) {
  if ($r -match '\.zip$|\.7z$|\.rar$') {
  $modZip = $r
@@ -218,6 +168,7 @@ if ($gamePath) {
  while (-not $gamePath) {
  $r = (Read-Host " Unmourned folder").Trim().Trim('"')
  if (-not $r) { continue }
+ if ($r -eq "Q") { exit 1 }
  if (Test-Path $r) {
  $gamePath = $r
  Write-OK "Game folder set: $gamePath"
@@ -448,6 +399,7 @@ try {
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Setup complete!" -ForegroundColor Green
+Write-Host " 1. Use Start in VR in the Hub." -ForegroundColor White
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host " IMPORTANT first-launch steps:" -ForegroundColor Yellow

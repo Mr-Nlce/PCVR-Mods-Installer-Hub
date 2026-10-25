@@ -312,7 +312,7 @@ try {
   Write-Info 'Downloading L4D2VR; this may take several minutes.'
   try {
    if ($l4d2FixtureMode) { throw 'Direct asset unavailable (isolated fixture)' }
-   Invoke-WebRequest -Uri $url -OutFile $vrZip -UseBasicParsing -ErrorAction Stop -TimeoutSec 120
+   Invoke-PCVRWebRequest -Uri $url -OutFile $vrZip -UseBasicParsing -ErrorAction Stop -TimeoutSec 120
    if (-not (Test-L4D2VRArchive $vrZip)) { throw 'The response is not a usable L4D2VR ZIP.' }
    $downloaded = $true
    if ($l4d2vrUrl -and $url -eq $l4d2vrUrl -and $assetStamp) { $verifiedAssetStamp = $assetStamp }

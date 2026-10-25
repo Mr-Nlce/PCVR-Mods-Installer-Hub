@@ -1,3 +1,146 @@
+﻿. (Join-Path $PSScriptRoot 'DetailReadme.Model.ps1')
+. (Join-Path $PSScriptRoot 'DetailVrFiles.Model.ps1')
+. (Join-Path $PSScriptRoot 'UntestedFeedback.ps1')
+function global:Get-DetailExternalVrFiles {
+    param($Game)
+    if (-not $Game) { return $null }
+    $context = Get-UninstallGuideContext $Game
+    $gameRoot = if ($context -and $context.GameDir) { [IO.Path]::GetFullPath($context.GameDir).TrimEnd([char[]]'\/') } else { '' }
+    $controller = ''
+    if ($Game.HubLaunchScript -and $global:HubHelpersCoreRoot) {
+        $coreRoot = [IO.Path]::GetFullPath($global:HubHelpersCoreRoot).TrimEnd([char[]]'\/')
+        $scriptPath = [IO.Path]::GetFullPath((Join-Path $coreRoot ([string]$Game.HubLaunchScript)))
+        if ($scriptPath.StartsWith($coreRoot + [IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -and
+            (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { $controller = $scriptPath }
+    }
+    $defaultRoot = if ($Game.VrInstallRoot) { Resolve-VrInstallRoot $Game.VrInstallRoot } else { $null }
+    $roots = @()
+    if ($context) {
+        $roots = @($context.Roots | Where-Object {
+            $_ -and [IO.Path]::GetFullPath($_).TrimEnd([char[]]'\/') -ine $gameRoot -and
+            (Test-Path -LiteralPath $_ -PathType Container)
+        })
+        $roots += $gameRoot
+    }
+    if (-not $context -and -not $Game.TwoMods) {
+        $candidateGameRoot = ''
+        try {
+            $state = if ($global:gameStateMap) { $global:gameStateMap[$Game.Title] } else { $null }
+            if ($state -and $state.GameDir) { $candidateGameRoot = [string]$state.GameDir }
+            if (-not $candidateGameRoot) { $candidateGameRoot = [string](Read-PersistentGameStateValue -Game $Game -Name 'installed_path') }
+            if ($candidateGameRoot -and (Test-Path -LiteralPath $candidateGameRoot -PathType Container) -and
+                (Test-VrInstallEvidenceContract -Game $Game -Root $candidateGameRoot) -and
+                (-not (Get-Command Test-BaseGameInstallProof -ErrorAction SilentlyContinue) -or
+                 (Test-BaseGameInstallProof -Game $Game -Root $candidateGameRoot))) {
+                foreach ($rawMarker in @($Game.ModFile, $Game.ModFileAlt, $Game.ModFileAlt2)) {
+                    foreach ($marker in (([string]$rawMarker) -split '\|')) {
+                        if (-not $marker -or [IO.Path]::IsPathRooted($marker) -or
+                            $marker -match '(^|[\\/])\.\.([\\/]|$)') { continue }
+                        if (Test-Path -LiteralPath (Join-Path $candidateGameRoot $marker) -PathType Leaf) {
+                            $gameRoot = [IO.Path]::GetFullPath($candidateGameRoot).TrimEnd([char[]]'\/')
+                            $roots += $gameRoot
+                            break
+                        }
+                    }
+                    if ($roots.Count) { break }
+                }
+            }
+        } catch { }
+    }
+    # A scan can miss a complete external runtime. Its own required files are
+    # independent proof, so the user can still open the real starter and fix
+    # the base-game location without a circular Ready-state dependency.
+    $defaultMarker = $false
+    if ($defaultRoot) {
+        foreach ($rawMarker in @($Game.ModFile, $Game.ModFileAlt, $Game.ModFileAlt2)) {
+            foreach ($marker in (([string]$rawMarker) -split '\|')) {
+                if (-not $marker -or [IO.Path]::IsPathRooted($marker) -or
+                    $marker -match '(^|[\\/])\.\.([\\/]|$)') { continue }
+                if (Test-Path -LiteralPath (Join-Path $defaultRoot $marker) -PathType Leaf) { $defaultMarker = $true; break }
+            }
+            if ($defaultMarker) { break }
+        }
+    }
+    if ($defaultRoot -and (Test-Path -LiteralPath $defaultRoot -PathType Container) -and
+        (Test-VrInstallEvidenceContract -Game $Game -Root $defaultRoot) -and $defaultMarker -and
+        $defaultRoot -notin $roots) { $roots = @($defaultRoot) + $roots }
+    $startCandidates = @()
+    if ($Game.TwoMods -and $Game.ModALaunch -and $Game.ModBLaunch) {
+        foreach ($slot in @('A','B','C','D','E','F','G','H')) {
+            $relative = [string]$Game["Mod${slot}Launch"]
+            $sub = [string]$Game["Mod${slot}Sub"]
+            if ($sub -and $sub -ne '.') { $relative = Join-Path $sub $relative }
+            $startCandidates += [pscustomobject]@{Relative=$relative;Label=[string]$Game["Mod${slot}Name"]}
+        }
+    } elseif ($Game.HubLaunchScript) {
+        $startCandidates += [pscustomobject]@{Relative=[string]$Game.HubStartFile;Label='File used by the Hub controller'}
+    } else {
+        foreach ($relative in @($Game.LaunchExe,$Game.ModFile)) {
+            $startCandidates += [pscustomobject]@{Relative=[string]$relative;Label='VR start file'}
+        }
+    }
+    $startCandidates = @($startCandidates | Where-Object {
+        $_.Relative -and $_.Relative -match '(?i)\.(?:exe|cmd|bat|ps1|lnk)$' -and
+        $_.Relative -notmatch '(^|[\\/])\.\.([\\/]|$)' -and
+        -not [IO.Path]::IsPathRooted($_.Relative)
+    })
+    $found = @()
+    foreach ($root in $roots) {
+        foreach ($candidate in $startCandidates) {
+            if (@($found | Where-Object Label -eq $candidate.Label).Count) { continue }
+            $path = Join-Path $root $candidate.Relative
+            if (Test-Path -LiteralPath $path -PathType Leaf) {
+                $found += [pscustomobject]@{Root=$root;Path=$path;Name=(Split-Path $path -Leaf);Label=$candidate.Label}
+            }
+        }
+    }
+    $state=if($global:gameStateMap){$global:gameStateMap[$Game.Title]}else{$null}
+    $launchRows=@(Get-DetailVrLaunchRows -Game $Game -State $state -Roots $roots)
+    $expectedRoot = if ($defaultRoot) { $defaultRoot } elseif ($gameRoot) { $gameRoot } else { 'the located game folder' }
+    $first=if($found.Count){$found[0]}else{$null}
+    $verified=[bool]($context -or $roots.Count)
+    $linkRoots=@($roots|Where-Object {$_}|Select-Object -Unique)
+    foreach($root in $roots){
+        foreach($raw in @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)){
+            foreach($relative in (([string]$raw) -split '\|')){
+                if(-not $relative -or [IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)'){continue}
+                $file=Join-Path $root $relative
+                if(Test-Path -LiteralPath $file -PathType Leaf){$linkRoots+=@(Split-Path $file -Parent)}
+            }
+        }
+    }
+    foreach($row in $launchRows){if($row.Path){$linkRoots+=@(Split-Path $row.Path -Parent)}}
+    if($verified){
+        foreach($raw in @($Game.ModFileAbs,$Game.ModAProbeAbs,$Game.ModBProbeAbs,$Game.ModCProbeAbs)){
+            foreach($value in @($raw)){
+                if(-not $value){continue}
+                $absolute=[Environment]::ExpandEnvironmentVariables([string]$value)
+                if([IO.Path]::IsPathRooted($absolute) -and (Test-Path -LiteralPath $absolute -PathType Leaf)){$linkRoots+=@(Split-Path $absolute -Parent)}
+            }
+        }
+    }
+    $linkRoots=@($linkRoots|Where-Object {$_}|Select-Object -Unique)
+    return [pscustomobject]@{
+        Root=$(if($first){$first.Root}elseif($roots.Count){$roots[0]}else{$expectedRoot});StartPath=$(if($first){$first.Path}else{''})
+        StartName=$(if($first){$first.Name}elseif($startCandidates.Count){$startCandidates[0].Relative}else{''})
+        StartFiles=$found;HubControllerPath=$controller;Verified=$verified;LinkRoots=$linkRoots;LaunchRows=$launchRows
+    }
+}
+
+function global:New-DetailVrFileLinkSession {
+    param($Game, $Files, [string]$Body)
+    $session = New-ReadmeLinkSession -Game $Game -Texts @('VR files', $Body) -DeferLocalIndex
+    if ($Files.Verified -and $Files.Root) {
+        # README sessions normally trust only a completed scan. This section
+        # has already verified the required VR files independently; give the
+        # renderer exactly that one root and keep it out of the later scan-
+        # based refresh, which would otherwise erase the recovery links.
+        $session.Context = [pscustomobject]@{Game=$Game;GameDir=$Files.Root;Roots=@($Files.LinkRoots);IndependentVrFiles=$true}
+        if ($global:DetailReadmeLinkSessions) { [void]$global:DetailReadmeLinkSessions.Remove($session) }
+    }
+    return $session
+}
+
 function global:Show-DiscoverDetail {
     param($Game)
     $detailBuildWatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -494,6 +637,35 @@ function global:Show-DiscoverDetail {
     $titleBig.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
     $titleBig.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $titleRow.Children.Add($titleBig) | Out-Null
+
+    # Favorite belongs to the game, independent of its install state. Keep
+    # the control beside the title so it is available on every detail page.
+    $favoriteButton = [System.Windows.Controls.Border]::new()
+    $favoriteButton.CornerRadius = [System.Windows.CornerRadius]::new(8)
+    $favoriteButton.BorderThickness = [System.Windows.Thickness]::new(1)
+    $favoriteButton.Padding = [System.Windows.Thickness]::new(10, 2, 10, 2)
+    $favoriteButton.Margin = [System.Windows.Thickness]::new(12, 3, 0, 2)
+    $favoriteButton.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $favoriteButton.Cursor = [System.Windows.Input.Cursors]::Hand
+    $favoriteButton.Tag = $Game
+    $favoriteHeart = [System.Windows.Controls.TextBlock]::new()
+    $favoriteHeart.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
+    $favoriteHeart.FontSize = 20
+    $favoriteHeart.TextAlignment = [System.Windows.TextAlignment]::Center
+    $favoriteButton.Child = $favoriteHeart
+    $global:FavoriteDetailGame = $Game
+    $global:FavoriteDetailButton = $favoriteButton
+    Update-FavoriteDetailVisual
+    $favoriteButton.Add_PreviewMouseLeftButtonUp({
+        param($sender, $eventArgs)
+        $eventArgs.Handled = $true
+        if (([Environment]::TickCount - $global:DetailOpenedAtMs) -lt 250) { return }
+        $game = $sender.Tag
+        if (-not $game) { return }
+        [void](Set-GameFavorite -Game $game -Favorite (-not (Test-GameFavorite -Game $game)))
+        Start-FavoritePulse -Element $sender.Child
+    })
+    $titleRow.Children.Add($favoriteButton) | Out-Null
 
     # VR READY pill - the FIRST badge after the title, before every
     # other pill. Until now "VR Ready" existed ONLY as the resting
@@ -1106,6 +1278,14 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        'GRID (2019) VR' = 'Compete in wheel-to-wheel motorsport across street circuits and permanent tracks. GRID (2019) mixes touring cars, GT racers and muscle cars with rivals who remember your racing line. CodiesVR brings a head-tracked cockpit to its DirectX 12 version.'
+        'GRID Legends VR' = 'Join Seneca Racing in a dramatic motorsport campaign, then build custom race events across city streets and circuits. GRID Legends combines varied racing classes with a live-action story. CodiesVR adds an immersive cockpit, adjustable HUD and OpenXR head tracking.'
+        'DiRT 4 VR' = 'Build your rally career across gravel, tarmac and dirt stages, race rallycross and Landrush events, and learn to trust your co-driver. DiRT 4 combines approachable driving with a simulation handling option. CodiesVR brings the cockpit into OpenXR with head tracking and adjustable VR panels.'
+        "Forza Horizon 4 VR - GrayHorizon" = "Forza Horizon 4 brings the Horizon festival to Britain, with a shared open world that changes through four seasons. Collect and tune cars, race on roads and off road, and take on festival challenges."
+        "Forza Horizon 5 VR - GrayHorizon" = "Forza Horizon 5 is an open-world racing festival across Mexico. Explore deserts, mountains and towns, collect and tune cars, and compete in road races, dirt events and driving challenges."
+        "Forza Horizon 6 VR - GrayHorizon" = "Forza Horizon 6 takes the Horizon festival to Japan, combining open-road exploration, cities, car collecting and festival racing."
+        "Dishonored 2 VR" = "Return to Karnaca as Emily Kaldwin or Corvo Attano in Dishonored 2, Arkane's supernatural stealth adventure. The Cosmic Tangerine's VR mod brings head tracking, controller-held weapons, powers and physical interactions to the current Steam edition."
+        "Call of Duty: Modern Warfare 2 Campaign Remastered VR" = "Experience the critically acclaimed campaign of Call of Duty: Modern Warfare 2, now fully remastered in immersive Virtual Reality. Step into the boots of Task Force 141 and fight alongside iconic characters like Ghost and Price in intense global missions."
         "Mount & Blade II: Bannerlord VR" = "Mount & Blade II: Bannerlord is a medieval sandbox action RPG set in Calradia. Build a clan, gather companions, command armies and take part in large battles while shaping the fate of its kingdoms."
         "Black Mesa Source VR" = "Black Mesa Source VR is a fan-made reimagining of the original Half-Life, rebuilt as a Half-Life 2: Episode Two mod and now playable in VR."
         "SiN Episodes: Emergence" = "SiN Episodes: Emergence is a story-driven first-person shooter set in Freeport. As HardCorps commander John Blade, battle Elexis Sinclaire's forces through city streets, laboratories and industrial complexes using fast gunplay, interactive environments and vehicles."
@@ -1886,6 +2066,9 @@ function global:Show-DiscoverDetail {
     }
     # README sections (if available). isExternal was already
     # determined above (for the get-the-game hint) - reusing here.
+    $readmeModel=ConvertTo-DetailReadmeModel -Game $Game -Sections $sections -DiscordText $discordSectionText
+    $sections=$readmeModel.Sections
+    $discordSectionText=$readmeModel.DiscordText
     $hasReadme = ($sections.Count -gt 0)
     if ($hasReadme) {
         # Section ordering: prioritize what users care about.
@@ -1898,7 +2081,7 @@ function global:Show-DiscoverDetail {
         # (see Read-GameReadme). Needed for pages that document TWO mods
         # in sequence: sorting would rip sections out of their mod's block.
         $keepOrder = ($sections.Contains("_keepOrder") -and $sections["_keepOrder"])
-        $preferred = @("About this mod", "About", "Where to get the game", "What it installs", "Requirements", "Note")
+        $preferred = @("About the Game", "About this mod", "About", "Where to get the game", "What it installs", "What you need", "Requirements", "Note")
         if ($keepOrder) { $preferred = @() }
         $skip      = @{ "How to use" = $true; "More info" = $true }
         # A centrally registered channel replaces only short, dedicated
@@ -1928,6 +2111,10 @@ function global:Show-DiscoverDetail {
         $readmeTexts = @($sections.get_Keys() | Where-Object { -not $_.StartsWith('_') } | ForEach-Object { [string]$_; [string]$sections[$_] })
         if ($sections.Contains('_quip')) { $readmeTexts += [string]$sections['_quip'] }
         $readmeLinks = New-ReadmeLinkSession -Game $Game -Texts $readmeTexts -BaseDir $imgBase -DeferLocalIndex
+        # Short controls and requirements can share one row. A WrapPanel
+        # stacks them naturally on narrow windows. Long tables, images and
+        # technical instructions keep the established full-width renderer.
+        $pairNeed = Get-DetailReadmePairHeading -Sections $sections -KeepOrder ([bool]$keepOrder)
         # Helper: does a heading match any tail pattern?
         $isTail = {
             param($heading)
@@ -1937,6 +2124,33 @@ function global:Show-DiscoverDetail {
         }
         foreach ($key in $preferred) {
             if ($sections.Contains($key) -and $sections[$key]) {
+                if ($key -eq $pairNeed) {
+                    try {
+                        $pair = [System.Windows.Controls.WrapPanel]::new()
+                        $pair.MaxWidth = 1040
+                        $pair.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+                        $needCard = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks
+                        $controlCard = New-DetailSection -Heading 'Controls' -Body $sections['Controls'] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks
+                        foreach ($card in @($needCard,$controlCard)) {
+                            $card.Width = 340
+                            $card.Margin = [System.Windows.Thickness]::new(0,0,12,10)
+                            [void]$pair.Children.Add($card)
+                        }
+                        $pair.Add_SizeChanged({
+                            param($sender,$event)
+                            $available = [double]$event.NewSize.Width
+                            if ($available -le 0) { return }
+                            $cardWidth = Get-DetailReadmePairCardWidth $available
+                            foreach ($child in $sender.Children) {
+                                if ([Math]::Abs($child.Width - $cardWidth) -gt 1) { $child.Width = $cardWidth }
+                            }
+                        })
+                        [void]$stack.Children.Add($pair)
+                        $shown[$key] = $true
+                        $shown['Controls'] = $true
+                        continue
+                    } catch { }
+                }
                 # Append the Steam Theatre button inside the
                 # Requirements box for all non-external games.
                 $append = $null
@@ -1958,7 +2172,7 @@ function global:Show-DiscoverDetail {
         # would return that section's VALUE (a single string) instead of
         # the key collection, so only one section would render.
         foreach ($key in $sections.get_Keys()) {
-            if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
+            if (([string]$key).StartsWith('_') -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
             if ((& $isTail $key)) { continue }
             try {
                 $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks -PreserveSubheadings:$keepOrder
@@ -1971,7 +2185,7 @@ function global:Show-DiscoverDetail {
         # "support" sections), preserve README order.
         foreach ($pat in $tailPatterns) {
             foreach ($key in $sections.get_Keys()) {
-                if ($key -eq "_tagline" -or $key -eq "_baseDir" -or $key -eq "_quip" -or $key -eq "_keepOrder" -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
+                if (([string]$key).StartsWith('_') -or $shown.Contains($key) -or $skip.Contains($key)) { continue }
                 if (-not $key.ToString().ToLower().Contains($pat)) { continue }
                 try {
                 $sec = New-DetailSection -Heading $key -Body $sections[$key] -AccentHex $accentHex -ImageBaseDir $imgBase -Game $Game -LinkSession $readmeLinks -PreserveSubheadings:$keepOrder
@@ -1980,18 +2194,10 @@ function global:Show-DiscoverDetail {
                 $shown[$key] = $true
             }
         }
-        # If the README didn't have a Requirements section but the
-        # game still benefits from the Theatre Mode hint, render a
-        # small stand-alone block at the end with the Theatre button
-        # AND the Uninstall Guide button side by side.
-        #
-        # Ordering rule: when the box holds BOTH the Theatre hint and
-        # the Uninstall button, it reads as a "tools" row and looks
-        # fine before the closing quip. But when the Theatre button was
-        # already placed in Requirements, this box holds ONLY the lone
-        # Uninstall button - and ending on "here's how to uninstall"
-        # right before the flavour quip looks backwards. In that case
-        # we defer the box so the quip comes first.
+        # If the README didn't have a Requirements section, include
+        # Steam Theatre in the stand-alone tools row. The row belongs
+        # after the informational sections and directly before the
+        # closing quip, whether it contains one button or several.
         # External mods need safe removal guidance too. They skip the Steam
         # Theatre control, but still get the guide and any located author
         # uninstaller beside it.
@@ -2009,9 +2215,7 @@ function global:Show-DiscoverDetail {
             $standaloneBox.Child = $standaloneRow
 
             # Holds the button row AND, under it, the uninstall guide
-            # when it is expanded. One container, so both travel
-            # together whether the box renders here or is deferred
-            # below the quip.
+            # when it is expanded. Move both as one footer unit.
             $guideHost = New-Object System.Windows.Controls.StackPanel
             $guideHost.Children.Add($standaloneBox) | Out-Null
 
@@ -2023,14 +2227,10 @@ function global:Show-DiscoverDetail {
                 $standaloneRow.Children.Add($standaloneBtn) | Out-Null
             }
 
-            # (Flat / VR switch moved to the main action row, after
-            # Open in Steam.) Keep the flag for the defer logic below.
-            $flatBtnPlaced = $false
-
             # Uninstall Guide button: always shown for non-external
             # games. Adapts steps based on whether the game uses
             # Steam launch options that need clearing first.
-            $uninstallBtn = New-UninstallGuideButton -Game $Game -AccentHex "#cc6655" -HostPanel $guideHost
+            $uninstallBtn = New-UninstallGuideButton -Game $Game -AccentHex "#cc6655" -HostPanel $guideHost -ReadmeNotes $sections['_uninstallReadme'] -ImageBaseDir $imgBase
             $uninstallBtn.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
             $standaloneRow.Children.Add($uninstallBtn) | Out-Null
 
@@ -2070,14 +2270,7 @@ function global:Show-DiscoverDetail {
               }
             }
 
-            # If the Theatre button is alongside (box has 2 buttons),
-            # render now - before the quip. If the Uninstall button is
-            # alone, defer it so the quip renders first.
-            if (-not $theatreBtnPlaced -or $flatBtnPlaced) {
-                $stack.Children.Add($guideHost) | Out-Null
-            } else {
-                $deferredUninstallBox = $guideHost
-            }
+            $deferredUninstallBox = $guideHost
         }
     } elseif ($Game.Description -and -not $isExternal) {
         # No README found and not an external - render the inline
@@ -2101,6 +2294,25 @@ function global:Show-DiscoverDetail {
         $descAccent = if ($Game.Accent) { $Game.Accent } else { "#666677" }
         Set-TextBlockWithLinks -TextBlock $descBlock -Text $Game.Description -AccentHex $descAccent -BaseFont 13
         $stack.Children.Add($descBlock) | Out-Null
+    }
+
+    if ($Game.UntestedInstaller) {
+        $feedback = New-UntestedFeedbackButton -Game $Game
+        $feedback.HorizontalAlignment = 'Left'
+        $feedback.Margin = [Windows.Thickness]::new(0,0,0,16)
+        [void]$stack.Children.Add($feedback)
+        $feedbackNote = [Windows.Controls.TextBlock]::new()
+        $feedbackNote.Text = 'Thank you for testing! This opens the GitHub form and Core\Logs\Untested. Review your report, then drag the matching TXT into Installer log.'
+        $feedbackNote.TextWrapping = 'Wrap'; $feedbackNote.Foreground = [Windows.Media.Brushes]::LightGray
+        $feedbackNote.Margin = [Windows.Thickness]::new(0,0,0,16)
+        [void]$stack.Children.Add($feedbackNote)
+    }
+    $vrFiles = Get-DetailExternalVrFiles -Game $Game
+    if ($vrFiles) {
+        $vrBody = Get-DetailVrFilesBody -Game $Game -Files $vrFiles
+        $vrLinkSession = New-DetailVrFileLinkSession -Game $Game -Files $vrFiles -Body $vrBody
+        $vrSection = New-DetailSection -Heading 'VR files' -Body $vrBody -AccentHex $accentHex -Game $Game -LinkSession $vrLinkSession
+        if ($vrSection) { $stack.Children.Add($vrSection) | Out-Null }
     }
 
     # One central, durable Discord registry supplies the discussion/support
@@ -2134,10 +2346,7 @@ function global:Show-DiscoverDetail {
     } elseif ($hasReadme -and $sections.Contains("_quip") -and $sections["_quip"]) {
         $quipText = $sections["_quip"]
     }
-    if ($Game.QuipLast -and $deferredUninstallBox) {
-        $stack.Children.Add($deferredUninstallBox) | Out-Null
-        $deferredUninstallBox = $null
-    }
+    $cqBox = $null
     if ($quipText) {
         $cqBox = New-Object System.Windows.Controls.Border
         $cqBox.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#16161e")
@@ -2197,15 +2406,8 @@ function global:Show-DiscoverDetail {
         $stack.Children.Add($cqBox) | Out-Null
     }
 
-    # Deferred lone Uninstall-Guide box: rendered here, after the quip,
-    # so the closing flavour line isn't followed by "how to uninstall".
-    if ($deferredUninstallBox) {
-        $stack.Children.Add($deferredUninstallBox) | Out-Null
-    }
-
-    # since they have no README to host a ## Support section. Look
-    # mirrors the Luke Ross README block: muted bordered box with
-    # a heading, the support text, and the clickable link.
+    # Games without a README still get their support block. Insert it
+    # ahead of the closing quip, which stays the final visible item.
     if (-not $hasReadme -and $Game.SupportUrl) {
         $supportBox = New-Object System.Windows.Controls.Border
         $supportBox.CornerRadius    = [System.Windows.CornerRadius]::new(6)
@@ -2253,7 +2455,21 @@ function global:Show-DiscoverDetail {
         Set-TextBlockWithLinks -TextBlock $supLink -Text $Game.SupportUrl
         $supStack.Children.Add($supLink) | Out-Null
 
-        $stack.Children.Add($supportBox) | Out-Null
+        if ($cqBox) {
+            $stack.Children.Insert($stack.Children.IndexOf($cqBox), $supportBox)
+        } else {
+            $stack.Children.Add($supportBox) | Out-Null
+        }
+    }
+
+    # The tools row follows all information and support. The quip is
+    # the final visible item on every detail page that has one.
+    if ($deferredUninstallBox) {
+        if ($cqBox) {
+            $stack.Children.Insert($stack.Children.IndexOf($cqBox), $deferredUninstallBox)
+        } else {
+            $stack.Children.Add($deferredUninstallBox) | Out-Null
+        }
     }
 
     # Action buttons (btnRow already added to stack above, right
@@ -3603,11 +3819,32 @@ function global:Build-DiscoverTiles {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
 
     $recent = @(Get-LibraryRecentGames -Games $allGames)
     $global:LibraryRecentGameIds = @($recent | ForEach-Object { [string]$_.Id })
     Set-LibraryRecentLabel -Count $recent.Count
     $allGames = @(Get-LibraryGamesInOrder -Games $allGames -Mode $global:CatalogSortMode -RecentGames $recent)
+
+    # Lazy cards (test build, CardTile.Lazy.ps1): one cheap placeholder per
+    # game, all at once - sort, filter and size work on them immediately.
+    # Only the tiles that scroll into view are built (Invoke-LazyDiscoverTileBuild).
+    if ($global:HubLazyCards -and (Get-Command New-LazyDiscoverTile -ErrorAction SilentlyContinue)) {
+        $lazyWatch = [System.Diagnostics.Stopwatch]::StartNew()
+        foreach ($g in $allGames) {
+            try { [void]$global:discoverPanel.Children.Add((New-LazyDiscoverTile -Game $g)) }
+            catch { try { Write-Host "  [library-build] skipped '$($g.Title)': $_" -ForegroundColor DarkYellow } catch { } }
+        }
+        $global:DiscoverTilesBuilding = $false
+        $global:DiscoverTilesBuilt = $true
+        $global:DiscoverTileBuildQueue = $null
+        if (Get-Command Apply-CatalogSort -ErrorAction SilentlyContinue) { Apply-CatalogSort -Scope Library -SkipFilter }
+        if (Get-Command Apply-Filter -ErrorAction SilentlyContinue) { Apply-Filter }
+        if (Get-Command Apply-LibrarySize -ErrorAction SilentlyContinue) { Apply-LibrarySize $global:LibrarySize }
+        try { Write-HubTiming ("library: {0} placeholders in {1} ms" -f $global:discoverPanel.Children.Count, $lazyWatch.ElapsedMilliseconds) } catch { }
+        if (Get-Command Request-LazyRealize -ErrorAction SilentlyContinue) { Request-LazyRealize }
+        return
+    }
 
     # Building 276 portrait controls, including cached bitmap decoding, used
     # to happen in one synchronous loop on the first Library click. Keep the

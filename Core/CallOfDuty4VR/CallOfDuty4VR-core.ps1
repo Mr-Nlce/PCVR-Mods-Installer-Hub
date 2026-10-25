@@ -429,7 +429,7 @@ if ($d3dxHave) {
     $nupkg = Join-Path $pkgTmp "dxsdk.zip"
     $gotD3dx = $false
     try {
-        Invoke-WebRequest -Uri $D3DX_NUPKG_URL -OutFile $nupkg -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
+        Invoke-PCVRWebRequest -Uri $D3DX_NUPKG_URL -OutFile $nupkg -UseBasicParsing -TimeoutSec 120 -ErrorAction Stop
     } catch { }
     if (Test-Path -LiteralPath $nupkg) {
         # A .nupkg is a ZIP. Pull the one entry we need instead of

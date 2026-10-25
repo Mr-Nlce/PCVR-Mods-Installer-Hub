@@ -11,7 +11,13 @@ Experimental community mod, not affiliated with CD PROJEKT RED. Keep backups of 
 
 https://github.com/dariulone/cyberpunk-vr-port
 
-## New in 0.1.7
+## New in 0.1.8
+
+- The Hub resolves the current CyberpunkVRPort ZIP from the official release. If the release cannot be verified, Setup opens the publisher's releases page for manual handover; it never silently downloads an older build as the current version. A selected version older than the installed Hub version is refused before game files are copied.
+- New rendering options include asymmetric per-eye projection, native NVIDIA DLSS Frame Generation, per-eye FSR/XeSS histories and OpenXR depth submission. Physical scopes, cyberware combat, crouching and controller haptics have been added.
+- When upgrading from 0.1.7, the publisher requires removing `VRCigarette.archive.xl`, `vrport_basketball.archive` and `vrport_mag.archive` from `archive\pc\mod`. The Hub moves existing copies into `.pcvrhub_cyberpunkvrport_legacy_backup` outside the loadable mod path.
+
+### Earlier 0.1.7 changes
 
 - Native VR frame generation can use FidelityFX or NVIDIA optical flow, with an in-headset performance overlay and half-rate pacing. These are options, not a promise of stable performance on every system.
 - The VR port now owns its HUD panels and settings overlay. The overlay includes HUD, driving, bindings and frame-generation pages; HUDitor is no longer required or supplied.
@@ -333,6 +339,21 @@ The DLC one is called out **before** the download, not after it fails to load.
   anything.
 - An OpenXR runtime, started **before** the game. SteamVR (OpenVR) works alongside it.
 - Motion controllers
+
+### Steam: switch to the VR-supported game version
+
+The current VR port needs **Patch 2.31**. Installing the latest GPU driver does not make another game patch compatible with this VR mod. A newer game version may request a driver update when started in flatscreen.
+
+If Setup detects another game version in your Steam installation, choose **1 - Switch to version 2.31 supported by the VR mod**:
+
+1. Close Cyberpunk 2077. Read the highlighted instructions, then press [[Enter]] to open its Steam Properties.
+2. Choose **Game versions & betas** (Spielversionen und Betas), then scroll down the version list.
+3. Select **2_31_old - Patch 2.31** and wait for Steam to finish downloading it.
+4. Return to Setup and press [[Enter]]. Setup reads the installed EXE version again before continuing. If Steam is not finished, choose **Recheck**, **Open Steam Properties again**, or **Stop**.
+
+This is your choice: you can also keep the current game version and stop Setup. **Install anyway** remains an explicitly unsupported alternative. The guided Steam switch does not apply to GOG or Epic copies.
+
+If you already updated RED4ext or Cyber Engine Tweaks for a newer game patch, use **R - Repair** after returning to 2.31 so Setup offers the compatible framework versions again. Keep backups of your saves before changing game versions; the Hub does not modify your saves or select the Steam branch for you.
 
 ## Logs
 - `bin\x64\cyberpunkvrport.log` - the plugin's own log and the right file for a bug report.

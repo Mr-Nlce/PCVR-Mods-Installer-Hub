@@ -20,7 +20,7 @@
 
 param(
     [Alias('InstallerChoice')]
-    [ValidateSet('','halcyon','insanity')]
+    [ValidateSet('','halcyon','insanity','strikezone')]
     [string]$Mod = ''
 )
 
@@ -83,6 +83,9 @@ $MODB_NAME   = "Insanity Engine VR"
 $MODB_AUTHOR = "T-Diamond"
 $MODB_REPO   = "TdiamondOf/InsanityEngineVR"
 $MODB_RELEASES = "https://github.com/$MODB_REPO/releases"
+$MODC_NAME = 'StrikeZoneVR Outlast VR'
+$MODC_REPO = 'StrikeZoneVR-hub/OutlastVR'
+$MODC_RELEASES = "https://github.com/$MODC_REPO/releases"
 # Both mods share d3d9.dll, openxr_loader.dll, outlastvr.ini and
 # Outlast-VR.bat. Their complete payloads must remain parked separately.
 $MODB_DIR    = "_vrmods\insanity"
@@ -125,12 +128,12 @@ function Install-OutlastPackage {
 Write-Host ""
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host " Outlast VR - Installer" -ForegroundColor Cyan
-Write-Host " Installs: $MOD_NAME $MOD_VERSION by $MOD_AUTHOR" -ForegroundColor Gray
+Write-Host " Choose: Halcyon, Insanity Engine VR or StrikeZoneVR" -ForegroundColor Gray
 Write-Host ("=" * 60) -ForegroundColor Magenta
 Write-Host ""
 Write-Host "  Stereo rendering, full head tracking and VR cutscenes for" -ForegroundColor White
-Write-Host "  Outlast. Two mods exist: one is gamepad-only, the other" -ForegroundColor White
-Write-Host "  adds tracked controllers and VR hands." -ForegroundColor White
+Write-Host "  Outlast. Three mods exist: one is gamepad-only; two" -ForegroundColor White
+Write-Host "  add tracked controllers and VR hands." -ForegroundColor White
 Write-Host ""
 Show-AntivirusNotice
 Write-Host "  One thing before you start:" -ForegroundColor White
@@ -144,7 +147,7 @@ Write-Host ""
 # Two mods, two very different approaches - the choice is not a
 # matter of taste, so both are described before it is made.
 Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
-Write-Host "   Two Outlast VR mods exist. Which one?" -ForegroundColor Cyan
+Write-Host "   Three Outlast VR mods exist. Which route?" -ForegroundColor Cyan
 Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "   [1] $MOD_NAME by $MOD_AUTHOR" -ForegroundColor White
@@ -153,7 +156,7 @@ Write-Host " GAMEPAD ONLY " -ForegroundColor Black -BackgroundColor DarkCyan
 Write-Host "       Stereo rendering, full head tracking, VR cutscenes." -ForegroundColor Gray
 Write-Host "       You hold a gamepad. There are no VR hands, and the" -ForegroundColor Gray
 Write-Host "       camcorder is raised with a button, not with your arm." -ForegroundColor Gray
-Write-Host "       The more mature of the two. Available via Patreon." -ForegroundColor Gray
+Write-Host "       The established gamepad route. Available via Patreon." -ForegroundColor Gray
 Write-Host ""
 Write-Host "   [2] $MODB_NAME by $MODB_AUTHOR" -ForegroundColor White
 Write-Host "       Controls: " -NoNewline -ForegroundColor Gray
@@ -169,29 +172,40 @@ Write-Host "   [3] Both - installed side by side, switchable afterwards." -Foreg
 Write-Host "       The Hub then shows one Play button per mod, so you" -ForegroundColor Gray
 Write-Host "       can pick gamepad or VR controllers per session." -ForegroundColor Gray
 Write-Host ""
+Write-Host "   [4] $MODC_NAME - new motion-control beta" -ForegroundColor White
+Write-Host "       Full tracked hands, camcorder and physical climbing." -ForegroundColor Gray
+Write-Host "       Steam Outlast only. Hub Play opens its publisher launcher;" -ForegroundColor Gray
+Write-Host "       there choose PLAY IN VR. Free on GitHub." -ForegroundColor Gray
+Write-Host ""
+Write-Host "   [5] All three, stored separately and switchable in Hub Play." -ForegroundColor White
+Write-Host "       The tile shows two Play routes; the third stays on the" -ForegroundColor Gray
+Write-Host "       game detail page." -ForegroundColor Gray
+Write-Host ""
 $modChoice = switch ($Mod) {
     'halcyon'    { '1' }
     'insanity'   { '2' }
+    'strikezone' { '4' }
     default      { '' }
 }
 if ($modChoice) {
-    $selectedByHub = if ($modChoice -eq '1') { 'Halcyon' } else { 'Insanity' }
+    $selectedByHub = switch ($modChoice) { '1' { 'Halcyon' } '2' { 'Insanity' } '4' { 'StrikeZone' } }
     Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
     Write-Host "  The Hub identified the installed mod whose release is newer." -ForegroundColor DarkGray
 } else {
     for ($i = 1; $i -le 20; $i++) {
-        $modChoice = ("" + (Read-Host "  Your choice [1/2/3]")).Trim()
-        if ($modChoice -in @("1","2","3")) { break }
-        Write-Host "  Please answer 1, 2 or 3." -ForegroundColor Yellow
+        $modChoice = ("" + (Read-Host "  Your choice [1/2/3/4/5]")).Trim()
+        if ($modChoice -in @("1","2","3","4","5")) { break }
+        Write-Host "  Please answer 1, 2, 3, 4 or 5." -ForegroundColor Yellow
     }
 }
-if ($modChoice -notin @("1","2","3")) {
+if ($modChoice -notin @("1","2","3","4","5")) {
     Write-Fail "No choice made - nothing was installed."
     Pause-User "Press Enter to exit."
     exit 1
 }
-$doA = ($modChoice -eq "1" -or $modChoice -eq "3")
-$doB = ($modChoice -eq "2" -or $modChoice -eq "3")
+$doA = ($modChoice -in @('1','3','5'))
+$doB = ($modChoice -in @('2','3','5'))
+$doC = ($modChoice -in @('4','5'))
 Write-Host ""
 
 # ---- 1. Locate the game ---------------------------------------
@@ -402,9 +416,71 @@ if ($doB) {
     }
 }
 
+# ---- 4c. StrikeZoneVR: inspect and park the complete required runtime ---
+if ($doC) {
+    Write-Host ''
+    Write-Info "Installing $MODC_NAME (prerelease channel)"
+    $steamApps = Split-Path (Split-Path $gameRoot -Parent) -Parent
+    if (-not (Test-Path -LiteralPath (Join-Path $steamApps 'appmanifest_238320.acf') -PathType Leaf)) {
+        throw 'StrikeZoneVR currently supports Steam Outlast only. Select the Steam game folder; no files were changed for this route.'
+    }
+    $cAsset = 'OutlastVR-Beta-1.1.zip'
+    $cTag = ''
+    $cUrl = ''
+    $cReleasePage = "$MODC_RELEASES/tag/v1.1-beta"
+    try {
+        if (-not (Get-Command Resolve-GitHubReleaseAsset -ErrorAction SilentlyContinue)) {
+            . (Join-Path $PSScriptRoot '..\Modules\GitHubTransport.ps1')
+        }
+        $cRelease = Resolve-GitHubReleaseAsset -Repo $MODC_REPO `
+            -AssetPatterns @('(?i)^OutlastVR-Beta-[0-9][^/]*\.zip$') `
+            -IncludePrerelease $true -SkipReleasesWithoutMatchingAsset `
+            -FallbackUrl "$MODC_RELEASES/download/v1.1-beta/$cAsset" `
+            -FallbackTag 'v1.1-beta' -FallbackAssetName $cAsset
+        if ($cRelease.Resolved) {
+            $cAsset = [string]$cRelease.AssetName
+            $cTag = [string]$cRelease.Tag
+            $cUrl = [string]$cRelease.Url
+            $cReleasePage = [string]$cRelease.PageUrl
+        }
+    } catch { Write-Warn "Current StrikeZoneVR release check failed: $($_.Exception.Message)" }
+    $cStage = Join-Path $gameRoot ('_vrmods\.download-strikezone-' + [guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($cStage)
+    try {
+        $cZip = Join-Path $cStage ([IO.Path]::GetFileName($cAsset))
+        $local = Find-PredownloadedFile -Patterns @($cAsset) -Label $MODC_NAME -ExpectedName $cAsset
+        if ($local -and (Test-Path -LiteralPath $local -PathType Leaf)) {
+            Copy-Item -LiteralPath $local -Destination $cZip -Force -ErrorAction Stop
+            Write-Info 'Using the publisher ZIP already in Downloads.'
+        } elseif ($cUrl) {
+            Write-Host "  Current release: $cTag ($cAsset)" -ForegroundColor White
+            Pause-User 'Press Enter to download the current StrikeZoneVR publisher ZIP...' | Out-Null
+            $download = Invoke-SafeDownload -Urls @($cUrl) -Destination $cZip -Label "$MODC_NAME $cTag" `
+                -ManualUrl $cReleasePage `
+                -Instructions "Download $cAsset from the official release, then drag it onto installer recovery."
+            if ([string]$download -in @('skip','quit')) { throw 'StrikeZoneVR download was cancelled.' }
+        } else {
+            Write-Warn 'The current release could not be resolved. Open the publisher page and use its installable ZIP.'
+            Pause-User 'Press Enter to open the StrikeZoneVR releases page...' | Out-Null
+            Start-Process $MODC_RELEASES
+            Pause-User 'Press Enter after the publisher ZIP has finished downloading...' | Out-Null
+            $local = Find-PredownloadedFile -Patterns @('OutlastVR-Beta-*.zip') -Label $MODC_NAME -AllowUnverified -PageAlreadyOpen
+            if (-not $local) { throw 'No StrikeZoneVR publisher ZIP was selected. Use installer recovery to hand over its ZIP.' }
+            Copy-Item -LiteralPath $local -Destination $cZip -Force -ErrorAction Stop
+            $cTag = ''
+        }
+        if (-not (Test-Path -LiteralPath $cZip -PathType Leaf)) { throw 'StrikeZoneVR publisher ZIP is missing.' }
+        Install-OutlastPackage -GameRoot $gameRoot -Name 'StrikeZone' -ArchivePath $cZip
+        if (-not (Test-OutlastStore -GameRoot $gameRoot -Name 'StrikeZone')) { throw 'StrikeZoneVR runtime was not parked completely.' }
+        Write-OK 'StrikeZoneVR runtime is ready in its own store; your active mod is unchanged.'
+    } finally {
+        if (Test-Path -LiteralPath $cStage -PathType Container) { Remove-Item -LiteralPath $cStage -Recurse -Force -ErrorAction Stop }
+    }
+}
+
 # Activate even a single-mod installation. Never infer Halcyon's identity
 # from the shared d3d9.dll filename; stores and deployed hashes identify it.
-$selectedMod = if ($doA) { 'Halcyon' } else { 'Insanity' }
+$selectedMod = if ($doC) { 'StrikeZone' } elseif ($doA) { 'Halcyon' } else { 'Insanity' }
 $activeAfterInstall = if ($activeBeforeInstall -eq 'Hammerthis' -and $doB) { 'Insanity' } elseif ($activeBeforeInstall) { $activeBeforeInstall } else { $selectedMod }
 Switch-OutlastMod -GameRoot $gameRoot -Name $activeAfterInstall
 $placed = @(Get-OutlastModFiles $activeAfterInstall | ForEach-Object { Join-Path $binDir $_ })
@@ -425,6 +501,12 @@ if ($doB -and $bTag) {
         if (Test-Path -LiteralPath $record) { Remove-Item -LiteralPath $record -Force }
     }
     Write-Warn 'The manually supplied Insanity Engine VR version is unknown; no version was guessed.'
+}
+if ($doC -and $cTag) {
+    Set-Content -LiteralPath (Join-Path $gameRoot '.pcvrhub_version_c') -Value $cTag -Encoding UTF8 -ErrorAction Stop
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_version_c') -Value $cTag -Encoding UTF8 -ErrorAction Stop
+} elseif ($doC) {
+    Write-Warn 'The manually supplied StrikeZoneVR release could not be verified; no version was guessed.'
 }
 if ($doB) {
     # Keep personal INI and unknown files, retire only the old Hub-owned mod.
@@ -664,6 +746,10 @@ if ($doA) {
 if ($doB) {
     Write-Host "  Insanity Engine VR: use Start in VR in the Hub." -ForegroundColor White
     Write-Host "  Its settings are in the active Binaries\Win64\outlastvr.ini." -ForegroundColor White
+}
+if ($doC) {
+    Write-Host '  StrikeZoneVR: use Start in VR in the Hub to open Outlast1VR.exe.' -ForegroundColor White
+    Write-Host '  In its publisher launcher choose PLAY IN VR.' -ForegroundColor White
 }
 Write-Host "  Turn motion blur OFF in Outlast's own settings." -ForegroundColor White
 Write-Host ""

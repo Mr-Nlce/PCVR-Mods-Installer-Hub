@@ -1,3 +1,4 @@
+﻿. (Join-Path $PSScriptRoot 'DetailReadme.Model.ps1')
 # Populate a TextBlock with text + clickable hyperlinks. Splits the
 # input on URL patterns (http://, https://) and emits a Run for
 # each plain-text chunk and a Hyperlink for each URL. The Hyperlink
@@ -118,7 +119,7 @@ function global:Set-TextBlockWithLinks {
             }
             'local' {
                 $color = if ($s.Style -in @('code','boldcode')) { '#e6c992' } else { '#e99583' }
-                $localLink = New-UninstallGuideLink -Text $s.Text -Target $s.Target -Game $Game -AccentHex $color
+                $localLink = New-UninstallGuideLink -Text $s.Text -Target $s.Target -Game $Game -AccentHex $color -AllowIndependentVrFiles:([bool]$LinkSession.Context.IndependentVrFiles)
                 if ($s.Style -in @('code','boldcode')) { $localLink.FontFamily = [System.Windows.Media.FontFamily]::new('Consolas, Cascadia Mono, Courier New') }
                 if ($s.Style -in @('bold','boldcode')) { $localLink.FontWeight = [System.Windows.FontWeights]::Bold }
                 [void]$TextBlock.Inlines.Add($localLink)
@@ -382,6 +383,24 @@ function global:New-VideoStripElement {
     } catch { return $null }
 }
 
+function global:Get-DetailReadmePairHeading {
+    param($Sections,[bool]$KeepOrder)
+    if ($KeepOrder -or -not $Sections -or -not $Sections.Contains('Controls')) { return '' }
+    $controls = [string]$Sections['Controls']
+    if ($controls.Length -gt 420 -or $controls -match '(?m)^\s*\||!\[') { return '' }
+    foreach ($candidate in @('What you need','Requirements')) {
+        if ($Sections.Contains($candidate) -and ([string]$Sections[$candidate]).Length -le 950 -and
+            [string]$Sections[$candidate] -notmatch '!\[') { return $candidate }
+    }
+    return ''
+}
+
+function global:Get-DetailReadmePairCardWidth {
+    param([double]$Available)
+    if ($Available -lt 620) { return [Math]::Max(260,[Math]::Min(500,$Available - 12)) }
+    return [Math]::Max(260,[Math]::Min(500,($Available - 24) / 2))
+}
+
 function global:New-DetailSection {
     param(
         [string]$Heading,
@@ -396,6 +415,9 @@ function global:New-DetailSection {
     if (-not $LinkSession) {
         $LinkSession = New-ReadmeLinkSession -Game $Game -Texts @($Heading, $Body) -BaseDir $ImageBaseDir
     }
+    $isRequirements = $Heading -match '^(?i:requirements|what you need)$'
+    $isIntro = $Heading -match '^(?i:about the game|about this mod)$'
+    $isLinkList = $Heading -match '^(?i:links(?: & support)?|resources?|discord discussion & support|support\b.*|donations?)$'
     # Markdown -> nice typography. Source is ASCII via [char]
     # escapes so the release audit stays clean. The actual
     # bold/code inline parsing happens in Set-TextBlockWithLinks
@@ -1010,10 +1032,10 @@ function global:New-DetailSection {
                     $mk.FontSize = [int]$cfg.Font - 3
                     $mk.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a8a98")
                 } else {
-                    $mk.Text = "$bullet"
+                    $mk.Text = if ($isRequirements) { [string][char]0x2713 } else { "$bullet" }
                     $mk.FontSize = $cfg.Font
                     $mk.FontWeight = [System.Windows.FontWeights]::Bold
-                    $mk.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
+                    $mk.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($(if ($isRequirements) { '#52d69a' } else { $AccentHex }))
                 }
                 $mk.LineHeight = $cfg.LineHeight
                 $mk.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
@@ -1062,6 +1084,16 @@ function global:New-DetailSection {
     $box.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#222230")
     $box.Padding = [System.Windows.Thickness]::new(14, 10, 14, 12)
     $box.Margin = [System.Windows.Thickness]::new(0, 0, 0, 10)
+    $box.MaxWidth = $readmeMaxW + 28
+    $box.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+    $sectionWidth = [System.Windows.Data.Binding]::new('ActualWidth')
+    $sectionWidth.RelativeSource = [System.Windows.Data.RelativeSource]::new([System.Windows.Data.RelativeSourceMode]::FindAncestor, [System.Windows.Controls.Panel], 1)
+    [void]$box.SetBinding([System.Windows.FrameworkElement]::WidthProperty, $sectionWidth)
+    if ($isIntro) {
+        $box.Background = [System.Windows.Media.Brushes]::Transparent
+        $box.BorderThickness = [System.Windows.Thickness]::new(0)
+        $box.Padding = [System.Windows.Thickness]::new(2, 2, 2, 8)
+    }
 
     $stack = New-Object System.Windows.Controls.StackPanel
     $box.Child = $stack
@@ -1101,6 +1133,19 @@ function global:New-DetailSection {
     $imgRegex = '!\[[^\]]*\]\(([^)]+)\)'
     $imgMatches = [regex]::Matches($Body, $imgRegex)
 
+    # Resource rows use the same cards on old and new pages. Keep contextual
+    # instructions and images in the ordinary renderer above the cards.
+    $resources=[Collections.Generic.List[object]]::new()
+    if($isLinkList){
+        $remaining=[Collections.Generic.List[string]]::new();$inCode=$false
+        foreach($line in ($Body -split '\r?\n')){
+            if($line -match '^\s*```'){$inCode=-not $inCode;$remaining.Add($line);continue}
+            $row=if(-not $inCode){Get-DetailResourceRow -Line $line -AllowLabel}else{$null}
+            if($row){foreach($link in $row.Links){$resources.Add($link)}}else{$remaining.Add($line)}
+        }
+        $Body=($remaining -join "`n").Trim()
+        $imgMatches=[regex]::Matches($Body,$imgRegex)
+    }
     if ($imgMatches.Count -gt 0 -and $ImageBaseDir) {
         $cursor = 0
         foreach ($m in $imgMatches) {
@@ -1239,6 +1284,8 @@ function global:New-DetailSection {
         $cleanBody = & $formatBody $Body
         & $renderBody $stack $cleanBody
     }
+
+    if ($resources.Count) { [void]$stack.Children.Add((New-DetailResourceCards -Links $resources -Font ([int]$rmCfg0.Font))) }
 
     if ($AppendChild) {
         $stack.Children.Add($AppendChild) | Out-Null

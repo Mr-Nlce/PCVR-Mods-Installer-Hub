@@ -7,18 +7,13 @@
 #  the cards. Both renderers take the same (game, isExternal,
 #  window) args and return the finished Border.
 # ============================================================
-function global:New-GameCard {
-    param($game, $isExternal, $window)
-    if ($global:hubStyle -eq 'classic') {
-        return (New-GameCardClassic -game $game -isExternal $isExternal -window $window)
-    }
-    return (New-GameCardFrosted -game $game -isExternal $isExternal -window $window)
-}
-
 function global:New-GameCardClassic {
-    param($game, $isExternal, $window)
+    param($game, $isExternal, $window, $Into = $null)
 
-    $card = New-Object System.Windows.Controls.Border
+    # -Into: build into an existing (lazy placeholder) Border instead of a
+    # new one, so the element in the panel - and everything that already
+    # references it - stays the same object.
+    $card = if ($Into) { $Into } else { New-Object System.Windows.Controls.Border }
     # Snap the entire card's layout to integer pixels. WPF renders
     # ClearType text blurry when an element lands on a sub-pixel X/Y,
     # which can happen anywhere the scaled ([int] * $sc) measurements
@@ -205,7 +200,15 @@ function global:New-GameCardClassic {
         $titleDisplay = "PowerSlave / Exhumed"
     }
     $titleText.Text = $titleDisplay
-    $titleText.FontSize = [int](13*$sc)
+    $titleText.FontSize = [int]($(if ($game.TileTitleFontSize) { $game.TileTitleFontSize } else { 13 })*$sc)
+    if ($game.TileTitleSecondLineFontSize -and $titleDisplay.Contains("`n")) {
+        $titleLines = $titleDisplay -split "`n", 2
+        $titleText.Inlines.Clear()
+        [void]$titleText.Inlines.Add([System.Windows.Documents.Run]::new($titleLines[0]+"`n"))
+        $secondTitleLine = [System.Windows.Documents.Run]::new($titleLines[1])
+        $secondTitleLine.FontSize = [double]$game.TileTitleSecondLineFontSize*$sc
+        [void]$titleText.Inlines.Add($secondTitleLine)
+    }
     $titleText.FontWeight = [System.Windows.FontWeights]::SemiBold
     $titleGrad = New-Object System.Windows.Media.LinearGradientBrush
     $titleGrad.StartPoint = [System.Windows.Point]::new(0, 0)
@@ -354,7 +357,7 @@ function global:New-GameCardClassic {
     # under 158px in pure FormattedText. Tweak if new games show
     # mis-classified wrap behavior.
     $titleAvailWidth = [int](145 * $sc)
-    $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth)
+    $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth -or $titleDisplay.Contains("`n"))
     # Tiles whose mod string already fills the meta line: drop the
     # ". by <Author>" tail so it stays on ONE line instead of being
     # ellipsised. A tile-space decision only - the detail page still
@@ -368,7 +371,7 @@ function global:New-GameCardClassic {
     # detail page - this is purely a space decision on the tile.
     # There used to be a hand-maintained title list here; it had to be
     # updated with every new entry and was forgotten.
-    $hideTileAuthor = $false
+    $hideTileAuthor = [bool]$game.HideTileAuthor
     if ($isLongTitle -and $game.Mod -and $game.Author -and -not $game.ImprovementTag) {
         try {
             $metaProbe = New-Object System.Windows.Media.FormattedText(
@@ -470,7 +473,7 @@ function global:New-GameCardClassic {
         # ImprovementTag games: hide the modder name on the TILE so the
         # blue "+ ... mod" box can take that slot without breaking layout.
         # The author still shows on the detail page.
-        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
+        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authorText = New-Object System.Windows.Controls.TextBlock
             # A very long modder name runs out of tile width at the normal
             # size. One point smaller makes it fit and is not noticeable next
@@ -1427,7 +1430,7 @@ function global:New-GameCardClassic {
     # symbol (right half). The full pill is clickable -> opens the
     # InfoUrl - so the click target is large enough for VR pointers.
     # Hovering the dot half shows the controls tooltip.
-    $hasInfo = [bool]$game.InfoUrl
+    $hasInfo = $true
     $hasDot  = [bool]$game.Controls
 
     if ($hasInfo -or $hasDot) {
@@ -1489,7 +1492,11 @@ function global:New-GameCardClassic {
             $infoText.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
             $infoText.Margin = [System.Windows.Thickness]::new(0, [int](-1*$sc), 0, 0)
             $pillStack.Children.Add($infoText) | Out-Null
-            $pill.ToolTip = "Open mod page"
+            $card.Resources['favoriteGlyph'] = $infoText
+            $card.Resources['favoriteRestBrush'] = $famTxtBrush
+            $card.Resources['favoritePillEdge'] = $pillEdge
+            $card.Resources['favoriteRestBorder'] = $pillEdge.BorderBrush
+            $pill.ToolTip = if ($game.InfoUrl) { "Open mod page" } else { "Open game details" }
 
             # Hover: the pill lights up. The glyph + "i" brighten to a more
             # luminous accent (via their shared brush) and the text-free
@@ -1515,13 +1522,16 @@ function global:New-GameCardClassic {
                 $famTxtBrush.Color = $famTxtColor
                 $pillEdge.BorderBrush = $pillRestBorder
                 $pillEdge.Effect = $null
+                Update-FavoriteCardVisual -Card $card
             }.GetNewClosure())
 
             $infoUrlCapture = $game.InfoUrl
+            $infoGameCapture = $game
             $pill.Add_PreviewMouseLeftButtonDown({
                 param($s,$e)
                 $e.Handled = $true
-                Start-Process $infoUrlCapture
+                if ($infoUrlCapture) { Start-Process $infoUrlCapture }
+                elseif (Get-Command Open-DiscoverDetailFromList -ErrorAction SilentlyContinue) { Open-DiscoverDetailFromList -Game $infoGameCapture }
             }.GetNewClosure())
         }
 
@@ -2145,5 +2155,6 @@ function global:New-GameCardClassic {
         }
     }
 
+    Register-FavoriteCard -Card $card -Game $game
     return $card
 }

@@ -1,67 +1,46 @@
-# Amnesia VR (Sclerosis)
+﻿# Amnesia VR (Sclerosis)
 
-A free fan-made VR remake of **Amnesia: The Dark Descent**, built in Unity by CreaTeam. Adds full motion controls and room-scale support. Ships its own engine - launches via `Sclerosis.exe`, not the original `Amnesia.exe`.
+CreaTeam's free VR remake adds motion controls and room-scale play to Amnesia: The Dark Descent. The reviewed Windows package is Sclerosis v1.10.7, distributed through itch.io.
 
-**Mod**: Sclerosis v1.8.16 - by CreaTeam, distributed via itch.io
-**Game**: Amnesia: The Dark Descent (Steam App 57300)
+## About the Game
 
-## About this mod
-
-Sclerosis is a complete VR reimplementation of Amnesia, not a runtime injector. It re-uses the original game's assets (which is why an installed copy of Amnesia is required) but runs on its own Unity-based engine with full VR support.
-
-**Development status:** The mod author halted active development in 2024. v1.8.16 is the final released version. No future updates are expected. This installer pins the version explicitly.
-
-The mod page is here:
-- https://createam.itch.io/sclerosis-an-amnesia-vr-remake
+Daniel wakes in a deserted castle with no memory of his past. Explore its dark halls, solve puzzles and hide from the creatures hunting you while uncovering what happened at Brennenburg.
 
 ## Requirements
 
-- **Amnesia: The Dark Descent** (Steam, AppID 57300) - must be **owned and installed**
-- The mod uses the original game's data files (textures, models, sounds)
-- The original `Amnesia.exe` must exist in the install folder (the installer verifies this)
+- An owned, installed Steam copy of Amnesia: The Dark Descent (App 57300).
+- The base game must remain installed: Sclerosis uses its original assets.
+- A connected PC VR headset with its active OpenXR runtime configured.
 
-## What this Hub installer does
+## Install and start
 
-1. Opens the itch.io mod page in your browser
-2. You manually download `Sclerosis_VR_v1.8.16.zip` (~916 MB) from the page
-3. Drag-and-drop the ZIP into the installer window
-4. The installer auto-locates `Amnesia: The Dark Descent` in your Steam library
-5. Extracts the ZIP contents directly into the Amnesia install folder (next to `Amnesia.exe`)
-6. Verifies `Sclerosis.exe` exists post-install
+1. Choose [[Install]] in the Hub. Read the download instructions, then press [[Enter]] to open the official itch.io page.
+2. Download Sclerosis_v1.10.7.zip (about 947 MB), then drag the ZIP into the installer. Keep the publisher filename so the installer can record its version. If renamed, the installer asks for the version shown on the publisher page.
+3. The Hub finds the original Amnesia folder or asks you to select it. The complete package goes next to Amnesia.exe or AmnesiaGW.exe, as the publisher instructs.
+4. Use [[Start in VR]] in the Hub. Alternatively, use the Amnesia VR desktop shortcut.
 
-## Launching
+Launching the original Amnesia through Steam starts the flat game.
 
-- **Via the Hub**: "Start in VR" launches `Sclerosis.exe` directly
-- **Desktop shortcut**: An optional "Amnesia VR" shortcut points at `Sclerosis.exe`
-- **Do NOT** launch Amnesia through Steam - that runs the flatscreen original game, not the VR mod
+## VR files
 
-## Manual install (if the in-Hub installer fails)
+The VR application is Sclerosis.exe in the original Amnesia folder. Its runtime includes Sclerosis_Data, D3D12, GameAssembly.dll, UnityPlayer.dll, baselib.dll, dstorage.dll and dstoragecore.dll. All 183 files from the reviewed package are included; custom translation files already present are retained.
 
-If `Expand-Archive` fails (corrupt ZIP, weird path, antivirus), the manual fallback is:
+The installer stages the package before changing the game, verifies copied files and records the selected version only after its required runtime is present. Previous overwritten files are retained in a dated .pcvrhub-amnesia-backups subfolder. Saves and unrelated files remain in place.
 
-1. Open `Sclerosis_VR_v1.8.16.zip` with 7-Zip or Windows Explorer
-2. Copy every file and folder inside it (Sclerosis.exe, Sclerosis_Data\, UnityPlayer.dll, GameAssembly.dll, baselib.dll, UnityCrashHandler64.exe, Sclerosis_custom_translation\, HOW_TO_INSTALL_SCLEROSIS_VR.txt)
-3. Paste them all directly into the folder containing `Amnesia.exe`
-4. Double-click `Sclerosis.exe` to launch
+## Legacy HD texture pack
 
-## Optional: HD texture pack (4x AI upscale)
+The community 4x AI-upscaled texture pack replaces the entire Sclerosis_Data/data.unity3d file. It has not been verified for v1.10.7's newer Unity runtime and is not offered for that installation. Keep the current publisher textures.
 
-The installer offers a community HD texture pack (Nexus) during setup -
-answer **Y** at the "Optional: HD texture pack" step to add it, **N** to
-skip. You can re-run the installer any time to add it later.
+The existing HD-only route remains available for a confirmed v1.8.16 installation. It requires the separate Nexus download, preserves the previous texture file as .pcvrhub-hd-backup-*.unity3d and needs in-game Texture Quality set to Ultra. Do not copy that legacy texture bundle over v1.10.7.
 
-- It replaces `Sclerosis_Data\data.unity3d` with a 4x AI-upscaled
-  version (Topaz Gigapixel). The file grows to around 3 GB.
-- An 8 GB+ VRAM GPU is recommended. It is purely cosmetic - the game
-  plays identically without it.
-- The installer opens the Nexus page (log in if needed; if Nexus lists
-  "Sclerosis" as a requirement, that is fine - it is already installed),
-  then you drag the downloaded ZIP onto the window.
-- Your original `data.unity3d` is backed up once as
-  `data.unity3d.original.backup` in `Sclerosis_Data` - to revert, delete
-  the HD file and rename the backup back.
+## Help
 
-**After installing the HD pack, set in-game Texture Quality to ULTRA**
-to actually see the upscaled textures.
+If VR does not start, check that the original Amnesia assets remain installed, the headset is active and Sclerosis.exe is being started. Use the installer log and Uninstall guide in the Hub when repairing or removing the mod.
 
->>> Tinderboxes lit. Mind still slipping. Welcome to the dark.
+## Links
+
+[Official mod page and Windows download](https://createam.itch.io/sclerosis-an-amnesia-vr-remake)
+
+[Legacy HD textures for the reviewed v1.8.16 route](https://www.nexusmods.com/amnesia/mods/31?tab=files)
+
+Tinderboxes lit. Mind still slipping. Welcome to the dark.

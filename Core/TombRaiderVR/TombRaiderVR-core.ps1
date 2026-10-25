@@ -175,7 +175,7 @@ function Download-File {
    Write-Host " To   : $Destination" -ForegroundColor DarkGray
    try {
      $ProgressPreference = "SilentlyContinue"
-     Invoke-WebRequest -Uri $u -OutFile $Destination -UseBasicParsing -ErrorAction Stop
+     Invoke-PCVRWebRequest -Uri $u -OutFile $Destination -UseBasicParsing -ErrorAction Stop
      $ProgressPreference = "Continue"
      if (Test-Path $Destination) {
        $sz = (Get-Item $Destination).Length
@@ -724,6 +724,19 @@ if (Test-Path $gameExe) {
 } else {
  Write-Warn "BeefRaiderXR.exe not found - did SauronDesktop finish?"
  Write-Host " You can re-run SauronDesktop from: $sauron" -ForegroundColor Gray
+}
+
+# The publisher archive already contains BeefRaiderXR.exe. The tool's real
+# work is extracting licensed level data; the EXE alone is no VR install.
+$beefDataDir = Join-Path (Split-Path -Parent $gameExe) 'DATA'
+$levelProof = if (Test-Path -LiteralPath $beefDataDir -PathType Container) {
+ Get-ChildItem -LiteralPath $beefDataDir -File -Filter '*.PHD' -ErrorAction SilentlyContinue | Select-Object -First 1
+} else { $null }
+if (-not (Test-Path -LiteralPath $gameExe -PathType Leaf) -or -not $levelProof) {
+ Write-Fail 'The publisher tool has not extracted playable Tomb Raider level data.'
+ Write-Info 'Finish Extract Files in SauronDesktop, then retry the installer.'
+ Pause-User 'Press Enter for installer recovery...'
+ exit 1
 }
 
 # Persist the install path so the hub's Check-Installed feature

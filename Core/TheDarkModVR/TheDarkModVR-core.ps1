@@ -346,6 +346,14 @@ bindPadButton PRESS PAD_START "escape"
     }
 }
 
+# The publisher GUI may have been closed, cancelled, or pointed elsewhere.
+# A placed downloader alone does not prove a VR game installation.
+if (-not (Test-Path -LiteralPath $vrExePath -PathType Leaf)) {
+    Write-Fail "$VR_EXE was not found. The VR install is not complete."
+    Write-Info "Finish the publisher Setup or give its actual install folder on retry."
+    Pause-User "Press Enter for installer recovery..."
+    exit 1
+}
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 

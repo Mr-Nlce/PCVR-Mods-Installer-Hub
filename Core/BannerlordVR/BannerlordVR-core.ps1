@@ -6,11 +6,11 @@ $Host.UI.RawUI.WindowTitle='BannerlordVR Installer'
 $APP_ID='261550'
 $GAME_EXE='bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.Launcher.exe'
 $REPO='NotLooky/BannerlordVR'
-$FALLBACK_URL='https://github.com/NotLooky/BannerlordVR/releases/download/v0.2.0-alpha.1/BannerlordVR-0.2.0-alpha.1.zip'
+$FALLBACK_URL='https://github.com/NotLooky/BannerlordVR/releases/download/v0.2.7-alpha/BannerlordVR-0.2.7-alpha.1.zip'
 $HARMONY_URL='https://www.nexusmods.com/mountandblade2bannerlord/mods/2006?tab=files'
 $IDENTITY='bannerlordvr'
 $MOD_ROOT='Modules\BannerlordVR'
-$REQUIRED=@('Modules\BannerlordVR\SubModule.xml','Modules\BannerlordVR\BannerlordVR.default.cfg','Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.dll','Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.Native.dll')
+$REQUIRED=@('Modules\BannerlordVR\SubModule.xml','Modules\BannerlordVR\BannerlordVR.default.cfg','Modules\BannerlordVR\NVIDIA-DLSS-LICENSE.txt','Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.dll','Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.Native.dll','Modules\BannerlordVR\bin\Win64_Shipping_Client\nvngx_dlss.dll')
 $HARMONY_REQUIRED=@('Modules\Bannerlord.Harmony\SubModule.xml','Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll','Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll')
 $contract=New-PCVRInstallerContract -Id 'bannerlord-vr' -GameName 'Mount & Blade II: Bannerlord VR' -Acquisition GitHub -AntivirusNotice `
     -ReleasePageUrl 'https://github.com/NotLooky/BannerlordVR/releases' -RequiredInstalledFileGroups @($REQUIRED+$HARMONY_REQUIRED+@('.pcvrhub_bannerlordvr_ownership.csv'))
@@ -22,12 +22,15 @@ function global:Test-BannerlordGameRoot([string]$Path){
 function global:Assert-BannerlordCompatibleGameVersion([string]$NativeXmlPath){
     $nativeText=Get-Content -LiteralPath $NativeXmlPath -Raw -ErrorAction Stop
     if($nativeText -match '(?i)<Version\s+value\s*=\s*["'']v?(\d+(?:\.\d+){2,3})["'']'){
-        if($Matches[1] -notmatch '^1\.5\.5(?:\.\d+)?$'){
-            throw "Bannerlord $($Matches[1]) is installed; this v0.2.0-alpha.1 ZIP was built and tested for v1.5.5. No game files were changed."
+        if($Matches[1] -notmatch '^1\.(?:4\.8|5\.5)(?:\.\d+)?$'){
+            throw "Bannerlord $($Matches[1]) is installed; the current VR release supports v1.4.8 stable or v1.5.5. No game files were changed."
+        }
+        if($Matches[1] -match '^1\.5\.5(?:\.\d+)?$'){
+            Write-Host '  v1.5.5 is listed by the publisher, but the latest ZIP was built against v1.4.8 stable.' -ForegroundColor Yellow
         }
         return
     }
-    Write-Host '  Could not read the game version. Confirm v1.5.5 in the launcher before playing.' -ForegroundColor Yellow
+    Write-Host '  Could not read the game version. Confirm v1.4.8 or v1.5.5 before playing.' -ForegroundColor Yellow
 }
 function global:Wait-BannerlordCompatibleGameVersion([string]$NativeXmlPath,[scriptblock]$ReadInput=$null,[scriptblock]$OpenUrl=$null){
     while($true){
@@ -35,12 +38,13 @@ function global:Wait-BannerlordCompatibleGameVersion([string]$NativeXmlPath,[scr
         catch {
             if ($_.Exception.Message -notmatch '^Bannerlord .+ is installed;') { throw }
             Write-Host ('  '+$_.Exception.Message) -ForegroundColor Yellow
-            Write-Host '  In Steam Properties > Betas, select the Bannerlord v1.5.5 beta.' -ForegroundColor White
+            Write-Host '  In Steam Properties > Betas, select None for v1.4.8 stable,' -ForegroundColor White
+            Write-Host '  or select the supported v1.5.5 beta.' -ForegroundColor White
             Write-Host '  Wait until Steam finishes the game update before continuing here.' -ForegroundColor White
             [void](Wait-PCVRExplicitEnter -Message 'Press Enter to open Bannerlord Steam Properties...' -ReadInput $ReadInput)
             if($OpenUrl){& $OpenUrl "steam://gameproperties/$APP_ID"}
             else {try {Start-Process "steam://gameproperties/$APP_ID"} catch {Write-Host '  Open Bannerlord Properties from your Steam Library.' -ForegroundColor Yellow}}
-            [void](Wait-PCVRExplicitEnter -Message 'After Steam finishes updating to v1.5.5, press Enter to check again...' -ReadInput $ReadInput)
+            [void](Wait-PCVRExplicitEnter -Message 'After Steam finishes updating, press Enter to check again...' -ReadInput $ReadInput)
         }
     }
 }
@@ -204,7 +208,7 @@ function global:Install-BannerlordHarmonyShared([string]$SourceFolder,[string]$G
 }
 function global:Get-BannerlordRelease {
     $release=Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $true -AssetPatterns @('(?i)^BannerlordVR-?v?\d[^/]*\.zip$') `
-        -FallbackUrl $FALLBACK_URL -FallbackTag 'v0.2.0-alpha.1' -FallbackAssetName 'BannerlordVR-0.2.0-alpha.1.zip' -SkipReleasesWithoutMatchingAsset
+        -FallbackUrl $FALLBACK_URL -FallbackTag 'v0.2.7-alpha' -FallbackAssetName 'BannerlordVR-0.2.7-alpha.1.zip' -SkipReleasesWithoutMatchingAsset
     if(-not $release.Url){throw 'No official BannerlordVR release ZIP is available.'}
     $version=if([string]$release.AssetName -match '(?i)^BannerlordVR-?v?(\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?)\.zip$'){'v'+$Matches[1]}else{[string]$release.Tag}
     if(-not(Test-IsTrackableInstalledVersion $version)){throw 'The official release has no trackable build version.'}
@@ -240,10 +244,11 @@ function global:Invoke-BannerlordVRInstaller {
         Clear-Host;Write-Host '============================================================' -ForegroundColor Magenta
         Write-Host '  Mount & Blade II: Bannerlord VR - Installer' -ForegroundColor Cyan
         Write-Host '============================================================' -ForegroundColor Magenta
-        Write-Host '  Alpha; this package was built for Bannerlord v1.5.5.' -ForegroundColor Yellow
+        Write-Host '  Alpha; current package built for Bannerlord v1.4.8 stable.' -ForegroundColor Yellow
+        Write-Host '  The publisher also lists v1.5.5; exact-package testing is pending.' -ForegroundColor Yellow
         Write-Host '  Enabled Bannerlord.Harmony and tracked controllers are required.' -ForegroundColor Yellow
         Write-Host '  Steam: BLSE is optional; download Harmony only from its Nexus Files tab.' -ForegroundColor White
-        Write-Host '  VDXR and SteamVR OpenXR supported. Meta/Oculus OpenXR is not.' -ForegroundColor Yellow
+        Write-Host '  VDXR, SteamVR and Meta/Oculus OpenXR are listed by the publisher.' -ForegroundColor Yellow
         Write-Host '  Physical hands and weapons are new in v0.2.0; alpha crashes remain possible.' -ForegroundColor Yellow
         Write-Host '  Disable Bannerlord VR in launcher > Mods for flat play.' -ForegroundColor White
         Write-Host '  Windows Security may remove a mod DLL; setup checks without assuming why.' -ForegroundColor Yellow

@@ -329,8 +329,21 @@ function global:Get-UninstallGuideTargets {
 }
 
 function global:Open-UninstallGuideTarget {
-    param($Game, $Target)
-    if (-not (Get-UninstallGuideContext $Game) -or -not $Target) { return }
+    param($Game, $Target,[switch]$AllowIndependentVrFiles)
+    if (-not $Target) { return }
+    $context=Get-UninstallGuideContext $Game
+    if(-not $context){
+        if(-not $AllowIndependentVrFiles -or -not(Get-Command Get-DetailExternalVrFiles -ErrorAction SilentlyContinue)){return}
+        $proof=Get-DetailExternalVrFiles -Game $Game
+        if(-not $proof.Verified){return}
+        $allowed=$false
+        foreach($root in $proof.LinkRoots){
+            $prefix=[IO.Path]::GetFullPath($root).TrimEnd([char[]]'\/')
+            $path=[IO.Path]::GetFullPath($Target.Folder).TrimEnd([char[]]'\/')
+            if($path -ieq $prefix -or $path.StartsWith($prefix+'\',[StringComparison]::OrdinalIgnoreCase)){$allowed=$true;break}
+        }
+        if(-not $allowed){return}
+    }
     try {
         if (-not (Test-Path -LiteralPath $Target.Folder -PathType Container)) { throw 'This folder no longer exists. Run Scan installed games to refresh the detected installation.' }
         $argument = '"' + $Target.Folder + '"'
@@ -344,16 +357,20 @@ function global:Open-UninstallGuideTarget {
 }
 
 function global:New-UninstallGuideLink {
-    param([string]$Text, $Target, $Game, [string]$AccentHex = '#e99583')
+    param([string]$Text, $Target, $Game, [string]$AccentHex = '#e99583',[switch]$AllowIndependentVrFiles)
     $link = New-Object System.Windows.Documents.Hyperlink
     [void]$link.Inlines.Add([System.Windows.Documents.Run]::new($Text))
     $link.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($AccentHex)
     $link.ToolTip = if ($Target.Select) { "Show in Explorer: $($Target.Select)" } else { "Open folder: $($Target.Folder)" }
     $link.Add_Click({
         param($sender, $eventArgs)
-        Open-UninstallGuideTarget -Game $Game -Target $Target
+        Open-UninstallGuideTarget -Game $Game -Target $Target -AllowIndependentVrFiles:$AllowIndependentVrFiles
         $eventArgs.Handled = $true
     }.GetNewClosure())
+    if(Get-Command Enable-ReadmeLinkCopy -ErrorAction SilentlyContinue){
+        $copyPath=if($Target.Select){[string]$Target.Select}else{[string]$Target.Folder}
+        Enable-ReadmeLinkCopy -Link $link -Address $copyPath
+    }
     return $link
 }
 

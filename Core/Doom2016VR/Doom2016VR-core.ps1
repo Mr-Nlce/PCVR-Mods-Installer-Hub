@@ -12,8 +12,8 @@ $Host.UI.RawUI.WindowTitle = 'DOOM (2016) VR Installer'
 $APP_ID = '379720'
 $REPO = 'CactusVRStudios/KHARVOX'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'v1.1.1'
-$FALLBACK_NAME = 'KHARVOX-v1.11.zip'
+$FALLBACK_TAG = 'v1.4.0'
+$FALLBACK_NAME = 'KHARVOX-v1.4.zip'
 $FALLBACK_URL = "https://github.com/$REPO/releases/download/$FALLBACK_TAG/$FALLBACK_NAME"
 $IDENTITY = 'kharvox'
 $QUIP = 'Rip and tear now means reaching out and doing it yourself.'
@@ -161,7 +161,7 @@ function global:Invoke-Doom2016VRInstaller {
         Write-Host '  Before first VR launch, start original DOOM flat once and' -ForegroundColor Yellow
         Write-Host '  accept its license; otherwise loading a save can appear stuck.' -ForegroundColor Yellow
         Write-Host '  The VR runtime stays outside the original DOOM folder.' -ForegroundColor Gray
-        Write-Host '  KHARVOX v1.0 supports the legal Steam version of DOOM.' -ForegroundColor Yellow
+        Write-Host '  KHARVOX v1.4 supports legal Steam and GOG copies of DOOM.' -ForegroundColor Yellow
         Write-Host '  Start with the default SFS rendering mode.' -ForegroundColor Yellow
         Show-AntivirusNotice -Compact
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to proceed with setup...')
@@ -169,6 +169,11 @@ function global:Invoke-Doom2016VRInstaller {
         Write-DoomStep 1 5 'Locating DOOM (2016)'
         $game = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('DOOM') -ProbeExe 'DOOMx64.exe' `
             -HubGameId 'doom-2016-vr'
+        if (-not (Test-DoomGameRoot $game)) {
+            foreach ($gog in @('C:\Program Files (x86)\GOG Galaxy\Games\DOOM','C:\GOG Games\DOOM')) {
+                if (Test-DoomGameRoot $gog) { $game = $gog; break }
+            }
+        }
         if (-not (Test-DoomGameRoot $game)) {
             if ($game -and (Test-Path -LiteralPath (Join-Path $game 'DOOMx64.exe') -PathType Leaf)) {
                 Write-DoomWarn 'DOOMx64vk.exe is missing. KHARVOX requires the Vulkan game executable.'
@@ -238,7 +243,7 @@ function global:Invoke-Doom2016VRInstaller {
         Write-DoomOK "KHARVOX $($release.Tag) is installed and tracked."
         Write-Host ''
         Write-Host '  The KHARVOX launcher opens next only after your confirmation.' -ForegroundColor White
-        Write-Host '  Confirm the detected Steam DOOM folder.' -ForegroundColor White
+        Write-Host '  Confirm the detected DOOM folder.' -ForegroundColor White
         Write-Host '  Start with SFS; use AER only as a fallback.' -ForegroundColor Yellow
         Write-Host '  Native Stereo was removed in KHARVOX v1.0.' -ForegroundColor Gray
         Write-Host '  With SteamVR active, set resolution in SteamVR itself.' -ForegroundColor Gray
@@ -252,7 +257,7 @@ function global:Invoke-Doom2016VRInstaller {
         Write-Host ('=' * 60) -ForegroundColor Magenta
         Write-Host ''
         Write-Host '  KHARVOX is installed in its separate VR folder.' -ForegroundColor White
-        Write-Host '  Your original Steam installation remains unchanged.' -ForegroundColor Gray
+        Write-Host '  Your original game installation remains unchanged.' -ForegroundColor Gray
         Write-Host '  Finish any settings in the launcher, then return here.' -ForegroundColor Gray
         Write-Host ''
         Write-Host "  $QUIP" -ForegroundColor Magenta

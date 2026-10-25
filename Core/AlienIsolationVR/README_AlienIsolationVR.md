@@ -1,4 +1,4 @@
-# Alien: Isolation VR Mod Installer
+﻿# Alien: Isolation VR Mod Installer
 
 GRAND-MotherVR transforms Alien: Isolation into an even more nail-biting
 experience, capturing the claustrophobic tension of Sevastopol station.
@@ -14,19 +14,21 @@ motion controls and major graphical and quality-of-life improvements.
 GRAND now only needs a single DLL added to the game folder; shader patching
 happens on-the-fly while loading into the game.
 
-## What's new in GRAND v0.6.2
+## What's new in GRAND v0.6.3
+
+Version 0.6.3 fixes a performance drop after returning to the main menu, improves left-hand reach and arm alignment, and prevents unwanted weapon switching from Oculus stick input. Existing settings stay in place. The publisher also documents Epic and GOG support, with an additional MotherVR patcher for GOG; this Hub installer continues to offer only its reviewed Steam route.
 
 - Corrected aimed weapons at steep angles, forearm rotation, motion controls
   after the M18 cutscene and modern controller labels.
 - Reduced the activation distance for terminals and rewire stations.
 - Added terminal font size and item highlight options in `grand.ini`.
-- Hold the left controller near the headset and press Y to toggle the HUD.
+- Hold the left controller near the headset and press [[Y]] to toggle the HUD.
 - Physical IED throwing from v0.6.1 remains available: hold and release the
   right grip to throw. Existing saved settings remain yours.
 
 ## Requirements
 
-- Steam version of Alien: Isolation (Epic and GOG are NOT supported)
+- Steam version of Alien: Isolation for this Hub installer. The publisher documents newer Epic/GOG routes separately; they are not installed by this setup.
 - A headset compatible with SteamVR or Meta/Oculus Link
 - A working MotherVR v0.8.1 installation (handled by this installer)
 - Windows 10 or 11
@@ -55,7 +57,7 @@ bugs still.
 
 1. Fully load SteamVR Home before starting the game, or it may crash
    on startup
-2. Launch Alien: Isolation; confirm the MotherVR message
+2. Use [[Start in VR]] in the Hub; confirm the MotherVR message
 3. In the main menu: Options -> MotherVR -> VR Runtime, choose Oculus or
    SteamVR for your headset
 4. If you chose SteamVR: start SteamVR, then restart the game
@@ -64,12 +66,16 @@ bugs still.
 
 ![Controls](AlienIsolation_controls.jpg)
 
-- Recenter: [[Left Grip]] + [[Right Grip]] (still occasionally needed after
-  certain animations)
-- Flashlight: hold the right controller near your headset and press
-  Interact [[A]], or just press [[RS]]
-- [[D-pad]] (minigames / terminal keypads): hold [[Left Grip]] + use [[Left Stick]]
-- Controls are not configurable - the fixed MotherVR control set is used
+| Button | Action |
+|---|---|
+| [[Left Grip]] + [[Right Grip]] | Recenter; occasionally needed after animations. |
+| [[A]] | With the right controller near your headset, toggle the flashlight. |
+| [[Right Stick Click]] | Toggle the flashlight. |
+| [[Left Grip]] + [[Left Stick]] | D-pad for minigames and terminal keypads. |
+| [[Y]] | With the left controller near your headset, toggle the HUD. |
+| [[Right Grip]] | Hold and release to throw a physical IED. |
+
+Controls use the fixed MotherVR control set.
 
 ## Things to note & tweaks (grand.ini)
 

@@ -86,13 +86,8 @@ Open and complex scenes can be demanding. The current release improves frame
 times and Xen culling, but performance work continues. Two-handed weapons,
 manual reloading and a Long Jump Module HUD indicator are still planned.
 
-## Flat / VR and removal
+## Flat / VR switching
 
 Use the VR / Flat switch on this page for temporary flat play. It parks all
 three required VR loaders together and can restore them without reinstalling.
 
-Uninstall now removes only files recorded by this Hub setup, restores files
-that existed before installation, removes only the `exec bmvr` line it added,
-and preserves Black Mesa, Blue Shift, saves and user-edited settings.
-
-The resonance cascade was an accident. The crowbar swings are entirely deliberate.

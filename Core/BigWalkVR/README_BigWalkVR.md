@@ -1,4 +1,4 @@
-# Big Walk VR
+﻿# Big Walk VR
 
 Full multiplayer-compatible SteamVR support for Big Walk by House
 House, with 6DOF motion controls, grabbing and throwing. By CircuitLord.
@@ -89,6 +89,12 @@ itself reports errors.
 
 Big Walk VR and its app are community projects, not affiliated with or
 endorsed by House House.
+
+## Support CircuitLord
+
+[Support the mod developer on Ko-fi](https://ko-fi.com/circuitlord)
+
+## Links
 
 Project page:
 

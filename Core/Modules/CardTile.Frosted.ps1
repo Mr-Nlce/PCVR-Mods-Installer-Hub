@@ -1,6 +1,36 @@
+$script:CardSplitCurrentClick = {
+    param($s, $e)
+    $owner = $this.Resources.Item('ownerCard')
+    $g = $owner.Resources.Item('gameData')
+    if ($g -and (Get-Command Start-GameInVR -EA SilentlyContinue)) {
+        $mode = if ($this.Resources.Contains('launchMode')) { [string]$this.Resources.Item('launchMode') } elseif ($g.TwoMods) { 'ModA' } else { 'Current' }
+        Start-GameInVR -Game $g -Mode $mode
+    }
+    $e.Handled = $true
+}
+$script:CardSplitDepotClick = {
+    param($s, $e)
+    $owner = $this.Resources.Item('ownerCard')
+    $g = $owner.Resources.Item('gameData')
+    if ($g -and (Get-Command Start-GameInVR -EA SilentlyContinue)) {
+        $mode = if ($this.Resources.Contains('launchMode')) { [string]$this.Resources.Item('launchMode') } elseif ($g.TwoMods) { 'ModB' } else { 'Depot' }
+        Start-GameInVR -Game $g -Mode $mode
+    }
+    $e.Handled = $true
+}
+$script:CardSplitHoverEnter = {
+    $this.Background = [System.Windows.Media.SolidColorBrush]::new([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
+}
+$script:CardSplitHoverLeave = {
+    $this.Background = [System.Windows.Media.Brushes]::Transparent
+}
+
 function global:New-GameCardFrosted {
-    param($game, $isExternal, $window)
-    $card = New-Object System.Windows.Controls.Border
+    param($game, $isExternal, $window, $Into = $null)
+    # -Into: build into an existing (lazy placeholder) Border instead of a
+    # new one, so the element in the panel - and everything that already
+    # references it - stays the same object.
+    $card = if ($Into) { $Into } else { [System.Windows.Controls.Border]::new() }
     # Snap the entire card's layout to integer pixels. WPF renders
     # ClearType text blurry when an element lands on a sub-pixel X/Y,
     # which can happen anywhere the scaled ([int] * $sc) measurements
@@ -53,7 +83,7 @@ function global:New-GameCardFrosted {
     $card.Resources.Add("originalBdBrush", $card.BorderBrush)
     $card.Resources.Add("originalAccent",  $accentHex)
 
-    $grid = New-Object System.Windows.Controls.Grid
+    $grid = [System.Windows.Controls.Grid]::new()
     $grid.Margin = [System.Windows.Thickness]::new([int](14*$sc))
 
     $r0 = New-Object System.Windows.Controls.RowDefinition; $r0.Height = [System.Windows.GridLength]::Auto
@@ -67,7 +97,7 @@ function global:New-GameCardFrosted {
     # card. Replaces the previous 2px accent bar. Externals get a
     # neutral "External" label so they still get a pill at all.
     $famName = Get-ModFamily -Game $game -IsExternal $isExternal
-    $famPill = New-Object System.Windows.Controls.Border
+    $famPill = [System.Windows.Controls.Border]::new()
     $famPill.CornerRadius = [System.Windows.CornerRadius]::new([int](3*$sc))
     $famPill.Padding = [System.Windows.Thickness]::new([int](6*$sc), [int](2*$sc), [int](6*$sc), [int](2*$sc))
     $famPill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
@@ -87,7 +117,7 @@ function global:New-GameCardFrosted {
         [byte]([Math]::Round($famAcc.G*0.5 + 255*0.5)),
         [byte]([Math]::Round($famAcc.B*0.5 + 255*0.5))
     )
-    $famTxt = New-Object System.Windows.Controls.TextBlock
+    $famTxt = [System.Windows.Controls.TextBlock]::new()
     $famTxt.Text = $famName.ToUpper()
     $famTxt.FontSize = [int](8*$sc)
     $famTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -108,18 +138,18 @@ function global:New-GameCardFrosted {
     }
 
     # Top stack holds pill + title group together in row 0
-    $topStack = New-Object System.Windows.Controls.StackPanel
+    $topStack = [System.Windows.Controls.StackPanel]::new()
     $topStack.Orientation = [System.Windows.Controls.Orientation]::Vertical
     [System.Windows.Controls.Grid]::SetRow($topStack, 0)
-    $familyRow = New-Object System.Windows.Controls.StackPanel
+    $familyRow = [System.Windows.Controls.StackPanel]::new()
     $familyRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
     $familyRow.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-    $familyRow.Children.Add($famPill) | Out-Null
+    [void]$familyRow.Children.Add($famPill)
     if ($game.Gem) {
-        $familyRow.Children.Add((New-GemMarker -Scale $sc)) | Out-Null
+        [void]$familyRow.Children.Add((New-GemMarker -Scale $sc))
     }
-    $topStack.Children.Add($familyRow) | Out-Null
-    $grid.Children.Add($topStack) | Out-Null
+    [void]$topStack.Children.Add($familyRow)
+    [void]$grid.Children.Add($topStack)
     # Stash family pill ref so the steam-preview manager can hide
     # it while the big image is shown (otherwise the pill covers
     # part of the artwork)
@@ -128,11 +158,11 @@ function global:New-GameCardFrosted {
     $isWipGame  = $global:WIP_GAME_TITLES -contains $game.Title
 
     # Title stack (dot moved to overlay below i button)
-    $titleStack = New-Object System.Windows.Controls.StackPanel
+    $titleStack = [System.Windows.Controls.StackPanel]::new()
     $titleStack.Margin = [System.Windows.Thickness]::new(0, 0, 0, 0)
-    $topStack.Children.Add($titleStack) | Out-Null
+    [void]$topStack.Children.Add($titleStack)
 
-    $titleText = New-Object System.Windows.Controls.TextBlock
+    $titleText = [System.Windows.Controls.TextBlock]::new()
     # "Jedi Knight: Jedi Outcast VR" otherwise wraps with "VR" alone on
     # the second line. Glue "Outcast VR" together with a non-breaking
     # space so the break falls earlier ("...Jedi / Outcast VR"), matching
@@ -220,15 +250,23 @@ function global:New-GameCardFrosted {
         $titleDisplay = "PowerSlave / Exhumed"
     }
     $titleText.Text = $titleDisplay
-    $titleText.FontSize = [int](13*$sc)
+    $titleText.FontSize = [int]($(if ($game.TileTitleFontSize) { $game.TileTitleFontSize } else { 13 })*$sc)
+    if ($game.TileTitleSecondLineFontSize -and $titleDisplay.Contains("`n")) {
+        $titleLines = $titleDisplay -split "`n", 2
+        $titleText.Inlines.Clear()
+        [void]$titleText.Inlines.Add([System.Windows.Documents.Run]::new($titleLines[0]+"`n"))
+        $secondTitleLine = [System.Windows.Documents.Run]::new($titleLines[1])
+        $secondTitleLine.FontSize = [double]$game.TileTitleSecondLineFontSize*$sc
+        [void]$titleText.Inlines.Add($secondTitleLine)
+    }
     # "Anomaly GAMMA" reads heavy because GAMMA is all-caps - drop it to
     # SemiBold so the all-caps word doesn't dominate the tile.
     $titleText.FontWeight = if ($game.Title -eq "Anomaly GAMMA") { [System.Windows.FontWeights]::SemiBold } else { [System.Windows.FontWeights]::Bold }
-    $titleGrad = New-Object System.Windows.Media.LinearGradientBrush
+    $titleGrad = [System.Windows.Media.LinearGradientBrush]::new()
     $titleGrad.StartPoint = [System.Windows.Point]::new(0, 0)
     $titleGrad.EndPoint   = [System.Windows.Point]::new(0, 1)
-    $titleGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromRgb(255,255,255), 0))) | Out-Null
-    $titleGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromRgb(168,176,186), 1))) | Out-Null
+    [void]$titleGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromRgb(255,255,255), 0)))
+    [void]$titleGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromRgb(168,176,186), 1)))
     $titleGrad.Freeze()
     $titleText.Foreground = $titleGrad
     $titleText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -239,7 +277,7 @@ function global:New-GameCardFrosted {
     # pill area at top clean. For paid games the title goes straight
     # into the titleStack as before.
     if ($isFreeGame) {
-        $freePill = New-Object System.Windows.Controls.Border
+        $freePill = [System.Windows.Controls.Border]::new()
         $freePill.CornerRadius = [System.Windows.CornerRadius]::new([int](2*$sc))
         $freePill.Padding = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
         $freePill.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -248,7 +286,7 @@ function global:New-GameCardFrosted {
         $freePill.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
         $freePill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
         $freePill.Margin = [System.Windows.Thickness]::new([int](4*$sc), [int](1*$sc), 0, 0)
-        $freeTxt = New-Object System.Windows.Controls.TextBlock
+        $freeTxt = [System.Windows.Controls.TextBlock]::new()
         $freeTxt.Text = "FREE"
         $freeTxt.FontSize = [int](8*$sc)
         $freeTxt.FontWeight = [System.Windows.FontWeights]::Bold
@@ -263,17 +301,17 @@ function global:New-GameCardFrosted {
         $freeTxt.LineHeight = [double][int](10*$sc)
         $freeTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $freePill.Child = $freeTxt
-        $titleRow = New-Object System.Windows.Controls.DockPanel
+        $titleRow = [System.Windows.Controls.DockPanel]::new()
         $titleRow.LastChildFill = $true
         $titleRow.UseLayoutRounding = $true
         $titleRow.SnapsToDevicePixels = $true
         [System.Windows.Controls.DockPanel]::SetDock($freePill, [System.Windows.Controls.Dock]::Right)
-        $titleRow.Children.Add($freePill) | Out-Null
+        [void]$titleRow.Children.Add($freePill)
         # FREE and WIP are independent facts. A free game can still ship an
         # unfinished VR build, so dual-tag entries (currently Muck) display
         # both compact badges beside the title instead of FREE hiding WIP.
         if ($isWipGame) {
-            $dualWipPill = New-Object System.Windows.Controls.Border
+            $dualWipPill = [System.Windows.Controls.Border]::new()
             $dualWipPill.CornerRadius = [System.Windows.CornerRadius]::new([int](2*$sc))
             $dualWipPill.Padding = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
             $dualWipPill.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -282,7 +320,7 @@ function global:New-GameCardFrosted {
             $dualWipPill.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
             $dualWipPill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
             $dualWipPill.Margin = [System.Windows.Thickness]::new([int](4*$sc), [int](1*$sc), 0, 0)
-            $dualWipTxt = New-Object System.Windows.Controls.TextBlock
+            $dualWipTxt = [System.Windows.Controls.TextBlock]::new()
             $dualWipTxt.Text = "WIP"
             $dualWipTxt.FontSize = [int](8*$sc)
             $dualWipTxt.FontWeight = [System.Windows.FontWeights]::Bold
@@ -295,14 +333,14 @@ function global:New-GameCardFrosted {
             $dualWipTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $dualWipPill.Child = $dualWipTxt
             [System.Windows.Controls.DockPanel]::SetDock($dualWipPill, [System.Windows.Controls.Dock]::Right)
-            $titleRow.Children.Add($dualWipPill) | Out-Null
+            [void]$titleRow.Children.Add($dualWipPill)
         }
-        $titleRow.Children.Add($titleText) | Out-Null
-        $titleStack.Children.Add($titleRow) | Out-Null
+        [void]$titleRow.Children.Add($titleText)
+        [void]$titleStack.Children.Add($titleRow)
     } elseif ($isWipGame) {
         # Same layout as the FREE pill, but a red "WIP" badge for mods
         # that run yet are still early / rough.
-        $wipPill = New-Object System.Windows.Controls.Border
+        $wipPill = [System.Windows.Controls.Border]::new()
         $wipPill.CornerRadius = [System.Windows.CornerRadius]::new([int](2*$sc))
         $wipPill.Padding = [System.Windows.Thickness]::new([int](5*$sc), [int](1*$sc), [int](5*$sc), [int](1*$sc))
         $wipPill.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -311,7 +349,7 @@ function global:New-GameCardFrosted {
         $wipPill.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
         $wipPill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
         $wipPill.Margin = [System.Windows.Thickness]::new([int](4*$sc), [int](1*$sc), 0, 0)
-        $wipTxt = New-Object System.Windows.Controls.TextBlock
+        $wipTxt = [System.Windows.Controls.TextBlock]::new()
         $wipTxt.Text = "WIP"
         $wipTxt.FontSize = [int](8*$sc)
         $wipTxt.FontWeight = [System.Windows.FontWeights]::Bold
@@ -325,16 +363,16 @@ function global:New-GameCardFrosted {
         $wipTxt.LineHeight = [double][int](10*$sc)
         $wipTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
         $wipPill.Child = $wipTxt
-        $titleRow = New-Object System.Windows.Controls.DockPanel
+        $titleRow = [System.Windows.Controls.DockPanel]::new()
         $titleRow.LastChildFill = $true
         $titleRow.UseLayoutRounding = $true
         $titleRow.SnapsToDevicePixels = $true
         [System.Windows.Controls.DockPanel]::SetDock($wipPill, [System.Windows.Controls.Dock]::Right)
-        $titleRow.Children.Add($wipPill) | Out-Null
-        $titleRow.Children.Add($titleText) | Out-Null
-        $titleStack.Children.Add($titleRow) | Out-Null
+        [void]$titleRow.Children.Add($wipPill)
+        [void]$titleRow.Children.Add($titleText)
+        [void]$titleStack.Children.Add($titleRow)
     } else {
-        $titleStack.Children.Add($titleText) | Out-Null
+        [void]$titleStack.Children.Add($titleText)
     }
 
     # Auto-layout: measure the title's actual rendered width and use the
@@ -371,7 +409,7 @@ function global:New-GameCardFrosted {
     # under 158px in pure FormattedText. Tweak if new games show
     # mis-classified wrap behavior.
     $titleAvailWidth = [int](145 * $sc)
-    $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth)
+    $isLongTitle = ($titleFormatted.Width -gt $titleAvailWidth -or $titleDisplay.Contains("`n"))
     # Tiles whose mod string already fills the meta line: drop the
     # ". by <Author>" tail so it stays on ONE line instead of being
     # ellipsised. A tile-space decision only - the detail page still
@@ -385,7 +423,7 @@ function global:New-GameCardFrosted {
     # detail page - this is purely a space decision on the tile.
     # There used to be a hand-maintained title list here; it had to be
     # updated with every new entry and was forgotten.
-    $hideTileAuthor = $false
+    $hideTileAuthor = [bool]$game.HideTileAuthor
     if ($isLongTitle -and $game.Mod -and $game.Author -and -not $game.ImprovementTag) {
         try {
             $metaProbe = New-Object System.Windows.Media.FormattedText(
@@ -413,7 +451,7 @@ function global:New-GameCardFrosted {
 
     if (-not $isLongTitle) {
         # Short title: keep the classic two-line meta block.
-        $modText = New-Object System.Windows.Controls.TextBlock
+        $modText = [System.Windows.Controls.TextBlock]::new()
         $modText.Text = $game.Mod
         # Long mod lines (two mod names plus "(auto-update)") overflow the
         # tile at the normal size. One step down keeps them inside and stays
@@ -425,7 +463,7 @@ function global:New-GameCardFrosted {
         $modText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
         $modText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $modText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
-        $titleStack.Children.Add($modText) | Out-Null
+        [void]$titleStack.Children.Add($modText)
 
         # Add-on banner: small blue "+ <AddonName> add-on" tag right
         # below the mod-version line. Shows whenever the catalog entry
@@ -433,7 +471,7 @@ function global:New-GameCardFrosted {
         # all three Half-Life 2 VR cards). The banner is a visual hint
         # only - the actual install button lives on the detail view.
         if ($game.AddonInstaller -and $game.AddonName) {
-            $addonBanner = New-Object System.Windows.Controls.Border
+            $addonBanner = [System.Windows.Controls.Border]::new()
             $addonBanner.Background     = [System.Windows.Media.Brushes]::Transparent
             $addonBanner.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $addonBanner.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -442,7 +480,7 @@ function global:New-GameCardFrosted {
             $addonBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $addonBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $addonBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
-            $addonTxt = New-Object System.Windows.Controls.TextBlock
+            $addonTxt = [System.Windows.Controls.TextBlock]::new()
             $addonTxt.Text = "+ $($game.AddonName) add-on"
             $addonTxt.FontSize = [int](8*$sc)
             $addonTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -453,14 +491,14 @@ function global:New-GameCardFrosted {
             $addonTxt.LineHeight = [double][int](10*$sc)
             $addonTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $addonBanner.Child = $addonTxt
-            $titleStack.Children.Add($addonBanner) | Out-Null
+            [void]$titleStack.Children.Add($addonBanner)
             $card.Resources.Add("addonBanner", $addonBanner)
         } elseif ($game.ImprovementTag) {
             # Generic blue "improvement" tag (same look as the add-on
             # banner) for entries that are VR improvement modlists
             # rather than a single drop-in mod (e.g. Fallout 4 VR /
             # Skyrim VR via Wabbajack). Purely a visual hint.
-            $impBanner = New-Object System.Windows.Controls.Border
+            $impBanner = [System.Windows.Controls.Border]::new()
             $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
             $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -469,7 +507,7 @@ function global:New-GameCardFrosted {
             $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
-            $impTxt = New-Object System.Windows.Controls.TextBlock
+            $impTxt = [System.Windows.Controls.TextBlock]::new()
             $impTxt.Text = $game.ImprovementTag
             $impTxt.FontSize = [int](8*$sc)
             $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -480,15 +518,15 @@ function global:New-GameCardFrosted {
             $impTxt.LineHeight = [double][int](10*$sc)
             $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $impBanner.Child = $impTxt
-            $titleStack.Children.Add($impBanner) | Out-Null
+            [void]$titleStack.Children.Add($impBanner)
             $card.Resources.Add("addonBanner", $impBanner)
         }
 
         # ImprovementTag games: hide the modder name on the TILE so the
         # blue "+ ... mod" box can take that slot without breaking layout.
         # The author still shows on the detail page.
-        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag) {
-            $authorText = New-Object System.Windows.Controls.TextBlock
+        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
+            $authorText = [System.Windows.Controls.TextBlock]::new()
             # A very long modder name runs out of tile width at the normal
             # size. One point smaller makes it fit and is not noticeable next
             # to the other tiles. The threshold is deliberately high (28): at
@@ -521,19 +559,19 @@ function global:New-GameCardFrosted {
             }
             if ($auMarker) {
                 if ($auFirst) {
-                    $auRun = New-Object System.Windows.Documents.Run
+                    $auRun = [System.Windows.Documents.Run]::new()
                     $auRun.Text = $(if ($auName) { "$auMarker " } else { $auMarker })
                     $auRun.Foreground = $auAccent
                     [void]$authorText.Inlines.Add($auRun)
                 }
                 if ($auName) {
-                    $byRun = New-Object System.Windows.Documents.Run
+                    $byRun = [System.Windows.Documents.Run]::new()
                     $byRun.Text = $(if ($auFirst) { "by $auName" } else { "by $auName " })
                     $byRun.Foreground = $authGrey
                     [void]$authorText.Inlines.Add($byRun)
                 }
                 if (-not $auFirst) {
-                    $auRun2 = New-Object System.Windows.Documents.Run
+                    $auRun2 = [System.Windows.Documents.Run]::new()
                     $auRun2.Text = $auMarker
                     $auRun2.Foreground = $auAccent
                     [void]$authorText.Inlines.Add($auRun2)
@@ -542,7 +580,7 @@ function global:New-GameCardFrosted {
                 $authorText.Text = "by $($game.Author)"
                 $authorText.Foreground = $authGrey
             }
-            $titleStack.Children.Add($authorText) | Out-Null
+            [void]$titleStack.Children.Add($authorText)
             $card.Resources.Add("authorText", $authorText)
         } elseif ($isExternal) {
             # Externals (LR / REFramework family entries that go through
@@ -556,12 +594,12 @@ function global:New-GameCardFrosted {
             # something to hide already, and the spacer would push the
             # Description down into the Install button.
             if (-not ($game.AddonInstaller -and $game.AddonName) -and -not $game.ImprovementTag) {
-                $spacerText = New-Object System.Windows.Controls.TextBlock
+                $spacerText = [System.Windows.Controls.TextBlock]::new()
                 $spacerText.Text = " "
                 $spacerText.FontSize = [int](9*$sc)
                 $spacerText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
                 $spacerText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
-                $titleStack.Children.Add($spacerText) | Out-Null
+                [void]$titleStack.Children.Add($spacerText)
                 $card.Resources.Add("authorText", $spacerText)
             }
         }
@@ -571,7 +609,7 @@ function global:New-GameCardFrosted {
         # collapse both into ONE small line: "Mod . by Author" with the mod
         # portion in the game's accent colour and the author tail in muted
         # grey. Uses an Inlines run so colours can split inside one TextBlock.
-        $metaLine = New-Object System.Windows.Controls.TextBlock
+        $metaLine = [System.Windows.Controls.TextBlock]::new()
         $metaLine.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
         $metaLine.FontSize = [int](9*$sc)
         $metaLine.FontWeight = [System.Windows.FontWeights]::Medium
@@ -580,13 +618,13 @@ function global:New-GameCardFrosted {
         $metaLine.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
 
         if ($game.Mod -and -not $game.ImprovementTag) {
-            $modRun = New-Object System.Windows.Documents.Run
+            $modRun = [System.Windows.Documents.Run]::new()
             $modRun.Text = $game.Mod
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
             [void]$metaLine.Inlines.Add($modRun)
         }
         if ($game.Mod -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
-            $sepRun = New-Object System.Windows.Documents.Run
+            $sepRun = [System.Windows.Documents.Run]::new()
             $sepRun.Text = " . "
             $sepRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#444455")
             [void]$metaLine.Inlines.Add($sepRun)
@@ -594,7 +632,7 @@ function global:New-GameCardFrosted {
         # ImprovementTag games (and $hideTileAuthor titles): modder name
         # hidden on the tile (detail page keeps it).
         if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
-            $authRun = New-Object System.Windows.Documents.Run
+            $authRun = [System.Windows.Documents.Run]::new()
             # Same marker rule as the separate-line layout above - the ORDER
             # the catalog wrote is kept - but as ONE run: this compact line
             # is a single muted string, so there is no accent split here.
@@ -610,7 +648,7 @@ function global:New-GameCardFrosted {
             [void]$metaLine.Inlines.Add($authRun)
         }
         if ($metaLine.Inlines.Count -gt 0) {
-            $titleStack.Children.Add($metaLine) | Out-Null
+            [void]$titleStack.Children.Add($metaLine)
         }
         # The hover preview overlays this area. Stash the meta line so the
         # hover handler can hide it (avoids the image clipping the text).
@@ -621,7 +659,7 @@ function global:New-GameCardFrosted {
         # titles like Ocarina of Time. Registered as addonBanner so the
         # hover preview hides it.
         if ($game.ImprovementTag -and -not $card.Resources.Contains("addonBanner")) {
-            $impBanner = New-Object System.Windows.Controls.Border
+            $impBanner = [System.Windows.Controls.Border]::new()
             $impBanner.Background      = [System.Windows.Media.Brushes]::Transparent
             $impBanner.BorderBrush     = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#5599ee")
             $impBanner.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -630,7 +668,7 @@ function global:New-GameCardFrosted {
             $impBanner.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
             $impBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $impBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
-            $impTxt = New-Object System.Windows.Controls.TextBlock
+            $impTxt = [System.Windows.Controls.TextBlock]::new()
             $impTxt.Text = $game.ImprovementTag
             $impTxt.FontSize = [int](8*$sc)
             $impTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
@@ -641,7 +679,7 @@ function global:New-GameCardFrosted {
             $impTxt.LineHeight = [double][int](10*$sc)
             $impTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
             $impBanner.Child = $impTxt
-            $titleStack.Children.Add($impBanner) | Out-Null
+            [void]$titleStack.Children.Add($impBanner)
             $card.Resources.Add("addonBanner", $impBanner)
         }
         # Long-title cards don't get a separate authorText - the author is
@@ -658,7 +696,7 @@ function global:New-GameCardFrosted {
     # descriptions or wrapping titles would otherwise push the
     # Install button out of the card. The full text remains
     # accessible via the auto-tooltip (only shown when truncated).
-    $descText = New-Object System.Windows.Controls.TextBlock
+    $descText = [System.Windows.Controls.TextBlock]::new()
     $descText.Text = $game.Description
     $descText.FontSize = [int](10*$sc)
     $descText.FontWeight = [System.Windows.FontWeights]::Medium
@@ -678,11 +716,11 @@ function global:New-GameCardFrosted {
     }
     $descText.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
     if ($game.Description) { $descText.ToolTip = $game.Description }
-    $descRow = New-Object System.Windows.Controls.DockPanel
+    $descRow = [System.Windows.Controls.DockPanel]::new()
     $descRow.LastChildFill = $true
     [System.Windows.Controls.Grid]::SetRow($descRow, 1)
-    $descRow.Children.Add($descText) | Out-Null
-    $grid.Children.Add($descRow) | Out-Null
+    [void]$descRow.Children.Add($descText)
+    [void]$grid.Children.Add($descRow)
     # Button: solid accent color. Smart text-contrast: light accents
     # (high luminance, e.g. Alba green #88cc44) get dark text; dark
     # accents get white text. Threshold ~150 picks the right side
@@ -705,7 +743,7 @@ function global:New-GameCardFrosted {
         [byte]([Math]::Max(0, [Math]::Min(255, [int]([Math]::Round($btnAcc.G * 0.18 + 10))))),
         [byte]([Math]::Max(0, [Math]::Min(255, [int]([Math]::Round($btnAcc.B * 0.18 + 10)))))
     )
-    $btnBorder = New-Object System.Windows.Controls.Border
+    $btnBorder = [System.Windows.Controls.Border]::new()
     $btnBorder.CornerRadius = [System.Windows.CornerRadius]::new([int](4*$sc))
     $btnBorder.Background   = New-Object System.Windows.Media.SolidColorBrush $slateColor
     $btnBorder.BorderThickness = [System.Windows.Thickness]::new(0, 1, 0, 0)
@@ -724,7 +762,7 @@ function global:New-GameCardFrosted {
     )
     $btnFgBrush = New-Object System.Windows.Media.SolidColorBrush $textColor
 
-    $btnText = New-Object System.Windows.Controls.TextBlock
+    $btnText = [System.Windows.Controls.TextBlock]::new()
     $btnText.FontSize = [int](11*$sc)
     $btnText.FontWeight = [System.Windows.FontWeights]::SemiBold
     $btnText.Foreground = $btnFgBrush
@@ -753,7 +791,7 @@ function global:New-GameCardFrosted {
     # Inner grid with the label centered and a reload-pill area
     # docked right. Pill is collapsed by default and only shown
     # when Check Installed flips the card into the VR Ready state.
-    $btnInner = New-Object System.Windows.Controls.Grid
+    $btnInner = [System.Windows.Controls.Grid]::new()
     $btnText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
 
     # Free games: "FREE" sits just before the "Install" label as one
@@ -766,7 +804,7 @@ function global:New-GameCardFrosted {
     $freeBtnLabel = $null
     if ($isFreeGame) {
         $freeAccCol = Get-GlowColor $accentHex
-        $freeBtnLabel = New-Object System.Windows.Controls.TextBlock
+        $freeBtnLabel = [System.Windows.Controls.TextBlock]::new()
         $freeBtnLabel.Text = "FREE"
         $freeBtnLabel.FontSize = [int](11*$sc)
         $freeBtnLabel.FontWeight = [System.Windows.FontWeights]::Bold
@@ -775,7 +813,7 @@ function global:New-GameCardFrosted {
         $freeBtnLabel.Margin = [System.Windows.Thickness]::new(0, 0, [int](8*$sc), 0)
         $freeBtnLabel.Visibility = [System.Windows.Visibility]::Collapsed
         try {
-            $fglow = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $fglow = [System.Windows.Media.Effects.DropShadowEffect]::new()
             $fglow.Color = $freeAccCol
             $fglow.BlurRadius = 6
             $fglow.ShadowDepth = 0
@@ -783,13 +821,13 @@ function global:New-GameCardFrosted {
             $freeBtnLabel.Effect = $fglow
         } catch {}
 
-        $freeStack = New-Object System.Windows.Controls.StackPanel
+        $freeStack = [System.Windows.Controls.StackPanel]::new()
         $freeStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
         $freeStack.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
         $freeStack.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
         $btnText.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
-        $freeStack.Children.Add($freeBtnLabel) | Out-Null
-        $freeStack.Children.Add($btnText) | Out-Null
+        [void]$freeStack.Children.Add($freeBtnLabel)
+        [void]$freeStack.Children.Add($btnText)
         # Text rides ABOVE the glowing button (added to the shell below),
         # not inside it, so the button's glow can never blur the label.
         $btnTextLayer = $freeStack
@@ -802,7 +840,7 @@ function global:New-GameCardFrosted {
     # default Install state. Recolored on state transitions:
     # green when game is installed but not VR-modded, blue when
     # an update is available, hidden in the VR-Ready state.
-    $accentCap = New-Object System.Windows.Controls.Border
+    $accentCap = [System.Windows.Controls.Border]::new()
     $accentCap.Width  = [int](5*$sc)
     $accentCap.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
     $accentCap.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
@@ -810,14 +848,14 @@ function global:New-GameCardFrosted {
     # Bleed through the button's inner padding (top/bottom) so the
     # cap touches the button edges without leaving slate gaps.
     $accentCap.Margin = [System.Windows.Thickness]::new(0, [int](-6*$sc), 0, [int](-6*$sc))
-    $btnInner.Children.Add($accentCap) | Out-Null
+    [void]$btnInner.Children.Add($accentCap)
 
     # Reload pill: small fixed-width strip on the right with a
     # subtle vertical divider on its left edge. Hidden until the
     # card flips to VR Ready (Tag = "vrinstalled"). Mouse clicks
     # on it set e.Handled = true so the card-level click handler
     # (which launches the game) doesn't also fire.
-    $reloadPill = New-Object System.Windows.Controls.Border
+    $reloadPill = [System.Windows.Controls.Border]::new()
     $reloadPill.Width = [int](28*$sc)
     $reloadPill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
     $reloadPill.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
@@ -827,7 +865,7 @@ function global:New-GameCardFrosted {
     $reloadPill.Cursor         = [System.Windows.Input.Cursors]::Hand
     $reloadPill.Visibility     = [System.Windows.Visibility]::Collapsed
     $reloadPill.Margin         = [System.Windows.Thickness]::new(0)
-    $reloadGlyph = New-Object System.Windows.Controls.TextBlock
+    $reloadGlyph = [System.Windows.Controls.TextBlock]::new()
     $reloadGlyph.Text = [char]0x21BB
     $reloadGlyph.FontSize = [int](13*$sc)
     $reloadGlyph.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI Symbol")
@@ -901,7 +939,7 @@ function global:New-GameCardFrosted {
     $dualDepotBtn = $null
     $supportsSplit = [bool]($game.DualMode -or $game.TwoMods)
     if ($supportsSplit) {
-    $dualSplit = New-Object System.Windows.Controls.Grid
+    $dualSplit = [System.Windows.Controls.Grid]::new()
     $dualSplit.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $dualSplit.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
     # NO NEGATIVE TOP/BOTTOM ANY MORE. Those -6 cancelled out
@@ -915,21 +953,21 @@ function global:New-GameCardFrosted {
         0, 0, [int](28*$sc), 0
     )
     $dualSplit.Visibility = [System.Windows.Visibility]::Collapsed
-    $col1 = New-Object System.Windows.Controls.ColumnDefinition
+    $col1 = [System.Windows.Controls.ColumnDefinition]::new()
     $col1.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-    $col2 = New-Object System.Windows.Controls.ColumnDefinition
+    $col2 = [System.Windows.Controls.ColumnDefinition]::new()
     $col2.Width = [System.Windows.GridLength]::new(1, [System.Windows.GridUnitType]::Star)
-    $dualSplit.ColumnDefinitions.Add($col1) | Out-Null
-    $dualSplit.ColumnDefinitions.Add($col2) | Out-Null
+    [void]$dualSplit.ColumnDefinitions.Add($col1)
+    [void]$dualSplit.ColumnDefinitions.Add($col2)
 
-    $dualCurrentBtn = New-Object System.Windows.Controls.Border
+    $dualCurrentBtn = [System.Windows.Controls.Border]::new()
     $dualCurrentBtn.Background     = [System.Windows.Media.Brushes]::Transparent
     $dualCurrentBtn.BorderThickness = [System.Windows.Thickness]::new(0, 0, 1, 0)
     $dualCurrentBtn.BorderBrush    = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3d6e4a")
     $dualCurrentBtn.CornerRadius   = [System.Windows.CornerRadius]::new([int](4*$sc), 0, 0, [int](4*$sc))
     $dualCurrentBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualCurrentBtn, 0)
-    $dualCurrentTxt = New-Object System.Windows.Controls.TextBlock
+    $dualCurrentTxt = [System.Windows.Controls.TextBlock]::new()
     $dualCurrentLabel = if ($game.TwoMods -and $game.ModAButtonLabel) { [string]$game.ModAButtonLabel } elseif ($game.TwoMods -and $game.ModAName) { [string]$game.ModAName } elseif ($game.CurrentButtonLabel) { [string]$game.CurrentButtonLabel } else { "Current" }
     $dualCurrentTxt.Text = ([char]0x25B6) + " " + $dualCurrentLabel
     $dualCurrentTxt.FontSize = $(if ($game.TwoMods) { if ($dualCurrentLabel.Length -gt 8) { 7.8 } else { 8.5 } } elseif ($dualCurrentLabel.Length -gt 8) { 9.5 } else { 11 })*$sc
@@ -938,14 +976,14 @@ function global:New-GameCardFrosted {
     $dualCurrentTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $dualCurrentTxt.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
     $dualCurrentBtn.Child = $dualCurrentTxt
-    $dualSplit.Children.Add($dualCurrentBtn) | Out-Null
+    [void]$dualSplit.Children.Add($dualCurrentBtn)
 
-    $dualDepotBtn = New-Object System.Windows.Controls.Border
+    $dualDepotBtn = [System.Windows.Controls.Border]::new()
     $dualDepotBtn.Background     = [System.Windows.Media.Brushes]::Transparent
     $dualDepotBtn.BorderThickness = [System.Windows.Thickness]::new(0)
     $dualDepotBtn.Cursor         = [System.Windows.Input.Cursors]::Hand
     [System.Windows.Controls.Grid]::SetColumn($dualDepotBtn, 1)
-    $dualDepotTxt = New-Object System.Windows.Controls.TextBlock
+    $dualDepotTxt = [System.Windows.Controls.TextBlock]::new()
     $dualDepotLabel = if ($game.TwoMods -and $game.ModBButtonLabel) { [string]$game.ModBButtonLabel } elseif ($game.TwoMods -and $game.ModBName) { [string]$game.ModBName } elseif ($game.DepotButtonLabel) { [string]$game.DepotButtonLabel } else { "Depot" }
     $dualDepotTxt.Text = ([char]0x25B6) + " " + $dualDepotLabel
     $dualDepotTxt.FontSize = $(if ($game.TwoMods) { if ($dualDepotLabel.Length -gt 8) { 7.8 } else { 8.5 } } elseif ($dualDepotLabel.Length -gt 8) { 9.5 } else { 11 })*$sc
@@ -954,7 +992,7 @@ function global:New-GameCardFrosted {
     $dualDepotTxt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $dualDepotTxt.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
     $dualDepotBtn.Child = $dualDepotTxt
-    $dualSplit.Children.Add($dualDepotBtn) | Out-Null
+    [void]$dualSplit.Children.Add($dualDepotBtn)
     }
 
     # !!! NOT INSIDE $btnInner. That border carries the neon halo,
@@ -976,19 +1014,19 @@ function global:New-GameCardFrosted {
     # button keeps its halo. The label's vertical margin gives the button
     # its height (the border stretches to match). Hidden-on-dual-mode keeps
     # the slot, so the DualSplit overlay still shows underneath.
-    $btnShell = New-Object System.Windows.Controls.Grid
+    $btnShell = [System.Windows.Controls.Grid]::new()
     [System.Windows.Controls.Grid]::SetRow($btnShell, 2)
-    $btnShell.Children.Add($btnBorder) | Out-Null
+    [void]$btnShell.Children.Add($btnBorder)
     if ($btnTextLayer) {
         $btnTextLayer.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
         $btnTextLayer.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
         $btnTextLayer.Margin = [System.Windows.Thickness]::new(0, [int](6*$sc), 0, [int](6*$sc))
         $btnTextLayer.IsHitTestVisible = $false
-        $btnShell.Children.Add($btnTextLayer) | Out-Null
+        [void]$btnShell.Children.Add($btnTextLayer)
     }
     if ($dualSplit) { $btnShell.Children.Add($dualSplit) | Out-Null }
     if (-not $isExternal) { $btnShell.Children.Add($reloadPill) | Out-Null }
-    $grid.Children.Add($btnShell) | Out-Null
+    [void]$grid.Children.Add($btnShell)
     # Store btnText, reload pill, accent cap on card for later access by Check Installed
     if ($card.Resources.Contains("btnText")) { $card.Resources.Remove("btnText") }
     if ($card.Resources.Contains("btnBorder")) { $card.Resources.Remove("btnBorder") }
@@ -1018,45 +1056,15 @@ function global:New-GameCardFrosted {
     # card-level click handler doesn't also fire.
     if ($supportsSplit) {
     $dualCurrentBtn.Resources.Add("ownerCard", $card)
-    $dualCurrentBtn.Add_MouseLeftButtonDown({
-        param($s, $e)
-        $owner = $this.Resources.Item("ownerCard")
-        $g = $owner.Resources.Item("gameData")
-        if ($g) {
-            if (Get-Command Start-GameInVR -EA SilentlyContinue) {
-                $mode = if ($this.Resources.Contains('launchMode')) { [string]$this.Resources.Item('launchMode') } elseif ($g.TwoMods) { 'ModA' } else { 'Current' }
-                Start-GameInVR -Game $g -Mode $mode
-            }
-        }
-        $e.Handled = $true
-    }.GetNewClosure())
+    $dualCurrentBtn.Add_MouseLeftButtonDown($script:CardSplitCurrentClick)
     $dualDepotBtn.Resources.Add("ownerCard", $card)
-    $dualDepotBtn.Add_MouseLeftButtonDown({
-        param($s, $e)
-        $owner = $this.Resources.Item("ownerCard")
-        $g = $owner.Resources.Item("gameData")
-        if ($g) {
-            if (Get-Command Start-GameInVR -EA SilentlyContinue) {
-                $mode = if ($this.Resources.Contains('launchMode')) { [string]$this.Resources.Item('launchMode') } elseif ($g.TwoMods) { 'ModB' } else { 'Depot' }
-                Start-GameInVR -Game $g -Mode $mode
-            }
-        }
-        $e.Handled = $true
-    }.GetNewClosure())
+    $dualDepotBtn.Add_MouseLeftButtonDown($script:CardSplitDepotClick)
     # Tinted hover background on each split half so the user sees
     # which one they're about to click. Matches the green family.
-    $dualCurrentBtn.Add_MouseEnter({
-        $this.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-    }.GetNewClosure())
-    $dualCurrentBtn.Add_MouseLeave({
-        $this.Background = [System.Windows.Media.Brushes]::Transparent
-    }.GetNewClosure())
-    $dualDepotBtn.Add_MouseEnter({
-        $this.Background = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb(40, 70, 160, 90))
-    }.GetNewClosure())
-    $dualDepotBtn.Add_MouseLeave({
-        $this.Background = [System.Windows.Media.Brushes]::Transparent
-    }.GetNewClosure())
+    $dualCurrentBtn.Add_MouseEnter($script:CardSplitHoverEnter)
+    $dualCurrentBtn.Add_MouseLeave($script:CardSplitHoverLeave)
+    $dualDepotBtn.Add_MouseEnter($script:CardSplitHoverEnter)
+    $dualDepotBtn.Add_MouseLeave($script:CardSplitHoverLeave)
     }
 
     # Inviting hover effect: a soft light-sweep gradient travels
@@ -1090,7 +1098,7 @@ function global:New-GameCardFrosted {
             $bt = $owner.Resources.Item("btnText")
             if ($bt) { $bt.Foreground = [System.Windows.Media.Brushes]::White }
         }
-    }.GetNewClosure())
+    })
     $btnBorder.Add_MouseLeave({
         $owner = $this.Resources.Item("ownerCard")
         if ($owner -and $owner.Tag -eq "vrupdate") {
@@ -1098,7 +1106,7 @@ function global:New-GameCardFrosted {
             $rest = $owner.Resources.Item("updLabelRest")
             if ($bt -and $rest) { $bt.Foreground = $rest }
         }
-    }.GetNewClosure())
+    })
     $btnBorder.Add_MouseEnter({
         $owner = $this.Resources.Item("ownerCard")
         if ($owner -and $owner.Tag -eq "vrinstalled") {
@@ -1280,7 +1288,7 @@ function global:New-GameCardFrosted {
             [byte]([Math]::Min(255, [int]([Math]::Round($sweepBase.B + (255 - $sweepBase.B) * 0.30))))
         )
 
-        $brush = New-Object System.Windows.Media.LinearGradientBrush
+        $brush = [System.Windows.Media.LinearGradientBrush]::new()
         $brush.StartPoint = New-Object System.Windows.Point 0, 0
         $brush.EndPoint   = New-Object System.Windows.Point 1, 1
         $sOutA = New-Object System.Windows.Media.GradientStop $slateBase, 0.0
@@ -1288,11 +1296,11 @@ function global:New-GameCardFrosted {
         $sPeak = New-Object System.Windows.Media.GradientStop $sweepPeak, 0.0
         $sTail = New-Object System.Windows.Media.GradientStop $slateBase, 0.0
         $sOutB = New-Object System.Windows.Media.GradientStop $slateBase, 1.0
-        $brush.GradientStops.Add($sOutA) | Out-Null
-        $brush.GradientStops.Add($sLead) | Out-Null
-        $brush.GradientStops.Add($sPeak) | Out-Null
-        $brush.GradientStops.Add($sTail) | Out-Null
-        $brush.GradientStops.Add($sOutB) | Out-Null
+        [void]$brush.GradientStops.Add($sOutA)
+        [void]$brush.GradientStops.Add($sLead)
+        [void]$brush.GradientStops.Add($sPeak)
+        [void]$brush.GradientStops.Add($sTail)
+        [void]$brush.GradientStops.Add($sOutB)
         $this.Background = $brush
 
         $dur = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds(700))
@@ -1481,11 +1489,11 @@ function global:New-GameCardFrosted {
     # symbol (right half). The full pill is clickable -> opens the
     # InfoUrl - so the click target is large enough for VR pointers.
     # Hovering the dot half shows the controls tooltip.
-    $hasInfo = [bool]$game.InfoUrl
+    $hasInfo = $true
     $hasDot  = [bool]$game.Controls
 
     if ($hasInfo -or $hasDot) {
-        $pill = New-Object System.Windows.Controls.Border
+        $pill = [System.Windows.Controls.Border]::new()
         $pill.Height = [int](22*$sc)
         $pill.Background = [System.Windows.Media.Brushes]::Transparent
         $pill.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
@@ -1496,21 +1504,21 @@ function global:New-GameCardFrosted {
         # Two layers so the hover glow never blurs the glyph + "i":
         # the rounded edge + glow live on $pillEdge (no text), the
         # content sits on top as a crisp sibling with no effect.
-        $pillGrid = New-Object System.Windows.Controls.Grid
+        $pillGrid = [System.Windows.Controls.Grid]::new()
         $pill.Child = $pillGrid
 
-        $pillEdge = New-Object System.Windows.Controls.Border
+        $pillEdge = [System.Windows.Controls.Border]::new()
         $pillEdge.CornerRadius = [System.Windows.CornerRadius]::new([int](11*$sc))
         $pillEdge.Background = [System.Windows.Media.Brushes]::Transparent
         $pillEdge.BorderThickness = [System.Windows.Thickness]::new(1)
         $pillEdge.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#40404e")
-        $pillGrid.Children.Add($pillEdge) | Out-Null
+        [void]$pillGrid.Children.Add($pillEdge)
 
-        $pillStack = New-Object System.Windows.Controls.StackPanel
+        $pillStack = [System.Windows.Controls.StackPanel]::new()
         $pillStack.Orientation = [System.Windows.Controls.Orientation]::Horizontal
         $pillStack.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         $pillStack.Margin = [System.Windows.Thickness]::new([int](7*$sc), 0, [int](8*$sc), 0)
-        $pillGrid.Children.Add($pillStack) | Out-Null
+        [void]$pillGrid.Children.Add($pillStack)
 
         # Shared brush for the glyph + "i" so a hover can brighten both
         # at once (mutate one Color) - scoped to this pill only.
@@ -1518,22 +1526,22 @@ function global:New-GameCardFrosted {
 
         if ($hasDot) {
             $ctrlIcon = New-ControlTypeIcon -Controls $game.Controls -Sc $sc -Stroke $famTxtBrush
-            $pillStack.Children.Add($ctrlIcon) | Out-Null
+            [void]$pillStack.Children.Add($ctrlIcon)
         }
 
         if ($hasInfo -and $hasDot) {
             # Thin separator between dot and "i"
-            $sep = New-Object System.Windows.Controls.Border
+            $sep = [System.Windows.Controls.Border]::new()
             $sep.Width = 1
             $sep.Height = [int](11*$sc)
             $sep.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a3a4a")
             $sep.Margin = [System.Windows.Thickness]::new([int](7*$sc), 0, [int](7*$sc), 0)
             $sep.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-            $pillStack.Children.Add($sep) | Out-Null
+            [void]$pillStack.Children.Add($sep)
         }
 
         if ($hasInfo) {
-            $infoText = New-Object System.Windows.Controls.TextBlock
+            $infoText = [System.Windows.Controls.TextBlock]::new()
             $infoText.Text = "i"
             $infoText.FontSize = [int](12*$sc)
             $infoText.FontStyle = [System.Windows.FontStyles]::Italic
@@ -1542,8 +1550,12 @@ function global:New-GameCardFrosted {
             $infoText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $infoText.VerticalAlignment   = [System.Windows.VerticalAlignment]::Center
             $infoText.Margin = [System.Windows.Thickness]::new(0, [int](-1*$sc), 0, 0)
-            $pillStack.Children.Add($infoText) | Out-Null
-            $pill.ToolTip = "Open mod page"
+            [void]$pillStack.Children.Add($infoText)
+            $card.Resources['favoriteGlyph'] = $infoText
+            $card.Resources['favoriteRestBrush'] = $famTxtBrush
+            $card.Resources['favoritePillEdge'] = $pillEdge
+            $card.Resources['favoriteRestBorder'] = $pillEdge.BorderBrush
+            $pill.ToolTip = if ($game.InfoUrl) { "Open mod page" } else { "Open game details" }
 
             # Hover: the pill lights up. The glyph + "i" brighten to a more
             # luminous accent (via their shared brush) and the text-free
@@ -1553,7 +1565,7 @@ function global:New-GameCardFrosted {
                 [byte]([Math]::Round($famTxtColor.R*0.55 + 255*0.45)),
                 [byte]([Math]::Round($famTxtColor.G*0.55 + 255*0.45)),
                 [byte]([Math]::Round($famTxtColor.B*0.55 + 255*0.45)))
-            $pillGlow = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $pillGlow = [System.Windows.Media.Effects.DropShadowEffect]::new()
             $pillGlow.Color = $famAcc
             $pillGlow.BlurRadius = [int](10*$sc)
             $pillGlow.ShadowDepth = 0
@@ -1569,25 +1581,28 @@ function global:New-GameCardFrosted {
                 $famTxtBrush.Color = $famTxtColor
                 $pillEdge.BorderBrush = $pillRestBorder
                 $pillEdge.Effect = $null
+                Update-FavoriteCardVisual -Card $card
             }.GetNewClosure())
 
             $infoUrlCapture = $game.InfoUrl
+            $infoGameCapture = $game
             $pill.Add_PreviewMouseLeftButtonDown({
                 param($s,$e)
                 $e.Handled = $true
-                Start-Process $infoUrlCapture
+                if ($infoUrlCapture) { Start-Process $infoUrlCapture }
+                elseif (Get-Command Open-DiscoverDetailFromList -ErrorAction SilentlyContinue) { Open-DiscoverDetailFromList -Game $infoGameCapture }
             }.GetNewClosure())
         }
 
-        $overlay = New-Object System.Windows.Controls.Grid
-        $overlay.Children.Add($grid) | Out-Null
-        $overlay.Children.Add($pill) | Out-Null
+        $overlay = [System.Windows.Controls.Grid]::new()
+        [void]$overlay.Children.Add($grid)
+        [void]$overlay.Children.Add($pill)
         $card.Child = $overlay
         # Stash info pill so steam-preview can hide it during big image
         $card.Resources.Add("infoPill", $pill)
     } else {
-        $overlay = New-Object System.Windows.Controls.Grid
-        $overlay.Children.Add($grid) | Out-Null
+        $overlay = [System.Windows.Controls.Grid]::new()
+        [void]$overlay.Children.Add($grid)
         $card.Child = $overlay
     }
 
@@ -1601,7 +1616,7 @@ function global:New-GameCardFrosted {
         $previewGem.VerticalAlignment = [System.Windows.VerticalAlignment]::Top
         $previewGem.Margin = [System.Windows.Thickness]::new(0,[int](83*$sc),[int](8*$sc),0)
         [System.Windows.Controls.Panel]::SetZIndex($previewGem, 16)
-        $overlay.Children.Add($previewGem) | Out-Null
+        [void]$overlay.Children.Add($previewGem)
         $card.Resources.Add("previewGem", $previewGem)
     }
 
@@ -1650,7 +1665,7 @@ function global:New-GameCardFrosted {
     # "pill protection" zone below sits above this in the visual
     # tree to prevent the hover-preview from arming when the user
     # is heading toward the info pill.
-    $hotZone = New-Object System.Windows.Controls.Border
+    $hotZone = [System.Windows.Controls.Border]::new()
     $hotZone.Background = [System.Windows.Media.Brushes]::Transparent
     $hotZone.IsHitTestVisible = $true
     $hotZone.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
@@ -1674,7 +1689,7 @@ function global:New-GameCardFrosted {
             if (-not $info) { return }
             $global:HoverPendingCard = $info.Card
             if ($global:HoverTimer) { try { $global:HoverTimer.Stop() } catch { } }
-            $global:HoverTimer = New-Object System.Windows.Threading.DispatcherTimer
+            $global:HoverTimer = [System.Windows.Threading.DispatcherTimer]::new()
             $global:HoverTimer.Interval = [TimeSpan]::FromMilliseconds($global:HoverDelayMs)
             $global:HoverTimer.Add_Tick({
                 $global:HoverTimer.Stop()
@@ -1723,7 +1738,7 @@ function global:New-GameCardFrosted {
         Start-CardClickGlowThenOpen -Card $info.Card -Game $info.Game
     })
 
-    $overlay.Children.Add($hotZone) | Out-Null
+    [void]$overlay.Children.Add($hotZone)
     [System.Windows.Controls.Panel]::SetZIndex($hotZone, 5)
     $card.Resources.Add("hotZone", $hotZone)
 
@@ -1734,7 +1749,7 @@ function global:New-GameCardFrosted {
     # ZIndex order is: hotZone(5) < pillGuard(10) < pill(20).
     # That way pill clicks pass through pillGuard, but pillGuard
     # blocks hotZone from arming the hover timer in this corner.
-    $pillGuard = New-Object System.Windows.Controls.Border
+    $pillGuard = [System.Windows.Controls.Border]::new()
     $pillGuard.Background = [System.Windows.Media.Brushes]::Transparent
     $pillGuard.IsHitTestVisible = $true
     $pillGuard.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
@@ -1756,7 +1771,7 @@ function global:New-GameCardFrosted {
         $e.Handled = $true
         Start-CardClickGlowThenOpen -Card $info.Card -Game $info.Game
     })
-    $overlay.Children.Add($pillGuard) | Out-Null
+    [void]$overlay.Children.Add($pillGuard)
     [System.Windows.Controls.Panel]::SetZIndex($pillGuard, 10)
     # If the info pill exists, lift it above the guard so clicks reach it.
     if ($card.Resources.Contains("infoPill")) {
@@ -1772,7 +1787,7 @@ function global:New-GameCardFrosted {
     # 20) stays above this shield so its own click still works, and
     # there is deliberately no MouseEnter here so the hover preview
     # is never armed from this strip.
-    $topShield = New-Object System.Windows.Controls.Border
+    $topShield = [System.Windows.Controls.Border]::new()
     $topShield.Background = [System.Windows.Media.Brushes]::Transparent
     $topShield.IsHitTestVisible = $true
     $topShield.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
@@ -1787,7 +1802,7 @@ function global:New-GameCardFrosted {
         $e.Handled = $true
         Start-CardClickGlowThenOpen -Card $info.Card -Game $info.Game
     })
-    $overlay.Children.Add($topShield) | Out-Null
+    [void]$overlay.Children.Add($topShield)
     [System.Windows.Controls.Panel]::SetZIndex($topShield, 11)
     # Keep the info pill above the new shield so its own click still fires.
     if ($card.Resources.Contains("infoPill")) {
@@ -1819,13 +1834,13 @@ function global:New-GameCardFrosted {
             if (-not $s.Resources.Contains("sparkCanvas")) {
                 $cw = [double]$s.ActualWidth; $ch = [double]$s.ActualHeight
                 if ($cw -gt 10 -and $ch -gt 10) {
-                    $sCanvas = New-Object System.Windows.Controls.Canvas
+                    $sCanvas = [System.Windows.Controls.Canvas]::new()
                     $sCanvas.ClipToBounds = $true
                     $sCanvas.IsHitTestVisible = $false
                     [System.Windows.Controls.Grid]::SetRow($sCanvas, 0)
                     [System.Windows.Controls.Grid]::SetRowSpan($sCanvas, 3)
                     [System.Windows.Controls.Panel]::SetZIndex($sCanvas, -1)
-                    $grid.Children.Add($sCanvas) | Out-Null
+                    [void]$grid.Children.Add($sCanvas)
                     $s.Resources.Add("sparkCanvas", $sCanvas)
                     $rise = [Math]::Min(72.0, $ch - 18.0)
                     for ($si = 0; $si -lt 6; $si++) {
@@ -1833,30 +1848,30 @@ function global:New-GameCardFrosted {
                         $dur = (Get-Random -Minimum 2800 -Maximum 4300) / 1000.0
                         $beg = (Get-Random -Minimum 0 -Maximum 2600) / 1000.0
                         $sz  = Get-Random -Minimum 3 -Maximum 5
-                        $el = New-Object System.Windows.Shapes.Ellipse
+                        $el = [System.Windows.Shapes.Ellipse]::new()
                         $el.Width = $sz; $el.Height = $sz; $el.Opacity = 0.0
-                        $rg = New-Object System.Windows.Media.RadialGradientBrush
-                        $rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(255,255,190,120), 0.0))) | Out-Null
-                        $rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(180,255,140,46), 0.55))) | Out-Null
-                        $rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(0,255,120,30), 1.0))) | Out-Null
+                        $rg = [System.Windows.Media.RadialGradientBrush]::new()
+                        [void]$rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(255,255,190,120), 0.0)))
+                        [void]$rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(180,255,140,46), 0.55)))
+                        [void]$rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(0,255,120,30), 1.0)))
                         $el.Fill = $rg
                         $tt = New-Object System.Windows.Media.TranslateTransform 0, 0
                         $el.RenderTransform = $tt
                         [System.Windows.Controls.Canvas]::SetLeft($el, [double]$sx)
                         [System.Windows.Controls.Canvas]::SetTop($el, $ch - 14.0)
-                        $sCanvas.Children.Add($el) | Out-Null
-                        $yAnim = New-Object System.Windows.Media.Animation.DoubleAnimation
+                        [void]$sCanvas.Children.Add($el)
+                        $yAnim = [System.Windows.Media.Animation.DoubleAnimation]::new()
                         $yAnim.From = 0.0; $yAnim.To = -$rise
                         $yAnim.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds($dur))
                         $yAnim.BeginTime = [TimeSpan]::FromSeconds($beg)
                         $yAnim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-                        $oAnim = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+                        $oAnim = [System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames]::new()
                         $oAnim.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds($dur))
                         $oAnim.BeginTime = [TimeSpan]::FromSeconds($beg)
                         $oAnim.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
-                        $oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.0, [System.Windows.Media.Animation.KeyTime]::FromPercent(0.0)))) | Out-Null
-                        $oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.85, [System.Windows.Media.Animation.KeyTime]::FromPercent(0.18)))) | Out-Null
-                        $oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.0, [System.Windows.Media.Animation.KeyTime]::FromPercent(1.0)))) | Out-Null
+                        [void]$oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.0, [System.Windows.Media.Animation.KeyTime]::FromPercent(0.0))))
+                        [void]$oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.85, [System.Windows.Media.Animation.KeyTime]::FromPercent(0.18))))
+                        [void]$oAnim.KeyFrames.Add((New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame (0.0, [System.Windows.Media.Animation.KeyTime]::FromPercent(1.0))))
                         $el.BeginAnimation([System.Windows.UIElement]::OpacityProperty, $oAnim)
                         $tt.BeginAnimation([System.Windows.Media.TranslateTransform]::YProperty, $yAnim)
                     }
@@ -2152,7 +2167,7 @@ function global:New-GameCardFrosted {
                 if ($launchedProc) {
                     $global:PendingInstallTitle = $titleCapture
                     try {
-                        $timer = New-Object System.Windows.Threading.DispatcherTimer
+                        $timer = [System.Windows.Threading.DispatcherTimer]::new()
                         $timer.Interval = [TimeSpan]::FromMilliseconds(750)
                         $timer.Tag = $launchedProc
                         $timer.Add_Tick({
@@ -2209,7 +2224,7 @@ function global:New-GameCardFrosted {
                 if ($plProc) {
                     $global:PendingInstallTitle = $titleCapture
                     try {
-                        $plTimer = New-Object System.Windows.Threading.DispatcherTimer
+                        $plTimer = [System.Windows.Threading.DispatcherTimer]::new()
                         $plTimer.Interval = [TimeSpan]::FromMilliseconds(750)
                         $plTimer.Tag = $plProc
                         $plTimer.Add_Tick({
@@ -2258,7 +2273,7 @@ function global:New-GameCardFrosted {
                     $rp = $owner.Resources.Item("reloadPill")
                     if ($rp) { $rp.Visibility = [System.Windows.Visibility]::Visible }
                 }
-            }.GetNewClosure())
+            })
             $btnBorder.Add_MouseLeave({
                 $owner = $this.Resources.Item("ownerCard")
                 if ($owner -and $owner.Tag -eq "vrinstalled") {
@@ -2292,9 +2307,10 @@ function global:New-GameCardFrosted {
                         if ($rp) { $rp.Visibility = [System.Windows.Visibility]::Collapsed }
                     }
                 }
-            }.GetNewClosure())
+            })
         }
     }
 
+    Register-FavoriteCard -Card $card -Game $game
     return $card
 }

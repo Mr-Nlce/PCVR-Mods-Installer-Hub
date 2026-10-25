@@ -226,9 +226,6 @@ try {
  -SkipMessage "Skipped - game files are still in the temp folder; you must move them before launching." `
  -DestFolder "$targetPath" `
  -AllowSkip $true
- -Instructions "Read the messages above for what failed. Try to address it manually then choose Retry, or Skip to continue without it." `
- -SkipMessage "Skipped - some functionality may not work." `
- -AllowSkip $true
  if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
  if ([string]$__fb -eq "retry") {
  # Re-check is not possible here without knowing local state.
@@ -261,9 +258,14 @@ Write-Host " Downloading BepInEx 5.4.23.2 ... " -NoNewline -ForegroundColor Whit
 $bepZip = Join-Path $tempDir "BepInEx.zip"
 $bepExtract = Join-Path $tempDir "BepInEx"
 try {
- Invoke-WebRequest -Uri $BEPINEX_URL -OutFile $bepZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $BEPINEX_URL -OutFile $bepZip -UseBasicParsing -ErrorAction Stop
  Expand-Archive -Path $bepZip -DestinationPath $bepExtract -Force
  Write-Host "OK" -ForegroundColor Green
+
+ if (-not (Test-Path -LiteralPath (Join-Path $bepExtract 'winhttp.dll') -PathType Leaf) -or
+     -not (Test-Path -LiteralPath (Join-Path $bepExtract 'BepInEx\core\BepInEx.dll') -PathType Leaf)) {
+  throw 'The selected BepInEx archive does not contain its required loader files.'
+ }
 
  $null = Merge-DirectoryTreeVerified -Source $bepExtract -Destination $gamePath -Label "BepInEx files" `
     -KeepExistingRelativePaths @("BepInEx\config")
@@ -303,7 +305,7 @@ Write-Host " Downloading $MOD_NAME ... " -NoNewline -ForegroundColor White
 $modZip = Join-Path $tempDir "VRTRAKILL.zip"
 $modExtract = Join-Path $tempDir "VRTRAKILL"
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Expand-Archive -Path $modZip -DestinationPath $modExtract -Force
  Write-Host "OK" -ForegroundColor Green
 
@@ -314,6 +316,11 @@ try {
  Write-Info "ZIP root folder detected: '$($modChildren[0].Name)' - unwrapping."
  } else {
  $modPayload = $modExtract
+ }
+
+ $requiredMod = Join-Path $modPayload 'BepInEx\plugins\VRTRAKILL\VRTRAKILL.dll'
+ if (-not (Test-Path -LiteralPath $requiredMod -PathType Leaf)) {
+  throw 'The VRTRAKILL publisher archive does not contain BepInEx\plugins\VRTRAKILL\VRTRAKILL.dll.'
  }
 
  $null = Merge-DirectoryTreeVerified -Source $modPayload -Destination $gamePath -Label "VRTRAKILL mod files" `
@@ -357,9 +364,26 @@ try {
 }
 
 # Record install path for Hub detection
+$requiredInstalled = @(
+ $gameExePath,
+ (Join-Path $gamePath 'winhttp.dll'),
+ (Join-Path $gamePath 'BepInEx\core\BepInEx.dll'),
+ (Join-Path $gamePath 'BepInEx\plugins\VRTRAKILL\VRTRAKILL.dll'),
+ (Join-Path $gamePath 'steam_appid.txt')
+)
+$missingInstalled = @($requiredInstalled | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+if ($missingInstalled.Count -gt 0) {
+ Write-Fail "ULTRAKILL VR setup is incomplete; required files are missing: $($missingInstalled -join ', ')."
+ Pause-User 'Press Enter for installer recovery...'
+ exit 1
+}
 try {
- Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
-} catch {}
+ Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force -ErrorAction Stop
+} catch {
+ Write-Fail "Could not record the completed ULTRAKILL VR setup: $_"
+ Pause-User 'Press Enter for installer recovery...'
+ exit 1
+}
 
 try { Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 

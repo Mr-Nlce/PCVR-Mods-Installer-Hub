@@ -182,7 +182,7 @@ try {
     foreach ($dlUrl in $dlUrls) {
         $downloadStage = Join-Path $tempDir ('.pcvr-drg-' + [Guid]::NewGuid().ToString('N') + '.zip')
         try {
-            Invoke-WebRequest -Uri $dlUrl -OutFile $downloadStage -WebSession $session -UseBasicParsing -ErrorAction Stop
+            Invoke-PCVRWebRequest -Uri $dlUrl -OutFile $downloadStage -WebSession $session -UseBasicParsing -ErrorAction Stop
             if ((Get-Item -LiteralPath $downloadStage).Length -gt 1000 -and (Test-DownloadedPayload -Path $downloadStage -IntendedPath $configZip)) {
                 Move-Item -LiteralPath $downloadStage -Destination $configZip -Force
                 Write-Host "OK" -ForegroundColor Green

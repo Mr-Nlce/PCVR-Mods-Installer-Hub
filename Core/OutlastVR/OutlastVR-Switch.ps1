@@ -1,10 +1,11 @@
-param([ValidateSet('Halcyon','Hammerthis','Insanity')][string]$Mod, [switch]$Launch)
+param([ValidateSet('Halcyon','Hammerthis','Insanity','StrikeZone')][string]$Mod, [switch]$Launch)
 
 # Installed beside the launchers; remains usable after replacing the Hub.
 function Get-OutlastModFiles {
-    param([ValidateSet('Halcyon','Hammerthis','Insanity')][string]$Name)
+    param([ValidateSet('Halcyon','Hammerthis','Insanity','StrikeZone')][string]$Name)
     if ($Name -eq 'Halcyon') { return @('d3d9.dll','openxr_loader.dll','outlastvr.ini','Outlast-VR.bat') }
     if ($Name -eq 'Hammerthis') { return @('d3d9.dll','openxr_loader.dll','openxr_loader_real.dll','outlastvr.ini','assets\miles\body_albedo.tga') }
+    if ($Name -eq 'StrikeZone') { return @('d3d9.dll','openxr_loader.dll','outlastvr.ini','Outlast1VR.exe','strikezone_logo.jpg') }
     return @('d3d9.dll','openxr_loader.dll','dxvk_d3d9.dll','outlastvr.ini','OutlastVR_DoorHandles.ini','Outlast-VR.bat')
 }
 
@@ -12,7 +13,7 @@ function Get-OutlastLayout {
     param([string]$GameRoot)
     $root = [IO.Path]::GetFullPath($GameRoot).TrimEnd([IO.Path]::DirectorySeparatorChar)
     if (-not (Test-Path -LiteralPath "$root\Binaries\Win64\OLGame.exe" -PathType Leaf)) { throw 'Select the Outlast folder containing Binaries\Win64\OLGame.exe.' }
-    foreach ($relative in @('','Binaries','Binaries\Win64','_vrmods','_vrmods\halcyon','_vrmods\hammerthis','_vrmods\insanity','_vrmods\VRLaunch')) {
+    foreach ($relative in @('','Binaries','Binaries\Win64','_vrmods','_vrmods\halcyon','_vrmods\hammerthis','_vrmods\insanity','_vrmods\strikezone','_vrmods\VRLaunch')) {
         $path = if ($relative) { Join-Path $root $relative } else { $root }
         $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
         if ($item -and ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Linked mod/game directories are not supported: $path" }
@@ -37,7 +38,7 @@ function Get-OutlastGameConfigFiles { return @('OLGame.ini','OLSystemSettings.in
 
 function Save-OutlastGameConfig {
     param([string]$GameRoot, [string]$Name)
-    if ($Name -notin @('Halcyon','Hammerthis','Insanity')) { return }
+    if ($Name -notin @('Halcyon','Hammerthis','Insanity','StrikeZone')) { return }
     $config = Get-OutlastGameConfigRoot
     if (-not $config -or -not (Test-Path -LiteralPath (Join-Path $config 'OLGame.ini') -PathType Leaf)) { return }
     $layout = Get-OutlastLayout $GameRoot
@@ -108,10 +109,10 @@ function Get-OutlastActiveMod {
     if (Test-Path -LiteralPath $layout.State) {
         try {
             $state = Get-Content -LiteralPath $layout.State -Raw | ConvertFrom-Json
-            if ($state.Name -in @('Halcyon','Hammerthis','Insanity') -and $state.Hash -eq $hash) { return $state.Name }
+            if ($state.Name -in @('Halcyon','Hammerthis','Insanity','StrikeZone') -and $state.Hash -eq $hash) { return $state.Name }
         } catch {}
     }
-    $matching = @(foreach ($name in @('Halcyon','Hammerthis','Insanity')) {
+    $matching = @(foreach ($name in @('Halcyon','Hammerthis','Insanity','StrikeZone')) {
         $stored = "$($layout.Stores)\$name\d3d9.dll"
         if ((Test-Path -LiteralPath $stored -PathType Leaf) -and (Get-FileHash -LiteralPath $stored).Hash -eq $hash) { $name }
     })
@@ -142,7 +143,7 @@ function Save-OutlastActiveConfig {
 function Initialize-OutlastStores {
     param([string]$GameRoot)
     $layout = Get-OutlastLayout $GameRoot
-    if (Get-Process -Name OLGame -ErrorAction SilentlyContinue) { throw 'Close Outlast before installing or switching mods.' }
+    if (Get-Process -Name OLGame,Outlast1VR -ErrorAction SilentlyContinue) { throw 'Close Outlast and its VR launcher before installing or switching mods.' }
     $active = Get-OutlastActiveMod $GameRoot
     if ($active -eq 'Halcyon' -and -not (Test-OutlastStore $GameRoot 'Halcyon')) {
         foreach ($file in Get-OutlastModFiles 'Halcyon') {
@@ -228,9 +229,9 @@ function Retire-OutlastHammerthisStore {
 }
 
 function Switch-OutlastMod {
-    param([string]$GameRoot, [ValidateSet('Halcyon','Hammerthis','Insanity')][string]$Name)
+    param([string]$GameRoot, [ValidateSet('Halcyon','Hammerthis','Insanity','StrikeZone')][string]$Name)
     $layout = Get-OutlastLayout $GameRoot
-    if (Get-Process -Name OLGame -ErrorAction SilentlyContinue) { throw 'Close Outlast before switching mods.' }
+    if (Get-Process -Name OLGame,Outlast1VR -ErrorAction SilentlyContinue) { throw 'Close Outlast and its VR launcher before switching mods.' }
     if (-not (Test-OutlastStore $GameRoot $Name)) { throw "$Name is incomplete. Run the installer again; no files were switched." }
     [void][IO.Directory]::CreateDirectory($layout.Stores)
     $lock = [IO.File]::Open((Join-Path $layout.Stores '.switch.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
@@ -239,7 +240,7 @@ function Switch-OutlastMod {
         if ($outgoing) { Save-OutlastGameConfig -GameRoot $GameRoot -Name $outgoing }
         Save-OutlastActiveConfig $GameRoot
         $files = @(Get-OutlastModFiles $Name)
-        $all = @((Get-OutlastModFiles 'Halcyon') + (Get-OutlastModFiles 'Hammerthis') + (Get-OutlastModFiles 'Insanity') | Sort-Object -Unique)
+        $all = @((Get-OutlastModFiles 'Halcyon') + (Get-OutlastModFiles 'Hammerthis') + (Get-OutlastModFiles 'Insanity') + (Get-OutlastModFiles 'StrikeZone') | Sort-Object -Unique)
         $targets = @($all | ForEach-Object { Join-Path $layout.Bin $_ }) + @($layout.State, "$($layout.Bin)\d3d9.dll.off")
         Invoke-OutlastFileTransaction -GameRoot $GameRoot -Targets $targets -Action {
             foreach ($file in $files) { Copy-OutlastFile (Join-Path "$($layout.Stores)\$Name" $file) (Join-Path $layout.Bin $file) }
@@ -261,7 +262,7 @@ function Write-OutlastLaunchers {
     $launchDir = Join-Path $layout.Stores 'VRLaunch'
     [void][IO.Directory]::CreateDirectory($launchDir)
     Copy-OutlastFile $RuntimePath (Join-Path $launchDir 'OutlastVR-Switch.ps1')
-    $names = @('Halcyon','Insanity')
+    $names = @('Halcyon','Insanity','StrikeZone')
     if (-not (Test-OutlastStore $GameRoot 'Insanity') -and (Test-OutlastStore $GameRoot 'Hammerthis')) { $names += 'Hammerthis' }
     $oldLauncher = Join-Path $launchDir 'Outlast VR (Hammerthis).bat'
     if ('Hammerthis' -notin $names -and (Test-Path -LiteralPath $oldLauncher -PathType Leaf)) { Remove-Item -LiteralPath $oldLauncher -Force -ErrorAction Stop }
@@ -279,6 +280,12 @@ if ($Mod) {
         $gameRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
         Switch-OutlastMod -GameRoot $gameRoot -Name $Mod
         if ($Launch) {
+            if ($Mod -eq 'StrikeZone') {
+                $bin = Join-Path $gameRoot 'Binaries\Win64'
+                # The publisher launcher applies VR settings and then offers PLAY IN VR.
+                Start-Process -FilePath (Join-Path $bin 'Outlast1VR.exe') -WorkingDirectory $bin -ErrorAction Stop
+                return
+            }
             $steamApps = Split-Path (Split-Path $gameRoot -Parent) -Parent
             if (Test-Path -LiteralPath (Join-Path $steamApps 'appmanifest_238320.acf')) {
                 Start-Process -FilePath 'steam://rungameid/238320' -ErrorAction Stop

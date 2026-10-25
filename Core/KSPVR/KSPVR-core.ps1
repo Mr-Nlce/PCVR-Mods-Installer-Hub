@@ -271,7 +271,7 @@ if ($updateOnly) {
 
  Write-Host " Downloading KerbalVR ... " -NoNewline -ForegroundColor White
  try {
- Invoke-WebRequest -Uri $kvrUrl -OutFile $kvrZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $kvrUrl -OutFile $kvrZip -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
  Write-Host " Extracting ... " -NoNewline -ForegroundColor White
  Expand-Archive -Path $kvrZip -DestinationPath $kvrExtract -Force
@@ -503,7 +503,7 @@ $kvrExtract = Join-Path $tempDir "KerbalVR"
 
 Write-Host " Downloading KerbalVR ... " -NoNewline -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $kvrUrl -OutFile $kvrZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $kvrUrl -OutFile $kvrZip -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
  Write-Host " Extracting ... " -NoNewline -ForegroundColor White
  Expand-Archive -Path $kvrZip -DestinationPath $kvrExtract -Force
@@ -684,7 +684,7 @@ if (Test-Path $ckanExe) {
  }
  Write-Host " Downloading ckan.exe ... " -NoNewline -ForegroundColor White
  try {
- Invoke-WebRequest -Uri $ckanUrl -OutFile $ckanExe -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $ckanUrl -OutFile $ckanExe -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
  } catch {
  Write-Host "FAILED" -ForegroundColor Red

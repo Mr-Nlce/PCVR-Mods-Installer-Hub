@@ -1,4 +1,4 @@
-# X4: Foundations VR
+﻿# X4: Foundations VR
 
 ## About the Game
 
@@ -31,6 +31,8 @@ Use the mod's recenter shortcut instead of X4's own Reset Head Tracking action, 
 
 ## Runtime, performance and limitations
 
+After updating to v0.6.0, the launcher rebuilds its HUD extension on the next X4 start. The corrected Windows scaling makes HUD elements larger, so adjust HUD distance again if needed. Cockpit HUD fixed to the ship is optional, off by default and available on X4 9.00. Side-panel placement and virtual-screen distance/width have separate controls. Existing settings and profiles stay. Close Overwolf before playing.
+
 The launcher offers OpenVR (SteamVR) as the default and OpenXR as an experimental alternative. A native OpenXR runtime can skip SteamVR; SteamVR overlays then are unavailable. If the OpenXR picture misbehaves, switch back to OpenVR. Keep X4 focused on the desktop, since background throttling can cause stutter.
 
 The normal stereo mode alternates eyes: at a 90 Hz headset each eye receives 45 rendered frames, with reprojection smoothing head rotation. Fast nearby head movement can show judder. Experimental Pair 90 Hz requires roughly 180 game frames per second and can flash dark frames if that target is missed. The cockpit HUD can be moved farther away with the launcher's HUD distance factor (1–6); small interaction popups may remain close. A narrow black band can appear at the bottom on wide-FOV headsets. For an unsupported camera or difficult menu, use [[Ctrl]] + [[F11]] temporarily.
@@ -40,7 +42,7 @@ If performance is poor, lower DSR resolution or X4 graphics settings first. The 
 ## Troubleshooting and support
 
 - No head tracking or no picture: confirm OpenTrack Support, start via the launcher, check its DLL-path status and use Fix head-tracking path if needed. The log should contain `X4VR freetrack: first headset pose delivered`.
-- A flat screen with black space above and below during a tutorial: while flying or walking, press [[Ctrl]] + [[F11]] once to test whether the mod switches to stereo, then [[Ctrl]] + [[F12]] to recenter. Fullscreen menus and cutscenes intentionally use a virtual screen. If walking stays flat, use the launcher's Report a bug and check `debug-events.log` for `signature mismatch`; a newer X4 build may need a mod update. Another head tracker such as TrackIR, Tobii or vorpX's TrackIR emulation can also interfere with the theater switch. The Hub selects the latest compatible publisher ZIP, currently v0.5.2; check the launcher status and its report rather than assuming the updated mod fixed every headset case. A small black band only at the bottom on wide-FOV headsets is a separate documented limitation.
+- A flat screen with black space above and below during a tutorial: while flying or walking, press [[Ctrl]] + [[F11]] once to test whether the mod switches to stereo, then [[Ctrl]] + [[F12]] to recenter. Fullscreen menus and cutscenes intentionally use a virtual screen. If walking stays flat, use the launcher's Report a bug and check `debug-events.log` for `signature mismatch`; a newer X4 build may need a mod update. Another head tracker such as TrackIR, Tobii or vorpX's TrackIR emulation can also interfere with the theater switch. The Hub selects the latest compatible publisher ZIP, currently v0.6.0; check the launcher status and its report rather than assuming the updated mod fixed every headset case. A small black band only at the bottom on wide-FOV headsets is a separate documented limitation.
 - Rotation or position factor options are missing after enabling OpenTrack Support: confirm the launcher's head-tracking DLL status, close and restart X4 through Play X4 in VR, and check the exact X4 version. The factors must be set in X4's Controls menu, not in the launcher's graphics-settings fix. If they remain absent, include a screenshot of that menu and the publisher report when asking for support; their absence alone does not identify the cause.
 - SteamVR grey room: SteamVR must run first; the log should show `X4VR presenter: first stereo pair submitted`.
 - Blurry picture: check fullscreen and your DSR resolution. Quest right-eye jitter over Steam Link is a known publisher limitation; use Virtual Desktop.

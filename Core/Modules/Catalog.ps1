@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Own installers - alphabetical
 # -------------------------------------------------------
 $ownGames = @(
@@ -159,8 +159,7 @@ $ownGames = @(
         Title       = "Amnesia VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=bhpnBbaMDmo"
         SteamId     = "57300"
-        Mod         = "Sclerosis v1.8.16"
-        ImprovementTag = "+ HD textures mod"
+        Mod         = "Sclerosis v1.10.7"
         Description = "itch.io download required"
         Author      = "CreaTeam"
         Bat         = "AmnesiaVR\START_INSTALLER.bat"
@@ -388,7 +387,7 @@ $ownGames = @(
         GithubRepo="adore11s/Beyond-Two-Souls-VR-Mod"; GithubReleaseAssetPatterns=@('(?i)^B2S_VR_MOD_v\d+(?:\.\d+)+\.zip$')
         Bat="BeyondTwoSoulsVR\START_INSTALLER.bat"; ReadmeDir="BeyondTwoSoulsVR"; Color="#17111e"; Accent="#856ed4"
         InfoUrl="https://github.com/adore11s/Beyond-Two-Souls-VR-Mod"; ModPageUrl="https://github.com/adore11s/Beyond-Two-Souls-VR-Mod"; DownloadUrl="https://github.com/adore11s/Beyond-Two-Souls-VR-Mod/releases"
-        ModFile="dinput8.dll"; LaunchExe="B2S_VR_MOD\Play Beyond Two Souls in VR.cmd"; HubLaunchScript="BeyondTwoSoulsVR\Start-BeyondTwoSoulsVR.ps1"; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        ModFile="dinput8.dll"; LaunchExe="B2S_VR_MOD\Play Beyond Two Souls in VR.cmd"; HubLaunchScript="BeyondTwoSoulsVR\Start-BeyondTwoSoulsVR.ps1"; HubStartFile='B2S_VR_MOD\tools\b2svr_setup.ps1'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
         NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true; NoVersionSeed=$true; InstallerMustWriteVersion=$true
         VrInstallEvidence=@('dinput8.dll','b2svr.ini','B2S_VR_MOD\files\dinput8.dll','B2S_VR_MOD\files\BUILD.txt','B2S_VR_MOD\tools\b2svr_setup.ps1','B2S_VR_MOD\Play Beyond Two Souls in VR.cmd','.pcvrhub_b2svr_ownership.csv','.pcvrhub_version')
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Beyond VR"; UninstallProbeFile='.pcvrhub_b2svr_ownership.csv'; UninstallRequireProbe=$true; UninstallArguments='-HubConfirmed'
@@ -1245,6 +1244,25 @@ $ownGames = @(
         Tags=@("stealth", "adventure", "exploration", "immersive", "action", "arkane", "dishonored", "bethesda", "steampunk", "dunwall", "assassin", "supernatural", "blink", "roomscale", "motion controls", "6dof", "biovrdev", "void", "steam", "gog", "singleplayer", "first person")
     },
     @{
+        Id="dishonored-2-vr"; Controls="MC"; Title="Dishonored 2 VR"; SteamId="403640"; SteamFolder="Dishonored2"; HubAddedAt="2026-10-23"; Roomscale=$true; Wip=$true
+        VideoUrl="https://youtu.be/29cmGRrJEmU?t=29"; VideoLabel="Watch VR gameplay"
+        Quip="The Outsider did not mention the motion controllers."; QuipLast=$true
+        Mod="Dishonored 2 VR (auto-update)"; Author="The Cosmic Tangerine"; Description="Steam 1.77.9.0; OpenXR"
+        GithubRepo="thecosmictangerine-cloud/dishonored-2-vr"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^DishonoredVR-[0-9]+\.[0-9]+\.[0-9]+\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        GithubSupersededVersions=@('1.0.0'); GithubResetMinimumVersion='0.5.0'
+        Bat="Dishonored2VR\START_INSTALLER.bat"; ReadmeDir="Dishonored2VR"; Color="#172b32"; Accent="#a8bdc7"
+        InfoUrl="https://github.com/thecosmictangerine-cloud/dishonored-2-vr"; ModPageUrl="https://github.com/thecosmictangerine-cloud/dishonored-2-vr"; DownloadUrl="https://github.com/thecosmictangerine-cloud/dishonored-2-vr/releases"
+        SupportUrl="https://www.patreon.com/CosmicTangerine"; SupportText="Support the Dishonored 2 VR author:"
+        GameExe="Dishonored2.exe"; BaseGameProofFiles=@('Dishonored2.exe'); FallbackPaths=@('STEAM:Dishonored2')
+        ModFile="DishonoredVR.dll"; LaunchExe="Dishonored2.exe"; SteamLaunchOnly=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('Dishonored2.exe','dinput8.dll','DishonoredVR.dll','DishonoredVR.ini','.pcvrhub_dishonored2vr_ownership.csv','.pcvrhub_version')
+        CurrentRequiredFile=@('dinput8.dll','DishonoredVR.dll','DishonoredVR.ini','.pcvrhub_dishonored2vr_ownership.csv','.pcvrhub_version')
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Dishonored 2 VR"; UninstallProbeFile=".pcvrhub_dishonored2vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Dishonored 2, then use Uninstall now. The Hub removes unchanged mod files and restores any files that previously occupied the same names.','Changed settings, saves, logs and unrelated files remain. The Hub leaves Steam and game settings alone.')
+        Notice="Only the current Steam build 1.77.9.0 is supported. Set Display mode to Windowed and use an active OpenXR runtime. The Hub disables the publisher default save-changing cheats on a fresh install; existing INI settings stay untouched."
+        Tags=@('dishonored 2','dishonored2','the cosmic tangerine','stealth','assassin','immersive sim','action','adventure','supernatural','openxr','motion controls','roomscale','steam','wip')
+    },
+    @{
         Controls    = "MC"; Roomscale=$true; Gem=$true
         Title       = "DOOM (2016) VR"
         HubAddedAt  = "2026-09-12"
@@ -1264,7 +1282,7 @@ $ownGames = @(
         GameExe     = "DOOMx64.exe"
         BaseGameProofFiles = @("DOOMx64.exe", "DOOMx64vk.exe")
         SteamFolder = "DOOM"
-        FallbackPaths = @()
+        FallbackPaths = @("GOG:DOOM")
         VrInstallRoot = "C:\Games\DOOM 2016 VR"
         DurableInstallRoots = @("C:\Games\DOOM 2016 VR", "D:\Games\DOOM 2016 VR", "E:\Games\DOOM 2016 VR")
         ModFile     = "KharvoxLauncher.exe"
@@ -2365,7 +2383,8 @@ $ownGames = @(
         Mod="SOMA VR (auto-update)"; Author="Bateau01"; Description="Start flat once; OpenXR"
         Bat="SomaVR\START_INSTALLER.bat"; ReadmeDir="SomaVR"; Color="#0b1b20"; Accent="#71b6b5"
         InfoUrl="https://github.com/Bateau01/SOMA-VR"; ModPageUrl="https://github.com/Bateau01/SOMA-VR"; DownloadUrl="https://github.com/Bateau01/SOMA-VR/releases"
-        GithubRepo="Bateau01/SOMA-VR"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^SOMA-VR-[0-9].*-Installer\.zip$'); NoVersionSeed=$true
+        GithubRepo="Bateau01/SOMA-VR"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^SOMA-VR-[0-9].*-(?:Installer\.zip|Setup\.exe)$'); NoVersionSeed=$true
+        GithubSupersededVersions=@('1.08.1','1.07.1','1.04.1'); GithubResetMinimumVersion='1.0.9'
         SteamFolder="SOMA"; FallbackPaths=@("STEAM:Soma","GOG:SOMA","C:\GOG Games\SOMA","C:\Program Files (x86)\GOG Galaxy\Games\SOMA","C:\Program Files\Epic Games\SOMA","C:\Program Files (x86)\Frictional Games\SOMA","C:\Program Files (x86)\Twitch\Games Library\4d4aa4d3-cc66-4067-b959-446e4d34512f")
         GameExe="Soma.exe"; BaseGameProofFiles=@("Soma.exe"); ModFile="hpl3vr.dll"; LaunchExe="LAUNCH-SOMA-VR.cmd"; NeverSteamLaunch=$true; LaunchAsAdmin=$true
         VrInstallEvidence=@("Soma.exe","LAUNCH-SOMA-VR.cmd","hpl3vr.dll","hpl3vr_inject.exe","openxr_loader.dll",".pcvrhub_version")
@@ -2376,8 +2395,8 @@ $ownGames = @(
         Id="spec-ops-the-line-vr"; Controls="MC"; Title="Spec Ops: The Line VR"; TileTitle="Spec Ops: The Line"; SteamId="50300"; SteamFolder="SpecOps_TheLine"; HubAddedAt="2026-10-17"; Wip=$true; Roomscale=$true
         VideoUrl="https://youtu.be/x62UNy3wMns?t=1519"; VideoLabel="Watch gameplay"
         Quip="The line is crossed one step at a time."; QuipLast=$true
-        Mod="SpecOpsVR (auto-update)"; Author="Mavic-Pro"; Description="Steam build only; SteamVR"
-        GithubRepo="Mavic-Pro/SpecOpsTheLineVR"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^SpecOpsTheLineVR\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        Mod="SpecOpsVR (auto-update)"; Author="Mavic-Pro"; Description="Steam only; OpenXR/SteamVR"
+        GithubRepo="Mavic-Pro/SpecOpsTheLineVR"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^(?:[0-9]+-)?SpecOpsTheLineVR(?:[-_]v?[0-9]+(?:\.[0-9]+)+(?:[-.][A-Za-z0-9.]+)?)?\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
         Bat="SpecOpsTheLineVR\START_INSTALLER.bat"; ReadmeDir="SpecOpsTheLineVR"; Color="#1a1715"; Accent="#d7aa70"
         InfoUrl="https://github.com/Mavic-Pro/SpecOpsTheLineVR"; ModPageUrl="https://github.com/Mavic-Pro/SpecOpsTheLineVR"; DownloadUrl="https://github.com/Mavic-Pro/SpecOpsTheLineVR/releases"
         GameExe="Binaries\Win32\SpecOpsTheLine.exe"; BaseGameProofFiles=@("Binaries\Win32\SpecOpsTheLine.exe")
@@ -2386,8 +2405,8 @@ $ownGames = @(
         CurrentRequiredFile=@("Binaries\Win32\d3d9.dll","Binaries\Win32\openvr_api.dll","Binaries\Win32\.pcvrhub_specopsvr_ownership.csv",".pcvrhub_version")
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Spec Ops VR"; UninstallProbeFile="Binaries\Win32\.pcvrhub_specopsvr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         UninstallSteps=@("Close Spec Ops, then choose Uninstall now. The Hub removes only unchanged owned VR files and restores any earlier files under those names.","Saves, logs, custom config and unrelated mods remain. Steam launch options are left for you to clear if wanted.")
-        Notice="Steam version only. This beta checks the supported 2012 EXE before installation. Set Steam launch options to -windowed ResX=2400 ResY=2500, start SteamVR, then use Start in VR in the Hub."
-        Tags=@("spec ops the line","specops","mavic-pro","steamvr","openvr","motion controls","military","shooter","first person","story","action","wip")
+        Notice="Steam version only. This beta checks the supported 2012 EXE before installation. Set Steam launch options to -windowed ResX=2400 ResY=2500, connect your headset through VDXR, OpenXR or SteamVR, then use Start in VR in the Hub."
+        Tags=@("spec ops the line","specops","mavic-pro","steamvr","openvr","openxr","vdxr","motion controls","military","shooter","first person","story","action","wip")
     },
     @{
         Id="mario-kart-wii-vr"; Controls="MC"; Title="Mario Kart Wii VR"; Wip=$true; HubAddedAt="2026-10-03"; VideoUrl="https://youtu.be/4YswH5dNtgo?t=297"; VideoLabel="Watch VR gameplay"; PortraitUrl="Assets/MarioKartWiiVR_portrait.jpg"; HeaderUrl="Assets/MarioKartWiiVR_header.jpg"; ScreenshotUrl="Assets/MarioKartWiiVR_screenshot.jpg"
@@ -2956,10 +2975,10 @@ $ownGames = @(
         SteamFolder="Mount & Blade II Bannerlord"; GameExe="bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.Launcher.exe"
         BaseGameProofFiles=@("bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.Launcher.exe","Modules\Native\SubModule.xml")
         ModFile="Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.dll"
-        VrInstallEvidence=@("Modules\BannerlordVR\SubModule.xml","Modules\BannerlordVR\BannerlordVR.default.cfg","Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.Native.dll",".pcvrhub_bannerlordvr_ownership.csv","Modules\Bannerlord.Harmony\SubModule.xml","Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll","Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll")
+        VrInstallEvidence=@("Modules\BannerlordVR\SubModule.xml","Modules\BannerlordVR\BannerlordVR.default.cfg","Modules\BannerlordVR\NVIDIA-DLSS-LICENSE.txt","Modules\BannerlordVR\bin\Win64_Shipping_Client\BannerlordVR.Native.dll","Modules\BannerlordVR\bin\Win64_Shipping_Client\nvngx_dlss.dll",".pcvrhub_bannerlordvr_ownership.csv","Modules\Bannerlord.Harmony\SubModule.xml","Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll","Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll")
         SteamLaunchOnly=$true; UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove BannerlordVR"; UninstallProbeFile=".pcvrhub_bannerlordvr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         UninstallSteps=@("Use Uninstall now to remove only unchanged Hub-owned BannerlordVR module files and restore any pre-existing collisions.","Harmony, the game, saves and unrelated modules remain installed.")
-        Notice="Physical-controls alpha v0.2.0. The publisher ZIP was built and tested for Bannerlord v1.5.5; other versions are unverified. Enable Harmony above Bannerlord VR. Use VDXR or SteamVR OpenXR; Meta/Oculus OpenXR is unsupported. Single-player only. Menus and interactions remain unfinished and crashes are possible."
+        Notice="Physical-controls alpha. The current publisher ZIP was built for Bannerlord v1.4.8 stable; v1.5.5 is also listed, but exact-package headset testing is pending. Enable Harmony above Bannerlord VR. The publisher lists VDXR, SteamVR and Meta/Oculus OpenXR. Single-player only. Menus and interactions remain unfinished and crashes are possible."
         Tags=@("bannerlord","mount and blade","mount & blade","notlooky","motion controls","physical combat","openxr","harmony","medieval","sandbox","rpg","strategy","wip")
     },
     @{
@@ -5440,6 +5459,52 @@ $ownGames = @(
         Tags=@("spider-man","spiderman","spidy","ilyamez","marvel","action","open world","adventure","swinging","motion controls","openxr","steam","wip")
     },
     @{
+        Id="brutal-legend-vr"; Controls="MC"; Title="Brütal Legend VR"; TileTitle="Brütal Legend VR"; Wip=$true; HubAddedAt="2026-10-20"
+        SteamId="225260"; SteamFolder="BrutalLegend"; GameExe="BrutalLegend.exe"; BaseGameProofFiles=@('BrutalLegend.exe')
+        FallbackPaths=@('STEAM:BrutalLegend','STEAM:Brutal Legend')
+        VideoUrl="https://youtu.be/gIHLtacF2LU?t=312"; VideoLabel="Watch VR gameplay"
+        Quip="Eddie Riggs called. The roadies are now an army."; QuipLast=$true
+        Mod="BrutalLegendVR"; Author="Nikami"; Description="Steam build only; OpenXR"
+        Bat="BrutalLegendVR\START_INSTALLER.bat"; ReadmeDir="BrutalLegendVR"; Color="#191113"; Accent="#ed7132"
+        InfoUrl="https://github.com/nikamigaming-create/BrutalLegendVR"; ModPageUrl="https://github.com/nikamigaming-create/BrutalLegendVR"
+        DownloadUrl="https://github.com/nikamigaming-create/BrutalLegendVR/releases"
+        GithubRepo="nikamigaming-create/BrutalLegendVR"; GithubPrerelease=$true
+        GithubReleaseAssetPatterns=@('(?i)^BrutalLegendVR-\d+\.\d+\.\d+-preview\.\d+-windows\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        ModFile="Play VR.cmd"; VrInstallRoot=(Join-Path $env:LOCALAPPDATA 'PCVR Mods Installer Hub\BrutalLegendVR')
+        DurableInstallRoots=@((Join-Path $env:LOCALAPPDATA 'PCVR Mods Installer Hub\BrutalLegendVR'))
+        VrInstallEvidenceRoutes=@(@{Files=@('Play VR.cmd','Setup VR.cmd','bin\d3d9.dll','tools\blvr_xr_host.exe',
+            'settings.json','artifacts\eddie-rig\eddie.rigcache','.pcvrhub_brutallegendvr_ownership.csv','.pcvrhub_version')})
+        HubLaunchScript="BrutalLegendVR\Start-BrutalLegendVR.ps1"; HubStartFile='Play VR.cmd'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Brutal Legend VR"; UninstallProbeFile=".pcvrhub_brutallegendvr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Brutal Legend, then choose Uninstall now. The publisher restores game DLLs and the Hub removes unchanged runtime files it owns.','Saves, imported assets, settings and files you changed stay in place.')
+        Tags=@('brutal legend','brutallegend','nikami','double fine','metal','music','guitar','action','adventure','hack and slash','strategy','motion controls','openxr','wip')
+    },
+    @{
+        Id="far-cry-2-vr"; Controls="MC"; Title="Far Cry 2 VR"; HubAddedAt="2026-10-23"
+        SteamId="19900"; SteamFolder="Far Cry 2"; GameExe="bin\FarCry2.exe"; BaseGameProofFiles=@('bin\FarCry2.exe')
+        FallbackPaths=@('STEAM:Far Cry 2','C:\Program Files (x86)\GOG Galaxy\Games\Far Cry 2','C:\GOG Games\Far Cry 2')
+        VideoUrl="https://youtu.be/A6KRiAZvj8I?t=7"; VideoLabel="Watch gameplay"
+        Quip="The Jackal has not planned for you to arrive in person."; QuipLast=$true
+        Mod="FarCry2VR (auto-update)"; Author="Braxus"; Description="Steam/GOG; DirectX 10"
+        Bat="FarCry2VR\START_INSTALLER.bat"; ReadmeDir="FarCry2VR"; Color="#241609"; Accent="#cd6931"
+        InfoUrl="https://github.com/Braxusx/FarCry2VR"; ModPageUrl="https://github.com/Braxusx/FarCry2VR"
+        DownloadUrl="https://github.com/Braxusx/FarCry2VR/releases"
+        GithubRepo="Braxusx/FarCry2VR"; GithubReleaseAssetPatterns=@('(?i)^FarCry2VR(?:-Launcher_)?[0-9]+(?:\.[0-9]+)+\.exe$','(?i)^FarCry2VR-[0-9]+(?:\.[0-9]+)+\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        ModFile="bin\dinput8.dll"; LaunchExe="FarCry2VR-Launcher.exe"
+        VrInstallEvidence=@('bin\dinput8.dll','bin\openxr_loader.dll',
+            'FarCry2VR-Launcher.exe','.pcvrhub_farcry2vr_ownership.csv','.pcvrhub_version')
+        VrInstallEvidenceRoutes=@(
+            @{Files=@('bin\fc2vr_dlss\fc2vr_dlss_host64.exe','bin\fc2vr_dlss\nvngx_dlss.dll')},
+            @{Files=@('bin\fc2vr_dlss_host64.exe','bin\nvngx_dlss.dll')})
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Far Cry 2 VR"; UninstallProbeFile=".pcvrhub_farcry2vr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Far Cry 2, then use Uninstall now. The Hub removes only unchanged files it owns and restores overwritten originals.','The game, saves, GamerProfile.xml, personal fc2vr.ini and unrelated files stay in place.')
+        Tags=@('far cry 2','farcry2','braxus','dunia','africa','open world','action','fps','shooter','survival','motion controls','openxr','directx 10','steam','gog')
+    },
+    @{
         Id="forsaken-vr"; Controls="MC"; Title="Forsaken VR"; HubAddedAt="2026-10-16"
         SteamId="668980"; SteamFolder="Forsaken Remastered"; GameExe="selkis_x64.exe"
         BaseGameProofFiles=@('selkis_x64.exe|VR\game\projectx.exe|game\projectx.exe','ForsakenEX.kpf|VR\install-manifest.txt|install-manifest.txt')
@@ -5457,19 +5522,221 @@ $ownGames = @(
         VrInstallEvidenceRoutes=@(
             @{Files=@('Forsaken VR.cmd','game\projectx.exe','game\libopenxr_loader.dll','game\Data\levels\alpha\alpha.mxv','install-manifest.txt','version.txt')},
             @{Files=@('VR\Forsaken VR.cmd','VR\game\projectx.exe','VR\game\libopenxr_loader.dll','VR\game\Data\levels\alpha\alpha.mxv','VR\install-manifest.txt','VR\version.txt')})
-        HubLaunchScript="ForsakenVR\Start-ForsakenVR.ps1"; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        HubLaunchScript="ForsakenVR\Start-ForsakenVR.ps1"; HubStartFile='game\projectx.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Forsaken VR"; UninstallProbeFile=".pcvrhub_forsaken_ownership.csv"; UninstallRequireProbe=$true; UninstallArguments="-HubConfirmed"
         UninstallSteps=@('Close Forsaken VR, then use Uninstall now to remove files recorded as Hub-owned.','Original Forsaken Remastered, saved games, settings and files changed since installation stay in place.')
         Quip="The tunnels are open. Keep your thrusters ready."; QuipLast=$true
         Tags=@('forsaken','forsaken remastered','forsakenx','gameordie007','space','flying','six degrees of freedom','shooter','action','retro','sci-fi','motion controls','openxr','free')
+    },
+    @{
+        Id="call-of-juarez-vr"; Controls="MC"; Title="Call of Juarez VR"; TileTitle="Call of Juarez VR"; Wip=$true; HubAddedAt="2026-10-21"
+        SteamId="3020"; SteamFolder="Call of Juarez"; GameExe="CoJ.exe"; BaseGameProofFiles=@('CoJ.exe','code.pak','Data0.pak')
+        FallbackPaths=@('STEAM:Call of Juarez'); VideoUrl="https://www.youtube.com/watch?v=LPieKcmw3-k"; VideoLabel="Watch VR gameplay"
+        Quip="The frontier looks different from this side of the revolver."; QuipLast=$true
+        Mod="CoJ VR (auto-update)"; Author="rubocopter"; Description="Steam D3D9 only; SteamVR"
+        Bat="CallOfJuarezVR\START_INSTALLER.bat"; ReadmeDir="CallOfJuarezVR"; Color="#1b110d"; Accent="#d6a360"
+        InfoUrl="https://github.com/rubocopter/call_of_juarez_vr"; ModPageUrl="https://github.com/rubocopter/call_of_juarez_vr"; DownloadUrl="https://github.com/rubocopter/call_of_juarez_vr/releases"
+        GithubRepo="rubocopter/call_of_juarez_vr"; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^CoJ-VR-.*-windows-x64\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        ModFile="d3d9.dll"; VrInstallEvidence=@('CoJ.exe','d3d9.dll','.cojvr-public-install.json','.cojvr-d3d9-stage.json','.pcvrhub_version')
+        HubLaunchScript="CallOfJuarezVR\Start-CallOfJuarezVR.ps1"; HubStartFile='CoJ.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove CoJ VR"; UninstallProbeFile=".cojvr-public-install.json"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and use Uninstall now. The publisher restores its tracked original D3D9 game files and backups.','Your saves and other files remain.')
+        Notice="Pre-alpha. Only the original Steam 2006 D3D9 CoJ.exe build is supported. Start SteamVR before setup and each Hub Start in VR. Back up saves before testing. DX10 and other store editions are unsupported."
+        Tags=@('call of juarez','cojvr','western','shooter','action','adventure','steamvr','openvr','motion controls','wip')
+    },
+    @{
+        Id="dungeon-keeper-2-vr"; Controls="MC"; Title="Dungeon Keeper 2 VR"; TileTitle="Dungeon Keeper 2 VR"; HubAddedAt="2026-10-21"
+        SteamId="2616460"; SteamFolder="Dungeon Keeper 2"; GameExe="DKII-DX.exe"; BaseGameProofFiles=@('DKII-DX.exe')
+        FallbackPaths=@('STEAM:Dungeon Keeper 2','C:\Program Files\EA Games\Dungeon Keeper 2','C:\Program Files (x86)\Origin Games\Dungeon Keeper 2','C:\Program Files (x86)\GOG Galaxy\Games\Dungeon Keeper 2','C:\GOG Games\Dungeon Keeper 2','C:\Program Files (x86)\Bullfrog\Dungeon Keeper 2')
+        VideoUrl="https://youtu.be/0tBOKbF9qJE?t=58"; VideoLabel="Watch VR gameplay"; Quip="It is good to be bad. The imps have filed a complaint."; QuipLast=$true
+        Mod="DK2VR (auto-update)"; Author="LoVeMaKeRz"; Description="Original game v1.70; OpenXR"
+        Bat="DungeonKeeper2VR\START_INSTALLER.bat"; ReadmeDir="DungeonKeeper2VR"; Color="#171111"; Accent="#d69b65"
+        InfoUrl="https://github.com/lovemakerz/Dungeon-Keeper-2-VR-MOD"; ModPageUrl="https://github.com/lovemakerz/Dungeon-Keeper-2-VR-MOD"; DownloadUrl="https://github.com/lovemakerz/Dungeon-Keeper-2-VR-MOD/releases"
+        GithubRepo="lovemakerz/Dungeon-Keeper-2-VR-MOD"; GithubReleaseAssetPatterns=@('(?i)^DK2VR_?V?\d+(?:\.\d+){3}_PUBLIC\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        ModFile="DK2VR\payload\DK2VR.dll"; VrInstallEvidence=@('DKII-DX.exe','DKII_VR.cmd','DK2VR\payload\DK2VR.dll','DK2VR\DK2VRHost.exe','DK2VR\openxr_loader.dll','.pcvrhub_dk2vr_ownership.csv','.pcvrhub_version')
+        HubLaunchScript="DungeonKeeper2VR\Start-DungeonKeeper2VR.ps1"; HubStartFile='DKII_VR.cmd'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove DK2VR"; UninstallProbeFile=".pcvrhub_dk2vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and choose Uninstall now. The Hub removes only unchanged files it owns and restores earlier files with the same names.','Saved games, personal settings and unrelated files remain.')
+        Tags=@('dungeon keeper 2','dk2vr','lovemakerz','dungeon','strategy','fantasy','classic','god game','openxr','motion controls')
+    },
+    @{
+        Id="call-of-duty-2003-vr"; Controls="MC"; Title="Call of Duty (2003) VR"; TileTitle="Call of Duty VR"; Wip=$true; HubAddedAt="2026-10-22"
+        SteamId="2620"; SteamFolder="Call of Duty"; GameExe="CoDSP.exe"; BaseGameProofFiles=@('CoDSP.exe','main\pak0.pk3')
+        FallbackPaths=@('STEAM:Call of Duty','C:\Program Files (x86)\Activision\Call of Duty')
+        VideoUrl="https://youtu.be/_xm2VC8xaXM?t=2"; VideoLabel="Watch VR gameplay"
+        Quip="One rifle for two men. Looks like you got the ammo, comrade."; QuipLast=$true
+        Mod="CoD VR (auto-update)"; Author="lambda-gab"; Description="Solo v1.5; 32-bit OpenXR"
+        Bat="CallOfDuty2003VR\START_INSTALLER.bat"; ReadmeDir="CallOfDuty2003VR"; Color="#171711"; Accent="#a7b18b"
+        InfoUrl="https://github.com/lambda-gab/cod1-vr"; ModPageUrl="https://github.com/lambda-gab/cod1-vr"; DownloadUrl="https://github.com/lambda-gab/cod1-vr/releases"
+        GithubRepo="lambda-gab/cod1-vr"; GithubReleaseAssetPatterns=@('(?i)^cod-vr-manual-install\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        ModFile="opengl32.dll"; LaunchExe="CoD-VR-Launcher.exe"
+        VrInstallEvidence=@('CoDSP.exe','main\pak0.pk3','opengl32.dll','openxr_loader.dll','cod_vr.ini','CoD-VR-Launcher.exe','.pcvrhub_cod1vr_ownership.csv','.pcvrhub_version')
+        HubLaunchScript="CallOfDuty2003VR\Start-CallOfDuty2003VR.ps1"; HubStartFile='CoD-VR-Launcher.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Call of Duty VR"; UninstallProbeFile=".pcvrhub_cod1vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Call of Duty, then choose Uninstall now. The Hub removes unchanged files it owns and restores any earlier files with the same names.','The original game, saves, settings you changed and unrelated files remain.')
+        Tags=@('call of duty','cod1','cod 1','lambda-gab','world war 2','wwii','shooter','fps','action','military','single player','motion controls','openxr','wip')
+    },
+    @{
+        Id="modern-warfare-2-campaign-remastered-vr"; Controls="MC"; Title="Call of Duty: Modern Warfare 2 Campaign Remastered VR"; TileTitle="Call of Duty: Modern`nWarfare 2 Remastered"; HideTileAuthor=$true; Wip=$true; Gem=$true; HubAddedAt="2026-10-22"
+        GameExe="MW2CR.exe"; BaseGameProofFiles=@('MW2CR.exe','oo2core_5_win64.dll|oo2core_8_win64.dll'); FallbackPaths=@('C:\Program Files (x86)\Call of Duty Modern Warfare 2 Campaign Remastered')
+        VideoUrl="https://youtu.be/poRsUu-4n1I?t=10"; VideoLabel="Watch VR gameplay"
+        PortraitUrl="Assets/MW2CampaignRemasteredVR_portrait.jpg"; HeaderUrl="Assets/MW2CampaignRemasteredVR_header.jpg"; ScreenshotUrl="Assets/MW2CampaignRemasteredVR_screenshot.jpg"
+        Quip="Soap, this briefing comes with a headset."; QuipLast=$true
+        Mod="Overlord (auto-update)"; Author="Aeka0"; Description="Battle.net campaign; OpenXR"
+        Bat="MW2CampaignRemasteredVR\START_INSTALLER.bat"; ReadmeDir="MW2CampaignRemasteredVR"; Color="#161c20"; Accent="#e2a65f"
+        InfoUrl="https://github.com/Aeka0/Overlord"; ModPageUrl="https://github.com/Aeka0/Overlord"; DownloadUrl="https://github.com/Aeka0/Overlord/releases"
+        GithubRepo="Aeka0/Overlord"; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^Overlord(?:[._ -]Beta[._ -]?\d+)?\.7z$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        ModFile="overlord.exe"; LaunchExe="overlord.exe"
+        VrInstallEvidence=@('overlord.exe','openxr_loader.dll','overlord.vrmanifest','vr_input\actions.json','h2-mod\ui_scripts\branding\__init__.lua','.pcvrhub_mw2overlord_ownership.csv','.pcvrhub_version')
+        HubLaunchScript="MW2CampaignRemasteredVR\Start-MW2CampaignRemasteredVR.ps1"; HubStartFile='overlord.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Overlord VR"; UninstallProbeFile=".pcvrhub_mw2overlord_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and Overlord, then choose Uninstall now. The Hub removes unchanged files it owns and restores earlier files with the same names.','The original game, saves, modified local files and unrelated files remain.')
+        Notice="Beta: Battle.net campaign installation required. Use Start in VR to open Overlord, then choose Singleplayer with your headset and controllers connected."
+        Tags=@('call of duty','modern warfare 2','mw2','campaign remastered','overlord','aeka0','battle.net','shooter','fps','military','action','story','motion controls','openxr','openvr','wip')
+    },
+    @{
+        Id="rustler-vr"; Controls="MC"; Title="Rustler VR"; TileTitle="Rustler VR"; Wip=$true; HubAddedAt="2026-10-20"
+        SteamId="844260"; SteamFolder="Rustler"; GameExe="Rustler.exe"; BaseGameProofFiles=@('Rustler.exe','UnityPlayer.dll')
+        FallbackPaths=@('STEAM:Rustler','EPIC:Rustler','C:\Program Files\Epic Games\Rustler',
+            'C:\Program Files (x86)\GOG Galaxy\Games\Rustler (Grand Theft Horse)','C:\GOG Games\Rustler (Grand Theft Horse)')
+        VideoUrl="https://www.youtube.com/watch?v=ydHB8gqxOds"; VideoLabel="Watch VR gameplay"
+        Quip="Grand Theft Horse: please return the stolen mount by sundown."; QuipLast=$true
+        Mod="Rustler VR"; Author="King-EJ"; Description="Official download; OpenXR"
+        Bat="RustlerVR\START_INSTALLER.bat"; ReadmeDir="RustlerVR"; Color="#202019"; Accent="#b8a952"
+        InfoUrl="https://github.com/King-EJ/Rustler-VR"; ModPageUrl="https://github.com/King-EJ/Rustler-VR"
+        DownloadUrl="https://github.com/King-EJ/Rustler-VR/releases/tag/Rustler_VR"
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile="BepInEx\plugins\RusVR\RusVR.dll"; LaunchExe="Rustler.exe"; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('winhttp.dll','BepInEx\core\BepInEx.dll','BepInEx\plugins\RusVR\RusVR.dll',
+            'BepInEx\plugins\RusVR\OpenXR.dll','.pcvrhub_rustlervr_ownership.csv','.pcvrhub_version')
+        CurrentRequiredFile=@('winhttp.dll','BepInEx\plugins\RusVR\RusVR.dll','.pcvrhub_rustlervr_ownership.csv','.pcvrhub_version')
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Rustler VR"; UninstallProbeFile=".pcvrhub_rustlervr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Rustler and choose Uninstall now. The Hub removes unchanged files it owns and restores earlier files with the same names.','Your saves, game files, custom settings and unrelated mods remain.')
+        Tags=@('rustler','grand theft horse','king-ej','medieval','open world','action','adventure','comedy','horse','combat','motion controls','bepinex','openxr','wip')
+    },
+    @{
+        Id="enshrouded-vr"; Controls="MC"; Title="Enshrouded VR"; TileTitle="Enshrouded VR"; Wip=$true; HubAddedAt="2026-10-22"
+        SteamId="1203620"; SteamFolder="Enshrouded"; GameExe="enshrouded.exe"; BaseGameProofFiles=@('enshrouded.exe')
+        FallbackPaths=@('STEAM:Enshrouded','C:\Program Files (x86)\Steam\steamapps\common\Enshrouded')
+        VideoUrl="https://www.youtube.com/watch?v=my_yKx7H3IU"; VideoLabel="Watch VR gameplay"
+        Quip="The Shroud is easier to face when both hands are yours."; QuipLast=$true
+        Mod="Enshrouded VR (launcher-update)"; Author="momotori01"; Description="Steam, OpenXR"
+        Bat="EnshroudedVR\START_INSTALLER.bat"; ReadmeDir="EnshroudedVR"; Color="#172329"; Accent="#68c4ad"
+        InfoUrl="https://github.com/momotori01/ENSHROUDED-VR-MOD"; ModPageUrl="https://github.com/momotori01/ENSHROUDED-VR-MOD"
+        DownloadUrl="https://github.com/momotori01/ENSHROUDED-VR-MOD/releases"
+        GithubRepo="momotori01/ENSHROUDED-VR-MOD"; GithubReleaseAssetPatterns=@('(?i)^EnshroudedVR-[0-9]+(?:\.[0-9]+)+\.zip$')
+        InstalledVersionProofFile='EnshroudedVR\version.txt'; InstalledVersionProofRegex='(?m)^\s*([0-9]+(?:\.[0-9]+)+)\b'
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; LaunchRequiresVrEvidence=$true
+        HubLaunchScript="EnshroudedVR\Start-EnshroudedVR.ps1"; HubStartFile='Enshrouded VR setting.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'; HubLaunchWindowStyle='Hidden'
+        ModFile="EnshroudedVR\bin\evr_hooks.dll"; LaunchExe="enshrouded.exe"
+        VrInstallEvidence=@('dinput8.dll','Enshrouded VR setting.exe','EnshroudedVR\bin\evr_hooks.dll',
+            'EnshroudedVR\bin\openxr_loader.dll','EnshroudedVR\EnshroudedVR.ini','.pcvrhub_enshroudedvr_ownership.csv','.pcvrhub_version')
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Enshrouded VR"; UninstallProbeFile=".pcvrhub_enshroudedvr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Enshrouded and choose Uninstall now. The Hub removes only unchanged mod files it owns and restores earlier files with the same names.','The game, saves, personal VR settings and unrelated files remain.')
+        Notice="Start the flat game once. Start in VR opens the publisher settings/updater; close it with a VR mode selected to start through Steam. The mod requires its matching game build."
+        Tags=@('enshrouded','survival','crafting','fantasy','open world','multiplayer','combat','motion controls','roomscale','openxr','wip')
+    },
+    @{
+        Id="vampire-bloodlines-vr"; Controls="MC"; Title="Vampire: The Masquerade - Bloodlines VR"; TileTitle="Vampire: Masquerade`nBloodlines VR"; TileTitleFontSize=10; TileTitleSecondLineFontSize=13; HideTileAuthor=$true; Wip=$true; HubAddedAt="2026-10-22"
+        SteamId="2600"; SteamFolder="Vampire The Masquerade - Bloodlines"; GameExe="vampire.exe"
+        BaseGameProofFiles=@('vampire.exe','Vampire\pack000.vpk')
+        FallbackPaths=@('STEAM:Vampire The Masquerade - Bloodlines',
+            'C:\Program Files (x86)\GOG Galaxy\Games\Vampire The Masquerade - Bloodlines',
+            'C:\GOG Games\Vampire The Masquerade - Bloodlines',
+            'C:\Program Files (x86)\Activision\Vampire - Bloodlines')
+        VideoUrl="https://www.youtube.com/watch?v=Y_I8SJB4ISU"; VideoLabel="Watch VR gameplay"
+        Quip="The Masquerade still applies, even when your hands give you away."; QuipLast=$true
+        Mod="Bloodlines VR (auto-update)"; Author="atrblizzard"; Description="WIP; Unofficial Patch 11.5"
+        Bat="VTMBVR\START_INSTALLER.bat"; ReadmeDir="VTMBVR"; Color="#211319"; Accent="#bd5665"
+        InfoUrl="https://vtmbvr.atrblizzard.com/"; ModPageUrl="https://github.com/atrblizzard/vtmb-vr"; DonateUrl="https://ko-fi.com/atrblizzard"
+        DownloadUrl="https://github.com/atrblizzard/vtmb-vr/releases"
+        GithubRepo="atrblizzard/vtmb-vr"; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^VTMB-VR-[0-9].*\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        ModFile="d3d9.dll"; LaunchExe="vampire.exe"
+        VrInstallEvidence=@('VTMBup-readme.txt','Loader.exe','Unofficial_Patch\cfg\autoexec.cfg',
+            'Unofficial_Patch\vdata\system\rules.txt','d3d9.dll','openvr_api.dll','openxr_loader.dll',
+            'VR\config.txt','VR\SteamVRActionManifest\action_manifest.json','.pcvrhub_bloodlinesvr_ownership.csv','.pcvrhub_version')
+        HubLaunchScript="VTMBVR\Start-VTMBVR.ps1"; HubStartFile='vampire.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Bloodlines VR"; UninstallProbeFile=".pcvrhub_bloodlinesvr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Bloodlines and choose Uninstall now. The Hub removes unchanged VR files it owns and restores earlier files with the same names.','Bloodlines, the separate Unofficial Patch, saves, edited VR settings and unrelated files remain.')
+        Notice="Preview: requires Unofficial Patch 11.5 exactly. SteamVR is tested; native OpenXR and VDXR are experimental."
+        Tags=@('vampire the masquerade','bloodlines','vtmb','atrblizzard','rpg','story','horror','vampire','first person','motion controls','openvr','openxr','wip')
+    },
+    @{
+        Id="vampire-hunters-vr"; Controls="MC"; Title="Vampire Hunters VR"; TileTitle="Vampire Hunters VR"; Wip=$true; HubAddedAt="2026-10-22"
+        SteamId="2206270"; SteamFolder="Vampire Hunters"; GameExe="Vampire Hunters.exe"
+        BaseGameProofFiles=@('Vampire Hunters.exe','UnityPlayer.dll','GameAssembly.dll')
+        FallbackPaths=@('STEAM:Vampire Hunters','C:\Program Files (x86)\Steam\steamapps\common\Vampire Hunters')
+        VideoUrl="https://www.youtube.com/watch?v=RhngOA8oRsI"; VideoLabel="Watch VR gameplay"
+        Quip="Tonight, the hunters bring two hands to a gunfight."; QuipLast=$true
+        Mod="Vampire Hunters VR"; Author="segadreamcat"; Description="Steam, OpenVR"
+        Bat="VampireHuntersVR\START_INSTALLER.bat"; ReadmeDir="VampireHuntersVR"; Color="#201422"; Accent="#d35476"
+        InfoUrl="https://github.com/segadreamcat/VampireHuntersVR"; ModPageUrl="https://github.com/segadreamcat/VampireHuntersVR"
+        DownloadUrl="https://github.com/segadreamcat/VampireHuntersVR/releases"
+        GithubRepo="segadreamcat/VampireHuntersVR"; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^VampireHuntersVR-v[0-9]+(?:\.[0-9]+)+\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true
+        ModFile="BepInEx\plugins\VampireHuntersVR\VampireHuntersVR.dll"; LaunchExe="Vampire Hunters.exe"
+        VrInstallEvidence=@('winhttp.dll','BepInEx\core\BepInEx.Unity.IL2CPP.dll',
+            'BepInEx\plugins\VampireHuntersVR\VampireHuntersVR.dll',
+            'BepInEx\plugins\VampireHuntersVR\openvr_api.dll','.pcvrhub_vampirehuntersvr_ownership.csv','.pcvrhub_version')
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Vampire Hunters VR"; UninstallProbeFile=".pcvrhub_vampirehuntersvr_ownership.csv"
+        UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Vampire Hunters and choose Uninstall now. The Hub removes unchanged VR plugin files and any BepInEx loader files it installed.','The game, saves, generated settings, edited files and unrelated mods remain.')
+        Notice="Publisher-supported route: Steam only. BepInEx must complete one flat first run before the VR plugin is installed."
+        Tags=@('vampire hunters','segadreamcat','shooter','fps','arcade','roguelite','motion controls','bepinex','openvr','wip')
+    },
+    @{
+        Id="hitman-blood-money-vr"; Controls="MC"; Title="Hitman: Blood Money VR"; TileTitle="Hitman: Blood Money"; Wip=$true; HubAddedAt="2026-10-22"
+        SteamId="6860"; SteamFolder="Hitman Blood Money"; GameExe="HitmanBloodMoney.exe"; BaseGameProofFiles=@('HitmanBloodMoney.exe')
+        FallbackPaths=@('STEAM:Hitman Blood Money','C:\Program Files (x86)\GOG Galaxy\Games\Hitman Blood Money',
+            'C:\GOG Games\Hitman Blood Money','C:\Program Files (x86)\Eidos\Hitman Blood Money')
+        VideoUrl="https://youtu.be/SqO7tFqEDGA?t=24"; VideoLabel="Watch VR gameplay"
+        Quip="Agent 47, your next disguise has a headset."; QuipLast=$true
+        Mod="Blood Money VR (auto-update)"; Author="andreystashev"; Description="Alpha; separate VR runtime"
+        Bat="HitmanBloodMoneyVR\START_INSTALLER.bat"; ReadmeDir="HitmanBloodMoneyVR"; Color="#171c1d"; Accent="#b74746"
+        InfoUrl="https://github.com/andreystashev/hitman-blood-money-vr-showcase"; ModPageUrl="https://github.com/andreystashev/hitman-blood-money-vr-showcase"
+        DownloadUrl="https://github.com/andreystashev/hitman-blood-money-vr-showcase/releases"
+        GithubRepo="andreystashev/hitman-blood-money-vr-showcase"; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^BloodMoneyVR-[0-9]+(?:\.[0-9]+)+-alpha\.zip$')
+        VrInstallRoot="LOCALAPPDATA:BloodMoneyVR"; DurableInstallRoots=@((Join-Path $env:LOCALAPPDATA 'BloodMoneyVR'),(Join-Path $env:LOCALAPPDATA 'PCVR Mods Installer Hub\BloodMoneyVR'))
+        SeparateLauncherBaseGame=$true; StandaloneVR=$true; ModFile='BloodMoneyVR.exe'; LaunchExe='BloodMoneyVR.exe'; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('BloodMoneyVR.exe','vr.ini','Collect-Diagnostics.cmd','unins000.exe','.pcvrhub_version')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Blood Money VR'; UninstallProbeFile='unins000.exe'; UninstallRequireProbe=$true; UninstallArguments='-HubConfirmed'
+        UninstallSteps=@('Close Hitman and the VR launcher, then choose Uninstall now to run the publisher uninstaller.','The original game, saves, settings, logs and unrelated files remain.')
+        Notice='Publisher alpha. Start the flat game once. Setup validates known EXE builds and installs a dedicated VR launcher outside the game.'
+        Tags=@('hitman','blood money','agent 47','andreystashev','stealth','shooter','action','story','motion controls','openxr','wip')
     }
 )
 
 $ownGamesGP = @(
+    @{
+        Id="mirrors-edge-catalyst-vr"; Controls="GP"; Title="Mirror's Edge Catalyst VR"; TileTitle="Mirror's Edge Catalyst"; Wip=$true; HubAddedAt="2026-10-21"
+        SteamId="1233570"; SteamFolder="Mirrors Edge Catalyst"; GameExe="MirrorsEdgeCatalyst.exe"; BaseGameProofFiles=@('MirrorsEdgeCatalyst.exe')
+        FallbackPaths=@('STEAM:Mirrors Edge Catalyst',"C:\Program Files\EA Games\Mirror's Edge Catalyst","C:\Program Files (x86)\Origin Games\Mirror's Edge Catalyst")
+        VideoUrl="https://youtu.be/oV-Qh79J0Sc?t=5"; VideoLabel="Watch VR gameplay"; Quip="Faith, the rooftops still lack guardrails."; QuipLast=$true
+        Mod="Catalyst VR (auto-update)"; Author="sqofer"; Description="Gamepad; exact game build"
+        Bat="MirrorsEdgeCatalystVR\START_INSTALLER.bat"; ReadmeDir="MirrorsEdgeCatalystVR"; Color="#101820"; Accent="#ef6b46"
+        InfoUrl="https://github.com/sqofer/Mirror-s-Edge-Catalyst-VR"; ModPageUrl="https://github.com/sqofer/Mirror-s-Edge-Catalyst-VR"; DownloadUrl="https://github.com/sqofer/Mirror-s-Edge-Catalyst-VR/releases"
+        GithubRepo="sqofer/Mirror-s-Edge-Catalyst-VR"; GithubReleaseAssetPatterns=@('(?i)^Mirror.s.Edge.Catalyst.VR-Setup\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        ModFile="mecxr_live.dll"; VrInstallEvidence=@('MirrorsEdgeCatalyst.exe','mecxr_launcher.exe','mecxr_live.dll','.pcvrhub_version')
+        HubLaunchScript="MirrorsEdgeCatalystVR\Start-MirrorsEdgeCatalystVR.ps1"; HubStartFile='mecxr_launcher.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Catalyst VR"; UninstallProbeFile="mecxr_live.dll"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Catalyst and use Uninstall now. The publisher Setup removes its own VR runtime.','The original game and saves remain; retain your launcher settings if you intend to reinstall.')
+        Notice="If Catalyst has never been started, launch the original game flat once through Steam or EA App and close it before using the publisher VR launcher. This can happen after installing the VR mod. Publisher Setup supports build 1.0.3.47248."
+        Tags=@('mirrors edge catalyst','faith','parkour','frostbite','action','first-person','speedrun','gamepad','openxr','wip')
+    },
     @{ Controls="GP"; Title="Alba VR"; VideoUrl="https://www.youtube.com/watch?v=24XYvVYDqC0"; SteamId="1337010"; Mod="AlbaVR v1.0.0"; SteamFolder="Alba - A Wildlife Adventure"; FallbackPaths=@("GOG:ALBA A Wildlife Adventure", "GOG:Alba A Wildlife Adventure", "EPIC:Alba", "EPIC:Alba - A Wildlife Adventure"); GameExe="Alba.exe"; BaseGameProofFiles=@("Alba.exe","UnityPlayer.dll"); Description="KB`&Mouse or Gamepad VR."; Author="wouterpleizier"; Bat="AlbaVR\START_INSTALLER.bat"; Color="#0a1a0a"; Accent="#5cc8e6"; InfoUrl="https://github.com/wouterpleizier/AlbaVR"; Tags=@("alba", "wildlife", "atmospheric", "exploration", "walking sim") ; ModFile="BepInEx\plugins\AlbaVR\AlbaVR.dll"; VrInstallEvidence=@("BepInEx\patchers\VRPatcher\VRPatcher.dll","BepInEx\core\BepInEx.Preloader.dll","winhttp.dll","PCVRHub Start Alba VR.bat",".pcvrhub_alba_mode",".pcvrhub_version"); LaunchExe="PCVRHub Start Alba VR.bat"; NeverSteamLaunch=$true },
     @{
         Id="alan-wake-vr"; Controls="GP"; Title="Alan Wake VR"; TileTitle="Alan Wake"; SteamId="108710"; SteamFolder="Alan Wake"; HubAddedAt="2026-10-17"
-        VideoUrl="https://youtu.be/0RpTykaCVNQ?t=2789"; VideoLabel="Watch gameplay"
+        VideoUrl="https://www.youtube.com/watch?v=Lx8D8wnEiyE"; VideoLabel="Watch VR gameplay"
         Quip="The darkness has a new dimension."; QuipLast=$true
         Mod="Alan Wake VR (auto-update)"; Author="fholger"; Description="Steam, GOG or Epic; OpenXR"
         GithubRepo="fholger/alanwake_vr"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^alanwake-vr-[0-9]+(?:\.[0-9]+){2}\.exe$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
@@ -5809,9 +6076,9 @@ $ownGamesGP = @(
         Bat         = "EldenRingRealVR\START_INSTALLER.bat"
         Color       = "#12100c"
         Accent      = "#c9a227"
-        InfoUrl     = "https://www.patreon.com/LukeRoss"
-        DownloadUrl = "https://www.patreon.com/LukeRoss"
-        SupportUrl  = "https://www.patreon.com/LukeRoss"
+        InfoUrl     = "https://www.patreon.com/realvr"
+        DownloadUrl = "https://www.patreon.com/realvr"
+        SupportUrl  = "https://www.patreon.com/realvr"
         SupportText = "Luke Ross builds R.E.A.L. for a long list of games. If you enjoy it:"
         # The launcher this installer writes IS the marker - R.E.A.L.
         # itself lives in Game\RealRepo, which the shared Luke Ross
@@ -5877,6 +6144,121 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Far Cry Primal VR"; VideoUrl="https://www.youtube.com/watch?v=Ithr5auywNI"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Rebirth VR"; VideoUrl="https://youtu.be/WwJYlCZmQM0?t=23"; VideoLabel="Watch gameplay"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="FF VII Remake VR"; VideoUrl="https://www.youtube.com/watch?v=fEGt4aB-YMM"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{
+        Controls='GP'; Title='GRID (2019) VR'; Id='grid-2019-vr'; HubAddedAt='2026-10-25'; UntestedInstaller=$true
+        Pill='CODIESVR'; Mod='CodiesVR (auto-update)'; Author='drowhunter'; Description='Steam DX12; cockpit VR'
+        Quip='Your nemesis has requested a less personal racing line.'; QuipLast=$true
+        SteamId='703860'; SteamFolder='GRID (2019)'; GameExe='Grid_dx12.exe'; BaseGameProofFiles=@('Grid_dx12.exe'); FallbackPaths=@('STEAM:GRID (2019)')
+        GithubRepo='drowhunter/CodiesVR'; GithubReleaseAssetPatterns=@('(?i)^Grid2019VR-[0-9].*\.zip$'); GithubAssetVersionPattern='(?i)^Grid2019VR-([0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z.]+)?)\.zip$'
+        GithubRepoPresenceFile='d3d12.dll'; GithubRepoVersionFile='.pcvrhub_codiesgrid2019_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d12.dll'; VrInstallEvidence=@('d3d12.dll','.pcvrhub_codiesgrid2019_ownership.csv','.pcvrhub_codiesgrid2019_version')
+        LaunchExe='Grid_dx12.exe'; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true; NoSteamAppIdSidecar=$true
+        Bat='Grid2019VR\START_INSTALLER.bat'; ReadmeDir='Grid2019VR'
+        PortraitUrl='Assets/Grid2019VR_portrait.jpg'; HeaderUrl='Assets/Grid2019VR_header.jpg'; ScreenshotUrl='Assets/Grid2019VR_screenshot.jpg'
+        Color='#151d26'; Accent='#e33324'
+        Url='https://github.com/drowhunter/CodiesVR'; InfoUrl='https://github.com/drowhunter/CodiesVR'; DownloadUrl='https://github.com/drowhunter/CodiesVR/releases'
+        VideoUrl='https://youtu.be/aMSJbJNCI8s?t=64'; VideoLabel='Watch gameplay'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_codiesgrid2019_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game, then use Uninstall now. Hub-owned CodiesVR files are removed and earlier files are restored.','Saves, changed files, generated mod configuration, recenter data and the Documents graphics XML/backup are preserved. Use the retained settings backup manually if you want your old graphics configuration back.','Do not use the publisher uninstaller on a Hub-managed installation; it has a separate ownership record.')
+        Tags=@('racing','sports','simulation','driving','cockpit','gamepad','wheel','openxr','codiesvr','drowhunter','untested')
+    },
+    @{
+        Controls='GP'; Title='GRID Legends VR'; Id='grid-legends-vr'; HubAddedAt='2026-10-25'; UntestedInstaller=$true
+        Pill='CODIESVR'; Mod='CodiesVR (auto-update)'; Author='drowhunter'; Description='Steam / EA; cockpit VR'
+        Quip='Seneca hired a driver. The barriers got a demolition crew.'; QuipLast=$true
+        SteamId='1307710'; SteamFolder='GRID Legends'; GameExe='GridLegends.exe'; BaseGameProofFiles=@('GridLegends.exe'); FallbackPaths=@('STEAM:GRID Legends','C:\Program Files\EA Games\GRID Legends','C:\Program Files (x86)\Origin Games\GRID Legends')
+        GithubRepo='drowhunter/CodiesVR'; GithubReleaseAssetPatterns=@('(?i)^GridLegendsVR-[0-9].*\.zip$'); GithubAssetVersionPattern='(?i)^GridLegendsVR-([0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z.]+)?)\.zip$'
+        GithubRepoPresenceFile='d3d12.dll'; GithubRepoVersionFile='.pcvrhub_codiesgridlegends_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d12.dll'; VrInstallEvidence=@('d3d12.dll','.pcvrhub_codiesgridlegends_ownership.csv','.pcvrhub_codiesgridlegends_version')
+        LaunchExe='GridLegends.exe'; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true; NoSteamAppIdSidecar=$true
+        Bat='GridLegendsVR\START_INSTALLER.bat'; ReadmeDir='GridLegendsVR'
+        PortraitUrl='Assets/GridLegendsVR_portrait.jpg'; HeaderUrl='Assets/GridLegendsVR_header.jpg'; ScreenshotUrl='Assets/GridLegendsVR_screenshot.jpg'
+        Color='#1d1519'; Accent='#ee3949'
+        Url='https://github.com/drowhunter/CodiesVR'; InfoUrl='https://github.com/drowhunter/CodiesVR'; DownloadUrl='https://github.com/drowhunter/CodiesVR/releases'
+        VideoUrl='https://youtu.be/0qrRPZz_6jI?t=89'; VideoLabel='Watch VR gameplay'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_codiesgridlegends_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game, then use Uninstall now. Hub-owned CodiesVR files are removed and earlier files are restored.','Saves, changed files, generated mod configuration, recenter data and the Documents graphics XML/backup are preserved. Use the retained settings backup manually if you want your old graphics configuration back.','Do not use the publisher uninstaller on a Hub-managed installation; it has a separate ownership record.')
+        Tags=@('racing','sports','simulation','driving','cockpit','gamepad','wheel','openxr','codiesvr','drowhunter','untested')
+    },
+    @{
+        Controls='GP'; Title='DiRT 4 VR'; Wip=$true; Id='dirt-4-vr'; HubAddedAt='2026-10-25'; UntestedInstaller=$true
+        Pill='CODIESVR'; Mod='CodiesVR (auto-update)'; Author='drowhunter'; Description='Steam; rally cockpit VR'
+        Quip='Your co-driver said cut. The tree disagreed.'; QuipLast=$true
+        SteamId='421020'; SteamFolder='DiRT 4'; GameExe='dirt4.exe'; BaseGameProofFiles=@('dirt4.exe'); FallbackPaths=@('STEAM:DiRT 4')
+        GithubRepo='drowhunter/CodiesVR'; GithubReleaseAssetPatterns=@('(?i)^Dirt4VR-[0-9].*\.zip$'); GithubAssetVersionPattern='(?i)^Dirt4VR-([0-9]+(?:\.[0-9]+){1,3}(?:[-+][0-9A-Za-z.]+)?)\.zip$'
+        GithubRepoPresenceFile='d3d11.dll'; GithubRepoVersionFile='.pcvrhub_codiesdirt4_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d11.dll'; VrInstallEvidence=@('d3d11.dll','.pcvrhub_codiesdirt4_ownership.csv','.pcvrhub_codiesdirt4_version')
+        LaunchExe='dirt4.exe'; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true; NoSteamAppIdSidecar=$true
+        Bat='Dirt4VR\START_INSTALLER.bat'; ReadmeDir='Dirt4VR'
+        PortraitUrl='Assets/Dirt4VR_portrait.jpg'; HeaderUrl='Assets/Dirt4VR_header.jpg'; ScreenshotUrl='Assets/Dirt4VR_screenshot.jpg'
+        Color='#21150d'; Accent='#ff850a'
+        Url='https://github.com/drowhunter/CodiesVR'; InfoUrl='https://github.com/drowhunter/CodiesVR'; DownloadUrl='https://github.com/drowhunter/CodiesVR/releases'
+        VideoUrl='https://youtu.be/APjg4B4Lhuk?t=30'; VideoLabel='Watch VR gameplay'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_codiesdirt4_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game, then use Uninstall now. Hub-owned CodiesVR files are removed and earlier files are restored.','Saves, changed files, generated mod configuration, recenter data and the Documents graphics XML/backup are preserved. Use the retained settings backup manually if you want your old graphics configuration back.','Do not use the publisher uninstaller on a Hub-managed installation; it has a separate ownership record.')
+        Tags=@('racing','sports','simulation','driving','cockpit','gamepad','wheel','openxr','codiesvr','drowhunter','untested')
+    },
+    @{
+        Controls='GP'; Title='Forza Horizon 4 VR - GrayHorizon'; TileTitle='Forza Horizon 4 VR'; Id='forza-horizon-4-grayhorizon-vr'
+        UntestedInstaller=$true; HubAddedAt='2026-10-24'; Pill='GRAYHORIZON'; Mod='GrayHorizon (auto-update)'; Author='GrayHorizon'
+        Description='Cockpit VR; tester wanted'; Quip='Four seasons, one insurance claim.'; QuipLast=$true
+        SteamId='1293830'; SteamFolder='ForzaHorizon4'; GameExe='ForzaHorizon4.exe'; BaseGameProofFiles=@('ForzaHorizon4.exe')
+        FallbackPaths=@('STEAM:ForzaHorizon4')
+        GithubRepo='GrayHorizon-mod/Forza-Horizon-VR'; GithubReleaseAssetPatterns=@('(?i)^GrayHorizon-FH4-.+\.zip$')
+        GithubRepoPresenceFile='xinput1_3.dll|xinput1_4.dll'; GithubRepoVersionFile='.pcvrhub_grayhorizon_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='xinput1_3.dll';  VrInstallEvidence=@('xinput1_3.dll','openxr_loader.dll','GrayHorizon Settings.exe','gh4vr.ini','Start GrayHorizon VR.lnk','.pcvrhub_grayhorizonfh4_ownership.csv','.pcvrhub_grayhorizon_version','nvngx_dlss.dll','amd_fidelityfx_loader_dx12.dll','amd_fidelityfx_upscaler_dx12.dll')
+        LaunchExe='Start GrayHorizon VR.lnk'; SteamLaunchForSteamInstall=$true; NeverSteamLaunch=$true; NoSteamAppIdSidecar=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        Bat='GrayHorizonFH4\START_INSTALLER.bat'; ReadmeDir='GrayHorizonFH4'
+        PortraitUrl='Assets/ForzaHorizon4_portrait.jpg'; HeaderUrl='Assets/ForzaHorizon4_header.jpg'; ScreenshotUrl='Assets/GrayHorizonFH4_screenshot.jpg'
+        Url='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; InfoUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; DownloadUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR/releases'
+        VideoUrl='https://youtu.be/jfiIcK8s7xE?t=135'; VideoLabel='Watch VR gameplay';
+        
+        Color='#15141b'; Accent='#dc466a'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_grayhorizonfh4_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and GrayHorizon Settings, then use Uninstall now. Hub-owned package files and the matching Desktop shortcut are removed; backed-up originals are restored.','Saves, modified files, custom INI/HUD/seat layouts and Documents\GrayHorizon are preserved. Changed publisher-updated files may be retained; repair through this Hub first if you want them tracked again.','For temporary flat play, untick VR in GrayHorizon Settings. Do not install another Forza VR injector over this active deployment.')
+        Tags=@('racing','driving','open world','arcade racing','simulation','forza','forza horizon 4','fh4','grayhorizon','gamepad','wheel','cockpit','openxr','untested')
+    },
+    @{
+        Controls='GP'; Title='Forza Horizon 5 VR - GrayHorizon'; TileTitle='Forza Horizon 5 VR'; Id='forza-horizon-5-grayhorizon-vr'
+        UntestedInstaller=$true; HubAddedAt='2026-10-24'; Pill='GRAYHORIZON'; Mod='GrayHorizon (auto-update)'; Author='GrayHorizon'
+        Description='Cockpit VR; tester wanted'; Quip='The festival has requested that you stop using cacti as apex markers.'; QuipLast=$true
+        SteamId='1551360'; SteamFolder='ForzaHorizon5'; GameExe='ForzaHorizon5.exe'; BaseGameProofFiles=@('ForzaHorizon5.exe')
+        FallbackPaths=@('STEAM:ForzaHorizon5', 'C:\XboxGames\Forza Horizon 5\Content', 'XBOX:Forza Horizon 5')
+        GithubRepo='GrayHorizon-mod/Forza-Horizon-VR'; GithubReleaseAssetPatterns=@('(?i)^GrayHorizon-FH5-.+\.zip$')
+        GithubRepoPresenceFile='xinput1_3.dll|xinput1_4.dll'; GithubRepoVersionFile='.pcvrhub_grayhorizon_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='xinput1_3.dll'; ModFileAlt='xinput1_4.dll'; VrInstallEvidence=@('openxr_loader.dll','GrayHorizon Settings.exe','gh5vr.ini','Start GrayHorizon VR.lnk','.pcvrhub_grayhorizonfh5_ownership.csv','.pcvrhub_grayhorizon_version')
+        VrInstallEvidenceRoutes=@(@{Files=@('xinput1_3.dll')},@{Files=@('xinput1_4.dll')})
+        LaunchExe='Start GrayHorizon VR.lnk'; SteamLaunchForSteamInstall=$true; NeverSteamLaunch=$true; NoSteamAppIdSidecar=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        Bat='GrayHorizonFH5\START_INSTALLER.bat'; ReadmeDir='GrayHorizonFH5'
+        PortraitUrl='Assets/ForzaHorizon5_portrait.jpg'; HeaderUrl='Assets/ForzaHorizon5_header.jpg'; ScreenshotUrl='Assets/GrayHorizonFH5_screenshot.jpg'
+        Url='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; InfoUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; DownloadUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR/releases'
+        
+        
+        Color='#15141b'; Accent='#ff2d78'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_grayhorizonfh5_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and GrayHorizon Settings, then use Uninstall now. Hub-owned package files and the matching Desktop shortcut are removed; backed-up originals are restored.','Saves, modified files, custom INI/HUD/seat layouts and Documents\GrayHorizon are preserved. Changed publisher-updated files may be retained; repair through this Hub first if you want them tracked again.','For temporary flat play, untick VR in GrayHorizon Settings. Do not install another Forza VR injector over this active deployment.')
+        Tags=@('racing','driving','open world','arcade racing','simulation','forza','forza horizon 5','fh5','grayhorizon','gamepad','wheel','cockpit','openxr','untested')
+    },
+    @{
+        Controls='GP'; Title='Forza Horizon 6 VR - GrayHorizon'; TileTitle='Forza Horizon 6 VR'; Id='forza-horizon-6-grayhorizon-vr'
+        UntestedInstaller=$true; HubAddedAt='2026-10-24'; Pill='GRAYHORIZON'; Mod='GrayHorizon (auto-update)'; Author='GrayHorizon'
+        Description='Cockpit VR; tester wanted'; Quip='The racing line is a suggestion. The guardrail is less flexible.'; QuipLast=$true
+        SteamId='2483190'; SteamFolder='ForzaHorizon6'; GameExe='ForzaHorizon6.exe'; BaseGameProofFiles=@('ForzaHorizon6.exe')
+        FallbackPaths=@('STEAM:ForzaHorizon6', 'C:\XboxGames\Forza Horizon 6\Content', 'XBOX:Forza Horizon 6')
+        GithubRepo='GrayHorizon-mod/Forza-Horizon-VR'; GithubReleaseAssetPatterns=@('(?i)^GrayHorizon-FH6-.+\.zip$')
+        GithubRepoPresenceFile='xinput1_3.dll|xinput1_4.dll'; GithubRepoVersionFile='.pcvrhub_grayhorizon_version'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='xinput1_3.dll'; ModFileAlt='xinput1_4.dll'; VrInstallEvidence=@('openxr_loader.dll','GrayHorizon Settings.exe','gh6vr.ini','Start GrayHorizon VR.lnk','.pcvrhub_grayhorizonfh6_ownership.csv','.pcvrhub_grayhorizon_version')
+        VrInstallEvidenceRoutes=@(@{Files=@('xinput1_3.dll')},@{Files=@('xinput1_4.dll')})
+        LaunchExe='Start GrayHorizon VR.lnk'; SteamLaunchForSteamInstall=$true; NeverSteamLaunch=$true; NoSteamAppIdSidecar=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        Bat='GrayHorizonFH6\START_INSTALLER.bat'; ReadmeDir='GrayHorizonFH6'
+        PortraitUrl='Assets/ForzaHorizon6_portrait.jpg'; HeaderUrl='Assets/ForzaHorizon6_header.jpg'; ScreenshotUrl='Assets/GrayHorizonFH6_screenshot.jpg'
+        Url='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; InfoUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR'; DownloadUrl='https://github.com/GrayHorizon-mod/Forza-Horizon-VR/releases'
+        
+        Color='#15141b'; Accent='#b454d4'
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_grayhorizonfh6_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and GrayHorizon Settings, then use Uninstall now. Hub-owned package files and the matching Desktop shortcut are removed; backed-up originals are restored.','Saves, modified files, custom INI/HUD/seat layouts and Documents\GrayHorizon are preserved. Changed publisher-updated files may be retained; repair through this Hub first if you want them tracked again.','For temporary flat play, untick VR in GrayHorizon Settings. Do not install another Forza VR injector over this active deployment.')
+        Tags=@('racing','driving','open world','arcade racing','simulation','forza','forza horizon 6','fh6','grayhorizon','gamepad','wheel','cockpit','openxr','untested')
+    },
     @{
         Controls="GP"; Title="Forza Horizon 5 VR"; VideoUrl="https://youtu.be/n-07s0oObI8?t=76"; VideoLabel="Watch gameplay"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"
         Mod="NALULUNA or lufz VRMod"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; GithubRepoModSlot="B"; GithubRepoPresenceFile="lufz\vrmod-launcher.exe|vrmod-launcher.exe"; GithubRepoVersionFile="lufz\VERSION|VERSION"; NoVersionSeed=$true; Description="OpenXR, 6DoF"; Author="lufz (auto-update)"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"
@@ -6287,7 +6669,7 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Onimusha 2 VR"; VideoUrl="https://youtu.be/42jEMrshZzc?t=1590"; VideoLabel="Watch gameplay"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v2.0.0"; ModBuildStamp="2026-08-28 23:50"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="dxgi.dll"; ModFileAlt="dxgi.dll.aus"; FlatVREnabled="dxgi.dll"; FlatVRDisabled="dxgi.dll.aus"; UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove OutboundVR"; UninstallProbeFile=".pcvrhub-outbound-install.tsv|dxgi.dll|dxgi.dll.aus"; UninstallArguments="-HubConfirmed"; UninstallSteps=@("Use Uninstall now beside this guide. It removes only files recorded by the Hub installer and restores any file that existed before installation.", "Without a Hub install record, only the inspected OutboundVR 2.0.0 DLL is removed when its SHA-256 matches; shared OpenXR files are retained conservatively.", "The game, saves, shared BepInEx installation and unrelated mods are preserved. For temporary flat play, use the Flat / VR switch instead."); SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
     @{
-        # "BOTH" SINCE THE SECOND MOD ARRIVED (2026-08-20). Halcyon is
+        # Halcyon is
         # gamepad only; Insanity Engine VR brings tracked controllers and VR
         # hands. The tile draws both glyphs side by side, and the entry
         # now shows up under the Motion Controls filter as well as under
@@ -6299,9 +6681,12 @@ $ownGamesGP = @(
         SteamId     = "238320"
         SteamFolder = "Outlast"
         VideoUrl    = "https://www.youtube.com/watch?v=odXzJC-JABM"
-        Mod         = "Halcyon + Insanity Engine"
-        Description = "Two mods, switchable"
-        Author      = "Halcyon / T-Diamond"
+        VideoUrl2   = "https://youtu.be/n04b-0JcCNg?t=5"
+        VideoLabel2 = "Watch StrikeZoneVR gameplay"
+        Mod         = "3 VR mods (auto-update)"
+        Description = "Three mods, switchable"
+        Author      = "Halcyon / T-Diamond / StrikeZoneVR"
+        Wip         = $true
         # Blue line on the tile. It automatically replaces the
         # "by <modder>" line there - exactly as with Amnesia VR and the
         # other entries that carry a companion mod.
@@ -6312,9 +6697,11 @@ $ownGamesGP = @(
         InfoUrl     = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
         ModPageUrl  = "https://www.patreon.com/dhalcyon"
         DownloadUrl = "https://www.patreon.com/dhalcyon/posts/nowhere-to-hide-165840706"
+        DonateUrl   = "https://ko-fi.com/strikezonevr"
         # Both mods share filenames. Only verified stores/launchers identify them.
         TwoMods       = $true
-        TwoModsRequireBoth = $true
+        CombinedModInstaller = $true
+        AlternativeTileOrder = @('ModC','ModB','ModA')
         ModAName      = "Halcyon"
         ModAInstallerChoice = "halcyon"
         ModASub       = "_vrmods\VRLaunch"
@@ -6325,6 +6712,19 @@ $ownGamesGP = @(
         ModBLaunch    = "Outlast VR (Insanity).bat"
         ModBProbeFile = "_vrmods\insanity\d3d9.dll"
         ModBRequiredGroups = @("_vrmods\insanity\dxvk_d3d9.dll", "_vrmods\insanity\Outlast-VR.bat", "_vrmods\VRLaunch\Outlast VR (Insanity).bat")
+        ModCName      = "StrikeZoneVR"
+        ModCButtonLabel = "StrikeZone"
+        ModCInstallerChoice = "strikezone"
+        ModCSub       = "_vrmods\VRLaunch"
+        ModCLaunch    = "Outlast VR (StrikeZone).bat"
+        ModCProbeFile = "_vrmods\strikezone\Outlast1VR.exe"
+        ModCRequiredFileGroups = @("_vrmods\strikezone\d3d9.dll", "_vrmods\strikezone\openxr_loader.dll", "_vrmods\strikezone\outlastvr.ini", "_vrmods\strikezone\strikezone_logo.jpg", "_vrmods\VRLaunch\Outlast VR (StrikeZone).bat")
+        GithubRepo = "StrikeZoneVR-hub/OutlastVR"
+        GithubRepoModSlot = "C"
+        GithubRepoPresenceFile = "_vrmods\strikezone\Outlast1VR.exe"
+        GithubRepoVersionFile = ".pcvrhub_version_c"
+        GithubReleaseAssetPatterns = @('(?i)^OutlastVR-Beta-[0-9][^/]*\.zip$')
+        NoVersionSeed = $true
         # Include stable and prerelease builds. Only check when Insanity
         # is installed, so its releases do not flag Halcyon-only installs.
         GithubRepoB   = "TdiamondOf/InsanityEngineVR"
@@ -6336,18 +6736,20 @@ $ownGamesGP = @(
         ModFile     = "Binaries\Win64\d3d9.dll"
         GameExe     = "Binaries\Win64\OLGame.exe"
         FallbackPaths=@("C:\GOG Games\Outlast", "C:\Program Files (x86)\GOG Galaxy\Games\Outlast", "EPIC:Outlast", "C:\Program Files\Epic Games\Outlast", "C:\Program Files (x86)\Epic Games\Outlast")
-        UninstallExe = "UNINSTALL_Insanity.bat"
-        UninstallLabel = "Remove Insanity Engine VR"
-        UninstallTargetMod = @("ModB", "ModB")
-        UninstallProbeFile = "_vrmods\insanity\d3d9.dll"
+        UninstallExe = @("UNINSTALL_Insanity.bat", "UNINSTALL_StrikeZone.bat")
+        SeparateUninstallButtons = $true
+        UninstallLabel = @("Remove Insanity Engine VR", "Remove StrikeZoneVR")
+        UninstallTargetMod = @("ModB", "ModC")
+        UninstallProbeFile = @("_vrmods\insanity\d3d9.dll", "_vrmods\strikezone\Outlast1VR.exe")
         UninstallRequireProbe = $true
-        UninstallArguments = "-HubConfirmed"
+        UninstallArguments = @("-HubConfirmed", "-HubConfirmed")
         UninstallSteps = @(
             "Close Outlast before changing or removing mods.",
             "For Halcyon's config restoration, activate Halcyon first, then run Binaries\Win64\Outlast-VR.bat and choose [2] Uninstall.",
             "Back up your tuned outlastvr.ini: the active copy is in Binaries\Win64 and each mod has its own copy in _vrmods\halcyon or _vrmods\insanity.",
             "For Insanity Engine VR, use Uninstall now. The Hub opens the publisher's [2] Uninstall action and restores Halcyon if it is parked.",
-            "Back up settings before removing either parked mod under _vrmods. The Hub replaces known old Hammerthis binaries after the new motion-control setup succeeds."
+            "For StrikeZoneVR, use its separate Uninstall now action. It removes only the StrikeZoneVR route and preserves parked Halcyon and Insanity files. Do not use the publisher launcher's broad UNINSTALL VR MOD while another route is installed.",
+            "Back up settings before removing a parked mod under _vrmods. The Hub replaces known old Hammerthis binaries after the Insanity setup succeeds."
         )
         Tags=@("outlast", "insanity engine", "motion controls", "horror", "survival horror", "red barrels", "asylum", "halcyon", "stereo", "gamepad", "openxr", "patreon")
     },
@@ -6973,7 +7375,7 @@ $ownGamesGP = @(
         VideoUrl    = "https://www.youtube.com/watch?v=dHJtCVme-mw"
         SteamId     = "3528970"
         Mod         = "Unmourned_VR v1.0.0"
-        Description = "Discord login required"
+        Description = "Legacy; saved ZIP required"
         Author      = "Astienth"
         Bat         = "UnmournedVR\START_INSTALLER.bat"
         UninstallSteps = @(
@@ -7033,7 +7435,7 @@ $ownGamesGP = @(
         FallbackPaths=@("GOG:Oblivion","C:\Program Files (x86)\GOG Galaxy\Games\Oblivion","C:\GOG Games\Oblivion","C:\Program Files (x86)\Bethesda Softworks\Oblivion")
         ModFile="Data\OBSE\Plugins\OBVR.dll"; VrInstallEvidence=@("obse_loader.exe","d3d9.dll","Data\OBSE\Plugins\openvr_api.dll",".pcvrhub_obvr_ownership.csv")
         LaunchExe="obse_loader.exe"; NeverSteamLaunch=$true
-        HubLaunchScript="Oblivion2006VR\Oblivion2006VR-HubLaunch.ps1"; HubLaunchSubdirectory="."; HubLaunchRuntimeSubdirectory="."
+        HubLaunchScript="Oblivion2006VR\Oblivion2006VR-HubLaunch.ps1"; HubStartFile="obse_loader.exe"; HubLaunchSubdirectory="."; HubLaunchRuntimeSubdirectory="."
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove OBVR"; UninstallProbeFile=".pcvrhub_obvr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         UninstallSteps=@("Use Uninstall now to remove only unchanged Hub-owned OBVR, xOBSE, DXVK and OpenVR files.","Pre-existing collisions are restored; changed files, saves, the base game and unrelated mods remain.","MenuQue remains installed because other Oblivion mods can share it.")
         Tags=@("oblivion","elder scrolls iv","obvr","naragorn","openxr","gamepad","keyboard","mouse","rpg","open world","fantasy","nexus","wip")
@@ -7047,7 +7449,7 @@ $ownGamesGP = @(
         FallbackPaths=@("GOG:Thief Definitive Edition","C:\Program Files (x86)\GOG Galaxy\Games\Thief Definitive Edition","C:\GOG Games\Thief Definitive Edition")
         ModFile="Binaries2\Win64\d3d11.dll"; VrInstallEvidence=@("Binaries2\Win64\atidxx64.dll","Binaries2\Win64\ThiefVR-HubLauncher\dist\ThiefVRLauncher.exe","Binaries2\Win64\Start Thief VR.bat",".pcvrhub_thief2014vr_ownership.csv")
         LaunchExe="Binaries2\Win64\Start Thief VR.bat"; NeverSteamLaunch=$true
-        HubLaunchScript="Thief2014VR\ThiefVR-HubLaunch.ps1"; HubLaunchSubdirectory="Binaries2\Win64"; HubLaunchRuntimeSubdirectory="Binaries2\Win64\ThiefVR-HubLauncher"
+        HubLaunchScript="Thief2014VR\ThiefVR-HubLaunch.ps1"; HubStartFile='Binaries2\Win64\ThiefVR-HubLauncher\dist\ThiefVRLauncher.exe'; HubLaunchSubdirectory="Binaries2\Win64"; HubLaunchRuntimeSubdirectory="Binaries2\Win64\ThiefVR-HubLauncher"
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove ThiefVR"; UninstallProbeFile=".pcvrhub_thief2014vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         UninstallSteps=@("Use Uninstall now to remove only unchanged Hub-owned ThiefVR runtime and launcher files.","Pre-existing collisions are restored. The preserved ThiefVR.ini, base game, saves and unrelated files remain installed.")
         Tags=@("thief 2014","thiefvr","farmerarmor","openxr","gamepad","keyboard","mouse","stealth","immersive sim","wip")
@@ -7543,7 +7945,7 @@ $externalGames = @(
         ReadmeDir   = "ResidentEvil4RVR"
         SteamId     = "2050650"
         InfoUrl     = "https://www.biohazardvr.com/re4"
-        Mod         = "RE4VR 2.1.5 (one setup)"
+        Mod         = "RE4VR 2.1.6 (one setup)"
         Description = "Fresh Steam install required"
         Author      = "praydog + Talemann"
         SupportUrl  = "https://www.patreon.com/c/praydog"
@@ -7554,7 +7956,7 @@ $externalGames = @(
         # rest itself - finds the game folder, downgrades the game, asks
         # OpenVR/OpenXR and installs ViGEm. The Hub needs nothing of its
         # own for that.
-        DownloadUrl = "https://biohazardvr.com/downloads/click.php?id=RE4VR_2.1.5_Setup.exe"
+        DownloadUrl = "https://biohazardvr.com/downloads/click.php?id=RE4VR_2.1.6_Setup.exe"
         Url         = "https://www.biohazardvr.com/re4"
         Color       = "#1e2a22"
         Accent      = "#7a1a1a"
@@ -7850,8 +8252,23 @@ foreach ($__ug in (@($ownGames) + @($ownGamesGP) + @($externalGames))) {
 # Compact, validated source of truth for stable ids, curated order and dates.
 # It deliberately sits after all catalog post-processing but before FREE/NEW
 # derivation so every downstream consumer sees the same ordered game objects.
-. (Join-Path $PSScriptRoot "CatalogIndex.ps1")
-. (Join-Path $PSScriptRoot "DiscordChannels.ps1")
+if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot "CatalogIndex.ps1")) } else { . (Join-Path $PSScriptRoot "CatalogIndex.ps1") }
+if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot "DiscordChannels.ps1")) } else { . (Join-Path $PSScriptRoot "DiscordChannels.ps1") }
+
+# ROM search uses an explicit game requirement. Retro-style tags and names
+# alone do not prove a game needs a player's own ROM or disc image. Optional
+# PC-CD/ISO import routes with a complete installed-PC-game route are excluded.
+$global:ROM_REQUIRED_GAME_IDS = @(
+    'breath-of-the-wild-vr','goldeneye-007-vr','gran-turismo-2-pcvr',
+    'legend-of-zelda-ocarina-of-time-vr','legend-of-zelda-twilight-princess',
+    'mario-kart-wii-vr','metroid-prime-vr','perfect-dark-vr','pokemon-gen-1-vr',
+    'super-mario-3d-world-vr','banjo-kazooie-vr','diddy-kong-racing-vr',
+    'f-zero-x-vr','mario-kart-64-vr','silent-hill-vr','star-fox-64-vr',
+    'star-fox-enhanced-vr','super-mario-64-vr','dolphin-vr-redux','rpcs3-vr'
+)
+foreach ($__rg in (@($ownGames) + @($ownGamesGP) + @($externalGames))) {
+    if ($global:ROM_REQUIRED_GAME_IDS -contains $__rg.Id) { $__rg.RequiresRom = $true }
+}
 
 # -------------------------------------------------------
 # FREE games - SINGLE SOURCE OF TRUTH.

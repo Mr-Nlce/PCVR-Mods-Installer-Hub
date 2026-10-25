@@ -278,7 +278,7 @@ $extractDir = Join-Path $tempDir "extract"
 
 Write-Host " Downloading $MOD_NAME from GitHub..." -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $zipFile -UseBasicParsing -ErrorAction Stop
  Write-OK "Mod downloaded."
 } catch {
  Write-Fail "Mod download failed: $_"
@@ -342,6 +342,18 @@ if ($wrapper) {
  Write-Info "No wrapper folder found - using zip root."
 }
 
+# The archive must contain the actual publisher plugin before a depot copy
+# can be reported as a completed VR installation.
+$requiredModRelative = "BepInEx\plugins\TormentedSoulsVR.dll"
+$requiredLoaderRelative = "BepInEx\core\BepInEx.dll"
+if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $requiredModRelative) -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $sourceRoot $requiredLoaderRelative) -PathType Leaf)) {
+ Write-Fail "The selected archive has no complete Tormented Souls VR mod and BepInEx loader."
+ Write-Info "Select the official TormentedSoulsVR ZIP on retry; no VR installation was recorded."
+ Pause-User "Press Enter for installer recovery..."
+ exit 1
+}
+
 Write-Host " Copying mod files into game root..." -NoNewline -ForegroundColor White
 try {
  $null = Merge-DirectoryTreeVerified -Source $sourceRoot -Destination $gamePath -Label "Tormented Souls VR mod files" `
@@ -368,10 +380,14 @@ try {
 }
 
 $bepinexPath = Join-Path $gamePath "BepInEx"
-if (Test-Path $bepinexPath) {
+if ((Test-Path -LiteralPath (Join-Path $gamePath $requiredModRelative) -PathType Leaf) -and
+    (Test-Path -LiteralPath (Join-Path $gamePath $requiredLoaderRelative) -PathType Leaf) -and
+    (Test-Path -LiteralPath $gameExePath -PathType Leaf)) {
  Write-OK "BepInEx structure confirmed at: $bepinexPath"
 } else {
- Write-Warn "BepInEx folder not visible at expected location."
+ Write-Fail "The game, VR plugin or BepInEx loader is missing after copying."
+ Pause-User "Press Enter for installer recovery..."
+ exit 1
 }
 
 # Drop a steam_appid.txt next to the EXE. Without this, Steam may

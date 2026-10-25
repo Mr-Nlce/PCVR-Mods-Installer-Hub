@@ -151,14 +151,14 @@ function global:New-ControlTypeIcon {
             $tip  = "Motion Controls"
             $px   = 14
         }
-        $p = New-Object System.Windows.Shapes.Path
+        $p = [System.Windows.Shapes.Path]::new()
         $p.Data = [System.Windows.Media.Geometry]::Parse($data)
         $p.Stroke = $Brush
         $p.StrokeThickness = 1.9
         $p.StrokeLineJoin = [System.Windows.Media.PenLineJoin]::Round
         $p.StrokeStartLineCap = [System.Windows.Media.PenLineCap]::Round
         $p.StrokeEndLineCap = [System.Windows.Media.PenLineCap]::Round
-        $box = New-Object System.Windows.Controls.Viewbox
+        $box = [System.Windows.Controls.Viewbox]::new()
         $box.Width  = [int]($px*$Scale)
         $box.Height = [int]($px*$Scale)
         $box.Stretch = [System.Windows.Media.Stretch]::Uniform
@@ -173,12 +173,12 @@ function global:New-ControlTypeIcon {
     # honest label for ports with no true 6DoF/roomscale (New Star GP, the
     # RaYRoD N64 ports, many Astienth mods).
     if ($Controls -eq "VRGP") {
-        $row = New-Object System.Windows.Controls.StackPanel
+        $row = [System.Windows.Controls.StackPanel]::new()
         $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
         $row.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         $row.ToolTip = "VR controllers mapped as Gamepad"
         $mc = & $makeGlyph "motion"  $Sc $strokeBrush
-        $eq = New-Object System.Windows.Controls.TextBlock
+        $eq = [System.Windows.Controls.TextBlock]::new()
         $eq.Text = "="
         $eq.Foreground = $strokeBrush
         $eq.FontSize = [double](13 * $Sc)
@@ -186,23 +186,23 @@ function global:New-ControlTypeIcon {
         $eq.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         $eq.Margin = [System.Windows.Thickness]::new([int](3*$Sc), 0, [int](3*$Sc), 0)
         $gp = & $makeGlyph "gamepad" $Sc $strokeBrush
-        $row.Children.Add($mc) | Out-Null
-        $row.Children.Add($eq) | Out-Null
-        $row.Children.Add($gp) | Out-Null
+        [void]$row.Children.Add($mc)
+        [void]$row.Children.Add($eq)
+        [void]$row.Children.Add($gp)
         return $row
     }
 
     # BOTH: gamepad + motion side by side (e.g. GTA V R.E.A.L.+Motion, UEVR).
     if ($Controls -eq "BOTH") {
-        $row = New-Object System.Windows.Controls.StackPanel
+        $row = [System.Windows.Controls.StackPanel]::new()
         $row.Orientation = [System.Windows.Controls.Orientation]::Horizontal
         $row.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
         $row.ToolTip = "Gamepad + Motion Controls"
         $gp = & $makeGlyph "gamepad" $Sc $strokeBrush
         $mc = & $makeGlyph "motion"  $Sc $strokeBrush
         $mc.Margin = [System.Windows.Thickness]::new([int](5*$Sc), 0, 0, 0)
-        $row.Children.Add($gp) | Out-Null
-        $row.Children.Add($mc) | Out-Null
+        [void]$row.Children.Add($gp)
+        [void]$row.Children.Add($mc)
         return $row
     }
 
@@ -238,6 +238,7 @@ $global:WIP_GAME_TITLES = @(
     "Borderlands GOTY Enhanced",
     "Elden Ring VR",
     "Fallout 3 VR",
+    "Vampire: The Masquerade - Bloodlines VR",
     "Ghost Recon Wildlands VR",
     "Stardew Valley VR",
     "GTA IV VR",
@@ -277,30 +278,30 @@ function global:New-GemMarker {
 
     # A small faceted jewel reads as an actual diamond at every scale; the
     # former solid rhombus looked like an ordinary bullet or decoration.
-    $marker = New-Object System.Windows.Controls.Grid
+    $marker = [System.Windows.Controls.Grid]::new()
     $size = if ($Detail) { 14.0 } elseif ($Preview) { [Math]::Max(10.0, [Math]::Round(12.0 * $Scale)) } else { [Math]::Max(11.0, [Math]::Round(14.0 * $Scale)) }
     $marker.Width = $size
     $marker.Height = $size
-    $view = New-Object System.Windows.Controls.Viewbox
-    $gemCanvas = New-Object System.Windows.Controls.Grid
+    $view = [System.Windows.Controls.Viewbox]::new()
+    $gemCanvas = [System.Windows.Controls.Grid]::new()
     $gemCanvas.Width = 20
     $gemCanvas.Height = 20
-    $outline = New-Object System.Windows.Shapes.Path
+    $outline = [System.Windows.Shapes.Path]::new()
     $outline.Data = [System.Windows.Media.Geometry]::Parse('M 2,7 L 6,2 L 14,2 L 18,7 L 10,18 Z')
     $outline.Fill = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#18394c')
     $outline.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#71d7ff')
     $outline.StrokeThickness = 1.5
     $outline.StrokeLineJoin = [System.Windows.Media.PenLineJoin]::Round
-    $facets = New-Object System.Windows.Shapes.Path
+    $facets = [System.Windows.Shapes.Path]::new()
     $facets.Data = [System.Windows.Media.Geometry]::Parse('M 2,7 L 18,7 M 6,2 L 10,7 L 14,2 M 2,7 L 10,18 L 18,7 M 10,7 L 10,18')
     $facets.Stroke = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#b9edff')
     $facets.StrokeThickness = 1.0
     $facets.StrokeLineJoin = [System.Windows.Media.PenLineJoin]::Round
     $facets.Opacity = 0.9
-    $gemCanvas.Children.Add($outline) | Out-Null
-    $gemCanvas.Children.Add($facets) | Out-Null
+    [void]$gemCanvas.Children.Add($outline)
+    [void]$gemCanvas.Children.Add($facets)
     $view.Child = $gemCanvas
-    $marker.Children.Add($view) | Out-Null
+    [void]$marker.Children.Add($view)
     $marker.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $marker.Margin = if ($Detail) {
         [System.Windows.Thickness]::new(6, 1, 0, 0)
@@ -312,7 +313,7 @@ function global:New-GemMarker {
     $marker.ToolTip = if ($Preview) { "Polished Gem" } else { "Gem - polished, native-feeling VR" }
     if ($Preview) {
         $marker.Opacity = 0.72
-        $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+        $glow = [System.Windows.Media.Effects.DropShadowEffect]::new()
         $glow.Color = [System.Windows.Media.Color]::FromRgb(113, 215, 255)
         $glow.BlurRadius = 5
         $glow.ShadowDepth = 0
@@ -403,7 +404,7 @@ function global:Start-CardClickGlowThenOpen {
     # the green border/halo, THEN runs the (1-3s, UI-thread-hogging) navigation.
     # 80ms is imperceptible as a delay.
     $gameCap = $Game
-    $navTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $navTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $navTimer.Interval = [TimeSpan]::FromMilliseconds(80)
     $navTimer.Add_Tick({
         $this.Stop()
@@ -461,7 +462,7 @@ function global:Start-CardClickGlow {
 
     # Glow halo: soft green outer shadow, no offset = halo.
     # BlurRadius 18 matches the visual density of the mockup.
-    $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $glow = [System.Windows.Media.Effects.DropShadowEffect]::new()
     $glow.Color       = [System.Windows.Media.Color]::FromRgb(74, 222, 128)  # #4ade80
     $glow.BlurRadius  = 18
     $glow.ShadowDepth = 0
@@ -470,7 +471,7 @@ function global:Start-CardClickGlow {
 
     # Repaint border to a green SolidColorBrush we own (so we can
     # animate its Color without mutating the shared base brush).
-    $animBrush = New-Object System.Windows.Media.SolidColorBrush
+    $animBrush = [System.Windows.Media.SolidColorBrush]::new()
     $animBrush.Color = ([System.Windows.Media.Color]::FromRgb(74, 222, 128))
     $Card.BorderBrush = $animBrush
     $Card.BorderThickness = [System.Windows.Thickness]::new(1)
@@ -480,7 +481,7 @@ function global:Start-CardClickGlow {
     # duration up top is enough to retune the whole curve.
     $rampInMs  = [int]($totalMs * 0.17)   # fade in
     $holdEndMs = [int]($totalMs * 0.58)   # plateau end
-    $opAnim = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+    $opAnim = [System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames]::new()
     $opAnim.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds($totalMs))
     $kf0 = New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame 0.0,  ([System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromMilliseconds(0)))
     $kf1 = New-Object System.Windows.Media.Animation.LinearDoubleKeyFrame 0.55, ([System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromMilliseconds($rampInMs)))
@@ -498,7 +499,7 @@ function global:Start-CardClickGlow {
     # Give it 150ms slack past the visual duration so a barely-
     # late frame doesn't pop the green border off while the eye
     # is still seeing it fade out.
-    $restoreTimer = New-Object System.Windows.Threading.DispatcherTimer
+    $restoreTimer = [System.Windows.Threading.DispatcherTimer]::new()
     $restoreTimer.Interval = [TimeSpan]::FromMilliseconds($totalMs + 150)
     $cardCap = $Card
     $restoreTimer.Add_Tick({
@@ -533,7 +534,7 @@ function global:Start-CardClickGlow {
 # assign it without sharing one frozen instance across cards.
 function global:New-TileElevationShadow {
     param([double]$Sc = 1.0)
-    $elev = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $elev = [System.Windows.Media.Effects.DropShadowEffect]::new()
     $elev.Color       = [System.Windows.Media.Color]::FromRgb(0, 0, 0)
     $elev.BlurRadius  = [int](20 * $Sc)
     $elev.ShadowDepth = [int](5 * $Sc)
@@ -582,7 +583,7 @@ function global:Set-NeonButtonState {
     $lum = ($neon.R * 0.299 + $neon.G * 0.587 + $neon.B * 0.114) / 255.0
     $op  = 0.72 - ($lum * 0.22)            # ~0.72 (dark) -> ~0.50 (bright)
     if ($op -lt 0.42) { $op = 0.42 }
-    $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $glow = [System.Windows.Media.Effects.DropShadowEffect]::new()
     $glow.Color       = $neon
     $glow.BlurRadius  = [int](14 * $Sc)
     $glow.ShadowDepth = 0
@@ -591,7 +592,7 @@ function global:Set-NeonButtonState {
     # The button is static between state/hover changes. Cache the small neon
     # surface so list scrolling moves a bitmap instead of re-running the
     # shadow shader for every visible card on every frame.
-    $Button.CacheMode = New-Object System.Windows.Media.BitmapCache
+    $Button.CacheMode = [System.Windows.Media.BitmapCache]::new()
     if ($Text) {
         # Capture the build-time font once so state paints can reset
         # it - VR Ready bumps weight/size, everything else returns to
@@ -627,7 +628,7 @@ function global:Set-CardStateVisual {
                 [byte]([Math]::Round($bA.G*0.40 + $bB.G*0.60)),
                 [byte]([Math]::Round($bA.B*0.40 + $bB.B*0.60))))
             $Card.BorderThickness = [System.Windows.Thickness]::new(1)
-            $g = New-Object System.Windows.Media.Effects.DropShadowEffect
+            $g = [System.Windows.Media.Effects.DropShadowEffect]::new()
             $g.Color = $bA; $g.BlurRadius = 16; $g.ShadowDepth = 0; $g.Opacity = 0.55
             $Card.Effect = $g
             if ($BtnTxt) {
@@ -656,11 +657,11 @@ function global:Set-CardStateVisual {
                 # (alpha 40 vs 20). Hover keeps this (it never repaints the
                 # background), and MouseLeave restores it, so both states stay
                 # see-through. Only the Update button - never the Play pill.
-                $uGrad = New-Object System.Windows.Media.LinearGradientBrush
+                $uGrad = [System.Windows.Media.LinearGradientBrush]::new()
                 $uGrad.StartPoint = New-Object System.Windows.Point 0, 0
                 $uGrad.EndPoint   = New-Object System.Windows.Point 0, 1
-                $uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 40, 92, 205), 0.0))) | Out-Null
-                $uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 22, 54, 128), 1.0))) | Out-Null
+                [void]$uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 40, 92, 205), 0.0)))
+                [void]$uGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(40, 22, 54, 128), 1.0)))
                 $uGrad.Freeze()
                 $BtnBrd.Background = $uGrad
             }
@@ -684,13 +685,13 @@ function global:Set-CardStateVisual {
                     [byte]([Math]::Round($vrGrn.G * $a + $vrBase.G * (1 - $a))),
                     [byte]([Math]::Round($vrGrn.B * $a + $vrBase.B * (1 - $a))))
             }
-            $vrBg = New-Object System.Windows.Media.RadialGradientBrush
+            $vrBg = [System.Windows.Media.RadialGradientBrush]::new()
             $vrBg.GradientOrigin = New-Object System.Windows.Point 0.5, 0.0
             $vrBg.Center         = New-Object System.Windows.Point 0.5, 0.0
             $vrBg.RadiusX = 0.95
             $vrBg.RadiusY = 0.80
             $vrBg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ((& $vrBlend 0.257), 0.0)))  | Out-Null
-            $vrBg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ((& $vrBlend 0.086), 0.45))) | Out-Null
+            [void]$vrBg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ((& $vrBlend 0.086), 0.45)))
             $vrBg.GradientStops.Add((New-Object System.Windows.Media.GradientStop $vrBase, 1.0))              | Out-Null
             $vrBg.Freeze()
             $Card.Background = $vrBg
@@ -711,10 +712,10 @@ function global:Set-CardStateVisual {
             # a touch deeper at the bottom) - both stops opaque and in the
             # same green family, so it reads as gentle 3D rather than two
             # split halves. Button effect only; never touches the title.
-            $vrGrad = New-Object System.Windows.Media.LinearGradientBrush
+            $vrGrad = [System.Windows.Media.LinearGradientBrush]::new()
             $vrGrad.StartPoint = New-Object System.Windows.Point 0, 0
             $vrGrad.EndPoint   = New-Object System.Windows.Point 0, 1
-            $vrGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(20, 34, 112, 82), 0.0))) | Out-Null
+            [void]$vrGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(20, 34, 112, 82), 0.0)))
             $vrGrad.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(20, 16, 66, 48), 1.0)))  | Out-Null
             $vrGrad.Freeze()
             if ($BtnBrd) {
@@ -768,8 +769,8 @@ function global:Sync-FrostedCardState {
         Set-CardStateVisual -Card $Card -BtnTxt $BtnTxt -BtnBrd $BtnBrd -State $st
         if ($Card.Resources.Contains("baseBgBrush")) { $Card.Resources.Remove("baseBgBrush") | Out-Null }
         if ($Card.Resources.Contains("baseBdBrush")) { $Card.Resources.Remove("baseBdBrush") | Out-Null }
-        $Card.Resources.Add("baseBgBrush", $Card.Background) | Out-Null
-        $Card.Resources.Add("baseBdBrush", $Card.BorderBrush) | Out-Null
+        [void]$Card.Resources.Add("baseBgBrush", $Card.Background)
+        [void]$Card.Resources.Add("baseBdBrush", $Card.BorderBrush)
     } else {
         # Not-installed / free: the card bg+border already hold the frosted
         # base look (restored from original* by the classic painter), but the
@@ -828,7 +829,7 @@ function global:Add-FrostedGlassTileFx {
     # White vertical gradient, brightest at the very top, gone by
     # ~55% height. A faint accent tint in the highlight ties it to
     # the card family. Reads as light catching a frosted pane.
-    $sheen = New-Object System.Windows.Controls.Border
+    $sheen = [System.Windows.Controls.Border]::new()
     $sheen.VerticalAlignment   = [System.Windows.VerticalAlignment]::Top
     $sheen.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $sheen.Height = [int](72 * $Sc)
@@ -842,37 +843,37 @@ function global:Add-FrostedGlassTileFx {
         [byte]([Math]::Round(255 * 0.82 + $acc.B * 0.18)))
     $shMid = [System.Windows.Media.Color]::FromArgb(7, 255, 255, 255)
     $shEnd = [System.Windows.Media.Color]::FromArgb(0, 255, 255, 255)
-    $shBrush = New-Object System.Windows.Media.LinearGradientBrush
+    $shBrush = [System.Windows.Media.LinearGradientBrush]::new()
     $shBrush.StartPoint = New-Object System.Windows.Point 0, 0
     $shBrush.EndPoint   = New-Object System.Windows.Point 0, 1
-    $shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shTop, 0.0)) | Out-Null
-    $shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shMid, 0.45)) | Out-Null
-    $shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shEnd, 1.0)) | Out-Null
+    [void]$shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shTop, 0.0))
+    [void]$shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shMid, 0.45))
+    [void]$shBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop $shEnd, 1.0))
     $shBrush.Freeze()
     $sheen.Background = $shBrush
-    $Overlay.Children.Add($sheen) | Out-Null
+    [void]$Overlay.Children.Add($sheen)
 
     # ---- 3. Glass bevel edge (3D rim) ----------------------
     # Transparent fill, 1px gradient stroke: bright at the top
     # (catches light), dark at the bottom (in shadow). Inset 0.5px
     # so it reads as the inner thickness of a glass pane sitting
     # just inside the card's own border.
-    $bevel = New-Object System.Windows.Controls.Border
+    $bevel = [System.Windows.Controls.Border]::new()
     $bevel.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
     $bevel.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
     $bevel.Margin = [System.Windows.Thickness]::new(0.5)
     $bevel.CornerRadius = [System.Windows.CornerRadius]::new($radius)
     $bevel.BorderThickness = [System.Windows.Thickness]::new(1)
     $bevel.IsHitTestVisible = $false
-    $bvBrush = New-Object System.Windows.Media.LinearGradientBrush
+    $bvBrush = [System.Windows.Media.LinearGradientBrush]::new()
     $bvBrush.StartPoint = New-Object System.Windows.Point 0, 0
     $bvBrush.EndPoint   = New-Object System.Windows.Point 0, 1
-    $bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(92, 255, 255, 255)), 0.0)) | Out-Null
-    $bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(8, 255, 255, 255)), 0.5)) | Out-Null
-    $bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(120, 0, 0, 0)), 1.0)) | Out-Null
+    [void]$bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(92, 255, 255, 255)), 0.0))
+    [void]$bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(8, 255, 255, 255)), 0.5))
+    [void]$bvBrush.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb(120, 0, 0, 0)), 1.0))
     $bvBrush.Freeze()
     $bevel.BorderBrush = $bvBrush
-    $Overlay.Children.Add($bevel) | Out-Null
+    [void]$Overlay.Children.Add($bevel)
 }
 
 # Hover "spotlights": two small soft accent glows (top-left + middle-right)
@@ -889,21 +890,21 @@ function global:Set-CardHoverSpotlights {
     $acc = ConvertTo-MediaColor $AccentHex
     $mkSpot = {
         param($cx, $cy, $rx, $ry, $aMax)
-        $b = New-Object System.Windows.Controls.Border
+        $b = [System.Windows.Controls.Border]::new()
         $b.IsHitTestVisible = $false
         $b.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
         $b.VerticalAlignment   = [System.Windows.VerticalAlignment]::Stretch
-        $rg = New-Object System.Windows.Media.RadialGradientBrush
+        $rg = [System.Windows.Media.RadialGradientBrush]::new()
         $rg.GradientOrigin = New-Object System.Windows.Point $cx, $cy
         $rg.Center         = New-Object System.Windows.Point $cx, $cy
         $rg.RadiusX = $rx; $rg.RadiusY = $ry
-        $rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb([byte]$aMax, $acc.R, $acc.G, $acc.B), 0.0))) | Out-Null
-        $rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb([byte]0, $acc.R, $acc.G, $acc.B), 1.0))) | Out-Null
+        [void]$rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb([byte]$aMax, $acc.R, $acc.G, $acc.B), 0.0)))
+        [void]$rg.GradientStops.Add((New-Object System.Windows.Media.GradientStop ([System.Windows.Media.Color]::FromArgb([byte]0, $acc.R, $acc.G, $acc.B), 1.0)))
         $rg.Freeze()
         $b.Background = $rg
         return $b
     }
-    $spotHost = New-Object System.Windows.Controls.Grid
+    $spotHost = [System.Windows.Controls.Grid]::new()
     $spotHost.IsHitTestVisible = $false
     [System.Windows.Controls.Grid]::SetRow($spotHost, 0)
     [System.Windows.Controls.Grid]::SetRowSpan($spotHost, 3)
@@ -922,18 +923,18 @@ function global:Set-CardHoverSpotlights {
     $mkPulse = {
         param($el, $kind, $period)
         if (-not $period) { $period = $pulseT }
-        $kf = New-Object System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames
+        $kf = [System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames]::new()
         $kf.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds($period))
         $kf.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
         $addKf = {
             param($v, $frac)
-            $ease = New-Object System.Windows.Media.Animation.SineEase
+            $ease = [System.Windows.Media.Animation.SineEase]::new()
             $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseInOut
-            $k = New-Object System.Windows.Media.Animation.EasingDoubleKeyFrame
+            $k = [System.Windows.Media.Animation.EasingDoubleKeyFrame]::new()
             $k.Value = $v
             $k.KeyTime = [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($period * $frac))
             $k.EasingFunction = $ease
-            $kf.KeyFrames.Add($k) | Out-Null
+            [void]$kf.KeyFrames.Add($k)
         }
         switch ($kind) {
             # --- VR Ready: three phases rotate top -> left -> right, each
@@ -957,14 +958,14 @@ function global:Set-CardHoverSpotlights {
         & $mkPulse $top   "t3" 12
         & $mkPulse $spot1 "l3" 12
         & $mkPulse $spot2 "r3" 12
-        $spotHost.Children.Add($top) | Out-Null
+        [void]$spotHost.Children.Add($top)
     } else {
         & $mkPulse $spot1 "p2"
         & $mkPulse $spot2 "s2"
     }
-    $spotHost.Children.Add($spot1) | Out-Null
-    $spotHost.Children.Add($spot2) | Out-Null
-    $grid.Children.Add($spotHost) | Out-Null
+    [void]$spotHost.Children.Add($spot1)
+    [void]$spotHost.Children.Add($spot2)
+    [void]$grid.Children.Add($spotHost)
     $Card.Resources.Add("hoverSpots", $spotHost)
 }
 

@@ -21,6 +21,7 @@ $__hubModuleParts = @(
     'DetailView.Page.ps1'
 )
 foreach ($__hubModulePart in $__hubModuleParts) {
-    . (Join-Path $PSScriptRoot $__hubModulePart)
+    $__hubPartPath = Join-Path $PSScriptRoot $__hubModulePart
+    if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript $__hubPartPath) } else { . $__hubPartPath }
 }
-Remove-Variable __hubModulePart, __hubModuleParts -ErrorAction SilentlyContinue
+Remove-Variable __hubModulePart, __hubModuleParts, __hubPartPath -ErrorAction SilentlyContinue

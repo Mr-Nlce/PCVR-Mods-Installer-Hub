@@ -374,7 +374,7 @@ function Install-ManualMod {
  Write-Host " Downloading the VR files ($LEGACY_MOD_VERSION source) ..." -ForegroundColor White
  $haveZip = $false
  try {
-  Invoke-WebRequest -Uri $SOURCE_URL -OutFile $zipPath -UseBasicParsing -EA Stop
+  Invoke-PCVRWebRequest -Uri $SOURCE_URL -OutFile $zipPath -UseBasicParsing -EA Stop
   $haveZip = Test-Path -LiteralPath $zipPath
  } catch { Write-Warn "Automatic download failed: $($_.Exception.Message)" }
  if (-not $haveZip) {

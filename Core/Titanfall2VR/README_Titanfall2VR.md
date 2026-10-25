@@ -1,4 +1,4 @@
-# Titanfall 2 VR
+﻿# Titanfall 2 VR
 
 CircuitLord's maintained VR conversion brings the single-player campaign
 into OpenXR with stereoscopic rendering, tracked hand aiming, full-body IK,
@@ -86,6 +86,12 @@ the migration preserves them instead of deleting them by guesswork.
 - Do not load the old alpha and the new TF2VR profile together. The Hub's
   migration removes only the old unchanged Hub-owned plugin once the new
   installation is verified.
+
+## Support CircuitLord
+
+[Support the mod developer on Ko-fi](https://ko-fi.com/circuitlord)
+
+## Links
 
 [CircuitLord's project and releases](https://github.com/CircuitLord/CircuitLordVRModInstaller)
 

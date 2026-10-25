@@ -106,7 +106,7 @@ if ($xlPath) {
  $setupExe = Join-Path $env:TEMP "XIVLauncher-Setup.exe"
  try {
  Write-Host " Downloading XIVLauncher Setup ... " -NoNewline -ForegroundColor White
- Invoke-WebRequest -Uri $XIVLAUNCHER_URL -OutFile $setupExe -UseBasicParsing -EA Stop
+ Invoke-PCVRWebRequest -Uri $XIVLAUNCHER_URL -OutFile $setupExe -UseBasicParsing -EA Stop
  Write-Host "OK" -ForegroundColor Green
  } catch {
  Write-Fail "Download failed: $_"

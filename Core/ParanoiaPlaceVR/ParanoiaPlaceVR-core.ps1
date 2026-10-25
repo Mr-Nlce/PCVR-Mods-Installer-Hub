@@ -276,74 +276,48 @@ if ($gamePath) {
 # -------------------------------------------------------
 Write-Step 4 5 "Installing mod files"
 
+$requiredModFiles = @('winhttp.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\Paranoia_Place_VR.dll')
 $tempExtract = Join-Path $env:TEMP "ParanoiaPlaceVR_$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $tempExtract | Out-Null
-
-try {
- Write-Host " Extracting archive..." -ForegroundColor Gray
- Expand-Archive -Path $modZip -DestinationPath $tempExtract -Force
-} catch {
- Write-Fail "Extract failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$modZip' with 7-Zip or Windows Explorer, and extract its contents into '$tempExtract'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder (Split-Path "$modZip" -Parent) `
- -DestFolder "$tempExtract" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
+$modInstalled = $false
+while (-not $modInstalled) {
+ try {
+  if (Test-Path -LiteralPath $tempExtract) { Remove-Item -LiteralPath $tempExtract -Recurse -Force }
+  New-Item -ItemType Directory -Path $tempExtract -Force | Out-Null
+  $zipSafety = Test-ZipArchiveEntrySafety -ArchivePath $modZip -DestinationFolder $tempExtract
+  if ($zipSafety.Inspectable -and -not $zipSafety.Safe) { throw "Unsafe archive entry: $($zipSafety.Entry)" }
+  Write-Host " Extracting archive..." -ForegroundColor Gray
+  Expand-Archive -LiteralPath $modZip -DestinationPath $tempExtract -Force -ErrorAction Stop
+  $rootEntries = @(Get-ChildItem -LiteralPath $tempExtract)
+  $srcRoot = $tempExtract
+  if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer -and $rootEntries[0].Name -ne 'BepInEx') {
+   $srcRoot = $rootEntries[0].FullName
+  }
+  foreach ($relative in $requiredModFiles) {
+   if (-not (Test-Path -LiteralPath (Join-Path $srcRoot $relative) -PathType Leaf)) {
+    throw "The selected ZIP is missing $relative. No game files were copied."
+   }
+  }
+  Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
+  Get-ChildItem -LiteralPath $srcRoot | ForEach-Object {
+   Copy-Item -LiteralPath $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
+  }
+  foreach ($relative in $requiredModFiles) {
+   if (-not (Test-Path -LiteralPath (Join-Path $gamePath $relative) -PathType Leaf)) {
+    throw "Required file missing after copy: $relative"
+   }
+  }
+  Write-OK "Paranoia Place VR and BepInEx files verified."
+  $modInstalled = $true
+ } catch {
+  Write-Fail "Mod installation incomplete: $($_.Exception.Message)"
+  Write-Host " The previous installation state was not marked complete." -ForegroundColor Yellow
+  $null = Invoke-InstallerFallback -Action 'Paranoia Place VR archive' `
+   -Url $DISCORD_DOWNLOAD_URL `
+   -Instructions 'Download the complete Paranoia_Place_VR.zip and drag it here. The required VR DLL and BepInEx files must be inside.' `
+   -DestFile $modZip -AllowSkip $false
+ } finally {
+  if (Test-Path -LiteralPath $tempExtract) { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue }
  }
- # User chose Skip - continue at own risk
-}
-
-$rootEntries = Get-ChildItem -Path $tempExtract
-$srcRoot = $tempExtract
-if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
- if ($rootEntries[0].Name -ne "BepInEx") {
- $srcRoot = $rootEntries[0].FullName
- }
-}
-
-Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
-try {
- Get-ChildItem -Path $srcRoot | ForEach-Object {
- Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
- }
- Write-OK "Mod files installed."
-} catch {
- Write-Fail "Copy failed: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open the archive in the temp folder (path printed by the installer just above) with 7-Zip, and extract its contents into '$gamePath'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -DestFolder "$gamePath" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
-}
-
-try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\Paranoia_Place_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but Paranoia_Place_VR.dll is missing."
-} else {
- Write-OK "BepInEx + Paranoia_Place_VR.dll present."
 }
 
 # -------------------------------------------------------

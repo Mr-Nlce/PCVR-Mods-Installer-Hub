@@ -244,7 +244,7 @@ $ddZip = Join-Path $toolsDir "DepotDownloader.zip"
 $ddDir = Join-Path $toolsDir "DD"
 
 try {
- Invoke-WebRequest -Uri $DD_URL -OutFile $ddZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $DD_URL -OutFile $ddZip -UseBasicParsing -ErrorAction Stop
  Expand-Archive -Path $ddZip -DestinationPath $ddDir -Force
  Write-OK "DepotDownloader ready."
 } catch {
@@ -439,7 +439,7 @@ $modZip = Join-Path $toolsDir "OutwardVR.zip"
 
 Write-Host " Downloading $MOD_NAME from GitHub..." -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Write-OK "Mod downloaded."
 } catch {
  Write-Fail "Mod download failed: $_"
@@ -458,7 +458,7 @@ try {
  if ([string]$__fb -eq "retry") {
  # Retry the actual mod download.
  try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $modZip -UseBasicParsing -ErrorAction Stop
  Write-OK "Mod downloaded."
  } catch {
  Write-Warn "Mod still could not be downloaded: $_"

@@ -273,6 +273,19 @@ if ($rootEntries.Count -eq 1 -and $rootEntries[0].PSIsContainer) {
  }
 }
 
+$requiredPayload = @('winhttp.dll','BepInEx\core\BepInEx.dll',
+ 'BepInEx\plugins\SunriseGP_VR.dll','BepInEx\config\UnityVR_Bepinex.cfg')
+$missingPayload = @($requiredPayload | Where-Object {
+ -not (Test-Path -LiteralPath (Join-Path $srcRoot $_) -PathType Leaf)
+})
+if ($missingPayload.Count -gt 0) {
+ Write-Fail ('The selected archive is missing Sunrise GP VR files: ' + ($missingPayload -join ', '))
+ Write-Host 'Select the official SunriseGP_VR.zip on the retry screen.' -ForegroundColor Yellow
+ try { Remove-Item -LiteralPath $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+ Pause-User 'Press Enter to return to installer recovery.'
+ exit 1
+}
+
 Write-Host " Copying files into: $gamePath" -ForegroundColor Gray
 try {
  Get-ChildItem -Path $srcRoot | ForEach-Object {
@@ -299,16 +312,16 @@ try {
 
 try { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
-# Sanity check
-$bepinexDir = Join-Path $gamePath "BepInEx"
-$modDll = Join-Path $gamePath "BepInEx\plugins\SunriseGP_VR.dll"
-if (-not (Test-Path $bepinexDir)) {
- Write-Warn "BepInEx folder not found in $gamePath after copy."
-} elseif (-not (Test-Path $modDll)) {
- Write-Warn "BepInEx is there but SunriseGP_VR.dll is missing."
-} else {
- Write-OK "BepInEx + SunriseGP_VR.dll present."
+# The receipt requires the full loader and mod, including the runtime config.
+$missingInstalled = @($requiredPayload | Where-Object {
+ -not (Test-Path -LiteralPath (Join-Path $gamePath $_) -PathType Leaf)
+})
+if ($missingInstalled.Count -gt 0) {
+ Write-Fail ('Required files are missing after copying: ' + ($missingInstalled -join ', '))
+ Pause-User 'Press Enter to return to installer recovery.'
+ exit 1
 }
+Write-OK 'BepInEx loader, SunriseGP_VR.dll and config verified.'
 
 # -------------------------------------------------------
 # Record install path so the Hub can mark VR Ready

@@ -26,7 +26,7 @@ function Get-PZVRVersionPath {
     return (Join-Path $env:USERPROFILE 'Zomboid\version.txt')
 }
 
-function Get-PZVRExternalEvidence([string]$GameRoot) {
+function Get-PZVRExternalEvidence([string]$GameRoot,[switch]$AllowPzApprovalMismatch) {
     if (-not $GameRoot -or -not (Test-Path -LiteralPath $GameRoot -PathType Container)) { return $null }
     $workshop = Get-PZVRWorkshopRoot $GameRoot
     $approvals = Get-PZVRApprovalPath
@@ -68,13 +68,41 @@ function Get-PZVRExternalEvidence([string]$GameRoot) {
         $approved = Get-Content -LiteralPath $approvals -Raw | ConvertFrom-Json
         $viewHash = (Get-FileHash -LiteralPath $files.ViewJar -Algorithm SHA256).Hash.ToLowerInvariant()
         $pzHash = (Get-FileHash -LiteralPath $files.PzJar -Algorithm SHA256).Hash.ToLowerInvariant()
+        $pzApproved = $false
         foreach ($needed in @(@{Id='Viewpoint';Hash=$viewHash},@{Id='PZVR';Hash=$pzHash})) {
             $row = @($approved.mods | Where-Object {
                 $_.id -ieq $needed.Id -and $_.decision -eq $true -and $_.jar_hash -eq $needed.Hash
             })
-            if ($row.Count -ne 1) { return $null }
+            if ($row.Count -ne 1) {
+                if ($needed.Id -ne 'PZVR' -or -not $AllowPzApprovalMismatch) { return $null }
+            } elseif ($needed.Id -eq 'PZVR') { $pzApproved = $true }
         }
         return [pscustomobject]@{ Version=$modVersion; Workshop=$workshop; PzJar=$files.PzJar;
-            PzHash=$pzHash; ViewHash=$viewHash; Game=$GameRoot }
+            PzHash=$pzHash; ViewHash=$viewHash; Game=$GameRoot; PzApproved=$pzApproved }
+    } catch { return $null }
+}
+
+# A Workshop update can replace a previously approved JAR in place. Keep the
+# old Hub receipt as proof of the former install, but require a fresh explicit
+# ZombieBuddy approval before reporting the new code as VR Ready.
+function Get-PZVRPendingWorkshopUpdate([string]$GameRoot) {
+    $current = Get-PZVRExternalEvidence -GameRoot $GameRoot -AllowPzApprovalMismatch
+    if (-not $current -or $current.PzApproved) { return $null }
+    $marker = Join-Path $GameRoot '.pcvrhub_pzvr_activation.json'
+    if (-not (Test-Path -LiteralPath $marker -PathType Leaf)) { return $null }
+    try {
+        $previous = Get-Content -LiteralPath $marker -Raw -Encoding UTF8 | ConvertFrom-Json
+        if (-not $previous.version -or -not $previous.pzJarSha256 -or
+            $previous.pzJarSha256 -eq $current.PzHash) { return $null }
+        $approvals = Get-Content -LiteralPath (Get-PZVRApprovalPath) -Raw -Encoding UTF8 | ConvertFrom-Json
+        $oldApproved = @($approvals.mods | Where-Object {
+            $_.id -ieq 'PZVR' -and $_.decision -eq $true -and
+            $_.jar_hash -eq $previous.pzJarSha256
+        })
+        if ($oldApproved.Count -ne 1) { return $null }
+        if ([version]$current.Version -lt [version]$previous.version) { return $null }
+        return [pscustomobject]@{PreviousVersion=[string]$previous.version;
+            CurrentVersion=[string]$current.Version; Game=$GameRoot;
+            Evidence="Steam Workshop PZVR $($current.Version) replaced approved $($previous.version); approve the new PZVR JAR in ZombieBuddy"}
     } catch { return $null }
 }

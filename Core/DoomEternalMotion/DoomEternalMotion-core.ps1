@@ -8,7 +8,7 @@ $script:GameTitle='DOOM Eternal VR - Motion'
 $script:Quip='Rip and tear. The chainsaw finally has a reach of its own.'
 $script:Slots=@{
     argent=@{Name='KHARVOX: ARGENT';Repo='CactusVRStudios/KHARVOX-ARGENT';Pattern='(?i)^ARGENT-[0-9].*\.zip$';Tag='v1.01a';Folder='ARGENT';Launcher='ArgentLauncher.exe';Identity='doomargent';Receipt='.installed_path_a';State='mod_a_path';VersionSlot='Primary';Required=@('ArgentLauncher.exe','ArgentLayer.dll','ArgentLayer.json','openxr_loader.dll','build-info.json')}
-    eternal=@{Name='EternalVR';Repo='ArcadaLabs-Jason/EternalVR';Pattern='(?i)^EternalVR-alpha-[0-9].*\.zip$';Tag='v0.1.62';Folder='EternalVR';Launcher='EternalVR.Launcher.exe';Identity='doometernalvr';Receipt='.installed_path_b';State='mod_b_path';VersionSlot='Secondary';Required=@('EternalVR.Launcher.exe','EternalVR.Launcher.Core.dll','BUILD-INFO.txt','layer\EternalVR.dll','layer\openxr_loader.dll','layer\VK_LAYER_ETERNALVR.json')}
+    eternal=@{Name='EternalVR';Repo='ArcadaLabs-Jason/EternalVR';Pattern='(?i)^EternalVR-alpha-[0-9].*\.zip$';Tag='v0.1.75';Folder='EternalVR';Launcher='EternalVR.Launcher.exe';Identity='doometernalvr';Receipt='.installed_path_b';State='mod_b_path';VersionSlot='Secondary';Required=@('EternalVR.Launcher.exe','EternalVR.Launcher.Core.dll','BUILD-INFO.txt','layer\EternalVR.dll','layer\openxr_loader.dll','layer\VK_LAYER_ETERNALVR.json')}
 }
 
 function Test-DoomEternalGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'DOOMEternalx64vk.exe') -PathType Leaf))}

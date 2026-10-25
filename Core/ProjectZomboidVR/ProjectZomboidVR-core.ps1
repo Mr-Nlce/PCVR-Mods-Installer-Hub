@@ -143,42 +143,98 @@ function Invoke-PZVRInstaller {
     [void](Wait-PCVRExplicitEnter -Message 'After reading this, press Enter to locate Project Zomboid...')
     $game = Get-PZVRGame
     Write-Host "  Game: $game" -ForegroundColor Green
+    $agentWasInstalled = Test-PZVRAgent $game
+    $workshopEvidence = Get-PZVRExternalEvidence -GameRoot $game -AllowPzApprovalMismatch
+    $oldMarkerPath = Join-Path $game '.pcvrhub_pzvr_activation.json'
+    $oldMarker = $null
+    if ($workshopEvidence -and (Test-Path -LiteralPath $oldMarkerPath -PathType Leaf)) {
+        try { $oldMarker = Get-Content -LiteralPath $oldMarkerPath -Raw -Encoding UTF8 | ConvertFrom-Json } catch {}
+    }
+    $workshopUpdate = $false
+    if ($agentWasInstalled -and $oldMarker -and $workshopEvidence) {
+        try {
+            $workshopUpdate = [bool]($oldMarker.version -and $oldMarker.pzJarSha256 -and
+                $oldMarker.pzJarSha256 -ne $workshopEvidence.PzHash -and
+                [version]$workshopEvidence.Version -ge [version]$oldMarker.version)
+        } catch { $workshopUpdate = $false }
+    }
+    if ($workshopUpdate) {
+        Write-Host "  Steam Workshop updated PZVR from $($oldMarker.version) to $($workshopEvidence.Version)." -ForegroundColor Yellow
+    }
     Wait-PZVRWorkshop $game
     Wait-PZVRAgent $game
-    Write-Host ''
-    Write-Host '  PROJECT ZOMBOID: ACTIVATE THE VR MODS' -ForegroundColor Yellow
-    Write-Host '  1) Open Mods in the main menu. Enable ZombieBuddy, Viewpoint and PZVR.' -ForegroundColor Green
-    Write-Host '  2) Confirm any activation window with OK; restart the game if requested.' -ForegroundColor Green
-    Write-Host '  3) In ZombieBuddy approval, Allow Viewpoint and PZVR, then click OK.' -ForegroundColor Green
-    Write-Host '  4) Select Save decisions to disk to remember the approvals.' -ForegroundColor Green
-    Write-Host '     Trust author is unavailable for unsigned mods.' -ForegroundColor Gray
-    Write-Host '  Keep the first game session flat. Do not press Start VR yet.' -ForegroundColor Yellow
-    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to reopen Steam after ZombieBuddy Setup...')
-    if($env:PCVR_HUB_TEST_MODE -eq '1'){
-        if($env:PCVR_PZ_TEST_ACTIONS){Add-Content -LiteralPath $env:PCVR_PZ_TEST_ACTIONS -Value 'open:steam://open/main'}
-    }else{try{Start-Process 'steam://open/main' -ErrorAction Stop|Out-Null}catch{Write-Host ' Open Steam from your Start menu.' -ForegroundColor Yellow}}
-    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to start Project Zomboid through Steam...')
-    if($env:PCVR_HUB_TEST_MODE -eq '1'){
-        if($env:PCVR_PZ_TEST_ACTIONS){Add-Content -LiteralPath $env:PCVR_PZ_TEST_ACTIONS -Value 'open:steam://rungameid/108600'}
-    }else{try{Start-Process 'steam://rungameid/108600' -ErrorAction Stop|Out-Null}catch{Write-Host ' Start Project Zomboid from your Steam Library.' -ForegroundColor Yellow}}
-    Write-Host ''
-    Write-Host '  FIRST PERSON SETUP - STAY IN FLAT MODE' -ForegroundColor Yellow
-    Write-Host '  1) Start a NEW single-player game on the desktop. Do not press Start VR.' -ForegroundColor Green
-    Write-Host '  2) When the first-person configuration window appears, click its Restart button.' -ForegroundColor Green
-    Write-Host '  3) Start a flat single-player game again and finish the Viewpoint setup.' -ForegroundColor Green
-    Write-Host '  4) Check that the top left lists PZVR and Viewpoint.' -ForegroundColor Green
-    Write-Host '  5) Only then press Start VR at the top right to enter VR.' -ForegroundColor Cyan
+    $alreadyVerifiedUpdate = $false
+    if ($workshopUpdate) {
+        $current = Get-PZVRExternalEvidence -GameRoot $game
+        $alreadyVerifiedUpdate = [bool]($current -and (Test-PZVRLoaded -GameRoot $game -Evidence $current))
+        if ($alreadyVerifiedUpdate) {
+            Write-Host '  The new Workshop files were already approved and loaded on a recent game start.' -ForegroundColor Green
+        } else {
+            Write-Host ''
+            Write-Host '  WORKSHOP UPDATE: APPROVE THE CHANGED JAVA MODS' -ForegroundColor Yellow
+            Write-Host '  Steam installs this update through Workshop. Keep Steam running.' -ForegroundColor White
+            Write-Host '  1) On game start, allow PZVR and Viewpoint if ZombieBuddy asks again.' -ForegroundColor Green
+            Write-Host '  2) Select Save decisions to disk, then click OK.' -ForegroundColor Green
+            Write-Host '     Trust author is unavailable for unsigned mods.' -ForegroundColor Gray
+        }
+    } else {
+        Write-Host ''
+        Write-Host '  PROJECT ZOMBOID: ACTIVATE THE VR MODS' -ForegroundColor Yellow
+        Write-Host '  1) Open Mods in the main menu. Enable ZombieBuddy, Viewpoint and PZVR.' -ForegroundColor Green
+        Write-Host '  2) Confirm any activation window with OK; restart the game if requested.' -ForegroundColor Green
+        Write-Host '  3) In ZombieBuddy approval, Allow Viewpoint and PZVR, then click OK.' -ForegroundColor Green
+        Write-Host '  4) Select Save decisions to disk to remember the approvals.' -ForegroundColor Green
+        Write-Host '     Trust author is unavailable for unsigned mods.' -ForegroundColor Gray
+        Write-Host '  Keep the first game session flat. Do not press Start VR yet.' -ForegroundColor Yellow
+    }
+    if (-not $alreadyVerifiedUpdate) {
+        if (-not $agentWasInstalled) {
+            [void](Wait-PCVRExplicitEnter -Message 'Press Enter to reopen Steam after ZombieBuddy Setup...')
+            if($env:PCVR_HUB_TEST_MODE -eq '1'){
+                if($env:PCVR_PZ_TEST_ACTIONS){Add-Content -LiteralPath $env:PCVR_PZ_TEST_ACTIONS -Value 'open:steam://open/main'}
+            }else{try{Start-Process 'steam://open/main' -ErrorAction Stop|Out-Null}catch{Write-Host ' Open Steam from your Start menu.' -ForegroundColor Yellow}}
+        }
+        [void](Wait-PCVRExplicitEnter -Message 'Press Enter to start Project Zomboid through Steam...')
+        if($env:PCVR_HUB_TEST_MODE -eq '1'){
+            if($env:PCVR_PZ_TEST_ACTIONS){Add-Content -LiteralPath $env:PCVR_PZ_TEST_ACTIONS -Value 'open:steam://rungameid/108600'}
+        }else{try{Start-Process 'steam://rungameid/108600' -ErrorAction Stop|Out-Null}catch{Write-Host ' Start Project Zomboid from your Steam Library.' -ForegroundColor Yellow}}
+    }
+    if (-not $workshopUpdate) {
+        Write-Host ''
+        Write-Host '  FIRST PERSON SETUP - STAY IN FLAT MODE' -ForegroundColor Yellow
+        Write-Host '  1) Start a NEW single-player game on the desktop. Do not press Start VR.' -ForegroundColor Green
+        Write-Host '  2) When the first-person configuration window appears, click its Restart button.' -ForegroundColor Green
+        Write-Host '  3) Start a flat single-player game again and finish the Viewpoint setup.' -ForegroundColor Green
+        Write-Host '  4) Check that the top left lists PZVR and Viewpoint.' -ForegroundColor Green
+        Write-Host '  5) Only then press Start VR at the top right to enter VR.' -ForegroundColor Cyan
+    }
     while ($true) {
-        [void](Wait-PCVRExplicitEnter -Message 'After the flat first-person setup and restart, press Enter to check the mods and game log...')
+        if (-not $alreadyVerifiedUpdate) {
+            $checkMessage = if ($workshopUpdate) { 'After approving the changed mods, press Enter to check the game log...' } else {
+                'After the flat first-person setup and restart, press Enter to check the mods and game log...'
+            }
+            [void](Wait-PCVRExplicitEnter -Message $checkMessage)
+        }
         $evidence = Get-PZVRExternalEvidence -GameRoot $game
         $loaded = $evidence -and (Test-PZVRLoaded -GameRoot $game -Evidence $evidence)
         if ($loaded) {
+            if ($workshopUpdate) { break }
             if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_PZ_TEST_CONFIRMED -eq '1') { break }
             if ((Read-Host 'Did the Start VR button appear at the top right? Y/N').Trim() -match '^(?i)y(?:es)?$') { break }
             Write-Host '  Start VR was not confirmed. No installation has been marked complete.' -ForegroundColor Yellow
         } else {
-            Write-Host '  The current game build, Java approvals or loaded PZVR log is incomplete.' -ForegroundColor Yellow
-            Write-Host '  Enable all three mods, Allow Viewpoint and PZVR, finish the flat Viewpoint setup, then check Start VR.' -ForegroundColor White
+            $pendingWorkshop = Get-PZVRPendingWorkshopUpdate -GameRoot $game
+            if ($pendingWorkshop) {
+                Write-Host '  The new Workshop PZVR JAR is not yet approved in ZombieBuddy.' -ForegroundColor Yellow
+                Write-Host '  Start the game again, Allow PZVR in the approval window, and save the decision.' -ForegroundColor White
+            } else {
+                Write-Host '  The current game build, Java approvals or loaded PZVR log is incomplete.' -ForegroundColor Yellow
+            }
+            if ($workshopUpdate) {
+                Write-Host '  Launch the game, allow changed Java mods, save decisions to disk and click OK.' -ForegroundColor White
+            } else {
+                Write-Host '  Enable all three mods, Allow Viewpoint and PZVR, finish the flat Viewpoint setup, then check Start VR.' -ForegroundColor White
+            }
         }
         if ($env:PCVR_HUB_TEST_MODE -eq '1') { throw 'The isolated PZVR fixture did not produce complete activation evidence.' }
         $choice = ('' + (Read-Host 'Press Enter to check again, or Q to cancel')).Trim()

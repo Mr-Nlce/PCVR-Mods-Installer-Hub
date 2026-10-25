@@ -210,6 +210,14 @@ while (-not $marker) {
 # marker is inside <pkgRoot>\gamedata\ ; pkgRoot = gamedata's parent.
 $gamedataDir = $marker.Directory
 $pkgRoot     = $gamedataDir.Parent.FullName
+$requiredContent = @('totalchaos.pk3', 'doom.wad', 'zd_extra.pk3')
+$missingContent = @($requiredContent | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gamedataDir.FullName $_) -PathType Leaf) })
+if ($gamedataDir.Name -ne 'gamedata' -or $missingContent.Count -gt 0) {
+    Write-Fail "The selected Total Chaos ZIP is incomplete. Missing gamedata files: $($missingContent -join ', ')."
+    Write-Host "  Use the complete Total Chaos Standalone ZIP and retry in installer recovery." -ForegroundColor Yellow
+    Pause-User "Press Enter for installer recovery..."
+    exit 1
+}
 
 # Merge the refreshed package into the game folder.  Existing saves, engine
 # configuration and other user-created files stay in place.
@@ -229,10 +237,11 @@ while (-not $placedOk) {
 }
 $gameData = Join-Path $gameRoot "gamedata"
 $tcIwad   = Join-Path $gameData "doom.wad"
-if (-not (Test-Path $tcIwad)) {
-    Write-Warn "doom.wad was not found at the expected path."
-    Write-Host "  Expected: $tcIwad" -ForegroundColor DarkGray
-    Write-Host "  The launcher may need the IWAD path corrected if the package layout differs." -ForegroundColor Gray
+$missingInstalledContent = @($requiredContent | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gameData $_) -PathType Leaf) })
+if ($missingInstalledContent.Count -gt 0) {
+    Write-Fail "Required Total Chaos files are missing after copying: $($missingInstalledContent -join ', ')."
+    Pause-User "Press Enter for installer recovery..."
+    exit 1
 }
 Write-OK "Total Chaos installed at: $gameRoot"
 
@@ -243,9 +252,12 @@ $urls = New-Object System.Collections.Generic.List[string]
 Write-Info "Resolving the gzdoomvr build that matches Total Chaos (GZDoom 3.6) ..."
 $apiUrl = Get-MatchingGzdoomvrZipUrl
 if ($apiUrl) { Write-OK "gzdoomvr asset: $apiUrl"; [void]$urls.Add($apiUrl) }
-else { Write-Warn "GitHub API not reachable (rate limit / offline)." }
+else {
+    Write-Warn "The matching gzdoomvr asset could not be resolved. The release page will be offered for manual download."
+    [void]$urls.Add($GZVR_RELEASES)
+}
 
-Invoke-SafeDownload -Urls $urls -Destination $gzZip `
+Invoke-SafeDownload -Urls @($urls.ToArray()) -Destination $gzZip `
     -Label "gzdoomvr (VR engine)" `
     -ManualUrl $GZVR_RELEASES `
     -Instructions "Open the releases page, download the gzdoomvr 3.6 build (tag gvr3.6.0.2), save it as '$gzZip', then choose Retry." `
@@ -344,7 +356,27 @@ $tcIcon = $(if (Test-Path $tcIco) { $tcIco } elseif (Test-Path $iconExe) { $icon
 if (Test-Path $batPlay) { New-DesktopShortcut -ShortcutName "Total Chaos VR" -TargetPath $batPlay -WorkingDir $gameRoot -IconPath $tcIcon -Description "Total Chaos in VR (gzdoomvr)" }
 
 # Record the install path so the Hub's VR Ready check + Start-in-VR find it.
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Force -ErrorAction Stop } catch {}
+$requiredInstalled = @(
+    (Join-Path $gameData 'doom.wad'),
+    (Join-Path $gameData 'totalchaos.pk3'),
+    (Join-Path $gameData 'zd_extra.pk3'),
+    (Join-Path $gzDestDir $gzExeName),
+    (Join-Path $gzDestDir 'gzdoom.pk3'),
+    $batPlay
+)
+$missingInstalled = @($requiredInstalled | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+if ($missingInstalled.Count -gt 0) {
+    Write-Fail "Total Chaos VR is incomplete; required files are missing: $($missingInstalled -join ', ')."
+    Pause-User "Press Enter for installer recovery..."
+    exit 1
+}
+try {
+    Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Force -ErrorAction Stop
+} catch {
+    Write-Fail "Could not record the completed Total Chaos VR setup: $_"
+    Pause-User "Press Enter for installer recovery..."
+    exit 1
+}
 
 # cleanup temp
 try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}

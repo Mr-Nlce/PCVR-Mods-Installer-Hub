@@ -285,7 +285,7 @@ if ($sevenZipExe) {
  $tmpInst = Join-Path $env:TEMP "7z2409-x64.exe"
  Write-Info "Downloading 7-Zip installer..."
  try {
- Invoke-WebRequest -Uri $SEVENZIP_URL -OutFile $tmpInst -UseBasicParsing
+ Invoke-PCVRWebRequest -Uri $SEVENZIP_URL -OutFile $tmpInst -UseBasicParsing
  } catch {
  Write-Fail "Failed to download 7-Zip: $($_.Exception.Message)"
  $__fb = Invoke-InstallerFallback -Action "7-Zip detection" `
@@ -356,7 +356,7 @@ Write-Info "URL: $RELEASE_URL"
 try {
  $oldPP = $ProgressPreference
  $ProgressPreference = 'SilentlyContinue'
- Invoke-WebRequest -Uri $RELEASE_URL -OutFile $archivePath -UseBasicParsing
+ Invoke-PCVRWebRequest -Uri $RELEASE_URL -OutFile $archivePath -UseBasicParsing
  $ProgressPreference = $oldPP
 } catch {
  Write-Fail "Download failed: $($_.Exception.Message)"

@@ -198,7 +198,8 @@ $r = Invoke-DownloadOrFallback -Url $PORTAL2VR_URL -Destination $vrZip `
 if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
 if (-not ($r -is [bool] -and $r)) { $failed += "Portal2VR" }
 
-if (Test-Path $vrZip) {
+while (Test-Path -LiteralPath $vrZip -PathType Leaf) {
+    if (Test-Path -LiteralPath $vrExtract) { Remove-Item -LiteralPath $vrExtract -Recurse -Force }
     $efb = Expand-ArchiveOrFallback -ArchivePath $vrZip -DestinationFolder $vrExtract -Label "Portal 2 VR" `
             -SkipMessage "Skipped - Portal 2 VR mod was NOT extracted; install is incomplete."
     if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
@@ -217,21 +218,37 @@ if (Test-Path $vrZip) {
                 throw "P2VR_install folder not found inside the downloaded archive."
             }
 
+            $requiredVrFiles = @('dsound.dll','bin\openvr_api.dll','VR\manifest.vrmanifest')
+            foreach ($relative in $requiredVrFiles) {
+                if (-not (Test-Path -LiteralPath (Join-Path $payload.FullName $relative) -PathType Leaf)) {
+                    throw "The selected ZIP is missing P2VR_install\$relative. No game files were copied."
+                }
+            }
+
             Write-Host "  Copying VR mod files into game folder ... " -NoNewline -ForegroundColor White
             Get-ChildItem -Path $payload.FullName -Force | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
+                Copy-Item -LiteralPath $_.FullName -Destination $gamePath -Recurse -Force -ErrorAction Stop
+            }
+            foreach ($relative in $requiredVrFiles) {
+                if (-not (Test-Path -LiteralPath (Join-Path $gamePath $relative) -PathType Leaf)) {
+                    throw "Required file missing after copy: $relative"
+                }
             }
             Write-Host "OK" -ForegroundColor Green
             Write-OK "Portal2VR Roomscale $PORTAL2VR_VERSION installed!"
+            break
         } catch {
             Write-Host "FAILED" -ForegroundColor Red
             Write-Fail "Install error: $_"
-            Write-Info "You can download manually from:"
-            Write-Info "  https://github.com/Spencer0187/portal2vr-roomscale/releases"
-            $failed += "Portal2VR"
+            $null = Invoke-InstallerFallback -Action 'Portal2VR archive contents' `
+                -Url $portalRelease.PageUrl `
+                -Instructions 'Download the complete roomscale ZIP and drag it here. It must contain P2VR_install with the VR manifest and runtime DLLs.' `
+                -DestFile $vrZip -AllowSkip $false
+            continue
         }
     } else {
         $failed += "Portal2VR"
+        break
     }
 }
 

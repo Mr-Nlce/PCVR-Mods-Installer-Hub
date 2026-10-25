@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # BannerColors.ps1
 # ------------------------------------------------------------
 # Curated per-game banner colour. Each colour was picked from the
@@ -14,6 +14,22 @@
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
+    "steam:703860" = "#4d8eb1"  # CodiesVR: reviewed header artwork
+    "steam:1307710" = "#c4444e"  # CodiesVR: reviewed header artwork
+    "steam:421020" = "#e77916"  # CodiesVR: reviewed header artwork
+    "steam:1293830" = "#d94c89"  # FH4: pink festival lettering and blue British sky
+    "steam:1203620" = "#68a992"  # Enshrouded: cool green Shroud and landscape light
+    "steam:2600" = "#a6414e"  # Bloodlines: dark crimson gothic artwork
+    "steam:2206270" = "#bb4b38"  # Vampire Hunters: deep red against brass weapons
+    "steam:6860" = "#a4333d"  # Hitman Blood Money: red title and tie against black
+    "name:MW2CampaignRemasteredVR" = "#d18a54"  # Firelight in the supplied campaign header
+    "steam:2620" = "#a7b18b"  # Call of Duty (2003): muted olive from the military cover art
+    "steam:3020" = "#b8804d"  # Call of Juarez: warm western sandstone
+    "steam:2616460" = "#a65c38"  # Dungeon Keeper 2: torchlit dungeon red
+    "steam:1233570" = "#d74d45"  # Mirror's Edge Catalyst: red city accent
+    "steam:225260" = "#ed7132"  # Brutal Legend, warm fire orange against dark metal art
+    "steam:19900" = "#b77b42"  # Far Cry 2, dry savannah gold and firelight
+    "steam:844260" = "#b8a952"  # Rustler, dusty yellow-green medieval artwork
     "steam:108710" = "#8aa6b7"  # Alan Wake: cool mist-blue forest cover; warm tile accent represents the flashlight
     "steam:50300" = "#d7aa70"  # Spec Ops: The Line, sand and warm light against dark cover art
     "steam:960990" = "#856ed4"  # Beyond: Two Souls, cool violet supernatural palette
@@ -343,6 +359,7 @@ $global:BannerColorMap = @{
     "steam:729040" = "#e3a22b"  # Borderlands: gold logo and desert fire
     "steam:238010" = "#c69c49"  # Deus Ex: gold title and augments
     "steam:205100" = "#5a94a1"  # Dishonored: cool Dunwall sky
+    "steam:403640" = "#9bb6be"  # Dishonored 2: cool blue-gray Karnaca cover palette
     "steam:379720" = "#db5a19"  # DOOM: orange fire behind the Slayer
     "steam:434050" = "#c59640"  # Duke Nukem: gold logo
     "steam:2291060" = "#5994bd"  # EDF 6: blue sky and suit highlights

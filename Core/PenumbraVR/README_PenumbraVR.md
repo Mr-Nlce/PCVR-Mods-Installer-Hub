@@ -1,4 +1,4 @@
-## About the Game
+﻿## About the Game
 
 Penumbra: Overture is Frictional Games' first-person survival horror adventure. This Hub tile recommends rubocopter's current Penumbra VR Framework in the original Windows PC game folder. The older simply-jos mod remains an optional, independent game copy.
 
@@ -31,6 +31,10 @@ The simply-jos release uses the original HTC Vive layout; other controllers may 
 | [[Right Menu]] | Examine the object you are looking at |
 | [[Left Trackpad]] | Move |
 | [[Left Grip]] | Quick-equip glowstick or flashlight |
+
+## Support the VR Framework developer
+
+[Support rubocopter on Ko-fi](https://ko-fi.com/onitaku)
 
 ## Publisher and support
 

@@ -20,6 +20,8 @@ Start Virtual Desktop or SteamVR, put on your headset and use [[Start in VR]] or
 
 ## Controls
 
+The current v1.2.1 PCVR package fixes the crash near the Guide-Bot on the first level. The in-headset book is now called Game Tome. World size, head steering, motion flying and the FPV stick layout remain available; pilots, saves, settings and notes carry over.
+
 Default Quest Touch layout. A/B, X/Y and stick clicks can be remapped under VR Options > Controls. Index and Steam Frame layouts are also supplied.
 
 | Button | Action |

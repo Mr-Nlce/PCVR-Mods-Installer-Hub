@@ -4,19 +4,21 @@
 
 Spec Ops: The Line is a third-person military story shooter. SpecOpsTheLineVR adds stereoscopic first-person VR, six-degree head tracking, motion-controlled aiming and gestures. Menus and cutscenes appear on a virtual screen. The mod is a beta.
 
-**WIP:** Early builds could visibly shake or twitch in the headset. The publisher's v0.9.2–v0.9.5 updates address cover camera jumps, head-pose reprojection, controller alignment, frame pacing and a view that could remain inside a wall during scripted scenes. These are publisher reports, not a headset test by the Hub. The Hub checks the current complete release ZIP when installing or updating. If the image still shakes, run the publisher's `collect_logs.bat` from the downloaded ZIP and report the headset/runtime and scene.
+**WIP:** Early builds could visibly shake or twitch in the headset. Updates through v0.9.18 address camera, controller and frame-pacing problems, including cover scenes where the view remained behind a wall or a gun could not fire. These are publisher reports, not a headset test by the Hub. The Hub checks the current complete release ZIP when installing or updating. If the image still shakes, run the publisher's `collect_logs.bat` from the downloaded ZIP and report the headset/runtime and scene.
 
 ## Requirements and install
 
 - The **Steam PC version only** (Steam app 50300). The publisher supports a specific 2012 Steam executable; the Hub checks its PE build before changing game files. Other builds are not offered.
-- Windows 10/11, SteamVR and a SteamVR-compatible headset with two motion controllers. The publisher tested Meta Quest 3 over Link; v0.9.4 added default SteamVR Input bindings for Index, Vive and WMR, but these have not been verified by the Hub.
-- Choose [[Install]] in the Hub. It downloads the **complete** `SpecOpsTheLineVR.zip` release, installs `d3d9.dll` and `openvr_api.dll` beside `Binaries\Win32\SpecOpsTheLine.exe`, and places `specopsvr.ini` there if absent. The release's separate `d3d9.dll` asset is for the publisher's updater and is not a complete initial installation.
+- Windows 10/11, a connected PC VR headset and two motion controllers. With `runtime auto`, the current mod chooses VDXR when Virtual Desktop Streamer is running, otherwise SteamVR. `runtime openxr` uses your active OpenXR runtime instead; Meta Link support is experimental. Headset coverage has not been verified by the Hub.
+- Choose [[Install]] in the Hub. It downloads the **complete** release ZIP (currently `0-SpecOpsTheLineVR.zip`), installs `d3d9.dll` and `openvr_api.dll` beside `Binaries\Win32\SpecOpsTheLine.exe`, and places `specopsvr.ini` there if absent. A separate DLL asset is not a complete initial installation.
 - After installation, the Hub displays the required Steam launch options `-windowed ResX=2400 ResY=2500` and copies them to the clipboard. Press [[Enter]] to open **Spec Ops: The Line > Properties**, click the **Launch Options** field, and press [[Ctrl]] + [[V]]. If clipboard access fails, copy the displayed line manually. Press [[Enter]] again after pasting. This nearly square desktop window is the publisher's recommended size for headset clarity; the Hub does not change Steam settings itself.
-- Start SteamVR, put on the headset, then choose [[Start in VR]] in the Hub. The Hub starts Steam app 50300, so Steam performs its normal game launch. The game EXE is not used as a direct Hub launcher.
+- Connect your headset through Virtual Desktop, Link or SteamVR, then choose [[Start in VR]] in the Hub. The Hub starts Steam app 50300. SteamVR is not needed when using VDXR or another supported OpenXR runtime.
 
 The publisher default config uses `viewport full` to avoid 16:9 bars, `postfx off` to disable motion blur and depth of field, and `posscale 50` for approximately 1:1 world scale. You can tune `posscale` in `Binaries\Win32\specopsvr.ini`. In v0.9.4 and later, SteamVR's resolution slider sets sharpness; `dynres on` adjusts scene resolution to protect frame rate. For persistent visual or input issues, the publisher documents opt-outs such as `submitpose off`, `vrinput legacy`, `controllerpose raw`, `offcenter off`, `eyestate off`, `dynres off` and `lowlatency off` in that INI. The Hub-installed default sets `autoupdate off` so the Hub can track updates and safely remove its own files. An existing custom INI is preserved; if it has `autoupdate on`, the publisher may update `d3d9.dll` outside the Hub and the Hub will preserve that changed file on removal.
 
 ## Controls
+
+The current Basic settings tab includes **Lean out of cover** (`coverlean`, on by default). Lean sideways by about 20 cm or stand up to move the view and gun around cover. OpenXR resolution follows that runtime's own settings; the SteamVR resolution slider applies only to the SteamVR route. Existing personal INI settings are preserved during a Hub update.
 
 | Button | Action |
 |---|---|
@@ -33,6 +35,7 @@ The publisher default config uses `viewport full` to avoid 16:9 bars, `postfx of
 | [[Left Menu]] | Pause. |
 | [[Right Stick Click]] + [[Right Stick Direction]] | D-pad actions, including secondary fire and grenade type. |
 | [[Left Stick Click]] + [[Right Stick Click]] | Hold for one second to recenter while standing straight and looking ahead. |
+| [[Left Stick Click]] + [[Right Stick Click]] | Hold for three seconds to save standing height as well. |
 | [[Left Hand Forward Throw]] | Grenade gesture. |
 | [[Left Hand Magazine Pull]] | Reload gesture. |
 | [[Duck Beside Cover]] | Enter cover. |

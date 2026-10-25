@@ -65,8 +65,9 @@ function global:Get-LibraryPortraitDecodeWidth {
 }
 
 function global:New-DiscoverTile {
-    param($Game)
-    $tile = New-Object System.Windows.Controls.Border
+    param($Game, $Into = $null)
+    # -Into: build into an existing lazy placeholder (see CardTile.Lazy.ps1).
+    $tile = if ($Into) { $Into } else { New-Object System.Windows.Controls.Border }
     # Portrait library capsule (2:3, matches Steam library_600x900).
     # Size driven by the user-selected S/M/L preference.
     $sizeKey = if ($global:DiscoverTileSize) { $global:DiscoverTileSize } else { "L" }
@@ -367,7 +368,33 @@ function global:New-DiscoverTile {
 
     $tile.Resources.Add("statusPill", $statusPill)
     $tile.Resources.Add("statusTxt",  $statusTxt)
-    $tile.Resources.Add("game",       $Game)
+    # Indexer, not Add: a lazy placeholder already carries "game".
+    $tile.Resources["game"] = $Game
+
+    # Favorite marker occupies the free bottom-right corner. If this game
+    # also has a Gem marker, keep both visible side by side.
+    $portraitHeart = [System.Windows.Controls.TextBlock]::new()
+    $portraitHeart.Text = [string][char]0x2665
+    $portraitHeart.FontFamily = [System.Windows.Media.FontFamily]::new('Segoe UI Symbol')
+    $portraitHeart.FontSize = 22
+    $portraitHeart.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString('#ff5b91')
+    $portraitHeart.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+    $portraitHeart.VerticalAlignment = [System.Windows.VerticalAlignment]::Bottom
+    $portraitHeart.Margin = if ($Game.Gem) { [System.Windows.Thickness]::new(0, 0, 39, 9) } else { [System.Windows.Thickness]::new(0, 0, 11, 9) }
+    $portraitHeart.ToolTip = 'Favorite'
+    $portraitHeart.IsHitTestVisible = $false
+    [System.Windows.Controls.Panel]::SetZIndex($portraitHeart, 13)
+    $grid.Children.Add($portraitHeart) | Out-Null
+    $tile.Resources['favoritePortraitHeart'] = $portraitHeart
+    Update-FavoritePortraitVisual -Tile $tile
+    $tile.Add_PreviewMouseRightButtonDown({
+        param($sender, $eventArgs)
+        $eventArgs.Handled = $true
+        $game = $sender.Resources.Item('game')
+        [void](Set-GameFavorite -Game $game -Favorite (-not (Test-GameFavorite -Game $game)))
+        $heart = $sender.Resources.Item('favoritePortraitHeart')
+        if ($heart -and $heart.Visibility -eq [System.Windows.Visibility]::Visible) { Start-FavoritePulse -Element $heart }
+    })
 
     # Press-flash overlay tinted in the game's own accent color.
     # Sits on top of the image + status pill (added last = top of

@@ -1,7 +1,8 @@
-# ============================================================
-# BannerFxExtra.ps1 - 95 new banner effects for the featured banners
-# (ListBanner, LibBanner, OvBanner), each mapped to the catalog games
-# it fits. Round 1: 55 effects, round 2: 40 more (marked below).
+﻿# ============================================================
+# BannerFxExtra.ps1 - 270 game-mapped effects for banners and detail side bands
+# (ListBanner, LibBanner, OvBanner, DetailHeroBandLeft/Right), mapped to catalog games
+# it fits. Round 1: 55 effects, round 2: 40 more, round 3: 43 game-specific
+# ones, round 4: 32 calm game-specific ones, round 5: 50 more; round 7: 50 more.
 #
 # BANNER SIZE: every effect is built for the real banner height
 # (ListBanner S/M/L = 140/156/174 px, OvBanner as laid out) and is
@@ -14,12 +15,11 @@
 #     Set-BannerEffect, which Window.ps1 loads).
 #   - Add-BannerEffect is wrapped: the new effect names below are drawn
 #     here, every other name goes to the original function unchanged.
-#   - The existing featured-only Get-BannerFxFor path picks fitting round 2
-#     alternatives 30% of the time. Round 1 keeps its earlier 40% chance.
-#   - None of the new names is added to $global:BannerFxPool. Games that
-#     are not in any list below keep the normal rotation only.
-#   - FeaturedOnly: on any other banner (e.g. the detail-page side bands)
-#     a new name is replaced by its existing fallback effect.
+#   - Get-BannerFxFor gives both banner and detail-side surfaces
+#     a fully game-mapped rotation, together with assigned legacy effects.
+#   - Unknown games receive no effect, preserving their background image.
+#   - FeaturedOnly limits rendering to the five supported surfaces.
+#     Other explicit utility calls retain the compatibility fallback.
 #   - With BannerGlass "Glow" the particle-type new effects are added to
 #     $global:BannerGlassParticleFx, so they get lifted above the art and
 #     get the neon glow like the existing particle effects.
@@ -400,7 +400,7 @@
 #       Forza Horizon 5 VR; Forza Horizon 6 VR; Grand Theft Auto V VR; Road Redemption VR;
 #       Decimate Drive VR; Retrowave 2 VR; GTA Vice City VR; Moto Rush Reborn VR;
 #       Gran Turismo 2 PCVR
-#   focuslines   Manga speed lines (12)
+#   sumie   Ink brush strokes (12)
 #       Street Fighter 6 VR; Devil May Cry 5 VR; Judgment VR; Ghostwire: Tokyo VR; Sonic P-06 VR;
 #       Neon White VR; Kunitsu-Gami: Path of the Goddess VR; Little Witch Nobeta VR;
 #       Pokemon Dramatic Shape VR; Mega Man Star Force Legacy VR; Monster Hunter Stories 3 VR;
@@ -417,25 +417,334 @@
 #       Doom VR; Doom 2 VR; DOOM (2016) VR; Painkiller Black Edition; Painkiller: Overdose VR;
 #       Blood VR; Diablo II: Resurrected; Heretic VR; Hexen VR; Shadow Warrior VR;
 #       Dusk HD (DLC) VR; ULTRAKILL VR; Metal: Hellsinger VR; Ghosts n Goblins Resurrection VR
+#
+#   --- round 3 ---
+#   manuscript   Manuscript pages (10)
+#       Alan Wake VR; Stanley Parable VR; Life is Strange: BtS;
+#       Apollo Justice: Ace Attorney Trilogy VR; Max Payne 2 VR; Firewatch VR; Amnesia VR;
+#       Penumbra: Overture VR; Penumbra: Black Plague VR; Penumbra: Requiem VR
+#   tendrils     Dark tendrils (12)
+#       Alan Wake VR; Amnesia VR; SOMA VR; Ghostwire: Tokyo VR; Enshrouded VR;
+#       Beyond: Two Souls VR; Dishonored VR; Dishonored 2 VR;
+#       Vampire: The Masquerade - Bloodlines VR; Outlast VR; Idols of Ash VR; Hollow Knight VR
+#   scope        Sniper scope (15)
+#       Hitman: Blood Money VR; Spec Ops: The Line VR;
+#       Call of Duty: Modern Warfare 2 Campaign Remastered VR; Call of Duty (2003) VR;
+#       Call of Duty 4 VR; Arma 3 VR; Escape from Tarkov VR; Ghost Recon Wildlands VR;
+#       Metal Gear Solid V: The Phantom Pain VR; Far Cry 2 VR; Return to Castle Wolfenstein VR;
+#       World War II GI VR; Battlefield 1942 VR; Road to Vostok VR; theHunter: Call of the Wild VR
+#   nightvision  Night vision (13)
+#       Outlast VR; Outlast 2 VR; Ready Or Not VR; Arma 3 VR; Escape from Tarkov VR;
+#       Metal Gear Solid V: The Phantom Pain VR; Ghost Recon Wildlands VR; Paranoia Place VR;
+#       Content Warning VR; Iron Lung VR; GTFO VR; Road to Vostok VR;
+#       Call of Duty: Modern Warfare 2 Campaign Remastered VR
+#   camcorder    Camcorder viewfinder (8)
+#       Content Warning VR; Lethal Company VR; R.E.P.O. VR; Outlast VR; Outlast 2 VR;
+#       Paranoia Place VR; Iron Lung VR; White Knuckle VR
+#   sirens       Police lights (14)
+#       Grand Theft Auto V VR; GTA IV VR; GTA Vice City VR; Saints Row: The Third VR;
+#       Watch Dogs VR; Watch Dogs 2 VR; Watch Dogs Legion VR; Ready Or Not VR; Road Redemption VR;
+#       Max Payne 2 VR; Judgment VR; Hitman: Blood Money VR; Cyberpunk 2077; Decimate Drive VR
+#   skyline      Night skyline (14)
+#       Spider-Man Remastered VR; Spiderman 2 VR; Spiderman Miles Morales VR; Spiderman Remastered;
+#       Mirror's Edge VR; Mirror's Edge Catalyst VR; Watch Dogs VR; Watch Dogs 2 VR;
+#       Watch Dogs Legion VR; GTA IV VR; Cloudpunk VR; Cloudpunk: City of Ghosts VR;
+#       Cyberpunk 2077; Judgment VR
+#   runnerline   Runner guide line (5)
+#       Mirror's Edge VR; Mirror's Edge Catalyst VR; Titanfall 2 VR; White Knuckle VR;
+#       Neon White VR
+#   terminal     Phosphor terminal (14)
+#       Fallout 3 VR; Fallout: New Vegas VR; Fallout 4 VR; Alien: Isolation VR; SOMA VR;
+#       Iron Lung VR; Prey (2006) VR; Selaco VR; Deus Ex: Human Revolution - DC; Doom 3 BFG VR;
+#       Black Mesa VR; Moros Protocol VR; Pragmata VR; High Entropy: Challenges VR
+#   heathaze     Heat haze (11)
+#       Fallout: New Vegas VR; Spec Ops: The Line VR; Far Cry 2 VR; Call of Juarez VR;
+#       Red Dead Redemption VR; Borderlands GOTY Enhanced; Journey VR; Assassin's Creed Mirage VR;
+#       PowerSlave / Exhumed VR; Fallout 3 VR; Sunrise GP VR
+#   bloodmoon    Blood moon (14)
+#       Vampire: The Masquerade - Bloodlines VR; Vampire Hunters VR; RE Village VR; Witcher 3 VR;
+#       Diablo II: Resurrected; Hexen VR; Dark Souls III VR; Elden Ring; Elden Ring VR;
+#       Ghosts n Goblins Resurrection VR; Blood VR; Unmourned VR; Idols of Ash VR;
+#       Little Witch Nobeta VR
+#   pyro         Stage pyro (10)
+#       Bruetal Legend VR; Metal: Hellsinger VR; Doom Eternal VR; DOOM (2016) VR;
+#       Painkiller Black Edition; ULTRAKILL VR; Duke Nukem 3D VR; Saints Row: The Third VR;
+#       Borderlands GOTY Enhanced; Devil May Cry 5 VR
+#   rubble       Rock and dust (11)
+#       Dungeon Keeper 2 VR; Deep Rock Galactic VR; Teardown VR; Hytale VR; Vivecraft;
+#       Techtonica VR; Valheim VR; Enshrouded VR; 7 Days to Die VR; Scrap Mechanic VR;
+#       Red Faction VR
+#   voxels       Voxel blocks (8)
+#       Vivecraft; Hytale VR; Teardown VR; Scrap Mechanic VR; Muck VR; Garry's Mod VR;
+#       Techtonica VR; Dinkum VR
+#   supernova    Supernova (13)
+#       Outer Wilds VR; Starfield VR; Mass Effect 1 LE VR; Mass Effect 2 LE VR;
+#       Mass Effect 3 LE VR; Kerbal Space Program; X4: Foundations VR; Freespace 2 VR;
+#       Rebel Galaxy VR; Star Trucker VR; Forsaken VR; Descent VR; Descent 2 VR
+#   launch       Rocket launch (6)
+#       Kerbal Space Program; Starfield VR; Outer Wilds VR; Star Trucker VR; Nuclear Option VR;
+#       Astrodogs VR
+#   flares       Road flares (11)
+#       Deep Rock Galactic VR; Lethal Company VR; GTFO VR; Alien: Isolation VR; Subnautica VR;
+#       Alan Wake VR; Days Gone VR; Arma 3 VR; Spec Ops: The Line VR; Road to Vostok VR;
+#       Left 4 Dead 2 VR
+#   handprints   Handprints (10)
+#       Death Stranding VR; Outlast 2 VR; Amnesia VR; Silent Hill VR; Paranoia Place VR;
+#       Beyond: Two Souls VR; Tormented Souls VR; Unmourned VR; Ghostwire: Tokyo VR;
+#       My Friendly Neighborhood VR
+#   ribbons      Cloth ribbons (8)
+#       Journey VR; Flower VR; Sayonara Wild Hearts; Kunitsu-Gami: Path of the Goddess VR;
+#       Mirage Feathers VR; Final Fantasy XIV VR; Alba VR; AWAY VR
+#   windgrass    Wind in the grass (14)
+#       Ghost of Tsushima VR; Breath of the Wild VR; Legend of Zelda: Twilight Princess;
+#       Horizon Zero Dawn VR; Horizon Zero Dawn Remastered VR; Horizon Forbidden West VR;
+#       Red Dead Redemption VR; Far Cry 2 VR; Big Walk VR; Elden Ring;
+#       Mount & Blade II: Bannerlord VR; Kingdom Come: Deliverance VR;
+#       Kingdom Come: Deliverance II VR; Rustler VR
+#   goldenrays   Golden guiding rays (12)
+#       Elden Ring; Elden Ring VR; Dark Souls III VR; Dark Souls Remastered; Dark Souls II VR;
+#       Dark Souls II: Scholar; Lunacid VR; Hollow Knight VR; Hollow Knight Silksong; ELDERBORN VR;
+#       Journey VR; Hypogea VR
+#   bonfire      Bonfire (14)
+#       Dark Souls III VR; Dark Souls Remastered; Dark Souls II VR; Dark Souls II: Scholar;
+#       Elden Ring; Elden Ring VR; Valheim VR; Sons of the Forest; Enshrouded VR; Outward DE VR;
+#       Muck VR; 7 Days to Die VR; Days Gone VR; Kingdom Come: Deliverance II VR
+#   scoutflies   Scout flies (6)
+#       Monster Hunter Rise VR; Monster Hunter Wilds; Monster Hunter Stories 3 VR;
+#       theHunter: Call of the Wild VR; Witcher 3 VR; Far Cry Primal VR
+#   feathers     Feathers (9)
+#       Assassin's Creed Mirage VR; Assassin's Creed Odyssey VR; Assassin's Creed Valhalla VR;
+#       Mirage Feathers VR; Alba VR; Hollow Knight Silksong; Hogwarts Legacy VR; Journey VR;
+#       Dishonored 2 VR
+#   sabers       Energy blades (5)
+#       Jedi Knight: Jedi Academy VR; Jedi Knight: Jedi Outcast VR; Star Wars Outlaws VR;
+#       Halo Master Chief Collection VR; Halo CE VR
+#   hologram     Holo billboards (14)
+#       Cyberpunk 2077; Cloudpunk VR; Cloudpunk: City of Ghosts VR; Ghostwire: Tokyo VR;
+#       Watch Dogs 2 VR; Watch Dogs Legion VR; Deus Ex: Human Revolution - DC; Judgment VR;
+#       Pragmata VR; Starfield VR; Selaco VR; Atomic Heart VR; SiN Episodes: Emergence; Strife VR
+#   datalinks    Data links (10)
+#       Watch Dogs VR; Watch Dogs 2 VR; Watch Dogs Legion VR; Deus Ex: Human Revolution - DC;
+#       Cyberpunk 2077; Cruelty Squad VR; High Entropy: Challenges VR; Moros Protocol VR;
+#       Pragmata VR; SiN Episodes: Emergence
+#   chevrons     Boost chevrons (13)
+#       F-Zero X VR; Star Racer VR; Star Wars Episode I Racer; TrackMania Nations Forever;
+#       TrackMania United Forever; Ring Racers VR; Mario Kart 64 VR; Mario Kart Wii VR;
+#       Diddy Kong Racing VR; Horizon Chase Turbo; Sonic P-06 VR; Sonic Robo Blast 2 VR;
+#       Slyders VR
+#   nitro        Nitro flames (12)
+#       Forza Horizon 5 VR; Forza Horizon 6 VR; Gran Turismo 2 PCVR; Decimate Drive VR;
+#       Road Redemption VR; Retrowave 2 VR; Star Racer VR; Moto Rush Reborn VR;
+#       Grand Theft Auto V VR; New Star GP VR; Circuit Superstars VR; Sunrise GP VR
+#   tiretracks   Tire tracks (12)
+#       Art of Rally VR; Richard Burns Rally VR; SnowRunner VR; Descenders VR;
+#       Circuit Superstars VR; Horizon Chase Turbo; Gran Turismo 2 PCVR; Moto Rush Reborn VR;
+#       StreetDog BMX VR; Skate Story VR; Forza Horizon 5 VR; Outbound VR
+#   shockwave    Shockwave (12)
+#       Skyrim VR; Doom Eternal VR; DOOM (2016) VR; Halo CE VR; Titanfall 2 VR; Teardown VR;
+#       EARTH DEFENSE FORCE 6 VR; Red Faction VR; Dragon's Dogma 2 VR; Devil May Cry 5 VR;
+#       ULTRAKILL VR; Bruetal Legend VR
+#   sigil        Magic circle (16)
+#       Diablo II: Resurrected; Elden Ring; Witcher 3 VR; Hogwarts Legacy VR;
+#       Little Witch Nobeta VR; Mage Arena VR; Hexen VR; Hexen II VR; Heretic VR; Doom Eternal VR;
+#       Painkiller Black Edition; Dragon's Dogma 2 VR; Final Fantasy XIV VR; Dungeon Keeper 2 VR;
+#       Enshrouded VR; Warhammer 40K: Rogue Trader VR
+#   spells       Spell bolts (16)
+#       Hogwarts Legacy VR; Little Witch Nobeta VR; Mage Arena VR; Skyrim VR; Oblivion (2006);
+#       Morrowind VR; Hexen VR; Hexen II VR; Heretic VR; Arx Fatalis VR; Diablo II: Resurrected;
+#       Elden Ring VR; Enshrouded VR; Final Fantasy XIV VR; World of Warcraft VR; Dishonored 2 VR
+#   wildfire     Wildfire (10)
+#       Firewatch VR; Sons of the Forest; Days Gone VR; Far Cry 5 VR; Far Cry 2 VR;
+#       Far Cry New Dawn VR; 7 Days to Die VR; Project Zomboid VR; TLOU Part I VR; TLOU Part II VR
+#   leviathan    Leviathan (8)
+#       Subnautica VR; Subnautica: Below Zero; Dredge VR; Iron Lung VR; Another Crab's Treasure;
+#       Raft VR; SOMA VR; How to Fish XR
+#   rustpeel     Rust peel (8)
+#       Silent Hill VR; Silent Hill 3 VR; Tormented Souls VR; Unmourned VR; Paranoia Place VR;
+#       Idols of Ash VR; Outlast 2 VR; My Friendly Neighborhood VR
+#   plasmabolts  Plasma volleys (16)
+#       Halo CE VR; Halo Master Chief Collection VR; Quake 2 VR; Quake 3 VR; Unreal Revived;
+#       Doom 3 BFG VR; Doom VR; Doom 2 VR; Forsaken VR; Descent VR; Descent 2 VR; Tribes 2 VR;
+#       Gunfire Reborn; High on Life VR; Ratchet & Clank VR; SiN Episodes: Emergence
+#   zeppelins    Zeppelins (12)
+#       Return to Castle Wolfenstein VR; Wolfenstein 3D VR; BioShock Infinite VR;
+#       Call of Duty (2003) VR; Call of Duty: World at War VR; World War II GI VR;
+#       Battlefield 1942 VR; Dishonored VR; Dishonored 2 VR; XIII Remake VR; Final Fantasy XIV VR;
+#       Thief (2014) VR
+#   comicbursts  Comic bursts (11)
+#       XIII Remake VR; Borderlands GOTY Enhanced; Max Payne 2 VR; Saints Row: The Third VR;
+#       Duke Nukem 3D VR; Redneck Rampage VR; Bomb Rush Cyberfunk; High on Life VR;
+#       Ratchet & Clank VR; Bruetal Legend VR; Gunfire Reborn
+#   wipeclean    Wipe clean (2)
+#       PowerWash Simulator VR; PowerWash Simulator 2 VR
+#   lightbridge  Light bridge (4)
+#       Portal 2 VR; Portal 2: Community Edition VR; The Witness; High Entropy: Challenges VR
+#   xencrystal   Xen crystal (7)
+#       Half-Life VR; Black Mesa VR; Black Mesa Source VR; Half-Life 2 VR; HL2 VR Ep. One; HL2 VR Ep. Two;
+#       Singularity VR
+#   questmarks   Quest markers (10)
+#       World of Warcraft VR; Final Fantasy XIV VR; Skyrim VR; Oblivion (2006); Witcher 3 VR;
+#       Fallout: New Vegas VR; Outward DE VR; Gothic II VR; Kingdom Come: Deliverance II VR;
+#       Rustler VR
+#
+#   --- round 4 ---
+#   posters        Wanted posters (6)
+#       Call of Juarez VR; Red Dead Redemption VR; Rustler VR; Fallout: New Vegas VR;
+#       Borderlands GOTY Enhanced; Vampire Hunters VR
+#   ravens         Circling ravens (11)
+#       Vampire Hunters VR; Vampire: The Masquerade - Bloodlines VR; Witcher 3 VR;
+#       Diablo II: Resurrected; Dark Souls Remastered; ELDERBORN VR; Hypogea VR;
+#       Kingdom Come: Deliverance II VR; Valheim VR; Assassin's Creed Valhalla VR; Blood VR
+#   insertcoin     Arcade screen (11)
+#       The House of the Dead 2; House of the Dead 2 Remake VR; House of the Dead Remake VR;
+#       Virtua Cop 2 VR; Panzer Dragoon Remake; Star Fox Enhanced PCVR; Star Fox 64 VR;
+#       Street Fighter 6 VR; Wolfenstein 3D VR; Shenmue I & II; Slyders VR
+#   thermal        Thermal vision (9)
+#       Aliens versus Predator VR; Crysis VR;
+#       Call of Duty: Modern Warfare 2 Campaign Remastered VR; Arma 3 VR; Escape from Tarkov VR;
+#       Ghost Recon Wildlands VR; Metal Gear Solid V: The Phantom Pain VR; Ready Or Not VR;
+#       Nuclear Option VR
+#   emission       Emission sky (8)
+#       Anomaly VR; Anomaly GAMMA; Ashes 2063 VR; Fallout 3 VR; Fallout: New Vegas VR;
+#       Fallout 4 VR; Atomic Heart VR; 7 Days to Die VR
+#   projector      Film projector (9)
+#       Bendy VR; Mouse P.I. For Hire VR; Max Payne 2 VR; Alan Wake VR; Stanley Parable VR;
+#       BioShock Remastered; BioShock Infinite VR; Hitman: Blood Money VR; No One Lives Forever VR
+#   tether         Spirit tether (6)
+#       Beyond: Two Souls VR; Death Stranding VR; Ghostwire: Tokyo VR;
+#       Kunitsu-Gami: Path of the Goddess VR; Journey VR; Hollow Knight Silksong
+#   radar          Radar screen (10)
+#       C&C Generals: Zero Hour; NAM VR; Battlefield 1942 VR; Arma 3 VR; Nuclear Option VR;
+#       X4: Foundations VR; EARTH DEFENSE FORCE 6 VR; Freespace 2 VR;
+#       Call of Duty: Modern Warfare 2 Campaign Remastered VR; Iron Lung VR
+#   choppers       Helicopters (12)
+#       NAM VR; Call of Duty: Modern Warfare 2 Campaign Remastered VR; Arma 3 VR; Far Cry VR;
+#       Far Cry 5 VR; Grand Theft Auto V VR; Ghost Recon Wildlands VR; Spec Ops: The Line VR;
+#       C&C Generals: Zero Hour; Spider-Man Remastered VR; Spiderman Miles Morales VR;
+#       Battlefield 1942 VR
+#   ridgelines     Mountain ridges (12)
+#       Descenders VR; Big Walk VR; PEAK VR; SnowRunner VR; Skyrim VR; Firewatch VR;
+#       theHunter: Call of the Wild VR; Outbound VR; Art of Rally VR; Star Wars Episode I Racer;
+#       Death Stranding VR; Rustler VR
+#   torches        Torch-lit hall (12)
+#       ELDERBORN VR; Hypogea VR; Dungeon Keeper 2 VR; Lunacid VR; Arx Fatalis VR; Daggerfall VR;
+#       Hexen II VR; Blade of Darkness VR; Gothic II VR; Thief (2014) VR; Tomb Raider 1 VR;
+#       Heretic VR
+#   manaflow       Energy streams (6)
+#       FF VII Remake VR; FF VII Rebirth VR; Final Fantasy XIV VR; Avatar: Frontiers of Pandora VR;
+#       AWAY VR; Kunitsu-Gami: Path of the Goddess VR
+#   questmap       Travel map (12)
+#       Gloomhaven VR; Pathfinder: Kingmaker; Warhammer 40K: Rogue Trader VR;
+#       Mount & Blade II: Bannerlord VR; Witcher 3 VR; Skyrim VR; Daggerfall VR; Outward DE VR;
+#       World of Warcraft VR; Legend of Zelda: Ocarina of Time VR; Tomb Raider 1 VR;
+#       Uncharted: Legacy of Thieves VR
+#   drones         Search drones (11)
+#       Half-Life 2 VR; HL2 VR Ep. One; HL2 VR Ep. Two; Watch Dogs Legion VR; Cyberpunk 2077;
+#       Deus Ex: Human Revolution - DC; Atomic Heart VR; Pragmata VR; Selaco VR; Cloudpunk VR;
+#       Spiderman 2 VR
+#   smokecurl      Curling smoke (10)
+#       Hitman: Blood Money VR; Max Payne 2 VR; Mouse P.I. For Hire VR; Judgment VR;
+#       Vampire: The Masquerade - Bloodlines VR; Shenmue I & II; Alan Wake VR;
+#       No One Lives Forever 2 VR; Red Dead Redemption VR; Call of Juarez VR
+#   casings        Shell casings (12)
+#       I Can Gun VR; Receiver VR; Receiver 2 VR; Escape from Tarkov VR; Ready Or Not VR;
+#       Road to Vostok VR; Max Payne 2 VR; Hitman: Blood Money VR; Call of Duty (2003) VR;
+#       Call of Duty: Modern Warfare 2 Campaign Remastered VR; Spec Ops: The Line VR;
+#       Virtua Cop 2 VR
+#   levitate       Floating debris (10)
+#       Jedi Knight: Jedi Outcast VR; Jedi Knight: Jedi Academy VR; Star Wars Outlaws VR;
+#       Half-Life 2 VR; HL2 VR Ep. One; HL2 VR Ep. Two; Prey (2006) VR; Singularity VR;
+#       Outer Wilds VR; Hogwarts Legacy VR
+#   beacon         Warning beacon (11)
+#       Killing Floor 2 VR; Alien: Isolation VR; Doom 3 BFG VR; SOMA VR; GTFO VR; Black Mesa VR;
+#       Lethal Company VR; Iron Lung VR; Selaco VR; Total Chaos VR; Deep Rock Galactic VR
+#   canopy         Forest canopy (12)
+#       Legend of Zelda: Ocarina of Time VR; Breath of the Wild VR;
+#       Legend of Zelda: Twilight Princess; Ghost of Tsushima VR; Witcher 3 VR; Far Cry VR;
+#       Horizon Zero Dawn VR; Kingdom Come: Deliverance VR; Grounded VR; Tomb Raider 1 VR;
+#       Stray VR; Firewatch VR
+#   emwaves        EM waves (6)
+#       Mega Man Star Force Legacy VR; Pokemon Dramatic Shape VR; Moros Protocol VR;
+#       High Entropy: Challenges VR; Cruelty Squad VR; Watch Dogs 2 VR
+#   polaroids      Instant photos (8)
+#       MiSide VR; Life is Strange: BtS; Firewatch VR; Content Warning VR; Stanley Parable VR;
+#       Beyond: Two Souls VR; Paranoia Place VR; Stardew Valley VR
+#   groovy         Retro circles (7)
+#       No One Lives Forever VR; No One Lives Forever 2 VR; Atomic Heart VR; BioShock Infinite VR;
+#       XIII Remake VR; AWAY VR; Sayonara Wild Hearts
+#   gel            Gel splats (5)
+#       Portal 2 VR; Portal 2: Community Edition VR; Slime Rancher VR; Bomb Rush Cyberfunk;
+#       High on Life VR
+#   gleam          Sparkling clean (6)
+#       PowerWash Simulator VR; PowerWash Simulator 2 VR; Stardew Valley VR; Slime Rancher VR;
+#       Dinkum VR; Paperklay VR
+#   jumppads       Jump pads (7)
+#       Quake 3 VR; Unreal Revived; Tribes 2 VR; Quake 2 VR; Titanfall 2 VR; ULTRAKILL VR;
+#       Neon White VR
+#   neonsigns      Neon signs (12)
+#       Judgment VR; Shenmue I & II; GTA Vice City VR; Cloudpunk VR; Cloudpunk: City of Ghosts VR;
+#       Retrowave 2 VR; Saints Row: The Third VR; Ghostwire: Tokyo VR; Bomb Rush Cyberfunk;
+#       Cyberpunk 2077; Spider-Man Remastered VR; Spiderman Miles Morales VR
+#   stickers       Stickers (8)
+#       Skate Story VR; Bomb Rush Cyberfunk; StreetDog BMX VR; Saints Row: The Third VR;
+#       Borderlands GOTY Enhanced; Sayonara Wild Hearts; High on Life VR; Ratchet & Clank VR
+#   bullethell     Bullet patterns (6)
+#       Slyders VR; Moros Protocol VR; Gunfire Reborn; Risk of Rain 2; Star Fox Enhanced PCVR;
+#       ULTRAKILL VR
+#   tubelights     Flickering tube lights (12)
+#       Total Chaos VR; Outlast VR; Paranoia Place VR; SOMA VR; Alien: Isolation VR;
+#       Silent Hill VR; GTFO VR; Lethal Company VR; My Friendly Neighborhood VR; Ashes 2063 VR;
+#       Black Mesa VR; White Knuckle VR
+#   farblast       Distant mushroom cloud (8)
+#       Fallout 3 VR; Fallout: New Vegas VR; Fallout 4 VR; Ashes 2063 VR; Atomic Heart VR;
+#       Call of Duty 4 VR; C&C Generals: Zero Hour; Nuclear Option VR
+#   tides          Surf (9)
+#       Raft VR; Dredge VR; Assassin's Creed Odyssey VR; How to Fish XR; Subnautica VR;
+#       Another Crab's Treasure; Far Cry 6 VR; Uncharted: Legacy of Thieves VR; Stardew Valley VR
+#   constellations Constellations (12)
+#       Outer Wilds VR; Starfield VR; Mass Effect 1 LE VR; Mass Effect 2 LE VR;
+#       Mass Effect 3 LE VR; Final Fantasy XIV VR; Hollow Knight VR; Journey VR;
+#       Kerbal Space Program; Star Trucker VR; Forsaken VR; Rebel Galaxy VR
 # ============================================================
 
 $global:HubBannerFxExtra = $true
 
 $global:BannerFxExtraConfig = @{
-    GameChance   = 0.40    # established round 1 chance
-    Round2Chance = 0.30    # new alternatives when the game has a fitting effect
-    FeaturedOnly = $true   # new effects only on ListBanner / LibBanner / OvBanner
+    GameChance   = 0.40    # established round 1 share when both groups fit
+    Round2Chance = 0.60    # rounds 2 to 5; together with round 1: 100% game effects
+    FeaturedOnly = $true   # mapped effects on featured/explore and detail side bands
     Reroll       = $true   # re-roll the featured banner effects once after loading
 }
 
-$global:BannerFxExtraFeatured = @('ListBanner', 'LibBanner', 'OvBanner')
+$global:BannerFxExtraFeatured = @('ListBanner', 'LibBanner', 'OvBanner', 'DetailHeroBandLeft', 'DetailHeroBandRight')
 $global:BannerFxExtraRound2 = @(
     'aurora','grindsparks','shieldhit','laserdot','ecg','hud','cracks','candles',
-    'blackhole','fighters','contrails','puddles','tumbleweed','bats','moths',
-    'jellyfish','kelp','flakes','spotlights','fireworks','balloons','fairydust',
-    'paperplanes','dice','gears','helix','toxicgas','claws','glasscracks',
-    'footprints','pawprints','skybow','lanterns','arrows','checkered',
-    'driftsmoke','focuslines','runes','jungle','skulls'
+    'blackhole','fighters','contrails','puddles','tumbleweed','bats','moths','jellyfish',
+    'kelp','flakes','spotlights','fireworks','balloons','fairydust','paperplanes','dice',
+    'gears','helix','toxicgas','claws','glasscracks','footprints','pawprints','skybow',
+    'lanterns','arrows','checkered','driftsmoke','sumie','runes','jungle','skulls',
+    'manuscript','tendrils','scope','nightvision','camcorder','sirens','skyline','runnerline',
+    'terminal','heathaze','bloodmoon','pyro','rubble','voxels','supernova','launch',
+    'flares','handprints','ribbons','windgrass','goldenrays','bonfire','scoutflies','feathers',
+    'sabers','hologram','datalinks','chevrons','nitro','tiretracks','shockwave','sigil',
+    'spells','wildfire','leviathan','rustpeel','plasmabolts','zeppelins','comicbursts','wipeclean',
+    'lightbridge','xencrystal','questmarks','posters','ravens','insertcoin','thermal','emission',
+    'projector','tether','radar','choppers','ridgelines','torches','manaflow','questmap',
+    'drones','smokecurl','casings','levitate','beacon','canopy','emwaves','polaroids',
+    'groovy','gel','gleam','jumppads','neonsigns','stickers','bullethell','tubelights',
+    'farblast','tides','constellations','glitter','starlight','butterflies','dandelions','pollen',
+    'powder','windsparks','bitstream','glyphs','wirepeaks','plankton','godrays','ripples',
+    'stormfront','groundmist','warsmoke','searchbeams','wirefence','roadlines','mesas','pinewoods',
+    'keeps','colonnade','neonrain','asteroids','satellites','cranes','koi','bamboo',
+    'inkwash','dancefloor','discospots','pixelclouds','pixelsky','scorepops','xporbs','lootbeams',
+    'mushrooms','vines','crystalbed','cavedrips','chains','conveyor','hazard','cloudsea',
+    'windlines','streetlamps','powerlines','wintertrees','sailboats','evidence','crosshairs','trackmap',
+    'halfpipe','oldfilm','techpanels','monorail','horde','blinds','cassettes','tripwires',
+    'pteros','trimesh','lifestream','dragons','soapstone','tokens','waypoints','lockon',
+    'moons','liftshaft','whirls','sprouts','grassblades','parachutes','freighters','buoys',
+    'prayerflags','skytraffic','palms','looptrack','ringworld','droppods','portholes','hullplates',
+    'graveyard','subwaycars','minecarts','blueprint','cards','heraldry','paperboats','stainedglass',
+    'teslacoils','ufos','icefloes','mantas','windmills','lighthouse','kites'
 )
 
 # Effect used instead of a new one on non-featured banners.
@@ -451,19 +760,105 @@ $global:BannerFxExtraFallback = @{
     jellyfish = 'bubblesdeep'; kelp = 'bubbles'; flakes = 'snow'; spotlights = 'rays'
     fireworks = 'spark'; balloons = 'bokehcandy'; fairydust = 'twinkle'; helix = 'network'
     toxicgas = 'blobtoxic'; glasscracks = 'shards'; skybow = 'bokehcandy'; lanterns = 'bokehember'
-    checkered = 'stripes'; driftsmoke = 'bokeh'; focuslines = 'speed'; runes = 'twinkle'
+    checkered = 'stripes'; driftsmoke = 'bokeh'; sumie = 'waves'; runes = 'twinkle'
     jungle = 'bokehmint'; skulls = 'embers'
+    tendrils = 'blobmidnight'; nightvision = 'field'; sirens = 'bokeh'; skyline = 'bokehmidnight'
+    runnerline = 'speed'; terminal = 'matrix'; heathaze = 'waves'; bloodmoon = 'blobrose'
+    pyro = 'embers'; supernova = 'nebula'; launch = 'embers'; flares = 'bokehember'
+    ribbons = 'silk'; goldenrays = 'rays'; bonfire = 'embers'; scoutflies = 'spark'
+    sabers = 'spark'; hologram = 'hex'; datalinks = 'network'; chevrons = 'speed'
+    nitro = 'speed'; shockwave = 'sonar'; sigil = 'kaleido'; spells = 'spark'
+    wildfire = 'embers'; leviathan = 'bubblesdeep'; plasmabolts = 'meteors'; zeppelins = 'stars'
+    wipeclean = 'bubbles'; lightbridge = 'hex'; xencrystal = 'twinkle'; questmarks = 'twinkle'
+    ravens = 'motes'; insertcoin = 'stripes'; thermal = 'blobsunset'; emission = 'blobember'
+    projector = 'rays'; tether = 'silk'; radar = 'sonar'; ridgelines = 'bokehsunset'
+    torches = 'embers'; manaflow = 'flow'; questmap = 'topo'; drones = 'bokeh'
+    smokecurl = 'silk'; casings = 'spark'; levitate = 'motes'; beacon = 'blobember'
+    canopy = 'rays'; emwaves = 'waves'; groovy = 'bokehcoral'; gel = 'blobcandy'
+    gleam = 'twinkle'; jumppads = 'sonar'; neonsigns = 'bokehviolet'; bullethell = 'orbs'
+    tubelights = 'rays'; farblast = 'embers'; tides = 'waves'; constellations = 'stars'
+    glitter = 'twinkle'; starlight = 'stars'; butterflies = 'motes'; dandelions = 'motes'
+    pollen = 'motes'; powder = 'snow'; windsparks = 'embers'; bitstream = 'matrix'
+    glyphs = 'twinkle'; wirepeaks = 'synth'; plankton = 'bubblesdeep'; godrays = 'rays'
+    ripples = 'waves'; stormfront = 'nebula'; groundmist = 'bokeh'; warsmoke = 'embers'
+    searchbeams = 'rays'; wirefence = 'stripes'; roadlines = 'speed'; mesas = 'bokehsunset'
+    pinewoods = 'bokehmint'; keeps = 'bokehmidnight'; colonnade = 'bokehgold'; neonrain = 'rain'
+    asteroids = 'stars'; satellites = 'stars'; cranes = 'motes'; koi = 'bubbles'
+    bamboo = 'bokehmint'; inkwash = 'silk'; dancefloor = 'equalizer'; discospots = 'bokehcandy'
+    pixelclouds = 'field'; pixelsky = 'twinkle'; scorepops = 'spark'; xporbs = 'spark'
+    lootbeams = 'rays'; mushrooms = 'bokehmint'; vines = 'bokehmint'; crystalbed = 'shards'
+    cavedrips = 'rain'; chains = 'embers'; conveyor = 'stripes'; hazard = 'stripes'
+    cloudsea = 'bokeh'; windlines = 'flow'; streetlamps = 'bokehember'; powerlines = 'stripes'
+    wintertrees = 'snow'; sailboats = 'waves'
+
+    # Round 7
+    evidence = 'shards'
+    crosshairs = 'twinkle'
+    trackmap = 'waves'
+    halfpipe = 'waves'
+    oldfilm = 'motes'
+    techpanels = 'circuit'
+    monorail = 'circuit'
+    horde = 'embers'
+    blinds = 'motes'
+    cassettes = 'shards'
+    tripwires = 'network'
+    pteros = 'motes'
+    trimesh = 'hex'
+    lifestream = 'silk'
+    dragons = 'stars'
+    soapstone = 'embers'
+    tokens = 'hex'
+    waypoints = 'network'
+    lockon = 'twinkle'
+    moons = 'parallax'
+    liftshaft = 'rain'
+    whirls = 'shards'
+    sprouts = 'motes'
+    grassblades = 'motes'
+    parachutes = 'snow'
+    freighters = 'parallax'
+    buoys = 'waves'
+    prayerflags = 'kaleido'
+    skytraffic = 'parallax'
+    palms = 'kaleido'
+    looptrack = 'silk'
+    ringworld = 'stars'
+    droppods = 'embers'
+    portholes = 'bubbles'
+    hullplates = 'shards'
+    graveyard = 'motes'
+    subwaycars = 'waves'
+    minecarts = 'embers'
+    blueprint = 'circuit'
+    cards = 'shards'
+    heraldry = 'kaleido'
+    paperboats = 'waves'
+    stainedglass = 'kaleido'
+    teslacoils = 'spark'
+    ufos = 'twinkle'
+    icefloes = 'snow'
+    mantas = 'bubbles'
+    windmills = 'motes'
+    lighthouse = 'waves'
+    kites = 'kaleido'
 }
 
 # Particle-type new effects: lifted above the art with the BannerGlass
 # Glow style (flat ones stay pale and below the art).
 $global:BannerFxExtraParticle = @(
     'fireflies','leaves','petals','flowerwind','ash','pixels','confetti','starburst',
-    'coins','rings','bolts','gems','hearts','notes','papers','blizzard','sandwind',
-    'lasers','tracers','wisps','biolum','birds','fish','spores','lighttrails',
-    'grindsparks','laserdot','fighters','bats','moths','jellyfish','flakes','fireworks',
-    'balloons','fairydust','paperplanes','dice','arrows','lanterns','runes','skulls',
-    'claws','glasscracks'
+    'coins','rings','bolts','gems','hearts','notes','papers','blizzard',
+    'sandwind','lasers','tracers','wisps','biolum','birds','fish','spores',
+    'lighttrails','grindsparks','laserdot','fighters','bats','moths','jellyfish','flakes',
+    'fireworks','balloons','fairydust','paperplanes','dice','arrows','lanterns','runes',
+    'skulls','claws','glasscracks','manuscript','rubble','voxels','flares','scoutflies',
+    'feathers','sabers','spells','plasmabolts','comicbursts','questmarks','launch','ravens',
+    'casings','polaroids','stickers','gleam','choppers','drones','bullethell','posters',
+    'levitate','glitter','starlight','butterflies','dandelions','pollen','powder','windsparks',
+    'plankton','asteroids','satellites','cranes','koi','discospots','pixelsky','scorepops',
+    'xporbs','mushrooms','crosshairs','cassettes','lockon','droppods','parachutes','freighters',
+    'cards','kites','ufos','whirls','lifestream','soapstone','skytraffic'
 )
 
 $global:BannerFxExtraNames = [ordered]@{
@@ -558,10 +953,137 @@ $global:BannerFxExtraNames = [ordered]@{
     'arrows' = 'Arrow volley'
     'checkered' = 'Checkered flag'
     'driftsmoke' = 'Drift smoke'
-    'focuslines' = 'Manga speed lines'
+    'sumie' = 'Ink brush strokes'
     'runes' = 'Floating runes'
     'jungle' = 'Jungle fronds'
     'skulls' = 'Glowing skulls'
+    'manuscript' = 'Manuscript pages'
+    'tendrils' = 'Dark tendrils'
+    'scope' = 'Sniper scope'
+    'nightvision' = 'Night vision'
+    'camcorder' = 'Camcorder viewfinder'
+    'sirens' = 'Police lights'
+    'skyline' = 'Night skyline'
+    'runnerline' = 'Runner guide line'
+    'terminal' = 'Phosphor terminal'
+    'heathaze' = 'Heat haze'
+    'bloodmoon' = 'Blood moon'
+    'pyro' = 'Stage pyro'
+    'rubble' = 'Rock and dust'
+    'voxels' = 'Voxel blocks'
+    'supernova' = 'Supernova'
+    'launch' = 'Rocket launch'
+    'flares' = 'Road flares'
+    'handprints' = 'Handprints'
+    'ribbons' = 'Cloth ribbons'
+    'windgrass' = 'Wind in the grass'
+    'goldenrays' = 'Golden guiding rays'
+    'bonfire' = 'Bonfire'
+    'scoutflies' = 'Scout flies'
+    'feathers' = 'Feathers'
+    'sabers' = 'Energy blades'
+    'hologram' = 'Holo billboards'
+    'datalinks' = 'Data links'
+    'chevrons' = 'Boost chevrons'
+    'nitro' = 'Nitro flames'
+    'tiretracks' = 'Tire tracks'
+    'shockwave' = 'Shockwave'
+    'sigil' = 'Magic circle'
+    'spells' = 'Spell bolts'
+    'wildfire' = 'Wildfire'
+    'leviathan' = 'Leviathan'
+    'rustpeel' = 'Rust peel'
+    'plasmabolts' = 'Plasma volleys'
+    'zeppelins' = 'Zeppelins'
+    'comicbursts' = 'Comic bursts'
+    'wipeclean' = 'Wipe clean'
+    'lightbridge' = 'Light bridge'
+    'xencrystal' = 'Xen crystal'
+    'questmarks' = 'Quest markers'
+    'posters' = 'Wanted posters'
+    'ravens' = 'Circling ravens'
+    'insertcoin' = 'Arcade screen'
+    'thermal' = 'Thermal vision'
+    'emission' = 'Emission sky'
+    'projector' = 'Film projector'
+    'tether' = 'Spirit tether'
+    'radar' = 'Radar screen'
+    'choppers' = 'Helicopters'
+    'ridgelines' = 'Mountain ridges'
+    'torches' = 'Torch-lit hall'
+    'manaflow' = 'Energy streams'
+    'questmap' = 'Travel map'
+    'drones' = 'Search drones'
+    'smokecurl' = 'Curling smoke'
+    'casings' = 'Shell casings'
+    'levitate' = 'Floating debris'
+    'beacon' = 'Warning beacon'
+    'canopy' = 'Forest canopy'
+    'emwaves' = 'EM waves'
+    'polaroids' = 'Instant photos'
+    'groovy' = 'Retro circles'
+    'gel' = 'Gel splats'
+    'gleam' = 'Sparkling clean'
+    'jumppads' = 'Jump pads'
+    'neonsigns' = 'Neon signs'
+    'stickers' = 'Stickers'
+    'bullethell' = 'Bullet patterns'
+    'tubelights' = 'Flickering tube lights'
+    'farblast' = 'Distant mushroom cloud'
+    'tides' = 'Surf'
+    'constellations' = 'Constellations'
+
+    # Round 7
+    'evidence' = 'Evidence board'
+    'crosshairs' = 'Light-gun crosshairs'
+    'trackmap' = 'Race track map'
+    'halfpipe' = 'Halfpipes'
+    'oldfilm' = 'Old film reel'
+    'techpanels' = 'Tech wall panels'
+    'monorail' = 'Monorail'
+    'horde' = 'Zombie horde'
+    'blinds' = 'Window blinds light'
+    'cassettes' = 'Cassette tapes'
+    'tripwires' = 'Security lasers'
+    'pteros' = 'Pterosaurs'
+    'trimesh' = 'Hologram triangles'
+    'lifestream' = 'Lifestream'
+    'dragons' = 'Distant dragons'
+    'soapstone' = 'Ground messages'
+    'tokens' = 'Tabletop tokens'
+    'waypoints' = 'RTS orders'
+    'lockon' = 'Lock-on lasers'
+    'moons' = 'Alien moons'
+    'liftshaft' = 'Lift shaft'
+    'whirls' = 'Anomaly whirls'
+    'sprouts' = 'Growing sprouts'
+    'grassblades' = 'Giant grass'
+    'parachutes' = 'Paratroopers'
+    'freighters' = 'Freighter convoy'
+    'buoys' = 'Buoys'
+    'prayerflags' = 'Prayer flags'
+    'skytraffic' = 'Sky traffic'
+    'palms' = 'Palm silhouettes'
+    'looptrack' = 'Loop tracks'
+    'ringworld' = 'Ringworld'
+    'droppods' = 'Drop pods'
+    'portholes' = 'Portholes'
+    'hullplates' = 'Floating hull plates'
+    'graveyard' = 'Graveyard'
+    'subwaycars' = 'Subway train'
+    'minecarts' = 'Mine carts'
+    'blueprint' = 'Blueprint'
+    'cards' = 'Playing cards'
+    'heraldry' = 'Heraldic banners'
+    'paperboats' = 'Paper boats'
+    'stainedglass' = 'Stained-glass light'
+    'teslacoils' = 'Tesla coils'
+    'ufos' = 'UFO beams'
+    'icefloes' = 'Ice floes'
+    'mantas' = 'Manta rays'
+    'windmills' = 'Windmills'
+    'lighthouse' = 'Lighthouse'
+    'kites' = 'Kites'
 }
 
 $global:BannerFxExtraKind = @{
@@ -656,10 +1178,137 @@ $global:BannerFxExtraKind = @{
     'arrows' = 'general'
     'checkered' = 'general'
     'driftsmoke' = 'general'
-    'focuslines' = 'general'
+    'sumie' = 'general'
     'runes' = 'general'
     'jungle' = 'general'
     'skulls' = 'general'
+    'manuscript' = 'game'
+    'tendrils' = 'game'
+    'scope' = 'game'
+    'nightvision' = 'game'
+    'camcorder' = 'game'
+    'sirens' = 'game'
+    'skyline' = 'game'
+    'runnerline' = 'game'
+    'terminal' = 'game'
+    'heathaze' = 'game'
+    'bloodmoon' = 'game'
+    'pyro' = 'game'
+    'rubble' = 'game'
+    'voxels' = 'game'
+    'supernova' = 'game'
+    'launch' = 'game'
+    'flares' = 'game'
+    'handprints' = 'game'
+    'ribbons' = 'game'
+    'windgrass' = 'game'
+    'goldenrays' = 'game'
+    'bonfire' = 'game'
+    'scoutflies' = 'game'
+    'feathers' = 'game'
+    'sabers' = 'game'
+    'hologram' = 'game'
+    'datalinks' = 'game'
+    'chevrons' = 'game'
+    'nitro' = 'game'
+    'tiretracks' = 'game'
+    'shockwave' = 'game'
+    'sigil' = 'game'
+    'spells' = 'game'
+    'wildfire' = 'game'
+    'leviathan' = 'game'
+    'rustpeel' = 'game'
+    'plasmabolts' = 'game'
+    'zeppelins' = 'game'
+    'comicbursts' = 'game'
+    'wipeclean' = 'game'
+    'lightbridge' = 'game'
+    'xencrystal' = 'game'
+    'questmarks' = 'game'
+    'posters' = 'game'
+    'ravens' = 'game'
+    'insertcoin' = 'game'
+    'thermal' = 'game'
+    'emission' = 'game'
+    'projector' = 'game'
+    'tether' = 'game'
+    'radar' = 'game'
+    'choppers' = 'game'
+    'ridgelines' = 'game'
+    'torches' = 'game'
+    'manaflow' = 'game'
+    'questmap' = 'game'
+    'drones' = 'game'
+    'smokecurl' = 'game'
+    'casings' = 'game'
+    'levitate' = 'game'
+    'beacon' = 'game'
+    'canopy' = 'game'
+    'emwaves' = 'game'
+    'polaroids' = 'game'
+    'groovy' = 'game'
+    'gel' = 'game'
+    'gleam' = 'game'
+    'jumppads' = 'game'
+    'neonsigns' = 'game'
+    'stickers' = 'game'
+    'bullethell' = 'game'
+    'tubelights' = 'game'
+    'farblast' = 'game'
+    'tides' = 'game'
+    'constellations' = 'game'
+
+    # Round 7
+    'evidence' = 'game'
+    'crosshairs' = 'game'
+    'trackmap' = 'game'
+    'halfpipe' = 'game'
+    'oldfilm' = 'game'
+    'techpanels' = 'game'
+    'monorail' = 'game'
+    'horde' = 'game'
+    'blinds' = 'game'
+    'cassettes' = 'game'
+    'tripwires' = 'game'
+    'pteros' = 'game'
+    'trimesh' = 'game'
+    'lifestream' = 'game'
+    'dragons' = 'game'
+    'soapstone' = 'game'
+    'tokens' = 'game'
+    'waypoints' = 'game'
+    'lockon' = 'game'
+    'moons' = 'game'
+    'liftshaft' = 'game'
+    'whirls' = 'game'
+    'sprouts' = 'game'
+    'grassblades' = 'game'
+    'parachutes' = 'game'
+    'freighters' = 'game'
+    'buoys' = 'game'
+    'prayerflags' = 'game'
+    'skytraffic' = 'game'
+    'palms' = 'game'
+    'looptrack' = 'game'
+    'ringworld' = 'game'
+    'droppods' = 'game'
+    'portholes' = 'game'
+    'hullplates' = 'game'
+    'graveyard' = 'game'
+    'subwaycars' = 'game'
+    'minecarts' = 'game'
+    'blueprint' = 'game'
+    'cards' = 'game'
+    'heraldry' = 'game'
+    'paperboats' = 'game'
+    'stainedglass' = 'game'
+    'teslacoils' = 'game'
+    'ufos' = 'game'
+    'icefloes' = 'game'
+    'mantas' = 'game'
+    'windmills' = 'game'
+    'lighthouse' = 'game'
+    'kites' = 'game'
 }
 
 $global:BannerFxExtraGames = [ordered]@{
@@ -724,6 +1373,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Pokemon Dramatic Shape VR'
     )
     'lightning' = @(
+        "Br$([char]0xFC)tal Legend VR",
         'Quake VR',
         'Quake 2 VR',
         'Hexen VR',
@@ -743,6 +1393,9 @@ $global:BannerFxExtraGames = [ordered]@{
         'Alan Wake VR'
     )
     'ash' = @(
+        'Enshrouded VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Dungeon Keeper 2 VR',
         'Dark Souls Remastered',
         'Dark Souls II VR',
         'Dark Souls II: Scholar',
@@ -762,6 +1415,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Devil May Cry 5 VR'
     )
     'fog' = @(
+        'Enshrouded VR',
+        'Vampire: The Masquerade - Bloodlines VR',
         'Silent Hill VR',
         'Silent Hill 3 VR',
         'Amnesia VR',
@@ -804,6 +1459,11 @@ $global:BannerFxExtraGames = [ordered]@{
         'Alan Wake VR'
     )
     'tracers' = @(
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Spec Ops: The Line VR',
+        'Hitman: Blood Money VR',
+        'Call of Juarez VR',
+        'Call of Duty (2003) VR',
         'Call of Duty 4 VR',
         'Call of Duty: World at War VR',
         'Battlefield 1942 VR',
@@ -821,7 +1481,10 @@ $global:BannerFxExtraGames = [ordered]@{
         'Metal Gear Solid V: The Phantom Pain VR'
     )
     'flak' = @(
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Spec Ops: The Line VR',
         'Battlefield 1942 VR',
+        'Call of Duty (2003) VR',
         'Call of Duty: World at War VR',
         'World War II GI VR',
         'NAM VR',
@@ -881,6 +1544,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Atomic Heart VR'
     )
     'neoncity' = @(
+        "Mirror's Edge Catalyst VR",
         'Cyberpunk 2077',
         'Cloudpunk VR',
         'Cloudpunk: City of Ghosts VR',
@@ -897,6 +1561,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Sayonara Wild Hearts'
     )
     'raindrops' = @(
+        'Beyond: Two Souls VR',
         'Max Payne 2 VR',
         'Cyberpunk 2077',
         'Cloudpunk VR',
@@ -912,6 +1577,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Alan Wake VR'
     )
     'lighttrails' = @(
+        "Mirror's Edge Catalyst VR",
         'Forza Horizon 5 VR',
         'Forza Horizon 6 VR',
         'Gran Turismo 2 PCVR',
@@ -935,6 +1601,12 @@ $global:BannerFxExtraGames = [ordered]@{
         'Decimate Drive VR'
     )
     'dust' = @(
+        'GRID (2019) VR',
+        'GRID Legends VR',
+        'DiRT 4 VR',
+        'Rustler VR',
+        'Fallout: New Vegas VR',
+        'Fallout 3 VR',
         'Richard Burns Rally VR',
         'Art of Rally VR',
         'SnowRunner VR',
@@ -947,9 +1619,12 @@ $global:BannerFxExtraGames = [ordered]@{
         'Days Gone VR',
         'Fallout 4 VR',
         'Far Cry 6 VR',
+        'Far Cry 2 VR',
         'Metal Gear Solid V: The Phantom Pain VR'
     )
     'radiation' = @(
+        'Fallout: New Vegas VR',
+        'Fallout 3 VR',
         'Fallout 4 VR',
         'Anomaly VR',
         'Anomaly GAMMA',
@@ -964,6 +1639,9 @@ $global:BannerFxExtraGames = [ordered]@{
         'Half-Life VR'
     )
     'magic' = @(
+        'Enshrouded VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Dungeon Keeper 2 VR',
         'Hogwarts Legacy VR',
         'Mage Arena VR',
         'Little Witch Nobeta VR',
@@ -989,6 +1667,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Mirage Feathers VR'
     )
     'wisps' = @(
+        'Beyond: Two Souls VR',
+        'Enshrouded VR',
         'Ghostwire: Tokyo VR',
         'Hollow Knight VR',
         'Hollow Knight Silksong',
@@ -1056,6 +1736,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'PEAK VR'
     )
     'sandwind' = @(
+        'Far Cry 2 VR',
+        'Call of Juarez VR',
         'Journey VR',
         'Assassin''s Creed Mirage VR',
         'PowerSlave / Exhumed VR',
@@ -1070,6 +1752,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Spec Ops: The Line VR'
     )
     'blooddrips' = @(
+        'Vampire Hunters VR',
+        'Vampire: The Masquerade - Bloodlines VR',
         'Blood VR',
         'Painkiller Black Edition',
         'Painkiller: Overdose VR',
@@ -1194,6 +1878,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Retrowave 2 VR'
     )
     'bullettime' = @(
+        'Hitman: Blood Money VR',
         'Max Payne 2 VR',
         'F.E.A.R. VR',
         'Receiver VR',
@@ -1206,6 +1891,7 @@ $global:BannerFxExtraGames = [ordered]@{
     )
     'void' = @(
         'Dishonored VR',
+        'Dishonored 2 VR',
         'Thief (2014) VR',
         'The Dark Mod VR',
         'Singularity VR',
@@ -1303,6 +1989,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Journey VR'
     )
     'eyes' = @(
+        'Vampire Hunters VR',
+        'Vampire: The Masquerade - Bloodlines VR',
         'Outlast VR',
         'Amnesia VR',
         'Lethal Company VR',
@@ -1318,6 +2006,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'BioShock 2 Remastered',
         'BioShock Infinite VR',
         'Dishonored VR',
+        'Dishonored 2 VR',
         'Atomic Heart VR',
         'Techtonica VR',
         'Stray VR',
@@ -1462,6 +2151,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Silent Hill VR'
     )
     'hud' = @(
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
         'Titanfall 2 VR',
         'Crysis VR',
         'Halo CE VR',
@@ -1504,6 +2194,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Thief (2014) VR',
         'The Dark Mod VR',
         'Dishonored VR',
+        'Dishonored 2 VR',
         'Dark Souls Remastered',
         'Arx Fatalis VR',
         'Gothic II VR',
@@ -1572,6 +2263,9 @@ $global:BannerFxExtraGames = [ordered]@{
         'Road to Vostok VR'
     )
     'tumbleweed' = @(
+        'Rustler VR',
+        'Fallout: New Vegas VR',
+        'Call of Juarez VR',
         'Red Dead Redemption VR',
         'Borderlands GOTY Enhanced',
         'Fallout 4 VR',
@@ -1580,6 +2274,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Redneck Rampage VR'
     )
     'bats' = @(
+        'Vampire Hunters VR',
+        'Vampire: The Masquerade - Bloodlines VR',
         'RE Village VR',
         'Hogwarts Legacy VR',
         'Dark Souls Remastered',
@@ -1645,6 +2341,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Kingdom Come: Deliverance II VR'
     )
     'spotlights' = @(
+        "Br$([char]0xFC)tal Legend VR",
+        'Hitman: Blood Money VR',
         'Trombone Champ VR',
         'Metal: Hellsinger VR',
         'Sayonara Wild Hearts',
@@ -1723,6 +2421,7 @@ $global:BannerFxExtraGames = [ordered]@{
     'gears' = @(
         'BioShock Infinite VR',
         'Dishonored VR',
+        'Dishonored 2 VR',
         'Thief (2014) VR',
         'Techtonica VR',
         'Scrap Mechanic VR',
@@ -1753,6 +2452,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Prey (2006) VR'
     )
     'toxicgas' = @(
+        'Fallout: New Vegas VR',
+        'Fallout 3 VR',
         'Anomaly VR',
         'Anomaly GAMMA',
         'Fallout 4 VR',
@@ -1860,6 +2561,12 @@ $global:BannerFxExtraGames = [ordered]@{
         'Horizon Zero Dawn Remastered VR'
     )
     'checkered' = @(
+        'GRID (2019) VR',
+        'GRID Legends VR',
+        'DiRT 4 VR',
+        'Forza Horizon 4 VR - GrayHorizon',
+        'Forza Horizon 5 VR - GrayHorizon',
+        'Forza Horizon 6 VR - GrayHorizon',
         'Forza Horizon 5 VR',
         'Forza Horizon 6 VR',
         'Gran Turismo 2 PCVR',
@@ -1876,6 +2583,14 @@ $global:BannerFxExtraGames = [ordered]@{
         'F-Zero X VR'
     )
     'driftsmoke' = @(
+        'GRID (2019) VR',
+        'GRID Legends VR',
+        'DiRT 4 VR',
+        'Forza Horizon 4 VR - GrayHorizon',
+        'Forza Horizon 5 VR - GrayHorizon',
+        'Forza Horizon 6 VR - GrayHorizon',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Spec Ops: The Line VR',
         'Forza Horizon 5 VR',
         'Forza Horizon 6 VR',
         'Grand Theft Auto V VR',
@@ -1886,7 +2601,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Moto Rush Reborn VR',
         'Gran Turismo 2 PCVR'
     )
-    'focuslines' = @(
+    'sumie' = @(
         'Street Fighter 6 VR',
         'Devil May Cry 5 VR',
         'Judgment VR',
@@ -1932,6 +2647,8 @@ $global:BannerFxExtraGames = [ordered]@{
         'Raft VR'
     )
     'skulls' = @(
+        'Vampire Hunters VR',
+        "Br$([char]0xFC)tal Legend VR",
         'Doom VR',
         'Doom 2 VR',
         'DOOM (2016) VR',
@@ -1946,6 +2663,2701 @@ $global:BannerFxExtraGames = [ordered]@{
         'ULTRAKILL VR',
         'Metal: Hellsinger VR',
         'Ghosts n Goblins Resurrection VR'
+    )
+    'manuscript' = @(
+        'Alan Wake VR',
+        'Stanley Parable VR',
+        'Life is Strange: BtS',
+        'Apollo Justice: Ace Attorney Trilogy VR',
+        'Max Payne 2 VR',
+        'Firewatch VR',
+        'Amnesia VR',
+        'Penumbra: Overture VR',
+        'Penumbra: Black Plague VR',
+        'Penumbra: Requiem VR'
+    )
+    'tendrils' = @(
+        'Alan Wake VR',
+        'Amnesia VR',
+        'SOMA VR',
+        'Ghostwire: Tokyo VR',
+        'Enshrouded VR',
+        'Beyond: Two Souls VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Outlast VR',
+        'Idols of Ash VR',
+        'Hollow Knight VR'
+    )
+    'scope' = @(
+        'Hitman: Blood Money VR',
+        'Spec Ops: The Line VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty 4 VR',
+        'Arma 3 VR',
+        'Escape from Tarkov VR',
+        'Ghost Recon Wildlands VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Far Cry 2 VR',
+        'Return to Castle Wolfenstein VR',
+        'World War II GI VR',
+        'Battlefield 1942 VR',
+        'Road to Vostok VR',
+        'theHunter: Call of the Wild VR'
+    )
+    'nightvision' = @(
+        'Outlast VR',
+        'Outlast 2 VR',
+        'Ready Or Not VR',
+        'Arma 3 VR',
+        'Escape from Tarkov VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Ghost Recon Wildlands VR',
+        'Paranoia Place VR',
+        'Content Warning VR',
+        'Iron Lung VR',
+        'GTFO VR',
+        'Road to Vostok VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR'
+    )
+    'camcorder' = @(
+        'Content Warning VR',
+        'Lethal Company VR',
+        'R.E.P.O. VR',
+        'Outlast VR',
+        'Outlast 2 VR',
+        'Paranoia Place VR',
+        'Iron Lung VR',
+        'White Knuckle VR'
+    )
+    'sirens' = @(
+        'Grand Theft Auto V VR',
+        'GTA IV VR',
+        'GTA Vice City VR',
+        'Saints Row: The Third VR',
+        'Watch Dogs VR',
+        'Watch Dogs 2 VR',
+        'Watch Dogs Legion VR',
+        'Ready Or Not VR',
+        'Road Redemption VR',
+        'Max Payne 2 VR',
+        'Judgment VR',
+        'Hitman: Blood Money VR',
+        'Cyberpunk 2077',
+        'Decimate Drive VR'
+    )
+    'skyline' = @(
+        'Spider-Man Remastered VR',
+        'Spiderman 2 VR',
+        'Spiderman Miles Morales VR',
+        'Spiderman Remastered',
+        'Mirror''s Edge VR',
+        'Mirror''s Edge Catalyst VR',
+        'Watch Dogs VR',
+        'Watch Dogs 2 VR',
+        'Watch Dogs Legion VR',
+        'GTA IV VR',
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Cyberpunk 2077',
+        'Judgment VR'
+    )
+    'runnerline' = @(
+        'Mirror''s Edge VR',
+        'Mirror''s Edge Catalyst VR',
+        'Titanfall 2 VR',
+        'White Knuckle VR',
+        'Neon White VR'
+    )
+    'terminal' = @(
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Alien: Isolation VR',
+        'SOMA VR',
+        'Iron Lung VR',
+        'Prey (2006) VR',
+        'Selaco VR',
+        'Deus Ex: Human Revolution - DC',
+        'Doom 3 BFG VR',
+        'Black Mesa VR',
+        'Moros Protocol VR',
+        'Pragmata VR',
+        'High Entropy: Challenges VR'
+    )
+    'heathaze' = @(
+        'Fallout: New Vegas VR',
+        'Spec Ops: The Line VR',
+        'Far Cry 2 VR',
+        'Call of Juarez VR',
+        'Red Dead Redemption VR',
+        'Borderlands GOTY Enhanced',
+        'Journey VR',
+        'Assassin''s Creed Mirage VR',
+        'PowerSlave / Exhumed VR',
+        'Fallout 3 VR',
+        'Sunrise GP VR'
+    )
+    'bloodmoon' = @(
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Vampire Hunters VR',
+        'RE Village VR',
+        'Witcher 3 VR',
+        'Diablo II: Resurrected',
+        'Hexen VR',
+        'Dark Souls III VR',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Ghosts n Goblins Resurrection VR',
+        'Blood VR',
+        'Unmourned VR',
+        'Idols of Ash VR',
+        'Little Witch Nobeta VR'
+    )
+    'pyro' = @(
+        "Br$([char]0xFC)tal Legend VR",
+        'Metal: Hellsinger VR',
+        'Doom Eternal VR',
+        'DOOM (2016) VR',
+        'Painkiller Black Edition',
+        'ULTRAKILL VR',
+        'Duke Nukem 3D VR',
+        'Saints Row: The Third VR',
+        'Borderlands GOTY Enhanced',
+        'Devil May Cry 5 VR'
+    )
+    'rubble' = @(
+        'Dungeon Keeper 2 VR',
+        'Deep Rock Galactic VR',
+        'Teardown VR',
+        'Hytale VR',
+        'Vivecraft',
+        'Techtonica VR',
+        'Valheim VR',
+        'Enshrouded VR',
+        '7 Days to Die VR',
+        'Scrap Mechanic VR',
+        'Red Faction VR'
+    )
+    'voxels' = @(
+        'Vivecraft',
+        'Hytale VR',
+        'Teardown VR',
+        'Scrap Mechanic VR',
+        'Muck VR',
+        'Garry''s Mod VR',
+        'Techtonica VR',
+        'Dinkum VR'
+    )
+    'supernova' = @(
+        'Outer Wilds VR',
+        'Starfield VR',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Mass Effect 3 LE VR',
+        'Kerbal Space Program',
+        'X4: Foundations VR',
+        'Freespace 2 VR',
+        'Rebel Galaxy VR',
+        'Star Trucker VR',
+        'Forsaken VR',
+        'Descent VR',
+        'Descent 2 VR'
+    )
+    'launch' = @(
+        'Kerbal Space Program',
+        'Starfield VR',
+        'Outer Wilds VR',
+        'Star Trucker VR',
+        'Nuclear Option VR',
+        'Astrodogs VR'
+    )
+    'flares' = @(
+        'Deep Rock Galactic VR',
+        'Lethal Company VR',
+        'GTFO VR',
+        'Alien: Isolation VR',
+        'Subnautica VR',
+        'Alan Wake VR',
+        'Days Gone VR',
+        'Arma 3 VR',
+        'Spec Ops: The Line VR',
+        'Road to Vostok VR',
+        'Left 4 Dead 2 VR'
+    )
+    'handprints' = @(
+        'Death Stranding VR',
+        'Outlast 2 VR',
+        'Amnesia VR',
+        'Silent Hill VR',
+        'Paranoia Place VR',
+        'Beyond: Two Souls VR',
+        'Tormented Souls VR',
+        'Unmourned VR',
+        'Ghostwire: Tokyo VR',
+        'My Friendly Neighborhood VR'
+    )
+    'ribbons' = @(
+        'Journey VR',
+        'Flower VR',
+        'Sayonara Wild Hearts',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Mirage Feathers VR',
+        'Final Fantasy XIV VR',
+        'Alba VR',
+        'AWAY VR'
+    )
+    'windgrass' = @(
+        'Ghost of Tsushima VR',
+        'Breath of the Wild VR',
+        'Legend of Zelda: Twilight Princess',
+        'Horizon Zero Dawn VR',
+        'Horizon Zero Dawn Remastered VR',
+        'Horizon Forbidden West VR',
+        'Red Dead Redemption VR',
+        'Far Cry 2 VR',
+        'Big Walk VR',
+        'Elden Ring',
+        'Mount & Blade II: Bannerlord VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Rustler VR'
+    )
+    'goldenrays' = @(
+        'Elden Ring',
+        'Elden Ring VR',
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Dark Souls II VR',
+        'Dark Souls II: Scholar',
+        'Lunacid VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'ELDERBORN VR',
+        'Journey VR',
+        'Hypogea VR'
+    )
+    'bonfire' = @(
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Dark Souls II VR',
+        'Dark Souls II: Scholar',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Valheim VR',
+        'Sons of the Forest',
+        'Enshrouded VR',
+        'Outward DE VR',
+        'Muck VR',
+        '7 Days to Die VR',
+        'Days Gone VR',
+        'Kingdom Come: Deliverance II VR'
+    )
+    'scoutflies' = @(
+        'Monster Hunter Rise VR',
+        'Monster Hunter Wilds',
+        'Monster Hunter Stories 3 VR',
+        'theHunter: Call of the Wild VR',
+        'Witcher 3 VR',
+        'Far Cry Primal VR'
+    )
+    'feathers' = @(
+        'Assassin''s Creed Mirage VR',
+        'Assassin''s Creed Odyssey VR',
+        'Assassin''s Creed Valhalla VR',
+        'Mirage Feathers VR',
+        'Alba VR',
+        'Hollow Knight Silksong',
+        'Hogwarts Legacy VR',
+        'Journey VR',
+        'Dishonored 2 VR'
+    )
+    'sabers' = @(
+        'Jedi Knight: Jedi Academy VR',
+        'Jedi Knight: Jedi Outcast VR',
+        'Star Wars Outlaws VR',
+        'Halo Master Chief Collection VR',
+        'Halo CE VR'
+    )
+    'hologram' = @(
+        'Cyberpunk 2077',
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Ghostwire: Tokyo VR',
+        'Watch Dogs 2 VR',
+        'Watch Dogs Legion VR',
+        'Deus Ex: Human Revolution - DC',
+        'Judgment VR',
+        'Pragmata VR',
+        'Starfield VR',
+        'Selaco VR',
+        'Atomic Heart VR',
+        'SiN Episodes: Emergence',
+        'Strife VR'
+    )
+    'datalinks' = @(
+        'Watch Dogs VR',
+        'Watch Dogs 2 VR',
+        'Watch Dogs Legion VR',
+        'Deus Ex: Human Revolution - DC',
+        'Cyberpunk 2077',
+        'Cruelty Squad VR',
+        'High Entropy: Challenges VR',
+        'Moros Protocol VR',
+        'Pragmata VR',
+        'SiN Episodes: Emergence'
+    )
+    'chevrons' = @(
+        'F-Zero X VR',
+        'Star Racer VR',
+        'Star Wars Episode I Racer',
+        'TrackMania Nations Forever',
+        'TrackMania United Forever',
+        'Ring Racers VR',
+        'Mario Kart 64 VR',
+        'Mario Kart Wii VR',
+        'Diddy Kong Racing VR',
+        'Horizon Chase Turbo',
+        'Sonic P-06 VR',
+        'Sonic Robo Blast 2 VR',
+        'Slyders VR'
+    )
+    'nitro' = @(
+        'Forza Horizon 5 VR',
+        'Forza Horizon 6 VR',
+        'Gran Turismo 2 PCVR',
+        'Decimate Drive VR',
+        'Road Redemption VR',
+        'Retrowave 2 VR',
+        'Star Racer VR',
+        'Moto Rush Reborn VR',
+        'Grand Theft Auto V VR',
+        'New Star GP VR',
+        'Circuit Superstars VR',
+        'Sunrise GP VR'
+    )
+    'tiretracks' = @(
+        'Forza Horizon 4 VR - GrayHorizon',
+        'Forza Horizon 5 VR - GrayHorizon',
+        'Forza Horizon 6 VR - GrayHorizon',
+        'Art of Rally VR',
+        'Richard Burns Rally VR',
+        'SnowRunner VR',
+        'Descenders VR',
+        'Circuit Superstars VR',
+        'Horizon Chase Turbo',
+        'Gran Turismo 2 PCVR',
+        'Moto Rush Reborn VR',
+        'StreetDog BMX VR',
+        'Skate Story VR',
+        'Forza Horizon 5 VR',
+        'Outbound VR'
+    )
+    'shockwave' = @(
+        'Skyrim VR',
+        'Doom Eternal VR',
+        'DOOM (2016) VR',
+        'Halo CE VR',
+        'Titanfall 2 VR',
+        'Teardown VR',
+        'EARTH DEFENSE FORCE 6 VR',
+        'Red Faction VR',
+        'Dragon''s Dogma 2 VR',
+        'Devil May Cry 5 VR',
+        'ULTRAKILL VR',
+        "Br$([char]0xFC)tal Legend VR"
+    )
+    'sigil' = @(
+        'Diablo II: Resurrected',
+        'Elden Ring',
+        'Witcher 3 VR',
+        'Hogwarts Legacy VR',
+        'Little Witch Nobeta VR',
+        'Mage Arena VR',
+        'Hexen VR',
+        'Hexen II VR',
+        'Heretic VR',
+        'Doom Eternal VR',
+        'Painkiller Black Edition',
+        'Dragon''s Dogma 2 VR',
+        'Final Fantasy XIV VR',
+        'Dungeon Keeper 2 VR',
+        'Enshrouded VR',
+        'Warhammer 40K: Rogue Trader VR'
+    )
+    'spells' = @(
+        'Hogwarts Legacy VR',
+        'Little Witch Nobeta VR',
+        'Mage Arena VR',
+        'Skyrim VR',
+        'Oblivion (2006)',
+        'Morrowind VR',
+        'Hexen VR',
+        'Hexen II VR',
+        'Heretic VR',
+        'Arx Fatalis VR',
+        'Diablo II: Resurrected',
+        'Elden Ring VR',
+        'Enshrouded VR',
+        'Final Fantasy XIV VR',
+        'World of Warcraft VR',
+        'Dishonored 2 VR'
+    )
+    'wildfire' = @(
+        'Firewatch VR',
+        'Sons of the Forest',
+        'Days Gone VR',
+        'Far Cry 5 VR',
+        'Far Cry 2 VR',
+        'Far Cry New Dawn VR',
+        '7 Days to Die VR',
+        'Project Zomboid VR',
+        'TLOU Part I VR',
+        'TLOU Part II VR'
+    )
+    'leviathan' = @(
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Dredge VR',
+        'Iron Lung VR',
+        'Another Crab''s Treasure',
+        'Raft VR',
+        'SOMA VR',
+        'How to Fish XR'
+    )
+    'rustpeel' = @(
+        'Silent Hill VR',
+        'Silent Hill 3 VR',
+        'Tormented Souls VR',
+        'Unmourned VR',
+        'Paranoia Place VR',
+        'Idols of Ash VR',
+        'Outlast 2 VR',
+        'My Friendly Neighborhood VR'
+    )
+    'plasmabolts' = @(
+        'Halo CE VR',
+        'Halo Master Chief Collection VR',
+        'Quake 2 VR',
+        'Quake 3 VR',
+        'Unreal Revived',
+        'Doom 3 BFG VR',
+        'Doom VR',
+        'Doom 2 VR',
+        'Forsaken VR',
+        'Descent VR',
+        'Descent 2 VR',
+        'Tribes 2 VR',
+        'Gunfire Reborn',
+        'High on Life VR',
+        'Ratchet & Clank VR',
+        'SiN Episodes: Emergence'
+    )
+    'zeppelins' = @(
+        'Return to Castle Wolfenstein VR',
+        'Wolfenstein 3D VR',
+        'BioShock Infinite VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty: World at War VR',
+        'World War II GI VR',
+        'Battlefield 1942 VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'XIII Remake VR',
+        'Final Fantasy XIV VR',
+        'Thief (2014) VR'
+    )
+    'comicbursts' = @(
+        'XIII Remake VR',
+        'Borderlands GOTY Enhanced',
+        'Max Payne 2 VR',
+        'Saints Row: The Third VR',
+        'Duke Nukem 3D VR',
+        'Redneck Rampage VR',
+        'Bomb Rush Cyberfunk',
+        'High on Life VR',
+        'Ratchet & Clank VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Gunfire Reborn'
+    )
+    'wipeclean' = @(
+        'PowerWash Simulator VR',
+        'PowerWash Simulator 2 VR'
+    )
+    'lightbridge' = @(
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'The Witness',
+        'High Entropy: Challenges VR'
+    )
+    'xencrystal' = @(
+        'Half-Life VR',
+        'Black Mesa VR',
+        'Black Mesa Source VR',
+        'Half-Life 2 VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two',
+        'Singularity VR'
+    )
+    'questmarks' = @(
+        'World of Warcraft VR',
+        'Final Fantasy XIV VR',
+        'Skyrim VR',
+        'Oblivion (2006)',
+        'Witcher 3 VR',
+        'Fallout: New Vegas VR',
+        'Outward DE VR',
+        'Gothic II VR',
+        'Kingdom Come: Deliverance II VR',
+        'Rustler VR'
+    )
+    'posters' = @(
+        'Call of Juarez VR',
+        'Red Dead Redemption VR',
+        'Rustler VR',
+        'Fallout: New Vegas VR',
+        'Borderlands GOTY Enhanced',
+        'Vampire Hunters VR'
+    )
+    'ravens' = @(
+        'Vampire Hunters VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Witcher 3 VR',
+        'Diablo II: Resurrected',
+        'Dark Souls Remastered',
+        'ELDERBORN VR',
+        'Hypogea VR',
+        'Kingdom Come: Deliverance II VR',
+        'Valheim VR',
+        'Assassin''s Creed Valhalla VR',
+        'Blood VR'
+    )
+    'insertcoin' = @(
+        'The House of the Dead 2',
+        'House of the Dead 2 Remake VR',
+        'House of the Dead Remake VR',
+        'Virtua Cop 2 VR',
+        'Panzer Dragoon Remake',
+        'Star Fox Enhanced PCVR',
+        'Star Fox 64 VR',
+        'Street Fighter 6 VR',
+        'Wolfenstein 3D VR',
+        'Shenmue I & II',
+        'Slyders VR'
+    )
+    'thermal' = @(
+        'Aliens versus Predator VR',
+        'Crysis VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Arma 3 VR',
+        'Escape from Tarkov VR',
+        'Ghost Recon Wildlands VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Ready Or Not VR',
+        'Nuclear Option VR'
+    )
+    'emission' = @(
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Ashes 2063 VR',
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Atomic Heart VR',
+        '7 Days to Die VR'
+    )
+    'projector' = @(
+        'Bendy VR',
+        'Mouse P.I. For Hire VR',
+        'Max Payne 2 VR',
+        'Alan Wake VR',
+        'Stanley Parable VR',
+        'BioShock Remastered',
+        'BioShock Infinite VR',
+        'Hitman: Blood Money VR',
+        'No One Lives Forever VR'
+    )
+    'tether' = @(
+        'Beyond: Two Souls VR',
+        'Death Stranding VR',
+        'Ghostwire: Tokyo VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Journey VR',
+        'Hollow Knight Silksong'
+    )
+    'radar' = @(
+        'C&C Generals: Zero Hour',
+        'NAM VR',
+        'Battlefield 1942 VR',
+        'Arma 3 VR',
+        'Nuclear Option VR',
+        'X4: Foundations VR',
+        'EARTH DEFENSE FORCE 6 VR',
+        'Freespace 2 VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Iron Lung VR'
+    )
+    'choppers' = @(
+        'NAM VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Arma 3 VR',
+        'Far Cry VR',
+        'Far Cry 5 VR',
+        'Grand Theft Auto V VR',
+        'Ghost Recon Wildlands VR',
+        'Spec Ops: The Line VR',
+        'C&C Generals: Zero Hour',
+        'Spider-Man Remastered VR',
+        'Spiderman Miles Morales VR',
+        'Battlefield 1942 VR'
+    )
+    'ridgelines' = @(
+        'Descenders VR',
+        'Big Walk VR',
+        'PEAK VR',
+        'SnowRunner VR',
+        'Skyrim VR',
+        'Firewatch VR',
+        'theHunter: Call of the Wild VR',
+        'Outbound VR',
+        'Art of Rally VR',
+        'Star Wars Episode I Racer',
+        'Death Stranding VR',
+        'Rustler VR'
+    )
+    'torches' = @(
+        'ELDERBORN VR',
+        'Hypogea VR',
+        'Dungeon Keeper 2 VR',
+        'Lunacid VR',
+        'Arx Fatalis VR',
+        'Daggerfall VR',
+        'Hexen II VR',
+        'Blade of Darkness VR',
+        'Gothic II VR',
+        'Thief (2014) VR',
+        'Tomb Raider 1 VR',
+        'Heretic VR'
+    )
+    'manaflow' = @(
+        'FF VII Remake VR',
+        'FF VII Rebirth VR',
+        'Final Fantasy XIV VR',
+        'Avatar: Frontiers of Pandora VR',
+        'AWAY VR',
+        'Kunitsu-Gami: Path of the Goddess VR'
+    )
+    'questmap' = @(
+        'Gloomhaven VR',
+        'Pathfinder: Kingmaker',
+        'Warhammer 40K: Rogue Trader VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Witcher 3 VR',
+        'Skyrim VR',
+        'Daggerfall VR',
+        'Outward DE VR',
+        'World of Warcraft VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Tomb Raider 1 VR',
+        'Uncharted: Legacy of Thieves VR'
+    )
+    'drones' = @(
+        'Half-Life 2 VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two',
+        'Watch Dogs Legion VR',
+        'Cyberpunk 2077',
+        'Deus Ex: Human Revolution - DC',
+        'Atomic Heart VR',
+        'Pragmata VR',
+        'Selaco VR',
+        'Cloudpunk VR',
+        'Spiderman 2 VR'
+    )
+    'smokecurl' = @(
+        'Hitman: Blood Money VR',
+        'Max Payne 2 VR',
+        'Mouse P.I. For Hire VR',
+        'Judgment VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Shenmue I & II',
+        'Alan Wake VR',
+        'No One Lives Forever 2 VR',
+        'Red Dead Redemption VR',
+        'Call of Juarez VR'
+    )
+    'casings' = @(
+        'I Can Gun VR',
+        'Receiver VR',
+        'Receiver 2 VR',
+        'Escape from Tarkov VR',
+        'Ready Or Not VR',
+        'Road to Vostok VR',
+        'Max Payne 2 VR',
+        'Hitman: Blood Money VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Spec Ops: The Line VR',
+        'Virtua Cop 2 VR'
+    )
+    'levitate' = @(
+        'Jedi Knight: Jedi Outcast VR',
+        'Jedi Knight: Jedi Academy VR',
+        'Star Wars Outlaws VR',
+        'Half-Life 2 VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two',
+        'Prey (2006) VR',
+        'Singularity VR',
+        'Outer Wilds VR',
+        'Hogwarts Legacy VR'
+    )
+    'beacon' = @(
+        'Killing Floor 2 VR',
+        'Alien: Isolation VR',
+        'Doom 3 BFG VR',
+        'SOMA VR',
+        'GTFO VR',
+        'Black Mesa VR',
+        'Lethal Company VR',
+        'Iron Lung VR',
+        'Selaco VR',
+        'Total Chaos VR',
+        'Deep Rock Galactic VR'
+    )
+    'canopy' = @(
+        'Legend of Zelda: Ocarina of Time VR',
+        'Breath of the Wild VR',
+        'Legend of Zelda: Twilight Princess',
+        'Ghost of Tsushima VR',
+        'Witcher 3 VR',
+        'Far Cry VR',
+        'Horizon Zero Dawn VR',
+        'Kingdom Come: Deliverance VR',
+        'Grounded VR',
+        'Tomb Raider 1 VR',
+        'Stray VR',
+        'Firewatch VR'
+    )
+    'emwaves' = @(
+        'Mega Man Star Force Legacy VR',
+        'Pokemon Dramatic Shape VR',
+        'Moros Protocol VR',
+        'High Entropy: Challenges VR',
+        'Cruelty Squad VR',
+        'Watch Dogs 2 VR'
+    )
+    'polaroids' = @(
+        'MiSide VR',
+        'Life is Strange: BtS',
+        'Firewatch VR',
+        'Content Warning VR',
+        'Stanley Parable VR',
+        'Beyond: Two Souls VR',
+        'Paranoia Place VR',
+        'Stardew Valley VR'
+    )
+    'groovy' = @(
+        'No One Lives Forever VR',
+        'No One Lives Forever 2 VR',
+        'Atomic Heart VR',
+        'BioShock Infinite VR',
+        'XIII Remake VR',
+        'AWAY VR',
+        'Sayonara Wild Hearts'
+    )
+    'gel' = @(
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'Slime Rancher VR',
+        'Bomb Rush Cyberfunk',
+        'High on Life VR'
+    )
+    'gleam' = @(
+        'PowerWash Simulator VR',
+        'PowerWash Simulator 2 VR',
+        'Stardew Valley VR',
+        'Slime Rancher VR',
+        'Dinkum VR',
+        'Paperklay VR'
+    )
+    'jumppads' = @(
+        'Quake 3 VR',
+        'Unreal Revived',
+        'Tribes 2 VR',
+        'Quake 2 VR',
+        'Titanfall 2 VR',
+        'ULTRAKILL VR',
+        'Neon White VR'
+    )
+    'neonsigns' = @(
+        'Judgment VR',
+        'Shenmue I & II',
+        'GTA Vice City VR',
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Retrowave 2 VR',
+        'Saints Row: The Third VR',
+        'Ghostwire: Tokyo VR',
+        'Bomb Rush Cyberfunk',
+        'Cyberpunk 2077',
+        'Spider-Man Remastered VR',
+        'Spiderman Miles Morales VR'
+    )
+    'stickers' = @(
+        'Skate Story VR',
+        'Bomb Rush Cyberfunk',
+        'StreetDog BMX VR',
+        'Saints Row: The Third VR',
+        'Borderlands GOTY Enhanced',
+        'Sayonara Wild Hearts',
+        'High on Life VR',
+        'Ratchet & Clank VR'
+    )
+    'bullethell' = @(
+        'Slyders VR',
+        'Moros Protocol VR',
+        'Gunfire Reborn',
+        'Risk of Rain 2',
+        'Star Fox Enhanced PCVR',
+        'ULTRAKILL VR'
+    )
+    'tubelights' = @(
+        'Total Chaos VR',
+        'Outlast VR',
+        'Paranoia Place VR',
+        'SOMA VR',
+        'Alien: Isolation VR',
+        'Silent Hill VR',
+        'GTFO VR',
+        'Lethal Company VR',
+        'My Friendly Neighborhood VR',
+        'Ashes 2063 VR',
+        'Black Mesa VR',
+        'White Knuckle VR'
+    )
+    'farblast' = @(
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Ashes 2063 VR',
+        'Atomic Heart VR',
+        'Call of Duty 4 VR',
+        'C&C Generals: Zero Hour',
+        'Nuclear Option VR'
+    )
+    'tides' = @(
+        'Raft VR',
+        'Dredge VR',
+        'Assassin''s Creed Odyssey VR',
+        'How to Fish XR',
+        'Subnautica VR',
+        'Another Crab''s Treasure',
+        'Far Cry 6 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Stardew Valley VR'
+    )
+    'constellations' = @(
+        'Outer Wilds VR',
+        'Starfield VR',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Mass Effect 3 LE VR',
+        'Final Fantasy XIV VR',
+        'Hollow Knight VR',
+        'Journey VR',
+        'Kerbal Space Program',
+        'Star Trucker VR',
+        'Forsaken VR',
+        'Rebel Galaxy VR'
+    )
+
+    # round 5
+    'glitter' = @(
+        'A Kingdom for Keflings VR',
+        'Banjo-Kazooie VR',
+        'Super Mario 64 VR',
+        'Super Mario 3D World VR',
+        'Mario Kart 64 VR',
+        'Mario Kart Wii VR',
+        'Diddy Kong Racing VR',
+        'Yooka-Laylee VR',
+        'Tinykin VR',
+        'Slime Rancher VR',
+        'Lunistice VR',
+        'Sonic P-06 VR',
+        'Sonic Robo Blast 2 VR',
+        'Ring Racers VR',
+        'Sayonara Wild Hearts',
+        'Pokemon Dramatic Shape VR',
+        'Stardew Valley VR',
+        'Little Witch Nobeta VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'High on Life VR',
+        'Garry''s Mod VR',
+        'Paperklay VR',
+        'AWAY VR',
+        'Hollow Knight VR'
+    )
+    'starlight' = @(
+        'Breath of the Wild VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Legend of Zelda: Twilight Princess',
+        'Skyrim VR',
+        'Witcher 3 VR',
+        'Final Fantasy XIV VR',
+        'Hogwarts Legacy VR',
+        'Little Witch Nobeta VR',
+        'Journey VR',
+        'Outer Wilds VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Stardew Valley VR',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Dark Souls III VR',
+        'Lunacid VR',
+        'Alba VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Mirage Feathers VR',
+        'Firewatch VR',
+        'Valheim VR',
+        'World of Warcraft VR',
+        'FF VII Rebirth VR'
+    )
+    'butterflies' = @(
+        'Breath of the Wild VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Legend of Zelda: Twilight Princess',
+        'Stardew Valley VR',
+        'Slime Rancher VR',
+        'Dinkum VR',
+        'Alba VR',
+        'Grounded VR',
+        'Tinykin VR',
+        'Banjo-Kazooie VR',
+        'Yooka-Laylee VR',
+        'Hogwarts Legacy VR',
+        'Ghost of Tsushima VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Witcher 3 VR',
+        'Big Walk VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Horizon Zero Dawn VR',
+        'Horizon Zero Dawn Remastered VR',
+        'Horizon Forbidden West VR',
+        'Flower VR',
+        'A Kingdom for Keflings VR',
+        'Firewatch VR'
+    )
+    'dandelions' = @(
+        'Breath of the Wild VR',
+        'Big Walk VR',
+        'Journey VR',
+        'Firewatch VR',
+        'Red Dead Redemption VR',
+        'Rustler VR',
+        'Far Cry 2 VR',
+        'Far Cry 5 VR',
+        'theHunter: Call of the Wild VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Outward DE VR',
+        'Valheim VR',
+        'Skyrim VR',
+        'Witcher 3 VR',
+        'Horizon Zero Dawn VR',
+        'Ghost of Tsushima VR',
+        'Death Stranding VR',
+        'Driftwood VR',
+        'PEAK VR',
+        'Outbound VR',
+        'Stardew Valley VR',
+        'Flower VR'
+    )
+    'pollen' = @(
+        'Breath of the Wild VR',
+        'Legend of Zelda: Twilight Princess',
+        'Firewatch VR',
+        'Grounded VR',
+        'Alba VR',
+        'Big Walk VR',
+        'Dinkum VR',
+        'Stardew Valley VR',
+        'Sons of the Forest',
+        'Far Cry Primal VR',
+        'Far Cry VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Tomb Raider 1 VR',
+        'Indiana Jones: Great Circle VR',
+        'Horizon Zero Dawn VR',
+        'Raft VR',
+        'Kingdom Come: Deliverance VR',
+        'Witcher 3 VR',
+        'Hogwarts Legacy VR',
+        'Stray VR',
+        'Muck VR'
+    )
+    'powder' = @(
+        'Skyrim VR',
+        'Valheim VR',
+        'PEAK VR',
+        'Subnautica: Below Zero',
+        'SnowRunner VR',
+        'Far Cry 4 VR',
+        'theHunter: Call of the Wild VR',
+        'Witcher 3 VR',
+        'Kingdom Come: Deliverance II VR',
+        'Call of Duty 4 VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Lunistice VR',
+        'Death Stranding VR',
+        'Arma 3 VR',
+        'Battlefield 1942 VR',
+        'Dinkum VR'
+    )
+    'windsparks' = @(
+        'DOOM (2016) VR',
+        'Doom Eternal VR',
+        'DOOM Eternal VR - Motion',
+        'Titanfall 2 VR',
+        'Crysis VR',
+        'Battlefield 1942 VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty 4 VR',
+        'Call of Duty: World at War VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Arma 3 VR',
+        'Spec Ops: The Line VR',
+        'EARTH DEFENSE FORCE 6 VR',
+        'Warhammer 40K: Darktide VR',
+        'Red Faction VR',
+        'Teardown VR',
+        'Return to Castle Wolfenstein VR',
+        'World War II GI VR',
+        'NAM VR',
+        'Deep Rock Galactic VR',
+        'Ghost Recon Wildlands VR',
+        'Halo Master Chief Collection VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Metal: Hellsinger VR'
+    )
+    'bitstream' = @(
+        'Cyberpunk 2077',
+        'Watch Dogs VR',
+        'Watch Dogs 2 VR',
+        'Watch Dogs Legion VR',
+        'Deus Ex: Human Revolution - DC',
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Cruelty Squad VR',
+        'High Entropy: Challenges VR',
+        'Moros Protocol VR',
+        'Pragmata VR',
+        'SiN Episodes: Emergence',
+        'Strife VR',
+        'Selaco VR',
+        'Atomic Heart VR',
+        'Mega Man Star Force Legacy VR',
+        'Retrowave 2 VR',
+        'Ghostwire: Tokyo VR',
+        'Neon White VR',
+        'Portal 2 VR'
+    )
+    'glyphs' = @(
+        'Outer Wilds VR',
+        'The Witness',
+        'Metroid Prime VR',
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'High Entropy: Challenges VR',
+        'Hypogea VR',
+        'Journey VR',
+        'Stanley Parable VR',
+        'Prey (2006) VR',
+        'Singularity VR',
+        'Mass Effect 1 LE VR',
+        'Halo CE VR',
+        'SOMA VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Starfield VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Indiana Jones: Great Circle VR',
+        'Tomb Raider 1 VR',
+        'Black Mesa VR'
+    )
+    'wirepeaks' = @(
+        'Retrowave 2 VR',
+        'F-Zero X VR',
+        'Star Racer VR',
+        'Horizon Chase Turbo',
+        'TrackMania Nations Forever',
+        'TrackMania United Forever',
+        'Ring Racers VR',
+        'Neon White VR',
+        'Sayonara Wild Hearts',
+        'Decimate Drive VR',
+        'Star Fox 64 VR',
+        'Star Fox Enhanced PCVR',
+        'Rogue Flight VR',
+        'Descent VR',
+        'Descent 2 VR',
+        'Forsaken VR',
+        'Slyders VR',
+        'Moros Protocol VR',
+        'Star Wars Episode I Racer',
+        'Cruelty Squad VR'
+    )
+    'plankton' = @(
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Another Crab''s Treasure',
+        'Dredge VR',
+        'Iron Lung VR',
+        'SOMA VR',
+        'BioShock Remastered',
+        'BioShock 2 Remastered',
+        'Raft VR',
+        'How to Fish XR',
+        'Avatar: Frontiers of Pandora VR'
+    )
+    'godrays' = @(
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Another Crab''s Treasure',
+        'BioShock Remastered',
+        'BioShock 2 Remastered',
+        'Tomb Raider 1 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Indiana Jones: Great Circle VR',
+        'Journey VR',
+        'Breath of the Wild VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Elden Ring',
+        'Dark Souls III VR',
+        'Lunacid VR',
+        'Hypogea VR',
+        'Alba VR',
+        'Firewatch VR',
+        'Stray VR',
+        'The Witness',
+        'Assassin''s Creed Mirage VR',
+        'PowerSlave / Exhumed VR'
+    )
+    'ripples' = @(
+        'Dredge VR',
+        'How to Fish XR',
+        'Raft VR',
+        'Subnautica VR',
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Another Crab''s Treasure',
+        'Red Dead Redemption VR',
+        'Ghost of Tsushima VR',
+        'Witcher 3 VR',
+        'Firewatch VR',
+        'Kingdom Come: Deliverance VR',
+        'Valheim VR',
+        'theHunter: Call of the Wild VR',
+        'Days Gone VR',
+        'Silent Hill VR',
+        'Assassin''s Creed Odyssey VR',
+        'Shenmue I & II'
+    )
+    'stormfront' = @(
+        'Witcher 3 VR',
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Skyrim VR',
+        'Valheim VR',
+        'Diablo II: Resurrected',
+        'Vampire Hunters VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'RE Village VR',
+        'Resident Evil 4R VR',
+        'Silent Hill VR',
+        'Alan Wake VR',
+        'Amnesia VR',
+        'Days Gone VR',
+        'Red Dead Redemption VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Kingdom Come: Deliverance II VR',
+        'Call of Duty: World at War VR',
+        'Battlefield 1942 VR',
+        'Warhammer 40K: Darktide VR',
+        'Dragon''s Dogma 2 VR',
+        'ELDERBORN VR'
+    )
+    'groundmist' = @(
+        'Silent Hill VR',
+        'Silent Hill 3 VR',
+        'Alan Wake VR',
+        'Amnesia VR',
+        'Penumbra: Overture VR',
+        'Outlast VR',
+        'Outlast 2 VR',
+        'Resident Evil 7 VR',
+        'RE Village VR',
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Elden Ring',
+        'Lunacid VR',
+        'Witcher 3 VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Vampire Hunters VR',
+        'Dredge VR',
+        'Firewatch VR',
+        'Sons of the Forest',
+        'Tormented Souls VR',
+        'Unmourned VR',
+        'Idols of Ash VR',
+        'Ghostwire: Tokyo VR',
+        'Hypogea VR',
+        'ELDERBORN VR'
+    )
+    'warsmoke' = @(
+        'Battlefield 1942 VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty 4 VR',
+        'Call of Duty: World at War VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR',
+        'Return to Castle Wolfenstein VR',
+        'World War II GI VR',
+        'NAM VR',
+        'Arma 3 VR',
+        'C&C Generals: Zero Hour',
+        'Spec Ops: The Line VR',
+        'Far Cry 2 VR',
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Ashes 2063 VR',
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Warhammer 40K: Darktide VR',
+        'Mount & Blade II: Bannerlord VR',
+        'EARTH DEFENSE FORCE 6 VR',
+        'Days Gone VR'
+    )
+    'searchbeams' = @(
+        'Return to Castle Wolfenstein VR',
+        'Wolfenstein 3D VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty: World at War VR',
+        'World War II GI VR',
+        'Battlefield 1942 VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'Thief (2014) VR',
+        'The Dark Mod VR',
+        'No One Lives Forever VR',
+        'No One Lives Forever 2 VR',
+        'XIII Remake VR',
+        'Hitman: Blood Money VR',
+        'Ready Or Not VR',
+        'Alien: Isolation VR',
+        'Escape from Tarkov VR',
+        'Ghost Recon Wildlands VR',
+        'BioShock Infinite VR'
+    )
+    'wirefence' = @(
+        'Call of Duty (2003) VR',
+        'Call of Duty: World at War VR',
+        'Call of Duty 4 VR',
+        'Return to Castle Wolfenstein VR',
+        'World War II GI VR',
+        'Battlefield 1942 VR',
+        'NAM VR',
+        'Arma 3 VR',
+        'Escape from Tarkov VR',
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Road to Vostok VR',
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Ashes 2063 VR',
+        '7 Days to Die VR',
+        'Project Zomboid VR',
+        'Days Gone VR',
+        'TLOU Part I VR',
+        'TLOU Part II VR',
+        'Left 4 Dead 2 VR',
+        'Spec Ops: The Line VR',
+        'Metal Gear Solid V: The Phantom Pain VR'
+    )
+    'roadlines' = @(
+        'Forza Horizon 5 VR',
+        'Forza Horizon 6 VR',
+        'Gran Turismo 2 PCVR',
+        'Horizon Chase Turbo',
+        'Grand Theft Auto V VR',
+        'GTA IV VR',
+        'GTA Vice City VR',
+        'Decimate Drive VR',
+        'Road Redemption VR',
+        'Retrowave 2 VR',
+        'Moto Rush Reborn VR',
+        'SnowRunner VR',
+        'Star Trucker VR',
+        'Outbound VR',
+        'Death Stranding VR',
+        'Circuit Superstars VR',
+        'New Star GP VR',
+        'Sunrise GP VR',
+        'Art of Rally VR',
+        'Richard Burns Rally VR',
+        'Saints Row: The Third VR',
+        'Days Gone VR'
+    )
+    'mesas' = @(
+        'Red Dead Redemption VR',
+        'Call of Juarez VR',
+        'Rustler VR',
+        'Fallout: New Vegas VR',
+        'Fallout 3 VR',
+        'Borderlands GOTY Enhanced',
+        'Spec Ops: The Line VR',
+        'Far Cry 2 VR',
+        'Journey VR',
+        'Days Gone VR',
+        'Ashes 2063 VR',
+        'PowerSlave / Exhumed VR',
+        'Star Wars Episode I Racer',
+        'Risk of Rain 2',
+        'Redneck Rampage VR',
+        'Assassin''s Creed Mirage VR',
+        'Death Stranding VR'
+    )
+    'pinewoods' = @(
+        'Firewatch VR',
+        'Sons of the Forest',
+        'theHunter: Call of the Wild VR',
+        'Days Gone VR',
+        'Far Cry 5 VR',
+        'Far Cry New Dawn VR',
+        'Alan Wake VR',
+        'Valheim VR',
+        'Skyrim VR',
+        'Witcher 3 VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        '7 Days to Die VR',
+        'Project Zomboid VR',
+        'Road to Vostok VR',
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Outlast 2 VR',
+        'Resident Evil 4R VR',
+        'RE Village VR',
+        'Silent Hill VR',
+        'Big Walk VR',
+        'PEAK VR',
+        'SnowRunner VR',
+        'Red Dead Redemption VR'
+    )
+    'keeps' = @(
+        'Skyrim VR',
+        'Oblivion (2006)',
+        'Morrowind VR',
+        'Daggerfall VR',
+        'Witcher 3 VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Dark Souls II VR',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Dragon''s Dogma 2 VR',
+        'Gothic II VR',
+        'Hogwarts Legacy VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Legend of Zelda: Twilight Princess',
+        'Diablo II: Resurrected',
+        'Blade of Darkness VR',
+        'Thief (2014) VR',
+        'Dishonored VR',
+        'Vampire Hunters VR',
+        'Final Fantasy XIV VR',
+        'World of Warcraft VR',
+        'Rustler VR'
+    )
+    'colonnade' = @(
+        'Assassin''s Creed Odyssey VR',
+        'Assassin''s Creed Mirage VR',
+        'Assassin''s Creed Valhalla VR',
+        'Tomb Raider 1 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Indiana Jones: Great Circle VR',
+        'PowerSlave / Exhumed VR',
+        'Elden Ring',
+        'Dark Souls III VR',
+        'Hollow Knight VR',
+        'Journey VR',
+        'The Witness',
+        'Lunacid VR',
+        'Hypogea VR',
+        'Portal 2 VR',
+        'BioShock Infinite VR'
+    )
+    'neonrain' = @(
+        'Cyberpunk 2077',
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Ghostwire: Tokyo VR',
+        'Judgment VR',
+        'Watch Dogs Legion VR',
+        'Watch Dogs 2 VR',
+        'GTA IV VR',
+        'Max Payne 2 VR',
+        'Retrowave 2 VR',
+        'Deus Ex: Human Revolution - DC',
+        'Neon White VR',
+        'Bomb Rush Cyberfunk',
+        'Spiderman Miles Morales VR',
+        'Selaco VR',
+        'Saints Row: The Third VR'
+    )
+    'asteroids' = @(
+        'Star Wars: X-Wing VR',
+        'Star Wars Outlaws VR',
+        'Freespace 2 VR',
+        'X4: Foundations VR',
+        'Rebel Galaxy VR',
+        'Star Trucker VR',
+        'Starfield VR',
+        'Outer Wilds VR',
+        'Kerbal Space Program',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Mass Effect 3 LE VR',
+        'Astrodogs VR',
+        'Forsaken VR',
+        'Descent VR',
+        'Descent 2 VR',
+        'Star Fox 64 VR',
+        'Star Fox Enhanced PCVR',
+        'Rogue Flight VR',
+        'Halo Master Chief Collection VR',
+        'Deep Rock Galactic VR',
+        'Ratchet & Clank VR'
+    )
+    'satellites' = @(
+        'Kerbal Space Program',
+        'Starfield VR',
+        'Outer Wilds VR',
+        'Star Trucker VR',
+        'X4: Foundations VR',
+        'Rebel Galaxy VR',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Mass Effect 3 LE VR',
+        'Halo CE VR',
+        'Halo Master Chief Collection VR',
+        'Freespace 2 VR',
+        'Astrodogs VR',
+        'Prey (2006) VR',
+        'Deep Rock Galactic VR',
+        'Iron Lung VR',
+        'Nuclear Option VR',
+        'Call of Duty: Modern Warfare 2 Campaign Remastered VR'
+    )
+    'cranes' = @(
+        'Ghost of Tsushima VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Onimusha 2 VR',
+        'Shenmue I & II',
+        'Judgment VR',
+        'Ghostwire: Tokyo VR',
+        'Little Witch Nobeta VR',
+        'Final Fantasy XIV VR',
+        'Paperklay VR',
+        'Stanley Parable VR',
+        'Life is Strange: BtS',
+        'Tinykin VR',
+        'Mirage Feathers VR',
+        'Alba VR',
+        'Journey VR'
+    )
+    'koi' = @(
+        'Ghost of Tsushima VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Shenmue I & II',
+        'Judgment VR',
+        'Ghostwire: Tokyo VR',
+        'Onimusha 2 VR',
+        'Final Fantasy XIV VR',
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'How to Fish XR',
+        'Dredge VR',
+        'Hogwarts Legacy VR',
+        'Little Witch Nobeta VR',
+        'Sayonara Wild Hearts',
+        'Flower VR'
+    )
+    'bamboo' = @(
+        'Ghost of Tsushima VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Onimusha 2 VR',
+        'Shenmue I & II',
+        'Judgment VR',
+        'Far Cry Primal VR',
+        'Far Cry VR',
+        'Far Cry 6 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Final Fantasy XIV VR',
+        'Little Witch Nobeta VR',
+        'Street Fighter 6 VR',
+        'Crysis VR',
+        'Tomb Raider 1 VR'
+    )
+    'inkwash' = @(
+        'Ghost of Tsushima VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Onimusha 2 VR',
+        'Shenmue I & II',
+        'Judgment VR',
+        'Sayonara Wild Hearts',
+        'Little Witch Nobeta VR',
+        'Journey VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'XIII Remake VR',
+        'Bendy VR',
+        'Mouse P.I. For Hire VR',
+        'Paperklay VR',
+        'Stanley Parable VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'Ghostwire: Tokyo VR'
+    )
+    'dancefloor' = @(
+        'Trombone Champ VR',
+        'Metal: Hellsinger VR',
+        'Sayonara Wild Hearts',
+        'Bomb Rush Cyberfunk',
+        'Retrowave 2 VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Saints Row: The Third VR',
+        'GTA Vice City VR',
+        'Neon White VR',
+        'Street Fighter 6 VR',
+        'Content Warning VR',
+        'R.E.P.O. VR',
+        'Garry''s Mod VR',
+        'High on Life VR'
+    )
+    'discospots' = @(
+        'Trombone Champ VR',
+        'Metal: Hellsinger VR',
+        'Sayonara Wild Hearts',
+        'Bomb Rush Cyberfunk',
+        'Retrowave 2 VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Saints Row: The Third VR',
+        'GTA Vice City VR',
+        'Grand Theft Auto V VR',
+        'Judgment VR',
+        'Content Warning VR',
+        'R.E.P.O. VR',
+        'Lethal Company VR',
+        'Cyberpunk 2077',
+        'Street Fighter 6 VR',
+        'Cloudpunk VR'
+    )
+    'pixelclouds' = @(
+        'Vivecraft',
+        'Hytale VR',
+        'Teardown VR',
+        'Scrap Mechanic VR',
+        'Muck VR',
+        'Techtonica VR',
+        'Garry''s Mod VR',
+        'Super Mario 64 VR',
+        'Banjo-Kazooie VR',
+        'Lunistice VR',
+        'Hypogea VR',
+        'Sonic Robo Blast 2 VR',
+        'Echo Generation 2 VR',
+        'Paperklay VR',
+        'Ring Racers VR',
+        'A Kingdom for Keflings VR',
+        'Dinkum VR',
+        'Slime Rancher VR'
+    )
+    'pixelsky' = @(
+        'Doom VR',
+        'Doom 2 VR',
+        'Wolfenstein 3D VR',
+        'Quake VR',
+        'Heretic VR',
+        'Hexen VR',
+        'Hexen II VR',
+        'Strife VR',
+        'Blood VR',
+        'Duke Nukem 3D VR',
+        'Redneck Rampage VR',
+        'Shadow Warrior VR',
+        'NAM VR',
+        'PowerSlave / Exhumed VR',
+        'Dusk HD (DLC) VR',
+        'ULTRAKILL VR',
+        'Daggerfall VR',
+        'Hypogea VR',
+        'Lunacid VR',
+        'Cruelty Squad VR',
+        'Moros Protocol VR',
+        'Slyders VR',
+        'Echo Generation 2 VR',
+        'Total Chaos VR',
+        'Ashes 2063 VR'
+    )
+    'scorepops' = @(
+        'The House of the Dead 2',
+        'House of the Dead Remake VR',
+        'House of the Dead 2 Remake VR',
+        'Virtua Cop 2 VR',
+        'Panzer Dragoon Remake',
+        'Star Fox 64 VR',
+        'Star Fox Enhanced PCVR',
+        'Slyders VR',
+        'ULTRAKILL VR',
+        'Neon White VR',
+        'Risk of Rain 2',
+        'Gunfire Reborn',
+        'Moros Protocol VR',
+        'I Can Gun VR',
+        'Metal: Hellsinger VR',
+        'Sonic P-06 VR',
+        'Super Mario 64 VR',
+        'Banjo-Kazooie VR',
+        'Trombone Champ VR',
+        'Ghosts n Goblins Resurrection VR',
+        'Mega Man Star Force Legacy VR',
+        'Quake 3 VR'
+    )
+    'xporbs' = @(
+        'Skyrim VR',
+        'Oblivion (2006)',
+        'Fallout 4 VR',
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Witcher 3 VR',
+        'Diablo II: Resurrected',
+        'Borderlands GOTY Enhanced',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Dark Souls III VR',
+        'Hollow Knight VR',
+        'Risk of Rain 2',
+        'Gunfire Reborn',
+        'Valheim VR',
+        'Enshrouded VR',
+        '7 Days to Die VR',
+        'Final Fantasy XIV VR',
+        'World of Warcraft VR',
+        'Outward DE VR',
+        'Dragon''s Dogma 2 VR',
+        'Pathfinder: Kingmaker',
+        'Warhammer 40K: Rogue Trader VR',
+        'Monster Hunter Rise VR',
+        'Monster Hunter Wilds',
+        'Deep Rock Galactic VR'
+    )
+    'lootbeams' = @(
+        'Borderlands GOTY Enhanced',
+        'Diablo II: Resurrected',
+        'Risk of Rain 2',
+        'Gunfire Reborn',
+        'Deep Rock Galactic VR',
+        'Warhammer 40K: Darktide VR',
+        'World of Warcraft VR',
+        'Final Fantasy XIV VR',
+        'Monster Hunter Rise VR',
+        'Monster Hunter Wilds',
+        'Elden Ring',
+        'Skyrim VR',
+        'Fallout 4 VR',
+        'Escape from Tarkov VR',
+        'Enshrouded VR',
+        'Dragon''s Dogma 2 VR',
+        'Lethal Company VR',
+        'R.E.P.O. VR',
+        'Gloomhaven VR'
+    )
+    'mushrooms' = @(
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Breath of the Wild VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Legend of Zelda: Twilight Princess',
+        'Super Mario 64 VR',
+        'Super Mario 3D World VR',
+        'Yooka-Laylee VR',
+        'Banjo-Kazooie VR',
+        'Grounded VR',
+        'Slime Rancher VR',
+        'Alba VR',
+        'Lunacid VR',
+        'Skyrim VR',
+        'Witcher 3 VR',
+        'Hogwarts Legacy VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Final Fantasy XIV VR',
+        'World of Warcraft VR',
+        'Daggerfall VR',
+        'Arx Fatalis VR',
+        'Little Witch Nobeta VR',
+        'Enshrouded VR',
+        'Muck VR'
+    )
+    'vines' = @(
+        'Far Cry VR',
+        'Far Cry 6 VR',
+        'Far Cry Primal VR',
+        'Crysis VR',
+        'Turok VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Tomb Raider 1 VR',
+        'Indiana Jones: Great Circle VR',
+        'Avatar: Frontiers of Pandora VR',
+        'Horizon Zero Dawn VR',
+        'Horizon Forbidden West VR',
+        'Grounded VR',
+        'Dino Trauma VR',
+        'Breath of the Wild VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Banjo-Kazooie VR',
+        'Yooka-Laylee VR',
+        'Hollow Knight VR',
+        'Raft VR',
+        'Sons of the Forest',
+        'Stray VR',
+        'Hypogea VR'
+    )
+    'crystalbed' = @(
+        'Deep Rock Galactic VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Lunacid VR',
+        'Skyrim VR',
+        'Final Fantasy XIV VR',
+        'FF VII Remake VR',
+        'FF VII Rebirth VR',
+        'Diablo II: Resurrected',
+        'Dungeon Keeper 2 VR',
+        'Arx Fatalis VR',
+        'Daggerfall VR',
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Outer Wilds VR',
+        'Metroid Prime VR',
+        'Mass Effect 2 LE VR',
+        'Techtonica VR',
+        'Hytale VR',
+        'Vivecraft',
+        'Elden Ring',
+        'Warhammer 40K: Rogue Trader VR'
+    )
+    'cavedrips' = @(
+        'Deep Rock Galactic VR',
+        'Dungeon Keeper 2 VR',
+        'Arx Fatalis VR',
+        'Daggerfall VR',
+        'Lunacid VR',
+        'Hypogea VR',
+        'ELDERBORN VR',
+        'Hollow Knight VR',
+        'Tomb Raider 1 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Indiana Jones: Great Circle VR',
+        'Skyrim VR',
+        'Elden Ring',
+        'Dark Souls III VR',
+        'Blade of Darkness VR',
+        'Hexen II VR',
+        'Penumbra: Black Plague VR',
+        'Amnesia VR',
+        'Metroid Prime VR',
+        'Techtonica VR',
+        'Vivecraft',
+        'Gloomhaven VR'
+    )
+    'chains' = @(
+        'Doom VR',
+        'Doom 2 VR',
+        'Doom Eternal VR',
+        'DOOM Eternal VR - Motion',
+        'Painkiller Black Edition',
+        'Painkiller: Overdose VR',
+        'Hexen VR',
+        'Heretic VR',
+        'Blood VR',
+        'Diablo II: Resurrected',
+        'Dark Souls III VR',
+        'Dark Souls Remastered',
+        'Elden Ring',
+        'Blade of Darkness VR',
+        'Metal: Hellsinger VR',
+        "Br$([char]0xFC)tal Legend VR",
+        'Dungeon Keeper 2 VR',
+        'Amnesia VR',
+        'Outlast VR',
+        'Resident Evil 4R VR',
+        'RE Village VR',
+        'Silent Hill VR',
+        'Tormented Souls VR',
+        'Vampire Hunters VR',
+        'Gothic II VR',
+        'Thief (2014) VR'
+    )
+    'conveyor' = @(
+        'Techtonica VR',
+        'Scrap Mechanic VR',
+        'Shipbreaker VR',
+        'Teardown VR',
+        'A Kingdom for Keflings VR',
+        'Garry''s Mod VR',
+        'Deep Rock Galactic VR',
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'Lethal Company VR',
+        'R.E.P.O. VR',
+        'PowerWash Simulator VR',
+        'PowerWash Simulator 2 VR',
+        'Star Trucker VR',
+        'Hytale VR',
+        'Vivecraft',
+        'Dinkum VR',
+        'Black Mesa VR',
+        'Atomic Heart VR',
+        'Ratchet & Clank VR'
+    )
+    'hazard' = @(
+        'Half-Life VR',
+        'Black Mesa VR',
+        'Black Mesa Source VR',
+        'Half-Life 2 VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two',
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'Doom 3 BFG VR',
+        'Prey (2006) VR',
+        'Alien: Isolation VR',
+        'SOMA VR',
+        'GTFO VR',
+        'Lethal Company VR',
+        'Deep Rock Galactic VR',
+        'Shipbreaker VR',
+        'Teardown VR',
+        'Techtonica VR',
+        'Selaco VR',
+        'Iron Lung VR',
+        'Titanfall 2 VR',
+        'Red Faction VR',
+        'Atomic Heart VR',
+        'Killing Floor 2 VR'
+    )
+    'cloudsea' = @(
+        'Breath of the Wild VR',
+        'Journey VR',
+        'Final Fantasy XIV VR',
+        'BioShock Infinite VR',
+        'Mirage Feathers VR',
+        'Panzer Dragoon Remake',
+        'Rogue Flight VR',
+        'Nuclear Option VR',
+        'Star Fox 64 VR',
+        'Skyrim VR',
+        'Elden Ring',
+        'PEAK VR',
+        'Hogwarts Legacy VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Death Stranding VR',
+        'Outer Wilds VR',
+        'Lunistice VR',
+        'Alba VR',
+        'AWAY VR',
+        'Hollow Knight Silksong'
+    )
+    'windlines' = @(
+        'Breath of the Wild VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Journey VR',
+        'Ghost of Tsushima VR',
+        'Mirage Feathers VR',
+        'Alba VR',
+        'Big Walk VR',
+        'PEAK VR',
+        'Death Stranding VR',
+        'Red Dead Redemption VR',
+        'Rustler VR',
+        'Horizon Zero Dawn VR',
+        'Horizon Forbidden West VR',
+        'Assassin''s Creed Odyssey VR',
+        'Valheim VR',
+        'Raft VR',
+        'Sayonara Wild Hearts',
+        'Flower VR',
+        'Descenders VR',
+        'Firewatch VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Kingdom Come: Deliverance II VR'
+    )
+    'streetlamps' = @(
+        'GTA IV VR',
+        'Grand Theft Auto V VR',
+        'GTA Vice City VR',
+        'Max Payne 2 VR',
+        'Hitman: Blood Money VR',
+        'Judgment VR',
+        'Shenmue I & II',
+        'Mouse P.I. For Hire VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'Thief (2014) VR',
+        'Silent Hill VR',
+        'Alan Wake VR',
+        'Spider-Man Remastered VR',
+        'Spiderman 2 VR',
+        'Spiderman Miles Morales VR',
+        'Spiderman Remastered',
+        'Watch Dogs VR',
+        'Watch Dogs Legion VR',
+        'Mirror''s Edge VR',
+        'Stray VR',
+        'Life is Strange: BtS',
+        'Saints Row: The Third VR'
+    )
+    'powerlines' = @(
+        'Firewatch VR',
+        'Days Gone VR',
+        'Death Stranding VR',
+        'Outbound VR',
+        'Big Walk VR',
+        'SnowRunner VR',
+        'Road to Vostok VR',
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Project Zomboid VR',
+        '7 Days to Die VR',
+        'Fallout 3 VR',
+        'Fallout: New Vegas VR',
+        'Fallout 4 VR',
+        'Silent Hill VR',
+        'Alan Wake VR',
+        'Outlast 2 VR',
+        'Resident Evil 7 VR',
+        'Left 4 Dead 2 VR',
+        'TLOU Part I VR',
+        'Far Cry 5 VR',
+        'Grand Theft Auto V VR',
+        'Life is Strange: BtS',
+        'Iron Lung VR'
+    )
+    'wintertrees' = @(
+        'Skyrim VR',
+        'Valheim VR',
+        'PEAK VR',
+        'SnowRunner VR',
+        'Far Cry 4 VR',
+        'theHunter: Call of the Wild VR',
+        'Witcher 3 VR',
+        'Kingdom Come: Deliverance II VR',
+        'Subnautica: Below Zero',
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Lunistice VR',
+        'Death Stranding VR'
+    )
+    'sailboats' = @(
+        'Assassin''s Creed Odyssey VR',
+        'Assassin''s Creed Valhalla VR',
+        'Raft VR',
+        'Dredge VR',
+        'How to Fish XR',
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Far Cry 6 VR',
+        'Witcher 3 VR',
+        'Shenmue I & II',
+        'Ghost of Tsushima VR',
+        'Another Crab''s Treasure',
+        'Subnautica VR',
+        'Red Dead Redemption VR',
+        'Grand Theft Auto V VR',
+        'GTA Vice City VR',
+        'Final Fantasy XIV VR'
+    )
+
+    # Round 7
+    'evidence' = @(
+        'Apollo Justice: Ace Attorney Trilogy VR',
+        'Mouse P.I. For Hire VR',
+        'Judgment VR',
+        'Alan Wake VR',
+        'Beyond: Two Souls VR',
+        'Max Payne 2 VR',
+        'No One Lives Forever VR',
+        'No One Lives Forever 2 VR',
+        'Hitman: Blood Money VR',
+        'Watch Dogs VR',
+        'Stanley Parable VR',
+        'Life is Strange: BtS'
+    )
+    'crosshairs' = @(
+        'The House of the Dead 2',
+        'House of the Dead 2 Remake VR',
+        'House of the Dead Remake VR',
+        'Virtua Cop 2 VR',
+        'I Can Gun VR',
+        'Vampire Hunters VR',
+        'Duke Nukem 3D VR',
+        'Redneck Rampage VR',
+        'Call of Juarez VR',
+        'Receiver VR',
+        'Receiver 2 VR'
+    )
+    'trackmap' = @(
+        'GRID (2019) VR',
+        'GRID Legends VR',
+        'DiRT 4 VR',
+        'TrackMania Nations Forever',
+        'TrackMania United Forever',
+        'Circuit Superstars VR',
+        'New Star GP VR',
+        'Sunrise GP VR',
+        'Art of Rally VR',
+        'Richard Burns Rally VR',
+        'Gran Turismo 2 PCVR',
+        'Horizon Chase Turbo',
+        'Mario Kart 64 VR',
+        'Mario Kart Wii VR',
+        'Diddy Kong Racing VR',
+        'F-Zero X VR',
+        'Star Racer VR',
+        'Star Wars Episode I Racer',
+        'Ring Racers VR'
+    )
+    'halfpipe' = @(
+        'Skate Story VR',
+        'StreetDog BMX VR',
+        'Descenders VR',
+        'Bomb Rush Cyberfunk',
+        'Sonic P-06 VR',
+        'Lunistice VR',
+        'Moto Rush Reborn VR',
+        'Decimate Drive VR'
+    )
+    'oldfilm' = @(
+        'Bendy VR',
+        'Mouse P.I. For Hire VR',
+        'BioShock Infinite VR',
+        'BioShock Remastered',
+        'BioShock 2 Remastered',
+        'Call of Juarez VR',
+        'Red Dead Redemption VR',
+        'Fallout: New Vegas VR',
+        'Fallout 3 VR',
+        'Return to Castle Wolfenstein VR',
+        'Call of Duty (2003) VR',
+        'World War II GI VR'
+    )
+    'techpanels' = @(
+        'Doom VR',
+        'Doom 2 VR',
+        'Doom 3 BFG VR',
+        'Quake 2 VR',
+        'Quake 3 VR',
+        'Perfect Dark VR',
+        'Half-Life VR',
+        'Black Mesa VR',
+        'Black Mesa Source VR',
+        'Red Faction VR',
+        'Unreal Revived',
+        'SiN Episodes: Emergence',
+        'Strife VR',
+        'Tribes 2 VR',
+        'Selaco VR',
+        'Alien: Isolation VR'
+    )
+    'monorail' = @(
+        'Half-Life VR',
+        'Black Mesa VR',
+        'Black Mesa Source VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two',
+        'Half-Life 2 VR',
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'Prey (2006) VR',
+        'Mirror''s Edge Catalyst VR',
+        'Cloudpunk VR',
+        'Cyberpunk 2077'
+    )
+    'horde' = @(
+        'Left 4 Dead 2 VR',
+        '7 Days to Die VR',
+        'Project Zomboid VR',
+        'Days Gone VR',
+        'Killing Floor 2 VR',
+        'Resident Evil 2R VR',
+        'Resident Evil 3R VR',
+        'RE Requiem VR',
+        'The House of the Dead 2',
+        'House of the Dead Remake VR',
+        'House of the Dead 2 Remake VR',
+        'TLOU Part I VR',
+        'TLOU Part II VR',
+        'Dino Trauma VR'
+    )
+    'blinds' = @(
+        'Max Payne 2 VR',
+        'F.E.A.R. VR',
+        'No One Lives Forever VR',
+        'No One Lives Forever 2 VR',
+        'Resident Evil 2R VR',
+        'Resident Evil 7 VR',
+        'Silent Hill VR',
+        'Silent Hill 3 VR',
+        'Alan Wake VR',
+        'Mouse P.I. For Hire VR',
+        'Hitman: Blood Money VR',
+        'Judgment VR',
+        'The Dark Mod VR',
+        'MiSide VR'
+    )
+    'cassettes' = @(
+        'Receiver VR',
+        'Receiver 2 VR',
+        'Echo Generation 2 VR',
+        'GTA Vice City VR',
+        'Life is Strange: BtS',
+        'Retrowave 2 VR',
+        'Alan Wake VR',
+        'Outlast 2 VR',
+        'Content Warning VR',
+        'MiSide VR',
+        'Bomb Rush Cyberfunk'
+    )
+    'tripwires' = @(
+        'GoldenEye 007 VR',
+        'Perfect Dark VR',
+        'No One Lives Forever VR',
+        'No One Lives Forever 2 VR',
+        'Hitman: Blood Money VR',
+        'Mirror''s Edge VR',
+        'Mirror''s Edge Catalyst VR',
+        'Deus Ex: Human Revolution - DC',
+        'Dishonored VR',
+        'Thief (2014) VR',
+        'Metal Gear Solid V: The Phantom Pain VR',
+        'Watch Dogs 2 VR',
+        'Ready Or Not VR'
+    )
+    'pteros' = @(
+        'Turok VR',
+        'Dino Trauma VR',
+        'Far Cry Primal VR',
+        'Monster Hunter Rise VR',
+        'Monster Hunter Wilds',
+        'Monster Hunter Stories 3 VR',
+        'Horizon Zero Dawn VR',
+        'Horizon Zero Dawn Remastered VR',
+        'Horizon Forbidden West VR',
+        'Avatar: Frontiers of Pandora VR'
+    )
+    'trimesh' = @(
+        'Horizon Zero Dawn VR',
+        'Horizon Zero Dawn Remastered VR',
+        'Horizon Forbidden West VR',
+        'Pragmata VR',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Mass Effect 3 LE VR',
+        'Deus Ex: Human Revolution - DC',
+        'Starfield VR',
+        'Echo Generation 2 VR',
+        'Moros Protocol VR',
+        'High Entropy: Challenges VR'
+    )
+    'lifestream' = @(
+        'FF VII Remake VR',
+        'FF VII Rebirth VR',
+        'Final Fantasy XIV VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Breath of the Wild VR',
+        'Legend of Zelda: Twilight Princess',
+        'Avatar: Frontiers of Pandora VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Outer Wilds VR'
+    )
+    'dragons' = @(
+        'Skyrim VR',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Dark Souls Remastered',
+        'Dark Souls II VR',
+        'Dark Souls II: Scholar',
+        'Dark Souls III VR',
+        'Dragon''s Dogma 2 VR',
+        'Monster Hunter Rise VR',
+        'Monster Hunter Wilds',
+        'Monster Hunter Stories 3 VR',
+        'Morrowind VR',
+        'Daggerfall VR',
+        'Oblivion (2006)',
+        'Witcher 3 VR',
+        'Hogwarts Legacy VR',
+        'Enshrouded VR',
+        'Gothic II VR'
+    )
+    'soapstone' = @(
+        'Dark Souls Remastered',
+        'Dark Souls II VR',
+        'Dark Souls II: Scholar',
+        'Dark Souls III VR',
+        'Elden Ring',
+        'Elden Ring VR',
+        'Lunacid VR',
+        'Idols of Ash VR',
+        'ELDERBORN VR',
+        'Hollow Knight VR',
+        'Hollow Knight Silksong',
+        'Unmourned VR'
+    )
+    'tokens' = @(
+        'Gloomhaven VR',
+        'Pathfinder: Kingmaker',
+        'Warhammer 40K: Rogue Trader VR',
+        'Dungeon Keeper 2 VR',
+        'A Kingdom for Keflings VR',
+        'C&C Generals: Zero Hour',
+        'Diablo II: Resurrected'
+    )
+    'waypoints' = @(
+        'C&C Generals: Zero Hour',
+        'Dungeon Keeper 2 VR',
+        'A Kingdom for Keflings VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Warhammer 40K: Rogue Trader VR',
+        'Pathfinder: Kingmaker',
+        'Arma 3 VR',
+        'Ghost Recon Wildlands VR',
+        'Ready Or Not VR'
+    )
+    'lockon' = @(
+        'Panzer Dragoon Remake',
+        'Star Fox 64 VR',
+        'Star Fox Enhanced PCVR',
+        'Rogue Flight VR',
+        'Nuclear Option VR',
+        'Star Wars: X-Wing VR',
+        'Freespace 2 VR',
+        'Descent VR',
+        'Descent 2 VR',
+        'Forsaken VR',
+        'Metroid Prime VR',
+        'Halo Master Chief Collection VR'
+    )
+    'moons' = @(
+        'Unreal Revived',
+        'Outer Wilds VR',
+        'Starfield VR',
+        'Metroid Prime VR',
+        'Halo CE VR',
+        'Halo Master Chief Collection VR',
+        'Mass Effect 1 LE VR',
+        'Kerbal Space Program',
+        'Star Trucker VR',
+        'Rebel Galaxy VR',
+        'X4: Foundations VR',
+        'High on Life VR',
+        'Freespace 2 VR',
+        'Tribes 2 VR'
+    )
+    'liftshaft' = @(
+        'White Knuckle VR',
+        'Half-Life VR',
+        'Black Mesa VR',
+        'Black Mesa Source VR',
+        'SOMA VR',
+        'Lethal Company VR',
+        'GTFO VR',
+        'Doom 3 BFG VR',
+        'Penumbra: Overture VR',
+        'Penumbra: Black Plague VR',
+        'Penumbra: Requiem VR',
+        'Deep Rock Galactic VR'
+    )
+    'whirls' = @(
+        'Anomaly VR',
+        'Anomaly GAMMA',
+        'Road to Vostok VR',
+        'Escape from Tarkov VR',
+        'Atomic Heart VR',
+        'Singularity VR',
+        'Prey (2006) VR',
+        'Half-Life 2 VR',
+        'HL2 VR Ep. One',
+        'HL2 VR Ep. Two'
+    )
+    'sprouts' = @(
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Slime Rancher VR',
+        'A Kingdom for Keflings VR',
+        'Grounded VR',
+        'Muck VR',
+        'Hytale VR',
+        'Vivecraft',
+        'Enshrouded VR',
+        'Valheim VR'
+    )
+    'grassblades' = @(
+        'Grounded VR',
+        'Tinykin VR',
+        'Another Crab''s Treasure',
+        'Slime Rancher VR',
+        'Breath of the Wild VR',
+        'Pokemon Dramatic Shape VR',
+        'Legend of Zelda: Ocarina of Time VR',
+        'Banjo-Kazooie VR',
+        'Yooka-Laylee VR',
+        'Paperklay VR'
+    )
+    'parachutes' = @(
+        'Arma 3 VR',
+        'Battlefield 1942 VR',
+        'Call of Duty (2003) VR',
+        'Call of Duty: World at War VR',
+        'World War II GI VR',
+        'Return to Castle Wolfenstein VR',
+        'NAM VR',
+        'Far Cry 5 VR',
+        'Ghost Recon Wildlands VR',
+        'Nuclear Option VR',
+        'Spec Ops: The Line VR'
+    )
+    'freighters' = @(
+        'Star Trucker VR',
+        'X4: Foundations VR',
+        'Rebel Galaxy VR',
+        'Starfield VR',
+        'Shipbreaker VR',
+        'Mass Effect 1 LE VR',
+        'Mass Effect 2 LE VR',
+        'Star Wars Outlaws VR',
+        'Freespace 2 VR',
+        'Star Wars: X-Wing VR',
+        'Kerbal Space Program',
+        'Halo CE VR'
+    )
+    'buoys' = @(
+        'Dredge VR',
+        'Raft VR',
+        'How to Fish XR',
+        'Outbound VR',
+        'Assassin''s Creed Odyssey VR',
+        'Subnautica VR',
+        'Driftwood VR',
+        'Another Crab''s Treasure',
+        'Sons of the Forest',
+        'Alba VR',
+        'SOMA VR'
+    )
+    'prayerflags' = @(
+        'PEAK VR',
+        'Far Cry 4 VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Big Walk VR',
+        'SnowRunner VR',
+        'Indiana Jones: Great Circle VR',
+        'Ghost of Tsushima VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Monster Hunter Rise VR'
+    )
+    'skytraffic' = @(
+        'Cloudpunk VR',
+        'Cloudpunk: City of Ghosts VR',
+        'Cyberpunk 2077',
+        'Watch Dogs Legion VR',
+        'Star Wars Outlaws VR',
+        'Ratchet & Clank VR',
+        'Neon White VR',
+        'Deus Ex: Human Revolution - DC',
+        'Starfield VR',
+        'Pragmata VR'
+    )
+    'palms' = @(
+        'GTA Vice City VR',
+        'Grand Theft Auto V VR',
+        'Far Cry VR',
+        'Far Cry 6 VR',
+        'Saints Row: The Third VR',
+        'Uncharted: Legacy of Thieves VR',
+        'Raft VR',
+        'Alba VR',
+        'Retrowave 2 VR',
+        'Spec Ops: The Line VR',
+        'Assassin''s Creed Mirage VR'
+    )
+    'looptrack' = @(
+        'GRID (2019) VR',
+        'GRID Legends VR',
+        'DiRT 4 VR',
+        'Sonic P-06 VR',
+        'Sonic Robo Blast 2 VR',
+        'Ring Racers VR',
+        'Lunistice VR',
+        'F-Zero X VR',
+        'TrackMania Nations Forever',
+        'TrackMania United Forever',
+        'Star Racer VR',
+        'Diddy Kong Racing VR',
+        'Super Mario 64 VR'
+    )
+    'ringworld' = @(
+        'Halo CE VR',
+        'Halo Master Chief Collection VR',
+        'Starfield VR',
+        'Mass Effect 1 LE VR',
+        'Outer Wilds VR',
+        'Kerbal Space Program',
+        'Rebel Galaxy VR',
+        'Freespace 2 VR'
+    )
+    'droppods' = @(
+        'Titanfall 2 VR',
+        'Halo CE VR',
+        'Halo Master Chief Collection VR',
+        'EARTH DEFENSE FORCE 6 VR',
+        'Deep Rock Galactic VR',
+        'Warhammer 40K: Darktide VR',
+        'Warhammer 40K: Rogue Trader VR',
+        'Starfield VR',
+        'Gunfire Reborn',
+        'Risk of Rain 2'
+    )
+    'portholes' = @(
+        'BioShock Remastered',
+        'BioShock 2 Remastered',
+        'SOMA VR',
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Iron Lung VR',
+        'Dredge VR',
+        'Raft VR'
+    )
+    'hullplates' = @(
+        'Shipbreaker VR',
+        'Star Trucker VR',
+        'X4: Foundations VR',
+        'Kerbal Space Program',
+        'Rebel Galaxy VR',
+        'Freespace 2 VR',
+        'Star Wars: X-Wing VR',
+        'Outer Wilds VR',
+        'Starfield VR'
+    )
+    'graveyard' = @(
+        'Ghosts n Goblins Resurrection VR',
+        'Vampire Hunters VR',
+        'Diablo II: Resurrected',
+        'Little Witch Nobeta VR',
+        'Bendy VR',
+        'Blood VR',
+        'Hexen VR',
+        'Heretic VR',
+        'Red Dead Redemption VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Witcher 3 VR',
+        'Painkiller Black Edition',
+        'Painkiller: Overdose VR'
+    )
+    'subwaycars' = @(
+        'Spider-Man Remastered VR',
+        'Spiderman Remastered',
+        'Spiderman 2 VR',
+        'Spiderman Miles Morales VR',
+        'Watch Dogs VR',
+        'Watch Dogs Legion VR',
+        'Mirror''s Edge VR',
+        'Judgment VR',
+        'Ghostwire: Tokyo VR',
+        'Cyberpunk 2077',
+        'Max Payne 2 VR',
+        'Half-Life 2 VR'
+    )
+    'minecarts' = @(
+        'Deep Rock Galactic VR',
+        'Valheim VR',
+        'Vivecraft',
+        'Hytale VR',
+        'Muck VR',
+        'Indiana Jones: Great Circle VR',
+        'Teardown VR',
+        'Scrap Mechanic VR',
+        'Techtonica VR',
+        'Red Dead Redemption VR'
+    )
+    'blueprint' = @(
+        'Techtonica VR',
+        'Scrap Mechanic VR',
+        'Kerbal Space Program',
+        'Garry''s Mod VR',
+        'Teardown VR',
+        'Shipbreaker VR',
+        'Portal 2 VR',
+        'Portal 2: Community Edition VR',
+        'Atomic Heart VR',
+        'C&C Generals: Zero Hour'
+    )
+    'cards' = @(
+        'Witcher 3 VR',
+        'Red Dead Redemption VR',
+        'Call of Juarez VR',
+        'Judgment VR',
+        'Hitman: Blood Money VR',
+        'Fallout: New Vegas VR',
+        'GTA IV VR',
+        'Kingdom Come: Deliverance II VR',
+        'Shenmue I & II'
+    )
+    'heraldry' = @(
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Mount & Blade II: Bannerlord VR',
+        'Gothic II VR',
+        'Blade of Darkness VR',
+        'Dark Souls II VR',
+        'Dark Souls II: Scholar',
+        'Assassin''s Creed Valhalla VR',
+        'Oblivion (2006)',
+        'Skyrim VR',
+        'Dragon''s Dogma 2 VR',
+        'Elden Ring'
+    )
+    'paperboats' = @(
+        'Life is Strange: BtS',
+        'Tinykin VR',
+        'Stardew Valley VR',
+        'Paperklay VR',
+        'Driftwood VR',
+        'Alba VR',
+        'Kunitsu-Gami: Path of the Goddess VR',
+        'Ghost of Tsushima VR'
+    )
+    'stainedglass' = @(
+        'Dark Souls Remastered',
+        'Dark Souls III VR',
+        'Witcher 3 VR',
+        'Hogwarts Legacy VR',
+        'Assassin''s Creed Valhalla VR',
+        'Ghosts n Goblins Resurrection VR',
+        'Dishonored VR',
+        'Dishonored 2 VR',
+        'Thief (2014) VR',
+        'Kingdom Come: Deliverance II VR',
+        'Vampire: The Masquerade - Bloodlines VR',
+        'Lunacid VR',
+        'Elden Ring VR'
+    )
+    'teslacoils' = @(
+        'Red Faction VR',
+        'Atomic Heart VR',
+        'Return to Castle Wolfenstein VR',
+        'Wolfenstein 3D VR',
+        'Fallout 4 VR',
+        'Fallout 3 VR',
+        'BioShock Remastered',
+        'Ratchet & Clank VR',
+        'Quake VR',
+        'Unreal Revived',
+        'Singularity VR'
+    )
+    'ufos' = @(
+        'EARTH DEFENSE FORCE 6 VR',
+        'Duke Nukem 3D VR',
+        'High on Life VR',
+        'Redneck Rampage VR',
+        'Aliens versus Predator VR',
+        'Quake 2 VR',
+        'Content Warning VR',
+        'R.E.P.O. VR'
+    )
+    'icefloes' = @(
+        'Subnautica: Below Zero',
+        'SnowRunner VR',
+        'Far Cry 4 VR',
+        'Skyrim VR',
+        'Dredge VR',
+        'Raft VR',
+        'Assassin''s Creed Valhalla VR',
+        'TLOU Part II VR',
+        'PEAK VR'
+    )
+    'mantas' = @(
+        'Subnautica VR',
+        'Subnautica: Below Zero',
+        'Raft VR',
+        'Another Crab''s Treasure',
+        'Dredge VR',
+        'BioShock Remastered',
+        'SOMA VR',
+        'Iron Lung VR',
+        'Avatar: Frontiers of Pandora VR'
+    )
+    'windmills' = @(
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Kingdom Come: Deliverance VR',
+        'Kingdom Come: Deliverance II VR',
+        'Witcher 3 VR',
+        'A Kingdom for Keflings VR',
+        'Gothic II VR',
+        'Red Dead Redemption VR',
+        'Oblivion (2006)',
+        'Driftwood VR'
+    )
+    'lighthouse' = @(
+        'Dredge VR',
+        'Alan Wake VR',
+        'Raft VR',
+        'How to Fish XR',
+        'BioShock Remastered',
+        'BioShock Infinite VR',
+        'Assassin''s Creed Odyssey VR',
+        'Outbound VR',
+        'Life is Strange: BtS',
+        'SOMA VR'
+    )
+    'kites' = @(
+        'Stardew Valley VR',
+        'Dinkum VR',
+        'Life is Strange: BtS',
+        'Ghost of Tsushima VR',
+        'Assassin''s Creed Mirage VR',
+        'Alba VR',
+        'Tinykin VR',
+        'Slime Rancher VR'
     )
 }
 
@@ -1981,21 +5393,20 @@ function global:Test-BannerFxExtraName {
     return ($Effect -and $global:BannerFxExtraGames.Contains($Effect))
 }
 
-# Round 2 gets a separate 30% slice when it fits the game. Round 1 keeps
-# its established 40% slice; all remaining rolls use the original pool.
+# Rounds 2-7 get a separate 60% slice when they fit the game. Round 1 keeps
+# its established 40% slice. The application picker also merges mapped legacy effects.
 function global:Select-BannerFxExtra {
     param($Game, [double]$Roll, [double]$Pick)
     $cands = @(Get-BannerFxExtraFor -Game $Game)
     if ($cands.Count -eq 0) { return $null }
     $round2 = @($cands | Where-Object { $global:BannerFxExtraRound2 -contains $_ })
     $round1 = @($cands | Where-Object { $global:BannerFxExtraRound2 -notcontains $_ })
-    $chosen = @()
-    if ($round2.Count -gt 0 -and $Roll -lt [double]$global:BannerFxExtraConfig.Round2Chance) {
-        $chosen = $round2
-    } elseif ($round1.Count -gt 0) {
-        $start = if ($round2.Count -gt 0) { [double]$global:BannerFxExtraConfig.Round2Chance } else { 0.0 }
-        if ($Roll -ge $start -and $Roll -lt ($start + [double]$global:BannerFxExtraConfig.GameChance)) { $chosen = $round1 }
-    }
+    $total = [Math]::Min(1.0, [Math]::Max(0.0, [Math]::Round(([double]$global:BannerFxExtraConfig.GameChance + [double]$global:BannerFxExtraConfig.Round2Chance), 6)))
+    if ($Roll -lt 0 -or $Roll -ge $total) { return $null }
+    $chosen = if ($round1.Count -eq 0) { $round2 }
+        elseif ($round2.Count -eq 0) { $round1 }
+        elseif ($Roll -lt [double]$global:BannerFxExtraConfig.Round2Chance) { $round2 }
+        else { $round1 }
     if ($chosen.Count -eq 0) { return $null }
     $i = [Math]::Min($chosen.Count - 1, [int][Math]::Floor($Pick * $chosen.Count))
     return $chosen[$i]
@@ -2068,9 +5479,27 @@ function global:New-BfxLinear {
     return $g
 }
 
+$global:BfxSizeBoost = @{
+    'Add-BfxHearts' = 2.0; 'Add-BfxConfetti' = 2.0; 'Add-BfxPixels' = 2.0; 'Add-BfxPetals' = 2.0
+    'Add-BfxLeaves' = 2.0; 'Add-BfxButterflies' = 2.0; 'Add-BfxFlowerwind' = 2.0; 'Add-BfxDandelions' = 2.0
+    'Add-BfxFireflies' = 2.0; 'Add-BfxScoutflies' = 2.0; 'Add-BfxXporbs' = 2.0; 'Add-BfxWindsparks' = 2.0
+    'Add-BfxGlitter' = 2.0; 'Add-BfxCasings' = 2.0; 'Add-BfxBolts' = 2.0; 'Add-BfxVoxels' = 2.0
+    'Add-BfxGlyphs' = 2.0; 'Add-BfxPawprints' = 2.0; 'Add-BfxDice' = 2.0; 'Add-BfxBiolum' = 2.0
+    'Add-BfxDiscospots' = 2.0; 'Add-BfxWisps' = 2.0
+    'Add-BfxCoins' = 1.5; 'Add-BfxRings' = 1.5; 'Add-BfxCranes' = 1.5; 'Add-BfxRavens' = 1.5
+    'Add-BfxFeathers' = 1.5; 'Add-BfxFootprints' = 1.5; 'Add-BfxFlakes' = 1.5; 'Add-BfxMushrooms' = 1.5
+    'Add-BfxGems' = 1.5; 'Add-BfxBlizzard' = 1.5; 'Add-BfxPowder' = 1.5; 'Add-BfxPollen' = 1.5
+    'Add-BfxStarlight' = 1.5; 'Add-BfxPixelsky' = 1.5; 'Add-BfxPlankton' = 1.5; 'Add-BfxSpores' = 1.5
+    'Add-BfxSandwind' = 1.5; 'Add-BfxAsh' = 1.5; 'Add-BfxFairydust' = 1.5; 'Add-BfxSpells' = 1.5
+    'Add-BfxRaindrops' = 1.5
+}
+$global:BfxSizeMul = 1.0
+function global:Get-BfxSizeMul { param([double]$Dim, [double]$Limit = 40) if ($global:BfxSizeMul -ne 1.0 -and [Math]::Abs($Dim) -le $Limit) { return $global:BfxSizeMul } return 1.0 }
+
 function global:New-BfxEllipse {
     param([double]$W, [double]$H, $Fill, $Stroke = $null, [double]$Thick = 0)
     $e = New-Object System.Windows.Shapes.Ellipse
+    $m = Get-BfxSizeMul ([Math]::Max($W, $H)); $W = $W * $m; $H = $H * $m; $Thick = $Thick * $m
     $e.Width = $W; $e.Height = $H; $e.IsHitTestVisible = $false
     if ($Fill) { $e.Fill = $Fill }
     if ($Stroke) { $e.Stroke = $Stroke; $e.StrokeThickness = $Thick }
@@ -2080,6 +5509,7 @@ function global:New-BfxEllipse {
 function global:New-BfxRect {
     param([double]$W, [double]$H, $Fill, [double]$Radius = 0)
     $r = New-Object System.Windows.Shapes.Rectangle
+    $m = Get-BfxSizeMul ([Math]::Max($W, $H)); $W = $W * $m; $H = $H * $m; $Radius = $Radius * $m
     $r.Width = $W; $r.Height = $H; $r.Fill = $Fill; $r.IsHitTestVisible = $false
     if ($Radius -gt 0) { $r.RadiusX = $Radius; $r.RadiusY = $Radius }
     return $r
@@ -2088,7 +5518,9 @@ function global:New-BfxRect {
 # Glow element centred on its own position (size = diameter).
 function global:New-BfxGlow {
     param([double]$Size, [string]$Hex, [double]$A = 1.0)
-    $e = New-BfxEllipse $Size $Size (New-BfxGlowBrush $Hex $A)
+    $Size = $Size * (Get-BfxSizeMul $Size 60)
+    $e = New-Object System.Windows.Shapes.Ellipse
+    $e.Width = $Size; $e.Height = $Size; $e.IsHitTestVisible = $false; $e.Fill = (New-BfxGlowBrush $Hex $A)
     $e.Margin = [System.Windows.Thickness]::new(-$Size / 2, -$Size / 2, 0, 0)
     return $e
 }
@@ -2103,6 +5535,12 @@ function global:New-BfxGeo {
     if ($EvenOdd) { $g.FillRule = [System.Windows.Media.FillRule]::EvenOdd }
     $c = $g.Open()
     try { & $Draw $c } finally { $c.Close() }
+    if ($global:BfxSizeMul -ne 1.0) {
+        $b = $g.Bounds
+        $ext = [Math]::Max([Math]::Max([Math]::Abs($b.X), [Math]::Abs($b.X + $b.Width)), [Math]::Max([Math]::Abs($b.Y), [Math]::Abs($b.Y + $b.Height)))
+        $m = Get-BfxSizeMul $ext
+        if ($m -ne 1.0) { $g.Transform = New-Object System.Windows.Media.ScaleTransform $m, $m }
+    }
     $g.Freeze()
     return $g
 }
@@ -2111,6 +5549,7 @@ function global:New-BfxPath {
     param($Geometry, $Fill = $null, $Stroke = $null, [double]$Thick = 1)
     $p = New-Object System.Windows.Shapes.Path
     $p.Data = $Geometry; $p.IsHitTestVisible = $false
+    if ($Geometry -and $Geometry.Transform -is [System.Windows.Media.ScaleTransform]) { $Thick = $Thick * $Geometry.Transform.ScaleX }
     if ($Fill) { $p.Fill = $Fill }
     if ($Stroke) { $p.Stroke = $Stroke; $p.StrokeThickness = $Thick; $p.StrokeStartLineCap = 'Round'; $p.StrokeEndLineCap = 'Round'; $p.StrokeLineJoin = 'Round' }
     return $p
@@ -2142,7 +5581,8 @@ function global:Start-BfxAnim {
     $a.AutoReverse = [bool]$Reverse
     if ($Ease) { $e = New-Object System.Windows.Media.Animation.SineEase; $e.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseInOut; $a.EasingFunction = $e }
     $cycle = if ($Reverse) { 2 * $Sec } else { $Sec }
-    $a.BeginTime = [TimeSpan]::FromSeconds(-($Phase * $cycle))
+    if ($global:BfxPhaseShift) { $Phase = $Phase + $global:BfxPhaseShift }
+    $a.BeginTime = [TimeSpan]::FromSeconds(-((($Phase % 1) + 1) % 1 * $cycle))
     $Target.BeginAnimation($Prop, $a)
 }
 
@@ -2157,7 +5597,8 @@ function global:Start-BfxKeys {
         if ($Discrete) { [void]$a.KeyFrames.Add([System.Windows.Media.Animation.DiscreteDoubleKeyFrame]::new([double]$k[1], $kt)) }
         else { [void]$a.KeyFrames.Add([System.Windows.Media.Animation.LinearDoubleKeyFrame]::new([double]$k[1], $kt)) }
     }
-    $a.BeginTime = [TimeSpan]::FromSeconds(-($Phase * $Sec))
+    if ($global:BfxPhaseShift) { $Phase = $Phase + $global:BfxPhaseShift }
+    $a.BeginTime = [TimeSpan]::FromSeconds(-((($Phase % 1) + 1) % 1 * $Sec))
     $Target.BeginAnimation($Prop, $a)
 }
 
@@ -2173,6 +5614,7 @@ function global:Start-BfxFlash {
 # (Fx) or drifting horizontally at Speed px/s across the real width.
 function global:New-BfxStage {
     param([string]$BannerName)
+    $global:BfxSizeMul = 1.0
     $banner = $global:window.FindName($BannerName)
     if (-not $banner -or -not $banner.Child) { return $null }
     $grid = $banner.Child
@@ -2185,22 +5627,36 @@ function global:New-BfxStage {
     # height change (list size S/M/L) can rebuild the effect to fit.
     $fn = $null; $builtH = 0.0
     try { $caller = (Get-PSCallStack)[1]; $fn = [string]$caller.Command; $builtH = [double]$caller.InvocationInfo.BoundParameters['BannerH'] } catch { }
-    return [pscustomobject]@{ Grid = $grid; Canvas = $canvas; Items = (New-Object System.Collections.ArrayList); R = (New-Object System.Random); Extra = $null; Fn = $fn; BuiltH = $builtH; BannerName = $BannerName }
+    if ($fn -and $global:BfxSizeBoost.ContainsKey($fn)) { $global:BfxSizeMul = [double]$global:BfxSizeBoost[$fn] }
+    return [pscustomobject]@{ Grid = $grid; Canvas = $canvas; Items = (New-Object System.Collections.ArrayList); R = (New-Object System.Random); Extra = $null; Fn = $fn; BuiltH = $builtH; BannerName = $BannerName; Spreads = (New-Object System.Collections.ArrayList) }
 }
 
 function global:Add-BfxItem {
     param($Stage, $El, [double]$Fx = -1, [double]$Top = [double]::NaN, [double]$Speed = 0, [double]$Phase = 0, [double]$Margin = 60, $T = $null, [double]$OffsetX = 0)
     if (-not [double]::IsNaN($Top)) { [System.Windows.Controls.Canvas]::SetTop($El, $Top) }
     [void]$Stage.Canvas.Children.Add($El)
-    [void]$Stage.Items.Add([pscustomobject]@{ El = $El; Fx = $Fx; Speed = $Speed; Phase = $Phase; Margin = $Margin; T = $T; OffsetX = $OffsetX })
+    # inside Add-BfxSpread each copy runs with its own time offset
+    if ($Speed -ne 0 -and $global:BfxPhaseShift) { $Phase = (($Phase + $global:BfxPhaseShift) % 1) }
+    [void]$Stage.Items.Add([pscustomobject]@{ El = $El; Fx = $Fx; Speed = $Speed; Phase = $Phase; Margin = $Margin; T = $T; OffsetX = $OffsetX; BaseFx = $Fx })
 }
 
 function global:Complete-BfxStage {
     param($Stage)
-    $canvas = $Stage.Canvas; $items = $Stage.Items; $extra = $Stage.Extra
+    $canvas = $Stage.Canvas; $items = $Stage.Items; $extra = $Stage.Extra; $spreads = $Stage.Spreads
     $reflow = {
         $cw = $canvas.ActualWidth
         if ($cw -lt 20) { return }
+        # spread copies: as many as fit the real banner width, evenly placed
+        foreach ($sg in $spreads) {
+            $n = [int][Math]::Max(1, [Math]::Min($sg.Max, [Math]::Floor($cw / $sg.Gap)))
+            for ($k = 0; $k -lt $sg.Slots.Count; $k++) {
+                $slotFx = $sg.Left + ($sg.Right - $sg.Left) * ($k + 0.5) / $n
+                foreach ($it in $sg.Slots[$k]) {
+                    if ($k -lt $n) { $it.El.Visibility = [System.Windows.Visibility]::Visible; if ($it.Speed -eq 0 -and $it.BaseFx -ge 0) { $it.Fx = $slotFx + $it.BaseFx } }
+                    else { $it.El.Visibility = [System.Windows.Visibility]::Collapsed }
+                }
+            }
+        }
         foreach ($it in $items) {
             if ($it.Speed -ne 0 -and $it.T) {
                 [System.Windows.Controls.Canvas]::SetLeft($it.El, $it.OffsetX)
@@ -2260,16 +5716,37 @@ function global:Complete-BfxStage {
         $idx = [Math]::Min(1, $Stage.Grid.Children.Count)
         $Stage.Grid.Children.Insert($idx, $canvas)
     }
+    $global:BfxSizeMul = 1.0
 }
 
 # Pick one of the given values with the stage's random source.
 function global:Get-BfxPick { param($Stage, [object[]]$From) return $From[$Stage.R.Next(0, $From.Count)] }
 function global:Get-BfxRnd { param($Stage, [double]$Min = 0, [double]$Max = 1) return $Min + $Stage.R.NextDouble() * ($Max - $Min) }
 
+# Single-object effects: build the object up to $Max times. Complete-BfxStage
+# shows as many copies as fit the real banner width (one per $Gap px) and
+# spreads them evenly; each copy runs with its own time offset so they never
+# start together. Items added inside $Make use -Fx as an offset to the slot.
+$global:BfxPhaseShift = 0.0
+function global:Add-BfxSpread {
+    param($S, [scriptblock]$Make, [double]$Gap, [int]$Max = 4, [double]$Left = 0.12, [double]$Right = 0.94)
+    $group = [pscustomobject]@{ Slots = (New-Object System.Collections.ArrayList); Gap = [Math]::Max(60, $Gap); Max = $Max; Left = $Left; Right = $Right }
+    for ($k = 0; $k -lt $Max; $k++) {
+        $before = $S.Items.Count
+        $global:BfxPhaseShift = (($k * 0.618) % 1)
+        try { & $Make $k $S } finally { $global:BfxPhaseShift = 0.0 }
+        $slot = New-Object System.Collections.ArrayList
+        for ($n = $before; $n -lt $S.Items.Count; $n++) { [void]$slot.Add($S.Items[$n]) }
+        [void]$group.Slots.Add($slot)
+    }
+    [void]$S.Spreads.Add($group)
+}
+
 # Small monospace label (HUD text).
 function global:New-BfxText {
     param([string]$Text, [string]$Hex, [double]$A = 1.0, [double]$Size = 10)
     $tb = New-Object System.Windows.Controls.TextBlock
+    $Size = $Size * (Get-BfxSizeMul $Size 24)
     $tb.Text = $Text; $tb.Foreground = (New-BfxBrush $Hex $A); $tb.FontSize = $Size; $tb.IsHitTestVisible = $false
     $tb.FontFamily = New-Object System.Windows.Media.FontFamily 'Consolas'
     return $tb
@@ -2283,7 +5760,7 @@ function global:Set-BfxShadow {
 }
 
 # Place an element inside a group canvas.
-function global:Set-BfxAt { param($El, [double]$X, [double]$Y) [System.Windows.Controls.Canvas]::SetLeft($El, $X); [System.Windows.Controls.Canvas]::SetTop($El, $Y); return $El }
+function global:Set-BfxAt { param($El, [double]$X, [double]$Y) $m = Get-BfxSizeMul ([Math]::Max([Math]::Abs($X), [Math]::Abs($Y))); $X = $X * $m; $Y = $Y * $m; [System.Windows.Controls.Canvas]::SetLeft($El, $X); [System.Windows.Controls.Canvas]::SetTop($El, $Y); return $El }
 
 
 # ------------------------------------------------------------
@@ -2457,7 +5934,7 @@ function global:Add-BfxTracers {
         for ($k = 0; $k -lt 4; $k++) {
             $streak = New-BfxStreak 46 '#ffe696' 2 '#ffb040'
             $tf = Set-BfxTransforms $streak; $tf.R.Angle = $ang; if ($dir -lt 0) { $tf.S.ScaleX = -1 }
-            Add-BfxItem $S $streak -Top ($y + $k * 1.5) -Speed (900 * $dir) -Phase ($ph + $k * 0.04) -T $tf.T -Margin 600
+            Add-BfxItem $S $streak -Top ($y + $k * 1.5) -Speed (540 * $dir) -Phase ($ph + $k * 0.04) -T $tf.T -Margin 600
         }
     }
     for ($m = 0; $m -lt 5; $m++) { $f = New-BfxGlow 44 '#ffb347' 0.7; Start-BfxFlash $f (Get-BfxRnd $S 1.5 3.5) (Get-BfxRnd $S 0.1 0.9) 0.05; Add-BfxItem $S $f -Fx (Get-BfxRnd $S 0.1 0.95) -Top ($H * 0.86) }
@@ -2578,7 +6055,7 @@ function global:Add-BfxLighttrails {
         $len = Get-BfxRnd $S 120 380
         $streak = New-BfxStreak $len $col 2.2 $col
         $tf = Set-BfxTransforms $streak
-        Add-BfxItem $S $streak -Top (Get-BfxRnd $S ($H * 0.25) ($H * 0.95)) -Speed (Get-BfxRnd $S 300 800) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($len + 20) -OffsetX (-$len)
+        Add-BfxItem $S $streak -Top (Get-BfxRnd $S ($H * 0.25) ($H * 0.95)) -Speed (Get-BfxRnd $S 180 480) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($len + 20) -OffsetX (-$len)
     }
     Complete-BfxStage $S
 }
@@ -2623,44 +6100,47 @@ function global:Add-BfxMagic {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $R1 = $H * 0.42
-    $holder = New-Object System.Windows.Controls.Canvas
-    $stroke = New-BfxBrush '#c8aaff' 0.75
-    $glowFx = New-Object System.Windows.Media.Effects.DropShadowEffect; $glowFx.Color = New-BfxColor '#b98cff'; $glowFx.BlurRadius = 12; $glowFx.ShadowDepth = 0
-    $holder.Effect = $glowFx
-    $rings = @(@(1.0, 0.18, $true), @(0.78, -0.25, $true), @(0.5, 0.12, $false))
-    foreach ($rg in $rings) {
-        $rr = $R1 * $rg[0]; $runes = $rg[2]
-        $geo = New-BfxGeo {
-            param($c)
-            $c.BeginFigure((New-BfxPoint $rr 0), $false, $true)
-            $c.ArcTo((New-BfxPoint (-$rr) 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
-            $c.ArcTo((New-BfxPoint $rr 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
-            if ($runes) {
-                for ($j = 0; $j -lt 12; $j++) {
-                    $a = $j * [Math]::PI * 2 / 12; $ca = [Math]::Cos($a); $sa = [Math]::Sin($a); $d = $rr - 7
-                    $pt = { param($u, $v) New-BfxPoint ($ca * ($d + $v) - $sa * $u) ($sa * ($d + $v) + $ca * $u) }
-                    $c.BeginFigure((& $pt -3 -3), $false, $false); $c.LineTo((& $pt 0 3), $true, $false); $c.LineTo((& $pt 3 -3), $true, $false)
-                    $c.BeginFigure((& $pt 0 3), $false, $false); $c.LineTo((& $pt 0 -4), $true, $false)
+    Add-BfxSpread $S {
+        param($slot)
+        $holder = New-Object System.Windows.Controls.Canvas
+        $stroke = New-BfxBrush '#c8aaff' 0.75
+        $glowFx = New-Object System.Windows.Media.Effects.DropShadowEffect; $glowFx.Color = New-BfxColor '#b98cff'; $glowFx.BlurRadius = 12; $glowFx.ShadowDepth = 0
+        $holder.Effect = $glowFx
+        $rings = @(@(1.0, 0.18, $true), @(0.78, -0.25, $true), @(0.5, 0.12, $false))
+        foreach ($rg in $rings) {
+            $rr = $R1 * $rg[0]; $runes = $rg[2]
+            $geo = New-BfxGeo {
+                param($c)
+                $c.BeginFigure((New-BfxPoint $rr 0), $false, $true)
+                $c.ArcTo((New-BfxPoint (-$rr) 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                $c.ArcTo((New-BfxPoint $rr 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                if ($runes) {
+                    for ($j = 0; $j -lt 12; $j++) {
+                        $a = $j * [Math]::PI * 2 / 12; $ca = [Math]::Cos($a); $sa = [Math]::Sin($a); $d = $rr - 7
+                        $pt = { param($u, $v) New-BfxPoint ($ca * ($d + $v) - $sa * $u) ($sa * ($d + $v) + $ca * $u) }
+                        $c.BeginFigure((& $pt -3 -3), $false, $false); $c.LineTo((& $pt 0 3), $true, $false); $c.LineTo((& $pt 3 -3), $true, $false)
+                        $c.BeginFigure((& $pt 0 3), $false, $false); $c.LineTo((& $pt 0 -4), $true, $false)
+                    }
+                } else {
+                    for ($j = 0; $j -le 3; $j++) { $a = $j * [Math]::PI * 2 / 3 - [Math]::PI / 2; $p = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($j -eq 0) { $c.BeginFigure($p, $false, $true) } else { $c.LineTo($p, $true, $false) } }
                 }
-            } else {
-                for ($j = 0; $j -le 3; $j++) { $a = $j * [Math]::PI * 2 / 3 - [Math]::PI / 2; $p = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($j -eq 0) { $c.BeginFigure($p, $false, $true) } else { $c.LineTo($p, $true, $false) } }
-            }
-        }.GetNewClosure()
-        $path = New-BfxPath $geo $null $stroke 1.4
-        $rot = New-Object System.Windows.Media.RotateTransform 0; $path.RenderTransform = $rot
-        Start-BfxAnim $rot $global:BfxP.A 0 (360 * [Math]::Sign($rg[1])) (360 / ([Math]::Abs($rg[1]) * 57.3)) 0
-        [void]$holder.Children.Add($path)
-    }
-    for ($i = 0; $i -lt 26; $i++) {
-        $sp = New-Object System.Windows.Controls.Canvas; [void]$sp.Children.Add((New-BfxGlow 10 '#c9a6ff' 0.7)); [void]$sp.Children.Add((New-BfxGlow 3 '#ffffff' 1.0))
-        $a = Get-BfxRnd $S 0 6.283; $rr = $R1 * (Get-BfxRnd $S 0.2 1)
-        [System.Windows.Controls.Canvas]::SetLeft($sp, [Math]::Cos($a) * $rr); [System.Windows.Controls.Canvas]::SetTop($sp, [Math]::Sin($a) * $rr)
-        $tf = Set-BfxTransforms $sp; $per = Get-BfxRnd $S 2 4
-        Start-BfxAnim $tf.T $global:BfxP.Y 0 (-$H * 0.6) $per (Get-BfxRnd $S)
-        Start-BfxKeys $sp $global:BfxP.O @(@(0, 0), @(0.15, 1), @(1, 0)) $per (Get-BfxRnd $S)
-        [void]$holder.Children.Add($sp)
-    }
-    Add-BfxItem $S $holder -Fx 0.62 -Top ($H * 0.5)
+            }.GetNewClosure()
+            $path = New-BfxPath $geo $null $stroke 1.4
+            $rot = New-Object System.Windows.Media.RotateTransform 0; $path.RenderTransform = $rot
+            Start-BfxAnim $rot $global:BfxP.A 0 (360 * [Math]::Sign($rg[1])) (360 / ([Math]::Abs($rg[1]) * 57.3)) 0
+            [void]$holder.Children.Add($path)
+        }
+        for ($i = 0; $i -lt 26; $i++) {
+            $sp = New-Object System.Windows.Controls.Canvas; [void]$sp.Children.Add((New-BfxGlow 10 '#c9a6ff' 0.7)); [void]$sp.Children.Add((New-BfxGlow 3 '#ffffff' 1.0))
+            $a = Get-BfxRnd $S 0 6.283; $rr = $R1 * (Get-BfxRnd $S 0.2 1)
+            [System.Windows.Controls.Canvas]::SetLeft($sp, [Math]::Cos($a) * $rr); [System.Windows.Controls.Canvas]::SetTop($sp, [Math]::Sin($a) * $rr)
+            $tf = Set-BfxTransforms $sp; $per = Get-BfxRnd $S 2 4
+            Start-BfxAnim $tf.T $global:BfxP.Y 0 (-$H * 0.6) $per (Get-BfxRnd $S)
+            Start-BfxKeys $sp $global:BfxP.O @(@(0, 0), @(0.15, 1), @(1, 0)) $per (Get-BfxRnd $S)
+            [void]$holder.Children.Add($sp)
+        }
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * 0.5)
+    } ($H * 1.9)
     Complete-BfxStage $S
 }
 
@@ -2696,19 +6176,22 @@ function global:Add-BfxBirds {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $ink = New-BfxBrush '#140c0a' 0.9
-    $flock = New-Object System.Windows.Controls.Canvas
-    for ($i = 0; $i -lt 16; $i++) {
-        $sz = Get-BfxRnd $S 3 6
-        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$sz * 1.4) (-$sz * 0.6)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (-$sz * 0.5) (-$sz * 0.3)), (New-BfxPoint 0 0), $true, $false); $c.QuadraticBezierTo((New-BfxPoint ($sz * 0.5) (-$sz * 0.3)), (New-BfxPoint ($sz * 1.4) (-$sz * 0.6)), $true, $false) }.GetNewClosure()
-        $b = New-BfxPath $geo $null $ink 1.6
-        $tf = Set-BfxTransforms $b
-        Start-BfxAnim $tf.S $global:BfxP.SY 1 -0.6 (Get-BfxRnd $S 0.12 0.2) (Get-BfxRnd $S) -Reverse
-        Start-BfxAnim $tf.T $global:BfxP.Y -6 6 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
-        [System.Windows.Controls.Canvas]::SetLeft($b, -(Get-BfxRnd $S 0 150)); [System.Windows.Controls.Canvas]::SetTop($b, (Get-BfxRnd $S (-$H * 0.25) ($H * 0.25)))
-        [void]$flock.Children.Add($b)
-    }
-    $tf = Set-BfxTransforms $flock
-    Add-BfxItem $S $flock -Top ($H * 0.42) -Speed 45 -Phase (Get-BfxRnd $S) -T $tf.T -Margin 180
+    Add-BfxSpread $S {
+        param($slot)
+        $flock = New-Object System.Windows.Controls.Canvas
+        for ($i = 0; $i -lt 16; $i++) {
+            $sz = Get-BfxRnd $S 3 6
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$sz * 1.4) (-$sz * 0.6)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (-$sz * 0.5) (-$sz * 0.3)), (New-BfxPoint 0 0), $true, $false); $c.QuadraticBezierTo((New-BfxPoint ($sz * 0.5) (-$sz * 0.3)), (New-BfxPoint ($sz * 1.4) (-$sz * 0.6)), $true, $false) }.GetNewClosure()
+            $b = New-BfxPath $geo $null $ink 1.6
+            $tf = Set-BfxTransforms $b
+            Start-BfxAnim $tf.S $global:BfxP.SY 1 -0.6 (Get-BfxRnd $S 0.12 0.2) (Get-BfxRnd $S) -Reverse
+            Start-BfxAnim $tf.T $global:BfxP.Y -6 6 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
+            [System.Windows.Controls.Canvas]::SetLeft($b, -(Get-BfxRnd $S 0 150)); [System.Windows.Controls.Canvas]::SetTop($b, (Get-BfxRnd $S (-$H * 0.25) ($H * 0.25)))
+            [void]$flock.Children.Add($b)
+        }
+        $tf = Set-BfxTransforms $flock
+        Add-BfxItem $S $flock -Top ($H * 0.42) -Speed 45 -Phase (Get-BfxRnd $S) -T $tf.T -Margin 180
+    } ($H * 2.0)
     Complete-BfxStage $S
 }
 
@@ -2730,33 +6213,37 @@ function global:Add-BfxFrost {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $stroke = New-BfxBrush '#d2eeff' 0.75
-    $sh = New-Object System.Windows.Media.Effects.DropShadowEffect; $sh.Color = New-BfxColor '#bfe6ff'; $sh.BlurRadius = 6; $sh.ShadowDepth = 0
-    $corners = @(@(0, 0, 0.5, 0.0), @(0, $H, -0.5, 0.0), @(0, 0, ([Math]::PI - 0.5), 1.0), @(0, $H, ([Math]::PI + 0.5), 1.0))
-    foreach ($cn in $corners) {
-        # one Path per branch depth so the frost grows outwards over time
-        $segs = @{}; for ($d = 0; $d -le 5; $d++) { $segs[$d] = New-Object System.Collections.ArrayList }
-        $grow = $null
-        $grow = {
-            param($x, $y, $a, $len, $d)
-            if ($d -gt 5 -or $len -lt 4) { return }
-            $x2 = $x + [Math]::Cos($a) * $len; $y2 = $y + [Math]::Sin($a) * $len
-            [void]$segs[$d].Add(@($x, $y, $x2, $y2))
-            & $grow $x2 $y2 ($a + 0.5 + (Get-BfxRnd $S 0 0.3)) ($len * 0.68) ($d + 1)
-            & $grow $x2 $y2 ($a - 0.5 - (Get-BfxRnd $S 0 0.3)) ($len * 0.68) ($d + 1)
-            if ((Get-BfxRnd $S) -lt 0.6) { & $grow $x2 $y2 ($a + (Get-BfxRnd $S -0.15 0.15)) ($len * 0.75) ($d + 1) }
+    # Frost flowers grow from the top and the bottom edge, spread over the
+    # whole width (the old corner version was hidden behind title and art).
+    Add-BfxSpread $S {
+        param($slot, $S)
+        foreach ($edge in @(@(0.0, ([Math]::PI / 2), -28.0, 0.0), @($H, (-[Math]::PI / 2), 28.0, 0.5))) {
+            $segs = @{}; for ($lvl = 0; $lvl -le 5; $lvl++) { $segs[$lvl] = New-Object System.Collections.ArrayList }
+            $grow = $null
+            $grow = {
+                param($x, $y, $a, $len, $depth)
+                if ($depth -gt 5 -or $len -lt 3) { return }
+                $x2 = $x + [Math]::Cos($a) * $len; $y2 = $y + [Math]::Sin($a) * $len
+                [void]$segs[$depth].Add(@($x, $y, $x2, $y2))
+                & $grow $x2 $y2 ($a + 0.5 + (Get-BfxRnd $S 0 0.3)) ($len * 0.66) ($depth + 1)
+                & $grow $x2 $y2 ($a - 0.5 - (Get-BfxRnd $S 0 0.3)) ($len * 0.66) ($depth + 1)
+                if ((Get-BfxRnd $S) -lt 0.55) { & $grow $x2 $y2 ($a + (Get-BfxRnd $S -0.15 0.15)) ($len * 0.74) ($depth + 1) }
+            }
+            for ($k = -1; $k -le 1; $k++) { & $grow 0.0 $edge[0] ($edge[1] + $k * 0.5) ($H * 0.22) 0 }
+            $holder = New-Object System.Windows.Controls.Canvas
+            $sh = New-Object System.Windows.Media.Effects.DropShadowEffect; $sh.Color = New-BfxColor '#bfe6ff'; $sh.BlurRadius = 6; $sh.ShadowDepth = 0
+            $holder.Effect = $sh
+            for ($lvl = 0; $lvl -le 5; $lvl++) {
+                $list = $segs[$lvl]; if ($list.Count -eq 0) { continue }
+                $geo = New-BfxGeo { param($c) foreach ($sg in $list) { $c.BeginFigure((New-BfxPoint $sg[0] $sg[1]), $false, $false); $c.LineTo((New-BfxPoint $sg[2] $sg[3]), $true, $false) } }.GetNewClosure()
+                $p = New-BfxPath $geo $null $stroke 1
+                $t0 = 0.06 + $lvl * 0.09
+                Start-BfxKeys $p $global:BfxP.O @(@(0, 0), @($t0, 0), @(($t0 + 0.08), 1), @(0.8, 1), @(0.98, 0), @(1, 0)) 11 $edge[3]
+                [void]$holder.Children.Add($p)
+            }
+            Add-BfxItem $S $holder -Fx 0 -Top 0 -OffsetX $edge[2]
         }
-        for ($k = -1; $k -le 1; $k++) { & $grow $cn[0] $cn[1] ($cn[2] + $k * 0.35) ($H * 0.32) 0 }
-        $holder = New-Object System.Windows.Controls.Canvas; $holder.Effect = $sh
-        for ($d = 0; $d -le 5; $d++) {
-            $list = $segs[$d]; if ($list.Count -eq 0) { continue }
-            $geo = New-BfxGeo { param($c) foreach ($sg in $list) { $c.BeginFigure((New-BfxPoint $sg[0] $sg[1]), $false, $false); $c.LineTo((New-BfxPoint $sg[2] $sg[3]), $true, $false) } }.GetNewClosure()
-            $p = New-BfxPath $geo $null $stroke 1
-            $t0 = 0.06 + $d * 0.09
-            Start-BfxKeys $p $global:BfxP.O @(@(0, 0), @($t0, 0), @(($t0 + 0.08), 1), @(0.8, 1), @(0.98, 0), @(1, 0)) 10
-            [void]$holder.Children.Add($p)
-        }
-        Add-BfxItem $S $holder -Fx $cn[3] -Top 0
-    }
+    } 230 4 0.30 0.97
     Complete-BfxStage $S
 }
 
@@ -2835,19 +6322,22 @@ function global:Add-BfxFish {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $body = New-BfxBrush '#beebff' 0.75
-    $school = New-Object System.Windows.Controls.Canvas
-    for ($i = 0; $i -lt 38; $i++) {
-        $sz = Get-BfxRnd $S 4 8
-        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $sz 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint 0 (-$sz * 0.55)), (New-BfxPoint (-$sz * 0.8) 0), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 1.6) (-$sz * 0.5)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 1.6) ($sz * 0.5)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 0.8) 0), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 0 ($sz * 0.55)), (New-BfxPoint $sz 0), $true, $false) }.GetNewClosure()
-        $f = New-BfxPath $geo $body
-        $tf = Set-BfxTransforms $f
-        Start-BfxAnim $tf.R $global:BfxP.A -12 12 (Get-BfxRnd $S 1.8 2.8) (Get-BfxRnd $S) -Reverse -Ease
-        [System.Windows.Controls.Canvas]::SetLeft($f, -(Get-BfxRnd $S 0 220)); [System.Windows.Controls.Canvas]::SetTop($f, (Get-BfxRnd $S -25 25))
-        [void]$school.Children.Add($f)
-    }
-    $tf = Set-BfxTransforms $school
-    Start-BfxAnim $tf.T $global:BfxP.Y (-$H * 0.15) ($H * 0.15) 2.6 0 -Reverse -Ease
-    Add-BfxItem $S $school -Top ($H * 0.5) -Speed 60 -Phase (Get-BfxRnd $S) -T $tf.T -Margin 240
+    Add-BfxSpread $S {
+        param($slot)
+        $school = New-Object System.Windows.Controls.Canvas
+        for ($i = 0; $i -lt 38; $i++) {
+            $sz = Get-BfxRnd $S 4 8
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $sz 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint 0 (-$sz * 0.55)), (New-BfxPoint (-$sz * 0.8) 0), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 1.6) (-$sz * 0.5)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 1.6) ($sz * 0.5)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 0.8) 0), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 0 ($sz * 0.55)), (New-BfxPoint $sz 0), $true, $false) }.GetNewClosure()
+            $f = New-BfxPath $geo $body
+            $tf = Set-BfxTransforms $f
+            Start-BfxAnim $tf.R $global:BfxP.A -12 12 (Get-BfxRnd $S 1.8 2.8) (Get-BfxRnd $S) -Reverse -Ease
+            [System.Windows.Controls.Canvas]::SetLeft($f, -(Get-BfxRnd $S 0 220)); [System.Windows.Controls.Canvas]::SetTop($f, (Get-BfxRnd $S -25 25))
+            [void]$school.Children.Add($f)
+        }
+        $tf = Set-BfxTransforms $school
+        Start-BfxAnim $tf.T $global:BfxP.Y (-$H * 0.15) ($H * 0.15) 2.6 0 -Reverse -Ease
+        Add-BfxItem $S $school -Top ($H * 0.5) -Speed 60 -Phase (Get-BfxRnd $S) -T $tf.T -Margin 240
+    } ($H * 2.0)
     Complete-BfxStage $S
 }
 
@@ -2855,27 +6345,30 @@ function global:Add-BfxOrbits {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     for ($i = 0; $i -lt 55; $i++) { $d = New-BfxEllipse 1.4 1.4 (New-BfxBrush '#ffffff' (Get-BfxRnd $S 0.3 0.7)); Add-BfxItem $S $d -Fx (Get-BfxRnd $S) -Top (Get-BfxRnd $S 0 $H) }
-    $sys = New-Object System.Windows.Controls.Canvas
-    [void]$sys.Children.Add((New-BfxGlow ($H * 0.55) '#ffcc66' 0.8)); [void]$sys.Children.Add((New-BfxGlow 14 '#fff3cc' 1.0))
-    $dash = New-BfxBrush '#b4c8ff' 0.25
-    $cols = @('#ffb36b', '#7fd0ff', '#c07bff', '#8dff9c', '#ff7a9a')
-    $radii = @(0.18, 0.3, 0.45, 0.62, 0.8)
-    for ($i = 0; $i -lt 5; $i++) {
-        $rx = $H * 1.6 * $radii[$i]; $ry = $H * 0.42 * $radii[$i] * 1.0
-        $orbit = New-BfxEllipse ($rx * 2) ($ry * 2) $null $dash 1; $orbit.StrokeDashArray = [System.Windows.Media.DoubleCollection]::new([double[]]@(2, 5))
-        $orbit.Margin = [System.Windows.Thickness]::new(-$rx, -$ry, 0, 0); [void]$sys.Children.Add($orbit)
-        # planet on a circle of radius rx, flattened to ry by a ScaleTransform on its own ring canvas
-        $ring = New-Object System.Windows.Controls.Canvas
-        $sz = Get-BfxRnd $S 4 9
-        $pl = New-Object System.Windows.Controls.Canvas; [void]$pl.Children.Add((New-BfxGlow ($sz * 3) $cols[$i] 0.4)); [void]$pl.Children.Add((New-BfxGlow $sz $cols[$i] 1.0))
-        [System.Windows.Controls.Canvas]::SetLeft($pl, $rx); [void]$ring.Children.Add($pl)
-        $rot = New-Object System.Windows.Media.RotateTransform 0
-        $sc = New-Object System.Windows.Media.ScaleTransform 1, ($ry / $rx)
-        $tg = New-Object System.Windows.Media.TransformGroup; [void]$tg.Children.Add($rot); [void]$tg.Children.Add($sc); $ring.RenderTransform = $tg
-        Start-BfxAnim $rot $global:BfxP.A 0 360 (6 * ($i + 1)) (Get-BfxRnd $S)
-        [void]$sys.Children.Add($ring)
-    }
-    Add-BfxItem $S $sys -Fx 0.64 -Top ($H * 0.5)
+    Add-BfxSpread $S {
+        param($slot)
+        $sys = New-Object System.Windows.Controls.Canvas
+        [void]$sys.Children.Add((New-BfxGlow ($H * 0.55) '#ffcc66' 0.8)); [void]$sys.Children.Add((New-BfxGlow 14 '#fff3cc' 1.0))
+        $dash = New-BfxBrush '#b4c8ff' 0.25
+        $cols = @('#ffb36b', '#7fd0ff', '#c07bff', '#8dff9c', '#ff7a9a')
+        $radii = @(0.18, 0.3, 0.45, 0.62, 0.8)
+        for ($i = 0; $i -lt 5; $i++) {
+            $rx = $H * 1.6 * $radii[$i]; $ry = $H * 0.42 * $radii[$i] * 1.0
+            $orbit = New-BfxEllipse ($rx * 2) ($ry * 2) $null $dash 1; $orbit.StrokeDashArray = [System.Windows.Media.DoubleCollection]::new([double[]]@(2, 5))
+            $orbit.Margin = [System.Windows.Thickness]::new(-$rx, -$ry, 0, 0); [void]$sys.Children.Add($orbit)
+            # planet on a circle of radius rx, flattened to ry by a ScaleTransform on its own ring canvas
+            $ring = New-Object System.Windows.Controls.Canvas
+            $sz = Get-BfxRnd $S 4 9
+            $pl = New-Object System.Windows.Controls.Canvas; [void]$pl.Children.Add((New-BfxGlow ($sz * 3) $cols[$i] 0.4)); [void]$pl.Children.Add((New-BfxGlow $sz $cols[$i] 1.0))
+            [System.Windows.Controls.Canvas]::SetLeft($pl, $rx); [void]$ring.Children.Add($pl)
+            $rot = New-Object System.Windows.Media.RotateTransform 0
+            $sc = New-Object System.Windows.Media.ScaleTransform 1, ($ry / $rx)
+            $tg = New-Object System.Windows.Media.TransformGroup; [void]$tg.Children.Add($rot); [void]$tg.Children.Add($sc); $ring.RenderTransform = $tg
+            Start-BfxAnim $rot $global:BfxP.A 0 360 (6 * ($i + 1)) (Get-BfxRnd $S)
+            [void]$sys.Children.Add($ring)
+        }
+        Add-BfxItem $S $sys -Fx 0 -Top ($H * 0.5)
+    } ($H * 2.4)
     Complete-BfxStage $S
 }
 
@@ -2887,7 +6380,7 @@ function global:Add-BfxLasers {
         $col = Get-BfxPick $S @('#ff3b3b', '#4dff7a'); $dir = Get-BfxPick $S @(1, -1); $y = Get-BfxRnd $S ($H * 0.15) ($H * 0.85); $ang = Get-BfxRnd $S -12 12; $ph = Get-BfxRnd $S
         foreach ($o in @(0, 6)) {
             $streak = New-BfxStreak 26 $col 2.6 $col; $tf = Set-BfxTransforms $streak; $tf.R.Angle = $ang; if ($dir -lt 0) { $tf.S.ScaleX = -1 }
-            Add-BfxItem $S $streak -Top ($y + $o) -Speed (700 * $dir) -Phase $ph -T $tf.T -Margin (Get-BfxRnd $S 300 900)
+            Add-BfxItem $S $streak -Top ($y + $o) -Speed (420 * $dir) -Phase $ph -T $tf.T -Margin (Get-BfxRnd $S 300 900)
         }
     }
     for ($hit = 0; $hit -lt 4; $hit++) { $f = New-BfxGlow 46 (Get-BfxPick $S @('#ff3b3b', '#4dff7a')) 0.8; Start-BfxFlash $f (Get-BfxRnd $S 1.5 3.5) (Get-BfxRnd $S 0.1 0.9) 0.08; Add-BfxItem $S $f -Fx (Get-BfxRnd $S 0.3 0.85) -Top (Get-BfxRnd $S ($H * 0.2) ($H * 0.8)) }
@@ -3083,64 +6576,113 @@ function global:Add-BfxPortals {
 function global:Add-BfxTeleport {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
-    $g = New-Object System.Windows.Controls.Canvas
-    $core = New-BfxGlow 160 '#7dff4d' 0.55; [void]$g.Children.Add($core)
-    for ($i = 0; $i -lt 4; $i++) {
-        $w = (20 + $i * 12) * 2; $hh = (8 + $i * 5) * 2
-        $e = New-BfxEllipse $w $hh $null (New-BfxBrush '#a0ff78' 0.6) 1.4; $e.Margin = [System.Windows.Thickness]::new(-$w / 2, -$hh / 2, 0, 0)
-        $rt = New-Object System.Windows.Media.RotateTransform 0; $e.RenderTransform = $rt; $e.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
-        Start-BfxAnim $rt $global:BfxP.A 0 (360 * $(if ($i % 2) { 1 } else { -1 })) (Get-BfxRnd $S 2.5 4.5) 0
-        [void]$g.Children.Add($e)
-    }
-    for ($i = 0; $i -lt 6; $i++) {
-        $geo = New-BfxGeo { param($c) $a = Get-BfxRnd $S 0 6.28; $x = 0.0; $y = 0.0; $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($j = 0; $j -lt 6; $j++) { $x += [Math]::Cos($a) * 10 + (Get-BfxRnd $S -5 5); $y += [Math]::Sin($a) * 6 + (Get-BfxRnd $S -4 4); $c.LineTo((New-BfxPoint $x $y), $true, $false) } }.GetNewClosure()
-        $z = New-BfxPath $geo $null (New-BfxBrush '#d2ffbe' 0.85) 1.2
-        Start-BfxFlash $z 4 (Get-BfxRnd $S 0.35 0.65) 0.04
-        [void]$g.Children.Add($z)
-    }
-    $tf = Set-BfxTransforms $g
-    $keys = @(@(0, 0.05), @(0.7, 1), @(1, 0.05))
-    Start-BfxKeys $tf.S $global:BfxP.SX $keys 4; Start-BfxKeys $tf.S $global:BfxP.SY $keys 4
-    Start-BfxKeys $g $global:BfxP.O @(@(0, 0.1), @(0.7, 1), @(1, 0.1)) 4
-    Add-BfxItem $S $g -Fx 0.66 -Top ($H * 0.5)
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $g = New-Object System.Windows.Controls.Canvas
+        $core = New-BfxGlow 160 '#7dff4d' 0.55; [void]$g.Children.Add($core)
+        for ($i = 0; $i -lt 4; $i++) {
+            $w = (20 + $i * 12) * 2; $hh = (8 + $i * 5) * 2
+            $e = New-BfxEllipse $w $hh $null (New-BfxBrush '#a0ff78' 0.6) 1.4; $e.Margin = [System.Windows.Thickness]::new(-$w / 2, -$hh / 2, 0, 0)
+            $rt = New-Object System.Windows.Media.RotateTransform 0; $e.RenderTransform = $rt; $e.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+            Start-BfxAnim $rt $global:BfxP.A 0 (360 * $(if ($i % 2) { 1 } else { -1 })) (Get-BfxRnd $S 2.5 4.5) 0
+            [void]$g.Children.Add($e)
+        }
+        for ($i = 0; $i -lt 6; $i++) {
+            $geo = New-BfxGeo { param($c) $a = Get-BfxRnd $S 0 6.28; $x = 0.0; $y = 0.0; $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($j = 0; $j -lt 6; $j++) { $x += [Math]::Cos($a) * 10 + (Get-BfxRnd $S -5 5); $y += [Math]::Sin($a) * 6 + (Get-BfxRnd $S -4 4); $c.LineTo((New-BfxPoint $x $y), $true, $false) } }.GetNewClosure()
+            $z = New-BfxPath $geo $null (New-BfxBrush '#d2ffbe' 0.85) 1.2
+            Start-BfxFlash $z 4 (Get-BfxRnd $S 0.35 0.65) 0.04
+            [void]$g.Children.Add($z)
+        }
+        $tf = Set-BfxTransforms $g
+        $keys = @(@(0, 0.05), @(0.7, 1), @(1, 0.05))
+        Start-BfxKeys $tf.S $global:BfxP.SX $keys 4; Start-BfxKeys $tf.S $global:BfxP.SY $keys 4
+        Start-BfxKeys $g $global:BfxP.O @(@(0, 0.1), @(0.7, 1), @(1, 0.1)) 4
+        Add-BfxItem $S $g -Fx 0 -Top ($H * 0.5)
+    } ($H * 1.7)
     Complete-BfxStage $S
 }
 
 function global:Add-BfxWebs {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
-    $silk = New-BfxBrush '#e1e8f5' 0.55
-    foreach ($cn in @(@(0.0, 1, ($H * 0.75)), @(1.0, -1, ($H * 0.6)))) {
-        $sx = $cn[1]; $rad = $cn[2]
-        $geo = New-BfxGeo { param($c)
-            $spokes = 7
-            for ($i = 0; $i -le $spokes; $i++) { $a = ($i / $spokes) * [Math]::PI / 2; $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint ($sx * [Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $true, $false) }
-            for ($ringR = $rad * 0.18; $ringR -lt $rad; $ringR += $rad * 0.16) { for ($i = 0; $i -le $spokes; $i++) { $a = ($i / $spokes) * [Math]::PI / 2; $rr = $ringR * (0.94 + 0.06 * [Math]::Sin($i * 2)); $p = New-BfxPoint ($sx * [Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($i -eq 0) { $c.BeginFigure($p, $false, $false) } else { $c.LineTo($p, $true, $true) } } }
+    # Web shots: a web line shoots into the banner from outside, a web forms
+    # where it hits. The next shot lands somewhere else and the old web
+    # dissolves while the new one forms. Six spots across the width, one
+    # shot every 3 s.
+    $stepSec = 3.0; $spots = 6; $per = $stepSec * $spots; $travel = 0.35
+    $targets = @(@(0.46, 0.46), @(0.83, 0.40), @(0.36, 0.58), @(0.68, 0.52), @(0.93, 0.44), @(0.56, 0.60))
+    $rad = $H * 0.30
+    $silk = New-BfxBrush '#e8eefa' 0.6
+    $shots = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $spots; $i++) {
+        $phase = 1 - ($i * $stepSec / $per)
+        $tx = $targets[$i][0]; $ty = $H * $targets[$i][1]
+        # the web, drawn around its centre
+        $spokeN = 10; $angs = @(); for ($k = 0; $k -lt $spokeN; $k++) { $angs += ($k / $spokeN) * 2 * [Math]::PI + (Get-BfxRnd $S -0.12 0.12) }
+        $spokeGeo = New-BfxGeo { param($c) foreach ($a in $angs) { $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $true, $false) } }.GetNewClosure()
+        $ringGeo = New-BfxGeo { param($c)
+            for ($rf = 0.22; $rf -lt 0.98; $rf += 0.17) {
+                $rr = $rad * $rf
+                for ($k = 0; $k -le $angs.Count; $k++) {
+                    $a = $angs[$k % $angs.Count] + $(if ($k -eq $angs.Count) { 2 * [Math]::PI } else { 0 })
+                    $p = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr)
+                    if ($k -eq 0) { $c.BeginFigure($p, $false, $true) }
+                    else {
+                        $a0 = $angs[$k - 1]; $am = ($a0 + $a) / 2
+                        $c.QuadraticBezierTo((New-BfxPoint ([Math]::Cos($am) * $rr * 0.88) ([Math]::Sin($am) * $rr * 0.88)), $p, $true, $true)
+                    }
+                }
+            }
         }.GetNewClosure()
         $web = New-Object System.Windows.Controls.Canvas
-        [void]$web.Children.Add((New-BfxPath $geo $null $silk 0.8))
-        for ($i = 1; $i -lt 6; $i++) {
-            $a = $i * 0.27; $rr = $rad * (0.3 + 0.12 * $i)
-            $dew = New-BfxGlow 4 '#ffffff' 1.0; [System.Windows.Controls.Canvas]::SetLeft($dew, $sx * [Math]::Cos($a) * $rr); [System.Windows.Controls.Canvas]::SetTop($dew, [Math]::Sin($a) * $rr)
-            Start-BfxAnim $dew $global:BfxP.O 0.3 1 (Get-BfxRnd $S 1.2 2.4) (Get-BfxRnd $S) -Reverse -Ease
-            [void]$web.Children.Add($dew)
-        }
-        Add-BfxItem $S $web -Fx $cn[0] -Top 0
+        $spokes = New-BfxPath $spokeGeo $null $silk 0.9
+        $rings = New-BfxPath $ringGeo $null $silk 0.8
+        [void]$web.Children.Add($spokes); [void]$web.Children.Add($rings)
+        [void]$web.Children.Add((New-BfxGlow 8 '#ffffff' 0.8))
+        $webGlow = New-Object System.Windows.Media.Effects.DropShadowEffect; $webGlow.Color = New-BfxColor '#cfe0ff'; $webGlow.BlurRadius = 5; $webGlow.ShadowDepth = 0
+        $web.Effect = $webGlow
+        $spokeTf = Set-BfxTransforms $spokes 0 0
+        $webTf = Set-BfxTransforms $web 0 0
+        $hit = $travel / $per; $grown = ($travel + 0.3) / $per
+        $gone0 = ($stepSec + $travel) / $per; $gone1 = ($stepSec + $travel + 0.8) / $per
+        Start-BfxKeys $spokeTf.S $global:BfxP.SX @(@(0, 0.05), @($hit, 0.05), @($grown, 1), @(1, 1)) $per $phase
+        Start-BfxKeys $spokeTf.S $global:BfxP.SY @(@(0, 0.05), @($hit, 0.05), @($grown, 1), @(1, 1)) $per $phase
+        Start-BfxKeys $rings $global:BfxP.O @(@(0, 0), @((0.5 / $per), 0), @((0.95 / $per), 1), @(1, 1)) $per $phase
+        Start-BfxKeys $web $global:BfxP.O @(@(0, 0), @($hit, 0), @(($hit + 0.001), 1), @($gone0, 1), @($gone1, 0), @(1, 0)) $per $phase
+        $dissolve = @(@(0, 1), @($gone0, 1), @($gone1, 1.12), @(($gone1 + 0.003), 1), @(1, 1))
+        Start-BfxKeys $webTf.S $global:BfxP.SX $dissolve $per $phase; Start-BfxKeys $webTf.S $global:BfxP.SY $dissolve $per $phase
+        Add-BfxItem $S $web -Fx $tx -Top $ty
+        # impact flash
+        $flash = New-BfxGlow ($rad * 0.9) '#e8f0ff' 0.8
+        Start-BfxKeys $flash $global:BfxP.O @(@(0, 0), @($hit, 0), @((($travel + 0.03) / $per), 1), @((($travel + 0.4) / $per), 0), @(1, 0)) $per $phase
+        Add-BfxItem $S $flash -Fx $tx -Top $ty
+        # the shot: a line from outside the banner to the target
+        $beam = New-Object System.Windows.Shapes.Line
+        $beam.Stroke = New-BfxBrush '#f4f8ff' 0.9; $beam.StrokeThickness = 1.5; $beam.IsHitTestVisible = $false
+        $beam.StrokeStartLineCap = 'Round'; $beam.StrokeEndLineCap = 'Round'; $beam.Opacity = 0
+        $beamGlow = New-Object System.Windows.Media.Effects.DropShadowEffect; $beamGlow.Color = New-BfxColor '#cfe0ff'; $beamGlow.BlurRadius = 6; $beamGlow.ShadowDepth = 0
+        $beam.Effect = $beamGlow
+        [void]$S.Canvas.Children.Add($beam)
+        Start-BfxKeys $beam $global:BfxP.O @(@(0, 0.0), @(0.0005, 1), @((0.6 / $per), 1), @((0.95 / $per), 0), @(1, 0)) $per $phase
+        $tip = New-BfxGlow 10 '#ffffff' 1.0; $tip.Opacity = 0
+        $tipTf = Set-BfxTransforms $tip 0 0
+        [void]$S.Canvas.Children.Add($tip)
+        Start-BfxKeys $tip $global:BfxP.O @(@(0, 0), @(0.0005, 1), @($hit, 1), @((($travel + 0.1) / $per), 0), @(1, 0)) $per $phase
+        $dir = $(if ($i % 2) { -1.0 } else { 1.0 }); $fromTop = (($i % 3) -eq 1)
+        [void]$shots.Add([pscustomobject]@{ Beam = $beam; Tip = $tipTf; Tx = $tx; Ty = $ty; Dir = $dir; Oy = $(if ($fromTop) { -12.0 } else { $H + 12 }); Phase = $phase })
     }
-    # web line: shoots out from the top, swings, fades
-    $swing = New-Object System.Windows.Controls.Canvas
-    $len = $H * 1.15
-    $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.QuadraticBezierTo((New-BfxPoint ($len * 0.45) ($len * 0.55)), (New-BfxPoint ($len * 0.9) ($len * 0.75)), $true, $false) }.GetNewClosure()
-    $strand = New-BfxPath $geo $null (New-BfxBrush '#f0f5ff' 0.9) 1.6
-    $sh = New-Object System.Windows.Media.Effects.DropShadowEffect; $sh.Color = New-BfxColor '#cfe0ff'; $sh.BlurRadius = 6; $sh.ShadowDepth = 0; $strand.Effect = $sh
-    [void]$swing.Children.Add($strand)
-    $tip = New-BfxGlow 6 '#ffffff' 1.0; [System.Windows.Controls.Canvas]::SetLeft($tip, $len * 0.9); [System.Windows.Controls.Canvas]::SetTop($tip, $len * 0.75); [void]$swing.Children.Add($tip)
-    $tf = Set-BfxTransforms $swing 0 0
-    Start-BfxKeys $tf.S $global:BfxP.SX @(@(0, 0.05), @(0.06, 1), @(1, 1)) 3.5
-    Start-BfxKeys $tf.S $global:BfxP.SY @(@(0, 0.05), @(0.06, 1), @(1, 1)) 3.5
-    Start-BfxKeys $tf.R $global:BfxP.A @(@(0, 0), @(0.1, -10), @(0.2, 8), @(0.3, -5), @(0.4, 3), @(0.55, 0), @(1, 0)) 3.5
-    Start-BfxKeys $swing $global:BfxP.O @(@(0, 1), @(0.45, 1), @(0.56, 0), @(1, 0)) 3.5
-    Add-BfxItem $S $swing -Fx 0.3 -Top 0
+    $S.Extra = { param($cw)
+        foreach ($sh in $shots) {
+            $x1 = $sh.Tx * $cw; $x0 = $x1 - $sh.Dir * $H * 1.1
+            $sh.Beam.X1 = $x0; $sh.Beam.Y1 = $sh.Oy
+            $hitF = $travel / $per
+            $kx = @(@(0, $x0), @($hitF, $x1), @(1, $x1)); $ky = @(@(0, $sh.Oy), @($hitF, $sh.Ty), @(1, $sh.Ty))
+            Start-BfxKeys $sh.Beam ([System.Windows.Shapes.Line]::X2Property) $kx $per $sh.Phase
+            Start-BfxKeys $sh.Beam ([System.Windows.Shapes.Line]::Y2Property) $ky $per $sh.Phase
+            Start-BfxKeys $sh.Tip.T $global:BfxP.X $kx $per $sh.Phase
+            Start-BfxKeys $sh.Tip.T $global:BfxP.Y $ky $per $sh.Phase
+        }
+    }.GetNewClosure()
     Complete-BfxStage $S
 }
 
@@ -3438,31 +6980,34 @@ function global:Add-BfxLensflare {
 function global:Add-BfxTracker {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
-    $R0 = $H * 0.92
-    $g = New-Object System.Windows.Controls.Canvas
-    $grid = New-BfxBrush '#50ff8c' 0.22
-    for ($k = 1; $k -le 4; $k++) {
-        $rk = $R0 * $k / 4
-        $arc = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$rk) 0), $false, $false); $c.ArcTo((New-BfxPoint $rk 0), [System.Windows.Size]::new($rk, $rk), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
-        [void]$g.Children.Add((New-BfxPath $arc $null $grid 1))
-    }
-    $ping = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$R0) 0), $false, $false); $c.ArcTo((New-BfxPoint $R0 0), [System.Windows.Size]::new($R0, $R0), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
-    $pp = New-BfxPath $ping $null (New-BfxBrush '#78ffaa' 0.8) 2
-    $pt = Set-BfxTransforms $pp
-    Start-BfxAnim $pt.S $global:BfxP.SX 0.02 1 1.6 0; Start-BfxAnim $pt.S $global:BfxP.SY 0.02 1 1.6 0
-    Start-BfxAnim $pp $global:BfxP.O 0.9 0 1.6 0
-    [void]$g.Children.Add($pp)
-    for ($i = 0; $i -lt 6; $i++) {
-        $a = Get-BfxRnd $S ([Math]::PI * 1.05) ([Math]::PI * 1.95); $d0 = $R0 * (Get-BfxRnd $S 0.5 1); $per = Get-BfxRnd $S 10 25
-        $blip = New-Object System.Windows.Controls.Canvas; [void]$blip.Children.Add((New-BfxGlow 20 '#6aff9a' 0.5)); [void]$blip.Children.Add((New-BfxGlow 5 '#d8ffe4' 1.0))
-        $bt = Set-BfxTransforms $blip
-        $ph = Get-BfxRnd $S
-        Start-BfxAnim $bt.T $global:BfxP.X ([Math]::Cos($a) * $d0) ([Math]::Cos($a) * 8) $per $ph
-        Start-BfxAnim $bt.T $global:BfxP.Y ([Math]::Sin($a) * $d0) ([Math]::Sin($a) * 8) $per $ph
-        Start-BfxKeys $blip $global:BfxP.O @(@(0, 1), @(0.6, 0.15), @(1, 0.15)) 1.6 0
-        [void]$g.Children.Add($blip)
-    }
-    Add-BfxItem $S $g -Fx 0.66 -Top ($H * 0.98)
+    Add-BfxSpread $S {
+        param($slot)
+        $R0 = $H * 0.92
+        $g = New-Object System.Windows.Controls.Canvas
+        $grid = New-BfxBrush '#50ff8c' 0.22
+        for ($k = 1; $k -le 4; $k++) {
+            $rk = $R0 * $k / 4
+            $arc = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$rk) 0), $false, $false); $c.ArcTo((New-BfxPoint $rk 0), [System.Windows.Size]::new($rk, $rk), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+            [void]$g.Children.Add((New-BfxPath $arc $null $grid 1))
+        }
+        $ping = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$R0) 0), $false, $false); $c.ArcTo((New-BfxPoint $R0 0), [System.Windows.Size]::new($R0, $R0), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+        $pp = New-BfxPath $ping $null (New-BfxBrush '#78ffaa' 0.8) 2
+        $pt = Set-BfxTransforms $pp
+        Start-BfxAnim $pt.S $global:BfxP.SX 0.02 1 1.6 0; Start-BfxAnim $pt.S $global:BfxP.SY 0.02 1 1.6 0
+        Start-BfxAnim $pp $global:BfxP.O 0.9 0 1.6 0
+        [void]$g.Children.Add($pp)
+        for ($i = 0; $i -lt 6; $i++) {
+            $a = Get-BfxRnd $S ([Math]::PI * 1.05) ([Math]::PI * 1.95); $d0 = $R0 * (Get-BfxRnd $S 0.5 1); $per = Get-BfxRnd $S 10 25
+            $blip = New-Object System.Windows.Controls.Canvas; [void]$blip.Children.Add((New-BfxGlow 20 '#6aff9a' 0.5)); [void]$blip.Children.Add((New-BfxGlow 5 '#d8ffe4' 1.0))
+            $bt = Set-BfxTransforms $blip
+            $ph = Get-BfxRnd $S
+            Start-BfxAnim $bt.T $global:BfxP.X ([Math]::Cos($a) * $d0) ([Math]::Cos($a) * 8) $per $ph
+            Start-BfxAnim $bt.T $global:BfxP.Y ([Math]::Sin($a) * $d0) ([Math]::Sin($a) * 8) $per $ph
+            Start-BfxKeys $blip $global:BfxP.O @(@(0, 1), @(0.6, 0.15), @(1, 0.15)) 1.6 0
+            [void]$g.Children.Add($blip)
+        }
+        Add-BfxItem $S $g -Fx 0 -Top ($H * 0.98)
+    } ($H * 1.9)
     Complete-BfxStage $S
 }
 
@@ -3677,7 +7222,7 @@ function global:Add-BfxHud {
     [void]$box.Children.Add($lock)
     $tf = Set-BfxTransforms $box 0 0
     Add-BfxItem $S $box -Fx 0 -Top 0
-    $targets = @(); for ($n = 0; $n -lt 5; $n++) { $targets += , @((Get-BfxRnd $S 0.35 0.82), (Get-BfxRnd $S ($H * 0.3) ($H * 0.7))) }
+    $targets = @(); for ($n = 0; $n -lt 6; $n++) { $targets += , @((Get-BfxRnd $S 0.12 0.92), (Get-BfxRnd $S ($H * 0.3) ($H * 0.7))) }
     for ($n = 0; $n -lt 6; $n++) {
         $row = '{0:X4}  {1,3}' -f $S.R.Next(0, 65535), $S.R.Next(0, 360)
         $tb = New-BfxText $row '#78e6ff' 0.5 9
@@ -3748,26 +7293,29 @@ function global:Add-BfxBlackhole {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     for ($i = 0; $i -lt 40; $i++) { Add-BfxItem $S (New-BfxEllipse 1.4 1.4 (New-BfxBrush '#ffffff' 0.5)) -Fx (Get-BfxRnd $S) -Top (Get-BfxRnd $S 0 $H) }
-    $hole = New-Object System.Windows.Controls.Canvas
-    [void]$hole.Children.Add((New-BfxGlow ($H * 2.2) '#ff9a3c' 0.25))
-    $disc = New-Object System.Windows.Controls.Canvas
-    $dt = Set-BfxTransforms $disc 0 0; $dt.S.ScaleY = 0.2
-    for ($ringN = 0; $ringN -lt 5; $ringN++) {
-        $spin = New-Object System.Windows.Controls.Canvas
-        $rr = $H * (0.25 + $ringN * 0.2); $hot = 1 - $ringN / 5.0
-        for ($n = 0; $n -lt 28; $n++) {
-            $an = (Get-BfxRnd $S 0 (2 * [Math]::PI)); $rj = $rr * (Get-BfxRnd $S 0.9 1.1)
-            $col = $(if ($hot -gt 0.6) { '#fff0c8' } else { '#ff9a4d' })
-            [void]$spin.Children.Add((Set-BfxAt (New-BfxEllipse 2.2 6 (New-BfxBrush $col (0.4 + 0.6 * $hot))) ([Math]::Cos($an) * $rj) ([Math]::Sin($an) * $rj)))
+    Add-BfxSpread $S {
+        param($slot)
+        $hole = New-Object System.Windows.Controls.Canvas
+        [void]$hole.Children.Add((New-BfxGlow ($H * 2.2) '#ff9a3c' 0.25))
+        $disc = New-Object System.Windows.Controls.Canvas
+        $dt = Set-BfxTransforms $disc 0 0; $dt.S.ScaleY = 0.2
+        for ($ringN = 0; $ringN -lt 5; $ringN++) {
+            $spin = New-Object System.Windows.Controls.Canvas
+            $rr = $H * (0.25 + $ringN * 0.2); $hot = 1 - $ringN / 5.0
+            for ($n = 0; $n -lt 28; $n++) {
+                $an = (Get-BfxRnd $S 0 (2 * [Math]::PI)); $rj = $rr * (Get-BfxRnd $S 0.9 1.1)
+                $col = $(if ($hot -gt 0.6) { '#fff0c8' } else { '#ff9a4d' })
+                [void]$spin.Children.Add((Set-BfxAt (New-BfxEllipse 2.2 6 (New-BfxBrush $col (0.4 + 0.6 * $hot))) ([Math]::Cos($an) * $rj) ([Math]::Sin($an) * $rj)))
+            }
+            $sp = Set-BfxTransforms $spin 0 0
+            Start-BfxAnim $sp.R $global:BfxP.A 0 360 (18 + $ringN * 10) (Get-BfxRnd $S)
+            [void]$disc.Children.Add($spin)
         }
-        $sp = Set-BfxTransforms $spin 0 0
-        Start-BfxAnim $sp.R $global:BfxP.A 0 360 (18 + $ringN * 10) (Get-BfxRnd $S)
-        [void]$disc.Children.Add($spin)
-    }
-    [void]$hole.Children.Add($disc)
-    $core = New-BfxEllipse ($H * 0.34) ($H * 0.34) (New-BfxBrush '#000000' 1) (New-BfxBrush '#ffc878' 0.85) 1.5
-    [void]$hole.Children.Add((Set-BfxAt $core (-$H * 0.17) (-$H * 0.17)))
-    Add-BfxItem $S $hole -Fx 0.64 -Top ($H * 0.5)
+        [void]$hole.Children.Add($disc)
+        $core = New-BfxEllipse ($H * 0.34) ($H * 0.34) (New-BfxBrush '#000000' 1) (New-BfxBrush '#ffc878' 0.85) 1.5
+        [void]$hole.Children.Add((Set-BfxAt $core (-$H * 0.17) (-$H * 0.17)))
+        Add-BfxItem $S $hole -Fx 0 -Top ($H * 0.5)
+    } ($H * 2.3)
     Complete-BfxStage $S
 }
 
@@ -3789,14 +7337,17 @@ function global:Add-BfxFighters {
         $st = New-BfxEllipse 1.4 1.4 (New-BfxBrush '#ffffff' 0.45); $tf = Set-BfxTransforms $st
         Add-BfxItem $S $st -Top (Get-BfxRnd $S 0 $H) -Speed (-15) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 5
     }
-    $form = New-Object System.Windows.Controls.Canvas
-    foreach ($o in @(@(0, 0, 0), @(-34, -16, 0), @(-34, 16, 0), @(-68, -30, 1))) {
-        $ship = New-BfxFighter; $st = Set-BfxTransforms $ship 0 0
-        [void]$form.Children.Add((Set-BfxAt $ship $o[0] $o[1]))
-        if ($o[2]) { Start-BfxAnim $st.T $global:BfxP.Y -25 25 1.6 0 -Reverse -Ease; Start-BfxAnim $st.R $global:BfxP.A 20 -20 1.6 0.25 -Reverse -Ease }
-    }
-    $ft = Set-BfxTransforms $form 0 0
-    Add-BfxItem $S $form -Top ($H * 0.5) -Speed 120 -Phase (Get-BfxRnd $S) -T $ft.T -Margin 150
+    Add-BfxSpread $S {
+        param($slot)
+        $form = New-Object System.Windows.Controls.Canvas
+        foreach ($o in @(@(0, 0, 0), @(-34, -16, 0), @(-34, 16, 0), @(-68, -30, 1))) {
+            $ship = New-BfxFighter; $st = Set-BfxTransforms $ship 0 0
+            [void]$form.Children.Add((Set-BfxAt $ship $o[0] $o[1]))
+            if ($o[2]) { Start-BfxAnim $st.T $global:BfxP.Y -25 25 1.6 0 -Reverse -Ease; Start-BfxAnim $st.R $global:BfxP.A 20 -20 1.6 0.25 -Reverse -Ease }
+        }
+        $ft = Set-BfxTransforms $form 0 0
+        Add-BfxItem $S $form -Top ($H * 0.5) -Speed 120 -Phase (Get-BfxRnd $S) -T $ft.T -Margin 150
+    } ($H * 2.0)
     Complete-BfxStage $S
 }
 
@@ -3839,24 +7390,27 @@ function global:Add-BfxPuddles {
 function global:Add-BfxTumbleweed {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
-    foreach ($w in @(@(14, 70, 0.0), @(10, 50, 0.45))) {
-        $rad = $w[0]
-        $geo = New-BfxGeo { param($c)
-            for ($n = 0; $n -lt 34; $n++) { $a = Get-BfxRnd $S 0 6.283; $b = $a + (Get-BfxRnd $S -1 1); $c.BeginFigure((New-BfxPoint ([Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint 0 0), (New-BfxPoint ([Math]::Cos($b) * $rad) ([Math]::Sin($b) * $rad)), $true, $false) }
-            $c.BeginFigure((New-BfxPoint $rad 0), $false, $true); $c.ArcTo((New-BfxPoint (-$rad) 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $rad 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
-        }.GetNewClosure()
-        $weed = New-BfxPath $geo $null (New-BfxBrush '#b48c50' 0.9) 1
-        $rt = Set-BfxTransforms $weed
-        Start-BfxAnim $rt.R $global:BfxP.A 0 360 (2 * [Math]::PI * $rad / $w[1]) 0
-        $grp = New-Object System.Windows.Controls.Canvas; [void]$grp.Children.Add($weed)
-        $tf = Set-BfxTransforms $grp 0 0; $bounce = 0.98
-        $ky = @(); for ($n = 0; $n -le 8; $n++) { $u = $n / 8.0; $ky += , @($u, (-[Math]::Abs([Math]::Sin($u * [Math]::PI)) * $H * 0.35)) }
-        Start-BfxKeys $tf.T $global:BfxP.Y $ky $bounce (Get-BfxRnd $S)
-        $puff = New-BfxGlow 46 '#c8a46e' 0.35; Start-BfxKeys $puff $global:BfxP.O @(@(0, 1), @(0.15, 0), @(0.9, 0), @(1, 1)) $bounce
-        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($grp); [void]$wrap.Children.Add((Set-BfxAt $puff 0 ($rad)))
-        $wt = Set-BfxTransforms $wrap 0 0
-        Add-BfxItem $S $wrap -Top ($H - $rad - 4) -Speed $w[1] -Phase $w[2] -T $wt.T -Margin 60
-    }
+    Add-BfxSpread $S {
+        param($slot, $S)
+        foreach ($w in @(, @(@(14, 70, 0.0), @(10, 50, 0.45))[$slot % 2])) {
+            $rad = $w[0]
+            $geo = New-BfxGeo { param($c)
+                for ($n = 0; $n -lt 34; $n++) { $a = Get-BfxRnd $S 0 6.283; $b = $a + (Get-BfxRnd $S -1 1); $c.BeginFigure((New-BfxPoint ([Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint 0 0), (New-BfxPoint ([Math]::Cos($b) * $rad) ([Math]::Sin($b) * $rad)), $true, $false) }
+                $c.BeginFigure((New-BfxPoint $rad 0), $false, $true); $c.ArcTo((New-BfxPoint (-$rad) 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $rad 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+            }.GetNewClosure()
+            $weed = New-BfxPath $geo $null (New-BfxBrush '#b48c50' 0.9) 1
+            $rt = Set-BfxTransforms $weed
+            Start-BfxAnim $rt.R $global:BfxP.A 0 360 (2 * [Math]::PI * $rad / $w[1]) 0
+            $grp = New-Object System.Windows.Controls.Canvas; [void]$grp.Children.Add($weed)
+            $tf = Set-BfxTransforms $grp 0 0; $bounce = 0.98
+            $ky = @(); for ($n = 0; $n -le 8; $n++) { $u = $n / 8.0; $ky += , @($u, (-[Math]::Abs([Math]::Sin($u * [Math]::PI)) * $H * 0.35)) }
+            Start-BfxKeys $tf.T $global:BfxP.Y $ky $bounce (Get-BfxRnd $S)
+            $puff = New-BfxGlow 46 '#c8a46e' 0.35; Start-BfxKeys $puff $global:BfxP.O @(@(0, 1), @(0.15, 0), @(0.9, 0), @(1, 1)) $bounce
+            $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($grp); [void]$wrap.Children.Add((Set-BfxAt $puff 0 ($rad)))
+            $wt = Set-BfxTransforms $wrap 0 0
+            Add-BfxItem $S $wrap -Top ($H - $rad - 4) -Speed $w[1] -Phase $w[2] -T $wt.T -Margin 60
+        }
+    } ($H * 2.0)
     Complete-BfxStage $S
 }
 
@@ -3884,27 +7438,30 @@ function global:Add-BfxMoths {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $ly = $H * 0.32
-    $lamp = New-Object System.Windows.Controls.Canvas
-    [void]$lamp.Children.Add((Set-BfxAt (New-BfxRect 1 ($ly - 6) (New-BfxBrush '#505050' 0.6)) 0 (-$ly)))
-    $halo = New-BfxGlow ($H * 1.8) '#ffe8b0' 0.35; [void]$lamp.Children.Add($halo)
-    Start-BfxKeys $halo $global:BfxP.O @(@(0, 1), @(0.3, 0.85), @(0.32, 1), @(0.7, 0.9), @(0.72, 0.7), @(0.74, 1), @(1, 1)) 2.3
-    [void]$lamp.Children.Add((Set-BfxAt (New-BfxEllipse 10 10 (New-BfxBrush '#fff6d8' 1)) -5 -5))
-    $wing = New-BfxBrush '#c8bea9' 0.85
-    for ($i = 0; $i -lt 12; $i++) {
-        $orb = New-Object System.Windows.Controls.Canvas; $ot = Set-BfxTransforms $orb 0 0
-        $moth = New-Object System.Windows.Controls.Canvas
-        [void]$moth.Children.Add((Set-BfxAt (New-BfxEllipse 5 3 $wing) -5 -1.5)); [void]$moth.Children.Add((Set-BfxAt (New-BfxEllipse 5 3 $wing) 0 -1.5))
-        $mt = Set-BfxTransforms $moth 0 0
-        Start-BfxAnim $mt.S $global:BfxP.SY 1 0.2 (Get-BfxRnd $S 0.04 0.07) (Get-BfxRnd $S) -Reverse
-        $rr = Get-BfxRnd $S 14 60
-        Start-BfxAnim $mt.T $global:BfxP.X ($rr * 0.6) ($rr * 1.2) (Get-BfxRnd $S 0.8 1.6) (Get-BfxRnd $S) -Reverse -Ease
-        [void]$orb.Children.Add($moth)
-        Start-BfxAnim $ot.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 1.2 2.6) (Get-BfxRnd $S)
-        $squash = New-Object System.Windows.Controls.Canvas; [void]$squash.Children.Add($orb)
-        $sq = Set-BfxTransforms $squash 0 0; $sq.S.ScaleY = Get-BfxRnd $S 0.3 0.8; $sq.S.ScaleX = 1.5
-        [void]$lamp.Children.Add($squash)
-    }
-    Add-BfxItem $S $lamp -Fx 0.62 -Top $ly
+    Add-BfxSpread $S {
+        param($slot)
+        $lamp = New-Object System.Windows.Controls.Canvas
+        [void]$lamp.Children.Add((Set-BfxAt (New-BfxRect 1 ($ly - 6) (New-BfxBrush '#505050' 0.6)) 0 (-$ly)))
+        $halo = New-BfxGlow ($H * 1.8) '#ffe8b0' 0.35; [void]$lamp.Children.Add($halo)
+        Start-BfxKeys $halo $global:BfxP.O @(@(0, 1), @(0.3, 0.85), @(0.32, 1), @(0.7, 0.9), @(0.72, 0.7), @(0.74, 1), @(1, 1)) 2.3
+        [void]$lamp.Children.Add((Set-BfxAt (New-BfxEllipse 10 10 (New-BfxBrush '#fff6d8' 1)) -5 -5))
+        $wing = New-BfxBrush '#c8bea9' 0.85
+        for ($i = 0; $i -lt 12; $i++) {
+            $orb = New-Object System.Windows.Controls.Canvas; $ot = Set-BfxTransforms $orb 0 0
+            $moth = New-Object System.Windows.Controls.Canvas
+            [void]$moth.Children.Add((Set-BfxAt (New-BfxEllipse 5 3 $wing) -5 -1.5)); [void]$moth.Children.Add((Set-BfxAt (New-BfxEllipse 5 3 $wing) 0 -1.5))
+            $mt = Set-BfxTransforms $moth 0 0
+            Start-BfxAnim $mt.S $global:BfxP.SY 1 0.2 (Get-BfxRnd $S 0.04 0.07) (Get-BfxRnd $S) -Reverse
+            $rr = Get-BfxRnd $S 14 60
+            Start-BfxAnim $mt.T $global:BfxP.X ($rr * 0.6) ($rr * 1.2) (Get-BfxRnd $S 0.8 1.6) (Get-BfxRnd $S) -Reverse -Ease
+            [void]$orb.Children.Add($moth)
+            Start-BfxAnim $ot.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 1.2 2.6) (Get-BfxRnd $S)
+            $squash = New-Object System.Windows.Controls.Canvas; [void]$squash.Children.Add($orb)
+            $sq = Set-BfxTransforms $squash 0 0; $sq.S.ScaleY = Get-BfxRnd $S 0.3 0.8; $sq.S.ScaleX = 1.5
+            [void]$lamp.Children.Add($squash)
+        }
+        Add-BfxItem $S $lamp -Fx 0 -Top $ly
+    } ($H * 1.9)
     Complete-BfxStage $S
 }
 
@@ -4119,21 +7676,24 @@ function global:Add-BfxGears {
         $rn = $H * $nb[1]; $dist = ($r0 + $rn) * 1.04; $an = $nb[0]
         $set += , @(([Math]::Cos($an) * $dist), ($H * 0.55 + [Math]::Sin($an) * $dist), $rn, $nb[2], (-16.0 / $nb[2]))
     }
-    foreach ($gr in $set) {
-        $rad = $gr[2]; $teeth = $gr[3]
-        $geo = New-BfxGeo -EvenOdd { param($c)
-            $nseg = $teeth * 4
-            for ($n = 0; $n -le $nseg; $n++) { $a = $n / $nseg * 2 * [Math]::PI; $rr = $(if (($n % 4) -lt 2) { $rad * 1.16 } else { $rad }); $pt = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $true) } }
-            $ri = $rad * 0.3; $c.BeginFigure((New-BfxPoint $ri 0), $true, $true); $c.ArcTo((New-BfxPoint (-$ri) 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $ri 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
-            for ($n = 0; $n -lt 4; $n++) { $a = $n * [Math]::PI / 2; $c.BeginFigure((New-BfxPoint ([Math]::Cos($a) * $ri) ([Math]::Sin($a) * $ri)), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($a) * $rad * 0.85) ([Math]::Sin($a) * $rad * 0.85)), $true, $false) }
-        }.GetNewClosure()
-        $gear = New-BfxPath $geo $brass $line 1.2
-        $tf = Set-BfxTransforms $gear
-        $direction = [double]$gr[4]
-        $sec = 24.0 / [Math]::Abs($direction)
-        Start-BfxAnim $tf.R $global:BfxP.A 0 ([Math]::Sign($direction) * 360) $sec 0
-        Add-BfxItem $S $gear -Fx 0.62 -OffsetX $gr[0] -Top $gr[1]
-    }
+    Add-BfxSpread $S {
+        param($slot)
+        foreach ($gr in $set) {
+            $rad = $gr[2]; $teeth = $gr[3]
+            $geo = New-BfxGeo -EvenOdd { param($c)
+                $nseg = $teeth * 4
+                for ($n = 0; $n -le $nseg; $n++) { $a = $n / $nseg * 2 * [Math]::PI; $rr = $(if (($n % 4) -lt 2) { $rad * 1.16 } else { $rad }); $pt = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $true) } }
+                $ri = $rad * 0.3; $c.BeginFigure((New-BfxPoint $ri 0), $true, $true); $c.ArcTo((New-BfxPoint (-$ri) 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $ri 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                for ($n = 0; $n -lt 4; $n++) { $a = $n * [Math]::PI / 2; $c.BeginFigure((New-BfxPoint ([Math]::Cos($a) * $ri) ([Math]::Sin($a) * $ri)), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($a) * $rad * 0.85) ([Math]::Sin($a) * $rad * 0.85)), $true, $false) }
+            }.GetNewClosure()
+            $gear = New-BfxPath $geo $brass $line 1.2
+            $tf = Set-BfxTransforms $gear
+            $direction = [double]$gr[4]
+            $sec = 24.0 / [Math]::Abs($direction)
+            Start-BfxAnim $tf.R $global:BfxP.A 0 ([Math]::Sign($direction) * 360) $sec 0
+            Add-BfxItem $S $gear -Fx 0 -OffsetX $gr[0] -Top $gr[1]
+        }
+    } ($H * 2.6)
     Complete-BfxStage $S
 }
 
@@ -4371,22 +7931,59 @@ function global:Add-BfxDriftsmoke {
     Complete-BfxStage $S
 }
 
-function global:Add-BfxFocuslines {
+function global:Add-BfxSumie {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
-    $burst = New-Object System.Windows.Controls.Canvas
-    $ink = New-BfxBrush '#ffffff' 0.16
-    for ($grpN = 0; $grpN -lt 3; $grpN++) {
-        $wedges = @(); for ($n = 0; $n -lt 24; $n++) { $wedges += , @((Get-BfxRnd $S 0 6.283), (Get-BfxRnd $S 0.3 0.8), (Get-BfxRnd $S 1 3)) }
-        $geo = New-BfxGeo { param($c) foreach ($wd in $wedges) { $rin = 260.0; $rout = $rin + 900 * $wd[1] * 0.4; $c.BeginFigure((New-BfxPoint ([Math]::Cos($wd[0]) * $rin) ([Math]::Sin($wd[0]) * $rin)), $true, $true); $c.LineTo((New-BfxPoint ([Math]::Cos($wd[0] + 0.01 * $wd[2]) * $rout) ([Math]::Sin($wd[0] + 0.01 * $wd[2]) * $rout)), $true, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($wd[0] - 0.01 * $wd[2]) * $rout) ([Math]::Sin($wd[0] - 0.01 * $wd[2]) * $rout)), $true, $false) } }.GetNewClosure()
-        $lines = New-BfxPath $geo $ink
-        # slow soft cross-fade between the three line sets (no strobe)
-        Start-BfxKeys $lines $global:BfxP.O @(@(0, 1), @(0.33, 1), @(0.5, 0.15), @(0.83, 0.15), @(1, 1)) 3.6 ($grpN / 3.0)
-        [void]$burst.Children.Add($lines)
+    # Sumi-e ink brush strokes: painted in from left to right, held, then
+    # fading out. Spread over the middle and right part of the width.
+    $n = 7
+    for ($i = 0; $i -lt $n; $i++) {
+        $len = $H * (Get-BfxRnd $S 0.9 1.6); $wid = $H * (Get-BfxRnd $S 0.07 0.12); $bend = $len * (Get-BfxRnd $S -0.12 0.12)
+        $red = ($i -eq 3)
+        $hex = $(if ($red) { '#c8322a' } else { '#f2efe8' }); $alpha = $(if ($red) { 0.34 } else { 0.22 })
+        $boxH = $wid * 3.0; $cy = $boxH / 2
+        $pts = New-Object System.Collections.ArrayList
+        for ($k = 0; $k -le 26; $k++) {
+            $u = $k / 26.0
+            $w = $(if ($u -lt 0.08) { $wid * (0.55 + 0.45 * ($u / 0.08)) } else { $wid * (1.0 - 0.9 * (($u - 0.08) / 0.92)) })
+            $w = $w * (Get-BfxRnd $S 0.9 1.08)
+            [void]$pts.Add(@(($len * $u), ($cy + $bend * [Math]::Sin([Math]::PI * $u)), $w))
+        }
+        $geo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint $pts[0][0] ($pts[0][1] - $pts[0][2] / 2)), $true, $true)
+            for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] ($pts[$k][1] - $pts[$k][2] / 2)), $true, $false) }
+            for ($k = $pts.Count - 1; $k -ge 0; $k--) { $c.LineTo((New-BfxPoint $pts[$k][0] ($pts[$k][1] + $pts[$k][2] / 2)), $true, $false) }
+        }.GetNewClosure()
+        $holder = New-Object System.Windows.Controls.Canvas
+        $holder.Width = $len * 1.12; $holder.Height = $boxH
+        [void]$holder.Children.Add((New-BfxPath $geo (New-BfxBrush $hex $alpha)))
+        # dry-brush bristles running out past the tail
+        for ($b = 0; $b -lt 3; $b++) {
+            $off = $wid * (Get-BfxRnd $S -0.3 0.3); $u0 = Get-BfxRnd $S 0.45 0.65
+            $bgeo = New-BfxGeo { param($c)
+                $c.BeginFigure((New-BfxPoint ($len * $u0) ($cy + $off + $bend * [Math]::Sin([Math]::PI * $u0))), $false, $false)
+                $c.LineTo((New-BfxPoint ($len * 1.08) ($cy + $off * 0.6)), $true, $false)
+            }.GetNewClosure()
+            [void]$holder.Children.Add((New-BfxPath $bgeo $null (New-BfxBrush $hex ($alpha * 0.8)) (Get-BfxRnd $S 0.6 1.2)))
+        }
+        # a few ink drops near the start of the stroke
+        for ($d = 0; $d -lt 3; $d++) {
+            $ds = $wid * (Get-BfxRnd $S 0.12 0.28)
+            $drop = New-BfxEllipse $ds $ds (New-BfxBrush $hex $alpha)
+            [void]$holder.Children.Add((Set-BfxAt $drop ($len * (Get-BfxRnd $S 0.02 0.25)) ($cy + $wid * (Get-BfxRnd $S 0.7 1.3) * (Get-BfxPick $S @(1, -1)))))
+        }
+        # paint-in: a hard edge in the opacity mask moves along the stroke
+        $mask = New-BfxLinear @(@(0, '#ffffff', 1), @(0, '#ffffff', 1), @(0.02, '#ffffff', 0), @(1, '#ffffff', 0)) -Horizontal -NoFreeze
+        $holder.OpacityMask = $mask
+        $per = Get-BfxRnd $S 8 12; $ph = Get-BfxRnd $S
+        $offP = [System.Windows.Media.GradientStop]::OffsetProperty
+        Start-BfxKeys $mask.GradientStops[1] $offP @(@(0, 0), @(0.05, 0), @(0.2, 1.0), @(1, 1.0)) $per $ph
+        Start-BfxKeys $mask.GradientStops[2] $offP @(@(0, 0.02), @(0.05, 0.02), @(0.2, 1.04), @(1, 1.04)) $per $ph
+        Start-BfxKeys $holder $global:BfxP.O @(@(0, 0), @(0.04, 0), @(0.05, 1), @(0.62, 1), @(0.8, 0), @(1, 0)) $per $ph
+        $tf = Set-BfxTransforms $holder 0 0.5; $tf.R.Angle = Get-BfxRnd $S -14 14
+        $fx = 0.28 + (($i + (Get-BfxRnd $S 0 0.8)) / $n) * 0.66
+        Add-BfxItem $S $holder -Fx $fx -Top ($H * (Get-BfxRnd $S 0.22 0.78) - $cy)
     }
-    $tf = Set-BfxTransforms $burst 0 0; $tf.S.ScaleY = 0.5
-    Start-BfxAnim $tf.S $global:BfxP.SX 0.95 1.05 4 0 -Reverse -Ease
-    Add-BfxItem $S $burst -Fx 0.66 -Top ($H * 0.5)
     Complete-BfxStage $S
 }
 
@@ -4467,9 +8064,4616 @@ function global:Add-BfxSkulls {
 }
 
 
+
+# ------------------------------------------------------------
+# Round 3 effects (game-specific, part 1)
+# ------------------------------------------------------------
+
+function global:Add-BfxManuscript {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $paper = New-BfxBrush '#ece8dc' 0.9; $ink = New-BfxBrush '#28282e' 0.75
+    for ($i = 0; $i -lt 9; $i++) {
+        $page = New-Object System.Windows.Controls.Canvas
+        [void]$page.Children.Add((Set-BfxAt (New-BfxRect 22 28 $paper) -11 -14))
+        $typeSec = Get-BfxRnd $S 4.5 6.5; $tph = Get-BfxRnd $S
+        for ($n = 0; $n -lt 7; $n++) {
+            $ln = New-BfxRect $(if ($n -eq 6) { 9 } else { 16 }) 1.2 $ink
+            $on = ($n + 1) / 8.0
+            Start-BfxKeys $ln $global:BfxP.O @(@(0, 0), @($on, 0), @(($on + 0.001), 1), @(0.97, 1), @(0.975, 0), @(1, 0)) $typeSec $tph -Discrete
+            [void]$page.Children.Add((Set-BfxAt $ln -8 (-10 + $n * 3.4)))
+        }
+        $tf = Set-BfxTransforms $page 0 0
+        $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y -40 ($H + 40) (($H + 80) / (Get-BfxRnd $S 10 22)) $ph
+        Start-BfxAnim $tf.T $global:BfxP.X -14 14 (Get-BfxRnd $S 4 7) (Get-BfxRnd $S) -Reverse -Ease
+        $base = Get-BfxRnd $S -18 18
+        Start-BfxAnim $tf.R $global:BfxP.A ($base - 14) ($base + 14) (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.S $global:BfxP.SY 1 0.55 (Get-BfxRnd $S 2.5 4) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $page -Fx (Get-BfxRnd $S 0.05 0.95) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTendrils {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 2.2) '#cfe0ff' 0.1) -Fx 0.55 -Top ($H * 0.5)
+    $smoke = New-BfxBrush '#040408' 0.85
+    for ($i = 0; $i -lt 9; $i++) {
+        $side = $i % 3; $len = $(if ($side -eq 2) { $H * (Get-BfxRnd $S 0.6 1.0) } else { $H * (Get-BfxRnd $S 1.2 2.2) })
+        $wob = Get-BfxRnd $S 0 6.28
+        $geo = New-BfxGeo { param($c)
+            $pts = @(); $a = 0.0; $x = 0.0; $y = 0.0
+            for ($n = 0; $n -le 16; $n++) { $u = $n / 16.0; $a = [Math]::Sin($u * 5 + $wob) * 0.5; $pts += , @($x, $y, (9 * (1 - $u) + 0.8), $a); $x += [Math]::Cos($a) * $len / 16; $y += [Math]::Sin($a) * $len / 16 }
+            $c.BeginFigure((New-BfxPoint $pts[0][0] ($pts[0][1] - $pts[0][2])), $true, $true)
+            foreach ($p in $pts) { $c.LineTo((New-BfxPoint ($p[0] - [Math]::Sin($p[3]) * $p[2]) ($p[1] - [Math]::Cos($p[3]) * $p[2])), $true, $true) }
+            for ($n = $pts.Count - 1; $n -ge 0; $n--) { $p = $pts[$n]; $c.LineTo((New-BfxPoint ($p[0] + [Math]::Sin($p[3]) * $p[2]) ($p[1] + [Math]::Cos($p[3]) * $p[2])), $true, $true) }
+        }.GetNewClosure()
+        $ten = New-BfxPath $geo $smoke
+        $bl = New-Object System.Windows.Media.Effects.BlurEffect; $bl.Radius = 3; $ten.Effect = $bl
+        $tf = Set-BfxTransforms $ten
+        $tf.R.Angle = $(switch ($side) { 0 { 0 } 1 { 180 } default { -90 } }) + (Get-BfxRnd $S -15 15)
+        Start-BfxAnim $tf.S $global:BfxP.SX 0.45 1 (Get-BfxRnd $S 5 9) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.S $global:BfxP.SY 0.7 1.25 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
+        if ($side -eq 2) { Add-BfxItem $S $ten -Fx (Get-BfxRnd $S 0.05 0.95) -Top ($H + 2) }
+        else { Add-BfxItem $S $ten -Fx $(if ($side -eq 0) { 0 } else { 1 }) -OffsetX $(if ($side -eq 0) { -2 } else { 2 }) -Top ($H * (Get-BfxRnd $S 0.1 0.9)) }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxScope {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $rad = $H * 0.42; $big = 4200.0
+    $sc = New-Object System.Windows.Controls.Canvas
+    $vg = New-BfxGeo -EvenOdd { param($c)
+        $c.BeginFigure((New-BfxPoint (-$big) (-$big)), $true, $true); $c.LineTo((New-BfxPoint $big (-$big)), $true, $false); $c.LineTo((New-BfxPoint $big $big), $true, $false); $c.LineTo((New-BfxPoint (-$big) $big), $true, $false)
+        $c.BeginFigure((New-BfxPoint $rad 0), $true, $true); $c.ArcTo((New-BfxPoint (-$rad) 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $rad 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+    }.GetNewClosure()
+    [void]$sc.Children.Add((New-BfxPath $vg (New-BfxBrush '#000000' 0.45)))
+    $ink = New-BfxBrush '#0a0a0a' 0.85
+    $thin = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$rad) 0), $false, $false); $c.LineTo((New-BfxPoint $rad 0), $true, $false); $c.BeginFigure((New-BfxPoint 0 (-$rad)), $false, $false); $c.LineTo((New-BfxPoint 0 $rad), $true, $false) }.GetNewClosure()
+    [void]$sc.Children.Add((New-BfxPath $thin $null $ink 1.2))
+    $thick = New-BfxGeo { param($c) foreach ($q in @(@(-1, 0), @(1, 0), @(0, 1))) { $c.BeginFigure((New-BfxPoint ($q[0] * $rad * 0.35) ($q[1] * $rad * 0.35)), $false, $false); $c.LineTo((New-BfxPoint ($q[0] * $rad) ($q[1] * $rad)), $true, $false) } }.GetNewClosure()
+    [void]$sc.Children.Add((New-BfxPath $thick $null $ink 3))
+    for ($n = 1; $n -lt 5; $n++) { foreach ($q in @(@(1, 0), @(-1, 0), @(0, 1))) { [void]$sc.Children.Add((Set-BfxAt (New-BfxEllipse 2.8 2.8 $ink) ($q[0] * $n * $rad * 0.07 - 1.4) ($q[1] * $n * $rad * 0.07 - 1.4))) } }
+    [void]$sc.Children.Add((Set-BfxAt (New-BfxEllipse ($rad * 2) ($rad * 2) $null (New-BfxBrush '#c8dcc8' 0.25) 2) (-$rad) (-$rad)))
+    $breath = Set-BfxTransforms $sc 0 0
+    Start-BfxAnim $breath.T $global:BfxP.X -3 3 2.4 0 -Reverse -Ease; Start-BfxAnim $breath.T $global:BfxP.Y -2.5 2.5 3.4 0.3 -Reverse -Ease
+    $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($sc); $wt = Set-BfxTransforms $wrap 0 0
+    Add-BfxItem $S $wrap -Fx 0 -Top 0
+    $targets = @(); for ($n = 0; $n -lt 5; $n++) { $targets += , @((Get-BfxRnd $S 0.35 0.85), (Get-BfxRnd $S ($H * 0.35) ($H * 0.65))) }
+    $S.Extra = { param($cw)
+        $kx = @(); $ky = @(); $cnt = $targets.Count
+        for ($n = 0; $n -le $cnt; $n++) { $p = $targets[$n % $cnt]; $u0 = $n / $cnt; $kx += , @($u0, ($p[0] * $cw)); $ky += , @($u0, $p[1]); if ($n -lt $cnt) { $u1 = $u0 + 0.7 / $cnt; $kx += , @($u1, ($p[0] * $cw)); $ky += , @($u1, $p[1]) } }
+        Start-BfxKeys $wt.T $global:BfxP.X $kx (4.0 * $cnt); Start-BfxKeys $wt.T $global:BfxP.Y $ky (4.0 * $cnt)
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+# Tiled noise / line brushes shared by the screen-type effects.
+function global:New-BfxTileBrush {
+    param([double]$Size, [scriptblock]$Fill)
+    $dg = New-Object System.Windows.Media.DrawingGroup
+    & $Fill $dg
+    $tile = New-Object System.Windows.Media.DrawingBrush $dg
+    $tile.TileMode = [System.Windows.Media.TileMode]::Tile; $tile.Stretch = [System.Windows.Media.Stretch]::None
+    $tile.ViewportUnits = [System.Windows.Media.BrushMappingMode]::Absolute; $tile.Viewport = [System.Windows.Rect]::new(0, 0, $Size, $Size)
+    $tile.Viewbox = [System.Windows.Rect]::new(0, 0, $Size, $Size); $tile.ViewboxUnits = [System.Windows.Media.BrushMappingMode]::Absolute
+    return $tile
+}
+
+function global:New-BfxScanlines {
+    param([double]$H, [double]$A = 0.18)
+    $tile = New-BfxTileBrush 3 { param($dg) [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' 0.0), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 3, 3)))); [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' $A), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 3, 1)))) }.GetNewClosure()
+    $tile.Freeze()
+    return (New-BfxRect 4200 ($H + 6) $tile)
+}
+
+function global:Add-BfxNightvision {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxRect 4200 ($H + 4) (New-BfxBrush '#3cff6e' 0.08)) -Fx 0 -Top -2
+    for ($i = 0; $i -lt 4; $i++) {
+        $gl = New-BfxGlow (Get-BfxRnd $S 70 100) '#c8ffcc' 0.45
+        Start-BfxAnim $gl $global:BfxP.O 0.7 1 (Get-BfxRnd $S 1.5 3) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $gl -Fx (Get-BfxRnd $S 0.15 0.95) -Top ($H * (Get-BfxRnd $S 0.1 0.8))
+    }
+    $rng = $S.R
+    $grain = New-BfxTileBrush 96 { param($dg) for ($n = 0; $n -lt 60; $n++) { [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#a0ffb0' (0.1 + $rng.NextDouble() * 0.25)), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new($rng.NextDouble() * 95, $rng.NextDouble() * 95, 1, 1)))) } }.GetNewClosure()
+    $grain.Freeze()
+    $noise = New-BfxRect 4300 ($H + 100) $grain; $nt = Set-BfxTransforms $noise
+    Start-BfxKeys $nt.T $global:BfxP.X @(@(0, 0), @(0.25, -37), @(0.5, -71), @(0.75, -19), @(1, 0)) 0.32 -Discrete
+    Start-BfxKeys $nt.T $global:BfxP.Y @(@(0, 0), @(0.25, -53), @(0.5, -11), @(0.75, -83), @(1, 0)) 0.32 -Discrete
+    Add-BfxItem $S $noise -Fx 0 -Top -2
+    Add-BfxItem $S (New-BfxScanlines $H 0.12) -Fx 0 -Top -3
+    $band = New-BfxRect 4200 14 (New-BfxBrush '#78ff96' 0.06); $bt = Set-BfxTransforms $band
+    Start-BfxAnim $bt.T $global:BfxP.Y -20 ($H + 20) 4 0
+    Add-BfxItem $S $band -Fx 0 -Top 0
+    $vig = New-Object System.Windows.Shapes.Rectangle; $vig.IsHitTestVisible = $false
+    $rg = New-Object System.Windows.Media.RadialGradientBrush; $rg.RadiusX = 0.62; $rg.RadiusY = 0.9
+    [void]$rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#000000' 0), 0.45)); [void]$rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#000000' 0.35), 1)); $rg.Freeze()
+    $vig.Fill = $rg; $vig.Height = $H + 4
+    Add-BfxItem $S $vig -Fx 0 -Top -2
+    $S.Extra = { param($cw) $vig.Width = $cw }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCamcorder {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#f0f0f0' 0.8; $m = 12.0; $len = 18.0
+    foreach ($q in @(@(0, 1, 1, $m), @(1, -1, 1, $m), @(0, 1, -1, ($H - $m)), @(1, -1, -1, ($H - $m)))) {
+        $sx = $q[1]; $sy = $q[2]
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($sy * $len)), $false, $false); $c.LineTo((New-BfxPoint 0 0), $true, $false); $c.LineTo((New-BfxPoint ($sx * $len) 0), $true, $false) }.GetNewClosure()
+        Add-BfxItem $S (New-BfxPath $geo $null $ink 1.5) -Fx $q[0] -OffsetX ($sx * $m) -Top $q[3]
+    }
+    $rec = New-Object System.Windows.Controls.Canvas
+    [void]$rec.Children.Add((New-BfxGlow 24 '#ff2a2a' 0.6)); [void]$rec.Children.Add((Set-BfxAt (New-BfxEllipse 9 9 (New-BfxBrush '#ff2a2a' 1)) -4.5 -4.5))
+    Start-BfxKeys $rec $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1.43 -Discrete
+    Add-BfxItem $S $rec -Fx 0.6 -Top 22
+    $lbl = New-BfxText 'REC' '#f0f0f0' 0.85 11; $lbl.FontWeight = [System.Windows.FontWeights]::SemiBold
+    Add-BfxItem $S $lbl -Fx 0.6 -OffsetX 10 -Top 14
+    $tc = New-BfxText '00:00:00' '#f0f0f0' 0.85 11
+    $sa = New-Object System.Windows.Media.Animation.StringAnimationUsingKeyFrames
+    $sa.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(60)); $sa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+    for ($n = 0; $n -lt 60; $n++) { [void]$sa.KeyFrames.Add([System.Windows.Media.Animation.DiscreteStringKeyFrame]::new(('00:00:' + $n.ToString('00')), [System.Windows.Media.Animation.KeyTime]::FromTimeSpan([TimeSpan]::FromSeconds($n)))) }
+    $tc.BeginAnimation([System.Windows.Controls.TextBlock]::TextProperty, $sa)
+    Add-BfxItem $S $tc -Fx 1 -OffsetX (-110) -Top ($H - 28)
+    $bat = New-BfxRect 24 10 $null; $bat.Stroke = $ink; $bat.StrokeThickness = 1
+    Add-BfxItem $S $bat -Fx 1 -OffsetX (-46) -Top 16
+    Add-BfxItem $S (New-BfxRect 3 4 $ink) -Fx 1 -OffsetX (-22) -Top 19
+    for ($n = 0; $n -lt 3; $n++) {
+        $bar = New-BfxRect 5 6 $ink
+        if ($n -gt 0) { Start-BfxKeys $bar $global:BfxP.O @(@(0, 1), @((1 - $n / 3.0), 1), @((1 - $n / 3.0 + 0.001), 0), @(1, 0)) 21 -Discrete }
+        Add-BfxItem $S $bar -Fx 1 -OffsetX (-44 + $n * 7) -Top 18
+    }
+    $cross = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -8 0), $false, $false); $c.LineTo((New-BfxPoint 8 0), $true, $false); $c.BeginFigure((New-BfxPoint 0 -8), $false, $false); $c.LineTo((New-BfxPoint 0 8), $true, $false) }
+    Add-BfxItem $S (New-BfxPath $cross $null $ink 1.5) -Fx 0.5 -Top ($H / 2)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSirens {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 0.77
+    foreach ($sd in @(@(0, '#ff2030', 0.0), @(1, '#2a6bff', 0.5))) {
+        $gl = New-BfxGlow ($H * 6) $sd[1] 0.5
+        $a0 = $sd[2]
+        Start-BfxKeys $gl $global:BfxP.O @(@(0, 0), @(($a0 + 0.001), 0), @(($a0 + 0.002), 1), @(($a0 + 0.09), 1), @(($a0 + 0.091), 0), @(($a0 + 0.15), 0), @(($a0 + 0.151), 1), @(($a0 + 0.225), 1), @(($a0 + 0.226), 0), @(1, 0)) $per -Discrete
+        Add-BfxItem $S $gl -Fx $sd[0] -Top ($H * 0.5)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSkyline {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $field = 2400.0
+    foreach ($ly in @(@('#121a34', 0.5, 8, 0.35, 0.7), @('#070b18', 0.85, 22, 0.25, 0.55))) {
+        $blds = @(); $x = 0.0
+        while ($x -lt $field) { $bw = Get-BfxRnd $S 30 80; $blds += , @($x, $bw, ($H * (Get-BfxRnd $S $ly[3] $ly[4])), ((Get-BfxRnd $S) -lt 0.3)); $x += $bw + (Get-BfxRnd $S 2 8) }
+        $rng = $S.R
+        $bgeo = New-BfxGeo { param($c) foreach ($sh in @(0, $field)) { foreach ($b in $blds) { $top = $H - $b[2]; $x0 = $b[0] + $sh; $c.BeginFigure((New-BfxPoint $x0 ($H + 2)), $true, $true); $c.LineTo((New-BfxPoint $x0 $top), $true, $false); $c.LineTo((New-BfxPoint ($x0 + $b[1]) $top), $true, $false); $c.LineTo((New-BfxPoint ($x0 + $b[1]) ($H + 2)), $true, $false) } } }.GetNewClosure()
+        $wins = @(); foreach ($b in $blds) { for ($yy = $H - $b[2] + 6; $yy -lt $H - 6; $yy += 9) { for ($xx = $b[0] + 5; $xx -lt $b[0] + $b[1] - 5; $xx += 8) { if ($rng.NextDouble() -lt 0.33) { $wins += , @($xx, $yy) } } } }
+        $wgeo = New-BfxGeo { param($c) foreach ($sh in @(0, $field)) { foreach ($wn in $wins) { $x0 = $wn[0] + $sh; $c.BeginFigure((New-BfxPoint $x0 $wn[1]), $true, $true); $c.LineTo((New-BfxPoint ($x0 + 3) $wn[1]), $true, $false); $c.LineTo((New-BfxPoint ($x0 + 3) ($wn[1] + 4)), $true, $false); $c.LineTo((New-BfxPoint $x0 ($wn[1] + 4)), $true, $false) } } }.GetNewClosure()
+        $layer = New-Object System.Windows.Controls.Canvas
+        [void]$layer.Children.Add((New-BfxPath $bgeo (New-BfxBrush $ly[0] 1)))
+        [void]$layer.Children.Add((New-BfxPath $wgeo (New-BfxBrush '#ffd68c' ($ly[1] * 0.55))))
+        foreach ($b in $blds) { if ($b[3]) { foreach ($sh in @(0, $field)) { $lt = New-BfxEllipse 3.2 3.2 (New-BfxBrush '#ff3a3a' 1); Start-BfxKeys $lt $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1.66 (Get-BfxRnd $S) -Discrete; [void]$layer.Children.Add((Set-BfxAt $lt ($b[0] + $sh + $b[1] / 2 - 1.6) ($H - $b[2] - 5.6))) } } }
+        $tf = Set-BfxTransforms $layer 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (-$field) ($field / $ly[2]) (Get-BfxRnd $S)
+        Add-BfxItem $S $layer -Fx 0 -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRunnerline {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $roof = New-BfxBrush '#ffffff' 0.18; $edge = New-BfxBrush '#96a5b4' 0.35
+    for ($i = 0; $i -lt 7; $i++) {
+        $top = $H * (Get-BfxRnd $S 0.45 0.95); $wd = Get-BfxRnd $S 120 320; $fx = Get-BfxRnd $S 0 0.95
+        Add-BfxItem $S (New-BfxRect $wd ($H - $top + 2) $roof) -Fx $fx -Top $top
+        Add-BfxItem $S (New-BfxRect $wd 2 $edge) -Fx $fx -Top $top
+    }
+    for ($i = 0; $i -lt 2; $i++) {
+        $line = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -260 6), $true, $true); $c.LineTo((New-BfxPoint 0 -2), $true, $false); $c.LineTo((New-BfxPoint 0 2), $true, $false) }
+        [void]$line.Children.Add((New-BfxPath $geo (New-BfxLinear @(@(0, '#e61e1e', 0), @(1, '#e61e1e', 0.95)) -Horizontal)))
+        [void]$line.Children.Add((New-BfxGlow 22 '#ff4040' 0.8))
+        $tf = Set-BfxTransforms $line 0 0
+        Add-BfxItem $S $line -Top ($H * (0.55 + $i * 0.18)) -Speed 500 -Phase ($i * 0.5) -T $tf.T -Margin 300
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTerminal {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789>:./-'
+    $lh = 13.0; $rows = [int][Math]::Floor($H / $lh) + 1; $count = 24
+    $block = New-Object System.Windows.Controls.Canvas
+    for ($pass = 0; $pass -lt 2; $pass++) {
+        for ($n = 0; $n -lt $count; $n++) {
+            $len = 8 + $S.R.Next(0, 34); $sb = New-Object System.Text.StringBuilder
+            for ($k = 0; $k -lt $len; $k++) { if ($S.R.NextDouble() -lt 0.15) { [void]$sb.Append(' ') } else { [void]$sb.Append($chars[$S.R.Next(0, $chars.Length)]) } }
+            [void]$block.Children.Add((Set-BfxAt (New-BfxText $sb.ToString() '#5aff8c' 0.8 11) 0 (($pass * $count + $n) * $lh)))
+        }
+    }
+    Set-BfxShadow $block '#40ff80' 6
+    $tf = Set-BfxTransforms $block 0 0
+    Start-BfxKeys $tf.T $global:BfxP.Y (@(for ($n = 0; $n -le $count; $n++) { , @(($n / $count), (- $n * $lh)) })) ($count / 1.6) -Discrete
+    $clip = New-Object System.Windows.Controls.Canvas; $clip.ClipToBounds = $true; $clip.Width = 340; $clip.Height = $H
+    $clip.OpacityMask = New-BfxLinear @(@(0, '#000000', 0.25), @(1, '#000000', 1))
+    [void]$clip.Children.Add($block)
+    Add-BfxItem $S $clip -Fx 0.48 -Top 2
+    $cur = New-BfxRect 7 11 (New-BfxBrush '#5aff8c' 0.9)
+    Start-BfxKeys $cur $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1 -Discrete
+    Add-BfxItem $S $cur -Fx 0.48 -OffsetX (-12) -Top ($H - 15)
+    Add-BfxItem $S (New-BfxScanlines $H 0.18) -Fx 0 -Top -3
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHeathaze {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 2.4) '#ffd890' 0.35) -Fx 0.78 -Top ($H * 0.25)
+    $sun = New-BfxEllipse ($H * 0.24) ($H * 0.24) (New-BfxBrush '#fff4d0' 0.85); $sun.Margin = [System.Windows.Thickness]::new(-$H * 0.12, -$H * 0.12, 0, 0)
+    Add-BfxItem $S $sun -Fx 0.78 -Top ($H * 0.25)
+    for ($i = 0; $i -lt 9; $i++) {
+        $amp = 2.5; $fr = 0.03; $ph = $i
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ([Math]::Sin($ph) * $amp)), $false, $false); for ($x = 8.0; $x -le 4200; $x += 8) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * $amp)), $true, $true) } }.GetNewClosure()
+        $wave = New-BfxPath $geo $null (New-BfxBrush '#ffe6be' (0.06 + 0.02 * $i)) 2
+        $tf = Set-BfxTransforms $wave
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (-2 * [Math]::PI / $fr) (Get-BfxRnd $S 1.5 3) 0
+        Add-BfxItem $S $wave -Fx 0 -Top ($H * (0.55 + $i * 0.05))
+    }
+    for ($i = 0; $i -lt 46; $i++) {
+        $d = New-BfxEllipse 1.8 1.8 (New-BfxBrush '#ffe2b0' 0.45); $tf = Set-BfxTransforms $d
+        Add-BfxItem $S $d -Top (Get-BfxRnd $S 0 $H) -Speed (Get-BfxRnd $S 10 40) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 5
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBloodmoon {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $rad = $H * 0.32
+    $halo = New-BfxGlow ($rad * 6.4) '#ff2a2a' 0.3
+    Start-BfxAnim $halo $global:BfxP.O 0.8 1 2.6 0 -Reverse -Ease
+    Add-BfxItem $S $halo -Fx 0.72 -Top ($H * 0.42)
+    $mg = New-Object System.Windows.Media.RadialGradientBrush; $mg.GradientOrigin = [System.Windows.Point]::new(0.35, 0.35); $mg.Center = [System.Windows.Point]::new(0.45, 0.45)
+    [void]$mg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#ff785a' 0.95), 0)); [void]$mg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#a01418' 0.95), 1)); $mg.Freeze()
+    $moon = New-BfxEllipse ($rad * 2) ($rad * 2) $mg; $moon.Margin = [System.Windows.Thickness]::new(-$rad, -$rad, 0, 0)
+    Add-BfxItem $S $moon -Fx 0.72 -Top ($H * 0.42)
+    for ($i = 0; $i -lt 6; $i++) {
+        $len = Get-BfxRnd $S 200 500
+        $mist = New-BfxRect $len 12 (New-BfxLinear @(@(0, '#280a0e', 0), @(0.5, '#280a0e', 0.55), @(1, '#280a0e', 0)) -Horizontal) 6
+        $tf = Set-BfxTransforms $mist
+        Add-BfxItem $S $mist -Top ($H * (Get-BfxRnd $S 0.2 0.9) - 6) -Speed (Get-BfxRnd $S 10 28) -Phase (Get-BfxRnd $S) -T $tf.T -Margin $len
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPyro {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 1.25; $fh = $H * 1.1
+    $fgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -10 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -18 (-$fh * 0.5)), (New-BfxPoint 0 (-$fh)), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 18 (-$fh * 0.5)), (New-BfxPoint 10 0), $true, $false) }.GetNewClosure()
+    $fill = New-BfxLinear @(@(0, '#c8280a', 0), @(0.6, '#ff8c1e', 0.85), @(1, '#fff0b4', 0.95))
+    for ($i = 0; $i -lt 5; $i++) {
+        $ph = ($i % 2) * 0.5
+        $grp = New-Object System.Windows.Controls.Canvas
+        $gl = New-BfxGlow 180 '#ff7a1a' 0.5; [void]$grp.Children.Add($gl)
+        Start-BfxKeys $gl $global:BfxP.O @(@(0, 0), @(0.15, 1), @(0.3, 0), @(1, 0)) $per $ph
+        $flame = New-BfxPath $fgeo $fill; $ft = Set-BfxTransforms $flame
+        Start-BfxKeys $ft.S $global:BfxP.SY @(@(0, 0), @(0.15, 1), @(0.3, 0), @(1, 0)) $per $ph
+        Start-BfxAnim $ft.S $global:BfxP.SX 0.85 1.15 0.11 (Get-BfxRnd $S) -Reverse
+        [void]$grp.Children.Add($flame)
+        for ($k = 0; $k -lt 6; $k++) {
+            $sp = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#ffd27a' 1); $st = Set-BfxTransforms $sp
+            $vx = Get-BfxRnd $S -40 40; $top = - $fh * (Get-BfxRnd $S 0.6 0.9)
+            Start-BfxKeys $st.T $global:BfxP.X @(@(0, 0), @(0.12, 0), @(0.8, $vx), @(1, $vx)) $per $ph
+            Start-BfxKeys $st.T $global:BfxP.Y @(@(0, 0), @(0.12, ($top * 0.8)), @(0.4, $top), @(0.8, ($top * 0.4)), @(1, ($top * 0.4))) $per $ph
+            Start-BfxKeys $sp $global:BfxP.O @(@(0, 0), @(0.12, 1), @(0.8, 0), @(1, 0)) $per $ph
+            [void]$grp.Children.Add($sp)
+        }
+        Add-BfxItem $S $grp -Fx (0.12 + $i * 0.19) -Top $H
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRubble {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $rock = New-BfxBrush '#786450' 0.95
+    for ($site = 0; $site -lt 4; $site++) {
+        $per = Get-BfxRnd $S 2.2 3.6; $ph = Get-BfxRnd $S
+        $grp = New-Object System.Windows.Controls.Canvas
+        $puff = New-BfxGlow 70 '#b8a080' 0.35; $pt = Set-BfxTransforms $puff; [void]$grp.Children.Add($puff)
+        Start-BfxKeys $pt.S $global:BfxP.SX @(@(0, 0.4), @(0.6, 2.2), @(1, 2.2)) $per $ph; Start-BfxKeys $pt.S $global:BfxP.SY @(@(0, 0.4), @(0.6, 2.2), @(1, 2.2)) $per $ph
+        Start-BfxKeys $puff $global:BfxP.O @(@(0, 1), @(0.6, 0), @(1, 0)) $per $ph
+        for ($n = 0; $n -lt 9; $n++) {
+            $sz = Get-BfxRnd $S 2 6
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$sz) (-$sz * 0.6)), $true, $true); $c.LineTo((New-BfxPoint ($sz * 0.8) (-$sz)), $true, $false); $c.LineTo((New-BfxPoint $sz ($sz * 0.7)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 0.6) $sz), $true, $false) }.GetNewClosure()
+            $ch = New-BfxPath $geo $rock; $tf = Set-BfxTransforms $ch
+            $vx = Get-BfxRnd $S -80 80; $vy = - (Get-BfxRnd $S 90 230); $life = [Math]::Min(0.95, (2 * - $vy / 300) / $per)
+            $kx = @(); $ky = @()
+            for ($k = 0; $k -le 6; $k++) { $u = $k / 6.0 * $life; $tt = $u * $per; $kx += , @($u, ($vx * $tt)); $ky += , @($u, ($vy * $tt + 150 * $tt * $tt)) }
+            $kx += , @(1, ($vx * $life * $per)); $ky += , @(1, 20)
+            Start-BfxKeys $tf.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $tf.T $global:BfxP.Y $ky $per $ph
+            Start-BfxAnim $tf.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 0.6 1.4) (Get-BfxRnd $S)
+            [void]$grp.Children.Add($ch)
+        }
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S 0.15 0.9) -Top $H
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxVoxels {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $cols = @(@('#6aa84f', '#4a7637', '#8cd06a'), @('#8b5a2b', '#613f1e', '#ad7a48'), @('#9e9e9e', '#6e6e6e', '#c4c4c4'), @('#c9b458', '#8d7e3e', '#e8d47a'), @('#5b8bd6', '#405f96', '#82aaf0'))
+    for ($i = 0; $i -lt 14; $i++) {
+        $cl = Get-BfxPick $S $cols; $sz = Get-BfxRnd $S 9 15; $per = Get-BfxRnd $S 3 6; $ph = Get-BfxRnd $S; $land = 0.55
+        $blk = New-Object System.Windows.Controls.Canvas
+        [void]$blk.Children.Add((New-BfxRect $sz $sz (New-BfxBrush $cl[0] 1))); [void]$blk.Children.Add((Set-BfxAt (New-BfxRect ($sz * 0.3) $sz (New-BfxBrush $cl[1] 1)) ($sz * 0.7) 0)); [void]$blk.Children.Add((New-BfxRect $sz ($sz * 0.25) (New-BfxBrush $cl[2] 1)))
+        $bt = Set-BfxTransforms $blk 0 0
+        $ky = @(); for ($k = 0; $k -le 6; $k++) { $u = $k / 6.0; $ky += , @(($u * $land), (-20 + ($H - $sz - 4 + 20) * $u * $u)) }; $ky += , @(1, ($H - $sz - 4))
+        Start-BfxKeys $bt.T $global:BfxP.Y $ky $per $ph
+        Start-BfxKeys $blk $global:BfxP.O @(@(0, 1), @($land, 1), @(($land + 0.001), 0), @(1, 0)) $per $ph -Discrete
+        $grp = New-Object System.Windows.Controls.Canvas; [void]$grp.Children.Add($blk)
+        for ($n = 0; $n -lt 8; $n++) {
+            $a = - [Math]::PI * ($n + 0.5) / 8; $bit = New-BfxRect 3 3 (New-BfxBrush $cl[0] 1); $st = Set-BfxTransforms $bit
+            $x0 = $sz / 2; $y0 = $H - 6
+            Start-BfxKeys $st.T $global:BfxP.X @(@(0, $x0), @($land, $x0), @(1, ($x0 + [Math]::Cos($a) * 26))) $per $ph
+            Start-BfxKeys $st.T $global:BfxP.Y @(@(0, $y0), @($land, $y0), @((($land + 1) / 2), ($y0 + [Math]::Sin($a) * 14)), @(1, ($y0 + [Math]::Sin($a) * 21 + 30))) $per $ph
+            Start-BfxKeys $bit $global:BfxP.O @(@(0, 0), @($land, 0), @(($land + 0.001), 1), @(1, 0)) $per $ph
+            [void]$grp.Children.Add($bit)
+        }
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S 0.03 0.95) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSupernova {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 56; $i++) { Add-BfxItem $S (New-BfxEllipse 1.4 1.4 (New-BfxBrush '#ffffff' (Get-BfxRnd $S 0.3 0.7))) -Fx (Get-BfxRnd $S) -Top (Get-BfxRnd $S 0 $H) }
+    Add-BfxSpread $S {
+        param($slot)
+        $per = 9.0
+        $star = New-Object System.Windows.Controls.Canvas
+        [void]$star.Children.Add((New-BfxGlow 104 '#ffd8a0' 0.8)); [void]$star.Children.Add((New-BfxGlow 12 '#fff8e8' 1))
+        $st = Set-BfxTransforms $star 0 0
+        $grow = @(@(0, 0.25), @(0.5, 0.95), @(0.52, 1.3), @(0.54, 0.8), @(0.56, 1.35), @(0.58, 0.85), @(0.6, 1.2), @(0.62, 0), @(1, 0))
+        Start-BfxKeys $st.S $global:BfxP.SX $grow $per; Start-BfxKeys $st.S $global:BfxP.SY $grow $per
+        Add-BfxItem $S $star -Fx 0 -Top ($H * 0.45)
+        $ring = New-BfxEllipse 200 90 $null (New-BfxBrush '#8cc8ff' 0.8) 1.2; $ring.Margin = [System.Windows.Thickness]::new(-100, -45, 0, 0)
+        $rt = Set-BfxTransforms $ring
+        Start-BfxKeys $rt.S $global:BfxP.SX @(@(0, 0), @(0.6, 0), @(1, 8)) $per; Start-BfxKeys $rt.S $global:BfxP.SY @(@(0, 0), @(0.6, 0), @(1, 8)) $per
+        Start-BfxKeys $ring $global:BfxP.O @(@(0, 0), @(0.6, 0), @(0.601, 1), @(1, 0)) $per
+        Add-BfxItem $S $ring -Fx 0 -Top ($H * 0.45)
+        $flash = New-BfxGlow 280 '#9fd0ff' 0.6
+        Start-BfxKeys $flash $global:BfxP.O @(@(0, 0), @(0.6, 0), @(0.601, 1), @(0.85, 0), @(1, 0)) $per
+        Add-BfxItem $S $flash -Fx 0 -Top ($H * 0.45)
+    } ($H * 1.9)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLaunch {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        $per = 7.0; $yAt = { param($u) ($H + 20) - [Math]::Pow($u, 1.8) * ($H + 120) }.GetNewClosure()
+        for ($i = 0; $i -lt 24; $i++) {
+            $u0 = $i / 24.0 * 0.92; $y0 = & $yAt $u0
+            $puff = New-BfxGlow 24 '#d8dce4' 0.25; $pt = Set-BfxTransforms $puff
+            $drift = Get-BfxRnd $S -25 25
+            Start-BfxKeys $pt.T $global:BfxP.X @(@(0, 0), @($u0, 0), @(1, $drift)) $per
+            Start-BfxKeys $pt.S $global:BfxP.SX @(@(0, 0.5), @($u0, 0.5), @(1, 3.5)) $per; Start-BfxKeys $pt.S $global:BfxP.SY @(@(0, 0.5), @($u0, 0.5), @(1, 3.5)) $per
+            Start-BfxKeys $puff $global:BfxP.O @(@(0, 0), @($u0, 0), @(($u0 + 0.01), 1), @(1, 0)) $per
+            Add-BfxItem $S $puff -Fx 0 -Top ($y0 + 24)
+        }
+        $rk = New-Object System.Windows.Controls.Canvas
+        [void]$rk.Children.Add((Set-BfxAt (New-BfxGlow 60 '#ffb050' 0.8) 0 26))
+        $fg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -4 16), $true, $true); $c.LineTo((New-BfxPoint 0 34), $true, $false); $c.LineTo((New-BfxPoint 4 16), $true, $false) }
+        $flame = New-BfxPath $fg (New-BfxBrush '#ffc85a' 0.95); $ft = Set-BfxTransforms $flame 0 0
+        Start-BfxAnim $ft.S $global:BfxP.SY 0.85 1.2 0.06 0 -Reverse
+        [void]$rk.Children.Add($flame)
+        $bg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 -18), $true, $true); $c.QuadraticBezierTo((New-BfxPoint 6 -8), (New-BfxPoint 5 16), $true, $false); $c.LineTo((New-BfxPoint -5 16), $true, $false); $c.QuadraticBezierTo((New-BfxPoint -6 -8), (New-BfxPoint 0 -18), $true, $false) }
+        [void]$rk.Children.Add((New-BfxPath $bg (New-BfxBrush '#e8ecf2' 1)))
+        [void]$rk.Children.Add((Set-BfxAt (New-BfxRect 4 7 (New-BfxBrush '#c84a3a' 1)) -8 10)); [void]$rk.Children.Add((Set-BfxAt (New-BfxRect 4 7 (New-BfxBrush '#c84a3a' 1)) 4 10))
+        $tf = Set-BfxTransforms $rk 0 0
+        $ky = @(); for ($k = 0; $k -le 10; $k++) { $u = $k / 10.0 * 0.95; $ky += , @($u, (& $yAt $u)) }; $ky += , @(1, (& $yAt 0.95))
+        Start-BfxKeys $tf.T $global:BfxP.Y $ky $per
+        Start-BfxKeys $rk $global:BfxP.O @(@(0, 1), @(0.95, 1), @(0.951, 0), @(1, 0)) $per -Discrete
+        Add-BfxItem $S $rk -Fx 0 -Top 0
+    } ($H * 1.4)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxFlares {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $items = @()
+    for ($i = 0; $i -lt 4; $i++) {
+        $col = $(if ((Get-BfxRnd $S) -lt 0.7) { '#ff3a2a' } else { '#4dff6a' }); $dir = Get-BfxPick $S @(1, -1)
+        $per = Get-BfxRnd $S 6 9; $ph = Get-BfxRnd $S; $fly = 0.12
+        $fl = New-Object System.Windows.Controls.Canvas
+        $halo = New-BfxGlow 140 $col 0.45; [void]$fl.Children.Add($halo)
+        Start-BfxAnim $halo $global:BfxP.O 0.75 1 0.09 (Get-BfxRnd $S) -Reverse
+        [void]$fl.Children.Add((New-BfxGlow 6 '#ffffff' 1))
+        for ($k = 0; $k -lt 6; $k++) { $sm = New-BfxGlow (12 + $k * 4) '#c8c8c8' 0.1; Start-BfxAnim $sm $global:BfxP.O 0.5 1 (Get-BfxRnd $S 1 2) (Get-BfxRnd $S) -Reverse -Ease; [void]$fl.Children.Add((Set-BfxAt $sm 0 (-8 - $k * 7))) }
+        $tf = Set-BfxTransforms $fl 0 0
+        Start-BfxKeys $fl $global:BfxP.O @(@(0, 1), @(0.85, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $fl -Fx 0 -Top 0
+        $items += , @($tf, $per, $ph, $fly, (0.2 + $i * 0.2 + (Get-BfxRnd $S 0 0.08)), $dir)
+    }
+    $S.Extra = { param($cw)
+        foreach ($it in $items) {
+            $tf = $it[0]; $fly = $it[3]; $x1 = $it[4] * $cw; $y1 = $H - 8; $x0 = $(if ($it[5] -gt 0) { -20 } else { $cw + 20 })
+            $kx = @(); $ky = @()
+            for ($k = 0; $k -le 6; $k++) { $q = $k / 6.0; $kx += , @(($q * $fly), ($x0 + ($x1 - $x0) * $q)); $ky += , @(($q * $fly), ($H * 0.2 + ($y1 - $H * 0.2) * $q - [Math]::Sin($q * [Math]::PI) * $H * 0.4)) }
+            $kx += , @(($fly + 0.12), ($x1 + 14 * $it[5])); $kx += , @(1, ($x1 + 14 * $it[5])); $ky += , @(1, $y1)
+            Start-BfxKeys $tf.T $global:BfxP.X $kx $it[1] $it[2]; Start-BfxKeys $tf.T $global:BfxP.Y $ky $it[1] $it[2]
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHandprints {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $dark = New-BfxBrush '#040406' 0.55
+    for ($i = 0; $i -lt 8; $i++) {
+        $hand = New-Object System.Windows.Controls.Canvas
+        [void]$hand.Children.Add((Set-BfxAt (New-BfxEllipse 16 18 $dark) -8 -5))
+        foreach ($fg in @(@(-7, -6, 30), @(-3, -11, 9), @(1.5, -12, 0), @(6, -10, -9), @(10, 0, -52))) {
+            $f = New-BfxEllipse 4 12 $dark; $f.Margin = [System.Windows.Thickness]::new(-2, -6, 0, 0); $fr = Set-BfxTransforms $f; $fr.R.Angle = $fg[2]
+            [void]$hand.Children.Add((Set-BfxAt $f $fg[0] $fg[1]))
+        }
+        $tf = Set-BfxTransforms $hand 0 0; $tf.R.Angle = Get-BfxRnd $S -25 25; $scl = Get-BfxRnd $S 0.8 1.3
+        $tf.S.ScaleX = $scl * (Get-BfxPick $S @(1, -1)); $tf.S.ScaleY = $scl
+        Start-BfxKeys $hand $global:BfxP.O @(@(0, 0), @(0.05, 1), @(0.5, 1), @(0.8, 0), @(1, 0)) (Get-BfxRnd $S 5 9) (Get-BfxRnd $S)
+        Add-BfxItem $S $hand -Fx (Get-BfxRnd $S 0.08 0.95) -Top ($H * (Get-BfxRnd $S 0.25 0.75))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRibbons {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $fr = 0.012; $wl = 2 * [Math]::PI / $fr
+    $cols = @('#e84a3a', '#f0b040', '#e86a9a', '#d84a2a')
+    for ($i = 0; $i -lt 4; $i++) {
+        $amp = $H * 0.12; $ph = Get-BfxRnd $S 0 6.28
+        $geo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint 0 ([Math]::Sin($ph) * $amp)), $true, $true)
+            for ($x = 12.0; $x -le 4400; $x += 12) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * $amp)), $true, $true) }
+            for ($x = 4400.0; $x -ge 0; $x -= 12) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * $amp + 7)), $true, $true) }
+        }.GetNewClosure()
+        $band = New-Object System.Windows.Controls.Canvas
+        [void]$band.Children.Add((New-BfxPath $geo (New-BfxBrush $cols[$i] 0.55)))
+        for ($x = 30.0; $x -lt 4400; $x += 72) {
+            $gl = New-BfxGlow 16 '#fff2b0' 0.9
+            Start-BfxFlash $gl 3.2 ((($x / 600.0) + $i * 0.2) % 1) 0.18
+            [void]$band.Children.Add((Set-BfxAt $gl $x ([Math]::Sin($x * $fr + $ph) * $amp + 3.5)))
+        }
+        $tf = Set-BfxTransforms $band 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $wl) ($wl / (Get-BfxRnd $S 40 70)) 0
+        Add-BfxItem $S $band -Fx 0 -Top ($H * (0.25 + $i * 0.17))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWindgrass {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 150; $i++) {
+        $len = $H * (Get-BfxRnd $S 0.25 0.6); $k = Get-BfxRnd $S
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.QuadraticBezierTo((New-BfxPoint ($len * 0.08) (-$len * 0.6)), (New-BfxPoint ($len * 0.22) (-$len)), $true, $false) }.GetNewClosure()
+        $col = '#{0:X2}{1:X2}{2:X2}' -f [int](200 + 40 * $k), [int](170 + 40 * $k), [int](90 + 30 * $k)
+        $blade = New-BfxPath $geo $null (New-BfxBrush $col 0.7) 1.2
+        $tf = Set-BfxTransforms $blade
+        $fx = Get-BfxRnd $S
+        Start-BfxAnim $tf.R $global:BfxP.A -4 22 1.45 ((1 - ($fx * 3) % 1) % 1) -Reverse -Ease
+        Add-BfxItem $S $blade -Fx $fx -Top $H
+    }
+    for ($i = 0; $i -lt 22; $i++) {
+        $sd = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#fff4c8' 0.7); $tf = Set-BfxTransforms $sd
+        Start-BfxAnim $tf.T $global:BfxP.Y -6 6 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $sd -Top ($H * (Get-BfxRnd $S 0.05 0.8)) -Speed (Get-BfxRnd $S 50 110) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 10
+    }
+    Complete-BfxStage $S
+}
+
+# ------------------------------------------------------------
+# Round 3 effects (game-specific, part 2)
+# ------------------------------------------------------------
+
+function global:Add-BfxGoldenrays {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        for ($i = 0; $i -lt 9; $i++) {
+            $len = $H * (Get-BfxRnd $S 1.1 1.5)
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-$len * 0.03) (-$len)), $true, $false); $c.LineTo((New-BfxPoint ($len * 0.03) (-$len)), $true, $false) }.GetNewClosure()
+            $ray = New-BfxPath $geo (New-BfxLinear @(@(0, '#ffdc82', 0), @(1, '#ffdc82', 0.32)))
+            $tf = Set-BfxTransforms $ray; $base = ($i - 4) * 10.3
+            Start-BfxAnim $tf.R $global:BfxP.A ($base - 3) ($base + 3) (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease
+            Start-BfxAnim $tf.S $global:BfxP.SY 0.8 1.1 (Get-BfxRnd $S 3 6) (Get-BfxRnd $S) -Reverse -Ease
+            Add-BfxItem $S $ray -Fx 0 -Top ($H * 0.95)
+        }
+        Add-BfxItem $S (New-BfxGlow 100 '#ffe08a' 0.8) -Fx 0 -Top ($H * 0.95)
+        for ($i = 0; $i -lt 30; $i++) {
+            $m = New-BfxGlow 4 '#ffe9a8' 1; $tf = Set-BfxTransforms $m; $per = Get-BfxRnd $S 5 11; $ph = Get-BfxRnd $S; $dx = Get-BfxRnd $S -90 90
+            Start-BfxAnim $tf.T $global:BfxP.Y 0 (-$H) $per $ph; Start-BfxAnim $tf.T $global:BfxP.X 0 $dx $per $ph
+            Start-BfxAnim $m $global:BfxP.O 1 0 $per $ph
+            Add-BfxItem $S $m -Fx 0 -Top ($H * 0.95)
+        }
+    } ($H * 1.9)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBonfire {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        $halo = New-BfxGlow ($H * 2.6) '#ff8a2a' 0.32
+        Start-BfxKeys $halo $global:BfxP.O @(@(0, 0.85), @(0.2, 1), @(0.35, 0.8), @(0.6, 0.95), @(0.8, 0.75), @(1, 0.85)) 1.3
+        Add-BfxItem $S $halo -Fx 0 -Top ($H - 14)
+        for ($i = 0; $i -lt 5; $i++) {
+            $fh = 30 * (1 - [Math]::Abs($i - 2) * 0.18)
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -6 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -7 (-$fh * 0.6)), (New-BfxPoint 0 (-$fh)), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 7 (-$fh * 0.6)), (New-BfxPoint 6 0), $true, $false) }.GetNewClosure()
+            $flame = New-BfxPath $geo (New-BfxBrush $(if ($i -eq 2) { '#ffe696' } else { '#ff8c28' }) $(if ($i -eq 2) { 0.9 } else { 0.8 }))
+            $tf = Set-BfxTransforms $flame
+            Start-BfxKeys $tf.S $global:BfxP.SY @(@(0, 1), @(0.3, 0.7), @(0.6, 1.15), @(1, 1)) (Get-BfxRnd $S 0.35 0.7) (Get-BfxRnd $S)
+            Start-BfxAnim $tf.R $global:BfxP.A -8 8 (Get-BfxRnd $S 0.5 1) (Get-BfxRnd $S) -Reverse -Ease
+            Add-BfxItem $S $flame -Fx 0 -OffsetX (($i - 2) * 7) -Top ($H - 4)
+        }
+        for ($i = 0; $i -lt 46; $i++) {
+            $e = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#ffc070' 1); $tf = Set-BfxTransforms $e; $per = Get-BfxRnd $S 2.5 6; $ph = Get-BfxRnd $S; $sw = Get-BfxRnd $S 10 30
+            Start-BfxAnim $tf.T $global:BfxP.Y 0 (- $H) $per $ph
+            Start-BfxKeys $tf.T $global:BfxP.X @(@(0, 0), @(0.25, $sw * 0.3), @(0.5, 0), @(0.75, (- $sw * 0.8)), @(1, $sw * 0.2)) $per $ph
+            Start-BfxAnim $e $global:BfxP.O 1 0 $per $ph
+            Add-BfxItem $S $e -Fx 0 -Top ($H - 20)
+        }
+    } ($H * 1.7)
+    Complete-BfxStage $S
+}
+
+# Elements that follow one looping path with a time lag each (swarms, trails).
+# $Items: @(@(element, lagSeconds, offX, offY), ...); $PathX/$PathY return 0..1 fractions for u in 0..1.
+function global:Add-BfxPathFollowers {
+    param($S, [double]$H, [object[]]$Items, [double]$SecX, [double]$SecY, [scriptblock]$PathX, [scriptblock]$PathY, [int]$Keys = 24)
+    $tfs = @()
+    foreach ($it in $Items) {
+        $tf = Set-BfxTransforms $it[0] 0 0
+        $ky = @(); for ($n = 0; $n -le $Keys; $n++) { $u = $n / [double]$Keys; $ky += , @($u, ((& $PathY $u) * $H + $it[3])) }
+        Start-BfxKeys $tf.T $global:BfxP.Y $ky $SecY ((1 - ($it[1] / $SecY) % 1) % 1)
+        Add-BfxItem $S $it[0] -Fx 0 -Top 0
+        $tfs += , @($tf, $it[1], $it[2])
+    }
+    $S.Extra = { param($cw)
+        foreach ($t2 in $tfs) {
+            $kx = @(); for ($n = 0; $n -le $Keys; $n++) { $u = $n / [double]$Keys; $kx += , @($u, ((& $PathX $u) * $cw + $t2[2])) }
+            Start-BfxKeys $t2[0].T $global:BfxP.X $kx $SecX ((1 - ($t2[1] / $SecX) % 1) % 1)
+        }
+    }.GetNewClosure()
+}
+
+function global:Add-BfxScoutflies {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $items = @()
+    for ($i = 0; $i -lt 40; $i++) {
+        $lag = Get-BfxRnd $S 0 1.2
+        $fly = New-Object System.Windows.Controls.Canvas
+        $gl = New-BfxGlow 14 '#6aff6a' (0.6 * (1 - $lag / 1.4)); [void]$fly.Children.Add($gl)
+        [void]$fly.Children.Add((New-BfxGlow 3 '#e8ffe8' 1))
+        $jt = Set-BfxTransforms $gl; Start-BfxAnim $jt.T $global:BfxP.X -4 4 (Get-BfxRnd $S 0.2 0.5) (Get-BfxRnd $S) -Reverse -Ease
+        $items += , @($fly, $lag, (Get-BfxRnd $S -9 9), (Get-BfxRnd $S -7 7))
+    }
+    Add-BfxPathFollowers $S $H $items 18 7 { param($u) 0.5 + 0.42 * [Math]::Sin($u * 2 * [Math]::PI) } { param($u) 0.5 + 0.28 * [Math]::Sin($u * 2 * [Math]::PI + 1) }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxFeathers {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $vane = New-BfxBrush '#f5f5f5' 0.85; $shaft = New-BfxBrush '#e6e6e6' 0.8
+    for ($i = 0; $i -lt 16; $i++) {
+        $sz = Get-BfxRnd $S 7 14
+        $f = New-Object System.Windows.Controls.Canvas
+        $vg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$sz)), $true, $true); $c.QuadraticBezierTo((New-BfxPoint ($sz * 0.5) (-$sz * 0.2)), (New-BfxPoint 0.5 ($sz * 0.7)), $true, $false); $c.QuadraticBezierTo((New-BfxPoint (-$sz * 0.45) 0), (New-BfxPoint 0 (-$sz)), $true, $false) }.GetNewClosure()
+        [void]$f.Children.Add((New-BfxPath $vg $vane))
+        $sg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$sz)), $false, $false); $c.LineTo((New-BfxPoint 0 $sz), $true, $false) }.GetNewClosure()
+        [void]$f.Children.Add((New-BfxPath $sg $null $shaft 0.8))
+        $tf = Set-BfxTransforms $f 0 0; $per = Get-BfxRnd $S 2.2 3.4; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y -20 ($H + 20) (($H + 40) / (Get-BfxRnd $S 8 20)) (Get-BfxRnd $S)
+        Start-BfxAnim $tf.T $global:BfxP.X -22 22 ($per / 2) $ph -Reverse -Ease
+        Start-BfxAnim $tf.R $global:BfxP.A -17 63 ($per / 2) $ph -Reverse -Ease
+        Add-BfxItem $S $f -Fx (Get-BfxRnd $S 0.03 0.97) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSabers {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 2.4; $len = $H * 0.85
+    foreach ($sd in @(@(-70, '#4da6ff', -100, -50), @(70, '#ff3a3a', -80, -130))) {
+        $bl = New-Object System.Windows.Controls.Canvas
+        [void]$bl.Children.Add((Set-BfxAt (New-BfxRect $len 9 (New-BfxBrush $sd[1] 0.35) 4.5) 0 -4.5))
+        [void]$bl.Children.Add((Set-BfxAt (New-BfxRect $len 4 (New-BfxBrush $sd[1] 0.9) 2) 0 -2))
+        [void]$bl.Children.Add((Set-BfxAt (New-BfxRect $len 1.6 (New-BfxBrush '#ffffff' 0.95) 0.8) 0 -0.8))
+        Set-BfxShadow $bl $sd[1] 12
+        $tf = Set-BfxTransforms $bl 0 0
+        Start-BfxKeys $tf.R $global:BfxP.A @(@(0, $sd[2]), @(0.5, $sd[3]), @(1, $sd[2])) $per
+        Add-BfxItem $S $bl -Fx 0.62 -OffsetX $sd[0] -Top ($H + 10)
+    }
+    # both blades cross at x = 0 when they reach -50 / -130 degrees
+    $hitY = $H + 10 - [Math]::Tan(50 * [Math]::PI / 180) * 70
+    $flash = New-BfxGlow 100 '#ffffff' 0.9
+    Start-BfxKeys $flash $global:BfxP.O @(@(0, 0), @(0.47, 0), @(0.5, 1), @(0.56, 0), @(1, 0)) $per
+    Add-BfxItem $S $flash -Fx 0.62 -Top $hitY
+    for ($k = 0; $k -lt 14; $k++) {
+        $sp = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#fff0c0' 1); $st = Set-BfxTransforms $sp; $vx = Get-BfxRnd $S -110 110; $vy = Get-BfxRnd $S -80 20
+        Start-BfxKeys $st.T $global:BfxP.X @(@(0, 0), @(0.5, 0), @(0.75, $vx), @(1, $vx)) $per
+        Start-BfxKeys $st.T $global:BfxP.Y @(@(0, 0), @(0.5, 0), @(0.62, $vy), @(0.75, ($vy + 40)), @(1, ($vy + 40))) $per
+        Start-BfxKeys $sp $global:BfxP.O @(@(0, 0), @(0.5, 0), @(0.501, 1), @(0.75, 0), @(1, 0)) $per
+        Add-BfxItem $S $sp -Fx 0.62 -Top $hitY
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHologram {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $cols = @('#ff3fd0', '#3fe8ff', '#ffd23f', '#7d5cff')
+    for ($i = 0; $i -lt 4; $i++) {
+        $col = $cols[$i]; $pw = Get-BfxRnd $S 50 90; $ph2 = Get-BfxRnd $S 30 55
+        $pan = New-Object System.Windows.Controls.Canvas
+        $bg = New-BfxRect $pw $ph2 (New-BfxBrush $col 0.12); $bg.Stroke = New-BfxBrush $col 0.7; $bg.StrokeThickness = 1; [void]$pan.Children.Add($bg)
+        $gb = New-BfxBrush $col 0.8
+        for ($n = 0; $n -lt 12; $n++) {
+            $gx = 5 + ($n % 6) * (($pw - 10) / 6); $gy = 6 + [Math]::Floor($n / 6) * 12; if ($gy -gt $ph2 - 10) { continue }
+            $gl = Get-BfxRnd $S 0 3
+            [void]$pan.Children.Add((Set-BfxAt (New-BfxRect (4 + $gl) 2 $gb) $gx $gy)); [void]$pan.Children.Add((Set-BfxAt (New-BfxRect 2 (4 + $gl) $gb) ($gx + 1) ($gy + 3)))
+        }
+        $lines = New-BfxTileBrush 3 { param($dg) [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' 0.0), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 3, 3)))); [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' 0.25), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 3, 1)))) }
+        $lines.Freeze(); [void]$pan.Children.Add((New-BfxRect $pw $ph2 $lines))
+        $tf = Set-BfxTransforms $pan 0 0; $per = 5.0; $ph = Get-BfxRnd $S
+        Start-BfxKeys $tf.S $global:BfxP.SY @(@(0, 0), @(0.12, 1), @(1, 1)) $per $ph
+        Start-BfxKeys $pan $global:BfxP.O @(@(0, 1), @(0.84, 1), @(0.86, 0.1), @(0.88, 1), @(0.9, 0.2), @(0.92, 1), @(1, 1)) $per $ph -Discrete
+        Start-BfxKeys $tf.T $global:BfxP.X @(@(0, 0), @(0.41, 0), @(0.42, 6), @(0.44, 0), @(1, 0)) (Get-BfxRnd $S 2.5 4) (Get-BfxRnd $S) -Discrete
+        Add-BfxItem $S $pan -Fx (0.3 + $i * 0.17 + (Get-BfxRnd $S 0 0.04)) -Top ($H * (Get-BfxRnd $S 0.12 0.5))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDatalinks {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # node field anchored at the right edge, 760 px wide
+    $nodes = @(); for ($i = 0; $i -lt 14; $i++) { $nodes += , @((Get-BfxRnd $S -760 -20), ($H * (Get-BfxRnd $S 0.1 0.9))) }
+    $edges = @()
+    for ($i = 0; $i -lt $nodes.Count; $i++) {
+        $near = @(for ($j = 0; $j -lt $nodes.Count; $j++) { if ($j -ne $i) { , @(([Math]::Abs($nodes[$i][0] - $nodes[$j][0]) + [Math]::Abs($nodes[$i][1] - $nodes[$j][1]) * 2), $j) } }) | Sort-Object { $_[0] } | Select-Object -First 2
+        foreach ($nb in $near) { $edges += , @($i, $nb[1]) }
+    }
+    $geo = New-BfxGeo { param($c) foreach ($e in $edges) { $a = $nodes[$e[0]]; $b = $nodes[$e[1]]; $c.BeginFigure((New-BfxPoint $a[0] $a[1]), $false, $false); $c.LineTo((New-BfxPoint $b[0] $a[1]), $true, $false); $c.LineTo((New-BfxPoint $b[0] $b[1]), $true, $false) } }.GetNewClosure()
+    $grp = New-Object System.Windows.Controls.Canvas
+    [void]$grp.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#50c8ff' 0.25) 1))
+    foreach ($e in $edges) {
+        $a = $nodes[$e[0]]; $b = $nodes[$e[1]]; $dx = [Math]::Abs($b[0] - $a[0]); $dy = [Math]::Abs($b[1] - $a[1]); $tot = [Math]::Max(1, $dx + $dy); $kn = $dx / $tot
+        $pk = New-BfxGlow 14 '#7fe8ff' 0.9; $tf = Set-BfxTransforms $pk; $per = $tot / (Get-BfxRnd $S 60 140); $ph = Get-BfxRnd $S
+        Start-BfxKeys $tf.T $global:BfxP.X @(@(0, $a[0]), @($kn, $b[0]), @(1, $b[0])) $per $ph
+        Start-BfxKeys $tf.T $global:BfxP.Y @(@(0, $a[1]), @($kn, $a[1]), @(1, $b[1])) $per $ph
+        [void]$grp.Children.Add($pk)
+        $hit = New-BfxGlow 30 '#bff4ff' 0.8; Start-BfxKeys $hit $global:BfxP.O @(@(0, 0), @(0.95, 0), @(0.97, 1), @(1, 0)) $per $ph
+        [void]$grp.Children.Add((Set-BfxAt $hit $b[0] $b[1]))
+    }
+    foreach ($n in $nodes) { [void]$grp.Children.Add((Set-BfxAt (New-BfxRect 5 5 (New-BfxBrush '#78dcff' 0.7)) ($n[0] - 2.5) ($n[1] - 2.5))) }
+    Add-BfxItem $S $grp -Fx 1 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxChevrons {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 30; $i++) {
+        $len = Get-BfxRnd $S 30 90; $ln = New-BfxRect $len 1 (New-BfxBrush '#c8dcff' 0.25); $tf = Set-BfxTransforms $ln
+        Add-BfxItem $S $ln -Top ($H * (Get-BfxRnd $S)) -Speed (Get-BfxRnd $S 400 800) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 100
+    }
+    $row = New-Object System.Windows.Controls.Canvas
+    for ($n = 0; $n -lt 30; $n++) {
+        $x = $n * 40.0
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $x ($H * 0.3)), $false, $false); $c.LineTo((New-BfxPoint ($x + 16) ($H * 0.5)), $true, $false); $c.LineTo((New-BfxPoint $x ($H * 0.7)), $true, $false) }.GetNewClosure()
+        $ch = New-BfxPath $geo $null (New-BfxBrush '#ff8c3c' 0.9) 6; $ch.StrokeLineJoin = 'Miter'; $ch.StrokeStartLineCap = 'Flat'; $ch.StrokeEndLineCap = 'Flat'
+        [void]$row.Children.Add($ch)
+    }
+    $row.OpacityMask = New-BfxLinear @(@(0, '#000000', 0.15), @(0.5, '#000000', 1), @(1, '#000000', 0.15)) -Horizontal
+    $mover = New-Object System.Windows.Controls.Canvas; [void]$mover.Children.Add($row)
+    $mt = Set-BfxTransforms $row 0 0; Start-BfxAnim $mt.T $global:BfxP.X -40 0 (40 / 220.0) 0
+    $clip = New-Object System.Windows.Controls.Canvas; $clip.ClipToBounds = $true; $clip.Width = 400; $clip.Height = $H; [void]$clip.Children.Add($mover)
+    Add-BfxItem $S $clip -Fx 0.45 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxNitro {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 2.5; $burst = @(@(0, 1), @(0.6, 1), @(0.65, 0.3), @(0.97, 0.3), @(1, 1))
+    Add-BfxSpread $S {
+        param($slot)
+        foreach ($ox in @(-50, 50)) {
+            $grp = New-Object System.Windows.Controls.Canvas
+            $gl = New-BfxGlow 100 '#5aa8ff' 0.6; [void]$grp.Children.Add($gl); $gt = Set-BfxTransforms $gl
+            Start-BfxKeys $gt.S $global:BfxP.SX $burst $per; Start-BfxKeys $gt.S $global:BfxP.SY $burst $per
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 -6), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -90 -9), (New-BfxPoint -180 0), $true, $false); $c.QuadraticBezierTo((New-BfxPoint -90 9), (New-BfxPoint 0 6), $true, $false) }
+            $flame = New-BfxPath $geo (New-BfxLinear @(@(0, '#3c50ff', 0), @(0.7, '#5aaaff', 0.85), @(1, '#f0faff', 0.95)) -Horizontal)
+            $ft = Set-BfxTransforms $flame 0 0
+            Start-BfxKeys $ft.S $global:BfxP.SX $burst $per
+            Start-BfxAnim $ft.S $global:BfxP.SY 0.8 1.15 0.05 (Get-BfxRnd $S) -Reverse
+            [void]$grp.Children.Add($flame)
+            for ($r = 0; $r -lt 3; $r++) {
+                $ring = New-BfxEllipse 6 16 $null (New-BfxBrush '#a0d2ff' 0.5) 1.5; $ring.Margin = [System.Windows.Thickness]::new(-3, -8, 0, 0); $rt = Set-BfxTransforms $ring
+                Start-BfxAnim $rt.T $global:BfxP.X 0 -120 0.4 ($r / 3.0)
+                Start-BfxKeys $ring $global:BfxP.O @(@(0, 1), @(0.6, 1), @(0.61, 0), @(1, 0)) $per -Discrete
+                [void]$grp.Children.Add($ring)
+            }
+            Add-BfxItem $S $grp -Fx 0 -OffsetX $ox -Top ($H * 0.82)
+        }
+    } ($H * 2.2)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTiretracks {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $field = 2400.0
+    $mark = New-BfxBrush '#14100a' 0.75
+    $grp = New-Object System.Windows.Controls.Canvas
+    foreach ($side in @(-6, 6)) {
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($H * (0.62 + 0.25 * [Math]::Sin(1)) + $side)), $false, $false); for ($x = 10.0; $x -le $field; $x += 10) { $c.LineTo((New-BfxPoint $x ($H * (0.62 + 0.25 * [Math]::Sin($x / $field * 5 * 2.2 + 1)) + $side)), $true, $true) } }.GetNewClosure()
+        $tr = New-BfxPath $geo $null $mark 4
+        $dash = New-Object System.Windows.Media.DoubleCollection; [void]$dash.Add(0.75); [void]$dash.Add(0.5); $tr.StrokeDashArray = $dash; $tr.StrokeStartLineCap = 'Flat'; $tr.StrokeEndLineCap = 'Flat'
+        [void]$grp.Children.Add($tr)
+    }
+    $mask = New-Object System.Windows.Media.LinearGradientBrush
+    $mask.MappingMode = [System.Windows.Media.BrushMappingMode]::Absolute
+    $mask.StartPoint = [System.Windows.Point]::new(-560, 0); $mask.EndPoint = [System.Windows.Point]::new(0, 0)
+    foreach ($gs in @(@(0, 0), @(0.999, 255), @(1.0, 0))) { [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb([byte]$gs[1], 0, 0, 0), $gs[0])) }
+    $mt = New-Object System.Windows.Media.TranslateTransform 0, 0; $mask.Transform = $mt
+    $grp.OpacityMask = $mask
+    Add-BfxItem $S $grp -Fx 0 -Top 0
+    $dust = New-BfxGlow 60 '#c8b090' 0.4; $dt = Set-BfxTransforms $dust
+    Add-BfxItem $S $dust -Fx 0 -Top 0
+    $S.Extra = { param($cw)
+        $span = $cw + 560; $sec = $span / 260.0
+        Start-BfxAnim $mt $global:BfxP.X 0 $span $sec 0
+        $kx = @(); $ky = @(); for ($n = 0; $n -le 20; $n++) { $u = $n / 20.0; $x = $u * $span; $kx += , @($u, $x); $ky += , @($u, ($H * (0.62 + 0.25 * [Math]::Sin($x / $field * 5 * 2.2 + 1)))) }
+        Start-BfxKeys $dt.T $global:BfxP.X $kx $sec; Start-BfxKeys $dt.T $global:BfxP.Y $ky $sec
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxShockwave {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 10.2
+    foreach ($site in @(@(0.3, 0.0), @(0.78, 0.333), @(0.52, 0.667))) {
+        $grp = New-Object System.Windows.Controls.Canvas; $a0 = $site[1]
+        $ring = New-BfxEllipse 100 35 $null (New-BfxBrush '#e6f0ff' 0.7) 1.5; $ring.Margin = [System.Windows.Thickness]::new(-50, -17.5, 0, 0); $rt = Set-BfxTransforms $ring
+        $grow = @(@(0, 0.05), @($a0, 0.05), @(($a0 + 0.16), 6), @(1, 6))
+        Start-BfxKeys $rt.S $global:BfxP.SX $grow $per; Start-BfxKeys $rt.S $global:BfxP.SY $grow $per
+        Start-BfxKeys $ring $global:BfxP.O @(@(0, 0), @($a0, 0), @(($a0 + 0.002), 1), @(($a0 + 0.16), 0), @(1, 0)) $per
+        [void]$grp.Children.Add($ring)
+        $fl = New-BfxGlow 160 '#ffffff' 0.7; Start-BfxKeys $fl $global:BfxP.O @(@(0, 0), @($a0, 0), @(($a0 + 0.002), 1), @(($a0 + 0.03), 0), @(1, 0)) $per
+        [void]$grp.Children.Add($fl)
+        for ($k = 0; $k -lt 24; $k++) {
+            $an = Get-BfxRnd $S 0 6.283; $dist = Get-BfxRnd $S 90 200
+            $d = New-BfxGlow 20 '#c8b8a0' 0.25; $dtf = Set-BfxTransforms $d
+            Start-BfxKeys $dtf.T $global:BfxP.X @(@(0, 0), @($a0, 0), @(($a0 + 0.14), ([Math]::Cos($an) * $dist)), @(1, ([Math]::Cos($an) * $dist))) $per
+            Start-BfxKeys $dtf.T $global:BfxP.Y @(@(0, 0), @($a0, 0), @(($a0 + 0.14), ([Math]::Sin($an) * $dist * 0.35)), @(1, ([Math]::Sin($an) * $dist * 0.35))) $per
+            Start-BfxKeys $d $global:BfxP.O @(@(0, 0), @($a0, 0), @(($a0 + 0.002), 1), @(($a0 + 0.14), 0), @(1, 0)) $per
+            [void]$grp.Children.Add($d)
+        }
+        Add-BfxItem $S $grp -Fx $site[0] -Top ($H * 0.7)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSigil {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        $rad = $H * 0.42; $ink = New-BfxBrush '#c8a0ff' 0.85
+        $halo = New-BfxGlow ($rad * 3.2) '#b07dff' 0.25; Start-BfxAnim $halo $global:BfxP.O 0.5 1 2.1 0 -Reverse -Ease
+        Add-BfxItem $S $halo -Fx 0 -Top ($H * 0.5)
+        $disc = New-Object System.Windows.Controls.Canvas
+        $rings = New-BfxGeo { param($c) foreach ($rr in @($rad, ($rad * 0.82))) { $c.BeginFigure((New-BfxPoint $rr 0), $false, $true); $c.ArcTo((New-BfxPoint (-$rr) 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $rr 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) } }.GetNewClosure()
+        [void]$disc.Children.Add((New-BfxPath $rings $null $ink 1.5))
+        $ticks = New-BfxGeo { param($c) for ($n = 0; $n -lt 16; $n++) { $a = $n * 2 * [Math]::PI / 16; $ca = [Math]::Cos($a); $sa = [Math]::Sin($a)
+            $c.BeginFigure((New-BfxPoint ($ca * $rad * 0.86 + $sa * 3) ($sa * $rad * 0.86 - $ca * 3)), $false, $false); $c.LineTo((New-BfxPoint ($ca * $rad * 0.94) ($sa * $rad * 0.94)), $true, $false); $c.LineTo((New-BfxPoint ($ca * $rad * 0.86 - $sa * 3) ($sa * $rad * 0.86 + $ca * 3)), $true, $false) } }.GetNewClosure()
+        $tk = New-BfxPath $ticks $null $ink 1.5; $tt = Set-BfxTransforms $tk; Start-BfxAnim $tt.R $global:BfxP.A 0 360 15.7 0
+        [void]$disc.Children.Add($tk)
+        $star = New-BfxGeo { param($c) for ($n = 0; $n -le 5; $n++) { $a = $n * 4 * [Math]::PI / 5 - [Math]::PI / 2; $pt = New-BfxPoint ([Math]::Cos($a) * $rad * 0.78) ([Math]::Sin($a) * $rad * 0.78); if ($n -eq 0) { $c.BeginFigure($pt, $false, $true) } else { $c.LineTo($pt, $true, $false) } }
+            $ri = $rad * 0.3; $c.BeginFigure((New-BfxPoint $ri 0), $false, $true); $c.ArcTo((New-BfxPoint (-$ri) 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $ri 0), [System.Windows.Size]::new($ri, $ri), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+        $sp = New-BfxPath $star $null $ink 1.5; $st = Set-BfxTransforms $sp; Start-BfxAnim $st.R $global:BfxP.A 0 -360 10.5 0
+        [void]$disc.Children.Add($sp)
+        Set-BfxShadow $disc '#b07dff' 8
+        Start-BfxAnim $disc $global:BfxP.O 0.6 1 2.1 0 -Reverse -Ease
+        $dt = Set-BfxTransforms $disc 0 0; $dt.S.ScaleY = 0.55
+        Add-BfxItem $S $disc -Fx 0 -Top ($H * 0.5)
+    } ($H * 1.9)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSpells {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $bolts = @()
+    for ($i = 0; $i -lt 4; $i++) {
+        $col = Get-BfxPick $S @('#7dd0ff', '#ff7ad8', '#ffd24d', '#8aff7a'); $per = Get-BfxRnd $S 1.8 3.2; $ph = Get-BfxRnd $S
+        $y0 = Get-BfxRnd $S; $y1 = Get-BfxRnd $S; $dir = Get-BfxPick $S @(1, -1)
+        $parts = @()
+        for ($n = 0; $n -lt 10; $n++) {
+            if ($n -eq 0) { $el = New-Object System.Windows.Controls.Canvas; [void]$el.Children.Add((New-BfxGlow 36 $col 0.8)); [void]$el.Children.Add((New-BfxGlow 6 '#ffffff' 1)) }
+            else { $el = New-BfxGlow (6 - $n * 0.4) $col (0.7 - $n * 0.05) }
+            $tf = Set-BfxTransforms $el 0 0
+            $ky = @(); for ($k = 0; $k -le 12; $k++) { $q = $k / 12.0; $kk = [Math]::Max(0, $q - $n * 0.012); $ky += , @(($q * 0.8), ($H * (0.3 + 0.4 * ($y0 + ($y1 - $y0) * $kk)) - [Math]::Sin($kk * [Math]::PI) * $H * 0.25)) }; $ky += , @(1, $ky[-1][1])
+            Start-BfxKeys $tf.T $global:BfxP.Y $ky $per $ph
+            Start-BfxKeys $el $global:BfxP.O @(@(0, 1), @(0.8, 1), @(0.801, 0), @(1, 0)) $per $ph -Discrete
+            Add-BfxItem $S $el -Fx 0 -Top 0
+            $parts += , @($tf, $n)
+        }
+        $burst = New-Object System.Windows.Controls.Canvas
+        for ($k = 0; $k -lt 14; $k++) {
+            $an = Get-BfxRnd $S 0 6.283; $b = New-BfxEllipse 2.6 2.6 (New-BfxBrush $col 1); $bt = Set-BfxTransforms $b
+            Start-BfxKeys $bt.T $global:BfxP.X @(@(0, 0), @(0.8, 0), @(1, ([Math]::Cos($an) * 42))) $per $ph
+            Start-BfxKeys $bt.T $global:BfxP.Y @(@(0, 0), @(0.8, 0), @(1, ([Math]::Sin($an) * 42))) $per $ph
+            Start-BfxKeys $b $global:BfxP.O @(@(0, 0), @(0.8, 0), @(0.801, 1), @(1, 0)) $per $ph
+            [void]$burst.Children.Add($b)
+        }
+        $endY = $H * (0.3 + 0.4 * $y1)
+        Add-BfxItem $S $burst -Fx 0 -Top $endY
+        $bolts += , @($parts, $per, $ph, $dir, $burst)
+    }
+    $S.Extra = { param($cw)
+        foreach ($b in $bolts) {
+            $x0 = $(if ($b[3] -gt 0) { $cw * 0.1 } else { $cw * 0.95 }); $x1 = $(if ($b[3] -gt 0) { $cw * 0.9 } else { $cw * 0.25 })
+            foreach ($p in $b[0]) { $kx = @(); for ($k = 0; $k -le 12; $k++) { $q = $k / 12.0; $kk = [Math]::Max(0, $q - $p[1] * 0.012); $kx += , @(($q * 0.8), ($x0 + ($x1 - $x0) * $kk)) }; $kx += , @(1, $x1); Start-BfxKeys $p[0].T $global:BfxP.X $kx $b[1] $b[2] }
+            [System.Windows.Controls.Canvas]::SetLeft($b[4], $x1)
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWildfire {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxRect 4200 ($H * 0.5) (New-BfxLinear @(@(0, '#ff6e1e', 0), @(1, '#ff6e1e', 0.45)))) -Fx 0 -Top ($H * 0.5)
+    $trees = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($H + 2)), $true, $true); for ($x = 0.0; $x -le 4200; $x += 12) { $c.LineTo((New-BfxPoint $x ($H - 10 - [Math]::Abs([Math]::Sin($x * 0.09)) * 14 - $(if (($x % 36) -lt 12) { 8 } else { 0 }))), $true, $false) }; $c.LineTo((New-BfxPoint 4200 ($H + 2)), $true, $false) }.GetNewClosure()
+    $line = New-BfxPath $trees (New-BfxBrush '#140a08' 0.9)
+    Start-BfxAnim $line $global:BfxP.O 0.85 1 1.3 0 -Reverse
+    Add-BfxItem $S $line -Fx 0 -Top 0
+    for ($i = 0; $i -lt 26; $i++) {
+        $p = New-BfxGlow 30 '#4a3a34' 0.3; $tf = Set-BfxTransforms $p; $per = 6.0; $ph = $i / 26.0
+        Start-BfxAnim $tf.T $global:BfxP.Y 0 (-132) $per $ph; Start-BfxAnim $tf.T $global:BfxP.X 0 84 $per $ph
+        Start-BfxAnim $tf.S $global:BfxP.SX 0.8 5 $per $ph; Start-BfxAnim $tf.S $global:BfxP.SY 0.8 5 $per $ph
+        Start-BfxKeys $p $global:BfxP.O @(@(0, 0), @(0.08, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $p -Fx 0.7 -OffsetX (Get-BfxRnd $S -15 15) -Top ($H - 14)
+    }
+    for ($i = 0; $i -lt 40; $i++) {
+        $a = New-BfxEllipse 2 2 (New-BfxBrush '#ffb070' 0.6); $tf = Set-BfxTransforms $a
+        Start-BfxAnim $tf.T $global:BfxP.Y 6 -6 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $a -Top ($H * (Get-BfxRnd $S)) -Speed (Get-BfxRnd $S 20 60) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 5
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLeviathan {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 50; $i++) {
+        $p = New-BfxEllipse 1.6 1.6 (New-BfxBrush '#bfe8ff' 0.45); $tf = Set-BfxTransforms $p
+        Add-BfxItem $S $p -Top ($H * (Get-BfxRnd $S)) -Speed (- (Get-BfxRnd $S 3 9)) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 5
+    }
+    Add-BfxSpread $S {
+        param($slot)
+        $body = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 220 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint 120 -34), (New-BfxPoint -60 -22), $true, $false); $c.QuadraticBezierTo((New-BfxPoint -200 -14), (New-BfxPoint -260 -30), $true, $false); $c.LineTo((New-BfxPoint -250 4), $true, $false); $c.QuadraticBezierTo((New-BfxPoint -180 12), (New-BfxPoint -60 20), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 120 30), (New-BfxPoint 220 0), $true, $false) }
+        $sil = New-BfxPath $geo (New-BfxBrush '#00060c' 0.75)
+        [void]$body.Children.Add($sil)
+        for ($n = 0; $n -lt 7; $n++) { $sp = New-BfxGlow 10 '#5affd8' 0.9; Start-BfxAnim $sp $global:BfxP.O 0.4 1 (Get-BfxRnd $S 1.5 3) (Get-BfxRnd $S) -Reverse -Ease; [void]$body.Children.Add((Set-BfxAt $sp (150 - $n * 40) 4)) }
+        $bt = Set-BfxTransforms $body 0 0
+        Start-BfxAnim $bt.T $global:BfxP.Y -8 8 10 0 -Reverse -Ease
+        Start-BfxAnim $bt.R $global:BfxP.A -2 2 7 0.3 -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($body); $wt = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * 0.72) -Speed 45 -Phase (Get-BfxRnd $S) -T $wt.T -Margin 300
+    } ($H * 2.6)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRustpeel {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $grid = New-BfxGeo { param($c) for ($x = 0.0; $x -lt 4200; $x += 18) { $c.BeginFigure((New-BfxPoint $x 0), $false, $false); $c.LineTo((New-BfxPoint $x $H), $true, $false) }; for ($y = 0.0; $y -lt $H; $y += 18) { $c.BeginFigure((New-BfxPoint 0 $y), $false, $false); $c.LineTo((New-BfxPoint 4200 $y), $true, $false) } }.GetNewClosure()
+    $gp = New-BfxPath $grid $null (New-BfxBrush '#b4281e' 0.24) 1
+    Start-BfxAnim $gp $global:BfxP.O 0.5 1 3.9 0 -Reverse -Ease
+    Add-BfxItem $S $gp -Fx 0 -Top 0
+    $rust = New-BfxBrush '#461e14' 0.85
+    for ($i = 0; $i -lt 70; $i++) {
+        $sz = Get-BfxRnd $S 2 6
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$sz) 0), $true, $true); $c.LineTo((New-BfxPoint 0 (-$sz * 0.6)), $true, $false); $c.LineTo((New-BfxPoint $sz ($sz * 0.2)), $true, $false); $c.LineTo((New-BfxPoint (-$sz * 0.2) ($sz * 0.7)), $true, $false) }.GetNewClosure()
+        $fl = New-BfxPath $geo $rust; $tf = Set-BfxTransforms $fl
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H + 10) -10 (($H + 20) / (Get-BfxRnd $S 8 26)) (Get-BfxRnd $S)
+        Start-BfxAnim $tf.T $global:BfxP.X -10 10 (Get-BfxRnd $S 3 6) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 2 6) (Get-BfxRnd $S)
+        Add-BfxItem $S $fl -Fx (Get-BfxRnd $S) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPlasmabolts {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $volleys = @()
+    for ($v = 0; $v -lt 4; $v++) {
+        $col = Get-BfxPick $S @('#5aff9a', '#5ab8ff'); $per = Get-BfxRnd $S 5 8.5; $ph = Get-BfxRnd $S; $dir = Get-BfxPick $S @(1, -1); $y = $H * (Get-BfxRnd $S 0.2 0.8)
+        for ($k = 0; $k -lt 3; $k++) {
+            $b = New-Object System.Windows.Controls.Canvas
+            $tr = New-BfxRect 50 4 (New-BfxLinear @(@(0, $col, 0), @(1, $col, 0.6)) -Horizontal) 2; [void]$b.Children.Add((Set-BfxAt $tr -50 -2))
+            [void]$b.Children.Add((New-BfxGlow 28 $col 0.9)); [void]$b.Children.Add((New-BfxGlow 6 '#ffffff' 0.95))
+            $tf = Set-BfxTransforms $b 0 0; if ($dir -lt 0) { $tf.S.ScaleX = -1 }
+            $a0 = $k * 0.06
+            Start-BfxKeys $b $global:BfxP.O @(@(0, 0), @([Math]::Max(0.0005, $a0), 0), @(($a0 + 0.001), 1), @(($a0 + 0.6), 1), @(($a0 + 0.601), 0), @(1, 0)) $per $ph -Discrete
+            Add-BfxItem $S $b -Fx 0 -Top ($y + $k * 4)
+            $volleys += , @($tf, $per, $ph, $dir, $a0)
+        }
+    }
+    $S.Extra = { param($cw)
+        foreach ($v in $volleys) { $x0 = $(if ($v[3] -gt 0) { -40 } else { $cw + 40 }); $x1 = $(if ($v[3] -gt 0) { $cw + 40 } else { -40 }); Start-BfxKeys $v[0].T $global:BfxP.X @(@(0, $x0), @([Math]::Max(0.0005, $v[4]), $x0), @(($v[4] + 0.6), $x1), @(1, $x1)) $v[1] $v[2] }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxZeppelins {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $len = $H * 1.6
+    foreach ($b in @(0.2, 0.55, 0.85)) {
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-$len * 0.05) (-$len)), $true, $false); $c.LineTo((New-BfxPoint ($len * 0.05) (-$len)), $true, $false) }.GetNewClosure()
+        $beam = New-BfxPath $geo (New-BfxLinear @(@(0, '#e6f0ff', 0), @(1, '#e6f0ff', 0.28)))
+        $tf = Set-BfxTransforms $beam
+        Start-BfxAnim $tf.R $global:BfxP.A -28 28 (Get-BfxRnd $S 7 11) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $beam -Fx $b -Top ($H + 5)
+    }
+    Add-BfxSpread $S {
+        param($slot)
+        $ship = New-Object System.Windows.Controls.Canvas
+        $fin = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -66 0), $true, $true); $c.LineTo((New-BfxPoint -82 -12), $true, $false); $c.LineTo((New-BfxPoint -82 12), $true, $false) }
+        [void]$ship.Children.Add((New-BfxPath $fin (New-BfxBrush '#1e222a' 1)))
+        [void]$ship.Children.Add((Set-BfxAt (New-BfxEllipse 140 32 (New-BfxBrush '#282e38' 0.95)) -70 -16))
+        [void]$ship.Children.Add((Set-BfxAt (New-BfxEllipse 132 14 (New-BfxBrush '#464e5a' 0.9)) -66 -12))
+        [void]$ship.Children.Add((Set-BfxAt (New-BfxRect 24 6 (New-BfxBrush '#1e222a' 1)) -12 14))
+        $nav = New-BfxEllipse 3 3 (New-BfxBrush '#ff3a3a' 1); Start-BfxKeys $nav $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1.33 -Discrete
+        [void]$ship.Children.Add((Set-BfxAt $nav 58.5 2.5))
+        $st = Set-BfxTransforms $ship 0 0
+        Add-BfxItem $S $ship -Top ($H * 0.3) -Speed 18 -Phase (Get-BfxRnd $S) -T $st.T -Margin 150
+    } ($H * 2.2)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxComicbursts {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $words = @('BLAM!', 'POW!', 'BANG!', 'KRAK!', 'ZAP!', 'BOOM!'); $cols = @('#ffd23f', '#ff5a3a', '#4dd0ff', '#ff7ad8')
+    $rad = $H * 0.22
+    for ($i = 0; $i -lt 4; $i++) {
+        $spikes = @(); for ($n = 0; $n -lt 14; $n++) { $spikes += (Get-BfxRnd $S 0.75 1.25) }
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -lt 28; $n++) { $a = $n / 28.0 * 2 * [Math]::PI; $rr = $(if ($n % 2) { $rad * 0.7 } else { $rad * $spikes[[Math]::Floor($n / 2) % 14] }); $pt = New-BfxPoint ([Math]::Cos($a) * $rr * 1.5) ([Math]::Sin($a) * $rr); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $false) } } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        $burst = New-BfxPath $geo (New-BfxBrush $cols[$i] 1) (New-BfxBrush '#111111' 1) 2; $burst.StrokeLineJoin = 'Miter'
+        [void]$grp.Children.Add($burst)
+        $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = (Get-BfxPick $S $words); $tb.FontSize = [Math]::Max(8, $rad * 0.55); $tb.FontWeight = [System.Windows.FontWeights]::Black
+        $tb.FontFamily = New-Object System.Windows.Media.FontFamily 'Impact, Arial Black'; $tb.Foreground = New-BfxBrush '#111111' 1; $tb.IsHitTestVisible = $false
+        $tb.Width = $rad * 3; $tb.TextAlignment = [System.Windows.TextAlignment]::Center
+        [void]$grp.Children.Add((Set-BfxAt $tb (-$rad * 1.5) (- $tb.FontSize * 0.66)))
+        $tf = Set-BfxTransforms $grp 0 0; $tf.R.Angle = -7
+        $per = Get-BfxRnd $S 3 5; $ph = Get-BfxRnd $S
+        $pop = @(@(0, 0), @(0.06, 1.08), @(0.09, 0.97), @(0.12, 1.02), @(0.28, 1), @(0.35, 1.1), @(1, 1.1))
+        Start-BfxKeys $tf.S $global:BfxP.SX $pop $per $ph; Start-BfxKeys $tf.S $global:BfxP.SY $pop $per $ph
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.28, 1), @(0.35, 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.17) -Top ($H * (Get-BfxRnd $S 0.3 0.7))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWipeclean {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 9.0; $rows = 4; $rh = $H / $rows; $nozzles = @()
+    $dirt = New-BfxBrush '#46381e' 0.3; $clean = New-BfxBrush '#c8dceb' 0.2
+    for ($r = 0; $r -lt $rows; $r++) {
+        $dir = $(if ($r % 2) { -1 } else { 1 })
+        $u0 = $r / ($rows * 1.15); $u1 = ($r + 1) / ($rows * 1.15)
+        Add-BfxItem $S (New-BfxRect 4200 ($rh + 0.5) $dirt) -Fx 0 -Top ($r * $rh)
+        $cl = New-BfxRect 10 $rh $clean; $nozzles += , @($cl, $dir, $u0, $u1, $r)
+        Add-BfxItem $S $cl -Fx 0 -Top ($r * $rh)
+        $nz = New-Object System.Windows.Controls.Canvas; [void]$nz.Children.Add((New-BfxGlow 52 '#e8f6ff' 0.7))
+        for ($k = 0; $k -lt 6; $k++) { $dp = New-BfxEllipse 2 2 (New-BfxBrush '#ffffff' 0.8); $dt = Set-BfxTransforms $dp; Start-BfxAnim $dt.T $global:BfxP.X -12 12 (Get-BfxRnd $S 0.05 0.12) (Get-BfxRnd $S) -Reverse; Start-BfxAnim $dt.T $global:BfxP.Y -10 10 (Get-BfxRnd $S 0.05 0.12) (Get-BfxRnd $S) -Reverse; [void]$nz.Children.Add($dp) }
+        Start-BfxKeys $nz $global:BfxP.O @(@(0, 0), @([Math]::Max(0.0005, $u0), 0), @(($u0 + 0.001), 1), @($u1, 1), @(($u1 + 0.001), 0), @(1, 0)) $per -Discrete
+        Add-BfxItem $S $nz -Fx 0 -Top ($r * $rh + $rh / 2)
+        $nozzles[-1] += , (Set-BfxTransforms $nz 0 0)
+    }
+    $S.Extra = { param($cw)
+        foreach ($nzi in $nozzles) {
+            $cl = $nzi[0]; $dir = $nzi[1]; $u0 = $nzi[2]; $u1 = $nzi[3]; $ntf = $nzi[5]
+            $cl.Width = $cw; $ct = Set-BfxTransforms $cl $(if ($dir -gt 0) { 0 } else { 1 }) 0
+            Start-BfxKeys $ct.S $global:BfxP.SX @(@(0, 0), @([Math]::Max(0.0005, $u0), 0), @($u1, 1), @(0.85, 1), @(1, 1)) $per
+            Start-BfxKeys $cl $global:BfxP.O @(@(0, 1), @(0.85, 1), @(1, 0)) $per
+            $xa = $(if ($dir -gt 0) { 0 } else { $cw }); $xb = $(if ($dir -gt 0) { $cw } else { 0 })
+            Start-BfxKeys $ntf.T $global:BfxP.X @(@(0, $xa), @([Math]::Max(0.0005, $u0), $xa), @($u1, $xb), @(1, $xb)) $per
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLightbridge {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 12; $i++) { for ($j = 0; $j -lt 3; $j++) {
+        $pn = New-BfxRect 54 26 (New-BfxBrush '#f0f8ff' 0.28)
+        Start-BfxFlash $pn 4.2 (((($i * 0.7 + $j * 1.3) / 6.283) % 1)) 0.16 1
+        $base = New-BfxRect 54 26 (New-BfxBrush '#c8d2dc' 0.08)
+        Add-BfxItem $S $base -Fx 0.3 -OffsetX ($i * 58) -Top (8 + $j * 30)
+        Add-BfxItem $S $pn -Fx 0.3 -OffsetX ($i * 58) -Top (8 + $j * 30)
+    } }
+    $y = $H * 0.72
+    Add-BfxItem $S (New-BfxRect 4200 16 (New-BfxLinear @(@(0, '#6ec8ff', 0), @(0.5, '#6ec8ff', 0.55), @(1, '#6ec8ff', 0)))) -Fx 0 -Top ($y - 8)
+    Add-BfxItem $S (New-BfxRect 4200 1 (New-BfxBrush '#aae6ff' 0.9)) -Fx 0 -Top $y
+    for ($k = 0; $k -lt 4; $k++) { $gl = New-BfxGlow 44 '#bff0ff' 0.6; $tf = Set-BfxTransforms $gl; Add-BfxItem $S $gl -Top $y -Speed 140 -Phase ($k / 4.0) -T $tf.T -Margin 30 }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxXencrystal {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        $per = 5.0; $h2 = $H * 0.36; $w2 = $H * 0.13
+        $halo = New-BfxGlow ($H * 2) '#ffd860' 0.3
+        Start-BfxKeys $halo $global:BfxP.O @(@(0, 0.55), @(0.2, 1), @(0.4, 0.55), @(1, 0.55)) $per
+        Add-BfxItem $S $halo -Fx 0 -Top ($H * 0.55)
+        $ring = New-BfxEllipse 40 12 $null (New-BfxBrush '#ffe68c' 0.35) 1.2; $ring.Margin = [System.Windows.Thickness]::new(-20, -6, 0, 0)
+        $rt = Set-BfxTransforms $ring
+        $grow = @(@(0, 1), @(0.6, ($H * 2 / 40)), @(1, ($H * 2 / 40)))
+        Start-BfxKeys $rt.S $global:BfxP.SX $grow $per; Start-BfxKeys $rt.S $global:BfxP.SY $grow $per
+        Start-BfxKeys $ring $global:BfxP.O @(@(0, 1), @(0.6, 0), @(1, 0)) $per
+        Add-BfxItem $S $ring -Fx 0 -Top ($H * 0.55 + $h2 * 0.6)
+        $cr = New-Object System.Windows.Controls.Canvas
+        $pts = @(@(0, (-$h2)), @($w2, (-$h2 * 0.45)), @(($w2 * 0.8), ($h2 * 0.6)), @(0, $h2), @((-$w2 * 0.8), ($h2 * 0.6)), @((-$w2), (-$h2 * 0.45)))
+        $faces = @()
+        foreach ($fc in @(@(@(0, 1, 2, 3), '#ffe28c', 0.0), @(@(0, 3, 4, 5), '#ffc85a', 0.5))) {
+            $idx = $fc[0]
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $pts[$idx[0]][0] $pts[$idx[0]][1]), $true, $true); for ($n = 1; $n -lt 4; $n++) { $c.LineTo((New-BfxPoint $pts[$idx[$n]][0] $pts[$idx[$n]][1]), $true, $false) } }.GetNewClosure()
+            $face = New-BfxPath $geo (New-BfxBrush $fc[1] 0.85)
+            # a slow sheen wanders from one facet to the other
+            Start-BfxAnim $face $global:BfxP.O 0.55 1 4 $fc[2] -Reverse -Ease
+            [void]$cr.Children.Add($face)
+        }
+        $ridge = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$h2)), $false, $false); $c.LineTo((New-BfxPoint 0 $h2), $true, $false) }.GetNewClosure()
+        [void]$cr.Children.Add((New-BfxPath $ridge $null (New-BfxBrush '#fff5c8' 0.6) 1))
+        $ct = Set-BfxTransforms $cr 0 0
+        Start-BfxAnim $ct.T $global:BfxP.Y -3 3 3 0 -Reverse -Ease
+        Add-BfxItem $S $cr -Fx 0 -Top ($H * 0.55)
+        for ($i = 0; $i -lt 26; $i++) {
+            $m = New-BfxGlow 4 '#c8ff8a' 0.9; $tf = Set-BfxTransforms $m; $sec = Get-BfxRnd $S 14 26; $ph = Get-BfxRnd $S
+            Start-BfxAnim $tf.T $global:BfxP.Y 0 (- $H * 1.05) $sec $ph
+            Start-BfxAnim $tf.T $global:BfxP.X -6 6 (Get-BfxRnd $S 5 9) (Get-BfxRnd $S) -Reverse -Ease
+            Start-BfxKeys $m $global:BfxP.O @(@(0, 0), @(0.5, 0.75), @(1, 0)) $sec $ph
+            Add-BfxItem $S $m -Fx 0 -OffsetX ($H * (Get-BfxRnd $S -0.9 0.9)) -Top $H
+        }
+    } ($H * 1.7)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxQuestmarks {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 6; $i++) {
+        $q = (Get-BfxRnd $S) -lt 0.4
+        $grp = New-Object System.Windows.Controls.Canvas
+        $gl = New-BfxGlow 52 '#ffd24d' 0.4; Start-BfxAnim $gl $global:BfxP.O 0.6 1 (Get-BfxRnd $S 1.5 2.5) (Get-BfxRnd $S) -Reverse -Ease; [void]$grp.Children.Add($gl)
+        $tb = New-Object System.Windows.Controls.TextBlock; $tb.Text = $(if ($q) { '?' } else { '!' }); $tb.FontSize = 26; $tb.FontWeight = [System.Windows.FontWeights]::Black
+        $tb.FontFamily = New-Object System.Windows.Media.FontFamily 'Georgia'; $tb.Foreground = New-BfxBrush $(if ($q) { '#bfe0ff' } else { '#ffd24d' }) 1; $tb.IsHitTestVisible = $false
+        $tb.Width = 30; $tb.TextAlignment = [System.Windows.TextAlignment]::Center
+        $sh = New-Object System.Windows.Media.Effects.DropShadowEffect; $sh.Color = New-BfxColor '#3a2a08'; $sh.BlurRadius = 2; $sh.ShadowDepth = 1; $tb.Effect = $sh
+        $flip = New-Object System.Windows.Controls.Canvas; [void]$flip.Children.Add((Set-BfxAt $tb -15 -18)); $ft = Set-BfxTransforms $flip 0 0
+        Start-BfxAnim $ft.S $global:BfxP.SX 1 0.15 (Get-BfxRnd $S 1.6 2.4) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$grp.Children.Add($flip)
+        $tf = Set-BfxTransforms $grp 0 0
+        Start-BfxAnim $tf.T $global:BfxP.Y -5 5 (Get-BfxRnd $S 1.2 1.8) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.12 + (Get-BfxRnd $S 0 0.04)) -Top ($H * (Get-BfxRnd $S 0.3 0.65))
+    }
+    Complete-BfxStage $S
+}
+
+
+# ------------------------------------------------------------
+# Round 4 effects (calm, game-specific, part 1)
+# ------------------------------------------------------------
+
+function global:Add-BfxPosters {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $planks = New-BfxGeo { param($c) for ($x = 0.0; $x -lt 4200; $x += 46) { $c.BeginFigure((New-BfxPoint $x 0), $true, $true); $c.LineTo((New-BfxPoint ($x + 2) 0), $true, $false); $c.LineTo((New-BfxPoint ($x + 2) $H), $true, $false); $c.LineTo((New-BfxPoint $x $H), $true, $false) } }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $planks (New-BfxBrush '#3c2412' 0.18)) -Fx 0 -Top 0
+    $paper = New-BfxBrush '#e2cea0' 0.92; $ink = New-BfxBrush '#3c2412' 0.85; $faint = New-BfxBrush '#3c2412' 0.4
+    for ($i = 0; $i -lt 5; $i++) {
+        $p = New-Object System.Windows.Controls.Canvas
+        [void]$p.Children.Add((Set-BfxAt (New-BfxRect 32 42 $paper) -16 -21))
+        $corner = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 16 13), $true, $true); $c.LineTo((New-BfxPoint 16 21), $true, $false); $c.LineTo((New-BfxPoint 8 21), $true, $false) }
+        $cp = New-BfxPath $corner (New-BfxBrush '#c8b080' 0.95); $ct = Set-BfxTransforms $cp 1 1
+        Start-BfxAnim $ct.S $global:BfxP.SY 1 0.3 (Get-BfxRnd $S 0.9 1.6) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$p.Children.Add($cp)
+        [void]$p.Children.Add((Set-BfxAt (New-BfxRect 22 4 $ink) -11 -17)); [void]$p.Children.Add((Set-BfxAt (New-BfxRect 18 14 $faint) -9 -9))
+        [void]$p.Children.Add((Set-BfxAt (New-BfxRect 22 2 $ink) -11 9)); [void]$p.Children.Add((Set-BfxAt (New-BfxRect 16 2 $ink) -8 14))
+        [void]$p.Children.Add((Set-BfxAt (New-BfxEllipse 3 3 (New-BfxBrush '#6a6a6a' 1)) -1.5 -20.5))
+        $tf = Set-BfxTransforms $p 0 0; $base = Get-BfxRnd $S -7 7; $tf.R.Angle = $base
+        $per = Get-BfxRnd $S 14 22; $ph = Get-BfxRnd $S
+        Start-BfxKeys $tf.T $global:BfxP.X @(@(0, 0), @(0.85, 0), @(1, 220)) $per $ph
+        Start-BfxKeys $tf.T $global:BfxP.Y @(@(0, 0), @(0.85, 0), @(0.92, -20), @(1, 50)) $per $ph
+        Start-BfxKeys $tf.R $global:BfxP.A @(@(0, $base), @(0.85, $base), @(1, ($base + 110))) $per $ph
+        Start-BfxKeys $p $global:BfxP.O @(@(0, 0), @(0.03, 1), @(0.85, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $p -Fx (0.32 + $i * 0.14 + (Get-BfxRnd $S 0 0.04)) -Top ($H * (Get-BfxRnd $S 0.25 0.55))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRavens {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#08080a' 1
+    $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -9 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -4 -8), (New-BfxPoint 0 -1), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 4 -8), (New-BfxPoint 10 1), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 4 1), (New-BfxPoint 0 2), $true, $false); $c.LineTo((New-BfxPoint 7 4), $true, $false); $c.LineTo((New-BfxPoint 0 2.5), $true, $false); $c.QuadraticBezierTo((New-BfxPoint -4 1), (New-BfxPoint -9 0), $true, $false) }
+    for ($i = 0; $i -lt 6; $i++) {
+        $bird = New-BfxPath $geo $ink; $bt = Set-BfxTransforms $bird
+        Start-BfxKeys $bt.S $global:BfxP.SY @(@(0, 1), @(0.05, -0.4), @(0.1, 1), @(0.15, -0.4), @(0.2, 1), @(1, 1)) (Get-BfxRnd $S 3.5 5) (Get-BfxRnd $S)
+        $rad = $H * (Get-BfxRnd $S 0.2 0.45); $per = 2 * [Math]::PI / (Get-BfxRnd $S 0.18 0.3); $ph = Get-BfxRnd $S
+        $kx = @(); $ky = @(); $kd = @()
+        for ($n = 0; $n -le 24; $n++) { $u = $n / 24.0; $a = $u * 2 * [Math]::PI; $kx += , @($u, ([Math]::Cos($a) * $rad * 2.4)); $ky += , @($u, ([Math]::Sin($a) * $rad * 0.6)); $kd += , @($u, $(if (-[Math]::Sin($a) -gt 0) { 1 } else { -1 })) }
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($bird); $wt = Set-BfxTransforms $wrap 0 0
+        Start-BfxKeys $wt.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $wt.T $global:BfxP.Y $ky $per $ph; Start-BfxKeys $wt.S $global:BfxP.SX $kd $per $ph -Discrete
+        Add-BfxItem $S $wrap -Fx (Get-BfxRnd $S 0.5 0.75) -Top ($H * (Get-BfxRnd $S 0.3 0.5))
+    }
+    Complete-BfxStage $S
+}
+
+# Full-banner radial vignette, sized to the banner in Extra.
+function global:New-BfxVignette {
+    param([double]$H, [double]$A = 0.4, [double]$Start = 0.5)
+    $vig = New-Object System.Windows.Shapes.Rectangle; $vig.IsHitTestVisible = $false; $vig.Height = $H + 4
+    $rg = New-Object System.Windows.Media.RadialGradientBrush; $rg.RadiusX = 0.62; $rg.RadiusY = 0.9
+    [void]$rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#000000' 0), $Start)); [void]$rg.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#000000' $A), 1)); $rg.Freeze()
+    $vig.Fill = $rg
+    return $vig
+}
+
+function global:Add-BfxInsertcoin {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 6) '#8ab4ff' 0.08) -Fx 0.6 -Top ($H * 0.5)
+    Add-BfxItem $S (New-BfxScanlines $H 0.16) -Fx 0 -Top -3
+    $vig = New-BfxVignette $H 0.4 0.55; Add-BfxItem $S $vig -Fx 0 -Top -2
+    $tb = New-BfxText 'INSERT COIN' '#ffd65a' 1 14; $tb.FontWeight = [System.Windows.FontWeights]::Bold
+    Set-BfxShadow $tb '#ffb030' 8
+    Start-BfxAnim $tb $global:BfxP.O 0.25 0.85 1.43 0 -Reverse -Ease
+    Add-BfxItem $S $tb -Fx 0.62 -Top ($H * 0.8 - 14)
+    Add-BfxItem $S (New-BfxText 'CREDIT 0' '#a0dcff' 0.6 10) -Fx 1 -OffsetX (-80) -Top ($H - 20)
+    $S.Extra = { param($cw) $vig.Width = $cw }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxThermal {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxRect 4200 ($H + 4) (New-BfxBrush '#141e78' 0.12)) -Fx 0 -Top -2
+    for ($i = 0; $i -lt 7; $i++) {
+        $rad = Get-BfxRnd $S 30 70
+        $blob = New-Object System.Windows.Controls.Canvas
+        [void]$blob.Children.Add((New-BfxGlow ($rad * 3.2) '#3060ff' 0.25)); [void]$blob.Children.Add((New-BfxGlow ($rad * 2) '#ffd030' 0.3)); [void]$blob.Children.Add((New-BfxGlow ($rad * 0.9) '#ff3a20' 0.35))
+        $tf = Set-BfxTransforms $blob 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X -140 140 (Get-BfxRnd $S 30 60) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H * -0.25) ($H * 0.25) (Get-BfxRnd $S 25 45) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $blob -Fx (Get-BfxRnd $S 0.25 0.9) -Top ($H * 0.5)
+    }
+    $raster = New-BfxTileBrush 4 { param($dg) [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' 0.0), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 4, 4)))); [void]$dg.Children.Add([System.Windows.Media.GeometryDrawing]::new((New-BfxBrush '#000000' 0.1), $null, [System.Windows.Media.RectangleGeometry]::new([System.Windows.Rect]::new(0, 0, 1, 4)))) }
+    $raster.Freeze(); Add-BfxItem $S (New-BfxRect 4200 ($H + 4) $raster) -Fx 0 -Top -2
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxEmission {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 14.0; $wave = @(@(0, 0), @(0.25, 0.7), @(0.5, 1), @(0.75, 0.7), @(1, 0))
+    $sky = New-BfxRect 4200 ($H + 4) (New-BfxLinear @(@(0, '#3c000a', 0), @(0.4, '#a0141e', 0.2), @(1, '#ff3c1e', 0.45)))
+    Start-BfxKeys $sky $global:BfxP.O $wave $per
+    Add-BfxItem $S $sky -Fx 0 -Top -2
+    $hz = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($x = 20.0; $x -le 4200; $x += 20) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * 0.01) * 3)), $true, $true) } }
+    $line = New-BfxPath $hz $null (New-BfxBrush '#ff8c5a' 0.25) 1
+    Start-BfxKeys $line $global:BfxP.O $wave $per
+    Add-BfxItem $S $line -Fx 0 -Top ($H * 0.82)
+    for ($i = 0; $i -lt 40; $i++) {
+        $d = New-BfxEllipse 2 2 (New-BfxBrush '#ffb090' 0.4); $tf = Set-BfxTransforms $d
+        Add-BfxItem $S $d -Top ($H * (Get-BfxRnd $S)) -Speed (Get-BfxRnd $S 4 12) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 5
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxProjector {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $wash = New-BfxRect 4200 ($H + 4) (New-BfxBrush '#ffdca0' 0.05)
+    Start-BfxKeys $wash $global:BfxP.O @(@(0, 1), @(0.3, 0.85), @(0.5, 1), @(0.7, 0.9), @(1, 1)) 1.7
+    Add-BfxItem $S $wash -Fx 0 -Top -2
+    $w1 = 750.0; $w2 = 400.0
+    $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-$w1) ($H + 20)), $true, $false); $c.LineTo((New-BfxPoint (-$w2) ($H + 20)), $true, $false) }.GetNewClosure()
+    $beam = New-BfxPath $geo (New-BfxLinear @(@(0, '#ffecbe', 0.32), @(1, '#ffecbe', 0)))
+    Start-BfxKeys $beam $global:BfxP.O @(@(0, 1), @(0.2, 0.9), @(0.45, 1), @(0.7, 0.92), @(1, 1)) 1.3
+    Add-BfxItem $S $beam -Fx 1 -OffsetX -20 -Top -10
+    for ($i = 0; $i -lt 46; $i++) {
+        $a = Get-BfxRnd $S; $ex = - ($w2 + ($w1 - $w2) * $a); $d = New-BfxEllipse 2 2 (New-BfxBrush '#fff2d0' 1); $tf = Set-BfxTransforms $d
+        $per = Get-BfxRnd $S 25 50; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.X 0 $ex $per $ph; Start-BfxAnim $tf.T $global:BfxP.Y 0 ($H + 20) $per $ph
+        Start-BfxKeys $d $global:BfxP.O @(@(0, 0), @(0.5, 0.6), @(1, 0)) $per $ph
+        Add-BfxItem $S $d -Fx 1 -OffsetX -20 -Top -10
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTether {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ax = 0.0; $ay = $H * 0.6; $bx = 460.0; $by = $H * 0.35; $mx = 230.0; $my = ($ay + $by) / 2 - 40
+    $fig = New-Object System.Windows.Media.PathFigure; $fig.StartPoint = [System.Windows.Point]::new($ax, $ay)
+    $seg = New-Object System.Windows.Media.QuadraticBezierSegment ([System.Windows.Point]::new($mx, $my)), ([System.Windows.Point]::new($bx, $by)), $true
+    [void]$fig.Segments.Add($seg)
+    $pg = New-Object System.Windows.Media.PathGeometry; [void]$pg.Figures.Add($fig)
+    $pa = New-Object System.Windows.Media.Animation.PointAnimation; $pa.From = [System.Windows.Point]::new($mx - 15, $my - 8); $pa.To = [System.Windows.Point]::new($mx + 15, $my + 8)
+    $pa.Duration = [System.Windows.Duration]::new([TimeSpan]::FromSeconds(5)); $pa.AutoReverse = $true; $pa.RepeatBehavior = [System.Windows.Media.Animation.RepeatBehavior]::Forever
+    $ease = New-Object System.Windows.Media.Animation.SineEase; $ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseInOut; $pa.EasingFunction = $ease
+    $seg.BeginAnimation([System.Windows.Media.QuadraticBezierSegment]::Point1Property, $pa)
+    $grp = New-Object System.Windows.Controls.Canvas
+    foreach ($st in @(@(8, 0.12), @(3, 0.35), @(1.2, 0.85))) { $p = New-Object System.Windows.Shapes.Path; $p.Data = $pg; $p.Stroke = New-BfxBrush '#96c8ff' $st[1]; $p.StrokeThickness = $st[0]; $p.StrokeStartLineCap = 'Round'; $p.StrokeEndLineCap = 'Round'; $p.IsHitTestVisible = $false; [void]$grp.Children.Add($p) }
+    for ($k = 0; $k -lt 4; $k++) {
+        $l = New-BfxGlow 20 '#d8ecff' 0.8; $tf = Set-BfxTransforms $l
+        $kx = @(); $ky = @(); for ($n = 0; $n -le 12; $n++) { $u = $n / 12.0; $kx += , @($u, ((1 - $u) * (1 - $u) * $ax + 2 * (1 - $u) * $u * $mx + $u * $u * $bx)); $ky += , @($u, ((1 - $u) * (1 - $u) * $ay + 2 * (1 - $u) * $u * $my + $u * $u * $by)) }
+        Start-BfxKeys $tf.T $global:BfxP.X $kx 8.3 ($k / 4.0); Start-BfxKeys $tf.T $global:BfxP.Y $ky 8.3 ($k / 4.0)
+        [void]$grp.Children.Add($l)
+    }
+    foreach ($e in @(@($ax, $ay, 60), @($bx, $by, 80))) { $g = New-BfxGlow $e[2] '#9fd0ff' 0.65; Start-BfxAnim $g $global:BfxP.O 0.6 1 (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease; [void]$grp.Children.Add((Set-BfxAt $g $e[0] $e[1])) }
+    $gt = Set-BfxTransforms $grp 0 0
+    Start-BfxAnim $gt.T $global:BfxP.Y -8 8 7 0 -Reverse -Ease
+    Add-BfxItem $S $grp -Fx 0.4 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRadar {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxSpread $S {
+        param($slot)
+        $rad = $H * 0.42; $green = New-BfxBrush '#5aff8c' 0.3; $per = 2 * [Math]::PI / 0.6
+        $grid = New-BfxGeo { param($c) foreach ($k in @(1, 0.66, 0.33)) { $rr = $rad * $k; $c.BeginFigure((New-BfxPoint $rr 0), $false, $true); $c.ArcTo((New-BfxPoint (-$rr) 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $rr 0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }
+            $c.BeginFigure((New-BfxPoint (-$rad) 0), $false, $false); $c.LineTo((New-BfxPoint $rad 0), $true, $false); $c.BeginFigure((New-BfxPoint 0 (-$rad)), $false, $false); $c.LineTo((New-BfxPoint 0 $rad), $true, $false) }.GetNewClosure()
+        $scope = New-Object System.Windows.Controls.Canvas
+        [void]$scope.Children.Add((New-BfxPath $grid $null $green 1))
+        $sweep = New-Object System.Windows.Controls.Canvas
+        for ($n = 0; $n -lt 24; $n++) { $a = - $n * 0.03; $ln = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $true, $false) }.GetNewClosure(); [void]$sweep.Children.Add((New-BfxPath $ln $null (New-BfxBrush '#5aff8c' (0.5 * (1 - $n / 24.0))) 1)) }
+        $sw = Set-BfxTransforms $sweep 0 0; Start-BfxAnim $sw.R $global:BfxP.A 0 360 $per 0
+        [void]$scope.Children.Add($sweep)
+        for ($n = 0; $n -lt 9; $n++) {
+            $a = Get-BfxRnd $S 0 6.283; $rr = $rad * (Get-BfxRnd $S 0.2 0.95); $at = $a / (2 * [Math]::PI)
+            $blip = New-BfxEllipse 4.4 4.4 (New-BfxBrush '#a0ffc0' 1)
+            $at = [Math]::Max(0.001, [Math]::Min(0.99, $at)); $end = $at + 0.77
+            if ($end -le 1) { $keys = @(@(0, 0), @($at, 0), @(($at + 0.0005), 1), @($end, 0), @(1, 0)) }
+            else { $v0 = 1 - (1 - $at) / 0.77; $keys = @(@(0, $v0), @(($end - 1), 0), @($at, 0), @(($at + 0.0005), 1), @(1, $v0)) }
+            Start-BfxKeys $blip $global:BfxP.O $keys $per
+            [void]$scope.Children.Add((Set-BfxAt $blip ([Math]::Cos($a) * $rr - 2.2) ([Math]::Sin($a) * $rr - 2.2)))
+        }
+        Add-BfxItem $S $scope -Fx 0 -Top ($H * 0.5)
+    } ($H * 1.7)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxChoppers {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $hull = New-BfxBrush '#101216' 0.92
+    Add-BfxSpread $S {
+        param($slot)
+        foreach ($cfg in @(, @(@(0.3, 1.0, 26), @(0.55, 0.7, 18))[$slot % 2])) {
+            $ch = New-Object System.Windows.Controls.Canvas
+            [void]$ch.Children.Add((Set-BfxAt (New-BfxEllipse 32 14 $hull) -16 -7)); [void]$ch.Children.Add((Set-BfxAt (New-BfxRect 24 3 $hull) -36 -2)); [void]$ch.Children.Add((Set-BfxAt (New-BfxRect 3 8 $hull) -38 -6)); [void]$ch.Children.Add((Set-BfxAt (New-BfxRect 14 1.5 $hull) -6 7))
+            [void]$ch.Children.Add((Set-BfxAt (New-BfxEllipse 60 5 (New-BfxBrush '#101216' 0.25)) -30 -11.5)); [void]$ch.Children.Add((Set-BfxAt (New-BfxRect 2 3 $hull) -1 -9))
+            $blade = New-BfxRect 60 1.2 (New-BfxBrush '#101216' 0.8); $bl = Set-BfxTransforms $blade
+            Start-BfxAnim $bl.S $global:BfxP.SX 1 -1 0.06 0 -Reverse
+            [void]$ch.Children.Add((Set-BfxAt $blade -30 -9.6))
+            $nav = New-BfxEllipse 3.2 3.2 (New-BfxBrush '#ff3a3a' 1); Start-BfxKeys $nav $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1.66 (Get-BfxRnd $S) -Discrete
+            [void]$ch.Children.Add((Set-BfxAt $nav 12.4 0.4))
+            $ct = Set-BfxTransforms $ch 0 0; $ct.S.ScaleX = $cfg[1]; $ct.S.ScaleY = $cfg[1]
+            Start-BfxAnim $ct.T $global:BfxP.Y -3 3 (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease
+            $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($ch); $wt = Set-BfxTransforms $wrap 0 0
+            Add-BfxItem $S $wrap -Top ($H * $cfg[0]) -Speed $cfg[2] -Phase (Get-BfxRnd $S) -T $wt.T -Margin 60
+        }
+    } ($H * 2.0)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRidgelines {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 1.8) '#ffc890' 0.3) -Fx 0.75 -Top ($H * 0.45)
+    $field = 2400.0
+    for ($i = 0; $i -lt 4; $i++) {
+        $pts = @(); for ($n = 0; $n -lt 60; $n++) { $pts += (Get-BfxRnd $S) }
+        $base = $H * (0.45 + $i * 0.13); $amp = $H * (0.22 - $i * 0.03)
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($H + 2)), $true, $true); for ($n = 0; $n -le 120; $n++) { $c.LineTo((New-BfxPoint ($n * 40) ($base - $amp * $pts[$n % 60])), $true, $true) }; $c.LineTo((New-BfxPoint ($field * 2) ($H + 2)), $true, $false) }.GetNewClosure()
+        $col = '#{0:X2}{1:X2}{2:X2}' -f (40 - $i * 8), (30 - $i * 6), (44 - $i * 8)
+        $ridge = New-BfxPath $geo (New-BfxBrush $col (0.35 + $i * 0.18)); $tf = Set-BfxTransforms $ridge
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $field) ($field / (4 + $i * 6)) 0
+        Add-BfxItem $S $ridge -Fx 0 -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTorches {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $bricks = New-BfxGeo { param($c) $row = 0; for ($y = 12.0; $y -lt $H; $y += 18) { $c.BeginFigure((New-BfxPoint 0 $y), $false, $false); $c.LineTo((New-BfxPoint 4200 $y), $true, $false); for ($x = ($row % 2) * 22.0; $x -lt 4200; $x += 44) { $c.BeginFigure((New-BfxPoint $x ($y - 18)), $false, $false); $c.LineTo((New-BfxPoint $x $y), $true, $false) }; $row++ } }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $bricks $null (New-BfxBrush '#000000' 0.25) 1) -Fx 0 -Top 0
+    $fire = New-BfxBrush '#ffaa3c' 0.92
+    for ($i = 0; $i -lt 5; $i++) {
+        $grp = New-Object System.Windows.Controls.Canvas
+        $halo = New-BfxGlow ($H * 1.5) '#ff9a3a' 0.3; [void]$grp.Children.Add($halo)
+        Start-BfxKeys $halo $global:BfxP.O @(@(0, 0.88), @(0.3, 1), @(0.55, 0.82), @(0.8, 0.96), @(1, 0.88)) (Get-BfxRnd $S 1.4 2.4) (Get-BfxRnd $S)
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxRect 4 16 (New-BfxBrush '#3c2818' 1)) -2 0))
+        $fg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -5 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -6 -9), (New-BfxPoint 0 -16), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 6 -9), (New-BfxPoint 5 0), $true, $false) }
+        $flame = New-BfxPath $fg $fire; $ft = Set-BfxTransforms $flame
+        Start-BfxKeys $ft.S $global:BfxP.SY @(@(0, 1), @(0.35, 0.86), @(0.65, 1.06), @(1, 1)) (Get-BfxRnd $S 0.7 1.2) (Get-BfxRnd $S)
+        Start-BfxAnim $ft.R $global:BfxP.A -5 5 (Get-BfxRnd $S 1.5 2.5) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$grp.Children.Add($flame)
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxGlow 5 '#fff0c0' 1) 0 -4))
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.16) -Top ($H * 0.42)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxManaflow {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $fr = 0.006; $wl = 2 * [Math]::PI / $fr
+    for ($k = 0; $k -lt 3; $k++) {
+        $ph = $k * 2.0; $amp = $H * 0.15
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ([Math]::Sin($ph) * $amp)), $false, $false); for ($x = 10.0; $x -le 4400; $x += 10) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * $amp)), $true, $true) } }.GetNewClosure()
+        $stream = New-Object System.Windows.Controls.Canvas
+        [void]$stream.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#5affaa' 0.14) 14)); [void]$stream.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#a0ffc8' 0.45) 2))
+        for ($n = 0; $n -lt 30; $n++) { $x = Get-BfxRnd $S 0 4400; $m = New-BfxGlow 16 '#b0ffd0' 0.8; Start-BfxAnim $m $global:BfxP.O 0.3 1 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease; [void]$stream.Children.Add((Set-BfxAt $m $x ([Math]::Sin($x * $fr + $ph) * $amp))) }
+        $tf = Set-BfxTransforms $stream 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $wl) ($wl / (25 + $k * 8)) 0
+        Add-BfxItem $S $stream -Fx 0 -Top ($H * (0.3 + $k * 0.2))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxQuestmap {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxRect 4200 ($H + 4) (New-BfxBrush '#dcc48c' 0.12)) -Fx 0.26 -Top -2
+    $pts = @(); for ($i = 0; $i -lt 6; $i++) { $pts += , @((0.3 + $i * 0.12 + (Get-BfxRnd $S 0 0.04)), ($H * (Get-BfxRnd $S 0.25 0.75))) }
+    $route = New-Object System.Windows.Shapes.Path; $route.Stroke = New-BfxBrush '#78281e' 0.8; $route.StrokeThickness = 2; $route.IsHitTestVisible = $false
+    $route.Tag = $pts
+    $dash = New-Object System.Windows.Media.DoubleCollection; [void]$dash.Add(2.5); [void]$dash.Add(2); $route.StrokeDashArray = $dash
+    $mask = New-Object System.Windows.Media.LinearGradientBrush; $mask.MappingMode = [System.Windows.Media.BrushMappingMode]::Absolute
+    $mask.StartPoint = [System.Windows.Point]::new(-1, 0); $mask.EndPoint = [System.Windows.Point]::new(0, 0)
+    foreach ($gs in @(@(0, 255), @(0.999, 255), @(1.0, 0))) { [void]$mask.GradientStops.Add([System.Windows.Media.GradientStop]::new([System.Windows.Media.Color]::FromArgb([byte]$gs[1], 0, 0, 0), $gs[0])) }
+    $mt = New-Object System.Windows.Media.TranslateTransform 0, 0; $mask.Transform = $mt; $route.OpacityMask = $mask
+    Add-BfxItem $S $route -Fx 0 -Top 0
+    $marks = @()
+    foreach ($p in $pts) { $d = New-BfxEllipse 6 6 (New-BfxBrush '#5a3a20' 0.8); $marks += , $d; Add-BfxItem $S $d -Fx $p[0] -OffsetX -3 -Top ($p[1] - 3) }
+    $ring = New-BfxEllipse 8 8 $null (New-BfxBrush '#c8281e' 1) 1.2; $ring.Margin = [System.Windows.Thickness]::new(-4, -4, 0, 0); $rt = Set-BfxTransforms $ring
+    Start-BfxKeys $rt.S $global:BfxP.SX @(@(0, 1), @(0.8, 1), @(1, 5)) 10; Start-BfxKeys $rt.S $global:BfxP.SY @(@(0, 1), @(0.8, 1), @(1, 5)) 10
+    Start-BfxKeys $ring $global:BfxP.O @(@(0, 0), @(0.8, 0), @(0.801, 1), @(1, 0)) 10
+    Add-BfxItem $S $ring -Fx $pts[-1][0] -Top $pts[-1][1]
+    $rose = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 16 0), $false, $true); $c.ArcTo((New-BfxPoint -16 0), [System.Windows.Size]::new(16, 16), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint 16 0), [System.Windows.Size]::new(16, 16), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }
+    Add-BfxItem $S (New-BfxPath $rose $null (New-BfxBrush '#5a3c1e' 0.7) 1) -Fx 0.93 -Top ($H * 0.72)
+    $needle = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 -22), $true, $true); $c.LineTo((New-BfxPoint 4 0), $true, $false); $c.LineTo((New-BfxPoint 0 22), $true, $false); $c.LineTo((New-BfxPoint -4 0), $true, $false) }
+    Add-BfxItem $S (New-BfxPath $needle (New-BfxBrush '#5a3c1e' 0.7)) -Fx 0.93 -Top ($H * 0.72)
+    $S.Extra = { param($cw)
+        $routePts = @($route.Tag)
+        $geo = New-Object System.Windows.Media.StreamGeometry
+        $ctx = $geo.Open()
+        try {
+            $ctx.BeginFigure((New-BfxPoint ($routePts[0][0] * $cw) $routePts[0][1]), $false, $false)
+            for ($n = 1; $n -lt $routePts.Count; $n++) { $ctx.LineTo((New-BfxPoint ($routePts[$n][0] * $cw) $routePts[$n][1]), $true, $false) }
+        } finally { $ctx.Close() }
+        $geo.Freeze()
+        $route.Data = $geo
+        $x0 = $routePts[0][0] * $cw; $x1 = $routePts[-1][0] * $cw
+        Start-BfxKeys $mt $global:BfxP.X @(@(0, $x0), @(0.8, $x1), @(0.97, $x1), @(1, $x0)) 10
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDrones {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 3; $i++) {
+        $dr = New-Object System.Windows.Controls.Canvas
+        $len = $H
+        $bg = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-$len * 0.22) $len), $true, $false); $c.LineTo((New-BfxPoint ($len * 0.22) $len), $true, $false) }.GetNewClosure()
+        $beam = New-BfxPath $bg (New-BfxLinear @(@(0, '#e6f0ff', 0.3), @(1, '#e6f0ff', 0))); $bt = Set-BfxTransforms $beam
+        Start-BfxAnim $bt.R $global:BfxP.A -20 20 (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$dr.Children.Add($beam)
+        [void]$dr.Children.Add((Set-BfxAt (New-BfxEllipse 18 10 (New-BfxBrush '#20262e' 1)) -9 -5)); [void]$dr.Children.Add((Set-BfxAt (New-BfxRect 26 2 (New-BfxBrush '#20262e' 1)) -13 -1))
+        [void]$dr.Children.Add((Set-BfxAt (New-BfxEllipse 4 4 (New-BfxBrush '#f0f6ff' 0.9)) -2 0))
+        $red = New-BfxEllipse 2.8 2.8 (New-BfxBrush '#ff3030' 1); Start-BfxKeys $red $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 1.8 (Get-BfxRnd $S) -Discrete
+        [void]$dr.Children.Add((Set-BfxAt $red 6.6 -3.4))
+        $tf = Set-BfxTransforms $dr 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X -40 40 (Get-BfxRnd $S 10 16) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y -4 4 (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $dr -Fx (0.35 + $i * 0.22) -Top ($H * (Get-BfxRnd $S 0.18 0.32))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSmokecurl {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 2) '#ffd8a0' 0.08) -Fx 0.66 -Top ($H * 0.4)
+    for ($i = 0; $i -lt 3; $i++) {
+        $src = New-Object System.Windows.Controls.Canvas
+        for ($j = 0; $j -lt 3; $j++) {
+            $ph = Get-BfxRnd $S 0 6.28
+            $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($n = 1; $n -le 40; $n++) { $f = $n / 40.0; $c.LineTo((New-BfxPoint ([Math]::Sin($f * 7 + $ph) * (4 + $f * 26) + [Math]::Sin($f * 3 + $j * 2) * $f * 18) (- $f * $H * 1.1)), $true, $true) } }.GetNewClosure()
+            $strand = New-BfxPath $geo $null (New-BfxBrush '#dcdce6' (0.22 - $j * 0.05)) (3 - $j * 0.6)
+            $strand.OpacityMask = New-BfxLinear @(@(0, '#000000', 0), @(0.6, '#000000', 0.8), @(1, '#000000', 1))
+            $sk = New-Object System.Windows.Media.SkewTransform 0, 0; $tg = New-Object System.Windows.Media.TransformGroup; $sc = New-Object System.Windows.Media.ScaleTransform 1, 1
+            [void]$tg.Children.Add($sc); [void]$tg.Children.Add($sk); $strand.RenderTransform = $tg
+            Start-BfxAnim $sk ([System.Windows.Media.SkewTransform]::AngleXProperty) -8 8 (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease
+            Start-BfxAnim $sc $global:BfxP.SX 0.6 1.2 (Get-BfxRnd $S 9 15) (Get-BfxRnd $S) -Reverse -Ease
+            [void]$src.Children.Add($strand)
+        }
+        $ember = New-BfxGlow 6 '#ff8a3a' 1; Start-BfxAnim $ember $global:BfxP.O 0.7 1 2.5 (Get-BfxRnd $S) -Reverse -Ease
+        [void]$src.Children.Add($ember)
+        Add-BfxItem $S $src -Fx (0.45 + $i * 0.2) -Top ($H - 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCasings {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 10; $i++) {
+        $per = Get-BfxRnd $S 2.6 4.2; $ph = Get-BfxRnd $S; $vx = Get-BfxRnd $S 40 110; $vy = Get-BfxRnd $S 90 150; $spin = Get-BfxRnd $S 1.2 2.2
+        $cs = New-Object System.Windows.Controls.Canvas
+        [void]$cs.Children.Add((Set-BfxAt (New-BfxRect 4 12 (New-BfxLinear @(@(0, '#b48c3c', 1), @(0.5, '#f0d080', 1), @(1, '#b48c3c', 1)) -Horizontal)) -2 -6))
+        [void]$cs.Children.Add((Set-BfxAt (New-BfxRect 4.8 1.6 (New-BfxBrush '#64461e' 1)) -2.4 5))
+        $shine = New-BfxGlow 16 '#fff0c0' 0.7; Start-BfxFlash $shine $spin 0.1 0.12 0.8 (Get-BfxRnd $S); [void]$cs.Children.Add($shine)
+        $tf = Set-BfxTransforms $cs 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A 0 360 $spin (Get-BfxRnd $S)
+        $kx = @(); $ky = @(); for ($n = 0; $n -le 8; $n++) { $u = $n / 8.0; $tt = $u * $per; $kx += , @($u, ($vx * $tt * 0.6)); $ky += , @($u, (- $vy * $tt * 0.6 + 42 * $tt * $tt)) }
+        Start-BfxKeys $tf.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $tf.T $global:BfxP.Y $ky $per $ph
+        Add-BfxItem $S $cs -Fx (Get-BfxRnd $S 0.4 0.85) -Top ($H * 0.55)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLevitate {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $stone = New-BfxBrush '#787068' 0.95
+    for ($i = 0; $i -lt 12; $i++) {
+        $sz = Get-BfxRnd $S 4 13; $pts = @(); for ($n = 0; $n -lt 6; $n++) { $pts += (Get-BfxRnd $S 0.7 1.2) }
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -lt 6; $n++) { $a = $n / 6.0 * 2 * [Math]::PI; $pt = New-BfxPoint ([Math]::Cos($a) * $sz * $pts[$n]) ([Math]::Sin($a) * $sz * $pts[$n]); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $false) } } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxGlow ($sz * 2.8) '#8ab4ff' 0.12) 0 ($sz + 4)))
+        $rock = New-BfxPath $geo $stone; $rt = Set-BfxTransforms $rock
+        Start-BfxAnim $rt.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 12 30) (Get-BfxRnd $S)
+        [void]$grp.Children.Add($rock)
+        $tf = Set-BfxTransforms $grp 0 0; $per = 1 / (Get-BfxRnd $S 0.03 0.07); $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H + 10) -20 $per $ph
+        Start-BfxAnim $tf.T $global:BfxP.X -8 8 (Get-BfxRnd $S 8 14) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 0), @(0.5, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S 0.05 0.95) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+# ------------------------------------------------------------
+# Round 4 effects (calm, game-specific, part 2)
+# ------------------------------------------------------------
+
+function global:Add-BfxBeacon {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 2 * [Math]::PI / 1.6
+    $wash = New-BfxRect 4200 ($H + 4) (New-BfxBrush '#ff3214' 0.08)
+    Start-BfxKeys $wash $global:BfxP.O (@(for ($n = 0; $n -le 12; $n++) { $u = $n / 12.0; , @($u, (0.375 + 0.625 * [Math]::Max(0, [Math]::Cos($u * 2 * [Math]::PI)))) })) $per
+    Add-BfxItem $S $wash -Fx 0 -Top -2
+    Add-BfxSpread $S {
+        param($slot)
+        $len = $H * 1.25
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint -40 $len), $true, $false); $c.LineTo((New-BfxPoint 40 $len), $true, $false) }.GetNewClosure()
+        $beam = New-BfxPath $geo (New-BfxLinear @(@(0, '#ff5a28', 0.45), @(1, '#ff5a28', 0))); $bt = Set-BfxTransforms $beam
+        $ka = @(); $ks = @()
+        for ($n = 0; $n -le 24; $n++) { $u = $n / 24.0; $a = $u * 2 * [Math]::PI; $lean = [Math]::Sin($a) * $H * 1.2; $ka += , @($u, (- [Math]::Atan2($lean, $H) * 180 / [Math]::PI)); $ks += , @($u, (0.5 + [Math]::Abs([Math]::Cos($a)))) }
+        Start-BfxKeys $bt.R $global:BfxP.A $ka $per; Start-BfxKeys $bt.S $global:BfxP.SX $ks $per
+        Add-BfxItem $S $beam -Fx 0 -Top 8
+        Add-BfxItem $S (New-BfxGlow 48 '#ff5a2a' 0.9) -Fx 0 -Top 8
+        Add-BfxItem $S (New-BfxRect 16 6 (New-BfxBrush '#3a1a14' 1)) -Fx 0 -OffsetX -8 -Top 0
+    } ($H * 2.0)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCanopy {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 5; $i++) {
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint 26 0), $true, $false); $c.LineTo((New-BfxPoint 96 $H), $true, $false); $c.LineTo((New-BfxPoint 50 $H), $true, $false) }.GetNewClosure()
+        $shaft = New-BfxPath $geo (New-BfxLinear @(@(0, '#fffac8', 0.22), @(1, '#fffac8', 0))); $tf = Set-BfxTransforms $shaft
+        Start-BfxAnim $shaft $global:BfxP.O 0.1 1 (Get-BfxRnd $S 8 14) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X -10 10 (Get-BfxRnd $S 12 20) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $shaft -Fx (0.2 + $i * 0.17) -Top 0
+    }
+    for ($i = 0; $i -lt 30; $i++) {
+        $p = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#fff6c0' 0.5); $tf = Set-BfxTransforms $p
+        Start-BfxAnim $tf.T $global:BfxP.X -10 10 (Get-BfxRnd $S 15 25) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y -6 6 (Get-BfxRnd $S 18 28) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $p -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S))
+    }
+    $leaf = New-BfxBrush '#0a1a08' 0.75
+    for ($i = 0; $i -lt 30; $i++) {
+        $rr = Get-BfxRnd $S 14 40
+        $l = New-BfxEllipse ($rr * 2) ($rr * 1.1) $leaf; $l.Margin = [System.Windows.Thickness]::new(-$rr, -$rr * 0.55, 0, 0); $tf = Set-BfxTransforms $l
+        Start-BfxAnim $tf.R $global:BfxP.A -11 11 (Get-BfxRnd $S 10 16) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X -4 4 (Get-BfxRnd $S 8 12) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $l -Fx (Get-BfxRnd $S) -Top (- $rr * 0.3)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxEmwaves {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    foreach ($wv in @(@('#4ab8ff', 0.012, 36, 0.18), @('#5aff9a', 0.018, -27, 0.12), @('#a07dff', 0.008, 18, 0.22))) {
+        $fr = $wv[1]; $amp = $H * $wv[3]; $wl = 2 * [Math]::PI / $fr
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($x = 6.0; $x -le 4600; $x += 6) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr) * $amp)), $true, $true) } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        $line = New-BfxPath $geo $null (New-BfxBrush $wv[0] 0.5) 1.6; Set-BfxShadow $line $wv[0] 6; [void]$grp.Children.Add($line)
+        for ($x = $wl / 4; $x -lt 4600; $x += $wl) { $pt = New-BfxGlow 6 '#ffffff' 0.9; Start-BfxFlash $pt (Get-BfxRnd $S 3 5) (Get-BfxRnd $S 0.05 0.8) 0.3; [void]$grp.Children.Add((Set-BfxAt $pt $x $amp)) }
+        $tf = Set-BfxTransforms $grp 0 0
+        $sec = $wl / [Math]::Abs($wv[2])
+        if ($wv[2] -gt 0) { Start-BfxAnim $tf.T $global:BfxP.X (- $wl) 0 $sec 0 } else { Start-BfxAnim $tf.T $global:BfxP.X 0 (- $wl) $sec 0 }
+        Add-BfxItem $S $grp -Fx 0 -Top ($H * 0.5)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPolaroids {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $frame = New-BfxBrush '#f5f2eb' 0.95; $grey = New-BfxBrush '#464646' 1
+    for ($i = 0; $i -lt 6; $i++) {
+        $col = Get-BfxPick $S @('#f0a060', '#80b0e0', '#e08aa0', '#90d080'); $per = Get-BfxRnd $S 10 16; $ph = Get-BfxRnd $S
+        $pic = New-Object System.Windows.Controls.Canvas
+        [void]$pic.Children.Add((Set-BfxAt (New-BfxRect 28 34 $frame) -14 -16)); [void]$pic.Children.Add((Set-BfxAt (New-BfxRect 22 22 $grey) -11 -13))
+        $dev = New-Object System.Windows.Controls.Canvas
+        [void]$dev.Children.Add((Set-BfxAt (New-BfxRect 22 22 (New-BfxBrush $col 1)) -11 -13)); [void]$dev.Children.Add((Set-BfxAt (New-BfxEllipse 8 8 (New-BfxBrush '#ffffff' 0.35)) 0 -10))
+        Start-BfxKeys $dev $global:BfxP.O @(@(0, 0), @(0.45, 1), @(1, 1)) $per $ph
+        [void]$pic.Children.Add($dev)
+        $tf = Set-BfxTransforms $pic 0 0; $base = Get-BfxRnd $S -14 14
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H + 30) -30 $per $ph
+        Start-BfxAnim $tf.R $global:BfxP.A ($base - 5) ($base + 5) (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X -12 12 (Get-BfxRnd $S 10 18) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $pic -Fx (Get-BfxRnd $S 0.08 0.95) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGroovy {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $cols = @('#f0a050', '#e86a5a', '#f0d070', '#70c0b0', '#e890b0')
+    for ($i = 0; $i -lt 9; $i++) {
+        $rr = Get-BfxRnd $S 14 44; $col = $cols[$i % 5]
+        if ((Get-BfxRnd $S) -lt 0.4) { $c0 = New-BfxEllipse ($rr * 2) ($rr * 2) $null (New-BfxBrush $col 0.25) 6 } else { $c0 = New-BfxEllipse ($rr * 2) ($rr * 2) (New-BfxBrush $col 0.14) }
+        $c0.Margin = [System.Windows.Thickness]::new(-$rr, -$rr, 0, 0); $tf = Set-BfxTransforms $c0
+        Start-BfxAnim $tf.S $global:BfxP.SX 0.85 1 (Get-BfxRnd $S 10 16) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.S $global:BfxP.SY 0.85 1 (Get-BfxRnd $S 10 16) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X -14 14 (Get-BfxRnd $S 30 50) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $c0 -Fx (Get-BfxRnd $S 0.3 0.98) -Top ($H * (Get-BfxRnd $S))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGel {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 5; $i++) {
+        $col = $(if ($i % 2) { '#ff8a20' } else { '#2a8aff' }); $per = Get-BfxRnd $S 9 14; $ph = Get-BfxRnd $S
+        $bl = @(); for ($n = 0; $n -lt 8; $n++) { $bl += (Get-BfxRnd $S 0.7 1.2) }
+        $fill = New-BfxBrush $col 0.75
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -lt 8; $n++) { $a = $n / 8.0 * 2 * [Math]::PI; $pt = New-BfxPoint ([Math]::Cos($a) * 18 * $bl[$n]) ([Math]::Sin($a) * 14.4 * $bl[$n]); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $true) } } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        $blob = New-BfxPath $geo $fill; $bt = Set-BfxTransforms $blob
+        Start-BfxKeys $bt.S $global:BfxP.SX @(@(0, 0.05), @(0.05, 1), @(1, 1)) $per $ph; Start-BfxKeys $bt.S $global:BfxP.SY @(@(0, 0.05), @(0.05, 1), @(1, 1)) $per $ph
+        [void]$grp.Children.Add($blob)
+        for ($d = 0; $d -lt 3; $d++) {
+            $dx = (Get-BfxRnd $S -0.6 0.6) * 12; $len = $H * (0.5 + $d * 0.2)
+            $drip = New-BfxRect 4 $len $fill 2; $dt = Set-BfxTransforms $drip 0.5 0
+            Start-BfxKeys $dt.S $global:BfxP.SY @(@(0, 0), @(0.05, 0), @(0.92, 0.87), @(1, 0.87)) $per $ph
+            [void]$grp.Children.Add((Set-BfxAt $drip ($dx - 2) 0))
+            $drop = New-BfxEllipse 6 6 $fill; $drt = Set-BfxTransforms $drop
+            Start-BfxKeys $drt.T $global:BfxP.Y @(@(0, 0), @(0.05, 0), @(0.92, ($len * 0.87)), @(1, ($len * 0.87))) $per $ph
+            [void]$grp.Children.Add((Set-BfxAt $drop ($dx - 3) -3))
+        }
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxGlow 12 '#ffffff' 0.4) -5 -5))
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.8, 1), @(0.92, 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.15 + (Get-BfxRnd $S 0 0.05)) -Top ($H * (Get-BfxRnd $S 0.15 0.5))
+    }
+    Complete-BfxStage $S
+}
+
+function global:New-BfxStarShape {
+    param([double]$Rad, [int]$Points = 4, [double]$Inner = 0.2)
+    return (New-BfxGeo { param($c) for ($n = 0; $n -lt $Points * 2; $n++) { $a = $n / ($Points * 2.0) * 2 * [Math]::PI - [Math]::PI / 2; $rr = $(if ($n % 2) { $Rad * $Inner } else { $Rad }); $pt = New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $false) } } }.GetNewClosure())
+}
+
+function global:Add-BfxGleam {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 10; $i++) {
+        $sz = Get-BfxRnd $S 6 14; $per = Get-BfxRnd $S 2.5 5.5; $ph = Get-BfxRnd $S
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxGlow ($sz * 3) '#e0f4ff' 0.5)); [void]$grp.Children.Add((New-BfxPath (New-BfxStarShape $sz 4 0.2) (New-BfxBrush '#ffffff' 0.9)))
+        $tf = Set-BfxTransforms $grp 0 0
+        $pop = @(@(0, 0), @(0.15, 1), @(0.3, 0), @(1, 0))
+        Start-BfxKeys $tf.S $global:BfxP.SX $pop $per $ph; Start-BfxKeys $tf.S $global:BfxP.SY $pop $per $ph
+        Start-BfxKeys $tf.R $global:BfxP.A @(@(0, 0), @(0.3, 35), @(1, 35)) $per $ph
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S 0.05 0.95) -Top ($H * (Get-BfxRnd $S 0.1 0.9))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxJumppads {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 1 / 0.35
+    for ($i = 0; $i -lt 3; $i++) {
+        $pad = New-Object System.Windows.Controls.Canvas
+        [void]$pad.Children.Add((New-BfxGlow 80 '#ffb030' 0.5)); [void]$pad.Children.Add((Set-BfxAt (New-BfxEllipse 48 12 $null (New-BfxBrush '#ffbe50' 0.8) 2) -24 -6))
+        for ($k = 0; $k -lt 4; $k++) {
+            $ring = New-BfxEllipse 48 12 $null (New-BfxBrush '#ffc864' 0.6) 1.5; $ring.Margin = [System.Windows.Thickness]::new(-24, -6, 0, 0); $rt = Set-BfxTransforms $ring
+            $ph = ($k / 4.0 + $i * 0.13) % 1
+            Start-BfxAnim $rt.T $global:BfxP.Y 0 (- $H * 0.9) $per $ph
+            Start-BfxAnim $rt.S $global:BfxP.SX 1 0.4 $per $ph; Start-BfxAnim $rt.S $global:BfxP.SY 1 0.4 $per $ph
+            Start-BfxAnim $ring $global:BfxP.O 1 0 $per $ph
+            [void]$pad.Children.Add($ring)
+        }
+        Add-BfxItem $S $pad -Fx (0.4 + $i * 0.22) -Top ($H - 6)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxNeonsigns {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $signs = @(@('#ff3fb0', 'arrow', 0.38, 0.35), @('#3fe8ff', 'ring', 0.55, 0.5), @('#ffd23f', 'bars', 0.72, 0.3), @('#9a5cff', 'ring', 0.88, 0.6))
+    foreach ($sg in $signs) {
+        $kind = $sg[1]
+        $geo = New-BfxGeo { param($c)
+            if ($kind -eq 'arrow') { $c.BeginFigure((New-BfxPoint -30 0), $false, $false); $c.LineTo((New-BfxPoint 20 0), $true, $false); $c.BeginFigure((New-BfxPoint 8 -10), $false, $false); $c.LineTo((New-BfxPoint 20 0), $true, $false); $c.LineTo((New-BfxPoint 8 10), $true, $false) }
+            elseif ($kind -eq 'ring') { $c.BeginFigure((New-BfxPoint 16 0), $false, $true); $c.ArcTo((New-BfxPoint -16 0), [System.Windows.Size]::new(16, 16), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint 16 0), [System.Windows.Size]::new(16, 16), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }
+            else { for ($n = 0; $n -lt 3; $n++) { $c.BeginFigure((New-BfxPoint -20 ($n * 9)), $false, $false); $c.LineTo((New-BfxPoint (20 - $n * 8) ($n * 9)), $true, $false) } }
+        }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxGlow 100 $sg[0] 0.15))
+        $tube = New-BfxPath $geo $null (New-BfxBrush $sg[0] 0.9) 3; Set-BfxShadow $tube $sg[0] 14; [void]$grp.Children.Add($tube)
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.5, 1), @(0.501, 0.15), @(0.512, 1), @(0.52, 0.15), @(0.525, 1), @(1, 1)) 11 (Get-BfxRnd $S) -Discrete
+        Add-BfxItem $S $grp -Fx $sg[2] -Top ($H * $sg[3])
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxStickers {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $cols = @('#ff4d6a', '#ffd24d', '#4dd0ff', '#7dff6a', '#c07bff')
+    for ($i = 0; $i -lt 7; $i++) {
+        $shape = $i % 3; $per = Get-BfxRnd $S 8 12; $ph = Get-BfxRnd $S
+        $mk = { param($rr) if ($shape -eq 0) { New-BfxStarShape $rr 5 0.45 } elseif ($shape -eq 1) { New-BfxGeo { param($c) $q = $rr * 0.85; $c.BeginFigure((New-BfxPoint $q 0), $true, $true); $c.ArcTo((New-BfxPoint (-$q) 0), [System.Windows.Size]::new($q, $q), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false); $c.ArcTo((New-BfxPoint $q 0), [System.Windows.Size]::new($q, $q), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure() } else { New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$rr) (-$rr * 0.4)), $true, $true); foreach ($q in @(@(0.2, -0.4), @(0.2, -0.9), @(1, 0), @(0.2, 0.9), @(0.2, 0.4), @(-1, 0.4))) { $c.LineTo((New-BfxPoint ($q[0] * $rr) ($q[1] * $rr)), $true, $false) } }.GetNewClosure() } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxPath (& $mk 17) (New-BfxBrush '#ffffff' 1))); [void]$grp.Children.Add((New-BfxPath (& $mk 14) (New-BfxBrush $cols[$i % 5] 1)))
+        $tf = Set-BfxTransforms $grp 0 0; $tf.R.Angle = Get-BfxRnd $S -17 17
+        $pop = @(@(0, 0), @(0.04, 1.15), @(0.08, 1), @(1, 1))
+        Start-BfxKeys $tf.S $global:BfxP.SX $pop $per $ph; Start-BfxKeys $tf.S $global:BfxP.SY $pop $per $ph
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.75, 1), @(0.85, 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.1 + (Get-BfxRnd $S 0 0.03)) -Top ($H * (Get-BfxRnd $S 0.2 0.8))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBullethell {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 6.0; $rmax = 500.0
+    $grp = New-Object System.Windows.Controls.Canvas
+    for ($wv = 0; $wv -lt 3; $wv++) {
+        $col = $(if ($wv % 2) { '#ff6ad8' } else { '#6ad8ff' }); $ph = $wv / 3.0
+        for ($i = 0; $i -lt 16; $i++) {
+            $orb = New-Object System.Windows.Controls.Canvas; [void]$orb.Children.Add((New-BfxGlow 16 $col 0.7)); [void]$orb.Children.Add((New-BfxGlow 4 '#ffffff' 0.9))
+            $tf = Set-BfxTransforms $orb 0 0
+            $kx = @(); $ky = @(); for ($n = 0; $n -le 8; $n++) { $u = $n / 8.0; $a = $i / 16.0 * 2 * [Math]::PI + $wv * 0.5 + $u * 2.1; $kx += , @($u, ([Math]::Cos($a) * $u * $rmax)); $ky += , @($u, ([Math]::Sin($a) * $u * $rmax * 0.55)) }
+            Start-BfxKeys $tf.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $tf.T $global:BfxP.Y $ky $per $ph
+            Start-BfxAnim $orb $global:BfxP.O 1 0 $per $ph
+            [void]$grp.Children.Add($orb)
+        }
+    }
+    [void]$grp.Children.Add((New-BfxGlow 40 '#ffffff' 0.5))
+    Add-BfxItem $S $grp -Fx 0.5 -Top ($H * 0.5)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTubelights {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 4; $i++) {
+        $grp = New-Object System.Windows.Controls.Canvas
+        $cone = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -30 6), $true, $true); $c.LineTo((New-BfxPoint 30 6), $true, $false); $c.LineTo((New-BfxPoint 70 $H), $true, $false); $c.LineTo((New-BfxPoint -70 $H), $true, $false) }.GetNewClosure()
+        [void]$grp.Children.Add((New-BfxPath $cone (New-BfxLinear @(@(0, '#d2f0e6', 0.22), @(1, '#d2f0e6', 0)))))
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxRect 60 4 (New-BfxBrush '#ebfffa' 0.95)) -30 3)); [void]$grp.Children.Add((Set-BfxAt (New-BfxRect 68 3 (New-BfxBrush '#3c4042' 1)) -34 0))
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 0.15), @(0.008, 1), @(0.015, 0.15), @(0.02, 1), @(0.03, 0.2), @(0.034, 1), @(1, 1)) (Get-BfxRnd $S 7 12) (Get-BfxRnd $S) -Discrete
+        Add-BfxItem $S $grp -Fx (0.3 + $i * 0.18) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxFarblast {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $per = 16.0; $gy = $H * 0.92; $top = $H * 0.7
+    Add-BfxSpread $S {
+        param($slot)
+        $flash = New-BfxGlow ($H * 4) '#fff2c0' 0.5
+        Start-BfxKeys $flash $global:BfxP.O @(@(0, 1), @(0.08, 0), @(1, 0)) $per
+        Add-BfxItem $S $flash -Fx 0 -Top $gy
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxGlow ($H * 1.6) '#ff9a40' 0.25))
+        $stem = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -10 0), $true, $true); $c.QuadraticBezierTo((New-BfxPoint -3 (-$top * 0.5)), (New-BfxPoint -8 (-$top)), $true, $false); $c.LineTo((New-BfxPoint 8 (-$top)), $true, $false); $c.QuadraticBezierTo((New-BfxPoint 3 (-$top * 0.5)), (New-BfxPoint 10 0), $true, $false) }.GetNewClosure()
+        $sp = New-BfxPath $stem (New-BfxBrush '#966e50' 0.6); $st = Set-BfxTransforms $sp
+        Start-BfxKeys $st.S $global:BfxP.SY @(@(0, 0), @(0.5, 1), @(1, 1)) $per
+        [void]$grp.Children.Add($sp)
+        $cap = New-Object System.Windows.Controls.Canvas
+        for ($n = 0; $n -lt 7; $n++) {
+            $a = $n / 7.0 * 2 * [Math]::PI; $pf = New-BfxGlow 44 $(if ($n % 2) { '#d8a070' } else { '#ffb060' }) 0.35; $pt = Set-BfxTransforms $pf
+            Start-BfxKeys $pt.T $global:BfxP.X @(@(0, 0), @(0.5, ([Math]::Cos($a) * 22)), @(1, ([Math]::Cos($a) * 26))) $per
+            Start-BfxKeys $pt.T $global:BfxP.Y @(@(0, 0), @(0.5, ([Math]::Sin($a) * 8)), @(1, ([Math]::Sin($a) * 10))) $per
+            Start-BfxKeys $pt.S $global:BfxP.SX @(@(0, 0.2), @(0.5, 1), @(1, 1.2)) $per; Start-BfxKeys $pt.S $global:BfxP.SY @(@(0, 0.2), @(0.5, 1), @(1, 1.2)) $per
+            [void]$cap.Children.Add($pf)
+        }
+        $ct = Set-BfxTransforms $cap 0 0
+        Start-BfxKeys $ct.T $global:BfxP.Y @(@(0, 0), @(0.5, (-$top)), @(1, (-$top - 6))) $per
+        [void]$grp.Children.Add($cap)
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.6, 1), @(1, 0)) $per
+        Add-BfxItem $S $grp -Fx 0 -Top $gy
+    } ($H * 1.9)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTides {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 30; $i++) { $g = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#ffffff' 0.7); Start-BfxFlash $g (Get-BfxRnd $S 4 7) (Get-BfxRnd $S 0.05 0.9) 0.15 0.7; Add-BfxItem $S $g -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.35 0.65)) }
+    $fr = 0.012; $wl = 2 * [Math]::PI / $fr
+    for ($k = 0; $k -lt 3; $k++) {
+        $ph = $k * 2.0
+        $body = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 $H), $true, $true); for ($x = 0.0; $x -le 4400; $x += 10) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * 6)), $true, $true) }; $c.LineTo((New-BfxPoint 4400 $H), $true, $false) }.GetNewClosure()
+        $foam = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ([Math]::Sin($ph) * 6)), $false, $false); for ($x = 10.0; $x -le 4400; $x += 10) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * $fr + $ph) * 6)), $true, $true) } }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        $col = '#{0:X2}{1:X2}{2:X2}' -f (30 + $k * 10), (90 + $k * 20), (140 + $k * 20)
+        [void]$grp.Children.Add((New-BfxPath $body (New-BfxBrush $col (0.35 + $k * 0.15)))); [void]$grp.Children.Add((New-BfxPath $foam $null (New-BfxBrush '#f0faff' (0.25 + $k * 0.15)) 2))
+        $tf = Set-BfxTransforms $grp 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $wl) ($wl / (30 + $k * 10)) 0
+        Start-BfxAnim $tf.T $global:BfxP.Y -6 6 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $grp -Fx 0 -Top ($H * (0.72 + $k * 0.1))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxConstellations {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 64; $i++) { Add-BfxItem $S (New-BfxEllipse 1.6 1.6 (New-BfxBrush '#ffffff' (Get-BfxRnd $S 0.25 0.6))) -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S)) }
+    $per = 12.0; $ink = New-BfxBrush '#aac8ff' 0.55
+    for ($k = 0; $k -lt 3; $k++) {
+        $pts = @(); for ($n = 0; $n -lt 5; $n++) { $pts += , @((Get-BfxRnd $S 0 180), ($H * (Get-BfxRnd $S 0.15 0.85))) }
+        $ph = $k / 3.0; $grp = New-Object System.Windows.Controls.Canvas
+        for ($n = 0; $n -lt 4; $n++) {
+            $a = $pts[$n]; $b = $pts[$n + 1]
+            $ln = New-Object System.Windows.Shapes.Line; $ln.X1 = $a[0]; $ln.Y1 = $a[1]; $ln.X2 = $a[0]; $ln.Y2 = $a[1]; $ln.Stroke = $ink; $ln.StrokeThickness = 1; $ln.IsHitTestVisible = $false
+            $u0 = $n * 0.1; $u1 = ($n + 1) * 0.1
+            Start-BfxKeys $ln ([System.Windows.Shapes.Line]::X2Property) @(@(0, $a[0]), @($u0, $a[0]), @($u1, $b[0]), @(1, $b[0])) $per $ph
+            Start-BfxKeys $ln ([System.Windows.Shapes.Line]::Y2Property) @(@(0, $a[1]), @($u0, $a[1]), @($u1, $b[1]), @(1, $b[1])) $per $ph
+            [void]$grp.Children.Add($ln)
+        }
+        for ($n = 0; $n -lt 5; $n++) {
+            $st = New-Object System.Windows.Controls.Canvas; [void]$st.Children.Add((New-BfxGlow 16 '#cfe0ff' 0.7)); [void]$st.Children.Add((New-BfxGlow 3.2 '#ffffff' 1))
+            $on = [Math]::Max(0.001, $n * 0.1)
+            Start-BfxKeys $st $global:BfxP.O @(@(0, 0.3), @($on, 0.3), @(($on + 0.02), 1), @(0.75, 1), @(1, 0.3)) $per $ph
+            [void]$grp.Children.Add((Set-BfxAt $st $pts[$n][0] $pts[$n][1]))
+        }
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 1), @(0.75, 1), @(0.99, 0.15), @(1, 1)) $per $ph
+        Add-BfxItem $S $grp -Fx (0.32 + $k * 0.22) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
 # ------------------------------------------------------------
 # Dispatcher: effect name -> function
 # ------------------------------------------------------------
+# Round 5: transparent, banner-relative game effects.
+function global:Add-BfxGlitter {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 70; $i++) {
+        $col = Get-BfxPick $S @('#ffd24d', '#ff7ad8', '#7dd0ff', '#9aff7a', '#ffffff'); $rad = $H * 0.05 * (Get-BfxRnd $S 0.5 1.5)
+        $st = New-BfxPath (New-BfxStarShape $rad 4 0.22) (New-BfxBrush $col 1); $tf = Set-BfxTransforms $st
+        $per = Get-BfxRnd $S 2.5 5.5; $ph = Get-BfxRnd $S; $pop = @(@(0, 0), @(0.5, 1), @(1, 0))
+        Start-BfxKeys $tf.S $global:BfxP.SX $pop $per $ph; Start-BfxKeys $tf.S $global:BfxP.SY $pop $per $ph
+        Start-BfxAnim $tf.T $global:BfxP.Y 0 (- $H * 0.15) $per $ph
+        Add-BfxItem $S $st -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.05 1))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxStarlight {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 120; $i++) {
+        $k = Get-BfxRnd $S
+        if ($k -gt 0.9) { $el = New-BfxPath (New-BfxStarShape ($H * 0.05) 4 0.22) (New-BfxBrush '#fff6dc' 1) }
+        else { $d = $H * 0.012 * (1 + $k * 2); $el = New-BfxEllipse $d $d (New-BfxBrush '#ffffff' 0.8); $el.Margin = [System.Windows.Thickness]::new(-$d / 2, -$d / 2, 0, 0) }
+        Start-BfxAnim $el $global:BfxP.O 0.35 1 (2 * [Math]::PI / (0.5 + $k)) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $el -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxButterflies {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sz = $H * 0.05
+    for ($i = 0; $i -lt 16; $i++) {
+        $col = New-BfxBrush (Get-BfxPick $S @('#ffb84d', '#7dc8ff', '#ff8ad0', '#fff27a')) 0.9
+        $bf = New-Object System.Windows.Controls.Canvas
+        foreach ($sd in @(-1, 1)) {
+            $wing = New-BfxEllipse ($sz * 1.1) ($sz * 1.6) $col; $wing.Margin = [System.Windows.Thickness]::new(-$sz * 0.55, -$sz * 0.8, 0, 0)
+            $wt = Set-BfxTransforms $wing; $wt.R.Angle = $sd * 17
+            Start-BfxAnim $wt.S $global:BfxP.SY 1 0.2 (Get-BfxRnd $S 0.25 0.4) (Get-BfxRnd $S) -Reverse
+            [void]$bf.Children.Add((Set-BfxAt $wing ($sd * $sz * 0.5) 0))
+        }
+        $bt = Set-BfxTransforms $bf 0 0
+        Start-BfxAnim $bt.T $global:BfxP.Y (- $H * 0.12) ($H * 0.12) (Get-BfxRnd $S 5 9) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($bf); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.2 0.8)) -Speed ($H * (Get-BfxRnd $S 0.2 0.35)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($sz * 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDandelions {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#fffff5' 0.7
+    for ($i = 0; $i -lt 60; $i++) {
+        $rad = $H * 0.03 * (Get-BfxRnd $S 0.6 1.2)
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -lt 7; $n++) { $a = - [Math]::PI / 2 + ($n - 3) * 0.35; $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($a) * $rad) ([Math]::Sin($a) * $rad)), $true, $false) }; $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint 0 ($rad * 0.9)), $true, $false) }.GetNewClosure()
+        $seed = New-BfxPath $geo $null $ink 0.8; $tf = Set-BfxTransforms $seed
+        Start-BfxAnim $tf.T $global:BfxP.Y (- $H * 0.08) ($H * 0.08) (Get-BfxRnd $S 8 14) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($seed); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.05 0.95)) -Speed ($H * (Get-BfxRnd $S 0.1 0.2)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($rad * 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPollen {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $shaft = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint ($H * 0.25) 0), $true, $false); $c.LineTo((New-BfxPoint ($H * 0.75) $H), $true, $false); $c.LineTo((New-BfxPoint ($H * 0.5) $H), $true, $false) }.GetNewClosure()
+    for ($i = 0; $i -lt 6; $i++) { $sp = New-BfxPath $shaft (New-BfxLinear @(@(0, '#fff0aa', 0.12), @(1, '#fff0aa', 0))); Start-BfxAnim $sp $global:BfxP.O 0.5 1 (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease; Add-BfxItem $S $sp -Fx (($i + 0.3) / 6) -Top 0 }
+    for ($i = 0; $i -lt 110; $i++) {
+        $d = $H * 0.016 * (1 + (Get-BfxRnd $S)); $p = New-BfxEllipse $d $d (New-BfxBrush '#ffe9a0' 0.7); $tf = Set-BfxTransforms $p
+        Start-BfxAnim $tf.T $global:BfxP.X (- $H * 0.15) ($H * 0.15) (Get-BfxRnd $S 15 25) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y (- $H * 0.08) ($H * 0.08) (Get-BfxRnd $S 18 30) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $p -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPowder {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 140; $i++) {
+        $d = $H * 0.012 * (1 + (Get-BfxRnd $S)); $sp = Get-BfxRnd $S 0.4 1
+        $f = New-Object System.Windows.Controls.Canvas
+        [void]$f.Children.Add((Set-BfxAt (New-BfxEllipse $d $d (New-BfxBrush '#ffffff' 0.55)) (-$d / 2) (-$d / 2)))
+        if ((Get-BfxRnd $S) -lt 0.15) { $gl = New-BfxPath (New-BfxStarShape ($H * 0.03) 4 0.22) (New-BfxBrush '#ffffff' 0.8); Start-BfxFlash $gl (Get-BfxRnd $S 3 6) (Get-BfxRnd $S 0.05 0.9) 0.06; [void]$f.Children.Add($gl) }
+        $tf = Set-BfxTransforms $f 0 0
+        Start-BfxAnim $tf.T $global:BfxP.Y (-10) ($H + 10) (($H + 20) / ($H * 0.25 * $sp)) (Get-BfxRnd $S)
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($f); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top 0 -Speed ($H * 0.5 * $sp) -Phase (Get-BfxRnd $S) -T $wr.T -Margin 10
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWindsparks {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 60; $i++) {
+        $g = [int](150 + 80 * (Get-BfxRnd $S)); $col = '#ff{0:X2}3c' -f $g
+        $spk = New-BfxRect ($H * 0.06) ($H * 0.012) (New-BfxLinear @(@(0, $col, 0), @(1, $col, 1)) -Horizontal) ($H * 0.006)
+        $tf = Set-BfxTransforms $spk
+        Start-BfxAnim $tf.T $global:BfxP.Y (- $H * 0.05) ($H * 0.05) (Get-BfxRnd $S 2 4) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxKeys $spk $global:BfxP.O @(@(0, 0), @(0.15, 1), @(0.8, 0.8), @(1, 0)) (Get-BfxRnd $S 3 6) (Get-BfxRnd $S)
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($spk); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.05 0.95)) -Speed ($H * (Get-BfxRnd $S 0.5 1.0)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($H * 0.1)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBitstream {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $lane = New-BfxBrush '#50c8ff' 0.12
+    for ($l = 0; $l -lt 7; $l++) {
+        $y = $H * ($l + 0.5) / 7; $dir = Get-BfxPick $S @(1, -1); $sp = $H * (Get-BfxRnd $S 0.25 0.5)
+        Add-BfxItem $S (New-BfxRect 4200 1 $lane) -Fx 0 -Top $y
+        for ($n = 0; $n -lt 6; $n++) {
+            $pk = New-Object System.Windows.Controls.Canvas
+            [void]$pk.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.08) ($H * 0.024) (New-BfxBrush '#78e6ff' 0.85)) 0 (- $H * 0.012)))
+            [void]$pk.Children.Add((Set-BfxAt (New-BfxGlow ($H * 0.12) '#7fe8ff' 0.4) ($H * 0.04) 0))
+            $tf = Set-BfxTransforms $pk 0 0
+            Add-BfxItem $S $pk -Top $y -Speed ($dir * $sp) -Phase ((($n / 6.0) + (Get-BfxRnd $S 0 0.1)) % 1) -T $tf.T -Margin ($H * 0.1)
+        }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGlyphs {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#96e6d2' 0.8; $rad = $H * 0.09
+    for ($i = 0; $i -lt 26; $i++) {
+        $segs = @(); for ($n = 0; $n -lt 3; $n++) { $segs += , @(((Get-BfxRnd $S) - 0.5), ((Get-BfxRnd $S) - 0.5), ((Get-BfxRnd $S) - 0.5), ((Get-BfxRnd $S) - 0.5)) }
+        $geo = New-BfxGeo { param($c) foreach ($sg in $segs) { $c.BeginFigure((New-BfxPoint ($sg[0] * $rad) ($sg[1] * $rad * 1.4)), $false, $false); $c.LineTo((New-BfxPoint ($sg[2] * $rad) ($sg[3] * $rad * 1.4)), $true, $false) } }.GetNewClosure()
+        $gl = New-BfxPath $geo $null $ink ($H * 0.012); Set-BfxShadow $gl '#7fe8d0' 6
+        Start-BfxKeys $gl $global:BfxP.O @(@(0, 0), @(0.25, 0.5), @(0.5, 1), @(0.75, 0.5), @(1, 0)) (Get-BfxRnd $S 5 10) (Get-BfxRnd $S)
+        Add-BfxItem $S $gl -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.15 0.85))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWirepeaks {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $rad = $H * 0.32
+    $sun = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$rad) 0), $true, $true); $c.ArcTo((New-BfxPoint $rad 0), [System.Windows.Size]::new($rad, $rad), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $sun (New-BfxLinear @(@(0, '#ffd25a', 0.5), @(1, '#ff3c8c', 0.5)))) -Fx 0.7 -Top ($H * 0.55)
+    $pk = @(); for ($n = 0; $n -lt 40; $n++) { $pk += (Get-BfxRnd $S) }
+    $step = $H * 0.25; $loop = $step * 40
+    $geo = New-BfxGeo { param($c) for ($n = 0; $n -le 80 + [Math]::Ceiling(4200 / $step); $n++) { $pt = New-BfxPoint ($n * $step) ($H * 0.62 - $pk[$n % 40] * $H * 0.3); if ($n -eq 0) { $c.BeginFigure($pt, $false, $false) } else { $c.LineTo($pt, $true, $true) } } }.GetNewClosure()
+    $ridge = New-BfxPath $geo $null (New-BfxBrush '#ff5ac8' 0.55) 1; $tf = Set-BfxTransforms $ridge
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.15)) 0
+    Add-BfxItem $S $ridge -Fx 0 -Top 0
+    for ($y = $H * 0.66; $y -lt $H; $y += $H * 0.07) { Add-BfxItem $S (New-BfxRect 4200 1 (New-BfxBrush '#a050ff' 0.3)) -Fx 0 -Top $y }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPlankton {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 150; $i++) {
+        $d = $H * 0.01 * (1 + (Get-BfxRnd $S))
+        $p = New-Object System.Windows.Controls.Canvas
+        [void]$p.Children.Add((Set-BfxAt (New-BfxEllipse $d $d (New-BfxBrush '#bfe8ff' 0.35)) (-$d / 2) (-$d / 2)))
+        if ((Get-BfxRnd $S) -lt 0.2) { $fl = New-BfxGlow ($H * 0.1) '#7fffe8' 0.6; Start-BfxFlash $fl (Get-BfxRnd $S 5 9) (Get-BfxRnd $S 0.05 0.9) 0.12; [void]$p.Children.Add($fl) }
+        $tf = Set-BfxTransforms $p 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X (- $H * 0.2) ($H * 0.2) (Get-BfxRnd $S 20 40) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H * 0.05) (- $H * 0.05) (Get-BfxRnd $S 10 20) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $p -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGodrays {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 9; $i++) {
+        $wd = $H * (Get-BfxRnd $S 0.15 0.4)
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint $wd 0), $true, $false); $c.LineTo((New-BfxPoint ($wd * 1.6 + $H * 0.4) $H), $true, $false); $c.LineTo((New-BfxPoint ($H * 0.4) $H), $true, $false) }.GetNewClosure()
+        $ray = New-BfxPath $geo (New-BfxLinear @(@(0, '#dcf0ff', 0.2), @(1, '#dcf0ff', 0))); $tf = Set-BfxTransforms $ray
+        Start-BfxAnim $ray $global:BfxP.O 0.2 1 (Get-BfxRnd $S 8 14) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X (- $H * 0.4) ($H * 0.4) (Get-BfxRnd $S 25 45) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $ray -Fx (Get-BfxRnd $S -0.05 1.0) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRipples {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#c8e6ff' 0.5
+    for ($i = 0; $i -lt 14; $i++) {
+        $per = Get-BfxRnd $S 3 6; $ph = Get-BfxRnd $S
+        $grp = New-Object System.Windows.Controls.Canvas
+        for ($k = 0; $k -lt 3; $k++) {
+            $r = New-BfxEllipse ($H * 0.9) ($H * 0.27) $null $ink 1.2; $r.Margin = [System.Windows.Thickness]::new(-$H * 0.45, -$H * 0.135, 0, 0); $rt = Set-BfxTransforms $r
+            $o = $k * 0.12; $grow = @(@(0, 0.02), @($o, 0.02), @([Math]::Min(1, $o + 0.88), 1), @(1, 1))
+            Start-BfxKeys $rt.S $global:BfxP.SX $grow $per $ph; Start-BfxKeys $rt.S $global:BfxP.SY $grow $per $ph
+            Start-BfxKeys $r $global:BfxP.O @(@(0, 0), @([Math]::Max(0.001, $o), 1), @(1, 0)) $per $ph
+            [void]$grp.Children.Add($r)
+        }
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.3 0.95))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxStormfront {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 26; $i++) {
+        $sz = $H * (Get-BfxRnd $S 0.7 1.3)
+        $cl = New-Object System.Windows.Controls.Canvas
+        [void]$cl.Children.Add((New-BfxGlow $sz '#0a0c12' 0.5))
+        $fl = New-BfxGlow $sz '#c8d0ff' 0.35; Start-BfxFlash $fl (Get-BfxRnd $S 6 12) (Get-BfxRnd $S 0.05 0.9) 0.04; [void]$cl.Children.Add($fl)
+        $tf = Set-BfxTransforms $cl 0 0
+        Add-BfxItem $S $cl -Top ($H * (Get-BfxRnd $S 0.05 0.45)) -Speed ($H * 0.06) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($sz / 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGroundmist {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 14; $i++) {
+        $len = $H * (Get-BfxRnd $S 2.5 5)
+        $m = New-BfxEllipse $len ($H * 0.12) (New-BfxLinear @(@(0, '#d2dce6', 0), @(0.5, '#d2dce6', 0.16), @(1, '#d2dce6', 0)) -Horizontal); $tf = Set-BfxTransforms $m
+        Add-BfxItem $S $m -Top ($H * (Get-BfxRnd $S 0.56 0.94)) -Speed ($H * (Get-BfxRnd $S 0.05 0.15) * (Get-BfxPick $S @(1, -1))) -Phase (Get-BfxRnd $S) -T $tf.T -Margin $len
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWarsmoke {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($c0 = 0; $c0 -lt 6; $c0++) {
+        $fx = ($c0 + 0.5) / 6 + (Get-BfxRnd $S -0.04 0.04); $per = Get-BfxRnd $S 14 20
+        Add-BfxItem $S (New-BfxGlow ($H * 0.2) '#ff8a3a' 0.4) -Fx $fx -Top ($H * 0.95)
+        for ($j = 0; $j -lt 14; $j++) {
+            $pf = New-BfxGlow ($H * 0.12) '#504840' 0.3; $tf = Set-BfxTransforms $pf; $ph = $j / 14.0
+            Start-BfxAnim $tf.T $global:BfxP.Y 0 (- $H * 0.95) $per $ph; Start-BfxAnim $tf.T $global:BfxP.X 0 ($H * 0.6) $per $ph
+            Start-BfxAnim $tf.S $global:BfxP.SX 1 3.6 $per $ph; Start-BfxAnim $tf.S $global:BfxP.SY 1 3.6 $per $ph
+            Start-BfxAnim $pf $global:BfxP.O 1 0 $per $ph
+            Add-BfxItem $S $pf -Fx $fx -Top ($H * 0.95)
+        }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSearchbeams {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $len = $H * 1.7
+    $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-$len * 0.05) (-$len)), $true, $false); $c.LineTo((New-BfxPoint ($len * 0.05) (-$len)), $true, $false) }.GetNewClosure()
+    for ($i = 0; $i -lt 5; $i++) {
+        $beam = New-BfxPath $geo (New-BfxLinear @(@(0, '#e6f0ff', 0), @(1, '#e6f0ff', 0.26))); $tf = Set-BfxTransforms $beam
+        Start-BfxAnim $tf.R $global:BfxP.A -31 31 (Get-BfxRnd $S 8 12) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $beam -Fx (($i + 0.5) / 5) -Top ($H + 4)
+        Add-BfxItem $S (New-BfxGlow ($H * 0.24) '#e8f0ff' 0.5) -Fx (($i + 0.5) / 5) -Top $H
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWirefence {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sp = $H * 0.25; $loop = $sp * 4
+    $geo = New-BfxGeo { param($c)
+        for ($x = 0.0; $x -lt 4200 + $loop; $x += $sp) { $c.BeginFigure((New-BfxPoint $x ($H * 0.68)), $true, $true); $c.LineTo((New-BfxPoint ($x + $H * 0.02) ($H * 0.68)), $true, $false); $c.LineTo((New-BfxPoint ($x + $H * 0.02) ($H + 2)), $true, $false); $c.LineTo((New-BfxPoint $x ($H + 2)), $true, $false) }
+    }.GetNewClosure()
+    $wire = New-BfxGeo { param($c)
+        for ($r = 0; $r -lt 3; $r++) { $y = $H * (0.72 + $r * 0.08); $c.BeginFigure((New-BfxPoint 0 $y), $false, $false); for ($x = 6.0; $x -le 4200 + $loop; $x += 6) { $c.LineTo((New-BfxPoint $x ($y + [Math]::Sin($x / $sp * [Math]::PI * 2) * $H * 0.01)), $true, $true) }
+            for ($x = 0.0; $x -lt 4200 + $loop; $x += $H * 0.125) { $c.BeginFigure((New-BfxPoint ($x - 3) ($y - 3)), $false, $false); $c.LineTo((New-BfxPoint ($x + 3) ($y + 3)), $true, $false); $c.BeginFigure((New-BfxPoint ($x + 3) ($y - 3)), $false, $false); $c.LineTo((New-BfxPoint ($x - 3) ($y + 3)), $true, $false) } }
+    }.GetNewClosure()
+    $grp = New-Object System.Windows.Controls.Canvas
+    [void]$grp.Children.Add((New-BfxPath $geo (New-BfxBrush '#100e0c' 0.9))); [void]$grp.Children.Add((New-BfxPath $wire $null (New-BfxBrush '#100e0c' 0.9) 1))
+    $tf = Set-BfxTransforms $grp 0 0
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.12)) 0
+    Add-BfxItem $S $grp -Fx 0 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRoadlines {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $vy = $H * 0.2; $span = $H * 4.2
+    $road = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint -2 $vy), $true, $true); $c.LineTo((New-BfxPoint 2 $vy), $true, $false); $c.LineTo((New-BfxPoint ($span * 0.55) $H), $true, $false); $c.LineTo((New-BfxPoint (- $span * 0.55) $H), $true, $false) }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $road (New-BfxBrush '#28282e' 0.5)) -Fx 0.62 -Top 0
+    $per = 4.0
+    for ($k = 0; $k -lt 8; $k++) {
+        $ph = $k / 8.0; $ky = @(); $ks = @(); $kx = @()
+        for ($n = 0; $n -le 10; $n++) { $u = $n / 10.0; $z = $u * $u; $ky += , @($u, ($vy + ($H - $vy) * $z)); $ks += , @($u, (0.2 + $z * 3)) }
+        $dash = New-BfxRect ($H * 0.02) (($H - $vy) * 0.05) (New-BfxBrush '#ffe68c' 0.85); $dash.Margin = [System.Windows.Thickness]::new(-$H * 0.01, 0, 0, 0); $dt = Set-BfxTransforms $dash 0.5 0
+        Start-BfxKeys $dt.T $global:BfxP.Y $ky $per $ph; Start-BfxKeys $dt.S $global:BfxP.SX $ks $per $ph; Start-BfxKeys $dt.S $global:BfxP.SY $ks $per $ph
+        Start-BfxKeys $dash $global:BfxP.O @(@(0, 0.3), @(1, 0.9)) $per $ph
+        Add-BfxItem $S $dash -Fx 0.62 -Top 0
+        foreach ($sd in @(-1, 1)) {
+            $post = New-BfxRect ($H * 0.012) ($H * 0.08) (New-BfxBrush '#e6e6e6' 0.6); $pt = Set-BfxTransforms $post 0.5 1
+            $kx = @(); for ($n = 0; $n -le 10; $n++) { $u = $n / 10.0; $kx += , @($u, ($sd * $span * 0.6 * $u * $u)) }
+            Start-BfxKeys $pt.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $pt.T $global:BfxP.Y $ky $per $ph; Start-BfxKeys $pt.S $global:BfxP.SY $ks $per $ph
+            Start-BfxKeys $post $global:BfxP.O @(@(0, 0), @(1, 0.6)) $per $ph
+            Add-BfxItem $S $post -Fx 0.62 -Top (- $H * 0.08)
+        }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMesas {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 2) '#ffb070' 0.3) -Fx 0.8 -Top ($H * 0.35)
+    foreach ($ly in @(@(0.5, 4, '#78321e', 0.3, 0.35), @(0.85, 12, '#32160e', 0.6, 0.25))) {
+        $flat = @(); for ($n = 0; $n -lt 40; $n++) { $flat += ((Get-BfxRnd $S) -gt 0.45) }
+        $seg = $H * 0.6; $loop = $seg * 40; $base = $H * $ly[0]; $amp = $H * $ly[4]
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($H + 2)), $true, $true); for ($n = 0; $n -le 40 + [Math]::Ceiling(4200 / $seg); $n++) { $y = $(if ($flat[$n % 40]) { $base - $amp } else { $base }); $c.LineTo((New-BfxPoint ($n * $seg + $seg * 0.15) $y), $true, $false); $c.LineTo((New-BfxPoint (($n + 1) * $seg - $seg * 0.15) $y), $true, $false) }; $c.LineTo((New-BfxPoint ($loop + 4200) ($H + 2)), $true, $false) }.GetNewClosure()
+        $m = New-BfxPath $geo (New-BfxBrush $ly[2] $ly[3]); $tf = Set-BfxTransforms $m
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($ly[1] * $H / 140)) 0
+        Add-BfxItem $S $m -Fx 0 -Top 0
+    }
+    $cact = New-BfxBrush '#1e2814' 0.9
+    for ($k = 0; $k -lt 6; $k++) {
+        $cg = New-Object System.Windows.Controls.Canvas
+        [void]$cg.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.03) ($H * 0.18) $cact) 0 (- $H * 0.18))); [void]$cg.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.04) ($H * 0.02) $cact) (- $H * 0.04) (- $H * 0.12))); [void]$cg.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.015) ($H * 0.05) $cact) (- $H * 0.04) (- $H * 0.16)))
+        $tf = Set-BfxTransforms $cg 0 0
+        Add-BfxItem $S $cg -Top ($H * 0.92) -Speed (- 12 * $H / 140) -Phase ($k / 6.0) -T $tf.T -Margin ($H * 0.1)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPinewoods {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 3; $i++) {
+        $hs = @(); for ($n = 0; $n -lt 60; $n++) { $hs += (Get-BfxRnd $S) }
+        $step = $H * 0.18; $loop = $step * 60; $base = $H * (0.7 + $i * 0.12)
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -le 60 + [Math]::Ceiling(4200 / $step); $n++) { $th = $H * (0.25 + $hs[$n % 60] * 0.3) * (1 - $i * 0.15); $x = $n * $step; $c.BeginFigure((New-BfxPoint $x ($base - $th)), $true, $true); $c.LineTo((New-BfxPoint ($x + $th * 0.28) ($base + 1)), $true, $false); $c.LineTo((New-BfxPoint ($x - $th * 0.28) ($base + 1)), $true, $false) }
+            $c.BeginFigure((New-BfxPoint -$step $base), $true, $true); $c.LineTo((New-BfxPoint ($loop + 4200) $base), $true, $false); $c.LineTo((New-BfxPoint ($loop + 4200) ($H + 2)), $true, $false); $c.LineTo((New-BfxPoint -$step ($H + 2)), $true, $false) }.GetNewClosure()
+        $col = '#{0:X2}{1:X2}{2:X2}' -f (18 - $i * 4), (30 - $i * 6), (30 - $i * 6)
+        $row = New-BfxPath $geo (New-BfxBrush $col (0.4 + $i * 0.25)); $tf = Set-BfxTransforms $row
+        Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ((3 + $i * 7) * $H / 140)) 0
+        Add-BfxItem $S $row -Fx 0 -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxKeeps {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $seg = $H * 0.55; $loop = $seg * 30; $gy = $H * 0.85
+    $defs = @(); for ($n = 0; $n -lt 30; $n++) { $defs += , @((Get-BfxRnd $S), ((Get-BfxRnd $S) -lt 0.5), ((Get-BfxRnd $S) -lt 0.5)) }
+    $geo = New-BfxGeo { param($c)
+        $c.BeginFigure((New-BfxPoint 0 $gy), $true, $true); $c.LineTo((New-BfxPoint ($loop + 4200) $gy), $true, $false); $c.LineTo((New-BfxPoint ($loop + 4200) ($H + 2)), $true, $false); $c.LineTo((New-BfxPoint 0 ($H + 2)), $true, $false)
+        for ($n = 0; $n -le 30 + [Math]::Ceiling(4200 / $seg); $n++) { $d = $defs[$n % 30]; $x = $n * $seg; $hh = $H * (0.2 + $d[0] * 0.25)
+            $c.BeginFigure((New-BfxPoint $x ($gy + 1)), $true, $true); $c.LineTo((New-BfxPoint $x ($gy - $hh * 0.5)), $true, $false); for ($m = 0; $m -lt 5; $m++) { $mx = $x + $m * $seg * 0.18; $c.LineTo((New-BfxPoint $mx ($gy - $hh * 0.5 - $H * 0.03)), $true, $false); $c.LineTo((New-BfxPoint ($mx + $seg * 0.08) ($gy - $hh * 0.5 - $H * 0.03)), $true, $false); $c.LineTo((New-BfxPoint ($mx + $seg * 0.08) ($gy - $hh * 0.5)), $true, $false); $c.LineTo((New-BfxPoint ($mx + $seg * 0.18) ($gy - $hh * 0.5)), $true, $false) }; $c.LineTo((New-BfxPoint ($x + $seg * 0.8) ($gy + 1)), $true, $false)
+            if ($d[1]) { $c.BeginFigure((New-BfxPoint ($x + $seg * 0.3) ($gy + 1)), $true, $true); $c.LineTo((New-BfxPoint ($x + $seg * 0.3) ($gy - $hh)), $true, $false); $c.LineTo((New-BfxPoint ($x + $seg * 0.28) ($gy - $hh)), $true, $false); $c.LineTo((New-BfxPoint ($x + $seg * 0.38) ($gy - $hh - $H * 0.1)), $true, $false); $c.LineTo((New-BfxPoint ($x + $seg * 0.48) ($gy - $hh)), $true, $false); $c.LineTo((New-BfxPoint ($x + $seg * 0.46) ($gy - $hh)), $true, $false); $c.LineTo((New-BfxPoint ($x + $seg * 0.46) ($gy + 1)), $true, $false) } }
+    }.GetNewClosure()
+    $lit = New-BfxGeo { param($c) for ($n = 0; $n -le 30 + [Math]::Ceiling(4200 / $seg); $n++) { $d = $defs[$n % 30]; if (-not ($d[1] -and $d[2])) { continue }; $x = $n * $seg + $seg * 0.36; $y = $gy - $H * (0.2 + $d[0] * 0.25) * 0.7; $c.BeginFigure((New-BfxPoint $x $y), $true, $true); $c.LineTo((New-BfxPoint ($x + $H * 0.015) $y), $true, $false); $c.LineTo((New-BfxPoint ($x + $H * 0.015) ($y + $H * 0.025)), $true, $false); $c.LineTo((New-BfxPoint $x ($y + $H * 0.025)), $true, $false) } }.GetNewClosure()
+    $grp = New-Object System.Windows.Controls.Canvas
+    [void]$grp.Children.Add((New-BfxPath $geo (New-BfxBrush '#14121a' 0.85))); [void]$grp.Children.Add((New-BfxPath $lit (New-BfxBrush '#ffc86e' 0.8)))
+    $tf = Set-BfxTransforms $grp 0 0
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.05)) 0
+    Add-BfxItem $S $grp -Fx 0 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxColonnade {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxGlow ($H * 2.4) '#ffd8a0' 0.18) -Fx 0.7 -Top ($H * 0.3)
+    $seg = $H * 0.42; $loop = $seg * 30
+    $br = @(); for ($n = 0; $n -lt 30; $n++) { $br += (Get-BfxRnd $S) }
+    $geo = New-BfxGeo { param($c)
+        $c.BeginFigure((New-BfxPoint 0 ($H * 0.86)), $true, $true); $c.LineTo((New-BfxPoint ($loop + 4200) ($H * 0.86)), $true, $false); $c.LineTo((New-BfxPoint ($loop + 4200) ($H + 2)), $true, $false); $c.LineTo((New-BfxPoint 0 ($H + 2)), $true, $false)
+        $c.BeginFigure((New-BfxPoint 0 ($H * 0.15)), $true, $true); $c.LineTo((New-BfxPoint ($loop + 4200) ($H * 0.15)), $true, $false); $c.LineTo((New-BfxPoint ($loop + 4200) ($H * 0.18)), $true, $false); $c.LineTo((New-BfxPoint 0 ($H * 0.18)), $true, $false)
+        for ($n = 0; $n -le 30 + [Math]::Ceiling(4200 / $seg); $n++) { $b = $br[$n % 30]; $x = $n * $seg; $top = $(if ($b -gt 0.7) { $H * (0.35 + $b * 0.2) } else { $H * 0.18 })
+            $c.BeginFigure((New-BfxPoint $x $top), $true, $true); $c.LineTo((New-BfxPoint ($x + $H * 0.07) $top), $true, $false); $c.LineTo((New-BfxPoint ($x + $H * 0.07) ($H * 0.86)), $true, $false); $c.LineTo((New-BfxPoint $x ($H * 0.86)), $true, $false) }
+    }.GetNewClosure()
+    $cols = New-BfxPath $geo (New-BfxBrush '#3c2e22' 0.5); $tf = Set-BfxTransforms $cols
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.07)) 0
+    Add-BfxItem $S $cols -Fx 0 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxNeonrain {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 110; $i++) {
+        $col = Get-BfxPick $S @('#ff4fc8', '#4fe8ff'); $sp = Get-BfxRnd $S 0.7 1.3
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint (- $H * 0.02) ($H * 0.1)), $true, $false) }.GetNewClosure()
+        $dr = New-BfxPath $geo $null (New-BfxBrush $col 0.45) 1; $tf = Set-BfxTransforms $dr
+        Start-BfxAnim $tf.T $global:BfxP.Y (- $H * 0.12) $H (($H * 1.12) / ($H * 1.4 * $sp)) (Get-BfxRnd $S)
+        Add-BfxItem $S $dr -Fx (Get-BfxRnd $S) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxAsteroids {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 26; $i++) {
+        $k = Get-BfxRnd $S; $rad = $H * (0.03 + $k * 0.08); $pts = @(); for ($n = 0; $n -lt 7; $n++) { $pts += (Get-BfxRnd $S 0.7 1.2) }
+        $geo = New-BfxGeo { param($c) for ($n = 0; $n -lt 7; $n++) { $a = $n / 7.0 * 2 * [Math]::PI; $pt = New-BfxPoint ([Math]::Cos($a) * $rad * $pts[$n]) ([Math]::Sin($a) * $rad * $pts[$n]); if ($n -eq 0) { $c.BeginFigure($pt, $true, $true) } else { $c.LineTo($pt, $true, $false) } } }.GetNewClosure()
+        $col = '#{0:X2}{1:X2}{2:X2}' -f [int](90 + 40 * $k), [int](84 + 36 * $k), [int](80 + 30 * $k)
+        $rock = New-BfxPath $geo (New-BfxBrush $col (0.5 + 0.5 * $k)); $rt = Set-BfxTransforms $rock
+        Start-BfxAnim $rt.R $global:BfxP.A 0 (Get-BfxPick $S @(360, -360)) (Get-BfxRnd $S 15 40) (Get-BfxRnd $S)
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($rock); $wt = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S)) -Speed (- $H * (0.05 + 0.15 * $k)) -Phase (Get-BfxRnd $S) -T $wt.T -Margin ($rad * 1.3)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSatellites {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 60; $i++) { Add-BfxItem $S (New-BfxEllipse 1.6 1.6 (New-BfxBrush '#ffffff' 0.35)) -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S)) }
+    $sz = $H * 0.05
+    for ($i = 0; $i -lt 8; $i++) {
+        $sat = New-Object System.Windows.Controls.Canvas
+        [void]$sat.Children.Add((Set-BfxAt (New-BfxRect ($sz * 0.6) ($sz * 0.6) (New-BfxBrush '#c8cdd7' 0.9)) (- $sz * 0.3) (- $sz * 0.3)))
+        [void]$sat.Children.Add((Set-BfxAt (New-BfxRect $sz ($sz * 0.36) (New-BfxBrush '#466ec8' 0.85)) (- $sz * 1.4) (- $sz * 0.18))); [void]$sat.Children.Add((Set-BfxAt (New-BfxRect $sz ($sz * 0.36) (New-BfxBrush '#466ec8' 0.85)) ($sz * 0.4) (- $sz * 0.18)))
+        $nav = New-BfxEllipse ($H * 0.02) ($H * 0.02) (New-BfxBrush '#ff4040' 1); Start-BfxKeys $nav $global:BfxP.O @(@(0, 1), @(0.5, 0), @(1, 0)) 2.5 (Get-BfxRnd $S) -Discrete
+        [void]$sat.Children.Add((Set-BfxAt $nav (- $H * 0.01) (- $sz * 0.4 - $H * 0.01)))
+        $st = Set-BfxTransforms $sat 0 0; Start-BfxAnim $st.R $global:BfxP.A -17 17 (Get-BfxRnd $S 15 30) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($sat); $wt = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.1 0.9)) -Speed ($H * (Get-BfxRnd $S 0.08 0.18) * (Get-BfxPick $S @(1, -1))) -Phase (Get-BfxRnd $S) -T $wt.T -Margin ($sz * 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCranes {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sz = $H * 0.07
+    $body = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$sz) 0), $true, $true); $c.LineTo((New-BfxPoint 0 (- $sz * 0.15)), $true, $false); $c.LineTo((New-BfxPoint ($sz * 0.9) (- $sz * 0.35)), $true, $false); $c.LineTo((New-BfxPoint ($sz * 0.2) ($sz * 0.1)), $true, $false) }.GetNewClosure()
+    $wingG = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (- $sz * 0.2) 0), $true, $true); $c.LineTo((New-BfxPoint ($sz * 0.1) (- $sz * 0.9)), $true, $false); $c.LineTo((New-BfxPoint ($sz * 0.4) 0), $true, $false) }.GetNewClosure()
+    for ($i = 0; $i -lt 14; $i++) {
+        $col = Get-BfxPick $S @('#ff8a8a', '#f5f0e6', '#ffd27a', '#8ad0ff')
+        $cr = New-Object System.Windows.Controls.Canvas
+        [void]$cr.Children.Add((New-BfxPath $body (New-BfxBrush $col 0.92)))
+        $wing = New-BfxPath $wingG (New-BfxBrush $col 0.7); $wt = Set-BfxTransforms $wing; Start-BfxAnim $wt.S $global:BfxP.SY 1 0.2 (Get-BfxRnd $S 1.4 2) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$cr.Children.Add($wing)
+        $ct = Set-BfxTransforms $cr 0 0; Start-BfxAnim $ct.T $global:BfxP.Y (- $H * 0.05) ($H * 0.05) (Get-BfxRnd $S 7 11) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($cr); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.15 0.85)) -Speed ($H * (Get-BfxRnd $S 0.1 0.2)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($sz * 1.5)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxKoi {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $pad = New-BfxBrush '#286e3c' 0.55
+    for ($i = 0; $i -lt 10; $i++) {
+        $rr = $H * (Get-BfxRnd $S 0.05 0.1)
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint ([Math]::Cos(0.3) * $rr) ([Math]::Sin(0.3) * $rr)), $true, $false); $c.ArcTo((New-BfxPoint ([Math]::Cos(-0.1) * $rr) ([Math]::Sin(-0.1) * $rr)), [System.Windows.Size]::new($rr, $rr), 0, $true, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+        $lp = New-BfxPath $geo $pad; $lt = Set-BfxTransforms $lp; $lt.R.Angle = Get-BfxRnd $S 0 360
+        Start-BfxAnim $lt.T $global:BfxP.X -4 4 (Get-BfxRnd $S 10 18) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $lp -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.1 0.9))
+    }
+    $sz = $H * 0.09
+    for ($i = 0; $i -lt 9; $i++) {
+        $col = Get-BfxPick $S @('#ff6a3a', '#f5f0e6', '#ffc84d'); $dir = Get-BfxPick $S @(1, -1)
+        $fish = New-Object System.Windows.Controls.Canvas
+        [void]$fish.Children.Add((Set-BfxAt (New-BfxEllipse ($sz * 2) ($sz * 0.6) (New-BfxBrush $col 0.85)) (-$sz) (- $sz * 0.3)))
+        $tail = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (- $sz * 0.9) 0), $true, $true); $c.LineTo((New-BfxPoint (- $sz * 1.4) (- $sz * 0.3)), $true, $false); $c.LineTo((New-BfxPoint (- $sz * 1.4) ($sz * 0.3)), $true, $false) }.GetNewClosure()
+        $tp = New-BfxPath $tail (New-BfxBrush $col 0.85); $tt = Set-BfxTransforms $tp; Start-BfxAnim $tt.S $global:BfxP.SY 1 -1 (Get-BfxRnd $S 0.8 1.4) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$fish.Children.Add($tp)
+        if ($col -ne '#f5f0e6') { [void]$fish.Children.Add((Set-BfxAt (New-BfxEllipse ($sz * 0.6) ($sz * 0.36) (New-BfxBrush '#f5f0e6' 0.8)) (- $sz * 0.1) (- $sz * 0.18))) }
+        $ft = Set-BfxTransforms $fish 0 0; $ft.S.ScaleX = $dir
+        Start-BfxAnim $ft.T $global:BfxP.Y (- $H * 0.06) ($H * 0.06) (Get-BfxRnd $S 8 14) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($fish); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (Get-BfxRnd $S 0.15 0.85)) -Speed ($dir * $H * (Get-BfxRnd $S 0.1 0.2)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($sz * 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBamboo {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 26; $i++) {
+        $k = Get-BfxRnd $S; $wd = $H * (0.025 + $k * 0.03); $a = 0.4 + 0.5 * $k
+        $col = '#{0:X2}{1:X2}{2:X2}' -f [int](60 + 50 * $k), [int](110 + 50 * $k), [int](50 + 20 * $k)
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxRect $wd ($H + 4) (New-BfxBrush $col $a)) (- $wd / 2) (- $H - 4)))
+        for ($y = $H * 0.2; $y -lt $H; $y += $H * 0.22) { [void]$grp.Children.Add((Set-BfxAt (New-BfxRect ($wd * 1.2) 2 (New-BfxBrush '#142814' $a)) (- $wd * 0.6) (- $y))) }
+        $tf = Set-BfxTransforms $grp 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A -2.5 2.5 (Get-BfxRnd $S 8 12) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S) -Top ($H + 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxInkwash {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#14141a' 0.18
+    for ($i = 0; $i -lt 9; $i++) {
+        $per = Get-BfxRnd $S 8 13; $ph = Get-BfxRnd $S; $len = $H * 1.5 * (Get-BfxRnd $S 0.4 0.9); $wob = Get-BfxRnd $S 0 6.28
+        $stroke = New-Object System.Windows.Controls.Canvas
+        for ($n = 0; $n -lt 18; $n++) {
+            $f = $n / 18.0; $d = $H * 0.07 * (1 - $f * 0.6)
+            $blob = New-BfxEllipse $d $d $ink; [void]$stroke.Children.Add((Set-BfxAt $blob ($f * $len - $d / 2) ([Math]::Sin($f * 3 + $wob) * $H * 0.02 - $d / 2)))
+            $on = [Math]::Max(0.001, $f * 0.3)
+            Start-BfxKeys $blob $global:BfxP.O @(@(0, 0), @($on, 0), @(($on + 0.005), 1), @(0.7, 1), @(1, 0)) $per $ph
+        }
+        $tf = Set-BfxTransforms $stroke 0 0; $tf.R.Angle = Get-BfxRnd $S -23 23
+        Add-BfxItem $S $stroke -Fx (Get-BfxRnd $S 0 0.9) -Top ($H * (Get-BfxRnd $S 0.2 0.8))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDancefloor {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sz = $H * 0.12; $cols = @('#ff4fa8', '#4fd8ff', '#ffd24f', '#9a6aff', '#5aff9a')
+    $n = [int][Math]::Ceiling(3000 / $sz)
+    for ($r = 0; $r -lt 2; $r++) {
+        for ($i = 0; $i -lt $n; $i++) {
+            $tile = New-BfxRect ($sz - 2) ($sz - 2) (New-BfxBrush $cols[($i + $r) % 5] 1)
+            $keys = @(); for ($b = 0; $b -lt 6; $b++) { $v = [Math]::Max(0, [Math]::Sin($i * 1.7 + $r * 2.3 + $b * 0.9)); $keys += , @(($b / 6.0), (0.12 + 0.25 * $v)) }; $keys += , @(1, $keys[0][1])
+            Start-BfxKeys $tile $global:BfxP.O $keys 5 -Discrete
+            Add-BfxItem $S $tile -Fx 0 -OffsetX ($i * $sz + 1) -Top ($H - $sz * ($r + 1) + 1)
+        }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDiscospots {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 40; $i++) {
+        $col = Get-BfxPick $S @('#ff6ad8', '#6ad8ff', '#ffe46a', '#a07dff', '#7dff9a')
+        $sp = New-Object System.Windows.Controls.Canvas; [void]$sp.Children.Add((New-BfxGlow ($H * 0.12) $col 0.55)); [void]$sp.Children.Add((New-BfxGlow ($H * 0.024) '#ffffff' 0.7))
+        $tf = Set-BfxTransforms $sp 0 0; $per = 2 * [Math]::PI / 0.15; $ph = Get-BfxRnd $S
+        $kx = @(); $ky = @(); for ($n = 0; $n -le 16; $n++) { $u = $n / 16.0; $a = $u * 2 * [Math]::PI; $kx += , @($u, ([Math]::Cos($a) * $H * 1.2)); $ky += , @($u, ([Math]::Sin($a) * $H * 0.25)) }
+        Start-BfxKeys $tf.T $global:BfxP.X $kx $per $ph; Start-BfxKeys $tf.T $global:BfxP.Y $ky $per $ph
+        Add-BfxItem $S $sp -Fx (Get-BfxRnd $S) -Top ($H * (Get-BfxRnd $S 0.1 0.9))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPixelclouds {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 12; $i++) {
+        $k = Get-BfxRnd $S; $bs = [Math]::Round($H * (0.05 + $k * 0.03)); $fill = New-BfxBrush '#ffffff' (0.35 + 0.4 * $k)
+        $cl = New-Object System.Windows.Controls.Canvas
+        [void]$cl.Children.Add((Set-BfxAt (New-BfxRect ($bs * 6) $bs $fill) 0 $bs)); [void]$cl.Children.Add((Set-BfxAt (New-BfxRect ($bs * 3) $bs $fill) $bs 0))
+        for ($n = 0; $n -lt 3; $n++) { [void]$cl.Children.Add((Set-BfxAt (New-BfxRect $bs $bs $fill) ($S.R.Next(0, 6) * $bs) $(if ($S.R.Next(0, 2)) { 0 } else { $bs * 2 }))) }
+        $tf = Set-BfxTransforms $cl 0 0
+        Add-BfxItem $S $cl -Top ($H * (Get-BfxRnd $S 0.05 0.6)) -Speed ((4 + $k * 10) * $H / 140) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($bs * 7)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPixelsky {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 80; $i++) {
+        $k = Get-BfxRnd $S; $sz = [Math]::Max(1, [Math]::Round($H * 0.012 * (1 + [Math]::Floor($k * 3))))
+        $px = New-BfxRect $sz $sz (New-BfxBrush $(if ($k -gt 0.8) { '#ffe46a' } else { '#ffffff' }) 1)
+        Start-BfxKeys $px $global:BfxP.O @(@(0, 1), @(0.66, 1), @(0.67, 0.25), @(1, 0.25)) (3 / (0.8 + $k)) (Get-BfxRnd $S) -Discrete
+        $tf = Set-BfxTransforms $px
+        Add-BfxItem $S $px -Top ([Math]::Round($H * (Get-BfxRnd $S))) -Speed (- $H * 0.05 * (0.5 + $k)) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 4
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxScorepops {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 12; $i++) {
+        $tb = New-BfxText (Get-BfxPick $S @('+100', '+250', '+50', 'x2', '+500', 'COMBO')) (Get-BfxPick $S @('#ffd24d', '#7dff9a', '#7dd0ff', '#ff8ad0')) 1 ([Math]::Round($H * 0.11))
+        $tb.FontWeight = [System.Windows.FontWeights]::ExtraBold
+        $tf = Set-BfxTransforms $tb; $per = Get-BfxRnd $S 3 6; $ph = Get-BfxRnd $S
+        Start-BfxKeys $tf.T $global:BfxP.Y @(@(0, 0), @(0.5, (- $H * 0.2)), @(1, (- $H * 0.2))) $per $ph
+        Start-BfxKeys $tb $global:BfxP.O @(@(0, 0), @(0.075, 1), @(0.5, 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $tb -Fx (Get-BfxRnd $S 0.02 0.92) -Top ($H * (Get-BfxRnd $S 0.25 0.75))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxXporbs {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 36; $i++) {
+        $col = $(if ((Get-BfxRnd $S) -lt 0.6) { '#7dff9a' } else { '#7dc8ff' })
+        $orb = New-Object System.Windows.Controls.Canvas; [void]$orb.Children.Add((New-BfxGlow ($H * 0.14) $col 0.6)); [void]$orb.Children.Add((New-BfxGlow ($H * 0.03) '#ffffff' 0.9))
+        $tf = Set-BfxTransforms $orb 0 0; $per = 1 / (Get-BfxRnd $S 0.06 0.12); $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H * 1.05) (- $H * 0.05) $per $ph
+        Start-BfxAnim $tf.T $global:BfxP.X (- $H * 0.06) ($H * 0.06) ($per / 4) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxKeys $orb $global:BfxP.O @(@(0, 0), @(0.5, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $orb -Fx (Get-BfxRnd $S) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLootbeams {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 7; $i++) {
+        $col = Get-BfxPick $S @('#ffffff', '#5aff7a', '#4aa8ff', '#b07dff', '#ffb030'); $per = Get-BfxRnd $S 6 10; $ph = Get-BfxRnd $S
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.06) $H (New-BfxLinear @(@(0, $col, 0), @(1, $col, 0.5)))) (- $H * 0.03) (- $H * 0.95)))
+        [void]$grp.Children.Add((New-BfxGlow ($H * 0.3) $col 0.6))
+        Start-BfxKeys $grp $global:BfxP.O @(@(0, 0), @(0.5, 1), @(1, 0)) $per $ph
+        Add-BfxItem $S $grp -Fx (($i + 0.5) / 7 + (Get-BfxRnd $S -0.05 0.05)) -Top ($H * 0.95)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMushrooms {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 34; $i++) {
+        $col = Get-BfxPick $S @('#7dffd0', '#b08aff', '#7dc8ff'); $sz = $H * (Get-BfxRnd $S 0.04 0.09)
+        $m = New-Object System.Windows.Controls.Canvas
+        $halo = New-BfxGlow ($sz * 5) $col 0.3; [void]$m.Children.Add((Set-BfxAt $halo 0 (- $sz)))
+        [void]$m.Children.Add((Set-BfxAt (New-BfxRect ($sz * 0.24) $sz (New-BfxBrush '#c8d2dc' 0.6)) (- $sz * 0.12) (- $sz)))
+        $capG = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (- $sz * 0.6) 0), $true, $true); $c.ArcTo((New-BfxPoint ($sz * 0.6) 0), [System.Windows.Size]::new($sz * 0.6, $sz * 0.4), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false) }.GetNewClosure()
+        $cap = New-BfxPath $capG (New-BfxBrush $col 0.85); [void]$m.Children.Add((Set-BfxAt $cap 0 (- $sz)))
+        $per = Get-BfxRnd $S 6 10; $ph = Get-BfxRnd $S
+        Start-BfxAnim $halo $global:BfxP.O 0.1 1 $per $ph -Reverse -Ease; Start-BfxAnim $cap $global:BfxP.O 0.6 1 $per $ph -Reverse -Ease
+        Add-BfxItem $S $m -Fx (Get-BfxRnd $S) -Top ($H - 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxVines {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $stem = New-BfxBrush '#285a28' 0.85; $leaf = New-BfxBrush '#3c8c3c' 0.85
+    for ($i = 0; $i -lt 20; $i++) {
+        $len = $H * (Get-BfxRnd $S 0.3 0.9)
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.012) $len $stem) (- $H * 0.006) 0))
+        for ($f = 0.15; $f -lt 1; $f += 0.17) { $lf = New-BfxEllipse ($H * 0.07) ($H * 0.032) $leaf; $lt = Set-BfxTransforms $lf; $lt.R.Angle = $(if ((Get-BfxRnd $S) -lt 0.5) { 28 } else { -28 }); [void]$grp.Children.Add((Set-BfxAt $lf $(if ($lt.R.Angle -gt 0) { 0 } else { - $H * 0.07 }) ($len * $f))) }
+        $tf = Set-BfxTransforms $grp 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A -4 4 (Get-BfxRnd $S 9 14) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S) -Top -2
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCrystalbed {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 30; $i++) {
+        $col = Get-BfxPick $S @('#8ad8ff', '#c08aff', '#8affd8'); $ht = $H * (Get-BfxRnd $S 0.15 0.45); $wd = $ht * 0.25; $fx = Get-BfxRnd $S
+        $cr = New-Object System.Windows.Controls.Canvas
+        $body = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$wd) 0), $true, $true); $c.LineTo((New-BfxPoint (-$wd) (- $ht * 0.75)), $true, $false); $c.LineTo((New-BfxPoint 0 (-$ht)), $true, $false); $c.LineTo((New-BfxPoint $wd (- $ht * 0.75)), $true, $false); $c.LineTo((New-BfxPoint $wd 0), $true, $false) }.GetNewClosure()
+        $face = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint 0 (-$ht)), $true, $false); $c.LineTo((New-BfxPoint $wd (- $ht * 0.75)), $true, $false); $c.LineTo((New-BfxPoint $wd 0), $true, $false) }.GetNewClosure()
+        $b = New-BfxPath $body (New-BfxBrush $col 0.7); $fc = New-BfxPath $face (New-BfxBrush '#ffffff' 0.25)
+        $ph = ((1 - $fx * 6 / (2 * [Math]::PI)) % 1 + 1) % 1
+        Start-BfxAnim $b $global:BfxP.O 0.5 1 4.5 $ph -Reverse -Ease; Start-BfxAnim $fc $global:BfxP.O 0.1 1 4.5 $ph -Reverse -Ease
+        [void]$cr.Children.Add($b); [void]$cr.Children.Add($fc)
+        $tf = Set-BfxTransforms $cr 0 0; $tf.R.Angle = Get-BfxRnd $S -17 17
+        Add-BfxItem $S $cr -Fx $fx -Top ($H + 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCavedrips {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $rock = New-BfxBrush '#46403a' 0.9; $water = New-BfxBrush '#b4d2e6' 0.8
+    for ($i = 0; $i -lt 16; $i++) {
+        $len = $H * (Get-BfxRnd $S 0.08 0.28); $per = Get-BfxRnd $S 3 7; $ph = Get-BfxRnd $S; $fx = Get-BfxRnd $S
+        $spike = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (- $H * 0.04) 0), $true, $true); $c.LineTo((New-BfxPoint ($H * 0.04) 0), $true, $false); $c.LineTo((New-BfxPoint 0 $len), $true, $false) }.GetNewClosure()
+        Add-BfxItem $S (New-BfxPath $spike $rock) -Fx $fx -Top 0
+        $drop = New-BfxEllipse ($H * 0.016) ($H * 0.028) $water; $drop.Margin = [System.Windows.Thickness]::new(- $H * 0.008, 0, 0, 0); $dt = Set-BfxTransforms $drop
+        $ky = @(); for ($n = 0; $n -le 6; $n++) { $u = $n / 6.0; $ky += , @(($u * 0.5), ($len + ($H - $len) * $u * $u)) }; $ky += , @(1, $H)
+        Start-BfxKeys $dt.T $global:BfxP.Y $ky $per $ph
+        Start-BfxKeys $drop $global:BfxP.O @(@(0, 1), @(0.5, 1), @(0.501, 0), @(1, 0)) $per $ph -Discrete
+        Add-BfxItem $S $drop -Fx $fx -Top 0
+        $ring = New-BfxEllipse ($H * 0.16) ($H * 0.04) $null $water 1; $ring.Margin = [System.Windows.Thickness]::new(- $H * 0.08, - $H * 0.02, 0, 0); $rt = Set-BfxTransforms $ring
+        Start-BfxKeys $rt.S $global:BfxP.SX @(@(0, 0.05), @(0.5, 0.05), @(0.7, 1), @(1, 1)) $per $ph; Start-BfxKeys $rt.S $global:BfxP.SY @(@(0, 0.05), @(0.5, 0.05), @(0.7, 1), @(1, 1)) $per $ph
+        Start-BfxKeys $ring $global:BfxP.O @(@(0, 0), @(0.5, 0), @(0.501, 0.6), @(0.7, 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $ring -Fx $fx -Top ($H - 3)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxChains {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $link = New-BfxBrush '#78706a' 0.85
+    for ($i = 0; $i -lt 14; $i++) {
+        $len = $H * (Get-BfxRnd $S 0.35 0.9); $n = [int][Math]::Floor($len / ($H * 0.05))
+        $chain = New-Object System.Windows.Controls.Canvas
+        for ($k = 0; $k -lt $n; $k++) { $wd = $(if ($k % 2) { $H * 0.016 } else { $H * 0.036 }); $e = New-BfxEllipse $wd ($H * 0.052) $null $link ($H * 0.01); [void]$chain.Children.Add((Set-BfxAt $e (- $wd / 2) ($k * $H * 0.05 - $H * 0.026))) }
+        $tf = Set-BfxTransforms $chain 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A -7 7 (Get-BfxRnd $S 7 11) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $chain -Fx (Get-BfxRnd $S) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxConveyor {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $y = $H * 0.86; $sp = $H * 0.25
+    Add-BfxItem $S (New-BfxRect 4200 ($H * 0.06) (New-BfxBrush '#282c32' 0.9)) -Fx 0 -Top $y
+    $step = $H * 0.1
+    $slats = New-BfxGeo { param($c) for ($x = 0.0; $x -lt 4200 + $step; $x += $step) { $c.BeginFigure((New-BfxPoint $x 0), $true, $true); $c.LineTo((New-BfxPoint ($x + $H * 0.02) 0), $true, $false); $c.LineTo((New-BfxPoint ($x + $H * 0.02) ($H * 0.06)), $true, $false); $c.LineTo((New-BfxPoint $x ($H * 0.06)), $true, $false) } }.GetNewClosure()
+    $sl = New-BfxPath $slats (New-BfxBrush '#5a6068' 0.9); $st = Set-BfxTransforms $sl
+    Start-BfxAnim $st.T $global:BfxP.X (- $step) 0 ($step / $sp) 0
+    Add-BfxItem $S $sl -Fx 0 -Top $y
+    for ($i = 0; $i -lt 12; $i++) {
+        $kind = $S.R.Next(0, 3); $col = Get-BfxPick $S @('#c89050', '#7a8a9a', '#d8b040'); $sz = $H * (Get-BfxRnd $S 0.08 0.14)
+        $box = $(if ($kind -eq 0) { New-BfxRect $sz $sz (New-BfxBrush $col 0.9) } elseif ($kind -eq 1) { New-BfxEllipse $sz $sz (New-BfxBrush $col 0.9) } else { New-BfxRect ($sz * 1.4) ($sz * 0.5) (New-BfxBrush $col 0.9) })
+        $bh = $(if ($kind -eq 2) { $sz * 0.5 } else { $sz })
+        $tf = Set-BfxTransforms $box
+        Add-BfxItem $S $box -Top ($y - $bh) -Speed $sp -Phase (($i / 12.0 + (Get-BfxRnd $S 0 0.05)) % 1) -T $tf.T -Margin ($sz * 1.5)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHazard {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $bh = $H * 0.08; $sp = $H * 0.1
+    foreach ($row in @(@(0, 1), @(($H - $bh), -1))) {
+        Add-BfxItem $S (New-BfxRect 4200 $bh (New-BfxBrush '#141414' 0.35)) -Fx 0 -Top $row[0]
+        $geo = New-BfxGeo { param($c) for ($x = - $sp * 2; $x -lt 4200 + $sp * 2; $x += $sp * 2) { $c.BeginFigure((New-BfxPoint $x $bh), $true, $true); $c.LineTo((New-BfxPoint ($x + $sp) $bh), $true, $false); $c.LineTo((New-BfxPoint ($x + $sp + $bh) 0), $true, $false); $c.LineTo((New-BfxPoint ($x + $bh) 0), $true, $false) } }.GetNewClosure()
+        $stripes = New-BfxPath $geo (New-BfxBrush '#f0be28' 0.3); $tf = Set-BfxTransforms $stripes
+        $clip = New-Object System.Windows.Controls.Canvas; $clip.ClipToBounds = $true; $clip.Width = 4200; $clip.Height = $bh; [void]$clip.Children.Add($stripes)
+        if ($row[1] -gt 0) { Start-BfxAnim $tf.T $global:BfxP.X (- $sp * 2) 0 ($sp * 2 / ($H * 0.15)) 0 } else { Start-BfxAnim $tf.T $global:BfxP.X 0 (- $sp * 2) ($sp * 2 / ($H * 0.15)) 0 }
+        Add-BfxItem $S $clip -Fx 0 -Top $row[0]
+    }
+    for ($i = 0; $i -lt 6; $i++) { $l = New-BfxGlow ($H * 0.16) '#ffb020' 0.45; Start-BfxAnim $l $global:BfxP.O 0.1 1 (2 * [Math]::PI / 1.5) ($i * 0.2) -Reverse -Ease; Add-BfxItem $S $l -Fx (($i + 0.5) / 6) -Top ($H - $bh - $H * 0.03) }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCloudsea {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 3; $i++) {
+        for ($n = 0; $n -lt 18; $n++) {
+            $sz = $H * (Get-BfxRnd $S 0.36 0.66); $cl = New-BfxGlow $sz '#ffffff' (0.16 + $i * 0.09); $tf = Set-BfxTransforms $cl
+            Add-BfxItem $S $cl -Top ($H * (0.62 + $i * 0.13) + $H * (Get-BfxRnd $S -0.04 0.04)) -Speed (- (4 + $i * 8) * $H / 140) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($sz / 2)
+        }
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWindlines {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $ink = New-BfxBrush '#ffffff' 0.45
+    for ($i = 0; $i -lt 14; $i++) {
+        $len = $H * (Get-BfxRnd $S 1.2 2.4); $wob = Get-BfxRnd $S 0 6.28; $rr = $H * 0.03
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$len) 0), $false, $false); for ($n = 1; $n -le 20; $n++) { $f = $n / 20.0; $c.LineTo((New-BfxPoint (- $len * (1 - $f)) ([Math]::Sin($f * 4 + $wob) * $H * 0.02)), $true, $true) }; $c.ArcTo((New-BfxPoint ($rr * 0.4) (- $rr * 1.6)), [System.Windows.Size]::new($rr, $rr), 0, $true, [System.Windows.Media.SweepDirection]::Counterclockwise, $true, $true) }.GetNewClosure()
+        $ln = New-BfxPath $geo $null $ink ($H * 0.01)
+        Start-BfxKeys $ln $global:BfxP.O @(@(0, 0), @(0.2, 1), @(0.8, 1), @(1, 0)) (Get-BfxRnd $S 6 10) (Get-BfxRnd $S)
+        $tf = Set-BfxTransforms $ln
+        Add-BfxItem $S $ln -Top ($H * (Get-BfxRnd $S 0.1 0.9)) -Speed ($H * (Get-BfxRnd $S 0.4 0.7)) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($len + $H * 0.1)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxStreetlamps {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sp = $H * 0.9; $loop = $sp * 2
+    $row = New-Object System.Windows.Controls.Canvas
+    for ($x = 0.0; $x -lt 4200 + $loop; $x += $sp) {
+        $cone = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint ($H * 0.08) ($H * 0.2)), $true, $true); $c.LineTo((New-BfxPoint ($H * 0.35) $H), $true, $false); $c.LineTo((New-BfxPoint (- $H * 0.2) $H), $true, $false) }.GetNewClosure()
+        [void]$row.Children.Add((Set-BfxAt (New-BfxPath $cone (New-BfxLinear @(@(0, '#ffc878', 0.25), @(1, '#ffc878', 0)))) $x 0))
+        [void]$row.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.024) ($H * 0.85) (New-BfxBrush '#141418' 0.95)) ($x - $H * 0.012) ($H * 0.15)))
+        [void]$row.Children.Add((Set-BfxAt (New-BfxRect ($H * 0.1) ($H * 0.015) (New-BfxBrush '#141418' 0.95)) $x ($H * 0.15)))
+        [void]$row.Children.Add((Set-BfxAt (New-BfxGlow ($H * 0.24) '#ffd08a' 0.8) ($x + $H * 0.08) ($H * 0.19)))
+        [void]$row.Children.Add((Set-BfxAt (New-BfxGlow ($H * 0.4) '#ffc070' 0.2) ($x + $H * 0.06) ($H * 0.97)))
+    }
+    $tf = Set-BfxTransforms $row 0 0
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.08)) 0
+    Add-BfxItem $S $row -Fx 0 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPowerlines {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $sp = $H * 1.6; $loop = $sp
+    $geo = New-BfxGeo { param($c)
+        for ($x = 0.0; $x -lt 4200 + $loop * 2; $x += $sp) {
+            foreach ($r in @(@(($x - $H * 0.015), ($H * 0.15), ($H * 0.03), ($H * 0.85)), @(($x - $H * 0.15), ($H * 0.2), ($H * 0.3), ($H * 0.02)))) { $c.BeginFigure((New-BfxPoint $r[0] $r[1]), $true, $true); $c.LineTo((New-BfxPoint ($r[0] + $r[2]) $r[1]), $true, $false); $c.LineTo((New-BfxPoint ($r[0] + $r[2]) ($r[1] + $r[3])), $true, $false); $c.LineTo((New-BfxPoint $r[0] ($r[1] + $r[3])), $true, $false) }
+        }
+    }.GetNewClosure()
+    $wires = New-BfxGeo { param($c) for ($x = 0.0; $x -lt 4200 + $loop; $x += $sp) { for ($k = -1; $k -le 1; $k++) { $c.BeginFigure((New-BfxPoint ($x + $k * $H * 0.13) ($H * 0.22)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint ($x + $sp / 2 + $k * $H * 0.13) ($H * 0.36)), (New-BfxPoint ($x + $sp + $k * $H * 0.13) ($H * 0.22)), $true, $false) } } }.GetNewClosure()
+    $grp = New-Object System.Windows.Controls.Canvas
+    [void]$grp.Children.Add((New-BfxPath $geo (New-BfxBrush '#121216' 0.9))); [void]$grp.Children.Add((New-BfxPath $wires $null (New-BfxBrush '#121216' 0.85) 1))
+    $tf = Set-BfxTransforms $grp 0 0
+    Start-BfxAnim $tf.T $global:BfxP.X 0 (- $loop) ($loop / ($H * 0.15)) 0
+    Add-BfxItem $S $grp -Fx 0 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWintertrees {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 30; $i++) {
+        $k = Get-BfxRnd $S; $th = $H * (0.25 + $k * 0.4); $back = $k -lt 0.5
+        $tree = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$th)), $true, $true); $c.LineTo((New-BfxPoint ($th * 0.28) 0), $true, $false); $c.LineTo((New-BfxPoint (- $th * 0.28) 0), $true, $false) }.GetNewClosure()
+        $cap = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$th)), $true, $true); $c.LineTo((New-BfxPoint ($th * 0.1) (- $th * 0.65)), $true, $false); $c.LineTo((New-BfxPoint (- $th * 0.1) (- $th * 0.65)), $true, $false) }.GetNewClosure()
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxPath $tree (New-BfxBrush $(if ($back) { '#283c46' } else { '#142828' }) $(if ($back) { 0.5 } else { 0.9 }))))
+        [void]$grp.Children.Add((New-BfxPath $cap (New-BfxBrush '#ebf5ff' $(if ($back) { 0.4 } else { 0.85 }))))
+        Add-BfxItem $S $grp -Fx (Get-BfxRnd $S) -Top ($H + 2)
+    }
+    for ($i = 0; $i -lt 60; $i++) {
+        $d = $H * 0.014; $f = New-BfxEllipse $d $d (New-BfxBrush '#ffffff' 0.7); $tf = Set-BfxTransforms $f
+        Start-BfxAnim $tf.T $global:BfxP.Y -6 ($H + 6) (($H + 12) / ($H * 0.08)) (Get-BfxRnd $S)
+        Start-BfxAnim $tf.T $global:BfxP.X (- $H * 0.05) ($H * 0.05) (Get-BfxRnd $S 12 18) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $f -Fx (Get-BfxRnd $S) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSailboats {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    Add-BfxItem $S (New-BfxRect 4200 ($H * 0.42) (New-BfxBrush '#1e3c5a' 0.3)) -Fx 0 -Top ($H * 0.6)
+    for ($y = $H * 0.65; $y -lt $H; $y += $H * 0.07) {
+        $wv = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($x = 12.0; $x -le 4400; $x += 12) { $c.LineTo((New-BfxPoint $x ([Math]::Sin($x * 0.03) * $H * 0.008)), $true, $true) } }.GetNewClosure()
+        $ln = New-BfxPath $wv $null (New-BfxBrush '#dcebfa' 0.3) 1; $lt = Set-BfxTransforms $ln
+        Start-BfxAnim $lt.T $global:BfxP.X 0 (- 2 * [Math]::PI / 0.03) (Get-BfxRnd $S 6 10) 0
+        Add-BfxItem $S $ln -Fx 0 -Top $y
+    }
+    for ($i = 0; $i -lt 7; $i++) {
+        $k = Get-BfxRnd $S; $sz = $H * 0.12 * (0.4 + $k * 0.8); $dir = Get-BfxPick $S @(1, -1)
+        $boat = New-Object System.Windows.Controls.Canvas
+        $hull = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (- $sz * 0.6) 0), $true, $true); $c.LineTo((New-BfxPoint ($sz * 0.6) 0), $true, $false); $c.LineTo((New-BfxPoint ($sz * 0.45) ($sz * 0.18)), $true, $false); $c.LineTo((New-BfxPoint (- $sz * 0.45) ($sz * 0.18)), $true, $false) }.GetNewClosure()
+        $sail = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-$sz)), $true, $true); $c.LineTo((New-BfxPoint ($sz * 0.45) (- $sz * 0.05)), $true, $false); $c.LineTo((New-BfxPoint 0 (- $sz * 0.05)), $true, $false); $c.BeginFigure((New-BfxPoint (- $sz * 0.05) (- $sz * 0.8)), $true, $true); $c.LineTo((New-BfxPoint (- $sz * 0.4) (- $sz * 0.05)), $true, $false); $c.LineTo((New-BfxPoint (- $sz * 0.05) (- $sz * 0.05)), $true, $false) }.GetNewClosure()
+        [void]$boat.Children.Add((New-BfxPath $hull (New-BfxBrush '#3c281e' 0.9))); [void]$boat.Children.Add((New-BfxPath $sail (New-BfxBrush '#f5f0e6' 0.92)))
+        $bt = Set-BfxTransforms $boat 0 0
+        Start-BfxAnim $bt.R $global:BfxP.A -3 3 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $bt.T $global:BfxP.Y (- $H * 0.01) ($H * 0.01) (Get-BfxRnd $S 4 7) (Get-BfxRnd $S) -Reverse -Ease
+        $wrap = New-Object System.Windows.Controls.Canvas; [void]$wrap.Children.Add($boat); $wr = Set-BfxTransforms $wrap 0 0
+        Add-BfxItem $S $wrap -Top ($H * (0.6 + $k * 0.32)) -Speed ($dir * $H * (Get-BfxRnd $S 0.04 0.1)) -Phase (Get-BfxRnd $S) -T $wr.T -Margin ($sz)
+    }
+    Complete-BfxStage $S
+}
+
+# Round 7: fifty additional mapped, transparent effects.
+function global:Add-BfxEvidence {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Detective board: pinned notes across the width, a red string draws
+    # from pin to pin, the reached pin glows, then everything fades and the
+    # next loop starts.
+    $fxs = @(0.32, 0.45, 0.57, 0.69, 0.82, 0.94)
+    $per = 15.0; $drawSec = 1.4; $gapSec = 1.7
+    $pins = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $fxs.Count; $i++) {
+        $ny = $H * (Get-BfxRnd $S 0.28 0.72)
+        $noteW = $H * (Get-BfxRnd $S 0.2 0.26); $noteH = $noteW * 0.78
+        $note = New-Object System.Windows.Controls.Canvas
+        $paper = New-BfxRect $noteW $noteH (New-BfxBrush '#f2ead8' 0.16) 2
+        [void]$note.Children.Add((Set-BfxAt $paper (-$noteW / 2) (-$noteH * 0.15)))
+        for ($ln = 0; $ln -lt 3; $ln++) {
+            $bar = New-BfxRect ($noteW * (Get-BfxRnd $S 0.45 0.75)) ([Math]::Max(1.0, $H * 0.008)) (New-BfxBrush '#f2ead8' 0.22)
+            [void]$note.Children.Add((Set-BfxAt $bar (-$noteW * 0.38) ($noteH * (0.12 + 0.2 * $ln))))
+        }
+        $ntf = Set-BfxTransforms $note 0 0; $ntf.R.Angle = Get-BfxRnd $S -9 9
+        Add-BfxItem $S $note -Fx $fxs[$i] -Top $ny
+        $pin = New-BfxGlow ($H * 0.05) '#ff3b3b' 1.0
+        Add-BfxItem $S $pin -Fx $fxs[$i] -Top $ny
+        $halo = New-BfxGlow ($H * 0.22) '#ff5a4a' 0.7
+        $reach = (($i - 1) * $gapSec + $drawSec) / $per
+        if ($i -eq 0) { $reach = 0.2 / $per }
+        Start-BfxKeys $halo $global:BfxP.O @(@(0, 0), @($reach, 0), @(($reach + 0.15 / $per), 1), @(($reach + 1.2 / $per), 0), @(1, 0)) $per
+        Add-BfxItem $S $halo -Fx $fxs[$i] -Top $ny
+        [void]$pins.Add(@($fxs[$i], $ny))
+    }
+    $strings = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $fxs.Count - 1; $i++) {
+        $line = New-Object System.Windows.Shapes.Line
+        $line.Stroke = New-BfxBrush '#e0302a' 0.75; $line.StrokeThickness = [Math]::Max(1.0, $H * 0.009); $line.IsHitTestVisible = $false
+        $line.Opacity = 0
+        [void]$S.Canvas.Children.Add($line)
+        $t0 = ($i * $gapSec) / $per; $t1 = ($i * $gapSec + $drawSec) / $per
+        Start-BfxKeys $line $global:BfxP.O @(@(0, 0), @($t0, 0), @(($t0 + 0.002), 1), @(0.78, 1), @(0.9, 0), @(1, 0)) $per
+        [void]$strings.Add(@($line, $t0, $t1, $i))
+    }
+    $S.Extra = { param($cw)
+        foreach ($st in $strings) {
+            $a = $pins[$st[3]]; $b = $pins[$st[3] + 1]
+            $ax = $a[0] * $cw; $bx = $b[0] * $cw
+            $st[0].X1 = $ax; $st[0].Y1 = $a[1]
+            Start-BfxKeys $st[0] ([System.Windows.Shapes.Line]::X2Property) @(@(0, $ax), @($st[1], $ax), @($st[2], $bx), @(1, $bx)) $per
+            Start-BfxKeys $st[0] ([System.Windows.Shapes.Line]::Y2Property) @(@(0, $a[1]), @($st[1], $a[1]), @($st[2], $b[1]), @(1, $b[1])) $per
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCrosshairs {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Arcade light-gun crosshairs glide to points across the width, lock on
+    # with a ring pulse, then move on.
+    $cols = @('#ff4a4a', '#4aa8ff', '#ffd24a')
+    $glideSec = 1.8; $holdSec = 1.4; $stops = 4
+    $per = $stops * ($glideSec + $holdSec)
+    $rad = $H * 0.11
+    $aims = New-Object System.Collections.ArrayList
+    for ($c = 0; $c -lt 3; $c++) {
+        $col = $cols[$c]
+        $ch = New-Object System.Windows.Controls.Canvas
+        [void]$ch.Children.Add((Set-BfxAt (New-BfxEllipse ($rad * 2) ($rad * 2) $null (New-BfxBrush $col 0.85) ([Math]::Max(1.2, $H * 0.012))) (-$rad) (-$rad)))
+        $geo = New-BfxGeo { param($g)
+            foreach ($d in @(@(1, 0), @(-1, 0), @(0, 1), @(0, -1))) { $g.BeginFigure((New-BfxPoint ($d[0] * $rad * 0.55) ($d[1] * $rad * 0.55)), $false, $false); $g.LineTo((New-BfxPoint ($d[0] * $rad * 1.45) ($d[1] * $rad * 1.45)), $true, $false) }
+        }.GetNewClosure()
+        [void]$ch.Children.Add((New-BfxPath $geo $null (New-BfxBrush $col 0.85) ([Math]::Max(1.2, $H * 0.012))))
+        [void]$ch.Children.Add((New-BfxGlow ($H * 0.035) $col 1.0))
+        $ring = New-BfxEllipse ($rad * 2) ($rad * 2) $null (New-BfxBrush $col 0.8) 1.2
+        $ring.Margin = [System.Windows.Thickness]::new(-$rad, -$rad, 0, 0)
+        $rtf = Set-BfxTransforms $ring
+        $rk = @(@(0, 0)); $sk = @(@(0, 1))
+        for ($k = 0; $k -lt $stops; $k++) {
+            $lock = ($k * ($glideSec + $holdSec) + $glideSec) / $per
+            $rk += , @($lock, 0); $rk += , @(($lock + 0.01), 0.9); $rk += , @(($lock + $holdSec * 0.8 / $per), 0)
+            $sk += , @($lock, 1); $sk += , @(($lock + $holdSec * 0.8 / $per), 1.9); $sk += , @(($lock + $holdSec * 0.85 / $per), 1)
+        }
+        $rk += , @(1, 0); $sk += , @(1, 1)
+        Start-BfxKeys $ring $global:BfxP.O $rk $per ($c / 3.0)
+        Start-BfxKeys $rtf.S $global:BfxP.SX $sk $per ($c / 3.0); Start-BfxKeys $rtf.S $global:BfxP.SY $sk $per ($c / 3.0)
+        [void]$ch.Children.Add($ring)
+        $ctf = Set-BfxTransforms $ch 0 0
+        [void]$S.Canvas.Children.Add($ch)
+        $pts = @(); for ($k = 0; $k -lt $stops; $k++) { $pts += , @((Get-BfxRnd $S 0.3 0.95), ($H * (Get-BfxRnd $S 0.25 0.75))) }
+        [void]$aims.Add(@($ctf, $pts, ($c / 3.0)))
+    }
+    $S.Extra = { param($cw)
+        foreach ($am in $aims) {
+            $kx = New-Object System.Collections.ArrayList; $ky = New-Object System.Collections.ArrayList
+            $pts = $am[1]; $n = $pts.Count
+            for ($k = 0; $k -lt $n; $k++) {
+                $from = $pts[($k + $n - 1) % $n]; $to = $pts[$k]
+                $t0 = $k * ($glideSec + $holdSec)
+                for ($q = 0; $q -le 6; $q++) {
+                    $u = $q / 6.0; $e = 0.5 - 0.5 * [Math]::Cos([Math]::PI * $u)
+                    $f = ($t0 + $u * $glideSec) / $per
+                    [void]$kx.Add(@($f, (($from[0] + ($to[0] - $from[0]) * $e) * $cw))); [void]$ky.Add(@($f, ($from[1] + ($to[1] - $from[1]) * $e)))
+                }
+                $fh = ($t0 + $glideSec + $holdSec) / $per
+                [void]$kx.Add(@($fh, ($to[0] * $cw))); [void]$ky.Add(@($fh, $to[1]))
+            }
+            Start-BfxKeys $am[0].T $global:BfxP.X $kx $per $am[2]; Start-BfxKeys $am[0].T $global:BfxP.Y $ky $per $am[2]
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTrackmap {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Pale minimap race loops spread over the width, car dots run along them.
+    $cars = @('#ff4a4a', '#4ad0ff', '#ffd24a', '#7dff8a')
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $hw = $H * (Get-BfxRnd $S 0.62 0.78); $hh = $H * 0.26; $rr = $hh
+        # stadium-shaped loop around (0,0)
+        $loop = New-Object System.Collections.ArrayList
+        $straight = 2 * ($hw - $rr); $arc = [Math]::PI * $rr; $total = 2 * $straight + 2 * $arc
+        for ($q = 0; $q -lt 40; $q++) {
+            $d = $q / 40.0 * $total
+            if ($d -lt $straight) { $px = -($hw - $rr) + $d; $py = -$rr }
+            elseif ($d -lt $straight + $arc) { $a = ($d - $straight) / $rr - [Math]::PI / 2; $px = ($hw - $rr) + [Math]::Cos($a) * $rr; $py = [Math]::Sin($a) * $rr }
+            elseif ($d -lt 2 * $straight + $arc) { $px = ($hw - $rr) - ($d - $straight - $arc); $py = $rr }
+            else { $a = ($d - 2 * $straight - $arc) / $rr + [Math]::PI / 2; $px = -($hw - $rr) + [Math]::Cos($a) * $rr; $py = [Math]::Sin($a) * $rr }
+            [void]$loop.Add(@($px, $py))
+        }
+        $holder = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($g) $g.BeginFigure((New-BfxPoint $loop[0][0] $loop[0][1]), $false, $true); for ($q = 1; $q -lt $loop.Count; $q++) { $g.LineTo((New-BfxPoint $loop[$q][0] $loop[$q][1]), $true, $true) } }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#dfe6f0' 0.16) ($H * 0.045)))
+        [void]$holder.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#dfe6f0' 0.3) 1))
+        # checkered start mark
+        $cs = $H * 0.02
+        for ($cx = 0; $cx -lt 2; $cx++) { for ($cy = 0; $cy -lt 4; $cy++) {
+            $sq = New-BfxRect $cs $cs (New-BfxBrush $(if (($cx + $cy) % 2) { '#ffffff' } else { '#20202a' }) 0.7)
+            [void]$holder.Children.Add((Set-BfxAt $sq ($cx * $cs - $cs) (-$rr - 2 * $cs + $cy * $cs)))
+        } }
+        for ($k = 0; $k -lt 3; $k++) {
+            $car = New-Object System.Windows.Controls.Canvas
+            $col = $cars[($slot + $k) % $cars.Count]
+            [void]$car.Children.Add((New-BfxGlow ($H * 0.09) $col 0.6)); [void]$car.Children.Add((New-BfxGlow ($H * 0.03) '#ffffff' 1.0))
+            $ctf = Set-BfxTransforms $car 0 0
+            $kx = @(); $ky = @()
+            for ($q = 0; $q -le $loop.Count; $q++) { $p = $loop[$q % $loop.Count]; $kx += , @(($q / $loop.Count), $p[0]); $ky += , @(($q / $loop.Count), $p[1]) }
+            $lap = Get-BfxRnd $S 8 12; $ph = Get-BfxRnd $S
+            Start-BfxKeys $ctf.T $global:BfxP.X $kx $lap $ph; Start-BfxKeys $ctf.T $global:BfxP.Y $ky $lap $ph
+            [void]$holder.Children.Add($car)
+        }
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * 0.52)
+    } 300 4 0.30 0.96
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHalfpipe {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Wireframe halfpipes over the width; a glowing rider swings up and down.
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $rad = $H * 0.42; $maxA = 1.25
+        $holder = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($g)
+            $g.BeginFigure((New-BfxPoint ([Math]::Sin(-1.45) * $rad) ([Math]::Cos(-1.45) * $rad)), $false, $false)
+            for ($q = 1; $q -le 24; $q++) { $a = -1.45 + 2.9 * $q / 24; $g.LineTo((New-BfxPoint ([Math]::Sin($a) * $rad) ([Math]::Cos($a) * $rad)), $true, $true) }
+            for ($q = 0; $q -le 8; $q++) { $a = -1.45 + 2.9 * $q / 8; $x = [Math]::Sin($a) * $rad; $y = [Math]::Cos($a) * $rad; $g.BeginFigure((New-BfxPoint $x $y), $false, $false); $g.LineTo((New-BfxPoint ($x * 0.86) ($y * 0.86 + $H * 0.06)), $true, $false) }
+        }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $geo $null (New-BfxBrush '#cfe2ff' 0.28) 1.2))
+        $per = Get-BfxRnd $S 3.6 4.6
+        $kx = @(); $ky = @()
+        for ($q = 0; $q -le 24; $q++) { $u = $q / 24.0; $a = $maxA * [Math]::Sin(2 * [Math]::PI * $u); $rr = $rad * 0.93; $kx += , @($u, ([Math]::Sin($a) * $rr)); $ky += , @($u, ([Math]::Cos($a) * $rr)) }
+        $col = Get-BfxPick $S @('#ff6a4a', '#4ad8ff', '#ffd24a')
+        for ($g = 3; $g -ge 0; $g--) {
+            $dot = $(if ($g -eq 0) { New-Object System.Windows.Controls.Canvas } else { New-BfxGlow ($H * (0.07 - $g * 0.012)) $col (0.45 - $g * 0.1) })
+            if ($g -eq 0) { [void]$dot.Children.Add((New-BfxGlow ($H * 0.12) $col 0.6)); [void]$dot.Children.Add((New-BfxGlow ($H * 0.035) '#ffffff' 1.0)) }
+            $dtf = Set-BfxTransforms $dot 0 0
+            $lag = -($g * 0.06) / $per
+            Start-BfxKeys $dtf.T $global:BfxP.X $kx $per $lag; Start-BfxKeys $dtf.T $global:BfxP.Y $ky $per $lag
+            [void]$holder.Children.Add($dot)
+        }
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * 0.96 - $rad)
+    } 260 4 0.30 0.96
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxOldfilm {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Old cartoon film: sepia wash, slow drifting scratches, dust specks and
+    # a breathing vignette. Everything pale.
+    $wash = New-BfxRect 10 $H (New-BfxBrush '#c8a868' 0.06)
+    Add-BfxItem $S $wash -Fx 0 -Top 0
+    $vig = New-Object System.Windows.Media.RadialGradientBrush
+    [void]$vig.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#2a1a08' 0.0), 0.55))
+    [void]$vig.GradientStops.Add([System.Windows.Media.GradientStop]::new((New-BfxColor '#2a1a08' 0.35), 1.0))
+    $vig.Freeze()
+    $vrect = New-BfxRect 10 $H $vig
+    Start-BfxAnim $vrect $global:BfxP.O 0.6 1.0 6 0 -Reverse -Ease
+    Add-BfxItem $S $vrect -Fx 0 -Top 0
+    for ($i = 0; $i -lt 7; $i++) {
+        $sc = New-BfxRect ([Math]::Max(1.0, $H * 0.006)) ($H * (Get-BfxRnd $S 0.6 1.05)) (New-BfxBrush '#efe0b8' 1.0)
+        Start-BfxKeys $sc $global:BfxP.O @(@(0, 0.04), @(0.3, 0.22), @(0.45, 0.08), @(0.7, 0.2), @(1, 0.04)) (Get-BfxRnd $S 2.5 4.5) (Get-BfxRnd $S)
+        $tf = Set-BfxTransforms $sc
+        Add-BfxItem $S $sc -Top ($H * (Get-BfxRnd $S -0.05 0.3)) -Speed ((Get-BfxPick $S @(1, -1)) * (Get-BfxRnd $S 10 26)) -Phase (Get-BfxRnd $S) -T $tf.T -Margin 10
+    }
+    for ($i = 0; $i -lt 16; $i++) {
+        $ds = $H * (Get-BfxRnd $S 0.012 0.03)
+        $speck = New-BfxEllipse $ds ($ds * (Get-BfxRnd $S 0.6 1.4)) (New-BfxBrush '#f4e8c8' 0.5)
+        Start-BfxFlash $speck (Get-BfxRnd $S 3 6) (Get-BfxRnd $S 0.05 0.9) 0.1 0.8 (Get-BfxRnd $S)
+        Add-BfxItem $S $speck -Fx (Get-BfxRnd $S 0.28 0.98) -Top ($H * (Get-BfxRnd $S 0.05 0.95))
+    }
+    $S.Extra = { param($cw) $wash.Width = $cw; $vrect.Width = $cw }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTechpanels {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Row of sci-fi wall panels along the bottom with slow status lights and
+    # a light pulse travelling along the strip.
+    $pw = $H * 0.55; $ph = $H * 0.3; $gap = $H * 0.05; $maxN = 40
+    $top = $H - $ph - $H * 0.04
+    $outline = New-BfxBrush '#9fb8c8' 0.22; $inner = New-BfxBrush '#9fb8c8' 0.12
+    $panels = New-Object System.Collections.ArrayList
+    for ($k = 0; $k -lt $maxN; $k++) {
+        $pn = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($g)
+            $c = $pw * 0.12
+            $g.BeginFigure((New-BfxPoint $c 0), $false, $true); $g.LineTo((New-BfxPoint $pw 0), $true, $false); $g.LineTo((New-BfxPoint $pw ($ph - $c)), $true, $false); $g.LineTo((New-BfxPoint ($pw - $c) $ph), $true, $false); $g.LineTo((New-BfxPoint 0 $ph), $true, $false); $g.LineTo((New-BfxPoint 0 $c), $true, $false)
+        }.GetNewClosure()
+        [void]$pn.Children.Add((New-BfxPath $geo $null $outline 1))
+        $vent = New-BfxGeo { param($g) for ($v = 0; $v -lt 3; $v++) { $yv = $ph * (0.45 + 0.13 * $v); $g.BeginFigure((New-BfxPoint ($pw * 0.18) $yv), $false, $false); $g.LineTo((New-BfxPoint ($pw * 0.62) $yv), $true, $false) } }.GetNewClosure()
+        [void]$pn.Children.Add((New-BfxPath $vent $null $inner 1))
+        foreach ($led in @(@(0.78, 0.25, '#5aff8a'), @(0.88, 0.25, '#ffb43a'))) {
+            $l = New-BfxGlow ($H * 0.035) $led[2] 1.0
+            Start-BfxKeys $l $global:BfxP.O @(@(0, 0.15), @(0.45, 0.15), @(0.5, 1), @(0.75, 1), @(0.8, 0.15), @(1, 0.15)) (Get-BfxRnd $S 4 7) (($k * 0.13 + $led[0]) % 1)
+            [void]$pn.Children.Add((Set-BfxAt $l ($pw * $led[0]) ($ph * $led[1])))
+        }
+        Set-BfxAt $pn 0 $top | Out-Null
+        [void]$S.Canvas.Children.Add($pn); [void]$panels.Add($pn)
+    }
+    $strip = New-BfxRect ($H * 0.9) ([Math]::Max(1.5, $H * 0.012)) (New-BfxLinear @(@(0, '#7fe8ff', 0), @(0.5, '#7fe8ff', 0.9), @(1, '#7fe8ff', 0)) -Horizontal)
+    $stf = Set-BfxTransforms $strip
+    Add-BfxItem $S $strip -Top ($top - $H * 0.03) -Speed ($H * 0.45) -T $stf.T -Margin ($H * 0.9)
+    $S.Extra = { param($cw)
+        for ($k = 0; $k -lt $panels.Count; $k++) {
+            $x = $k * ($pw + $gap) - $pw * 0.3
+            $panels[$k].Visibility = $(if ($x -lt $cw) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed })
+            [System.Windows.Controls.Canvas]::SetLeft($panels[$k], $x)
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMonorail {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # A thin rail crosses the banner low; tram cars with lit windows glide
+    # slowly along it, pillars carry blinking signal lights.
+    $railY = $H * 0.7
+    $rail = New-BfxRect 10 ([Math]::Max(2.0, $H * 0.02)) (New-BfxBrush '#b8c8d8' 0.3)
+    Add-BfxItem $S $rail -Fx 0 -Top $railY
+    $pillars = New-Object System.Collections.ArrayList
+    for ($k = 0; $k -lt 24; $k++) {
+        $pl = New-BfxRect ($H * 0.03) ($H - $railY) (New-BfxBrush '#b8c8d8' 0.14)
+        Set-BfxAt $pl 0 $railY | Out-Null
+        [void]$S.Canvas.Children.Add($pl); [void]$pillars.Add($pl)
+    }
+    for ($k = 0; $k -lt 5; $k++) {
+        $sig = New-BfxGlow ($H * 0.05) $(if ($k % 2) { '#5aff8a' } else { '#ff4a4a' }) 1.0
+        Start-BfxKeys $sig $global:BfxP.O @(@(0, 0.2), @(0.5, 0.2), @(0.55, 1), @(0.85, 1), @(0.9, 0.2), @(1, 0.2)) (Get-BfxRnd $S 4 6) (Get-BfxRnd $S)
+        Add-BfxItem $S $sig -Fx (0.3 + $k * 0.16) -Top ($railY + $H * 0.06)
+    }
+    $carW = $H * 0.55; $carH = $H * 0.17
+    foreach ($ph in @(0.0, 0.5)) {
+        $train = New-Object System.Windows.Controls.Canvas
+        for ($c = 0; $c -lt 3; $c++) {
+            $x0 = $c * ($carW + $H * 0.03)
+            [void]$train.Children.Add((Set-BfxAt (New-BfxRect $carW $carH (New-BfxBrush '#cdd8e6' 0.22) ($carH * 0.35)) $x0 (-$carH)))
+            for ($w = 0; $w -lt 5; $w++) {
+                $win = New-BfxRect ($carW * 0.12) ($carH * 0.38) (New-BfxBrush '#ffe2a0' 0.7) 1
+                Start-BfxAnim $win $global:BfxP.O 0.55 0.9 (Get-BfxRnd $S 3 6) (Get-BfxRnd $S) -Reverse -Ease
+                [void]$train.Children.Add((Set-BfxAt $win ($x0 + $carW * (0.1 + 0.17 * $w)) (-$carH * 0.75)))
+            }
+        }
+        $len = 3 * $carW + $H * 0.06
+        $head = New-BfxGlow ($H * 0.12) '#fff2c8' 0.7
+        [void]$train.Children.Add((Set-BfxAt $head $len (-$carH * 0.5)))
+        $ttf = Set-BfxTransforms $train 0 0
+        Add-BfxItem $S $train -Top $railY -Speed ($H * 0.32) -Phase $ph -T $ttf.T -Margin ($len + 20) -OffsetX (-$len)
+    }
+    $S.Extra = { param($cw)
+        $rail.Width = $cw
+        $step = $H * 0.9
+        for ($k = 0; $k -lt $pillars.Count; $k++) {
+            $x = $k * $step + $H * 0.2
+            $pillars[$k].Visibility = $(if ($x -lt $cw) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed })
+            [System.Windows.Controls.Canvas]::SetLeft($pillars[$k], $x)
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHorde {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Shambling silhouettes walk very slowly along the bottom in front of a
+    # faint red haze.
+    $haze = New-BfxRect 10 ($H * 0.55) (New-BfxLinear @(@(0, '#8a1a1a', 0), @(1, '#8a1a1a', 0.22)))
+    Add-BfxItem $S $haze -Fx 0 -Top ($H * 0.45)
+    $body = New-BfxBrush '#050507' 0.92
+    for ($i = 0; $i -lt 13; $i++) {
+        $depth = Get-BfxRnd $S 0.7 1.0
+        $fh = $H * 0.42 * $depth
+        $dir = 1.0
+        $fig = New-Object System.Windows.Controls.Canvas
+        $geo = New-BfxGeo { param($g)
+            $hr = $fh * 0.09
+            $g.BeginFigure((New-BfxPoint (-$fh * 0.1) 0), $true, $true)
+            $g.LineTo((New-BfxPoint (-$fh * 0.07) (-$fh * 0.45)), $true, $false)
+            $g.LineTo((New-BfxPoint (-$fh * 0.12) (-$fh * 0.72)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.02) (-$fh * 0.8)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.3) (-$fh * 0.7)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.3) (-$fh * 0.64)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.08) (-$fh * 0.62)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.08) (-$fh * 0.45)), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.12) 0), $true, $false)
+            $g.LineTo((New-BfxPoint ($fh * 0.02) 0), $true, $false)
+            $g.LineTo((New-BfxPoint 0 (-$fh * 0.3)), $true, $false)
+            $g.LineTo((New-BfxPoint (-$fh * 0.02) 0), $true, $false)
+            $g.BeginFigure((New-BfxPoint ($fh * 0.04 + $hr) (-$fh * 0.88)), $true, $true)
+            $g.ArcTo((New-BfxPoint ($fh * 0.04 - $hr) (-$fh * 0.88)), [System.Windows.Size]::new($hr, $hr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+            $g.ArcTo((New-BfxPoint ($fh * 0.04 + $hr) (-$fh * 0.88)), [System.Windows.Size]::new($hr, $hr), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+        }.GetNewClosure()
+        $p = New-BfxPath $geo $body
+        $ptf = Set-BfxTransforms $p 0 0
+        Start-BfxAnim $ptf.R $global:BfxP.A -5 4 (Get-BfxRnd $S 2.4 3.4) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$fig.Children.Add($p)
+        $ftf = Set-BfxTransforms $fig 0 0
+        $fig.Opacity = 0.55 + 0.45 * $depth
+        Add-BfxItem $S $fig -Top ($H * (0.98 + (1 - $depth) * 0.02)) -Speed ($dir * $H * (Get-BfxRnd $S 0.05 0.09) * $depth) -Phase (Get-BfxRnd $S) -T $ftf.T -Margin ($fh * 0.5)
+    }
+    $S.Extra = { param($cw) $haze.Width = $cw }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBlinds {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Noir light through window blinds: pale diagonal slat patches slide
+    # slowly across the width, dust floats in the light.
+    $slatBrush = New-BfxLinear @(@(0, '#fff1d6', 0), @(0.2, '#fff1d6', 0.12), @(0.8, '#fff1d6', 0.12), @(1, '#fff1d6', 0)) -Horizontal
+    for ($p = 0; $p -lt 3; $p++) {
+        $patch = New-Object System.Windows.Controls.Canvas
+        $len = $H * (Get-BfxRnd $S 1.3 1.7)
+        for ($k = 0; $k -lt 7; $k++) {
+            [void]$patch.Children.Add((Set-BfxAt (New-BfxRect $len ($H * 0.07) $slatBrush) 0 ($k * $H * 0.15)))
+        }
+        $ptf = Set-BfxTransforms $patch 0 0; $ptf.R.Angle = -24
+        Add-BfxItem $S $patch -Top (-$H * 0.1) -Speed ($H * (Get-BfxRnd $S 0.06 0.1)) -Phase ($p / 3.0 + (Get-BfxRnd $S 0 0.1)) -T $ptf.T -Margin ($len * 1.1)
+    }
+    for ($i = 0; $i -lt 22; $i++) {
+        $ds = $H * (Get-BfxRnd $S 0.01 0.022)
+        $d = New-BfxEllipse $ds $ds (New-BfxBrush '#fff4dc' 0.7)
+        $dtf = Set-BfxTransforms $d
+        Start-BfxAnim $dtf.T $global:BfxP.Y (-$H * 0.06) ($H * 0.06) (Get-BfxRnd $S 5 9) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $dtf.T $global:BfxP.X (-$H * 0.05) ($H * 0.05) (Get-BfxRnd $S 6 11) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $d $global:BfxP.O 0.1 0.7 (Get-BfxRnd $S 2.5 5) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $d -Fx (Get-BfxRnd $S 0.28 0.98) -Top ($H * (Get-BfxRnd $S 0.1 0.9))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCassettes {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Pastel cassette tapes drift across the width with turning reels.
+    $cols = @('#ff9ac8', '#9ad8ff', '#ffe08a', '#b8a2ff', '#9affc8')
+    for ($i = 0; $i -lt 7; $i++) {
+        $cw0 = $H * (Get-BfxRnd $S 0.3 0.38); $ch0 = $cw0 * 0.63
+        $col = $cols[$i % $cols.Count]
+        $tape = New-Object System.Windows.Controls.Canvas
+        [void]$tape.Children.Add((Set-BfxAt (New-BfxRect $cw0 $ch0 (New-BfxBrush $col 0.5) ($ch0 * 0.1)) (-$cw0 / 2) (-$ch0 / 2)))
+        [void]$tape.Children.Add((Set-BfxAt (New-BfxRect ($cw0 * 0.8) ($ch0 * 0.5) (New-BfxBrush '#ffffff' 0.25) 2) (-$cw0 * 0.4) (-$ch0 * 0.4)))
+        [void]$tape.Children.Add((Set-BfxAt (New-BfxRect ($cw0 * 0.44) ($ch0 * 0.22) (New-BfxBrush '#1a1a22' 0.55) 2) (-$cw0 * 0.22) (-$ch0 * 0.11)))
+        $rr = $ch0 * 0.13
+        foreach ($sx in @(-0.17, 0.17)) {
+            $reelGeo = New-BfxGeo { param($g) for ($sp = 0; $sp -lt 3; $sp++) { $a = $sp / 3.0 * 2 * [Math]::PI; $g.BeginFigure((New-BfxPoint 0 0), $false, $false); $g.LineTo((New-BfxPoint ([Math]::Cos($a) * $rr) ([Math]::Sin($a) * $rr)), $true, $false) } }.GetNewClosure()
+            $reel = New-BfxPath $reelGeo $null (New-BfxBrush '#ffffff' 0.8) 1.2
+            $rtf = Set-BfxTransforms $reel 0 0
+            Start-BfxAnim $rtf.R $global:BfxP.A 0 360 (Get-BfxRnd $S 4 6) 0
+            [void]$tape.Children.Add((Set-BfxAt $reel ($cw0 * $sx) 0))
+        }
+        $glint = New-BfxGlow ($cw0 * 0.35) '#ffffff' 0.6
+        Start-BfxFlash $glint (Get-BfxRnd $S 5 9) (Get-BfxRnd $S 0.1 0.9) 0.12 0.8
+        [void]$tape.Children.Add((Set-BfxAt $glint ($cw0 * 0.3) (-$ch0 * 0.3)))
+        $ttf = Set-BfxTransforms $tape 0 0
+        Start-BfxAnim $ttf.R $global:BfxP.A -7 7 (Get-BfxRnd $S 6 10) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $tape -Top ($H * (Get-BfxRnd $S 0.22 0.8)) -Speed ((Get-BfxPick $S @(1, -1)) * $H * (Get-BfxRnd $S 0.1 0.18)) -Phase (Get-BfxRnd $S) -T $ttf.T -Margin $cw0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTripwires {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Red security lasers span the banner at angles and sweep slowly up and
+    # down, with emitter dots at both ends.
+    $beams = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt 4; $i++) {
+        $line = New-Object System.Windows.Shapes.Line
+        $line.Stroke = New-BfxBrush '#ff3040' 0.55; $line.StrokeThickness = [Math]::Max(1.2, $H * 0.011); $line.IsHitTestVisible = $false
+        $glw = New-Object System.Windows.Media.Effects.DropShadowEffect; $glw.Color = New-BfxColor '#ff2030'; $glw.BlurRadius = 8; $glw.ShadowDepth = 0
+        $line.Effect = $glw
+        [void]$S.Canvas.Children.Add($line)
+        $sec = Get-BfxRnd $S 7 12; $ph = Get-BfxRnd $S
+        $ya0 = $H * (Get-BfxRnd $S 0.15 0.45); $ya1 = $H * (Get-BfxRnd $S 0.55 0.88)
+        $yb0 = $H * (Get-BfxRnd $S 0.55 0.88); $yb1 = $H * (Get-BfxRnd $S 0.15 0.45)
+        Start-BfxAnim $line ([System.Windows.Shapes.Line]::Y1Property) $ya0 $ya1 $sec $ph -Reverse -Ease
+        Start-BfxAnim $line ([System.Windows.Shapes.Line]::Y2Property) $yb0 $yb1 $sec $ph -Reverse -Ease
+        $ea = New-BfxGlow ($H * 0.07) '#ff4a50' 1.0; $eatf = Set-BfxTransforms $ea 0 0
+        $eb = New-BfxGlow ($H * 0.07) '#ff4a50' 1.0; $ebtf = Set-BfxTransforms $eb 0 0
+        Start-BfxAnim $eatf.T $global:BfxP.Y $ya0 $ya1 $sec $ph -Reverse -Ease
+        Start-BfxAnim $ebtf.T $global:BfxP.Y $yb0 $yb1 $sec $ph -Reverse -Ease
+        [void]$S.Canvas.Children.Add($ea); [void]$S.Canvas.Children.Add($eb)
+        [void]$beams.Add(@($line, $ea, $eb, (Get-BfxRnd $S 0.28 0.5), (Get-BfxRnd $S 0.78 1.0)))
+    }
+    $S.Extra = { param($cw)
+        foreach ($b in $beams) {
+            $xa = $b[3] * $cw; $xb = $b[4] * $cw
+            $b[0].X1 = $xa; $b[0].X2 = $xb
+            [System.Windows.Controls.Canvas]::SetLeft($b[1], $xa); [System.Windows.Controls.Canvas]::SetLeft($b[2], $xb)
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPteros {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Pale pterosaur silhouettes glide across the sky at different depths
+    # with slow wing beats and a gentle bob.
+    for ($i = 0; $i -lt 8; $i++) {
+        $depth = Get-BfxRnd $S 0.45 1.0
+        $span = $H * 0.85 * $depth
+        $col = New-BfxBrush '#d8c8b4' (0.21 + 0.3 * $depth)
+        $flyer = New-Object System.Windows.Controls.Canvas
+        # body with long beak forward (+x) and a crest backwards
+        $bodyGeo = New-BfxGeo { param($g)
+            $g.BeginFigure((New-BfxPoint (-$span * 0.12) ($span * 0.02)), $true, $true)
+            $g.LineTo((New-BfxPoint ($span * 0.06) (-$span * 0.03)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.1) (-$span * 0.09)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.05) (-$span * 0.14)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.14) (-$span * 0.08)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.3) (-$span * 0.07)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.12) (-$span * 0.03)), $true, $false)
+            $g.LineTo((New-BfxPoint ($span * 0.08) ($span * 0.04)), $true, $false)
+        }.GetNewClosure()
+        [void]$flyer.Children.Add((New-BfxPath $bodyGeo $col))
+        foreach ($side in @(-1.0, 1.0)) {
+            # wing seen from the side: spreads up and back, flaps via ScaleY
+            $wingGeo = New-BfxGeo { param($g)
+                $g.BeginFigure((New-BfxPoint (-$span * 0.06) 0), $true, $true)
+                $g.LineTo((New-BfxPoint ($side * $span * 0.02 - $span * 0.18) (-$span * 0.42)), $true, $false)
+                $g.LineTo((New-BfxPoint ($side * $span * 0.04 + $span * 0.02) (-$span * 0.12)), $true, $false)
+                $g.LineTo((New-BfxPoint ($span * 0.07) 0), $true, $false)
+            }.GetNewClosure()
+            $wing = New-BfxPath $wingGeo $col
+            $wtf = Set-BfxTransforms $wing 0 0
+            Start-BfxKeys $wtf.S $global:BfxP.SY @(@(0, 1), @(0.35, -0.45), @(0.6, 1), @(1, 1)) (Get-BfxRnd $S 2.6 3.6) ($i * 0.17)
+            [void]$flyer.Children.Add($wing)
+        }
+        $btf = Set-BfxTransforms $flyer 0 0
+        Start-BfxAnim $btf.T $global:BfxP.Y (-$H * 0.04) ($H * 0.04) (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        $holder = New-Object System.Windows.Controls.Canvas
+        [void]$holder.Children.Add($flyer)
+        $gtf = Set-BfxTransforms $holder 0 0
+        Add-BfxItem $S $holder -Top ($H * (Get-BfxRnd $S 0.3 0.7)) -Speed ($H * (0.1 + 0.16 * $depth)) -Phase (($i + (Get-BfxRnd $S 0 0.6)) / 8.0) -T $gtf.T -Margin $span
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTrimesh {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    # Cyan hologram triangles fly together into floating mesh shapes across
+    # the width, shimmer, then break apart again.
+    $fxs = @(0.34, 0.49, 0.63, 0.78, 0.93)
+    $line = New-BfxBrush '#5ff0ff' 0.55; $fill = New-BfxBrush '#5ff0ff' 0.06
+    for ($c = 0; $c -lt $fxs.Count; $c++) {
+        $cl = New-Object System.Windows.Controls.Canvas
+        $rad = $H * (Get-BfxRnd $S 0.2 0.28)
+        $per = Get-BfxRnd $S 9 13; $ph = Get-BfxRnd $S
+        $ring = @(); for ($k = 0; $k -lt 6; $k++) { $a = $k / 6.0 * 2 * [Math]::PI + (Get-BfxRnd $S -0.25 0.25); $ring += , @(([Math]::Cos($a) * $rad), ([Math]::Sin($a) * $rad * 0.8)) }
+        for ($k = 0; $k -lt 6; $k++) {
+            $p1 = $ring[$k]; $p2 = $ring[($k + 1) % 6]
+            $tri = New-BfxGeo { param($g) $g.BeginFigure((New-BfxPoint 0 0), $true, $true); $g.LineTo((New-BfxPoint $p1[0] $p1[1]), $true, $false); $g.LineTo((New-BfxPoint $p2[0] $p2[1]), $true, $false) }.GetNewClosure()
+            $tp = New-BfxPath $tri $fill $line 1
+            $ttf = Set-BfxTransforms $tp 0 0
+            $mx = ($p1[0] + $p2[0]) / 2; $my = ($p1[1] + $p2[1]) / 2
+            $ox = $mx * 1.6 + (Get-BfxRnd $S -0.15 0.15) * $H; $oy = $my * 1.6 + (Get-BfxRnd $S -0.15 0.15) * $H
+            $k0 = Get-BfxRnd $S 0.05 0.12
+            Start-BfxKeys $ttf.T $global:BfxP.X @(@(0, $ox), @($k0, $ox), @(($k0 + 0.18), 0), @(0.66, 0), @(0.88, $ox), @(1, $ox)) $per $ph
+            Start-BfxKeys $ttf.T $global:BfxP.Y @(@(0, $oy), @($k0, $oy), @(($k0 + 0.18), 0), @(0.66, 0), @(0.88, $oy), @(1, $oy)) $per $ph
+            Start-BfxKeys $tp $global:BfxP.O @(@(0, 0), @($k0, 0), @(($k0 + 0.14), 1), @(0.7, 1), @(0.86, 0), @(1, 0)) $per $ph
+            [void]$cl.Children.Add($tp)
+        }
+        $core = New-BfxGlow ($H * 0.08) '#a8faff' 0.8
+        Start-BfxKeys $core $global:BfxP.O @(@(0, 0), @(0.3, 0), @(0.36, 1), @(0.64, 1), @(0.72, 0), @(1, 0)) $per $ph
+        [void]$cl.Children.Add($core)
+        $ctf = Set-BfxTransforms $cl 0 0
+        Start-BfxAnim $ctf.R $global:BfxP.A -8 8 (Get-BfxRnd $S 7 11) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $cl -Fx $fxs[$c] -Top ($H * (Get-BfxRnd $S 0.38 0.62))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLifestream {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $fade = @(@(0, 0), @(0.15, 1), @(0.75, 1), @(1, 0))
+    for ($i = 0; $i -lt 22; $i++) {
+        $grp = New-Object System.Windows.Controls.Canvas
+        [void]$grp.Children.Add((New-BfxGlow (24 * $sc) (Get-BfxPick $S @('#5affc8', '#7affa0', '#4fe8d8')) 0.45))
+        [void]$grp.Children.Add((New-BfxGlow (6 * $sc) '#d8fff0' 0.85))
+        $tf = Set-BfxTransforms $grp 0 0; $tf.S.ScaleY = 1.7
+        $per = Get-BfxRnd $S 9 15; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H + 18 * $sc) (-18 * $sc) $per $ph
+        Start-BfxAnim $tf.T $global:BfxP.X (-14 * $sc) (14 * $sc) ($per * 0.4) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxKeys $grp $global:BfxP.O $fade $per $ph
+        Add-BfxItem $S $grp -Fx (0.28 + 0.7 * ($i + (Get-BfxRnd $S 0 0.9)) / 22) -Top 0
+    }
+    for ($i = 0; $i -lt 30; $i++) {
+        $mote = New-BfxGlow (4 * $sc) '#c8ffe8' 0.9
+        $tf = Set-BfxTransforms $mote 0 0
+        $per = Get-BfxRnd $S 11 18; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y ($H + 6) (-6) $per $ph
+        Start-BfxAnim $tf.T $global:BfxP.X (-8 * $sc) (8 * $sc) ($per * 0.3) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxKeys $mote $global:BfxP.O $fade $per $ph
+        Add-BfxItem $S $mote -Fx (Get-BfxRnd $S 0.26 0.99) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDragons {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    for ($i = 0; $i -lt 5; $i++) {
+        $cl = New-BfxEllipse ($H * (Get-BfxRnd $S 1.2 2.2)) ($H * (Get-BfxRnd $S 0.18 0.3)) (New-BfxGlowBrush '#c8d2e6' 0.07)
+        $tf = Set-BfxTransforms $cl 0 0
+        Add-BfxItem $S $cl -Top ($H * (Get-BfxRnd $S 0.05 0.55)) -Speed (-(Get-BfxRnd $S 6 11) * $sc) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($H * 2.4)
+    }
+    # body with horned head and long tail, drawn facing +x around (0,0)
+    $body = New-BfxGeo { param($c)
+        $pts = @(@(50, 0), @(44, -3), @(47, -8), @(40, -4.5), @(28, -4.5), @(12, -5.5), @(-10, -4.5), @(-30, -1.5), @(-52, 1), @(-60, -3), @(-57, 3), @(-30, 3), @(-10, 5.5), @(12, 5.5), @(28, 3.5), @(44, 3))
+        $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true)
+        for ($n = 1; $n -lt $pts.Count; $n++) { $c.LineTo((New-BfxPoint $pts[$n][0] $pts[$n][1]), $true, $false) }
+    }
+    # bat-like wing: leading edge to the tip, scalloped membrane between fingers
+    $wing = New-BfxGeo { param($c)
+        $pts = @(@(12, -3), @(7, -22), @(-2, -42), @(-10, -31), @(-15, -37), @(-19, -25), @(-26, -29), @(-27, -17), @(-36, -19), @(-32, -8), @(-12, -3))
+        $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true)
+        for ($n = 1; $n -lt $pts.Count; $n++) { $c.LineTo((New-BfxPoint $pts[$n][0] $pts[$n][1]), $true, $false) }
+    }
+    $dir = Get-BfxPick $S @(1, -1)
+    $loopPh = Get-BfxRnd $S
+    # wing reach is about 42 units: scale so near ~0.5*H, mid ~0.4*H, far ~0.3*H
+    $layers = @(@(0.5, 0.55, 0.42), @(0.4, 0.45, 0.24), @(0.3, 0.35, 0.58))
+    for ($d = 0; $d -lt $layers.Count; $d++) {
+        $sz = $H * $layers[$d][0] / 42.0; $al = $layers[$d][1]
+        $grp = New-Object System.Windows.Controls.Canvas
+        $far = New-BfxPath $wing (New-BfxBrush '#6e788c' $al); $farTf = Set-BfxTransforms $far 0 0
+        $near = New-BfxPath $wing (New-BfxBrush '#8a94a8' $al); $nearTf = Set-BfxTransforms $near 0 0
+        [void]$grp.Children.Add((Set-BfxAt $far 5 0)); [void]$grp.Children.Add((New-BfxPath $body (New-BfxBrush '#8a94a8' $al))); [void]$grp.Children.Add($near)
+        $beat = Get-BfxRnd $S 2.0 2.6
+        Start-BfxAnim $nearTf.S $global:BfxP.SY 1 -0.3 $beat 0 -Reverse -Ease
+        Start-BfxAnim $farTf.S $global:BfxP.SY 0.85 -0.25 $beat 0.08 -Reverse -Ease
+        $tf = Set-BfxTransforms $grp 0 0; $tf.S.ScaleX = $dir * $sz; $tf.S.ScaleY = $sz
+        Start-BfxAnim $tf.R $global:BfxP.A -3 3 (Get-BfxRnd $S 5 7) (Get-BfxRnd $S) -Reverse -Ease
+        # same speed and margin for all three, phases a third apart
+        Add-BfxItem $S $grp -Top ($H * $layers[$d][2]) -Speed ($dir * 26 * $sc) -Phase (($loopPh + $d / 3.0) % 1) -T $tf.T -Margin (70 * $sc)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSoapstone {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $ink = New-BfxBrush '#ffa04a' 0.85
+    $n = 8
+    for ($i = 0; $i -lt $n; $i++) {
+        $len = (Get-BfxRnd $S 40 70) * $sc
+        $pts = @(); $steps = [int](Get-BfxRnd $S 14 22)
+        for ($k = 0; $k -le $steps; $k++) { $pts += , @(($len * $k / $steps), ((Get-BfxRnd $S -1 1) * 3.2 * $sc * [Math]::Sin($k * 1.7))) }
+        $geo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $false, $false)
+            for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] $pts[$k][1]), $true, $true) }
+            $c.BeginFigure((New-BfxPoint ($len * 0.1) (6 * $sc)), $false, $false); $c.LineTo((New-BfxPoint ($len * 0.8) (6.5 * $sc)), $true, $false)
+        }.GetNewClosure()
+        $msg = New-Object System.Windows.Controls.Canvas
+        [void]$msg.Children.Add((Set-BfxAt (New-BfxGlow ($len * 1.3) '#ff8a2a' 0.18) ($len / 2) 0))
+        $line = New-BfxPath $geo $null $ink (1.3 * $sc)
+        $sh = New-Object System.Windows.Media.Effects.DropShadowEffect; $sh.Color = New-BfxColor '#ff9a3c'; $sh.BlurRadius = 8; $sh.ShadowDepth = 0; $line.Effect = $sh
+        [void]$msg.Children.Add($line)
+        Start-BfxKeys $msg $global:BfxP.O @(@(0, 0), @(0.1, 0), @(0.25, 1), @(0.6, 1), @(0.8, 0), @(1, 0)) (Get-BfxRnd $S 9 13) (Get-BfxRnd $S)
+        Add-BfxItem $S $msg -Fx (0.28 + 0.66 * ($i + (Get-BfxRnd $S 0 0.7)) / $n) -Top ($H * (Get-BfxRnd $S 0.72 0.88))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTokens {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $q = $H / 5.0
+    $board = New-Object System.Windows.Controls.Canvas
+    $gridGeo = New-BfxGeo { param($c)
+        for ($x = 0.0; $x -le 2600; $x += $q) { $c.BeginFigure((New-BfxPoint $x 0), $false, $false); $c.LineTo((New-BfxPoint $x $H), $true, $false) }
+        for ($y = 0.0; $y -le $H + 1; $y += $q) { $c.BeginFigure((New-BfxPoint 0 $y), $false, $false); $c.LineTo((New-BfxPoint 2600 $y), $true, $false) }
+    }.GetNewClosure()
+    [void]$board.Children.Add((New-BfxPath $gridGeo $null (New-BfxBrush '#ffffff' 0.07) 1))
+    $cols = @('#ff6a6a', '#6ab4ff', '#7ae08a', '#ffd25a', '#c48aff')
+    # loop: right, up, left, down; each move 0.5 s then 1.5 s rest (8 s)
+    $moves = @(@(1, 0), @(0, -1), @(-1, 0), @(0, 1))
+    for ($j = 0; $j -lt 14; $j++) {
+        $cx = $q * (1 + 4 * $j) + $q / 2; $cy = $q * (1 + ($j % 3)) + $q / 2
+        $kx = @(@(0, 0)); $ky = @(@(0, 0)); $px = 0.0; $py = 0.0
+        for ($m = 0; $m -lt 4; $m++) {
+            $t0 = $m * 0.25 + 0.1875; $t1 = $t0 + 0.0625
+            $kx += , @($t0, $px); $ky += , @($t0, $py)
+            $px += $moves[$m][0] * $q; $py += $moves[$m][1] * $q
+            $kx += , @($t1, $px); $ky += , @($t1, $py)
+        }
+        $kx += , @(1, $px); $ky += , @(1, $py)
+        $piece = New-Object System.Windows.Controls.Canvas
+        $hl = New-BfxRect ($q - 2) ($q - 2) (New-BfxBrush '#9ae8ff' 0.14)
+        [void]$piece.Children.Add((Set-BfxAt $hl (-$q / 2 + 1) (-$q / 2 + 1)))
+        Start-BfxAnim $hl $global:BfxP.O 0.3 1 (Get-BfxRnd $S 2 3) (Get-BfxRnd $S) -Reverse -Ease
+        $col = $cols[$j % $cols.Count]
+        $tok = New-BfxEllipse ($q * 0.56) ($q * 0.56) (New-BfxBrush $col 0.8) (New-BfxBrush '#ffffff' 0.6) 1.2
+        [void]$piece.Children.Add((Set-BfxAt $tok (-$q * 0.28) (-$q * 0.28)))
+        [void]$piece.Children.Add((New-BfxGlow ($q * 0.9) $col 0.25))
+        $tf = Set-BfxTransforms $piece 0 0
+        $ph = Get-BfxRnd $S
+        Start-BfxKeys $tf.T $global:BfxP.X $kx 8 $ph; Start-BfxKeys $tf.T $global:BfxP.Y $ky 8 $ph
+        [void]$board.Children.Add((Set-BfxAt $piece $cx $cy))
+    }
+    Add-BfxItem $S $board -Fx 0.28 -Top 0
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWaypoints {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $green = '#6aff8a'
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $per = 10.0
+        $dirX = $(if ($slot % 2) { -1.0 } else { 1.0 })
+        $ex = $dirX * 120 * $sc; $ey = (Get-BfxRnd $S -0.18 0.18) * $H; $mx = $ex * 0.5; $my = $ey * 0.5 - 30 * $sc
+        $holder = New-Object System.Windows.Controls.Canvas
+        $b = 13 * $sc; $l = 5 * $sc
+        $brGeo = New-BfxGeo { param($c)
+            foreach ($cn in @(@(-1, -1), @(1, -1), @(1, 1), @(-1, 1))) {
+                $c.BeginFigure((New-BfxPoint ($cn[0] * $b) ($cn[1] * ($b - $l))), $false, $false)
+                $c.LineTo((New-BfxPoint ($cn[0] * $b) ($cn[1] * $b)), $true, $false); $c.LineTo((New-BfxPoint ($cn[0] * ($b - $l)) ($cn[1] * $b)), $true, $false)
+            }
+        }.GetNewClosure()
+        $brackets = New-BfxPath $brGeo $null (New-BfxBrush $green 0.8) 1.2
+        Start-BfxKeys $brackets $global:BfxP.O @(@(0, 0), @(0.02, 1), @(0.25, 1), @(0.3, 0), @(1, 0)) $per
+        [void]$holder.Children.Add($brackets)
+        $pathGeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.QuadraticBezierTo((New-BfxPoint $mx $my), (New-BfxPoint $ex $ey), $true, $false) }.GetNewClosure()
+        $route = New-BfxPath $pathGeo $null (New-BfxBrush $green 0.55) 1.2
+        $dash = New-Object System.Windows.Media.DoubleCollection; [void]$dash.Add(3); [void]$dash.Add(3); $route.StrokeDashArray = $dash
+        Start-BfxKeys $route $global:BfxP.O @(@(0, 0), @(0.08, 0), @(0.18, 1), @(0.72, 1), @(0.85, 0), @(1, 0)) $per
+        [void]$holder.Children.Add($route)
+        $flagGeo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint 0 (-14 * $sc)), $true, $false)
+            $c.BeginFigure((New-BfxPoint 0 (-14 * $sc)), $true, $true); $c.LineTo((New-BfxPoint (9 * $sc) (-11 * $sc)), $true, $false); $c.LineTo((New-BfxPoint 0 (-8 * $sc)), $true, $false)
+        }.GetNewClosure()
+        $flag = New-BfxPath $flagGeo (New-BfxBrush $green 0.7) (New-BfxBrush $green 0.8) 1
+        $flagTf = Set-BfxTransforms $flag 0 0
+        Start-BfxKeys $flagTf.S $global:BfxP.SY @(@(0, 0), @(0.15, 0), @(0.2, 1), @(1, 1)) $per
+        Start-BfxKeys $flag $global:BfxP.O @(@(0, 0), @(0.15, 0), @(0.16, 1), @(0.78, 1), @(0.88, 0), @(1, 0)) $per
+        [void]$holder.Children.Add((Set-BfxAt $flag $ex $ey))
+        for ($u = 0; $u -lt 3; $u++) {
+            $ox = ($u - 1) * 7 * $sc; $oy = ((($u % 2) * 2) - 1) * 4 * $sc
+            $unit = New-Object System.Windows.Controls.Canvas
+            [void]$unit.Children.Add((New-BfxGlow (10 * $sc) $green 0.45)); [void]$unit.Children.Add((New-BfxGlow (4 * $sc) '#ffffff' 0.95))
+            $ut = Set-BfxTransforms $unit 0 0
+            $kx = @(@(0, $ox), @(0.2, $ox)); $ky = @(@(0, $oy), @(0.2, $oy))
+            for ($n = 1; $n -le 8; $n++) {
+                $v = $n / 8.0; $f = 0.2 + 0.5 * $v
+                $bx = 2 * (1 - $v) * $v * $mx + $v * $v * $ex; $by = 2 * (1 - $v) * $v * $my + $v * $v * $ey
+                $kx += , @($f, ($bx + $ox)); $ky += , @($f, ($by + $oy))
+            }
+            $kx += , @(1, ($ex + $ox)); $ky += , @(1, ($ey + $oy))
+            Start-BfxKeys $ut.T $global:BfxP.X $kx $per; Start-BfxKeys $ut.T $global:BfxP.Y $ky $per
+            Start-BfxKeys $unit $global:BfxP.O @(@(0, 0), @(0.02, 1), @(0.78, 1), @(0.88, 0), @(1, 0)) $per
+            [void]$holder.Children.Add($unit)
+        }
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * (Get-BfxRnd $S 0.42 0.6)) -OffsetX (-$dirX * 50 * $sc)
+    } 300 4 0.32 0.95
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLockon {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $spots = @(@(0.36, 0.42), @(0.5, 0.62), @(0.64, 0.36), @(0.78, 0.55), @(0.92, 0.4))
+    $per = 9.0
+    for ($i = 0; $i -lt $spots.Count; $i++) {
+        $ph = 1 - ($i * 0.12)
+        $holder = New-Object System.Windows.Controls.Canvas
+        $r = 9 * $sc
+        $retGeo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint 0 (-$r)), $false, $true); $c.LineTo((New-BfxPoint $r 0), $true, $false); $c.LineTo((New-BfxPoint 0 $r), $true, $false); $c.LineTo((New-BfxPoint (-$r) 0), $true, $false)
+            foreach ($a in @(0, 1, 2, 3)) { $ang = $a * [Math]::PI / 2; $c.BeginFigure((New-BfxPoint ([Math]::Cos($ang) * $r * 1.4) ([Math]::Sin($ang) * $r * 1.4)), $false, $false); $c.LineTo((New-BfxPoint ([Math]::Cos($ang) * $r * 2) ([Math]::Sin($ang) * $r * 2)), $true, $false) }
+        }.GetNewClosure()
+        $ret = New-BfxPath $retGeo $null (New-BfxBrush '#ff5a6a' 0.85) 1.2
+        $rt = Set-BfxTransforms $ret 0 0
+        Start-BfxKeys $rt.S $global:BfxP.SX @(@(0, 2.2), @(0.08, 1), @(1, 1)) $per $ph
+        Start-BfxKeys $rt.S $global:BfxP.SY @(@(0, 2.2), @(0.08, 1), @(1, 1)) $per $ph
+        Start-BfxKeys $rt.R $global:BfxP.A @(@(0, 90), @(0.08, 0), @(1, 0)) $per $ph
+        Start-BfxKeys $ret $global:BfxP.O @(@(0, 0), @(0.01, 1), @(0.42, 1), @(0.48, 0), @(1, 0)) $per $ph
+        [void]$holder.Children.Add($ret)
+        # laser: a curve from below-left that reveals itself via the dash offset
+        $sx = -(Get-BfxRnd $S 120 200) * $sc; $sy = $H * 0.75; $cx = $sx * 0.2; $cy = -$H * 0.35
+        $len = 0.0; $lx = $sx; $ly = $sy
+        for ($n = 1; $n -le 20; $n++) { $v = $n / 20.0; $bx = (1 - $v) * (1 - $v) * $sx + 2 * (1 - $v) * $v * $cx; $by = (1 - $v) * (1 - $v) * $sy + 2 * (1 - $v) * $v * $cy; $len += [Math]::Sqrt(($bx - $lx) * ($bx - $lx) + ($by - $ly) * ($by - $ly)); $lx = $bx; $ly = $by }
+        $lgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $sx $sy), $false, $false); $c.QuadraticBezierTo((New-BfxPoint $cx $cy), (New-BfxPoint 0 0), $true, $false) }.GetNewClosure()
+        $thick = 2.0
+        $laser = New-BfxPath $lgeo $null (New-BfxBrush '#8af0ff' 0.9) $thick
+        $units = $len / $thick
+        $dash = New-Object System.Windows.Media.DoubleCollection; [void]$dash.Add($units); [void]$dash.Add($units + 4); $laser.StrokeDashArray = $dash
+        $laser.StrokeStartLineCap = 'Flat'; $laser.StrokeEndLineCap = 'Flat'
+        $lg = New-Object System.Windows.Media.Effects.DropShadowEffect; $lg.Color = New-BfxColor '#5ad8ff'; $lg.BlurRadius = 8; $lg.ShadowDepth = 0; $laser.Effect = $lg
+        Start-BfxKeys $laser ([System.Windows.Shapes.Shape]::StrokeDashOffsetProperty) @(@(0, $units), @(0.22, $units), @(0.4, 0), @(1, 0)) $per $ph
+        Start-BfxKeys $laser $global:BfxP.O @(@(0, 0), @(0.22, 0), @(0.221, 1), @(0.46, 1), @(0.6, 0), @(1, 0)) $per $ph
+        [void]$holder.Children.Add($laser)
+        $hit = New-BfxGlow (26 * $sc) '#bff6ff' 0.9
+        Start-BfxKeys $hit $global:BfxP.O @(@(0, 0), @(0.4, 0), @(0.42, 1), @(0.55, 0), @(1, 0)) $per $ph
+        [void]$holder.Children.Add($hit)
+        Add-BfxItem $S $holder -Fx $spots[$i][0] -Top ($H * $spots[$i][1])
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMoons {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    for ($i = 0; $i -lt 40; $i++) {
+        $st = New-BfxEllipse 1.6 1.6 (New-BfxBrush '#ffffff' 0.8)
+        Start-BfxAnim $st $global:BfxP.O 0.15 0.8 (Get-BfxRnd $S 2.5 5) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $st -Fx (Get-BfxRnd $S 0.2 1) -Top (Get-BfxRnd $S 0 $H)
+    }
+    $specs = @(@('#d8dcf0', 0.34, 0.45, $false), @('#f0d8c0', 0.24, 0.3, $true), @('#c8e6f0', 0.18, 0.7, $false))
+    foreach ($sp in $specs) {
+        $rad = $H * $sp[1]
+        $moon = New-Object System.Windows.Controls.Canvas
+        $disc = New-BfxEllipse ($rad * 2) ($rad * 2) (New-BfxLinear @(@(0, $sp[0], 0.32), @(1, $sp[0], 0.08)))
+        [void]$moon.Children.Add((Set-BfxAt $disc (-$rad) (-$rad)))
+        for ($k = 0; $k -lt 6; $k++) {
+            $cr = $rad * (Get-BfxRnd $S 0.08 0.2); $a = Get-BfxRnd $S 0 6.283; $dd = $rad * (Get-BfxRnd $S 0 0.65)
+            $crater = New-BfxEllipse ($cr * 2) ($cr * 2) (New-BfxBrush '#000000' 0.08) (New-BfxBrush '#ffffff' 0.08) 0.8
+            [void]$moon.Children.Add((Set-BfxAt $crater ([Math]::Cos($a) * $dd - $cr) ([Math]::Sin($a) * $dd - $cr)))
+        }
+        if ($sp[3]) {
+            $ring = New-BfxEllipse ($rad * 3.6) ($rad * 0.7) $null (New-BfxBrush '#f8e8d0' 0.28) 1.5
+            $ringTf = Set-BfxTransforms $ring; $ringTf.R.Angle = -12
+            [void]$moon.Children.Add((Set-BfxAt $ring (-$rad * 1.8) (-$rad * 0.35)))
+        }
+        [void]$moon.Children.Add((New-BfxGlow ($rad * 2.8) $sp[0] 0.08))
+        $tf = Set-BfxTransforms $moon 0 0
+        Add-BfxItem $S $moon -Top ($H * $sp[2]) -Speed ((Get-BfxPick $S @(1, -1)) * (Get-BfxRnd $S 5 9) * $H / 140.0) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($rad * 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLiftshaft {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    for ($b = 0; $b -lt 3; $b++) {
+        $beam = New-BfxRect 2600 (6 * $sc) (New-BfxBrush '#c8d0dc' 0.06)
+        $tf = Set-BfxTransforms $beam 0 0
+        Start-BfxAnim $tf.T $global:BfxP.Y (-10 * $sc) ($H + 10 * $sc) 9 ($b / 3.0)
+        Add-BfxItem $S $beam -Fx 0 -Top 0
+    }
+    foreach ($fx in @(0.33, 0.47, 0.6, 0.74, 0.87, 0.97)) {
+        $cable = New-BfxRect 1.2 $H (New-BfxBrush '#9aa4b4' 0.22)
+        Add-BfxItem $S $cable -Fx $fx -Top 0
+        for ($m = 0; $m -lt 3; $m++) {
+            $tick = New-BfxRect (4 * $sc) (2 * $sc) (New-BfxBrush '#c8d0dc' 0.4)
+            $tf = Set-BfxTransforms $tick 0 0
+            Start-BfxAnim $tf.T $global:BfxP.Y (-6) ($H + 6) 7 ($m / 3.0 + $fx)
+            Add-BfxItem $S $tick -Fx $fx -Top 0 -OffsetX (-1.4 * $sc)
+        }
+    }
+    for ($i = 0; $i -lt 14; $i++) {
+        $depth = Get-BfxRnd $S 0.5 1
+        $lamp = New-Object System.Windows.Controls.Canvas
+        [void]$lamp.Children.Add((New-BfxGlow (34 * $sc * $depth) '#ffd59a' (0.45 * $depth)))
+        [void]$lamp.Children.Add((Set-BfxAt (New-BfxRect (8 * $sc * $depth) (3 * $sc * $depth) (New-BfxBrush '#fff2d8' 0.9)) (-4 * $sc * $depth) (-1.5 * $sc * $depth)))
+        $tf = Set-BfxTransforms $lamp 0 0
+        Start-BfxAnim $tf.T $global:BfxP.Y (-20 * $sc) ($H + 20 * $sc) (12 - 6 * $depth) (Get-BfxRnd $S)
+        Add-BfxItem $S $lamp -Fx (0.28 + 0.7 * ($i + (Get-BfxRnd $S 0 0.9)) / 14) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWhirls {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $holder = New-Object System.Windows.Controls.Canvas
+        $rad = $H * 0.26
+        for ($k = 0; $k -lt 2; $k++) {
+            $ring = New-BfxEllipse ($rad * 2) ($rad * 0.9) $null (New-BfxBrush '#dfe8ff' 0.3) 1.2
+            $rt = Set-BfxTransforms $ring
+            Start-BfxAnim $rt.S $global:BfxP.SX 0.5 1.15 4.5 ($k * 0.5)
+            Start-BfxAnim $rt.S $global:BfxP.SY 0.5 1.15 4.5 ($k * 0.5)
+            Start-BfxKeys $ring $global:BfxP.O @(@(0, 0), @(0.15, 0.6), @(1, 0)) 4.5 ($k * 0.5)
+            [void]$holder.Children.Add((Set-BfxAt $ring (-$rad) (-$rad * 0.45)))
+        }
+        [void]$holder.Children.Add((New-BfxGlow ($rad * 1.2) '#b8c8ff' 0.12))
+        $orbit = New-Object System.Windows.Controls.Canvas
+        $ot = Set-BfxTransforms $orbit 0 0; $ot.S.ScaleY = 0.42
+        for ($p = 0; $p -lt 9; $p++) {
+            $arm = New-Object System.Windows.Controls.Canvas
+            $pr = $rad * (Get-BfxRnd $S 0.35 1)
+            $col = Get-BfxPick $S @('#a8906a', '#8a9a6a', '#9a9aa8', '#c8a060')
+            $piece = New-BfxRect ((Get-BfxRnd $S 3 6) * $sc) ((Get-BfxRnd $S 2 4) * $sc) (New-BfxBrush $col 0.75) 1
+            $pt = Set-BfxTransforms $piece
+            Start-BfxAnim $pt.R $global:BfxP.A 0 360 (Get-BfxRnd $S 2 4) (Get-BfxRnd $S)
+            [void]$arm.Children.Add((Set-BfxAt $piece $pr 0))
+            $at = Set-BfxTransforms $arm 0 0
+            Start-BfxAnim $at.R $global:BfxP.A 0 360 (Get-BfxRnd $S 5 9) (Get-BfxRnd $S)
+            [void]$orbit.Children.Add($arm)
+        }
+        [void]$holder.Children.Add($orbit)
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * (Get-BfxRnd $S 0.45 0.62))
+    } 230 4 0.32 0.96
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSprouts {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $n = 14
+    for ($i = 0; $i -lt $n; $i++) {
+        $hgt = $H * (Get-BfxRnd $S 0.2 0.34)
+        $plant = New-Object System.Windows.Controls.Canvas
+        [void]$plant.Children.Add((Set-BfxAt (New-BfxEllipse (16 * $sc) (5 * $sc) (New-BfxBrush '#6a4a2a' 0.5)) (-8 * $sc) (-2.5 * $sc)))
+        $stemGeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (3 * $sc) (-$hgt * 0.5)), (New-BfxPoint 0 (-$hgt)), $true, $false) }.GetNewClosure()
+        $grow = New-Object System.Windows.Controls.Canvas
+        [void]$grow.Children.Add((New-BfxPath $stemGeo $null (New-BfxBrush '#7ad86a' 0.85) (1.6 * $sc)))
+        foreach ($lf in @(@(0.4, -1), @(0.62, 1))) {
+            $leaf = New-BfxEllipse (10 * $sc) (4.5 * $sc) (New-BfxBrush '#8ae07a' 0.8)
+            $lt = Set-BfxTransforms $leaf 0 0.5; $lt.R.Angle = $lf[1] * -35
+            [void]$grow.Children.Add((Set-BfxAt $leaf $(if ($lf[1] -lt 0) { -10 * $sc } else { 0 }) (-$hgt * $lf[0])))
+            if ($lf[1] -lt 0) { $lt.S.ScaleX = -1; [System.Windows.Controls.Canvas]::SetLeft($leaf, 0) }
+        }
+        $per = Get-BfxRnd $S 10 14; $ph = Get-BfxRnd $S
+        $gt = Set-BfxTransforms $grow 0 0
+        $growKeys = @(@(0, 0.02), @(0.05, 0.02), @(0.35, 1), @(0.85, 1), @(0.97, 0.02), @(1, 0.02))
+        Start-BfxKeys $gt.S $global:BfxP.SY $growKeys $per $ph; Start-BfxKeys $gt.S $global:BfxP.SX $growKeys $per $ph
+        $flower = New-Object System.Windows.Controls.Canvas
+        $petal = Get-BfxPick $S @('#ff8ab4', '#ffd25a', '#b48aff', '#ffffff')
+        [void]$flower.Children.Add((New-BfxPath (New-BfxStarShape (6 * $sc) 5 0.45) (New-BfxBrush $petal 0.9)))
+        [void]$flower.Children.Add((New-BfxGlow (5 * $sc) '#fff4b0' 1.0))
+        $ft = Set-BfxTransforms $flower 0 0
+        $bloom = @(@(0, 0), @(0.35, 0), @(0.45, 1), @(0.82, 1), @(0.9, 0), @(1, 0))
+        Start-BfxKeys $ft.S $global:BfxP.SX $bloom $per $ph; Start-BfxKeys $ft.S $global:BfxP.SY $bloom $per $ph
+        [void]$grow.Children.Add((Set-BfxAt $flower 0 (-$hgt)))
+        [void]$plant.Children.Add($grow)
+        Add-BfxItem $S $plant -Fx (0.28 + 0.7 * ($i + (Get-BfxRnd $S 0.1 0.9)) / $n) -Top ($H - 4 * $sc)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGrassblades {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $n = 18
+    for ($i = 0; $i -lt $n; $i++) {
+        $hgt = $H * (Get-BfxRnd $S 0.5 0.95); $wid = (Get-BfxRnd $S 7 13) * $sc; $bend = (Get-BfxRnd $S -0.25 0.25) * $hgt
+        $geo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint (-$wid / 2) 0), $true, $true)
+            $c.QuadraticBezierTo((New-BfxPoint (-$wid * 0.3 + $bend * 0.3) (-$hgt * 0.55)), (New-BfxPoint $bend (-$hgt)), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint ($wid * 0.3 + $bend * 0.3) (-$hgt * 0.55)), (New-BfxPoint ($wid / 2) 0), $true, $false)
+        }.GetNewClosure()
+        $blade = New-Object System.Windows.Controls.Canvas
+        $g = Get-BfxPick $S @('#3a8a3a', '#4aa04a', '#2f7a46', '#5ab05a')
+        [void]$blade.Children.Add((New-BfxPath $geo (New-BfxLinear @(@(0, $g, 0.35), @(1, $g, 0.6)))))
+        $drop = New-BfxGlow (5 * $sc) '#e8fbff' 0.95
+        $dt = Set-BfxTransforms $drop 0 0
+        $per = Get-BfxRnd $S 7 11; $ph = Get-BfxRnd $S
+        Start-BfxKeys $dt.T $global:BfxP.Y @(@(0, (-$hgt * 0.8)), @(0.3, (-$hgt * 0.8)), @(0.85, (-$hgt * 0.2)), @(1, (-$hgt * 0.2))) $per $ph
+        Start-BfxKeys $dt.T $global:BfxP.X @(@(0, ($bend * 0.62)), @(0.3, ($bend * 0.62)), @(0.85, ($bend * 0.05)), @(1, ($bend * 0.05))) $per $ph
+        Start-BfxKeys $drop $global:BfxP.O @(@(0, 0), @(0.1, 1), @(0.85, 1), @(0.95, 0), @(1, 0)) $per $ph
+        [void]$blade.Children.Add($drop)
+        $bt = Set-BfxTransforms $blade 0 0
+        Start-BfxAnim $bt.R $global:BfxP.A -3 3 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $blade -Fx (0.27 + 0.72 * ($i + (Get-BfxRnd $S 0 0.9)) / $n) -Top ($H + 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxParachutes {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    $canopyGeo = New-BfxGeo { param($c)
+        $c.BeginFigure((New-BfxPoint -14 0), $true, $true); $c.ArcTo((New-BfxPoint 14 0), [System.Windows.Size]::new(14, 10), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+        $c.QuadraticBezierTo((New-BfxPoint 0 -3), (New-BfxPoint -14 0), $true, $false)
+    }
+    $linesGeo = New-BfxGeo { param($c) foreach ($x in @(-13, -5, 5, 13)) { $c.BeginFigure((New-BfxPoint $x 0), $false, $false); $c.LineTo((New-BfxPoint 0 18), $true, $false) } }
+    $n = 7
+    for ($i = 0; $i -lt $n; $i++) {
+        $depth = Get-BfxRnd $S 0.6 1
+        $chute = New-Object System.Windows.Controls.Canvas
+        [void]$chute.Children.Add((New-BfxPath $canopyGeo (New-BfxBrush (Get-BfxPick $S @('#d8dccf', '#b8c0a0', '#e8e4d8')) (0.55 + 0.25 * $depth))))
+        [void]$chute.Children.Add((New-BfxPath $linesGeo $null (New-BfxBrush '#d8dccf' 0.45) 0.6))
+        [void]$chute.Children.Add((Set-BfxAt (New-BfxRect 4 7 (New-BfxBrush '#3a4030' 0.85) 1.5) -2 17))
+        $tf = Set-BfxTransforms $chute 0 0
+        $tf.S.ScaleX = $sc * $depth; $tf.S.ScaleY = $sc * $depth
+        $per = (Get-BfxRnd $S 16 22) / $depth; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y (-40 * $sc) ($H + 10 * $sc) $per $ph
+        Start-BfxAnim $tf.R $global:BfxP.A -7 7 (Get-BfxRnd $S 4 6) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $chute -Fx (0.3 + 0.67 * ($i + (Get-BfxRnd $S 0 0.8)) / $n) -Top 0
+    }
+    $planeGeo = New-BfxGeo { param($c)
+        $pts = @(@(30, 0), @(22, -3), @(-24, -3), @(-30, -9), @(-34, -9), @(-30, 0), @(-24, 2), @(22, 2))
+        $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true); for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] $pts[$k][1]), $true, $false) }
+        $c.BeginFigure((New-BfxPoint 6 -1), $true, $true); $c.LineTo((New-BfxPoint -6 -1), $true, $false); $c.LineTo((New-BfxPoint -12 14), $true, $false); $c.LineTo((New-BfxPoint -2 14), $true, $false)
+    }
+    $plane = New-BfxPath $planeGeo (New-BfxBrush '#3a4250' 0.7)
+    $pt = Set-BfxTransforms $plane 0 0; $pt.S.ScaleX = 0.8 * $sc; $pt.S.ScaleY = 0.8 * $sc
+    Add-BfxItem $S $plane -Top ($H * 0.12) -Speed (40 * $sc) -Phase (Get-BfxRnd $S) -T $pt.T -Margin (300 * $sc)
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxFreighters {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $sc = $H / 140.0
+    for ($i = 0; $i -lt 50; $i++) {
+        $st = New-BfxEllipse 1.4 1.4 (New-BfxBrush '#ffffff' 0.7)
+        Start-BfxAnim $st $global:BfxP.O 0.2 0.8 (Get-BfxRnd $S 3 6) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $st -Fx (Get-BfxRnd $S 0.2 1) -Top (Get-BfxRnd $S 0 $H)
+    }
+    foreach ($depth in @(0.55, 0.8, 1.0)) {
+        $ship = New-Object System.Windows.Controls.Canvas
+        $hullGeo = New-BfxGeo { param($c)
+            $pts = @(@(70, 0), @(56, -7), @(-60, -7), @(-66, -3), @(-66, 4), @(-60, 7), @(56, 7))
+            $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true); for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] $pts[$k][1]), $true, $false) }
+        }
+        [void]$ship.Children.Add((New-BfxPath $hullGeo (New-BfxBrush '#5a6274' (0.45 + 0.3 * $depth))))
+        $boxCols = @('#8a6a4a', '#5a7a8a', '#8a8a5a', '#7a5a6a')
+        for ($b = 0; $b -lt 7; $b++) {
+            $box = New-BfxRect 13 (Get-BfxRnd $S 6 11) (New-BfxBrush $boxCols[$b % 4] (0.5 + 0.3 * $depth))
+            [void]$ship.Children.Add((Set-BfxAt $box (-52 + $b * 15) (-7 - $box.Height)))
+        }
+        [void]$ship.Children.Add((Set-BfxAt (New-BfxGlow 26 '#7ac8ff' 0.7) -68 0))
+        foreach ($lt in @(@(66, 0, '#ff5a5a'), @(-58, -8, '#ffffff'), @(10, 7, '#5aff8a'))) {
+            $blink = New-BfxGlow 7 $lt[2] 1.0
+            Start-BfxFlash $blink (Get-BfxRnd $S 2 3.5) (Get-BfxRnd $S 0.1 0.8) 0.12
+            [void]$ship.Children.Add((Set-BfxAt $blink $lt[0] $lt[1]))
+        }
+        $dir = Get-BfxPick $S @(1, -1)
+        $tf = Set-BfxTransforms $ship 0 0; $tf.S.ScaleX = $dir * $sc * $depth * 0.9; $tf.S.ScaleY = $sc * $depth * 0.9
+        Add-BfxItem $S $ship -Top ($H * (0.2 + 0.6 * $depth - 0.25)) -Speed ($dir * (Get-BfxRnd $S 12 20) * $sc * $depth) -Phase (Get-BfxRnd $S) -T $tf.T -Margin (80 * $sc)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBuoys {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    # calm wave line over a long strip, drifting by exactly one wavelength
+    $waveY = $H * 0.74; $wl = 120 * $k; $amp = 3 * $k
+    $geo = New-BfxGeo { param($c)
+        for ($row = 0; $row -lt 3; $row++) {
+            $yy = $waveY + $row * 7 * $k
+            $c.BeginFigure((New-BfxPoint (-$wl) $yy), $false, $false)
+            for ($x = -$wl; $x -le 3000; $x += 10) { $c.LineTo((New-BfxPoint $x ($yy + $amp * [Math]::Sin(2 * [Math]::PI * $x / $wl + $row))), $true, $false) }
+        }
+    }.GetNewClosure()
+    $wave = New-BfxPath $geo $null (New-BfxBrush '#8fc4e0' 0.22) 1
+    $wtf = Set-BfxTransforms $wave 0 0
+    Start-BfxAnim $wtf.T $global:BfxP.X 0 (-$wl) 9
+    Add-BfxItem $S $wave -Fx 0 -Top 0
+    $n = 6
+    for ($i = 0; $i -lt $n; $i++) {
+        $b = New-Object System.Windows.Controls.Canvas
+        $red = ($i % 2 -eq 0)
+        $bodyW = 9 * $k; $bodyH = 16 * $k
+        [void]$b.Children.Add((New-BfxGlow (30 * $k) '#ffd27a' 0.12))
+        $body = New-BfxRect $bodyW $bodyH (New-BfxLinear @(@(0, $(if ($red) { '#d8483c' } else { '#e8e4d8' }), 0.85), @(0.5, '#f2efe6', 0.85), @(1, $(if ($red) { '#a8322a' } else { '#c8c2b0' }), 0.85))) ($bodyW * 0.3)
+        [void]$b.Children.Add((Set-BfxAt $body (-$bodyW / 2) (-$bodyH)))
+        $lamp = New-BfxGlow (14 * $k) $(if ($red) { '#ff5a4a' } else { '#7affb0' }) 0.95
+        Set-BfxAt $lamp 0 (-$bodyH - 3 * $k) | Out-Null
+        Start-BfxFlash $lamp (Get-BfxRnd $S 3 5) (Get-BfxRnd $S 0.05 0.8) 0.18 1.0 (Get-BfxRnd $S)
+        [void]$b.Children.Add($lamp)
+        $refl = New-BfxEllipse (16 * $k) (4 * $k) (New-BfxBrush '#ffe6b0' 0.18)
+        [void]$b.Children.Add((Set-BfxAt $refl (-8 * $k) (2 * $k)))
+        $tf = Set-BfxTransforms $b 0 0
+        $per = Get-BfxRnd $S 2.8 4.2; $ph = Get-BfxRnd $S
+        Start-BfxAnim $tf.T $global:BfxP.Y (-2.5 * $k) (2.5 * $k) $per $ph -Reverse -Ease
+        Start-BfxAnim $tf.R $global:BfxP.A -6 6 ($per * 1.3) $ph -Reverse -Ease
+        $fx = 0.3 + (($i + (Get-BfxRnd $S 0.15 0.85)) / $n) * 0.66
+        Add-BfxItem $S $b -Fx $fx -Top ($waveY + (Get-BfxRnd $S -2 4) * $k)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPrayerflags {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $cols = @('#4a8fe8', '#f2f0ea', '#e8473c', '#4cc46a', '#f2c63a')
+    $holder = New-Object System.Windows.Controls.Canvas
+    $span = 280 * $k
+    foreach ($row in @(@(0.16, 0.12, 0.0), @(0.42, 0.10, 0.5))) {
+        $y0 = $H * $row[0]; $sag = $H * $row[1]; $shift = $span * $row[2]
+        $cord = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint (-$shift) $y0), $false, $false)
+            for ($x = -$shift; $x -le 2600; $x += 8) { $u = ((($x + $shift) % $span) + $span) % $span / $span; $c.LineTo((New-BfxPoint $x ($y0 + $sag * 4 * $u * (1 - $u))), $true, $false) }
+        }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $cord $null (New-BfxBrush '#d8d0c0' 0.35) 0.8))
+        $fw = 13 * $k; $fh = 16 * $k; $gap = $span / 10.0
+        $ci = 0
+        for ($x = -$shift + $gap; $x -le 2600; $x += $gap) {
+            $u = ((($x + $shift) % $span) + $span) % $span / $span
+            if ($u -lt 0.05 -or $u -gt 0.95) { continue }
+            $yy = $y0 + $sag * 4 * $u * (1 - $u)
+            $flag = New-BfxRect $fw $fh (New-BfxBrush $cols[$ci % $cols.Count] 0.62)
+            $ci++
+            $tf = Set-BfxTransforms $flag 0.5 0
+            $tf.R.Angle = ($u - 0.5) * -24
+            Start-BfxAnim $tf.S $global:BfxP.SX 1 0.82 (Get-BfxRnd $S 1.8 3) (Get-BfxRnd $S) -Reverse -Ease
+            Start-BfxAnim $tf.T $global:BfxP.X (-1 * $k) (1.5 * $k) (Get-BfxRnd $S 2.2 3.4) (Get-BfxRnd $S) -Reverse -Ease
+            [void]$holder.Children.Add((Set-BfxAt $flag ($x - $fw / 2) $yy))
+        }
+    }
+    [void]$S.Canvas.Children.Add($holder)
+    # the strings start right of the title
+    $S.Extra = { param($cw) [System.Windows.Controls.Canvas]::SetLeft($holder, $cw * 0.26) }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSkytraffic {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    # three lanes: far (small, slow, dim) to near
+    $lanes = @(@(0.20, 0.55, 22, 0.45), @(0.34, 0.8, 34, 0.7), @(0.50, 1.0, 48, 0.9))
+    $ln = 0
+    foreach ($lane in $lanes) {
+        $dir = $(if ($ln % 2) { -1 } else { 1 }); $sc = $lane[1]
+        $col = $(if ($dir -gt 0) { '#ff4a4a' } else { '#f4f6ff' })
+        for ($i = 0; $i -lt 6; $i++) {
+            $car = New-Object System.Windows.Controls.Canvas
+            [void]$car.Children.Add((Set-BfxAt (New-BfxGlow (10 * $k * $sc) $col $lane[3]) 0 0))
+            [void]$car.Children.Add((Set-BfxAt (New-BfxGlow (10 * $k * $sc) $col $lane[3]) (7 * $k * $sc) 0))
+            [void]$car.Children.Add((Set-BfxAt (New-BfxGlow (3 * $k * $sc) '#ffffff' 0.9) 0 0))
+            [void]$car.Children.Add((Set-BfxAt (New-BfxGlow (3 * $k * $sc) '#ffffff' 0.9) (7 * $k * $sc) 0))
+            $tf = Set-BfxTransforms $car 0 0
+            $yy = $H * $lane[0] + (Get-BfxRnd $S -3 3) * $k
+            Add-BfxItem $S $car -Top $yy -Speed ($dir * $lane[2] * (Get-BfxRnd $S 0.85 1.15)) -Phase (($i + (Get-BfxRnd $S 0 0.6)) / 6.0) -T $tf.T -Margin 30
+        }
+        $ln++
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPalms {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    # warm dusk glow along the bottom (pale)
+    $dusk = New-BfxRect 4000 ($H * 0.6) (New-BfxLinear @(@(0, '#ff9a5a', 0), @(1, '#ff7a6a', 0.16)))
+    Add-BfxItem $S $dusk -Fx 0 -Top ($H * 0.4)
+    $ink = New-BfxBrush '#2a1424' 0.88
+    $n = 7
+    for ($i = 0; $i -lt $n; $i++) {
+        $palm = New-Object System.Windows.Controls.Canvas
+        $ht = $H * (Get-BfxRnd $S 0.55 0.85); $lean = $ht * (Get-BfxRnd $S -0.18 0.18)
+        $tw = 3.2 * $k
+        $trunk = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint (-$tw) 0), $true, $true)
+            $c.QuadraticBezierTo((New-BfxPoint ($lean * 0.2 - $tw * 0.6) (-$ht * 0.55)), (New-BfxPoint ($lean - $tw * 0.4) (-$ht)), $true, $false)
+            $c.LineTo((New-BfxPoint ($lean + $tw * 0.4) (-$ht)), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint ($lean * 0.2 + $tw * 0.6) (-$ht * 0.55)), (New-BfxPoint $tw 0), $true, $false)
+        }.GetNewClosure()
+        [void]$palm.Children.Add((New-BfxPath $trunk $ink))
+        $fl = $H * 0.24
+        for ($f = 0; $f -lt 7; $f++) {
+            $ang = -170 + $f * (160 / 6.0) + (Get-BfxRnd $S -8 8)
+            $frond = New-BfxGeo { param($c)
+                $c.BeginFigure((New-BfxPoint 0 0), $true, $true)
+                $c.QuadraticBezierTo((New-BfxPoint ($fl * 0.5) (-$fl * 0.22)), (New-BfxPoint $fl ($fl * 0.18)), $true, $false)
+                $c.QuadraticBezierTo((New-BfxPoint ($fl * 0.5) (-$fl * 0.06)), (New-BfxPoint 0 0), $true, $false)
+            }.GetNewClosure()
+            $fp = New-BfxPath $frond $ink
+            $ftf = Set-BfxTransforms $fp
+            $ftf.T.X = $lean; $ftf.T.Y = -$ht
+            Start-BfxAnim $ftf.R $global:BfxP.A ($ang - 3) ($ang + 3) (Get-BfxRnd $S 3 5.5) (Get-BfxRnd $S) -Reverse -Ease
+            [void]$palm.Children.Add($fp)
+        }
+        $ptf = Set-BfxTransforms $palm 0 0
+        Start-BfxAnim $ptf.R $global:BfxP.A -1.5 1.5 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        $fx = 0.3 + (($i + (Get-BfxRnd $S 0.1 0.9)) / $n) * 0.67
+        Add-BfxItem $S $palm -Fx $fx -Top ($H + 2)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLooptrack {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $rr = $H * 0.26; $y0 = $H * 0.8; $run = $rr * 1.8
+    # path samples: run in, full loop, run out (local coordinates)
+    $pts = New-Object System.Collections.ArrayList
+    for ($q = 0; $q -le 6; $q++) { [void]$pts.Add(@((-$run + $run * $q / 6.0), $y0)) }
+    for ($q = 1; $q -le 24; $q++) { $a = $q / 24.0 * 2 * [Math]::PI; [void]$pts.Add(@(([Math]::Sin($a) * $rr), ($y0 - $rr + [Math]::Cos($a) * $rr))) }
+    for ($q = 1; $q -le 6; $q++) { [void]$pts.Add(@(($run * $q / 6.0), $y0)) }
+    $trackGeo = New-BfxGeo { param($c)
+        $c.BeginFigure((New-BfxPoint (-$run) $y0), $false, $false)
+        $c.LineTo((New-BfxPoint 0 $y0), $true, $false)
+        $c.ArcTo((New-BfxPoint 0 ($y0 - 2 * $rr)), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Counterclockwise, $true, $false)
+        $c.ArcTo((New-BfxPoint 0 $y0), [System.Windows.Size]::new($rr, $rr), 0, $false, [System.Windows.Media.SweepDirection]::Counterclockwise, $true, $false)
+        $c.LineTo((New-BfxPoint $run $y0), $true, $false)
+    }.GetNewClosure()
+    Add-BfxSpread $S {
+        param($slot, $S)
+        Add-BfxItem $S (New-BfxPath $trackGeo $null (New-BfxBrush '#9fd8ff' 0.28) (1.6 * $k)) -Fx 0 -Top 0
+        $dotC = New-Object System.Windows.Controls.Canvas
+        [void]$dotC.Children.Add((New-BfxGlow (22 * $k) '#5ab8ff' 0.6)); [void]$dotC.Children.Add((New-BfxGlow (6 * $k) '#ffffff' 1.0))
+        $tf = Set-BfxTransforms $dotC 0 0
+        $per = 7.0; $vis = 0.32
+        $kx = @(); $ky = @()
+        for ($q = 0; $q -lt $pts.Count; $q++) { $f = $vis * $q / ($pts.Count - 1); $kx += , @($f, $pts[$q][0]); $ky += , @($f, $pts[$q][1]) }
+        $kx += , @(1, $pts[$pts.Count - 1][0]); $ky += , @(1, $pts[$pts.Count - 1][1])
+        Start-BfxKeys $tf.T $global:BfxP.X $kx $per; Start-BfxKeys $tf.T $global:BfxP.Y $ky $per
+        Start-BfxKeys $dotC $global:BfxP.O @(@(0, 0), @(0.02, 1), @(($vis - 0.02), 1), @($vis, 0), @(1, 0)) $per
+        Add-BfxItem $S $dotC -Fx 0 -Top 0
+    } 300 5 0.32 0.95
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxRingworld {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    for ($i = 0; $i -lt 40; $i++) {
+        $st = New-BfxGlow ((Get-BfxRnd $S 2 4) * $k) '#ffffff' (Get-BfxRnd $S 0.4 0.9)
+        Start-BfxAnim $st $global:BfxP.O 0.3 1 (Get-BfxRnd $S 3 7) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $st -Fx (Get-BfxRnd $S 0.25 1.0) -Top (Get-BfxRnd $S 0 ($H * 0.9))
+    }
+    # ring band: two arcs, shaded by a slowly travelling light band
+    $shade = New-BfxLinear @(@(0, '#9fb8d8', 0.18), @(0.0, '#9fb8d8', 0.18), @(0.08, '#e8f2ff', 0.55), @(0.16, '#9fb8d8', 0.18), @(1, '#9fb8d8', 0.18)) -Horizontal -NoFreeze
+    $offP = [System.Windows.Media.GradientStop]::OffsetProperty
+    Start-BfxKeys $shade.GradientStops[1] $offP @(@(0, -0.16), @(1, 1.0)) 22
+    Start-BfxKeys $shade.GradientStops[2] $offP @(@(0, -0.08), @(1, 1.08)) 22
+    Start-BfxKeys $shade.GradientStops[3] $offP @(@(0, 0.0), @(1, 1.16)) 22
+    $band = New-Object System.Windows.Shapes.Path
+    $band.Stroke = $shade; $band.StrokeThickness = 6 * $k; $band.IsHitTestVisible = $false
+    $edge = New-Object System.Windows.Shapes.Path
+    $edge.Stroke = New-BfxBrush '#cfe0ff' 0.25; $edge.StrokeThickness = 1; $edge.IsHitTestVisible = $false
+    [void]$S.Canvas.Children.Add($band); [void]$S.Canvas.Children.Add($edge)
+    $S.Extra = { param($cw)
+        $x0 = $cw * 0.05; $x1 = $cw * 1.1; $topY = $H * 0.18; $baseY = $H * 1.25
+        $g1 = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $x0 $baseY), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (($x0 + $x1) / 2) ($topY * 2 - $baseY)), (New-BfxPoint $x1 $baseY), $true, $false) }.GetNewClosure()
+        $g2 = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $x0 ($baseY + 8 * $k)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (($x0 + $x1) / 2) ($topY * 2 - $baseY + 12 * $k)), (New-BfxPoint $x1 ($baseY + 8 * $k)), $true, $false) }.GetNewClosure()
+        $band.Data = $g1; $edge.Data = $g2
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxDroppods {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $ground = $H * 0.84
+    $n = 5
+    for ($i = 0; $i -lt $n; $i++) {
+        $per = Get-BfxRnd $S 9 13; $ph = Get-BfxRnd $S
+        $fall = 2.6 / $per; $land = $fall
+        $fx = 0.32 + (($i + (Get-BfxRnd $S 0.15 0.85)) / $n) * 0.63
+        # the pod with its fire trail, falling from above the banner
+        $pod = New-Object System.Windows.Controls.Canvas
+        $trail = New-BfxRect (5 * $k) (46 * $k) (New-BfxLinear @(@(0, '#ff8a3a', 0), @(1, '#ffd27a', 0.75))) (2.5 * $k)
+        [void]$pod.Children.Add((Set-BfxAt $trail (-2.5 * $k) (-56 * $k)))
+        [void]$pod.Children.Add((New-BfxGlow (26 * $k) '#ffb060' 0.6))
+        $body = New-BfxRect (9 * $k) (14 * $k) (New-BfxBrush '#c8ccd6' 0.9) (3 * $k)
+        [void]$pod.Children.Add((Set-BfxAt $body (-4.5 * $k) (-12 * $k)))
+        $tf = Set-BfxTransforms $pod 0 0
+        Start-BfxKeys $tf.T $global:BfxP.Y @(@(0, (-$H * 0.3 - $ground)), @($land, 0), @(1, 0)) $per $ph
+        Start-BfxKeys $pod $global:BfxP.O @(@(0, 1), @($land, 1), @(($land + 0.05), 0), @(0.98, 0), @(1, 1)) $per $ph
+        Add-BfxItem $S $pod -Fx $fx -Top $ground
+        # impact glow and settling dust
+        $flash = New-BfxGlow (60 * $k) '#ffc070' 0.8
+        Start-BfxKeys $flash $global:BfxP.O @(@(0, 0), @($land, 0), @(($land + 0.01), 1), @(($land + 0.12), 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $flash -Fx $fx -Top $ground
+        $dust = New-BfxEllipse (70 * $k) (18 * $k) (New-BfxGlowBrush '#d8c8b0' 0.35)
+        $dust.Margin = [System.Windows.Thickness]::new(-35 * $k, -9 * $k, 0, 0)
+        $dtf = Set-BfxTransforms $dust
+        Start-BfxKeys $dtf.S $global:BfxP.SX @(@(0, 0.3), @($land, 0.3), @(($land + 0.3), 1.4), @(1, 1.4)) $per $ph
+        Start-BfxKeys $dust $global:BfxP.O @(@(0, 0), @($land, 0), @(($land + 0.02), 1), @(($land + 0.3), 0), @(1, 0)) $per $ph
+        Add-BfxItem $S $dust -Fx $fx -Top $ground
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPortholes {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $rad = $H * 0.26
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $port = New-Object System.Windows.Controls.Canvas
+        $inner = New-Object System.Windows.Controls.Canvas
+        $inner.Clip = [System.Windows.Media.EllipseGeometry]::new([System.Windows.Point]::new(0, 0), ($rad * 0.86), ($rad * 0.86))
+        $water = New-BfxEllipse ($rad * 1.72) ($rad * 1.72) (New-BfxLinear @(@(0, '#1c5a78', 0.5), @(1, '#08202e', 0.6)))
+        [void]$inner.Children.Add((Set-BfxAt $water (-$rad * 0.86) (-$rad * 0.86)))
+        for ($q = 0; $q -lt 5; $q++) {
+            $mote = New-BfxGlow ((Get-BfxRnd $S 2 4) * $k) '#bfefff' 0.7
+            $mtf = Set-BfxTransforms $mote 0 0
+            Set-BfxAt $mote (Get-BfxRnd $S (-$rad * 0.6) ($rad * 0.6)) 0 | Out-Null
+            Start-BfxAnim $mtf.T $global:BfxP.Y ($rad * 0.9) (-$rad * 0.9) (Get-BfxRnd $S 6 10) (Get-BfxRnd $S)
+            [void]$inner.Children.Add($mote)
+        }
+        $fl = $rad * 0.7
+        $fishGeo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint ($fl * 0.5) 0), $true, $true)
+            $c.QuadraticBezierTo((New-BfxPoint 0 (-$fl * 0.22)), (New-BfxPoint (-$fl * 0.35) 0), $true, $false)
+            $c.LineTo((New-BfxPoint (-$fl * 0.55) (-$fl * 0.16)), $true, $false)
+            $c.LineTo((New-BfxPoint (-$fl * 0.55) ($fl * 0.16)), $true, $false)
+            $c.LineTo((New-BfxPoint (-$fl * 0.35) 0), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint 0 ($fl * 0.22)), (New-BfxPoint ($fl * 0.5) 0), $true, $false)
+        }.GetNewClosure()
+        $fish = New-BfxPath $fishGeo (New-BfxBrush '#04121a' 0.75)
+        $ftf = Set-BfxTransforms $fish
+        $ftf.T.Y = $rad * (Get-BfxRnd $S -0.3 0.3)
+        Start-BfxKeys $ftf.T $global:BfxP.X @(@(0, (-$rad * 1.6)), @(0.3, ($rad * 1.6)), @(1, ($rad * 1.6))) (Get-BfxRnd $S 9 14)
+        [void]$inner.Children.Add($fish)
+        [void]$port.Children.Add($inner)
+        $ring = New-BfxEllipse ($rad * 2) ($rad * 2) $null (New-BfxBrush '#c9a25a' 0.7) (5 * $k)
+        [void]$port.Children.Add((Set-BfxAt $ring (-$rad) (-$rad)))
+        for ($q = 0; $q -lt 8; $q++) {
+            $a = $q / 8.0 * 2 * [Math]::PI
+            $bolt = New-BfxEllipse (3 * $k) (3 * $k) (New-BfxBrush '#e8cf8a' 0.8)
+            [void]$port.Children.Add((Set-BfxAt $bolt ([Math]::Cos($a) * $rad * 0.93 - 1.5 * $k) ([Math]::Sin($a) * $rad * 0.93 - 1.5 * $k)))
+        }
+        $glint = New-BfxGlow ($rad * 0.5) '#ffffff' 0.25
+        [void]$port.Children.Add((Set-BfxAt $glint (-$rad * 0.4) (-$rad * 0.45)))
+        Add-BfxItem $S $port -Fx 0 -Top ($H * 0.5)
+    } 220 5 0.32 0.95
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHullplates {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    for ($i = 0; $i -lt 28; $i++) {
+        $d = New-BfxEllipse (1.6 * $k) (1.6 * $k) (New-BfxBrush '#d8e0ea' 0.5)
+        $dtf = Set-BfxTransforms $d
+        Add-BfxItem $S $d -Top (Get-BfxRnd $S 0 $H) -Speed (-(Get-BfxRnd $S 6 16)) -Phase (Get-BfxRnd $S) -T $dtf.T -Margin 6
+    }
+    for ($i = 0; $i -lt 11; $i++) {
+        $sz = $H * (Get-BfxRnd $S 0.12 0.26)
+        $pts = @(); for ($q = 0; $q -lt 5; $q++) { $a = $q / 5.0 * 2 * [Math]::PI + (Get-BfxRnd $S -0.3 0.3); $rq = $sz * (Get-BfxRnd $S 0.6 1.0); $pts += , @(([Math]::Cos($a) * $rq), ([Math]::Sin($a) * $rq)) }
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true); for ($q = 1; $q -lt $pts.Count; $q++) { $c.LineTo((New-BfxPoint $pts[$q][0] $pts[$q][1]), $true, $false) } }.GetNewClosure()
+        $plate = New-Object System.Windows.Controls.Canvas
+        [void]$plate.Children.Add((New-BfxPath $geo (New-BfxBrush '#5a6878' 0.38) (New-BfxBrush '#b8c8d8' 0.45) 1))
+        $seam = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $false, $false); $c.LineTo((New-BfxPoint $pts[2][0] $pts[2][1]), $true, $false) }.GetNewClosure()
+        [void]$plate.Children.Add((New-BfxPath $seam $null (New-BfxBrush '#b8c8d8' 0.3) 0.8))
+        $glint = New-BfxGlow ($sz * 0.6) '#ffffff' 0.7
+        Start-BfxFlash $glint (Get-BfxRnd $S 6 11) (Get-BfxRnd $S 0.1 0.8) 0.12 0.8 (Get-BfxRnd $S)
+        [void]$plate.Children.Add((Set-BfxAt $glint $pts[1][0] $pts[1][1]))
+        $tf = Set-BfxTransforms $plate 0 0
+        $spin = Get-BfxRnd $S 24 46; $sdir = Get-BfxPick $S @(1, -1)
+        Start-BfxAnim $tf.R $global:BfxP.A 0 (360 * $sdir) $spin (Get-BfxRnd $S)
+        Add-BfxItem $S $plate -Top ($H * (Get-BfxRnd $S 0.2 0.85)) -Speed (-(Get-BfxRnd $S 10 24)) -Phase (($i + (Get-BfxRnd $S 0 0.7)) / 11.0) -T $tf.T -Margin ($sz + 10)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxGraveyard {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    # low mist band drifting slowly
+    for ($m = 0; $m -lt 2; $m++) {
+        $mist = New-BfxRect 2600 ($H * 0.34) (New-BfxLinear @(@(0, '#b8b0d8', 0), @(0.6, '#b8b0d8', 0.12), @(1, '#b8b0d8', 0.04)))
+        $mtf = Set-BfxTransforms $mist 0 0
+        Start-BfxAnim $mtf.T $global:BfxP.X (-60 * $k) (60 * $k) (Get-BfxRnd $S 14 20) ($m * 0.5) -Reverse -Ease
+        Add-BfxItem $S $mist -Fx 0 -Top ($H * (0.68 + 0.04 * $m))
+    }
+    $stone = New-BfxBrush '#4a4258' 0.85
+    $n = 11
+    for ($i = 0; $i -lt $n; $i++) {
+        $kind = Get-BfxPick $S @(0, 0, 1, 2)
+        $sw = $H * (Get-BfxRnd $S 0.08 0.13); $sh = $sw * (Get-BfxRnd $S 1.2 1.7)
+        $geo = $null
+        if ($kind -eq 1) {
+            $bar = $sw * 0.28
+            $geo = New-BfxGeo { param($c)
+                $c.BeginFigure((New-BfxPoint (-$bar / 2) 0), $true, $true); $c.LineTo((New-BfxPoint (-$bar / 2) (-$sh * 0.62)), $true, $false); $c.LineTo((New-BfxPoint (-$sw / 2) (-$sh * 0.62)), $true, $false)
+                $c.LineTo((New-BfxPoint (-$sw / 2) (-$sh * 0.62 - $bar)), $true, $false); $c.LineTo((New-BfxPoint (-$bar / 2) (-$sh * 0.62 - $bar)), $true, $false); $c.LineTo((New-BfxPoint (-$bar / 2) (-$sh)), $true, $false)
+                $c.LineTo((New-BfxPoint ($bar / 2) (-$sh)), $true, $false); $c.LineTo((New-BfxPoint ($bar / 2) (-$sh * 0.62 - $bar)), $true, $false); $c.LineTo((New-BfxPoint ($sw / 2) (-$sh * 0.62 - $bar)), $true, $false)
+                $c.LineTo((New-BfxPoint ($sw / 2) (-$sh * 0.62)), $true, $false); $c.LineTo((New-BfxPoint ($bar / 2) (-$sh * 0.62)), $true, $false); $c.LineTo((New-BfxPoint ($bar / 2) 0), $true, $false)
+            }.GetNewClosure()
+        } else {
+            $geo = New-BfxGeo { param($c)
+                $c.BeginFigure((New-BfxPoint (-$sw / 2) 0), $true, $true); $c.LineTo((New-BfxPoint (-$sw / 2) (-$sh + $sw / 2)), $true, $false)
+                $c.ArcTo((New-BfxPoint ($sw / 2) (-$sh + $sw / 2)), [System.Windows.Size]::new($sw / 2, $sw / 2), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                $c.LineTo((New-BfxPoint ($sw / 2) 0), $true, $false)
+            }.GetNewClosure()
+        }
+        $p = New-BfxPath $geo $stone
+        $tf = Set-BfxTransforms $p; $tf.R.Angle = Get-BfxRnd $S -7 7
+        $fx = 0.28 + (($i + (Get-BfxRnd $S 0.1 0.9)) / $n) * 0.7
+        Add-BfxItem $S $p -Fx $fx -Top ($H * (Get-BfxRnd $S 0.9 0.97))
+    }
+    for ($i = 0; $i -lt 6; $i++) {
+        $wisp = New-Object System.Windows.Controls.Canvas
+        [void]$wisp.Children.Add((New-BfxGlow (22 * $k) '#7affc8' 0.45)); [void]$wisp.Children.Add((New-BfxGlow (5 * $k) '#e8fff4' 0.95))
+        $tf = Set-BfxTransforms $wisp 0 0
+        Start-BfxAnim $tf.T $global:BfxP.X (-28 * $k) (28 * $k) (Get-BfxRnd $S 7 11) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y (-9 * $k) (9 * $k) (Get-BfxRnd $S 3.5 6) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $wisp $global:BfxP.O 0.35 1 (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease
+        $fx = 0.32 + (($i + (Get-BfxRnd $S 0.2 0.8)) / 6.0) * 0.62
+        Add-BfxItem $S $wisp -Fx $fx -Top ($H * (Get-BfxRnd $S 0.5 0.72))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxSubwaycars {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $railY = $H * 0.92
+    Add-BfxItem $S (New-BfxRect 4000 (1.5 * $k) (New-BfxBrush '#8a90a0' 0.35)) -Fx 0 -Top $railY
+    # platform lamps along the top
+    for ($i = 0; $i -lt 7; $i++) {
+        $lamp = New-BfxGlow (34 * $k) '#ffe7a8' 0.32
+        Start-BfxAnim $lamp $global:BfxP.O 0.75 1 (Get-BfxRnd $S 4 7) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $lamp -Fx (0.3 + $i * 0.11) -Top ($H * 0.1)
+    }
+    $carW = 150 * $k; $carH = $H * 0.3; $cars = 5; $speed = 60 * $k
+    $margin = $carW * $cars + 40 * $k
+    for ($i = 0; $i -lt $cars; $i++) {
+        $car = New-Object System.Windows.Controls.Canvas
+        [void]$car.Children.Add((New-BfxRect ($carW - 6 * $k) $carH (New-BfxBrush '#1c2230' 0.9) (5 * $k)))
+        [void]$car.Children.Add((Set-BfxAt (New-BfxRect ($carW - 6 * $k) (2 * $k) (New-BfxBrush '#e85a4a' 0.6)) 0 ($carH * 0.72)))
+        for ($w = 0; $w -lt 5; $w++) {
+            $win = New-BfxRect ($carW * 0.13) ($carH * 0.34) (New-BfxBrush '#ffe7a8' 0.62) (1.5 * $k)
+            if ((Get-BfxRnd $S) -lt 0.35) { Start-BfxAnim $win $global:BfxP.O 0.55 1 (Get-BfxRnd $S 2.5 4.5) (Get-BfxRnd $S) -Reverse -Ease }
+            [void]$car.Children.Add((Set-BfxAt $win ($carW * (0.06 + $w * 0.18)) ($carH * 0.18)))
+        }
+        $tf = Set-BfxTransforms $car 0 0
+        Add-BfxItem $S $car -Top ($railY - $carH - 2 * $k) -Speed $speed -Phase 0.15 -T $tf.T -Margin $margin -OffsetX (-$i * $carW)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMinecarts {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $k = $H / 140.0
+    $railY = $H * 0.8; $amp = $H * 0.05; $wl = 520 * $k
+    $railFn = { param($x) $railY + $amp * [Math]::Sin(2 * [Math]::PI * $x / $wl) }.GetNewClosure()
+    $railGeo = New-BfxGeo { param($c)
+        foreach ($off in @(0, 4)) {
+            $c.BeginFigure((New-BfxPoint -40 ((& $railFn -40) + $off * $k)), $false, $false)
+            for ($x = -40; $x -le 3000; $x += 12) { $c.LineTo((New-BfxPoint $x ((& $railFn $x) + $off * $k)), $true, $false) }
+        }
+        for ($x = -40; $x -le 3000; $x += 26 * $k) { $yy = & $railFn $x; $c.BeginFigure((New-BfxPoint ($x - 2 * $k) ($yy - 1 * $k)), $false, $false); $c.LineTo((New-BfxPoint ($x + 2 * $k) ($yy + 7 * $k)), $true, $false) }
+    }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $railGeo $null (New-BfxBrush '#a89070' 0.4) (1.2 * $k)) -Fx 0 -Top 0
+    for ($i = 0; $i -lt 6; $i++) {
+        $post = New-Object System.Windows.Controls.Canvas
+        [void]$post.Children.Add((Set-BfxAt (New-BfxRect (2 * $k) ($H * 0.3) (New-BfxBrush '#5a4836' 0.7)) (-1 * $k) 0))
+        $lamp = New-BfxGlow (30 * $k) '#ffb45a' 0.6
+        Start-BfxAnim $lamp $global:BfxP.O 0.7 1 (Get-BfxRnd $S 2.5 4.5) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$post.Children.Add($lamp); [void]$post.Children.Add((New-BfxGlow (6 * $k) '#fff0c8' 1.0))
+        Add-BfxItem $S $post -Fx (0.3 + $i * 0.13) -Top ($H * 0.36)
+    }
+    $carts = New-Object System.Collections.ArrayList
+    $nCarts = 3
+    for ($i = 0; $i -lt $nCarts; $i++) {
+        $cart = New-Object System.Windows.Controls.Canvas
+        $cw0 = 26 * $k; $ch0 = 13 * $k
+        $tub = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$cw0 / 2) (-$ch0 - 4 * $k)), $true, $true); $c.LineTo((New-BfxPoint ($cw0 / 2) (-$ch0 - 4 * $k)), $true, $false); $c.LineTo((New-BfxPoint ($cw0 * 0.38) (-4 * $k)), $true, $false); $c.LineTo((New-BfxPoint (-$cw0 * 0.38) (-4 * $k)), $true, $false) }.GetNewClosure()
+        $ore = Get-BfxPick $S @('#5ae8ff', '#ffb04a', '#b07aff')
+        [void]$cart.Children.Add((Set-BfxAt (New-BfxGlow (24 * $k) $ore 0.55) 0 (-$ch0 - 4 * $k)))
+        foreach ($ox in @(-0.25, 0, 0.25)) { [void]$cart.Children.Add((Set-BfxAt (New-BfxEllipse (6 * $k) (5 * $k) (New-BfxBrush $ore 0.9)) ($ox * $cw0 - 3 * $k) (-$ch0 - 7 * $k))) }
+        [void]$cart.Children.Add((New-BfxPath $tub (New-BfxBrush '#6a5440' 0.9) (New-BfxBrush '#b89a74' 0.6) 1))
+        foreach ($ox in @(-0.28, 0.28)) { [void]$cart.Children.Add((Set-BfxAt (New-BfxEllipse (6 * $k) (6 * $k) (New-BfxBrush '#2a2420' 0.95)) ($ox * $cw0 - 3 * $k) (-6 * $k))) }
+        $tf = Set-BfxTransforms $cart 0 0
+        [void]$S.Canvas.Children.Add($cart)
+        [void]$carts.Add(@($tf, ($i / [double]$nCarts)))
+    }
+    $S.Extra = { param($cw)
+        $v = 34 * $k; $span = $cw + 120; $per = $span / $v
+        foreach ($ct in $carts) {
+            $kx = @(); $ky = @()
+            for ($q = 0; $q -le 40; $q++) { $f = $q / 40.0; $x = -60 + $span * $f; $kx += , @($f, $x); $ky += , @($f, (& $railFn $x)) }
+            Start-BfxKeys $ct[0].T $global:BfxP.X $kx $per $ct[1]
+            Start-BfxKeys $ct[0].T $global:BfxP.Y $ky $per $ct[1]
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxBlueprint {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Pale blueprint grid over the full width.
+    $cell = 22 * $u
+    $gridGeo = New-BfxGeo { param($c)
+        for ($gx = 0.0; $gx -le 2600; $gx += $cell) { $c.BeginFigure((New-BfxPoint $gx 0), $false, $false); $c.LineTo((New-BfxPoint $gx $H), $true, $false) }
+        for ($gy = 0.0; $gy -le $H; $gy += $cell) { $c.BeginFigure((New-BfxPoint 0 $gy), $false, $false); $c.LineTo((New-BfxPoint 2600 $gy), $true, $false) }
+    }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $gridGeo $null (New-BfxBrush '#9cc8ff' 0.07) 1) -Fx 0 -Top 0
+    $ink = New-BfxBrush '#eaf4ff' 0.6
+    # Technical drawings draw themselves part by part, hold, then fade.
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $k = $u * (Get-BfxRnd $S 0.85 1.1)
+        $circle = { param($c, [double]$cx, [double]$cy, [double]$r)
+            $c.BeginFigure((New-BfxPoint ($cx + $r) $cy), $false, $true)
+            $c.ArcTo((New-BfxPoint ($cx - $r) $cy), [System.Windows.Size]::new($r, $r), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+            $c.ArcTo((New-BfxPoint ($cx + $r) $cy), [System.Windows.Size]::new($r, $r), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+        }
+        $line = { param($c, [double]$x1, [double]$y1, [double]$x2, [double]$y2) $c.BeginFigure((New-BfxPoint ($x1 * $k) ($y1 * $k)), $false, $false); $c.LineTo((New-BfxPoint ($x2 * $k) ($y2 * $k)), $true, $false) }
+        $parts = @(
+            (New-BfxGeo { param($c) & $line $c -40 -18 30 -18; & $line $c 30 -18 30 22; & $line $c 30 22 -40 22; & $line $c -40 22 -40 -18; & $line $c -30 -10 -8 -10; & $line $c -8 -10 -8 6; & $line $c -8 6 -30 6; & $line $c -30 6 -30 -10 }.GetNewClosure()),
+            (New-BfxGeo { param($c) & $circle $c (-22 * $k) (24 * $k) (13 * $k); & $circle $c (14 * $k) (24 * $k) (13 * $k); & $circle $c (-22 * $k) (24 * $k) (3 * $k); & $circle $c (14 * $k) (24 * $k) (3 * $k) }.GetNewClosure()),
+            (New-BfxGeo { param($c) & $circle $c (16 * $k) (-34 * $k) (11 * $k); for ($t = 0; $t -lt 8; $t++) { $a = $t / 8.0 * 2 * [Math]::PI; & $line $c (16 + [Math]::Cos($a) * 11) (-34 + [Math]::Sin($a) * 11) (16 + [Math]::Cos($a) * 15) (-34 + [Math]::Sin($a) * 15) }; & $line $c 16 -23 16 -18 }.GetNewClosure()),
+            (New-BfxGeo { param($c) & $line $c -30 -18 -30 -40; & $line $c -30 -40 -18 -40; & $line $c -18 -40 -18 -18 }.GetNewClosure()),
+            (New-BfxGeo { param($c) & $line $c -40 46 30 46; & $line $c -40 41 -40 51; & $line $c 30 41 30 51; & $line $c -40 46 -35 43; & $line $c -40 46 -35 49; & $line $c 30 46 25 43; & $line $c 30 46 25 49 }.GetNewClosure()),
+            (New-BfxGeo { param($c) & $line $c 30 -8 46 -26; & $line $c 46 -26 62 -26; & $circle $c (30 * $k) (-8 * $k) (2.5 * $k) }.GetNewClosure())
+        )
+        $holder = New-Object System.Windows.Controls.Canvas
+        $per = Get-BfxRnd $S 11 14
+        for ($j = 0; $j -lt $parts.Count; $j++) {
+            $p = New-BfxPath $parts[$j] $null $ink 1
+            $t0 = 0.05 + $j * 0.07
+            Start-BfxKeys $p $global:BfxP.O @(@(0, 0), @($t0, 0), @(($t0 + 0.06), 1), @(0.78, 1), @(0.92, 0), @(1, 0)) $per
+            [void]$holder.Children.Add($p)
+        }
+        $tf = Set-BfxTransforms $holder 0 0
+        if ($slot % 2) { $tf.S.ScaleX = -1 }
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * 0.48)
+    } 260 5 0.30 0.96
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxCards {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Playing cards flutter down slowly across the width and turn over.
+    $n = 10
+    for ($i = 0; $i -lt $n; $i++) {
+        $cw = 18 * $u; $ch = 26 * $u; $suit = $i % 4; $sz = 5.5 * $u
+        $col = $(if ($suit -lt 2) { '#d8283a' } else { '#1d1d26' })
+        $card = New-Object System.Windows.Controls.Canvas
+        $card.Width = $cw; $card.Height = $ch
+        [void]$card.Children.Add((New-BfxRect $cw $ch (New-BfxBrush '#f6f2e8' 0.9) (2 * $u)))
+        $mx = $cw / 2; $my = $ch / 2
+        $geo = New-BfxGeo { param($c)
+            if ($suit -eq 0) {
+                $c.BeginFigure((New-BfxPoint $mx ($my - $sz)), $true, $true); $c.LineTo((New-BfxPoint ($mx + $sz * 0.7) $my), $true, $false); $c.LineTo((New-BfxPoint $mx ($my + $sz)), $true, $false); $c.LineTo((New-BfxPoint ($mx - $sz * 0.7) $my), $true, $false)
+            } elseif ($suit -eq 1) {
+                $c.BeginFigure((New-BfxPoint $mx ($my + $sz)), $true, $true)
+                $c.BezierTo((New-BfxPoint ($mx - $sz * 1.2) ($my + $sz * 0.2)), (New-BfxPoint ($mx - $sz * 0.6) ($my - $sz * 0.9)), (New-BfxPoint $mx ($my - $sz * 0.3)), $true, $false)
+                $c.BezierTo((New-BfxPoint ($mx + $sz * 0.6) ($my - $sz * 0.9)), (New-BfxPoint ($mx + $sz * 1.2) ($my + $sz * 0.2)), (New-BfxPoint $mx ($my + $sz)), $true, $false)
+            } elseif ($suit -eq 2) {
+                $c.BeginFigure((New-BfxPoint $mx ($my - $sz)), $true, $true)
+                $c.BezierTo((New-BfxPoint ($mx - $sz * 1.2) ($my - $sz * 0.2)), (New-BfxPoint ($mx - $sz * 0.6) ($my + $sz * 0.8)), (New-BfxPoint $mx ($my + $sz * 0.3)), $true, $false)
+                $c.BezierTo((New-BfxPoint ($mx + $sz * 0.6) ($my + $sz * 0.8)), (New-BfxPoint ($mx + $sz * 1.2) ($my - $sz * 0.2)), (New-BfxPoint $mx ($my - $sz)), $true, $false)
+                $c.BeginFigure((New-BfxPoint $mx ($my + $sz * 0.2)), $true, $true); $c.LineTo((New-BfxPoint ($mx + $sz * 0.35) ($my + $sz)), $true, $false); $c.LineTo((New-BfxPoint ($mx - $sz * 0.35) ($my + $sz)), $true, $false)
+            } else {
+                foreach ($cc in @(@(0, -0.45), @(-0.45, 0.1), @(0.45, 0.1))) {
+                    $r = $sz * 0.42; $cx = $mx + $cc[0] * $sz; $cy = $my + $cc[1] * $sz
+                    $c.BeginFigure((New-BfxPoint ($cx + $r) $cy), $true, $true)
+                    $c.ArcTo((New-BfxPoint ($cx - $r) $cy), [System.Windows.Size]::new($r, $r), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                    $c.ArcTo((New-BfxPoint ($cx + $r) $cy), [System.Windows.Size]::new($r, $r), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                }
+                $c.BeginFigure((New-BfxPoint $mx ($my + $sz * 0.1)), $true, $true); $c.LineTo((New-BfxPoint ($mx + $sz * 0.35) ($my + $sz)), $true, $false); $c.LineTo((New-BfxPoint ($mx - $sz * 0.35) ($my + $sz)), $true, $false)
+            }
+        }.GetNewClosure()
+        [void]$card.Children.Add((New-BfxPath $geo (New-BfxBrush $col 0.9)))
+        $gl = New-BfxGlow (10 * $u) '#ffffff' 0.9; [void]$card.Children.Add((Set-BfxAt $gl ($cw * 0.8) ($ch * 0.2)))
+        Start-BfxFlash $gl (Get-BfxRnd $S 5 9) (Get-BfxRnd $S 0.1 0.9) 0.06
+        $tf = Set-BfxTransforms $card 0.5 0.5
+        Start-BfxAnim $tf.S $global:BfxP.SX 1 -1 (Get-BfxRnd $S 3 5) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.R $global:BfxP.A -25 25 (Get-BfxRnd $S 4 6) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y (-2 * $ch) ($H + $ch) (Get-BfxRnd $S 10 15) (Get-BfxRnd $S)
+        Start-BfxAnim $tf.T $global:BfxP.X (-15 * $u) (15 * $u) (Get-BfxRnd $S 4 7) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $card -Fx (0.28 + (($i + (Get-BfxRnd $S 0 0.8)) / $n) * 0.68) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxHeraldry {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Rope across the top, heraldic banners hang from it and wave slowly.
+    $ropeGeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (2 * $u)), $false, $false); $c.LineTo((New-BfxPoint 2600 (2 * $u)), $true, $false) }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $ropeGeo $null (New-BfxBrush '#c8a878' 0.35) (1.2 * $u)) -Fx 0 -Top 0
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $bw = 26 * $u; $bh = $H * 0.6
+        $col = Get-BfxPick $S @('#9a1f2b', '#1f3f8f', '#1f6b3a', '#6b2a8a', '#8a6a1a')
+        $emb = Get-BfxPick $S @('#e8c860', '#f0ece0')
+        $holder = New-Object System.Windows.Controls.Canvas
+        $holder.Width = $bw; $holder.Height = $bh
+        $flagGeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint $bw 0), $true, $false); $c.LineTo((New-BfxPoint $bw $bh), $true, $false); $c.LineTo((New-BfxPoint ($bw / 2) ($bh - $bw * 0.45)), $true, $false); $c.LineTo((New-BfxPoint 0 $bh), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $flagGeo (New-BfxBrush $col 0.55) (New-BfxBrush '#e8c860' 0.45) (1 * $u)))
+        $ex = $bw / 2; $ey = $bh * 0.36; $er = $bw * 0.28
+        $kind = $slot % 4
+        if ($kind -eq 3) {
+            $star = New-BfxPath (New-BfxStarShape $er 5 0.45) (New-BfxBrush $emb 0.7)
+            [void]$holder.Children.Add((Set-BfxAt $star $ex $ey))
+        } else {
+            $embGeo = New-BfxGeo { param($c)
+                if ($kind -eq 0) {
+                    $c.BeginFigure((New-BfxPoint ($ex + $er) $ey), $false, $true)
+                    $c.ArcTo((New-BfxPoint ($ex - $er) $ey), [System.Windows.Size]::new($er, $er), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                    $c.ArcTo((New-BfxPoint ($ex + $er) $ey), [System.Windows.Size]::new($er, $er), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                } elseif ($kind -eq 1) {
+                    $c.BeginFigure((New-BfxPoint $ex ($ey - $er)), $false, $false); $c.LineTo((New-BfxPoint $ex ($ey + $er)), $true, $false)
+                    $c.BeginFigure((New-BfxPoint ($ex - $er) $ey), $false, $false); $c.LineTo((New-BfxPoint ($ex + $er) $ey), $true, $false)
+                } else {
+                    $c.BeginFigure((New-BfxPoint ($ex - $er) ($ey + $er * 0.6)), $false, $false); $c.LineTo((New-BfxPoint $ex ($ey - $er * 0.4)), $true, $false); $c.LineTo((New-BfxPoint ($ex + $er) ($ey + $er * 0.6)), $true, $false)
+                }
+            }.GetNewClosure()
+            [void]$holder.Children.Add((New-BfxPath $embGeo $null (New-BfxBrush $emb 0.7) (3 * $u)))
+        }
+        [void]$holder.Children.Add((Set-BfxAt (New-BfxRect ($bw + 6 * $u) (2.4 * $u) (New-BfxBrush '#6a4a2a' 0.7)) (-3 * $u) (-1 * $u)))
+        $tf = Set-BfxTransforms $holder 0.5 0
+        Start-BfxAnim $tf.R $global:BfxP.A -3 3 (Get-BfxRnd $S 4.5 6.5) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.S $global:BfxP.SX 0.92 1.0 (Get-BfxRnd $S 2.6 3.6) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $holder -Fx 0 -Top (2 * $u) -OffsetX (-$bw / 2)
+    } 150 6 0.30 0.97
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxPaperboats {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # A gentle stream line; paper boats drift along it and bob.
+    $y0 = $H * 0.72; $wl = 90 * $u
+    foreach ($ln in @(@(0.0, 0.22, 9.0), @((6 * $u), 0.12, 13.0))) {
+        $dy = $ln[0]
+        $wgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$wl) ($y0 + $dy)), $false, $false); for ($wx = -$wl; $wx -le 2700; $wx += 6) { $c.LineTo((New-BfxPoint $wx ($y0 + $dy + 2.5 * $u * [Math]::Sin($wx / $wl * 2 * [Math]::PI))), $true, $true) } }.GetNewClosure()
+        $wp = New-BfxPath $wgeo $null (New-BfxBrush '#bfe0ff' $ln[1]) (1.2 * $u)
+        $wtf = Set-BfxTransforms $wp
+        Start-BfxAnim $wtf.T $global:BfxP.X 0 (-$wl) $ln[2]
+        Add-BfxItem $S $wp -Fx 0 -Top 0
+    }
+    for ($i = 0; $i -lt 6; $i++) {
+        $k = $u * (Get-BfxRnd $S 0.8 1.2)
+        $outer = New-Object System.Windows.Controls.Canvas
+        $rip = New-BfxEllipse (30 * $k) (5 * $k) $null (New-BfxBrush '#d8ecff' 0.5) (1 * $u)
+        [void]$outer.Children.Add((Set-BfxAt $rip (-15 * $k) (-1 * $k)))
+        $rtf = Set-BfxTransforms $rip 0.5 0.5
+        $rper = Get-BfxRnd $S 3 4.5; $rph = Get-BfxRnd $S
+        Start-BfxAnim $rtf.S $global:BfxP.SX 0.7 1.3 $rper $rph; Start-BfxAnim $rtf.S $global:BfxP.SY 0.7 1.3 $rper $rph
+        Start-BfxAnim $rip $global:BfxP.O 0.5 0 $rper $rph
+        $boat = New-Object System.Windows.Controls.Canvas
+        $hull = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-14 * $k) (-4 * $k)), $true, $true); $c.LineTo((New-BfxPoint (14 * $k) (-4 * $k)), $true, $false); $c.LineTo((New-BfxPoint (9 * $k) (2 * $k)), $true, $false); $c.LineTo((New-BfxPoint (-9 * $k) (2 * $k)), $true, $false) }.GetNewClosure()
+        $sail = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-10 * $k) (-4 * $k)), $true, $true); $c.LineTo((New-BfxPoint 0 (-18 * $k)), $true, $false); $c.LineTo((New-BfxPoint (10 * $k) (-4 * $k)), $true, $false) }.GetNewClosure()
+        $fold = New-BfxBrush '#bfb6a2' 0.6
+        [void]$boat.Children.Add((New-BfxPath $sail (New-BfxBrush '#efe9da' 0.85) $fold (0.8 * $u)))
+        [void]$boat.Children.Add((New-BfxPath $hull (New-BfxBrush '#f4efe2' 0.9) $fold (0.8 * $u)))
+        $btf = Set-BfxTransforms $boat 0 0
+        Start-BfxAnim $btf.R $global:BfxP.A -5 5 (Get-BfxRnd $S 3 4.5) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $btf.T $global:BfxP.Y (-2 * $u) (2 * $u) (Get-BfxRnd $S 2.5 3.5) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$outer.Children.Add($boat)
+        $otf = Set-BfxTransforms $outer 0 0
+        Add-BfxItem $S $outer -Top ($y0 + (Get-BfxRnd $S -0.05 0.06) * $H) -Speed (Get-BfxRnd $S 10 18) -Phase (Get-BfxRnd $S) -T $otf.T -Margin (40 * $u)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxStainedglass {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Pale coloured light patches from stained-glass windows, falling at a slant.
+    $cols = @('#ff5a5a', '#5a8cff', '#ffd25a', '#5ad28c', '#b45aff')
+    $nw = 5
+    for ($w = 0; $w -lt $nw; $w++) {
+        $holder = New-Object System.Windows.Controls.Canvas
+        $pw = 14 * $u; $ph = 34 * $u; $gap = 3 * $u
+        for ($cx = 0; $cx -lt 3; $cx++) {
+            for ($ry = 0; $ry -lt 2; $ry++) {
+                $x = $cx * ($pw + $gap); $y = $ry * ($ph + $gap); $arched = ($ry -eq 0)
+                $pgeo = New-BfxGeo { param($c)
+                    $c.BeginFigure((New-BfxPoint $x ($y + $ph)), $true, $true)
+                    if ($arched) {
+                        $c.LineTo((New-BfxPoint $x ($y + $pw / 2)), $true, $false)
+                        $c.ArcTo((New-BfxPoint ($x + $pw) ($y + $pw / 2)), [System.Windows.Size]::new($pw / 2, $pw / 2), 0, $false, [System.Windows.Media.SweepDirection]::Clockwise, $true, $false)
+                    } else { $c.LineTo((New-BfxPoint $x $y), $true, $false); $c.LineTo((New-BfxPoint ($x + $pw) $y), $true, $false) }
+                    $c.LineTo((New-BfxPoint ($x + $pw) ($y + $ph)), $true, $false)
+                }.GetNewClosure()
+                [void]$holder.Children.Add((New-BfxPath $pgeo (New-BfxBrush (Get-BfxPick $S $cols) (Get-BfxRnd $S 0.08 0.14))))
+            }
+        }
+        $tf = Set-BfxTransforms $holder 0 0
+        $tf.R.Angle = -14; $tf.S.ScaleY = 1.4
+        Start-BfxAnim $tf.T $global:BfxP.X (-10 * $u) (10 * $u) (Get-BfxRnd $S 14 20) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $holder $global:BfxP.O 0.65 1.0 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $holder -Fx (0.3 + (($w + (Get-BfxRnd $S 0 0.6)) / $nw) * 0.64) -Top ($H * (Get-BfxRnd $S 0.12 0.3))
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxTeslacoils {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Coil pylons across the width; soft arcs jump between neighbours now and then.
+    $maxN = 6; $th = $H * 0.5
+    $coils = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt $maxN; $i++) {
+        $holder = New-Object System.Windows.Controls.Canvas
+        $tower = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-4 * $u) 0), $true, $true); $c.LineTo((New-BfxPoint (4 * $u) 0), $true, $false); $c.LineTo((New-BfxPoint (9 * $u) $th), $true, $false); $c.LineTo((New-BfxPoint (-9 * $u) $th), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $tower (New-BfxBrush '#8a90a8' 0.35) (New-BfxBrush '#b8c0d8' 0.4) (1 * $u)))
+        for ($r = 1; $r -le 4; $r++) { [void]$holder.Children.Add((Set-BfxAt (New-BfxRect (12 * $u) (1.2 * $u) (New-BfxBrush '#c8b070' 0.45)) (-6 * $u) ($r * $th * 0.16))) }
+        [void]$holder.Children.Add((Set-BfxAt (New-BfxEllipse (24 * $u) (8 * $u) (New-BfxBrush '#9aa4c0' 0.55) (New-BfxBrush '#d8e0f8' 0.6) (1 * $u)) (-12 * $u) (-6 * $u)))
+        $gl = New-BfxGlow (34 * $u) '#9ad8ff' 0.6
+        [void]$holder.Children.Add((Set-BfxAt $gl 0 (-2 * $u)))
+        Start-BfxAnim $gl $global:BfxP.O 0.35 0.85 (Get-BfxRnd $S 2.5 4) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$S.Canvas.Children.Add($holder); [void]$coils.Add($holder)
+    }
+    $arcs = New-Object System.Collections.ArrayList
+    for ($i = 0; $i -lt ($maxN - 1); $i++) {
+        $arc = New-Object System.Windows.Shapes.Path
+        $arc.Stroke = New-BfxBrush '#eef2ff' 0.85; $arc.StrokeThickness = 1.4 * $u; $arc.IsHitTestVisible = $false; $arc.Opacity = 0
+        $arc.StrokeLineJoin = 'Round'
+        Set-BfxShadow $arc '#b48cff' 10
+        $per = Get-BfxRnd $S 4 7; $at = Get-BfxRnd $S 0.05 0.8
+        Start-BfxKeys $arc $global:BfxP.O @(@(0, 0), @($at, 0), @(($at + 0.01), 0.9), @(($at + 0.25 / $per), 0.6), @(($at + 0.55 / $per), 0), @(1, 0)) $per
+        [void]$S.Canvas.Children.Add($arc); [void]$arcs.Add($arc)
+    }
+    $S.Extra = { param($cw)
+        $n = [int][Math]::Max(2, [Math]::Min($maxN, [Math]::Floor($cw * 0.67 / 190) + 1))
+        $topY = $H - $th
+        $xs = @(); for ($i = 0; $i -lt $n; $i++) { $xs += $cw * (0.32 + 0.62 * $i / ($n - 1)) }
+        for ($i = 0; $i -lt $coils.Count; $i++) {
+            if ($i -lt $n) { $coils[$i].Visibility = 'Visible'; [System.Windows.Controls.Canvas]::SetLeft($coils[$i], $xs[$i]); [System.Windows.Controls.Canvas]::SetTop($coils[$i], $topY) }
+            else { $coils[$i].Visibility = 'Collapsed' }
+        }
+        for ($i = 0; $i -lt $arcs.Count; $i++) {
+            if ($i -ge ($n - 1)) { $arcs[$i].Visibility = 'Collapsed'; continue }
+            $x1 = $xs[$i]; $x2 = $xs[$i + 1]; $ay = $topY - 3 * $u
+            $pts = @(); for ($k = 0; $k -le 12; $k++) { $f = $k / 12.0; $jit = $(if ($k -eq 0 -or $k -eq 12) { 0 } else { Get-BfxRnd $S (-0.08 * $H) (0.08 * $H) }); $pts += , @(($x1 + ($x2 - $x1) * $f), ($ay - 0.12 * $H * [Math]::Sin([Math]::PI * $f) + $jit)) }
+            $arcs[$i].Data = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $false, $false); for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] $pts[$k][1]), $true, $false) } }.GetNewClosure()
+            $arcs[$i].Visibility = 'Visible'
+        }
+    }.GetNewClosure()
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxUfos {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Saucers hover across the width and sweep slow tractor beams over the ground.
+    Add-BfxSpread $S {
+        param($slot, $S)
+        $sw = 56 * $u; $len = $H * 0.78
+        $holder = New-Object System.Windows.Controls.Canvas
+        $beamGrp = New-Object System.Windows.Controls.Canvas
+        $bgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-8 * $u) 0), $true, $true); $c.LineTo((New-BfxPoint (8 * $u) 0), $true, $false); $c.LineTo((New-BfxPoint (34 * $u) $len), $true, $false); $c.LineTo((New-BfxPoint (-34 * $u) $len), $true, $false) }.GetNewClosure()
+        [void]$beamGrp.Children.Add((New-BfxPath $bgeo (New-BfxLinear @(@(0, '#8affc8', 0.22), @(1, '#8affc8', 0.03)))))
+        [void]$beamGrp.Children.Add((Set-BfxAt (New-BfxEllipse (68 * $u) (8 * $u) (New-BfxBrush '#8affc8' 0.12)) (-34 * $u) ($len - 4 * $u)))
+        $btf = Set-BfxTransforms $beamGrp 0 0
+        Start-BfxAnim $btf.R $global:BfxP.A -14 14 (Get-BfxRnd $S 8 11) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$holder.Children.Add($beamGrp)
+        [void]$holder.Children.Add((Set-BfxAt (New-BfxEllipse ($sw * 0.42) ($sw * 0.3) (New-BfxBrush '#9ef0ff' 0.45)) (-$sw * 0.21) (-$sw * 0.3)))
+        [void]$holder.Children.Add((Set-BfxAt (New-BfxEllipse $sw ($sw * 0.28) (New-BfxBrush '#aab6c8' 0.85)) (-$sw / 2) (-$sw * 0.14)))
+        $lper = 2.4
+        for ($k = 0; $k -lt 6; $k++) {
+            $lt = New-BfxGlow (5 * $u) '#ffe680' 1.0
+            [void]$holder.Children.Add((Set-BfxAt $lt (-$sw * 0.4 + $k * $sw * 0.16) 0))
+            $a0 = $k / 6.0
+            Start-BfxKeys $lt $global:BfxP.O @(@(0, 0.25), @([Math]::Max(0.001, $a0), 0.25), @(($a0 + 0.08), 1), @([Math]::Min(0.995, ($a0 + 0.22)), 0.25), @(1, 0.25)) $lper
+        }
+        $tf = Set-BfxTransforms $holder 0 0
+        Start-BfxAnim $tf.T $global:BfxP.Y (-4 * $u) (4 * $u) (Get-BfxRnd $S 3.5 5) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X (-20 * $u) (20 * $u) (Get-BfxRnd $S 10 14) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $holder -Fx 0 -Top ($H * 0.22)
+    } 300 4 0.34 0.94
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxIcefloes {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Faint water lines, pale ice floes drifting left, crack glints, snow specks.
+    foreach ($wy in @(0.5, 0.8)) {
+        $lgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 ($H * $wy)), $false, $false); $c.LineTo((New-BfxPoint 2600 ($H * $wy)), $true, $false) }.GetNewClosure()
+        Add-BfxItem $S (New-BfxPath $lgeo $null (New-BfxBrush '#bfe0ff' 0.06) 1) -Fx 0 -Top 0
+    }
+    for ($i = 0; $i -lt 10; $i++) {
+        $d = Get-BfxRnd $S; $size = (22 + 34 * $d) * $u
+        $pts = @(); for ($k = 0; $k -lt 7; $k++) { $a = $k / 7.0 * 2 * [Math]::PI + (Get-BfxRnd $S -0.2 0.2); $rr = $size * (Get-BfxRnd $S 0.65 1.0); $pts += , @(([Math]::Cos($a) * $rr), ([Math]::Sin($a) * $rr * 0.45)) }
+        $geo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint $pts[0][0] $pts[0][1]), $true, $true); for ($k = 1; $k -lt $pts.Count; $k++) { $c.LineTo((New-BfxPoint $pts[$k][0] $pts[$k][1]), $true, $false) } }.GetNewClosure()
+        $holder = New-Object System.Windows.Controls.Canvas
+        [void]$holder.Children.Add((New-BfxPath $geo (New-BfxBrush '#dcefff' (0.12 + 0.1 * $d)) (New-BfxBrush '#e8f6ff' 0.35) (1 * $u)))
+        $c1 = $pts[1]; $c2 = $pts[4]
+        $crack = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint ($c1[0] * 0.5) ($c1[1] * 0.5)), $false, $false); $c.LineTo((New-BfxPoint ($c1[0] * 0.1) ($c2[1] * 0.2)), $true, $false); $c.LineTo((New-BfxPoint ($c2[0] * 0.5) ($c2[1] * 0.5)), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $crack $null (New-BfxBrush '#ffffff' 0.4) (0.8 * $u)))
+        $gl = New-BfxGlow (8 * $u) '#ffffff' 0.9
+        [void]$holder.Children.Add((Set-BfxAt $gl ($c1[0] * 0.3) ($c1[1] * 0.3)))
+        Start-BfxFlash $gl (Get-BfxRnd $S 6 11) (Get-BfxRnd $S 0.1 0.9) 0.08
+        $tf = Set-BfxTransforms $holder 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A -3 3 (Get-BfxRnd $S 8 12) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $holder -Top ($H * (0.3 + 0.62 * $d)) -Speed (-(6 + 10 * $d)) -Phase (Get-BfxRnd $S) -T $tf.T -Margin ($size * 1.2)
+    }
+    for ($i = 0; $i -lt 26; $i++) {
+        $ds = (Get-BfxRnd $S 1.5 2.6) * $u
+        $flake = New-BfxEllipse $ds $ds (New-BfxBrush '#ffffff' 0.7)
+        $ftf = Set-BfxTransforms $flake
+        Start-BfxAnim $ftf.T $global:BfxP.Y -5 ($H + 5) (Get-BfxRnd $S 9 15) (Get-BfxRnd $S)
+        Add-BfxItem $S $flake -Fx (Get-BfxRnd $S 0.25 1.0) -Top 0
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxMantas {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Soft light rays from above, manta silhouettes glide through at different depths.
+    for ($i = 0; $i -lt 4; $i++) {
+        $ray = New-BfxRect (50 * $u) ($H * 1.6) (New-BfxLinear @(@(0, '#bfe8ff', 0.08), @(1, '#bfe8ff', 0.0)))
+        $rtf = Set-BfxTransforms $ray 0 0; $rtf.R.Angle = 15
+        Start-BfxAnim $ray $global:BfxP.O 0.5 1.0 (Get-BfxRnd $S 6 9) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $ray -Fx (0.3 + $i * 0.18 + (Get-BfxRnd $S 0 0.05)) -Top (-0.3 * $H)
+    }
+    for ($i = 0; $i -lt 6; $i++) {
+        $d = Get-BfxRnd $S; $k = (0.55 + 0.6 * $d) * $u; $dir = Get-BfxPick $S @(1, -1)
+        $geo = New-BfxGeo { param($c)
+            $c.BeginFigure((New-BfxPoint (16 * $k) 0), $true, $true)
+            $c.QuadraticBezierTo((New-BfxPoint (4 * $k) (-10 * $k)), (New-BfxPoint (-8 * $k) (-24 * $k)), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint (-6 * $k) (-8 * $k)), (New-BfxPoint (-14 * $k) 0), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint (-6 * $k) (8 * $k)), (New-BfxPoint (-8 * $k) (24 * $k)), $true, $false)
+            $c.QuadraticBezierTo((New-BfxPoint (4 * $k) (10 * $k)), (New-BfxPoint (16 * $k) 0), $true, $false)
+        }.GetNewClosure()
+        $tail = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-14 * $k) 0), $false, $false); $c.LineTo((New-BfxPoint (-34 * $k) 0), $true, $false) }.GetNewClosure()
+        $alpha = 0.18 + 0.3 * $d
+        $inner = New-Object System.Windows.Controls.Canvas
+        [void]$inner.Children.Add((New-BfxPath $tail $null (New-BfxBrush '#8fd6e6' $alpha) (1.2 * $u)))
+        [void]$inner.Children.Add((New-BfxPath $geo (New-BfxBrush '#8fd6e6' $alpha)))
+        $itf = Set-BfxTransforms $inner 0 0
+        $itf.S.ScaleX = $dir
+        Start-BfxAnim $itf.S $global:BfxP.SY 0.65 1.0 (Get-BfxRnd $S 2.8 3.8) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $itf.T $global:BfxP.Y (-4 * $u) (4 * $u) (Get-BfxRnd $S 6 9) (Get-BfxRnd $S) -Reverse -Ease
+        $outer = New-Object System.Windows.Controls.Canvas
+        [void]$outer.Children.Add($inner)
+        $otf = Set-BfxTransforms $outer 0 0
+        Add-BfxItem $S $outer -Top ($H * (Get-BfxRnd $S 0.25 0.8)) -Speed ((10 + 18 * $d) * $dir) -Phase (Get-BfxRnd $S) -T $otf.T -Margin (60 * $u)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxWindmills {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Low hills across the width, windmills with slowly turning sails, birds.
+    $base = $H * 0.88
+    $hgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 $H), $true, $true); for ($hx = 0; $hx -le 2600; $hx += 20) { $c.LineTo((New-BfxPoint $hx ($base - 6 * $u * [Math]::Sin($hx / 260.0) - 4 * $u * [Math]::Sin($hx / 97.0))), $true, $true) }; $c.LineTo((New-BfxPoint 2600 $H), $true, $false) }.GetNewClosure()
+    Add-BfxItem $S (New-BfxPath $hgeo (New-BfxBrush '#cfc6b4' 0.07) (New-BfxBrush '#cfc6b4' 0.18) 1) -Fx 0 -Top 0
+    $fill = New-BfxBrush '#e2dccd' 0.16; $edge = New-BfxBrush '#e2dccd' 0.3
+    for ($i = 0; $i -lt 5; $i++) {
+        $th = $H * (Get-BfxRnd $S 0.45 0.7); $rad = $th * 0.55
+        $holder = New-Object System.Windows.Controls.Canvas
+        $tower = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-4 * $u) 0), $true, $true); $c.LineTo((New-BfxPoint (4 * $u) 0), $true, $false); $c.LineTo((New-BfxPoint (9 * $u) $th), $true, $false); $c.LineTo((New-BfxPoint (-9 * $u) $th), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $tower $fill $edge (1 * $u)))
+        $sails = New-BfxGeo { param($c)
+            for ($b = 0; $b -lt 4; $b++) {
+                $a = $b * [Math]::PI / 2; $ca = [Math]::Cos($a); $sa = [Math]::Sin($a); $sw = 7 * $u
+                $c.BeginFigure((New-BfxPoint 0 0), $false, $false); $c.LineTo((New-BfxPoint ($ca * $rad) ($sa * $rad)), $true, $false)
+                $q = @(@((0.35 * $rad), 0), @($rad, 0), @($rad, $sw), @((0.35 * $rad), $sw))
+                $c.BeginFigure((New-BfxPoint ($q[0][0] * $ca - $q[0][1] * $sa) ($q[0][0] * $sa + $q[0][1] * $ca)), $true, $true)
+                for ($m = 1; $m -lt 4; $m++) { $c.LineTo((New-BfxPoint ($q[$m][0] * $ca - $q[$m][1] * $sa) ($q[$m][0] * $sa + $q[$m][1] * $ca)), $true, $false) }
+            }
+        }.GetNewClosure()
+        $sp = New-BfxPath $sails (New-BfxBrush '#e2dccd' 0.14) $edge (1 * $u)
+        $stf = Set-BfxTransforms $sp
+        Start-BfxAnim $stf.R $global:BfxP.A 0 360 (Get-BfxRnd $S 14 24) (Get-BfxRnd $S)
+        [void]$holder.Children.Add($sp)
+        Add-BfxItem $S $holder -Fx (0.30 + (($i + (Get-BfxRnd $S 0 0.7)) / 5) * 0.67) -Top ($base - $th)
+    }
+    for ($i = 0; $i -lt 3; $i++) {
+        $bgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-6 * $u) (-3 * $u)), $false, $false); $c.LineTo((New-BfxPoint 0 0), $true, $false); $c.LineTo((New-BfxPoint (6 * $u) (-3 * $u)), $true, $false) }.GetNewClosure()
+        $bird = New-BfxPath $bgeo $null (New-BfxBrush '#e8e4da' 0.5) (1.2 * $u)
+        $ftf = Set-BfxTransforms $bird
+        Start-BfxAnim $ftf.S $global:BfxP.SY 0.4 1.0 1.4 (Get-BfxRnd $S) -Reverse -Ease
+        $outer = New-Object System.Windows.Controls.Canvas
+        [void]$outer.Children.Add($bird)
+        $otf = Set-BfxTransforms $outer 0 0
+        Add-BfxItem $S $outer -Top ($H * (Get-BfxRnd $S 0.12 0.35)) -Speed (Get-BfxRnd $S 20 32) -Phase (Get-BfxRnd $S) -T $otf.T -Margin (20 * $u)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxLighthouse {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Lighthouse on the right; its beam sweeps from the far sky down across the
+    # water towards the tower, then fades. Calm waves and gliding gulls.
+    $baseY = $H * 0.8; $ht = $H * 0.6; $lampY = $baseY - $ht + 6 * $u
+    $wl = 120 * $u
+    foreach ($wv in @(@(0.8, 0.18, 10.0), @(0.86, 0.13, 12.0), @(0.93, 0.09, 14.0))) {
+        $wy = $H * $wv[0]
+        $wgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$wl) $wy), $false, $false); for ($wx = -$wl; $wx -le 2700; $wx += 8) { $c.LineTo((New-BfxPoint $wx ($wy + 2 * $u * [Math]::Sin($wx / $wl * 2 * [Math]::PI))), $true, $true) } }.GetNewClosure()
+        $wp = New-BfxPath $wgeo $null (New-BfxBrush '#cfe4ff' $wv[1]) (1 * $u)
+        $wtf = Set-BfxTransforms $wp
+        Start-BfxAnim $wtf.T $global:BfxP.X 0 (-$wl) $wv[2]
+        Add-BfxItem $S $wp -Fx 0 -Top 0
+    }
+    # beam: wedge pointing left from the lamp
+    $spread = [Math]::Tan(4 * [Math]::PI / 180) * 3000
+    $bgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint -3000 (-$spread)), $true, $false); $c.LineTo((New-BfxPoint -3000 $spread), $true, $false) }.GetNewClosure()
+    $beam = New-BfxPath $bgeo (New-BfxLinear @(@(0, '#fff2c0', 0.0), @(0.8, '#fff2c0', 0.1), @(1, '#fff2c0', 0.3)) -Horizontal)
+    $btf = Set-BfxTransforms $beam
+    $per = 10.0
+    Start-BfxKeys $btf.R $global:BfxP.A @(@(0, 5), @(0.72, -24), @(1, -24)) $per
+    Start-BfxKeys $beam $global:BfxP.O @(@(0, 0), @(0.08, 0.9), @(0.55, 0.7), @(0.72, 0), @(1, 0)) $per
+    Add-BfxItem $S $beam -Fx 0.9 -Top $lampY
+    # tower
+    $tower = New-Object System.Windows.Controls.Canvas
+    $tgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-5 * $u) (12 * $u)), $true, $true); $c.LineTo((New-BfxPoint (5 * $u) (12 * $u)), $true, $false); $c.LineTo((New-BfxPoint (9 * $u) $ht), $true, $false); $c.LineTo((New-BfxPoint (-9 * $u) $ht), $true, $false) }.GetNewClosure()
+    [void]$tower.Children.Add((New-BfxPath $tgeo (New-BfxBrush '#e9e2d6' 0.5)))
+    foreach ($band in @(0.35, 0.65)) {
+        $y1 = $ht * $band; $y2 = $y1 + $ht * 0.12
+        $w1 = 5 + 4 * (($y1 - 12 * $u) / ($ht - 12 * $u)); $w2 = 5 + 4 * (($y2 - 12 * $u) / ($ht - 12 * $u))
+        $sgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-$w1 * $u) $y1), $true, $true); $c.LineTo((New-BfxPoint ($w1 * $u) $y1), $true, $false); $c.LineTo((New-BfxPoint ($w2 * $u) $y2), $true, $false); $c.LineTo((New-BfxPoint (-$w2 * $u) $y2), $true, $false) }.GetNewClosure()
+        [void]$tower.Children.Add((New-BfxPath $sgeo (New-BfxBrush '#c84a3a' 0.45)))
+    }
+    [void]$tower.Children.Add((Set-BfxAt (New-BfxRect (12 * $u) (8 * $u) (New-BfxBrush '#fff2c0' 0.35)) (-6 * $u) (3 * $u)))
+    $roof = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-8 * $u) (3 * $u)), $true, $true); $c.LineTo((New-BfxPoint 0 (-5 * $u)), $true, $false); $c.LineTo((New-BfxPoint (8 * $u) (3 * $u)), $true, $false) }.GetNewClosure()
+    [void]$tower.Children.Add((New-BfxPath $roof (New-BfxBrush '#c84a3a' 0.55)))
+    $lamp = New-BfxGlow (34 * $u) '#fff2c0' 0.8
+    [void]$tower.Children.Add((Set-BfxAt $lamp 0 (7 * $u)))
+    Start-BfxAnim $lamp $global:BfxP.O 0.6 1.0 3 0 -Reverse -Ease
+    Add-BfxItem $S $tower -Fx 0.9 -Top ($baseY - $ht)
+    for ($i = 0; $i -lt 3; $i++) {
+        $ggeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint (-6 * $u) (-3 * $u)), $false, $false); $c.LineTo((New-BfxPoint 0 0), $true, $false); $c.LineTo((New-BfxPoint (6 * $u) (-3 * $u)), $true, $false) }.GetNewClosure()
+        $gull = New-BfxPath $ggeo $null (New-BfxBrush '#f2f0ea' 0.55) (1.2 * $u)
+        $gtf = Set-BfxTransforms $gull
+        Start-BfxAnim $gtf.S $global:BfxP.SY 0.4 1.0 1.6 (Get-BfxRnd $S) -Reverse -Ease
+        $outer = New-Object System.Windows.Controls.Canvas
+        [void]$outer.Children.Add($gull)
+        $otf = Set-BfxTransforms $outer 0 0
+        Add-BfxItem $S $outer -Top ($H * (Get-BfxRnd $S 0.15 0.4)) -Speed (Get-BfxRnd $S 18 26) -Phase (Get-BfxRnd $S) -T $otf.T -Margin (20 * $u)
+    }
+    Complete-BfxStage $S
+}
+
+function global:Add-BfxKites {
+    param([string]$BannerName, [double]$BannerH)
+    $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH; $u = $H / 140.0
+    # Colourful kites on long strings sway in the sky, tails ripple.
+    $pal = @(@('#ff6b6b', '#ffd36b'), @('#6bb8ff', '#ffffff'), @('#7ee08a', '#ffe36b'), @('#c88cff', '#ff9ad0'), @('#ffa04d', '#6be0d8'))
+    $n = 5
+    for ($i = 0; $i -lt $n; $i++) {
+        $y = $H * (Get-BfxRnd $S 0.18 0.42)
+        $c1 = $pal[$i % $pal.Count][0]; $c2 = $pal[$i % $pal.Count][1]
+        $holder = New-Object System.Windows.Controls.Canvas
+        $dropY = $H - $y + 10
+        $sgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (18 * $u)), $false, $false); $c.QuadraticBezierTo((New-BfxPoint (-0.1 * $H) ($dropY * 0.6)), (New-BfxPoint (-0.5 * $H) $dropY), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $sgeo $null (New-BfxBrush '#ffffff' 0.28) (0.8 * $u)))
+        $tail = New-Object System.Windows.Controls.Canvas
+        $tgeo = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $false, $false); for ($k = 1; $k -le 10; $k++) { $c.LineTo((New-BfxPoint (3 * $u * [Math]::Sin($k * 0.9)) ($k * 4 * $u)), $true, $true) } }.GetNewClosure()
+        [void]$tail.Children.Add((New-BfxPath $tgeo $null (New-BfxBrush $c1 0.6) (0.8 * $u)))
+        for ($k = 1; $k -le 5; $k++) {
+            $bx = 3 * $u * [Math]::Sin($k * 2 * 0.9); $by = $k * 8 * $u
+            $bow = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (-4 * $u) (-2.5 * $u)), $true, $false); $c.LineTo((New-BfxPoint (-4 * $u) (2.5 * $u)), $true, $false); $c.BeginFigure((New-BfxPoint 0 0), $true, $true); $c.LineTo((New-BfxPoint (4 * $u) (-2.5 * $u)), $true, $false); $c.LineTo((New-BfxPoint (4 * $u) (2.5 * $u)), $true, $false) }.GetNewClosure()
+            $bp = New-BfxPath $bow (New-BfxBrush $c1 0.8)
+            [void]$tail.Children.Add((Set-BfxAt $bp $bx $by))
+            $bwtf = Set-BfxTransforms $bp
+            Start-BfxAnim $bwtf.R $global:BfxP.A -20 20 2.6 ($k * 0.15) -Reverse -Ease
+        }
+        $ttf = Set-BfxTransforms $tail 0 0
+        Start-BfxAnim $ttf.R $global:BfxP.A -10 10 (Get-BfxRnd $S 3 4) (Get-BfxRnd $S) -Reverse -Ease
+        [void]$holder.Children.Add((Set-BfxAt $tail 0 (18 * $u)))
+        $left = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-14 * $u)), $true, $true); $c.LineTo((New-BfxPoint (-10 * $u) (-2 * $u)), $true, $false); $c.LineTo((New-BfxPoint 0 (18 * $u)), $true, $false) }.GetNewClosure()
+        $right = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-14 * $u)), $true, $true); $c.LineTo((New-BfxPoint (10 * $u) (-2 * $u)), $true, $false); $c.LineTo((New-BfxPoint 0 (18 * $u)), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $left (New-BfxBrush $c1 0.85)))
+        [void]$holder.Children.Add((New-BfxPath $right (New-BfxBrush $c2 0.85)))
+        $spars = New-BfxGeo { param($c) $c.BeginFigure((New-BfxPoint 0 (-14 * $u)), $false, $false); $c.LineTo((New-BfxPoint 0 (18 * $u)), $true, $false); $c.BeginFigure((New-BfxPoint (-10 * $u) (-2 * $u)), $false, $false); $c.LineTo((New-BfxPoint (10 * $u) (-2 * $u)), $true, $false) }.GetNewClosure()
+        [void]$holder.Children.Add((New-BfxPath $spars $null (New-BfxBrush '#3a2a20' 0.5) (0.8 * $u)))
+        $tf = Set-BfxTransforms $holder 0 0
+        Start-BfxAnim $tf.R $global:BfxP.A -6 6 (Get-BfxRnd $S 5 8) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.X (-10 * $u) (10 * $u) (Get-BfxRnd $S 7 10) (Get-BfxRnd $S) -Reverse -Ease
+        Start-BfxAnim $tf.T $global:BfxP.Y (-6 * $u) (6 * $u) (Get-BfxRnd $S 6 9) (Get-BfxRnd $S) -Reverse -Ease
+        Add-BfxItem $S $holder -Fx (0.3 + (($i + (Get-BfxRnd $S 0 0.6)) / $n) * 0.66) -Top $y
+    }
+    Complete-BfxStage $S
+}
+
 $global:BannerFxExtraFunctions = @{
     fireflies = 'Add-BfxFireflies'; leaves = 'Add-BfxLeaves'; petals = 'Add-BfxPetals'; flowerwind = 'Add-BfxFlowerwind'
     lightning = 'Add-BfxLightning'; ash = 'Add-BfxAsh'; fog = 'Add-BfxFog'; flashlight = 'Add-BfxFlashlight'
@@ -4495,7 +12699,132 @@ $global:BannerFxExtraFunctions = @{
     gears = 'Add-BfxGears'; helix = 'Add-BfxHelix'; toxicgas = 'Add-BfxToxicgas'; claws = 'Add-BfxClaws'
     glasscracks = 'Add-BfxGlasscracks'; footprints = 'Add-BfxFootprints'; pawprints = 'Add-BfxPawprints'; skybow = 'Add-BfxSkybow'
     lanterns = 'Add-BfxLanterns'; arrows = 'Add-BfxArrows'; checkered = 'Add-BfxCheckered'; driftsmoke = 'Add-BfxDriftsmoke'
-    focuslines = 'Add-BfxFocuslines'; runes = 'Add-BfxRunes'; jungle = 'Add-BfxJungle'; skulls = 'Add-BfxSkulls'
+    sumie = 'Add-BfxSumie'; runes = 'Add-BfxRunes'; jungle = 'Add-BfxJungle'; skulls = 'Add-BfxSkulls'
+    # round 3
+    manuscript = 'Add-BfxManuscript'; tendrils = 'Add-BfxTendrils'; scope = 'Add-BfxScope'; nightvision = 'Add-BfxNightvision'
+    camcorder = 'Add-BfxCamcorder'; sirens = 'Add-BfxSirens'; skyline = 'Add-BfxSkyline'; runnerline = 'Add-BfxRunnerline'
+    terminal = 'Add-BfxTerminal'; heathaze = 'Add-BfxHeathaze'; bloodmoon = 'Add-BfxBloodmoon'; pyro = 'Add-BfxPyro'
+    rubble = 'Add-BfxRubble'; voxels = 'Add-BfxVoxels'; supernova = 'Add-BfxSupernova'; launch = 'Add-BfxLaunch'
+    flares = 'Add-BfxFlares'; handprints = 'Add-BfxHandprints'; ribbons = 'Add-BfxRibbons'; windgrass = 'Add-BfxWindgrass'
+    goldenrays = 'Add-BfxGoldenrays'; bonfire = 'Add-BfxBonfire'; scoutflies = 'Add-BfxScoutflies'; feathers = 'Add-BfxFeathers'
+    sabers = 'Add-BfxSabers'; hologram = 'Add-BfxHologram'; datalinks = 'Add-BfxDatalinks'; chevrons = 'Add-BfxChevrons'
+    nitro = 'Add-BfxNitro'; tiretracks = 'Add-BfxTiretracks'; shockwave = 'Add-BfxShockwave'; sigil = 'Add-BfxSigil'
+    spells = 'Add-BfxSpells'; wildfire = 'Add-BfxWildfire'; leviathan = 'Add-BfxLeviathan'; rustpeel = 'Add-BfxRustpeel'
+    plasmabolts = 'Add-BfxPlasmabolts'; zeppelins = 'Add-BfxZeppelins'; comicbursts = 'Add-BfxComicbursts'; wipeclean = 'Add-BfxWipeclean'
+    lightbridge = 'Add-BfxLightbridge'; xencrystal = 'Add-BfxXencrystal'; questmarks = 'Add-BfxQuestmarks'
+    # round 4
+    posters = 'Add-BfxPosters'; ravens = 'Add-BfxRavens'; insertcoin = 'Add-BfxInsertcoin'; thermal = 'Add-BfxThermal'
+    emission = 'Add-BfxEmission'; projector = 'Add-BfxProjector'; tether = 'Add-BfxTether'; radar = 'Add-BfxRadar'
+    choppers = 'Add-BfxChoppers'; ridgelines = 'Add-BfxRidgelines'; torches = 'Add-BfxTorches'; manaflow = 'Add-BfxManaflow'
+    questmap = 'Add-BfxQuestmap'; drones = 'Add-BfxDrones'; smokecurl = 'Add-BfxSmokecurl'; casings = 'Add-BfxCasings'
+    levitate = 'Add-BfxLevitate'; beacon = 'Add-BfxBeacon'; canopy = 'Add-BfxCanopy'; emwaves = 'Add-BfxEmwaves'
+    polaroids = 'Add-BfxPolaroids'; groovy = 'Add-BfxGroovy'; gel = 'Add-BfxGel'; gleam = 'Add-BfxGleam'
+    jumppads = 'Add-BfxJumppads'; neonsigns = 'Add-BfxNeonsigns'; stickers = 'Add-BfxStickers'; bullethell = 'Add-BfxBullethell'
+    tubelights = 'Add-BfxTubelights'; farblast = 'Add-BfxFarblast'; tides = 'Add-BfxTides'; constellations = 'Add-BfxConstellations'
+
+    # round 5
+    glitter = 'Add-BfxGlitter'
+    starlight = 'Add-BfxStarlight'
+    butterflies = 'Add-BfxButterflies'
+    dandelions = 'Add-BfxDandelions'
+    pollen = 'Add-BfxPollen'
+    powder = 'Add-BfxPowder'
+    windsparks = 'Add-BfxWindsparks'
+    bitstream = 'Add-BfxBitstream'
+    glyphs = 'Add-BfxGlyphs'
+    wirepeaks = 'Add-BfxWirepeaks'
+    plankton = 'Add-BfxPlankton'
+    godrays = 'Add-BfxGodrays'
+    ripples = 'Add-BfxRipples'
+    stormfront = 'Add-BfxStormfront'
+    groundmist = 'Add-BfxGroundmist'
+    warsmoke = 'Add-BfxWarsmoke'
+    searchbeams = 'Add-BfxSearchbeams'
+    wirefence = 'Add-BfxWirefence'
+    roadlines = 'Add-BfxRoadlines'
+    mesas = 'Add-BfxMesas'
+    pinewoods = 'Add-BfxPinewoods'
+    keeps = 'Add-BfxKeeps'
+    colonnade = 'Add-BfxColonnade'
+    neonrain = 'Add-BfxNeonrain'
+    asteroids = 'Add-BfxAsteroids'
+    satellites = 'Add-BfxSatellites'
+    cranes = 'Add-BfxCranes'
+    koi = 'Add-BfxKoi'
+    bamboo = 'Add-BfxBamboo'
+    inkwash = 'Add-BfxInkwash'
+    dancefloor = 'Add-BfxDancefloor'
+    discospots = 'Add-BfxDiscospots'
+    pixelclouds = 'Add-BfxPixelclouds'
+    pixelsky = 'Add-BfxPixelsky'
+    scorepops = 'Add-BfxScorepops'
+    xporbs = 'Add-BfxXporbs'
+    lootbeams = 'Add-BfxLootbeams'
+    mushrooms = 'Add-BfxMushrooms'
+    vines = 'Add-BfxVines'
+    crystalbed = 'Add-BfxCrystalbed'
+    cavedrips = 'Add-BfxCavedrips'
+    chains = 'Add-BfxChains'
+    conveyor = 'Add-BfxConveyor'
+    hazard = 'Add-BfxHazard'
+    cloudsea = 'Add-BfxCloudsea'
+    windlines = 'Add-BfxWindlines'
+    streetlamps = 'Add-BfxStreetlamps'
+    powerlines = 'Add-BfxPowerlines'
+    wintertrees = 'Add-BfxWintertrees'
+    sailboats = 'Add-BfxSailboats'
+
+    # Round 7
+    evidence = 'Add-BfxEvidence'
+    crosshairs = 'Add-BfxCrosshairs'
+    trackmap = 'Add-BfxTrackmap'
+    halfpipe = 'Add-BfxHalfpipe'
+    oldfilm = 'Add-BfxOldfilm'
+    techpanels = 'Add-BfxTechpanels'
+    monorail = 'Add-BfxMonorail'
+    horde = 'Add-BfxHorde'
+    blinds = 'Add-BfxBlinds'
+    cassettes = 'Add-BfxCassettes'
+    tripwires = 'Add-BfxTripwires'
+    pteros = 'Add-BfxPteros'
+    trimesh = 'Add-BfxTrimesh'
+    lifestream = 'Add-BfxLifestream'
+    dragons = 'Add-BfxDragons'
+    soapstone = 'Add-BfxSoapstone'
+    tokens = 'Add-BfxTokens'
+    waypoints = 'Add-BfxWaypoints'
+    lockon = 'Add-BfxLockon'
+    moons = 'Add-BfxMoons'
+    liftshaft = 'Add-BfxLiftshaft'
+    whirls = 'Add-BfxWhirls'
+    sprouts = 'Add-BfxSprouts'
+    grassblades = 'Add-BfxGrassblades'
+    parachutes = 'Add-BfxParachutes'
+    freighters = 'Add-BfxFreighters'
+    buoys = 'Add-BfxBuoys'
+    prayerflags = 'Add-BfxPrayerflags'
+    skytraffic = 'Add-BfxSkytraffic'
+    palms = 'Add-BfxPalms'
+    looptrack = 'Add-BfxLooptrack'
+    ringworld = 'Add-BfxRingworld'
+    droppods = 'Add-BfxDroppods'
+    portholes = 'Add-BfxPortholes'
+    hullplates = 'Add-BfxHullplates'
+    graveyard = 'Add-BfxGraveyard'
+    subwaycars = 'Add-BfxSubwaycars'
+    minecarts = 'Add-BfxMinecarts'
+    blueprint = 'Add-BfxBlueprint'
+    cards = 'Add-BfxCards'
+    heraldry = 'Add-BfxHeraldry'
+    paperboats = 'Add-BfxPaperboats'
+    stainedglass = 'Add-BfxStainedglass'
+    teslacoils = 'Add-BfxTeslacoils'
+    ufos = 'Add-BfxUfos'
+    icefloes = 'Add-BfxIcefloes'
+    mantas = 'Add-BfxMantas'
+    windmills = 'Add-BfxWindmills'
+    lighthouse = 'Add-BfxLighthouse'
+    kites = 'Add-BfxKites'
 }
 
 # Real height of a banner right now (Border height when it is not laid
@@ -4531,14 +12860,15 @@ function global:Invoke-BannerFxExtra {
 #   powershell -STA -NoProfile -Command ". '.\Core\Modules\BannerFxExtra.ps1'; Test-BannerFxExtra"
 # ------------------------------------------------------------
 function global:Test-BannerFxExtra {
-    param([double]$Width = 1100, [double]$Height = 140)
+    param([double]$Width = 1100, [double]$Height = 140, [string[]]$Effects = @($global:BannerFxExtraGames.Keys))
     Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase -ErrorAction SilentlyContinue
     $saved = $global:window
     $fail = 0; $ok = 0
     try {
-        foreach ($fx in $global:BannerFxExtraGames.Keys) {
+        foreach ($fx in $Effects) {
             $grid = New-Object System.Windows.Controls.Grid
-            [void]$grid.Children.Add((New-Object System.Windows.Shapes.Rectangle))
+            $backdrop = New-Object System.Windows.Shapes.Rectangle
+            [void]$grid.Children.Add($backdrop)
             $border = New-Object System.Windows.Controls.Border
             $border.Width = $Width; $border.Height = $Height; $border.Child = $grid
             $global:window = [pscustomobject]@{ B = $border }
@@ -4550,11 +12880,11 @@ function global:Test-BannerFxExtra {
             } catch { $err = $_.Exception.Message }
             $layer = @($grid.Children | Where-Object { $_.Tag -eq 'BannerFx' }) | Select-Object -First 1
             $n = if ($layer) { $layer.Children.Count } else { 0 }
-            # Exercise the real S, M and L banner heights on the same host.
+            # Exercise a full S -> M -> L -> S switch on the same host.
             $refit = ''
             if (-not $err -and $layer) {
                 try {
-                    foreach ($nextHeight in @(156.0,174.0)) {
+                    foreach ($nextHeight in @(156.0,174.0,140.0)) {
                         $border.Height = $nextHeight
                         $border.Measure([System.Windows.Size]::new($Width, $nextHeight))
                         $border.Arrange([System.Windows.Rect]::new(0, 0, $Width, $nextHeight))
@@ -4568,8 +12898,9 @@ function global:Test-BannerFxExtra {
                     }
                 } catch { $refit = 'resize: ' + $_.Exception.Message }
             }
-            if ($err -or -not $layer -or $n -eq 0 -or $refit) { $fail++; Write-Host ("[FAIL] {0,-12} {1}" -f $fx, $(if ($err) { $err } elseif ($refit) { $refit } else { 'no effect layer / no elements' })) -ForegroundColor Red }
-            else { $ok++; Write-Host ("[PASS] {0,-12} {1} elements, rebuilt for 156 and 174 px" -f $fx, $n) }
+            $keepsBackdrop = $layer -and $null -eq $layer.Background -and [object]::ReferenceEquals($grid.Children[0], $backdrop)
+            if ($err -or -not $layer -or $n -eq 0 -or $refit -or -not $keepsBackdrop) { $fail++; Write-Host ("[FAIL] {0,-12} {1}" -f $fx, $(if ($err) { $err } elseif ($refit) { $refit } elseif (-not $keepsBackdrop) { 'transparent effect layer did not preserve the background' } else { 'no effect layer / no elements' })) -ForegroundColor Red }
+            else { $ok++; Write-Host ("[PASS] {0,-12} {1} elements, rebuilt for M, L and back to S" -f $fx, $n) }
         }
     } finally { $global:window = $saved }
     Write-Host ("{0} passed, {1} failed" -f $ok, $fail)

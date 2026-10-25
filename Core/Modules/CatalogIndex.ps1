@@ -1,4 +1,4 @@
-# ===============================================================
+﻿# ===============================================================
 # Stable catalog index - the compact maintenance surface for all games.
 #
 # One line equals one Hub tile. Moving a line changes only the curated
@@ -39,10 +39,14 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'black-mesa-source-vr'; Title = 'Black Mesa Source VR'; Released = '2023-05-04'; Added = '' }
         @{ Id = 'blood-vr'; Title = 'Blood VR'; Released = '2026-09-10'; Added = '2026-09-11' }
         @{ Id = 'borderlands-goty-enhanced'; Title = 'Borderlands GOTY Enhanced'; Released = '2026-09-11'; Added = '2026-09-08' }
+        @{ Id = 'brutal-legend-vr'; Title = 'Brütal Legend VR'; Released = ''; Added = '2026-10-20' }
         @{ Id = 'breath-of-the-wild-vr'; Title = 'Breath of the Wild VR'; Released = '2026-08-24'; Added = '' }
         @{ Id = 'c-c-generals-zero-hour'; Title = 'C&C Generals: Zero Hour'; Released = '2026-08-12'; Added = '' }
+        @{ Id = 'call-of-duty-2003-vr'; Title = 'Call of Duty (2003) VR'; Released = '2026-10-22'; Added = '2026-10-22' }
         @{ Id = 'call-of-duty-4-vr'; Title = 'Call of Duty 4 VR'; Released = '2026-08-18'; Added = '' }
+        @{ Id = 'modern-warfare-2-campaign-remastered-vr'; Title = 'Call of Duty: Modern Warfare 2 Campaign Remastered VR'; Released = '2026-10-13'; Added = '2026-10-22' }
         @{ Id = 'call-of-duty-world-at-war-vr'; Title = 'Call of Duty: World at War VR'; Released = '2026-08-19'; Added = '' }
+        @{ Id = 'call-of-juarez-vr'; Title = 'Call of Juarez VR'; Released = ''; Added = '2026-10-21' }
         @{ Id = 'content-warning-vr'; Title = 'Content Warning VR'; Released = '2025-11-19'; Added = '' }
         @{ Id = 'cruelty-squad-vr'; Title = 'Cruelty Squad VR'; Released = '2023-07-25'; Added = '' }
         @{ Id = 'cyberpunk-2077'; Title = 'Cyberpunk 2077'; Released = '2026-09-01'; Added = '' }
@@ -54,6 +58,8 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'deus-ex-human-revolution-directors-cut-vr'; Title = 'Deus Ex: Human Revolution - DC'; Released = '2026-09-14'; Added = '2026-09-18' }
         @{ Id = 'diablo-ii-resurrected-vr'; Title = 'Diablo II: Resurrected'; Released = ''; Added = '2026-10-07' }
         @{ Id = 'dishonored-vr'; Title = 'Dishonored VR'; Released = '2026-09-24'; Added = '2026-08-31' }
+        @{ Id = 'dishonored-2-vr'; Title = 'Dishonored 2 VR'; Released = '2026-10-19'; Added = '2026-10-23' }
+        @{ Id = 'dungeon-keeper-2-vr'; Title = 'Dungeon Keeper 2 VR'; Released = ''; Added = '2026-10-21' }
         @{ Id = 'doom-2016-vr'; Title = 'DOOM (2016) VR'; Released = '2026-09-13'; Added = '2026-09-12' }
         @{ Id = 'doom-eternal-motion-vr'; Title = 'DOOM Eternal VR - Motion'; Released = '2026-10-03'; Added = '2026-10-03' }
         @{ Id = 'doom-vr'; Title = 'Doom VR'; Released = '2025-01-26'; Added = '' }
@@ -65,9 +71,11 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'earth-defense-force-6-vr'; Title = 'EARTH DEFENSE FORCE 6 VR'; Released = '2026-09-13'; Added = '2026-09-13' }
         @{ Id = 'elden-ring-motion-controls'; Title = 'Elden Ring VR'; Released = '2026-09-10'; Added = '2026-09-03' }
         @{ Id = 'elderborn-vr'; Title = 'ELDERBORN VR'; Released = '2026-08-28'; Added = '2026-09-15' }
+        @{ Id = 'enshrouded-vr'; Title = 'Enshrouded VR'; Released = '2026-10-22'; Added = '2026-10-22' }
         @{ Id = 'escape-from-tarkov-vr'; Title = 'Escape from Tarkov VR'; Released = '2026-06-23'; Added = '' }
         @{ Id = 'f-e-a-r-vr'; Title = 'F.E.A.R. VR'; Released = '2026-09-13'; Added = '' }
         @{ Id = 'fallout-3-vr'; Title = 'Fallout 3 VR'; Released = ''; Added = '2026-10-17' }
+        @{ Id = 'far-cry-2-vr'; Title = 'Far Cry 2 VR'; Released = '2026-10-22'; Added = '2026-10-23' }
         @{ Id = 'fallout-new-vegas-vr'; Title = 'Fallout: New Vegas VR'; Released = ''; Added = '2026-10-17' }
         @{ Id = 'final-fantasy-xiv-vr'; Title = 'Final Fantasy XIV VR'; Released = '2026-09-08'; Added = '' }
         @{ Id = 'flower-vr'; Title = 'Flower VR'; Released = '2026-10-01'; Added = '2026-10-03' }
@@ -87,6 +95,7 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'hexen-vr'; Title = 'Hexen VR'; Released = '2025-01-26'; Added = '' }
         @{ Id = 'hexen-ii-vr'; Title = 'Hexen II VR'; Released = ''; Added = '' }
         @{ Id = 'high-entropy-challenges-vr'; Title = 'High Entropy: Challenges VR'; Released = '2026-09-28'; Added = '2026-10-03' }
+        @{ Id = 'hitman-blood-money-vr'; Title = 'Hitman: Blood Money VR'; Released = '2026-10-22'; Added = '2026-10-22' }
         @{ Id = 'how-to-fish-xr'; Title = 'How to Fish XR'; Released = '2026-09-07'; Added = '2026-09-07' }
         @{ Id = 'house-of-the-dead-remake-vr'; Title = 'House of the Dead Remake VR'; Released = '2026-08-07'; Added = '' }
         @{ Id = 'house-of-the-dead-2-remake-vr'; Title = 'House of the Dead 2 Remake VR'; Released = ''; Added = '' }
@@ -152,6 +161,7 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'richard-burns-rally-vr'; Title = 'Richard Burns Rally VR'; Released = ''; Added = '' }
         @{ Id = 'risk-of-rain-2'; Title = 'Risk of Rain 2'; Released = '2026-09-10'; Added = '' }
         @{ Id = 'road-to-vostok-vr'; Title = 'Road to Vostok VR'; Released = '2026-08-14'; Added = '' }
+        @{ Id = 'rustler-vr'; Title = 'Rustler VR'; Released = ''; Added = '2026-10-20' }
         @{ Id = 'saints-row-the-third-vr'; Title = 'Saints Row: The Third VR'; Released = ''; Added = '' }
         @{ Id = 'scrap-mechanic-vr'; Title = 'Scrap Mechanic VR'; Released = '2026-09-02'; Added = '' }
         @{ Id = 'selaco-vr'; Title = 'Selaco VR'; Released = '2025-06-01'; Added = '' }
@@ -184,6 +194,8 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'ultrakill-vr'; Title = 'ULTRAKILL VR'; Released = '2026-04-14'; Added = '' }
         @{ Id = 'unreal-revived-vr'; Title = 'Unreal Revived'; Released = '2026-09-21'; Added = '2026-09-25' }
         @{ Id = 'valheim-vr'; Title = 'Valheim VR'; Released = '2026-09-11'; Added = '' }
+        @{ Id = 'vampire-bloodlines-vr'; Title = 'Vampire: The Masquerade - Bloodlines VR'; Released = '2026-10-22'; Added = '2026-10-22' }
+        @{ Id = 'vampire-hunters-vr'; Title = 'Vampire Hunters VR'; Released = '2026-10-22'; Added = '2026-10-22' }
         @{ Id = 'virtua-cop-2-vr'; Title = 'Virtua Cop 2 VR'; Released = '2026-09-02'; Added = '' }
         @{ Id = 'warhammer-40k-darktide-vr'; Title = 'Warhammer 40K: Darktide VR'; Released = '2026-09-13'; Added = '2026-09-13' }
         @{ Id = 'warhammer-40k-rogue-trader-vr'; Title = 'Warhammer 40K: Rogue Trader VR'; Released = ''; Added = '' }
@@ -235,6 +247,12 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'far-cry-primal-vr'; Title = 'Far Cry Primal VR'; Released = ''; Added = '' }
         @{ Id = 'ff-vii-rebirth-vr'; Title = 'FF VII Rebirth VR'; Released = ''; Added = '' }
         @{ Id = 'ff-vii-remake-vr'; Title = 'FF VII Remake VR'; Released = ''; Added = '' }
+        @{ Id = 'grid-2019-vr'; Title = 'GRID (2019) VR'; Released = '2026-10-15'; Added = '2026-10-25' }
+        @{ Id = 'grid-legends-vr'; Title = 'GRID Legends VR'; Released = '2026-10-21'; Added = '2026-10-25' }
+        @{ Id = 'dirt-4-vr'; Title = 'DiRT 4 VR'; Released = '2026-10-15'; Added = '2026-10-25' }
+        @{ Id = 'forza-horizon-4-grayhorizon-vr'; Title = 'Forza Horizon 4 VR - GrayHorizon'; Released = '2026-10-22'; Added = '2026-10-24' }
+        @{ Id = 'forza-horizon-5-grayhorizon-vr'; Title = 'Forza Horizon 5 VR - GrayHorizon'; Released = '2026-10-22'; Added = '2026-10-24' }
+        @{ Id = 'forza-horizon-6-grayhorizon-vr'; Title = 'Forza Horizon 6 VR - GrayHorizon'; Released = '2026-10-22'; Added = '2026-10-24' }
         @{ Id = 'forza-horizon-5-vr'; Title = 'Forza Horizon 5 VR'; Released = '2026-09-08'; Added = '' }
         @{ Id = 'forza-horizon-6-vr'; Title = 'Forza Horizon 6 VR'; Released = '2026-09-08'; Added = '' }
         @{ Id = 'ghost-of-tsushima-vr'; Title = 'Ghost of Tsushima VR'; Released = ''; Added = '' }
@@ -263,6 +281,7 @@ $script:CatalogIndexSpec = [ordered]@{
         @{ Id = 'mass-effect-3-le-vr'; Title = 'Mass Effect 3 LE VR'; Released = ''; Added = '' }
         @{ Id = 'mega-man-star-force-legacy-vr'; Title = 'Mega Man Star Force Legacy VR'; Released = '2026-09-12'; Added = '' }
         @{ Id = 'mirage-feathers-vr'; Title = 'Mirage Feathers VR'; Released = ''; Added = '' }
+        @{ Id = 'mirrors-edge-catalyst-vr'; Title = "Mirror's Edge Catalyst VR"; Released = ''; Added = '2026-10-21' }
         @{ Id = 'monster-hunter-rise-vr'; Title = 'Monster Hunter Rise VR'; Released = '2026-09-12'; Added = '' }
         @{ Id = 'monster-hunter-stories-3-vr'; Title = 'Monster Hunter Stories 3 VR'; Released = '2026-09-12'; Added = '' }
         @{ Id = 'monster-hunter-wilds'; Title = 'Monster Hunter Wilds'; Released = '2026-09-12'; Added = '' }

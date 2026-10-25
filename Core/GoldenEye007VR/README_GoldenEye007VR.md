@@ -1,4 +1,4 @@
-# GoldenEye 007 VR
+﻿# GoldenEye 007 VR
 
 GEVR is a standalone OpenXR beta that brings the complete Nintendo 64 campaign
 to PCVR with stereoscopic rendering, 6DoF head tracking and tracked motion
@@ -24,6 +24,8 @@ launch, `GevrRomStarter.exe` asks you to select it. Its remembered path, ROM
 fingerprint, prepared cache and saves live below `%LOCALAPPDATA%\GEVR`.
 
 ## Installation folder
+
+The reviewed vr457 release starts fresh installs with hands/arms enabled, Original weather, Classic enemy AI and instant gesture reload. Physical magazine reload and Tactical AI remain experimental options. Change settings in GEVR Settings and choose Apply; saved choices override new defaults. Keep All Weapons off while placing plastique, because the publisher reports repeated explosions. Loading HD textures for the first time can briefly hitch.
 
 Setup proposes `C:\Games\GoldenEye 007 VR`, but you can choose any other full,
 writable folder before files are installed. Updates reuse the previously chosen
@@ -70,7 +72,7 @@ automatically while retaining the remembered ROM path and saves.
 | [[Y]] or [[Left Menu]] | Open the pause watch. |
 | [[Tab]] | Pause and open options on the keyboard |
 
-The vr456.9 package's `docs/CONTROLS.md` is authoritative for current bindings;
+The vr457 package's `docs/CONTROLS.md` is authoritative for current bindings;
 older repository documentation may describe previous mappings. Squeeze a loose
 weapon to equip it in that hand; a hip grab holsters or draws that hand's gun.
 The left-cuff watch picker shows Laser, Magnet and Repel.
@@ -111,6 +113,10 @@ control. Higher rates remain experimental.
 - After completing a level and returning to the folder screen, starting another
   mission in the same process can place the player in invalid space. Quit the
   game completely and use Start in VR again.
+
+## Support GEVR
+
+[Support GEVR on Patreon](https://www.patreon.com/cw/GEVR)
 
 ## Links and credits
 

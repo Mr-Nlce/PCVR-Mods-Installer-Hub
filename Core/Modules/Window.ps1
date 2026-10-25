@@ -16,7 +16,8 @@ $__hubModuleParts = @(
 )
 foreach ($__hubModulePart in $__hubModuleParts) {
     Write-HubTiming ("Window before: {0}" -f $__hubModulePart)
-    . (Join-Path $PSScriptRoot $__hubModulePart)
+    $__hubPartPath = Join-Path $PSScriptRoot $__hubModulePart
+    if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript $__hubPartPath) } else { . $__hubPartPath }
     Write-HubTiming ("Window after: {0}" -f $__hubModulePart)
 }
-Remove-Variable __hubModulePart, __hubModuleParts -ErrorAction SilentlyContinue
+Remove-Variable __hubModulePart, __hubModuleParts, __hubPartPath -ErrorAction SilentlyContinue

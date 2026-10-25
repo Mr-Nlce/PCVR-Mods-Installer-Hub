@@ -395,7 +395,7 @@ $extractDir = Join-Path $tempDir "extract"
 
 Write-Host " Downloading from GitHub ... " -NoNewline -ForegroundColor White
 try {
- Invoke-WebRequest -Uri $MOD_URL -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+ Invoke-PCVRWebRequest -Uri $MOD_URL -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
  Write-Host "OK" -ForegroundColor Green
 } catch {
  Write-Host "FAILED" -ForegroundColor Red
