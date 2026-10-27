@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (338)</summary>
+<summary>Show all currently listed titles (348)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -29,6 +29,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Alien: Isolation VR (motion controls)
 * Aliens versus Predator Classic (2000) (motion controls)
 * Amnesia: The Dark Descent VR (+ HD texture mod) (motion controls)
+* Among the Sleep [WIP]
 * Another Crab's Treasure
 * Apollo Justice: Ace Attorney Trilogy
 * ARMA 3 [EARLY WIP]
@@ -42,6 +43,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Atomic Heart
 * Avatar: Frontiers of Pandora
 * AWAY: Journey to the Unexpected (motion controls)
+* Balatro (motion controls)
 * Banjo Kazooie (N64 ROM)
 * Battlefield 1942 VR (motion controls)
 * Bendy VR (motion controls)
@@ -50,15 +52,19 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Bioshock Infinite (motion controls)
 * Bioshock Remastered (motion controls)
 * Bioshock 2 Remastered (motion controls)
+* Black & White (motion controls)
 * Black Mesa VR (motion controls)
 * Black Mesa Source VR (Half Life 2 Episode 2 Mod) (motion controls)
 * Blade of Darkness
+* Blood West (motion controls)
 * Bomb Rush Cyberfunk (motion controls)
 * Borderlands GOTY Enhanced VR [WIP] (motion controls)
 * Brütal Legend (motion controls)
 * Call of Duty (2003) (motion controls)
 * Call of Duty 4: Modern Warfare (2007) (motion controls)
+* Call of Duty: Black Ops (motion controls)
 * Call of Duty: Modern Warfare 2 Campaign Remastered (motion controls)
+* Call of Duty: United Offensive (motion controls)
 * Call of Duty: World at War (motion controls)
 * Call of Juarez (motion controls)
 * Circuit Superstars VR
@@ -75,9 +81,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Dark Souls III
 * Dark Souls Remastered
 * Days Gone
+* Dead Space 2 (motion controls)
 * Death Stranding
 * Decimate Drive VR (motion controls)
 * Deep Rock Galactic VR (motion controls)
+* Dementium II HD (motion controls)
 * Descenders
 * Descent
 * Descent 2
@@ -119,7 +127,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * F.E.A.R. Platinum Edition [WIP] (motion controls) GOG
 * F.E.A.R. Ultimate Shooter Edition [WIP] (motion controls) Steam store
 * FF VII Rebirth
-* FF VII Remake
+* FF VII Remake / Intergrade
 * Final Fantasy XIV VR (motion controls)
 * Firewatch VR (motion controls)
 * Flower (motion controls)
@@ -332,12 +340,13 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * TLOU Part I
 * TLOU Part II
 * Tom Clancy’s Ghost Recon Wildlands [WIP]
+* Tomb Raider (1) VR (motion controls)
+* Tomb Raider: Legend (motion controls)
 * Tormented Souls (motion controls)
+* Total Chaos VR (GZDoom) (motion controls)
 * TrackMania Nations Forever [FREE]
 * TrackMania United Forever
 * Tribes 2 VR [FREE] [WIP] (motion controls)
-* Tomb Raider (1) VR (motion controls)
-* Total Chaos VR (GZDoom) (motion controls)
 * Trombone Champ VR (motion controls)
 * Turok VR [WIP] (motion controls)
 * Ultrakill VR (motion controls)
