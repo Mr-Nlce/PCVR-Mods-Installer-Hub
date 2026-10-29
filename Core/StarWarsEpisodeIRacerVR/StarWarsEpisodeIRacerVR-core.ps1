@@ -1,4 +1,4 @@
-# Star Wars: Episode I Racer PCVR - safe, payload-only installer.
+﻿# Star Wars: Episode I Racer PCVR - safe, payload-only installer.
 # The Hub downloads the current release; no mod archive is bundled.
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -53,8 +53,8 @@ function Find-RacerRoot {
 
 function Get-LatestRacerRelease {
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
-        $asset = @($release.assets | Where-Object { $_.name -match '(?i)^Star-Wars-Episode-I-Racer-PCVR-v.*\.zip$' } | Select-Object -First 1)[0]
+        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
+        $asset = @($release.assets | Where-Object { $_.name -match '(?i)^Star-Wars-Episode-I-Racer-PCVR-v?[0-9].*\.zip$' } | Select-Object -First 1)[0]
         if (-not $asset) { return $null }
         [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url; Body=[string]$release.body }
     } catch { return $null }

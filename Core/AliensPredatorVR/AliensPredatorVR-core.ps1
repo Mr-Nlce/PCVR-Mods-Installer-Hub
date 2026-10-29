@@ -77,7 +77,9 @@ function New-AvpStage([string]$Archive,[string]$Work,[string]$ReleaseTag){
         throw "The AvP VR executable version does not match the selected release ($ReleaseTag). No game files were changed."
     }
     $stage=Join-Path $Work 'stage';[void][IO.Directory]::CreateDirectory($stage)
-    foreach($relative in $script:AvpProof){Copy-Item -LiteralPath (Join-Path $payload $relative) -Destination (Join-Path $stage $relative) -Force -ErrorAction Stop}
+    foreach($item in @(Get-ChildItem -LiteralPath $payload -Force)){
+        Copy-Item -LiteralPath $item.FullName -Destination $stage -Recurse -Force -ErrorAction Stop
+    }
     return $stage
 }
 function Assert-AvpNoDowngrade([string]$Game,[string]$ReleaseTag){
@@ -121,7 +123,8 @@ function Restore-AvpSnapshot([string]$Game,$Snapshot){
     if($Snapshot.HadBackup){Copy-Item -LiteralPath (Join-Path $Snapshot.Root 'ownership-backup') -Destination $backup -Recurse -Force -ErrorAction Stop}
 }
 function Write-AvpProofCheckpoint([string]$Label,[string]$Game){
-    foreach($relative in $script:AvpProof){
+    $files=if($script:AvpActiveProof){$script:AvpActiveProof}else{$script:AvpProof}
+    foreach($relative in $files){
         Write-Host ("  [{0}] {1}: {2}" -f $Label,$relative,[bool](Test-Path -LiteralPath (Join-Path $Game $relative) -PathType Leaf)) -ForegroundColor DarkGray
     }
 }
@@ -160,6 +163,8 @@ function Invoke-AvpInstaller{
         if($release.IsLocal){Copy-Item -LiteralPath $release.Url -Destination $archive -Force -ErrorAction Stop}
         else{[void](Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "AvP VR $($release.Tag)" -ExpectedReleaseTag ([string]$release.Tag) -ManualUrl $release.PageUrl -AllowSkip $false)}
         $stage=New-AvpStage -Archive $archive -Work $work -ReleaseTag ([string]$release.Tag)
+        $script:AvpActiveProof=@(Get-ChildItem -LiteralPath $stage -Recurse -File -Force|ForEach-Object {$_.FullName.Substring($stage.Length+1)})
+        $script:AvpContract=New-PCVRInstallerContract -Id $script:AvpId -GameName 'Aliens versus Predator VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:AvpReleases -RequiredInstalledFileGroups @($script:AvpActiveProof + '.pcvrhub_avpvr_ownership.csv')
         Write-Host '  [OK] PCVR executable and all native runtime libraries staged.' -ForegroundColor Green
 
         Write-Host '';Write-Host '--- [3/5] Protect existing files ---' -ForegroundColor Cyan
@@ -173,10 +178,10 @@ function Invoke-AvpInstaller{
         Write-AvpProofCheckpoint -Label after-copy -Game $game
         if($env:PCVR_HUB_TEST_MODE -eq '1' -and (''+$env:PCVR_AVP_TEST_REMOVE_AFTER_COPY).Trim()){
             $relative=Assert-PCVROwnedRelativePath -Relative ([string]$env:PCVR_AVP_TEST_REMOVE_AFTER_COPY)
-            if($relative -notin $script:AvpProof){throw 'Invalid AvP test fault injection target.'}
+            if($relative -notin $script:AvpActiveProof){throw 'Invalid AvP test fault injection target.'}
             Remove-Item -LiteralPath (Join-Path $game $relative) -Force -ErrorAction Stop
         }
-        $watch=@($script:AvpProof|ForEach-Object{Join-Path $game $_})+@(Join-Path $game '.pcvrhub_avpvr_ownership.csv')
+        $watch=@($script:AvpActiveProof|ForEach-Object{Join-Path $game $_})+@(Join-Path $game '.pcvrhub_avpvr_ownership.csv')
         if(-not(Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -NoClear)){throw 'Required AvP VR files are missing after installation.'}
         Write-AvpProofCheckpoint -Label after-observation -Game $game
         $receipt=(''+$env:PCVR_AVP_TEST_RECEIPT).Trim();if(-not $receipt){$receipt=Join-Path $PSScriptRoot '.installed_path'}

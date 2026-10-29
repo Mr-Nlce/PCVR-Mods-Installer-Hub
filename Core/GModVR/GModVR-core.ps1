@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Garry's Mod - VRMod x64 Installer
 # ============================================================
 
@@ -187,7 +187,7 @@ Write-Step 4 7 "Installing VRMod modules"
 $downloadUrl = $null
 Write-Host " Looking up latest modules release ... " -NoNewline -ForegroundColor White
 try {
- $release = Invoke-RestMethod -Uri $MODULES_API `
+ $release = Invoke-PCVRRestMethod -Uri $MODULES_API `
  -Headers @{ "User-Agent" = "PCVR-Mods-Hub-Installer" } `
  -TimeoutSec 10 -ErrorAction Stop
  $zipAsset = $release.assets | Where-Object { $_.name -like "modules*.zip" -or $_.name -eq "modules.zip" } | Select-Object -First 1

@@ -1,4 +1,4 @@
-# Nuclear Option / NOVR installer. The current NOVR release is a small
+﻿# Nuclear Option / NOVR installer. The current NOVR release is a small
 # plug-in payload, not the former all-in-one GUI installer. This installer
 # supplies BepInEx 5, checks the files needed to run and merges only NOVR folders.
 $ErrorActionPreference = 'Stop'
@@ -30,7 +30,7 @@ function Test-NuclearOptionRoot {
 function Get-NOVRRelease {
     $fallback = [pscustomobject]@{ Tag=$NOVR_FALLBACK_TAG; Url=$NOVR_FALLBACK_URL; Sha256=$NOVR_FALLBACK_SHA }
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$NOVR_REPO/releases/latest" -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 15 -ErrorAction Stop
+        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$NOVR_REPO/releases/latest" -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 15 -ErrorAction Stop
         $asset = @($release.assets | Where-Object { $_.name -eq 'NOVR.zip' }) | Select-Object -First 1
         if (-not $asset -or -not $asset.browser_download_url) { return $fallback }
         $digest = [string]$asset.digest

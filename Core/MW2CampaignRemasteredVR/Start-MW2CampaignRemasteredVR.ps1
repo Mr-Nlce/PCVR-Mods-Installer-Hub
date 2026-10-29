@@ -1,6 +1,6 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference='Stop'
-foreach($relative in @('MW2CR.exe','overlord.exe','openxr_loader.dll','overlord.vrmanifest','vr_input\actions.json','h2-mod\ui_scripts\branding\__init__.lua','.pcvrhub_mw2overlord_ownership.csv','.pcvrhub_version')){
+foreach($relative in @('MW2CR.exe','overlord.exe','openxr_loader.dll','overlord.vrmanifest','vr_input\actions.json','h2-mod\ui_scripts\branding\__init__.lua')){
     $file=Join-Path $GameDirectory $relative
     if(-not(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0){throw "Overlord VR is incomplete: $relative. Choose Reinstall in the Hub."}
 }

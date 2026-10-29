@@ -197,7 +197,14 @@ function global:Invoke-PCVRUniversalRecovery {
         Write-Host '  INSTALLER RECOVERY - nothing was marked complete' -ForegroundColor Yellow
         Write-Host '============================================================' -ForegroundColor Yellow
         Write-Host ''
-        Write-Host ('  '+$FailureMessage) -ForegroundColor White
+        if($GameId -eq 'dead-space-2-vr' -and $FailureMessage -match '(?i)Close SteamVR before installing'){
+            Write-Host '  CLOSE STEAMVR BEFORE INSTALLING  ' -ForegroundColor Black -BackgroundColor Yellow
+            Write-Host '  Close the SteamVR application, then choose R below to retry.' -ForegroundColor Yellow
+            Write-Host '  Steam itself can stay open.' -ForegroundColor Yellow
+            Write-Host '  Start SteamVR again after installation, before playing in VR.' -ForegroundColor White
+        }else{
+            Write-Host ('  '+$FailureMessage) -ForegroundColor White
+        }
         $current=Get-PCVRRecoveryInput
         if($current){Write-Host ('  Manual handover ready: '+$current) -ForegroundColor Cyan}
         Write-Host ''

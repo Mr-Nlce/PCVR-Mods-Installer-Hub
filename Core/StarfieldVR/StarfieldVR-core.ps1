@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Starfield VR Mod Installer
 # starfield2vr by mutars (based on PrayDog's REFramework)
 # Two choices up front:
@@ -33,7 +33,7 @@ $MOD_URL_OPENXR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/s
 # If the API does not answer, the pinned addresses above stand.
 function Get-Starfield2VrUrls {
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
                  -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
         $ov = $rel.assets | Where-Object { $_.name -match '(?i)openvr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1
         $ox = $rel.assets | Where-Object { $_.name -match '(?i)openxr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1

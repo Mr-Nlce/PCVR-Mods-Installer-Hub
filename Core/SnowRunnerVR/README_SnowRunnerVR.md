@@ -1,6 +1,6 @@
-# SnowRunner VR
+﻿# SnowRunner VR
 
-SnowRunner VR adds true stereo rendering and 6DoF head tracking to the Steam DirectX 11 version of SnowRunner. It is an early gamepad mod: keep the normal keyboard, mouse or gamepad controls nearby and expect a later game update to require a matching mod update.
+SnowRunner VR adds true stereo rendering and 6DoF head tracking to the Steam DirectX 11 version of SnowRunner. Current v0.5 also offers virtual gamepad controls from tracked VR controllers. It is an early mod: keep the normal keyboard, mouse or gamepad controls nearby and expect a later game update to require a matching mod update.
 
 ## Option 1 — Current Steam version
 
@@ -27,7 +27,7 @@ download_depot 1465360 1465361 1017218816943865737
 
 The installer looks for an already completed depot before opening Steam Console, checks the game structure, executable version and expected depot size, then creates `Sources\Bin\steam_appid.txt` beside `SnowRunner.exe`. Your normal Steam installation is not changed. Start this copy with **Start 1.886173** on the detail page or the `SnowRunner VR 1.886173` desktop shortcut.
 
-The frozen copy uses **SnowRunner VR v0.3**, the mod build confirmed with game version 1.886173. Current releases such as v0.4 are not mixed into this route. The depot route advances only after a newer game/mod pairing has actually been confirmed together.
+The frozen copy uses **SnowRunner VR v0.3**, the mod build confirmed with game version 1.886173. Current releases such as v0.5 are not mixed into this route. The depot route advances only after a newer game/mod pairing has actually been confirmed together.
 
 ## Controls
 

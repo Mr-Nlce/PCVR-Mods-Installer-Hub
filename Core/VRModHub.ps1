@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  PCVR Mods Installer Hub
 # ============================================================
 
@@ -156,6 +156,7 @@ $rootDir   = Split-Path -Parent $scriptDir   # Hub root (one level up from Core\
 # recovery copy.  Keeping this ahead of logging/settings also leaves the Hub
 # program tree replaceable without losing user state.
 . (Join-Path $scriptDir "Modules\HubState.ps1")
+. (Join-Path $scriptDir 'Modules\GitHubTransport.ps1')
 
 # Path to the installer log wrapper (used by Start-LoggedInstaller).
 $global:RunInstallerPath = Join-Path $scriptDir "Run-Installer.ps1"
@@ -403,7 +404,7 @@ else { Write-HubTiming "parse prefetch: off (PCVR_HUB_PARALLEL_PARSE=0 or fewer 
 # -------------------------------------------------------
 # Version & Update check
 # -------------------------------------------------------
-$HUB_VERSION = "0.8.8.3"
+$HUB_VERSION = "0.8.8.5"
 $global:HubCurrentVersion = $HUB_VERSION
 
 $updateInfoFile  = Get-HubUpdateInfoPath
@@ -541,12 +542,27 @@ function Read-InstalledPath {
     # when no valid canonical path exists, then imported once. Never mirror
     # the canonical value back into per-game folders: Core\UserData is the
     # only Hub-side copy.
-    foreach ($candidate in @($durableValue, $hubValue)) {
+    foreach ($candidate in @($durableValue, (Read-PersistentGameStateValue -Game $Game -Name 'user_located'), $hubValue)) {
         if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path -LiteralPath $candidate -PathType Container)) { continue }
         if ($candidate -eq $hubValue) {
             Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value $candidate
         }
         return $candidate
+    }
+
+    # Related editions may share a game folder, but never share presence or
+    # version claims. Recover only a folder with this title's full base proof.
+    foreach ($relatedId in @($Game.RelatedGameLocationIds)) {
+        if (-not $relatedId -or -not $Game.BaseGameProofFiles) { continue }
+        $related = [pscustomobject]@{Id=$relatedId;Title=''}
+        foreach ($name in @('user_located','installed_path')) {
+            $candidate = Read-PersistentGameStateValue -Game $related -Name $name
+            if ($candidate -and (Test-BaseGameInstallProof -Game $Game -Root $candidate)) {
+                Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value $candidate
+                if ((Read-PersistentGameStateValue -Game $Game -Name 'installed_path') -cne $candidate) { throw 'Recovered game location could not be saved.' }
+                return $candidate
+            }
+        }
     }
 
     # Migration path for known external launcher roots created by older Hub
@@ -623,6 +639,20 @@ function Get-DepotCandidatePaths {
         # forward slash.
         if ($rec -and ($rec -notmatch '(?i)steamapps[\\/]+common') -and ($out -notcontains $rec)) { $out += $rec }
     } catch {}
+    # Opted-in historical installers used one generic receipt for both roots.
+    # Keep that ordinary source first; a separately recovered location is only
+    # an additional candidate, and the scanner still proves its Depot files.
+    if ($Game.DepotRecoveryInstalledPathFile) {
+        try {
+            $durable = Read-PersistentGameStateValue -Game $Game -Name 'installed_path_depot'
+            $base = Get-InstalledPathFile -Game $Game
+            $file = if ($base) { Join-Path (Split-Path -Parent $base) ([string]$Game.DepotRecoveryInstalledPathFile) } else { $null }
+            $portable = if ($file -and (Test-Path -LiteralPath $file -PathType Leaf)) { [IO.File]::ReadAllText($file).Trim() } else { $null }
+            foreach ($candidate in @($durable,$portable)) {
+                if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container) -and $out -notcontains $candidate) { $out += $candidate }
+            }
+        } catch {}
+    }
     return $out
 }
 
@@ -653,6 +683,23 @@ function Get-LegacyDepotCandidatePaths {
             break
         }
     } catch {}
+    # A renamed Depot can still be recorded under its former dedicated key.
+    # These are candidate roots only; the scanner separately proves the exact
+    # legacy marker, runtime and launcher before adopting the legacy state.
+    if ($Game.LegacyDepotRecoveryInstalledPathFile) {
+        try {
+            $oldFile=[string]$Game.LegacyDepotRecoveryInstalledPathFile
+            if ([IO.Path]::GetFileName($oldFile) -eq $oldFile -and $oldFile -match '^\.installed_path_[a-z0-9_]+$') {
+                $recorded=Read-PersistentGameStateValue -Game $Game -Name $oldFile.TrimStart('.')
+                $base=Get-InstalledPathFile -Game $Game
+                $portable=if ($base) { Join-Path (Split-Path -Parent $base) $oldFile } else { $null }
+                $legacyValue=if ($portable -and (Test-Path -LiteralPath $portable -PathType Leaf)) { [IO.File]::ReadAllText($portable).Trim() } else { $null }
+                foreach ($candidate in @($recorded,$legacyValue)) {
+                    if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container) -and $out -notcontains $candidate) { $out += $candidate }
+                }
+            }
+        } catch {}
+    }
     # A superseded standalone route may have been the only route when its
     # ordinary .installed_path was written. Use that migration source only
     # until a dedicated legacy receipt exists; every caller still verifies the
@@ -672,7 +719,7 @@ function Get-CurrentStandaloneCandidatePaths {
     param($Game)
     $out = @()
     if (-not $Game) { return $out }
-    if (-not $global:HubFileSystemLabRoot) {
+    if (-not $global:HubFileSystemLabRoot -and -not $Game.CurrentPreferRememberedPath) {
         foreach ($candidate in @($Game.CurrentStandalonePaths | Where-Object { $_ })) {
             if ($out -notcontains [string]$candidate) { $out += [string]$candidate }
         }
@@ -696,6 +743,11 @@ function Get-CurrentStandaloneCandidatePaths {
             if ($candidate -eq $hubValue) { Write-PersistentGameStateValue -Game $Game -Name 'installed_path_current' -Value $candidate }
         }
     } catch {}
+    if($Game.CurrentPreferRememberedPath -and -not $global:HubFileSystemLabRoot){
+        foreach($candidate in @($Game.CurrentStandalonePaths|Where-Object {$_})){
+            if($out -notcontains [string]$candidate){$out+=[string]$candidate}
+        }
+    }
     return $out
 }
 

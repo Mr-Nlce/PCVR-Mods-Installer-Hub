@@ -1,4 +1,4 @@
-# ---------------------------------------------------------------
+﻿# ---------------------------------------------------------------
 # Banner hover-close: after dwelling on a banner for 5 seconds,
 # show a small Close + Always-disable overlay top-right. Close
 # hides the banner for this session; Always disable persists
@@ -191,6 +191,18 @@ function global:Update-OvFilterChips {
         # skip them - otherwise the else-branch below would repaint them
         # in chip colours every time the selection changes.
         if (-not $chip.Resources.Contains("filterKey")) { continue }
+        # Genre cards (Explore genre grid) carry their own visual
+        # state - background, border, glow and scale - so they are
+        # repainted by their own helper instead of the chip colours.
+        if ($chip.Resources.Contains("genreCard")) {
+            Set-OvGenreCardState -Card $chip -Active ($chip.Resources.Item("filterKey") -eq $ActiveKey)
+            continue
+        }
+        # Same for the segments of the joined PC POWER bar.
+        if ($chip.Resources.Contains("powerSeg")) {
+            Set-OvPowerSegState -Seg $chip -Active ($chip.Resources.Item("filterKey") -eq $ActiveKey)
+            continue
+        }
         $key  = $chip.Resources.Item("filterKey")
         $txt  = $chip.Resources.Item("filterText")
         $acc  = $chip.Resources.Item("filterAccent")
@@ -218,6 +230,318 @@ function global:Update-OvFilterChips {
             $txt.Resources.Remove("ghFg") | Out-Null
         }
     }
+}
+
+# ---------------------------------------------------------------
+# Explore genre CARDS - large clickable tiles (icon on top, short
+# label below) laid out in a UniformGrid: one row of 10 when the
+# window is wide enough, two even rows of 5 when it is not.
+# The power filter keeps using New-OvFilterChip unchanged.
+# ---------------------------------------------------------------
+
+# Short card labels. The genre rows further down keep the full
+# names from $global:OverviewGenres; the full name is the tooltip.
+$global:OvGenreCardLabels = @{
+    "ALL"       = "All"
+    "HORROR"    = "Horror"
+    "ACTION"    = "Action"
+    "ADVENTURE" = "Adventure"
+    "RPG"       = "RPG"
+    "COOP"      = "Co-op"
+    "PUZZLE"    = "Puzzle"
+    "SIM"       = "Sim & racing"
+    "FREE"      = "Free"
+    "NEW"       = "New"
+}
+
+# Card metrics per Explore S/M/L. MinCard = narrowest card width
+# that still allows a single row; MaxRow = widest the whole grid may
+# grow so cards do not turn into wide slabs on ultrawides.
+function global:Get-OvGenreCardMetrics {
+    param([string]$Size)
+    if (-not $Size) { $Size = if ($global:ExploreSize) { $global:ExploreSize } else { "M" } }
+    switch ($Size) {
+        "S"     { return @{ H = 60; Icon = 18; IconGap = 7; Font = 11.5; Corner = 10; Gap = 8;  MinCard = 96;  MaxRow = 1300; Glow = 14 } }
+        "L"     { return @{ H = 84; Icon = 24; IconGap = 9; Font = 13.5; Corner = 12; Gap = 10; MinCard = 120; MaxRow = 1700; Glow = 20 } }
+        default { return @{ H = 72; Icon = 21; IconGap = 8; Font = 12.5; Corner = 11; Gap = 9;  MinCard = 108; MaxRow = 1500; Glow = 17 } }
+    }
+}
+
+# Accent colour with an alpha (0..1) - for the selection ring.
+function global:Get-OvAccentBrush {
+    param([string]$AccentHex, [double]$Alpha = 1.0)
+    $c = [System.Windows.Media.ColorConverter]::ConvertFromString($AccentHex)
+    $a = [byte][Math]::Max(0, [Math]::Min(255, [Math]::Round(255 * $Alpha)))
+    return New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb($a, $c.R, $c.G, $c.B))
+}
+
+# Pure layout rule (no WPF): all cards in one row when each card
+# gets at least MinCard px, otherwise two rows (half rounded up).
+# Width <= 0 means "not laid out yet" and keeps the single row;
+# the SizeChanged hook corrects it on the first real layout pass.
+function global:Get-OvGenreCardColumns {
+    param([double]$Width, [string]$Size, [int]$Count = 10)
+    if ($Count -lt 1) { return 1 }
+    if ($Width -le 0) { return $Count }
+    $m = Get-OvGenreCardMetrics -Size $Size
+    if (($Width / $Count) -ge $m.MinCard) { return $Count }
+    return [int][Math]::Ceiling($Count / 2.0)
+}
+
+# Mix an accent into the card ground (#141419) - solid result, so
+# the card never shows the page through a translucent fill.
+function global:Get-OvGenreCardTint {
+    param([string]$AccentHex, [double]$Amount = 0.18)
+    $a = [System.Windows.Media.ColorConverter]::ConvertFromString($AccentHex)
+    $b = [System.Windows.Media.ColorConverter]::ConvertFromString("#141419")
+    $mix = { param($x, $y) [byte][Math]::Round($y + ($x - $y) * $Amount) }
+    $c = [System.Windows.Media.Color]::FromRgb((& $mix $a.R $b.R), (& $mix $a.G $b.G), (& $mix $a.B $b.B))
+    return New-Object System.Windows.Media.SolidColorBrush $c
+}
+
+# Bright accents (FREE green, NEW blue, PUZZLE yellow, SIM green ...)
+# would light up as a big glowing blob at the same strength as the dark
+# reds/oranges. Damp tint, border and glow by perceived brightness:
+# factor = 0.24 / relative luminance, clamped to 0.45..1.0 (0.24 is
+# the Hub orange #dd6600, so orange/red/purple keep full strength).
+function global:Get-OvGenreCardGlowFactor {
+    param([string]$AccentHex)
+    $h = ([string]$AccentHex).TrimStart('#')
+    if ($h.Length -ne 6) { return 1.0 }
+    $lin = {
+        param([int]$v)
+        $c = $v / 255.0
+        if ($c -le 0.04045) { return $c / 12.92 }
+        return [Math]::Pow(($c + 0.055) / 1.055, 2.4)
+    }
+    $r = & $lin ([Convert]::ToInt32($h.Substring(0, 2), 16))
+    $g = & $lin ([Convert]::ToInt32($h.Substring(2, 2), 16))
+    $b = & $lin ([Convert]::ToInt32($h.Substring(4, 2), 16))
+    $lum = 0.2126 * $r + 0.7152 * $g + 0.0722 * $b
+    if ($lum -le 0) { return 1.0 }
+    return [Math]::Max(0.45, [Math]::Min(1.0, 0.24 / $lum))
+}
+
+function global:Start-OvGenreCardAnim {
+    param($Target, $Property, [double]$To, [int]$Ms, $From = $null, $Ease = $null)
+    if (-not $Target) { return }
+    $an = New-Object System.Windows.Media.Animation.DoubleAnimation
+    $an.To = $To
+    if ($null -ne $From) { $an.From = [double]$From }
+    $an.Duration = [System.Windows.Duration]::new([TimeSpan]::FromMilliseconds($Ms))
+    if (-not $Ease) {
+        $Ease = New-Object System.Windows.Media.Animation.CubicEase
+        $Ease.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+    }
+    $an.EasingFunction = $Ease
+    $Target.BeginAnimation($Property, $an)
+}
+
+# Paint a card for its resting state. SELECTED works like the header
+# type pills (Motion Controls): no colour fill - dark ground, bright edge
+# in the genre colour, a soft ring outside it and a glow hugging the
+# edge. Bright colours are damped by glowFactor. Clears a running glow
+# animation first so the state always wins.
+function global:Set-OvGenreCardState {
+    param($Card, [bool]$Active)
+    if (-not $Card) { return }
+    $bc     = [System.Windows.Media.BrushConverter]::new()
+    $border = $Card.Resources.Item("cardBorder")
+    $ring   = $Card.Resources.Item("cardRing")
+    $txt    = $Card.Resources.Item("filterText")
+    $acc    = $Card.Resources.Item("filterAccent")
+    $fx     = $Card.Resources.Item("cardGlow")
+    $f      = [double]$Card.Resources.Item("glowFactor")
+    $Card.Resources.Item("cardState").Active = $Active
+    $border.Background = $bc.ConvertFromString("#141419")
+    if ($Active) {
+        $border.BorderBrush = Get-OvGenreCardTint -AccentHex $acc -Amount (0.55 + 0.45 * $f)
+        $ring.BorderBrush   = Get-OvAccentBrush -AccentHex $acc -Alpha (0.35 + 0.25 * $f)
+        $ring.Visibility    = [System.Windows.Visibility]::Visible
+        $txt.Foreground     = [System.Windows.Media.Brushes]::White
+    } else {
+        $border.BorderBrush = $bc.ConvertFromString("#23232b")
+        $ring.Visibility    = [System.Windows.Visibility]::Collapsed
+        $txt.Foreground     = $bc.ConvertFromString("#c4c4cc")
+    }
+    if ($fx) {
+        $fx.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $null)
+        $fx.Opacity = if ($Active) { 0.5 * $f } else { 0.0 }
+    }
+}
+
+function global:New-OvGenreCard {
+    param(
+        [string]$Label,
+        [string]$Key,
+        [bool]$IsActive,
+        [string]$AccentColor = "#dd6600",
+        $IconGeometry = $null
+    )
+    $sz = Get-OvGenreCardMetrics
+    $bc = [System.Windows.Media.BrushConverter]::new()
+    $accColor = [System.Windows.Media.ColorConverter]::ConvertFromString($AccentColor)
+
+    # Root grid = what the UniformGrid lays out. Layers, back to front:
+    # glow (its drop shadow hugs the edge when selected), the visible
+    # card, and the selection ring just outside the card edge. The
+    # shadow never blurs the label text.
+    $root = New-Object System.Windows.Controls.Grid
+    $root.Height = $sz.H
+    $root.Margin = [System.Windows.Thickness]::new(0, 0, $sz.Gap, $sz.Gap)
+    $root.Cursor = [System.Windows.Input.Cursors]::Hand
+    $root.Background = [System.Windows.Media.Brushes]::Transparent
+    $root.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+    $cardScale = New-Object System.Windows.Media.ScaleTransform 1.0, 1.0
+    $root.RenderTransform = $cardScale
+
+    $glowLayer = New-Object System.Windows.Controls.Border
+    $glowLayer.CornerRadius = [System.Windows.CornerRadius]::new($sz.Corner)
+    $glowLayer.Background = $bc.ConvertFromString("#141419")
+    $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $glow.Color = $accColor
+    $glow.ShadowDepth = 0
+    $glow.BlurRadius = $sz.Glow
+    $glow.Opacity = 0.0
+    $glowLayer.Effect = $glow
+    $root.Children.Add($glowLayer) | Out-Null
+
+    $card = New-Object System.Windows.Controls.Border
+    $card.CornerRadius = [System.Windows.CornerRadius]::new($sz.Corner)
+    $card.BorderThickness = [System.Windows.Thickness]::new(1)
+    $card.Padding = [System.Windows.Thickness]::new(6, 0, 6, 0)
+    $root.Children.Add($card) | Out-Null
+
+    $ring = New-Object System.Windows.Controls.Border
+    $ring.Margin = [System.Windows.Thickness]::new(-2)
+    $ring.CornerRadius = [System.Windows.CornerRadius]::new($sz.Corner + 2)
+    $ring.BorderThickness = [System.Windows.Thickness]::new(2)
+    $ring.IsHitTestVisible = $false
+    $ring.Visibility = [System.Windows.Visibility]::Collapsed
+    $root.Children.Add($ring) | Out-Null
+
+    $stack = New-Object System.Windows.Controls.StackPanel
+    $stack.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $stack.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+
+    $iconScale = New-Object System.Windows.Media.ScaleTransform 1.0, 1.0
+    $iconPath = $null
+    if ($IconGeometry) {
+        $iconPath = New-Object System.Windows.Shapes.Path
+        $iconPath.Data = $IconGeometry
+        $iconPath.Stroke = $bc.ConvertFromString($AccentColor)
+        $iconPath.StrokeThickness    = 1.6
+        $iconPath.StrokeLineJoin     = [System.Windows.Media.PenLineJoin]::Round
+        $iconPath.StrokeStartLineCap = [System.Windows.Media.PenLineCap]::Round
+        $iconPath.StrokeEndLineCap   = [System.Windows.Media.PenLineCap]::Round
+        $iconPath.Width   = $sz.Icon
+        $iconPath.Height  = $sz.Icon
+        $iconPath.Stretch = [System.Windows.Media.Stretch]::Uniform
+        $iconPath.SnapsToDevicePixels = $true
+        $iconPath.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+        $iconPath.Margin = [System.Windows.Thickness]::new(0, 0, 0, $sz.IconGap)
+        $iconPath.RenderTransformOrigin = [System.Windows.Point]::new(0.5, 0.5)
+        $iconPath.RenderTransform = $iconScale
+        $stack.Children.Add($iconPath) | Out-Null
+    }
+
+    $txt = New-Object System.Windows.Controls.TextBlock
+    $txt.Text = $Label
+    $txt.FontSize = $sz.Font
+    $txt.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $txt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $txt.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
+    $txt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $stack.Children.Add($txt) | Out-Null
+    $card.Child = $stack
+
+    # Same resource keys as New-OvFilterChip, plus the card parts.
+    $root.Resources.Add("filterKey", $Key)
+    $root.Resources.Add("filterText", $txt)
+    $root.Resources.Add("filterAccent", $AccentColor)
+    if ($iconPath) { $root.Resources.Add("filterIcon", $iconPath) }
+    $root.Resources.Add("genreCard", $true)
+    $root.Resources.Add("glowFactor", (Get-OvGenreCardGlowFactor -AccentHex $AccentColor))
+    $root.Resources.Add("cardBorder", $card)
+    $root.Resources.Add("cardRing", $ring)
+    $root.Resources.Add("cardGlow", $glow)
+    $root.Resources.Add("cardScale", $cardScale)
+    $root.Resources.Add("iconScale", $iconScale)
+    $root.Resources.Add("cardState", @{ Active = $IsActive; Pressed = $false })
+
+    Set-OvGenreCardState -Card $root -Active $IsActive
+
+    $sxP = [System.Windows.Media.ScaleTransform]::ScaleXProperty
+    $syP = [System.Windows.Media.ScaleTransform]::ScaleYProperty
+    $opP = [System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty
+
+    # HOVER (deliberately quiet, no colour): lifted ground, lighter
+    # neutral edge, white label, icon pops 15 %. On the selected card
+    # only the glow brightens a little.
+    $root.Add_MouseEnter({
+        $st  = $this.Resources.Item("cardState")
+        $brd = $this.Resources.Item("cardBorder")
+        $bcv = [System.Windows.Media.BrushConverter]::new()
+        if ($st.Active) {
+            Start-OvGenreCardAnim -Target $this.Resources.Item("cardGlow") -Property $opP `
+                -To (0.7 * [double]$this.Resources.Item("glowFactor")) -Ms 160
+        } else {
+            $brd.Background  = $bcv.ConvertFromString("#1b1b22")
+            $brd.BorderBrush = $bcv.ConvertFromString("#4a4a56")
+        }
+        $this.Resources.Item("filterText").Foreground = [System.Windows.Media.Brushes]::White
+        $ic = $this.Resources.Item("iconScale")
+        Start-OvGenreCardAnim -Target $ic -Property $sxP -To 1.15 -Ms 160
+        Start-OvGenreCardAnim -Target $ic -Property $syP -To 1.15 -Ms 160
+    }.GetNewClosure())
+
+    # LEAVE: always restores everything, no early exit - colours via
+    # Set-OvGenreCardState, then glow/scales ease back from wherever
+    # they were (also cancels a press that never got its button-up).
+    $root.Add_MouseLeave({
+        $st = $this.Resources.Item("cardState")
+        $st.Pressed = $false
+        $fx = $this.Resources.Item("cardGlow")
+        $cur = $fx.Opacity
+        Set-OvGenreCardState -Card $this -Active $st.Active
+        $rest = $fx.Opacity
+        Start-OvGenreCardAnim -Target $fx -Property $opP -From $cur -To $rest -Ms 220
+        $ic = $this.Resources.Item("iconScale")
+        Start-OvGenreCardAnim -Target $ic -Property $sxP -To 1.0 -Ms 180
+        Start-OvGenreCardAnim -Target $ic -Property $syP -To 1.0 -Ms 180
+        $cs = $this.Resources.Item("cardScale")
+        Start-OvGenreCardAnim -Target $cs -Property $sxP -To 1.0 -Ms 180
+        Start-OvGenreCardAnim -Target $cs -Property $syP -To 1.0 -Ms 180
+    }.GetNewClosure())
+
+    # PRESS: card sinks to 95 %.
+    $root.Add_MouseLeftButtonDown({
+        $this.Resources.Item("cardState").Pressed = $true
+        $cs = $this.Resources.Item("cardScale")
+        Start-OvGenreCardAnim -Target $cs -Property $sxP -To 0.95 -Ms 80
+        Start-OvGenreCardAnim -Target $cs -Property $syP -To 0.95 -Ms 80
+    }.GetNewClosure())
+
+    return $root
+}
+
+# Width + column count of the genre grid. The grid is capped at
+# MaxRow and left-aligned; the column rule is Get-OvGenreCardColumns.
+function global:Update-OvGenreCardLayout {
+    param($Panel)
+    if (-not $Panel) { return }
+    $parent = $Panel.Parent
+    if (-not $parent -or $parent.ActualWidth -le 0) { return }
+    $m = Get-OvGenreCardMetrics
+    $w = [Math]::Min($parent.ActualWidth, $m.MaxRow)
+    if ($w -le 0) { return }
+    # Every card carries a Gap margin right and below. The panel is
+    # Gap wider with a -Gap right margin so the last card ends flush
+    # with the row, and the bottom margin is trimmed by the same Gap.
+    $Panel.Margin = [System.Windows.Thickness]::new(0, 0, -$m.Gap, [Math]::Max(0, 12 - $m.Gap))
+    $Panel.Width = $w + $m.Gap
+    $cols = Get-OvGenreCardColumns -Width $w -Count $Panel.Children.Count
+    if ($Panel.Columns -ne $cols) { $Panel.Columns = $cols }
 }
 
 # Genre accent colors - one ramp per bucket so the chips feel
@@ -455,26 +779,235 @@ function global:Build-OvGenreFilter {
         } catch {
             $iconGeo = $null
         }
-        $chip = New-OvFilterChip -Label $c.Label -Key $c.Key `
-                                 -IsActive ($c.Key -eq "ALL") `
-                                 -AccentColor $accent `
-                                 -IconGeometry $iconGeo
-        if ($c.Key -eq 'NEW') { $chip.ToolTip = 'Added to the Hub during the last 10.5 days' }
+        $cardLabel = $global:OvGenreCardLabels[$c.Key]
+        if (-not $cardLabel) { $cardLabel = $c.Label }
+        $chip = New-OvGenreCard -Label $cardLabel -Key $c.Key `
+                                -IsActive ($c.Key -eq "ALL") `
+                                -AccentColor $accent `
+                                -IconGeometry $iconGeo
+        if ($c.Key -eq 'NEW') {
+            $chip.ToolTip = 'Added to the Hub during the last 10.5 days'
+        } elseif ($cardLabel -ne $c.Label) {
+            $chip.ToolTip = $c.Label
+        }
         $keyCap = $c.Key
         $chip.Add_MouseLeftButtonUp({
+            # Only a press that started on this card counts as a click.
+            $st = $this.Resources.Item("cardState")
+            if (-not $st.Pressed) { return }
+            $st.Pressed = $false
             $global:OvActiveGenre = $keyCap
             Update-OvFilterChips -ChipPanel $global:OvGenreFilterPanel -ActiveKey $keyCap
             Apply-OvFilters
             # Refresh the featured banner to a game that fits the
             # active genre (or a random pick again when ALL).
             Set-OvBannerForActiveGenre
+            if (Get-Command Set-BannerEffect -ErrorAction SilentlyContinue) {
+                Set-BannerEffect -BannerName 'OvBanner' -BannerH 200 -ColorHex '#FFFFFF' -Effect (Get-BannerFxFor -Game $global:OvBannerGame -Featured)
+            }
+            # CLICK EFFECT, after the state repaint (which clears the glow
+            # animation; the scale animations are simply replaced here):
+            # spring back from 95 % with a slight overshoot
+            # and a glow flash that settles on the selected-hover glow.
+            $sxP = [System.Windows.Media.ScaleTransform]::ScaleXProperty
+            $syP = [System.Windows.Media.ScaleTransform]::ScaleYProperty
+            $back = New-Object System.Windows.Media.Animation.BackEase
+            $back.Amplitude = 0.6
+            $back.EasingMode = [System.Windows.Media.Animation.EasingMode]::EaseOut
+            $cs = $this.Resources.Item("cardScale")
+            Start-OvGenreCardAnim -Target $cs -Property $sxP -From 0.95 -To 1.0 -Ms 260 -Ease $back
+            Start-OvGenreCardAnim -Target $cs -Property $syP -From 0.95 -To 1.0 -Ms 260 -Ease $back
+            Start-OvGenreCardAnim -Target $this.Resources.Item("cardGlow") `
+                -Property ([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty) `
+                -From (0.95 * [double]$this.Resources.Item("glowFactor")) `
+                -To (0.7 * [double]$this.Resources.Item("glowFactor")) -Ms 420
+            if ($this.IsMouseOver) {
+                $this.Resources.Item("filterText").Foreground = [System.Windows.Media.Brushes]::White
+            }
         }.GetNewClosure())
         $panel.Children.Add($chip) | Out-Null
     }
+    # Grid width + 10/5 columns follow the window width. The hook is
+    # attached once per parent (the panel is rebuilt on S/M/L changes).
+    $par = $panel.Parent
+    if ($par -and -not $par.Resources.Contains("ovGenreCardsHook")) {
+        $par.Resources.Add("ovGenreCardsHook", $true)
+        $par.Add_SizeChanged({
+            param($s, $e)
+            if (-not $e.WidthChanged) { return }
+            if ($global:OvGenreFilterPanel) {
+                Update-OvGenreCardLayout -Panel $global:OvGenreFilterPanel
+            }
+            # Same parent: the PC POWER row moves its GPU box under the
+            # bar when the window gets too narrow for one line.
+            Update-OvPowerRowLayout
+        })
+    }
+    Update-OvGenreCardLayout -Panel $panel
     $global:OvGenreFilterPanel = $panel
     if (Get-Command Set-OvHeaderPillStyle -ErrorAction SilentlyContinue) {
         Set-OvHeaderPillStyle -Border ($window.FindName("OvGenreHeader"))
     }
+}
+
+# ---------------------------------------------------------------
+# PC POWER row (Explore layout "Variant 3"): one joined tier bar,
+# the Up to my PC / Exact tier segment and the GPU status box.
+# ---------------------------------------------------------------
+function global:Get-OvPowerRowMetrics {
+    param([string]$Size)
+    if (-not $Size) { $Size = if ($global:ExploreSize) { $global:ExploreSize } else { "M" } }
+    switch ($Size) {
+        "S"     { return @{ SegW = 92;  SegH = 36; Font = 11.5; Bar = 40; ModeH = 30; ModeFont = 11.5; GpuFont = 12.0; RateH = 28; Icon = 16; Head = 10.5 } }
+        "L"     { return @{ SegW = 116; SegH = 44; Font = 13.5; Bar = 56; ModeH = 38; ModeFont = 13.0; GpuFont = 13.5; RateH = 34; Icon = 20; Head = 12.0 } }
+        default { return @{ SegW = 104; SegH = 40; Font = 12.5; Bar = 48; ModeH = 34; ModeFont = 12.0; GpuFont = 12.5; RateH = 30; Icon = 18; Head = 11.0 } }
+    }
+}
+
+# Resting paint of one tier segment. SELECTED = the same edge glow as the
+# genre cards: no fill, a ring in the tier colour over the segment edge
+# and a glow around it (damped for bright colours). The selected segment
+# is lifted above its neighbours (ZIndex) so its ring is not covered.
+function global:Set-OvPowerSegState {
+    param($Seg, [bool]$Active)
+    if (-not $Seg) { return }
+    $bc   = [System.Windows.Media.BrushConverter]::new()
+    $body = $Seg.Resources.Item("segBorder")
+    $ring = $Seg.Resources.Item("segRing")
+    $fx   = $Seg.Resources.Item("segGlow")
+    $txt  = $Seg.Resources.Item("filterText")
+    $bar  = $Seg.Resources.Item("segBar")
+    $sel  = $Seg.Resources.Item("selectAccent")
+    $f    = [double]$Seg.Resources.Item("glowFactor")
+    $Seg.Resources.Item("segState").Active = $Active
+    $body.Background = $bc.ConvertFromString("#141419")
+    if ($Active) {
+        $ring.BorderBrush = Get-OvAccentBrush -AccentHex $sel -Alpha (0.55 + 0.35 * $f)
+        $ring.Visibility  = [System.Windows.Visibility]::Visible
+        $txt.Foreground   = [System.Windows.Media.Brushes]::White
+        [System.Windows.Controls.Panel]::SetZIndex($Seg, 1)
+    } else {
+        $ring.Visibility  = [System.Windows.Visibility]::Collapsed
+        $txt.Foreground   = $bc.ConvertFromString("#a8a8b2")
+        [System.Windows.Controls.Panel]::SetZIndex($Seg, 0)
+    }
+    $fx.BeginAnimation([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty, $null)
+    $fx.Opacity = if ($Active) { 0.5 * $f } else { 0.0 }
+    $bar.BeginAnimation([System.Windows.FrameworkElement]::WidthProperty, $null)
+    $bar.Width = [double]$Seg.Resources.Item("barW")
+}
+
+function global:New-OvPowerSeg {
+    param([string]$Label, [string]$Key, [string]$Color, [bool]$IsActive, [string]$Position = "mid", [string]$SelectColor = $null)
+    $m  = Get-OvPowerRowMetrics
+    $bc = [System.Windows.Media.BrushConverter]::new()
+    if (-not $SelectColor) { $SelectColor = $Color }
+    # The outer bar has CornerRadius 10 (1px border) - the end segments
+    # round their own outer corners so their fill never pokes out.
+    switch ($Position) {
+        "first" { $cr = [System.Windows.CornerRadius]::new(9, 0, 0, 9); $rr = [System.Windows.CornerRadius]::new(10, 2, 2, 10); $bt = [System.Windows.Thickness]::new(0, 0, 1, 0) }
+        "last"  { $cr = [System.Windows.CornerRadius]::new(0, 9, 9, 0); $rr = [System.Windows.CornerRadius]::new(2, 10, 10, 2); $bt = [System.Windows.Thickness]::new(0) }
+        default { $cr = [System.Windows.CornerRadius]::new(0);          $rr = [System.Windows.CornerRadius]::new(2);           $bt = [System.Windows.Thickness]::new(0, 0, 1, 0) }
+    }
+    # Root grid, layers back to front: glow, segment body, selection ring.
+    $seg = New-Object System.Windows.Controls.Grid
+    $seg.Width  = $m.SegW
+    $seg.Height = $m.SegH
+    $seg.Cursor = [System.Windows.Input.Cursors]::Hand
+    $seg.Background = [System.Windows.Media.Brushes]::Transparent
+
+    $glowLayer = New-Object System.Windows.Controls.Border
+    $glowLayer.CornerRadius = $cr
+    $glowLayer.Background = $bc.ConvertFromString("#141419")
+    $glow = New-Object System.Windows.Media.Effects.DropShadowEffect
+    $glow.Color = [System.Windows.Media.ColorConverter]::ConvertFromString($SelectColor)
+    $glow.ShadowDepth = 0
+    $glow.BlurRadius = 12
+    $glow.Opacity = 0.0
+    $glowLayer.Effect = $glow
+    $seg.Children.Add($glowLayer) | Out-Null
+
+    $body = New-Object System.Windows.Controls.Border
+    $body.CornerRadius = $cr
+    $body.BorderThickness = $bt
+    $body.BorderBrush = $bc.ConvertFromString("#2a2a33")
+    $seg.Children.Add($body) | Out-Null
+
+    $ring = New-Object System.Windows.Controls.Border
+    $ring.Margin = [System.Windows.Thickness]::new(-1)
+    $ring.CornerRadius = $rr
+    $ring.BorderThickness = [System.Windows.Thickness]::new(2)
+    $ring.IsHitTestVisible = $false
+    $ring.Visibility = [System.Windows.Visibility]::Collapsed
+    $seg.Children.Add($ring) | Out-Null
+
+    $sp = New-Object System.Windows.Controls.StackPanel
+    $sp.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $sp.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $txt = New-Object System.Windows.Controls.TextBlock
+    $txt.Text = $Label
+    $txt.FontSize = $m.Font
+    $txt.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $txt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $txt.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $sp.Children.Add($txt) | Out-Null
+    $bar = New-Object System.Windows.Shapes.Rectangle
+    $bar.Height = 3
+    $bar.RadiusX = 1.5
+    $bar.RadiusY = 1.5
+    $bar.Fill = $bc.ConvertFromString($Color)
+    $bar.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
+    $bar.Margin = [System.Windows.Thickness]::new(0, 6, 0, 0)
+    $sp.Children.Add($bar) | Out-Null
+    $body.Child = $sp
+
+    $seg.Resources.Add("filterKey", $Key)
+    $seg.Resources.Add("filterText", $txt)
+    $seg.Resources.Add("filterAccent", $Color)
+    $seg.Resources.Add("selectAccent", $SelectColor)
+    $seg.Resources.Add("glowFactor", (Get-OvGenreCardGlowFactor -AccentHex $SelectColor))
+    $seg.Resources.Add("powerSeg", $true)
+    $seg.Resources.Add("segBorder", $body)
+    $seg.Resources.Add("segRing", $ring)
+    $seg.Resources.Add("segGlow", $glow)
+    $seg.Resources.Add("segBar", $bar)
+    $seg.Resources.Add("barW", [double]$m.Bar)
+    $seg.Resources.Add("segState", @{ Active = $IsActive; Pressed = $false })
+    Set-OvPowerSegState -Seg $seg -Active $IsActive
+
+    $wP  = [System.Windows.FrameworkElement]::WidthProperty
+    $opP = [System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty
+    # HOVER (quiet): lifted ground, white label, colour bar stretches.
+    # On the selected segment the glow brightens a little instead.
+    $seg.Add_MouseEnter({
+        $st = $this.Resources.Item("segState")
+        if ($st.Active) {
+            Start-OvGenreCardAnim -Target $this.Resources.Item("segGlow") -Property $opP `
+                -To (0.7 * [double]$this.Resources.Item("glowFactor")) -Ms 160
+        } else {
+            $this.Resources.Item("segBorder").Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1b1b22")
+        }
+        $this.Resources.Item("filterText").Foreground = [System.Windows.Media.Brushes]::White
+        Start-OvGenreCardAnim -Target $this.Resources.Item("segBar") -Property $wP -To ([double]$this.Resources.Item("barW") * 1.35) -Ms 160
+    }.GetNewClosure())
+    # LEAVE: unconditional restore, bar and glow ease back from where they were.
+    $seg.Add_MouseLeave({
+        $st = $this.Resources.Item("segState")
+        $st.Pressed = $false
+        $bar = $this.Resources.Item("segBar")
+        $fx  = $this.Resources.Item("segGlow")
+        $curW = $bar.Width
+        $curO = $fx.Opacity
+        Set-OvPowerSegState -Seg $this -Active $st.Active
+        Start-OvGenreCardAnim -Target $bar -Property $wP -From $curW -To ([double]$this.Resources.Item("barW")) -Ms 180
+        Start-OvGenreCardAnim -Target $fx -Property $opP -From $curO -To $fx.Opacity -Ms 220
+    }.GetNewClosure())
+    # PRESS: ground sinks darker until the button comes up.
+    $seg.Add_MouseLeftButtonDown({
+        $this.Resources.Item("segState").Pressed = $true
+        $this.Resources.Item("segBorder").Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#0f0f13")
+    }.GetNewClosure())
+    return $seg
 }
 
 function global:Build-OvPowerFilter {
@@ -482,30 +1015,49 @@ function global:Build-OvPowerFilter {
     if (-not $panel) { return }
     $panel.Children.Clear()
 
-    $chips = @(@{ Key="ALL"; Label="All"; Color="#888888" })
+    # "Any" keeps its grey bar but is selected with a neutral light edge.
+    $chips = @(@{ Key="ALL"; Label="Any"; Color="#55555f"; Select="#d8d8e0" })
     foreach ($b in $global:OverviewPowerBuckets) {
         $chips += @{ Key=$b.Key; Label=$b.Label; Color=$b.Color }
     }
-    foreach ($c in $chips) {
-        $chip = New-OvFilterChip -Label $c.Label -Key $c.Key -IsActive ($c.Key -eq "ALL") -AccentColor $c.Color
+    for ($i = 0; $i -lt $chips.Count; $i++) {
+        $c = $chips[$i]
+        $pos = if ($i -eq 0) { "first" } elseif ($i -eq $chips.Count - 1) { "last" } else { "mid" }
+        $chip = New-OvPowerSeg -Label $c.Label -Key $c.Key -Color $c.Color -IsActive ($c.Key -eq "ALL") -Position $pos -SelectColor $c.Select
         $keyCap = $c.Key
         $chip.Add_MouseLeftButtonUp({
+            $st = $this.Resources.Item("segState")
+            if (-not $st.Pressed) { return }
+            $st.Pressed = $false
             $global:OvActivePower = $keyCap
             Update-OvFilterChips -ChipPanel $global:OvPowerFilterPanel -ActiveKey $keyCap
             Apply-OvFilters
+            # CLICK EFFECT after the repaint: the colour bar flashes wide
+            # and settles on the hover width, the new edge glow flashes up.
+            $gf = [double]$this.Resources.Item("glowFactor")
+            Start-OvGenreCardAnim -Target $this.Resources.Item("segGlow") `
+                -Property ([System.Windows.Media.Effects.DropShadowEffect]::OpacityProperty) `
+                -From (0.95 * $gf) -To (0.7 * $gf) -Ms 420
+            $bw = [double]$this.Resources.Item("barW")
+            Start-OvGenreCardAnim -Target $this.Resources.Item("segBar") `
+                -Property ([System.Windows.FrameworkElement]::WidthProperty) `
+                -From ($bw * 1.7) -To ($bw * 1.35) -Ms 320
         }.GetNewClosure())
         $panel.Children.Add($chip) | Out-Null
     }
     $global:OvPowerFilterPanel = $panel
-    # Rating controls sit at the end of this very row, after a gap.
-    Add-OvGpuRateControls -Panel $panel
+    $hdr = $window.FindName("OvPowerHeaderText")
+    if ($hdr) { $hdr.FontSize = (Get-OvPowerRowMetrics).Head }
+    # GPU status box at the right end of the row.
+    Add-OvGpuRateControls -Panel ($window.FindName("OvGpuBoxPanel"))
+    Update-OvPowerRowLayout
 }
 
 # ---------------------------------------------------------------
 # GPU rating for the Explore power filter ("Rate my GPU").
 # ---------------------------------------------------------------
-# The buttons live at the END of the tier-pill row itself (with a gap),
-# not in a row of their own - they belong to that selection.
+# The controls live in the GPU status box at the right end of the PC
+# POWER row (OvGpuBox) - they belong to that selection.
 # The Explore filter uses 4 coarse buckets, the detail page uses the
 # 6 PowerTiers. Map a resolved GPU tier index onto a bucket key:
 #   tier 0/1 (LOW,BASIC)   -> LOW
@@ -552,30 +1104,42 @@ function global:Invoke-OvGpuRate {
     }
 }
 
-# Paint the "Always rate" toggle to match its persisted state.
+# Rate, remember the result text (an S/M/L rebuild restores it instead
+# of claiming "not rated yet") and re-check the row layout, since the
+# result text can be much longer than the placeholder.
+function global:Invoke-OvGpuRateAndRefresh {
+    Invoke-OvGpuRate
+    if ($global:OvRateResultTxt) {
+        $global:OvRateLastText = $global:OvRateResultTxt.Text
+        $global:OvRateLastFg   = $global:OvRateResultTxt.Foreground
+        $global:OvRateResultTxt.ToolTip = $global:OvRateResultTxt.Text
+    }
+    Update-OvPowerRowLayout
+}
+
+# Paint the "Always" toggle (checkbox look) to match its persisted state.
 function global:Update-OvAlwaysRateVisual {
     param([bool]$On)
     if (-not $global:OvAlwaysRateBtn -or -not $global:OvAlwaysRateTxt) { return }
-    $bc = [System.Windows.Media.BrushConverter]::new()
-    # Background stays transparent in both states - the border and the
-    # label colour carry the on/off distinction. restBorder is updated
-    # too so a later MouseLeave restores the correct resting colour.
-    $global:OvAlwaysRateBtn.Background = [System.Windows.Media.Brushes]::Transparent
+    $bc  = [System.Windows.Media.BrushConverter]::new()
+    $box = $global:OvAlwaysRateBtn.Resources.Item("alwaysBox")
+    $chk = $global:OvAlwaysRateBtn.Resources.Item("alwaysCheck")
+    $global:OvAlwaysRateBtn.Resources["alwaysOn"] = $On
     if ($On) {
-        $global:OvAlwaysRateBtn.Resources["restBorder"] = "#6a9ad8"
-        $global:OvAlwaysRateBtn.BorderBrush = $bc.ConvertFromString("#6a9ad8")
-        $global:OvAlwaysRateTxt.Foreground  = $bc.ConvertFromString("#6a9ad8")
-        $global:OvAlwaysRateTxt.Text = "Always: on"
+        $box.Background  = $bc.ConvertFromString("#ff8a2a")
+        $box.BorderBrush = $bc.ConvertFromString("#ff8a2a")
+        $chk.Visibility  = [System.Windows.Visibility]::Visible
+        $global:OvAlwaysRateTxt.Foreground = $bc.ConvertFromString("#e8e8ec")
     } else {
-        $global:OvAlwaysRateBtn.Resources["restBorder"] = "#4a6a90"
-        $global:OvAlwaysRateBtn.BorderBrush = $bc.ConvertFromString("#4a6a90")
-        $global:OvAlwaysRateTxt.Foreground  = $bc.ConvertFromString("#8a93a3")
-        $global:OvAlwaysRateTxt.Text = "Always rate"
+        $box.Background  = [System.Windows.Media.Brushes]::Transparent
+        $box.BorderBrush = $bc.ConvertFromString("#6a6a76")
+        $chk.Visibility  = [System.Windows.Visibility]::Collapsed
+        $global:OvAlwaysRateTxt.Foreground = $bc.ConvertFromString("#a8a8b2")
     }
 }
 
-# Show/hide the rating controls. Exact Tier mode hides them: there the
-# user deliberately browses one tier, so their own GPU is irrelevant.
+# Exact tier mode hides the whole GPU box: there the user deliberately
+# browses one tier, so their own GPU is irrelevant.
 function global:Update-OvGpuRateVisibility {
     $vis = if ($global:OvPowerMode -eq "exact") {
         [System.Windows.Visibility]::Collapsed
@@ -585,109 +1149,202 @@ function global:Update-OvGpuRateVisibility {
     foreach ($el in @($global:OvRateBtn, $global:OvAlwaysRateBtn, $global:OvRateResultHost)) {
         if ($el) { $el.Visibility = $vis }
     }
+    if (Get-Command Update-OvPowerRowLayout -ErrorAction SilentlyContinue) { Update-OvPowerRowLayout }
 }
 
-# Build a rating button that matches New-OvFilterChip's geometry
-# EXACTLY: same S/M/L size table, same corner radius, same inner
-# MinHeight and the same 8px right/bottom margin. That way the buttons
-# sit on the same baseline as the tier pills and are the same height,
-# and they track the Explore S/M/L setting just like the pills do.
-function global:New-OvRateButton {
-    param([string]$Label, [bool]$Primary, [double]$LeftMargin)
-    $szKey = if ($global:ExploreSize) { $global:ExploreSize } else { "M" }
-    $sz = switch ($szKey) {
-        "S"     { @{ Font = 11.0; Corner = 5; MinH = 26; LblL = 11; LblR = 12; LblV = 5 } }
-        "L"     { @{ Font = 12.5; Corner = 6; MinH = 30; LblL = 13; LblR = 14; LblV = 6 } }
-        default { @{ Font = 12.0; Corner = 5; MinH = 28; LblL = 12; LblR = 13; LblV = 5 } }
-    }
-    $b = New-Object System.Windows.Controls.Border
-    $b.CornerRadius = [System.Windows.CornerRadius]::new($sz.Corner)
-    $b.Padding = [System.Windows.Thickness]::new(0)
-    $b.Margin = [System.Windows.Thickness]::new($LeftMargin, 0, 8, 8)
-    $b.BorderThickness = [System.Windows.Thickness]::new(1)
-    # No fill - the outline carries the button. The former hover border
-    # is now the resting one; hovering turns it yellow instead.
-    $b.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#4a6a90")
-    $b.Background  = [System.Windows.Media.Brushes]::Transparent
-    $b.Cursor = [System.Windows.Input.Cursors]::Hand
-    # Resting border colour, so MouseLeave can restore the right one even
-    # after "Always rate" has switched this button to its active look.
-    $b.Resources["restBorder"] = "#4a6a90"
-
-    $inner = New-Object System.Windows.Controls.Grid
-    $inner.MinHeight = $sz.MinH
-
-    $t = New-Object System.Windows.Controls.TextBlock
-    $t.Text = $Label
-    $t.FontSize = $sz.Font
-    $t.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
-    $t.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-    $t.Margin = [System.Windows.Thickness]::new($sz.LblL, $sz.LblV, $sz.LblR, $sz.LblV)
-    if ($Primary) {
-        $t.FontWeight = [System.Windows.FontWeights]::SemiBold
-        $t.Foreground = [System.Windows.Media.Brushes]::White
-    } else {
-        $t.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
-    }
-    $inner.Children.Add($t) | Out-Null
-    $b.Child = $inner
-
-    $b.Add_MouseEnter({
-        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ddcc44")
-    })
-    $b.Add_MouseLeave({
-        $rest = if ($this.Resources.Contains("restBorder")) { $this.Resources.Item("restBorder") } else { "#4a6a90" }
-        $this.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString($rest)
-    })
-    return @{ Border = $b; Text = $t }
-}
-
-# Append the rating controls to the END of the tier-pill panel, after a
-# clear gap (~3-4 spaces) so they read as a separate action, not a tier.
+# Fill the GPU status box: chip icon, status text, "Always" toggle and
+# the "Rate my GPU" button. $Panel is OvGpuBoxPanel inside OvGpuBox.
 function global:Add-OvGpuRateControls {
     param($Panel)
     if (-not $Panel) { return }
+    $Panel.Children.Clear()
+    $m  = Get-OvPowerRowMetrics
+    $bc = [System.Windows.Media.BrushConverter]::new()
 
-    $rate = New-OvRateButton -Label "Rate my GPU" -Primary $true -LeftMargin 26
-    $global:OvRateBtn = $rate.Border
-    $rate.Border.ToolTip = "Reads your installed GPU name once, locally, and picks the matching power level"
-    $rate.Border.Add_MouseLeftButtonUp({ Invoke-OvGpuRate })
-    $Panel.Children.Add($rate.Border) | Out-Null
+    # Chip icon, built from primitives (see New-OvGenreIcon for why).
+    $g = New-Object System.Windows.Media.GeometryGroup
+    $r = New-Object System.Windows.Media.RectangleGeometry
+    $r.Rect = New-Object System.Windows.Rect 4, 4, 8, 8
+    $g.Children.Add($r) | Out-Null
+    foreach ($ln in @(@(6,1.5,6,4), @(10,1.5,10,4), @(6,12,6,14.5), @(10,12,10,14.5),
+                      @(1.5,6,4,6), @(1.5,10,4,10), @(12,6,14.5,6), @(12,10,14.5,10))) {
+        $lg = New-Object System.Windows.Media.LineGeometry
+        $lg.StartPoint = New-Object System.Windows.Point $ln[0], $ln[1]
+        $lg.EndPoint   = New-Object System.Windows.Point $ln[2], $ln[3]
+        $g.Children.Add($lg) | Out-Null
+    }
+    $icon = New-Object System.Windows.Shapes.Path
+    $icon.Data = $g
+    $icon.Stroke = $bc.ConvertFromString("#ff8a2a")
+    $icon.StrokeThickness = 1.4
+    $icon.StrokeStartLineCap = [System.Windows.Media.PenLineCap]::Round
+    $icon.StrokeEndLineCap   = [System.Windows.Media.PenLineCap]::Round
+    $icon.Width = $m.Icon
+    $icon.Height = $m.Icon
+    $icon.Stretch = [System.Windows.Media.Stretch]::Uniform
+    $icon.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $icon.Margin = [System.Windows.Thickness]::new(0, 0, 10, 0)
+    $Panel.Children.Add($icon) | Out-Null
 
-    $alw = New-OvRateButton -Label "Always rate" -Primary $false -LeftMargin 8
-    $global:OvAlwaysRateBtn = $alw.Border
-    $global:OvAlwaysRateTxt = $alw.Text
-    $alw.Border.ToolTip = "Rate automatically every time you open Explore"
-    $alw.Border.Add_MouseLeftButtonUp({
+    # Status text - Invoke-OvGpuRate writes the result here.
+    $res = New-Object System.Windows.Controls.TextBlock
+    $res.Text = "GPU not rated yet"
+    $res.FontSize = $m.GpuFont
+    $res.Foreground = $bc.ConvertFromString("#b4b4be")
+    if ($global:OvRateLastText) {
+        $res.Text = $global:OvRateLastText
+        if ($global:OvRateLastFg) { $res.Foreground = $global:OvRateLastFg }
+    }
+    # Long GPU names are cut with an ellipsis; the full text is the tooltip.
+    $res.MaxWidth = 300
+    $res.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
+    $res.ToolTip = $res.Text
+    $res.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $res.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $res.Margin = [System.Windows.Thickness]::new(0, 0, 14, 0)
+    $Panel.Children.Add($res) | Out-Null
+    $global:OvRateResultTxt = $res
+    $global:OvRateResultHost = $window.FindName("OvGpuBox")
+
+    # "Always" toggle: small checkbox + label.
+    $alw = New-Object System.Windows.Controls.StackPanel
+    $alw.Orientation = [System.Windows.Controls.Orientation]::Horizontal
+    $alw.Background = [System.Windows.Media.Brushes]::Transparent
+    $alw.Cursor = [System.Windows.Input.Cursors]::Hand
+    $alw.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $alw.Margin = [System.Windows.Thickness]::new(0, 0, 12, 0)
+    $alw.ToolTip = "Rate automatically every time you open Explore"
+    $box = New-Object System.Windows.Controls.Border
+    $box.Width = 14
+    $box.Height = 14
+    $box.CornerRadius = [System.Windows.CornerRadius]::new(3)
+    $box.BorderThickness = [System.Windows.Thickness]::new(1.5)
+    $box.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $cg = New-Object System.Windows.Media.PathGeometry
+    $cf = New-Object System.Windows.Media.PathFigure
+    $cf.StartPoint = New-Object System.Windows.Point 2.5, 6
+    $s1 = New-Object System.Windows.Media.LineSegment
+    $s1.Point = New-Object System.Windows.Point 5, 8.5
+    $cf.Segments.Add($s1) | Out-Null
+    $s2 = New-Object System.Windows.Media.LineSegment
+    $s2.Point = New-Object System.Windows.Point 9.5, 3
+    $cf.Segments.Add($s2) | Out-Null
+    $cg.Figures.Add($cf) | Out-Null
+    $chk = New-Object System.Windows.Shapes.Path
+    $chk.Data = $cg
+    $chk.Stroke = $bc.ConvertFromString("#1b0e02")
+    $chk.StrokeThickness = 1.8
+    $chk.StrokeStartLineCap = [System.Windows.Media.PenLineCap]::Round
+    $chk.StrokeEndLineCap   = [System.Windows.Media.PenLineCap]::Round
+    $chk.StrokeLineJoin     = [System.Windows.Media.PenLineJoin]::Round
+    $box.Child = $chk
+    $alw.Children.Add($box) | Out-Null
+    $alwTxt = New-Object System.Windows.Controls.TextBlock
+    $alwTxt.Text = "Always"
+    $alwTxt.FontSize = $m.GpuFont - 0.5
+    $alwTxt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $alwTxt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $alwTxt.Margin = [System.Windows.Thickness]::new(7, 0, 0, 0)
+    $alw.Children.Add($alwTxt) | Out-Null
+    $alw.Resources.Add("alwaysBox", $box)
+    $alw.Resources.Add("alwaysCheck", $chk)
+    $global:OvAlwaysRateBtn = $alw
+    $global:OvAlwaysRateTxt = $alwTxt
+    $alw.Add_MouseEnter({
+        $this.Resources.Item("alwaysBox").BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ff8a2a")
+        $global:OvAlwaysRateTxt.Foreground = [System.Windows.Media.Brushes]::White
+    })
+    $alw.Add_MouseLeave({
+        Update-OvAlwaysRateVisual -On ([bool]$this.Resources["alwaysOn"])
+    })
+    $alw.Add_MouseLeftButtonUp({
         $on = -not [bool](Get-HubSetting -Key "OvGpuRateAlways" -Default $false)
         Set-HubSetting -Key "OvGpuRateAlways" -Value $on
         Update-OvAlwaysRateVisual -On $on
-        if ($on) { Invoke-OvGpuRate }
+        if ($on) { Invoke-OvGpuRateAndRefresh }
     })
-    $Panel.Children.Add($alw.Border) | Out-Null
+    $Panel.Children.Add($alw) | Out-Null
 
-    # Result text: wrapped in a Grid of the same MinHeight as the pills
-    # so it is vertically centred on their line instead of riding high.
-    $szKey2 = if ($global:ExploreSize) { $global:ExploreSize } else { "M" }
-    $rh = switch ($szKey2) { "S" { 26 } "L" { 30 } default { 28 } }
-    $rf = switch ($szKey2) { "S" { 11.0 } "L" { 12.5 } default { 12.0 } }
-    $resHost = New-Object System.Windows.Controls.Grid
-    $resHost.MinHeight = $rh
-    $resHost.Margin = [System.Windows.Thickness]::new(12, 0, 0, 8)
-    $res = New-Object System.Windows.Controls.TextBlock
-    $res.FontSize = $rf
-    $res.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#8a93a3")
-    $res.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
-    $res.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
-    $resHost.Children.Add($res) | Out-Null
-    $global:OvRateResultTxt = $res
-    $global:OvRateResultHost = $resHost
-    $Panel.Children.Add($resHost) | Out-Null
+    # "Rate my GPU" - orange outline on a light orange tint.
+    $rate = New-Object System.Windows.Controls.Border
+    $rate.Height = $m.RateH
+    $rate.CornerRadius = [System.Windows.CornerRadius]::new(8)
+    $rate.BorderThickness = [System.Windows.Thickness]::new(1)
+    $rate.BorderBrush = $bc.ConvertFromString("#ff8a2a")
+    $rate.Background = Get-OvGenreCardTint -AccentHex "#ff8a2a" -Amount 0.14
+    $rate.Padding = [System.Windows.Thickness]::new(12, 0, 12, 0)
+    $rate.Cursor = [System.Windows.Input.Cursors]::Hand
+    $rate.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $rate.ToolTip = "Reads your installed GPU name once, locally, and picks the matching power level"
+    $rt = New-Object System.Windows.Controls.TextBlock
+    $rt.Text = "Rate my GPU"
+    $rt.FontSize = $m.GpuFont
+    $rt.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $rt.Foreground = [System.Windows.Media.Brushes]::White
+    $rt.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+    $rt.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+    $rate.Child = $rt
+    $rate.Resources.Add("pressed", $false)
+    $global:OvRateBtn = $rate
+    $rate.Add_MouseEnter({ $this.Background = Get-OvGenreCardTint -AccentHex "#ff8a2a" -Amount 0.26 })
+    $rate.Add_MouseLeave({
+        $this.Resources["pressed"] = $false
+        $this.Background = Get-OvGenreCardTint -AccentHex "#ff8a2a" -Amount 0.14
+    })
+    $rate.Add_MouseLeftButtonDown({
+        $this.Resources["pressed"] = $true
+        $this.Background = Get-OvGenreCardTint -AccentHex "#ff8a2a" -Amount 0.40
+    })
+    $rate.Add_MouseLeftButtonUp({
+        if (-not [bool]$this.Resources["pressed"]) { return }
+        $this.Resources["pressed"] = $false
+        $this.Background = Get-OvGenreCardTint -AccentHex "#ff8a2a" -Amount 0.26
+        Invoke-OvGpuRateAndRefresh
+    })
+    $Panel.Children.Add($rate) | Out-Null
 
     $alwaysOn = [bool](Get-HubSetting -Key "OvGpuRateAlways" -Default $false)
     Update-OvAlwaysRateVisual -On $alwaysOn
     Update-OvGpuRateVisibility
-    if ($alwaysOn -and $global:OvPowerMode -ne "exact") { Invoke-OvGpuRate }
+    if ($alwaysOn -and $global:OvPowerMode -ne "exact") { Invoke-OvGpuRateAndRefresh }
+}
+
+# GPU box right of the bar when it fits, otherwise under it.
+function global:Update-OvPowerRowLayout {
+    if (-not $window) { return }
+    $row  = $window.FindName("OvPowerRow")
+    $left = $window.FindName("OvPowerLeft")
+    $box  = $window.FindName("OvGpuBox")
+    if (-not $row -or -not $left -or -not $box) { return }
+    # The row stretches over its parent; read the parent so a resize is
+    # judged by the new width even before the row itself re-arranged.
+    $w = $row.ActualWidth
+    if ($row.Parent -and $row.Parent.ActualWidth -gt 0) {
+        $w = $row.Parent.ActualWidth - $row.Margin.Left - $row.Margin.Right
+    }
+    if ($w -le 0) { return }
+    $inf = [System.Windows.Size]::new([double]::PositiveInfinity, [double]::PositiveInfinity)
+    $left.Measure($inf)
+    $box.Measure($inf)
+    $boxW = $box.DesiredSize.Width - $box.Margin.Left - $box.Margin.Right + 18
+    $fits = Test-OvPowerRowFits -RowWidth $w -LeftWidth $left.DesiredSize.Width -BoxWidth $boxW
+    if ($fits) {
+        [System.Windows.Controls.Grid]::SetRow($box, 0)
+        [System.Windows.Controls.Grid]::SetColumn($box, 1)
+        $box.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Right
+        $box.Margin = [System.Windows.Thickness]::new(18, 0, 0, 0)
+    } else {
+        [System.Windows.Controls.Grid]::SetRow($box, 1)
+        [System.Windows.Controls.Grid]::SetColumn($box, 0)
+        $box.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
+        $box.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+    }
+}
+
+# Pure rule (no WPF): the box (incl. its 18px gap) fits beside the bar.
+function global:Test-OvPowerRowFits {
+    param([double]$RowWidth, [double]$LeftWidth, [double]$BoxWidth)
+    return (($LeftWidth + $BoxWidth) -le $RowWidth)
 }
 
 # Build a genre row: header + horizontal scroll of tiles + side
@@ -1166,6 +1823,11 @@ function global:Build-OverviewChrome {
     # interpretation in Apply-OvFilters differs.
     if (-not $global:OvPowerMode) { $global:OvPowerMode = "cumulative" }
     Set-OvBanner
+    # Explore is built on demand, after startup's effect initialization.
+    # Select the assigned effect only once its first featured game is known.
+    if (Get-Command Set-BannerEffect -ErrorAction SilentlyContinue) {
+        Set-BannerEffect -BannerName 'OvBanner' -BannerH 200 -ColorHex '#FFFFFF' -Effect (Get-BannerFxFor -Game $global:OvBannerGame -Featured)
+    }
     Build-OvGenreFilter
     Build-OvPowerFilter
     Build-OvPowerModeToggle
@@ -1362,64 +2024,84 @@ function global:Set-OvHeaderPillStyle {
 }
 
 function global:Apply-OvPowerModeToggleStyle {
-    $toggle = $global:OvPowerModeToggleBorder
-    if (-not $toggle) { $toggle = $window.FindName("OvPowerModeToggle") }
-    Set-OvHeaderPillStyle -Border $toggle
+    # S/M/L change: rebuild the segment at the new size.
+    Build-OvPowerModeToggle
 }
 
+# Two-option segment "Up to my PC" (cumulative) / "Exact tier" (exact).
+# Apply-OvFilters reads $global:OvPowerMode together with
+# $global:OvActivePower; ALL ("Any") bypasses both modes.
 function global:Build-OvPowerModeToggle {
-    $toggle = $window.FindName("OvPowerModeToggle")
-    $label  = $window.FindName("OvPowerModeLabel")
-    if (-not $toggle -or -not $label) { return }
-
-    $global:OvPowerModeToggleBorder = $toggle
-    $global:OvPowerModeLabelTxt     = $label
+    $seg = $window.FindName("OvPowerModeSeg")
+    if (-not $seg) { return }
+    $seg.Children.Clear()
+    $m = Get-OvPowerRowMetrics
+    $opts = @(
+        @{ Mode = "cumulative"; Label = "Up to my PC"; Tip = "Show every game your PC can run: this tier and all lower ones" },
+        @{ Mode = "exact";      Label = "Exact tier";  Tip = "Show only games of exactly this tier" }
+    )
+    foreach ($o in $opts) {
+        $b = New-Object System.Windows.Controls.Border
+        $b.Height = $m.ModeH
+        $b.CornerRadius = [System.Windows.CornerRadius]::new(7)
+        $b.Padding = [System.Windows.Thickness]::new(12, 0, 12, 0)
+        $b.Cursor = [System.Windows.Input.Cursors]::Hand
+        $b.ToolTip = $o.Tip
+        $t = New-Object System.Windows.Controls.TextBlock
+        $t.Text = $o.Label
+        $t.FontSize = $m.ModeFont
+        $t.FontWeight = [System.Windows.FontWeights]::SemiBold
+        $t.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
+        $t.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
+        $b.Child = $t
+        $b.Resources.Add("powerMode", $o.Mode)
+        $b.Resources.Add("modeText", $t)
+        $b.Resources.Add("pressed", $false)
+        $b.Add_MouseEnter({
+            if ($this.Resources.Item("powerMode") -ne $global:OvPowerMode) {
+                $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#1b1b22")
+            }
+            $this.Resources.Item("modeText").Foreground = [System.Windows.Media.Brushes]::White
+        })
+        $b.Add_MouseLeave({
+            $this.Resources["pressed"] = $false
+            Update-OvPowerModeLabel
+        })
+        $b.Add_MouseLeftButtonDown({
+            $this.Resources["pressed"] = $true
+            $this.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#101014")
+        })
+        $b.Add_MouseLeftButtonUp({
+            if (-not [bool]$this.Resources["pressed"]) { return }
+            $this.Resources["pressed"] = $false
+            $global:OvPowerMode = $this.Resources.Item("powerMode")
+            Update-OvPowerModeLabel
+            Apply-OvFilters
+        })
+        $seg.Children.Add($b) | Out-Null
+    }
+    $global:OvPowerModeToggleBorder = $window.FindName("OvPowerModeToggle")
+    $global:OvPowerModeSegPanel = $seg
     Update-OvPowerModeLabel
-    Apply-OvPowerModeToggleStyle
-
-    # Click flips the mode and re-applies the filter. Apply-OvFilters
-    # reads $global:OvPowerMode together with $global:OvActivePower
-    # to decide cumulative-vs-exact semantics. ALL bypasses both
-    # modes, so flipping with ALL active is a no-op visually until
-    # the user picks a tier.
-    $toggle.Add_MouseLeftButtonUp({
-        if ($global:OvPowerMode -eq "cumulative") {
-            $global:OvPowerMode = "exact"
-        } else {
-            $global:OvPowerMode = "cumulative"
-        }
-        Update-OvPowerModeLabel
-        Apply-OvFilters
-    })
-
-    # Hover: warm up the bg + border to signal interactivity. The
-    # active-mode color (orange for cumulative, brighter orange for
-    # exact) lives in Update-OvPowerModeLabel and stays put across
-    # hover cycles - we only mutate the chrome.
-    $toggle.Add_MouseEnter({
-        $global:OvPowerModeToggleBorder.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffaa66")
-    })
-    $toggle.Add_MouseLeave({
-        $oc = [System.Windows.Media.ColorConverter]::ConvertFromString("#ffaa66")
-        $global:OvPowerModeToggleBorder.BorderBrush = New-Object System.Windows.Media.SolidColorBrush ([System.Windows.Media.Color]::FromArgb([byte]120, $oc.R, $oc.G, $oc.B))
-    })
 }
 
-# Update the mode-name TextBlock to reflect the current OvPowerMode.
-# Color stays in the same warm-orange family for both states - this
-# is a soft mode indicator, not a state alert. Cumulative gets a
-# softer orange, Exact a brighter saturated one so the user can
-# tell modes apart at a glance.
+# Repaint the mode segment for the current $global:OvPowerMode.
 function global:Update-OvPowerModeLabel {
-    if (-not $global:OvPowerModeLabelTxt) { return }
-    if ($global:OvPowerMode -eq "exact") {
-        $global:OvPowerModeLabelTxt.Text = "Exact Tier"
-        $global:OvPowerModeLabelTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffb380")
-    } else {
-        $global:OvPowerModeLabelTxt.Text = "Your PC"
-        $global:OvPowerModeLabelTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#ffaa66")
+    $mode = if ($global:OvPowerMode -eq "exact") { "exact" } else { "cumulative" }
+    if ($global:OvPowerModeSegPanel) {
+        $bc = [System.Windows.Media.BrushConverter]::new()
+        foreach ($b in $global:OvPowerModeSegPanel.Children) {
+            $t = $b.Resources.Item("modeText")
+            if ($b.Resources.Item("powerMode") -eq $mode) {
+                $b.Background = $bc.ConvertFromString("#26262e")
+                $t.Foreground = [System.Windows.Media.Brushes]::White
+            } else {
+                $b.Background = [System.Windows.Media.Brushes]::Transparent
+                $t.Foreground = $bc.ConvertFromString("#a8a8b2")
+            }
+        }
     }
-    # The GPU rating only makes sense in cumulative ("Your PC") mode.
+    # The GPU rating only makes sense in cumulative ("Up to my PC") mode.
     if (Get-Command Update-OvGpuRateVisibility -ErrorAction SilentlyContinue) {
         Update-OvGpuRateVisibility
     }

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Total Chaos VR Installer (GZDoom TC -> gzdoomvr / hh79)
 # ============================================================
 # Total Chaos is a survival-horror total conversion for Doom II
@@ -62,7 +62,7 @@ $TC_MODDB          = "https://www.moddb.com/mods/total-chaos/downloads/total-cha
 function Get-MatchingGzdoomvrZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri $GZVR_API_LIST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $GZVR_API_LIST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         foreach ($r in $rels) {
             if ($r.tag_name -notmatch '(?i)3\.6') { continue }
             $asset = $r.assets | Where-Object { $_.name -match '(?i)\.zip$' } | Select-Object -First 1

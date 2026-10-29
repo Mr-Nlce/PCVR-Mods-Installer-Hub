@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Descenders VR Mod Installer
 # Mod by Holydh, a fork of kyanite-rock - the newest build is fetched
 # https://github.com/kyanite-rock/DescendersVRMod
@@ -31,7 +31,7 @@ $MOD_URL = "https://github.com/$MOD_REPO/releases/download/$PINNED_TAG/Descender
 # breaks nothing.
 function Get-DescendersLatest {
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
         foreach ($a in @($rel.assets)) {
             if ($a.name -match '(?i)^DescendersVRMod.*\.zip$') {

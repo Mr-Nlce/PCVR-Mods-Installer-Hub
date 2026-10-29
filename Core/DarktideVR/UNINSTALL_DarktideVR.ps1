@@ -10,12 +10,13 @@ function Test-DarktideOwnedRoot([string]$Path) {
 }
 $selectedRoute=''
 if (Test-DarktideOwnedRoot $GameRoot) {
-    $selectedRoute=if (Test-Path -LiteralPath (Join-Path $GameRoot '.pcvrhub_darktide_depot_24735202') -PathType Leaf) { 'Depot' } else { 'Current' }
+    $selectedRoute=if (Test-Path -LiteralPath (Join-Path $GameRoot '.pcvrhub_darktide_depot_25681127') -PathType Leaf) { 'Depot' } elseif (Test-Path -LiteralPath (Join-Path $GameRoot '.pcvrhub_darktide_depot_24735202') -PathType Leaf) { 'Legacy' } else { 'Current' }
 } else {
     $roots=@()
     foreach ($entry in @(
         [pscustomobject]@{ Route='Current'; Receipt='.installed_path' },
-        [pscustomobject]@{ Route='Depot'; Receipt='.installed_path_depot' }
+        [pscustomobject]@{ Route='Depot'; Receipt='.installed_path_depot' },
+        [pscustomobject]@{ Route='Legacy'; Receipt='.installed_path_legacy_depot' }
     )) {
         try {
             $saved=(Get-Content -LiteralPath (Join-Path $PSScriptRoot $entry.Receipt) -Raw -ErrorAction Stop).Trim()
@@ -46,7 +47,7 @@ $modeScript=Join-Path $GameRoot 'mods\darktidevr\darktidevr-mode.ps1'
 if (Test-Path -LiteralPath $modeScript -PathType Leaf) {
     $oldLocalAppData=$env:LOCALAPPDATA
     try {
-        if ($selectedRoute -eq 'Depot') {
+        if ($selectedRoute -in @('Depot','Legacy')) {
             $depotState=Join-Path $GameRoot '.pcvrhub_darktide_state'
             if (-not (Test-Path -LiteralPath $depotState -PathType Container)) { [void][IO.Directory]::CreateDirectory($depotState) }
             $env:LOCALAPPDATA=(Get-Item -LiteralPath $depotState).FullName
@@ -61,6 +62,6 @@ Write-Host '[KEEP] Darktide Mod Loader and Darktide Mod Framework remain for oth
 Write-Host '[KEEP] Flat/VR user settings and recovery data under LocalAppData remain.' -ForegroundColor Gray
 if ($result.Preserved -eq 0 -and -not (Test-Path -LiteralPath (Join-Path $GameRoot '.pcvrhub_darktidevr_ownership.csv') -PathType Leaf)) {
     Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue
-    if ($selectedRoute -ne 'Depot') { Remove-Item -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Force -ErrorAction SilentlyContinue }
+    if ($selectedRoute -eq 'Current') { Remove-Item -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Force -ErrorAction SilentlyContinue }
 }
 Finish-DarktideUninstall 0

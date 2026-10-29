@@ -1,4 +1,4 @@
-# Shared GitHub and publisher HTTP transport for Hub scans and installers.
+﻿# Shared GitHub and publisher HTTP transport for Hub scans and installers.
 function global:_Invoke-DownloadWithProgress {
     param([string]$Url, [string]$Destination, [string]$Label, [switch]$GitHubApiAsset,
         [int]$ConnectTimeoutSec=30,[int]$ReadTimeoutSec=120)
@@ -152,6 +152,11 @@ function global:Get-PCVRGitHubText {
         return [pscustomobject]@{Content=[string]$response.Content; FinalUrl=$final; Transport='web'}
     } catch {
         $firstError=$_.Exception.Message
+    }
+    # A different transport cannot replenish GitHub's shared API quota.
+    # Public-page resolution has its own route; do not hammer the denied API.
+    if($Uri -match '^https://api\.github\.com/' -and $firstError -match '(?i)\b403\b|\b429\b|rate.limit'){
+        throw ('GitHub REST is unavailable: '+$firstError)
     }
     $temp=Join-Path ([IO.Path]::GetTempPath()) ('.pcvr-github-'+[guid]::NewGuid().ToString('N')+'.txt')
     try {
@@ -500,3 +505,128 @@ function global:Resolve-GitHubReleaseAsset {
     }
 }
 
+
+
+# Compatibility metadata for older per-game selectors. Public release pages
+# are the primary source; REST is optional and never the only install gate.
+function global:Get-PCVRGitHubMetadataText {
+    param([string]$Uri,$Budget)
+    if(-not $Budget.Fast){return Get-PCVRGitHubText -Uri $Uri}
+    $remaining=($Budget.End-[DateTime]::UtcNow).TotalSeconds
+    if($remaining -le 0){throw 'GitHub metadata time budget exhausted; background/manual recovery remains available.'}
+    $r=Invoke-WebRequest -Uri $Uri -UseBasicParsing -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec ([Math]::Max(1,[int][Math]::Ceiling($remaining))) -ErrorAction Stop
+    $final='';try{$final=[string]$r.BaseResponse.ResponseUri.AbsoluteUri}catch{}
+    if(-not $final){try{$final=[string]$r.BaseResponse.RequestMessage.RequestUri.AbsoluteUri}catch{}}
+    return [pscustomobject]@{Content=[string]$r.Content;FinalUrl=$final}
+}
+
+function global:ConvertFrom-PCVRGitHubReleaseSection {
+    param([string]$Repo,[string]$Tag,[string]$Section,[string]$AssetHtml)
+    $page='https://github.com/'+$Repo+'/releases/tag/'+[uri]::EscapeDataString($Tag)
+    $assets=@();$seen=@{}
+    $rows=@([regex]::Matches($AssetHtml,'(?s)<li\b[^>]*>.*?</li>')|ForEach-Object {$_.Value})
+    if(-not $rows.Count){$rows=@($AssetHtml)}
+    foreach($row in $rows){
+        foreach($m in [regex]::Matches($row,'href=["'']([^"'']+/releases/download/[^"'']+)["'']')){
+            $href=[Net.WebUtility]::HtmlDecode($m.Groups[1].Value)
+            if($href -match '^/[^/]'){$href='https://github.com'+$href}
+            $u=$null;if(-not [uri]::TryCreate($href,[UriKind]::Absolute,[ref]$u)){continue}
+            if($u.Scheme -ne 'https' -or $u.Host -ne 'github.com'){continue}
+            $path=[uri]::UnescapeDataString($u.AbsolutePath)
+            if(-not $path.StartsWith('/'+$Repo+'/releases/download/'+$Tag+'/',[StringComparison]::OrdinalIgnoreCase)){continue}
+            $name=[uri]::UnescapeDataString($u.Segments[-1])
+            if($seen.ContainsKey($name)){continue};$seen[$name]=$true
+            $stamp=([regex]::Match($row,'<relative-time\b[^>]*datetime=["'']([^"'']+)')).Groups[1].Value
+            $digest=([regex]::Match($row,'(?i)sha256:[a-f0-9]{64}')).Value
+            $size=$null;$plain=[Net.WebUtility]::HtmlDecode([regex]::Replace($row,'<[^>]+>',' '))
+            $sm=[regex]::Match($plain,'(?i)([0-9]+(?:\.[0-9]+)?)\s*(Bytes?|[KMGT]B)\b')
+            if($sm.Success){
+                $factor=switch($sm.Groups[2].Value.ToUpperInvariant()){'KB'{1KB}'MB'{1MB}'GB'{1GB}'TB'{1TB}default{1}}
+                $size=[int64][Math]::Round([double]::Parse($sm.Groups[1].Value,[Globalization.CultureInfo]::InvariantCulture)*$factor)
+            }
+            $assets+=[pscustomobject]@{name=$name;browser_download_url=$href;updated_at=$stamp;created_at=$stamp;digest=$digest;size=$size;size_is_approximate=($null -ne $size);id=$null;url=$null}
+        }
+    }
+    $published=([regex]::Match($Section,'<relative-time\b[^>]*datetime=["'']([^"'']+)')).Groups[1].Value
+    $heading=$Section.Substring(0,[Math]::Min(3000,$Section.Length))
+    $pre=$heading -match '(?i)>\s*Pre-release\s*<'
+    $markdown=([regex]::Match($Section,'(?s)<div\b[^>]*class="[^"]*markdown-body[^"]*"[^>]*>(.*?)</div>')).Groups[1].Value
+    $markdown=[regex]::Replace($markdown,'(?s)<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>','$2 ($1)')
+    $markdown=[regex]::Replace($markdown,'(?i)</p>|<br\s*/?>|</li>',"`n")
+    $body=[Net.WebUtility]::HtmlDecode([regex]::Replace($markdown,'<[^>]+>',' ')).Trim()
+    return [pscustomobject]@{tag_name=$Tag;name=$Tag;html_url=$page;draft=$false;prerelease=[bool]$pre;published_at=$published;created_at=$published;body=$body;assets=@($assets);MetadataSource='github.com'}
+}
+
+function global:Get-PCVRGitHubReleaseFromWeb {
+    param([string]$Repo,[string]$Tag,[string]$Section,$Budget)
+    $fragment=Get-PCVRGitHubMetadataText -Uri ('https://github.com/'+$Repo+'/releases/expanded_assets/'+[uri]::EscapeDataString($Tag)) -Budget $Budget
+    $release=ConvertFrom-PCVRGitHubReleaseSection -Repo $Repo -Tag $Tag -Section $Section -AssetHtml ([string]$fragment.Content)
+    # An empty asset list is legitimate (source-only releases); a login/error
+    # page is not. Never manufacture an installable asset or its identity.
+    if(-not $release.assets.Count -and $fragment.Content -notmatch '(?i)/archive/refs/tags/|Source code|<ul\b'){
+        throw 'The public release asset list could not be read.'
+    }
+    return $release
+}
+
+function global:Invoke-PCVRRestMethod {
+    [CmdletBinding()]
+    param([Parameter(Mandatory=$true)][string]$Uri,$Headers,[int]$TimeoutSec=25)
+    if($Uri -notmatch '^https://api\.github\.com/repos/(?<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?<route>releases(?:/latest|/tags/[^?#]+)?|commits/[^?#]+)(?:\?(?<query>[^#]*))?$'){
+        return Invoke-RestMethod @PSBoundParameters
+    }
+    $repo=$matches.repo;$route=$matches.route;$query=$matches.query
+    $budget=[pscustomobject]@{Fast=($TimeoutSec -le 8);End=[DateTime]::UtcNow.AddSeconds([Math]::Max(1,$TimeoutSec))}
+    try{
+        if($route.StartsWith('commits/')){
+            $branch=$route.Substring(8)
+            $feed=Get-PCVRGitHubMetadataText -Uri ('https://github.com/'+$repo+'/commits/'+$branch+'.atom') -Budget $budget
+            [xml]$xml=$feed.Content;$entry=@($xml.feed.entry)[0]
+            $sha=([regex]::Match([string]$entry.id,'/([a-fA-F0-9]{40,64})$')).Groups[1].Value
+            $date=[string]$entry.updated;$parsed=[DateTime]::MinValue
+            if(-not $sha -or -not [DateTime]::TryParse($date,[ref]$parsed)){throw 'The public commit feed did not contain a verified commit/date.'}
+            return [pscustomobject]@{sha=$sha;commit=[pscustomobject]@{committer=[pscustomobject]@{date=$date};author=[pscustomobject]@{date=$date}};MetadataSource='github.com'}
+        }
+        $base='https://github.com/'+$repo+'/releases'
+        if($route -ne 'releases'){
+            $tag=if($route.StartsWith('releases/tags/')){[uri]::UnescapeDataString($route.Substring(14))}else{''}
+            $url=if($tag){$base+'/tag/'+[uri]::EscapeDataString($tag)}else{$base+'/latest'}
+            $reply=Get-PCVRGitHubMetadataText -Uri $url -Budget $budget
+            if(-not $tag){
+                if($reply.FinalUrl -match '/releases/tag/([^/?#]+)'){$tag=[uri]::UnescapeDataString($matches[1])}
+                elseif($reply.Content -match '<meta\s+property="og:url"\s+content="[^" ]+/releases/tag/([^"/?#]+)"'){$tag=[Net.WebUtility]::HtmlDecode([uri]::UnescapeDataString($matches[1]))}
+            }
+            if(-not $tag){throw 'The current stable release tag could not be read from the publisher page.'}
+            $section=([regex]::Match([string]$reply.Content,'(?s)<section id="release-'+[regex]::Escape([Net.WebUtility]::HtmlEncode($tag))+'"[^>]*>(.*?)(?=<section id="release-|\z)')).Value
+            if(-not $section -and $route.StartsWith('releases/tags/') -and [string]$reply.FinalUrl -notmatch ('/releases/tag/'+[regex]::Escape([uri]::EscapeDataString($tag))+'(?:[?#]|$)')){throw 'The requested exact release tag was not confirmed.'}
+            $release=Get-PCVRGitHubReleaseFromWeb -Repo $repo -Tag $tag -Section $section -Budget $budget
+            if($route -eq 'releases/latest' -and $release.prerelease){throw 'The stable release route returned a prerelease.'}
+            return $release
+        }
+        $limit=30;$pageNumber=1
+        if($query -match '(?:^|&)per_page=(\d+)'){$limit=[Math]::Min(100,[Math]::Max(1,[int]$matches[1]))}
+        if($query -match '(?:^|&)page=(\d+)'){$pageNumber=[Math]::Max(1,[int]$matches[1])}
+        $skip=($pageNumber-1)*$limit;$releases=@();$seen=@{};$ordinal=0
+        for($webPage=1;$webPage -le [Math]::Ceiling(($skip+$limit)/10.0);$webPage++){
+            $listing=Get-PCVRGitHubMetadataText -Uri ($base+$(if($webPage -gt 1){'?page='+$webPage}else{''})) -Budget $budget
+            $sections=@([regex]::Matches([string]$listing.Content,'(?s)<section id="release-([^"]+)"[^>]*>(.*?)(?=<section id="release-|\z)'))
+            if(-not $sections.Count){throw 'The public release list could not be read.'}
+            foreach($section in $sections){
+                $tag=[Net.WebUtility]::HtmlDecode($section.Groups[1].Value)
+                if($seen.ContainsKey($tag)){continue};$seen[$tag]=$true
+                $ordinal++;if($ordinal -le $skip){continue}
+                $releases+=Get-PCVRGitHubReleaseFromWeb -Repo $repo -Tag $tag -Section $section.Value -Budget $budget
+                if($releases.Count -ge $limit){break}
+            }
+            if($releases.Count -ge $limit -or $sections.Count -lt 10){break}
+        }
+        # Preserve the object/array contract of Invoke-RestMethod on PS5.1.
+        return ,$releases
+    }catch{
+        $webError=$_.Exception.Message
+        $remaining=if($budget.Fast){[int][Math]::Floor(($budget.End-[DateTime]::UtcNow).TotalSeconds)}else{$TimeoutSec}
+        if($remaining -le 0){throw ('GitHub public metadata could not be checked: '+$webError)}
+        try{return Invoke-RestMethod -Uri $Uri -Headers $Headers -TimeoutSec $remaining -ErrorAction Stop}
+        catch{throw ('GitHub public metadata could not be checked (website: '+$webError+'; optional REST: '+$_.Exception.Message+'). Retry or use the official release page/manual file.')}
+    }
+}

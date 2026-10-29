@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Kerbal Space Program - KerbalVR Mod Installer
 # ============================================================
 # This is the most involved installer in the Hub. KerbalVR has
@@ -211,7 +211,7 @@ if ($updateOnly) {
  $kvrTag = $null
  Write-Host " Querying GitHub for the latest KerbalVR release ... " -NoNewline -ForegroundColor White
  try {
- $apiResp = Invoke-WebRequest -Uri $KVR_API -UseBasicParsing -ErrorAction Stop `
+ $apiResp = Invoke-PCVRWebRequest -Uri $KVR_API -UseBasicParsing -ErrorAction Stop `
  -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
  $release = $apiResp.Content | ConvertFrom-Json
  $kvrTag = $release.tag_name
@@ -441,7 +441,7 @@ $kvrUrl = $null
 $kvrTag = $null
 Write-Host " Querying GitHub for the latest KerbalVR release ... " -NoNewline -ForegroundColor White
 try {
- $apiResp = Invoke-WebRequest -Uri $KVR_API -UseBasicParsing -ErrorAction Stop `
+ $apiResp = Invoke-PCVRWebRequest -Uri $KVR_API -UseBasicParsing -ErrorAction Stop `
  -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
  $release = $apiResp.Content | ConvertFrom-Json
  $kvrTag = $release.tag_name
@@ -633,7 +633,7 @@ if (Test-Path $ckanExe) {
  Write-Host " Querying GitHub for the latest CKAN release ... " -NoNewline -ForegroundColor White
  $ckanUrl = $null
  try {
- $ckanResp = Invoke-WebRequest -Uri $CKAN_API -UseBasicParsing -ErrorAction Stop `
+ $ckanResp = Invoke-PCVRWebRequest -Uri $CKAN_API -UseBasicParsing -ErrorAction Stop `
  -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
  $ckanRel = $ckanResp.Content | ConvertFrom-Json
  foreach ($asset in $ckanRel.assets) {

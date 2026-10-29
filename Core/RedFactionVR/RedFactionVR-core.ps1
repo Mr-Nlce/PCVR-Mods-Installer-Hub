@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Red Faction VR - Alpine Faction VR by CactusVRStudios
 # ------------------------------------------------------------
 #  The mod is NOT a proxy and NOT an overlay: it is a game launch of
@@ -125,7 +125,7 @@ Write-Step 2 4 "Downloading the $MOD_NAME setup"
 $url = $null; $tag = ""; $assetName = ""; $body = ""
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     $pick = @($rel) | Where-Object { -not $_.draft } | Select-Object -First 1
     if ($pick) {

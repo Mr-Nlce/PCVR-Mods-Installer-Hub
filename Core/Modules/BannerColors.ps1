@@ -14,6 +14,21 @@
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
+    'name:Wreckfest2VR' = '#d3ac62'
+    'Wreckfest 2 VR' = '#d3ac62'
+    'name:WreckfestVR' = '#d7a64b'
+    'Wreckfest VR' = '#d7a64b'
+    'name:AliensPredator2VR' = '#122c39'
+    'Aliens versus Predator 2 VR' = '#122c39'
+    'name:RatchetClank1VR' = '#263e69'
+    'Ratchet & Clank 1 VR' = '#263e69'
+    'name:HitmanContractsVR' = '#b14a4d'
+    'Hitman: Contracts VR' = '#b14a4d'
+    'name:BlurVR' = '#64bb97'
+    'Blur VR' = '#64bb97'
+    'name:DeadSpace2VR' = '#38978d'
+    'name:BalatroVR' = '#318bc3'
+    'name:BloodWestVR' = '#3178a6'
     "steam:703860" = "#4d8eb1"  # CodiesVR: reviewed header artwork
     "steam:1307710" = "#c4444e"  # CodiesVR: reviewed header artwork
     "steam:421020" = "#e77916"  # CodiesVR: reviewed header artwork
@@ -154,6 +169,10 @@ $global:BannerColorMap = @{
     "steam:1301230" = "#1ec8d8"  # Astrodogs VR
     "steam:668580" = "#c43a2a"  # Atomic Heart VR
     "steam:2840770" = "#0f3963"  # Avatar: Frontiers of Pandora VR
+    'steam:250620' = '#21384f'  # Among the Sleep: midnight blue, gold moon accent
+
+    'steam:2640' = '#758798'  # United Offensive: snow and steel blue
+
     "steam:622650" = "#633908"  # Bendy VR
     "steam:362890" = "#613e10"  # Black Mesa
     "steam:1353230" = "#b3b412"  # Bomb Rush Cyberfunk
@@ -406,4 +425,9 @@ $global:BannerColorMap = @{
     "steam:239160" = "#6fa0b5"  # Thief: cold blue-gray cover
     "steam:11020" = "#39a8ff"  # TrackMania Nations: blue title and car
     "steam:7200" = "#d4902d"  # TrackMania United: orange car and title
+    "name:BlackWhiteVR" = "#b5b973"  # reviewed publisher/Steam art
+    "name:DementiumIIHDVR" = "#ba6260"  # reviewed publisher/Steam art
+    "name:TombRaiderLegendVR" = "#73a69b"  # reviewed publisher/Steam art
+    "name:FF7RemakeVR" = "#61bdba"  # reviewed publisher/Steam art
+    "steam:42700" = "#a7af99"  # Black Ops monochrome olive cover
 }

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  PEAK VR Installer
 # ============================================================
 #  Three routes, two VR mods and three game builds:
@@ -209,7 +209,7 @@ function Get-Json { param([string]$Url, [string]$Key)
     $r = $null
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $r = Invoke-RestMethod -Uri $Url -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $r = Invoke-PCVRRestMethod -Uri $Url -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     } catch {
         $script:NetFails[$Key] = $_.Exception.Message
         $r = $null

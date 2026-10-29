@@ -1,6 +1,6 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference='Stop'
-foreach($relative in @('MirrorsEdgeCatalyst.exe','mecxr_launcher.exe','mecxr_live.dll','.pcvrhub_version')){
+foreach($relative in @('MirrorsEdgeCatalyst.exe','mecxr_launcher.exe','mecxr_live.dll')){
     if(-not(Test-Path -LiteralPath (Join-Path $GameDirectory $relative) -PathType Leaf)){
         throw "Mirror's Edge Catalyst VR is incomplete: $relative. Use Reinstall in the Hub."
     }

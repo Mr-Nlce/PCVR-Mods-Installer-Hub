@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Perfect Dark VR Installer (VR fork by Alex-LeTux)
 # ============================================================
 # A VR fork of the Perfect Dark decompilation port, targeting
@@ -54,7 +54,7 @@ $DEFAULT_ROOTS     = @("C:\Games", "D:\Games", "E:\Games")
 function Get-LatestPcvrZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rel = Invoke-PCVRRestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -match '(?i)^Perfect_Dark_PCVR(?:[-_]NTSC)?[_-]v\.?[0-9].*\.zip$' } | Select-Object -First 1
         if ($asset -and $asset.browser_download_url) { return [string]$asset.browser_download_url }
     } catch { }

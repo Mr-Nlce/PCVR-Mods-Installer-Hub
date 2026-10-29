@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  PCVR Mods Installer Hub - durable user state
 # ============================================================
 # One authoritative document normally lives below LocalAppData. Core\UserData
@@ -1229,17 +1229,20 @@ function Register-HubWindowClosePersistence {
             $context.LastMaximized = ($Window.WindowState -eq [System.Windows.WindowState]::Maximized)
         }
     }.GetNewClosure())
+    $geometryCommand=Get-Command Get-HubWindowGeometrySettings -CommandType Function
+    $barrierCommand=Get-Command Start-HubWindowCloseBarrier -CommandType Function
+    $completeCommand=Get-Command Complete-HubWindowClosePersistence -CommandType Function
     $Window.Add_Closing({
         param($sender, $eventArgs)
         if ($eventArgs.Cancel) { return }
         try {
-            $global:HubWindowClosingSettings = Get-HubWindowGeometrySettings -Window $Window -LastMaximized $context.LastMaximized
+            $global:HubWindowClosingSettings = & $geometryCommand -Window $Window -LastMaximized $context.LastMaximized
             $global:HubWindowClosingAdditionalSettings = if ($AdditionalSettingsProvider) { & $AdditionalSettingsProvider } else { $null }
-            Start-HubWindowCloseBarrier
+            & $barrierCommand
         } catch {
             # Keep the prior durable close path if the synchronization handle
             # cannot be created. Losing geometry would be worse than one slow close.
-            try { Complete-HubWindowClosePersistence } catch { }
+            try { & $completeCommand } catch { }
         }
     }.GetNewClosure())
 }

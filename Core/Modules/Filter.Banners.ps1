@@ -1,4 +1,4 @@
-# ---------------------------------------------------------------
+﻿# ---------------------------------------------------------------
 # Banner buttons (List view + Library view) + Overview back/show
 # ---------------------------------------------------------------
 
@@ -100,7 +100,7 @@ function global:Test-DoorstopTargetModMarker {
         }
 
         $config = [IO.File]::ReadAllText($configPath)
-        $match = [regex]::Match($config, '(?im)^\s*targetAssembly\s*=\s*(?<path>[^\r\n]+?)\s*$')
+        $match = [regex]::Match($config, '(?im)^\s*target_?Assembly\s*=\s*(?<path>[^\r\n]+?)\s*$')
         if (-not $match.Success) { return $false }
         $assemblyRaw = [Environment]::ExpandEnvironmentVariables($match.Groups['path'].Value.Trim().Trim('"', "'"))
         if (-not $assemblyRaw) { return $false }

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # GTA Vice City VR - Installer (Vice City VR by #yevhen4817)
 # ============================================================
 # A native OpenXR VR adaptation of Grand Theft Auto: Vice City
@@ -238,7 +238,7 @@ $zipUrl = $null
 $relTag = $null
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+    $rel = Invoke-PCVRRestMethod -Uri $REPO_API_LATEST -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     # Asset names may change between releases, so match any .zip and only
     # PREFER a Vice-City-looking name - never hard-require one exact form.
     $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })

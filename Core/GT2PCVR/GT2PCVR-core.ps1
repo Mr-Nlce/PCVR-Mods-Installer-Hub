@@ -1,10 +1,10 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle='Gran Turismo 2 PCVR Installer'
 $script:GT2Id='gran-turismo-2-pcvr'
 $script:GT2Repo='dubrovskiy-yevhen-stakelogic/gt-2-pc'
-$script:GT2Page='https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.8.0.1'
-$script:GT2Version='v0.8.0.1'
+$script:GT2Page='https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.9.0'
+$script:GT2Version='v0.9.0'
 $script:GT2Required=@('gt2game.exe','openxr_loader.dll','PLAY-PCVR.bat','PLAY-PCVR-META.bat','PLAY-PCVR-STEAMVR.bat','PLAY-PCVR-VD.bat')
 function Test-GT2Runtime([string]$Root) {
     if(-not $Root -or -not(Test-Path -LiteralPath $Root -PathType Container)){return $false}
@@ -86,9 +86,9 @@ function Get-GT2DiscImages {
 function Get-GT2Release {
     $fixture=(''+$env:PCVR_GT2_TEST_ARCHIVE).Trim()
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $fixture){if(-not(Test-Path -LiteralPath $fixture -PathType Leaf)){throw 'The GT2 package fixture is missing.'};return [pscustomobject]@{Url=$fixture;Local=$true}}
-    $asset=Resolve-GitHubReleaseAsset -Repo $script:GT2Repo -AssetPatterns @('(?i)^GT2-0\.8\.0\.1\.zip$') `
-        -FallbackUrl 'https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/download/v0.8.0.1/GT2-0.8.0.1.zip' `
-        -FallbackTag $script:GT2Version -FallbackAssetName 'GT2-0.8.0.1.zip' -SkipReleasesWithoutMatchingAsset
+    $asset=Resolve-GitHubReleaseAsset -Repo $script:GT2Repo -AssetPatterns @('(?i)^GT2-0\.9\.0\.zip$') `
+        -FallbackUrl 'https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/download/v0.9.0/GT2-0.9.0.zip' `
+        -FallbackTag $script:GT2Version -FallbackAssetName 'GT2-0.9.0.zip' -SkipReleasesWithoutMatchingAsset
     if(-not $asset.Url){throw 'The pinned Windows PCVR release could not be resolved.'}
     return [pscustomobject]@{Url=[string]$asset.Url;Local=$false}
 }
@@ -174,7 +174,7 @@ function Invoke-GT2Installer {
         Write-Host ('='*60) -ForegroundColor Magenta
         Write-Host ''
         Write-Host '  This route is pinned to the last verified Windows PCVR' -ForegroundColor White
-        Write-Host '  release v0.8.0.1. Web-only updates are not substituted.' -ForegroundColor White
+        Write-Host '  release v0.9.0. The complete native PCVR installer is included.' -ForegroundColor White
         Write-Host '  Publisher tools build game data from your own supported disc' -ForegroundColor White
         Write-Host '  image; saves and existing data are preserved on update.' -ForegroundColor White
         Write-Host '  No disc image, game data or BIOS is bundled with the Hub.' -ForegroundColor Yellow
@@ -190,7 +190,7 @@ function Invoke-GT2Installer {
         $release=Get-GT2Release;$work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr-gt2-'+[Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($work);$zip=Join-Path $work 'publisher.zip'
         if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $zip -Force -ErrorAction Stop}
-        else{$ok=Invoke-SafeDownload -Urls @($release.Url) -Destination $zip -Label 'Gran Turismo 2 PCVR v0.8.0.1' -ManualUrl $script:GT2Page -AllowSkip:$false;if(-not $ok){throw 'The pinned PCVR package could not be downloaded.'}}
+        else{$ok=Invoke-SafeDownload -Urls @($release.Url) -Destination $zip -Label 'Gran Turismo 2 PCVR v0.9.0' -ManualUrl $script:GT2Page -AllowSkip:$false;if(-not $ok){throw 'The pinned PCVR package could not be downloaded.'}}
         Write-Host '  Extracting the publisher package. This may take several seconds.' -ForegroundColor Cyan
         $extract=Join-Path $work 'release';$result=Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $extract -Label 'GT2 PCVR package' -AllowSkip:$false -QuietProgress
         if([string]$result -notin @('ok','manual','retry')){throw 'The GT2 PCVR package could not be extracted.'}
@@ -204,7 +204,7 @@ function Invoke-GT2Installer {
         $groups=@($script:GT2Required)+@('arcade\disc.raw2352|simulation\disc.raw2352')
         $contract=New-PCVRInstallerContract -Id $script:GT2Id -GameName 'Gran Turismo 2 PCVR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:GT2Page -RequiredInstalledFileGroups $groups
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $target -Version $script:GT2Version -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -Route PCVR)
-        Write-Host '  [OK] Gran Turismo 2 PCVR v0.8.0.1 is installed.' -ForegroundColor Green
+        Write-Host '  [OK] Gran Turismo 2 PCVR v0.9.0 is installed.' -ForegroundColor Green
         try {
             if(Set-GT2DesktopShortcut $target){Write-Host '  [OK] Desktop shortcut starts PLAY-PCVR.bat.' -ForegroundColor Green}
             else{Write-Host '  A different desktop shortcut has the same name; it was left unchanged.' -ForegroundColor Yellow}

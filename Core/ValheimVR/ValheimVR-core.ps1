@@ -1,331 +1,169 @@
-# ============================================================
-#  Valheim - VHVR-Mod Installer
-# ============================================================
-
-$Host.UI.RawUI.WindowTitle = "Valheim VR Mod Installer"
-$ErrorActionPreference = "Stop"
-
-# Load shared installer safety helpers
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
-
-$GAME_APPID   = "892970"
-$GAME_NAME    = "Valheim"
-$GAME_EXE     = "valheim.exe"
-
-# BepInExPack Valheim (Thunderstore direct download)
-# The only Thunderstore package in this entry: the mod loader itself.
-# There is no dependency list here that could be incomplete - the check
-# Test-ThunderstoreDependencies would have nothing to work on. (The VR
-# mod itself does not come from Thunderstore.)
-$BEPINEX_URL  = "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2350/"
-
-# vhvr-mod v0.10.5 (GitHub release)
-$VHVR_URL     = "https://github.com/brandonmousseau/vhvr-mod/releases/download/v0.10.5/vhvr.zip"
-
-# -------------------------------------------------------
-# Helpers
-# -------------------------------------------------------
-function Write-Header {
-    Clear-Host
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host "   Valheim - VR Mod Installer" -ForegroundColor Cyan
-    Write-Host "   BepInExPack Valheim 5.4.2350  +  VHVR-Mod v0.10.5" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host ""
+$ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
+. (Join-Path $PSScriptRoot '..\Utils\GameDetection.ps1')
+$oldLibrary=$env:PCVR_VALHEIM_LIBRARY_ONLY;$env:PCVR_VALHEIM_LIBRARY_ONLY='1'
+. (Join-Path $PSScriptRoot 'Start-ValheimVR.ps1')
+$env:PCVR_VALHEIM_LIBRARY_ONLY=$oldLibrary
+$script:ValheimId='valheim-vr';$script:ValheimPage='https://github.com/brandonmousseau/vhvr-mod/releases'
+$script:ValheimLoaderDlls=@('0Harmony.dll','0Harmony20.dll','BepInEx.Harmony.dll','BepInEx.Preloader.dll','BepInEx.dll','HarmonyXInterop.dll','Mono.Cecil.Mdb.dll','Mono.Cecil.Pdb.dll','Mono.Cecil.Rocks.dll','Mono.Cecil.dll','MonoMod.RuntimeDetour.dll','MonoMod.Utils.dll')
+$script:ValheimRequired=@('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll',
+ 'winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll',
+ 'BepInEx\plugins\ValheimVRMod.dll','Valheim_Data\Managed\SteamVR.dll','Valheim_Data\Managed\Unity.XR.OpenVR.dll',
+ 'Valheim_Data\Plugins\x86_64\openvr_api.dll','Valheim_Data\Plugins\x86_64\XRSDKOpenVR.dll',
+ 'Valheim_Data\StreamingAssets\SteamVR\actions.json','Valheim_Data\UnitySubsystems\XRSDKOpenVR\UnitySubsystemsManifest.json',
+ 'PCVR-Valheim\Start-ValheimVR.ps1','PCVR-Valheim\StoreLaunch.ps1','.pcvrhub_valheimvr_ownership.csv')
+$script:ValheimRequired+=@($script:ValheimLoaderDlls|Where-Object{('BepInEx\core\'+$_) -notin $script:ValheimRequired}|ForEach-Object{'BepInEx\core\'+$_})
+$script:ValheimRequired+=@('Bhaptics.Tact.dll','final_ik.dll','NDesk.Options.dll','root_motion_demo_assets.dll','root_motion_shared.dll','Unity.XR.Management.dll','UnityEngine.SpatialTracking.dll','UnityEngine.XR.LegacyInputHelpers.dll','Valve.Newtonsoft.Json.dll'|ForEach-Object{'Valheim_Data\Managed\'+$_})
+$script:ValheimContract=New-PCVRInstallerContract -Id $script:ValheimId -GameName 'Valheim VR' -Acquisition GitHub -Routes @('Steam','Xbox') -ReleasePageUrl $script:ValheimPage -AntivirusNotice -RequiredInstalledFileGroups $script:ValheimRequired
+function Test-ValheimGame([string]$Root){
+ if(-not $Root){return $false}
+ foreach($rel in @('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll')){if(-not(Test-Path -LiteralPath (Join-Path $Root $rel) -PathType Leaf)){return $false}}
+ return $true
 }
-
-function Write-Step {
-    param($num, $total, $text)
-    Write-Host ""
-    Write-Host "--- [$num/$total] $text ---" -ForegroundColor Cyan
-    Write-Host ""
+function Get-ValheimGame {
+ if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_VALHEIM_TEST_GAME){
+  $root=[IO.Path]::GetFullPath($env:PCVR_VALHEIM_TEST_GAME)
+  $temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/')+[IO.Path]::DirectorySeparatorChar
+  if(-not $root.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath (Join-Path $root '.pcvr_valheim_fixture'))){throw 'Valheim test paths must be isolated sentinel fixtures.'}
+  if(-not(Test-ValheimGame $root)){throw 'The Valheim game fixture is incomplete.'};return $root
+ }
+ $saved=Get-PCVRRememberedGameFolder -GameId $script:ValheimId -StateNames @('user_located','installed_path') -ProbeFiles @('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll')
+ if(Test-ValheimGame $saved){return $saved}
+ $found=Find-GameInstall -GameName 'Valheim' -Steam @{AppID='892970';Folder='Valheim'} -Gamepass @{Folder='Valheim';PackageName='*Valheim*';ContentSubfolder=$true} -ExeName 'valheim.exe'
+ if($found.Found -and (Test-ValheimGame $found.Path)){return $found.Path}
+ while($true){
+  $picked=Get-GameFolderInteractive -GameName 'Valheim (Steam or Xbox app)' -ProbeFile 'valheim.exe'
+  if(Test-ValheimGame $picked){[void](Save-HubRememberedGameFolder -GameId $script:ValheimId -Title 'Valheim VR' -GameDir $picked -ProbeFiles @('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll') -UserSelected);return $picked}
+  Write-Host '  Choose the folder containing the complete Valheim game.' -ForegroundColor Yellow
+ }
 }
-
-function Write-OK   { param($text) Write-Host "  [OK] $text" -ForegroundColor Green }
-function Write-Warn { param($text) Write-Host "  [!!] $text" -ForegroundColor Yellow }
-function Write-Fail { param($text) Write-Host "  [XX] $text" -ForegroundColor Red }
-function Write-Info { param($text) Write-Host "  [..] $text" -ForegroundColor Gray }
-
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
-
-function Get-SteamPath {
-    foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
-        try {
-            $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
-            if ($p -and (Test-Path $p)) { return $p }
-        } catch {}
-    }
-    return $null
+function Test-ValheimZip([string]$Path,[switch]$Loader){
+ try{
+  Add-Type -AssemblyName System.IO.Compression.FileSystem;$z=[IO.Compression.ZipFile]::OpenRead($Path)
+  try{
+   $required=if($Loader){@('BepInExPack_Valheim/winhttp.dll','BepInExPack_Valheim/doorstop_config.ini','BepInExPack_Valheim/BepInEx/core/BepInEx.dll','BepInExPack_Valheim/BepInEx/core/BepInEx.Preloader.dll')}
+   else{@('BepInEx/plugins/ValheimVRMod.dll','Valheim_Data/Managed/SteamVR.dll','Valheim_Data/Plugins/x86_64/openvr_api.dll','Valheim_Data/StreamingAssets/SteamVR/actions.json')}
+   if($Loader){$required+=@($script:ValheimLoaderDlls|ForEach-Object{'BepInExPack_Valheim/BepInEx/core/'+$_})}
+   foreach($name in $required){if(-not $z.GetEntry($name)){return $false}};return $true
+  }finally{$z.Dispose()}
+ }catch{return $false}
 }
-
-function Get-SteamLibraries {
-    param($steamPath)
-    $libraries = @($steamPath)
-    $vdfPath = Join-Path $steamPath "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdfPath) {
-        $content = Get-Content $vdfPath -Raw
-        $found = [regex]::Matches($content, '"path"\s+"([^"]+)"')
-        foreach ($m in $found) {
-            $lib = $m.Groups[1].Value -replace '\\\\', '\'
-            if (Test-Path $lib) { $libraries += $lib }
-        }
-    }
-    return $libraries
+function Get-ValheimPackages([string]$Work){
+ $loader=Join-Path $Work 'BepInEx.zip';$mod=Join-Path $Work 'vhvr.zip'
+ if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_VALHEIM_TEST_LOADER){
+  Copy-Item -LiteralPath $env:PCVR_VALHEIM_TEST_LOADER -Destination $loader
+  Copy-Item -LiteralPath $env:PCVR_VALHEIM_TEST_MOD -Destination $mod
+  $version='v'+[string]$env:PCVR_VALHEIM_TEST_VERSION
+ }else{
+  [void](Wait-PCVRExplicitEnter -Message 'Press Enter to download the Valheim loader and current VHVR release...')
+  $handover=Get-PCVRRecoveryInput
+  $manualFiles=if($handover -and (Test-Path -LiteralPath $handover -PathType Container)){@(Get-ChildItem -LiteralPath $handover -File -Filter '*.zip'|Select-Object -ExpandProperty FullName)}elseif($handover){@($handover)}else{@()}
+  $manualMod=@($manualFiles|Where-Object{Test-ValheimZip $_})
+  $manualLoader=@($manualFiles|Where-Object{Test-ValheimZip $_ -Loader})
+  if($manualMod.Count -gt 1 -or $manualLoader.Count -gt 1){throw 'The selected folder contains multiple matching Valheim packages. Hand over the specific VHVR ZIP, or a folder containing one VHVR ZIP and one loader ZIP.'}
+  $downloadInfo=@{}
+  if($manualMod.Count){
+   Copy-Item -LiteralPath $manualMod[0] -Destination $mod -Force
+   $downloadInfo.SourceKind='manual handover'
+  }else{
+   $release=Resolve-GitHubReleaseAsset -Repo 'brandonmousseau/vhvr-mod' -IncludePrerelease $false -AssetPatterns @('(?i)^(?!.*(?:source|symbols|debug|server|linux|macos))vhvr.*\.zip$') -SkipReleasesWithoutMatchingAsset $true
+   if(-not $release.Resolved -or -not $release.Url -or -not(Test-IsTrackableInstalledVersion ([string]$release.Tag))){throw 'The current VHVR release could not be resolved. Retry, or hand over the downloaded VHVR ZIP (or a folder containing both ZIPs) through recovery.'}
+   $version=[string]$release.Tag
+   [void](Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $mod -Label 'Valheim VR' -ManualUrl $script:ValheimPage -AllowSkip:$false -FunctionalPayloadOnly -PlainProgress -DisableGitHubAssetReresolution -DownloadInfo $downloadInfo -Validator {param($p) Test-ValheimZip $p})
+  }
+  if($downloadInfo.SourceKind -match 'manual'){
+   Write-Host '  The ZIP was supplied manually. Enter its release version from the download page.' -ForegroundColor White
+   do{$version=(Read-Host '  VHVR release version, for example 0.11.2').Trim()}while(-not(Test-IsTrackableInstalledVersion $version))
+  }
+  if($manualLoader.Count){Copy-Item -LiteralPath $manualLoader[0] -Destination $loader -Force}
+  else{[void](Invoke-SafeDownload -Urls @('https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/5.4.2351/') -Destination $loader -Label 'BepInExPack Valheim 5.4.2351' -ManualUrl 'https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/' -AllowSkip:$false -FunctionalPayloadOnly -PlainProgress -DisableGitHubAssetReresolution -Validator {param($p) Test-ValheimZip $p -Loader})}
+ }
+ if(-not(Test-ValheimZip $loader -Loader) -or -not(Test-ValheimZip $mod)){throw 'A downloaded archive lacks required Valheim runtime files.'}
+ foreach($entry in @(@{Zip=$loader;Folder='loader'},@{Zip=$mod;Folder='mod'})){
+  Write-Host ('  Preparing '+$entry.Folder+' files...') -ForegroundColor Gray
+  if((Expand-ArchiveOrFallback -ArchivePath $entry.Zip -DestinationFolder (Join-Path $Work $entry.Folder) -Label $entry.Folder -AllowSkip:$false -QuietProgress) -ne 'ok'){throw 'The required Valheim package could not be extracted.'}
+ }
+ $manifest=Get-Content -LiteralPath (Join-Path $Work 'loader\manifest.json') -Raw | ConvertFrom-Json
+ if(@($manifest.dependencies).Count -gt 0){throw 'This loader declares additional dependencies. Use the supported BepInExPack Valheim package or Retry; no game files were changed.'}
+ $stage=Join-Path $Work 'payload';[void][IO.Directory]::CreateDirectory($stage)
+ foreach($source in @((Join-Path $Work 'loader\BepInExPack_Valheim'),(Join-Path $Work 'mod'))){foreach($item in Get-ChildItem -LiteralPath $source -Force){Copy-Item -LiteralPath $item.FullName -Destination $stage -Recurse -Force}}
+ $launch=Join-Path $stage 'PCVR-Valheim';[void][IO.Directory]::CreateDirectory($launch)
+ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-ValheimVR.ps1') -Destination $launch
+ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '..\Modules\StoreLaunch.ps1') -Destination $launch
+ [IO.File]::WriteAllText((Join-Path $stage '.pcvrhub_version'),$version)
+ foreach($relative in @($script:ValheimRequired|Where-Object {$_ -notin @('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll','.pcvrhub_valheimvr_ownership.csv')})){
+  $file=Join-Path $stage $relative
+  if(-not(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0){throw ('The staged runtime lacks '+$relative+'. No game files were changed.')}
+ }
+ return [pscustomobject]@{Stage=$stage;Version=$version}
 }
-
-function Find-GamePath {
-    param($libraries)
-    foreach ($lib in $libraries) {
-        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
-        if (Test-Path $candidate) { return $candidate }
-    }
-    return $null
+function global:Write-ValheimCheckpoint([string]$Game,[string]$Phase){
+ $missing=@();foreach($rel in $script:ValheimRequired){$path=Join-Path $Game $rel;$present=Test-Path -LiteralPath $path -PathType Leaf;Write-PCVRFileCheckResult -Path $path -Present $present -Phase $Phase;if(-not $present){$missing+=@($rel)}};return @($missing)
 }
-
-# -------------------------------------------------------
-# STEP 1: Locate Valheim
-# -------------------------------------------------------
-Write-Header
-Write-Host " VHVR by manicmoose99 & Maddy25 - native VR for Valheim in full" -ForegroundColor White
-Write-Host " stereoscopic 3D with motion controls." -ForegroundColor White
-Write-Host ""
-Pause-User "Press Enter to start..."
-Write-Step 1 3 "Locating Valheim"
-
-# --- Try detection library (safe: falls through to legacy lookup on failure) ---
-$gamePath = $null
-try {
-    $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
-    if (Test-Path $__utilsPath) {
-        . $__utilsPath
-        $gamePath = Try-FindSteamGame -Folder $GAME_NAME -Title "Valheim"
-    }
-} catch {}
-# --- End detection library attempt ---
-
-$steamPath = Get-SteamPath
-
-if (-not $steamPath) {
-    Write-Warn "Could not find Steam installation in registry."
-    Write-Host "  Please enter your Steam installation path manually:" -ForegroundColor White
-    Write-Host "  Example: C:\Program Files (x86)\Steam" -ForegroundColor Gray
-    while (-not $steamPath) {
-        $rawInput = (Read-Host "  Steam path").Trim().Trim('"')
-        if (Test-Path $rawInput) {
-            $steamPath = $rawInput
-            Write-OK "Steam path set: $steamPath"
-        } else {
-            Write-Fail "Path not found: $rawInput"
-        }
-    }
+function Get-ValheimShortcutPath {
+ if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_VALHEIM_TEST_GAME){return (Join-Path $env:PCVR_VALHEIM_TEST_GAME 'Desktop\Valheim VR.lnk')}
+ return (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Valheim VR.lnk')
 }
-
-$libraries = Get-SteamLibraries $steamPath
-$gamePath  = Find-GamePath $libraries
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "892970" -SteamFolderNames @("Valheim") }
-
-if (-not $gamePath) {
-    Write-Warn "Valheim not found in Steam libraries automatically."
-    Write-Host "  Please enter the Valheim installation folder path manually:" -ForegroundColor White
-    Write-Host "  Example: C:\Program Files (x86)\Steam\steamapps\common\Valheim" -ForegroundColor Gray
-    while (-not $gamePath) {
-        $rawInput = (Read-Host "  Valheim path").Trim().Trim('"')
-        if (Test-Path $rawInput) {
-            $gamePath = $rawInput
-            Write-OK "Valheim path set: $gamePath"
-        } else {
-            Write-Fail "Path not found: $rawInput"
-        }
-    }
-} else {
-    Write-OK "Valheim found: $gamePath"
+function Set-ValheimShortcut([string]$Game){
+ $path=Get-ValheimShortcutPath;[void][IO.Directory]::CreateDirectory((Split-Path $path));$shell=New-Object -ComObject WScript.Shell
+ if(Test-Path -LiteralPath $path){$old=$shell.CreateShortcut($path);if($old.Arguments -notlike '*PCVR-Valheim\Start-ValheimVR.ps1*'){throw 'An unrelated Valheim VR desktop shortcut exists. Rename it before Retry; it was not replaced.'}}
+ $shortcut=$shell.CreateShortcut($path);$shortcut.TargetPath=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+ $shortcut.Arguments='-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $Game 'PCVR-Valheim\Start-ValheimVR.ps1')+'"'
+ $shortcut.WorkingDirectory=$Game;$shortcut.IconLocation=(Join-Path $Game 'valheim.exe')+',0';$shortcut.Save()
 }
-
-$gameExe = Join-Path $gamePath $GAME_EXE
-if (Test-Path $gameExe) {
-    Write-OK "Game executable found: $GAME_EXE"
-} else {
-    Write-Warn "Could not find valheim.exe - folder may still be correct."
+function Invoke-ValheimInstaller {
+ $work=$null;$snapshot=$null;$changed=$false;$game=$null;$shortcutPath=$null;$shortcutBytes=$null;$hadShortcut=$false
+ try{
+  Clear-Host;Write-Host ('='*60) -ForegroundColor Magenta;Write-Host '  Valheim VR - Steam / Xbox app' -ForegroundColor Cyan
+  Write-Host '  SteamVR is required for the headset, including Xbox copies.' -ForegroundColor White
+  Write-Host '  The Xbox game does not require a Steam game license.' -ForegroundColor White
+  Show-AntivirusNotice -Compact
+  [void](Wait-PCVRExplicitEnter -Message 'Press Enter to find Valheim...')
+  $game=Get-ValheimGame
+  if(Get-Process -Name valheim -ErrorAction SilentlyContinue){throw 'Close Valheim before installing or updating its VR mod.'}
+  $plan=Get-ValheimLaunchPlan $game;Write-Host ('  [OK] '+$plan.Store+' Valheim found: '+$game) -ForegroundColor Green
+  if(-not(Test-InstallerTargetWritable $game)){throw 'The Valheim game folder is not writable. Choose Retry after correcting its permissions.'}
+  $work=New-PCVRInstallerTempSession -BasePath ([IO.Path]::GetTempPath());$package=Get-ValheimPackages $work
+  $keep=@('doorstop_config.ini')+@(Get-ChildItem -LiteralPath (Join-Path $package.Stage 'BepInEx\config') -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object {$_.FullName.Substring($package.Stage.Length+1)})
+  $snapshot=Save-PCVRPublisherZipSnapshot -GameRoot $game -Stage $package.Stage -Identity 'valheimvr' -SnapshotRoot (Join-Path $work 'rollback')
+  $shortcutPath=Get-ValheimShortcutPath;$hadShortcut=Test-Path -LiteralPath $shortcutPath -PathType Leaf;if($hadShortcut){$shortcutBytes=[IO.File]::ReadAllBytes($shortcutPath)}
+  [void](Wait-PCVRExplicitEnter -Message 'Press Enter to install or update Valheim VR...');$changed=$true
+  $copyState=@{Count=0}
+  $copy={
+   if($copyState.Count -gt 0){[void](Write-ValheimCheckpoint $game 'before-retry')}
+   $copyState.Count++
+   [void](Install-OwnedModPayload -SourceRoot $package.Stage -GameRoot $game -Identity 'valheimvr' -KeepExistingRelativePaths $keep -AdoptIdenticalExisting -ReplaceChangedOwnedRelativePaths @('.pcvrhub_version'))
+   if($copyState.Count -gt 1){[void](Write-ValheimCheckpoint $game 'after-retry')}
+  }.GetNewClosure()
+  & $copy
+  if(@(Write-ValheimCheckpoint $game 'immediately-after-copy').Count){throw 'Required files were not copied. Check the selected folder and write permissions, then Retry.'}
+  if(-not(Confirm-PlacedFilesSurvive -Paths @($script:ValheimRequired|ForEach-Object{Join-Path $game $_}) -GameDir $game -Recopy $copy -NoClear)){throw 'Valheim runtime files are missing. Previous files will be restored.'}
+  if(@(Write-ValheimCheckpoint $game 'after-observation').Count){throw 'Required Valheim files are missing after installation.'}
+  Set-ValheimShortcut $game
+  if(@(Write-ValheimCheckpoint $game 'before-commit').Count){throw 'Valheim files are incomplete; setup was not committed.'}
+  $receipt=if($env:PCVR_HUB_TEST_MODE -eq '1'){$env:PCVR_VALHEIM_TEST_RECEIPT}else{Join-Path $PSScriptRoot '.installed_path'}
+  [void](Complete-PCVRInstallTransaction -Contract $script:ValheimContract -GameDir $game -Version $package.Version -InstalledPathReceiptPaths @($receipt) -Route $plan.Store)
+  $changed=$false
+  Write-Host ('  [OK] Valheim VR '+$package.Version+' installed.') -ForegroundColor Green
+  Write-Host '  1. Use Start in VR in the Hub with SteamVR running.' -ForegroundColor White
+  Write-Host '  Alternatively, use the Valheim VR desktop shortcut.' -ForegroundColor White
+  Write-Host '  DirectX 11 is selected automatically. Do not choose Vulkan.' -ForegroundColor Yellow
+  Write-Host '';Write-Host '  The trees still have the highest kill count.' -ForegroundColor Magenta
+  [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
+ }catch{
+  if($changed -and $snapshot){
+   [void](Write-ValheimCheckpoint $game 'before-rollback');Restore-PCVRPublisherZipSnapshot -GameRoot $game -Snapshot $snapshot
+   if($hadShortcut){[IO.File]::WriteAllBytes($shortcutPath,$shortcutBytes)}elseif($shortcutPath -and (Test-Path -LiteralPath $shortcutPath)){Remove-Item -LiteralPath $shortcutPath -Force}
+   [void](Write-ValheimCheckpoint $game 'after-rollback')
+  };throw
+ }finally{if($work){Remove-PCVRInstallerTempSession -Path $work}}
 }
-
-# -------------------------------------------------------
-# STEP 2: Install BepInExPack Valheim
-# -------------------------------------------------------
-Write-Step 2 3 "Installing BepInExPack Valheim"
-
-$tempDir = Join-Path $env:TEMP "ValheimVRInstaller_$([System.IO.Path]::GetRandomFileName())"
-New-Item -ItemType Directory -Path $tempDir | Out-Null
-$failed  = @()
-
-$bepinexFolder = Join-Path $gamePath "BepInEx"
-$winhttpDll    = Join-Path $gamePath "winhttp.dll"
-if ((Test-Path $bepinexFolder) -and (Test-Path $winhttpDll)) {
-    Write-Warn "BepInEx is already installed - replacing with correct version (5.4.2350)."
-    Write-Host ""
+if($env:PCVR_VALHEIM_SETUP_LIBRARY_ONLY -ne '1'){
+ while($true){try{Invoke-ValheimInstaller;break}catch{
+  $message='Valheim VR setup did not complete: '+$_.Exception.Message;Write-Host $message -ForegroundColor Red
+  if($env:PCVR_HUB_TEST_MODE -eq '1'){throw}
+  [void](Invoke-PCVRUniversalRecovery -FailureMessage $message -InstallerFolder $PSScriptRoot -RecoveryPageUrl $script:ValheimPage -GameId $script:ValheimId)
+ }}
 }
-
-Write-Host "  Downloading BepInExPack Valheim 5.4.2350 ... " -NoNewline -ForegroundColor White
-$bepZip     = Join-Path $tempDir "BepInExPack.zip"
-$bepZip     = Join-Path $tempDir "BepInExPack.zip"
-$bepExtract = Join-Path $tempDir "BepInExPack"
-$r = Invoke-DownloadOrFallback -Url $BEPINEX_URL -Destination $bepZip `
-        -Label "BepInExPack Valheim 5.4.2350" `
-        -ManualUrl "https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/" `
-        -Instructions "Download the latest BepInExPack_Valheim ZIP from the Thunderstore page. Place it at '$bepZip' and choose Retry." `
-        -SkipMessage "Skipped - BepInExPack missing; VHVR will NOT load (questionable result)."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($r -is [bool] -and $r)) { $failed += "BepInExPack" }
-
-if (Test-Path $bepZip) {
-    $efb = Expand-ArchiveOrFallback -ArchivePath $bepZip -DestinationFolder $bepExtract -Label "BepInExPack" `
-            -SkipMessage "Skipped - BepInExPack was NOT extracted; VHVR will NOT load."
-    if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-        try {
-            $innerFolder = Join-Path $bepExtract "BepInExPack_Valheim"
-            if (-not (Test-Path $innerFolder)) { $innerFolder = $bepExtract }
-
-            Get-ChildItem -Path $innerFolder | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
-            }
-            Write-OK "BepInExPack Valheim installed!"
-        } catch {
-            Write-Host "FAILED to install BepInExPack: $_" -ForegroundColor Red
-            $failed += "BepInExPack"
-        }
-    } else {
-        $failed += "BepInExPack"
-    }
-}
-
-# -------------------------------------------------------
-# STEP 3: Install vhvr-mod
-# -------------------------------------------------------
-Write-Step 3 3 "Installing VHVR-Mod v0.10.5"
-
-$vrZip     = Join-Path $tempDir "vhvr.zip"
-$vrExtract = Join-Path $tempDir "vhvr"
-$r = Invoke-DownloadOrFallback -Url $VHVR_URL -Destination $vrZip `
-        -Label "Valheim VR (VHVR) v0.10.5" `
-        -ManualUrl "https://github.com/brandonmousseau/vhvr-mod/releases/tag/v0.10.5" `
-        -Instructions "Download 'vhvr.zip' from the GitHub releases page. Place it at '$vrZip' and choose Retry." `
-        -SkipMessage "Skipped - VHVR mod missing; install is incomplete (questionable result)."
-if ([string]$r -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-if (-not ($r -is [bool] -and $r)) { $failed += "VHVR-Mod" }
-
-if (Test-Path $vrZip) {
-    $efb = Expand-ArchiveOrFallback -ArchivePath $vrZip -DestinationFolder $vrExtract -Label "VHVR-Mod" `
-            -SkipMessage "Skipped - VHVR was NOT extracted; install is incomplete."
-    if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-    if ([string]$efb -eq "ok" -or [string]$efb -eq "manual") {
-        try {
-            # Ensure BepInEx/plugins exists (created by BepInEx on first run, but we need it now)
-            $pluginsPath = Join-Path $gamePath "BepInEx\plugins"
-            if (-not (Test-Path $pluginsPath)) {
-                New-Item -ItemType Directory -Path $pluginsPath -Force | Out-Null
-                Write-OK "Created BepInEx\plugins folder."
-            }
-
-            # Merge the full zip contents into the game folder (zip contains BepInEx\ tree)
-            Get-ChildItem -Path $vrExtract | ForEach-Object {
-                Copy-Item -Path $_.FullName -Destination $gamePath -Recurse -Force
-            }
-
-            # Verify DLL landed correctly
-            $dllCheck = Join-Path $gamePath "BepInEx\plugins\ValheimVRMod.dll"
-            if (Test-Path $dllCheck) {
-                Write-OK "ValheimVRMod.dll verified in BepInEx\plugins."
-            } else {
-                Write-Warn "ValheimVRMod.dll not at expected path - searching zip..."
-                $foundDll = Get-ChildItem -Path $vrExtract -Recurse -Filter "ValheimVRMod.dll" | Select-Object -First 1
-                if ($foundDll) {
-                    Copy-Item -Path $foundDll.FullName -Destination $pluginsPath -Force
-                    Write-OK "ValheimVRMod.dll placed manually into BepInEx\plugins."
-                } else {
-                    Write-Warn "Could not locate ValheimVRMod.dll - please install manually."
-                }
-            }
-            Write-OK "VHVR-Mod v0.10.5 installed!"
-        } catch {
-            Write-Host "FAILED to install VHVR-Mod: $_" -ForegroundColor Red
-            $failed += "VHVR-Mod"
-        }
-    } else {
-        $failed += "VHVR-Mod"
-    }
-}
-
-try { Remove-Item $tempDir -Recurse -Force } catch {}
-
-# Record install path for the post-install VR-Ready refresh (no full scan needed).
-if ("VHVR-Mod" -notin $failed) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {} }
-
-# -------------------------------------------------------
-# DONE
-# -------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host "  Installation Summary" -ForegroundColor White
-Write-Host ""
-if ("BepInExPack" -notin $failed) { Write-Host "    [x] BepInExPack Valheim 5.4.2350" -ForegroundColor Green } else { Write-Host "    [ ] BepInExPack Valheim  -- FAILED, install manually" -ForegroundColor Red }
-if ("VHVR-Mod"   -notin $failed) { Write-Host "    [x] VHVR-Mod v0.10.5" -ForegroundColor Green             } else { Write-Host "    [ ] VHVR-Mod v0.10.5     -- FAILED, install manually" -ForegroundColor Red }
-Write-Host "============================================================" -ForegroundColor Magenta
-
-Write-Host ""
-Write-Host "--- CRITICAL: Disable Vulkan ---" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  VHVR does NOT support Vulkan. You MUST use DX11." -ForegroundColor Yellow
-Write-Host "  Launch with" -NoNewline -ForegroundColor White; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub or via Steam - and" -ForegroundColor White
-Write-Host "  when the launch dialog appears, always choose:" -ForegroundColor White
-Write-Host "    'Play Valheim'  (NOT 'Play Valheim (Vulkan)')" -ForegroundColor Green
-Write-Host ""
-try { Set-Clipboard -Value "-force-d3d11" -DeferManualFallback } catch {}
-
-Write-Host ""
-Write-Host "  ============================================================" -ForegroundColor Yellow
-Write-Host "   ACTION REQUIRED - Steam Launch Option" -ForegroundColor Yellow
-Write-Host "  ============================================================" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  [OK] Launch parameter copied to clipboard." -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  (-force-d3d11  |  VHVR requires DX11, not Vulkan)" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Press Enter to open Steam Launch Options..." -ForegroundColor Yellow
-Write-Host "  Then paste (Ctrl+V) and close Properties." -ForegroundColor Yellow
-Write-Host ""
-Pause-User "Press Enter to open Valheim properties in Steam..."
-Start-Process "steam://gameproperties/$GAME_APPID"
-try { Set-Clipboard -Value "-force-d3d11" -DeferManualFallback } catch {}
-Show-PCVRClipboardManualFallback -Text "-force-d3d11"
-Pause-User "Press Enter once you have set -force-d3d11 in Launch Options..."
-
-Write-Host ""
-Write-Host "--- Disable Theatre Mode ---" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  In SteamVR Settings -> Dashboard:" -ForegroundColor White
-Write-Host "  Set 'Present Non-VR Applications on Theater Screen Upon Launch' -> OFF" -ForegroundColor Yellow
-Write-Host ""
-Pause-User "Press Enter to confirm you are aware of this setting..."
-
-Write-Host ""
-Write-Host "--- Important Notes ---" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  - Launch SteamVR before the game to avoid it potentially" -ForegroundColor White
-Write-Host "    starting sometimes out of focus." -ForegroundColor White
-Write-Host ""
-Write-Host "  - First launch takes longer - BepInEx configures itself." -ForegroundColor White
-Write-Host ""
-Write-Host "  - On first launch, go to Settings -> Graphics and disable:" -ForegroundColor White
-Write-Host "    Bloom, Anti-Aliasing, Motion Blur" -ForegroundColor Gray
-Write-Host "    (These cause issues in VR)" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  - Press HOME key to recenter HMD tracking." -ForegroundColor White
-Write-Host ""
-Write-Host "  - DO NOT update Valheim via Steam - it may break the mod." -ForegroundColor Yellow
-Write-Host "    Right-click Valheim -> Properties -> Updates ->" -ForegroundColor Gray
-Write-Host "    'Only update when I launch it'" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Odin is watching. Swing that axe in VR!" -ForegroundColor Magenta
-Write-Host ""
-Pause-User "Press Enter to open the Valheim installation folder and exit."
-try { Start-Process explorer.exe "`"$gamePath`"" } catch {}

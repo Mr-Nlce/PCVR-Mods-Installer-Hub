@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 #  Quake PCVR - Team Beef's QuakeQuest, ported (GameOrDie007)
 # =============================================================
 # THE SECOND MOD ON THIS TILE. Vittorio Romeo's Quake VR is a VR mod of
@@ -38,6 +38,16 @@ function Write-Fail { param($m) Write-Host "  [XX] $m" -ForegroundColor Red }
 function Write-Do   { param($m) Write-Host "  [->] $m" -ForegroundColor Cyan }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "  [$n/$t] $x  " -ForegroundColor Black -BackgroundColor Cyan; Write-Host "" }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+
+function Set-QuakePCVRLaunchers {
+    param([string]$Root)
+    foreach($mode in @(@{Name='Quake VR.bat';Extra=''},@{Name='Quake VR (flatscreen).bat';Extra=' -novr -window'})){
+        $path=Join-PathLexical $Root $mode.Name
+        if(Test-Path -LiteralPath $path -PathType Leaf){continue}
+        $lines=@('@echo off','cd /d "%~dp0"','if exist "id1\qconsole.log" move /y "id1\qconsole.log" "id1\qconsole.prev.log" >nul 2>&1',('start "" "%~dp0darkplaces-sdl.exe" -basedir . -nohome -condebug'+$mode.Extra+' %*'))
+        [IO.File]::WriteAllText($path,($lines -join "`r`n")+"`r`n",[Text.Encoding]::ASCII)
+    }
+}
 
 function Test-WritableRoot {
     param([string]$Root)
@@ -228,13 +238,8 @@ $zip = Join-PathLexical $tmp "quake-vr-pc.zip"
 # publishes through GitHub releases.
 $dlUrl = $null; $relTag = $null
 try {
-    $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
-                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25
-    foreach ($r in @($rels)) {
-        if ($r.draft) { continue }
-        $pick = Select-PayloadAsset -Assets $r.assets -PlatformPattern '(?i)quake.?vr.?pc' -MinBytes 500000
-        if ($pick) { $dlUrl = [string]$pick.browser_download_url; $relTag = [string]$r.tag_name; break }
-    }
+    $current=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^(?:quake-vr-pc|Quake-PCVR-[0-9][0-9.]*)\.zip$') -SkipReleasesWithoutMatchingAsset
+    if($current.Resolved){$dlUrl=[string]$current.Url;$relTag=[string]$current.Tag}
 } catch { Write-Warn "Could not read the releases list: $($_.Exception.Message)" }
 
 if (-not $dlUrl) {
@@ -292,6 +297,7 @@ try {
     exit 1
 }
 
+Set-QuakePCVRLaunchers -Root $installDir
 $markerPath = Join-PathLexical $installDir $MOD_MARKER
 if (-not (Test-Path -LiteralPath $markerPath)) {
     Write-Fail "$MOD_MARKER did not arrive in $installDir"

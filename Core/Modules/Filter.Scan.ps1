@@ -1,4 +1,4 @@
-# Set ONLY by a real, user-triggered full scan. The startup quick-scan also
+﻿# Set ONLY by a real, user-triggered full scan. The startup quick-scan also
 # fills $global:gameStateMap, so that map can never be used to decide whether
 # the user opted into full scans - doing so made every installer end with an
 # unwanted scan over all games.
@@ -191,10 +191,11 @@ function global:Invoke-CheckInstalledScan {
     # rather than hitting the API once per title.
     $script:scanGhTagCache = @{}
 
-    # Resolve once per Hub session. Missing registry keys are normal and must
+    # Refresh on each explicit scan: Steam libraries can change while the Hub
+    # stays open. Missing registry keys are normal and must
     # not generate transcripted TerminatingError records for every scan.
     $steamLibs = if (Get-Command Get-HubSteamLibraries -ErrorAction SilentlyContinue) {
-        @(Get-HubSteamLibraries)
+        @(Get-HubSteamLibraries -Refresh)
     } else { @() }
 
     # GOG Galaxy install roots. GOG doesn't have a single VDF
@@ -228,7 +229,7 @@ function global:Invoke-CheckInstalledScan {
         "E:\GOG Games"
     )) {
         if ($root -and (Test-ScanFallbackDriveReady -Path $root -Cache $global:ScanFallbackDriveReadyCache) -and
-            (Test-Path $root) -and ($gogRoots -notcontains $root)) {
+            (Test-Path -LiteralPath $root) -and ($gogRoots -notcontains $root)) {
             $gogRoots += $root
         }
     }
@@ -252,7 +253,7 @@ function global:Invoke-CheckInstalledScan {
         "E:\Program Files\Epic Games"
     )) {
         if ($root -and (Test-ScanFallbackDriveReady -Path $root -Cache $global:ScanFallbackDriveReadyCache) -and
-            (Test-Path $root) -and ($epicRoots -notcontains $root)) {
+            (Test-Path -LiteralPath $root) -and ($epicRoots -notcontains $root)) {
             $epicRoots += $root
         }
     }
@@ -268,13 +269,13 @@ function global:Invoke-CheckInstalledScan {
     # folder was invisible on the tile while the installer found it.
     try {
         $epicManifestDir = Join-Path $env:ProgramData "Epic\EpicGamesLauncher\Data\Manifests"
-        if ($env:ProgramData -and (Test-Path $epicManifestDir)) {
+        if ($env:ProgramData -and (Test-Path -LiteralPath $epicManifestDir)) {
             foreach ($item in (Get-ChildItem -Path $epicManifestDir -Filter *.item -ErrorAction SilentlyContinue)) {
                 try {
                     $loc = (Get-Content -LiteralPath $item.FullName -Raw -ErrorAction Stop | ConvertFrom-Json).InstallLocation
                     if (-not $loc) { continue }
                     $parent = Split-Path -Parent $loc
-                    if ($parent -and (Test-Path $parent) -and ($epicRoots -notcontains $parent)) {
+                    if ($parent -and (Test-Path -LiteralPath $parent) -and ($epicRoots -notcontains $parent)) {
                         $epicRoots += $parent
                     }
                 } catch { }
@@ -295,7 +296,7 @@ function global:Invoke-CheckInstalledScan {
         "F:\XboxGames"
     )) {
         if ($root -and (Test-ScanFallbackDriveReady -Path $root -Cache $global:ScanFallbackDriveReadyCache) -and
-            (Test-Path $root) -and ($xboxRoots -notcontains $root)) {
+            (Test-Path -LiteralPath $root) -and ($xboxRoots -notcontains $root)) {
             $xboxRoots += $root
         }
     }
@@ -315,10 +316,34 @@ function global:Invoke-CheckInstalledScan {
         "E:\Ubisoft\Ubisoft Game Launcher\games"
     )) {
         if ($root -and (Test-ScanFallbackDriveReady -Path $root -Cache $global:ScanFallbackDriveReadyCache) -and
-            (Test-Path $root) -and ($ubisoftRoots -notcontains $root)) {
+            (Test-Path -LiteralPath $root) -and ($ubisoftRoots -notcontains $root)) {
             $ubisoftRoots += $root
         }
     }
+
+    # Drive roots for Expand-DrivePaths, resolved ONCE per scan instead of
+    # one Get-PSDrive call per catalog entry with FallbackPaths.
+    $scanDriveRoots = @(Get-HubFileSystemDriveRoots)
+
+    # Registry discovery index (priority 4, see Filter.ScanSources.ps1).
+    # Built once per scan; each game is a dictionary lookup afterwards.
+    # Off switch: PCVR_HUB_REGISTRY_SCAN=0 before starting the Hub.
+    # The installer lab must never adopt a host install - same rule as the
+    # FallbackPaths lab guard below.
+    $registryIndex = $null
+    if (-not ([string]$env:PCVR_HUB_REGISTRY_SCAN -eq '0') -and -not $global:HubFileSystemLabRoot -and
+        (Get-Command New-RegistryInstallIndex -ErrorAction SilentlyContinue)) {
+        try {
+            $regWatch = [System.Diagnostics.Stopwatch]::StartNew()
+            $regRoots = @(Get-HubUninstallInstallRoots)
+            $regReadMs = $regWatch.ElapsedMilliseconds
+            $registryIndex = New-RegistryInstallIndex -Roots $regRoots -Games @($global:cardGameMap.Values) -DriveCache $global:ScanFallbackDriveReadyCache
+            $regWatch.Stop()
+            Write-Host ("[Scan] registry: {0} install folders, {1} listed, {2} ms (read {3} ms)" -f `
+                $regRoots.Count, $registryIndex.Listed, $regWatch.ElapsedMilliseconds, $regReadMs)
+        } catch { $registryIndex = $null }
+    }
+    $registryFound = New-Object System.Collections.ArrayList
 
     # Update sources must never hold up the installed-games scan. The old
     # synchronous prewarm spent up to 3.5 seconds here (and one DNS/HTTP call
@@ -387,7 +412,8 @@ function global:Invoke-CheckInstalledScan {
                 if ($g.GithubRepoAlt -and $g.GithubRepoAlt -notin $reposToWarm) { $reposToWarm += $g.GithubRepoAlt }
                 if ($g.GithubRepoAlt -and $g.GithubRepo -notin $reposToWarm) { $reposToWarm += $g.GithubRepo }
                 $channelPrefs = if ($g.GithubChannelChoice) { @($false,$true) } else { @([bool]$g.GithubPrerelease) }
-                $assetPatterns = @($g.GithubReleaseAssetPatterns | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+                $selectedPatterns = if($g.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $g)}else{@($g.GithubReleaseAssetPatterns)}
+                $assetPatterns = @($selectedPatterns | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
                 $assetVersion = [string]$g.GithubAssetVersionPattern
                 $assetSuffix = ''
                 if($assetPatterns.Count -gt 0){$assetSuffix='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($assetPatterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')}
@@ -411,7 +437,7 @@ function global:Invoke-CheckInstalledScan {
                 }
             }
             if (-not $g.GithubRepo -and -not $g.GithubRepoB -and $g.WebVersionUrl) {
-                if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title; P = $g.WebVersionPattern } }
+                if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title; P = $g.WebVersionPattern; Aliases = $g.WebVersionAliases } }
             }
         }
         # Several catalog tiles can intentionally share one upstream project
@@ -426,14 +452,14 @@ function global:Invoke-CheckInstalledScan {
         if ($pending.Count -gt 0 -and $versionCacheDir -and -not $global:HubDisableVersionPrewarm) {
             $lockF   = Join-Path $versionCacheDir ".prewarm_worker.lock"
             $lockOk  = $true
-            if (Test-Path $lockF) {
+            if (Test-Path -LiteralPath $lockF) {
                 try {
-                    $lockAge = ($nowU - [DateTime]::Parse((Get-Content $lockF -Raw -EA Stop).Trim(), $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalMinutes
+                    $lockAge = ($nowU - [DateTime]::Parse((Get-Content -LiteralPath $lockF -Raw -EA Stop).Trim(), $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalMinutes
                     if ($lockAge -lt 10) { $lockOk = $false }   # a worker is (probably) still running
                 } catch {}
             }
             $workerF = Join-Path $global:scriptDir "Modules\PrewarmWorker.ps1"
-            if ($lockOk -and (Test-Path $workerF)) {
+            if ($lockOk -and (Test-Path -LiteralPath $workerF)) {
                 Set-Content -Path $lockF -Value ($nowU.ToString("o")) -Encoding ASCII -Force
                 ($pending | ConvertTo-Json) | Set-Content -Path (Join-Path $versionCacheDir ".prewarm_pending.json") -Encoding UTF8 -Force
                 Start-Process -FilePath "powershell.exe" `
@@ -517,9 +543,9 @@ function global:Invoke-CheckInstalledScan {
         # or imported location resolved. It must never replace Priority 1.
         $installedPathFile = Get-InstalledPathFile -Game $game
         $rawRecordedPath = $null
-        if (-not $installed -and $installedPathFile -and (Test-Path $installedPathFile)) {
+        if (-not $installed -and $installedPathFile -and (Test-Path -LiteralPath $installedPathFile)) {
             try {
-                $rawRecordedPath = (Get-Content $installedPathFile -Raw -EA SilentlyContinue)
+                $rawRecordedPath = (Get-Content -LiteralPath $installedPathFile -Raw -EA SilentlyContinue)
                 if ($rawRecordedPath) { $rawRecordedPath = $rawRecordedPath.Trim() }
             } catch { }
         }
@@ -528,25 +554,25 @@ function global:Invoke-CheckInstalledScan {
         # contract as every canonical, Steam and fallback candidate. Without
         # this guard a surviving mod folder can impersonate an uninstalled
         # game and block the real store discovery that follows.
-        if (-not $installed -and $rawRecordedPath -and (Test-Path $rawRecordedPath) -and
+        if (-not $installed -and $rawRecordedPath -and (Test-Path -LiteralPath $rawRecordedPath) -and
             (Test-BaseGameInstallProof -Game $game -Root $rawRecordedPath)) {
             $installed = $true
             $gameDir   = $rawRecordedPath
-        } elseif (-not $installed -and $rawRecordedPath -and -not (Test-Path $rawRecordedPath)) {
+        } elseif (-not $installed -and $rawRecordedPath -and -not (Test-Path -LiteralPath $rawRecordedPath)) {
             # Recorded path no longer exists on disk - clear the
             # stale .installed_path AND .installed_version files so
             # downstream checks don't keep using them as evidence.
-            try { Remove-Item $installedPathFile -Force -EA SilentlyContinue } catch { }
+            try { Remove-Item -LiteralPath $installedPathFile -Force -EA SilentlyContinue } catch { }
             $staleVer = Get-InstalledVersionPath -Game $game
-            if ($staleVer -and (Test-Path $staleVer)) {
-                try { Remove-Item $staleVer -Force -EA SilentlyContinue } catch { }
+            if ($staleVer -and (Test-Path -LiteralPath $staleVer)) {
+                try { Remove-Item -LiteralPath $staleVer -Force -EA SilentlyContinue } catch { }
             }
         }
 
         # The installed_path may correctly name an external PCVR runtime.
         # A separately remembered, still-proven purchased game root can
         # supply the base-game half of this two-root installation.
-        if (-not $installed -and $game.VrInstallRoot -and $game.BaseGameProofFiles) {
+        if (-not $installed -and ($game.VrInstallRoot -or $game.SeparateLauncherBaseGame -or $game.TwoModsSeparateBaseGame) -and $game.BaseGameProofFiles) {
             $rememberedBase = Get-RememberedStagedBaseGameRoot -Game $game
             if ($rememberedBase) { $installed=$true; $gameDir=$rememberedBase }
         }
@@ -562,12 +588,12 @@ function global:Invoke-CheckInstalledScan {
             foreach ($appId in $steamAppIds) {
                 foreach ($lib in $steamLibs) {
                     $acf = Join-Path $lib "steamapps\appmanifest_$appId.acf"
-                    if (Test-Path $acf) {
+                    if (Test-Path -LiteralPath $acf) {
                         try {
-                            $mm = [regex]::Match((Get-Content $acf -Raw), '"installdir"\s+"([^"]+)"')
+                            $mm = [regex]::Match((Get-Content -LiteralPath $acf -Raw), '"installdir"\s+"([^"]+)"')
                             if ($mm.Success) {
                                 $cand = Join-Path $lib "steamapps\common\$($mm.Groups[1].Value)"
-                                if (Test-Path $cand) { $installed = $true; $gameDir = $cand; break }
+                                if ((Test-Path -LiteralPath $cand -PathType Container) -and (Test-BaseGameInstallProof -Game $game -Root $cand)) { $installed = $true; $gameDir = $cand; break }
                             }
                         } catch {}
                     }
@@ -583,7 +609,7 @@ function global:Invoke-CheckInstalledScan {
         if (-not $installed -and $game.SteamFolder -and (-not $isFreeGame -or $isFreeBaseGame)) {
             foreach ($lib in $steamLibs) {
                 $candidate = Join-Path $lib "steamapps\common\$($game.SteamFolder)"
-                if (Test-Path $candidate) {
+                if ((Test-Path -LiteralPath $candidate -PathType Container) -and (Test-BaseGameInstallProof -Game $game -Root $candidate)) {
                     $installed = $true
                     $gameDir   = $candidate
                     break
@@ -606,7 +632,7 @@ function global:Invoke-CheckInstalledScan {
         # Depot entries are the deliberate exception: their separate copy
         # can coexist with the normal game path and still has to be found.
         if ($game.FallbackPaths -and (-not $installed -or $game.DepotInstall)) {
-            foreach ($fp in (Expand-DrivePaths $game.FallbackPaths)) {
+            foreach ($fp in (Expand-DrivePaths -Paths $game.FallbackPaths -Drives $scanDriveRoots)) {
                 # Build the list of concrete paths to test. STEAM_*
                 # prefixes expand to one path per Steam library;
                 # everything else is taken as an absolute path.
@@ -702,14 +728,31 @@ function global:Invoke-CheckInstalledScan {
                 foreach ($candidate in $candidates) {
                     if ($candidate -and
                         (Test-ScanFallbackDriveReady -Path ([string]$candidate) -Cache $global:ScanFallbackDriveReadyCache) -and
-                        (Test-Path $candidate)) {
+                        (Test-Path -LiteralPath $candidate -PathType Container) -and
+                        (Test-BaseGameInstallProof -Game $game -Root $candidate)) {
                         $installed = $true
                         $gameDir   = $candidate
                         if ($game.DepotInstall) { $depotMatched = $true }
                         break
                     }
                 }
-                if ($depotMatched) { break }
+                if ($installed) { break }
+            }
+        }
+
+        # Priority 4: registry discovery (Windows Uninstall entries).
+        # Only when nothing above matched. Covers folders whose name the
+        # catalog cannot know (disc installs, "Deluxe Edition", renamed or
+        # moved libraries). Find-RegistryInstallRoot accepts a folder ONLY
+        # through Test-BaseGameInstallProof and only for entries that
+        # declare a proof. Depot entries are excluded: their VR copy is
+        # identified by FallbackPaths alone (priority 3).
+        if (-not $installed -and $registryIndex -and -not $game.DepotInstall -and (-not $isFreeGame -or $isFreeBaseGame)) {
+            $regHit = Find-RegistryInstallRoot -Game $game -Index $registryIndex
+            if ($regHit) {
+                $installed = $true
+                $gameDir   = $regHit
+                [void]$registryFound.Add(("{0} -> {1}" -f $game.Title, $regHit))
             }
         }
 
@@ -746,9 +789,10 @@ function global:Invoke-CheckInstalledScan {
                     $manifest = Join-Path $libRoot ("steamapps\appmanifest_" + $appId + ".acf")
                     if (Test-Path -LiteralPath $manifest) { $manifestFound = $true; break }
                 }
-                if (-not $manifestFound) {
-                    # Steam does not have this game installed any more -
-                    # what is left in the folder are mod leftovers.
+                if (-not $manifestFound -and -not ($game.BaseGameProofFiles -or $game.GameExe)) {
+                    # Legacy entries without original game-file evidence still
+                    # need Steam bookkeeping. A concrete base-game proof takes
+                    # precedence, including a manually located or moved copy.
                     $installed = $false
                     $gameDir   = $null
                 }
@@ -763,6 +807,10 @@ function global:Invoke-CheckInstalledScan {
             $installed = $false
             $gameDir = $null
             $depotMatched = $false
+        }
+
+        if ($installed -and $game.TwoModsSeparateBaseGame -and $gameDir) {
+            Write-PersistentGameStateValue -Game $game -Name 'base_game_path' -Value ([string]$gameDir)
         }
 
         # Check if VR mod is installed
@@ -819,18 +867,18 @@ function global:Invoke-CheckInstalledScan {
         if (-not $vrInstalled -and $recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container)) {
             $recordedEvidenceOk = $true
             $recordedEvidenceOk = Test-VrInstallEvidenceContract -Game $game -Root $recordedPath
-            if ($recordedPath -and (Test-Path $recordedPath)) {
+            if ($recordedPath -and (Test-Path -LiteralPath $recordedPath)) {
                 # Recorded path is still valid. If we know what the
                 # mod's marker file looks like (ModFile), verify it.
                 if ($game.ModFile) {
                     $rp = Join-Path $recordedPath $game.ModFile
-                    if ($recordedEvidenceOk -and (Test-Path $rp)) {
+                    if ($recordedEvidenceOk -and (Test-Path -LiteralPath $rp)) {
                         $vrInstalled = $true
-                    } elseif ($recordedEvidenceOk -and $game.ModFileAlt -and (Test-Path (Join-Path $recordedPath $game.ModFileAlt))) {
+                    } elseif ($recordedEvidenceOk -and $game.ModFileAlt -and (Test-Path -LiteralPath (Join-Path $recordedPath $game.ModFileAlt))) {
                         # Alternate marker - e.g. Anomaly is VR-ready via the
                         # new AoeVrLauncher.exe OR the old JSGME.exe.
                         $vrInstalled = $true
-                    } elseif ($recordedEvidenceOk -and $game.ModFileAlt2 -and (Test-Path (Join-Path $recordedPath $game.ModFileAlt2))) {
+                    } elseif ($recordedEvidenceOk -and $game.ModFileAlt2 -and (Test-Path -LiteralPath (Join-Path $recordedPath $game.ModFileAlt2))) {
                         $vrInstalled = $true
                     } elseif ($recordedEvidenceOk -and $game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile)) {
                         $vrInstalled = $true
@@ -859,24 +907,25 @@ function global:Invoke-CheckInstalledScan {
                     # are verified by their own block below, so we exclude
                     # them here rather than trusting the path.
                     if ($game.LaunchExe) {
-                        if ($recordedEvidenceOk -and (Test-Path (Join-Path $recordedPath $game.LaunchExe))) { $vrInstalled = $true }
+                        if ($recordedEvidenceOk -and (Test-Path -LiteralPath (Join-Path $recordedPath $game.LaunchExe))) { $vrInstalled = $true }
                     } else {
                         $vrInstalled = ($installed -and $recordedEvidenceOk)
                     }
                 }
             }
         }
+        if(-not $vrInstalled -and $recordedPath -and (Get-Command Test-LocatedVrRuntime -ErrorAction SilentlyContinue)){$vrInstalled=Test-LocatedVrRuntime -Game $game -Root $recordedPath}
         if (-not $vrInstalled -and $installed -and $gameDir -and $game.ModFile) {
             # Default: ModFile lives inside the Steam game folder.
             # This covers ~95% of mods (BepInEx plugins, dropped
             # DLLs etc).
             $modPath = Join-Path $gameDir $game.ModFile
-            $modPathFound = Test-Path $modPath
+            $modPathFound = Test-Path -LiteralPath $modPath
             $modEvidenceRoot = $gameDir
             # Alternate marker: VR-ready via either of two files (e.g.
             # Anomaly: new AoeVrLauncher.exe OR the old JSGME.exe).
             if (-not $modPathFound -and $game.ModFileAlt) {
-                $modPathFound = Test-Path (Join-Path $gameDir $game.ModFileAlt)
+                $modPathFound = Test-Path -LiteralPath (Join-Path $gameDir $game.ModFileAlt)
             }
             # THIRD marker, deliberately narrow (2026-08-20). Four Luke
             # Ross titles put their executable in a DIFFERENT subfolder
@@ -889,7 +938,7 @@ function global:Invoke-CheckInstalledScan {
             # Anything without it behaves exactly as before - this cannot
             # affect the other 241 games.
             if (-not $modPathFound -and $game.ModFileAlt2) {
-                $modPathFound = Test-Path (Join-Path $gameDir $game.ModFileAlt2)
+                $modPathFound = Test-Path -LiteralPath (Join-Path $gameDir $game.ModFileAlt2)
             }
             if (-not $modPathFound -and $game.DoorstopTargetModFile) {
                 $modPathFound = Test-DoorstopTargetModMarker -GameRoot $gameDir -TargetMarker $game.DoorstopTargetModFile -LoaderFile $game.DoorstopLoaderFile
@@ -930,13 +979,13 @@ function global:Invoke-CheckInstalledScan {
                 # ModFile was checked at this spot. A second marker
                 # that counts in the game folder must also count at
                 # the alternative root.
-                if ((-not (Test-Path $altPath)) -and $game.ModFileAlt) {
+                if ((-not (Test-Path -LiteralPath $altPath)) -and $game.ModFileAlt) {
                     $altPath = Join-Path $altRoot $game.ModFileAlt
                 }
-                if ((-not (Test-Path $altPath)) -and $game.ModFileAlt2) {
+                if ((-not (Test-Path -LiteralPath $altPath)) -and $game.ModFileAlt2) {
                     $altPath = Join-Path $altRoot $game.ModFileAlt2
                 }
-                if (Test-Path $altPath) {
+                if (Test-Path -LiteralPath $altPath) {
                     $modPathFound = $true
                     $modEvidenceRoot = $altRoot
                     # If extra evidence files are required (e.g. the
@@ -979,8 +1028,8 @@ function global:Invoke-CheckInstalledScan {
         # the startup quick-scan in Startup.ps1 calls exactly the same one.
         if ($vrInstalled -and $game.VrManifest) {
             $stageRoot = $null
-            try { if ($recordedPathFile -and (Test-Path $recordedPathFile)) { $stageRoot = Read-InstalledPath -Game $game } } catch { $stageRoot = $null }
-            if (-not $stageRoot -or -not (Test-Path $stageRoot)) { $stageRoot = Resolve-VrInstallRoot $game.VrInstallRoot }
+            try { if ($recordedPathFile -and (Test-Path -LiteralPath $recordedPathFile)) { $stageRoot = Read-InstalledPath -Game $game } } catch { $stageRoot = $null }
+            if (-not $stageRoot -or -not (Test-Path -LiteralPath $stageRoot)) { $stageRoot = Resolve-VrInstallRoot $game.VrInstallRoot }
             if (-not (Test-StagedModStillValid -Game $game -StageRoot $stageRoot)) { $vrInstalled = $false }
         }
 
@@ -1089,8 +1138,8 @@ function global:Invoke-CheckInstalledScan {
                             # keeps the exe in Build\FinalEpic, so testing
                             # only ModFile would leave every Epic install
                             # short of VR Ready in this branch.
-                            if ($tmRoot -and (Test-Path (Join-Path $tmRoot $game.ModFile))) { $vrInstalled = $true }
-                            elseif ($tmRoot -and $game.ModFileAlt -and (Test-Path (Join-Path $tmRoot $game.ModFileAlt))) { $vrInstalled = $true }
+                            if ($tmRoot -and (Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFile))) { $vrInstalled = $true }
+                            elseif ($tmRoot -and $game.ModFileAlt -and (Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFileAlt))) { $vrInstalled = $true }
                         } else {
                             $vrInstalled = $true
                         }
@@ -1145,10 +1194,10 @@ function global:Invoke-CheckInstalledScan {
         # install. Write the old baseline once; the pin comparison below
         # then raises the Update badge, and the installer writes the real
         # version on the next (re)install, which clears it again.
-        if ($game.ModBSub -eq "lufz" -and $tmBPresent) {
+        if ($game.ModBSub -eq "lufz" -and $tmBPresent -and -not (Read-PersistentGameStateValue -Game $game -Name 'user_located')) {
             try {
                 $lufzIvp = Get-InstalledVersionPath -Game $game
-                if ($lufzIvp -and -not (Test-Path $lufzIvp)) {
+                if ($lufzIvp -and -not (Test-Path -LiteralPath $lufzIvp)) {
                     Set-Content -Path $lufzIvp -Value "1.0.0" -Encoding ASCII -Force
                 }
             } catch {}
@@ -1177,7 +1226,7 @@ function global:Invoke-CheckInstalledScan {
         # treated as a free title.
         if ($game.Title -eq "Hytale VR") {
             $hyClient = $null
-            try { $hyClient = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "Hytale\install\release\package\game\latest\Client\HytaleClient.exe" } catch {}
+            try { $hyRoaming=if($env:APPDATA){$env:APPDATA}else{[Environment]::GetFolderPath("ApplicationData")};$hyClient = Join-Path $hyRoaming "Hytale\install\release\package\game\latest\Client\HytaleClient.exe" } catch {}
             $hyClientOk = ($hyClient -and (Test-Path -LiteralPath $hyClient))
             $hyModRoot = $null
             # The user/installer-recorded root is authoritative here as it is
@@ -1208,10 +1257,12 @@ function global:Invoke-CheckInstalledScan {
                     if ((Test-Path -LiteralPath $hyBat) -or (Test-Path -LiteralPath $hyDash)) { $hyModRoot = $hr; break }
                 }
             }
-            if ($hyModRoot) {
+            if ($hyModRoot -and ($hyClientOk -or $installed)) {
                 $installed   = $true
                 $gameDir     = $hyModRoot
                 $vrInstalled = $true
+            } elseif ($hyModRoot) {
+                $installed=$false;$vrInstalled=$false;$gameDir=$null
             } elseif ($hyClientOk -and -not $installed) {
                 $installed = $true
                 $gameDir   = (Split-Path -Parent $hyClient)
@@ -1388,7 +1439,7 @@ function global:Invoke-CheckInstalledScan {
                     if (-not $tsDepr -and $tsRoute.CurrentMissing -and $routeAwareCurrentUpdate) {
                         $needsUpdate = $true
                         $updateEvidence = "Current Thunderstore release $tsVer is available; only the pinned $($tsRoute.Route) route is installed"
-                    } elseif (-not $tsDepr -and $tsRoute.UnversionedCurrent -and $routeAwareCurrentUpdate) {
+                    } elseif (-not $tsDepr -and $tsRoute.UnversionedCurrent -and $routeAwareCurrentUpdate -and -not (Read-PersistentGameStateValue -Game $game -Name 'user_located')) {
                         $needsUpdate = $true
                         $updateEvidence = "Current Thunderstore release $tsVer is available; installed Current route has no package-version marker"
                     } elseif (-not $tsDepr -and $installedVer -and (Test-OnlineVersionIsNewer -Installed $installedVer -Online $tsVer)) {
@@ -1398,7 +1449,7 @@ function global:Invoke-CheckInstalledScan {
                         # here - the .ts_versions/ file already holds
                         # the truth and we resync the Hub cache after
                         # the user installs the update.
-                    } elseif (-not $installedVer -and -not $tsDepr -and -not $tsRoute.RouteSpecific) {
+                    } elseif (-not $installedVer -and -not $tsDepr -and -not $tsRoute.RouteSpecific -and -not (Read-PersistentGameStateValue -Game $game -Name 'user_located')) {
                         Write-InstalledVersion -Game $game -Version $tsVer -GameDir $gameDir
                     } elseif ($installedVer) {
                         # Equal OR installed is ahead - both mean "up to
@@ -1574,7 +1625,7 @@ function global:Invoke-CheckInstalledScan {
                 # source marker or the Hub cache.
                 $repoToCheck = Get-SelectedGithubRepo -Game $game -GameDir $gameDir
                 $checkPrerelease = Get-GithubPrereleasePreference -Game $game -GameDir $gameDir
-                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease -RequiredAssetPatterns @($game.GithubReleaseAssetPatterns) -AssetVersionPattern ([string]$game.GithubAssetVersionPattern)
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease -RequiredAssetPatterns $(if($game.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $game -GameDir $gameDir)}else{@($game.GithubReleaseAssetPatterns)}) -AssetVersionPattern ([string]$game.GithubAssetVersionPattern)
                 if ($ghVer) {
                     $releaseRoute = Get-CurrentRouteInstallState -Game $game -Presence $dmProbe `
                         -GameDir $gameDir -FallbackVersion $installedVer -Source Release
@@ -1630,7 +1681,7 @@ function global:Invoke-CheckInstalledScan {
                 # paying it every time. No timeout is lowered, so a slow-but-
                 # valid page is never cut short. Logged ([AICheck]).
                 if (-not $global:HubScanOnlineDown) {
-                  $wv = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title -VersionPattern ([string]$game.WebVersionPattern)
+                  $wv = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title -VersionPattern ([string]$game.WebVersionPattern) -VersionAliases $game.WebVersionAliases
                   if ($wv) {
                     if ($installedVer -and
                         ($game.Title -ne 'Alien: Isolation VR' -or (Test-GrandInstalledVersionProof -GameDir $gameDir -Version $installedVer)) -and
@@ -1652,16 +1703,16 @@ function global:Invoke-CheckInstalledScan {
                 $lrInst   = $null
                 if ($gameDir) {
                     $lrGameMarker = Join-Path $gameDir ".real_vr_version"
-                    if (Test-Path $lrGameMarker) {
-                        $lrInst = (Get-Content $lrGameMarker -Raw -ErrorAction SilentlyContinue)
+                    if (Test-Path -LiteralPath $lrGameMarker) {
+                        $lrInst = (Get-Content -LiteralPath $lrGameMarker -Raw -ErrorAction SilentlyContinue)
                         if ($lrInst) { $lrInst = $lrInst.Trim() }
                     }
                 }
                 if (-not $lrInst) {
                     $lrIvp    = Get-InstalledVersionPath -Game $game
                     $lrMarker = if ($lrIvp) { $lrIvp -replace '\.installed_version_', '.real_version_' } else { $null }
-                    if ($lrMarker -and (Test-Path $lrMarker)) {
-                        $lrInst = (Get-Content $lrMarker -Raw -ErrorAction SilentlyContinue)
+                    if ($lrMarker -and (Test-Path -LiteralPath $lrMarker)) {
+                        $lrInst = (Get-Content -LiteralPath $lrMarker -Raw -ErrorAction SilentlyContinue)
                         if ($lrInst) { $lrInst = $lrInst.Trim() }
                     }
                 }
@@ -1882,6 +1933,20 @@ function global:Invoke-CheckInstalledScan {
                         $script:LoggedUpdateEvidence[$evidenceKey] = $evidenceValue
                     }
                 }
+            }
+
+            # An external payload has no implicit release number. Missing
+            # Hub recipe markers alone must not turn Locate into Reinstall.
+            # Positive installed-version evidence (including another mod slot)
+            # keeps ordinary updates, and PZ's explicit workshop transition.
+            if($needsUpdate -and -not $installedVer -and -not $pzPendingUpdate -and
+                (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue) -and
+                (Read-PersistentGameStateValue -Game $game -Name 'user_located')){
+                $knownExternalVersion=$false
+                foreach($versionKey in @('installed_version','installed_version_b','installed_version_c')){
+                    if(Read-PersistentGameStateValue -Game $game -Name $versionKey){$knownExternalVersion=$true;break}
+                }
+                if(-not $knownExternalVersion){$needsUpdate=$false;$updateEvidence=$null;$updateTargetSlot=$null;$updateTargetRoute=$null;$updateTargetCount=0}
             }
 
             if ($needsUpdate) {
@@ -2451,6 +2516,9 @@ function global:Invoke-CheckInstalledScan {
             $found, $vrFound, $global:InstalledScanFailedGames.Count)
         if ($scanSlowGames.Count -gt 0) {
             Write-Host ("[Scan] slow entries: " + ($scanSlowGames -join '; '))
+        }
+        if ($registryFound -and $registryFound.Count -gt 0) {
+            Write-Host ("[Scan] found via registry: " + ($registryFound -join '; '))
         }
     }
     if ($global:InstalledScanFailedGames.Count -gt 0 -and (Get-Command Write-HubActionFailure -ErrorAction SilentlyContinue)) {

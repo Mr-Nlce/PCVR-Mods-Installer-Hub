@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  SONS OF THE FOREST VR - SonsVR_Mod by Anthony (iPowerTech)
 # ============================================================
 #  A MelonLoader mod. The author ships a ONE-CLICK INSTALLER
@@ -105,7 +105,7 @@ Write-Step 2 3 "Downloading the installer"
 $url = $null; $tag = ""; $assetName = ""; $assetSize = 0
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $rels = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                 -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     foreach ($r in @($rels)) {
         # The asset format changed between releases (.7z earlier, .zip

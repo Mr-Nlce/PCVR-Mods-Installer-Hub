@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Call of Duty 4 VR - Installer (KisakCOD VR by jplakon)
 # ============================================================
 #  Single-player OpenXR VR conversion of the ORIGINAL 2007 COD4:
@@ -110,7 +110,7 @@ function Test-CodRoot {
 # v0.9.0-beta.1 and every future beta, which is what this project ships.
 function Get-NewestRelease {
     try {
-        $rels = Invoke-RestMethod -Uri $RELEASES_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $RELEASES_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         $rel = $rels | Select-Object -First 1
         if (-not $rel) { return $null }
         # THE PORTABLE ZIP IS AND STAYS THE NORMAL ROUTE. The author now

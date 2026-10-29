@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Escape from Tarkov VR (SPT-VR) Mod Installer
 # by cybensis (matsix) - distributed via GitHub
 #
@@ -370,7 +370,7 @@ $modUrl = $null
 $installedModVersion = $null
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+    $rel = Invoke-PCVRRestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
     if ($rel -is [array]) { $rel = $rel | Where-Object { $_.assets.Count -gt 0 } | Select-Object -First 1 }
     $asset = $rel.assets | Where-Object { $_.name -match "\.zip$" } | Select-Object -First 1
     if ($asset) {

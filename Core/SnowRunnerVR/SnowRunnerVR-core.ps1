@@ -1,4 +1,4 @@
-. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
+﻿. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
 $ErrorActionPreference = 'Stop'
@@ -12,8 +12,8 @@ $depotGameVersion = '1.886173'
 $depotBuild = '25096372'
 $depotExpectedBytes = [int64]73390577922
 $depotDefaultPath = 'C:\Games\SnowRunner VR'
-$currentFallbackTag = 'v0.4'
-$currentFallbackUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.4/dxgi.dll'
+$currentFallbackTag = 'v0.5'
+$currentFallbackUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.5/dxgi.dll'
 $confirmedModTag = 'v0.3'
 $confirmedModUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.3/dxgi.dll'
 $knownOfficialHashes = @(
@@ -160,15 +160,9 @@ function Test-SnowRunnerDllPayload {
 }
 
 function Get-SnowRunnerRelease {
-    try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop
-        $asset = @($release.assets | Where-Object { $_.name -ieq 'dxgi.dll' } | Select-Object -First 1)[0]
-        if (-not $asset -or -not $asset.browser_download_url -or [int64]$asset.size -lt 70000) { throw 'The latest stable release has no valid dxgi.dll asset.' }
-        return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url }
-    } catch {
-        Write-SnowWarn "GitHub did not answer; using the last known $currentFallbackTag release URL."
-        return [pscustomobject]@{ Tag=$currentFallbackTag; Url=$currentFallbackUrl }
-    }
+    $release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^dxgi\.dll$') -SkipReleasesWithoutMatchingAsset
+    if(-not $release.Resolved){throw 'The current SnowRunner release could not be checked. Retry or hand over the official DLL.'}
+    return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url}
 }
 
 function Remove-SnowTemp {

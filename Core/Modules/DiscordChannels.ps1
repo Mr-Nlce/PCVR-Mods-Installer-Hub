@@ -1,4 +1,4 @@
-# ===============================================================
+﻿# ===============================================================
 # Discord discussion and support channels
 #
 # This is the one maintenance surface for Discord links shown on game
@@ -28,10 +28,19 @@ $script:DiscordServerSpec = [ordered]@{
 }
 
 $script:DiscordChannelSpec = @(
+    @{ Ids=@('aliens-versus-predator-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554884770951864410'; Label='Aliens versus Predator 2 VR' }
+    @{ Ids=@('black-white-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1563557690808991847'; Label='Black & White VR' }
+    @{ Ids=@('dementium-ii-hd-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1563266841105801357'; Label='Dementium II HD VR' }
+    @{ Ids=@('tomb-raider-legend-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1547484010585002044'; Label='Tomb Raider: Legend VR' }
+    @{ Ids=@('dead-space-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1546924467832225863'; Label='Dead Space 2 VR' }
+    @{ Ids=@('balatro-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1563690320183689226'; Label='Balatro VR' }
+    @{ Ids=@('blood-west-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1562299917735829597'; Label='Blood West VR' }
     @{ Ids=@('forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561119008768663643'; Label='GrayHorizon VR (Forza Horizon 4, 5 and 6)' }
-    @{ Ids=@('call-of-duty-2003-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561852036264230972'; Label='Call of Duty (2003) VR' }
+    @{ Ids=@('call-of-duty-2003-vr','call-of-duty-united-offensive-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561852036264230972'; Label='Call of Duty (2003) VR' }
     @{ Ids=@('modern-warfare-2-campaign-remastered-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556737474087231579'; Label='Modern Warfare 2 Campaign Remastered VR' }
     @{ Ids=@('alan-wake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561105393508294797'; Label='Alan Wake VR' }
+    @{ Ids=@('bendy-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1563605251632922634'; Label='InkVR' }
+    @{ Ids=@('among-the-sleep-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1564133488225951764'; Label='Among the Sleep VR' }
     @{ Ids=@('brutal-legend-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554890867070734416'; Label='Brutal Legend VR' }
     @{ Ids=@('far-cry-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1562896372573933698'; Label='Far Cry 2 VR' }
     @{ Ids=@('rustler-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1560758573598908628'; Label='Rustler VR' }

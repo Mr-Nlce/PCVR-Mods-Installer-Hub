@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Forza Horizon 5 VR Installer
 # Two VR mods to choose from:
 #   1) NALULUNA (free, ko-fi)          launcher: fh5vr.exe
@@ -73,7 +73,7 @@ function Get-DraggedZip {
 
 function Get-VRModRelease {
     try {
-        $rels = Invoke-RestMethod -Uri $VRMOD_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $VRMOD_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         $rel = $rels | Select-Object -First 1
         if (-not $rel) { return $null }
         $asset = $rel.assets | Where-Object { $_.name -like "*.zip" -and $_.name -notlike "*source*" } | Select-Object -First 1

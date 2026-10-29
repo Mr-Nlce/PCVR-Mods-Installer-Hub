@@ -5,14 +5,16 @@ Penumbra: Requiem is the puzzle-focused expansion to Penumbra: Black Plague. Pen
 ## What you need
 
 - The original Windows PC Black Plague game and Requiem expansion in the same `redist` folder. Both `Penumbra.exe` and `Requiem.exe` must be present.
-- The publisher lists the Steam executable builds as verified. GOG and disc paths can be located, but their builds remain unconfirmed by the publisher.
+- The current publisher supports Steam executable builds only. GOG and other non-Steam builds are unsupported and may be rejected by Setup.
 - SteamVR and two tracked controllers. Close both games before setup.
+
+The 1.0.13 level08 corrections have automated host validation only; the publisher has not verified them in a game or headset.
 
 ## Install and update
 
 The Hub downloads the latest official [Penumbra VR Framework release](https://github.com/rubocopter/penumbra_vr_framework/releases), including prereleases. Publisher Setup selects all detected Penumbra games by default. Check that Black Plague and Requiem are selected before Install; the Hub scans each component separately afterward. Setup also provides verification, repair and removal. Requiem shares Black Plague's installation root and backup transaction.
 
-The reviewed v1.0.10 Setup makes assisted throws follow the controller holding the object and separates head-directed examination/ladder selection from hand pointing. Movement, jumping and audio are unchanged in this maintenance update. Keep both components selected when updating Requiem. The publisher still reports an intermittent Requiem startup crash; this release does not claim to fix it.
+The current v1.0.13 prerelease Setup makes assisted throws follow the controller holding the object and separates head-directed examination/ladder selection from hand pointing. Movement, jumping and audio are unchanged in this maintenance update. Keep both components selected when updating Requiem. The publisher still reports an intermittent Requiem startup crash; this release does not claim to fix it.
 
 If Overture was installed with the older Hub-pinned Framework v0.x, update it from the **Penumbra: Overture VR** game tile before running this Setup. Do not use publisher Repair on that old Overture deployment; its managed file set differs from the current Framework.
 

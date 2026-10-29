@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Decimate Drive VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -27,7 +27,7 @@ $MOD_AUTHOR = "Astienth"
 
 $GAME_APPID = "2427950"
 $GAME_NAME = "Decimate Drive"
-$GAME_EXE = "DecimateDrive.exe"
+$GAME_EXE = "Decimate Drive.exe"
 
 # The mod is installed inside the release\ subfolder, where the
 # game exe actually lives.
@@ -74,7 +74,7 @@ function Get-SteamPath {
  )) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
- if ($p -and (Test-Path $p)) { return $p }
+ if ($p -and (Test-Path -LiteralPath $p)) { return $p }
  } catch {}
  }
  return $null
@@ -86,16 +86,32 @@ function Get-SteamLibraries {
  if (-not $SteamPath) { return $libs }
  $libs += $SteamPath
  $vdf = Join-Path $SteamPath "steamapps\libraryfolders.vdf"
- if (Test-Path $vdf) {
- [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
+ if (Test-Path -LiteralPath $vdf) {
+ [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s+"([^"]+)"') | ForEach-Object {
  $l = $_.Groups[1].Value -replace '\\\\', '\'
- if (Test-Path $l) { $libs += $l }
+ if (Test-Path -LiteralPath $l) { $libs += $l }
  }
  }
  return ($libs | Select-Object -Unique)
 }
 
+function Resolve-DecimateGameRoot {
+ param([string]$Path)
+ if([string]::IsNullOrWhiteSpace($Path)){return $null}
+ $candidate=ConvertTo-PCVRCanonicalUserPath $Path
+ if(-not $candidate){return $null}
+ if(Test-Path -LiteralPath $candidate -PathType Leaf){$candidate=[IO.Path]::GetDirectoryName($candidate)}
+ foreach($root in @($candidate,[IO.Path]::GetDirectoryName($candidate.TrimEnd('\')))){
+  if(-not $root){continue}
+  foreach($exe in @('Decimate Drive.exe','DecimateDrive.exe')){if(Test-Path -LiteralPath ([IO.Path]::Combine($root,'release',$exe)) -PathType Leaf){return $root}}
+ }
+ return $null
+}
 function Find-DecimateGamePath {
+ foreach($exe in @('release\Decimate Drive.exe','release\DecimateDrive.exe')){
+  $remembered=Get-PCVRRememberedGameFolder -GameId 'decimate-drive-vr' -ProbeFiles @($exe)
+  if($remembered){return $remembered}
+ }
  $sp = Get-SteamPath
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
@@ -103,8 +119,8 @@ function Find-DecimateGamePath {
  # so the strongest signal is the presence of release\
  # next to the Steam folder root.
  $candidate = Join-Path $lib "steamapps\common\Decimate Drive"
- if (Test-Path -LiteralPath "$candidate\release") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ $found=Resolve-DecimateGameRoot $candidate
+ if($found){return $found}
  }
  return $null
 }
@@ -220,28 +236,26 @@ Write-Step 2 4 "Locating Decimate Drive"
 
 $gamePath = Find-DecimateGamePath
 if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "2427950" -SteamFolderNames @("Decimate Drive") }
-if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath 'release\DecimateDrive.exe') -PathType Leaf)) {
- Write-Warn "Found a folder without release\DecimateDrive.exe: $gamePath"
- $gamePath = $null
-}
+$gamePath=Resolve-DecimateGameRoot $gamePath
 if ($gamePath) {
  Write-OK "Found Decimate Drive at: $gamePath"
 } else {
  Write-Warn "Could not auto-locate Decimate Drive in any Steam library."
  Write-Host " Please paste the path to your Decimate Drive folder" -ForegroundColor White
- Write-Host " (the folder containing release\DecimateDrive.exe)." -ForegroundColor White
+ Write-Host " (containing release\Decimate Drive.exe), or drop the game EXE." -ForegroundColor White
  Write-Host ""
  while (-not $gamePath) {
  $answer = Read-Host " Decimate Drive folder or Q to quit"
  if ($null -eq $answer) { exit 1 }
- $r = $answer.Trim().Trim('"')
+ $r = $answer.Trim()
  if ($r -ieq 'Q') { exit 1 }
  if (-not $r) { continue }
- if (Test-Path -LiteralPath (Join-Path $r 'release\DecimateDrive.exe') -PathType Leaf) {
- $gamePath = $r
+ $resolved=Resolve-DecimateGameRoot $r
+ if ($resolved) {
+ $gamePath = $resolved
  Write-OK "Game folder set: $gamePath"
  } else {
- Write-Fail "release\DecimateDrive.exe not found in: $r"
+ Write-Fail "The game EXE was not found in the release folder: $r"
  }
  }
 }
@@ -285,7 +299,7 @@ $requiredModFiles += "BepInEx\redist\$($redistExe[0].Name)"
 try { $payloadHashes = Get-PCVRDropInSourceHashes -SourceRoot $srcRoot -RequiredFiles $requiredModFiles }
 catch { Write-Fail "The extracted VR package is incomplete: $_"; Pause-User 'Press Enter to exit...'; exit 1 }
 
-$installedGroups = @('release\DecimateDrive.exe', 'release\winhttp.dll|release\winhttp_bak.dll')
+$installedGroups = @('release\Decimate Drive.exe|release\DecimateDrive.exe', 'release\winhttp.dll|release\winhttp_bak.dll')
 $installedGroups += @($requiredModFiles | Where-Object { $_ -ne 'winhttp.dll' } | ForEach-Object { "release\$_" })
 $contract = New-PCVRInstallerContract -Id 'decimate-drive-vr' -GameName 'Decimate Drive VR' -Acquisition Discord `
  -DiscordInviteUrl $DISCORD_INVITE_URL -DiscordDownloadUrl $DISCORD_DOWNLOAD_URL `

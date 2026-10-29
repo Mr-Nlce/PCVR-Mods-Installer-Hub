@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Arma 3 VR - A3VR Hybrid (gborgogno)
 # ------------------------------------------------------------
 #  TWO ROUTES, and the user picks in step 1:
@@ -221,7 +221,7 @@ Write-Step 3 4 "Downloading $MOD_NAME"
 
 $dlUrl = $PINNED_URL; $relTag = $PINNED_TAG
 try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     foreach ($r in @($rel)) {
         if ($r.draft) { continue }
@@ -389,7 +389,7 @@ if ($ftAns -eq "N") {
         $otExe = Join-Path $otDir "opentrack-setup.exe"
         $url = $null
         try {
-            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/opentrack/opentrack/releases/latest" `
+            $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/opentrack/opentrack/releases/latest" `
                        -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
             foreach ($a in @($rel.assets)) {
                 if ($a.name -match '(?i)win32-setup\.exe$') { $url = [string]$a.browser_download_url; break }

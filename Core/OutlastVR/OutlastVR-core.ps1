@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Outlast VR - Halcyon (dhalcyon)
 # ------------------------------------------------------------
 #  THE MOD BRINGS ITS OWN INSTALLER: Outlast-VR.bat.
@@ -316,7 +316,7 @@ if ($doB) {
     $bUrl = ''; $bTag = ''; $bAsset = ''
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-        $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$MODB_REPO/releases" `
+        $rels = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MODB_REPO/releases" `
                     -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         foreach ($r in @($rels)) {
             if ($r.draft) { continue }

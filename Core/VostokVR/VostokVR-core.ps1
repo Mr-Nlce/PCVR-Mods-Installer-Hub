@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Road to Vostok - VR Mod Installer
 # ============================================================
 #
@@ -168,7 +168,7 @@ function Get-SteamLibraries { param($sp)
 # last-known fallback when GitHub's API is temporarily unavailable.
 function Get-LatestVostokVrRelease {
  try {
-  $rel = Invoke-RestMethod -Uri $MOD_API -Headers @{ "User-Agent"="PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+  $rel = Invoke-PCVRRestMethod -Uri $MOD_API -Headers @{ "User-Agent"="PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
   $asset = $rel.assets | Where-Object { $_.name -ieq "vr-mod-full.zip" } | Select-Object -First 1
   if ($asset -and $asset.browser_download_url -and $rel.tag_name) {
    return @{ Url=[string]$asset.browser_download_url; Tag=[string]$rel.tag_name }

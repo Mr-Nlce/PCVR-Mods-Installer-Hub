@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Battlefield 1942 VR (BFVR) Installer
 # BFVR by JayBiggsGMG - github.com/JayBiggsGMG/BFVR-Battlefield-1942-VR-Mod
 #
@@ -150,7 +150,7 @@ function Set-RunAsAdminFlag {
 
 function Get-BfvrSetupUrl {
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
         foreach ($a in @($rel.assets)) {
             if ($a.name -match '(?i)\.exe$') {

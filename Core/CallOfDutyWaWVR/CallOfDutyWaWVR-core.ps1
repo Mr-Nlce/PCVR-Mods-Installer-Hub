@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Call of Duty: World at War VR - World War VR by RyanCraighead
 # ------------------------------------------------------------
 #  SPECIAL CASE: the mod puts NOTHING in the game folder. It is a
@@ -353,7 +353,7 @@ $exe = Join-Path $tmp $ASSET
 # - /releases/latest returns nothing when there are only prereleases.
 $url = $null; $tag = "latest"
 try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     $pick = @($rel) | Where-Object { -not $_.draft } | Select-Object -First 1
     if ($pick) {

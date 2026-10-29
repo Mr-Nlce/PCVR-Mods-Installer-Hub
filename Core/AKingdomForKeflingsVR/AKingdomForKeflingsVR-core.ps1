@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle='A Kingdom for Keflings VR Installer'
@@ -44,15 +44,31 @@ function Get-KeflingsGame {
 }
 function Get-KeflingsRelease {
     $fixture=(''+$env:PCVR_KEFLINGS_TEST_ARCHIVE).Trim()
-    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $fixture){if(-not(Test-Path -LiteralPath $fixture -PathType Leaf)){throw 'Keflings publisher fixture is missing.'};return [pscustomobject]@{Tag='v1.0';Url=$fixture;Local=$true}}
-    $asset=Resolve-GitHubReleaseAsset -Repo $script:KeflingsRepo -AssetPatterns @('(?i)^A-Kingdom-for-Keflings-VR-[0-9].*\.zip$') -FallbackUrl 'https://github.com/GameOrDie007/A-Kingdom-for-Keflings-VR/releases/download/v1.0/A-Kingdom-for-Keflings-VR-1.0.zip' -FallbackTag 'v1.0' -FallbackAssetName 'A-Kingdom-for-Keflings-VR-1.0.zip' -SkipReleasesWithoutMatchingAsset
-    if(-not $asset.Url -or -not(Test-IsTrackableInstalledVersion -Version ([string]$asset.Tag))){throw 'No usable Keflings VR release with a trackable version was found.'}
+    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $fixture){if(-not(Test-Path -LiteralPath $fixture -PathType Leaf)){throw 'Keflings publisher fixture is missing.'};return [pscustomobject]@{Tag=$(if($env:PCVR_KEFLINGS_TEST_TAG){$env:PCVR_KEFLINGS_TEST_TAG}else{'v1.0'});Url=$fixture;Local=$true}}
+    $asset=Resolve-GitHubReleaseAsset -Repo $script:KeflingsRepo -AssetPatterns @('(?i)^A-Kingdom-for-Keflings-VR-[0-9].*\.zip$') -SkipReleasesWithoutMatchingAsset
+    if(-not $asset.Resolved -or -not $asset.Url -or -not(Test-IsTrackableInstalledVersion -Version ([string]$asset.Tag))){throw 'No usable Keflings VR release with a trackable version was found.'}
     return [pscustomobject]@{Tag=[string]$asset.Tag;Url=[string]$asset.Url;Local=$false}
 }
-function Get-KeflingsPayload([string]$Archive,[string]$Work){
+function Get-KeflingsPayload([string]$Archive,[string]$Work,[string]$Version='v1.0'){
     $extract=Join-Path $Work 'release'
     $result=Expand-ArchiveOrFallback -ArchivePath $Archive -DestinationFolder $extract -Label 'Keflings VR package' -AllowSkip:$false -QuietProgress
     if([string]$result -notin @('ok','manual','retry')){throw 'The Keflings publisher ZIP could not be extracted.'}
+    $current=Get-ExtractedPayloadRoot -ExtractDir $extract -RelModFile 'opengl32.dll'
+    if($current -and (Test-Path -LiteralPath (Join-Path $current 'setup.ps1') -PathType Leaf)){
+        foreach($name in @('opengl32.dll','openxr_loader.dll','UNINSTALL.bat','collect-log.bat','setup.ps1')){
+            if(-not(Test-Path -LiteralPath (Join-Path $current $name) -PathType Leaf)){throw "The publisher package is missing $name."}
+        }
+        if(-not(Test-IsTrackableInstalledVersion $Version)){throw 'The publisher settings kit needs its release version.'}
+        $stage=Join-Path $Work 'stage';$kit=Join-Path $stage 'VR'
+        [void][IO.Directory]::CreateDirectory($kit)
+        foreach($item in @(Get-ChildItem -LiteralPath $current -Force)){Copy-Item -LiteralPath $item.FullName -Destination $kit -Recurse -Force -ErrorAction Stop}
+        foreach($name in @('opengl32.dll','openxr_loader.dll')){Copy-Item -LiteralPath (Join-Path $current $name) -Destination $stage -ErrorAction Stop}
+        $parent=Split-Path $current -Parent
+        foreach($name in @('LICENSES','READ ME FIRST.txt')){if(Test-Path -LiteralPath (Join-Path $parent $name)){Copy-Item -LiteralPath (Join-Path $parent $name) -Destination $kit -Recurse -Force -ErrorAction Stop}}
+        [IO.File]::WriteAllText((Join-Path $kit 'version.txt'),('A Kingdom for Keflings VR '+$Version.TrimStart('v')),[Text.UTF8Encoding]::new($false))
+        [IO.File]::WriteAllText((Join-Path $kit 'SETUP.bat'),"@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"%~dp0setup.ps1`" -GamePath `"%~dp0..`" %*`r`n",[Text.Encoding]::ASCII)
+        return $stage
+    }
     $payload=Get-ExtractedPayloadRoot -ExtractDir $extract -RelModFile 'tools\setup.ps1'
     foreach($relative in @('opengl32.dll','openxr_loader.dll','version.txt','SETUP.bat','UNINSTALL.bat','collect-log.bat','READ ME FIRST.txt','tools\setup.ps1','LICENSES\Apache-2.0.txt','LICENSES\GPL-3.0.txt')){
         if(-not $payload -or -not(Test-Path -LiteralPath (Join-Path $payload $relative) -PathType Leaf)){throw "The publisher package is missing $relative."}
@@ -119,7 +135,7 @@ function Invoke-KeflingsInstaller {
         if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force -ErrorAction Stop}
         else{$ok=Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "Keflings VR $($release.Tag)" -ManualUrl $script:KeflingsReleasePage -AllowSkip:$false;if(-not $ok){throw 'The publisher package was not downloaded.'}}
         Write-Host '  Preparing the VR package and backup. This may take several seconds.' -ForegroundColor Cyan
-        $stage=Get-KeflingsPayload -Archive $archive -Work $work
+        $stage=Get-KeflingsPayload -Archive $archive -Work $work -Version $release.Tag
         $publisherVersion=[regex]::Match(([string](Get-Content -LiteralPath (Join-Path $stage 'VR\version.txt') -Raw -ErrorAction Stop)),'(?i)A Kingdom for Keflings VR\s+(\d+(?:\.\d+){1,3})').Groups[1].Value
         $selectedVersion=[regex]::Match([string]$release.Tag,'\d+(?:\.\d+){1,3}').Value
         if(-not $publisherVersion -or $publisherVersion -ne $selectedVersion){throw "Keflings package version $publisherVersion does not match selected release $($release.Tag). No game files were changed."}
@@ -129,7 +145,7 @@ function Invoke-KeflingsInstaller {
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to install the checked VR files...')
         Write-Host '  Installing and verifying VR files. This may take several seconds.' -ForegroundColor Cyan
         $changed=$true
-        [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity $script:KeflingsIdentity -AdoptIdenticalExisting)
+        [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity $script:KeflingsIdentity -AdoptIdenticalExisting -KeepExistingRelativePaths @('VR\READ ME FIRST.txt'))
         if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_KEFLINGS_TEST_REMOVE_AFTER_COPY -eq '1'){Remove-Item -LiteralPath (Join-Path $game 'openxr_loader.dll') -Force -ErrorAction Stop}
         $watch=@($script:KeflingsRequired|ForEach-Object{Join-Path $game $_})
         if(-not(Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -NoClear)){throw 'Required Keflings VR files are missing after installation.'}

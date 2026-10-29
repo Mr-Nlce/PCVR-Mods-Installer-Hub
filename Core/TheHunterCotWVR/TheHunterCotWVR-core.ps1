@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  theHunter: Call of the Wild VR - by Vaas993
 # ------------------------------------------------------------
 #  A SIMPLE FLOW, BUT WITH TWO SPECIAL CASES:
@@ -417,7 +417,7 @@ if ($installMode -eq 'Depot') {
     Write-Info "Depot mod pinned to $tag; no live release resolver is used."
 } else {
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
         if (Test-IsPayloadRelease -Release $rel) {
             # The release also carries a much smaller Source archive. Select only

@@ -27,12 +27,32 @@ function global:Get-DetailVrLaunchRows {
         return $rows.ToArray()
     }
     $special=$null
-    if($Game.Id -eq 'house-of-the-dead-2-original-vr'){$special=Get-HotD2VrLaunchTarget -Game $Game}
+    if($Game.Id -eq 'ff7-remake-intergrade-vr'){
+        $runtime=Resolve-VrInstallRoot 'LOCALAPPDATA:PCVR Mods Installer Hub\FF7VR'
+        & $add 'Start in VR / selected Flat mode' (Join-Path $runtime 'Start-FF7VR.ps1') '' $runtime
+        & $add 'Publisher VR launcher' (Join-Path $runtime 'start-vr.cmd') '' $runtime
+        & $add 'Restore interrupted session' (Join-Path $runtime 'restore.cmd') '' $runtime
+        & $add 'Diagnostics for the modder' (Join-Path $runtime 'collect-diagnostics.cmd') '' $runtime
+        return $rows.ToArray()
+    }
+    if($Game.Id -eq 'house-of-the-dead-2-original-vr' -and -not $Game.TwoMods){$special=Get-HotD2VrLaunchTarget -Game $Game}
     elseif($Game.Id -in @('descent-vr','descent-2-vr')){$special=Get-DescentVrLaunchTarget -Game $Game}
     if($special){& $add 'Start in VR' $special.FilePath $special.Arguments $special.WorkingDirectory;return $rows.ToArray()}
     if($Game.TwoMods){
         foreach($definition in @(Get-AlternativeModDefinitions -Game $Game -State $State)){
             $root=if($definition.Root){[string]$definition.Root}else{$gameRoot}
+            if($Game.Id -eq 'house-of-the-dead-2-original-vr'){
+                if($definition.Mode -eq 'ModA'){
+                    $target=Get-HotD2VrLaunchTarget -Game $Game
+                    if($target){& $add 'Icedomega13' $target.FilePath $target.Arguments $target.WorkingDirectory}
+                    else{& $add 'Icedomega13' 'HotD2VR.exe' '/play' (Resolve-VrInstallRoot ([string]$Game.VrInstallRoot))}
+                }else{
+                    $target=Get-HotD2PC2VRLaunchTarget -Game $Game
+                    if($target){& $add 'PC2VR (fjdiazt)' $target.Controller '' $target.WorkingDirectory}
+                    else{& $add 'PC2VR (fjdiazt)' 'vr\Start-PC2VR.ps1' '' $root}
+                }
+                continue
+            }
             if($Game.Title -eq 'Quake VR' -and $definition.Mode -eq 'ModC'){
                 $target=Get-QuakeUnleashedLaunchTarget -Game $Game -State $State
                 if($target){& $add $definition.Name $target.FilePath $target.Arguments $target.WorkingDirectory}
@@ -92,6 +112,13 @@ function global:Get-DetailVrLaunchRows {
         $galaxy=Get-DishonoredGogGalaxyLaunch -GameRoot $gameRoot
         if($galaxy){& $add 'Start in VR through GOG Galaxy' $galaxy.File $galaxy.Arguments (Split-Path $galaxy.File -Parent)}
         else{& $add 'Start in VR' 'GOG Galaxy (the publisher launcher supplies the installed game launch information).' '' '' 'Text'}
+        return $rows.ToArray()
+    }
+    if($Game.Id -eq 'balatro-vr'){
+        $local=if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA){$env:PCVR_HUB_TEST_LOCALAPPDATA}else{$env:LOCALAPPDATA}
+        if($local){$client=Join-Path $local 'PCVR Mods Installer Hub\BalatroVR'; & $add 'Start in VR controller' 'Start-BalatroVR.ps1' '' $client; & $add 'VR client' 'Balatro in VR.exe' '' $client}
+        if($env:APPDATA){$mods=Join-Path $env:APPDATA 'Balatro\Mods'; & $add 'Balatro VR bridge' 'BalatroVRBridge\BalatroVRBridge.lua' '' $mods}
+        & $add 'Base game through Steam' 'steam://rungameid/2379780' '' '' 'Steam'
         return $rows.ToArray()
     }
     if($Game.HubLaunchScript){

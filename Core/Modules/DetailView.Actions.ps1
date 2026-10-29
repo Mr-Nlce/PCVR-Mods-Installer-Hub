@@ -1,4 +1,4 @@
-# Uninstall guide button - sits next to the Steam Theatre button
+﻿# Uninstall guide button - sits next to the Steam Theatre button
 # at the end of the readme. Click reveals a numbered step-by-step
 # tooltip explaining how to safely remove the VR mod and the
 # game. Steps adapt based on whether the game uses Steam launch
@@ -137,6 +137,8 @@ function global:New-ClearLocationButton {
     $btn.ToolTip = $tip
 
     $btn.Add_MouseLeftButtonUp({
+        $maintenanceTarget=$this;$maintenanceHandedOff=$false
+        $maintenanceToken=Start-HubActionIndicator -Target $maintenanceTarget -DelayMilliseconds 0 -FitTargetEdges
         try {
             Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
             $r = [System.Windows.Forms.MessageBox]::Show(
@@ -156,13 +158,17 @@ function global:New-ClearLocationButton {
                 $remaining = Read-PersistentGameStateValue -Game $Game -Name $stateName
                 if ($remaining) { throw "The saved $stateName value could not be cleared." }
             }
+            foreach($stateName in @('base_game_path','located_vr_root','located_launch_exe','located_launch_args','located_launch_workdir','located_launch_explicit')){Reset-PersistentGameStateValue -Game $Game -Name $stateName}
             $global:PendingInstallTitle = $Game.Title
-            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
+            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title) -RecheckOnly -IgnorePreviousPath -IndicatorTarget $maintenanceTarget -IndicatorToken $maintenanceToken
+            $maintenanceHandedOff=$true
             [System.Windows.Forms.MessageBox]::Show(
                 ($Game.Title + " location cleared."),
                 "Clear location") | Out-Null
         } catch {
             Write-HubActionFailure -Action ("Clear saved location for " + $Game.Title) -ErrorRecord $_
+        } finally {
+            if (-not $maintenanceHandedOff -and $maintenanceToken) { Stop-HubActionIndicator -Token $maintenanceToken }
         }
     }.GetNewClosure())
 
@@ -236,7 +242,21 @@ function global:Get-FlatVRProxyInfo {
             try { $rp = (Get-Content -LiteralPath $mf -Raw).Trim(); if ($rp -and (Test-Path -LiteralPath $rp)) { $dir = $rp } } catch {}
         }
     }
+    if ($Game.FlatVRRootSlot) {
+        $slotRoot = Get-AlternativeModValue $st ('Mod'+[string]$Game.FlatVRRootSlot+'Root')
+        if (-not $slotRoot -or -not(Test-Path -LiteralPath $slotRoot -PathType Container)) { return $null }
+        $dir=[string]$slotRoot
+    }
     if (-not $dir) { return $null }
+    if ($Game.FlatVRRootRoute -eq 'Current') {
+        $routeState=$global:gameStateMap[$Game.Title]
+        if(-not $routeState -or -not $routeState.CurrentPresent -or -not $routeState.CurrentDir) { return $null }
+        $dir=[string]$routeState.CurrentDir
+    }
+    if ($Game.FlatVRPublisherLauncher) {
+        $launcher=Join-Path $dir ([string]$Game.FlatVRPublisherLauncher)
+        return @{Dir=$dir;Path=$launcher;Active=$null;PublisherLauncher=$launcher}
+    }
     # Official INI switch. Missing file/key means the mod's default (VR on),
     # and the first click creates only the documented setting.
     if ($Game.FlatVRIniFile -and $Game.FlatVRIniSection -and $Game.FlatVRIniKey) {
@@ -440,7 +460,9 @@ function global:New-FlatVRToggleButton {
     }
 
     $tip = New-Object System.Windows.Controls.ToolTip
-    $tip.Content = if ($isReal) {
+    $tip.Content = if ($Game.FlatVRPublisherLauncher) {
+        if($Game.FlatVRPublisherInstructions){[string]$Game.FlatVRPublisherInstructions}else{"Open the publisher launcher and choose Play in VR or Play, no VR. It restores the game's display settings after flat play."}
+    } elseif ($isReal) {
         "Switch this game between VR and flat the official R.E.A.L. way (renames RealRepo, re-runs RealConfig). The active mode is shown in gold. Close the game first."
     } elseif ($Game.FlatVRIniFile) {
         "Switch this game between VR and flat with the mod's official INI setting. The active mode is shown in gold. Close the game first."
@@ -475,6 +497,12 @@ function global:New-FlatVRToggleButton {
             }
             $nowVR = $true
             $msg = ""
+            if ($Game.FlatVRPublisherLauncher) {
+                $publisherInfo=Get-FlatVRProxyInfo -Game $Game
+                if(-not $publisherInfo -or -not(Test-Path -LiteralPath $publisherInfo.PublisherLauncher -PathType Leaf)){throw 'The publisher launcher is missing. Repair the VR installation first.'}
+                Start-Process -FilePath $publisherInfo.PublisherLauncher -WorkingDirectory $publisherInfo.Dir -ErrorAction Stop
+                return
+            }
             if ($isReal) {
                 # R.E.A.L. (Luke Ross) official toggle: disable = rename
                 # RealRepo -> RealRepo_ and dxgi.dll -> dxgi_.dll; re-enable =
@@ -725,47 +753,200 @@ function global:New-TwoModsButton {
     return $btn
 }
 
+function global:Resolve-LocatedInputPath {
+    param([AllowEmptyString()][string]$Path)
+    if([string]::IsNullOrWhiteSpace($Path)){return ''}
+    $value=$Path.Trim()
+    if($value.Length -ge 2 -and (($value[0] -eq '"' -and $value[$value.Length-1] -eq '"') -or ($value[0] -eq "'" -and $value[$value.Length-1] -eq "'"))){$value=$value.Substring(1,$value.Length-2)}
+    $value=[Environment]::ExpandEnvironmentVariables($value)
+    try{return [IO.Path]::GetFullPath($value)}catch{return ''}
+}
+
 function global:Resolve-LocatedRoot {
-    # Given a user-picked folder and a relative file (ModFile or
-    # LaunchExe), return the folder that actually holds <root>\<RelFile>.
-    # Many mods don't sit directly in the folder the user picks: the
-    # file may be in a subfolder, an extra nesting level (e.g. Epic
-    # "...\Cyberpunk 2077\Cyberpunk 2077\bin\..."), or the user may have
-    # picked a subfolder of the real root. We check, in order:
-    #   1. the picked folder directly,
-    #   2. descendants (bounded depth) for <dir>\RelFile,
-    #   3. up to two parent folders.
-    # Returns the true root, or $null if the file isn't found anywhere.
-    # Normalizing .installed_path to this root means the regular scan's
-    # "Join-Path .installed_path ModFile" check keeps working unchanged.
-    param([string]$Picked, [string]$RelFile, [int]$MaxDepth = 4)
-    if ([string]::IsNullOrWhiteSpace($Picked) -or [string]::IsNullOrWhiteSpace($RelFile)) { return $null }
-    # 1. Direct hit - the common, fast case.
-    if (Test-Path -LiteralPath (Join-Path $Picked $RelFile)) { return $Picked }
-    $suffix = "\" + $RelFile
-    # 2. Bounded descendant search. Filter by the leaf file name so the
-    #    recursion stays cheap, then confirm the FULL relative path
-    #    matches (so a stray same-named file elsewhere can't match).
-    try {
-        $leaf = Split-Path -Leaf $RelFile
-        $hits = Get-ChildItem -LiteralPath $Picked -Filter $leaf -Recurse -Depth $MaxDepth -File -ErrorAction SilentlyContinue
-        foreach ($h in $hits) {
-            if ($h.FullName.EndsWith($suffix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                $root = $h.FullName.Substring(0, $h.FullName.Length - $suffix.Length)
-                if (($root) -and (Test-Path -LiteralPath $root) -and (Test-Path (Join-Path $root $RelFile))) {
-                    return $root
-                }
-            }
+    param([string]$Picked,[string]$RelFile,[int]$MaxDepth=4)
+    if(-not $Picked -or -not $RelFile){return $null}
+    $Picked=Resolve-LocatedInputPath $Picked
+    if([IO.File]::Exists($Picked)){$Picked=[IO.Path]::GetDirectoryName($Picked)}
+    if(-not [IO.Directory]::Exists($Picked)){return $null}
+    $relatives=@($RelFile -split '\|'|ForEach-Object {$_.Trim()}|Where-Object {$_ -and -not [IO.Path]::IsPathRooted($_) -and $_ -notmatch '(^|[\\/])\.\.([\\/]|$)'})
+    # Prefer the selected subtree's actual parent root over another game's
+    # similarly named descendant. No recursion crosses junctions/symlinks.
+    foreach($relative in $relatives){
+        $up=$Picked
+        for($level=0;$level -le 8 -and $up;$level++){
+            if([IO.File]::Exists([IO.Path]::Combine($up,$relative))){return $up}
+            $up=[IO.Path]::GetDirectoryName($up.TrimEnd([char[]]'\/'))
         }
-    } catch {}
-    # 3. Walk up to two parents (user picked a subfolder of the root).
-    $up = $Picked
-    for ($i = 0; $i -lt 2; $i++) {
-        $up = Split-Path -Parent $up
-        if ([string]::IsNullOrWhiteSpace($up)) { break }
-        if (Test-Path (Join-Path $up $RelFile)) { return $up }
+    }
+    $queue=[Collections.Generic.Queue[object]]::new();$queue.Enqueue(@($Picked,0));$visited=0
+    while($queue.Count -and $visited -lt 4096){
+        $item=$queue.Dequeue();$directory=[string]$item[0];$depth=[int]$item[1];$visited++
+        foreach($relative in $relatives){if([IO.File]::Exists([IO.Path]::Combine($directory,$relative))){return $directory}}
+        if($depth -ge $MaxDepth){continue}
+        foreach($child in @(Get-ChildItem -LiteralPath $directory -Directory -ErrorAction SilentlyContinue)){
+            if(($child.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){continue}
+            $queue.Enqueue(@($child.FullName,($depth+1)))
+        }
     }
     return $null
+}
+
+function global:Resolve-LocatedGameInstall {
+    param($Game,[string]$SelectedPath,[string]$BaseGamePath='')
+    $result=[ordered]@{Found=$false;GamePresent=$false;VrPresent=$false;Root='';BaseRoot='';RuntimeRoot='';LaunchExe='';LaunchArguments='';LaunchWorkingDirectory='';LaunchExplicit=$false;Missing=@();NeedsBase=$false}
+    if(-not $Game -or -not $SelectedPath){return [pscustomobject]$result}
+    $selected=Resolve-LocatedInputPath $SelectedPath
+    if(-not $selected){return [pscustomobject]$result}
+    $selectedFile=if([IO.File]::Exists($selected)){$selected}else{''}
+    $shortcutArguments='';$shortcutWorkingDirectory='';$fromShortcut=$false
+    if($selectedFile -and [IO.Path]::GetExtension($selectedFile) -ieq '.lnk'){
+        try{
+            $shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($selectedFile)
+            $target=[string]$shortcut.TargetPath;$shortcutArguments=[string]$shortcut.Arguments;$shortcutWorkingDirectory=[string]$shortcut.WorkingDirectory
+            if([IO.Path]::GetFileName($target) -in @('wscript.exe','cscript.exe')){
+                $match=[regex]::Match($shortcutArguments,'^\s*"(?<file>[^"\r\n]+\.vbs)"(?<args>.*)$')
+                if($match.Success){$target=$match.Groups['file'].Value;$shortcutArguments=$match.Groups['args'].Value.Trim()}
+            }elseif([IO.Path]::GetFileName($target) -in @('powershell.exe','pwsh.exe')){
+                $match=[regex]::Match($shortcutArguments,'(?i)(?:^|\s)-File\s+"(?<file>[^"\r\n]+\.ps1)"(?<args>.*)$')
+                if($match.Success){$target=$match.Groups['file'].Value;$shortcutArguments=$match.Groups['args'].Value.Trim()}
+            }
+            if([IO.File]::Exists($target)){$selected=$target;$selectedFile=$target;$fromShortcut=$true}
+        }catch{}
+    }
+    $folder=if($selectedFile){[IO.Path]::GetDirectoryName($selected)}else{$selected}
+    if(-not [IO.Directory]::Exists($folder)){return [pscustomobject]$result}
+    $roots=[Collections.Generic.List[string]]::new();$roots.Add($folder)
+    $baseAnchors=@($Game.GameExe)+@($Game.BaseGameProofFiles)
+    $anchors=$baseAnchors+@($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2,$Game.LaunchExe,$Game.LaunchExeAlt,$Game.CurrentModFile,$Game.CurrentLaunchExe,$Game.DepotModFile,$Game.LegacyDepotModFile)
+    if($Game.TwoMods){foreach($d in @(Get-AlternativeModDefinitions -Game $Game)){$anchors+=@($d.ProbeFile);if($d.Launch){$anchors+=if($d.Sub -and $d.Sub -ne '.' -and -not $d.RootLaunch){[IO.Path]::Combine([string]$d.Sub,[string]$d.Launch)}else{[string]$d.Launch}}}}
+    foreach($anchor in @($anchors|Where-Object {$_}|Select-Object -Unique)){
+        $root=Resolve-LocatedRoot -Picked $folder -RelFile ([string]$anchor)
+        if($root -and -not $roots.Contains($root)){if($anchor -in $baseAnchors){$roots.Insert(0,$root)}else{$roots.Add($root)}}
+    }
+    foreach($candidate in @($BaseGamePath)) {if($candidate -and [IO.Directory]::Exists($candidate) -and -not $roots.Contains($candidate)){$roots.Add($candidate)}}
+    if($Game.VrInstallRoot){$vr=Resolve-VrInstallRoot -Root $Game.VrInstallRoot;if($vr -and [IO.Directory]::Exists($vr) -and -not $roots.Contains($vr)){$roots.Add($vr)}}
+    $baseDeclared=[bool]($Game.BaseGameProofFiles -or $Game.GameExe);$separateBase=[bool]($Game.SeparateLauncherBaseGame -or $Game.TwoModsSeparateBaseGame)
+    foreach($root in $roots){
+        if($baseDeclared -and (Test-BaseGameInstallProof -Game $Game -Root $root)){$result.BaseRoot=$root;$result.GamePresent=$true;break}
+    }
+    if(-not $result.GamePresent -and $separateBase){
+        foreach($runtime in $roots){
+            if(-not(Test-LocatedVrRuntime -Game $Game -Root $runtime -Requested)){continue}
+            try{$remembered=Get-RememberedStagedBaseGameRoot -Game $Game -RuntimeRoot $runtime;if($remembered){$result.BaseRoot=$remembered;$result.GamePresent=$true;break}}catch{}
+        }
+        # Publisher launchers record the licensed game path in their own INI.
+        if(-not $result.GamePresent -and $Game.Id -in @('hitman-blood-money-vr','hitman-contracts-vr')){
+            foreach($root in $roots){
+                $ini=[IO.Path]::Combine($root,'launcher.ini');if(-not [IO.File]::Exists($ini)){continue}
+                $m=[regex]::Match([IO.File]::ReadAllText($ini),'(?im)^\s*GameExe\s*=\s*"?([^"\r\n]+)')
+                if($m.Success){$base=Resolve-LocatedRoot -Picked $m.Groups[1].Value.Trim() -RelFile $Game.GameExe;if($base -and (Test-BaseGameInstallProof $Game $base)){$result.BaseRoot=$base;$result.GamePresent=$true;break}}
+            }
+        }
+    }
+    if($Game.Id -in @('ff7-remake-intergrade-vr','balatro-vr')){
+        $runtimeFiles=if($Game.Id -eq 'balatro-vr'){@('Balatro in VR.exe','Balatro in VR.pck')}else{@('ff7vr-launcher.ps1','ff7vr-stores.ps1','xinput1_3.dll','ff7vr.ini')}
+        $runtimeCandidates=@($roots)
+        if($Game.HubLaunchRuntimeRoot){$defaultRuntime=Resolve-VrInstallRoot $Game.HubLaunchRuntimeRoot;if($defaultRuntime){$runtimeCandidates+=@($defaultRuntime)}}
+        try{$savedRuntime=Read-PersistentGameStateValue -Game $Game -Name 'located_vr_root';if($savedRuntime){$runtimeCandidates+=@($savedRuntime)}}catch{}
+        foreach($runtime in $runtimeCandidates){
+            if(-not $runtime){continue};$complete=$true
+            foreach($file in $runtimeFiles){if(-not [IO.File]::Exists([IO.Path]::Combine($runtime,$file))){$complete=$false;break}}
+            if(-not $complete){continue}
+            $result.RuntimeRoot=$runtime
+            if($result.GamePresent){$result.VrPresent=Test-LocatedVrRuntime -Game $Game -Root $result.BaseRoot -RuntimeRoot $runtime -Requested}
+            else{$result.NeedsBase=$true}
+            $result.Root=if($result.BaseRoot){$result.BaseRoot}else{$runtime};$result.Found=$true
+            return [pscustomobject]$result
+        }
+    }
+    # Prefer a modded base root to an adjacent unmodded copy.
+    $probeRoots=@();if($result.BaseRoot){$probeRoots+=@($result.BaseRoot)}
+    if(-not $baseDeclared){
+        foreach($anchor in @($Game.ModFile,$Game.LaunchExe|Where-Object {$_})){
+            $canonical=Resolve-LocatedRoot -Picked $folder -RelFile ([string]$anchor)
+            if($canonical -and $canonical -notin $probeRoots){$probeRoots+=@($canonical)}
+        }
+    }
+    $probeRoots+=@($roots|Where-Object {$_ -notin $probeRoots})
+    foreach($root in $probeRoots){
+        if(-not(Test-LocatedVrRuntime -Game $Game -Root $root -Requested -BaseGamePath $result.BaseRoot)){continue}
+        if($baseDeclared -and -not $separateBase -and -not (Test-BaseGameInstallProof -Game $Game -Root $root)){continue}
+        $result.RuntimeRoot=$root;$result.VrPresent=$true
+        if(-not $baseDeclared){$result.BaseRoot=$root;$result.GamePresent=$true}
+        elseif(-not $separateBase){$result.BaseRoot=$root;$result.GamePresent=$true}
+        break
+    }
+    $result.NeedsBase=[bool]($result.VrPresent -and -not $result.GamePresent)
+    $result.Root=if($result.RuntimeRoot){$result.RuntimeRoot}else{$result.BaseRoot}
+    $result.Found=[bool]($result.GamePresent -or $result.VrPresent)
+    # Never replace a governed Steam/launcher route with the base EXE. Only a
+    # declared matching publisher starter (or an explicitly selected script)
+    # is remembered when a complete external payload was proved above.
+    if($result.VrPresent -and -not $Game.TwoMods){
+        foreach($launch in (@($Game.LaunchExe,$Game.LaunchExeAlt)+@($Game.ModFile|Where-Object {$_ -match '\.exe$'})+@($Game.GameExe|Where-Object {$_}))){
+            foreach($relative in ([string]$launch -split '\|')){
+                $candidate=[IO.Path]::Combine($result.RuntimeRoot,$relative)
+                if([IO.File]::Exists($candidate)){$result.LaunchExe=$candidate;break}
+            }
+            if($result.LaunchExe){break}
+        }
+        $baseExecutables=@(foreach($raw in @($Game.GameExe)+@($Game.BaseGameProofFiles)){foreach($rel in ([string]$raw -split '\|')){if($rel -match '(?i)\.exe$'){[IO.Path]::Combine($result.BaseRoot,$rel)}}})
+        $isCustomExe=([IO.Path]::GetExtension($selectedFile) -ieq '.exe' -and $selectedFile -notin $baseExecutables)
+        if($selectedFile -and ($isCustomExe -or $fromShortcut -or [IO.Path]::GetExtension($selectedFile) -in @('.bat','.cmd','.ps1','.vbs')) -and $selectedFile -notin $baseExecutables -and $selectedFile.StartsWith(($result.RuntimeRoot.TrimEnd([char[]]'\/')+'\'),[StringComparison]::OrdinalIgnoreCase)){$result.LaunchExe=$selectedFile;$result.LaunchArguments=$shortcutArguments;$result.LaunchWorkingDirectory=$shortcutWorkingDirectory;$result.LaunchExplicit=$true}
+    }
+    return [pscustomobject]$result
+}
+
+function global:Save-LocatedGameAssociation {
+    param($Game,$Inspection)
+    if(-not $Inspection.GamePresent -or -not $Inspection.Root -or -not [IO.Directory]::Exists($Inspection.Root)){throw 'No complete game location was found. Choose the game EXE or its complete folder.'}
+    $prior=Read-PersistentGameStateValue -Game $Game -Name 'installed_path'
+    $values=[ordered]@{installed_path=[string]$Inspection.Root;user_located=[string]$Inspection.BaseRoot;base_game_path=[string]$Inspection.BaseRoot;located_vr_root=[string]$Inspection.RuntimeRoot;located_launch_exe=[string]$Inspection.LaunchExe;located_launch_args=[string]$Inspection.LaunchArguments;located_launch_workdir=[string]$Inspection.LaunchWorkingDirectory;launch_exe=''}
+    $values.located_launch_explicit=if($Inspection.LaunchExplicit){'1'}else{''}
+    if($Inspection.LaunchExe -and -not $Game.HubLaunchScript -and -not $Game.TwoMods -and -not $Game.VrInstallRoot){$values.launch_exe=[string]$Inspection.LaunchExe}
+    # One existing atomic state batch, not six partially committed locations.
+    Start-HubStateBatch
+    try{
+        foreach($name in $values.Keys){
+            if($values[$name]){Write-PersistentGameStateValue -Game $Game -Name $name -Value $values[$name]}
+            else{Reset-PersistentGameStateValue -Game $Game -Name $name}
+        }
+        if($prior -and $prior -ine $Inspection.Root){
+            Reset-PersistentGameStateValue -Game $Game -Name 'installed_version'
+            Write-PersistentGameStateValue -Game $Game -Name 'installed_version_recovery_blocked' -Value '1'
+        }
+        Complete-HubStateBatch
+    }catch{Stop-HubStateBatch;throw}
+    foreach($name in $values.Keys){
+        $saved=[string](Read-PersistentGameStateValue -Game $Game -Name $name)
+        if($saved -cne [string]$values[$name]){throw ('The '+$name+' location could not be saved and verified.')}
+    }
+}
+
+function global:Show-LocateGamePicker {
+    param($Game,[switch]$BuildOnly)
+    Add-Type -AssemblyName PresentationFramework,System.Windows.Forms
+    $dialog=New-Object System.Windows.Window;[Windows.NameScope]::SetNameScope($dialog,[Windows.NameScope]::new())
+    $dialog.Title='Locate '+$Game.Title;$dialog.Width=650;$dialog.SizeToContent='Height';$dialog.ResizeMode='NoResize';$dialog.WindowStartupLocation='CenterScreen'
+    $dialog.Background=[Windows.Media.BrushConverter]::new().ConvertFromString('#16161d');$dialog.Foreground=[Windows.Media.Brushes]::Gainsboro
+    $panel=New-Object Windows.Controls.StackPanel;$panel.Margin='20';$dialog.Content=$panel
+    $hint=New-Object Windows.Controls.TextBlock;$hint.Text='Choose the game folder, game EXE or VR starter. You can also paste or drop its path here.';$hint.TextWrapping='Wrap';$hint.Margin='0,0,0,12';$panel.Children.Add($hint)|Out-Null
+    $pathBox=New-Object Windows.Controls.TextBox;$pathBox.Name='LocatePath';$pathBox.AllowDrop=$true;$pathBox.MinHeight=30;$pathBox.Padding='6';$panel.Children.Add($pathBox)|Out-Null;$dialog.RegisterName($pathBox.Name,$pathBox)
+    $pathBox.Add_PreviewDragOver({$_.Effects=if($_.Data.GetDataPresent([Windows.DataFormats]::FileDrop)){'Copy'}else{'None'};$_.Handled=$true})
+    $pathBox.Add_PreviewDrop({$files=@($_.Data.GetData([Windows.DataFormats]::FileDrop));if($files.Count){$this.Text=[string]$files[0]};$_.Handled=$true})
+    $row=New-Object Windows.Controls.WrapPanel;$row.Margin='0,12,0,0';$panel.Children.Add($row)|Out-Null
+    foreach($kind in @('Folder','EXE or starter','Use this location','Cancel')){
+        $button=New-Object Windows.Controls.Button;$button.Content=$kind;$button.Padding='12,7';$button.Margin='0,0,8,0';$row.Children.Add($button)|Out-Null
+        switch($kind){
+            'Folder' {$button.Add_Click({$picker=New-Object Windows.Forms.FolderBrowserDialog;$picker.Description='Select the game or VR mod folder.';if($picker.ShowDialog() -eq 'OK'){$pathBox.Text=$picker.SelectedPath}}.GetNewClosure())}
+            'EXE or starter' {$button.Add_Click({$picker=New-Object Microsoft.Win32.OpenFileDialog;$picker.Title='Choose the game EXE or VR starter';$picker.Filter='Game and VR starters|*.exe;*.bat;*.cmd;*.ps1;*.vbs;*.lnk|All files|*.*';if($picker.ShowDialog()){$pathBox.Text=$picker.FileName}}.GetNewClosure())}
+            'Use this location' {$button.Name='UseLocation';$dialog.RegisterName($button.Name,$button);$button.Add_Click({$path=Resolve-LocatedInputPath $pathBox.Text;if([IO.File]::Exists($path) -or [IO.Directory]::Exists($path)){$dialog.Tag=$path;if($dialog.IsVisible){$dialog.Close()}}else{$hint.Text='That path was not found. Choose an existing folder, game EXE or VR starter.'}}.GetNewClosure())}
+            'Cancel' {$button.IsCancel=$true;$button.Add_Click({$dialog.Tag=$null;$dialog.Close()}.GetNewClosure())}
+        }
+    }
+    if($BuildOnly){return $dialog}
+    [void]$dialog.ShowDialog()
+    return [string]$dialog.Tag
 }
 
 function global:New-LocateButton {
@@ -798,24 +979,16 @@ function global:New-LocateButton {
     $btn.Child    = $t
 
     $tip = New-Object System.Windows.Controls.ToolTip
-    $tip.Content = "Choose its folder. The Hub checks known VR mod files first, then the game executable."
+    $tip.Content = "Choose a folder, game EXE or VR starter. Existing VR files are checked without reinstalling."
     $btn.ToolTip = $tip
 
     $btn.Add_MouseLeftButtonUp({
+        $maintenanceTarget=$this;$maintenanceHandedOff=$false
+        $maintenanceToken=Start-HubActionIndicator -Target $maintenanceTarget -DelayMilliseconds 0 -FitTargetEdges
         try {
             Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
-            $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-            if ($Game.TwoMods) {
-                $locateModNames = @(Get-AlternativeModDefinitions -Game $Game | ForEach-Object { $_.Name })
-                $locateModLabel = if ($locateModNames.Count) { $locateModNames -join ' / ' } else { 'one of its VR mods' }
-                $dlg.Description = 'Select the "' + $Game.Title + '" game or package folder that holds ' + $locateModLabel + '.'
-            } else {
-                $dlg.Description = 'Select the folder that contains "' + $Game.Title + '" or its VR mod files.'
-            }
-            $dlg.ShowNewFolderButton = $false
-            if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return }
-            $picked = $dlg.SelectedPath
-            if ([string]::IsNullOrWhiteSpace($picked) -or -not (Test-Path -LiteralPath $picked)) { return }
+            $picked=Show-LocateGamePicker -Game $Game
+            if([string]::IsNullOrWhiteSpace($picked)){return}
 
             # One label for all the messages below so the wording matches
             # the game type: alternative-mod titles name every known mod
@@ -841,179 +1014,31 @@ function global:New-LocateButton {
             $gameHit   = $false   # game itself present (Plan B)
             $chosenExe = $null    # launch target for the per-game override
 
-            # ---- Plan A: is the VR mod here? ----
-            # Resolve the real root: the ModFile may sit in a subfolder, an
-            # extra nesting level, or one folder off. On a hit we normalize
-            # $picked so the recorded .installed_path is exactly what the
-            # scan re-checks later.
-            if ($Game.ModFile) {
-                $r = Resolve-LocatedRoot -Picked $picked -RelFile $Game.ModFile
-                if ($r) { $modHit = $true; $picked = $r }
+            $originalSelection=$picked
+            $inspection=Resolve-LocatedGameInstall -Game $Game -SelectedPath $originalSelection
+            if($inspection.Found){
+                $picked=$inspection.Root
+                $modHit=[bool]($inspection.VrPresent -and $inspection.GamePresent)
+                $gameHit=[bool]$inspection.GamePresent
+                if(-not $Game.HubLaunchScript -and -not $Game.TwoMods -and -not $Game.VrInstallRoot){$chosenExe=$inspection.LaunchExe}
             }
-            # Alternate payload generations are equally valid evidence. In
-            # particular Halo MCC's Latest/Stable channel still uses
-            # halo3xr.dll while the prerelease uses HaloMCCVR.dll.
-            if (-not $modHit) {
-                foreach ($alternateMarker in @($Game.ModFileAlt, $Game.ModFileAlt2)) {
-                    if (-not $alternateMarker) { continue }
-                    $r = Resolve-LocatedRoot -Picked $picked -RelFile $alternateMarker
-                    if ($r) { $modHit = $true; $picked = $r; break }
-                }
-            }
-            if (-not $modHit -and $Game.DoorstopTargetModFile -and (Test-DoorstopTargetModMarker -GameRoot $picked -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile)) {
-                $modHit = $true
-            }
-            if ($modHit -and -not (Test-VrInstallEvidenceContract -Game $Game -Root $picked)) {
-                $modHit = $false
-            }
-            # VrInstallRoot games keep the mod OUTSIDE the game folder
-            # (%LocalAppData% etc.); check that root too. We do NOT move
-            # $picked - it stays the game folder the user pointed at.
-            if (-not $modHit -and $Game.VrInstallRoot -and $Game.ModFile) {
-                $vrRoot = $Game.VrInstallRoot
-                if     ($vrRoot -like "LOCALAPPDATA:*") { $vrRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($vrRoot.Substring("LOCALAPPDATA:".Length)) }
-                elseif ($vrRoot -like "APPDATA:*")      { $vrRoot = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vrRoot.Substring("APPDATA:".Length)) }
-                elseif ($vrRoot -like "PROGRAMDATA:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vrRoot.Substring("PROGRAMDATA:".Length)) }
-                elseif ($vrRoot -like "USERPROFILE:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vrRoot.Substring("USERPROFILE:".Length)) }
-                if ($vrRoot -and (Test-RelativePathMarker -Root $vrRoot -Values @($Game.ModFile, $Game.ModFileAlt, $Game.ModFileAlt2)) -and
-                    (Test-VrInstallEvidenceContract -Game $Game -Root $vrRoot)) { $modHit = $true }
-            }
-            # Alternative-mod games have no single ModFile. Discover every
-            # declared slot (A-H), not just the historic A/B pair, and prefer
-            # its real probe marker over a launcher. This keeps Locate Game in
-            # lockstep with the regular scanner when a third or later mod is
-            # added. Be forgiving if the user picked the mod subfolder itself:
-            # Resolve-LocatedRoot normalizes back to the shared package root.
-            if ($Game.TwoMods) {
-                $tmFound = $false
-                foreach ($definition in @(Get-AlternativeModDefinitions -Game $Game)) {
-                    $definitionRoot = $null
-                    $markerPresent = $false
-                    foreach ($rawMarker in @($definition.ProbeFile)) {
-                        foreach ($marker in (([string]$rawMarker) -split '\|')) {
-                            if ([string]::IsNullOrWhiteSpace($marker)) { continue }
-                            $resolved = Resolve-LocatedRoot -Picked $picked -RelFile $marker.Trim()
-                            if ($resolved) {
-                                $definitionRoot = $resolved
-                                $markerPresent = $true
-                                break
-                            }
-                        }
-                        if ($markerPresent) { break }
-                    }
-                    if (-not $markerPresent -and $definition.ProbeAbs) {
-                        $markerPresent = Test-AbsolutePathMarker -Values $definition.ProbeAbs
-                    }
-
-                    $launchRel = $null
-                    if ($definition.Launch) {
-                        $launchRel = if ($definition.RootLaunch -or -not $definition.Sub -or $definition.Sub -eq '.') {
-                            [string]$definition.Launch
-                        } else {
-                            Join-Path ([string]$definition.Sub) ([string]$definition.Launch)
-                        }
-                    }
-                    $launchPresent = $false
-                    if ($launchRel) {
-                        $launchRoot = Resolve-LocatedRoot -Picked $picked -RelFile $launchRel
-                        if ($launchRoot) {
-                            $launchPresent = $true
-                            if (-not $definitionRoot) { $definitionRoot = $launchRoot }
-                        }
-                    }
-
-                    $probeDeclared = ([bool]$definition.ProbeFile -or [bool]$definition.ProbeAbs)
-                    $presentHere = if ($probeDeclared) { $markerPresent } else { $launchPresent }
-                    if ($presentHere -and $definition.RequiredFile -and $definitionRoot) {
-                        $presentHere = Test-RelativePathMarker -Root $definitionRoot -Values $definition.RequiredFile
-                    }
-                    if ($presentHere) {
-                        if ($definitionRoot) { $picked = $definitionRoot }
-                        $tmFound = $true
-                        break
-                    }
-                }
-                if ($tmFound) { $modHit = $true }
-            }
-
-            # ---- Plan B: no VR mod -> is the game itself here? ----
-            # Look for the actual GameExe first, then the VR LaunchExe. The
-            # old path skipped GameExe completely, so a perfectly valid
-            # alternate retail folder could fall through to the generic EXE
-            # picker. A found GameExe proves the install but is only stored as
-            # a launch override when the catalog has no different VR launcher.
-            # Otherwise the later mod install remains free to add LaunchExe.
-            # If neither exact name exists, scan for plausible root EXEs:
-            # exactly one is accepted automatically, several let the user pick.
-            if (-not $modHit) {
-                $exactExeNames = New-Object System.Collections.ArrayList
-                foreach ($declaredExe in @($Game.GameExe, $Game.LaunchExe)) {
-                    if (-not $declaredExe) { continue }
-                    if (@($exactExeNames | Where-Object { $_ -ieq [string]$declaredExe }).Count -eq 0) {
-                        [void]$exactExeNames.Add([string]$declaredExe)
-                    }
-                }
-                foreach ($declaredExe in $exactExeNames) {
-                    $resolvedExeRoot = $null
-                    if (Test-Path -LiteralPath (Join-Path $picked $declaredExe) -PathType Leaf) {
-                        $resolvedExeRoot = $picked
-                    } else {
-                        $rg = Resolve-LocatedRoot -Picked $picked -RelFile $declaredExe
-                        if ($rg) {
-                            $resolvedExeRoot = $rg
-                        }
-                    }
-                    if (-not $resolvedExeRoot) { continue }
-                    $picked = $resolvedExeRoot
-                    $gameHit = $true
-                    $isDeclaredVrLauncher = ($Game.LaunchExe -and ([string]$declaredExe -ieq [string]$Game.LaunchExe))
-                    $noDifferentVrLauncher = (-not $Game.LaunchExe -or ([string]$Game.GameExe -ieq [string]$Game.LaunchExe))
-                    if (-not $Game.TwoMods -and -not $Game.VrInstallRoot -and ($isDeclaredVrLauncher -or $noDifferentVrLauncher)) {
-                        $chosenExe = Join-Path $resolvedExeRoot $declaredExe
-                    }
-                    break
-                }
-                if (-not $gameHit) {
-                    $exeCands = @()
-                    try {
-                        $exeCands = @(Get-ChildItem -LiteralPath $picked -Filter *.exe -File -ErrorAction SilentlyContinue |
-                            Where-Object { $_.Name -notmatch '(?i)(crashhandler|crashreport|vc_redist|vcredist|dxsetup|directx|dotnet|notification_helper|unins|uninstall|_setup|installer|redist)' } |
-                            Sort-Object Length -Descending |
-                            Select-Object -ExpandProperty FullName)
-                    } catch {}
-                    $cand = $null
-                    if ($exeCands.Count -eq 1) { $cand = $exeCands[0] }
-                    elseif ($exeCands.Count -gt 1) { $cand = Show-ExePicker -Exes $exeCands -Title $Game.Title }
-                    if ($cand) {
-                        $gameHit = $true
-                        if (-not $Game.TwoMods -and -not $Game.VrInstallRoot) { $chosenExe = $cand }
-                    }
-                }
-            }
-
-            # ---- Assign the VR launcher for the located install ----
-            # When the mod is found (Plan A) Start-in-VR launches via the
-            # recorded .installed_path + LaunchExe. That works directly
-            # when the LaunchExe sits at the root (the common case). If it
-            # instead lives in a subfolder, resolve it (no prompt) and
-            # store it as the override so the right exe still runs. Plan B
-            # already set $chosenExe from its scan/pick. TwoMods launch
-            # per-mod and VrInstallRoot launch from their own root, so
-            # both skip a single-exe override.
-            if (-not $chosenExe -and $Game.LaunchExe -and -not $Game.TwoMods -and -not $Game.VrInstallRoot) {
-                if (-not (Test-Path -LiteralPath (Join-Path $picked $Game.LaunchExe))) {
-                    $rl = Resolve-LocatedRoot -Picked $picked -RelFile $Game.LaunchExe
-                    if ($rl) { $chosenExe = Join-Path $rl $Game.LaunchExe }
-                }
+            if($inspection.NeedsBase){
+                [System.Windows.Forms.MessageBox]::Show('The VR launcher was found. Please select the original game folder as well so the Hub can link both locations.','Locate Game')|Out-Null
+                $baseDialog=New-Object System.Windows.Forms.FolderBrowserDialog
+                $baseDialog.Description='Select the original '+$Game.Title+' game folder.'
+                if($baseDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK){return}
+                $inspection=Resolve-LocatedGameInstall -Game $Game -SelectedPath $originalSelection -BaseGamePath $baseDialog.SelectedPath
+                if(-not $inspection.GamePresent){[System.Windows.Forms.MessageBox]::Show('The selected folder does not contain the required original game files. Choose the game executable or its complete folder.','Game files not found')|Out-Null;return}
+                $modHit=[bool]$inspection.VrPresent;$gameHit=$true;$picked=$inspection.Root
             }
 
             # A strict base-game proof outranks third-party VR files. GTA V
             # uses this to reject a tiny remnant folder after the actual game
             # was removed; such a folder must never be saved as installed.
             if (($modHit -or $gameHit) -and (Get-Command Test-BaseGameInstallProof -ErrorAction SilentlyContinue) -and
-                -not (Test-BaseGameInstallProof -Game $Game -Root $picked)) {
+                -not ($inspection.GamePresent -or (Test-BaseGameInstallProof -Game $Game -Root $picked))) {
                 [System.Windows.Forms.MessageBox]::Show(
-                    ('VR mod leftovers were found, but the required base-game files are missing in:' + "`r`n" + $picked + "`r`n`r`nReinstall or locate the complete game first."),
+                    ('The required original game files were not found in:' + "`r`n" + $picked + "`r`n`r`nChoose the game executable or the folder that contains the complete game."),
                     'Base game not installed') | Out-Null
                 return
             }
@@ -1021,106 +1046,35 @@ function global:New-LocateButton {
             # ---- Last resort: nothing found at all ----
             # (VrInstallRoot titles are exempt - their base game folder
             # legitimately holds neither the mod nor the launcher.)
-            if (-not $modHit -and -not $gameHit -and -not $Game.VrInstallRoot) {
-                $ask = [System.Windows.Forms.MessageBox]::Show(
-                    ('No ' + $modLabel + ' or game files found in:' + "`r`n" + $picked + "`r`n`r`nLink this folder anyway so " + $Game.Title + " shows as installed? You can add the VR mod later."),
-                    "Locate Game",
-                    [System.Windows.Forms.MessageBoxButtons]::YesNo)
-                if ($ask -ne [System.Windows.Forms.DialogResult]::Yes) { return }
+            if (-not $modHit -and -not $gameHit) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    ('No matching game or complete VR mod was found here.'+"`r`n`r`n"+$picked+"`r`n`r`nChoose the game's EXE, its VR starter, or the folder containing them. Your files have not been changed."), 'Locate Game')|Out-Null
+                return
             }
 
             if (-not (Get-HubGameStateId -Game $Game)) {
                 [System.Windows.Forms.MessageBox]::Show("This title cannot store a located path.", "Locate Game") | Out-Null
                 return
             }
-            Write-PersistentGameStateValue -Game $Game -Name 'installed_path' -Value $picked
-            $savedPath = Read-PersistentGameStateValue -Game $Game -Name 'installed_path'
-            if ([string]$savedPath -cne [string]$picked) {
-                throw 'The selected game folder could not be saved and verified.'
-            }
-
-            # Revive games (e.g. Quake 2 VR): "Start in VR" routes through
-            # ReviveInjector.exe only when a ".revive_launch" marker sits
-            # in the folder. The installer normally drops it, but a located
-            # install may lack it. Write it - ONLY if absent, so we never
-            # clobber an existing setup - pointing at the injector, exactly
-            # like the installer (found path, else the documented default).
-            # Safe for Oculus-direct users too: if no injector is found at
-            # launch time the Revive route falls through to a direct start.
-            if ($Game.Revive) {
-                try {
-                    $rvMarker = Join-Path $picked ".revive_launch"
-                    if (-not (Test-Path -LiteralPath $rvMarker)) {
-                        $rvInj = $null
-                        $rvCands = @(
-                            (Join-Path $env:ProgramFiles "Revive\ReviveInjector.exe"),
-                            (Join-Path $env:ProgramFiles "Revive\Revive\ReviveInjector.exe")
-                        )
-                        $pf86 = ${env:ProgramFiles(x86)}
-                        if ($pf86) { $rvCands += (Join-Path $pf86 "Revive\ReviveInjector.exe") }
-                        foreach ($c in $rvCands) { if (Test-Path $c) { $rvInj = $c; break } }
-                        if (-not $rvInj) { $rvInj = Join-Path $env:ProgramFiles "Revive\ReviveInjector.exe" }
-                        Set-Content -Path $rvMarker -Value $rvInj -Encoding ASCII -Force
-                    }
-                } catch {}
-            }
-
-            # Store the launch override from the exe we found/picked in
-            # Plan B (or a subfolder-resolved LaunchExe). TwoMods and
-            # VrInstallRoot games are intentionally excluded - they launch
-            # per-mod or from their own VR root, so a single-exe override
-            # would be wrong - and $chosenExe is never set for them above.
-            if ($chosenExe -and -not $Game.TwoMods -and -not $Game.VrInstallRoot) {
-                Write-PersistentGameStateValue -Game $Game -Name 'launch_exe' -Value $chosenExe
-                $savedLaunch = Read-PersistentGameStateValue -Game $Game -Name 'launch_exe'
-                if ([string]$savedLaunch -cne [string]$chosenExe) {
-                    throw 'The selected game executable could not be saved and verified.'
-                }
-            }
-
-            # Mark this as user-located so the detail page offers
-            # Re-locate / Clear instead of the one-shot Locate button.
-            # This is canonical LocalAppData state; the only Hub-side copy is
-            # the checksummed Core\UserData backup. Read it back before the UI
-            # says Success; a failed durable write must never look completed.
-            Write-PersistentGameStateValue -Game $Game -Name 'user_located' -Value $picked
-            $savedLocated = Read-PersistentGameStateValue -Game $Game -Name 'user_located'
-            if ([string]$savedLocated -cne [string]$picked) {
-                throw 'The located-game recovery marker could not be saved and verified.'
-            }
-
-            # A LOCATED ENTRY MAY BE MISSING ITS LAUNCHER (2026-08-20).
-            # Entries whose LaunchExe is a batch file the installer writes
-            # can end up without it - located by hand, or installed before
-            # that launcher existed. Saying so HERE, once and plainly, is
-            # far better than letting "Start in VR" fail later.
-            try {
-                if ($Game.LaunchExe -and $Game.LaunchExe -like "*.bat" -and $Game.VrInstallRoot) {
-                    $lr = $Game.VrInstallRoot
-                    if     ($lr -like "LOCALAPPDATA:*") { $lr = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) ($lr.Substring("LOCALAPPDATA:".Length)) }
-                    elseif ($lr -like "APPDATA:*")      { $lr = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($lr.Substring("APPDATA:".Length)) }
-                    elseif ($lr -like "PROGRAMDATA:*")  { $lr = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($lr.Substring("PROGRAMDATA:".Length)) }
-                    elseif ($lr -like "USERPROFILE:*")  { $lr = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($lr.Substring("USERPROFILE:".Length)) }
-                    if ((Test-Path -LiteralPath $lr) -and -not (Test-Path -LiteralPath (Join-Path $lr $Game.LaunchExe))) {
-                        [System.Windows.Forms.MessageBox]::Show(
-                            ($Game.Title + " is linked, but the file that starts it is not there yet." + "`r`n`r`nRun the installer once from this page. It writes that file and leaves everything else as it is."),
-                            "One more step") | Out-Null
-                    }
-                }
-            } catch {}
+            Save-LocatedGameAssociation -Game $Game -Inspection $inspection
             $global:PendingInstallTitle = $Game.Title
-            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
+            # Status recheck starts below with the completion message.
 
             if ($modHit) {
-                $msg = "Success - " + $modLabel + " found for " + $Game.Title + "." + "`r`n`r`nLocation:`r`n" + $picked + "`r`n`r`nIt will now show as VR Ready."
+                $msg = "Success - " + $modLabel + " found for " + $Game.Title + "." + "`r`n`r`nLocation:`r`n" + $picked + "`r`n`r`nThe Hub will verify this installation and refresh its start button."
             } elseif ($gameHit) {
-                $msg = "Success - " + $baseTitle + " installation found." + "`r`n`r`nLocation:`r`n" + $picked + "`r`n`r`nIt will show as installed. Install the VR mod to make it VR Ready."
+                $msg = "Success - " + $baseTitle + " installation found." + "`r`n`r`nLocation:`r`n" + $picked + "`r`n`r`nThe game is linked. No complete VR mod was detected here. If you already use a separate VR folder or starter, choose it with Re-locate Game."
             } else {
                 $msg = $Game.Title + " linked to:`r`n" + $picked + "`r`n`r`nNo " + $modLabel + " detected yet; it will show VR Ready once the VR mod is installed."
             }
-            [System.Windows.Forms.MessageBox]::Show($msg, "Locate Game") | Out-Null
+            $locatedMessage=$msg
+            $afterLocate={ [System.Windows.Forms.MessageBox]::Show($locatedMessage, 'Locate Game') | Out-Null }.GetNewClosure()
+            Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title) -RecheckOnly -IndicatorTarget $maintenanceTarget -IndicatorToken $maintenanceToken -OnCompleted $afterLocate
+            $maintenanceHandedOff=$true
         } catch {
             Write-HubActionFailure -Action ("Locate " + $Game.Title) -ErrorRecord $_
+        } finally {
+            if (-not $maintenanceHandedOff -and $maintenanceToken) { Stop-HubActionIndicator -Token $maintenanceToken }
         }
     }.GetNewClosure())
 
@@ -1415,38 +1369,57 @@ function global:Select-TwoModUninstallAction {
     return $null
 }
 
+function global:Get-HubUninstallExitCode {
+    param($Process)
+    if (-not $Process -or -not $Process.HasExited) { throw 'The uninstaller has not finished.' }
+    try { $Process.Refresh() } catch {}
+    if ($null -eq $Process.ExitCode) { throw 'The uninstaller returned no exit code.' }
+    return [int]$Process.ExitCode
+}
+
 function global:Invoke-ResolvedUninstallAction {
-    param($Game, $Action)
-
+    param($Game, $Action, $IndicatorTarget=$null)
     if (-not $Action -or -not $Action.Path) { return }
+    $token=$null
     try {
-        if ($Action.Kind -eq 'Steam') {
-            Start-Process ([string]$Action.Path) -ErrorAction Stop
-            return
+        if ($Action.Kind -eq 'Steam') { Start-Process ([string]$Action.Path) -ErrorAction Stop; return }
+        if ($IndicatorTarget) {
+            $token=Start-HubActionIndicator -Target $IndicatorTarget -DelayMilliseconds 0 -FitTargetEdges
+            $IndicatorTarget.IsEnabled=$false
         }
-        $startArgs = @{
-            FilePath=[string]$Action.Path
-            WorkingDirectory=(Split-Path ([string]$Action.Path) -Parent)
-            PassThru=$true; Wait=$true; ErrorAction='Stop'
-        }
-        if ($Action.Arguments) { $startArgs.ArgumentList = [string]$Action.Arguments }
-        $uninstallProcess = Start-Process @startArgs
-        if ($null -eq $uninstallProcess -or $null -eq $uninstallProcess.ExitCode -or $uninstallProcess.ExitCode -ne 0) {
-            $code = if ($uninstallProcess -and $null -ne $uninstallProcess.ExitCode) { [string]$uninstallProcess.ExitCode } else { 'unknown' }
-            throw "The uninstaller did not finish (exit code $code). The installed files were not confirmed removed. Close the game, then retry."
-        }
+        $startArgs=@{FilePath=[string]$Action.Path;WorkingDirectory=(Split-Path ([string]$Action.Path) -Parent);PassThru=$true;ErrorAction='Stop'}
+        if ($Action.Arguments) { $startArgs.ArgumentList=[string]$Action.Arguments }
+        $uninstallProcess=Start-Process @startArgs
+        if (-not $uninstallProcess) { throw 'The uninstaller did not return a process handle.' }
+        $complete={
+            param($finishedProcess)
+            try {
+                $code=Get-HubUninstallExitCode -Process $finishedProcess
+                if ($code -ne 0) { Write-HubActionFailure -Action ('Uninstall '+$Game.Title) -ErrorRecord ([InvalidOperationException]::new("The uninstaller did not finish (exit code $code). Rechecking the files that remain.")) }
+                $global:PendingInstallTitle=$Game.Title
+                Invoke-PostInstallRefreshSafely -GameId (''+(Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title) -RecheckOnly -IndicatorTarget $IndicatorTarget -IndicatorToken $token
+            } catch {
+                if ($token) { Stop-HubActionIndicator -Token $token }
+                if ($IndicatorTarget) { $IndicatorTarget.IsEnabled=$true }
+                Write-HubActionFailure -Action ('Uninstall '+$Game.Title) -ErrorRecord $_
+            } finally { try { $finishedProcess.Dispose() } catch {} }
+        }.GetNewClosure()
+        if ($global:window -and $global:window.Dispatcher) {
+            $timer=[System.Windows.Threading.DispatcherTimer]::new()
+            $timer.Interval=[TimeSpan]::FromMilliseconds(100)
+            $processRef=$uninstallProcess;$completion=$complete
+            $timer.Add_Tick({param($sender,$eventArgs)
+                if (-not $processRef.HasExited) { return }
+                $sender.Stop(); & $completion $processRef
+            }.GetNewClosure())
+            $timer.Start()
+        } else { $uninstallProcess.WaitForExit(); & $complete $uninstallProcess }
     } catch {
-        [System.Windows.MessageBox]::Show(
-            "The uninstaller could not complete:`n$($_.Exception.Message)",
-            'Uninstall', [System.Windows.MessageBoxButton]::OK,
-            [System.Windows.MessageBoxImage]::Warning) | Out-Null
-        return
+        if ($token) { Stop-HubActionIndicator -Token $token }
+        if ($IndicatorTarget) { $IndicatorTarget.IsEnabled=$true }
+        Write-HubActionFailure -Action ('Uninstall '+$Game.Title) -ErrorRecord $_
+        [System.Windows.MessageBox]::Show("The uninstaller could not complete:`n$($_.Exception.Message)",'Uninstall',[System.Windows.MessageBoxButton]::OK,[System.Windows.MessageBoxImage]::Warning) | Out-Null
     }
-
-    # Recheck only the exact game whose uninstaller just closed. Cancellation
-    # is safe too: the same route evidence is simply found again.
-    $global:PendingInstallTitle = $Game.Title
-    Invoke-PostInstallRefreshSafely -GameId ('' + (Get-HubGameStateId -Game $Game)) -Title ([string]$Game.Title)
 }
 
 function global:New-UninstallNowButton {
@@ -1615,7 +1588,7 @@ function global:New-UninstallNowButton {
         # The uninstallers themselves still ask: the Inno ones open with
         # their own "are you sure" prompt.
         $chosen = if ($choicesCapture) { Select-TwoModUninstallAction -Game $gameCapture -Choices $choicesCapture } else { $singleAction }
-        if ($chosen) { Invoke-ResolvedUninstallAction -Game $gameCapture -Action $chosen }
+        if ($chosen) { Invoke-ResolvedUninstallAction -Game $gameCapture -Action $chosen -IndicatorTarget $this }
     # .GetNewClosure() IS REQUIRED HERE, and its absence is why the
     # button reported "the argument cannot be bound to Path because it
     # is NULL". $exeCapture, $gameTitle and $probeRel are LOCAL to this

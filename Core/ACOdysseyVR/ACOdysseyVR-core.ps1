@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Assassin's Creed Odyssey VR - Installer (AnvilEngine2VR)
 # ============================================================
 # AnvilEngine2VR by mutars (same modder as Starfield VR in this
@@ -224,7 +224,7 @@ $dlUrl = $null
 $relTag = $null
 try {
  [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+ $rel = Invoke-PCVRRestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
  # The repo covers several AC games; releases may mix assets. Take the
  # Odyssey asset for the chosen runtime, skipping the -symbols build
  # (debug symbols for crash reports - players do not need them).

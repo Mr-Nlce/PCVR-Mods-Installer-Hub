@@ -1,4 +1,4 @@
-$script:CardSplitCurrentClick = {
+﻿$script:CardSplitCurrentClick = {
     param($s, $e)
     $owner = $this.Resources.Item('ownerCard')
     $g = $owner.Resources.Item('gameData')
@@ -2058,7 +2058,7 @@ function global:New-GameCardFrosted {
                     if ($downloadCapture -match "api.github.com") {
                         try {
                             $apiUrl = $downloadCapture
-                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
+                            $response = Invoke-PCVRRestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
                             # If response is array (all releases), pick first (newest) with assets
                             if ($response -is [array]) {
                                 $release = $response | Where-Object { $_.assets.Count -gt 0 } | Select-Object -First 1

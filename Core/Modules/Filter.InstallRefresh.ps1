@@ -1,4 +1,4 @@
-# Fast, disk-only version sources used by the visible post-install refresh.
+﻿# Fast, disk-only version sources used by the visible post-install refresh.
 # Network sources are deliberately excluded: this function runs on WPF's UI
 # thread and must finish before the activity presentation is restored.
 function global:Get-PostInstallLocalTrackedVersion {
@@ -80,9 +80,9 @@ function global:Resolve-PostInstallRefreshTarget {
 # run synchronously for tests/fallbacks or inside the private post-install
 # runspace. It never touches a card, tile or other Dispatcher-owned object.
 function global:Get-PostInstallDetectionSnapshot {
-    param($Game,[string]$Title,$PreviousState=$null,[object[]]$RelatedGames=@(),[bool]$SharedInstallerSuccess=$false)
+    param($Game,[string]$Title,$PreviousState=$null,[object[]]$RelatedGames=@(),[bool]$SharedInstallerSuccess=$false,[bool]$RecheckOnly=$false,[bool]$IgnorePreviousPath=$false)
     $result=[ordered]@{
-        Action='None'; Title=$Title; Game=$Game; StateEntry=$null; RecordedPath=''
+        Action=$(if ($PreviousState) { 'Remove' } else { 'None' }); Title=$Title; Game=$Game; StateEntry=$null; RecordedPath=''
         ConfirmedInstallerSuccess=$false
     }
     if (-not $Game) { return [pscustomobject]$result }
@@ -92,7 +92,7 @@ function global:Get-PostInstallDetectionSnapshot {
     # on this worker too. Those calls can touch several recovery files and were
     # the largest remaining source of UI-thread stalls.
     $okMk=Get-UpdateOkMarkerPath -Game $Game
-    if ($okMk -and (Test-Path -LiteralPath $okMk -PathType Leaf)) {
+    if (-not $RecheckOnly -and $okMk -and (Test-Path -LiteralPath $okMk -PathType Leaf)) {
         $status=$null
         try { $status=Get-Content -LiteralPath $okMk -Raw -ErrorAction Stop | ConvertFrom-Json } catch {}
         $confirmedSuccess=[bool]($status -and ([string]$status.outcome -eq 'success'))
@@ -136,6 +136,7 @@ function global:Get-PostInstallDetectionSnapshot {
     }
 
     $recordedPath=Read-InstalledPath -Game $Game
+    if ($RecheckOnly -and -not $IgnorePreviousPath -and -not $recordedPath -and $PreviousState.GameDir) { $recordedPath=[string]$PreviousState.GameDir }
     # A Wabbajack launcher is not an installer receipt. Reuse the base-game
     # folder proven by the preceding scan for this one game's repaint.
     if ($Game.ExternalVrStartApp -and -not $recordedPath -and $PreviousState -and $PreviousState.GameDir) {
@@ -144,7 +145,8 @@ function global:Get-PostInstallDetectionSnapshot {
     $modPresent=$true
     $postTwoProbe=$null
     if ($Game.TwoMods) {
-        $postTwoProbe=Get-TwoModsPresence -Game $Game -FallbackRoot $recordedPath
+        $previousOriginal=if($PreviousState -and $PreviousState.GameDir){[string]$PreviousState.GameDir}else{''}
+        $postTwoProbe=Get-TwoModsPresence -Game $Game -FallbackRoot $recordedPath -BaseGamePath $previousOriginal
         $postDefs=@(Get-AlternativeModDefinitions -Game $Game)
         $postPresent=@($postDefs | Where-Object { [bool](Get-AlternativeModValue $postTwoProbe ("$($_.Mode)Present")) })
         $modPresent=if ($Game.TwoModsRequireBoth) { $postDefs.Count -gt 0 -and $postPresent.Count -eq $postDefs.Count } else { $postPresent.Count -gt 0 }
@@ -154,12 +156,8 @@ function global:Get-PostInstallDetectionSnapshot {
             $modPresent=Test-DoorstopTargetModMarker -GameRoot $recordedPath -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile
         }
         if (-not $modPresent -and $Game.VrInstallRoot) {
-            $vr=$Game.VrInstallRoot
-            if     ($vr -like 'LOCALAPPDATA:*') { $vr=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ($vr.Substring('LOCALAPPDATA:'.Length)) }
-            elseif ($vr -like 'APPDATA:*')      { $vr=Join-Path ([Environment]::GetFolderPath('ApplicationData')) ($vr.Substring('APPDATA:'.Length)) }
-            elseif ($vr -like 'PROGRAMDATA:*')  { $vr=Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) ($vr.Substring('PROGRAMDATA:'.Length)) }
-            elseif ($vr -like 'USERPROFILE:*')  { $vr=Join-Path ([Environment]::GetFolderPath('UserProfile')) ($vr.Substring('USERPROFILE:'.Length)) }
-            $modPresent=Test-RelativePathMarker -Root $vr -Values @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)
+            $vr=if(Get-Command Resolve-VrInstallRoot -ErrorAction SilentlyContinue){Resolve-VrInstallRoot ([string]$Game.VrInstallRoot)}else{[string]$Game.VrInstallRoot}
+            $modPresent=if($vr -and $vr -notmatch '^(?i:LOCALAPPDATA|APPDATA|PROGRAMDATA|USERPROFILE):'){Test-RelativePathMarker -Root $vr -Values @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)}else{$false}
             if ($modPresent) { $recordedPath=$vr }
         }
     }
@@ -179,9 +177,11 @@ function global:Get-PostInstallDetectionSnapshot {
     # two-mod probe above validates the active and parked files by receipt/hash.
     if ($modPresent -and $recordedPath -and -not $Game.ExternalVrStartApp -and -not $Game.MaxPayne2DualLaunch -and
         -not (Test-VrInstallEvidenceContract -Game $Game -Root $recordedPath)) { $modPresent=$false }
+    if(-not $modPresent -and $recordedPath -and (Get-Command Test-LocatedVrRuntime -ErrorAction SilentlyContinue)){$modPresent=Test-LocatedVrRuntime -Game $Game -Root $recordedPath}
     $pzPendingUpdate=$null
     if (-not $modPresent -and $Game.Id -eq 'project-zomboid-vr' -and $recordedPath) {
-        . (Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1')
+        $evidencePath=if($script:scriptDir){Join-Path $script:scriptDir 'ProjectZomboidVR\PZEvidence.ps1'}else{Join-Path $PSScriptRoot '..\ProjectZomboidVR\PZEvidence.ps1'}
+        . $evidencePath
         $pzPendingUpdate=Get-PZVRPendingWorkshopUpdate -GameRoot $recordedPath
         if ($pzPendingUpdate) { $modPresent=$true }
     }
@@ -200,11 +200,18 @@ function global:Get-PostInstallDetectionSnapshot {
         # licensed retail executable still exists, including immediately
         # after a successful Hub installer transaction.
         $separateBase = Get-RememberedStagedBaseGameRoot -Game $Game
-        $baseGamePresent = [bool]($separateBase -and
-            (Test-BaseGameInstallProof -Game $Game -Root ([string]$separateBase)))
+        if (-not $separateBase -and $PreviousState -and $PreviousState.GameDir -and
+            (Test-BaseGameInstallProof -Game $Game -Root ([string]$PreviousState.GameDir))) {
+            $separateBase=[string]$PreviousState.GameDir
+            Write-PersistentGameStateValue -Game $Game -Name 'base_game_path' -Value $separateBase
+        }
+        $baseGamePresent = [bool]($baseGamePresent -or ($separateBase -and
+            (Test-BaseGameInstallProof -Game $Game -Root ([string]$separateBase))))
     } elseif (-not $baseGamePresent -and $Game.VrInstallRoot) {
+        $rememberedBaseRoot=Get-RememberedStagedBaseGameRoot -Game $Game -RuntimeRoot $recordedPath
         $previousBaseRoot=if ($PreviousState -and $PreviousState.GameDir) { [string]$PreviousState.GameDir } else { '' }
-        if ($previousBaseRoot -and (Test-BaseGameInstallProof -Game $Game -Root $previousBaseRoot)) { $baseGamePresent=$true }
+        if ($rememberedBaseRoot) { $baseGamePresent=$true }
+        elseif ($previousBaseRoot -and (Test-BaseGameInstallProof -Game $Game -Root $previousBaseRoot)) { $baseGamePresent=$true }
         elseif ($confirmedInstallerSuccess) { $baseGamePresent=$true }
     }
 
@@ -249,12 +256,13 @@ function global:Get-PostInstallDetectionSnapshot {
             $stateEntry.BtnText='Update Mod'
             $stateEntry.UpdateEvidence=[string]$pzPendingUpdate.Evidence
         }
-        $stateEntry=Resolve-PostInstallRefreshState -PreviousState $PreviousState -CandidateState $stateEntry -ConfirmedInstallerSuccess $confirmedInstallerSuccess
+        $sameSingleRoute=[bool](-not $Game.TwoMods -and -not $Game.DualMode -and $PreviousState.GameDir -and [string]$PreviousState.GameDir -ieq [string]$recordedPath)
+        if (-not $RecheckOnly -or $sameSingleRoute) { $stateEntry=Resolve-PostInstallRefreshState -PreviousState $PreviousState -CandidateState $stateEntry -ConfirmedInstallerSuccess $confirmedInstallerSuccess }
         $preferredHunterDepot=[bool]($Game.DepotPinnedReceipt -and $postDualProbe -and
             $postDualProbe.DepotPresent -and -not $postDualProbe.CurrentPresent)
         if (-not $preferredHunterDepot) {
             $postVer=Read-InstalledVersion -Game $Game -GameDir $recordedPath
-            if (-not $postVer -and -not $Game.NoVersionSeed) {
+            if (-not $postVer -and -not $Game.NoVersionSeed -and (-not $RecheckOnly -or $confirmedInstallerSuccess)) {
                 $postVer=Get-PostInstallLocalTrackedVersion -Game $Game -GameDir $recordedPath
                 if ($postVer) { Write-InstalledVersion -Game $Game -Version $postVer -GameDir $recordedPath }
             }
@@ -269,10 +277,10 @@ function global:Get-PostInstallDetectionSnapshot {
     }
     $result.RecordedPath='' + $recordedPath
     $result.ConfirmedInstallerSuccess=$confirmedInstallerSuccess
-    if ($confirmedInstallerSuccess -and $Game.GithubRepo -eq 'GameOrDie007/RazeXR-PCVR' -and @($RelatedGames).Count -gt 0) {
+    if (($confirmedInstallerSuccess -and $Game.GithubRepo -eq 'GameOrDie007/RazeXR-PCVR' -or $Game.Id -in @('call-of-duty-2003-vr','call-of-duty-united-offensive-vr')) -and @($RelatedGames).Count -gt 0) {
         $result.RelatedSnapshots=@(foreach ($related in $RelatedGames) {
             Get-PostInstallDetectionSnapshot -Game $related.Game -Title ([string]$related.Title) `
-                -PreviousState $related.PreviousState -SharedInstallerSuccess $true
+                -PreviousState $related.PreviousState -SharedInstallerSuccess $confirmedInstallerSuccess -RecheckOnly $RecheckOnly -IgnorePreviousPath $IgnorePreviousPath
         })
     }
     return [pscustomobject]$result
@@ -282,15 +290,17 @@ function global:Apply-PostInstallDetectionSnapshot {
     param($Snapshot)
     if (-not $Snapshot) { return }
     $changed=$false
+    $changedTitles=[Collections.Generic.List[string]]::new()
     foreach ($entry in @($Snapshot) + @($Snapshot.RelatedSnapshots)) {
         if (-not $entry) { continue }
         $title=[string]$entry.Title
+        if ($entry.Action -in @('Set','Remove')) { $changedTitles.Add($title) }
         if ($entry.Action -eq 'Set') { $global:gameStateMap[$title]=$entry.StateEntry; $changed=$true }
         elseif ($entry.Action -eq 'Remove' -and $global:gameStateMap.ContainsKey($title)) { $global:gameStateMap.Remove($title) | Out-Null; $changed=$true }
     }
     if ($changed) {
-        try { Rebuild-Lookups } catch {}
-        try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses } } catch {}
+        try { Rebuild-Lookups -Titles @($changedTitles) } catch {}
+        try { if (Get-Command Refresh-DiscoverStatuses -ErrorAction SilentlyContinue) { Refresh-DiscoverStatuses -Titles @($changedTitles) } } catch {}
     }
     try {
         if ($global:window -and $global:window.Dispatcher) {
@@ -298,7 +308,7 @@ function global:Apply-PostInstallDetectionSnapshot {
         }
     } catch {}
     try {
-        if ($global:currentDetailGame -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) { Show-DiscoverDetail -Game $global:currentDetailGame }
+        if ($global:currentDetailGame -and $global:currentDetailGame.Title -in $changedTitles -and $global:discoverDetail.Visibility -eq [System.Windows.Visibility]::Visible) { Show-DiscoverDetail -Game $global:currentDetailGame }
     } catch {}
 }
 
@@ -321,6 +331,24 @@ function global:Invoke-PostInstallRefresh {
 
 function global:Get-RelatedRazePostInstallGames {
     param($Game)
+    # Original CoD and UO can intentionally share one retail runtime. Reuse
+    # the existing related-snapshot contract; independent roots never join it.
+    if ($Game.Id -in @('call-of-duty-2003-vr','call-of-duty-united-offensive-vr')) {
+        $root=$null
+        try{$root=$global:gameStateMap[$Game.Title].GameDir}catch{}
+        if(-not $root){try{$root=Read-InstalledPath -Game $Game}catch{}}
+        if(-not $root){return @()}
+        $normalized=[IO.Path]::GetFullPath([string]$root).TrimEnd([char[]]'\/')
+        return @(foreach($candidate in @($ownGames+$ownGamesGP)){
+            if($candidate.Id -notin @('call-of-duty-2003-vr','call-of-duty-united-offensive-vr') -or $candidate.Id -eq $Game.Id){continue}
+            $prior=$null;$other=$null
+            try{$prior=$global:gameStateMap[$candidate.Title];$other=$prior.GameDir}catch{}
+            if(-not $other){try{$other=Read-InstalledPath -Game $candidate}catch{}}
+            if($other -and [IO.Path]::GetFullPath([string]$other).TrimEnd([char[]]'\/').Equals($normalized,[StringComparison]::OrdinalIgnoreCase)){
+                [pscustomobject]@{Game=$candidate;Title=[string]$candidate.Title;PreviousState=$prior}
+            }
+        })
+    }
     if (-not $Game -or $Game.GithubRepo -ne 'GameOrDie007/RazeXR-PCVR') { return @() }
     return @(foreach ($candidate in @($ownGames + $ownGamesGP)) {
         if ($candidate.GithubRepo -ne 'GameOrDie007/RazeXR-PCVR' -or $candidate.Id -eq $Game.Id) { continue }
@@ -447,7 +475,9 @@ function global:Start-PostInstallDetectionAsync {
         $ActivityState = $null,
         [bool]$PreviousPostInstallRefresh = $false,
         [scriptblock]$DetectionScript = $null,
-        [int]$PollMilliseconds = 40
+        [int]$PollMilliseconds = 40,
+        [bool]$RecheckOnly=$false,[bool]$IgnorePreviousPath=$false,
+        [string]$IndicatorToken="",$IndicatorTarget=$null,[scriptblock]$OnCompleted=$null
     )
     if (-not $global:window -or -not $global:window.Dispatcher) { return $false }
     if (Test-PostInstallRefreshScanActive) { return $false }
@@ -473,7 +503,7 @@ function global:Start-PostInstallDetectionAsync {
                 'Get-LaunchOverrideFile','Read-LaunchOverride','Get-GameStampPath','Read-VersionStampFile',
                 'Import-PendingInstallerVersion','Read-InstalledVersionProof','Read-InstalledVersion','Write-InstalledVersion',
                 'Get-InstalledVersionPathB','Read-InstalledVersionB','Write-InstalledVersionB','Invalidate-SupersededInstalledVersion',
-                'Get-UpdateOkMarkerPath','Test-RelativePathMarker','Test-BaseGameInstallProof','Test-VrInstallEvidenceContract',
+                'Get-UpdateOkMarkerPath','Test-RelativePathMarker','Test-BaseGameInstallProof','Test-VrInstallEvidenceContract','Get-LocatedExternalVrContract','Test-LocatedVrRuntime',
                 'Join-HubPathLexical','Test-HubWindowsStylePathLexical'
             )
             $added=@{}
@@ -523,6 +553,7 @@ function global:Start-PostInstallDetectionAsync {
         $powerShell=[PowerShell]::Create(); $powerShell.Runspace=$runspace
         [void]$powerShell.AddCommand($workerCommand).AddParameter('Game',$target.Game).AddParameter('Title',$target.Title).AddParameter('PreviousState',$previousState)
         if (-not $DetectionScript) {
+            [void]$powerShell.AddParameter('RecheckOnly',$RecheckOnly).AddParameter('IgnorePreviousPath',$IgnorePreviousPath)
             [void]$powerShell.AddParameter('RelatedGames',(Get-RelatedRazePostInstallGames -Game $target.Game))
         }
         $async=$powerShell.BeginInvoke()
@@ -533,6 +564,7 @@ function global:Start-PostInstallDetectionAsync {
         $timer.Interval=[TimeSpan]::FromMilliseconds([Math]::Max(10,$PollMilliseconds))
         $workerPowerShell=$powerShell; $workerRunspace=$runspace; $workerAsync=$async; $workerKey=$key
         $workerActivity=$ActivityState; $workerPreviousFlag=$PreviousPostInstallRefresh
+        $workerIndicator=$IndicatorToken;$workerTarget=$IndicatorTarget;$workerCompleted=$OnCompleted
         $timer.Add_Tick({
             param($sender,$eventArgs)
             if (-not $workerAsync.IsCompleted) { return }
@@ -542,6 +574,7 @@ function global:Start-PostInstallDetectionAsync {
                 $snapshot=@($allResults | Where-Object { $_ -and $_.PSObject.Properties['Action'] }) | Select-Object -Last 1
                 if (-not $snapshot) { throw 'The post-install worker returned no detection snapshot.' }
                 Apply-PostInstallDetectionSnapshot -Snapshot $snapshot
+                if ($workerCompleted) { & $workerCompleted }
             } catch {
                 if (Get-Command Write-HubActionFailure -ErrorAction SilentlyContinue) { Write-HubActionFailure -Action 'Refresh installed mod status' -ErrorRecord $_ }
                 else { try { Write-Host ("[HubError] Refresh installed mod status: " + $_.Exception.Message) -ForegroundColor Red } catch {} }
@@ -550,6 +583,8 @@ function global:Start-PostInstallDetectionAsync {
                 try { $workerRunspace.Dispose() } catch {}
                 try { if ($workerRegistry) { $workerRegistry.Remove($workerKey) } } catch {}
                 if ($workerActivity) { Stop-PostInstallScanActivity -State $workerActivity }
+                if ($workerIndicator) { Stop-HubActionIndicator -Token $workerIndicator }
+                if ($workerTarget) { $workerTarget.IsEnabled=$true }
                 $global:PostInstallRefreshInProgress=$workerPreviousFlag
             }
         }.GetNewClosure())
@@ -564,7 +599,22 @@ function global:Start-PostInstallDetectionAsync {
 }
 
 function global:Invoke-PostInstallRefreshSafely {
-    param([string]$GameId = '', [string]$Title = '', [switch]$ShowScanActivity)
+    param([string]$GameId = '', [string]$Title = '', [switch]$ShowScanActivity,
+        [switch]$RecheckOnly,[switch]$IgnorePreviousPath,$IndicatorTarget=$null,[string]$IndicatorToken='', [scriptblock]$OnCompleted=$null)
+    if ($RecheckOnly -and $global:window -and $global:window.Dispatcher) {
+        Start-HubMaintenanceRefresh -GameId $GameId -Title $Title -IgnorePreviousPath ([bool]$IgnorePreviousPath) -IndicatorTarget $IndicatorTarget -IndicatorToken $IndicatorToken -OnCompleted $OnCompleted
+        return
+    }
+    if ($RecheckOnly) {
+        try {
+            $target=Resolve-PostInstallRefreshTarget -GameId $GameId -Title $Title
+            $prior=$global:gameStateMap[$target.Title]
+            $snapshot=Get-PostInstallDetectionSnapshot -Game $target.Game -Title $target.Title -PreviousState $prior -RelatedGames @(Get-RelatedRazePostInstallGames -Game $target.Game) -RecheckOnly $true -IgnorePreviousPath ([bool]$IgnorePreviousPath)
+            Apply-PostInstallDetectionSnapshot -Snapshot $snapshot
+            if ($OnCompleted) { & $OnCompleted }
+        } finally { if ($IndicatorToken) { Stop-HubActionIndicator -Token $IndicatorToken }; if ($IndicatorTarget) { $IndicatorTarget.IsEnabled=$true } }
+        return
+    }
     $activityState = $null
     $previousPostInstallRefresh = [bool]$global:PostInstallRefreshInProgress
     $global:PostInstallRefreshInProgress = $true
@@ -669,4 +719,29 @@ function global:Watch-InstallMarkerForRefresh {
             Write-HubActionFailure -Action 'Watch installer completion' -ErrorRecord $_
         }
     }
+}
+
+# A maintenance click owns only its button glow. Wait for live scans and other
+# refreshes without blocking WPF or overwriting another game's pending identity.
+function global:Start-HubMaintenanceRefresh {
+    param([string]$GameId,[string]$Title,[bool]$IgnorePreviousPath=$false,$IndicatorTarget=$null,[string]$IndicatorToken='', [scriptblock]$OnCompleted=$null)
+    if ($IndicatorTarget) { $IndicatorTarget.IsEnabled=$false }
+    if (-not $IndicatorToken -and $IndicatorTarget) { $IndicatorToken=Start-HubActionIndicator -Target $IndicatorTarget -DelayMilliseconds 0 -FitTargetEdges }
+    $timer=[System.Windows.Threading.DispatcherTimer]::new()
+    $timer.Interval=[TimeSpan]::FromMilliseconds(40)
+    $state=@{Id=$GameId;Title=$Title;Ignore=$IgnorePreviousPath;Target=$IndicatorTarget;Token=$IndicatorToken;Completed=$OnCompleted}
+    $timer.Add_Tick({
+        param($sender,$eventArgs)
+        if ((Test-PostInstallRefreshScanActive) -or $global:PostInstallRefreshInProgress) { return }
+        $sender.Stop()
+        $global:PostInstallRefreshInProgress=$true
+        $started=Start-PostInstallDetectionAsync -GameId $state.Id -Title $state.Title -RecheckOnly $true -IgnorePreviousPath $state.Ignore -IndicatorTarget $state.Target -IndicatorToken $state.Token -OnCompleted $state.Completed
+        if (-not $started) {
+            $global:PostInstallRefreshInProgress=$false
+            if ($state.Token) { Stop-HubActionIndicator -Token $state.Token }
+            if ($state.Target) { $state.Target.IsEnabled=$true }
+            Write-HubActionFailure -Action ('Refresh '+$state.Title) -ErrorRecord ([InvalidOperationException]::new('The background status check could not start. Retry the action.'))
+        }
+    }.GetNewClosure())
+    $timer.Start()
 }

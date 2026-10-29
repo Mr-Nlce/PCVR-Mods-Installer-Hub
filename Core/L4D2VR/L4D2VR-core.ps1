@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Left 4 Dead 2 - L4D2VR Mod Installer
 # ============================================================
 
@@ -289,7 +289,7 @@ $l4d2vrUrl = $null
 Write-Info 'Checking the current GitHub release; this can take a few seconds.'
 try {
  if ($l4d2FixtureMode) { throw 'API rate limit exceeded (isolated fixture)' }
- $apiResp = Invoke-WebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop -TimeoutSec 15 `
+ $apiResp = Invoke-PCVRWebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop -TimeoutSec 15 `
   -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' }
  $release = $apiResp.Content | ConvertFrom-Json
  foreach ($asset in @($release.assets)) {

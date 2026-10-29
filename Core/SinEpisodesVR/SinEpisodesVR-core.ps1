@@ -1,4 +1,4 @@
-. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+﻿. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -88,7 +88,7 @@ function Test-SinOversizeFailureEvidence {
 }
 function Get-SinRelease {
     try {
-        $release = if($env:PCVR_SIN_TEST_RELEASE_JSON){Get-Content -LiteralPath $env:PCVR_SIN_TEST_RELEASE_JSON -Raw | ConvertFrom-Json}else{Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop}
+        $release = if($env:PCVR_SIN_TEST_RELEASE_JSON){Get-Content -LiteralPath $env:PCVR_SIN_TEST_RELEASE_JSON -Raw | ConvertFrom-Json}else{Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop}
         $asset = @($release.assets | Where-Object { $_.name -match '(?i)^SiN-VR-.+\.zip$' } | Select-Object -First 1)[0]
         if (-not $asset -or -not $asset.browser_download_url) { throw 'The latest release has no SiN VR ZIP asset.' }
         return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url; Name=[string]$asset.name; Manual=$false }

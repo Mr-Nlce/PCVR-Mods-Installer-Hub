@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Painkiller: Black Edition VR Mod Installer
 # painkiller-vr-mod by FluorescentHallucinogen (OpenXR)
 #
@@ -119,7 +119,7 @@ $dlUrl = $null
 $relTag = $null
 try {
  [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
- $rel = Invoke-RestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+ $rel = Invoke-PCVRRestMethod -Uri $GITHUB_API_LATEST -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
  $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
  if ($asset) {
  $dlUrl = $asset.browser_download_url

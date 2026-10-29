@@ -1,4 +1,4 @@
-# Prey (2006) VR - governed standalone OpenXR installer.
+﻿# Prey (2006) VR - governed standalone OpenXR installer.
 # The publisher runtime lives in a user-selectable portable folder. The seven
 # required retail PK4 files are copied from the user's own patched Prey 1.4
 # install and deliberately remain outside Hub ownership.
@@ -10,9 +10,6 @@ $ErrorActionPreference = 'Stop'
 $Host.UI.RawUI.WindowTitle = 'Prey (2006) VR Installer'
 $APP_ID = '3970'
 $REPO = 'GameOrDie007/Prey-2006-VR'
-$FALLBACK_TAG = 'v1.0-pcvr'
-$FALLBACK_ASSET = 'PreyVR-PCVR-1.0.zip'
-$FALLBACK_URL = 'https://github.com/GameOrDie007/Prey-2006-VR/releases/download/v1.0-pcvr/PreyVR-PCVR-1.0.zip'
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $DEFAULT_TARGET = 'C:\Games\PreyVR'
 $IDENTITY = 'prey2006vr'
@@ -341,8 +338,8 @@ function global:Invoke-Prey2006VRInstaller {
         Write-PreyOK "Standalone folder: $target"
 
         Write-PreyStep 3 5 'Downloading and validating the newest stable PCVR release'
-        $release=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^PreyVR-PCVR-.*\.zip$') `
-            -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET
+        $release=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^(?:PreyVR-PCVR-|Prey-VR-)[0-9].*\.zip$') -SkipReleasesWithoutMatchingAsset
+        if(-not $release.Resolved){throw 'The current Prey release could not be checked. Retry or hand over the current official package.'}
         $version=[string]$release.Tag
         if (-not (Test-IsTrackableInstalledVersion $version)) { throw 'The publisher release did not provide a trackable version tag.' }
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_prey2006_'+[Guid]::NewGuid().ToString('N'))

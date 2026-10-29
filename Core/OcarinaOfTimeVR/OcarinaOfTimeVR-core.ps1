@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Legend of Zelda: Ocarina of Time VR Installer
 # (Shipwright-VR by ShinyWindow, built on Ship of Harkinian)
 # ============================================================
@@ -64,7 +64,7 @@ $DJIPI_LEGACY_FILE = "djipi_s_3ds_experience_-_final_pack.zip"
 function Get-LatestShipwrightVR {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rel = Invoke-RestMethod -Uri "$REPO_API/latest" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rel = Invoke-PCVRRestMethod -Uri "$REPO_API/latest" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         if ($rel -and -not $rel.draft -and -not $rel.prerelease -and $rel.tag_name) {
             $pick = @($rel.assets | Where-Object {
                 $_.name -match '(?i)(win64|windows[-_]?x64).*\.zip$' -and $_.browser_download_url

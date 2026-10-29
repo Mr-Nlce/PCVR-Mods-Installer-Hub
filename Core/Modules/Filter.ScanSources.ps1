@@ -1,4 +1,6 @@
-﻿# Paint one card from its recorded scan state. Shared by Rebuild-Lookups
+﻿. (Join-Path $PSScriptRoot 'GitHubTransport.ps1')
+
+# Paint one card from its recorded scan state. Shared by Rebuild-Lookups
 # (style switch, single-game refresh, post-install refresh) and by the lazy
 # card builder (CardTile.Lazy.ps1), which calls it the moment a placeholder
 # becomes a real card. A placeholder only takes the Tag: its visuals are
@@ -11,6 +13,7 @@ function global:Restore-CardVisualState {
         Update-UntestedFeedbackReminder -Card $card -Game $g -State $state
     }
     if ($card.Resources.Contains('cardLazy')) { $card.Tag = $state.Tag; return }
+    if ($state.State -notin @('ready','update')) { Reset-HubCardInstallHover -Card $card }
     $becameReady = $state.Tag -eq 'vrinstalled' -and [string]$card.Tag -eq 'vrupdate'
     if ($becameReady) { Reset-CardUpdateHoverForReady -Card $card }
     $card.Tag = $state.Tag
@@ -153,6 +156,7 @@ function global:Restore-CardVisualState {
 
 # Build a card->game lookup - wrapped in function so Scale can rebuild it
 function global:Rebuild-Lookups {
+    param([string[]]$Titles=@())
     $global:allCards    = @()
     $global:allGameData = @()
     foreach ($child in $ownList.Children)   { $global:allCards += $child }
@@ -183,12 +187,12 @@ function global:Rebuild-Lookups {
     # We don't store brushes in the map (they're tied to disposed
     # cards) - we store the accent + state name and rebuild brushes
     # here using the same helpers that initial card creation uses.
-    if ($global:gameStateMap -and $global:gameStateMap.Count -gt 0) {
+    if (($global:gameStateMap -and $global:gameStateMap.Count -gt 0) -or $Titles.Count -gt 0) {
         foreach ($card in @($global:cardGameMap.Keys)) {
             $g = $global:cardGameMap[$card]
-            if (-not $g -or -not $g.Title) { continue }
+            if (-not $g -or -not $g.Title -or ($Titles.Count -gt 0 -and $g.Title -notin $Titles)) { continue }
             $state = $global:gameStateMap[$g.Title]
-            if (-not $state) { continue }
+            if (-not $state) { if ($Titles.Count -gt 0) { Reset-HubCardInstallState -Card $card -Game $g }; continue }
             Restore-CardVisualState -Card $card -Game $g -State $state
         }
     }
@@ -209,16 +213,22 @@ Rebuild-Lookups
 # matched fixed files are measured, keeping every normal scan constant-time.
 function global:Get-CatalogSteamAppIds {
     param($Game)
-    return @(@($Game.SteamId) + @($Game.SteamIdAlt) |
-        ForEach-Object { ('' + $_).Trim() } |
-        Where-Object { $_ -match '^\d+$' } |
-        Select-Object -Unique)
+    # Called once per catalog entry on every scan: a plain loop instead of a
+    # three-stage pipeline (same result, same order, de-duplicated).
+    $ids = [System.Collections.Generic.List[string]]::new()
+    foreach ($raw in (@($Game.SteamId) + @($Game.SteamIdAlt))) {
+        $id = ('' + $raw).Trim()
+        if ($id -match '^\d+$' -and -not $ids.Contains($id)) { $ids.Add($id) }
+    }
+    return @($ids)
 }
 
 function global:Test-BaseGameInstallProof {
     param($Game, [string]$Root)
 
-    $groups = @($Game.BaseGameProofFiles | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    # Plain loop instead of a pipeline: this runs several times per detected
+    # game on every scan.
+    $groups = @(foreach ($g in @($Game.BaseGameProofFiles)) { if (-not [string]::IsNullOrWhiteSpace([string]$g)) { $g } })
     # Most newer entries carry an explicit multi-file proof contract. Older
     # entries commonly declare only GameExe, though, and that executable is
     # still the authoritative base-game proof. Returning true merely because
@@ -233,7 +243,7 @@ function global:Test-BaseGameInstallProof {
     if ([string]::IsNullOrWhiteSpace($Root) -or -not (Test-Path -LiteralPath $Root -PathType Container)) { return $false }
 
     [int64]$matchedBytes = 0
-    $counted = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $counted = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($group in $groups) {
         $groupMatched = $false
         foreach ($relative in (([string]$group) -split '\|')) {
@@ -254,6 +264,156 @@ function global:Test-BaseGameInstallProof {
     [int64]$minimum = 0
     try { if ($Game.BaseGameProofMinBytes) { $minimum = [int64]$Game.BaseGameProofMinBytes } } catch {}
     return ($minimum -le 0 -or $matchedBytes -ge $minimum)
+}
+
+# ---------------------------------------------------------------
+# REGISTRY DISCOVERY (scan priority 4)
+#
+# Catches installs that live under a folder name the catalog cannot
+# know: disc/retail setups, renamed folders, "Deluxe Edition" bundles,
+# a user-chosen library on another drive. Windows keeps their folders
+# in the Uninstall registry (Get-HubUninstallInstallRoots, Helpers.ps1).
+#
+# Built ONCE per scan, then every catalog entry is a dictionary lookup:
+#   - by folder name: the last segment of SteamFolder / FallbackPaths
+#   - by proof file:  GameExe or a first-group BaseGameProofFiles name
+#     that sits directly in the folder (e.g. CoDSP.exe)
+# Only top-level file NAMES are listed per folder, and only names some
+# catalog entry asks for are kept - no recursion, no file reads.
+#
+# A lookup hit is only a candidate. Find-RegistryInstallRoot accepts it
+# solely through Test-BaseGameInstallProof, and only for entries that
+# DECLARE a proof (BaseGameProofFiles or GameExe) - a registry folder
+# never counts on its name alone.
+# ---------------------------------------------------------------
+function global:Get-RegistryDiscoveryKeys {
+    param($Game)
+    # Runs once per catalog entry per scan, so it stays on plain .NET string
+    # calls: no pipeline, no scriptblock, no regex. Keys are lower-case;
+    # duplicates are harmless (the lookup de-duplicates candidates).
+    $folders = [System.Collections.Generic.List[string]]::new()
+    $files   = [System.Collections.Generic.List[string]]::new()
+    $relativeFiles = [System.Collections.Generic.List[string]]::new()
+    $sep = [char[]]'\/'
+    $names = [System.Collections.Generic.List[string]]::new()
+    if ($Game.SteamFolder) { $names.Add([string]$Game.SteamFolder) }
+    foreach ($fp in @($Game.FallbackPaths)) {
+        $s = [string]$fp
+        if (-not $s) { continue }
+        # Depot copies, MS Store layouts and AppData probes never appear
+        # as Uninstall folders in this shape - leave them to priority 3.
+        if ($s.StartsWith('STEAM_CONTENT', [StringComparison]::OrdinalIgnoreCase) -or
+            $s.StartsWith('STEAM_COMMON', [StringComparison]::OrdinalIgnoreCase) -or
+            $s.StartsWith('XBOX:', [StringComparison]::OrdinalIgnoreCase) -or
+            $s.StartsWith('APPDATA:', [StringComparison]::OrdinalIgnoreCase)) { continue }
+        foreach ($pre in 'STEAM:', 'GOG:', 'EPIC:', 'UBI:') {
+            if ($s.StartsWith($pre, [StringComparison]::OrdinalIgnoreCase)) { $s = $s.Substring($pre.Length); break }
+        }
+        $names.Add($s)
+    }
+    foreach ($n in $names) {
+        $t = $n.Trim().TrimEnd($sep)
+        if (-not $t) { continue }
+        $leaf = $t.Substring($t.LastIndexOfAny($sep) + 1)
+        if ($leaf -and -not ($leaf.Length -eq 2 -and $leaf[1] -eq ':')) { $folders.Add($leaf.ToLowerInvariant()) }
+    }
+    $proof = [System.Collections.Generic.List[string]]::new()
+    if ($Game.GameExe) { $proof.Add([string]$Game.GameExe) }
+    foreach ($grp in @($Game.BaseGameProofFiles)) {
+        $g = [string]$grp
+        if ([string]::IsNullOrWhiteSpace($g)) { continue }
+        foreach ($alt in $g.Split('|')) { $proof.Add($alt) }
+        break   # first declared group only
+    }
+    foreach ($f in $proof) {
+        $f = $f.Trim()
+        if ($f) {
+            $files.Add(([IO.Path]::GetFileName($f)).ToLowerInvariant())
+            if ($f.IndexOfAny($sep) -ge 0 -and -not [IO.Path]::IsPathRooted($f) -and $f -notmatch '(?:^|[\\/])\.\.(?:[\\/]|$)') { $relativeFiles.Add($f) }
+        }
+    }
+    return @{ Folders = $folders; Files = $files; RelativeFiles=$relativeFiles }
+}
+
+function global:New-RegistryInstallIndex {
+    param([string[]]$Roots, $Games, [hashtable]$DriveCache)
+    if ($null -eq $DriveCache) { $DriveCache = @{} }
+    $byFolder = @{}
+    $byFile   = @{}
+    $wanted = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    $keysByTitle = @{}
+    $fileIdentities=@{}
+    $nestedWanted=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($g in @($Games)) {
+        $gk = Get-RegistryDiscoveryKeys -Game $g
+        if ($g.Title) { $keysByTitle[[string]$g.Title] = $gk }
+        foreach ($f in $gk.Files) {
+            [void]$wanted.Add($f)
+            if(-not $fileIdentities.ContainsKey($f)){$fileIdentities[$f]=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)}
+            $identity=if($g.SteamId){[string]$g.SteamId}elseif($g.SteamFolder){[string]$g.SteamFolder}else{[string]$g.Title}
+            [void]$fileIdentities[$f].Add($identity)
+        }
+        foreach ($f in $gk.RelativeFiles) { [void]$nestedWanted.Add($f) }
+    }
+    $listed = 0
+    foreach ($r in @($Roots | Select-Object -First 3000)) {
+        $r = [string]$r
+        if (-not $r -or $r.StartsWith('\\')) { continue }
+        # A disconnected or empty drive must never stall the scan.
+        if (-not (Test-ScanFallbackDriveReady -Path $r -Cache $DriveCache)) { continue }
+        if (-not [IO.Directory]::Exists($r)) { continue }
+        $leaf = ($r.TrimEnd([char[]]'\/') -split '[\\/]')[-1].ToLowerInvariant()
+        if (-not $byFolder.ContainsKey($leaf)) { $byFolder[$leaf] = [System.Collections.Generic.List[string]]::new() }
+        $byFolder[$leaf].Add($r)
+        try {
+            foreach ($file in [IO.Directory]::EnumerateFiles($r)) {
+                $name = [IO.Path]::GetFileName($file)
+                if (-not $wanted.Contains($name)) { continue }
+                $k = $name.ToLowerInvariant()
+                if (-not $byFile.ContainsKey($k)) { $byFile[$k] = [System.Collections.Generic.List[string]]::new() }
+                $byFile[$k].Add($r)
+            }
+            foreach ($relative in $nestedWanted) {
+                if ([IO.File]::Exists([IO.Path]::Combine($r,$relative))) {
+                    $k=[IO.Path]::GetFileName($relative).ToLowerInvariant()
+                    if (-not $byFile.ContainsKey($k)) { $byFile[$k]=[Collections.Generic.List[string]]::new() }
+                    if (-not $byFile[$k].Contains($r)) { $byFile[$k].Add($r) }
+                }
+            }
+            $listed++
+        } catch {}
+    }
+    return @{ ByFolder = $byFolder; ByFile = $byFile; Listed = $listed; KeysByTitle = $keysByTitle; AmbiguousFiles=@($fileIdentities.Keys|Where-Object {$fileIdentities[$_].Count -gt 1}) }
+}
+
+function global:Find-RegistryInstallRoot {
+    param($Game, [hashtable]$Index)
+    if (-not $Index) { return $null }
+    $keys = if ($Index.KeysByTitle -and $Game.Title -and $Index.KeysByTitle.ContainsKey([string]$Game.Title)) { $Index.KeysByTitle[[string]$Game.Title] } else { Get-RegistryDiscoveryKeys -Game $Game }
+    # Dictionary lookups first - for almost every entry nothing matches and
+    # the function ends here without touching the disk.
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    foreach ($k in $keys.Folders) { $hit = $Index.ByFolder[[string]$k]; if ($hit) { foreach ($c in $hit) { if (-not $candidates.Contains($c)) { $candidates.Add($c) } } } }
+    foreach ($k in $keys.Files)   { if($k -in $Index.AmbiguousFiles){continue}; $hit = $Index.ByFile[[string]$k];   if ($hit) { foreach ($c in $hit) { if (-not $candidates.Contains($c)) { $candidates.Add($c) } } } }
+    if ($candidates.Count -eq 0) { return $null }
+    # No declared proof -> no registry match. Test-BaseGameInstallProof
+    # returns $true for proof-less legacy entries; that is fine for the
+    # catalog's own exact paths, never for a foreign registry folder.
+    $hasProof = -not [string]::IsNullOrWhiteSpace([string]$Game.GameExe)
+    if (-not $hasProof) {
+        foreach ($grp in @($Game.BaseGameProofFiles)) { if (-not [string]::IsNullOrWhiteSpace([string]$grp)) { $hasProof = $true; break } }
+    }
+    if (-not $hasProof) { return $null }
+    foreach ($c in $candidates) {
+        # DisplayIcon may name an EXE in bin/x64 instead of the game root.
+        # Walk only these few ancestors; accept solely complete declared proof.
+        $probe=$c
+        for ($level=0;$level -lt 4 -and $probe;$level++) {
+            if (Test-BaseGameInstallProof -Game $Game -Root $probe) { return $probe }
+            $probe=[IO.Path]::GetDirectoryName($probe.TrimEnd([char[]]'\/'))
+        }
+    }
+    return $null
 }
 
 function global:Get-PenumbraFrameworkInstalledVersion {
@@ -287,13 +447,49 @@ function global:Get-UnrealRevivedInstalledVersion {
 # purchased game data live elsewhere. Reuse only a separately remembered
 # path that still satisfies this game's base-file proof.
 function global:Get-RememberedStagedBaseGameRoot {
-    param($Game)
-    if (-not $Game -or -not $Game.VrInstallRoot -or -not $Game.BaseGameProofFiles) { return $null }
+    param($Game,[string]$RuntimeRoot='')
+    if (-not $Game -or -not $Game.BaseGameProofFiles) { return $null }
     foreach ($name in @('base_game_path','user_located')) {
         try {
             $candidate = Read-PersistentGameStateValue -Game $Game -Name $name
             if ($candidate -and (Test-BaseGameInstallProof -Game $Game -Root ([string]$candidate))) { return [string]$candidate }
         } catch {}
+    }
+    if($Game.Id -eq 'hytale-vr' -and $env:APPDATA){
+        $client=Join-Path $env:APPDATA 'Hytale\install\release\package\game\latest\Client'
+        if(Test-BaseGameInstallProof -Game $Game -Root $client){return $client}
+    }
+    # These publishers keep their licensed assets outside the VR runtime.
+    # Their recorded source path is useful only while the original game-file
+    # proof still exists; the launcher/config itself never proves the game.
+    if($Game.Id -in @('c-c-generals-zero-hour','f-e-a-r-vr','black-mesa-source-vr')){
+        $roots=@($RuntimeRoot)
+        foreach($name in @('installed_path','located_vr_root')){try{$roots+=@(Read-PersistentGameStateValue -Game $Game -Name $name)}catch{}}
+        try{$roots+=@(Resolve-VrInstallRoot $Game.VrInstallRoot)}catch{}
+        foreach($runtime in @($roots|Where-Object {$_}|Select-Object -Unique)){
+            try{
+                if($global:HubFileSystemLabRoot -and -not [IO.Path]::GetFullPath($runtime).StartsWith(([IO.Path]::GetFullPath($global:HubFileSystemLabRoot).TrimEnd('\')+'\'),[StringComparison]::OrdinalIgnoreCase)){continue}
+                if($Game.Id -eq 'black-mesa-source-vr'){
+                    $ini=Get-Content -LiteralPath (Join-Path $runtime 'ModOrganizer.ini') -Raw -ErrorAction Stop
+                    $match=[regex]::Match($ini,'(?im)^\s*gamePath\s*=\s*(?<path>[^\r\n]+)')
+                    if($match.Success){
+                        $candidate=$match.Groups['path'].Value.Trim()
+                        if($candidate.StartsWith('@ByteArray(') -and $candidate.EndsWith(')')){$candidate=$candidate.Substring(11,$candidate.Length-12)}
+                        $candidate=$candidate.Trim('"',"'")
+                        if($candidate.StartsWith('\\')){continue}
+                        $candidate=$candidate.Replace('\\','\').Replace('/','\')
+                        if([IO.Path]::GetExtension($candidate) -ieq '.exe'){$candidate=[IO.Path]::GetDirectoryName($candidate)}
+                        if(Test-BaseGameInstallProof -Game $Game -Root $candidate){return $candidate}
+                    }
+                    continue
+                }
+                $file=if($Game.Id -eq 'c-c-generals-zero-hour'){'generalsvr.json'}else{'deployment.json'}
+                $key=if($Game.Id -eq 'c-c-generals-zero-hour'){'gamePath'}else{'retailRoot'}
+                $json=Get-Content -LiteralPath (Join-Path $runtime $file) -Raw -ErrorAction Stop|ConvertFrom-Json -ErrorAction Stop
+                $candidate=[string]$json.$key
+                if($candidate -and (Test-BaseGameInstallProof -Game $Game -Root $candidate)){return $candidate}
+            }catch{}
+        }
     }
     return $null
 }
@@ -434,7 +630,7 @@ function global:Test-ScanFallbackDriveReady {
     return [bool]$ready
 }
 function global:Get-TwoModsPresence {
-    param($Game, [string]$FallbackRoot)
+    param($Game, [string]$FallbackRoot,[string]$BaseGamePath='')
     $res = @{ APresent = $false; BPresent = $false; ADir = $null; BDir = $null; ARoot = $null; BRoot = $null; Root = $null }
     if (-not $Game -or -not $Game.TwoMods) { return $res }
     if ($Game.RouteModMatrix) {
@@ -516,7 +712,7 @@ function global:Get-TwoModsPresence {
     # External dual launchers can be installed independently of the retail
     # game and of each other. Their canonical per-slot locations survive a
     # replacement of the Hub folder; the adjacent receipts remain recovery.
-    if ($Game.TwoModsSeparateBaseGame -and (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue)) {
+    if (($Game.TwoModsSeparateBaseGame -or $Game.TwoModsIndependentRoots) -and (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue)) {
         foreach ($definition in $definitions) {
             try {
                 $name = ('mod_' + ([string]$definition.Slot).ToLowerInvariant() + '_path')
@@ -525,9 +721,8 @@ function global:Get-TwoModsPresence {
             } catch {}
         }
     }
-    if ($ipf -and (Test-Path -LiteralPath $ipf)) {
-        try { & $addRoot (Read-InstalledPath -Game $Game) } catch {}
-    }
+    # Canonical associations remain valid without a legacy adjacent receipt.
+    try { & $addRoot (Read-InstalledPath -Game $Game) } catch {}
     & $addRoot $FallbackRoot
     if ($Game.VrInstallRoot) {
         try {
@@ -559,7 +754,7 @@ function global:Get-TwoModsPresence {
     # supplies the directory for the Play button.
     $separateBaseValid = $false
     if ($Game.TwoModsSeparateBaseGame) {
-        foreach ($candidate in @($FallbackRoot, (Get-RememberedStagedBaseGameRoot -Game $Game))) {
+        foreach ($candidate in @($BaseGamePath,$FallbackRoot, (Get-RememberedStagedBaseGameRoot -Game $Game -RuntimeRoot $FallbackRoot))) {
             if ($candidate -and (Test-BaseGameInstallProof -Game $Game -Root ([string]$candidate))) {
                 $separateBaseValid = $true; break
             }
@@ -575,7 +770,11 @@ function global:Get-TwoModsPresence {
             -not ($Game.TwoModsSeparateBaseGame -and $separateBaseValid)) { continue }
         $rootKey = & $normaliseRoot ([string]$root)
         $scope = if ($rootScopes.ContainsKey($rootKey)) { [string]$rootScopes[$rootKey] } else { $null }
-        foreach ($definition in $definitions) {
+        $rootDefinitions=$definitions
+        $externalAtRoot=$null
+        if(Get-Command Get-LocatedExternalVrContract -ErrorAction SilentlyContinue){$externalAtRoot=Get-LocatedExternalVrContract -Game $Game -Root $root -Requested:([bool]$Game._ExternalVrProbe)}
+        if($externalAtRoot){$rootDefinitions=@(Get-AlternativeModDefinitions -Game $externalAtRoot)}
+        foreach ($definition in $rootDefinitions) {
             $prefix = [string]$definition.Mode
             $hit = $null
             if ($definition.Sub -and ($definition.Launch -or $definition.LaunchAlt)) {
@@ -619,7 +818,7 @@ function global:Get-TwoModsPresence {
                     if (-not (Test-AbsolutePathMarker -Values $requiredAbsolute)) { $presentHere = $false; break }
                 }
             }
-            if ($presentHere -and $Game.MaxPayne2DualLaunch) {
+            if ($presentHere -and $Game.MaxPayne2DualLaunch -and -not $externalAtRoot) {
                 try {
                     if (-not (Get-Command Test-MP2Slot -ErrorAction SilentlyContinue)) {
                         # The post-install worker copies function definitions into
@@ -636,6 +835,16 @@ function global:Get-TwoModsPresence {
                         ((Test-MP2Slot -Game $root -Slot $mpSlot -Parked) -or
                          (Test-MP2Slot -Game $root -Slot $mpSlot)))
                 } catch { $presentHere=$false }
+            }
+            if ($Game.GTA4ProfileLaunch) {
+                try {
+                    if(-not(Get-Command Test-GTA4ProfilePresence -ErrorAction SilentlyContinue)){
+                        $gtaCore=if($script:scriptDir){[string]$script:scriptDir}elseif($PSScriptRoot){Split-Path $PSScriptRoot -Parent}else{''}
+                        if(-not $gtaCore){throw 'GTA IV profile module root unavailable.'}
+                        . (Join-Path $gtaCore 'Modules\GTA4VRProfiles.ps1')
+                    }
+                    $presentHere=Test-GTA4ProfilePresence -Root $root -Mod $(if($definition.Slot -eq 'A'){'bordplate'}else{'gamepad'})
+                }catch{$presentHere=$false}
             }
             if ($presentHere) {
                 $res["${prefix}Present"] = $true
@@ -699,8 +908,23 @@ function global:Get-AlternativeModsNeedingManualUpdate {
     param($Game, $Presence)
     $result = New-Object 'System.Collections.Generic.List[object]'
     if (-not $Game -or -not $Game.TwoMods -or -not $Presence) { return $result.ToArray() }
+    # Missing Hub release-recipe stamps do not establish that an externally
+    # installed mod is older. Keep its Play action without inventing a version
+    # or requiring a reinstall merely to manufacture our bookkeeping.
+    $unknownExternal=$false
+    if(Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue){
+        $location=Read-PersistentGameStateValue -Game $Game -Name 'user_located'
+        if($location){
+            $known=$false
+            foreach($key in @('installed_version','installed_version_b','installed_version_c')){if(Read-PersistentGameStateValue -Game $Game -Name $key){$known=$true;break}}
+            $unknownExternal=-not $known
+        }
+    }
+    if($unknownExternal){return $result.ToArray()}
+
     if ($Game.RouteModMatrix -and $Presence.RouteUpdateTargets) {
         foreach ($target in @($Presence.RouteUpdateTargets)) {
+            if($target.Root -and $target.RequiredFile -match '(?i)(^|[\\/])\.pcvrhub' -and (Get-Command Get-LocatedExternalVrContract -ErrorAction SilentlyContinue) -and (Get-LocatedExternalVrContract -Game $Game -Root $target.Root)){continue}
             if ($target.Root -and $target.RequiredFile -and
                 -not (Test-RelativePathMarker -Root ([string]$target.Root) -Values $target.RequiredFile)) {
                 [void]$result.Add($target)
@@ -713,6 +937,7 @@ function global:Get-AlternativeModsNeedingManualUpdate {
         if (-not $required) { continue }
         $present = [bool](Get-AlternativeModValue $Presence ("Mod${slot}Present"))
         $root = [string](Get-AlternativeModValue $Presence ("Mod${slot}Root"))
+        if($present -and $root -and [string]$required -match '(?i)(^|[\\/])\.pcvrhub' -and (Get-Command Get-LocatedExternalVrContract -ErrorAction SilentlyContinue) -and (Get-LocatedExternalVrContract -Game $Game -Root $root)){continue}
         if ($present -and $root -and -not (Test-RelativePathMarker -Root $root -Values $required)) {
             [void]$result.Add([pscustomobject]@{
                 Slot         = $slot
@@ -890,6 +1115,7 @@ function global:Get-DualModePresence {
     $depotDir = $null
     if ($Game.DepotPath) {
         foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
+            if (@($Game.DepotForbiddenFiles | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $cand ([string]$_)) -PathType Leaf) }).Count) { continue }
             if ((& $rootHasVr $cand $depotRelList $depotRequiredList @($Game.DepotBaseGameProofFiles)) -and
                 (Test-DepotPinnedReceiptContract -Game $Game -Root $cand)) { $depotDir = $cand }
             if ($depotDir) { break }
@@ -922,8 +1148,16 @@ function global:Get-DualModePresence {
     # explicitly and keep their state separate from the legacy executable.
     if ($Game.CurrentStandalonePaths -and (Get-Command Get-CurrentStandaloneCandidatePaths -ErrorAction SilentlyContinue)) {
         foreach ($cand in (Get-CurrentStandaloneCandidatePaths -Game $Game)) {
-            if (-not $cand -or -not (& $rootHasVr $cand $currentRelList $currentRequiredList @($Game.CurrentBaseGameProofFiles))) { continue }
-            if ($Game.CurrentLaunchExe -and
+            if (-not $cand) { continue }
+            $historicalCurrentHit=$false
+            $currentHit=& $rootHasVr $cand $currentRelList $currentRequiredList @($Game.CurrentBaseGameProofFiles)
+            if(-not $currentHit -and $Game.CurrentLegacyModFile -and $Game.CurrentLegacyRequiredFile -and
+                -not ($Game.CurrentLegacyExcludedFile -and (Test-Path -LiteralPath (Join-Path $cand $Game.CurrentLegacyExcludedFile)))){
+                $historicalCurrentHit=& $rootHasVr $cand @($Game.CurrentLegacyModFile,$Game.CurrentLegacyModFileAlt | Where-Object {$_}) @($Game.CurrentLegacyRequiredFile) @($Game.CurrentBaseGameProofFiles)
+                $currentHit=$historicalCurrentHit
+            }
+            if(-not $currentHit){continue}
+            if (-not $historicalCurrentHit -and $Game.CurrentLaunchExe -and
                 -not (Test-Path -LiteralPath (Join-Path $cand $Game.CurrentLaunchExe) -PathType Leaf)) { continue }
             $res.CurrentPresent = $true
             $res.CurrentDir = $cand
@@ -944,11 +1178,13 @@ function global:Get-DualModePresence {
         } else { @() }
     }
     foreach ($lib in $Libs) {
+        if($Game.CurrentPreferRememberedPath -and $res.CurrentPresent){break}
         $c = Join-Path $lib "steamapps\common\$($Game.SteamFolder)"
-        if (-not (Test-Path $c)) { continue }
+        if (-not (Test-Path -LiteralPath $c -PathType Container)) { continue }
         $currentHit = & $rootHasVr $c $currentRelList $currentRequiredList @($Game.CurrentBaseGameProofFiles)
-        if (-not $currentHit -and $Game.CurrentLegacyModFile -and $Game.CurrentLegacyRequiredFile) {
-            $currentHit = & $rootHasVr $c @([string]$Game.CurrentLegacyModFile) @($Game.CurrentLegacyRequiredFile) @($Game.CurrentBaseGameProofFiles)
+        if (-not $currentHit -and $Game.CurrentLegacyModFile -and $Game.CurrentLegacyRequiredFile -and
+            -not ($Game.CurrentLegacyExcludedFile -and (Test-Path -LiteralPath (Join-Path $c $Game.CurrentLegacyExcludedFile)))) {
+            $currentHit = & $rootHasVr $c @($Game.CurrentLegacyModFile,$Game.CurrentLegacyModFileAlt | Where-Object {$_}) @($Game.CurrentLegacyRequiredFile) @($Game.CurrentBaseGameProofFiles)
         }
         if ($currentHit) {
             $res.CurrentPresent = $true
@@ -1016,6 +1252,17 @@ $global:HubThunderstoreOnlineDown = $false
 function global:Invoke-ScanWebGet {
     param([string]$Uri, [hashtable]$Headers)
     if ($global:HubScanOnlineDown) { return $null }
+    if($Uri -match '^https://api\.github\.com/repos/[^/]+/[^/]+/(?:releases|commits)(?:[/?]|$)'){
+        try{
+            $data=Invoke-PCVRRestMethod -Uri $Uri -Headers $Headers -TimeoutSec 2 -ErrorAction Stop
+            return [pscustomobject]@{Content=ConvertTo-Json -InputObject $data -Depth 20;StatusCode=200}
+        }catch{
+            # Keep the existing first-timeout budget. A quota/404 is local to
+            # this source and never trips the scan-wide connectivity breaker.
+            if($_.Exception.Message -match '(?i)timed?\s*out|timeout|Zeit.+(?:schreit|abgelaufen)|time budget exhausted'){$global:HubScanOnlineDown=$true}
+            return $null
+        }
+    }
     try {
         if ($Headers) {
             return (Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 2 -Headers $Headers -EA Stop)
@@ -1131,6 +1378,21 @@ function global:Get-CurrentRouteVersionProof {
     param($Game, [string]$Root, [ValidateSet('Thunderstore','Release')][string]$Source = 'Release')
     if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container)) { return $null }
 
+    if ($Game.Id -eq 'bendy-vr') {
+        $marker=Join-Path $Root '.pcvrhub_inkvr_version'
+        if(Test-Path -LiteralPath $marker -PathType Leaf) {
+            $value=[IO.File]::ReadAllText($marker).Trim()
+            if(Test-IsTrackableInstalledVersion $value){return $value}
+        }
+        # A manually installed InkVR must not inherit the old Team Beef 1.2.2
+        # stamp left in the same Steam folder. Read the actual plugin instead.
+        $dll=Join-Path $Root 'BepInEx\plugins\InkVR\InkVR.dll'
+        if(Test-Path -LiteralPath $dll -PathType Leaf) {
+            $version=[Diagnostics.FileVersionInfo]::GetVersionInfo($dll).ProductVersion
+            if($version -match '^(v?\d+(?:\.\d+)+)'){return $Matches[1]}
+        }
+        return $null
+    }
     if ($Source -eq 'Thunderstore') {
         foreach ($key in @("$($Game.ThunderstoreAuthor)-$($Game.ThunderstorePackage)", "$($Game.ThunderstorePackage)")) {
             try {
@@ -1473,7 +1735,7 @@ function global:Get-GithubLatestCommitCached {
     }
     try {
         $branchEscaped = [Uri]::EscapeDataString($Branch)
-        $commit = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/commits/$branchEscaped" `
+        $commit = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$Repo/commits/$branchEscaped" `
             -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } -TimeoutSec 3 -ErrorAction Stop
         $dateText = [string]$commit.commit.committer.date
         if (-not $dateText) { $dateText = [string]$commit.commit.author.date }
@@ -1549,11 +1811,15 @@ function global:Test-GrandInstalledVersionProof {
     }catch{return $false}
 }
 function global:Get-PublisherWebVersionFromText {
-    param([string]$Text,[string]$VersionPattern)
+    param([string]$Text,[string]$VersionPattern,$VersionAliases)
     if(-not $Text -or -not $VersionPattern){return $null}
     $match=[regex]::Match($Text,$VersionPattern)
     if(-not $match.Success){return $null}
     $version=if($match.Groups['version'].Success){$match.Groups['version'].Value}else{$match.Groups[1].Value}
+    if($VersionAliases){
+        $mapped=if($VersionAliases -is [Collections.IDictionary]){$VersionAliases[$version]}else{$VersionAliases.PSObject.Properties[$version].Value}
+        if(-not $mapped){return $null};$version=[string]$mapped
+    }
     if(Test-IsTrackableInstalledVersion $version){return $version}
     return $null
 }
@@ -1564,7 +1830,7 @@ function global:Get-WebVersionCached {
     # the slowest single online check. No timeout is lowered, so a slow-but-
     # valid page is never cut short. On a fetch failure the last-known cached
     # value is returned, so the update state stays stable.
-    param([string]$Url, [string]$Title, [string]$VersionPattern='')
+    param([string]$Url, [string]$Title, [string]$VersionPattern='', $VersionAliases=$null)
     if (-not $Url) { return $null }
     $ttlHours = 6
     if ($null -eq $script:webVerCache) {
@@ -1642,7 +1908,7 @@ function global:Get-WebVersionCached {
             throw [System.TimeoutException]::new("web version fetch exceeded ${fetchBudgetMs}ms budget")
         }
         if ($VersionPattern) {
-            $wv=Get-PublisherWebVersionFromText -Text $wHtml -VersionPattern $VersionPattern
+            $wv=Get-PublisherWebVersionFromText -Text $wHtml -VersionPattern $VersionPattern -VersionAliases $VersionAliases
         } else {
             $wv=Get-GrandWebVersionFromText -Text $wHtml
         }
@@ -1688,14 +1954,14 @@ function global:Invoke-RotatingOnlinePrewarm {
             if ($g.GithubRepo) {
                 $repo = Get-SelectedGithubRepo -Game $g
                 $channelPrefs = if ($g.GithubChannelChoice) { @($false,$true) } else { @([bool]$g.GithubPrerelease) }
-                foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $repo; P = $pref; R = @($g.GithubReleaseAssetPatterns) } }
+                foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $repo; P = $pref; R = @($(if($g.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $g)}else{@($g.GithubReleaseAssetPatterns)})) } }
                 # A replacement Hub has not reconstructed GTA's Hub-local
                 # source marker yet. Warm the alternate repo too; the later
                 # game-side marker then selects the correct already-cached tag.
                 if ($g.GithubRepoAlt -and $g.GithubRepoAlt -ne $repo) {
-                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepoAlt; P = $pref; R = @($g.GithubReleaseAssetPatterns) } }
+                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepoAlt; P = $pref; R = @($(if($g.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $g)}else{@($g.GithubReleaseAssetPatterns)})) } }
                 } elseif ($g.GithubRepoAlt -and $g.GithubRepo -ne $repo) {
-                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepo; P = $pref; R = @($g.GithubReleaseAssetPatterns) } }
+                    foreach ($pref in $channelPrefs) { $items += , @{ K = "gh"; A = $g.GithubRepo; P = $pref; R = @($(if($g.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $g)}else{@($g.GithubReleaseAssetPatterns)})) } }
                 }
             }
             # A second repo is independent. It may be the only maintained
@@ -1706,7 +1972,7 @@ function global:Invoke-RotatingOnlinePrewarm {
                 $items += , @{ K = "gh"; A = $g.GithubRepoB; P = $bPref; R = @($g.GithubRepoBReleaseAssetPatterns) }
             }
             if (-not $g.GithubRepo -and -not $g.GithubRepoB -and $g.WebVersionUrl) {
-                $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title; P = $g.WebVersionPattern }
+                $items += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title; P = $g.WebVersionPattern; Aliases = $g.WebVersionAliases }
             }
         }
         if ($items.Count -eq 0) { return }
@@ -1740,7 +2006,7 @@ function global:Invoke-RotatingOnlinePrewarm {
             try {
                 if ($it.K -eq "gh") { [void](Get-GithubLatestTagCached -Repo $it.A -IncludePrerelease:([bool]$it.P) -RequiredAssetPatterns @($it.R)) }
                 elseif ($it.K -eq 'ghcommit') { [void](Get-GithubLatestCommitCached -Repo $it.A -Branch $it.B) }
-                else { [void](Get-WebVersionCached -Url $it.A -Title $it.T -VersionPattern ([string]$it.P)) }
+                else { [void](Get-WebVersionCached -Url $it.A -Title $it.T -VersionPattern ([string]$it.P) -VersionAliases $it.Aliases) }
             } catch {}
         }
     } catch {}
@@ -1759,6 +2025,26 @@ function global:Invoke-RotatingOnlinePrewarm {
 # Unlock-ScanUi reverses both and is safe to call when nothing is
 # locked - it is used at scan end, in the self-heal path and in the
 # click handler's crash catch.
+function global:Get-GameGithubReleaseAssetPatterns {
+    param($Game,[string]$GameDir='')
+    if(-not $Game.GithubStoreAssetSuffix){return @($Game.GithubReleaseAssetPatterns)}
+    if(-not $GameDir){$GameDir=[string]$Game.DetectedPath}
+    if(-not $GameDir -and (Get-Command Read-InstalledPath -ErrorAction SilentlyContinue)){
+        # Prewarming runs before this scan has produced GameDir. Reuse the
+        # durable path so its cache key matches the later store-specific check.
+        try{$GameDir=[string](Read-InstalledPath -Game $Game)}catch{}
+    }
+    $route=''
+    if($GameDir){
+        $marker=Join-Path $GameDir '.pcvrhub_deadspace2_store.txt'
+        if(Test-Path -LiteralPath $marker -PathType Leaf){try{$route=[IO.File]::ReadAllText($marker).Trim()}catch{}}
+        if(-not $route -and $GameDir -match '(?i)[\\/]steamapps[\\/]common[\\/]'){$route='Steam'}
+        if(-not $route -and $GameDir -match '(?i)[\\/](EA Games|Origin Games)[\\/]'){$route='EA'}
+    }
+    if($route -in @('Steam','EA')){return @('(?i)^DS2PCVR-.+-'+$route.ToLowerInvariant()+'\.zip$')}
+    return @($Game.GithubReleaseAssetPatterns)
+}
+
 function global:Lock-ScanUi {
     try {
         $script:scanInputLock = $global:window.Content
@@ -1785,4 +2071,34 @@ function global:Unlock-ScanUi {
         try { $global:window.RemoveHandler([System.Windows.UIElement]::PreviewTextInputEvent, $script:scanTextBlock) } catch {}
         $script:scanKeysLocked = $false
     }
+}
+
+# Reuse the full scan's immutable first-paint resources for a one-game clear.
+function global:Reset-HubCardInstallHover {
+    param($Card)
+    if (-not $Card) { return }
+    foreach($key in @('readyOrigText','updLabelRest','vrupdMorphed')) { if($Card.Resources.Contains($key)){[void]$Card.Resources.Remove($key)} }
+    foreach($key in @('reloadPill','dualSplit')){$element=$Card.Resources.Item($key);if($element){$element.Visibility=[Windows.Visibility]::Collapsed}}
+    $text=$Card.Resources.Item('btnText');if($text){$text.Visibility=[Windows.Visibility]::Visible}
+    $button=$Card.Resources.Item('btnBorder')
+    if($button){foreach($key in @('preHoverBrush','preHoverBdBrush','preHoverBdThick','preHoverTxtFg','preHoverTxtText','preHoverPillBg','preHoverPillBd','preHoverPillGlyphFg','preHoverPillGlyphTx')){if($button.Resources.Contains($key)){[void]$button.Resources.Remove($key)}}}
+    $glyph=$Card.Resources.Item('reloadGlyph');if($glyph){$glyph.Text=[char]0x21BB;$glyph.Foreground=[Windows.Media.BrushConverter]::new().ConvertFromString('#88dd99');$glyph.Opacity=0.75}
+
+}
+function global:Reset-HubCardInstallState {
+    param($Card,$Game)
+    if (-not $Card -or -not $Game) { return }
+    Reset-HubCardInstallHover -Card $Card
+    $Card.Tag='';$Card.Effect=$null
+    if ($Card.Resources.Contains('cardLazy')) { return }
+    foreach($pair in @(@('originalBgBrush','baseBgBrush','Background'),@('originalBdBrush','baseBdBrush','BorderBrush'),@('originalAccent','baseAccent',''))) {
+        $value=$Card.Resources.Item($pair[0]);if(-not $value){continue}
+        if($pair[2]){$Card.($pair[2])=$value}
+        if($Card.Resources.Contains($pair[1])){[void]$Card.Resources.Remove($pair[1])};$Card.Resources.Add($pair[1],$value)
+    }
+    $cap=$Card.Resources.Item('accentCap');$accent=$Card.Resources.Item('originalAccent')
+    if($cap -and $accent){$cap.Background=[Windows.Media.BrushConverter]::new().ConvertFromString([string]$accent);$cap.Visibility=[Windows.Visibility]::Visible}
+    $text=$Card.Resources.Item('btnText');$button=$Card.Resources.Item('btnBorder')
+    if($text){$text.Text=if($Game.Bat){'Install'}elseif($Game.Type -eq 'steam'){'Open in Steam'}elseif($Game.Type -eq 'itch'){'Open on itch.io'}else{'Get Installer'};$text.Foreground=[Windows.Media.Brushes]::White}
+    Sync-FrostedCardState -Card $Card -BtnTxt $text -BtnBrd $button
 }

@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Shenmue I & II VR Mod Installer
 # ShenmueVR by Tensai37 - current publisher releases on GitHub
 #
@@ -94,7 +94,7 @@ function Get-ShenmueSetupUrl {
     param([object]$Releases=$null)
     if ($null -eq $Releases) {
         try {
-            $Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases?per_page=15" `
+            $Releases = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases?per_page=15" `
                 -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 20 -ErrorAction Stop
         } catch { return $null }
     }

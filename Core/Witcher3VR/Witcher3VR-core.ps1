@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # The Witcher 3 VR - Installer (Witcher3VR by tig3rmast3r)
 # ============================================================
 # Native VR for the DirectX 12 build of The Witcher 3: Wild Hunt
@@ -178,7 +178,7 @@ $relTag = $null
 # Prereleases only in this repo, so /releases/latest is useless here -
 # the list endpoint returns the newest release of any kind first.
 try {
-    $resp = Invoke-RestMethod -Uri $GITHUB_API_LIST -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 8 -ErrorAction Stop
+    $resp = Invoke-PCVRRestMethod -Uri $GITHUB_API_LIST -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 8 -ErrorAction Stop
     $rel  = @($resp) | Select-Object -First 1
     if ($rel) {
         $relTag = [string]$rel.tag_name

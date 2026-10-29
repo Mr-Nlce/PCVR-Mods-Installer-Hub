@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  PCVR Mods Installer Hub - Auto Updater
 #  Called silently by Start PCVR Mods Hub.bat after the GUI is visible.
 #  Checks GitHub and writes an update marker for the live Hub banner.
@@ -14,6 +14,8 @@ param(
 $GITHUB_USER    = "Mr-Nlce"
 $GITHUB_REPO    = "PCVR-Mods-Installer-Hub"
 $API_URL        = "https://api.github.com/repos/$GITHUB_USER/$GITHUB_REPO/releases/latest"
+
+if(-not(Get-Command Invoke-PCVRRestMethod -ErrorAction SilentlyContinue)){. (Join-Path $PSScriptRoot 'Modules\GitHubTransport.ps1')}
 
 $installCoreDir = $PSScriptRoot
 $rootDir        = Split-Path -Parent $PSScriptRoot
@@ -57,7 +59,7 @@ try {
         [System.Net.ServicePointManager]::SecurityProtocol -bor `
         [System.Net.SecurityProtocolType]::Tls12
 
-    $response = Invoke-RestMethod -Uri $API_URL `
+    $response = Invoke-PCVRRestMethod -Uri $API_URL `
         -Headers @{ "User-Agent" = "PCVR-Mods-Hub-Updater" } `
         -TimeoutSec 8 `
         -ErrorAction Stop

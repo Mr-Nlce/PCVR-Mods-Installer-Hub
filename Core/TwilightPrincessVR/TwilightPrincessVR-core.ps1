@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  The Legend of Zelda: Twilight Princess VR - Dusklight VR
 #  by JoeyAW
 # ------------------------------------------------------------
@@ -585,7 +585,7 @@ $zip = Join-Path $tmp $ASSET
 $tag = "2.3.0"
 $url = "https://github.com/$REPO/releases/download/$tag/$ASSET"
 if (-not $isTwilightFixture) { try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     if (Test-IsPayloadRelease -Release $rel) {
         $pick = Select-PayloadAsset -Assets $rel.assets -PlatformPattern '(?i)windows|x64' -MinBytes 10000000

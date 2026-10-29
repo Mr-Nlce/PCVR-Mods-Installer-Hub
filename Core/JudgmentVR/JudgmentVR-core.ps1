@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle = 'Judgment VR Installer'
 $id = 'judgment-vr'
@@ -53,7 +53,7 @@ function Get-JudgmentPublisherRelease([object]$Releases=$null) {
     }
     if ($null -eq $Releases) {
         try {
-            $Releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases?per_page=15" `
+            $Releases = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$repo/releases?per_page=15" `
                 -Headers @{ 'User-Agent'='PCVR-Mods-Hub' } -TimeoutSec 20 -ErrorAction Stop
         } catch {
             Write-Host '  GitHub release lookup is unavailable. Use the publisher Setup from Downloads.' -ForegroundColor Yellow

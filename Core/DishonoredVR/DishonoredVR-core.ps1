@@ -1,4 +1,4 @@
-param([switch]$Manage)
+﻿param([switch]$Manage)
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 . (Join-Path $PSScriptRoot 'DishonoredMigration.ps1')
@@ -60,7 +60,7 @@ function Get-DishonoredSavedRoot {
 }
 function Get-DishonoredRelease {
     try {
-        $r = Invoke-RestMethod -Uri 'https://api.github.com/repos/VR-Stereo-Hub/Dishonored-VR/releases/latest' -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25
+        $r = Invoke-PCVRRestMethod -Uri 'https://api.github.com/repos/VR-Stereo-Hub/Dishonored-VR/releases/latest' -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25
         if ($r.draft -or $r.prerelease -or [string]$r.tag_name -notmatch '^v(\d+\.\d+\.\d+)$') { return $null }
         $version = $matches[1]
         $name = "DishonoredVR-Launcher-v$version.exe"

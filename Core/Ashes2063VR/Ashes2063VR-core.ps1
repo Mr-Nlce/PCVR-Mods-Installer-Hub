@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Ashes 2063 VR Installer (GZDoom TC -> gzdoomvr / hh79)
 # ============================================================
 # Ashes 2063 is a post-apocalyptic total conversion for GZDoom
@@ -68,7 +68,7 @@ $WEAPONS_KNOWN_ZIP = "https://github.com/TefMeister/ashes-2063-weapons/releases/
 function Get-LatestGzdoomvrZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri $GZVR_API_LIST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $GZVR_API_LIST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         foreach ($r in $rels) {
             if ($r.prerelease) { continue }
             $asset = $r.assets | Where-Object { $_.name -match '(?i)^gzdoomvr.*\.zip$' } | Select-Object -First 1
@@ -80,7 +80,7 @@ function Get-LatestGzdoomvrZipUrl {
 
 function Get-LatestAshesWeaponsZipUrl {
     try {
-        $rels = Invoke-RestMethod -Uri $WEAPONS_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $WEAPONS_API -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         foreach ($rel in @($rels)) {
             if ($rel.draft -or $rel.prerelease) { continue }
             $asset = @($rel.assets | Where-Object { $_.name -match '(?i)^Ashes2063-3DWeapons-VR-v[^/\\]+\.zip$' }) | Select-Object -First 1

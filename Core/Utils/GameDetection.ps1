@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #   GameDetection.ps1  -  Read-only game install detection
 # ============================================================
 #
@@ -79,13 +79,13 @@ function Get-SteamLibraries {
     param([Parameter(Mandatory)][string]$SteamPath)
     $libraries = @($SteamPath)
     $vdfPath = Join-Path $SteamPath "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdfPath) {
+    if (Test-Path -LiteralPath $vdfPath) {
         try {
-            $content = Get-Content $vdfPath -Raw -ErrorAction Stop
+            $content = Get-Content -LiteralPath $vdfPath -Raw -ErrorAction Stop
             $found = [regex]::Matches($content, '"path"\s+"([^"]+)"')
             foreach ($m in $found) {
                 $lib = $m.Groups[1].Value -replace '\\\\', '\'
-                if (Test-Path $lib) { $libraries += $lib }
+                if (Test-Path -LiteralPath $lib) { $libraries += $lib }
             }
         } catch {}
     }
@@ -102,19 +102,21 @@ function Get-SteamLibraries {
 function Get-SteamGameViaManifest {
     param(
         [Parameter(Mandatory)][string]$AppID,
-        [Parameter(Mandatory)][array]$Libraries
+        [Parameter(Mandatory)][array]$Libraries,
+        [string]$ExeName = ''
     )
     # appmanifest_<AppID>.acf contains the authoritative "installdir" value.
     foreach ($lib in $Libraries) {
         $manifest = Join-Path $lib "steamapps\appmanifest_$AppID.acf"
-        if (-not (Test-Path $manifest)) { continue }
+        if (-not (Test-Path -LiteralPath $manifest)) { continue }
         try {
-            $content = Get-Content $manifest -Raw -ErrorAction Stop
+            $content = Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop
             $m = [regex]::Match($content, '"installdir"\s+"([^"]+)"')
             if ($m.Success) {
                 $installDir = $m.Groups[1].Value -replace '\\\\', '\'
                 $gamePath   = Join-Path $lib "steamapps\common\$installDir"
-                if (Test-Path $gamePath) { return $gamePath }
+                if ((Test-Path -LiteralPath $gamePath -PathType Container) -and
+                    (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $gamePath $ExeName) -PathType Leaf))) { return $gamePath }
             }
         } catch {}
     }
@@ -124,11 +126,13 @@ function Get-SteamGameViaManifest {
 function Get-SteamGameViaScan {
     param(
         [Parameter(Mandatory)][string]$Folder,
-        [Parameter(Mandatory)][array]$Libraries
+        [Parameter(Mandatory)][array]$Libraries,
+        [string]$ExeName = ''
     )
     foreach ($lib in $Libraries) {
         $candidate = Join-Path $lib "steamapps\common\$Folder"
-        if (Test-Path $candidate) { return $candidate }
+        if ((Test-Path -LiteralPath $candidate -PathType Container) -and
+            (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $candidate $ExeName) -PathType Leaf))) { return $candidate }
     }
     return $null
 }
@@ -144,7 +148,7 @@ function Get-GamepassViaAppx {
     # where Appx module is disabled should not throw.
     try {
         $pkg = Get-AppxPackage -Name $PackageName -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($pkg -and $pkg.InstallLocation -and (Test-Path $pkg.InstallLocation)) {
+        if ($pkg -and $pkg.InstallLocation -and (Test-Path -LiteralPath $pkg.InstallLocation)) {
             return $pkg.InstallLocation
         }
     } catch {}
@@ -170,7 +174,7 @@ function Get-GamepassViaDriveScan {
         } else {
             $candidate = $base
         }
-        if (Test-Path $candidate) { return $candidate }
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
     }
     return $null
 }
@@ -188,7 +192,7 @@ function Get-EpicGameInstall {
     # Epic writes one .item manifest per installed game as JSON under
     # C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests\
     $manifestDir = "$env:ProgramData\Epic\EpicGamesLauncher\Data\Manifests"
-    if (-not (Test-Path $manifestDir)) { return $null }
+    if (-not (Test-Path -LiteralPath $manifestDir)) { return $null }
 
     try {
         $items = Get-ChildItem -Path $manifestDir -Filter "*.item" -ErrorAction Stop
@@ -196,14 +200,14 @@ function Get-EpicGameInstall {
 
     foreach ($item in $items) {
         try {
-            $json = Get-Content $item.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            $json = Get-Content -LiteralPath $item.FullName -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         } catch { continue }
 
         # Guard every field access - some manifests have missing or malformed values
         $loc = $null
         try { $loc = $json.InstallLocation } catch { continue }
         if (-not $loc) { continue }
-        try { if (-not (Test-Path $loc)) { continue } } catch { continue }
+        try { if (-not (Test-Path -LiteralPath $loc)) { continue } } catch { continue }
 
         # Strategy 1: match on AppName if provided (preferred)
         if ($AppName) {
@@ -252,7 +256,7 @@ function Get-GOGGameInstall {
     )) {
         try {
             $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).PATH
-            if ($p -and (Test-Path $p)) { return $p }
+            if ($p -and (Test-Path -LiteralPath $p)) { return $p }
         } catch {}
     }
     return $null
@@ -275,7 +279,7 @@ function Get-UbisoftGameInstall {
     )
 
     $installsKey = "HKLM:\SOFTWARE\WOW6432Node\Ubisoft\Launcher\Installs"
-    if (-not (Test-Path $installsKey)) { return $null }
+    if (-not (Test-Path -LiteralPath $installsKey)) { return $null }
 
     try {
         $subKeys = Get-ChildItem -Path $installsKey -ErrorAction Stop
@@ -289,7 +293,7 @@ function Get-UbisoftGameInstall {
             if (-not $installDir) { continue }
             # Ubisoft stores paths with forward slashes sometimes - normalize.
             $installDir = ($installDir -replace '/', '\').TrimEnd('\')
-            if (-not (Test-Path $installDir)) { continue }
+            if (-not (Test-Path -LiteralPath $installDir)) { continue }
 
             $baseName = $null
             try { $baseName = Split-Path $installDir -Leaf -ErrorAction Stop } catch { continue }
@@ -340,7 +344,7 @@ function Get-EAGameInstall {
     )
 
     foreach ($root in $rootKeys) {
-        if (-not (Test-Path $root)) { continue }
+        if (-not (Test-Path -LiteralPath $root)) { continue }
         try {
             $subKeys = Get-ChildItem -Path $root -ErrorAction Stop
         } catch { continue }
@@ -355,7 +359,7 @@ function Get-EAGameInstall {
                 }
                 if (-not $installDir) { continue }
                 $installDir = ($installDir -replace '/', '\').TrimEnd('\')
-                if (-not (Test-Path $installDir)) { continue }
+                if (-not (Test-Path -LiteralPath $installDir)) { continue }
 
                 $baseName = $null
                 try { $baseName = Split-Path $installDir -Leaf -ErrorAction Stop } catch { continue }
@@ -449,7 +453,7 @@ function Find-GameInstall {
         param([string]$Path)
         if (-not $ExeName) { return $true }
         $full = Join-Path $Path $ExeName
-        return (Test-Path $full)
+        return (Test-Path -LiteralPath $full)
     }
 
     function Add-Candidate {
@@ -490,14 +494,14 @@ function Find-GameInstall {
 
                 # 1a. ACF-based lookup (most reliable)
                 if ($Steam.AppID) {
-                    $p = Get-SteamGameViaManifest -AppID $Steam.AppID -Libraries $libs
+                    $p = Get-SteamGameViaManifest -AppID $Steam.AppID -Libraries $libs -ExeName $ExeName
                     if ($p) { Add-Candidate -Path $p -Source "Steam-Manifest" -Confidence "High" }
                 }
 
                 # 1b. Library scan via folder name
                 if (-not ($result.Candidates | Where-Object { $_.Source -eq "Steam-Manifest" })) {
                     if ($Steam.Folder) {
-                        $p = Get-SteamGameViaScan -Folder $Steam.Folder -Libraries $libs
+                        $p = Get-SteamGameViaScan -Folder $Steam.Folder -Libraries $libs -ExeName $ExeName
                         if ($p) { Add-Candidate -Path $p -Source "Steam-Scan" -Confidence "Medium" }
                     }
                 }
@@ -517,7 +521,7 @@ function Find-GameInstall {
                 if ($p) {
                     # Some Gamepass installs have a Content subfolder, some don't.
                     $withContent = Join-Path $p "Content"
-                    if ((Test-Path $withContent) -and ($Gamepass.ContentSubfolder -ne $false)) {
+                    if ((Test-Path -LiteralPath $withContent) -and ($Gamepass.ContentSubfolder -ne $false)) {
                         Add-Candidate -Path $withContent -Source "Gamepass-Appx" -Confidence "High"
                     } else {
                         Add-Candidate -Path $p -Source "Gamepass-Appx" -Confidence "High"

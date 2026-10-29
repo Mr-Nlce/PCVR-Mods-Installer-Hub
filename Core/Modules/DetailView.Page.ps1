@@ -1278,6 +1278,16 @@ function global:Show-DiscoverDetail {
     # Normal Steam titles (not in this map) still use their store text.
     $infoHeading = "Game Info"
     $customDescriptions = @{
+        "The House of the Dead 2" = "The House of the Dead 2 is a classic arcade light gun rail shooter released by Sega in 1998. Set in Venice, Italy, the game tasks players with fighting off hordes of biological mutants and genetically engineered creatures while rescuing survivors."
+        "Call of Duty: United Offensive VR" = "Call of Duty: United Offensive VR adapts the iconic World War II expansion into an immersive first-person virtual reality experience. Players battle through intense, snow-covered European warzones alongside fellow soldiers with authentic period weaponry."
+        'Black & White VR' = 'Shape a living island as a benevolent or fearsome god. Raise and train a Creature, guide your villagers and cast miracles while your actions change the world and how its inhabitants see you.'
+        'Dementium II HD VR' = 'William Redmoor wakes inside a nightmare of hospital wards, impossible corridors and distorted memories. Fight grotesque enemies, solve puzzles and search for an escape from Bright Dawn Treatment Center.'
+        'Tomb Raider: Legend VR' = 'Lara Croft follows the fragments of an ancient sword across ruins, mountains and modern cities. Combine acrobatics, puzzles, gunplay and a magnetic grapple in the adventure that reinvented Tomb Raider.'
+        'Final Fantasy VII Remake Intergrade VR' = 'Cloud Strife joins the resistance against Shinra in a vast reimagining of Midgar. Explore its districts, meet Aerith, Tifa and Barret, and blend real-time action with tactical battles in Final Fantasy VII Remake Intergrade.'
+        'Call of Duty: Black Ops VR' = 'Enter the Cold War as Alex Mason, uncover a conspiracy through covert missions and survive the relentless waves of Zombies. BO1VR adds tracked hands, physical weapons, manual reloads and roomscale movement to the Steam campaign and Zombies modes.'
+        'Dead Space 2 VR' = 'Isaac Clarke wakes aboard the Sprawl, where another Necromorph outbreak turns a crowded space station into a fight for survival. Explore its failing corridors, manage scarce ammunition and dismember enemies with improvised engineering tools.'
+        'Balatro VR' = 'Build outrageous poker hands in a roguelike deckbuilder where jokers, tarot cards and multiplying bonuses can turn an ordinary hand into a spectacular score. The community VR mod brings the cards, shop and jokers into a hands-on casino.'
+        'Blood West VR' = 'An undead gunslinger returns to a cursed frontier in a stealth-focused immersive shooter. Explore haunted wilderness, scavenge weapons and supplies, and choose how to confront the monsters that own the night.'
         'GRID (2019) VR' = 'Compete in wheel-to-wheel motorsport across street circuits and permanent tracks. GRID (2019) mixes touring cars, GT racers and muscle cars with rivals who remember your racing line. CodiesVR brings a head-tracked cockpit to its DirectX 12 version.'
         'GRID Legends VR' = 'Join Seneca Racing in a dramatic motorsport campaign, then build custom race events across city streets and circuits. GRID Legends combines varied racing classes with a live-action story. CodiesVR adds an immersive cockpit, adjustable HUD and OpenXR head tracking.'
         'DiRT 4 VR' = 'Build your rally career across gravel, tarmac and dirt stages, race rallycross and Landrush events, and learn to trust your co-driver. DiRT 4 combines approachable driving with a simulation handling option. CodiesVR brings the cockpit into OpenXR with head tracking and adjustable VR panels.'
@@ -1350,6 +1360,8 @@ function global:Show-DiscoverDetail {
     if ($customDescriptions.ContainsKey($Game.Title)) {
         $steamDesc = $customDescriptions[$Game.Title]
         if ($toolInfoTitles -contains $Game.Title) { $infoHeading = "Tool Info" }
+    } elseif ($Game.GameInfoText) {
+        $steamDesc = [string]$Game.GameInfoText
     } else {
         $steamDesc = Get-SteamShortDescription -SteamId $Game.SteamId
         if (-not $steamDesc -and $Game.SteamId -and -not $global:SteamDescCache.ContainsKey([string]$Game.SteamId)) {
@@ -1360,7 +1372,8 @@ function global:Show-DiscoverDetail {
             $steamDescPending = $true
         }
     }
-    $hasGameInfo = [bool]$steamDesc
+    $gameInfoScreenshotUrl = Get-GameImageUrl -Game $Game -Kind "screenshot"
+    $hasGameInfo = [bool]$steamDesc -or [bool]$gameInfoScreenshotUrl
 
     $infoRow = New-Object System.Windows.Controls.Grid
     $infoRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, 14)
@@ -1525,305 +1538,37 @@ function global:Show-DiscoverDetail {
             Start-SteamDetailInfoFetch -SteamId ([string]$Game.SteamId) -Completed $steamInfoReady
         }
 
-        # UEVR has no Steam page - show the bundled compat-grid
-        # image so the Tool Info box has a visual.
-        if ($Game.Title -eq "UEVR Deluxe") {
-            $uevrShotPath = Join-Path $script:scriptDir "Assets\UEVR_compat_grid.jpg"
-            if (Test-Path $uevrShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$uevrShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # UUVR / Rai Pal has no Steam page - show the bundled
-        # description image so the Tool Info box has a visual, the
-        # same way UEVR shows its compat grid above.
-        if ($Game.Title -eq "UUVR / Rai Pal") {
-            $uuvrShotPath = Join-Path $script:scriptDir "Assets\UUVR_description.jpg"
-            if (Test-Path $uuvrShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$uuvrShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        if ($Game.Title -eq "Dolphin VR + ReduX") {
-            $dolphinShotPath = Join-Path $script:scriptDir "Assets\DolphinVR_screenshot.jpg"
-            if (Test-Path $dolphinShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$dolphinShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # Sonic P-06 has no Steam page either - load the bundled
-        # screenshot so the Game Info box has a visual, same pattern
-        # as UEVR above.
-        if ($Game.Title -eq "Sonic P-06 VR") {
-            $sonicShotPath = Join-Path $script:scriptDir "Assets\SonicP06_screenshot.jpg"
-            if (Test-Path $sonicShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$sonicShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # Anomaly VR has no Steam page - load the bundled
-        # screenshot so the Game Info box has a visual, same pattern
-        # as Sonic P-06 above.
-        if ($Game.Title -eq "Anomaly VR") {
-            $anomalyShotPath = Join-Path $script:scriptDir "Assets\AnomalyVR_screenshot.jpg"
-            if (Test-Path $anomalyShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$anomalyShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # Iron Lung VR has no Steam page - load the bundled
-        # screenshot so the Game Info box has a visual, same pattern
-        # as Anomaly VR / Sonic P-06 above.
-        if ($Game.Title -eq "Iron Lung VR") {
-            $ironLungShotPath = Join-Path $script:scriptDir "Assets\IronLungVR_screenshot.jpg"
-            if (Test-Path $ironLungShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$ironLungShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # Vivecraft has no Steam page - load the bundled screenshot
-        # into the Game Info box, same pattern as Iron Lung above.
-        if ($Game.Title -eq "Vivecraft") {
-            $vivecraftShotPath = Join-Path $script:scriptDir "Assets\Vivecraft_screenshot.jpg"
-            if (Test-Path $vivecraftShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$vivecraftShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # World of Warcraft has no Steam page - load the bundled
-        # screenshot so the Game Info box has a visual, same pattern
-        # as Anomaly VR / Sonic P-06 above.
-        if ($Game.Title -eq "World of Warcraft VR") {
-            $wowShotPath = Join-Path $script:scriptDir "Assets\WorldOfWarcraft_screenshot.jpg"
-            if (Test-Path $wowShotPath) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                $shotImg = New-Object System.Windows.Controls.Image
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $sbmp.UriSource = ([System.Uri]$wowShotPath)
-                    $sbmp.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    $sbmp.EndInit()
-                    if ($sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
-        }
-        # Fill the empty space below the description with a Steam
-        # screenshot. Threshold ~400 chars roughly matches "fits in
-        # a reasonable column height with image room left". For
-        # very long descriptions we skip the image to avoid cramming.
-        # Skip for UEVR (synthetic description, no Steam media).
-        # A bundled ScreenshotUrl (e.g. Halo CE) is deliberately provided
-        # and always shows. The ~400-char limit only gates the Steam-media
-        # fallback, where a long Steam description leaves no room.
-        if ($Game.ScreenshotUrl -or ($steamDesc.Length -lt 400 -and $Game.SteamId)) {
-            $shotUrl = $null
-            # A bundled ScreenshotUrl always wins (e.g. Halo CE, which
-            # ships its own art and has no SteamId).
-            if ($Game.ScreenshotUrl) {
-                $shotAbs = Join-Path $script:scriptDir $Game.ScreenshotUrl
-                if (Test-Path $shotAbs) { $shotUrl = ConvertTo-HubFileUri -Path $shotAbs }
-            }
-            # Prefer the locally-cached screenshot file (works offline).
-            if (-not $shotUrl -and $Game.SteamId) {
-                $shotUrl = Get-CachedImageUri -SteamId $Game.SteamId -Kind "screenshot"
-            }
-            # Then the live screenshot URL from the appdetails cache.
-            if (-not $shotUrl -and $Game.SteamId) {
-                $shotUrl = Get-SteamScreenshot -SteamId $Game.SteamId
-            }
-            # Some Steam apps return no screenshots in /appdetails
-            # (older titles, private depots). Fall back to our LOCAL
-            # cached header first (works offline), then the network
-            # header, so the panel still has a visual.
-            if (-not $shotUrl -and $Game.SteamId) {
-                $shotUrl = Get-CachedImageUri -SteamId $Game.SteamId -Kind "header"
-            }
-            if (-not $shotUrl -and $Game.SteamId) {
-                $shotUrl = Get-SteamHeaderUrl $Game.SteamId
-            }
-            if ($shotUrl) {
-                $shotBorder = New-Object System.Windows.Controls.Border
-                $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
-                $shotBorder.ClipToBounds = $true
-                $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
-                $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
-                # Preserve the complete source image in its own aspect ratio.
-                # Never impose Height/MaxHeight here: UniformToFill would then
-                # crop square or portrait artwork to the artificial viewport.
-                $shotImg = New-Object System.Windows.Controls.Image
-                # Steam screenshots are 16:9; UniformToFill keeps
-                # the aspect while filling the available width.
-                # WPF auto-scales the bitmap to the container size,
-                # so the source image dimensions don't matter.
-                $shotImg.Stretch = [System.Windows.Media.Stretch]::UniformToFill
-                try {
-                    $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
-                    $sbmp.BeginInit()
-                    $shotUri = New-Object System.Uri $shotUrl
-                    $sbmp.UriSource = $shotUri
-                    $sbmp.DecodePixelWidth = 1280
-                    $sbmp.CacheOption = if ($shotUri.IsFile) {
-                        [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-                    } else {
-                        [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
-                    }
-                    # If the chosen URL fails (e.g. screenshot URL
-                    # 404s on older titles), try the header banner
-                    # as a last resort.
-                    $hdrFallback = Get-SteamHeaderUrl $Game.SteamId
-                    $shotImgRef = $shotImg
-                    $sbmp.Add_DownloadFailed({
-                        param($s, $e)
-                        if (-not $hdrFallback) { return }
-                        try {
-                            $hb = New-Object System.Windows.Media.Imaging.BitmapImage
-                            $hb.BeginInit()
-                            $hbUri = New-Object System.Uri $hdrFallback
-                            $hb.UriSource = $hbUri
-                            $hb.DecodePixelWidth = 1280
-                            $hb.CacheOption = if ($hbUri.IsFile) { [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad } else { [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand }
-                            $hb.EndInit()
-                            if ($hbUri.IsFile -and $hb.CanFreeze) { $hb.Freeze() }
-                            $shotImgRef.Source = $hb
-                        } catch { }
-                    }.GetNewClosure())
-                    $sbmp.EndInit()
-                    if ($shotUri.IsFile -and $sbmp.CanFreeze) { $sbmp.Freeze() }
-                    $shotImg.Source = $sbmp
-                } catch { }
-                $shotBorder.Child = $shotImg
-                $gameInfoStack.Children.Add($shotBorder) | Out-Null
-                Add-HoverScale -Element $shotBorder -Scale 1.02
-            }
+        # A real screenshot is independent of description presence or length.
+        # All local/Steam screenshots use the same catalog resolver.
+        if ($gameInfoScreenshotUrl) {
+            $shotBorder = New-Object System.Windows.Controls.Border
+            $shotBorder.Uid = 'GameInfoScreenshotFrame'
+            $shotBorder.CornerRadius = [System.Windows.CornerRadius]::new(4)
+            $shotBorder.ClipToBounds = $true
+            $shotBorder.Margin = [System.Windows.Thickness]::new(0, 10, 0, 0)
+            $shotBorder.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Stretch
+            $shotImg = New-Object System.Windows.Controls.Image
+            $shotImg.Uid = 'GameInfoScreenshot'
+            $shotImg.Tag = [string]$Game.Id
+            $shotImg.Stretch = [System.Windows.Media.Stretch]::Uniform
+            try {
+                $sbmp = New-Object System.Windows.Media.Imaging.BitmapImage
+                $sbmp.BeginInit()
+                $shotUri = New-Object System.Uri $gameInfoScreenshotUrl
+                $sbmp.UriSource = $shotUri
+                $sbmp.DecodePixelWidth = 1280
+                $sbmp.CacheOption = if ($shotUri.IsFile) {
+                    [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+                } else {
+                    [System.Windows.Media.Imaging.BitmapCacheOption]::OnDemand
+                }
+                $sbmp.EndInit()
+                if ($shotUri.IsFile -and $sbmp.CanFreeze) { $sbmp.Freeze() }
+                $shotImg.Source = $sbmp
+            } catch { }
+            $shotBorder.Child = $shotImg
+            $gameInfoStack.Children.Add($shotBorder) | Out-Null
+            Add-HoverScale -Element $shotBorder -Scale 1.02
         }
 
         $infoRow.Children.Add($gameInfoBox) | Out-Null
@@ -3667,7 +3412,9 @@ function global:Show-DiscoverDetail {
     # Only for winhttp-based BepInEx mods (or a game with an explicit
     # FlatVR proxy, e.g. Portal 2) that are actually VR-installed.
     $fvSt2 = $global:gameStateMap[$Game.Title]
-    if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or $Game.FlatVRIniFile -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
+    $flatSlotAvailable = -not $Game.FlatVRRootSlot -or [bool](Get-AlternativeModValue $fvSt2 ('Mod'+[string]$Game.FlatVRRootSlot+'Present'))
+    if ($Game.FlatVRRootRoute -eq 'Current' -and -not $fvSt2.CurrentPresent) { $flatSlotAvailable=$false }
+    if ((($Game.ModFile -and ($Game.ModFile -match 'BepInEx')) -or $Game.FlatVREnabled -or $Game.FlatVRIniFile -or $Game.FlatVRPublisherLauncher -or ($Game.Bat -and ($Game.Bat -match 'LukeRossVR'))) -and $fvSt2 -and $flatSlotAvailable -and ($fvSt2.Tag -in @("vrinstalled","vrupdate"))) {
         $flatBtn = New-FlatVRToggleButton -Game $Game -AccentHex $accentHex
         $flatBtn.Margin = [System.Windows.Thickness]::new(8, 0, 0, 0)
         Add-StandardHover -Border $flatBtn
@@ -3859,7 +3606,9 @@ function global:Build-DiscoverTiles {
 }
 
 function global:Refresh-DiscoverStatuses {
+    param([string[]]$Titles=@())
     foreach ($tile in $global:discoverPanel.Children) {
+        if ($Titles.Count -gt 0 -and $tile.Resources.Item('game').Title -notin $Titles) { continue }
         Update-DiscoverTileStatus -Tile $tile
     }
 }

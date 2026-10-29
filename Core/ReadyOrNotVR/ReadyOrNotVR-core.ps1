@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Ready Or Not VR Installer
 # Layers the free "Ready Or Not VRO Mod" (Virtual Reality Oasis
 # & KITT) onto a copy of Ready Or Not. We ship ZERO game files.
@@ -196,7 +196,7 @@ function Get-DroppedFile {
 function Get-DlssSwapperUrl {
     param([ValidateSet("installer","portable")][string]$Kind)
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/beeradmoore/dlss-swapper/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/beeradmoore/dlss-swapper/releases/latest" `
                  -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
         $suffix = if ($Kind -eq "installer") { "-installer.exe" } else { "-portable.zip" }
         foreach ($a in $rel.assets) {

@@ -1,4 +1,4 @@
-# Black Mesa VR - safe stable-channel installer.
+﻿# Black Mesa VR - safe stable-channel installer.
 # Downloads are acquired at run time. No VR-mod archive is bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
@@ -95,7 +95,7 @@ function Get-ArchiveInputFolders {
 
 function Get-LatestRelease {
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25 -ErrorAction Stop
+        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25 -ErrorAction Stop
         if (-not $release.draft -and -not $release.prerelease) {
         $asset = @($release.assets | Where-Object {
             [string]$_.browser_download_url -and [string]$_.name -match '(?i)\.zip$'

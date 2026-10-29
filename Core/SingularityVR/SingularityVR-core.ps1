@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Singularity VR - SingularityVR by letsgosportsteam
 # ------------------------------------------------------------
 #  The mod is a d3d9.dll PROXY: it forwards every Direct3D 9 call to
@@ -195,7 +195,7 @@ Write-Step 3 5 "Downloading and installing $MOD_NAME"
 $zipUrl = $null; $tag = ""
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     $pick = @($rel) | Where-Object { -not $_.draft } | Select-Object -First 1
     if ($pick) {

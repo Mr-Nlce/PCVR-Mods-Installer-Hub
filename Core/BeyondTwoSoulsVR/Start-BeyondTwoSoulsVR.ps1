@@ -1,7 +1,7 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference='Stop'
 $scriptPath=Join-Path $GameDirectory 'B2S_VR_MOD\tools\b2svr_setup.ps1'
-foreach($name in @('BeyondTwoSouls_Steam.exe|BeyondTwoSouls.exe','BigFile_PC.dat','dinput8.dll','B2S_VR_MOD\files\dinput8.dll','B2S_VR_MOD\files\BUILD.txt','B2S_VR_MOD\tools\b2svr_setup.ps1','.pcvrhub_version')){
+foreach($name in @('BeyondTwoSouls_Steam.exe|BeyondTwoSouls.exe','BigFile_PC.dat','dinput8.dll','B2S_VR_MOD\files\dinput8.dll','B2S_VR_MOD\files\BUILD.txt','B2S_VR_MOD\tools\b2svr_setup.ps1')){
     $choices=@($name -split '\|');$found=$false
     foreach($choice in $choices){if(Test-Path -LiteralPath (Join-Path $GameDirectory $choice) -PathType Leaf){$found=$true;break}}
     if(-not $found){throw "Beyond VR launch is incomplete: $name"}

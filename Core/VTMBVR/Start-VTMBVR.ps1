@@ -1,9 +1,8 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference='Stop'
 foreach($name in @('vampire.exe','VTMBup-readme.txt','Loader.exe',
     'Unofficial_Patch\cfg\autoexec.cfg','Unofficial_Patch\vdata\system\rules.txt','d3d9.dll','openvr_api.dll',
-    'openxr_loader.dll','VR\config.txt','VR\SteamVRActionManifest\action_manifest.json',
-    '.pcvrhub_bloodlinesvr_ownership.csv','.pcvrhub_version')){
+    'openxr_loader.dll','VR\config.txt','VR\SteamVRActionManifest\action_manifest.json')){
     if(-not(Test-Path -LiteralPath (Join-Path $GameDirectory $name) -PathType Leaf)){
         throw "Bloodlines VR is incomplete: $name. Use Reinstall in the Hub."
     }

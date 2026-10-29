@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # BioShock 2 VR - Installer (bioshock-vr by mohamad-balouza)
 # ============================================================
 # Native VR for BioShock 2 Remastered: stereo rendering, 6DOF head
@@ -74,7 +74,7 @@ function Find-Bioshock2Bin {
 function Get-LatestBioshockVR {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         foreach ($rel in @($rels)) {
             $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
             if ($zips.Count -gt 0) {

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$GameRoot = "",
     [switch]$NoIntro,
     [switch]$NoPause
@@ -49,7 +49,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $GameRoot "openxr_loader.dll") -Path
 
 $release = $null
 try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
     $asset = @($rel.assets | Where-Object { $_.name -match '(?i)^community_improvement_mod.*\.zip$' } | Select-Object -First 1)[0]
     if ($asset) { $release = [pscustomobject]@{ Tag=[string]$rel.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url; Digest=[string]$asset.digest } }
 } catch {}

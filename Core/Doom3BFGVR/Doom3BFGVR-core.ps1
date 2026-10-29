@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  DOOM 3 BFG Edition - Fully Possessed VR Installer
 # ============================================================
 
@@ -184,7 +184,7 @@ $alreadyInstalled = ($hasData -and $hasExe)
 
 $releaseData = $null
 try {
-    $releaseData = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
+    $releaseData = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" `
                 -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25
 } catch {
     Write-Warn "Could not read the releases list: $($_.Exception.Message)"

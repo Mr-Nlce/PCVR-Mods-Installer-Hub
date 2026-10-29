@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # BioShock Remastered VR Mod Installer - TWO mods, one game
 #
 #   A) BioVRDev  - github.com/BioVRDev/Bioshock-Remastered-VR
@@ -203,7 +203,7 @@ function Get-ModRelease {
     param([string]$Api, [string]$PageUrl, [string]$ZipPath, [string]$Label, [string]$NameHint)
     $tag = $null
     try {
-        $rel = Invoke-RestMethod -Uri $Api -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
+        $rel = Invoke-PCVRRestMethod -Uri $Api -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1
         if ($asset) {
             Write-Info "$Label release $($rel.tag_name) - downloading $($asset.name)"

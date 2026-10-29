@@ -1,4 +1,15 @@
 $searchPlaceholder = $window.FindName("SearchPlaceholder")
+$searchClearButton = $window.FindName('SearchClearButton')
+if ($searchClearButton -and $searchBox) {
+    $searchClearButton.Add_Click({
+        param($sender,$e)
+        # Clear uses the existing TextChanged path for every library view.
+        $searchBox.Clear()
+        [void]$searchBox.Focus()
+        [void][System.Windows.Input.Keyboard]::Focus($searchBox)
+        $e.Handled=$true
+    })
+}
 # ---------------------------------------------------------------
 # Search hint under the box. Two states in one spot:
 #   normal  -> the examples line

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # REFramework VR - Shared Installer
 # by praydog | https://github.com/praydog/REFramework
 # ============================================================
@@ -54,9 +54,9 @@ $GAMES = @(
  @{ Title="Dragon's Dogma 2"; Folders=@("Dragon's Dogma 2","DragonsDogma2"); Exe="DD2.exe"; Flavor="Pawns at your side. The Arisen rises again - this time in VR." },
  @{ Title="Ghosts 'n Goblins Resurrection"; Folders=@("Makaimura_GG_RE","Ghosts n Goblins Resurrection","GhostsnGoblinsResurrection","Ghosts 'n Goblins Resurrection"); Exe="makaimura_GG_RE.exe"; ExeFallbacks=@("GhostsnGoblinsResurrection.exe"); Flavor="Arthur's armor lasts two hits. VR will not save you." },
  @{ Title="Kunitsu-Gami: Path of the Goddess"; Folders=@("KUNITSU-GAMI","Kunitsu-Gami","KunitsuGami"); Exe="KunitsuGami.exe"; Flavor="Purify the mountain. Defend the Maiden. The Seethe creeps closer." },
- @{ Title="Mega Man Star Force Legacy Collection"; Folders=@("Mega Man Star Force Legacy Collection","MegaManStarForceLegacyCollection"); Exe="STARFORCE.exe"; Flavor="EM-Wave Change! Geo Stelar fuses with Omega-Xis - in VR." },
+ @{ Title="Mega Man Star Force Legacy Collection"; Folders=@("MegaMan StarForce LegacyCollection","Mega Man Star Force Legacy Collection","MegaManStarForceLegacyCollection"); Exe="MEGAMAN_STARFORCE_Legacy_Collection.exe"; ExeFallbacks=@("STARFORCE.exe"); Flavor="EM-Wave Change! Geo Stelar fuses with Omega-Xis - in VR." },
  @{ Title="Monster Hunter Rise"; Folders=@("MonsterHunterRise","Monster Hunter Rise"); Exe="MonsterHunterRise.exe"; Flavor="Wirebug to the skies. Magnamalo is watching." },
- @{ Title="Monster Hunter Stories 3"; Folders=@("MONSTER HUNTER STORIES 3","Monster Hunter Stories 3","MonsterHunterStories3"); Exe="MHSTORIES3.exe"; Flavor="Bond with monsters, ride them into battle." },
+ @{ Title="Monster Hunter Stories 3"; Folders=@("MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION","MONSTER HUNTER STORIES 3","Monster Hunter Stories 3","MonsterHunterStories3"); Exe="MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION.exe"; ExeFallbacks=@("MHSTORIES3.exe"); Flavor="Bond with monsters, ride them into battle." },
  @{ Title="Monster Hunter Wilds"; Folders=@("MonsterHunterWilds","Monster Hunter Wilds"); Exe="MonsterHunterWilds.exe"; Flavor="The Forbidden Lands open up. Hunt in VR." },
  @{ Title="Onimusha 2: Samurai's Destiny"; Folders=@("ONIMUSHA2","Onimusha 2","Onimusha2"); Exe="Onimusha2.exe"; Flavor="Sengoku-era demons. One Oni-blade. In your hands now." },
  @{ Title="Pragmata"; Folders=@("PRAGMATA","Pragmata"); Exe="Pragmata.exe"; Flavor="Lunar station, lost girl, hacked reality. Solve it in VR." },
@@ -81,13 +81,13 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 
 function Get-SteamPath {
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
- try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
+ try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path -LiteralPath $p)){return $p} } catch {}
  }; return $null
 }
 function Get-SteamLibraries { param($sp)
  $libs=@($sp); $vdf=Join-Path $sp "steamapps\libraryfolders.vdf"
- if(Test-Path $vdf){ [regex]::Matches((Get-Content $vdf -Raw),'"path"\s+"([^"]+)"') | ForEach-Object {
- $l=$_.Groups[1].Value -replace '\\\\','\'; if(Test-Path $l){$libs+=$l} } }
+ if(Test-Path -LiteralPath $vdf){ [regex]::Matches((Get-Content -LiteralPath $vdf -Raw),'"path"\s+"([^"]+)"') | ForEach-Object {
+ $l=$_.Groups[1].Value -replace '\\\\','\'; if(Test-Path -LiteralPath $l){$libs+=$l} } }
  return $libs
 }
 
@@ -157,7 +157,7 @@ if ($sp) {
  foreach ($folder in $selectedGame.Folders) {
  $c = Join-Path $lib "steamapps\common\$folder"
  foreach ($exe in $exeCandidates) {
- if (Test-Path (Join-Path $c $exe)) {
+ if (Test-Path -LiteralPath (Join-Path $c $exe)) {
  $gamePath = $c
  $selectedGame.Exe = $exe
  Write-OK "Found: $gamePath"
@@ -177,7 +177,7 @@ if (-not $gamePath) {
  $r=(Read-Host " Path").Trim().Trim('"')
  $found = $false
  foreach ($exe in $exeCandidates) {
- if(Test-Path(Join-Path $r $exe)) {
+ if(Test-Path -LiteralPath (Join-Path $r $exe)) {
  $gamePath = $r
  $selectedGame.Exe = $exe
  Write-OK "Path set: $gamePath"
@@ -203,7 +203,7 @@ $isPragmata = (($selectedGame.Title -replace "[^A-Za-z0-9]","").ToLower() -eq "p
 $wantAFW   = $false
 $removeAFW = $false
 if ($isPragmata -and $gamePath) {
-    $afwInstalled = Test-Path (Join-Path $gamePath $AFW_MARKER)
+    $afwInstalled = Test-Path -LiteralPath (Join-Path $gamePath $AFW_MARKER)
     Write-Header $selectedGame.Title
     Write-Host " Pragmata is extremely demanding in VR. You can install the" -ForegroundColor White
     Write-Host " standard REFramework VR mod, or a performance-focused variant" -ForegroundColor White
@@ -291,7 +291,7 @@ $apiOk = $false
 foreach ($apiSrc in @($GITHUB_API, "https://web.archive.org/web/0/$GITHUB_API")) {
   Write-Host " Querying GitHub API ($apiSrc) ... " -NoNewline -ForegroundColor White
   try {
-    $apiResp = Invoke-WebRequest -Uri $apiSrc -UseBasicParsing -EA Stop `
+    $apiResp = Invoke-PCVRWebRequest -Uri $apiSrc -UseBasicParsing -EA Stop `
                   -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
     $release = $apiResp.Content | ConvertFrom-Json
     $tagName = $release.tag_name
@@ -313,9 +313,9 @@ foreach ($apiSrc in @($GITHUB_API, "https://web.archive.org/web/0/$GITHUB_API"))
 
 # Decide where the two zips come from: the Hub cache, a fresh download, or
 # a manual drop. Read the saved cache state first.
-$cacheValid = (Test-Path $REF_CACHE_REF) -and (Test-Path $REF_CACHE_VR) -and (Test-IsZip $REF_CACHE_REF) -and (Test-IsZip $REF_CACHE_VR)
+$cacheValid = (Test-Path -LiteralPath $REF_CACHE_REF) -and (Test-Path -LiteralPath $REF_CACHE_VR) -and (Test-IsZip $REF_CACHE_REF) -and (Test-IsZip $REF_CACHE_VR)
 $cachedVer  = ""
-if (Test-Path $REF_CACHE_VER) { try { $cachedVer = (Get-Content $REF_CACHE_VER -Raw -EA Stop).Trim() } catch {} }
+if (Test-Path -LiteralPath $REF_CACHE_VER) { try { $cachedVer = (Get-Content -LiteralPath $REF_CACHE_VER -Raw -EA Stop).Trim() } catch {} }
 
 $useCache     = $false   # extract straight from the Hub cache (no download)
 $refreshCache = $false   # after a fresh download, copy the zips into the cache
@@ -353,7 +353,7 @@ if ($apiOk -and $refZipUrl -and $vrZipUrl) {
   if ([string]$r -eq "retry") {
     $refLocal = Join-Path $tmpManual "REFramework.zip"
     $vrLocal  = Join-Path $tmpManual "VR.zip"
-    if ((Test-Path $refLocal) -and (Test-Path $vrLocal)) {
+    if ((Test-Path -LiteralPath $refLocal) -and (Test-Path -LiteralPath $vrLocal)) {
       $revision = Get-REFrameworkArchiveRevision -ArchivePath $refLocal
       if (-not $revision) { throw 'The manually supplied REFramework.zip has no publisher revision. No version receipt can be written.' }
       $refZipUrl = $refLocal
@@ -438,11 +438,11 @@ foreach ($package in $packages) {
 # if BOTH extracted cleanly - never save a broken/partial set.
 if ($refreshCache -and $failed.Count -eq 0) {
   try {
-    if (-not (Test-Path $REF_CACHE_DIR)) { New-Item -ItemType Directory -Path $REF_CACHE_DIR -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $REF_CACHE_DIR)) { New-Item -ItemType Directory -Path $REF_CACHE_DIR -Force | Out-Null }
     $tmpRef = Join-Path $tmp "REFramework.zip"
     $tmpVr  = Join-Path $tmp "VR.zip"
-    if ((Test-Path $tmpRef) -and (Test-IsZip $tmpRef)) { Copy-Item $tmpRef $REF_CACHE_REF -Force }
-    if ((Test-Path $tmpVr)  -and (Test-IsZip $tmpVr))  { Copy-Item $tmpVr  $REF_CACHE_VR  -Force }
+    if ((Test-Path -LiteralPath $tmpRef) -and (Test-IsZip $tmpRef)) { Copy-Item $tmpRef $REF_CACHE_REF -Force }
+    if ((Test-Path -LiteralPath $tmpVr)  -and (Test-IsZip $tmpVr))  { Copy-Item $tmpVr  $REF_CACHE_VR  -Force }
     Set-Content $REF_CACHE_VER $tagName -Encoding UTF8 -Force
     Write-Info "Saved this build to the Hub ($tagName) for future installs."
   } catch { Write-Warn "Could not update the Hub cache: $($_.Exception.Message)" }
@@ -463,7 +463,7 @@ if ($removeAFW) {
     $anyRemoved = $false
     foreach ($f in $AFW_FILES) {
         $p = Join-Path $gamePath $f
-        if (Test-Path $p) {
+        if (Test-Path -LiteralPath $p) {
             try { Remove-Item $p -Force -EA Stop; $anyRemoved = $true }
             catch { Write-Warn "Could not remove $f : $($_.Exception.Message)" }
         }
@@ -488,7 +488,7 @@ elseif ($wantAFW) {
                  -Label "AFW plugin extraction" `
                  -SkipMessage "Skipped - AFW was not extracted; the standard REFramework install is still in place."
         if ([string]$efb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
-        if (([string]$efb -eq "ok" -or [string]$efb -eq "manual") -and (Test-Path (Join-Path $gamePath $AFW_MARKER))) {
+        if (([string]$efb -eq "ok" -or [string]$efb -eq "manual") -and (Test-Path -LiteralPath (Join-Path $gamePath $AFW_MARKER))) {
             $afwOk = $true
         }
     }
@@ -502,9 +502,9 @@ elseif ($wantAFW) {
 if ($isPragmata) {
     $afwFlagFile = Join-Path $PSScriptRoot ".afw_active_pragmata"
     try {
-        if (Test-Path (Join-Path $gamePath $AFW_MARKER)) {
+        if (Test-Path -LiteralPath (Join-Path $gamePath $AFW_MARKER)) {
             Set-Content $afwFlagFile "1" -Encoding UTF8 -Force
-        } elseif (Test-Path $afwFlagFile) {
+        } elseif (Test-Path -LiteralPath $afwFlagFile) {
             Remove-Item $afwFlagFile -Force -EA SilentlyContinue
         }
     } catch {}
@@ -576,3 +576,6 @@ if ($selectedGame.Flavor) {
 }
 Write-Host ""
 Pause-User "Press Enter to exit."
+
+# Recovered transport failures must not become the completed install exit code.
+exit 0

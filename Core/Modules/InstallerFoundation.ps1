@@ -19,6 +19,41 @@ if (-not (Get-Command Test-IsTrackableInstalledVersion -ErrorAction SilentlyCont
     . (Join-Path $PSScriptRoot 'InstallerSafety.ps1')
 }
 
+function global:Write-PCVRFileCheckResult {
+    param([string]$Path,[bool]$Present,[string]$Phase,[string]$DisplayName='')
+    # The wrapper records this information stream without displaying it.
+    $detail=('File check ['+$Phase+']: '+$Path+' = '+$Present)
+    Write-Information -MessageData $detail -Tags 'PCVRFileCheck' -InformationAction SilentlyContinue
+    if (-not (Get-Variable PCVRInstallerFileCheckDiagnostics -Scope Global -ErrorAction SilentlyContinue)) {
+        $global:PCVRInstallerFileCheckDiagnostics=[Collections.Generic.List[string]]::new()
+    }
+    [void]$global:PCVRInstallerFileCheckDiagnostics.Add($detail)
+    if (-not $DisplayName) { $DisplayName=[IO.Path]::GetFileName($Path) }
+    if (-not (Get-Variable PCVRInstallerVerifiedFilesShown -Scope Global -ErrorAction SilentlyContinue)) {
+        $global:PCVRInstallerVerifiedFilesShown=@{}
+    }
+    if ($Phase -match 'rollback|before-retry') { return }
+    if (-not $Present) {
+        $missingKey='missing:'+$Path
+        if (-not $global:PCVRInstallerVerifiedFilesShown.ContainsKey($missingKey)) {
+            $headingKey='missing-heading:'+$Phase
+            if (-not $global:PCVRInstallerVerifiedFilesShown.ContainsKey($headingKey)) {
+                Write-Host '  [!!] Required VR files are missing:' -ForegroundColor Yellow
+                $global:PCVRInstallerVerifiedFilesShown[$headingKey]=$true
+            }
+            $name=if($DisplayName -match '(^|[\\/])\.'){ 'Installation record' }else{ $DisplayName }
+            Write-Host ('       '+$name+' - missing.') -ForegroundColor Yellow
+            $global:PCVRInstallerVerifiedFilesShown[$missingKey]=$true
+        }
+        return
+    }
+    if ($DisplayName -match '(^|[\\/])\.') { return }
+    if (-not $global:PCVRInstallerVerifiedFilesShown.ContainsKey($Path)) {
+        Write-Host ('  [OK] '+$DisplayName+' - verified.') -ForegroundColor Green
+        $global:PCVRInstallerVerifiedFilesShown[$Path]=$true
+    }
+}
+
 function global:New-PCVRInstallerContract {
     [CmdletBinding()]
     param(

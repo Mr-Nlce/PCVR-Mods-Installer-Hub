@@ -1,6 +1,32 @@
 ﻿# Return the dedicated Hub launcher when a legacy Locate Game value is a
 # known obsolete executable in the same recorded folder. Exact path equality
 # keeps genuine custom-store overrides intact.
+. (Join-Path $PSScriptRoot 'StoreLaunch.ps1')
+
+function global:Start-HubStoreFallback {
+    param($Game,[string]$GameRoot)
+    $xbox=Get-PCVRXboxLaunchRegistration -GameRoot $GameRoot -Names (Get-PCVRStoreGameNames $Game)
+    if($xbox.IsXbox){
+        if(-not $xbox.AppId){
+            Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'Windows could not identify this Xbox game. Start it once from the Xbox app, then try again. The Hub will not redirect this copy to Steam.'
+            return
+        }
+        try { Start-PCVRXboxApplication -AppId $xbox.AppId -Arguments ([string]$Game.LaunchArgs) }
+        catch { Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_ }
+        return
+    }
+    if($GameRoot -notmatch '(?i)[\\/]steamapps[\\/]common[\\/]' -and $GameRoot -match '(?i)[\\/](?:GOG Games|GOG Galaxy[\\/]Games|Epic Games|EA Games|Origin Games)[\\/]'){
+        Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'This game belongs to another store and no matching launch action was found. Open it from that store, or use Locate Game to select its start app. The Hub will not redirect this copy to Steam.'
+        return
+    }
+    if($Game.SteamId){
+        try{Start-Process ("steam://rungameid/"+[string]$Game.SteamId) -ErrorAction Stop}
+        catch{Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_}
+        return
+    }
+    Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'No verified game or VR launcher is configured for this entry.'
+}
+
 function global:Get-ReplacementForObsoleteBaseLaunchOverride {
     param($Game,[string]$InstalledRoot,[string]$LaunchOverride)
     if (-not $Game -or -not $InstalledRoot -or -not $LaunchOverride -or
@@ -38,8 +64,22 @@ function global:Get-ReplacementForObsoleteBaseLaunchOverride {
 function global:Test-UseSteamBootstrapForInstall {
     param($Game,[string]$GameRoot)
     if (-not $Game -or -not $Game.SteamId) { return $false }
+    $xbox=Get-PCVRXboxLaunchRegistration -GameRoot $GameRoot -Names (Get-PCVRStoreGameNames $Game)
+    if($xbox.IsXbox){return $false}
+    if($GameRoot -notmatch '(?i)[\\/]steamapps[\\/]common[\\/]' -and $GameRoot -match '(?i)[\\/](?:GOG Games|GOG Galaxy[\\/]Games|Epic Games|EA Games|Origin Games)[\\/]'){return $false}
     if ($Game.SteamLaunchOnly) { return $true }
     if (-not $Game.SteamLaunchForSteamInstall -or [string]::IsNullOrWhiteSpace($GameRoot)) { return $false }
+    if($Game.Id -eq 'dead-space-2-vr'){
+        $marker=Join-Path $GameRoot '.pcvrhub_deadspace2_store.txt'
+        if(Test-Path -LiteralPath $marker -PathType Leaf){
+            $store=[IO.File]::ReadAllText($marker).Trim()
+            if($store -in @('Steam','EA')){return $store -eq 'Steam'}
+        }
+    }
+    if($Game.Id -eq 'tomb-raider-legend-vr'){
+        $marker=Join-Path $GameRoot '.pcvrhub_trl_store.txt'
+        if(Test-Path -LiteralPath $marker -PathType Leaf){$store=[IO.File]::ReadAllText($marker).Trim();if($store -in @('Steam','GOG')){return $store -eq 'Steam'}}
+    }
     try {
         $normal = [IO.Path]::GetFullPath($GameRoot).Replace('/','\')
         return ($normal.IndexOf('\steamapps\common\',[StringComparison]::OrdinalIgnoreCase) -ge 0)
@@ -78,6 +118,23 @@ function global:Test-AllowGenericLaunchOverride {
 # Optional Hub-side launch controller for a publisher runtime that must remain
 # in the game folder. This lets a Hub update repair launch/recovery behavior
 # immediately without rewriting an already installed third-party runtime.
+function global:Get-LocatedPublisherLaunchInvocation {
+    param($Game)
+    if(-not $Game -or $Game.TwoMods -or -not(Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue) -or (Read-PersistentGameStateValue -Game $Game -Name 'located_launch_explicit') -ne '1'){return $null}
+    $root=Read-PersistentGameStateValue -Game $Game -Name 'located_vr_root'
+    $base=Read-PersistentGameStateValue -Game $Game -Name 'base_game_path'
+    $target=Read-PersistentGameStateValue -Game $Game -Name 'located_launch_exe'
+    $active=Read-PersistentGameStateValue -Game $Game -Name 'installed_path'
+    if($active -and $active -ine $root -and $active -ine $base){return $null}
+    if(-not $root -or -not $target -or -not [IO.File]::Exists($target) -or
+       -not [IO.Path]::GetFullPath($target).StartsWith(([IO.Path]::GetFullPath($root).TrimEnd([char[]]'\/')+'\'),[StringComparison]::OrdinalIgnoreCase) -or
+       -not (Test-LocatedVrRuntime -Game $Game -Root $root) -or
+       ($base -and -not(Test-BaseGameInstallProof -Game $Game -Root $base))){return $null}
+    $cwd=Read-PersistentGameStateValue -Game $Game -Name 'located_launch_workdir'
+    if(-not $cwd -or -not [IO.Directory]::Exists($cwd)){$cwd=Split-Path $target -Parent}
+    return [pscustomobject]@{FilePath=$target;Arguments=[string](Read-PersistentGameStateValue -Game $Game -Name 'located_launch_args');WorkingDirectory=$cwd}
+}
+
 function global:Get-HubLaunchScriptInvocation {
     param($Game,[string]$GameRoot)
     if (-not $Game -or -not $Game.HubLaunchScript -or [string]::IsNullOrWhiteSpace($GameRoot)) { return $null }
@@ -85,11 +142,24 @@ function global:Get-HubLaunchScriptInvocation {
         $coreRoot=Split-Path -Parent $PSScriptRoot
         $scriptPath=[IO.Path]::GetFullPath((Join-Path $coreRoot ([string]$Game.HubLaunchScript)))
         $launchRoot=[IO.Path]::GetFullPath((Join-Path $GameRoot ([string]$Game.HubLaunchSubdirectory)))
-        $runtimeRoot=[IO.Path]::GetFullPath((Join-Path $GameRoot ([string]$Game.HubLaunchRuntimeSubdirectory)))
+        $runtimeRoot=if($Game.HubLaunchRuntimeRoot){Resolve-VrInstallRoot ([string]$Game.HubLaunchRuntimeRoot)}else{[IO.Path]::GetFullPath((Join-Path $GameRoot ([string]$Game.HubLaunchRuntimeSubdirectory)))}
+        if($Game.Id -in @('balatro-vr','ff7-remake-intergrade-vr') -and (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue)){
+            $locatedRuntime=Read-PersistentGameStateValue -Game $Game -Name 'located_vr_root'
+            if($locatedRuntime -and (Test-LocatedVrRuntime -Game $Game -Root $GameRoot)){$runtimeRoot=[string]$locatedRuntime}
+        }
         if (-not(Test-Path -LiteralPath $scriptPath -PathType Leaf) -or
             -not(Test-Path -LiteralPath $launchRoot -PathType Container) -or
             -not(Test-Path -LiteralPath $runtimeRoot -PathType Container)) { return $null }
-        $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -GameDirectory `"$launchRoot`" -RuntimeRoot `"$runtimeRoot`""
+        if($Game.SeparateLauncherBaseGame -and -not (Test-Path -LiteralPath (Join-Path $runtimeRoot 'PCVR-Launcher\launch.json')) -and (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue)){
+            $locatedBase=Read-PersistentGameStateValue -Game $Game -Name 'base_game_path'
+            if($locatedBase -and (Test-BaseGameInstallProof -Game $Game -Root $locatedBase)){$launchRoot=[string]$locatedBase}
+        }
+        # Windows command-line parsing treats a backslash immediately before a
+        # closing quote as an escape. Directory roots may end in backslashes;
+        # double those trailing runs so the next named argument stays separate.
+        $quotedLaunchRoot=$launchRoot -replace '(\\+)$','${1}${1}'
+        $quotedRuntimeRoot=$runtimeRoot -replace '(\\+)$','${1}${1}'
+        $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`" -GameDirectory `"$quotedLaunchRoot`" -RuntimeRoot `"$quotedRuntimeRoot`""
         if($Game.HubLaunchWindowStyle -eq 'Hidden'){$arguments='-WindowStyle Hidden '+$arguments}
         [pscustomobject]@{FilePath='powershell.exe';Arguments=$arguments;WorkingDirectory=$launchRoot;ScriptPath=$scriptPath;RuntimeRoot=$runtimeRoot}
     } catch { return $null }
@@ -205,10 +275,31 @@ function global:Get-DescentVrLaunchTarget {
 
 # HotD2VR installs a separate publisher runtime. Its copied Hod2.exe is
 # source game data and must never become the Hub's VR launch target.
+function global:Get-HotD2PC2VRLaunchTarget {
+    param($Game)
+    if(-not $Game -or $Game.Id -ne 'house-of-the-dead-2-original-vr'){return $null}
+    $roots=@()
+    $st=if($global:gameStateMap){$global:gameStateMap[$Game.Title]}else{$null}
+    if($st -and $st.ModBRoot){$roots+=@([string]$st.ModBRoot)}
+    if(Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue){try{$roots+=@(Read-PersistentGameStateValue -Game $Game -Name 'mod_b_path')}catch{}}
+    try{$roots+=@(Read-InstalledPath -Game $Game)}catch{}
+    foreach($root in @($roots|Where-Object{$_}|Select-Object -Unique)){
+        $ready=$true
+        foreach($relative in @('Hod2.exe','Config.exe','vr\Start-PC2VR.ps1','vr\HOTD2VR.exe','vr\HOTD2Bridge.dll','vr\openxr_loader.dll','vr\injector.exe','vr\gun.obj','vr\gun.mtl','vr\gun.bmp','.pcvrhub_hotd2pc2vr_ownership.csv','.pcvrhub_version_b')){
+            if(-not(Test-Path -LiteralPath (Join-Path $root $relative) -PathType Leaf)){$ready=$false;break}
+        }
+        if($ready){return [pscustomobject]@{FilePath='powershell.exe';Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $root 'vr\Start-PC2VR.ps1')+'"';WorkingDirectory=Join-Path $root 'vr';Controller=Join-Path $root 'vr\Start-PC2VR.ps1';Root=$root}}
+    }
+    return $null
+}
 function global:Get-HotD2VrLaunchTarget {
     param($Game)
     if (-not $Game -or $Game.Id -ne 'house-of-the-dead-2-original-vr') { return $null }
     $roots = @()
+    if($Game.TwoModsIndependentRoots){
+        try{$roots+=@(Read-PersistentGameStateValue -Game $Game -Name 'mod_a_path')}catch{}
+        try{if($global:gameStateMap[$Game.Title].ModARoot){$roots+=@([string]$global:gameStateMap[$Game.Title].ModARoot)}}catch{}
+    }
     try { $roots += @(Read-InstalledPath -Game $Game) } catch {}
     try {
         $state = $global:gameStateMap[$Game.Title]
@@ -238,14 +329,20 @@ function global:Get-HotD2VrLaunchTarget {
     if ($Game.VrInstallRoot) { $roots += @([string]$Game.VrInstallRoot) }
     foreach ($candidate in @($roots | Where-Object { $_ } | Select-Object -Unique)) {
         try {
-            $root = [IO.Path]::GetFullPath([string]$candidate)
+            $root = [IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables([string]$candidate))
+            if ($global:HubFileSystemLabRoot) {
+                $labPrefix=[IO.Path]::GetFullPath([string]$global:HubFileSystemLabRoot).TrimEnd([char[]]'\/')+[IO.Path]::DirectorySeparatorChar
+                if (-not $root.StartsWith($labPrefix,[StringComparison]::OrdinalIgnoreCase)) { continue }
+            }
             $launcher = Join-Path $root 'HotD2VR.exe'
             $manifestPath = Join-Path $root 'install.json'
             $versionPath = Join-Path $root '.pcvrhub_version'
+            $routeProof=$Game
+            if($Game.ModARequiredFileGroups){$routeProof=@{VrInstallEvidence=(@('HotD2VR.exe')+@($Game.ModARequiredFileGroups))}}
             if (-not (Test-Path -LiteralPath $launcher -PathType Leaf) -or
                 -not (Test-Path -LiteralPath $manifestPath -PathType Leaf) -or
                 -not (Test-Path -LiteralPath $versionPath -PathType Leaf) -or
-                -not (Test-VrInstallEvidenceContract -Game $Game -Root $root)) { continue }
+                -not (Test-VrInstallEvidenceContract -Game $routeProof -Root $root)) { continue }
             $manifest = Get-Content -LiteralPath $manifestPath -Raw -ErrorAction Stop | ConvertFrom-Json
             $version = (Get-Content -LiteralPath $versionPath -Raw -ErrorAction Stop).Trim()
             if ($manifest.product -ne 'HotD2VR' -or $manifest.release -ne $version -or
@@ -411,7 +508,9 @@ function global:Start-GameInVR {
     }
 
     if ($Game.Id -eq 'house-of-the-dead-2-original-vr') {
-        $hotdLaunch = Get-HotD2VrLaunchTarget -Game $Game
+        $hotdState=if($global:gameStateMap){$global:gameStateMap[$Game.Title]}else{$null}
+        $pc2vrChosen=$Mode -eq 'ModB' -or (-not $Mode -and $hotdState -and $hotdState.ModBPresent -and -not $hotdState.ModAPresent)
+        $hotdLaunch = if($pc2vrChosen){Get-HotD2PC2VRLaunchTarget -Game $Game}else{Get-HotD2VrLaunchTarget -Game $Game}
         if (-not $hotdLaunch) {
             Write-HubActionFailure -Action 'Start The House of the Dead 2 in VR' -Message 'The HotD2VR launcher or its installed VR copy is incomplete. Run the installer or scan games again.'
             return
@@ -495,6 +594,16 @@ function global:Start-GameInVR {
         return
     }
 
+    # An explicit publisher starter is different from an automatically saved
+    # base EXE. Revalidate the complete associated mod on every click.
+    if(-not $Mode -and -not $Game.TwoMods -and (Get-Command Get-LocatedPublisherLaunchInvocation -ErrorAction SilentlyContinue)){
+        $selectedLaunch=Get-LocatedPublisherLaunchInvocation -Game $Game
+        if($selectedLaunch){
+            try{Start-GameProcess -FilePath $selectedLaunch.FilePath -Arguments $selectedLaunch.Arguments -WorkingDirectory $selectedLaunch.WorkingDirectory -Game $Game}
+            catch{Write-HubActionFailure -Action ('Start '+$Game.Title+' in VR') -ErrorRecord $_}
+            return
+        }
+    }
     # A single installed PEAK variant still uses the ordinary card click.
     # Resolve it here once for every surface (card and detail page): prefer
     # the recommended 2.1.a depot when no current copy is present, and fall
@@ -503,7 +612,7 @@ function global:Start-GameInVR {
         $autoState = $global:gameStateMap[$Game.Title]
         if ($autoState -and $autoState.DepotPresent -and -not $autoState.CurrentPresent) {
             $Mode = "Depot"
-        } elseif ($Game.Id -eq 'thehunter-call-of-the-wild-vr' -and $autoState -and $autoState.CurrentPresent) {
+        } elseif ($Game.Id -in @('thehunter-call-of-the-wild-vr','bendy-vr','cyberpunk-2077') -and $autoState -and $autoState.CurrentPresent) {
             $Mode = 'Current'
         } elseif ($Game.LegacyDepotLaunchExe -and (-not $autoState -or (-not $autoState.CurrentPresent -and -not $autoState.DepotPresent))) {
             foreach ($cand in (Get-LegacyDepotCandidatePaths -Game $Game)) {
@@ -612,7 +721,7 @@ function global:Start-GameInVR {
             if ($currentRoot) {
                 $currentExe = Join-Path $currentRoot $Game.CurrentLaunchExe
                 $currentReady=(Test-Path -LiteralPath $currentExe -PathType Leaf)
-                if ($currentReady -and $Game.Id -eq 'thehunter-call-of-the-wild-vr') {
+                if ($currentReady -and $Game.Id -in @('thehunter-call-of-the-wild-vr','bendy-vr','cyberpunk-2077')) {
                     $currentReady=(Test-VrInstallEvidenceContract -Game $Game -Root $currentRoot)
                 }
                 if ($currentReady) {
@@ -631,7 +740,7 @@ function global:Start-GameInVR {
                 }
             }
         }
-        if ($Mode -eq 'Current' -and $Game.Id -eq 'thehunter-call-of-the-wild-vr') {
+        if ($Mode -eq 'Current' -and $Game.Id -in @('thehunter-call-of-the-wild-vr','bendy-vr','cyberpunk-2077')) {
             Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'The VR settings runtime is missing from the Current game folder. Run the Current installer again.'
             return
         }
@@ -639,7 +748,8 @@ function global:Start-GameInVR {
             try {
                 if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized }
             } catch { }
-            try { Start-Process "steam://rungameid/$($Game.SteamId)" } catch { }
+            $currentStoreRoot=if($state -and $state.CurrentDir){[string]$state.CurrentDir}elseif($state -and $state.GameDir){[string]$state.GameDir}else{''}
+            Start-HubStoreFallback -Game $Game -GameRoot $currentStoreRoot
             return
         }
     }
@@ -650,6 +760,20 @@ function global:Start-GameInVR {
     # Start in VR (no Mode) launches whichever single mod is present, or
     # falls back to mod A when both exist.
     if ($Game.TwoMods) {
+        if ($Game.GTA4ProfileLaunch) {
+            try {
+                $gtaState=$global:gameStateMap[$Game.Title]
+                $gtaMod=if($Mode -eq 'ModB' -or (-not $Mode -and $gtaState -and -not $gtaState.ModAPresent -and $gtaState.ModBPresent)){'gamepad'}else{'bordplate'}
+                $gtaRoot=if($gtaState -and $gtaState.GameDir){[string]$gtaState.GameDir}else{Read-InstalledPath -Game $Game}
+                if(-not $gtaRoot){throw 'Locate the GTA IV game folder first.'}
+                $gtaCore=if($script:scriptDir){[string]$script:scriptDir}else{Split-Path $PSScriptRoot -Parent}
+                $gtaScript=Join-Path $gtaCore 'GTA4VR\Start-GTA4VR.ps1'
+                if(-not(Test-Path -LiteralPath $gtaScript -PathType Leaf)){throw 'The Hub GTA IV launch controller is missing.'}
+                $gtaQuoted=([IO.Path]::GetFullPath($gtaRoot) -replace '(\\+)$','${1}${1}')
+                Start-GameProcess -FilePath 'powershell.exe' -Arguments ('-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "'+$gtaScript+'" -GameDirectory "'+$gtaQuoted+'" -Mod '+$gtaMod) -WorkingDirectory $gtaRoot -Game $Game
+            } catch { Write-HubActionFailure -Action ('Start '+$Game.Title+' in VR') -ErrorRecord $_ }
+            return
+        }
         if ($Game.MaxPayne2DualLaunch) {
             try {
                 $mpState=$global:gameStateMap[$Game.Title]
@@ -659,6 +783,23 @@ function global:Start-GameInVR {
                 $mpScanRoot=if($mpState -and $mpState.GameDir){[string]$mpState.GameDir}else{''}
                 $mpSlotRoot=if($mpState -and $mpSlot -eq 'A' -and $mpState.ModARoot){[string]$mpState.ModARoot}
                             elseif($mpState -and $mpSlot -eq 'B' -and $mpState.ModBRoot){[string]$mpState.ModBRoot}else{''}
+                if(Get-Command Get-LocatedExternalVrContract -ErrorAction SilentlyContinue){
+                foreach($externalRoot in @($mpSlotRoot,$mpStoredPath,$mpScanRoot|Where-Object {$_}|Select-Object -Unique)){
+                    if(-not(Get-LocatedExternalVrContract -Game $Game -Root $externalRoot) -or
+                       (Test-Path -LiteralPath (Join-Path $externalRoot '.pcvrhub_maxpayne2_profiles')) -or
+                       (Test-Path -LiteralPath (Join-Path $externalRoot 'MP2VR-Install\receipt.json')) -or
+                       (Test-Path -LiteralPath (Join-Path $externalRoot '.pcvrhub_maxpayne2vr_ownership.csv'))){continue}
+                    $externalPresence=Get-TwoModsPresence -Game $Game -FallbackRoot $externalRoot
+                    $slotReady=if($mpSlot -eq 'A'){$externalPresence.ModAPresent}else{$externalPresence.ModBPresent}
+                    if(-not $slotReady){continue}
+                    # A native manual install has no Hub-owned parked profiles.
+                    # Start its proven active runtime; do not rewrite its files.
+                    $native=Get-MP2LaunchTarget -Game $externalRoot -Slot $mpSlot
+                    if($native.Kind -eq 'Uri'){Start-Process $native.Target -ErrorAction Stop}
+                    else{Start-Process -FilePath $native.Target -WorkingDirectory $native.WorkingDirectory -ErrorAction Stop}
+                    return
+                }
+                }
                 $mpRoot=Resolve-MP2LaunchRoot -Candidates @($mpSlotRoot,$mpStoredPath,$mpScanRoot) -Slot $mpSlot
                 if(-not((Test-MP2Slot -Game $mpRoot -Slot $mpSlot -Parked) -or
                          (Test-MP2Slot -Game $mpRoot -Slot $mpSlot))) {
@@ -826,7 +967,7 @@ function global:Start-GameInVR {
         try { $steamBootstrapRoot = Read-InstalledPath -Game $Game } catch {}
     }
     if (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $steamBootstrapRoot) {
-        if ($Game.Id -in @('grid-2019-vr','grid-legends-vr','dirt-4-vr','teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr','forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr') -and
+        if ($Game.Id -in @('grid-2019-vr','grid-legends-vr','dirt-4-vr','teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr','forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr','tomb-raider-legend-vr') -and
             -not (Test-HubDirectVrLaunchEvidence -Game $Game -Root $steamBootstrapRoot)) {
             Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message ("The Steam game folder has no complete " + $Game.Title + " installation. Run the installer or scan games again.")
             return
@@ -923,8 +1064,16 @@ function global:Start-GameInVR {
             }
             try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
             $ovDir = Split-Path -Parent $launchOverride
-            if ($Game.LaunchArgs) {
-                Start-GameProcess -FilePath $launchOverride -Arguments $Game.LaunchArgs -WorkingDirectory $ovDir -Game $Game
+            $overrideArguments=[string]$Game.LaunchArgs
+            $locatedLaunch=Read-PersistentGameStateValue -Game $Game -Name 'located_launch_exe'
+            if($locatedLaunch -and $locatedLaunch -ieq $launchOverride){
+                $locatedArguments=Read-PersistentGameStateValue -Game $Game -Name 'located_launch_args'
+                $locatedWorking=Read-PersistentGameStateValue -Game $Game -Name 'located_launch_workdir'
+                if($locatedArguments){$overrideArguments=[string]$locatedArguments}
+                if($locatedWorking -and (Test-Path -LiteralPath $locatedWorking -PathType Container)){$ovDir=[string]$locatedWorking}
+            }
+            if ($overrideArguments) {
+                Start-GameProcess -FilePath $launchOverride -Arguments $overrideArguments -WorkingDirectory $ovDir -Game $Game
             } else {
                 Start-GameProcess -FilePath $launchOverride -WorkingDirectory $ovDir -Game $Game
             }
@@ -1139,26 +1288,9 @@ function global:Start-GameInVR {
                     if ($exeParent) { $launchWorkDir = $exeParent }
                 }
 
-                # GZDoomVR titles: the installer records the FULL launch args
-                # (iwad + vr_mode + any chosen 3D-mod -file entries) in a
-                # per-WAD marker file next to gzdoomvr.exe. Prefer it over the
-                # catalog's static LaunchArgs so Start-in-VR loads the SAME
-                # mods as the desktop shortcut. Keyed by the WAD leaf from
-                # VrInstallEvidence, matching how the installer names the file.
+                # Start-GameProcess applies per-IWAD installed GZDoom arguments
+                # for every route, including saved EXE and Locate overrides.
                 $effectiveArgs = $Game.LaunchArgs
-                if ($Game.VrInstallEvidence -and $Game.VrInstallEvidence.Count -gt 0) {
-                    try {
-                        $__wadLeaf = Split-Path $Game.VrInstallEvidence[0] -Leaf
-                        if ($__wadLeaf) {
-                            $__argKey  = ($__wadLeaf -replace '[^A-Za-z0-9]', '_')
-                            $__argFile = Join-Path $gameDir ".vrlaunchargs_$__argKey"
-                            if (Test-Path -LiteralPath $__argFile) {
-                                $__savedArgs = (Get-Content -LiteralPath $__argFile -Raw -ErrorAction Stop).Trim()
-                                if ($__savedArgs) { $effectiveArgs = $__savedArgs }
-                            }
-                        }
-                    } catch { }
-                }
 
                 if ($effectiveArgs) {
                     Start-GameProcess -FilePath $exePath -Arguments $effectiveArgs -WorkingDirectory $launchWorkDir -Game $Game
@@ -1283,18 +1415,10 @@ function global:Start-GameInVR {
         return
     }
 
-    # Non-depot games: regular Steam launch is fine - the game lives
-    # in the Steam library and Steam knows how to start it.
-    if ($Game.SteamId) {
-        try {
-            Start-Process "steam://rungameid/$($Game.SteamId)" -ErrorAction Stop
-            return
-        } catch {
-            Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_
-            return
-        }
-    }
-    Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -Message 'No verified game or VR launcher is configured for this entry.'
+    # SteamId is also metadata, not proof that a Microsoft Store copy belongs
+    # to Steam. Dedicated VR launchers above retain their priority.
+    $storeRoot=if($gameDir){$gameDir}else{$steamBootstrapRoot}
+    Start-HubStoreFallback -Game $Game -GameRoot $storeRoot
     } finally {
         if ($launchIndicatorToken) {
             $minimized = $false

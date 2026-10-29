@@ -313,6 +313,33 @@ $beforeGameVersionC = Get-MarkerSnapshot -Path $(if ($beforeRoot) { Join-Path $b
 # freshly changed version/path marker and therefore cannot claim success.
 function Write-FreshInstallerSuccessResult {
     try {
+        # A governed menu may install Depot while the legacy primary marker
+        # still names Current. Its fresh typed transaction identifies the
+        # selected root; do not infer that route from the primary marker.
+        if ($StatusPath -and (Test-Path -LiteralPath $StatusPath -PathType Leaf)) {
+            $governed = Get-Content -LiteralPath $StatusPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+            if ($governed.contractId) {
+                $version = if ($governed.versionWritten) { [string]$governed.versionValue }
+                           elseif ($governed.versionBWritten) { [string]$governed.versionBValue }
+                           else { '' }
+                $stamp = if ($governed.versionBWritten -and -not $governed.versionWritten) { '.pcvrhub_version_b' } else { '.pcvrhub_version' }
+                $root = [string]$governed.installedPath
+                if ($governed.outcome -ne 'success' -or
+                    -not (@($governed.evidence) -contains 'payload') -or
+                    -not $governed.route -or -not $governed.installedPathWritten -or
+                    -not $governed.runId -or $governed.runId -ne $env:PCVR_HUB_INSTALL_RUN_ID -or
+                    -not $root -or -not $version -or
+                    -not (Test-Path -LiteralPath $root -PathType Container)) {
+                    throw 'The governed installer receipt does not match this completed run and installed route.'
+                }
+                $stampPath = [IO.Path]::Combine($root,$stamp)
+                if (-not (Test-Path -LiteralPath $stampPath -PathType Leaf) -or
+                    [IO.File]::ReadAllText($stampPath).Trim() -cne $version.Trim()) {
+                    throw 'The governed installer receipt has no matching exact version in its selected game folder.'
+                }
+                return
+            }
+        }
         $afterVersion  = Get-MarkerSnapshot -Path $VersionPath
         $afterVersionB = Get-MarkerSnapshot -Path $VersionPathB
         $afterVersionC = Get-MarkerSnapshot -Path $VersionPathC

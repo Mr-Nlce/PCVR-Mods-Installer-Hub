@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Control-type glyph shown in the top-right info pill (replaces the
 # old colored MC/GP dot). Stroke-outline Path inside a Viewbox so it
 # scales crisply with the S/M/L card scale. Gamepad glyph for gamepad
@@ -229,6 +229,10 @@ function global:New-ControlTypeIcon {
 # Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
+    'Hitman: Contracts VR',
+    'Among the Sleep VR',
+    'Final Fantasy VII Remake Intergrade VR',
+    'Dead Space 2 VR',
     "Sons of the Forest",
     "theHunter: Call of the Wild VR",
     "Legend of Zelda: Twilight Princess",

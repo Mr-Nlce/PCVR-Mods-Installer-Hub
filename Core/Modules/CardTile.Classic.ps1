@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  CARD RENDERER DISPATCHER
 #  Two switchable tile styles share one entry point. The active
 #  style is $global:hubStyle ('frosted' = default redesign, or
@@ -1902,7 +1902,7 @@ function global:New-GameCardClassic {
                     if ($downloadCapture -match "api.github.com") {
                         try {
                             $apiUrl = $downloadCapture
-                            $response = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
+                            $response = Invoke-PCVRRestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 8 -ErrorAction Stop
                             # If response is array (all releases), pick first (newest) with assets
                             if ($response -is [array]) {
                                 $release = $response | Where-Object { $_.assets.Count -gt 0 } | Select-Object -First 1

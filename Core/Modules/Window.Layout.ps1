@@ -211,12 +211,44 @@ $xaml = @"
                                  Background="Transparent" BorderThickness="0"
                                  Foreground="White" FontSize="12"
                                  FontFamily="Segoe UI" CaretBrush="White"
-                                 Padding="10,8,10,8" VerticalContentAlignment="Center"/>
+                                 Padding="10,8,34,8" VerticalContentAlignment="Center"/>
                         <TextBlock x:Name="SearchPlaceholder" Text="Search"
                                    FontSize="11" Foreground="#555568"
                                    FontFamily="Segoe UI"
                                    Margin="11,0,0,0" VerticalAlignment="Center"
                                    IsHitTestVisible="False"/>
+                        <Button x:Name="SearchClearButton" Width="22" Height="24"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0"
+                                ToolTip="Clear search" AutomationProperties.Name="Clear search"
+                                Cursor="Hand" Focusable="False" IsTabStop="False" Panel.ZIndex="10">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Foreground" Value="#888899"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                    <Path Data="M 4,4 L 12,12 M 12,4 L 4,12" Width="16" Height="16"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                          Stroke="{TemplateBinding Foreground}" StrokeThickness="1.5"
+                                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text.Length, ElementName=SearchBox}" Value="0">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Setter Property="Background" Value="#30303b"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                         <!-- Search hint. It hangs BELOW the pill on its own
                              visual layer (negative bottom margin + no height
                              of its own), so showing and hiding it never
@@ -1369,62 +1401,66 @@ $xaml = @"
                         </Grid>
                     </Border>
 
-                    <!-- Genre filter: bigger, bolder pills with colored
-                         left accent bar - feels more like a feature
-                         than a control. Label sits in the same small
-                         pill-box as the PC POWER mode toggle below
-                         so the two section headers read as paired
-                         elements (one static, one clickable). -->
+                    <!-- Explore filters, layout "Variant 3": genre cards,
+                         then one PC power row. The GENRE pill is kept for
+                         code that looks it up, but collapsed - the cards
+                         carry their own meaning. -->
                     <Border x:Name="OvGenreHeader" Margin="0,0,0,8"
                             CornerRadius="5" Padding="8,5,8,5"
-                            HorizontalAlignment="Left"
+                            HorizontalAlignment="Left" Visibility="Collapsed"
                             Background="#0d0d12"
                             BorderThickness="1" BorderBrush="#22222e">
                         <TextBlock Text="GENRE" FontSize="10" FontWeight="SemiBold"
                                    Foreground="#666677" FontFamily="Segoe UI"
                                    VerticalAlignment="Center"/>
                     </Border>
-                    <WrapPanel x:Name="OvGenreFilter" Margin="0,0,0,14"
-                               HorizontalAlignment="Left" MaxWidth="860"/>
+                    <!-- Genre cards: UniformGrid, width and 10/5 columns
+                         are set from code (Update-OvGenreCardLayout). -->
+                    <UniformGrid x:Name="OvGenreFilter" Margin="0,0,0,12"
+                                 HorizontalAlignment="Left" Columns="10"/>
 
-                    <!-- Power-Filter mode toggle. Click the pill to
-                         switch between Cumulative ("Your PC" - shows
-                         everything up to this tier) and Exact ("only
-                         games of this specific tier"). The mode name
-                         is part of the label so the user sees at a
-                         glance which mode is currently active. The
-                         actual tier pills below this header are
-                         unchanged and behave the same way - only
-                         their semantic interpretation changes
-                         depending on the active mode. -->
-                    <Border x:Name="OvPowerModeToggle" Margin="0,0,0,8"
-                            CornerRadius="5" Padding="8,5,8,5"
-                            HorizontalAlignment="Left"
-                            Background="#0d0d12"
-                            BorderThickness="1" BorderBrush="#22222e"
-                            Cursor="Hand"
-                            ToolTip="Click to toggle between Your PC (cumulative) and Exact Tier (filter by specific tier)">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="PC POWER" FontSize="10" FontWeight="SemiBold"
-                                       Foreground="#666677" FontFamily="Segoe UI"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text=" &#183; " FontSize="10" FontWeight="SemiBold"
-                                       Foreground="#444452" FontFamily="Segoe UI"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock x:Name="OvPowerModeLabel" Text="Your PC"
+                    <!-- PC power row: label, joined tier bar (OvPowerFilter),
+                         mode segment Up to my PC / Exact tier
+                         (OvPowerModeSeg) and the GPU status box on the
+                         right. On narrow windows Update-OvPowerRowLayout
+                         moves the GPU box under the bar. -->
+                    <Grid x:Name="OvPowerRow" Margin="0,0,0,28">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <WrapPanel x:Name="OvPowerLeft" Grid.Row="0" Grid.Column="0"
+                                   Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="OvPowerHeaderText" Text="PC POWER"
                                        FontSize="11" FontWeight="Bold"
-                                       Foreground="#ffaa66" FontFamily="Segoe UI"
-                                       VerticalAlignment="Center"/>
-                            <Path Margin="6,2,0,0" Width="8" Height="6"
-                                  Stroke="#888899" StrokeThickness="1.4"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                  StrokeLineJoin="Round"
-                                  VerticalAlignment="Center"
-                                  Data="M 0,1 L 4,5 L 8,1"/>
-                        </StackPanel>
-                    </Border>
-                    <WrapPanel x:Name="OvPowerFilter" Margin="0,0,0,28"
-                               HorizontalAlignment="Left"/>
+                                       Foreground="#8b8b96" FontFamily="Segoe UI"
+                                       VerticalAlignment="Center" Margin="0,0,18,0"/>
+                            <Border x:Name="OvPowerBar" CornerRadius="10"
+                                    BorderThickness="1" BorderBrush="#2a2a33"
+                                    Background="#141419" VerticalAlignment="Center">
+                                <StackPanel x:Name="OvPowerFilter" Orientation="Horizontal"/>
+                            </Border>
+                            <Border x:Name="OvPowerModeToggle" Margin="18,0,0,0"
+                                    CornerRadius="10" Padding="3"
+                                    BorderThickness="1" BorderBrush="#23232b"
+                                    Background="#141419" VerticalAlignment="Center">
+                                <StackPanel x:Name="OvPowerModeSeg" Orientation="Horizontal"/>
+                            </Border>
+                        </WrapPanel>
+                        <Grid x:Name="OvGpuBox" Grid.Row="0" Grid.Column="1"
+                              VerticalAlignment="Center" HorizontalAlignment="Right"
+                              Margin="18,0,0,0">
+                            <Rectangle x:Name="OvGpuBoxOutline" RadiusX="10" RadiusY="10"
+                                       Stroke="#3a3a46" StrokeThickness="1"
+                                       StrokeDashArray="4 3" IsHitTestVisible="False"/>
+                            <StackPanel x:Name="OvGpuBoxPanel" Orientation="Horizontal"
+                                        Margin="14,5,5,5" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Grid>
 
                     <StackPanel x:Name="OvGenreRows"/>
                 </StackPanel>

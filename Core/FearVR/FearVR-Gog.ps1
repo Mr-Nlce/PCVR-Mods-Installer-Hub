@@ -1,4 +1,4 @@
-# F.E.A.R. VR - thefreemike's unified GOG and Steam build.
+﻿# F.E.A.R. VR - thefreemike's unified GOG and Steam build.
 # The VR archive is acquired at run time and is never bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
@@ -143,7 +143,7 @@ function Get-ArchiveInputFolders {
 
 function Get-LatestStableRelease {
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
             -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 25 -ErrorAction Stop
         if (-not $release.draft -and -not $release.prerelease) {
             $asset = @($release.assets | Where-Object {

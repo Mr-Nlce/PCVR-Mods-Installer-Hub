@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # F.E.A.R. VR Installer (thefreemike public GOG/Steam + DR-89 Steam)
 # ============================================================
 # Option 1 resolves the latest stable thefreemike public release for
@@ -1062,7 +1062,7 @@ $downloadInfo = @{}
 
 try {
     Write-Info "Querying GitHub for the newest release (pre-releases included)..."
-    $rels = Invoke-RestMethod -Uri $API_RELEASES -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
+    $rels = Invoke-PCVRRestMethod -Uri $API_RELEASES -Headers @{ "User-Agent" = "VRModHub" } -ErrorAction Stop
     $rel  = $rels | Select-Object -First 1
     if ($rel) {
         $relTag = [string]$rel.tag_name

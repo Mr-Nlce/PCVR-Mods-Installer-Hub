@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference='Stop'
 $previousLibraryMode=$env:PCVR_EVR_LIBRARY_ONLY
 try {
@@ -6,7 +6,7 @@ try {
         $env:PCVR_EVR_LIBRARY_ONLY='1'
         . (Join-Path $PSScriptRoot 'EnshroudedVR-core.ps1')
     } finally { $env:PCVR_EVR_LIBRARY_ONLY=$previousLibraryMode }
-    foreach($relative in @('enshrouded.exe','dinput8.dll','Enshrouded VR setting.exe','EnshroudedVR\bin\evr_hooks.dll','.pcvrhub_version')){
+    foreach($relative in @('enshrouded.exe','dinput8.dll','Enshrouded VR setting.exe','EnshroudedVR\bin\evr_hooks.dll')){
         if(-not(Test-Path -LiteralPath (Join-Path $GameDirectory $relative) -PathType Leaf)){throw "Enshrouded VR is incomplete: $relative. Use Reinstall in the Hub."}
     }
     if($env:PCVR_HUB_TEST_MODE -ne '1' -and (Get-Process -Name enshrouded -ErrorAction SilentlyContinue)){throw 'Enshrouded is already running. Close it before changing VR settings.'}

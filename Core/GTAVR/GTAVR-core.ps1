@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Grand Theft Auto V VR Installer
 # Adds Luke Ross's R.E.A.L. r7 VR mod to the user's own Grand Theft
 # Auto V. Uses the community GTA-VRV-Patcher as the retained older
@@ -322,7 +322,7 @@ function Get-LatestPatcherUrl {
     # then flag a script that references its download URL). Falls back to the
     # pinned known-good URL if the API is unreachable.
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/SanguShellz/GTA-VRV-Patcher/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/SanguShellz/GTA-VRV-Patcher/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
         $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
         $asset = ($zips | Where-Object { $_.name -match '(?i)patcher' } | Select-Object -First 1)

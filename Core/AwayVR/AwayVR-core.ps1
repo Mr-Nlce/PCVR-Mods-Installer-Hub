@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  AWAY VR - AwayVR by Pk-c (Chromatic Mod)
 # ============================================================
 #  A BepInEx mod for AWAY: Journey to the Unexpected (Unity
@@ -90,7 +90,7 @@ Write-Step 2 3 "Downloading and installing $MOD_NAME"
 $url = $null; $tag = ""; $assetName = ""; $assetSize = 0
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
     $a = Select-PayloadAsset -Assets $rel.assets
     if ($a -and $a.browser_download_url) {

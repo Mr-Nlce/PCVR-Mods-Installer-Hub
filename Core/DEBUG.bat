@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 title PCVR Mods Installer Hub - Debug Console
 color 0A
 echo ============================================
@@ -291,7 +291,24 @@ echo   [276] GRID (2019) VR
 echo   [277] GRID Legends VR
 echo   [278] DiRT 4 VR
 echo.
-set /p choice="Enter number (1-271): "
+echo   [279] Dead Space 2 VR
+echo   [280] Balatro VR
+echo   [281] Blood West VR
+echo   [282] Black and White VR
+echo   [283] Dementium II HD VR
+echo   [284] Tomb Raider Legend VR
+echo   [285] Final Fantasy VII Remake Intergrade VR
+echo   [286] HOTD2 PC2VR (second mod)
+echo   [287] Call of Duty Black Ops VR
+echo   [288] Among the Sleep VR
+echo   [289] Call of Duty United Offensive VR
+echo   [290] Ratchet ^& Clank 1 VR
+echo   [291] Blur VR
+echo   [292] Hitman: Contracts VR
+echo   [293] Wreckfest VR
+echo   [295] Aliens versus Predator 2 VR
+echo   [294] Wreckfest 2 VR
+set /p choice="Enter number (1-295): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -570,7 +587,18 @@ if "%choice%"=="275" (set SCRIPT=%~dp0GrayHorizonFH6\GrayHorizonFH6-core.ps1)
 if "%choice%"=="276" (set SCRIPT=%~dp0Grid2019VR\Grid2019VR-core.ps1)
 if "%choice%"=="277" (set SCRIPT=%~dp0GridLegendsVR\GridLegendsVR-core.ps1)
 if "%choice%"=="278" (set SCRIPT=%~dp0Dirt4VR\Dirt4VR-core.ps1)
-if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
+if "%choice%"=="279" (set SCRIPT=%~dp0DeadSpace2VR\DeadSpace2VR-core.ps1)
+if "%choice%"=="280" (set SCRIPT=%~dp0BalatroVR\BalatroVR-core.ps1)
+if "%choice%"=="281" (set SCRIPT=%~dp0BloodWestVR\BloodWestVR-core.ps1)
+if "%choice%"=="282" (set SCRIPT=%~dp0BlackWhiteVR\BlackWhiteVR-core.ps1)
+if "%choice%"=="283" (set SCRIPT=%~dp0DementiumIIHDVR\DementiumIIHDVR-core.ps1)
+if "%choice%"=="284" (set SCRIPT=%~dp0TombRaiderLegendVR\TombRaiderLegendVR-core.ps1)
+if "%choice%"=="285" (set SCRIPT=%~dp0FF7RemakeVR\FF7RemakeVR-core.ps1)
+if "%choice%"=="286" (set SCRIPT=%~dp0HotD2PC2VR\HotD2PC2VR-core.ps1)
+if "%choice%"=="287" (set SCRIPT=%~dp0BlackOpsVR\BlackOpsVR-core.ps1)
+if "%choice%"=="288" (set SCRIPT=%~dp0AmongSleepVR\AmongSleepVR-core.ps1)
+if "%choice%"=="289" (set SCRIPT=%~dp0CallOfDutyUOVR\CallOfDutyUOVR-core.ps1)
+
 
 set LOGFILE=%USERPROFILE%\Desktop\pcvr-debug-log.txt
 
@@ -583,6 +611,14 @@ echo   OUTPUT BELOW - errors will stay visible
 echo   ALSO saved to: %LOGFILE%
 echo ============================================
 echo.
+
+if "%choice%"=="290"  (set SCRIPT=%~dp0RatchetClank1VR\RatchetClank1VR-core.ps1)
+if "%choice%"=="291"  (set SCRIPT=%~dp0BlurVR\BlurVR-core.ps1)
+if "%choice%"=="292"  (set SCRIPT=%~dp0HitmanContractsVR\HitmanContractsVR-core.ps1)
+if "%choice%"=="293"  (set SCRIPT=%~dp0WreckfestVR\WreckfestVR-core.ps1)
+if "%choice%"=="294"  (set SCRIPT=%~dp0Wreckfest2VR\Wreckfest2VR-core.ps1)
+if "%choice%"=="295"  (set SCRIPT=%~dp0AliensPredator2VR\AliensPredator2VR-core.ps1)
+if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 REM Write a header to the log so the user knows what they're sending
 > "%LOGFILE%" echo === PCVR Mods Installer Hub - Debug Log ===

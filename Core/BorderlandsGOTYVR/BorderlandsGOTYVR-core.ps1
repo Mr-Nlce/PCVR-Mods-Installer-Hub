@@ -1,4 +1,4 @@
-# Borderlands GOTY Enhanced VR - safe stable-channel installer.
+﻿# Borderlands GOTY Enhanced VR - safe stable-channel installer.
 # Downloads are acquired at run time. No VR-mod archive is bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
@@ -87,7 +87,7 @@ function Get-ArchiveInputFolders {
 
 function Get-LatestStableRelease {
     try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 25 -ErrorAction Stop
+        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 25 -ErrorAction Stop
         if (-not $release.draft -and -not $release.prerelease) {
             $asset = @($release.assets | Where-Object { $_.name -match '^BL1GOTYVR.*\.zip$' } | Select-Object -First 1)[0]
             if ($asset) {

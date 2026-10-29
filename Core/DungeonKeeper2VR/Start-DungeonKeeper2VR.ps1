@@ -1,6 +1,6 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference = 'Stop'
-foreach($relative in @('DKII-DX.exe','DKII_VR.cmd','DK2VR\Run-VR.ps1','DK2VR\payload\DK2VR.dll','DK2VR\DK2VRHost.exe','DK2VR\openxr_loader.dll','.pcvrhub_version')) {
+foreach($relative in @('DKII-DX.exe','DKII_VR.cmd','DK2VR\Run-VR.ps1','DK2VR\payload\DK2VR.dll','DK2VR\DK2VRHost.exe','DK2VR\openxr_loader.dll')) {
     if(-not(Test-Path -LiteralPath (Join-Path $GameDirectory $relative) -PathType Leaf)) {
         throw "Dungeon Keeper 2 VR is incomplete: $relative. Use Reinstall in the Hub."
     }

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Hytale VR Installer (HytaleVRInjector-mod by heurazy)
 # ============================================================
 # Windows x64 VR injector/dashboard for Hytale (v1.0+).
@@ -62,7 +62,7 @@ $script:LatestTag = $null
 function Get-LatestWinZipUrl {
     try {
         $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rel = Invoke-RestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+        $rel = Invoke-PCVRRestMethod -Uri $REPO_API_LATEST -Headers $headers -TimeoutSec 25 -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -match '(?i)windows.*x64.*\.zip$' } | Select-Object -First 1
         if ($asset -and $asset.browser_download_url) {
             # Remember the tag so the version marker below is written

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # PrewarmWorker.ps1 - background online update-check worker
 # ============================================================
 # Launched by Invoke-CheckInstalledScan as a SEPARATE hidden
@@ -31,6 +31,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::S
 $script:scriptDir = $ScriptDir
 $global:scriptDir = $ScriptDir
 try { . (Join-Path $ScriptDir 'Modules\HubState.ps1') } catch { return }
+. (Join-Path $ScriptDir 'Modules\GitHubTransport.ps1')
 $runtimeDir = Get-HubVersionCacheRoot
 if (-not $runtimeDir) { return }
 $pendingFile = Join-Path $runtimeDir ".prewarm_pending.json"
@@ -65,7 +66,7 @@ function Get-GithubTagBackground {
     param([string]$Repo, [bool]$IncludePrerelease = $false)
     if ($IncludePrerelease) {
         try {
-            $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=10" `
+            $rels = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$Repo/releases?per_page=10" `
                 -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 15 -EA Stop
             foreach ($rel in @($rels)) {
                 $candidate = [string]$rel.tag_name
@@ -97,7 +98,7 @@ function Get-GithubCommitBackground {
     param([string]$Repo, [string]$Branch = 'main')
     try {
         $branchEscaped = [Uri]::EscapeDataString($Branch)
-        $commit = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/commits/$branchEscaped" `
+        $commit = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$Repo/commits/$branchEscaped" `
             -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } -TimeoutSec 15 -EA Stop
         $dateText = [string]$commit.commit.committer.date
         if (-not $dateText) { $dateText = [string]$commit.commit.author.date }
@@ -174,6 +175,17 @@ try {
         (Test-Path -LiteralPath $env:PCVR_PREWARM_FIXTURE_RESPONSES -PathType Leaf)) {
         $fixture = Get-Content -LiteralPath $env:PCVR_PREWARM_FIXTURE_RESPONSES -Raw | ConvertFrom-Json
     }
+    if($fixture){
+        # The existing isolated HTTP fixture also supplies expanded assets;
+        # missing fixture URLs fail locally rather than reaching the network.
+        function global:Get-PCVRGitHubMetadataText {
+            param([string]$Uri,$Budget)
+            $mock=$fixture.PSObject.Properties[$Uri].Value
+            if(-not $mock -or [int]$mock.Status -ne 200){throw ('No successful prewarm metadata fixture for '+$Uri)}
+            return [pscustomobject]@{Content=[string]$mock.Body;FinalUrl=[string]$mock.FinalUri}
+        }
+    }
+
     try {
         for ($offset = 0; $offset -lt $items.Count; $offset += 8) {
             $batch = @()
@@ -183,12 +195,12 @@ try {
                     $repo = [string]$it.A
                     $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
                     $uri = if ($kind -eq 'gh') {
-                        if($patterns.Count -gt 0){"https://api.github.com/repos/$repo/releases?per_page=20"}
+                        if($patterns.Count -gt 0){"https://github.com/$repo/releases"}
                         elseif ([bool]$it.P) { "https://github.com/$repo/releases.atom" }
                         else { "https://github.com/$repo/releases/latest" }
                     } elseif ($kind -eq 'ghcommit') {
                         $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
-                        'https://api.github.com/repos/' + $repo + '/commits/' + [Uri]::EscapeDataString($branch)
+                        'https://github.com/' + $repo + '/commits/' + [Uri]::EscapeDataString($branch) + '.atom'
                     } else { $repo }
                     $method = if ($kind -eq 'gh' -and -not [bool]$it.P -and $patterns.Count -eq 0) { [Net.Http.HttpMethod]::Head } else { [Net.Http.HttpMethod]::Get }
                     $request = [Net.Http.HttpRequestMessage]::new($method,[Uri]$uri)
@@ -214,8 +226,16 @@ try {
                     $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
                     $tag = $null
                     if($kind -eq 'gh' -and $patterns.Count -gt 0){
-                        $releases=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
-                        $tag=Select-BackgroundAssetTag -Releases $releases -IncludePrerelease ([bool]$it.P) -Patterns $patterns -VersionPattern ([string]$it.V)
+                        $listing=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        $budget=[pscustomobject]@{Fast=$true;End=[DateTime]::UtcNow.AddSeconds(8)}
+                        foreach($section in [regex]::Matches($listing,'(?s)<section id="release-([^"]+)"[^>]*>(.*?)(?=<section id="release-|\z)')){
+                            $candidate=[Net.WebUtility]::HtmlDecode($section.Groups[1].Value)
+                            $header=$section.Value.Substring(0,[Math]::Min(3000,$section.Value.Length))
+                            if(-not [bool]$it.P -and $header -match '(?i)>\s*Pre-release\s*<'){continue}
+                            $release=Get-PCVRGitHubReleaseFromWeb -Repo $key -Tag $candidate -Section $section.Value -Budget $budget
+                            $tag=Select-BackgroundAssetTag -Releases @($release) -IncludePrerelease ([bool]$it.P) -Patterns $patterns -VersionPattern ([string]$it.V)
+                            if($tag){break}
+                        }
                         if([bool]$it.P){$key+='#pre'}
                         $key+='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($patterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')
                         if([string]$it.V){$key+='#asset-version='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$it.V)).TrimEnd('=').Replace('/','_').Replace('+','-')}
@@ -230,15 +250,23 @@ try {
                         }
                         $key += '#pre'
                     } elseif ($kind -eq 'ghcommit') {
-                        $data = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
-                        $dateText = [string]$data.commit.committer.date
-                        if (-not $dateText) { $dateText = [string]$data.commit.author.date }
+                        [xml]$commitFeed=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                        $entry=@($commitFeed.feed.entry)[0]
+                        $dateText=if([string]$entry.id -match '/[a-fA-F0-9]{40,64}$'){[string]$entry.updated}else{''}
                         if ($dateText) { $tag = ([DateTime]::Parse($dateText,$null,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()).ToString('yyyy.MM.dd.HHmmss') }
                         $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
                         $key += '#commit:' + $branch
                     } else {
                         $html = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-                        if     ($html -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $tag = 'v' + $matches[1] }
+                        if ([string]$it.P) {
+                            $m=[regex]::Match($html,[string]$it.P)
+                            if($m.Success){
+                                $tag=if($m.Groups['version'].Success){$m.Groups['version'].Value}else{$m.Groups[1].Value}
+                                if($it.Aliases){$tag=[string]$it.Aliases.PSObject.Properties[$tag].Value}
+                                if($tag -notmatch '\d'){$tag=$null}
+                            }
+                        }
+                        elseif ($html -match 'Test Build\s+v?([0-9][0-9A-Za-z.\-]+)') { $tag = 'v' + $matches[1] }
                         elseif ($html -match 'GRAND[^0-9<]{0,30}v?([0-9]+(?:\.[0-9]+)+[0-9A-Za-z\-]*)') { $tag = 'v' + $matches[1] }
                         elseif ($html -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { $tag = 'v' + $matches[1] }
                     }

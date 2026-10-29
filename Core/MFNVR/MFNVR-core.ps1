@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # My Friendly Neighborhood - VR Mod Installer (MFNVR)
 # ============================================================
 # Mod: MFNVR by LeviGaming1248,
@@ -175,7 +175,7 @@ $assetUrl = $null
 $relTag   = ""
 $installedReleaseVersion = ""
 try {
-    $api = Invoke-RestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
+    $api = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
                              -Headers @{ "User-Agent" = "PCVRModsHub" } -TimeoutSec 25
     $relTag = [string]$api.tag_name
     $cand = @($api.assets | Where-Object { $_.name -match '(?i)\.zip$' })

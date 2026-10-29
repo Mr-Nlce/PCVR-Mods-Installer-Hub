@@ -1,14 +1,14 @@
-# Spec Ops: The Line VR
+﻿# Spec Ops: The Line VR
 
 ## About the Game
 
 Spec Ops: The Line is a third-person military story shooter. SpecOpsTheLineVR adds stereoscopic first-person VR, six-degree head tracking, motion-controlled aiming and gestures. Menus and cutscenes appear on a virtual screen. The mod is a beta.
 
-**WIP:** Early builds could visibly shake or twitch in the headset. Updates through v0.9.18 address camera, controller and frame-pacing problems, including cover scenes where the view remained behind a wall or a gun could not fire. These are publisher reports, not a headset test by the Hub. The Hub checks the current complete release ZIP when installing or updating. If the image still shakes, run the publisher's `collect_logs.bat` from the downloaded ZIP and report the headset/runtime and scene.
+**WIP:** Early builds could visibly shake or twitch in the headset. Updates through v0.10.1 address camera, controller and frame-pacing problems, including cover scenes where the view remained behind a wall or a gun could not fire. These are publisher reports, not a headset test by the Hub. The Hub checks the current complete release ZIP when installing or updating. If the image still shakes, run the publisher's `collect_logs.bat` from the downloaded ZIP and report the headset/runtime and scene.
 
 ## Requirements and install
 
-- The **Steam PC version only** (Steam app 50300). The publisher supports a specific 2012 Steam executable; the Hub checks its PE build before changing game files. Other builds are not offered.
+- The **Steam PC version only** (Steam app 50300). This Hub route retains its reviewed Steam build check. Version 0.10.1 also adds experimental signature scanning for non-Steam builds in the publisher installer; these remain untested and are not yet offered by this Hub route.
 - Windows 10/11, a connected PC VR headset and two motion controllers. With `runtime auto`, the current mod chooses VDXR when Virtual Desktop Streamer is running, otherwise SteamVR. `runtime openxr` uses your active OpenXR runtime instead; Meta Link support is experimental. Headset coverage has not been verified by the Hub.
 - Choose [[Install]] in the Hub. It downloads the **complete** release ZIP (currently `0-SpecOpsTheLineVR.zip`), installs `d3d9.dll` and `openvr_api.dll` beside `Binaries\Win32\SpecOpsTheLine.exe`, and places `specopsvr.ini` there if absent. A separate DLL asset is not a complete initial installation.
 - After installation, the Hub displays the required Steam launch options `-windowed ResX=2400 ResY=2500` and copies them to the clipboard. Press [[Enter]] to open **Spec Ops: The Line > Properties**, click the **Launch Options** field, and press [[Ctrl]] + [[V]]. If clipboard access fails, copy the displayed line manually. Press [[Enter]] again after pasting. This nearly square desktop window is the publisher's recommended size for headset clarity; the Hub does not change Steam settings itself.

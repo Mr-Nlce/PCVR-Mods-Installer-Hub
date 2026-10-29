@@ -1,19 +1,15 @@
+﻿param([string]$Mod='')
 # ============================================================
 # Bendy and the Ink Machine - BendyVR Mod Installer
 # ============================================================
-# Two install paths:
-#   Option 1 (RECOMMENDED): Steam Console depot download of the
-#     mod-compatible build into C:\Games\Bendy VR, then the mod.
-#     The current Steam build no longer starts with the mod
-#     (Team Beef, June 2025), so this pinned build is the safe
-#     choice.
-#   Option 2: install the mod onto your CURRENT Steam copy. Use
-#     only if you specifically want the current game version -
-#     note the live Steam build may not launch with the mod.
-# No auto-update: the depot manifest is pinned in this installer.
+# Two independent install paths:
+#   Option 1: InkVR on the current Steam IL2CPP build; latest stable.
+#   Option 2: Team Beef on the pinned Mono depot; fixed v1.2.2.
+# The obsolete Team Beef Current installation is no longer offered.
 # ============================================================
 
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InkVRSetup.ps1")
 
 $Host.UI.RawUI.WindowTitle = "BendyVR Installer"
 $ErrorActionPreference = "Stop"
@@ -41,13 +37,13 @@ $DEFAULT_PATH   = Join-PathLexical $DEFAULT_PARENT $TARGET_NAME
 # -------------------------------------------------------
 # Helpers
 # -------------------------------------------------------
-function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host " Bendy and the Ink Machine - BendyVR Installer" -ForegroundColor Yellow; Write-Host " BendyVR v1.2.2 by Team Beef Studios" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "" }
+function Write-Header { Clear-Host; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host " Bendy and the Ink Machine - BendyVR Installer" -ForegroundColor Yellow; Write-Host " InkVR Current / Team Beef Depot" -ForegroundColor Gray; Write-Host "============================================================" -ForegroundColor Yellow; Write-Host "" }
 function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
 function Write-OK { param($x) Write-Host " [OK] $x" -ForegroundColor Green }
 function Write-Warn { param($x) Write-Host " [!!] $x" -ForegroundColor Yellow }
 function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
-function Write-Info { param($x) Write-Host " [..] $x" -ForegroundColor Gray }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Write-Info { param($x) Write-Host "  $x" -ForegroundColor Gray }
+function Pause-User { param($text = 'Press Enter to continue...', $Color = 'Yellow') [void](Wait-PCVRExplicitEnter -Message $text) }
 
 function Get-SteamPath {
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
@@ -89,8 +85,8 @@ function Install-BendyMod {
 
     $dl = Invoke-DownloadOrFallback -Url $MOD_URL -Destination $rarPath `
             -Label "BendyVR v1.2.2" `
-            -ManualUrl "$INFO_URL/releases" `
-            -Instructions "Download the latest BendyVR release .rar from the GitHub page that just opened. Place it at '$rarPath' and choose Retry." `
+            -ManualUrl "$INFO_URL/releases/tag/v.1.2.2" `
+            -Instructions "Download the pinned BendyVR v1.2.2 release .rar from the GitHub page that just opened. Place it at '$rarPath' and choose Retry." `
             -SkipMessage "Skipped - the VR mod archive is missing; the mod will NOT be installed."
 
     if (-not (Test-Path -LiteralPath $rarPath -PathType Leaf)) {
@@ -223,63 +219,37 @@ function Write-SteamAppId {
 # MENU
 # ============================================================
 Write-Header
-Write-Host " The current Steam build of Bendy and the Ink Machine no" -ForegroundColor White
-Write-Host " longer starts with this VR mod (Team Beef, June 2025)." -ForegroundColor White
-Write-Host " Choose how to install:" -ForegroundColor White
-Write-Host ""
-# Check whether the depot install already exists at the default
-# destination - annotate Option [1] so the user can see at a
-# glance whether the recommended variant is already on disk.
-$depotInstalledStatus = $null
-$depotInstalledColor  = "Gray"
-try {
-    $depotTargetCheck = Join-PathLexical "C:\Games" "Bendy VR"
-    $depotExeCheck    = Join-PathLexical $depotTargetCheck "Bendy and the Ink Machine.exe"
-    if (Test-Path $depotExeCheck) {
-        $depotInstalledStatus = " [installed at $depotTargetCheck]"
-        $depotInstalledColor  = "Green"
-    } else {
-        $depotInstalledStatus = " [not yet installed]"
-        $depotInstalledColor  = "Gray"
+Write-Host '  [1] RECOMMENDED - InkVR, current Steam game (auto-update)' -ForegroundColor Green
+Write-Host '      Installs the modern OpenXR mod on your current Steam game.'
+Write-Host '      Your separate Team Beef depot is kept.'
+Write-Host ''
+Write-Host '  [2] Team Beef - pinned Depot version' -ForegroundColor Yellow
+Write-Host "      Default game folder: $DEFAULT_PATH (or choose another)."
+Write-Host '      Original BendyVR 1.2.2; SteamVR; fixed game and mod versions.'
+Write-Host ''
+$mode = switch ($Mod) { 'Current' {'1'} 'Depot' {'2'} default {''} }
+while ($mode -notin @('1','2')) { $mode=(Read-Host '  Enter 1 or 2').Trim() }
+if ($mode -eq '1') {
+    while ($true) {
+        try { Invoke-InkVRSetup -InstallerFolder $PSScriptRoot; break }
+        catch {
+            $message='InkVR setup did not complete: '+$_.Exception.Message
+            Write-Host $message -ForegroundColor Red
+            if ($env:PCVR_HUB_TEST_MODE -eq '1') { throw }
+            [void](Invoke-PCVRUniversalRecovery -FailureMessage $message -GameId 'bendy-vr' -InstallerFolder $PSScriptRoot -RecoveryPageUrl 'https://github.com/StrikeZoneVR-hub/InkVR/releases')
+        }
     }
-} catch {}
-
-Write-Host "  [1] RECOMMENDED - Depot version" -ForegroundColor Green
-if ($depotInstalledStatus) { Write-Host "     $depotInstalledStatus" -ForegroundColor $depotInstalledColor }
-Write-Host "      Default game folder: $DEFAULT_PATH (or choose another)." -ForegroundColor Gray
-Write-Host "      Downloads the mod-compatible build via Steam Console" -ForegroundColor Gray
-Write-Host "      into that folder, then installs the mod. Your" -ForegroundColor Gray
-Write-Host "      retail Steam copy stays untouched." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  [2] Current game version" -ForegroundColor Yellow
-Write-Host "      Installs the mod onto your existing copy (Steam or" -ForegroundColor Gray
-Write-Host "      Epic). Use only if you specifically want the current" -ForegroundColor Gray
-Write-Host "      build - on Steam it may not launch in VR. If it" -ForegroundColor Gray
-Write-Host "      doesn't work, re-run and pick option 1." -ForegroundColor Gray
-Write-Host ""
-$mode = ""
-# !!! WMR HEADSETS ON THE OASIS DRIVER WILL PROBABLY NOT RUN THIS. On a
-# Reverb G2: the mod asks SteamVR for skeletal hand data every frame, the
-# Oasis driver does not provide it, and GetBonePositions throws in a loop
-# - the hands stay on the floor at the player origin. The depot build
-# failed the same way on the same machine, so changing the game build is
-# unlikely to help. Said here as well as in the readme, because the readme is not
-# what someone reads before installing.
-Write-Host ""
-Write-Host "  WARNING: WMR + OASIS WILL PROBABLY NOT WORK. " -NoNewline -ForegroundColor Black -BackgroundColor Red
-Write-Host ""
-Write-Host "  The mod needs SteamVR skeletal finger tracking, which Oasis" -ForegroundColor White
-Write-Host "  did not provide in our Reverb G2 test: the hands stayed on" -ForegroundColor White
-Write-Host "  the floor and the mod errored repeatedly. Both choices below" -ForegroundColor White
-Write-Host "  are likely affected. A future Oasis update may change this." -ForegroundColor White
-Write-Host ""
-
-while ($mode -notin @("1","2")) { $mode = (Read-Host " Enter 1 or 2").Trim() }
+    exit 0
+}
+Show-AntivirusNotice -Compact
+Write-Host '  WMR + OASIS WILL PROBABLY NOT WORK with Team Beef.' -ForegroundColor Yellow
+Write-Host '  Its skeletal finger tracking failed in the Reverb G2 test.'
+Write-Host '  This warning concerns Team Beef, not the OpenXR InkVR route.'
 
 # ============================================================
-# OPTION 1 - DEPOT
+# OPTION 2 - TEAM BEEF DEPOT
 # ============================================================
-if ($mode -eq "1") {
+if ($mode -eq "2") {
     Pause-User "Press Enter to start..."
     Write-Step 1 4 "Steam Depot Download"
 
@@ -411,18 +381,10 @@ if (-not $script:PreFoundDepot) {
     # steam_appid.txt
     Write-SteamAppId -gamePath $gamePath
 
-    # Record install path for the Hub
-    try {
-        $pathFile = Join-Path $PSScriptRoot ".installed_path"
-        Set-Content -Path $pathFile -Value $gamePath -Encoding UTF8 -Force
-    } catch {}
-
     # Summary + shortcut
-    Write-Step 4 4 "All Done!"
-    Write-Host " Your Bendy VR (depot) installation is ready." -ForegroundColor White
+    Write-Step 4 4 "Finishing setup"
     Write-Host ""
     Write-Host " Game folder: $gamePath" -ForegroundColor Yellow
-    Write-Host " Launch EXE: $gameExePath" -ForegroundColor Yellow
     Write-Host ""
 
     if (Test-Path $gameExePath) {
@@ -435,12 +397,19 @@ if (-not $script:PreFoundDepot) {
         }
     }
 
+    # The Current route now uses live exact-version tracking. The fixed Depot
+    # must commit its own fixed version too; a generic path alone is not success.
+    $depotProof=@($GAME_EXE,'UnityPlayer.dll','Bendy and the Ink Machine_Data\Managed\Assembly-CSharp.dll','winhttp.dll','doorstop_config.ini','steam_appid.txt','Bendy and the Ink Machine_Data\Plugins\openvr_api.dll','BendyVRInstall\BendyVRInstall\Mod\BepInEx\core\BepInEx.Preloader.dll','BendyVRInstall\BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll')
+    if(([IO.File]::ReadAllText((Join-Path $gamePath 'steam_appid.txt'))).Trim() -ne $DEPOT_APPID){throw 'The pinned Bendy depot has no correct steam_appid.txt. No success was recorded.'}
+    $contract=New-PCVRInstallerContract -Id 'bendy-vr' -GameName 'Bendy VR' -Acquisition SteamDepot -PinnedDepot -AntivirusNotice -Routes @('Depot') -RequiredInstalledFileGroups $depotProof
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version 'v1.2.2' -Route Depot -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path'),(Join-Path $PSScriptRoot '.installed_path_depot')))
+    Write-Host ' Your Bendy VR (depot) installation is ready.' -ForegroundColor Green
     Write-Host ""
     Write-Host " IMPORTANT notes before you play:" -ForegroundColor Cyan
     Write-Host " >> Launch SteamVR before the game to avoid it potentially" -ForegroundColor Yellow
 Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
-    Write-Host " >> Launch via the Bendy VR desktop shortcut or through" -ForegroundColor Yellow
-    Write-Host "    the PCVR Mods Installer Hub -> Start in VR, NOT via Steam." -ForegroundColor Yellow
+    Write-Host " 1. Use Start in VR in the Hub (Team Beef Depot)." -ForegroundColor Yellow
+    Write-Host "    Alternative: the Bendy VR desktop shortcut." -ForegroundColor Yellow
     Write-Host "    (Launching via Steam would run your retail version.)" -ForegroundColor Gray
     Write-Host " >> Motion controllers are required - this is not playable" -ForegroundColor Yellow
     Write-Host "    with a normal gamepad." -ForegroundColor Yellow
@@ -449,79 +418,7 @@ Write-Host "    starting sometimes out of focus." -ForegroundColor Yellow
     Write-Host ""
     Write-Host " Dreams come to life. So does the ink." -ForegroundColor Magenta
     Write-Host ""
-    Pause-User "Press Enter to exit."
+    Pause-User "Press Enter to close setup..."
     exit 0
 }
 
-# ============================================================
-# OPTION 2 - CURRENT GAME VERSION
-# ============================================================
-Write-Step 1 3 "Locating $GAME_NAME"
-Write-Host " [!] You picked the current game build. Note: the current" -ForegroundColor Yellow
-Write-Host "     Steam build may not launch with the VR mod. If you own" -ForegroundColor Yellow
-Write-Host "     it on Epic this may not apply. If it doesn't work, re-run" -ForegroundColor Yellow
-Write-Host "     this installer and pick option 1 (depot)." -ForegroundColor Yellow
-Write-Host ""
-Pause-User "Press Enter to continue..."
-
-$gamePath = $null
-try {
-    $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
-    if (Test-Path $__utilsPath) {
-        . $__utilsPath
-        # Cover Steam AND Epic - Bendy is sold on both stores (and was
-        # a free Epic giveaway in late 2025, so many own it there).
-        $det = Find-GameInstall -GameName "Bendy and the Ink Machine" `
-            -Steam @{ Folder = $GAME_FOLDER; AppID = $DEPOT_APPID } `
-            -Epic  @{ FolderName = $GAME_FOLDER; AppName = "Bendy and the Ink Machine" } `
-            -ExeName $GAME_EXE
-        if ($det.Found) {
-            $gamePath = $det.Path
-            Write-Info "Detected via $($det.Source)."
-        }
-    }
-} catch {}
-
-if (-not $gamePath) {
-    $steamPath = Get-SteamPath
-    if ($steamPath) {
-        foreach ($lib in (Get-SteamLibraries $steamPath)) {
-            # Lexical: $lib comes from libraryfolders.vdf and may name a drive
-            # that no longer exists - Join-Path would resolve it and throw.
-            $c = Join-PathLexical $lib "steamapps\common\$GAME_FOLDER"
-            if (Test-LiteralPathSafe -Path $c -PathType Container) { $gamePath = $c; break }
-        }
-    }
-}
-if ($gamePath) {
-    Write-OK "Game found: $gamePath"
-} else {
-    Write-Warn "Game not found automatically (checked Steam and Epic)."
-    Write-Host " Please enter the game installation folder:" -ForegroundColor White
-    while (-not $gamePath) {
-        $r=(Read-Host " Path").Trim().Trim('"')
-        if(Test-Path $r){$gamePath=$r; Write-OK "Path set: $gamePath"} else{Write-Fail "Not found: $r"}
-    }
-}
-
-Write-Step 2 3 "Installing the VR mod"
-if (-not (Install-BendyMod -targetGamePath $gamePath -ModKeepDir (Join-Path $gamePath "BendyVRInstall"))) {
-    Write-Fail 'The VR mod was not installed. Your existing game remains available.'
-    Pause-User 'Press Enter to close.' | Out-Null
-    exit 1
-}
-
-Write-Step 3 3 "Final notes"
-Write-Host " BendyVR installation complete (current game version)." -ForegroundColor Green
-Write-Host ""
-Write-Host " - Start SteamVR before launching the game." -ForegroundColor White
-Write-Host " - Full motion controls supported - controllers required." -ForegroundColor Green
-Write-Host " - In SteamVR Settings -> Dashboard, set 'Present Non-VR" -ForegroundColor Yellow
-Write-Host "   Applications on Theater Screen Upon Launch' -> OFF." -ForegroundColor Yellow
-Write-Host " - If the game won't start in VR, re-run and pick option 1" -ForegroundColor Yellow
-Write-Host "   (depot version) which uses the mod-compatible build." -ForegroundColor Yellow
-Write-Host " - More info: $INFO_URL" -ForegroundColor Gray
-Write-Host ""
-Write-Host " Dreams come to life. So does the ink." -ForegroundColor Magenta
-Write-Host ""
-Pause-User "Press Enter to exit."

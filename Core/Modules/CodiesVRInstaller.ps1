@@ -116,8 +116,7 @@ function Get-CodiesVRArchive($Profile,[string]$Destination) {
 
 function Write-CodiesVRCheckpoint($Profile,[string]$Root,[string[]]$Required,[string]$Phase) {
     $missing=@();$items=@()
-    foreach($name in $Required){$exists=Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf;$items+="$name=$exists";if(-not $exists){$missing+=$name}}
-    Write-Host ('  File check ['+$Phase+']: '+($items -join '; ')) -ForegroundColor DarkGray
+    foreach($name in $Required){$exists=Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf;Write-PCVRFileCheckResult -Path (Join-Path $Root $name) -Present $exists -Phase $Phase -DisplayName $name;if(-not $exists){$missing+=$name}}
     return $missing
 }
 

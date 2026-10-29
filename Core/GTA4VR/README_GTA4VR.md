@@ -1,105 +1,97 @@
-# GTA IV VR Installer
+﻿# GTA IV VR
 
-Automated installer for **gtaiv-dxvk-vr** by Hochgeschwindigkeitsrennfahrer -
-head-tracked VR for **GTA IV Complete Edition**, built on stock DXVK 3.0.2
-and OpenVR.
+Two independent mods bring Liberty City into VR. GTA4VR by bordplate is the first installer option and adds tracked hands, physical weapons and driving. The previous gtaiv-dxvk-vr mod remains available for gamepad play.
 
-This is an early proof of concept, and it is honest about that: stereo depth
-and head tracking work, head aiming while aiming down sights is experimental,
-and there are **no motion controller hands**. You play it on a gamepad, Xbox
-pads being the tested ones.
+## About the Game
+Niko Bellic arrives in Liberty City hoping for a fresh start. Explore its boroughs, follow the story and try to answer Roman's phone calls without getting into more trouble.
 
-**SteamVR only.** There is no OpenXR path, so a standalone WMR or Meta
-runtime without SteamVR will not work.
+## Important
+GTA4VR is experimental. Its author tested GTA IV Complete Edition 1.2.0.59 with a Vive Pro, Vive Wands and SteamVR as the active OpenXR runtime. Other controllers have no confirmed ready-to-use bindings. Custom bindings, pose adjustments or code changes may be required; other OpenXR runtimes are untested.
 
-## What the installer does
-1. Finds your GTA IV folder (the one holding `GTAIV.exe`) on Steam,
-   Rockstar Games Launcher, or a retail install
-2. Downloads the newest release from GitHub
-3. Backs up `d3d9.dll` and `dinput8.dll` as `.vrbak`, then merges the mod
-   files into the game folder - asking for administrator rights only if
-   that folder needs them
-4. Shows you the settings the pack shipped - it does **not** overwrite them
+A complete VR campaign has not been verified. The Lost and Damned and The Ballad of Gay Tony are untested. Keep a keyboard/gamepad available and use flat mode for unsupported sections. Performance in busy city scenes can be demanding.
 
-## Stereo mode
-The pack ships **Mode 909** with its settings already tuned - eye resolution
-2048, `fpfov` 90 90 90 and the rest. **The installer no longer writes any of
-them.** Earlier builds needed a choice between stereo modes and the Hub wrote
-the numbers for you; that is obsolete and would only overwrite better defaults.
+## What you need
+- Your own Windows copy of GTA IV: The Complete Edition.
+- SteamVR, a connected PC VR headset and controllers or a gamepad.
+- For bordplate: make SteamVR the active OpenXR runtime. The package includes FusionFix, DXVK, ASI Loader and OpenXR Loader; no separate FusionFix download is needed.
+- Close GTA IV and its launcher before installing, updating, switching or uninstalling. FirstPerson.asi conflicts with the VR camera; back it up and rename it to FirstPerson.asi.off before continuing.
 
-Everything is plain text next to `GTAIV.exe`, so you can still change any of it
-with Notepad. `gtaiv_dxvk_vr.stereo` is the mode itself - **`0` turns VR off**
-and gives you the flat game through DXVK.
+## Install and start
+1. Choose Install or Update in the Hub.
+2. Choose GTA4VR by bordplate, the previous gamepad mod, or both. Locate Game and dropping GTAIV.exe or its folder are supported.
+3. Finish setup. Each mod gets its own profile; an install or update keeps the other active mod selected.
+4. Start SteamVR, then use the matching Start in VR button in the Hub. Alternatively, use the matching GTA IV VR desktop shortcut.
+5. Steam copies start through Steam. Other copies use PlayGTAIV.exe or LaunchGTAIV.exe when available, otherwise GTAIV.exe. Store login/licensing still applies.
 
-## Two things the pack expects
-In the **FusionFix graphics options, choose DirectX 9** - not FusionFix's
-own Vulkan path. The VR layer hooks the DirectX 9 device.
+Choosing a mod's start button restores that profile and its settings before launching. The two mods must not load together. The Flat / VR switch applies on the next Hub/desktop-shortcut launch; flat mode restores the retained original files. Older imported installations keep their available .vrbak originals and recovery data.
 
-**`FirstPerson.asi` has to be off.** If you have it, rename it to
-`FirstPerson.asi.off` - this mod owns the camera and field-of-view path, and
-running both makes them fight.
+## Controls - bordplate GTA4VR
+These are the author's Vive Wand defaults. Rebind named actions in SteamVR for other controllers; compatibility is not confirmed.
 
-## Starting it
-The pack ships **`QUICK-START.bat`** next to `GTAIV.exe`: it starts SteamVR,
-waits, then launches the game through Steam. Start SteamVR first if you prefer
-to launch normally.
+| Button | Action |
+|---|---|
+| [[Left Trackpad]] touch | Move; the outer edge jogs |
+| [[Left Trackpad Click]] hold | Sprint |
+| [[Right Trackpad Center Click]] | Jump; handbrake while driving; confirm in phone |
+| [[Right Trackpad Left Click]] / [[Right Trackpad Right Click]] | Select weapons |
+| [[Left Menu]] tap | Pause or skip a cutscene |
+| [[Left Menu]] hold | Open phone, including while driving |
+| [[Right Trigger]] | Fire; accelerate while driving; select a pointed pause-menu item |
+| [[Left Grip]] near weapon | Support the weapon with your second hand |
+| [[Grip]] near an object | Grab; hold to retain it |
+| [[Right Grip]] | Eject a supported magazine |
+| [[Left Grip]] over shoulder | Retrieve ammunition; insert it and operate the weapon's slide, handle or pump |
+| [[Right Menu]] | Enter/exit vehicle; back in phone or pause menus |
+| [[Left Trigger]] while driving | Brake/reverse; fire a left-hand weapon during armed driving |
+| [[Left Trackpad]] touch or [[Grip]] on steering wheel | Steer |
+| [[Right Trackpad Upper Click]] | Horn |
+| [[Left Trackpad Click]] during armed driving | Brake/reverse |
+| [[Right Trackpad Directional Click]] in phone | Navigate |
 
-**`FULL-RESTART.bat`** is what the VR menu's *Full restart* now runs - a real
-process restart. The menu's *Re-read settings files* only reloads the text
-files beside the game and does **not** reload the mod itself, so a changed
-setting that seems to do nothing usually needs the full restart.
+Ejected magazine ammunition is discarded. The pump shotgun needs pumping after each shot. Physical reloading is on foot; vehicles retain native reload/ammunition handling.
 
-## Controls
-The game plays on a gamepad; these are the VR layer's own keys.
+## Controls - previous gamepad mod
+Use the game's gamepad controls. The keyboard shortcuts below belong to gtaiv-dxvk-vr.
 
-- [[F3]] or gamepad [[Back]] open / close the VR settings menu
-- [[F9]] or [[R3]] recenter the view
-- [[F5]] cycle the eye resolution (it saves the new value back)
-- [[F6]] stereo scale, [[F8]] IPD / separation
-- [[F10]] set the seated lean baseline
-- Menu navigation: [[WASD]], arrows or [[Left Stick]]; [[Enter]] applies
+| Button | Action |
+|---|---|
+| [[F3]] | Open VR menu |
+| [[F5]] | Cycle eye resolution |
+| [[F6]] | Stereo scale |
+| [[F8]] | IPD |
+| [[F9]] | Recenter |
+| [[F10]] | Set seated baseline |
 
-If the gun glitches while aiming, recenter - that is a known rough edge.
+The gamepad package supplies its own tuned settings. Choose DirectX 9 in its FusionFix graphics options, rather than FusionFix's Vulkan path. Its optional aCompleteEditionHook.asi can cause startup crashes on some installations; back it up and rename it to aCompleteEditionHook.asi.off if affected.
 
-## Config files (next to GTAIV.exe)
-Plain text, one value each. Edit with Notepad, then restart the game.
+## Help
+### Mission workarounds
+Bordplate: enter and immediately leave the required bowling activity in Michelle's mission. Playing the minigame itself needs flat controls. In Bull in a China Shop, smash the window with your fist instead of trying to pick up the tutorial's cinder block.
 
-- `gtaiv_dxvk_vr.vres` - eye resolution; `F5` also cycles it and saves back
-- `gtaiv_dxvk_vr.stereo` - stereo mode; **`0` turns VR off** and gives you
-  the flat game on the monitor
-- `gtaiv_dxvk_vr.ipd`, `.stereoscale`, `.fpfov` - scale and field of view
-- `gtaiv_dxvk_vr.log` next to `GTAIV.exe` records the build id
+### Known rendering limits
+Traffic-light lamps, objective markers and water have reported stereo issues. Vehicle and UI coverage remain under development. These are mod limitations rather than proof of an installer error.
 
-The shipped `CONFIG-GUIDE.txt` lags behind the build - where it and the
-files disagree, the files that came with your download are what is actually
-running.
+### Settings
+Bordplate settings are in plugins/GTAIV.EFLC.FusionFix.ini; adjust PlayerHeight in the VR section to your height in metres. Weapon and vehicle profiles live in plugins/VRWeapons and plugins/VRVehicles. The Hub preserves edited INI/CFG files during updates.
 
-## Optional: square aspect
-The package ships `commandline.txt.vr-square`. Renaming it to
-`commandline.txt` (back up any existing one first) switches the game to a
-square window, which some people prefer in the headset. Needs a full
-process restart.
+The previous mod uses gtaiv_dxvk_vr.* text files beside GTAIV.exe. Its log is gtaiv_dxvk_vr.log. The optional commandline.txt.vr-square can be used as commandline.txt after backing up any existing file.
 
-## Turning VR off again
-Set `gtaiv_dxvk_vr.stereo` to `0` and restart, or rename
-`gtaiv_dxvk_vr.asi` to `gtaiv_dxvk_vr.asi.off`. To go back to a clean game,
-restore `d3d9.dll.vrbak` and `dinput8.dll.vrbak` over the mod's versions.
+## VR files
+Both retained mod profiles live under _vrmods in the folder containing GTAIV.exe. The Hub uses its current Core/GTA4VR/Start-GTA4VR.ps1 controller. Desktop shortcuts use the installed _vrmods/VRLaunch/Start-GTA4VR.ps1 through the matching hidden VBS launcher. The selected profile is activated there before the normal store/game start. Original game files and profile-specific settings are kept separately.
 
-## If it crashes at boot
-The package includes `aCompleteEditionHook.asi`, which is **optional** - the
-VR layer does not need it. On some Complete Edition plus FusionFix setups it
-crashes at startup. Rename it to `aCompleteEditionHook.asi.off` and try
-again.
+## Links & support
+- [GTA4VR by bordplate](https://github.com/bordplate/GTA4VR)
+- [GTA4VR releases](https://github.com/bordplate/GTA4VR/releases)
+- [GTA4VR issues and mission workarounds](https://github.com/bordplate/GTA4VR/issues)
+- [Previous gtaiv-dxvk-vr mod](https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod)
+- [Previous mod releases](https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod/releases)
+- [VR gameplay - bordplate motion controls](https://youtu.be/sXusIPAr8HY?t=286)
+- [VR gameplay - previous gamepad mod](https://youtu.be/JkVdSyDpg78)
 
-## Requirements
-- GTA IV **Complete Edition** (32-bit `GTAIV.exe`)
-- SteamVR with a tracked headset (developed on a Reverb G2)
-- A gamepad
+Roman has another bowling invitation.
 
-## Mod page
-https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod
+### SteamVR runtime check
 
-## Credits
-The pack builds on DXVK, FusionFix, Ultimate ASI Loader, MinHook and Aru's
-ScriptHook - each under its own license. GTA IV belongs to Rockstar Games;
-no game files are redistributed.
+For bordplate, running SteamVR alone is insufficient: SteamVR must also be the active 32-bit OpenXR runtime. In SteamVR, open Settings > OpenXR > Set SteamVR as OpenXR Runtime. If Windows still selects Virtual Desktop or another runtime, Start in VR explains this before launching. The game would otherwise fall back to flat. The gamepad mod and intentional Flat mode keep their existing start routes.
+
+If the mod logs Vulkan OpenVR bootstrap preload failed and stays flat, Start in VR supplies the absolute SteamVR bin/win32/openvr_api.dll path through VulkanOpenVRBootstrap. The former configuration is backed up beside the INI; existing valid custom paths are retained. This fixes the reproduced initialization failure and was confirmed in a real VR start.

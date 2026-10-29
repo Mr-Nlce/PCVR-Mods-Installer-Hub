@@ -1,4 +1,4 @@
-# Spider-Man Remastered - Spidy VR
+﻿# Spider-Man Remastered - Spidy VR
 
 ## About the Game
 
@@ -6,10 +6,7 @@ Marvel's Spider-Man Remastered follows Peter Parker through an open-world New Yo
 
 ## Requirements and setup
 
-The reviewed Windows package is Spidy v0.3.8. Its launcher retains the Auto
-aspect-ratio choice for VR and identifies a R.E.A.L. VR mod already present in
-the game folder. The release also includes experimental Linux files; the Hub
-continues to install only the Windows package for its supported Steam route.
+The reviewed Windows package is Spidy v0.6.0. The Hub installs only its Windows runtime package; publisher data and reports are retained on update.
 
 Spidy supports the Steam release of Marvel's Spider-Man Remastered only; the Epic Games Store build differs. The current publisher instructions identify game version 4.630.0.0. The launcher checks the installed build, so a new Steam patch may need a matching Spidy release. A PC VR headset and active OpenXR runtime are required. The author played with Quest 3 via Virtual Desktop and Steam Link/SteamVR. Other SteamVR headsets and Quest Link may work but are less proven. Windows must have roughly 19 GB available to applications from RAM and the page file combined; the launcher shows a memory check.
 
@@ -24,25 +21,38 @@ The publisher launcher temporarily uses a small desktop window, disables frame g
 
 | Button | Action |
 |---|---|
-| [[Either Grip]] press | Shoot and hold that hand's web to swing; while aimed at a prop or thug, catch it. |
-| [[Either Grip]] release | Let go of a web or throw a caught prop or thug. |
-| [[Either Trigger]] with attached web | Reel in. |
-| [[Either Trigger]] without attached web | Shoot one web ball from that hand's wrist. |
-| [[Either Grip]] or [[Either Trigger]] after changing Web button to Trigger | Shoot and hold a web with the trigger; the grip then reels in or shoots web balls. The original grip-web layout remains the default. |
-| [[Either Hand]] sharp pull | Zip toward the web anchor or yank a caught object to your hand. |
-| [[Either Fist]] fast punch | Strike a thug; a faster punch gives stronger knockback. |
-| [[Left Stick]] | Walk and run; navigate menus. |
-| [[Left Stick Click]] | Toggle slow motion while Focus remains; the meter at the left wrist refills after use. |
-| [[Right Stick]] | Snap turn or smooth turn according to SPIDY VR settings. |
-| [[A]] | Jump; select in virtual-screen menus. Optional experimental flips use [[A]] or [[Left Stick]] while airborne after Flips is enabled. |
-| [[B]] | Interact, use prompts or web strike; back in menus. |
-| [[Menu]] | Pause; Start in virtual-screen menus. |
-| [[Y]] | Open the game menu with map, suits and skills. |
-| [[X]] | Toggle web aim markers; reset a selected SPIDY VR setting in its menu. |
-| [[Both Stick Clicks]] | Switch between VR gameplay and the flat game screen. |
-| [[Grips]] in virtual-screen menus | Switch menu tabs. |
+| [[Either Grip]] | Shoot and hold that hand's web; release to let go or throw a caught object |
+| [[Either Trigger]] | Reel in an attached web; otherwise fire a web ball or the selected gadget |
+| [[Either Grip]] with Web button set to Trigger | Reel in or fire; [[Either Trigger]] shoots and holds the web instead |
+| [[Either Hand]] sharp pull | Zip to the web anchor or yank a caught object |
+| [[Either Grip]] with free hand on the web | Climb hand over hand; release the lower grip and reach higher |
+| [[Either Fist]] fast punch | Punch the marked enemy; can close a gap up to 10 metres |
+| [[Left Stick]] | Walk or run; on a wall, move along it |
+| [[Left Stick Click]] | Toggle slow motion while Focus remains |
+| [[Right Stick]] | Snap or smooth turn |
+| [[Right Stick]] up, held | Zip to a point or vent; with no point, slow time and aim, then release |
+| [[Right Stick]] down, held | Heal |
+| [[A]] | Jump; hold on the ground and release for a charged leap; confirm menus |
+| [[B]] + [[Left Stick]] | Dodge in the selected direction; [[B]] also goes back in menus |
+| [[Y]] | Interact or web strike; hold to step up to a nearby object |
+| [[X]] held | Select a gadget with that hand, then release; free-hand trigger fires it |
+| [[X]] when the game requests [[LB]] + [[RB]] | Throw a prop, tear a door or grate; hold if the prompt requires it |
+| [[Either Trigger]] with hand at temple | Scan |
+| [[Left Trigger]] + [[Right Trigger]] with hands at chest | Activate suit power when its meter is full |
+| [[Either Grip]] held behind hip, then bring hand forward | Draw the phone |
+| [[Either Stick]] + [[A]] while the phone is open | Choose and open an app; MENU opens map, suits and skills |
+| [[B]] while the phone is open | Go back or put the phone away |
+| [[Left Trigger]] / [[Right Trigger]] in the phone | Lower or raise music volume |
+| [[Left Trigger]] then [[Right Trigger]] in phone CAMERA | Open the viewfinder, then take a photo; [[Right Stick]] up puts it away |
+| [[Menu]] or [[Left Stick Click]] + [[Right Stick Click]] held | Pause; open Settings > SPIDY VR |
+| [[Either Grip]] near a wall, then pull | Experimental hand wall climbing, when enabled |
+| [[Right Stick]] in the air | Basic FLIPS when enabled; release holds the angle, [[A]] returns upright |
+| [[A]] in the air, then [[Left Stick]] | CONTROLLED FLIPS when enabled; [[A]] again returns upright and exits |
+| [[Left Trigger]] + [[Right Trigger]] in a T-pose | Body calibration when requested |
+| [[A]], [[B]], [[X]], [[Y]] when prompted | Press the named game button; [[LT]] or [[LB]] uses [[Left Trigger]], [[RT]] or [[RB]] uses [[Right Trigger]] |
+| [[Left Stick Click]] / [[Right Stick Click]] when prompted | The game's [[L3]] / [[R3]]; [[Right Stick]] supplies requested D-pad directions |
 
-The web aim markers use a ring with a dot for a valid anchor, a dashed ring for open-air holding, a red cross for a miss and three turning arcs for a catchable target. The left-hand markers are blue and the right-hand markers orange. The launcher and Settings > SPIDY VR control Web button, aim markers, open-air webs, swing speed, weight, turning, vibration, screen size, floating HUD and experimental flips. The SPIDY VR tab appears after loading a save, not in title-screen Options. In the tab, [[Left Stick]] changes the selected setting, [[X]] resets one setting, [[Y]] resets the tab and [[B]] goes back. Catches, web shooter, visible body and punching remain active in current publisher builds.
+Quest Touch button names are shown. The publisher's linked players' guide has Index, Steam Frame and PS VR2 mappings. Realistic flips retain their own gesture controls and take priority over the two optional flip modes. In SPIDY VR settings, [[Left Stick]] changes a selected value, [[X]] resets it, [[Y]] resets the tab and [[B]] goes back.
 
 ## Updates, removal and troubleshooting
 

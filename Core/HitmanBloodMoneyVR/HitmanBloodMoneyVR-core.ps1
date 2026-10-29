@@ -132,6 +132,23 @@ function New-HBMShortcut([string]$Runtime){
     }
     return $created
 }
+function Backup-HBMUserSettings([string]$Runtime) {
+    $files=@('camera.ini','vr.ini','hands.ini','reload.ini','mod.ini','weapon-grips.ini','grip-tuning.ini')
+    $present=@($files|Where-Object {Test-Path -LiteralPath (Join-Path $Runtime $_) -PathType Leaf})
+    if(-not $present.Count){return $null}
+    $backup=Join-Path $env:LOCALAPPDATA ('PCVR Mods Installer Hub\Backups\HitmanBloodMoneyVR\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($backup)
+    $manifest=@()
+    foreach($name in $present){
+        $source=Join-Path $Runtime $name;$destination=Join-Path $backup $name
+        Copy-Item -LiteralPath $source -Destination $destination -ErrorAction Stop
+        $hash=(Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
+        if((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $hash){throw ('The settings backup could not be verified: '+$name)}
+        $manifest += [pscustomobject]@{File=$name;Original=$source;Sha256=$hash}
+    }
+    $manifest|ConvertTo-Json -Depth 4|Set-Content -LiteralPath (Join-Path $backup 'settings-backup.json') -Encoding UTF8
+    return $backup
+}
 function Invoke-HBMInstaller {
     $work=$null;$createdShortcut=$false;$runtime=$null
     try{
@@ -162,6 +179,15 @@ function Invoke-HBMInstaller {
         }
         $setup=Join-Path $stage $info.SetupName
         if(-not(Test-Path -LiteralPath $setup -PathType Leaf)){throw 'Publisher Setup is missing after extraction.'}
+        $settingsBackup=Backup-HBMUserSettings $runtimeDefault
+        Write-Host ''
+        Write-Host '  PUBLISHER SETUP RESETS MOD SETTINGS  ' -ForegroundColor Black -BackgroundColor Yellow
+        Write-Host '  This release resets modifiers, calibration, audio and weapon-grip settings.' -ForegroundColor Yellow
+        if($settingsBackup){
+            Write-Host '  Your previous mod settings have been backed up before opening Setup:' -ForegroundColor Green
+            Write-Host ('  '+$settingsBackup) -ForegroundColor White
+        }
+        Write-Host '  After Setup, select your connection in Blood Money VR Settings and choose Save & play.' -ForegroundColor Yellow
         $attempt=0
         while($true){
             Write-Host ''

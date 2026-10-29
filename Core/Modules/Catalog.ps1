@@ -2,6 +2,226 @@
 # Own installers - alphabetical
 # -------------------------------------------------------
 $ownGames = @(
+
+    @{
+        Controls='BOTH'; Title='GTA IV VR'; SteamId='12210'; GameExe='GTAIV.exe'
+        VideoUrl='https://youtu.be/JkVdSyDpg78'; VideoLabel='VR gameplay - gtaiv-dxvk-vr (gamepad)'
+        VideoUrl2='https://youtu.be/sXusIPAr8HY?t=286'; VideoLabel2='VR gameplay - GTA4VR (bordplate, motion controls)'
+        Quip='Roman has another bowling invitation.'
+        Mod='GTA4VR / dxvk-vr (auto-update)'; Author='bordplate / Hochgeschwindigkeitsrennfahrer'; Description='Motion controls + gamepad'
+        Bat='GTA4VR\START_INSTALLER.bat'; Color='#101820'; Accent='#c9852f'
+        InfoUrl='https://github.com/bordplate/GTA4VR'; ModPageUrl='https://github.com/bordplate/GTA4VR'; DownloadUrl='https://github.com/bordplate/GTA4VR/releases'
+        GithubRepo='bordplate/GTA4VR'; GithubReleaseAssetPatterns=@('(?i)^GTA4VR\.zip$'); GithubRepoPresenceFile='_vrmods\bordplate\plugins\GTAIV.EFLC.FusionFix.asi'; GithubRepoVersionFile='_vrmods\bordplate\.pcvrhub_version'; GithubRepoModSlot='A'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        GithubRepoB='Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod'; GithubRepoBReleaseAssetPatterns=@('(?i)^(?!.*(?:pdb|symbol|source)).*\.zip$'); GithubRepoBPresenceFile='_vrmods\gamepad\gtaiv_dxvk_vr.asi'; GithubRepoBVersionFile='_vrmods\gamepad\.pcvrhub_version'; GithubRepoBModSlot='B'
+        SteamFolder='Grand Theft Auto IV'; FallbackPaths=@('C:\Program Files\Rockstar Games\Grand Theft Auto IV\GTAIV','C:\Program Files (x86)\Rockstar Games\Grand Theft Auto IV\GTAIV')
+        BaseGameProofFiles=@('GTAIV.exe|GTAIV\GTAIV.exe','pc\models\cdimages\vehicles.img|GTAIV\pc\models\cdimages\vehicles.img')
+        ModFile='_vrmods\bordplate\plugins\GTAIV.EFLC.FusionFix.asi'; ModFileAlt='_vrmods\gamepad\gtaiv_dxvk_vr.asi'; ModFileAlt2='gtaiv_dxvk_vr.asi'
+        TwoMods=$true; GTA4ProfileLaunch=$true; HubLaunchScript='GTA4VR\Start-GTA4VR.ps1'; HubStartFile='GTAIV.exe'; HubLaunchWindowStyle='Hidden'; CombinedModInstaller=$true; SeparateUninstallButtons=$true; DisableSharedTwoModsFallback=$true
+        ModAName='GTA4VR (bordplate)'; ModAButtonLabel='bordplate'; ModASub='_vrmods\VRLaunch'; ModALaunch='Start GTA4 bordplate.vbs'; ModAInstallerChoice='bordplate'
+        ModAProbeFile='_vrmods\bordplate\plugins\GTAIV.EFLC.FusionFix.asi|GTA4VR-notices\readme.md|GTAIV\GTA4VR-notices\readme.md'; ModARequiredFileGroups=@('_vrmods\bordplate\vulkan.dll','_vrmods\bordplate\d3d9.cfg','_vrmods\bordplate\plugins\GTAIV.EFLC.FusionFix.asi','_vrmods\bordplate\plugins\GTAIV.EFLC.FusionFix.ini','_vrmods\bordplate\update\GTAIV.EFLC.FusionFix\GTAIV.EFLC.FusionFix.img','_vrmods\bordplate\.profile.json|GTA4VR-notices\readme.md|GTAIV\GTA4VR-notices\readme.md','_vrmods\bordplate\d3d9.dll|d3d9.dll|GTAIV\d3d9.dll','_vrmods\bordplate\dinput8.dll|dinput8.dll|GTAIV\dinput8.dll','_vrmods\bordplate\plugins\openxr_loader.dll|plugins\openxr_loader.dll|GTAIV\plugins\openxr_loader.dll')
+        ModBName='gtaiv-dxvk-vr'; ModBButtonLabel='Gamepad'; ModBSub='_vrmods\VRLaunch'; ModBLaunch='Start GTA4 gamepad.vbs'; ModBInstallerChoice='gamepad'
+        ModBProbeFile='_vrmods\gamepad\gtaiv_dxvk_vr.asi|gtaiv_dxvk_vr.asi|GTAIV\gtaiv_dxvk_vr.asi'; ModBRequiredFileGroups=@('_vrmods\gamepad\plugins\GTAIV.EFLC.FusionFix.asi','_vrmods\gamepad\.profile.json|gtaiv_dxvk_vr.asi|GTAIV\gtaiv_dxvk_vr.asi','_vrmods\gamepad\d3d9.dll|d3d9.dll|GTAIV\d3d9.dll','_vrmods\gamepad\dinput8.dll|dinput8.dll|GTAIV\dinput8.dll','_vrmods\gamepad\openvr_api.dll|openvr_api.dll|GTAIV\openvr_api.dll')
+        FlatVRIniFile='_vrmods\mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+        UninstallExe=@('UNINSTALL_GTA4VR.bat','UNINSTALL_GTA4VR.bat'); UninstallLabel=@('Remove bordplate','Remove gamepad mod'); UninstallTargetMod=@('ModA','ModB'); UninstallArguments=@('-Mod bordplate -HubConfirmed','-Mod gamepad -HubConfirmed'); UninstallProbeFile=@('_vrmods\bordplate\.profile.json','_vrmods\gamepad\.profile.json'); UninstallRequireProbe=$true
+        UninstallSteps=@('Close GTA IV and its launcher. Choose the mod to remove with Uninstall now.','Only the selected profile is removed. Original files, changed settings, saves and the other mod are kept.','Flat / VR affects the next launch through the Hub or its matching desktop shortcut.')
+        Tags=@('motion controls','gamepad','gta','gta 4','gta iv','grand theft auto','liberty city','niko bellic','rockstar','dxvk','open world','action','shooter','driving','story')
+    },
+
+
+    @{
+        Id='aliens-versus-predator-2-vr'; Controls='MC'; Title='Aliens versus Predator 2 VR'; TileTitle="Aliens versus`nPredator 2 VR"; HubAddedAt='2026-10-28'
+        GameExe='AVP2.exe'; BaseGameProofFiles=@('AVP2.exe','lithtech.exe','AVP2.rez'); SteamId=''; SteamFolder='Aliens vs. Predator 2'; FreeBaseGame=$true
+        FallbackPaths=@('C:\Program Files (x86)\Fox\Aliens vs. Predator 2','C:\Program Files (x86)\Aliens vs. Predator 2')
+        Bat='AliensPredator2VR\START_INSTALLER.bat'; ReadmeDir='AliensPredator2VR'; Mod='AvP2 VR (auto-update)'; Author='Bassquake'; Description='Free; SteamVR; motion controls'
+        Color='#101e25'; Accent='#91ba68'; PowerTier='SOLID-P'; PortraitUrl='Assets/AliensPredator2VR_portrait.jpg'; HeaderUrl='Assets/AliensPredator2VR_header.jpg'; ScreenshotUrl='Assets/AliensPredator2VR_screenshot.jpg'
+        InfoUrl='https://github.com/Bassquake/Aliens-Versus-Predator-2-VR'; ModPageUrl='https://github.com/Bassquake/Aliens-Versus-Predator-2-VR'; DownloadUrl='https://github.com/Bassquake/Aliens-Versus-Predator-2-VR/releases'
+        GithubRepo='Bassquake/Aliens-Versus-Predator-2-VR'; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^avp2vr[-_].+\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='vrrez\cshell.dll'; ModFileAlt='vrrez\cshell.dll'; LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        VrInstallEvidence=@('DDraw.dll|DDraw.dll.pcvrhub_off','D3DImm.dll','d3d11.dll','openxr_loader.dll','xrres.exe','dgVoodoo.conf','avp2xr.ini','vrrez\cshell.dll','vrrez\cres.dll','vrrez\sres.dll','vrrez\Models\Weapons\Marine\mPulserifle_pv.ABC','PCVR-Launcher\Start-AvP2VR.ps1','.pcvrhub_avp2vr_ownership.csv','.pcvrhub_version')
+        HubLaunchScript='AliensPredator2VR\Start-AvP2VR.ps1'; HubStartFile='PCVR-Launcher\Start-AvP2VR.ps1'; HubLaunchWindowStyle='Hidden'
+        FlatVREnabled='DDraw.dll'; FlatVRDisabled='DDraw.dll.pcvrhub_off'
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove AvP2 VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_avp2vr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close AvP2 and its launcher. Remove unchanged Hub-owned VR files and restore earlier originals. Saved games, modified settings and unrelated files stay.','Flat / VR parks the VR graphics wrapper. Flat mode opens the original AVP2.exe launcher. The game itself is retained.')
+        VideoUrl='https://youtu.be/4kNUM0h5kPE?t=64'; VideoLabel='Watch VR gameplay'; Quip='Game over, man! Try the other two campaigns.'; QuipLast=$true
+        Tags=@('shooter','action','horror','aliens','predator','avp2','bassquake','steamvr','openxr','motion controls','free','wip')
+    },
+
+
+    @{
+        Id='hitman-contracts-vr'; Controls='MC'; Title='Hitman: Contracts VR'; TileTitle='Hitman: Contracts'; HubAddedAt='2026-10-28'; Wip=$true; UntestedInstaller=$false
+        SteamId='247430'; SteamFolder='Hitman Contracts'; GameExe='HitmanContracts.exe'; BaseGameProofFiles=@('HitmanContracts.exe')
+        FallbackPaths=@('C:\GOG Games\Hitman 3 - Contracts','C:\Program Files (x86)\Hitman Contracts','C:\Program Files (x86)\Eidos\Hitman Contracts')
+        Bat='HitmanContractsVR\START_INSTALLER.bat'; ReadmeDir='HitmanContractsVR'; Mod='Hitman: Contracts VR (auto-update)'; Author='andreystashev'; Description='Preview; separate VR launcher'
+        Color='#171b20'; Accent='#b14a4d'; PortraitUrl='Assets/HitmanContractsVR_portrait.jpg'; HeaderUrl='Assets/HitmanContractsVR_header.jpg'; ScreenshotUrl='Assets/HitmanContractsVR_screenshot.jpg'
+        InfoUrl='https://github.com/andreystashev/hitman-contracts-vr-showcase'; ModPageUrl='https://github.com/andreystashev/hitman-contracts-vr-showcase'; DownloadUrl='https://github.com/andreystashev/hitman-contracts-vr-showcase/releases'
+        GithubRepo='andreystashev/hitman-contracts-vr-showcase'; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^ContractsVR[-_].*Setup\.exe$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='ContractsVR.exe'; VrInstallEvidence=@('ContractsVRAudio.dll','LaunchVR.exe','mod.ini','ContractsVRSetupCleanup.ps1','ContractsVRSetupGuard.exe','renderer-dxvk-x86\d3d8.dll','renderer-dxvk-x86\d3d9.dll','renderer-dxvk-x86\dxvk.conf','ContractsVR.exe','ContractsVR.dll','ContractsVRHost.exe','ContractsOpenXRHost.exe','openxr_loader.dll','launcher.ini','vr.ini','unins000.exe','tools-read\contracts-renderer-trial.ps1','tools-read\contracts-renderer-trial.psm1','PCVR-Launcher\launch.json','PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\game.ico','.pcvrhub_version'); LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        HubLaunchScript='HitmanContractsVR\Start-VR.ps1'; HubStartFile='PCVR-Launcher\Start-VR.ps1'; HubLaunchWindowStyle='Hidden'; PreferDedicatedLaunchExe=$true
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallRequireProbe=$true; UninstallProbeFile='unins000.exe'
+        UninstallSteps=@('Close the game and VR launcher, then choose Uninstall now. Owned VR files are removed and earlier files restored.','Your original game, saves, changed settings and unrelated files remain.')
+        VideoUrl='https://youtu.be/uFUh52hvxfU?t=47'; VideoLabel='Watch VR gameplay'; Quip='Another rainy night. Another suspiciously perfect disguise.'; QuipLast=$true; Tags=@('stealth','action','story','hitman','contracts','agent 47','andreystashev','openxr','motion controls','wip')
+        StandaloneVR=$true; SeparateLauncherBaseGame=$true; TwoModsSeparateBaseGame=$true; VrInstallRoot='LOCALAPPDATA:ContractsVR'; DurableInstallRoots=@([IO.Path]::Combine($env:LOCALAPPDATA,'ContractsVR')); LaunchExe='ContractsVR.exe'
+        FlatVRIniFile='PCVR-Launcher\mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+        Notice='Review version. Publisher validates Steam 1.75 / supported legacy 1.74 executables. Room-scale walking is not implemented. Settings reset during publisher updates; the Hub backs them up.'
+    },
+
+    @{
+        Id='ratchet-clank-1-vr'; CountAsGame=$false; Controls='MC'; Title='Ratchet & Clank 1 VR'; TileTitle='Ratchet & Clank 1 VR'; HubAddedAt='2026-10-28'; Wip=$true; UntestedInstaller=$false
+        SteamId=''; SteamFolder='Ratchet & Clank 1 VR'; GameExe='rerac.exe'; BaseGameProofFiles=@('rerac.exe','data\extract-info.json')
+        FallbackPaths=@('C:\Games\Ratchet & Clank 1 VR')
+        Bat='RatchetClank1VR\START_INSTALLER.bat'; ReadmeDir='RatchetClank1VR'; Mod='RatchetVR (auto-update)'; Author='npiriou / ReRAC'; Description='US disc; motion controls'
+        Color='#172320'; Accent='#e9ac40'; PortraitUrl='Assets/RatchetClank1VR_portrait.jpg'; HeaderUrl='Assets/RatchetClank1VR_header.jpg'; ScreenshotUrl='Assets/RatchetClank1VR_screenshot.jpg'
+        InfoUrl='https://github.com/npiriou/Rerac-vr'; ModPageUrl='https://github.com/npiriou/Rerac-vr'; DownloadUrl='https://github.com/npiriou/Rerac-vr/releases'
+        GithubRepo='npiriou/Rerac-vr'; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^RatchetVR[-_].*\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='RatchetVR.exe'; VrInstallEvidence=@('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','assets\shaders\hud.wgsl','RatchetVR.exe','rerac.exe','rerac-extract.exe','assets\shaders\moby.wgsl','data\extract-info.json','.pcvrhub_ratchetclank1vr_ownership.csv','PCVR-Launcher\launch.json','PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\game.ico','.pcvrhub_version'); LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        HubLaunchScript='RatchetClank1VR\Start-VR.ps1'; HubStartFile='PCVR-Launcher\Start-VR.ps1'; HubLaunchWindowStyle='Hidden'; PreferDedicatedLaunchExe=$true
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallRequireProbe=$true; UninstallProbeFile='.pcvrhub_ratchetclank1vr_ownership.csv'
+        UninstallSteps=@('Close the game and VR launcher, then choose Uninstall now. Owned VR files are removed and earlier files restored.','Your original game, saves, changed settings and unrelated files remain.')
+        VideoUrl='https://www.youtube.com/watch?v=rdMAJ2T1JdA'; VideoLabel='Watch VR gameplay'; Quip='The R.Y.N.O. is still not covered by your warranty.'; QuipLast=$true; Tags=@('platformer','action','adventure','ratchet','clank','rerac','npiriou','lombax','collectathon','motion controls','us disc')
+        StandaloneVR=$true; LaunchExe='RatchetVR.exe'; DurableInstallRoots=@('C:\Games\Ratchet & Clank 1 VR',[IO.Path]::Combine($env:LOCALAPPDATA,'PCVR Games','Ratchet & Clank 1 VR'))
+        FlatVRIniFile='PCVR-Launcher\mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+        Notice='Early VR port. Original US SCUS-97199 disc image only; game data is not included. SteamVR must be the active OpenXR runtime.'
+    },
+    @{
+        Id="call-of-duty-united-offensive-vr"; Controls="MC"; Title="Call of Duty: United Offensive VR"; TileTitle="Call of Duty:`nUnited Offensive VR"; HideTileAuthor=$true; Wip=$true; HubAddedAt="2026-10-26"
+        SteamId="2640"; SteamFolder="Call of Duty United Offensive"; GameExe="CoDUOSP.exe"; BaseGameProofFiles=@('CoDUOSP.exe','uo\pakuo00.pk3')
+        FallbackPaths=@('STEAM:Call of Duty United Offensive','C:\Program Files (x86)\Activision\Call of Duty','STEAM:Call of Duty')
+        Quip="Bastogne called. It is still not asking nicely."; QuipLast=$true
+        Mod="CoD VR (auto-update)"; Author="lambda-gab"; Description="Solo; 32-bit OpenXR"
+        Bat="CallOfDutyUOVR\START_INSTALLER.bat"; ReadmeDir="CallOfDutyUOVR"; Color="#141b24"; Accent="#c2c7b6"
+        PortraitUrl='Assets/CallOfDutyUOVR_portrait.jpg'; HeaderUrl='Assets/CallOfDutyUOVR_header.jpg'; ScreenshotUrl='Assets/CallOfDutyUOVR_screenshot.jpg'
+        InfoUrl="https://github.com/lambda-gab/cod1-vr"; ModPageUrl="https://github.com/lambda-gab/cod1-vr"; DownloadUrl="https://github.com/lambda-gab/cod1-vr/releases"
+        GithubRepo="lambda-gab/cod1-vr"; GithubReleaseAssetPatterns=@('(?i)^(?!.*(?:source|symbols|debug))(?:cod[-._ ]?vr|callofduty[-._ ]?vr).*\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        ModFile="opengl32.dll"; ModFileAlt="opengl32.dll.pcvrhub_off"; FlatVREnabled="opengl32.dll"; FlatVRDisabled="opengl32.dll.pcvrhub_off"; LaunchExe="CoD-VR-Launcher.exe"
+        VrInstallEvidence=@('CoDUOSP.exe','uo\pakuo00.pk3','opengl32.dll|opengl32.dll.pcvrhub_off','openxr_loader.dll','cod_vr.ini','CoD-VR-Launcher.exe','.pcvrhub_cod1vr_ownership.csv','.pcvrhub_version')
+        HubLaunchScript="CallOfDutyUOVR\Start-CallOfDutyUOVR.ps1"; HubStartFile='CoD-VR-Launcher.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
+        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Call of Duty VR"; UninstallProbeFile=".pcvrhub_cod1vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
+        UninstallSteps=@('If you used Player hands > Hidden in the publisher launcher, switch it back to Visible before removal. The generated main\pakz_vr_nohands.pk3 is not deleted automatically by the Hub; remove only that known generated file if still present.', 'Close Call of Duty, then choose Uninstall now. The Hub removes unchanged files it owns and restores any earlier files with the same names.','The original game, saves, settings you changed and unrelated files remain. If the original Call of Duty shares this folder, both games use one VR runtime; removal disables VR for both and asks for confirmation.')
+        Tags=@('shooter','action','retro','call of duty','united offensive','coduo','lambda-gab','world war 2','wwii','shooter','fps','action','military','single player','motion controls','openxr','wip')
+    },
+
+    @{
+        Id='among-the-sleep-vr'; Controls='MC'; Title='Among the Sleep VR'; TileTitle='Among the Sleep'; Wip=$true; HubAddedAt='2026-10-26'; SteamId='250620'; SteamFolder='Among the Sleep'; GameExe='Among the Sleep.exe'
+        BaseGameProofFiles=@('Among the Sleep.exe','Among the Sleep_Data\Managed\Assembly-CSharp.dll'); Bat='AmongSleepVR\START_INSTALLER.bat'; ReadmeDir='AmongSleepVR'
+        Author='King-EJ'; Mod='Among the Sleep VR (auto-update)'; Description='SteamVR, motion controls'
+        Color='#11182e'; Accent='#dec57a'; PortraitUrl='Assets/AmongSleepVR_portrait.jpg'; HeaderUrl='Assets/AmongSleepVR_header.jpg'; ScreenshotUrl='Assets/AmongSleepVR_screenshot.jpg'
+        InfoUrl='https://github.com/King-EJ/Among-the-Sleep-VR'; ModPageUrl='https://github.com/King-EJ/Among-the-Sleep-VR'; DownloadUrl='https://github.com/King-EJ/Among-the-Sleep-VR/releases'
+        WebVersionUrl='https://github.com/King-EJ/Among-the-Sleep-VR/releases'; WebVersionPattern='(?i)/releases/tag/(AmongtheSleepVR[a-z]*)'; WebVersionAliases=@{AmongtheSleepVRa='v0.2.2';AmongtheSleepVR='v0.1.4'}; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='BepInEx\plugins\ATSVR\ATSVR.dll'; LaunchExe='Among the Sleep.exe'; ModFileBepInEx=$true
+        VrInstallEvidence=@('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\ATSVR\atsxr.dll','BepInEx\config\amongthesleep.vr.cfg','.pcvrhub_amongthesleepvr_ownership.csv','.pcvrhub_version')
+        FlatVRIniFile='doorstop_config.ini'; FlatVRIniSection='General'; FlatVRIniKey='enabled'; FlatVRIniVRValue='true'; FlatVRIniFlatValue='false'
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Among the Sleep VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_amongthesleepvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Among the Sleep. Uninstall now removes unchanged Hub-owned VR and loader files and restores protected earlier same-name files. Saves, changed configurations and unrelated files remain.','For temporary flat play, use Flat / VR. It changes only Doorstop enabled in the loader configuration; switch back to VR before playing in VR.')
+        VideoUrl='https://youtu.be/sYke8ZauLfE?t=79'; VideoLabel='Watch gameplay (not VR)'; Quip='Teddy said he would keep you safe. He did not mention bedtime overtime.'; QuipLast=$true
+        Tags=@('horror','adventure','puzzle','among the sleep','teddy','krillbite','king-ej','openxr','motion controls','wip')
+    },
+
+    @{
+        Id='call-of-duty-black-ops-vr'; Controls='MC'; Title='Call of Duty: Black Ops VR'; TileTitle="Call of Duty:`nBlack Ops VR"; HubAddedAt='2026-10-26'
+        SteamId='42700'; SteamFolder='Call of Duty Black Ops'; GameExe='BlackOps.exe'; BaseGameProofFiles=@('BlackOps.exe','main\iw_00.iwd')
+        Bat='BlackOpsVR\START_INSTALLER.bat'; ReadmeDir='BlackOpsVR'; Author='BigManLucaVR'; Mod='BO1VR (auto-update)'; Description='Campaign; Zombies; OpenXR'
+        Color='#171a16'; Accent='#a7af99'; PortraitUrl='Assets/BlackOpsVR_portrait.jpg'; HeaderUrl='Assets/BlackOpsVR_header.jpg'; ScreenshotUrl='Assets/BlackOpsVR_screenshot.jpg'
+        InfoUrl='https://github.com/BigManLucaVR/BO1VR'; ModPageUrl='https://github.com/BigManLucaVR/BO1VR'; DownloadUrl='https://github.com/BigManLucaVR/BO1VR/releases'
+        GithubRepo='BigManLucaVR/BO1VR'; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^BO1VR.*\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d9.dll'; ModFileAlt='d3d9.dll.pcvrhub_off'; FlatVREnabled='d3d9.dll'; FlatVRDisabled='d3d9.dll.pcvrhub_off'
+        LaunchExe='BO1VR.exe'; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('BO1VR.exe','d3d9.dll|d3d9.dll.pcvrhub_off','openxr_loader.dll','BO1VR\manifest.json','BO1VR\data\controls.ini','BO1VR\data\bo1vr-poses.bin','BO1VR\data\bo1vr-weapons.bin','BO1VR\data\bo1vr-guns.bin','BO1VR\data\bo1vr-body.bin','BO1VR\data\dxvk\bo1vr-dxvk-d3d9.dll','BO1VR\data\dxvk\wineopenxr.dll','.pcvrhub_bo1vr_ownership.csv','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Black Ops VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_bo1vr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Black Ops and BO1VR. Uninstall now guides you through the publisher launcher: click the beta version at the bottom right, then Uninstall. Leave Also delete my settings unchecked to retain settings. Finish removal and close BO1VR, then confirm in Hub setup.','The Hub then removes unchanged files it owns and restores protected same-name originals. Saved games, edited and generated settings, logs and unrelated files remain. Flat / VR parks only the VR graphics proxy; use ordinary Steam Play in Flat mode. Start in VR opens BO1VR and prepares VR again.')
+        VideoUrl='https://youtu.be/VV01xmQ8zRA?t=83'; VideoLabel='Watch VR gameplay'; Quip='The numbers, Mason! They were not your refresh rate.'; QuipLast=$true
+        Tags=@('shooter','action','horror','call of duty','black ops','bo1','zombies','campaign','bigmanlucavr','openxr','motion controls','beta')
+    },
+
+    @{
+        Id='black-white-vr'; Controls='MC'; Title='Black & White VR'; HubAddedAt='2026-10-25'; GameExe='runblack.exe'; BaseGameProofFiles=@('runblack.exe')
+        Bat='BlackWhiteVR\START_INSTALLER.bat'; ReadmeDir='BlackWhiteVR'; Author='Buck'; Mod='Black & White VR (auto-update)'; Description='Own copy; patch 1.42'
+        Color='#171c0c'; Accent='#b5b973'; PortraitUrl='Assets/BlackWhiteVR_portrait.jpg'; HeaderUrl='Assets/BlackWhiteVR_header.jpg'; ScreenshotUrl='Assets/BlackWhiteVR_screenshot.jpg'
+        InfoUrl='https://github.com/BW1-VR/BW1-VR'; ModPageUrl='https://github.com/BW1-VR/BW1-VR'; DownloadUrl='https://github.com/BW1-VR/BW1-VR/releases'
+        GithubRepo='BW1-VR/BW1-VR'; GithubReleaseAssetPatterns=@('(?i)^Black[. ]White[. ]VR[. ]Mod.+Setup\.exe$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        FallbackPaths=@('C:\Program Files (x86)\Lionhead Studios Ltd\Black & White','C:\Black & White'); ModFile='ddraw.dll'; LaunchExe='Black & White VR Mod.exe'; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
+        FlatVRPublisherLauncher='Black & White VR Mod.exe'
+        VrInstallEvidence=@('ddraw.dll','openxr_loader.dll','Black & White VR Mod.exe','dxwrapper\ddraw.dll','dxwrapper\dxwrapper.dll','dxwrapper\dxwrapper.ini','dxwrapper\ddraw.ini','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Open publisher Uninstall'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='Black & White VR Mod.exe'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and its launcher. Uninstall now opens the publisher uninstaller; it may require administrator approval.','The publisher restores its previous ddraw.dll backup and retains saved games and your settings. Do not remove the complete game folder. For flat play, choose Play, no VR in the launcher.')
+        Notice='Your own original PC copy, patches 1.10 then 1.20 then unofficial 1.42, and a successful flat start are required. No Creature Isle or patch 1.30. Use a 32-bit OpenXR runtime; the launcher offers Play in VR and Play, no VR.'
+        VideoUrl='https://youtu.be/fT-J_DspllY?t=155'; VideoLabel='Watch VR gameplay'; Quip='Please do not teach the Creature to eat the villagers.'; QuipLast=$true
+        Tags=@('strategy','simulation','fantasy','black and white','black & white','bw1','buck','god game','creature','openxr','motion controls')
+    },
+    @{
+        Id='dementium-ii-hd-vr'; Controls='MC'; Title='Dementium II HD VR'; TileTitle='Dementium II HD'; HubAddedAt='2026-10-25'; SteamId='217100'; SteamFolder='Dementium 2'; GameExe='DII_Beta.exe'; BaseGameProofFiles=@('DII_Beta.exe','DII_Beta_Data\Managed\Assembly-CSharp.dll')
+        Bat='DementiumIIHDVR\START_INSTALLER.bat'; ReadmeDir='DementiumIIHDVR'; Author='King-EJ'; Mod='Dementium II HD VR (auto-update)'; Description='OpenXR; 32-bit OpenGL'
+        Color='#170e12'; Accent='#ba6260'; PortraitUrl='Assets/DementiumIIHDVR_portrait.jpg'; HeaderUrl='Assets/DementiumIIHDVR_header.jpg'; ScreenshotUrl='Assets/DementiumIIHDVR_screenshot.jpg'
+        InfoUrl='https://github.com/King-EJ/Dementium-II-HD-VR'; ModPageUrl='https://github.com/King-EJ/Dementium-II-HD-VR'; DownloadUrl='https://github.com/King-EJ/Dementium-II-HD-VR/releases'
+        WebVersionUrl='https://raw.githubusercontent.com/King-EJ/Dementium-II-HD-VR/main/README.md'; WebVersionPattern='(?im)^DEMENTIUM II HD VR\s+v(\d+(?:\.\d+)+)'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='BepInEx\plugins\D2VR\D2VR.dll'; HubLaunchScript='DementiumIIHDVR\Start-DementiumVR.ps1'; HubStartFile='Start-DementiumVR.ps1'; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        FlatVRIniFile='doorstop_config.ini'; FlatVRIniSection='General'; FlatVRIniKey='enabled'; FlatVRIniVRValue='true'; FlatVRIniFlatValue='false'
+        VrInstallEvidence=@('version.dll','doorstop_config.ini','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\D2VR\D2VR.dll','BepInEx\plugins\D2VR\d2xr.dll','.pcvrhub_dementiumloader_ownership.csv','.pcvrhub_dementiumvr_ownership.csv','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Dementium VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_dementiumvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game. Uninstall now removes unchanged Hub-owned VR files and restores any same-name originals.','Your saved games, edited settings and unrelated plugins remain. The bundled loader is retained if another plugin needs it. Use Flat / VR for temporary flat play.')
+        VideoUrl='https://youtu.be/nh0v3ACa5ss?t=505'; VideoLabel='Watch VR gameplay'; Quip='The hospital discharge paperwork may take a while.'; QuipLast=$true
+        Tags=@('horror','shooter','adventure','dementium','king-ej','openxr','opengl','32-bit','motion controls')
+    },
+    @{
+        Id='tomb-raider-legend-vr'; Controls='MC'; Title='Tomb Raider: Legend VR'; TileTitle='Tomb Raider: Legend'; HubAddedAt='2026-10-25'; SteamId='7000'; SteamFolder='Tomb Raider Legend'; GameExe='trl.exe'; BaseGameProofFiles=@('trl.exe')
+        FallbackPaths=@('C:\GOG Games\Tomb Raider Legend','C:\Program Files (x86)\GOG Galaxy\Games\Tomb Raider Legend')
+        Bat='TombRaiderLegendVR\START_INSTALLER.bat'; ReadmeDir='TombRaiderLegendVR'; Author='RototRobot'; Mod='TRL VR (auto-update)'; Description='SteamVR; motion controls'
+        Color='#18201c'; Accent='#73a69b'; PortraitUrl='Assets/TombRaiderLegendVR_portrait.jpg'; HeaderUrl='Assets/TombRaiderLegendVR_header.jpg'; ScreenshotUrl='Assets/TombRaiderLegendVR_screenshot.jpg'
+        InfoUrl='https://github.com/RototRobot/Tomb-Raider-Legend-VR-Port'; ModPageUrl='https://github.com/RototRobot/Tomb-Raider-Legend-VR-Port'; DownloadUrl='https://github.com/RototRobot/Tomb-Raider-Legend-VR-Port/releases'
+        GithubRepo='RototRobot/Tomb-Raider-Legend-VR-Port'; GithubReleaseAssetPatterns=@('(?i)^TRLVRmod[-_.].+\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d9.dll'; ModFileAlt='d3d9.dll.pcvrhub_off'; FlatVREnabled='d3d9.dll'; FlatVRDisabled='d3d9.dll.pcvrhub_off'; LaunchExe='trlvr_launcher.exe'; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true; SteamLaunchForSteamInstall=$true
+        VrInstallEvidence=@('d3d9.dll|d3d9.dll.pcvrhub_off','d3d9_dxvk.dll','openvr_api.dll','trlvr_launcher.exe','trlvr_actions.json','bindings_oculus_touch.json','bindings_knuckles.json','bindings_holographic_controller.json','bindings_hpmotioncontroller.json','.pcvrhub_trlvr_ownership.csv','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Tomb Raider Legend VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_trlvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and launcher. Uninstall now removes unchanged Hub-owned files, including a parked proxy, and restores your earlier GOG or graphics-wrapper DLL.','Keep saves, edited trlvr.ini and unrelated files. Clear the custom Steam launch-options line after removing the mod. The launcher-generated trl_vr.exe copy can be retained or removed after checking its path; trl.exe is never changed.')
+        Notice='Next Generation Content must be OFF in the game Setup dialog. Run the game once in flat before VR. Steam needs the exact launcher line in Launch Options; the installer guides that step. Start SteamVR before playing.'
+        VideoUrl='https://youtu.be/TGe_CxinSLc?t=433'; VideoLabel='Watch VR gameplay'; Quip='A grappling hook is cheaper than another plane ticket.'; QuipLast=$true
+        Tags=@('adventure','action','platformer','tomb raider','legend','lara croft','rototrobot','steamvr','vulkan','motion controls')
+    },
+    @{
+        Id='dead-space-2-vr'; Controls='MC'; Title='Dead Space 2 VR'; Wip=$true; HubAddedAt='2026-10-25'
+        SteamId='47780'; SteamFolder='Dead Space 2'; GameExe='deadspace2.exe'; BaseGameProofFiles=@('deadspace2.exe','DS2DAT6.DAT')
+        FallbackPaths=@('C:\Program Files\EA Games\Dead Space 2','C:\Program Files (x86)\Origin Games\Dead Space 2')
+        Bat='DeadSpace2VR\START_INSTALLER.bat'; ReadmeDir='DeadSpace2VR'; Author='chortdev'; Mod='DS2PCVR (auto-update)'; Description='Steam / EA; SteamVR'
+        Color='#101713'; Accent='#65cfc9'; PortraitUrl='Assets/DeadSpace2VR_portrait.jpg'; HeaderUrl='Assets/DeadSpace2VR_header.jpg'; ScreenshotUrl='Assets/DeadSpace2VR_screenshot.jpg'
+        InfoUrl='https://github.com/chortdev/DeadSpace2VR'; ModPageUrl='https://github.com/chortdev/DeadSpace2VR'; DownloadUrl='https://github.com/chortdev/DeadSpace2VR/releases'
+        GithubRepo='chortdev/DeadSpace2VR'; GithubReleaseAssetPatterns=@('(?i)^DS2PCVR-.+-(?:steam|ea)\.zip$'); GithubStoreAssetSuffix=$true
+        ModFile='d3d9.dll'; LaunchExe='deadspace2.exe'; SteamLaunchForSteamInstall=$true; LaunchRequiresVrEvidence=$true; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        VrInstallEvidence=@('d3d9.dll','openvr_api.dll','dxvk_d3d9.dll','ds2chest.bin','ds2reloadbuilder.bin','ds2hands.exe','ds2stereo.ini','.pcvrhub_deadspace2vr_ownership.csv','.pcvrhub_deadspace2_store.txt','.pcvrhub_deadspace2_marker_required.txt','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Dead Space 2 VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_deadspace2vr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Dead Space 2 and SteamVR. Uninstall now removes unchanged Hub-owned VR and MarkerPatch files and restores earlier files.','Saves, edited INIs, unrelated files and your original game remain.')
+        VideoUrl='https://www.youtube.com/watch?v=dK3brwnZN0o'; VideoLabel='Watch VR gameplay'; Quip='Cut off their limbs. The rest is just paperwork.'; QuipLast=$true
+        Notice='WIP: CPU-limited stereo rendering can remain around 40-50 FPS even on strong PCs. Steam and EA need different packages. Windows 11 also needs MarkerPatch with the six VR compatibility settings; the installer handles both.'
+        Tags=@('horror','sci-fi','action','dead space 2','isaac','chortdev','steamvr','motion controls','steam','ea','wip')
+    },
+    @{
+        Id='balatro-vr'; Controls='MC'; Title='Balatro VR'; HubAddedAt='2026-10-25'; SteamId='2379780'; SteamFolder='Balatro'; GameExe='Balatro.exe'; BaseGameProofFiles=@('Balatro.exe','love.dll')
+        Bat='BalatroVR\START_INSTALLER.bat'; ReadmeDir='BalatroVR'; Author='Under the VRadar'; Mod='Balatro in VR (auto-update)'; Description='Steam; separate VR client'
+        Color='#17131b'; Accent='#e65f5a'; PortraitUrl='Assets/BalatroVR_portrait.jpg'; HeaderUrl='Assets/BalatroVR_header.jpg'; ScreenshotUrl='Assets/BalatroVR_screenshot.jpg'
+        InfoUrl='https://github.com/alextreumer/BalatroVRMod'; ModPageUrl='https://github.com/alextreumer/BalatroVRMod'; DownloadUrl='https://github.com/alextreumer/BalatroVRMod/releases'
+        GithubRepo='alextreumer/BalatroVRMod'; GithubReleaseAssetPatterns=@('(?i)^Balatro[- ]in[- ]VR.+\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='winmm.dll'; HubLaunchScript='BalatroVR\Start-BalatroVR.ps1'; HubStartFile='Start-BalatroVR.ps1'; HubLaunchRuntimeRoot='LOCALAPPDATA:PCVR Mods Installer Hub\BalatroVR'; HubLaunchWindowStyle='Hidden'; LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        VrInstallEvidence=@('winmm.dll','.pcvrhub_balatrovr_ownership.csv','.pcvrhub_version')
+        VrInstallLocalAppDataEvidence=@('PCVR Mods Installer Hub\BalatroVR\Balatro in VR.exe','PCVR Mods Installer Hub\BalatroVR\Balatro in VR.pck','PCVR Mods Installer Hub\BalatroVR\Start-BalatroVR.ps1')
+        VrInstallRoamingAppDataEvidence=@('Balatro\Mods\BalatroVRBridge\BalatroVRBridge.lua')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Balatro VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_balatrovr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Balatro and its VR client. Uninstall now removes unchanged Hub-owned bridge, client and desktop shortcut, restoring earlier files.','Lovely and Steamodded remain when other mods need them. Saves, Godot settings, layouts, achievements, photographs and unrelated mods are kept.')
+        VideoUrl='https://youtu.be/RgkfDyy8bQs?t=114'; VideoLabel='Watch VR gameplay'; Quip='Surely the next Wheel of Fortune will hit.'; QuipLast=$true
+        Tags=@('roguelike','strategy','puzzle','balatro','cards','poker','alextreumer','under the vradar','lovely','steamodded','motion controls','openxr')
+    },
+    @{
+        Id='blood-west-vr'; Controls='MC'; Title='Blood West VR'; HubAddedAt='2026-10-25'; SteamId='1587130'; SteamFolder='Blood West'; GameExe='Blood West.exe'
+        BaseGameProofFiles=@('Blood West.exe','UnityPlayer.dll','Blood West_Data\Managed\Assembly-CSharp.dll')
+        Bat='BloodWestVR\START_INSTALLER.bat'; ReadmeDir='BloodWestVR'; Author='King-EJ'; Mod='Blood West VR (auto-update)'; Description='OpenXR; motion controls'
+        Color='#15151c'; Accent='#b7794e'; PortraitUrl='Assets/BloodWestVR_portrait.jpg'; HeaderUrl='Assets/BloodWestVR_header.jpg'; ScreenshotUrl='Assets/BloodWestVR_screenshot.jpg'
+        InfoUrl='https://github.com/King-EJ/Blood-West-VR'; ModPageUrl='https://github.com/King-EJ/Blood-West-VR'; DownloadUrl='https://github.com/King-EJ/Blood-West-VR/releases'
+        WebVersionUrl='https://raw.githubusercontent.com/King-EJ/Blood-West-VR/main/README.md'; WebVersionPattern='(?im)^Version\s+(\d+(?:\.\d+)+)'; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='BepInEx\plugins\BloodWestVR\BloodWestVR.dll'; LaunchExe='Blood West.exe'; SteamLaunchOnly=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('winhttp.dll','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\plugins\BloodWestVR\BloodWestVR.dll','BepInEx\plugins\BloodWestVR\OpenXR.dll','.pcvrhub_bloodwestvr_ownership.csv','.pcvrhub_bloodwestloader_ownership.csv','.pcvrhub_version')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Blood West VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_bloodwestvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Blood West. Uninstall now removes unchanged Hub-owned VR plugin files and restores earlier files.','BepInEx is kept if other plugins need it. Saves, changed settings and unrelated mods remain.')
+        VideoUrl='https://www.youtube.com/watch?v=tUe3wmanhSQ'; VideoLabel='Watch VR gameplay'; Quip='Even death could not get you out of this shift.'; QuipLast=$true
+        Tags=@('stealth','horror','shooter','blood west','western','undead','king-ej','bepinex','openxr','motion controls')
+    },
     @{
         Controls    = "MC"
         Title       = "A Kingdom for Keflings VR"
@@ -103,14 +323,14 @@ $ownGames = @(
         UninstallExe = "uninstall VR.bat"
         UninstallProbeFile = "Away_Data\globalgamemanagers.orig"
         SteamFolder = "AWAY Journey to the Unexpected"
-        FallbackPaths=@("GOG:AWAY Journey to the Unexpected", "C:\GOG Games\AWAY Journey to the Unexpected", "C:\Program Files (x86)\GOG Galaxy\Games\AWAY Journey to the Unexpected")
+        FallbackPaths=@('GOG:AWAY Journey to the Unexpected','C:\GOG Games\AWAY Journey to the Unexpected','C:\Program Files (x86)\GOG Galaxy\Games\AWAY Journey to the Unexpected','STEAM:AWAY')
         UninstallSteps = @(
             "Double-click 'uninstall VR.bat' in the game folder. It restores the original configuration file, removes every file the mod added, and deletes itself.",
             "That backup matters: the mod replaces Away_Data\globalgamemanagers and keeps the original beside it as .orig."
         )
         Tags=@("away", "journey to the unexpected", "aurelien regard", "pk-c", "chromatic mod", "action", "adventure", "rpg", "roguelite", "indie", "colourful", "bepinex", "openvr")
     },
-    @{
+    @{ BaseGameProofFiles=@('AI.exe'); 
         Controls    = "MC"
         Title       = "Alien: Isolation VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=0Hl_FipDY9s"
@@ -145,7 +365,7 @@ $ownGames = @(
         ModPageUrl="https://github.com/Bassquake/Aliens-Versus-Predator-VR"
         DownloadUrl="https://github.com/Bassquake/Aliens-Versus-Predator-VR/releases"
         GameExe="AvP.exe"; BaseGameProofFiles=@("AvP.exe|AvP_Classic.exe|bin\AvP_Classic.exe|bin\_Crossplay\AvP_Classic.exe","language.txt")
-        FallbackPaths=@("STEAM:Aliens versus Predator Classic 2000","GOG:Aliens versus Predator Classic 2000","C:\Program Files (x86)\Steam\steamapps\common\Aliens versus Predator Classic","C:\Program Files (x86)\GOG Galaxy\Games\AvP Classic","C:\GOG Games\AvP Classic","C:\Program Files (x86)\Fox\Aliens versus Predator")
+        FallbackPaths=@('STEAM:Aliens versus Predator Classic 2000','GOG:Aliens versus Predator Classic 2000','C:\Program Files (x86)\Steam\steamapps\common\Aliens versus Predator Classic','C:\Program Files (x86)\GOG Galaxy\Games\AvP Classic','C:\GOG Games\AvP Classic','C:\Program Files (x86)\Fox\Aliens versus Predator','STEAM:Aliens versus Predator Classic')
         ModFile="avpvr_x64.exe"; LaunchExe="avpvr_x64.exe"; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
         VrInstallEvidence=@("avpvr_x64.exe","openxr_loader.dll","OpenAL32.dll","SDL3.dll","avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll",".pcvrhub_avpvr_ownership.csv",".pcvrhub_version")
         CurrentRequiredFile=@("avpvr_x64.exe","openxr_loader.dll","OpenAL32.dll","SDL3.dll","avcodec-62.dll","avdevice-62.dll","avfilter-11.dll","avformat-62.dll","avutil-60.dll","swresample-6.dll","swscale-9.dll",".pcvrhub_avpvr_ownership.csv",".pcvrhub_version")
@@ -154,7 +374,7 @@ $ownGames = @(
         Notice="A licensed Gold Edition AvP game and its game assets are required. The publisher says the ordinary edition language.txt can crash the port; the Hub cannot identify that edition by filename."
         Tags=@("horror","fps","action","aliens versus predator","avp","avpvr","bassquake","gold edition","steamvr","openxr","motion controls","marine","alien","predator")
     },
-    @{
+    @{ BaseGameProofFiles=@('Amnesia.exe|Launcher.exe'); 
         Controls    = "MC"
         Title       = "Amnesia VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=bhpnBbaMDmo"
@@ -305,7 +525,7 @@ $ownGames = @(
         FallbackPaths=@("C:\Games\Ashes 2063 VR", "D:\Games\Ashes 2063 VR", "E:\Games\Ashes 2063 VR", "C:\games\Ashes 2063 VR")
         Tags=@("ashes", "ashes 2063", "gzdoom", "doom", "doom mod", "total conversion", "post-apocalyptic", "wasteland", "fps", "shooter", "boomer shooter", "fallout", "stalker", "retro", "free", "vostyok", "afterglow", "hard reset", "motion controls")
     },
-    @{
+    @{ BaseGameProofFiles=@('BF1942.exe'); 
         # Full motion controls: tracked aiming, two-handed grip, quick menu
         # by pointing. Mouse and keyboard stay usable alongside.
         Controls    = "MC"
@@ -395,40 +615,34 @@ $ownGames = @(
         Tags=@('beyond two souls','quantic dream','adore11s','story','adventure','cinematic','action','psychological','first person','motion controls','steamvr','openxr','wip')
     },
     @{
-        Controls    = "MC"
-        Title       = "Bendy VR"; Gem=$true
-        VideoUrl    = "https://youtu.be/FjC5Rnk_cOs?t=3633"
-        SteamId     = "622650"
-        Mod         = "BendyVR v1.2.2"
-        Description = "Steam depot required"
-        Author      = "Team Beef Studios"
-        Bat         = "BendyVR\START_INSTALLER.bat"
-        Color       = "#1a0f00"
-        Accent      = "#cc8800"
-        InfoUrl     = "https://github.com/Team-Beef-Studios/BendyVR"
-        # !!! 2026-08-19 - winhttp.dll IS THE BEPINEX LOADER, NOT VR PROOF !!!
-        # Any BepInEx mod drops it, including a flat-screen one.
-        ModFile     = "BendyVRInstall"
-        VrInstallEvidence = @("winhttp.dll", "doorstop_config.ini", "Bendy and the Ink Machine_Data\Plugins\openvr_api.dll", "BendyVRInstall\BendyVRInstall\Mod\BepInEx\core\BepInEx.Preloader.dll", "BendyVRInstall\BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll")
-        SteamFolder = "Bendy and the Ink Machine"
-        LaunchExe   = "Bendy and the Ink Machine.exe"
-        FallbackPaths = @(
-            "C:\Games\Bendy VR",
-            "STEAM:Bendy and the Ink Machine",
-            "EPIC:Bendy and the Ink Machine",
-            "EPIC:BendyAndTheInkMachine"
+        Id='bendy-vr'; Controls='MC'; Title='Bendy VR'; Gem=$true; SteamId='622650'; SteamFolder='Bendy and the Ink Machine'; GameExe='Bendy and the Ink Machine.exe'
+        BaseGameProofFiles=@('Bendy and the Ink Machine.exe','UnityPlayer.dll','Bendy and the Ink Machine_Data\globalgamemanagers')
+        Mod='InkVR (auto-update) / Team Beef'; Description='Current or pinned depot'; Author='StrikeZoneVR / Team Beef'
+        Bat='BendyVR\START_INSTALLER.bat'; ReadmeDir='BendyVR'; Color='#1a0f00'; Accent='#cc8800'
+        InfoUrl='https://github.com/StrikeZoneVR-hub/InkVR'; ModPageUrl='https://github.com/StrikeZoneVR-hub/InkVR'; DownloadUrl='https://github.com/StrikeZoneVR-hub/InkVR/releases'
+        SuppressCurrentMissingUpdate=$true; GithubRepo='StrikeZoneVR-hub/InkVR'; GithubReleaseAssetPatterns=@('(?i)^(?!.*(?:source|symbols|debug))InkVR(?:[-._ ].*)?\.zip$'); CurrentRouteUpdate=$true; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        VideoUrl='https://www.youtube.com/watch?v=ZeU1T4GVdq0'; VideoLabel='Watch VR gameplay'; VideoUrlB='https://youtu.be/FjC5Rnk_cOs?t=3633'; VideoLabelB='Team Beef VR gameplay'
+        Quip='Dreams come to life. So does the ink.'; QuipLast=$true
+        ModFile='BepInEx\plugins\InkVR\InkVR.dll'; ModFileAlt='BendyVRInstall\BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll'
+        CurrentStandalonePaths=@('C:\Program Files (x86)\Steam\steamapps\common\Bendy and the Ink Machine'); CurrentInstalledPathFile='.installed_path_current'
+        CurrentModFile='BepInEx\plugins\InkVR\InkVR.dll'; DepotModFile='BendyVRInstall\BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll'
+        CurrentBaseGameProofFiles=@('Bendy and the Ink Machine.exe','UnityPlayer.dll','GameAssembly.dll','Bendy and the Ink Machine_Data\il2cpp_data\Metadata\global-metadata.dat')
+        DepotForbiddenFiles=@('GameAssembly.dll'); DepotBaseGameProofFiles=@('Bendy and the Ink Machine.exe','Bendy and the Ink Machine_Data\Managed\Assembly-CSharp.dll')
+        CurrentRequiredFile=@('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.Unity.IL2CPP.dll','InkVR\InkVR Launcher.exe','InkVR\InkVR-Payload\BepInEx\plugins\InkVR\InkVR.dll','Bendy and the Ink Machine_Data\Plugins\x86_64\UnityOpenXR.dll','Bendy and the Ink Machine_Data\Plugins\x86_64\openxr_loader.dll','Bendy and the Ink Machine_Data\UnitySubsystems\UnityOpenXR\UnitySubsystemsManifest.json')
+        DepotRequiredFile=@('winhttp.dll','doorstop_config.ini','Bendy and the Ink Machine_Data\Plugins\openvr_api.dll','BendyVRInstall\BendyVRInstall\Mod\BepInEx\core\BepInEx.Preloader.dll')
+        VrInstallEvidence=@('winhttp.dll','doorstop_config.ini')
+        VrInstallEvidenceRoutes=@(
+            @{Base=@('GameAssembly.dll','Bendy and the Ink Machine_Data\il2cpp_data\Metadata\global-metadata.dat'); Files=@('BepInEx\plugins\InkVR\InkVR.dll','BepInEx\core\BepInEx.Unity.IL2CPP.dll','InkVR\InkVR Launcher.exe','InkVR\InkVR-Payload\BepInEx\plugins\InkVR\InkVR.dll','Bendy and the Ink Machine_Data\Plugins\x86_64\UnityOpenXR.dll','Bendy and the Ink Machine_Data\Plugins\x86_64\openxr_loader.dll','Bendy and the Ink Machine_Data\UnitySubsystems\UnityOpenXR\UnitySubsystemsManifest.json')},
+            @{Absent=@('GameAssembly.dll'); Base=@('Bendy and the Ink Machine_Data\Managed\Assembly-CSharp.dll'); Files=@('Bendy and the Ink Machine_Data\Plugins\openvr_api.dll','BendyVRInstall\BendyVRInstall\Mod\BepInEx\core\BepInEx.Preloader.dll','BendyVRInstall\BendyVRInstall\Mod\BepInEx\plugins\BendyVR_5.dll')}
         )
-        DepotInstall  = $true
-        # DualMode: two installable variants - the mod on the current
-        # Steam build (may not launch since the June 2025 game update),
-        # AND a pinned-depot mod-compatible build under C:\Games\Bendy
-        # VR. When both exist the Hub shows a 3-way split button. No
-        # auto-update: the depot manifest is pinned in the installer.
-        DualMode        = $true
-        DepotPath       = "C:\Games\Bendy VR"
-        DepotLaunchExe  = "Bendy and the Ink Machine.exe"
-        DepotLaunchArgs = ""
-        Tags=@("bendy", "ink machine", "team beef", "atmospheric", "horror", "puzzle", "comic")
+        LaunchExe='InkVR\InkVR Launcher.exe'; LaunchArgs='--play vr'; PreferDedicatedLaunchExe=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        CurrentLaunchExe='InkVR\InkVR Launcher.exe'; CurrentLaunchArgs='--play vr'; CurrentButtonLabel='InkVR'; DepotButtonLabel='Team Beef'
+        FlatVRRootRoute='Current'; FlatVRPublisherLauncher='InkVR\InkVR Launcher.exe'; FlatVRPublisherInstructions='InkVR: choose PLAY IN VR or PLAY WITHOUT VR in the publisher launcher. Team Beef Depot uses its separate desktop shortcut.'
+        DualMode=$true; DepotInstall=$true; DepotPath='C:\Games\Bendy VR'; DepotRecoveryInstalledPathFile='.installed_path_depot'; DepotLaunchExe='Bendy and the Ink Machine.exe'; DepotLaunchArgs=''
+        FallbackPaths=@('STEAM:Bendy and the Ink Machine','C:\Games\Bendy VR')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove InkVR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_inkvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Bendy and InkVR Launcher. Uninstall now removes unchanged Hub-owned InkVR files from the current game and restores protected same-name originals. Edited settings, saves and unknown files are kept.','The separate Team Beef depot is never changed by InkVR removal. To remove that historical copy, keep any saves you want and remove only its dedicated depot folder. Its desktop shortcut can then be deleted.','InkVR supports PLAY WITHOUT VR in its launcher. The Team Beef Oasis skeletal-tracking warning concerns the older mod only.')
+        Tags=@('horror','puzzle','adventure','bendy','ink machine','team beef','strikezonevr','atmospheric','comic','openxr','motion controls')
     },
     @{
         Controls    = "MC"
@@ -458,7 +672,7 @@ $ownGames = @(
         SteamFolder = "Big Walk"
         Tags=@("big walk", "bigwalk", "house house", "circuitlord", "adventure", "exploration", "walking sim", "coop", "multiplayer", "atmospheric")
     },
-    @{
+    @{ BaseGameProofFiles=@('Build\Final\BioshockHD.exe'); 
         Controls    = "MC"
         Title       = "BioShock Remastered"
         Quip        = "Would you kindly put the headset on and descend into Rapture."
@@ -677,7 +891,7 @@ $ownGames = @(
         )
         Tags=@("black mesa", "half-life", "fps", "shooter", "action", "story", "adventure", "sci-fi", "blue shift")
     },
-    @{
+    @{ BaseGameProofFiles=@('ep2vr.exe'); SeparateLauncherBaseGame=$true; VrInstallRoot='C:\Games\BMSVR'; SteamIdAlt='2177760'; 
         Controls    = "MC"
         Title       = "Black Mesa Source VR"
         VideoUrl    = "https://www.youtube.com/watch?v=YWEzatOqQq0"
@@ -771,7 +985,7 @@ $ownGames = @(
         LaunchExe   = "BetterVR_Launcher.exe"
         Tags        = @("breath of the wild", "botw", "zelda", "bettervr", "cemu", "wii u", "adventure", "open world", "action")
     },
-    @{
+    @{ BaseGameProofFiles=@('INIZH.big'); SeparateLauncherBaseGame=$true; 
         Controls    = "MC"
         # The mod is for Zero Hour ONLY - the author writes "I'm turning
         # Command & Conquer: Generals - Zero Hour into a VR game",
@@ -823,7 +1037,7 @@ $ownGames = @(
         )
         Tags=@("command and conquer", "command & conquer", "c&c", "cnc", "generals", "zero hour", "zerohour", "rts", "strategy", "action", "adventure", "ea", "gonzorro", "openxr", "dxvk", "war table", "alpha", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('iw3sp.exe|iw3mp.exe'); 
         Controls    = "MC"
         Title       = "Call of Duty 4 VR"
         VideoUrl    = "https://youtu.be/NlR_JheVXCk?t=96"
@@ -920,7 +1134,7 @@ $ownGames = @(
         )
         Tags=@("call of duty", "cod", "world at war", "waw", "zombies", "nazi zombies", "fps", "shooter", "action", "war", "ww2", "treyarch", "activision", "openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('Content Warning.exe'); 
         Controls    = "MC"
         Title       = "Content Warning VR"
         VideoUrl    = "https://www.youtube.com/watch?v=tab39pQWAFE"
@@ -954,7 +1168,7 @@ $ownGames = @(
         DepotLaunchArgs = ""
         Tags=@("content warning", "cwvr", "daxcess", "comedy", "coop", "horror")
     },
-    @{
+    @{ BaseGameProofFiles=@('crueltysquad.exe|crueltysquad32.exe'); 
         Controls    = "MC"
         Title       = "Cruelty Squad VR"
         VideoUrl    = "https://www.youtube.com/watch?v=IGjFWqW7v08"
@@ -976,6 +1190,7 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
+        Id="cyberpunk-2077"
         Title       = "Cyberpunk 2077"
         VideoUrl    = "https://www.youtube.com/watch?v=XkzaBRPJoQE"
         SteamId     = "1091500"
@@ -983,18 +1198,20 @@ $ownGames = @(
         Description = "Nexus login, motion controls"
         Author      = "dariulone"
         Bat         = "Cyberpunk2077VR\START_INSTALLER.bat"
-        UninstallExe   = "UNINSTALL.bat"
+        UninstallExe   = "PCVR-Cyberpunk\Uninstall VR.cmd"
         UninstallSteps = @(
             "For temporary flat play, use the Flat / VR switch on this page. It parks CyberpunkVR_Stereo.dll, the native hook needed to activate the port.",
-            "For full removal, use Uninstall Now here (or run UNINSTALL.bat in the game folder). The publisher uninstaller removes its current VR package paths. The Hub keeps superseded 0.1.6 scripts and QuickBoot in a game-local legacy backup.",
+            "For full removal, use Uninstall Now here (or run PCVR-Cyberpunk\Uninstall VR.cmd in the selected game folder). The owned-file uninstaller removes this route and restores backed-up originals. The Hub keeps superseded 0.1.6 scripts and QuickBoot in a game-local legacy backup.",
             "Leave the frameworks (RED4ext, Cyber Engine Tweaks, redscript) in place if other mods use them.",
-            "Input Loader and More Occluders (Scripted v0.3) are separate Nexus files. The first VR launch merges graphics, bindings, HUD and comfort settings into UserSettings.json after a dated backup; language, audio, difficulty and saves are preserved.",
+            "More Occluders (Scripted v0.3) is a separate Nexus file. Input Loader is downloaded from its official GitHub, separately versioned for Current and Depot. The first VR launch merges graphics, bindings, HUD and comfort settings into UserSettings.json after a dated backup; language, audio, difficulty and saves are preserved.",
             "No base game file is modified, so a Steam verify is not needed."
         )
         Color       = "#0a0e12"
         Accent      = "#fcee0a"
         InfoUrl     = "https://github.com/dariulone/cyberpunk-vr-port"
-        GitHubNightly = "dariulone/cyberpunk-vr-port"
+        GithubRepo="dariulone/cyberpunk-vr-port"; GithubReleaseAssetPatterns=@("(?i)^CyberpunkVRPort[-_].*\.zip$")
+        TrackedVersion = "0.1.9"; NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModRequiredFile = ".pcvrhub_cyberpunkvrport_ownership.csv"
         Quip        = "Wake up, samurai - Night City won't burn itself down."
         # Since CyberpunkVRPort 0.1.0 the mod is a RED4ext plugin, not a
         # dxgi.dll proxy - dxgi.dll is gone from the package entirely, so
@@ -1006,10 +1223,8 @@ $ownGames = @(
         ModFileAlt     = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll.pcvrhub_off"
         FlatVREnabled  = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll"
         FlatVRDisabled = "red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll.pcvrhub_off"
-        # The installer records the tag it fetched, but without this the
-        # Hub had nothing to compare it against - so anyone still on an
-        # older build never saw an Update badge. The mod ships often.
-        GithubRepo  = "dariulone/cyberpunk-vr-port"
+        # Game 2.31 and its mod/framework set are frozen together.
+        # A future 2.5 Current route must not update this profile.
         # Everyone who installed a pre-0.1.0 build through the Hub still has
         # the old dxgi.dll proxy and none of the new files. ModFileAlt keeps
         # those installs recognised as VR Ready instead of dropping them back
@@ -1026,6 +1241,22 @@ $ownGames = @(
         # wrong for a detected GOG copy. Both stores ship the real game EXE
         # at this same relative path, so launch it directly from the folder
         # found by the scan. Its bin\x64 directory is also used as CWD.
+        DualMode=$true; CurrentRouteUpdate=$true
+        CurrentButtonLabel="Current 2.5"; DepotButtonLabel="Depot 2.31"
+        CurrentLegacyModFile='red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'; CurrentLegacyModFileAlt='red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll.pcvrhub_off'
+        CurrentLegacyExcludedFile='.pcvrhub_cyberpunk_depot_231'
+        CurrentLegacyRequiredFile=@('.pcvrhub.install.json','.pcvrhub_version','red4ext\RED4ext.dll','bin\x64\plugins\cyber_engine_tweaks.asi','engine\tools\scc.exe','red4ext\plugins\TweakXL\TweakXL.dll','red4ext\plugins\ArchiveXL\ArchiveXL.dll','red4ext\plugins\Codeware\Codeware.dll')
+        CurrentStandalonePaths=@('C:\GOG Games\Cyberpunk'); CurrentInstalledPathFile='.installed_path_current'; CurrentPreferRememberedPath=$true
+        CurrentRequiredFile=@(".pcvrhub_cyberpunk_25_profile.json",".pcvrhub_cyberpunkvrport_ownership.csv","PCVR-Cyberpunk\Start VR.vbs","PCVR-Cyberpunk\Start-CyberpunkVR.ps1","red4ext\RED4ext.dll","bin\x64\winmm.dll","bin\x64\plugins\cyber_engine_tweaks.asi","bin\x64\version.dll","bin\x64\plugins\cyber_engine_tweaks\scripts\json\json.lua","engine\tools\scc.exe","engine\tools\scc_lib.dll","red4ext\plugins\TweakXL\TweakXL.dll","red4ext\plugins\TweakXL\Data\ExtraFlats.dat","red4ext\plugins\TweakXL\Data\InheritanceMap.dat","red4ext\plugins\ArchiveXL\ArchiveXL.dll","red4ext\plugins\ArchiveXL\Bundle\ArchiveXL.archive","red4ext\plugins\Codeware\Codeware.dll","red4ext\plugins\Codeware\Scripts\Codeware.reds","archive\pc\mod\cyberpunkvrport.archive","r6\input\CyberpunkVRPort_ScannerHud.xml","red4ext\plugins\input_loader\input_loader.dll")
+        CurrentLaunchExe="PCVR-Cyberpunk\Start VR.vbs"
+        DepotPath="C:\Games\Cyberpunk 2077 VR 2.31"; DepotInstalledPathFile=".installed_path_depot"
+        DepotRequiredFile=@(".pcvrhub_cyberpunk_231_profile.json",".pcvrhub_cyberpunkvrport_ownership.csv","PCVR-Cyberpunk\Start VR.vbs","PCVR-Cyberpunk\Start-CyberpunkVR.ps1",".pcvrhub_cyberpunk_depot_231","steam_appid.txt","bin\x64\steam_appid.txt","red4ext\RED4ext.dll","bin\x64\winmm.dll","bin\x64\plugins\cyber_engine_tweaks.asi","bin\x64\version.dll","bin\x64\plugins\cyber_engine_tweaks\scripts\json\json.lua","engine\tools\scc.exe","engine\tools\scc_lib.dll","red4ext\plugins\TweakXL\TweakXL.dll","red4ext\plugins\TweakXL\Data\ExtraFlats.dat","red4ext\plugins\TweakXL\Data\InheritanceMap.dat","red4ext\plugins\ArchiveXL\ArchiveXL.dll","red4ext\plugins\ArchiveXL\Bundle\ArchiveXL.archive","red4ext\plugins\Codeware\Codeware.dll","red4ext\plugins\Codeware\Scripts\Codeware.reds","archive\pc\mod\cyberpunkvrport.archive","r6\input\CyberpunkVRPort_ScannerHud.xml","red4ext\plugins\input_loader\input_loader.dll","r6\scripts\MoreOccluders.reds")
+        DepotBaseGameProofFiles=@("bin\x64\Cyberpunk2077.exe","archive\pc\content\basegame_1_engine.archive","r6\cache\final.redscripts")
+        DepotLaunchExe="PCVR-Cyberpunk\Start VR.vbs"; DepotSteamAppIdFile="steam_appid.txt"
+        DepotPinnedReceipt=@{Marker=".pcvrhub_cyberpunk_depot_231";AppId="1091500";DepotId="1091501";Manifest="4104611899910011352";BuildId="19939064";Mod="0.1.8"}
+        HubLaunchScript="Cyberpunk2077VR\Start-CyberpunkVR.ps1"; HubStartFile="PCVR-Cyberpunk\Start-CyberpunkVR.ps1"; HubLaunchWindowStyle="Hidden"; PreferDedicatedLaunchExe=$true
+        VrInstallEvidence=@("red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll|red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll.pcvrhub_off","red4ext\RED4ext.dll","bin\x64\plugins\cyber_engine_tweaks.asi","engine\tools\scc.exe","red4ext\plugins\TweakXL\TweakXL.dll","red4ext\plugins\ArchiveXL\ArchiveXL.dll","red4ext\plugins\Codeware\Codeware.dll","PCVR-Cyberpunk\Start-CyberpunkVR.ps1")
+        BaseGameProofFiles=@("bin\x64\Cyberpunk2077.exe","archive\pc\content\basegame_1_engine.archive","r6\cache\final.redscripts")
         GameExe     = "bin\x64\Cyberpunk2077.exe"
         LaunchExe   = "bin\x64\Cyberpunk2077.exe"
         SteamFolder = "Cyberpunk 2077"
@@ -1041,7 +1272,7 @@ $ownGames = @(
         )
         Tags=@("cyberpunk 2077", "cyberpunk", "night city", "dariulone", "openxr", "red4ext", "cet", "rpg", "open world", "action", "fps", "shooter", "sci-fi")
     },
-    @{
+    @{ BaseGameProofFiles=@('DF\DAGGER\DAGGER.exe|DAGGER\DAGGER.exe|DaggerfallUnity.exe'); 
         Controls    = "MC"
         Title       = "Daggerfall VR"
         # Unlike standalone FREE builds, Daggerfall still has a separately
@@ -1126,7 +1357,7 @@ $ownGames = @(
         InfoUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR"; ModPageUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR"; DownloadUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR/releases"
         FallbackPaths=@("C:\Program Files (x86)\Steam\steamapps\common\Descent","C:\Program Files (x86)\GOG Galaxy\Games\Descent","C:\GOG Games\Descent","C:\GAMES\DESCENT")
         GameExe="descent\DESCENTR.EXE"; BaseGameProofFiles=@("descent.hog|descent\descent.hog","descent.pig|descent\descent.pig")
-        TwoModsSeparateBaseGame=$true; VrInstallRoot=(Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Descent 1 and 2 VR\Descent')
+        TwoModsSeparateBaseGame=$true; VrInstallRoot=([IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments',[Environment+SpecialFolderOption]::DoNotVerify),'Descent 1 and 2 VR\Descent'))
         ModFile="game\d1x-redux.exe"; VrInstallEvidence=@("game\d1x-redux.exe","game\GameOrDieXR.dll","game\openxr_loader.dll","Descent VR.cmd","version.txt","install-manifest.txt",".pcvrhub_version")
         LaunchExe="Descent VR.cmd"; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
         NoVersionSeed=$true; InstallerMustWriteVersion=$true
@@ -1145,7 +1376,7 @@ $ownGames = @(
         InfoUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR"; ModPageUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR"; DownloadUrl="https://github.com/GameOrDie007/Descent-1-and-2-VR/releases"
         FallbackPaths=@("C:\Program Files (x86)\Steam\steamapps\common\Descent 2","C:\Program Files (x86)\GOG Galaxy\Games\Descent 2","C:\GOG Games\Descent 2","C:\GAMES\DESCENT2")
         GameExe="descent2\DESCENT2.EXE"; BaseGameProofFiles=@("descent2.hog|descent2\descent2.hog","descent2.ham|descent2\descent2.ham")
-        TwoModsSeparateBaseGame=$true; VrInstallRoot=(Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Descent 1 and 2 VR\Descent 2')
+        TwoModsSeparateBaseGame=$true; VrInstallRoot=([IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments',[Environment+SpecialFolderOption]::DoNotVerify),'Descent 1 and 2 VR\Descent 2'))
         ModFile="game\d2x-redux.exe"; VrInstallEvidence=@("game\d2x-redux.exe","game\GameOrDieXR.dll","game\openxr_loader.dll","Descent 2 VR.cmd","version.txt","install-manifest.txt",".pcvrhub_version")
         LaunchExe="Descent 2 VR.cmd"; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
         NoVersionSeed=$true; InstallerMustWriteVersion=$true
@@ -1154,7 +1385,7 @@ $ownGames = @(
         Quip="Guide-bot knows the way out. Whether it tells you is another matter."; QuipLast=$true
         Tags=@("descent 2","descent ii","parallax","game or die","6dof","space","flight","shooter","retro","sci-fi","motion controls","openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('FSD.exe'); 
         Controls    = "MC"
         Title       = "Deep Rock Galactic VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/llngmaHmLk8?t=269"
@@ -1280,7 +1511,7 @@ $ownGames = @(
         ModPageUrl  = "https://github.com/CactusVRStudios/KHARVOX"
         DownloadUrl = "https://github.com/CactusVRStudios/KHARVOX/releases"
         GameExe     = "DOOMx64.exe"
-        BaseGameProofFiles = @("DOOMx64.exe", "DOOMx64vk.exe")
+        BaseGameProofFiles = @('DOOMx64.exe|DOOMx64vk.exe')
         SteamFolder = "DOOM"
         FallbackPaths = @("GOG:DOOM")
         VrInstallRoot = "C:\Games\DOOM 2016 VR"
@@ -1320,7 +1551,7 @@ $ownGames = @(
         Notice="EternalVR is an alpha prerelease. Each publisher launcher checks the supported Steam or Microsoft Store build. Start the retail game flat and sign into Bethesda before the first VR run. ARGENT reports AMD rendering limitations."
         Tags=@("action","shooter","sci-fi","doom eternal","doom","argent","kharvox","eternalvr","motion controls","roomscale","openxr","steamvr","vdxr","game pass","wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('DOOM.WAD|base\DOOM.WAD|base\doom\DOOM.WAD|base\doom2\DOOM.WAD|base\heretic\DOOM.WAD|base\hexen\DOOM.WAD|base\classic\DOOM.WAD|rerelease\base\DOOM.WAD|classicwads\DOOM.WAD|wads\DOOM.WAD'); 
         Controls    = "MC"
         Title       = "Doom VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=Idk9sOPqfYc"
@@ -1343,7 +1574,7 @@ $ownGames = @(
         FallbackPaths = @("STEAM:DOOM", "STEAM:Ultimate Doom", "GOG:DOOM", "GOG:Doom", "GOG:DOOM (1993)")
         Tags=@("doom", "questzdoom", "fps", "boomer shooter", "id software", "retro", "classic")
     },
-    @{
+    @{ BaseGameProofFiles=@('DOOM2.WAD|base\DOOM2.WAD|base\doom\DOOM2.WAD|base\doom2\DOOM2.WAD|base\heretic\DOOM2.WAD|base\hexen\DOOM2.WAD|base\classic\DOOM2.WAD|rerelease\base\DOOM2.WAD|classicwads\DOOM2.WAD|wads\DOOM2.WAD'); 
         Controls    = "MC"
         Title       = "Doom 2 VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=G8mWcEkE-0I"
@@ -1366,7 +1597,7 @@ $ownGames = @(
         FallbackPaths = @("STEAM:DOOM II", "STEAM:Doom 2", "STEAM:Ultimate Doom", "STEAM:DOOM", "GOG:DOOM II", "GOG:Doom II", "GOG:Doom 2")
         Tags=@("doom", "doom 2", "questzdoom", "fps", "boomer shooter", "id software", "retro", "classic")
     },
-    @{
+    @{ BaseGameProofFiles=@('Doom3BFG.exe'); 
         Controls    = "MC"
         Title       = "Doom 3 BFG VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/mQamxzJkYgU?t=6"
@@ -1392,7 +1623,7 @@ $ownGames = @(
         LaunchExe   = "Doom3BFGVR.exe"
         Tags=@("doom", "doom 3", "bfg", "fully possessed", "fps", "horror", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('DREDGE.exe'); 
         Controls    = "MC"
         Title       = "Dredge VR"
         VideoUrl    = "https://www.youtube.com/watch?v=i-T8kYhSpo4"
@@ -1412,7 +1643,7 @@ $ownGames = @(
         FallbackPaths=@("GOG:DREDGE", "GOG:Dredge", "EPIC:DREDGE")
         Tags=@("dredge", "fishing", "atmospheric", "horror", "mystery")
     },
-    @{
+    @{ BaseGameProofFiles=@('DLC\DUSK HD\Dusk.exe'); 
         Controls    = "MC"
         Title       = "Dusk HD (DLC) VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=yuwHKbb4vX8"
@@ -1555,7 +1786,7 @@ $ownGames = @(
         )
         Tags=@("elderborn", "elderborn vr", "uuvr", "universal unity vr", "elderbornvrprobe", "jean-francois", "raicuparta", "flat2vr", "melee", "action", "dungeon", "zombies", "motion controls", "roomscale", "tracked hands", "physical weapons", "head tracking", "openxr", "gog", "discord")
     },
-    @{
+    @{ BaseGameProofFiles=@('EscapeFromTarkov.exe'); 
         Controls    = "MC"
         Title       = "Escape from Tarkov VR"
         VideoUrl    = "https://www.youtube.com/watch?v=lUgDG8ogoxs"
@@ -1617,7 +1848,7 @@ $ownGames = @(
         Notice='Publisher tested Linux/Proton first. Windows and non-Steam game stores need user confirmation in VR.'
         Tags=@('fallout new vegas','fnvvr','df4l','rpg','open world','post apocalyptic','shooter','fps','action','motion controls','steamvr','vulkan','wip')
     },
-    @{
+    @{ BaseGameProofFiles=@('FEAR.exe'); TwoModsSeparateBaseGame=$true; 
         Controls    = "MC"; Gem=$true; GemModName="thefreemike"
         Title       = "F.E.A.R. VR"
         # Two builds, two videos - the second card sits beside the first.
@@ -1724,7 +1955,7 @@ $ownGames = @(
         )
         Tags        = @("fear", "f.e.a.r.", "first encounter assault recon", "horror", "fps", "shooter", "action", "slow-mo", "alma", "monolith", "lithtech", "psychological horror", "beta", "openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('game\ffxiv_dx11.exe|boot\ffxivboot.exe'); 
         Controls    = "MC"
         Title       = "Final Fantasy XIV VR"
         VideoUrl    = "https://www.youtube.com/watch?v=H9Lx7n7zFBo"
@@ -1757,7 +1988,7 @@ $ownGames = @(
         )
         Tags=@("final fantasy", "ffxiv", "ff14", "fantasy", "mmo", "rpg")
     },
-    @{
+    @{ BaseGameProofFiles=@('gmod.exe'); 
         Controls    = "MC"
         Title       = "Garry's Mod VR"
         VideoUrl    = "https://www.youtube.com/watch?v=aem6Sefzqao"
@@ -1833,7 +2064,7 @@ $ownGames = @(
         Bat="GoldenEye007VR\START_INSTALLER.bat"; ReadmeDir="GoldenEye007VR"; Color="#100d08"; Accent="#d5aa45"
         InfoUrl="https://github.com/no6969el/GEVR"; ModPageUrl="https://github.com/no6969el/GEVR"; DownloadUrl="https://github.com/no6969el/GEVR/releases"
         FallbackPaths=@("C:\Games\GoldenEye 007 VR", "D:\Games\GoldenEye 007 VR", "E:\Games\GoldenEye 007 VR")
-        GameExe="goldeneye.exe"; BaseGameProofFiles=@("goldeneye.exe", "Start-GEVR.bat", "Start-GEVR-Hub.bat", "GevrRomStarter.exe")
+        GameExe="goldeneye.exe"; BaseGameProofFiles=@('goldeneye.exe')
         VrInstallRoot="C:\Games\GoldenEye 007 VR"; DurableInstallRoots=@("C:\Games\GoldenEye 007 VR","D:\Games\GoldenEye 007 VR","E:\Games\GoldenEye 007 VR")
         ModFile=".pcvrhub_ready"
         VrInstallEvidence=@(
@@ -1925,7 +2156,7 @@ $ownGames = @(
         # the inactive hook rather than deleting either installation.
         Tags        = @("grand theft auto", "gta", "gta v", "gta 5", "deployabi", "motion controls", "luke ross", "real", "open world", "action", "crime", "driving", "shooter", "sandbox")
     },
-    @{
+    @{ BaseGameProofFiles=@('gta-vc.exe'); 
         Controls    = "MC"
         Title       = "GTA Vice City VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=UAr7gVAs1Lk"
@@ -1962,7 +2193,7 @@ $ownGames = @(
         )
         Tags        = @("grand theft auto", "gta", "vice city", "revc", "open world", "action", "crime", "driving", "shooter", "sandbox", "retro")
     },
-    @{
+    @{ BaseGameProofFiles=@('GTFO.exe'); 
         Controls    = "MC"
         Title       = "GTFO VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/live/GrhYB_AP1J8?t=1336"
@@ -1981,7 +2212,7 @@ $ownGames = @(
         LaunchExe   = "GTFO.exe"
         Tags=@("gtfo", "10 chambers", "dsprtn", "coop", "horror", "shooter", "tactical", "fps", "multiplayer", "unity", "bepinex", "flat2vr")
     },
-    @{
+    @{ BaseGameProofFiles=@('Gunfire Reborn.exe'); 
         Controls    = "MC"
         Title       = "Gunfire Reborn"; Roomscale=$true
         VideoUrl    = "https://youtu.be/TQTKvaMpzOE?t=411"
@@ -2009,7 +2240,7 @@ $ownGames = @(
         DepotInstall  = $true
         Tags=@("gunfire", "gunfire reborn", "gfr", "gfrvr", "coop", "fps", "roguelite", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('mcclauncher.exe|mcc\binaries\win64\mcc-win64-shipping.exe'); 
         Controls    = "MC"
         Title       = "Halo Master Chief Collection VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=Hjppvu5vmZg"
@@ -2071,7 +2302,7 @@ $ownGames = @(
         )
         Tags=@("halo", "halo 2", "halo 3", "halo 4", "halo reach", "halo odst", "halo mcc", "master chief collection", "mcc", "moistman42069", "fps", "shooter", "sci-fi", "action", "campaign", "motion controls", "6dof", "openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('HERETIC.WAD|base\HERETIC.WAD|base\doom\HERETIC.WAD|base\doom2\HERETIC.WAD|base\heretic\HERETIC.WAD|base\hexen\HERETIC.WAD|base\classic\HERETIC.WAD|rerelease\base\HERETIC.WAD|classicwads\HERETIC.WAD|wads\HERETIC.WAD'); 
         Controls    = "MC"
         Title       = "Heretic VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=JpX6CRyRG1I"
@@ -2094,7 +2325,7 @@ $ownGames = @(
         FallbackPaths = @("STEAM:Heretic + Hexen", "STEAM:Heretic Shadow of the Serpent Riders", "STEAM:Heretic", "GOG:Heretic + Hexen", "GOG:Heretic Shadow of the Serpent Riders", "GOG:Heretic", "XBOX:Heretic + Hexen")
         Tags=@("heretic", "questzdoom", "fantasy", "fps", "raven", "boomer shooter", "retro", "classic")
     },
-    @{
+    @{ BaseGameProofFiles=@('HEXEN.WAD|base\HEXEN.WAD|base\doom\HEXEN.WAD|base\doom2\HEXEN.WAD|base\heretic\HEXEN.WAD|base\hexen\HEXEN.WAD|base\classic\HEXEN.WAD|rerelease\base\HEXEN.WAD|classicwads\HEXEN.WAD|wads\HEXEN.WAD'); 
         Controls    = "MC"
         Title       = "Hexen VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/jvjSAUrV1YQ?t=127"
@@ -2117,7 +2348,7 @@ $ownGames = @(
         FallbackPaths = @("STEAM:Heretic + Hexen", "STEAM:Hexen Beyond Heretic", "STEAM:Hexen", "GOG:Heretic + Hexen", "GOG:Hexen Beyond Heretic", "GOG:HeXen", "XBOX:Heretic + Hexen")
         Tags=@("hexen", "questzdoom", "fantasy", "fps", "raven", "boomer shooter", "retro", "classic")
     },
-    @{
+    @{ BaseGameProofFiles=@('data1\pak0.pak','data1\pak1.pak'); 
         Controls    = "MC"
         Title       = "Hexen II VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/wKyfjeuv46o?t=7"
@@ -2181,7 +2412,7 @@ $ownGames = @(
         Quip        = "The fish were not expecting hands."
         Tags=@("how to fish", "fishing", "simulation", "sports", "coop", "multiplayer", "comedy", "adventure", "open world")
     },
-    @{
+    @{ BaseGameProofFiles=@('The House of the Dead Remake.exe'); 
         Controls    = "MC"
         Title       = "House of the Dead Remake VR"
         VideoUrl    = "https://www.youtube.com/watch?v=zvD1lvuK_zA"
@@ -2212,7 +2443,7 @@ $ownGames = @(
         FallbackPaths=@("STEAM:THE HOUSE OF THE DEAD Remake", "STEAM:House of the Dead Remake", "STEAM:TheHouseOfTheDeadRemake", "GOG:THE HOUSE OF THE DEAD Remake", "GOG:House of the Dead Remake", "GOG:The House of the Dead - Remake", "GOG:The House of the Dead Remake")
         Tags=@("house of the dead", "hotd", "hotd remake", "astienth", "rail shooter", "on-rails", "shooter", "horror", "zombies", "arcade", "remake")
     },
-    @{
+    @{ BaseGameProofFiles=@('THE HOUSE OF THE DEAD 2 Remake.exe'); 
         Controls    = "MC"
         Title       = "House of the Dead 2 Remake VR"
         VideoUrl    = "https://youtu.be/WGaMB5IKQxs?t=243"
@@ -2244,7 +2475,7 @@ $ownGames = @(
         HubAddedAt="2026-10-07"; VideoUrl="https://www.youtube.com/shorts/oheXumMrKMM"; VideoLabel="Watch VR gameplay"
         PortraitUrl="Assets/HouseOfTheDead2OriginalVR_portrait.jpg"; HeaderUrl="Assets/HouseOfTheDead2OriginalVR_header.jpg"; ScreenshotUrl="Assets/HouseOfTheDead2OriginalVR_screenshot.jpg"
         Quip="Reload one gun at a time; the dead will not wait for both."; QuipLast=$true
-        Mod="HotD2VR (auto-update)"; Author="Icedomega13"; Description="Original PC game required"
+        Mod="HotD2VR / PC2VR (auto-update)"; Author="Icedomega13 / fjdiazt"; Description="Two independent VR mods"
         GithubRepo="Icedomega13/HouseOfTheDead2VROG"; GithubPrerelease=$true
         GithubReleaseAssetPatterns=@('(?i)^HotD2VR-Setup-\d+(?:\.\d+){2}(?:-(?:alpha|beta|rc)\.\d+)?\.exe$')
         GithubAssetVersionPattern='(?i)^HotD2VR-Setup-(\d+(?:\.\d+){2}(?:-(?:alpha|beta|rc)\.\d+)?)\.exe$'
@@ -2259,13 +2490,27 @@ $ownGames = @(
         VrInstallRoot=(Join-Path $env:LOCALAPPDATA 'HotD2VR'); DurableInstallRoots=@((Join-Path $env:LOCALAPPDATA 'HotD2VR'))
         ModFile="HotD2VR.exe"; LaunchExe="HotD2VR.exe"; LaunchArgs="/play"
         NeverSteamLaunch=$true; StandaloneVR=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
-        VrInstallEvidence=@("HotD2VR.exe","install.json","build\pcvr\ddraw.dll","build\pcvr\openxr_loader.dll","pcvr\run-probe.ps1","working\pcvr\game\Hod2.exe","working\pcvr\game\ddraw.dll","working\pcvr\game\openxr_loader.dll",".pcvrhub_version")
-        UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove HotD2VR"; UninstallArguments="-HubConfirmed"
-        UninstallProbeFile="install.json"; UninstallRequireProbe=$true
-        UninstallSteps=@("Close HotD2VR, then choose Uninstall now. The Hub calls the publisher's HotD2VR.exe /uninstall for the recorded VR destination.","Publisher removal keeps the copied game, original disc ISO, saves, settings and update backups. The original PC-CD folder is untouched. Review retained data before removing it yourself.")
+        VrInstallEvidenceRoutes=@(
+            @{Name='Icedomega13';Files=@('HotD2VR.exe','install.json','build\pcvr\ddraw.dll','build\pcvr\openxr_loader.dll','pcvr\run-probe.ps1','working\pcvr\game\Hod2.exe','working\pcvr\game\ddraw.dll','working\pcvr\game\openxr_loader.dll','.pcvrhub_version')},
+            @{Name='PC2VR';Files=@('vr\HOTD2VR.exe','vr\HOTD2Bridge.dll','vr\injector.exe','vr\openxr_loader.dll','vr\gun.obj','vr\gun.mtl','vr\gun.bmp','vr\Start-PC2VR.ps1','.pcvrhub_hotd2pc2vr_ownership.csv','.pcvrhub_version_b')}
+        )
+        ModFileAlt='vr\HOTD2Bridge.dll'
+        UninstallExe=@("UNINSTALL.bat","UNINSTALL_PC2VR.bat"); UninstallLabel=@("Remove Icedomega13","Remove PC2VR"); UninstallArguments=@("-HubConfirmed","-HubConfirmed"); UninstallTargetMod=@("ModA","ModB")
+        UninstallProbeFile=@("install.json",".pcvrhub_hotd2pc2vr_ownership.csv"); UninstallRequireProbe=$true
+        UninstallSteps=@("Close HotD2VR, then choose Uninstall now. The Hub calls the publisher's HotD2VR.exe /uninstall for the recorded VR destination.","Publisher removal keeps the copied game, original disc ISO, saves, settings and update backups. The original PC-CD folder is untouched. Review retained data before removing it yourself.","Remove PC2VR removes only unchanged Hub-owned files from the original game vr folder. It retains edited settings, checkpoints, saves and the Icedomega13 installation.")
         Tags=@("the house of the dead 2","house of the dead 2","hotd2","original pc game","icedomega13","arcade","shooter","horror","rail shooter","on rails","zombies","openxr","motion controls")
+        TwoMods=$true; CombinedModInstaller=$true; SeparateUninstallButtons=$true; TwoModsIndependentRoots=$true; DisableSharedTwoModsFallback=$true
+        AlternativeInstallerLabel='Install / update VR mods'
+        GithubRepoPresenceFile='HotD2VR.exe'; GithubRepoVersionFile='.pcvrhub_version'; GithubRepoModSlot='A'
+        GithubRepoB='fjdiazt/hotd2-pc2vr'; GithubRepoBPrerelease=$false; GithubRepoBReleaseAssetPatterns=@('(?i)^HOTD2-PC2VR-.+-windows-x64\.zip$'); GithubRepoBPresenceFile='vr\HOTD2Bridge.dll'; GithubRepoBVersionFile='.pcvrhub_version_b'; GithubRepoBModSlot='B'
+        ModAName='Icedomega13'; ModAButtonLabel='HotD2VR'; ModASub='.'; ModALaunch='HotD2VR.exe'; ModARootLaunch=$true; ModAProbeFile='HotD2VR.exe'; ModAInstallerChoice='icedomega13'
+        ModARequiredFileGroups=@('install.json','build\pcvr\ddraw.dll','build\pcvr\openxr_loader.dll','pcvr\run-probe.ps1','working\pcvr\game\Hod2.exe','working\pcvr\game\ddraw.dll','working\pcvr\game\openxr_loader.dll','.pcvrhub_version')
+        ModBName='PC2VR'; ModBButtonLabel='PC2VR'; ModBSub='vr'; ModBLaunch='Start-PC2VR.ps1'; ModBProbeFile='vr\HOTD2Bridge.dll'; ModBInstallerChoice='pc2vr'
+        ModBRequiredFileGroups=@('vr\HOTD2VR.exe','vr\openxr_loader.dll','vr\injector.exe','vr\gun.obj','vr\gun.mtl','vr\gun.bmp','vr\Start-PC2VR.ps1','.pcvrhub_hotd2pc2vr_ownership.csv','.pcvrhub_version_b')
+        FlatVRRootSlot='B'; FlatVRIniFile='vr\pcvrhub-mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+
     },
-    @{
+    @{ BaseGameProofFiles=@('HytaleClient.exe'); SeparateLauncherBaseGame=$true; VrInstallRoot='C:\Games\Hytale VR'; 
         Controls    = "MC"
         Title       = "Hytale VR"
         VideoUrl    = "https://packaged-media.redd.it/dfqjfl7xnrdh1/pb/m2-res_1080p.mp4?m=DASHPlaylist.mpd&var=sgpssan&v=1&e=1785114000&s=04ac52900a5b818d8c0d27510ab55f63a41316b4"
@@ -2318,7 +2563,7 @@ $ownGames = @(
         FallbackPaths=@("C:\Games\I Can Gun VR", "D:\Games\I Can Gun VR", "E:\Games\I Can Gun VR", "C:\games\I Can Gun VR")
         Tags=@("i can gun", "icangun", "icg", "patrick koenig", "koenig", "receiver-like", "fps", "shooter", "action", "sim", "atmospheric", "guns", "tactical", "procedural", "indie", "free")
     },
-    @{
+    @{ BaseGameProofFiles=@('idols_of_ash.exe'); 
         Controls    = "MC"
         Title       = "Idols of Ash VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=Bn_Zd-X5rGw"
@@ -2365,16 +2610,16 @@ $ownGames = @(
         Id="gran-turismo-2-pcvr"; Controls="VRGP"; Title="Gran Turismo 2 PCVR"; HubAddedAt="2026-10-03"; VideoUrl="https://youtu.be/ZaynQ2z5pfw?t=7"; VideoLabel="Watch VR gameplay"
         PortraitUrl="Assets/GranTurismo2_portrait.jpg"; HeaderUrl="Assets/GranTurismo2_header.jpg"; ScreenshotUrl="Assets/GranTurismo2_screenshot.jpg"
         Quip="There are no shortcuts to the podium, only apexes."; QuipLast=$true
-        Mod="GT2 PCVR v0.8.0.1 (pinned)"; Author="Yevhen Dubrovskiy"; Description="Own PS1 discs; OpenXR"
+        Mod="GT2 PCVR v0.9.0 (pinned)"; Author="Yevhen Dubrovskiy"; Description="Own PS1 discs; OpenXR"
         Bat="GT2PCVR\START_INSTALLER.bat"; ReadmeDir="GT2PCVR"; Color="#132231"; Accent="#d6a443"
-        InfoUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"; ModPageUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"; DownloadUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.8.0.1"
-        GithubRepo="dubrovskiy-yevhen-stakelogic/gt-2-pc"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^GT2-0\.8\.0\.1\.zip$'); NoVersionSeed=$true
+        InfoUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"; ModPageUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc"; DownloadUrl="https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.9.0"
+        GithubRepo="dubrovskiy-yevhen-stakelogic/gt-2-pc"; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^GT2-0\.9\.0\.zip$'); NoVersionSeed=$true
         SteamFolder="GT2-VR\runtime"; VrInstallRoot=(Join-Path $env:LOCALAPPDATA 'GT2-VR\runtime'); DurableInstallRoots=@((Join-Path $env:LOCALAPPDATA 'GT2-VR\runtime'))
         ModFile="gt2game.exe"; LaunchExe="PLAY-PCVR.bat"; NeverSteamLaunch=$true; StandaloneVR=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
         VrInstallEvidence=@("gt2game.exe","openxr_loader.dll","PLAY-PCVR.bat","PLAY-PCVR-META.bat","PLAY-PCVR-STEAMVR.bat","PLAY-PCVR-VD.bat",".pcvrhub_version")
         VrInstallEvidenceRoutes=@(@{Files=@("arcade\disc.raw2352")},@{Files=@("simulation\disc.raw2352")})
         UninstallSteps=@("Close GT2 PCVR. Back up the dedicated runtime folder first; the publisher installer keeps earlier versions under backup-* folders.","Remove the PCVR player and launchers from the dedicated runtime folder only after checking they are the generated files. Keep arcade/simulation disc data, saves and user settings for a future install.")
-        Notice="Use your own supported complete Gran Turismo 2 Arcade or Simulation disc image. A 2048-byte ISO omits required audio/video sectors. This PCVR route stays pinned to v0.8.0.1 while newer releases only provide Web assets."
+        Notice="Use your own supported complete Gran Turismo 2 Arcade or Simulation disc image. A 2048-byte ISO omits required audio/video sectors. This PCVR route stays pinned to v0.9.0 using the complete reviewed native Windows package."
         Tags=@("racing","simulation","sports","gran turismo 2","gt2","gt-2-pc","playstation","ps1","sim","rom","disc","openxr","motion controls","wheel")
     },
     @{
@@ -2474,7 +2719,7 @@ $ownGames = @(
         GameExe     = "KSP_x64.exe"
         Tags=@("kerbal space program", "ksp", "kerbal", "space", "rocket", "rockets", "simulation", "sim", "sandbox", "physics", "orbit", "kerbalvr", "jonnyothan", "firstpersonksp", "flat2vr")
     },
-    @{
+    @{ BaseGameProofFiles=@('left4dead2.exe'); 
         Controls    = "MC"
         Title       = "Left 4 Dead 2 VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=JgIraTVFOfI"
@@ -2573,7 +2818,7 @@ $ownGames = @(
         )
         Tags=@("zelda", "legend of zelda", "twilight princess", "link", "midna", "hyrule", "dusklight", "joeyaw", "gamecube", "nintendo", "action", "adventure", "fantasy", "exploration", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('Lethal Company.exe'); 
         Controls    = "MC"
         Title       = "Lethal Company VR"
         VideoUrl    = "https://www.youtube.com/watch?v=nrLkksXZVAo"
@@ -2603,7 +2848,7 @@ $ownGames = @(
         ThunderstorePackage = "LethalCompanyVR"
         Tags=@("lethal company", "lcvr", "comedy", "coop", "horror")
     },
-    @{
+    @{ GameExe='Life is Strange - Before the Storm.exe'; 
         Controls    = "MC"
         Title       = "Life is Strange: BtS"
         VideoUrl    = "https://www.youtube.com/watch?v=Jveom7RoU3E"
@@ -2616,7 +2861,7 @@ $ownGames = @(
         Accent      = "#c96b96"
         InfoUrl     = "https://github.com/TrevTV/DawnVR"
         ModFile     = "Mods\DawnVRMod.dll"
-        BaseGameProofFiles = @("Life is Strange- Before the Storm.exe|Life is Strange - Before the Storm Remastered.exe")
+        BaseGameProofFiles = @('Life is Strange - Before the Storm.exe|Life is Strange- Before the Storm.exe|Life is Strange - Before the Storm Remastered.exe')
         VrInstallEvidence = @("Mods\DawnVRMod.dll", "Plugins\DawnVREnabler.dll", "version.dll", "dobby.dll", ".pcvrhub_version")
         SteamFolder = "Life is Strange - Before the Storm"
         FallbackPaths=@("GOG:Life is Strange Before the Storm", "EPIC:Life is Strange Before the Storm")
@@ -2703,7 +2948,7 @@ $ownGames = @(
         UninstallSteps=@("Close Little Witch Nobeta, then use Uninstall now. The Hub removes only unchanged NobetaVR files it installed and restores backed-up originals.","The Steam game, saves, settings and unrelated plugins remain. The publisher's NobetaVR-Uninstall.bat also removes the VR configuration; use the Hub button to preserve unrelated files and backups.")
         Tags=@("little witch nobeta","nobeta","witch","magic","anime","souls-like","action","soulslike","openxr","bepinex","motion controls","wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('LUNACID.exe'); 
         Controls    = "MC"
         Title       = "Lunacid VR"
         Quip        = "Descend the Great Well with a blade in your own hand."
@@ -2730,7 +2975,7 @@ $ownGames = @(
         )
         Tags=@("lunacid", "dungeon crawler", "dark fantasy", "rpg", "souls-like", "horror", "atmospheric", "exploration", "first person", "retro", "psx", "kings field", "moon", "magic", "steamvr", "tesseract")
     },
-    @{
+    @{ BaseGameProofFiles=@('MageArena.exe'); 
         Controls    = "MC"
         Title       = "Mage Arena VR"
         VideoUrl    = "https://www.youtube.com/watch?v=MBElDKZgTYU"
@@ -2839,7 +3084,7 @@ $ownGames = @(
         Quip        = "Nothing was bulletproof. Not even the weather."
         Tags=@("max payne 2", "max payne", "action", "shooter", "story", "narrative", "atmospheric", "noir", "bullet time", "motion controls", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('Metal.exe'); 
         Controls    = "MC"
         Title       = "Metal: Hellsinger VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=tsowpUxGI9s"
@@ -2866,27 +3111,48 @@ $ownGames = @(
         Controls    = "MC"
         Title       = "Metroid Prime VR"
         VideoUrl    = "https://www.youtube.com/watch?v=BqSIr_sC7LI"
+        VideoLabel  = "Watch Legacy VR gameplay"
         SteamId     = ""
         PortraitUrl = "Assets/MetroidPrimeVR_portrait.jpg"
         HeaderUrl   = "Assets/MetroidPrimeVR_header.jpg"
         ScreenshotUrl = "Assets/MetroidPrimeVR_screenshot.jpg"
         Quip        = "Scan the unknown, lock on, and let the arm cannon do the talking."
         Mod         = "PrimedGun (auto-update)"
-        GithubRepo  = "Nobbie248/PrimedGun"
-        GithubReleaseAssetPatterns = @('(?i)^PrimedGun[._-]v?[0-9].*\.zip$')
-        Description = "GameCube ROM NTSC 1.0"
-        Author      = "Nobbie"
+        TwoMods=$true; CombinedModInstaller=$true; SeparateUninstallButtons=$true; TwoModsIndependentRoots=$true; DisableSharedTwoModsFallback=$true
+        AlternativeInstallerLabel='Install / update variants'
+        GithubRepo  = "iChris4/MetroidPrimePortVR"
+        GithubPrerelease=$true
+        GithubRepoModSlot='A'; GithubRepoPresenceFile='metroid_prime_port.exe'; GithubRepoVersionFile='.pcvrhub_version'
+        GithubReleaseAssetPatterns = @('(?i)^PrimedGun[-._](?!.*(?:symbols|source|sdk|debug))v?[0-9].*Windows[-._]x64\.zip$')
+        Description = "Native OpenXR, ROM required"
+        Author      = "Nobbie, iChris4"
         Bat         = "MetroidPrimeVR\START_INSTALLER.bat"
         Color       = "#1a0e06"
         Accent      = "#e8731c"
-        InfoUrl     = "https://github.com/Nobbie248/PrimedGun"
-        DownloadUrl = "https://github.com/Nobbie248/PrimedGun/releases/latest"
+        InfoUrl     = "https://github.com/iChris4/MetroidPrimePortVR"
+        DownloadUrl = "https://github.com/iChris4/MetroidPrimePortVR/releases"
         ModFile     = "PrimedGun.exe"
+        ModFileAlt  = 'Sys\GC\dsp_rom.bin'
         LaunchExe   = "PrimedGun.exe"
         StandaloneVR = $true
-        SteamFolder = "Metroid Prime VR"
-        FallbackPaths=@("C:\Games\Metroid Prime VR", "D:\Games\Metroid Prime VR", "E:\Games\Metroid Prime VR", "C:\games\Metroid Prime VR")
-        Tags=@("adventure", "action", "metroidvania", "fps", "first-person", "exploration", "sci-fi", "retro", "metroid", "metroid prime", "prime", "samus", "samus aran", "nintendo", "gamecube", "dolphin", "redux", "primedgun", "nobbie", "6dof", "motion controls")
+        FlatVRPublisherLauncher="PrimedGun.exe"
+        FlatVRRootSlot='A'
+        FlatVRPublisherInstructions="Open Port Config in PrimedGun, enable or disable VR, then Save Settings and Play."
+        SteamFolder = "Metroid Prime VR 2"
+        LaunchRequiresVrEvidence=$true
+        VrInstallEvidenceRoutes=@(
+            @{Name='Native';Files=@('PrimedGun.exe','metroid_prime_port.exe','Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','platforms\qwindows.dll','webgpu_dawn.dll','dxcompiler.dll','dxil.dll')},
+            @{Name='Legacy';Files=@('PrimedGun.exe','Sys\GC\dsp_rom.bin','Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','QtPlugins\platforms\qwindows.dll')}
+        )
+        FallbackPaths=@("C:\Games\Metroid Prime VR 2","D:\Games\Metroid Prime VR 2","E:\Games\Metroid Prime VR 2","C:\Games\Metroid Prime VR", "D:\Games\Metroid Prime VR", "E:\Games\Metroid Prime VR", "C:\games\Metroid Prime VR")
+        Tags=@("adventure", "action", "metroidvania", "fps", "first-person", "exploration", "sci-fi", "retro", "metroid", "metroid prime", "prime", "samus", "samus aran", "nintendo", "gamecube", "dolphin", "redux", "primedgun", "nobbie", "ichris4", "native", "openxr", "6dof", "motion controls")
+        ModAName='Native PrimedGun 2.0'; ModAButtonLabel='PrimedGun 2'; ModASub='.'; ModALaunch='PrimedGun.exe'; ModARootLaunch=$true; ModAProbeFile='metroid_prime_port.exe'; ModAInstallerChoice='native'
+        ModARequiredFileGroups=@('PrimedGun.exe','Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','platforms\qwindows.dll','webgpu_dawn.dll','dxcompiler.dll','dxil.dll')
+        ModBName='Legacy Dolphin'; ModBButtonLabel='Legacy'; ModBSub='.'; ModBLaunch='PrimedGun.exe'; ModBRootLaunch=$true; ModBProbeFile='Sys\GC\dsp_rom.bin'; ModBInstallerChoice='legacy'
+        ModBRequiredFileGroups=@('PrimedGun.exe','Qt6Core.dll','Qt6Gui.dll','Qt6Widgets.dll','QtPlugins\platforms\qwindows.dll')
+        UninstallExe=@('UNINSTALL.bat','UNINSTALL_Legacy.bat'); UninstallLabel=@('Remove Native','Remove Legacy'); UninstallArguments=@('-HubConfirmed','-HubConfirmed'); UninstallTargetMod=@('ModA','ModB')
+        UninstallProbeFile=@('.pcvrhub_primedgunnative_ownership.csv','.pcvrhub_primedgunlegacy_ownership.csv'); UninstallRequireProbe=$true
+        UninstallSteps=@('Close PrimedGun and the game, then choose the specific variant in Uninstall now. Only its unchanged Hub-owned runtime files are removed.','Both user folders, disc images, edited files and the other installation remain. An older Legacy install without an ownership manifest must first be repaired through option 2 before automatic removal is offered. Never delete a complete installation folder containing your saves.','Use the native launcher to transfer normal legacy memory-card saves. Dolphin save states cannot transfer.')
     },
     @{
         Id="mirrors-edge-vr"; Controls="MC"; Title="Mirror's Edge VR"; Roomscale=$true; SteamId="17410"
@@ -2937,7 +3203,7 @@ $ownGames = @(
     },
     @{
         Id="no-one-lives-forever-vr"; Controls="MC"; Title="No One Lives Forever VR"; TileTitle="No One Lives Forever"; Roomscale=$true; HubAddedAt="2026-10-03"; VideoUrl="https://youtu.be/IrHUTnWPAw8?t=362"; VideoLabel="Watch VR gameplay"
-        SteamFolder="No One Lives Forever"; GameExe="lithtech.exe"; BaseGameProofFiles=@("lithtech.exe","NOLF.REZ","NOLF2.REZ","nolfu003.rez")
+        SteamFolder="No One Lives Forever"; GameExe="lithtech.exe"; BaseGameProofFiles=@("NOLF.REZ","NOLF2.REZ")
         Quip="H.A.R.M. will have a hard time filing this mission report."; QuipLast=$true
         Mod="ReLith + NOLF VR (auto-update)"; Author="alex-nax / GameOrDie007"; Description="2 ports; owned game data"
         Bat="NOLF1VR\START_INSTALLER.bat"; ReadmeDir="NOLF1VR"; Color="#0919c0"; Accent="#64e7da"
@@ -2981,7 +3247,7 @@ $ownGames = @(
         Notice="Physical-controls alpha. The current publisher ZIP was built for Bannerlord v1.4.8 stable; v1.5.5 is also listed, but exact-package headset testing is pending. Enable Harmony above Bannerlord VR. The publisher lists VDXR, SteamVR and Meta/Oculus OpenXR. Single-player only. Menus and interactions remain unfinished and crashes are possible."
         Tags=@("bannerlord","mount and blade","mount & blade","notlooky","motion controls","physical combat","openxr","harmony","medieval","sandbox","rpg","strategy","wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('Moros Protocol.exe'); 
         Controls    = "MC"
         Title       = "Moros Protocol VR"
         VideoUrl    = "https://www.youtube.com/watch?v=Zom0zmwPwk0"
@@ -3004,7 +3270,7 @@ $ownGames = @(
         LaunchExe   = "Moros Protocol.exe"
         Tags=@("moros protocol", "astienth", "fps", "shooter", "roguelite", "rogue lite", "pixel art", "space", "action", "fast paced", "horror", "indie")
     },
-    @{
+    @{ BaseGameProofFiles=@('MOUSE.exe'); 
         Controls    = "MC"
         Title       = "Mouse P.I. For Hire VR"
         VideoUrl    = "https://www.youtube.com/watch?v=zhWjw3mT46o"
@@ -3096,7 +3362,7 @@ $ownGames = @(
         LaunchExe   = "OWML\OWML.Launcher.exe"
         Tags=@("outer wilds", "nomai", "owml", "atmospheric", "exploration", "mystery", "puzzle")
     },
-    @{
+    @{ BaseGameProofFiles=@('Outward_Defed\Outward Definitive Edition.exe|Outward.exe'); 
         Controls    = "MC"
         Title       = "Outward DE VR"
         VideoUrl    = "https://youtu.be/ugs3_d3pyoU?t=229"
@@ -3156,7 +3422,7 @@ $ownGames = @(
         # the Hub then offers a launcher for each once both exist.
         Tags=@("outward", "aurai", "fantasy", "open world", "rpg", "survival")
     },
-    @{
+    @{ BaseGameProofFiles=@('Bin\Painkiller.exe'); 
         Controls    = "MC"
         Title       = "Painkiller Black Edition"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=RfNqYTfipaA"
@@ -3215,7 +3481,7 @@ $ownGames = @(
         Notice="Back up custom Data\LScripts and Data\Textures content before starting VR. The publisher launcher deliberately removes those folders and is incompatible with other Overdose mods."
         Tags=@("painkiller", "overdose", "str paragor", "painkiller russian community", "openxr", "motion controls", "fps", "shooter", "action", "horror", "retro", "fast paced")
     },
-    @{
+    @{ BaseGameProofFiles=@('Panzer Dragoon Remake.exe'); 
         Controls    = "MC"
         Title       = "Panzer Dragoon Remake"
         VideoUrl    = "https://www.youtube.com/watch?v=tIqKJ3-vjHU"
@@ -3286,7 +3552,7 @@ $ownGames = @(
         )
         Tags=@("pathfinder", "kingmaker", "rpg", "crpg", "turn based", "strategy", "adventure", "party", "fantasy", "dungeons", "owlcat", "vrmaker", "pinkmilk", "steamvr")
     },
-    @{
+    @{ BaseGameProofFiles=@('PEAK.exe'); 
         Controls    = "MC"
         Title       = "PEAK VR"
         VideoUrl    = "https://www.youtube.com/watch?v=AUKrEF7mNB4"
@@ -3403,7 +3669,7 @@ $ownGames = @(
         UninstallSteps=@("Use Uninstall now to open publisher Setup, then select Requiem and Remove. Black Plague VR can remain installed.")
         Tags=@("penumbra", "requiem", "puzzle", "adventure", "horror", "atmospheric", "frictional games", "rubocopter", "steamvr")
     },
-    @{
+    @{ BaseGameProofFiles=@('redist\penumbra.exe'); 
         Controls    = "MC"
         Title       = "Penumbra: Overture VR"
         VideoUrl    = "https://www.youtube.com/watch?v=FCbwW119lAw"
@@ -3493,7 +3759,7 @@ $ownGames = @(
         FallbackPaths=@("C:\Games\Perfect Dark VR", "D:\Games\Perfect Dark VR", "E:\Games\Perfect Dark VR", "C:\games\Perfect Dark VR")
         Tags=@("fps", "sci-fi", "stealth", "action", "shooter", "first-person", "classic", "retro", "spy", "perfect dark", "joanna dark", "rare", "n64", "nintendo", "decompilation", "port", "alex-letux", "motion controls")
     },
-    @{
+    @{ BaseGameProofFiles=@('portal2.exe'); 
         Controls    = "MC"
         Title       = "Portal 2 VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/OnFCTqKJP80?t=73"
@@ -3535,7 +3801,7 @@ $ownGames = @(
             "Steam Workshop subscriptions, ZombieBuddy, approvals, the game and saves remain. Run the ZombieBuddy publisher installer and choose Uninstall only if you also want to remove that shared agent.")
         Tags=@("project zomboid","pzvr","zombiebuddy","project viewpoint","axizt","gingasvr","zombie","survival","sandbox","open world","horror","crafting","co-op","motion controls","openxr","steam workshop","wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('id1\pak0.pak|rerelease\id1\pak0.pak','id1\pak1.pak|rerelease\id1\pak1.pak'); 
         Controls    = "MC"
         Title       = "Quake VR"; Roomscale=$true
         HubAddedAt  = "2026-09-03"
@@ -3589,7 +3855,7 @@ $ownGames = @(
         ModCInstalledPathFile = ".installed_path_unleashed"
         SteamFolder = "Quake"
         FallbackPaths = @(
-            (Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\QuakeVR'),
+            ([IO.Path]::Combine([Environment]::GetFolderPath('LocalApplicationData',[Environment+SpecialFolderOption]::DoNotVerify),'Programs\QuakeVR')),
             "C:\games\Quake VR",
             "D:\games\Quake VR",
             "E:\games\Quake VR",
@@ -3616,7 +3882,7 @@ $ownGames = @(
         )
         Tags=@("quake", "quakevr", "unleashed", "vittorio romeo", "fps", "shooter", "horror", "retro", "id software", "lovecraft")
     },
-    @{
+    @{ BaseGameProofFiles=@('baseq2\pak0.pak'); 
         Controls    = "MC"
         Title       = "Quake 2 VR"
         VideoUrl    = "https://www.youtube.com/watch?v=Zl7a98MBgus"
@@ -3668,7 +3934,7 @@ $ownGames = @(
         )
         Tags=@("quake 2", "quake ii", "quake2quest", "team beef", "gameordie007", "q2vr", "luke groeninger", "malcolm smith", "fps", "shooter", "action", "horror")
     },
-    @{
+    @{ BaseGameProofFiles=@('baseq3\pak0.pk3'); 
         Controls    = "MC"
         Title       = "Quake 3 VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=8tOLAvJST3Y"
@@ -3689,7 +3955,7 @@ $ownGames = @(
         LaunchExe   = "q3vr.exe"
         Tags=@("quake 3", "quake iii", "quake 3 arena", "q3vr", "ripper37", "ioquake3", "arena", "fps", "shooter", "action")
     },
-    @{
+    @{ BaseGameProofFiles=@('REPO.exe'); 
         Controls    = "MC"
         Title       = "R.E.P.O. VR"
         VideoUrl    = "https://www.youtube.com/watch?v=FXFoHlLpzG0"
@@ -3717,7 +3983,7 @@ $ownGames = @(
         DepotLaunchArgs = "--repoxr-skip-checksum=1.1.2"
         Tags=@("repo", "repoxr", "daxcess", "comedy", "coop", "horror")
     },
-    @{
+    @{ BaseGameProofFiles=@('Raft.exe'); SeparateLauncherBaseGame=$true; 
         Controls    = "MC"
         Title       = "Raft VR"
         VideoUrl    = "https://www.youtube.com/watch?v=iwnL873U1n0"
@@ -3760,7 +4026,7 @@ $ownGames = @(
         FallbackPaths=@("C:\Games\Ratchet VR", "D:\Games\Ratchet VR", "E:\Games\Ratchet VR", "C:\games\Ratchet VR")
         Tags=@("ratchet", "clank", "ratchet and clank", "ratchet & clank", "ratchetvr", "rybread69", "rybread", "unreal engine", "fan game", "free", "platformer", "action", "adventure", "sci-fi", "space", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('ReadyOrNot\Binaries\Win64\ReadyOrNot-Win64-Shipping.exe|ReadyOrNot.exe'); 
         Controls    = "MC"
         Title       = "Ready Or Not VR"; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=uHYr8ICPzRo"
@@ -3805,7 +4071,7 @@ $ownGames = @(
         # ModFile (the pak), so it still flips to VR Ready correctly.
         Tags        = @("ready or not", "void interactive", "vro", "virtual reality oasis", "kitt", "tactical", "swat", "police", "breach", "shooter", "stealth", "realistic", "fps", "single player")
     },
-    @{
+    @{ BaseGameProofFiles=@('Receiver.exe'); 
         Controls    = "MC"
         Title       = "Receiver VR"
         VideoUrl    = "https://youtu.be/J_JQUEJV5kQ?t=85"
@@ -3831,7 +4097,7 @@ $ownGames = @(
         )
         Tags=@("receiver", "receivr", "wolfire", "shadowbrian", "shooter", "fps", "survival", "simulation", "7dfps", "guns", "free")
     },
-    @{
+    @{ BaseGameProofFiles=@('RedFaction.exe|RF.exe'); 
         Controls    = "MC"
         Title       = "Red Faction VR"
         VideoUrl    = "https://www.youtube.com/live/eu48sXIfOQk?t=1662"
@@ -3850,7 +4116,7 @@ $ownGames = @(
         # stable tag is not missed.
         GithubRepo  = "CactusVRStudios/alpinefactionVR"
         GithubPrerelease = $true
-        GameExe     = "RF.exe"
+        GameExe     = 'RedFaction.exe'
         # The mod does NOT launch the game exe but its own - the same
         # lesson as theHunter and World at War.
         # AND IT DOES NOT LIVE IN THE GAME FOLDER: the setup puts it in a
@@ -3904,7 +4170,7 @@ $ownGames = @(
         ScreenshotUrl = "Assets/RichardBurnsRallyVR_screenshot.jpg"
         Tags=@("richard burns rally", "rbr", "rbrvr", "kegetys", "rally", "racing", "driving", "simulation", "sim")
     },
-    @{
+    @{ BaseGameProofFiles=@('Risk of Rain 2.exe'); 
         Controls    = "MC"
         Title       = "Risk of Rain 2"; Gem=$true
         VideoUrl    = "https://youtu.be/wV1_MFR_JfI?t=263"
@@ -3973,7 +4239,7 @@ $ownGames = @(
         )
         Tags=@("ror2", "ror2vr", "ror", "risk of rain", "coop", "roguelite", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('RTV.exe'); 
         Controls    = "MC"
         Title       = "Road to Vostok VR"
         VideoUrl    = "https://www.youtube.com/watch?v=PrXRmBkOxF0"
@@ -3992,7 +4258,7 @@ $ownGames = @(
         LaunchExe   = "launch_vr.bat"
         Tags=@("road to vostok", "vostok", "rtv", "rtvvr", "survival", "fps", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('SaintsRowTheThird.exe|SaintsRowTheThird_DX11.exe'); 
         Controls    = "MC"
         Title       = "Saints Row: The Third VR"
         VideoUrl    = "https://youtu.be/0i5ciO0tsEc?t=154"
@@ -4021,7 +4287,7 @@ $ownGames = @(
     # Current, last-confirmed and original legacy routes coexist. The tile
     # splits Current / 1.0.5; the oldest pre-1.0 build remains a separate
     # detail-page fallback and is never silently advanced.
-    @{
+    @{ BaseGameProofFiles=@('Release\ScrapMechanic.exe'); 
         Controls    = "MC"
         Title       = "Scrap Mechanic VR"; Roomscale=$true
         Quip        = "Build it, then climb inside and grab the wrench yourself."
@@ -4082,7 +4348,7 @@ $ownGames = @(
         )
         Tags        = @("scrap mechanic", "building", "sandbox", "survival", "crafting", "vehicles", "creative", "physics", "openxr", "quest")
     },
-    @{
+    @{ BaseGameProofFiles=@('Selaco.ipk3'); 
         Controls    = "MC"
         Title       = "Selaco VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=23aJdITsezE"
@@ -4221,7 +4487,7 @@ $ownGames = @(
         )
         Tags=@("singularity", "raven software", "activision", "tmd", "time manipulation device", "letsgosportsteam", "d3d9", "openxr", "vdxr", "fps", "shooter", "action", "horror", "story", "sci-fi", "unreal engine 3", "alpha", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('SlimeRancher.exe|VRPlayground\SlimeRancher.exe'); 
         Controls    = "MC"
         Title       = "Slime Rancher VR"
         VideoUrl    = "https://www.youtube.com/watch?v=wvYcMAlmI40"
@@ -4252,7 +4518,7 @@ $ownGames = @(
         )
         Tags=@("slime rancher", "srvr", "atmospheric", "exploration", "survival")
     },
-    @{
+    @{ BaseGameProofFiles=@('Slyders.exe'); 
         Controls    = "MC"
         Title       = "Slyders VR"
         VideoUrl    = "https://www.youtube.com/watch?v=bS3k4UF4zaw"
@@ -4372,7 +4638,7 @@ $ownGames = @(
         )
         Tags        = @("racing", "fast paced", "driving", "star wars", "podracing", "action", "science fiction", "multiplayer", "arcade")
     },
-    @{
+    @{ BaseGameProofFiles=@('Stardew Valley.exe'); 
         Controls    = "MC"
         Title       = "Stardew Valley VR"
         Quip        = "Tend the farm in first person, then swing the scythe with your own arm."
@@ -4406,7 +4672,7 @@ $ownGames = @(
         )
         Tags        = @("stardew valley", "stardew", "farming", "simulation", "rpg", "life sim", "cozy", "sandbox", "fishing", "mining", "crafting", "coop", "multiplayer", "pixel", "gingasvr", "smapi", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('strife1.wad|base\strife1.wad|base\doom\strife1.wad|base\doom2\strife1.wad|base\heretic\strife1.wad|base\hexen\strife1.wad|base\classic\strife1.wad|rerelease\base\strife1.wad|classicwads\strife1.wad|wads\strife1.wad'); 
         Controls    = "MC"
         Title       = "Strife VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/iItiDXfzIXc?t=258"
@@ -4430,7 +4696,7 @@ $ownGames = @(
         FallbackPaths = @("STEAM:Strife Veteran Edition", "GOG:The Original Strife Veteran Edition", "GOG:Strife")
         Tags=@("strife", "questzdoom", "fps", "rpg", "cyberpunk", "boomer shooter", "retro", "classic")
     },
-    @{
+    @{ BaseGameProofFiles=@('Subnautica.exe|Subnautica32.exe'); 
         Controls    = "MC"
         Title       = "Subnautica VR"
         VideoUrl    = "https://youtu.be/XAJC4XRomSA?t=34"
@@ -4448,7 +4714,7 @@ $ownGames = @(
         FallbackPaths=@("EPIC:Subnautica", "XBOX:Subnautica")
         Tags=@("subnautica", "submersed", "exploration", "open world", "survival", "underwater")
     },
-    @{
+    @{ BaseGameProofFiles=@('SubnauticaZero.exe|Subnautica32.exe'); 
         Controls    = "MC"
         Title       = "Subnautica: Below Zero"
         VideoUrl    = "https://youtu.be/ABv9LFxQPSE?t=461"
@@ -4489,7 +4755,7 @@ $ownGames = @(
         Notice="The public GitHub build has no stereo-particle fix or VR anti-aliasing modes. On first launch in the headset: Play > Mod-Manager, scroll to Teardown VR, open it and switch Deactivated to Activated. Teardown updates can break this mod."
         Tags=@("teardown","teardown vr","vr games for all","pluventi","destruction","physics","sandbox","voxel","heist","simulation","action","motion controls","roomscale","openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('Techtonica.exe'); 
         Controls    = "MC"
         Title       = "Techtonica VR"
         VideoUrl    = "https://www.youtube.com/watch?v=0NpHeqOV6uw"
@@ -4505,7 +4771,7 @@ $ownGames = @(
         SteamFolder = "Techtonica"
         Tags=@("techtonica", "factory", "automation", "builder", "survival", "crafting", "sci-fi", "underground", "open world", "early access")
     },
-    @{
+    @{ BaseGameProofFiles=@('witness64_d3d11.exe|witness_d3d11.exe'); 
         Controls      = "MC"
         Title         = "The Witness"
         SteamId       = "210970"
@@ -4525,7 +4791,7 @@ $ownGames = @(
         DownloadUrl   = "https://discord.com/channels/747967102895390741/1532163496899248198/1544400886166462474"
         SteamFolder   = "The Witness"
         FallbackPaths = @("STEAM:The Witness", "GOG:The Witness", "EPIC:TheWitness", "EPIC:The Witness")
-        GameExe       = "witness64_d3d11.exe"
+        GameExe       = 'witness64_d3d11.exe'
         LaunchExe     = "witness64_d3d11.exe"
         LaunchArgs    = "-vr"
         ModFile       = "witness_vr_mod\openvr_api_mod.dll"
@@ -4586,7 +4852,7 @@ $ownGames = @(
         LaunchExe     = "BeefRaiderXR.exe"
         Tags        = @("tomb raider", "lara croft", "beefraiderxr", "team beef", "openlara", "xproger", "adventure", "action", "exploration", "platformer", "puzzle", "classic", "retro", "1996")
     },
-    @{
+    @{ BaseGameProofFiles=@('TormentedSouls.exe'); 
         Controls    = "MC"
         Title       = "Tormented Souls VR"
         VideoUrl    = "https://www.youtube.com/watch?v=U2GRZOlcKgY"
@@ -4673,7 +4939,7 @@ $ownGames = @(
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove TurokVR"; UninstallProbeFile=".pcvrhub_turokvr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         Tags=@("turok","turok vr","vincecrusty","nightdive","kex4","vulkan","openxr","dinosaurs","fps","retro","motion controls","roomscale")
     },
-    @{
+    @{ BaseGameProofFiles=@('TromboneChamp.exe'); 
         Controls    = "MC"
         Title       = "Trombone Champ VR"
         VideoUrl    = "https://www.youtube.com/watch?v=p2Wkt6sAHDo"
@@ -4696,7 +4962,7 @@ $ownGames = @(
         DepotInstall  = $true
         Tags=@("rhythm", "music", "comedy", "multiplayer", "trombone", "champ", "baboonvr", "raicuparta", "holy wow", "meme", "arcade", "casual")
     },
-    @{
+    @{ BaseGameProofFiles=@('ULTRAKILL.exe'); 
         Controls    = "MC"
         Title       = "ULTRAKILL VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/7f2uciU6NuI?t=46"
@@ -4738,11 +5004,11 @@ $ownGames = @(
     },
     @{
         Controls    = "MC"
-        Title       = "Valheim VR"; Roomscale=$true
+        Id='valheim-vr'; Title="Valheim VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=6iUkPug6QV4"
         SteamId     = "892970"
-        Mod         = "VHVR-Mod v0.10.5"
-        Description = "Requires DX11, not Vulkan."
+        Mod         = "VHVR (auto-update)"
+        Description = "SteamVR; DirectX 11"
         Author      = "brandonmousseau"
         Bat         = "ValheimVR\START_INSTALLER.bat"
         Color       = "#1a2a1a"
@@ -4756,6 +5022,16 @@ $ownGames = @(
         # was never modded. Replaced by the file OUR installer
         # demonstrably writes itself.
         ModFile     = "BepInEx\plugins\ValheimVRMod.dll"
+        GameExe='valheim.exe'; BaseGameProofFiles=@('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll')
+        GithubRepo='brandonmousseau/vhvr-mod'; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^(?!.*(?:source|symbols|debug|server|linux|macos))vhvr.*\.zip$')
+        NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        HubLaunchScript='ValheimVR\Start-ValheimVR.ps1'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'; HubLaunchWindowStyle='Hidden'
+        HubStartFile='PCVR-Valheim\Start-ValheimVR.ps1'; PreferDedicatedLaunchExe=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        VrInstallEvidence=@('winhttp.dll','doorstop_config.ini','BepInEx\core\BepInEx.dll','BepInEx\core\BepInEx.Preloader.dll','BepInEx\core\0Harmony.dll','BepInEx\core\0Harmony20.dll','BepInEx\core\BepInEx.Harmony.dll','BepInEx\core\HarmonyXInterop.dll','BepInEx\core\Mono.Cecil.dll','BepInEx\core\Mono.Cecil.Mdb.dll','BepInEx\core\Mono.Cecil.Pdb.dll','BepInEx\core\Mono.Cecil.Rocks.dll','BepInEx\core\MonoMod.RuntimeDetour.dll','BepInEx\core\MonoMod.Utils.dll','Valheim_Data\Managed\Bhaptics.Tact.dll','Valheim_Data\Managed\final_ik.dll','Valheim_Data\Managed\NDesk.Options.dll','Valheim_Data\Managed\root_motion_demo_assets.dll','Valheim_Data\Managed\root_motion_shared.dll','Valheim_Data\Managed\Unity.XR.Management.dll','Valheim_Data\Managed\UnityEngine.SpatialTracking.dll','Valheim_Data\Managed\UnityEngine.XR.LegacyInputHelpers.dll','Valheim_Data\Managed\Valve.Newtonsoft.Json.dll','Valheim_Data\Managed\SteamVR.dll','Valheim_Data\Managed\Unity.XR.OpenVR.dll','Valheim_Data\Plugins\x86_64\openvr_api.dll','Valheim_Data\Plugins\x86_64\XRSDKOpenVR.dll','Valheim_Data\StreamingAssets\SteamVR\actions.json','Valheim_Data\UnitySubsystems\XRSDKOpenVR\UnitySubsystemsManifest.json')
+        FlatVRIniFile='doorstop_config.ini'; FlatVRIniSection='General'; FlatVRIniKey='enabled'; FlatVRIniVRValue='true'; FlatVRIniFlatValue='false'
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove Valheim VR'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_valheimvr_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close Valheim, then choose Uninstall now. Unchanged Hub-owned files are removed and earlier files restored. If an older mod existed before this installer, it is restored too.','Saves, changed settings and unrelated mods are retained. For temporary flat play use Flat / VR in the Hub. SteamVR is the headset runtime; Xbox copies do not need a Steam game license.')
+        Quip='The trees still have the highest kill count.'; QuipLast=$true
         SteamFolder = "Valheim"
         FallbackPaths=@("XBOX:Valheim")
         Tags        = @("vhvr", "survival", "crafting", "viking")
@@ -4862,7 +5138,7 @@ $ownGames = @(
         )
         Tags=@("white knuckle", "whiteknuckle", "kyanite-rock", "dark machine games", "climbing", "speed climbing", "horror", "survival", "action", "exploration", "first person", "roguelite", "indie", "bepinex")
     },
-    @{
+    @{ BaseGameProofFiles=@('VSWAP.WL6|base\VSWAP.WL6|games\WL6\VSWAP.WL6|games\WL1\VSWAP.WL1|VSWAP.WL1'); 
         Controls    = "MC"
         Title       = "Wolfenstein 3D VR"
         VideoUrl    = "https://youtu.be/1X4_tKKYkYA?t=96"
@@ -5033,7 +5309,7 @@ $ownGames = @(
         Id="prey-2006-vr"; Controls="MC"; Title="Prey (2006) VR"; Roomscale=$true; SteamId="3970"
         HubAddedAt="2026-09-17"; VideoUrl="https://youtu.be/N3nXxGSVerI?t=295"; HeaderUrl="Assets/Prey2006VR_header.jpg"; PortraitUrl="Assets/Prey2006VR_portrait.jpg"
         Quip="The Sphere was never built for personal space."
-        Mod="PreyVR PCVR (auto-update)"; GithubRepo="GameOrDie007/Prey-2006-VR"; GithubReleaseAssetPatterns=@('(?i)^PreyVR-PCVR-.*\.zip$')
+        Mod="PreyVR PCVR (auto-update)"; GithubRepo="GameOrDie007/Prey-2006-VR"; GithubReleaseAssetPatterns=@('(?i)^(?:PreyVR-PCVR-|Prey-VR-)[0-9].*\.zip$')
         Description="Roomscale OpenXR campaign"; Author="GameOrDie007 / lvonasek"
         Bat="Prey2006VR\START_INSTALLER.bat"; ReadmeDir="Prey2006VR"; Color="#140c0b"; Accent="#5893c5"
         InfoUrl="https://github.com/GameOrDie007/Prey-2006-VR"; ModPageUrl="https://github.com/GameOrDie007/Prey-2006-VR"; DownloadUrl="https://github.com/GameOrDie007/Prey-2006-VR/releases"
@@ -5119,17 +5395,22 @@ $ownGames = @(
         VrInstallEvidence=@("mods\darktidevr\bin\darktidevr-xr-harness.exe", "mods\dmf\dmf.mod", "tools\dtkit-patch.exe", "binaries\d3d12.dll", ".pcvrhub_darktidevr_ownership.csv")
         CurrentModFile="mods\darktidevr\bin\darktidevr_native_capture.dll"
         CurrentRequiredFile=@("mods\darktidevr\bin\darktidevr-xr-harness.exe", "mods\dmf\dmf.mod", "tools\dtkit-patch.exe", "binaries\d3d12.dll", ".pcvrhub_darktidevr_ownership.csv")
-        DualMode=$true; CurrentRouteUpdate=$true; CurrentButtonLabel="Current"; DepotButtonLabel="Build 24735202"
-        DepotPath="C:\Games\Darktide VR 24735202"; DepotInstalledPathFile=".installed_path_depot"
+        DualMode=$true; CurrentRouteUpdate=$true; CurrentButtonLabel="Current"; DepotButtonLabel="Depot 1.13.2"
+        DepotPath="C:\Games\Darktide VR 1.13.2"; DepotInstalledPathFile=".installed_path_depot"
         DepotModFile="mods\darktidevr\bin\darktidevr_native_capture.dll"
-        DepotRequiredFile=@("mods\darktidevr\bin\darktidevr-xr-harness.exe", "mods\dmf\dmf.mod", "tools\dtkit-patch.exe", "binaries\d3d12.dll", ".pcvrhub_darktidevr_ownership.csv", ".pcvrhub_darktide_depot_24735202", ".pcvrhub_darktide_depot_stack", "launcher\steam_appid.txt")
+        DepotRequiredFile=@("mods\darktidevr\bin\darktidevr-xr-harness.exe", "mods\dmf\dmf.mod", "tools\dtkit-patch.exe", "binaries\d3d12.dll", ".pcvrhub_darktidevr_ownership.csv", ".pcvrhub_darktide_depot_25681127", ".pcvrhub_darktide_depot_stack", "launcher\steam_appid.txt")
         DepotLaunchExe="Start Darktide VR Depot.bat"; DepotWorkingDirectory=""; DepotSteamAppIdFile="launcher\steam_appid.txt"
+        LegacyDepotPath="C:\Games\Darktide VR 24735202"; LegacyDepotInstalledPathFile=".installed_path_legacy_depot"
+        LegacyDepotRecoveryInstalledPathFile=".installed_path_depot"
+        LegacyDepotModFile="mods\darktidevr\bin\darktidevr_native_capture.dll"
+        LegacyDepotRequiredFile=@("mods\darktidevr\bin\darktidevr-xr-harness.exe", "mods\dmf\dmf.mod", "tools\dtkit-patch.exe", "binaries\d3d12.dll", ".pcvrhub_darktidevr_ownership.csv", ".pcvrhub_darktide_depot_24735202", ".pcvrhub_darktide_depot_stack", "launcher\steam_appid.txt")
+        LegacyDepotLaunchExe="Start Darktide VR Depot.bat"; LegacyDepotSteamAppIdFile="launcher\steam_appid.txt"; LegacyDepotButtonLabel="Legacy 1.12.5"
         LaunchExe="binaries\Darktide.exe"; SteamLaunchForSteamInstall=$true
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Darktide VR"; UninstallProbeFile=".pcvrhub_darktidevr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
         UninstallSteps=@(
             "Close Darktide, then use Uninstall now. The supplied mode switch first restores the pristine executable, removes DarktideVR's d3d12 proxy and load-order line, and returns to the flat settings profile.",
             "The Hub then removes only unchanged files owned by the DarktideVR package. Per-mode settings under LocalAppData remain recoverable.",
-            "If Current and Build 24735202 both exist, the uninstaller asks which independent copy to change. The dedicated depot game data itself remains available for reinstalling the pinned route.",
+            "Current, Depot 1.13.2 and an older Legacy 1.12.5 copy remain independent. The uninstaller asks which copy to change and keeps the depot game data.",
             "The shared Darktide Mod Loader and Darktide Mod Framework remain installed because other game mods may use them. Their own documented unpatch/removal route is separate."
         )
         Tags=@("warhammer 40000", "warhammer 40k", "darktide", "darktidevr", "openxr", "fps", "coop", "action", "shooter", "roomscale", "motion controls", "tracked hands", "alpha")
@@ -5187,7 +5468,7 @@ $ownGames = @(
         Bat="Tribes2VR\START_INSTALLER.bat"; Color="#101b29"; Accent="#e58b2a"
         InfoUrl="https://discord.com/channels/747967102895390741/1548700072697528461"; ModPageUrl="https://discord.com/channels/747967102895390741/1548700072697528461"; DownloadUrl="https://discord.com/channels/747967102895390741/1548700072697528461/1548700072697528461"
         FallbackPaths=@("C:\Dynamix\Tribes2", "D:\Dynamix\Tribes2", "E:\Dynamix\Tribes2")
-        GameExe="GameData\Tribes2.exe"; BaseGameProofFiles=@("GameData\Tribes2.exe", "GameData\uninstall_TribesNEXT.exe|GameData\console_client_patches.cs")
+        GameExe="GameData\Tribes2.exe"; BaseGameProofFiles=@('GameData\Tribes2.exe')
         ModFile="GameData\tribes2vr_launcher.exe"
         VrInstallEvidence=@("GameData\tribes2vr.dll", "GameData\tribes2vr.ini", "GameData\openvr_api.dll", "GameData\Tribes2VR.ico", "GameData\.pcvrhub_tribes2vr_ownership.csv")
         LaunchExe="GameData\tribes2vr_launcher.exe"; NeverSteamLaunch=$true
@@ -5257,7 +5538,7 @@ $ownGames = @(
         )
         Tags=@("pokemon", "gen 1", "gen 2", "crystal", "pinball", "dramatic shape", "prismaticshape", "voxel", "diorama", "mixed reality", "passthrough", "first person", "game boy", "retro", "rpg", "adventure", "openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('Wow.exe'); 
         Controls    = "MC"
         Title       = "World of Warcraft VR"
         VideoUrl    = "https://www.youtube.com/watch?v=mTSoR9WUCr4"
@@ -5508,7 +5789,7 @@ $ownGames = @(
         Id="forsaken-vr"; Controls="MC"; Title="Forsaken VR"; HubAddedAt="2026-10-16"
         SteamId="668980"; SteamFolder="Forsaken Remastered"; GameExe="selkis_x64.exe"
         BaseGameProofFiles=@('selkis_x64.exe|VR\game\projectx.exe|game\projectx.exe','ForsakenEX.kpf|VR\install-manifest.txt|install-manifest.txt')
-        FallbackPaths=@('STEAM:Forsaken Remastered','GOG:Forsaken','GOG:Forsaken Remastered','C:\GOG Games\Forsaken','C:\Program Files (x86)\GOG Galaxy\Games\Forsaken',(Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Forsaken VR'),(Join-Path $env:USERPROFILE 'Games\Forsaken VR'))
+        FallbackPaths=@('STEAM:Forsaken Remastered','GOG:Forsaken','GOG:Forsaken Remastered','C:\GOG Games\Forsaken','C:\Program Files (x86)\GOG Galaxy\Games\Forsaken',([IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments',[Environment+SpecialFolderOption]::DoNotVerify),'Forsaken VR')),(Join-Path $env:USERPROFILE 'Games\Forsaken VR'))
         FreeBaseGame=$true; StandaloneVR=$true; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
         VideoUrl="https://youtu.be/jCjcgGU_3lw?t=250"; VideoLabel="Watch VR gameplay"
         PortraitUrl="Assets/ForsakenVR_portrait.jpg"; HeaderUrl="Assets/ForsakenVR_header.jpg"; ScreenshotUrl="Assets/ForsakenVR_screenshot.jpg"
@@ -5517,8 +5798,8 @@ $ownGames = @(
         InfoUrl="https://github.com/GameOrDie007/Forsaken-VR"; ModPageUrl="https://github.com/GameOrDie007/Forsaken-VR"; DownloadUrl="https://github.com/GameOrDie007/Forsaken-VR/releases"
         GithubRepo="GameOrDie007/Forsaken-VR"; GithubReleaseAssetPatterns=@('(?i)^Forsaken-VR-[0-9]+(?:\.[0-9]+)+-PCVR\.zip$')
         NoVersionSeed=$true; InstallerMustWriteVersion=$true; ModFile="Forsaken VR.cmd"; ModFileAlt="VR\Forsaken VR.cmd"
-        VrInstallRoot=(Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Forsaken VR')
-        DurableInstallRoots=@((Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Forsaken VR'),(Join-Path $env:USERPROFILE 'Games\Forsaken VR'))
+        VrInstallRoot=([IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments',[Environment+SpecialFolderOption]::DoNotVerify),'Forsaken VR'))
+        DurableInstallRoots=@(([IO.Path]::Combine([Environment]::GetFolderPath('MyDocuments',[Environment+SpecialFolderOption]::DoNotVerify),'Forsaken VR')),(Join-Path $env:USERPROFILE 'Games\Forsaken VR'))
         VrInstallEvidenceRoutes=@(
             @{Files=@('Forsaken VR.cmd','game\projectx.exe','game\libopenxr_loader.dll','game\Data\levels\alpha\alpha.mxv','install-manifest.txt','version.txt')},
             @{Files=@('VR\Forsaken VR.cmd','VR\game\projectx.exe','VR\game\libopenxr_loader.dll','VR\game\Data\levels\alpha\alpha.mxv','VR\install-manifest.txt','VR\version.txt')})
@@ -5562,22 +5843,22 @@ $ownGames = @(
         Tags=@('dungeon keeper 2','dk2vr','lovemakerz','dungeon','strategy','fantasy','classic','god game','openxr','motion controls')
     },
     @{
-        Id="call-of-duty-2003-vr"; Controls="MC"; Title="Call of Duty (2003) VR"; TileTitle="Call of Duty VR"; Wip=$true; HubAddedAt="2026-10-22"
+        Id="call-of-duty-2003-vr"; RelatedGameLocationIds=@("call-of-duty-united-offensive-vr"); Controls="MC"; Title="Call of Duty (2003) VR"; TileTitle="Call of Duty VR"; Wip=$true; HubAddedAt="2026-10-22"
         SteamId="2620"; SteamFolder="Call of Duty"; GameExe="CoDSP.exe"; BaseGameProofFiles=@('CoDSP.exe','main\pak0.pk3')
         FallbackPaths=@('STEAM:Call of Duty','C:\Program Files (x86)\Activision\Call of Duty')
         VideoUrl="https://youtu.be/_xm2VC8xaXM?t=2"; VideoLabel="Watch VR gameplay"
         Quip="One rifle for two men. Looks like you got the ammo, comrade."; QuipLast=$true
-        Mod="CoD VR (auto-update)"; Author="lambda-gab"; Description="Solo v1.5; 32-bit OpenXR"
+        Mod="CoD VR (auto-update)"; Author="lambda-gab"; Description="EXE 1.3; 32-bit OpenXR"
         Bat="CallOfDuty2003VR\START_INSTALLER.bat"; ReadmeDir="CallOfDuty2003VR"; Color="#171711"; Accent="#a7b18b"
         InfoUrl="https://github.com/lambda-gab/cod1-vr"; ModPageUrl="https://github.com/lambda-gab/cod1-vr"; DownloadUrl="https://github.com/lambda-gab/cod1-vr/releases"
-        GithubRepo="lambda-gab/cod1-vr"; GithubReleaseAssetPatterns=@('(?i)^cod-vr-manual-install\.zip$')
+        GithubRepo="lambda-gab/cod1-vr"; GithubReleaseAssetPatterns=@('(?i)^(?!.*(?:source|symbols|debug))(?:cod[-._ ]?vr|callofduty[-._ ]?vr).*\.zip$')
         NoVersionSeed=$true; InstallerMustWriteVersion=$true; NeverSteamLaunch=$true; PreferDedicatedLaunchExe=$true; LaunchRequiresVrEvidence=$true
-        ModFile="opengl32.dll"; LaunchExe="CoD-VR-Launcher.exe"
-        VrInstallEvidence=@('CoDSP.exe','main\pak0.pk3','opengl32.dll','openxr_loader.dll','cod_vr.ini','CoD-VR-Launcher.exe','.pcvrhub_cod1vr_ownership.csv','.pcvrhub_version')
+        ModFile="opengl32.dll"; ModFileAlt="opengl32.dll.pcvrhub_off"; FlatVREnabled="opengl32.dll"; FlatVRDisabled="opengl32.dll.pcvrhub_off"; LaunchExe="CoD-VR-Launcher.exe"
+        VrInstallEvidence=@('CoDSP.exe','main\pak0.pk3','opengl32.dll|opengl32.dll.pcvrhub_off','openxr_loader.dll','cod_vr.ini','CoD-VR-Launcher.exe','.pcvrhub_cod1vr_ownership.csv','.pcvrhub_version')
         HubLaunchScript="CallOfDuty2003VR\Start-CallOfDuty2003VR.ps1"; HubStartFile='CoD-VR-Launcher.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'
         UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove Call of Duty VR"; UninstallProbeFile=".pcvrhub_cod1vr_ownership.csv"; UninstallArguments="-HubConfirmed"; UninstallRequireProbe=$true
-        UninstallSteps=@('Close Call of Duty, then choose Uninstall now. The Hub removes unchanged files it owns and restores any earlier files with the same names.','The original game, saves, settings you changed and unrelated files remain.')
-        Tags=@('call of duty','cod1','cod 1','lambda-gab','world war 2','wwii','shooter','fps','action','military','single player','motion controls','openxr','wip')
+        UninstallSteps=@('If you used Player hands > Hidden in the publisher launcher, switch it back to Visible before removal. The generated main\pakz_vr_nohands.pk3 is not deleted automatically by the Hub; remove only that known generated file if still present.', 'Close Call of Duty, then choose Uninstall now. The Hub removes unchanged files it owns and restores any earlier files with the same names.','The original game, saves, settings you changed and unrelated files remain. If United Offensive shares this same folder, both games use one VR runtime; removal disables VR for both and asks for confirmation.')
+        Tags=@('shooter','action','retro','call of duty','cod1','cod 1','lambda-gab','world war 2','wwii','shooter','fps','action','military','single player','motion controls','openxr','wip')
     },
     @{
         Id="modern-warfare-2-campaign-remastered-vr"; Controls="MC"; Title="Call of Duty: Modern Warfare 2 Campaign Remastered VR"; TileTitle="Call of Duty: Modern`nWarfare 2 Remastered"; HideTileAuthor=$true; Wip=$true; Gem=$true; HubAddedAt="2026-10-22"
@@ -5633,6 +5914,7 @@ $ownGames = @(
         InstalledVersionProofFile='EnshroudedVR\version.txt'; InstalledVersionProofRegex='(?m)^\s*([0-9]+(?:\.[0-9]+)+)\b'
         NoVersionSeed=$true; InstallerMustWriteVersion=$true; LaunchRequiresVrEvidence=$true
         HubLaunchScript="EnshroudedVR\Start-EnshroudedVR.ps1"; HubStartFile='Enshrouded VR setting.exe'; HubLaunchSubdirectory='.'; HubLaunchRuntimeSubdirectory='.'; HubLaunchWindowStyle='Hidden'
+        FlatVRPublisherLauncher='Enshrouded VR setting.exe'; FlatVRPublisherInstructions='Open the publisher settings and choose Desktop for flat play, or a VR mode for VR. Close settings, then start through Steam or Start in VR in the Hub.'
         ModFile="EnshroudedVR\bin\evr_hooks.dll"; LaunchExe="enshrouded.exe"
         VrInstallEvidence=@('dinput8.dll','Enshrouded VR setting.exe','EnshroudedVR\bin\evr_hooks.dll',
             'EnshroudedVR\bin\openxr_loader.dll','EnshroudedVR\EnshroudedVR.ini','.pcvrhub_enshroudedvr_ownership.csv','.pcvrhub_version')
@@ -5716,6 +5998,75 @@ $ownGames = @(
 )
 
 $ownGamesGP = @(
+
+    @{
+        Id='wreckfest-2-vr'; Controls='GP'; Title='Wreckfest 2 VR'; TileTitle='Wreckfest 2 VR'; HubAddedAt='2026-10-28'; Wip=$true; UntestedInstaller=$true
+        SteamId='1203190'; SteamFolder='Wreckfest 2'; GameExe='Wreckfest2.exe'; BaseGameProofFiles=@('Wreckfest2.exe')
+        FallbackPaths=@()
+        Bat='Wreckfest2VR\START_INSTALLER.bat'; ReadmeDir='Wreckfest2VR'; Mod='Wreckfest 2 VR (auto-update)'; Author='MatteKarla'; Description='Offline cockpit; OpenXR'
+        Color='#222a2c'; Accent='#d3ac62'; PortraitUrl='Assets/Wreckfest2VR_portrait.jpg'; HeaderUrl='Assets/Wreckfest2VR_header.jpg'; ScreenshotUrl='Assets/Wreckfest2VR_screenshot.jpg'
+        InfoUrl='https://github.com/MatsKarlsson/Wreckfest2VR'; ModPageUrl='https://github.com/MatsKarlsson/Wreckfest2VR'; DownloadUrl='https://github.com/MatsKarlsson/Wreckfest2VR/releases'
+        GithubRepo='MatsKarlsson/Wreckfest2VR'; GithubPrerelease=$true; GithubReleaseAssetPatterns=@('(?i)^Wreckfest2VR\.exe$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='Wreckfest2VR.exe'; VrInstallEvidence=@('Wreckfest2VR.exe','.pcvrhub_wreckfest2_mode.ini','.pcvrhub_wreckfest2vr_ownership.csv','PCVR-Launcher\launch.json','PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\game.ico','.pcvrhub_version'); LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        HubLaunchScript='Wreckfest2VR\Start-VR.ps1'; HubStartFile='PCVR-Launcher\Start-VR.ps1'; HubLaunchWindowStyle='Hidden'; PreferDedicatedLaunchExe=$true
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallRequireProbe=$true; UninstallProbeFile='.pcvrhub_wreckfest2vr_ownership.csv'
+        UninstallSteps=@('Close the game and VR launcher, then choose Uninstall now. Owned VR files are removed and earlier files restored.','Your original game, saves, changed settings and unrelated files remain.')
+        VideoUrl='https://youtu.be/B8o2Ad7T_yE?t=91'; VideoLabel='Watch VR gameplay'; Quip='Your insurance premium has entered early access.'; QuipLast=$true; Tags=@('racing','physics','simulation','wreckfest 2','mattek arla','matskarlsson','wheel','gamepad','vdxr','openxr','untested','wip')
+        LaunchExe='Wreckfest2VR.exe'; FlatVRIniFile='.pcvrhub_wreckfest2_mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+        Notice='Untested installer; prerelease. Supports the Steam game build released 2026-10-22. VDXR/Quest 3 is publisher-tested; offline races and cockpit view only. Close the VR app before flat play.'
+    },
+
+    @{
+        Id='wreckfest-vr'; Controls='GP'; Title='Wreckfest VR'; TileTitle='Wreckfest VR'; HubAddedAt='2026-10-28'; Wip=$false; UntestedInstaller=$true
+        SteamId='228380'; SteamFolder='Wreckfest'; GameExe='Wreckfest_x64.exe'; BaseGameProofFiles=@('Wreckfest_x64.exe')
+        FallbackPaths=@()
+        Bat='WreckfestVR\START_INSTALLER.bat'; ReadmeDir='WreckfestVR'; Mod='Wreckfest VR (auto-update)'; Author='SQOFER'; Description='Steam; OpenXR cockpit'
+        Color='#26231f'; Accent='#d7a64b'; PortraitUrl='Assets/WreckfestVR_portrait.jpg'; HeaderUrl='Assets/WreckfestVR_header.jpg'; ScreenshotUrl='Assets/WreckfestVR_screenshot.jpg'
+        InfoUrl='https://github.com/sqofer/WREACKFEST-VR'; ModPageUrl='https://github.com/sqofer/WREACKFEST-VR'; DownloadUrl='https://github.com/sqofer/WREACKFEST-VR/releases'
+        GithubRepo='sqofer/WREACKFEST-VR'; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^WreckfestVRLauncher\.exe$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='WreckfestNativeVR.asi'; VrInstallEvidence=@('WreckfestVRLauncher.exe','WreckfestNativeVR.asi','version.dll','WreckfestNativeVR.ini','.pcvrhub_wreckfestvr_ownership.csv','.pcvrhub_wreckfestnative_ownership.csv','PCVR-Launcher\launch.json','PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\game.ico','.pcvrhub_version'); LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        HubLaunchScript='WreckfestVR\Start-VR.ps1'; HubStartFile='PCVR-Launcher\Start-VR.ps1'; HubLaunchWindowStyle='Hidden'; PreferDedicatedLaunchExe=$true
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallRequireProbe=$true; UninstallProbeFile='.pcvrhub_wreckfestvr_ownership.csv'
+        UninstallSteps=@('Close the game and VR launcher, then choose Uninstall now. Owned VR files are removed and earlier files restored.','Your original game, saves, changed settings and unrelated files remain.')
+        VideoUrl='https://www.youtube.com/watch?v=Yo-dVs2Dpnc'; VideoLabel='Watch VR gameplay'; Quip='The racing line is whichever barrier gives way first.'; QuipLast=$true; Tags=@('racing','physics','simulation','wreckfest','sqofer','demolition','wheel','gamepad','openxr','untested')
+        LaunchExe='WreckfestVRLauncher.exe'; FlatVRPublisherLauncher='WreckfestVRLauncher.exe'; FlatVRPublisherInstructions='Click Open Mod, then Launch in VR or Launch flat in the publisher launcher.'
+        Notice='Untested installer. Only Steam x64 build 16986367 is supported by the publisher. Other stores/builds are not supported. Native OpenXR; no motion-controller driving.'
+    },
+
+    @{
+        Id='blur-vr'; Controls='GP'; Title='Blur VR'; TileTitle='Blur VR'; HubAddedAt='2026-10-28'; Wip=$false; UntestedInstaller=$true
+        SteamId='42640'; SteamFolder='Blur'; GameExe='Blur.exe'; BaseGameProofFiles=@('Blur.exe')
+        FallbackPaths=@('C:\Program Files (x86)\Activision\Blur(TM)')
+        Bat='BlurVR\START_INSTALLER.bat'; ReadmeDir='BlurVR'; Mod='Blur VR (auto-update)'; Author='TwoAyEm'; Description='Steam/Retail; seated VR'
+        Color='#182132'; Accent='#d45aaa'; PortraitUrl='Assets/BlurVR_portrait.jpg'; HeaderUrl='Assets/BlurVR_header.jpg'; ScreenshotUrl='Assets/BlurVR_screenshot.jpg'
+        InfoUrl='https://github.com/TwoAyEm/BlurVR'; ModPageUrl='https://github.com/TwoAyEm/BlurVR'; DownloadUrl='https://github.com/TwoAyEm/BlurVR/releases'
+        GithubRepo='TwoAyEm/BlurVR'; GithubPrerelease=$false; GithubReleaseAssetPatterns=@('(?i)^BlurVR[-_].*\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='d3d9.dll'; VrInstallEvidence=@('d3d9.dll','BlurVR\d3d9.dll','BlurVR\openvr_api.dll','BlurVR\openxr_loader.dll','BlurVR\BlurVR.ini','.pcvrhub_blurvr_ownership.csv','PCVR-Launcher\launch.json','PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\game.ico','.pcvrhub_version'); LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true
+        HubLaunchScript='BlurVR\Start-VR.ps1'; HubStartFile='PCVR-Launcher\Start-VR.ps1'; HubLaunchWindowStyle='Hidden'; PreferDedicatedLaunchExe=$true
+        UninstallExe='UNINSTALL.bat'; UninstallArguments='-HubConfirmed'; UninstallRequireProbe=$true; UninstallProbeFile='.pcvrhub_blurvr_ownership.csv'
+        UninstallSteps=@('Close the game and VR launcher, then choose Uninstall now. Owned VR files are removed and earlier files restored.','Your original game, saves, changed settings and unrelated files remain.')
+        VideoUrl='https://youtu.be/-Gwqe6Wcjd8?t=41'; VideoLabel='Watch VR gameplay'; Quip='Indicators are optional. Shunts are not.'; QuipLast=$true; Tags=@('racing','arcade','combat','blur','twoayem','wheel','gamepad','openvr','openxr','retail')
+        LaunchExe='Blur.exe'; FlatVRIniFile='BlurVR\BlurVR.ini'; FlatVRIniSection='General'; FlatVRIniKey='Stereo'; FlatVRIniVRValue='1'; FlatVRIniFlatValue='0'
+        Notice='Bring your own original 32-bit PC game; it is no longer sold. Steam and retail builds are supported. Default OpenVR; OpenXR needs a 32-bit runtime.'
+    },
+
+    @{
+        Id='ff7-remake-intergrade-vr'; Controls='GP'; Title='Final Fantasy VII Remake Intergrade VR'; TileTitle="Final Fantasy VII`nRemake Intergrade"; TileTitleSecondLineFontSize=12; HubAddedAt='2026-10-25'; Wip=$true; SteamId='1462040'; SteamFolder='FINAL FANTASY VII REMAKE'; GameExe='End\Binaries\Win64\ff7remake_.exe'; BaseGameProofFiles=@('End\Binaries\Win64\ff7remake_.exe|End\Binaries\WinGDK\ff7remake_.exe')
+        FallbackPaths=@('C:\Program Files\Epic Games\FFVIIRemakeIntergrade','C:\XboxGames\FINAL FANTASY VII REMAKE INTERGRADE\Content')
+        Bat='FF7RemakeVR\START_INSTALLER.bat'; ReadmeDir='FF7RemakeVR'; Author='Gilleece'; Mod='ff7vr (auto-update)'; Description='Gamepad; session launcher'
+        Color='#101c20'; Accent='#61bdba'; PortraitUrl='Assets/FF7RemakeVR_portrait.jpg'; HeaderUrl='Assets/FF7RemakeVR_header.jpg'; ScreenshotUrl='Assets/FF7RemakeVR_screenshot.jpg'
+        InfoUrl='https://github.com/Gilleece/ff7-remake-vr'; ModPageUrl='https://github.com/Gilleece/ff7-remake-vr'; DownloadUrl='https://github.com/Gilleece/ff7-remake-vr/releases'
+        GithubRepo='Gilleece/ff7-remake-vr'; GithubReleaseAssetPatterns=@('(?i)^ff7vr-(?!.*(?:dlss|dropin)).+\.zip$'); NoVersionSeed=$true; InstallerMustWriteVersion=$true
+        ModFile='.pcvrhub_ff7_mode.ini'; HubLaunchScript='FF7RemakeVR\Start-FF7VR.ps1'; HubStartFile='Start-FF7VR.ps1'; HubLaunchRuntimeRoot='LOCALAPPDATA:PCVR Mods Installer Hub\FF7VR'; NeverSteamLaunch=$true; LaunchRequiresVrEvidence=$true
+        FlatVRIniFile='.pcvrhub_ff7_mode.ini'; FlatVRIniSection='Hub'; FlatVRIniKey='Mode'; FlatVRIniVRValue='VR'; FlatVRIniFlatValue='Flat'
+        VrInstallEvidence=@('.pcvrhub_ff7_mode.ini','.pcvrhub_ff7vrmode_ownership.csv','.pcvrhub_version')
+        VrInstallLocalAppDataEvidence=@('PCVR Mods Installer Hub\FF7VR\xinput1_3.dll','PCVR Mods Installer Hub\FF7VR\ff7vr.ini','PCVR Mods Installer Hub\FF7VR\ff7vr-launcher.ps1','PCVR Mods Installer Hub\FF7VR\ff7vr-stores.ps1','PCVR Mods Installer Hub\FF7VR\Start-FF7VR.ps1','PCVR Mods Installer Hub\FF7VR\VERSION.txt','PCVR Mods Installer Hub\FF7VR\.pcvrhub_ff7vr_ownership.csv')
+        UninstallExe='UNINSTALL.bat'; UninstallLabel='Remove ff7vr'; UninstallArguments='-HubConfirmed'; UninstallProbeFile='.pcvrhub_ff7vrmode_ownership.csv'; UninstallRequireProbe=$true
+        UninstallSteps=@('Close the game and wait for its publisher launcher to finish restoring your normal files. If it was interrupted, open restore.cmd in the VR files folder first.','Uninstall now restores an unfinished session before removing unchanged Hub-owned launcher/runtime files. Your saves, edited ff7vr.ini, session logs, ReShade/Luma and unrelated files remain. Flat / VR chooses the next launch mode without deleting the installed launcher.')
+        Notice='WIP. Game build 1.0.0.7 is known; Steam is publisher-tested. Epic and Xbox are experimental and may run without VR on a different build. Keep the publisher launcher window open: it restores your normal graphics setup after the session. DLSS is optional and experimental, for NVIDIA RTX only.'
+        VideoUrl='https://youtu.be/mDX-gDUx6Co?t=95'; VideoLabel='Watch VR gameplay'; Quip='This train has no brakes. Barret checked.'; QuipLast=$true
+        Tags=@('rpg','action','adventure','final fantasy vii','ff7','remake','intergrade','gilleece','openxr','gamepad','dlss','wip')
+    },
     @{
         Id="mirrors-edge-catalyst-vr"; Controls="GP"; Title="Mirror's Edge Catalyst VR"; TileTitle="Mirror's Edge Catalyst"; Wip=$true; HubAddedAt="2026-10-21"
         SteamId="1233570"; SteamFolder="Mirrors Edge Catalyst"; GameExe="MirrorsEdgeCatalyst.exe"; BaseGameProofFiles=@('MirrorsEdgeCatalyst.exe')
@@ -5733,7 +6084,7 @@ $ownGamesGP = @(
         Notice="If Catalyst has never been started, launch the original game flat once through Steam or EA App and close it before using the publisher VR launcher. This can happen after installing the VR mod. Publisher Setup supports build 1.0.3.47248."
         Tags=@('mirrors edge catalyst','faith','parkour','frostbite','action','first-person','speedrun','gamepad','openxr','wip')
     },
-    @{ Controls="GP"; Title="Alba VR"; VideoUrl="https://www.youtube.com/watch?v=24XYvVYDqC0"; SteamId="1337010"; Mod="AlbaVR v1.0.0"; SteamFolder="Alba - A Wildlife Adventure"; FallbackPaths=@("GOG:ALBA A Wildlife Adventure", "GOG:Alba A Wildlife Adventure", "EPIC:Alba", "EPIC:Alba - A Wildlife Adventure"); GameExe="Alba.exe"; BaseGameProofFiles=@("Alba.exe","UnityPlayer.dll"); Description="KB`&Mouse or Gamepad VR."; Author="wouterpleizier"; Bat="AlbaVR\START_INSTALLER.bat"; Color="#0a1a0a"; Accent="#5cc8e6"; InfoUrl="https://github.com/wouterpleizier/AlbaVR"; Tags=@("alba", "wildlife", "atmospheric", "exploration", "walking sim") ; ModFile="BepInEx\plugins\AlbaVR\AlbaVR.dll"; VrInstallEvidence=@("BepInEx\patchers\VRPatcher\VRPatcher.dll","BepInEx\core\BepInEx.Preloader.dll","winhttp.dll","PCVRHub Start Alba VR.bat",".pcvrhub_alba_mode",".pcvrhub_version"); LaunchExe="PCVRHub Start Alba VR.bat"; NeverSteamLaunch=$true },
+    @{ Controls="GP"; Title="Alba VR"; VideoUrl="https://www.youtube.com/watch?v=24XYvVYDqC0"; SteamId="1337010"; Mod="AlbaVR v1.0.0"; SteamFolder="Alba - A Wildlife Adventure"; FallbackPaths=@('GOG:ALBA A Wildlife Adventure','GOG:Alba A Wildlife Adventure','EPIC:Alba','EPIC:Alba - A Wildlife Adventure','STEAM:Alba'); GameExe="Alba.exe"; BaseGameProofFiles=@("Alba.exe","UnityPlayer.dll"); Description="KB`&Mouse or Gamepad VR."; Author="wouterpleizier"; Bat="AlbaVR\START_INSTALLER.bat"; Color="#0a1a0a"; Accent="#5cc8e6"; InfoUrl="https://github.com/wouterpleizier/AlbaVR"; Tags=@("alba", "wildlife", "atmospheric", "exploration", "walking sim") ; ModFile="BepInEx\plugins\AlbaVR\AlbaVR.dll"; VrInstallEvidence=@("BepInEx\patchers\VRPatcher\VRPatcher.dll","BepInEx\core\BepInEx.Preloader.dll","winhttp.dll","PCVRHub Start Alba VR.bat",".pcvrhub_alba_mode",".pcvrhub_version"); LaunchExe="PCVRHub Start Alba VR.bat"; NeverSteamLaunch=$true },
     @{
         Id="alan-wake-vr"; Controls="GP"; Title="Alan Wake VR"; TileTitle="Alan Wake"; SteamId="108710"; SteamFolder="Alan Wake"; HubAddedAt="2026-10-17"
         VideoUrl="https://www.youtube.com/watch?v=Lx8D8wnEiyE"; VideoLabel="Watch VR gameplay"
@@ -5854,11 +6205,11 @@ $ownGamesGP = @(
         GameExe     = "astrodogs.exe"
         BaseGameProofFiles = @("astrodogs.exe")
         SteamFolder = "Astrodogs"
-        FallbackPaths=@("STEAM:AstroDogs", "STEAM:astrodogs", "STEAM:Astrodogs Demo", "GOG:Astrodogs")
+        FallbackPaths=@('STEAM:AstroDogs','STEAM:astrodogs','STEAM:Astrodogs Demo','GOG:Astrodogs','STEAM:Astro Dogs')
         Tags=@("astrodogs", "astienth", "star fox", "starfox", "dogs", "anime", "shooter", "space", "arcade", "indie", "colorful")
     },
-    @{ Controls="GP"; Title="Atomic Heart VR"; VideoUrl="https://www.youtube.com/watch?v=ZW66XATBJ_g"; Quip="Welcome to Facility 3826, Comrade. Mind the robots."; SteamId="668580";                 Mod="R.E.A.L."; SteamFolder="AtomicHeart"; FallbackPaths=@("STEAM:Atomic Heart"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc3344"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, atomic heart", "fps", "shooter", "story") ; ModFile="AtomicHeart\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="AtomicHeart\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="AtomicHeart\Binaries\WinGDK\RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Avatar: Frontiers of Pandora VR"; VideoUrl="https://www.youtube.com/watch?v=cUelil7M4fU"; Quip="Breathe Pandora's air. Hunt the skies with the Na'vi."; SteamId="2840770"; Mod="R.E.A.L."; SteamFolder="Avatar Frontiers of Pandora"; FallbackPaths=@("STEAM:AFOP"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a8aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, avatar, pandora", "adventure", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('AtomicHeart\Binaries\Win64\AtomicHeart-Win64-Shipping.exe|AtomicHeart\Binaries\WinGDK\AtomicHeart-Win64-Shipping.exe');  Controls="GP"; Title="Atomic Heart VR"; VideoUrl="https://www.youtube.com/watch?v=ZW66XATBJ_g"; Quip="Welcome to Facility 3826, Comrade. Mind the robots."; SteamId="668580";                 Mod="R.E.A.L."; SteamFolder="AtomicHeart"; FallbackPaths=@("STEAM:Atomic Heart"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc3344"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, atomic heart", "fps", "shooter", "story") ; ModFile="AtomicHeart\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="AtomicHeart\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="AtomicHeart\Binaries\WinGDK\RealRepo\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('afop.exe');  Controls="GP"; Title="Avatar: Frontiers of Pandora VR"; VideoUrl="https://www.youtube.com/watch?v=cUelil7M4fU"; Quip="Breathe Pandora's air. Hunt the skies with the Na'vi."; SteamId="2840770"; Mod="R.E.A.L."; SteamFolder="Avatar Frontiers of Pandora"; FallbackPaths=@("STEAM:AFOP"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a8aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, avatar, pandora", "adventure", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Banjo-Kazooie VR"
@@ -5937,9 +6288,9 @@ $ownGamesGP = @(
     @{ Controls="GP"; Title="Cloudpunk: City of Ghosts VR"; VideoUrl="https://www.youtube.com/watch?v=H2M6MkWgGqI"; VideoLabel="Watch gameplay"; Pill="CLOUDP_COG_DLC"; SteamId="1536370"; Mod="CoG VR v1.0.0"; SteamFolder="Cloudpunk - City of Ghosts"; FallbackPaths=@("STEAM:Cloudpunk\City of Ghosts", "GOG:Cloudpunk", "EPIC:Cloudpunk"); GameExe="Cloudpunk - City of Ghosts.exe"; BaseGameProofFiles=@("Cloudpunk - City of Ghosts.exe"); VrInstallEvidence=@("winhttp.dll","doorstop_config.ini","BepInEx\core\BepInEx.Unity.IL2CPP.dll","BepInEx\plugins\CloudpunkVR_CityofGhosts.dll",".pcvrhub_version"); Description="BepInEx VR mod"; Author="Astienth"; Bat="CloudpunkCOGVR\START_INSTALLER.bat"; Color="#0a0a1a"; Accent="#aa33dd"; InfoUrl="https://github.com/Astienth/Cloudpunk-VR/releases"; Tags=@("cloudpunk", "city of ghosts", "astienth", "atmospheric", "cyberpunk", "exploration", "narrative"); ModFile="BepInEx\plugins\CloudpunkVR_CityofGhosts.dll" },
     @{ Controls="GP"; Title="Dark Souls II VR"; VideoUrl="https://www.youtube.com/watch?v=XChyB_UAltY"; Quip="Bearer of the curse, seek souls. Drangleic awaits."; SteamId="236430";                Mod="R.E.A.L."; SteamFolder="Dark Souls II Scholar of the First Sin"; FallbackPaths=@("STEAM:Dark Souls II"); GameExe="Game\DarkSoulsII.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a6a3c"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="Game\RealRepo\RealVR64.dll"; ModFileAlt="Game\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Dark Souls III VR"; VideoUrl="https://youtu.be/TKNWjx6OHh0?t=152"; Quip="Bonfire lit. Estus ready. The Lords await your link."; SteamId="374320";               Mod="R.E.A.L."; SteamFolder="DARK SOULS III"; GameExe="Game\DarkSoulsIII.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="Game\RealRepo\RealVR64.dll"; ModFileAlt="Game\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Dark Souls Remastered"; VideoUrl="https://youtu.be/6aaQqSZXyTY?t=39"; Quip="Praise the sun - now you can raise your own hands to it."; SteamId="570940";        Mod="R.E.A.L."; SteamFolder="DARK SOULS REMASTERED"; GameExe="Dark Souls.exe"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a07a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('DarkSoulsRemastered.exe|Dark Souls.exe');  Controls="GP"; Title="Dark Souls Remastered"; VideoUrl="https://youtu.be/6aaQqSZXyTY?t=39"; Quip="Praise the sun - now you can raise your own hands to it."; SteamId="570940";        Mod="R.E.A.L."; SteamFolder="DARK SOULS REMASTERED"; GameExe='DarkSoulsRemastered.exe'; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a07a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, dark souls, souls", "action", "fantasy", "rpg", "souls-like") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Days Gone VR"; VideoUrl="https://youtu.be/Lsdkpj7XJp0?t=90"; Quip="Ride the broken road. The horde is right behind you."; SteamId="1259420"; Mod="R.E.A.L."; SteamFolder="Days Gone"; FallbackPaths=@("GOG:Days Gone", "EPIC:DaysGone"); GameExe="BendGame\Binaries\Win64\DaysGone.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#a5713f"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, days gone", "open world", "survival", "action", "post-apocalyptic") ; ModFile="BendGame\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="BendGame\Binaries\Win64\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Death Stranding VR"; VideoUrl="https://youtu.be/8-pWfJcRbow?t=72"; Quip="Reconnect a broken America, Sam. Mind the BTs."; SteamId="1850570";              Mod="R.E.A.L."; SteamFolder="DEATH STRANDING DIRECTORS CUT"; FallbackPaths=@("STEAM:Death Stranding", "STEAM:DEATH STRANDING DIRECTORS CUT"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a6a7a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, death stranding, kojima", "atmospheric", "story", "walking sim") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('ds.exe');  Controls="GP"; Title="Death Stranding VR"; VideoUrl="https://youtu.be/8-pWfJcRbow?t=72"; Quip="Reconnect a broken America, Sam. Mind the BTs."; SteamId="1850570";              Mod="R.E.A.L."; SteamFolder="DEATH STRANDING DIRECTORS CUT"; FallbackPaths=@("STEAM:Death Stranding", "STEAM:DEATH STRANDING DIRECTORS CUT"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a6a7a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, death stranding, kojima", "atmospheric", "story", "walking sim") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Controls    = "VRGP"
         Title       = "Decimate Drive VR"
@@ -5949,8 +6300,8 @@ $ownGamesGP = @(
         Description = "Discord login, OpenXR"
         Author      = "Astienth"
         Bat         = "DecimateDriveVR\START_INSTALLER.bat"
-        GameExe     = "release\DecimateDrive.exe"
-        BaseGameProofFiles = @("release\DecimateDrive.exe")
+        GameExe     = 'release\Decimate Drive.exe'
+        BaseGameProofFiles = @('release\Decimate Drive.exe|release\DecimateDrive.exe')
         UninstallSteps = @(
             "To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.",
             "For complete removal, remove the loader winhttp.dll or winhttp_bak.dll from release and only files installed by the VR package; keep unrelated game files, mods and settings. Remove the Hub version marker after the mod files are gone."
@@ -5964,7 +6315,7 @@ $ownGamesGP = @(
         SteamFolder = "Decimate Drive"
         Tags=@("decimate drive", "astienth", "horror", "driving", "arcade", "indie", "fast paced")
     },
-    @{ Controls="GP"; Title="Descenders VR"; VideoUrl="https://www.youtube.com/watch?v=tn_c77QIJ9Q"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod (auto-update)"
+    @{ BaseGameProofFiles=@('Descenders.exe');  Controls="GP"; Title="Descenders VR"; VideoUrl="https://www.youtube.com/watch?v=tn_c77QIJ9Q"; Pill="DESCENDERS_VR"; SteamId="681280"; Mod="DescendersVRMod (auto-update)"
         # AUTO-UPDATE IS NEW (2026-08-13). There was NONE before: the
         # installer had a hard-coded address for v1.0.5 and the catalog
         # had no update field. After a long pause v1.0.6 appeared and
@@ -6003,7 +6354,7 @@ $ownGamesGP = @(
         FallbackPaths=@("C:\Games\Diddy Kong Racing VR", "D:\Games\Diddy Kong Racing VR", "E:\Games\Diddy Kong Racing VR")
         Tags=@("diddy kong racing", "diddy kong", "dkr", "golden balloon", "goldenballoon", "akratch", "rare", "nintendo", "nintendo 64", "n64", "rayrod", "racing", "action", "adventure", "kart racer", "arcade", "retro", "openxr")
     },
-    @{ Controls="GP"; Title="Dinkum VR"; Quip="Farm, fish and mine your patch of the Aussie outback, now in stereoscopic VR."; SteamId="1062520"; VideoUrl="https://youtu.be/YebR5go9hGw"; VideoLabel="Watch gameplay"; Mod="DinkumVR v1.0.0"; ModBuildStamp="2026-07-26 00:12"; Description="Nexus download required"; Author="Destroyjevski"; Bat="DinkumVR\START_INSTALLER.bat"; Color="#171009"; Accent="#e0902e"; InfoUrl="https://www.nexusmods.com/dinkum/mods/440"; DownloadUrl="https://www.nexusmods.com/dinkum/mods/440?tab=files"; ModFile="BepInEx\plugins\DinkumVR\DinkumVR.dll"; ModFileAlt="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; FlatVREnabled="BepInEx\plugins\DinkumVR\DinkumVR.dll"; FlatVRDisabled="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; SteamFolder="Dinkum"; Tags=@("dinkum", "farming", "simulation", "survival", "crafting", "fishing", "mining", "sandbox", "open world", "cozy", "island", "destroyjevski") },
+    @{ BaseGameProofFiles=@('Dinkum.exe');  Controls="GP"; Title="Dinkum VR"; Quip="Farm, fish and mine your patch of the Aussie outback, now in stereoscopic VR."; SteamId="1062520"; VideoUrl="https://youtu.be/YebR5go9hGw"; VideoLabel="Watch gameplay"; Mod="DinkumVR v1.0.0"; ModBuildStamp="2026-07-26 00:12"; Description="Nexus download required"; Author="Destroyjevski"; Bat="DinkumVR\START_INSTALLER.bat"; Color="#171009"; Accent="#e0902e"; InfoUrl="https://www.nexusmods.com/dinkum/mods/440"; DownloadUrl="https://www.nexusmods.com/dinkum/mods/440?tab=files"; ModFile="BepInEx\plugins\DinkumVR\DinkumVR.dll"; ModFileAlt="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; FlatVREnabled="BepInEx\plugins\DinkumVR\DinkumVR.dll"; FlatVRDisabled="BepInEx\plugins\DinkumVR\DinkumVR.dll.disabled"; SteamFolder="Dinkum"; Tags=@("dinkum", "farming", "simulation", "survival", "crafting", "fishing", "mining", "sandbox", "open world", "cozy", "island", "destroyjevski") },
     @{
         Controls    = "VRGP"
         Title       = "Dino Trauma VR"
@@ -6029,7 +6380,7 @@ $ownGamesGP = @(
         FallbackPaths=@("STEAM:DinoTrauma", "STEAM:Dino Trauma Demo")
         Tags=@("dino trauma", "dinotrauma", "astienth", "dinosaurs", "fps", "retro", "psx", "boomer shooter", "dino crisis", "horror", "indie")
     },
-    @{ Controls="GP"; Title="Doom Eternal VR"; VideoUrl="https://www.youtube.com/watch?v=h8S3eSsCnjY"; Quip="Rip and tear through Hell itself, at arm's length."; SteamId="782330";                 Mod="R.E.A.L."; SteamFolder="DOOMEternal"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa1100"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, doom", "fps", "action", "fast-paced") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('DOOMEternalx64vk.exe');  Controls="GP"; Title="Doom Eternal VR"; VideoUrl="https://www.youtube.com/watch?v=h8S3eSsCnjY"; Quip="Rip and tear through Hell itself, at arm's length."; SteamId="782330";                 Mod="R.E.A.L."; SteamFolder="DOOMEternal"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa1100"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, doom", "fps", "action", "fast-paced") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Dragon's Dogma 2 VR"; VideoUrl="https://youtu.be/vEDxr7BiEnI?t=197"; Quip="Grab the griffin. Climb the ogre. The Arisen rides again."; SteamId="2054970"; Mod="REF (auto-update)"; SteamFolder="Dragon's Dogma 2"; FallbackPaths=@("STEAM:Dragons Dogma 2", "STEAM:DragonsDogma2", "EPIC:Dragon's Dogma 2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="DD2.exe"; Color="#1a0f00"; Accent="#dd7700"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("dragon dogma 2", "reframework", "praydog", "action", "fantasy", "open world", "rpg"); ModFile="openxr_loader.dll" },
     @{
         Controls    = "VRGP"
@@ -6057,7 +6408,7 @@ $ownGamesGP = @(
         Tags=@("driftwood", "astienth", "longboard", "longboarding", "skating", "sloth", "downhill", "drifting", "sports", "indie", "cartoon", "stylized", "bhaptics")
     },
     @{ Controls="GP"; Title="Echo Generation 2 VR"; VideoUrl="https://youtu.be/ybrAhkNBnnw?t=299"; VideoLabel="Watch gameplay"; SteamId="1115990"; PortraitUrl="Assets/EchoGeneration2VR_portrait.jpg"; HeaderUrl="Assets/EchoGeneration2VR_header.jpg"; Mod="EchoGeneration2_VR v1.0.0"; Description="Discord login, OpenXR"; Author="Astienth"; Bat="EchoGeneration2VR\START_INSTALLER.bat"; Color="#120c22"; Accent="#8a5cff"; InfoUrl="https://discord.com/channels/1001138422972432597/1521547069804908565/1521547128973955296"; ModFile="BepInEx\plugins\EchoGeneration2_VR.dll"; SteamFolder="Echo Generation 2"; GameExe="Echo Generation 2.exe"; BaseGameProofFiles=@("Echo Generation 2.exe","Echo Generation 2_Data\globalgamemanagers"); FallbackPaths=@("STEAM:Echo Generation 2", "C:\XboxGames\Echo Generation 2\Content", "D:\XboxGames\Echo Generation 2\Content", "XBOX:Echo Generation 2"); Tags=@("echo generation 2", "echo generation", "echogeneration2", "astienth", "rpg", "deckbuilding", "deckbuilder", "card game", "turn-based", "sci-fi", "space", "adventure", "story", "indie"); VrInstallEvidence=@("BepInEx\plugins\EchoGeneration2_VR.dll","BepInEx\core\BepInEx.Preloader.Core.dll","BepInEx\core\BepInEx.Unity.IL2CPP.dll","BepInEx\plugins\OpenXR.dll","BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg","doorstop_config.ini",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For complete removal, remove winhttp.dll or winhttp_bak.dll, the Hub version marker and only files installed by the VR package; keep unrelated game files, mods and settings.") },
-    @{
+    @{ BaseGameProofFiles=@('Game\eldenring.exe'); 
         Controls    = "GP"
         # The control symbol and section communicate Gamepad. Keep the compact
         # title exactly as specified; it is also the gameStateMap key.
@@ -6138,12 +6489,12 @@ $ownGamesGP = @(
         Tags=@("f-zero x", "f-zero", "fzero", "fzerox", "g-diffuser", "gdiffuser", "zorkats", "nintendo", "nintendo 64", "n64", "rayrod", "racing", "action", "fast paced", "futuristic", "sci-fi", "arcade", "retro", "openxr")
     },
     @{ Controls="GP"; Title="Far Cry 4 VR"; VideoUrl="https://www.youtube.com/watch?v=p4EYaeZhOx4"; Quip="Welcome to Kyrat. The Himalayas have never looked so close."; SteamId="298110";                    Mod="R.E.A.L."; SteamFolder="Far Cry 4"; GameExe="bin\FarCry4.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Far Cry 5 VR"; VideoUrl="https://www.youtube.com/watch?v=VPN1wppEkB8"; Quip="Hope County needs a deputy. Step into the cult's backyard."; SteamId="552520";                    Mod="R.E.A.L."; SteamFolder="Far Cry 5"; GameExe="FarCry5.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa6633"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('bin\FarCry5.exe'); FallbackPaths=@('','STEAM:FarCry5');  Controls="GP"; Title="Far Cry 5 VR"; VideoUrl="https://www.youtube.com/watch?v=VPN1wppEkB8"; Quip="Hope County needs a deputy. Step into the cult's backyard."; SteamId="552520";                    Mod="R.E.A.L."; SteamFolder="Far Cry 5"; GameExe='bin\FarCry5.exe'; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa6633"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Far Cry 6 VR"; VideoUrl="https://youtu.be/OR6BJ2q3rrk?t=464"; Quip="Viva Libertad! Tear down the regime from inside the headset."; SteamId="2369390";                    Mod="R.E.A.L."; SteamFolder="Far Cry 6"; GameExe="bin\FarCry6.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#dd9933"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Far Cry New Dawn VR"; VideoUrl="https://www.youtube.com/watch?v=FTJ9SZr6UTU"; Quip="After the collapse, the pink-and-neon apocalypse awaits."; SteamId="939960";             Mod="R.E.A.L."; SteamFolder="FarCryNewDawn"; FallbackPaths=@("STEAM:Far Cry New Dawn"); GameExe="bin\FarCryNewDawn.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "fps", "open world", "post-apocalyptic") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Far Cry Primal VR"; VideoUrl="https://www.youtube.com/watch?v=Ithr5auywNI"; Quip="Tame the beast. Hold the spear. The Stone Age, life-size."; SteamId="371660";               Mod="R.E.A.L."; SteamFolder="Far Cry Primal"; GameExe="bin\FCPrimal.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a4a1a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, far cry", "survival", "open world", "prehistoric") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="FF VII Rebirth VR"; VideoUrl="https://youtu.be/WwJYlCZmQM0?t=23"; VideoLabel="Watch gameplay"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="FF VII Remake VR"; VideoUrl="https://www.youtube.com/watch?v=fEGt4aB-YMM"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('End\Binaries\Win64\ff7rebirth_.exe');  Controls="GP"; Title="FF VII Rebirth VR"; VideoUrl="https://youtu.be/WwJYlCZmQM0?t=23"; VideoLabel="Watch gameplay"; Quip="The planet calls again. Cloud's journey, now around you."; SteamId="2909400";               Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REBIRTH"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa99"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('End\Binaries\Win64\ff7remake_.exe');  Controls="GP"; Title="FF VII Remake VR"; VideoUrl="https://www.youtube.com/watch?v=fEGt4aB-YMM"; Quip="Mako reactors, a buster sword, and all of Midgar."; SteamId="1462040";                Mod="R.E.A.L."; SteamFolder="FINAL FANTASY VII REMAKE INTERGRADE"; FallbackPaths=@("STEAM:FINAL FANTASY VII REMAKE"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#1f7a88"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, final fantasy, ff7", "fantasy", "mmo", "rpg") ; ModFile="End\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="End\Binaries\Win64\RealRepo_\RealVR64.dll" },
     @{
         Controls='GP'; Title='GRID (2019) VR'; Id='grid-2019-vr'; HubAddedAt='2026-10-25'; UntestedInstaller=$true
         Pill='CODIESVR'; Mod='CodiesVR (auto-update)'; Author='drowhunter'; Description='Steam DX12; cockpit VR'
@@ -6259,7 +6610,7 @@ $ownGamesGP = @(
         UninstallSteps=@('Close the game and GrayHorizon Settings, then use Uninstall now. Hub-owned package files and the matching Desktop shortcut are removed; backed-up originals are restored.','Saves, modified files, custom INI/HUD/seat layouts and Documents\GrayHorizon are preserved. Changed publisher-updated files may be retained; repair through this Hub first if you want them tracked again.','For temporary flat play, untick VR in GrayHorizon Settings. Do not install another Forza VR injector over this active deployment.')
         Tags=@('racing','driving','open world','arcade racing','simulation','forza','forza horizon 6','fh6','grayhorizon','gamepad','wheel','cockpit','openxr','untested')
     },
-    @{
+    @{ TwoModsSeparateBaseGame=$true; SeparateLauncherBaseGame=$true; BaseGameProofFiles=@('ForzaHorizon5.exe'); 
         Controls="GP"; Title="Forza Horizon 5 VR"; VideoUrl="https://youtu.be/n-07s0oObI8?t=76"; VideoLabel="Watch gameplay"; Pill="FH5_VR"; Quip="Viva Mexico - drop the roof, floor it, and chase that horizon."; SteamId="1551360"
         Mod="NALULUNA or lufz VRMod"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; GithubRepoModSlot="B"; GithubRepoPresenceFile="lufz\vrmod-launcher.exe|vrmod-launcher.exe"; GithubRepoVersionFile="lufz\VERSION|VERSION"; NoVersionSeed=$true; Description="OpenXR, 6DoF"; Author="lufz (auto-update)"; Bat="ForzaHorizon5VR\START_INSTALLER.bat"; Color="#1f0f16"; Accent="#ff2d78"
         SteamFolder="ForzaHorizon5"; FallbackPaths=@("STEAM:ForzaHorizon5", "C:\XboxGames\Forza Horizon 5\Content", "XBOX:Forza Horizon 5"); DurableInstallRoots=@("C:\Games\Forza Horizon 5 VR", "D:\Games\Forza Horizon 5 VR", "E:\Games\Forza Horizon 5 VR")
@@ -6283,7 +6634,7 @@ $ownGamesGP = @(
         )
         InfoUrl="https://ko-fi.com/s/1724b05721"; Tags=@("forza horizon 5", "forza", "fh5", "naluluna", "lufz", "vrmod", "racing", "driving", "open world", "mexico", "arcade racing", "sim", "simulation")
     },
-    @{
+    @{ TwoModsSeparateBaseGame=$true; SeparateLauncherBaseGame=$true; BaseGameProofFiles=@('forzahorizon6.exe'); 
         Controls="GP"; Title="Forza Horizon 6 VR"; VideoUrl="https://youtu.be/q1Xudpmnk6M?t=147"; Pill="FH6_VR"; Quip="Chase the horizon, feel every gear change, and let the festival roar."; SteamId="2483190"; PortraitUrl="Assets/ForzaHorizon6_portrait.jpg"; HeaderUrl="Assets/ForzaHorizon6_header.jpg"
         Mod="3 VR mods (auto-update)"; GithubRepo="oofz/vrmod-releases"; GithubPrerelease=$true; GithubRepoModSlot="B"; GithubRepoPresenceFile="lufz\vrmod-launcher.exe"; GithubRepoVersionFile="lufz\VERSION"; NoVersionSeed=$true; Description="6DoF, cockpit view"; Author="NALULUNA · lufz · Clark"; Bat="ForzaHorizon6VR\START_INSTALLER.bat"; Color="#16101f"; Accent="#b454d4"
         SteamFolder="ForzaHorizon6"; FallbackPaths=@("C:\XboxGames\Forza Horizon 6\Content", "XBOX:Forza Horizon 6"); DurableInstallRoots=@("C:\Games\Forza Horizon 6 VR", "D:\Games\Forza Horizon 6 VR", "E:\Games\Forza Horizon 6 VR")
@@ -6313,7 +6664,7 @@ $ownGamesGP = @(
         )
         InfoUrl="https://ko-fi.com/s/03bdcc5fe9"; Tags=@("forza horizon 6", "forza", "fh6", "naluluna", "lufz", "cheekyrender", "clark cheeky kent", "racing", "driving", "open world", "arcade racing", "sim", "simulation")
     },
-    @{ Controls="GP"; Title="Ghost of Tsushima VR"; VideoUrl="https://www.youtube.com/watch?v=L7NIei0xkEs"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('GhostOfTsushima.exe');  Controls="GP"; Title="Ghost of Tsushima VR"; VideoUrl="https://www.youtube.com/watch?v=L7NIei0xkEs"; Quip="Stand on Tsushima's wind-swept fields. The Ghost rides."; SteamId="2215430";            Mod="R.E.A.L."; SteamFolder="Ghost of Tsushima DIRECTOR'S CUT"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa3333"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghost of tsushima", "action", "open world", "rpg", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         # VRGP, not GP: the mod turns the Touch controllers into an
         # EMULATED GAMEPAD (sticks, triggers, grips, buttons). No physical pad
@@ -6387,37 +6738,9 @@ $ownGamesGP = @(
     },
     @{ Controls="GP"; Title="Ghosts n Goblins Resurrection VR"; VideoUrl="https://youtu.be/5sgmy9nJqZY?t=4402"; VideoLabel="Watch gameplay"; Quip="Lose your armor in one hit - now in glorious 3D."; SteamId="1375400"; Mod="REF (auto-update)"; SteamFolder="Ghosts n Goblins Resurrection"; FallbackPaths=@("STEAM:GhostsnGoblinsResurrection", "STEAM:Ghosts 'n Goblins Resurrection", "STEAM:Makaimura_GG_RE"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="makaimura_GG_RE.exe"; Color="#0a0a1a"; Accent="#7733aa"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("ghosts goblins", "reframework", "praydog", "fast paced", "platformer", "arcade", "retro"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Ghostwire: Tokyo VR"; VideoUrl="https://youtu.be/jwMUMGtPpwU?t=89"; Quip="Tokyo is empty. The spirits are not. Weave with your hands."; SteamId="1475810";             Mod="R.E.A.L."; SteamFolder="GhostWire- Tokyo"; FallbackPaths=@("STEAM:Ghostwire Tokyo", "STEAM:GhostwireTokyo", "EPIC:Ghostwire Tokyo"); GameExe="GWT.exe"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc44aa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, ghostwire", "action", "supernatural", "horror") ; ModFile="Snowfall\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Snowfall\Binaries\Win64\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Grounded VR"; VideoUrl="https://www.youtube.com/watch?v=4A5yO10xSHs"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="Maine\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Maine\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Maine\Binaries\WinGDK\RealRepo\RealVR64.dll" },
-    @{
-        Controls    = "GP"
-        Title       = "GTA IV VR"
-        VideoUrl    = "https://youtu.be/JkVdSyDpg78"
-        SteamId     = "12210"
-        Quip        = "Liberty City, at eye level. Niko never had it this real."
-        Mod         = "gtaiv-dxvk-vr (auto-update)"
-        GithubRepo  = "Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
-        Description = "Complete Edition, SteamVR"
-        Author      = "Hochgeschwindigkeitsrennfahrer"
-        Bat         = "GTA4VR\START_INSTALLER.bat"
-        Color       = "#101820"
-        Accent      = "#c9852f"
-        InfoUrl     = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
-        ModPageUrl  = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
-        DownloadUrl = "https://github.com/Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod/releases"
-        SteamFolder = "Grand Theft Auto IV"
-        FallbackPaths=@("C:\Program Files\Rockstar Games\Grand Theft Auto IV", "C:\Program Files (x86)\Rockstar Games\Grand Theft Auto IV")
-        ModFile     = "GTAIV\gtaiv_dxvk_vr.asi"
-        ModFileAlt  = "gtaiv_dxvk_vr.asi"
-        FlatVREnabled  = "GTAIV\gtaiv_dxvk_vr.asi|gtaiv_dxvk_vr.asi"
-        FlatVRDisabled = "GTAIV\gtaiv_dxvk_vr.asi.off|gtaiv_dxvk_vr.asi.off"
-        UninstallSteps = @(
-            "Only want to play flat for a while? Do NOT uninstall - use the Flat / VR switch on this page.",
-            "To remove the mod, restore d3d9.dll.vrbak and dinput8.dll.vrbak over the mod's versions in the GTAIV folder, and delete gtaiv_dxvk_vr.asi."
-        )
-        Tags=@("gta", "gta 4", "gta iv", "grand theft auto", "liberty city", "niko bellic", "rockstar", "dxvk", "open world", "action", "shooter", "driving", "story")
-    },
-    @{ Controls="GP"; Title="High on Life VR"; VideoUrl="https://www.youtube.com/watch?v=Yzn5Rf_vwLc"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="Oregon\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Oregon\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Oregon\Binaries\WinGDK\RealRepo\RealVR64.dll" },
-    @{ Controls="GP"; Title="Hogwarts Legacy VR"; VideoUrl="https://www.youtube.com/watch?v=CT9WPSiKHzA"; Quip="Wand at the ready. Walk the halls of Hogwarts yourself."; SteamId="990080";              Mod="R.E.A.L."; SteamFolder="Hogwarts Legacy"; FallbackPaths=@("EPIC:HogwartsLegacy"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a5a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, hogwarts, harry potter", "adventure", "fantasy", "rpg", "story") ; ModFile="Phoenix\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Phoenix\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Maine\Binaries\Win64\Maine-Win64-Shipping.exe|Maine\Binaries\WinGDK\Maine-Win64-Shipping.exe');  Controls="GP"; Title="Grounded VR"; VideoUrl="https://www.youtube.com/watch?v=4A5yO10xSHs"; Quip="Shrunk to bug-size in the backyard. The spiders are huge."; SteamId="962130";                     Mod="R.E.A.L."; SteamFolder="Grounded"; FallbackPaths=@("XBOX:Grounded"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7aaa33"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, grounded", "survival", "crafting", "co-op") ; ModFile="Maine\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Maine\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Maine\Binaries\WinGDK\RealRepo\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Oregon\Binaries\Win64\Oregon-Win64-Shipping.exe|Oregon\Binaries\WinGDK\Oregon-Win64-Shipping.exe');  Controls="GP"; Title="High on Life VR"; VideoUrl="https://www.youtube.com/watch?v=Yzn5Rf_vwLc"; Quip="Talking guns and bounty hunts - now they're really talking to you."; SteamId="1583230";                 Mod="R.E.A.L."; SteamFolder="High On Life"; FallbackPaths=@("STEAM:HighOnLife", "EPIC:HighOnLife", "XBOX:High On Life"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa44cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, high on life", "fps", "comedy", "sci-fi") ; ModFile="Oregon\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Oregon\Binaries\Win64\RealRepo_\RealVR64.dll"; ModFileAlt2="Oregon\Binaries\WinGDK\RealRepo\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Phoenix\Binaries\Win64\HogwartsLegacy.exe');  Controls="GP"; Title="Hogwarts Legacy VR"; VideoUrl="https://www.youtube.com/watch?v=CT9WPSiKHzA"; Quip="Wand at the ready. Walk the halls of Hogwarts yourself."; SteamId="990080";              Mod="R.E.A.L."; SteamFolder="Hogwarts Legacy"; FallbackPaths=@("EPIC:HogwartsLegacy"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#7a5a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, hogwarts, harry potter", "adventure", "fantasy", "rpg", "story") ; ModFile="Phoenix\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Phoenix\Binaries\Win64\RealRepo_\RealVR64.dll" },
     # TWO MODS, ONE PLUGINS FOLDER. Astienth's mod adds parallax depth
     # between the sprite layers; SadMonsterParty's Flat to VR puts the
     # flat picture on several floating OpenVR overlay planes. Both are
@@ -6450,16 +6773,16 @@ $ownGamesGP = @(
         )
         Tags=@("hollow knight", "silksong", "hollowknight", "astienth", "sadmonsterparty", "flat to vr", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth")
     },
-    @{ Controls="GP"; Title="Hollow Knight VR"; VideoUrl="https://www.youtube.com/watch?v=6b_GGwASDWo"; SteamId="367520"; Mod="HollowKnight_VR v1.0.0"; SteamFolder="Hollow Knight"; FallbackPaths=@("STEAM:HollowKnight", "GOG:Hollow Knight", "XBOX:Hollow Knight"); Description="Discord login, depth only"; Author="Astienth"; Bat="HollowKnightVR\START_INSTALLER.bat"; Color="#080a14"; Accent="#88aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1254790696502693888"; DownloadUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1508878766166773821"; Tags=@("hollow knight", "hollowknight", "astienth", "team cherry", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="Horizon Chase Turbo"; VideoUrl="https://www.youtube.com/watch?v=Ejqe96bjVy0"; Pill="HORIZONCHASE_VR"; SteamId="389140"; Mod="HorizonChaseTurboVR v1.0.0"; SteamFolder="Horizon Chase Turbo"; FallbackPaths=@("STEAM:HorizonChaseTurbo", "EPIC:HorizonChaseTurbo", "EPIC:Horizon Chase Turbo", "C:\Program Files\Epic Games\HorizonChaseTurbo", "C:\Program Files (x86)\Epic Games\HorizonChaseTurbo"); Description="Discord login, Steam or Epic"; Author="Astienth"; Bat="HorizonChaseTurboVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#ff66aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362072336827814020"; DownloadUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362073443733864508"; Tags=@("horizon chase turbo", "horizonchaseturbo", "horizon chase", "astienth", "racing", "arcade", "retro", "top gear", "out run", "indie", "cartoon"); ModFile="BepInEx\plugins\HorizonChaseTurboVR.dll"; UninstallSteps=@("Important: this mod uses a Doorstop loader, not the usual 'winhttp.dll' proxy that the other Astienth mods use.", "To disable it, rename or delete 'doorstop_config.ini' in the game root folder.", "The mod stops loading; BepInEx and the plugin DLL can stay on disk.", "If you want to fully clean up, also delete the 'BepInEx\' folder and the 'doorstop_config.ini' file.") },
-    @{ Controls="GP"; Title="Horizon Forbidden West VR"; VideoUrl="https://www.youtube.com/live/WLWVzzLe1BY?t=555"; Quip="Beyond the frontier, the machines roam. Aloy's bow in hand."; SteamId="2420110";       Mod="R.E.A.L."; SteamFolder="Horizon Forbidden West"; FallbackPaths=@("STEAM:Horizon Forbidden West Complete Edition", "EPIC:HorizonForbiddenWestCompleteEdition", "EPIC:Horizon Forbidden West"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc6a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Horizon Zero Dawn VR"; VideoUrl="https://youtu.be/NxCKFVs7dpQ?t=92"; Quip="Stand among the machines. Aloy's world, life-size."; SteamId="1151640";            Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn"; FallbackPaths=@("EPIC:HorizonZeroDawn", "GOG:Horizon Zero Dawn Complete Edition"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa5522"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Horizon Zero Dawn Remastered VR"; VideoUrl="https://www.youtube.com/live/8_CNr418TMg?t=748"; Quip="Aloy's world, remastered. The machines tower over you."; SteamId="2561580"; Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc7733"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('hollow_knight.exe');  Controls="GP"; Title="Hollow Knight VR"; VideoUrl="https://www.youtube.com/watch?v=6b_GGwASDWo"; SteamId="367520"; Mod="HollowKnight_VR v1.0.0"; SteamFolder="Hollow Knight"; FallbackPaths=@("STEAM:HollowKnight", "GOG:Hollow Knight", "XBOX:Hollow Knight"); Description="Discord login, depth only"; Author="Astienth"; Bat="HollowKnightVR\START_INSTALLER.bat"; Color="#080a14"; Accent="#88aacc"; InfoUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1254790696502693888"; DownloadUrl="https://discord.com/channels/1001138422972432597/1254790696502693888/1508878766166773821"; Tags=@("hollow knight", "hollowknight", "astienth", "team cherry", "metroidvania", "2d", "platformer", "souls-like", "hand-drawn", "indie", "depth"); ModFile="BepInEx\plugins\HollowKnight_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "If you installed the mod into a copy of the game folder, you can also just delete the copy entirely.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('HorizonChase.exe');  Controls="GP"; Title="Horizon Chase Turbo"; VideoUrl="https://www.youtube.com/watch?v=Ejqe96bjVy0"; Pill="HORIZONCHASE_VR"; SteamId="389140"; Mod="HorizonChaseTurboVR v1.0.0"; SteamFolder="Horizon Chase Turbo"; FallbackPaths=@('STEAM:HorizonChaseTurbo','EPIC:HorizonChaseTurbo','EPIC:Horizon Chase Turbo','C:\Program Files\Epic Games\HorizonChaseTurbo','C:\Program Files (x86)\Epic Games\HorizonChaseTurbo','STEAM:Horizon Chase'); Description="Discord login, Steam or Epic"; Author="Astienth"; Bat="HorizonChaseTurboVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#ff66aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362072336827814020"; DownloadUrl="https://discord.com/channels/1001138422972432597/1362072336827814020/1362073443733864508"; Tags=@("horizon chase turbo", "horizonchaseturbo", "horizon chase", "astienth", "racing", "arcade", "retro", "top gear", "out run", "indie", "cartoon"); ModFile="BepInEx\plugins\HorizonChaseTurboVR.dll"; UninstallSteps=@("Important: this mod uses a Doorstop loader, not the usual 'winhttp.dll' proxy that the other Astienth mods use.", "To disable it, rename or delete 'doorstop_config.ini' in the game root folder.", "The mod stops loading; BepInEx and the plugin DLL can stay on disk.", "If you want to fully clean up, also delete the 'BepInEx\' folder and the 'doorstop_config.ini' file.") },
+    @{ BaseGameProofFiles=@('HorizonForbiddenWest.exe');  Controls="GP"; Title="Horizon Forbidden West VR"; VideoUrl="https://www.youtube.com/live/WLWVzzLe1BY?t=555"; Quip="Beyond the frontier, the machines roam. Aloy's bow in hand."; SteamId="2420110";       Mod="R.E.A.L."; SteamFolder="Horizon Forbidden West"; FallbackPaths=@("STEAM:Horizon Forbidden West Complete Edition", "EPIC:HorizonForbiddenWestCompleteEdition", "EPIC:Horizon Forbidden West"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc6a22"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('HorizonZeroDawn.exe');  Controls="GP"; Title="Horizon Zero Dawn VR"; VideoUrl="https://youtu.be/NxCKFVs7dpQ?t=92"; Quip="Stand among the machines. Aloy's world, life-size."; SteamId="1151640";            Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn"; FallbackPaths=@("EPIC:HorizonZeroDawn", "GOG:Horizon Zero Dawn Complete Edition"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa5522"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('HorizonZeroDawnRemastered.exe');  Controls="GP"; Title="Horizon Zero Dawn Remastered VR"; VideoUrl="https://www.youtube.com/live/8_CNr418TMg?t=748"; Quip="Aloy's world, remastered. The machines tower over you."; SteamId="2561580"; Mod="R.E.A.L."; SteamFolder="Horizon Zero Dawn Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc7733"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, horizon", "action", "open world", "rpg") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{ Controls="GP"; Title="Hypogea VR"; VideoUrl="https://www.youtube.com/watch?v=eUZdcHg2riI"; SteamId="2980260"; Mod="Hypogea_VR v1.0.0"; SteamFolder="Hypogea"; GameExe="Hypogea.exe"; BaseGameProofFiles=@("Hypogea.exe","Hypogea_Data\globalgamemanagers"); FallbackPaths=@("STEAM:Hypogea Demo", "STEAM:HYPOGEA"); Description="Discord login required."; Author="Astienth"; Bat="HypogeaVR\START_INSTALLER.bat"; Color="#100818"; Accent="#aa66ee"; InfoUrl="https://discord.com/channels/1001138422972432597/1465600243939672115/1465600264210878691"; Tags=@("hypogea", "astienth", "atmospheric", "retro", "ps1", "platformer", "indie", "narrative", "exploration", "story"); ModFile="BepInEx\plugins\Hypogea_VR.dll"; VrInstallEvidence=@("BepInEx\plugins\Hypogea_VR.dll","BepInEx\core\BepInEx.Preloader.dll","BepInEx\core\BepInEx.dll","BepInEx\config\UnityVR_Bepinex.cfg","Hypogea_Data\Plugins\x86\openvr_api.dll","doorstop_config.ini",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("The Flat / VR switch parks the loader in the selected game folder.", "For complete removal, remove winhttp.dll or winhttp_bak.dll, the Hub version marker and only files installed by the VR package; keep unrelated game files, mods and settings.") },
-    @{ Controls="GP"; Title="Indiana Jones: Great Circle VR"; VideoUrl="https://www.youtube.com/watch?v=IpzWP3u84lM"; Quip="Fortune and glory, kid. The whip's in your hand now."; SteamId="2677660";  Mod="R.E.A.L."; SteamFolder="Indiana Jones and the Great Circle"; FallbackPaths=@("STEAM:The Great Circle", "XBOX:The Great Circle"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#b88846"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, indiana jones", "adventure", "action", "puzzle") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Kingdom Come: Deliverance II VR"; VideoUrl="https://www.youtube.com/watch?v=mZYRtwL7iXk"; Quip="Jesus Christ be praised - medieval Bohemia, life-size."; SteamId="1771300"; Mod="R.E.A.L."; SteamFolder="KingdomComeDeliverance2"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a4a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, kingdom come", "rpg", "fantasy", "medieval", "realistic") ; ModFile="Bin\Win64MasterMasterSteamPGO\RealRepo\RealVR64.dll"; ModFileAlt="Bin\Win64MasterMasterSteamPGO\RealRepo_\RealVR64.dll"; ModFileAlt2="Bin\Win64MasterMasterEpicPGO\RealRepo\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('TheGreatCircle.exe');  Controls="GP"; Title="Indiana Jones: Great Circle VR"; VideoUrl="https://www.youtube.com/watch?v=IpzWP3u84lM"; Quip="Fortune and glory, kid. The whip's in your hand now."; SteamId="2677660";  Mod="R.E.A.L."; SteamFolder="Indiana Jones and the Great Circle"; FallbackPaths=@("STEAM:The Great Circle", "XBOX:The Great Circle"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#b88846"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, indiana jones", "adventure", "action", "puzzle") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Bin\Win64MasterMasterSteamPGO\KingdomCome.exe|Bin\Win64MasterMasterEpicPGO\KingdomCome.exe|Bin\Win64MasterMasterWinGDKPGO\KingdomCome.exe');  Controls="GP"; Title="Kingdom Come: Deliverance II VR"; VideoUrl="https://www.youtube.com/watch?v=mZYRtwL7iXk"; Quip="Jesus Christ be praised - medieval Bohemia, life-size."; SteamId="1771300"; Mod="R.E.A.L."; SteamFolder="KingdomComeDeliverance2"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a4a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, kingdom come", "rpg", "fantasy", "medieval", "realistic") ; ModFile="Bin\Win64MasterMasterSteamPGO\RealRepo\RealVR64.dll"; ModFileAlt="Bin\Win64MasterMasterSteamPGO\RealRepo_\RealVR64.dll"; ModFileAlt2="Bin\Win64MasterMasterEpicPGO\RealRepo\RealVR64.dll" },
     @{ Controls="GP"; Title="Kunitsu-Gami: Path of the Goddess VR"; VideoUrl="https://youtu.be/J1gSrZenM0w?t=120"; Quip="Cleanse the defilement by day, defend the maiden by night."; SteamId="2510710"; Mod="REF (auto-update)"; SteamFolder="KUNITSU-GAMI"; FallbackPaths=@("STEAM:Kunitsu-Gami", "STEAM:KunitsuGami", "STEAM:Kunitsu-Gami Path of the Goddess", "XBOX:Kunitsu-Gami- Path of the Goddess"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="KunitsuGami.exe"; Color="#1a0a00"; Accent="#cc2244"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("kunitsu-gami", "reframework", "praydog", "action", "rpg", "strategy", "japanese"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Lunistice VR"; VideoUrl="https://www.youtube.com/watch?v=tQTkUIKj3tw"; VideoLabel="Watch gameplay"; SteamId="1701800"; Mod="Lunistice_VR v1.0.0"; SteamFolder="Lunistice"; FallbackPaths=@("STEAM:Lunistice Demo", "GOG:Lunistice"); Description="Discord login required."; Author="Astienth"; Bat="LunisticeVR\START_INSTALLER.bat"; Color="#1a0820"; Accent="#ff77cc"; InfoUrl="https://discord.com/channels/1001138422972432597/1465598630382669916/1465598630382669916"; Tags=@("lunistice", "astienth", "cute", "kawaii", "retro", "platformer", "indie", "fast paced", "anime"); ModFile="BepInEx\plugins\Lunistice_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('Lunistice.exe');  Controls="GP"; Title="Lunistice VR"; VideoUrl="https://www.youtube.com/watch?v=tQTkUIKj3tw"; VideoLabel="Watch gameplay"; SteamId="1701800"; Mod="Lunistice_VR v1.0.0"; SteamFolder="Lunistice"; FallbackPaths=@("STEAM:Lunistice Demo", "GOG:Lunistice"); Description="Discord login required."; Author="Astienth"; Bat="LunisticeVR\START_INSTALLER.bat"; Color="#1a0820"; Accent="#ff77cc"; InfoUrl="https://discord.com/channels/1001138422972432597/1465598630382669916/1465598630382669916"; Tags=@("lunistice", "astienth", "cute", "kawaii", "retro", "platformer", "indie", "fast paced", "anime"); ModFile="BepInEx\plugins\Lunistice_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
         Controls    = "VRGP"
         Title       = "Mario Kart 64 VR"
@@ -6486,7 +6809,7 @@ $ownGamesGP = @(
         FallbackPaths=@("C:\Games\Mario Kart 64 VR", "D:\Games\Mario Kart 64 VR", "E:\Games\Mario Kart 64 VR", "C:\games\Mario Kart 64 VR")
         Tags=@("mario kart 64", "mario kart", "mk64", "spaghettikart", "spaghetti kart", "mario", "nintendo", "rayrod", "racing", "action", "retro", "kart racer", "arcade", "motion controls")
     },
-    @{
+    @{ BaseGameProofFiles=@('Game\ME1\Binaries\Win64\MassEffect1.exe'); 
         Controls    = "GP"
         Title       = "Mass Effect 1 LE VR"
         VideoUrl    = "https://youtu.be/zk1qG2ozU1k?t=34"
@@ -6516,7 +6839,7 @@ $ownGamesGP = @(
         )
         Tags=@("mass effect", "mass effect 1", "mele", "legendary edition", "shepard", "normandy", "citadel", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('Game\ME2\Binaries\Win64\MassEffect2.exe'); 
         Controls    = "GP"
         Title       = "Mass Effect 2 LE VR"
         VideoUrl    = "https://www.youtube.com/watch?v=U3i4GtCuPKE&t=228"
@@ -6545,7 +6868,7 @@ $ownGamesGP = @(
         )
         Tags=@("mass effect", "mass effect 2", "mele2", "legendary edition", "shepard", "normandy", "omega", "collectors", "suicide mission", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('Game\ME3\Binaries\Win64\MassEffect3.exe'); 
         Controls    = "GP"
         Title       = "Mass Effect 3 LE VR"
         VideoUrl    = "https://youtu.be/rdnmQ6vfBTk?t=690"
@@ -6574,12 +6897,12 @@ $ownGamesGP = @(
         )
         Tags=@("mass effect", "mass effect 2", "mele2", "legendary edition", "shepard", "normandy", "omega", "collectors", "suicide mission", "bioware", "dhalcyon", "rpg", "action", "sci-fi", "story", "space", "shooter")
     },
-    @{ Controls="GP"; Title="Mega Man Star Force Legacy VR"; VideoUrl="https://youtu.be/oIjb5ArHI_M?t=33"; VideoLabel="Watch gameplay"; Quip="Transer online. EM Wave Change, Geo - ride on!"; SteamId="3500390"; PortraitUrl="Assets/MegaManStarForce_portrait.jpg"; HeaderUrl="Assets/MegaManStarForce_header.jpg"; Mod="REF (auto-update)"; SteamFolder="Mega Man Star Force Legacy Collection"; FallbackPaths=@("STEAM:MMSFLEGACYCOLLECTION", "STEAM:MegaManStarForceLegacyCollection"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="STARFORCE.exe"; Color="#001a1a"; Accent="#00cccc"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("mega man star force", "reframework", "praydog", "action", "rpg", "jrpg"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Mirage Feathers VR"; VideoUrl="https://www.youtube.com/watch?v=SSebsIfxrVk"; VideoLabel="Watch gameplay"; SteamId="2719060"; Mod="MirageFeathers_VR v1.0.0"; SteamFolder="Mirage Feathers"; FallbackPaths=@("STEAM:MirageFeathers", "STEAM:Mirage Feathers Demo", "STEAM:MirageFeathersDemo"); Description="Discord login, Demo or Full"; Author="Astienth"; Bat="MirageFeathersVR\START_INSTALLER.bat"; Color="#180814"; Accent="#88ccdd"; InfoUrl="https://discord.com/channels/1001138422972432597/1325853693530079232/1325853693530079232"; Tags=@("mirage feathers", "miragefeathers", "astienth", "rail shooter", "shooter", "shmup", "after burner", "space harrier", "hang on", "super scaler", "anime", "arcade", "indie"); ModFile="BepInEx\plugins\MirageFeathers_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('MEGAMAN_STARFORCE_Legacy_Collection.exe|STARFORCE.exe');  Controls="GP"; Title="Mega Man Star Force Legacy VR"; VideoUrl="https://youtu.be/oIjb5ArHI_M?t=33"; VideoLabel="Watch gameplay"; Quip="Transer online. EM Wave Change, Geo - ride on!"; SteamId="3500390"; PortraitUrl="Assets/MegaManStarForce_portrait.jpg"; HeaderUrl="Assets/MegaManStarForce_header.jpg"; Mod="REF (auto-update)"; SteamFolder="Mega Man Star Force Legacy Collection"; FallbackPaths=@('STEAM:MMSFLEGACYCOLLECTION','STEAM:MegaManStarForceLegacyCollection','STEAM:MegaMan StarForce LegacyCollection'); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe='MEGAMAN_STARFORCE_Legacy_Collection.exe'; Color="#001a1a"; Accent="#00cccc"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("mega man star force", "reframework", "praydog", "action", "rpg", "jrpg"); ModFile="openxr_loader.dll" },
+    @{ BaseGameProofFiles=@('Mirage Feathers.exe');  Controls="GP"; Title="Mirage Feathers VR"; VideoUrl="https://www.youtube.com/watch?v=SSebsIfxrVk"; VideoLabel="Watch gameplay"; SteamId="2719060"; Mod="MirageFeathers_VR v1.0.0"; SteamFolder="Mirage Feathers"; FallbackPaths=@("STEAM:MirageFeathers", "STEAM:Mirage Feathers Demo", "STEAM:MirageFeathersDemo"); Description="Discord login, Demo or Full"; Author="Astienth"; Bat="MirageFeathersVR\START_INSTALLER.bat"; Color="#180814"; Accent="#88ccdd"; InfoUrl="https://discord.com/channels/1001138422972432597/1325853693530079232/1325853693530079232"; Tags=@("mirage feathers", "miragefeathers", "astienth", "rail shooter", "shooter", "shmup", "after burner", "space harrier", "hang on", "super scaler", "anime", "arcade", "indie"); ModFile="BepInEx\plugins\MirageFeathers_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{ Controls="GP"; Title="Monster Hunter Rise VR"; VideoUrl="https://www.youtube.com/watch?v=O0cxLPaYzUE"; Quip="Wirebug up, monster down. The hunt is yours."; SteamId="1446780"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterRise"; FallbackPaths=@("XBOX:Monster Hunter Rise"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterRise.exe"; Color="#1a0a00"; Accent="#dd6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter rise", "reframework", "praydog", "action", "coop", "rpg"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Monster Hunter Stories 3 VR"; VideoUrl="https://www.youtube.com/watch?v=Itzcp6_bWfM"; VideoLabel="Watch gameplay"; Quip="Hatch the egg, ride the monstie. Forge your kinship."; SteamId="2852190"; PortraitUrl="Assets/MonsterHunterStories3_portrait.jpg"; HeaderUrl="Assets/MonsterHunterStories3_header.jpg"; Mod="REF (auto-update)"; SteamFolder="MONSTER HUNTER STORIES 3"; FallbackPaths=@("STEAM:Monster Hunter Stories 3", "STEAM:MonsterHunterStories3", "STEAM:MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MHSTORIES3.exe"; Color="#0a1a0a"; Accent="#ee9933"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter stories", "reframework", "praydog", "rpg", "story", "jrpg", "turn-based", "adventure"); ModFile="openxr_loader.dll" },
+    @{ BaseGameProofFiles=@('MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION.exe|MHSTORIES3.exe');  Controls="GP"; Title="Monster Hunter Stories 3 VR"; VideoUrl="https://www.youtube.com/watch?v=Itzcp6_bWfM"; VideoLabel="Watch gameplay"; Quip="Hatch the egg, ride the monstie. Forge your kinship."; SteamId="2852190"; PortraitUrl="Assets/MonsterHunterStories3_portrait.jpg"; HeaderUrl="Assets/MonsterHunterStories3_header.jpg"; Mod="REF (auto-update)"; SteamFolder="MONSTER HUNTER STORIES 3"; FallbackPaths=@("STEAM:Monster Hunter Stories 3", "STEAM:MonsterHunterStories3", "STEAM:MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe='MONSTER_HUNTER_STORIES_3_TWISTED_REFLECTION.exe'; Color="#0a1a0a"; Accent="#ee9933"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter stories", "reframework", "praydog", "rpg", "story", "jrpg", "turn-based", "adventure"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="Monster Hunter Wilds"; VideoUrl="https://www.youtube.com/watch?v=lLWE5328LPs"; VideoLabel="Watch gameplay"; Quip="Track the herd across the wilds, hunter. Bring your blade."; SteamId="2246340"; Mod="REF (auto-update)"; SteamFolder="MonsterHunterWilds"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="MonsterHunterWilds.exe"; Color="#1a0800"; Accent="#ff5500"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("monster hunter wilds", "reframework", "praydog", "action", "coop", "open world", "rpg"); ModFile="openxr_loader.dll" },
-    @{
+    @{ BaseGameProofFiles=@('Moto Rush Reborn.exe'); 
         Controls    = "VRGP"
         Title       = "Moto Rush Reborn VR"
         VideoUrl    = "https://www.youtube.com/watch?v=pfVWgTii6gk"
@@ -6637,8 +6960,8 @@ $ownGamesGP = @(
         Quip        = "Punch a tree, eat a mushroom, blame Dani."
         Tags=@("muck", "survival", "crafting", "building", "roguelike", "open world", "adventure", "coop", "multiplayer", "action", "gamepad", "keyboard", "mouse", "free", "wip")
     },
-    @{ Controls="VRGP"; Title="New Star GP VR"; VideoUrl="https://youtu.be/fRQFt8Of38c?t=130"; VideoLabel="Watch gameplay"; Quip="Lights out and away you go, champ - chase that checkered flag."; SteamId="2217580"; Mod="New_Star_GP_VR"; Description="Discord login required"; Author="Astienth"; Bat="NewStarGPVR\START_INSTALLER.bat"; Color="#12100f"; Accent="#e85d3d"; InfoUrl="https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812"; ModFile="release\BepInEx\plugins\New_Star_GP_VR.dll"; SteamFolder="New Star GP"; FallbackPaths=@("STEAM:New Star GP", "C:\XboxGames\New Star GP\Content", "XBOX:New Star GP"); Tags=@("new star gp", "nsgp", "new star games", "f1", "formula", "motorsport", "racing", "arcade", "sports"); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="No One Lives Forever 2 VR"; SteamFolder="No One Lives Forever 2"; VideoUrl="https://www.youtube.com/watch?v=hJhE84R74_0"; Pill="NOLF2-R3"; Quip="Slip into Cate Archer's shoes, outwit H.A.R.M., and make spycraft look effortless."; PortraitUrl="Assets/NOLF2_portrait.jpg"; HeaderUrl="Assets/NOLF2_header.jpg"; ScreenshotUrl="Assets/NOLF2_screenshot.jpg"; Mod="Release 3"; Description="NOLF2 1.3 EN required"; Author="Luke Ross"; Bat="NOLF2VR\START_INSTALLER.bat"; Color="#171109"; Accent="#e8923a"; LaunchExe="Lithtech.exe"; ModFile="VRlaunchcmds.txt"; InfoUrl="https://github.com/LukeRoss00/nolf2-real-mod"; ModPageUrl="https://www.patreon.com/realvr"; Tags=@("no one lives forever 2", "nolf2", "nolf", "cate archer", "spy", "stealth", "shooter", "fps", "retro", "adventure", "luke ross", "real") },
+    @{ BaseGameProofFiles=@('release\NSGP.exe');  Controls="VRGP"; Title="New Star GP VR"; VideoUrl="https://youtu.be/fRQFt8Of38c?t=130"; VideoLabel="Watch gameplay"; Quip="Lights out and away you go, champ - chase that checkered flag."; SteamId="2217580"; Mod="New_Star_GP_VR"; Description="Discord login required"; Author="Astienth"; Bat="NewStarGPVR\START_INSTALLER.bat"; Color="#12100f"; Accent="#e85d3d"; InfoUrl="https://discord.com/channels/1001138422972432597/1522836877101629490/1522836922676940812"; ModFile="release\BepInEx\plugins\New_Star_GP_VR.dll"; SteamFolder="New Star GP"; FallbackPaths=@("STEAM:New Star GP", "C:\XboxGames\New Star GP\Content", "XBOX:New Star GP"); Tags=@("new star gp", "nsgp", "new star games", "f1", "formula", "motorsport", "racing", "arcade", "sports"); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "Delete the renamed file plus 'BepInEx\\' and 'winhttp_bak.dll' for a full uninstall.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('Lithtech.exe');  Controls="GP"; Title="No One Lives Forever 2 VR"; SteamFolder="No One Lives Forever 2"; VideoUrl="https://www.youtube.com/watch?v=hJhE84R74_0"; Pill="NOLF2-R3"; Quip="Slip into Cate Archer's shoes, outwit H.A.R.M., and make spycraft look effortless."; PortraitUrl="Assets/NOLF2_portrait.jpg"; HeaderUrl="Assets/NOLF2_header.jpg"; ScreenshotUrl="Assets/NOLF2_screenshot.jpg"; Mod="Release 3"; Description="NOLF2 1.3 EN required"; Author="Luke Ross"; Bat="NOLF2VR\START_INSTALLER.bat"; Color="#171109"; Accent="#e8923a"; LaunchExe="Lithtech.exe"; ModFile="VRlaunchcmds.txt"; InfoUrl="https://github.com/LukeRoss00/nolf2-real-mod"; ModPageUrl="https://www.patreon.com/realvr"; Tags=@("no one lives forever 2", "nolf2", "nolf", "cate archer", "spy", "stealth", "shooter", "fps", "retro", "adventure", "luke ross", "real") },
     @{
         Controls    = "GP"
         Title       = "Nuclear Option VR"
@@ -6667,7 +6990,7 @@ $ownGamesGP = @(
         Tags        = @("nuclear option", "novr", "flight", "combat", "jets", "military", "action", "uuvr", "unity", "shooter")
     },
     @{ Controls="GP"; Title="Onimusha 2 VR"; VideoUrl="https://youtu.be/42jEMrshZzc?t=1590"; VideoLabel="Watch gameplay"; Quip="Oni gauntlet ready. The demons of Sengoku await."; SteamId="3046600"; Mod="REF (auto-update)"; SteamFolder="ONIMUSHA2"; FallbackPaths=@("STEAM:Onimusha 2", "STEAM:Onimusha2"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Onimusha2.exe"; Color="#0a0a0a"; Accent="#cc6600"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("onimusha 2", "reframework", "praydog", "action", "story", "samurai", "horror"); ModFile="openxr_loader.dll" },
-    @{ Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v2.0.0"; ModBuildStamp="2026-08-28 23:50"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="dxgi.dll"; ModFileAlt="dxgi.dll.aus"; FlatVREnabled="dxgi.dll"; FlatVRDisabled="dxgi.dll.aus"; UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove OutboundVR"; UninstallProbeFile=".pcvrhub-outbound-install.tsv|dxgi.dll|dxgi.dll.aus"; UninstallArguments="-HubConfirmed"; UninstallSteps=@("Use Uninstall now beside this guide. It removes only files recorded by the Hub installer and restores any file that existed before installation.", "Without a Hub install record, only the inspected OutboundVR 2.0.0 DLL is removed when its SHA-256 matches; shared OpenXR files are retained conservatively.", "The game, saves, shared BepInEx installation and unrelated mods are preserved. For temporary flat play, use the Flat / VR switch instead."); SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
+    @{ BaseGameProofFiles=@('Outbound.exe');  Controls="GP"; Title="Outbound VR"; VideoUrl="https://www.youtube.com/watch?v=k_NeBB6iysY"; VideoLabel="Watch gameplay"; Quip="Chart the drift, trust your gut, and roll on into the unknown."; SteamId="2681030"; Mod="OutboundVR v2.0.0"; ModBuildStamp="2026-08-28 23:50"; Description="Nexus download required"; Author="Destroyjevski"; Bat="OutboundVR\START_INSTALLER.bat"; Color="#12181a"; Accent="#4fb89a"; InfoUrl="https://www.nexusmods.com/outbound/mods/28"; ModFile="dxgi.dll"; ModFileAlt="dxgi.dll.aus"; FlatVREnabled="dxgi.dll"; FlatVRDisabled="dxgi.dll.aus"; UninstallExe="UNINSTALL.bat"; UninstallLabel="Remove OutboundVR"; UninstallProbeFile=".pcvrhub-outbound-install.tsv|dxgi.dll|dxgi.dll.aus"; UninstallArguments="-HubConfirmed"; UninstallSteps=@("Use Uninstall now beside this guide. It removes only files recorded by the Hub installer and restores any file that existed before installation.", "Without a Hub install record, only the inspected OutboundVR 2.0.0 DLL is removed when its SHA-256 matches; shared OpenXR files are retained conservatively.", "The game, saves, shared BepInEx installation and unrelated mods are preserved. For temporary flat play, use the Flat / VR switch instead."); SteamFolder="Outbound"; FallbackPaths=@("STEAM:Outbound", "C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "XBOX:Outbound", "EPIC:Outbound"); Tags=@("outbound", "destroyjevski", "survival", "crafting", "driving", "cozy", "sandbox", "open world", "roadtrip") },
     @{
         # Halcyon is
         # gamepad only; Insanity Engine VR brings tracked controllers and VR
@@ -6779,7 +7102,7 @@ $ownGamesGP = @(
         UninstallSteps=@("Close Outlast 2 and Outlast2VR.exe, then use Uninstall now beside this guide. The Hub removes unchanged files in its Outlast 2 VR ownership manifest and restores originals it backed up.","The original game, saves, Documents configuration and files changed after installation stay in place. To return to flat play, start Outlast2.exe normally after removal.")
         Tags=@("outlast 2","outlast ii","strikezonevr","survival horror","horror","openxr","vdxr","quest 3","motion controls","wip","beta")
     },
-    @{
+    @{ BaseGameProofFiles=@('PaperKlay.exe'); 
         Controls    = "VRGP"
         Title       = "Paperklay VR"
         VideoUrl    = "https://www.youtube.com/watch?v=oezn9ILmY4k"
@@ -6800,7 +7123,7 @@ $ownGamesGP = @(
         FallbackPaths=@("STEAM:Paperklay")
         Tags=@("paperklay", "paper klay", "astienth", "platformer", "3d platformer", "banjo", "banjo-kazooie", "cute", "indie", "collectathon")
     },
-    @{
+    @{ BaseGameProofFiles=@('Paranoia Place.exe'); 
         Controls    = "VRGP"
         Title       = "Paranoia Place VR"
         VideoUrl    = "https://www.youtube.com/watch?v=TJDc_4fzpBI"
@@ -6822,7 +7145,7 @@ $ownGamesGP = @(
         Tags=@("paranoia place", "paranoiaplace", "astienth", "horror", "psychological", "atmospheric", "story", "indie")
     },
     @{ Controls="GP"; Title="Pragmata VR"; VideoUrl="https://www.youtube.com/live/zyx9zEs2W4c?t=834"; Quip="Hack the moon. Hold her hand. Step into the unknown."; SteamId="3357650"; PortraitUrl="Assets/Pragmata_portrait.jpg"; HeaderUrl="Assets/Pragmata_header.jpg"; Mod="REF (auto-update)"; SteamFolder="PRAGMATA"; FallbackPaths=@("STEAM:PRAGMATA"); Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Notice="Pragmata is a brand-new title and this VR mod is early, community-made work built on praydog's REFramework - a genuinely impressive effort given how fresh the game is. Fair warning: it doesn't run smoothly for everyone yet, and the in-game hacking UI can misbehave on some setups. If you hit trouble, it's the early state of the mod, not something you did wrong. Pragmata is also very demanding in VR - see the AFW performance option offered during install, which can help a lot."; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="Pragmata.exe"; Color="#0a0a1a"; Accent="#dd5544"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("pragmata", "reframework", "praydog", "action", "sci-fi"); ModFile="openxr_loader.dll" },
-    @{
+    @{ BaseGameProofFiles=@('RebelGalaxy.exe|steamlauncher.exe'); 
         Controls    = "GP"
         Title       = "Rebel Galaxy VR"
         VideoUrl    = "https://youtu.be/IoxjXUKUxeM?t=38"
@@ -6945,7 +7268,7 @@ $ownGamesGP = @(
         FallbackPaths=@("C:\Games\Ring Racers VR", "D:\Games\Ring Racers VR", "E:\Games\Ring Racers VR")
         Tags        = @("ring racers", "dr robotnik", "robotnik", "ringracers", "rrvr", "rayrod", "kart krew", "srb2 kart", "fan game", "free", "racing", "kart", "arcade", "openxr")
     },
-    @{
+    @{ BaseGameProofFiles=@('RoadRedemption.exe|RoadRedemptionEarlyAccess.exe|Road Redemption Alpha\RoadRedemption.exe'); 
         Controls    = "VRGP"
         Title       = "Road Redemption VR"
         VideoUrl    = "https://www.youtube.com/watch?v=1mc8WCVF9Yg"
@@ -6968,7 +7291,7 @@ $ownGamesGP = @(
     },
     @{ Controls="VRGP"; Title="Rogue Flight VR"; VideoUrl="https://www.youtube.com/watch?v=0Bqa7dPUHrM"; SteamId="2784620"; Mod="RogueFlight_VR v1.0.0"; SteamFolder="Rogue Flight"; FallbackPaths=@("STEAM:RogueFlight", "STEAM:ROGUE FLIGHT", "STEAM:ROGUE_FLIGHT"); GameExe="RogueFlight.exe"; BaseGameProofFiles=@("RogueFlight.exe"); Description="Discord login required."; Author="Astienth"; Bat="RogueFlightVR\START_INSTALLER.bat"; Color="#080820"; Accent="#66ccff"; InfoUrl="https://discord.com/channels/1001138422972432597/1443945389454528634/1443945389454528634"; Tags=@("rogue flight", "rogueflight", "astienth", "anime", "manga", "shooter", "space", "bullet hell", "fast paced", "arcade", "indie"); ModFile="BepInEx\plugins\RogueFlight_VR.dll"; VrInstallEvidence=@("BepInEx\plugins\RogueFlight_VR.dll","BepInEx\core\BepInEx.Preloader.Core.dll","BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll or winhttp_bak.dll, the Hub version marker and the Hub-installed BepInEx files; keep unrelated game files and user settings.") },
     @{ Controls="GP"; Title="Sayonara Wild Hearts"; VideoUrl="https://www.youtube.com/watch?v=Zcg-dsjjyYs"; Pill="SAYONARAWH_VR"; SteamId="1122720"; Mod="SayonaraWH_VR v1.0.0"; SteamFolder="Sayonara Wild Hearts"; FallbackPaths=@("STEAM:SayonaraWildHearts", "GOG:Sayonara Wild Hearts", "EPIC:Sayonara Wild Hearts", "EPIC:SayonaraWildHearts"); GameExe="Sayonara Wild Hearts.exe"; BaseGameProofFiles=@("Sayonara Wild Hearts.exe","Sayonara Wild Hearts_Data\globalgamemanagers"); LaunchExe="Sayonara Wild Hearts.exe"; LaunchRequiresVrEvidence=$true; NeverSteamLaunch=$true; Description="Discord login, depth + bHaptics"; Author="Astienth"; Bat="SayonaraWildHeartsVR\START_INSTALLER.bat"; Color="#180a18"; Accent="#cc44aa"; InfoUrl="https://discord.com/channels/1001138422972432597/1253317358735327354/1253317358735327354"; Tags=@("sayonara wild hearts", "sayonarawildhearts", "astienth", "simogo", "annapurna", "music", "rhythm", "arcade", "casual", "stylized", "indie", "lgbtq", "atmospheric", "bhaptics"); ModFile="BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll"; VrInstallEvidence=@("BepInEx\plugins\UnityVRPlugin_SayonaraWildHearts.dll","BepInEx\core\BepInEx.Preloader.dll","BepInEx\config\UnityVR_Bepinex.cfg",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("The Flat / VR switch parks the loader in the selected modded folder.", "To remove VR, remove only files installed by the VR package from the modded folder; keep the game, saves, settings and unrelated mods.", "A separate VR game copy may contain later user changes. Review it before deleting the entire copy. The original store game is separate.") },
-    @{
+    @{ BaseGameProofFiles=@('Shenmue\sm1\Shenmue.exe|Shenmue II\sm2\Shenmue2.exe|SteamLauncher.exe'); 
         # v2.0 adds tracked hands, combat gestures and physical turning.
         Controls    = "MC"
         Title       = "Shenmue I & II"
@@ -6997,7 +7320,7 @@ $ownGamesGP = @(
         ModFile     = "sm1\ShenmueVR.ini"
         ModFileAlt  = "sm2\ShenmueVR.ini"
         SteamFolder = "Shenmue I & II"
-        FallbackPaths=@("STEAM:Shenmue I & II")
+        FallbackPaths=@('STEAM:Shenmue I & II','STEAM:SMLaunch')
         Notice      = "ShenmueVR 2.0 removes other mods from the Shenmue I/II folders selected in Setup and creates no automatic backup. Back up what you want to keep before installing."
         UninstallSteps = @(
             "Close both games and the Steam launcher.",
@@ -7036,8 +7359,8 @@ $ownGamesGP = @(
         FallbackPaths=@("C:\Games\Silent Hill VR", "D:\Games\Silent Hill VR", "E:\Games\Silent Hill VR")
         Tags=@("horror", "survival-horror", "psychological", "silent hill", "konami", "ps1", "playstation", "classic", "retro", "1999", "harry mason", "fog", "vrified games", "native stereo", "6dof", "roomscale", "gamepad", "steamvr", "atmospheric", "singleplayer")
     },
-    @{ Controls="GP"; Title="Skate Story VR"; VideoUrl="https://www.youtube.com/watch?v=mkGxh11NEuQ"; SteamId="1263240"; Mod="SkateStory_VR v1.0.0"; SteamFolder="Skate Story"; FallbackPaths=@("STEAM:SkateStory", "STEAM:Skate Story Demo", "GOG:Skate Story"); Description="Discord login, OpenVR"; Author="Astienth"; Bat="SkateStoryVR\START_INSTALLER.bat"; Color="#1a0a18"; Accent="#dd3344"; InfoUrl="https://discord.com/channels/1001138422972432597/1454427736327065655/1454427809203359774"; Tags=@("skate story", "skatestory", "astienth", "skate", "skateboarding", "sports", "stylized", "indie", "narrative"); ModFile="VRMod\SkateStoryVR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For a full uninstall, delete the renamed file plus the 'VRMod\' folder and the extra DLLs the mod added under 'SkateStory_Data\Managed\' and 'SkateStory_Data\Plugins\x86_64\'.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
-    @{ Controls="GP"; Title="Sonic P-06 VR"; VideoUrl="https://www.youtube.com/watch?v=OTHkTsVUAXE"; SteamId=""; PortraitUrl="Assets/SonicP06_portrait.jpg"; HeaderUrl="Assets/SonicP06_header.jpg"; Mod="Sonic_P-06_VR v1.0.0"; SteamFolder="Sonic P-06 VR"; FallbackPaths=@("C:\Games\Sonic P-06 VR", "C:\Games\Sonic P06 VR", "C:\Games\SonicP06VR", "D:\Games\Sonic P-06 VR", "E:\Games\Sonic P-06 VR"); Description="Fan game, Discord login."; Author="Astienth"; Bat="SonicP06VR\START_INSTALLER.bat"; Color="#0a1018"; Accent="#3399ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199"; Tags=@("sonic", "sonic 06", "sonic p-06", "sonicp06", "project 06", "chaosx", "astienth", "fan game", "platformer", "free", "action"); ModFile="BepInEx\plugins\UnityVRPlugin.dll"; LaunchExe="Sonic the Hedgehog.exe"; UninstallSteps=@("For temporary flat play, use the Flat / VR switch on this page.", "Remove only BepInEx\plugins\UnityVRPlugin.dll (or its parked counterpart) for the VR plugin itself.", "Keep the rest of BepInEx and winhttp.dll if another mod uses them. Compare any further cleanup with the linked release package.", "Do not delete the Sonic P-06 game folder; it contains the fan game, settings and possibly saves, not just this VR mod.") },
+    @{ BaseGameProofFiles=@('SkateStory.exe');  Controls="GP"; Title="Skate Story VR"; VideoUrl="https://www.youtube.com/watch?v=mkGxh11NEuQ"; SteamId="1263240"; Mod="SkateStory_VR v1.0.0"; SteamFolder="Skate Story"; FallbackPaths=@("STEAM:SkateStory", "STEAM:Skate Story Demo", "GOG:Skate Story"); Description="Discord login, OpenVR"; Author="Astienth"; Bat="SkateStoryVR\START_INSTALLER.bat"; Color="#1a0a18"; Accent="#dd3344"; InfoUrl="https://discord.com/channels/1001138422972432597/1454427736327065655/1454427809203359774"; Tags=@("skate story", "skatestory", "astienth", "skate", "skateboarding", "sports", "stylized", "indie", "narrative"); ModFile="VRMod\SkateStoryVR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For a full uninstall, delete the renamed file plus the 'VRMod\' folder and the extra DLLs the mod added under 'SkateStory_Data\Managed\' and 'SkateStory_Data\Plugins\x86_64\'.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('Sonic the Hedgehog.exe');  Controls="GP"; Title="Sonic P-06 VR"; VideoUrl="https://www.youtube.com/watch?v=OTHkTsVUAXE"; SteamId=""; PortraitUrl="Assets/SonicP06_portrait.jpg"; HeaderUrl="Assets/SonicP06_header.jpg"; Mod="Sonic_P-06_VR v1.0.0"; SteamFolder="Sonic P-06 VR"; FallbackPaths=@("C:\Games\Sonic P-06 VR", "C:\Games\Sonic P06 VR", "C:\Games\SonicP06VR", "D:\Games\Sonic P-06 VR", "E:\Games\Sonic P-06 VR"); Description="Fan game, Discord login."; Author="Astienth"; Bat="SonicP06VR\START_INSTALLER.bat"; Color="#0a1018"; Accent="#3399ff"; InfoUrl="https://discord.com/channels/1001138422972432597/1267088216456953907/1271091116195844199"; Tags=@("sonic", "sonic 06", "sonic p-06", "sonicp06", "project 06", "chaosx", "astienth", "fan game", "platformer", "free", "action"); ModFile="BepInEx\plugins\UnityVRPlugin.dll"; LaunchExe="Sonic the Hedgehog.exe"; UninstallSteps=@("For temporary flat play, use the Flat / VR switch on this page.", "Remove only BepInEx\plugins\UnityVRPlugin.dll (or its parked counterpart) for the VR plugin itself.", "Keep the rest of BepInEx and winhttp.dll if another mod uses them. Compare any further cleanup with the linked release package.", "Do not delete the Sonic P-06 game folder; it contains the fan game, settings and possibly saves, not just this VR mod.") },
     @{
         Controls    = "VRGP"
         Title       = "Sonic Robo Blast 2 VR"
@@ -7124,9 +7447,9 @@ $ownGamesGP = @(
         )
         Tags = @("sim", "driving", "racing", "open world", "exploration", "adventure", "coop", "multiplayer", "off-road", "trucks", "openxr", "wip")
     },
-    @{ Controls="GP"; Title="Spiderman 2 VR"; VideoUrl="https://www.youtube.com/live/WRQLvSJjPkE?t=331"; Quip="Two suits, one city. Swing through New York yourself."; SteamId="2651280";                  Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man 2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a55cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man 2, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Spiderman Miles Morales VR"; VideoUrl="https://www.youtube.com/watch?v=gD-j2ydkENQ"; Quip="Take the leap, Miles. Harlem's skyline is yours."; SteamId="1817190";      Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Miles Morales"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa2266"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, miles morales, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Spiderman Remastered"; VideoUrl="https://youtu.be/1iIaCNRqJLs?t=395"; Quip="With great power... swing across New York yourself."; SteamId="1817070";         Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc2233"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, spiderman, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Spider-Man2.exe|SpiderMan2.exe');  Controls="GP"; Title="Spiderman 2 VR"; VideoUrl="https://www.youtube.com/live/WRQLvSJjPkE?t=331"; Quip="Two suits, one city. Swing through New York yourself."; SteamId="2651280";                  Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man 2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a55cc"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man 2, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('MilesMorales.exe');  Controls="GP"; Title="Spiderman Miles Morales VR"; VideoUrl="https://www.youtube.com/watch?v=gD-j2ydkENQ"; Quip="Take the leap, Miles. Harlem's skyline is yours."; SteamId="1817190";      Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Miles Morales"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#aa2266"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, miles morales, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Spider-Man.exe');  Controls="GP"; Title="Spiderman Remastered"; VideoUrl="https://youtu.be/1iIaCNRqJLs?t=395"; Quip="With great power... swing across New York yourself."; SteamId="1817070";         Mod="R.E.A.L."; SteamFolder="Marvel's Spider-Man Remastered"; Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc2233"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, spider-man, spiderman, marvel", "action", "open world", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Id="star-fox-enhanced-vr"; Controls="GP"; Title="Star Fox Enhanced PCVR"; TileTitle="Star Fox Enhanced"; Wip=$true; HubAddedAt="2026-10-03"; VideoUrl="https://www.youtube.com/watch?v=ckykK-I3kC0"; VideoLabel="Watch gameplay (not VR)"
         Quip="Good luck, Fox. Slippy promised to stay out of the way this time."; QuipLast=$true
@@ -7175,7 +7498,7 @@ $ownGamesGP = @(
         FallbackPaths=@("C:\Games\Star Fox 64 VR", "D:\Games\Star Fox 64 VR", "E:\Games\Star Fox 64 VR", "C:\games\Star Fox 64 VR")
         Tags=@("star fox 64", "starfox 64", "star fox", "starfox", "arwing", "fox mccloud", "nintendo", "rayrod", "starship", "shooter", "arcade", "space", "rail shooter", "sci-fi", "motion controls")
     },
-    @{
+    @{ BaseGameProofFiles=@('StarRacer\Star Racer.exe'); 
         Controls    = "VRGP"
         Title       = "Star Racer VR"
         VideoUrl    = "https://youtu.be/9AwqfzRttlk?t=28"
@@ -7197,7 +7520,7 @@ $ownGamesGP = @(
         FallbackPaths=@("STEAM:StarRacer", "STEAM:Star Racer Demo")
         Tags=@("star racer", "starracer", "astienth", "f-zero", "fzero", "racing", "arcade", "retro", "sci-fi", "indie")
     },
-    @{
+    @{ BaseGameProofFiles=@('Star Trucker.exe'); 
         Controls    = "GP"
         Title       = "Star Trucker VR"
         VideoUrl    = "https://youtu.be/ud_uGwMR4sU?t=424"
@@ -7230,12 +7553,12 @@ $ownGamesGP = @(
         )
         Tags=@("star trucker", "startrucker", "destroyjevski", "space", "trucking", "driving", "sim", "simulation", "sci-fi")
     },
-    @{ Controls="GP"; Title="Star Wars Outlaws VR"; VideoUrl="https://www.youtube.com/watch?v=tOv5RlTEx9k"; Quip="Scoundrel's life in a galaxy far, far away - up close."; SteamId="2842040";            Mod="R.E.A.L."; SteamFolder="Star Wars Outlaws"; FallbackPaths=@("EPIC:StarWarsOutlaws", "UBI:Star Wars Outlaws"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8844"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, star wars, outlaws", "open world", "action", "sci-fi") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Starfield VR"; VideoUrl="https://youtu.be/3KEH4H-wSI8?t=94"; Roomscale=$true; SteamId="1716740"; Mod="starfield2vr (auto-update)"; GithubRepo="mutars/starfield2vr"; SteamFolder="Starfield"; FallbackPaths=@("XBOX:Starfield", "C:\XboxGames\Starfield\Content", "EPIC:Starfield"); Description="KB&M or Gamepad VR"; Author="mutars"; Bat="StarfieldVR\START_INSTALLER.bat"; Color="#0a1020"; Accent="#4488dd"; InfoUrl="https://github.com/mutars/starfield2vr"; Tags=@("starfield", "bethesda", "space", "fps", "open world", "rpg", "sci-fi", "shooter") ; ModFile="dxgi.dll"; UninstallSteps=@("Delete the files the mod added to the game folder: dxgi.dll and openvr_api.dll (OpenVR version) or openxr_loader.dll (OpenXR version).", "On Steam, 'Verify integrity of game files' is the cleanest way back to the vanilla state.", "Your saves are untouched - Starfield keeps them outside the game folder.") },
-    @{ Controls="GP"; Title="Stray VR"; VideoUrl="https://youtu.be/pxNbbUyfc9Y?t=20"; Quip="Be the cat. Knock things off ledges in the neon depths."; SteamId="1332010";                        Mod="R.E.A.L."; SteamFolder="Stray"; FallbackPaths=@("EPIC:Stray"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8833"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, stray, cat", "adventure", "exploration", "cyberpunk") ; ModFile="Hk_project\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Hk_project\Binaries\Win64\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Street Fighter 6 VR"; VideoUrl="https://www.youtube.com/watch?v=TqSGRPczCwc"; Quip="Round one. Fight! Throw hands face to face."; SteamId="1364780"; Mod="REF (auto-update)"; SteamFolder="Street Fighter 6"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe="SF6.exe"; Color="#1a0000"; Accent="#ff2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("street fighter 6", "reframework", "praydog", "action", "fast paced", "fighting", "arcade", "competitive"); ModFile="openxr_loader.dll" },
+    @{ BaseGameProofFiles=@('Outlaws.exe');  Controls="GP"; Title="Star Wars Outlaws VR"; VideoUrl="https://www.youtube.com/watch?v=tOv5RlTEx9k"; Quip="Scoundrel's life in a galaxy far, far away - up close."; SteamId="2842040";            Mod="R.E.A.L."; SteamFolder="Star Wars Outlaws"; FallbackPaths=@("EPIC:StarWarsOutlaws", "UBI:Star Wars Outlaws"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8844"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, star wars, outlaws", "open world", "action", "sci-fi") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Starfield.exe');  Controls="GP"; Title="Starfield VR"; VideoUrl="https://youtu.be/3KEH4H-wSI8?t=94"; Roomscale=$true; SteamId="1716740"; Mod="starfield2vr (auto-update)"; GithubRepo="mutars/starfield2vr"; SteamFolder="Starfield"; FallbackPaths=@("XBOX:Starfield", "C:\XboxGames\Starfield\Content", "EPIC:Starfield"); Description="KB&M or Gamepad VR"; Author="mutars"; Bat="StarfieldVR\START_INSTALLER.bat"; Color="#0a1020"; Accent="#4488dd"; InfoUrl="https://github.com/mutars/starfield2vr"; Tags=@("starfield", "bethesda", "space", "fps", "open world", "rpg", "sci-fi", "shooter") ; ModFile="dxgi.dll"; UninstallSteps=@("Delete the files the mod added to the game folder: dxgi.dll and openvr_api.dll (OpenVR version) or openxr_loader.dll (OpenXR version).", "On Steam, 'Verify integrity of game files' is the cleanest way back to the vanilla state.", "Your saves are untouched - Starfield keeps them outside the game folder.") },
+    @{ BaseGameProofFiles=@('Hk_project\Binaries\Win64\Stray-Win64-Shipping.exe');  Controls="GP"; Title="Stray VR"; VideoUrl="https://youtu.be/pxNbbUyfc9Y?t=20"; Quip="Be the cat. Knock things off ledges in the neon depths."; SteamId="1332010";                        Mod="R.E.A.L."; SteamFolder="Stray"; FallbackPaths=@("EPIC:Stray"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc8833"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, stray, cat", "adventure", "exploration", "cyberpunk") ; ModFile="Hk_project\Binaries\Win64\RealRepo\RealVR64.dll"; ModFileAlt="Hk_project\Binaries\Win64\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('StreetFighter6.exe|SF6.exe');  Controls="GP"; Title="Street Fighter 6 VR"; VideoUrl="https://www.youtube.com/watch?v=TqSGRPczCwc"; Quip="Round one. Fight! Throw hands face to face."; SteamId="1364780"; Mod="REF (auto-update)"; SteamFolder="Street Fighter 6"; Description="KB`&M or Gamepad VR"; Author="praydog"; GitHubNightly="praydog/REFramework-nightly"; Bat="REFrameworkVR\START_INSTALLER.bat"; GameExe='StreetFighter6.exe'; Color="#1a0000"; Accent="#ff2200"; InfoUrl="https://github.com/praydog/REFramework"; Tags=@("street fighter 6", "reframework", "praydog", "action", "fast paced", "fighting", "arcade", "competitive"); ModFile="openxr_loader.dll" },
     @{ Controls="GP"; Title="StreetDog BMX VR"; VideoUrl="https://www.youtube.com/watch?v=6n3lxLmrPPA"; SteamId="2707870"; Mod="StreetDogBMX_VR v1.0.0"; SteamFolder="Street Dog BMX"; FallbackPaths=@("STEAM:StreetDogBMX", "STEAM:Streetdog BMX", "STEAM:StreetDog BMX", "STEAM:Street Dog BMX Demo"); GameExe="streetdogbmx.exe"; BaseGameProofFiles=@("streetdogbmx.exe","streetdogbmx_Data\globalgamemanagers"); Description="Discord login required."; Author="Astienth"; Bat="StreetDogBMXVR\START_INSTALLER.bat"; Color="#1a0a08"; Accent="#ff7744"; InfoUrl="https://discord.com/channels/1001138422972432597/1481693413479944417/1481693511601357072"; Tags=@("streetdog bmx", "streetdog", "street dog", "astienth", "racing", "sports", "fast paced", "indie", "bmx", "cartoon"); ModFile="BepInEx\plugins\StreetDogBMX_VR.dll"; VrInstallEvidence=@("BepInEx\plugins\StreetDogBMX_VR.dll","BepInEx\core\BepInEx.Preloader.Core.dll","BepInEx\core\BepInEx.Unity.IL2CPP.dll","BepInEx\plugins\OpenXR.dll","BepInEx\config\UnityVR_Bepinex_IL2CPP.cfg","streetdogbmx_Data\Assets\hands","doorstop_config.ini",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "For complete removal, remove winhttp.dll or winhttp_bak.dll, the Hub version marker and only files installed by the VR package; keep unrelated game files, mods and settings.") },
-    @{ Controls="GP"; Title="Sunrise GP VR"; VideoUrl="https://www.youtube.com/watch?v=yoUHwjvXzmM"; SteamId="2670800"; Mod="SunriseGP_VR v1.0.0"; SteamFolder="Sunrise GP"; FallbackPaths=@("STEAM:SunriseGP", "STEAM:Sunrise GP Demo"); Description="Discord login required."; Author="Astienth"; Bat="SunriseGPVR\START_INSTALLER.bat"; Color="#180a08"; Accent="#ffaa66"; InfoUrl="https://discord.com/channels/1001138422972432597/1362074365952528494/1362074365952528494"; Tags=@("sunrise gp", "sunrisegp", "astienth", "racing", "cell shading", "cel-shaded", "arcade", "indie", "cartoon"); ModFile="BepInEx\plugins\SunriseGP_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
+    @{ BaseGameProofFiles=@('Sunrise GP.exe');  Controls="GP"; Title="Sunrise GP VR"; VideoUrl="https://www.youtube.com/watch?v=yoUHwjvXzmM"; SteamId="2670800"; Mod="SunriseGP_VR v1.0.0"; SteamFolder="Sunrise GP"; FallbackPaths=@("STEAM:SunriseGP", "STEAM:Sunrise GP Demo"); Description="Discord login required."; Author="Astienth"; Bat="SunriseGPVR\START_INSTALLER.bat"; Color="#180a08"; Accent="#ffaa66"; InfoUrl="https://discord.com/channels/1001138422972432597/1362074365952528494/1362074365952528494"; Tags=@("sunrise gp", "sunrisegp", "astienth", "racing", "cell shading", "cel-shaded", "arcade", "indie", "cartoon"); ModFile="BepInEx\plugins\SunriseGP_VR.dll"; UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll and the BepInEx folder from the folder the mod was installed into.") },
     @{
         Controls    = "VRGP"
         Title       = "Super Mario 64 VR"
@@ -7319,8 +7642,8 @@ $ownGamesGP = @(
         Tags=@("thehunter", "call of the wild", "hunting", "hunt", "wildlife", "outdoor", "simulation", "sim", "open world", "expansive worlds", "avalanche", "vaas993", "openxr", "dlss", "wip")
     },
     @{ Controls="GP"; Title="Tinykin VR"; VideoUrl="https://www.youtube.com/watch?v=YAD5O90SsFU"; SteamId="1599020"; Mod="TinykinVR v1.0.0"; SteamFolder="Tinykin"; GameExe="Tinykin.exe"; BaseGameProofFiles=@("Tinykin.exe","Tinykin_Data\globalgamemanagers"); FallbackPaths=@("STEAM:Tinykin Demo", "STEAM:TinykinDemo", "GOG:Tinykin"); Description="Discord login, depth only"; Author="Astienth"; Bat="TinykinVR\START_INSTALLER.bat"; Color="#0f180a"; Accent="#ff7733"; InfoUrl="https://discord.com/channels/1001138422972432597/1276919154678693908/1276919154678693908"; Tags=@("tinykin", "astienth", "tinybuild", "platformer", "3d platformer", "puzzle", "collectathon", "cute", "cartoon", "stylized", "indie", "story", "exploration", "depth"); ModFile="BepInEx\plugins\TinykinVR.dll"; VrInstallEvidence=@("BepInEx\plugins\TinykinVR.dll","BepInEx\core\BepInEx.Preloader.dll","BepInEx\core\BepInEx.dll","BepInEx\config\UnityVR_Bepinex.cfg","Tinykin_Data\Plugins\x86_64\openvr_api.dll","Tinykin_Data\Plugins\x86_64\openxr_loader.dll","doorstop_config.ini",".pcvrhub_version"); VrInstallEvidenceRoutes=@(@{Files=@("winhttp.dll")},@{Files=@("winhttp_bak.dll")}); UninstallSteps=@("To play flat without removing anything, use the Flat / VR switch on this game's page in the Hub - it parks the mod's loader for you, and one click brings VR back.", "To remove it completely, delete winhttp.dll or winhttp_bak.dll, the Hub version marker and only the Hub-installed BepInEx/runtime files; keep unrelated game files and user settings.") },
-    @{ Controls="GP"; Title="TLOU Part I VR"; VideoUrl="https://youtu.be/8jTfVwXV9PQ?t=35"; Quip="Joel and Ellie's road through a cordyceps America."; SteamId="1888930";                  Mod="R.E.A.L."; SteamFolder="The Last of Us Part I"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a7a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="TLOU Part II VR"; VideoUrl="https://www.youtube.com/watch?v=vOIFCTiwinI"; Quip="The cycle of revenge, told at arm's length. Brace yourself."; SteamId="2531310";                 Mod="R.E.A.L."; SteamFolder="The Last of Us Part II Remastered"; FallbackPaths=@("STEAM:The Last of Us Part II"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a6a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('tlou-i.exe');  Controls="GP"; Title="TLOU Part I VR"; VideoUrl="https://youtu.be/8jTfVwXV9PQ?t=35"; Quip="Joel and Ellie's road through a cordyceps America."; SteamId="1888930";                  Mod="R.E.A.L."; SteamFolder="The Last of Us Part I"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#5a7a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('tlou-ii.exe|tlou-ii-l.exe|t2r-steam-final-pgo-lto.exe|t2r-epic-final-pgo-lto.exe');  Controls="GP"; Title="TLOU Part II VR"; VideoUrl="https://www.youtube.com/watch?v=vOIFCTiwinI"; Quip="The cycle of revenge, told at arm's length. Brace yourself."; SteamId="2531310";                 Mod="R.E.A.L."; SteamFolder="The Last of Us Part II Remastered"; FallbackPaths=@("STEAM:The Last of Us Part II"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a6a3a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, last of us, tlou", "action", "survival", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
     @{
         Id="trackmania-nations-forever"; Controls="GP"; Title="TrackMania Nations Forever"; SteamId="11020"
         FreeBaseGame=$true
@@ -7368,8 +7691,8 @@ $ownGamesGP = @(
         )
         Tags=@("trackmania united forever","tmuf","trackmania","nadeo","racing","arcade","time trial","seven environments","openxr","head tracking","gamepad","keyboard")
     },
-    @{ Controls="GP"; Title="Uncharted: Legacy of Thieves VR"; VideoUrl="https://youtu.be/lElCQV_S-4A?t=181"; Quip="Sic parvis magna. Nate's last climbs, life-size."; SteamId="1659420"; Mod="R.E.A.L."; SteamFolder="Uncharted Legacy of Thieves Collection"; FallbackPaths=@("EPIC:UnchartedLegacyOfThievesCollection", "EPIC:Uncharted Legacy of Thieves Collection"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a6a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, uncharted", "action", "adventure", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
-    @{
+    @{ BaseGameProofFiles=@('u4.exe');  Controls="GP"; Title="Uncharted: Legacy of Thieves VR"; VideoUrl="https://youtu.be/lElCQV_S-4A?t=181"; Quip="Sic parvis magna. Nate's last climbs, life-size."; SteamId="1659420"; Mod="R.E.A.L."; SteamFolder="Uncharted Legacy of Thieves Collection"; FallbackPaths=@("EPIC:UnchartedLegacyOfThievesCollection", "EPIC:Uncharted Legacy of Thieves Collection"); Description="KB`&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#8a6a2a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, uncharted", "action", "adventure", "story") ; ModFile="RealRepo\RealVR64.dll"; ModFileAlt="RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('Unmourned.exe'); 
         Controls    = "VRGP"
         Title       = "Unmourned VR"
         VideoUrl    = "https://www.youtube.com/watch?v=dHJtCVme-mw"
@@ -7392,10 +7715,10 @@ $ownGamesGP = @(
         LaunchExe   = "Unmourned.exe"
         Tags=@("unmourned", "astienth", "horror", "story", "narrative", "atmospheric", "visage")
     },
-    @{ Controls="GP"; Title="Watch Dogs VR"; VideoUrl="https://youtu.be/qUWwPB5by3s?t=504"; Quip="Hack Chicago from the inside. The city's in your palm."; SteamId="243470"; PortraitUrl="Assets/WatchDogs1_portrait.jpg"; Mod="R.E.A.L."; SteamFolder="Watch_Dogs"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a7aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Watch Dogs 2 VR"; VideoUrl="https://www.youtube.com/watch?v=NDtGUJV4iMU"; Quip="DedSec needs you, Marcus. Hack all of San Francisco."; SteamId="447040";                 Mod="R.E.A.L."; SteamFolder="Watch_Dogs2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa6a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Watch Dogs Legion VR"; VideoUrl="https://youtu.be/qCktuvWwys8?t=62"; Quip="Recruit anyone. Take back a near-future London."; SteamId="2239550";            Mod="R.E.A.L."; SteamFolder="Watch Dogs Legion"; FallbackPaths=@("STEAM:WatchDogs_Legion"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4488"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "sandbox") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
-    @{ Controls="GP"; Title="Witcher 3 VR"; VideoUrl="https://x.com/BadHostile/status/2082683764757426437/video/1"; Quip="Toss a coin to your Witcher - and stand in Velen yourself."; SteamId="292030"; Mod="Witcher3VR (auto-update)"; GithubRepo="tig3rmast3r/witcher3-vr"; GithubPrerelease=$true; Description="Gamepad or KB&M, DX12 only"; Author="tig3rmast3r"; Bat="Witcher3VR\START_INSTALLER.bat"; Color="#12100c"; Accent="#b8973f"; InfoUrl="https://github.com/tig3rmast3r/witcher3-vr"; DownloadUrl="https://github.com/tig3rmast3r/witcher3-vr/releases"; SteamFolder="The Witcher 3"; FallbackPaths=@("STEAM:The Witcher 3 Game of the Year Edition", "GOG:The Witcher 3 Wild Hunt", "GOG:The Witcher 3 Wild Hunt GOTY", "EPIC:TheWitcher3"); ModFile="bin\x64_dx12\dxgi.dll"; LaunchExe="bin\x64_dx12\Witcher3VRLauncher.exe"; Tags=@("witcher 3", "the witcher", "witcher3", "wild hunt", "geralt", "cd projekt", "tig3rmast3r", "rpg", "open world", "action", "story", "atmospheric", "fantasy", "medieval", "dx12") },
+    @{ BaseGameProofFiles=@('bin\watch_dogs.exe');  Controls="GP"; Title="Watch Dogs VR"; VideoUrl="https://youtu.be/qUWwPB5by3s?t=504"; Quip="Hack Chicago from the inside. The city's in your palm."; SteamId="243470"; PortraitUrl="Assets/WatchDogs1_portrait.jpg"; Mod="R.E.A.L."; SteamFolder="Watch_Dogs"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#3a7aaa"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('bin\WatchDogs2.exe');  Controls="GP"; Title="Watch Dogs 2 VR"; VideoUrl="https://www.youtube.com/watch?v=NDtGUJV4iMU"; Quip="DedSec needs you, Marcus. Hack all of San Francisco."; SteamId="447040";                 Mod="R.E.A.L."; SteamFolder="Watch_Dogs2"; Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#33aa6a"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "action") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('bin\WatchDogsLegion.exe');  Controls="GP"; Title="Watch Dogs Legion VR"; VideoUrl="https://youtu.be/qCktuvWwys8?t=62"; Quip="Recruit anyone. Take back a near-future London."; SteamId="2239550";            Mod="R.E.A.L."; SteamFolder="Watch Dogs Legion"; FallbackPaths=@("STEAM:WatchDogs_Legion"); Description="KB&M or Gamepad VR"; Author="Luke Ross"; Bat="LukeRossVR\LukeRossVR-core.ps1"; Color="#1a1700"; Accent="#cc4488"; InfoUrl="https://www.patreon.com/realvr"; Tags=@("luke ross, watch dogs", "open world", "hacking", "sandbox") ; ModFile="bin\RealRepo\RealVR64.dll"; ModFileAlt="bin\RealRepo_\RealVR64.dll" },
+    @{ BaseGameProofFiles=@('redprelauncher.exe');  Controls="GP"; Title="Witcher 3 VR"; VideoUrl="https://x.com/BadHostile/status/2082683764757426437/video/1"; Quip="Toss a coin to your Witcher - and stand in Velen yourself."; SteamId="292030"; Mod="Witcher3VR (auto-update)"; GithubRepo="tig3rmast3r/witcher3-vr"; GithubPrerelease=$true; Description="Gamepad or KB&M, DX12 only"; Author="tig3rmast3r"; Bat="Witcher3VR\START_INSTALLER.bat"; Color="#12100c"; Accent="#b8973f"; InfoUrl="https://github.com/tig3rmast3r/witcher3-vr"; DownloadUrl="https://github.com/tig3rmast3r/witcher3-vr/releases"; SteamFolder="The Witcher 3"; FallbackPaths=@("STEAM:The Witcher 3 Game of the Year Edition", "GOG:The Witcher 3 Wild Hunt", "GOG:The Witcher 3 Wild Hunt GOTY", "EPIC:TheWitcher3"); ModFile="bin\x64_dx12\dxgi.dll"; LaunchExe="bin\x64_dx12\Witcher3VRLauncher.exe"; Tags=@("witcher 3", "the witcher", "witcher3", "wild hunt", "geralt", "cd projekt", "tig3rmast3r", "rpg", "open world", "action", "story", "atmospheric", "fantasy", "medieval", "dx12") },
     @{
         Id="x4-foundations-vr"; Controls="GP"; Title="X4: Foundations VR"; TileTitle="X4: Foundations"; Wip=$true; SteamId="392160"; SteamFolder="X4 Foundations"; HubAddedAt="2026-10-02"; VideoUrl="https://youtu.be/WtEfB7KPiTw"; VideoLabel="Watch VR gameplay"
         Quip="Profitssss are better when you can see the whole sector."; QuipLast=$true
@@ -7411,7 +7734,7 @@ $ownGamesGP = @(
         UninstallSteps=@("Close X4 and the launcher, then use Uninstall now to remove unchanged Hub-owned VR files and restore backed-up collisions.","The FreeTrack value is changed only if it still points to X4 VR. X4, saves, user settings and unrelated extensions remain.")
         Tags=@("space","simulation","open world","x4","x4 foundations","x4 vr","toffelskater","egosoft","cockpit","head tracking","steamvr","openxr","keyboard","mouse","gamepad")
     },
-    @{ Controls="GP"; Title="Yooka-Laylee VR"; VideoUrl="https://youtu.be/6dPRxLQFETo?t=89"; SteamId="360830"; Mod="VookaRaylee v0.3"; SteamFolder="YookaLaylee"; FallbackPaths=@("C:\Games\Yooka-Laylee VR", "STEAM_CONTENT\YookaLaylee-VR", "GOG:Yooka-Laylee"); DepotInstall=$true; DualMode=$true; DepotPath="C:\Games\Yooka-Laylee VR"; DepotLaunchExe="YookaLaylee64.exe"; DepotLaunchArgs=""; Description="Optional Steam depot version."; Author="Eusth"; Bat="YookaLayleeVR\START_INSTALLER.bat"; Color="#0a1a10"; Accent="#44cc88"; InfoUrl="https://github.com/Eusth/VookaRaylee"; Tags=@("yooka", "laylee", "vooka", "raylee", "platformer", "collectathon", "cartoon") ; ModFile="IPA.exe"; LaunchExe="YookaLaylee64.exe"; UninstallSteps=@("If you modded your own Steam copy, run 'IPA.exe --revert' in the game folder. Use Steam Verify only if the revert cannot restore an original file.", "For the separate depot copy, back up saves, settings and anything you added; then verify the selected folder is the dedicated Yooka-Laylee VR copy before removing it and its shortcut.", "Never delete the normal Steam or GOG game folder just to remove VookaRaylee.") },
+    @{ BaseGameProofFiles=@('YookaLaylee64.exe');  Controls="GP"; Title="Yooka-Laylee VR"; VideoUrl="https://youtu.be/6dPRxLQFETo?t=89"; SteamId="360830"; Mod="VookaRaylee v0.3"; SteamFolder="YookaLaylee"; FallbackPaths=@("C:\Games\Yooka-Laylee VR", "STEAM_CONTENT\YookaLaylee-VR", "GOG:Yooka-Laylee"); DepotInstall=$true; DualMode=$true; DepotPath="C:\Games\Yooka-Laylee VR"; DepotLaunchExe="YookaLaylee64.exe"; DepotLaunchArgs=""; Description="Optional Steam depot version."; Author="Eusth"; Bat="YookaLayleeVR\START_INSTALLER.bat"; Color="#0a1a10"; Accent="#44cc88"; InfoUrl="https://github.com/Eusth/VookaRaylee"; Tags=@("yooka", "laylee", "vooka", "raylee", "platformer", "collectathon", "cartoon") ; ModFile="IPA.exe"; LaunchExe="YookaLaylee64.exe"; UninstallSteps=@("If you modded your own Steam copy, run 'IPA.exe --revert' in the game folder. Use Steam Verify only if the revert cannot restore an original file.", "For the separate depot copy, back up saves, settings and anything you added; then verify the selected folder is the dedicated Yooka-Laylee VR copy before removing it and its shortcut.", "Never delete the normal Steam or GOG game folder just to remove VookaRaylee.") },
     @{
         Id="kingdom-come-deliverance-vr"; Controls="GP"; Title="Kingdom Come: Deliverance VR"; Wip=$true; SteamId="379430"; HubAddedAt="2026-09-21"
         VideoUrl="https://youtu.be/oSkDdZKN0UY?si=pmD-Ht3bNmItNzx3&t=24"; VideoLabel="Watch gameplay"; Quip="Henry has come to see us, now in experimental stereo."
@@ -7445,7 +7768,7 @@ $ownGamesGP = @(
         VideoUrl="https://youtu.be/gz7iiS6ItOw?si=I-QrlCXlecm-gYW5&t=211"; VideoLabel="Watch VR gameplay"; Quip="The City keeps its shadows, now with real depth."
         Mod="ThiefVR (auto-update)"; GithubRepo="farmerarmor/ThiefVR"; GithubPrerelease=$true; Description="Gamepad or KB&M, Steam 1.7"; Author="farmerarmor"
         Bat="Thief2014VR\START_INSTALLER.bat"; Color="#101417"; Accent="#6fa0b5"; InfoUrl="https://github.com/farmerarmor/ThiefVR"; ModPageUrl="https://github.com/farmerarmor/ThiefVR"; DownloadUrl="https://github.com/farmerarmor/ThiefVR/releases"
-        SteamFolder="Thief"; GameExe="Binaries2\Win64\Shipping-ThiefGame.exe"; BaseGameProofFiles=@("Binaries2\Win64\Shipping-ThiefGame.exe","ThiefGame\Config\DefaultEngine.ini")
+        SteamFolder="Thief"; GameExe='binaries\win64\shipping-thiefgame.exe'; BaseGameProofFiles=@('binaries\win64\shipping-thiefgame.exe|binaries\win32\shipping-thiefgame.exe|Binaries2\Win64\Shipping-ThiefGame.exe','ThiefGame\Config\DefaultEngine.ini')
         FallbackPaths=@("GOG:Thief Definitive Edition","C:\Program Files (x86)\GOG Galaxy\Games\Thief Definitive Edition","C:\GOG Games\Thief Definitive Edition")
         ModFile="Binaries2\Win64\d3d11.dll"; VrInstallEvidence=@("Binaries2\Win64\atidxx64.dll","Binaries2\Win64\ThiefVR-HubLauncher\dist\ThiefVRLauncher.exe","Binaries2\Win64\Start Thief VR.bat",".pcvrhub_thief2014vr_ownership.csv")
         LaunchExe="Binaries2\Win64\Start Thief VR.bat"; NeverSteamLaunch=$true
@@ -7460,7 +7783,7 @@ $ownGamesGP = @(
 # External installers - alphabetical (HL episodes under Half-Life)
 # -------------------------------------------------------
 $externalGames = @(
-    @{
+    @{ BaseGameProofFiles=@('bin32\crysis.exe|bin64\crysis.exe'); 
         Controls    = "MC"
         Title       = "Crysis VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=SBVVxYHqEZw"
@@ -7511,7 +7834,7 @@ $externalGames = @(
         Type        = "external"
         Tags        = @("dolphin", "emulator", "gamecube", "wii", "nintendo", "redux", "xr", "platformer", "3d platformer", "collectathon", "cartoon", "adventure")
     },
-    @{
+    @{ BaseGameProofFiles=@('Bin32\FarCry.exe'); 
         Controls    = "MC"
         Title       = "Far Cry VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/8sD5DVkP9vI?t=232"
@@ -7540,7 +7863,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:Far Cry", "UBI:Far Cry")
         Tags        = @("far cry", "farcry", "fps", "action", "tropical")
     },
-    @{
+    @{ BaseGameProofFiles=@('Fallout4VR.exe'); 
         Controls    = "MC"
         Title       = "Fallout 4 VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=Cd_PspM6Zv8"
@@ -7564,7 +7887,7 @@ $externalGames = @(
         SteamFolder = "Fallout 4 VR"
         Tags = @("fallout", "fallout 4", "fo4", "fo4vr", "wabbajack", "modlist", "essentials", "fallout london", "london", "fps", "rpg", "post-apocalyptic", "bethesda")
     },
-    @{
+    @{ BaseGameProofFiles=@('firewatch.exe'); 
         Controls    = "MC"
         Title       = "Firewatch VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=IsogQcYer34"
@@ -7593,7 +7916,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:Firewatch", "EPIC:Firewatch", "C:\Program Files\WindowsApps\CampoSanto.Firewatch_*_x64__1traspxf3h47a")
         Tags        = @("two forks vr", "fire watch", "adventure", "narrative", "exploration")
     },
-    @{
+    @{ BaseGameProofFiles=@('fs2.exe|root_fs2.vp|data\root_fs2.vp'); 
         Controls    = "GP"
         Title       = "Freespace 2 VR"
         VideoUrl    = "https://www.youtube.com/watch?v=1WE2lalntY4"
@@ -7626,7 +7949,7 @@ $externalGames = @(
         LaunchExe   = "Knossos.NET.exe"
         Tags        = @("freespace 2", "freespace", "fs2", "knossos", "freespace open", "space", "space combat", "flight", "shooter", "sim", "simulation", "scifi")
     },
-    @{
+    @{ BaseGameProofFiles=@('hl.exe|HLVRConfig.exe'); 
         Controls    = "MC"
         Title       = "Half-Life VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=vFLoijYWR0o"
@@ -7647,7 +7970,7 @@ $externalGames = @(
         ModFile     = "HLVRConfig.exe"
         Tags=@("half-life", "hl1", "half life vr", "fps", "shooter", "story")
     },
-    @{
+    @{ BaseGameProofFiles=@('hl2vr.exe'); 
         Controls    = "MC"
         Title       = "Half-Life 2 VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=fvfzbTDBQo4"
@@ -7674,7 +7997,7 @@ $externalGames = @(
         AddonSupportUrl = "https://ko-fi.com/vittorioromeo"
         Tags        = @("half life", "hl", "hl2", "fps", "story", "sci-fi")
     },
-    @{
+    @{ BaseGameProofFiles=@('ep1vr.exe'); 
         Controls    = "MC"
         Title       = "HL2 VR Ep. One"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/_zYMxlv89tY?t=1046"
@@ -7700,7 +8023,7 @@ $externalGames = @(
         AddonSupportUrl = "https://ko-fi.com/vittorioromeo"
         Tags=@("half life", "half-life", "hl", "hl2", "episode one", "ep1", "fps", "shooter", "story")
     },
-    @{
+    @{ BaseGameProofFiles=@('ep2vr.exe'); 
         Controls    = "MC"
         Title       = "HL2 VR Ep. Two"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/RygwA7sekT8?t=327"
@@ -7749,7 +8072,7 @@ $externalGames = @(
         ModPageUrl  = "https://github.com/LivingFray/HaloCEVR"
         Tags        = @("halo", "ce", "combat evolved", "fps", "sci-fi", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('GameData\jasp.exe|GameData\jamp.exe'); 
         Controls    = "MC"
         Title       = "Jedi Knight: Jedi Academy VR"
         VideoUrl    = "https://www.youtube.com/watch?v=R49DOJ-8C3E"
@@ -7777,7 +8100,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:Star Wars Jedi Knight Jedi Academy", "GOG:Jedi Academy")
         Tags        = @("jedi knight", "jedi academy", "jkxr", "star wars", "action", "lightsaber", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('GameData\jk2sp.exe|GameData\jk2mp.exe'); 
         Controls    = "MC"
         Title       = "Jedi Knight: Jedi Outcast VR"
         VideoUrl    = "https://www.youtube.com/watch?v=y45lFMFjPjk"
@@ -7806,7 +8129,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:Star Wars Jedi Knight II Jedi Outcast", "GOG:Jedi Outcast")
         Tags        = @("jedi knight", "jedi outcast", "jkxr", "star wars", "action", "lightsaber", "shooter")
     },
-    @{
+    @{ BaseGameProofFiles=@('Data Files\Morrowind.esm'); 
         Controls    = "MC"
         Title       = "Morrowind VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/RkmQvMFXTC8?t=224"
@@ -7827,7 +8150,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:The Elder Scrolls III Morrowind GOTY", "GOG:Morrowind")
         Tags        = @("morrowind", "openmw", "elder scrolls", "rpg", "open world", "fantasy")
     },
-    @{
+    @{ BaseGameProofFiles=@('Neon White.exe'); 
         Controls    = "MC"
         Title       = "Neon White VR"
         VideoUrl    = "https://youtu.be/ZrK9H13Ns0E?t=845"
@@ -7852,7 +8175,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:Neon White", "EPIC:NeonWhite", "C:\Program Files\WindowsApps\AnnapurnaInteractive.NeonWhite_*_x64__c96c51jf6wkvm")
         Tags        = @("heaven vr", "neon", "fps", "platformer", "speedrun")
     },
-    @{
+    @{ BaseGameProofFiles=@('bin\win64\p2ce.exe'); 
         Controls    = "MC"
         Title       = "Portal 2: Community Edition VR"; Roomscale=$true
         VideoUrl    = "https://youtu.be/TSAxFKKckes?t=101"
@@ -7871,7 +8194,7 @@ $externalGames = @(
         ReadmeDir   = "Portal2CEVR"
         Tags        = @("portal 2", "portal", "community edition", "p2ce", "puzzle", "physics", "first-person", "source", "valve")
     },
-    @{
+    @{ BaseGameProofFiles=@('Receiver2.exe'); 
         Controls    = "MC"
         Title       = "Receiver 2 VR"
         VideoUrl    = "https://www.youtube.com/watch?v=596DdJhwrc4"
@@ -7893,7 +8216,7 @@ $externalGames = @(
         FallbackPaths=@("STEAM:Receiver 2")
         Tags        = @("receiver 2", "receiver2", "wolfire", "shooter", "fps", "survival", "simulation", "guns", "beta branch", "vr_release_candidate")
     },
-    @{
+    @{ BaseGameProofFiles=@('re2.exe'); 
         Controls    = "MC"
         Title       = "Resident Evil 2R VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/VtIgVsKPi4I?t=421"
@@ -7915,7 +8238,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:Resident Evil 2", "STEAM:RESIDENT EVIL 2 (BIOHAZARD RE2)")
         Tags        = @("re2", "resident", "resident evil", "horror", "survival", "zombies")
     },
-    @{
+    @{ BaseGameProofFiles=@('re3.exe'); 
         Controls    = "MC"
         Title       = "Resident Evil 3R VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/a7tj5TUKZXk?t=145"
@@ -7934,10 +8257,10 @@ $externalGames = @(
         Type        = "external"
         ModFile     = "dinput8.dll"
         SteamFolder = "RESIDENT EVIL 3 BIOHAZARD RE3"
-        FallbackPaths=@("EPIC:Resident Evil 3", "STEAM:RESIDENT EVIL 3")
+        FallbackPaths=@('EPIC:Resident Evil 3','STEAM:RESIDENT EVIL 3','STEAM:RE3')
         Tags        = @("re3", "resident", "resident evil", "horror", "survival", "action")
     },
-    @{
+    @{ BaseGameProofFiles=@('re4.exe'); 
         Controls    = "MC"
         Title       = "Resident Evil 4R VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=0c8DOFXCzyU"
@@ -7966,7 +8289,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:Resident Evil 4", "STEAM:RESIDENT EVIL 4")
         Tags        = @("re4", "resident", "resident evil", "biohazard", "action", "horror", "shooter", "praydog", "talemann", "reframework")
     },
-    @{
+    @{ BaseGameProofFiles=@('re7.exe'); 
         Controls    = "MC"
         Title       = "Resident Evil 7 VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=rpYwsYfV0rY"
@@ -7988,7 +8311,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:Resident Evil 7 - Biohazard")
         Tags        = @("re7", "resident", "resident evil", "biohazard", "horror", "survival", "first-person")
     },
-    @{
+    @{ BaseGameProofFiles=@('re8.exe'); 
         Controls    = "MC"
         Title       = "RE Village VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://youtu.be/dgVd2VWZP5Y?t=350"
@@ -8010,7 +8333,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:Resident Evil Village", "STEAM:Resident Evil Village (BIOHAZARD VILLAGE)")
         Tags        = @("re8", "resident", "resident evil", "village", "horror", "survival", "action")
     },
-    @{
+    @{ BaseGameProofFiles=@('re9.exe'); 
         Controls    = "MC"
         Title       = "RE Requiem VR"; Roomscale=$true; Gem=$true
         VideoUrl    = "https://www.youtube.com/watch?v=tKXprWFgPQE"
@@ -8057,7 +8380,7 @@ $externalGames = @(
         Type        = "external"
         Tags        = @("retro", "emulation", "ps3-emulator", "rpcs3", "playstation 3", "ps3", "emulator", "openxr", "stereo", "wip")
     },
-    @{
+    @{ BaseGameProofFiles=@('Shipbreaker.exe'); 
         Controls    = "GP"
         Title       = "Shipbreaker VR"
         VideoUrl    = "https://www.youtube.com/watch?v=UGGtz1lYMNw"
@@ -8082,7 +8405,7 @@ $externalGames = @(
         FallbackPaths=@("GOG:Hardspace Shipbreaker", "EPIC:HardspaceShipbreaker", "C:\Program Files\WindowsApps\FocusHomeInteractiveSA.HardspaceShipbreaker-PCVers_*_x64__4hny5m903y3g0")
         Tags        = @("shipbreaker vr", "hardspace", "hardspace shipbreaker", "shipbreaker", "simulation", "sim", "space", "physics")
     },
-    @{
+    @{ BaseGameProofFiles=@('SkyrimVR.exe'); 
         Controls    = "MC"
         Title       = "Skyrim VR"; Roomscale=$true
         VideoUrl    = "https://www.youtube.com/watch?v=mDO7fpE7lf8"
@@ -8105,7 +8428,7 @@ $externalGames = @(
         SteamFolder = "SkyrimVR"
         Tags = @("skyrim", "skyrim vr", "tes", "elder scrolls", "wabbajack", "modlist", "mad god overhaul", "mgo", "rpg", "fantasy", "bethesda", "open world")
     },
-    @{
+    @{ BaseGameProofFiles=@('The Stanley Parable Ultra Deluxe.exe'); 
         Controls    = "MC"
         Title       = "Stanley Parable VR"
         VideoUrl    = "https://youtu.be/iYt0YlLFjYI?t=88"
@@ -8131,7 +8454,7 @@ $externalGames = @(
         FallbackPaths=@("EPIC:TheStanleyParableUltraDeluxe", "GOG:The Stanley Parable Ultra Deluxe", "XBOX:The Stanley Parable- Ultra Deluxe")
         Tags        = @("stanley", "narrative", "comedy", "exploration")
     },
-    @{
+    @{ BaseGameProofFiles=@('remastered\XWING95.EXE|XWING95.EXE|classic\XWING.EXE|XWING.EXE'); 
         Controls    = "GP"
         Title       = "Star Wars: X-Wing VR"
         VideoUrl    = "https://www.youtube.com/watch?v=xMQDxxXCUUQ"
@@ -8253,6 +8576,7 @@ foreach ($__ug in (@($ownGames) + @($ownGamesGP) + @($externalGames))) {
 # It deliberately sits after all catalog post-processing but before FREE/NEW
 # derivation so every downstream consumer sees the same ordered game objects.
 if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot "CatalogIndex.ps1")) } else { . (Join-Path $PSScriptRoot "CatalogIndex.ps1") }
+if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot "CatalogMedia.ps1")) } else { . (Join-Path $PSScriptRoot "CatalogMedia.ps1") }
 if (Get-Command Get-HubModuleScript -ErrorAction SilentlyContinue) { . (Get-HubModuleScript (Join-Path $PSScriptRoot "DiscordChannels.ps1")) } else { . (Join-Path $PSScriptRoot "DiscordChannels.ps1") }
 
 # ROM search uses an explicit game requirement. Retro-style tags and names

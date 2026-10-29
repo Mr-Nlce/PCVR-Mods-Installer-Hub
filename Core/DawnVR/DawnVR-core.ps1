@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Life is Strange: Before the Storm - DawnVR Mod Installer
 # ============================================================
 
@@ -10,7 +10,7 @@ $ErrorActionPreference = "Stop"
 
 $GAME_APPID      = "554620"
 $GAME_NAME       = "Life Is Strange - Before the Storm"
-$GAME_EXE        = "Life is Strange- Before the Storm.exe"
+$GAME_EXE        = "Life is Strange - Before the Storm.exe"
 $GAME_EXE_ALT    = "Life is Strange - Before the Storm Remastered.exe"
 
 $MELONLOADER_URL      = "https://github.com/LavaGang/MelonLoader/releases/download/v0.5.7/MelonLoader.x64.zip"
@@ -47,7 +47,7 @@ function Get-SteamPath {
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try {
             $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
-            if ($p -and (Test-Path $p)) { return $p }
+            if ($p -and (Test-Path -LiteralPath $p)) { return $p }
         } catch {}
     }
     return $null
@@ -57,12 +57,12 @@ function Get-SteamLibraries {
     param($steamPath)
     $libraries = @($steamPath)
     $vdfPath = Join-Path $steamPath "steamapps\libraryfolders.vdf"
-    if (Test-Path $vdfPath) {
-        $content = Get-Content $vdfPath -Raw
+    if (Test-Path -LiteralPath $vdfPath) {
+        $content = Get-Content -LiteralPath $vdfPath -Raw
         $found = [regex]::Matches($content, '"path"\s+"([^"]+)"')
         foreach ($m in $found) {
             $lib = $m.Groups[1].Value -replace '\\\\', '\'
-            if (Test-Path $lib) { $libraries += $lib }
+            if (Test-Path -LiteralPath $lib) { $libraries += $lib }
         }
     }
     return $libraries
@@ -72,7 +72,7 @@ function Find-GamePath {
     param($libraries)
     foreach ($lib in $libraries) {
         $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
-        if (Test-Path $candidate) { return $candidate }
+        if (Test-Path -LiteralPath $candidate) { return $candidate }
     }
     return $null
 }
@@ -81,8 +81,8 @@ function Find-GameExe {
     param($gamePath)
     $base     = Join-Path $gamePath $GAME_EXE
     $remaster = Join-Path $gamePath $GAME_EXE_ALT
-    if (Test-Path $base)     { return $base }
-    if (Test-Path $remaster) { return $remaster }
+    if (Test-Path -LiteralPath $base)     { return $base }
+    if (Test-Path -LiteralPath $remaster) { return $remaster }
     $found = Get-ChildItem -Path $gamePath -Filter "Life is Strange*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($found) { return $found.FullName }
     return $null
@@ -131,7 +131,7 @@ Write-Step 2 4 "Locating Life is Strange: Before the Storm"
 $gamePath = $null
 try {
     $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
-    if (Test-Path $__utilsPath) {
+    if (Test-Path -LiteralPath $__utilsPath) {
         . $__utilsPath
         $gamePath = Try-FindSteamGame -Folder $GAME_NAME -Title "Life is Strange: BtS"
     }
@@ -152,7 +152,7 @@ if (-not $gamePath) {
     Write-Host "  Example: C:\Program Files (x86)\Steam\steamapps\common\Life Is Strange - Before the Storm" -ForegroundColor Gray
     while (-not $gamePath) {
         $rawInput = (Read-Host "  Game path").Trim().Trim('"')
-        if (Test-Path $rawInput) {
+        if (Test-Path -LiteralPath $rawInput) {
             $gamePath = $rawInput
             $userSelectedGamePath = $true
             Write-OK "Game path set: $gamePath"
@@ -165,6 +165,8 @@ if (-not $gamePath) {
 }
 
 $requiredExe = if ($edition -eq '1') { $GAME_EXE } else { $GAME_EXE_ALT }
+if($edition -eq '1' -and -not (Test-Path -LiteralPath (Join-Path $gamePath $requiredExe) -PathType Leaf) -and
+    (Test-Path -LiteralPath (Join-Path $gamePath 'Life is Strange- Before the Storm.exe') -PathType Leaf)){$requiredExe='Life is Strange- Before the Storm.exe'}
 $gameExe = if (Test-Path -LiteralPath (Join-Path $gamePath $requiredExe) -PathType Leaf) { Join-Path $gamePath $requiredExe } else { $null }
 if ($gameExe) {
     Write-OK "Game executable: $(Split-Path $gameExe -Leaf)"

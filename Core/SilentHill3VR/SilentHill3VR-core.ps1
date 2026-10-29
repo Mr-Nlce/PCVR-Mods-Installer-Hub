@@ -1,4 +1,4 @@
-# Silent Hill 3 VR - safe three-component installer.
+﻿# Silent Hill 3 VR - safe three-component installer.
 # Downloads are acquired at run time. No mod archive is bundled with the Hub.
 
 $ErrorActionPreference = "Stop"
@@ -118,7 +118,7 @@ function Get-LatestVRRelease {
         # retain GitHub's JSON array as one nested object in that form, so the
         # release loop never reaches .assets and silently falls back to an old
         # package. Materialize the response first, then normalize it.
-        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
+        $response = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases" -Headers @{"User-Agent"="PCVR-Mods-Hub"} -TimeoutSec 25 -ErrorAction Stop
         $releases = @($response)
         foreach ($release in $releases) {
             if ($release.draft) { continue }

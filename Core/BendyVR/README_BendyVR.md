@@ -1,101 +1,74 @@
-# Bendy and the Ink Machine - VR
+﻿# Bendy and the Ink Machine - VR
 
-Full VR conversion with motion controls for the cartoon horror
-adventure. This is Team Beef's first PCVR mod.
+## About the Game
+Explore Joey Drew Studios, solve its ink-stained puzzles and discover what became of the old animation workshop. Motion-controlled hands bring its doors, weapons and machinery within reach.
 
-## Important: which game build
+## Choose your mod
+1. InkVR by StrikeZoneVR is recommended for the current Steam game. It uses OpenXR, physical interactions, tracked hands and body, and VR versions of the chapters and Archives. No depot download is needed.
+2. Team Beef BendyVR 1.2.2 uses a separate, fixed Steam depot, normally C:\Games\Bendy VR or your chosen folder. The game build and mod version stay pinned. Existing depot installations remain usable.
 
-The current Steam build of Bendy and the Ink Machine no longer starts
-with this mod (Team Beef, June 2025). The installer offers two options:
-
-- **Depot version (recommended)** - downloads the mod-compatible build
-  via Steam Console into `C:\Games\Bendy VR`, then installs the mod.
-  Your retail Steam copy is left untouched.
-- **Current game version** - installs the mod onto your existing copy
-  (Steam or Epic). Use only if you specifically want the current build;
-  on Steam it may not launch in VR. If it doesn't work, re-run and choose
-  the depot version.
-
-## Warning: WMR with Oasis will probably not work
-
-On a Reverb G2, the mod repeatedly failed because it asks SteamVR for
-skeletal finger tracking and the Oasis driver did not provide that data.
-The hands stayed on the floor at the player origin. Both the depot and
-current-game choices are likely affected; this is not fixed by choosing
-the other game build. A future Oasis update may change the situation.
-
-## Features
-
-- Motion-controlled hands with melee combat
-- VR comfort options (snap turn / smooth turn)
-- Left-handed support (including switched sticks)
-- Many game alterations to make it work and feel good in VR
+The obsolete Team Beef installation on the current Steam build is no longer offered. InkVR setup protects existing same-name files; it does not delete old extracted mod folders or change the independent Team Beef depot.
 
 ## Requirements
+InkVR requires the current Steam PC game and a connected PC VR headset with its active OpenXR runtime. Quest 3 with Virtual Desktop was tested by the publisher; Quest Link, Air Link and SteamVR are listed. Meta Touch and Index bindings are included. It does not run standalone on Quest. Other store builds are not confirmed for InkVR.
 
-- Bendy and the Ink Machine on Steam or Epic
-- A PC ready for PCVR (no standalone/Quest-native support)
-- An OpenVR-compatible headset: Quest 2 (via Link / Air Link / Virtual
-  Desktop / ALVR), any Rift, Valve Index, any Vive, WMR devices
-- **VR motion controllers are required** - not playable with a gamepad
-- Steam and SteamVR installed
+Team Beef requires its mod-compatible older game build, SteamVR and motion controllers. Warning: WMR with Oasis will probably not work with Team Beef. The Reverb G2 test failed to supply its skeletal finger-tracking data; hands stayed on the floor. A future Oasis update may change this. This warning is specific to Team Beef, not an InkVR headset test.
 
-## How to use
-
-Click **Install Mod** on the game tile or detail page and follow the
-prompts. Pick option 1 (depot) or 2 (current build) when asked. The
-installer downloads the mod and installs the files directly into the
-game folder, and (for the depot build) creates a `Bendy VR` desktop
-shortcut. Launch the depot build via that shortcut or through the Hub's
-**Start in VR** button - not via Steam, which would run your retail copy.
+## Install and start
+1. Close Bendy and its launcher. Choose Install in the Hub, then InkVR (option 1) or Team Beef Depot (option 2). The depot route keeps your current Steam game separate.
+2. Start your headset runtime. Use Start in VR in the Hub; when both routes are installed, choose InkVR or Team Beef Depot.
+3. InkVR alternative: use the Bendy InkVR desktop shortcut. For settings, controls, flat play or troubleshooting, open InkVR Launcher and use PLAY WITHOUT VR, VR SETTINGS or VR CHECK as appropriate.
+4. Team Beef alternative: the Bendy VR desktop shortcut. Keep SteamVR running first. Ordinary Steam Play runs your retail game, not the dedicated depot.
 
 ## Controls
+InkVR uses these default controls. Physical interactions can be adjusted in its VR SETTINGS. The launcher also has a CONTROLS page.
 
-Default SteamVR Input bindings ship for the main headsets. In menus
-there are no tracked hands - use UI Up / Down / Next / Previous /
-Confirm / Cancel to navigate.
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Move |
+| [[Left Stick Click]] or [[Left Trigger]] | Run |
+| [[Right Stick]] | Turn |
+| [[Right Stick Click]] | Weapon wheel |
+| [[Right Trigger]] | Use weapon; melee can also use a physical swing |
+| [[X]] | Interact |
+| [[A]] | Jump |
+| [[Y]] held | Inventory |
+| [[B]] | Back in menus |
+| [[Left Grip]] or [[Right Grip]] | Grab and use objects |
+| [[Menu]] | Pause |
 
-Sample Oculus Touch layout (Quest 2 / Rift S):
+Team Beef uses SteamVR bindings; the dominant hand operates weapons and the other hand interacts. Check its Advanced Menu and controller bindings for headset-specific assignments.
 
-- **Non-dominant hand:** [[Stick]] = move; [[Stick]] click / [[Grip]] = run;
-  [[Trigger]] = interact; [[Y]] = pause
-- **Dominant hand:** [[Stick]] left/right = smooth/snap turn; [[B]] = Seeing
-  Tool (Ch.5 / New Game+); [[A]] = jump; [[Trigger]] = attack (gun / thrown
-  weapons)
-- Melee weapons (axe etc.) are motion controlled - swing to attack
+| Button | Action |
+|---|---|
+| [[Non-dominant Stick]] | Move |
+| [[Non-dominant Stick Click]] or [[Non-dominant Grip]] | Run |
+| [[Non-dominant Trigger]] | Interact |
+| [[Dominant Stick]] | Turn |
+| [[A]] | Jump |
+| [[B]] | Seeing Tool in Chapter 5 or New Game+ |
+| [[Dominant Trigger]] | Fire or throw |
+| [[Y]] | Pause |
 
-Interaction is based on your non-dominant hand. Turn on the laser sight
-in the Advanced Menu if you're unsure what you're pointing at.
+## Settings and help
+InkVR: use the game's Options > VR SETTINGS for comfort, handedness, world size, body style and graphics. If the scale is wrong, stand up and let the mod recalibrate. Open VR CHECK in InkVR Launcher if installation or runtime selection fails. First launch may take time while BepInEx generates its IL2CPP interop files.
 
-## VR settings
+Team Beef: the Advanced Menu offers comfort and handedness settings. Lower expensive post-processing if needed. Its ending cinematic is screen-locked; quit and restart after the credits for New Game+ or Archives. Its openvr_fsr configuration is in the depot game's Bendy and the Ink Machine_Data\Plugins\openvr_mod.cfg.
 
-VR settings live in the **Advanced Menu** (via Main Menu or Pause).
+Missing mod files do not by themselves prove antivirus removal. Check the chosen game folder, installer log and matching protection-history events. Recovery can reopen the official release page and accept its downloaded ZIP.
 
-## Performance
+## VR files
+InkVR Start in VR opens InkVR\InkVR Launcher.exe with --play vr inside the current game folder. InkVR Launcher and the complete InkVR-Payload stay together in that child folder, which the publisher explicitly supports for locating its parent game. The installed mod is BepInEx\plugins\InkVR\InkVR.dll; Unity OpenXR runtime files live under the game's data folder. Flat / VR opens the publisher launcher for PLAY IN VR or PLAY WITHOUT VR. Settings and logs are in BepInEx\config and BepInEx\LogOutput.log.
 
-Aim for a smooth framerate. The game runs best with the optional effects
-turned off (Anti-Aliasing, Depth of Field, Bloom, Ambient Occlusion), in
-addition to the graphics quality setting and Steam resolution. Depth of
-Field is especially heavy; Ambient Occlusion has small per-eye artifacts.
+Team Beef Depot starts Bendy and the Ink Machine.exe in its independent depot folder. Keep BendyVRInstall: its BepInEx preloader is referenced by doorstop_config.ini. The Hub displays detected start apps and installation folders as links when present. If the Hub does not find your game, you can choose Locate Game and select its game EXE.
 
-Bendy VR ships with **openvr_fsr**, already enabled on Ultra quality. To
-adjust or disable FSR, edit:
-`Bendy and the Ink Machine\Bendy and the Ink Machine_Data\Plugins\openvr_mod.cfg`
+## Support the modders
+- StrikeZoneVR on Ko-fi: https://ko-fi.com/strikezonevr
+- Team Beef on Patreon: https://www.patreon.com/teambeef
 
-## Known issues
-
-- The ending cinematic is screen-locked (Unity Video Player limitation).
-- After the credits you must exit and restart for New Game+ / archives.
-  Your progress is saved.
-- You can't return to the main menu from the pause menu - Quit then
-  Confirm exits the game completely.
-- Fog and some post-processing effects rotate with your view (the engine
-  version Bendy uses lacks the needed roll support).
-
-## Credits & support
-
-VR mod by **Team Beef Studios**, building on VR groundwork by
-**Raicuparta**. If you'd like to support Team Beef's work and vote on
-future ports, see their Patreon: https://www.patreon.com/teambeef
+## Links
+- InkVR source and documentation: https://github.com/StrikeZoneVR-hub/InkVR
+- InkVR releases: https://github.com/StrikeZoneVR-hub/InkVR/releases
+- Team Beef documentation: https://github.com/Team-Beef-Studios/BendyVR
 
 >>> Dreams come to life. So does the ink.

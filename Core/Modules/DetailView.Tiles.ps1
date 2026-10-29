@@ -26,6 +26,26 @@ function global:Start-GameProcess {
         [string]$WorkingDirectory = "",
         $Game = $null
     )
+    # Resolve the installer's per-IWAD selection at the final process boundary:
+    # saved EXE/Locate routes must use the same packs as the desktop shortcut.
+    # Other titles may leave packs in this shared folder, so never infer the
+    # current game's selection from pack existence. Reread on every click.
+    if ($Game -and $Game.VrInstallRoot -eq 'LOCALAPPDATA:GZDoomVR' -and
+        [IO.Path]::GetFileName($FilePath) -ieq 'gzdoomvr.exe') {
+        $engineRoot = [IO.Path]::GetDirectoryName($FilePath)
+        $wad = @($Game.VrInstallEvidence | Where-Object { [IO.Path]::GetExtension([string]$_) -ieq '.wad' } | Select-Object -First 1)
+        if ($engineRoot -and $wad.Count -eq 1) {
+            $key = ([IO.Path]::GetFileName([string]$wad[0]) -replace '[^A-Za-z0-9]', '_')
+            $argFile = [IO.Path]::Combine($engineRoot, ('.vrlaunchargs_' + $key))
+            if ([IO.File]::Exists($argFile)) {
+                $savedArguments = [IO.File]::ReadAllText($argFile).Trim()
+                if ($savedArguments) { $Arguments = $savedArguments }
+            }
+            # Relative IWAD/add-on paths belong to this engine, including
+            # when a located shortcut previously supplied a different CWD.
+            $WorkingDirectory = $engineRoot
+        }
+    }
     $sp = @{ FilePath = $FilePath }
     if ($Arguments)        { $sp["ArgumentList"] = $Arguments }
     if ($WorkingDirectory) { $sp["WorkingDirectory"] = $WorkingDirectory }

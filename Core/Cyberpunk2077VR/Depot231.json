@@ -1,0 +1,156 @@
+[
+  {
+    "AppId": "1091500",
+    "DepotId": "1091501",
+    "Manifest": "4104611899910011352",
+    "Language": "english",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091502",
+    "Manifest": "819305496055337333",
+    "Language": "polish",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091503",
+    "Manifest": "2051822335481947109",
+    "Language": "russian",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091504",
+    "Manifest": "7478488130966967410",
+    "Language": "french",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091505",
+    "Manifest": "7982214908117080286",
+    "Language": "italian",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091506",
+    "Manifest": "2059269590710419725",
+    "Language": "german",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091507",
+    "Manifest": "5073153400365828217",
+    "Language": "spanish",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091508",
+    "Manifest": "8836038990327543024",
+    "Language": "japanese",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1091509",
+    "Manifest": "2202736442745644704",
+    "Language": "schinese",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1460470",
+    "Manifest": "4839420595466808435",
+    "Language": "koreana",
+    "Role": "Base"
+  },
+  {
+    "AppId": "1091500",
+    "DepotId": "1460471",
+    "Manifest": "2293639687853156805",
+    "Language": "brazilian",
+    "Role": "Base"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138330",
+    "Manifest": "1003893636455474164",
+    "Language": "english",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138331",
+    "Manifest": "7557611394831771970",
+    "Language": "german",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138332",
+    "Manifest": "7728733908936856189",
+    "Language": "spanish",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138333",
+    "Manifest": "2737235465048019797",
+    "Language": "french",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138334",
+    "Manifest": "2255167949129647656",
+    "Language": "italian",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138335",
+    "Manifest": "6491696797696369813",
+    "Language": "japanese",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138336",
+    "Manifest": "8637009798751881938",
+    "Language": "koreana",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138337",
+    "Manifest": "2512706444417470881",
+    "Language": "polish",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138338",
+    "Manifest": "6821671836788372554",
+    "Language": "brazilian",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2138339",
+    "Manifest": "7556060123277495603",
+    "Language": "russian",
+    "Role": "DLC"
+  },
+  {
+    "AppId": "2138330",
+    "DepotId": "2224070",
+    "Manifest": "8906180928185088202",
+    "Language": "schinese",
+    "Role": "DLC"
+  }
+]

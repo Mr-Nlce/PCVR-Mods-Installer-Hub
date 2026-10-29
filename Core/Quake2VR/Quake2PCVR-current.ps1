@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 # This route is also a supported standalone entry point.  Load every shared
 # helper it calls here instead of relying on Quake2VR-core.ps1 to have placed
@@ -7,8 +7,6 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
 $repo = 'GameOrDie007/Quake-II-PCVR'
-$pinnedTag = 'v1.0'
-$pinnedUrl = 'https://github.com/GameOrDie007/Quake-II-PCVR/releases/download/v1.0/quake2-vr-pc.zip'
 
 function Write-Q2Header {
     Clear-Host
@@ -24,23 +22,9 @@ function Write-Q2Info([string]$Text) { Write-Host "  [..] $Text" -ForegroundColo
 function Write-Q2Warn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
 function Pause-Q2([string]$Text='Press Enter to continue...') { Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 function Get-Q2Release {
-    try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 15 -ErrorAction Stop
-        $asset = @($release.assets | Where-Object { $_.name -match '(?i)^quake2-vr-pc\.zip$' } | Select-Object -First 1)[0]
-        if (-not $asset -or -not $asset.browser_download_url) { throw 'The latest release has no PCVR archive.' }
-        return [pscustomobject]@{ Tag=[string]$release.tag_name; Url=[string]$asset.browser_download_url }
-    } catch {
-        Write-Q2Warn "GitHub did not answer; using the last known $pinnedTag release URL."
-        return [pscustomobject]@{ Tag=$pinnedTag; Url=$pinnedUrl }
-    }
-}
-function Test-Q2WritableRoot([string]$Root) {
-    try {
-        if (-not (Test-Path -LiteralPath $Root)) { New-Item -ItemType Directory -Path $Root -Force | Out-Null }
-        $probe = Join-Path $Root ('.pcvr_write_' + [Guid]::NewGuid().ToString('N'))
-        [IO.File]::WriteAllText($probe,'ok'); Remove-Item -LiteralPath $probe -Force
-        return $true
-    } catch { return $false }
+    $release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^(?:quake2-vr-pc|Quake-II-PCVR-[0-9][0-9.]*)\.zip$') -SkipReleasesWithoutMatchingAsset
+    if(-not $release.Resolved){throw 'The current Quake II release could not be checked. Retry or download the current official package.'}
+    return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url}
 }
 
 trap {
@@ -87,7 +71,7 @@ if (-not $got) { throw 'The official Quake II PCVR archive was not obtained.' }
 $extract = Join-Path $temp 'extract'
 $expanded = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'Quake II PCVR archive' -AllowSkip $false
 if ($expanded -notin @('ok','manual')) { throw 'Archive extraction was not completed.' }
-$payload = Get-ChildItem -LiteralPath $extract -Directory -Recurse | Where-Object { (Test-Path -LiteralPath (Join-Path $_.FullName 'yquake2.exe')) -and (Test-Path -LiteralPath (Join-Path $_.FullName 'tools\setup.ps1')) } | Select-Object -First 1 -ExpandProperty FullName
+$payload = Get-ChildItem -LiteralPath $extract -Directory -Recurse | Where-Object { (Test-Path -LiteralPath (Join-Path $_.FullName 'yquake2.exe')) -and ((Test-Path -LiteralPath (Join-Path $_.FullName 'tools\setup.ps1')) -or (Test-Path -LiteralPath (Join-Path $_.FullName 'tools\prepare-data.ps1'))) } | Select-Object -First 1 -ExpandProperty FullName
 if (-not $payload) { throw 'The documented Quake II PCVR payload was not found.' }
 Install-OwnedModPayload -SourceRoot $payload -GameRoot $target -Identity 'quake2pcvr' -AdoptIdenticalExisting | Out-Null
 $runtimeWatch = @('yquake2.exe','libopenxr_loader.dll','SDL2.dll','ref_gl1.dll','baseq2\game.dll') | ForEach-Object { Join-Path $target $_ }
@@ -102,6 +86,7 @@ Write-Q2Step 4 4 'Copying owned game data and optional Team Beef assets'
 Write-Q2Info 'The official setup copies Quake II, owned mission packs and music.'
 Write-Q2Info "If missing, it also downloads Team Beef's optional HD assets once (about 169 MB)."
 $setup = Join-Path $target 'tools\setup.ps1'
+if(-not(Test-Path -LiteralPath $setup -PathType Leaf)){$setup=Join-Path $target 'tools\prepare-data.ps1'}
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setup -InstallDir $target -Quake2Dir $source -Extras yes
 if ($LASTEXITCODE -ne 0) { throw "The official Quake II data setup returned exit code $LASTEXITCODE." }
 $launch = Join-Path $target 'Play Quake II VR.bat'

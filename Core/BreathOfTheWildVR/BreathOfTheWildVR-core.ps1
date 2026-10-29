@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Breath of the Wild VR (BetterVR) - assisted setup
 #  Downloads Cemu 2.6 (verified) + the community graphic packs
 #  + the BetterVR launcher into C:\Games\Breath of the Wild VR,
@@ -218,7 +218,7 @@ try { if (-not (Test-Path $gpDir)) { New-Item -ItemType Directory -Path $gpDir -
 Write-Info "Pre-loading the community graphic packs (includes FPS++)..."
 $gpUrls = New-Object System.Collections.Generic.List[string]
 try {
-    $gpRel = Invoke-RestMethod -Uri "https://api.github.com/repos/cemu-project/cemu_graphic_packs/releases/latest" `
+    $gpRel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/cemu-project/cemu_graphic_packs/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
     $gpAsset = $gpRel.assets | Where-Object { $_.name -like "graphicPacks*.zip" } | Select-Object -First 1
     if (-not $gpAsset) { $gpAsset = $gpRel.assets | Select-Object -First 1 }
@@ -267,7 +267,7 @@ $betterUrls = New-Object System.Collections.Generic.List[string]
 # the launcher afterwards - see the .bettervr_version note further down.
 $installedTag = $PINNED_TAG
 try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/Crementif/BotW-BetterVR/releases/latest" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/Crementif/BotW-BetterVR/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
     $asset = $rel.assets | Where-Object { $_.name -eq "BetterVR_Launcher.exe" } | Select-Object -First 1
     if ($asset -and $asset.browser_download_url) {

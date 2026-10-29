@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Forza Horizon 6 VR Installer
 # Three VR mods to choose from:
 #   1) NALULUNA (free, ko-fi)        launcher: fh6vr.exe
@@ -126,7 +126,7 @@ Write-OK "Selected: $modName"
 function Get-GithubModRelease {
     param([string]$ApiUrl, [string[]]$AssetPatterns)
     try {
-        $rels = Invoke-RestMethod -Uri $ApiUrl -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
+        $rels = Invoke-PCVRRestMethod -Uri $ApiUrl -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 25 -ErrorAction Stop
         foreach ($release in @($rels | Where-Object { -not $_.draft })) {
             foreach ($pattern in $AssetPatterns) {
                 $asset = @($release.assets | Where-Object { $_.name -like $pattern -and $_.name -notlike "*source*" }) | Select-Object -First 1

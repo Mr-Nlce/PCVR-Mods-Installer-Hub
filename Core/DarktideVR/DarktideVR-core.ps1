@@ -1,4 +1,4 @@
-# Warhammer 40,000: Darktide VR - governed GitHub prerelease installer.
+﻿# Warhammer 40,000: Darktide VR - governed GitHub prerelease installer.
 # Steam App 1361210; Darktide Mod Loader and DMF are shared dependencies;
 # the VR package owns only mods\darktidevr. The publisher's mode tool owns
 # executable/proxy/load-order recovery and is always run in a child process.
@@ -12,26 +12,27 @@ $APP_ID = '1361210'
 $GAME_EXE = 'binaries\Darktide.exe'
 $REPO = 'Brobert-in-aus/darktide-vr'
 $RELEASES = "https://github.com/$REPO/releases"
-$FALLBACK_TAG = 'v0.3.0-alpha.1'
-$FALLBACK_NAME = 'darktidevr-0.3.0-alpha.1-e2861b5cb045.zip'
-$FALLBACK_URL = 'https://github.com/Brobert-in-aus/darktide-vr/releases/download/v0.3.0-alpha.1/darktidevr-0.3.0-alpha.1-e2861b5cb045.zip'
-$DEPOT_MOD_TAG = 'v0.1.0-alpha.3'
-$DEPOT_MOD_NAME = 'darktidevr-0.1.0-alpha.3-8bc59403fcd8.zip'
-$DEPOT_MOD_URL = 'https://github.com/Brobert-in-aus/darktide-vr/releases/download/v0.1.0-alpha.3/darktidevr-0.1.0-alpha.3-8bc59403fcd8.zip'
-$LOADER_REPO = 'Darktide-Mod-Loader/Darktide-Mod-Loader'
+$FALLBACK_TAG = 'v0.3.0-alpha.2'
+$FALLBACK_NAME = 'darktidevr-0.3.0-alpha.2-4efdd3369405.zip'
+$FALLBACK_URL = 'https://github.com/Brobert-in-aus/darktide-vr/releases/download/v0.3.0-alpha.2/darktidevr-0.3.0-alpha.2-4efdd3369405.zip'
+$DEPOT_MOD_TAG = 'v0.3.0-alpha.2'
+$DEPOT_MOD_NAME = 'darktidevr-0.3.0-alpha.2-4efdd3369405.zip'
+$DEPOT_MOD_URL = 'https://github.com/Brobert-in-aus/darktide-vr/releases/download/v0.3.0-alpha.2/darktidevr-0.3.0-alpha.2-4efdd3369405.zip'
+$LOADER_REPO = 'Darktide-Mod-Framework/Darktide-Mod-Loader'
 $LOADER_FALLBACK_TAG = '26.06.24'
 $LOADER_FALLBACK_URL = 'https://github.com/user-attachments/files/29280059/Darktide-Mod-Loader.zip'
 $DMF_COMMIT = 'fc08c1cb772f86248c7ae9e957543e801a0dbf64'
 $DMF_URL = 'https://github.com/Darktide-Mod-Framework/Darktide-Mod-Framework/archive/fc08c1cb772f86248c7ae9e957543e801a0dbf64.zip'
-$DARKTIDE_DEPOT_BUILD = '24735202'
-$DARKTIDE_DEPOT_DEFAULT_PATH = 'C:\Games\Darktide VR 24735202'
-$DARKTIDE_DEPOT_MARKER = '.pcvrhub_darktide_depot_24735202'
+$DARKTIDE_DEPOT_BUILD = '25681127'
+$DARKTIDE_DEPOT_DEFAULT_PATH = 'C:\Games\Darktide VR 1.13.2'
+$DARKTIDE_DEPOT_MARKER = '.pcvrhub_darktide_depot_25681127'
 $DARKTIDE_DEPOT_STACK_MARKER = '.pcvrhub_darktide_depot_stack'
-$DARKTIDE_DEPOT_STAGING_MARKER = '.pcvrhub_darktide_depot_staging_24735202'
+$DARKTIDE_DEPOT_STAGING_MARKER = '.pcvrhub_darktide_depot_staging_25681127'
+$DARKTIDE_RECEIPT_ROOT=$PSScriptRoot
 $DARKTIDE_DEPOTS = @(
-    [pscustomobject]@{ DepotId='1361211'; Manifest='8996611047797368886'; Proof='bundle\bundle_database.data'; Label='game data' },
-    [pscustomobject]@{ DepotId='1361212'; Manifest='5990150591810997331'; Proof='launcher\launcher.exe'; Label='Fatshark launcher' },
-    [pscustomobject]@{ DepotId='1361213'; Manifest='9209862899812953262'; Proof='binaries\Darktide.exe'; Label='Windows executable' }
+    [pscustomobject]@{ DepotId='1361211'; Manifest='5216168793435633897'; Proof='bundle\bundle_database.data'; Label='game data' },
+    [pscustomobject]@{ DepotId='1361212'; Manifest='7488139965064667169'; Proof='launcher\launcher.exe'; Label='Fatshark launcher' },
+    [pscustomobject]@{ DepotId='1361213'; Manifest='2599775347271281336'; Proof='binaries\Darktide.exe'; Label='Windows executable' }
 )
 $IDENTITY = 'darktidevr'
 $QUIP = 'The Emperor protects, but the hands still have to aim.'
@@ -107,19 +108,25 @@ function Resolve-DarktideLoaderDownload {
     try {
         $releases = $ReleaseData
         if ($null -eq $releases) {
-            $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$LOADER_REPO/releases?per_page=10" `
-                -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' } -TimeoutSec 20
+            # This publisher posts full ZIPs as release-body attachments.
+            # Read the public stable release itself; no API token is needed.
+            $reply=Get-PCVRGitHubText -Uri ($page+'/latest')
+            $tag=''
+            if ($reply.FinalUrl -match '/releases/tag/([^/?#]+)') { $tag=[uri]::UnescapeDataString($Matches[1]) }
+            elseif ($reply.Content -match '<meta\s+property="og:url"\s+content="[^" ]+/releases/tag/([^"/?#]+)"') { $tag=[Net.WebUtility]::HtmlDecode([uri]::UnescapeDataString($Matches[1])) }
+            if (-not $tag) { throw 'The current Mod Loader release tag could not be read.' }
+            $releases=@([pscustomobject]@{draft=$false;tag_name=$tag;published_at='';html_url=($page+'/tag/'+[uri]::EscapeDataString($tag));body=[string]$reply.Content})
         }
         $release = @($releases | Where-Object { $_ -and -not [bool]$_.draft } | Sort-Object published_at -Descending)[0]
         if ($release) {
-            $body = [string]$release.body
+            $body = [Net.WebUtility]::HtmlDecode([string]$release.body)
             $match = [regex]::Match($body,'https://github\.com/user-attachments/files/[^\s\)\]"'']+/Darktide-Mod-Loader\.zip','IgnoreCase')
             if ($match.Success) {
                 return [pscustomobject]@{ Url=$match.Value; Tag=[string]$release.tag_name; PageUrl=[string]$release.html_url; Resolved=$true }
             }
         }
-    } catch {}
-    return [pscustomobject]@{ Url=$LOADER_FALLBACK_URL; Tag=$LOADER_FALLBACK_TAG; PageUrl=$page; Resolved=$false }
+    } catch { throw ('The current Darktide Mod Loader could not be checked on its official release page. Use Retry or its full release ZIP. '+$_.Exception.Message) }
+    throw 'The current Darktide Mod Loader release has no full installation ZIP. Use Retry or hand over its official full ZIP.'
 }
 
 function Get-DarktideVrRelease {
@@ -141,11 +148,9 @@ function Get-DarktideLoaderRelease {
 
 function Get-DarktideDepotMarkerText {
     return (@(
-        "AppId=$APP_ID",
-        "BuildId=$DARKTIDE_DEPOT_BUILD",
-        'Depot.1361211=8996611047797368886',
-        'Depot.1361212=5990150591810997331',
-        'Depot.1361213=9209862899812953262'
+        "AppId=$APP_ID"
+        "BuildId=$DARKTIDE_DEPOT_BUILD"
+        foreach ($row in $DARKTIDE_DEPOTS) { "Depot.$($row.DepotId)=$($row.Manifest)" }
     ) -join "`r`n")
 }
 
@@ -206,9 +211,24 @@ endlocal
     [IO.File]::WriteAllText((Join-Path $GameRoot $DARKTIDE_DEPOT_MARKER),(Get-DarktideDepotMarkerText),(New-Object Text.UTF8Encoding $false))
 }
 
+function Save-DarktideLegacyDepotAssociation {
+    $oldMarker='.pcvrhub_darktide_depot_24735202'
+    $oldRoot=Get-HubLocatedGameFolder -GameId 'warhammer-40k-darktide-vr' -StateNames @('installed_path_depot') -ProbeFiles @($oldMarker,'binaries\Darktide.exe')
+    $oldReceipt=Join-Path $DARKTIDE_RECEIPT_ROOT '.installed_path_depot'
+    if (-not $oldRoot -and (Test-Path -LiteralPath $oldReceipt -PathType Leaf)) {
+        $candidate=[IO.File]::ReadAllText($oldReceipt).Trim()
+        if ($candidate -and (Test-Path -LiteralPath (Join-Path $candidate $oldMarker) -PathType Leaf) -and (Test-DarktideRoot $candidate)) { $oldRoot=$candidate }
+    }
+    if ($oldRoot) {
+        Write-PCVRAtomicText -Path (Join-Path $DARKTIDE_RECEIPT_ROOT '.installed_path_legacy_depot') -Value $oldRoot
+        Write-DarkOK "Your older Depot remains separate: $oldRoot"
+    }
+}
 function Get-ExistingDarktideDepot {
     $candidates=@()
-    $pathFile=Join-Path $PSScriptRoot '.installed_path_depot'
+    $remembered=Get-HubLocatedGameFolder -GameId 'warhammer-40k-darktide-vr' -StateNames @('installed_path_depot') -ProbeFiles @($DARKTIDE_DEPOT_MARKER,'binaries\Darktide.exe')
+    if ($remembered) { $candidates+=$remembered }
+    $pathFile=Join-Path $DARKTIDE_RECEIPT_ROOT '.installed_path_depot'
     if (Test-Path -LiteralPath $pathFile -PathType Leaf) {
         try { $candidates+=([IO.File]::ReadAllText($pathFile)).Trim() } catch {}
     }
@@ -220,16 +240,19 @@ function Get-ExistingDarktideDepot {
 }
 
 function Install-DarktidePinnedDepot {
-    Write-DarkStep 1 5 "Preparing confirmed Steam build $DARKTIDE_DEPOT_BUILD"
+    param([string]$PublisherPayload='',[int]$StepNumber=1)
+    Write-DarkStep $StepNumber 5 "Preparing Darktide 1.13.2 - Steam build $DARKTIDE_DEPOT_BUILD"
     $existing=Get-ExistingDarktideDepot
     if ($existing) {
+        if ($PublisherPayload) { Assert-DarktidePublisherBuild -GameRoot $existing -SourceRoot $PublisherPayload -Version $DEPOT_MOD_TAG -ExpectedBuild '1.13.2' }
         Write-DarktideDepotSupportFiles -GameRoot $existing
         Write-DarkOK "Using existing pinned copy: $existing"
         return $existing
     }
 
-    Write-Host '  This route downloads all three Windows depots (about 96.4 GiB)' -ForegroundColor White
-    Write-Host "  and keeps them separate from your normal Steam installation." -ForegroundColor White
+    Write-Host '  This route downloads all three required Windows depots.' -ForegroundColor White
+    Write-Host '  Allow about 100 GiB of disk space; downloads can take a while.' -ForegroundColor White
+    Write-Host '  This copy stays separate from your normal Steam installation.' -ForegroundColor White
     $target=Select-PCVRDepotInstallPath -DefaultPath $DARKTIDE_DEPOT_DEFAULT_PATH
     if (-not (Test-InstallerTargetWritable -TargetPath $target)) { throw "The depot target is not writable: $target" }
     $normal=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Warhammer 40,000 DARKTIDE') -ProbeExe $GAME_EXE
@@ -243,7 +266,8 @@ function Install-DarktidePinnedDepot {
         }
     }
 
-    $steamRoot=Get-SteamPath
+    $steamExe=Get-PCVRSteamExecutable
+    $steamRoot=if ($steamExe) { Split-Path -Parent $steamExe } else { '' }
     $sources=@{}
     foreach ($row in $DARKTIDE_DEPOTS) {
         if ((Test-Path -LiteralPath $target -PathType Container) -and
@@ -271,20 +295,31 @@ function Install-DarktidePinnedDepot {
         if (-not $source -or -not (Test-Path -LiteralPath (Join-Path $source $row.Proof) -PathType Leaf)) {
             throw "Pinned depot $($row.DepotId) did not provide $($row.Proof)."
         }
+        if ($normal -and ([IO.Path]::GetFullPath($source).TrimEnd('\') -ieq [IO.Path]::GetFullPath($normal).TrimEnd('\'))) {
+            throw 'Select the downloaded Depot folder, not the normal Steam game. Your normal installation was kept.'
+        }
         $sources[$row.DepotId]=$source
+    }
+
+    # Console cache folders have no version in their name. Prove the requested
+    # game build with the publisher tool before moving any cached game data.
+    if ($PublisherPayload -and $sources['1361213']) {
+        Assert-DarktidePublisherBuild -GameRoot $sources['1361213'] -SourceRoot $PublisherPayload -Version $DEPOT_MOD_TAG -ExpectedBuild '1.13.2'
     }
 
     if (-not (Test-Path -LiteralPath $target -PathType Container)) {
         $mainSource=[string]$sources['1361211']
         if (-not $mainSource) { throw 'The main Darktide game-data depot is unavailable.' }
-        [void](Merge-DirectoryTreeVerified -Source $mainSource -Destination $target -RemoveSource -Label 'Darktide game-data depot')
+        $moveDownloaded=$mainSource -match '[\\/]steamapps[\\/]content[\\/]app_1361210[\\/]depot_1361211[\\/]?$'
+        [void](Merge-DirectoryTreeVerified -Source $mainSource -Destination $target -RemoveSource:$moveDownloaded -Label 'Darktide game-data depot')
         [IO.File]::WriteAllText((Join-Path $target $DARKTIDE_DEPOT_STAGING_MARKER),(Get-DarktideDepotMarkerText),(New-Object Text.UTF8Encoding $false))
     }
     foreach ($row in $DARKTIDE_DEPOTS) {
         if (Test-Path -LiteralPath (Join-Path $target $row.Proof) -PathType Leaf) { continue }
         $source=[string]$sources[$row.DepotId]
         if (-not $source) { throw "The $($row.Label) depot is unavailable for the merge." }
-        [void](Merge-DirectoryTreeVerified -Source $source -Destination $target -RemoveSource -Label "Darktide $($row.Label) depot")
+        $moveDownloaded=$source -match ('[\\/]steamapps[\\/]content[\\/]app_1361210[\\/]depot_'+[regex]::Escape($row.DepotId)+'[\\/]?$')
+        [void](Merge-DirectoryTreeVerified -Source $source -Destination $target -RemoveSource:$moveDownloaded -Label "Darktide $($row.Label) depot")
     }
     foreach ($row in $DARKTIDE_DEPOTS) {
         if (-not (Test-Path -LiteralPath (Join-Path $target $row.Proof) -PathType Leaf)) { throw "The merged depot is missing $($row.Proof)." }
@@ -307,7 +342,8 @@ function Invoke-DarktideNativeTool {
         [Parameter(Mandatory=$true)][string]$FilePath,
         [string[]]$ArgumentList=@(),
         [Parameter(Mandatory=$true)][string]$FailureMessage,
-        [switch]$IgnoreFailure
+        [switch]$IgnoreFailure,
+        $OutputLines
     )
     $resolvedPath=$null
     if (Test-Path -LiteralPath $FilePath -PathType Leaf) {
@@ -338,7 +374,8 @@ function Invoke-DarktideNativeTool {
     } finally {
         $ErrorActionPreference=$previousPreference
     }
-    foreach ($entry in @($nativeOutput)) {
+    if ($OutputLines) { $OutputLines.Value=@($nativeOutput | ForEach-Object { [string]$_ }) }
+    foreach ($entry in @($(if (-not $OutputLines) { $nativeOutput }))) {
         $line=[string]$entry
         if (-not [string]::IsNullOrWhiteSpace($line)) { Write-Host ('  '+$line.TrimEnd()) -ForegroundColor Gray }
     }
@@ -351,8 +388,12 @@ function Invoke-DarktideNativeTool {
     }
     return $true
 }
-function global:Invoke-DarktideMode([string]$GameRoot,[ValidateSet('vr','flat','status')][string]$Mode,[string]$StateRoot='',[switch]$IgnoreFailure) {
-    $scriptPath = Join-Path $GameRoot 'mods\darktidevr\darktidevr-mode.ps1'
+function global:Invoke-DarktideMode([string]$GameRoot,[ValidateSet('vr','flat','status')][string]$Mode,[string]$StateRoot='',[switch]$IgnoreFailure,[string]$SourceRoot='',$OutputLines) {
+    # During an update, the installed mode tool can predate the current game
+    # executable. Use the complete freshly extracted publisher toolset while
+    # retaining the actual game and its existing recovery/settings location.
+    $toolRoot=if ($SourceRoot) { $SourceRoot } else { $GameRoot }
+    $scriptPath = Join-Path $toolRoot 'mods\darktidevr\darktidevr-mode.ps1'
     if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) {
         if ($IgnoreFailure) { return $false }
         throw 'The DarktideVR mode script is missing.'
@@ -365,10 +406,24 @@ function global:Invoke-DarktideMode([string]$GameRoot,[ValidateSet('vr','flat','
         }
         return [bool](Invoke-DarktideNativeTool -FilePath 'powershell.exe' `
             -ArgumentList @('-NoLogo','-NoProfile','-ExecutionPolicy','Bypass','-File',$scriptPath,'-Mode',$Mode,'-GameRoot',$GameRoot) `
-            -FailureMessage "The publisher's Darktide $Mode mode switch failed" -IgnoreFailure:$IgnoreFailure)
+            -FailureMessage "The publisher's Darktide $Mode mode switch failed" -IgnoreFailure:$IgnoreFailure -OutputLines $OutputLines)
     } finally {
         $env:LOCALAPPDATA=$oldLocalAppData
     }
+}
+function Assert-DarktidePublisherBuild([string]$GameRoot,[string]$SourceRoot,[string]$StateRoot,[string]$Version,[string]$ExpectedBuild='') {
+    $statusLines=@()
+    $patchTool=Join-Path $SourceRoot 'mods\darktidevr\tools\set-skinner-assert-patch.ps1'
+    $inspectionBackup=Join-Path $SourceRoot '.pcvr-inspection\unused.exe'
+    [void](Invoke-DarktideNativeTool -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$patchTool,'-Action','Inspect','-GameExe',(Join-Path $GameRoot 'binaries\Darktide.exe'),'-Backup',$inspectionBackup) -FailureMessage 'The publisher could not inspect this Darktide executable' -OutputLines ([ref]$statusLines))
+    $state=@($statusLines | Where-Object { $_ -match '^state=' } | Select-Object -First 1)
+    if ($state.Count -ne 1 -or $state[0] -notmatch '^state=(original|patched)$') {
+        throw "DarktideVR $Version does not support your installed game executable. Setup has not changed the game. Wait for a compatible mod release, or choose option 2 for the separate pinned Steam Depot."
+    }
+    if ($ExpectedBuild -and $statusLines -notcontains "build=$ExpectedBuild") {
+        throw "This Depot requires Darktide $ExpectedBuild. The selected executable is a different build. Download depot 1361213 with manifest 2599775347271281336 in Steam Console, then Retry. Your existing game was not changed."
+    }
+    Write-DarkOK 'The publisher patcher supports this game executable.'
 }
 
 function Save-DarktideSnapshot([string]$GameRoot,[string]$SnapshotRoot) {
@@ -417,7 +472,7 @@ function global:Invoke-DarktideVRInstaller {
         Write-Host ''
         Write-Host '  [1] Current game and newest DarktideVR prerelease' -ForegroundColor Cyan
         Write-Host '      Uses the normal Steam/Xbox installation and auto-updates the VR mod.' -ForegroundColor Gray
-        Write-Host "  [2] Confirmed Steam build $DARKTIDE_DEPOT_BUILD with pinned VR stack" -ForegroundColor Cyan
+        Write-Host "  [2] Separate Darktide 1.13.2 with DarktideVR $DEPOT_MOD_TAG (fixed)" -ForegroundColor Cyan
         Write-Host "      Default game folder: $DARKTIDE_DEPOT_DEFAULT_PATH (or choose another)." -ForegroundColor Gray
         Write-Host '      Normal Steam files stay untouched.' -ForegroundColor Gray
         Write-Host '      Darktide is online: a future Fatshark backend may reject an old client.' -ForegroundColor Yellow
@@ -434,8 +489,7 @@ function global:Invoke-DarktideVRInstaller {
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to proceed with setup...')
 
         if ($installMode -eq 'Depot') {
-            $game=Install-DarktidePinnedDepot
-            $stateRoot=Join-Path $game '.pcvrhub_darktide_state'
+            Write-DarkInfo 'Setup gets the pinned VR tools first, then prepares the separate game copy.'
         } else {
             Write-DarkStep 1 5 'Locating Warhammer 40,000: Darktide'
             $game = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Warhammer 40,000 DARKTIDE') -ProbeExe $GAME_EXE -HubGameId 'warhammer-40k-darktide-vr'
@@ -448,12 +502,14 @@ function global:Invoke-DarktideVRInstaller {
                 $game = Get-GameFolderInteractive -GameName 'Warhammer 40,000 DARKTIDE' -ProbeFile $GAME_EXE -ManualUrl 'https://store.steampowered.com/app/1361210/'
             }
         }
-        if ($game -in @('quit','skip',$null) -or -not (Test-DarktideRoot $game)) { throw 'Setup cancelled before any game file was changed.' }
-        $game=(Get-Item -LiteralPath $game).FullName
-        if (Get-Process -Name Darktide -ErrorAction SilentlyContinue) { throw 'Darktide is running. Close it completely and run setup again.' }
-        Write-DarkOK "Found: $game"
+        if ($installMode -ne 'Depot') {
+            if ($game -in @('quit','skip',$null) -or -not (Test-DarktideRoot $game)) { throw 'Setup cancelled before any game file was changed.' }
+            $game=(Get-Item -LiteralPath $game).FullName
+            if (Get-Process -Name Darktide -ErrorAction SilentlyContinue) { throw 'Darktide is running. Close it completely and run setup again.' }
+            Write-DarkOK "Found: $game"
+        }
 
-        Write-DarkStep 2 5 $(if ($installMode -eq 'Depot') { "Getting pinned DarktideVR $FALLBACK_TAG" } else { 'Getting the newest DarktideVR release, including prereleases' })
+        Write-DarkStep $(if ($installMode -eq 'Depot') { 1 } else { 2 }) 5 $(if ($installMode -eq 'Depot') { "Getting pinned DarktideVR $DEPOT_MOD_TAG" } else { 'Getting the newest DarktideVR release, including prereleases' })
         $release = Get-DarktideVrRelease -InstallMode $installMode
         Write-DarkInfo "Release: $($release.Tag)"
         $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_darktidevr_'+[Guid]::NewGuid().ToString('N')); [void][IO.Directory]::CreateDirectory($work)
@@ -468,6 +524,13 @@ function global:Invoke-DarktideVRInstaller {
             throw 'The current release has no usable DarktideVR runtime payload.'
         }
 
+        if ($installMode -eq 'Depot') {
+            if (Get-Process -Name Darktide -ErrorAction SilentlyContinue) { throw 'Close Darktide before preparing its separate Depot.' }
+            Save-DarktideLegacyDepotAssociation
+            $game=Install-DarktidePinnedDepot -PublisherPayload $vrPayload -StepNumber 2
+            $stateRoot=Join-Path $game '.pcvrhub_darktide_state'
+        }
+        Assert-DarktidePublisherBuild -GameRoot $game -SourceRoot $vrPayload -StateRoot $stateRoot -Version ([string]$release.Tag) -ExpectedBuild $(if ($installMode -eq 'Depot') { '1.13.2' } else { '' })
         Write-DarkStep 3 5 $(if ($installMode -eq 'Depot') { 'Installing the pinned loader and framework dependencies' } else { 'Ensuring the shared Darktide loader and framework' })
         if ($installMode -eq 'Depot' -or -not (Test-DarktideLoader $game)) {
             $loader=Get-DarktideLoaderRelease -InstallMode $installMode; Write-DarkInfo "Darktide Mod Loader: $($loader.Tag)"
@@ -506,9 +569,9 @@ function global:Invoke-DarktideVRInstaller {
         Write-Host '  the game folder and executable are being changed recoverably.' -ForegroundColor Yellow
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to run the two required publisher patchers...')
         $wasActive=Test-DarktideWasActive $game
-        if ($wasActive) { [void](Invoke-DarktideMode -GameRoot $game -Mode flat -StateRoot $stateRoot) }
         $snapshot=Join-Path $work 'rollback'; $snapshotRecords=Save-DarktideSnapshot -GameRoot $game -SnapshotRoot $snapshot
         $changesStarted=$true
+        if ($wasActive) { [void](Invoke-DarktideMode -GameRoot $game -Mode flat -StateRoot $stateRoot -SourceRoot $vrPayload) }
         [void](Install-OwnedModPayload -SourceRoot $vrPayload -GameRoot $game -Identity $IDENTITY -AdoptIdenticalExisting)
         $patcher=Join-Path $game 'tools\dtkit-patch.exe'
         [void](Invoke-DarktideNativeTool -FilePath $patcher -ArgumentList @('--patch',(Join-Path $game 'bundle')) `
@@ -519,7 +582,7 @@ function global:Invoke-DarktideVRInstaller {
         if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $game -Recopy $recopy)) { throw 'Required DarktideVR runtime files did not survive antivirus recovery.' }
 
         Write-DarkStep 5 5 $(if ($installMode -eq 'Depot') { 'Verifying the isolated pinned launch route' } else { 'Verifying the tracked store launch route' })
-        $receipt=Join-Path $PSScriptRoot $(if ($installMode -eq 'Depot') { '.installed_path_depot' } else { '.installed_path' })
+        $receipt=Join-Path $DARKTIDE_RECEIPT_ROOT $(if ($installMode -eq 'Depot') { '.installed_path_depot' } else { '.installed_path' })
         $selectedContract=if ($installMode -eq 'Depot') { $depotContract } else { $contract }
         $routeName=if ($installMode -eq 'Depot') { "Depot-$DARKTIDE_DEPOT_BUILD" } else { 'Current' }
         [void](Complete-PCVRInstallTransaction -Contract $selectedContract -GameDir $game -Version ([string]$release.Tag) -InstalledPathReceiptPaths @($receipt) -Route $routeName)
@@ -549,8 +612,9 @@ function global:Invoke-DarktideVRInstaller {
                 [void](Invoke-DarktideMode -GameRoot $game -Mode flat -StateRoot $stateRoot -IgnoreFailure)
                 [void](Uninstall-OwnedModPayload -GameRoot $game -Identity $IDENTITY)
                 Restore-DarktideSnapshot -GameRoot $game -SnapshotRoot $snapshot -Records $snapshotRecords
-                if ($wasActive) { [void](Invoke-DarktideMode -GameRoot $game -Mode vr -StateRoot $stateRoot -IgnoreFailure) }
-                Write-DarkWarn 'The prior DarktideVR package and mode were restored.'
+                $modeRestored=if ($wasActive) { Invoke-DarktideMode -GameRoot $game -Mode vr -StateRoot $stateRoot -IgnoreFailure } else { $true }
+                if ($modeRestored) { Write-DarkWarn 'The prior DarktideVR package and mode were restored.' }
+                else { Write-DarkWarn 'The prior DarktideVR files were restored. Its old mode tool cannot enable this game build; VR mode was not confirmed.' }
             } catch { Write-DarkWarn "Rollback needs review: $($_.Exception.Message)" }
         }
         Write-Host ''; Write-Host "  [XX] $($_.Exception.Message)" -ForegroundColor Red; throw

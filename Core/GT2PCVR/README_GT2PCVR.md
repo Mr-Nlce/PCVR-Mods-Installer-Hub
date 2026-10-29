@@ -1,6 +1,6 @@
-# Gran Turismo 2 PCVR
+﻿# Gran Turismo 2 PCVR
 
-Native Windows OpenXR port of Gran Turismo 2 by Yevhen Dubrovskiy. The Hub uses the v0.8.0.1 Windows package because the newer v0.8.1 GitHub asset is Web-only; it does not substitute a browser archive for the PCVR runtime.
+Native Windows OpenXR port of Gran Turismo 2 by Yevhen Dubrovskiy. The reviewed v0.9.0 package contains the complete native Windows PCVR installer, runtime and OpenXR launchers alongside the other platforms.
 
 ## About the Game
 
@@ -15,11 +15,11 @@ Gran Turismo 2 combines Arcade racing with a Simulation career of licences, deal
 
 ## Install and play
 
-1. Select [[Install]] and provide your own disc image path or paths. The Hub downloads the pinned [v0.8.0.1 release](https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.8.0.1).
+1. Select [[Install]] and provide your own disc image path or paths. The Hub downloads the reviewed [v0.9.0 release](https://github.com/dubrovskiy-yevhen-stakelogic/gt-2-pc/releases/tag/v0.9.0).
 2. The publisher's precompiled `INSTALL-PCVR.bat` path verifies its package, imports your supported disc data and creates the runtime under `%LOCALAPPDATA%\GT2-VR\runtime`. Its backups retain earlier data. The Hub confirms the runtime, OpenXR loader, launchers and at least one prepared disc before recording the version.
 3. Select [[Start in VR]] or the Gran Turismo 2 PCVR desktop shortcut to run `PLAY-PCVR.bat` for automatic runtime choice. In the runtime folder, use `PLAY-PCVR-META.bat` for Meta Link, `PLAY-PCVR-STEAMVR.bat` for SteamVR/Steam Link, or `PLAY-PCVR-VD.bat` for Virtual Desktop VDXR. `PLAY.bat` starts the same data on the monitor. These launchers do not change the Windows OpenXR default.
 
-The published package identifies its internal runtime as 0.8.0; the v0.8.0.1 release is the PCVR installer hotfix. The Hub records the outer release tag so an unrelated Web release cannot trigger a PCVR update. Arcade and Simulation use separate game cards while sharing graphics and controller settings.
+Release v0.9.0 includes Windows PCVR and fixes European Simulation career races and memory-card screens. The Hub uses the native PCVR installer from that package. Arcade and Simulation keep separate game cards while sharing graphics and controller settings; the publisher installer retains earlier runtime data in backup folders.
 
 ## Controls
 

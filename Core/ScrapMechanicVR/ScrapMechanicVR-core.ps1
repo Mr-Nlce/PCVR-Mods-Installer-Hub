@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Scrap Mechanic - Native VR Installer
 # ============================================================
 # Three install paths:
@@ -146,7 +146,7 @@ function Get-CurrentRelease {
  try {
   try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
   $headers = @{ "User-Agent" = "PCVR-Mods-Hub"; "Accept" = "application/vnd.github+json" }
-  $rel = Invoke-RestMethod -Uri $CURRENT_RELEASES_API -Headers $headers -TimeoutSec 25 -ErrorAction Stop
+  $rel = Invoke-PCVRRestMethod -Uri $CURRENT_RELEASES_API -Headers $headers -TimeoutSec 25 -ErrorAction Stop
   # The author changed from a stable filename to versioned assets in v1.4.8.
   # Accept both forms, but never an unrelated executable from the release.
   $asset = @($rel.assets | Where-Object { [string]$_.name -match '(?i)^ScrapMechanicVR-Installer(?:-[0-9][0-9A-Za-z.\-]*)?\.exe$' } | Select-Object -First 1)[0]

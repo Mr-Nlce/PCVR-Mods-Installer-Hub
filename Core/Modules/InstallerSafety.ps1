@@ -1,3 +1,5 @@
+﻿$registryDiscoveryModule=Join-Path $PSScriptRoot 'RegistryDiscovery.ps1'
+if (Test-Path -LiteralPath $registryDiscoveryModule -PathType Leaf) { . $registryDiscoveryModule }
 # -------------------------------------------------------
 #  Installer-Safety helpers
 #  Dot-source from any installer:
@@ -782,6 +784,11 @@ function global:Invoke-PCVRWebRequest {
     param([Parameter(Mandatory=$true)][string]$Uri,[string]$OutFile,
         [switch]$UseBasicParsing,[int]$TimeoutSec,$WebSession,$Headers,
         [string]$Method,$Body)
+    if(-not $OutFile -and $Uri -match '^https://api\.github\.com/repos/[^/]+/[^/]+/(?:releases|commits)(?:[/?]|$)'){
+        $args=@{Uri=$Uri};if($Headers){$args.Headers=$Headers};if($TimeoutSec){$args.TimeoutSec=$TimeoutSec}
+        $data=Invoke-PCVRRestMethod @args -ErrorAction Stop
+        return [pscustomobject]@{Content=ConvertTo-Json -InputObject $data -Depth 20;StatusCode=200}
+    }
     if (-not $OutFile -or $Uri -notmatch '^https?://(?:www\.)?(?:github\.com|api\.github\.com)/') {
         return (Invoke-WebRequest @PSBoundParameters)
     }
@@ -850,12 +857,16 @@ function global:Invoke-SafeDownload {
         # New installers can provide their own compact progress line without
         # changing the long-standing output of existing installers.
         [switch]$QuietProgress,
+        [switch]$PlainProgress,
         # The caller has already resolved one exact release asset. Do not
         # silently substitute an asset from another release if it fails.
-        [switch]$DisableGitHubAssetReresolution
+        [switch]$DisableGitHubAssetReresolution,
+        # Opt-in for callers that verify functional game compatibility after
+        # extraction. Historical file names/release identities are not gates.
+        [switch]$FunctionalPayloadOnly
     )
     if ($null -ne $DownloadInfo) { $DownloadInfo.Clear() }
-    if (-not $ExpectedReleaseTag) {
+    if (-not $ExpectedReleaseTag -and -not $FunctionalPayloadOnly) {
         $urlTags = @($Urls | ForEach-Object {
             if ([string]$_ -match '^https?://github\.com/[^/]+/[^/]+/releases/download/([^/?#]+)/') {
                 [uri]::UnescapeDataString($matches[1])
@@ -933,7 +944,7 @@ function global:Invoke-SafeDownload {
     foreach ($source in $sources) {
         $u = [string]$source.Url
         $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
-        if (-not $QuietProgress) { Write-Host "  [..] Downloading $Label" -ForegroundColor Gray }
+        if (-not $QuietProgress) { $downloadPrefix=if($PlainProgress){'  '}else{'  [..] '};Write-Host ($downloadPrefix+"Downloading $Label") -ForegroundColor Gray }
         Write-Host "       From: $u [$($source.Kind)]" -ForegroundColor DarkGray
         try {
             $transport = Invoke-PCVRDownloadTransportChain -Url $u -Destination $stage -Label $Label -Validator $validateCandidate
@@ -971,7 +982,7 @@ function global:Invoke-SafeDownload {
             $apiAssetUrl="https://api.github.com/repos/$ghOwner/$ghRepo/releases/assets/$($exactAssets[0].id)"
             $stage=Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
             try {
-                if (-not $QuietProgress) { Write-Host "  [..] Trying the same GitHub release through its asset API..." -ForegroundColor Gray }
+                if (-not $QuietProgress) { $downloadPrefix=if($PlainProgress){'  '}else{'  [..] '};Write-Host ($downloadPrefix+'Trying the same GitHub release through its asset API...') -ForegroundColor Gray }
                 $transport=Invoke-PCVRDownloadTransportChain -Url $apiAssetUrl -Destination $stage -Label $Label -GitHubApiAsset -Validator $validateCandidate
                 if (& $commitCandidate $stage $originalUrl 'GitHub API asset') {
                     $stage=$null
@@ -1006,8 +1017,8 @@ function global:Invoke-SafeDownload {
         $ghPrefix = ""
         if ($ghFile -match '^([A-Za-z]{4,})') { $ghPrefix = $matches[1] }
         try {
-            if (-not $QuietProgress) { Write-Host "  [..] Trying the GitHub API to locate $Label (matching release asset)..." -ForegroundColor Gray }
-            $rels = Invoke-RestMethod -Uri "https://api.github.com/repos/$ghOwner/$ghRepo/releases" -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 10 -ErrorAction Stop
+            if (-not $QuietProgress) { $downloadPrefix=if($PlainProgress){'  '}else{'  [..] '};Write-Host ($downloadPrefix+"Trying the GitHub API to locate $Label (matching release asset)...") -ForegroundColor Gray }
+            $rels = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$ghOwner/$ghRepo/releases" -Headers @{ "User-Agent" = "VRModHub" } -TimeoutSec 10 -ErrorAction Stop
             if ($rels -isnot [array]) { $rels = @($rels) }
             $asset = $null
             foreach ($rel in $rels) {
@@ -1029,7 +1040,7 @@ function global:Invoke-SafeDownload {
             if ($asset -and $asset.browser_download_url -and (-not $seen.ContainsKey([string]$asset.browser_download_url))) {
                 $au = [string]$asset.browser_download_url
                 $stage = Join-Path $destinationDir ('.pcvr-download-' + [Guid]::NewGuid().ToString('N') + [IO.Path]::GetExtension($destinationFull))
-                if (-not $QuietProgress) { Write-Host "  [..] API resolved: $($asset.name) - downloading..." -ForegroundColor Gray }
+                if (-not $QuietProgress) { $downloadPrefix=if($PlainProgress){'  '}else{'  [..] '};Write-Host ($downloadPrefix+"API resolved: $($asset.name) - downloading...") -ForegroundColor Gray }
                 Write-Host "       From: $au" -ForegroundColor DarkGray
                 try {
                     if (_Invoke-DownloadWithProgress -Url $au -Destination $stage -Label $Label) {
@@ -1088,7 +1099,7 @@ function global:Invoke-SafeDownload {
             -FileValidator $manualValidator `
             -RetryCheck $manualRetry `
             -RecoveryInfo $manualInfo
-    if ([string]$r -eq 'retry' -and $ExpectedReleaseTag) {
+    if ([string]$r -eq 'retry' -and $ExpectedReleaseTag -and -not $FunctionalPayloadOnly) {
         $manualPath = ('' + $manualInfo.SourcePath).Trim()
         $manualLeaf = if ($manualPath) { [IO.Path]::GetFileName($manualPath) } else { '' }
         $expectedNumber = [regex]::Match($ExpectedReleaseTag,'(?i)\d+(?:\.\d+){1,3}(?:[-_.]?(?:alpha|beta|rc|pre)[-_.]?\d+)?').Value
@@ -2142,7 +2153,9 @@ function global:Get-HubLocatedGameFolder {
         [Parameter(Mandatory=$true)][string]$GameId,
         [string[]]$ProbeFiles = @(),
         [string]$Subdir = '',
-        [string[]]$StateNames = @('user_located','installed_path')
+        [string[]]$StateNames = @('user_located','installed_path'),
+        [string]$GameTitle = '',
+        [string]$SteamId = ''
     )
 
     $id = (($GameId.Trim().ToLowerInvariant() -replace '[^a-z0-9._-]', '-') -replace '-+', '-').Trim('-')
@@ -2154,34 +2167,22 @@ function global:Get-HubLocatedGameFolder {
     # Hub's canonical JSON/checksum/recovery logic without leaking its cache or
     # state variables into the installer. Corrupt or untrusted JSON therefore
     # never becomes an install destination.
-    $envelope = $null
-    try {
-        $envelope = & {
-            param([string]$ModulePath)
-            . $ModulePath
-            Get-HubStateEnvelope
-        } $stateModule
-    } catch { return $null }
-    if (-not $envelope -or -not $envelope.Data -or -not $envelope.Data.games) { return $null }
-
-    $record = $null
-    try {
-        if ($envelope.Data.games.Contains($id)) { $record = $envelope.Data.games[$id] }
-    } catch { return $null }
-    if (-not $record -or -not $record.values) { return $null }
-
-    # user_located proves that the path came from a successful Locate Game
-    # assignment. installed_path is the same transaction's canonical install
-    # root and remains a safe fallback for state created by an earlier build.
     $candidates = @()
-    foreach ($name in @($StateNames | Where-Object { $_ -match '^[a-z0-9_]+$' } | Select-Object -Unique)) {
-        try {
-            if ($record.values.Contains($name)) {
-                $value = ('' + $record.values[$name]).Trim().Trim('"')
-                if ($value) { $candidates += $value }
+    try {
+        $candidates = @(& {
+            param($ModulePath,$StableId,$Title,$Names,$Steam)
+            . $ModulePath
+            $envelope = Get-HubStateEnvelope
+            if (-not $Title -and $envelope.Data.games.Contains($StableId)) { $Title = [string]$envelope.Data.games[$StableId].title }
+            $game = [pscustomobject]@{Id=$StableId;Title=$Title;SteamId=$Steam}
+            foreach ($name in @($Names | Where-Object { $_ -match '^[a-z0-9_]+$' } | Select-Object -Unique)) {
+                # The same reader as the Hub imports older per-value AppData
+                # state before a fresh Hub folder has any portable receipts.
+                $value = ('' + (Read-PersistentGameStateValue -Game $game -Name $name)).Trim().Trim('"')
+                if ($value) { $value }
             }
-        } catch {}
-    }
+        } $stateModule $id $GameTitle $StateNames $SteamId)
+    } catch { return $null }
 
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
         if (-not (Test-LiteralPathSafe -Path $candidate -PathType Container)) { continue }
@@ -2211,12 +2212,14 @@ function global:Get-PCVRRememberedGameFolder {
         [string]$GameId = '',
         [string[]]$ProbeFiles = @(),
         [string]$Subdir = '',
-        [string[]]$StateNames = @('user_located','installed_path')
+        [string[]]$StateNames = @('user_located','installed_path'),
+        [string]$GameTitle = '',
+        [string]$SteamId = ''
     )
 
     $resolvedId = if ($GameId) { $GameId.Trim() } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
     if (-not $resolvedId) { return $null }
-    return Get-HubLocatedGameFolder -GameId $resolvedId -ProbeFiles $ProbeFiles -Subdir $Subdir -StateNames $StateNames
+    return Get-HubLocatedGameFolder -GameId $resolvedId -ProbeFiles $ProbeFiles -Subdir $Subdir -StateNames $StateNames -GameTitle $GameTitle -SteamId $SteamId
 }
 
 # Persist an installer-confirmed game root through the same checksummed
@@ -2433,7 +2436,39 @@ function global:Find-SteamGameFolder {
     }
     foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } }
 
+    # LAST RESORT: Windows Uninstall entries (same source as the Hub scan's
+    # priority 4). Covers disc/retail installs and renamed folders, e.g.
+    # "C:\Games\Call of Duty Deluxe Edition". Runs only when every route
+    # above came back empty, so no previously found folder changes. A
+    # folder is accepted ONLY when -ProbeExe really exists in it (plus
+    # -Subdir) - a matching folder name alone is never enough, and callers
+    # without -ProbeExe are not served here at all.
+    # Off switch shared with the scan: PCVR_HUB_REGISTRY_SCAN=0.
+    if ($ProbeExe -and -not ([string]$env:PCVR_HUB_REGISTRY_SCAN -eq '0') -and (Get-Command Get-InstallerUninstallInstallRoots -ErrorAction SilentlyContinue)) {
+        $regFolders = @(Get-InstallerUninstallInstallRoots)
+        if ($regFolders.Count) {
+            $names = @($SteamFolderNames) + @($GogNames) + @($EpicNames) | Where-Object { $_ }
+            # Name matches first, then any folder holding the probe exe.
+            $ordered = @($regFolders | Where-Object { $leaf = Get-PathLeafLexical $_; @($names | Where-Object { $_ -ieq $leaf }).Count -gt 0 }) +
+                       @($regFolders | Where-Object { $leaf = Get-PathLeafLexical $_; @($names | Where-Object { $_ -ieq $leaf }).Count -eq 0 })
+            foreach ($rf in $ordered) {
+                $candidate=$rf
+                for($level=0;$level -lt 4 -and $candidate;$level++) {
+                    $g=if($Subdir){Join-PathLexical $candidate $Subdir}else{$candidate}
+                    if ((Test-LiteralPathSafe -Path $g -PathType Container) -and
+                        (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { return $g }
+                    $candidate=[IO.Path]::GetDirectoryName($candidate.TrimEnd([char[]]'\/'))
+                }
+            }
+        }
+    }
+
     return $null
+}
+
+function global:Get-InstallerUninstallInstallRoots {
+    if (Get-Command Get-PCVRUninstallInstallRoots -ErrorAction SilentlyContinue) { return @(Get-PCVRUninstallInstallRoots) }
+    return @()
 }
 
 # ---- Point at the game executable yourself -----------------
@@ -2575,8 +2610,8 @@ function global:Get-GameFolderInteractive {
     Write-Host "    $GameName" -ForegroundColor White
     Write-Host "------------------------------------------------------------" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  You can paste the path manually (the folder where the" -ForegroundColor White
-    Write-Host "  game's .exe lives). Examples:" -ForegroundColor White
+    Write-Host "  Paste or drop the installed game folder or its game EXE." -ForegroundColor White
+    Write-Host "  Examples:" -ForegroundColor White
     Write-Host "    C:\Program Files (x86)\Steam\steamapps\common\$GameName" -ForegroundColor DarkGray
     Write-Host "    D:\Games\$GameName" -ForegroundColor DarkGray
     if ($ManualUrl) {
@@ -2590,23 +2625,32 @@ function global:Get-GameFolderInteractive {
     while ($true) {
         $i++
         Write-Host ""
-        $p = ("" + (Read-Host "  Path (attempt $i)")).Trim('"').Trim()
-        if ($p -in @("s","S","skip"))        { return "skip" }
-        if (-not $p) {
+        $rawPath = Read-Host "  Path (attempt $i)"
+        if ($null -eq $rawPath) { throw 'No game folder was selected before the input stream ended.' }
+        $rawPath = ([string]$rawPath).Trim()
+        if ($rawPath -in @("s","S","skip")) { return "skip" }
+        if (-not $rawPath) {
             Write-Host "  Empty input - try again or type S to skip deliberately." -ForegroundColor Yellow
             continue
         }
-        if (-not (Test-Path $p)) {
+        $p = ConvertTo-PCVRCanonicalUserPath $rawPath
+        if (Test-Path -LiteralPath $p -PathType Leaf -ErrorAction SilentlyContinue) {
+            if ([IO.Path]::GetExtension($p) -ine '.exe') {
+                Write-Host "  Choose the game EXE or its installed folder." -ForegroundColor Yellow
+                continue
+            }
+            $p = Split-Path -Parent $p
+        }
+        if (-not (Test-Path -LiteralPath $p -PathType Container -ErrorAction SilentlyContinue)) {
             Write-Host "  Path does not exist - try again." -ForegroundColor Yellow
             continue
         }
         if ($ProbeFile) {
             $probe = Join-Path $p $ProbeFile
-            if (-not (Test-Path $probe)) {
+            if (-not (Test-Path -LiteralPath $probe -PathType Leaf -ErrorAction SilentlyContinue)) {
                 Write-Host "  Path exists but doesn't contain $ProbeFile." -ForegroundColor Yellow
-                Write-Host "  Is this really the install folder?" -ForegroundColor Yellow
-                $ok = ("" + (Read-Host "  [Y]es accept anyway / [N]o try again")).Trim().ToLower()
-                if ($ok -ne "y") { continue }
+                Write-Host "  Select the folder containing that file, or drop the game EXE." -ForegroundColor Yellow
+                continue
             }
         }
         # This is a validated game location, not a claim that the VR mod is
@@ -2860,7 +2904,7 @@ function global:Get-DepotDownloader {
     $ddUrl = $null
     $ddVersionLabel = "latest"
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/SteamRE/DepotDownloader/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/SteamRE/DepotDownloader/releases/latest" `
             -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -ErrorAction Stop
         $asset = $rel.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
         if ($asset -and $asset.browser_download_url) {
@@ -3525,7 +3569,7 @@ function global:Install-MultiverseVRHub {
     # Select-PayloadAsset only looks for .zip, so it does not fit here.
     $url = $pinned; $tag = "latest"; $expectHash = $null
     try {
-        $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" `
+        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" `
                    -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
         foreach ($a in @($rel.assets)) {
             if ($a.name -ieq $exeName) { $url = [string]$a.browser_download_url; $tag = [string]$rel.tag_name; break }

@@ -1,113 +1,79 @@
-# Metroid Prime VR (PrimedGun)
+﻿# Metroid Prime VR (PrimedGun 2.0)
 
 ## About the Game
 
-PrimedGun is a Dolphin XR Redux-based build by Nobbie focused on a proper VR
-experience for Metroid Prime (GameCube): 6DOF arm-cannon tracking, visor head
-tracking with gesture input, full directional movement, improved gun-based targeting
-and grapple, and an in-headset settings menu. It runs standalone - you do not need
-Dolphin installed, and it is not a hook or injector.
+Explore Tallon IV as Samus Aran: scan alien life, uncover the Space Pirates' experiments and discover new abilities that open the world around you.
 
-> Metroid Prime is a critically acclaimed first-person action-adventure game developed
-> by Retro Studios and published by Nintendo. Originally released for the GameCube in
-> November 2002 and now fully playable in VR with 6DoF motion controls.
+PrimedGun 2.0 by Nobbie and iChris4 is a native OpenXR port with motion controls and optional roomscale. It uses a native game engine, replacing the earlier Dolphin-based application. The Hub follows Windows releases including prereleases from iChris4/MetroidPrimePortVR.
 
-## Features
+## What you need
 
-- Full directional movement and a modern VR control scheme.
-- Visor head tracking with hand-gesture input.
-- Improved gun-based targeting and grapple.
-- 6DOF arm-cannon tracking; cannon position/rotation calibration.
-- One-click height calibration.
-- Easy cannon-texture swapping tool.
-- In-headset settings menu.
+- Your own supported Metroid Prime disc image. USA revisions 0, 1 and 2 are supported; PAL is experimental. No game content is downloaded or included.
+- A connected PC VR headset and active OpenXR runtime.
+- A separate writable installation folder. The default is C:\Games\Metroid Prime VR 2.
 
-## Current Windows PCVR update: v1.1.7
+## Install and start
 
-PrimedGun v1.1.6 adds a setup window, repairs movement and jumping, disables
-charged-shot recoil by default, adds mirror options and additional safeguards,
-improves Valve Index grip handling and lets a charging shot attract pickups.
+1. Choose Install in the Hub. Option 1 is recommended: the native PrimedGun 2.0 Windows build with auto-update including prereleases. Option 2 installs the separate Dolphin-based Legacy 1.1.7 build.
+2. Use Start in VR in the Hub and select the installed variant. Metroid Prime VR is the native desktop shortcut; Metroid Prime VR - Legacy opens the older application.
+3. In PrimedGun choose Select Game and select your own disc image.
+4. Open Port Config, enable VR, choose Save Settings, then Play. For flat play, disable VR in Port Config.
 
-The publisher first released v1.1.7 for Quest only. The later
-v1.1.7-windows release now includes PrimedGun.v1.1.7.zip for PCVR.
-It caches texture and shader hashes, reduces CPU work through headset-aware
-culling, skips helmet rendering when disabled, adds in-headset shader-build
-progress, and makes skyboxes appear distant by default. The Hub tracks the
-Windows ZIP rather than the Quest APK. The offline fallback remains v1.1.6.
+The publisher's Layout tab shows the current bindings. Controller and Calibration provide input and arm-cannon settings.
 
-## Requirements
+## Existing saves and updates
 
-- A Metroid Prime - NTSC 1.0 (Revision 0) GameCube disc image
-  (`.iso` / `.rvz` / `.gcm`). NTSC 1.0 / rev 0 only - not rev 1 or rev 2.
-  You can verify the disc revision in Dolphin.
-- A PC VR headset with SteamVR. The Oculus/Meta runtime is not recommended.
-- PC power tier: Strong (roughly RTX 4070 / R5 7600 class).
+The former Dolphin-based installation stays in its own folder, unchanged. Select your game in the new launcher, then use Transfer PrimedGun Memory Card / Settings and choose the old installation or its User folder.
 
-No game ROM is downloaded or shipped. Only the PrimedGun application is fetched from
-the official GitHub releases.
+Dolphin save states cannot transfer. Save normally in the old game before moving progress. Keep the old installation until you have checked your transferred save.
 
-Standalone: PrimedGun is not a Dolphin hook/injector - it ships as its own program.
-The Hub installs it into its own clean folder, separate from any Dolphin install (do
-not extract it on top of an existing Dolphin, that breaks things). To carry over a save
-from Dolphin, copy your Dolphin memory-card data into PrimedGun's `User` folder.
+Native updates preserve the entire user folder, disc images and unrelated local files. The installer never substitutes the old emulator release if a native download fails; the recovery screen opens the current release page and accepts a manually downloaded Windows ZIP.
 
-## Install (via the Hub)
+Both installations can coexist and have separate start buttons, folders, version records and removal actions. Native updates go directly to the native installer; they do not ask which variant to install. The general Install / update variants action shows the selection menu. Legacy is an explicit fixed download, not an automatic fallback.
 
-1. In the Hub, open Metroid Prime VR and run the installer.
-2. Accept `C:\Games\Metroid Prime VR` or pick your own folder.
-3. The installer downloads the latest PrimedGun release, enables Dolphin portable
-   mode (`portable.txt`), creates a `ROM` subfolder and pre-points the game list at it.
-4. Drop your Metroid Prime NTSC 1.0 (rev 0) ISO into:
-   `C:\Games\Metroid Prime VR\ROM`
+### Legacy setup
 
-### Updates and reinstalls
+The default Legacy folder remains C:\Games\Metroid Prime VR. Existing complete Legacy installations are retained and recognized, including custom folders remembered by the Hub. The Legacy installer preserves the complete User and ROM contents and seeds only missing publisher defaults. It uses Dolphin portable mode.
 
-Both modes preserve the complete `User` folder (game saves, Dolphin save states and
-preferences) and the `ROM` folder. Update mode merges the new release files into the
-existing installation. Reinstall mode rebuilds the application files, then restores
-the preserved user data. The installer keeps an external safety backup until every
-preserved file has been restored and verified; an interrupted run recovers that
-backup automatically the next time the installer starts.
-
-## How to play
-
-1. Put your ISO in the `ROM` folder (see above).
-2. Start SteamVR first.
-3. Launch with Start in VR in the Hub, or the Metroid Prime VR desktop shortcut (or `PrimedGun.exe`).
-4. Your ROM should already be listed - select it and press Play.
-   If it is not listed, click Select Game..., pick the ISO once, then press Play.
+Legacy requires a powerful PC for Dolphin-based VR, your own USA NTSC 1.0 revision 0 image and SteamVR. Put the image in its ROM folder or select it inside PrimedGun. Native supports additional USA revisions; the two engines have different requirements.
 
 ## VR controls
-
-![Controller layout](ControllerLayout.jpg)
 
 | Button | Action |
 |---|---|
 | [[Left Stick]] | Move |
-| [[Left Stick Click]] | Open VR settings |
-| [[Y]] | Start / pause |
-| [[X]] | Morph Ball |
-| [[Left Grip]] | Map |
-| [[Left Trigger]] | Lock on |
-| [[Right Stick]] | Look / jump |
-| [[Right Stick Click]] | Set height |
-| [[B]] | Select beam |
-| [[A]] | Select |
-| [[Right Grip]] | Missiles |
-| [[Right Trigger]] | Shoot |
+| [[Left Stick Click]] | Open or close in-headset settings |
+| [[Right Stick Click]] | Calibrate height |
 
-Tip: place your off-hand near your head and use the control stick to change visors.
+Use the launcher's Layout tab for the complete current controller scheme; it can differ from the legacy build.
 
-## Credits
+### Legacy controller layout
 
-- Created by Nobbie.
-- Huge thanks to iChris4 for Dolphin XR Redux development, and to the Dolphin team.
-- Thanks to the Metroid Prime modding community and the early testers.
-- Dolphin VR Discord: https://discord.gg/GdmffzCTrh
+![Legacy PrimedGun controller layout](ControllerLayout.jpg)
+
+| Button | Action |
+|---|---|
+| [[Left Stick]] | Legacy movement |
+| [[Left Stick Click]] | Legacy VR settings |
+| [[Left Grip]] | Legacy map |
+| [[Left Trigger]] | Legacy lock on |
+| [[Right Stick Click]] | Legacy height calibration |
+| [[Right Grip]] | Legacy missiles |
+| [[Right Trigger]] | Legacy shoot |
+
+## VR files
+
+Native Start in VR opens PrimedGun.exe in C:\Games\Metroid Prime VR 2 (or your chosen folder). Its game engine is metroid_prime_port.exe, and its saves and settings live in the user subfolder. Legacy opens its own PrimedGun.exe, normally in C:\Games\Metroid Prime VR, with its separate User and ROM folders. The Hub displays links to the detected installations and start apps when available. If the Hub does not find your game, you can choose Locate Game and select PrimedGun.exe from the installation you want to identify.
+
+## Discord discussion & support
+
+- Flat2VR Modding invite: https://discord.gg/flat2vr
+- Dolphin VR community: https://discord.gg/GdmffzCTrh
 
 ## Links
 
-- Info / source: https://github.com/Nobbie248/PrimedGun
-- Latest release: https://github.com/Nobbie248/PrimedGun/releases/latest
+- Mod source and current setup notes: https://github.com/iChris4/MetroidPrimePortVR
+- Windows releases including prereleases: https://github.com/iChris4/MetroidPrimePortVR/releases
+- Legacy application and save-transfer source: https://github.com/Nobbie248/PrimedGun
 
 >>> Scan the unknown, lock on, and let the arm cannon do the talking.

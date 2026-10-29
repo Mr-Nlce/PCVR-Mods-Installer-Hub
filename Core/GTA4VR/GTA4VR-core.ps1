@@ -1,346 +1,138 @@
-# ============================================================
-# GTA IV VR - Installer (gtaiv-dxvk-vr by Hochgeschwindigkeitsrennfahrer)
-# ============================================================
-# WIP VR glue for GTA IV Complete Edition: stock DXVK 3.0.2 as
-# d3d9.dll + the project's Win32 ASI + OpenVR. SteamVR ONLY - there is
-# no OpenXR path. Head tracking and stereo submit work; motion
-# controller hands do not exist yet, a gamepad is the input.
-#
-# The release ships the contents of a "drop-into-GTAIV" folder that is
-# merged PER FILE into the game's GTAIV subfolder (the one holding
-# GTAIV.exe) - no own install folder, no C:\Games.
-#
-# TWO ASSETS ON THE RELEASE, and their difference is tiny: both hold
-# the same ASI, the same DXVK and the same FusionFix payload. Verified
-# by unpacking both - the only differences are a shipped
-# commandline.txt vs the RC2 notes file, and the value in
-# gtaiv_dxvk_vr.ipd.
-#
-# AS OF v0.9.09-hud4 (2026-08): the installer WRITES NO SETTINGS any
-# more. It used to ask for "AER" or "Other stereo" and then set
-# ipd/stereoscale/fpfov from the release notes of the time. The package
-# now ships its own settings files, already tuned (mode 909, vres 2048,
-# fpfov 90 90 90) - writing our own values in would only make them
-# worse. It now merely shows what is there.
-# ============================================================
-
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
-
-$Host.UI.RawUI.WindowTitle = "GTA IV VR Installer"
-
-function Write-Header {
-    Clear-Host
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host " GTA IV VR Installer" -ForegroundColor Cyan
-    Write-Host " gtaiv-dxvk-vr | Complete Edition | SteamVR | gamepad" -ForegroundColor Gray
-    Write-Host "============================================================" -ForegroundColor Magenta
-    Write-Host ""
+﻿param([Alias('InstallerChoice')][ValidateSet('','bordplate','gamepad','both')][string]$Mod='')
+$ErrorActionPreference='Stop'
+. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\GTA4VRProfiles.ps1')
+function Invoke-GTA4Install {
+param([string]$Mod)
+$Host.UI.RawUI.WindowTitle='GTA IV VR Installer'
+Write-Host '============================================================' -ForegroundColor Magenta
+Write-Host '  GTA IV VR Installer - two separate mod profiles' -ForegroundColor Cyan
+Write-Host '============================================================' -ForegroundColor Magenta
+Write-Host '  [1] bordplate - Motion Controls (RECOMMENDED)' -ForegroundColor Green
+Write-Host '      SteamVR as OpenXR runtime. Tested by the author with Vive Wands.'
+Write-Host '      Other controllers are untested and may need bindings or code changes.' -ForegroundColor Gray
+Write-Host '  [2] gtaiv-dxvk-vr - Gamepad' -ForegroundColor White
+Write-Host '      SteamVR, head tracking and stereo; no tracked hands.' -ForegroundColor Gray
+Write-Host '  [3] Both - choose the matching Start in VR button in the Hub.'
+Write-Host '  Installing another profile keeps your currently active mod.'
+Write-Host '  Mod downloads and verified backups can take several minutes.' -ForegroundColor Gray
+Show-AntivirusNotice -Compact
+if(-not $Mod){do{$pick=(''+(Read-Host 'Choose 1, 2 or 3 (Enter = 1)')).Trim()}while($pick -notin @('','1','2','3'));$Mod=switch($pick){'2'{'gamepad'};'3'{'both'};default{'bordplate'}}}
+$test=$null
+if($env:PCVR_HUB_TEST_MODE -eq '1'){
+ if(-not $env:PCVR_GTA4_TEST_CONFIG){throw 'An isolated GTA IV test config is required.'}
+ $test=Get-Content -LiteralPath $env:PCVR_GTA4_TEST_CONFIG -Raw|ConvertFrom-Json
+ $boundary=[IO.Path]::GetFullPath($test.Root).TrimEnd('\')+'\'
+ if(-not(Test-Path -LiteralPath (Join-Path $test.Root '.fixture'))){throw 'Missing GTA IV test sentinel.'}
+ foreach($path in @($test.Game,$test.Desktop,$test.Receipt,$env:PCVR_HUB_TEST_LOCALAPPDATA,$env:PCVR_HUB_RUNTIME_ROOT,$env:PCVR_HUB_USERDATA_ROOT)){
+  if(-not $path -or -not [IO.Path]::GetFullPath($path).StartsWith($boundary,[StringComparison]::OrdinalIgnoreCase)){throw 'GTA IV fixture path escaped its sentinel root.'}
+ }
 }
-function Write-Step { param($n,$t,$x) Write-Host ""; Write-Host "--- [$n/$t] $x ---" -ForegroundColor Cyan; Write-Host "" }
-function Write-Info { param($x) Write-Host "  [..] $x" -ForegroundColor Gray }
-function Write-Warn { param($x) Write-Host "  [!!] $x" -ForegroundColor Yellow }
-function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
-function Write-OK   { param($x) Write-Host "  [OK] $x" -ForegroundColor Green }
-function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
-
-$SCRIPT_DIR  = Split-Path -Parent $MyInvocation.MyCommand.Path
-$REPO        = "Hochgeschwindigkeitsrennfahrer/Grand-Theft-Auto-IV-VR-Mod"
-$REPO_API    = "https://api.github.com/repos/$REPO/releases"
-$RELEASE_PAGE= "https://github.com/$REPO/releases"
-$APP_ID      = "12210"
-$GAME_EXE    = "GTAIV.exe"
-$MOD_ASI     = "gtaiv_dxvk_vr.asi"
-$PAYLOAD_DIR = "drop-into-GTAIV"
-
-# Store layouts. The mod files go into the GTAIV SUBFOLDER of these.
-$CANDIDATE_ROOTS = @(
-    "C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto IV",
-    "C:\Program Files\Rockstar Games\Grand Theft Auto IV",
-    "C:\Program Files (x86)\Rockstar Games\Grand Theft Auto IV"
-)
-
-function Get-LatestGtaIvVr {
-    try {
-        $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rels = Invoke-RestMethod -Uri "$REPO_API`?per_page=5" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        foreach ($rel in @($rels)) {
-            # Only the .zip asset - the second asset on this release carries
-            # a non-archive extension and holds the same payload anyway.
-            $zips = @($rel.assets | Where-Object { $_.name -match '(?i)\.zip$' })
-            if ($zips.Count -gt 0) {
-                $pick = $zips | Where-Object { $_.name -match '(?i)(gtaiv|dxvk|vr)' } | Select-Object -First 1
-                if (-not $pick) { $pick = $zips[0] }
-                return @{ Url = [string]$pick.browser_download_url; Tag = [string]$rel.tag_name; Name = [string]$pick.name }
-            }
-        }
-    } catch { }
-    return $null
+$game=& {
+ $found=$null;$handover=Get-PCVRRecoveryInput
+ if($handover){try{$found=Get-GTA4Root $handover}catch{}}
+ if(-not $found){$found=Get-PCVRRememberedGameFolder -GameId 'gta-iv-vr' -StateNames @('user_located','installed_path') -ProbeFiles @('GTAIV.exe')}
+ if(-not $found -and $test){throw 'The isolated remembered game path was not found.'}
+ if(-not $found){$found=Find-SteamGameFolder -AppId '12210' -SteamFolderNames @('Grand Theft Auto IV') -ProbeExe 'GTAIV\GTAIV.exe' -HubGameId 'gta-iv-vr'}
+ if(-not $found){foreach($candidate in @('C:\Program Files\Rockstar Games\Grand Theft Auto IV','C:\Program Files (x86)\Rockstar Games\Grand Theft Auto IV')){try{$found=Get-GTA4Root $candidate;break}catch{}}}
+ while(-not $found){$raw=Read-Host 'Drop GTAIV.exe or paste its game folder';try{$found=Get-GTA4Root (ConvertTo-PCVRCanonicalUserPath $raw)}catch{Write-Host $_.Exception.Message -ForegroundColor Yellow}}
+ Get-GTA4Root $found
 }
-
-# Find <game>\GTAIV, the folder that actually holds GTAIV.exe.
-function Find-GtaIvFolder {
-    $roots = New-Object System.Collections.Generic.List[string]
-    try {
-        # Signature checked in InstallerSafety.ps1: -SteamFolderNames (array),
-        # -Subdir and -ProbeExe. -FolderName does not exist.
-        $steam = Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @("Grand Theft Auto IV") -ProbeExe "GTAIV\$GAME_EXE"
-        if ($steam) { [void]$roots.Add([string]$steam) }
-    } catch { }
-    foreach ($c in $CANDIDATE_ROOTS) { [void]$roots.Add($c) }
-    foreach ($r in $roots) {
-        if (-not $r) { continue }
-        foreach ($sub in @("GTAIV", "")) {
-            $cand = if ($sub) { "$r\$sub" } else { $r }
-            if (Test-Path -LiteralPath "$cand\$GAME_EXE") { return $cand }
-        }
-    }
-    return $null
+if($test -and -not $game.StartsWith($boundary,[StringComparison]::OrdinalIgnoreCase)){throw 'The detected GTA IV game escaped its fixture.'}
+if(-not [IO.File]::Exists((Join-Path $game 'pc\models\cdimages\vehicles.img'))){throw 'The selected folder lacks the original GTA IV game data. Choose the complete game installation, then Retry.'}
+if(Get-Process -Name GTAIV,PlayGTAIV,LaunchGTAIV -ErrorAction SilentlyContinue){throw 'Close GTA IV and its launcher, then Retry.'}
+if(-not(Test-InstallerTargetWritable -TargetPath $game)){throw 'The game folder is protected. Run the Hub as administrator for this folder, or choose a writable game installation, then Retry.'}
+if(Test-Path -LiteralPath (Join-Path $game 'FirstPerson.asi')){throw 'FirstPerson.asi conflicts with both VR mods. Back it up and rename it to FirstPerson.asi.off, then Retry.'}
+Write-Host ('  [OK] Game found: '+$game) -ForegroundColor Green
+Write-Host '  Close the game before installing or switching. Both mods include their own FusionFix.'
+[void](Wait-PCVRExplicitEnter -Message 'Press Enter to download and prepare the selected VR mod...')
+$work=New-PCVRInstallerTempSession -BasePath ([IO.Path]::GetTempPath())
+try{
+$selected=if($Mod -eq 'both'){@('bordplate','gamepad')}else{@($Mod)}
+foreach($choice in $selected){
+ $p=Get-GTA4Profile $choice
+ $script:GTA4RecoveryPage='https://github.com/'+$p.Repo+'/releases'
+ Write-Host ('  Preparing '+$p.Name+'...') -ForegroundColor Cyan
+ $release=if($test){$test.Packages.$choice}else{Resolve-GitHubReleaseAsset -Repo $p.Repo -AssetPatterns @($p.Pattern) -IncludePrerelease $p.Prerelease}
+ if(-not $release.Resolved){throw ('The current '+$p.Name+' download could not be resolved. Retry or use the official release archive.')}
+ $zip=Join-Path $work ($choice+'.zip')
+ if($test){Copy-Item -LiteralPath $release.LocalFile -Destination $zip}else{[void](Invoke-SafeDownload -Urls @($release.Url) -Destination $zip -Label $p.Name -ManualUrl $release.PageUrl -AllowSkip $false -FunctionalPayloadOnly -PlainProgress -DisableGitHubAssetReresolution)}
+ $ex=Join-Path $work ($choice+'-extract');[void][IO.Directory]::CreateDirectory($ex)
+ $safety=Test-ZipArchiveEntrySafety -ArchivePath $zip -DestinationFolder $ex
+ if(-not $safety.Inspectable -or -not $safety.Safe){throw 'The publisher ZIP is unreadable or contains unsafe paths.'}
+ Write-Host ('  Extracting '+$p.Name+'...') -ForegroundColor Gray
+ if((Expand-ArchiveOrFallback -ArchivePath $zip -DestinationFolder $ex -Label $p.Name -AllowSkip:$false -QuietProgress) -ne 'ok'){throw 'The complete publisher ZIP could not be extracted.'}
+ $stage=if($choice -eq 'gamepad'){Join-Path $ex 'drop-into-GTAIV'}else{$ex}
+ Assert-GTA4Tree $stage
+ Assert-GTA4Payload $stage $choice
+ [void](Wait-PCVRExplicitEnter -Message ('Press Enter to install '+$p.Name+'; existing files and settings are backed up...'))
+ $launch=Join-Path $game '_vrmods\VRLaunch'
+ $extra=@('_vrmods\active.json','_vrmods\mode.ini','UNINSTALL_GTA4VR.bat','.pcvrhub_version_b')+@('OwnedModFiles.ps1','PublisherZipTransaction.ps1','GTA4VRProfiles.ps1','Start-GTA4VR.ps1','UNINSTALL_GTA4VR.ps1','Start GTA4 bordplate.vbs','Start GTA4 gamepad.vbs'|ForEach-Object {'_vrmods\VRLaunch\'+$_})
+ $gameSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $game -Stage $stage -Identity gta4active -SnapshotRoot (Join-Path $work ($choice+'-game-rollback')) -ExtraPaths $extra
+ $store=Join-Path $game ('_vrmods\'+$choice);[void][IO.Directory]::CreateDirectory($store)
+ $storeSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $store -Stage $stage -Identity ('gta4store_'+$choice) -SnapshotRoot (Join-Path $work ($choice+'-store-rollback')) -ExtraPaths @('.profile.json')
+ $desktop=if($test){$test.Desktop}else{[Environment]::GetFolderPath('Desktop')}
+ $shortcutPath=Join-Path $desktop ('GTA IV VR ('+$choice+').lnk');$oldShortcut=if([IO.File]::Exists($shortcutPath)){[IO.File]::ReadAllBytes($shortcutPath)}else{$null}
+ $controlStage=Join-Path $work ($choice+'-controllers');$controlLaunch=Join-Path $controlStage '_vrmods\VRLaunch';[void][IO.Directory]::CreateDirectory($controlLaunch)
+ $controlSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $game -Stage $controlStage -Identity gta4controllers -SnapshotRoot (Join-Path $work ($choice+'-controllers-rollback')) -ExtraPaths $extra
+ try{
+ Install-GTA4Profile -Game $game -Stage $stage -Mod $choice -Version $release.Tag
+ $launch=Join-Path $game '_vrmods\VRLaunch';[void][IO.Directory]::CreateDirectory($launch)
+ foreach($file in @('OwnedModFiles.ps1','PublisherZipTransaction.ps1','GTA4VRProfiles.ps1')){Copy-GTA4Verified (Join-Path $PSScriptRoot ('..\Modules\'+$file)) (Join-Path $controlLaunch $file)}
+ foreach($file in @('Start-GTA4VR.ps1','UNINSTALL_GTA4VR.ps1')){Copy-GTA4Verified (Join-Path $PSScriptRoot $file) (Join-Path $controlLaunch $file)}
+ foreach($route in @('bordplate','gamepad')){
+  $vbs='Set sh=CreateObject("WScript.Shell")'+"`r`n"+'sh.Run "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""'+(Join-Path $launch 'Start-GTA4VR.ps1')+'"" -Mod '+$route+'", 0, False'
+  [IO.File]::WriteAllText((Join-Path $controlLaunch ('Start GTA4 '+$route+'.vbs')),$vbs)
+ }
+ $mode=Join-Path $controlStage '_vrmods\mode.ini';if(-not [IO.File]::Exists($mode)){[IO.File]::WriteAllText($mode,"[Hub]`r`nMode=VR`r`n")}
+ [IO.File]::WriteAllText((Join-Path $controlStage 'UNINSTALL_GTA4VR.bat'),'@echo off'+"`r`n"+'powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0_vrmods\VRLaunch\UNINSTALL_GTA4VR.ps1" %*')
+ [void](Install-OwnedModPayload -SourceRoot $controlStage -GameRoot $game -Identity gta4controllers -KeepExistingRelativePaths @('_vrmods\mode.ini'))
+ $desktop=if($test){$test.Desktop}else{[Environment]::GetFolderPath('Desktop')}
+ [void][IO.Directory]::CreateDirectory($desktop)
+ $shortcutPath=Join-Path $desktop ('GTA IV VR ('+$choice+').lnk');$shell=New-Object -ComObject WScript.Shell
+ $shortcut=$shell.CreateShortcut($shortcutPath);$target=Join-Path $env:WINDIR 'System32\wscript.exe'
+ if(Test-Path -LiteralPath $shortcutPath){if($shortcut.TargetPath -ine $target -or $shortcut.Arguments -notlike ('*'+$launch+'*')){throw 'An unrelated shortcut has the same name. Rename it, then Retry.'}}
+ $shortcut.TargetPath=$target;$shortcut.Arguments='"'+(Join-Path $launch ('Start GTA4 '+$choice+'.vbs'))+'"';$shortcut.WorkingDirectory=$game;$shortcut.IconLocation=(Join-Path $game 'GTAIV.exe')+',0';$shortcut.Save()
+ $ship=@(Get-ChildItem -LiteralPath $stage -Recurse -File|ForEach-Object {$_.FullName.Substring($stage.TrimEnd('\').Length+1)})
+ $proof=@('GTAIV.exe','pc\models\cdimages\vehicles.img')+@($ship|ForEach-Object {'_vrmods\'+$choice+'\'+$_})+@(('_vrmods\'+$choice+'\.profile.json'),('_vrmods\VRLaunch\Start GTA4 '+$choice+'.vbs'),'_vrmods\VRLaunch\Start-GTA4VR.ps1')
+ foreach($rel in $proof){if(-not(Test-Path -LiteralPath (Join-Path $game $rel) -PathType Leaf)){throw ('Required GTA IV file is missing: '+$rel)}}
+ if($test -and $test.Failure -eq 'copy'){Remove-Item -LiteralPath (Join-Path $store $p.Required[0]) -Force}
+ $requiredPaths=@($ship|ForEach-Object {Join-Path $store $_})
+ foreach($file in $requiredPaths){Write-Information -MessageData ('File check [immediately-after-copy]: '+$file+' = '+[IO.File]::Exists($file)) -InformationAction SilentlyContinue}
+ if(@($requiredPaths|Where-Object {-not [IO.File]::Exists($_)}).Count){throw 'Required mod files are missing. Check the target path, write permissions and installer log.'}
+ if(-not(Confirm-PlacedFilesSurvive -Paths $requiredPaths -GameDir $game -NoClear)){throw 'Required GTA IV mod files did not remain available.'}
+ foreach($file in $requiredPaths){Write-Information -MessageData ('File check [after-observation]: '+$file+' = '+[IO.File]::Exists($file)) -InformationAction SilentlyContinue}
+ Write-Host ('  [OK] '+$ship.Count+' publisher files verified.') -ForegroundColor Green
+ $contract=New-PCVRInstallerContract -Id 'gta-iv-vr' -GameName 'GTA IV VR' -Acquisition GitHub -Routes @('bordplate','gamepad') -RequiredInstalledFileGroups $proof -AntivirusNotice -ReleasePageUrl ('https://github.com/'+$p.Repo+'/releases')
+ $receipt=if($test){$test.Receipt}else{Join-Path $PSScriptRoot '.installed_path'}
+ [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version $release.Tag -Route $choice -VersionSlot $(if($choice -eq 'gamepad'){'Secondary'}else{'Primary'}) -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @((Join-Path $game $p.VersionFile),(Join-Path $store '.pcvrhub_version')))
+ Write-Host ('  [OK] '+$p.Name+' '+$release.Tag+' installed.') -ForegroundColor Green
+ }catch{
+  Restore-PCVRPublisherZipSnapshot -GameRoot $game -Snapshot $controlSnapshot
+  Restore-PCVRPublisherZipSnapshot -GameRoot $game -Snapshot $gameSnapshot
+  Restore-PCVRPublisherZipSnapshot -GameRoot $store -Snapshot $storeSnapshot
+  if($null -ne $oldShortcut){[IO.File]::WriteAllBytes($shortcutPath,$oldShortcut)}elseif([IO.File]::Exists($shortcutPath)){Remove-Item -LiteralPath $shortcutPath -Force}
+  throw
+ }
 }
-
-Write-Header
-Write-Host "  Liberty City with head tracking and real stereo depth, built on" -ForegroundColor Gray
-Write-Host "  stock DXVK and OpenVR. Experimental head aiming while aiming down" -ForegroundColor Gray
-Write-Host "  sights. This is an early proof of concept, not a finished port:" -ForegroundColor Gray
-Write-Host "  no motion controller hands, you play it on a gamepad." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Needed: GTA IV COMPLETE EDITION and SteamVR." -ForegroundColor White
-Write-Host "  There is no OpenXR path - SteamVR has to be running." -ForegroundColor Gray
-Pause-User "Press Enter to start the installation..." | Out-Null
-
-# ---- 1. locate the game -------------------------------------
-Write-Step 1 4 "Locating GTA IV"
-
-$gtaDir = Find-GtaIvFolder
-if ($gtaDir) { Write-OK "Found: $gtaDir" }
-else {
-    Write-Warn "GTA IV was not found automatically."
-    Write-Host "  Drag your GTAIV folder here (the one with $GAME_EXE) and press Enter." -ForegroundColor White
-    Write-Host "  Steam example:" -ForegroundColor Gray
-    Write-Host "    C:\Program Files (x86)\Steam\steamapps\common\Grand Theft Auto IV\GTAIV" -ForegroundColor Gray
-    while (-not $gtaDir) {
-        $r = (Read-Host "  Folder").Trim().Trim('"')
-        if (-not $r) { Write-Fail "Nothing entered."; continue }
-        if (Test-Path -LiteralPath "$r\$GAME_EXE") { $gtaDir = $r }
-        elseif (Test-Path -LiteralPath "$r\GTAIV\$GAME_EXE") { $gtaDir = "$r\GTAIV" }
-        else { Write-Fail "$GAME_EXE not found in: $r" }
-    }
-    Write-OK "Using: $gtaDir"
+}finally{Remove-PCVRInstallerTempSession -Path $work}
+Write-Host '  1. Use Start in VR in the Hub for the mod you want.' -ForegroundColor Yellow
+Write-Host '  Start SteamVR first. For bordplate, make SteamVR the active OpenXR runtime.'
+Write-Host '  Alternative: use the matching GTA IV VR desktop shortcut.'
+Write-Host '  Only Vive Wands are author-tested; other controllers may need bindings or code changes.'
+Write-Host '  Keep a keyboard/gamepad for minigames and mission workarounds. DLC campaigns are untested.'
+Write-Host '  Roman has another bowling invitation.' -ForegroundColor Magenta
+[void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
 }
-
-# ---- 2. download --------------------------------------------
-Write-Step 2 4 "Downloading gtaiv-dxvk-vr"
-
-$tmp = Join-Path $env:TEMP ("gtaivvr_" + [Guid]::NewGuid().ToString("N"))
-try { New-Item -ItemType Directory -Path $tmp -Force -ErrorAction Stop | Out-Null }
-catch { Write-Fail "Could not create a temp folder: $_"; Pause-User "Press Enter to exit..." | Out-Null; exit 1 }
-$zipDest = Join-Path $tmp "gtaiv_dxvk_vr.zip"
-
-$urls = New-Object System.Collections.Generic.List[string]
-$relTag = $null
-Write-Info "Resolving the newest release ..."
-$latest = Get-LatestGtaIvVr
-if ($latest) {
-    Write-OK "Release: $($latest.Tag)  ($($latest.Name))"
-    $relTag = [string]$latest.Tag
-    [void]$urls.Add([string]$latest.Url)
-} else {
-    Write-Warn "GitHub API not reachable - you will be pointed at the releases page."
+while($true){
+ try{Invoke-GTA4Install -Mod $Mod;break}
+ catch{
+  $message='GTA IV VR setup did not complete: '+$_.Exception.Message
+  Write-Host $message -ForegroundColor Red
+  if($env:PCVR_HUB_TEST_MODE -eq '1'){throw}
+  [void](Invoke-PCVRUniversalRecovery -FailureMessage $message -GameId 'gta-iv-vr' -InstallerFolder $PSScriptRoot -RecoveryPageUrl $(if($script:GTA4RecoveryPage){$script:GTA4RecoveryPage}else{'https://github.com/bordplate/GTA4VR/releases'}))
+ }
 }
-
-$downloadInfo = @{}
-if (-not $latest) { throw 'The current GTA IV VR release could not be verified; no game files were changed.' }
-Invoke-SafeDownload -Urls $urls -Destination $zipDest -Label "gtaiv-dxvk-vr" -DownloadInfo $downloadInfo -AllowSkip $false `
-    -ManualUrl $RELEASE_PAGE `
-    -Instructions "Download the gtaiv-dxvk-vr .zip from the releases page, save it as '$zipDest', then choose Retry." `
-    -SkipMessage "" | Out-Null
-if (-not $latest -or [string]$downloadInfo.Url -ne [string]$latest.Url) {
-    throw 'The GTA IV VR archive has no verified release identity; no game files were changed.'
-}
-
-while (-not (Test-Path -LiteralPath $zipDest)) {
-    Write-Fail "The archive is not present at: $zipDest"
-    $fb = Invoke-InstallerFallback -Action "download gtaiv-dxvk-vr" `
-        -Subject "the gtaiv-dxvk-vr release archive" -Url $RELEASE_PAGE -DestFile $zipDest `
-        -Instructions "Download the .zip from the releases page, save it as '$zipDest', then choose Retry. You can also paste the full path to an already-downloaded archive." `
-        -AllowSkip $false
-    if ([string]$fb -eq "quit") {
-        try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..." | Out-Null; exit 1
-    }
-}
-Write-OK "Archive ready."
-
-# ---- 3. merge into the game folder --------------------------
-Write-Step 3 4 "Installing into $gtaDir"
-
-$exDir = Join-Path $tmp "x"
-try {
-    New-Item -ItemType Directory -Path $exDir -Force -ErrorAction Stop | Out-Null
-    $zipSafety = Test-ZipArchiveEntrySafety -ArchivePath $zipDest -DestinationFolder $exDir
-    if (-not $zipSafety.Inspectable -or -not $zipSafety.Safe) { throw "The publisher ZIP is unreadable or contains an unsafe path: $($zipSafety.Entry)" }
-    Expand-Archive -LiteralPath $zipDest -DestinationPath $exDir -Force -ErrorAction Stop
-} catch {
-    Write-Fail "Unpacking failed: $($_.Exception.Message)"
-    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit."; exit 1
-}
-
-# The payload lives in drop-into-GTAIV; search for it instead of
-# assuming the archive's top level never changes.
-$payload = $null
-$cand = Join-Path $exDir $PAYLOAD_DIR
-if (Test-Path -LiteralPath $cand) { $payload = $cand }
-if (-not $payload) {
-    $hit = Get-ChildItem -LiteralPath $exDir -Directory -Recurse -Depth 3 -ErrorAction SilentlyContinue |
-           Where-Object { $_.Name -ieq $PAYLOAD_DIR } | Select-Object -First 1
-    if ($hit) { $payload = $hit.FullName }
-}
-if (-not $payload) {
-    $hit = Get-ChildItem -LiteralPath $exDir -File -Recurse -Depth 3 -Filter $MOD_ASI -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($hit) { $payload = Split-Path -Parent $hit.FullName }
-}
-if (-not $payload) {
-    Write-Fail "Could not find the mod files inside the archive."
-    Write-Info "Expected a '$PAYLOAD_DIR' folder holding $MOD_ASI."
-    try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Pause-User "Press Enter to exit."; exit 1
-}
-
-# A stale ASI from an older install must never turn a partial download into
-# a new success/version receipt. Check the current publisher package before
-# the first copy, then verify every file this package actually ships.
-$requiredPayload = @('gtaiv_dxvk_vr.asi','d3d9.dll','dinput8.dll','openvr_api.dll','plugins\GTAIV.EFLC.FusionFix.asi')
-$missingPayload = @($requiredPayload | Where-Object { -not (Test-Path -LiteralPath (Join-Path $payload $_) -PathType Leaf) })
-if ($missingPayload.Count) {
-    Write-Fail ('The current publisher ZIP is incomplete: ' + ($missingPayload -join ', '))
-    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Pause-User 'Press Enter to exit.' | Out-Null; exit 1
-}
-$payloadPrefix = [IO.Path]::GetFullPath($payload).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
-$payloadFiles = @(Get-ChildItem -LiteralPath $payload -File -Recurse -ErrorAction Stop | ForEach-Object {
-    if (-not $_.FullName.StartsWith($payloadPrefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Publisher file escaped its extracted folder.' }
-    $_.FullName.Substring($payloadPrefix.Length)
-})
-
-# Back up the stock files this pack replaces, once. The pack brings its
-# own .stock-302 / .bak copies of some of them, but a d3d9.dll from an
-# earlier mod install would otherwise be gone for good.
-foreach ($f in @("d3d9.dll", "dinput8.dll")) {
-    $orig = Join-Path $gtaDir $f
-    $bak  = "$orig.vrbak"
-    if ((Test-Path -LiteralPath $orig) -and -not (Test-Path -LiteralPath $bak)) {
-        try { Copy-Item -LiteralPath $orig -Destination $bak -Force; Write-Info "Backed up $f -> $f.vrbak" } catch {}
-    }
-}
-
-Write-Info "Merging the mod files into the game folder ..."
-$copyFail = $null
-try {
-    Get-ChildItem -LiteralPath $payload -Force | ForEach-Object {
-        Copy-Item -LiteralPath $_.FullName -Destination $gtaDir -Recurse -Force -ErrorAction Stop
-    }
-} catch { $copyFail = $_.Exception.Message }
-
-if ($copyFail) {
-    # Program Files needs elevation - retry the whole merge elevated.
-    Write-Warn "Copying needs administrator rights here. Asking for them ..."
-    $ps = "Get-ChildItem -LiteralPath '$payload' -Force | ForEach-Object { Copy-Item -LiteralPath `$_.FullName -Destination '$gtaDir' -Recurse -Force }"
-    try {
-        Start-Process powershell -ArgumentList @("-NoProfile","-ExecutionPolicy","Bypass","-Command",$ps) -Verb RunAs -Wait -ErrorAction Stop
-    } catch { }
-}
-
-$missingInstalled = @($payloadFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $gtaDir $_) -PathType Leaf) })
-if ($missingInstalled.Count) {
-    Write-Fail ('The publisher package did not copy completely: ' + ($missingInstalled -join ', '))
-    Write-Info 'Check the game folder, permissions and installer log; no success was recorded.'
-    try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-    Pause-User 'Press Enter to exit.' | Out-Null; exit 1
-}
-
-if (-not (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI))) {
-    Write-Fail "$MOD_ASI is not in the game folder - the install did not complete."
-    Write-Host "  Copy everything from this folder into $gtaDir yourself:" -ForegroundColor Gray
-    Write-Host "    $payload" -ForegroundColor Cyan
-    try { Start-Process $payload } catch {}
-    try { Start-Process $gtaDir } catch {}
-    Pause-User "Press Enter once the files are copied..." | Out-Null
-}
-if (Test-Path -LiteralPath (Join-Path $gtaDir $MOD_ASI)) { Write-OK "Mod files are in place." }
-
-# ---- 4. what the package brings itself --------------------------
-Write-Step 4 4 "Checking the settings the pack shipped"
-
-# !!! OUR OWN VALUES USED TO BE WRITTEN HERE - THAT IS WRONG SINCE
-# v0.9.09-hud4 AND HAS BEEN REMOVED !!!
-# The installer asked for "AER" or "Other stereo" and then wrote
-# ipd = 1, or ipd 6 / stereoscale 130 / fpfov 110 110 110, into the game
-# folder. Those numbers came from the release notes of an EARLIER build.
-# The package now ships its settings files ITSELF and tuned out of the
-# box (mode 909, vres 2048, fpfov 90 90 90) - our values would have
-# overwritten them and made the mod worse.
-# NOTHING is written any more, only shown.
-$sidecars = @("gtaiv_dxvk_vr.stereo", "gtaiv_dxvk_vr.vres", "gtaiv_dxvk_vr.ipd",
-              "gtaiv_dxvk_vr.stereoscale", "gtaiv_dxvk_vr.fpfov", "gtaiv_dxvk_vr.buildid")
-Write-Host "  The pack ships its own settings, already tuned. Nothing is" -ForegroundColor Gray
-Write-Host "  overwritten here - this is what came with your download:" -ForegroundColor Gray
-Write-Host ""
-foreach ($sc in $sidecars) {
-    $scPath = Join-Path $gtaDir $sc
-    if (Test-Path -LiteralPath $scPath) {
-        $val = ""
-        try { $val = ((Get-Content -LiteralPath $scPath -Raw -ErrorAction Stop) -replace '[^\x20-\x7E]', '').Trim() } catch {}
-        Write-Host ("     {0,-30} {1}" -f $sc, $val) -ForegroundColor White
-    }
-}
-Write-Host ""
-Write-Host "  All of them are plain text next to $GAME_EXE - edit with Notepad" -ForegroundColor Gray
-Write-Host "  and restart. In the headset: F3 opens the VR menu, F5 cycles the" -ForegroundColor Gray
-Write-Host "  eye resolution, F6 stereo scale, F8 IPD, F9 recenters, F10 sets" -ForegroundColor Gray
-Write-Host "  the seated baseline." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  Two things the pack expects:" -ForegroundColor White
-Write-Host "   - FusionFix graphics: DirectX 9, NOT its Vulkan path" -ForegroundColor White
-Write-Host "   - FirstPerson.asi OFF (rename it to FirstPerson.asi.off if you" -ForegroundColor White
-Write-Host "     have it) - this mod owns the camera and FOV path" -ForegroundColor White
-Write-Host ""
-$qs = Join-Path $gtaDir "QUICK-START.bat"
-if (Test-Path -LiteralPath $qs) {
-    Write-OK "QUICK-START.bat is in place - it starts SteamVR and then the game."
-} else {
-    Write-Info "No QUICK-START.bat in the pack - start SteamVR first, then the game."
-}
-
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gtaDir -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
-if ($relTag) { Save-InstalledStamp -GameDir $gtaDir -Version $relTag -HubDir $SCRIPT_DIR }
-
-# -------------------------------------------------------------
-Write-Host ""
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host " GTA IV VR is installed!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Magenta
-Write-Host ""
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host "  |            REQUIRED IN-GAME SETTING                  |" -ForegroundColor Yellow
-Write-Host "  +======================================================+" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "   FusionFix graphics options: DirectX 9 (NOT Vulkan) " -ForegroundColor Black -BackgroundColor Yellow
-Write-Host ""
-Write-Host "  Start SteamVR before the game to avoid it potentially starting" -ForegroundColor Gray
-Write-Host "  sometimes out of focus." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  HOW TO PLAY:" -ForegroundColor Cyan
-Write-Host "    Launch with" -NoNewline -ForegroundColor Gray; Write-Host " Start in VR " -NoNewline -ForegroundColor Black -BackgroundColor Yellow; Write-Host "in the Hub, or start GTA IV through" -ForegroundColor Gray
-Write-Host "    Steam. Play it on a gamepad - there are no VR hands." -ForegroundColor Gray
-Write-Host ""
-Write-Host "  IN GAME:" -ForegroundColor Cyan
-Write-Host "    F3 or gamepad Back  VR menu        F9 or R3  recenter" -ForegroundColor Gray
-Write-Host "    F4  cycle stereo profiles          F5  eye resolution" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  To play flat for a while, use the Flat / VR switch on the game's" -ForegroundColor DarkGray
-Write-Host "  page in the Hub. Config files are covered there too." -ForegroundColor DarkGray
-Write-Host ""
-Write-Host "  Liberty City, at eye level. Niko never had it this real." -ForegroundColor Magenta
-Write-Host ""
-Pause-User "Press Enter to exit."

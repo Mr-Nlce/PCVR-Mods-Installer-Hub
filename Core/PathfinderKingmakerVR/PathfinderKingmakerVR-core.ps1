@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Pathfinder: Kingmaker VR - VRMaker by PinkMilkProductions
 # ------------------------------------------------------------
 #  WE DO NOT USE THE RAI MANAGER. The release is a package for
@@ -205,7 +205,7 @@ $zip = Join-Path $tmp "VRMaker.zip"
 
 $url = $null; $tag = "latest"
 try {
-    $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
+    $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
                -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20 -ErrorAction Stop
     if (Test-IsPayloadRelease -Release $rel) {
         $pick = Select-PayloadAsset -Assets $rel.assets -PlatformPattern '(?i)VRMaker' -MinBytes 1000000

@@ -228,6 +228,12 @@ function global:Complete-PCVRInstallerTestReport {
     & $line 'INSTALLER LOG (through this report checkpoint)'
     if($Session.LogNotice){& $line $Session.LogNotice}
     & $line (Read-PCVRTestReportTranscript -Path $Session.TranscriptPath)
+    $checks=Get-Variable PCVRInstallerFileCheckDiagnostics -Scope Global -ErrorAction SilentlyContinue
+    if($checks -and $checks.Value.Count){
+        & $line ''
+        & $line 'FILE CHECK DIAGNOSTICS'
+        foreach($check in $checks.Value){& $line ([string]$check)}
+    }
     $safe=ConvertTo-PCVRTestReportSafeText -Text $text.ToString()
     $folder=Get-PCVRTestReportFolder
     $name=if($Session.FileStem){$Session.FileStem+'-test-result.txt'}else{Get-PCVRTestReportFileName $Session.GameTitle}

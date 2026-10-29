@@ -1,7 +1,7 @@
-param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
+﻿param([Parameter(Mandatory=$true)][string]$GameDirectory,[string]$RuntimeRoot)
 $ErrorActionPreference = 'Stop'
 $runtime = $GameDirectory
-foreach ($relative in @('Play VR.cmd','tools\blvr_xr_host.exe','bin\d3d9.dll','.pcvrhub_version')) {
+foreach ($relative in @('Play VR.cmd','tools\blvr_xr_host.exe','bin\d3d9.dll')) {
     if (-not (Test-Path -LiteralPath (Join-Path $runtime $relative) -PathType Leaf)) {
         throw "Brutal Legend VR runtime is incomplete: $relative. Use Reinstall in the Hub."
     }
