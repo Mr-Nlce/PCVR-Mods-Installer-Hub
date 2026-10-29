@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (348)</summary>
+<summary>Show all currently listed titles (351)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -28,6 +28,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Alba VR
 * Alien: Isolation VR (motion controls)
 * Aliens versus Predator Classic (2000) (motion controls)
+* Aliens versus Predator 2 (motion controls)
 * Amnesia: The Dark Descent VR (+ HD texture mod) (motion controls)
 * Among the Sleep [WIP]
 * Another Crab's Treasure
@@ -161,6 +162,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Hexen 2 VR (motion controls)
 * High on Life
 * Hitman: Blood Money (motion controls)
+* Hitman: Contracts VR (motion controls)
 * HL2 VR Ep. One (+ Unleashed mod) (motion controls) 
 * HL2 VR Ep. Two (+ Unleashed mod) (motion controls)
 * Hogwarts Legacy
@@ -253,7 +255,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Quake VR (motion controls)
 * Quake 2 VR + Quake II (Team Beef port) VR (motion controls)
 * Quake 3 Arena VR (motion controls)
-* Ratchet & Clank VR (fan game) (motion controls)
+* Ratchet & Clank 1 VR (motion controls)
+* Ratchet & Clank VR (virtual museum) (motion controls)
 * Raft VR (motion controls)
 * Ready Or Not VRO (motion controls)
 * Rebel Galaxy
