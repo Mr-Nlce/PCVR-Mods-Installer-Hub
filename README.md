@@ -20,10 +20,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (351)</summary>
+<summary>Show all currently listed titles (356)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
+* Agent 64: Spies Never Die VR (motion controls)
 * Alan Wake
 * Alba VR
 * Alien: Isolation VR (motion controls)
@@ -138,6 +139,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Freespace 2
 * F-Zero X
 * Garry's Mod VR (motion controls)
+* Gears of War: E-Day VR (motion controls)
 * Ghost of Tsushima
 * Ghosts 'n Goblins Resurrection
 * Ghostwire: Tokyo
@@ -176,6 +178,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Hypogea
 * Hytale VR (WIP) (motion controls)
 * I Can Gun VR (motion controls)
+* I Hate This Place VR [WIP] (motion controls)
 * Idols of Ash VR (motion controls)
 * Indiana Jones: Great Circle
 * Iron Lung VR (motion controls)
@@ -271,7 +274,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Resident Evil 2R (motion controls)
 * Resident Evil 3R (motion controls)
 * Resident Evil 4R (motion controls)
+* Resident Evil 5 VR [WIP] (motion controls)
 * Resident Evil 7 (motion controls)
+* Resident Evil Code: Veronica X VR (motion controls)
 * Retrowave 2
 * Return to Castle Wolfenstein VR (motion controls)
 * Richard Burns Rally (motion controls)
