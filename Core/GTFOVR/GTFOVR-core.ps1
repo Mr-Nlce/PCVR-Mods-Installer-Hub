@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # GTFO VR Mod Installer
 # by DSprtn - mod distributed via flat2VRmods Discord
 #
@@ -80,6 +80,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -116,7 +117,7 @@ function Find-GTFOGamePath {
  # Presence of GTFO.exe is the strongest signal we found the
  # right install. Folder existence alone is not enough since
  # users sometimes have orphan folders from earlier installs.
- if (Test-Path (Join-Path $candidate $GAME_EXE)) { return $candidate }
+ if (Test-Path (Join-Path $candidate $GAME_EXE)) { if (Test-PCVRGameInstallProof -GameId 'gtfo-vr' -Root $candidate) { return $candidate } }
  }
  return $null
 }
@@ -233,20 +234,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your GTFO folder" -ForegroundColor White
  Write-Host " (the folder that contains 'GTFO.exe')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " GTFO folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- if (Test-Path (Join-Path $r $GAME_EXE)) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder exists but $GAME_EXE not found inside: $r"
- }
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'GTFO' -HubGameId 'gtfo-vr' -ProbeFile 'GTFO.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

@@ -95,7 +95,7 @@ function global:ConvertTo-DetailReadmeModel {
     }
     foreach($source in $sources){
         $heading=$source.Heading
-        $resourceHeading=($heading -match '(?i)^(?:links?(?:\b| &)|resources?\b|support\b|donat|discord\b|communit|credits?\b|more info\b|related\b)')
+        $resourceHeading=($heading -match '(?i)^(?:help (?:and links|& support)$|links?(?:\b| &)|resources?\b|support\b|donat|discord\b|communit|credits?\b|more info\b|related\b)')
         $remaining=[Collections.Generic.List[string]]::new();$code=$false;$extracted=$false
         foreach($line in ($source.Body -split '\r?\n')){
             if($line -match '^\s*```'){$code=-not $code;$remaining.Add($line);continue}
@@ -191,6 +191,41 @@ function global:ConvertTo-DetailReadmeModel {
     $discord=if($result.Contains('Discord discussion & support')){[string]$result['Discord discussion & support']}else{''}
     if($result.Contains('Discord discussion & support')){$result.Remove('Discord discussion & support')}
     return [pscustomobject]@{Sections=$result;DiscordText=$discord;ResourceCount=$seen.Count}
+}
+
+function global:Get-DetailFooterLinks {
+    param($Game)
+    $candidates = @(
+        foreach ($button in $Game.ModButtons) { $button }
+        foreach ($item in ([ordered]@{
+            ModPageUrl='Mod Page'; InfoUrl='Mod information'; DownloadUrl='Download'; Url='Publisher site'
+            AddonInfoUrl='Add-on'; NoticeUrl='Compatibility information'; SupportUrl='Support'
+            AddonSupportUrl='Add-on support'; DonateUrl='Support the author'; DonateUrlAlt='Support the author'
+            WabbajackUrl='Wabbajack'; DiscordInviteUrl='Join Discord'
+        }).GetEnumerator()) {
+            @{Label=$item.Value; Url=$Game[$item.Key]}
+        }
+        foreach ($link in $Game.DiscordLinks) { $link }
+        if ($Game.SteamId -match '^\d+$') {
+            @{Label='Steam Store'; Url="https://store.steampowered.com/app/$($Game.SteamId)/"}
+        }
+        @{Label=$(if ($Game.VideoLabel) { $Game.VideoLabel } else { 'Watch VR gameplay' }); Url=$Game.VideoUrl; Video=$true}
+        @{Label=$(if ($Game.VideoLabel2) { $Game.VideoLabel2 } else { 'Watch VR gameplay' }); Url=$Game.VideoUrl2; Video=$true}
+    )
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $videos = [Collections.Generic.List[object]]::new()
+    $youtube = [Collections.Generic.List[object]]::new()
+    foreach ($candidate in $candidates) {
+        $uri = $null
+        if (-not $candidate.Label -or -not [Uri]::TryCreate([string]$candidate.Url,[UriKind]::Absolute,[ref]$uri) -or
+            $uri.Scheme -notin 'https','http' -or $uri.Host -eq 'api.github.com' -or -not $seen.Add($uri.AbsoluteUri)) { continue }
+        $link = [pscustomobject]@{Label=[string]$candidate.Label; Url=[string]$candidate.Url}
+        if ($uri.Host -match '(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$') { $youtube.Add($link) }
+        elseif ($candidate.Video) { $videos.Add($link) }
+        else { $link }
+    }
+    $videos
+    $youtube
 }
 
 function global:New-DetailResourceCards {

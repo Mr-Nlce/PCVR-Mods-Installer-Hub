@@ -59,6 +59,7 @@ function Write-Info { param($x) Write-Host " [..] $x" -ForegroundColor Gray }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null

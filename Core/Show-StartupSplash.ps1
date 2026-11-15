@@ -107,7 +107,9 @@ function Get-SplashProgressFraction {
 # appeared anywhere in the Hub is added and individually confirmed as new.
 # 2026-10-28: Blur, Hitman: Contracts, Wreckfest and Wreckfest 2 were individually absent and add four. Ratchet already had a museum entry and adds none.
 # 2026-10-28: Aliens versus Predator 2 was individually checked absent from every catalog group; adds one.
-$tileCount = 357
+# Five additional distinct games: Agent 64, I Hate This Place, RE5, Gears E-Day, Code Veronica X (2026-10-31).
+# 2026-11-11: The Darkness II, Tiny Tina's Wonderlands and Gothic 3 were checked individually and add three.
+$tileCount = 366
 # Loading hints - one is picked at random each launch. Written to be
 # confident and accurate: guided installers (never "one click"), only
 # Steam/GOG/Epic for detection, nothing that implies the Hub is shaky.

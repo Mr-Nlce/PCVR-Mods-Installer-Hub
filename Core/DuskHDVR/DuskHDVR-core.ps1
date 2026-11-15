@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Dusk HD (DLC) VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -71,6 +71,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -104,8 +105,8 @@ function Find-DuskGamePath {
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = Join-Path $lib "steamapps\common\DUSK"
- if (Test-Path (Join-Path $candidate $DLC_SUBFOLDER)) { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path (Join-Path $candidate $DLC_SUBFOLDER)) { if (Test-PCVRGameInstallProof -GameId 'dusk-hd-dlc-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'dusk-hd-dlc-vr' -Root $candidate) { return $candidate } }
  }
  return $null
 }
@@ -213,16 +214,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Dusk root folder" -ForegroundColor White
  Write-Host " (the folder that contains DLC\DUSK HD\)." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Dusk folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'DUSK' -HubGameId 'dusk-hd-dlc-vr' -ProbeFile 'DLC/DUSK HD/Dusk.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # Now confirm the DUSK HD DLC subfolder actually exists.

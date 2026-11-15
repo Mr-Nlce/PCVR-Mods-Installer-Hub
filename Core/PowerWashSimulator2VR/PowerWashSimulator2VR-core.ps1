@@ -1,4 +1,4 @@
-# PowerWash Simulator 2 - Wet Reality XR governed prerelease installer.
+﻿# PowerWash Simulator 2 - Wet Reality XR governed prerelease installer.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -45,7 +45,9 @@ function Write-WROK([string]$Text){Write-Host "  [OK] $Text" -ForegroundColor Gr
 function Write-WRWarn([string]$Text){Write-Host "  [!!] $Text" -ForegroundColor Yellow}
 function Write-WRInfo([string]$Text){Write-Host "  $Text" -ForegroundColor Gray}
 
-function Test-WRGameRoot([string]$Path){return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $Path 'PowerWash Simulator 2_Data') -PathType Container -ErrorAction SilentlyContinue))}
+function Test-WRGameRoot([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'powerwash-simulator-2-vr' -Root $Path)) { return $false }
+return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $Path 'PowerWash Simulator 2_Data') -PathType Container -ErrorAction SilentlyContinue))}
 function Get-WRDefaultStoreRoots {
     return @(
         'C:\Program Files (x86)\Steam\steamapps\common\PowerWash Simulator 2',

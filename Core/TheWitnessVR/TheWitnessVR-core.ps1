@@ -1,4 +1,4 @@
-# The Witness VR - Discord-package installer.
+﻿# The Witness VR - Discord-package installer.
 # The release archive is acquired at run time and is never bundled with Hub.
 
 $ErrorActionPreference = 'Stop'
@@ -80,7 +80,9 @@ function Open-WitnessBrowserPage {
 
 function Pause-User { param([string]$Text='Press Enter to continue...') Wait-FreshEnter -Text $Text }
 function Get-Sha([string]$Path) { if (Test-Path -LiteralPath $Path -PathType Leaf) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }; return '' }
-function Test-GameRoot([string]$Path) { return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf)) }
+function Test-GameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'the-witness' -Root $Path)) { return $false }
+ return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf)) }
 
 function Test-WitnessArchive([string]$Path) {
     return (Test-ZipPayloadAnchors -Path $Path -MinimumMatches 2 -MinimumEntries 2 -MaximumEntries 200 `

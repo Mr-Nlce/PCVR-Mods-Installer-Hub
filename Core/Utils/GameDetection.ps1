@@ -43,6 +43,18 @@
 #    - Returns "not found" rather than throwing.
 # ============================================================
 
+. (Join-Path $PSScriptRoot '..\Modules\GameInstallProof.ps1')
+
+# Store metadata supplies locations, never original-game identity. Runtime
+# callers retain their own probes and are not required to contain base files.
+function Test-DetectedOriginalGameFiles {
+    param([string]$Path,[string]$ExeName='')
+    $id=Resolve-PCVRInstallerGameId -ProbeFiles @($ExeName)
+    if (-not (Get-PCVRGameInstallProof -GameId $id)) { return $true }
+    if ($ExeName -and -not (Test-PCVROriginalGameProbe -GameId $id -ProbeFiles @($ExeName))) { return $true }
+    return Test-PCVRGameInstallProof -GameId $id -Root $Path
+}
+
 function New-DetectionResult {
     return [PSCustomObject]@{
         Found      = $false
@@ -116,7 +128,8 @@ function Get-SteamGameViaManifest {
                 $installDir = $m.Groups[1].Value -replace '\\\\', '\'
                 $gamePath   = Join-Path $lib "steamapps\common\$installDir"
                 if ((Test-Path -LiteralPath $gamePath -PathType Container) -and
-                    (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $gamePath $ExeName) -PathType Leaf))) { return $gamePath }
+                    (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $gamePath $ExeName) -PathType Leaf)) -and
+                    (Test-DetectedOriginalGameFiles -Path $gamePath -ExeName $ExeName)) { return $gamePath }
             }
         } catch {}
     }
@@ -132,7 +145,8 @@ function Get-SteamGameViaScan {
     foreach ($lib in $Libraries) {
         $candidate = Join-Path $lib "steamapps\common\$Folder"
         if ((Test-Path -LiteralPath $candidate -PathType Container) -and
-            (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $candidate $ExeName) -PathType Leaf))) { return $candidate }
+            (-not $ExeName -or (Test-Path -LiteralPath (Join-Path $candidate $ExeName) -PathType Leaf)) -and
+            (Test-DetectedOriginalGameFiles -Path $candidate -ExeName $ExeName)) { return $candidate }
     }
     return $null
 }
@@ -174,7 +188,7 @@ function Get-GamepassViaDriveScan {
         } else {
             $candidate = $base
         }
-        if (Test-Path -LiteralPath $candidate) { return $candidate }
+        if ((Test-Path -LiteralPath $candidate) -and (Test-DetectedOriginalGameFiles -Path $candidate)) { return $candidate }
     }
     return $null
 }
@@ -208,6 +222,7 @@ function Get-EpicGameInstall {
         try { $loc = $json.InstallLocation } catch { continue }
         if (-not $loc) { continue }
         try { if (-not (Test-Path -LiteralPath $loc)) { continue } } catch { continue }
+        if (-not (Test-DetectedOriginalGameFiles -Path $loc -ExeName $ExeName)) { continue }
 
         # Strategy 1: match on AppName if provided (preferred)
         if ($AppName) {
@@ -256,7 +271,7 @@ function Get-GOGGameInstall {
     )) {
         try {
             $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).PATH
-            if ($p -and (Test-Path -LiteralPath $p)) { return $p }
+            if ($p -and (Test-Path -LiteralPath $p) -and (Test-DetectedOriginalGameFiles -Path $p)) { return $p }
         } catch {}
     }
     return $null
@@ -294,6 +309,7 @@ function Get-UbisoftGameInstall {
             # Ubisoft stores paths with forward slashes sometimes - normalize.
             $installDir = ($installDir -replace '/', '\').TrimEnd('\')
             if (-not (Test-Path -LiteralPath $installDir)) { continue }
+            if (-not (Test-DetectedOriginalGameFiles -Path $installDir -ExeName $ExeName)) { continue }
 
             $baseName = $null
             try { $baseName = Split-Path $installDir -Leaf -ErrorAction Stop } catch { continue }
@@ -360,6 +376,7 @@ function Get-EAGameInstall {
                 if (-not $installDir) { continue }
                 $installDir = ($installDir -replace '/', '\').TrimEnd('\')
                 if (-not (Test-Path -LiteralPath $installDir)) { continue }
+                if (-not (Test-DetectedOriginalGameFiles -Path $installDir -ExeName $ExeName)) { continue }
 
                 $baseName = $null
                 try { $baseName = Split-Path $installDir -Leaf -ErrorAction Stop } catch { continue }
@@ -459,6 +476,10 @@ function Find-GameInstall {
     function Add-Candidate {
         param($Path, [string]$Source, [string]$Confidence)
         if (-not $Path) { return }
+        if (-not (Test-DetectedOriginalGameFiles -Path $Path -ExeName $ExeName)) {
+            $result.Log += "  - $Source location lacks the required original game files: '$Path'"
+            return
+        }
         if (-not (Test-ExeIfRequired $Path)) {
             $result.Log += "  - $Source match at '$Path' but '$ExeName' missing, ignoring"
             return

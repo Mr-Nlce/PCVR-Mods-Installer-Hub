@@ -4,16 +4,14 @@ Automated installer for the latest Road to Vostok VR Mod by Blah64 — full VR s
 
 ## Requirements
 - Road to Vostok owned on Steam
-- **Metro Mod Loader v3.4.1** (the installer downloads its two publisher files,
+- **Metro Mod Loader v3.5.0** (the installer downloads its two publisher files,
   `modloader.gd` and `override.cfg`, when the installed loader is older)
 - SteamVR or Meta PC app running before launch
 
 ## What it installs
 - **vr-mod.vmz** — main VR mod (loaded by Metro Mod Loader)
-- **modloader.gd + override.cfg** — Metro Mod Loader v3.4.1, which supports
-  Road to Vostok Build 2 (Nomads, Godot 4.6.3). The publisher warns that
-  v3.2.1 may serve broken rewritten AI scripts on Build 2 when a mod uses
-  `[registry]`; update the loader before playing.
+- **modloader.gd + override.cfg** — Metro Mod Loader v3.5.0 LTS. The
+  publisher's Build 2 notes recommend updating older loaders before playing.
 - **Road to Vostok VR desktop shortcut** — your launch route into VR
 - **VR runtime DLLs** and injector
 
@@ -82,7 +80,7 @@ Health and status effects shown on your non-dominant wrist. Raise toward your fa
 - **Grip adjust mode**: draw weapon, press [[X]] to fine-tune grip position live
 - **Foregrip adjust**: grab with off-hand, press [[X]] to calibrate two-hand grip point
 - To update later, run the Hub installer again. It resolves the newest VR-mod
-  release and installs Metro Mod Loader v3.4.1 when an older loader is found.
+  release and installs Metro Mod Loader v3.5.0 when an older loader is found.
 
 ## Troubleshooting
 - **Black screen after launch** — make sure SteamVR/Meta PC app is running before starting

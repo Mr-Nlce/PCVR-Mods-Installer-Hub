@@ -23,6 +23,10 @@ function global:Test-AbsolutePathMarker {
         if ([string]::IsNullOrWhiteSpace($raw)) { continue }
         try {
             $full = [Environment]::ExpandEnvironmentVariables([string]$raw)
+            if($global:HubFileSystemLabRoot){
+                $boundary=[IO.Path]::GetFullPath($global:HubFileSystemLabRoot).TrimEnd([char[]]'\/')+[IO.Path]::DirectorySeparatorChar
+                if(-not [IO.Path]::GetFullPath($full).StartsWith($boundary,[StringComparison]::OrdinalIgnoreCase)){continue}
+            }
             # Never Join-Path here: the value may name a drive that is
             # gone, and Join-Path resolves it and throws.
             if ([IO.File]::Exists($full) -or [IO.Directory]::Exists($full)) { return $true }
@@ -43,7 +47,7 @@ function global:Test-AbsoluteModMarker {
 # legacy values are both accepted here, and a hit always has to exist below
 # the supplied installation root.
 function global:Test-RelativePathMarker {
-    param([string]$Root, $Values)
+    param([string]$Root, $Values, [switch]$RequirePe)
     if ([string]::IsNullOrWhiteSpace($Root) -or -not $Values) { return $false }
     foreach ($rawValue in @($Values)) {
         foreach ($raw in (([string]$rawValue) -split '\|')) {
@@ -58,7 +62,9 @@ function global:Test-RelativePathMarker {
                 $separator = [string][IO.Path]::DirectorySeparatorChar
                 $nativeRel = $rel.Replace('\', $separator).Replace('/', $separator)
                 $candidate = Join-Path $Root $nativeRel
-                if ([IO.File]::Exists($candidate) -or [IO.Directory]::Exists($candidate)) { return $true }
+                if ($RequirePe -and $rel -match '(?i)\.(dll|exe)(?:\.[^\\/]+)?$') {
+                    if (Test-PCVRPublisherBinary -Path $candidate) { return $true }
+                } elseif ([IO.File]::Exists($candidate) -or [IO.Directory]::Exists($candidate)) { return $true }
             } catch {}
         }
     }

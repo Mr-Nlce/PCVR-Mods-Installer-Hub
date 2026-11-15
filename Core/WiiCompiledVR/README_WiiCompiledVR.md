@@ -15,7 +15,7 @@ Mario Kart Wii combines Grand Prix, Time Trials, multiplayer races, drifting, it
 
 The normal WiiCompiled backend lives in a separate `Recomp` folder. Only one recompilation switch is active at a time. The VR and normal runtimes have separate graphics settings, caches and binaries, while the effective NAND, saves and Miis are shared. Retro Rewind keeps its separate XML directed saves and ghosts. WheelWizard's Uninstall action preserves user configuration and progress.
 
-WheelWizard VR 2.6.2 updates the launcher layout and mod browser. Its Camera tab groups seat position, character body/hands, hand steering and held-item settings; OpenXR VR contains race view and race intro. The paired WiiCompiled OpenXR VR release is 0.2.46. Existing game data, saves and the PAL-disc requirement remain unchanged.
+The current reviewed Windows downloads are **WheelWizard VR 2.6.3** and **WiiCompiled OpenXR VR 0.2.47**. The Camera tab groups seat position, character body/hands, hand steering and held-item settings. Race view and race intro are under OpenXR VR. Use the Windows setup with a PAL disc image.
 
 ## Play and controls
 

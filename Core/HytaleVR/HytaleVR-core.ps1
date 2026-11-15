@@ -429,7 +429,7 @@ try {
     # which is self-healing.
     $verTag = $script:LatestTag
     if ($verTag) {
-        try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Value $verTag -Encoding UTF8 -Force } catch {}
         # Also next to the GAME, so a new Hub build does not lose it.
         try { Save-InstalledStamp -GameDir $gameRoot -Version $verTag -HubDir $SCRIPT_DIR } catch {}
     } else {

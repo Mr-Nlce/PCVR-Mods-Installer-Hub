@@ -686,7 +686,7 @@ function global:Start-AlternativeModInstaller {
             $installerTimer.Add_Tick({
                 param($s, $e)
                 $proc = $s.Tag
-                if (Test-InstallerRefreshReady -Process $proc) {
+                if (Test-InstallerRefreshReady -Process $proc -Timer $s) {
                     try { $s.Stop() } catch {}
                     Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                 }
@@ -793,7 +793,7 @@ function global:Resolve-LocatedRoot {
 
 function global:Resolve-LocatedGameInstall {
     param($Game,[string]$SelectedPath,[string]$BaseGamePath='')
-    $result=[ordered]@{Found=$false;GamePresent=$false;VrPresent=$false;Root='';BaseRoot='';RuntimeRoot='';LaunchExe='';LaunchArguments='';LaunchWorkingDirectory='';LaunchExplicit=$false;Missing=@();NeedsBase=$false}
+    $result=[ordered]@{Found=$false;GamePresent=$false;VrPresent=$false;Root='';BaseRoot='';RuntimeRoot='';LaunchExe='';LaunchArguments='';LaunchWorkingDirectory='';LaunchExplicit=$false;Missing=@();NeedsBase=$false;OriginalImportPending=$false}
     if(-not $Game -or -not $SelectedPath){return [pscustomobject]$result}
     $selected=Resolve-LocatedInputPath $SelectedPath
     if(-not $selected){return [pscustomobject]$result}
@@ -816,6 +816,13 @@ function global:Resolve-LocatedGameInstall {
     $folder=if($selectedFile){[IO.Path]::GetDirectoryName($selected)}else{$selected}
     if(-not [IO.Directory]::Exists($folder)){return [pscustomobject]$result}
     $roots=[Collections.Generic.List[string]]::new();$roots.Add($folder)
+    # A user-selected starter need not have a catalog filename. Resolve its
+    # own ancestors against actual original content, including imported ROMs
+    # with arbitrary names; never depend on a launcher or a receipt here.
+    if($Game.OriginalGameProofSets -and $Game.Id){
+        $originalRoot=Resolve-PCVRGameInstallRoot -GameId $Game.Id -Path $selected
+        if($originalRoot -and (Test-BaseGameInstallProof -Game $Game -Root $originalRoot) -and -not $roots.Contains($originalRoot)){$roots.Insert(0,$originalRoot)}
+    }
     $baseAnchors=@($Game.GameExe)+@($Game.BaseGameProofFiles)
     $anchors=$baseAnchors+@($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2,$Game.LaunchExe,$Game.LaunchExeAlt,$Game.CurrentModFile,$Game.CurrentLaunchExe,$Game.DepotModFile,$Game.LegacyDepotModFile)
     if($Game.TwoMods){foreach($d in @(Get-AlternativeModDefinitions -Game $Game)){$anchors+=@($d.ProbeFile);if($d.Launch){$anchors+=if($d.Sub -and $d.Sub -ne '.' -and -not $d.RootLaunch){[IO.Path]::Combine([string]$d.Sub,[string]$d.Launch)}else{[string]$d.Launch}}}}
@@ -825,7 +832,7 @@ function global:Resolve-LocatedGameInstall {
     }
     foreach($candidate in @($BaseGamePath)) {if($candidate -and [IO.Directory]::Exists($candidate) -and -not $roots.Contains($candidate)){$roots.Add($candidate)}}
     if($Game.VrInstallRoot){$vr=Resolve-VrInstallRoot -Root $Game.VrInstallRoot;if($vr -and [IO.Directory]::Exists($vr) -and -not $roots.Contains($vr)){$roots.Add($vr)}}
-    $baseDeclared=[bool]($Game.BaseGameProofFiles -or $Game.GameExe);$separateBase=[bool]($Game.SeparateLauncherBaseGame -or $Game.TwoModsSeparateBaseGame)
+    $baseDeclared=[bool]($Game.OriginalGameProofSets -or $Game.BaseGameProofFiles -or $Game.GameExe);$separateBase=[bool]($Game.SeparateLauncherBaseGame -or $Game.TwoModsSeparateBaseGame)
     foreach($root in $roots){
         if($baseDeclared -and (Test-BaseGameInstallProof -Game $Game -Root $root)){$result.BaseRoot=$root;$result.GamePresent=$true;break}
     }
@@ -842,6 +849,10 @@ function global:Resolve-LocatedGameInstall {
                 if($m.Success){$base=Resolve-LocatedRoot -Picked $m.Groups[1].Value.Trim() -RelFile $Game.GameExe;if($base -and (Test-BaseGameInstallProof $Game $base)){$result.BaseRoot=$base;$result.GamePresent=$true;break}}
             }
         }
+    }
+    if(-not $result.GamePresent -and $Game.OriginalImportModes){
+        $importAction=Get-OriginalGameImportAction -Game $Game -Roots @($roots) -CandidatesOnly
+        if($importAction){$result.Found=$true;$result.Root=$importAction.Root;$result.RuntimeRoot=$importAction.Root;$result.OriginalImportPending=$true;return [pscustomobject]$result}
     }
     if($Game.Id -in @('ff7-remake-intergrade-vr','balatro-vr')){
         $runtimeFiles=if($Game.Id -eq 'balatro-vr'){@('Balatro in VR.exe','Balatro in VR.pck')}else{@('ff7vr-launcher.ps1','ff7vr-stores.ps1','xinput1_3.dll','ff7vr.ini')}
@@ -899,7 +910,9 @@ function global:Resolve-LocatedGameInstall {
 
 function global:Save-LocatedGameAssociation {
     param($Game,$Inspection)
-    if(-not $Inspection.GamePresent -or -not $Inspection.Root -or -not [IO.Directory]::Exists($Inspection.Root)){throw 'No complete game location was found. Choose the game EXE or its complete folder.'}
+    $importPending=[bool]($Inspection.OriginalImportPending -and (Get-OriginalGameImportAction -Game $Game -Roots @([string]$Inspection.Root) -CandidatesOnly))
+    if((-not $Inspection.GamePresent -and -not $importPending) -or -not $Inspection.Root -or -not [IO.Directory]::Exists($Inspection.Root)){throw 'No complete game location was found. Choose the game EXE or its complete folder.'}
+    if($importPending){$Inspection.BaseRoot='';$Inspection.GamePresent=$false}
     $prior=Read-PersistentGameStateValue -Game $Game -Name 'installed_path'
     $values=[ordered]@{installed_path=[string]$Inspection.Root;user_located=[string]$Inspection.BaseRoot;base_game_path=[string]$Inspection.BaseRoot;located_vr_root=[string]$Inspection.RuntimeRoot;located_launch_exe=[string]$Inspection.LaunchExe;located_launch_args=[string]$Inspection.LaunchArguments;located_launch_workdir=[string]$Inspection.LaunchWorkingDirectory;launch_exe=''}
     $values.located_launch_explicit=if($Inspection.LaunchExplicit){'1'}else{''}
@@ -1046,7 +1059,7 @@ function global:New-LocateButton {
             # ---- Last resort: nothing found at all ----
             # (VrInstallRoot titles are exempt - their base game folder
             # legitimately holds neither the mod nor the launcher.)
-            if (-not $modHit -and -not $gameHit) {
+            if (-not $modHit -and -not $gameHit -and -not $inspection.OriginalImportPending) {
                 [System.Windows.Forms.MessageBox]::Show(
                     ('No matching game or complete VR mod was found here.'+"`r`n`r`n"+$picked+"`r`n`r`nChoose the game's EXE, its VR starter, or the folder containing them. Your files have not been changed."), 'Locate Game')|Out-Null
                 return

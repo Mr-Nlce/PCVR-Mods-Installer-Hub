@@ -1,4 +1,4 @@
-# Mount & Blade II: Bannerlord VR
+﻿# Mount & Blade II: Bannerlord VR
 
 ## About the Game
 
@@ -6,7 +6,7 @@ Mount & Blade II: Bannerlord combines medieval battles, a campaign map, kingdom 
 
 ## Before installing
 
-- The current **v0.2.7-alpha.1 ZIP was built against Bannerlord v1.4.8 stable**. The publisher README also lists v1.5.5, but the exact current package has not had headset acceptance there. The Hub accepts these two game versions and guides a Steam version change only for other builds.
+- BannerlordVR **v0.3.1.1** is a hotfix for the 0.3.1 release. The Hub accepts Bannerlord v1.4.8 stable and v1.5.6 and guides a Steam version change for other builds.
 - If Harmony is missing, the installer first offers a completed Harmony ZIP or 7z already in Downloads. Press [Enter] to check that archive, or [N] to open the [Nexus Files tab](https://www.nexusmods.com/mountandblade2bannerlord/mods/2006?tab=files) for a new one. Sign in, choose the Harmony main file and click **Manual download**. Nexus may suggest **Bannerlord Software Extender (BLSE)**; it is optional for this Steam route and is not declared by the BannerlordVR module. The Harmony Manual download is enough for this dependency. After a new download finishes, press [Enter]; the Hub searches Downloads for that new ZIP or 7z. If it is not found, drag the archive onto the installer window. The Hub checks `SubModule.xml` and every declared DLL, then copies the complete Harmony folder into the game's `Modules` folder automatically and checks it again. If a shared Harmony folder already exists but is incomplete, the Hub leaves it untouched and offers manual review. Harmony remains a shared dependency that the Hub does not remove. Enable Harmony above Bannerlord VR in the official game launcher. A greyed-out Bannerlord VR checkbox usually means Harmony is missing or disabled.
 - Start an active OpenXR runtime before launching. The publisher lists **VDXR**, **SteamVR** and **Meta/Oculus OpenXR**; its exact-package headset acceptance is pending.
 - Single-player only. Menus and physical interactions are unfinished; crashes and performance dips remain possible. The game is CPU-heavy even before VR.
@@ -32,6 +32,7 @@ The shipped layout uses `controls_swap_trigger_grip = 1`. Grip means the squeeze
 | [[Left Stick]] | Move; conventional riding and climbing input |
 | [[Right Stick]] | Turn or move the camera |
 | [[Left Grip]] / [[Right Grip]] | Reach for and hold a weapon or body holster item; release at its holster to stow, elsewhere to drop or throw |
+| [[Stick Touch]] / [[Thumbrest Touch]] + [[Grip]] | At a shoulder, keep the touch contact held while gripping to draw the second weapon. Configure positions in the Holsters tab. |
 | [[Off-hand Grip]] | Hold a second point on a two-handed weapon; grip behind a shoulder for an arrow or bolt while holding a bow/crossbow |
 | [[Weapon-hand Stick Click]] | Slide that hand along a two-handed weapon shaft while held |
 | [[Left Grip]] + [[Right Grip]] | Hold for two seconds with empty hands to toggle VR settings |
@@ -65,6 +66,6 @@ The Hub downloads the latest installable GitHub release asset, including prerele
 
 Use **Uninstall now** to remove only unchanged Hub-owned BannerlordVR module files, including the default configuration and bundled DLSS DLL, and restore any originals that were present before installation. Harmony, personal settings, other modules, the base game and saves remain untouched. The publisher's game-bin DLSS upgrade, if it happened when the mod loaded, is separate: close the game, back up the current `bin\Win64_Shipping_Client\nvngx_dlss.dll`, and restore `nvngx_dlss.dll.bannerlordvr-original.bak` as explained by the publisher.
 
-Publisher: [BannerlordVR on GitHub](https://github.com/NotLooky/BannerlordVR) · [v0.2.7-alpha release](https://github.com/NotLooky/BannerlordVR/releases/tag/v0.2.7-alpha) · [Flat2VR Discord thread](https://discord.com/channels/747967102895390741/1550654814617075823) (join [Flat2VR Modding](https://discord.gg/flat2vr) first) · [Gameplay trailer — not VR footage](https://youtu.be/6YZVZ1uzF3o?t=22)
+Publisher: [BannerlordVR on GitHub](https://github.com/NotLooky/BannerlordVR) · [Current publisher releases](https://github.com/NotLooky/BannerlordVR/releases) · [Flat2VR Discord thread](https://discord.com/channels/747967102895390741/1550654814617075823) (join [Flat2VR Modding](https://discord.gg/flat2vr) first) · [Gameplay trailer — not VR footage](https://youtu.be/6YZVZ1uzF3o?t=22)
 
 >>> Raise your banner, then hold the line in VR.

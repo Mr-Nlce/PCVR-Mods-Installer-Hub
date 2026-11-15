@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -15,6 +15,8 @@ $script:RustlerContract = New-PCVRInstallerContract -Id $script:RustlerId -GameN
         'BepInEx\plugins\RusVR\RusVR.dll','BepInEx\plugins\RusVR\OpenXR.dll',$script:RustlerManifest)
 
 function Test-RustlerGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'rustler-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Rustler.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'UnityPlayer.dll') -PathType Leaf))
 }

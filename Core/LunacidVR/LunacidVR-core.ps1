@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Lunacid VR Mod Installer
 # "Lunacid VR Beta" by Tesseract - distributed via Nexus Mods
 #
@@ -84,6 +84,7 @@ function Pause-User {
 }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @(
         "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
         "HKLM:\SOFTWARE\Valve\Steam",
@@ -120,7 +121,7 @@ function Find-LunacidGamePath {
     if ($sp) {
         foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
             $candidate = "$lib\steamapps\common\$GAME_NAME"
-            if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { return $candidate }
+            if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'lunacid-vr' -Root $candidate) { return $candidate } }
         }
     }
     # Common manual locations, in case Steam's registry entry is gone.
@@ -131,7 +132,7 @@ function Find-LunacidGamePath {
         "D:\SteamLibrary\steamapps\common\Lunacid",
         "E:\SteamLibrary\steamapps\common\Lunacid"
     )) {
-        if (Test-Path -LiteralPath "$guess\$GAME_EXE") { return $guess }
+        if (Test-Path -LiteralPath "$guess\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'lunacid-vr' -Root $guess) { return $guess } }
     }
     return $null
 }
@@ -211,17 +212,8 @@ if ($gamePath) {
     Write-Host " Please paste the path to your Lunacid folder" -ForegroundColor White
     Write-Host " (the folder where $GAME_EXE lives)." -ForegroundColor White
     Write-Host ""
-    while (-not $gamePath) {
-        $r = (Read-Host " Lunacid folder").Trim().Trim('"').Trim("'")
-        if (-not $r) { continue }
-        if (-not (Test-Path -LiteralPath $r)) { Write-Fail "Folder not found: $r"; continue }
-        if (-not (Test-Path -LiteralPath (Join-Path $r $GAME_EXE))) {
-            Write-Fail "That folder does not contain $GAME_EXE."
-            continue
-        }
-        $gamePath = $r
-        Write-OK "Game folder set: $gamePath"
-    }
+    $gamePath = Get-GameFolderInteractive -GameName 'Lunacid' -HubGameId 'lunacid-vr' -ProbeFile 'LUNACID.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------
@@ -423,7 +415,7 @@ try {
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
 } catch {}
 try {
-    Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force
+    Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force
     # ALSO write the durable stamp next to the GAME (2026-08-20).
     # The line above lands inside the Hub folder and is gone as
     # soon as a new Hub build is dropped in; the scan then finds

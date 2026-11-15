@@ -38,6 +38,25 @@ function global:Get-DetailVrLaunchRows {
     if($Game.Id -eq 'house-of-the-dead-2-original-vr' -and -not $Game.TwoMods){$special=Get-HotD2VrLaunchTarget -Game $Game}
     elseif($Game.Id -in @('descent-vr','descent-2-vr')){$special=Get-DescentVrLaunchTarget -Game $Game}
     if($special){& $add 'Start in VR' $special.FilePath $special.Arguments $special.WorkingDirectory;return $rows.ToArray()}
+    if($Game.RDRProfileLaunch){
+        $core=if($script:scriptDir){[string]$script:scriptDir}elseif($global:HubHelpersCoreRoot){[string]$global:HubHelpersCoreRoot}else{Split-Path $PSScriptRoot -Parent}
+        $controller=Join-Path $core 'RDRVR\Start-RDRVR.ps1'
+        $folder=if($gameRoot){$gameRoot}else{'<game folder>'}
+        $quoted=$folder -replace '(\\+)$','${1}${1}'
+        foreach($profile in @(@{Name=$Game.ModAName;Mod='main'},@{Name=$Game.ModBName;Mod='fork'})){
+            & $add $profile.Name $controller ('-GameDirectory "'+$quoted+'" -Mod '+$profile.Mod) $core
+        }
+        return $rows.ToArray()
+    }
+    if($Game.TeardownDualLaunch){
+        # Reading this page describes the existing switch-then-Steam route;
+        # it must not activate either mod or invoke the mode helper.
+        foreach($slot in @('A','B')){
+            $name=[string]$Game[('Mod'+$slot+'Name')]
+            if($name){& $add ($name+' (activate selected VR profile)') 'steam://rungameid/1167630' '' $gameRoot 'Steam'}
+        }
+        return $rows.ToArray()
+    }
     if($Game.TwoMods){
         foreach($definition in @(Get-AlternativeModDefinitions -Game $Game -State $State)){
             $root=if($definition.Root){[string]$definition.Root}else{$gameRoot}

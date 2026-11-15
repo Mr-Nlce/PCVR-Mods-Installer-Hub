@@ -1,3 +1,4 @@
+﻿param([string]$Mod = '')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -7,7 +8,9 @@ $script:Page='https://github.com/df4l/FNVVR/releases'
 $env:PCVR_HUB_RECOVERY_PAGE=$script:Page
 $script:Required=@('FalloutNV.exe','Data\FalloutNV.esm','d3d9.dll','openvr_api.dll','dxvk.conf','fnvvr\actions.json','fnvvr\bindings_oculus_touch.json','.pcvrhub_fnvvr_ownership.csv')
 $script:Contract=New-PCVRInstallerContract -Id $script:Id -GameName 'Fallout: New Vegas VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:Page -RequiredInstalledFileGroups $script:Required
-function Test-FNVGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'FalloutNV.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'Data\FalloutNV.esm') -PathType Leaf))}
+function Test-FNVGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'fallout-new-vegas-vr' -Root $Root)) { return $false }
+return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'FalloutNV.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'Data\FalloutNV.esm') -PathType Leaf))}
 function Assert-FNVFixture([string]$Path){$full=[IO.Path]::GetFullPath($Path);$tmp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/')+'\';if(-not $full.StartsWith($tmp,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath (Join-Path $full 'fnvvr-test-fixture.txt') -PathType Leaf)){throw 'FNVVR test game must stay in an isolated temporary fixture.'};return $full}
 function Get-FNVGame {
     if($env:PCVR_FNV_TEST_GAME){$test=Assert-FNVFixture $env:PCVR_FNV_TEST_GAME;if(Test-FNVGame $test){return $test};throw 'The test game lacks FalloutNV.exe or Data\FalloutNV.esm.'}
@@ -21,7 +24,7 @@ function Get-FNVGame {
     throw 'Choose the installed game folder containing FalloutNV.exe and Data\FalloutNV.esm.'
 }
 function Get-FNVRelease {
-    if($env:PCVR_FNV_TEST_ARCHIVE){return [pscustomobject]@{Tag='v0.6.0';Url=$env:PCVR_FNV_TEST_ARCHIVE;Local=$true;PageUrl=$script:Page}}
+    if($env:PCVR_FNV_TEST_ARCHIVE){return [pscustomobject]@{Tag=$(if($env:PCVR_FNV_TEST_VERSION){$env:PCVR_FNV_TEST_VERSION}else{'v0.6.0'});Url=$env:PCVR_FNV_TEST_ARCHIVE;Local=$true;PageUrl=$script:Page}}
     try{$r=Resolve-GitHubReleaseAsset -Repo $script:Repo -IncludePrerelease $true -AssetPatterns @('(?i)^FNVVR-Reborn-v[0-9]+(?:\.[0-9]+)+(?:[-.][A-Za-z0-9.]+)?\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=[pscustomobject]@{Resolved=$false}}
     $handover=Get-PCVRRecoveryInput -PathType Leaf
     if($handover){
@@ -40,11 +43,16 @@ function New-FNVStage([string]$Archive,[string]$Work,[string]$Game,[string]$Expe
     if([string]$status -notin @('ok','manual','retry')){throw 'The FNVVR ZIP could not be opened.'}
     $source=Get-ChildItem -LiteralPath $expanded -Directory -Recurse|Where-Object{(Test-Path -LiteralPath (Join-Path $_.FullName 'd3d9.dll') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $_.FullName 'fnvvr\actions.json') -PathType Leaf)}|Select-Object -First 1 -ExpandProperty FullName
     if(-not $source){throw 'The ZIP is missing the FNVVR runtime.'}
-    if((Split-Path -Leaf $source) -ine ('FNVVR-Reborn-'+$ExpectedVersion)){throw 'The FNVVR payload version differs from the selected release.'}
     $stage=Join-Path $Work 'stage';[void][IO.Directory]::CreateDirectory((Join-Path $stage 'fnvvr'))
     foreach($name in @('d3d9.dll','openvr_api.dll','fnvvr\actions.json','fnvvr\bindings_oculus_touch.json')){
         $from=Join-Path $source $name;if(-not(Test-Path -LiteralPath $from -PathType Leaf)){throw "The publisher ZIP lacks $name."}
         $to=Join-Path $stage $name;Copy-Item -LiteralPath $from -Destination $to -Force -ErrorAction Stop
+    }
+    Copy-Item -LiteralPath (Join-Path $source 'fnvvr') -Destination $stage -Recurse -Force -ErrorAction Stop
+    if($ExpectedVersion -match '(\d+\.\d+\.\d+)' -and [version]$Matches[1] -ge [version]'0.13.0'){
+        foreach($relative in @('fnvvr\texts_english.txt','fnvvr\texts_french.txt','fnvvr\bindings_frame_controller.json')){
+            if(-not [IO.File]::Exists((Join-Path $stage $relative))){throw ('The publisher ZIP lacks '+$relative+'. No game files were changed.')}
+        }
     }
     $published=Get-Content -LiteralPath (Join-Path $source 'dxvk.conf') -Raw -ErrorAction Stop
     $existing=Join-Path $Game 'dxvk.conf'
@@ -93,7 +101,12 @@ function Invoke-FNVInstaller {
         Write-Host " [OK] Game: $game" -ForegroundColor Green
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check and download the latest FNVVR release...')
         Write-Host ' [..] Checking GitHub prereleases; this may take a few seconds.' -ForegroundColor Cyan
-        $release=Get-FNVRelease;$work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_fnv_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
+        $release=Get-FNVRelease
+        if($release.Tag -match '(\d+\.\d+\.\d+)' -and [version]$Matches[1] -ge [version]'0.13.0'){
+            $script:Required=@($script:Required+@('fnvvr\texts_english.txt','fnvvr\texts_french.txt','fnvvr\bindings_frame_controller.json')|Select-Object -Unique)
+            $script:Contract=New-PCVRInstallerContract -Id $script:Id -GameName 'Fallout: New Vegas VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:Page -RequiredInstalledFileGroups $script:Required
+        }
+        $work=Join-Path ([IO.Path]::GetTempPath()) ('pcvr_fnv_'+[Guid]::NewGuid().ToString('N'));[void][IO.Directory]::CreateDirectory($work)
         $archive=Join-Path $work 'FNVVR.zip'
         if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force}else{[void](Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "FNVVR $($release.Tag)" -ManualUrl $script:Page -AllowSkip $false)}
         Write-Host ' [..] Inspecting and staging publisher files; this may take a few seconds.' -ForegroundColor Cyan
@@ -115,4 +128,21 @@ function Invoke-FNVInstaller {
         if($env:PCVR_HUB_TEST_MODE -eq '1'){throw};[void](Invoke-PCVRUniversalRecovery -FailureMessage $message -InstallerFolder $PSScriptRoot)
     }finally{if($work -and -not $keep -and (Test-Path -LiteralPath $work)){Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue}}
 }
-if($env:PCVR_FNV_LIBRARY_ONLY -ne '1'){Invoke-FNVInstaller}
+if ($env:PCVR_FNV_LIBRARY_ONLY -ne '1') {
+    $choice = if ($Mod) { $Mod.Trim().ToLowerInvariant() } else { ([string]$env:PCVR_HUB_INSTALLER_CHOICE).Trim().ToLowerInvariant() }
+    if (-not $choice) {
+        Write-Host '  [1] FNVVR by df4l (SteamVR)'
+        Write-Host '  [2] TTWVR by KUPOkinz (New Vegas Ultimate only)'
+        do {
+            $choice = Read-Host '  Choose 1 or 2 (Enter = FNVVR, Q = cancel)'
+            if ($null -eq $choice) { return }
+            $choice = $choice.Trim().ToLowerInvariant()
+        } while ($choice -notin @('','1','2','q'))
+    }
+    switch ($choice) {
+        { $_ -in @('','1','fnvvr') } { Invoke-FNVInstaller }
+        { $_ -in @('2','ttwvr') } { & (Join-Path $PSScriptRoot '..\TTWVR\TTWVR-core.ps1') -Mode NewVegas }
+        'q' { return }
+        default { throw 'Unknown New Vegas VR mod choice.' }
+    }
+}

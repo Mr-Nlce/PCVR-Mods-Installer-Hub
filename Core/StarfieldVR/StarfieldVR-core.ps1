@@ -20,37 +20,8 @@ $ErrorActionPreference = "Stop"
 # down), so a new release does not have to be tracked by hand again.
 # Keep it current anyway: without API access something old would be
 # downloaded forever.
-$MOD_VERSION = "v2.0.1.Public"
 $MOD_INFO_URL = "https://github.com/mutars/starfield2vr"
 $MOD_REPO       = "mutars/starfield2vr"
-$MOD_URL_OPENVR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openvr-$MOD_VERSION.zip"
-$MOD_URL_OPENXR = "https://github.com/$MOD_REPO/releases/download/$MOD_VERSION/starfield-vr-openxr-$MOD_VERSION.zip"
-
-# Fetch the newest release from GitHub and find the two assets in it.
-# The author names them starfield-vr-openvr-<tag>.zip and
-# starfield-vr-openxr-<tag>.zip - the search is for "openvr"/"openxr" in
-# the name, not for the version, so a rename breaks nothing.
-# If the API does not answer, the pinned addresses above stand.
-function Get-Starfield2VrUrls {
-    try {
-        $rel = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$MOD_REPO/releases/latest" `
-                 -Headers @{ "User-Agent" = "PCVR-Mods-Hub" } -TimeoutSec 20
-        $ov = $rel.assets | Where-Object { $_.name -match '(?i)openvr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1
-        $ox = $rel.assets | Where-Object { $_.name -match '(?i)openxr' -and $_.name -match '(?i)\.zip$' } | Select-Object -First 1
-        if ($ov -and $ox) {
-            return @{ Tag = [string]$rel.tag_name
-                      OpenVR = [string]$ov.browser_download_url
-                      OpenXR = [string]$ox.browser_download_url }
-        }
-    } catch {}
-    return $null
-}
-$sfRel = Get-Starfield2VrUrls
-if ($sfRel) {
-    $MOD_VERSION    = $sfRel.Tag
-    $MOD_URL_OPENVR = $sfRel.OpenVR
-    $MOD_URL_OPENXR = $sfRel.OpenXR
-}
 
 # WHAT MUST BE AT THE DESTINATION AFTER COPYING. The payload used to be
 # pushed into the game folder with robocopy and NOTHING was checked
@@ -60,6 +31,33 @@ if ($sfRel) {
 $MOD_MUST_HAVE_COMMON = @("dxgi.dll")
 $MOD_MUST_HAVE_OPENVR = @("openvr_api.dll")
 $MOD_MUST_HAVE_OPENXR = @("openxr_loader.dll")
+
+function Get-StarfieldWindowsPackage {
+    param([bool]$OpenXR,[string]$Destination)
+    $runtime = if ($OpenXR) { 'openxr' } else { 'openvr' }
+    $selector = '(?i)^starfield-vr-' + $runtime + '-.*(?<!-symbols)\.zip$'
+    $release = Resolve-GitHubReleaseAsset -Repo $MOD_REPO -AssetPatterns @($selector) -SkipReleasesWithoutMatchingAsset
+    $required = @($MOD_MUST_HAVE_COMMON) + $(if ($OpenXR) { $MOD_MUST_HAVE_OPENXR } else { $MOD_MUST_HAVE_OPENVR })
+    $anchors = @($required | ForEach-Object { '(?i)^' + [regex]::Escape($_) + '$' })
+    $validator = { param($path) Test-ZipPayloadAnchors -Path $path -MinimumMatches $anchors.Count -AnchorPatterns $anchors }.GetNewClosure()
+    $page = "https://github.com/$MOD_REPO/releases"
+    $instructions = "Choose the starfield-vr-$runtime Windows ZIP from the releases page. The ZIP must contain $($required -join ' and ')."
+    $version = ''
+    if ($release.Resolved) {
+        $info = @{}
+        $result = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $Destination -Label "Starfield VR $runtime Windows ZIP" `
+            -ManualUrl $page -Instructions $instructions -DownloadInfo $info -AllowSkip $false `
+            -DisableGitHubAssetReresolution -FunctionalPayloadOnly -Validator $validator
+        if ($info.Url -ceq $release.Url) { $version = [string]$release.Tag }
+    } else {
+        $fileCheck = { param($path) Test-DownloadedPayload -Path $path -IntendedPath $Destination -Validator $validator }.GetNewClosure()
+        $retry = { & $fileCheck $Destination }.GetNewClosure()
+        $result = Invoke-InstallerFallback -Action "download Starfield VR $runtime" -Url $page `
+            -DestFile $Destination -FileValidator $fileCheck -RetryCheck $retry -AllowSkip $false -Instructions $instructions
+    }
+    if ($result -ne $true -and [string]$result -ne 'retry') { throw 'The Starfield VR Windows archive was not acquired.' }
+    return [pscustomobject]@{ Archive=$Destination; Version=$version; Required=$required }
+}
 $VIGEMBUS_URL = "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe"
 
 $STEAM_FOLDER = "Starfield"
@@ -72,7 +70,7 @@ function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host " Starfield VR Mod Installer" -ForegroundColor Cyan
- Write-Host " starfield2vr $MOD_VERSION by mutars" -ForegroundColor Gray
+ Write-Host " starfield2vr by mutars" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Magenta
  Write-Host ""
 }
@@ -92,6 +90,7 @@ function Write-Info { param($text) Write-Host " [..] $text" -ForegroundColor Gra
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -133,7 +132,6 @@ $runtimeChoice = ""
 while ($runtimeChoice -notin @("1","2")) { $runtimeChoice = (Read-Host " Your choice (1/2)").Trim() }
 $useOpenXR = ($runtimeChoice -eq "2")
 $runtimeLabel = if ($useOpenXR) { "OpenXR" } else { "OpenVR (SteamVR)" }
-$modUrl = if ($useOpenXR) { $MOD_URL_OPENXR } else { $MOD_URL_OPENVR }
 
 # -------------------------------------------------------
 # Store choice
@@ -237,53 +235,13 @@ New-Item -ItemType Directory -Path $tempDir | Out-Null
 $zipPath = Join-Path $tempDir "starfield2vr.zip"
 $extractDir = Join-Path $tempDir "extract"
 
-Write-Host " Downloading from GitHub ... " -NoNewline -ForegroundColor White
-try {
- Invoke-PCVRWebRequest -Uri $modUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
- Write-Host "OK" -ForegroundColor Green
-} catch {
- Write-Host "FAILED" -ForegroundColor Red
- Write-Fail "Download error: $_"
- $__fb = Invoke-InstallerFallback -Action ".NET runtime download" `
- -Url "https://dotnet.microsoft.com/download/dotnet/7.0" `
- -Instructions "Install .NET 7 Desktop Runtime manually from https://dotnet.microsoft.com/download/dotnet/7.0 (x64 build)." `
- -SkipMessage "Skipped - the tool that needs .NET will not run; you can install .NET later and re-run." `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # Re-detect .NET 7 Desktop Runtime
- if (Test-DotNet7Desktop) {
- Write-OK ".NET 7 Desktop Runtime detected."
- } else {
- Pause-User "Still no .NET 7. Install it then re-run. Press Enter to exit..."
- exit 1
- }
- }
- # User chose Skip - continue at own risk
-}
-
-Write-Host " Extracting ... " -NoNewline -ForegroundColor White
-try {
- Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
- Write-Host "OK" -ForegroundColor Green
-} catch {
- Write-Host "FAILED" -ForegroundColor Red
- Write-Fail "Extract error: $_"
- $__fb = Invoke-InstallerFallback -Action "mod archive extraction" `
- -Instructions "Open '$zipPath' with 7-Zip or Windows Explorer, and extract its contents into '$extractDir'. Then choose Retry." `
- -SkipMessage "Skipped - mod files were NOT extracted; install is incomplete." `
- -SourceFolder "$zipPath" `
- -DestFolder "$extractDir" `
- -AllowSkip $true
- if ([string]$__fb -eq "quit") { Pause-User "Press Enter to exit..."; exit 1 }
- if ([string]$__fb -eq "retry") {
- # User claims they extracted manually. Re-run extract logic
- # by exiting and forcing re-run (we don't know which archive
- # variable this catch belongs to without context).
- Pause-User "We will exit so you can re-run with the fixed environment. Press Enter to exit..."
- exit 1
- }
- # User chose Skip - continue at own risk
+$package = Get-StarfieldWindowsPackage -OpenXR $useOpenXR -Destination $zipPath
+$expanded = Expand-ArchiveOrFallback -ArchivePath $package.Archive -DestinationFolder $extractDir -Label 'Starfield VR Windows ZIP' -AllowSkip $false
+if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The Starfield VR archive was not extracted.' }
+foreach ($requiredFile in $package.Required) {
+    if (-not (Test-Path -LiteralPath (Join-Path $extractDir $requiredFile) -PathType Leaf)) {
+        throw "The extracted $runtimeLabel archive is missing $requiredFile. No game files were changed."
+    }
 }
 
 # Payload is a flat set of DLLs - merge into game root.
@@ -403,7 +361,12 @@ if ($vigem -in @("y","Y")) {
 
 # Record install path for the post-install VR-Ready refresh (no full scan needed).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-Save-InstalledStamp -GameDir $gamePath -Version $MOD_VERSION -HubDir $PSScriptRoot
+if ($package.Version) {
+    Save-InstalledStamp -GameDir $gamePath -Version $package.Version -HubDir $PSScriptRoot
+} else {
+    Remove-Item -LiteralPath (Join-Path $gamePath '.pcvrhub_version'),(Join-Path $PSScriptRoot '.installed_version') -Force -ErrorAction SilentlyContinue
+    Write-Warn "The manual archive was installed. Its release tag could not be independently verified."
+}
 
 # -------------------------------------------------------
 # STEP 4: Done + important settings reminder

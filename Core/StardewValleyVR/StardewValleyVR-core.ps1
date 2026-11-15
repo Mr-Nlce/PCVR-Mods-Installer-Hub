@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Stardew Valley VR Mod Installer
 # Stardew3D by GingasVR - distributed via Nexus Mods
 #
@@ -50,6 +50,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { return $p } } catch {}
     }
@@ -69,7 +70,7 @@ function Find-StardewFolder {
         }
         foreach ($lib in ($libs | Select-Object -Unique)) {
             $c = Join-Path $lib "steamapps\common\Stardew Valley"
-            if (Test-Path -LiteralPath (Join-Path $c $GAME_EXE)) { return $c }
+            if (Test-Path -LiteralPath (Join-Path $c $GAME_EXE)) { if (Test-PCVRGameInstallProof -GameId 'stardew-valley-vr' -Root $c) { return $c } }
         }
     }
     # GOG, Xbox app / Microsoft Store. Built with .NET Combine so a drive
@@ -80,7 +81,7 @@ function Find-StardewFolder {
         "C:\XboxGames\Stardew Valley\Content",
         "C:\Program Files\ModifiableWindowsApps\Stardew Valley"
     )) {
-        try { if (Test-Path -LiteralPath ([System.IO.Path]::Combine($c, $GAME_EXE))) { return $c } } catch {}
+        try { if (Test-Path -LiteralPath ([System.IO.Path]::Combine($c, $GAME_EXE))) { if (Test-PCVRGameInstallProof -GameId 'stardew-valley-vr' -Root $c) { return $c } } } catch {}
     }
     return $null
 }

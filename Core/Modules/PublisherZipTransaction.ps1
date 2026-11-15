@@ -2,7 +2,7 @@
 # remains the authority for update and uninstall; this snapshot covers a failed
 # install before the new manifest and receipt can be committed.
 function global:Save-PCVRPublisherZipSnapshot {
-    param([string]$GameRoot,[string]$Stage,[string]$Identity,[string]$SnapshotRoot,[string[]]$ExtraPaths=@())
+    param([string]$GameRoot,[string]$Stage,[string]$Identity,[string]$SnapshotRoot,[string[]]$ExtraPaths=@(),[string]$BackupRelativePath='')
     [void][IO.Directory]::CreateDirectory($SnapshotRoot)
     $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $base = [IO.Path]::GetFullPath($Stage).TrimEnd([char[]]'\/')
@@ -22,12 +22,16 @@ function global:Save-PCVRPublisherZipSnapshot {
     $records = @()
     foreach ($name in $names) {
         $target = Join-OwnedRelativePath -Root $GameRoot -Relative $name
-        $key = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($name)).Replace('/','_')
+        # The record already stores the original relative name. Encoding that
+        # name again inflated long .NET filenames beyond Windows MAX_PATH in
+        # nested installer sessions. Keep private snapshot names short; restore
+        # continues to read each recorded Key, including older Base64 keys.
+        $key = $records.Count.ToString('X8')
         $exists = Test-Path -LiteralPath $target -PathType Leaf
         $records += [pscustomobject]@{ Name=$name; Key=$key; Exists=$exists }
         if ($exists) { Copy-Item -LiteralPath $target -Destination (Join-Path $SnapshotRoot $key) -Force -ErrorAction Stop }
     }
-    $backup = Join-Path $GameRoot ".pcvrhub_${Identity}_backup"
+    $backup = if($BackupRelativePath){Join-OwnedRelativePath -Root $GameRoot -Relative (Assert-PCVROwnedRelativePath -Relative $BackupRelativePath)}else{Join-Path $GameRoot ".pcvrhub_${Identity}_backup"}
     $hadBackup = Test-Path -LiteralPath $backup -PathType Container
     if ($hadBackup) { Copy-Item -LiteralPath $backup -Destination (Join-Path $SnapshotRoot 'backup') -Recurse -Force -ErrorAction Stop }
     return [pscustomobject]@{ Root=$SnapshotRoot; Records=$records; Backup=$backup; HadBackup=$hadBackup }

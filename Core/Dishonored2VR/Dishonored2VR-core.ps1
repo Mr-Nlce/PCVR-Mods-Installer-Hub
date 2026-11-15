@@ -9,6 +9,8 @@ $script:D2Files=@('Dishonored2.exe','dinput8.dll','DishonoredVR.dll','Dishonored
 $script:D2Contract=New-PCVRInstallerContract -Id $script:D2Id -GameName 'Dishonored 2 VR' -Acquisition GitHub -Routes @('Steam') -ReleasePageUrl $script:D2Page -AntivirusNotice -RequiredInstalledFileGroups $script:D2Files
 
 function Test-D2SteamRoot([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'dishonored-2-vr' -Root $Root)) { return $false }
+
     if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'Dishonored2.exe') -PathType Leaf)){return $false}
     if($env:PCVR_HUB_TEST_MODE -eq '1'){
         $full=[IO.Path]::GetFullPath($Root);$temp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/')+'\'

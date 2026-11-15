@@ -1674,7 +1674,7 @@ function global:Build-OvGenreRows {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
-    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller -and -not $_.InstallerParentId })
     $global:OvAllGames = $allGames
 
     foreach ($genre in $global:OverviewGenres) {
@@ -1863,7 +1863,7 @@ function global:Start-OverviewPrewarm {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
-    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller -and -not $_.InstallerParentId })
     $global:OvAllGames = $allGames
     # The old all-genres plan blocked the dispatcher for hundreds of ms.
     # Prepare one genre per paced tick before creating its tiles.

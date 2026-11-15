@@ -34,20 +34,17 @@ the Hub. The publisher archive was inspected and contains no ROM.
 
 ## Installation and updates
 
-**Publisher source unavailable (checked 26 September 2026):** the official
-repository and its v3.0.1 Windows download currently return 404. The Hub can
-still accept an original Windows ZIP that you already downloaded through its
-manual-file recovery; it cannot fetch this route while the publisher link is
-offline. Do not use an unverified reupload. The publisher's last saved README
-allows personal use and modification of its own VR components but expressly
-forbids redistributing or forking them. The Hub does not bundle this package.
+**The standalone Windows ZIP is available through Flat2VR Discord.** Use the
+official download post below. The installer also accepts an original Windows ZIP
+you already downloaded. The publisher allows personal use and modification of
+its own VR components and forbids redistributing or forking them.
 
 The installer's first choice selects one of two independent routes. Press
 [[Enter]] on option 1 for the standalone application, or choose option 2 for
 the classic legacy route:
 
 1. **Dramatic Shape VR 3.x** — the standalone OpenXR application and default
-   choice; its GitHub source is currently offline / not public.
+   choice, downloaded from Flat2VR Discord.
 2. **Legacy Gen1Recomp VR** — pinned Gen1Recomp v0.2.56 plus either the full
    Dramatic Shape v1.8.5 profile or the leaner Dramaless Shape v1.6.4 profile.
 
@@ -62,17 +59,16 @@ The default install folder is `C:\Games\Pokemon Dramatic Shape VR`; the
 installer lets you choose another complete folder. Keep the application out of
 `Program Files`, because its built-in updater needs a writable folder.
 
-The installer checks GitHub for the newest stable Windows ZIP. While that
-repository is offline, it guides you to join [Flat2VR Modding](https://discord.gg/flat2vr),
-then opens the [Dramatic Shape download post](https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386).
-Download the **second attachment**, `DramaticShapeVR-3.0.1-windows.zip`.
+The installer guides you to join [Flat2VR Modding](https://discord.gg/flat2vr)
+and then opens the [Dramatic Shape download post](https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386).
+Download the **Windows ZIP** from that post.
 After you confirm the download with [[Enter]], the installer searches Downloads;
 you can also drag the ZIP onto its window. The ZIP is checked for safe paths
 and the required runtime files before installation. The installed
 application also has its own **UPDATES** control in the launcher. Its updater
 stages the complete official Windows package, restarts the executable and
-writes the installed version into `VERSION`; the Hub reads that same proof so
-an in-app update does not leave a stale Update badge.
+writes the installed version into `VERSION`. The Hub reads that same file to
+display the installed version.
 
 The official PC launcher can crash on the ROM-selection screen when a VR
 controller sends touch input. The Hub installer guards all three touch events
@@ -98,8 +94,8 @@ not silently mixed with the new profile.
 ## First start
 
 1. Make the OpenXR runtime you want to use active.
-2. Choose **Start in VR** on this game page.
-3. Import one of the supported ROMs you legally own from the launcher.
+2. Before importing your game, choose **Import game** on this game page.
+3. Import one of the supported ROMs you legally own from the launcher, then scan again in the Hub. Use **Start in VR** after the imported game is detected.
 4. Let the first world bake finish. Later bakes are incremental and only
    rebuild maps whose source data changed.
 
@@ -200,7 +196,6 @@ only if you also want to erase your progress and local imports. Old
 ## Official sources
 
 - Project and documentation: https://github.com/prismaticShape/DramaticShapeVR
-- Releases when GitHub is available: https://github.com/prismaticShape/DramaticShapeVR/releases
 - Current manual Windows download post: https://discord.com/channels/747967102895390741/1535704850090823690/1553652866546274386
 
 The Windows archive carries the Khronos OpenXR loader and its license, the

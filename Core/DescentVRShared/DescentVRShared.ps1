@@ -51,7 +51,10 @@ function Get-DescentRuntime([hashtable]$Definition,[string]$GameRoot) {
     $roots=New-Object 'System.Collections.Generic.List[string]'
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_DESCENT_TEST_RUNTIME){$roots.Add((Assert-DescentTestPath $env:PCVR_DESCENT_TEST_RUNTIME))}
     if($GameRoot){$roots.Add((Join-Path $GameRoot 'VR'))}
-    if($env:PCVR_HUB_TEST_MODE -ne '1'){$roots.Add((Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('Descent 1 and 2 VR\'+$Definition.Name)))}
+    if($env:PCVR_HUB_TEST_MODE -ne '1'){
+        $documents = [Environment]::GetFolderPath('MyDocuments')
+        if ($documents) { $roots.Add((Join-Path $documents ('Descent 1 and 2 VR\'+$Definition.Name))) }
+    }
     $receipt=if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_DESCENT_TEST_RECEIPT){
         $testReceipt=[IO.Path]::GetFullPath($env:PCVR_DESCENT_TEST_RECEIPT)
         [void](Assert-DescentTestPath (Split-Path -Parent $testReceipt))
@@ -94,7 +97,9 @@ function Get-DescentPayload([string]$Extracted,[hashtable]$Definition){
 function Invoke-DescentPublisher([string]$Payload,[string]$GameRoot,[string]$Work) {
     $publisher=Join-Path $Payload 'files\setup.ps1'
     $quote={param([string]$value) "'"+$value.Replace("'","''")+"'"}
-    $command="& $(& $quote $publisher) -Quiet -Json -NoSteam -GamePath $(& $quote $GameRoot)"
+    # The Hub verifies the selected runtime from disk. Publisher JSON also
+    # performs a global inventory and requires a configured Documents folder.
+    $command="& $(& $quote $publisher) -Quiet -NoSteam -GamePath $(& $quote $GameRoot)"
     if($env:PCVR_HUB_TEST_MODE -eq '1'){$command+=' -NoShortcuts'}
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
     $out=Join-Path $Work 'publisher-out.txt';$err=Join-Path $Work 'publisher-err.txt'
@@ -115,6 +120,9 @@ function Invoke-DescentPublisher([string]$Payload,[string]$GameRoot,[string]$Wor
     }finally{$outStream.Dispose();$errStream.Dispose();$p.Dispose()}
     if($null -eq $exitCode -or $exitCode -ne 0){
         $detail=if(Test-Path -LiteralPath $err){((Get-Content -LiteralPath $err -Tail 4 -ErrorAction SilentlyContinue) -join ' ')}else{''}
+        if ([string]::IsNullOrWhiteSpace($detail) -and [IO.File]::Exists($out)) {
+            $detail = (Get-Content -LiteralPath $out -Tail 16 -ErrorAction SilentlyContinue | Where-Object { $_.Trim() }) -join ' '
+        }
         throw "Publisher Setup failed (exit $exitCode). $detail"
     }
     return [string](Get-Content -LiteralPath $out -Raw -ErrorAction SilentlyContinue)
@@ -174,7 +182,7 @@ function Invoke-DescentInstaller([string]$Key){
         Write-Host "  Setup now installs only $($d.Name), then verifies its own VR folder." -ForegroundColor White
         Write-Host '  This can take a little while. The publisher output is being captured.' -ForegroundColor Cyan
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to run publisher Setup...')
-        $publisherOutput=Invoke-DescentPublisher -Payload $payload -GameRoot $base.Root -Work $work
+        [void](Invoke-DescentPublisher -Payload $payload -GameRoot $base.Root -Work $work)
         Write-Host '  Publisher Setup returned; checking its installed files...' -ForegroundColor Cyan
         $after=Get-DescentRuntime $d $base.Root
         if(-not $after -or ($release.Version -and $after.Version -ne $release.Version)){throw 'Setup did not produce a complete runtime with the expected version. No success was recorded.'}

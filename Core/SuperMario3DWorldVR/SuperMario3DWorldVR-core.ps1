@@ -6,14 +6,14 @@ $script:GameId='super-mario-3d-world-vr'
 $script:GameTitle='Super Mario 3D World VR'
 $script:Required=@('Start-VR.cmd','Start-VR.ps1','layer\cemuvr_layer.dll','layer\VK_LAYER_CEMUVR_core.json','graphicPacks\Mario3DWorld_VR\rules.txt','graphicPacks\Mario3DWorld_VR\patch_vr.asm','graphicPacks\Mario3DWorld_FPS\rules.txt')
 function Test-MarioGame([string]$Root){
-    if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'code\RedCarpet.rpx') -PathType Leaf)){return $false}
+    if(-not(Test-PCVRGameInstallProof -GameId 'super-mario-3d-world-vr' -Root $Root)){return $false}
     $meta=Join-Path $Root 'meta\meta.xml'
     if(-not(Test-Path -LiteralPath $meta -PathType Leaf)){return $false}
     try{return [bool]([IO.File]::ReadAllText($meta) -match '(?i)0005000010145(?:D00|C00)')}catch{return $false}
 }
 function Get-MarioGame {
     $test=(''+$env:PCVR_SM3DW_TEST_GAME).Trim()
-    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $test){if(Test-MarioGame $test){return [IO.Path]::GetFullPath($test)};throw 'The isolated Wii U game fixture lacks its supported title ID or RPX.'}
+    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $test){if(Test-MarioGame $test){return [IO.Path]::GetFullPath($test)};throw 'The isolated Wii U game fixture lacks original model/map data, its RPX or supported title ID.'}
     $saved=Get-PCVRRememberedGameFolder -GameId $script:GameId -StateNames @('base_game_path','user_located') -ProbeFiles @('code\RedCarpet.rpx','meta\meta.xml')
     if(Test-MarioGame $saved){return [IO.Path]::GetFullPath($saved)}
     while($true){
@@ -22,7 +22,8 @@ function Get-MarioGame {
         $choice=(''+(Read-Host 'Game folder, or Q to cancel')).Trim().Trim('"')
         if($choice -in @('q','Q','quit')){return $null}
         if(Test-MarioGame $choice){return [IO.Path]::GetFullPath($choice)}
-        Write-Host '  The RedCarpet RPX and supported title ID were not found together.' -ForegroundColor Yellow
+        Write-Host '  Select the complete game folder containing code, content and meta.' -ForegroundColor Yellow
+        Write-Host '  Required: RedCarpet.rpx, original Mario/model and title-map data, and a supported EU/USA title ID.' -ForegroundColor Yellow
     }
 }
 function Test-MarioCemu([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Cemu.exe') -PathType Leaf))}

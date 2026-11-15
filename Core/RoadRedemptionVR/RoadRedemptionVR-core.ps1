@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Road Redemption VR Mod Installer
 # by Astienth - distributed via GitHub
 #
@@ -64,6 +64,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -103,8 +104,8 @@ function Find-RoadRedemptionGamePath {
  # with Epic Store, so we don't bother scanning Epic paths.
  foreach ($folder in @("Road Redemption", "RoadRedemption", "Road Redemption Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\RoadRedemption_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\RoadRedemption_Data") { if (Test-PCVRGameInstallProof -GameId 'road-redemption-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'road-redemption-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -155,16 +156,8 @@ if ($gamePath) {
  Write-Host ""
  Write-Host " Reminder: this mod only works with the STEAM version." -ForegroundColor Yellow
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Road Redemption folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Road Redemption' -HubGameId 'road-redemption-vr' -ProbeFile 'RoadRedemption.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # Download the mod ZIP from GitHub directly. Use a temp file so

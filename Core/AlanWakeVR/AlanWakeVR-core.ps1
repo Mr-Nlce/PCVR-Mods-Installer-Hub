@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 
 $Host.UI.RawUI.WindowTitle = 'Alan Wake VR Installer'
@@ -6,7 +6,8 @@ $script:AwId = 'alan-wake-vr'
 $script:AwRepo = 'fholger/alanwake_vr'
 $script:AwPage = 'https://github.com/fholger/alanwake_vr/releases'
 $script:AwDownloadPage = $script:AwPage
-$script:AwFiles = @('AlanWake.exe','d3d9.dll','Uninstall_AlanWakeVR.exe','AWVR_README.md','AWVR_ThirdParty.txt','awvr_laa_patcher.exe')
+$script:AwMotionFiles = @('data\ep999-008.bin','data\ep999-008.rmdp')
+$script:AwFiles = @('AlanWake.exe','d3d9.dll','Uninstall_AlanWakeVR.exe','AWVR_README.md','AWVR_ThirdParty.txt','awvr_laa_patcher.exe') + $script:AwMotionFiles
 $script:AwManifestName = '.pcvrhub_alanwakevr_ownership.json'
 $script:AwBackupName = '.pcvrhub_alanwakevr_backup'
 $script:AwContract = New-PCVRInstallerContract -Id $script:AwId -GameName 'Alan Wake VR' -Acquisition GitHub `
@@ -23,6 +24,8 @@ function Assert-AwFixture([string]$Root) {
     return $full
 }
 function Test-AwGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'alan-wake-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'AlanWake.exe') -PathType Leaf) -and
         -not ($Root -match '(?i)Alan\s*Wake\s*Remastered'))
 }
@@ -143,7 +146,11 @@ function Save-AwRollback([string]$Game,[string]$Work) {
     foreach ($name in @($script:AwFiles + $script:AwManifestName + '.pcvrhub_version')) {
         $source = Join-Path $Game $name
         $present[$name] = Test-Path -LiteralPath $source -PathType Leaf
-        if ($present[$name]) { Copy-Item -LiteralPath $source -Destination (Join-Path $snapshot $name) -Force -ErrorAction Stop }
+        if ($present[$name]) {
+            $target = Join-Path $snapshot $name
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+            Copy-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop
+        }
     }
     $backup = Join-Path $Game $script:AwBackupName
     $hadBackup = Test-Path -LiteralPath $backup -PathType Container
@@ -153,7 +160,10 @@ function Save-AwRollback([string]$Game,[string]$Work) {
 function Restore-AwRollback([string]$Game,$Snapshot) {
     foreach ($name in @($Snapshot.Present.Keys)) {
         $target = Join-Path $Game $name
-        if ($Snapshot.Present[$name]) { Copy-Item -LiteralPath (Join-Path $Snapshot.Path $name) -Destination $target -Force -ErrorAction Stop }
+        if ($Snapshot.Present[$name]) {
+            [void][IO.Directory]::CreateDirectory((Split-Path -Parent $target))
+            Copy-Item -LiteralPath (Join-Path $Snapshot.Path $name) -Destination $target -Force -ErrorAction Stop
+        }
         elseif (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force -ErrorAction Stop }
     }
     $backup = Join-Path $Game $script:AwBackupName
@@ -173,6 +183,11 @@ function Assert-AwExistingOwnership([string]$Game) {
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
     if ($manifest.Identity -ne 'alanwakevr' -or -not (Test-Path -LiteralPath (Join-Path $Game $script:AwBackupName) -PathType Container)) {
         throw 'The recorded Alan Wake VR ownership is incomplete. Repair its backup before updating.'
+    }
+    foreach ($name in $script:AwMotionFiles) {
+        if ($name -notin $manifest.Files.Name -and [IO.File]::Exists((Join-Path $Game $name))) {
+            throw "$name already exists outside the Hub ownership record. Back it up before updating."
+        }
     }
     foreach ($row in @($manifest.Files)) {
         if ($row.Name -notin $script:AwFiles) { throw 'The Alan Wake VR ownership record contains an unexpected path.' }
@@ -228,7 +243,8 @@ function Invoke-AwInstaller {
         Write-Host '  Alan Wake VR - Installer' -ForegroundColor Cyan
         Write-Host ('=' * 60) -ForegroundColor Magenta
         Write-Host '  Original Alan Wake: Steam, GOG or Epic. Remastered is unsupported.' -ForegroundColor White
-        Write-Host '  Seated third-person VR, gamepad or keyboard and mouse.' -ForegroundColor White
+        Write-Host '  Alan Wake VR 2.0 adds first-person VR with motion controllers.' -ForegroundColor White
+        Write-Host '  The original third-person view remains available with a gamepad.' -ForegroundColor White
         Write-Host '  Set an active OpenXR runtime. Quest: use Steam Link or Virtual Desktop;' -ForegroundColor Yellow
         Write-Host '  Meta Horizon Link does not currently work with this mod.' -ForegroundColor Yellow
         Show-AntivirusNotice -Compact
@@ -272,8 +288,15 @@ function Invoke-AwInstaller {
         $changed = $true
         Invoke-AwPublisher -Setup $setup -Game $game
         if (-not (Test-AwPublisherInstalled $game)) { throw 'Publisher Setup did not leave a complete Alan Wake VR installation. Nothing was marked complete.' }
+        $requiredNames = @('AlanWake.exe','d3d9.dll','Uninstall_AlanWakeVR.exe',$script:AwManifestName)
+        if ([version]($release.Tag -replace '^[vV]','') -ge [version]'2.0.0') {
+            foreach ($name in $script:AwMotionFiles) {
+                if (-not (Test-Path -LiteralPath (Join-Path $game $name) -PathType Leaf)) { throw "Publisher Setup did not install the first-person VR file $name." }
+            }
+            $requiredNames += $script:AwMotionFiles
+        }
         Write-AwOwnership -Game $game -Before $snapshot -Previous $previous -Version $release.Tag -Route $route
-        $required = @('AlanWake.exe','d3d9.dll','Uninstall_AlanWakeVR.exe',$script:AwManifestName) | ForEach-Object { Join-Path $game $_ }
+        $required = $requiredNames | ForEach-Object { Join-Path $game $_ }
         if (-not (Confirm-PlacedFilesSurvive -Paths $required -GameDir $game -NoClear)) { throw 'Required Alan Wake VR files did not survive the post-install check.' }
         $receipt = if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_ALANWAKE_TEST_RECEIPT) { $env:PCVR_ALANWAKE_TEST_RECEIPT } else { Join-Path $PSScriptRoot '.installed_path' }
         [void](Complete-PCVRInstallTransaction -Contract $script:AwContract -GameDir $game -Version $release.Tag -Route $route -InstalledPathReceiptPaths @($receipt))

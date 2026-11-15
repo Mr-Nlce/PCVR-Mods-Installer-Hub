@@ -231,7 +231,8 @@ while (-not $placedOk) {
 try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 $requiredInstalled = @(
     (Join-Path $gameRoot $GAME_EXE),
-    (Join-Path $gameRoot 'ICG_Data\globalgamemanagers')
+    (Join-Path $gameRoot 'ICG_Data\globalgamemanagers'),
+    (Join-Path $gameRoot 'ICG_Data\level1')
 )
 foreach ($requiredFile in $requiredInstalled) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf) -or

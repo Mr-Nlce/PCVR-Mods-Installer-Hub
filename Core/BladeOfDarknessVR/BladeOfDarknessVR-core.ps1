@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -15,6 +15,8 @@ $script:BladeContract = New-PCVRInstallerContract -Id $script:BladeId -GameName 
     -RequiredInstalledFileGroups @($script:BladeProof + '.pcvrhub_bladevr_ownership.csv')
 
 function Test-BladeGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'blade-of-darkness-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'bin\bin\Blade.exe') -PathType Leaf))
 }
 function Get-BladeGameRoot {

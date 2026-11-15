@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Quake 2 VR Installer
 # ============================================================
 # Self-contained installer for Quake 2 VR (q2vr) by Luke
@@ -41,7 +41,9 @@ if (-not $Mod) {
     $Mod = if ($pick -eq '1') { 'pcvr' } else { 'legacy' }
 }
 if ($Mod -ieq 'pcvr') {
+    $global:LASTEXITCODE=0
     & (Join-Path $PSScriptRoot 'Quake2PCVR-current.ps1')
+    if ($global:LASTEXITCODE -ne 0) { exit $global:LASTEXITCODE }
     return
 }
 if ($Mod -ine 'legacy') { throw "Unknown Quake II installer option: $Mod" }
@@ -100,6 +102,7 @@ function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p=(Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
     }; return $null
@@ -134,12 +137,12 @@ function Get-DownloadsFolder {
 # Prefer the classic one, then the remaster one, then a recursive scan.
 function Find-Baseq2 {
     param([string]$Root)
-    if (-not $Root -or -not (Test-Path $Root)) { return $null }
+    if (-not $Root -or -not (Test-Path -LiteralPath $Root)) { return $null }
     foreach ($sub in @("baseq2", "rerelease\baseq2")) {
         $cand = Join-Path $Root $sub
-        if (Test-Path (Join-Path $cand $BASE_PAK)) { return $cand }
+        if ((Test-PCVRGameInstallProof -GameId 'quake-2-vr' -Root (Split-Path -Parent $cand)) -and (Test-Path -LiteralPath (Join-Path $cand $BASE_PAK))) { return $cand }
     }
-    $hit = Get-ChildItem -Path $Root -Recurse -Filter $BASE_PAK -ErrorAction SilentlyContinue | Select-Object -First 1
+    $hit = Get-ChildItem -LiteralPath $Root -File -Recurse -Filter $BASE_PAK -ErrorAction SilentlyContinue | Where-Object { Test-PCVRGameInstallProof -GameId 'quake-2-vr' -Root $_.Directory.Parent.FullName } | Select-Object -First 1
     if ($hit) { return (Split-Path $hit.FullName -Parent) }
     return $null
 }

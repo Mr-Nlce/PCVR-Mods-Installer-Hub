@@ -1,8 +1,12 @@
 # Final Fantasy XIV VR Installer
 
-Guided installer for FFXIV VR v0.0.83 by WesleyLuk90, installed via
+Guided installer for FFXIV VR v0.0.84 by WesleyLuk90, installed via
 XIVLauncher and Dalamud. A VR plugin for FFXIV implemented in C# using the
 Silk OpenXR bindings, based on the original xivr-Ex plugin.
+
+## About the Game
+
+Final Fantasy XIV is an online role-playing game. This plugin adds a headset view and configurable input through XIVLauncher and Dalamud. A licensed game, account and compatible game patch are still required.
 
 ## Features
 
@@ -20,7 +24,7 @@ Link, VDXR.
 ## What it does
 
 1. Checks for XIVLauncher — downloads and installs it if missing
-2. Automatically registers the FFXIV VR custom plugin repository in `dalamudConfig.json`
+2. Registers the FFXIV VR custom plugin repository in `dalamudConfig.json` after confirmation, with a backup. If the launcher or game is running, follow the manual registration steps instead.
 3. Guides you step-by-step through the in-game plugin installation
 
 ## Requirements
@@ -47,7 +51,9 @@ Make sure you have:
 8. Type `/vr` in chat to open VR settings — enable "Start in VR automatically"
 9. Restart FFXIV
 
-## Current release v0.0.83
+## Current release v0.0.84
+
+v0.0.84 fixes head-relative movement, the first-person toggle, window rendering, portraits and nameplates, and saves window sizing. The Hub records the version from the complete installed Dalamud plugin. It verifies the original game separately from XIVLauncher; a launcher alone cannot prove VR Ready.
 
 v0.0.83 adds `/vr restart` and fixes an HBAO deadlock. v0.0.82 fixes mouse targeting. v0.0.79 fixed decals, ambient occlusion, fog and content locked to the head;
 it also clears the constant-buffer cache and validates line endings. The
@@ -86,14 +92,16 @@ Configuration. Keyboard & mouse works but targeting is awkward (use tab
 targeting); VR controllers work but are the least comfortable option.
 
 Advanced binding options to stretch the limited buttons:
-- Layers: hold a button bound to a layer to activate a second set of
-  bindings (e.g. hold [[Left Grip]] = Layer 2, then [[X]] = Select)
-- Stick D-pad layer: hold a bound button to make [[Left Stick]] or [[Right Stick]] act as a
-  D-pad
-- Mouse: bind `EnableLeftMouseHold` / `EnableRightMouseHold` to aim the
-  mouse by pointing a controller (or move it with your head, under Other);
-  bind Mouse1/2/3 for clicks
-- Stick deadzones are adjustable if your controllers drift
+
+| Button | Action |
+| --- | --- |
+| [[Home]] | Toggle first-person and third-person view with the default binding. |
+| [[Tab]] | Target using the game's keyboard targeting. |
+| [[Left Grip]] + [[X]] | Example custom layer: bind the grip to Layer 2 and X to Select in that layer. These are configurable bindings. |
+| [[Left Stick]] / [[Right Stick]] with a configured layer button | Act as a D-pad when that layer is configured. |
+| [[Left Mouse]] / [[Right Mouse]] / [[Middle Mouse]] | Mouse1/2/3 when assigned to controller buttons in the plugin. |
+
+Bind `EnableLeftMouseHold` or `EnableRightMouseHold` to aim the mouse with a controller; head-based mouse movement is available under Other. Adjust stick deadzones if controllers drift.
 
 ## Source
 

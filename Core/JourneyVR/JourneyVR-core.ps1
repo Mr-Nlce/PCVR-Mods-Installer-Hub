@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -18,6 +18,8 @@ function Write-JourneyStep([int]$Number,[string]$Text) {
 }
 
 function Test-JourneyGameRoot([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'journey-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Journey.exe') -PathType Leaf))
 }
 

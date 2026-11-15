@@ -2,7 +2,8 @@ param(
     [ValidateSet('','Hotbite','ERVR')]
     [string]$Mod = '',
     [switch]$HubConfirmed,
-    [switch]$NoPause
+    [switch]$NoPause,
+    [string]$GameDir
 )
 
 # Elden Ring VR (Motion Controls) uninstaller
@@ -10,6 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\OwnedModFiles.ps1")
 . (Join-Path $PSScriptRoot "EldenRingDepot.ps1")
 
 function Write-OK   { param($m) Write-Host "  [OK] $m" -ForegroundColor Green }
@@ -25,11 +27,16 @@ $launcherRels = @(
 )
 $ervrFiles = @("dxgi.dll","dinput8.dll","ReShade.ini")
 $roots = @()
+if ($GameDir) {
+    if (-not (Test-EldenRingRoot $GameDir)) { Write-Warn 'The selected folder does not contain Elden Ring.'; exit 1 }
+    $roots += [pscustomobject]@{Label='Selected';Path=[IO.Path]::GetFullPath($GameDir)}
+}
+$depot = "C:\Games\Elden Ring VR"
+if (-not $GameDir) {
 try {
     $live = Find-SteamGameFolder -AppId 1245620 -SteamFolderNames @("ELDEN RING") -ProbeExe "Game\eldenring.exe"
     if (Test-EldenRingRoot $live) { $roots += [pscustomobject]@{ Label="Current"; Path=$live } }
 } catch {}
-$depot = "C:\Games\Elden Ring VR"
 if ((Test-EldenRingRoot $depot) -and ($roots.Path -notcontains $depot)) {
     $roots += [pscustomobject]@{ Label="Depot 1.16.2"; Path=$depot }
 }
@@ -39,10 +46,12 @@ try {
         $roots += [pscustomobject]@{ Label="Recorded"; Path=$record }
     }
 } catch {}
+}
 
 $ervrRoots = @($roots | Where-Object {
     (Test-Path -LiteralPath (Join-Path $_.Path "Game\ERVR\ERVR.dll")) -or
-    (Test-Path -LiteralPath (Join-Path $_.Path "Game\.pcvrhub-ervr-backup\manifest.txt"))
+    (Test-Path -LiteralPath (Join-Path $_.Path "Game\.pcvrhub-ervr-backup\manifest.txt")) -or
+    (Test-Path -LiteralPath (Join-Path $_.Path "Game\.pcvrhub_ervr_ownership.csv"))
 })
 $hotHere = Test-Path -LiteralPath (Join-Path $hotRoot "mod\eldenring_vr.dll")
 
@@ -95,9 +104,33 @@ if ($removeErvr) {
     foreach ($r in $selectedErvrRoots) {
         $game = Join-Path $r.Path "Game"
         $realHere = (Test-Path -LiteralPath (Join-Path $game "RealRepo\RealVR64.dll")) -or
-                    (Test-Path -LiteralPath (Join-Path $game "RealRepo_\RealVR64.dll"))
+                    (Test-Path -LiteralPath (Join-Path $game "RealRepo_\RealVR64.dll")) -or
+                    (Test-Path -LiteralPath (Join-Path $game "RealVR.ini"))
         $backupDir = Join-Path $game ".pcvrhub-ervr-backup"
         $backupManifest = Join-Path $backupDir "manifest.txt"
+        if ([IO.File]::Exists((Join-Path $game '.pcvrhub_ervr_ownership.csv'))) {
+            if ($realHere) { Write-Warn "Remove R.E.A.L. from this copy before removing the shared ERVR loader."; continue }
+            try {
+                $owned=@(Import-Csv -LiteralPath (Join-Path $game '.pcvrhub_ervr_ownership.csv'))
+                $ownedDll=$owned | Where-Object RelativePath -eq 'ERVR\ERVR.dll' | Select-Object -First 1
+                $liveDll=Join-Path $game 'ERVR\ERVR.dll'
+                if ([IO.File]::Exists($liveDll) -and (-not $ownedDll -or
+                    (Get-FileHash -LiteralPath $liveDll -Algorithm SHA256).Hash -ne $ownedDll.InstalledSha256)) {
+                    Write-Warn 'ERVR.dll was changed outside the Hub. Use the publisher launcher to remove that copy.'
+                    continue
+                }
+                $result=Uninstall-OwnedModPayload -GameRoot $game -Identity 'ervr'
+                foreach($stamp in @((Join-Path $r.Path '.pcvrhub_version_b'),(Join-Path $game 'ERVR\.pcvrhub_ervr_v0.4.0'))){
+                    if ([IO.File]::Exists($stamp)){Remove-Item -LiteralPath $stamp -Force}
+                }
+                # A migrated backup now lives in the ownership manifest.
+                foreach($legacy in @($backupManifest,(Join-Path $backupDir 'dxgi.dll'),(Join-Path $backupDir 'dinput8.dll'))){
+                    if ([IO.File]::Exists($legacy)){Remove-Item -LiteralPath $legacy -Force}
+                }
+                Write-OK "Removed ERVR from $($r.Label). Original files restored: $($result.Restored); modified files preserved: $($result.Preserved)."
+            }catch{Write-Warn "Could not completely remove ERVR from $($r.Label): $($_.Exception.Message)"}
+            continue
+        }
         $ownership = @{}
         if (Test-Path -LiteralPath $backupManifest -PathType Leaf) {
             try {
@@ -143,7 +176,7 @@ foreach ($r in $roots) {
             $keptLauncher = Write-EldenRingMotionLauncher -GameDir $r.Path
             $suffix = if ($r.Path -ieq $depot) { "Depot 1.16.2" } else { "Current" }
             $lnkPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Elden Ring VR Motion ($suffix).lnk"
-            [void](New-DesktopShortcut -LnkPath $lnkPath -TargetPath $keptLauncher -WorkingDir (Split-Path -Parent $keptLauncher) -Description "Elden Ring VR motion controls - $suffix")
+            if($env:PCVR_HUB_TEST_MODE -ne '1'){[void](New-DesktopShortcut -LnkPath $lnkPath -TargetPath $keptLauncher -WorkingDir (Split-Path -Parent $keptLauncher) -Description "Elden Ring VR motion controls - $suffix")}
         } catch {}
     } else {
         foreach ($launcherRel in $launcherRels) {
@@ -152,7 +185,7 @@ foreach ($r in $roots) {
         }
         $suffix = if ($r.Path -ieq $depot) { "Depot 1.16.2" } else { "Current" }
         $lnkPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Elden Ring VR Motion ($suffix).lnk"
-        if (Test-Path -LiteralPath $lnkPath) { try { Remove-Item -LiteralPath $lnkPath -Force } catch {} }
+        if ($env:PCVR_HUB_TEST_MODE -ne '1' -and (Test-Path -LiteralPath $lnkPath)) { try { Remove-Item -LiteralPath $lnkPath -Force } catch {} }
         $vrLaunchDir = Join-Path $r.Path "VRLaunch"
         if (Test-Path -LiteralPath $vrLaunchDir -PathType Container) {
             try { if (@(Get-ChildItem -LiteralPath $vrLaunchDir -Force).Count -eq 0) { Remove-Item -LiteralPath $vrLaunchDir -Force } } catch {}
@@ -167,7 +200,7 @@ $anyHotLeft = Test-Path -LiteralPath (Join-Path $hotRoot "mod\eldenring_vr.dll")
 if (-not $anyErvrLeft -and -not $anyHotLeft) {
     foreach ($suffix in @("Current","Depot 1.16.2")) {
         $lnkPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Elden Ring VR Motion ($suffix).lnk"
-        if (Test-Path -LiteralPath $lnkPath) { try { Remove-Item -LiteralPath $lnkPath -Force } catch {} }
+        if ($env:PCVR_HUB_TEST_MODE -ne '1' -and (Test-Path -LiteralPath $lnkPath)) { try { Remove-Item -LiteralPath $lnkPath -Force } catch {} }
     }
 }
 if (-not $anyErvrLeft -and -not $anyHotLeft) {

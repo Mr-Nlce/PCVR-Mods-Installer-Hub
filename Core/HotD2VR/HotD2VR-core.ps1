@@ -101,11 +101,13 @@ function Find-HotDInstalled {
 
 function Set-HotDShortcutIcon([string]$Root) {
     $icon = Join-Path $PSScriptRoot 'HotD2VR.ico'
-    $link = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Play HotD2VR.lnk'
-    if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HOTD_TEST_DESKTOP) {
-        $desktop = Assert-HotDFixtureRoot -Path $env:PCVR_HOTD_TEST_DESKTOP
-        $link = Join-Path $desktop 'Play HotD2VR.lnk'
+    $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') {
+        if ($env:PCVR_HOTD_TEST_DESKTOP) { Assert-HotDFixtureRoot -Path $env:PCVR_HOTD_TEST_DESKTOP }
+    } else {
+        [Environment]::GetFolderPath('DesktopDirectory')
     }
+    if (-not $desktop) { return $false }
+    $link = Join-Path $desktop 'Play HotD2VR.lnk'
     if (-not (Test-Path -LiteralPath $icon -PathType Leaf) -or
         -not (Test-Path -LiteralPath $link -PathType Leaf)) { return $false }
     try {

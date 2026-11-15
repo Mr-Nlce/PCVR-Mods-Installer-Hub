@@ -14,7 +14,7 @@ The 1.0.13 level08 corrections have automated host validation only; the publishe
 
 The Hub downloads the latest official [Penumbra VR Framework release](https://github.com/rubocopter/penumbra_vr_framework/releases), including prereleases. Publisher Setup selects all detected Penumbra games by default. Check that Black Plague and Requiem are selected before Install; the Hub scans each component separately afterward. Setup also provides verification, repair and removal. Requiem shares Black Plague's installation root and backup transaction.
 
-The current v1.0.13 prerelease Setup makes assisted throws follow the controller holding the object and separates head-directed examination/ladder selection from hand pointing. Movement, jumping and audio are unchanged in this maintenance update. Keep both components selected when updating Requiem. The publisher still reports an intermittent Requiem startup crash; this release does not claim to fix it.
+The current v1.0.15 stable Setup is the publisher-recommended maintenance release. Its optional Neural component is experimental and disabled by default; it needs separate local NVIDIA prerequisites and is not required for ordinary VR. Full playthrough and headset compatibility still require individual validation.
 
 If Overture was installed with the older Hub-pinned Framework v0.x, update it from the **Penumbra: Overture VR** game tile before running this Setup. Do not use publisher Repair on that old Overture deployment; its managed file set differs from the current Framework.
 

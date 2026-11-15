@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Rogue Flight VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -66,6 +66,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -96,6 +97,8 @@ function Get-SteamLibraries {
 
 function Test-RogueFlightSupportedGamePath {
  param([string]$Path)
+    if (-not (Test-PCVRGameInstallProof -GameId 'rogue-flight-vr' -Root $Path)) { return $false }
+
  if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
  # The author expects the separate demo build not to work with this mod.
  if ([IO.Path]::GetFileName($Path.TrimEnd('\','/')) -match '(?i)demo') { return $false }

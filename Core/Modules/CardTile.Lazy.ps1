@@ -480,7 +480,16 @@ function global:Get-LazyCandidates {
 function global:Invoke-LazyRealizePass {
     param([switch]$VisibleOnly, [switch]$NoBudget)
     if (-not $global:HubLazyCards -or $global:LazyHosts.Count -eq 0) { return }
-    if ($global:ScanInProgress) { Start-LazyRetryTimer; return }
+    if ($global:ScanInProgress) {
+        # A locked scan defers everything. An interactive scan (default)
+        # still builds the cards the user scrolls into view - only those, so
+        # the scan is not slowed by cards nobody looks at. They paint from
+        # gameStateMap; the scan repaints a built card when it reaches it.
+        # The retry timer does the normal ahead-of-view pass after the scan.
+        Start-LazyRetryTimer
+        if (-not $global:HubScanInteractive) { return }
+        $VisibleOnly = $true
+    }
     $watch = [System.Diagnostics.Stopwatch]::StartNew()
     $fast = ($global:LazyFastUntil -eq [DateTime]::MaxValue)
     $ahead = if ($VisibleOnly -or $fast) { 0.0 } else { [double]$global:LazyRealizeAheadPx }

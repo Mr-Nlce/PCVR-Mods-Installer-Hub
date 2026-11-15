@@ -1,4 +1,4 @@
-# White Knuckle VR: current Steam build or independent pinned compatibility depot.
+﻿# White Knuckle VR: current Steam build or independent pinned compatibility depot.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -29,7 +29,9 @@ $DEPOT_CONTRACT=New-PCVRInstallerContract -Id 'white-knuckle-vr' -GameName 'Whit
     -RequiredInstalledFileGroups @($MOD_FILES+$LOADER_FILES+@(".pcvrhub_${IDENTITY}_ownership.csv",$DEPOT_MARKER,'steam_appid.txt'))
 
 function Write-WKStep([int]$N,[string]$Text){Write-Host '';Write-Host "--- [$N/5] $Text ---" -ForegroundColor Cyan}
-function Test-WKGame([string]$Path){return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Path 'UnityPlayer.dll') -PathType Leaf))}
+function Test-WKGame([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'white-knuckle-vr' -Root $Path)) { return $false }
+return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Path 'UnityPlayer.dll') -PathType Leaf))}
 function Test-WKFiles([string]$Path,[string[]]$Files){foreach($rel in $Files){if(-not(Test-Path -LiteralPath (Join-Path $Path $rel) -PathType Leaf)){return $false}};return $true}
 function Test-WKOwnedLoader([string]$GameRoot){
     $manifest=Join-Path $GameRoot ".pcvrhub_${IDENTITY}_ownership.csv"

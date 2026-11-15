@@ -12,7 +12,7 @@ Penumbra: Black Plague is Frictional Games' first-person survival horror adventu
 
 The Hub downloads the latest official PenumbraVR Setup from the [publisher releases](https://github.com/rubocopter/penumbra_vr_framework/releases), including prereleases. Setup selects every detected Penumbra game by default. Review its Overture, Black Plague and Requiem checkboxes before installing; the Hub scans each component separately afterward. Publisher Setup also offers verification, repair and removal. It preserves existing settings and keeps backups of changed original files.
 
-The current v1.0.13 prerelease Setup includes the earlier Black Plague object-interaction, examination and progression fixes, plus Requiem maintenance. Existing installations should use the publisher update/repair route only after the correct Framework components are selected.
+The current v1.0.15 stable Setup is the publisher-recommended maintenance release. Its optional Neural component is experimental and disabled by default; it needs separate local NVIDIA prerequisites and is not required for ordinary VR. Full playthrough and headset compatibility still require individual validation.
 
 If Overture was installed with the older Hub-pinned Framework v0.x, update it from the **Penumbra: Overture VR** game tile before running this Setup. Do not use publisher Repair on that old Overture deployment; its managed file set differs from the current Framework.
 

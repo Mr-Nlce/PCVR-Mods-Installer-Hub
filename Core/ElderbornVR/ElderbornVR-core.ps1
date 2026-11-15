@@ -1,4 +1,4 @@
-# ELDERBORN VR - preconfigured UUVR Discord installer plus first-party
+﻿# ELDERBORN VR - preconfigured UUVR Discord installer plus first-party
 # motion-control and roomscale bridge.
 #
 # Contract: Steam/Humble and GOG game roots must contain ELDERBORN.exe;
@@ -58,6 +58,8 @@ function Test-ElderbornBundledMod([string]$Path) {
 }
 
 function Test-ElderbornRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'elderborn-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue))
 }
 

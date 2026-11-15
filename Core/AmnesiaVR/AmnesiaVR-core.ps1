@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Amnesia VR Mod Installer (Sclerosis remake)
 # by CreaTeam - distributed via itch.io
 #
@@ -316,6 +316,7 @@ function Install-AmnesiaHDTextures {
 }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -357,7 +358,7 @@ function Find-AmnesiaGamePath {
  $exe1 = Join-Path $candidate "Amnesia.exe"
  $exe2 = Join-Path $candidate "AmnesiaGW.exe"
  if ((Test-Path $exe1) -or (Test-Path $exe2)) {
- return $candidate
+ if (Test-PCVRGameInstallProof -GameId 'amnesia-vr' -Root $candidate) { return $candidate }
  }
  }
  }
@@ -474,22 +475,8 @@ if ($gamePath) {
  Write-Warn "Could not auto-locate Amnesia: The Dark Descent in any Steam library."
  Write-Host " Please paste the path to your Amnesia folder" -ForegroundColor White
  Write-Host " (the folder that contains Amnesia.exe), then press Enter:" -ForegroundColor White
- while (-not $gamePath) {
- $r = (Read-Host " Amnesia folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $exe1 = Join-Path $r "Amnesia.exe"
- $exe2 = Join-Path $r "AmnesiaGW.exe"
- if ((Test-Path $exe1) -or (Test-Path $exe2)) {
- $gamePath = $r
- Write-OK "Confirmed Amnesia folder: $gamePath"
- } else {
- Write-Fail "No Amnesia.exe or AmnesiaGW.exe in: $r"
- }
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Amnesia The Dark Descent' -HubGameId 'amnesia-vr' -ProbeFile 'Amnesia.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

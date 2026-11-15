@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -10,7 +10,9 @@ $REQUIRED=@('Binaries2\Win64\d3d11.dll','Binaries2\Win64\atidxx64.dll','Binaries
 $contract=New-PCVRInstallerContract -Id 'thief-2014-vr' -GameName 'Thief (2014) VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $RELEASES_URL -RequiredInstalledFileGroups @($REQUIRED+@(".pcvrhub_${IDENTITY}_ownership.csv"))
 
 function Write-ThiefStep([int]$n,[string]$t){Write-Host '';Write-Host "--- [$n/5] $t ---" -ForegroundColor Cyan;Write-Host ''}
-function Test-ThiefRoot([string]$p){[bool]($p -and (Test-Path -LiteralPath (Join-Path $p $GAME_EXE) -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $p 'ThiefGame') -PathType Container))}
+function Test-ThiefRoot([string]$p){
+    if (-not (Test-PCVRGameInstallProof -GameId 'thief-2014-vr' -Root $p)) { return $false }
+[bool]($p -and (Test-Path -LiteralPath (Join-Path $p $GAME_EXE) -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $p 'ThiefGame') -PathType Container))}
 function Test-ThiefPayload([string]$p){[bool]($p -and (Test-Path -LiteralPath (Join-Path $p 'dist\d3d11.dll') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $p 'dist\ThiefVRLauncher.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $p 'configure-stereo.ps1') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $p 'launch.ps1') -PathType Leaf))}
 function Get-ThiefRoot {
     $p=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('Thief') -ProbeExe $GAME_EXE -HubGameId 'thief-2014-vr';if(Test-ThiefRoot $p){return (Get-Item $p).FullName}

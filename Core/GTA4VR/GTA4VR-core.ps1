@@ -58,6 +58,11 @@ foreach($choice in $selected){
  Write-Host ('  Preparing '+$p.Name+'...') -ForegroundColor Cyan
  $release=if($test){$test.Packages.$choice}else{Resolve-GitHubReleaseAsset -Repo $p.Repo -AssetPatterns @($p.Pattern) -IncludePrerelease $p.Prerelease}
  if(-not $release.Resolved){throw ('The current '+$p.Name+' download could not be resolved. Retry or use the official release archive.')}
+ $installedVersion=[string]$release.Tag
+ if($choice -eq 'gamepad'){
+  $installedVersion=Get-PCVRGitHubSelectedAssetTimestamp -Release $release
+  if(-not $installedVersion){throw 'The selected gamepad asset has no confirmed publisher update time. No game files were changed. Retry the current release lookup.'}
+ }
  $zip=Join-Path $work ($choice+'.zip')
  if($test){Copy-Item -LiteralPath $release.LocalFile -Destination $zip}else{[void](Invoke-SafeDownload -Urls @($release.Url) -Destination $zip -Label $p.Name -ManualUrl $release.PageUrl -AllowSkip $false -FunctionalPayloadOnly -PlainProgress -DisableGitHubAssetReresolution)}
  $ex=Join-Path $work ($choice+'-extract');[void][IO.Directory]::CreateDirectory($ex)
@@ -79,7 +84,7 @@ foreach($choice in $selected){
  $controlStage=Join-Path $work ($choice+'-controllers');$controlLaunch=Join-Path $controlStage '_vrmods\VRLaunch';[void][IO.Directory]::CreateDirectory($controlLaunch)
  $controlSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $game -Stage $controlStage -Identity gta4controllers -SnapshotRoot (Join-Path $work ($choice+'-controllers-rollback')) -ExtraPaths $extra
  try{
- Install-GTA4Profile -Game $game -Stage $stage -Mod $choice -Version $release.Tag
+ Install-GTA4Profile -Game $game -Stage $stage -Mod $choice -Version $installedVersion
  $launch=Join-Path $game '_vrmods\VRLaunch';[void][IO.Directory]::CreateDirectory($launch)
  foreach($file in @('OwnedModFiles.ps1','PublisherZipTransaction.ps1','GTA4VRProfiles.ps1')){Copy-GTA4Verified (Join-Path $PSScriptRoot ('..\Modules\'+$file)) (Join-Path $controlLaunch $file)}
  foreach($file in @('Start-GTA4VR.ps1','UNINSTALL_GTA4VR.ps1')){Copy-GTA4Verified (Join-Path $PSScriptRoot $file) (Join-Path $controlLaunch $file)}
@@ -108,7 +113,7 @@ foreach($choice in $selected){
  Write-Host ('  [OK] '+$ship.Count+' publisher files verified.') -ForegroundColor Green
  $contract=New-PCVRInstallerContract -Id 'gta-iv-vr' -GameName 'GTA IV VR' -Acquisition GitHub -Routes @('bordplate','gamepad') -RequiredInstalledFileGroups $proof -AntivirusNotice -ReleasePageUrl ('https://github.com/'+$p.Repo+'/releases')
  $receipt=if($test){$test.Receipt}else{Join-Path $PSScriptRoot '.installed_path'}
- [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version $release.Tag -Route $choice -VersionSlot $(if($choice -eq 'gamepad'){'Secondary'}else{'Primary'}) -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @((Join-Path $game $p.VersionFile),(Join-Path $store '.pcvrhub_version')))
+ [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version $installedVersion -Route $choice -VersionSlot $(if($choice -eq 'gamepad'){'Secondary'}else{'Primary'}) -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @((Join-Path $game $p.VersionFile),(Join-Path $store '.pcvrhub_version')))
  Write-Host ('  [OK] '+$p.Name+' '+$release.Tag+' installed.') -ForegroundColor Green
  }catch{
   Restore-PCVRPublisherZipSnapshot -GameRoot $game -Snapshot $controlSnapshot
@@ -124,6 +129,7 @@ Write-Host '  Start SteamVR first. For bordplate, make SteamVR the active OpenXR
 Write-Host '  Alternative: use the matching GTA IV VR desktop shortcut.'
 Write-Host '  Only Vive Wands are author-tested; other controllers may need bindings or code changes.'
 Write-Host '  Keep a keyboard/gamepad for minigames and mission workarounds. DLC campaigns are untested.'
+Write-Host ''
 Write-Host '  Roman has another bowling invitation.' -ForegroundColor Magenta
 [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
 }

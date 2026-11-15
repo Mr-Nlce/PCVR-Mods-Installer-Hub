@@ -217,7 +217,8 @@ function Invoke-MetroidNativeSetup([string]$InstallerFolder) {
         $indexBefore=Save-MetroidVariantIndex 'Native' $game $InstallerFolder $test
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version $archive.Tag -InstalledPathReceiptPaths @($receipt) -Route Native)
         $changed=$false;$shortcutChanged=$false;$indexBefore=$null;$legacyLinkChanged=$false
-        Write-Host '';Write-Host '  1. Use Start in VR in the Hub.' -ForegroundColor Green
+        Write-Host '';Write-Host '  1. Use Start in VR in the Hub once your disc is selected.' -ForegroundColor Green
+        Write-Host '  First use: choose Import game, select your disc, then scan again in the Hub.' -ForegroundColor Yellow
         Write-Host '  Alternative: Metroid Prime VR desktop shortcut.' -ForegroundColor White
         Write-Host '  In the launcher: Select Game -> choose your own disc image.' -ForegroundColor Yellow
         Write-Host '  Start your OpenXR runtime; in Port Config enable VR, then choose Play.' -ForegroundColor Yellow
@@ -298,7 +299,8 @@ function Invoke-MetroidLegacySetup([string]$InstallerFolder){
         $receipt=if($test){$test.Receipt}else{Join-Path $InstallerFolder '.installed_path'}
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version $version -VersionSlot Secondary -AdditionalVersionReceiptPaths @((Join-Path $game '.pcvrhub_version')) -InstalledPathReceiptPaths @($receipt) -Route Legacy)
         $changed=$false;$indexBefore=$null;$linkChanged=$false
-        Write-Host '';Write-Host '  1. Use Start in VR in the Hub and choose Legacy.' -ForegroundColor Green
+        Write-Host '';Write-Host '  1. Use Start in VR in the Hub and choose Legacy once your disc is selected.' -ForegroundColor Green
+        Write-Host '  First use: choose Import game for Legacy, select your disc, then scan again.' -ForegroundColor Yellow
         Write-Host '  Alternative: Metroid Prime VR - Legacy desktop shortcut. Start SteamVR first.' -ForegroundColor White
         Write-Host '  Put your own NTSC 1.0 revision 0 disc image in the ROM folder, or use Select Game in PrimedGun.' -ForegroundColor Yellow
         Write-Host '  The recommended Native variant remains separate and unchanged.' -ForegroundColor White

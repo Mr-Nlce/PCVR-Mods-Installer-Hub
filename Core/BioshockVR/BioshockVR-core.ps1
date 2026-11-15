@@ -104,6 +104,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { return $p } } catch {}
     }
@@ -115,6 +116,7 @@ function Get-SteamPath {
 # than assumed.
 function Get-BuildFolder {
     param([string]$GameRoot)
+    if (-not (Test-PCVRGameInstallProof -GameId 'bioshock-remastered' -Root $GameRoot)) { return $null }
     foreach ($sub in @("Build\Final", "Build\FinalEpic")) {
         $c = [System.IO.Path]::Combine($GameRoot, $sub)
         if (Test-Path -LiteralPath ([System.IO.Path]::Combine($c, $GAME_EXE))) { return $c }
@@ -891,7 +893,7 @@ try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRo
 # A mod that was not (re)installed now keeps whatever it had; a missing
 # file is seeded by the next scan, so no wrong version is ever claimed.
 if ($updatedB -and $tagB) {
-    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $tagB -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Value $tagB -Encoding UTF8 -Force } catch {}
     Write-ModStamp -GameDir $gameRoot -Version $tagB | Out-Null
 } elseif ($updatedB) {
     foreach ($receipt in @((Join-Path $SCRIPT_DIR '.installed_version'),(Join-Path $gameRoot '.pcvrhub_version'))) {
@@ -899,7 +901,7 @@ if ($updatedB -and $tagB) {
     }
 }
 if ($updatedA -and $tagA) {
-    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version_b") -Value $tagA -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version_b") -Value $tagA -Encoding UTF8 -Force } catch {}
     Write-ModStamp -GameDir $gameRoot -Version $tagA -Second | Out-Null
 } elseif ($updatedA) {
     foreach ($receipt in @((Join-Path $SCRIPT_DIR '.installed_version_b'),(Join-Path $gameRoot '.pcvrhub_version_b'))) {

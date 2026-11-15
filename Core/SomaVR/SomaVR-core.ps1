@@ -1,5 +1,6 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\SomaLauncherProof.ps1')
 $Host.UI.RawUI.WindowTitle = 'SOMA VR Installer'
 $script:SomaId = 'soma-vr'
 $script:SomaRepo = 'Bateau01/SOMA-VR'
@@ -7,18 +8,20 @@ $script:SomaPage = 'https://github.com/Bateau01/SOMA-VR/releases'
 $script:SomaRequired = @('Soma.exe','LAUNCH-SOMA-VR.cmd','hpl3vr.dll','hpl3vr_inject.exe','openxr_loader.dll')
 
 function Test-SomaGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'soma-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Soma.exe') -PathType Leaf))
 }
 function Test-SomaInstalled([string]$Root) {
     if (-not (Test-SomaGame $Root)) { return $false }
-    foreach ($relative in $script:SomaRequired) {
+    foreach ($relative in @($script:SomaRequired + @(Get-PCVRSomaLauncherFiles -Root $Root) | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath (Join-Path $Root $relative) -PathType Leaf)) { return $false }
     }
     return $true
 }
 function Get-SomaRuntimeFingerprint([string]$Root) {
     if (-not (Test-SomaInstalled $Root)) { return $null }
-    $parts = foreach ($relative in @($script:SomaRequired | Where-Object { $_ -ne 'Soma.exe' })) {
+    $parts = foreach ($relative in @($script:SomaRequired + @(Get-PCVRSomaLauncherFiles -Root $Root) | Where-Object { $_ -ne 'Soma.exe' } | Select-Object -Unique)) {
         $hash = (Get-FileHash -LiteralPath (Join-Path $Root $relative) -Algorithm SHA256 -ErrorAction Stop).Hash
         "$relative=$hash"
     }
@@ -77,8 +80,8 @@ function Get-SomaRelease {
     }
     $asset = Resolve-GitHubReleaseAsset -Repo $script:SomaRepo -IncludePrerelease $false `
         -AssetPatterns @('(?i)^SOMA-VR-[0-9].*-Setup\.exe$','(?i)^SOMA-VR-[0-9].*-Installer\.zip$') `
-        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.0.9/SOMA-VR-1.0.9-S26IW-Setup.exe' `
-        -FallbackTag 'v1.0.9' -FallbackAssetName 'SOMA-VR-1.0.9-S26IW-Setup.exe' -SkipReleasesWithoutMatchingAsset
+        -FallbackUrl 'https://github.com/Bateau01/SOMA-VR/releases/download/v1.1.1/SOMA-VR-1.1.1-S26JL-Setup.exe' `
+        -FallbackTag 'v1.1.1' -FallbackAssetName 'SOMA-VR-1.1.1-S26JL-Setup.exe' -SkipReleasesWithoutMatchingAsset
     return [pscustomobject]@{ Url=[string]$asset.Url; Tag=[string]$asset.Tag; PageUrl=[string]$asset.PageUrl; Local=$false }
 }
 function Get-SomaSetup([string]$Extracted) {
@@ -169,7 +172,7 @@ function Invoke-SomaInstaller {
             $mock = [IO.Path]::GetFullPath($env:PCVR_SOMA_TEST_PUBLISHER_OUTPUT)
             $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/') + [IO.Path]::DirectorySeparatorChar
             if (-not $mock.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath (Join-Path $mock 'soma-publisher-fixture.txt'))) { throw 'Publisher output fixture is invalid.' }
-            foreach ($item in @(Get-ChildItem -LiteralPath $mock -File | Where-Object { $_.Name -in $script:SomaRequired })) { Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $root $item.Name) -Force }
+            foreach ($item in @(Get-ChildItem -LiteralPath $mock -File | Where-Object { $_.Name -in @($script:SomaRequired + @(Get-PCVRSomaLauncherFiles -Root $mock)) })) { Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $root $item.Name) -Force }
         } else {
             $process = Start-Process -FilePath $setup -Wait -PassThru -ErrorAction Stop
             if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) { throw "Publisher Setup ended with exit code $($process.ExitCode)." }
@@ -178,7 +181,8 @@ function Invoke-SomaInstaller {
         if (-not (Test-SomaInstalled $root)) { throw 'Publisher Setup closed without the required SOMA VR runtime files.' }
         $after = Get-SomaRuntimeFingerprint $root
         if ($before -and $after -eq $before) { throw 'Setup did not change the previous VR runtime; no new update was recorded.' }
-        $contract = New-PCVRInstallerContract -Id $script:SomaId -GameName 'SOMA VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:SomaPage -RequiredInstalledFileGroups $script:SomaRequired
+        $required=@($script:SomaRequired + @(Get-PCVRSomaLauncherFiles -Root $root) | Select-Object -Unique)
+        $contract = New-PCVRInstallerContract -Id $script:SomaId -GameName 'SOMA VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:SomaPage -RequiredInstalledFileGroups $required
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $root -Version $release.Tag -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -Route Current)
         Write-Host "  [OK] SOMA VR $($release.Tag) is installed." -ForegroundColor Green
         Write-Host '  Start in VR opens LAUNCH-SOMA-VR.cmd as the publisher directs.' -ForegroundColor White

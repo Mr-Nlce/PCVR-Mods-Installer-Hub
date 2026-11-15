@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Outward VR - Mod Installer
 # ============================================================
 #
@@ -101,11 +101,12 @@ function Find-GameRoot {
     # the download folder, or anywhere under a folder the user points us
     # at. Returns $null if not found.
     param([string[]]$Roots)
+    $localOriginalSets=@((Get-PCVRGameInstallProof -GameId 'outward-de-vr').FileSets | Where-Object { $_.Files[0] -eq $GAME_EXE })
     foreach ($r in $Roots) {
-        if (-not $r -or -not (Test-Path $r)) { continue }
-        if (Test-Path (Join-Path $r $GAME_EXE)) { return $r }
+        if (-not $r -or -not (Test-Path -LiteralPath $r)) { continue }
+        if ((Test-PCVRGameInstallProof -Root $r -FileSets $localOriginalSets) -and (Test-Path -LiteralPath (Join-Path $r $GAME_EXE))) { return $r }
         try {
-            $hit = Get-ChildItem -Path $r -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Select-Object -First 1
+            $hit = Get-ChildItem -LiteralPath $r -File -Recurse -Filter $GAME_EXE -ErrorAction SilentlyContinue | Where-Object { Test-PCVRGameInstallProof -Root $_.Directory.FullName -FileSets $localOriginalSets } | Select-Object -First 1
             if ($hit) { return $hit.Directory.FullName }
         } catch {}
     }

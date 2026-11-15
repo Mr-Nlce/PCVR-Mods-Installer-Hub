@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle='RealRTCW XR Installer'
 $script:RTCWId='return-to-castle-wolfenstein-vr'
@@ -17,6 +17,8 @@ $script:RTCWContract=New-PCVRInstallerContract -Id $script:RTCWId -GameName 'Rea
     -RequiredInstalledFileGroups @($script:RTCWVrFiles + @('Main\pak0.pk3','Main\sp_pak1.pk3','Main\sp_pak2.pk3','Main\sp_pak3.pk3','Main\sp_pak4.pk3'))
 
 function Test-RTCWBase([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'return-to-castle-wolfenstein-vr' -Root $Root)) { return $false }
+
     if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'WolfSP.exe') -PathType Leaf)){return $false}
     foreach($name in $script:RTCWBaseFiles){if(-not(Test-Path -LiteralPath (Join-Path $Root ('Main\'+$name)) -PathType Leaf)){return $false}}
     return $true
@@ -90,7 +92,12 @@ function Find-RTCWInstalled([string]$DefaultRoot){
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_RTCW_TEST_INSTALL_ROOT){$paths.Add($env:PCVR_RTCW_TEST_INSTALL_ROOT)}
     if(Test-Path -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -PathType Leaf){$paths.Add(([string](Get-Content -LiteralPath (Join-Path $PSScriptRoot '.installed_path') -Raw)).Trim())}
     if($DefaultRoot){$paths.Add($DefaultRoot)}
-    foreach($desktop in @([Environment]::GetFolderPath('DesktopDirectory'),[Environment]::GetFolderPath('CommonDesktopDirectory'))){
+    $desktops = if ($env:PCVR_HUB_TEST_MODE -ne '1') {
+        [Environment]::GetFolderPath('DesktopDirectory')
+        [Environment]::GetFolderPath('CommonDesktopDirectory')
+    }
+    foreach($desktop in $desktops){
+        if (-not $desktop) { continue }
         $link=Join-Path $desktop 'RealRTCW XR.lnk'
         if(Test-Path -LiteralPath $link -PathType Leaf){try{$shell=New-Object -ComObject WScript.Shell;$target=$shell.CreateShortcut($link).TargetPath
             if([IO.Path]::GetFileName($target) -ieq 'RealRTCWXR.exe'){$paths.Add((Split-Path -Parent $target))}}catch{}}

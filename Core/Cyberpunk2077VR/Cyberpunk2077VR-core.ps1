@@ -7,10 +7,8 @@
 # for Cyberpunk 2077 with 6-DoF motion-controlled VR hands (full-arm
 # VRIK) and an in-headset F10 overlay. This is an IN-PLACE mod: it
 # overlays files into the existing Steam/GOG Cyberpunk 2077 folder
-# (bin\x64\... and red4ext\...). The full hands/HUD experience also
-# needs two frameworks - RED4ext and Cyber Engine Tweaks (CET) - which
-# this installer adds if they are not already present. Nothing is ever
-# bundled; every component is downloaded at install time.
+# (bin\x64\... and red4ext\...). Current requires RED4ext. The separate
+# 2.31 depot retains its pinned frameworks and optional mods.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
@@ -415,6 +413,7 @@ function Write-Fail { param($x) $script:CyberpunkLastFailure=[string]$x;Write-Ho
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") [void](Wait-PCVRExplicitEnter -Message $text) }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p=(Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
     }; return $null
@@ -428,6 +427,8 @@ function Get-SteamLibraries {
 # A valid Cyberpunk 2077 root is the folder that contains bin\x64\Cyberpunk2077.exe.
 function Test-CP2077Root {
     param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'cyberpunk-2077' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     return (Test-Path -LiteralPath (Join-Path $Root $GAME_EXE_REL) -PathType Leaf)
 }
@@ -495,14 +496,13 @@ if(-not $Route){
 }
 $script:CyberpunkActiveProfile=if($Route -eq 'Current'){Get-CyberpunkCurrentProfile}else{Get-CyberpunkDepotProfile}
 $compatibility=Get-CyberpunkRouteProfile
-if($Route -eq 'Current'){
- $MOD_REQUIRED+=@('archive\pc\mod\cyberpunkvrport.archive.xl','r6\scripts\CyberpunkVRPort_EngineStereo\vrport_engine_stereo_menu.reds','r6\scripts\CyberpunkVRPort_DualWield\vrport_dual_wield.reds','r6\scripts\CyberpunkVRPort_Menu\vrport_menu_journal.reds','bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_Menu\init.lua')
-}
+$portLayout=Get-CyberpunkPortLayout -GameVersion $compatibility.GameVersion
+$MOD_MARKER=[string]$portLayout.Marker
+$MOD_REQUIRED=@($portLayout.Required)
 $MOD_NAME='CyberpunkVRPort '+$compatibility.ModVersion+' / game '+$compatibility.GameVersion
 $script:CyberpunkRecoveryPage=$compatibility.ModPage
 if($Route -eq 'Current'){
-    $NEXUS_MODS=@($NEXUS_MODS|Where-Object {$_.Name -notin @('HUDitor','VR UI Mods','Visible Bullets','More Occluders (Scripted)')})
-    foreach($mod in $NEXUS_MODS|Where-Object Name -eq 'Mod Settings'){$mod.Phase='after';$mod.What='compatible settings support for optional mods on game 2.5'}
+    $NEXUS_MODS=@()
 }else{
     $NEXUS_MODS=@($NEXUS_MODS|Where-Object {$_.Name -eq 'More Occluders (Scripted)'})
 }
@@ -652,6 +652,9 @@ function Install-Component {
                 if($Route -eq 'Current' -and [version]$actual -lt [version]'0.1.9'){Write-Fail 'This older VR package is not compatible with Current game 2.5. Use Current 0.1.9 or newer, or choose Depot for the older release. Nothing was copied.';return $false}
                 if($Route -eq 'Depot' -and $actual -ne $compatibility.ModVersion){Write-Fail 'This VR build belongs to another game route. Use the pinned Depot release.';return $false}
                 if($Route -eq 'Current'){$compatibility.ModVersion=$actual}
+                # The inspected payload determines its functional runtime files.
+                # Older working 0.2.1 installs do not gain new requirements.
+                $MOD_REQUIRED=@((Get-CyberpunkPortLayout -GameVersion $compatibility.GameVersion -ModVersion $compatibility.ModVersion).Required)
             }
         }
         foreach ($relative in $MOD_REQUIRED) {
@@ -668,9 +671,20 @@ function Install-Component {
         else{
             $identity='cyberpunkvrport'
             $keep=@(Get-CyberpunkPortPreservedSettings -SourceRoot $payloadRoot)
-            $script:CyberpunkVrSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $gameRoot -Stage $payloadRoot -Identity $identity -SnapshotRoot (Join-Path $tempDir 'vr-rollback') -ExtraPaths @('.pcvrhub_cyberpunk_25_profile.json','.pcvrhub_cyberpunk_231_profile.json',($MOD_MARKER+'.pcvrhub_off'))
-            $portTarget=[string]$gameRoot;$portSource=[string]$payloadRoot;$portKeep=@($keep);$portHub=[string]$PSScriptRoot
-            $copyPort={ Initialize-CyberpunkLegacyOwnership -GameRoot $portTarget -HubFolder $portHub; [void](Install-OwnedModPayload -SourceRoot $portSource -GameRoot $portTarget -Identity $identity -KeepExistingRelativePaths $portKeep -ProgressLabel 'Installing Cyberpunk VR files') }.GetNewClosure()
+            if($Route -eq 'Current'){$keep += 'CHANGELOG.txt'}
+            $retired=if($Route -eq 'Current'){@(Get-CyberpunkSupersededPortFiles $gameRoot)}else{@()}
+            $script:CyberpunkVrSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $gameRoot -Stage $payloadRoot -Identity $identity -SnapshotRoot (Join-Path $tempDir 'vr-rollback') -ExtraPaths (@('.pcvrhub_cyberpunk_25_profile.json','.pcvrhub_cyberpunk_231_profile.json',($MOD_MARKER+'.pcvrhub_off'))+@($retired))
+            $portTarget=[string]$gameRoot;$portSource=[string]$payloadRoot;$portKeep=@($keep);$portHub=[string]$PSScriptRoot;$portModern=($Route -eq 'Current')
+            $copyPort={
+                Initialize-CyberpunkLegacyOwnership -GameRoot $portTarget -HubFolder $portHub
+                $ownershipOptions=@{}
+                if($portModern){
+                    $ownershipOptions.AdoptIdenticalExisting=$true
+                    $ownershipOptions.ReconcileIdenticalOwnedFiles=$true
+                }
+                [void](Install-OwnedModPayload -SourceRoot $portSource -GameRoot $portTarget -Identity $identity -KeepExistingRelativePaths $portKeep -ProgressLabel 'Installing Cyberpunk VR files' @ownershipOptions)
+                if($portModern){Move-CyberpunkSupersededPortFiles -GameRoot $portTarget}
+            }.GetNewClosure()
             & $copyPort
             foreach($rel in $MOD_REQUIRED){$path=Join-Path $gameRoot $rel;Write-PCVRFileCheckResult -Path $path -Present (Test-Path -LiteralPath $path -PathType Leaf) -Phase 'immediately-after-copy'}
             if(-not(Confirm-PlacedFilesSurvive -Paths @($MOD_REQUIRED|ForEach-Object {Join-Path $gameRoot $_}) -GameDir $gameRoot -Recopy $copyPort -NoClear)){throw 'Required VR files are missing. The previous files will be restored; recovery remains available.'}
@@ -854,6 +868,7 @@ if (-not (Confirm-CyberpunkGameVersion -GameRoot $gameRoot -RequiredVersion $REQ
 if(Test-CyberpunkGameRunning){throw 'Close Cyberpunk 2077 before installing or repairing the VR mod, then choose Retry.'}
 if(-not(Test-InstallerTargetWritable -TargetPath (Join-Path $gameRoot '.pcvrhub_write_target'))){throw ('Cannot write to the selected game folder: '+$gameRoot+'. Check permissions, then Retry.')}
 $script:CyberpunkWasFlat=Test-Path -LiteralPath (Join-Path $gameRoot ($MOD_MARKER+'.pcvrhub_off')) -PathType Leaf
+if($Route -eq 'Current' -and (Test-Path -LiteralPath (Join-Path $gameRoot 'red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll.pcvrhub_off') -PathType Leaf)){$script:CyberpunkWasFlat=$true}
 if($Route -eq 'Current' -and -not(Save-HubRememberedGameFolder -GameId 'cyberpunk-2077' -Title 'Cyberpunk 2077' -GameDir $gameRoot -StateName 'installed_path_current' -ProbeFiles @('bin\x64\Cyberpunk2077.exe','archive\pc\content\basegame_1_engine.archive','r6\cache\final.redscripts'))){throw 'The Current game folder could not be remembered. Choose Retry; no VR files were changed.'}
 if($Route -eq 'Depot' -and -not(Save-HubRememberedGameFolder -GameId 'cyberpunk-2077' -Title 'Cyberpunk 2077' -GameDir $gameRoot -StateName 'installed_path_depot' -ProbeFiles @('bin\x64\Cyberpunk2077.exe','archive\pc\content\basegame_1_engine.archive','r6\cache\final.redscripts'))){throw 'The Depot game folder could not be remembered. Choose Retry; no VR files were changed.'}
 if($Route -eq 'Current'){
@@ -866,11 +881,15 @@ if($Route -eq 'Current'){
 # part of what the user is deciding about. Its result also decides
 # whether the prompt says "installation" or "installation / Update".
 $__modPresent = Test-Path (Join-Path $gameRoot $MOD_MARKER)
-if($Route -eq 'Depot'){Write-Host '  Depot 2.31 is fully fixed. Auto-update is off.' -ForegroundColor Yellow}else{Write-Host '  Current uses game 2.5 and the latest stable VR mod and frameworks.' -ForegroundColor Yellow;Write-Host '  Previously switched to 2_31_old? Select the public default version when prompted.' -ForegroundColor White}
+if($Route -eq 'Depot'){Write-Host '  Depot 2.31 is fully fixed. Auto-update is off.' -ForegroundColor Yellow}else{Write-Host '  Current uses game 2.5, the latest stable VR mod and RED4ext.' -ForegroundColor Yellow;Write-Host '  Previously switched to 2_31_old? Select the public default version when prompted.' -ForegroundColor White}
 Write-Host '  FIRST VR START: the mod applies VR graphics, controls, HUD and comfort settings.' -ForegroundColor Yellow
 Write-Host '  Your settings are backed up. Language, audio, difficulty and saved games are kept.' -ForegroundColor White
 if($Route -eq 'Current'){Write-Host '  Use an up-to-date GPU driver for game 2.5.' -ForegroundColor White}
 if($Route -eq 'Current'){
+    if((Test-Path -LiteralPath (Join-Path $gameRoot 'red4ext\plugins\Codeware\Scripts\Codeware.Global.reds')) -or
+       (Test-Path -LiteralPath (Join-Path $gameRoot 'r6\scripts\NovaOptics'))){
+        Write-Warn 'Existing Codeware or Nova Optics scripts can cause compilation errors with other installed mods. If compilation fails, check the log and disable or update the affected mods in your mod manager. The VR port needs only RED4ext.'
+    }
     Write-Host '  Existing Mod Settings will be updated for 2.5; its old files and your settings are kept.' -ForegroundColor White
     Write-Host '  The incompatible More Occluders Scripted 0.3 will be backed up and disabled on 2.5.' -ForegroundColor Yellow
     Write-Host '  The separate 2.31 Depot keeps its compatible script.' -ForegroundColor Gray
@@ -913,15 +932,16 @@ if($Route -eq 'Current'){
     $script:CyberpunkActiveProfile=Get-CyberpunkCurrentProfileWithRecovery
     $compatibility=Get-CyberpunkRouteProfile
     $MOD_NAME='CyberpunkVRPort '+$compatibility.ModVersion+' / game '+$compatibility.GameVersion
+    $MOD_REQUIRED=@((Get-CyberpunkPortLayout -GameVersion $compatibility.GameVersion -ModVersion $compatibility.ModVersion).Required)
 }
-Write-Step 2 4 "Frameworks (RED4ext + Cyber Engine Tweaks)"
+Write-Step 2 4 "Game-compatible runtime"
 Write-Host ('  Installing frameworks compatible with game '+$compatibility.GameVersion+'.') -ForegroundColor White
 Write-Host '  Missing, newer or unverified versions are replaced after a backup.' -ForegroundColor Yellow
 Write-Host '  Your mod settings, other mods and saves are kept.' -ForegroundColor Gray
 
 function Get-MissingCyberpunkRuntimeFiles {
     param([string]$GameRoot)
-    $required = @($RED4EXT_MARK, $CET_MARK) + @($FRAMEWORKS | ForEach-Object { [string]$_.Marker })
+    $required = @($compatibility.Components | ForEach-Object { $_.RequiredFiles })
     foreach ($relative in $required) {
         if (-not (Test-Path -LiteralPath (Join-Path $GameRoot $relative) -PathType Leaf)) {
             Write-Output $relative
@@ -977,13 +997,13 @@ foreach ($fw in $compatibility.Components) {
     }else{$fwStates[$fw.Name]='missing'}
 }
 $red4extState=$fwStates['RED4ext']
-$cetState=$fwStates['Cyber Engine Tweaks']
-
 $inputLoader=$compatibility.InputLoader
+if($inputLoader){
 if($global:RepairMode -or (Get-CyberpunkFixedComponentState -GameRoot $gameRoot -Component $inputLoader) -ne 'compatible'){
     if(-not(Install-Component -Label 'Input Loader' -Urls @($inputLoader.Pinned) -ManualUrl $inputLoader.Page -ManualName $inputLoader.File -PayloadRelFile $inputLoader.Marker)){throw 'Input Loader was not installed. Choose Retry or hand over the matching release ZIP.'}
     Write-OK ('Input Loader '+$inputLoader.Version+' installed for game '+$compatibility.GameVersion+'.')
 }else{Write-OK ('Input Loader '+$inputLoader.Version+' is already compatible.')}
+}
 if($Route -eq 'Current'){
     if(Test-Path -LiteralPath (Join-Path $gameRoot 'red4ext\plugins\mod_settings\mod_settings.dll') -PathType Leaf){
         [void](Install-CyberpunkCurrentModSettings -GameRoot $gameRoot -Required)
@@ -1003,7 +1023,6 @@ foreach($component in $compatibility.Components){
     if($fwStates[$component.Name] -eq 'missing' -and (Get-CyberpunkFixedComponentState $gameRoot $component) -eq 'compatible'){$fwStates[$component.Name]='installed'}
 }
 $red4extState=$fwStates['RED4ext']
-$cetState=$fwStates['Cyber Engine Tweaks']
 
 # -------------------------------------------------------
 # STEP 2b: HUDitor - OPTIONAL, and it has to happen NOW
@@ -1096,6 +1115,9 @@ if (-not $modOk -and $script:ParkedProxy) {
     } catch { Write-Warn "Could not restore dxgi.dll - it is at $($script:ParkedProxy.From)" }
 }
 if ($modOk) {
+    # Rebuild in the caller scope too: the core may run as an invoked
+    # ScriptBlock, where script: is the wrapper rather than this core scope.
+    $MOD_REQUIRED=@((Get-CyberpunkPortLayout -GameVersion $compatibility.GameVersion -ModVersion $installedTag).Required)
     Write-OK "CyberpunkVRPort $installedTag installed into the game folder."
 
     # !!! REMOVE THE OLD SECOND PLUGIN (2026-08-20). CyberpunkVR_Hands.dll
@@ -1201,7 +1223,8 @@ if ($modOk) {
     }else{
 
     }
-    $proof=@($GAME_EXE_REL,'archive\pc\content\basegame_1_engine.archive','r6\cache\final.redscripts')+@($MOD_REQUIRED)+@($requiredNexus|ForEach-Object Marker)+@($compatibility.Components|ForEach-Object RequiredFiles)+@($inputLoader.RequiredFiles)+@('PCVR-Cyberpunk\Start VR.vbs','PCVR-Cyberpunk\Start-CyberpunkVR.ps1','.pcvrhub_cyberpunkvrport_ownership.csv')
+    $proof=@($GAME_EXE_REL,'archive\pc\content\basegame_1_engine.archive','r6\cache\final.redscripts')+@($MOD_REQUIRED)+@($requiredNexus|ForEach-Object Marker)+@($compatibility.Components|ForEach-Object RequiredFiles)+@('PCVR-Cyberpunk\Start VR.vbs','PCVR-Cyberpunk\Start-CyberpunkVR.ps1','.pcvrhub_cyberpunkvrport_ownership.csv')
+    if($inputLoader){$proof+=@($inputLoader.RequiredFiles)}
     if($Route -eq 'Current' -and (Test-Path -LiteralPath (Join-Path $gameRoot 'red4ext\plugins\mod_settings\mod_settings.dll') -PathType Leaf)){$proof+=@($compatibility.ModSettings.RequiredFiles)}
     if($Route -eq 'Depot'){$proof+=@('steam_appid.txt','bin\x64\steam_appid.txt')}
     $contract=New-PCVRInstallerContract -Id 'cyberpunk-2077' -GameName 'Cyberpunk 2077 VR' -Acquisition GitHub -RequiredInstalledFileGroups $proof -Routes @('Current','Depot') -ReleasePageUrl $MOD_RELEASES -AntivirusNotice
@@ -1353,12 +1376,7 @@ switch ($red4extState) {
     "installed" { Write-Host "  [x] RED4ext" -ForegroundColor Green }
     default     { Write-Host "  [ ] RED4ext - hands/HUD will not load until added" -ForegroundColor Yellow }
 }
-switch ($cetState) {
-    "present"   { Write-Host "  [x] Cyber Engine Tweaks (already installed)" -ForegroundColor Green }
-    "installed" { Write-Host "  [x] Cyber Engine Tweaks" -ForegroundColor Green }
-    default     { Write-Host "  [ ] Cyber Engine Tweaks - hands/HUD will not load until added" -ForegroundColor Yellow }
-}
-foreach ($fw in $FRAMEWORKS) {
+foreach ($fw in $compatibility.Components | Where-Object Name -ne RED4ext) {
     switch ($fwStates[$fw.Name]) {
         "present"   { Write-Host "  [x] $($fw.Name) (already installed)" -ForegroundColor Green }
         "installed" { Write-Host "  [x] $($fw.Name)" -ForegroundColor Green }
@@ -1382,7 +1400,8 @@ Write-Host "    calibrate reach / height / elbow per hand." -ForegroundColor Gra
 Write-Host "  - On its first run, the mod backs up your settings before applying" -ForegroundColor Gray
 Write-Host "    its VR preset. Language, audio, difficulty and saves are kept." -ForegroundColor Gray
 Write-Host "    Your later changes in the game's menus remain in effect." -ForegroundColor Gray
-Write-Host "  - Log for bug reports: bin\x64\cyberpunkvrport.log" -ForegroundColor Gray
+$modLogRelative=if($Route -eq 'Depot'){'bin\x64\cyberpunkvrport.log'}else{'red4ext\plugins\cyberpunkvrport\log\cyberpunkvrport.log'}
+Write-Host ("  - Mod log: "+$modLogRelative) -ForegroundColor Gray
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Yellow
 Write-Host ""

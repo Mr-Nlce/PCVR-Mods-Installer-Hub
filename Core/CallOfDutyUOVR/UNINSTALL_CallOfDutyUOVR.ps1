@@ -6,7 +6,7 @@ $id='call-of-duty-united-offensive-vr'
 $game=if($env:PCVR_CODUO_TEST_GAME){[IO.Path]::GetFullPath($env:PCVR_CODUO_TEST_GAME)}else{
     Get-PCVRRememberedGameFolder -GameId $id -StateNames @('installed_path','user_located','base_game_path') -ProbeFiles @('CoDUOSP.exe','uo\pakuo00.pk3')
 }
-if(-not $game){$game=Find-SteamGameFolder -AppId '2640' -SteamFolderNames @('Call of Duty United Offensive') -ProbeExe 'CoDUOSP.exe' -HubGameId $id}
+if(-not $game){$game=Find-SteamGameFolder -AppId '2640' -SteamFolderNames @('Call of Duty','Call of Duty United Offensive') -ProbeExe 'CoDUOSP.exe' -HubGameId $id}
 if(-not $game -or -not(Test-Path -LiteralPath (Join-Path $game '.pcvrhub_cod1vr_ownership.csv') -PathType Leaf)){throw 'No Hub-owned Call of Duty VR installation was found.'}
 if(Get-Process -Name 'CoDSP','CoDUOSP','CoD-VR-Launcher' -ErrorAction SilentlyContinue){throw 'Close Call of Duty before uninstalling VR.'}
 if(-not $HubConfirmed -and (Read-Host "Remove Hub-owned Call of Duty VR from '$game'? Type REMOVE") -cne 'REMOVE'){exit 0}

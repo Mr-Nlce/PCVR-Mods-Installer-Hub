@@ -18,7 +18,7 @@ $TARGET_VERSION = "1.0.3788.0"
 $GAME_EXE       = "GTA5.exe"
 $LAUNCH_EXE     = "PlayGTAV.exe"
 # ScriptHookV must match the game build (3788). Official, from dev-c.com.
-$SCRIPTHOOK_URL  = "https://dev-c.com/files/ScriptHookV_3788.0_1013.34.zip"
+$SCRIPTHOOK_URL  = "https://www.dev-c.com/files/ScriptHookV_3788.0_1013.34.zip"
 $SCRIPTHOOK_FILE = "ScriptHookV_3788.0_1013.34.zip"
 # Francisco Manzanilla's VRV patcher runs Luke Ross R.E.A.L. r7 on
 # compatible GTA V Legacy builds. Public GitHub release retained for
@@ -53,6 +53,8 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 
 function Test-GtaBaseGame {
     param([string]$Path)
+    if (-not (Test-PCVRGameInstallProof -GameId 'grand-theft-auto-v-vr' -Root $Path)) { return $false }
+
     if (-not $Path) { return $false }
     try {
         $exe = Join-Path $Path 'GTA5.exe'
@@ -255,14 +257,14 @@ if ($updateOnly -and (Test-Path -LiteralPath "$gtaDir\ScriptHookV.dll" -PathType
 Write-Step 3 6 "Downloading ScriptHookV (build $TARGET_VERSION)"
 $shZip = Join-Path $env:TEMP $SCRIPTHOOK_FILE
 Write-Host "  [..] Downloading ScriptHookV" -ForegroundColor Gray
-[void](Get-BrowserFile -Url $SCRIPTHOOK_URL -Dest $shZip -Referer "https://dev-c.com/gtav/scripthookv/")
-if (Test-IsZipFile $shZip) {
+$downloadedHook=Get-BrowserFile -Url $SCRIPTHOOK_URL -Dest $shZip -Referer "https://www.dev-c.com/gtav/scripthookv/"
+if ($downloadedHook -and (Test-IsZipFile $shZip)) {
     Write-OK "Downloaded ScriptHookV."
 } else {
     Write-Warn "dev-c.com did not return the .zip (it may block scripted downloads)."
-    Write-Host "  Download ScriptHookV from its page, then drag the .zip here." -ForegroundColor White
-    Pause-User "Press Enter to open the ScriptHookV page..."
-    try { Start-Process "https://dev-c.com/gtav/scripthookv/" } catch {}
+    Write-Host "  Download ScriptHookV for build $TARGET_VERSION, then drag the .zip here." -ForegroundColor White
+    Pause-User "Press Enter to open the matching ScriptHookV download..."
+    try { Start-Process $SCRIPTHOOK_URL } catch {}
     $shZip = $null
     while (-not $shZip) {
         $alt = (Read-Host " Drag the downloaded ScriptHookV .zip here (or empty to skip)").Trim().Trim('"')
@@ -662,7 +664,7 @@ if ($installedOk) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".vrv_source") -Value $srcName -Encoding ASCII -Force } catch {}
     try { Set-Content -Path ([IO.Path]::Combine($gtaDir, ".pcvrhub_source")) -Value $srcName -Encoding ASCII -Force } catch {}
     if (Test-IsTrackableInstalledVersion -Version $patcherVersion) {
-        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $patcherVersion -Encoding UTF8 -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $patcherVersion -Encoding UTF8 -Force } catch {}
         Save-InstalledStamp -GameDir $gtaDir -Version $patcherVersion
     }
 }

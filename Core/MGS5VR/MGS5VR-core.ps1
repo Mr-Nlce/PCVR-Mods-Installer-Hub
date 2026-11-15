@@ -1,4 +1,4 @@
-# Metal Gear Solid V: The Phantom Pain VR - GitHub prerelease installer.
+﻿# Metal Gear Solid V: The Phantom Pain VR - GitHub prerelease installer.
 # Contract: Steam game 287700; current/prerelease route; game proof
 # mgsvtpp.exe; mod proof hook + configs + controls helper + owned binocular
 # assets + ownership manifest;
@@ -54,6 +54,8 @@ function Write-MGSInfo([string]$Text) { Write-Host "  [..] $Text" -ForegroundCol
 function Write-MGSWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
 
 function Test-MGSRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'metal-gear-solid-v-the-phantom-pain-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 

@@ -1,9 +1,8 @@
 # Forza Horizon 5 VR
 
-Two community VR mods bring Forza Horizon 5 to the headset. You own the
-game (Steam / Microsoft Store / Game Pass); the Hub installer lets you
-choose a mod, obtains or opens its current download and installs it under
-`C:\Games\Forza Horizon 5 VR`, deliberately **outside** the retail game.
+Three community VR mods bring Forza Horizon 5 to the headset on Steam or
+Microsoft Store / Game Pass. NALULUNA and lufz use launcher packages under
+`C:\Games\Forza Horizon 5 VR`. GrayHorizon installs beside the retail game.
 
 Both packages can remain installed. Fresh installs use separate
 `NALULUNA\` and `lufz\` folders; an existing root-level lufz installation
@@ -11,7 +10,7 @@ from an older Hub remains supported and is updated in place. When the Hub
 finds both launchers, the game tile and detail page let you choose which
 one to start.
 
-## The two mods
+## The mods
 
 - **NALULUNA** - free on ko-fi (enter 0 or any tip). The installer opens
   the current product page; download the newest `fh5vr_<version>.zip` and
@@ -98,21 +97,33 @@ Driving uses the normal gamepad or wheel controls:
 - NALULUNA recenter: press **[[Left Stick]] + [[Right Stick]]**, or
   **[[Ctrl]] + [[Space]]**
 
+## Option 3 - GrayHorizon
+
+Select **GrayHorizon** in the installer menu. The setup downloads the stable
+FH5 package for OpenXR cockpit VR and selects the correct Steam or Xbox XInput
+wrapper. Remove the active injector before switching. Use the GrayHorizon
+section to start VR, open its settings guide, or remove its deployment.
+
+| Button | Action |
+|---|---|
+| [[Ctrl]] + [[Space]] | Recenter the headset. |
+| [[F12]] | Open the GrayHorizon VR menu. |
+
 ## Notes and safety
 
-- Both mods inject into the running game and read or change camera and
+- The mods inject into the running game and read or change camera and
   rendering data. The authors cannot guarantee that no account action will
   occur. Use them at your own risk.
 - NALULUNA copies its own hook into the detected retail game folder as
   `dxgi.dll`. The Hub's uninstaller removes it only when it is byte-identical
   to the selected NALULUNA package; a different DXGI wrapper is preserved.
-- A Forza Horizon 5 update can break either mod until its author publishes a
+- A Forza Horizon 5 update can break a mod until its author publishes a
   compatible build. Do not contact the official Forza team about mod issues.
 
 ## Flat play and removal
 
-No Flat / VR file switch is needed. **Open in Steam** starts the original
-game normally; **Start in VR** opens the selected external launcher.
+For GrayHorizon, turn VR off in GrayHorizon Settings before starting flat.
+For NALULUNA and lufz, **Start in VR** opens the selected external launcher.
 
 **Uninstall now** shows NALULUNA and lufz separately:
 

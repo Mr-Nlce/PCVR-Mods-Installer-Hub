@@ -23,7 +23,7 @@ This OpenXR beta presents Rogue Trader as a three-dimensional tabletop inspired 
 
 1. Open the Hub installer, read the opening notes and choose **[1] W40KRT_VR**. This selection confirms the notes and begins that installer. The Hub finds the Steam game or lets you select the folder containing `WH40KRT.exe`.
 2. The Hub resolves a matching GitHub release, including prereleases, and downloads its `W40KRT_VR-...zip` asset. If the download fails, use the retry or manual file option. The attached v0.9.81 package is a reference build; a newer matching prerelease can be installed automatically.
-3. The Hub checks the full archive, temporarily disables RTVR in Owlcat's mod settings, then runs the publisher's own installer. If an older W40KRT_VR needs a settings reset, the publisher asks you to approve a verified backup first. Read and answer that prompt.
+3. The Hub checks the full archive and runs the publisher's own installer. It preserves the active mod selection; use the appropriate Hub Play choice to switch mods afterwards. If an older W40KRT_VR needs a settings reset, the publisher asks you to approve a verified backup first. Read and answer that prompt.
 4. Only after the publisher returns success and the required mod DLL, launcher, metadata and receipt are present does the Hub record the installed version. Its scan and Update badge then refer to this route's version only. The RTVR folder, WASD Movement, Toy Box and saves remain separate.
 
 The Hub keeps a copy of the installed publisher ZIP next to `UnityModManager` as `W40KRT_VR-package.zip`, so the matching publisher uninstaller can be recovered. Missing files after setup do not by themselves prove an antivirus cause. Check the installer log and file paths; review antivirus history if it reports a matching event.
@@ -60,7 +60,7 @@ Controls change with the current game screen. The mod includes contextual help a
 
 Close the game. Extract the saved matching `W40KRT_VR-package.zip` from beside `UnityModManager` to a fresh folder and run its `UNINSTALL.cmd`. That publisher tool removes files owned by RTMaquetaXR and preserves settings, logs, saves and other mods. Do not delete the whole `UnityModManager` folder. The Hub remover clears its route-specific receipts; a later scan also requires actual mod files before showing VR Ready.
 
-Source and release notes: https://github.com/Beren5556/W40KRT_VR/releases
+Source and release notes: https://github.com/Beren5556/W40KRT_VR-Downloads/releases
 
 ## RTVR by SolemnScribe - option 2
 

@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet('Overture','BlackPlague','Requiem')][string]$Game = 'BlackPlague',
     [ValidateSet('Install','Manage')][string]$Mode = 'Install'
 )
@@ -29,6 +29,8 @@ $script:PenumbraContract = New-PCVRInstallerContract -Id $script:PenumbraId -Gam
     -RequiredInstalledFileGroups $script:PenumbraRequired
 
 function Test-PenumbraBase([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId $script:PenumbraId -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     if (-not (Test-Path -LiteralPath (Join-Path $Root 'redist\Penumbra.exe') -PathType Leaf)) { return $false }
     if ($script:PenumbraExe -eq 'Requiem.exe' -and -not (Test-Path -LiteralPath (Join-Path $Root 'redist\Requiem.exe') -PathType Leaf)) { return $false }

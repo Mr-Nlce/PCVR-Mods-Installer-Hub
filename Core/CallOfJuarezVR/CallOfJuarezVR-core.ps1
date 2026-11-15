@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle='Call of Juarez VR Installer'
 $script:CojId='call-of-juarez-vr';$script:CojRepo='rubocopter/call_of_juarez_vr'
@@ -16,15 +16,15 @@ function Assert-CojFixture([string]$Root){
     return $full
 }
 function Get-CojGame{
-    if($env:PCVR_COJ_TEST_GAME){$p=Assert-CojFixture $env:PCVR_COJ_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $p 'CoJ.exe') -PathType Leaf){return $p};throw 'CoJ fixture game is missing.'}
+    if($env:PCVR_COJ_TEST_GAME){$p=Assert-CojFixture $env:PCVR_COJ_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $p 'CoJ.exe') -PathType Leaf){if (Test-PCVRGameInstallProof -GameId 'call-of-juarez-vr' -Root $p) { return $p }};throw 'CoJ fixture game is missing.'}
     $paths=@();$saved=Get-PCVRRememberedGameFolder -GameId $script:CojId -StateNames @('base_game_path','user_located','installed_path') -ProbeFiles @('CoJ.exe');if($saved){$paths+=$saved}
     try{$steam=Find-SteamGameFolder -AppId '3020' -SteamFolderNames @('Call of Juarez') -ProbeExe 'CoJ.exe' -HubGameId $script:CojId;if($steam){$paths+=$steam}}catch{}
     $paths+='C:\Program Files (x86)\Steam\steamapps\common\Call of Juarez'
-    foreach($p in @($paths|Where-Object{$_}|Select-Object -Unique)){if($p -match '(?i)[\\/]steamapps[\\/]common[\\/]' -and (Test-Path -LiteralPath (Join-Path $p 'CoJ.exe') -PathType Leaf)){return [IO.Path]::GetFullPath($p)}}
+    foreach($p in @($paths|Where-Object{$_}|Select-Object -Unique)){if($p -match '(?i)[\\/]steamapps[\\/]common[\\/]' -and (Test-Path -LiteralPath (Join-Path $p 'CoJ.exe') -PathType Leaf)){if (Test-PCVRGameInstallProof -GameId 'call-of-juarez-vr' -Root $p) { return [IO.Path]::GetFullPath($p) }}}
     $picked=Get-GameFolderInteractive -GameName 'Call of Juarez (2006, original Steam D3D9 version only)' -ProbeFile 'CoJ.exe' -ManualUrl 'https://store.steampowered.com/app/3020/'
     if($picked -and $picked -match '(?i)[\\/]steamapps[\\/]common[\\/]' -and (Test-Path -LiteralPath (Join-Path $picked 'CoJ.exe') -PathType Leaf)){
         [void](Save-HubRememberedGameFolder -GameId $script:CojId -Title 'Call of Juarez VR' -GameDir $picked -ProbeFiles @('CoJ.exe') -UserSelected)
-        return [IO.Path]::GetFullPath($picked)
+        if (Test-PCVRGameInstallProof -GameId 'call-of-juarez-vr' -Root $picked) { return [IO.Path]::GetFullPath($picked) }
     }
     throw 'Only the confirmed Steam D3D9 CoJ.exe route is currently supported. Do not select CoJ_DX10.exe or another store build.'
 }

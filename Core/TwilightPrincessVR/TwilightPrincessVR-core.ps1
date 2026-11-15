@@ -802,10 +802,12 @@ Write-Host " ============================================================" -Fore
 Write-Host ""
 Write-Host "  Dusklight ships no game data. Dump your own GameCube disc" -ForegroundColor White
 Write-Host "  and point the launcher at the .iso or .rvz when it asks." -ForegroundColor White
+Write-Host "  In the Hub choose Import game, select your disc, then scan again." -ForegroundColor White
+Write-Host "  Use Start in VR after your selected game is detected." -ForegroundColor White
 Write-Host "  Dolphin's wiki explains dumping; nodtool or Dolphin can turn" -ForegroundColor White
 Write-Host "  an .iso into the smaller .rvz." -ForegroundColor White
 Write-Host ""
-Write-Host "  To play: start your VR software FIRST, then run the shortcut." -ForegroundColor White
+Write-Host "  To play: start your VR software FIRST, then use Start in VR in the Hub." -ForegroundColor White
 Write-Host "  A window opens on your desktop - press Enter there or click" -ForegroundColor White
 Write-Host "  Play to start the game. Nothing appears in the headset before" -ForegroundColor White
 Write-Host "  that." -ForegroundColor White

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -20,6 +20,8 @@ function Wait-DS2([string]$Message) {
     [void](Wait-PCVRExplicitEnter -Message $Message -ReadInput $script:DS2TestInput)
 }
 function Test-DS2Game([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'dark-souls-ii-motion-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Game\DarkSoulsII.exe') -PathType Leaf))
 }
 function Get-DS2GameRoot {

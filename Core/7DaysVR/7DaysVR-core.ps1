@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # 7 Days to Die - VR Mod Installer
 # ============================================================
 
@@ -46,6 +46,7 @@ function Write-Info { param($text) Write-Host " [..] $text" -ForegroundColor Gra
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -74,7 +75,7 @@ function Find-GamePath {
  param($libraries)
  foreach ($lib in $libraries) {
  $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
- if (Test-Path -LiteralPath (Join-Path $candidate $GAME_EXE) -PathType Leaf) { return $candidate }
+ if (Test-PCVRGameInstallProof -GameId '7-days-to-die-vr' -Root $candidate) { return $candidate }
  }
  return $null
 }
@@ -136,35 +137,24 @@ try {
 } catch {}
 # --- End detection library attempt ---
 
-$steamPath = Get-SteamPath
-
-if (-not $steamPath) {
- Write-Warn "Could not find Steam installation in registry."
- Write-Host " Please enter your Steam installation path manually:" -ForegroundColor White
- while (-not $steamPath) {
- $rawInput = (Read-Host " Steam path").Trim().Trim('"')
- if (Test-Path $rawInput) { $steamPath = $rawInput; Write-OK "Steam path set: $steamPath" }
- else { Write-Fail "Path not found: $rawInput" }
- }
-}
-
-$libraries = Get-SteamLibraries $steamPath
-$gamePath = Find-GamePath $libraries
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "251570" -SteamFolderNames @("7 Days To Die") }
-if ($gamePath -and -not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf)) { $gamePath = $null }
-
+$gamePath = Resolve-PCVRInstallerOriginalFolder -GameId '7-days-to-die-vr' -Path $gamePath
 if (-not $gamePath) {
- Write-Warn "7 Days to Die not found in Steam libraries automatically."
- Write-Host " Please enter the game installation folder path manually:" -ForegroundColor White
- Write-Host " Example: C:\Program Files (x86)\Steam\steamapps\common\7 Days To Die" -ForegroundColor Gray
- while (-not $gamePath) {
- $rawInput = (Read-Host " Game path").Trim().Trim('"')
- if (Test-Path -LiteralPath (Join-Path $rawInput $GAME_EXE) -PathType Leaf) { $gamePath = $rawInput; Write-OK "Game path set: $gamePath" }
- else { Write-Fail "7DaysToDie.exe not found in: $rawInput" }
- }
-} else {
- Write-OK "7 Days to Die found: $gamePath"
+ $gamePath = Find-SteamGameFolder -AppId '251570' -SteamFolderNames @('7 Days To Die') -HubGameId '7-days-to-die-vr' -ProbeExe $GAME_EXE
 }
+if (-not $gamePath) {
+ $steamPath = Get-SteamPath
+ if ($steamPath) { $gamePath = Find-GamePath (Get-SteamLibraries $steamPath) }
+}
+if (-not $gamePath) {
+ Write-Warn '7 Days to Die was not found automatically.'
+ $gamePath = Get-GameFolderInteractive -GameName '7 Days to Die' -ProbeFile $GAME_EXE -ManualUrl 'https://store.steampowered.com/app/251570/'
+ $gamePath = Resolve-PCVRInstallerOriginalFolder -GameId '7-days-to-die-vr' -Path $gamePath
+}
+if (-not $gamePath) { throw 'Choose the installed 7 Days to Die game folder or its EXE. Required original game data must also be present.' }
+if (-not (Save-HubRememberedGameFolder -GameId '7-days-to-die-vr' -Title '7 Days to Die VR' -GameDir $gamePath -ProbeFiles @($GAME_EXE) -UserSelected)) {
+ throw 'The confirmed game folder could not be remembered. No game file was changed.'
+}
+Write-OK "7 Days to Die found: $gamePath"
 
 # -------------------------------------------------------
 # Already installed? Offer Update vs Reinstall

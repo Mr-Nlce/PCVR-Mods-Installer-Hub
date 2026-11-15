@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle='Spec Ops: The Line VR Installer'
@@ -15,6 +15,8 @@ function Assert-SpecFixture([string]$Root) {
     return $full
 }
 function Test-SpecSteamRoot([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'spec-ops-the-line-vr' -Root $Root)) { return $false }
+
     if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'Binaries\Win32\SpecOpsTheLine.exe') -PathType Leaf)){return $false}
     if($env:PCVR_HUB_TEST_MODE -eq '1'){return [bool](Test-Path -LiteralPath (Join-Path $Root 'specops-fixture.txt') -PathType Leaf)}
     $full=[IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/')
@@ -91,6 +93,24 @@ function Restore-SpecSnapshot([string]$Runtime,$Snapshot) {
     if(Test-Path -LiteralPath $backup){Remove-Item -LiteralPath $backup -Recurse -Force -ErrorAction Stop}
     if($Snapshot.HadBackup){Copy-Item -LiteralPath (Join-Path $Snapshot.Root 'backup') -Destination $backup -Recurse -Force -ErrorAction Stop}
 }
+function Set-SpecPublisherUpdatePolicy([string]$Path) {
+    $config=[IO.File]::ReadAllText($Path)
+    $recognized=$false
+    if($config -match '(?im)^\s*updatechannel\s+(stable|beta)\s*$'){
+        # Current publisher builds always self-update; keep fresh installs on stable.
+        # Existing personal INIs are preserved by the ownership transaction below.
+        $config=[regex]::Replace($config,'(?im)^\s*updatechannel\s+(stable|beta)\s*$','updatechannel stable')
+        $recognized=$true
+    }
+    if($config -match '(?im)^\s*autoupdate\s+(on|off)\s*$'){
+        $config=[regex]::Replace($config,'(?im)^\s*autoupdate\s+(on|off)\s*$','autoupdate off')
+        $recognized=$true
+    }
+    if(-not $recognized){
+        throw 'The publisher configuration layout changed; review its update setting before installing.'
+    }
+    [IO.File]::WriteAllText($Path,$config,[Text.UTF8Encoding]::new($false))
+}
 function Invoke-SpecInstaller {
     $work=$null;$root=$null;$runtime=$null;$snapshot=$null;$changed=$false;$keep=$false
     try{
@@ -132,10 +152,7 @@ function Invoke-SpecInstaller {
         $stage=Join-Path $work 'stage';[void][IO.Directory]::CreateDirectory($stage)
         foreach($name in @('d3d9.dll','openvr_api.dll','specopsvr.ini')){Copy-Item -LiteralPath (Join-Path $source $name) -Destination (Join-Path $stage $name) -Force -ErrorAction Stop}
         $ini=Join-Path $stage 'specopsvr.ini'
-        $config=[IO.File]::ReadAllText($ini)
-        if($config -notmatch '(?im)^\s*autoupdate\s+(on|off)\s*$'){throw 'The publisher configuration layout changed; review its update setting before installing.'}
-        $config=[regex]::Replace($config,'(?im)^\s*autoupdate\s+(on|off)\s*$','autoupdate off')
-        [IO.File]::WriteAllText($ini,$config,[Text.UTF8Encoding]::new($false))
+        Set-SpecPublisherUpdatePolicy $ini
         Write-Host ' Protecting existing VR files and installing the publisher runtime.' -ForegroundColor Cyan
         $snapshot=Save-SpecSnapshot -Runtime $runtime -Folder (Join-Path $work 'rollback')
         $changed=$true

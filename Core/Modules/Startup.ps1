@@ -365,6 +365,19 @@ $window.Add_ContentRendered({
         Set-Content -Path (Join-Path $startupTemp "PCVRHub_ready.flag") -Value "1" -ErrorAction SilentlyContinue
         Write-HubTiming "window activated; launcher ready signal written"
     } catch { }
+    try {
+        if (Get-Command Write-PCVRPerformance -ErrorAction SilentlyContinue) {
+            $now = [DateTimeOffset]::UtcNow
+            $start = [Diagnostics.Process]::GetCurrentProcess().StartTime
+            Write-PCVRPerformance -Log $global:HubPerformanceLog -Area startup -Event paint -ElapsedMs ($now - [DateTimeOffset]$start).TotalMilliseconds
+            if ($env:PCVR_HUB_UPDATE_TRACE_ID -match '^[0-9-]{1,63}$' -and $env:PCVR_HUB_UPDATE_STARTED_MS -match '^\d{12,14}$') {
+                $duration = $now.ToUnixTimeMilliseconds() - [long]$env:PCVR_HUB_UPDATE_STARTED_MS
+                if ($duration -ge 0 -and $duration -lt 86400000) {
+                    Write-PCVRPerformance -Log $global:HubPerformanceLog -Area hub_update -Event restarted_window_paint -ElapsedMs $duration -TraceId $env:PCVR_HUB_UPDATE_TRACE_ID
+                }
+            }
+        }
+    } catch { }
 })
 
 # Pre-build the Steam-style portrait library only after the first window

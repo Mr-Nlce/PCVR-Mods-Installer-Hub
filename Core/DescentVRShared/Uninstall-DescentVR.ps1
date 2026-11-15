@@ -38,9 +38,13 @@ function Invoke-DescentUninstall([string]$SelectedKey){
         $path=Join-Path $root $name
         if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
     }
-    $shortcut=Join-Path ([Environment]::GetFolderPath('Desktop')) $d.Shortcut
-    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_DESCENT_TEST_DESKTOP){$shortcut=Join-Path (Assert-DescentTestPath $env:PCVR_DESCENT_TEST_DESKTOP) $d.Shortcut}
-    if(Test-Path -LiteralPath $shortcut -PathType Leaf){
+    $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') {
+        if ($env:PCVR_DESCENT_TEST_DESKTOP) { Assert-DescentTestPath $env:PCVR_DESCENT_TEST_DESKTOP }
+    } else {
+        [Environment]::GetFolderPath('DesktopDirectory')
+    }
+    $shortcut = if ($desktop) { Join-Path $desktop $d.Shortcut }
+    if($shortcut -and (Test-Path -LiteralPath $shortcut -PathType Leaf)){
         try{$link=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
             if($link.TargetPath -ieq (Join-Path $root ('game\'+$d.Engine))){Remove-Item -LiteralPath $shortcut -Force}
         }catch{}

@@ -15,6 +15,9 @@ Automated installer for the DawnVR VR mod by TrevTV.
 1. Click **Install Mod** on the game tile or detail page
 2. Choose your game edition (Original or Remastered)
 3. Let setup download and validate both packages, then follow its Steam launch-option prompts. A failed download or incomplete package leaves no new success receipt.
+4. Use Start in VR in the Hub. Steam opens the edition installed in the located folder: Original (554620) or Remastered (1265930).
+
+Both editions use Life is Strange - Before the Storm.exe. Their Unity backend identifies the edition; the folder name does not. The game EXE is in the located game folder. The VR launch argument is -vrmode OpenVR; setup guides you through the matching Steam app's Launch Options.
 
 ## Requirements
 - Windows 10/11

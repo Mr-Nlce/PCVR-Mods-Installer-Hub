@@ -33,6 +33,31 @@ function Assert-GTA4Payload([string]$Stage,[string]$Mod,[switch]$AllowParked){
         }
     }
 }
+function Test-GTA4NativeRuntime([string]$Root){
+    # This module is also copied into the game's standalone switcher, where
+    # the Hub's Helpers module is deliberately unavailable. Identify the VR
+    # build of FusionFix itself, never a README or the ordinary flat ASI.
+    try{
+        $file=[IO.FileInfo]([IO.Path]::Combine($Root,'plugins\GTAIV.EFLC.FusionFix.asi'))
+        if(-not $file.Exists){return $false}
+        $key=$file.FullName+'|'+$file.Length+'|'+$file.LastWriteTimeUtc.Ticks
+        if(-not $script:gta4NativeIdentityCache){$script:gta4NativeIdentityCache=@{}}
+        if($script:gta4NativeIdentityCache.ContainsKey($key)){return [bool]$script:gta4NativeIdentityCache[$key]}
+        $bytes=[IO.File]::ReadAllBytes($file.FullName);$valid=$false
+        if($bytes.Length -ge 64 -and $bytes[0] -eq 0x4d -and $bytes[1] -eq 0x5a){
+            $pe=[BitConverter]::ToInt32($bytes,0x3c)
+            if($pe -ge 0 -and $pe -le $bytes.Length-4 -and [BitConverter]::ToUInt32($bytes,$pe) -eq 0x4550){
+                $ascii=[Text.Encoding]::ASCII.GetString($bytes);$wide=[Text.Encoding]::Unicode.GetString($bytes)
+                $valid=$true
+                foreach($marker in @('https://github.com/bordplate/GTA4VR','xrCreateInstance','DisableOpenXR')){
+                    if($ascii.IndexOf($marker,[StringComparison]::Ordinal) -lt 0 -and $wide.IndexOf($marker,[StringComparison]::Ordinal) -lt 0){$valid=$false;break}
+                }
+            }
+        }
+        if($script:gta4NativeIdentityCache.Count -gt 64){$script:gta4NativeIdentityCache.Clear()}
+        $script:gta4NativeIdentityCache[$key]=$valid;return $valid
+    }catch{return $false}
+}
 function Test-GTA4ProfilePresence([string]$Root,[string]$Mod){
     try{
         $game=Get-GTA4Root $Root;$store=Join-Path $game ('_vrmods\'+$Mod)
@@ -45,11 +70,14 @@ function Test-GTA4ProfilePresence([string]$Root,[string]$Mod){
             foreach($rel in @($receipt.Files)){
                 if(-not $rel){continue}
                 if([IO.Path]::IsPathRooted($rel) -or $rel -match '(^|[\\/])\.{1,2}([\\/]|$)|:'){return $false}
-                if(-not [IO.File]::Exists([IO.Path]::Combine($store,[string]$rel))){return $false}
+                # Inventory is ownership information, not a second runtime
+                # contract. Missing notices or uninstall tools cannot negate
+                # the separately checked complete operational payload.
             }
+            if($Mod -eq 'bordplate' -and -not(Test-GTA4NativeRuntime $store)){return $false}
             return $true
         }catch{if([IO.File]::Exists((Join-Path $store '.profile.json'))){return $false}}}
-        $native=[IO.File]::Exists((Join-Path $game 'GTA4VR-notices\readme.md'))
+        $native=Test-GTA4NativeRuntime $game
         $old=[IO.File]::Exists((Join-Path $game 'gtaiv_dxvk_vr.asi'))
         $parked=[IO.File]::Exists((Join-Path $game 'gtaiv_dxvk_vr.asi.off')) -or [IO.File]::Exists((Join-Path $game 'gtaiv_dxvk_vr.asi.pcvrhub_off'))
         if(($Mod -eq 'bordplate' -and $native -and -not $old) -or ($Mod -eq 'gamepad' -and ($old -or $parked) -and -not $native)){Assert-GTA4Payload $game $Mod -AllowParked;return $true}
@@ -73,7 +101,7 @@ function Get-GTA4Active([string]$Game){
     return ''
 }
 function Save-GTA4Active([string]$Game){
-    if([IO.File]::Exists((Join-Path $Game 'gtaiv_dxvk_vr.asi')) -and [IO.File]::Exists((Join-Path $Game 'GTA4VR-notices\readme.md'))){throw 'Both VR mods are active in the same game folder. Back up and disable the loose gtaiv_dxvk_vr.asi before retrying. The retained profiles were not changed.'}
+    if([IO.File]::Exists((Join-Path $Game 'gtaiv_dxvk_vr.asi')) -and (Test-GTA4NativeRuntime $Game)){throw 'Both VR mods are active in the same game folder. Back up and disable the loose gtaiv_dxvk_vr.asi before retrying. The retained profiles were not changed.'}
     $active=Get-GTA4Active $Game
     $manifest=Join-Path $Game '.pcvrhub_gta4active_ownership.csv'
     if(-not $active -or -not [IO.File]::Exists($manifest)){return}
@@ -117,7 +145,7 @@ function Import-GTA4Gamepad([string]$Game){
     if(Get-GTA4Active $Game){return}
     $on=Join-Path $Game 'gtaiv_dxvk_vr.asi';$parked=''
     if(-not [IO.File]::Exists($on)){foreach($suffix in @('.off','.pcvrhub_off')){if([IO.File]::Exists($on+$suffix)){$parked=$on+$suffix;break}};if(-not $parked){return}}
-    if([IO.File]::Exists((Join-Path $Game 'GTA4VR-notices\readme.md'))){if($parked){return};throw 'Both mods were merged into one folder without separate profiles. Back up and rename gtaiv_dxvk_vr.asi to gtaiv_dxvk_vr.asi.off, then Retry. The other mod can be installed separately afterwards.'}
+    if(Test-GTA4NativeRuntime $Game){if($parked){return};throw 'Both mods were merged into one folder without separate profiles. Back up and rename gtaiv_dxvk_vr.asi to gtaiv_dxvk_vr.asi.off, then Retry. The other mod can be installed separately afterwards.'}
     Assert-GTA4Payload $Game gamepad -AllowParked
     $store=Join-Path $Game '_vrmods\gamepad';[void][IO.Directory]::CreateDirectory($store)
     if($parked -and [IO.File]::Exists((Join-Path $store '.profile.json'))){try{Assert-GTA4Payload $store gamepad;return}catch{}}
@@ -145,7 +173,7 @@ function Import-GTA4Gamepad([string]$Game){
 }
 function Import-GTA4Native([string]$Game){
     if(Get-GTA4Active $Game){return}
-    if(-not [IO.File]::Exists((Join-Path $Game 'GTA4VR-notices\readme.md'))){return}
+    if(-not(Test-GTA4NativeRuntime $Game)){return}
     if([IO.File]::Exists((Join-Path $Game 'gtaiv_dxvk_vr.asi'))){return}
     Assert-GTA4Payload $Game bordplate
     $store=Join-Path $Game '_vrmods\bordplate';[void][IO.Directory]::CreateDirectory($store)

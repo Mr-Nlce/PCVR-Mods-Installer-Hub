@@ -1,6 +1,10 @@
 # Black Mesa VR
 
-## What this installer does
+## About the Game
+
+Black Mesa reimagines the original Half-Life journey through the research
+facility and Xen. This VR setup also supports the separate Blue Shift campaign
+when that campaign is installed.
 
 This installs the current stable Black Mesa VR release by
 Hochgeschwindigkeitsrennfahrer into the Steam version of Black Mesa. It adds
@@ -10,6 +14,17 @@ the required `exec bmvr` line without replacing the rest of `autoexec.cfg`.
 
 The release auto-updates from the author's stable GitHub channel. The Hub does
 not contain or redistribute the VR mod archive.
+
+The author can replace the file behind a release label such as `bugfixes`.
+The Hub therefore records the selected file's full UTC upload timestamp and
+uses the same source when checking for updates. A normal install or update
+establishes this precise tracking without resetting your settings. Older
+opaque labels remain historical information; the Hub does not invent a file
+timestamp for them. Use the reinstall control once if an old installation
+has no usable version record.
+
+Failed updates restore the preceding runtime, launch links and protected
+originals. The existing ownership record remains compatible with removal.
 
 ## Current stable bugfixes release
 
@@ -60,17 +75,19 @@ also running can create a waiting room and a second compositor.
 
 ## Controls
 
-- [[Left Stick]] — move
-- [[Right Stick]] — snap or smooth turn
-- [[Right Trigger]] — attack
-- [[Left Trigger]] — use
-- [[A]] — reload
-- [[B]] — alternate fire
-- [[X]] — previous weapon
-- [[Y]] or [[Left Menu]] — pause
-- [[Left Stick Click]] — sprint; double-tap forward also sprints
-- [[Right Stick Click]] — weapon wheel; tap to recenter
-- [[Right Grip]] — flashlight
+| Button | Action |
+| --- | --- |
+| [[Left Stick]] | Move. |
+| [[Right Stick]] | Snap or smooth turn. |
+| [[Right Trigger]] | Attack. |
+| [[Left Trigger]] | Use. |
+| [[A]] | Reload; confirm in VR menus. |
+| [[B]] | Alternate fire; go back in VR menus. |
+| [[X]] | Previous weapon. |
+| [[Y]] or [[Left Menu]] | Pause. |
+| [[Left Stick Click]] or [[Left Stick Forward]] twice | Sprint. |
+| [[Right Stick Click]] | Open the weapon wheel; tap to recenter. |
+| [[Right Grip]] | Flashlight. |
 
 In VR menus, point with a controller and use [[Right Trigger]]. [[A]] confirms
 and [[B]] goes back.

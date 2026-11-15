@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 title PCVR Mods Installer Hub - Debug Console
 color 0A
 echo ============================================
@@ -308,7 +308,18 @@ echo   [292] Hitman: Contracts VR
 echo   [293] Wreckfest VR
 echo   [295] Aliens versus Predator 2 VR
 echo   [294] Wreckfest 2 VR
-set /p choice="Enter number (1-295): "
+echo   [296] Agent 64: Spies Never Die VR
+echo   [297] I Hate This Place VR
+echo   [298] Resident Evil 5 VR
+echo   [299] Gears of War: E-Day VR
+echo   [300] Resident Evil Code: Veronica X VR
+echo   [301] Pragmata VR (two mods)
+echo   [302] A Tale of Two Realities
+echo   [303] The Darkness II VR
+echo   [304] Tiny Tina's Wonderlands VR
+echo   [305] Gothic 3 VR
+echo   [306] Mafia II Classic VR
+set /p choice="Enter number (1-301): "
 if "%choice%"=="1"  (set SCRIPT=%~dp0VRModHub.ps1)
 if "%choice%"=="2"  (set SCRIPT=%~dp07DaysVR\7DaysVR-core.ps1)
 if "%choice%"=="3"  (set SCRIPT=%~dp0AlbaVR\AlbaVR-core.ps1)
@@ -618,6 +629,17 @@ if "%choice%"=="292"  (set SCRIPT=%~dp0HitmanContractsVR\HitmanContractsVR-core.
 if "%choice%"=="293"  (set SCRIPT=%~dp0WreckfestVR\WreckfestVR-core.ps1)
 if "%choice%"=="294"  (set SCRIPT=%~dp0Wreckfest2VR\Wreckfest2VR-core.ps1)
 if "%choice%"=="295"  (set SCRIPT=%~dp0AliensPredator2VR\AliensPredator2VR-core.ps1)
+if "%choice%"=="296" (set SCRIPT=%~dp0Agent64VR\Agent64VR-core.ps1)
+if "%choice%"=="297" (set SCRIPT=%~dp0IHateThisPlaceVR\IHateThisPlaceVR-core.ps1)
+if "%choice%"=="298" (set SCRIPT=%~dp0RE5VR\RE5VR-core.ps1)
+if "%choice%"=="299" (set SCRIPT=%~dp0GearsEDayVR\GearsEDayVR-core.ps1)
+if "%choice%"=="300" (set SCRIPT=%~dp0CodeVeronicaVR\CodeVeronicaVR-core.ps1)
+if "%choice%"=="301" (set SCRIPT=%~dp0PragmataVR\PragmataVR-core.ps1)
+if "%choice%"=="302" (set SCRIPT=%~dp0TTWVR\TTWVR-core.ps1)
+if "%choice%"=="303" (set SCRIPT=%~dp0DarknessIIVR\DarknessIIVR-core.ps1)
+if "%choice%"=="304" (set SCRIPT=%~dp0WonderlandsVR\WonderlandsVR-core.ps1)
+if "%choice%"=="305" (set SCRIPT=%~dp0Gothic3VR\Gothic3VR-core.ps1)
+if "%choice%"=="306" (set SCRIPT=%~dp0Mafia2ClassicVR\Mafia2ClassicVR-core.ps1)
 if not defined SCRIPT (echo Invalid choice. & pause & exit /b 1)
 
 REM Write a header to the log so the user knows what they're sending

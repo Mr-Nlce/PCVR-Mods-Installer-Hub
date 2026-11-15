@@ -12,7 +12,7 @@ Blur combines licensed cars with arcade racing and power-up combat. BlurVR adds 
 
 ## Install and start
 
-Untested installer: installation and removal are checked with isolated files, but a working VR game session has not been confirmed. Use the feedback form after trying it on your own game.
+Blur is available in the regular Gamepad list, Explore and search.
 
 1. Choose [[Install]]. The Hub searches Steam; otherwise select Blur.exe with Locate Game or drag its EXE/folder into the installer.
 2. The complete publisher BlurVR folder is installed and its proxy is placed next to Blur.exe. Existing settings and replaced files are preserved.
@@ -31,8 +31,14 @@ Untested installer: installation and removal are checked with isolated files, bu
 | [[Num7]] | Toggle timing diagnostics. |
 | [[Num8]] | Save headset picture files for diagnostics. |
 | [[Num9]] | Toggle FPS counter. |
+| [[Num0]] | Toggle optional cockpit view in a race. |
+| [[Num+]] / [[Num-]] | Move the cockpit seat forward / backward. |
+| [[Num*]] / [[Num/]] | Move the cockpit seat up / down. |
+| [[Num3]] / [[Num1]] | Move the cockpit seat right / left. |
 
 The Hub Flat / VR switch uses the publisher Stereo option. Flat mode leaves SteamVR off and restores the normal game display size. On updates, your BlurVR.ini and resolution choices remain. On removal, unchanged Hub files are removed and earlier files restored; generated logs and display backups remain.
+
+Version 1.8 adds optional cockpit view, disabled by default. It starts as the race countdown begins and requires the supported chase-camera code. The driver is hidden; headset tracking is added to the car-locked seat. Seat changes are saved per car in BlurVR_seats.ini. Keep this personal file when updating or removing the mod.
 
 ## Help
 

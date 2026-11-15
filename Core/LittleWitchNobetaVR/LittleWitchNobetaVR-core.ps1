@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -20,6 +20,8 @@ $CONTRACT=New-PCVRInstallerContract -Id $GAME_ID -GameName 'Little Witch Nobeta 
     -RequiredInstalledFileGroups @($PROOF + @('.pcvrhub_nobetavr_ownership.csv'))
 
 function Test-NobetaGame([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'little-witch-nobeta-vr' -Root $Path)) { return $false }
+
     if(-not $Path){return $false}
     return [bool]((Test-Path -LiteralPath ([IO.Path]::Combine($Path,$GAME_EXE)) -PathType Leaf) -and
         (Test-Path -LiteralPath ([IO.Path]::Combine($Path,'LittleWitchNobeta_Data','globalgamemanagers')) -PathType Leaf))

@@ -1,67 +1,70 @@
-﻿# SnowRunner VR
+# SnowRunner VR
 
-SnowRunner VR adds true stereo rendering and 6DoF head tracking to the Steam DirectX 11 version of SnowRunner. Current v0.5 also offers virtual gamepad controls from tracked VR controllers. It is an early mod: keep the normal keyboard, mouse or gamepad controls nearby and expect a later game update to require a matching mod update.
+## About the Game
+
+SnowRunner is an off-road driving simulation about moving cargo through mud, snow and difficult terrain. Timguin-87's OpenXR mod adds stereo rendering and tracked head movement. VR controllers can emulate a gamepad; a normal gamepad remains useful for the game's menus.
 
 ## Option 1 — Current Steam version
 
-This is the normal choice while the latest stable SnowRunner VR release supports the current Steam game. Setup finds the regular Steam installation and installs or updates only the VR proxy there. Steam continues to manage and update that copy normally.
+The Hub follows the publisher's latest stable Windows release. The reviewed Current package is v1.2. This Hub route uses the Steam DirectX 11 installation.
 
-### Setup and first launch
+1. Close the game before installing or updating. Select [[Install]] or [[Update]] in the Hub.
+2. Select Windowed mode in SnowRunner. Select TAA for the current motion-vector stale-eye warp. The old FXAA-only advice does not apply to this current rendering path.
+3. Connect the headset and start the intended OpenXR runtime. Use [[Start Current]] on this page; the Steam edition can also start through Steam.
+4. The first VR start writes the headset resolution and config. Current releases resize the window when possible and apply resolution changes live. Restart only if the mod asks because it could not resize the window.
 
-1. Close SnowRunner before installing or updating the mod.
-2. Select **Windowed** mode in the game's display settings.
-3. Disable temporal anti-aliasing. The author currently recommends **FXAA** only.
-4. Start exactly one OpenXR runtime and connect the headset.
-5. Use **Start Current** on this page or launch SnowRunner through Steam.
-6. The first VR start detects the headset's native per-eye resolution and creates `Sources\Bin\Snowrunner_VR_config.txt`. Close the game once and launch it again before judging the image.
+The proxy is Sources/Bin/dxgi.dll. Tuning is in Sources/Bin/Snowrunner_VR_config.txt; diagnostics are in Sources/Bin/snowrunner_vr.log. Include the log, headset, runtime, game version and render method when requesting help.
+
+### Optional DLSS on RTX cards
+
+The current DLSS tab needs TAA and a separate NVIDIA runtime. If wanted, obtain nvngx_dlss.dll version 310.9.16 or newer from the [publisher-recommended NVIDIA file](https://github.com/NVIDIA/DLSS/blob/v310.9.16/lib/Windows_x86_64/rel/nvngx_dlss.dll), using Download raw file, and place it beside Sources/Bin/SnowRunner.exe. The ordinary VR mod runs without it. It is not a dependency of the frozen v0.3 route.
+
+DLAA keeps the game resolution. Quality, Balanced, Performance and Ultra Performance render at smaller sizes and reconstruct the headset image. Changing the mode rebuilds render targets; allow it to finish. The menu also provides model presets and CAS sharpening. Change one option at a time.
 
 ## Option 2 — Last confirmed working version 1.886173
 
-Use this independent fallback if a later SnowRunner update breaks the current route. The installer downloads Steam app `1465360`, Windows depot `1465361`, manifest `1017218816943865737` — public build `25096372` — and verifies the `1.886173` executable before moving it to `C:\Games\SnowRunner VR` by default. A different full destination can be chosen before anything is moved.
+This separate fallback keeps Steam game build 25096372 and SnowRunner VR v0.3 together. It does not follow current mod releases or acquire their optional DLSS requirements. Its earlier image settings remain Windowed mode and FXAA only.
 
-The Steam Console command is:
+The exact Steam command is:
 
 ```text
 download_depot 1465360 1465361 1017218816943865737
 ```
 
-The installer looks for an already completed depot before opening Steam Console, checks the game structure, executable version and expected depot size, then creates `Sources\Bin\steam_appid.txt` beside `SnowRunner.exe`. Your normal Steam installation is not changed. Start this copy with **Start 1.886173** on the detail page or the `SnowRunner VR 1.886173` desktop shortcut.
+Setup checks for a completed depot before offering Steam Console. The default destination is C:\Games\SnowRunner VR; a separate destination can be chosen. Sources\Bin\steam_appid.txt contains 1465360 beside the executable. The normal Steam game and independent depot retain separate versions, paths and start buttons.
 
-The frozen copy uses **SnowRunner VR v0.3**, the mod build confirmed with game version 1.886173. Current releases such as v0.5 are not mixed into this route. The depot route advances only after a newer game/mod pairing has actually been confirmed together.
+After the first VR start, close the frozen game once and launch it again. Use [[Start 1.886173]] on the detail page or its matching desktop shortcut.
 
 ## Controls
 
 | Button | Action |
 |---|---|
-| [[Insert]] | Open or close the SnowRunner VR settings UI |
-| [[L3]] + [[R3]] | Open or close the settings UI on a gamepad |
-| [[Home]] | Recenter the VR view |
+| [[Insert]] | Open or close the VR settings UI. |
+| [[L3]] + [[R3]] | Open or close the settings UI with a gamepad. |
+| [[Home]] | Recenter the view while facing forward. |
+| [[Left Trigger]] / [[Right Trigger]] | Emulate the gamepad triggers. |
+| [[Left Grip]] / [[Right Grip]] | Emulate the gamepad shoulder buttons. |
+| [[A]] / [[B]] / [[X]] / [[Y]] | Corresponding gamepad face buttons. |
+| [[Left Stick]] / [[Right Stick]] | Corresponding gamepad sticks. |
+| [[Left Stick Click]] / [[Right Stick Click]] | Corresponding gamepad stick clicks. |
+| [[Left Menu]] tap / hold for half a second | Gamepad Start / Back. |
+| Hold [[Left Stick Click]] + [[Right Stick]] | Use the right stick as the D-pad. A quick left stick click still reaches the game. |
+| [[F8]] | Switch the cursor between normal menus and world-space winch targets. |
+| [[Page Up]] / [[Page Down]] | Adjust horizontal world-cursor alignment. |
+| [[Shift]] + [[Page Up]] / [[Page Down]] | Adjust vertical world-cursor alignment. |
 
-The settings UI and the game's ordinary menus are operated with the normal gamepad or mouse controls.
+Controller emulation can be disabled in the mod menu. It does not add physical grabbing of truck controls. The frozen v0.3 copy keeps its original capabilities.
 
-## Rendering choices
+## Rendering and updates
 
-The default stereo method is alternating-eye rendering with stale-eye warp. It offers complete images for both eyes but needs a high, stable frame rate. DIBR is available as an alternative with a different performance and artifact trade-off. Change one option at a time in `Sources\Bin\Snowrunner_VR_config.txt`, then restart the game when the setting requires it.
+Current Synched Sequential renders both eyes from the same game update and costs more performance. Alternating-eye rendering offers several stale-eye warp methods; its motion-vector option needs TAA and can also work with DLSS. DIBR supplies another reconstruction trade-off. Compare frame pacing and image artifacts with your headset before increasing resolution.
 
-The mod has been tested with Quest 3 through VDXR and with SteamVR. Other conforming OpenXR runtimes may work. Very wide or canted displays can still need tuning.
+Publisher testing mainly covers Quest 3 with Virtual Desktop/VDXR and SteamVR. Other OpenXR headsets, particularly wide or canted displays, may need tuning. VR Ready proves the declared files, not headset performance or compatibility with every later game update.
 
-## Flat / VR switch
-
-Use **Flat / VR** on this game's detail page for the copy currently resolved by the Hub. It parks `Sources\Bin\dxgi.dll` as `dxgi.dll.pcvrhub_off` for flat play and restores it for VR. Do not rename proxy DLLs by hand while SnowRunner is running.
-
-## Uninstall
-
-Use **Uninstall Now** on this page. If both copies contain SnowRunner VR, the uninstaller asks whether to clean the current Steam game or the last-confirmed `1.886173` copy. It follows only the selected copy's ownership manifest, removes only the installed VR payload and restores a proven pre-existing file when necessary.
-
-The dedicated depot game folder is never deleted by mod uninstall. Generated `Snowrunner_VR_config.txt`, diagnostic `snowrunner_vr.log`, `steam_appid.txt`, game files and saves are retained.
-
-## Current release notes
-
-The verified v0.4 build keeps SnowRunner 1.886173 support and the VR cursor and Pimax rendering improvements from v0.3. It adds an experimental world-marker fix plus options for a 2D map and 2D garage. A later SnowRunner update can still require a newer mod build; the Hub tracks the author's latest stable GitHub release automatically.
+The Hub updates only the selected copy and preserves generated settings. Flat / VR parks that copy's proxy. Use the detail page's Uninstall Guide for removal; the base game, saves and independent depot game data are retained.
 
 ## Credits and support
 
-- SnowRunner VR by Timguin-87: https://github.com/Timguin-87/Snowrunner-VR
-- Releases: https://github.com/Timguin-87/Snowrunner-VR/releases
-- Flat2VR Modding Discord invite: https://discord.gg/flat2vr
-- SnowRunner VR discussion and support channel: https://discord.com/channels/747967102895390741/1542980041061695598
+[SnowRunner VR project](https://github.com/Timguin-87/Snowrunner-VR) · [Publisher releases](https://github.com/Timguin-87/Snowrunner-VR/releases) · [Flat2VR Modding](https://discord.gg/flat2vr) · [SnowRunner VR discussion](https://discord.com/channels/747967102895390741/1542980041061695598)
+
+The road ends here. The mud has other plans.

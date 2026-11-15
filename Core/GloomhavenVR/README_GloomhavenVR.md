@@ -71,6 +71,8 @@ The game may restart once when the mod applies compatible rendering settings.
 That is expected after a first installation. GloomhavenVR keeps the original
 `GH_Data\boot.config` beside it as `boot.config.gloomhavenvr-backup`.
 
+Version 1.2.3 includes new 3D menu work and multiplayer fixes. All VR players in the same session should update together. Existing saves and personal settings remain yours.
+
 ## Controls
 
 ![GloomhavenVR motion controls](controls-en.png)

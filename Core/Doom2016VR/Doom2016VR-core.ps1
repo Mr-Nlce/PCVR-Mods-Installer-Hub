@@ -1,4 +1,4 @@
-# DOOM (2016) VR - KHARVOX installer.
+﻿# DOOM (2016) VR - KHARVOX installer.
 # Contract: Steam base game proof DOOMx64.exe + DOOMx64vk.exe; the mod
 # remains in a separate DOOM 2016 VR folder; launcher, OpenXR layer and
 # ownership manifest prove the Current route; LocalAppData launcher settings
@@ -38,6 +38,8 @@ function Get-DoomDesktopRoot {
 }
 
 function Test-DoomGameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'doom-2016-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and
         (Test-Path -LiteralPath (Join-Path $Path 'DOOMx64.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Path 'DOOMx64vk.exe') -PathType Leaf))

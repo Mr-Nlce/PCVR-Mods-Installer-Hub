@@ -61,6 +61,7 @@ function Write-Info { param($text) Write-Host " [..] $text" -ForegroundColor Gra
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -88,7 +89,7 @@ function Get-SteamLibraries {
 function Find-GamePath {
  param($libraries)
  foreach ($lib in $libraries) {
- $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
+ $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'kerbal-space-program' -Root $candidate)) { continue }; 
  if (Test-Path (Join-Path $candidate $GAME_EXE)) { return $candidate }
  }
  return $null

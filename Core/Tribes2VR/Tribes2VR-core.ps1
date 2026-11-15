@@ -1,4 +1,4 @@
-# Tribes 2 VR - free PlayT2/TribesNEXT base game plus the Discord beta mod.
+﻿# Tribes 2 VR - free PlayT2/TribesNEXT base game plus the Discord beta mod.
 # The commercial-free base installer and Valve's 32-bit OpenVR runtime remain
 # publisher downloads; no third-party executable or DLL is bundled with Hub.
 
@@ -13,7 +13,7 @@ $VERSION = 'discord-0.1-beta+openvr-2.5.1'
 $GAME_EXE = 'GameData\Tribes2.exe'
 $DEFAULT_ROOT = 'C:\Dynamix\Tribes2'
 $BASE_PAGE = 'https://playt2.com/config'
-$BASE_INSTALLER_URL = 'https://files.playt2.com/Install/Tribes2Config_2.3_Preview.exe'
+$BASE_INSTALLER_URL = 'https://files.playt2.com/Install/Tribes2Config_2.4.exe'
 $DISCORD_INVITE = 'https://discord.gg/uAeQkYBM4n'
 $DISCORD_THREAD = 'https://discord.com/channels/747967102895390741/1548700072697528461'
 $DISCORD_DOWNLOAD = 'https://discord.com/channels/747967102895390741/1548700072697528461/1548700072697528461'
@@ -34,6 +34,8 @@ function Write-TribesWarn([string]$Text) { Write-Host "  [!!] $Text" -Foreground
 function Write-TribesNote([string]$Text) { Write-Host "  $Text" -ForegroundColor Gray }
 
 function Test-Tribes2Root([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'tribes-2-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue))
 }
 
@@ -54,11 +56,11 @@ function Resolve-Tribes2Root([string]$Path) {
     if (-not $item.PSIsContainer) {
         if ($item.Name -ine 'Tribes2.exe') { return $null }
         $data = $item.Directory
-        if ($data.Name -ieq 'GameData') { return $data.Parent.FullName }
+        if ($data.Name -ieq 'GameData' -and (Test-Tribes2Root $data.Parent.FullName)) { return $data.Parent.FullName }
         return $null
     }
     if (Test-Tribes2Root $item.FullName) { return $item.FullName }
-    if ($item.Name -ieq 'GameData' -and (Test-Path -LiteralPath (Join-Path $item.FullName 'Tribes2.exe') -PathType Leaf)) { return $item.Parent.FullName }
+    if ($item.Name -ieq 'GameData' -and (Test-Tribes2Root $item.Parent.FullName)) { return $item.Parent.FullName }
     return $null
 }
 
@@ -97,16 +99,16 @@ function Read-Tribes2RootInteractive {
 }
 
 function Install-Tribes2BaseGame([string]$WorkRoot) {
-    Write-Host '  The official PlayT2 package is about 917 MiB and is not digitally signed.' -ForegroundColor Yellow
+    Write-Host '  The official PlayT2 package is about 0.9 GiB.' -ForegroundColor Yellow
     Write-Host "  It proposes $DEFAULT_ROOT. Keep 'Install community patch' checked." -ForegroundColor White
     Write-Host '  At the end choose I Agree, then Apply Patch. The setup itself needs UAC.' -ForegroundColor White
     [void](Wait-PCVRExplicitEnter -Message 'Press Enter to download the official PlayT2 installer...')
-    $installer = Join-Path $WorkRoot 'Tribes2Config_2.3_Preview.exe'
+    $installer = Join-Path $WorkRoot ([IO.Path]::GetFileName($BASE_INSTALLER_URL))
     Write-TribesNote 'Downloading the official free-game and community-patch installer...'
-    $got = Invoke-SafeDownload -Urls @($BASE_INSTALLER_URL) -Destination $installer -Label 'Tribes 2 Config 2.3 Preview' `
+    $got = Invoke-SafeDownload -Urls @($BASE_INSTALLER_URL) -Destination $installer -Label 'Tribes 2 Config 2.4' `
         -ManualUrl $BASE_PAGE -AllowSkip $false -QuietProgress
     if (-not ($got -eq $true -or [string]$got -in @('retry','manual'))) { throw 'The official PlayT2 installer was not downloaded.' }
-    if ((Get-Item -LiteralPath $installer).Length -lt 100MB) { throw 'The downloaded PlayT2 file is incomplete or not the official installer.' }
+    if ((Get-PEMachine -Path $installer) -notin @(0x014c, 0x8664)) { throw 'The downloaded PlayT2 file is not a Windows x86 or x64 installer.' }
     Write-Host ''
     Write-Host '  Windows will now request administrator rights for the official setup.' -ForegroundColor Yellow
     Write-Host "  Keep 'Install community patch' checked; finish with I Agree and Apply Patch." -ForegroundColor White

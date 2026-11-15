@@ -1,11 +1,13 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $script:Id='beyond-two-souls-vr';$script:Repo='adore11s/Beyond-Two-Souls-VR-Mod';$script:Page='https://github.com/adore11s/Beyond-Two-Souls-VR-Mod/releases'
 $env:PCVR_HUB_RECOVERY_PAGE=$script:Page
-$script:Proof=@('BigFile_PC.dat','dinput8.dll','b2svr.ini','B2S_VR_MOD\files\dinput8.dll','B2S_VR_MOD\files\BUILD.txt','B2S_VR_MOD\tools\b2svr_setup.ps1','B2S_VR_MOD\Play Beyond Two Souls in VR.cmd','.pcvrhub_b2svr_ownership.csv')
+$script:Proof=@('BigFile_PC.dat','dinput8.dll','b2svr.ini','B2S_VR_MOD\files\dinput8.dll','B2S_VR_MOD\files\BUILD.txt','B2S_VR_MOD\tools\b2svr_setup.ps1','.pcvrhub_b2svr_ownership.csv')
 $script:Contract=New-PCVRInstallerContract -Id $script:Id -GameName 'Beyond: Two Souls VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:Page -RequiredInstalledFileGroups (@('BeyondTwoSouls_Steam.exe|BeyondTwoSouls.exe')+$script:Proof)
-function Test-B2SGame([string]$Root){return [bool]($Root -and ((Test-Path -LiteralPath (Join-Path $Root 'BeyondTwoSouls_Steam.exe') -PathType Leaf) -or (Test-Path -LiteralPath (Join-Path $Root 'BeyondTwoSouls.exe') -PathType Leaf)) -and (Test-Path -LiteralPath (Join-Path $Root 'BigFile_PC.dat') -PathType Leaf))}
+function Test-B2SGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'beyond-two-souls-vr' -Root $Root)) { return $false }
+return [bool]($Root -and ((Test-Path -LiteralPath (Join-Path $Root 'BeyondTwoSouls_Steam.exe') -PathType Leaf) -or (Test-Path -LiteralPath (Join-Path $Root 'BeyondTwoSouls.exe') -PathType Leaf)) -and (Test-Path -LiteralPath (Join-Path $Root 'BigFile_PC.dat') -PathType Leaf))}
 function Assert-B2SFixture([string]$Path){$full=[IO.Path]::GetFullPath($Path);$tmp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/')+'\';if(-not $full.StartsWith($tmp,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath (Join-Path $full 'b2s-test-fixture.txt') -PathType Leaf)){throw 'Beyond test game must stay in an isolated temporary fixture.'};return $full}
 function Get-B2SGame {
     if($env:PCVR_B2S_TEST_GAME){$test=Assert-B2SFixture $env:PCVR_B2S_TEST_GAME;if(Test-B2SGame $test){return $test};throw 'The Beyond test game folder is incomplete.'}
@@ -85,13 +87,14 @@ function New-B2SStage([string]$Archive,[string]$Work,[string]$ExpectedVersion){
     $expanded=Join-Path $Work 'publisher';$status=Expand-ArchiveOrFallback -ArchivePath $Archive -DestinationFolder $expanded -Label 'Beyond VR publisher ZIP' -AllowSkip $false -QuietProgress
     if([string]$status -notin @('ok','manual','retry')){throw 'The Beyond VR ZIP could not be opened.'}
     $root=Join-Path $expanded 'B2S_VR_MOD'
-    foreach($name in @('files\dinput8.dll','files\b2svr.ini','files\BUILD.txt','tools\b2svr_setup.ps1','Play Beyond Two Souls in VR.cmd')){if(-not(Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)){throw "The publisher package lacks $name."}}
+    $required=@('files\dinput8.dll','files\b2svr.ini','files\BUILD.txt','tools\b2svr_setup.ps1')
+    foreach($name in $required){if(-not(Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf)){throw "The publisher package lacks $name."}}
     $build=Get-Content -LiteralPath (Join-Path $root 'files\BUILD.txt') -Raw
     $version=[regex]::Match($build,'(?im)^version:\s*([0-9]+(?:\.[0-9]+)+)\s*$').Groups[1].Value
     if(-not $version -or ('v'+$version) -ne $ExpectedVersion){throw 'The selected publisher ZIP version does not match its release; no game files were changed.'}
     $stage=Join-Path $Work 'stage';$sub=Join-Path $stage 'B2S_VR_MOD';[void][IO.Directory]::CreateDirectory((Join-Path $sub 'files'));[void][IO.Directory]::CreateDirectory((Join-Path $sub 'tools'))
-    foreach($name in @('files\dinput8.dll','files\b2svr.ini','files\BUILD.txt','tools\b2svr_setup.ps1','Play Beyond Two Souls in VR.cmd')){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $sub $name) -Force}
-    foreach($name in @('tools\release_files.txt','Uninstall VR mod.cmd')){if(Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $sub $name) -Force}}
+    foreach($name in $required){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $sub $name) -Force}
+    foreach($name in @('Play Beyond Two Souls in VR.cmd','Install VR mod.cmd','tools\release_files.txt','Uninstall VR mod.cmd')){if(Test-Path -LiteralPath (Join-Path $root $name) -PathType Leaf){Copy-Item -LiteralPath (Join-Path $root $name) -Destination (Join-Path $sub $name) -Force}}
     Copy-Item -LiteralPath (Join-Path $root 'files\dinput8.dll') -Destination (Join-Path $stage 'dinput8.dll') -Force
     Copy-Item -LiteralPath (Join-Path $root 'files\b2svr.ini') -Destination (Join-Path $stage 'b2svr.ini') -Force
     return $stage

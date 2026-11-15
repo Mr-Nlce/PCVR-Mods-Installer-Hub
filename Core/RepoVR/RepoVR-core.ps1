@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # R.E.P.O. - RepoXR VR Mod Installer
 # ============================================================
 #
@@ -63,6 +63,7 @@ function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null
@@ -471,7 +472,7 @@ $repoComplete = ($repoXRVersion -and $failed.Count -eq 0 -and
     (Test-PkgFiles $gamePath 'DaXcess-RepoXR'))
 if ($repoComplete) {
  try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $repoXRVersion -Encoding UTF8 -Force } catch {}
+ try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $repoXRVersion -Encoding UTF8 -Force } catch {}
  Save-InstalledStamp -GameDir $gamePath -Version $repoXRVersion
 }
 

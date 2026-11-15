@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # No One Lives Forever 2 VR Installer
 # Layers Luke Ross's R.E.A.L. r3 VR mod onto an EXISTING,
 # user-provided NOLF2 (English v1.3) install. The game is not
@@ -126,50 +126,9 @@ function Set-VRReviveFlag {
 # containing NOLF2.exe). Auto-detects the common retail install paths
 # first, then falls back to asking. Loops until valid or cancelled.
 function Get-Nolf2Folder {
-    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @('VRlaunchcmds.txt')
-    if ($remembered) {
-        Write-OK "Using remembered NOLF2 folder: $remembered"
-        return $remembered
-    }
-    $stdPaths = @(
-        "${env:ProgramFiles(x86)}\Fox\No One Lives Forever 2",
-        "${env:ProgramFiles}\Fox\No One Lives Forever 2",
-        "C:\Program Files (x86)\Fox\No One Lives Forever 2",
-        "C:\Program Files\Fox\No One Lives Forever 2",
-        "C:\GOG Games\No One Lives Forever 2",
-        "C:\Games\No One Lives Forever 2",
-        "C:\Games\NOLF2"
-    )
-    foreach ($sp in $stdPaths) {
-        if ((Test-Path $sp) -and (Test-Path (Join-Path $sp $GAME_EXE))) {
-            Write-Host ""
-            Write-Host " Found a No One Lives Forever 2 install at:" -ForegroundColor White
-            Write-Host "   $sp" -ForegroundColor Gray
-            $useIt = Read-Host " Use this folder? (Y/N)"
-            if ($useIt -match '^(y|yes|j|ja)$') { return $sp }
-            break
-        }
-    }
-    while ($true) {
-        Write-Host ""
-        Write-Host " Drag your No One Lives Forever 2 folder (or NOLF2.exe)" -ForegroundColor White
-        Write-Host " onto this window and press Enter." -ForegroundColor White
-        Write-Host " (You can also type or paste the full path.)" -ForegroundColor Gray
-        Write-Host " Leave empty and press Enter to cancel." -ForegroundColor DarkGray
-        $raw = Read-Host " Path"
-        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-        $p = $raw.Trim().Trim('"').Trim("'").Trim()
-        if (-not (Test-Path $p)) { Write-Warn "Path not found: $p"; continue }
-        if (Test-Path $p -PathType Container) {
-            if (Test-Path (Join-Path $p $GAME_EXE)) { return $p }
-            Write-Warn "No $GAME_EXE in that folder. Drag the folder that contains it."
-            continue
-        }
-        # A file was dropped - use its folder if NOLF2.exe lives there.
-        $dir = Split-Path -Parent $p
-        if (Test-Path (Join-Path $dir $GAME_EXE)) { return $dir }
-        Write-Warn "Could not find $GAME_EXE next to that file."
-    }
+    $selected=Get-GameFolderInteractive -GameName 'No One Lives Forever 2' -HubGameId 'no-one-lives-forever-2-vr' -ProbeFile 'NOLF2.exe'
+    if (-not $selected -or $selected -in @('quit','skip')) { return $null }
+    return $selected
 }
 
 Write-Header

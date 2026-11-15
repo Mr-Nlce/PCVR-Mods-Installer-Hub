@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # BannerColors.ps1
 # ------------------------------------------------------------
 # Curated per-game banner colour. Each colour was picked from the
@@ -14,6 +14,15 @@
 
 # Auto-generated banner color map (curated from header images). Key: steam:<id> or name:<HeaderBase>
 $global:BannerColorMap = @{
+    'steam:50130' = '#b98460'
+    'steam:67370' = '#c569ad'
+    'steam:1286680' = '#a485ee'
+    'steam:39500' = '#a1b96b'
+    'name:CodeVeronicaVR'='#147cb4'
+    'name:GearsEDayVR'='#a45130'
+    'name:RE5VR'='#989548'
+    'name:IHateThisPlaceVR' = '#e9c714'
+    'name:Agent64VR' = '#c6a24b'
     'name:Wreckfest2VR' = '#d3ac62'
     'Wreckfest 2 VR' = '#d3ac62'
     'name:WreckfestVR' = '#d7a64b'
@@ -183,6 +192,7 @@ $global:BannerColorMap = @{
     "steam:2881650" = "#fdd903"  # Content Warning VR
     "steam:1388770" = "#13e51d"  # Cruelty Squad VR
     "steam:17300" = "#91abb8"  # Crysis VR
+    "steam:17470" = "#60b8c7"  # Dead Space (2008) VR
     "steam:1091500" = "#fcf601"  # Cyberpunk 2077
     "steam:1812390" = "#b3390f"  # Daggerfall VR
     "steam:236430" = "#3a3a3a"  # Dark Souls II VR

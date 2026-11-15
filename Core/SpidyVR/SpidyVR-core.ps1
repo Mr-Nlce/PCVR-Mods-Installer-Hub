@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle='Spider-Man Remastered - Spidy VR Installer'
@@ -21,6 +21,8 @@ function Assert-SpidyFixture([string]$Path) {
     return $full
 }
 function Test-SpidyGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'spiderman-remastered-spidy-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Spider-Man.exe') -PathType Leaf))
 }
 function Get-SpidyGame {

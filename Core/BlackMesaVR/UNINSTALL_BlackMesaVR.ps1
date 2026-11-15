@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $GAME_EXE = 'bms.exe'
 $MANIFEST_NAME = '.pcvrhub-blackmesavr-install.tsv'
 $BACKUP_NAME = '.pcvrhub-blackmesavr-backup'
@@ -13,7 +14,7 @@ $SHORTCUT_STATE = '.pcvrhub-blackmesavr-shortcuts.tsv'
 $LOADERS = @('d3d9.dll','bin\d3d9.dll','bin\thirdparty\dxvk-windows-x86\d3d9.dll')
 if (-not $StateRoot) { $StateRoot = $PSScriptRoot }
 
-function Finish([int]$Code) { if (-not $NoPause) { Write-Host ''; Read-Host 'Press Enter to exit' | Out-Null }; exit $Code }
+function Finish([int]$Code) { if (-not $NoPause) { [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...') }; exit $Code }
 function Test-Root([string]$Path) { return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf)) }
 function Find-SteamGameRoot {
     $steamRoots = New-Object 'System.Collections.Generic.List[string]'
@@ -138,7 +139,15 @@ if ($remaining.Count -gt 0) {
     [IO.File]::WriteAllLines($manifestPath,[string[]]$lines,(New-Object Text.UTF8Encoding($false)))
 } elseif ($kept -eq 0) {
     Remove-Item -LiteralPath $manifestPath -Force
-    Remove-Item -LiteralPath (Join-Path $GameRoot $BACKUP_NAME) -Recurse -Force -ErrorAction SilentlyContinue
+    # Originals and unknown files may still be useful to the user. Prune only
+    # empty folders; never wipe the complete recovery tree after removal.
+    $recoveryRoot=Join-Path $GameRoot $BACKUP_NAME
+    if(Test-Path -LiteralPath $recoveryRoot -PathType Container){
+        foreach($dir in @(Get-ChildItem -LiteralPath $recoveryRoot -Directory -Recurse -Force|Sort-Object {$_.FullName.Length} -Descending)){
+            if(@(Get-ChildItem -LiteralPath $dir.FullName -Force).Count -eq 0){Remove-Item -LiteralPath $dir.FullName -Force}
+        }
+        if(@(Get-ChildItem -LiteralPath $recoveryRoot -Force).Count -eq 0){Remove-Item -LiteralPath $recoveryRoot -Force}
+    }
 }
 foreach ($dir in @('VRLaunch','VR\weapon_wheel','VR\SteamVRActionManifest','VR\openxr_helper64','VR\hands','VR')) {
     $full = Join-Path $GameRoot $dir
@@ -147,9 +156,16 @@ foreach ($dir in @('VRLaunch','VR\weapon_wheel','VR\SteamVRActionManifest','VR\o
 if (-not (Test-Path -LiteralPath (Join-Path $GameRoot 'VR\openxr_helper64\OpenXRHelper64.exe') -PathType Leaf)) {
     Remove-Item -LiteralPath (Join-Path $StateRoot '.installed_version') -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorAction SilentlyContinue
+    $script:scriptDir=Split-Path $PSScriptRoot -Parent
+    . (Join-Path $PSScriptRoot '..\Modules\HubState.ps1')
+    $stateGame=@{Id='black-mesa';Title='Black Mesa VR'}
+    Reset-PersistentGameStateValue -Game $stateGame -Name 'installed_version'|Out-Null
+    Clear-HubInstallManifestVersion -Game $stateGame -GameDir $GameRoot
 }
 Write-Host ''
 if ($kept) { Write-Host "Removal finished with $kept protected item(s) left for review." -ForegroundColor Yellow }
 else { Write-Host 'Black Mesa VR removed safely. Black Mesa, Blue Shift, saves and user settings were kept.' -ForegroundColor Magenta }
 Write-Host "$changed verified file(s) removed or restored." -ForegroundColor Gray
+Write-Host ''
+Write-Host 'The resonance cascade was an accident. The crowbar swings are entirely deliberate.' -ForegroundColor Magenta
 Finish 0

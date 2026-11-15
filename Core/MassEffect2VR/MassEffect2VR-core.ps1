@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Mass Effect 2 VR - Installer (MELE2-VR by dhalcyon)
 # ============================================================
 # Mass Effect 2 Legendary Edition in full head-tracked PCVR:
@@ -82,6 +82,8 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 
 function Test-Mele2Root {
  param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'mass-effect-2-le-vr' -Root $Root)) { return $false }
+
  if (-not $Root) { return $false }
  $ok = $false
  try { $ok = Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $ME2_SUBPATH, $ME2_EXE)) } catch {}

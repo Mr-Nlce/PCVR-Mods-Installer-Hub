@@ -246,10 +246,41 @@ function global:Resolve-GitHubReleaseTag {
 #
 # ReleaseData exists for deterministic, network-free regression tests.  Normal
 # callers omit it and receive the current GitHub release list.
+function global:Get-PCVRWindowsReleaseAssetPattern {
+    '(?i)^(?!.*(?:symbols|source|pdb|quest|android|linux|macos|darwin|osx|appimage)).+\.(?:zip|7z|rar|exe|dll|msi|msix|msixbundle|appx|appxbundle|cab|asi)$'
+}
+
+function global:Test-PCVRMobileReleaseAsset {
+    param([string]$Name)
+    $Name -match '(?i)\.(apk|aab|apks|xapk|ipa)$' -or
+        ($Name -match '(?i)(?:^|[._ -])(?:android|quest|oculusquest)(?:[._ -]|$)' -and
+         $Name -notmatch '(?i)(windows|win64|win32|pcvr)')
+}
+
+function global:Test-PCVRMobileOnlyRelease {
+    param([string[]]$AssetNames)
+    $windowsPattern = Get-PCVRWindowsReleaseAssetPattern
+    return (@($AssetNames | Where-Object { Test-PCVRMobileReleaseAsset $_ }).Count -gt 0 -and
+        !@($AssetNames | Where-Object { $_ -match $windowsPattern }).Count)
+}
+
+function global:Get-PCVRGithubVersionCacheKey {
+    param([string]$Repo,[bool]$IncludePrerelease=$false,[string[]]$AssetPatterns=@(),
+        [string]$AssetVersionPattern='',[bool]$AssetTimestampVersion=$false,[string]$TagOrder='')
+    $key=if($IncludePrerelease){$Repo+'#pre'}else{$Repo}
+    $patterns=@($AssetPatterns|Where-Object{-not [string]::IsNullOrWhiteSpace([string]$_)})
+    if(!$patterns.Count){$patterns=@(Get-PCVRWindowsReleaseAssetPattern)}
+    if($patterns.Count){$key+='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($patterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')}
+    if($TagOrder -eq 'published'){$key+='#published'}
+    if($AssetTimestampVersion){$key+='#asset-timestamp'}
+    if($AssetVersionPattern){$key+='#asset-version='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($AssetVersionPattern)).TrimEnd('=').Replace('/','_').Replace('+','-')}
+    return $key
+}
+
 function global:Resolve-GitHubReleaseAsset {
     param(
         [Parameter(Mandatory=$true)][string]$Repo,
-        [Parameter(Mandatory=$true)][string[]]$AssetPatterns,
+        [string[]]$AssetPatterns = @(),
         [string]$FallbackUrl = "",
         [string]$FallbackTag = "known fallback",
         [string]$FallbackAssetName = "",
@@ -257,20 +288,24 @@ function global:Resolve-GitHubReleaseAsset {
         [switch]$SkipReleasesWithoutMatchingAsset,
         [switch]$AllowOfflinePinnedFallback,
         [switch]$ScanFast,
+        [ValidateSet('','published')][string]$TagOrder = '',
         $ReleaseData = $null
     )
 
     $page = "https://github.com/$Repo/releases"
+    $AssetPatterns=@($AssetPatterns|Where-Object{$_})
+    if(!$AssetPatterns.Count){$AssetPatterns=@(Get-PCVRWindowsReleaseAssetPattern)}
     # These publishers explicitly restarted their release numbering. Their
     # release-card order, followed by REST publication dates, takes precedence
     # over numeric sorting. Keep this scoped: other repos rely on numeric
     # sorting when GitHub's latest pointer lags (for example Spec Ops).
-    $publisherReset = $Repo -in @('Bateau01/SOMA-VR','thecosmictangerine-cloud/dishonored-2-vr')
+    $publisherReset = $TagOrder -eq 'published' -or $Repo -in @('Bateau01/SOMA-VR','thecosmictangerine-cloud/dishonored-2-vr','Destroyjevski/SuperMario3DWorld-VR')
     $result = [ordered]@{
         Repo = $Repo
         Url = ""
         Tag = ""
         AssetName = ""
+        AssetUpdatedAt = ""
         PageUrl = $page
         Resolved = $false
         ReleaseFound = $false
@@ -286,6 +321,7 @@ function global:Resolve-GitHubReleaseAsset {
     # quota. Resolve the tag and its expanded asset list there first. Never
     # infer an asset name from a historical filename: the published href is
     # the proof of which file belongs to this release.
+    $unreadableTag = ''
     if ($null -eq $ReleaseData) {
         try {
             $webHeaders = @{ 'User-Agent'='Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
@@ -317,7 +353,7 @@ function global:Resolve-GitHubReleaseAsset {
                     } catch { $result.Error="GitHub latest GET: $($_.Exception.Message)" }
                 }
             }
-            if($webTags.Count -eq 0 -or $SkipReleasesWithoutMatchingAsset){
+            if($webTags.Count -eq 0 -or $SkipReleasesWithoutMatchingAsset -or $publisherReset){
                 try {
                     $listing=Get-PCVRGitHubText -Uri $page -ScanFast:$ScanFast
                     $sections=@([regex]::Matches([string]$listing.Content,'(?s)<section id="release-([^"]+)"[^>]*>(.*?)(?=<section id="release-|\z)'))
@@ -356,21 +392,23 @@ function global:Resolve-GitHubReleaseAsset {
             # to the REST publication-date fallback instead of accepting an
             # old cached redirect immediately.
             if($publisherReset -and $publicationTags.Count -eq 0){$webTags=@()}
-            if(-not $publisherReset -and $webTags.Count -gt 1 -and $tagVersions.Count -eq $webTags.Count -and
-                @($tagVersions | Select-Object -ExpandProperty Prefix -Unique).Count -eq 1){
+            if(-not $publisherReset -and $webTags.Count -gt 1 -and $tagVersions.Count -gt 0 -and $tagVersions[0].Order -eq 0){
+                $comparable=@($tagVersions | Where-Object { $_.Prefix -eq $tagVersions[0].Prefix })
                 # System.Version truncates/rejects a fifth component (Star Fox
                 # 0.0.8.8.1) and excluded a single component (GEVR vr457).
                 # Normalize numeric components as equal-width strings instead;
                 # equal numeric versions retain the original publisher order.
-                $width=($tagVersions|ForEach-Object{@($_.Parts).Count}|Measure-Object -Maximum).Maximum
-                foreach($item in $tagVersions){
+                $width=($comparable|ForEach-Object{@($_.Parts).Count}|Measure-Object -Maximum).Maximum
+                foreach($item in $comparable){
                     $padded=@($item.Parts|ForEach-Object{$_.PadLeft(20,'0')})
                     while($padded.Count -lt $width){$padded+='00000000000000000000'}
                     $item.SortKey=$padded -join '.'
                 }
-                $webTags=@($tagVersions | Sort-Object -Property @{Expression={$_.SortKey};Descending=$true},Order | ForEach-Object Tag)
+                $ranked=@($comparable | Sort-Object -Property @{Expression={$_.SortKey};Descending=$true},Order | ForEach-Object Tag)
+                for($i=0;$i -lt $comparable.Count;$i++){$webTags[$comparable[$i].Order]=$ranked[$i]}
             }
             foreach($webTag in $webTags){
+                $unreadableTag = $webTag
                 $assetsPage=Get-PCVRGitHubText -Uri "$page/expanded_assets/$([uri]::EscapeDataString($webTag))" -ScanFast:$ScanFast
                 $assetLinks = @([regex]::Matches([string]$assetsPage.Content, 'href=["'']([^"'']+/releases/download/[^"'']+)["'']') | ForEach-Object {
                     [System.Net.WebUtility]::HtmlDecode($_.Groups[1].Value)
@@ -384,17 +422,30 @@ function global:Resolve-GitHubReleaseAsset {
                     $path = [uri]::UnescapeDataString(($candidate -split '[?#]')[0])
                     $path.StartsWith("/$Repo/releases/download/$webTag/", [StringComparison]::OrdinalIgnoreCase)
                 } | Select-Object -Unique)
+                if (!$assetLinks.Count -and $assetsPage.Content -notmatch '(?i)/archive/refs/tags/|Source code|<ul\b') {
+                    throw "The asset inventory for '$webTag' could not be verified."
+                }
+                $unreadableTag = ''
                 foreach ($pattern in $AssetPatterns) {
                     if (-not $pattern) { continue }
                     $matchedLinks = @($assetLinks | Where-Object {
                         $assetName = [uri]::UnescapeDataString(([string]$_ -split '[?#]')[0].Split('/')[-1])
-                        $assetName -match $pattern
+                        -not (Test-PCVRMobileReleaseAsset $assetName) -and $assetName -match $pattern
                     })
+                    if ($matchedLinks.Count -gt 1) {
+                        $result.ReleaseFound = $true
+                        $result.Tag = $webTag
+                        $result.Error = "release '$webTag' has multiple matching assets"
+                        return [pscustomobject]$result
+                    }
                     if ($matchedLinks.Count -eq 1) {
                         $link = [string]$matchedLinks[0]
                         $result.Url = if ($link -match '^https?://') { $link } else { 'https://github.com' + $link }
                         $result.Tag = $webTag
                         $result.AssetName = [uri]::UnescapeDataString(($link -split '[?#]')[0].Split('/')[-1])
+                        $assetMetadata=ConvertFrom-PCVRGitHubReleaseSection -Repo $Repo -Tag $webTag -Section '' -AssetHtml ([string]$assetsPage.Content)
+                        $selectedMetadata=@($assetMetadata.assets|Where-Object name -ceq $result.AssetName)
+                        if($selectedMetadata.Count -eq 1){$result.AssetUpdatedAt=[string]$selectedMetadata[0].updated_at}
                         $result.PageUrl = "$page/tag/$([uri]::EscapeDataString($webTag))"
                         $result.Resolved = $true
                         $result.ReleaseFound = $true
@@ -406,7 +457,13 @@ function global:Resolve-GitHubReleaseAsset {
                 $result.Tag = $webTag
                 $result.PageUrl = "$page/tag/$([uri]::EscapeDataString($webTag))"
                 $result.Error = "release '$webTag' has no unambiguous matching asset on the publisher page"
-                if(-not $SkipReleasesWithoutMatchingAsset){break}
+                $names = @($assetLinks | ForEach-Object { [uri]::UnescapeDataString(([string]$_ -split '[?#]')[0].Split('/')[-1]) })
+                if(-not $SkipReleasesWithoutMatchingAsset){
+                    if(Test-PCVRMobileOnlyRelease $names){
+                        return Resolve-GitHubReleaseAsset -Repo $Repo -AssetPatterns $AssetPatterns -IncludePrerelease $IncludePrerelease -TagOrder $TagOrder -SkipReleasesWithoutMatchingAsset -ScanFast:$ScanFast
+                    }
+                    break
+                }
                 $result.SkippedReleaseTags += $webTag
             }
         } catch {
@@ -432,13 +489,26 @@ function global:Resolve-GitHubReleaseAsset {
             $_ -and -not [bool]$_.draft -and ($IncludePrerelease -or -not [bool]$_.prerelease) -and
             ([string]$_.tag_name) -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic'
         } | Sort-Object -Property published_at -Descending)
+        if($unreadableTag -and $unreadableTag -notin @($eligible | ForEach-Object tag_name)){
+            throw "No independent asset inventory for '$unreadableTag' was available."
+        }
+        if($unreadableTag){
+            $eligible=@(@($eligible|Where-Object tag_name -eq $unreadableTag)+@($eligible|Where-Object tag_name -ne $unreadableTag))
+        }
         $release = $null
         $asset = $null
         foreach ($candidate in $eligible) {
+            if ($null -eq $candidate.assets) { throw "No asset inventory for '$($candidate.tag_name)' was available." }
             $candidateAsset = $null
             foreach ($pattern in $AssetPatterns) {
                 if (-not $pattern) { continue }
-                $matches = @($candidate.assets | Where-Object { ([string]$_.name) -match $pattern })
+                $matches = @($candidate.assets | Where-Object { -not (Test-PCVRMobileReleaseAsset ([string]$_.name)) -and ([string]$_.name) -match $pattern })
+                if ($matches.Count -gt 1) {
+                    $result.ReleaseFound = $true
+                    $result.Tag = [string]$candidate.tag_name
+                    $result.Error = "release '$($candidate.tag_name)' has multiple matching assets"
+                    return [pscustomobject]$result
+                }
                 if ($matches.Count -eq 1 -and $matches[0].browser_download_url) {
                     $candidateAsset = $matches[0]
                     break
@@ -449,7 +519,7 @@ function global:Resolve-GitHubReleaseAsset {
                 $asset = $candidateAsset
                 break
             }
-            if (-not $SkipReleasesWithoutMatchingAsset) {
+            if (-not $SkipReleasesWithoutMatchingAsset -and -not (Test-PCVRMobileOnlyRelease @($candidate.assets | ForEach-Object name))) {
                 $release = $candidate
                 break
             }
@@ -469,7 +539,7 @@ function global:Resolve-GitHubReleaseAsset {
         if (-not $asset) {
             foreach ($pattern in $AssetPatterns) {
                 if (-not $pattern) { continue }
-                $matches = @($release.assets | Where-Object { ([string]$_.name) -match $pattern })
+                $matches = @($release.assets | Where-Object { -not (Test-PCVRMobileReleaseAsset ([string]$_.name)) -and ([string]$_.name) -match $pattern })
                 if ($matches.Count -eq 1) { $asset = $matches[0]; break }
             }
         }
@@ -487,6 +557,7 @@ function global:Resolve-GitHubReleaseAsset {
 
         $result.Url = [string]$asset.browser_download_url
         $result.AssetName = [string]$asset.name
+        $result.AssetUpdatedAt = [string]$asset.updated_at
         $result.Resolved = $true
         $result.Error = ''
         return [pscustomobject]$result
@@ -509,6 +580,21 @@ function global:Resolve-GitHubReleaseAsset {
 
 # Compatibility metadata for older per-game selectors. Public release pages
 # are the primary source; REST is optional and never the only install gate.
+function global:Get-PCVRGitHubSelectedAssetTimestamp {
+    param($Release)
+    $pattern='^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$'
+    if([string]$Release.AssetUpdatedAt -match $pattern){return [string]$Release.AssetUpdatedAt}
+    if(-not $Release.Resolved -or [string]$Release.Repo -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' -or -not $Release.Tag -or -not $Release.AssetName){return ''}
+    try{
+        $reply=Get-PCVRGitHubText -Uri ('https://api.github.com/repos/'+$Release.Repo+'/releases/tags/'+[uri]::EscapeDataString([string]$Release.Tag))
+        $data=ConvertFrom-Json -InputObject ([string]$reply.Content) -ErrorAction Stop
+        if([string]$data.tag_name -cne [string]$Release.Tag){return ''}
+        $assetMatches=@($data.assets|Where-Object { $_.name -ceq $Release.AssetName -and $_.browser_download_url -ceq $Release.Url })
+        if($assetMatches.Count -eq 1 -and [string]$assetMatches[0].updated_at -match $pattern){return [string]$assetMatches[0].updated_at}
+    }catch{}
+    return ''
+}
+
 function global:Get-PCVRGitHubMetadataText {
     param([string]$Uri,$Budget)
     if(-not $Budget.Fast){return Get-PCVRGitHubText -Uri $Uri}
@@ -569,6 +655,17 @@ function global:Get-PCVRGitHubReleaseFromWeb {
     return $release
 }
 
+function global:Select-PCVRLegacyReleasePayload {
+    param($Release)
+    if (!$Release -or $null -eq $Release.assets) { return $Release }
+    $mobile = @($Release.assets | Where-Object { Test-PCVRMobileReleaseAsset ([string]$_.name) })
+    if (!$mobile.Count) { return $Release }
+    $remaining = @($Release.assets | Where-Object { -not (Test-PCVRMobileReleaseAsset ([string]$_.name)) })
+    if (Test-PCVRMobileOnlyRelease @($Release.assets | ForEach-Object name)) { return $null }
+    $Release.assets = $remaining
+    return $Release
+}
+
 function global:Invoke-PCVRRestMethod {
     [CmdletBinding()]
     param([Parameter(Mandatory=$true)][string]$Uri,$Headers,[int]$TimeoutSec=25)
@@ -577,6 +674,20 @@ function global:Invoke-PCVRRestMethod {
     }
     $repo=$matches.repo;$route=$matches.route;$query=$matches.query
     $budget=[pscustomobject]@{Fast=($TimeoutSec -le 8);End=[DateTime]::UtcNow.AddSeconds([Math]::Max(1,$TimeoutSec))}
+    function Get-CompatibleLatest($Release) {
+        $compatible = Select-PCVRLegacyReleasePayload $Release
+        if ($compatible) { return $compatible }
+        $selected = Resolve-GitHubReleaseAsset -Repo $repo -SkipReleasesWithoutMatchingAsset -ScanFast:$budget.Fast
+        if (!$selected.Resolved) { throw $selected.Error }
+        $exactUri = "https://api.github.com/repos/$repo/releases/tags/$([uri]::EscapeDataString($selected.Tag))"
+        $exact = Invoke-PCVRRestMethod -Uri $exactUri -Headers $Headers -TimeoutSec $TimeoutSec
+        $compatible = Select-PCVRLegacyReleasePayload $exact
+        if (!$compatible -or $compatible.tag_name -cne $selected.Tag -or $compatible.draft -or $compatible.prerelease -or
+            $selected.AssetName -cnotin @($compatible.assets | ForEach-Object name)) {
+            throw 'The selected stable PC release could not be confirmed.'
+        }
+        return $compatible
+    }
     try{
         if($route.StartsWith('commits/')){
             $branch=$route.Substring(8)
@@ -598,9 +709,17 @@ function global:Invoke-PCVRRestMethod {
             }
             if(-not $tag){throw 'The current stable release tag could not be read from the publisher page.'}
             $section=([regex]::Match([string]$reply.Content,'(?s)<section id="release-'+[regex]::Escape([Net.WebUtility]::HtmlEncode($tag))+'"[^>]*>(.*?)(?=<section id="release-|\z)')).Value
-            if(-not $section -and $route.StartsWith('releases/tags/') -and [string]$reply.FinalUrl -notmatch ('/releases/tag/'+[regex]::Escape([uri]::EscapeDataString($tag))+'(?:[?#]|$)')){throw 'The requested exact release tag was not confirmed.'}
+            if($route.StartsWith('releases/tags/') -and [string]$reply.FinalUrl -cnotmatch ('/releases/tag/'+[regex]::Escape([uri]::EscapeDataString($tag))+'(?:[?#]|$)')){throw 'The requested exact release tag was not confirmed.'}
+            if(-not $section){
+                # Single-release pages use Box-body rather than the listing's
+                # release-TAG sections. Exclude navigation timestamps before
+                # reading the release date, notes and prerelease badge.
+                $section=([regex]::Match([string]$reply.Content,'(?s)<div\b[^>]*class="[^"]*\bBox-body\b[^"]*"[^>]*>.*')).Value
+                if(-not $section){throw 'The selected release body could not be read.'}
+            }
             $release=Get-PCVRGitHubReleaseFromWeb -Repo $repo -Tag $tag -Section $section -Budget $budget
             if($route -eq 'releases/latest' -and $release.prerelease){throw 'The stable release route returned a prerelease.'}
+            if($route -eq 'releases/latest'){return Get-CompatibleLatest $release}
             return $release
         }
         $limit=30;$pageNumber=1
@@ -621,12 +740,17 @@ function global:Invoke-PCVRRestMethod {
             if($releases.Count -ge $limit -or $sections.Count -lt 10){break}
         }
         # Preserve the object/array contract of Invoke-RestMethod on PS5.1.
-        return ,$releases
+        return ,@($releases | ForEach-Object { Select-PCVRLegacyReleasePayload $_ } | Where-Object { $_ })
     }catch{
         $webError=$_.Exception.Message
         $remaining=if($budget.Fast){[int][Math]::Floor(($budget.End-[DateTime]::UtcNow).TotalSeconds)}else{$TimeoutSec}
         if($remaining -le 0){throw ('GitHub public metadata could not be checked: '+$webError)}
-        try{return Invoke-RestMethod -Uri $Uri -Headers $Headers -TimeoutSec $remaining -ErrorAction Stop}
+        try{
+            $reply=Invoke-RestMethod -Uri $Uri -Headers $Headers -TimeoutSec $remaining -ErrorAction Stop
+            if($route -eq 'releases/latest'){return Get-CompatibleLatest $reply}
+            if($route -eq 'releases'){return ,@($reply | ForEach-Object { Select-PCVRLegacyReleasePayload $_ } | Where-Object { $_ })}
+            return $reply
+        }
         catch{throw ('GitHub public metadata could not be checked (website: '+$webError+'; optional REST: '+$_.Exception.Message+'). Retry or use the official release page/manual file.')}
     }
 }

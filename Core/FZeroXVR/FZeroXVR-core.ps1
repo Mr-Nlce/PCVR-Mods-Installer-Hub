@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # F-Zero X VR Installer (FZeroX-VR by RaYRoD)
 # ============================================================
 # FZeroX-VR is a VR build of G-Diffuser, Zorkats' native PC port
@@ -84,6 +84,7 @@ Write-Host "  So this installer fetches that app, you pick where it goes," -Fore
 Write-Host "  and Start in VR opens it from then on." -ForegroundColor White
 Write-Host ""
 $mvrhExe = Install-MultiverseVRHub
+if (-not $mvrhExe) { throw 'Multiverse VR Hub setup did not complete. Retry to download or supply the Windows executable.' }
 if ($mvrhExe) {
     # Start in VR points at HIS hub. We claim NOTHING about which
     # games live in there - we only bring the user back to the place

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  PCVR Mods Installer Hub - installer log wrapper
 # ============================================================
 # Runs a single installer with its console output captured to
@@ -33,6 +33,35 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+$installerLockKey = if ([IO.Path]::DirectorySeparatorChar -eq '/') { 'user_' + [Environment]::UserName } else { [Security.Principal.WindowsIdentity]::GetCurrent().User.Value }
+if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA) {
+    $testRoot = [IO.Path]::GetFullPath($env:PCVR_HUB_TEST_LOCALAPPDATA).TrimEnd('\','/').ToUpperInvariant()
+    $hash = [Security.Cryptography.SHA256]::Create()
+    try { $installerLockKey += '_' + [BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($testRoot))) }
+    finally { $hash.Dispose() }
+}
+$installerLock = [Threading.Mutex]::new($false, ('Local\PCVRModsHub_Installer_' + $installerLockKey))
+$installerLockHeld = $false
+$privateStatusPath = ''
+try {
+    try { $installerLockHeld = $installerLock.WaitOne(0) }
+    catch [Threading.AbandonedMutexException] { $installerLockHeld = $true }
+    if (-not $installerLockHeld) {
+        Write-Host 'Another Hub installer is running. Finish or close it before starting this one.' -ForegroundColor Yellow
+        if (-not $NoProcessExit) { exit 73 }
+        $global:LASTEXITCODE = 73
+        return
+    }
+
+# Only the wrapper can see the in-flight receipt. Scans and other Hub windows
+# read the normal path after the child returns from its last prompt.
+$publishedStatusPath = $StatusPath
+if ($publishedStatusPath) {
+    $publishedStatusPath = [IO.Path]::GetFullPath($publishedStatusPath)
+    $privateStatusPath = [IO.Path]::Combine([IO.Path]::GetDirectoryName($publishedStatusPath), ('install_.active-' + [Guid]::NewGuid().ToString('N') + '.json'))
+    $StatusPath = $privateStatusPath
+    if ([IO.File]::Exists($publishedStatusPath)) { [IO.File]::Delete($publishedStatusPath) }
+}
 $recoveryModule = Join-Path (Split-Path -Parent $PSCommandPath) 'Modules\InstallerRecovery.ps1'
 if (-not (Test-Path -LiteralPath $recoveryModule -PathType Leaf)) { throw "Universal installer recovery module is missing: $recoveryModule" }
 . $recoveryModule
@@ -287,10 +316,7 @@ function Get-RecordedInstallRoot {
     return $null
 }
 
-# Defence in depth: Start-LoggedInstaller already clears this marker before
-# spawning us, but the wrapper is also used directly by regression tests and
-# may be called by future launch routes. A previous success must never be
-# mistaken for the result of this run.
+# A retry must start with fresh evidence from its own attempt.
 if (-not [string]::IsNullOrWhiteSpace($StatusPath) -and (Test-Path -LiteralPath $StatusPath -PathType Leaf)) {
     try { Remove-Item -LiteralPath $StatusPath -Force -ErrorAction Stop } catch {}
 }
@@ -321,8 +347,9 @@ function Write-FreshInstallerSuccessResult {
             if ($governed.contractId) {
                 $version = if ($governed.versionWritten) { [string]$governed.versionValue }
                            elseif ($governed.versionBWritten) { [string]$governed.versionBValue }
+                           elseif ($governed.versionCWritten) { [string]$governed.versionCValue }
                            else { '' }
-                $stamp = if ($governed.versionBWritten -and -not $governed.versionWritten) { '.pcvrhub_version_b' } else { '.pcvrhub_version' }
+                $stamp = if ($governed.versionWritten) { '.pcvrhub_version' } elseif ($governed.versionBWritten) { '.pcvrhub_version_b' } else { '.pcvrhub_version_c' }
                 $root = [string]$governed.installedPath
                 if ($governed.outcome -ne 'success' -or
                     -not (@($governed.evidence) -contains 'payload') -or
@@ -345,6 +372,8 @@ function Write-FreshInstallerSuccessResult {
         $afterVersionC = Get-MarkerSnapshot -Path $VersionPathC
         $afterInstallPath = Get-MarkerSnapshot -Path $InstallPath
         $afterRoot = Get-RecordedInstallRoot -Path $InstallPath
+        # Linux/pwsh only: installers build roots like "$lib\steamapps\common\X".
+        if ([IO.Path]::DirectorySeparatorChar -eq '/' -and $afterRoot) { $afterRoot = ([string]$afterRoot).Replace('\','/') }
         $afterGameVersion  = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version' } else { '' })
         $afterGameVersionB = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version_b' } else { '' })
         $afterGameVersionC = Get-MarkerSnapshot -Path $(if ($afterRoot) { Join-Path $afterRoot '.pcvrhub_version_c' } else { '' })
@@ -467,6 +496,11 @@ function Invoke-InstallerCoreRunspace {
             $liveTranscript = $false
             try {
                 . $RecoveryModulePath
+                # Linux/pwsh only: COM stand-ins (desktop shortcuts) for Windows installers.
+                if ([IO.Path]::DirectorySeparatorChar -eq '/') {
+                    $linuxShim = Join-Path (Split-Path (Split-Path $RecoveryModulePath -Parent) -Parent) 'Linux/LinuxInstallerShim.ps1'
+                    if (Test-Path -LiteralPath $linuxShim) { . $linuxShim }
+                }
                 Enable-PCVRReadHostPathGuard
                 if ($LiveTranscriptPath) {
                     Start-Transcript -LiteralPath $LiveTranscriptPath -Append -ErrorAction Stop | Out-Null
@@ -524,7 +558,7 @@ function Invoke-InstallerCoreRunspace {
             Success = $success
             ExitCode = $(if ($hasNumericExit) { $numericExit } else { $null })
             State = $state
-            Failure = $invokeFailure
+            Failure = $(if ($invokeFailure) { $invokeFailure } elseif ($pipeline.Streams.Error.Count) { $pipeline.Streams.Error[$pipeline.Streams.Error.Count - 1] })
             Reason = $reason
             Capture = @($capture)
         }
@@ -566,11 +600,22 @@ function Save-InstallerCoreCapture {
     } catch {}
 }
 
+function Publish-InstallerReceipt {
+    if ($privateStatusPath -and [IO.File]::Exists($privateStatusPath)) {
+        [IO.File]::Move($privateStatusPath, $publishedStatusPath)
+    }
+}
+
+$reviewCompletion = $false
 try {
     if ($bootstrapFailure) { throw $bootstrapFailure }
     if ($coreScript -and (Test-Path $coreScript)) {
         $coreResult = Invoke-InstallerCoreRunspace -Path $coreScript -Arguments $coreArgs -TranscriptPath $log
         Save-InstallerCoreCapture -Result $coreResult
+        if ($coreResult.ExitCode -eq 75) {
+            $wrapperExitCode = 75
+            break InstallerRun
+        }
         if (-not $coreResult.Success) {
             $why = if ($coreResult.Failure) { $coreResult.Failure.Exception.Message }
                    elseif ($coreResult.Reason) { $coreResult.Reason.Message }
@@ -578,6 +623,7 @@ try {
                    else { "Installer stopped in state $($coreResult.State)." }
             throw $why
         }
+        $reviewCompletion = $privateStatusPath -and [IO.File]::Exists($privateStatusPath)
         Write-FreshInstallerSuccessResult
         if((Test-PCVRInstallerCaptureFailureSignal -Result $coreResult) -and
            (-not $StatusPath -or -not(Test-Path -LiteralPath $StatusPath -PathType Leaf))){
@@ -587,9 +633,15 @@ try {
         # Could not resolve a core .ps1: run the bat the old way. No pipe, so
         # colors still work; the bat's nested powershell just isn't captured.
         & cmd.exe /c $BatPath
+        if ($LASTEXITCODE -eq 75) {
+            $wrapperExitCode = 75
+            break InstallerRun
+        }
         if ($LASTEXITCODE -ne 0) { throw "Installer stopped with exit code $LASTEXITCODE." }
+        $reviewCompletion = $privateStatusPath -and [IO.File]::Exists($privateStatusPath)
         Write-FreshInstallerSuccessResult
     }
+    Publish-InstallerReceipt
     break InstallerRun
 } catch {
     $wrapperExitCode = 1
@@ -597,6 +649,21 @@ try {
         Add-Content -LiteralPath $log -Value ("[WRAPPER] Failure: " + (ConvertTo-PrivacySafeInstallerLogText ([string]$_.Exception.Message))) -Encoding UTF8 -ErrorAction SilentlyContinue
     } catch {}
     $failureMessage=$_.Exception.Message
+    if ($reviewCompletion) {
+        $wrapperExitCode = 74
+        while (Read-PCVRInstallerCompletionReview -FailureMessage $failureMessage -LogPath $log) {
+            try {
+                Write-FreshInstallerSuccessResult
+                Publish-InstallerReceipt
+                $wrapperExitCode = 0
+                break InstallerRun
+            } catch {
+                $failureMessage = $_.Exception.Message
+                Add-Content -LiteralPath $log -Value ('[WRAPPER] Completion recheck: ' + (ConvertTo-PrivacySafeInstallerLogText $failureMessage)) -Encoding UTF8 -ErrorAction SilentlyContinue
+            }
+        }
+        break InstallerRun
+    }
     $installerFolder = if ($coreScript) { Split-Path -Parent $coreScript } elseif ($BatPath) { Split-Path -Parent $BatPath } else { $wrapperDir }
     while ($true) {
         try {
@@ -633,7 +700,7 @@ try {
 }
 
 try {
-    $transaction = if ($StatusPath -and (Test-Path -LiteralPath $StatusPath -PathType Leaf)) { 'confirmed' } else { 'not confirmed' }
+    $transaction = if ($wrapperExitCode -eq 0 -and $publishedStatusPath -and [IO.File]::Exists($publishedStatusPath)) { 'confirmed' } else { 'not confirmed' }
     Add-Content -LiteralPath $log -Value ("[WRAPPER] Finished with exit code {0}; installation transaction: {1}." -f $wrapperExitCode,$transaction) -Encoding UTF8 -ErrorAction SilentlyContinue
 } catch {}
 if ($null -eq $oldInstallStatusPath) { Remove-Item Env:PCVR_HUB_INSTALL_STATUS_PATH -ErrorAction SilentlyContinue } else { $env:PCVR_HUB_INSTALL_STATUS_PATH = $oldInstallStatusPath }
@@ -648,3 +715,10 @@ if ($installerTempSession -and $wrapperExitCode -eq 0) {
 if ($null -eq $oldInstallerTemp) { Remove-Item Env:TEMP -ErrorAction SilentlyContinue } else { $env:TEMP = $oldInstallerTemp }
 if ($null -eq $oldInstallerTmp) { Remove-Item Env:TMP -ErrorAction SilentlyContinue } else { $env:TMP = $oldInstallerTmp }
 if (-not $NoProcessExit) { exit $wrapperExitCode }
+} finally {
+    if ($privateStatusPath) {
+        try { [IO.File]::Delete($privateStatusPath) } catch {}
+    }
+    if ($installerLockHeld) { $installerLock.ReleaseMutex() }
+    $installerLock.Dispose()
+}

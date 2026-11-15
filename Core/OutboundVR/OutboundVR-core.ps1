@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Outbound VR Mod Installer
 # OutboundVR by Destroyjevski - distributed via Nexus Mods
 #
@@ -103,6 +103,7 @@ function Restore-OutboundSnapshot([object[]]$Items) {
 }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -137,7 +138,7 @@ function Find-OutboundGamePath {
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = "$lib\steamapps\common\Outbound"
- if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'outbound-vr' -Root $candidate) { return $candidate } }
  }
  }
  # Step 2: Epic Games Store fallback
@@ -147,12 +148,12 @@ function Find-OutboundGamePath {
  "C:\Program Files\Epic Games\Outbound",
  "D:\Epic Games\Outbound", "E:\Epic Games\Outbound"
  )) {
- if (Test-Path -LiteralPath "$ep\$GAME_EXE") { return $ep }
+ if (Test-Path -LiteralPath "$ep\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'outbound-vr' -Root $ep) { return $ep } }
  }
  # Step 3: Xbox / Microsoft Store / PC Game Pass fallback - the game
  # ROOT is the Content folder.
  foreach ($xb in @("C:\XboxGames\Outbound\Content", "D:\XboxGames\Outbound\Content", "E:\XboxGames\Outbound\Content")) {
- if (Test-Path -LiteralPath "$xb\$GAME_EXE") { return $xb }
+ if (Test-Path -LiteralPath "$xb\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'outbound-vr' -Root $xb) { return $xb } }
  }
  return $null
 }
@@ -244,16 +245,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Outbound folder" -ForegroundColor White
  Write-Host " (the game ROOT folder, where $GAME_EXE lives)." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Outbound folder").Trim().Trim('"').Trim("'")
- if (-not $r) { continue }
- if (Test-Path -LiteralPath $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Outbound' -HubGameId 'outbound-vr' -ProbeFile 'Outbound.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

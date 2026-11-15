@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
@@ -18,6 +18,8 @@ $script:VHContract=New-PCVRInstallerContract -Id $script:VHId -GameName 'Vampire
     -RequiredInstalledFileGroups $script:VHRequired
 
 function Test-VHGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'vampire-hunters-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Vampire Hunters.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'UnityPlayer.dll') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'GameAssembly.dll') -PathType Leaf))

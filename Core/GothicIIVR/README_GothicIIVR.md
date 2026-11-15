@@ -1,7 +1,7 @@
 # Gothic II VR
 
 **VR port:** [gothic2-vr by dubrovskiy-yevhen-stakelogic](https://github.com/dubrovskiy-yevhen-stakelogic/gothic2-vr)  
-**Current release checked:** [v0.2.0](https://github.com/dubrovskiy-yevhen-stakelogic/gothic2-vr/releases/tag/v0.2.0)  
+**Current release checked:** [v0.2.1](https://github.com/dubrovskiy-yevhen-stakelogic/gothic2-vr/releases/tag/v0.2.1)  
 **Flat2VR discussion:** [Gothic II VR thread](https://discord.com/channels/747967102895390741/1549536264657576046)  
 **Video:** [Gothic II gameplay](https://youtu.be/ROqIqK28Nrk?si=mygr6NINC_eo2P45&t=636) — **flat gameplay, not VR footage**.
 
@@ -13,7 +13,7 @@ Gothic II is a fantasy role-playing game set on Khorinis and in the Valley of Mi
 
 The Hub checks for the base game's `system\Gothic2.exe` and `Data` folder. It searches Steam Gold, GOG Galaxy Gold, GOG offline Gold, and the two supplied JoWooD retail locations. You can select another folder if necessary. The base game is never overwritten.
 
-The installer resolves the newest matching GitHub release and installs **only the `PCVR` content** from its combined PCVR/Quest ZIP into a separate folder (default `C:\Games\Gothic II VR`). It stores the selected base game path in `launcher-game-path.txt` and keeps existing `VR.ini`, `Gamepad.ini`, `Gothic.ini` and saves during updates. The Hub records owned files and the installed release only after the required runtime files are present. Do not put the PCVR folder inside the base game or the Hub.
+The installer resolves the newest GitHub release with a Windows package. It uses the dedicated PCVR ZIP or the `PCVR` folder of a combined ZIP and installs into a separate folder (default `C:\Games\Gothic II VR`). It stores the selected base game path in `launcher-game-path.txt` and keeps existing `VR.ini`, `Gamepad.ini`, `Gothic.ini` and saves during updates. The Hub records owned files and the installed release only after the required runtime files are present. Keep the PCVR folder separate from the base game and the Hub.
 
 For an update, run the same installer again and keep the same PCVR folder. A new GitHub release is offered by the Hub's normal update check. If automatic download fails, the installer offers retry and a manually downloaded publisher ZIP.
 

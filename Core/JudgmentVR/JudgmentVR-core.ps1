@@ -10,6 +10,8 @@ $contract = New-PCVRInstallerContract -Id $id -GameName 'Judgment VR' -Acquisiti
     -ReleasePageUrl $page -AntivirusNotice -RequiredInstalledFileGroups $required
 
 function Test-JudgmentGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'judgment-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'runtime\media\startup.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'runtime\media\Judgment.exe') -PathType Leaf))
 }

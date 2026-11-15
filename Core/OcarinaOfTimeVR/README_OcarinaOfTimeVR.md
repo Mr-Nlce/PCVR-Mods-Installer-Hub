@@ -5,8 +5,10 @@ Automated installer for **Shipwright-VR** by ShinyWindow - an OpenVR stereo-rend
 > **Alpha.** The mod renders the 3D geometry in VR; **menus, text and HUD icons stay on the flat game window** and do not line up in the headset yet. An internal framebuffer that removes the required window and MSAA settings is planned by the modder.
 
 ## What it does
-- Downloads the newest Shipwright-VR release from GitHub, so the Hub can flag updates and re-running the installer updates in place (saves, settings and your generated game archives are kept).
-- Installs to `C:\Games\Ocarina of Time VR` by default - you can pick any folder; no admin rights or UAC prompt needed at the default location.
+- Downloads the newest stable Shipwright-VR release with a Windows ZIP. Re-running the installer updates in place and keeps your saves, settings and generated game archives.
+- If the download fails, the installer offers the matching Windows release page and names the ZIP to select. Paste or drag the Windows ZIP into the installer, press [[Enter]], and enter its Shipwright-VR release tag before setup copies the files. The [publisher releases](https://github.com/ShinyWindow/Shipwright-VR/releases) also list separate Android and Quest packages.
+- Press Enter at the install-root prompt to try `C:\Games`, `D:\Games`, `E:\Games`, then `%LOCALAPPDATA%\PCVR Games`. The installer checks the staging folder and the `Ocarina of Time VR` game folder before downloading. You can also enter a writable root.
+- Updates reuse the saved game folder if it is writable. If it is blocked, choose a separate location or cancel. The previous installation and its files stay in place.
 - Lets you drop in your ROM right away, or leave it to `soh.exe`, which asks for the ROM on its first start.
 - Creates an **Ocarina of Time VR** desktop shortcut.
 
@@ -70,10 +72,14 @@ Ship of Harkinian keeps everything in its own custom menu. To open it in VR: **l
 3. On the very first start the game processes your ROM into its `.otr` archive, then Hyrule loads.
 
 ## Controls (motion controllers)
-- [[L-Stick]] move
-- [[R-Stick]] camera
-- Buttons follow the gamepad layout of Ship of Harkinian; the exact VR controller bindings are configurable in the in-game menu under **VR controller input**
-- **Slingshot aiming:** the pellets follow your **right controller**, not your head - aim with the right hand. Holding both controllers together like an actual slingshot makes it feel natural.
+
+| Button | Action |
+| --- | --- |
+| [[L-Stick]] | Move |
+| [[R-Stick]] | Camera |
+| [[Right Controller]] | Aim the slingshot |
+
+Buttons follow the Ship of Harkinian gamepad layout. Adjust the bindings in the in-game **VR controller input** menu.
 
 ## Known alpha limitations
 - **Indoor pre-rendered areas do not render properly.** Rooms that the original game draws with a pre-rendered backdrop come out broken in VR, so you have to feel your way to the exit. This is the mod's biggest open issue - expect it in houses, shops and similar interiors. The optional **Djipi's 3DS Experience** pack (see below) replaces those scenes with real 3D geometry and is the practical fix.

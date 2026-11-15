@@ -150,6 +150,7 @@ function Find-7Zip {
 }
 
 function Get-SteamPathP {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try {
             $v = Get-ItemProperty -Path $r -ErrorAction Stop
@@ -1074,7 +1075,7 @@ if ($peakMode -in @("1","2")) {
             Save-AndreyDepotPathRecords -GamePath $gamePath -Version $main.Version
         } else {
             Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
-            Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $main.Version -Encoding UTF8 -Force
+            Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $main.Version -Encoding UTF8 -Force
         }
     } catch {}
     # ALSO write the durable stamp next to the GAME (2026-08-20).

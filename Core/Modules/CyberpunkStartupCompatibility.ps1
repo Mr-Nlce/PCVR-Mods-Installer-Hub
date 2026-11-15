@@ -1,4 +1,4 @@
-# Compatibility checks shared by installation and both Hub/Desktop launchers.
+﻿# Compatibility checks shared by installation and both Hub/Desktop launchers.
 function Get-CyberpunkIncompatibleOccluderScripts {
     param([string]$GameRoot)
     $scripts=[IO.Path]::Combine($GameRoot,'r6\scripts')
@@ -57,4 +57,32 @@ function Get-CyberpunkCurrentStartupProblems {
         if($v -and [version]$v -lt [version]'0.2.22'){Write-Output ('Mod Settings '+$v+' is incompatible with game 2.5. Run the Hub Current installer to update it; your settings and original files are kept.')}
     }
     if(@(Get-CyberpunkIncompatibleOccluderScripts -GameRoot $GameRoot).Count){Write-Output 'The installed More Occluders script cannot compile on game 2.5. Run the Hub Current installer to back it up and disable it. It remains supported by the separate 2.31 Depot.'}
+}
+
+function Get-CyberpunkModernRequiredFiles {
+    param([string]$ModVersion='')
+    $base='red4ext\plugins\cyberpunkvrport\'
+    foreach($file in @('cyberpunkvrport.dll','archive\cyberpunkvrport.archive','config\archive.yaml','config\UserSettings.json','config\input\CyberpunkVRPort_ScannerHud.xml','redscript\scc_lib.dll','scripts\CyberpunkVRPort_EngineStereo\vrport_engine_stereo_menu.reds','lua\CyberpunkVRPort_Stereo\init.lua')){$base+$file}
+    $parsed=$null
+    if([version]::TryParse($ModVersion.TrimStart('v','V'),[ref]$parsed) -and $parsed -ge [version]'0.2.2'){
+        $base+'dxc\dxcompiler.dll';$base+'dxc\dxil.dll'
+    }
+}
+
+function Get-CyberpunkPortVersionHint {
+    param([string]$GameRoot)
+    # Hints only strengthen required files; none establishes an installation,
+    # an exact installed version, ownership or a base-game proof.
+    $versions=@()
+    foreach($leaf in @('.pcvrhub_version','.pcvrhub_cyberpunk_25_profile.json','INSTALL.txt')){
+        $path=[IO.Path]::Combine($GameRoot,$leaf)
+        if(-not [IO.File]::Exists($path)){continue}
+        try{
+            $text=[IO.File]::ReadAllText($path)
+            $value=if($leaf -like '*.json'){[string](($text|ConvertFrom-Json).VRModVersion)}elseif($leaf -eq 'INSTALL.txt'){([regex]::Match($text,'(?im)^CyberpunkVRPort\s+v?(\d+\.\d+\.\d+)\s*$')).Groups[1].Value}else{$text.Trim()}
+            $v=$null;if([version]::TryParse($value.TrimStart('v','V'),[ref]$v)){$versions+=@($v)}
+        }catch{}
+    }
+    if($versions.Count){return [string]($versions|Sort-Object -Descending|Select-Object -First 1)}
+    return ''
 }

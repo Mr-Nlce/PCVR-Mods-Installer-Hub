@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Mario Kart 64 VR - Installer (SpaghettiKart VR by RaYRoD)
 # ============================================================
 # Mario Kart 64 in PCVR, built on SpaghettiKart (the Mario Kart 64
@@ -88,6 +88,7 @@ Write-Host "  So this installer fetches that app, you pick where it goes," -Fore
 Write-Host "  and Start in VR opens it from then on." -ForegroundColor White
 Write-Host ""
 $mvrhExe = Install-MultiverseVRHub
+if (-not $mvrhExe) { throw 'Multiverse VR Hub setup did not complete. Retry to download or supply the Windows executable.' }
     if ($mvrhExe) {
         # Start in VR points at HIS hub. We claim NOTHING about
         # which games live in there - we only bring the user back to the

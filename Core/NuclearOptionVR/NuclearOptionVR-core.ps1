@@ -22,6 +22,8 @@ function Stop-NOVRInstaller { param([int]$Code=0) Write-Host ''; Read-Host '  Pr
 
 function Test-NuclearOptionRoot {
     param([string]$Path)
+    if (-not (Test-PCVRGameInstallProof -GameId 'nuclear-option-vr' -Root $Path)) { return $false }
+
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Container)) { return $false }
     return (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf) -and
            (Test-Path -LiteralPath (Join-Path $Path 'NuclearOption_Data') -PathType Container)

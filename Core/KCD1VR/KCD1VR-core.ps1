@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -10,7 +10,9 @@ $REQUIRED=@('Bin\Win64\dinput8.dll','Bin\Win64\nvngx_dlss.dll','Bin\Win64\KCD1VR
 $contract=New-PCVRInstallerContract -Id 'kingdom-come-deliverance-vr' -GameName 'Kingdom Come: Deliverance VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl "https://github.com/$REPO/releases" -RequiredInstalledFileGroups @($REQUIRED+@(".pcvrhub_${IDENTITY}_ownership.csv"))
 
 function Write-KCDStep([int]$n,[string]$t){Write-Host '';Write-Host "--- [$n/6] $t ---" -ForegroundColor Cyan;Write-Host ''}
-function Test-KCDRoot([string]$p){[bool]($p -and (Test-Path (Join-Path $p $GAME_EXE) -PathType Leaf) -and (Test-Path (Join-Path $p 'Data') -PathType Container))}
+function Test-KCDRoot([string]$p){
+    if (-not (Test-PCVRGameInstallProof -GameId 'kingdom-come-deliverance-vr' -Root $p)) { return $false }
+[bool]($p -and (Test-Path (Join-Path $p $GAME_EXE) -PathType Leaf) -and (Test-Path (Join-Path $p 'Data') -PathType Container))}
 function Test-KCDPayload([string]$p){[bool]($p -and (Test-Path (Join-Path $p 'dist\dinput8.dll') -PathType Leaf) -and (Test-Path (Join-Path $p 'dist\KCD1VR.ini') -PathType Leaf) -and (Test-Path (Join-Path $p 'dist\KCD1VRResolution.exe') -PathType Leaf) -and (Get-ChildItem (Join-Path $p 'dist') -Filter 'KCD1VR*.cfg' -File -ErrorAction SilentlyContinue))}
 function Get-KCDRoot {$p=Find-SteamGameFolder -AppId $APP_ID -SteamFolderNames @('KingdomComeDeliverance') -ProbeExe $GAME_EXE -HubGameId 'kingdom-come-deliverance-vr';if(Test-KCDRoot $p){return (Get-Item $p).FullName};foreach($f in @('C:\Program Files (x86)\Steam\steamapps\common\KingdomComeDeliverance','C:\Program Files\Steam\steamapps\common\KingdomComeDeliverance')){if(Test-KCDRoot $f){return (Get-Item $f).FullName}};$p=Get-GameFolderInteractive -GameName 'Kingdom Come: Deliverance' -ProbeFile $GAME_EXE -ManualUrl 'https://github.com/farmerarmor/KCD1VR#installation';if($p -and $p -notin @('quit','skip') -and (Test-KCDRoot $p)){return (Get-Item $p).FullName};return $null}
 function Get-KCDRelease {$r=Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $true -AssetPatterns @('(?i)^KCD1VR-.*\.zip$') -FallbackUrl $FALLBACK_URL -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET -SkipReleasesWithoutMatchingAsset;[pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Name=[string]$r.AssetName;PageUrl=[string]$r.PageUrl}}

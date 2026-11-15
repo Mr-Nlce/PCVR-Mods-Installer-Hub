@@ -1,5 +1,11 @@
 @echo off
 title PCVR Mods Installer Hub
+if /I "%~1"=="--powershell" goto :powershell_hub
+if exist "%~dp0Core\Utils\pcvr-hub.exe" (
+    start "" /D "%~dp0Core" "%~dp0Core\Utils\pcvr-hub.exe"
+    exit /b 0
+)
+:powershell_hub
 rem -------------------------------------------------------------
 rem  The splash owns the Hub launch: it first removes the stale ready
 rem  signal, then starts the Hub and remains visible until the activated

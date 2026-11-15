@@ -40,6 +40,9 @@ function global:Install-OwnedModPayload {
         # Ordinary user-edited files still fail closed.
         [string[]]$ReplaceChangedOwnedRelativePaths = @(),
         [switch]$AdoptIdenticalExisting,
+        # Reconcile a publisher file already updated outside the Hub while
+        # keeping its original backup and protecting unrelated local edits.
+        [switch]$ReconcileIdenticalOwnedFiles,
         [string]$ProgressLabel = ''
     )
     $manifest = Join-Path $GameRoot ".pcvrhub_${Identity}_ownership.csv"
@@ -93,6 +96,15 @@ function global:Install-OwnedModPayload {
                 $currentSha = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
                 if ($prior.InstalledSha256 -and $currentSha -ne [string]$prior.InstalledSha256 -and
                     $replaceChangedOwned -notcontains $relative) {
+                    if ($ReconcileIdenticalOwnedFiles -and
+                        $currentSha -eq (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) {
+                        # A manual install already put this exact package file
+                        # in place. Retain the original uninstall backup.
+                        $rows.Add([pscustomobject]@{
+                            RelativePath=$relative; HadOriginal=$hadOriginal; InstalledSha256=$currentSha
+                        })
+                        continue
+                    }
                     throw "Refusing to overwrite a file changed after installation: $relative"
                 }
             }

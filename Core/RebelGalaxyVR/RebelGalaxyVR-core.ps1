@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Rebel Galaxy VR - Installer (RebelGalaxyVR by Destroyjevski)
 # ============================================================
 #  Stereoscopic OpenXR VR for Rebel Galaxy: 6DoF head tracking,
@@ -128,6 +128,8 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 # guard every probe.
 function Test-RGRoot {
     param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'rebel-galaxy-vr' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     try {
         if (-not (Test-Path -LiteralPath $Root)) { return $false }
@@ -494,7 +496,7 @@ if ($missing.Count -eq 0) {
 #  Hub markers + launch route
 # -------------------------------------------------------
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
+try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

@@ -1,4 +1,4 @@
-# Painkiller: Overdose VR - governed stable GitHub installer.
+﻿# Painkiller: Overdose VR - governed stable GitHub installer.
 # The publisher ships a standalone VR launcher which lives beside Bin and Data.
 # The original Bin\Overdose.exe remains the unchanged Flat launch route.
 
@@ -30,6 +30,8 @@ function Write-PKODWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundCo
 function Write-PKODInfo([string]$Text) { Write-Host "  $Text" -ForegroundColor Gray }
 
 function Test-PKODGameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'painkiller-overdose-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and
         (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue) -and
         (Test-Path -LiteralPath (Join-Path $Path 'Bin') -PathType Container -ErrorAction SilentlyContinue) -and

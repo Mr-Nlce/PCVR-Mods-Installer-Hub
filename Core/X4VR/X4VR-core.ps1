@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -16,6 +16,8 @@ $script:X4Contract = New-PCVRInstallerContract -Id 'x4-foundations-vr' -GameName
     -RequiredInstalledFileGroups $script:X4Required
 
 function Test-X4BaseGame([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'x4-foundations-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path 'X4.exe') -PathType Leaf))
 }
 function Get-X4GameRoot {

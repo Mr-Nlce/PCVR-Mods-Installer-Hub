@@ -1,4 +1,4 @@
-# Aliens versus Predator 2 VR
+﻿# Aliens versus Predator 2 VR
 
 Bassquake's motion-controlled VR mod for the original 2001 PC game. Free game download available through the community Easy Installer.
 
@@ -34,6 +34,8 @@ Alternative: the Aliens versus Predator 2 VR desktop shortcut. The Hub calls Cor
 
 Flat / VR parks DDraw.dll for flat play. The same start button then opens the original AVP2.exe launcher; press Play. Switch back to VR before playing in the headset. Updating a flat installation keeps it flat.
 
+Version 0.5 adds Alien head biting: approach until teeth appear, then use [[Trigger]]. Publisher manual update scripts replace avp2xr.ini, so back up personal changes before using them. The Hub retains its base-game route and preserves its existing settings. The new Primal Hunt expansion route needs both games and separate setup; it is not installed by this tile.
+
 ## Controls
 
 ![Controller layout](../Assets/AliensPredator2VR_controls.jpg)
@@ -60,11 +62,11 @@ Default Touch layout; controller bindings and weapon alignment can be adjusted i
 
 ## Help
 
-If the game stays on the monitor, check SteamVR and the 32-bit runtime first. The [publisher release notes](https://github.com/Bassquake/Aliens-Versus-Predator-2-VR/releases/tag/0.4) also recommend the DirectX End-User Runtime June 2010 and VC++ x86 runtimes (2015–2022 and 2008/2010). Install official Microsoft packages and restart Windows when requested.
+If the game stays on the monitor, check SteamVR and the 32-bit runtime first. The [publisher release notes](https://github.com/Bassquake/Aliens-Versus-Predator-2-and-Primal-Hunt-VR/releases/tag/0.5) also recommend the DirectX End-User Runtime June 2010 and VC++ x86 runtimes (2015–2022 and 2008/2010). Install official Microsoft packages and restart Windows when requested.
 
 VR logs are in %LocalAppData%\avp2xr. The launcher also reads the corresponding Windows VirtualStore copy of avp2cmds.txt when present. Game settings are in avp2xr.ini; edited configurations stay during updates and removal.
 
-[Publisher](https://github.com/Bassquake/Aliens-Versus-Predator-2-VR) · [Flat2VR invite](https://discord.gg/uAeQkYBM4n) · [Discussion](https://discord.com/channels/747967102895390741/1554884770951864410) · [VR gameplay](https://youtu.be/4kNUM0h5kPE?t=64)
+[Publisher](https://github.com/Bassquake/Aliens-Versus-Predator-2-and-Primal-Hunt-VR) · [Flat2VR invite](https://discord.gg/uAeQkYBM4n) · [Discussion](https://discord.com/channels/747967102895390741/1554884770951864410) · [VR gameplay](https://youtu.be/4kNUM0h5kPE?t=64)
 
 ## Uninstall
 

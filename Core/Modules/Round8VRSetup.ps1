@@ -46,7 +46,8 @@ function Get-Round8Game($Profile,$Test) {
   $saved=Get-PCVRRememberedGameFolder -GameId $Profile.Id -StateNames @($stateName) -ProbeFiles @()
   $root=Resolve-Round8GameRoot $Profile $saved;if($root){return $root}
  }
- if($Profile.App){try{$root=Resolve-Round8GameRoot $Profile (Find-SteamGameFolder -AppId $Profile.App -SteamFolderNames @($Profile.Game) -ProbeExe $Profile.Exe -HubGameId $Profile.Id);if($root){return $root}}catch{}}
+ $gogNames=@(if($Profile.Key -eq 'TombLegend'){'Tomb Raider Legend'})
+ if($Profile.App){try{$root=Resolve-Round8GameRoot $Profile (Find-SteamGameFolder -AppId $Profile.App -SteamFolderNames @($Profile.Game) -GogNames $gogNames -ProbeExe $Profile.Exe -HubGameId $Profile.Id);if($root){return $root}}catch{}}
  $paths=switch($Profile.Key){
   'BlackWhite'{@('C:\Program Files (x86)\Lionhead Studios Ltd\Black & White','C:\Black & White')}
   'TombLegend'{@('C:\GOG Games\Tomb Raider Legend','C:\Program Files (x86)\GOG Galaxy\Games\Tomb Raider Legend')}

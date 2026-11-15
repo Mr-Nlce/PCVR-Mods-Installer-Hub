@@ -68,27 +68,85 @@ function Protect-InkVRDepotLocation([string]$InstallerFolder,$Test) {
   return
  }
 }
-function Expand-InkOpenXRPackage([string]$Archive,[string]$Stage){
- # Read the official gzip/tar format directly. Only the three functional runtime
- # members are copied; no archive path, link or executable extraction is trusted.
- $wanted=@{'package/Runtime/windows/x64/UnityOpenXR.dll'=$script:InkProvider[0];'package/RuntimeLoaders/windows/x64/openxr_loader.dll'=$script:InkProvider[1];'package/Runtime/UnitySubsystemsManifest.json'=$script:InkProvider[2]}
- $input=[IO.File]::OpenRead($Archive);$gzip=[IO.Compression.GZipStream]::new($input,[IO.Compression.CompressionMode]::Decompress);$tar=[IO.MemoryStream]::new()
- try{$gzip.CopyTo($tar);$bytes=$tar.ToArray()}finally{$gzip.Dispose();$input.Dispose();$tar.Dispose()}
- $offset=0;$copied=@{}
- while($offset+512 -le $bytes.Length -and $bytes[$offset] -ne 0){
-  $name=[Text.Encoding]::UTF8.GetString($bytes,$offset,100).Split([char]0)[0];$prefix=[Text.Encoding]::UTF8.GetString($bytes,$offset+345,155).Split([char]0)[0]
-  if($prefix){$name=$prefix+'/'+$name};$name=$name.Replace('\','/')
-  if($name -match '(^/|^[a-zA-Z]:|(^|/)\.\.(/|$))'){throw 'Unsafe Unity package path.'}
-  $sizeText=[Text.Encoding]::ASCII.GetString($bytes,$offset+124,12).Trim([char[]]@([char]0,[char]32));$length=[Convert]::ToInt64($sizeText,8);$data=$offset+512
-  if($length -lt 0 -or $data+$length -gt $bytes.Length){throw 'Incomplete Unity OpenXR package.'}
-  if($wanted.ContainsKey($name)){
-   if($bytes[$offset+156] -notin @(0,48) -or $copied.ContainsKey($name)){throw 'Invalid or duplicate Unity runtime member.'}
-   $target=Join-Path $Stage $wanted[$name];[void][IO.Directory]::CreateDirectory((Split-Path $target));$file=[IO.File]::Create($target)
-   try{$file.Write($bytes,$data,[int]$length)}finally{$file.Dispose()};$copied[$name]=$true
-  }
-  $offset=$data+[int64]([Math]::Ceiling($length/512.0)*512)
- }
- foreach($name in $wanted.Keys){if(-not $copied.ContainsKey($name)){throw ('Unity package lacks '+$name)}}
+function Read-InkTarNumber([byte[]]$Header,[int]$Offset,[int]$Width) {
+    $text = [Text.Encoding]::ASCII.GetString($Header,$Offset,$Width).Trim([char[]]@([char]0,' '))
+    if ($text -notmatch '^[0-7]+$') { throw 'Invalid number in Unity package header.' }
+    return [Convert]::ToInt64($text,8)
+}
+
+function Copy-InkTarBytes([IO.BinaryReader]$Reader,[long]$Length,[byte[]]$Buffer,[IO.Stream]$Destination) {
+    while ($Length -gt 0) {
+        $read = $Reader.Read($Buffer,0,[int][Math]::Min($Buffer.Length,$Length))
+        if ($read -le 0) { throw 'Incomplete Unity OpenXR package.' }
+        if ($Destination) { $Destination.Write($Buffer,0,$read) }
+        $Length -= $read
+    }
+}
+
+function Expand-InkOpenXRPackage([string]$Archive,[string]$Stage) {
+    $wanted = @{
+        'package/Runtime/windows/x64/UnityOpenXR.dll' = $script:InkProvider[0]
+        'package/RuntimeLoaders/windows/x64/openxr_loader.dll' = $script:InkProvider[1]
+        'package/Runtime/UnitySubsystemsManifest.json' = $script:InkProvider[2]
+    }
+    $stream = [IO.File]::OpenRead($Archive)
+    try {
+        $gzip = [IO.Compression.GZipStream]::new($stream,[IO.Compression.CompressionMode]::Decompress)
+        $reader = [IO.BinaryReader]::new($gzip)
+        try {
+            $buffer = [byte[]]::new(65536)
+            $emptyBlock = [byte[]]::new(512)
+            $copied = @{}
+            $total = [long]0
+            $endBlocks = 0
+            while ($true) {
+                $header = $reader.ReadBytes(512)
+                if ($header.Length -eq 0 -and $endBlocks -ge 2) { break }
+                if ($header.Length -ne 512) { throw 'Incomplete Unity OpenXR package trailer or header.' }
+                $total += 512
+                if ($total -gt 512MB) { throw 'Unity OpenXR package exceeds the extraction limit.' }
+                if ($header[0] -eq 0 -and [Collections.StructuralComparisons]::StructuralEqualityComparer.Equals($header,$emptyBlock)) {
+                    $endBlocks++
+                    continue
+                }
+                if ($endBlocks) { throw 'Unexpected data after the Unity OpenXR package trailer.' }
+
+                $checksum = 0
+                for ($i=0; $i -lt 512; $i++) {
+                    $checksum += if ($i -ge 148 -and $i -lt 156) { 32 } else { $header[$i] }
+                }
+                if ($checksum -ne (Read-InkTarNumber $header 148 8)) { throw 'Invalid Unity package header checksum.' }
+
+                $name = [Text.Encoding]::UTF8.GetString($header,0,100).Split([char]0)[0]
+                $prefix = [Text.Encoding]::UTF8.GetString($header,345,155).Split([char]0)[0]
+                if ($prefix) { $name = "$prefix/$name" }
+                $name = $name.Replace('\','/')
+                if ($name -match '(^/|^[a-zA-Z]:|(^|/)\.\.(/|$))') { throw 'Unsafe Unity package path.' }
+
+                $length = Read-InkTarNumber $header 124 12
+                $padding = (512 - ($length % 512)) % 512
+                if ($length -gt 512MB - $total - $padding) { throw 'Unity OpenXR package exceeds the extraction limit.' }
+                $total += $length + $padding
+
+                if ($wanted.ContainsKey($name)) {
+                    if ($header[156] -notin @(0,48) -or $copied.ContainsKey($name) -or $length -eq 0) {
+                        throw 'Invalid or duplicate Unity runtime member.'
+                    }
+                    $target = Join-Path $Stage $wanted[$name]
+                    [void][IO.Directory]::CreateDirectory((Split-Path $target))
+                    $file = [IO.File]::Create($target)
+                    try { Copy-InkTarBytes $reader $length $buffer $file } finally { $file.Dispose() }
+                    $copied[$name] = $true
+                    Copy-InkTarBytes $reader $padding $buffer
+                } else {
+                    Copy-InkTarBytes $reader ($length + $padding) $buffer
+                }
+            }
+            foreach ($name in $wanted.Keys) {
+                if (-not $copied.ContainsKey($name)) { throw "Unity package lacks $name." }
+            }
+        } finally { $reader.Dispose() }
+    } finally { $stream.Dispose() }
 }
 function Get-InkVRMissing([string]$Game,[string]$Phase){
  $missing=@();foreach($rel in $script:InkFiles){$p=Join-Path $Game $rel;$exists=Test-Path -LiteralPath $p -PathType Leaf;Write-PCVRFileCheckResult -Path $p -Present $exists -Phase $Phase -DisplayName $rel;if(-not $exists){$missing+=$p}};return $missing
@@ -131,8 +189,17 @@ function Invoke-InkVRSetup([string]$InstallerFolder){
   Expand-InkOpenXRPackage $unity $stage
   foreach($rel in $script:InkFiles){if(-not(Test-Path -LiteralPath (Join-Path $stage $rel) -PathType Leaf)){throw ('The complete package lacks '+$rel)}}
   $snapshot=Save-PCVRPublisherZipSnapshot -GameRoot $game -Stage $stage -Identity inkvr -SnapshotRoot (Join-Path $work 'rollback') -ExtraPaths @('.pcvrhub_inkvr_version')
-  $desktop=if($test){$test.Desktop}else{[Environment]::GetFolderPath('Desktop')};$linkPath=Join-Path $desktop 'Bendy InkVR.lnk';$shell=New-Object -ComObject WScript.Shell
-  if(Test-Path -LiteralPath $linkPath){$oldLink=[IO.File]::ReadAllBytes($linkPath);if($shell.CreateShortcut($linkPath).TargetPath -ine (Join-Path $game 'InkVR\InkVR Launcher.exe')){throw 'An unrelated desktop shortcut already uses Bendy InkVR. Rename it before Retry.'}}
+  $desktop = if ($test) { $test.Desktop } else { [Environment]::GetFolderPath('Desktop') }
+  $linkPath = Join-Path $desktop 'Bendy InkVR.lnk'
+  $launcher = Join-Path $game 'InkVR\InkVR Launcher.exe'
+  if (Test-Path -LiteralPath $linkPath) {
+      $existing = (New-Object -ComObject WScript.Shell).CreateShortcut($linkPath)
+      if ($existing.TargetPath -ine $launcher) {
+          throw 'An unrelated desktop shortcut already uses Bendy InkVR. Rename it before Retry.'
+      }
+      $oldLink = Join-Path $work 'previous-shortcut.lnk'
+      Copy-Item -LiteralPath $linkPath -Destination $oldLink
+  }
   [void](Wait-PCVRExplicitEnter -Message 'Press Enter to install InkVR and create its desktop shortcut...')
   $changed=$true
   [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $game -Identity inkvr -KeepExistingRelativePaths @('BepInEx\config','InkVR\InkVR-Payload\BepInEx\config') -ProgressLabel 'Installing InkVR')
@@ -141,7 +208,9 @@ function Invoke-InkVRSetup([string]$InstallerFolder){
   $missing=@(Get-InkVRMissing $game 'after-mode-preservation');if($missing.Count){throw 'Required InkVR files are missing. Check the target path, copy permissions and installer log; missing files alone do not establish an antivirus cause.'}
   if(-not(Confirm-PlacedFilesSurvive -Paths @($script:InkFiles|ForEach-Object{Join-Path $game $_}) -GameDir $game -NoClear)){throw 'Required InkVR files did not remain available.'}
   if(@(Get-InkVRMissing $game 'after-observation').Count){throw 'Required InkVR files are missing after observation.'}
-  $lnk=$shell.CreateShortcut($linkPath);$lnk.TargetPath=Join-Path $game 'InkVR\InkVR Launcher.exe';$lnk.Arguments='--play vr';$lnk.WorkingDirectory=Split-Path $lnk.TargetPath;$lnk.IconLocation=$lnk.TargetPath+',0';$lnk.Description='Bendy and the Ink Machine - InkVR';$linkChanged=$true;$lnk.Save()
+  $linkChanged = $true
+  $shortcut = New-DesktopShortcut -LnkPath $linkPath -TargetPath $launcher -WorkingDir (Split-Path $launcher) -IconPath ($launcher + ',0') -Arguments '--play vr' -Description 'Bendy and the Ink Machine - InkVR'
+  if (-not $shortcut) { throw 'The InkVR desktop shortcut could not be saved.' }
   if($test -and $test.Failure -eq 'commit'){throw 'Simulated InkVR commit failure.'}
   $contract=New-PCVRInstallerContract -Id 'bendy-vr' -GameName 'Bendy VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl 'https://github.com/StrikeZoneVR-hub/InkVR/releases' -Routes @('Current') -RequiredInstalledFileGroups (@($script:InkBase)+@($script:InkFiles)+@('.pcvrhub_inkvr_ownership.csv'))
   $receipt=if($test){$test.Receipt}else{Join-Path $InstallerFolder '.installed_path'}
@@ -155,7 +224,7 @@ function Invoke-InkVRSetup([string]$InstallerFolder){
   [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
  }catch{
   if($changed -and $snapshot){[void](Get-InkVRMissing $game 'before-rollback');try{Restore-PCVRPublisherZipSnapshot -GameRoot $game -Snapshot $snapshot;[void](Get-InkVRMissing $game 'after-rollback')}catch{$keepWork=$true;Write-Host ('  Recovery copy retained: '+$work) -ForegroundColor Red}}
-  if($changed -and $linkChanged){if($null -ne $oldLink){[IO.File]::WriteAllBytes($linkPath,$oldLink)}elseif(Test-Path -LiteralPath $linkPath){Remove-Item -LiteralPath $linkPath -Force}}
+  if($changed -and $linkChanged){if($null -ne $oldLink){Copy-Item -LiteralPath $oldLink -Destination $linkPath -Force}elseif(Test-Path -LiteralPath $linkPath){Remove-Item -LiteralPath $linkPath -Force}}
   throw
  }finally{if($work -and -not $keepWork){Remove-PCVRInstallerTempSession -Path $work}}
 }

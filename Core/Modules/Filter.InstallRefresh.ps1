@@ -37,7 +37,9 @@ function global:Get-PostInstallLocalTrackedVersion {
 function global:Test-PostInstallRefreshScanActive {
     if (-not $global:ScanInProgress) { return $false }
     $alive = $false
-    try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+    # A scan waiting inside its pump (e.g. behind a dialog the user opened
+    # mid-scan) is alive however old its heartbeat is.
+    try { $alive = (([int]$global:HubScanPumpDepth -gt 0) -or ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60)) } catch {}
     if ($alive) { return $true }
 
     # Use the same stale-heartbeat recovery as the scan entry point. A dead
@@ -113,26 +115,16 @@ function global:Get-PostInstallDetectionSnapshot {
         try { [void](Read-LaunchOverride -Game $Game) } catch {}
         if (-not $pendDir -and $PreviousState -and $PreviousState.GameDir) { $pendDir=[string]$PreviousState.GameDir }
         if ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten -or $thirdWritten)) {
-            if ($primaryWritten) {
-                $exact=('' + $status.versionValue).Trim()
-                if ($hunterDepotReceipt) {
-                    if (Test-IsTrackableInstalledVersion -Version $exact) {
-                        Write-PersistentGameStateValue -Game $Game -Name 'installed_version_depot' -Value $exact
-                    }
-                } else {
-                    if (-not (Test-IsTrackableInstalledVersion -Version $exact)) { $exact=Read-VersionStampFile -Path (Get-InstalledVersionPath -Game $Game) }
-                    if ($exact) { Write-InstalledVersion -Game $Game -Version $exact -GameDir $pendDir }
-                }
-            }
-            if ($secondaryWritten) {
-                $exactB=('' + $status.versionBValue).Trim()
-                if (-not (Test-IsTrackableInstalledVersion -Version $exactB)) { $exactB=Read-VersionStampFile -Path (Get-InstalledVersionPathB -Game $Game) }
-                if ($exactB) { Write-InstalledVersionB -Game $Game -Version $exactB -GameDir $pendDir }
-            }
+            # Use the same all-slot, route-aware import as a restarted scan.
+            # It retains the receipt when any promised exact value is missing
+            # or canonical persistence has not completed yet.
+            [void](Import-PendingInstallerVersion -Game $Game -GameDir $pendDir)
         } elseif ($confirmedSuccess -and -not ($Game.NoVersionSeed -and $Game.TwoMods)) {
             Invalidate-SupersededInstalledVersion -Game $Game -GameDir $pendDir
         }
-        Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
+        if (-not ($confirmedSuccess -and ($primaryWritten -or $secondaryWritten -or $thirdWritten))) {
+            Remove-Item -LiteralPath $okMk -Force -ErrorAction SilentlyContinue
+        }
     }
 
     $recordedPath=Read-InstalledPath -Game $Game
@@ -207,12 +199,14 @@ function global:Get-PostInstallDetectionSnapshot {
         }
         $baseGamePresent = [bool]($baseGamePresent -or ($separateBase -and
             (Test-BaseGameInstallProof -Game $Game -Root ([string]$separateBase))))
-    } elseif (-not $baseGamePresent -and $Game.VrInstallRoot) {
+    } elseif (-not $baseGamePresent -and ($Game.VrInstallRoot -or $Game.SeparateLauncherBaseGame -or $Game.RequiresRom)) {
         $rememberedBaseRoot=Get-RememberedStagedBaseGameRoot -Game $Game -RuntimeRoot $recordedPath
         $previousBaseRoot=if ($PreviousState -and $PreviousState.GameDir) { [string]$PreviousState.GameDir } else { '' }
         if ($rememberedBaseRoot) { $baseGamePresent=$true }
         elseif ($previousBaseRoot -and (Test-BaseGameInstallProof -Game $Game -Root $previousBaseRoot)) { $baseGamePresent=$true }
-        elseif ($confirmedInstallerSuccess) { $baseGamePresent=$true }
+        # A successful runtime transaction proves its application files only.
+        # Imported/licensed original data still requires its own file proof,
+        # including legacy standalone entries without the newer split flag.
     }
 
     if ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and $baseGamePresent -and $modPresent) {
@@ -273,7 +267,9 @@ function global:Get-PostInstallDetectionSnapshot {
         $result.Action='Set'
         $result.StateEntry=@{ Tag='installed'; State='installed'; Border='#2a5c38'; BtnText=$label; BtnColor='#66dd88'; GameDir=$recordedPath }
     } elseif ($recordedPath -and (Test-Path -LiteralPath $recordedPath -PathType Container) -and -not $baseGamePresent) {
-        $result.Action='Remove'
+        $importAction=Get-OriginalGameImportAction -Game $Game -Roots @($recordedPath)
+        if($importAction){$result.Action='Set';$result.StateEntry=New-OriginalGameImportState -Action $importAction}
+        else{$result.Action='Remove'}
     }
     $result.RecordedPath='' + $recordedPath
     $result.ConfirmedInstallerSuccess=$confirmedInstallerSuccess
@@ -496,14 +492,14 @@ function global:Start-PostInstallDetectionAsync {
             # Copy function *definitions*, never live ScriptBlock objects. A
             # live block remains bound to the WPF runspace; invoking and later
             # disposing it from another runspace can corrupt the Hub session.
-            $allowedLeaves=@('HubState.ps1','VRModHub.ps1','Helpers.ps1','Filter.ps1','Filter.Banners.ps1','Filter.ScanSources.ps1','Filter.InstallRefresh.ps1')
+            $allowedLeaves=@('HubState.ps1','VRModHub.ps1','InstalledState.ps1','Helpers.ps1','SomaLauncherProof.ps1','FfxivPluginProof.ps1','TeardownProof.ps1','Filter.ps1','Filter.Banners.ps1','Filter.ScanSources.ps1','Filter.InstallRefresh.ps1')
             $explicitNames=@(
                 'Get-PostInstallDetectionSnapshot','Resolve-PostInstallRefreshState','Get-PostInstallLocalTrackedVersion',
                 'Test-IsTrackableInstalledVersion','Get-InstalledVersionPath','Get-InstalledPathFile','Read-InstalledPath',
                 'Get-LaunchOverrideFile','Read-LaunchOverride','Get-GameStampPath','Read-VersionStampFile',
                 'Import-PendingInstallerVersion','Read-InstalledVersionProof','Read-InstalledVersion','Write-InstalledVersion',
                 'Get-InstalledVersionPathB','Read-InstalledVersionB','Write-InstalledVersionB','Invalidate-SupersededInstalledVersion',
-                'Get-UpdateOkMarkerPath','Test-RelativePathMarker','Test-BaseGameInstallProof','Test-VrInstallEvidenceContract','Get-LocatedExternalVrContract','Test-LocatedVrRuntime',
+                'Get-UpdateOkMarkerPath','Test-RelativePathMarker','Test-BaseGameInstallProof','Test-VrInstallEvidenceContract','Test-PCVRPublisherBinary','Get-PCVRVrgRuntimePak','Get-PainkillerOverdoseVrExecutable','Get-LocatedExternalVrContract','Test-LocatedVrRuntime',
                 'Join-HubPathLexical','Test-HubWindowsStylePathLexical'
             )
             $added=@{}

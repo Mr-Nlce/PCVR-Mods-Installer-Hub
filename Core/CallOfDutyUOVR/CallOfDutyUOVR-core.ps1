@@ -5,7 +5,7 @@ $Host.UI.RawUI.WindowTitle='Call of Duty: United Offensive VR Installer'
 $script:CodUOId='call-of-duty-united-offensive-vr'
 $script:CodUORepo='lambda-gab/cod1-vr'
 $script:CodUOPage='https://github.com/lambda-gab/cod1-vr/releases'
-$script:CodUOReviewed='https://github.com/lambda-gab/cod1-vr/releases/download/v1.7.1/cod-vr-manual-install.zip'
+$script:CodUOReviewed='https://github.com/lambda-gab/cod1-vr/releases/download/v1.8.0/cod-vr-manual-install.zip'
 $script:CodUOPublisherFiles=@('opengl32.dll','openxr_loader.dll','cod_vr.ini','supporters.ini','CoD-VR-Launcher.exe')
 $script:CodUOFiles=@($script:CodUOPublisherFiles)+@('Start CoD VR.ps1')
 $script:CodUOManifest='.pcvrhub_cod1vr_ownership.csv'
@@ -13,6 +13,8 @@ $script:CodUOGroups=@($script:CodUOFiles|ForEach-Object{if($_ -eq 'opengl32.dll'
 $script:CodUOContract=New-PCVRInstallerContract -Id $script:CodUOId -GameName 'Call of Duty: United Offensive VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:CodUOPage -Routes @('Steam','Retail','Custom') -RequiredInstalledFileGroups (@('CoDUOSP.exe','uo\pakuo00.pk3')+$script:CodUOGroups+@($script:CodUOManifest))
 
 function Test-CodUOGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'call-of-duty-united-offensive-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'CoDUOSP.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'uo\pakuo00.pk3') -PathType Leaf))
 }
 function Resolve-CodUOGameInput([string]$Answer){
@@ -42,7 +44,7 @@ function Get-CodUOGame{
     $paths=@()
     $saved=Get-PCVRRememberedGameFolder -GameId $script:CodUOId -StateNames @('installed_path','user_located','base_game_path') -ProbeFiles @('CoDUOSP.exe','uo\pakuo00.pk3')
     if($saved){$paths+=$saved}
-    try{$steam=Find-SteamGameFolder -AppId '2640' -SteamFolderNames @('Call of Duty United Offensive') -ProbeExe 'CoDUOSP.exe' -HubGameId $script:CodUOId;if($steam){$paths+=$steam}}catch{}
+    try{$steam=Find-SteamGameFolder -AppId '2640' -SteamFolderNames @('Call of Duty','Call of Duty United Offensive') -ProbeExe 'CoDUOSP.exe' -HubGameId $script:CodUOId;if($steam){$paths+=$steam}}catch{}
     $paths+=@('C:\Program Files (x86)\Steam\steamapps\common\Call of Duty United Offensive','C:\Program Files (x86)\Activision\Call of Duty')
     foreach($path in @($paths|Where-Object{$_}|Select-Object -Unique)){if(Test-CodUOGame $path){return [IO.Path]::GetFullPath($path)}}
     Write-Host '  Call of Duty was not found in the Steam or retail folders.' -ForegroundColor Yellow
@@ -84,7 +86,7 @@ function Assert-CodUOVersion([string]$Game){
 }
 
 function Get-CodUORelease{
-    if($env:PCVR_CODUO_TEST_ARCHIVE){return [pscustomobject]@{Version='v1.7.1';Url=$env:PCVR_CODUO_TEST_ARCHIVE;Local=$true}}
+    if($env:PCVR_CODUO_TEST_ARCHIVE){return [pscustomobject]@{Version=$(if($env:PCVR_CODUO_TEST_VERSION){$env:PCVR_CODUO_TEST_VERSION}else{'v1.7.1'});Url=$env:PCVR_CODUO_TEST_ARCHIVE;Local=$true}}
     $manual=Get-PCVRRecoveryInput -PathType Leaf
     if($manual){
         do{$version=(Read-Host '  Version shown on the official Call of Duty VR release page').Trim()}until(Test-IsTrackableInstalledVersion $version)
@@ -93,10 +95,10 @@ function Get-CodUORelease{
     }
     try{$r=Resolve-GitHubReleaseAsset -Repo $script:CodUORepo -IncludePrerelease $false -AssetPatterns @('(?i)^(?!.*(?:source|symbols|debug))(?:cod[-._ ]?vr|callofduty[-._ ]?vr).*\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=$null}
     if($r -and $r.Resolved -and $r.Url -and (Test-IsTrackableInstalledVersion ([string]$r.Tag))){return [pscustomobject]@{Version=[string]$r.Tag;Url=[string]$r.Url;Local=$false}}
-    Write-Host '  Current GitHub release could not be confirmed. The reviewed v1.7.1 ZIP is available.' -ForegroundColor Yellow
+    Write-Host '  Current GitHub release could not be confirmed. The reviewed v1.8.0 ZIP is available.' -ForegroundColor Yellow
     Write-Host '  A newer release may exist; the official release page is offered on download failure.' -ForegroundColor White
-    if((Read-Host '  Download reviewed v1.7.1? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){throw 'Use recovery to open the official releases page and hand over the current ZIP.'}
-    return [pscustomobject]@{Version='v1.7.1';Url=$script:CodUOReviewed;Local=$false}
+    if((Read-Host '  Download reviewed v1.8.0? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){throw 'Use recovery to open the official releases page and hand over the current ZIP.'}
+    return [pscustomobject]@{Version='v1.8.0';Url=$script:CodUOReviewed;Local=$false}
 }
 function Save-CodUOSnapshot([string]$Game,[string]$Folder){
     [void][IO.Directory]::CreateDirectory($Folder)
@@ -173,6 +175,20 @@ function Invoke-CodUOInstaller{
         $safe=Test-ZipArchiveEntrySafety -ArchivePath $archive -DestinationFolder $stage
         if(-not $safe.Safe -or -not $safe.Inspectable){throw 'The publisher ZIP is unreadable or has unsafe paths.'}
         if((Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $stage -Label 'Call of Duty VR' -AllowSkip:$false -QuietProgress) -ne 'ok'){throw 'The publisher ZIP could not be extracted.'}
+        # 1.8 adds publisher weapon defaults; personal overrides remain in cod_vr.ini.
+        # Register them before snapshot, ownership and completion, including rollback/removal.
+        $weaponDefaults=Join-Path $stage 'cod_vr_weapons.ini'
+        $releaseNumber=[version]'0.0'
+        [void][version]::TryParse(([string]$release.Version -replace '^v',''),[ref]$releaseNumber)
+        if(Test-Path -LiteralPath $weaponDefaults -PathType Leaf){
+            if($script:CodUOPublisherFiles -notcontains 'cod_vr_weapons.ini'){
+                $script:CodUOPublisherFiles+='cod_vr_weapons.ini'
+                $script:CodUOFiles+='cod_vr_weapons.ini'
+                $script:CodUOContract.RequiredInstalledFileGroups+='cod_vr_weapons.ini'
+            }
+        }elseif($releaseNumber -ge [version]'1.8.0'){
+            throw 'Publisher package lacks cod_vr_weapons.ini weapon defaults.'
+        }
         foreach($name in $script:CodUOPublisherFiles){
             $file=Join-Path $stage $name
             if(-not(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0){throw "Publisher package lacks $name."}

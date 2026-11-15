@@ -1,4 +1,4 @@
-# Ghost Recon Wildlands VR - governed current/depot installer.
+﻿# Ghost Recon Wildlands VR - governed current/depot installer.
 # Current route: newest GRW-XR prerelease against the normal game.
 # Depot route: Steam build 24821571 plus GRW-XR v0.11.1, fully pinned.
 
@@ -79,6 +79,8 @@ function Read-GRWChoice {
 }
 
 function Test-GRWRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'ghost-recon-wildlands-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 

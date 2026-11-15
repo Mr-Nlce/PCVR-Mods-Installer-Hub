@@ -37,30 +37,17 @@ This release supports game 1.13.1 and 1.13.2. It updates character-height and co
 
 The current build adds an optional full body, physical servo-skull grabbing and throwing, an item radial, hand-to-mouth push-to-talk, weapon charge display, aim zoom and an [[F8]] Psykhanium mirror. It also fixes loading/menu FOV, ADS vignette behavior, wheel conflicts, hand displays, skull positioning, calibrated height, smoothing and several item-radial and push-to-talk issues. Full body costs performance and still has cloth, feet and mirror limitations. Experimental two-hand support, virtual stock and ADS, holsters, wrist/team HUDs, ammo handling and haptics remain included and can still change.
 
-## Current and pinned-depot setup
+## Installation and updates
 
-Installer option 1 follows the newest GitHub release, including prereleases, and installs missing Darktide Mod Loader and Darktide Mod Framework components before activating VR in the normal game. A new game update can temporarily break that route.
+The installer follows the newest GitHub release, including prereleases. It installs missing Darktide Mod Loader and Darktide Mod Framework components before activating VR in your normal game.
 
-Option 2 creates a separate `C:\Games\Darktide VR 1.13.2` copy of game **1.13.2**, Steam build **25681127**, the newest game version supported by DarktideVR **v0.3.0-alpha.2**. Its game, mod and dependencies remain fixed. Allow about 100 GiB of disk space. The normal Steam installation is preserved.
+With the matching 0.3.0-alpha.2 package, setup offers an optional Hub add-on for controller swings and touch interaction. Choose it at the prompt, then find the options under Mod Options → Darktide VR → Melee swing. The included experimental render-state workaround only applies in memory on its matching game build. Its effect on mission crashes is unverified. The separate experimental engine particle option is off by default. Run setup again and decline the add-on to restore the publisher scripts.
 
-| Component | Fixed version / manifest |
-|---|---|
-| Game data, depot 1361211 | 5216168793435633897 |
-| Fatshark launcher, depot 1361212 | 7488139965064667169 |
-| Windows executable, depot 1361213 | 2599775347271281336 |
-| DarktideVR | v0.3.0-alpha.2 |
-| Darktide Mod Loader | 26.06.24 |
-| Darktide Mod Framework | fc08c1cb772f86248c7ae9e957543e801a0dbf64 |
+Darktide requires an internet connection and the current game client. Older game builds cannot sign in, so the Hub no longer offers a separate frozen game installation. Previously created copies are left on disk; setup does not remove your game files or settings.
 
-Setup gets the pinned publisher tools first. Each Steam Console command has its own reading/Enter step and clipboard handover. Existing complete copies are reused. The publisher patch tool checks the executable before cached game data is moved. Both `steam_appid.txt` files are written for the separate launcher route.
+The publisher's mode tool keeps a pristine executable recovery copy and swaps separate flat/VR settings profiles, installs its own d3d12.dll proxy and adds only darktidevr to the mod load order.
 
-An older build **24735202 / game 1.12.5** remains available as **Legacy 1.12.5** when already installed. Its game, mod, settings and recovery remain separate; installing the new Depot does not update or remove that older copy.
-
-Keep Steam running and signed in for the depot. Its Hub button and desktop shortcut start the pinned copy's own Fatshark launcher; press Play there. They never open the current Steam game folder. Because Darktide is an online game, a future Fatshark backend update can still reject an old client even though the game and complete mod stack remain locally pinned.
-
-The publisher's mode tool keeps a pristine executable recovery copy and swaps separate flat/VR settings profiles, installs its own `d3d12.dll` proxy and adds only `darktidevr` to the mod load order. The Hub isolates the depot's recovery state under `.pcvrhub_darktide_state` so a later Current build cannot overwrite the pinned copy's executable backup.
-
-For Current, use `mods\darktidevr\Darktide VR Mode.bat` to switch back to flat mode. For the depot, use `Switch Darktide Depot Mode.bat`; this preserves its isolated recovery path. A Darktide update can disable the shared mod loader; rerun option 1 after an update. Setup uses the newly downloaded publisher mode tool to prepare an update, so an older installed tool cannot block its own replacement. If the publisher has not added the new executable build yet, VR activation still refuses to patch it until a compatible DarktideVR release exists.
+Use mods/darktidevr/Darktide VR Mode.bat to switch back to flat mode. A Darktide update can disable the shared mod loader; rerun setup after an update. Setup uses the newly downloaded publisher mode tool to prepare an update, so an older installed tool cannot block its own replacement. If the publisher has not added your executable build yet, setup leaves it unchanged and asks you to wait for a compatible DarktideVR release.
 
 ## Known limits
 
@@ -68,7 +55,7 @@ Presentation is currently right-hand dominant, independent weapon origins on mis
 
 ## Removal and support
 
-**Uninstall now** restores flat mode first and removes only unchanged DarktideVR-owned files. If Current, Depot 1.13.2 or Legacy 1.12.5 are installed, it asks which independent copy to change. It leaves the shared Darktide Mod Loader and Darktide Mod Framework installed because other mods may use them, preserves per-mode settings and recovery data, and does not delete the large pinned base-game copy.
+**Uninstall now** restores flat mode first and removes only unchanged DarktideVR-owned files. It leaves the shared Darktide Mod Loader and Darktide Mod Framework installed because other mods may use them, preserves per-mode settings and recovery data.
 
 - [DarktideVR project and documentation](https://github.com/Brobert-in-aus/darktide-vr)
 - [GitHub releases](https://github.com/Brobert-in-aus/darktide-vr/releases)

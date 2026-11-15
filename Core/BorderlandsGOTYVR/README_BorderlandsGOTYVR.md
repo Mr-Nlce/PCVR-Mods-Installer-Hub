@@ -2,7 +2,7 @@
 
 **BL1GOTYVR** by **Mastersellz** adds native OpenXR stereo rendering, roomscale head tracking and tracked weapon aiming to the 2019 Enhanced release.
 
-The current **V0.5.7.3** release fixes movement while the trigger is held.
+The current Windows package is **0.5.7.4**. The previous 0.5.7.3 release fixed movement while the trigger is held.
 Earlier SFR and locomotion changes remain included. The configurator and launch
 route are unchanged. [Publisher releases](https://github.com/Mastersellz/BL1GOTYVR/releases).
 

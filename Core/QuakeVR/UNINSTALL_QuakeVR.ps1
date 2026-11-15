@@ -69,7 +69,9 @@ function Remove-EmptyQuakeFolders([string]$Root, [string[]]$RelativeFolders) {
 }
 
 function Remove-ShortcutWhenOwned([string]$Name, [string]$OwnedTarget) {
-    $path = Join-Path ([Environment]::GetFolderPath('Desktop')) $Name
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if (-not $desktop) { return }
+    $path = Join-Path $desktop $Name
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return }
     try {
         $shell = New-Object -ComObject WScript.Shell

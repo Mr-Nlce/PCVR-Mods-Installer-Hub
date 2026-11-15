@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Warhammer 40,000: Rogue Trader - VR Mod Installer (RTVR)
 # ============================================================
 # RTVR by SolemnScribe: true stereo 3D, UI on a floating panel,
@@ -70,6 +70,7 @@ function Write-Info { param($text) Write-Host " [..] $text" -ForegroundColor Gra
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
  $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -463,7 +464,7 @@ if (@($failed | Where-Object { $_ -in @('WASD Movement','Toy Box','RTVR') }).Cou
    $rtvrVer = "$($matches[1]).$($matches[2]).$($matches[3])"
   }
  } catch {}
- try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $rtvrVer -Encoding UTF8 -Force } catch {}
+ try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $rtvrVer -Encoding UTF8 -Force } catch {}
  # ALSO write the durable stamp next to the GAME (2026-08-20).
  # The line above lands inside the Hub folder and is gone as
  # soon as a new Hub build is dropped in; the scan then finds

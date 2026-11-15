@@ -29,6 +29,8 @@ Wreckfest 2 gains stereoscopic cockpit rendering and head tracking through a sta
 
 For a steering-wheel recenter button, bind Brake Alt in the game and leave Brake Alt recenters view enabled in the VR app. In Settings > Gameplay, the publisher recommends 0% camera shake strength, 1st person horizon stability and cockpit g-effects. Raise game graphics resolution for sharper VR while watching performance. Track changes can still crash; restart the game after a game/GPU crash before retrying.
 
+Version 0.8.2 targets Content Update 9 Patch 2 (28 October 2026). Match the game and mod versions; updating this launcher cannot make another game build compatible.
+
 ## Help
 
 Keep the VR app running for VR play. Stop VR leaves the game open and suspends auto-start; click Start VR or toggle auto-start off/on to resume. The Hub Flat / VR switch changes the next launch: close the VR app before flat play. It never kills your running game. Game updates can invalidate this build-specific mod; a dated build requirement is not proof that a Steam Depot is currently available.

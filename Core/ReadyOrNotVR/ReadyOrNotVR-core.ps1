@@ -147,25 +147,9 @@ function Find-SteamRon {
 # root (the folder containing ReadyOrNot.exe). Loops until valid or
 # cancelled (empty input).
 function Get-RonFolder {
-    while ($true) {
-        Write-Host ""
-        Write-Host " Drag your Ready Or Not folder (or ReadyOrNot.exe) onto" -ForegroundColor White
-        Write-Host " this window and press Enter." -ForegroundColor White
-        Write-Host " (You can also type or paste the full path.)" -ForegroundColor Gray
-        Write-Host " Leave empty and press Enter to cancel." -ForegroundColor DarkGray
-        $raw = Read-Host " Path"
-        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-        $p = $raw.Trim().Trim('"').Trim("'").Trim()
-        if (-not (Test-Path $p)) { Write-Warn "Path not found: $p"; continue }
-        if (Test-Path $p -PathType Container) {
-            if (Test-Path (Join-Path $p $GAME_EXE)) { return $p }
-            Write-Warn "No $GAME_EXE in that folder. Drag the folder that contains it."
-            continue
-        }
-        $dir = Split-Path -Parent $p
-        if (Test-Path (Join-Path $dir $GAME_EXE)) { return $dir }
-        Write-Warn "That file is not next to $GAME_EXE. Drag the Ready Or Not folder or $GAME_EXE."
-    }
+    $selected=Get-GameFolderInteractive -GameName 'Ready Or Not' -HubGameId 'ready-or-not-vr' -ProbeFile ((Get-PCVRGameInstallProof -GameId 'ready-or-not-vr').Files[0])
+    if (-not $selected -or $selected -in @('quit','skip')) { return $null }
+    return $selected
 }
 
 # Drag a downloaded file here. Accepts the listed extensions. Loops

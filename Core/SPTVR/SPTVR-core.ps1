@@ -123,8 +123,8 @@ function Find-SptRoot {
     if (-not $AnyPath) { return $null }
     # Resolve a dropped file to its folder.
     $base = $AnyPath
-    if (Test-Path $AnyPath) {
-        $item = Get-Item $AnyPath -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $AnyPath) {
+        $item = Get-Item -LiteralPath $AnyPath -ErrorAction SilentlyContinue
         if ($item -and -not $item.PSIsContainer) { $base = Split-Path -Parent $item.FullName }
     }
     # Candidates in priority order: the folder itself, an "SPT" subfolder,
@@ -138,13 +138,13 @@ function Find-SptRoot {
     # folder the mod overlays and is the most reliable signal.
     foreach ($marker in @("EscapeFromTarkov_Data", "EscapeFromTarkov.exe")) {
         foreach ($c in $cands) {
-            if ($c -and (Test-Path (Join-Path $c $marker))) { return $c }
+            if ($c -and (Test-Path (Join-Path $c $marker))) { if (Test-PCVRGameInstallProof -GameId 'escape-from-tarkov-vr' -Root $c) { return $c } }
         }
     }
     # Last resort: an existing BepInEx folder (but only if a game marker
     # wasn't found above, to avoid matching a stray/half-merged BepInEx).
     foreach ($c in $cands) {
-        if ($c -and (Test-Path -LiteralPath "$c\BepInEx") -and (Test-Path -LiteralPath "$c\EscapeFromTarkov_Data")) { return $c }
+        if ($c -and (Test-Path -LiteralPath "$c\BepInEx") -and (Test-Path -LiteralPath "$c\EscapeFromTarkov_Data")) { if (Test-PCVRGameInstallProof -GameId 'escape-from-tarkov-vr' -Root $c) { return $c } }
     }
     return $null
 }

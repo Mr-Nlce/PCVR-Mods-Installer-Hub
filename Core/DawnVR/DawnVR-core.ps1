@@ -7,11 +7,12 @@ $ErrorActionPreference = "Stop"
 
 # Load shared installer safety helpers
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot '..\Modules\DawnVRGame.ps1')
 
 $GAME_APPID      = "554620"
 $GAME_NAME       = "Life Is Strange - Before the Storm"
 $GAME_EXE        = "Life is Strange - Before the Storm.exe"
-$GAME_EXE_ALT    = "Life is Strange - Before the Storm Remastered.exe"
+$GAME_EXE_ALT    = "Life is Strange - Before the Storm.exe"
 
 $MELONLOADER_URL      = "https://github.com/LavaGang/MelonLoader/releases/download/v0.5.7/MelonLoader.x64.zip"
 $DAWNVR_ORIGINAL_URL  = "https://github.com/TrevTV/DawnVR/releases/download/1.0.1/DawnVR_1.0.1_Original.zip"
@@ -39,11 +40,12 @@ function Write-Step {
 function Write-OK   { param($text) Write-Host "  [OK] $text" -ForegroundColor Green }
 function Write-Warn { param($text) Write-Host "  [!!] $text" -ForegroundColor Yellow }
 function Write-Fail { param($text) Write-Host "  [XX] $text" -ForegroundColor Red }
-function Write-Info { param($text) Write-Host "  [..] $text" -ForegroundColor Gray }
+function Write-Info { param($text) Write-Host "  $text" -ForegroundColor Gray }
 
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try {
             $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -71,8 +73,15 @@ function Get-SteamLibraries {
 function Find-GamePath {
     param($libraries)
     foreach ($lib in $libraries) {
-        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
-        if (Test-Path -LiteralPath $candidate) { return $candidate }
+        $candidates=@((Join-Path $lib "steamapps\common\$GAME_NAME"))
+        $manifest=Join-Path $lib ('steamapps\appmanifest_'+$GAME_APPID+'.acf')
+        if(Test-Path -LiteralPath $manifest){
+            $text=[IO.File]::ReadAllText($manifest)
+            if($text -match '"installdir"\s+"([^"\r\n]+)"' -and $matches[1] -notmatch '[\\/]|\.\.'){
+                $candidates+=Join-Path $lib ('steamapps\common\'+$matches[1])
+            }
+        }
+        foreach($candidate in $candidates){if((Get-DawnVRGameEdition -Root $candidate) -eq $EDITION_LABEL){return $candidate}}
     }
     return $null
 }
@@ -113,12 +122,16 @@ while ($edition -notin @("1","2")) {
 }
 
 if ($edition -eq "1") {
+    $GAME_APPID = '554620'
+    $GAME_NAME = 'Life is Strange - Before the Storm'
     $DAWNVR_URL    = $DAWNVR_ORIGINAL_URL
     $EDITION_LABEL = "Original"
     Write-OK "Selected: Original edition"
 } else {
     $DAWNVR_URL    = $DAWNVR_REMASTER_URL
     $EDITION_LABEL = "Remastered"
+    $GAME_APPID = '1265930'
+    $GAME_NAME = 'Life is Strange - Before the Storm Remastered'
     Write-OK "Selected: Remastered edition"
 }
 
@@ -129,11 +142,14 @@ Write-Step 2 4 "Locating Life is Strange: Before the Storm"
 
 # --- Try detection library (safe: falls through to legacy lookup on failure) ---
 $gamePath = $null
+$remembered=Get-PCVRRememberedGameFolder -GameId 'life-is-strange-bts' -ProbeFiles @($GAME_EXE)
+if($remembered -and (Get-DawnVRGameEdition -Root $remembered) -eq $EDITION_LABEL){$gamePath=$remembered}
 try {
     $__utilsPath = Join-Path $PSScriptRoot "..\Utils\GameDetection.ps1"
-    if (Test-Path -LiteralPath $__utilsPath) {
+    if (-not $gamePath -and (Test-Path -LiteralPath $__utilsPath)) {
         . $__utilsPath
         $gamePath = Try-FindSteamGame -Folder $GAME_NAME -Title "Life is Strange: BtS"
+        if((Get-DawnVRGameEdition -Root $gamePath) -ne $EDITION_LABEL){$gamePath=$null}
     }
 } catch {}
 # --- End detection library attempt ---
@@ -143,21 +159,27 @@ if (-not $gamePath -and $steamPath) {
     $libraries = Get-SteamLibraries $steamPath
     $gamePath = Find-GamePath $libraries
 }
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "554620" -SteamFolderNames @("Life is Strange - Before the Storm") -GogNames @("Life is Strange Before the Storm") -EpicNames @("Life is Strange Before the Storm") }
+if (-not $gamePath) {
+    $storeNames=@($GAME_NAME,($GAME_NAME -replace ' - ',' '))
+    $gamePath = Find-SteamGameFolder -AppId $GAME_APPID -SteamFolderNames @($GAME_NAME) -GogNames $storeNames -EpicNames $storeNames -HubGameId 'life-is-strange-bts'
+    if((Get-DawnVRGameEdition -Root $gamePath) -ne $EDITION_LABEL){$gamePath=$null}
+}
 
 $userSelectedGamePath = $false
 if (-not $gamePath) {
-    Write-Warn "Game not found in Steam libraries automatically."
+    Write-Warn "The selected $EDITION_LABEL game was not found automatically."
     Write-Host "  Please enter the game installation folder path manually:" -ForegroundColor White
     Write-Host "  Example: C:\Program Files (x86)\Steam\steamapps\common\Life Is Strange - Before the Storm" -ForegroundColor Gray
     while (-not $gamePath) {
-        $rawInput = (Read-Host "  Game path").Trim().Trim('"')
-        if (Test-Path -LiteralPath $rawInput) {
-            $gamePath = $rawInput
+        $rawInput = Read-Host "  Game folder or EXE"
+        if($null -eq $rawInput){throw 'No game folder was selected before input ended.'}
+        $candidate=Resolve-PCVRInstallerOriginalFolder -GameId 'life-is-strange-bts' -Path $rawInput
+        if ($candidate -and (Get-DawnVRGameEdition -Root $candidate) -eq $EDITION_LABEL) {
+            $gamePath = $candidate
             $userSelectedGamePath = $true
             Write-OK "Game path set: $gamePath"
         } else {
-            Write-Fail "Path not found: $rawInput"
+            Write-Fail "The complete $EDITION_LABEL game was not found here. Choose its installed folder or EXE."
         }
     }
 } else {
@@ -218,7 +240,7 @@ try {
         if ([string]$unpacked -notin @('ok','manual')) { throw "$($pair[2]) extraction was not completed." }
     }
 
-    $mlRequired = @('version.dll','dobby.dll')
+    $mlRequired = @('version.dll','MelonLoader\MelonLoader.dll','MelonLoader\0Harmony.dll')
     $vrRequired = @('Mods\DawnVRMod.dll','Plugins\DawnVREnabler.dll',
         'Life is Strange - Before the Storm_Data\StreamingAssets\SteamVR\actions.json')
     foreach ($relative in $mlRequired) {

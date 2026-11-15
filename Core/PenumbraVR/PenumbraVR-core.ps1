@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Penumbra: Overture VR Installer
 # ============================================================
 # Adds head + hand tracking (HTC Vive era) to the classic
@@ -53,6 +53,7 @@ function Write-Fail { param($x) Write-Host "  [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @(
         "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
         "HKLM:\SOFTWARE\Valve\Steam",
@@ -88,7 +89,7 @@ function Find-PenumbraGamePath {
         $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
         if (Test-Path $candidate) {
             $exe = Join-Path $candidate "$REDIST_SUB\$GAME_EXE"
-            if (Test-Path $exe) { return $candidate }
+            if (Test-Path $exe) { if (Test-PCVRGameInstallProof -GameId 'penumbra-overture-vr' -Root $candidate) { return $candidate } }
         }
     }
     return $null
@@ -176,26 +177,8 @@ if ($srcGamePath) {
     Write-Warn "Could not auto-locate Penumbra: Overture in any Steam library."
     Write-Host "  Paste the path to your Penumbra Overture folder" -ForegroundColor White
     Write-Host "  (the folder that contains the 'redist' subfolder), then press Enter:" -ForegroundColor White
-    while (-not $srcGamePath) {
-        $r = (Read-Host "  Penumbra folder").Trim().Trim('"')
-        if (-not $r) { continue }
-        if (Test-Path $r) {
-            $exe = Join-Path $r "$REDIST_SUB\$GAME_EXE"
-            $exeAlt = Join-Path $r $GAME_EXE
-            if (Test-Path $exe) {
-                $srcGamePath = $r
-                Write-OK "Confirmed Penumbra folder: $srcGamePath"
-            } elseif (Test-Path $exeAlt) {
-                # User pointed directly at the redist folder - step up one level.
-                $srcGamePath = Split-Path $r -Parent
-                Write-OK "Confirmed Penumbra folder: $srcGamePath"
-            } else {
-                Write-Fail "No redist\$GAME_EXE found under: $r"
-            }
-        } else {
-            Write-Fail "Folder not found: $r"
-        }
-    }
+    $srcGamePath = Get-GameFolderInteractive -GameName 'Penumbra Overture' -HubGameId 'penumbra-overture-vr' -ProbeFile 'redist/maps/level00_01_boat_cabin.dae'
+ if (-not $srcGamePath -or $srcGamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

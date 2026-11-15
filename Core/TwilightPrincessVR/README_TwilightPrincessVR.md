@@ -21,6 +21,10 @@ GameCube release - the Wii versions are not supported yet.
 Dolphin's wiki explains how to dump a disc you own. Afterwards, Dolphin or
 `nodtool` can convert the `.iso` into the much smaller `.rvz`.
 
+Before selecting your disc, choose Import game in the Hub. Select your supported
+disc image in Dusklight, then scan again in the Hub. Use Start in VR after the
+selected game is detected.
+
 ## Current package and safe updating
 
 The 2.3.0 Windows PCVR archive is about 52 MB packed and holds a compact

@@ -30,6 +30,8 @@ function Write-Fail { param([string]$Text) Write-Host " [X]  $Text" -ForegroundC
 function Pause-User { param([string]$Text="Press Enter to continue...") Write-Host ""; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Test-RacerRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'star-wars-episode-i-racer' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 

@@ -57,6 +57,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam", "HKLM:\SOFTWARE\Valve\Steam", "HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if ($p -and (Test-Path $p)) { return $p } } catch {}
  }
@@ -82,7 +83,7 @@ function Find-PainkillerGamePath {
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = "$lib\steamapps\common\Painkiller Black Edition"
- if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'painkiller-black-edition' -Root $candidate) { return $candidate } }
  }
  }
  # GOG fallback ("Painkiller Black")
@@ -91,7 +92,7 @@ function Find-PainkillerGamePath {
  "${env:ProgramFiles(x86)}\GOG Galaxy\Games\Painkiller Black",
  "${env:ProgramFiles}\GOG Galaxy\Games\Painkiller Black"
  )) {
- if (Test-Path -LiteralPath "$gg\$GAME_EXE") { return $gg }
+ if (Test-Path -LiteralPath "$gg\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'painkiller-black-edition' -Root $gg) { return $gg } }
  }
  return $null
 }
@@ -206,12 +207,8 @@ if ($gamePath) {
  Write-Warn "Could not auto-locate Painkiller (Steam / GOG)."
  Write-Host " Paste the path to your Painkiller folder (the game ROOT that" -ForegroundColor White
  Write-Host " contains the Bin folder), then press Enter." -ForegroundColor White
- while (-not $gamePath) {
- $r = (Read-Host " Painkiller folder").Trim().Trim('"').Trim("'")
- if (-not $r) { continue }
- if (Test-Path -LiteralPath "$r\$GAME_EXE") { $gamePath = $r; Write-OK "Game folder set: $gamePath" }
- else { Write-Fail "That folder has no Bin\PainKiller.exe: $r" }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Painkiller Black Edition' -HubGameId 'painkiller-black-edition' -ProbeFile 'Bin\Painkiller.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 $gameBin = Join-Path $gamePath "Bin"
 
@@ -292,7 +289,7 @@ if (-not $avFilesOk) {
 # Commit the Hub state only after every required file survived the copy.
 try {
  Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
- if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
+ if ($relTag) { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force }
  Save-InstalledStamp -GameDir $gamePath -Version $relTag
  Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value ([System.IO.Path]::Combine($gamePath, "Bin", "PainKiller.exe")) -Encoding UTF8 -Force
 } catch {}

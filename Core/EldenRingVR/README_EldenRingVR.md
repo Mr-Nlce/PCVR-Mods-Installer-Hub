@@ -15,8 +15,8 @@ Before either mod:
    button.
 
 **Build compatibility differs by mod.** Hotbite still needs the pinned **Depot 1.16.2**
-copy. ERVR v0.4.0 supports both Elden Ring 1.16.2 and the current 1.17.1 build. The
-depot remains separate from the current Steam installation.
+copy. ERVR 0.8.0 supports Elden Ring 1.16.2, 1.17.1 and 1.17.2. The Hub checks GitHub
+for Current. The reviewed Current release is ERVR 0.9.1. The separate 1.16.2 Depot uses ERVR 0.8.0.
 
 # Hotbite [WIP] — by Hotbite
 
@@ -86,12 +86,10 @@ portable mod folder; the game, ERVR and all saves remain untouched.
 
 # ERVR — by Ilyamez
 
-ERVR v0.4.0 is the first public release. It uses native OpenXR, true stereo rendering,
-6DoF head tracking and physical melee on Oculus, VDXR and SteamVR runtimes.
-The visible blade is the hitbox; swing speed affects damage, shields block by posture,
-and two-handing works by grabbing the weapon with the free hand.
+ERVR adds native OpenXR stereo, 6DoF tracking and physical melee.
 
-[Ilya's ERVR on Nexus](https://www.nexusmods.com/eldenring/mods/10711?tab=description)
+[ERVR releases on GitHub](https://github.com/IlyaMez/EldenringVR/releases) ·
+[Publisher guide](https://github.com/IlyaMez/EldenringVR/blob/main/docs/PLAYERS.md)
 
 ## Start ERVR
 
@@ -99,13 +97,15 @@ and two-handing works by grabbing the weapon with the free hand.
    Desktop, or SteamVR for Index, Vive, WMR, Pico and Steam Link.
 2. Select the correct save set above.
 3. Click the matching **Current + ERVR** or **Depot 1.16.2 + ERVR** button. The Hub
-   starts that exact Elden Ring build directly.
+   starts that exact Elden Ring build directly for offline play. For the publisher's
+   runtime checks or Seamless Co-op, open **ERVR Launcher.exe** next to the selected
+   copy's **eldenring.exe** and verify the game path in that window.
 
 ## First setup: switch the window to Full 3D
 
-The supplied ERVR config starts in `cinema`, which shows the flat game on a floating
-screen. Click **ERVR Full 3D** in the **VR MODE** bar above to switch the selected
-Current/Depot installation to real stereoscopic 3D. New Hub installs already set this.
+New installs start in Full 3D. The Hub preserves your existing ERVR settings when
+updating. If you see the game on a floating screen, click **ERVR Full 3D** in the
+**VR MODE** bar above for the selected Current or Depot copy.
 
 For manual control, click **ERVR config** and change the `StereoMode` entry in the
 `[VR]` section:
@@ -135,8 +135,8 @@ game is already running, restart it after changing the stereo mode.
 - If you still see only the floating screen, click **ERVR Full 3D**, confirm the correct
   Current/Depot config when asked, then restart the game.
 - If the wrong runtime opens, make the intended OpenXR runtime active before launching.
-- If ERVR does not load at all, antivirus may have quarantined its DLL or ReShade loader;
-  reinstall from the Hub and keep the antivirus recovery check visible.
+- If ERVR does not load, check the game path and active runtime in the publisher
+  launcher. If required files are missing, the Hub installer lists them by name.
 
 ## Compatibility, install and remove
 

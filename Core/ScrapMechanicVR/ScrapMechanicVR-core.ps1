@@ -102,6 +102,7 @@ function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
   try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }
@@ -129,7 +130,7 @@ function Find-GamePath {
  $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE) -StateNames @('installed_path_current','user_located')
  if ($remembered) { return $remembered }
  foreach ($lib in (Get-SteamLibraries (Get-SteamPath))) {
-  $cand = "$lib\steamapps\common\$GAME_NAME"
+  $cand = "$lib\steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'scrap-mechanic-vr' -Root $cand)) { continue }; 
   # Lexical: $cand is built from a library path that may be on a drive
   # that no longer exists.
   try { if (Test-Path -LiteralPath (Join-PathLexical $cand $GAME_EXE)) { return $cand } } catch {}

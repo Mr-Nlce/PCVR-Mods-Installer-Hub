@@ -43,5 +43,6 @@ Remove-Item -LiteralPath (Join-Path $GameRoot '.pcvrhub_version') -Force -ErrorA
 Remove-Item -LiteralPath $receipt -Force -ErrorAction SilentlyContinue
 Write-Host '  [OK] Removed the Hub VR setup record.' -ForegroundColor Green
 Write-Host '  Steam Workshop subscriptions, ZombieBuddy, approvals, the game and saves remain.' -ForegroundColor White
+Write-Host '  The Hub still recognizes VR while the approved mod remains installed.' -ForegroundColor White
 Write-Host '  To remove ZombieBuddy itself, run its publisher installer and choose Uninstall.' -ForegroundColor Gray
 Finish-PZRemoval 0

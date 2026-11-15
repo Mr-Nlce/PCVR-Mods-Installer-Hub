@@ -52,7 +52,7 @@ function global:Get-GamePowerBucket {
 
 function global:Test-OverviewGameInGenre {
     param($Game, $Genre)
-    if ($Game.UntestedInstaller) { return $false }
+    if ($Game.UntestedInstaller -or $Game.InstallerParentId) { return $false }
     if (-not $Game.Tags) { return $false }
     if ($Genre.Match.Count -eq 0) { return $true }
     foreach ($tag in $Game.Tags) {
@@ -383,7 +383,7 @@ function global:Get-FeaturedRandomGame {
     $motionPool  = @()
     $gamepadPool = @()
     foreach ($g in $pool) {
-        if ($g.UntestedInstaller) { continue }
+        if ($g.UntestedInstaller -or $g.InstallerParentId) { continue }
         $skip = $false
         foreach ($bad in $blockTitles) {
             if ($g.Title -eq $bad) { $skip = $true; break }
@@ -459,7 +459,7 @@ function global:Get-FeaturedRandomGameForGenre {
 
     $matchedPool = @()
     foreach ($g in $pool) {
-        if ($g.UntestedInstaller) { continue }
+        if ($g.UntestedInstaller -or $g.InstallerParentId) { continue }
         $skip = $false
         foreach ($bad in $blockTitles) {
             if ($g.Title -eq $bad) { $skip = $true; break }
@@ -920,7 +920,7 @@ function global:Set-OvBannerForActiveGenre {
     if ($genreKey -eq "FREE" -or $genreKey -eq "NEW") {
         $pool = @(); $pool += $ownGames; $pool += $ownGamesGP; $pool += $externalGames
         $specialTitles = if ($genreKey -eq 'FREE') { $global:FREE_GAME_TITLES } else { $global:NEW_GAME_TITLES }
-        $specialPool = @($pool | Where-Object { -not $_.UntestedInstaller -and $_.Title -and ($specialTitles -contains $_.Title) })
+        $specialPool = @($pool | Where-Object { -not $_.UntestedInstaller -and -not $_.InstallerParentId -and $_.Title -and ($specialTitles -contains $_.Title) })
         if ($specialPool.Count -eq 0) { return }
         $cur = if ($global:OvBannerGame) { $global:OvBannerGame.Title } else { $null }
         if ($cur -and $specialPool.Count -gt 1) { $specialPool = @($specialPool | Where-Object { $_.Title -ne $cur }) }

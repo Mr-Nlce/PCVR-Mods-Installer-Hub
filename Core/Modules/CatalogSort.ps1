@@ -1,4 +1,4 @@
-# ===============================================================
+﻿# ===============================================================
 # Global catalog ordering
 #
 # Reorders the EXISTING WPF tile objects. Cards are never rebuilt, so
@@ -61,6 +61,7 @@ function global:Get-CatalogGamesInOrder {
         }
         $records += [pscustomobject]@{
             Game = $game
+            Alpha = ([string]$game.Title).Trim().ToLowerInvariant()
             Base = $catalogOrder
             Favorite = [bool](Test-GameFavorite -Game $game)
             Date = if ($Mode -in @('hub','favorites')) { $null } else { Get-CatalogSortDate -Game $game -Mode $Mode }
@@ -68,17 +69,17 @@ function global:Get-CatalogGamesInOrder {
         $fallback++
     }
     if ($Mode -eq 'favorites') {
-        return @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true } |
+        return @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Alpha }; Ascending = $true } |
             ForEach-Object { $_.Game })
     }
     if ($Mode -eq 'hub') {
-        return @($records | Sort-Object @{ Expression = { $_.Base }; Ascending = $true } |
+        return @($records | Sort-Object @{ Expression = { $_.Alpha }; Ascending = $true } |
             ForEach-Object { $_.Game })
     }
     $dateOrder = @(
         @{ Expression = { if ($_.Date) { 0 } else { 1 } }; Ascending = $true }
         @{ Expression = { if ($_.Date) { $_.Date.Ticks } else { 0 } }; Descending = $true }
-        @{ Expression = { $_.Base }; Ascending = $true }
+        @{ Expression = { $_.Alpha }; Ascending = $true }
     )
     return @($records | Sort-Object -Property $dateOrder |
         ForEach-Object { $_.Game })
@@ -213,6 +214,7 @@ function global:Set-CatalogPanelOrder {
         $records += [pscustomobject]@{
             Child = $child
             Game  = $game
+            Alpha = ([string]$game.Title).Trim().ToLowerInvariant()
             Base  = $base
             Favorite = [bool](Test-GameFavorite -Game $game)
             Pin   = if ($pin -ge 0) { $pin } else { 1000000 }
@@ -224,15 +226,15 @@ function global:Set-CatalogPanelOrder {
     }
 
     if ($Mode -eq 'favorites') {
-        $ordered = @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true })
+        $ordered = @($records | Sort-Object @{ Expression = { if ($_.Favorite) { 0 } else { 1 } }; Ascending = $true }, @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Alpha }; Ascending = $true })
     } elseif ($Mode -eq 'hub') {
-        $ordered = @($records | Sort-Object @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Base }; Ascending = $true })
+        $ordered = @($records | Sort-Object @{ Expression = { $_.Pin }; Ascending = $true }, @{ Expression = { $_.Alpha }; Ascending = $true })
     } else {
         $panelOrder = @(
             @{ Expression = { $_.Pin }; Ascending = $true }
             @{ Expression = { if ($_.Game -and $_.Date) { 0 } elseif ($_.Game) { 1 } else { 2 } }; Ascending = $true }
             @{ Expression = { if ($_.Date) { $_.Date.Ticks } else { 0 } }; Descending = $true }
-            @{ Expression = { $_.Base }; Ascending = $true }
+            @{ Expression = { $_.Alpha }; Ascending = $true }
         )
         $ordered = @($records | Sort-Object -Property $panelOrder)
     }

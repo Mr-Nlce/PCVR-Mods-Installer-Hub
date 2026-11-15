@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Skate Story VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -63,6 +63,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -132,8 +133,8 @@ function Find-SkateStoryGamePath {
  # case some users have the demo or a renamed install.
  foreach ($folder in @("Skate Story", "SkateStory")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { if (Test-PCVRGameInstallProof -GameId 'skate-story-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'skate-story-vr' -Root $candidate) { return $candidate } }
  }
  }
  }
@@ -141,8 +142,8 @@ function Find-SkateStoryGamePath {
  foreach ($root in (Get-GogRoots)) {
  foreach ($folder in @("Skate Story", "SkateStory")) {
  $candidate = Join-Path $root $folder
- if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\SkateStory_Data") { if (Test-PCVRGameInstallProof -GameId 'skate-story-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'skate-story-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -262,16 +263,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Skate Story folder" -ForegroundColor White
  Write-Host " (the folder that contains SkateStory_Data/)." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Skate Story folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Skate Story' -HubGameId 'skate-story-vr' -ProbeFile 'SkateStory.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

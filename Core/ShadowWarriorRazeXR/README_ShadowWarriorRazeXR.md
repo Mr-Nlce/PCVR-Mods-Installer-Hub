@@ -1,4 +1,4 @@
-# Shadow Warrior VR
+﻿# Shadow Warrior VR
 
 RazeXR brings the classic Shadow Warrior to true stereo PC VR with roomscale motion controls and voxel weapons held at the controller. The shared PCVR port supplies 91 hand-weapon models across its seven supported Build-engine games.
 
@@ -29,6 +29,8 @@ The current publisher build can show yellow `deprecated checktype` script warnin
 ## Current RazeXR v1.1 update
 
 The weapon wheel, gun-aligned crosshair, steadier turning and correctly shaped menus are in the current shared PCVR engine. Hold the gun-hand stick click to open the wheel, reach toward a weapon and release; time slows while choosing. Crouch is [[X]]. The wheel can be disabled in VR Options to restore stick-click crouch. Version 1.1 also keeps drawing to the headset after desktop focus changes and can start flat when no headset is connected. Valve Index and Pimax changes were reported without publisher hardware testing.
+
+RazeXR 1.3.1 adds a Toggle/Hold choice for two-handed grips and controller vibration settings. Review those options in the VR settings after updating; your personal settings are preserved.
 
 ## Controls
 

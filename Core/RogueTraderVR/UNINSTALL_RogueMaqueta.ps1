@@ -26,6 +26,8 @@ try {
         $process=Start-Process -FilePath $exe -ArgumentList $args -Wait -PassThru -NoNewWindow
         if($null -eq $process.ExitCode -or $process.ExitCode -ne 0){throw "Publisher uninstaller failed (exit code $($process.ExitCode))."}
         if(Test-Path -LiteralPath (Join-Path $profile 'RTMaquetaXR\RTMaquetaXR.dll') -PathType Leaf){throw 'The mod DLL is still present after publisher uninstall. Hub status was not cleared.'}
+        . (Join-Path $PSScriptRoot '..\Modules\HubState.ps1')
+        $stateGame=@{Id='warhammer-40k-rogue-trader-vr';Title='Warhammer 40K: Rogue Trader VR'}
         $params=Join-Path $profile 'Params.xml'
         if(Test-Path -LiteralPath $params -PathType Leaf){
             $xml=New-Object Xml.XmlDocument;$xml.XmlResolver=$null;$xml.Load($params)
@@ -34,12 +36,17 @@ try {
         }
         $record=Join-Path $PSScriptRoot '.installed_path_maqueta'
         $game=if(Test-Path -LiteralPath $record){(''+(Get-Content -LiteralPath $record -Raw)).Trim()}else{''}
+        if(-not $game){$game=[string](Read-PersistentGameStateValue -Game $stateGame -Name 'installed_path')}
         if($game -and (Test-Path -LiteralPath (Join-Path $game 'WH40KRT.exe') -PathType Leaf)){
             foreach($name in @('.pcvrhub_rogue_maqueta_version','.pcvrhub_version_b')){
                 $path=Join-Path $game $name;if(Test-Path -LiteralPath $path -PathType Leaf){Remove-Item -LiteralPath $path -Force}
             }
+            Clear-HubInstallManifestVersion -Game $stateGame -GameDir $game -Second
         }
         if(Test-Path -LiteralPath $record){Remove-Item -LiteralPath $record -Force}
+        $versionRecord=Join-Path $PSScriptRoot '.installed_version_b'
+        if(Test-Path -LiteralPath $versionRecord -PathType Leaf){Remove-Item -LiteralPath $versionRecord -Force}
+        Reset-PersistentGameStateValue -Game $stateGame -Name 'installed_version_b'|Out-Null
         Write-Host 'W40KRT_VR removed. RTVR and other Owlcat mods were kept.' -ForegroundColor Green
     } finally {if(Test-Path -LiteralPath $work){Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue}}
 } catch {Write-Host ('Uninstall stopped: '+$_.Exception.Message) -ForegroundColor Red;if($NoPause){exit 1}}

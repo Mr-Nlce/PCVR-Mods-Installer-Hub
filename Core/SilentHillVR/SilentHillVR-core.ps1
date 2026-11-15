@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 #  Silent Hill (1999) VR - installer
 # =============================================================
 # WHAT THIS IS. Not a mod that patches an installed game: it is a
@@ -248,7 +248,7 @@ if (-not (Confirm-PlacedFilesSurvive `
 Write-ModStamp -GameDir $installRoot -Version $MOD_VERSION
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $installRoot -Encoding UTF8 -Force } catch {}
 if (Test-IsTrackableInstalledVersion -Version $MOD_VERSION) {
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $MOD_VERSION -Encoding UTF8 -Force } catch {}
     Save-InstalledStamp -GameDir $installRoot -Version $MOD_VERSION
 }
 try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}

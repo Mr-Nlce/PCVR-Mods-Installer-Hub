@@ -2136,7 +2136,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Rogue Flight VR',
         'Astrodogs VR'
     )
-    'lasers' = @('Aliens versus Predator 2 VR','Dead Space 2 VR', 
+    'lasers' = @('Aliens versus Predator 2 VR','Dead Space 2 VR','Dead Space (2008) VR', 
         'Star Wars: X-Wing VR',
         'Star Wars Outlaws VR',
         'Jedi Knight: Jedi Outcast VR',
@@ -2459,7 +2459,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'No One Lives Forever 2 VR',
         'Road to Vostok VR'
     )
-    'ecg' = @('Dementium II HD VR','Dead Space 2 VR', 
+    'ecg' = @('Dementium II HD VR','Dead Space 2 VR','Dead Space (2008) VR', 
         'Outlast VR',
         'Outlast 2 VR',
         'Resident Evil 7 VR',
@@ -3005,7 +3005,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Penumbra: Black Plague VR',
         'Penumbra: Requiem VR'
     )
-    'tendrils' = @('Dead Space 2 VR', 
+    'tendrils' = @('Dead Space 2 VR','Dead Space (2008) VR', 
         'Alan Wake VR',
         'Amnesia VR',
         'SOMA VR',
@@ -3310,7 +3310,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Halo Master Chief Collection VR',
         'Halo CE VR'
     )
-    'hologram' = @('Ratchet & Clank 1 VR', 'Dead Space 2 VR', 
+    'hologram' = @('Ratchet & Clank 1 VR', 'Dead Space 2 VR','Dead Space (2008) VR', 
         'Cyberpunk 2077',
         'Cloudpunk VR',
         'Cloudpunk: City of Ghosts VR',
@@ -3753,7 +3753,7 @@ $global:BannerFxExtraGames = [ordered]@{
         'Outer Wilds VR',
         'Hogwarts Legacy VR'
     )
-    'beacon' = @('Dead Space 2 VR', 
+    'beacon' = @('Dead Space 2 VR','Dead Space (2008) VR', 
         'Killing Floor 2 VR',
         'Alien: Isolation VR',
         'Doom 3 BFG VR',
@@ -5984,6 +5984,13 @@ $global:BannerFxExtraGames = [ordered]@{
 # ------------------------------------------------------------
 
 # Catalog title -> list of fitting new effect names.
+foreach($effect in @('casings','tracers','fog','flashlight','bloodmoon')){$global:BannerFxExtraGames[$effect]+=@('Resident Evil 5 VR')}
+foreach($effect in @('casings','tracers','ash','crosshairs','flares')){$global:BannerFxExtraGames[$effect]+=@('Gears of War: E-Day VR')}
+foreach($effect in @('fog','flashlight','bloodmoon','ravens','fireflies')){$global:BannerFxExtraGames[$effect]+=@('Resident Evil Code: Veronica X VR')}
+# Exact-title assignments for Agent 64 and I Hate This Place.
+foreach($effect in @('tracers','casings','radar','crosshairs','pixels')){$global:BannerFxExtraGames[$effect]+=@('Agent 64: Spies Never Die VR')}
+foreach($effect in @('fog','flashlight','fireflies','bloodmoon','ravens')){$global:BannerFxExtraGames[$effect]+=@('I Hate This Place VR')}
+
 function global:Get-BannerFxExtraIndex {
     if ($global:BannerFxExtraIndex) { return $global:BannerFxExtraIndex }
     $idx = @{}
@@ -8559,16 +8566,30 @@ function global:Add-BfxCheckered {
 function global:Add-BfxDriftsmoke {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
+    $emitter = 0.9
+    $smoke = @(
     for ($i = 0; $i -lt 22; $i++) {
-        $puff = New-BfxGlow 40 '#e8e8f0' 0.14; $tf = Set-BfxTransforms $puff
-        $life = Get-BfxRnd $S 1.8 2.6; $ph = Get-BfxRnd $S
-        Start-BfxAnim $tf.T $global:BfxP.X (Get-BfxRnd $S -10 10) (- (Get-BfxRnd $S 140 260)) $life $ph
-        Start-BfxAnim $tf.T $global:BfxP.Y 0 (- (Get-BfxRnd $S 40 90)) $life $ph
-        Start-BfxAnim $tf.S $global:BfxP.SX 0.5 3.2 $life $ph; Start-BfxAnim $tf.S $global:BfxP.SY 0.5 3.2 $life $ph
-        Start-BfxKeys $puff $global:BfxP.O @(@(0, 0), @(0.1, 1), @(1, 0)) $life $ph
-        Add-BfxItem $S $puff -Fx 0.7 -OffsetX (Get-BfxRnd $S -20 20) -Top $H
+        $puff = New-BfxGlow 40 '#e8e8f0' 0.14
+        $tf = Set-BfxTransforms $puff
+        $life = Get-BfxRnd $S 3.2 4.2
+        $phase = $i / 22.0
+        Start-BfxAnim $tf.T $global:BfxP.Y 0 (-$H * (Get-BfxRnd $S 0.18 0.26)) $life $phase
+        Start-BfxAnim $tf.S $global:BfxP.SX 0.55 2.15 $life $phase
+        Start-BfxAnim $tf.S $global:BfxP.SY 0.55 2.15 $life $phase
+        Start-BfxKeys $puff $global:BfxP.O @(@(0, 0), @(0.14, 1), @(0.66, 0.66), @(1, 0)) $life $phase
+        Add-BfxItem $S $puff -Fx $emitter -OffsetX (Get-BfxRnd $S -7 7) -Top ($H - 22)
+        [pscustomobject]@{ Translate = $tf.T; Life = $life; Phase = $phase; Reach = (Get-BfxRnd $S 0.9 0.98) }
     }
-    foreach ($ox in @(-30, 30)) { Add-BfxItem $S (New-BfxGlow 28 '#ff2a3a' 0.9) -Fx 0.7 -OffsetX $ox -Top ($H - 8) }
+    )
+    $S.Extra = {
+        param($width)
+        foreach ($puff in $smoke) {
+            Start-BfxAnim $puff.Translate $global:BfxP.X 0 (-$puff.Reach * $width) $puff.Life $puff.Phase
+        }
+    }.GetNewClosure()
+    foreach ($ox in @(-11, 11)) {
+        Add-BfxItem $S (New-BfxGlow 28 '#ff2a3a' 0.9) -Fx $emitter -OffsetX $ox -Top ($H - 13)
+    }
     Complete-BfxStage $S
 }
 
@@ -9354,6 +9375,10 @@ function global:Add-BfxSabers {
     param([string]$BannerName, [double]$BannerH)
     $S = New-BfxStage $BannerName; if (-not $S) { return }; $H = $BannerH
     $per = 2.4; $len = $H * 0.85
+    # Keep each duel together in a phased spread slot. Fixed free items sharing
+    # one Fx would otherwise be reflowed together to the left edge.
+    Add-BfxSpread $S {
+        param($slot)
     foreach ($sd in @(@(-70, '#4da6ff', -100, -50), @(70, '#ff3a3a', -80, -130))) {
         $bl = New-Object System.Windows.Controls.Canvas
         [void]$bl.Children.Add((Set-BfxAt (New-BfxRect $len 9 (New-BfxBrush $sd[1] 0.35) 4.5) 0 -4.5))
@@ -9362,20 +9387,21 @@ function global:Add-BfxSabers {
         Set-BfxShadow $bl $sd[1] 12
         $tf = Set-BfxTransforms $bl 0 0
         Start-BfxKeys $tf.R $global:BfxP.A @(@(0, $sd[2]), @(0.5, $sd[3]), @(1, $sd[2])) $per
-        Add-BfxItem $S $bl -Fx 0.62 -OffsetX $sd[0] -Top ($H + 10)
+        Add-BfxItem $S $bl -Fx 0 -OffsetX $sd[0] -Top ($H + 10)
     }
     # both blades cross at x = 0 when they reach -50 / -130 degrees
     $hitY = $H + 10 - [Math]::Tan(50 * [Math]::PI / 180) * 70
     $flash = New-BfxGlow 100 '#ffffff' 0.9
     Start-BfxKeys $flash $global:BfxP.O @(@(0, 0), @(0.47, 0), @(0.5, 1), @(0.56, 0), @(1, 0)) $per
-    Add-BfxItem $S $flash -Fx 0.62 -Top $hitY
+    Add-BfxItem $S $flash -Fx 0 -Top $hitY
     for ($k = 0; $k -lt 14; $k++) {
         $sp = New-BfxEllipse 2.4 2.4 (New-BfxBrush '#fff0c0' 1); $st = Set-BfxTransforms $sp; $vx = Get-BfxRnd $S -110 110; $vy = Get-BfxRnd $S -80 20
         Start-BfxKeys $st.T $global:BfxP.X @(@(0, 0), @(0.5, 0), @(0.75, $vx), @(1, $vx)) $per
         Start-BfxKeys $st.T $global:BfxP.Y @(@(0, 0), @(0.5, 0), @(0.62, $vy), @(0.75, ($vy + 40)), @(1, ($vy + 40))) $per
         Start-BfxKeys $sp $global:BfxP.O @(@(0, 0), @(0.5, 0), @(0.501, 1), @(0.75, 0), @(1, 0)) $per
-        Add-BfxItem $S $sp -Fx 0.62 -Top $hitY
+        Add-BfxItem $S $sp -Fx 0 -Top $hitY
     }
+    } ($H * 2.0)
     Complete-BfxStage $S
 }
 

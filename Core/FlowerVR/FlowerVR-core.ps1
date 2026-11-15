@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -19,6 +19,8 @@ function Write-FlowerStep([int]$Number,[string]$Text) {
 }
 
 function Test-FlowerGameRoot([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'flower-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Flower.exe') -PathType Leaf))
 }
 

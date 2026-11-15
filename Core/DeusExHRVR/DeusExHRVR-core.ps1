@@ -1,4 +1,4 @@
-# Deus Ex: Human Revolution Director's Cut VR - governed GitHub prerelease installer.
+﻿# Deus Ex: Human Revolution Director's Cut VR - governed GitHub prerelease installer.
 # Only the publisher-supported Steam Director's Cut 2.0.66.0 executable is
 # accepted. The four native bridge files are owned together; user INI settings
 # and unrelated files are preserved across updates and removal.
@@ -27,6 +27,8 @@ function Write-DeusExOK([string]$Text) { Write-Host "  [OK] $Text" -ForegroundCo
 function Write-DeusExWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
 
 function global:Test-DeusExRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'deus-ex-human-revolution-directors-cut-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 

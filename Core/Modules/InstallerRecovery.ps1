@@ -156,6 +156,29 @@ function global:Get-PCVRRecoveryMatchingDownloads {
         Sort-Object LastWriteTimeUtc -Descending)
 }
 
+function global:Read-PCVRInstallerCompletionReview {
+    param([string]$FailureMessage, [string]$LogPath)
+    Write-Host ''
+    Write-Host '  SETUP RESULT NEEDS REVIEW' -ForegroundColor Yellow
+    Write-Host ('  ' + $FailureMessage) -ForegroundColor White
+    Write-Host '  [V] Check the saved result again' -ForegroundColor Cyan
+    Write-Host '  [L] Open the installer log' -ForegroundColor Cyan
+    Write-Host '  [Enter] Close setup' -ForegroundColor Cyan
+    while ($true) {
+        $answer = ('' + (Read-Host '  Completion review')).Trim()
+        if (!$answer) { return $false }
+        if ($answer -ieq 'V') { return $true }
+        if ($answer -ieq 'L') {
+            try {
+                if (![IO.File]::Exists($LogPath)) { throw 'The installer log is unavailable.' }
+                Start-Process notepad.exe -ArgumentList ('"' + $LogPath + '"') -ErrorAction Stop | Out-Null
+            } catch { Write-Host ('  ' + $_.Exception.Message) -ForegroundColor Yellow }
+            continue
+        }
+        Write-Host '  Choose V to recheck, L for the log, or Enter to close.' -ForegroundColor Yellow
+    }
+}
+
 function global:Invoke-PCVRUniversalRecovery {
     [CmdletBinding()]
     param(

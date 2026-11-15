@@ -64,6 +64,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") [void](Wait-PCVRExplicitEnter -Message $text) }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -99,14 +100,14 @@ function Find-UnmournedGamePath {
   if (-not $root.StartsWith($temp,[StringComparison]::OrdinalIgnoreCase) -or
       -not(Test-Path -LiteralPath (Join-Path $root 'unmourned-fixture.txt')) -or
       -not(Test-Path -LiteralPath (Join-Path $root 'Unmourned.exe'))) { throw 'Invalid isolated Unmourned fixture.' }
-  return $root
+  if (Test-PCVRGameInstallProof -GameId 'unmourned-vr' -Root $root) { return $root }
  }
  $sp = Get-SteamPath
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = Join-Path $lib "steamapps\common\Unmourned"
- if (Test-Path -LiteralPath "$candidate\Unmourned_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Unmourned_Data") { if (Test-PCVRGameInstallProof -GameId 'unmourned-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'unmourned-vr' -Root $candidate) { return $candidate } }
  }
  return $null
 }
@@ -165,17 +166,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Unmourned install folder" -ForegroundColor White
  Write-Host " (the folder that contains Unmourned_Data/)." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Unmourned folder").Trim().Trim('"')
- if (-not $r) { continue }
- if ($r -eq "Q") { exit 1 }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Unmourned' -HubGameId 'unmourned-vr' -ProbeFile 'Unmourned.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

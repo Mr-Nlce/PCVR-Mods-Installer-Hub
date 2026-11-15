@@ -1,4 +1,4 @@
-param([string]$GameRoot = "")
+﻿param([string]$GameRoot = "")
 
 . "$PSScriptRoot\..\Modules\InstallerSafety.ps1"
 
@@ -6,7 +6,9 @@ $mainDir = Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerVR"
 $tracksScript = Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerTracks\StarWarsEpisodeIRacerTracks-core.ps1"
 
 function Pause-User([string]$Text="Press Enter to continue...") { Write-Host ""; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
-function Test-RacerRoot([string]$Path) { return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path "SWEP1RCR.EXE") -PathType Leaf)) }
+function Test-RacerRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'star-wars-episode-i-racer' -Root $Path)) { return $false }
+ return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path "SWEP1RCR.EXE") -PathType Leaf)) }
 
 Clear-Host
 Write-Host "============================================================" -ForegroundColor Magenta

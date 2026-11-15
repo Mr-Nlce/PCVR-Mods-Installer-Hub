@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -16,21 +16,23 @@ $contract=New-PCVRInstallerContract -Id 'bannerlord-vr' -GameName 'Mount & Blade
     -ReleasePageUrl 'https://github.com/NotLooky/BannerlordVR/releases' -RequiredInstalledFileGroups @($REQUIRED+$HARMONY_REQUIRED+@('.pcvrhub_bannerlordvr_ownership.csv'))
 
 function global:Test-BannerlordGameRoot([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'bannerlord-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue) -and
         (Test-Path -LiteralPath (Join-Path $Path 'Modules\Native\SubModule.xml') -PathType Leaf -ErrorAction SilentlyContinue))
 }
 function global:Assert-BannerlordCompatibleGameVersion([string]$NativeXmlPath){
     $nativeText=Get-Content -LiteralPath $NativeXmlPath -Raw -ErrorAction Stop
     if($nativeText -match '(?i)<Version\s+value\s*=\s*["'']v?(\d+(?:\.\d+){2,3})["'']'){
-        if($Matches[1] -notmatch '^1\.(?:4\.8|5\.5)(?:\.\d+)?$'){
-            throw "Bannerlord $($Matches[1]) is installed; the current VR release supports v1.4.8 stable or v1.5.5. No game files were changed."
+        if($Matches[1] -notmatch '^1\.(?:4\.8|5\.6)(?:\.\d+)?$'){
+            throw "Bannerlord $($Matches[1]) is installed; the current VR release supports v1.4.8 stable or v1.5.6. No game files were changed."
         }
-        if($Matches[1] -match '^1\.5\.5(?:\.\d+)?$'){
-            Write-Host '  v1.5.5 is listed by the publisher, but the latest ZIP was built against v1.4.8 stable.' -ForegroundColor Yellow
+        if($Matches[1] -match '^1\.5\.6(?:\.\d+)?$'){
+            Write-Host '  v1.5.6 is listed by the publisher, but the latest ZIP was built against v1.4.8 stable.' -ForegroundColor Yellow
         }
         return
     }
-    Write-Host '  Could not read the game version. Confirm v1.4.8 or v1.5.5 before playing.' -ForegroundColor Yellow
+    Write-Host '  Could not read the game version. Confirm v1.4.8 or v1.5.6 before playing.' -ForegroundColor Yellow
 }
 function global:Wait-BannerlordCompatibleGameVersion([string]$NativeXmlPath,[scriptblock]$ReadInput=$null,[scriptblock]$OpenUrl=$null){
     while($true){
@@ -39,7 +41,7 @@ function global:Wait-BannerlordCompatibleGameVersion([string]$NativeXmlPath,[scr
             if ($_.Exception.Message -notmatch '^Bannerlord .+ is installed;') { throw }
             Write-Host ('  '+$_.Exception.Message) -ForegroundColor Yellow
             Write-Host '  In Steam Properties > Betas, select None for v1.4.8 stable,' -ForegroundColor White
-            Write-Host '  or select the supported v1.5.5 beta.' -ForegroundColor White
+            Write-Host '  or select the supported v1.5.6 beta.' -ForegroundColor White
             Write-Host '  Wait until Steam finishes the game update before continuing here.' -ForegroundColor White
             [void](Wait-PCVRExplicitEnter -Message 'Press Enter to open Bannerlord Steam Properties...' -ReadInput $ReadInput)
             if($OpenUrl){& $OpenUrl "steam://gameproperties/$APP_ID"}
@@ -55,7 +57,8 @@ function global:Get-BannerlordGameRoot {
         if(Test-BannerlordGameRoot $candidate){return (Get-Item -LiteralPath $candidate).FullName}
     }
     while($true){
-        $raw=([string](Read-Host 'Drag the Bannerlord game folder here (or type its path)')).Trim().Trim('"').Trim("'")
+        $raw=(''+(Read-Host 'Drag the Bannerlord game folder here (or type its path)')).Trim().Trim('"').Trim("'")
+        if(-not $raw -and [Console]::IsInputRedirected){throw [IO.EndOfStreamException]::new('The game selection input ended before a complete Bannerlord installation was selected.')}
         if(Test-BannerlordGameRoot $raw){return (Get-Item -LiteralPath $raw).FullName}
         Write-Host "  That folder needs both $GAME_EXE and Modules\Native\SubModule.xml. Try again." -ForegroundColor Yellow
     }
@@ -245,7 +248,7 @@ function global:Invoke-BannerlordVRInstaller {
         Write-Host '  Mount & Blade II: Bannerlord VR - Installer' -ForegroundColor Cyan
         Write-Host '============================================================' -ForegroundColor Magenta
         Write-Host '  Alpha; current package built for Bannerlord v1.4.8 stable.' -ForegroundColor Yellow
-        Write-Host '  The publisher also lists v1.5.5; exact-package testing is pending.' -ForegroundColor Yellow
+        Write-Host '  The publisher also lists v1.5.6; exact-package testing is pending.' -ForegroundColor Yellow
         Write-Host '  Enabled Bannerlord.Harmony and tracked controllers are required.' -ForegroundColor Yellow
         Write-Host '  Steam: BLSE is optional; download Harmony only from its Nexus Files tab.' -ForegroundColor White
         Write-Host '  VDXR, SteamVR and Meta/Oculus OpenXR are listed by the publisher.' -ForegroundColor Yellow
@@ -306,10 +309,9 @@ function global:Invoke-BannerlordVRInstaller {
         if(-not(Test-BannerlordPayload $payload)){throw 'The downloaded release lacks its SubModule.xml or one of its two required DLLs.'}
         $moduleXml=Get-Content -LiteralPath (Join-Path $payload 'Modules\BannerlordVR\SubModule.xml') -Raw -ErrorAction Stop
         $moduleVersionMatch=[regex]::Match($moduleXml,'(?i)<Version\s+value\s*=\s*["''](v\d+(?:\.\d+){1,3})["'']')
-        $releaseBase=([string]$release.Version -replace '[-+].*$','')
-        if(-not $moduleVersionMatch.Success -or $moduleVersionMatch.Groups[1].Value -ne $releaseBase){
-            throw "BannerlordVR archive version does not match the selected release $($release.Version). No game files were changed."
-        }
+        if(-not $moduleVersionMatch.Success){throw 'The required SubModule.xml is missing a launcher-compatible module version.'}
+        # TaleWorlds loads the numeric module version. The package release can
+        # include a hotfix revision (for example 0.3.1.1 ships module 0.3.1).
         $stage=Join-Path $work 'stage'
         foreach($relative in $REQUIRED){$target=Join-Path $stage $relative;[void][IO.Directory]::CreateDirectory((Split-Path -Parent $target));Copy-Item -LiteralPath (Join-Path $payload $relative) -Destination $target -Force}
         Write-Host "  [OK] Publisher package $($release.Version) verified." -ForegroundColor Green

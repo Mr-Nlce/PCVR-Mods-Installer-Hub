@@ -138,6 +138,7 @@ try {
 
 # ---- Steam + retail helpers ---------------------------------
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
     }
@@ -1456,7 +1457,7 @@ if (Test-Path -LiteralPath $launchBat) {
     }
 }
 if ($relTag) {
-    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
     # Also next to the GAME (2026-08-20). The line above lives INSIDE the
     # Hub folder and is gone the moment a new Hub build is dropped in -
     # the next scan then finds no marker and seeds the CURRENT tag, which

@@ -13,9 +13,7 @@ $MOD_NAME = 'BL1GOTYVR'
 $MOD_AUTHOR = 'Mastersellz'
 $REPO = 'Mastersellz/BL1GOTYVR'
 $RELEASES_URL = "https://github.com/$REPO/releases"
-$PIN_TAG = 'V0.5.7.3'
-$PIN_NAME = 'BL1GOTYVR.V0.5.7.3.zip'
-$PIN_URL = "https://github.com/$REPO/releases/download/$PIN_TAG/$PIN_NAME"
+$ASSET_VERSION_PATTERN = '(?i)^BL1GOTYVR[._-]v?(\d+(?:\.\d+){2,3})\.zip$'
 $IDENTITY = 'borderlandsgotyenhancedvr'
 $QUIP = 'The vault was full of guns. Marcus still sold you another.'
 
@@ -34,6 +32,8 @@ function Write-Warn { param([string]$Text) Write-Host " [!!] $Text" -ForegroundC
 function Pause-User { param([string]$Text='Press Enter to continue...') Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 
 function Test-GameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'borderlands-goty-enhanced' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 
@@ -86,25 +86,17 @@ function Get-ArchiveInputFolders {
 }
 
 function Get-LatestStableRelease {
-    try {
-        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 25 -ErrorAction Stop
-        if (-not $release.draft -and -not $release.prerelease) {
-            $asset = @($release.assets | Where-Object { $_.name -match '^BL1GOTYVR.*\.zip$' } | Select-Object -First 1)[0]
-            if ($asset) {
-                return [pscustomobject]@{
-                    Tag = [string]$release.tag_name
-                    Name = [string]$asset.name
-                    Url = [string]$asset.browser_download_url
-                }
-            }
-        }
-    } catch { Write-Warn 'GitHub release lookup failed; using the last known stable asset URL.' }
-    return [pscustomobject]@{ Tag=$PIN_TAG; Name=$PIN_NAME; Url=$PIN_URL }
+    $release = Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $false -AssetPatterns @($ASSET_VERSION_PATTERN) -SkipReleasesWithoutMatchingAsset
+    if (-not $release.Resolved -or $release.AssetName -notmatch $ASSET_VERSION_PATTERN) {
+        throw 'The official Borderlands VR Windows release could not be verified. Retry or open its release page.'
+    }
+    # The author can replace a ZIP without changing the release tag.
+    return [pscustomobject]@{ Tag=('v'+$Matches[1]); Name=$release.AssetName; Url=$release.Url }
 }
 
 function Get-ReleaseArchive([string]$Destination,$Release) {
     $ok = Invoke-SafeDownload -Urls @([string]$Release.Url) -Destination $Destination -Label "BL1GOTYVR $($Release.Tag)" `
-        -ManualUrl $RELEASES_URL -AllowSkip $false -ExpectedReleaseTag ([string]$Release.Tag)
+        -ManualUrl $RELEASES_URL -AllowSkip $false -FunctionalPayloadOnly -DisableGitHubAssetReresolution
     if ($ok -eq $true -or [string]$ok -in @('retry','manual')) { return $Destination }
     return $null
 }

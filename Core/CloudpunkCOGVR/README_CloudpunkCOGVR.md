@@ -13,11 +13,18 @@ Automated installer for Cloudpunk: City of Ghosts VR v1.0.0 by Astienth — game
 ## How to use
 Click **Install Mod** on the game tile or detail page and follow the prompts.
 
+The expansion is normally inside `Cloudpunk\City of Ghosts`. Select that folder or `Cloudpunk - City of Ghosts.exe`; an existing Locate Game assignment is remembered. The Hub's **Start in VR** starts this expansion EXE, rather than asking Steam to start the DLC App ID. The publisher also permits starting the same EXE directly.
+
 ## Controls
 No motion-controller support — you play with a **gamepad** (recommended) or
 keyboard & mouse. With keyboard & mouse the cursor isn't visible, so a
 gamepad is the better option. Press the [[Menu]] action to recenter the VR
 view ([[Start]] on a gamepad, or [[Escape]] on a keyboard).
+
+| Button | Action |
+| --- | --- |
+| [[Start]] / [[Menu]] | Recenter the VR view on a gamepad |
+| [[Escape]] | Recenter the VR view on a keyboard |
 
 ## Configuration
 All settings in `BepInEx\config\`:

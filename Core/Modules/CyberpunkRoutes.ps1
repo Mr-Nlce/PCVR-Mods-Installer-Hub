@@ -2,6 +2,56 @@
 . (Join-Path $PSScriptRoot 'CyberpunkCompatibility.ps1')
 . (Join-Path $PSScriptRoot 'CyberpunkStartupCompatibility.ps1')
 
+function Get-CyberpunkPortLayout {
+    param([string]$GameVersion,[string]$ModVersion='')
+    if($GameVersion -eq '2.31'){
+        $marker='red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'
+        return @{Marker=$marker;Required=@($marker,'archive\pc\mod\cyberpunkvrport.archive','r6\input\CyberpunkVRPort_ScannerHud.xml','bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_Stereo\init.lua')}
+    }
+    $base='red4ext\plugins\cyberpunkvrport\'
+    return @{Marker=($base+'cyberpunkvrport.dll');Required=@(Get-CyberpunkModernRequiredFiles -ModVersion $ModVersion)}
+}
+
+function global:Get-CyberpunkSupersededPortFiles {
+    param([string]$GameRoot)
+    $paths=@('red4ext\plugins\CyberpunkVR_Stereo','red4ext\plugins\CyberpunkVR_Hands')
+    foreach($rel in $paths){
+        $dir=Join-OwnedRelativePath $GameRoot $rel
+        if(Test-Path -LiteralPath $dir -PathType Container){
+            foreach($file in Get-ChildItem -LiteralPath $dir -File -Recurse){
+                if($file.Name -match '(?i)\.dll(?:\.pcvrhub_off)?$'){$file.FullName.Substring($GameRoot.TrimEnd('\').Length+1)}
+            }
+        }
+    }
+    foreach($rel in @('r6\scripts','bin\x64\plugins\cyber_engine_tweaks\mods')){
+        $dir=Join-OwnedRelativePath $GameRoot $rel
+        if(Test-Path -LiteralPath $dir -PathType Container){
+            foreach($folder in Get-ChildItem -LiteralPath $dir -Directory -Filter 'CyberpunkVRPort_*'){
+                foreach($file in Get-ChildItem -LiteralPath $folder.FullName -File -Recurse){
+                    if($file.Extension -in @('.reds','.lua')){$file.FullName.Substring($GameRoot.TrimEnd('\').Length+1)}
+                }
+            }
+        }
+    }
+    foreach($rel in @('archive\pc\mod\cyberpunkvrport.archive','archive\pc\mod\cyberpunkvrport.archive.xl','engine\config\platform\pc\vrcam_cpu_tweaks.ini')){
+        if(Test-Path -LiteralPath (Join-OwnedRelativePath $GameRoot $rel) -PathType Leaf){$rel}
+    }
+}
+
+function global:Move-CyberpunkSupersededPortFiles {
+    param([string]$GameRoot)
+    $files=@(Get-CyberpunkSupersededPortFiles $GameRoot)
+    if(-not $files.Count){return}
+    $backup=Join-Path $GameRoot ('.pcvrhub_cyberpunk_retired\port-0.2-'+[guid]::NewGuid().ToString('N'))
+    foreach($rel in $files){
+        $from=Join-OwnedRelativePath $GameRoot $rel
+        $to=Join-OwnedRelativePath $backup $rel
+        [void][IO.Directory]::CreateDirectory((Split-Path $to -Parent))
+        Move-Item -LiteralPath $from -Destination $to -ErrorAction Stop
+    }
+    Write-Host '  [OK] Superseded VR plugins and scripts backed up; your settings are kept.' -ForegroundColor Green
+}
+
 function Get-CyberpunkPortPreservedSettings {
     param([Parameter(Mandatory=$true)][string]$SourceRoot)
     # These are saved by the VR launcher/game, not immutable program files.
@@ -9,7 +59,13 @@ function Get-CyberpunkPortPreservedSettings {
     @('bin\x64\vrport.ini',
       'bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_Stereo\vrcam.json',
       'bin\x64\plugins\cyber_engine_tweaks\mods\CyberpunkVRPort_WristHud\wrist.cfg',
-      'red4ext\plugins\CyberpunkVR_Stereo\UserSettings.json')
+      'red4ext\plugins\CyberpunkVR_Stereo\UserSettings.json',
+      'red4ext\plugins\cyberpunkvrport\config\vrport.ini',
+      'red4ext\plugins\cyberpunkvrport\config\vrport-launcher.ini',
+      'red4ext\plugins\cyberpunkvrport\config\vrik_calibration.ini',
+      'red4ext\plugins\cyberpunkvrport\config\UserSettings.json',
+      'red4ext\plugins\cyberpunkvrport\lua\CyberpunkVRPort_Stereo\vrcam.json',
+      'red4ext\plugins\cyberpunkvrport\lua\CyberpunkVRPort_WristHud\wrist.cfg')
     $bin=Join-Path $SourceRoot 'bin\x64'
     if(Test-Path -LiteralPath $bin -PathType Container){
         Get-ChildItem -LiteralPath $bin -Filter 'CyberpunkVR_*Grip*.ini' -File |
@@ -18,7 +74,7 @@ function Get-CyberpunkPortPreservedSettings {
 }
 
 function Get-CyberpunkModSettingsProfile {
-    return @{Name='Mod Settings';Version='0.2.27';GameVersion='2.5';Repo='jackhumbert/mod_settings';Tag='v0.2.27';File='mod_settings_v0.2.27.zip';Marker='red4ext\plugins\mod_settings\mod_settings.dll';Identity='cyberpunk25_modsettings';Pinned='https://github.com/jackhumbert/mod_settings/releases/download/v0.2.27/mod_settings_v0.2.27.zip';Page='https://github.com/jackhumbert/mod_settings/releases/tag/v0.2.27';AssetPattern='(?i)^mod_settings[_-]v?\d[\d.]*\.zip$';RequiredFiles=@('red4ext\plugins\mod_settings\mod_settings.dll','red4ext\plugins\mod_settings\module.reds','red4ext\plugins\mod_settings\packed.reds','red4ext\plugins\mod_settings\ModSettings.archive','red4ext\plugins\mod_settings\ModSettings.archive.xl')}
+    return @{Name='Mod Settings';Version='0.2.30';MinimumVersion='0.2.27';GameVersion='2.5';Repo='jackhumbert/mod_settings';Tag='v0.2.30';File='mod_settings_v0.2.30.zip';Marker='red4ext\plugins\mod_settings\mod_settings.dll';Identity='cyberpunk25_modsettings';Pinned='https://github.com/jackhumbert/mod_settings/releases/download/v0.2.30/mod_settings_v0.2.30.zip';Page='https://github.com/jackhumbert/mod_settings/releases/tag/v0.2.30';AssetPattern='(?i)^mod_settings[_-]v?\d[\d.]*\.zip$';RequiredFiles=@('red4ext\plugins\mod_settings\mod_settings.dll','red4ext\plugins\mod_settings\module.reds','red4ext\plugins\mod_settings\packed.reds','red4ext\plugins\mod_settings\ModSettings.archive','red4ext\plugins\mod_settings\ModSettings.archive.xl')}
 }
 
 function Resolve-CyberpunkModSettingsProfile {
@@ -29,7 +85,7 @@ function Resolve-CyberpunkModSettingsProfile {
     $release=Resolve-GitHubReleaseAsset -Repo $c.Repo -AssetPatterns @($runtimePattern) -IncludePrerelease $false
     if(-not $release.Resolved){throw 'The current Mod Settings download could not be checked on GitHub. Retry or use its official release ZIP.'}
     $v=([regex]::Match([string]$release.Tag,'\d+\.\d+\.\d+')).Value
-    if(-not $v -or [version]$v -lt [version]$c.Version){throw 'The resolved Mod Settings release is too old for this Current setup.'}
+    if(-not $v -or [version]$v -lt [version]$c.MinimumVersion){throw 'The resolved Mod Settings release is too old for this Current setup.'}
     $c.Version=$v;$c.Tag=[string]$release.Tag;$c.File=[string]$release.AssetName;$c.Pinned=[string]$release.Url;$c.Page=[string]$release.PageUrl
     return $c
 }
@@ -38,7 +94,7 @@ function Get-CyberpunkModSettingsWithRecovery {
     while($true){
         try{return Resolve-CyberpunkModSettingsProfile}catch{
             Write-Host ('  Mod Settings: '+$_.Exception.Message) -ForegroundColor Yellow
-            Write-Host '  [R] Check again  [K] Download the known compatible 0.2.27 release' -ForegroundColor White
+            Write-Host "  [R] Check again  [K] Download the known compatible $((Get-CyberpunkModSettingsProfile).Version) release" -ForegroundColor White
             Write-Host '  [O] Open the official Mod Settings releases' -ForegroundColor Cyan
             $choice=(''+(Read-Host '  Choose R, K or O')).Trim().ToUpperInvariant()
             if($choice -eq 'K'){return Get-CyberpunkModSettingsProfile}
@@ -61,10 +117,26 @@ function Get-CyberpunkDepotProfile {
 }
 
 function Get-CyberpunkCurrentProfile {
+    param([switch]$LegacyRuntime)
     $profile=Get-CyberpunkCompatibilityProfile
-    $profile.Id='cyberpunk-2.5-current';$profile.GameVersion='2.5';$profile.ModVersion='0.1.9'
-    $profile.ModUrl='https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.1.9/CyberpunkVRPort-0.1.9.zip'
-    $profile.ModPage='https://github.com/dariulone/cyberpunk-vr-port/releases/tag/0.1.9'
+    $profile.Id='cyberpunk-2.5-current';$profile.GameVersion='2.5';$profile.ModVersion='0.2.45'
+    $profile.ModUrl='https://github.com/dariulone/cyberpunk-vr-port/releases/download/0.2.45/CyberpunkVRPort-0.2.45.zip'
+    $profile.ModPage='https://github.com/dariulone/cyberpunk-vr-port/releases/tag/0.2.45'
+    if(-not $LegacyRuntime){
+        $red4ext=$profile.Components[0]
+        $red4ext.Version='1.31.1'
+        $red4ext.MinimumVersion='1.31.0'
+        $red4ext.GameVersion='2.5'
+        $red4ext.Identity='cyberpunk25_red4ext'
+        $red4ext.Tag='v1.31.1'
+        $red4ext.File='red4ext-1.31.1.zip'
+        $red4ext.Pinned='https://github.com/wopss/RED4ext/releases/download/v1.31.1/red4ext-1.31.1.zip'
+        $red4ext.Page='https://github.com/wopss/RED4ext/releases/tag/v1.31.1'
+        $red4ext.AssetPattern='(?i)^red4ext-v?\d+(?:\.\d+)+\.zip$'
+        $profile.Components=@($red4ext)
+        $profile.ModSettings=Get-CyberpunkModSettingsProfile
+        return $profile
+    }
     $versions=@('1.31.0','1.38.1','0.5.32','1.12.0','1.28.1','1.21.1')
     $patterns=@('(?i)^red4ext-(?!symbols).*\.zip$','(?i)^cet[_-].*\.zip$','(?i)^redscript-.*-windows\.zip$','(?i)^TweakXL-(?!.*pdb).*\.zip$','(?i)^ArchiveXL-(?!.*pdb).*\.zip$','(?i)^Codeware-(?!.*pdb).*\.zip$')
     for($i=0;$i -lt $profile.Components.Count;$i++){
@@ -86,17 +158,17 @@ function Resolve-CyberpunkCurrentProfile {
         . (Join-Path $PSScriptRoot 'GitHubTransport.ps1')
     }
     $p=Get-CyberpunkCurrentProfile
-    foreach($c in @($p.Components)+@($p.InputLoader)){
+    foreach($c in $p.Components){
         $release=Resolve-GitHubReleaseAsset -Repo $c.Repo -AssetPatterns @($c.AssetPattern) -IncludePrerelease $false
         if(-not $release.Resolved){throw ($c.Name+': the current Windows download could not be checked on GitHub.')}
         $v=([regex]::Match([string]$release.Tag,'\d+\.\d+\.\d+')).Value
-        if(-not $v -or [version]$v -lt [version]$c.Version){throw ($c.Name+': publisher release is below the 2.5 requirement.')}
+        if(-not $v -or [version]$v -lt [version]$c.MinimumVersion){throw ($c.Name+': publisher release is below the 2.5 requirement.')}
         $c.Version=$v;$c.Tag=[string]$release.Tag;$c.File=[string]$release.AssetName;$c.Pinned=[string]$release.Url;$c.Page=[string]$release.PageUrl
     }
     $release=Resolve-GitHubReleaseAsset -Repo 'dariulone/cyberpunk-vr-port' -AssetPatterns @('(?i)^CyberpunkVRPort[-_].*\.zip$') -IncludePrerelease $false
     if(-not $release.Resolved){throw 'Cyberpunk VR: the current Windows download could not be checked on GitHub.'}
     $p.ModVersion=([string]$release.Tag).TrimStart('v','V');$p.ModUrl=[string]$release.Url;$p.ModPage=[string]$release.PageUrl
-    if($p.ModVersion -notmatch '^\d+\.\d+\.\d+$' -or [version]$p.ModVersion -lt [version]'0.1.9'){throw 'The resolved VR release is too old for game 2.5. Retry or use manual recovery.'}
+    if($p.ModVersion -notmatch '^\d+\.\d+\.\d+$' -or [version]$p.ModVersion -lt [version]'0.2.0'){throw 'The resolved VR release is too old for game 2.5. Retry or use manual recovery.'}
     return $p
 }
 
@@ -136,7 +208,7 @@ function Get-CyberpunkCurrentProfileWithRecovery {
         try{return Resolve-CyberpunkCurrentProfile}catch{
             Write-Host ('  '+$_.Exception.Message) -ForegroundColor Yellow
             Write-Host '  [R] Check the current downloads again' -ForegroundColor Green
-            Write-Host '  [M] Use the known 2.5-compatible 0.1.9 setup; downloaded ZIPs can be handed over during download recovery' -ForegroundColor White
+            Write-Host "  [M] Use the known 2.5-compatible $((Get-CyberpunkCurrentProfile).ModVersion) setup; downloaded ZIPs can be handed over during download recovery" -ForegroundColor White
             Write-Host '  [O] Open the Current release page' -ForegroundColor Cyan
             $choice=(''+(Read-Host '  Choose R, M or O')).Trim().ToUpperInvariant()
             if($choice -eq 'M'){$known=Get-CyberpunkCurrentProfile;$known.UseKnownReleases=$true;return $known}

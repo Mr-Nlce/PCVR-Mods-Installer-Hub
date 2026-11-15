@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Hollow Knight VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -79,6 +79,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -118,8 +119,8 @@ function Find-HollowKnightGamePath {
  # up that way.
  foreach ($folder in @("Hollow Knight", "HollowKnight")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\hollow_knight_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\hollow_knight_Data") { if (Test-PCVRGameInstallProof -GameId 'hollow-knight-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'hollow-knight-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null

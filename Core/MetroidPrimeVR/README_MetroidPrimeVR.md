@@ -15,13 +15,15 @@ PrimedGun 2.0 by Nobbie and iChris4 is a native OpenXR port with motion controls
 ## Install and start
 
 1. Choose Install in the Hub. Option 1 is recommended: the native PrimedGun 2.0 Windows build with auto-update including prereleases. Option 2 installs the separate Dolphin-based Legacy 1.1.7 build.
-2. Use Start in VR in the Hub and select the installed variant. Metroid Prime VR is the native desktop shortcut; Metroid Prime VR - Legacy opens the older application.
-3. In PrimedGun choose Select Game and select your own disc image.
+2. Before importing your disc, choose Import game in the Hub. In PrimedGun choose Select Game and select your own supported disc image, then scan again in the Hub.
+3. Use Start in VR in the Hub and select the installed variant. Metroid Prime VR is the native desktop shortcut; Metroid Prime VR - Legacy opens the older application.
 4. Open Port Config, enable VR, choose Save Settings, then Play. For flat play, disable VR in Port Config.
 
 The publisher's Layout tab shows the current bindings. Controller and Calibration provide input and arm-cannon settings.
 
 ## Existing saves and updates
+PrimedGun beta.8 uses native engine 0.42.0 and adds Vulkan PC VR. The Graphics API selector is in Port Config. With the game and Port Options closed, you can use Setup > Check for updates with betas enabled. Preserve the user folder when updating. Use normal memory-card saves for progress you need to keep, since save states and Quick Resume remain experimental.
+
 
 The former Dolphin-based installation stays in its own folder, unchanged. Select your game in the new launcher, then use Transfer PrimedGun Memory Card / Settings and choose the old installation or its User folder.
 

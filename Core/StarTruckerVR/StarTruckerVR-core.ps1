@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Star Trucker VR Mod Installer
 # StarTruckerVR by Destroyjevski - distributed via Nexus Mods
 #
@@ -74,6 +74,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -108,7 +109,7 @@ function Find-StarTruckerGamePath {
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = "$lib\steamapps\common\Star Trucker"
- if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'star-trucker-vr' -Root $candidate) { return $candidate } }
  }
  }
  # Step 2: GOG fallback
@@ -117,12 +118,12 @@ function Find-StarTruckerGamePath {
  "${env:ProgramFiles(x86)}\GOG Galaxy\Games\Star Trucker",
  "${env:ProgramFiles}\GOG Galaxy\Games\Star Trucker"
  )) {
- if (Test-Path -LiteralPath "$gg\$GAME_EXE") { return $gg }
+ if (Test-Path -LiteralPath "$gg\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'star-trucker-vr' -Root $gg) { return $gg } }
  }
  # Step 3: Xbox / Microsoft Store / PC Game Pass fallback - the game
  # ROOT is the Content folder.
  foreach ($xb in @("C:\XboxGames\Star Trucker\Content", "D:\XboxGames\Star Trucker\Content", "E:\XboxGames\Star Trucker\Content")) {
- if (Test-Path -LiteralPath "$xb\$GAME_EXE") { return $xb }
+ if (Test-Path -LiteralPath "$xb\$GAME_EXE") { if (Test-PCVRGameInstallProof -GameId 'star-trucker-vr' -Root $xb) { return $xb } }
  }
  return $null
 }
@@ -216,16 +217,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Star Trucker folder" -ForegroundColor White
  Write-Host " (the game ROOT folder, where $GAME_EXE lives)." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Star Trucker folder").Trim().Trim('"').Trim("'")
- if (-not $r) { continue }
- if (Test-Path -LiteralPath $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Star Trucker' -HubGameId 'star-trucker-vr' -ProbeFile 'Star Trucker.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

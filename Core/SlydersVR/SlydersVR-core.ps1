@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Slyders VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -59,6 +59,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -92,7 +93,7 @@ function Find-SlydersGamePath {
  if (-not $sp) { return $null }
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
- if (Test-Path (Join-Path $candidate $GAME_EXE)) { return $candidate }
+ if (Test-Path (Join-Path $candidate $GAME_EXE)) { if (Test-PCVRGameInstallProof -GameId 'slyders-vr' -Root $candidate) { return $candidate } }
  }
  return $null
 }
@@ -205,16 +206,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Slyders install folder." -ForegroundColor White
  Write-Host " (The folder that contains Slyders.exe)" -ForegroundColor Gray
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Slyders folder").Trim().Trim('"')
- if (-not $r) { continue }
- if ((Test-Path $r) -and (Test-Path (Join-Path $r $GAME_EXE))) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Slyders.exe not found at: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Slyders' -HubGameId 'slyders-vr' -ProbeFile 'Slyders.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

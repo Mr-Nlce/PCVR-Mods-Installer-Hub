@@ -125,6 +125,7 @@ function global:ConvertTo-CustomGameRecord {
         wide        = ([string](& $get 'wide' '')).Trim()
         icon        = ([string](& $get 'icon' '')).Trim()
         accent      = ([string](& $get 'accent' '')).Trim()
+        uevrProfile = ([string](& $get 'uevrProfile' '')).Trim()
         source      = ([string](& $get 'source' 'manual')).Trim()
         added       = ([string](& $get 'added' '')).Trim()
         lastPlayed  = ([string](& $get 'lastPlayed' '')).Trim()
@@ -221,6 +222,10 @@ function global:Find-CustomGameDuplicate {
     param($Record, [object[]]$Games)
     foreach ($g in @($Games)) {
         if ($Record.id -and $g.id -eq $Record.id) { continue }
+        if ($Record.source -eq 'uevr' -and $g.source -eq 'uevr') {
+            $wanted=Get-UevrGameIdFromArguments $Record.arguments
+            if($wanted -and $wanted -eq (Get-UevrGameIdFromArguments $g.arguments)){return $g}
+        }
         if ($Record.launchType -eq 'steam' -and $g.launchType -eq 'steam' -and
             $Record.steamAppId -and $g.steamAppId -eq $Record.steamAppId) { return $g }
         if ($Record.launchType -eq 'exe' -and $g.launchType -eq 'exe' -and $Record.exePath -and
@@ -306,6 +311,10 @@ function global:Get-CustomGamesSorted {
 function global:Resolve-CustomGameLaunch {
     param($Game)
     $g = ConvertTo-CustomGameRecord $Game
+    if($g.source -eq 'uevr' -and $g.launchType -eq 'exe'){
+        $current=Find-UevrDeluxeExe
+        if($current){$g.exePath=$current;$g.workingDir=[IO.Path]::GetDirectoryName($current)}
+    }
     $result = [ordered]@{ Kind = $null; FilePath = $null; Arguments = ''; WorkingDirectory = ''; RunAsAdmin = $false; Error = $null }
     switch ($g.launchType) {
         'steam' {
@@ -345,6 +354,7 @@ function global:Resolve-CustomGameLaunch {
 # 'ok' | 'missing' - only exe entries can be checked locally.
 function global:Get-CustomGameAvailability {
     param($Game)
+    if($Game.source -eq 'uevr'){if((Resolve-CustomGameLaunch $Game).Error){return 'missing'};return 'ok'}
     if ($Game.launchType -eq 'exe') {
         if (-not $Game.exePath -or -not (Test-Path -LiteralPath $Game.exePath -PathType Leaf)) { return 'missing' }
     }
@@ -462,6 +472,281 @@ function global:Import-SteamAppsAsCustomGames {
     }
     if ($added -gt 0) { Save-CustomGames -Games $all }
     return $added
+}
+
+# ---------------------------------------------------------------
+# UEVR Deluxe import ("Unreal VR Easy Injector")
+# ---------------------------------------------------------------
+# UEVR Deluxe starts a game directly with  UEVRDeluxe.exe /launch:<ID>
+# (App.xaml.cs ParseCommandLine). It only presses Launch by itself when
+# a local profile exists for the game (GamePage.xaml.cs, LocalProfile).
+# Read-only on UEVR's side - the Hub never writes into its folders.
+#   %APPDATA%\UEVRDeluxe\GameInstallationCache.json  - its game scan
+#   %APPDATA%\UnrealVRMod\<exe name without .exe>\    - one profile each
+# Entries are stored as ordinary 'exe' entries (UEVRDeluxe.exe +
+# "/launch:<ID>"), so launch, edit and remove work like any other.
+$global:UevrDeluxeExeRelative = 'Unreal VR Easy Injector\win-x64\UEVRDeluxe.exe'
+$global:UevrDeluxeStoreNames = @('Steam', 'Epic', 'GOG', 'Xbox', 'EA', 'Windows')
+
+function global:Get-UevrDeluxeAppData {
+    if ($global:CustomGamesUevrAppDataOverride) { return [string]$global:CustomGamesUevrAppDataOverride }
+    if ($global:CustomGamesRootOverride) { return [IO.Path]::Combine([string]$global:CustomGamesRootOverride,'UevrAppData') }
+    return [Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData)
+}
+
+function global:Get-UevrDeluxeCachePath {
+    $appData = Get-UevrDeluxeAppData
+    if (-not $appData) { return $null }
+    return [IO.Path]::Combine($appData, 'UEVRDeluxe', 'GameInstallationCache.json')
+}
+
+function global:Get-UevrDeluxeProfileRoot {
+    $appData = Get-UevrDeluxeAppData
+    if (-not $appData) { return $null }
+    return [IO.Path]::Combine($appData, 'UnrealVRMod')
+}
+
+# Path to UEVRDeluxe.exe or $null. Order: test override, the path the
+# user picked once (setting uevrDeluxeExe), the installer default, the
+# uninstall entry's InstallLocation.
+function global:Find-UevrDeluxeExe {
+    if ($global:CustomGamesUevrExeOverride) {
+        $o = [string]$global:CustomGamesUevrExeOverride
+        if (Test-Path -LiteralPath $o -PathType Leaf) { return $o }
+        return $null
+    }
+    $candidates = @()
+    if (Get-Command Get-HubSetting -ErrorAction SilentlyContinue) {
+        try { $s = [string](Get-HubSetting -Key 'uevrDeluxeExe' -Default ''); if ($s) { $candidates += $s } } catch { }
+    }
+    foreach ($pf in @($env:ProgramFiles, $env:ProgramW6432, ${env:ProgramFiles(x86)})) {
+        if ($pf) { $candidates += [IO.Path]::Combine($pf, $global:UevrDeluxeExeRelative) }
+    }
+    foreach ($c in $candidates) {
+        if ($c -and (Test-Path -LiteralPath $c -PathType Leaf)) { return $c }
+    }
+    foreach ($hive in @('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+                        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+                        'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall')) {
+        try {
+            if (-not (Test-Path -LiteralPath $hive)) { continue }
+            foreach ($k in @(Get-ChildItem -LiteralPath $hive -ErrorAction SilentlyContinue)) {
+                $p = Get-ItemProperty -LiteralPath $k.PSPath -ErrorAction SilentlyContinue
+                if (-not $p -or [string]$p.DisplayName -notmatch 'Unreal VR Easy Injector|UEVR\s*Deluxe') { continue }
+                foreach ($dir in @([string]$p.InstallLocation, [string]$p.DisplayIcon)) {
+                    if (-not $dir) { continue }
+                    $dir = ($dir.Trim() -replace ',-?\d+$', '').Trim('"')
+                    if ($dir -match '\.exe$') { $dir = [IO.Path]::GetDirectoryName($dir) }
+                    foreach ($exe in @([IO.Path]::Combine($dir, 'win-x64', 'UEVRDeluxe.exe'), [IO.Path]::Combine($dir, 'UEVRDeluxe.exe'))) {
+                        if (Test-Path -LiteralPath $exe -PathType Leaf) { return $exe }
+                    }
+                }
+            }
+        } catch { }
+    }
+    return $null
+}
+
+function global:Test-UevrDeluxePresent {
+    $cache = Get-UevrDeluxeCachePath
+    return [bool]($cache -and (Test-Path -LiteralPath $cache -PathType Leaf))
+}
+
+# Same rules as GameInstallation.ID in UEVR Deluxe's GameStoreManager.cs.
+function global:Get-UevrDeluxeGameId {
+    param($Installation)
+    $g = $Installation
+    $joinedEa = ''
+    if ($g.EAContentIDs) { $joinedEa = (@($g.EAContentIDs) -join '|') }
+    if($null -eq $g.StoreType){return $null}
+    $store = $g.StoreType
+    # Older/other serializers may write the enum by name.
+    if ($store -is [string] -and $store -notmatch '^\d+$') {
+        $store = [Array]::FindIndex([string[]]@('Steam', 'Epic', 'GOG', 'XBox', 'EA', 'Windows'),[Predicate[string]]{param($s) $s -ieq [string]$g.StoreType})
+    }
+    $index=-1
+    if(-not [int]::TryParse([string]$store,[ref]$index)){return $null}
+    $id=switch ($index) {
+        0 { if([string]$g.SteamID -match '^[1-9]\d*$'){'S'+$g.SteamID} }
+        1 { if($g.EpicNamespace -and $g.EpicID){'E'+$g.EpicNamespace+'|'+$g.EpicID} }
+        2 { if([string]$g.GOGID -match '^[1-9]\d*$'){'G'+$g.GOGID} }
+        3 { if($g.XBoxID){'X'+$g.XBoxID} }
+        4 { if($joinedEa){'EA'+$joinedEa} }
+        5 { if($g.FolderPath){'W'+$g.FolderPath} }
+    }
+    if($id -and $id -notmatch '["\x00-\x1f]'){return [string]$id}
+    return $null
+}
+
+# One command-line token for UEVR: "/launch:<ID>". Windows IDs are folder
+# paths; a trailing backslash would escape the closing quote.
+function global:Format-UevrLaunchArgument {
+    param([string]$GameId)
+    $id = [string]$GameId
+    if(-not $id -or $id -match '["\x00-\x1f]'){throw 'Invalid UEVR game ID.'}
+    $id=[regex]::Replace($id,'(\\+)$','$1$1')
+    return ('"/launch:{0}"' -f $id)
+}
+
+function global:Get-UevrGameIdFromArguments {
+    param([string]$Arguments)
+    $m = [regex]::Match([string]$Arguments, '^"/launch:([^"\x00-\x1f]+)"$',[Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if (-not $m.Success) { return $null }
+    $id = $m.Groups[1].Value
+    $tail=[regex]::Match($id,'\\+$').Value
+    if($tail){if($tail.Length % 2 -ne 0){return $null};$id=$id.Substring(0,$id.Length-$tail.Length)+$tail.Substring(0,$tail.Length/2)}
+    return $id
+}
+
+function global:Get-UevrExeNameFromPath {
+    param([string]$Path)
+    if (-not $Path) { return $null }
+    # Split by hand: the cache always holds Windows paths.
+    $leaf = ($Path -split '[\\/]')[-1]
+    return ($leaf -replace '(?i)\.exe$', '')
+}
+
+function global:Test-UevrProfileReady {
+    param([string]$ExeName)
+    if (-not $ExeName -or $ExeName -match '[\\/:*?"<>|\x00-\x1f]' -or $ExeName -in @('.','..')) { return $false }
+    $root = Get-UevrDeluxeProfileRoot
+    if (-not $root) { return $false }
+    return (Test-Path -LiteralPath ([IO.Path]::Combine($root, $ExeName)) -PathType Container)
+}
+
+# Games UEVR Deluxe lists (its filtered scan result), with profile state.
+# Sets $global:UevrDeluxeLoadError when the cache is missing/unreadable.
+function global:Get-UevrDeluxeGames {
+    $global:UevrDeluxeLoadError = $null
+    $cachePath = Get-UevrDeluxeCachePath
+    if (-not $cachePath -or -not (Test-Path -LiteralPath $cachePath -PathType Leaf)) {
+        $global:UevrDeluxeLoadError = 'UEVR Deluxe has not scanned your games yet - start it once.'
+        return @()
+    }
+    try {
+        $doc = [IO.File]::ReadAllText($cachePath) | ConvertFrom-Json -ErrorAction Stop
+        if(-not $doc -or $doc.CacheStructureVersion -ne 2 -or -not $doc.PSObject.Properties['AllInstallations'] -or -not $doc.PSObject.Properties['FilteredInstallationIDs']){
+            throw 'Unsupported UEVR cache. Rescan games in UEVR Deluxe.'
+        }
+    } catch {
+        $global:UevrDeluxeLoadError = ('Could not read GameInstallationCache.json: {0}' -f $_.Exception.Message)
+        return @()
+    }
+    $unwrap = {
+        param($v)
+        # Windows PowerShell 5.1 can wrap arrays as {"value":[...],"Count":n}.
+        if ($v -and $v.PSObject.Properties['value'] -and $v.PSObject.Properties['Count']) { return @($v.value) }
+        return @($v)
+    }
+    $filtered = @{}
+    foreach ($fid in (& $unwrap $doc.FilteredInstallationIDs)) { if ($fid) { $filtered[[string]$fid] = $true } }
+    $existing = @{}
+    foreach ($g in @(Read-CustomGames)) {
+        if ($g.source -eq 'uevr') {
+            $eid = Get-UevrGameIdFromArguments $g.arguments
+            if ($eid) { $existing[$eid] = $true }
+        }
+    }
+    $catalogIds = Get-CustomGamesCatalogSteamIds
+    $profileRoot = Get-UevrDeluxeProfileRoot
+    $profiles = @{}
+    if ($profileRoot -and (Test-Path -LiteralPath $profileRoot -PathType Container)) {
+        foreach ($d in @(Get-ChildItem -LiteralPath $profileRoot -Directory -ErrorAction SilentlyContinue)) { $profiles[$d.Name] = $d.FullName }
+    }
+    $seen = @{}
+    $games = New-Object System.Collections.Generic.List[object]
+    foreach ($inst in (& $unwrap $doc.AllInstallations)) {
+        if (-not $inst) { continue }
+        $id = Get-UevrDeluxeGameId $inst
+        if (-not $id -or $seen.ContainsKey($id)) { continue }
+        # An empty filtered result means zero games, not all installations.
+        if (-not $filtered.ContainsKey($id)) { continue }
+        $exeName = Get-UevrExeNameFromPath ([string]$inst.EXEPath)
+        if (-not $exeName) { continue }
+        $seen[$id] = $true
+        $profileDir = $null
+        foreach ($k in $profiles.Keys) {
+            if ([string]::Equals($k, $exeName, [StringComparison]::OrdinalIgnoreCase)) { $profileDir = $profiles[$k]; break }
+        }
+        $storeIndex = -1
+        try { $storeIndex = [int]$inst.StoreType } catch { $storeIndex = [Array]::IndexOf([string[]]@('Steam', 'Epic', 'GOG', 'XBox', 'EA', 'Windows'), [string]$inst.StoreType) }
+        $steamId = if ($null -ne $inst.SteamID) { [string]$inst.SteamID } else { '' }
+        $games.Add([pscustomobject]@{
+            Id           = $id
+            Name         = if ($inst.Name) { [string]$inst.Name } else { $exeName }
+            Store        = if ($storeIndex -ge 0 -and $storeIndex -lt $global:UevrDeluxeStoreNames.Count) { $global:UevrDeluxeStoreNames[$storeIndex] } else { '?' }
+            ExeName      = $exeName
+            FolderPath   = [string]$inst.FolderPath
+            GamePresent  = [bool]($inst.EXEPath -and [IO.File]::Exists([string]$inst.EXEPath))
+            SteamAppId   = $steamId
+            ProfileReady = [bool]$profileDir
+            ProfileDir   = $profileDir
+            HubTitle     = if ($steamId -and $catalogIds.ContainsKey($steamId)) { $catalogIds[$steamId] } else { $null }
+            AlreadyAdded = [bool]$existing.ContainsKey($id)
+        })
+    }
+    return @($games | Sort-Object -Property @{ Expression = { -not $_.ProfileReady } }, Name)
+}
+
+# Imports picked UEVR games in one write. Returns the number added.
+function global:Import-UevrGamesAsCustomGames {
+    param([object[]]$Games, [string]$ExePath)
+    if (-not $ExePath -or -not [IO.File]::Exists($ExePath)) { throw 'UEVR Deluxe (UEVRDeluxe.exe) was not found.' }
+    $all = @(Read-CustomGames)
+    $added = 0
+    foreach ($u in @($Games)) {
+        if (-not $u -or -not $u.Id) { continue }
+        $rec = ConvertTo-CustomGameRecord @{
+            id = (New-CustomGameId); title = [string]$u.Name; launchType = 'exe'
+            exePath = $ExePath; arguments = (Format-UevrLaunchArgument $u.Id)
+            workingDir = [IO.Path]::GetDirectoryName($ExePath)
+            steamAppId = if ([string]$u.SteamAppId -match '^\d+$') { [string]$u.SteamAppId } else { '' }
+            uevrProfile = [string]$u.ExeName
+            source = 'uevr'; added = (Get-Date).ToString('s')
+        }
+        if (Find-CustomGameDuplicate -Record $rec -Games $all) { continue }
+        $all += $rec
+        $added++
+    }
+    if ($added -gt 0) { Save-CustomGames -Games $all }
+    return $added
+}
+
+# Text of a stand-alone .bat that starts one entry the same way the
+# tile does. chcp 65001 lets cmd read non-ASCII paths from the UTF-8 file.
+function global:New-CustomGameBatText {
+    param($Game)
+    $plan = Resolve-CustomGameLaunch -Game $Game
+    if ($plan.Error) { throw $plan.Error }
+    $lines = @('@echo off', 'chcp 65001 >nul', ('rem {0} - created by PCVR Mods Installer Hub' -f ([string]$Game.title -replace '[\r\n%&|<>^!()]', ' ')), 'setlocal DisableDelayedExpansion')
+    if ($plan.Kind -eq 'uri') {
+        $lines += ('start "" "{0}"' -f ($plan.FilePath -replace '%', '%%'))
+    } else {
+        $cmd = 'start "" '
+        if ($plan.WorkingDirectory) { $cmd += ('/D "{0}" ' -f $plan.WorkingDirectory) }
+        $cmd += ('"{0}"' -f $plan.FilePath)
+        if ($plan.Arguments) { $cmd += (' ' + $plan.Arguments) }
+        $lines += ($cmd -replace '%', '%%')
+    }
+    return (($lines -join "`r`n") + "`r`n")
+}
+
+function global:Export-CustomGameBat {
+    param($Game, [string]$Path)
+    if (-not $Path) { throw 'No file chosen.' }
+    $text = New-CustomGameBatText -Game $Game
+    [IO.File]::WriteAllText($Path, $text, [Text.UTF8Encoding]::new($false))
+    return $Path
+}
+
+function global:Set-CustomGamesUevrLauncherPath {
+    param([string]$Path)
+    $value=([string]$Path).Trim().Trim('"')
+    if(-not [IO.File]::Exists($value) -or [IO.Path]::GetFileName($value) -ine 'UEVRDeluxe.exe'){
+        throw 'Choose UEVRDeluxe.exe from your UEVR Deluxe installation.'
+    }
+    Set-HubSetting -Key 'uevrDeluxeExe' -Value ([IO.Path]::GetFullPath($value))
+    return [IO.Path]::GetFullPath($value)
 }
 
 # ---------------------------------------------------------------

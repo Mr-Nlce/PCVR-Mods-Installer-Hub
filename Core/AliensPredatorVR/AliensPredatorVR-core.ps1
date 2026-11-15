@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -23,6 +23,8 @@ function Get-AvpBaseExecutable([string]$Root){
     return $null
 }
 function Test-AvpGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'aliens-versus-predator-vr' -Root $Root)) { return $false }
+
     if(-not $Root){return $false}
     if(-not(Get-AvpBaseExecutable $Root)){return $false}
     foreach($name in @('AvP_Rifs','fastfile','FMVs')){

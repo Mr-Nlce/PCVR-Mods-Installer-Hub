@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Raft - RaftVR 1.1.0 Installer
 # Mod by DrBibop | https://www.raftmodding.com/mods/raftvr
 # ============================================================
@@ -28,6 +28,7 @@ function Write-Info { param($t) Write-Host " [..] $t" -ForegroundColor Gray }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null
@@ -39,7 +40,7 @@ function Get-SteamLibraries { param($sp)
  return $libs
 }
 function Find-GamePath { param($libs)
- foreach($lib in $libs){ $c=Join-Path $lib "steamapps\common\$GAME_NAME"; if(Test-Path -LiteralPath "$c\Raft.exe"){return $c} }; return $null
+ foreach($lib in $libs){ $c=Join-Path $lib "steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'raft-vr' -Root $c)) { continue }; ; if(Test-Path -LiteralPath "$c\Raft.exe"){return $c} }; return $null
 }
 function Get-File { param($name,$url,$dest)
  # Try direct URL, then web archive mirror, then interactive fallback

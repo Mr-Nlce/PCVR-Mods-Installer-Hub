@@ -100,17 +100,9 @@ function Get-DroppedFile {
 # the console the same path text as a file does.
 function Get-DroppedFolder {
     param([string]$Label)
-    while ($true) {
-        Write-Host ""
-        Write-Host " Drag $Label onto this window and press Enter," -ForegroundColor Yellow
-        Write-Host " or leave empty to cancel." -ForegroundColor DarkGray
-        $raw = Read-Host " Folder"
-        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-        $p = $raw.Trim().Trim('"').Trim("'").Trim()
-        if (Test-Path -LiteralPath $p -PathType Leaf) { $p = Split-Path -Parent $p }
-        if (-not (Test-Path -LiteralPath $p -PathType Container)) { Write-Warn "Folder not found: $p"; continue }
-        return $p
-    }
+    $selected=Get-GameFolderInteractive -GameName $Label -HubGameId 'battlefield-1942-vr' -ProbeFile 'BF1942.exe'
+    if(-not $selected -or $selected -in @('quit','skip')){return $null}
+    return $selected
 }
 
 # Fetch the newest BFVR setup from the release. The asset whose name
@@ -202,7 +194,7 @@ foreach ($p in @(
     "C:\Games\Battlefield 1942",
     "D:\Games\Battlefield 1942",
     "C:\Battlefield 1942"
-)) { if (-not $gamePath -and (Test-LiteralPathSafe -Path (Join-PathLexical $p $GAME_EXE) -PathType Leaf)) { $gamePath = $p; break } }
+)) { if (-not $gamePath -and (Test-PCVRGameInstallProof -GameId 'battlefield-1942-vr' -Root $p)) { $gamePath = $p; break } }
 
 if (-not $gamePath) {
     Write-Info "No Battlefield 1942 folder found in the usual places."
@@ -493,7 +485,7 @@ if ($bfvrMissing.Count -eq 0 -and ($bfvrChanged.Count -gt 0 -or $bfvrAlreadySame
     try { Set-Content -Path (Join-Path $PSScriptRoot ".launch_exe") -Value $modFull -Encoding UTF8 -Force } catch {}
     $bfvrInstalledVersion = if ($rel -and $rel.Tag) { $rel.Tag } else { $PINNED_VER }
     if (Test-IsTrackableInstalledVersion -Version $bfvrInstalledVersion) {
-        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $bfvrInstalledVersion -Encoding UTF8 -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $bfvrInstalledVersion -Encoding UTF8 -Force } catch {}
     }
     # ALSO write the durable stamp next to the GAME (2026-08-20).
     # The line above lands inside the Hub folder and is gone as

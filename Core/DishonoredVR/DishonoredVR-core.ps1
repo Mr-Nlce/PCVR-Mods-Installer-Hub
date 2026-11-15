@@ -30,6 +30,8 @@ function Write-DishonoredStep([int]$Number,[string]$Label) {
     Write-Host '  ----------------------------------------' -ForegroundColor DarkGray
 }
 function Test-DishonoredGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'dishonored-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-PathLexical $Root 'Binaries\Win32\Dishonored.exe') -PathType Leaf))
 }
 function Get-DishonoredPublisherProof([string]$Root) {

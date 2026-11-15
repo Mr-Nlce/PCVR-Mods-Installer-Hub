@@ -10,20 +10,20 @@ Explore Japan, join the Horizon festival and take your car collection across sce
 - Close the game and other VR launchers. Remove any competing Forza VR deployment through its own Hub tile/launcher before testing this mod.
 
 ## Install and start
-1. Choose [[Install]] on this GrayHorizon tile. The installer displays the game folder and store, then guides the required settings before placing the mod.
+1. Choose **GrayHorizon** in the **Forza Horizon 6 VR** installer menu or choose [[Install]] in its GrayHorizon section. The installer displays the game folder and store, then guides the required settings before placing the mod.
 2. Save those options in the normal game, exit, then return to the installer. It downloads the current stable FH6 package and preserves your existing configuration. Xbox/Game Pass automatically receives the differently named xinput1_4.dll proxy.
 3. Use [[Start in VR]] in the Hub with the headset connected. Alternatively use your matching Steam/Xbox library or the Forza Horizon 6 - GrayHorizon VR Desktop shortcut. Switch to cockpit view.
 4. After the first headset launch, exit and restart once for the measured field of view and correct picture size. The initial run may look softer.
-5. The installer saves the destination file lists before and after installation, their differences and its log in one report in the Hub folder Core\Logs\Untested. Play a few minutes, choose Provide feedback on this page or above the installed candidate tile. It opens the GitHub form and the report folder with forza-horizon-6-grayhorizon-test-result.txt selected; drag the TXT into Installer log after reviewing it. Repeat attempts create a numbered report and preserve your earlier feedback. This candidate has not yet been confirmed on a real game by a Hub tester.
+5. The installer saves the file inventory before and after installation and its log in a diagnostic report. Repeat attempts preserve earlier reports.
 
 ## Required game settings
+- Turn HDR off.
 - Video: V-Sync off, frame rate unlocked, motion blur off.
 - Turn off the game's own TAA, FXAA, DLSS, FSR, XeSS, CAS and Frame Generation. Use GrayHorizon's upscaler or AA instead. Turn MSAA off when using an upscaler.
 - HDR off in the game; also check Windows HDR if needed. HDR can prevent VR from starting on Meta/Quest runtimes.
 - HUD and gameplay > HUD Safe Frame: Horizontal 5 / Vertical 9. The captured HUD needs these exact stock positions.
-- Data Out on, IP 127.0.0.1, port 20440. This enables per-car HUD layouts and improves FH5/FH6 tracking.
+- GrayHorizon 1.2.1 no longer uses Data Out. Restore your telemetry rig's own destination IP and port in the game.
 - Radar position: Center right.
-- Already feeding SimHub/a rig? Point the game at the mod's port and enter the old destination in GrayHorizon Settings > Pass Data Out on to. Up to eight destinations can be forwarded.
 - Keep Environment Geometry and Environment Texture high if possible to reduce roadside pop-in.
 
 ## Controls
@@ -48,7 +48,9 @@ Defaults work while the game window has focus. Rebind keys, wheel or gamepad but
 | [[Esc]] or [[B]] | Go back or close |
 
 ## Cockpit and HUD
-Choose Adjust HUD in the headset menu to move, resize or hide each floating panel. Leaving the menu saves the current car's layout. Save as default for all cars changes the default while preserving individually edited cars. Data Out is required for distinct per-car HUD layouts; seat adjustments are stored per car.
+After updating from 1.1.x, adjust the per-car seat and HUD layouts again. Settings > Options > Reset is optional and backs up the old files; the Hub preserves your settings and does not reset them automatically.
+
+Choose Adjust HUD in the headset menu to move, resize or hide each floating panel. Leaving the menu saves the current car's layout. Save as default for all cars changes the default while preserving individually edited cars. Per-car HUD and seat layouts now work without Data Out.
 
 Bind the menu to a wheel's D-pad in GrayHorizon Settings if desired. The menu button is kept from the game. Other bound buttons normally still reach the game while the VR menu is closed.
 

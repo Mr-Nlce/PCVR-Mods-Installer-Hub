@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Slime Rancher - SRVR VR Mod Installer
 # ============================================================
 
@@ -52,6 +52,7 @@ function Write-Info { param($text) Write-Host "  [..] $text" -ForegroundColor Gr
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try {
             $p = (Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath
@@ -79,7 +80,7 @@ function Get-SteamLibraries {
 function Find-GamePath {
     param($libraries)
     foreach ($lib in $libraries) {
-        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
+        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'slime-rancher-vr' -Root $candidate)) { continue }; 
         if (Test-Path $candidate) { return $candidate }
     }
     return $null
@@ -133,7 +134,12 @@ else { throw "The selected folder does not contain $GAME_EXE. No files were chan
 # STEP 2: Install SRML
 # -------------------------------------------------------
 # --- Update-or-install choice (shared helper) ---
-$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "SlimeRancher_Data\Managed\UnityEngine.VRModule.dll"
+$modFile = 'SRML\Mods\SRVR.dll'
+$InstallMode = if (Test-Path -LiteralPath (Join-Path $gamePath $modFile) -PathType Leaf) {
+    Read-UpdateOrInstall -GameFolder $gamePath -ModFile $modFile
+} else {
+    'install'
+}
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
 

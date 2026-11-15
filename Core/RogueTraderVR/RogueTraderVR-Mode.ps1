@@ -14,6 +14,7 @@ function Test-RogueTraderModPayload {
             (Test-Path -LiteralPath (Join-Path $ProfileRoot "$folder\$dll") -PathType Leaf))) { return $false }
     if ($Mode -eq 'Maqueta') {
         return ((Test-Path -LiteralPath (Join-Path $ProfileRoot 'RTMaquetaXR\W40KRT-VR-Launcher.exe') -PathType Leaf) -and
+                (Test-Path -LiteralPath (Join-Path $ProfileRoot 'RTMaquetaXR\RTMaquetaBridge.dll') -PathType Leaf) -and
                 (Test-Path -LiteralPath (Join-Path $ProfileRoot 'RTMaquetaXR\portable-install.json') -PathType Leaf))
     }
     return ((Test-Path -LiteralPath (Join-Path $ProfileRoot 'WASDMovement\WASDMovement.dll') -PathType Leaf) -and

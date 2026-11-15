@@ -63,7 +63,7 @@ function Get-PublisherVRRoute($Profile,[string]$Game,$Test) {
     Write-Host '  Dead Space 2 has different Steam and EA app VR packages.' -ForegroundColor Yellow
     while($true){switch((Read-Host '  Your game store: 1 = Steam, 2 = EA app').Trim()){'1'{return 'Steam'}'2'{return 'EA'}}}
 }
-function Get-PublisherVRArchive([string]$Repo,[string[]]$Patterns,[string]$Label,[string]$Work,$Test,[string]$TestKey,[string]$FunctionalProbe='',[switch]$PlainProgress) {
+function Get-PublisherVRArchive([string]$Repo,[string[]]$Patterns,[string]$Label,[string]$Work,$Test,[string]$TestKey,[string]$FunctionalProbe='',[switch]$PlainProgress,[switch]$IncludePrerelease) {
     $dest=Join-Path $Work ($TestKey+'.zip');$page='https://github.com/'+$Repo+'/releases'
     $script:PublisherVRActiveReleasePage=$page
     if($Test){$a=$Test.Archives.$TestKey;if(-not $a){throw ('Missing isolated publisher input '+$TestKey)};Copy-Item -LiteralPath $a.Path -Destination $dest;return @{Path=$dest;Tag=[string]$a.Tag}}
@@ -93,7 +93,7 @@ function Get-PublisherVRArchive([string]$Repo,[string[]]$Patterns,[string]$Label
         }
     }
     Write-Host ('  Checking and downloading '+$Label+'; this may take a few seconds.') -ForegroundColor Cyan
-    $r=Resolve-GitHubReleaseAsset -Repo $Repo -AssetPatterns $Patterns -SkipReleasesWithoutMatchingAsset
+    $r=Resolve-GitHubReleaseAsset -Repo $Repo -AssetPatterns $Patterns -IncludePrerelease:$IncludePrerelease -SkipReleasesWithoutMatchingAsset
     if($r.Resolved -and $r.Url){
         [void](Invoke-SafeDownload -Urls @($r.Url) -Destination $dest -Label $Label -ManualUrl $page -AllowSkip $false -PlainProgress:$PlainProgress)
         return @{Path=$dest;Tag=[string]$r.Tag}

@@ -53,7 +53,8 @@ function Resolve-PreySourcePath([string]$Path) {
             foreach ($name in $REQUIRED_PAKS) {
                 if (-not (Test-Path -LiteralPath (Join-Path $candidate $name) -PathType Leaf -ErrorAction SilentlyContinue)) { $complete=$false; break }
             }
-            if ($complete) {
+            $proofRoot=if ((Split-Path -Leaf $candidate) -ieq 'base') { Split-Path -Parent $candidate } else { $candidate }
+            if ($complete -and (Test-PCVRGameInstallProof -GameId 'prey-2006-vr' -Root $proofRoot)) {
                 $base=(Get-Item -LiteralPath $candidate).FullName
                 $root=if ((Split-Path -Leaf $base) -ieq 'base') { Split-Path -Parent $base } else { $base }
                 return [pscustomobject]@{ Root=[IO.Path]::GetFullPath($root); Base=[IO.Path]::GetFullPath($base) }

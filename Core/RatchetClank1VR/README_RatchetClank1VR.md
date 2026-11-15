@@ -22,11 +22,11 @@ Ratchet and Clank's original adventure returns as a native PC port, with first-p
 | Button | Action |
 | --- | --- |
 | [[Left Stick]] | Move; physical room movement also moves Ratchet. |
-| [[Right Stick Left]] / [[Right Stick Right]] | Snap turn. |
+| [[Right Stick Left]] / [[Right Stick Right]] | Snap or smooth turn, selected in VR Options. |
 | [[A]] | Jump, double jump, or climb from a ledge. |
-| [[Left Trigger]] | Hold to crouch; with [[A]] for long/high jump. |
-| [[Left Stick]] + [[Left Trigger]] + [[A]] | Flick sideways/back for a side flip or back flip. |
-| [[X]] / [[B]] | Hold for Clank pack hover/strafe or Hydro-Pack boost. |
+| [[Left Grip]] | Crouch; with [[A]] for long/high jump. [[Left Trigger]] also crouches when Akimbo is off. |
+| [[Left Stick]] + [[Left Grip]] + [[A]] | Flick sideways/back for a side flip or back flip. |
+| [[B]] / [[Left Grip]] | Hold for Clank pack hover/strafe or Hydro-Pack boost. |
 | [[Grip]] | Grab a ledge while falling; push both hands down to climb, release both grips to let go. |
 | [[Right Grip]] | Hold the wrench; swing to hit, release mid-swing to throw, release slowly to put away. |
 | [[Right Grip]] | Swing the wrench downward while airborne for Hyper Strike. |
@@ -35,7 +35,9 @@ Ratchet and Clank's original adventure returns as a native PC port, with first-p
 | [[Right Stick Click]] | Interact; hold for quick select and reach toward a weapon; release to select. |
 | [[Right Trigger]] + [[Right Stick Click]] | While holding quick select, change its page. |
 | [[Y]] | Pause, skip cutscenes or go back. |
-| [[Left Stick Click]] | Map. |
+| [[X]] | Map. |
+| [[Left Stick Click]] held | Left-hand quick select with Akimbo enabled; reach toward a weapon and release. [[Left Trigger]] changes the page. |
+| [[Left Trigger]] | Fire the left-hand weapon with Akimbo enabled. |
 | [[Right Trigger]] / [[A]] | Point at a menu entry and confirm. |
 | [[Right Stick]] / [[Right Trigger]] / [[Right Stick Click]] | At vendors: browse / buy / leave. |
 | [[Right Grip]] | Hold the wrench on a bolt crank and walk around it. |
@@ -46,6 +48,8 @@ Ratchet and Clank's original adventure returns as a native PC port, with first-p
 | [[F8]] | Recenter. |
 
 Swim with breaststroke motions; stroke upward to dive. Clank punches use physical punches with either hand. VR Options controls helmet/boots, body visibility, movement direction and hoverboard leaning. Camera flip is off by default for comfort. A normal gamepad or keyboard also works.
+
+In Options > VR Options > Turning, choose the default 30-degree snap or smooth turning up to 90 degrees/second. Return the stick to centre after losing focus or a blocked interaction. Akimbo is optional and starts off; the left hand can retain and fire a weapon while the other hand interacts.
 
 ## Help
 

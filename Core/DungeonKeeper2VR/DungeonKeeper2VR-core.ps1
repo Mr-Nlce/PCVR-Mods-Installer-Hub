@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle = 'Dungeon Keeper 2 VR Installer'
@@ -17,7 +17,7 @@ function Assert-DkFixture([string]$Root) {
     return $full
 }
 function Get-DkGame {
-    if($env:PCVR_DK2_TEST_GAME){$root=Assert-DkFixture $env:PCVR_DK2_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $root 'DKII-DX.exe') -PathType Leaf){return $root};throw 'Fixture game EXE is missing.'}
+    if($env:PCVR_DK2_TEST_GAME){$root=Assert-DkFixture $env:PCVR_DK2_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $root 'DKII-DX.exe') -PathType Leaf){if (Test-PCVRGameInstallProof -GameId 'dungeon-keeper-2-vr' -Root $root) { return $root }};throw 'Fixture game EXE is missing.'}
     $paths=@()
     $saved=Get-PCVRRememberedGameFolder -GameId $script:DkId -StateNames @('base_game_path','user_located','installed_path') -ProbeFiles @('DKII-DX.exe')
     if($saved){$paths+=$saved}
@@ -25,11 +25,11 @@ function Get-DkGame {
     $paths+=@('C:\Program Files (x86)\Steam\steamapps\common\Dungeon Keeper 2','C:\Program Files\EA Games\Dungeon Keeper 2',
         'C:\Program Files (x86)\Origin Games\Dungeon Keeper 2','C:\Program Files (x86)\GOG Galaxy\Games\Dungeon Keeper 2',
         'C:\GOG Games\Dungeon Keeper 2','C:\Program Files (x86)\Bullfrog\Dungeon Keeper 2')
-    foreach($path in @($paths|Where-Object{$_}|Select-Object -Unique)) {if(Test-Path -LiteralPath (Join-Path $path 'DKII-DX.exe') -PathType Leaf){return [IO.Path]::GetFullPath($path)}}
+    foreach($path in @($paths|Where-Object{$_}|Select-Object -Unique)) {if(Test-Path -LiteralPath (Join-Path $path 'DKII-DX.exe') -PathType Leaf){if (Test-PCVRGameInstallProof -GameId 'dungeon-keeper-2-vr' -Root $path) { return [IO.Path]::GetFullPath($path) }}}
     $picked=Get-GameFolderInteractive -GameName 'Dungeon Keeper 2 (version 1.70)' -ProbeFile 'DKII-DX.exe' -ManualUrl 'https://store.steampowered.com/app/2616460/'
     if($picked -and (Test-Path -LiteralPath (Join-Path $picked 'DKII-DX.exe') -PathType Leaf)){
         [void](Save-HubRememberedGameFolder -GameId $script:DkId -Title 'Dungeon Keeper 2 VR' -GameDir $picked -ProbeFiles @('DKII-DX.exe') -UserSelected)
-        return [IO.Path]::GetFullPath($picked)
+        if (Test-PCVRGameInstallProof -GameId 'dungeon-keeper-2-vr' -Root $picked) { return [IO.Path]::GetFullPath($picked) }
     }
     throw 'Choose a Dungeon Keeper 2 folder containing DKII-DX.exe. DKII.exe alone is not the supported VR launcher.'
 }

@@ -17,12 +17,12 @@ SOMA is Frictional Games' underwater science-fiction horror story. Explore the r
 
 1. Select [[Install]] on this page. The Hub locates `Soma.exe`, then downloads the latest stable [publisher release](https://github.com/Bateau01/SOMA-VR/releases).
 2. Confirm the game folder and the folder containing `user_settings.cfg` in publisher Setup. Choose Install, Update or Repair and wait for its completion message.
-3. Return to the Hub window. It checks `LAUNCH-SOMA-VR.cmd`, `hpl3vr.dll`, `hpl3vr_inject.exe` and `openxr_loader.dll` before writing the version receipt.
+3. Return to the Hub window. It checks `LAUNCH-SOMA-VR.cmd`, its referenced `Launch-SOMA-VR.ps1` and `SOMA-VR-LaunchSupport.dll`, plus `hpl3vr.dll`, `hpl3vr_inject.exe` and `openxr_loader.dll` before writing the version receipt. Older self-contained launchers keep their own file requirements.
 4. Select [[Start in VR]]. The publisher launch script runs with administrator approval. For flat play, start the original game normally, without injection.
 
 Publisher Setup preserves existing `hpl3vr_vr_settings.ini` and hand calibration. Keep your own backup of the game folder before a major update. The Hub does not copy or delete the publisher's mod files itself.
 
-The reviewed **v1.0.9** release follows the publisher's earlier v1.08.1 numbering and is a direct Setup EXE. The Hub accepts this EXE as well as older Installer ZIPs. In VR SETTINGS > GAMEPLAY, **INTERACTION GUIDES** enables holograms for difficult hand, key-item and Omni-Tool interactions; **ROOMSCALE MOVEMENT** is experimental. SMAA is available under VIDEO. This release also improves terminals, keypads, shoulder storage and height calibration. Publisher Setup still owns the game-file changes and preserves your settings.
+The reviewed **v1.1.1** release is a direct Setup EXE. The Hub accepts this EXE as well as older Installer ZIPs. In VR SETTINGS > GAMEPLAY, **INTERACTION GUIDES** enables holograms for difficult hand, key-item and Omni-Tool interactions; **ROOMSCALE MOVEMENT** is experimental. SMAA is available under VIDEO. Publisher Setup installs the complete overlay, including hand assets and scripts, and preserves existing settings and calibration. Copying only a newer DLL can leave incompatible scripts or missing hand materials.
 
 ## In VR
 
@@ -34,7 +34,8 @@ Open the game's VR SETTINGS for turn mode, movement reference, height, subtitles
 |---|---|
 | [[Left Thumbstick]] | Move. |
 | [[Left Thumbstick Click]] | Toggle crouch. |
-| [[Right Thumbstick]] | Turn; hold for one second with the stick centered to reset hand positions. |
+| [[Right Thumbstick]] | Turn. |
+| [[Right Thumbstick Click]] | Hold for one second to reset hand positions. |
 | [[Y]] | Recenter view. |
 | [[X]] | Pause or resume. |
 | [[B]] | Hold to run; back in menus and special interactions. |

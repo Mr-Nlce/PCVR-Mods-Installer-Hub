@@ -42,7 +42,8 @@ function Get-CyberpunkFixedComponentState {
     if(-not(Test-Path -LiteralPath $marker -PathType Leaf)){return 'missing'}
     $version=Get-CyberpunkBinaryVersion $marker
     $moving=($Component.GameVersion -eq '2.5')
-    if($version -and ((-not $moving -and $version -ne $Component.Version) -or ($moving -and [version]$version -lt [version]$Component.Version))){return ('version '+$version+'; requires '+$Component.Version)}
+    $minimum=if($Component.MinimumVersion){$Component.MinimumVersion}else{$Component.Version}
+    if($version -and ((-not $moving -and $version -ne $Component.Version) -or ($moving -and [version]$version -lt [version]$minimum))){return ('version '+$version+'; requires '+$minimum)}
     foreach($relative in $Component.RequiredFiles){
         if(-not(Test-Path -LiteralPath (Join-OwnedRelativePath $GameRoot $relative) -PathType Leaf)){return ('missing '+$relative)}
     }
@@ -54,7 +55,7 @@ function Get-CyberpunkFixedComponentState {
     try{
         $saved=Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop|ConvertFrom-Json
         if($saved.GameVersion -ne $Component.GameVersion){return 'different compatibility profile'}
-        if((-not $moving -and $saved.Version -ne $Component.Version) -or ($moving -and [version]$saved.Version -lt [version]$Component.Version)){return 'different compatibility profile'}
+        if((-not $moving -and $saved.Version -ne $Component.Version) -or ($moving -and [version]$saved.Version -lt [version]$minimum)){return 'different compatibility profile'}
         $rows=@(Import-Csv -LiteralPath $manifest -ErrorAction Stop)
         if(-not($rows|Where-Object {$_.RelativePath -eq $Component.Marker})){return 'runtime proof missing'}
         foreach($row in $rows){

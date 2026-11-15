@@ -18,7 +18,6 @@ $GAME_EXE = "left4dead2.exe"
 # sometimes updates the ZIP under the same release tag without bumping
 # the version, so we always fetch the latest asset via GitHub API
 # rather than pinning a static download URL.
-$GITHUB_API = "https://api.github.com/repos/keyou91/l4d2vr/releases/latest"
 $GITHUB_RELEASES_URL = "https://github.com/keyou91/l4d2vr/releases"
 $L4D2VR_ASSET_NAME = "L4D2VR.zip"
 $l4d2FixtureMode = $env:PCVR_HUB_TEST_MODE -eq '1' -and [bool]$env:PCVR_L4D2_TEST_ROOT
@@ -93,6 +92,7 @@ if ($env:PCVR_L4D2_LIBRARY_ONLY -eq '1') { return }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  if ($l4d2FixtureMode) { return (Join-Path $l4d2FixtureRoot 'Steam') }
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try {
@@ -121,7 +121,7 @@ function Get-SteamLibraries {
 function Find-GamePath {
  param($libraries)
  foreach ($lib in $libraries) {
- $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
+ $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'left-4-dead-2-vr' -Root $candidate)) { continue }; 
  if (Test-Path $candidate) { return $candidate }
  }
  return $null
@@ -276,8 +276,7 @@ if ($updateOnly) {
  Write-Step 4 $totalSteps "Installing L4D2VR (latest release)"
 }
 
-# Resolve release metadata when the API is available. GitHub's latest asset
-# URL remains usable when its unauthenticated API limit has been reached.
+# Resolve the stable release that actually carries the PC package.
 $tempDir = Join-Path $env:TEMP "L4D2VRInstaller_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tempDir | Out-Null
 $vrZip = Join-Path $tempDir 'L4D2VR.zip'
@@ -289,20 +288,16 @@ $l4d2vrUrl = $null
 Write-Info 'Checking the current GitHub release; this can take a few seconds.'
 try {
  if ($l4d2FixtureMode) { throw 'API rate limit exceeded (isolated fixture)' }
- $apiResp = Invoke-PCVRWebRequest -Uri $GITHUB_API -UseBasicParsing -ErrorAction Stop -TimeoutSec 15 `
-  -Headers @{ 'User-Agent'='PCVR-Mods-Hub'; 'Accept'='application/vnd.github+json' }
- $release = $apiResp.Content | ConvertFrom-Json
- foreach ($asset in @($release.assets)) {
-  if ($asset.name -eq $L4D2VR_ASSET_NAME) {
-   $l4d2vrUrl = [string]$asset.browser_download_url
-   $tagName = [string]$release.tag_name
-   $assetStamp = [string]$asset.updated_at
-   break
-  }
+ $pattern = '(?i)^' + [regex]::Escape($L4D2VR_ASSET_NAME) + '$'
+ $release = Resolve-GitHubReleaseAsset -Repo 'keyou91/l4d2vr' -AssetPatterns @($pattern) -SkipReleasesWithoutMatchingAsset
+ if ($release.Resolved) {
+  $l4d2vrUrl = [string]$release.Url
+  $tagName = [string]$release.Tag
+  $assetStamp = Get-PCVRGitHubSelectedAssetTimestamp -Release $release
  }
- if (-not $l4d2vrUrl) { Write-Warn 'The API release has no L4D2VR.zip asset; trying the direct latest-download URL.' }
+ if (-not $l4d2vrUrl) { Write-Warn 'No compatible release was verified; trying the exact-name latest-download URL.' }
 } catch {
- Write-Warn "The GitHub API is unavailable ($($_.Exception.Message)). Trying the direct latest-download URL."
+ Write-Warn "GitHub release metadata is unavailable ($($_.Exception.Message)). Trying the exact-name latest-download URL."
 }
 
 $latestAssetUrl = 'https://github.com/keyou91/l4d2vr/releases/latest/download/L4D2VR.zip'

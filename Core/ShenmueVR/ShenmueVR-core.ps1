@@ -255,7 +255,7 @@ if ($m1 -or $m2) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
     $shenmueInstalledVersion = if ($rel -and $rel.Tag) { $rel.Tag } else { $PINNED_VER }
     if (Test-IsTrackableInstalledVersion -Version $shenmueInstalledVersion) {
-        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $shenmueInstalledVersion -Encoding UTF8 -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $shenmueInstalledVersion -Encoding UTF8 -Force } catch {}
     }
     # ALSO write the durable stamp next to the GAME (2026-08-20).
     # The line above lands inside the Hub folder and is gone as

@@ -1,4 +1,4 @@
-param([string]$GameDirectory)
+﻿param([string]$GameDirectory)
 $ErrorActionPreference='Stop'
 if(-not $GameDirectory){$GameDirectory=Split-Path $PSScriptRoot -Parent}
 try{
@@ -12,8 +12,8 @@ try{
  . (Join-Path $PSScriptRoot 'Start-CyberpunkVR.ps1') -GameDirectory $GameDirectory -FunctionsOnly
  $saveRoot=Get-CyberpunkSaveRoot
  Switch-CyberpunkSaveProfile -SaveRoot $saveRoot -Target Current
- $plugin='red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'
- $alternates=@{};$alternates[$plugin]=$plugin+'.pcvrhub_off';$alternates[$plugin+'.pcvrhub_off']=$plugin
+ $alternates=@{}
+ foreach($plugin in @('red4ext\plugins\cyberpunkvrport\cyberpunkvrport.dll','red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll')){$alternates[$plugin]=$plugin+'.pcvrhub_off';$alternates[$plugin+'.pcvrhub_off']=$plugin}
  [void](Uninstall-OwnedModPayload -GameRoot $GameDirectory -Identity 'cyberpunkvrport' -ParkedAlternates $alternates)
  foreach($rel in @('.pcvrhub_cyberpunk_25_profile.json','.pcvrhub_cyberpunk_231_profile.json','.pcvrhub_version')){
   $p=Join-Path $GameDirectory $rel;if(Test-Path -LiteralPath $p -PathType Leaf){[IO.File]::Delete($p)}

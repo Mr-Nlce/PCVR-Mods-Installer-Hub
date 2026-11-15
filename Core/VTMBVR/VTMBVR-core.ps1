@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
@@ -19,6 +19,8 @@ $script:BloodlinesContract=New-PCVRInstallerContract -Id $script:BloodlinesId -G
     -RequiredInstalledFileGroups $script:BloodlinesRequired
 
 function Test-BloodlinesGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'vampire-bloodlines-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'vampire.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'Vampire') -PathType Container))
 }

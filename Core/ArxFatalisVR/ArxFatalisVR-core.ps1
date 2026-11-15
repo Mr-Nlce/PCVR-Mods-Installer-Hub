@@ -20,12 +20,21 @@ function Get-ArxReceiptPath {
     return (Join-Path $PSScriptRoot '.installed_path')
 }
 
-function Test-ArxBase([string]$Root){
-    if(-not $Root -or -not(Test-Path -LiteralPath $Root -PathType Container)){return $false}
-    foreach($name in @('arx.exe','data.pak','data2.pak','loc.pak','sfx.pak','speech.pak')){
-        if(-not(Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf)){return $false}
+function Get-ArxMissingOriginalData([string]$Root){
+    if(-not $Root -or -not(Test-Path -LiteralPath $Root -PathType Container)){return @('original game data folder')}
+    try {$files=@(Get-ChildItem -LiteralPath $Root -File -ErrorAction Stop)} catch {return @('readable original game data')}
+    foreach($name in @('data.pak','data2.pak')){
+        if(-not @($files|Where-Object Name -IEQ $name).Count){$name}
     }
-    return $true
+    # ResourceSetup.cpp in the publisher's engine loads each original archive
+    # role from name.pak, name_default.pak or name_<language>.pak. The original
+    # Windows executable is unused by this separate engine/data-dir route.
+    foreach($role in @('loc','sfx','speech')){
+        if(-not @($files|Where-Object {$_.Name -imatch ('^'+$role+'(?:_.+)?\.pak$')}).Count){$role+'.pak (or its language/default variant)'}
+    }
+}
+function Test-ArxBase([string]$Root){
+    return (@(Get-ArxMissingOriginalData $Root).Count -eq 0)
 }
 function Assert-ArxFixture([string]$Path){
     $full=[IO.Path]::GetFullPath($Path)
@@ -43,16 +52,16 @@ function Get-ArxBase {
         return $root
     }
     $paths=[Collections.Generic.List[string]]::new()
-    $saved=Get-PCVRRememberedGameFolder -GameId $script:ArxId -StateNames @('base_game_path','user_located') -ProbeFiles @('arx.exe','data.pak')
+    $saved=Get-PCVRRememberedGameFolder -GameId $script:ArxId -StateNames @('base_game_path','user_located') -ProbeFiles @('data.pak','data2.pak')
     if($saved){$paths.Add($saved)}
-    try {$steam=Find-SteamGameFolder -AppId '1700' -SteamFolderNames @('Arx Fatalis') -ProbeExe 'arx.exe' -HubGameId $script:ArxId; if($steam){$paths.Add($steam)}} catch {}
+    try {$steam=Find-SteamGameFolder -AppId '1700' -SteamFolderNames @('Arx Fatalis') -ProbeExe 'data.pak' -HubGameId $script:ArxId; if($steam){$paths.Add($steam)}} catch {}
     foreach($p in @('C:\Program Files (x86)\Steam\steamapps\common\Arx Fatalis',
         'C:\Program Files (x86)\GOG Galaxy\Games\Arx Fatalis','C:\GOG Games\Arx Fatalis',
         'C:\XboxGames\Arx Fatalis\Content','C:\Program Files\JoWooD\Arxfatalis')){$paths.Add($p)}
     foreach($p in @($paths|Select-Object -Unique)){if(Test-ArxBase $p){return (Get-Item -LiteralPath $p).FullName}}
     $picked=Get-GameFolderInteractive -GameName 'Arx Fatalis' -ProbeFile 'data.pak' -ManualUrl 'https://store.steampowered.com/app/1700/'
     if(Test-ArxBase $picked){return (Get-Item -LiteralPath $picked).FullName}
-    throw 'Select your Arx Fatalis folder containing arx.exe and the original .pak game data.'
+    throw ('The selected Arx folder is missing required game data: '+(@(Get-ArxMissingOriginalData $picked) -join ', ')+'. Select your original game data folder and retry.')
 }
 function Get-ArxTarget([string]$Base){
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_ARX_TEST_TARGET){return (Assert-ArxFixture $env:PCVR_ARX_TEST_TARGET)}
@@ -98,7 +107,7 @@ function Get-ArxRelease {
 }
 function Get-ArxPayload([string]$Archive,[string]$Work,[string]$Version,[string]$Base){
     $expanded=Join-Path $Work 'expanded'
-    Write-Host '  [..] Extracting Arx Libertatis VR; this may take a few seconds.' -ForegroundColor Cyan
+    Write-Host '  Extracting Arx Libertatis VR; this may take a few seconds.' -ForegroundColor Gray
     $result=Expand-ArchiveOrFallback -ArchivePath $Archive -DestinationFolder $expanded -Label 'Arx VR publisher ZIP' -AllowSkip $false -QuietProgress
     if([string]$result -notin @('ok','manual','retry')){throw 'The Arx VR ZIP could not be opened.'}
     $stage=Get-ExtractedPayloadRoot -ExtractDir $expanded -RelModFile 'arx.exe'
@@ -144,14 +153,14 @@ function Invoke-ArxInstaller {
             if($download -ne $true -and [string]$download -notin @('retry','manual')){throw 'Arx VR download did not complete.'}
         }
         $stage=Get-ArxPayload -Archive $archive -Work $work -Version $release.Version -Base $base
-        Write-Host '  [..] Installing VR files; this may take a few seconds.' -ForegroundColor Cyan
+        Write-Host '  Installing VR files; this may take a few seconds.' -ForegroundColor Gray
         [void](Install-OwnedModPayload -SourceRoot $stage -GameRoot $target -Identity 'arxvr' -AdoptIdenticalExisting -ProgressLabel 'Installing Arx Libertatis VR')
         foreach($name in $script:ArxRequired){if(-not(Test-Path -LiteralPath (Join-Path $target $name) -PathType Leaf)){throw "Installed Arx VR file is missing: $name"}}
         $survivalPaths=@(@('arx.exe','ArxIO.dll','openxr_loader.dll','START-ARX-VR.cmd') | ForEach-Object {Join-Path $target $_})
         if(-not(Confirm-PlacedFilesSurvive -Paths $survivalPaths -GameDir $target -NoClear)){
             throw 'Required Arx VR files did not survive installation.'
         }
-        if(-not(Save-HubRememberedGameFolder -GameId $script:ArxId -Title 'Arx Fatalis VR' -GameDir $base -ProbeFiles @('arx.exe','data.pak') -StateName 'base_game_path')){
+        if(-not(Save-HubRememberedGameFolder -GameId $script:ArxId -Title 'Arx Fatalis VR' -GameDir $base -ProbeFiles @('data.pak','data2.pak') -StateName 'base_game_path')){
             throw 'The original game location could not be saved for future Hub scans.'
         }
         [void](Complete-PCVRInstallTransaction -Contract $script:ArxContract -GameDir $target -Version $release.Version `

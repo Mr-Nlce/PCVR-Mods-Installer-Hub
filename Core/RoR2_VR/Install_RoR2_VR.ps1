@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Risk of Rain 2 - VR Mod Installer
 # ============================================================
 
@@ -885,7 +885,7 @@ try { Set-Content -Path (Join-Path $gamePath "steam_appid.txt") -Value "632360" 
 $legacyProof = Join-Path $gamePath "BepInEx\plugins\VRMod.dll"
 if ((Test-Path -LiteralPath $legacyProof -PathType Leaf) -and ('VRMod' -notin $failed)) {
     try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path_legacy_depot") -Value $gamePath -Encoding UTF8 -Force } catch {}
-    try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version_legacy_depot") -Value "2.9.2" -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version_legacy_depot") -Value "2.9.2" -Encoding UTF8 -Force } catch {}
     Save-InstalledStamp -GameDir $gamePath -Version "2.9.2" -HubDir $PSScriptRoot
 }
 

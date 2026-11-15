@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -31,20 +31,20 @@ function Get-BlvrSteamGame {
             -not (Test-Path -LiteralPath (Join-Path $root 'blvr-fixture.txt') -PathType Leaf)) {
             throw 'Brutal Legend test game must be an isolated temporary fixture.'
         }
-        return $root
+        if (Test-PCVRGameInstallProof -GameId 'brutal-legend-vr' -Root $root) { return $root }
     }
     $saved = Get-PCVRRememberedGameFolder -GameId $script:BlvrId -StateNames @('base_game_path','user_located') -ProbeFiles @('BrutalLegend.exe')
     $paths = @($saved)
     try { $paths += Find-SteamGameFolder -AppId '225260' -SteamFolderNames @('BrutalLegend','Brutal Legend') -ProbeExe 'BrutalLegend.exe' -HubGameId $script:BlvrId } catch { }
     $paths += 'C:\Program Files (x86)\Steam\steamapps\common\BrutalLegend'
     foreach ($path in @($paths | Where-Object { $_ } | Select-Object -Unique)) {
-        if (Test-Path -LiteralPath (Join-Path $path 'BrutalLegend.exe') -PathType Leaf) { return [IO.Path]::GetFullPath($path) }
+        if (Test-Path -LiteralPath (Join-Path $path 'BrutalLegend.exe') -PathType Leaf) { if (Test-PCVRGameInstallProof -GameId 'brutal-legend-vr' -Root $path) { return [IO.Path]::GetFullPath($path) } }
     }
     $picked = Get-GameFolderInteractive -GameName 'Brutal Legend (Steam)' -ProbeFile 'BrutalLegend.exe' `
         -ManualUrl 'https://store.steampowered.com/app/225260/'
     if ($picked -and (Test-Path -LiteralPath (Join-Path $picked 'BrutalLegend.exe') -PathType Leaf)) {
         [void](Save-HubRememberedGameFolder -GameId $script:BlvrId -Title 'Brutal Legend VR' -GameDir $picked -ProbeFiles @('BrutalLegend.exe') -UserSelected)
-        return [IO.Path]::GetFullPath($picked)
+        if (Test-PCVRGameInstallProof -GameId 'brutal-legend-vr' -Root $picked) { return [IO.Path]::GetFullPath($picked) }
     }
     throw 'Choose the Steam Brutal Legend folder containing BrutalLegend.exe.'
 }

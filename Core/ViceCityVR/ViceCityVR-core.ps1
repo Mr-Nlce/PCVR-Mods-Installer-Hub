@@ -81,6 +81,8 @@ function Get-ViceCityFileHash {
 # original game data, and gta-vc.exe is the reliable marker for it.
 function Test-ViceCityRoot {
     param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'gta-vice-city-vr' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     try { return (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $GAME_EXE))) } catch { return $false }
 }
@@ -455,7 +457,7 @@ Write-OK 'Required BASE runtime files are present.'
 # .launch_exe so "Start in VR" opens reVC.exe rather than the flat game
 # (Steam would otherwise start gta-vc.exe through steam://rungameid).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+try { if ($relTag) { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

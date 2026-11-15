@@ -20,6 +20,16 @@ function global:Get-PCVRDownloadsFolder {
         return $fixture
     }
 
+    # Linux/pwsh only: XDG user dir (localized names such as ~/Downloads or
+    # ~/Downloads in other languages), else ~/Downloads. Windows: skipped.
+    if ([IO.Path]::DirectorySeparatorChar -eq '/') {
+        try {
+            $xdg = (& xdg-user-dir DOWNLOAD 2>$null | Select-Object -First 1)
+            if ($xdg -and [IO.Path]::IsPathRooted($xdg) -and ($xdg.TrimEnd('/') -ne $HOME.TrimEnd('/'))) { return $xdg }
+        } catch { }
+        if ($HOME) { return (Join-Path $HOME 'Downloads') }
+        return $null
+    }
     $downloadsId = '{374DE290-123F-4565-9164-39C4925E467B}'
     $explorerKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer'
     foreach ($subkey in @('User Shell Folders','Shell Folders')) {

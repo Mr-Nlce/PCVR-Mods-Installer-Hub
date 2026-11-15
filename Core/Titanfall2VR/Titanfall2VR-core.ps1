@@ -1,4 +1,4 @@
-# Titanfall 2 VR: hand off to CircuitLord's maintained companion installer.
+﻿# Titanfall 2 VR: hand off to CircuitLord's maintained companion installer.
 # The publisher owns the TF2VR profile and its versioned file manifest.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
@@ -24,6 +24,8 @@ $script:TfContract = New-PCVRInstallerContract -Id 'titanfall-2-vr' -GameName 'T
     -RequiredInstalledFileGroups $script:TfRequired
 
 function Test-TitanfallGameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'titanfall-2-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path 'Titanfall2.exe') -PathType Leaf))
 }
 

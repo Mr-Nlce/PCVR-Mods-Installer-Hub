@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Mouse P.I. For Hire VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -64,6 +64,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -99,16 +100,16 @@ function Find-MouseGamePath {
    # Presence of MOUSE_Data is the strongest signal we found the install.
    foreach ($folder in @("MOUSE", "Mouse", "MOUSE P.I. For Hire", "MousePIForHire")) {
     $candidate = Join-Path $lib "steamapps\common\$folder"
-    if (Test-Path -LiteralPath "$candidate\MOUSE_Data") { return $candidate }
-    if (Test-Path $candidate) { return $candidate }
+    if (Test-Path -LiteralPath "$candidate\MOUSE_Data") { if (Test-PCVRGameInstallProof -GameId 'mouse-p-i-for-hire-vr' -Root $candidate) { return $candidate } }
+    if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'mouse-p-i-for-hire-vr' -Root $candidate) { return $candidate } }
    }
   }
  }
  # Xbox App / Microsoft Store install (C:\XboxGames\<Title>\Content)
  foreach ($drive in @("C:", "D:", "E:", "F:")) {
   $xb = "$drive\XboxGames\MOUSE P.I. For Hire\Content"
-  if (Test-Path -LiteralPath "$xb\MOUSE_Data") { return $xb }
-  if (Test-Path $xb) { return $xb }
+  if (Test-Path -LiteralPath "$xb\MOUSE_Data") { if (Test-PCVRGameInstallProof -GameId 'mouse-p-i-for-hire-vr' -Root $xb) { return $xb } }
+  if (Test-Path $xb) { if (Test-PCVRGameInstallProof -GameId 'mouse-p-i-for-hire-vr' -Root $xb) { return $xb } }
  }
  return $null
 }
@@ -229,16 +230,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Mouse folder" -ForegroundColor White
  Write-Host " (the folder that contains 'MOUSE_Data')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Mouse folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'MOUSE' -HubGameId 'mouse-p-i-for-hire-vr' -ProbeFile 'MOUSE.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

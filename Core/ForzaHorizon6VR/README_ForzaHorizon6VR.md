@@ -2,18 +2,16 @@
 
 <!-- hub:keep-order -->
 
-Three separate community launchers support the Steam and Microsoft Store /
-Game Pass versions. The Hub keeps them in `C:\Games\Forza Horizon 6 VR`
-under their own `NALULUNA`, `lufz` and `CheekyRender` folders. You may keep
-all three packages installed, and the detail page always shows every choice.
+Four community VR options support Steam and Microsoft Store / Game Pass.
+The first three use separate launcher folders under `C:\Games\Forza Horizon 6 VR`.
+GrayHorizon installs directly beside the retail game and appears as option 4.
 
-Only **one** launcher proxy can be active inside the retail game at a time:
-all three ultimately use `dxgi.dll`. Before changing mods, open the currently
-active launcher's uninstall action, remove its game deployment, close it, and
-then start the other launcher. Never combine or copy their DLLs by hand.
+Use only **one active injector** in the retail game at a time. Before switching,
+remove the active mod's game deployment through its launcher or Hub uninstaller.
+The first three use `dxgi.dll`. GrayHorizon uses an XInput wrapper.
 
 The original game, saves and graphics settings stay outside these packages.
-**Open in Steam** starts flat; no Flat / VR file switch is needed.
+For GrayHorizon, turn VR off in **GrayHorizon Settings** before starting flat.
 
 ## Option 1 - NALULUNA (recommended)
 
@@ -135,7 +133,23 @@ CheekyRender `dxgi.dll` is no longer deployed before removing only the four
 shipped payload files. A different or older `dxgi.dll` is never guessed away;
 the separate package is kept for a safe retry. Generated settings are preserved.
 
-All three mods inject render and camera hooks into the running game. There is
+## Option 4 - GrayHorizon
+
+Select **GrayHorizon** in the installer menu. It downloads the current stable
+FH6 release from GitHub and uses the appropriate XInput wrapper for Steam or
+Xbox / Game Pass. It keeps existing saves and GrayHorizon settings.
+
+Close the game and other VR launchers. Remove the active DXGI deployment
+before installing GrayHorizon. In the GrayHorizon section, use **[[Start in VR]]**
+to launch the game, **Setup & controls** for the full settings guide, and the
+GrayHorizon uninstall action before switching to another injector.
+
+| Button | Action |
+|---|---|
+| [[Ctrl]] + [[Space]] | Recenter the headset. |
+| [[F12]] | Open the GrayHorizon VR menu. |
+
+All four mods inject render or camera hooks into the running game. There is
 no guarantee against future anti-cheat action, and a game update may require a
 new mod release. Use them at your own risk and do not ask the official Forza
 team to support a broken VR mod.

@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Echo Generation 2 VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -63,6 +63,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -97,12 +98,12 @@ function Find-EchoGamePath {
  if ($sp) {
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  $candidate = Join-Path $lib "steamapps\common\Echo Generation 2"
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'echo-generation-2-vr' -Root $candidate) { return $candidate } }
  }
  }
  # Step 2: Xbox / Microsoft Store / PC Game Pass fallback, game ROOT is the Content folder
  foreach ($xb in @("C:\XboxGames\Echo Generation 2\Content", "D:\XboxGames\Echo Generation 2\Content")) {
- if (Test-Path -LiteralPath "$xb\Echo Generation 2.exe") { return $xb }
+ if (Test-Path -LiteralPath "$xb\Echo Generation 2.exe") { if (Test-PCVRGameInstallProof -GameId 'echo-generation-2-vr' -Root $xb) { return $xb } }
  }
  return $null
 }

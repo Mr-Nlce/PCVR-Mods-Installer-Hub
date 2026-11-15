@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -12,7 +12,9 @@ $REQUIRED=@('obse_loader.exe','obse_1_2_416.dll','obse_steam_loader.dll','d3d9.d
 $contract=New-PCVRInstallerContract -Id 'oblivion-2006-vr' -GameName 'Oblivion (2006) VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl "https://github.com/$REPO/releases" -RequiredInstalledFileGroups @($REQUIRED+@(".pcvrhub_${IDENTITY}_ownership.csv"))
 
 function Write-OBStep([int]$n,[string]$t){Write-Host '';Write-Host "--- [$n/6] $t ---" -ForegroundColor Cyan;Write-Host ''}
-function Test-OBRoot([string]$p){[bool]($p -and (Test-Path (Join-Path $p 'Oblivion.exe') -PathType Leaf) -and (Test-Path (Join-Path $p 'OblivionLauncher.exe') -PathType Leaf) -and (Test-Path (Join-Path $p 'Data\Oblivion.esm') -PathType Leaf))}
+function Test-OBRoot([string]$p){
+    if (-not (Test-PCVRGameInstallProof -GameId 'oblivion-2006-vr' -Root $p)) { return $false }
+[bool]($p -and (Test-Path (Join-Path $p 'Oblivion.exe') -PathType Leaf) -and (Test-Path (Join-Path $p 'OblivionLauncher.exe') -PathType Leaf) -and (Test-Path (Join-Path $p 'Data\Oblivion.esm') -PathType Leaf))}
 function Test-OBPayload([string]$p){[bool]($p -and (Test-Path (Join-Path $p 'OBSE\Plugins\OBVR.dll') -PathType Leaf) -and (Test-Path (Join-Path $p 'OBSE\Plugins\OBVR.ini') -PathType Leaf))}
 function Test-MenuQuePayload([string]$p){[bool]($p -and (Test-Path (Join-Path $p 'Data\OBSE\Plugins\MenuQue.dll') -PathType Leaf))}
 function Get-OBRoot {

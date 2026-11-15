@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Richard Burns Rally - RBRvr Installer
 # ============================================================
 
@@ -39,33 +39,9 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 # learn the exact install folder. Loops until a valid EXE is given or
 # the user cancels.
 function Get-RbrExePath {
-    $remembered = Get-PCVRRememberedGameFolder -ProbeFiles @($GAME_EXE)
-    if ($remembered) {
-        Write-OK "Using remembered Richard Burns Rally folder: $remembered"
-        return (Join-Path $remembered $GAME_EXE)
-    }
-    while ($true) {
-        Write-Host ""
-        Write-Host " Drag your $GAME_EXE onto this window and press Enter." -ForegroundColor Yellow
-        Write-Host " (You can also type or paste the full path.)" -ForegroundColor Gray
-        Write-Host " Leave empty and press Enter to cancel." -ForegroundColor DarkGray
-        $raw = Read-Host " Path"
-        if ([string]::IsNullOrWhiteSpace($raw)) { return $null }
-        $p = $raw.Trim().Trim('"').Trim("'").Trim()
-        if (-not (Test-Path $p)) { Write-Warn "Path not found: $p"; continue }
-        # Dragged the folder instead of the EXE? Look inside it.
-        if (Test-Path $p -PathType Container) {
-            $cand = Join-Path $p $GAME_EXE
-            if (Test-Path $cand) { return $cand }
-            Write-Warn "No $GAME_EXE in that folder. Drag the EXE itself."
-            continue
-        }
-        if ((Split-Path -Leaf $p) -ieq $GAME_EXE) { return $p }
-        # Wrong file but maybe the right folder next to it.
-        $sib = Join-Path (Split-Path -Parent $p) $GAME_EXE
-        if (Test-Path $sib) { return $sib }
-        Write-Warn "That is not $GAME_EXE. Please drag the game's $GAME_EXE."
-    }
+    $selected=Get-GameFolderInteractive -GameName 'Richard Burns Rally' -HubGameId 'richard-burns-rally-vr' -ProbeFile 'RichardBurnsRally_SSE.exe'
+    if (-not $selected -or $selected -in @('quit','skip')) { return $null }
+    return Join-Path $selected $GAME_EXE
 }
 
 Write-Header

@@ -5,7 +5,7 @@ $Host.UI.RawUI.WindowTitle='Call of Duty (2003) VR Installer'
 $script:Cod1Id='call-of-duty-2003-vr'
 $script:Cod1Repo='lambda-gab/cod1-vr'
 $script:Cod1Page='https://github.com/lambda-gab/cod1-vr/releases'
-$script:Cod1Reviewed='https://github.com/lambda-gab/cod1-vr/releases/download/v1.7.1/cod-vr-manual-install.zip'
+$script:Cod1Reviewed='https://github.com/lambda-gab/cod1-vr/releases/download/v1.8.0/cod-vr-manual-install.zip'
 $script:Cod1PublisherFiles=@('opengl32.dll','openxr_loader.dll','cod_vr.ini','supporters.ini','CoD-VR-Launcher.exe')
 $script:Cod1Files=@($script:Cod1PublisherFiles)+@('Start CoD VR.ps1')
 $script:Cod1Manifest='.pcvrhub_cod1vr_ownership.csv'
@@ -13,6 +13,8 @@ $script:Cod1Groups=@($script:Cod1Files|ForEach-Object{if($_ -eq 'opengl32.dll'){
 $script:Cod1Contract=New-PCVRInstallerContract -Id $script:Cod1Id -GameName 'Call of Duty (2003) VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:Cod1Page -Routes @('Steam','Retail','Custom') -RequiredInstalledFileGroups (@('CoDSP.exe','main\pak0.pk3')+$script:Cod1Groups+@($script:Cod1Manifest))
 
 function Test-Cod1Game([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'call-of-duty-2003-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'CoDSP.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'main\pak0.pk3') -PathType Leaf))
 }
 function Resolve-Cod1GameInput([string]$Answer){
@@ -91,7 +93,7 @@ function Assert-Cod1Version([string]$Game){
 }
 
 function Get-Cod1Release{
-    if($env:PCVR_COD1_TEST_ARCHIVE){return [pscustomobject]@{Version='v1.7.1';Url=$env:PCVR_COD1_TEST_ARCHIVE;Local=$true}}
+    if($env:PCVR_COD1_TEST_ARCHIVE){return [pscustomobject]@{Version=$(if($env:PCVR_COD1_TEST_VERSION){$env:PCVR_COD1_TEST_VERSION}else{'v1.7.1'});Url=$env:PCVR_COD1_TEST_ARCHIVE;Local=$true}}
     $manual=Get-PCVRRecoveryInput -PathType Leaf
     if($manual){
         do{$version=(Read-Host '  Version shown on the official Call of Duty VR release page').Trim()}until(Test-IsTrackableInstalledVersion $version)
@@ -100,10 +102,10 @@ function Get-Cod1Release{
     }
     try{$r=Resolve-GitHubReleaseAsset -Repo $script:Cod1Repo -IncludePrerelease $false -AssetPatterns @('(?i)^(?!.*(?:source|symbols|debug))(?:cod[-._ ]?vr|callofduty[-._ ]?vr).*\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=$null}
     if($r -and $r.Resolved -and $r.Url -and (Test-IsTrackableInstalledVersion ([string]$r.Tag))){return [pscustomobject]@{Version=[string]$r.Tag;Url=[string]$r.Url;Local=$false}}
-    Write-Host '  Current GitHub release could not be confirmed. The reviewed v1.7.1 ZIP is available.' -ForegroundColor Yellow
+    Write-Host '  Current GitHub release could not be confirmed. The reviewed v1.8.0 ZIP is available.' -ForegroundColor Yellow
     Write-Host '  A newer release may exist; the official release page is offered on download failure.' -ForegroundColor White
-    if((Read-Host '  Download reviewed v1.7.1? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){throw 'Use recovery to open the official releases page and hand over the current ZIP.'}
-    return [pscustomobject]@{Version='v1.7.1';Url=$script:Cod1Reviewed;Local=$false}
+    if((Read-Host '  Download reviewed v1.8.0? Y/N').Trim() -notmatch '^(?i)y(?:es)?$'){throw 'Use recovery to open the official releases page and hand over the current ZIP.'}
+    return [pscustomobject]@{Version='v1.8.0';Url=$script:Cod1Reviewed;Local=$false}
 }
 function Save-Cod1Snapshot([string]$Game,[string]$Folder){
     [void][IO.Directory]::CreateDirectory($Folder)
@@ -180,6 +182,20 @@ function Invoke-Cod1Installer{
         $safe=Test-ZipArchiveEntrySafety -ArchivePath $archive -DestinationFolder $stage
         if(-not $safe.Safe -or -not $safe.Inspectable){throw 'The publisher ZIP is unreadable or has unsafe paths.'}
         if((Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $stage -Label 'Call of Duty VR' -AllowSkip:$false -QuietProgress) -ne 'ok'){throw 'The publisher ZIP could not be extracted.'}
+        # 1.8 adds publisher weapon defaults; personal overrides remain in cod_vr.ini.
+        # Register them before snapshot, ownership and completion, including rollback/removal.
+        $weaponDefaults=Join-Path $stage 'cod_vr_weapons.ini'
+        $releaseNumber=[version]'0.0'
+        [void][version]::TryParse(([string]$release.Version -replace '^v',''),[ref]$releaseNumber)
+        if(Test-Path -LiteralPath $weaponDefaults -PathType Leaf){
+            if($script:Cod1PublisherFiles -notcontains 'cod_vr_weapons.ini'){
+                $script:Cod1PublisherFiles+='cod_vr_weapons.ini'
+                $script:Cod1Files+='cod_vr_weapons.ini'
+                $script:Cod1Contract.RequiredInstalledFileGroups+='cod_vr_weapons.ini'
+            }
+        }elseif($releaseNumber -ge [version]'1.8.0'){
+            throw 'Publisher package lacks cod_vr_weapons.ini weapon defaults.'
+        }
         foreach($name in $script:Cod1PublisherFiles){
             $file=Join-Path $stage $name
             if(-not(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -eq 0){throw "Publisher package lacks $name."}

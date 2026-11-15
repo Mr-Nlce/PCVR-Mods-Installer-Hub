@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle='Killing Floor 2 VR Installer'
 $script:KF2Id='killing-floor-2-vr'
@@ -25,6 +25,8 @@ function Assert-KF2Fixture([string]$Path){
     return $full
 }
 function Test-KF2Game([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'killing-floor-2-vr' -Root $Root)) { return $false }
+
     if(-not $Root){return $false}
     foreach($file in @('Binaries\Win64\KFGame.exe','KFGame\BrewedPC\Core.u','KFGame\BrewedPC\KFGame.u')){
         if(-not(Test-Path -LiteralPath (Join-Path $Root $file) -PathType Leaf)){return $false}
@@ -65,10 +67,10 @@ function Get-KF2Release {
         $archive=Assert-KF2Fixture $env:PCVR_KF2_TEST_ARCHIVE
         return [pscustomobject]@{Tag='';Url=$archive;Local=$true}
     }
+    $windowsPattern='(?i)^KF2VR-Multiplayer-v[0-9].*(?<!-Epic-Desktop-Pack)(?<!-LinuxKit)\.zip$'
     $release=Resolve-GitHubReleaseAsset -Repo $script:KF2Repo -IncludePrerelease $true `
-        -AssetPatterns @('(?i)^KF2VR-Multiplayer-v[0-9].*(?<!-Epic-Desktop-Pack)\.zip$') -SkipReleasesWithoutMatchingAsset
-    if($release.Resolved -and [string]$release.AssetName -match '(?i)^KF2VR-Multiplayer-v[0-9].*\.zip$' -and
-        [string]$release.AssetName -notmatch '(?i)-Epic-Desktop-Pack\.zip$'){
+        -AssetPatterns @($windowsPattern) -SkipReleasesWithoutMatchingAsset
+    if($release.Resolved -and [string]$release.AssetName -match $windowsPattern){
         return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url;Local=$false}
     }
     Write-Host '  The current GitHub release could not be checked. The official ZIP can still be selected.' -ForegroundColor Yellow
@@ -100,6 +102,9 @@ function Get-KF2Payload([string]$Archive,[string]$Stage,[string]$ReleaseTag){
 function Get-KF2PackageVersion {
     param($Metadata,[string]$ReleaseTag)
     if($ReleaseTag){return $ReleaseTag.TrimStart('v')}
+    # New publisher metadata already includes its date in the trackable version.
+    # Older packages only name an alpha and still need the UTC build day.
+    if([string]$Metadata.version -match '\.\d{8}$'){return [string]$Metadata.version}
     if(-not $Metadata.created_utc){throw 'The publisher package has no UTC build timestamp.'}
     $utc=([DateTimeOffset]$Metadata.created_utc).ToUniversalTime()
     return ([string]$Metadata.version+'.'+$utc.ToString('yyyyMMdd',[Globalization.CultureInfo]::InvariantCulture))

@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  Subnautica: Below Zero - SubmersedVR BZ Installer
 # ============================================================
 
@@ -48,6 +48,7 @@ function Write-Info { param($text) Write-Host "  [..] $text" -ForegroundColor Gr
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @(
         "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
         "HKLM:\SOFTWARE\Valve\Steam",
@@ -79,7 +80,7 @@ function Get-SteamLibraries {
 function Find-GamePath {
     param($libraries)
     foreach ($lib in $libraries) {
-        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"
+        $candidate = Join-Path $lib "steamapps\common\$GAME_NAME"; if (-not (Test-PCVRGameInstallProof -GameId 'subnautica-below-zero' -Root $candidate)) { continue }; 
         if (Test-Path $candidate) { return $candidate }
     }
     return $null
@@ -155,11 +156,16 @@ else { Write-Warn "SubnauticaZero.exe not found - folder may still be correct." 
 # STEP 3: Install BepInEx + SubmersedVR BZ
 # -------------------------------------------------------
 # --- Update-or-install choice (shared helper) ---
-$InstallMode = Read-UpdateOrInstall -GameFolder $gamePath -ModFile "SubnauticaZero_Data\Managed\UnityEngine.VRModule.dll"
+$modFile = 'BepInEx\plugins\SubmersedVR.dll'
+$InstallMode = if (Test-Path -LiteralPath (Join-Path $gamePath $modFile) -PathType Leaf) {
+    Read-UpdateOrInstall -GameFolder $gamePath -ModFile $modFile
+} else {
+    'install'
+}
 if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
-if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the mod files." }
-
-$null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile "BepInEx\plugins\SubmersedVR.dll" -Label "SubmersedVR BZ"
+if ($InstallMode -eq "update") {
+    $null = Show-UpdateNoticeIfInstalled -TargetDir $gamePath -RelModFile $modFile -Label "SubmersedVR BZ"
+}
 Write-Step 3 4 "Installing BepInEx + SubmersedVR BZ $SVRBZ_VERSION"
 
 $tempDir = Join-Path $env:TEMP "SubmersedVRBZInstaller_$([System.IO.Path]::GetRandomFileName())"

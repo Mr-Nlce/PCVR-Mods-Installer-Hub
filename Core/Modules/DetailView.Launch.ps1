@@ -2,6 +2,27 @@
 # known obsolete executable in the same recorded folder. Exact path equality
 # keeps genuine custom-store overrides intact.
 . (Join-Path $PSScriptRoot 'StoreLaunch.ps1')
+. (Join-Path $PSScriptRoot 'DawnVRGame.ps1')
+
+function global:Start-HubDawnVRGame {
+    param($Game,[string]$Root)
+    $appid=Get-DawnVRSteamAppId -Root $Root
+    if(-not $appid){Write-HubActionFailure -Action 'Start DawnVR' -Message 'The complete Original or Remastered game could not be identified. Locate its installed game folder.';return}
+    if($Root -match '(?i)[\\/]steamapps[\\/]common[\\/]'){
+        Start-Process ('steam://rungameid/'+$appid) -ErrorAction Stop
+    }else{
+        Start-GameProcess -FilePath (Join-Path $Root 'Life is Strange - Before the Storm.exe') -Arguments '-vrmode OpenVR' -WorkingDirectory $Root -Game $Game
+    }
+}
+
+function global:Start-OriginalGameImport {
+    param($Game)
+    $roots=@();try{$roots+=@($global:gameStateMap[$Game.Title].GameDir)}catch{}
+    $action=Get-OriginalGameImportAction -Game $Game -Roots $roots
+    if(-not $action){Write-HubActionFailure -Action ('Import '+$Game.Title) -Message 'The complete game importer is no longer available. Locate its folder or repair the VR application.';return}
+    try{Start-GameProcess -FilePath $action.File -Arguments $action.Arguments -WorkingDirectory $action.Root -Game $Game}
+    catch{Write-HubActionFailure -Action ('Import '+$Game.Title) -ErrorRecord $_}
+}
 
 function global:Start-HubStoreFallback {
     param($Game,[string]$GameRoot)
@@ -302,16 +323,13 @@ function global:Get-HotD2VrLaunchTarget {
     }
     try { $roots += @(Read-InstalledPath -Game $Game) } catch {}
     try {
-        $state = $global:gameStateMap[$Game.Title]
+        $state = if ($global:gameStateMap) { $global:gameStateMap[$Game.Title] }
         if ($state -and $state.GameDir) { $roots += @([string]$state.GameDir) }
     } catch {}
     try {
-        $desktop = [Environment]::GetFolderPath('Desktop')
-        if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HOTD_TEST_DESKTOP) {
-            $desktop = [string]$env:PCVR_HOTD_TEST_DESKTOP
-        }
-        $linkPath = Join-Path $desktop 'Play HotD2VR.lnk'
-        if (Test-Path -LiteralPath $linkPath -PathType Leaf) {
+        $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') { $env:PCVR_HOTD_TEST_DESKTOP } else { [Environment]::GetFolderPath('DesktopDirectory') }
+        $linkPath = if ($desktop) { Join-Path $desktop 'Play HotD2VR.lnk' }
+        if ($linkPath -and (Test-Path -LiteralPath $linkPath -PathType Leaf)) {
             $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($linkPath)
             $target = [string]$shortcut.TargetPath
             if (([string]$shortcut.Arguments).Trim() -ieq '/play') {
@@ -475,6 +493,14 @@ function global:Start-GameInVR {
     } catch { }
     try {
 
+    if ($Game.InstallerConflictProbe) {
+        $base = $global:gameStateMap[$Game.Title].GameDir
+        if ($base -and (Test-Path -LiteralPath (Join-Path $base $Game.InstallerConflictProbe)) -and
+            ((Test-Path -LiteralPath (Join-Path $base 'xinput1_3.dll')) -or (Test-Path -LiteralPath (Join-Path $base 'xinput1_4.dll')))) {
+            Write-HubActionFailure -Action 'Start in VR' -Message 'Remove GrayHorizon through its Hub section before starting another injector.'
+            return
+        }
+    }
     # Track this launch in the play history FIRST, before any launch path
     # returns. Most-recent-first ringbuffer (max 8). A game permanently
     # hidden from its Recently Played tile is deliberately not re-added.
@@ -675,10 +701,10 @@ function global:Start-GameInVR {
                 $depotExe = if ($depotRoot) { Join-Path $depotRoot $Game.DepotLaunchExe } else { $null }
                 if (-not $depotExe -or -not (Test-DepotPinnedReceiptContract -Game $Game -Root $depotRoot) -or
                     -not (Test-VrInstallEvidenceContract -Game $Game -Root $depotRoot)) { $depotExe = $null }
-            } elseif (-not (Test-Path $depotExe)) {
+            } elseif (-not (Test-Path -LiteralPath $depotExe)) {
                 foreach ($cand in (Get-DepotCandidatePaths -Game $Game)) {
                     $try = [System.IO.Path]::Combine(([string]$cand).TrimEnd([char[]]"\/"), ([string]$Game.DepotLaunchExe).TrimStart([char[]]"\/"))
-                    if (Test-Path $try) { $depotRoot = $cand; $depotExe = $try; break }
+                    if (Test-Path -LiteralPath $try) { $depotRoot = $cand; $depotExe = $try; break }
                 }
             }
             if ($depotExe -and (Test-Path -LiteralPath $depotExe -PathType Leaf)) {
@@ -686,7 +712,7 @@ function global:Start-GameInVR {
                 if ($Game.SteamId) {
                     $appidRelative = if ($Game.DepotSteamAppIdFile) { [string]$Game.DepotSteamAppIdFile } else { 'steam_appid.txt' }
                     $appidFile = [System.IO.Path]::Combine(([string]$depotRoot).TrimEnd([char[]]"\/"), $appidRelative.TrimStart([char[]]"\/"))
-                    if (-not (Test-Path $appidFile)) {
+                    if (-not (Test-Path -LiteralPath $appidFile)) {
                         try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
                     }
                 }
@@ -760,6 +786,76 @@ function global:Start-GameInVR {
     # Start in VR (no Mode) launches whichever single mod is present, or
     # falls back to mod A when both exist.
     if ($Game.TwoMods) {
+        if ($Game.Id -eq 'mass-effect-1-le-vr') {
+            try {
+                $state = $global:gameStateMap[$Game.Title]
+                $slot = if ($Mode -eq 'ModB' -or (-not $Mode -and $state -and -not $state.ModAPresent -and $state.ModBPresent)) { 'B' } else { 'A' }
+                $specific = Get-AlternativeModValue -Source $state -Name ('Mod' + $slot + 'Root')
+                $root = if ($specific) { [string]$specific } elseif ($state -and $state.GameDir) { [string]$state.GameDir } else { Read-InstalledPath -Game $Game }
+                if (-not $root -or -not [IO.File]::Exists((Join-Path $root 'Game\ME1\Binaries\Win64\MassEffect1.exe'))) { throw 'Locate Mass Effect Legendary Edition first.' }
+                $steam = $root -match '(?i)\\steamapps\\common\\'
+                $win64 = Join-Path $root 'Game\ME1\Binaries\Win64'
+                if ($slot -eq 'A') {
+                    . (Join-Path (Split-Path $PSScriptRoot -Parent) 'MassEffect1VR\MEVR-State.ps1')
+                    $setup = Join-Path $win64 'ASI\MEVR-Setup.exe'
+                    if (-not (Get-MEVRInstalledVersion $root) -or -not [IO.File]::Exists($setup) -or -not [IO.File]::Exists((Join-Path $win64 'ASI\LE1MEVR.asi'))) { throw 'MEVR is incomplete. Run the Motion Controls installer to repair it.' }
+                    $source = if ($steam) { 'Steam' } else { 'Folder' }
+                    Start-GameProcess -FilePath $setup -Arguments ('--launch --game "{0}" --source {1}' -f $root.TrimEnd('\'),$source) -WorkingDirectory $root -Game $Game
+                } else {
+                    foreach ($file in @('dxgi.dll','openxr_loader.dll','MELEVR.ini')) {
+                        if (-not [IO.File]::Exists((Join-Path $win64 $file))) { throw 'MELE-VR is incomplete or parked by MEVR. Remove MEVR or repair the Gamepad installation.' }
+                    }
+                    $target = if ($steam) { 'steam://rungameid/1328670' } else { Join-Path $root 'Game\Launcher\MassEffectLauncher.exe' }
+                    if (-not $steam -and -not [IO.File]::Exists($target)) { throw 'The original Legendary Edition launcher is missing.' }
+                    Start-GameProcess -FilePath $target -WorkingDirectory $root -Game $Game
+                }
+            } catch { Write-HubActionFailure -Action ('Start ' + $Game.Title + ' in VR') -ErrorRecord $_ }
+            return
+        }
+        if($Game.TeardownDualLaunch){
+            try{
+                $tdState=$global:gameStateMap[$Game.Title]
+                $tdSlot=if($Mode -eq 'ModB' -or (-not $Mode -and $tdState -and -not $tdState.ModAPresent -and $tdState.ModBPresent)){'B'}else{'A'}
+                $tdSpecificRoot=Get-AlternativeModValue -Source $tdState -Name ('Mod'+$tdSlot+'Root')
+                $tdRoot=if($tdSpecificRoot){[string]$tdSpecificRoot}elseif($tdState -and $tdState.GameDir){[string]$tdState.GameDir}else{Read-InstalledPath -Game $Game}
+                if(-not $tdRoot){throw 'Locate the original Teardown game first.'}
+                $tdCore=if($script:scriptDir){[string]$script:scriptDir}else{Split-Path $PSScriptRoot -Parent}
+                . (Join-Path $tdCore 'TeardownVR\TeardownVR-Modes.ps1')
+                Set-TeardownVRMode -Game $tdRoot -Mod $(if($tdSlot -eq 'B'){'markos'}else{'legacy'})
+                Start-GameProcess -FilePath 'steam://rungameid/1167630' -WorkingDirectory $tdRoot -Game $Game
+            }catch{Write-HubActionFailure -Action ('Start '+$Game.Title+' in VR') -Message $_.Exception.Message -ErrorRecord $_}
+            return
+        }
+        if ($Game.RDRProfileLaunch) {
+            try {
+                $rdrState=$global:gameStateMap[$Game.Title]
+                $rdrMod=if($Mode -eq 'ModB' -or (-not $Mode -and $rdrState -and -not $rdrState.ModAPresent -and $rdrState.ModBPresent)){'fork'}else{'main'}
+                $rdrRoot=if($rdrState -and $rdrState.GameDir){[string]$rdrState.GameDir}else{Read-InstalledPath -Game $Game}
+                if(-not $rdrRoot){throw 'Locate the Red Dead Redemption game folder first.'}
+                $rdrCore=if($script:scriptDir){[string]$script:scriptDir}else{Split-Path $PSScriptRoot -Parent}
+                . (Join-Path $rdrCore 'RDRVR\RDRVR-Profiles.ps1')
+                if(-not(Test-RdrProfilePresence $rdrRoot $rdrMod)){throw 'The selected RDRVR version is incomplete. Use its install / update action to repair it.'}
+                $rdrLaunch=Join-Path $rdrCore 'RDRVR\Start-RDRVR.ps1'
+                if(-not(Test-Path -LiteralPath $rdrLaunch -PathType Leaf)){throw 'The RDRVR launch controller is missing.'}
+                $quoted=([IO.Path]::GetFullPath($rdrRoot) -replace '(\\+)$','${1}${1}')
+                Start-GameProcess -FilePath 'powershell.exe' -Arguments ('-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "'+$rdrLaunch+'" -GameDirectory "'+$quoted+'" -Mod '+$rdrMod) -WorkingDirectory $rdrRoot -Game $Game
+            }catch{Write-HubActionFailure -Action ('Start '+$Game.Title+' in VR') -ErrorRecord $_}
+            return
+        }
+        if ($Game.Id -eq 'pragmata-vr') {
+            try {
+                $pragState=$global:gameStateMap[$Game.Title]
+                $pragRoot=if($pragState -and $pragState.GameDir){[string]$pragState.GameDir}else{Read-InstalledPath -Game $Game}
+                if(-not$pragRoot){throw 'Locate your complete PRAGMATA game folder first.'}
+                $pragMod=if($Mode -eq 'ModB'){'legacy'}elseif($Mode -eq 'ModA'){'modern'}elseif($pragState -and $pragState.ModAPresent){'modern'}elseif($pragState -and $pragState.ModBPresent){'legacy'}elseif([IO.File]::Exists((Join-Path $pragRoot 'PragmataVR_README.txt'))){'modern'}else{'legacy'}
+                $pragCore=if($script:scriptDir){[string]$script:scriptDir}else{Split-Path $PSScriptRoot -Parent}
+                $pragScript=Join-Path $pragCore 'PragmataVR\Start-VR.ps1'
+                if(-not[IO.File]::Exists($pragScript)){throw 'The Pragmata VR launch controller is missing.'}
+                $quoted=([IO.Path]::GetFullPath($pragRoot) -replace '(\\+)$','${1}${1}')
+                Start-GameProcess -FilePath 'powershell.exe' -Arguments ('-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File "'+$pragScript+'" -GameDirectory "'+$quoted+'" -Mod '+$pragMod) -WorkingDirectory $pragRoot -Game $Game
+            }catch{Write-HubActionFailure -Action 'Start Pragmata in VR' -ErrorRecord $_}
+            return
+        }
         if ($Game.GTA4ProfileLaunch) {
             try {
                 $gtaState=$global:gameStateMap[$Game.Title]
@@ -878,6 +974,11 @@ function global:Start-GameInVR {
         $tmDefinitions = @(Get-AlternativeModDefinitions -Game $Game -State $tmState)
         foreach ($definition in $tmDefinitions) {
             $candidateRoot = if ($definition.Root) { [string]$definition.Root } else { [string]$tmParent }
+            if ($Game.TrilexGame -eq 'singularity' -and $candidateRoot) {
+                if ($definition.Mode -eq 'ModB' -and
+                    -not (Get-PCVRTrilexReceipt -Root $candidateRoot -Game 'singularity' -Runtime $Game.TrilexHashProof)) { continue }
+                if ($definition.Mode -eq 'ModA' -and [IO.File]::Exists((Join-Path $candidateRoot 'Binaries\dinput8.dll'))) { continue }
+            }
             $candidatePath = $null
             if ($candidateRoot -and (Test-Path -LiteralPath $candidateRoot -PathType Container) -and $definition.Sub -and ($definition.Launch -or $definition.LaunchAlt)) {
                 $sub = Join-Path $candidateRoot ([string]$definition.Sub)
@@ -913,7 +1014,12 @@ function global:Start-GameInVR {
         if ($tmPick) {
             try { if ($global:window) { $global:window.WindowState = [System.Windows.WindowState]::Minimized } } catch { }
             try {
-                Start-Process -FilePath $tmPick -WorkingDirectory (Split-Path -Parent $tmPick) -ErrorAction Stop
+                $targetRoot = Split-Path -Parent $tmPick
+                if ($Game.Id -eq 'fallout-new-vegas-vr' -and (Split-Path -Leaf $tmPick) -ieq 'FalloutNV.exe' -and (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $targetRoot)) {
+                    Start-Process -FilePath ('steam://rungameid/' + $Game.SteamId) -ErrorAction Stop
+                } else {
+                    Start-Process -FilePath $tmPick -WorkingDirectory $targetRoot -ErrorAction Stop
+                }
             } catch {
                 Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_
             }
@@ -965,6 +1071,46 @@ function global:Start-GameInVR {
     try { if ($state -and $state.GameDir) { $steamBootstrapRoot = [string]$state.GameDir } } catch {}
     if (-not $steamBootstrapRoot) {
         try { $steamBootstrapRoot = Read-InstalledPath -Game $Game } catch {}
+    }
+    if($Game.Id -eq 'painkiller-overdose-vr'){
+        if(-not $steamBootstrapRoot){try{$steamBootstrapRoot=Read-PersistentGameStateValue -Game $Game -Name 'user_located'}catch{}}
+        if($steamBootstrapRoot -and -not [IO.File]::Exists((Join-Path $steamBootstrapRoot $Game.LaunchExe))){
+            $publisher=Get-PainkillerOverdoseVrExecutable -Root $steamBootstrapRoot
+            if($publisher -and (Test-BaseGameInstallProof -Game $Game -Root $steamBootstrapRoot) -and (Test-VrInstallEvidenceContract -Game $Game -Root $steamBootstrapRoot -AllowExternal)){
+                try{Start-GameProcess -FilePath $publisher.FullName -WorkingDirectory $steamBootstrapRoot -Game $Game}
+                catch{Write-HubActionFailure -Action ("Start " + $Game.Title + " in VR") -ErrorRecord $_}
+                return
+            }
+        }
+    }
+    if($Game.Id -eq 'life-is-strange-bts'){
+        $dawnHasCustomStarter=$false
+        try{
+            $chosen=Read-LaunchOverride -Game $Game
+            if($chosen -and [IO.File]::Exists($chosen)){
+                $baseExe=Join-Path $steamBootstrapRoot 'Life is Strange - Before the Storm.exe'
+                $dawnHasCustomStarter=-not [IO.Path]::GetFullPath($chosen).Equals([IO.Path]::GetFullPath($baseExe),[StringComparison]::OrdinalIgnoreCase)
+            }
+        }catch{}
+        if(-not $dawnHasCustomStarter){
+            try{Start-HubDawnVRGame -Game $Game -Root $steamBootstrapRoot}catch{Write-HubActionFailure -Action 'Start DawnVR' -ErrorRecord $_}
+            return
+        }
+    }
+    if($Game.Id -in @('forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr','far-cry-2-vr') -and
+       $steamBootstrapRoot -and -not [IO.File]::Exists([IO.Path]::Combine($steamBootstrapRoot,[string]$Game.LaunchExe))){
+        # A manually installed publisher DLL does not need a Hub-created
+        # shortcut or a renamed copy of the publisher's maintenance launcher.
+        # Keep an existing launcher, otherwise use the verified game/store.
+        if(-not(Test-HubDirectVrLaunchEvidence -Game $Game -Root $steamBootstrapRoot)){
+            Write-HubActionFailure -Action ('Start '+$Game.Title+' in VR') -Message 'The selected game folder has no complete VR runtime. Locate the complete installation.'
+            return
+        }
+        if($Game.Id -eq 'far-cry-2-vr' -and $steamBootstrapRoot -notmatch '(?i)[\\/]steamapps[\\/]common[\\/]'){
+            $target=[IO.Path]::Combine($steamBootstrapRoot,'bin\FarCry2.exe')
+            try{Start-GameProcess -FilePath $target -WorkingDirectory ([IO.Path]::GetDirectoryName($target)) -Game $Game}catch{Write-HubActionFailure -Action 'Start Far Cry 2 VR' -ErrorRecord $_}
+        }else{Start-HubStoreFallback -Game $Game -GameRoot $steamBootstrapRoot}
+        return
     }
     if (Test-UseSteamBootstrapForInstall -Game $Game -GameRoot $steamBootstrapRoot) {
         if ($Game.Id -in @('grid-2019-vr','grid-legends-vr','dirt-4-vr','teardown-vr','journey-vr','project-zomboid-vr','alan-wake-vr','forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr','tomb-raider-legend-vr') -and
@@ -1054,7 +1200,7 @@ function global:Start-GameInVR {
             Write-PersistentGameStateValue -Game $Game -Name 'launch_exe' -Value $replacementOverride
             $launchOverride = $replacementOverride
         }
-        if ($launchOverride -and (Test-Path $launchOverride)) {
+        if ($launchOverride -and (Test-Path -LiteralPath $launchOverride)) {
             if ($Game.LaunchRequiresVrEvidence) {
                 $overrideRoot = Split-Path -Parent $launchOverride
                 if (-not (Test-HubDirectVrLaunchEvidence -Game $Game -Root $overrideRoot)) {
@@ -1090,9 +1236,9 @@ function global:Start-GameInVR {
     # path if it still resolves AND holds the expected LaunchExe.
     try {
         $recordedLaunchPath = Read-InstalledPath -Game $Game
-        if ($recordedLaunchPath -and (Test-Path $recordedLaunchPath)) {
+        if ($recordedLaunchPath -and (Test-Path -LiteralPath $recordedLaunchPath)) {
             if ($Game.LaunchExe) {
-                if (Test-Path (Join-Path $recordedLaunchPath $Game.LaunchExe)) {
+                if (Test-Path -LiteralPath (Join-Path $recordedLaunchPath $Game.LaunchExe)) {
                     $gameDir = $recordedLaunchPath
                 }
             } else {
@@ -1113,7 +1259,7 @@ function global:Start-GameInVR {
         elseif ($vrRoot -like "APPDATA:*")      { $vrRoot = Join-Path ([Environment]::GetFolderPath("ApplicationData"))      ($vrRoot.Substring("APPDATA:".Length)) }
         elseif ($vrRoot -like "PROGRAMDATA:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("CommonApplicationData")) ($vrRoot.Substring("PROGRAMDATA:".Length)) }
         elseif ($vrRoot -like "USERPROFILE:*")  { $vrRoot = Join-Path ([Environment]::GetFolderPath("UserProfile"))           ($vrRoot.Substring("USERPROFILE:".Length)) }
-        if ((Test-Path $vrRoot) -and (Test-Path (Join-Path $vrRoot $Game.LaunchExe))) {
+        if ((Test-Path -LiteralPath $vrRoot) -and (Test-Path -LiteralPath (Join-Path $vrRoot $Game.LaunchExe))) {
             $gameDir = $vrRoot
         }
     }
@@ -1122,9 +1268,9 @@ function global:Start-GameInVR {
     # the expected LaunchExe. Stale state entries (uninstall, drive
     # reorganization, hub interrupted mid-scan) would otherwise carry
     # an invalid path and skip the FallbackPaths walk below.
-    if (-not $gameDir -and $state -and $state.GameDir -and (Test-Path $state.GameDir)) {
+    if (-not $gameDir -and $state -and $state.GameDir -and (Test-Path -LiteralPath $state.GameDir)) {
         if ($Game.LaunchExe) {
-            if (Test-Path (Join-Path $state.GameDir $Game.LaunchExe)) {
+            if (Test-Path -LiteralPath (Join-Path $state.GameDir $Game.LaunchExe)) {
                 $gameDir = $state.GameDir
             }
         } else {
@@ -1158,9 +1304,9 @@ function global:Start-GameInVR {
             }
 
             foreach ($cp in $candidatePaths) {
-                if (-not (Test-Path $cp)) { continue }
+                if (-not (Test-Path -LiteralPath $cp)) { continue }
                 if ($Game.LaunchExe) {
-                    if (Test-Path (Join-Path $cp $Game.LaunchExe)) {
+                    if (Test-Path -LiteralPath (Join-Path $cp $Game.LaunchExe)) {
                         $gameDir = $cp
                         break
                     }
@@ -1210,7 +1356,7 @@ function global:Start-GameInVR {
             return
         }
         $exePath = Join-Path $gameDir $Game.LaunchExe
-        if (Test-Path $exePath) {
+        if (Test-Path -LiteralPath $exePath) {
             # Revive launch route: some VR builds target the Oculus runtime
             # only (e.g. Quake 2 VR) and must run THROUGH Revive on a non-
             # Oculus headset. When the installer set that up it drops a
@@ -1220,10 +1366,10 @@ function global:Start-GameInVR {
             # like the desktop shortcut but independent of it (the user may
             # have deleted the shortcut).
             $reviveMarker = Join-Path $gameDir ".revive_launch"
-            if (Test-Path $reviveMarker) {
+            if (Test-Path -LiteralPath $reviveMarker) {
                 $reviveInjector = $null
                 try { $storedInj = (Get-Content $reviveMarker -Raw -ErrorAction Stop).Trim() } catch { $storedInj = "" }
-                if ($storedInj -and (Test-Path $storedInj)) { $reviveInjector = $storedInj }
+                if ($storedInj -and (Test-Path -LiteralPath $storedInj)) { $reviveInjector = $storedInj }
                 if (-not $reviveInjector) {
                     $injCands = @(
                         (Join-Path $env:ProgramFiles "Revive\ReviveInjector.exe"),
@@ -1231,7 +1377,7 @@ function global:Start-GameInVR {
                     )
                     $pf86 = ${env:ProgramFiles(x86)}
                     if ($pf86) { $injCands += (Join-Path $pf86 "Revive\ReviveInjector.exe") }
-                    foreach ($cand in $injCands) { if (Test-Path $cand) { $reviveInjector = $cand; break } }
+                    foreach ($cand in $injCands) { if (Test-Path -LiteralPath $cand) { $reviveInjector = $cand; break } }
                 }
                 if ($reviveInjector) {
                     try { Start-Process -FilePath $reviveInjector -ArgumentList "`"$exePath`"" -WorkingDirectory $gameDir; return } catch { }
@@ -1253,7 +1399,7 @@ function global:Start-GameInVR {
             $isOutsideSteamCommon = ($gameDir -notmatch '\\steamapps\\common\\')
             if ($Game.SteamId -and $Game.Title -ne "Scrap Mechanic VR" -and -not $Game.SeparateLauncherBaseGame -and ($isDepotInstall -or $isOutsideSteamCommon) -and -not $Game.NoSteamAppIdSidecar) {
                 $appidFile = Join-Path $gameDir "steam_appid.txt"
-                if (-not (Test-Path $appidFile)) {
+                if (-not (Test-Path -LiteralPath $appidFile)) {
                     try { Set-Content -Path $appidFile -Value $Game.SteamId -Encoding ASCII -NoNewline -Force } catch { }
                 }
             }
@@ -1362,11 +1508,11 @@ function global:Start-GameInVR {
         } catch { }
         try {
             $stalePath = Get-InstalledPathFile -Game $Game
-            if ($stalePath -and (Test-Path $stalePath)) {
+            if ($stalePath -and (Test-Path -LiteralPath $stalePath)) {
                 Remove-Item $stalePath -Force -EA SilentlyContinue
             }
             $staleVer = Get-InstalledVersionPath -Game $Game
-            if ($staleVer -and (Test-Path $staleVer)) {
+            if ($staleVer -and (Test-Path -LiteralPath $staleVer)) {
                 Remove-Item $staleVer -Force -EA SilentlyContinue
             }
         } catch { }

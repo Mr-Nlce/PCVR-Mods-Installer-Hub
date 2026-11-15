@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
@@ -16,6 +16,8 @@ $script:FC2Contract=New-PCVRInstallerContract -Id $script:FC2Id -GameName 'Far C
     -AntivirusNotice -ReleasePageUrl $script:FC2Page -Routes @('Steam','GOG') -RequiredInstalledFileGroups $script:FC2Required
 
 function Test-FC2Game([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'far-cry-2-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'bin\FarCry2.exe') -PathType Leaf))
 }
 function Start-FC2FlatForDX10([string]$Game,[string]$Route) {

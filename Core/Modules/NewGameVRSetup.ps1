@@ -6,10 +6,10 @@ $script:NewGameVRModules=$PSScriptRoot
 
 function Get-NewGameVRProfile([string]$Key){
  switch($Key){
- 'Ratchet1'{return @{Key=$Key;Id='ratchet-clank-1-vr';Title='Ratchet & Clank 1 VR';Folder='RatchetClank1VR';Repo='npiriou/Rerac-vr';Pattern='(?i)^RatchetVR[-_].*\.zip$';Pre=$false;App='';Exe='rerac.exe';Base=@('rerac.exe','data\extract-info.json');RuntimeFiles=@('RatchetVR.exe','rerac.exe','rerac-extract.exe','msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','assets\shaders\moby.wgsl');Quip='The R.Y.N.O. is still not covered by your warranty.'}}
- 'Blur'{return @{Key=$Key;Id='blur-vr';Title='Blur VR';Folder='BlurVR';Repo='TwoAyEm/BlurVR';Pattern='(?i)^BlurVR[-_].*\.zip$';Pre=$false;App='42640';GameFolder='Blur';Exe='Blur.exe';Base=@('Blur.exe');RuntimeFiles=@('d3d9.dll','BlurVR\d3d9.dll','BlurVR\openvr_api.dll','BlurVR\openxr_loader.dll','BlurVR\BlurVR.ini');Paths=@('C:\Program Files (x86)\Activision\Blur(TM)');Untested=$true;Quip='Indicators are optional. Shunts are not.'}}
+ 'Ratchet1'{return @{Key=$Key;Id='ratchet-clank-1-vr';Title='Ratchet & Clank 1 VR';Folder='RatchetClank1VR';Repo='npiriou/Rerac-vr';Pattern='(?i)^RatchetVR[-_].*\.zip$';Pre=$false;App='';Exe='rerac.exe';Base=@((Get-PCVRGameInstallProof -GameId 'ratchet-clank-1-vr').Files);RuntimeFiles=@('RatchetVR.exe','rerac.exe','rerac-extract.exe','msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll','assets\shaders\moby.wgsl');Quip='The R.Y.N.O. is still not covered by your warranty.'}}
+ 'Blur'{return @{Key=$Key;Id='blur-vr';Title='Blur VR';Folder='BlurVR';Repo='TwoAyEm/BlurVR';Pattern='(?i)^BlurVR[-_].*\.zip$';Pre=$false;App='42640';GameFolder='Blur';Exe='Blur.exe';Base=@('Blur.exe');RuntimeFiles=@('d3d9.dll','BlurVR\d3d9.dll','BlurVR\openvr_api.dll','BlurVR\openxr_loader.dll','BlurVR\BlurVR.ini');Paths=@('C:\Program Files (x86)\Activision\Blur(TM)');Untested=$false;Quip='Indicators are optional. Shunts are not.'}}
  'Contracts'{return @{Key=$Key;Id='hitman-contracts-vr';Title='Hitman: Contracts VR';Folder='HitmanContractsVR';Repo='andreystashev/hitman-contracts-vr-showcase';Pattern='(?i)^ContractsVR[-_].*Setup\.exe$';Pre=$true;App='247430';GameFolder='Hitman Contracts';Exe='HitmanContracts.exe';Base=@('HitmanContracts.exe');RuntimeFiles=@('ContractsVR.exe','ContractsVR.dll','ContractsVRAudio.dll','LaunchVR.exe','ContractsVRHost.exe','ContractsOpenXRHost.exe','openxr_loader.dll','launcher.ini','vr.ini','mod.ini','ContractsVRSetupCleanup.ps1','ContractsVRSetupGuard.exe','tools-read\contracts-renderer-trial.ps1','tools-read\contracts-renderer-trial.psm1','renderer-dxvk-x86\d3d8.dll','renderer-dxvk-x86\d3d9.dll','renderer-dxvk-x86\dxvk.conf','unins000.exe');Paths=@('C:\GOG Games\Hitman 3 - Contracts','C:\Program Files (x86)\Hitman Contracts','C:\Program Files (x86)\Eidos\Hitman Contracts');Quip='Another rainy night. Another suspiciously perfect disguise.'}}
- 'Wreckfest'{return @{Key=$Key;Id='wreckfest-vr';Title='Wreckfest VR';Folder='WreckfestVR';Repo='sqofer/WREACKFEST-VR';Pattern='(?i)^WreckfestVRLauncher\.exe$';Pre=$false;App='228380';GameFolder='Wreckfest';Exe='Wreckfest_x64.exe';Base=@('Wreckfest_x64.exe');RuntimeFiles=@('WreckfestVRLauncher.exe');GameFiles=@('WreckfestNativeVR.asi|WreckfestNativeVR.asi.pcvrhub_off','version.dll','WreckfestNativeVR.ini');Untested=$true;Quip='The racing line is whichever barrier gives way first.'}}
+ 'Wreckfest'{return @{Key=$Key;Id='wreckfest-vr';Title='Wreckfest VR';Folder='WreckfestVR';Repo='sqofer/WREACKFEST-VR';Pattern='(?i)^WreckfestVRLauncher(?:[-_][0-9][0-9._-]*)?\.exe$';Pre=$false;App='228380';GameFolder='Wreckfest';Exe='Wreckfest_x64.exe';Base=@('Wreckfest_x64.exe');RuntimeFiles=@('WreckfestVRLauncher.exe');GameFiles=@('WreckfestNativeVR.asi|WreckfestNativeVR.asi.pcvrhub_off','version.dll','WreckfestNativeVR.ini');Untested=$false;Quip='The racing line is whichever barrier gives way first.'}}
  'Wreckfest2'{return @{Key=$Key;Id='wreckfest-2-vr';Title='Wreckfest 2 VR';Folder='Wreckfest2VR';Repo='MatsKarlsson/Wreckfest2VR';Pattern='(?i)^Wreckfest2VR\.exe$';Pre=$true;App='1203190';GameFolder='Wreckfest 2';Exe='Wreckfest2.exe';Base=@('Wreckfest2.exe');RuntimeFiles=@('Wreckfest2VR.exe');Untested=$true;Quip='Your insurance premium has entered early access.'}}
  default{throw 'Unknown game integration.'}
  }
@@ -30,12 +30,13 @@ function Test-NewGameVRFiles([string]$Root,[string[]]$Files,[string]$Phase=''){
  $missing=@();foreach($group in $Files){$found=$false;foreach($rel in ($group -split '\|')){if(Test-Path -LiteralPath (Join-Path $Root $rel) -PathType Leaf){$found=$true;break}};if($Phase){Write-PCVRFileCheckResult -Path (Join-Path $Root $group) -Present $found -Phase $Phase -DisplayName $group};if(-not $found){$missing+=$group}};return $missing
 }
 function Get-NewGameVRGame($Profile,$Test){
- if($Test){if(@(Test-NewGameVRFiles $Test.Game $Profile.Base).Count -and $Profile.Key -ne 'Ratchet1'){throw 'The base game fixture is incomplete.'};return [string]$Test.Game}
+ if($Test){if($Profile.Key -ne 'Ratchet1' -and -not(Test-PCVRGameInstallProof -GameId $Profile.Id -Root $Test.Game)){throw 'The base game fixture is incomplete.'};return [string]$Test.Game}
  $handoff=Get-PCVRRecoveryInput
  if($handoff){
   $candidate=if(Test-Path -LiteralPath $handoff -PathType Leaf){Split-Path $handoff -Parent}else{$handoff}
   $expected=if($Profile.Key -eq 'Ratchet1'){@('RatchetVR.exe','rerac-extract.exe')}else{$Profile.Base}
   if((Test-Path -LiteralPath $candidate -PathType Container) -and -not @(Test-NewGameVRFiles $candidate $expected).Count -and
+     ($Profile.Key -eq 'Ratchet1' -or (Test-PCVRGameInstallProof -GameId $Profile.Id -Root $candidate)) -and
      ((Test-Path -LiteralPath $handoff -PathType Container) -or [IO.Path]::GetFileName($handoff) -ieq $Profile.Exe -or ($Profile.Key -eq 'Ratchet1' -and [IO.Path]::GetFileName($handoff) -ieq 'RatchetVR.exe'))){
    [void](Set-PCVRRecoveryInput '')
    [void](Save-HubRememberedGameFolder -GameId $Profile.Id -Title $Profile.Title -GameDir $candidate -ProbeFiles $expected -StateName $(if($Profile.Key -eq 'Ratchet1'){'installed_path'}else{'base_game_path'}) -UserSelected)
@@ -50,10 +51,11 @@ function Get-NewGameVRGame($Profile,$Test){
   while($true){$picked=(Read-Host '  Destination (Enter = this folder)').Trim().Trim('"');if(-not $picked){$picked=$default};try{$picked=[IO.Path]::GetFullPath($picked);if(-not(Test-InstallerTargetWritable $picked)){throw 'This location is unavailable or not writable.'};if(Test-Path -LiteralPath (Join-Path $picked 'RatchetVR.exe')){if(-not(Test-Path -LiteralPath (Join-Path $picked 'rerac-extract.exe'))){throw 'This folder contains a different Ratchet program. Choose an empty folder or your existing Ratchet & Clank 1 VR installation.'}};return $picked}catch{Write-Host ('  '+$_.Exception.Message+' Choose another folder.') -ForegroundColor Yellow}}
  }
  $saved=Get-PCVRRememberedGameFolder -GameId $Profile.Id -StateNames @('base_game_path','user_located','installed_path') -ProbeFiles $Profile.Base
- if($saved -and -not @(Test-NewGameVRFiles $saved $Profile.Base).Count){return $saved}
- try{$found=Find-SteamGameFolder -AppId $Profile.App -SteamFolderNames @($Profile.GameFolder) -ProbeExe $Profile.Exe -HubGameId $Profile.Id;if($found -and -not @(Test-NewGameVRFiles $found $Profile.Base).Count){return $found}}catch{}
- foreach($path in $Profile.Paths){if(-not @(Test-NewGameVRFiles $path $Profile.Base).Count){return $path}}
- while($true){$picked=Get-GameFolderInteractive -GameName $Profile.GameFolder -ProbeFile $Profile.Exe;if(-not @(Test-NewGameVRFiles $picked $Profile.Base).Count){return $picked};Write-Host '  Choose the complete original game, not its launcher or an empty folder.' -ForegroundColor Yellow}
+ if($saved -and (Test-PCVRGameInstallProof -GameId $Profile.Id -Root $saved)){return $saved}
+ $gogNames=@(if($Profile.Key -eq 'Contracts'){'Hitman 3 - Contracts'})
+ try{$found=Find-SteamGameFolder -AppId $Profile.App -SteamFolderNames @($Profile.GameFolder) -GogNames $gogNames -ProbeExe $Profile.Exe -HubGameId $Profile.Id;if($found -and (Test-PCVRGameInstallProof -GameId $Profile.Id -Root $found)){return $found}}catch{}
+ foreach($path in $Profile.Paths){if(Test-PCVRGameInstallProof -GameId $Profile.Id -Root $path){return $path}}
+ while($true){$picked=Get-GameFolderInteractive -GameName $Profile.GameFolder -ProbeFile $Profile.Exe;if(Test-PCVRGameInstallProof -GameId $Profile.Id -Root $picked){return $picked};Write-Host '  Choose the complete original game, not its launcher or an empty folder.' -ForegroundColor Yellow}
 }
 function Get-NewGameVRStore($Profile,[string]$Game,$Test){
  if($Test){return [string]$Test.Store}
@@ -93,6 +95,7 @@ function Get-NewGameVRPackage($Profile,[string]$Work,$Test){
   else{
    $extension=[IO.Path]::GetExtension($manual);$expected=if($Profile.Key -in @('Ratchet1','Blur')){'.zip'}else{'.exe'}
    if($extension -ine $expected){throw ('This step needs the official VR '+$expected+' package, not game data. Select the matching publisher download, then Retry.')}
+   Write-Host ('  Using your downloaded VR package: '+$manual) -ForegroundColor Cyan
    do{$tag=(Read-Host '  Version on the official release page for this downloaded package').Trim()}until(Test-IsTrackableInstalledVersion $tag);return @{Path=$manual;Tag=$tag}
   }
  }
@@ -152,7 +155,7 @@ function Invoke-NewGameVRSetup([string]$Key,[string]$InstallerFolder){
   if($Key -eq 'Ratchet1'){Write-Host '  Bring your own original US Ratchet & Clank disc image (SCUS-97199).' -ForegroundColor Yellow;Write-Host '  The VR package already includes ReRAC. Disc extraction needs about 5 GB and several minutes.' -ForegroundColor White}
   if($Key -eq 'Contracts'){Write-Host '  Requires the original Steam 1.75 or supported legacy 1.74 game. Publisher Setup checks it.' -ForegroundColor Yellow;Write-Host '  Start the normal game once and choose your graphics resolution, then close it.' -ForegroundColor White}
   if($candidate){Write-Host '  UNTESTED INSTALLER - help confirm this on your own game.' -ForegroundColor Yellow}
-  if($Key -eq 'Wreckfest'){Write-Host '  Steam x64 build 16986367 only. Other game builds/stores are rejected by the publisher.' -ForegroundColor Yellow}
+  if($Key -eq 'Wreckfest'){Write-Host '  Steam x64 build 16986367 only. Other game builds/stores are rejected by the publisher.' -ForegroundColor Yellow;Write-Host '  With V-Sync off, uncapped FPS can fully load the GPU. Use a suitable frame limit if needed.' -ForegroundColor Yellow}
   if($Key -eq 'Wreckfest2'){Write-Host '  Steam game build released 2026-10-22. Use offline cockpit races; VDXR is publisher-tested.' -ForegroundColor Yellow}
   Show-AntivirusNotice -Compact
   $folderPrompt=if($Key -eq 'Ratchet1'){'After reading this, press Enter to choose the installation folder...'}else{'After reading this, press Enter to find or choose the game folder...'}
@@ -222,14 +225,14 @@ function Invoke-NewGameVRSetup([string]$Key,[string]$InstallerFolder){
   [void](Wait-PCVRExplicitEnter -Message 'Press Enter to install the complete VR launcher and required files...')
   $changed=$true;foreach($g in $groups){[void](Install-OwnedModPayload -SourceRoot $g.Stage -GameRoot $g.Root -Identity $g.Identity -KeepExistingRelativePaths $g.Keep -ProgressLabel 'Installing the VR files')}
   [void](Invoke-NewGameVRCheckpoint $groups 'immediately-after-copy')
-  if($Key -eq 'Ratchet1' -and @(Test-NewGameVRFiles $game @('data\extract-info.json')).Count){
+  if($Key -eq 'Ratchet1' -and -not(Test-PCVRGameInstallProof -GameId $p.Id -Root $game)){
    Write-Host '  REQUIRED: ORIGINAL US DISC IMAGE (SCUS-97199)' -ForegroundColor Black -BackgroundColor Yellow
    Write-Host '  European/PAL discs are not supported. Select your own .iso; .7z must be extracted first.' -ForegroundColor Yellow
    Write-Host '  This copies game data only; it does not start the game. Allow several minutes and about 5 GB.' -ForegroundColor White
    if($test){Invoke-NewGameVRNative -File $test.Native -Arguments @('extract')}else{
     while($true){$iso=if($script:NewGameDiscHandoff){$provided=$script:NewGameDiscHandoff;$script:NewGameDiscHandoff='';$provided}else{(Read-Host '  Drag/paste your supported .iso, or Q for recovery').Trim().Trim('"')};if($iso -ieq 'Q'){throw 'Disc import cancelled. Your existing game data and saves were kept.'};if(-not(Test-Path -LiteralPath $iso -PathType Leaf) -or [IO.Path]::GetExtension($iso) -ine '.iso'){Write-Host '  Select the extracted .iso file.' -ForegroundColor Yellow;continue};[void](Wait-PCVRExplicitEnter -Message 'Press Enter to extract your disc into this installation...');try{Invoke-NewGameVRNative -File (Join-Path $runtime 'rerac-extract.exe') -Arguments @('extract','--iso',$iso,'--out',(Join-Path $game 'data'),'--ntsc-only');break}catch{Write-Host '  Extraction did not complete. Use the original US disc image or choose another readable ISO.' -ForegroundColor Yellow}}
    }
-   if(@(Test-NewGameVRFiles $game @('data\extract-info.json')).Count){throw 'Disc extraction did not leave complete game data. No successful installation was recorded.'}
+   if(-not(Test-PCVRGameInstallProof -GameId $p.Id -Root $game)){throw 'Disc extraction did not leave the original level core and gameplay data. Retry extraction; no successful installation was recorded.'}
   }
   if($Key -eq 'Wreckfest'){
    $nativeStage=Join-Path $work 'native-game';[void][IO.Directory]::CreateDirectory($nativeStage)
@@ -260,7 +263,7 @@ function Invoke-NewGameVRSetup([string]$Key,[string]$InstallerFolder){
   [void](New-NewGameVRShortcut $p $runtime $game $test);$linkChanged=$true
   if(@(Invoke-NewGameVRCheckpoint $groups 'before-commit').Count){throw 'The required runtime is incomplete.'}
   $contractFiles=@($p.RuntimeFiles)+@('PCVR-Launcher\Start-VR.ps1','PCVR-Launcher\launch.json','PCVR-Launcher\game.ico')
-  if($Key -eq 'Ratchet1'){$contractFiles+=@('data\extract-info.json')}
+  if($Key -eq 'Ratchet1'){$contractFiles+=@($p.Base)}
   if($Key -eq 'Wreckfest'){$contractFiles+=@($p.GameFiles)}
   $contract=New-PCVRInstallerContract -Id $p.Id -GameName $p.Title -Acquisition GitHub -Routes @($store) -AntivirusNotice -ReleasePageUrl ('https://github.com/'+$p.Repo+'/releases') -RequiredInstalledFileGroups $contractFiles
   if($test -and $test.Failure -eq 'commit'){throw 'Isolated commit failure.'}

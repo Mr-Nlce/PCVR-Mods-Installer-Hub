@@ -1,4 +1,5 @@
-﻿$registryDiscoveryModule=Join-Path $PSScriptRoot 'RegistryDiscovery.ps1'
+﻿. (Join-Path $PSScriptRoot 'GameInstallProof.ps1')
+$registryDiscoveryModule=Join-Path $PSScriptRoot 'RegistryDiscovery.ps1'
 if (Test-Path -LiteralPath $registryDiscoveryModule -PathType Leaf) { . $registryDiscoveryModule }
 # -------------------------------------------------------
 #  Installer-Safety helpers
@@ -181,7 +182,7 @@ public static class PCVRSteamWindow {
 
 function global:Open-PCVRSteamConsole {
     [CmdletBinding()]
-    param([string]$SteamExecutable = (Get-PCVRSteamExecutable))
+    param([string]$SteamExecutable = (Get-PCVRSteamExecutable), [switch]$OpenOnly)
 
     $methods = @(
         [pscustomobject]@{ Name = 'Steam Console link'; File = 'steam://open/console'; Arguments = @() },
@@ -205,9 +206,13 @@ function global:Open-PCVRSteamConsole {
                     } else {
                         Start-Process -FilePath $method.File -ErrorAction Stop | Out-Null
                     }
+                    # The caller owns the handoff. A successful dispatch does
+                    # not prove the Console tab is already visible.
+                    if ($OpenOnly) { return $true }
                 } catch {
                     Write-Host "  [!!] This opening method failed: $($_.Exception.Message)" -ForegroundColor Yellow
                 }
+                if ($OpenOnly) { continue }
                 Start-Sleep -Milliseconds (900 + ($round * 600))
                 if (Show-PCVRSteamClient) {
                     # Steam has a visible window. Re-send the navigation to make
@@ -218,6 +223,7 @@ function global:Open-PCVRSteamConsole {
                     break
                 }
             }
+            if ($OpenOnly) { return $false }
             if (Show-PCVRSteamClient) { break }
         }
 
@@ -416,7 +422,7 @@ function global:Invoke-InstallerFallback {
     } else {
         Write-Host "  Unfortunately, '$Action' could not be completed automatically." -ForegroundColor Gray
     }
-    if ($Instructions -and -not $DestFile) {
+    if ($Instructions) {
         Write-Host ""
         Write-Host "  Note:" -ForegroundColor White
         # We render Instructions across several lines instead of one
@@ -477,7 +483,7 @@ function global:Invoke-InstallerFallback {
 
     # Pre-create destination folder if it doesn't exist yet so the
     # user has somewhere to drop the file.
-    if ($DestFolder -and -not (Test-Path $DestFolder)) {
+    if ($DestFolder -and -not (Test-Path -LiteralPath $DestFolder -PathType Container)) {
         try { New-Item -ItemType Directory -Path $DestFolder -Force -EA SilentlyContinue | Out-Null } catch { }
     }
 
@@ -493,7 +499,11 @@ function global:Invoke-InstallerFallback {
         Write-Host "    $stepNum. Press ENTER to open the download page in your browser," -ForegroundColor White
         Write-Host "       then download $dlNoun there manually." -ForegroundColor White
         Write-Host "       Page: $Url" -ForegroundColor DarkGray
-        Read-Host "       (press Enter to open the page)" | Out-Null
+        do {
+            $answer = Read-Host "       (press Enter to open the page)"
+            if ($null -eq $answer) { throw [IO.EndOfStreamException]::new('Input ended before the download page was confirmed.') }
+            if ($answer -ne '') { Write-Host '  Press Enter without typing anything to open the page.' -ForegroundColor Yellow }
+        } until ($answer -eq '')
         try { Start-Process $Url -ErrorAction SilentlyContinue | Out-Null } catch { }
         Write-Host "       Opened. If no browser window appeared, copy the URL above by hand." -ForegroundColor DarkGray
         $stepNum++
@@ -502,7 +512,7 @@ function global:Invoke-InstallerFallback {
         Write-Host "    $stepNum. DRAG the downloaded file onto THIS window, then press Enter." -ForegroundColor White
         Write-Host "       (or paste its full path and press Enter - no renaming needed)" -ForegroundColor DarkGray
         $stepNum++
-    } elseif ($DestFolder -and (Test-Path $DestFolder)) {
+    } elseif ($DestFolder -and (Test-Path -LiteralPath $DestFolder -PathType Container)) {
         Write-Host "    $stepNum. Put the file in this folder (should be opened now in Explorer):" -ForegroundColor Gray
         Write-Host "       $DestFolder" -ForegroundColor Cyan
         try { Start-Process explorer.exe "`"$DestFolder`"" -EA SilentlyContinue | Out-Null } catch { }
@@ -533,12 +543,12 @@ function global:Invoke-InstallerFallback {
             Write-Host "    [S]kip   -  Continue without this step (install may be incomplete)" -ForegroundColor Yellow
         }
         if ($SourceFolder -or $DestFolder -or $Url) {
-            $oLabel = if ($Url -and ($SourceFolder -or $DestFolder)) { "Reopen the download page / folder" }
+            $oLabel = if ($Url -and ($SourceFolder -or ($DestFolder -and -not $DestFile))) { "Reopen the download page / folder" }
                       elseif ($Url) { "Reopen the download page" }
                       else { "Reopen the folder in Explorer" }
             Write-Host "    [O]pen   -  $oLabel" -ForegroundColor Yellow
         }
-        $__prompt = if ($DestFile) { "  Drop the file here (or type R/S)" } else { "  Your choice" }
+        $__prompt = if ($DestFile) { "  Drop the file here or paste its full path" } else { "  Your choice" }
         if ($inheritedRecoveryPending) {
             $raw = [string]$inheritedRecoveryFile
             $inheritedRecoveryPending = $false
@@ -552,8 +562,13 @@ function global:Invoke-InstallerFallback {
             }
         }
         if ($DestFile -and $raw) {
-            $cand = $raw.Trim('"').Trim("'")
+            $cand = ConvertTo-PCVRCanonicalUserPath $raw
             if ((Test-Path -LiteralPath $cand -PathType Leaf -ErrorAction SilentlyContinue)) {
+                if ((Test-PCVRMobileReleaseAsset ([IO.Path]::GetFileName($cand))) -and
+                    -not (Test-PCVRMobileReleaseAsset ([IO.Path]::GetFileName($DestFile)))) {
+                    Write-Host '  [!!] That is an Android package. Select the Windows download.' -ForegroundColor Yellow
+                    continue
+                }
                 $manualStage = $null
                 try {
                     $destParent = Split-Path -Parent ([IO.Path]::GetFullPath($DestFile))
@@ -594,6 +609,10 @@ function global:Invoke-InstallerFallback {
                     }
                 }
             }
+            if ($raw -match '^[\s"'']*(?:[A-Za-z]:|\\\\|\.{1,2}[\\/]|%[^%]+%[\\/]|/)') {
+                Write-Host '  [!!] File not found at that path. Paste the full path including the filename.' -ForegroundColor Yellow
+                continue
+            }
         }
         $c = $raw.ToLower()
         if ($c -eq "r") {
@@ -603,7 +622,8 @@ function global:Invoke-InstallerFallback {
                         Write-Host "  [OK] Detected - continuing." -ForegroundColor Green
                         return "retry"
                     } else {
-                        Write-Host "  [!!] Still not detected. Try again or skip." -ForegroundColor Yellow
+                        $retryNote = if ($AllowSkip) { 'Try again or skip.' } else { 'Try again after the file or required changes are available.' }
+                        Write-Host "  [!!] Still not detected. $retryNote" -ForegroundColor Yellow
                         continue
                     }
                 } catch {
@@ -624,12 +644,12 @@ function global:Invoke-InstallerFallback {
             if ($Url) {
                 try { Start-Process $Url -ErrorAction SilentlyContinue | Out-Null } catch { }
             }
-            if ($DestFolder -and (Test-Path $DestFolder)) {
+            if (-not $DestFile -and $DestFolder -and (Test-Path -LiteralPath $DestFolder -PathType Container)) {
                 try { Start-Process explorer.exe "`"$DestFolder`"" -EA SilentlyContinue | Out-Null } catch { }
                 try { Set-Clipboard -Value $DestFolder -EA SilentlyContinue } catch { }
                 Write-Host "  Path re-copied to clipboard: $DestFolder" -ForegroundColor DarkGray
             }
-            if ($SourceFolder -and (Test-Path $SourceFolder)) {
+            if ($SourceFolder -and (Test-Path -LiteralPath $SourceFolder -PathType Container)) {
                 try { Start-Process explorer.exe "`"$SourceFolder`"" -EA SilentlyContinue | Out-Null } catch { }
             }
             continue
@@ -703,7 +723,7 @@ function global:Test-DownloadedPayload {
 
     if ($ext -in @('.zip','.nupkg','.jar')) {
         $entrySafety = Test-ZipArchiveEntrySafety -ArchivePath $Path -DestinationFolder ([IO.Path]::GetTempPath())
-        if (-not $entrySafety.Inspectable -or -not $entrySafety.Safe) { return $false }
+        if (-not $entrySafety.Inspectable -or -not $entrySafety.Safe -or ($ext -eq '.zip' -and $entrySafety.MobilePackage)) { return $false }
     }
 
     # Also reject common web error/login responses for extensions without a
@@ -913,6 +933,7 @@ function global:Invoke-SafeDownload {
     $requestedReleaseKey = ''
     foreach ($u in $Urls) {
         if (-not $u -or $seen.ContainsKey($u)) { continue }
+        if (Test-PCVRMobileReleaseAsset ([uri]::UnescapeDataString(([string]$u -split '[?#]')[0].Split('/')[-1]))) { continue }
         if ($u -match '^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/') {
             $candidateReleaseKey = ($matches[1] + '/' + $matches[2] + '/' + $matches[3]).ToLowerInvariant()
             if (-not $requestedReleaseKey) { $requestedReleaseKey = $candidateReleaseKey }
@@ -936,6 +957,7 @@ function global:Invoke-SafeDownload {
     } elseif ($normalizedSha) {
         foreach ($u in $VerifiedFallbackUrls) {
             if (-not $u -or $seen.ContainsKey($u)) { continue }
+            if (Test-PCVRMobileReleaseAsset ([uri]::UnescapeDataString(([string]$u -split '[?#]')[0].Split('/')[-1]))) { continue }
             $seen[$u] = $true
             [void]$sources.Add([pscustomobject]@{ Url=[string]$u; Kind='verified mirror/fork' })
         }
@@ -959,6 +981,21 @@ function global:Invoke-SafeDownload {
         } finally {
             if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue }
         }
+        if (-not $DisableGitHubAssetReresolution -and -not $ExpectedReleaseTag -and
+            $u -match '^https://github\.com/([^/]+/[^/]+)/releases/latest/download/([^/?#]+)(?:[?#].*)?$') {
+            $repo = $matches[1]
+            $name = [uri]::UnescapeDataString($matches[2])
+            $resolved = Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^'+[regex]::Escape($name)+'$') -SkipReleasesWithoutMatchingAsset
+            if ($resolved.Resolved) {
+                # Reuse the exact-tag download and recovery path. A transport
+                # failure on that asset cannot change the selected release.
+                $exact = @{}
+                foreach ($entry in $PSBoundParameters.GetEnumerator()) { $exact[$entry.Key] = $entry.Value }
+                $exact.Urls = @([string]$resolved.Url)
+                $exact.DisableGitHubAssetReresolution = $true
+                return Invoke-SafeDownload @exact
+            }
+        }
     }
     # GitHub's asset API is a second publisher binary endpoint. Resolve the
     # exact requested tag and exact asset name; never switch releases merely
@@ -968,6 +1005,7 @@ function global:Invoke-SafeDownload {
         if ($originalUrl -notmatch '^https?://github\.com/([^/]+)/([^/]+)/releases/download/([^/?#]+)/([^/?#]+)') { continue }
         $ghOwner=$matches[1]; $ghRepo=$matches[2]
         $ghTag=[uri]::UnescapeDataString($matches[3]); $ghFile=[uri]::UnescapeDataString($matches[4])
+        if (Test-PCVRMobileReleaseAsset $ghFile) { continue }
         try {
             $tagUri="https://api.github.com/repos/$ghOwner/$ghRepo/releases/tags/$([uri]::EscapeDataString($ghTag))"
             try {
@@ -1100,7 +1138,7 @@ function global:Invoke-SafeDownload {
             -RetryCheck $manualRetry `
             -RecoveryInfo $manualInfo
     if ([string]$r -eq 'retry' -and $ExpectedReleaseTag -and -not $FunctionalPayloadOnly) {
-        $manualPath = ('' + $manualInfo.SourcePath).Trim()
+        $manualPath = ('' + $manualInfo['SourcePath']).Trim()
         $manualLeaf = if ($manualPath) { [IO.Path]::GetFileName($manualPath) } else { '' }
         $expectedNumber = [regex]::Match($ExpectedReleaseTag,'(?i)\d+(?:\.\d+){1,3}(?:[-_.]?(?:alpha|beta|rc|pre)[-_.]?\d+)?').Value
         $namedNumber = [regex]::Match($manualLeaf,'(?i)(?<![a-z0-9])v?\d+(?:\.\d+){1,3}(?:[-_.]?(?:alpha|beta|rc|pre)[-_.]?\d+)?').Value.TrimStart('v','V')
@@ -1119,8 +1157,8 @@ function global:Invoke-SafeDownload {
         Write-Host "  [OK] Manual file explicitly confirmed as $ExpectedReleaseTag." -ForegroundColor Green
     }
     if ($null -ne $DownloadInfo -and [string]$r -eq 'retry') {
-        $DownloadInfo.SourceKind = if ($manualInfo.SourceKind) { [string]$manualInfo.SourceKind } else { 'manual staged file' }
-        if ($manualInfo.SourcePath) { $DownloadInfo.SourcePath = [string]$manualInfo.SourcePath }
+        $DownloadInfo.SourceKind = if ($manualInfo['SourceKind']) { [string]$manualInfo['SourceKind'] } else { 'manual staged file' }
+        if ($manualInfo['SourcePath']) { $DownloadInfo.SourcePath = [string]$manualInfo['SourcePath'] }
         $DownloadInfo.Bytes = (Get-Item -LiteralPath $destinationFull).Length
         $DownloadInfo.Sha256 = (Get-FileHash -LiteralPath $destinationFull -Algorithm SHA256).Hash
     }
@@ -1188,17 +1226,21 @@ function global:Test-ZipArchiveEntrySafety {
         [Parameter(Mandatory=$true)][string]$ArchivePath,
         [Parameter(Mandatory=$true)][string]$DestinationFolder
     )
-    $result = [pscustomobject]@{ Inspectable=$false; Safe=$false; Entry=''; EntryCount=0; ExpandedBytes=[Int64]0 }
+    $result = [pscustomobject]@{ Inspectable=$false; Safe=$false; Entry=''; EntryCount=0; ExpandedBytes=[Int64]0; MobilePackage=$false }
     if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) { return $result }
     $zip = $null
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
         $zip = [IO.Compression.ZipFile]::OpenRead($ArchivePath)
         $result.Inspectable = $true
+        $androidManifest = $false
+        $androidPayload = $false
         $root = [IO.Path]::GetFullPath($DestinationFolder).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
         foreach ($entry in $zip.Entries) {
             $result.EntryCount++
             $result.ExpandedBytes += [Int64]$entry.Length
+            if ($entry.FullName -match '^(?:base/manifest/)?AndroidManifest\.xml$') { $androidManifest = $true }
+            if ($entry.FullName -match '^(?:base/dex/)?classes(?:[0-9]+)?\.dex$|^resources\.arsc$') { $androidPayload = $true }
             $relative = ([string]$entry.FullName).Replace('/', [IO.Path]::DirectorySeparatorChar)
             $segments = @($relative -split '[\\/]' | Where-Object { $_ })
             $unsafe = [IO.Path]::IsPathRooted($relative) -or
@@ -1213,6 +1255,7 @@ function global:Test-ZipArchiveEntrySafety {
             if ($unsafe) { $result.Entry = [string]$entry.FullName; return $result }
         }
         $result.Safe = $true
+        $result.MobilePackage = $androidManifest -and $androidPayload
         return $result
     } catch {
         # Not a ZIP (for example 7z/RAR) or unreadable. Its native extractor
@@ -1232,7 +1275,7 @@ function global:Expand-ArchiveOrFallback {
         # Optional compact-output seam for newly governed installers.
         [switch]$QuietProgress
     )
-    if (-not (Test-Path $ArchivePath)) {
+    if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
         Write-Host "  [!!] Archive not found at $ArchivePath" -ForegroundColor Yellow
         $r = Invoke-InstallerFallback `
                 -Action "$Label extraction" `
@@ -1245,7 +1288,7 @@ function global:Expand-ArchiveOrFallback {
                 -AllowSkip $AllowSkip
         return $r
     }
-    if (-not (Test-Path $DestinationFolder)) {
+    if (-not (Test-Path -LiteralPath $DestinationFolder -PathType Container)) {
         New-Item -ItemType Directory -Path $DestinationFolder -Force | Out-Null
     }
 
@@ -2127,18 +2170,18 @@ function global:Find-SteamDepotPath {
 
 # ---- Canonical Steam/GOG/Epic game-folder finder ------------
 #
-# Authoritative, shared replacement for the per-installer Steam
-# finders. Locates an installed game's folder the way Steam itself
-# does - by AppId -> appmanifest installdir - so it does NOT depend
-# on a guessed folder name or a specific exe being present (the Hub
-# also detects by folder, not exe). Falls back to name-based lookup
-# across Steam libraries, every GOG root, and every Epic root.
+# Shared store-location discovery. Steam metadata, registry entries and
+# folder names supply candidates. Known originals must then satisfy their
+# complete title-specific original-file contract; metadata or a directory
+# name alone never proves that the game is installed. Runtime-only callers
+# keep their separate component probes and return-folder contract.
 #
 # Params:
 #   -AppId             Steam AppId (enables the authoritative path)
 #   -SteamFolderNames  steamapps\common folder name(s) to try by name
 #   -Subdir            optional subfolder that holds the exe (e.g. "sr5")
-#   -ProbeExe          optional exe to PREFER (never strictly required)
+#   -ProbeExe          caller-relative launch file or explicit alias group;
+#                      retained when resolving the original return folder
 #   -GogNames          GOG folder name(s) (resolved vs every GOG root)
 #   -EpicNames         Epic folder name(s) (resolved vs every Epic root)
 #
@@ -2186,6 +2229,11 @@ function global:Get-HubLocatedGameFolder {
 
     foreach ($candidate in @($candidates | Select-Object -Unique)) {
         if (-not (Test-LiteralPathSafe -Path $candidate -PathType Container)) { continue }
+        if (Test-PCVROriginalGameProbe -GameId $id -ProbeFiles $ProbeFiles) {
+            $original=Resolve-PCVRInstallerOriginalFolder -GameId $id -Path $candidate -ProbeFiles $ProbeFiles -Subdir $Subdir
+            if ($original) { return $original }
+            continue
+        }
         $resolved = if ($Subdir) { Join-PathLexical $candidate $Subdir } else { $candidate }
         if (-not (Test-LiteralPathSafe -Path $resolved -PathType Container)) { continue }
         $valid = $true
@@ -2217,7 +2265,7 @@ function global:Get-PCVRRememberedGameFolder {
         [string]$SteamId = ''
     )
 
-    $resolvedId = if ($GameId) { $GameId.Trim() } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
+    $resolvedId = Resolve-PCVRInstallerGameId -GameId $GameId -AppId $SteamId -ProbeFiles $ProbeFiles
     if (-not $resolvedId) { return $null }
     return Get-HubLocatedGameFolder -GameId $resolvedId -ProbeFiles $ProbeFiles -Subdir $Subdir -StateNames $StateNames -GameTitle $GameTitle -SteamId $SteamId
 }
@@ -2240,6 +2288,10 @@ function global:Save-HubRememberedGameFolder {
     if (-not $id -or $StateName -notmatch '^[a-z0-9_]+$' -or -not (Test-LiteralPathSafe -Path $GameDir -PathType Container)) { return $false }
     $full = $null
     try { $full = [IO.Path]::GetFullPath($GameDir).TrimEnd([char[]]'\/') } catch { return $false }
+    if (Test-PCVROriginalGameProbe -GameId $id -ProbeFiles $ProbeFiles) {
+        $original=Resolve-PCVRGameInstallRoot -GameId $id -Path $full
+        if (-not $original) { return $false }
+    }
     foreach ($probe in @($ProbeFiles | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
         if (-not (Test-LiteralPathSafe -Path (Join-PathLexical $full $probe) -PathType Leaf)) { return $false }
     }
@@ -2282,17 +2334,32 @@ function global:Find-SteamGameFolder {
         [string]$ProbeExe = "",
         [string[]]$GogNames = @(),
         [string[]]$EpicNames = @(),
-        [string]$HubGameId = ""
+        [string]$HubGameId = "",
+        [switch]$SkipRemembered
     )
 
     # A valid remembered assignment is authoritative. A user who already
     # selected a custom store folder must not be sent through discovery (or a
     # chooser) again merely because another copy exists in a default location.
     # If its declared game file disappeared, discovery continues normally.
-    $resolvedHubGameId = if ($HubGameId) { $HubGameId } else { ('' + $env:PCVR_HUB_GAME_ID).Trim() }
-    if ($resolvedHubGameId) {
+    $resolvedHubGameId = Resolve-PCVRInstallerGameId -GameId $HubGameId -AppId $AppId -ProbeFiles @($ProbeExe)
+    $hasOriginalContract = [bool](Get-PCVRGameInstallProof -GameId $resolvedHubGameId) -and
+        ((-not $ProbeExe) -or (Test-PCVROriginalGameProbe -GameId $resolvedHubGameId -ProbeFiles @($ProbeExe)))
+    function Resolve-OriginalStoreCandidate([string]$Candidate) {
+        if ($hasOriginalContract) {
+            return Resolve-PCVRInstallerOriginalFolder -GameId $resolvedHubGameId -Path $Candidate -ProbeFiles @($ProbeExe) -Subdir $Subdir
+        }
+        return $Candidate
+    }
+    function Test-OriginalStoreProbe([string]$Candidate) {
+        foreach ($probe in ([string]$ProbeExe -split '\|')) {
+            if ($probe -and (Test-LiteralPathSafe -Path (Join-PathLexical $Candidate $probe) -PathType Leaf)) { return $true }
+        }
+        return $false
+    }
+    if ($resolvedHubGameId -and -not $SkipRemembered) {
         $remembered = Get-HubLocatedGameFolder -GameId $resolvedHubGameId -ProbeFiles @($ProbeExe) -Subdir $Subdir
-        if ($remembered) { return $remembered }
+        if ($remembered -and ($confirmed = Resolve-OriginalStoreCandidate $remembered)) { return $confirmed }
     }
 
     # Steam roots: Windows registry/defaults or the native Linux/macOS
@@ -2312,6 +2379,8 @@ function global:Find-SteamGameFolder {
         )) { if ($d) { $steamRoots += $d } }
     } else {
         $profile = [Environment]::GetFolderPath('UserProfile')
+        # Linux Hub: the Steam root it detected (native, Flatpak or Snap).
+        if ($env:PCVR_STEAM_ROOT) { $steamRoots += $env:PCVR_STEAM_ROOT }
         if ($env:XDG_DATA_HOME) { $steamRoots += (Join-PathLexical $env:XDG_DATA_HOME 'Steam') }
         if ($profile) {
             $steamRoots += (Join-PathLexical $profile '.steam/steam')
@@ -2329,7 +2398,7 @@ function global:Find-SteamGameFolder {
         $vdf = Join-PathLexical $root "steamapps\libraryfolders.vdf"
         if (Test-LiteralPathSafe -Path $vdf -PathType Leaf) {
             try {
-                foreach ($m in [regex]::Matches((Get-Content $vdf -Raw), '"path"\s+"([^"]+)"')) {
+                foreach ($m in [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s+"([^"]+)"')) {
                     $lp = $m.Groups[1].Value -replace '\\\\', '\'
                     if (Test-LiteralPathSafe -Path $lp -PathType Container) { $libs += $lp }
                 }
@@ -2344,11 +2413,12 @@ function global:Find-SteamGameFolder {
             $acf = Join-PathLexical $lib "steamapps\appmanifest_$AppId.acf"
             if (Test-LiteralPathSafe -Path $acf -PathType Leaf) {
                 try {
-                    $mm = [regex]::Match((Get-Content $acf -Raw), '"installdir"\s+"([^"]+)"')
+                    $mm = [regex]::Match((Get-Content -LiteralPath $acf -Raw), '"installdir"\s+"([^"]+)"')
                     if ($mm.Success) {
                         $g = Join-PathLexical $lib "steamapps\common\$($mm.Groups[1].Value)"
                         if ($Subdir) { $g = Join-PathLexical $g $Subdir }
-                        if (Test-LiteralPathSafe -Path $g -PathType Container) { return $g }
+                        if ((Test-LiteralPathSafe -Path $g -PathType Container) -and
+                            ($confirmed = Resolve-OriginalStoreCandidate $g)) { return $confirmed }
                     }
                 } catch {}
             }
@@ -2371,8 +2441,9 @@ function global:Find-SteamGameFolder {
                     $g = if ($Subdir) { Join-PathLexical $gp $Subdir } else { $gp }
                     $isMatch = $false
                     foreach ($n in $GogNames) { if (($leaf -ieq $n) -or ($props.gameName -ieq $n)) { $isMatch = $true; break } }
-                    if (-not $isMatch -and $ProbeExe -and (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { $isMatch = $true }
-                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container)) { return $g }
+                    if (-not $isMatch -and (Test-OriginalStoreProbe $g)) { $isMatch = $true }
+                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container) -and
+                        ($confirmed = Resolve-OriginalStoreCandidate $g)) { return $confirmed }
                 } catch {}
             }
         }
@@ -2393,8 +2464,9 @@ function global:Find-SteamGameFolder {
                     $g = if ($Subdir) { Join-PathLexical $loc $Subdir } else { $loc }
                     $isMatch = $false
                     foreach ($n in $EpicNames) { if (($leaf -ieq $n) -or ($j.MandatoryAppFolderName -ieq $n)) { $isMatch = $true; break } }
-                    if (-not $isMatch -and $ProbeExe -and (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { $isMatch = $true }
-                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container)) { return $g }
+                    if (-not $isMatch -and (Test-OriginalStoreProbe $g)) { $isMatch = $true }
+                    if ($isMatch -and (Test-LiteralPathSafe -Path $g -PathType Container) -and
+                        ($confirmed = Resolve-OriginalStoreCandidate $g)) { return $confirmed }
                 } catch {}
             }
         }
@@ -2430,11 +2502,19 @@ function global:Find-SteamGameFolder {
     }
     $cands = $cands | Select-Object -Unique
 
-    # Prefer a folder that holds the exe, then accept a folder that exists.
-    if ($ProbeExe) {
-        foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container) -and (Test-LiteralPathSafe -Path (Join-PathLexical $c $ProbeExe) -PathType Leaf)) { return $c } }
+    # A store record or familiar directory name is a search candidate only.
+    # Known titles require the same original-file set as the Hub and Locate.
+    if ($hasOriginalContract) {
+        foreach ($c in $cands) {
+            if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container) -and
+                ($confirmed = Resolve-OriginalStoreCandidate $c)) { return $confirmed }
+        }
     }
-    foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } }
+    # Preserve the older caller contract for uncatalogued utility callers.
+    elseif ($ProbeExe) {
+        foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container) -and (Test-OriginalStoreProbe $c)) { return $c } }
+    }
+    if (-not $hasOriginalContract) { foreach ($c in $cands) { if ($c -and (Test-LiteralPathSafe -Path $c -PathType Container)) { return $c } } }
 
     # LAST RESORT: Windows Uninstall entries (same source as the Hub scan's
     # priority 4). Covers disc/retail installs and renamed folders, e.g.
@@ -2456,7 +2536,8 @@ function global:Find-SteamGameFolder {
                 for($level=0;$level -lt 4 -and $candidate;$level++) {
                     $g=if($Subdir){Join-PathLexical $candidate $Subdir}else{$candidate}
                     if ((Test-LiteralPathSafe -Path $g -PathType Container) -and
-                        (Test-LiteralPathSafe -Path (Join-PathLexical $g $ProbeExe) -PathType Leaf)) { return $g }
+                        (Test-OriginalStoreProbe $g) -and
+                        ($confirmed = Resolve-OriginalStoreCandidate $g)) { return $confirmed }
                     $candidate=[IO.Path]::GetDirectoryName($candidate.TrimEnd([char[]]'\/'))
                 }
             }
@@ -2583,13 +2664,16 @@ function global:Get-GameFolderInteractive {
     param(
         [Parameter(Mandatory=$true)][string]$GameName,
         [string]$ProbeFile = "",
-        [string]$ManualUrl = ""
+        [string]$ManualUrl = "",
+        [string]$HubGameId = ""
     )
 
+    $resolvedId = Resolve-PCVRInstallerGameId -GameId $HubGameId -ProbeFiles @($ProbeFile)
+    $usesOriginal = Test-PCVROriginalGameProbe -GameId $resolvedId -ProbeFiles @($ProbeFile)
     # A successful Locate Game or earlier install is the first source.  This
     # makes every installer using the shared interactive fallback remember a
     # manually selected Steam/GOG/Epic/custom folder across Hub updates.
-    $rememberedPath = Get-PCVRRememberedGameFolder -ProbeFiles @($ProbeFile)
+    $rememberedPath = Get-PCVRRememberedGameFolder -GameId $resolvedId -ProbeFiles @($ProbeFile)
     if ($rememberedPath) {
         Write-Host "  [OK] Using the remembered install folder: $rememberedPath" -ForegroundColor Green
         return $rememberedPath
@@ -2598,8 +2682,11 @@ function global:Get-GameFolderInteractive {
     $recoveryPath = Get-PCVRRecoveryInput
     if ($recoveryPath) {
         $candidate = if (Test-Path -LiteralPath $recoveryPath -PathType Leaf -ErrorAction SilentlyContinue) { Split-Path -Parent $recoveryPath } else { $recoveryPath }
-        if ((Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) -and
-            ((-not $ProbeFile) -or (Test-Path -LiteralPath (Join-Path $candidate $ProbeFile) -PathType Leaf -ErrorAction SilentlyContinue))) {
+        if ($usesOriginal) {
+            $candidate=Resolve-PCVRInstallerOriginalFolder -GameId $resolvedId -Path $recoveryPath -ProbeFiles @($ProbeFile)
+        }
+        if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container -ErrorAction SilentlyContinue) -and
+            ($usesOriginal -or (-not $ProbeFile) -or (Test-Path -LiteralPath (Join-Path $candidate $ProbeFile) -PathType Leaf -ErrorAction SilentlyContinue))) {
             Write-Host "  [OK] Using the folder handed over by installer recovery: $candidate" -ForegroundColor Green
             return (ConvertTo-PCVRCanonicalUserPath $candidate)
         }
@@ -2634,6 +2721,14 @@ function global:Get-GameFolderInteractive {
             continue
         }
         $p = ConvertTo-PCVRCanonicalUserPath $rawPath
+        if ($usesOriginal) {
+            $p=Resolve-PCVRInstallerOriginalFolder -GameId $resolvedId -Path $p -ProbeFiles @($ProbeFile)
+            if (-not $p) {
+                Write-Host '  The required original game files were not found here.' -ForegroundColor Yellow
+                Write-Host '  Select the installed game folder or its game EXE and try again.' -ForegroundColor Yellow
+                continue
+            }
+        }
         if (Test-Path -LiteralPath $p -PathType Leaf -ErrorAction SilentlyContinue) {
             if ([IO.Path]::GetExtension($p) -ine '.exe') {
                 Write-Host "  Choose the game EXE or its installed folder." -ForegroundColor Yellow
@@ -2645,7 +2740,7 @@ function global:Get-GameFolderInteractive {
             Write-Host "  Path does not exist - try again." -ForegroundColor Yellow
             continue
         }
-        if ($ProbeFile) {
+        if ($ProbeFile -and -not $usesOriginal) {
             $probe = Join-Path $p $ProbeFile
             if (-not (Test-Path -LiteralPath $probe -PathType Leaf -ErrorAction SilentlyContinue)) {
                 Write-Host "  Path exists but doesn't contain $ProbeFile." -ForegroundColor Yellow
@@ -2656,9 +2751,15 @@ function global:Get-GameFolderInteractive {
         # This is a validated game location, not a claim that the VR mod is
         # installed.  Persisting it here is therefore safe even if a later
         # download fails; scanners still require their separate mod evidence.
-        $resolvedId = ('' + $env:PCVR_HUB_GAME_ID).Trim()
         if ($resolvedId) {
-            [void](Save-HubRememberedGameFolder -GameId $resolvedId -Title $GameName -GameDir $p -ProbeFiles @($ProbeFile) -UserSelected)
+            if ($usesOriginal) {
+                $originalRoot=Resolve-PCVRGameInstallRoot -GameId $resolvedId -Path $p
+                if(-not(Save-HubRememberedGameFolder -GameId $resolvedId -Title $GameName -GameDir $originalRoot -UserSelected)){
+                    throw 'The game folder was found, but its location could not be saved. Open the log and choose Retry.'
+                }
+            } else {
+                [void](Save-HubRememberedGameFolder -GameId $resolvedId -Title $GameName -GameDir $p -ProbeFiles @($ProbeFile) -UserSelected)
+            }
         }
         return $p
     }
@@ -3584,46 +3685,27 @@ function global:Install-MultiverseVRHub {
     } catch { }
 
     $dest = Join-Path $dir $exeName
-    [void](Invoke-SafeDownload -Urls @($url, $pinned) -Destination $dest -Label "Multiverse VR Hub $tag" `
-        -ManualUrl "https://github.com/$repo/releases/latest" `
-        -Instructions "Download $exeName from the releases page and save it as '$dest', then choose Retry.")
-
-    if (Test-Path -LiteralPath $dest) {
-        # RECOMPUTE THE CHECKSUM. The author publishes it with every
-        # build and tells people to run certutil - we take that off the
-        # user's hands and show the result prominently.
-        $gotHash = $null
-        try { $gotHash = (Get-FileHash -LiteralPath $dest -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower() } catch { }
-        $sizeB = 0
-        try { $sizeB = (Get-Item -LiteralPath $dest).Length } catch { }
-        Write-Host ""
-        Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-        Write-Host " CHECKING WHAT YOU GOT" -ForegroundColor Cyan
-        Write-Host " ------------------------------------------------------------" -ForegroundColor DarkGray
-        Write-Host ("   File   : {0}  ({1:N0} bytes)" -f $exeName, $sizeB) -ForegroundColor White
-        if ($gotHash) { Write-Host "   SHA-256: $gotHash" -ForegroundColor Gray }
-        if ($expectHash -and $gotHash) {
-            Write-Host "   Author's: $expectHash" -ForegroundColor Gray
-            Write-Host ""
-            if ($gotHash -eq $expectHash) {
-                Write-Host "   CHECKSUM MATCHES THE AUTHOR'S RELEASE NOTE. " -ForegroundColor Black -BackgroundColor Green
-                Write-Host "   The file is exactly what he published." -ForegroundColor White
-            } else {
-                Write-Host "   CHECKSUM DOES NOT MATCH. " -ForegroundColor White -BackgroundColor Red
-                Write-Host "   Do NOT run this file. Delete it and try again - and if it" -ForegroundColor Yellow
-                Write-Host "   keeps failing, report it to RaYRoD-TV before running it." -ForegroundColor Yellow
-                Write-Host "   Expected: $expectHash" -ForegroundColor White
-                Write-Host "   Got     : $gotHash" -ForegroundColor White
-                Write-Host ""
-                return $null
-            }
-        } elseif ($gotHash) {
-            Write-Host ""
-            Write-Host "   No checksum in the release note this time, so there was" -ForegroundColor Gray
-            Write-Host "   nothing to compare against. Compare it yourself on the" -ForegroundColor Gray
-            Write-Host "   release page if you want to be sure." -ForegroundColor Gray
+    $work = New-PCVRInstallerTempSession -BasePath $dir
+    try {
+        $staged = Join-Path $work $exeName
+        $download = Invoke-SafeDownload -Urls @($url, $pinned) -Destination $staged -Label "Multiverse VR Hub $tag" `
+            -ManualUrl "https://github.com/$repo/releases/latest" `
+            -Instructions "Download $exeName from the releases page, then paste its full path or drag it here." -FunctionalPayloadOnly -AllowSkip:$false
+        if (($download -ne $true -and $download -ne 'retry') -or -not [IO.File]::Exists($staged)) {
+            Write-Warn 'Multiverse VR Hub download did not complete. Any previous installation was kept.'
+            return $null
         }
-        Write-Host ""
+
+        $gotHash = (Get-FileHash -LiteralPath $staged -Algorithm SHA256 -ErrorAction Stop).Hash.ToLowerInvariant()
+        if ($expectHash -and $gotHash -eq $expectHash) {
+            Write-Host '  [OK] SHA-256 matches the publisher release note.' -ForegroundColor Green
+        }
+        if ([IO.File]::Exists($dest)) {
+            [IO.File]::Replace($staged,$dest,(Join-Path $work 'previous.exe'),$true)
+        } else {
+            [IO.File]::Move($staged,$dest)
+        }
+
         Write-OK "Multiverse VR Hub $tag is at: $dest"
         $stableId = ('' + $env:PCVR_HUB_GAME_ID).Trim()
         if ($stableId) {
@@ -3631,9 +3713,9 @@ function global:Install-MultiverseVRHub {
                 -GameDir $dir -ProbeFiles @($exeName) -UserSelected)
         }
         return $dest
+    } finally {
+        Remove-PCVRInstallerTempSession -Path $work
     }
-    Write-Warn "$exeName is not there - nothing was installed."
-    return $null
 }
 
 function global:Test-IsPayloadRelease {
@@ -3662,7 +3744,7 @@ function global:Select-PayloadAsset {
         # (source|patch|sdk|symbols|debug), not by size.
         [int]$MinBytes = 71680
     )
-    $zips = @($Assets | Where-Object { $_.name -match '(?i)\.zip$' })
+    $zips = @($Assets | Where-Object { $_.name -match '(?i)\.zip$' -and -not (Test-PCVRMobileReleaseAsset ([string]$_.name)) })
     if ($zips.Count -eq 0) { return $null }
 
     $clean = @($zips | Where-Object {
@@ -4646,7 +4728,12 @@ function global:Import-LegacyInstall {
 # Shared preflight and post-copy proof for the small Discord BepInEx ZIPs.
 # A readable but unrelated ZIP must never produce a path/version receipt.
 function global:Assert-PCVRDropInPreflight {
-    param([string]$GameRoot,[string]$GameExe,[string]$GameDataFolder,[string]$ArchivePath)
+    param([string]$GameRoot,[string]$GameExe,[string]$GameDataFolder,[string]$ArchivePath,[string]$GameId='')
+    $originalId=Resolve-PCVRInstallerGameId -GameId $GameId
+    if((Get-PCVRGameInstallProof -GameId $originalId) -and -not(Test-PCVRGameInstallProof -GameId $originalId -Root $GameRoot)){
+        $required=@((Get-PCVRGameInstallProof -GameId $originalId).Files) -join ', '
+        throw "The original game is incomplete at '$GameRoot'. Required game files: $required. Choose the complete game folder or verify its files in your store."
+    }
     if (-not (Test-Path -LiteralPath (Join-Path $GameRoot $GameExe) -PathType Leaf) -or
         -not (Test-Path -LiteralPath (Join-Path $GameRoot $GameDataFolder) -PathType Container)) {
         throw "The selected folder lacks $GameExe or $GameDataFolder; the base game is not proven."

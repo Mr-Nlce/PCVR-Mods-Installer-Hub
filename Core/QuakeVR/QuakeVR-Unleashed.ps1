@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 
 $script:QuakeURepo='vittorioromeo/quakevr'
@@ -180,7 +180,7 @@ function Invoke-QuakeUnleashedInstaller {
         if(-not $after -or $after.Version -ne $release.Version){throw 'Publisher Setup ended without a complete matching Unleashed installation.'}
         if($before -and $before.Root -ieq $after.Root -and $before.Version -eq $after.Version -and $before.Stamp -eq $after.Stamp){throw 'Publisher Setup made no detectable change.'}
         $receipt=if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_QUAKEU_TEST_RECEIPT){[IO.Path]::GetFullPath($env:PCVR_QUAKEU_TEST_RECEIPT)}else{Join-Path $PSScriptRoot '.installed_path_unleashed'}
-        [void](Complete-PCVRInstallTransaction -Contract $script:QuakeUContract -GameDir $after.Root -Version $after.Version -Route Unleashed -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @((Join-Path $after.Root '.pcvrhub_version_c')))
+        [void](Complete-PCVRInstallTransaction -Contract $script:QuakeUContract -GameDir $after.Root -Version $after.Version -Route Unleashed -VersionSlot Tertiary -InstalledPathReceiptPaths @($receipt) -AdditionalVersionReceiptPaths @((Join-Path $after.Root '.pcvrhub_version_c')))
         Write-Host "  [OK] Unleashed $($after.Version) is ready." -ForegroundColor Green
         Write-Host '  Use Start in VR in the Hub. The other Quake mods remain separate.' -ForegroundColor White
         Write-Host ''

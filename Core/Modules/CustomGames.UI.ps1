@@ -8,7 +8,8 @@
 #     banner) and in the List view (below Recently Played)
 #   * tiles: click = launch, right-click = Favorite / Edit / Picture /
 #     Folder / Remove, last tiles = "+ Add game" and "Import from Steam"
-#   * add/edit dialog and Steam import dialog
+#     (+ "Import from UEVR" when UEVR Deluxe has scanned games)
+#   * add/edit dialog, Steam import dialog and UEVR Deluxe import dialog
 # With the setting off, only the menu item exists.
 # ---------------------------------------------------------------
 
@@ -83,6 +84,9 @@ function global:Add-CustomGamesMenuItem {
     $t2.FontFamily = New-Object System.Windows.Media.FontFamily 'Segoe UI'
     $t2.Margin = [System.Windows.Thickness]::new(0, 2, 0, 0)
     [void]$col.Children.Add($t1); [void]$col.Children.Add($t2)
+    $launcher=New-CustomGamesChip -Text 'UEVR launcher settings...' -Tip 'Choose the UEVR Deluxe launcher used by imported games'
+    $launcher.Add_MouseLeftButtonUp({param($s,$e) $e.Handled=$true;Show-UevrLauncherSettings})
+    [void]$col.Children.Add($launcher)
     [void]$row.Children.Add($dot); [void]$row.Children.Add($col)
     $b.Child = $row
     $hover = New-CgBrush '#1e1e2a'
@@ -141,7 +145,7 @@ function global:New-CustomGamesSection {
     $root.Name = "CustomGamesSection$Context"
     $root.Margin = if ($Context -eq 'Library') { [System.Windows.Thickness]::new(0, 0, 0, 22) } else { [System.Windows.Thickness]::new(0, 0, 0, 18) }
 
-    $headerRow = New-Object System.Windows.Controls.StackPanel
+    $headerRow = New-Object System.Windows.Controls.WrapPanel
     $headerRow.Orientation = [System.Windows.Controls.Orientation]::Horizontal
     $headerRow.Margin = [System.Windows.Thickness]::new(0, 0, 0, 10)
 
@@ -197,12 +201,19 @@ function global:New-CustomGamesSection {
 
     $add = New-CustomGamesChip -Text '+ Add game' -Tip 'Add any game: a Steam game, a program (.exe) or a launcher link'
     $import = New-CustomGamesChip -Text 'Import from Steam' -Tip 'Pick installed Steam games to add in one go'
+    $uevr = New-CustomGamesChip -Text 'Import from UEVR' -Tip 'Add UEVR Deluxe games and launch them with their installed profiles'
+    $uevrSettings=New-CustomGamesChip -Text 'UEVR settings' -Tip 'Choose or change UEVRDeluxe.exe'
+    $uevrSettings.Add_MouseLeftButtonUp({param($s,$e) $e.Handled=$true;Show-UevrLauncherSettings})
     $add.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-CustomGameEditor -Game $null })
     $import.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-SteamImportDialog })
+    $uevr.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-UevrImportDialog })
+    $uevr.Visibility = [System.Windows.Visibility]::Collapsed
 
     [void]$headerRow.Children.Add($pill)
     [void]$headerRow.Children.Add($add)
     [void]$headerRow.Children.Add($import)
+    [void]$headerRow.Children.Add($uevr)
+    [void]$headerRow.Children.Add($uevrSettings)
 
     $wrap = New-Object System.Windows.Controls.WrapPanel
     $wrap.Orientation = [System.Windows.Controls.Orientation]::Horizontal
@@ -222,7 +233,7 @@ function global:New-CustomGamesSection {
 
     [void]$root.Children.Add($headerRow)
     [void]$root.Children.Add($wrap)
-    return [pscustomobject]@{ Context = $Context; Root = $root; Panel = $wrap; Count = $count }
+    return [pscustomobject]@{ Context = $Context; Root = $root; Panel = $wrap; Count = $count; UevrChip = $uevr }
 }
 
 function global:Install-CustomGamesSections {
@@ -328,6 +339,9 @@ function global:Update-CustomGamesSections {
     if ($global:CustomGamesLoadError) { Write-CustomGamesTrace $global:CustomGamesLoadError }
     $collapsed = $false
     try { $collapsed = [bool](Get-HubSetting -Key 'customGamesCollapsed' -Default $false) } catch { }
+    # UEVR entry points only for PCs where UEVR Deluxe has scanned games.
+    $uevrPresent = $false
+    try { $uevrPresent = [bool](Test-UevrDeluxePresent) } catch { }
     foreach ($sec in @($global:CustomGamesSections.Values)) {
         if (-not $sec) { continue }
         $sec.Panel.Children.Clear()
@@ -339,6 +353,8 @@ function global:Update-CustomGamesSections {
         }
         [void]$sec.Panel.Children.Add((New-CustomGamesActionTile -Kind 'add' -W $dim.W -H $dim.H))
         [void]$sec.Panel.Children.Add((New-CustomGamesActionTile -Kind 'steam' -W $dim.W -H $dim.H))
+        if ($uevrPresent) { [void]$sec.Panel.Children.Add((New-CustomGamesActionTile -Kind 'uevr' -W $dim.W -H $dim.H)) }
+        if ($sec.UevrChip) { $sec.UevrChip.Visibility = if ($uevrPresent) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed } }
         $sec.Panel.Visibility = if ($collapsed) { [System.Windows.Visibility]::Collapsed } else { [System.Windows.Visibility]::Visible }
     }
     Update-CustomGamesSearch
@@ -353,7 +369,7 @@ function global:Get-CustomGamesSizeSig {
 # Tiles
 # ---------------------------------------------------------------
 function global:New-CustomGamesActionTile {
-    param([ValidateSet('add', 'steam')][string]$Kind, [int]$W, [int]$H)
+    param([ValidateSet('add', 'steam', 'uevr')][string]$Kind, [int]$W, [int]$H)
     $tile = New-Object System.Windows.Controls.Border
     $tile.Tag = "action:$Kind"
     $tile.Width = $W; $tile.Height = $H
@@ -367,12 +383,12 @@ function global:New-CustomGamesActionTile {
     $stack.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $stack.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $big = New-Object System.Windows.Controls.TextBlock
-    $big.Text = if ($Kind -eq 'add') { '+' } else { [string][char]0x21E9 }
+    $big.Text = switch ($Kind) { 'add' { '+' } 'uevr' { 'VR' } default { [string][char]0x21E9 } }
     $big.FontSize = [Math]::Max(26, [int]($W / 4))
     $big.Foreground = New-CgBrush '#9a6ad8'
     $big.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Center
     $label = New-Object System.Windows.Controls.TextBlock
-    $label.Text = if ($Kind -eq 'add') { 'Add game' } else { 'Import from Steam' }
+    $label.Text = switch ($Kind) { 'add' { 'Add game' } 'uevr' { 'Import from UEVR' } default { 'Import from Steam' } }
     $label.FontSize = 12; $label.FontWeight = [System.Windows.FontWeights]::SemiBold
     $label.Foreground = New-CgBrush '#c9c2dc'
     $label.TextWrapping = [System.Windows.TextWrapping]::Wrap
@@ -384,6 +400,8 @@ function global:New-CustomGamesActionTile {
     $tile.Add_MouseLeave({ $this.BorderBrush = New-CgBrush '#3a3550'; $this.Background = New-CgBrush '#0cffffff' })
     if ($Kind -eq 'add') {
         $tile.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-CustomGameEditor -Game $null })
+    } elseif ($Kind -eq 'uevr') {
+        $tile.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-UevrImportDialog })
     } else {
         $tile.Add_MouseLeftButtonUp({ param($s, $e) $e.Handled = $true; Show-SteamImportDialog })
     }
@@ -394,6 +412,11 @@ function global:New-CustomGameTile {
     param($Game, [int]$W, [int]$H)
     $accent = Get-CustomGameAccent $Game
     $missing = ((Get-CustomGameAvailability $Game) -eq 'missing')
+    $isUevr = ($Game.source -eq 'uevr')
+    $uevrNoProfile = $false
+    if ($isUevr -and -not $missing -and $Game.uevrProfile) {
+        try { $uevrNoProfile = -not (Test-UevrProfileReady -ExeName $Game.uevrProfile) } catch { }
+    }
 
     $tile = New-Object System.Windows.Controls.Border
     $tile.Tag = $Game
@@ -405,13 +428,18 @@ function global:New-CustomGameTile {
     $tile.Cursor = [System.Windows.Input.Cursors]::Hand
     $tile.ClipToBounds = $true
     $tip = $Game.title
-    switch ($Game.launchType) {
-        'steam' { $tip += "`nSteam game (App ID $($Game.steamAppId))" }
-        'uri'   { $tip += "`n$($Game.uri)" }
-        default { $tip += "`n$($Game.exePath)" }
+    if ($isUevr) {
+        $tip += "`nLaunches through UEVR Deluxe with its installed profile"
+        if ($uevrNoProfile) { $tip += "`nNo UEVR profile installed - UEVR Deluxe opens the game page instead of starting it" }
+    } else {
+        switch ($Game.launchType) {
+            'steam' { $tip += "`nSteam game (App ID $($Game.steamAppId))" }
+            'uri'   { $tip += "`n$($Game.uri)" }
+            default { $tip += "`n$($Game.exePath)" }
+        }
     }
     if ($Game.lastPlayed) { $tip += "`nLast played: $($Game.lastPlayed.Replace('T', ' '))" }
-    if ($missing) { $tip += "`nProgram not found - right-click > Edit" }
+    if ($missing) { $tip += $(if ($isUevr) { "`nUEVR Deluxe not found - right-click > Edit" } else { "`nProgram not found - right-click > Edit" }) }
     $tile.ToolTip = $tip
 
     # Generated title card underneath everything - it is what remains
@@ -469,11 +497,11 @@ function global:New-CustomGameTile {
     $chip.Margin = [System.Windows.Thickness]::new(6)
     $chip.Padding = [System.Windows.Thickness]::new(5, 1, 5, 1)
     $chip.CornerRadius = [System.Windows.CornerRadius]::new(3)
-    $chip.Background = if ($missing) { New-CgBrush '#cc8a2020' } else { New-CgBrush '#b0101018' }
+    $chip.Background = if ($missing) { New-CgBrush '#cc8a2020' } elseif ($uevrNoProfile) { New-CgBrush '#cc7a5a10' } else { New-CgBrush '#b0101018' }
     $chipText = New-Object System.Windows.Controls.TextBlock
     $chipText.FontSize = 9; $chipText.FontWeight = [System.Windows.FontWeights]::Bold
     $chipText.Foreground = New-CgBrush '#e8e0ff'
-    $chipText.Text = if ($missing) { 'MISSING' } else { switch ($Game.launchType) { 'steam' { 'STEAM' } 'uri' { 'LINK' } default { 'EXE' } } }
+    $chipText.Text = if ($missing) { 'MISSING' } elseif ($uevrNoProfile) { 'NO PROFILE' } elseif ($isUevr) { 'UEVR' } else { switch ($Game.launchType) { 'steam' { 'STEAM' } 'uri' { 'LINK' } default { 'EXE' } } }
     $chip.Child = $chipText
     [void]$grid.Children.Add($chip)
 
@@ -548,6 +576,10 @@ function global:New-CustomGameContextMenu {
     & $add 'Change picture...' ({ Set-CustomGamePictureInteractive -Id $id }.GetNewClosure())
     [void]$menu.Items.Add((New-Object System.Windows.Controls.Separator))
     & $add 'Open game folder' ({ Open-CustomGameFolder -Id $id }.GetNewClosure())
+    if ($Game.source -eq 'uevr') {
+        & $add 'Open UEVR profile folder' ({ Open-CustomGameUevrProfileFolder -Id $id }.GetNewClosure())
+        & $add 'Save as .bat launcher...' ({ Save-CustomGameBatInteractive -Id $id }.GetNewClosure())
+    }
     if ($Game.steamAppId) {
         $appId = [string]$Game.steamAppId
         & $add 'Open Steam store page' ({ try { Start-Process ("steam://store/{0}" -f $appId) } catch { } }.GetNewClosure())
@@ -632,6 +664,14 @@ function global:Invoke-CustomGameLaunch {
     try {
         if ($plan.Kind -eq 'uri') {
             Start-Process $plan.FilePath
+        } elseif ($g.source -eq 'uevr') {
+            # ProcessStartInfo treats the configured launcher as a literal
+            # filename; Windows PowerShell Start-Process can expand [brackets].
+            $psi=[Diagnostics.ProcessStartInfo]::new()
+            $psi.FileName=$plan.FilePath;$psi.Arguments=$plan.Arguments
+            $psi.WorkingDirectory=$plan.WorkingDirectory;$psi.UseShellExecute=$true
+            if($plan.RunAsAdmin){$psi.Verb='runas'}
+            [void][Diagnostics.Process]::Start($psi)
         } else {
             $sp = @{ FilePath = $plan.FilePath }
             if ($plan.Arguments) { $sp['ArgumentList'] = $plan.Arguments }
@@ -653,7 +693,11 @@ function global:Open-CustomGameFolder {
     $g = Get-CustomGame -Id $Id
     if (-not $g) { return }
     $dir = $null
-    if ($g.launchType -eq 'exe' -and $g.exePath) { $dir = [IO.Path]::GetDirectoryName($g.exePath) }
+    if ($g.source -eq 'uevr') {
+        $uid = Get-UevrGameIdFromArguments $g.arguments
+        $u = @(Get-UevrDeluxeGames) | Where-Object { $_.Id -eq $uid } | Select-Object -First 1
+        if ($u -and $u.FolderPath) { $dir = $u.FolderPath }
+    } elseif ($g.launchType -eq 'exe' -and $g.exePath) { $dir = [IO.Path]::GetDirectoryName($g.exePath) }
     if (-not $dir -and $g.steamAppId) {
         $app = @(Get-SteamInstalledApps) | Where-Object { $_.AppId -eq $g.steamAppId } | Select-Object -First 1
         if ($app) { $dir = $app.InstallDir }
@@ -662,6 +706,39 @@ function global:Open-CustomGameFolder {
         try { Start-Process explorer.exe -ArgumentList ('"{0}"' -f $dir) } catch { }
     } else {
         [void](Show-CustomGamesMessage -Text 'No local game folder is known for this entry.')
+    }
+}
+
+function global:Open-CustomGameUevrProfileFolder {
+    param([string]$Id)
+    $g = Get-CustomGame -Id $Id
+    if (-not $g) { return }
+    $root = Get-UevrDeluxeProfileRoot
+    $dir = if ($root -and $g.uevrProfile) { [IO.Path]::Combine($root, $g.uevrProfile) } else { $null }
+    if ($dir -and (Test-Path -LiteralPath $dir -PathType Container)) {
+        try { Start-Process explorer.exe -ArgumentList ('"{0}"' -f $dir) } catch { }
+    } else {
+        [void](Show-CustomGamesMessage -Text ("No UEVR profile is installed for ""{0}"".`n`nInstall one in UEVR Deluxe - until then it opens the game page instead of starting the game." -f $g.title))
+    }
+}
+
+# Writes a stand-alone .bat that starts the entry like its tile does.
+function global:Save-CustomGameBatInteractive {
+    param([string]$Id)
+    $g = Get-CustomGame -Id $Id
+    if (-not $g) { return }
+    $dlg = New-Object Microsoft.Win32.SaveFileDialog
+    $dlg.Filter = 'Batch file (*.bat)|*.bat'
+    $safe = -join (([string]$g.title).ToCharArray() | ForEach-Object { if ('<>:"/\|?*'.IndexOf($_) -ge 0) { '_' } else { $_ } })
+    $dlg.FileName = ('UEVR - {0}.bat' -f $safe)
+    try { $dlg.InitialDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::Desktop) } catch { }
+    $ok = if ($global:window) { $dlg.ShowDialog($global:window) } else { $dlg.ShowDialog() }
+    if (-not $ok) { return }
+    try {
+        [void](Export-CustomGameBat -Game $g -Path $dlg.FileName)
+        Write-CustomGamesTrace ("bat saved for {0}: {1}" -f $g.id, $dlg.FileName)
+    } catch {
+        Write-HubActionFailure -Action ("Save .bat launcher for {0}" -f $g.title) -ErrorRecord $_
     }
 }
 
@@ -978,6 +1055,10 @@ $($global:CustomGamesDialogStyles)
         $r.runAsAdmin = [bool]$f.AdminChk.IsChecked
         $r.uri = ([string]$f.UriBox.Text).Trim()
         $r.arguments = ([string]$f.ArgsBox.Text).Trim()
+        if($r.source -eq 'uevr' -and ($r.launchType -ne 'exe' -or -not(Get-UevrGameIdFromArguments $r.arguments))){
+            if($r.launchType -ne 'exe' -and (Get-UevrGameIdFromArguments $r.arguments)){$r.arguments=''}
+            $r.source='manual';$r.uevrProfile=''
+        }
         $r.accent = [string]$state.Accent
         # Fields of the other launch types are not kept.
         if ($r.launchType -ne 'exe') { $r.exePath = ''; $r.workingDir = ''; $r.runAsAdmin = $false }
@@ -1130,6 +1211,184 @@ $($global:CustomGamesDialogStyles)
             $dlg.DialogResult = $true
         } catch {
             Write-HubActionFailure -Action 'Import Steam games into My Games' -ErrorRecord $_
+        }
+    }.GetNewClosure())
+
+    & $applyFilter
+    & $updateStatus
+    [void]$dlg.ShowDialog()
+    if ($result.Added -gt 0) {
+        Update-CustomGamesSections
+        Update-CustomGamesMenuItem
+    }
+}
+
+# ---------------------------------------------------------------
+# UEVR Deluxe import dialog
+# ---------------------------------------------------------------
+# Lists the games UEVR Deluxe scanned. Games with an installed UEVR
+# profile start straight in VR; games without one only open their page
+# in UEVR Deluxe, so they are hidden unless "Show games without profile"
+# is ticked.
+function global:Show-UevrLauncherSettings {
+    $xaml=@"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UEVR launcher settings" Width="600" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="#101018">
+$($global:CustomGamesDialogStyles)
+ <StackPanel Margin="20">
+  <TextBlock Text="UEVR Deluxe launcher" Foreground="White" FontSize="17" FontWeight="SemiBold"/>
+  <TextBlock Text="Choose UEVRDeluxe.exe once. Imported UEVR games use this launcher, including entries you already added." Foreground="#aaaabc" TextWrapping="Wrap" Margin="0,8,0,12"/>
+  <DockPanel>
+   <Button x:Name="BrowseBtn" Content="Browse..." DockPanel.Dock="Right" Margin="8,0,0,0"/>
+   <TextBox x:Name="PathBox"/>
+  </DockPanel>
+  <TextBlock x:Name="ErrorText" Foreground="#ff8888" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed"/>
+  <TextBlock Text="Install profiles and VR backends in UEVR Deluxe, then use Import from UEVR in My Games." Foreground="#aaaabc" TextWrapping="Wrap" Margin="0,12,0,14"/>
+  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+   <Button x:Name="SaveBtn" Content="Save" IsDefault="True"/>
+   <Button Content="Cancel" IsCancel="True" Margin="8,0,0,0"/>
+  </StackPanel>
+ </StackPanel>
+</Window>
+"@
+    $dlg=[Windows.Markup.XamlReader]::Parse($xaml)
+    if($global:window){$dlg.Owner=$global:window}
+    $pathBox=$dlg.FindName('PathBox');$errorText=$dlg.FindName('ErrorText')
+    $pathBox.Text=[string](Find-UevrDeluxeExe)
+    $dlg.FindName('BrowseBtn').Add_Click({
+        $picked=Select-CustomGameFile -Filter 'UEVR Deluxe (UEVRDeluxe.exe)|UEVRDeluxe.exe' -InitialPath $pathBox.Text
+        if($picked){$pathBox.Text=$picked}
+    }.GetNewClosure())
+    $dlg.FindName('SaveBtn').Add_Click({
+        try{[void](Set-CustomGamesUevrLauncherPath $pathBox.Text);$dlg.DialogResult=$true}
+        catch{$errorText.Text=$_.Exception.Message;$errorText.Visibility=[System.Windows.Visibility]::Visible}
+    }.GetNewClosure())
+    if($dlg.ShowDialog()){Update-CustomGamesSections}
+}
+
+function global:Show-UevrImportDialog {
+    $exe = Find-UevrDeluxeExe
+    if (-not $exe) {
+        $r = Show-CustomGamesMessage -Text "UEVR Deluxe (UEVRDeluxe.exe) was not found in its default folder.`n`nLocate UEVRDeluxe.exe now?" -Buttons ([System.Windows.MessageBoxButton]::YesNo) -Icon ([System.Windows.MessageBoxImage]::Question)
+        if ($r -ne [System.Windows.MessageBoxResult]::Yes) { return }
+        $picked = Select-CustomGameFile -Filter 'UEVR Deluxe (UEVRDeluxe.exe)|UEVRDeluxe.exe|Programs (*.exe)|*.exe'
+        if (-not $picked) { return }
+        try { [void](Set-CustomGamesUevrLauncherPath $picked) } catch { [void](Show-CustomGamesMessage -Text $_.Exception.Message);return }
+        $exe = $picked
+    }
+    $games = @()
+    try { $games = @(Get-UevrDeluxeGames) } catch { Write-CustomGamesTrace ("uevr read failed: {0}" -f $_.Exception.Message) }
+    if ($games.Count -eq 0) {
+        $why = if ($global:UevrDeluxeLoadError) { $global:UevrDeluxeLoadError } else { 'UEVR Deluxe lists no games.' }
+        [void](Show-CustomGamesMessage -Text ("No UEVR Deluxe games were found.`n`n{0}" -f $why) -Icon ([System.Windows.MessageBoxImage]::Warning))
+        return
+    }
+    $readyCount = @($games | Where-Object { $_.ProfileReady }).Count
+
+    $xaml = @"
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Import from UEVR" Width="560" Height="640"
+        WindowStartupLocation="CenterOwner" Background="#101018">
+$($global:CustomGamesDialogStyles)
+    <DockPanel Margin="18">
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="Import from UEVR" FontSize="17" FontWeight="SemiBold" Foreground="White"/>
+            <TextBlock Text="Choose games to add to My Games. The Hub opens UEVR Deluxe with that game's installed profile. Set up profiles and required VR backends in UEVR Deluxe." Foreground="#8a8a9e" TextWrapping="Wrap" Margin="0,4,0,12"/>
+            <DockPanel Margin="0,0,0,8">
+                <CheckBox x:Name="NoProfileChk" Content="Show games without profile" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <TextBox x:Name="FilterBox"/>
+            </DockPanel>
+        </StackPanel>
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                <Button x:Name="ImportBtn" Content="Import" IsDefault="True"/>
+                <Button x:Name="CancelBtn" Content="Cancel" IsCancel="True" Margin="8,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="AllBtn" Content="Select shown"/>
+                <Button x:Name="NoneBtn" Content="Select none" Margin="6,0,0,0"/>
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="#8a8a9e"/>
+            </StackPanel>
+        </DockPanel>
+        <Border BorderBrush="#26262e" BorderThickness="1" CornerRadius="4">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="ListHost" Margin="8,6,8,6"/>
+            </ScrollViewer>
+        </Border>
+    </DockPanel>
+</Window>
+"@
+    $dlg = [Windows.Markup.XamlReader]::Parse($xaml)
+    try { if ($global:window) { $dlg.Owner = $global:window } } catch { }
+    $f = @{}
+    foreach ($n in 'NoProfileChk','FilterBox','ImportBtn','CancelBtn','AllBtn','NoneBtn','StatusText','ListHost') { $f[$n] = $dlg.FindName($n) }
+    # Nothing ready yet: show everything rather than an empty list.
+    if ($readyCount -eq 0) { $f.NoProfileChk.IsChecked = $true }
+
+    $rows = @()
+    foreach ($u in $games) {
+        $cb = New-Object System.Windows.Controls.CheckBox
+        $cb.Tag = $u
+        $cb.Margin = [System.Windows.Thickness]::new(0, 3, 0, 3)
+        $content = New-Object System.Windows.Controls.StackPanel
+        $t1 = New-Object System.Windows.Controls.TextBlock
+        $t1.Text = $u.Name
+        $t1.Foreground = New-CgBrush '#e8e8f0'
+        $t1.FontSize = 12.5
+        $t2 = New-Object System.Windows.Controls.TextBlock
+        $dot = [char]0x00B7
+        $note = ('{0}  {1}  {2}' -f $u.Store, $dot, $(if ($u.ProfileReady) { 'profile installed' } else { 'no profile - opens the UEVR page only' }))
+        if(-not $u.GamePresent){$note+=('  {0}  game not found - rescan in UEVR Deluxe' -f $dot)}
+        if ($u.AlreadyAdded) { $note += ('  {0}  already in My Games' -f $dot) }
+        elseif ($u.HubTitle) { $note += ('  {0}  has a Hub entry: {1}' -f $dot, $u.HubTitle) }
+        $t2.Text = $note
+        $t2.Foreground = if ($u.ProfileReady) { New-CgBrush '#6a6a7e' } else { New-CgBrush '#a08a50' }
+        $t2.FontSize = 10.5
+        [void]$content.Children.Add($t1); [void]$content.Children.Add($t2)
+        $cb.Content = $content
+        if ($u.AlreadyAdded) { $cb.IsChecked = $true; $cb.IsEnabled = $false }
+        [void]$f.ListHost.Children.Add($cb)
+        $rows += $cb
+    }
+
+    $updateStatus = {
+        $n = @($rows | Where-Object { $_.IsEnabled -and $_.IsChecked }).Count
+        $f.StatusText.Text = ('{0} selected  {1}  {2} with profile' -f $n, [char]0x00B7, $readyCount)
+        $f.ImportBtn.Content = if ($n -gt 0) { "Import $n" } else { 'Import' }
+        $f.ImportBtn.IsEnabled = ($n -gt 0)
+    }.GetNewClosure()
+    $applyFilter = {
+        $q = ([string]$f.FilterBox.Text).Trim()
+        $all = [bool]$f.NoProfileChk.IsChecked
+        foreach ($cb in $rows) {
+            $u = $cb.Tag
+            $show = ($all -or $u.ProfileReady) -and (-not $q -or $u.Name.IndexOf($q, [StringComparison]::OrdinalIgnoreCase) -ge 0)
+            $cb.Visibility = if ($show) { [System.Windows.Visibility]::Visible } else { [System.Windows.Visibility]::Collapsed }
+        }
+    }.GetNewClosure()
+    foreach ($cb in $rows) {
+        $cb.Add_Checked({ & $updateStatus }.GetNewClosure())
+        $cb.Add_Unchecked({ & $updateStatus }.GetNewClosure())
+    }
+    $f.FilterBox.Add_TextChanged({ & $applyFilter }.GetNewClosure())
+    $f.NoProfileChk.Add_Checked({ & $applyFilter }.GetNewClosure())
+    $f.NoProfileChk.Add_Unchecked({ & $applyFilter }.GetNewClosure())
+    $f.AllBtn.Add_Click({
+        foreach ($cb in $rows) { if ($cb.IsEnabled -and $cb.Visibility -eq [System.Windows.Visibility]::Visible) { $cb.IsChecked = $true } }
+    }.GetNewClosure())
+    $f.NoneBtn.Add_Click({ foreach ($cb in $rows) { if ($cb.IsEnabled) { $cb.IsChecked = $false } } }.GetNewClosure())
+    $result = @{ Added = 0 }
+    $f.ImportBtn.Add_Click({
+        $picked = @($rows | Where-Object { $_.IsEnabled -and $_.IsChecked } | ForEach-Object { $_.Tag })
+        try {
+            $result.Added = Import-UevrGamesAsCustomGames -Games $picked -ExePath $exe
+            Write-CustomGamesTrace ("uevr import: {0} picked, {1} added" -f $picked.Count, $result.Added)
+            $dlg.DialogResult = $true
+        } catch {
+            Write-HubActionFailure -Action 'Import UEVR games into My Games' -ErrorRecord $_
         }
     }.GetNewClosure())
 

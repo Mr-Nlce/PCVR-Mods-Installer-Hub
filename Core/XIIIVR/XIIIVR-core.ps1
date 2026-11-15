@@ -23,6 +23,7 @@ function Get-XIIIReceiptPath {
 }
 
 function Test-XIIIBase([string]$Root){
+    if(-not(Test-PCVRGameInstallProof -GameId 'xiii-remake-vr' -Root $Root)){return $false}
     if(-not $Root -or -not(Test-Path -LiteralPath $Root -PathType Container)){return $false}
     foreach($name in @('XIII.exe','GameAssembly.dll','UnityPlayer.dll','XIII_Data\il2cpp_data\Metadata\global-metadata.dat')){
         if(-not(Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf)){return $false}

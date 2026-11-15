@@ -2,6 +2,8 @@
 
 Two independent mods bring Liberty City into VR. GTA4VR by bordplate is the first installer option and adds tracked hands, physical weapons and driving. The previous gtaiv-dxvk-vr mod remains available for gamepad play.
 
+The gamepad publisher can replace a download under the same release tag. The Hub tracks the selected file's full publisher update time so these replacements can be detected. Existing profiles with only an older tag remain playable; that tag cannot prove an exact file date. A normal gamepad install/update establishes timestamp tracking while keeping the other profile and personal settings.
+
 ## About the Game
 Niko Bellic arrives in Liberty City hoping for a fresh start. Explore its boroughs, follow the story and try to answer Roman's phone calls without getting into more trouble.
 

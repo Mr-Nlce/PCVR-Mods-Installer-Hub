@@ -82,6 +82,8 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 # alike, so one probe covers every store.
 function Test-W3Root {
     param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'witcher-3-vr' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     try { return (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $REL_GAME_EXE))) } catch { return $false }
 }
@@ -254,7 +256,7 @@ if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $
 Write-Step 4 4 "Finishing setup"
 
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+try { if ($relTag) { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

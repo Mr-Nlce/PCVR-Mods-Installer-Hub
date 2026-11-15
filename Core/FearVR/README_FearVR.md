@@ -55,7 +55,7 @@ F.E.A.R. VR for a new setup or Upgrade F.E.A.R. VR for RC6.2 or another earlier
 private beta. A direct upgrade preserves the existing backup lineage, saves and profiles.
 Do not uninstall an earlier thefreemike build first and do not manually mix release ZIPs.
 
-The current reviewed public release is v1.7.7. Its optional Improved Sights
+The current reviewed public release is v1.8.5. Its optional Improved Sights
 are off by default to preserve calibration; enable them under Options > VR
 Settings > Aiming & Crosshair > Weapon Sights, then recalibrate in Advanced
 Sight Alignment. It also improves calibration menus and close-range door

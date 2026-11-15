@@ -63,9 +63,10 @@ $xaml = @"
                         </Grid>
                         <Border x:Name="VersionBadge" Background="#1e1e2a" CornerRadius="4"
                                 Margin="10,4,0,0" Padding="6,2,6,2"
-                                VerticalAlignment="Center">
+                                VerticalAlignment="Center" MinWidth="60" MinHeight="22" SnapsToDevicePixels="True">
                             <TextBlock x:Name="VersionLabel" Text="v0.1.0"
-                                       FontSize="10" Foreground="#555568"
+                                       FontSize="10" Foreground="#aab4c8"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
                                        FontFamily="Segoe UI"/>
                         </Border>
                     </StackPanel>

@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle="Mirror's Edge Catalyst VR Installer"
 $script:MecId='mirrors-edge-catalyst-vr'
@@ -16,16 +16,16 @@ function Assert-MecFixture([string]$Root){
     return $full
 }
 function Get-MecGame{
-    if($env:PCVR_MEC_TEST_GAME){$p=Assert-MecFixture $env:PCVR_MEC_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $p 'MirrorsEdgeCatalyst.exe') -PathType Leaf){return $p};throw 'Catalyst fixture game is missing.'}
+    if($env:PCVR_MEC_TEST_GAME){$p=Assert-MecFixture $env:PCVR_MEC_TEST_GAME;if(Test-Path -LiteralPath (Join-Path $p 'MirrorsEdgeCatalyst.exe') -PathType Leaf){if (Test-PCVRGameInstallProof -GameId 'mirrors-edge-catalyst-vr' -Root $p) { return $p }};throw 'Catalyst fixture game is missing.'}
     $paths=@();$saved=Get-PCVRRememberedGameFolder -GameId $script:MecId -StateNames @('base_game_path','user_located','installed_path') -ProbeFiles @('MirrorsEdgeCatalyst.exe');if($saved){$paths+=$saved}
     try{$steam=Find-SteamGameFolder -AppId '1233570' -SteamFolderNames @('Mirrors Edge Catalyst') -ProbeExe 'MirrorsEdgeCatalyst.exe' -HubGameId $script:MecId;if($steam){$paths+=$steam}}catch{}
     $paths+=@('C:\Program Files (x86)\Steam\steamapps\common\Mirrors Edge Catalyst',"C:\Program Files\EA Games\Mirror's Edge Catalyst",
         "C:\Program Files (x86)\Origin Games\Mirror's Edge Catalyst")
-    foreach($p in @($paths|Where-Object{$_}|Select-Object -Unique)){if(Test-Path -LiteralPath (Join-Path $p 'MirrorsEdgeCatalyst.exe') -PathType Leaf){return [IO.Path]::GetFullPath($p)}}
+    foreach($p in @($paths|Where-Object{$_}|Select-Object -Unique)){if(Test-Path -LiteralPath (Join-Path $p 'MirrorsEdgeCatalyst.exe') -PathType Leaf){if (Test-PCVRGameInstallProof -GameId 'mirrors-edge-catalyst-vr' -Root $p) { return [IO.Path]::GetFullPath($p) }}}
     $picked=Get-GameFolderInteractive -GameName "Mirror's Edge Catalyst" -ProbeFile 'MirrorsEdgeCatalyst.exe' -ManualUrl 'https://store.steampowered.com/app/1233570/'
     if($picked -and (Test-Path -LiteralPath (Join-Path $picked 'MirrorsEdgeCatalyst.exe') -PathType Leaf)){
         [void](Save-HubRememberedGameFolder -GameId $script:MecId -Title "Mirror's Edge Catalyst VR" -GameDir $picked -ProbeFiles @('MirrorsEdgeCatalyst.exe') -UserSelected)
-        return [IO.Path]::GetFullPath($picked)
+        if (Test-PCVRGameInstallProof -GameId 'mirrors-edge-catalyst-vr' -Root $picked) { return [IO.Path]::GetFullPath($picked) }
     }
     throw "Choose the original Mirror's Edge Catalyst folder containing MirrorsEdgeCatalyst.exe."
 }

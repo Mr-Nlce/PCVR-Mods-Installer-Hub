@@ -1,4 +1,4 @@
-# ------------------------------------------------------------
+﻿# ------------------------------------------------------------
 # PCVR Hub installer foundation (contract generation 1)
 # ------------------------------------------------------------
 # New installers use this module instead of inventing their own interaction
@@ -15,7 +15,9 @@ $script:PCVRInstallerFoundationRoot = $PSScriptRoot
 if (-not (Get-Command Invoke-PCVRUniversalRecovery -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'InstallerRecovery.ps1')
 }
-if (-not (Get-Command Test-IsTrackableInstalledVersion -ErrorAction SilentlyContinue)) {
+if (-not (Get-Command Expand-ArchiveOrFallback -ErrorAction SilentlyContinue) -or
+    -not (Get-Command Invoke-SafeDownload -ErrorAction SilentlyContinue) -or
+    -not (Get-Command Confirm-PlacedFilesSurvive -ErrorAction SilentlyContinue)) {
     . (Join-Path $PSScriptRoot 'InstallerSafety.ps1')
 }
 
@@ -66,7 +68,8 @@ function global:New-PCVRInstallerContract {
         [string]$DiscordDownloadUrl = '',
         [string]$ReleasePageUrl = '',
         [switch]$AntivirusNotice,
-        [switch]$PinnedDepot
+        [switch]$PinnedDepot,
+        [string[]]$RequiredExternalFileGroups = @()
     )
 
     $cleanId = $Id.Trim()
@@ -96,12 +99,19 @@ function global:New-PCVRInstallerContract {
         }
     }
 
+    $externalGroups=@($RequiredExternalFileGroups|Where-Object {$_})
+    foreach($group in $externalGroups){foreach($path in @($group -split '\|')){
+        if(-not [IO.Path]::IsPathRooted($path) -or $path -notmatch '^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/]|/)' -or $path -match '(^|[\\/])\.\.([\\/]|$)'){
+            throw 'External installed evidence must name an explicit absolute path.'
+        }
+    }}
     return [pscustomobject][ordered]@{
         SchemaVersion = 1
         Id = $cleanId
         GameName = $cleanName
         Acquisition = $Acquisition
         RequiredInstalledFileGroups = $groups
+        RequiredExternalFileGroups = $externalGroups
         Routes = $routeList
         DiscordInviteUrl = $DiscordInviteUrl.Trim()
         DiscordDownloadUrl = $DiscordDownloadUrl.Trim()
@@ -128,7 +138,8 @@ function global:Wait-PCVRExplicitEnter {
         Write-Host ''
         Write-Host (">>> " + $Message) -ForegroundColor Black -BackgroundColor Yellow
         $answer = if ($ReadInput) { & $ReadInput $Message } else { Read-Host }
-        if ([string]::IsNullOrEmpty(('' + $answer))) { return $true }
+        if ($null -eq $answer) { throw [IO.EndOfStreamException]::new('Input ended before Enter was confirmed.') }
+        if ([string]::IsNullOrEmpty([string]$answer)) { return $true }
         Write-Host '  Press Enter without typing anything to continue.' -ForegroundColor Yellow
     }
 }
@@ -181,6 +192,9 @@ function global:Invoke-PCVRDiscordDownloadFlow {
         [Parameter(Mandatory=$true)][string]$DownloadPostUrl,
         [Parameter(Mandatory=$true)][string[]]$FilePatterns,
         [string]$SourceDescription = 'a Discord attachment',
+        [string]$DownloadChannelInstructions = '',
+        [switch]$ConfirmFoundArchive,
+        [switch]$AcceptArchiveAtSearchPrompt,
         [string[]]$SearchFolders = @(),
         [scriptblock]$ReadInput = $null,
         [scriptblock]$OpenUrl = $null,
@@ -192,15 +206,22 @@ function global:Invoke-PCVRDiscordDownloadFlow {
     if ($DownloadPostUrl -notmatch '^https://discord\.com/channels/') { throw 'The Discord download-post URL is missing or has the wrong role.' }
 
     Write-Host "  $Label is $SourceDescription and requires a signed-in browser." -ForegroundColor White
-    Write-Host "  The server invite opens first; the download post opens only after you return." -ForegroundColor Gray
+    $destination = if ($DownloadChannelInstructions) { 'download channel' } else { 'download post' }
+    Write-Host "  The server invite opens first. The $destination opens only after you return." -ForegroundColor Gray
     Open-PCVRPageAfterEnter -Message 'Press Enter to open the Discord invite.' -Url $InviteUrl -ReadInput $ReadInput -OpenUrl $OpenUrl
-    Open-PCVRPageAfterEnter -Message 'After joining or confirming the server, press Enter to open the download post.' -Url $DownloadPostUrl -ReadInput $ReadInput -OpenUrl $OpenUrl
-    [void](Wait-PCVRExplicitEnter -Message 'After the download has finished, press Enter to search your Downloads folder.' -ReadInput $ReadInput)
+    Open-PCVRPageAfterEnter -Message "After joining or confirming the server, press Enter to open the $destination." -Url $DownloadPostUrl -ReadInput $ReadInput -OpenUrl $OpenUrl
+    if ($DownloadChannelInstructions) { Write-Host "  $DownloadChannelInstructions" }
+    if ($AcceptArchiveAtSearchPrompt) {
+        if (-not $ReadInput) { try { $Host.UI.RawUI.FlushInputBuffer() } catch {} }
+        Write-Host '  After the download finishes, return here and drop the complete archive or press Enter to search Downloads.'
+    } else {
+        [void](Wait-PCVRExplicitEnter -Message 'After the download has finished, press Enter to search your Downloads folder.' -ReadInput $ReadInput)
+    }
 
     $find = {
         try {
-            if ($FindCandidate) { return (& $FindCandidate) }
-            return (Find-PCVRDownloadedCandidate -Patterns $FilePatterns -Folders $SearchFolders)
+            $found = if ($FindCandidate) { & $FindCandidate }
+                else { Find-PCVRDownloadedCandidate -Patterns $FilePatterns -Folders $SearchFolders }
         } catch {
             # Automatic discovery is a convenience, never a terminal gate.
             # A broken custom finder must still lead to the standard manual
@@ -208,6 +229,14 @@ function global:Invoke-PCVRDiscordDownloadFlow {
             Write-Host ("  Automatic Downloads search failed: " + $_.Exception.Message) -ForegroundColor Yellow
             return $null
         }
+        if ($found -and $ConfirmFoundArchive) {
+            Write-Host "  Found: $found" -ForegroundColor Cyan
+            $prompt = 'Use this archive? Enter Y to confirm or N to choose another file'
+            $answer = if ($ReadInput) { & $ReadInput $prompt } else { Read-Host "  $prompt" }
+            if ($null -eq $answer) { throw [IO.EndOfStreamException]::new('Input ended before the archive was confirmed.') }
+            if (('' + $answer).Trim() -ine 'Y') { return $null }
+        }
+        return $found
     }
     $accept = {
         param([string]$Path)
@@ -219,15 +248,26 @@ function global:Invoke-PCVRDiscordDownloadFlow {
             return $false
         }
     }
-    $candidate = & $find
+    $firstArchivePrompt = [bool]$AcceptArchiveAtSearchPrompt
+    $candidate = if (-not $firstArchivePrompt) { & $find }
     if ($candidate -and -not (& $accept $candidate)) { $candidate = $null }
     while (-not $candidate) {
-        Write-Host ''
-        Write-Host "  $Label was not found yet." -ForegroundColor Yellow
-        Write-Host '  Drag the downloaded file onto this window and press Enter,' -ForegroundColor White
-        Write-Host '  or type R to search again, O to reopen the post.' -ForegroundColor Gray
-        $raw = if ($ReadInput) { & $ReadInput 'Downloaded file, R or O' } else { Read-Host '  Downloaded file, R or O' }
-        $value = ('' + $raw).Trim().Trim('"').Trim("'")
+        if ($AcceptArchiveAtSearchPrompt) {
+            $prompt = if ($firstArchivePrompt) { 'Drop the downloaded archive or press Enter to search Downloads' }
+                else { 'Drop the downloaded archive, R to search again, O to reopen, Q to cancel' }
+        } else {
+            Write-Host ''
+            Write-Host "  $Label was not found yet." -ForegroundColor Yellow
+            Write-Host '  Drag the downloaded file onto this window and press Enter,' -ForegroundColor White
+            Write-Host "  or type R to search again, O to reopen the $destination." -ForegroundColor Gray
+            $prompt = 'Downloaded file, R or O'
+        }
+        $raw = if ($ReadInput) { & $ReadInput $prompt } else { Read-Host "  $prompt" }
+        if ($null -eq $raw) { throw [IO.EndOfStreamException]::new('Input ended before a Discord package was selected.') }
+        $value = ('' + $raw).Trim().Trim('"').Trim("'").Trim()
+        if ($firstArchivePrompt -and -not $value) { $value = 'R' }
+        $firstArchivePrompt = $false
+        if ($AcceptArchiveAtSearchPrompt -and $value -ieq 'Q') { throw "$Label download cancelled." }
         if ($value -and (Test-Path -LiteralPath $value -PathType Leaf -ErrorAction SilentlyContinue)) {
             $provided = (Get-Item -LiteralPath $value).FullName
             if (& $accept $provided) { return $provided }
@@ -238,6 +278,9 @@ function global:Invoke-PCVRDiscordDownloadFlow {
             'R' {
                 $candidate = & $find
                 if ($candidate -and -not (& $accept $candidate)) { $candidate = $null }
+                if (-not $candidate -and $AcceptArchiveAtSearchPrompt) {
+                    Write-Host "  Downloads did not contain a selected, verified archive for $Label." -ForegroundColor Yellow
+                }
                 continue
             }
             'O' {
@@ -253,14 +296,21 @@ function global:Invoke-PCVRDiscordDownloadFlow {
 
 function global:Write-PCVRAtomicText {
     param([Parameter(Mandatory=$true)][string]$Path,[Parameter(Mandatory=$true)][AllowEmptyString()][string]$Value)
+    $Path = [IO.Path]::GetFullPath($Path)
+    if ([IO.Directory]::Exists($Path)) { throw "The receipt target is a directory, not a file: $Path" }
     $parent = Split-Path -Parent ([IO.Path]::GetFullPath($Path))
     if (-not (Test-Path -LiteralPath $parent -PathType Container)) { [void][IO.Directory]::CreateDirectory($parent) }
     $temp = Join-Path $parent ('.pcvr-write-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+    $swap = $temp + '.previous'
     try {
         [IO.File]::WriteAllText($temp,$Value,(New-Object Text.UTF8Encoding $false))
-        Move-Item -LiteralPath $temp -Destination $Path -Force -ErrorAction Stop
+        # File APIs never reinterpret an existing destination directory as a
+        # container. Replace/Move also keep publication on the same volume.
+        if ([IO.File]::Exists($Path)) { [IO.File]::Replace($temp,$Path,$swap,$true) }
+        else { [IO.File]::Move($temp,$Path) }
     } finally {
         if (Test-Path -LiteralPath $temp -PathType Leaf -ErrorAction SilentlyContinue) { Remove-Item -LiteralPath $temp -Force -ErrorAction SilentlyContinue }
+        if (Test-Path -LiteralPath $swap -PathType Leaf -ErrorAction SilentlyContinue) { Remove-Item -LiteralPath $swap -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -272,8 +322,9 @@ function global:Complete-PCVRInstallTransaction {
         [Parameter(Mandatory=$true)][string]$Version,
         [Parameter(Mandatory=$true)][string[]]$InstalledPathReceiptPaths,
         [string[]]$AdditionalVersionReceiptPaths = @(),
-        [ValidateSet('Primary','Secondary')][string]$VersionSlot = 'Primary',
-        [string]$Route = 'Current'
+        [ValidateSet('Primary','Secondary','Tertiary')][string]$VersionSlot = 'Primary',
+        [string]$Route = 'Current',
+        [string[]]$InstalledVersionReceiptPaths = @()
     )
 
     if (-not $Contract -or [int]$Contract.SchemaVersion -ne 1) { throw 'A generation-1 installer contract is required.' }
@@ -285,7 +336,7 @@ function global:Complete-PCVRInstallTransaction {
     $gameRoot = [IO.Path]::GetFullPath($GameDir).TrimEnd([IO.Path]::DirectorySeparatorChar,[IO.Path]::AltDirectorySeparatorChar)
     $gamePrefix = $gameRoot + [IO.Path]::DirectorySeparatorChar
     foreach ($group in @($Contract.RequiredInstalledFileGroups)) {
-        $alternatives = @((('' + $group) -split '\|') | ForEach-Object { $_.Trim().Replace('/',[IO.Path]::DirectorySeparatorChar).Replace('\',[IO.Path]::DirectorySeparatorChar) } | Where-Object { $_ })
+        $alternatives = @((('' + $group) -split '\|') | ForEach-Object { $_.Trim().Replace('\','/').Replace('/',[IO.Path]::DirectorySeparatorChar).Replace('\',[IO.Path]::DirectorySeparatorChar) } | Where-Object { $_ })
         $present = $false
         foreach ($relative in $alternatives) {
             if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)') { throw "Installed evidence escapes the game folder: $relative" }
@@ -295,9 +346,18 @@ function global:Complete-PCVRInstallTransaction {
         }
         if (-not $present) { $missing += $group }
     }
+    $externalProofs=if($Contract -is [Collections.IDictionary]){$Contract['RequiredExternalFileGroups']}elseif($Contract.PSObject.Properties['RequiredExternalFileGroups']){$Contract.RequiredExternalFileGroups}else{@()}
+    foreach($group in @($externalProofs|Where-Object {$_})){
+        $present=$false
+        foreach($path in @($group -split '\|')){
+            if(-not [IO.Path]::IsPathRooted($path) -or $path -notmatch '^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/]|/)' -or $path -match '(^|[\\/])\.\.([\\/]|$)'){throw 'External installed evidence must name an explicit absolute path.'}
+            if([IO.File]::Exists($path)){$present=$true;break}
+        }
+        if(-not $present){$missing+=$group}
+    }
     if ($missing.Count) { throw ('Installed payload is incomplete; missing evidence: ' + ($missing -join ', ')) }
 
-    $stampName = if ($VersionSlot -eq 'Secondary') { '.pcvrhub_version_b' } else { '.pcvrhub_version' }
+    $stampName = if ($VersionSlot -eq 'Tertiary') { '.pcvrhub_version_c' } elseif ($VersionSlot -eq 'Secondary') { '.pcvrhub_version_b' } else { '.pcvrhub_version' }
     $stampPath = [IO.Path]::Combine($gameRoot,$stampName)
     $additionalVersionPaths = @($AdditionalVersionReceiptPaths | Where-Object { $_ } | Select-Object -Unique)
     foreach ($versionReceipt in $additionalVersionPaths) {
@@ -306,8 +366,19 @@ function global:Complete-PCVRInstallTransaction {
             throw "Additional version receipt escapes the game folder: $versionReceipt"
         }
     }
-    $writePaths = @($InstalledPathReceiptPaths | Where-Object { $_ } | Select-Object -Unique) + @($stampPath) + $additionalVersionPaths
+    $receiptFolders = @($InstalledPathReceiptPaths | Where-Object { $_ } | ForEach-Object { [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($_)) } | Select-Object -Unique)
+    $portableVersionPaths = @($InstalledVersionReceiptPaths | Where-Object { $_ } | Select-Object -Unique)
+    foreach ($versionReceipt in $portableVersionPaths) {
+        $resolved = [IO.Path]::GetFullPath($versionReceipt)
+        if ($receiptFolders -notcontains [IO.Path]::GetDirectoryName($resolved)) {
+            throw 'Installed version receipt escapes the declared installer receipt folder.'
+        }
+    }
+    $writePaths = @($InstalledPathReceiptPaths | Where-Object { $_ } | Select-Object -Unique) + @($stampPath) + $additionalVersionPaths + $portableVersionPaths
     $before = @{}
+    foreach ($path in $writePaths) {
+        if ([IO.Directory]::Exists([IO.Path]::GetFullPath($path))) { throw "The receipt target is a directory, not a file: $path" }
+    }
     foreach ($path in $writePaths) {
         $before[$path] = if (Test-Path -LiteralPath $path -PathType Leaf -ErrorAction SilentlyContinue) {
             [pscustomobject]@{ Exists=$true; Bytes=[IO.File]::ReadAllBytes($path) }
@@ -331,6 +402,9 @@ function global:Complete-PCVRInstallTransaction {
         foreach ($versionReceipt in $additionalVersionPaths) {
             Write-PCVRAtomicText -Path $versionReceipt -Value $Version.Trim()
         }
+        foreach ($versionReceipt in $portableVersionPaths) {
+            Write-PCVRAtomicText -Path $versionReceipt -Value $Version.Trim()
+        }
 
         if ($statusPath) {
             $status = [ordered]@{
@@ -339,10 +413,12 @@ function global:Complete-PCVRInstallTransaction {
                 evidence = @('payload','version','installed_path','route')
                 versionWritten = ($VersionSlot -eq 'Primary')
                 versionBWritten = ($VersionSlot -eq 'Secondary')
+                versionCWritten = ($VersionSlot -eq 'Tertiary')
                 installedPathWritten = $true
                 installedPath = $gameRoot
                 versionValue = $(if ($VersionSlot -eq 'Primary') { $Version.Trim() } else { '' })
                 versionBValue = $(if ($VersionSlot -eq 'Secondary') { $Version.Trim() } else { '' })
+                versionCValue = $(if ($VersionSlot -eq 'Tertiary') { $Version.Trim() } else { '' })
                 route = $Route
                 contractId = [string]$Contract.Id
                 runId = ('' + $env:PCVR_HUB_INSTALL_RUN_ID)

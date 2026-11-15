@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Mass Effect 1 VR - Installer (MELE-VR by dhalcyon)
 # ============================================================
 # Mass Effect 1 Legendary Edition in full head-tracked PCVR:
@@ -22,7 +22,11 @@
 # drag & drop - so a dead link degrades gracefully, never blocks.
 # ============================================================
 
+param([ValidateSet('','motion','gamepad')][string]$Mod='')
+
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot 'MEVR-State.ps1')
 
 $Host.UI.RawUI.WindowTitle = "Mass Effect 1 VR Installer"
 $ErrorActionPreference = "Stop"
@@ -69,7 +73,7 @@ function Write-Header {
  Clear-Host
  Write-Host "============================================================" -ForegroundColor Blue
  Write-Host " Mass Effect 1 VR - Installer" -ForegroundColor Cyan
- Write-Host " MELE-VR by dhalcyon | Legendary Edition (ME1) | gamepad" -ForegroundColor Gray
+ Write-Host " Legendary Edition (ME1) | Motion Controls or Gamepad" -ForegroundColor Gray
  Write-Host "============================================================" -ForegroundColor Blue
  Write-Host ""
 }
@@ -82,29 +86,119 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 
 function Test-MeleRoot {
  param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'mass-effect-1-le-vr' -Root $Root)) { return $false }
+
  if (-not $Root) { return $false }
  $ok = $false
  try { $ok = Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $ME1_SUBPATH, $ME1_EXE)) } catch {}
  return $ok
 }
 
-Write-Header
-Write-Host "  This installs the ME1 part of MELE-VR. VR modes: Stereo," -ForegroundColor Gray
-Write-Host "  AER and DIBR (plus Mono); first-person camera is optional." -ForegroundColor Gray
-Write-Host "  Originally a third-person game - do not expect a full FPS" -ForegroundColor Gray
-Write-Host "  conversion. Gamepad only." -ForegroundColor Gray
+function Install-MEVRMotion {
+    param([string]$GameRoot,[switch]$Steam)
+    $releasePage = 'https://github.com/dnehring/MEVR/releases'
+    $pattern = '(?i)^MEVR-[0-9]+(?:\.[0-9]+){2,3}\.zip$'
+    $win64 = Join-Path $GameRoot 'Game\ME1\Binaries\Win64'
+    $required = @(
+        'Game\ME1\Binaries\Win64\ASI\LE1MEVR.asi'
+        'Game\ME1\Binaries\Win64\ASI\MEVR-install.json'
+        'Game\ME1\Binaries\Win64\ASI\MEVR-Setup.exe'
+        'Game\ME1\Binaries\Win64\ASI\menu\main.rml'
+        'Game\ME1\BioGame\CookedPCConsole\BIOG_MEVR_Cockpit.pcc'
+        'Game\ME1\Binaries\Win64\bink2w64.dll'
+        'Game\ME1\Binaries\Win64\bink2w64_original.dll'
+        'Game\Launcher\bink2w64.dll'
+        'Game\Launcher\bink2w64_original.dll'
+    )
+    $contract = New-PCVRInstallerContract -Id 'mass-effect-1-le-vr' -GameName 'Mass Effect 1 Legendary Edition' -Acquisition GitHub -Routes @('motion') -ReleasePageUrl $releasePage -RequiredInstalledFileGroups $required -AntivirusNotice
+    if (Get-Process -Name MassEffect1,MassEffectLauncher -ErrorAction SilentlyContinue) {
+        throw 'Close Mass Effect and the Legendary Edition launcher before continuing.'
+    }
+    if (-not (Test-InstallerTargetWritable (Join-Path $win64 'bink2w64.dll'))) {
+        throw 'The ME1 folder is not writable. Run the Hub as administrator or make the game folder writable, then retry.'
+    }
+    $scratch = Join-Path ([IO.Path]::GetTempPath()) ('PCVR-MEVR-' + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $scratch | Out-Null
+        $archive = Join-Path $scratch 'MEVR.zip'
+        $staging = Join-Path $scratch 'expanded'
+        $zipProof = { param($candidate) (Test-ArchiveContains $candidate 'MEVR-Setup.exe') -and (Test-ArchiveContains $candidate 'LE1MEVR.asi') }
 
+        Write-Step 2 4 'Finding the latest Windows release'
+        if (-not (Wait-PCVRExplicitEnter -Message 'Press Enter to check GitHub and download MEVR.')) { throw 'Cancelled.' }
+        $release = Resolve-GitHubReleaseAsset -Repo 'dnehring/MEVR' -AssetPatterns @($pattern) -SkipReleasesWithoutMatchingAsset
+        if ($release.Resolved -and $release.Url) {
+            $downloaded = Invoke-DownloadOrFallback -Url $release.Url -Destination $archive -Label "MEVR $($release.Tag)" -ManualUrl $releasePage -Validator $zipProof -AllowSkip $false
+        } else {
+            $downloaded = Invoke-InstallerFallback -Action 'MEVR Windows download' -Url $releasePage -DestFile $archive -DestFolder $scratch -FileValidator $zipProof -RetryCheck { & $zipProof $archive } -AllowSkip $false
+        }
+        if (-not $downloaded -or -not (Test-Path -LiteralPath $archive -PathType Leaf)) { throw 'No usable MEVR Windows archive was supplied.' }
+        if (-not (Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $staging -Label 'MEVR Windows release' -AllowSkip $false -QuietProgress)) {
+            throw 'The MEVR Windows archive could not be extracted.'
+        }
+        $setup = @(Get-ChildItem -LiteralPath $staging -Filter 'MEVR-Setup.exe' -Recurse -File)
+        if ($setup.Count -ne 1) { throw 'The archive must contain one MEVR-Setup.exe.' }
+        $payload = Join-Path $setup[0].DirectoryName 'payload'
+        foreach ($file in @('LE1MEVR.asi','bink2w64.dll','menu\main.rml','cockpit\BIOG_MEVR_Cockpit.pcc')) {
+            if (-not [IO.File]::Exists((Join-Path $payload $file))) { throw "MEVR package is missing payload\$file." }
+        }
+
+        Write-Step 3 4 'Running the publisher setup'
+        Write-Host ' MEVR keeps your game settings. It parks active MELE-VR DLLs until MEVR is removed.'
+        Write-Host ' The publisher setup verifies the supported Legendary Edition build before it writes game files.'
+        if (-not (Wait-PCVRExplicitEnter -Message 'Press Enter to run MEVR Setup.')) { throw 'Cancelled.' }
+        $out = Join-Path $scratch 'setup.txt'
+        $source = if ($Steam) { 'Steam' } else { 'Folder' }
+        $arguments = '--install --game "{0}" --payload "{1}" --source {2} --no-settings --quality keep --out "{3}"' -f $GameRoot.TrimEnd('\'),$payload,$source,$out
+        $process = Start-Process -FilePath $setup[0].FullName -WorkingDirectory $setup[0].DirectoryName -ArgumentList $arguments -Wait -PassThru
+        if (Test-Path -LiteralPath $out -PathType Leaf) { Get-Content -LiteralPath $out | ForEach-Object { Write-Host " $_" } }
+        if ($null -eq $process.ExitCode -or $process.ExitCode -ne 0) { throw "MEVR Setup did not finish successfully (exit $($process.ExitCode))." }
+
+        Write-Step 4 4 'Verifying the installation'
+        $version = Get-MEVRInstalledVersion $GameRoot
+        Write-Host " MEVR version and active loaders: $(if ($version) { $version } else { 'missing' })"
+        if (-not $version) { throw 'MEVR did not leave a valid installation manifest and active ASI loaders. Use the publisher setup to repair it.' }
+        Complete-PCVRInstallTransaction -Contract $contract -GameDir $GameRoot -Version $version -Route 'motion' -VersionSlot Secondary -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) | Out-Null
+        Write-OK "MEVR $version installed. Start MEVR from the Hub with your OpenXR runtime running."
+    } finally {
+        if (Test-Path -LiteralPath $scratch) {
+            $resolvedScratch = [IO.Path]::GetFullPath($scratch)
+            $tempPrefix = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\PCVR-MEVR-'
+            if ($resolvedScratch.StartsWith($tempPrefix,[StringComparison]::OrdinalIgnoreCase)) {
+                Remove-Item -LiteralPath $resolvedScratch -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+}
+
+Write-Header
+if (-not $Mod) {
+ Write-Host ' [1] MEVR by dnehring (Motion Controls)' -ForegroundColor White
+ Write-Host ' [2] MELE-VR by dhalcyon (Gamepad)' -ForegroundColor White
+ Write-Host ' [Q] Cancel' -ForegroundColor Gray
+ do { $choice = (Read-Host 'Choose 1, 2 or Q').Trim() } until ($choice -in @('1','2','Q'))
+ if ($choice -eq 'Q') { exit 1 }
+ $Mod = if ($choice -eq '1') { 'motion' } else { 'gamepad' }
+}
+if ($Mod -eq 'motion') {
+ Write-Host ' MEVR adds motion-controlled combat and uses your active OpenXR runtime.'
+ Write-Host ' Start Mass Effect 1 normally once before installing. MEVR only changes ME1.'
+ Show-AntivirusNotice -Compact
+} else {
+ Write-Host ' MELE-VR is the Gamepad route. Its setup configures stereo and other VR modes.'
+}
 # -------------------------------------------------------
 # STEP 1: Locate Mass Effect Legendary Edition (any store)
 # -------------------------------------------------------
-Write-Step 1 5 "Locating Mass Effect Legendary Edition"
+if ($Mod -eq "motion") { Write-Step 1 4 "Locating Mass Effect Legendary Edition" } else { Write-Step 1 5 "Locating Mass Effect Legendary Edition" }
 
-$gamePath = $null
+$remembered = Get-HubLocatedGameFolder -GameId 'mass-effect-1-le-vr' -ProbeFiles @('Game\ME1\Binaries\Win64\MassEffect1.exe')
+$gamePath = if (Test-MeleRoot -Root $remembered) { $remembered }
 $isSteam  = $false
-if (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue) {
+if (-not $gamePath -and (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue)) {
  $cand = Find-SteamGameFolder -AppId $STEAM_APPID -SteamFolderNames @($STEAM_FOLDER) `
    -EpicNames @("Mass Effect Legendary Edition")
- if (Test-MeleRoot -Root $cand) { $gamePath = $cand; $isSteam = $true }
+ if (Test-MeleRoot -Root $cand) { $gamePath = $cand }
 }
 if (-not $gamePath) {
  # EA App / EA Play Pro, Origin legacy, Epic and Game Pass default
@@ -141,6 +235,20 @@ $win64 = [System.IO.Path]::Combine($gamePath, $ME1_SUBPATH)
 Write-OK "Found: $gamePath"
 if ($isSteam) { Write-Info "Steam install detected." }
 Write-Info "Mod target: $win64"
+
+if ($Mod -eq 'motion') {
+ try { Install-MEVRMotion -GameRoot $gamePath -Steam:$isSteam }
+ catch { Write-Fail $_.Exception.Message; Pause-User "Press Enter to exit." | Out-Null; exit 1 }
+ Write-Host ''
+ Write-Host " I'm Commander Shepard, and this is my favorite mod on the Citadel." -ForegroundColor Magenta
+ Pause-User "Press Enter to finish." | Out-Null
+ exit 0
+}
+if ([IO.File]::Exists((Join-Path $win64 'ASI\MEVR-install.json')) -or [IO.File]::Exists((Join-Path $win64 'ASI\LE1MEVR.asi'))) {
+ Write-Fail 'Remove MEVR with its publisher uninstaller before installing or updating the Gamepad mod on this copy.'
+ Pause-User "Press Enter to exit." | Out-Null
+ exit 1
+}
 
 # -------------------------------------------------------
 # STEP 2: Get the mod from Patreon
@@ -297,6 +405,10 @@ try {
  $setupIni = Join-Path $win64 "MELEVR.ini"
  $setupSettings = if (Test-Path -LiteralPath $setupIni -PathType Leaf) { Get-Content -LiteralPath $setupIni -Raw } else { '' }
  if ($setupSettings -notmatch '(?m)^expectedResX\s*=\s*[1-9][0-9]*\s*$') { throw "Publisher setup did not confirm VR configuration in MELEVR.ini." }
+ $gamepadFiles = @('Game\ME1\Binaries\Win64\dxgi.dll','Game\ME1\Binaries\Win64\openxr_loader.dll','Game\ME1\Binaries\Win64\MELEVR.ini')
+ $gamepadContract = New-PCVRInstallerContract -Id 'mass-effect-1-le-vr' -GameName 'Mass Effect 1 Legendary Edition' -Acquisition External -RequiredInstalledFileGroups $gamepadFiles -Routes @('gamepad')
+ $build = (Get-Item -LiteralPath (Join-Path $win64 'dxgi.dll')).LastWriteTime.ToString('yyyyMMdd.HHmmss',[Globalization.CultureInfo]::InvariantCulture)
+ Complete-PCVRInstallTransaction -Contract $gamepadContract -GameDir $gamePath -Version $build -Route 'gamepad' -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) | Out-Null
  Write-OK "Mod setup finished."
 } catch {
  Write-Fail "Mod setup did not complete: $_"
@@ -320,7 +432,6 @@ catch { Write-Warn "Temporary backup cleanup failed: $_" }
 # Either way we do NOT point at MassEffect1.exe directly: that drags
 # up the EA launcher and, on a machine that never ran the game, nags
 # that EA/Origin is missing.
-try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
 $leProbe = Join-Path $PSScriptRoot ".launch_exe"
 if ($isSteam) {
  # Remove any .launch_exe from an earlier non-Steam run so the Hub

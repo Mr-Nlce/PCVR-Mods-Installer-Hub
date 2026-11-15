@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot 'PZEvidence.ps1')
 $Host.UI.RawUI.WindowTitle = 'Project Zomboid VR Installer'
@@ -11,6 +11,8 @@ $script:PZContract = New-PCVRInstallerContract -Id $script:PZId -GameName 'Proje
         'ZombieBuddy.jar','ProjectZomboid64.json','ProjectZomboid64.bat','.pcvrhub_pzvr_activation.json')
 
 function Test-PZVRGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'project-zomboid-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and
         (Test-Path -LiteralPath (Join-Path $Root 'ProjectZomboid64.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'steam_api64.dll') -PathType Leaf))

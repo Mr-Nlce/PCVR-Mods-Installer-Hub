@@ -8,7 +8,7 @@ lambda-gab's VR mod brings the original Call of Duty single-player campaign into
 
 - Your own Call of Duty (2003) single-player game, EXE version **1.3**, with CoDSP.exe and main\pak0.pk3. The Hub checks the Steam and original Activision retail folders. Otherwise drag CoDSP.exe or CoDMP.exe onto the installer; the latter identifies the folder only and is never the VR start target.
 - A PC VR headset and **32-bit OpenXR runtime**. Virtual Desktop VDXR and Meta/Oculus runtimes are supported by the publisher; SteamVR requires its **beta** for the 32-bit runtime.
-- The Hub downloads the current official ZIP (`cod-vr-manual-install.zip`), opens it, and copies opengl32.dll, openxr_loader.dll, cod_vr.ini, supporters.ini and CoD-VR-Launcher.exe, plus a small game-specific start controller next to CoDSP.exe. It preserves an existing cod_vr.ini and backs up other same-name files before replacing them. Game files and saves remain.
+- The Hub downloads the current official ZIP (`cod-vr-manual-install.zip`), opens it, and copies opengl32.dll, openxr_loader.dll, cod_vr.ini, cod_vr_weapons.ini, supporters.ini and CoD-VR-Launcher.exe, plus a small game-specific start controller next to CoDSP.exe. It preserves an existing cod_vr.ini and backs up other same-name files before replacing them. Game files and saves remain.
 
 Unsigned VR files can trigger antivirus warnings. A missing file may also be caused by the installer, path or permissions; check the installer log and security history before assigning a cause.
 
@@ -28,24 +28,28 @@ The desktop **Call of Duty VR** shortcut selects the original campaign and opens
 | [[Right Stick]] | Turn; up or down changes stance. |
 | [[Left Stick Click]] | Recenter after standing upright. |
 | [[Right Stick Click]] | Go prone. |
-| [[Either Grip]] | Take a weapon from a body holster, or pick up and use an item with an empty hand. |
+| [[Either Grip]] | Take a weapon from a body holster, or pick up an item with an empty hand. |
+| [[Free-hand Trigger]] near a bomb or switch | Plant explosives or use the switch while holding a gun. |
 | [[Either Trigger]] | Fire; hold and release for a grenade throw. The other trigger zooms a scope. |
 | [[A]] | Jump or confirm in menus. |
-| [[X]] | Reload in the newly supplied v1.7.1 default configuration. |
+| [[X]] | Reload in the supplied v1.8.0 default configuration. |
 | [[B]] or [[Y]] held + another face button | Configurable shortcuts; the new default uses [[B]] + [[X]] to switch weapons. |
 | [[Free Hand]] facing your eyes | Show objectives. |
 | [[Weapon Hand]] swung physically | Melee with the gun. |
 | [[Menu]] | Open the game menu. |
+| [[Y]] held + [[B]] | Open the new mod settings menu. |
 
-Existing configurations are preserved and may use older bindings. The current publisher README lists different face-button defaults from its v1.7.1 ZIP; the table above follows the actual delivered cod_vr.ini. Check CONTROLS in your launcher for your own saved bindings.
+Existing configurations are preserved and may use older bindings. The publisher README and ZIP have different face-button defaults; this table follows the inspected v1.8.0 cod_vr.ini. Check CONTROLS in your launcher for your own saved bindings.
 
 Body holsters: primary weapon at the right shoulder, secondary at the left shoulder, pistol at the hip and grenades behind the waist. Let go away from a holster to drop the weapon.
+
+Version 1.8.0 adds beta player hands and realistic scopes. Weapon defaults are supplied in cod_vr_weapons.ini; your existing personal configuration is preserved.
 
 ## Flat / VR
 Close the game and launcher before switching. Flat / VR parks the OpenGL proxy for normal flat play. Updates preserve that mode; Start in VR and the desktop shortcut prepare VR again before opening the publisher launcher. If the base game and United Offensive share a retail folder, they also share this one VR runtime. Updating or switching that folder affects both; the shared runtime is identified in the Uninstall guide.
 
 ## VR files
-Start in VR uses the Hub's Start-CallOfDuty2003VR.ps1 controller to select SP in the publisher's Launcher > Game preference, then opens CoD-VR-Launcher.exe in the game folder. The standalone desktop shortcut runs Start CoD VR.ps1 in that same folder with -Game SP. Its icon comes from CoD-VR-Launcher.exe. The five publisher files stay beside CoDSP.exe; settings are in cod_vr.ini and %APPDATA%\CoD-VR\settings.ini. The Hub displays detected folders and start apps as links once the VR mod installation is present. If the Hub does not find your game, you can choose Locate Game and select CoDSP.exe.
+Start in VR uses the Hub's Start-CallOfDuty2003VR.ps1 controller to select SP in the publisher's Launcher > Game preference, then opens CoD-VR-Launcher.exe in the game folder. The standalone desktop shortcut runs Start CoD VR.ps1 in that same folder with -Game SP. Its icon comes from CoD-VR-Launcher.exe. The six publisher files stay beside CoDSP.exe; settings are in cod_vr.ini and %APPDATA%\CoD-VR\settings.ini. The Hub displays detected folders and start apps as links once the VR mod installation is present. If the Hub does not find your game, you can choose Locate Game and select CoDSP.exe.
 
 ## Help
 The supported base executable is CoDSP.exe 1.3 (March 2004). The installer uses the same PE build timestamp as the publisher; the game's advertised patch number is not a substitute for that supported executable. An unsupported build is rejected before files are changed. Recovery can reopen the official release page, accept its current ZIP or accept the correct game path.

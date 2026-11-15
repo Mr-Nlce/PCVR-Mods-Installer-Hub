@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Bomb Rush Cyberfunk VR Mod Installer
 # by Astienth - distributed via GitHub
 #
@@ -66,6 +66,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -105,8 +106,8 @@ function Find-BombRushCyberfunkGamePath {
  # capital F - that's only inside BepInEx\plugins.
  foreach ($folder in @("Bomb Rush Cyberfunk", "BombRushCyberfunk", "BombRushCyberFunk", "Bomb Rush Cyberfunk Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\Bomb Rush Cyberfunk_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\Bomb Rush Cyberfunk_Data") { if (Test-PCVRGameInstallProof -GameId 'bomb-rush-cyberfunk' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'bomb-rush-cyberfunk' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -161,16 +162,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Bomb Rush Cyberfunk folder" -ForegroundColor White
  Write-Host " (the folder that contains 'Bomb Rush Cyberfunk.exe')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Bomb Rush Cyberfunk folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Bomb Rush Cyberfunk' -HubGameId 'bomb-rush-cyberfunk' -ProbeFile 'Bomb Rush Cyberfunk.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $gamePath 'Bomb Rush Cyberfunk.exe') -PathType Leaf) -or

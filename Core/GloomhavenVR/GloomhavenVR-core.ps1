@@ -1,4 +1,4 @@
-# Gloomhaven VR - governed Current / pinned Steam-depot installer.
+﻿# Gloomhaven VR - governed Current / pinned Steam-depot installer.
 # Current follows official stable GitHub releases. Depot keeps game build
 # 20286313, Gloomhaven 1.1.8307.0, GloomhavenVR v1.0.1 and BepInEx 5.4.23.5.
 
@@ -73,6 +73,8 @@ function Read-GloomChoice([string[]]$Allowed,[string]$Prompt) {
 }
 
 function Test-GloomRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'gloomhaven-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue))
 }
 

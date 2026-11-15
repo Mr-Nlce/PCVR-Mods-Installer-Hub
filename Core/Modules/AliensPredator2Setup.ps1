@@ -3,7 +3,7 @@
 . (Join-Path $PSScriptRoot 'PublisherZipTransaction.ps1')
 $script:Avp2Modules=$PSScriptRoot
 $script:Avp2Id='aliens-versus-predator-2-vr'
-$script:Avp2Page='https://github.com/Bassquake/Aliens-Versus-Predator-2-VR/releases'
+$script:Avp2Page='https://github.com/Bassquake/Aliens-Versus-Predator-2-and-Primal-Hunt-VR/releases'
 $script:Avp2BasePage='https://www.moddb.com/games/aliens-vs-predator-2/downloads/aliens-vs-predator-2-easy-installer'
 $script:Avp2Required=@('DDraw.dll|DDraw.dll.pcvrhub_off','D3DImm.dll','d3d11.dll','openxr_loader.dll','xrres.exe','dgVoodoo.conf','avp2xr.ini','vrrez\cshell.dll','vrrez\cres.dll','vrrez\sres.dll','vrrez\Models\Weapons\Marine\mPulserifle_pv.ABC','PCVR-Launcher\Start-AvP2VR.ps1')
 function Test-Avp2Base([string]$Root){
@@ -140,7 +140,7 @@ function Invoke-Avp2Setup([string]$Folder){
   if($test){$archive=[string]$test.Package;$version=[string]$test.Version}else{
    $manual=Get-PCVRRecoveryInput -PathType Leaf
    if($manual){$archive=$manual;[void](Set-PCVRRecoveryInput '');do{$version=(Read-Host '  Version on the official release page for this VR ZIP').Trim()}until(Test-IsTrackableInstalledVersion $version)}else{
-    $r=Resolve-GitHubReleaseAsset -Repo 'Bassquake/Aliens-Versus-Predator-2-VR' -IncludePrerelease $false -AssetPatterns @('(?i)^avp2vr[-_].+\.zip$') -SkipReleasesWithoutMatchingAsset $true
+    $r=Resolve-GitHubReleaseAsset -Repo 'Bassquake/Aliens-Versus-Predator-2-and-Primal-Hunt-VR' -IncludePrerelease $false -AssetPatterns @('(?i)^avp2vr[-_].+\.zip$') -SkipReleasesWithoutMatchingAsset $true
     if(-not $r.Resolved -or -not $r.Url){throw 'The official VR package could not be resolved. Retry or hand over its downloaded ZIP.'}
     $version=$r.Tag;$archive=Join-Path $work 'vr.zip';[void](Invoke-SafeDownload -Urls @($r.Url) -Destination $archive -Label 'AvP2 VR' -ManualUrl $script:Avp2Page -AllowSkip $false -PlainProgress -FunctionalPayloadOnly)
    }
@@ -180,6 +180,7 @@ function Invoke-Avp2Setup([string]$Folder){
   Write-Host ('  [OK] Aliens versus Predator 2 VR '+$version+' installed.') -ForegroundColor Green
   Write-Host '  1. Use Start in VR in the Hub.' -ForegroundColor Green
   Write-Host '  Start SteamVR first. Flat / VR restores ordinary flat launch when selected.' -ForegroundColor White
+  Write-Host ''
   Write-Host '  Game over, man! Try the other two campaigns.' -ForegroundColor Magenta
   [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
  }catch{

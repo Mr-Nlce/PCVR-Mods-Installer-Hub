@@ -44,6 +44,7 @@ function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null
@@ -115,12 +116,14 @@ if (-not $sourceData1) {
 # started as Hexen II and must not become a Hub install receipt.
 function Test-HexenGameData([string]$Folder) {
  if (-not $Folder) { return $false }
- foreach ($name in @('pak0.pak','pak1.pak')) {
-  $path = Join-Path $Folder $name
-  if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or
-      (Get-Item -LiteralPath $path -ErrorAction SilentlyContinue).Length -le 0) { return $false }
- }
- return $true
+ $proof=Get-PCVRGameInstallProof -GameId 'hexen-ii-vr'
+ $sets=@(foreach($set in $proof.FileSets){
+  $relativeSet=$set.Clone()
+  $relativeSet.Files=@($set.Files|ForEach-Object {$_ -replace '^data1[\\/]',''})
+  $relativeSet.Containers=@(foreach($container in $set.Containers){$copy=$container.Clone();$copy.File=$copy.File -replace '^data1[\\/]','';$copy})
+  $relativeSet
+ })
+ return (Test-PCVRGameInstallProof -Root $Folder -FileSets $sets)
 }
 while (-not (Test-HexenGameData $sourceData1)) {
  Write-Fail "Hexen II needs both data1\pak0.pak and data1\pak1.pak."

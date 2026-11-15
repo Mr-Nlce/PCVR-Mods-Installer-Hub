@@ -229,9 +229,11 @@ function global:New-ControlTypeIcon {
 # Match is by exact Title.
 # $global: so DetailView.ps1 reads the same single source of truth.
 $global:WIP_GAME_TITLES = @(
+    'Vampire Hunters VR',
+    'Resident Evil 5 VR',
+    'I Hate This Place VR',
     'Hitman: Contracts VR',
     'Among the Sleep VR',
-    'Final Fantasy VII Remake Intergrade VR',
     'Dead Space 2 VR',
     "Sons of the Forest",
     "theHunter: Call of the Wild VR",
@@ -623,6 +625,12 @@ function global:Set-CardStateVisual {
     if (-not $Card) { return }
     $conv = [System.Windows.Media.BrushConverter]::new()
     switch ($State) {
+        "import" {
+            $Card.Background=New-CardTintBrush -BaseHex '#16161a' -TintHex '#f59e0b' -TopAlpha 0.10 -MidAlpha 0.02
+            $Card.BorderBrush=$conv.ConvertFromString('#665328');$Card.Effect=$null
+            Set-NeonButtonState -Button $BtnBrd -Text $BtnTxt -ColorHex '#f59e0b'
+            if($BtnTxt){$BtnTxt.Text='Import game';$BtnTxt.Foreground=$conv.ConvertFromString('#e5c57e')}
+        }
         "update" {
             $UPDATE_BLUE = "#2563eb"
             $Card.Background = New-CardTintBrush -BaseHex "#0c0c10" -TintHex $UPDATE_BLUE -TopAlpha 0.22 -MidAlpha 0.05
@@ -766,6 +774,7 @@ function global:Sync-FrostedCardState {
     $st = switch ([string]$Card.Tag) {
         "vrupdate"    { "update" }
         "vrinstalled" { "ready" }
+        "vrimport"    { "import" }
         "installed"   { "installed" }
         default       { "" }
     }

@@ -1,5 +1,7 @@
 ﻿. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
 
 $ErrorActionPreference = 'Stop'
 $Host.UI.RawUI.WindowTitle = 'SnowRunner VR Installer'
@@ -12,8 +14,8 @@ $depotGameVersion = '1.886173'
 $depotBuild = '25096372'
 $depotExpectedBytes = [int64]73390577922
 $depotDefaultPath = 'C:\Games\SnowRunner VR'
-$currentFallbackTag = 'v0.5'
-$currentFallbackUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.5/dxgi.dll'
+$currentFallbackTag = 'v1.1'
+$currentFallbackUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v1.1/dxgi.dll'
 $confirmedModTag = 'v0.3'
 $confirmedModUrl = 'https://github.com/Timguin-87/Snowrunner-VR/releases/download/v0.3/dxgi.dll'
 $knownOfficialHashes = @(
@@ -23,6 +25,9 @@ $knownOfficialHashes = @(
     'B7DDBB24D6A63EB9C608DE845E3F190F969EEFC4DCF6425C3DADACFBD3ECE0B'
 )
 $temp = ''
+$snowSnapshot=$null
+$snowBin=$null
+$snowCommitted=$false
 
 function Write-SnowHeader {
     Clear-Host
@@ -35,7 +40,19 @@ function Write-SnowHeader {
 function Write-SnowStep([int]$Number,[int]$Total,[string]$Text) { Write-Host ''; Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan; Write-Host '' }
 function Write-SnowOk([string]$Text) { Write-Host "  [OK] $Text" -ForegroundColor Green }
 function Write-SnowWarn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
-function Pause-Snow([string]$Text='Press Enter to continue...') { Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
+function Pause-Snow([string]$Text='Press Enter to continue...') { [void](Wait-PCVRExplicitEnter -Message $Text) }
+
+function Write-SnowRunnerImageSettings([string]$Mode) {
+    Write-Host '  Select Windowed mode in SnowRunner.' -ForegroundColor White
+    if ($Mode -eq '2') {
+        Write-Host '  Frozen v0.3: disable temporal anti-aliasing; use FXAA only.' -ForegroundColor White
+    } else {
+        Write-Host '  Current: select TAA for motion-vector stale-eye warp and optional DLSS.' -ForegroundColor White
+        Write-Host '  DLSS is optional: RTX users also need the official nvngx_dlss.dll beside SnowRunner.exe.' -ForegroundColor Gray
+        Write-Host '  The detail page links NVIDIA DLSS 310.9.16 or newer. The ordinary VR mod works without it.' -ForegroundColor Gray
+        Write-Host '  Resolution and DLSS changes apply live when the game window can be resized.' -ForegroundColor White
+    }
+}
 
 function Read-SnowChoice {
     param([string[]]$Allowed,[string]$Prompt)
@@ -49,6 +66,7 @@ function Read-SnowChoice {
 
 function Test-SnowRunnerPinnedRoot {
     param([string]$Path,[switch]$RequireCompleteDepot)
+    if(-not (Test-PCVRGameInstallProof -GameId 'snowrunner-vr' -Root $Path)){return $false}
     if (-not $Path -or -not (Test-LiteralPathSafe -Path $Path -PathType Container)) { return $false }
     foreach ($required in @('Sources\Bin\SnowRunner.exe','Media','preload','Sources')) {
         $candidate = Join-PathLexical $Path $required
@@ -173,7 +191,12 @@ function Remove-SnowTemp {
 }
 
 trap {
-    Remove-SnowTemp
+    $keepRecovery=$false
+    if($snowSnapshot -and -not $snowCommitted){
+        try{Restore-PCVRPublisherZipSnapshot -GameRoot $snowBin -Snapshot $snowSnapshot}
+        catch{$keepRecovery=$true;Write-SnowWarn ('Rollback could not finish. Recovery files remain at '+$temp)}
+    }
+    if(-not $keepRecovery){Remove-SnowTemp}
     Write-SnowWarn ("Setup could not finish: " + $_.Exception.Message)
     Write-Host '  No unverified installation state was committed. Run setup again to retry.' -ForegroundColor Gray
     Pause-Snow 'Press Enter to exit'
@@ -247,6 +270,8 @@ $parked = Join-Path $bin 'dxgi.dll.pcvrhub_off'
 $manifest = Join-Path $bin '.pcvrhub_snowrunnervr_ownership.csv'
 if ((Test-Path -LiteralPath $live) -and (Test-Path -LiteralPath $parked)) { throw 'Both active and parked dxgi.dll files exist. Remove the duplicate before updating.' }
 $restoreFlat = ((-not (Test-Path -LiteralPath $live)) -and (Test-Path -LiteralPath $parked))
+$snowBin=$bin
+$snowSnapshot=Save-PCVRPublisherZipSnapshot -GameRoot $bin -Stage $stage -Identity 'snowrunnervr' -SnapshotRoot (Join-Path $temp 'rollback') -ExtraPaths @('dxgi.dll.pcvrhub_off','steam_appid.txt')
 if ($restoreFlat) { Rename-Item -LiteralPath $parked -NewName 'dxgi.dll'; Write-SnowOk 'The parked official proxy was restored temporarily for a safe update.' }
 
 if ((Test-Path -LiteralPath $live -PathType Leaf) -and -not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
@@ -267,7 +292,7 @@ Install-OwnedModPayload -SourceRoot $stage -GameRoot $bin -Identity 'snowrunnerv
 $watch = @((Join-Path $bin 'dxgi.dll'),(Join-Path $bin '.pcvrhub-snowrunner-vr'))
 foreach ($required in $watch) { if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { throw "Installed-file verification failed: $(Split-Path -Leaf $required)" } }
 $recoverSnow = { Install-OwnedModPayload -SourceRoot $stage -GameRoot $bin -Identity 'snowrunnervr' -AdoptIdenticalExisting | Out-Null }.GetNewClosure()
-if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $bin -Recopy $recoverSnow)) { throw 'The required SnowRunner VR files did not survive the antivirus check.' }
+if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $bin -Recopy $recoverSnow)) { throw 'Required SnowRunner VR files are missing after installation. Open the log or retry.' }
 if ($installMode -eq '2') { Write-SnowRunnerDepotAppId -GameRoot $game }
 if ($restoreFlat) {
     Rename-Item -LiteralPath $live -NewName 'dxgi.dll.pcvrhub_off'
@@ -275,9 +300,12 @@ if ($restoreFlat) {
 }
 $pathStateFile = if ($installMode -eq '2') { '.installed_path_depot' } else { '.installed_path' }
 $versionStateFile = if ($installMode -eq '2') { '.installed_version_depot' } else { '.installed_version' }
-[IO.File]::WriteAllText((Join-Path $PSScriptRoot $pathStateFile),$game,(New-Object Text.UTF8Encoding($false)))
-[IO.File]::WriteAllText((Join-Path $PSScriptRoot $versionStateFile),[string]$release.Tag,(New-Object Text.UTF8Encoding($false)))
-Save-InstalledStamp -GameDir $game -Version ([string]$release.Tag) -HubDir $PSScriptRoot
+$route=if($installMode -eq '2'){'Depot'}else{'Current'}
+$acquisition=if($installMode -eq '2'){'SteamDepot'}else{'GitHub'}
+$proof=@('Sources\Bin\SnowRunner.exe','preload\paks\client\initial.pak','Sources\Bin\dxgi.dll|Sources\Bin\dxgi.dll.pcvrhub_off','Sources\Bin\.pcvrhub-snowrunner-vr','Sources\Bin\.pcvrhub_snowrunnervr_ownership.csv')
+$contract=New-PCVRInstallerContract -Id 'snowrunner-vr' -GameName 'SnowRunner VR' -Acquisition $acquisition -PinnedDepot:($installMode -eq '2') -AntivirusNotice -ReleasePageUrl "https://github.com/$repo/releases" -Routes @($route) -RequiredInstalledFileGroups $proof
+[void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version ([string]$release.Tag) -Route $route -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot $pathStateFile)) -InstalledVersionReceiptPaths @((Join-Path $PSScriptRoot $versionStateFile)))
+$snowCommitted=$true
 if ($installMode -eq '2') {
     $shortcut = New-DesktopShortcut -ShortcutName "SnowRunner VR $depotGameVersion" -TargetPath $gameExe -WorkingDir $bin -IconPath $gameExe -Description "SnowRunner $depotGameVersion with SnowRunner VR"
     if ($shortcut) { Write-SnowOk "Desktop shortcut created: SnowRunner VR $depotGameVersion" }
@@ -286,16 +314,16 @@ if ($installMode -eq '2') {
 Write-SnowOk 'VR proxy, marker, ownership manifest and recovery stamp verified.'
 
 Write-SnowStep 4 4 'First launch and image settings'
-Write-Host '  1. Select Windowed mode in SnowRunner.' -ForegroundColor White
-Write-Host '  2. Disable temporal anti-aliasing; use FXAA only.' -ForegroundColor White
-Write-Host '  3. Start one OpenXR runtime, then use the matching Start button' -ForegroundColor White
+Write-SnowRunnerImageSettings -Mode $installMode
+Write-Host '  Start one OpenXR runtime, then use the matching Start button' -ForegroundColor White
 if ($installMode -eq '2') {
     Write-Host "     in the Hub or the SnowRunner VR $depotGameVersion desktop shortcut." -ForegroundColor White
 } else {
     Write-Host '     in the Hub or launch SnowRunner through Steam.' -ForegroundColor White
 }
-Write-Host '  4. The first VR start writes the headset resolution and config.' -ForegroundColor White
-Write-Host '     Close SnowRunner once, then launch it again.' -ForegroundColor White
+Write-Host '  The first VR start writes the headset resolution and config.' -ForegroundColor White
+if ($installMode -eq '2') { Write-Host '  Close SnowRunner once, then launch it again.' -ForegroundColor White }
+else { Write-Host '  Restart only if the mod asks because it could not resize the game window.' -ForegroundColor White }
 Remove-SnowTemp
 
 Write-Host ''
@@ -303,6 +331,11 @@ Write-Host ('=' * 60) -ForegroundColor Magenta
 Write-Host '  SnowRunner VR installed.' -ForegroundColor Green
 Write-Host ('=' * 60) -ForegroundColor Magenta
 Write-Host ''
-Write-Host '  The road ends here. The mud has other plans.' -ForegroundColor Magenta
+Write-Host '  1. Use Start in VR in the Hub and select the matching game copy.' -ForegroundColor White
 Write-Host ''
-Pause-Snow 'Press Enter to exit'
+Write-Host '  The road ends here. The mud has other plans.' -ForegroundColor Magenta
+Pause-Snow 'Press Enter to close setup...'
+# A completed PowerShell core must not export an earlier optional console or
+# discovery tool's exit code as its own outcome. Failures still throw before
+# this point, and only the verified transaction enables this success path.
+if($snowCommitted){$global:LASTEXITCODE=0}

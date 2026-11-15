@@ -1,4 +1,4 @@
-# Halo MCC VR installer
+﻿# Halo MCC VR installer
 #
 # Installs the maintained MCCVR continuation by moistman42069. The Hub no
 # longer offers the abandoned original builds as installation choices.
@@ -49,6 +49,8 @@ function Read-YesNo {
 }
 
 function Test-MCCRoot([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'halo-3-mcc-vr' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     $bin = Join-Path $Root $MCC_BIN_DIR
     return [bool]((Test-Path -LiteralPath (Join-Path $bin $MCC_EXE_STEAM) -PathType Leaf) -or
@@ -246,7 +248,8 @@ function Install-Payload([string]$PayloadRoot,[string]$MccRoot,[object]$Release,
         }
         Save-OwnershipManifest -Path (Join-Path $modDir ([string]$Release.Manifest)) -Rows $rows.ToArray()
 
-        $desktop = [Environment]::GetFolderPath('Desktop')
+        $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') { $env:PCVR_TEST_REPORT_DIR } else { [Environment]::GetFolderPath('DesktopDirectory') }
+        if (-not $desktop) { return $modDir }
         $shortcut = Join-Path $desktop ([string]$Release.Shortcut + '.lnk')
         $mayWrite = $true
         if (Test-Path -LiteralPath $shortcut -PathType Leaf) {

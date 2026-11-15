@@ -15,9 +15,9 @@ $MOD_LAUNCHER   = 'F.E.A.R. VR.exe'
 $MOD_UNINSTALL  = 'FEAR-VR-Install\Uninstall F.E.A.R. VR.exe'
 $PUBLIC_MARKER  = '.pcvrhub_thefreemike_public'
 $SETUP_EXE      = 'F.E.A.R. VR Setup.exe'
-$PIN_VERSION    = 'v1.7.7'
-$PIN_NAME       = 'fear-vr-v1.7.7.zip'
-$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v1.7.7/fear-vr-v1.7.7.zip'
+$PIN_VERSION    = 'v1.8.5'
+$PIN_NAME       = 'fear-vr-v1.8.5.zip'
+$PIN_URL        = 'https://github.com/thefreemike31/fear-vr/releases/download/v1.8.5/fear-vr-v1.8.5.zip'
 $PIN_SHA        = ''
 $QUIP           = 'Slow time. Check the shadows. Alma is already here.'
 
@@ -143,26 +143,17 @@ function Get-ArchiveInputFolders {
 
 function Get-LatestStableRelease {
     try {
-        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" `
-            -Headers @{'User-Agent'='PCVR-Mods-Hub';'Accept'='application/vnd.github+json'} -TimeoutSec 25 -ErrorAction Stop
-        if (-not $release.draft -and -not $release.prerelease) {
-            $asset = @($release.assets | Where-Object {
-                [string]$_.browser_download_url -and [string]$_.name -match '(?i)^fear-vr-v.+\.zip$' -and
-                [string]$_.name -notmatch '(?i)\.sha256$'
-            } | Select-Object -First 1)[0]
-            if ($asset) {
-                $digest = ('' + $asset.digest).Trim()
-                if ($digest -match '^(?i)sha256:([0-9a-f]{64})$') { $digest = $matches[1].ToUpperInvariant() }
-                else { $digest = '' }
-                return [pscustomobject]@{
-                    Tag = [string]$release.tag_name
-                    Name = [string]$asset.name
-                    Url = [string]$asset.browser_download_url
-                    Sha256 = $digest
-                }
+        $release = Resolve-GitHubReleaseAsset -Repo $REPO -IncludePrerelease $false -AssetPatterns @('(?i)^fear-vr-v\d+(?:\.\d+)+\.zip$') -SkipReleasesWithoutMatchingAsset
+        if ($release.Resolved) {
+            return [pscustomobject]@{
+                Tag = [string]$release.Tag
+                Name = [string]$release.AssetName
+                Url = [string]$release.Url
+                Sha256 = ''
             }
         }
-    } catch { Write-Warn 'GitHub release lookup failed; using the last known public asset URL.' }
+    } catch { Write-Info $_.Exception.Message }
+    Write-Warn "GitHub could not confirm the newest Windows ZIP. The known release is $PIN_VERSION."
     return [pscustomobject]@{ Tag=$PIN_VERSION; Name=$PIN_NAME; Url=$PIN_URL; Sha256=$PIN_SHA }
 }
 

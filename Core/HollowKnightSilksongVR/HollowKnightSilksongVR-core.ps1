@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Hollow Knight Silksong VR Mod Installer
 #
 # TWO MODS, ONE GAME FOLDER.
@@ -83,6 +83,7 @@ function Pause-User {
 }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @(
         "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
         "HKLM:\SOFTWARE\Valve\Steam",
@@ -117,7 +118,7 @@ function Find-SilksongGamePath {
     foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
         foreach ($folder in @("Hollow Knight Silksong", "HollowKnightSilksong", "Silksong")) {
             $candidate = Join-Path $lib "steamapps\common\$folder"
-            if (Test-Path -LiteralPath "$candidate\$DATA_DIR") { return $candidate }
+            if (Test-Path -LiteralPath "$candidate\$DATA_DIR") { if (Test-PCVRGameInstallProof -GameId 'hollow-knight-silksong' -Root $candidate) { return $candidate } }
         }
     }
     return $null
@@ -246,18 +247,9 @@ function Update-SwitchLaunchers {
 }
 
 function Resolve-GameFolder {
-    $p = Find-SilksongGamePath
-    if (-not $p) { $p = Find-SteamGameFolder -AppId $GAME_APPID -SteamFolderNames @("Hollow Knight Silksong") -GogNames @("Hollow Knight Silksong") }
-    if ($p) { Write-OK "Found $GAME_NAME at: $p"; return $p }
-    Write-Warn "Could not auto-locate $GAME_NAME."
-    Write-Host "  Paste the path to the folder that contains '$DATA_DIR'." -ForegroundColor White
-    Write-Host ""
-    while ($true) {
-        $r = (Read-Host "  $GAME_NAME folder").Trim().Trim('"')
-        if (-not $r) { continue }
-        if (Test-Path -LiteralPath $r) { Write-OK "Game folder set: $r"; return $r }
-        Write-Fail "Folder not found: $r"
-    }
+    $selected=Get-GameFolderInteractive -GameName 'Hollow Knight Silksong' -HubGameId 'hollow-knight-silksong' -ProbeFile 'Hollow Knight Silksong.exe'
+    if (-not $selected -or $selected -in @('quit','skip')) { return $null }
+    return $selected
 }
 
 # -------------------------------------------------------

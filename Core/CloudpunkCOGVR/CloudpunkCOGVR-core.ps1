@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Cloudpunk: City of Ghosts - VR Mod Installer
 # ============================================================
 # Mod by Astienth | https://github.com/Astienth/Cloudpunk-VR
@@ -16,7 +16,7 @@ $ErrorActionPreference = "Stop"
 
 $GAME_NAME = "Cloudpunk - City of Ghosts"
 $GAME_EXE = "Cloudpunk - City of Ghosts.exe"
-$STEAM_APP = "1197200"
+$STEAM_APP = "746850"
 $MOD_URL = "https://github.com/Astienth/Cloudpunk-VR/releases/download/1.0.0/Cloudpunk_City_of_Ghosts_VR.zip"
 $MOD_NAME = "Cloudpunk City of Ghosts VR v1.0.0"
 $MOD_VERSION = 'v1.0.0'
@@ -37,6 +37,7 @@ function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null
@@ -59,28 +60,16 @@ Show-AntivirusNotice -Compact
 Pause-User "Press Enter to start..."
 Write-Step 1 3 "Locating Cloudpunk"
 
-$gamePath = $null
-$sp = Get-SteamPath
-if ($sp) {
- foreach ($lib in (Get-SteamLibraries $sp)) {
- $c = Join-Path $lib "steamapps\common\$GAME_NAME"
- if (Test-Path (Join-Path $c $GAME_EXE)) { $gamePath = $c; Write-Info "Found: $gamePath"; break }
- }
-}
-if (-not $gamePath) { $gamePath = Find-SteamGameFolder -AppId "1536370" -SteamFolderNames @("Cloudpunk - City of Ghosts") -GogNames @("Cloudpunk") -EpicNames @("Cloudpunk") }
+$gamePath = Find-SteamGameFolder -AppId $STEAM_APP -SteamFolderNames @('Cloudpunk') `
+ -Subdir 'City of Ghosts' -ProbeExe $GAME_EXE -HubGameId 'cloudpunk-city-of-ghosts-vr'
 if (-not $gamePath) {
- Write-Warn "Cloudpunk not found automatically."
- Write-Host " Enter the game folder:" -ForegroundColor White
- while (-not $gamePath) {
- $r=(Read-Host " Path").Trim().Trim('"')
- if(Test-Path(Join-Path $r $GAME_EXE)){$gamePath=$r;Write-Info "Path set: $gamePath"}else{Write-Fail "Not found: $r"}
- }
+ Write-Info 'Choose the City of Ghosts folder or its game EXE.'
+ $gamePath = Get-GameFolderInteractive -GameName $GAME_NAME -ProbeFile $GAME_EXE
 }
-if (-not (Test-Path -LiteralPath (Join-Path $gamePath $GAME_EXE) -PathType Leaf) -or
-    -not (Test-Path -LiteralPath (Join-Path $gamePath 'Cloudpunk - City of Ghosts_Data') -PathType Container)) {
- Write-Fail 'The selected folder lacks the base game EXE or data folder.'
- Pause-User 'Press Enter to exit...'; exit 1
+if (-not $gamePath -or -not (Test-PCVRGameInstallProof -GameId 'cloudpunk-city-of-ghosts-vr' -Root $gamePath)) {
+ throw 'The City of Ghosts game EXE and original game data were not found. Select the complete expansion folder.'
 }
+Write-Info "Game folder: $gamePath"
 
 # -------------------------------------------------------
 # STEP 2: Download mod
@@ -160,4 +149,4 @@ Write-Host ""
 Write-Host "The dead remember everything. So does HOVA." -ForegroundColor Magenta
 Write-Host ""
 Pause-User "Press Enter to exit."
-try { Start-Process explorer.exe "`"$gamePath`"" } catch {}
+

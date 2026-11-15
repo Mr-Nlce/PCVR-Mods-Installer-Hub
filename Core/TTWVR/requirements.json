@@ -1,0 +1,29 @@
+{
+  "NewVegas": [
+    "FalloutNV.exe", "Data/FalloutNV.esm", "Data/Fallout - Meshes.bsa",
+    "Data/CaravanPack.esm", "Data/ClassicPack.esm", "Data/MercenaryPack.esm", "Data/TribalPack.esm",
+    "Data/DeadMoney.esm", "Data/HonestHearts.esm", "Data/OldWorldBlues.esm",
+    "Data/LonesomeRoad.esm", "Data/GunRunnersArsenal.esm"
+  ],
+  "Fallout3": [
+    "Fallout3.exe", "Data/Fallout3.esm", "Data/Fallout - Meshes.bsa",
+    "Data/Anchorage.esm", "Data/ThePitt.esm", "Data/BrokenSteel.esm",
+    "Data/PointLookout.esm", "Data/Zeta.esm"
+  ],
+  "xNVSE": ["nvse_loader.exe", "nvse_1_4.dll", "nvse_steam_loader.dll"],
+  "plugins": [
+    "NVSE/Plugins/jip_nvse.dll", "NVSE/Plugins/jip_nvse.ini",
+    "NVSE/Plugins/nvse_stewie_tweaks.dll", "NVSE/Plugins/EngineOptimizations.dll"
+  ],
+  "TTWVR": [
+    "NVSE/Plugins/TTWVR.dll", "NVSE/Plugins/TTWVR/ttwvr_dxvk_d3d9.dll",
+    "NVSE/Plugins/TTWVR/openvr_api.dll", "NVSE/Plugins/TTWVR/ttwvr_dlss_host.exe",
+    "NVSE/Plugins/TTWVR/ttwvr_voice_host.exe", "NVSE/Plugins/TTWVR/TTWVR.ini",
+    "menus/prefabs/nvvr/pipboy_tabs.xml"
+  ],
+  "TTWData": ["YUPTTW - Main.bsa", "YUPTTW - Sounds.bsa"],
+  "TTW": [
+    "Fallout3.esm", "Anchorage.esm", "ThePitt.esm", "BrokenSteel.esm",
+    "PointLookout.esm", "Zeta.esm", "TaleOfTwoWastelands.esm", "YUPTTW.esm"
+  ]
+}

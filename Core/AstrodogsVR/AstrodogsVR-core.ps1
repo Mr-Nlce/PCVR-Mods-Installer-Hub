@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Astrodogs VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -65,6 +65,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -104,8 +105,8 @@ function Find-AstrodogsGamePath {
  # found the right install.
  foreach ($folder in @("Astrodogs", "AstroDogs", "astrodogs", "Astrodogs Demo")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\astrodogs_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\astrodogs_Data") { if (Test-PCVRGameInstallProof -GameId 'astrodogs-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'astrodogs-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -227,16 +228,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Astrodogs folder" -ForegroundColor White
  Write-Host " (the folder that contains 'astrodogs_Data')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Astrodogs folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Astrodogs' -HubGameId 'astrodogs-vr' -ProbeFile 'astrodogs.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 try { Assert-PCVRDropInPreflight -GameRoot $gamePath -GameExe 'astrodogs.exe' -GameDataFolder 'astrodogs_Data' -ArchivePath $modZip }
 catch { Write-Fail $_; Pause-User 'Press Enter to exit...'; exit 1 }

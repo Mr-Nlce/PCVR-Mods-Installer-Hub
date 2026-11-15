@@ -314,7 +314,7 @@ function global:Get-EldenRingInstallerMatrix {
                 }
             }
             $needsUpdate = [bool]($present -and $mod.Slot -eq 'B' -and
-                -not (Test-Path -LiteralPath (Join-PathLexical ([string]$route.Path) 'Game\ERVR\.pcvrhub_ervr_v0.4.0') -PathType Leaf))
+                -not (Test-Path -LiteralPath (Join-PathLexical ([string]$route.Path) 'Game\ERVR Launcher.exe') -PathType Leaf))
             $status = if ($needsUpdate) { 'UPDATE AVAILABLE' }
                       elseif ($present) { 'INSTALLED' }
                       elseif (-not $gamePresent -and -not $route.CanCreate) { 'GAME NOT FOUND' }

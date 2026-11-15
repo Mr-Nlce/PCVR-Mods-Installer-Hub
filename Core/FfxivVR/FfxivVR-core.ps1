@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Final Fantasy XIV - FFXIV VR Plugin Installer
 # ============================================================
 
@@ -7,6 +7,8 @@
 # Invoke-InstallerFallback, Get-GameFolderInteractive).
 # These replace hard "exit 1" aborts with manual fallback prompts.
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\InstallerFoundation.ps1")
+. (Join-Path $PSScriptRoot "..\Modules\FfxivPluginProof.ps1")
 
 $Host.UI.RawUI.WindowTitle = "FFXIV VR Installer"
 $ErrorActionPreference = "Stop"
@@ -29,7 +31,19 @@ function Write-OK { param($t) Write-Host " [OK] $t" -ForegroundColor Green }
 function Write-Warn { param($t) Write-Host " [!!] $t" -ForegroundColor Yellow }
 function Write-Fail { param($t) Write-Host " [XX] $t" -ForegroundColor Red }
 function Write-Info { param($t) Write-Host " [..] $t" -ForegroundColor Gray }
-function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") [void](Wait-PCVRExplicitEnter -Message $text) }
+
+function Invoke-FFxivLauncherSetup {
+    param([Parameter(Mandatory=$true)][string]$Path,[string]$Arguments='')
+    Write-Host 'The XIVLauncher setup window will open. Complete setup before returning here.' -ForegroundColor Yellow
+    [void](Wait-PCVRExplicitEnter -Message 'Press Enter to open XIVLauncher setup...')
+    $start=@{FilePath=$Path;Wait=$true;PassThru=$true;NoNewWindow=$true}
+    if($Arguments){$start.ArgumentList=$Arguments}
+    $process=Start-Process @start
+    if($null -eq $process.ExitCode -or $process.ExitCode -ne 0){
+        throw "XIVLauncher setup did not finish successfully (exit $($process.ExitCode)). The downloaded setup was kept for retry: $Path"
+    }
+}
 
 function Find-XIVLauncher {
  $candidates = @(
@@ -49,6 +63,8 @@ function Find-XIVLauncher {
 # Both have boot\ffxivboot.exe at the same relative location, so
 # checking for that file is the most reliable identifier.
 function Find-FFXIVGamePath {
+ $saved=Get-PCVRRememberedGameFolder -GameId 'final-fantasy-xiv-vr' -StateNames @('base_game_path','user_located')
+ if($saved -and (Test-PCVRGameInstallProof -GameId 'final-fantasy-xiv-vr' -Root $saved)){return $saved}
  # Direct default paths (Square Enix standalone)
  $candidates = @(
  "${env:ProgramFiles(x86)}\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
@@ -83,7 +99,7 @@ function Find-FFXIVGamePath {
 
  # First candidate that contains boot\ffxivboot.exe wins.
  foreach ($c in $candidates) {
- if (Test-Path -LiteralPath "$c\boot\ffxivboot.exe") { return $c }
+ if (Test-Path -LiteralPath "$c\boot\ffxivboot.exe") { if (Test-PCVRGameInstallProof -GameId 'final-fantasy-xiv-vr' -Root $c) { return $c } }
  }
  return $null
 }
@@ -93,6 +109,7 @@ Write-Header
 # ---- STEP 1: XIVLauncher ----
 Write-Host " FFXIV VR by WesleyLuk90 - a VR plugin for Final Fantasy XIV, installed" -ForegroundColor White
 Write-Host " through XIVLauncher and Dalamud. Gamepad controls." -ForegroundColor White
+Show-AntivirusNotice -Compact
 Write-Host ""
 Pause-User "Press Enter to start..."
 Write-Step 1 3 "Checking XIVLauncher"
@@ -132,7 +149,7 @@ if ($xlPath) {
  Write-Host " The XIVLauncher setup window will open now." -ForegroundColor Yellow
  Write-Host " Complete the installation, then come back here." -ForegroundColor Yellow
 
- Start-Process $setupExe
+ Invoke-FFxivLauncherSetup -Path $setupExe
  Remove-Item $setupExe -Force -EA SilentlyContinue
  Pause-User "Press Enter once XIVLauncher is installed..."
 
@@ -153,7 +170,7 @@ Write-Step 2 3 "Registering Custom Plugin Repository"
 $xlData = Join-Path $env:APPDATA "XIVLauncher"
 $repoConfigPath = Join-Path $xlData "dalamudConfig.json"
 
-if (Test-Path $repoConfigPath) {
+if ((Test-Path -LiteralPath $repoConfigPath) -and -not (Get-Process -Name XIVLauncher,ffxiv,ffxiv_dx11 -ErrorAction SilentlyContinue)) {
  try {
  $config = Get-Content $repoConfigPath -Raw | ConvertFrom-Json
  $repos = @()
@@ -165,7 +182,12 @@ if (Test-Path $repoConfigPath) {
  $newRepo = [PSCustomObject]@{ Url = $REPO_URL; IsEnabled = $true }
  $repos = $repos + $newRepo
  $config | Add-Member -Force -NotePropertyName "ThirdRepoList" -NotePropertyValue $repos
- $config | ConvertTo-Json -Depth 10 | Set-Content $repoConfigPath -Encoding UTF8
+ Write-Host 'The Hub will add this repository to the closed launcher config and keep a backup.' -ForegroundColor White
+ [void](Wait-PCVRExplicitEnter -Message 'Press Enter to register the repository...')
+ $json=$config|ConvertTo-Json -Depth 100 -WarningAction Stop
+ $backup=$repoConfigPath+'.pcvrhub-'+[guid]::NewGuid().ToString('N')+'.bak'
+ Copy-Item -LiteralPath $repoConfigPath -Destination $backup -ErrorAction Stop
+ Write-PCVRAtomicText -Path $repoConfigPath -Value $json
  Write-OK "Custom repo registered in dalamudConfig.json."
  }
  } catch {
@@ -173,7 +195,7 @@ if (Test-Path $repoConfigPath) {
  Write-Info "You will add the repo URL manually in-game (see steps below)."
  }
 } else {
- Write-Warn "dalamudConfig.json not found."
+ Write-Warn "The launcher config is missing or XIVLauncher / FFXIV is running; automatic editing was skipped."
  Write-Info "XIVLauncher must be started and Dalamud enabled at least once first."
  Write-Info "You will add the repo URL manually in-game (see steps below)."
 }
@@ -251,28 +273,19 @@ Pause-User "Press Enter to confirm you are aware of this setting..."
 # XIVLauncher by itself is not the VR mod. Dalamud stores plugins outside
 # the game and launcher folders, so verify the actual plugin before writing
 # either the Hub path receipt or the game-side recovery marker.
-$pluginDll = $null
-foreach ($pluginRoot in @(
-    (Join-Path $env:APPDATA 'XIVLauncher\installedPlugins'),
-    (Join-Path $env:LOCALAPPDATA 'XIVLauncher\installedPlugins')
-)) {
-    if (-not (Test-Path -LiteralPath $pluginRoot -PathType Container)) { continue }
-    $pluginDll = Get-ChildItem -LiteralPath $pluginRoot -Filter 'FfxivVR.dll' -File -Recurse -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($pluginDll) { break }
-}
+$pluginDll = $null;$pluginVersion='';$pluginEvidence=@()
+$selected=@(Get-PCVRFfxivPluginProof)
+if($selected.Count){$pluginDll=$selected[0].Dll;$pluginVersion=[string]$selected[0].Version;$pluginEvidence=@($selected[0].Files)}
 if (-not $pluginDll) {
-    Write-Fail "FfxivVR.dll was not found in Dalamud's installedPlugins folder."
+    Write-Fail "A complete versioned FFXIV VR plugin was not found in Dalamud's installedPlugins folder."
     Write-Host "  Finish the plugin installation in /xlplugins, then run this setup again." -ForegroundColor Yellow
     Pause-User "Press Enter to exit; VR Ready was not recorded."
     exit 1
 }
 Write-OK "Dalamud VR plugin verified: $($pluginDll.FullName)"
 
-# Write a small marker file in the FFXIV game root so the Hub
-# can recognize this install as VR Ready on subsequent scans.
-# Without it the Hub only sees the game installed (no DLL to
-# probe - the VR mod runs out-of-process via Dalamud).
+# The base game, launcher and Dalamud plugin occupy separate roots.
+# Record the actual plugin version only after all three proofs exist.
 $ffxivRoot = Find-FFXIVGamePath
 # The Hub detects FFXIV VR by XIVLauncher.exe (what actually runs the
 # Dalamud VR plugin), so record the XIVLauncher folder for the
@@ -281,26 +294,18 @@ $ffxivRoot = Find-FFXIVGamePath
 $recordRoot = $null
 if ($xlPath -and (Test-Path $xlPath)) { $recordRoot = (Split-Path -Parent $xlPath) }
 elseif ($ffxivRoot) { $recordRoot = $ffxivRoot }
-if ($recordRoot) { try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $recordRoot -Encoding UTF8 -Force } catch {} }
-if ($ffxivRoot) {
- $marker = Join-Path $ffxivRoot "vr-installed.txt"
- try {
- Set-Content -Path $marker -Value "FFXIV VR installed via Hub on $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -Encoding UTF8 -Force
- Write-OK "Wrote VR marker: $marker"
- } catch {
- Write-Warn "Could not write VR marker file: $_"
- }
-} else {
- Write-Warn "FFXIV install folder not found - VR marker file skipped."
- Write-Info "The Hub will still detect the install once the game is launched once."
-}
+if(-not $ffxivRoot -or -not(Test-PCVRGameInstallProof -GameId 'final-fantasy-xiv-vr' -Root $ffxivRoot)){throw 'The original FFXIV game could not be verified. Select its original game folder in the Hub; no VR-ready receipt was written.'}
+if(-not $recordRoot -or -not [IO.File]::Exists((Join-Path $recordRoot 'XIVLauncher.exe'))){throw 'The XIVLauncher launch target is missing; no VR-ready receipt was written.'}
+if(-not(Save-HubRememberedGameFolder -GameId 'final-fantasy-xiv-vr' -Title 'Final Fantasy XIV VR' -GameDir $ffxivRoot -StateName 'base_game_path')){throw 'The verified original game path could not be saved.'}
+$contract=New-PCVRInstallerContract -Id 'final-fantasy-xiv-vr' -GameName 'FFXIV VR' -Acquisition External -AntivirusNotice -RequiredInstalledFileGroups @('XIVLauncher.exe') -RequiredExternalFileGroups $pluginEvidence
+[void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $recordRoot -Version $pluginVersion -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -InstalledVersionReceiptPaths @((Join-Path $PSScriptRoot '.installed_version')))
 
 Write-Host ""
 Write-Host "============================================================" -ForegroundColor Magenta
 Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host ""
-Write-Host " 13. Restart FFXIV." -ForegroundColor White
-Write-Host " VR will start automatically on launch." -ForegroundColor Gray
+Write-Host " 1. Use Start in VR in the Hub. It opens XIVLauncher." -ForegroundColor White
+Write-Host " Restart FFXIV through XIVLauncher after installing the plugin." -ForegroundColor Gray
 Write-Host ""
 Write-Host " If not: type /vr start in the chat field." -ForegroundColor Gray
 Write-Host "============================================================" -ForegroundColor Magenta

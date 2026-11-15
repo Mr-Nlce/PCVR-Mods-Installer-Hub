@@ -80,6 +80,7 @@ function Write-Info { param($x) Write-Host " [..] $x" -ForegroundColor Gray }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path -LiteralPath $p)){return $p} } catch {}
  }; return $null
@@ -518,7 +519,7 @@ $verSafe = if ($GameTitle) { ($GameTitle -replace '[^A-Za-z0-9]','_') } else { (
 $tagFile = Join-Path $PSScriptRoot ".installed_version_$verSafe"
 try { Set-Content (Join-Path $PSScriptRoot ".installed_path_$verSafe") $gamePath -Encoding UTF8 -Force } catch {}
 if (Test-IsTrackableInstalledVersion -Version $tagName) {
-    try { Set-Content $tagFile $tagName -Encoding UTF8 -Force } catch {}
+    try { Set-Content -LiteralPath $tagFile -Value $tagName -Encoding UTF8 -Force } catch {}
     Write-ModStamp -GameDir $gamePath -Version $tagName | Out-Null
 }
 

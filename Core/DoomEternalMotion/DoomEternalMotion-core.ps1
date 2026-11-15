@@ -1,4 +1,4 @@
-param([Alias('InstallerChoice')][ValidateSet('','argent','eternal')][string]$Mod='')
+﻿param([Alias('InstallerChoice')][ValidateSet('','argent','eternal')][string]$Mod='')
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -11,7 +11,9 @@ $script:Slots=@{
     eternal=@{Name='EternalVR';Repo='ArcadaLabs-Jason/EternalVR';Pattern='(?i)^EternalVR-alpha-[0-9].*\.zip$';Tag='v0.1.75';Folder='EternalVR';Launcher='EternalVR.Launcher.exe';Identity='doometernalvr';Receipt='.installed_path_b';State='mod_b_path';VersionSlot='Secondary';Required=@('EternalVR.Launcher.exe','EternalVR.Launcher.Core.dll','BUILD-INFO.txt','layer\EternalVR.dll','layer\openxr_loader.dll','layer\VK_LAYER_ETERNALVR.json')}
 }
 
-function Test-DoomEternalGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'DOOMEternalx64vk.exe') -PathType Leaf))}
+function Test-DoomEternalGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'doom-eternal-motion-vr' -Root $Root)) { return $false }
+return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'DOOMEternalx64vk.exe') -PathType Leaf))}
 function Get-DoomEternalGame {
     $test=(''+$env:PCVR_DOOMETERNAL_TEST_GAME).Trim()
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $test){if(Test-DoomEternalGame $test){return (Get-Item -LiteralPath $test).FullName};throw 'The isolated DOOM Eternal test game is incomplete.'}

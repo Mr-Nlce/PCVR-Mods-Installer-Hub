@@ -40,7 +40,7 @@ function global:Get-UntestedInstallerGames {
 }
 function global:Get-PrimaryInstallerGames {
     param([object[]]$Games)
-    return @($Games | Where-Object { -not [bool]$_.UntestedInstaller })
+    return @($Games | Where-Object { -not [bool]$_.UntestedInstaller -and -not $_.InstallerParentId })
 }
 function global:Add-HubGameCardToPanel {
     param($Panel, $Game, [bool]$External, $HostWindow)
@@ -123,9 +123,9 @@ $scaleLBtn = $window.FindName("ScaleL")
 # Soft hover on the size selector - same reasoning as the filter
 # pills above. The active button has an accent border; hover gets
 # only a background brighten so the two states stay distinguishable.
-Add-SoftHover -Border $scaleSBtn
-Add-SoftHover -Border $scaleMBtn
-Add-SoftHover -Border $scaleLBtn
+Add-SoftHover -Border $scaleSBtn -HoverBgHex '#25a6b4ff'
+Add-SoftHover -Border $scaleMBtn -HoverBgHex '#25a6b4ff'
+Add-SoftHover -Border $scaleLBtn -HoverBgHex '#25a6b4ff'
 
 function global:Set-ScaleActive { param($active)
     foreach ($btn in @($scaleSBtn, $scaleMBtn, $scaleLBtn)) {
@@ -193,6 +193,13 @@ function global:Apply-CardScale {
 # Linux - the switch logic is, the look is tuned by-eye on Windows.
 # ------------------------------------------------------------
 function global:Switch-HubStyle {
+    # Rebuilds every card. A running (interactive) scan walks those cards,
+    # so a switch requested mid-scan is remembered and runs right after the
+    # scan (Unlock-ScanUi). A second click before then cancels it again.
+    if ($global:ScanInProgress) {
+        $global:HubStyleSwitchAfterScan = -not [bool]$global:HubStyleSwitchAfterScan
+        return
+    }
     $global:hubStyle = if ($global:hubStyle -eq 'classic') { 'frosted' } else { 'classic' }
     if (Get-Command Set-HubSetting -ErrorAction SilentlyContinue) {
         Set-HubSetting -Key "hubStyle" -Value $global:hubStyle

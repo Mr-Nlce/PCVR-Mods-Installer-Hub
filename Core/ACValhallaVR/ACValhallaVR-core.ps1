@@ -55,13 +55,7 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 
 function Test-ValhallaRoot {
  param([string]$Root)
- if (-not $Root) { return $false }
- $ok = $false
- try {
-  $ok = (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $GAME_EXE))) -or `
-        (Test-Path -LiteralPath ([System.IO.Path]::Combine($Root, $GAME_EXE_PLUS)))
- } catch {}
- return $ok
+ return Test-PCVRGameInstallProof -GameId 'assassin-s-creed-valhalla-vr' -Root $Root
 }
 
 Write-Header
@@ -82,7 +76,7 @@ if (Get-Command Try-FindSteamGame -ErrorAction SilentlyContinue) {
  $gamePath = Try-FindSteamGame -Folder $GAME_STEAM_FOLDER -Title "Assassin's Creed Valhalla" -AppID $STEAM_APPID -ExeName $GAME_EXE
 }
 if (-not $gamePath -and (Get-Command Find-SteamGameFolder -ErrorAction SilentlyContinue)) {
- $gamePath = Find-SteamGameFolder -AppId $STEAM_APPID -SteamFolderNames @($GAME_STEAM_FOLDER) -ProbeExe $GAME_EXE `
+ $gamePath = Find-SteamGameFolder -AppId $STEAM_APPID -SteamFolderNames @($GAME_STEAM_FOLDER) -ProbeExe ($GAME_EXE+'|'+$GAME_EXE_PLUS) `
    -EpicNames @("AssassinsCreedValhalla", "Assassin's Creed Valhalla")
 }
 # Ubisoft Connect / Ubisoft+ / Game Pass and Epic default folders.
@@ -107,16 +101,10 @@ if (-not $gamePath) {
  if (Test-ValhallaRoot -Root $rec) { $gamePath = $rec }
 }
 # Manual fallback (typed or drag & dropped folder)
-while (-not $gamePath) {
- Write-Warn "Could not find the game automatically."
- Write-Host " Drag & drop your Valhalla GAME FOLDER onto this window (the one" -ForegroundColor White
- Write-Host " containing $GAME_EXE or $GAME_EXE_PLUS), then press Enter." -ForegroundColor White
- Write-Host " Or press Enter on an empty line to exit." -ForegroundColor Gray
- $raw = (Read-Host " Game folder").Trim().Trim('"')
- if (-not $raw) { Write-Fail "No game folder - cannot continue."; Pause-User "Press Enter to exit."; exit 1 }
- if (Test-ValhallaRoot -Root $raw) { $gamePath = $raw }
- else { Write-Fail "That folder does not contain $GAME_EXE / $GAME_EXE_PLUS." }
+if (-not $gamePath) {
+ $gamePath = Get-GameFolderInteractive -GameName "Assassin's Creed Valhalla" -HubGameId 'assassin-s-creed-valhalla-vr' -ProbeFile ($GAME_EXE+'|'+$GAME_EXE_PLUS)
 }
+if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Retry to choose its folder or executable.' }
 
 # Which exe is it? (Ubisoft+ / Game Pass ships ACValhalla_Plus.exe)
 $exeName = $GAME_EXE
@@ -337,7 +325,7 @@ if ($zipPath -like (Join-Path $env:TEMP "*")) { try { Remove-Item -LiteralPath $
 # and .launch_exe so "Start in VR" opens the right exe (Ubisoft+ /
 # Game Pass installs use ACValhalla_Plus.exe).
 try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-try { if ($relTag) { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
+try { if ($relTag) { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $relTag -Encoding UTF8 -Force } } catch {}
 # ALSO write the durable stamp next to the GAME (2026-08-20).
 # The line above lands inside the Hub folder and is gone as
 # soon as a new Hub build is dropped in; the scan then finds

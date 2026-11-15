@@ -6,13 +6,13 @@ Marvel's Spider-Man Remastered follows Peter Parker through an open-world New Yo
 
 ## Requirements and setup
 
-The reviewed Windows package is Spidy v0.6.0. The Hub installs only its Windows runtime package; publisher data and reports are retained on update.
+The reviewed Windows package is Spidy v0.8.1. The Hub installs only its Windows runtime package; publisher data and reports are retained on update. The publisher also tries the same game build from Epic, but has not confirmed a played Epic session; Steam remains the supported route here.
 
 Spidy supports the Steam release of Marvel's Spider-Man Remastered only; the Epic Games Store build differs. The current publisher instructions identify game version 4.630.0.0. The launcher checks the installed build, so a new Steam patch may need a matching Spidy release. A PC VR headset and active OpenXR runtime are required. The author played with Quest 3 via Virtual Desktop and Steam Link/SteamVR. Other SteamVR headsets and Quest Link may work but are less proven. Windows must have roughly 19 GB available to applications from RAM and the page file combined; the launcher shows a memory check.
 
 1. Install the Steam game and close it before setup. Choose [[Get Installer]] in this Hub entry. The Hub resolves the current GitHub Windows release, including prereleases, or you can explicitly choose a downloaded publisher ZIP. The complete Spidy package is placed in a writable folder outside the Steam game. It uses %LOCALAPPDATA%\SpidyVR when that drive has room, with D:\Games\SpidyVR or E:\Games\SpidyVR as space fallbacks. An existing Hub-owned location is reused for updates. The Hub does not copy its files into the game folder.
 2. Choose [[Start in VR]] to open Spidy Launcher.exe. Resolve any red checks. Choose the runtime connected to your headset; Automatic usually finds it. The launcher can guide installation of the Microsoft Visual C++ runtime and offers its own desktop and Start-menu shortcuts. Choose Add shortcuts there if wanted.
-3. Close Spider-Man if it is already running. Connect the headset, then press START VR in Spidy Launcher. It starts the Steam game. Intro, menus, cutscenes and loading screens appear on a virtual screen; full VR begins during gameplay. The first session asks for body calibration: stand tall, face forward, spread both arms and hold both triggers until the bar fills. [[B]] skips calibration; the SPIDY VR settings tab can request it again after loading a save.
+3. Close Spider-Man if it is already running. Connect the headset, then press START VR in Spidy Launcher. It starts the Steam game. Menus and loading use a virtual screen; gameplay uses full VR. Version 0.8 adds first-person cutscenes from the current character's viewpoint. The first session asks for body calibration: stand tall, face forward, spread both arms and hold [[Left Trigger]] + [[Right Trigger]] until the bar fills. [[B]] skips calibration; the SPIDY VR settings tab can request it again after loading a save.
 4. Keep the game window in front on the desktop. Click it once if the headset image appears frozen, since another foreground window pauses the game. Press STOP VR or close the game to end the session. Close Spider-Man completely before starting another VR session.
 
 The publisher launcher temporarily uses a small desktop window, disables frame generation and Windows.Gaming.Input during the VR session, then restores those game settings when the game closes. The Hub's Start in VR button opens the publisher launcher; START VR there remains the action that starts the game. Spidy's launcher and the Luke Ross Hub entry have independent install and removal routes. If a previously active game-folder injector affects a Spidy session, first identify and disable that injector through its own controls; Spidy does not require it.
@@ -45,6 +45,8 @@ The publisher launcher temporarily uses a small desktop window, disables frame g
 | [[Left Trigger]] / [[Right Trigger]] in the phone | Lower or raise music volume |
 | [[Left Trigger]] then [[Right Trigger]] in phone CAMERA | Open the viewfinder, then take a photo; [[Right Stick]] up puts it away |
 | [[Menu]] or [[Left Stick Click]] + [[Right Stick Click]] held | Pause; open Settings > SPIDY VR |
+| [[Left Stick Click]] + [[Right Stick Click]] (press and release) | Toggle the temporary gamepad layer. Grips become [[LB]] / [[RB]], triggers become [[LT]] / [[RT]], and the right stick acts as the D-pad. Webs are disabled until you leave this layer. |
+| [[Left Hand]] + [[Right Hand]] together, then [[Right Stick Click]] | Web Tie: attach a webbed enemy to a wall, ceiling or crane. |
 | [[Either Grip]] near a wall, then pull | Experimental hand wall climbing, when enabled |
 | [[Right Stick]] in the air | Basic FLIPS when enabled; release holds the angle, [[A]] returns upright |
 | [[A]] in the air, then [[Left Stick]] | CONTROLLED FLIPS when enabled; [[A]] again returns upright and exits |
@@ -53,6 +55,8 @@ The publisher launcher temporarily uses a small desktop window, disables frame g
 | [[Left Stick Click]] / [[Right Stick Click]] when prompted | The game's [[L3]] / [[R3]]; [[Right Stick]] supplies requested D-pad directions |
 
 Quest Touch button names are shown. The publisher's linked players' guide has Index, Steam Frame and PS VR2 mappings. Realistic flips retain their own gesture controls and take priority over the two optional flip modes. In SPIDY VR settings, [[Left Stick]] changes a selected value, [[X]] resets it, [[Y]] resets the tab and [[B]] goes back.
+
+Version 0.7.0 adds optional Community Patch controls, including TwoHandWebZip and HandRopeSteering. They start disabled; enable only the options you want in SPIDY VR settings.
 
 ## Updates, removal and troubleshooting
 

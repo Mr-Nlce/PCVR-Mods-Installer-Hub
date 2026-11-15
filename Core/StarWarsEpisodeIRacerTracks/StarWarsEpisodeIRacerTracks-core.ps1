@@ -19,7 +19,9 @@ $REPO = "tim-tim707/SW_RACER_RE"
 $RELEASES_URL = "https://github.com/$REPO/releases"
 $mainState = Join-Path (Join-Path $PSScriptRoot "..\StarWarsEpisodeIRacerVR") ".installed_path"
 
-function Test-RacerRoot([string]$Path) { return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf)) }
+function Test-RacerRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'star-wars-episode-i-racer' -Root $Path)) { return $false }
+ return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf)) }
 function Pause-User([string]$Text="Press Enter to continue...") { if ($NoPause) { return }; Write-Host ""; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 if (-not $NoIntro) {

@@ -1,5 +1,18 @@
 # Singularity VR Installer
 
+## About the Game
+
+Explore Katorga-12 with the Time Manipulation Device in Raven Software's science-fiction shooter. The Hub offers two motion-control mods, each in its own game folder.
+
+## Choose a mod
+
+- **1. SingularityVR by letsgosportsteam** uses Virtual Desktop with VDXR. Its setup and controls are described below.
+- **2. Trilex VR** uses the Trilex OpenXR runtime. Select a clean, separate game copy. In Trilex, choose **Singularity VR** and the same folder, then click **Install selected**. Audio Remaster and HD textures are optional. Close Trilex after installation, then choose **Start Trilex** in the Hub.
+
+To repair or remove the Trilex copy, use Trilex's own controls. The Hub reads the version from Trilex's installation record for that folder.
+
+## SingularityVR by letsgosportsteam
+
 Automated installer for **SingularityVR** by letsgosportsteam - a VR mod for **Singularity** (2010, Raven Software, Unreal Engine 3). It is a `d3d9.dll` proxy: it forwards every Direct3D 9 call to the real system library and renders the game in stereo to an OpenXR headset along the way, with 6-DOF head tracking, motion-controller input and a weapon that follows your hand.
 
 **No game files are modified.** Three files go in beside `Singularity.exe`. Uninstalling is deleting one of them.
@@ -40,26 +53,23 @@ Connect Virtual Desktop **first**, then launch the game with no arguments. It st
 ## Controls
 Both Touch controllers act as a full gamepad, with haptics. Everything beyond the two long presses is Raven's own binding, passed straight through.
 
-**Left controller**
-
-- [[Left Thumbstick]] move / strafe
-- [[L3]] dash
-- [[Left Trigger]] aim
-- [[Left Grip]] impulse / melee
-- [[X]] age / renovate (TMD)
-- [[Y]] flashlight - hold about a second for the VR settings menu instead
-- [[Menu]] pause menu - hold about a second to recentre your view and seating
-
-**Right controller**
-
-- [[Right Thumbstick]] turn (snap or smooth, set in the settings menu)
-- [[Right Thumbstick Up]] cycle weapons
-- [[Right Thumbstick Down]] use a health item
-- [[R3]] anti-gravity
-- [[Right Trigger]] fire
-- [[Right Grip]] use / reload
-- [[A]] jump - hold about a second to also toggle the laser sight (you jump once on the way, since jump has to stay instant)
-- [[B]] crouch
+| Button | Action |
+| --- | --- |
+| [[Left Stick]] | Move or strafe |
+| [[Left Stick Click]] | Dash |
+| [[Left Trigger]] | Aim |
+| [[Left Grip]] | Impulse or melee |
+| [[X]] | Age or renovate with the TMD |
+| [[Y]] | Flashlight. Hold to open VR settings |
+| [[Menu]] | Pause. Hold to recenter |
+| [[Right Stick]] | Turn |
+| [[Right Stick Up]] | Cycle weapons |
+| [[Right Stick Down]] | Use a health item |
+| [[Right Stick Click]] | Anti-gravity |
+| [[Right Trigger]] | Fire |
+| [[Right Grip]] | Use or reload |
+| [[A]] | Jump. Hold to toggle the laser sight |
+| [[B]] | Crouch |
 
 ## VR settings
 The in-headset panel is the intended way to change anything: weapon position and rotation, turn style, the laser pointer, occlusion mode and more. Changes apply live and are saved automatically to `SingularityVR.ini` beside the DLL.

@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Circuit Superstars VR Mod Installer
 # by Astienth - distributed via GitHub
 #
@@ -77,6 +77,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -114,8 +115,8 @@ function Find-CircuitSuperstarsGamePath {
  # (lowercase + hyphen - reflects the EXE name).
  foreach ($folder in @("Circuit Superstars", "CircuitSuperstars")) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path -LiteralPath "$candidate\circuit-superstars_Data") { return $candidate }
- if (Test-Path $candidate) { return $candidate }
+ if (Test-Path -LiteralPath "$candidate\circuit-superstars_Data") { if (Test-PCVRGameInstallProof -GameId 'circuit-superstars-vr' -Root $candidate) { return $candidate } }
+ if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'circuit-superstars-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -167,16 +168,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your Circuit Superstars folder" -ForegroundColor White
  Write-Host " (the folder that contains 'circuit-superstars.exe')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Circuit Superstars folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Circuit Superstars' -HubGameId 'circuit-superstars-vr' -ProbeFile 'circuit-superstars.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 if (-not (Test-Path -LiteralPath (Join-Path $gamePath 'circuit-superstars.exe') -PathType Leaf) -or

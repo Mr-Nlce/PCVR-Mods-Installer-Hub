@@ -103,14 +103,21 @@ function Test-GoldenEyePayloadHasNoRom([string]$PayloadRoot) {
 function Assert-GoldenEyeReleaseVersion([string]$PayloadRoot,[string]$ReleaseTag,[string]$Target) {
     $notes=Join-Path $PayloadRoot 'RELEASE-NOTES.txt'
     if(-not(Test-Path -LiteralPath $notes -PathType Leaf)){throw 'The GEVR package has no publisher release notes. No files were changed.'}
-    $match=[regex]::Match((Get-Content -LiteralPath $notes -Raw -ErrorAction Stop),'(?im)^GEVR(?: Beta)? (vr[0-9]+(?:\.[0-9]+)+)\s*$')
+    $match=[regex]::Match((Get-Content -LiteralPath $notes -Raw -ErrorAction Stop),'(?im)^GEVR(?: Beta)? (vr[0-9]+(?:\.[0-9]+)*)\s*$')
     $actual=if($match.Success){$match.Groups[1].Value}else{''}
     if(-not $actual -or $actual -cne $ReleaseTag){throw "GEVR package version $actual does not match selected release $ReleaseTag. No files were changed."}
     $receipt=Join-Path $Target '.pcvrhub_version'
     if(Test-Path -LiteralPath $receipt -PathType Leaf){
         $prior=(Get-Content -LiteralPath $receipt -Raw -ErrorAction Stop).Trim()
-        if($prior -match '^vr([0-9]+(?:\.[0-9]+)+)$' -and [version]$Matches[1] -gt [version]$ReleaseTag.Substring(2)){
-            throw "GEVR $prior is already installed. The older $ReleaseTag package cannot replace it."
+        if($prior -match '^vr([0-9]+(?:\.[0-9]+)*)$'){
+            $oldParts=$Matches[1].Split('.')
+            $newParts=$ReleaseTag.Substring(2).Split('.')
+            for($i=0;$i -lt [Math]::Max($oldParts.Count,$newParts.Count);$i++){
+                $oldPart=if($i -lt $oldParts.Count){[decimal]$oldParts[$i]}else{[decimal]0}
+                $newPart=if($i -lt $newParts.Count){[decimal]$newParts[$i]}else{[decimal]0}
+                if($oldPart -gt $newPart){throw "GEVR $prior is already installed. The older $ReleaseTag package cannot replace it."}
+                if($oldPart -lt $newPart){break}
+            }
         }
     }
 }

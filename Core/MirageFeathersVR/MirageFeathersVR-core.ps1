@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Mirage Feathers VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -77,6 +77,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -126,7 +127,7 @@ function Find-MirageFeathersGamePath {
  foreach ($lib in (Get-SteamLibraries -SteamPath $sp)) {
  foreach ($folder in $folders) {
  $candidate = Join-Path $lib "steamapps\common\$folder"
- if (Test-Path (Join-Path $candidate $dataMark)) { return $candidate }
+ if (Test-Path (Join-Path $candidate $dataMark)) { if (Test-PCVRGameInstallProof -GameId 'mirage-feathers-vr' -Root $candidate) { return $candidate } }
  }
  }
  return $null
@@ -302,16 +303,8 @@ if ($gamePath) {
  }
  Write-Host " Please paste the path to your Mirage Feathers folder." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " Mirage Feathers folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path -LiteralPath (Join-Path $r $expectedGameData) -PathType Container) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "The $editionLabel game data folder was not found in: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'Mirage Feathers' -HubGameId 'mirage-feathers-vr' -ProbeFile 'Mirage Feathers.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # -------------------------------------------------------

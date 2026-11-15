@@ -120,7 +120,9 @@ function Remove-EmptyOwnedFolders([string]$Root, [string[]]$RelativeFolders) {
 }
 
 function Update-ForzaShortcut([string]$RemovedLauncher, [string]$RemainingLauncher, [string]$SharedRoot) {
-    $shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Forza Horizon 6 VR.lnk'
+    $desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') { $env:PCVR_TEST_REPORT_DIR } else { [Environment]::GetFolderPath('DesktopDirectory') }
+    if (-not $desktop) { return }
+    $shortcut = Join-Path $desktop 'Forza Horizon 6 VR.lnk'
     if (-not (Test-Path -LiteralPath $shortcut -PathType Leaf)) { return }
     try {
         $shell = New-Object -ComObject WScript.Shell

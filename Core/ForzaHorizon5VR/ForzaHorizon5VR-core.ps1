@@ -1,8 +1,9 @@
 ﻿# ============================================================
 # Forza Horizon 5 VR Installer
-# Two VR mods to choose from:
+# Three VR mods to choose from:
 #   1) NALULUNA (free, ko-fi)          launcher: fh5vr.exe
 #   2) lufz / VRMod (GitHub releases)  launcher: vrmod-launcher.exe
+#   3) GrayHorizon (GitHub releases)   installed in the retail game
 # Both use a separate launcher. Their packages live outside the
 # retail game under C:\Games\Forza Horizon 5 VR so they can be
 # installed side by side without bundling any mod in the Hub.
@@ -10,7 +11,7 @@
 
 param(
     [Alias('InstallerChoice')]
-    [ValidateSet('','naluluna','lufz')]
+    [ValidateSet('','naluluna','lufz','grayhorizon')]
     [string]$Mod = ''
 )
 
@@ -32,7 +33,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Forza Horizon 5 VR Installer" -ForegroundColor Cyan
-    Write-Host " Two community VR mods to choose from" -ForegroundColor Gray
+    Write-Host " Three community VR mods to choose from" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -94,8 +95,8 @@ Write-Host ""
 Write-Step 1 6 "Choosing a VR mod"
 $modChoice = ""
 if ($Mod) {
-    $modChoice = if ($Mod -eq 'lufz') { '2' } else { '1' }
-    $selectedByHub = if ($modChoice -eq '2') { 'lufz VRMod' } else { 'NALULUNA' }
+    $modChoice = @{ naluluna='1'; lufz='2'; grayhorizon='3' }[$Mod]
+    $selectedByHub = @{ '1'='NALULUNA'; '2'='lufz VRMod'; '3'='GrayHorizon' }[$modChoice]
     Write-Host "  UPDATE TARGET: $selectedByHub" -ForegroundColor Black -BackgroundColor Cyan
     Write-Host "  The Hub identified this exact installed mod as the update target." -ForegroundColor Gray
 } else {
@@ -103,12 +104,17 @@ if ($Mod) {
     Write-Host ""
     Write-Host "   [1] NALULUNA  - free on ko-fi" -ForegroundColor Green
     Write-Host "   [2] lufz VRMod - free, downloaded automatically" -ForegroundColor White
+    Write-Host "   [3] GrayHorizon - OpenXR cockpit VR, auto-download" -ForegroundColor White
     Write-Host ""
-    while ($modChoice -ne "1" -and $modChoice -ne "2") {
-        $modChoice = (Read-Host "  Enter 1 or 2 [default: 1]").Trim()
+    while ($modChoice -notin @('1','2','3')) {
+        $modChoice = (Read-Host "  Enter 1, 2 or 3 [default: 1]").Trim()
         if ($modChoice -eq "") { $modChoice = "1" }
-        if ($modChoice -ne "1" -and $modChoice -ne "2") { Write-Warn "Please type 1 or 2." }
+        if ($modChoice -notin @('1','2','3')) { Write-Warn "Please type 1, 2 or 3." }
     }
+}
+if ($modChoice -eq '3') {
+    & (Join-Path $PSScriptRoot '..\GrayHorizonFH5\GrayHorizonFH5-core.ps1')
+    return
 }
 if ($modChoice -eq "1") {
     $modName      = "NALULUNA"

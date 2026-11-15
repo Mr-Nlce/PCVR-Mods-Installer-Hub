@@ -25,6 +25,10 @@ $script:DiscordServerSpec = [ordered]@{
         Name      = 'Team Beef'
         InviteUrl = 'https://discord.gg/fA6m8SMZPA'
     }
+    TTWVR = @{
+        Name      = 'Tale of Two Realities'
+        InviteUrl = 'https://discord.gg/TrJyyZEds'
+    }
 }
 
 $script:DiscordChannelSpec = @(
@@ -36,6 +40,7 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('balatro-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1563690320183689226'; Label='Balatro VR' }
     @{ Ids=@('blood-west-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1562299917735829597'; Label='Blood West VR' }
     @{ Ids=@('forza-horizon-4-grayhorizon-vr','forza-horizon-5-grayhorizon-vr','forza-horizon-6-grayhorizon-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561119008768663643'; Label='GrayHorizon VR (Forza Horizon 4, 5 and 6)' }
+    @{ Ids=@('dead-space-2008-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1565011022215905360'; Label='Dead Space (2008) VR' }
     @{ Ids=@('call-of-duty-2003-vr','call-of-duty-united-offensive-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561852036264230972'; Label='Call of Duty (2003) VR' }
     @{ Ids=@('modern-warfare-2-campaign-remastered-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556737474087231579'; Label='Modern Warfare 2 Campaign Remastered VR' }
     @{ Ids=@('alan-wake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1561105393508294797'; Label='Alan Wake VR' }
@@ -49,6 +54,7 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('beyond-two-souls-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1559649298579456132'; Label='Beyond: Two Souls VR' }
     @{ Ids=@('fallout-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556723560389677126'; Label='Fallout 3 VR' }
     @{ Ids=@('fallout-new-vegas-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1558480358427721798'; Label='Fallout: New Vegas VR' }
+    @{ Ids=@('a-tale-of-two-realities-vr','fallout-new-vegas-vr'); Server='TTWVR'; Url='https://discord.com/channels/1570233209462194208/1570238629832564858'; Label='TTWVR releases' }
     @{ Ids=@('killing-floor-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556770175335010444'; Label='Killing Floor 2 VR' }
     @{ Ids=@('xiii-remake-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1554140030098743428'; Label='XIII VR' }
     @{ Ids=@('descent-vr','descent-2-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1556397364682428587'; Label='Descent 1 and 2 VR' }
@@ -105,6 +111,9 @@ $script:DiscordChannelSpec = @(
     @{ Ids=@('silent-hill-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1542467982427693096'; Label='Silent Hill VR' }
     @{ Ids=@('tormented-souls-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1115608718835462245'; Label='Tormented Souls VR' }
     @{ Ids=@('singularity-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1535658310316068955'; Label='Singularity VR' }
+    @{ Ids=@('the-darkness-ii-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1568006502927564840'; Label='The Darkness II' }
+    @{ Ids=@('tiny-tinas-wonderlands-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1568781138292637717'; Label="Tiny Tina's Wonderlands" }
+    @{ Ids=@('gothic-3-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1566961379586482186'; Label='Gothic 3 VR' }
     @{ Ids=@('diddy-kong-racing-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1539586547421151362'; Label='Diddy Kong Racing VR' }
     @{ Ids=@('penumbra-overture-vr','penumbra-black-plague-vr','penumbra-requiem-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1540774759619629056'; Label='Penumbra VR Framework' }
     @{ Ids=@('gta-iv-vr'); Server='Flat2VR'; Url='https://discord.com/channels/747967102895390741/1531522874987515955'; Label='GTA IV VR' }

@@ -1,4 +1,4 @@
-# EARTH DEFENSE FORCE 6 VR - governed GitHub prerelease installer.
+﻿# EARTH DEFENSE FORCE 6 VR - governed GitHub prerelease installer.
 # Steam-only game; shared EDFModLoader is preserved on removal; personal INI
 # files are never overwritten. The installed route may remain VR or Flat.
 
@@ -18,7 +18,9 @@ function Write-EDFStep([int]$Number,[int]$Total,[string]$Text){Write-Host '';Wri
 function Write-EDFOK([string]$Text){Write-Host "  [OK] $Text" -ForegroundColor Green}
 function Write-EDFInfo([string]$Text){Write-Host "  [i] $Text" -ForegroundColor Gray}
 function Write-EDFWarn([string]$Text){Write-Host "  [!!] $Text" -ForegroundColor Yellow}
-function Test-EDF6Root([string]$Path){return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path 'EDF6.exe') -PathType Leaf))}
+function Test-EDF6Root([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'earth-defense-force-6-vr' -Root $Path)) { return $false }
+return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path 'EDF6.exe') -PathType Leaf))}
 function Find-EDF6Payload([string]$ExtractRoot){
     $dll=Get-ChildItem -LiteralPath $ExtractRoot -Filter 'EDF6VR.dll' -File -Recurse -ErrorAction SilentlyContinue | Where-Object {$_.DirectoryName -match '[\\/]Mods[\\/]Plugins$'} | Select-Object -First 1
     if(-not $dll){return $null}; return (Split-Path -Parent (Split-Path -Parent $dll.DirectoryName))

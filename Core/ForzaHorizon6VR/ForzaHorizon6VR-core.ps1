@@ -1,16 +1,15 @@
 ﻿# ============================================================
 # Forza Horizon 6 VR Installer
-# Three VR mods to choose from:
+# Four VR mods to choose from:
 #   1) NALULUNA (free, ko-fi)        launcher: fh6vr.exe
 #   2) lufz / VRMod (GitHub releases)  launcher: vrmod-launcher.exe
 #   3) CheekyRender (GitHub releases) launcher: CheekyRender.exe
-# All ship a separate launcher that injects into the game; the
-# mod files must NOT live in the game folder, so we extract to
-# C:\Games\Forza Horizon 6 VR and launch from there.
+#   4) GrayHorizon (GitHub releases) installed in the retail game
+# Options 1-3 keep their launcher packages in C:\Games\Forza Horizon 6 VR.
 # ============================================================
 
 param(
-    [ValidateSet('','naluluna','lufz','cheeky')]
+    [ValidateSet('','naluluna','lufz','cheeky','grayhorizon')]
     [string]$Mod = ''
 )
 
@@ -36,7 +35,7 @@ function Write-Header {
     Clear-Host
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host " Forza Horizon 6 VR Installer" -ForegroundColor Cyan
-    Write-Host " Three community VR mods to choose from" -ForegroundColor Gray
+    Write-Host " Four community VR mods to choose from" -ForegroundColor Gray
     Write-Host "============================================================" -ForegroundColor Magenta
     Write-Host ""
 }
@@ -94,13 +93,18 @@ Write-Host ""
 Write-Host "   [1] NALULUNA  - free on ko-fi  (recommended)" -ForegroundColor Green
 Write-Host "   [2] lufz VRMod - free, downloaded automatically" -ForegroundColor White
 Write-Host "   [3] CheekyRender - free early preview, auto-download" -ForegroundColor White
+Write-Host "   [4] GrayHorizon - OpenXR cockpit VR, auto-download" -ForegroundColor White
 Write-Host ""
-$choiceMap = @{ naluluna='1'; lufz='2'; cheeky='3' }
+$choiceMap = @{ naluluna='1'; lufz='2'; cheeky='3'; grayhorizon='4' }
 $modChoice = if ($Mod -and $choiceMap.ContainsKey($Mod.ToLowerInvariant())) { [string]$choiceMap[$Mod.ToLowerInvariant()] } else { "" }
-while ($modChoice -notin @("1","2","3")) {
-    $modChoice = (Read-Host "  Enter 1, 2 or 3 [default: 1]").Trim()
+while ($modChoice -notin @("1","2","3","4")) {
+    $modChoice = (Read-Host "  Enter 1, 2, 3 or 4 [default: 1]").Trim()
     if ($modChoice -eq "") { $modChoice = "1" }
-    if ($modChoice -notin @("1","2","3")) { Write-Warn "Please type 1, 2 or 3." }
+    if ($modChoice -notin @("1","2","3","4")) { Write-Warn "Please type 1, 2, 3 or 4." }
+}
+if ($modChoice -eq '4') {
+    & (Join-Path $PSScriptRoot '..\GrayHorizonFH6\GrayHorizonFH6-core.ps1')
+    return
 }
 if ($modChoice -eq "1") {
     $modName      = "NALULUNA"
@@ -352,7 +356,7 @@ if ($modChoice -eq "2") {
     }
     if ($lufzVer) {
         Write-OK "Installed version $lufzVer verified from the payload or exact publisher download."
-        try { Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
+        try { Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $lufzVer -Encoding ASCII -Force } catch {}
         # ALSO write the durable stamp next to the GAME (2026-08-20).
         # The line above lands inside the Hub folder and is gone as
         # soon as a new Hub build is dropped in; the scan then finds

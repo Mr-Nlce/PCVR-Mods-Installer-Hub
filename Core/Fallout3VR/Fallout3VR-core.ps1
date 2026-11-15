@@ -1,11 +1,15 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $script:Id='fallout-3-vr';$script:Repo='THEwill2002/Fallout3VR';$script:Page='https://github.com/THEwill2002/Fallout3VR/releases'
+$script:FO3ReviewedTag='v0.1.0-alpha.6-rc.25'
+$script:FO3ReviewedAsset='Fallout3VR-v0.1.0-alpha.6-rc.25-final-win64.zip'
 $script:FO3DeclinedPath=''
 $script:Proof=@('THEwill_Fallout3_VR.exe','Launch-HD.cmd','Launch.ps1','Launcher.Core.ps1','settings.json','payload-manifest.json','payload\HD\loader\dinput8.dll','payload\HD\loader\Fallout3VR-Bootstrap.dll','payload\HD\scene\Fallout3VR-Scene-Menu.exe','payload\HD\scene\openxr_loader.dll','.pcvrhub_fo3vr_ownership.csv')
 $script:Contract=New-PCVRInstallerContract -Id $script:Id -GameName 'Fallout 3 VR' -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:Page -RequiredInstalledFileGroups $script:Proof
-function Test-FO3Game([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Fallout3.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'Data\Fallout3.esm') -PathType Leaf))}
+function Test-FO3Game([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'fallout-3-vr' -Root $Root)) { return $false }
+return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'Fallout3.exe') -PathType Leaf) -and (Test-Path -LiteralPath (Join-Path $Root 'Data\Fallout3.esm') -PathType Leaf))}
 function Assert-FO3Fixture([string]$Path,[string]$Marker){$full=[IO.Path]::GetFullPath($Path);$tmp=[IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([char[]]'\/')+'\';if(-not $full.StartsWith($tmp,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath (Join-Path $full $Marker) -PathType Leaf)){throw 'Fallout 3 test path must stay in an isolated temporary fixture.'};return $full}
 function Get-FO3Game {
     if($env:PCVR_FO3_TEST_GAME){$test=Assert-FO3Fixture $env:PCVR_FO3_TEST_GAME 'fo3vr-test-fixture.txt';if(Test-FO3Game $test){return $test};throw 'The Fallout 3 test game is incomplete.'}
@@ -17,10 +21,28 @@ function Get-FO3Game {
     if(Test-FO3Game $p){return [IO.Path]::GetFullPath($p)}
     throw 'Choose the Steam game folder containing Fallout3.exe and Data\Fallout3.esm.'
 }
+function Read-FO3ManualTag([string]$Path,$Release){
+    $leaf=if($Path){[IO.Path]::GetFileName($Path)}else{'staged ZIP'}
+    $suggested=''
+    if($Release -and $Release.Tag -and $Release.AssetName -and $leaf -ieq $Release.AssetName){$suggested=[string]$Release.Tag}
+    elseif($leaf -ieq $script:FO3ReviewedAsset){$suggested=$script:FO3ReviewedTag}
+    elseif($leaf -ieq 'Fallout3VR-v0.1.0-alpha.6-rc.10-win64.zip'){$suggested='v0.1.0-alpha.6'}
+    elseif($leaf -match '(?i)^Fallout3VR-(v\d+(?:\.\d+)+(?:-(?:alpha|beta|rc|pre)\.\d+)*)(?:-final)?-win64\.zip$'){$suggested=$Matches[1]}
+    Write-Host " Selected manual package: $leaf" -ForegroundColor Cyan
+    if($suggested){Write-Host " Suggested tag: $suggested. Check the release page for this ZIP before confirming." -ForegroundColor Yellow}
+    Write-Host ' Enter the GitHub release tag for the ZIP you downloaded, or press Enter to cancel.' -ForegroundColor White
+    while($true){
+        $answer=([string](Read-Host ' Publisher release tag')).Trim()
+        if(-not $answer){throw [OperationCanceledException]::new('Manual package version was not confirmed. No game files were changed.')}
+        if($answer -match '(?i)^v\d+(?:\.\d+)+(?:-(?:alpha|beta|rc|pre)\.\d+)*$'){return $answer}
+        Write-Host ' Enter a release tag such as v0.1.0-alpha.6-rc.25.' -ForegroundColor Yellow
+    }
+}
 function Get-FO3Release {
-    if($env:PCVR_FO3_TEST_ARCHIVE){return [pscustomobject]@{Tag='v0.1.0-alpha.6';Url=$env:PCVR_FO3_TEST_ARCHIVE;Local=$true}}
+    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_FO3_TEST_ARCHIVE){return [pscustomobject]@{Tag=$(if($env:PCVR_FO3_TEST_TAG){$env:PCVR_FO3_TEST_TAG}else{'v0.1.0-alpha.6'});Url=$env:PCVR_FO3_TEST_ARCHIVE;Local=$true}}
     try{$r=Resolve-GitHubReleaseAsset -Repo $script:Repo -IncludePrerelease $true -AssetPatterns @('(?i)^Fallout3VR-v[0-9].*-win64\.zip$') -SkipReleasesWithoutMatchingAsset}catch{$r=[pscustomobject]@{Resolved=$false}}
     $handover=Get-PCVRRecoveryInput -PathType Leaf
+    if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_FO3_TEST_MANUAL){$handover=$env:PCVR_FO3_TEST_MANUAL}
     if(-not $handover -and -not $r.Resolved){
         $candidate=Find-PCVRDownloadedCandidate -Patterns @('Fallout3VR-v*-win64.zip')
         if($candidate -and (Test-DownloadedPayload -Path $candidate -IntendedPath $candidate)){
@@ -30,25 +52,21 @@ function Get-FO3Release {
         }
     }
     if($handover){
-        $leaf=[IO.Path]::GetFileName($handover)
-        if($leaf -notmatch '(?i)^Fallout3VR-(v[0-9]+(?:\.[0-9]+)+(?:-(?:alpha|beta|rc)\.[0-9]+)?)(?:-rc\.[0-9]+)?-win64\.zip$'){throw 'Choose an official versioned Fallout3VR Windows ZIP.'}
-        $version=$Matches[1]
-        if($r.Resolved -and $version -ine [string]$r.Tag){throw "That ZIP is $version; the current GitHub release is $($r.Tag). Download the current ZIP instead."}
-        if(-not $r.Resolved){Write-Host " Publisher version could not be checked online. Selected: $leaf ($version)." -ForegroundColor Yellow;if((Read-Host ' Use this version? Y/N') -notmatch '^(?i:y|yes)$'){throw 'Publisher version was not confirmed.'}}
-        return [pscustomobject]@{Tag=$version;Url=$handover;Local=$true}
+        if(-not(Test-DownloadedPayload -Path $handover -IntendedPath 'Fallout3VR.zip')){throw 'Choose a readable Fallout 3 VR Windows ZIP. No game files were changed.'}
+        return [pscustomobject]@{Tag=(Read-FO3ManualTag $handover $r);Url=$handover;Local=$true}
     }
     if(-not $r.Resolved -or -not(Test-IsTrackableInstalledVersion ([string]$r.Tag))){
         Write-Host ' [!!] The current Fallout 3 VR prerelease could not be checked on GitHub.' -ForegroundColor Yellow
         if(-not $r.ReleaseFound){
-            Write-Host ' The last reviewed publisher prerelease is v0.1.0-alpha.6. A newer release may exist.' -ForegroundColor Yellow
-            if((Read-Host ' Download the reviewed v0.1.0-alpha.6 ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){
-                return [pscustomobject]@{Tag='v0.1.0-alpha.6';Url='https://github.com/THEwill2002/Fallout3VR/releases/download/v0.1.0-alpha.6/Fallout3VR-v0.1.0-alpha.6-rc.10-win64.zip';Local=$false;Manual=$false}
+            Write-Host " The last reviewed publisher prerelease is $script:FO3ReviewedTag." -ForegroundColor Yellow
+            if((Read-Host " Download the reviewed $script:FO3ReviewedTag ZIP? Y/N").Trim() -match '^(?i:y|yes)$'){
+                return [pscustomobject]@{Tag=$script:FO3ReviewedTag;AssetName=$script:FO3ReviewedAsset;Url="$script:Page/download/$script:FO3ReviewedTag/$script:FO3ReviewedAsset";Local=$false;Manual=$false}
             }
         }
         Write-Host ' Select the current official Windows ZIP on the release page.' -ForegroundColor White
         return [pscustomobject]@{Tag='';Url='';Local=$false;Manual=$true}
     }
-    return [pscustomobject]@{Tag=[string]$r.Tag;Url=[string]$r.Url;Local=$false;Manual=$false}
+    return [pscustomobject]@{Tag=[string]$r.Tag;AssetName=[string]$r.AssetName;Url=[string]$r.Url;Local=$false;Manual=$false}
 }
 function Get-FO3ManualArchive([string]$Destination){
     $declined=$script:FO3DeclinedPath
@@ -73,7 +91,8 @@ function Get-FO3ManualArchive([string]$Destination){
         [void](Wait-PCVRExplicitEnter -Message 'After the download finishes, press Enter to check Downloads...')
         $candidate=Find-PCVRDownloadedCandidate -Patterns @('Fallout3VR-v*-win64.zip')
         if($candidate -and $candidate -ne $declined){continue}
-        $raw=(Read-Host ' Drag the downloaded ZIP here, or press Enter to open the page again').Trim().Trim('"').Trim("'")
+        $raw=([string](Read-Host ' Drag the downloaded ZIP here, press Enter to reopen the page, or type S to cancel')).Trim().Trim('"').Trim("'")
+        if($raw -ieq 'S'){throw [OperationCanceledException]::new('No ZIP was selected. No game files were changed.')}
         if($raw -and (Test-Path -LiteralPath $raw -PathType Leaf)){
             if(Test-DownloadedPayload -Path $raw -IntendedPath $Destination){
                 Write-Host " Selected ZIP: $raw" -ForegroundColor Cyan
@@ -82,7 +101,8 @@ function Get-FO3ManualArchive([string]$Destination){
                     return $raw
                 }
             }else{Write-Host ' This is not a usable ZIP.' -ForegroundColor Yellow}
-        }else{Start-Process $script:Page -ErrorAction Stop|Out-Null}
+        }elseif(-not $raw){Start-Process $script:Page -ErrorAction Stop|Out-Null}
+        else{Write-Host ' That path does not point to an existing file. Paste the full ZIP path and try again.' -ForegroundColor Yellow}
     }
 }
 function Get-FO3Target {
@@ -158,16 +178,13 @@ function Invoke-FO3Installer {
         if($release.Local){Copy-Item -LiteralPath $release.Url -Destination $archive -Force}
         elseif($release.Manual){
             $selected=Get-FO3ManualArchive -Destination $archive
-            $leaf=[IO.Path]::GetFileName([string]$selected)
-            if($leaf -notmatch '(?i)^Fallout3VR-(v[0-9]+(?:\.[0-9]+)+(?:-(?:alpha|beta|rc)\.[0-9]+)?)(?:-rc\.[0-9]+)?-win64\.zip$'){
-                throw 'Choose an official versioned Fallout3VR Windows ZIP. No game files were changed.'
-            }
-            $release.Tag=$Matches[1]
-            Write-Host " Selected publisher file: $leaf ($($release.Tag))." -ForegroundColor Yellow
-            if((Read-Host ' Use this ZIP and version? Y/N').Trim() -notmatch '^(?i:y|yes)$'){
-                throw 'Publisher version was not confirmed. No game files were changed.'
-            }
-        }else{[void](Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "Fallout 3 VR $($release.Tag)" -ManualUrl $script:Page -ExpectedReleaseTag $release.Tag -AllowSkip $false)}
+            $release.Tag=Read-FO3ManualTag $selected $null
+        }else{
+            $transfer=@{}
+            $download=Invoke-SafeDownload -Urls @($release.Url) -Destination $archive -Label "Fallout 3 VR $($release.Tag)" -ManualUrl $script:Page -DownloadInfo $transfer -DisableGitHubAssetReresolution -FunctionalPayloadOnly -AllowSkip $false
+            if([string]$download -eq 'retry'){$release.Tag=Read-FO3ManualTag $transfer['SourcePath'] $release}
+            elseif($download -ne $true){throw 'No Windows ZIP was selected. No game files were changed.'}
+        }
         Write-Host ' [..] Inspecting and staging the complete publisher package; this may take a few seconds.' -ForegroundColor Cyan
         $stage=New-FO3Stage -Archive $archive -Work $work -Game $game
         $root=Get-FO3Target;if(-not(Test-Path -LiteralPath $root -PathType Container)){[void][IO.Directory]::CreateDirectory($root)}
@@ -189,12 +206,16 @@ function Invoke-FO3Installer {
         $changed=$false;Write-Host " [OK] Fallout 3 VR $($release.Tag) installed." -ForegroundColor Green
         Write-Host ' Connect the headset, then choose Start in VR in the Hub.' -ForegroundColor White
         Write-Host ' VR settings: keep Virtual Desktop / SteamVR OpenXR active and both controllers awake.' -ForegroundColor Yellow
-        Write-Host ' Start in VR uses HD. UHD is broken in this alpha; do not select it.' -ForegroundColor Yellow
+        Write-Host ' Start in VR uses the publisher default HD profile.' -ForegroundColor Yellow
         Write-Host ' A wavering image can remain: the publisher renders alternating eyes and reports limited reprojection.' -ForegroundColor Yellow
         Write-Host ' No verified graphics switch fixes this yet. For a visible defect, press F8 once;' -ForegroundColor Yellow
         Write-Host ' after closing the game, run Collect-Diagnostics.cmd and send the report privately.' -ForegroundColor Yellow
         Write-Host '';Write-Host ' Step out of the Vault and look around.' -ForegroundColor Magenta
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
+    }catch [OperationCanceledException]{
+        Write-Host (' [--] '+$_.Exception.Message) -ForegroundColor Yellow
+        if($env:PCVR_HUB_INSTALL_RUN_ID){exit 75}
+        exit 0
     }catch{
         if($changed -and $snapshot -and $root){try{Restore-FO3Snapshot -Root $root -S $snapshot}catch{$keep=$true;Write-Host " Rollback needs review; backup kept at $work. $($_.Exception.Message)" -ForegroundColor Red}}
         $message="Fallout 3 VR setup did not complete: $($_.Exception.Message)";Write-Host $message -ForegroundColor Red

@@ -48,6 +48,7 @@ function global:Align-TopScanSlot {
 # that can start a full scan calls this same cleanup path.
 function global:Fail-InstalledScan {
     param($ErrorRecord, [switch]$Quiet)
+    $global:HubScanEvidenceCache=$null
     try { if (Get-Command Stop-HubStateBatch -ErrorAction SilentlyContinue) { Stop-HubStateBatch } } catch {}
     try { Unlock-ScanUi } catch {}
     try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
@@ -75,7 +76,7 @@ function global:Fail-InstalledScan {
 }
 
 function global:Invoke-CheckInstalledScan {
-    $global:UserRanFullScan = $true
+    if (-not $global:HubStartupScanCacheOnly) { $global:UserRanFullScan = $true }
     # Re-entrancy guard. The scan now hands the UI thread back between
     # games (see the pump inside the loop), so a timer tick or a queued
     # call could otherwise start a second scan on top of a running one -
@@ -88,7 +89,7 @@ function global:Invoke-CheckInstalledScan {
     # after the dead run and carry on instead of refusing.
     if ($global:ScanInProgress) {
         $alive = $false
-        try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+        try { $alive = (([int]$global:HubScanPumpDepth -gt 0) -or ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60)) } catch {}
         if ($alive) { return }
         Unlock-ScanUi
         try { if (Get-Command Stop-ScanSpinner -ErrorAction SilentlyContinue) { Stop-ScanSpinner } } catch {}
@@ -103,14 +104,25 @@ function global:Invoke-CheckInstalledScan {
     $global:ScanFallbackDriveReadyCache = @{}
     if (Get-Command Start-HubStateBatch -ErrorAction SilentlyContinue) { Start-HubStateBatch }
     $scanTotalWatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $scanPerformance = Get-Command Write-PCVRPerformance -ErrorAction SilentlyContinue
+    if ($scanPerformance) { Write-PCVRPerformance -Log $global:HubPerformanceLog -Area scan_installed_games -Event started -ElapsedMs 0 }
     $scanOnlineMs = 0L
     $scanDetectionMs = 0L
     $scanSlowGames = New-Object System.Collections.ArrayList
+    # One explicit scan is one read snapshot. Repeat callers keep the full
+    # original/VR contract, but do not reopen the same payload repeatedly.
+    # Locate, installers and the next scan never inherit these results.
+    $global:HubScanEvidenceCache=@{
+        Base=[Collections.Generic.Dictionary[object,object]]::new()
+        Vr=[Collections.Generic.Dictionary[object,object]]::new()
+        BaseHits=0;VrHits=0;Values=@{}
+    }
+    try {
 
     # Lock mouse + keyboard for the duration (see Lock-ScanUi above).
     Lock-ScanUi
 
-    # Paced yields: at most one every ~35 ms, measured, so the header's
+    # Paced yields: at most one every ~100 ms, measured, so the header's
     # doesn't pay for a repaint per game and a slow one still breathes.
     # The empty delegate is built once - converting a scriptblock to an
     # [action] on every yield would allocate for nothing.
@@ -197,6 +209,34 @@ function global:Invoke-CheckInstalledScan {
     $steamLibs = if (Get-Command Get-HubSteamLibraries -ErrorAction SilentlyContinue) {
         @(Get-HubSteamLibraries -Refresh)
     } else { @() }
+    # One listing per Steam library: the folder names in steamapps\common and
+    # the appmanifest_*.acf names. Priorities 2a/2 below probe every AppId and
+    # SteamFolder in every library - thousands of Test-Path calls that are
+    # almost all misses. A name missing from these lists cannot exist, so it
+    # is skipped; a listed name gets exactly the old checks. A library that
+    # cannot be listed has $null sets and keeps the old per-path probing.
+    $steamLibIndex = @{}
+    foreach ($lib in $steamLibs) {
+        if (-not $lib) { continue }
+        $libEntry = @{ Common = $null; Manifests = $null }
+        $libSteamapps = [IO.Path]::Combine([string]$lib, 'steamapps')
+        try {
+            $set = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach ($d in [IO.Directory]::EnumerateDirectories([IO.Path]::Combine($libSteamapps, 'common'))) { [void]$set.Add([IO.Path]::GetFileName($d)) }
+            $libEntry.Common = $set
+        } catch { }
+        try {
+            $set = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach ($f in [IO.Directory]::EnumerateFiles($libSteamapps, 'appmanifest_*.acf')) { [void]$set.Add([IO.Path]::GetFileName($f)) }
+            $libEntry.Manifests = $set
+        } catch { }
+        $steamLibIndex[[string]$lib] = $libEntry
+    }
+    # Prime declared original archives while the existing store index is
+    # collected. These locations are candidates, never installation evidence.
+    if(Get-Command Start-PCVRRecordedContainerWarm -ErrorAction SilentlyContinue){
+        Start-PCVRRecordedContainerWarm -Games @($global:cardGameMap.Values) -Envelope (Get-HubStateEnvelope) -SteamLibraries $steamLibs
+    }
 
     # GOG Galaxy install roots. GOG doesn't have a single VDF
     # listing all libraries the way Steam does, so we collect
@@ -360,6 +400,8 @@ function global:Invoke-CheckInstalledScan {
     # straggler results actually surface THIS scan.
     $script:ghVerCache  = $null
     $script:webVerCache = $null
+    $script:tsVerCache = $null
+    $script:scanNightlyDisk = $null
 
     $global:HubVersionCacheOnly = $false
     # The isolated WPF regression harness has no network authority and sets
@@ -388,16 +430,41 @@ function global:Invoke-CheckInstalledScan {
         $webF = if ($versionCacheDir) { Join-Path $versionCacheDir ".web_version_cache" } else { $null }
         if ($ghF -and (Test-Path -LiteralPath $ghF -PathType Leaf))  { try { $r = Get-Content -LiteralPath $ghF -Raw | ConvertFrom-Json;  foreach ($p in $r.PSObject.Properties) { $ghDisk[$p.Name]  = [string]$p.Value.checked } } catch {} }
         if ($webF -and (Test-Path -LiteralPath $webF -PathType Leaf)) { try { $r = Get-Content -LiteralPath $webF -Raw | ConvertFrom-Json; foreach ($p in $r.PSObject.Properties) { $webDisk[$p.Name] = [string]$p.Value.checked } } catch {} }
-        function Test-CacheFresh([hashtable]$m, [string]$k) {
+        $tsDisk=@{}; $nightlyDisk=@{}
+        if($versionCacheDir){
+            foreach($cache in @(@{File='.ts_version_cache';Map=$tsDisk},@{File='.nightly_version_cache';Map=$nightlyDisk})){
+                $path=Join-Path $versionCacheDir $cache.File
+                if([IO.File]::Exists($path)){try{$data=[IO.File]::ReadAllText($path)|ConvertFrom-Json;foreach($prop in $data.PSObject.Properties){$cache.Map[$prop.Name]=[string]$prop.Value.checked}}catch{}}
+            }
+        }
+        function Test-CacheFresh([hashtable]$m, [string]$k, [int]$Hours=6) {
             if (-not $m.ContainsKey($k)) { return $false }
-            try { return ((($nowU) - [DateTime]::Parse($m[$k], $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours -lt $ttlH) } catch { return $false }
+            try { return ((($nowU) - [DateTime]::Parse($m[$k], $null, [System.Globalization.DateTimeStyles]::RoundtripKind)).TotalHours -lt $Hours) } catch { return $false }
         }
         $pending = @()
         foreach ($g in $global:allGameData) {
-            if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 35) {
-                $script:scanPumpWatch.Restart()
+            # 100 ms between pumps while nobody touches the Hub; 33 ms while the
+            # user scrolls, types or clicks (input seen in the last 1.5 s), so the
+            # Hub stays usable during the scan without slowing an idle scan.
+            if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge $(if ($global:HubScanLastInputTicks -and ([DateTime]::UtcNow.Ticks - [long]$global:HubScanLastInputTicks) -lt 15000000) { 33 } else { 100 })) {
                 $script:scanHeartbeat = Get-Date
+                # Depth > 0 = the scan is alive but waiting inside this pump, e.g.
+                # while a dialog the user opened mid-scan is still on screen.
+                $global:HubScanPumpDepth = 1 + [int]$global:HubScanPumpDepth
+                $scanPumpStart = [Diagnostics.Stopwatch]::GetTimestamp()
                 try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+                finally {
+                    $global:HubScanPumpDepth = [Math]::Max(0, [int]$global:HubScanPumpDepth - 1)
+                    $script:scanPumpTicks = [long]$script:scanPumpTicks + ([Diagnostics.Stopwatch]::GetTimestamp() - $scanPumpStart)
+                }
+                $script:scanHeartbeat = Get-Date
+                $script:scanPumpWatch.Restart()
+            }
+            if($g.ThunderstoreAuthor -and $g.ThunderstorePackage -and -not(Test-CacheFresh $tsDisk ("$($g.ThunderstoreAuthor)-$($g.ThunderstorePackage)") 1)){
+                $pending+=,@{K='ts';A=[string]$g.ThunderstoreAuthor;B=[string]$g.ThunderstorePackage}
+            }
+            if($g.GitHubNightly -and -not(Test-CacheFresh $nightlyDisk ([string]$g.GitHubNightly))){
+                $pending+=,@{K='nightly';A=[string]$g.GitHubNightly}
             }
             if ($g.GithubCommitRepo) {
                 $commitBranch = if ($g.GithubCommitBranch) { [string]$g.GithubCommitBranch } else { 'main' }
@@ -415,14 +482,11 @@ function global:Invoke-CheckInstalledScan {
                 $selectedPatterns = if($g.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $g)}else{@($g.GithubReleaseAssetPatterns)}
                 $assetPatterns = @($selectedPatterns | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
                 $assetVersion = [string]$g.GithubAssetVersionPattern
-                $assetSuffix = ''
-                if($assetPatterns.Count -gt 0){$assetSuffix='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($assetPatterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')}
-                if($assetVersion){$assetSuffix+='#asset-version='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($assetVersion)).TrimEnd('=').Replace('/','_').Replace('+','-')}
                 foreach ($warmRepo in $reposToWarm) {
                     foreach ($pref in $channelPrefs) {
-                        $cacheKey = $(if ($pref) { "$warmRepo#pre" } else { $warmRepo }) + $assetSuffix
-                        if (-not (Test-CacheFresh $ghDisk $cacheKey)) {
-                            $pending += , @{ K = 'gh'; A = $warmRepo; P = $pref; R = $assetPatterns; V = $assetVersion }
+                        $cacheKey = Get-PCVRGithubVersionCacheKey -Repo $warmRepo -IncludePrerelease ([bool]$pref) -AssetPatterns $assetPatterns -AssetVersionPattern $assetVersion -AssetTimestampVersion ([bool]$g.GithubRepoRollingUpdate) -TagOrder ([string]$g.GithubTagOrder)
+                        if ($g.GithubTagOrder -eq 'published' -or -not (Test-CacheFresh $ghDisk $cacheKey)) {
+                            $pending += , @{ K = 'gh'; A = $warmRepo; P = $pref; R = $assetPatterns; V = $assetVersion; W=[bool]$g.GithubRepoRollingUpdate; O=[string]$g.GithubTagOrder; I=$(if($g.GithubTagOrder -eq 'published'){Read-PersistentGameStateValue -Game $g -Name 'installed_version'}else{''}) }
                         }
                     }
                 }
@@ -430,13 +494,12 @@ function global:Invoke-CheckInstalledScan {
             if ($g.GithubRepoB) {
                 $bPref = if ($null -ne $g.GithubRepoBPrerelease) { [bool]$g.GithubRepoBPrerelease } else { [bool]$g.GithubPrerelease }
                 $bPatterns = @($g.GithubRepoBReleaseAssetPatterns | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-                $bKey = if ($bPref) { "$($g.GithubRepoB)#pre" } else { [string]$g.GithubRepoB }
-                if($bPatterns.Count -gt 0){$bKey+='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($bPatterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')}
-                if (-not (Test-CacheFresh $ghDisk $bKey)) {
-                    $pending += , @{ K = 'gh'; A = [string]$g.GithubRepoB; P = $bPref; R = $bPatterns; V = '' }
+                $bKey = Get-PCVRGithubVersionCacheKey -Repo ([string]$g.GithubRepoB) -IncludePrerelease $bPref -AssetPatterns $bPatterns -AssetTimestampVersion ([bool]$g.GithubRepoBRollingUpdate) -TagOrder ([string]$g.GithubRepoBTagOrder)
+                if ($g.GithubRepoBTagOrder -eq 'published' -or -not (Test-CacheFresh $ghDisk $bKey)) {
+                    $pending += , @{ K = 'gh'; A = [string]$g.GithubRepoB; P = $bPref; R = $bPatterns; V = ''; W=[bool]$g.GithubRepoBRollingUpdate; O=[string]$g.GithubRepoBTagOrder; I=$(if($g.GithubRepoBTagOrder -eq 'published'){Read-PersistentGameStateValue -Game $g -Name 'installed_version_b'}else{''}) }
                 }
             }
-            if (-not $g.GithubRepo -and -not $g.GithubRepoB -and $g.WebVersionUrl) {
+            if ($g.WebVersionUrl -and ((-not $g.GithubRepo -and -not $g.GithubRepoB) -or $g.GithubRepo -eq 'GrayHorizon-mod/Forza-Horizon-VR')) {
                 if (-not (Test-CacheFresh $webDisk $g.WebVersionUrl)) { $pending += , @{ K = "web"; A = $g.WebVersionUrl; T = $g.Title; P = $g.WebVersionPattern; Aliases = $g.WebVersionAliases } }
             }
         }
@@ -470,14 +533,9 @@ function global:Invoke-CheckInstalledScan {
         }
     } catch {}
 
-    # Version-check phase done for THIS scan. Switch ONLY the gh/web version
-    # getters to cache-only for the per-card loop - their inline network call
-    # was the freeze, and any repo they missed is already handed to the
-    # background worker above. Deliberately NOT the scan-wide breaker: the
-    # loop's GitHubNightly (api.github.com) and Thunderstore checks have no
-    # disk cache and are not covered by the worker - tripping the breaker
-    # here would silently kill their update badges for good. They keep their
-    # original behaviour (2s timeout, self-trip on first failure).
+    # The foreground loop reads verified source caches only, including
+    # Thunderstore and rolling/nightly releases. Stale entries remain useful
+    # during outages; only the independent worker waits for the network.
     if ($scanOnlineWatch) { $scanOnlineWatch.Stop(); $scanOnlineMs = $scanOnlineWatch.ElapsedMilliseconds }
     $global:HubVersionCacheOnly = $true
 
@@ -487,28 +545,57 @@ function global:Invoke-CheckInstalledScan {
     # other code run, and anything that rebuilds the lookups mid-scan
     # would otherwise break the enumeration.
     $scanDetectionWatch = [System.Diagnostics.Stopwatch]::StartNew()
-    foreach ($card in @($global:cardGameMap.Keys)) {
-        $game = $global:cardGameMap[$card]
-        # Lazy cards (CardTile.Lazy.ps1): $scanRealCard is the element in the
-        # panel. A card that has not been built yet is painted through a
-        # throwaway proxy below; only its Tag is copied back in finally.
+    # Where the detection time goes, logged once per scan (Stopwatch ticks).
+    $scanPhaseNames = @('Discovery', 'Vr', 'Routes', 'Versions', 'Paint')
+    $scanPhaseTicks = @{}; $scanPhaseGames = @{}
+    foreach ($phaseName in $scanPhaseNames) { $scanPhaseTicks[$phaseName] = 0L; $scanPhaseGames[$phaseName] = New-Object System.Collections.ArrayList }
+    $script:scanPumpTicks = 0L
+    $scanCards = $global:cardGameMap.Clone()
+    # Integrated installer variants have detail pages and independent state,
+    # but no separate library card. Feed them through normal lazy detection.
+    foreach ($variant in @($global:CatalogGameById.Values | Where-Object InstallerParentId)) {
+        $parent = $global:CatalogGameById[[string]$variant.InstallerParentId]
+        if (-not $parent -or $parent.InstallerChildId -ne $variant.Id) { continue }
+        $placeholder = [System.Windows.Controls.Border]::new()
+        $placeholder.Resources.Add('cardLazy', $true)
+        $scanCards[$placeholder] = $variant
+    }
+    foreach ($card in @($scanCards.Keys)) {
+        $game = $scanCards[$card]
+        # Lazy cards retain their actual identity and tag. Detection writes
+        # their complete state without allocating temporary WPF controls;
+        # the existing lazy builder paints that state when they enter view.
         $scanRealCard = $card
         $scanGameWatch = [System.Diagnostics.Stopwatch]::StartNew()
-        # THIS is what keeps the Hub alive during a scan. Every ~35 ms the
+        # THIS is what keeps the Hub alive during a scan. Every ~100 ms the
         # UI thread is handed back to WPF long enough to run layout, paint
         # and animation ticks, then the scan continues where it left off.
         # Without it the whole window is a still image until the scan ends:
         # banner effects stop, the Scan-on-Startup toggle can't disappear,
         # and Windows eventually declares the Hub not responding. Input is
         # locked out above, so nothing can be clicked in these gaps.
-        if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 35) {
-            $script:scanPumpWatch.Restart()
+        # 100 ms between pumps while nobody touches the Hub; 33 ms while the
+        # user scrolls, types or clicks (input seen in the last 1.5 s), so the
+        # Hub stays usable during the scan without slowing an idle scan.
+        if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge $(if ($global:HubScanLastInputTicks -and ([DateTime]::UtcNow.Ticks - [long]$global:HubScanLastInputTicks) -lt 15000000) { 33 } else { 100 })) {
             $script:scanHeartbeat = Get-Date
+            # Depth > 0 = the scan is alive but waiting inside this pump, e.g.
+            # while a dialog the user opened mid-scan is still on screen.
+            $global:HubScanPumpDepth = 1 + [int]$global:HubScanPumpDepth
+            $scanPumpStart = [Diagnostics.Stopwatch]::GetTimestamp()
             try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+            finally {
+                $global:HubScanPumpDepth = [Math]::Max(0, [int]$global:HubScanPumpDepth - 1)
+                $script:scanPumpTicks = [long]$script:scanPumpTicks + ([Diagnostics.Stopwatch]::GetTimestamp() - $scanPumpStart)
+            }
+            $script:scanHeartbeat = Get-Date
+            $script:scanPumpWatch.Restart()
         }
         # Per-game guard: one game whose detection throws must NEVER
         # kill the scan for every game after it. Errors are recorded and
         # the loop continues with the next game.
+        $gamePhase = @{ Discovery = 0L; Vr = 0L; Routes = 0L; Versions = 0L; Paint = 0L }
+        $phaseMark = [Diagnostics.Stopwatch]::GetTimestamp(); $phaseCur = 'Discovery'
         try {
         # Most FREE entries are standalone downloads with no separate base
         # game, so Steam metadata must not gate their availability. Muck and
@@ -572,8 +659,8 @@ function global:Invoke-CheckInstalledScan {
         # The installed_path may correctly name an external PCVR runtime.
         # A separately remembered, still-proven purchased game root can
         # supply the base-game half of this two-root installation.
-        if (-not $installed -and ($game.VrInstallRoot -or $game.SeparateLauncherBaseGame -or $game.TwoModsSeparateBaseGame) -and $game.BaseGameProofFiles) {
-            $rememberedBase = Get-RememberedStagedBaseGameRoot -Game $game
+        if (-not $installed -and ($game.VrInstallRoot -or $game.SeparateLauncherBaseGame -or $game.TwoModsSeparateBaseGame -or $game.RequiresRom) -and ($game.BaseGameProofFiles -or $game.OriginalGameProofSets)) {
+            $rememberedBase = Get-RememberedStagedBaseGameRoot -Game $game -RuntimeRoot $rawRecordedPath
             if ($rememberedBase) { $installed=$true; $gameDir=$rememberedBase }
         }
 
@@ -587,12 +674,15 @@ function global:Invoke-CheckInstalledScan {
         if (-not $installed -and (-not $isFreeGame -or $isFreeBaseGame) -and $steamAppIds.Count) {
             foreach ($appId in $steamAppIds) {
                 foreach ($lib in $steamLibs) {
+                    $libEntry = if ($steamLibIndex) { $steamLibIndex[[string]$lib] } else { $null }
+                    if ($libEntry -and $null -ne $libEntry.Manifests -and -not $libEntry.Manifests.Contains("appmanifest_$appId.acf")) { continue }
                     $acf = Join-Path $lib "steamapps\appmanifest_$appId.acf"
                     if (Test-Path -LiteralPath $acf) {
                         try {
                             $mm = [regex]::Match((Get-Content -LiteralPath $acf -Raw), '"installdir"\s+"([^"]+)"')
                             if ($mm.Success) {
                                 $cand = Join-Path $lib "steamapps\common\$($mm.Groups[1].Value)"
+                                if ($game.OriginalGameSteamSubdir) { $cand = Join-Path $cand ([string]$game.OriginalGameSteamSubdir) }
                                 if ((Test-Path -LiteralPath $cand -PathType Container) -and (Test-BaseGameInstallProof -Game $game -Root $cand)) { $installed = $true; $gameDir = $cand; break }
                             }
                         } catch {}
@@ -607,7 +697,10 @@ function global:Invoke-CheckInstalledScan {
         # on Steam. FreeBaseGame entries deliberately keep this detection so
         # their unmodded Steam install can appear in Needs Mod.
         if (-not $installed -and $game.SteamFolder -and (-not $isFreeGame -or $isFreeBaseGame)) {
+            $steamFolderFirst = ([string]$game.SteamFolder -split '[\\/]', 2)[0]
             foreach ($lib in $steamLibs) {
+                $libEntry = if ($steamLibIndex) { $steamLibIndex[[string]$lib] } else { $null }
+                if ($libEntry -and $null -ne $libEntry.Common -and $steamFolderFirst -and $steamFolderFirst -ne '.' -and $steamFolderFirst -ne '..' -and -not $libEntry.Common.Contains($steamFolderFirst)) { continue }
                 $candidate = Join-Path $lib "steamapps\common\$($game.SteamFolder)"
                 if ((Test-Path -LiteralPath $candidate -PathType Container) -and (Test-BaseGameInstallProof -Game $game -Root $candidate)) {
                     $installed = $true
@@ -789,7 +882,7 @@ function global:Invoke-CheckInstalledScan {
                     $manifest = Join-Path $libRoot ("steamapps\appmanifest_" + $appId + ".acf")
                     if (Test-Path -LiteralPath $manifest) { $manifestFound = $true; break }
                 }
-                if (-not $manifestFound -and -not ($game.BaseGameProofFiles -or $game.GameExe)) {
+                if (-not $manifestFound -and -not ($game.OriginalGameProofSets -or $game.BaseGameProofFiles -or $game.GameExe)) {
                     # Legacy entries without original game-file evidence still
                     # need Steam bookkeeping. A concrete base-game proof takes
                     # precedence, including a manually located or moved copy.
@@ -814,6 +907,25 @@ function global:Invoke-CheckInstalledScan {
         }
 
         # Check if VR mod is installed
+        $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Vr'
+        # In-game yield (2026-10-31): while the user is actively using the Hub
+        # a slow game must not freeze it, so the scan may also pause between
+        # its detection phases - never later in the game, where the card's
+        # controls are captured. Idle scans never pause here.
+        $scanInputRecent = ($global:HubScanLastInputTicks -and ([DateTime]::UtcNow.Ticks - [long]$global:HubScanLastInputTicks) -lt 15000000)
+        $scanYieldDue = ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 33)
+        if ($scanInputRecent -and $scanYieldDue) {
+            $global:HubScanPumpDepth = 1 + [int]$global:HubScanPumpDepth
+            $scanPumpStart = [Diagnostics.Stopwatch]::GetTimestamp()
+            try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+            finally {
+                $global:HubScanPumpDepth = [Math]::Max(0, [int]$global:HubScanPumpDepth - 1)
+                $script:scanPumpTicks = [long]$script:scanPumpTicks + ([Diagnostics.Stopwatch]::GetTimestamp() - $scanPumpStart)
+            }
+            $script:scanHeartbeat = Get-Date
+            $script:scanPumpWatch.Restart()
+            $phaseMark = [Diagnostics.Stopwatch]::GetTimestamp()
+        }
         $vrInstalled = $false
         # Depot install: the existence of the STEAM_CONTENT /
         # STEAM_COMMON folder we listed in FallbackPaths is itself
@@ -886,30 +998,20 @@ function global:Invoke-CheckInstalledScan {
                         # Luke Ross: user may have renamed RealVR64.dll
                         # to dxgi.dll (some games need this). Look for
                         # any of the LR markers.
-                        $lrFound = $false
-                        foreach ($mk in @("RealVR64.dll", "RealConfig.bat", "dxgi.dll")) {
-                            if (Get-ChildItem -Path $recordedPath -Filter $mk -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1) {
-                                $lrFound = $true; break
-                            }
-                        }
+                        $lrFound = Test-ScanLukeRossMarker -Root $recordedPath -AllowDxgi
                         if ($lrFound -and $recordedEvidenceOk) { $vrInstalled = $true }
                     }
                 } elseif (-not $game.TwoMods) {
-                    # No single ModFile to verify. We must NOT trust the
-                    # recorded path blindly: a USER-LOCATED path can point
-                    # at any folder (including an empty/wrong one), which
-                    # would otherwise flip the card to "VR Ready" with
-                    # nothing actually installed. So require the LaunchExe
-                    # to be present at the recorded path as proof. Only when
-                    # a game has neither a ModFile NOR a LaunchExe (nothing
-                    # checkable at all) do we fall back to trusting the
-                    # record. TwoMods games also have no ModFile, but they
-                    # are verified by their own block below, so we exclude
-                    # them here rather than trusting the path.
+                    # A remembered original-game location alone is not VR evidence.
                     if ($game.LaunchExe) {
                         if ($recordedEvidenceOk -and (Test-Path -LiteralPath (Join-Path $recordedPath $game.LaunchExe))) { $vrInstalled = $true }
                     } else {
-                        $vrInstalled = ($installed -and $recordedEvidenceOk)
+                        $payloadGroups = @($game.VrInstallEvidence) + @($game.VrInstallLocalAppDataEvidence) +
+                            @($game.VrInstallRoamingAppDataEvidence) + @($game.VrInstallEvidenceSameChild)
+                        $payload = @($payloadGroups -split '\|' | Where-Object {
+                            $_.Trim() -and $_ -notmatch '(?i)(^|[\\/])(?:\.pcvrhub(?:_[^\\/]+)?_version|\.pcvrhub\.install\.json|\.pcvrhub_[^\\/]+_ownership\.(?:csv|json))$'
+                        })
+                        $vrInstalled = ($installed -and $recordedEvidenceOk -and $payload.Count -gt 0)
                     }
                 }
             }
@@ -921,6 +1023,7 @@ function global:Invoke-CheckInstalledScan {
             # DLLs etc).
             $modPath = Join-Path $gameDir $game.ModFile
             $modPathFound = Test-Path -LiteralPath $modPath
+            if($game.Id -eq 'deep-rock-galactic-vr'){$modPathFound=[bool](Get-PCVRVrgRuntimePak -Root $gameDir)}
             $modEvidenceRoot = $gameDir
             # Alternate marker: VR-ready via either of two files (e.g.
             # Anomaly: new AoeVrLauncher.exe OR the old JSGME.exe).
@@ -1005,20 +1108,9 @@ function global:Invoke-CheckInstalledScan {
                 # game exe - Binaries\Win64\, Game\, Phoenix\binaries\win64\,
                 # root, etc. Additionally, some overhauls (e.g. Elden Ring
                 # Reforged) have the user rename RealVR64.dll -> dxgi.dll,
-                # which would miss a DLL-only check. We look for any of:
-                #   - RealVR64.dll (default)
-                #   - the RealRepo folder (always present, never renamed)
-                #   - RealConfig.bat (always present, always required)
-                $lrMarkers = @("RealVR64.dll", "RealConfig.bat")
-                foreach ($marker in $lrMarkers) {
-                    if (Get-ChildItem -Path $gameDir -Filter $marker -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1) {
-                        $vrInstalled = $true; break
-                    }
-                }
-                if (-not $vrInstalled) {
-                    $realRepoDir = Get-ChildItem -Path $gameDir -Directory -Filter "RealRepo" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                    if ($realRepoDir) { $vrInstalled = $true }
-                }
+                # which would miss a name-only check. Use the binary itself,
+                # with a neighbouring RealRepo folder for the renamed form.
+                $vrInstalled = Test-ScanLukeRossMarker -Root $gameDir
             }
         }
 
@@ -1027,17 +1119,33 @@ function global:Invoke-CheckInstalledScan {
         # reading as VR Ready. Test-StagedModStillValid is the shared check -
         # the startup quick-scan in Startup.ps1 calls exactly the same one.
         if ($vrInstalled -and $game.VrManifest) {
-            $stageRoot = $null
-            try { if ($recordedPathFile -and (Test-Path -LiteralPath $recordedPathFile)) { $stageRoot = Read-InstalledPath -Game $game } } catch { $stageRoot = $null }
+            $stageRoot = $locatedGate
             if (-not $stageRoot -or -not (Test-Path -LiteralPath $stageRoot)) { $stageRoot = Resolve-VrInstallRoot $game.VrInstallRoot }
             if (-not (Test-StagedModStillValid -Game $game -StageRoot $stageRoot)) { $vrInstalled = $false }
         }
 
-        # Not built yet: detection above is complete and identical; the
-        # painting below goes into a proxy with the same sub-elements, so
-        # the recorded gameStateMap entry is exactly what a built card
-        # would produce. The real card is painted from it when it is built.
-        if ($card.Resources.Contains('cardLazy')) { $card = New-CardScanProxy -Card $scanRealCard -Game $game }
+        $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Routes'
+        # In-game yield (2026-10-31): while the user is actively using the Hub
+        # a slow game must not freeze it, so the scan may also pause between
+        # its detection phases - never later in the game, where the card's
+        # controls are captured. Idle scans never pause here.
+        $scanInputRecent = ($global:HubScanLastInputTicks -and ([DateTime]::UtcNow.Ticks - [long]$global:HubScanLastInputTicks) -lt 15000000)
+        $scanYieldDue = ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 33)
+        if ($scanInputRecent -and $scanYieldDue) {
+            $global:HubScanPumpDepth = 1 + [int]$global:HubScanPumpDepth
+            $scanPumpStart = [Diagnostics.Stopwatch]::GetTimestamp()
+            try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+            finally {
+                $global:HubScanPumpDepth = [Math]::Max(0, [int]$global:HubScanPumpDepth - 1)
+                $script:scanPumpTicks = [long]$script:scanPumpTicks + ([Diagnostics.Stopwatch]::GetTimestamp() - $scanPumpStart)
+            }
+            $script:scanHeartbeat = Get-Date
+            $script:scanPumpWatch.Restart()
+            $phaseMark = [Diagnostics.Stopwatch]::GetTimestamp()
+        }
+        # Detection is complete for both built and lazy cards. The remaining
+        # route/version checks are shared; only the final painting differs.
+        # Lazy cards retain only gameStateMap status; no temporary WPF controls are built.
 
         # Retrieve stored btnText reference
         $btnTxt = $null
@@ -1070,6 +1178,7 @@ function global:Invoke-CheckInstalledScan {
             # that has the ModFile, next to the pinned depot build. Shared
             # probe (above) so the post-install refresh sees the same thing.
             $dmProbe = Get-DualModePresence -Game $game -Libs $steamLibs
+            $vrInstalled = [bool]$dmProbe.AnyPresent
             $dualModeCurrentPresent = [bool]$dmProbe.CurrentPresent
             $dualModeDepotPresent   = [bool]$dmProbe.DepotPresent
             $dualModeLegacyPresent  = [bool]$dmProbe.LegacyPresent
@@ -1103,6 +1212,7 @@ function global:Invoke-CheckInstalledScan {
         # under the recorded .installed_path parent. VR Ready if EITHER
         # launcher is present; a launch choice is offered when BOTH are.
         $twoModsAnyPresent = $false
+        $twoModsRuntimePresent = $false
         $twoModsADir = $null
         $twoModsBDir = $null
         $twoModsCDir = $null
@@ -1138,10 +1248,11 @@ function global:Invoke-CheckInstalledScan {
                             # keeps the exe in Build\FinalEpic, so testing
                             # only ModFile would leave every Epic install
                             # short of VR Ready in this branch.
-                            if ($tmRoot -and (Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFile))) { $vrInstalled = $true }
-                            elseif ($tmRoot -and $game.ModFileAlt -and (Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFileAlt))) { $vrInstalled = $true }
+                            $commonMarker = ($tmRoot -and ((Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFile)) -or
+                                ($game.ModFileAlt -and (Test-Path -LiteralPath (Join-Path $tmRoot $game.ModFileAlt)))))
+                            $twoModsRuntimePresent = [bool]($commonMarker -and (Test-VrInstallEvidenceContract -Game $game -Root $tmRoot))
                         } else {
-                            $vrInstalled = $true
+                            $twoModsRuntimePresent = $true
                         }
                     }
                     # TwoModsRequireBoth: some games must NOT offer the
@@ -1165,8 +1276,11 @@ function global:Invoke-CheckInstalledScan {
         # absolute Hotbite folder or ERVR's generic ModFile when there is no
         # valid game/depot root, and prevents stale common launchers from
         # painting the card VR Ready.
-        if ($game.TwoMods -and -not $game.TwoModsRequireBoth) {
-            $vrInstalled = [bool]$twoModsAnyPresent
+        if ($game.TwoMods) {
+            # RequireBoth gates the shared choice, not an already complete
+            # single alternative. Neither a stale generic marker nor an
+            # incomplete shared loader can establish readiness on its own.
+            $vrInstalled = [bool]$twoModsRuntimePresent
         }
 
         # VR Ready and Update are strict subsets of "base game installed".
@@ -1198,7 +1312,7 @@ function global:Invoke-CheckInstalledScan {
             try {
                 $lufzIvp = Get-InstalledVersionPath -Game $game
                 if ($lufzIvp -and -not (Test-Path -LiteralPath $lufzIvp)) {
-                    Set-Content -Path $lufzIvp -Value "1.0.0" -Encoding ASCII -Force
+                    Set-Content -LiteralPath $lufzIvp -Value "1.0.0" -Encoding ASCII -Force
                 }
             } catch {}
         }
@@ -1227,7 +1341,8 @@ function global:Invoke-CheckInstalledScan {
         if ($game.Title -eq "Hytale VR") {
             $hyClient = $null
             try { $hyRoaming=if($env:APPDATA){$env:APPDATA}else{[Environment]::GetFolderPath("ApplicationData")};$hyClient = Join-Path $hyRoaming "Hytale\install\release\package\game\latest\Client\HytaleClient.exe" } catch {}
-            $hyClientOk = ($hyClient -and (Test-Path -LiteralPath $hyClient))
+            $hyBaseRoot = if ($hyClient) { [IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName($hyClient)) } else { $null }
+            $hyClientOk = ($hyBaseRoot -and (Test-BaseGameInstallProof -Game $game -Root $hyBaseRoot))
             $hyModRoot = $null
             # The user/installer-recorded root is authoritative here as it is
             # for every other title. Only guess the historical C:/D:/E: roots
@@ -1237,27 +1352,20 @@ function global:Invoke-CheckInstalledScan {
             if ($hyRec) {
                 $hyRecOk = $false
                 try {
-                    $hyRecOk = (Test-Path -LiteralPath ([System.IO.Path]::Combine($hyRec, "Start Hytale VR.bat"))) -or `
-                               (Test-Path -LiteralPath ([System.IO.Path]::Combine($hyRec, "hytale_camera_dashboard.exe")))
+                    $hyRecOk = Test-RelativePathMarker -Root $hyRec -Values @('Start Hytale VR.bat','hytale_camera_dashboard.exe') -RequirePe
                 } catch {}
                 if ($hyRecOk) { $hyModRoot = $hyRec }
             }
-            # [IO.Path]::Combine, NOT Join-Path: Join-Path VALIDATES the
-            # drive and throws DriveNotFoundException on machines without
-            # a D:/E: drive, which killed this whole detection block
-            # (Join-Path returned $null -> Test-Path -LiteralPath $null
-            # -> terminating bind error -> "[scan] detection failed").
-            # Combine is a pure string op; Test-Path itself handles
-            # missing drives gracefully (returns $false, no throw).
+            # The marker helper tolerates missing drives and tries the next root.
             if (-not $hyModRoot) {
                 foreach ($hr in @("C:\Games\Hytale VR", "D:\Games\Hytale VR", "E:\Games\Hytale VR")) {
                     if ($global:HubFileSystemLabRoot) { continue }
-                    $hyBat  = [System.IO.Path]::Combine($hr, "Start Hytale VR.bat")
-                    $hyDash = [System.IO.Path]::Combine($hr, "hytale_camera_dashboard.exe")
-                    if ((Test-Path -LiteralPath $hyBat) -or (Test-Path -LiteralPath $hyDash)) { $hyModRoot = $hr; break }
+                    if (Test-RelativePathMarker -Root $hr -Values @('Start Hytale VR.bat','hytale_camera_dashboard.exe') -RequirePe) { $hyModRoot = $hr; break }
                 }
             }
             if ($hyModRoot -and ($hyClientOk -or $installed)) {
+                $hyOriginalRoot = if ($installed -and $gameDir -and (Test-BaseGameInstallProof -Game $game -Root $gameDir)) { $gameDir } else { $hyBaseRoot }
+                if ($hyOriginalRoot) { Write-PersistentGameStateValue -Game $game -Name 'base_game_path' -Value ([string]$hyOriginalRoot) }
                 $installed   = $true
                 $gameDir     = $hyModRoot
                 $vrInstalled = $true
@@ -1265,7 +1373,7 @@ function global:Invoke-CheckInstalledScan {
                 $installed=$false;$vrInstalled=$false;$gameDir=$null
             } elseif ($hyClientOk -and -not $installed) {
                 $installed = $true
-                $gameDir   = (Split-Path -Parent $hyClient)
+                $gameDir   = $hyBaseRoot
             }
         }
 
@@ -1292,7 +1400,32 @@ function global:Invoke-CheckInstalledScan {
         }
 
         if ($isFreeGame -and -not $isFreeBaseGame -and -not $vrInstalled) { $installed = $false }
+        $importAction=if(-not $installed){Get-OriginalGameImportAction -Game $game -Roots @($rawRecordedPath,$recordedPath,$gameDir)}else{$null}
 
+        if ($scanRealCard.Resources.Contains('cardLazy') -and -not $vrInstalled) {
+            $btnLabel = if ($game.Bat) { "Install" } elseif ($game.Type -eq "steam") { "Open in Steam" } elseif ($game.Type -eq "itch") { "Open on itch.io" } else { "Get Installer" }
+            if ($importAction) {
+                $global:gameStateMap[$game.Title]=New-OriginalGameImportState -Action $importAction
+            } elseif ($installed) {
+            $global:gameStateMap[$game.Title] = @{ Tag="installed"; State="installed"; Border="#2a5c38"; BtnText=$btnLabel; BtnColor="#66dd88"; GameDir=$(if ($game.ExternalVrStartApp -or $game.InstallerParentId) { $gameDir } else { $null }) }
+            if ($game.Title -eq 'Dishonored VR' -and $gameDir -and
+                ((Test-Path -LiteralPath (Join-Path $gameDir '.pcvrhub-dishonored-install.tsv') -PathType Leaf) -or
+                 ((Test-Path -LiteralPath (Join-Path $gameDir 'Binaries\Win32\dishonored_vr_install.json') -PathType Leaf) -and
+                  (Test-Path -LiteralPath (Join-Path $gameDir 'Binaries\Win32\disable_vr.txt') -PathType Leaf)))) {
+                $global:gameStateMap[$game.Title].GameDir = $gameDir
+            }
+
+                if (-not $game.InstallerParentId) { $found++ }
+            } elseif ($isFreeGame) {
+                $global:gameStateMap[$game.Title]=@{ Tag="free"; State="free"; Accent=$accentHex; BtnText=$btnLabel }
+            } else {
+                [void]$global:gameStateMap.Remove($game.Title)
+            }
+            $scanRealCard.Tag=if($global:gameStateMap.ContainsKey($game.Title)){$global:gameStateMap[$game.Title].Tag}else{''}
+            continue
+        }
+
+        $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Versions'
         if ($vrInstalled) {
             # For Thunderstore-based mods: query live version and deprecated status
             $needsUpdate  = [bool]$pzPendingUpdate
@@ -1313,6 +1446,11 @@ function global:Invoke-CheckInstalledScan {
             # copied into Current before its own marker has been read.
             $routeAwareCurrentUpdate = [bool](($game.CurrentRouteUpdate -or $game.ThunderstoreCurrentRouteUpdate) -and $game.DualMode)
             $installedVer = if ($routeAwareCurrentUpdate) { $null } else { Read-InstalledVersion -Game $game -GameDir $gameDir }
+            if ($game.TrilexGame -and -not $game.TwoMods) {
+                $installedVer=(Get-PCVRTrilexReceipt -Root $gameDir -Game $game.TrilexGame -Runtime $game.TrilexHashProof).version
+            } elseif ($game.Id -eq 'gothic-3-vr' -and -not $installedVer) {
+                $installedVer=Get-PCVRGothic3Version -Root $gameDir
+            }
             if ($game.Id -in @('penumbra-black-plague-vr','penumbra-requiem-vr') -and $gameDir) {
                 # One publisher Setup may install both components. Read its
                 # component manifest for this game's exact installed version,
@@ -1330,7 +1468,7 @@ function global:Invoke-CheckInstalledScan {
             # Migration/repair pass: once a valid value was found, ensure the
             # canonical state plus game-side recovery evidence exist. Both
             # writers skip identical values, so settled scans remain read-only.
-            if ($installedVer -and -not $routeAwareCurrentUpdate) { Write-InstalledVersion -Game $game -Version $installedVer -GameDir $gameDir }
+            if ($installedVer -and -not $routeAwareCurrentUpdate -and -not $game.PublisherInnoAppId -and -not $game.TrilexGame) { Write-InstalledVersion -Game $game -Version $installedVer -GameDir $gameDir }
 
             if ($game.GithubCommitRepo) {
                 $commitBranch = if ($game.GithubCommitBranch) { [string]$game.GithubCommitBranch } else { 'main' }
@@ -1345,33 +1483,9 @@ function global:Invoke-CheckInstalledScan {
                 }
             } elseif ($game.GitHubNightly) {
                 $ghVer = $null
-                # Cache the full release object (tag + asset timestamps)
-                # so that games sharing a repo only hit the API once per
-                # scan. REFramework-nightly is shared across all REF games;
-                # rolling-update games (e.g. L4D2VR where the author replaces
-                # the ZIP under the same tag) need per-asset updated_at.
-                $cached = $null
-                if ($script:scanGhTagCache.ContainsKey($game.GitHubNightly)) {
-                    $cached = $script:scanGhTagCache[$game.GitHubNightly]
-                } else {
-                    $ghUrl  = "https://api.github.com/repos/$($game.GitHubNightly)/releases/latest"
-                    $ghResp = Invoke-ScanWebGet -Uri $ghUrl -Headers @{ "User-Agent"="PCVR-Mods-Hub"; "Accept"="application/vnd.github+json" }
-                    if ($ghResp) {
-                        try {
-                            $ghData = $ghResp.Content | ConvertFrom-Json
-                            $assetMap = @{}
-                            foreach ($a in $ghData.assets) { $assetMap[$a.name] = $a.updated_at }
-                            $cached = @{ Tag = $ghData.tag_name; Assets = $assetMap }
-                            $script:scanGhTagCache[$game.GitHubNightly] = $cached
-                        } catch {
-                            $script:scanGhTagCache[$game.GitHubNightly] = $null
-                        }
-                    } else {
-                        # Server down or breaker tripped - cache the miss so
-                        # other games sharing this repo don't retry either.
-                        $script:scanGhTagCache[$game.GitHubNightly] = $null
-                    }
-                }
+                # All network requests belong to the hidden worker. Preserve
+                # per-asset replacement times for rolling releases in its cache.
+                $cached=Get-ScanNightlyReleaseCached -Repo ([string]$game.GitHubNightly)
                 if ($cached) {
                     # Pick what we compare against:
                     #  - RollingUpdate=$true games use the tracked asset's
@@ -1535,8 +1649,8 @@ function global:Invoke-CheckInstalledScan {
                     $repoAModSlot = if ($game.GithubRepoModSlot) { [string]$game.GithubRepoModSlot } else { 'A' }
                     $repoBModSlot = if ($game.GithubRepoBModSlot) { [string]$game.GithubRepoBModSlot } else { 'B' }
                     $twoDefs = @(
-                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Root"); Probe = $game.GithubRepoPresenceFile; ProbeAbs = $game.GithubRepoPresenceAbs; VersionFile = $game.GithubRepoVersionFile; Repo = $game.GithubRepo; Slot = 'A'; TargetSlot = $repoAModSlot; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns) },
-                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Root"); Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; VersionRegex = $game.GithubRepoBVersionRegex; Repo = $game.GithubRepoB; Slot = 'B'; TargetSlot = $repoBModSlot; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
+                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoAModSlot}Root"); Probe = $game.GithubRepoPresenceFile; ProbeAbs = $game.GithubRepoPresenceAbs; VersionFile = $game.GithubRepoVersionFile; Repo = $game.GithubRepo; Slot = 'A'; TargetSlot = $repoAModSlot; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns); Rolling=[bool]$game.GithubRepoRollingUpdate },
+                        @{ Present = [bool](Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Present")); Root = Get-AlternativeModValue $tmProbe ("Mod${repoBModSlot}Root"); Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; VersionRegex = $game.GithubRepoBVersionRegex; Repo = $game.GithubRepoB; Slot = 'B'; TargetSlot = $repoBModSlot; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns); Rolling=[bool]$game.GithubRepoBRollingUpdate }
                     )
                     foreach ($td in $twoDefs) {
                         if (-not $td.Present -or -not $td.Repo -or -not $td.Root) { continue }
@@ -1553,8 +1667,8 @@ function global:Invoke-CheckInstalledScan {
                         $repoAPre = Get-GithubPrereleasePreference -Game $game -GameDir $twoRootV
                         $repoBPre = if ($null -ne $game.GithubRepoBPrerelease) { [bool]$game.GithubRepoBPrerelease } else { [bool]$game.GithubPrerelease }
                         foreach ($td in @(
-                            @{ Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns) },
-                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; VersionRegex = $game.GithubRepoBVersionRegex; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns) }
+                            @{ Probe = $game.GithubRepoPresenceFile;  VersionFile = $game.GithubRepoVersionFile;  Repo = $game.GithubRepo;  Slot = 'A'; Root = $twoRootV; Prerelease = $repoAPre; AssetPatterns = @($game.GithubReleaseAssetPatterns); Rolling=[bool]$game.GithubRepoRollingUpdate },
+                            @{ Probe = $game.GithubRepoBPresenceFile; VersionFile = $game.GithubRepoBVersionFile; VersionRegex = $game.GithubRepoBVersionRegex; Repo = $game.GithubRepoB; Slot = 'B'; Root = $twoRootV; Prerelease = $repoBPre; AssetPatterns = @($game.GithubRepoBReleaseAssetPatterns); Rolling=[bool]$game.GithubRepoBRollingUpdate }
                         )) {
                             if ($td.Probe -and $td.Repo -and (Test-RelativePathMarker -Root $twoRootV -Values $td.Probe)) { $twoPairs += , $td }
                         }
@@ -1563,14 +1677,17 @@ function global:Invoke-CheckInstalledScan {
                 $githubUpdateTargetSlots = New-Object 'System.Collections.Generic.List[string]'
                 $githubUpdateEvidence = New-Object 'System.Collections.Generic.List[string]'
                 foreach ($tp in $twoPairs) {
-                    $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$tp.Prerelease) -RequiredAssetPatterns @($tp.AssetPatterns)
+                    $tag = Get-GithubLatestTagCached -Repo $tp.Repo -IncludePrerelease:([bool]$tp.Prerelease) -RequiredAssetPatterns @($tp.AssetPatterns) -AssetTimestampVersion:([bool]$tp.Rolling)
                     if (-not $tag) { continue }
                     $versionRoot = [string]$tp.Root
                     $have = $null
+                    if($game.RDRProfileLaunch){
+                        $have=Get-ScanRdrInstalledProfileVersion -Game $versionRoot -Mod $(if($tp.TargetSlot -eq 'B'){'fork'}else{'main'})
+                    }
                     # A build-owned marker can carry the exact release tag.
                     # Prefer it over legacy shared A/B stamps when a catalog
                     # entry changes which of its two builds is primary.
-                    if ($tp.VersionFile) {
+                    if (-not $have -and $tp.VersionFile) {
                         # A retained legacy layout may keep the same release
                         # marker in a second relative location. Arrays and
                         # pipe-separated values are both accepted, just like
@@ -1599,6 +1716,7 @@ function global:Invoke-CheckInstalledScan {
                         $have = if ($tp.Slot -eq 'B') { Read-InstalledVersionB -Game $game -GameDir $versionRoot }
                                 else { Read-InstalledVersion -Game $game -GameDir $versionRoot }
                     }
+                    if($tp.Rolling -and $have -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$'){continue}
                     if ($have -and $tp.TargetSlot -ne 'C') {
                         if ($tp.Slot -eq 'B') { Write-InstalledVersionB -Game $game -Version $have -GameDir $versionRoot }
                         else { Write-InstalledVersion -Game $game -Version $have -GameDir $versionRoot }
@@ -1625,7 +1743,11 @@ function global:Invoke-CheckInstalledScan {
                 # source marker or the Hub cache.
                 $repoToCheck = Get-SelectedGithubRepo -Game $game -GameDir $gameDir
                 $checkPrerelease = Get-GithubPrereleasePreference -Game $game -GameDir $gameDir
-                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease -RequiredAssetPatterns $(if($game.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $game -GameDir $gameDir)}else{@($game.GithubReleaseAssetPatterns)}) -AssetVersionPattern ([string]$game.GithubAssetVersionPattern)
+                $ghVer = Get-GithubLatestTagCached -Repo $repoToCheck -IncludePrerelease:$checkPrerelease -RequiredAssetPatterns $(if($game.GithubStoreAssetSuffix){@(Get-GameGithubReleaseAssetPatterns -Game $game -GameDir $gameDir)}else{@($game.GithubReleaseAssetPatterns)}) -AssetVersionPattern ([string]$game.GithubAssetVersionPattern) -AssetTimestampVersion:([bool]$game.GithubRepoRollingUpdate) -TagOrder ([string]$game.GithubTagOrder)
+                if ($ghVer -and $repoToCheck -eq 'GrayHorizon-mod/Forza-Horizon-VR' -and $game.WebVersionUrl) {
+                    $ghVer = Get-WebVersionCached -Url $game.WebVersionUrl -Title $game.Title -VersionPattern ([string]$game.WebVersionPattern)
+                }
+                if($game.GithubRepoRollingUpdate -and $installedVer -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$'){$installedVer=$null}
                 if ($ghVer) {
                     $releaseRoute = Get-CurrentRouteInstallState -Game $game -Presence $dmProbe `
                         -GameDir $gameDir -FallbackVersion $installedVer -Source Release
@@ -1648,7 +1770,7 @@ function global:Invoke-CheckInstalledScan {
                     # ONLY when online is GENUINELY NEWER - an installed
                     # build that is AHEAD must not raise an update badge
                     # (see Test-OnlineVersionIsNewer).
-                    } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $ghVer `
+                    } elseif (Test-GithubReleaseIsNewer -Repo $repoToCheck -TagOrder ([string]$game.GithubTagOrder) -Installed $installedVer -Online $ghVer `
                         -SupersededInstalledVersions @($game.GithubSupersededVersions) `
                         -ResetMinimumVersion ([string]$game.GithubResetMinimumVersion)) {
                         $needsUpdate = $true
@@ -1749,6 +1871,21 @@ function global:Invoke-CheckInstalledScan {
                     } elseif (Test-OnlineVersionIsNewer -Installed $installedVer -Online $expectedVer) {
                         $needsUpdate = $true
                         $updateEvidence = "reviewed manual build $expectedVer is newer than installed $installedVer"
+                    }
+                }
+            }
+
+            if ($game.TrilexGame) {
+                $trilexRoot = if ($game.TwoMods) { [string]$twoModsBDir } else { $gameDir }
+                $trilexInstalled = if ($game.TwoMods) {
+                    (Get-PCVRTrilexReceipt -Root $trilexRoot -Game $game.TrilexGame -Runtime $game.TrilexHashProof).version
+                } else { $installedVer }
+                if ($trilexInstalled) {
+                    $trilexOnline=Get-WebVersionCached -Url 'https://github.com/trilex07/TrilexModInstaller/releases/latest/download/catalog.signed.json' -Title $game.Title -TrilexGame $game.TrilexGame
+                    if ($trilexOnline -and (Test-OnlineVersionIsNewer -Installed $trilexInstalled -Online $trilexOnline)) {
+                        $updateTargetSlot = if ($game.TwoMods -and -not $needsUpdate) { 'B' } else { $null }
+                        $needsUpdate = $true
+                        $updateEvidence = @($updateEvidence,"Trilex VR $trilexOnline is newer than $trilexInstalled" | Where-Object { $_ }) -join '; '
                     }
                 }
             }
@@ -1949,6 +2086,24 @@ function global:Invoke-CheckInstalledScan {
                 if(-not $knownExternalVersion){$needsUpdate=$false;$updateEvidence=$null;$updateTargetSlot=$null;$updateTargetRoute=$null;$updateTargetCount=0}
             }
 
+            $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Paint'
+            # Compute status independently of WPF. Offscreen lazy cards need
+            # only this exact state; their ordinary builder paints it later.
+            if ($needsUpdate) {
+                $updateUiState = @{ UpdateTargetSlot = $updateTargetSlot; UpdateTargetRoute = $updateTargetRoute; UpdateTargetCount = $updateTargetCount }
+                $updateActionLabel = Get-UpdateActionLabel -Game $game -State $updateUiState -Fallback 'Update Mod'
+                $stateEntry = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText=$updateActionLabel; UpdateEvidence=$updateEvidence; UpdateTargetSlot=$updateTargetSlot; UpdateTargetRoute=$updateTargetRoute; UpdateTargetCount=$updateTargetCount; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent; GameDir=$gameDir }
+            } else {
+                $stateEntry = @{ Tag="vrinstalled"; Accent=$accentHex; State="ready"; BtnText=$(if ($game.ExternalVrStartApp) { 'Start in VR' } else { 'VR Ready' }); GameDir=$gameDir; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent }
+            }
+            if ($game.TwoMods) { Set-AlternativeModStateFields -State $stateEntry -Game $game -Presence $tmProbe }
+            $global:gameStateMap[$game.Title] = $stateEntry
+            if ($scanRealCard.Resources.Contains('cardLazy')) {
+                $scanRealCard.Tag=$stateEntry.Tag
+                if (-not $game.InstallerParentId) { $vrFound++; $found++ }
+                continue
+            }
+
             if ($needsUpdate) {
                 # Update available: switch to a unified blue ("update
                 # blue" = #2563eb) regardless of the accent color, so
@@ -1972,8 +2127,6 @@ function global:Invoke-CheckInstalledScan {
                 $glow.Opacity = 0.55
                 $card.Effect = $glow
                 $card.Tag = "vrupdate"
-                $updateUiState = @{ UpdateTargetSlot = $updateTargetSlot; UpdateTargetRoute = $updateTargetRoute; UpdateTargetCount = $updateTargetCount }
-                $updateActionLabel = Get-UpdateActionLabel -Game $game -State $updateUiState -Fallback 'Update Mod'
                 if ($btnTxt) {
                     $btnTxt.Text       = $updateActionLabel
                     $btnTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#b9ccf4")
@@ -2005,9 +2158,6 @@ function global:Invoke-CheckInstalledScan {
                 # tint it back in the original game accent.
                 $card.Resources.Remove("baseAccent") | Out-Null
                 $card.Resources.Add("baseAccent", $UPDATE_BLUE)
-                $stateEntry = @{ Tag="vrupdate"; Accent=$accentHex; State="update"; BtnText=$updateActionLabel; UpdateEvidence=$updateEvidence; UpdateTargetSlot=$updateTargetSlot; UpdateTargetRoute=$updateTargetRoute; UpdateTargetCount=$updateTargetCount; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent; GameDir=$gameDir }
-                if ($game.TwoMods) { Set-AlternativeModStateFields -State $stateEntry -Game $game -Presence $tmProbe }
-                $global:gameStateMap[$game.Title] = $stateEntry
                 if ($reloadForUpdate) {
                     $updateLayout = Get-CardUpdateActionLayout -State $stateEntry
                     $reloadForUpdate.ToolTip = if ($updateLayout.PillAction -eq 'Update') { $updateActionLabel } else { 'Start in VR' }
@@ -2041,14 +2191,16 @@ function global:Invoke-CheckInstalledScan {
                 $card.Resources.Remove("baseBdBrush") | Out-Null
                 $card.Resources.Add("baseBgBrush", $card.Background)
                 $card.Resources.Add("baseBdBrush", $card.BorderBrush)
-                $stateEntry = @{ Tag="vrinstalled"; Accent=$accentHex; State="ready"; BtnText=$(if ($game.ExternalVrStartApp) { 'Start in VR' } else { 'VR Ready' }); GameDir=$gameDir; DualMode=$dualModeBothPresent; RouteSplit=$dualModeMultiplePresent; CurrentPresent=$dualModeCurrentPresent; DepotPresent=$dualModeDepotPresent; LegacyPresent=$dualModeLegacyPresent; CurrentDir=$dualModeCurrentDir; DepotDir=$dualModeDepotDir; LegacyDir=$dualModeLegacyDir; TwoMods=$twoModsAnyPresent }
-                if ($game.TwoMods) { Set-AlternativeModStateFields -State $stateEntry -Game $game -Presence $tmProbe }
-                $global:gameStateMap[$game.Title] = $stateEntry
                 if ($game.TwoMods -or $game.DualMode) { Update-AlternativeModSplit -Card $card }
             }
             $vrFound++
             $found++
+        } elseif ($importAction) {
+            $importState=New-OriginalGameImportState -Action $importAction
+            $global:gameStateMap[$game.Title]=$importState
+            Restore-CardVisualState -Card $card -Game $game -State $importState
         } elseif ($installed) {
+            $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Paint'
             # Game installed, no VR mod yet: noticeable green tint + styled button
             $conv = [System.Windows.Media.BrushConverter]::new()
             $card.Background  = New-CardTintBrush -BaseHex "#16161a" -TintHex "#46a05a" -TopAlpha 0.18 -MidAlpha 0.06
@@ -2082,6 +2234,7 @@ function global:Invoke-CheckInstalledScan {
             }
             $found++
         } else {
+            $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark); $phaseMark = $phaseNow; $phaseCur = 'Paint'
             # Default state (game not installed): revert visuals to
             # the very first-paint look. We use the immutable
             # "original*" resources here, not the live "base*" ones,
@@ -2170,6 +2323,11 @@ function global:Invoke-CheckInstalledScan {
                 Write-Host ("  [scan] detection failed for '" + $game.Title + "': " + $_.Exception.Message) -ForegroundColor Yellow
             } catch {}
         } finally {
+            $phaseNow = [Diagnostics.Stopwatch]::GetTimestamp(); $gamePhase[$phaseCur] += ($phaseNow - $phaseMark)
+            foreach ($phaseName in $scanPhaseNames) {
+                $scanPhaseTicks[$phaseName] += $gamePhase[$phaseName]
+                if ($gamePhase[$phaseName] -gt 0) { [void]$scanPhaseGames[$phaseName].Add(@($game.Title, $gamePhase[$phaseName])) }
+            }
             if ($scanRealCard -and -not [object]::ReferenceEquals($card, $scanRealCard)) {
                 try { $scanRealCard.Tag = $card.Tag } catch { }
                 $card = $scanRealCard
@@ -2271,15 +2429,28 @@ function global:Invoke-CheckInstalledScan {
             # Same paced yield as in the detection loop - repainting 200+
             # cards is the second place a scan can sit on the UI thread
             # long enough to look dead.
-            if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge 35) {
-                $script:scanPumpWatch.Restart()
+            # 100 ms between pumps while nobody touches the Hub; 33 ms while the
+            # user scrolls, types or clicks (input seen in the last 1.5 s), so the
+            # Hub stays usable during the scan without slowing an idle scan.
+            if ($script:scanPumpWatch -and $script:scanPumpWatch.ElapsedMilliseconds -ge $(if ($global:HubScanLastInputTicks -and ([DateTime]::UtcNow.Ticks - [long]$global:HubScanLastInputTicks) -lt 15000000) { 33 } else { 100 })) {
                 $script:scanHeartbeat = Get-Date
+                # Depth > 0 = the scan is alive but waiting inside this pump, e.g.
+                # while a dialog the user opened mid-scan is still on screen.
+                $global:HubScanPumpDepth = 1 + [int]$global:HubScanPumpDepth
+                $scanPumpStart = [Diagnostics.Stopwatch]::GetTimestamp()
                 try { $window.Dispatcher.Invoke([System.Windows.Threading.DispatcherPriority]::Background, $script:scanPumpAction) } catch {}
+                finally {
+                    $global:HubScanPumpDepth = [Math]::Max(0, [int]$global:HubScanPumpDepth - 1)
+                    $script:scanPumpTicks = [long]$script:scanPumpTicks + ([Diagnostics.Stopwatch]::GetTimestamp() - $scanPumpStart)
+                }
+                $script:scanHeartbeat = Get-Date
+                $script:scanPumpWatch.Restart()
             }
             $g = $global:cardGameMap[$card]
             if (-not $g.Title) { continue }
             $state = $global:gameStateMap[$g.Title]
             if (-not $state) { continue }
+            if ([string]$card.Tag -eq [string]$state.Tag) { continue }
             $card.Tag = $state.Tag
             if ($g.UntestedInstaller -and (Get-Command Update-UntestedFeedbackReminder -ErrorAction SilentlyContinue)) {
                 Update-UntestedFeedbackReminder -Card $card -Game $g -State $state
@@ -2293,6 +2464,7 @@ function global:Invoke-CheckInstalledScan {
             $card.Effect = $null
 
             switch ($state.State) {
+                "import" { Set-CardStateVisual -Card $card -BtnTxt $btnTxt -BtnBrd $btnBrd -State 'import' }
                 "update" {
                     # Update state: unified blue (#2563eb), regardless of accent.
                     $UPDATE_BLUE = "#2563eb"
@@ -2517,6 +2689,39 @@ function global:Invoke-CheckInstalledScan {
         if ($scanSlowGames.Count -gt 0) {
             Write-Host ("[Scan] slow entries: " + ($scanSlowGames -join '; '))
         }
+        try {
+            $tickMs = 1000.0 / [Diagnostics.Stopwatch]::Frequency
+            Write-Host ("[Scan] detection phases: discovery {0:N0} ms, VR check {1:N0} ms, routes {2:N0} ms, versions/updates {3:N0} ms, paint {4:N0} ms, UI pumps {5:N0} ms." -f `
+                ($scanPhaseTicks.Discovery * $tickMs), ($scanPhaseTicks.Vr * $tickMs), ($scanPhaseTicks.Routes * $tickMs),
+                ($scanPhaseTicks.Versions * $tickMs), ($scanPhaseTicks.Paint * $tickMs), ([long]$script:scanPumpTicks * $tickMs))
+            # The five slowest games of each phase, so the next fix can name them.
+            foreach ($phaseName in $scanPhaseNames) {
+                $top = @($scanPhaseGames[$phaseName] | Sort-Object -Property @{ Expression = { $_[1] }; Descending = $true } | Select-Object -First 5)
+                if ($top.Count -eq 0) { continue }
+                Write-Host ("[Scan] slowest {0}: {1} (of {2} games)" -f $phaseName.ToLowerInvariant(),
+                    (($top | ForEach-Object { '{0}={1:N0}ms' -f $_[0], ($_[1] * $tickMs) }) -join '; '), $scanPhaseGames[$phaseName].Count)
+            }
+        } catch {}
+        # Background warm-up (Modules\ScanWarmup.ps1): did it finish before this scan?
+        if ($global:HubScanWarmupStartedUtc) {
+            try {
+                $warmFile = Join-Path (Get-HubRuntimeLogsRoot) 'ScanWarmup.json'
+                $warm = $null
+                if ([IO.File]::Exists($warmFile)) { $warm = [IO.File]::ReadAllText($warmFile) | ConvertFrom-Json }
+                # Windows PowerShell keeps ISO strings, PowerShell 7 returns DateTime.
+                $toUtc = { param($v) if ($v -is [DateTime]) { $v.ToUniversalTime() } else { [DateTime]::Parse([string]$v, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime() } }
+                $warmStart = if ($warm) { & $toUtc $warm.started } else { [DateTime]::MinValue }
+                if ($warm -and $warmStart -ge $global:HubScanWarmupStartedUtc.AddSeconds(-30)) {
+                    $warmEnd = & $toUtc $warm.finished
+                    $scanStartUtc = [DateTime]::UtcNow.AddMilliseconds(-$scanTotalWatch.ElapsedMilliseconds)
+                    $relation = if ($warmEnd -le $scanStartUtc) { 'finished {0:N1} s before this scan' -f ($scanStartUtc - $warmEnd).TotalSeconds } else { 'still running when this scan started' }
+                    Write-Host ('[Scan] warm-up: {6} game folders checked ({7} of {8} named files found), {0} folders/files listed, {1} small files read in {2:N1} s ({3}, background mode {4}), {5}.' -f $warm.entries, $warm.files, ($warm.ms / 1000.0), $warm.state, $warm.background, $relation, $warm.targetRoots, $warm.hits, $warm.probes)
+                } else {
+                    Write-Host '[Scan] warm-up: not finished before this scan.'
+                }
+            } catch {}
+        }
+        Write-Host ('[Scan] duplicate checks avoided: {0} original, {1} VR.' -f $global:HubScanEvidenceCache.BaseHits,$global:HubScanEvidenceCache.VrHits)
         if ($registryFound -and $registryFound.Count -gt 0) {
             Write-Host ("[Scan] found via registry: " + ($registryFound -join '; '))
         }
@@ -2552,6 +2757,13 @@ function global:Invoke-CheckInstalledScan {
                 [action]{ try { $global:window.Close() } catch {} })
         } catch {}
     }
+    } finally {
+        $global:HubScanEvidenceCache=$null
+        if ($scanPerformance) {
+            $scanEvent = if ($global:InstalledScanCompleted) { 'completed' } else { 'interrupted' }
+            Write-PCVRPerformance -Log $global:HubPerformanceLog -Area scan_installed_games -Event $scanEvent -ElapsedMs $scanTotalWatch.Elapsed.TotalMilliseconds
+        }
+    }
 }
 
 # The window's X and Alt+F4 go through the non-client area, which the
@@ -2566,7 +2778,7 @@ $window.Add_Closing({
     param($s, $e)
     if (-not $global:ScanInProgress) { return }
     $alive = $false
-    try { $alive = ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60) } catch {}
+    try { $alive = (([int]$global:HubScanPumpDepth -gt 0) -or ($script:scanHeartbeat -and ((Get-Date) - $script:scanHeartbeat).TotalSeconds -lt 60)) } catch {}
     if (-not $alive) { return }
     $e.Cancel = $true
     $global:CloseAfterScan = $true

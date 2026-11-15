@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # Tomb Raider 1 VR (BeefRaiderXR) Installer
 # by Team Beef Studios - GitHub release distribution
 #
@@ -761,7 +761,7 @@ try {
  $beefRaiderProof = Join-Path $beefRaiderFolder "BeefRaiderXR.exe"
  $installedVersion = $MOD_VERSION -replace '^[vV]', ''
  if ((Test-Path -LiteralPath $beefRaiderProof) -and (Test-IsTrackableInstalledVersion -Version $installedVersion)) {
-  Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $installedVersion -Encoding UTF8 -Force
+  Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $installedVersion -Encoding UTF8 -Force
   Save-InstalledStamp -GameDir $beefRaiderFolder -Version $installedVersion
  }
 } catch { }

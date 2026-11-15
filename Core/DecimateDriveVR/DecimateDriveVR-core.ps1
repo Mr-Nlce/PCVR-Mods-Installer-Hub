@@ -67,6 +67,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -100,12 +101,7 @@ function Resolve-DecimateGameRoot {
  if([string]::IsNullOrWhiteSpace($Path)){return $null}
  $candidate=ConvertTo-PCVRCanonicalUserPath $Path
  if(-not $candidate){return $null}
- if(Test-Path -LiteralPath $candidate -PathType Leaf){$candidate=[IO.Path]::GetDirectoryName($candidate)}
- foreach($root in @($candidate,[IO.Path]::GetDirectoryName($candidate.TrimEnd('\')))){
-  if(-not $root){continue}
-  foreach($exe in @('Decimate Drive.exe','DecimateDrive.exe')){if(Test-Path -LiteralPath ([IO.Path]::Combine($root,'release',$exe)) -PathType Leaf){return $root}}
- }
- return $null
+ return Resolve-PCVRGameInstallRoot -GameId 'decimate-drive-vr' -Path $candidate
 }
 function Find-DecimateGamePath {
  foreach($exe in @('release\Decimate Drive.exe','release\DecimateDrive.exe')){
@@ -353,7 +349,7 @@ Write-Host " If you have NEVER installed ViGEmBus before, you must run" -Foregro
 Write-Host " the installer once. Already installed? Skip." -ForegroundColor White
 Write-Host ""
 
-$vigemExe = Get-ChildItem -Path (Join-Path $releasePath "BepInEx\redist") -Filter "ViGEmBus_*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+$vigemExe = Get-ChildItem -LiteralPath (Join-Path $releasePath "BepInEx\redist") -Filter "ViGEmBus_*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
 
 # Detect an existing ViGEmBus install so users who already have it
 # (very common - it ships with many VR mods, Virtual Desktop, DS4Windows,

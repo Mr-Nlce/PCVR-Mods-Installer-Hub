@@ -99,6 +99,8 @@ function Pause-User { param($text = "Press Enter to continue...") Write-Host "";
 # mod's launcher checks for too.
 function Test-CodRoot {
     param([string]$Root)
+    if (-not (Test-PCVRGameInstallProof -GameId 'call-of-duty-4-vr' -Root $Root)) { return $false }
+
     if (-not $Root) { return $false }
     try {
         if (-not (Test-Path -LiteralPath $Root)) { return $false }
@@ -544,7 +546,7 @@ try {
 } catch { Write-Warn "Could not create the desktop shortcut." }
 
 try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
-if ($relTag) { try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
+if ($relTag) { try { Set-Content -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {} }
 if ($relTag) { Save-InstalledStamp -GameDir $gamePath -Version $relTag -HubDir $SCRIPT_DIR }
 if (-not $relTag) {
     Write-Warn 'The manually supplied package has no verified release version; this update cannot be marked complete.'

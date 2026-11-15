@@ -31,13 +31,15 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::S
 $script:scriptDir = $ScriptDir
 $global:scriptDir = $ScriptDir
 try { . (Join-Path $ScriptDir 'Modules\HubState.ps1') } catch { return }
-. (Join-Path $ScriptDir 'Modules\GitHubTransport.ps1')
+. (Join-Path $ScriptDir 'Modules\Filter.ScanSources.ps1')
 $runtimeDir = Get-HubVersionCacheRoot
 if (-not $runtimeDir) { return }
 $pendingFile = Join-Path $runtimeDir ".prewarm_pending.json"
 $lockFile    = Join-Path $runtimeDir ".prewarm_worker.lock"
 $ghCacheFile = Join-Path $runtimeDir ".gh_version_cache"
 $webCacheFile= Join-Path $runtimeDir ".web_version_cache"
+$tsCacheFile=Join-Path $runtimeDir ".ts_version_cache"
+$nightlyCacheFile=Join-Path $runtimeDir ".nightly_version_cache"
 
 # Merge ONE entry into a cache JSON file: read the file fresh, update the
 # key, write it back. Read-fresh-per-write keeps concurrent writes from the
@@ -51,13 +53,13 @@ function Merge-CacheEntry {
             $raw = Get-Content -LiteralPath $File -Raw | ConvertFrom-Json
             foreach ($p in $raw.PSObject.Properties) {
                 $h = @{}
-                foreach ($ip in $p.Value.PSObject.Properties) { $h[$ip.Name] = [string]$ip.Value }
+                foreach ($ip in $p.Value.PSObject.Properties) { $h[$ip.Name] = $ip.Value }
                 $all[$p.Name] = $h
             }
         } catch {}
     }
     $all[$Key] = $Entry
-    try { ($all | ConvertTo-Json) | Set-Content -Path $File -Encoding UTF8 -Force } catch {}
+    try { ($all | ConvertTo-Json -Depth 8) | Set-Content -Path $File -Encoding UTF8 -Force } catch {}
 }
 
 function Get-GithubTagBackground {
@@ -186,6 +188,22 @@ try {
         }
     }
 
+    # Reuse fetched listing responses in the same resolver as the installer
+    # and foreground scan. A separate first-card selector could downgrade a
+    # normal numeric release even though all three used the same cache key.
+    $script:workerRawReplies=@{}
+    $script:workerTextTransport=(Get-Command Get-PCVRGitHubText).ScriptBlock
+    function global:Get-PCVRGitHubText {
+        param([string]$Uri,[switch]$ScanFast)
+        if($script:workerRawReplies.ContainsKey($Uri)){return $script:workerRawReplies[$Uri]}
+        if($fixture){
+            $mock=$fixture.PSObject.Properties[$Uri].Value
+            if(-not $mock -or [int]$mock.Status -ne 200){throw ('No successful prewarm text fixture for '+$Uri)}
+            return [pscustomobject]@{Content=[string]$mock.Body;FinalUrl=$(if($mock.FinalUri){[string]$mock.FinalUri}else{$Uri})}
+        }
+        return & $script:workerTextTransport -Uri $Uri -ScanFast:$ScanFast
+    }
+    if($fixture){function global:Invoke-WebRequest {throw 'The isolated prewarm fixture forbids direct network access.'}}
     try {
         for ($offset = 0; $offset -lt $items.Count; $offset += 8) {
             $batch = @()
@@ -195,14 +213,16 @@ try {
                     $repo = [string]$it.A
                     $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
                     $uri = if ($kind -eq 'gh') {
-                        if($patterns.Count -gt 0){"https://github.com/$repo/releases"}
-                        elseif ([bool]$it.P) { "https://github.com/$repo/releases.atom" }
-                        else { "https://github.com/$repo/releases/latest" }
+                        "https://github.com/$repo/releases"
                     } elseif ($kind -eq 'ghcommit') {
                         $branch = if ([string]$it.B) { [string]$it.B } else { 'main' }
                         'https://github.com/' + $repo + '/commits/' + [Uri]::EscapeDataString($branch) + '.atom'
+                    } elseif($kind -eq 'ts') {
+                        'https://thunderstore.io/api/experimental/package/'+$repo+'/'+[string]$it.B+'/'
+                    } elseif($kind -eq 'nightly') {
+                        'https://github.com/'+$repo+'/releases/latest'
                     } else { $repo }
-                    $method = if ($kind -eq 'gh' -and -not [bool]$it.P -and $patterns.Count -eq 0) { [Net.Http.HttpMethod]::Head } else { [Net.Http.HttpMethod]::Get }
+                    $method = [Net.Http.HttpMethod]::Get
                     $request = [Net.Http.HttpRequestMessage]::new($method,[Uri]$uri)
                     if ($fixture) {
                         $mock = $fixture.PSObject.Properties[$uri].Value
@@ -225,30 +245,35 @@ try {
                     $it = $work.Item; $kind = [string]$it.K; $key = [string]$it.A
                     $patterns = @($it.R | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | ForEach-Object { [string]$_ })
                     $tag = $null
-                    if($kind -eq 'gh' -and $patterns.Count -gt 0){
+                    if($kind -eq 'ts'){
+                        $package=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()|ConvertFrom-Json
+                        if($package.latest.version_number){
+                            $entry=@{version=[string]$package.latest.version_number;deprecated=[bool]($package.is_deprecated -eq $true);checked=[DateTime]::UtcNow.ToString('o');date=[string]$package.latest.date_created;download=[string]$package.latest.download_url;dependencies=@($package.latest.dependencies|ForEach-Object {[string]$_})}
+                            Merge-CacheEntry -File $tsCacheFile -Key ($key+'-'+[string]$it.B) -Entry $entry
+                        }
+                        continue
+                    }elseif($kind -eq 'nightly'){
+                        $final=[string]$response.RequestMessage.RequestUri.AbsoluteUri
+                        if($final -match '/releases/tag/([^/?#]+)'){
+                            $releaseTag=[Uri]::UnescapeDataString($Matches[1])
+                            $section=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                            $release=Get-PCVRGitHubReleaseFromWeb -Repo $key -Tag $releaseTag -Section $section -Budget ([pscustomobject]@{Fast=$true;End=[DateTime]::UtcNow.AddSeconds(8)})
+                            if($release -and $release.tag_name){
+                                $assets=@{};foreach($asset in $release.assets){if($asset.name -and $asset.updated_at){$assets[[string]$asset.name]=[string]$asset.updated_at}}
+                                Merge-CacheEntry -File $nightlyCacheFile -Key $key -Entry @{Tag=[string]$release.tag_name;Assets=$assets;checked=[DateTime]::UtcNow.ToString('o')}
+                            }
+                        }
+                        continue
+                    }elseif($kind -eq 'gh'){
                         $listing=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-                        $budget=[pscustomobject]@{Fast=$true;End=[DateTime]::UtcNow.AddSeconds(8)}
-                        foreach($section in [regex]::Matches($listing,'(?s)<section id="release-([^"]+)"[^>]*>(.*?)(?=<section id="release-|\z)')){
-                            $candidate=[Net.WebUtility]::HtmlDecode($section.Groups[1].Value)
-                            $header=$section.Value.Substring(0,[Math]::Min(3000,$section.Value.Length))
-                            if(-not [bool]$it.P -and $header -match '(?i)>\s*Pre-release\s*<'){continue}
-                            $release=Get-PCVRGitHubReleaseFromWeb -Repo $key -Tag $candidate -Section $section.Value -Budget $budget
-                            $tag=Select-BackgroundAssetTag -Releases @($release) -IncludePrerelease ([bool]$it.P) -Patterns $patterns -VersionPattern ([string]$it.V)
-                            if($tag){break}
+                        $script:workerRawReplies['https://github.com/'+[string]$it.A+'/releases']=[pscustomobject]@{Content=$listing;FinalUrl=[string]$response.RequestMessage.RequestUri.AbsoluteUri}
+                        $resolved=Resolve-GitHubReleaseAsset -Repo ([string]$it.A) -AssetPatterns $patterns -IncludePrerelease ([bool]$it.P) -TagOrder ([string]$it.O) -SkipReleasesWithoutMatchingAsset -ScanFast
+                        if($resolved.Resolved){
+                            $tag=[string]$resolved.Tag
+                            if([bool]$it.W){$tag=Get-PCVRGitHubSelectedAssetTimestamp -Release $resolved}
+                            if([string]$it.V){$match=[regex]::Match([string]$resolved.AssetName,[string]$it.V);$tag=if($match.Success -and $match.Groups.Count -gt 1 -and $match.Groups[1].Value -match '\d'){[string]$match.Groups[1].Value}else{''}}
+                            if([string]$it.O -eq 'published' -and $tag -and [string]$it.I){[void](Test-GithubReleaseIsNewer -Repo ([string]$it.A) -Installed ([string]$it.I) -Online $tag -TagOrder 'published')}
                         }
-                        if([bool]$it.P){$key+='#pre'}
-                        $key+='#asset='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($patterns -join '|'))).TrimEnd('=').Replace('/','_').Replace('+','-')
-                        if([string]$it.V){$key+='#asset-version='+[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$it.V)).TrimEnd('=').Replace('/','_').Replace('+','-')}
-                    } elseif ($kind -eq 'gh' -and -not [bool]$it.P) {
-                        $final = [string]$response.RequestMessage.RequestUri.AbsoluteUri
-                        if ($final -match '/releases/tag/([^/?#]+)') { $tag = [Uri]::UnescapeDataString($matches[1]).Trim() }
-                    } elseif ($kind -eq 'gh') {
-                        $atom = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-                        foreach ($match in [regex]::Matches($atom,'Repository/[0-9]+/([^<]+)')) {
-                            $candidate = [Net.WebUtility]::HtmlDecode($match.Groups[1].Value).Trim()
-                            if ($candidate -and $candidate -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic') { $tag = $candidate; break }
-                        }
-                        $key += '#pre'
                     } elseif ($kind -eq 'ghcommit') {
                         [xml]$commitFeed=$response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
                         $entry=@($commitFeed.feed.entry)[0]
@@ -271,6 +296,9 @@ try {
                         elseif ($html -match '\bv([0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z\-]*)') { $tag = 'v' + $matches[1] }
                     }
                     if ($tag -and ($kind -ne 'gh' -or $tag -notmatch '(?i)source|hub-patch|sdk|symbols|broken|diagnostic')) {
+                        if($kind -eq 'gh'){
+                            $key=Get-PCVRGithubVersionCacheKey -Repo ([string]$it.A) -IncludePrerelease ([bool]$it.P) -AssetPatterns $patterns -AssetVersionPattern ([string]$it.V) -AssetTimestampVersion ([bool]$it.W) -TagOrder ([string]$it.O)
+                        }
                         $field = if ($kind -eq 'web') { 'ver' } else { 'tag' }
                         $entry = @{ checked = [DateTime]::UtcNow.ToString('o') }
                         $entry[$field] = $tag

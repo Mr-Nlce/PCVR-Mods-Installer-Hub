@@ -6,11 +6,11 @@ Beyond: Two Souls follows Jodie Holmes and the entity Aiden through a cinematic 
 
 ## Requirements and installation
 
-The author verified the Steam PC build. Epic and other PC executables are found by signatures at runtime, but are not verified builds; they can fall back to flat play if a critical game address is not found. The Hub checks for the game EXE and `BigFile_PC.dat`, then downloads the current stable publisher ZIP and installs its DLL, settings and complete Play launcher. An existing non-Hub `dinput8.dll` must be reviewed first; the Hub never silently replaces an unknown injector. Keep the game closed during setup.
+The author verified the Steam PC build. Epic and other PC executables are found by signatures at runtime and may fall back to flat play if a critical game address is missing. The Hub checks for the game EXE and `BigFile_PC.dat`, downloads the current stable publisher ZIP and installs its VR runtime. Keep the game closed during setup. Review an existing non-Hub `dinput8.dll` before continuing.
 
 1. Start the flat game once. In its graphics options, set **Windowed**, turn **Motion blur off** and **Depth of field off**.
 2. On this page choose [[Get Installer]]. Read the setup notice, then press Enter to locate the game and again to check the current stable GitHub release. If GitHub cannot be checked, setup shows any official ZIP already in Downloads for your confirmation. Otherwise press Enter to open the release page, download its current `B2S_VR_MOD_v*.zip`, then press Enter to search Downloads. You can also drag the ZIP onto the installer window. The version is shown before installation; when the online check fails, compare it with the publisher page before confirming.
-3. After setup, start SteamVR, connect the headset and choose [[Start in VR]]. The Hub invokes the publisher's Play script with the detected game folder. It installs or updates its own DLL as needed, then launches the game. The VR view appears a few seconds after game startup.
+3. After setup, start SteamVR or your active OpenXR runtime, connect the headset and choose [[Start in VR]]. With v1.0.0 and later the Hub starts the game through Steam for Steam installations or uses the detected non-Steam executable. VR activates automatically. Older installations use their publisher Play script.
 
 The publisher's `b2svr.ini` remains yours on update. Its VR picture-size and turning settings can be changed there. The Hub does not copy the included source tree into the game.
 
@@ -37,7 +37,7 @@ The Party level can lose objects, shadows or the entire VR image. Press [[F9]] t
 
 The Hub checks stable GitHub releases and records a version only after the required files are present. [[Uninstall now]] removes unchanged Hub-owned files and restores any earlier same-name files. It leaves saves, personal VR settings, logs and later modified files in place. Close the game first.
 
-Publisher ZIPs from v0.17.15 also include `tools/release_files.txt` for the publisher's safer uninstall script. The Hub keeps that file and `Uninstall VR mod.cmd` with the publisher's Play launcher.
+The Hub keeps the publisher's install and removal scripts when supplied. Use the Hub's uninstall action to apply its ownership manifest and restore backed-up files.
 
 ## Links
 

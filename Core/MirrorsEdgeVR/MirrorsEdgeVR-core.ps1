@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -21,6 +21,8 @@ function Write-MEVROK([string]$Text){Write-Host "  [OK] $Text" -ForegroundColor 
 function Write-MEVRWarn([string]$Text){Write-Host "  [!!] $Text" -ForegroundColor Yellow}
 
 function Test-MEVRGameRoot([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'mirrors-edge-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and
         (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf -ErrorAction SilentlyContinue) -and
         (Test-Path -LiteralPath (Join-Path $Path 'Engine\Config\BaseEngine.ini') -PathType Leaf -ErrorAction SilentlyContinue))

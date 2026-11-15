@@ -2,7 +2,9 @@
 
 ## About the Game
 
-Alan Wake is a story-driven action thriller set around Bright Falls. fholger's mod brings the original PC game into seated, third-person VR with six-degree-of-freedom head tracking and synchronized stereo rendering. Gameplay and the game's usual gamepad or keyboard-and-mouse controls remain unchanged. Motion controls are not part of this first release.
+Alan Wake is a story-driven action thriller set around Bright Falls. fholger's VR mod adds first-person play with motion controllers in v2.0.0. You can also play in the original third-person view with a gamepad.
+
+Version 2.0.1 makes the in-game brightness setting work in VR.
 
 ## What you need
 
@@ -22,7 +24,7 @@ The linked video is **ordinary Alan Wake gameplay**, because a VR gameplay video
 
 ## Controls
 
-The publisher says the game's existing gamepad and keyboard-and-mouse controls are unchanged. Play seated; motion controllers are not supported in this release.
+Use motion controllers in first-person mode or a gamepad in third-person mode.
 
 ## Removal and troubleshooting
 

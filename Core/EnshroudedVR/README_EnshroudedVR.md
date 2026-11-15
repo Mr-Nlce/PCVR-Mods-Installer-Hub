@@ -1,4 +1,4 @@
-# Enshrouded VR
+﻿# Enshrouded VR
 
 ## About the Game
 
@@ -13,6 +13,8 @@ Enshrouded is a survival crafting adventure in a world covered by a deadly Shrou
 Unsigned VR files may produce antivirus warnings. A missing file can also be caused by a copy, path, or permissions issue; check the installer log and security history before attributing a cause.
 
 ## Install, update and start
+
+Version 0.9.24 addresses a startup freeze at “preprocessing” and keeps its VR environment settings out of Steam and other programs. It supports the November 5 game build 26430625.
 
 1. Choose [[Install]] or [[Update]]. If the game's readable graphics settings are missing, Setup guides you through its one-time flat start: press [[Enter]] to start through Steam, reach the main menu on your monitor, then exit normally. If VR files are already installed, choose **Desktop** (older versions: **Normal**) in the publisher settings first. Setup checks for the settings file again before copying VR files.
 2. The publisher ZIP has VR **off** by default. In `Enshrouded VR setting.exe`, choose **motion VR** (older versions: **VR**) for motion controllers. **controller VR FPS / TPS** are headset modes played with an Xbox controller. Keep **Frame mode: Both eyes every frame**; AFW is a publisher test mode. Close the settings program; Setup verifies that VR is enabled.
@@ -36,9 +38,16 @@ The publisher's `Enshrouded VR setting.exe` is in the game folder, next to `ensh
 | [[Left Stick Click]] | Open the VR start menu when the left controller is beside your head. |
 | [[Left Grip]] | Guard or hold a two-handed weapon; grab the shield or bow at a body holster. |
 | [[Right Grip]] | Draw a weapon from the right shoulder holster. |
-| [[Right B]] | Hold to open quick slots; point and release to select. |
-| [[A]] / [[X]] | Confirm a menu selection. |
-| [[B]] / [[Y]] | Go back in menus. |
+| [[Right B]] | Hold to open quick slots; turn the right wrist like a dial and release to select. Short press interacts. |
+| [[Right A]] | Jump, double jump or deploy the glider; confirm the selected menu entry. |
+| [[Left B]] | Secondary tool action; hold with building hammer to select a piece using [[Right Stick]]. |
+| [[Right Stick Click]] | Lock on; with a hand at the temple after vibration, open inventory. |
+| [[Right Trigger]] held | Heavy melee attack. |
+| [[Right Grip]] + [[Right Trigger]] | Staff/wand special attack. |
+| [[Right Grip]] + [[Left Stick Click]] | Toggle fine position mode while building. |
+| [[Right Grip]] + [[Right Stick Click]] | Toggle fine rotation mode while building. |
+| [[Left Grip]] in building mode | Remove the selected building piece. |
+| [[Left Trigger]] | Hold fully to interact or revive; with building hammer, screwdriver or summoning staff, enter its tool mode. |
 
 Swing the weapon for melee attacks. The game's own VR settings provide additional comfort and control options. The publisher documents fishing, parries, bows and throws in its [full guide](https://github.com/momotori01/ENSHROUDED-VR-MOD).
 

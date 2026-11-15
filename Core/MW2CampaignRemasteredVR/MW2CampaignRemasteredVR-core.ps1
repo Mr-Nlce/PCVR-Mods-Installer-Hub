@@ -10,13 +10,7 @@ $script:MW2Contract=New-PCVRInstallerContract -Id $script:MW2Id -GameName 'Moder
     -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $script:MW2Page -Routes @('BattleNet') -RequiredInstalledFileGroups $script:MW2Required
 
 function Test-MW2Game([string]$Root){
-    if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'MW2CR.exe') -PathType Leaf)){return $false}
-    if(-not((Test-Path -LiteralPath (Join-Path $Root 'oo2core_5_win64.dll') -PathType Leaf) -or
-             (Test-Path -LiteralPath (Join-Path $Root 'oo2core_8_win64.dll') -PathType Leaf))){return $false}
-    $data=Join-Path $Root 'Data\data'
-    if(-not(Test-Path -LiteralPath $data -PathType Container)){return $false}
-    try{foreach($file in [IO.Directory]::EnumerateFiles($data)){if((Get-Item -LiteralPath $file).Length -gt 0){return $true}}}catch{return $false}
-    return $false
+    return Test-PCVRGameInstallProof -GameId 'modern-warfare-2-campaign-remastered-vr' -Root $Root
 }
 function Get-MW2Game{
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_MW2_TEST_GAME){
@@ -34,7 +28,7 @@ function Get-MW2Game{
         [void](Save-HubRememberedGameFolder -GameId $script:MW2Id -Title 'Modern Warfare 2 Campaign Remastered VR' -GameDir $picked -ProbeFiles @('MW2CR.exe') -UserSelected)
         return [IO.Path]::GetFullPath($picked)
     }
-    throw 'A complete Battle.net game folder needs MW2CR.exe, the game codec and nonempty Data\\data storage.'
+    throw 'Choose the original Battle.net game folder containing MW2CR.exe and Data\data\data.000.'
 }
 function Get-MW2Release{
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_MW2_TEST_ARCHIVE){
@@ -125,6 +119,9 @@ function Invoke-MW2Installer{
         [void](Wait-PCVRExplicitEnter -Message 'After reading this, press Enter to locate the Battle.net game...')
         $game=Get-MW2Game
         Write-Host "  [OK] Battle.net game: $game" -ForegroundColor Green
+        $codecReady=$false
+        foreach($codec in @('oo2core_5_win64.dll','oo2core_8_win64.dll')){try{if((Get-Item -LiteralPath (Join-Path $game $codec) -ErrorAction Stop).Length -gt 0){$codecReady=$true;break}}catch{}}
+        if(-not $codecReady){throw 'The game was found, but its Oodle runtime is missing. Use Battle.net Scan and Repair to restore oo2core_5_win64.dll or oo2core_8_win64.dll, then Retry.'}
         if(Get-Process -Name MW2CR,overlord -ErrorAction SilentlyContinue){throw 'Close MW2CR and Overlord before installing or updating.'}
         if(-not(Test-InstallerTargetWritable $game)){throw 'The Battle.net game folder is not writable. Restart with permission to write there.'}
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to check and download the current Overlord beta...')

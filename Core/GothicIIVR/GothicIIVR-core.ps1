@@ -1,4 +1,4 @@
-# Gothic II VR PCVR: a separate publisher runtime reading owned Gold/NotR data.
+﻿# Gothic II VR PCVR: a separate publisher runtime reading owned Gold/NotR data.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -7,7 +7,9 @@ $RELEASES="https://github.com/$REPO/releases"
 $FALLBACK_TAG='v0.2.0';$FALLBACK_ASSET='Gothic-II-VR-0.2.0-PCVR-and-Quest.zip'
 $FALLBACK_URL='https://github.com/dubrovskiy-yevhen-stakelogic/gothic2-vr/releases/download/v0.2.0/Gothic-II-VR-0.2.0-PCVR-and-Quest.zip'
 $DEFAULT_TARGET='C:\Games\Gothic II VR'
-$REQUIRED=@('Gothic2Notr.exe','openxr_loader.dll','Tempest.dll','dxcompiler.dll','dxil.dll',
+# The publisher's OpenXR route uses Vulkan and rejects -dx12. Its current
+# PCVR package omits the DirectX shader signing library dxil.dll.
+$REQUIRED=@('Gothic2Notr.exe','openxr_loader.dll','Tempest.dll','dxcompiler.dll',
     'Start-PCVR.ps1','START-PCVR.cmd','START-STEAMVR.cmd','START-OCULUS.cmd',
     'START-VIRTUAL-DESKTOP.cmd','vrhands\BigHandLeft.uxrh','vrhands\BigHandRight.uxrh',
     'launcher-game-path.txt',".pcvrhub_${IDENTITY}_ownership.csv")
@@ -15,6 +17,8 @@ $CONTRACT=New-PCVRInstallerContract -Id 'gothic-ii-vr' -GameName 'Gothic II VR' 
     -AntivirusNotice -ReleasePageUrl $RELEASES -Routes @('Standalone') -RequiredInstalledFileGroups $REQUIRED
 
 function Test-GothicBase([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'gothic-ii-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path 'system\Gothic2.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Path 'Data') -PathType Container))
 }
@@ -59,7 +63,11 @@ function Get-GothicTargetRoot([string]$Base,[scriptblock]$ReadInput=$null){
     }
 }
 function Get-GothicRelease {
-    $r=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^Gothic-II-VR-[0-9].*-PCVR-and-Quest\.zip$') `
+    $r=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @(
+        '(?i)^Gothic-II-VR-[0-9].*-PCVR\.zip$',
+        '(?i)^Gothic-II-VR-[0-9].*-(?:PCVR-and-Quest|Player)\.zip$',
+        '(?i)^Gothic-II-VR-\d+(?:\.\d+)+\.zip$'
+    ) `
         -IncludePrerelease $true -SkipReleasesWithoutMatchingAsset -FallbackUrl $FALLBACK_URL `
         -FallbackTag $FALLBACK_TAG -FallbackAssetName $FALLBACK_ASSET
     if(-not(Test-IsTrackableInstalledVersion ([string]$r.Tag))){throw 'GitHub did not return a trackable Gothic II VR version.'}
@@ -69,6 +77,7 @@ function New-GothicStage([string]$Archive,[string]$Work){
     $outer=Join-Path $Work 'outer';$result=Expand-ArchiveOrFallback -ArchivePath $Archive -DestinationFolder $outer -Label 'Gothic II VR publisher ZIP' -AllowSkip $false -QuietProgress
     if([string]$result -notin @('ok','manual','retry')){throw 'The Gothic II VR publisher ZIP could not be opened.'}
     $stage=Join-Path $outer 'PCVR'
+    if(-not (Test-Path -LiteralPath $stage -PathType Container)){$stage=$outer}
     foreach($name in @($REQUIRED|Where-Object{$_ -notin @('launcher-game-path.txt',".pcvrhub_${IDENTITY}_ownership.csv")})){
         if(-not(Test-Path -LiteralPath (Join-Path $stage $name) -PathType Leaf)){throw "PCVR publisher payload is missing $name"}
     }

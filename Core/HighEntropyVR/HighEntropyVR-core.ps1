@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -15,6 +15,8 @@ $script:HecContract=New-PCVRInstallerContract -Id $script:HecId -GameName 'High 
     -RequiredInstalledFileGroups @($script:HecProof + '.pcvrhub_hecvr_ownership.csv')
 
 function Test-HecGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'high-entropy-challenges-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'HighEntropy.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'HighEntropy_Data\globalgamemanagers') -PathType Leaf))
 }

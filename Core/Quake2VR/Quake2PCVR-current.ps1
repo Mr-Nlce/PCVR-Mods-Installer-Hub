@@ -18,13 +18,28 @@ function Write-Q2Header {
 }
 function Write-Q2Step([int]$Number,[int]$Total,[string]$Text) { Write-Host ''; Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan; Write-Host '' }
 function Write-Q2Ok([string]$Text) { Write-Host "  [OK] $Text" -ForegroundColor Green }
-function Write-Q2Info([string]$Text) { Write-Host "  [..] $Text" -ForegroundColor Gray }
+function Write-Q2Info([string]$Text) { Write-Host "  $Text" -ForegroundColor Gray }
 function Write-Q2Warn([string]$Text) { Write-Host "  [!!] $Text" -ForegroundColor Yellow }
 function Pause-Q2([string]$Text='Press Enter to continue...') { Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host | Out-Null }
 function Get-Q2Release {
     $release=Resolve-GitHubReleaseAsset -Repo $repo -AssetPatterns @('(?i)^(?:quake2-vr-pc|Quake-II-PCVR-[0-9][0-9.]*)\.zip$') -SkipReleasesWithoutMatchingAsset
     if(-not $release.Resolved){throw 'The current Quake II release could not be checked. Retry or download the current official package.'}
     return [pscustomobject]@{Tag=[string]$release.Tag;Url=[string]$release.Url}
+}
+
+function Test-Q2WritableRoot([string]$Root) {
+    if ([string]::IsNullOrWhiteSpace($Root)) { return $false }
+    $probe=$null
+    try {
+        $driveRoot=[IO.Path]::GetPathRoot($Root)
+        if (-not $driveRoot -or -not [IO.Directory]::Exists($driveRoot)) { return $false }
+        [void][IO.Directory]::CreateDirectory($Root)
+        $probe=[IO.Path]::Combine($Root,('.pcvrhub_write_probe_'+[guid]::NewGuid().ToString('N')))
+        [IO.File]::WriteAllText($probe,'ok')
+        [IO.File]::Delete($probe)
+        return $true
+    } catch { return $false }
+    finally { if ($probe -and [IO.File]::Exists($probe)) { try { [IO.File]::Delete($probe) } catch {} } }
 }
 
 trap {
@@ -79,7 +94,7 @@ foreach ($required in $runtimeWatch) { if (-not (Test-Path -LiteralPath $require
 $recoverQ2 = {
     Install-OwnedModPayload -SourceRoot $payload -GameRoot $target -Identity 'quake2pcvr' -AdoptIdenticalExisting | Out-Null
 }.GetNewClosure()
-if (-not (Confirm-PlacedFilesSurvive -Paths $runtimeWatch -GameDir $target -Recopy $recoverQ2)) { throw 'One or more required Quake II PCVR binaries did not survive the antivirus check.' }
+if (-not (Confirm-PlacedFilesSurvive -Paths $runtimeWatch -GameDir $target -Recopy $recoverQ2)) { throw 'Required Quake II PCVR files are missing after installation.' }
 Write-Q2Ok "Official port $($release.Tag) downloaded."
 
 Write-Q2Step 4 4 'Copying owned game data and optional Team Beef assets'
@@ -87,20 +102,29 @@ Write-Q2Info 'The official setup copies Quake II, owned mission packs and music.
 Write-Q2Info "If missing, it also downloads Team Beef's optional HD assets once (about 169 MB)."
 $setup = Join-Path $target 'tools\setup.ps1'
 if(-not(Test-Path -LiteralPath $setup -PathType Leaf)){$setup=Join-Path $target 'tools\prepare-data.ps1'}
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setup -InstallDir $target -Quake2Dir $source -Extras yes
-if ($LASTEXITCODE -ne 0) { throw "The official Quake II data setup returned exit code $LASTEXITCODE." }
+$previousPreference=$ErrorActionPreference
+try {
+    $ErrorActionPreference='Continue'
+    $global:LASTEXITCODE=$null
+    $setupOutput=@(& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $setup -InstallDir $target -Quake2Dir $source -Extras yes 2>&1)
+    $setupExit=$global:LASTEXITCODE
+} finally { $ErrorActionPreference=$previousPreference }
+foreach ($line in $setupOutput) { Write-Host ('  '+[string]$line) -ForegroundColor Gray }
+if ($null -eq $setupExit -or $setupExit -ne 0) { throw "The official Quake II data setup did not complete (exit code $setupExit)." }
 $launch = Join-Path $target 'Play Quake II VR.bat'
 if (-not (Test-Path -LiteralPath $launch) -or -not (Test-Path -LiteralPath (Join-Path $target 'baseq2\pak0.pak'))) { throw 'Final Quake II PCVR verification failed.' }
 [IO.File]::WriteAllText((Join-Path $target '.pcvrhub_ready'),[string]$release.Tag,(New-Object Text.UTF8Encoding($false)))
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path_pcvr'),$target,(New-Object Text.UTF8Encoding($false)))
 [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_version'),[string]$release.Tag,(New-Object Text.UTF8Encoding($false)))
 Save-InstalledStamp -GameDir $target -Version ([string]$release.Tag)
-$desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Quake 2 OpenXR VR.lnk'
-New-DesktopShortcut -LnkPath $desktop -TargetPath $launch -WorkingDir $target -IconPath "$(Join-Path $target 'yquake2.exe'),0" -Description 'Launch Quake II PCVR' | Out-Null
-foreach ($expansion in @('The Reckoning','Ground Zero')) {
-    $expLaunch = Join-Path $target "Play $expansion VR.bat"
-    if (Test-Path -LiteralPath $expLaunch) {
-        New-DesktopShortcut -LnkPath (Join-Path ([Environment]::GetFolderPath('Desktop')) "Quake 2 $expansion VR.lnk") -TargetPath $expLaunch -WorkingDir $target -IconPath "$(Join-Path $target 'yquake2.exe'),0" -Description "Launch Quake II: $expansion in VR" | Out-Null
+$desktop = if ($env:PCVR_HUB_TEST_MODE -eq '1') { $env:PCVR_QUAKE2_TEST_DESKTOP } else { [Environment]::GetFolderPath('DesktopDirectory') }
+if ($desktop) {
+    New-DesktopShortcut -LnkPath (Join-Path $desktop 'Quake 2 OpenXR VR.lnk') -TargetPath $launch -WorkingDir $target -IconPath "$(Join-Path $target 'yquake2.exe'),0" -Description 'Launch Quake II PCVR' | Out-Null
+    foreach ($expansion in @('The Reckoning','Ground Zero')) {
+        $expLaunch = Join-Path $target "Play $expansion VR.bat"
+        if (Test-Path -LiteralPath $expLaunch) {
+            New-DesktopShortcut -LnkPath (Join-Path $desktop "Quake 2 $expansion VR.lnk") -TargetPath $expLaunch -WorkingDir $target -IconPath "$(Join-Path $target 'yquake2.exe'),0" -Description "Launch Quake II: $expansion in VR" | Out-Null
+        }
     }
 }
 Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
@@ -111,7 +135,7 @@ Write-Host ('=' * 60) -ForegroundColor Magenta
 Write-Host '  Quake II PCVR installed.' -ForegroundColor Green
 Write-Host ('=' * 60) -ForegroundColor Magenta
 Write-Host ''
-Write-Host '  Start your OpenXR runtime, then use the OpenXR button in the Hub.' -ForegroundColor White
+Write-Host '  1. Use Start in VR in the Hub and select OpenXR.' -ForegroundColor White
 Write-Host '  VR and PC options are available in the game menus.' -ForegroundColor Gray
 Write-Host ''
 Write-Host '  Storm Stroggos - the railgun does the talking.' -ForegroundColor Magenta

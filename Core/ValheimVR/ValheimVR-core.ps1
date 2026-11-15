@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
@@ -18,6 +18,8 @@ $script:ValheimRequired+=@($script:ValheimLoaderDlls|Where-Object{('BepInEx\core
 $script:ValheimRequired+=@('Bhaptics.Tact.dll','final_ik.dll','NDesk.Options.dll','root_motion_demo_assets.dll','root_motion_shared.dll','Unity.XR.Management.dll','UnityEngine.SpatialTracking.dll','UnityEngine.XR.LegacyInputHelpers.dll','Valve.Newtonsoft.Json.dll'|ForEach-Object{'Valheim_Data\Managed\'+$_})
 $script:ValheimContract=New-PCVRInstallerContract -Id $script:ValheimId -GameName 'Valheim VR' -Acquisition GitHub -Routes @('Steam','Xbox') -ReleasePageUrl $script:ValheimPage -AntivirusNotice -RequiredInstalledFileGroups $script:ValheimRequired
 function Test-ValheimGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'valheim-vr' -Root $Root)) { return $false }
+
  if(-not $Root){return $false}
  foreach($rel in @('valheim.exe','UnityPlayer.dll','Valheim_Data\Managed\assembly_valheim.dll')){if(-not(Test-Path -LiteralPath (Join-Path $Root $rel) -PathType Leaf)){return $false}}
  return $true

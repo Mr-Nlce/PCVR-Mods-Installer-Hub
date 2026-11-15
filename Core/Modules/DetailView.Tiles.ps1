@@ -531,6 +531,7 @@ function global:Update-DiscoverTileStatus {
     }
     $pill.Visibility = [System.Windows.Visibility]::Visible
     switch ($state.State) {
+        "import"    { $txt.Text = "IMPORT GAME"; $pill.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#665328") }
         "ready"     { $txt.Text = "VR READY"; $pill.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#2a6e3a") }
         "update"    { $txt.Text = "UPDATE";   $pill.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#cc6600") }
         "installed" { $txt.Text = "INSTALLED"; $pill.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#3a3a48") }

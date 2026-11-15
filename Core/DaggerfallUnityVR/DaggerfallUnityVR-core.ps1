@@ -74,6 +74,7 @@ function Test-WritableRoot {
 }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @(
         "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
         "HKLM:\SOFTWARE\Valve\Steam",
@@ -102,12 +103,18 @@ function Test-DosDaggerfallInstalled {
     }
     foreach ($lib in ($libs | Select-Object -Unique)) {
         $manifest = Join-Path $lib "steamapps\appmanifest_$DOS_APPID.acf"
-        if (Test-Path $manifest) { return $true }
-        # Also accept the actual game files: some installs have no readable
-        # .acf (moved/merged library, manual copy), but the DOS data is what
-        # Daggerfall Unity actually needs. DAGGER.exe is the original launcher.
-        $dagExe = Join-Path $lib "steamapps\common\The Elder Scrolls Daggerfall\DF\DAGGER\DAGGER.exe"
-        if (Test-Path $dagExe) { return $true }
+        $folders=@('The Elder Scrolls Daggerfall')
+        if (Test-Path -LiteralPath $manifest -PathType Leaf) {
+            try {
+                $text=Get-Content -LiteralPath $manifest -Raw -ErrorAction Stop
+                $name=[regex]::Match($text,'"installdir"\s+"([^"]+)"').Groups[1].Value
+                if ($name -and $name -notmatch '[\\/]|^\.\.?$' -and -not [IO.Path]::IsPathRooted($name)) { $folders=@($name)+$folders }
+            } catch {}
+        }
+        foreach($folder in $folders){
+            $candidate=[IO.Path]::Combine($lib,'steamapps','common',$folder)
+            if(Test-PCVRGameInstallProof -GameId 'daggerfall-vr' -Root $candidate){return $true}
+        }
     }
     return $false
 }

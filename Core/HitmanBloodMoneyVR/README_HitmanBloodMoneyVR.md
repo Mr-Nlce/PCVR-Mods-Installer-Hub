@@ -1,4 +1,4 @@
-# Hitman: Blood Money VR
+﻿# Hitman: Blood Money VR
 
 ## About the Game
 
@@ -23,9 +23,11 @@ Unsigned VR files may produce antivirus warnings. Missing files can also mean a 
 
 The publisher's `Collect-Diagnostics.cmd` sits in the dedicated VR folder. It writes a local diagnostics ZIP under `diagnostics` if you need to report a runtime issue. Settings are in `vr.ini`; `[VR] Backend` supports Auto, Meta and OpenXR.
 
-Alpha 4 (0.1.8.173) improves Steam Link/SteamVR and Virtual Desktop/VDXR startup, controller pointing and stereo output. Open Blood Money VR Settings, select your connection, then choose Save & play. Connect Steam Link in the headset before choosing SteamVR in Settings.
+Alpha 6 (0.1.8.175) retains the improvements to Steam Link/SteamVR and Virtual Desktop/VDXR startup, controller pointing and stereo output. Open Blood Money VR Settings, select your connection, then choose Save & play. Connect Steam Link in the headset before choosing SteamVR in Settings.
 
-Publisher Setup now resets all seven mod INIs on installation, update and reinstall: modifiers, calibration, audio and weapon-grip choices return to its defaults. Before opening Setup, the Hub saves existing copies under %LOCALAPPDATA%\PCVR Mods Installer Hub\Backups\HitmanBloodMoneyVR. Each dated folder includes the original files and a settings-backup.json listing their original locations. Reapply supported choices in the updated Settings app; do not replace all new defaults blindly. Game saves remain unchanged.
+Alpha 6 adds an optional D3D9On12 renderer; Original remains the default. Its updated stereo rate is not a measured headset frame-rate guarantee. Choose your connection/profile again after updating.
+
+Publisher Setup now resets all seven mod INIs and launcher.ini on installation, update and reinstall: modifiers, calibration, audio, launcher profiles and weapon-grip choices return to its defaults. Before opening Setup, the Hub saves existing copies under %LOCALAPPDATA%\PCVR Mods Installer Hub\Backups\HitmanBloodMoneyVR. Each dated folder includes the original files and a settings-backup.json listing their original locations. Reapply supported choices in the updated Settings app; do not replace all new defaults blindly. Game saves remain unchanged.
 
 For two-hand inventory, short-click [[Right Stick Click]], browse with [[Right Stick Left]] or [[Right Stick Right]], then hold the grip of the hand that should receive the selected item. Keep holding it while selecting an item for the other hand, and short-click [[Right Stick Click]] again to close. Release a hand's grip *inside* inventory to stow its item; releasing it outside inventory drops it.
 

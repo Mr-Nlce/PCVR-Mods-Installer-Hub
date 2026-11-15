@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $REPO = 'StrikeZoneVR-hub/Outlast2VR'
@@ -14,6 +14,8 @@ $CONTRACT = New-PCVRInstallerContract -Id 'outlast-2-vr' -GameName 'Outlast 2 VR
     -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups $REQUIRED
 
 function Test-Outlast2Game([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'outlast-2-vr' -Root $Path)) { return $false }
+
     if (-not $Path) { return $false }
     $exe = Join-Path $Path 'Binaries\Win64\Outlast2.exe'
     return [bool]((Test-Path -LiteralPath $exe -PathType Leaf) -and ((Get-Item -LiteralPath $exe).Length -gt 20MB))

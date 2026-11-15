@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 $Host.UI.RawUI.WindowTitle='Hitman: Blood Money VR Installer'
 $script:HBMId='hitman-blood-money-vr'
@@ -10,6 +10,8 @@ $script:HBMContract=New-PCVRInstallerContract -Id $script:HBMId -GameName 'Hitma
     -RequiredInstalledFileGroups $script:HBMRequired
 
 function Test-HBMGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'hitman-blood-money-vr' -Root $Root)) { return $false }
+
     if(-not $Root -or -not(Test-Path -LiteralPath (Join-Path $Root 'HitmanBloodMoney.exe') -PathType Leaf)){return $false}
     if($env:PCVR_HUB_TEST_MODE -eq '1'){return (Test-Path -LiteralPath (Join-Path $Root 'hbm-fixture.txt') -PathType Leaf)}
     return ((Get-Item -LiteralPath (Join-Path $Root 'HitmanBloodMoney.exe')).Length -gt 500KB)
@@ -133,7 +135,7 @@ function New-HBMShortcut([string]$Runtime){
     return $created
 }
 function Backup-HBMUserSettings([string]$Runtime) {
-    $files=@('camera.ini','vr.ini','hands.ini','reload.ini','mod.ini','weapon-grips.ini','grip-tuning.ini')
+    $files=@('camera.ini','vr.ini','hands.ini','reload.ini','mod.ini','weapon-grips.ini','grip-tuning.ini','launcher.ini')
     $present=@($files|Where-Object {Test-Path -LiteralPath (Join-Path $Runtime $_) -PathType Leaf})
     if(-not $present.Count){return $null}
     $backup=Join-Path $env:LOCALAPPDATA ('PCVR Mods Installer Hub\Backups\HitmanBloodMoneyVR\'+[DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')+'-'+[guid]::NewGuid().ToString('N'))

@@ -1,8 +1,8 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot 'RogueTraderVR-Mode.ps1')
-$repo='Beren5556/W40KRT_VR'
-$releasePage='https://github.com/Beren5556/W40KRT_VR/releases'
+$repo='Beren5556/W40KRT_VR-Downloads'
+$releasePage='https://github.com/Beren5556/W40KRT_VR-Downloads/releases'
 $fallbackTag='v0.9.81-beta'
 $fallbackAsset='W40KRT_VR-0.9.81-beta.zip'
 $fallbackUrl="https://github.com/$repo/releases/download/$fallbackTag/$fallbackAsset"
@@ -10,6 +10,8 @@ $contract=New-PCVRInstallerContract -Id 'rogue-trader-maqueta-vr' -GameName 'Rog
     -ReleasePageUrl $releasePage -AntivirusNotice -RequiredInstalledFileGroups @('WH40KRT.exe')
 
 function Test-RogueMaquetaSteamRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'warhammer-40k-rogue-trader-vr' -Root $Path)) { return $false }
+
     if(-not $Path -or -not(Test-Path -LiteralPath (Join-Path $Path 'WH40KRT.exe') -PathType Leaf)){return $false}
     $common=Split-Path -Parent $Path
     if((Split-Path -Leaf $common) -ine 'common'){return $false}
@@ -45,7 +47,7 @@ function Get-RogueMaquetaPackage([string]$Archive,[string]$Work) {
         $manifest=Get-Content -LiteralPath $candidate.FullName -Raw | ConvertFrom-Json
         if($manifest.Id -eq 'RTMaquetaXR' -and $manifest.Version -match '^\d+\.\d+\.\d+$'){
             $root=Split-Path -Parent $candidate.FullName
-            foreach($required in @('scripts\Install.ps1','scripts\Uninstall.ps1','scripts\Portable.Common.ps1','RTMaquetaXR\Info.json','RTMaquetaXR\RTMaquetaXR.dll','RTMaquetaXR\W40KRT-VR-Launcher.exe','prerequisites\vc_redist.x64.exe')){
+            foreach($required in @('scripts\Install.ps1','scripts\Uninstall.ps1','scripts\Portable.Common.ps1','RTMaquetaXR\Info.json','RTMaquetaXR\RTMaquetaXR.dll','RTMaquetaXR\RTMaquetaBridge.dll','RTMaquetaXR\W40KRT-VR-Launcher.exe','prerequisites\vc_redist.x64.exe')){
                 if(-not(Test-Path -LiteralPath (Join-Path $root $required) -PathType Leaf)){throw "Publisher package is incomplete: $required"}
             }
             return [pscustomobject]@{Root=$root;Version=[string]$manifest.Version}
@@ -66,6 +68,7 @@ function Invoke-RoguePublisherInstall([string]$PackageRoot,[string]$Game,[string
 function Invoke-RogueMaquetaInstaller {
     $work=$null;$profile=$null;$params=$null;$originalBytes=$null;$originalExists=$false
     $modFolder=$null;$profileBackup=$null;$modFolderExisted=$false;$backupReady=$false;$committed=$false;$keepWork=$false
+    $cached=$null;$cacheBackup=$null;$cacheExisted=$false;$cacheWriteStarted=$false
     try {
         Clear-Host
         Write-Host ('=' * 60) -ForegroundColor Magenta
@@ -75,7 +78,7 @@ function Invoke-RogueMaquetaInstaller {
         Write-Host ''
         Write-Host ' Requires the publisher-validated Steam build, DirectX 11, Windows x64,' -ForegroundColor White
         Write-Host ' a supported OpenXR provider and connected motion controllers.' -ForegroundColor White
-        Write-Host ' RTVR may stay installed. This setup disables it in Owlcat mod settings;' -ForegroundColor Yellow
+        Write-Host ' RTVR may stay installed. Setup preserves the selected Owlcat mod;' -ForegroundColor Yellow
         Write-Host ' either Hub Play choice activates its own mod before launch.' -ForegroundColor Yellow
         Write-Host ' The publisher installer may ask to back up and reset older Maqueta settings.' -ForegroundColor Yellow
         Show-AntivirusNotice -Compact
@@ -113,23 +116,30 @@ function Invoke-RogueMaquetaInstaller {
         $backupReady=$true
         Write-Host ' [3/4] Install the tabletop mod beside RTVR' -ForegroundColor Cyan
         Write-Host ' ----------------------------------------' -ForegroundColor DarkGray
-        Set-RogueTraderModMode -Mode Maqueta -ProfileRoot $profile -AllowMissingSelected
         Invoke-RoguePublisherInstall -PackageRoot $package.Root -Game $game -Work $work
         foreach($required in @('RTMaquetaXR\Info.json','RTMaquetaXR\RTMaquetaXR.dll','RTMaquetaXR\RTMaquetaBridge.dll','RTMaquetaXR\W40KRT-VR-Launcher.exe','RTMaquetaXR\portable-install.json')){
             if(-not(Test-Path -LiteralPath (Join-Path $profile $required) -PathType Leaf)){throw "Required installed file is missing: $required"}
         }
         $receipt=Get-Content -LiteralPath (Join-Path $profile 'RTMaquetaXR\portable-install.json') -Raw | ConvertFrom-Json
+        if($originalExists){[IO.File]::WriteAllBytes($params,[byte[]]$originalBytes)}
+        elseif(Test-Path -LiteralPath $params -PathType Leaf){Remove-Item -LiteralPath $params -Force -ErrorAction Stop}
         $info=Get-Content -LiteralPath (Join-Path $profile 'RTMaquetaXR\Info.json') -Raw | ConvertFrom-Json
         if($receipt.Id -ne 'RTMaquetaXR' -or [string]$receipt.Version -ne $package.Version -or $info.Id -ne 'RTMaquetaXR' -or [string]$info.Version -ne $package.Version){throw 'Publisher installation receipt or mod metadata does not match the release.'}
         if(-not(Confirm-PlacedFilesSurvive -Paths @((Join-Path $profile 'RTMaquetaXR\RTMaquetaXR.dll'),(Join-Path $profile 'RTMaquetaXR\W40KRT-VR-Launcher.exe')) -GameDir $game -NoClear)){throw 'Required W40KRT_VR files did not survive installation.'}
-        $cached=Join-Path (Split-Path -Parent $profile) 'W40KRT_VR-package.zip';Copy-Item -LiteralPath $archive -Destination $cached -Force
+        $cached=Join-Path (Split-Path -Parent $profile) 'W40KRT_VR-package.zip'
+        if((Test-Path -LiteralPath $cached) -and -not(Test-Path -LiteralPath $cached -PathType Leaf)){throw 'The publisher recovery archive path is a folder. No new recovery archive was committed.'}
+        $cacheExisted=Test-Path -LiteralPath $cached -PathType Leaf
+        if($cacheExisted){$cacheBackup=Join-Path $work 'recovery-package-before.zip';Copy-Item -LiteralPath $cached -Destination $cacheBackup -ErrorAction Stop}
+        $cacheWriteStarted=$true
+        Copy-Item -LiteralPath $archive -Destination $cached -Force -ErrorAction Stop
         [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $game -Version ([string]$release.Tag) `
             -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path_maqueta'),(Join-Path $PSScriptRoot '.installed_path')) -AdditionalVersionReceiptPaths @((Join-Path $game '.pcvrhub_rogue_maqueta_version')) -VersionSlot Secondary -Route Current)
         $committed=$true
         Write-Host ' [4/4] Finish and choose Tabletop in the Hub' -ForegroundColor Cyan
         Write-Host ' ----------------------------------------' -ForegroundColor DarkGray
         Write-Host ' W40KRT_VR installed. The RTVR files were kept separately.' -ForegroundColor Green
-        Write-Host ' Start with the Maqueta Play choice after connecting the supported headset.' -ForegroundColor Yellow
+        Write-Host ' 1. Use Start in VR in the Hub.' -ForegroundColor Yellow
+        Write-Host ' Choose Tabletop after connecting the supported headset; use the publisher launcher to select your connection.' -ForegroundColor Gray
         Write-Host ''
         Write-Host ' Lay the Koronus Expanse across your command table.' -ForegroundColor Magenta
         [void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
@@ -137,6 +147,10 @@ function Invoke-RogueMaquetaInstaller {
         $installError=$_
         if(-not $committed){
             try{
+                if($cacheWriteStarted){
+                    if($cacheExisted){Copy-Item -LiteralPath $cacheBackup -Destination $cached -Force -ErrorAction Stop}
+                    elseif(Test-Path -LiteralPath $cached -PathType Leaf){Remove-Item -LiteralPath $cached -Force -ErrorAction Stop}
+                }
                 if($backupReady -and $modFolder){
                     $profileFull=[IO.Path]::GetFullPath($profile).TrimEnd('\','/')
                     $modFull=[IO.Path]::GetFullPath($modFolder)

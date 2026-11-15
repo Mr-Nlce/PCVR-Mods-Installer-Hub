@@ -1,5 +1,17 @@
-﻿$registryDiscoveryModule=Join-Path $PSScriptRoot 'RegistryDiscovery.ps1'
+﻿$installedStateModule=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'InstalledState.ps1'))
+if ($global:HubInstalledStateModuleSource -ne $installedStateModule -or -not (Get-Command Get-InstalledPathFile -CommandType Function -ErrorAction SilentlyContinue)) {
+    $existingInstalledPathReader=Get-Command Read-InstalledPath -CommandType Function -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ScriptBlock
+    . $installedStateModule
+    # A native entry point can bind a selected route before loading Helpers.
+    if ($existingInstalledPathReader) { Set-Item -LiteralPath Function:\global:Read-InstalledPath -Value $existingInstalledPathReader }
+}
+Remove-Variable installedStateModule,existingInstalledPathReader -ErrorAction SilentlyContinue
+$registryDiscoveryModule=Join-Path $PSScriptRoot 'RegistryDiscovery.ps1'
 if (Test-Path -LiteralPath $registryDiscoveryModule -PathType Leaf) { . $registryDiscoveryModule }
+. (Join-Path $PSScriptRoot 'SomaLauncherProof.ps1')
+. (Join-Path $PSScriptRoot 'FfxivPluginProof.ps1')
+. (Join-Path $PSScriptRoot 'TeardownProof.ps1')
+. (Join-Path $PSScriptRoot 'PublisherVrState.ps1')
 # -------------------------------------------------------
 # Scale factor (S=1.0, M=1.5, L=2.0)
 # -------------------------------------------------------
@@ -2218,6 +2230,11 @@ function global:Get-PowerTier {
         'Wreckfest 2 VR' = 'HIGH-P'
         'Wreckfest VR' = 'STRONG-P'
         'Hitman: Contracts VR' = 'SOLID-P'
+        'Resident Evil 5 VR' = 'SOLID'
+        'Gears of War: E-Day VR' = 'HIGH'
+        'Resident Evil Code: Veronica X VR' = 'BASIC'
+        'Agent 64: Spies Never Die VR' = 'BASIC'
+        'I Hate This Place VR' = 'SOLID'
         'Blur VR' = 'SOLID-P'
         'Ratchet & Clank 1 VR' = 'STRONG-P'
         'Call of Duty: United Offensive VR' = 'SOLID-P'
@@ -2822,7 +2839,7 @@ function global:Get-SimilarGames {
 
     $scored = @()
     foreach ($g in $allGames) {
-        if ($g.UntestedInstaller) { continue }
+        if ($g.UntestedInstaller -or $g.InstallerParentId) { continue }
         if ($g.Title -eq $Game.Title) { continue }
         $score = 0
 
@@ -3615,9 +3632,33 @@ function global:Write-HubActionFailure {
 # cannot be tee'd (the elevated child owns its own console); left unlogged on
 # purpose rather than break elevation.
 function global:Test-InstallerRefreshReady {
-    param($Process)
+    param($Process, $Timer)
     if (-not $Process) { return $true }
-    try { if ($Process.HasExited) { return $true } } catch { return $true }
+    try {
+        if ($Process.HasExited) {
+            if ($Process.ExitCode -eq 73) {
+                if ($Timer) {
+                    $Timer.Stop()
+                    try { [void][System.Windows.MessageBox]::Show('Another Hub installer is running. Finish or close it before starting this one.', 'Installer already running') } catch {}
+                }
+                return $false
+            }
+            if ($Process.ExitCode -in @(74,75)) {
+                if ($Timer) { $Timer.Stop() }
+                return $false
+            }
+            $parent = if ($global:CatalogGameById -and $Process.PcvrGameId) { $global:CatalogGameById[[string]$Process.PcvrGameId] }
+            if ($parent.InstallerChildId -and $Process.PcvrStatusPath -and (Test-Path -LiteralPath $Process.PcvrStatusPath -PathType Leaf)) {
+                $receipt = Get-Content -LiteralPath $Process.PcvrStatusPath -Raw | ConvertFrom-Json -ErrorAction Stop
+                $variant = $global:CatalogGameById[[string]$parent.InstallerChildId]
+                if ($receipt.outcome -eq 'success' -and $variant -and $receipt.contractId -eq $variant.Id -and $variant.InstallerParentId -eq $parent.Id) {
+                    $Process.PcvrGameId = $variant.Id
+                    $Process.PcvrGameTitle = $variant.Title
+                }
+            }
+            return $true
+        }
+    } catch { return $true }
     # A typed status file proves that installation succeeded; it does NOT prove
     # that the installer process has ended. Save-InstalledStamp is deliberately
     # allowed to write that evidence before the final information/Enter screen.
@@ -3677,11 +3718,6 @@ function global:Start-LoggedInstaller {
     $versionPathB = Get-InstalledVersionPathB -Game $Game
     $versionPathC = if ($Game.ModCName -and $versionPath) { $versionPath + '_c' } else { '' }
     $installPath = Get-InstalledPathFile -Game $Game
-    # Every launch route starts with a clean completion flag.  Otherwise a
-    # stale .update_ok from a previous run makes a cancelled reinstall look
-    # successful and the post-refresh can overwrite correct version state.
-    Clear-UpdateOkMarker -Game $Game
-
     $wrapper = $global:RunInstallerPath
     if (-not $wrapper -or -not (Test-Path -LiteralPath $wrapper -PathType Leaf)) {
         & $showLaunchError ("The installer logging wrapper is missing: " + [string]$wrapper)
@@ -3722,6 +3758,7 @@ function global:Start-LoggedInstaller {
         # output cannot be piped across the UAC elevation boundary.
         try {
             $process = Start-Process "powershell.exe" -ArgumentList $argString -Verb RunAs -PassThru -ErrorAction Stop
+            try { [void]$process.Handle } catch {}
             $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
             $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
             $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
@@ -3732,6 +3769,7 @@ function global:Start-LoggedInstaller {
             # "needs admin" notice - and that now lands in the log too.
             try {
                 $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
+                try { [void]$process.Handle } catch {}
                 $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
                 $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
                 $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
@@ -3745,6 +3783,7 @@ function global:Start-LoggedInstaller {
 
     try {
         $process = Start-Process "powershell.exe" -ArgumentList $argString -PassThru -ErrorAction Stop
+        try { [void]$process.Handle } catch {}
         $process | Add-Member -NotePropertyName PcvrStatusPath -NotePropertyValue $statusPath -Force
         $process | Add-Member -NotePropertyName PcvrGameId -NotePropertyValue $gameId -Force
         $process | Add-Member -NotePropertyName PcvrGameTitle -NotePropertyValue $title -Force
@@ -3825,6 +3864,11 @@ function global:Resolve-VrInstallRoot {
     # Isolated Hub labs must not probe real profile folders. Their catalog
     # fixtures use explicit absolute roots inside the disposable lab instead.
     if ($global:HubFileSystemLabRoot -and $Root -match '^(?i:LOCALAPPDATA|APPDATA|PROGRAMDATA|USERPROFILE):') { return $null }
+    if($global:HubFileSystemLabRoot -and [IO.Path]::IsPathRooted($Root)){
+        $lab=[IO.Path]::GetFullPath($global:HubFileSystemLabRoot).TrimEnd([char[]]'\/')
+        $candidate=[IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/')
+        if($candidate -ine $lab -and -not $candidate.StartsWith($lab+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase)){return $null}
+    }
     $base = $null
     $tail = $null
     if ($Root -like "LOCALAPPDATA:*") {
@@ -3851,9 +3895,80 @@ function global:Resolve-VrInstallRoot {
 # Optional evidence used by mod loaders whose publisher package keeps the
 # runtime in a version-named child folder. All named files must coexist in one
 # child directory; a loose file elsewhere cannot make the title VR Ready.
+function global:Get-PCVRVrgRuntimePak {
+    param([string]$Root)
+    # VRG is a Blueprint mod. mod.io can rename its PAK or retain it in a
+    # child folder. Read the Unreal package index, never a generated log,
+    # subscription record, download filename or unrelated base-game PAK.
+    if(-not $Root){return $null}
+    $folders=@([IO.Path]::Combine($Root,'FSD\Content\Paks'),[IO.Path]::Combine($Root,'FSD\Mods'))
+    # The game's built-in mod.io manager keeps installed packages outside the
+    # Steam tree. Only its DRG installed-mod roots count; download caches and
+    # subscription metadata never prove that the publisher payload is present.
+    foreach($base in @($env:PUBLIC,$env:LOCALAPPDATA)){
+        if(-not $base){continue}
+        $candidate=[IO.Path]::Combine($base,'mod.io','2475','mods')
+        if($global:HubFileSystemLabRoot){
+            $lab=[IO.Path]::GetFullPath($global:HubFileSystemLabRoot).TrimEnd([char[]]'\/')+[IO.Path]::DirectorySeparatorChar
+            if(-not [IO.Path]::GetFullPath($candidate).StartsWith($lab,[StringComparison]::OrdinalIgnoreCase)){continue}
+        }
+        $folders+=@($candidate)
+    }
+    foreach($folder in $folders){
+        if(-not [IO.Directory]::Exists($folder)){continue}
+        foreach($file in @(Get-ChildItem -LiteralPath $folder -File -Filter '*.pak' -Recurse -Depth 4 -ErrorAction SilentlyContinue|Where-Object{($_.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0})){
+            $stream=$null;$reader=$null
+            try{
+                $key=$file.FullName+'|'+$file.Length+'|'+$file.LastWriteTimeUtc.Ticks
+                if(-not $script:vrgPakPresenceCache){$script:vrgPakPresenceCache=@{}}
+                if($script:vrgPakPresenceCache.ContainsKey($key)){if($script:vrgPakPresenceCache[$key]){return $file.FullName};continue}
+                $script:vrgPakPresenceCache[$key]=$false
+                $stream=[IO.File]::Open($file.FullName,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+                $reader=[IO.BinaryReader]::new($stream)
+                $tailLength=[int][Math]::Min(65536,$stream.Length);[void]$stream.Seek(-$tailLength,[IO.SeekOrigin]::End);$tail=$reader.ReadBytes($tailLength)
+                $latin=[Text.Encoding]::GetEncoding(28591);$tailText=$latin.GetString($tail);$magic=$latin.GetString([BitConverter]::GetBytes([uint32]0x5a6f12e1))
+                for($i=$tailText.LastIndexOf($magic,[StringComparison]::Ordinal);$i -ge 1;$i=$tailText.LastIndexOf($magic,$i-1,[StringComparison]::Ordinal)){
+                    if($i -gt $tail.Length-44){continue}
+                    $version=[BitConverter]::ToUInt32($tail,$i+4);$offset=[BitConverter]::ToInt64($tail,$i+8);$size=[BitConverter]::ToInt64($tail,$i+16)
+                    if($version -lt 3 -or $version -gt 11 -or $tail[$i-1] -ne 0 -or $offset -lt 0 -or $size -lt 12 -or $size -gt 32MB -or $offset -gt $stream.Length-$size){continue}
+                    [void]$stream.Seek($offset,[IO.SeekOrigin]::Begin);$index=$reader.ReadBytes([int]$size)
+                    $length=[BitConverter]::ToInt32($index,0)
+                    if($length -lt 1 -or $length -gt 1024 -or $length+16 -gt $index.Length){continue}
+                    $mount=[Text.Encoding]::UTF8.GetString($index,4,$length)
+                    if([BitConverter]::ToInt32($index,4+$length) -lt 2){continue}
+                    $directory=$index
+                    if($version -ge 10){
+                        $at=4+$length+4+8
+                        for($part=0;$part -lt 2;$part++){
+                            if($at+4 -gt $index.Length){throw 'Truncated Unreal package index'}
+                            $present=[BitConverter]::ToInt32($index,$at);$at+=4
+                            if($present -notin @(0,1)){throw 'Invalid Unreal directory flag'}
+                            if($present){
+                                if($at+36 -gt $index.Length){throw 'Truncated Unreal directory descriptor'}
+                                $dirOffset=[BitConverter]::ToInt64($index,$at);$dirSize=[BitConverter]::ToInt64($index,$at+8);$at+=36
+                                if($part -eq 1){
+                                    if($dirOffset -lt 0 -or $dirSize -lt 8 -or $dirSize -gt 32MB -or $dirOffset -gt $stream.Length-$dirSize){throw 'Invalid Unreal directory bounds'}
+                                    [void]$stream.Seek($dirOffset,[IO.SeekOrigin]::Begin);$directory=$reader.ReadBytes([int]$dirSize)
+                                }
+                            }elseif($part -eq 1){throw 'Unreal full directory index unavailable'}
+                        }
+                    }
+                    $names=$mount+[Text.Encoding]::UTF8.GetString($directory)
+                    if($names.IndexOf('VRG/',[StringComparison]::OrdinalIgnoreCase) -ge 0 -and
+                       $names.Contains("BP_MotionController.uasset`0") -and $names.Contains("VRPlayerManager.uasset`0")){
+                        $script:vrgPakPresenceCache[$key]=$true;return $file.FullName
+                    }
+                }
+            }catch{}finally{if($reader){$reader.Dispose()}elseif($stream){$stream.Dispose()}}
+        }
+    }
+    return $null
+}
+
 function global:Get-LocatedExternalVrContract {
     param($Game,[string]$Root,[switch]$Requested,[string]$RuntimeRoot='')
     if (-not $Game -or -not $Root -or -not [IO.Directory]::Exists($Root)) { return $null }
+    if($Game.Id -eq 'deep-rock-galactic-vr'){$Requested=$true}
     if (-not $Requested) {
         if (-not (Get-Command Read-PersistentGameStateValue -ErrorAction SilentlyContinue)) { return $null }
         $matchesLocation=$false
@@ -3865,17 +3980,16 @@ function global:Get-LocatedExternalVrContract {
         }
         if (-not $matchesLocation) { return $null }
     }
-    $copy=@{}
-    if ($Game -is [Collections.IDictionary]) { foreach($key in $Game.Keys){$copy[$key]=$Game[$key]} }
-    else {foreach($property in $Game.PSObject.Properties){$copy[$property.Name]=$property.Value}}
+    $copy=if($Game -is [hashtable]){$Game.Clone()}else{@{}}
+    if ($Game -is [Collections.IDictionary] -and $Game -isnot [hashtable]) { foreach($key in $Game.Keys){$copy[$key]=$Game[$key]} }
+    elseif($Game -isnot [Collections.IDictionary]) {foreach($property in $Game.PSObject.Properties){$copy[$property.Name]=$property.Value}}
     # These are Hub bookkeeping, not publisher runtime files. A renamed DLL
     # such as winhttp.dll.pcvrhub_off remains real runtime evidence.
-    $omit={param([string]$Path)
-        return ($Path -match '(?i)(^|[\\/])\.pcvrhub[^\\/]*(?:[\\/]|$)|(^|[\\/])\.ts_versions[\\/]|^(?:PCVR-Launcher|PCVR-Cyberpunk)[\\/]')
-    }
     $filter={param($Values)
         foreach($value in @($Values)) {
-            $alternatives=@(([string]$value -split '\|')|Where-Object {$_ -and -not (& $omit $_)})
+            $alternatives=@(foreach($part in ([string]$value -split '\|')){
+                if($part -and $part -notmatch '(?i)(^|[\\/])\.pcvrhub[^\\/]*(?:[\\/]|$)|(^|[\\/])\.ts_versions[\\/]|^(?:PCVR-Launcher|PCVR-Cyberpunk)[\\/]'){$part}
+            })
             if($alternatives.Count){$alternatives -join '|'}
         }
     }
@@ -3902,11 +4016,32 @@ function global:Get-LocatedExternalVrContract {
     # installs use their specific publisher payload instead, never a proxy by
     # itself. These names come from the existing reviewed installer contracts.
     switch([string]$Game.Id){
+        'deep-rock-galactic-vr' {
+            $pak=Get-PCVRVrgRuntimePak -Root $Root
+            $prefix=[IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/')+[IO.Path]::DirectorySeparatorChar
+            if($pak -and $pak.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)){
+                $copy.ModFile=$pak.Substring($prefix.Length)
+                $copy.VrInstallEvidence=@($copy.ModFile)
+            }elseif($pak){
+                # A second physical root is an explicit runtime-file proof,
+                # never a relative path escaped out of the original game.
+                $copy.ModFile=$null;$copy.VrInstallEvidence=@()
+                $copy._ExternalRuntimeFiles=@($pak)
+            }else{
+                $copy.ModFile='.missing-publisher-vrg-runtime'
+                $copy.VrInstallEvidence=@($copy.ModFile)
+            }
+        }
         'deus-ex-human-revolution-directors-cut-vr' {$copy.ModFile='DeusExHRVR\DeusExHRVRHost.exe'}
         'goldeneye-007-vr' {$copy.ModFile='goldeneye.exe'}
         'metal-gear-solid-v-the-phantom-pain-vr' {$copy.ModFile='dinput8.dll';$copy.VrInstallEvidence=@('dinput8.dll','mgs5vr.ini')}
         'prey-2006-vr' {$copy.ModFile='PreyVR.exe'}
         'project-zomboid-vr' {$copy.ModFile='zbNative.dll'}
+        'painkiller-overdose-vr' {
+            $publisher=Get-PainkillerOverdoseVrExecutable -Root $Root
+            $copy.ModFile=if($publisher){$publisher.Name}else{'.missing-publisher-painkiller-vr-executable'}
+            $copy.VrInstallEvidence=@($copy.ModFile)
+        }
         'max-payne-2-vr' {
             $copy.ModAProbeFile='maxpayne2vr.asi';$copy.ModARequiredFile=$null;$copy.ModARequiredFileGroups=@('d3d8.dll','dinput.dll','Max Payne 2 VR.exe','maxpayne2vr_assets.bin','MP2VR_FirstPerson.mp2m')
             $copy.ModBProbeFile='winmm.dll';$copy.ModBRequiredFile=$null;$copy.ModBRequiredFileGroups=@('d3d8.dll','d3d9.dll','dxvk.conf')
@@ -3915,7 +4050,7 @@ function global:Get-LocatedExternalVrContract {
         'quake-vr' {$copy.ModBProbeFile='darkplaces-sdl.exe';$copy.ModBRequiredFileGroups=@('libopenxr_loader.dll','id1\pak0.pak')}
         'quake-2-vr' {$copy.ModAProbeFile='yquake2.exe';$copy.ModARequiredFileGroups=@('libopenxr_loader.dll','SDL2.dll','ref_gl1.dll','baseq2\game.dll','baseq2\pak0.pak')}
         'risk-of-rain-2' {$copy.ModFile='BepInEx\plugins\VRMod.dll';$copy.VrInstallEvidence=@($copy.CurrentRequiredFile)}
-        'snowrunner-vr' {$copy.ModFile='Sources\Bin\dxgi.dll';$copy.ModFileAlt='Sources\Bin\dxgi.dll.pcvrhub_off';$copy.VrInstallEvidence=@('Sources\Bin\Snowrunner_VR_config.txt')}
+        'snowrunner-vr' {$copy.ModFile='Sources\Bin\dxgi.dll';$copy.ModFileAlt='Sources\Bin\dxgi.dll.pcvrhub_off';$copy.VrInstallEvidence=if($copy.VrInstallEvidenceRoutes){@()}else{@('Sources\Bin\Snowrunner_VR_config.txt')}}
     }
     # Session-based mods deliberately keep their runtime outside the game.
     # Locate records that second root; it does not copy or "install" anything.
@@ -3932,11 +4067,8 @@ function global:Get-LocatedExternalVrContract {
         if($Game.Id -eq 'ff7-remake-intergrade-vr'){$copy.ModFile=$null;$copy.VrInstallEvidence=@()}
     }
     if($Game.Id -eq 'final-fantasy-xiv-vr'){
-        $plugins=@(foreach($base in @($env:APPDATA,$env:LOCALAPPDATA|Where-Object {$_})){
-            $dir=[IO.Path]::Combine($base,'XIVLauncher','installedPlugins')
-            if([IO.Directory]::Exists($dir)){Get-ChildItem -LiteralPath $dir -Filter 'FfxivVR.dll' -File -Recurse -ErrorAction SilentlyContinue}
-        })
-        $copy._ExternalRuntimeFiles=if($plugins.Count){@($plugins[0].FullName)}else{@([IO.Path]::Combine($Root,'.missing-Dalamud-FfxivVR.dll'))}
+        $plugin=@(Get-PCVRFfxivPluginProof)
+        $copy._ExternalRuntimeFiles=if($plugin.Count){@($plugin[0].Files)}else{@([IO.Path]::Combine($Root,'.missing-Dalamud-FfxivVR.dll'))}
     }
     # Mod managers may put a known plugin below a package-named folder.
     # Resolve only a unique known DLL name inside BepInEx/plugins; never scan
@@ -3950,9 +4082,15 @@ function global:Get-LocatedExternalVrContract {
         $mapped=if($hits.Count -eq 1){$hits[0].FullName.Substring($Root.TrimEnd([char[]]'\/').Length+1)}else{$Relative}
         $pluginMap[$Relative]=$mapped;return $mapped
     }
-    foreach($key in @('ModFile','ModFileAlt','ModFileAlt2','VrInstallEvidence')){
-        if(-not $copy[$key]){continue};$mapped=@(foreach($value in @($copy[$key])){@(([string]$value -split '\|')|ForEach-Object {& $resolvePlugin $_}) -join '|'})
-        $copy[$key]=if($key -eq 'VrInstallEvidence'){@($mapped)}elseif($mapped.Count -eq 1){[string]$mapped[0]}else{@($mapped)}
+    foreach($key in @('ModFile','ModFileAlt','ModFileAlt2','CurrentModFile','CurrentRequiredFile','VrInstallEvidence')){
+        if(-not $copy[$key]){continue}
+        $mapped=@(foreach($value in @($copy[$key])){
+            $parts=@(foreach($part in ([string]$value -split '\|')){
+                if($part -match '(?i)^BepInEx[\\/]plugins[\\/].+\.dll$'){& $resolvePlugin $part}else{$part}
+            })
+            $parts -join '|'
+        })
+        $copy[$key]=if($key -in @('VrInstallEvidence','CurrentRequiredFile')){@($mapped)}elseif($mapped.Count -eq 1){[string]$mapped[0]}else{@($mapped)}
     }
     # Follow a mod manager's explicit Doorstop preloader location. Only known
     # BepInEx runtime files are resolved there; no search leaves that selected
@@ -4011,6 +4149,7 @@ function global:Get-LocatedExternalVrContract {
         $coreGroup=@('BepInEx\core\BepInEx.Preloader.dll','BepInEx\core\BepInEx.Preloader.Core.dll','BepInEx\core\BepInEx.Unity.IL2CPP.dll','BepInEx\core\BepInEx.Unity.Mono.dll')|ForEach-Object {$bepPrefix+$_}
         $copy.VrInstallEvidence=@($copy.VrInstallEvidence)+@($proxyGroup,($bepPrefix+'doorstop_config.ini'),($coreGroup -join '|'))
     }
+    if($copy.CurrentModFile -and -not @(& $filter $copy.CurrentModFile).Count){$copy.CurrentModFile=$copy.ModFile}
     $copy['_ExternalVrProbe']=$true
     return $copy
 }
@@ -4026,7 +4165,7 @@ function global:Test-LocatedVrRuntime {
             # Locate reports the two independent claims separately. Finding
             # the publisher payload lets the existing picker request its base
             # game; it must not demand that association before finding it.
-            $presenceGame=$external.Clone();$presenceGame.BaseGameProofFiles=@();$presenceGame.GameExe='';$presenceGame.TwoModsSeparateBaseGame=$false
+            $presenceGame=$external.Clone();$presenceGame.BaseGameProofFiles=@();$presenceGame.OriginalGameProofSets=@();$presenceGame.GameExe='';$presenceGame.TwoModsSeparateBaseGame=$false
         }
         $presence=Get-TwoModsPresence -Game $presenceGame -FallbackRoot $Root -BaseGamePath $BaseGamePath
         foreach($definition in @(Get-AlternativeModDefinitions -Game $external)){
@@ -4034,6 +4173,16 @@ function global:Test-LocatedVrRuntime {
             $foundRoot=[string]$presence[($definition.Mode+'Root')]
             if(-not $foundRoot){$foundRoot=[string]$presence[($definition.Slot+'Root')]}
             if($foundRoot -and [IO.Path]::GetFullPath($foundRoot).TrimEnd([char[]]'\/') -ieq [IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/')){return $true}
+        }
+        return $false
+    }
+    if($external.DualMode){
+        $routeGame=$external.Clone();$routeGame.CurrentStandalonePaths=@($Root)
+        $presence=Get-DualModePresence -Game $routeGame -NoStateMigration -CurrentCandidatePaths @($Root)
+        $wanted=[IO.Path]::GetFullPath($Root).TrimEnd([char[]]'\/')
+        foreach($route in @('Current','Depot','Legacy')){
+            $found=[string]$presence[($route+'Dir')]
+            if($presence[($route+'Present')] -and $found -and [IO.Path]::GetFullPath($found).TrimEnd([char[]]'\/') -ieq $wanted){return $true}
         }
         return $false
     }
@@ -4045,13 +4194,140 @@ function global:Test-LocatedVrRuntime {
     return $false
 }
 
+function global:Get-PainkillerOverdoseVrExecutable {
+    param([string]$Root)
+    # The publisher ships the VR code in this versioned executable, while
+    # the Hub's stable BAT is only a convenience entry point. Keep the
+    # publisher installer's existing filename family, without a release pin.
+    try {
+        $matches=@(Get-ChildItem -LiteralPath $Root -File -Filter '*.exe' -ErrorAction Stop | Where-Object {
+            $_.Name -match '(?i)^Painkiller\s*-\s*Overdose\s+VR\s+v?\.?[0-9].*\.exe$' -and $_.Length -gt 0
+        })
+        if($matches.Count -eq 1){return $matches[0]}
+    }catch{}
+    return $null
+}
+
+function global:Test-PCVRPublisherBinary {
+    param([string]$Path,[string[]]$Markers)
+    # Identify a generic proxy by its executable format and publisher-specific
+    # runtime strings. No historical hash, size, release tag or optional file
+    # is used as an identity gate. Nothing from the binary is executed.
+    try {
+        if (-not $Markers) {
+            $stream=[IO.File]::OpenRead($Path)
+            try {
+                $header=[byte[]]::new(64)
+                if ($stream.Read($header,0,64) -ne 64 -or $header[0] -ne 0x4d -or $header[1] -ne 0x5a) { return $false }
+                $offset=[BitConverter]::ToInt32($header,0x3c)
+                if ($offset -lt 64 -or $offset -gt $stream.Length-4) { return $false }
+                $stream.Position=$offset
+                $signature=[byte[]]::new(4)
+                return ($stream.Read($signature,0,4) -eq 4 -and [BitConverter]::ToUInt32($signature,0) -eq 0x4550)
+            } finally { $stream.Dispose() }
+        }
+        $info=[IO.FileInfo]$Path
+        if(-not $info.Exists){return $false}
+        $key=$info.FullName+'|'+$info.Length+'|'+$info.LastWriteTimeUtc.Ticks+'|'+($Markers -join '|')
+        if(-not $script:publisherBinaryPresenceCache){$script:publisherBinaryPresenceCache=@{}}
+        if($script:publisherBinaryPresenceCache.ContainsKey($key)){return [bool]$script:publisherBinaryPresenceCache[$key]}
+        $valid=$false
+        $bytes=[IO.File]::ReadAllBytes($Path)
+        if($bytes.Length -ge 64 -and $bytes[0] -eq 0x4d -and $bytes[1] -eq 0x5a){
+            $pe=[BitConverter]::ToInt32($bytes,0x3c)
+            if($pe -ge 0 -and $pe -le $bytes.Length-4 -and $bytes[$pe] -eq 0x50 -and $bytes[$pe+1] -eq 0x45 -and $bytes[$pe+2] -eq 0 -and $bytes[$pe+3] -eq 0){
+                $ascii=[Text.Encoding]::ASCII.GetString($bytes);$unicode=$null;$valid=$true
+                foreach($marker in $Markers){
+                    if($ascii.IndexOf($marker,[StringComparison]::OrdinalIgnoreCase) -ge 0){continue}
+                    if($null -eq $unicode){$unicode=[Text.Encoding]::Unicode.GetString($bytes)}
+                    if($unicode.IndexOf($marker,[StringComparison]::OrdinalIgnoreCase) -lt 0){$valid=$false;break}
+                }
+            }
+        }
+        if($script:publisherBinaryPresenceCache.Count -gt 256){$script:publisherBinaryPresenceCache.Clear()}
+        $script:publisherBinaryPresenceCache[$key]=$valid
+        return $valid
+    }catch{return $false}
+}
+
+function global:Get-PCVRTTWVRState {
+    param([string]$Root,[string]$Mode)
+    $core = if ($global:HubHelpersCoreRoot) { [string]$global:HubHelpersCoreRoot } elseif ($script:scriptDir) { [string]$script:scriptDir }
+    if (-not $core) { return }
+    . (Join-Path $core 'TTWVR\TTWVR-State.ps1')
+    Get-TTWInstalledState $Root $Mode
+}
+
 function global:Test-VrInstallEvidenceContract {
-    param($Game, [string]$Root, [switch]$AllowExternal, [switch]$Strict)
+    param($Game, [string]$Root, [switch]$AllowExternal, [switch]$Strict, [switch]$Uncached)
+    if(-not $Uncached -and $Game -and $Root -and $global:HubScanEvidenceCache){
+        $games=$global:HubScanEvidenceCache.Vr
+        if(-not $games.ContainsKey($Game)){$games.Add($Game,[Collections.Generic.Dictionary[string,bool]]::new([StringComparer]::Ordinal))}
+        $roots=$games[$Game];$key=([string][bool]$AllowExternal)+'|'+([string][bool]$Strict)+'|'+$Root
+        if($roots.ContainsKey($key)){$global:HubScanEvidenceCache.VrHits++;return $roots[$key]}
+        $result=[bool](Test-VrInstallEvidenceContract -Game $Game -Root $Root -AllowExternal:$AllowExternal -Strict:$Strict -Uncached)
+        $roots[$key]=$result
+        return $result
+    }
     if (-not $Strict -and -not $Game._ExternalVrProbe -and (Get-Command Get-LocatedExternalVrContract -ErrorAction SilentlyContinue)) {
         $located=Get-LocatedExternalVrContract -Game $Game -Root $Root -Requested:$AllowExternal
         if ($located) { return [bool](Test-VrInstallEvidenceContract -Game $located -Root $Root -Strict) }
     }
     if (-not $Root -or -not (Test-Path -LiteralPath $Root -PathType Container -ErrorAction SilentlyContinue)) { return $false }
+    if ($Game.TtwvrRequiresFallout3 -and -not (Get-PCVRTTWVRState -Root $Root -Mode Wastelands)) { return $false }
+    if ($Game.TrilexGame -and -not $Game.TwoMods -and
+        -not (Get-PCVRTrilexReceipt -Root $Root -Game $Game.TrilexGame -Runtime $Game.TrilexHashProof)) { return $false }
+    if ($Game.ModFileMustBePe) {
+        $proxyPresent = $false
+        foreach ($proxy in @($Game.ModFile,$Game.ModFileAlt,$Game.ModFileAlt2)) {
+            if (-not $proxy) { continue }
+            $path = Join-Path $Root $proxy
+            if ($proxy -match '(?i)\.(dll|exe)(?:\.[^\\/]+)?$') {
+                $proxyPresent = Test-PCVRPublisherBinary -Path $path
+            } else {
+                $proxyPresent = [IO.File]::Exists($path)
+            }
+            if ($proxyPresent) { break }
+        }
+        if (-not $proxyPresent) { return $false }
+    }
+    if($Game.Id -eq 'soma-vr'){
+        try{foreach($file in @(Get-PCVRSomaLauncherFiles -Root $Root)){if(-not [IO.File]::Exists((Join-Path $Root $file))){return $false}}}catch{return $false}
+    }
+    if($Game.Id -eq 'final-fantasy-xiv-vr' -and -not @(Get-PCVRFfxivPluginProof).Count){return $false}
+    if($Game.RDRProfileLaunch){
+        try{
+            if(-not(Get-Command Test-RdrProfilePresence -ErrorAction SilentlyContinue)){
+                $rdrCore=if($script:scriptDir){[string]$script:scriptDir}elseif($PSScriptRoot){Split-Path $PSScriptRoot -Parent}else{''}
+                . (Join-Path $rdrCore 'RDRVR\RDRVR-Profiles.ps1')
+            }
+            return [bool]((Test-RdrProfilePresence $Root main) -or (Test-RdrProfilePresence $Root fork))
+        }catch{return $false}
+    }
+    if($Game.Id -eq 'painkiller-overdose-vr' -and -not(Get-PainkillerOverdoseVrExecutable -Root $Root)){return $false}
+    if($Game.Id -eq 'deep-rock-galactic-vr' -and -not(Get-PCVRVrgRuntimePak -Root $Root)){return $false}
+    $binaryProof=switch([string]$Game.Id){
+        'grid-2019-vr' {@{Files=@('d3d12.dll');Markers=@('CodiesVR','xrCreateInstance','xrWaitFrame')}}
+        'grid-legends-vr' {@{Files=@('d3d12.dll');Markers=@('CodiesVR','xrCreateInstance','xrWaitFrame')}}
+        'dirt-4-vr' {@{Files=@('d3d11.dll');Markers=@('CodiesVR','xrCreateInstance','xrWaitFrame')}}
+        'alan-wake-vr' {@{Files=@('d3d9.dll');Markers=@('Alan Wake VR','xrCreateInstance')}}
+        'a-kingdom-for-keflings-vr' {@{Files=@('opengl32.dll');Markers=@('KeflingsVR','xrCreateInstance')}}
+        'far-cry-2-vr' {@{Files=@('bin\dinput8.dll');Markers=@('FC2VR','xrCreateInstance')}}
+        'kingdom-come-deliverance-vr' {@{Files=@('Bin\Win64\dinput8.dll');Markers=@('KCD1VR','xrCreateInstance')}}
+        'forza-horizon-4-grayhorizon-vr' {@{Files=@('xinput1_3.dll');Markers=@('GrayHorizon','gh4vr','xrCreateInstance')}}
+        'forza-horizon-5-grayhorizon-vr' {@{Files=@('xinput1_3.dll','xinput1_4.dll');Markers=@('GrayHorizon','gh5vr','xrCreateInstance')}}
+        'forza-horizon-6-grayhorizon-vr' {@{Files=@('xinput1_3.dll','xinput1_4.dll');Markers=@('GrayHorizon','gh6vr','xrCreateInstance')}}
+    }
+    if ($binaryProof) {
+        # A graphics proxy can belong to an unrelated mod or be the restored
+        # Windows DLL. Prove this publisher's VR runtime inside the binary;
+        # an ownership/version receipt cannot supply that identity.
+        $identified=$false
+        foreach($relative in $binaryProof.Files){
+            if(Test-PCVRPublisherBinary -Path ([IO.Path]::Combine($Root,$relative)) -Markers $binaryProof.Markers){$identified=$true;break}
+        }
+        if(-not $identified){return $false}
+    }
     foreach($file in @($Game._ExternalRuntimeFiles|Where-Object {$_})){if(-not [IO.File]::Exists([string]$file)){return $false};if([IO.Path]::GetExtension([string]$file) -in @('.dll','.exe','.asi','.jar','.pck') -and ([IO.FileInfo]$file).Length -eq 0){return $false}}
     if($Game._ExternalDoorstopRequired -and -not (Test-DoorstopTargetModMarker -GameRoot $Root -TargetMarker $Game.DoorstopTargetModFile -LoaderFile $Game.DoorstopLoaderFile)){return $false}
     if ($Game.VrDisableMarker) {
@@ -4061,6 +4337,16 @@ function global:Test-VrInstallEvidenceContract {
     }
     foreach ($evidence in @($Game.VrInstallEvidence)) {
         if (-not $evidence) { continue }
+        # Presence describes the publisher runtime. Ownership and version
+        # receipts describe our transaction, and may be absent from a valid
+        # older or independently installed mod. Strict transaction callers
+        # retain their complete evidence contract; route/build pins are not
+        # relaxed here.
+        if (-not $Strict) {
+            $publisherEvidence=@(([string]$evidence -split '\|') | Where-Object { $_ -and $_ -notmatch '(?i)(^|[\\/])(?:\.pcvrhub(?:_[^\\/]+)?_version|\.pcvrhub\.install\.json|\.pcvrhub_[^\\/]+_ownership\.(?:csv|json))$' })
+            if (-not $publisherEvidence.Count) { continue }
+            $evidence=$publisherEvidence -join '|'
+        }
         try {
               $evidenceFound=$false
               foreach($alternative in @(([string]$evidence) -split '\|' | ForEach-Object {$_.Trim()} | Where-Object {$_})) {
@@ -4076,6 +4362,7 @@ function global:Test-VrInstallEvidenceContract {
         if($global:HubFileSystemLabRoot -and -not($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA)){return $false}
         if(-not $localRoot){return $false}
         foreach($relative in @($Game.VrInstallLocalAppDataEvidence)){
+            if(-not $Strict -and [string]$relative -match '(?i)(^|[\\/])(?:\.pcvrhub(?:_[^\\/]+)?_version|\.pcvrhub\.install\.json|\.pcvrhub_[^\\/]+_ownership\.(?:csv|json))$'){continue}
             if(-not $relative -or [IO.Path]::IsPathRooted([string]$relative) -or [string]$relative -match '(^|[\/])\.\.([\/]|$)'){return $false}
             try{if(-not(Test-Path -LiteralPath (Join-Path $localRoot ([string]$relative)) -PathType Leaf -ErrorAction SilentlyContinue)){return $false}}catch{return $false}
         }
@@ -4084,6 +4371,7 @@ function global:Test-VrInstallEvidenceContract {
         if($global:HubFileSystemLabRoot -and $env:PCVR_HUB_TEST_MODE -ne '1'){return $false}
         if(-not $env:APPDATA){return $false}
         foreach($relative in @($Game.VrInstallRoamingAppDataEvidence)){
+            if(-not $Strict -and [string]$relative -match '(?i)(^|[\\/])(?:\.pcvrhub(?:_[^\\/]+)?_version|\.pcvrhub\.install\.json|\.pcvrhub_[^\\/]+_ownership\.(?:csv|json))$'){continue}
             if(-not $relative -or [IO.Path]::IsPathRooted([string]$relative) -or [string]$relative -match '(^|[\\/])\.\.([\\/]|$)'){return $false}
             if(-not(Test-Path -LiteralPath (Join-Path $env:APPDATA ([string]$relative)) -PathType Leaf -ErrorAction SilentlyContinue)){return $false}
         }
@@ -4096,7 +4384,13 @@ function global:Test-VrInstallEvidenceContract {
     }
     if($Game.Id -eq 'dead-space-2-vr'){
         $required=Join-Path $Root '.pcvrhub_deadspace2_marker_required.txt'
-        if(-not(Test-Path -LiteralPath $required -PathType Leaf)){if($Game._ExternalVrProbe){return $true};return $false}
+        if(-not(Test-Path -LiteralPath $required -PathType Leaf)){
+            # This records the installer's compatibility decision, not the
+            # existence of the publisher VR runtime. Discovery can adopt a
+            # working copy without it; strict transaction checks still demand
+            # the decision that the installer promised to write.
+            if($Game._ExternalVrProbe -or -not $Strict){return $true};return $false
+        }
         $markerFlag=[IO.File]::ReadAllText($required).Trim()
         if($markerFlag -notin @('0','1')){return $false}
         if($markerFlag -eq '1'){

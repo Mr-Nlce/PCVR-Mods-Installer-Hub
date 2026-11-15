@@ -24,20 +24,25 @@ $MOD_FALLBACK_URL = "https://github.com/Blah64/Vostok-VR-Mod/releases/download/v
 $MOD_FALLBACK_TAG = "v1.4.0"
 $MOD_NAME = "Road to Vostok VR Mod"
 $INFO_URL = "https://github.com/Blah64/Vostok-VR-Mod"
-$MML_VERSION = "3.4.1"
-$MML_RELEASE = "https://github.com/ametrocavich/vostok-mod-loader/releases/tag/v3.4.1"
+$MML_VERSION = "3.5.0"
+$MML_RELEASE = "https://github.com/ametrocavich/vostok-mod-loader/releases/tag/v$MML_VERSION"
+$MML_DOWNLOAD = "https://github.com/ametrocavich/vostok-mod-loader/releases/download/v$MML_VERSION"
 $MML_FILES = @(
- @{ Name="modloader.gd"; Url="https://github.com/ametrocavich/vostok-mod-loader/releases/download/v3.4.1/modloader.gd" },
- @{ Name="override.cfg"; Url="https://github.com/ametrocavich/vostok-mod-loader/releases/download/v3.4.1/override.cfg" }
+ @{ Name="modloader.gd"; Url="$MML_DOWNLOAD/modloader.gd" },
+ @{ Name="override.cfg"; Url="$MML_DOWNLOAD/override.cfg" }
 )
 
 function Test-VostokLoaderSource {
- param([string]$Path,[string]$Name)
+ param([string]$Path,[string]$Name,[version]$MinimumVersion)
  if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){return $false}
  try { $content=Get-Content -LiteralPath $Path -Raw -ErrorAction Stop } catch { return $false }
  if($content -match '(?i)^\s*<(html|!doctype)' -or $content -match '(?i)<title>.*(sign in|login)'){return $false}
  if($Name -eq 'modloader.gd'){
-  return [bool]($content -match 'Metro Mod Loader' -and $content -match '(?m)^const MODLOADER_VERSION := "3\.4\.1"')
+  $version=[regex]::Match($content,'(?m)^const MODLOADER_VERSION\s*:?=\s*"(\d+\.\d+\.\d+)"')
+  $parsedVersion=$null
+  return [bool]($content -match 'Metro Mod Loader' -and $version.Success -and
+                [version]::TryParse($version.Groups[1].Value,[ref]$parsedVersion) -and
+                (!$MinimumVersion -or $parsedVersion -ge $MinimumVersion))
  }
  if($Name -eq 'override.cfg'){
   return [bool]($content -match '(?m)^\[autoload_prepend\]' -and $content -match '(?m)^ModLoader="\*res://modloader\.gd"')
@@ -152,6 +157,7 @@ function Write-Fail { param($x) Write-Host " [XX] $x" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($r in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
  try { $p=(Get-ItemProperty -Path $r -EA Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
  }; return $null
@@ -242,11 +248,11 @@ if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the la
 $tmp = Join-Path $env:TEMP "VostokVR_$([System.IO.Path]::GetRandomFileName())"
 New-Item -ItemType Directory -Path $tmp | Out-Null
 
-$mmlCurrent = (Test-VostokLoaderSource -Path (Join-Path $gamePath 'modloader.gd') -Name 'modloader.gd') -and
-              (Test-Path -LiteralPath (Join-Path $gamePath 'override.cfg') -PathType Leaf)
+$mmlCurrent = (Test-VostokLoaderSource -Path (Join-Path $gamePath 'modloader.gd') -Name 'modloader.gd' -MinimumVersion $MML_VERSION) -and
+              (Test-VostokLoaderSource -Path (Join-Path $gamePath 'override.cfg') -Name 'override.cfg')
 
 if ($mmlCurrent) {
- Write-Info "Metro Mod Loader v$MML_VERSION already installed."
+ Write-Info "Metro Mod Loader v$MML_VERSION or newer already installed."
 } else {
  Write-Host " Installing or updating Metro Mod Loader v$MML_VERSION..." -ForegroundColor White
  Write-Host " The current release is two individual files, not a ZIP." -ForegroundColor Gray
@@ -385,7 +391,7 @@ if ($allGood) {
  $receiptRoot=if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_VOSTOK_TEST_GAME_ROOT){$gamePath}else{$PSScriptRoot}
  try { Set-Content -Path (Join-Path $receiptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force } catch {}
  if (Test-IsTrackableInstalledVersion $modVersion) {
-  try { Set-Content -Path (Join-Path $receiptRoot ".installed_version") -Value $modVersion -Encoding UTF8 -Force } catch {}
+  try { Set-Content -LiteralPath (Join-Path $receiptRoot ".installed_version") -Value $modVersion -Encoding UTF8 -Force } catch {}
   Save-InstalledStamp -GameDir $gamePath -Version $modVersion
  }
 }

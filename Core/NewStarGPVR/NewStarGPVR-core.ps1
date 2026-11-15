@@ -1,4 +1,4 @@
-# -------------------------------------------------------
+﻿# -------------------------------------------------------
 # New Star GP VR Mod Installer
 # by Astienth - distributed via Discord
 #
@@ -64,6 +64,7 @@ function Write-Fail { param($m) Write-Host " [X] $m" -ForegroundColor Red }
 function Pause-User { param($text = "Press Enter to continue...", $Color = "Yellow") Write-Host ""; Write-Host " >>> $text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
 
 function Get-SteamPath {
+ if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
  foreach ($reg in @(
  "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam",
  "HKLM:\SOFTWARE\Valve\Steam",
@@ -99,16 +100,16 @@ function Find-NewStarGPGamePath {
    # Presence of NSGP_Data is the strongest signal we found the install.
    foreach ($folder in @("New Star GP")) {
     $candidate = Join-Path $lib "steamapps\common\$folder"
-    if (Test-Path -LiteralPath "$candidate\NSGP_Data") { return $candidate }
-    if (Test-Path $candidate) { return $candidate }
+    if (Test-Path -LiteralPath "$candidate\NSGP_Data") { if (Test-PCVRGameInstallProof -GameId 'new-star-gp-vr' -Root $candidate) { return $candidate } }
+    if (Test-Path $candidate) { if (Test-PCVRGameInstallProof -GameId 'new-star-gp-vr' -Root $candidate) { return $candidate } }
    }
   }
  }
  # Xbox App / Microsoft Store install (C:\XboxGames\<Title>\Content)
  foreach ($drive in @("C:", "D:", "E:", "F:")) {
   $xb = "$drive\XboxGames\New Star GP\Content"
-  if (Test-Path -LiteralPath "$xb\NSGP_Data") { return $xb }
-  if (Test-Path $xb) { return $xb }
+  if (Test-Path -LiteralPath "$xb\NSGP_Data") { if (Test-PCVRGameInstallProof -GameId 'new-star-gp-vr' -Root $xb) { return $xb } }
+  if (Test-Path $xb) { if (Test-PCVRGameInstallProof -GameId 'new-star-gp-vr' -Root $xb) { return $xb } }
  }
  return $null
 }
@@ -228,16 +229,8 @@ if ($gamePath) {
  Write-Host " Please paste the path to your New Star GP folder" -ForegroundColor White
  Write-Host " (the folder that contains 'NSGP_Data')." -ForegroundColor White
  Write-Host ""
- while (-not $gamePath) {
- $r = (Read-Host " New Star GP folder").Trim().Trim('"')
- if (-not $r) { continue }
- if (Test-Path $r) {
- $gamePath = $r
- Write-OK "Game folder set: $gamePath"
- } else {
- Write-Fail "Folder not found: $r"
- }
- }
+ $gamePath = Get-GameFolderInteractive -GameName 'New Star GP' -HubGameId 'new-star-gp-vr' -ProbeFile 'release\NSGP.exe'
+ if (-not $gamePath -or $gamePath -in @('quit','skip')) { throw 'No complete original game was selected. Choose Retry to select its folder or executable.' }
 }
 
 # The game exe (NSGP.exe) lives in a "release" subfolder, so the mod

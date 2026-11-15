@@ -24,7 +24,32 @@
 #  during that run and uses the answer on the next start.
 # ============================================================
 
-. (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+param([ValidateSet('','alpha','trilex','1','2')][string]$Mod='')
+
+. (Join-Path $PSScriptRoot '..\Modules\PublisherGameHandoff.ps1')
+
+if (-not $Mod) {
+    Write-Host '  [1] SingularityVR by letsgosportsteam (Virtual Desktop / VDXR)'
+    Write-Host '  [2] Trilex VR (OpenXR, separate game copy)'
+    Write-Host '  Each version has its own files and launch folder.'
+    Show-AntivirusNotice -Compact
+    do { $Mod = ('' + (Read-Host '  Select a mod [1], or Q to cancel')).Trim() } until ($Mod -in @('','1','2','Q'))
+    if ($Mod -eq 'Q') { return }
+}
+if ($Mod -in @('trilex','2')) {
+    $game = @{
+        Id='singularity-vr'; Title='Singularity VR'; Publisher='singularity'; App='42670'; SteamFolder='Singularity'
+        Base=@('Binaries\Singularity.exe','RvGame\CookedPC\RvGame.xxx')
+        Proof=@('Binaries\d3d9.dll','Binaries\dinput8.dll','Binaries\openxr_loader.dll')
+        HashProof=@('Binaries\d3d9.dll','Binaries\dinput8.dll','Binaries\openxr_loader.dll')
+        Processes=@('Singularity','TrilexModInstaller')
+        Notes='Select a separate, clean copy of Singularity. Keep your existing VDXR installation in its own folder.'
+        Done='Use Start Trilex in the Hub. Manage optional audio, repair and removal in Trilex.'
+        Quip='Give time a hand. Then give it the other one.'
+    }
+    Invoke-PublisherGameHandoff -Game $game -InstallerFolder $PSScriptRoot
+    return
+}
 
 $Host.UI.RawUI.WindowTitle = "Singularity VR Installer"
 $ErrorActionPreference = "Stop"
@@ -112,6 +137,10 @@ if (-not $gameDir) {
         if (Test-Path -LiteralPath "$c\$GAME_EXE") { $gameDir = $c; break }
     }
 }
+if ($gameDir -and [IO.File]::Exists((Join-Path $gameDir 'Binaries\dinput8.dll'))) {
+    Write-Warn "The detected game folder has a DirectInput proxy. Choose the separate letsgosportsteam folder."
+    $gameDir = $null
+}
 while (-not $gameDir) {
     Write-Warn "Could not find $GAME_NAME automatically."
     Write-Host "  Drag the game folder into this window (the one holding" -ForegroundColor White
@@ -119,7 +148,8 @@ while (-not $gameDir) {
     Write-Host "  Leave it empty to stop - nothing has been changed yet." -ForegroundColor Gray
     $raw = (Read-Host "  Game folder").Trim().Trim('"')
     if (-not $raw) { Write-Info "Stopped. Nothing was changed."; Pause-User "Press Enter to exit."; exit 1 }
-    if (Test-Path -LiteralPath "$raw\$GAME_EXE") { $gameDir = $raw }
+    if ([IO.File]::Exists((Join-Path $raw 'Binaries\dinput8.dll'))) { Write-Fail 'Choose a folder without the Trilex or another DirectInput proxy.' }
+    elseif (Test-Path -LiteralPath "$raw\$GAME_EXE") { $gameDir = $raw }
     else { Write-Fail "That folder does not contain $GAME_EXE." }
 }
 Write-OK "Found $GAME_NAME`: $gameDir"
@@ -503,9 +533,9 @@ Write-Host "  ------------------------------------------------------------" -For
 Write-Host "  Connect Virtual Desktop FIRST, then Start in VR in the Hub." -ForegroundColor White
 Write-Host "  Hold Y for the in-headset settings menu, hold Menu to recentre." -ForegroundColor Gray
 Write-Host "  The full controller map is on this game's page in the Hub." -ForegroundColor Gray
-Write-Host "  Back to flat: the Flat / VR switch on that same page." -ForegroundColor Gray
+Write-Host "  To play flat, use an unmodified game copy." -ForegroundColor Gray
 Write-Host ""
 Write-Host "  >>> Time is a weapon here. So is your other hand." -ForegroundColor Magenta
 Write-Host ""
-Pause-User "Press Enter to exit."
+[void](Wait-PCVRExplicitEnter -Message 'Press Enter to close setup...')
 exit 0

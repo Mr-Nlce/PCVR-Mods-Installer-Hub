@@ -119,6 +119,7 @@ function Set-Doom3BfgClippingOffsets {
 }
 
 function Get-SteamPath {
+    if ($PSVersionTable.PSEdition -eq 'Core' -and $IsLinux -and $env:PCVR_STEAM_ROOT -and (Test-Path -LiteralPath $env:PCVR_STEAM_ROOT)) { return $env:PCVR_STEAM_ROOT } # Linux Hub only
     foreach ($reg in @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam","HKLM:\SOFTWARE\Valve\Steam","HKCU:\SOFTWARE\Valve\Steam")) {
         try { $p=(Get-ItemProperty -Path $reg -ErrorAction Stop).InstallPath; if($p -and (Test-Path $p)){return $p} } catch {}
     }; return $null
@@ -297,7 +298,7 @@ try {
     Set-Content -Path (Join-Path $PSScriptRoot ".installed_path") -Value $gamePath -Encoding UTF8 -Force
     $installedTag = [string]$plan[$plan.Count - 1].Tag
     if ($installedTag) {
-        Set-Content -Path (Join-Path $PSScriptRoot ".installed_version") -Value $installedTag -Encoding UTF8 -Force
+        Set-Content -LiteralPath (Join-Path $PSScriptRoot ".installed_version") -Value $installedTag -Encoding UTF8 -Force
         Save-InstalledStamp -GameDir $gamePath -Version $installedTag -HubDir $PSScriptRoot
     }
 } catch {}

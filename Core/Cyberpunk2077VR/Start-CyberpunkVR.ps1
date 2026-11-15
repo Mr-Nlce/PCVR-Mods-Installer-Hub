@@ -1,4 +1,4 @@
-param([string]$GameDirectory,[string]$RuntimeRoot,[switch]$PlanOnly,[switch]$FunctionsOnly)
+﻿param([string]$GameDirectory,[string]$RuntimeRoot,[switch]$PlanOnly,[switch]$FunctionsOnly)
 $ErrorActionPreference='Stop'
 if(-not $GameDirectory){$GameDirectory=Split-Path $PSScriptRoot -Parent}
 $game=[IO.Path]::GetFullPath($GameDirectory).TrimEnd('\')
@@ -85,8 +85,24 @@ function Save-CyberpunkInitialSaveBackup {
 }
 function Get-CyberpunkExternalLaunchProof {
     param([string]$Root,[string]$Version)
+    # The modern publisher-native package embeds its own Lua, script,
+    # archive, input and TweakDB support. Other mods may retain their frameworks.
+    $modern=[IO.Path]::Combine($Root,'red4ext\plugins\cyberpunkvrport\cyberpunkvrport.dll')
+    if($Version -eq '2.5' -and [IO.File]::Exists($modern)){
+        if(-not(Get-Command Get-CyberpunkModernRequiredFiles -ErrorAction SilentlyContinue)){
+            $helper=Join-Path $PSScriptRoot 'CyberpunkStartupCompatibility.ps1'
+            if(-not(Test-Path -LiteralPath $helper -PathType Leaf)){$helper=Join-Path $PSScriptRoot '..\Modules\CyberpunkStartupCompatibility.ps1'}
+            . $helper
+        }
+        $required=@('red4ext\RED4ext.dll','bin\x64\winmm.dll')+@(Get-CyberpunkModernRequiredFiles -ModVersion (Get-CyberpunkPortVersionHint $Root))
+        foreach($rel in $required){$path=[IO.Path]::Combine($Root,$rel);if(-not [IO.File]::Exists($path) -or (Get-Item -LiteralPath $path).Length -eq 0){throw ('Required VR file is missing: '+$rel+'. Run Repair or locate the complete modded game copy.')}}
+        $red4ext=[Diagnostics.FileVersionInfo]::GetVersionInfo([IO.Path]::Combine($Root,'red4ext\RED4ext.dll'))
+        $v=([regex]::Match([string]$red4ext.FileVersion,'\d+\.\d+\.\d+')).Value
+        if($v -and [version]$v -lt [version]'1.31.0'){throw 'Current requires RED4ext 1.31.0 or newer. Repair this route.'}
+        return [pscustomobject]@{GameVersion='2.5';CoreOnly=$true;Dependencies=@([pscustomobject]@{Name='RED4ext';Version='1.31.0'});InputLoader=$null}
+    }
     . (Join-Path $PSScriptRoot '..\Modules\CyberpunkRoutes.ps1')
-    $profile=if($Version -eq '2.31'){Get-CyberpunkDepotProfile}elseif($Version -eq '2.5'){Get-CyberpunkCurrentProfile}else{throw 'This VR port supports game 2.31 or 2.5. Locate the matching modded game copy.'}
+    $profile=if($Version -eq '2.31'){Get-CyberpunkDepotProfile}elseif($Version -eq '2.5'){Get-CyberpunkCurrentProfile -LegacyRuntime}else{throw 'This VR port supports game 2.31 or 2.5. Locate the matching modded game copy.'}
     if($Version -eq '2.5'){
         # Publisher 0.1.9 README minima, distinct from the Hub's latest packages.
         $minimum=@('1.31.0','1.38.0','0.5.32','1.12.0','1.28.0','1.21.0')
@@ -111,7 +127,8 @@ try{
     $route=if(Test-Path -LiteralPath (Join-Path $game '.pcvrhub_cyberpunk_depot_231')){'Depot'}else{'Current'}
     $required=if($route -eq 'Depot'){'2.31'}else{'2.5'}
     $exe=Join-Path $game 'bin\x64\Cyberpunk2077.exe'
-    $plugin=Join-Path $game 'red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'
+    $plugin=Join-Path $game $(if($route -eq 'Depot'){'red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'}else{'red4ext\plugins\cyberpunkvrport\cyberpunkvrport.dll'})
+    if($route -ne 'Depot' -and -not(Test-Path -LiteralPath $plugin)){$plugin=Join-Path $game 'red4ext\plugins\CyberpunkVR_Stereo\CyberpunkVR_Stereo.dll'}
     if(-not(Test-Path -LiteralPath $exe) -or -not(Test-Path -LiteralPath $plugin)){throw 'The game or VR mod is missing. Run the matching installer, or switch back to VR mode.'}
     $v=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe).ProductVersion
     $external=(-not(Test-Path -LiteralPath (Join-Path $game '.pcvrhub_cyberpunk_25_profile.json')) -and
@@ -124,15 +141,24 @@ try{
     $profileName=if($route -eq 'Depot'){'.pcvrhub_cyberpunk_231_profile.json'}else{'.pcvrhub_cyberpunk_25_profile.json'}
     $proof=if($external){Get-CyberpunkExternalLaunchProof -Root $game -Version $required}else{Get-Content -LiteralPath (Join-Path $game $profileName) -Raw -ErrorAction Stop|ConvertFrom-Json}
     if($proof.GameVersion -ne $required){throw 'The VR compatibility profile belongs to a different game build. Repair this route.'}
+    $coreOnly=($required -eq '2.5' -and $route -ne 'Depot' -and [IO.File]::Exists([IO.Path]::Combine($game,'red4ext\plugins\cyberpunkvrport\cyberpunkvrport.dll')))
+    if($coreOnly){
+        # Validate the actual modern payload even for an existing owned profile.
+        $proof=Get-CyberpunkExternalLaunchProof -Root $game -Version $required
+    }
+
     $frameworkPaths=@('red4ext\RED4ext.dll','bin\x64\plugins\cyber_engine_tweaks.asi','engine\tools\scc.exe','red4ext\plugins\TweakXL\TweakXL.dll','red4ext\plugins\ArchiveXL\ArchiveXL.dll','red4ext\plugins\Codeware\Codeware.dll')
+    if($coreOnly){$frameworkPaths=@('red4ext\RED4ext.dll')}
     foreach($file in $frameworkPaths){if(-not(Test-Path -LiteralPath (Join-Path $game $file) -PathType Leaf)){throw 'A required VR framework is missing. Run Repair for this route.'}}
     if(@($proof.Dependencies).Count -ne $frameworkPaths.Count){throw 'The VR framework profile is incomplete. Repair this route.'}
+    if(-not $coreOnly){
     if(-not $proof.InputLoader){throw 'Input Loader has no verified version for this route. Run the matching installer.'}
     foreach($rel in $proof.InputLoader.RequiredFiles){if(-not(Test-Path -LiteralPath (Join-Path $game $rel) -PathType Leaf)){throw 'An Input Loader runtime file is missing. Run Repair for this route.'}}
     if(-not $external){
     $inputManifest=Join-Path $game $proof.InputLoader.Manifest
     $inputRow=@(Import-Csv -LiteralPath $inputManifest|Where-Object RelativePath -eq 'red4ext\plugins\input_loader\input_loader.dll')
     if($inputRow.Count -ne 1 -or (Get-FileHash -LiteralPath (Join-Path $game $inputRow[0].RelativePath)).Hash -ne $inputRow[0].InstalledSha256){throw 'Input Loader was changed outside this route. Run Repair before starting.'}
+    }
     }
     for($i=0;$i -lt $frameworkPaths.Count;$i++){
         $info=[Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $game $frameworkPaths[$i]))

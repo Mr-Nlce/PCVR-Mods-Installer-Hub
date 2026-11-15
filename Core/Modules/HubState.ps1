@@ -231,7 +231,7 @@ function ConvertTo-HubOrderedValue {
     if ($Value -is [Collections.IEnumerable]) {
         $items = @()
         foreach ($item in $Value) { $items += ,(ConvertTo-HubOrderedValue $item) }
-        return $items
+        return ,$items
     }
     $props = @($Value.PSObject.Properties | Where-Object { $_.MemberType -match 'Property' } | Sort-Object Name)
     if ($Value -is [Management.Automation.PSCustomObject] -or $props.Count -gt 0) {
@@ -245,8 +245,8 @@ function ConvertTo-HubOrderedValue {
 function Test-HubStateValueEqual {
     param($Left, $Right)
     try {
-        $leftJson = (ConvertTo-HubOrderedValue $Left) | ConvertTo-Json -Depth 20 -Compress
-        $rightJson = (ConvertTo-HubOrderedValue $Right) | ConvertTo-Json -Depth 20 -Compress
+        $leftJson = ConvertTo-Json -InputObject (ConvertTo-HubOrderedValue $Left) -Depth 20 -Compress
+        $rightJson = ConvertTo-Json -InputObject (ConvertTo-HubOrderedValue $Right) -Depth 20 -Compress
         return ([string]$leftJson -ceq [string]$rightJson)
     } catch { return $false }
 }
@@ -294,7 +294,7 @@ function ConvertTo-HubJsonStringLiteral {
 # PowerShell host. Build the small JSON subset used by Hub state ourselves so
 # the same data always hashes to the same bytes on both runtimes.
 function ConvertTo-HubCanonicalJson {
-    param($Value, [switch]$EscapeHtml, [switch]$PreservePropertyOrder)
+    param($Value, [switch]$EscapeHtml, [switch]$PreservePropertyOrder, [switch]$UseClassicDoubleNumbers)
     if ($null -eq $Value) { return 'null' }
     if ($Value -is [string] -or $Value -is [char]) {
         return (ConvertTo-HubJsonStringLiteral -Value ([string]$Value) -EscapeHtml:$EscapeHtml)
@@ -316,6 +316,16 @@ function ConvertTo-HubCanonicalJson {
     # PowerShell CLR terminates.  Window geometry is numeric, so this ordering
     # is part of the durable state contract rather than merely an optimization.
     $typeCode = [Type]::GetTypeCode($Value.GetType())
+    if($UseClassicDoubleNumbers -and $typeCode -in @([TypeCode]::Single,[TypeCode]::Double,[TypeCode]::Decimal)){
+        # Earlier native writers hashed .NET Framework Double-R but wrote the
+        # shorter JSON number. Windows PowerShell reads that as Decimal. This
+        # verification-only variant recovers those exact existing envelopes;
+        # ordinary writes retain the established PowerShell representation.
+        $number=[double]$Value;$culture=[Globalization.CultureInfo]::InvariantCulture
+        $short=$number.ToString('G15',$culture)
+        if([double]::Parse($short,$culture) -eq $number){return $short}
+        return $number.ToString('G17',$culture)
+    }
     switch ($typeCode) {
         ([TypeCode]::Single)  { return ([single]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
         ([TypeCode]::Double)  { return ([double]$Value).ToString('R',[Globalization.CultureInfo]::InvariantCulture) }
@@ -335,7 +345,7 @@ function ConvertTo-HubCanonicalJson {
         if (-not $PreservePropertyOrder) { [Array]::Sort($keys,[StringComparer]::Ordinal) }
         foreach ($key in $keys) {
             $name = ConvertTo-HubJsonStringLiteral -Value $key -EscapeHtml:$EscapeHtml
-            $item = ConvertTo-HubCanonicalJson -Value $Value[$key] -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder
+            $item = ConvertTo-HubCanonicalJson -Value $Value[$key] -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder -UseClassicDoubleNumbers:$UseClassicDoubleNumbers
             [void]$parts.Add($name + ':' + $item)
         }
         return '{' + ($parts -join ',') + '}'
@@ -343,7 +353,7 @@ function ConvertTo-HubCanonicalJson {
     if ($Value -is [Collections.IEnumerable]) {
         $parts = New-Object System.Collections.ArrayList
         foreach ($item in $Value) {
-            [void]$parts.Add((ConvertTo-HubCanonicalJson -Value $item -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder))
+            [void]$parts.Add((ConvertTo-HubCanonicalJson -Value $item -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder -UseClassicDoubleNumbers:$UseClassicDoubleNumbers))
         }
         return '[' + ($parts -join ',') + ']'
     }
@@ -360,7 +370,7 @@ function ConvertTo-HubCanonicalJson {
         $parts = New-Object System.Collections.ArrayList
         foreach ($property in $properties) {
             $name = ConvertTo-HubJsonStringLiteral -Value ([string]$property.Name) -EscapeHtml:$EscapeHtml
-            $item = ConvertTo-HubCanonicalJson -Value $property.Value -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder
+            $item = ConvertTo-HubCanonicalJson -Value $property.Value -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder -UseClassicDoubleNumbers:$UseClassicDoubleNumbers
             [void]$parts.Add($name + ':' + $item)
         }
         return '{' + ($parts -join ',') + '}'
@@ -368,7 +378,7 @@ function ConvertTo-HubCanonicalJson {
 
     $ordered = ConvertTo-HubOrderedValue $Value
     if (-not [object]::ReferenceEquals($ordered,$Value)) {
-        return (ConvertTo-HubCanonicalJson -Value $ordered -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder)
+        return (ConvertTo-HubCanonicalJson -Value $ordered -EscapeHtml:$EscapeHtml -PreservePropertyOrder:$PreservePropertyOrder -UseClassicDoubleNumbers:$UseClassicDoubleNumbers)
     }
     return (ConvertTo-HubJsonStringLiteral -Value ([string]$Value) -EscapeHtml:$EscapeHtml)
 }
@@ -398,6 +408,7 @@ function Test-HubLegacyStateChecksum {
     # remains recoverable regardless of which host launches the new Hub first.
     [void]$legacyTexts.Add((ConvertTo-HubCanonicalJson -Value $Data -PreservePropertyOrder))
     [void]$legacyTexts.Add((ConvertTo-HubCanonicalJson -Value $Data -EscapeHtml -PreservePropertyOrder))
+    [void]$legacyTexts.Add((ConvertTo-HubCanonicalJson -Value $Data -UseClassicDoubleNumbers))
     try { [void]$legacyTexts.Add(($Data | ConvertTo-Json -Depth 20 -Compress)) } catch {}
     foreach ($text in @($legacyTexts | Select-Object -Unique)) {
         if ((Get-HubTextHash -Text ([string]$text)) -ceq $expected) { return $true }
@@ -416,21 +427,65 @@ function Test-HubDataChecksum {
 function New-HubStateEnvelopeText {
     param($Data, [long]$Generation)
     $normalized = ConvertTo-HubOrderedValue $Data
+    $dataJson=ConvertTo-HubCanonicalJson -Value $normalized
     $envelope = [ordered]@{
         schemaVersion = 2
         generation = $Generation
         writtenUtc = [DateTime]::UtcNow.ToString('o')
-        checksum = Get-HubStateDataHash -Data $normalized
-        data = $normalized
+        checksum = Get-HubTextHash -Text $dataJson
+        data = $null
     }
-    return ($envelope | ConvertTo-Json -Depth 20)
+    # Serialize the exact data bytes that were hashed. Host serializers can
+    # otherwise add .0 to integral Decimals or shorten floating-point digits.
+    $header=ConvertTo-Json -InputObject $envelope -Depth 3 -Compress
+    if(-not $header.EndsWith('"data":null}')){throw 'The Hub state envelope header is invalid.'}
+    return $header.Substring(0,$header.Length-5)+$dataJson+'}'
+}
+
+function ConvertFrom-HubStateJson {
+    param([string]$Text)
+    $arguments=@{InputObject=$Text;ErrorAction='Stop'}
+    if((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')){$arguments.DateKind='String'}
+    $parsed=ConvertFrom-Json @arguments
+    if($PSVersionTable.PSVersion.Major -le 5){return $parsed}
+    # PS5 reads plain fractional JSON as Decimal. PS7 otherwise converts it
+    # to Double and can discard valid saved precision before checksum checks.
+    # JSON has already been validated. Consume numeric tokens in the same
+    # property/array order, skipping complete quoted strings, then restore the
+    # PS5 numeric types without interpreting numeric-looking strings.
+    $tokens=@([regex]::Matches($Text,'"(?:\\.|[^"\\])*"|(?<n>-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)')|Where-Object{$_.Groups['n'].Success}|ForEach-Object{$_.Groups['n'].Value})
+    $cursor=[pscustomobject]@{Index=0;Tokens=$tokens}
+    function Restore-HubStateJsonNumbers($Node,$Cursor){
+        if($null -eq $Node -or $Node -is [string] -or $Node -is [bool] -or $Node -is [DateTime] -or $Node -is [DateTimeOffset]){return $Node}
+        $code=[Type]::GetTypeCode($Node.GetType())
+        if($code -in @([TypeCode]::Int32,[TypeCode]::Int64,[TypeCode]::UInt64,[TypeCode]::Single,[TypeCode]::Double,[TypeCode]::Decimal) -or $Node.GetType().FullName -eq 'System.Numerics.BigInteger'){
+            if($Cursor.Index -ge $Cursor.Tokens.Count){throw 'Hub JSON numeric token count differs from the parsed document.'}
+            $raw=[string]$Cursor.Tokens[$Cursor.Index];$Cursor.Index++
+            $culture=[Globalization.CultureInfo]::InvariantCulture
+            if($raw -match '[eE]'){return [double]::Parse($raw,[Globalization.NumberStyles]::Float,$culture)}
+            $integer=0L
+            if($raw -notmatch '\.' -and [long]::TryParse($raw,[Globalization.NumberStyles]::Integer,$culture,[ref]$integer)){return $integer}
+            $number=[decimal]0
+            if([decimal]::TryParse($raw,([Globalization.NumberStyles]::AllowLeadingSign -bor [Globalization.NumberStyles]::AllowDecimalPoint),$culture,[ref]$number)){return $number}
+            return [double]::Parse($raw,[Globalization.NumberStyles]::Float,$culture)
+        }
+        if($Node -is [array]){
+            for($i=0;$i -lt $Node.Count;$i++){$Node[$i]=Restore-HubStateJsonNumbers $Node[$i] $Cursor}
+            return ,$Node
+        }
+        foreach($property in $Node.PSObject.Properties){$property.Value=Restore-HubStateJsonNumbers $property.Value $Cursor}
+        return $Node
+    }
+    $parsed=Restore-HubStateJsonNumbers $parsed $cursor
+    if($cursor.Index -ne $tokens.Count){throw 'Hub JSON numeric token count differs from the parsed document.'}
+    return $parsed
 }
 
 function Read-HubStateEnvelopeFile {
     param([string]$Path)
     if (-not $Path -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $null }
     try {
-        $parsed = (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
+        $parsed = ConvertFrom-HubStateJson -Text (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop)
         if ([int]$parsed.schemaVersion -ne 2 -or $null -eq $parsed.data -or -not $parsed.checksum) { return $null }
         $rawData = $parsed.data
         $data = ConvertTo-HubOrderedValue $rawData
@@ -598,6 +653,14 @@ function Get-HubStateEnvelope {
     param([switch]$Fresh)
     $primary = Get-HubStateFilePath
     $fallback = Get-HubFallbackStateFilePath
+    # The owned scan already snapshots individual values. A completely empty
+    # database has no SourcePath to metadata-cache; without this companion it
+    # reopens all six recovery candidates for each different missing value.
+    # Fresh readers and every persisted writer bypass/invalidate the snapshot.
+    if($Fresh -and $global:HubScanEvidenceCache){[void]$global:HubScanEvidenceCache.Remove('EmptyEnvelope');[void]$global:HubScanEvidenceCache.Remove('ScanEnvelope')}
+    if(-not $Fresh -and $global:HubScanEvidenceCache -and $global:HubScanEvidenceCache.ContainsKey('EmptyEnvelope')){
+        return $global:HubScanEvidenceCache.EmptyEnvelope
+    }
     if (-not $primary -and -not $fallback) { return [pscustomobject]@{ Generation = 0L; Data = (New-HubStateData); SourcePath = $null } }
     if (-not $Fresh -and $script:HubStateEnvelopeCache -and $script:HubStateEnvelopeCachePath) {
         # The Hub reads many values during one installed-games scan. Re-reading
@@ -662,8 +725,9 @@ function Get-HubStateEnvelope {
             # companion is then redundant as well.
             $fallbackEnvelope = Read-HubStateEnvelopeFile -Path $fallback
             if ($fallback -and (-not $fallbackEnvelope -or $fallbackEnvelope.Generation -le $envelope.Generation)) {
-                Remove-Item -LiteralPath $fallback -Force -ErrorAction SilentlyContinue
-                Remove-Item -LiteralPath ($fallback + '.previous') -Force -ErrorAction SilentlyContinue
+                foreach ($path in @($fallback, ($fallback + '.previous'))) {
+                    if ([IO.File]::Exists($path)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+                }
             }
         }
     }
@@ -678,6 +742,7 @@ function Get-HubStateEnvelope {
         $script:HubStateEnvelopeCacheLength = -1L
         $script:HubStateEnvelopeCacheWriteTicks = -1L
     }
+    if($global:HubScanEvidenceCache -and -not $envelope.SourcePath){$global:HubScanEvidenceCache.EmptyEnvelope=$envelope}
     return $envelope
 }
 
@@ -705,6 +770,26 @@ function Invoke-HubStateLock {
     param([scriptblock]$Action)
     $mutex = $null
     $held = $false
+    # Linux/pwsh only: same lock file the Linux Rust Hub uses (state.rs
+    # lock::path). FileShare.None is an exclusive flock() on Linux. Windows
+    # keeps the named mutex below unchanged.
+    if ([IO.Path]::DirectorySeparatorChar -eq '/') {
+        $lockName = (Get-HubStateMutexName) -replace '[^A-Za-z0-9_-]', '_'
+        $lockDir = Join-Path (Join-Path $env:LOCALAPPDATA 'PCVR Mods Installer Hub') 'Locks'
+        if ($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_HUB_TEST_LOCALAPPDATA) { $lockDir = Join-Path (Join-Path $env:PCVR_HUB_TEST_LOCALAPPDATA 'PCVR Mods Installer Hub') 'Locks' }
+        [void][IO.Directory]::CreateDirectory($lockDir)
+        $lockPath = Join-Path $lockDir ($lockName + '.lock')
+        $stream = $null
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        while (-not $stream) {
+            try { $stream = [IO.File]::Open($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None) }
+            catch [IO.IOException] {
+                if ([DateTime]::UtcNow -ge $deadline) { throw 'The Hub state is busy.' }
+                Start-Sleep -Milliseconds 25
+            }
+        }
+        try { return (& $Action) } finally { $stream.Dispose() }
+    }
     try {
         $mutex = New-Object System.Threading.Mutex -ArgumentList $false, (Get-HubStateMutexName)
         try { $held = $mutex.WaitOne(10000) } catch [Threading.AbandonedMutexException] { $held = $true }
@@ -718,6 +803,7 @@ function Invoke-HubStateLock {
 
 function Save-HubStateData {
     param($Data, [long]$Generation)
+    if($global:HubScanEvidenceCache){[void]$global:HubScanEvidenceCache.Remove('EmptyEnvelope');[void]$global:HubScanEvidenceCache.Remove('ScanEnvelope')}
     $primary = Get-HubStateFilePath
     $fallback = Get-HubFallbackStateFilePath
     if (-not $primary -and -not $fallback) { return $false }
@@ -746,8 +832,9 @@ function Save-HubStateData {
         Remove-LegacyPortableStateBackup -PrimaryPath $primary
         $fallbackEnvelope = Read-HubStateEnvelopeFile -Path $fallback
         if ($fallback -and (-not $fallbackEnvelope -or $fallbackEnvelope.Generation -le $verified.Generation)) {
-            Remove-Item -LiteralPath $fallback -Force -ErrorAction SilentlyContinue
-            Remove-Item -LiteralPath ($fallback + '.previous') -Force -ErrorAction SilentlyContinue
+            foreach ($path in @($fallback, ($fallback + '.previous'))) {
+                if ([IO.File]::Exists($path)) { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+            }
         }
     }
     $script:HubStateEnvelopeCache = $verified
@@ -775,18 +862,38 @@ $script:HubStateBatchActive = $false
 $script:HubStateBatchOverlay = $null
 $script:HubStateBatchDeleted = New-Object object
 
+# Interactive scan: user actions run INSIDE the scan's dispatcher pump
+# ($global:HubScanPumpDepth > 0). The scan's own detection never writes from
+# there. Such user writes must not land in the scan's in-memory overlay (lost
+# if the scan fails, invisible to installers, overwritten by the scan's
+# commit), so they bypass it and are saved at once, and a batch the user
+# action opens itself (e.g. Locate) becomes a pass-through.
+$script:HubStateBatchNested = 0
+$script:HubStateBatchUserWrites = @{}
+function Test-HubStateUserWriteDuringScan {
+    return [bool]($script:HubStateBatchActive -and [int]$global:HubScanPumpDepth -gt 0)
+}
+
 function Start-HubStateBatch {
+    if ($script:HubStateBatchActive -and [int]$global:HubScanPumpDepth -gt 0) { $script:HubStateBatchNested++; return }
     if ($script:HubStateBatchActive) { throw 'A Hub state batch is already active.' }
     $script:HubStateBatchOverlay = @{}
+    $script:HubStateBatchUserWrites = @{}
     $script:HubStateBatchActive = $true
 }
 
 function Stop-HubStateBatch {
+    if ($script:HubStateBatchNested -gt 0 -and [int]$global:HubScanPumpDepth -gt 0) { $script:HubStateBatchNested--; return }
+    $script:HubStateBatchNested = 0
     $script:HubStateBatchActive = $false
     $script:HubStateBatchOverlay = $null
+    $script:HubStateBatchUserWrites = @{}
+    if($global:HubScanEvidenceCache -and $null -ne $global:HubScanEvidenceCache.Values){$global:HubScanEvidenceCache.Values.Clear()}
+    if($global:HubScanEvidenceCache){[void]$global:HubScanEvidenceCache.Remove('EmptyEnvelope');[void]$global:HubScanEvidenceCache.Remove('ScanEnvelope')}
 }
 
 function Complete-HubStateBatch {
+    if ($script:HubStateBatchNested -gt 0 -and [int]$global:HubScanPumpDepth -gt 0) { $script:HubStateBatchNested--; return }
     if (-not $script:HubStateBatchActive) { return }
     $overlay = $script:HubStateBatchOverlay
     Stop-HubStateBatch
@@ -886,12 +993,31 @@ function global:Test-ExternalVrReady {
 function Get-LegacyPersistentGameStatePath {
     param($Game, [string]$Name)
     if (-not $Game -or -not $Game.Title -or -not $Name) { return $null }
+    # A scan asks for several values of the same game; its folder is
+    # resolved once per scan instead of once per value.
+    $memo = $null; $memoKey = $null
+    if ($global:HubScanEvidenceCache) {
+        if (-not $global:HubScanEvidenceCache.ContainsKey('LegacyDirs')) { $global:HubScanEvidenceCache['LegacyDirs'] = @{} }
+        $memo = $global:HubScanEvidenceCache['LegacyDirs']
+        $memoKey = ([string]$Game.SteamId) + '|' + [string]$Game.Title
+        if ($memo.ContainsKey($memoKey)) {
+            $dir = $memo[$memoKey]
+            if (-not $dir) { return $null }
+            return [IO.Path]::Combine($dir, ($Name + '.txt'))
+        }
+    }
     $root = Get-HubStateRoot
-    if (-not $root) { return $null }
-    $safeTitle = ([string]$Game.Title -replace '[^A-Za-z0-9]', '_').Trim('_')
-    if (-not $safeTitle) { return $null }
-    $key = if ($Game.SteamId) { ([string]$Game.SteamId) + '_' + $safeTitle } else { $safeTitle }
-    return [IO.Path]::Combine($root, $key, ($Name + '.txt'))
+    $dir = $null
+    if ($root) {
+        $safeTitle = ([string]$Game.Title -replace '[^A-Za-z0-9]', '_').Trim('_')
+        if ($safeTitle) {
+            $key = if ($Game.SteamId) { ([string]$Game.SteamId) + '_' + $safeTitle } else { $safeTitle }
+            $dir = [IO.Path]::Combine($root, $key)
+        }
+    }
+    if ($null -ne $memo) { $memo[$memoKey] = $dir }
+    if (-not $dir) { return $null }
+    return [IO.Path]::Combine($dir, ($Name + '.txt'))
 }
 
 function Get-PersistentGameStatePath {
@@ -925,7 +1051,20 @@ function Get-PersistentGameStateSnapshot {
             return [pscustomobject]@{ Found = $true; Value = $(if ($text) { $text } else { $null }) }
         }
     }
-    $envelope = Get-HubStateEnvelope
+    # One owned scan reads hundreds of values. Resolving the state paths and
+    # re-checking the file metadata for each of them cost ~0.7 ms per value
+    # on Windows. The scan therefore keeps one envelope snapshot; every save
+    # of this Hub (Save-HubStateData), a fresh read and the end of the batch
+    # drop it again. Values are already memoized per scan with the same
+    # lifetime (HubScanEvidenceCache.Values).
+    # User actions inside the scan's pump always read the live file.
+    $envelope = $null
+    $useScanSnapshot = ($global:HubScanEvidenceCache -and [int]$global:HubScanPumpDepth -eq 0)
+    if ($useScanSnapshot) { $envelope = $global:HubScanEvidenceCache['ScanEnvelope'] }
+    if (-not $envelope) {
+        $envelope = Get-HubStateEnvelope
+        if ($useScanSnapshot) { $global:HubScanEvidenceCache['ScanEnvelope'] = $envelope }
+    }
     try {
         if ($envelope.Data.games.Contains($id)) {
             $record = $envelope.Data.games[$id]
@@ -939,9 +1078,16 @@ function Get-PersistentGameStateSnapshot {
 }
 
 function Read-PersistentGameStateValue {
-    param($Game, [string]$Name)
+    param($Game, [string]$Name, [switch]$Uncached)
     $id = Get-HubGameStateId -Game $Game
     if (-not $id -or -not $Name) { return $null }
+    if(-not $Uncached -and [int]$global:HubScanPumpDepth -eq 0 -and $global:HubScanEvidenceCache -and $null -ne $global:HubScanEvidenceCache.Values){
+        $cache=$global:HubScanEvidenceCache.Values;$key=$id+'|'+$Name
+        if($cache.ContainsKey($key)){return $cache[$key]}
+        $value=Read-PersistentGameStateValue -Game $Game -Name $Name -Uncached
+        $cache[$key]=$value
+        return $value
+    }
     $snapshot = Get-PersistentGameStateSnapshot -Game $Game -Name $Name
     if ($snapshot.Found) { return $snapshot.Value }
 
@@ -949,9 +1095,9 @@ function Read-PersistentGameStateValue {
     # file remains untouched and becomes inert as soon as the canonical value
     # exists.
     $legacy = Get-LegacyPersistentGameStatePath -Game $Game -Name $Name
-    if ($legacy -and (Test-Path -LiteralPath $legacy -PathType Leaf)) {
+    if ($legacy -and [IO.File]::Exists($legacy)) {
         try {
-            $value = ('' + (Get-Content -LiteralPath $legacy -Raw -ErrorAction Stop)).Trim()
+            $value = [IO.File]::ReadAllText($legacy).Trim()
             if ($value) {
                 Write-PersistentGameStateValue -Game $Game -Name $Name -Value $value
                 return $value
@@ -961,8 +1107,8 @@ function Read-PersistentGameStateValue {
     if ($Name -eq 'user_located' -and (Get-Command Get-UserLocatedFile -ErrorAction SilentlyContinue)) {
         try {
             $hubLegacy = Get-UserLocatedFile -Game $Game
-            if ($hubLegacy -and (Test-Path -LiteralPath $hubLegacy -PathType Leaf)) {
-                $value = ('' + (Get-Content -LiteralPath $hubLegacy -Raw -ErrorAction Stop)).Trim()
+            if ($hubLegacy -and [IO.File]::Exists($hubLegacy)) {
+                $value = [IO.File]::ReadAllText($hubLegacy).Trim()
                 if ($value) {
                     Write-PersistentGameStateValue -Game $Game -Name $Name -Value $value
                     return $value
@@ -977,8 +1123,16 @@ function Write-PersistentGameStateValue {
     param($Game, [string]$Name, [string]$Value)
     $id = Get-HubGameStateId -Game $Game
     if (-not $id -or -not $Name -or [string]::IsNullOrWhiteSpace($Value)) { return }
+    if($global:HubScanEvidenceCache -and $null -ne $global:HubScanEvidenceCache.Values){[void]$global:HubScanEvidenceCache.Values.Remove($id+'|'+$Name)}
     $clean = $Value.Trim()
-    if ($script:HubStateBatchActive) {
+    if (Test-HubStateUserWriteDuringScan) {
+        # User wins over a value the scan queued earlier for the same key.
+        $script:HubStateBatchUserWrites[$id+'|'+$Name] = $true
+        if ($script:HubStateBatchOverlay -and $script:HubStateBatchOverlay.ContainsKey($id)) { [void]$script:HubStateBatchOverlay[$id]['Values'].Remove($Name) }
+    } elseif ($script:HubStateBatchActive) {
+        # A game can resume after a dispatcher pump with an old detection.
+        # Keep a later user Locate/Clear decision for the rest of this batch.
+        if ($script:HubStateBatchUserWrites.ContainsKey($id+'|'+$Name)) { return }
         # Never use the migration-aware public reader here.  A legacy import
         # reaches this writer from that reader and would recurse indefinitely.
         $known = Get-PersistentGameStateSnapshot -Game $Game -Name $Name
@@ -1059,12 +1213,18 @@ function Reset-PersistentGameStateValue {
     param($Game, [string]$Name)
     $id = Get-HubGameStateId -Game $Game
     if (-not $id -or -not $Name) { return }
-    if ($script:HubStateBatchActive) {
+    if($global:HubScanEvidenceCache -and $null -ne $global:HubScanEvidenceCache.Values){[void]$global:HubScanEvidenceCache.Values.Remove($id+'|'+$Name)}
+    if (Test-HubStateUserWriteDuringScan) {
+        $script:HubStateBatchUserWrites[$id+'|'+$Name] = $true
+        if ($script:HubStateBatchOverlay -and $script:HubStateBatchOverlay.ContainsKey($id)) { [void]$script:HubStateBatchOverlay[$id]['Values'].Remove($Name) }
+    } elseif ($script:HubStateBatchActive) {
+        if ($script:HubStateBatchUserWrites.ContainsKey($id+'|'+$Name)) { return }
         if ($null -eq (Read-PersistentGameStateValue -Game $Game -Name $Name)) { return }
         if (-not $script:HubStateBatchOverlay.ContainsKey($id)) {
             $script:HubStateBatchOverlay[$id] = @{ Title=('' + $Game.Title); Values=@{} }
         }
         $script:HubStateBatchOverlay[$id]['Values'][$Name] = $script:HubStateBatchDeleted
+        if($global:HubScanEvidenceCache -and $null -ne $global:HubScanEvidenceCache.Values){[void]$global:HubScanEvidenceCache.Values.Remove($id+'|'+$Name)}
         return
     }
     try {
@@ -1344,14 +1504,46 @@ function Get-HubModStateId {
     return $safe
 }
 
+# Parsed + checksum-validated manifest, cached per file. Every scan read and
+# re-validated each VR Ready game's manifest two to three times (read version,
+# then the no-op write check) - several ms per game on Windows PowerShell.
+# The entry is reused only while the file keeps the exact same length and
+# last-write time; any write (Hub, installer, user) invalidates it. $null is
+# returned for a missing, unreadable or invalid manifest.
+$global:HubInstallManifestCache = @{}
+function Get-HubInstallManifestDocument {
+    param([string]$Path)
+    if (-not $Path) { return $null }
+    $info = $null
+    try { $info = [IO.FileInfo]::new($Path) } catch { return $null }
+    if (-not $info.Exists) {
+        if ($global:HubInstallManifestCache.ContainsKey($Path)) { [void]$global:HubInstallManifestCache.Remove($Path) }
+        return $null
+    }
+    $length = [long]$info.Length
+    $ticks = [long]$info.LastWriteTimeUtc.Ticks
+    $hit = $global:HubInstallManifestCache[$Path]
+    # FAT32/exFAT keep write times in 2 s steps: a same-length rewrite inside
+    # that window would look unchanged, so a just-written file is re-read.
+    $settled = (([DateTime]::UtcNow.Ticks - $ticks) -gt 30000000L)
+    if ($settled -and $hit -and $hit.Length -eq $length -and $hit.Ticks -eq $ticks) { return $hit.Doc }
+    $doc = $null
+    try {
+        $parsed = [IO.File]::ReadAllText($Path) | ConvertFrom-Json -ErrorAction Stop
+        if ([int]$parsed.schemaVersion -eq 1 -and $parsed.data -and $parsed.checksum -and
+            (Test-HubDataChecksum -Data $parsed.data -ExpectedChecksum ([string]$parsed.checksum))) { $doc = $parsed }
+    } catch { $doc = $null }
+    $global:HubInstallManifestCache[$Path] = @{ Length = $length; Ticks = $ticks; Doc = $doc }
+    return $doc
+}
+
 function Read-HubInstallManifestVersion {
     param($Game, [string]$GameDir, [switch]$Second)
     $path = Get-HubInstallManifestPath -GameDir $GameDir
-    if (-not $path -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    if (-not $path) { return $null }
     try {
-        $doc = (Get-Content -LiteralPath $path -Raw -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
-        if ([int]$doc.schemaVersion -ne 1 -or -not $doc.data -or -not $doc.checksum) { return $null }
-        if (-not (Test-HubDataChecksum -Data $doc.data -ExpectedChecksum ([string]$doc.checksum))) { return $null }
+        $doc = Get-HubInstallManifestDocument -Path $path
+        if (-not $doc) { return $null }
         $slot = if ($Second) { 'secondary' } else { 'primary' }
         $id = Get-HubModStateId -Game $Game -Second:$Second
         $match = $doc.data.mods.PSObject.Properties[$id]
@@ -1376,27 +1568,24 @@ function Write-HubInstallManifestVersion {
     $id = Get-HubModStateId -Game $Game -Second:$Second
     try {
         $mods = [ordered]@{}
-        if (Test-Path -LiteralPath $path -PathType Leaf) {
-            $old = (Get-Content -LiteralPath $path -Raw -ErrorAction Stop) | ConvertFrom-Json -ErrorAction Stop
-            if ([int]$old.schemaVersion -eq 1 -and $old.data -and $old.checksum -and
-                (Test-HubDataChecksum -Data $old.data -ExpectedChecksum ([string]$old.checksum))) {
-                $existing = $old.data.mods.PSObject.Properties[$id]
-                if ($existing -and (('' + $existing.Value.slot) -ceq $slot) -and
-                    (('' + $existing.Value.version).Trim() -ceq $Version.Trim()) -and
-                    (('' + $old.data.gameId) -ceq (Get-HubGameStateId -Game $Game))) {
-                    return
+        $old = Get-HubInstallManifestDocument -Path $path
+        if ($old) {
+            $existing = $old.data.mods.PSObject.Properties[$id]
+            if ($existing -and (('' + $existing.Value.slot) -ceq $slot) -and
+                (('' + $existing.Value.version).Trim() -ceq $Version.Trim()) -and
+                (('' + $old.data.gameId) -ceq (Get-HubGameStateId -Game $Game))) {
+                return
+            }
+            $oldMods = ConvertTo-HubOrderedValue $old.data.mods
+            foreach ($key in @($oldMods.Keys)) {
+                $otherSlot = '' + $oldMods[$key].slot
+                if ($otherSlot -eq $slot) { continue }
+                $normalizedKey = switch ($otherSlot) {
+                    'primary' { Get-HubModStateId -Game $Game }
+                    'secondary' { Get-HubModStateId -Game $Game -Second }
+                    default { $key }
                 }
-                $oldMods = ConvertTo-HubOrderedValue $old.data.mods
-                foreach ($key in @($oldMods.Keys)) {
-                    $otherSlot = '' + $oldMods[$key].slot
-                    if ($otherSlot -eq $slot) { continue }
-                    $normalizedKey = switch ($otherSlot) {
-                        'primary' { Get-HubModStateId -Game $Game }
-                        'secondary' { Get-HubModStateId -Game $Game -Second }
-                        default { $key }
-                    }
-                    $mods[$normalizedKey] = $oldMods[$key]
-                }
+                $mods[$normalizedKey] = $oldMods[$key]
             }
         }
         # Keep the audit timestamp stable across PowerShell editions. PowerShell

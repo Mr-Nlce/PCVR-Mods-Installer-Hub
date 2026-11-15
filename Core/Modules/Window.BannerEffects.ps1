@@ -2600,7 +2600,7 @@ Add-BannerDotPulse "OvBannerCtrlDot"
 
 if ($versionLabel) { $versionLabel.Text = "v$HUB_VERSION" }
 
-# Header hover-grow: version badge, VR headset glyph, and the title
+# Header hover-grow: VR headset glyph and the title
 # subtly scale up on hover,
 # matching the motion language used by the list banner and tag
 # chips. Pure visual flourish - no click action attached.
@@ -2618,7 +2618,11 @@ function global:Add-HeaderHoverGrow {
         $elemCapture.RenderTransform = $null
     }.GetNewClosure())
 }
-Add-HeaderHoverGrow -Element $versionBadge   -Scale 1.10
+if ($versionBadge -and $versionLabel) {
+    $versionText = $versionLabel
+    $versionBadge.Add_MouseEnter({ $versionText.FontSize = 11 }.GetNewClosure())
+    $versionBadge.Add_MouseLeave({ $versionText.FontSize = 10 }.GetNewClosure())
+}
 Add-HeaderHoverGrow -Element $headerVrIcon   -Scale 1.15
 Add-HeaderHoverGrow -Element $headerHubTitle -Scale 1.04
 Add-HeaderHoverGrow -Element $headerHubSubtitle -Scale 1.10

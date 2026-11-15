@@ -37,7 +37,7 @@ The launcher makes a large-address-aware trl_vr.exe copy. Your original trl.exe 
 Immersive controls start enabled. In first person, draw weapons from your holsters and climb using your hands. The pause menu's VR Settings includes hand calibration and holster placement. The shipped VR CONTROLLER BINDINGS.txt covers Index, WMR and Reverb layouts.
 
 ## Help
-Version 1.1.0 defaults to OpenXR and falls back to OpenVR if necessary. VR settings include the runtime preference, which is saved for later starts.
+The stable Windows release is 1.1.0. It defaults to OpenXR and falls back to OpenVR if necessary. VR settings save your runtime preference.
 
 Black scene: confirm Next Generation Content is OFF. Blurry image: adjust SteamVR's per-game resolution. The mod disables depth of field/fullscreen effects and enables capped anti-aliasing by default. The original On/Off column in VR Settings is not authoritative; read the changed label. If required files are missing, inspect the installer log and chosen game folder first. Windows protection history can identify a matching detection; missing files alone do not establish an antivirus cause. Retry setup or hand over the official package on its recovery page.
 

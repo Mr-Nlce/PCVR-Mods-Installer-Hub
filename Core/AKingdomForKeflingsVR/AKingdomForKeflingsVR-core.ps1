@@ -10,7 +10,9 @@ $script:KeflingsExe='A Kingdom for Keflings.exe'
 $script:KeflingsIdentity='keflingsvr'
 $script:KeflingsRequired=@('opengl32.dll','openxr_loader.dll','VR\version.txt','VR\UNINSTALL.bat','.pcvrhub_keflingsvr_ownership.csv')
 
-function Test-KeflingsGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root $script:KeflingsExe) -PathType Leaf))}
+function Test-KeflingsGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'a-kingdom-for-keflings-vr' -Root $Root)) { return $false }
+return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root $script:KeflingsExe) -PathType Leaf))}
 function Get-KeflingsGame {
     $fixture=(''+$env:PCVR_KEFLINGS_TEST_GAME).Trim()
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $fixture){

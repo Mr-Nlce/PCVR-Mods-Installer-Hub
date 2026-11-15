@@ -14,13 +14,14 @@
 #
 # Install layout:
 #   <install_root>\Ocarina of Time VR\soh.exe
-#   default install_root: C:\Games (fallback D:\Games, E:\Games)
+#   default install_root: C:\Games (fallback D:\Games, E:\Games, per-user PCVR Games)
 #
 # OpenVR mod -> the runtime is SteamVR. Rendering must stay on
 # DirectX11 (the SoH default on Windows); OpenGL does not hook.
 # ============================================================
 
 . (Join-Path $PSScriptRoot "..\Modules\InstallerSafety.ps1")
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot "ShipwrightAssetPack.ps1")
 
 $Host.UI.RawUI.WindowTitle = "Ocarina of Time VR Installer"
@@ -43,8 +44,10 @@ function Pause-User { param($text = "Press Enter to continue...", $Color = "Yell
 
 $SCRIPT_DIR        = Split-Path -Parent $MyInvocation.MyCommand.Path
 $REPO              = "ShinyWindow/Shipwright-VR"
-$REPO_API          = "https://api.github.com/repos/$REPO/releases"
+$WINDOWS_PACKAGE   = '(?i)^Ship[-_].*(?:win64|windows[-_]?x64).*\.zip$'
 $RELEASES_PAGE     = "https://github.com/$REPO/releases"
+$REVIEWED_WINDOWS_TAG = 'v1.4.1'
+$REVIEWED_WINDOWS_FILE = 'Ship-9.2.3-win64-ship-1.4.1.zip'
 $INFO_URL          = "https://github.com/$REPO"
 $GAME_FOLDER       = "Ocarina of Time VR"
 $GAME_EXE          = "soh.exe"
@@ -57,33 +60,44 @@ $DJIPI_PAGE        = "https://gamebanana.com/mods/477979"
 $DJIPI_FILE        = "djipi_s_3ds_experience_tot_fix.zip"
 $DJIPI_LEGACY_FILE = "djipi_s_3ds_experience_-_final_pack.zip"
 
-# Resolve the newest release zip via the GitHub API. Returns
-# @{ Url=...; Tag=... } or $null on any failure (rate limit / offline /
-# shape change). GitHub's latest endpoint resolves the stable release;
-# list order is not a version comparison.
+# Keep the stable channel and walk back only when a published release
+# has no Windows ZIP for this installer.
 function Get-LatestShipwrightVR {
-    try {
-        $headers = @{ "User-Agent" = "PCVR-Mods-Hub" }
-        $rel = Invoke-PCVRRestMethod -Uri "$REPO_API/latest" -Headers $headers -TimeoutSec 25 -ErrorAction Stop
-        if ($rel -and -not $rel.draft -and -not $rel.prerelease -and $rel.tag_name) {
-            $pick = @($rel.assets | Where-Object {
-                $_.name -match '(?i)(win64|windows[-_]?x64).*\.zip$' -and $_.browser_download_url
-            } | Select-Object -First 1)
-            if ($pick.Count -gt 0) {
-                return @{ Url = [string]$pick[0].browser_download_url; Tag = [string]$rel.tag_name }
-            }
-        }
-    } catch { }
+    $release = Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @($WINDOWS_PACKAGE) -SkipReleasesWithoutMatchingAsset
+    if ($release.Resolved) {
+        return @{ Url = [string]$release.Url; Tag = [string]$release.Tag }
+    }
     return $null
 }
 
 function Get-ShipwrightDownloadedTag {
     param($Latest, [hashtable]$DownloadInfo)
-    if ($Latest -and $DownloadInfo -and $DownloadInfo.Url -and
-        [string]$DownloadInfo.Url -eq [string]$Latest.Url) {
+    if ($Latest -and $DownloadInfo -and $DownloadInfo['Url'] -and
+        [string]$DownloadInfo['Url'] -eq [string]$Latest.Url) {
         return [string]$Latest.Tag
     }
     return $null
+}
+
+function Test-ShipwrightWindowsArchive {
+    param([string]$Path)
+    Test-ZipPayloadAnchors -Path $Path -MinimumMatches 2 -AnchorPatterns @(
+        '(?i)(?:^|\\)soh\.exe$',
+        '(?i)(?:^|\\)soh\.(?:otr|o2r)$'
+    )
+}
+
+function Read-ShipwrightManualTag {
+    param([string]$SourcePath)
+    if ($SourcePath) { Write-Info ('Selected Windows ZIP: ' + [IO.Path]::GetFileName($SourcePath)) }
+    Write-Info 'Confirm the Shipwright-VR release tag shown on the download page before installing this Windows ZIP.'
+    Write-Info 'Use the mod release tag, such as v1.4.1. The Ship of Harkinian base version is separate.'
+    while ($true) {
+        $answer = ('' + (Read-Host '  Shipwright-VR release tag (or Q to cancel)')).Trim()
+        if ($answer -ieq 'Q' -or (!$answer -and [Console]::IsInputRedirected -and [Console]::In.Peek() -lt 0)) { return $null }
+        if ($answer -match '^v?(\d+\.\d+\.\d+)$') { return ('v' + $Matches[1]) }
+        Write-Warn 'Enter the exact stable release tag from the publisher page, or Q to cancel.'
+    }
 }
 
 Write-Header
@@ -109,55 +123,67 @@ function Test-WritableRoot {
     param([string]$Root)
     if (-not $Root) { return $false }
     try {
-        if (-not (Test-Path $Root)) {
-            New-Item -ItemType Directory -Path $Root -Force -ErrorAction Stop | Out-Null
-        }
-        $probe = Join-Path $Root ".pcvrhub_write_probe"
-        Set-Content -Path $probe -Value "ok" -ErrorAction Stop
-        Remove-Item $probe -Force -ErrorAction SilentlyContinue
-        return $true
+        return Test-InstallerTargetWritable -TargetPath (Join-Path -Path $Root -ChildPath '.pcvrhub_probe_target' -ErrorAction Stop)
     } catch { return $false }
 }
 
-Write-Host "  Default C:\Games - no admin rights, no UAC prompt. The" -ForegroundColor White
-Write-Host "  '$GAME_FOLDER' folder is created inside whatever you choose." -ForegroundColor Gray
-$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('soh.exe')
-$chosen = if ($rememberedGameRoot) { Split-Path -Parent $rememberedGameRoot } else { (Read-Host "  Install root [C:\Games]").Trim().Trim('"') }
-if ($rememberedGameRoot) { Write-OK "Using remembered install location: $rememberedGameRoot" }
+function Get-ShipwrightInstallLocation {
+    param([string]$Remembered, [string]$ProfileRoot)
+    if ($Remembered -and (Test-WritableRoot $Remembered)) {
+        $parent = Split-Path -Parent $Remembered
+        # The installation itself may be writable even if the parent is protected.
+        $stage = if (Test-WritableRoot $parent) { $parent } else { $Remembered }
+        return @{ GameRoot = $Remembered; StageParent = $stage }
+    }
+    if ($Remembered) {
+        Write-Warn "The saved game folder is not writable: $Remembered"
+        Write-Host "  Choose another root to install a separate copy. Your existing files will stay where they are." -ForegroundColor Gray
+    }
+    $defaults = @($DEFAULT_ROOTS)
+    if ($ProfileRoot) { $defaults += $ProfileRoot }
+    while ($true) {
+        $chosen = (Read-Host '  Install root [Enter = try defaults, Q = cancel]').Trim().Trim('"')
+        if ($chosen -eq 'Q') { return $null }
+        $roots = if ($chosen) { @($chosen) } else { $defaults }
+        foreach ($root in $roots) {
+            if (-not (Test-WritableRoot $root)) { continue }
+            $target = Join-Path $root $GAME_FOLDER
+            if (Test-WritableRoot $target) { return @{ GameRoot = $target; StageParent = $root } }
+        }
+        if ($chosen) { Write-Fail "Cannot write to the game or staging folder under $chosen." }
+        else { Write-Fail 'None of the default game locations is writable. Enter a folder you can write to, or press Q.' }
+    }
+}
 
-$installRoot = $null
-if ($chosen) {
-    if (Test-WritableRoot -Root $chosen) { $installRoot = [string]$chosen }
-    else { Write-Fail "Not writable: $chosen - falling back to the defaults." }
+Write-Host "  The '$GAME_FOLDER' folder is created inside the selected root." -ForegroundColor Gray
+Write-Host "  Defaults: C:\Games, D:\Games, E:\Games, then your local PCVR Games folder." -ForegroundColor Gray
+$rememberedGameRoot = Get-PCVRRememberedGameFolder -ProbeFiles @('soh.exe')
+$profileGameRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'PCVR Games' }
+$location = Get-ShipwrightInstallLocation -Remembered $rememberedGameRoot -ProfileRoot $profileGameRoot
+if (-not $location) {
+    Pause-User 'Press Enter to exit.' | Out-Null
+    if ($env:PCVR_HUB_INSTALL_RUN_ID) { exit 75 }
+    exit 0
 }
-if (-not $installRoot) {
-    foreach ($r in $DEFAULT_ROOTS) {
-        if (Test-WritableRoot -Root $r) { $installRoot = [string]$r; break }
-    }
-}
-if (-not $installRoot) {
-    Write-Warn "None of C:\Games, D:\Games, E:\Games is writable."
-    Write-Host "  Enter a folder where the game should be installed." -ForegroundColor White
-    while (-not $installRoot) {
-        $r = (Read-Host "  Install root").Trim().Trim('"')
-        if (-not $r) { continue }
-        if (Test-WritableRoot -Root $r) { $installRoot = [string]$r }
-        else { Write-Fail "Not writable: $r (try a non-Program-Files location, or run as admin)" }
-    }
-}
-Write-OK "Install root: $installRoot"
-$gameRoot = if ($rememberedGameRoot) { $rememberedGameRoot } else { Join-Path $installRoot $GAME_FOLDER }
+$installRoot = $location.StageParent
+$gameRoot = $location.GameRoot
+Write-OK "Game folder: $gameRoot"
 
 # ---- 2. download the latest Shipwright-VR release ------------
 $InstallMode = Read-UpdateOrInstall -GameFolder $gameRoot -ModFile $GAME_EXE
-if ($InstallMode -eq "cancel") { Pause-User "Press Enter to exit."; exit 0 }
+if ($InstallMode -eq 'cancel') {
+    Pause-User 'Press Enter to exit.'
+    if ($env:PCVR_HUB_INSTALL_RUN_ID) { exit 75 }
+    exit 0
+}
 if ($InstallMode -eq "update") { Write-Info "Update mode - re-downloading the latest version and replacing the app files." }
 
 Write-Step 2 5 "Downloading Shipwright-VR (latest release)"
 
-$tmp = Join-Path $installRoot "_hub_extract_tmp"
+$stageId = [Guid]::NewGuid().ToString('N')
+$tmp = Join-Path $installRoot "_hub_shipwright_$stageId"
 try {
-    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Path $tmp -Force -ErrorAction Stop | Out-Null
 } catch {
     Write-Fail "Could not create a temp folder under $installRoot : $_"
@@ -166,45 +192,53 @@ try {
 }
 $zipDest = Join-Path $tmp "ShipwrightVR_latest.zip"
 
-$relTag = $null
-Write-Info "Resolving the newest release via the GitHub API..."
+Write-Info "Checking GitHub for the latest stable Windows ZIP..."
 $latest = Get-LatestShipwrightVR
 if ($latest) {
-    Write-OK "Latest release: $($latest.Tag)"
+    $windowsTag = $latest.Tag
+    $windowsFile = [IO.Path]::GetFileName(([uri]$latest.Url).AbsolutePath)
+    Write-OK "Latest stable Windows release: $windowsTag"
 } else {
-    Write-Warn "The current Windows release could not be resolved. Choose the latest Windows ZIP from the publisher page."
+    $windowsTag = $REVIEWED_WINDOWS_TAG
+    $windowsFile = $REVIEWED_WINDOWS_FILE
+    Write-Warn "GitHub did not confirm the current Windows release. The manual link opens the last reviewed Windows release ($windowsTag)."
 }
+$windowsPage = "$RELEASES_PAGE/tag/$([uri]::EscapeDataString($windowsTag))"
+$env:PCVR_HUB_RECOVERY_PAGE = $windowsPage
 $downloadInfo = @{}
-$manualInstructions = "Open the releases page, download the newest stable Windows ZIP (win64 or windows-x64), then drag it onto this window or paste its full path. Do not choose the Android prerelease."
+$manualInstructions = "On the release page, choose the Windows ZIP named $windowsFile. It contains soh.exe and soh.otr or soh.o2r. An Android APK cannot be used. Paste or drop the ZIP, then confirm its Shipwright-VR release tag."
 if ($latest) {
     $downloadResult = Invoke-SafeDownload -Urls @([string]$latest.Url) -Destination $zipDest `
-        -DownloadInfo $downloadInfo -AllowSkip $false -DisableGitHubAssetReresolution `
+        -DownloadInfo $downloadInfo -AllowSkip $false -DisableGitHubAssetReresolution -FunctionalPayloadOnly `
+        -Validator ${function:Test-ShipwrightWindowsArchive} `
         -Label "Shipwright-VR Windows release" `
-        -ManualUrl $RELEASES_PAGE `
+        -ManualUrl $windowsPage `
         -Instructions $manualInstructions `
         -SkipMessage ""
 } else {
     $downloadResult = Invoke-InstallerFallback -Action "download Shipwright-VR" `
-        -Subject "the latest stable Windows release" -Url $RELEASES_PAGE `
-        -DestFile $zipDest -Instructions $manualInstructions -AllowSkip $false
+        -Subject "a stable Shipwright-VR Windows release" -Url $windowsPage `
+        -DestFile $zipDest -Instructions $manualInstructions -AllowSkip $false `
+        -FileValidator { param([string]$Candidate) Test-DownloadedPayload -Path $Candidate -IntendedPath $zipDest -Validator ${function:Test-ShipwrightWindowsArchive} } `
+        -RetryCheck { Test-DownloadedPayload -Path $zipDest -Validator ${function:Test-ShipwrightWindowsArchive} } `
+        -RecoveryInfo $downloadInfo
 }
 if ([string]$downloadResult -eq 'quit') { exit 1 }
-$relTag = Get-ShipwrightDownloadedTag -Latest $latest -DownloadInfo $downloadInfo
 
-# Hard guarantee: regardless of the helper's outcome, make sure we have a ZIP.
-while (-not (Test-Path $zipDest)) {
-    Write-Fail "The Shipwright-VR download is not present at: $zipDest"
-    $fb = Invoke-InstallerFallback -Action "download Shipwright-VR" `
-        -Subject "the latest Shipwright-VR release" `
-        -Url $RELEASES_PAGE `
-        -DestFile $zipDest `
-        -Instructions "Download the newest 'Ship-*-win64-ship.zip' from the releases page, save it as '$zipDest', then choose Retry. You can also paste the full path to an already-downloaded ZIP." `
-        -AllowSkip $false
-    if ([string]$fb -eq "quit") {
-        try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-        Pause-User "Press Enter to exit..." | Out-Null
-        exit 1
+if (-not (Test-DownloadedPayload -Path $zipDest -Validator ${function:Test-ShipwrightWindowsArchive})) {
+    throw 'The Windows ZIP is missing or incomplete. Select a ZIP containing soh.exe and soh.otr or soh.o2r.'
+}
+$relTag = Get-ShipwrightDownloadedTag -Latest $latest -DownloadInfo $downloadInfo
+if (-not $relTag) {
+    $relTag = Read-ShipwrightManualTag -SourcePath $downloadInfo['SourcePath']
+    if (-not $relTag) {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Info 'Setup cancelled before any game files were replaced.'
+        Pause-User 'Press Enter to close setup...'
+        if ($env:PCVR_HUB_INSTALL_RUN_ID) { exit 75 }
+        exit 0
     }
+    Write-Info "Manual Windows package confirmed as $relTag."
 }
 Write-OK "Shipwright-VR archive ready: $zipDest"
 
@@ -214,7 +248,7 @@ Write-Step 3 5 "Installing Shipwright-VR"
 # Preserve the user's game data across a reinstall: the generated .otr
 # archives (built from their ROM on first run), saves, mods and settings
 # all live in the game folder.
-if ($InstallMode -eq "update" -and (Test-Path $gameRoot)) {
+if ($InstallMode -eq "update" -and (Test-Path -LiteralPath $gameRoot -PathType Container)) {
     Write-Info "Keeping your saves, settings and generated game archives."
 }
 
@@ -223,20 +257,20 @@ if ($InstallMode -eq "update" -and (Test-Path $gameRoot)) {
 # wrapper folder. Merge is per-file, so oot.otr / saves / mods and
 # shipofharkinian.json in an existing install stay untouched.
 $exRes = Expand-ArchiveToTarget -ArchivePath $zipDest -TargetDir $gameRoot `
-            -RelModFile $GAME_EXE -Markers @("soh.exe","soh.otr") `
+            -RelModFile $GAME_EXE -Markers @("soh.exe","soh.otr","soh.o2r") `
             -Label "Shipwright-VR" `
             -SkipMessage "Skipped - the archive was not unpacked, so the game is not installed."
-if ([string]$exRes -eq "quit") { try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit."; exit 1 }
+if ([string]$exRes -eq "quit") { try { Remove-Item -LiteralPath $tmp -Recurse -Force -EA SilentlyContinue } catch {}; Pause-User "Press Enter to exit."; exit 1 }
 
 if (-not (Test-Path -LiteralPath ([System.IO.Path]::Combine($gameRoot, $GAME_EXE)))) {
     Write-Fail "$GAME_EXE is missing after extraction - the package layout may have changed."
     Write-Info "Get it manually from:"
     Write-Info "  $RELEASES_PAGE"
-    try { Remove-Item $tmp -Recurse -Force -EA SilentlyContinue } catch {}
+    try { Remove-Item -LiteralPath $tmp -Recurse -Force -EA SilentlyContinue } catch {}
     Pause-User "Press Enter to exit."; exit 1
 }
 Write-OK "Shipwright-VR installed to: $gameRoot"
-try { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+try { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue } catch {}
 
 # ---- 4. your Ocarina of Time ROM ----------------------------
 Write-Step 4 5 "Your Ocarina of Time ROM"
@@ -250,10 +284,20 @@ Write-Host " >>> Drag your ROM onto this window, then press Enter. " -Foreground
 Write-Host "     Enter on its own skips this - soh.exe then asks for the ROM" -ForegroundColor Gray
 Write-Host "     on its first start." -ForegroundColor Gray
 $romIn = (Read-Host "  ROM path (or Enter to skip)").Trim().Trim('"')
-if ($romIn -and (Test-Path -LiteralPath $romIn)) {
+if ($romIn -and (Test-Path -LiteralPath $romIn -PathType Leaf)) {
     try {
-        Copy-Item -LiteralPath $romIn -Destination $gameRoot -Force -ErrorAction Stop
-        Write-OK "ROM copied next to soh.exe - it will be picked up on first launch."
+        $rom = Get-Item -LiteralPath $romIn -ErrorAction Stop
+        if ($rom.Extension -ine '.z64' -or $rom.Length -ne 33554432) {
+            Write-Warn 'Choose a 32 MB .z64 ROM. You can select it when soh.exe starts.'
+        } else {
+            $romTarget = Join-Path $gameRoot $rom.Name
+            if ([IO.File]::Exists($romTarget)) {
+                Write-Info 'A ROM with this name already exists. The existing ROM was kept.'
+            } else {
+                [IO.File]::Copy($rom.FullName, $romTarget, $false)
+                Write-OK "ROM copied next to soh.exe - it will be picked up on first launch."
+            }
+        }
     } catch {
         Write-Warn "Could not copy the ROM: $_"
         Write-Host "    Put it into this folder yourself, or pick it when soh.exe asks:" -ForegroundColor Gray
@@ -275,19 +319,6 @@ $lnk = New-DesktopShortcut -TargetPath $exePath -ShortcutName "Ocarina of Time V
 if ($lnk) { Write-OK "Desktop shortcut created: Ocarina of Time VR" }
 else      { Write-Warn "Could not create the desktop shortcut - use 'Start in VR' in the Hub." }
 
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_path") -Value $gameRoot -Encoding UTF8 -Force } catch {}
-if ($relTag) {
-    try { Set-Content -Path (Join-Path $SCRIPT_DIR ".installed_version") -Value $relTag -Encoding UTF8 -Force } catch {}
-    # Also next to the GAME, so a new Hub build does not lose the marker.
-    try { Save-InstalledStamp -GameDir $gameRoot -Version $relTag -HubDir $SCRIPT_DIR } catch {}
-} else {
-    # A manually supplied archive has no verified release identity.
-    Write-Warn "The archive was installed, but its release version is unverified. No current-version marker was written."
-    try { Remove-Item -LiteralPath (Join-Path $SCRIPT_DIR ".installed_version") -Force -ErrorAction SilentlyContinue } catch {}
-    try { Remove-Item -LiteralPath (Join-Path $gameRoot ".pcvrhub_version") -Force -ErrorAction SilentlyContinue } catch {}
-}
-try { Set-Content -Path (Join-Path $SCRIPT_DIR ".launch_exe") -Value $exePath -Encoding UTF8 -Force } catch {}
-
 # ---- HD texture pack (optional) -----------------------------
 # OoT Reloaded 4K (evilgames.eu): a ~4 GB .7z holding a single .o2r that
 # Ship of Harkinian loads whatever sits in its mods\ folder by itself.
@@ -304,8 +335,8 @@ $doHd = Read-ShipwrightOptionalPackChoice -Name 'OoT Reloaded 4K' -InstalledFile
 if ($doHd) {
     $hdUrl  = "https://evilgames.eu/files/texture-packs/oot-reloaded-v11.0.0-soh-o2r-4k.7z"
     $hdName = "oot-reloaded-v11.0.0-soh-o2r-4k.7z"
-    $hdTmp  = Join-Path $installRoot "_hub_hd_tmp"
-    try { if (Test-Path $hdTmp) { Remove-Item $hdTmp -Recurse -Force -EA SilentlyContinue }; New-Item -ItemType Directory -Path $hdTmp -Force | Out-Null } catch {}
+    $hdTmp  = Join-Path $installRoot "_hub_shipwright_hd_$stageId"
+    try { if (Test-Path -LiteralPath $hdTmp) { Remove-Item -LiteralPath $hdTmp -Recurse -Force -EA SilentlyContinue }; New-Item -ItemType Directory -Path $hdTmp -Force | Out-Null } catch {}
     $hd7z   = Join-Path $hdTmp $hdName
 
     # Before pulling ~4 GB, see if the user already has the exact file in
@@ -401,7 +432,7 @@ if ($doHd) {
     } else {
         Write-Info "HD texture pack not downloaded - skipped."
     }
-    try { Remove-Item $hdTmp -Recurse -Force -EA SilentlyContinue } catch {}
+    try { Remove-Item -LiteralPath $hdTmp -Recurse -Force -EA SilentlyContinue } catch {}
 }
 
 # ---- Djipi's 3DS Experience (optional, 3D backgrounds) -------
@@ -490,8 +521,8 @@ if ($doDjipi) {
 
     # -- unpack, prove the functional payload, then copy it ------
     if ($djZip) {
-        $djTmp = Join-Path $installRoot "_hub_djipi_tmp"
-        $djRetryZip = Join-Path $installRoot "_hub_djipi_retry.zip"
+        $djTmp = Join-Path $installRoot "_hub_shipwright_djipi_$stageId"
+        $djRetryZip = Join-Path $installRoot "_hub_shipwright_djipi_$stageId.zip"
         while ($djZip -and -not $djipiInstalled) {
             try {
                 if (Test-Path -LiteralPath $djTmp) { Remove-Item -LiteralPath $djTmp -Recurse -Force -EA SilentlyContinue }
@@ -575,6 +606,14 @@ if ($doDjipi) {
         try { Remove-Item -LiteralPath $djRetryZip -Force -EA SilentlyContinue } catch {}
     }
 }
+
+$contract = New-PCVRInstallerContract -Id 'legend-of-zelda-ocarina-of-time-vr' -GameName 'Shipwright-VR' `
+    -Acquisition GitHub -AntivirusNotice -ReleasePageUrl $RELEASES_PAGE -RequiredInstalledFileGroups @('soh.exe','soh.otr|soh.o2r')
+[void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gameRoot -Version $relTag -Route Standalone `
+    -InstalledPathReceiptPaths @(Join-Path $SCRIPT_DIR '.installed_path') `
+    -InstalledVersionReceiptPaths @(Join-Path $SCRIPT_DIR '.installed_version'))
+try { Write-PCVRAtomicText -Path (Join-Path $SCRIPT_DIR '.launch_exe') -Value $exePath }
+catch { Write-Warn 'The optional launcher shortcut could not be refreshed. Open soh.exe from the installed folder if needed.' }
 
 # -------------------------------------------------------------
 Write-Host ""

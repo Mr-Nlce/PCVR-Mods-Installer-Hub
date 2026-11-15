@@ -340,7 +340,9 @@ function global:Show-DiscoverDetail {
         if (Get-Command Stop-BannerNetTimer -ErrorAction SilentlyContinue) {
             try { Stop-BannerNetTimer -BannerName $nm } catch { }
         }
-        try { $global:window.UnregisterName($nm) } catch {}
+        if ($global:window.FindName($nm)) {
+            try { $global:window.UnregisterName($nm) } catch {}
+        }
     }
 
     $heroUrl = Get-GameImageUrl -Game $Game -Kind "header"
@@ -485,7 +487,9 @@ function global:Show-DiscoverDetail {
                                         [System.Windows.Controls.Panel]::SetZIndex($band, 0)
                                         [void]$hg.Children.Add($band)
                                         if ($side -eq "Left") { $script:__heroBandL = $band } else { $script:__heroBandR = $band }
-                                        try { $global:window.UnregisterName($bandName) } catch {}
+                                        if ($global:window.FindName($bandName)) {
+                                            try { $global:window.UnregisterName($bandName) } catch {}
+                                        }
                                         try { $global:window.RegisterName($bandName, $band) } catch {}
                                         Set-BannerEffect -BannerName $bandName -BannerH 360 -ColorHex $accentHexRef -Effect $fx
                                     }
@@ -1092,6 +1096,10 @@ function global:Show-DiscoverDetail {
         $detailHex        = "#8a8f99"  # consistent muted detail across states
         if ($state) {
             switch ($state.State) {
+                "import" {
+                    $primaryText='Game import required';$detailText=' - open the launcher and select your original game.'
+                    $bgArgb=@(26,245,158,11);$pillAccentHex='#e5c57e'
+                }
                 "update"    {
                     $primaryText   = "Update available"
                     $detailText    = ""
@@ -2071,6 +2079,13 @@ function global:Show-DiscoverDetail {
         } catch { }
     }
 
+    $footerLinks = @(Get-DetailFooterLinks -Game $Game)
+    if ($footerLinks.Count) {
+        $footerCards = New-DetailResourceCards -Links $footerLinks
+        $footerSection = New-DetailSection -Heading 'Links & support' -Body '' -AccentHex $accentHex -Game $Game -AppendChild $footerCards
+        if ($footerSection) { [void]$stack.Children.Add($footerSection) }
+    }
+
     # Flavour quip box. README-backed games carry their quip in the
     # extracted "_quip" section (so it survives even when it sits under
     # a skipped heading like "More info"); externals use the catalog
@@ -2248,6 +2263,7 @@ function global:Show-DiscoverDetail {
     $primaryTxt.LineHeight = 20
     $primaryTxt.LineStackingStrategy = [System.Windows.LineStackingStrategy]::BlockLineHeight
     $isReady = ($state -and $state.State -eq "ready")
+    $isImport = ($state -and $state.State -eq 'import')
     $isUpdate = ($state -and $state.State -eq "update")
     $updateActionLabel = Get-UpdateActionLabel -Game $Game -State $state -Fallback 'Update Mod'
     # A separate update action is necessary only when the page has several
@@ -2280,6 +2296,12 @@ function global:Show-DiscoverDetail {
         $primaryTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#88dd99")
         $primaryIconKind = "check"
         $primaryIconColor = "#88dd99"
+    } elseif ($isImport) {
+        $primaryTxt.Text='Import game';$primaryIconKind='download';$primaryIconColor='#e5c57e'
+        $primaryBtn.Background=[System.Windows.Media.BrushConverter]::new().ConvertFromString('#201b12')
+        $primaryBtn.BorderBrush=[System.Windows.Media.BrushConverter]::new().ConvertFromString('#665328')
+        $primaryBtn.BorderThickness=[System.Windows.Thickness]::new(1.5)
+        $primaryTxt.Foreground=[System.Windows.Media.BrushConverter]::new().ConvertFromString('#e5c57e')
     } elseif ($isUpdate) {
         if ($detailUsesSeparateUpdate) {
             $primaryTxt.Text = "Start in VR  $([char]0x25B6)"
@@ -2622,7 +2644,7 @@ function global:Show-DiscoverDetail {
                     $riTimer.Add_Tick({
                         param($s, $e)
                         $proc = $s.Tag
-                        if (Test-InstallerRefreshReady -Process $proc) {
+                        if (Test-InstallerRefreshReady -Process $proc -Timer $s) {
                             try { $s.Stop() } catch {}
                             Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                         }
@@ -2646,6 +2668,7 @@ function global:Show-DiscoverDetail {
         if ($global:gameStateMap.ContainsKey($gameForBtn.Title)) {
             $stForBtn = $global:gameStateMap[$gameForBtn.Title]
         }
+        if($stForBtn -and $stForBtn.OriginalImportPending){Start-OriginalGameImport -Game $gameForBtn;return}
         if ($stForBtn -and $stForBtn.DualMode -and ($isReady -or $detailUsesSeparateUpdate)) {
             Start-GameInVR -Game $gameForBtn -Mode "Current" -IndicatorTarget $this
             return
@@ -2740,7 +2763,7 @@ function global:Show-DiscoverDetail {
                 $timer.Add_Tick({
                     param($s, $e)
                     $proc = $s.Tag
-                    if (Test-InstallerRefreshReady -Process $proc) {
+                    if (Test-InstallerRefreshReady -Process $proc -Timer $s) {
                         try { $s.Stop() } catch {}
                         Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                     }
@@ -2756,6 +2779,17 @@ function global:Show-DiscoverDetail {
     # The old exception ("don't sweep ready/update, it competes with the
     # Reinstall-pill animation") is obsolete - that animation is gone.
     Add-StandardHover -Border $primaryBtn
+    if ($Game.InstallerChildId) {
+        $variant = @(@($ownGames) + @($ownGamesGP) + @($externalGames) | Where-Object Id -eq $Game.InstallerChildId)[0]
+        if ($variant -and $variant.InstallerParentId -eq $Game.Id) {
+            $variantLink = [System.Windows.Controls.Button]::new()
+            $variantLink.Content = $variant.Author + ' — Setup and launch'
+            $variantLink.Tag = $variant
+            $variantLink.Margin = [System.Windows.Thickness]::new(0,0,10,0)
+            $variantLink.Add_Click({ param($sender, $eventArgs) Show-DiscoverDetail -Game $sender.Tag })
+            [void]$btnRow.Children.Add($variantLink)
+        }
+    }
     # Wabbajack guide entries have no Hub installer - the "Get
     # Wabbajack" + mod-link buttons + Open in Steam fully cover the
     # flow, so we suppress the generic Install/primary button here.
@@ -3165,7 +3199,7 @@ function global:Show-DiscoverDetail {
                             $timer.Add_Tick({
                                 param($s, $e)
                                 $p = $s.Tag
-                                if (Test-InstallerRefreshReady -Process $p) {
+                                if (Test-InstallerRefreshReady -Process $p -Timer $s) {
                                     try { $s.Stop() } catch { }
                                     # Re-render the detail page for the
                                     # game we are currently looking at.
@@ -3243,6 +3277,7 @@ function global:Show-DiscoverDetail {
         # Essentials" + "London VR"). Replaces the single generic
         # "Mod Page" button. Each entry is @{ Label=...; Url=... }.
         foreach ($mb in $Game.ModButtons) {
+            if ($Game.Id -eq 'dead-space-2008-vr' -and $mb.Url -eq $Game.DownloadUrl) { continue }
             $mbBtn = New-Object System.Windows.Controls.Border
             $mbBtn.CornerRadius = [System.Windows.CornerRadius]::new(7)
             $mbBtn.Padding = [System.Windows.Thickness]::new(16, 10, 16, 10)
@@ -3566,7 +3601,7 @@ function global:Build-DiscoverTiles {
     $allGames += $ownGames
     $allGames += $ownGamesGP
     $allGames += $externalGames
-    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller })
+    $allGames = @($allGames | Where-Object { -not $_.UntestedInstaller -and -not $_.InstallerParentId })
 
     $recent = @(Get-LibraryRecentGames -Games $allGames)
     $global:LibraryRecentGameIds = @($recent | ForEach-Object { [string]$_.Id })

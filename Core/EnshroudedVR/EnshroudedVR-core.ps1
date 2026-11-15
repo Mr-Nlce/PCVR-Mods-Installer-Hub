@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
@@ -17,6 +17,8 @@ $script:EVRContract=New-PCVRInstallerContract -Id $script:EVRId -GameName 'Enshr
     -RequiredInstalledFileGroups $script:EVRRequired
 
 function Test-EVRGame([string]$Root) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'enshrouded-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'enshrouded.exe') -PathType Leaf))
 }
 function Test-EVRGameBuild([string]$Game,[string]$ExpectedHash) {

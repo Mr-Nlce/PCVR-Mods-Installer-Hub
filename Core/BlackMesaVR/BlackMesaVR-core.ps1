@@ -2,7 +2,9 @@
 # Downloads are acquired at run time. No VR-mod archive is bundled with the Hub.
 
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot '..\Modules\InstallerSafety.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
+. (Join-Path $PSScriptRoot '..\Modules\PublisherZipTransaction.ps1')
 
 $Host.UI.RawUI.WindowTitle = 'Black Mesa VR Installer'
 $APP_ID = '362890'
@@ -21,6 +23,8 @@ $AUTOEXEC_REL = 'bms\cfg\autoexec.cfg'
 $LOADERS = @('d3d9.dll','bin\d3d9.dll','bin\thirdparty\dxvk-windows-x86\d3d9.dll')
 $LAUNCH_ARGS = '-heapsize 524288 -processheap -high -novid -windowed -oldgameui'
 $QUIP = 'The resonance cascade was an accident. The crowbar swings are entirely deliberate.'
+$contract=New-PCVRInstallerContract -Id 'black-mesa-vr' -GameName 'Black Mesa VR' -Acquisition GitHub -ReleasePageUrl $RELEASES_URL -AntivirusNotice `
+    -RequiredInstalledFileGroups @('bms.exe','d3d9.dll|d3d9.dll.pcvrhub-off','bin\d3d9.dll|bin\d3d9.dll.pcvrhub-off','bin\thirdparty\dxvk-windows-x86\d3d9.dll|bin\thirdparty\dxvk-windows-x86\d3d9.dll.pcvrhub-off','VR\openxr_helper64\OpenXRHelper64.exe','VR\config.txt','bms\cfg\bmvr.cfg','VRLaunch\Black Mesa VR.lnk','VRLaunch\Black Mesa Blue Shift VR.lnk')
 
 function Write-Header {
     Clear-Host
@@ -32,10 +36,11 @@ function Write-Header {
 }
 function Write-Step { param([int]$Number,[int]$Total,[string]$Text) Write-Host ''; Write-Host "--- [$Number/$Total] $Text ---" -ForegroundColor Cyan; Write-Host '' }
 function Write-OK   { param([string]$Text) Write-Host " [OK] $Text" -ForegroundColor Green }
-function Write-Info { param([string]$Text) Write-Host " [..] $Text" -ForegroundColor Gray }
-function Write-Warn { param([string]$Text) Write-Host " [!]  $Text" -ForegroundColor Yellow }
+function Write-Info { param([string]$Text) Write-Host "  $Text" -ForegroundColor Gray }
+function Write-Warn { param([string]$Text) Write-Host " [!!] $Text" -ForegroundColor Yellow }
 function Write-Fail { param([string]$Text) Write-Host " [X]  $Text" -ForegroundColor Red }
-function Pause-User { param([string]$Text='Press Enter to continue...') Write-Host ''; Write-Host " >>> $Text " -ForegroundColor Black -BackgroundColor Yellow; Read-Host }
+function Pause-User { param([string]$Text='Press Enter to continue...') [void](Wait-PCVRExplicitEnter -Message $Text) }
+function Get-BlackMesaDesktopRoot { return [Environment]::GetFolderPath('Desktop') }
 
 function Get-SteamInstall {
     foreach ($reg in @('HKLM:\SOFTWARE\WOW6432Node\Valve\Steam','HKLM:\SOFTWARE\Valve\Steam','HKCU:\SOFTWARE\Valve\Steam')) {
@@ -68,6 +73,8 @@ function Get-SteamLibraries([string]$SteamRoot) {
 }
 
 function Test-GameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'black-mesa' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf))
 }
 
@@ -94,23 +101,16 @@ function Get-ArchiveInputFolders {
 }
 
 function Get-LatestRelease {
-    try {
-        $release = Invoke-PCVRRestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -Headers @{'User-Agent'='PCVR-Mods-Hub'} -TimeoutSec 25 -ErrorAction Stop
-        if (-not $release.draft -and -not $release.prerelease) {
-        $asset = @($release.assets | Where-Object {
-            [string]$_.browser_download_url -and [string]$_.name -match '(?i)\.zip$'
-        } | Sort-Object @{Expression={ if ([string]$_.name -match '(?i)(black.*mesa.*vr|drop.?in)') { 0 } else { 1 } }} | Select-Object -First 1)[0]
-            if ($asset) {
-                return [pscustomobject]@{ Tag=[string]$release.tag_name; Name=[string]$asset.name; Url=[string]$asset.browser_download_url }
-            }
-        }
-    } catch { Write-Warn 'GitHub release lookup failed; using the last known stable asset URL.' }
-    return [pscustomobject]@{ Tag=$PIN_TAG; Name=$PIN_NAME; Url=$PIN_URL }
+    $release=Resolve-GitHubReleaseAsset -Repo $REPO -AssetPatterns @('(?i)^Black[- ]Mesa[- ]VR.*\.zip$') -SkipReleasesWithoutMatchingAsset
+    if(-not $release -or -not $release.Resolved){throw 'The current stable Black Mesa VR release could not be resolved. Retry or supply its official ZIP; no older release was selected.'}
+    $version=Get-PCVRGitHubSelectedAssetTimestamp -Release $release
+    if(-not $version){throw 'The selected publisher file has no exact upload timestamp. No game files were changed; retry the release check.'}
+    return [pscustomobject]@{Tag=[string]$release.Tag;Name=[string]$release.AssetName;Url=[string]$release.Url;Version=$version}
 }
 
 function Get-ReleaseArchive([string]$Destination,$Release) {
     if (-not (Invoke-SafeDownload -Urls @([string]$Release.Url) -Destination $Destination -Label "Black Mesa VR $($Release.Tag)" `
-        -ManualUrl $RELEASES_URL -ExpectedReleaseTag ([string]$Release.Tag))) { return $null }
+        -ManualUrl $RELEASES_URL -ExpectedReleaseTag ([string]$Release.Tag) -FunctionalPayloadOnly -DisableGitHubAssetReresolution -PlainProgress)) { return $null }
     return $Destination
 }
 
@@ -250,7 +250,7 @@ function Install-LaunchLinks([string]$GameRoot,[string]$SteamRoot,[hashtable]$Ro
         try { foreach ($row in @((Get-Content -LiteralPath $statePath -Raw) | ConvertFrom-Csv -Delimiter "`t")) { $oldState[[string]$row.Name] = $row } } catch {}
     }
     $stateLines = @("Name`tAction`tTarget`tArguments")
-    $desktop = [Environment]::GetFolderPath('Desktop')
+    $desktop = Get-BlackMesaDesktopRoot
     foreach ($def in $definitions) {
         if ($def.BlueShift -and -not (Test-Path -LiteralPath (Join-Path $GameRoot 'bshift\gameinfo.txt') -PathType Leaf)) { continue }
         $desktopLink = Join-Path $desktop ($def.Name + '.lnk')
@@ -271,6 +271,7 @@ function Install-LaunchLinks([string]$GameRoot,[string]$SteamRoot,[hashtable]$Ro
 $work = $null
 $gamePath = $null
 $restoreFlat = $false
+$snapshots=@();$committed=$false;$keepWork=$false
 try {
     Write-Header
     Write-Host ' This setup installs the current stable GitHub release into' -ForegroundColor White
@@ -298,26 +299,32 @@ try {
     Write-Step 2 5 'Getting the current stable VR release'
     $release = Get-LatestRelease
     Write-Info "Stable release: $($release.Tag)"
-    $work = Join-Path $env:TEMP ('pcvr_blackmesa_' + [Guid]::NewGuid().ToString('N'))
-    New-Item -ItemType Directory -Path $work -Force | Out-Null
+    $work = New-PCVRInstallerTempSession -BasePath $env:TEMP
     $archive = Get-ReleaseArchive -Destination (Join-Path $work ([string]$release.Name)) -Release $release
     if (-not $archive) { throw 'Could not acquire the Black Mesa VR release.' }
 
     Write-Step 3 5 'Validating and extracting the release'
     $extract = Join-Path $work 'payload'
-    $result = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'Black Mesa VR archive' -AllowSkip $false
+    Write-Info 'Extracting the publisher files. This may take a moment...'
+    $result = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'Black Mesa VR archive' -AllowSkip $false -QuietProgress
     if ([string]$result -notin @('ok','manual','retry')) { throw 'The VR archive was not extracted.' }
     $payload = Get-ExtractedPayloadRoot -ExtractDir $extract -RelModFile 'BMVR_README.txt'
     foreach ($required in @('BMVR_README.txt','d3d9.dll','bin\d3d9.dll','bin\thirdparty\dxvk-windows-x86\d3d9.dll','VR\openxr_helper64\OpenXRHelper64.exe','VR\config.txt','bms\cfg\bmvr.cfg')) {
         if (-not (Test-Path -LiteralPath (Join-Path $payload $required))) { throw "Release is incomplete: missing $required" }
     }
     $fileCount = @(Get-ChildItem -LiteralPath $payload -Recurse -File).Count
-    if ($fileCount -lt 20 -or $fileCount -gt 60) { throw "Unexpected release layout ($fileCount files)." }
     Write-OK "$fileCount release files validated."
 
     Write-Step 4 5 'Installing Black Mesa VR safely'
     $manifestPath = Join-Path $gamePath $MANIFEST_NAME
     $rows = Read-Manifest $manifestPath
+    $extra=@($MANIFEST_NAME,$SHORTCUT_STATE,$AUTOEXEC_REL,'VRLaunch\Black Mesa VR.lnk','VRLaunch\Black Mesa Blue Shift VR.lnk')+@($rows.Keys)+@($LOADERS)+@($LOADERS|ForEach-Object {$_+'.pcvrhub-off'})
+    $snapshots+=@{GameRoot=$gamePath;Snapshot=(Save-PCVRPublisherZipSnapshot -GameRoot $gamePath -Stage $payload -Identity blackmesavr -SnapshotRoot (Join-Path $work 'before-game') -ExtraPaths $extra -BackupRelativePath $BACKUP_NAME)}
+    $empty=Join-Path $work 'empty';[void][IO.Directory]::CreateDirectory($empty)
+    $snapshots+=@{GameRoot=$gamePath;Snapshot=(Save-PCVRPublisherZipSnapshot -GameRoot $gamePath -Stage $empty -Identity blackmesavrconflicts -SnapshotRoot (Join-Path $work 'before-conflicts') -BackupRelativePath '.pcvrhub-blackmesavr-conflicts')}
+    $desktop=Get-BlackMesaDesktopRoot
+    if(-not $desktop -or -not [IO.Directory]::Exists($desktop)){throw 'The Desktop folder is unavailable. No game files were changed.'}
+    $snapshots+=@{GameRoot=$desktop;Snapshot=(Save-PCVRPublisherZipSnapshot -GameRoot $desktop -Stage $empty -Identity blackmesavrdesktop -SnapshotRoot (Join-Path $work 'before-desktop') -ExtraPaths @('Black Mesa VR.lnk','Black Mesa Blue Shift VR.lnk'))}
     $restoreFlat = Enable-LoadersForUpdate $gamePath
     Install-Component -Name 'VR' -PayloadRoot $payload -GameRoot $gamePath -Rows $rows -KeepFiles @('VR\config.txt','VR\viewmodel_offsets.txt')
     Ensure-Autoexec -GameRoot $gamePath -Rows $rows
@@ -355,31 +362,31 @@ try {
         }
     }.GetNewClosure()
     if (-not (Confirm-PlacedFilesSurvive -Paths $watchPaths -GameDir $gamePath -Recopy $recoverBinaries)) { throw 'One or more required VR binaries did not survive the antivirus check.' }
-    Save-InstalledStamp -GameDir $gamePath -Version ([string]$release.Tag) -HubDir $PSScriptRoot
-    $versionReceipt = Join-Path $gamePath '.pcvrhub_version'
-    if (-not (Test-Path -LiteralPath $versionReceipt -PathType Leaf) -or
-        ([IO.File]::ReadAllText($versionReceipt)).Trim() -ne [string]$release.Tag) {
-        throw 'The installed version receipt could not be verified.'
-    }
-    [IO.File]::WriteAllText((Join-Path $PSScriptRoot '.installed_path'),$gamePath,(New-Object Text.UTF8Encoding($false)))
     if ($restoreFlat) { Disable-Loaders $gamePath; $restoreFlat = $false; Write-Info 'Your previous Flat mode was preserved.' }
-    Write-OK "Black Mesa VR $($release.Tag) installed."
+    [void](Complete-PCVRInstallTransaction -Contract $contract -GameDir $gamePath -Version ([string]$release.Version) -InstalledPathReceiptPaths @((Join-Path $PSScriptRoot '.installed_path')) -InstalledVersionReceiptPaths @((Join-Path $PSScriptRoot '.installed_version')))
+    $committed=$true
     if (Test-Path -LiteralPath (Join-Path $gamePath 'bshift\gameinfo.txt') -PathType Leaf) { Write-OK 'Black Mesa: Blue Shift detected; its start option is ready.' }
     else { Write-Info 'Blue Shift was not detected. Install it and rerun setup to add its desktop shortcut.' }
 
     Write-Host ''
     Write-Host ' STARTING THE GAME' -ForegroundColor Cyan
-    Write-Host ' Use Start in VR in the Hub, Steam, or the desktop shortcut.' -ForegroundColor White
+    Write-Host ' 1. Use Start in VR in the Hub.' -ForegroundColor White
+    Write-Host ' Steam and the matching desktop shortcut use the same VR route.' -ForegroundColor Gray
     Write-Host ' Virtual Desktop: select VDXR. Meta Link uses the Oculus' -ForegroundColor Gray
     Write-Host ' OpenXR runtime. Do not run two OpenXR compositors together.' -ForegroundColor Gray
     Write-Host ''
     Write-Host " $QUIP" -ForegroundColor Magenta
 } catch {
+    $problem=$_
+    if(-not $committed -and $snapshots.Count){
+        try{for($i=$snapshots.Count-1;$i -ge 0;$i--){Restore-PCVRPublisherZipSnapshot -GameRoot $snapshots[$i].GameRoot -Snapshot $snapshots[$i].Snapshot};$restoreFlat=$false}
+        catch{$keepWork=$true;throw ('Black Mesa update failed: '+$problem.Exception.Message+'. Rollback also failed: '+$_.Exception.Message+'. Recovery files: '+$work)}
+    }
     Write-Host ''
-    Write-Fail $_.Exception.Message
-    throw
+    Write-Fail $problem.Exception.Message
+    throw $problem
 } finally {
     if ($restoreFlat -and $gamePath) { try { Disable-Loaders $gamePath } catch { Write-Warn 'Setup could not restore every parked loader; use the Hub Flat / VR switch after reviewing the files.' } }
-    if ($work -and (Test-Path -LiteralPath $work)) { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
+    if (-not $keepWork -and $work -and (Test-Path -LiteralPath $work)) { Remove-PCVRInstallerTempSession -Path $work }
 }
-Pause-User 'Press Enter to exit...' | Out-Null
+Pause-User 'Press Enter to close setup...' | Out-Null

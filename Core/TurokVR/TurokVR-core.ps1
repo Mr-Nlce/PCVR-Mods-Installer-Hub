@@ -1,4 +1,4 @@
-# Turok VR: Steam KEX4 edition; OpenXR/Vulkan; GitHub release asset.
+﻿# Turok VR: Steam KEX4 edition; OpenXR/Vulkan; GitHub release asset.
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
@@ -13,7 +13,9 @@ $REQUIRED=@('vulkan-1.dll','turok.assets','steam_appid.txt','openxr_loader.dll',
 $CONTRACT=New-PCVRInstallerContract -Id 'turok-vr' -GameName 'Turok VR' -Acquisition GitHub `
     -AntivirusNotice -ReleasePageUrl $RELEASES -RequiredInstalledFileGroups $REQUIRED
 
-function Test-TurokGame([string]$Path){return [bool]($Path -and
+function Test-TurokGame([string]$Path){
+    if (-not (Test-PCVRGameInstallProof -GameId 'turok-vr' -Root $Path)) { return $false }
+return [bool]($Path -and
     (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf) -and
     (Test-Path -LiteralPath (Join-Path $Path 'game.kpf') -PathType Leaf))}
 function Get-TurokGameRoot {

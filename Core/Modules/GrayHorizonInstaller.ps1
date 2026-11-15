@@ -26,6 +26,10 @@ function Get-GrayHorizonGame([int]$Number,[string]$Id) {
     $exe="ForzaHorizon$Number.exe";$c=@()
     $saved=Get-PCVRRememberedGameFolder -GameId $Id -StateNames @('installed_path','user_located') -ProbeFiles @($exe)
     if($saved){$c+=$saved}
+    if($Number -in 5,6){
+        $parentLocation=Get-PCVRRememberedGameFolder -GameId "forza-horizon-$Number-vr" -StateNames @('user_located') -ProbeFiles @($exe)
+        if($parentLocation){$c+=$parentLocation}
+    }
     try{$s=Find-SteamGameFolder -AppId (@{4='1293830';5='1551360';6='2483190'}[$Number]) -SteamFolderNames @("ForzaHorizon$Number","Forza Horizon $Number") -ProbeExe $exe -HubGameId $Id;if($s){$c+=$s}}catch{}
     if($Number -ne 4){
         $c+="C:\XboxGames\Forza Horizon $Number\Content"
@@ -55,13 +59,13 @@ function Get-GrayHorizonStoreTarget([string]$Root,[int]$Number,[string]$Route) {
 function Get-GrayHorizonArchive([int]$Number,[string]$Destination) {
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $env:PCVR_GH_TEST_ARCHIVE){Copy-Item -LiteralPath $env:PCVR_GH_TEST_ARCHIVE -Destination $Destination -Force -ErrorAction Stop;return}
     $page='https://github.com/GrayHorizon-mod/Forza-Horizon-VR/releases'
-    try{$release=Resolve-GitHubReleaseAsset -Repo 'GrayHorizon-mod/Forza-Horizon-VR' -IncludePrerelease $false -AssetPatterns @("(?i)^GrayHorizon-FH$Number-.+\.zip$") -SkipReleasesWithoutMatchingAsset}catch{$release=$null}
+    try{$release=Resolve-GitHubReleaseAsset -Repo 'GrayHorizon-mod/Forza-Horizon-VR' -IncludePrerelease $false -AssetPatterns @("(?i)^GrayHorizon-FH${Number}(?:-.+)?\.zip$") -SkipReleasesWithoutMatchingAsset}catch{$release=$null}
     if($release -and $release.Resolved -and $release.Url){[void](Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $Destination -Label "GrayHorizon FH$Number" -ManualUrl $page -AllowSkip:$false);return [string]$release.Tag}
     Write-Host '  [!!] The release could not be resolved automatically. Download the ZIP for this game from its official release page.' -ForegroundColor Yellow
     [void](Open-PCVRPageAfterEnter -Url $page -Message 'Press Enter to open the official GrayHorizon releases...')
     while($true){
         [void](Wait-PCVRExplicitEnter -Message "After downloading the FH$Number ZIP, press Enter to check Downloads...")
-        $found=Find-PCVRDownloadedCandidate -Patterns @("GrayHorizon-FH$Number-*.zip")
+        $found=Find-PCVRDownloadedCandidate -Patterns @("GrayHorizon-FH$Number.zip","GrayHorizon-FH$Number-*.zip")
         if($found){Write-Host "  Found: $found" -ForegroundColor Cyan;if((Read-Host '  Use this ZIP? Y/N').Trim() -match '^(?i:y|yes)$'){Copy-Item -LiteralPath $found -Destination $Destination -Force;return}}
         $path=(Read-Host '  Drag/paste the ZIP path, or press Enter to reopen the release page').Trim().Trim('"').Trim("'")
         if($path -and (Test-Path -LiteralPath $path -PathType Leaf)){Copy-Item -LiteralPath $path -Destination $Destination -Force;return}
@@ -74,12 +78,16 @@ function Show-GrayHorizonRequiredSettings([int]$Number) {
     Write-Host '  Video: V-Sync OFF, frame rate UNLOCKED, motion blur OFF.' -ForegroundColor Yellow
     Write-Host '  Turn OFF the game''s TAA/FXAA/DLSS/FSR/XeSS/CAS and Frame Generation.' -ForegroundColor Yellow
     Write-Host '  Use the mod''s own upscaler/AA. Turn MSAA off when using its upscaler.' -ForegroundColor White
-    if($Number -ne 4){Write-Host '  HDR OFF (also check Windows HDR if the option is unavailable).' -ForegroundColor Yellow}
+    Write-Host '  HDR OFF (also check Windows HDR if the option is unavailable).' -ForegroundColor Yellow
+    if($Number -eq 4){Write-Host '  Dynamic Optimization OFF.' -ForegroundColor Yellow}
     $hud=if($Number -eq 4){'Horizontal 8 / Vertical 37'}else{'Horizontal 5 / Vertical 9'}
     Write-Host "  HUD and gameplay > HUD Safe Frame: $hud." -ForegroundColor Yellow
-    Write-Host '  Data Out: ON, IP 127.0.0.1, port 20440. This enables per-car HUD layouts.' -ForegroundColor Yellow
+    Write-Host '  Data Out is no longer used by GrayHorizon.' -ForegroundColor Yellow
     if($Number -eq 6){Write-Host '  Radar position: Center right.' -ForegroundColor Yellow}
-    Write-Host '  If using SimHub/a rig, forward its old telemetry destination in GrayHorizon Settings.' -ForegroundColor White
+    Write-Host '  For SimHub/a rig, restore its own destination IP and port in the game.' -ForegroundColor White
+    Write-Host '  Updating from 1.1: seat positions and HUD layouts must be set again per car.' -ForegroundColor Yellow
+    Write-Host '  Optional: GrayHorizon Settings > Options > Reset to defaults. Old files are backed up first.' -ForegroundColor White
+    Write-Host '  The Hub keeps your configuration; it does not reset these choices automatically.' -ForegroundColor White
 }
 function New-GrayHorizonShortcut([string]$Path,[string]$Root,[int]$Number,[string]$Target) {
     $shell=New-Object -ComObject WScript.Shell
@@ -112,12 +120,11 @@ function Invoke-GrayHorizonInstaller([int]$Number,[string]$InstallerFolder) {
         $Host.UI.RawUI.WindowTitle="$title Installer"
         Write-Host ('='*60) -ForegroundColor Magenta
         Write-Host "  $title" -ForegroundColor Cyan
-        Write-Host '  Untested Hub installer - help us confirm it on a real game' -ForegroundColor White
         Write-Host ('='*60) -ForegroundColor Magenta
         Write-Host "  $(if($Number -eq 4){'Steam only.'}else{'Steam or Xbox/Game Pass.'}) OpenXR cockpit VR; use a gamepad or wheel." -ForegroundColor White
         Write-Host '  Close other VR launchers. Online use is at your own risk.' -ForegroundColor Yellow
         Write-Host '  Your saves, HUD layouts and existing configuration are preserved.' -ForegroundColor White
-        Write-Host '  A report in Hub Core\Logs\Untested records the files before/after installation and this installer log.' -ForegroundColor Cyan
+        if ($report) { Write-Host '  The diagnostic report records the files before and after installation and the installer log.' -ForegroundColor Cyan }
         Show-AntivirusNotice -Compact
         [void](Wait-PCVRExplicitEnter -Message "After reading this, press Enter to locate Forza Horizon $Number...")
         $game=Get-GrayHorizonGame $Number $id;$root=$game.Root
@@ -190,7 +197,6 @@ function Invoke-GrayHorizonInstaller([int]$Number,[string]$InstallerFolder) {
         Write-Host "  Alternative: start from $(if($game.Route -eq 'Steam'){'Steam'}else{'the Xbox app'}) or the $desktopLabel Desktop shortcut." -ForegroundColor White
         Write-Host '  Switch to cockpit view. Restart once after the first headset launch for the correct render size.' -ForegroundColor Yellow
         Write-Host '  Press Ctrl+Space to recenter; F12 opens the VR menu.' -ForegroundColor White
-        Write-Host '  Play a few minutes, then use Provide feedback in the Hub to share your test-result.txt.' -ForegroundColor Cyan
         try {
             $reportPath=Complete-PCVRInstallerTestReport -Session $report -Outcome Success -ModVersion $version
             Show-PCVRInstallerTestReportResult -ReportPath $reportPath

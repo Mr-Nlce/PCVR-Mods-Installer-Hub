@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 
@@ -17,6 +17,8 @@ $script:MiSideContract=New-PCVRInstallerContract -Id $script:MiSideId -GameName 
     -RequiredInstalledFileGroups @($script:MiSideBepProof + $script:MiSideModProof + '.pcvrhub_misidevr_ownership.csv')
 
 function Test-MiSideGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'miside-vr' -Root $Root)) { return $false }
+
     return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'MiSideFull.exe') -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Root 'MiSideFull_Data\globalgamemanagers') -PathType Leaf))
 }

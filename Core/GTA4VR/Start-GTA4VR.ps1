@@ -7,11 +7,11 @@ try{
     $game=Get-GTA4Root $GameDirectory
     if(-not [IO.File]::Exists((Join-Path $game 'pc\models\cdimages\vehicles.img'))){throw 'The original GTA IV game data is missing from this folder. Locate the complete game installation.'}
     $store=Join-Path $game ('_vrmods\'+$Mod)
-    $managed=$false;try{Assert-GTA4Payload $store $Mod;$managed=$true}catch{}
+    $managed=$false;try{Assert-GTA4Payload $store $Mod;$managed=($Mod -ne 'bordplate' -or (Test-GTA4NativeRuntime $store))}catch{}
     if($managed){Assert-GTA4Payload $store $Mod}else{
         if(-not(Test-GTA4ProfilePresence $game $Mod)){throw 'The selected GTA IV VR runtime is incomplete or mixed with another mod. Locate the working installation or repair the selected profile.'}
         Assert-GTA4Payload $game $Mod -AllowParked
-        if($Mod -eq 'bordplate' -and -not(Test-Path -LiteralPath (Join-Path $game 'GTA4VR-notices\readme.md'))){throw 'The installed FusionFix is not proven to be bordplate GTA4VR. Locate the VR installation or install the selected mod.'}
+        if($Mod -eq 'bordplate' -and -not(Test-GTA4NativeRuntime $game)){throw 'The installed FusionFix is not proven to be bordplate GTA4VR. Locate the VR installation or install the selected mod.'}
     }
     $plan=Get-GTA4LaunchPlan $game
     $mode=Join-Path $game '_vrmods\mode.ini'

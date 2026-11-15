@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle='Diablo II Resurrected VR Installer'
@@ -11,7 +11,9 @@ $required=@('D2R.exe','D2RLoader.exe','D2R_VR_Settings.exe',
 $contract=New-PCVRInstallerContract -Id $id -GameName 'Diablo II Resurrected VR' -Acquisition External `
     -ReleasePageUrl $page -AntivirusNotice -RequiredInstalledFileGroups $required
 
-function Test-D2RGame([string]$Root){return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'D2R.exe') -PathType Leaf))}
+function Test-D2RGame([string]$Root){
+    if (-not (Test-PCVRGameInstallProof -GameId 'diablo-ii-resurrected-vr' -Root $Root)) { return $false }
+return [bool]($Root -and (Test-Path -LiteralPath (Join-Path $Root 'D2R.exe') -PathType Leaf))}
 function Get-D2RGameRoot {
     $fixture=(''+$env:PCVR_D2R_TEST_GAME_ROOT).Trim()
     if($env:PCVR_HUB_TEST_MODE -eq '1' -and $fixture){

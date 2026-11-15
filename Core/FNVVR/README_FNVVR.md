@@ -1,4 +1,4 @@
-# Fallout: New Vegas VR
+﻿# Fallout: New Vegas VR
 
 ## About the Game
 
@@ -6,11 +6,19 @@ Fallout: New Vegas is an open-world role-playing game set in the Mojave. FNVVR R
 
 ## Requirements and installation
 
+The installer offers **1. FNVVR** and **2. TTWVR**. Option 2 requires New Vegas Ultimate Edition, uses its own MO2 profile and guides you through the Tale of Two Realities Discord and Nexus downloads. For TTWVR, join the server when prompted, then download `TTWVR.zip` from the newest message at the bottom of **#announcements** and enter the version from that message. If setup offers a separate game copy, drop an empty folder into the installer, paste a full path, or press Enter for the suggested location. Follow the numbered MO2 checklist in the installer. Choose **A Tale of Two Realities** in the Hub to play both Fallout 3 and New Vegas.
+
 You need the original PC game with `FalloutNV.exe` and `Data/FalloutNV.esm`, SteamVR, a connected headset and a Vulkan-capable GPU. The publisher primarily tested Linux/Proton with a Quest 2; Windows and the listed non-Steam stores need live confirmation. The Windows installer does not use the Proton-only `WINEDLLOVERRIDES` launch option.
+
+To update **TTWVR**, choose **Update** for TTWVR or select **2. TTWVR** when you reopen the installer. With a verified MO2 profile, setup opens the TTWVR-only update. Supply the current Discord ZIP to keep the existing profile, dependencies, saves and calibration.
 
 1. Close the game. Choose [[Get Installer]] and follow the Enter prompts. The Hub checks the newest GitHub release **including prereleases**.
 2. The Hub stages the publisher ZIP, checks `d3d9.dll`, the 32-bit `openvr_api.dll`, `fnvvr` actions/bindings and `dxvk.conf`, then installs them beside `FalloutNV.exe`. It backs up earlier same-name files. If an existing `dxvk.conf` uses a conflicting VR backend, review it before retrying. Existing `fnvvr/vr_options.ini` remains untouched.
 3. Start SteamVR, connect the headset, then choose [[Start in VR]]. The Steam edition uses the Steam launch route; other installed copies use their detected executable.
+
+Version 0.17.0 adds a hand-operated slot machine lever, improves scope reticles, and fixes a crash when closing desk terminals. Setup installs the complete `fnvvr` directory, including Steam Frame bindings, while preserving your VR options. Start SteamVR before launching the game.
+
+Version 0.10.0 expands physical object handling, remote grabbing, two-hand grips, body dragging and the chest inventory. These features remain work in progress; consult the publisher release notes before changing your bindings.
 
 ## Controls
 
@@ -47,5 +55,7 @@ The Hub watches GitHub prereleases. It does not install an older archive if the 
 ## Links
 
 [Publisher](https://github.com/df4l/FNVVR) · [Releases](https://github.com/df4l/FNVVR/releases) · Join [Flat2VR Modding](https://discord.gg/uAeQkYBM4n), then read the [New Vegas thread](https://discord.com/channels/747967102895390741/1558480358427721798) · [VR gameplay](https://youtu.be/8A6W_p2Yl64)
+
+For option 2, [join the Tale of Two Realities Discord](https://discord.gg/TrJyyZEds) and check the [TTWVR release channel](https://discord.com/channels/1570233209462194208/1570238629832564858).
 
 >>> The Mojave looks different from inside the wasteland.

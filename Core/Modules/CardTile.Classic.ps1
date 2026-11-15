@@ -371,11 +371,13 @@ function global:New-GameCardClassic {
     # detail page - this is purely a space decision on the tile.
     # There used to be a hand-maintained title list here; it had to be
     # updated with every new entry and was forgotten.
+    $tileMod = if ($game.TileMod) { [string]$game.TileMod } else { [string]$game.Mod }
+    $tileAuthor = if ($game.TileAuthor) { [string]$game.TileAuthor } else { [string]$game.Author }
     $hideTileAuthor = [bool]$game.HideTileAuthor
-    if ($isLongTitle -and $game.Mod -and $game.Author -and -not $game.ImprovementTag) {
+    if ($isLongTitle -and $tileMod -and $tileAuthor -and -not $game.ImprovementTag) {
         try {
             $metaProbe = New-Object System.Windows.Media.FormattedText(
-                ($game.Mod + " . by " + $game.Author),
+                ($tileMod + " . by " + $tileAuthor),
                 [System.Globalization.CultureInfo]::CurrentCulture,
                 [System.Windows.FlowDirection]::LeftToRight,
                 $titleTypeface,
@@ -400,13 +402,13 @@ function global:New-GameCardClassic {
     if (-not $isLongTitle) {
         # Short title: keep the classic two-line meta block.
         $modText = New-Object System.Windows.Controls.TextBlock
-        $modText.Text = $game.Mod
+        $modText.Text = $tileMod
         # Long mod lines (two mod names plus "(auto-update)") overflow the
         # tile at the normal size. One step down keeps them inside and stays
         # legible. The cutoff sits ABOVE every string that fits today, so
         # only the genuinely too-long ones change - nothing that already
         # looked right is touched.
-        $modText.FontSize = $(if ($game.Mod -and $game.Mod.Length -ge 31) { [int](9*$sc) } else { [int](10*$sc) })
+        $modText.FontSize = $(if ($tileMod -and $tileMod.Length -ge 31) { [int](9*$sc) } else { [int](10*$sc) })
         $modText.FontWeight = [System.Windows.FontWeights]::Medium
         $modText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
         $modText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
@@ -429,7 +431,7 @@ function global:New-GameCardClassic {
             $addonBanner.HorizontalAlignment = [System.Windows.HorizontalAlignment]::Left
             $addonBanner.Margin = [System.Windows.Thickness]::new(0, [int](3*$sc), 0, 0)
             $addonTxt = New-Object System.Windows.Controls.TextBlock
-            $addonTxt.Text = "+ $($game.AddonName) add-on"
+            $addonTxt.Text = if ($game.TileAddonLabel) { $game.TileAddonLabel } else { "+ $($game.AddonName) add-on" }
             $addonTxt.FontSize = [int](8*$sc)
             $addonTxt.FontWeight = [System.Windows.FontWeights]::SemiBold
             $addonTxt.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#7ab5ff")
@@ -473,14 +475,14 @@ function global:New-GameCardClassic {
         # ImprovementTag games: hide the modder name on the TILE so the
         # blue "+ ... mod" box can take that slot without breaking layout.
         # The author still shows on the detail page.
-        if (-not $isExternal -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
+        if (-not $isExternal -and $tileAuthor -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authorText = New-Object System.Windows.Controls.TextBlock
             # A very long modder name runs out of tile width at the normal
             # size. One point smaller makes it fit and is not noticeable next
             # to the other tiles. The threshold is deliberately high (28): at
             # 22 it would have quietly shrunk nine existing tiles as well -
             # only "Hochgeschwindigkeitsrennfahrer" (30) actually needs it.
-            $authorText.FontSize = $(if (([string]$game.Author).Length -gt 28) { [int](8*$sc) } else { [int](9*$sc) })
+            $authorText.FontSize = $(if (([string]$tileAuthor).Length -gt 28) { [int](8*$sc) } else { [int](9*$sc) })
             $authorText.FontWeight = [System.Windows.FontWeights]::Medium
             $authorText.FontFamily = [System.Windows.Media.FontFamily]::new("Segoe UI")
             $authorText.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
@@ -499,10 +501,10 @@ function global:New-GameCardClassic {
             #      would just dangle.
             # The marker always takes the accent colour, the name stays grey.
             $auAccent = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
-            $auMarker = $null; $auName = [string]$game.Author; $auFirst = $false
-            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+            $auMarker = $null; $auName = [string]$tileAuthor; $auFirst = $false
+            if ($tileAuthor -match '^\s*(\(auto-updates?\))\s*(.*)$') {
                 $auMarker = [string]$matches[1]; $auName = ([string]$matches[2]).Trim(); $auFirst = $true
-            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+            } elseif ($tileAuthor -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
                 $auMarker = [string]$matches[2]; $auName = ([string]$matches[1]).Trim(); $auFirst = $false
             }
             if ($auMarker) {
@@ -525,7 +527,7 @@ function global:New-GameCardClassic {
                     [void]$authorText.Inlines.Add($auRun2)
                 }
             } else {
-                $authorText.Text = "by $($game.Author)"
+                $authorText.Text = "by $($tileAuthor)"
                 $authorText.Foreground = $authGrey
             }
             $titleStack.Children.Add($authorText) | Out-Null
@@ -563,15 +565,15 @@ function global:New-GameCardClassic {
         $metaLine.FontWeight = [System.Windows.FontWeights]::Medium
         $metaLine.Margin = [System.Windows.Thickness]::new(0, [int](2*$sc), 0, 0)
         $metaLine.TextWrapping = [System.Windows.TextWrapping]::NoWrap
-        $metaLine.TextTrimming = [System.Windows.TextTrimming]::CharacterEllipsis
+        $metaLine.TextTrimming = [System.Windows.TextTrimming]::None
 
-        if ($game.Mod -and -not $game.ImprovementTag) {
+        if ($tileMod -and -not $game.ImprovementTag) {
             $modRun = New-Object System.Windows.Documents.Run
-            $modRun.Text = $game.Mod
+            $modRun.Text = $tileMod
             $modRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString($game.Accent)
             [void]$metaLine.Inlines.Add($modRun)
         }
-        if ($game.Mod -and $game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
+        if ($tileMod -and $tileAuthor -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $sepRun = New-Object System.Windows.Documents.Run
             $sepRun.Text = " . "
             $sepRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#444455")
@@ -579,18 +581,18 @@ function global:New-GameCardClassic {
         }
         # ImprovementTag games (and $hideTileAuthor titles): modder name
         # hidden on the tile (detail page keeps it).
-        if ($game.Author -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
+        if ($tileAuthor -and -not $game.ImprovementTag -and -not $hideTileAuthor) {
             $authRun = New-Object System.Windows.Documents.Run
             # Same marker rule as the separate-line layout above - the ORDER
             # the catalog wrote is kept - but as ONE run: this compact line
             # is a single muted string, so there is no accent split here.
-            if ($game.Author -match '^\s*(\(auto-updates?\))\s*(.*)$') {
+            if ($tileAuthor -match '^\s*(\(auto-updates?\))\s*(.*)$') {
                 $acName = ([string]$matches[2]).Trim()
                 $authRun.Text = $(if ($acName) { "$($matches[1]) by $acName" } else { [string]$matches[1] })
-            } elseif ($game.Author -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
+            } elseif ($tileAuthor -match '^\s*(.+?)\s*(\(auto-updates?\))\s*$') {
                 $authRun.Text = "by $(([string]$matches[1]).Trim()) $($matches[2])"
             } else {
-                $authRun.Text = "by $($game.Author)"
+                $authRun.Text = "by $($tileAuthor)"
             }
             $authRun.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#888899")
             [void]$metaLine.Inlines.Add($authRun)
@@ -645,7 +647,7 @@ function global:New-GameCardClassic {
     # Install button out of the card. The full text remains
     # accessible via the auto-tooltip (only shown when truncated).
     $descText = New-Object System.Windows.Controls.TextBlock
-    $descText.Text = $game.Description
+    $descText.Text = if ($game.TileDescription) { [string]$game.TileDescription } else { $game.Description }
     $descText.FontSize = [int](10*$sc)
     $descText.FontWeight = [System.Windows.FontWeights]::Medium
     $descText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#777788")
@@ -1956,6 +1958,7 @@ function global:New-GameCardClassic {
             # handler below still runs for the body / install button.
             $btnBorder.Add_MouseLeftButtonDown({
                 param($s, $e)
+                if($cardCapture.Tag -eq 'vrimport'){$e.Handled=$true;Start-OriginalGameImport -Game $gameCapture;return}
                 if ($cardCapture.Tag -eq "vrinstalled") {
                     $e.Handled = $true
                     Start-GameInVR -Game $gameCapture
@@ -1970,6 +1973,7 @@ function global:New-GameCardClassic {
                 # is handled by the small reload pill on the right
                 # of the button (which sets e.Handled = $true to
                 # stop this card-level handler from firing).
+                if($cardCapture.Tag -eq 'vrimport'){Start-OriginalGameImport -Game $gameCapture;return}
                 if ($cardCapture.Tag -eq "vrinstalled") {
                     Start-GameInVR -Game $gameCapture
                     return
@@ -1993,9 +1997,6 @@ function global:New-GameCardClassic {
                         }
                         return
                     }
-                    # Single-choice blue Update button: wipe the stored version
-                    # so the next scan persists the newly installed release.
-                    Clear-UpdateOkMarker -Game $gameCapture
                 }
                 # Launch the installer and capture the process so
                 # we can refresh state when it exits. Same auto-
@@ -2017,7 +2018,7 @@ function global:New-GameCardClassic {
                         $timer.Add_Tick({
                             param($s, $e)
                             $proc = $s.Tag
-                            if (Test-InstallerRefreshReady -Process $proc) {
+                            if (Test-InstallerRefreshReady -Process $proc -Timer $s) {
                                 try { $s.Stop() } catch {}
                                 Invoke-PostInstallRefreshSafely -GameId ('' + $proc.PcvrGameId) -Title ('' + $proc.PcvrGameTitle) -ShowScanActivity
                             }
@@ -2052,13 +2053,6 @@ function global:New-GameCardClassic {
                         return
                     }
                 }
-                # Split update / normal reinstall: clear stored version so the
-                # next Check-Installed scan persists the new version
-                # after the installer runs. Matches the card-level
-                # click handler's behaviour for the Update path.
-                if ($cardCapture.Tag -eq "vrupdate") {
-                    try { Clear-UpdateOkMarker -Game $gameCapture } catch { }
-                }
                 # Launch + capture the process so we can auto-refresh
                 # this card's state when the installer exits (same
                 # poll pattern as the card-body click). Without this
@@ -2074,7 +2068,7 @@ function global:New-GameCardClassic {
                         $plTimer.Add_Tick({
                             param($ts, $te)
                             $tp = $ts.Tag
-                            if (Test-InstallerRefreshReady -Process $tp) {
+                            if (Test-InstallerRefreshReady -Process $tp -Timer $ts) {
                                 try { $ts.Stop() } catch {}
                                 Invoke-PostInstallRefreshSafely -GameId ('' + $tp.PcvrGameId) -Title ('' + $tp.PcvrGameTitle) -ShowScanActivity
                             }

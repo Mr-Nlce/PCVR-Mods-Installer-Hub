@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '..\Modules\InstallerFoundation.ps1')
 . (Join-Path $PSScriptRoot '..\Modules\OwnedModFiles.ps1')
 $Host.UI.RawUI.WindowTitle='PowerWash Simulator VR Installer'
@@ -15,6 +15,8 @@ $contract=New-PCVRInstallerContract -Id 'powerwash-simulator-vr' -GameName 'Powe
     -AntivirusNotice -ReleasePageUrl $RELEASES_URL -RequiredInstalledFileGroups $required
 
 function Test-WRGameRoot([string]$Path) {
+    if (-not (Test-PCVRGameInstallProof -GameId 'powerwash-simulator-vr' -Root $Path)) { return $false }
+
     return [bool]($Path -and (Test-Path -LiteralPath (Join-Path $Path $GAME_EXE) -PathType Leaf) -and
         (Test-Path -LiteralPath (Join-Path $Path 'GameAssembly.dll') -PathType Leaf))
 }
