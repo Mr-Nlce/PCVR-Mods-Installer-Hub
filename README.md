@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (356)</summary>
+<summary>Show all currently listed titles (358)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -134,6 +134,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Firewatch VR (motion controls)
 * Flower (motion controls)
 * Forsaken (motion controls)
+* Forza Horizon 4
 * Forza Horizon 5
 * Forza Horizon 6
 * Freespace 2
@@ -374,6 +375,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Wolfenstein 3D VR (motion controls)
 * World of Warcraft VR (motion controls)
 * World War II GI VR (motion controls)
+* Wreckfest
 * X4: Foundations
 * XIII Remake VR (motion controls)
 * Yooka-Laylee VR
