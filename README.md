@@ -20,10 +20,11 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (358)</summary>
+<summary>Show all currently listed titles (363)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
+* A Tale of Two Realities (Fallout 3 + New Vegas) (motion controls)
 * Agent 64: Spies Never Die VR (motion controls)
 * Alan Wake
 * Alba VR
@@ -147,6 +148,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Gloomhaven VR (motion controls)
 * GoldenEye 007 VR [WIP] (motion controls)
 * Gothic 2 VR [WIP] (motion controls)
+* Gothic 3 VR (motion controls)
 * Gran Turismo 2 PCVR
 * Grounded
 * GTA 4: The Complete Edition [WIP]
@@ -198,6 +200,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Little Witch Nobeta (motion controls)
 * Lunacid (motion controls)
 * Lunistice
+* Mafia II (Classic) (motion controls)
 * Mage Arena (motion controls)
 * Mario Kart Wii (motion controls)
 * Mass Effect 1 Legendary Edition
@@ -333,6 +336,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Teardown (motion controls)
 * Techtonica (motion controls)
 * The Dark Mod VR
+* The Darkness II (motion controls)
 * The Elder Scrolls IV: Oblivion [WIP]
 * The House of the Dead 2 (original game) (motion controls)
 * The House of the Dead Remake (motion controls)
@@ -344,6 +348,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * The Witcher 3: Wild Hunt
 * The Witness VR [WIP]
 * Thief (2014) [WIP]
+* Tiny Tina’s Wonderlands (motion controls)
 * Tinykin VR
 * Titanfall 2 VR [WIP] (motion controls)
 * TLOU Part I
