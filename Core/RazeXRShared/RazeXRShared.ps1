@@ -33,7 +33,7 @@ function Get-RazeGameDefinition([string]$Family) {
             Quip='Come get some, now with both hands in virtual reality.'
             SteamAppIds=@('434050','225140'); SteamFolders=@('Duke Nukem 3D Twentieth Anniversary World Tour','Duke Nukem 3D')
             GogNames=@('Duke Nukem 3D'); ExtraRoots=@('C:\ZOOM PLATFORM\Gearbox Software\Duke Nukem 3D - Atomic Edition')
-            DataFolders=@('duke'); Markers=@('games\duke\DUKE3D.GRP')
+            DataFolders=@('duke'); Markers=@('games\duke\DUKE3D.GRP'); MarkerFiles=@('DUKE3D.GRP')
             LauncherInclude='(?i)^Duke Nukem 3D.* VR\.bat$'
             LauncherExclude='(?i)(Duke it out|Caribbean|Nuclear Winter|Duke!ZONE|Penthouse)'
         }
@@ -42,7 +42,7 @@ function Get-RazeGameDefinition([string]$Family) {
             IconFile='Blood_VR.ico'
             Quip='Caleb is back, and the cult has nowhere left to hide.'
             SteamAppIds=@('299030'); SteamFolders=@('One Unit Whole Blood'); GogNames=@('One Unit Whole Blood'); ExtraRoots=@()
-            DataFolders=@('blood'); Markers=@('games\blood\BLOOD.RFF')
+            DataFolders=@('blood'); Markers=@('games\blood\BLOOD.RFF'); MarkerFiles=@('BLOOD.RFF')
             LauncherInclude='(?i)^BLOOD.* VR\.bat$'; LauncherExclude='(?i)Cryptic Passage'
         }
         shadowwarrior = @{
@@ -51,7 +51,7 @@ function Get-RazeGameDefinition([string]$Family) {
             Quip='Lo Wang brings the sword, you bring the hands.'
             SteamAppIds=@('225160','238070'); SteamFolders=@('Shadow Warrior Classic','Shadow Warrior Original')
             GogNames=@('Shadow Warrior Classic Redux','Shadow Warrior Classic Complete'); ExtraRoots=@()
-            DataFolders=@('shadowwarrior'); Markers=@('games\shadowwarrior\SW.GRP')
+            DataFolders=@('shadowwarrior'); Markers=@('games\shadowwarrior\SW.GRP'); MarkerFiles=@('SW.GRP')
             LauncherInclude='(?i)^Shadow Warrior.* VR\.bat$'; LauncherExclude='(?i)(Wanton Destruction|Twin Dragon)'
         }
         redneck = @{
@@ -60,7 +60,7 @@ function Get-RazeGameDefinition([string]$Family) {
             Quip='The back roads just became a full-scale virtual reality firefight.'
             SteamAppIds=@('565550','580940'); SteamFolders=@('Redneck Rampage','Redneck Rampage Rides Again')
             GogNames=@('Redneck Rampage Collection'); ExtraRoots=@()
-            DataFolders=@('rampage','ridesagain'); Markers=@('games\rampage\REDNECK.GRP','games\ridesagain\REDNECK.GRP')
+            DataFolders=@('rampage','ridesagain'); Markers=@('games\rampage\REDNECK.GRP','games\ridesagain\REDNECK.GRP'); MarkerFiles=@('REDNECK.GRP','RIDES.GRP','RIDESAGAIN.GRP')
             LauncherInclude='(?i)^Redneck Rampage.* VR\.bat$'; LauncherExclude='(?i)Route 66'
         }
         nam = @{
@@ -68,7 +68,7 @@ function Get-RazeGameDefinition([string]$Family) {
             IconFile='NAM_VR.ico'
             Quip='The Build engine heads into the jungle with tracked weapons.'
             SteamAppIds=@('329650'); SteamFolders=@('Nam','NAM'); GogNames=@('NAM'); ExtraRoots=@()
-            DataFolders=@('nam'); Markers=@('games\nam\NAM.GRP')
+            DataFolders=@('nam'); Markers=@('games\nam\NAM.GRP'); MarkerFiles=@('NAM.GRP')
             LauncherInclude='(?i)^(NAM|NAPALM).* VR\.bat$'; LauncherExclude='a^'
         }
         ww2gi = @{
@@ -76,7 +76,7 @@ function Get-RazeGameDefinition([string]$Family) {
             IconFile='WW2GI_VR.ico'
             Quip='The Build engine storms the front with tracked weapons.'
             SteamAppIds=@('376750'); SteamFolders=@('World War II GI'); GogNames=@('World War II GI'); ExtraRoots=@()
-            DataFolders=@('ww2gi'); Markers=@('games\ww2gi\WW2GI.GRP')
+            DataFolders=@('ww2gi'); Markers=@('games\ww2gi\WW2GI.GRP'); MarkerFiles=@('WW2GI.GRP')
             LauncherInclude='(?i)^WWII GI.* VR\.bat$'; LauncherExclude='(?i)Platoon Leader'
         }
         exhumed = @{
@@ -85,7 +85,7 @@ function Get-RazeGameDefinition([string]$Family) {
             Quip='Ancient ruins and alien gods rise around you in true stereo.'
             SteamAppIds=@('1260020'); SteamFolders=@('PowerslaveCE','PowerSlave DOS Classic Edition')
             GogNames=@('Powerslave'); ExtraRoots=@()
-            DataFolders=@('exhumed'); Markers=@('games\exhumed\STUFF.DAT')
+            DataFolders=@('exhumed'); Markers=@('games\exhumed\STUFF.DAT'); MarkerFiles=@('STUFF.DAT')
             LauncherInclude='(?i)^(PowerSlave|Exhumed).* VR\.bat$'; LauncherExclude='a^'
         }
     }
@@ -155,6 +155,54 @@ function Get-RazeOwnedGameRoot($Definition,[string]$InstallRoot='') {
     foreach ($candidate in @($Definition.ExtraRoots)) {
         if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Container)) { return $candidate }
     }
+
+    # Scan the same universal game roots that setup.ps1 searches (GOG registry,
+    # 3D Realms Anthology, and standard C/D/E Games & GOG folders) so Option [1]
+    # auto-detects any standard installation without hardcoded personal paths.
+    $searchRoots = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($base in @('HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games', 'HKLM:\SOFTWARE\GOG.com\Games')) {
+        if (Test-Path -LiteralPath $base) {
+            foreach ($g in @(Get-ChildItem -LiteralPath $base -ErrorAction SilentlyContinue)) {
+                try {
+                    $p = (Get-ItemProperty -LiteralPath $g.PSPath -ErrorAction Stop).path
+                    if ($p -and (Test-Path -LiteralPath $p -PathType Container) -and -not $searchRoots.Contains($p)) {
+                        [void]$searchRoots.Add($p)
+                    }
+                } catch {}
+            }
+        }
+    }
+    foreach ($k in @('HKLM:\SOFTWARE\WOW6432Node\3DRealms\Anthology', 'HKLM:\SOFTWARE\3DRealms\Anthology', 'HKCU:\Software\3DRealms\Anthology')) {
+        try {
+            $p = (Get-ItemProperty -LiteralPath $k -ErrorAction Stop).'(default)'
+            if ($p -and (Test-Path -LiteralPath $p -PathType Container) -and -not $searchRoots.Contains($p)) {
+                [void]$searchRoots.Add($p)
+            }
+        } catch {}
+    }
+    foreach ($d in @(
+        'C:\Program Files (x86)\3D Realms', 'C:\Program Files\3D Realms', 'C:\3D Realms', 'C:\Games\3D Realms Anthology',
+        'C:\GOG Games', 'D:\GOG Games', 'E:\GOG Games', 'C:\Games', 'D:\Games', 'E:\Games'
+    )) {
+        if ((Test-Path -LiteralPath $d -PathType Container) -and -not $searchRoots.Contains($d)) {
+            [void]$searchRoots.Add($d)
+        }
+    }
+
+    $installFull = if ($InstallRoot) { [IO.Path]::GetFullPath($InstallRoot).TrimEnd([char[]]'\/') } else { '' }
+    foreach ($root in $searchRoots) {
+        foreach ($markerFile in @($Definition.MarkerFiles)) {
+            $candidates = @(Get-ChildItem -LiteralPath $root -Filter $markerFile -Recurse -File -Depth 4 -ErrorAction SilentlyContinue | Select-Object -First 5)
+            foreach ($cand in $candidates) {
+                # Skip files already inside the target RazeXR PCVR folder
+                if ($installFull -and $cand.DirectoryName.StartsWith($installFull, [StringComparison]::OrdinalIgnoreCase)) { continue }
+                # Exhumed STUFF.DAT must be >= 20 MB to avoid matching Duke's 840 KB stuff.dat
+                if ($Definition.Family -eq 'exhumed' -and $cand.Length -lt 20000000) { continue }
+                return $cand.DirectoryName
+            }
+        }
+    }
+
     if ($InstallRoot -and (Test-RazeGameData -InstallRoot $InstallRoot -Definition $Definition)) { return $InstallRoot }
     return $null
 }
@@ -216,8 +264,6 @@ function Write-RazeHubLaunchers([string]$InstallRoot) {
             )
             $written[$family] = $stable
         } elseif (Test-Path -LiteralPath $stable -PathType Leaf) {
-            # Preserve a previously generated, working stable launcher if a
-            # later engine pass could not regenerate its author launcher.
             $written[$family] = $stable
         }
 
@@ -293,8 +339,6 @@ function Get-RazeInstallRoot {
 
 function Install-RazeEnginePayload([string]$PayloadRoot,[string]$InstallRoot) {
     if (-not (Test-Path -LiteralPath $InstallRoot -PathType Container)) { [void][IO.Directory]::CreateDirectory($InstallRoot) }
-    # raze_portable.ini is player state. The first installation receives the
-    # release default; later engine updates never replace it.
     $configSource = Join-Path $PayloadRoot 'raze_portable.ini'
     $configTarget = Join-Path $InstallRoot 'raze_portable.ini'
     if (-not (Test-Path -LiteralPath $configTarget -PathType Leaf) -and (Test-Path -LiteralPath $configSource -PathType Leaf)) {
@@ -309,13 +353,7 @@ function Save-RazeEngineSnapshot([string]$InstallRoot,[string]$SnapshotRoot,[str
     $manifest = Join-Path $InstallRoot '.pcvrhub_razexrengine_ownership.csv'
     $backup = Join-Path $InstallRoot '.pcvrhub_razexrengine_backup'
     $relativePaths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
-    # Player configuration is deliberately not engine-owned, but a brand-new
-    # default is still part of this transaction and must disappear on rollback.
     [void]$relativePaths.Add('raze_portable.ini')
-    # setup.ps1 generates this pack from assets\vrweapons_models.pk3. It is not
-    # present in the downloaded payload, so include it explicitly in the
-    # transaction snapshot: a failed update restores an older generated pack,
-    # while a failed first install removes the newly generated one.
     [void]$relativePaths.Add('assets\vrweapons.pk3')
     if ($PayloadRoot -and (Test-Path -LiteralPath $PayloadRoot -PathType Container)) {
         $payloadBase = [IO.Path]::GetFullPath($PayloadRoot).TrimEnd([char[]]'\/')
@@ -381,42 +419,33 @@ function Restore-RazeEngineSnapshot([string]$InstallRoot,$Snapshot) {
 function Invoke-RazeAuthorSetup([string]$InstallRoot,[string]$ExtraRoot='',[switch]$ExclusiveRoot) {
     $setup = Join-Path $InstallRoot 'setup.ps1'
     if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) { throw 'The official setup.ps1 is missing after extraction.' }
-    $runSetup = $setup
-    $temporarySetup = $null
-    try {
-        if ($ExclusiveRoot) {
-            if (-not $ExtraRoot -or -not (Test-Path -LiteralPath $ExtraRoot -PathType Container)) {
-                throw 'Selected-only setup requires an existing owned-game folder.'
-            }
-            $text = [IO.File]::ReadAllText($setup)
-            $anchorPattern = '(?m)^if \(\$Root\) \{ AddRoot \$Root \}\s*$'
-            $matches = [regex]::Matches($text,$anchorPattern)
-            if ($matches.Count -ne 1) {
-                throw 'The current official setup cannot be safely limited to one game. Choose the all-compatible option or report this release.'
-            }
-            $replacement = "if (`$Root) {`r`n    `$roots.Clear()`r`n    AddRoot `$Root`r`n}"
-            $patched = [regex]::Replace($text,$anchorPattern,$replacement,1)
-            $temporarySetup = Join-Path $InstallRoot ('setup.pcvrhub-selected-' + [Guid]::NewGuid().ToString('N') + '.ps1')
-            [IO.File]::WriteAllText($temporarySetup,$patched,(New-Object Text.UTF8Encoding $false))
-            $runSetup = $temporarySetup
+
+    $arguments = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-File', $setup,
+        '-Quiet', '-NoShortcuts', '-NoSteam'
+    )
+    if ($ExclusiveRoot) {
+        if (-not $ExtraRoot -or -not (Test-Path -LiteralPath $ExtraRoot -PathType Container)) {
+            throw 'Selected-only setup requires an existing owned-game folder.'
         }
-        $arguments = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$runSetup)
-        if ($ExtraRoot) { $arguments += @('-Root',$ExtraRoot) }
-        # Consume the technical child-process report without forwarding it to
-        # either the host or this function's success pipeline.  Forwarding it
-        # floods the user-facing installer; leaving it on the pipeline delays
-        # formatting until after the final Enter-to-close prompt.
-        $authorOutput = @(& powershell.exe @arguments 2>&1 | ForEach-Object { [string]$_ })
-        $authorExitCode = $LASTEXITCODE
-        if ($authorExitCode -ne 0) {
-            $diagnostic = @($authorOutput | Select-Object -Last 12) -join [Environment]::NewLine
-            if ($diagnostic) { throw "The official RazeXR setup returned exit code $authorExitCode.`n$diagnostic" }
-            throw "The official RazeXR setup returned exit code $authorExitCode."
-        }
-    } finally {
-        if ($temporarySetup -and (Test-Path -LiteralPath $temporarySetup -PathType Leaf)) {
-            Remove-Item -LiteralPath $temporarySetup -Force -ErrorAction SilentlyContinue
-        }
+        # -GamePath sets $NoSearch = $true inside setup.ps1 so only $InstallRoot
+        # and $ExtraRoot are scanned, cleanly limiting import to one game
+        # without brittle regex patching of setup.ps1.
+        $arguments += @('-GamePath', "$InstallRoot;$ExtraRoot")
+    } else {
+        # Positional argument tells setup.ps1's Find-Home to target $InstallRoot
+        # instead of Documents\RazeXR PCVR while keeping auto-search enabled.
+        $arguments += @($InstallRoot)
+        if ($ExtraRoot) { $arguments += @('-Root', $ExtraRoot) }
+    }
+
+    $authorOutput = @(& powershell.exe @arguments 2>&1 | ForEach-Object { [string]$_ })
+    $authorExitCode = $LASTEXITCODE
+    if ($authorExitCode -ne 0) {
+        $diagnostic = @($authorOutput | Select-Object -Last 12) -join [Environment]::NewLine
+        if ($diagnostic) { throw "The official RazeXR setup returned exit code $authorExitCode.`n$diagnostic" }
+        throw "The official RazeXR setup returned exit code $authorExitCode."
     }
 }
 
@@ -475,38 +504,58 @@ function Install-RazeXRGame([string]$Family) {
         $installRoot = Get-RazeInstallRoot
         Write-RazeOK "Install folder: $installRoot"
 
-        Write-RazeStep 2 5 'Getting the current stable GitHub release'
+        Write-RazeStep 2 5 'Checking the current stable GitHub release'
         $release = Resolve-GitHubReleaseAsset -Repo $script:RazeRepo `
             -AssetPatterns @('(?i)^RazeXR-PCVR(?:[-_.]v?[0-9][0-9A-Za-z._-]*)?\.zip$') `
             -FallbackUrl $script:RazeFallbackUrl -FallbackTag $script:RazeFallbackTag -FallbackAssetName 'RazeXR-PCVR-1.1.zip'
         Write-RazeInfo "Stable release: $($release.Tag)"
-        $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr_razexr_' + [Guid]::NewGuid().ToString('N'))
-        [void][IO.Directory]::CreateDirectory($work)
-        $archive = Join-Path $work 'RazeXR-PCVR.zip'
-        $downloaded = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive `
-            -Label "RazeXR PCVR $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
-        if (-not ($downloaded -eq $true -or [string]$downloaded -in @('retry','manual'))) { throw 'The RazeXR release was not downloaded.' }
 
-        Write-RazeStep 3 5 'Installing or updating the shared VR engine'
-        $extract = Join-Path $work 'release'
-        $expanded = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'RazeXR PCVR release' -AllowSkip $false
-        if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The RazeXR archive could not be extracted.' }
-        $razeExe = Get-ChildItem -LiteralPath $extract -File -Filter 'raze.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-        if (-not $razeExe) { throw 'The downloaded ZIP contains no RazeXR executable, so nothing was installed.' }
-        $payload = $razeExe.DirectoryName
+        $expectedVersion = 'RazeXR PCVR ' + ([string]$release.Tag).TrimStart('v', 'V')
+        $versionFile = Join-Path $installRoot 'version.txt'
+        $installedVersion = if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
+            ([string](Get-Content -LiteralPath $versionFile -TotalCount 1)).Trim()
+        } else { '' }
+        $coreFilesPresent = $true
         foreach ($required in @('raze.exe','openxr_loader.dll','openal32.dll','setup.ps1','assets\vrweapons_models.pk3')) {
-            if (-not (Test-Path -LiteralPath (Join-Path $payload $required) -PathType Leaf)) {
-                throw "The current release is missing a functional RazeXR file: $required"
+            if (-not (Test-Path -LiteralPath (Join-Path $installRoot $required) -PathType Leaf)) {
+                $coreFilesPresent = $false
+                break
             }
         }
-        $engineSnapshot = Save-RazeEngineSnapshot -InstallRoot $installRoot -SnapshotRoot (Join-Path $work 'engine-rollback') -PayloadRoot $payload
-        $engineChanged = $true
-        [void](Install-RazeEnginePayload -PayloadRoot $payload -InstallRoot $installRoot)
-        $watch = @('raze.exe','openxr_loader.dll','openal32.dll','assets\vrweapons_models.pk3') | ForEach-Object { Join-Path $installRoot $_ }
-        if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $installRoot -ArchivePath $archive)) {
-            throw 'One or more RazeXR files did not survive the antivirus recovery check.'
+
+        if ($coreFilesPresent -and ($installedVersion -eq $expectedVersion)) {
+            Write-RazeOK "RazeXR $($release.Tag) is already installed in $installRoot - skipping download."
+            Write-RazeStep 3 5 'Verifying the shared VR engine'
+            Write-RazeOK 'Shared RazeXR engine and voxel hand weapons are already present.'
+        } else {
+            $work = Join-Path ([IO.Path]::GetTempPath()) ('pcvr_razexr_' + [Guid]::NewGuid().ToString('N'))
+            [void][IO.Directory]::CreateDirectory($work)
+            $archive = Join-Path $work 'RazeXR-PCVR.zip'
+            $downloaded = Invoke-SafeDownload -Urls @([string]$release.Url) -Destination $archive `
+                -Label "RazeXR PCVR $($release.Tag)" -ManualUrl ([string]$release.PageUrl) -AllowSkip $false
+            if (-not ($downloaded -eq $true -or [string]$downloaded -in @('retry','manual'))) { throw 'The RazeXR release was not downloaded.' }
+
+            Write-RazeStep 3 5 'Installing or updating the shared VR engine'
+            $extract = Join-Path $work 'release'
+            $expanded = Expand-ArchiveOrFallback -ArchivePath $archive -DestinationFolder $extract -Label 'RazeXR PCVR release' -AllowSkip $false
+            if ([string]$expanded -notin @('ok','manual','retry')) { throw 'The RazeXR archive could not be extracted.' }
+            $razeExe = Get-ChildItem -LiteralPath $extract -File -Filter 'raze.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $razeExe) { throw 'The downloaded ZIP contains no RazeXR executable, so nothing was installed.' }
+            $payload = $razeExe.DirectoryName
+            foreach ($required in @('raze.exe','openxr_loader.dll','openal32.dll','setup.ps1','assets\vrweapons_models.pk3')) {
+                if (-not (Test-Path -LiteralPath (Join-Path $payload $required) -PathType Leaf)) {
+                    throw "The current release is missing a functional RazeXR file: $required"
+                }
+            }
+            $engineSnapshot = Save-RazeEngineSnapshot -InstallRoot $installRoot -SnapshotRoot (Join-Path $work 'engine-rollback') -PayloadRoot $payload
+            $engineChanged = $true
+            [void](Install-RazeEnginePayload -PayloadRoot $payload -InstallRoot $installRoot)
+            $watch = @('raze.exe','openxr_loader.dll','openal32.dll','assets\vrweapons_models.pk3') | ForEach-Object { Join-Path $installRoot $_ }
+            if (-not (Confirm-PlacedFilesSurvive -Paths $watch -GameDir $installRoot -ArchivePath $archive)) {
+                throw 'One or more RazeXR files did not survive the antivirus recovery check.'
+            }
+            Write-RazeOK 'Shared RazeXR engine and voxel hand weapons are present.'
         }
-        Write-RazeOK 'Shared RazeXR engine and voxel hand weapons are present.'
 
         Write-RazeStep 4 5 'Finding owned game data and writing launchers'
         Write-Host '  This step can take a few minutes.' -ForegroundColor Yellow
