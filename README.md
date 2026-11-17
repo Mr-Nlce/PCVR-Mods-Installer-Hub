@@ -15,18 +15,18 @@
 
 # 🥽 Overview
 
-PCVR Mods Installer Hub is a batch-based portable tool designed to make installing publicly available VR mods for PC games on Windows easier, faster, and more straightforward. It brings many PCVR mods together in one place, provides custom installers for more complex setups, includes a built-in updater and also works as a launcher for all VR modded games. [Download the latest release](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub/releases/latest)
+PCVR Mods Installer Hub is a portable app for finding, installing, updating, and launching publicly available VR mods for PC games. It scans for supported games and existing VR installations, offers guided installers, and starts VR-ready games from your library. The Hub runs on Windows and includes a native Linux preview. [Download the latest release](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub/releases/latest)
 
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (365)</summary>
+<summary>Show all currently listed titles (369)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
 * A Tale of Two Realities (Fallout 3 + New Vegas) (motion controls)
 * Agent 64: Spies Never Die VR (motion controls)
-* Alan Wake
+* Alan Wake (motion controls)
 * Alba VR
 * Alien: Isolation VR (motion controls)
 * Aliens versus Predator Classic (2000) (motion controls)
@@ -60,6 +60,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Black Mesa Source VR (Half Life 2 Episode 2 Mod) (motion controls)
 * Blade of Darkness
 * Blood West (motion controls)
+* Blur VR
 * Bomb Rush Cyberfunk (motion controls)
 * Borderlands GOTY Enhanced VR [WIP] (motion controls)
 * Brütal Legend (motion controls)
@@ -84,6 +85,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Dark Souls III
 * Dark Souls Remastered
 * Days Gone
+* Dead Space (2008) VR (motion controls)
 * Dead Space 2 (motion controls)
 * Death Stranding
 * Decimate Drive VR (motion controls)
@@ -207,8 +209,9 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Mass Effect 1 Legendary Edition
 * Mass Effect 2 Legendary Edition
 * Mass Effect 3 Legendary Edition
-* Max Payne VR (motion controls)
+* Max Payne 1 VR (motion controls)
 * Max Payne 2 VR (motion controls)
+* Mega Man Star Force Legacy Collection
 * Metal Gear Solid V: The Phantom Pain [WIP] (motion controls)
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
@@ -371,6 +374,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Unreal Revived VR (motion controls)
 * Valheim VR (motion controls)
 * Vampire Hunters (motion controls)
+* Vampire: The Masquerade – Bloodlines [WIP] (motion controls)
 * Vivecraft VR (motion controls)
 * Virtua Cop 2 VR (motion controls)
 * Warhammer 40K: Darktide VR (motion controls)
@@ -431,23 +435,23 @@ Shaak4 VR (Spanish video)</b>
 
 ### 📦 Installation
 
-- Custom installers automate complex setups and guide you through any remaining manual steps
-- Direct links to original download pages or existing installers for straightforward setups
-- Background update checks for supported installed mods, with an **Updates** filter and counter
-- Reinstall mods directly from the Hub
-- Installer recovery options to retry failed installations or provide downloaded files manually
-- Built-in updater for keeping the Hub itself up to date
+- Guided installers automate setup and explain any manual steps. Some games offer a choice of VR mods or a pinned Steam build for compatibility
+- The integrated installer shows progress and prompts inside the Hub, with copyable output, adjustable text size, and file or folder drag-and-drop
+- External setups link directly to the original download or official installer
+- Background version checks flag available updates for supported installed mods. Update or reinstall them from the Hub
+- Installer recovery lets you retry an installation or supply a manually downloaded file
+- The built-in Windows updater shows release notes and progress, preserves your settings and personal files, and can apply updates automatically at startup
 
 ### 🎮 Game Management
 
-- Detects supported games and installed VR mods, with optional scanning on startup and manual folder selection
-- Launches VR-ready games directly from the Hub
-- **Recently Played** provides quick access to your latest games
-- **Favorites** keeps your preferred titles easy to find, whether installed or not
-- **My Games** lets you import installed Steam games or add your own programs and launcher links, with custom artwork and launch options
-- Filters for **Needs Mod**, **VR Ready**, and **Updates**
-- Integrated uninstallers or removal instructions, where available
-- Switch between flat and VR play for supported mods
+- Detects supported Steam, GOG, and Epic installations and existing VR mods, with optional startup scanning and a manual **Locate Game** option
+- The **Not installed** section shows owned games with available VR mods. **Import from Playnite** can match more games from your library
+- Launch VR-ready games directly and get game-specific troubleshooting when the Hub detects a startup problem
+- **Recently Played** gives you quick access to the games you launched most recently
+- **Favorites** keeps your preferred titles easy to find regardless of installation status
+- **My Games** imports games from Steam, GOG, or Epic and profiles from UEVR Easy Injector. Add your own programs or launcher links with custom artwork and launch options
+- Status filters help you find games marked **Needs Mod** or **VR Ready**, and games with **Updates available**
+- Use an integrated uninstaller, follow removal instructions, or switch between flat and VR play where supported
 
 ### 🔎 Browsing
 
@@ -459,12 +463,12 @@ Shaak4 VR (Spanish video)</b>
 - Exclude search terms with `-` or permanently hide selected modders and ROM-based games
 - Sort alphabetically, by VR mod release date, by date added to the Hub, or with favorites first
 - Hover previews and adjustable game tile sizes
-- Classic and frosted tile styles, with options to disable visual effects
-- **Detailed game pages** with requirements, similar games, installation guides, and compatibility notes
+- Classic and frosted tile styles, dark, light, and high-contrast color profiles, optional bold text, and controls for effects and mouse-wheel speed
+- **Detailed game pages** show requirements, similar games, setup guides, VR file details, and collapsible GitHub release notes for supported mods
 
 <img width="930" height="1029" alt="game-detail" src="https://github.com/user-attachments/assets/46c1eb09-3571-4e34-a249-e4dfc05ce769" />
 
-- Controller layouts and curated gameplay videos, where available
+- Controller layouts and curated gameplay videos where available. Game tiles flag ROM requirements and external downloads
 
 ### 🧭 Discovery
 
@@ -472,7 +476,7 @@ Shaak4 VR (Spanish video)</b>
 
 <img width="990" height="954" alt="Explore-area" src="https://github.com/user-attachments/assets/e602cead-3a80-4a9d-99a2-aa8fc856233d" />
 
-- Compares your GPU with the recommended hardware for each game
+- **Rate my GPU** compares your hardware with the recommended GPU for supported games
 - **Gems filter** highlights curated mods offering a polished, native-feeling VR experience
 - Control filters and compatibility markers indicating:
   - Motion controls
@@ -483,7 +487,7 @@ Shaak4 VR (Spanish video)</b>
 
 # 🚀 Setup
 
-Developed for Windows, not tested on other operating systems.
+The ZIP includes the Windows build and the native 64-bit Linux preview. On Linux, compatibility varies by game and VR mod.
 
 ## 1. Download
 
@@ -497,21 +501,23 @@ Extract the archive and move the **PCVR Mods Installer Hub** folder to your pref
 
 ## 3. First Launch
 
-Run: **Start PCVR Mods Hub.bat**
+On Windows, run **Start PCVR Mods Hub.bat**.
 
-The Hub automatically creates a desktop shortcut named **VR Mods Hub** for future use. You can disable this through **Help & Feedback (3-dot button)**.
+Manage the **VR Mods Hub** desktop shortcut through **Help & Feedback (3-dot button)**.
+
+On Linux, run `Core/Utils/pcvr-hub`. If needed, make it executable first with `chmod +x Core/Utils/pcvr-hub`. The preview uses PowerShell 7 for installers and Proton for Windows games. See `Core/Utils/LINUX-TESTING.md` in the ZIP for requirements and setup steps. Download new Linux builds manually.
 
 # 🔓 Why PowerShell and Batch?
 
-The Hub uses PowerShell and batch scripts to keep the project transparent and fully auditable. Each GitHub release includes the complete source code, so every line can be inspected.
+The main Hub interface is built in Rust. PowerShell and batch scripts still handle many game-specific installers and launch steps. The Windows build also includes the classic PowerShell Hub as a fallback.
 
 ---
 
 # 🧪 Testing
 
-Every included custom installer has been tested on my own system.
+I test custom installers on my own system when I have access to the game and mod. **Untested Installers** lists community testing candidates and can prepare a report for testers to review and submit on GitHub.
 
-Some REFramework and Luke Ross supported games could not be fully tested because I do not own every compatible title. Where necessary, installation procedures were compiled from official documentation and community resources.
+For some REFramework and Luke Ross titles, setup instructions are based on the mod authors’ documentation and community resources. Testing coverage varies by game and mod version.
 
 Games and VR mods continue to evolve, and updates can affect compatibility. Check the game-specific notes for requirements and known limitations.
 
@@ -522,20 +528,20 @@ Games and VR mods continue to evolve, and updates can affect compatibility. Chec
 
 Feedback, bug reports, feature requests, and new game suggestions help keep the Hub accurate and up to date.
 
-Use **Help & Feedback (3-dot button)** to access problem reporting, logs, mod suggestions, Discord, and interface customization, or contribute here on GitHub:
+Open **Help & Feedback (3-dot button)** for logs, problem reports, mod suggestions, Discord, and interface settings.
 
 - **Issues** – Report bugs or installation problems
 - **Discussions** – Suggest features, request new games, or share ideas
 
-Game-specific debug launchers are also available for supported titles.
+Supported games also offer dedicated debug launchers. For detected launch problems, the Hub can prefill a GitHub report with diagnostic details.
 
 ---
 
 # ℹ️ Disclaimer
 
-The Hub does **not** contain, host, or redistribute VR mods or game files. It helps users discover, install, and manage publicly available VR mods.
+**Base games and third-party VR mods** come from their original stores or distribution sources, so mod downloads are credited to their creators.
 
-All mod files are downloaded directly from their original sources, keeping download statistics with the original creators.
+The Hub includes first-party components such as its Elderborn motion-control bridge.
 
 All trademarks, game titles, and mod projects remain the property of their respective owners.
 
