@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (363)</summary>
+<summary>Show all currently listed titles (365)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -112,6 +112,7 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Duke Nukem 3D VR (motion controls)
 * Dungeon Keeper 2 (motion controls)
 * Dusk HD (DLC) VR (motion controls)
+* Dying Light (motion controls)
 * EARTH DEFENSE FORCE 6 VR [WIP] (motion controls)
 * Echo Generation 2
 * Elden Ring (motion controls) (also a second VR mod for gamepad)
@@ -206,7 +207,8 @@ PCVR Mods Installer Hub is a batch-based portable tool designed to make installi
 * Mass Effect 1 Legendary Edition
 * Mass Effect 2 Legendary Edition
 * Mass Effect 3 Legendary Edition
-* Max Payne 2 VR [WIP] (motion controls)
+* Max Payne VR (motion controls)
+* Max Payne 2 VR (motion controls)
 * Metal Gear Solid V: The Phantom Pain [WIP] (motion controls)
 * Metal Hellsinger VR (motion controls)
 * Metroid Prime VR (motion controls)
