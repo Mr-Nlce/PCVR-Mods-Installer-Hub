@@ -24,7 +24,6 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
-* A Tale of Two Realities (Fallout 3 + New Vegas) (motion controls)
 * Agent 64: Spies Never Die VR (motion controls)
 * Alan Wake (motion controls)
 * Alba VR
