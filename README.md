@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (369)</summary>
+<summary>Show all currently listed titles (368)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
