@@ -15,12 +15,12 @@
 
 # 🥽 Overview
 
-PCVR Mods Installer Hub is a portable app for finding, installing, updating, and launching publicly available VR mods for PC games. It scans for supported games and existing VR installations, offers guided installers, and starts VR-ready games from your library. The Hub runs on Windows and includes a native Linux preview. [Download the latest release](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub/releases/latest)
+PCVR Mods Installer Hub is a portable app for finding, installing, updating, and launching publicly available VR mods for PC games. It scans for supported games and existing VR installations, offers guided installers, and starts VR-ready games from your library. The same download includes the main Windows Hub, the Windows PowerShell Edition, and a native Linux Edition preview. [Download the latest release](https://github.com/Mr-Nlce/PCVR-Mods-Installer-Hub/releases/latest)
 
 ## 🎮 Supported games
 
 <details>
-<summary>Show all currently listed titles (368)</summary>
+<summary>Show supported games (370)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -205,14 +205,13 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * Mafia II (Classic) (motion controls)
 * Mage Arena (motion controls)
 * Mario Kart Wii (motion controls)
-* Mass Effect 1 Legendary Edition
-* Mass Effect 2 Legendary Edition
-* Mass Effect 3 Legendary Edition
 * Max Payne 1 VR (motion controls)
 * Max Payne 2 VR (motion controls)
 * Mega Man Star Force Legacy Collection
+* Metal Gear Solid 4 VR (motion controls)
 * Metal Gear Solid V: The Phantom Pain [WIP] (motion controls)
 * Metal Hellsinger VR (motion controls)
+* Metro Exodus VR (motion controls)
 * Metroid Prime VR (motion controls)
 * Mirage Feathers VR
 * Mirror’s Edge [WIP] (motion controls)
@@ -441,6 +440,14 @@ Shaak4 VR (Spanish video)</b>
 - Installer recovery lets you retry an installation or supply a manually downloaded file
 - The built-in Windows updater shows release notes and progress, preserves your settings and personal files, and can apply updates automatically at startup
 
+### GitHub login
+
+The Rust Hub on Windows and Linux can optionally connect to your GitHub account. Open **Options & help → Logins**, select **Create token**, then paste your personal access token into the Hub and select **Connect**.
+
+This raises the primary GitHub REST API limit for release checks and installer lookups from **60 anonymous requests per hour** to **5,000 authenticated requests per hour**. [GitHub API rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
+
+With **Starring** write permission, you can star or unstar a supported mod’s GitHub project directly from its game page. The token is stored on your device.
+
 ### 🎮 Game Management
 
 - Detects supported Steam, GOG, and Epic installations and existing VR mods, with optional startup scanning and a manual **Locate Game** option
@@ -486,7 +493,7 @@ Shaak4 VR (Spanish video)</b>
 
 # 🚀 Setup
 
-The ZIP includes the Windows build and the native 64-bit Linux preview. On Linux, compatibility varies by game and VR mod.
+The same ZIP includes the Windows Hub, the Windows PowerShell Edition, and the native 64-bit Linux Edition preview.
 
 ## 1. Download
 
@@ -500,21 +507,27 @@ Extract the archive and move the **PCVR Mods Installer Hub** folder to your pref
 
 ## 3. First Launch
 
-On Windows, run **Start PCVR Mods Hub.bat**.
+### Windows
+
+Run **Start PCVR Mods Hub.bat** to open the main Rust Hub. If it fails to open, the launcher starts **PCVR Mods Installer Hub (PowerShell Edition)** automatically. You can also open the PowerShell Edition directly with `Core/Start PowerShell Hub.bat`.
 
 Manage the **VR Mods Hub** desktop shortcut through **Help & Feedback (3-dot button)**.
 
-On Linux, run `Core/Utils/pcvr-hub`. If needed, make it executable first with `chmod +x Core/Utils/pcvr-hub`. The preview uses PowerShell 7 for installers and Proton for Windows games. See `Core/Utils/LINUX-TESTING.md` in the ZIP for requirements and setup steps. Download new Linux builds manually.
+### Linux Edition
+
+From the extracted Hub folder, run `./Core/Utils/pcvr-hub`. If your ZIP extractor dropped the executable permission, run `chmod +x Core/Utils/pcvr-hub` first. The Linux Edition is a preview and uses PowerShell 7 for installers and Proton for Windows games. Compatibility varies by game and VR mod.
+
+See `Core/Utils/LINUX-TESTING.md` in the ZIP for requirements and setup. Download new Linux builds manually.
 
 # 🔓 Why PowerShell and Batch?
 
-The main Hub interface is built in Rust. PowerShell and batch scripts still handle many game-specific installers and launch steps. The Windows build also includes the classic PowerShell Hub as a fallback.
+The main Hub interface is built in Rust. PowerShell and batch scripts still handle many game-specific installers and launch steps. The Windows PowerShell Edition provides a fallback interface.
 
 ---
 
 # 🧪 Testing
 
-I test custom installers on my own system when I have access to the game and mod. **Untested Installers** lists community testing candidates and can prepare a report for testers to review and submit on GitHub.
+I test custom installers on my own system when I have access to the game and mod. The supported games list above excludes entries in **Untested Installers**. Those candidates are available in the Hub, which can prepare a report for testers to review and submit on GitHub.
 
 For some REFramework and Luke Ross titles, setup instructions are based on the mod authors’ documentation and community resources. Testing coverage varies by game and mod version.
 
