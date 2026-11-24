@@ -440,7 +440,7 @@ Shaak4 VR (Spanish video)</b>
 - Installer recovery lets you retry an installation or supply a manually downloaded file
 - The built-in Windows updater shows release notes and progress, preserves your settings and personal files, and can apply updates automatically at startup
 
-### GitHub login
+### 🔑 GitHub login
 
 The Rust Hub on Windows and Linux can optionally connect to your GitHub account. Open **Options & help → Logins**, select **Create token**, then paste your personal access token into the Hub and select **Connect**.
 
