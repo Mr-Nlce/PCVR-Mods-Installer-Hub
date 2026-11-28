@@ -20,7 +20,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 ## 🎮 Supported games
 
 <details>
-<summary>Show supported games (370)</summary>
+<summary>Show supported games (375)</summary>
 
 * 7 Days to Die VR (motion controls)
 * A Kingdom for Keflings (motion controls)
@@ -235,6 +235,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * Nuclear Option
 * One Unit Whole Blood VR (motion controls)
 * Onimusha 2: Samurai's Destiny
+* Ori and the Blind Forest: Definitive Edition VR
 * Outbound
 * Outer Wilds VR (motion controls)
 * Outlast
@@ -251,6 +252,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * Penumbra: Overture VR (motion controls)
 * Penumbra: Requiem VR (motion controls)
 * Perfect Dark VR (motion controls)
+* Persona 5 Royal VR
 * Pokemon Crystal
 * Pokemon Gen 1 Recomp Voxel
 * Pokemon Pinball
@@ -322,6 +324,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * Star Trucker
 * Star Wars: Episode I Racer VR
 * Star Wars Outlaws
+* Star Wars: X-Wing Alliance VR (motion controls)
 * Star Wars - X-Wing SE VR
 * Stardew Valley VR [WIP] (motion controls)
 * Starfield VR
@@ -341,6 +344,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * The Dark Mod VR
 * The Darkness II (motion controls)
 * The Elder Scrolls IV: Oblivion [WIP]
+* The Evil Within 2 VR [WIP] (motion controls)
 * The House of the Dead 2 (original game) (motion controls)
 * The House of the Dead Remake (motion controls)
 * The House of the Dead 2 Remake (motion controls)
@@ -351,6 +355,7 @@ PCVR Mods Installer Hub is a portable app for finding, installing, updating, and
 * The Witcher 3: Wild Hunt
 * The Witness VR [WIP]
 * Thief (2014) [WIP]
+* Time Crisis VR (motion controls)
 * Tiny Tina’s Wonderlands (motion controls)
 * Tinykin VR
 * Titanfall 2 VR [WIP] (motion controls)
